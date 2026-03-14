@@ -3,11 +3,11 @@
 # =============================================================================
 #
 # Publie les artefacts de build vers 3 repos de distribution :
-#   - dsfr-data         : bibliotheque web components (npm-ready)
 #   - dsfr-data-grist   : plugins Grist (widget chart + datalist)
 #   - dsfr-data-proxy   : proxy CORS nginx autonome
+#   - dsfr-data-mcp     : serveur MCP pour connecteurs IA
 #
-# Declenchement : tag v*, push sur main, ou manuel.
+# Declenchement : tag v* ou manuel.
 #
 # Prerequis : creer un secret PUBLISH_TOKEN contenant un PAT GitHub
 # avec le scope "repo" (pour creer/pousser vers les repos cibles).
@@ -46,15 +46,8 @@ jobs:
       - name: Build grist-widgets
         run: npm run build --workspace=@dsfr-data/app-grist-widgets
 
-      - name: Upload lib dist
-        uses: actions/upload-artifact@v4
-        with:
-          name: lib-dist
-          path: |
-            dist/
-            package.json
-            README.md
-            LICENSE
+      - name: Build MCP server
+        run: npm run build --workspace=dsfr-data-mcp
 
       - name: Upload grist dist
         uses: actions/upload-artifact@v4
@@ -71,82 +64,14 @@ jobs:
           path: |
             proxy/
 
-  # ---------------------------------------------------------------------------
-  # Publish : dsfr-data (bibliotheque web components)
-  # ---------------------------------------------------------------------------
-  publish-lib:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v4
+      - name: Upload MCP server
+        uses: actions/upload-artifact@v4
         with:
-          name: lib-dist
-          path: artifact
-
-      - name: Determine version
-        id: version
-        run: |
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
-          else
-            echo "tag=latest" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Prepare repo content
-        run: |
-          mkdir publish && cd publish
-          cp -r ../artifact/dist .
-          cp ../artifact/README.md . 2>/dev/null || true
-          cp ../artifact/LICENSE . 2>/dev/null || true
-
-          # Generate a standalone package.json (no workspaces, no devDeps)
-          node -e "
-            const pkg = require('../artifact/package.json');
-            const standalone = {
-              name: 'dsfr-data',
-              version: pkg.version,
-              description: pkg.description,
-              main: pkg.main,
-              module: pkg.module,
-              types: pkg.types,
-              files: ['dist'],
-              keywords: pkg.keywords,
-              license: pkg.license,
-              dependencies: pkg.dependencies,
-              repository: {
-                type: 'git',
-                url: 'https://github.com/${{ github.repository_owner }}/dsfr-data'
-              }
-            };
-            require('fs').writeFileSync('package.json', JSON.stringify(standalone, null, 2) + '\n');
-          "
-
-      - name: Push to dsfr-data repo
-        env:
-          GH_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
-        run: |
-          cd publish
-          git init
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          # Create repo if it doesn't exist
-          gh repo view "${{ github.repository_owner }}/dsfr-data" >/dev/null 2>&1 || \
-            gh repo create "${{ github.repository_owner }}/dsfr-data" \
-              --public \
-              --description "Bibliotheque de Web Components de dataviz conformes DSFR"
-
-          git add -A
-          git commit -m "publish ${{ steps.version.outputs.tag }} from ${{ github.repository }}"
-          git branch -M main
-          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository_owner }}/dsfr-data.git"
-          git push -f origin main
-
-          # Create tag if versioned
-          if [[ "${{ steps.version.outputs.tag }}" != "latest" ]]; then
-            git tag "${{ steps.version.outputs.tag }}"
-            git push origin "${{ steps.version.outputs.tag }}" --force
-          fi
+          name: mcp-dist
+          path: |
+            mcp-server/dist/
+            mcp-server/package.json
+            mcp-server/README.md
 
   # ---------------------------------------------------------------------------
   # Publish : dsfr-data-grist (plugins Grist)
@@ -172,8 +97,6 @@ jobs:
       - name: Prepare repo content
         run: |
           mkdir publish && cd publish
-          # upload-artifact@v4 strips common prefix (apps/grist-widgets/)
-          # so dist contents are at artifact/dist/
           cp -r ../artifact/dist/* .
           cp ../artifact/README.md . 2>/dev/null || true
 
@@ -227,8 +150,6 @@ jobs:
       - name: Prepare repo content
         run: |
           mkdir publish && cd publish
-          # upload-artifact@v4 strips common prefix (proxy/)
-          # so files are at artifact/README.md and artifact/nginx/
           cp ../artifact/README.md .
           cp ../artifact/nginx/nginx.conf .
           cp ../artifact/nginx/docker-compose.yml .
@@ -252,6 +173,60 @@ jobs:
           git commit -m "publish ${{ steps.version.outputs.tag }} from ${{ github.repository }}"
           git branch -M main
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository_owner }}/dsfr-data-proxy.git"
+          git push -f origin main
+
+          if [[ "${{ steps.version.outputs.tag }}" != "latest" ]]; then
+            git tag "${{ steps.version.outputs.tag }}"
+            git push origin "${{ steps.version.outputs.tag }}" --force
+          fi
+
+  # ---------------------------------------------------------------------------
+  # Publish : dsfr-data-mcp (serveur MCP)
+  # ---------------------------------------------------------------------------
+  publish-mcp:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: mcp-dist
+          path: artifact
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=latest" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Prepare repo content
+        run: |
+          mkdir publish && cd publish
+          cp -r ../artifact/dist .
+          cp ../artifact/package.json .
+          cp ../artifact/README.md . 2>/dev/null || true
+
+      - name: Push to dsfr-data-mcp repo
+        env:
+          GH_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
+        run: |
+          cd publish
+          git init
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Create repo if it doesn't exist
+          gh repo view "${{ github.repository_owner }}/dsfr-data-mcp" >/dev/null 2>&1 || \
+            gh repo create "${{ github.repository_owner }}/dsfr-data-mcp" \
+              --public \
+              --description "Serveur MCP pour generation de graphiques dsfr-data via IA"
+
+          git add -A
+          git commit -m "publish ${{ steps.version.outputs.tag }} from ${{ github.repository }}"
+          git branch -M main
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository_owner }}/dsfr-data-mcp.git"
           git push -f origin main
 
           if [[ "${{ steps.version.outputs.tag }}" != "latest" ]]; then
