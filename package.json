@@ -2,6 +2,11 @@
   "name": "dsfr-data",
   "version": "0.3.3",
   "description": "Bibliothèque de Web Components de dataviz pour sites gouvernementaux",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bmatge/dsfr-data.git"
+  },
+  "homepage": "https://bmatge.github.io/dsfr-data/specs/",
   "type": "module",
   "main": "dist/dsfr-data.umd.js",
   "module": "dist/dsfr-data.esm.js",
