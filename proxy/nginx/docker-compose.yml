@@ -1,0 +1,38 @@
+# =============================================================================
+# Docker Compose - Proxy CORS autonome pour dsfr-data
+# =============================================================================
+#
+# Deploie un reverse proxy Nginx qui contourne les restrictions CORS
+# des APIs externes (Grist, Albert, Tabular API).
+#
+# Utilisation :
+#   docker compose up -d        # Demarrer en arriere-plan
+#   docker compose logs -f      # Voir les logs
+#   docker compose down         # Arreter
+#   docker compose restart      # Redemarrer apres modification de nginx.conf
+#
+# Le proxy ecoute sur le port 3000 de la machine hote.
+# =============================================================================
+
+services:
+  proxy:
+    image: nginx:alpine
+    container_name: dsfr-data-proxy
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    volumes:
+      # Monte le fichier de configuration Nginx
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    # Limite les ressources (ajuster selon les besoins)
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.5"

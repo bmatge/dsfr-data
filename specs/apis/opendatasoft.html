@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenDataSoft - API supportees - dsfr-data</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css" integrity="sha384-VuzA/gYnk/ZqcT5a/ravR88otj71vNPl/h1JPrKoESV33DCX6SeXIxBcRr5qYPRj" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css" integrity="sha384-YR4AxNhFVy1qsQ0Hp7Rosg06e4sj2m9dLxiYZrtqJ0boIOiDbD8XkIsIPMMkf0VL" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <style>
+    body { min-height: 100vh; display: flex; flex-direction: column; }
+    .capability-yes { color: var(--text-default-success); font-weight: bold; }
+    .capability-no { color: var(--text-default-error); }
+  </style>
+</head>
+<body>
+  <app-header current-page="composants" base-path="../../"></app-header>
+
+  <app-layout-demo
+    title="OpenDataSoft"
+    icon="ri-cloud-line"
+    active-path="apis/opendatasoft"
+    base-path="../">
+    <div slot="content">
+        <p class="fr-text--lead">
+          API de la plateforme <strong>OpenDataSoft</strong> (ODS), utilisee par de nombreux portails open data
+          publics (data.economie.gouv.fr, data.education.gouv.fr, etc.).
+          C'est l'API la plus complete en termes de capacites serveur.
+        </p>
+
+        <div class="fr-callout fr-callout--green-emeraude">
+          <h4 class="fr-callout__title">API la plus riche</h4>
+          <p class="fr-callout__text">
+            OpenDataSoft supporte <strong>toutes les fonctionnalites serveur</strong> : pagination, facettes,
+            recherche full-text, group-by, tri et agregation. Les requetes utilisent la syntaxe
+            <strong>ODSQL</strong>, un dialecte SQL simplifie.
+          </p>
+        </div>
+
+        <!-- Capacites serveur -->
+        <section class="fr-mt-4w">
+          <h2>Capacites serveur</h2>
+          <div class="fr-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Capacite</th>
+                  <th>Support</th>
+                  <th>Detail</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Fetch serveur</td>
+                  <td class="capability-yes">Oui</td>
+                  <td>Recuperation paginee des donnees</td>
+                </tr>
+                <tr>
+                  <td>Facettes serveur</td>
+                  <td class="capability-yes">Oui</td>
+                  <td>Endpoint dedie <code>/facets</code></td>
+                </tr>
+                <tr>
+                  <td>Recherche serveur</td>
+                  <td class="capability-yes">Oui</td>
+                  <td>Full-text via <code>search("{q}")</code></td>
+                </tr>
+                <tr>
+                  <td>Group-by serveur</td>
+                  <td class="capability-yes">Oui</td>
+                  <td>Clause <code>group_by</code> ODSQL</td>
+                </tr>
+                <tr>
+                  <td>Tri serveur</td>
+                  <td class="capability-yes">Oui</td>
+                  <td>Clause <code>order_by</code> ODSQL</td>
+                </tr>
+                <tr>
+                  <td>Agregation serveur</td>
+                  <td class="capability-yes">Oui</td>
+                  <td>Fonctions <code>sum</code>, <code>avg</code>, <code>count</code>, <code>min</code>, <code>max</code> dans <code>select</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Pagination -->
+        <section class="fr-mt-4w">
+          <h2>Pagination</h2>
+          <div class="fr-table">
+            <table>
+              <thead>
+                <tr><th>Parametre</th><th>Valeur</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Type</td><td><code>offset</code></td></tr>
+                <tr><td>Taille de page</td><td>100 enregistrements</td></tr>
+                <tr><td>Pages max</td><td>10</td></tr>
+                <tr><td>Enregistrements max</td><td>1 000</td></tr>
+                <tr><td>Parametres URL</td><td><code>offset</code>, <code>limit</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="fr-highlight fr-mt-2w">
+            <p>
+              La limite de 1 000 enregistrements s'applique a la recuperation client-side via
+              <code>dsfr-data-source</code>. Pour les agregations et group-by, utilisez <code>dsfr-data-query</code>
+              qui delegue le calcul au serveur ODS.
+            </p>
+          </div>
+        </section>
+
+        <!-- Syntaxe de requete -->
+        <section class="fr-mt-4w">
+          <h2>Syntaxe de requete (ODSQL)</h2>
+          <p>
+            OpenDataSoft utilise <strong>ODSQL</strong>, un dialecte SQL simplifie, pour les clauses
+            <code>select</code>, <code>where</code>, <code>group_by</code> et <code>order_by</code>.
+          </p>
+
+          <h3 class="fr-mt-2w">Exemples de syntaxe</h3>
+          <div class="fr-table">
+            <table>
+              <thead>
+                <tr><th>Clause</th><th>Exemple</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>select</code></td><td><code>region, sum(population) as population__sum</code></td></tr>
+                <tr><td><code>where</code></td><td><code>departement = "75" AND population > 1000</code></td></tr>
+                <tr><td><code>group_by</code></td><td><code>region</code></td></tr>
+                <tr><td><code>order_by</code></td><td><code>population__sum DESC</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3 class="fr-mt-2w">Separateur WHERE</h3>
+          <p>Les clauses WHERE multiples sont jointes par <code> AND </code>.</p>
+        </section>
+
+        <!-- Facettes -->
+        <section class="fr-mt-4w">
+          <h2>Facettes</h2>
+          <div class="fr-table">
+            <table>
+              <thead>
+                <tr><th>Parametre</th><th>Valeur</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Mode par defaut</td><td><strong>server</strong></td></tr>
+                <tr><td>Endpoint</td><td><code>/facets</code> (dedie)</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="fr-mt-1w">
+            Les facettes sont calculees cote serveur, ce qui est tres performant meme sur de gros jeux de donnees.
+            Utilisez <code>&lt;dsfr-data-facets server-facets&gt;</code> pour activer ce mode.
+          </p>
+        </section>
+
+        <!-- Authentification -->
+        <section class="fr-mt-4w">
+          <h2>Authentification</h2>
+          <p>
+            Type : <strong>API key en header</strong> (<code>apikey-header</code>).<br>
+            La plupart des portails ODS publics ne necessitent pas d'authentification.
+            Pour les datasets prives, ajoutez la cle API via le header <code>Authorization</code>.
+          </p>
+        </section>
+
+        <!-- Structure de reponse -->
+        <section class="fr-mt-4w">
+          <h2>Structure de reponse</h2>
+          <div class="fr-table">
+            <table>
+              <thead>
+                <tr><th>Parametre</th><th>Valeur</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Chemin des donnees</td><td><code>results</code></td></tr>
+                <tr><td>Chemin du total</td><td><code>total_count</code></td></tr>
+                <tr><td>Donnees imbriquees</td><td>Non (champs a plat)</td></tr>
+                <tr><td>Necessite flatten</td><td>Non</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Detection automatique -->
+        <section class="fr-mt-4w">
+          <h2>Detection automatique</h2>
+          <p>
+            dsfr-data detecte automatiquement une source OpenDataSoft si l'URL contient :
+          </p>
+          <ul>
+            <li><code>/api/explore/v2.1/catalog/datasets/{datasetId}</code></li>
+          </ul>
+          <p class="fr-mt-1w">
+            Portails connus : <code>data.economie.gouv.fr</code>, <code>data.education.gouv.fr</code>,
+            et tout domaine <code>*.opendatasoft.com</code>.
+          </p>
+        </section>
+
+        <!-- Exemple -->
+        <section class="fr-mt-4w">
+          <h2>Exemple d'utilisation</h2>
+
+          <h3>Graphique simple</h3>
+          <pre><code>&lt;dsfr-data-source
+  id="src"
+  api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr"
+  dataset-id="mon-dataset"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-query
+  source="src"
+  group-by="region"
+  select="region, sum(valeur) as valeur__sum"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;dsfr-data-chart
+  source="src"
+  type="bar"
+  name-field="region"
+  value-field="valeur__sum"&gt;
+&lt;/dsfr-data-chart&gt;</code></pre>
+
+          <h3 class="fr-mt-2w">Avec facettes serveur</h3>
+          <pre><code>&lt;dsfr-data-source
+  id="src"
+  api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr"
+  dataset-id="mon-dataset"
+  server-side&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-facets
+  source="src"
+  fields="region,departement"
+  server-facets&gt;
+&lt;/dsfr-data-facets&gt;</code></pre>
+        </section>
+    </div>
+  </app-layout-demo>
+
+  <app-footer base-path="../../"></app-footer>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js"></script>
+</body>
+</html>

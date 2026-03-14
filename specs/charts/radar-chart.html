@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Radar Chart - DSFR Chart - dsfr-data</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"></script>
+  <style>
+    body { min-height: 100vh; display: flex; flex-direction: column; }
+  </style>
+</head>
+<body>
+  <app-header current-page="composants" base-path="../../"></app-header>
+
+  <app-layout-demo title="Graphique radar" icon="ri-focus-3-line" active-path="charts/radar-chart" base-path="../">
+    <div slot="content">
+      <p class="fr-text--lead">Le composant <code>&lt;radar-chart&gt;</code> permet de comparer plusieurs variables simultanement.</p>
+
+      <section class="demo-section">
+        <h3>Radar simple</h3>
+        <radar-chart
+          x='[["RGAA", "DSFR", "Performance", "Securite", "Accessibilite"]]'
+          y="[[85, 90, 75, 95, 88]]"
+          selected-palette="default">
+        </radar-chart>
+        <div class="code-block"><pre>&lt;radar-chart
+  x='[["RGAA", "DSFR", "Performance", "Securite", "Accessibilite"]]'
+  y="[[85, 90, 75, 95, 88]]"
+  selected-palette="default"&gt;
+&lt;/radar-chart&gt;</pre></div>
+      </section>
+
+      <section class="demo-section">
+        <h3>Comparaison multi-series</h3>
+        <radar-chart
+          x='[["RGAA", "DSFR", "Perf", "Secu", "A11y"], ["RGAA", "DSFR", "Perf", "Secu", "A11y"]]'
+          y="[[85, 90, 75, 95, 88], [70, 80, 90, 75, 82]]"
+          selected-palette="categorical">
+        </radar-chart>
+        <div class="code-block"><pre>&lt;radar-chart
+  x='[["RGAA", "DSFR", "Perf", "Secu", "A11y"], ["RGAA", "DSFR", "Perf", "Secu", "A11y"]]'
+  y="[[85, 90, 75, 95, 88], [70, 80, 90, 75, 82]]"
+  selected-palette="categorical"&gt;
+&lt;/radar-chart&gt;</pre></div>
+      </section>
+    </div>
+  </app-layout-demo>
+
+  <app-footer base-path="../../"></app-footer>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js"></script>
+</body>
+</html>

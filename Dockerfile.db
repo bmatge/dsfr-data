@@ -1,0 +1,70 @@
+# Build stage (same as base Dockerfile + server build)
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+COPY packages/shared/package.json packages/shared/
+COPY apps/favorites/package.json apps/favorites/
+COPY apps/playground/package.json apps/playground/
+COPY apps/sources/package.json apps/sources/
+COPY apps/builder-ia/package.json apps/builder-ia/
+COPY apps/builder/package.json apps/builder/
+COPY apps/dashboard/package.json apps/dashboard/
+COPY apps/monitoring/package.json apps/monitoring/
+COPY server/package.json server/
+RUN npm ci
+COPY . .
+RUN npm run build:all
+RUN node scripts/build-app.js
+
+# Build server
+RUN npm run build:server
+
+# Install server production deps standalone (workspace hoists to root node_modules,
+# but the production image needs them under /app/server/node_modules)
+RUN mkdir /server-prod \
+ && cp server/package.json server/package-lock.json /server-prod/ \
+ && cd /server-prod && npm ci --omit=dev
+
+# Build MCP server (separate package, outside workspace)
+RUN cd mcp-server && npm ci && npm run build
+
+# Production stage - Nginx + Express backend + MCP server
+FROM nginx:alpine
+
+# Copy Node.js binary from builder (same version that compiled native modules)
+# and add C++ runtime libraries needed by better-sqlite3 and bcrypt
+COPY --from=builder /usr/local/bin/node /usr/local/bin/node
+RUN apk add --no-cache libstdc++ libgcc
+
+# Nginx config (database mode with /api/ proxy)
+COPY nginx-db.conf /etc/nginx/conf.d/default.conf
+RUN echo "log_format beacon '\$time_iso8601|\$http_referer|\$arg_c|\$arg_t|\$remote_addr|\$arg_r';" > /etc/nginx/conf.d/beacon-log.conf \
+ && echo "proxy_cache_path /var/cache/nginx/api levels=1:2 keys_zone=api_cache:10m max_size=100m inactive=5m;" > /etc/nginx/conf.d/cache.conf \
+ && mkdir -p /var/cache/nginx/api
+
+# Static files
+COPY --from=builder /app/app-dist /usr/share/nginx/html
+
+# Backend server (compiled JS + deps from standalone install)
+COPY --from=builder /app/server/dist /app/server/dist
+COPY --from=builder /server-prod/node_modules /app/server/node_modules
+COPY --from=builder /app/server/src/db/schema.sql /app/server/dist/db/schema.sql
+RUN mkdir -p /app/server/data
+
+# MCP server
+COPY --from=builder /app/mcp-server/dist /app/mcp-server/dist
+COPY --from=builder /app/mcp-server/node_modules /app/mcp-server/node_modules
+
+# Public assets
+COPY --from=builder /app/public /usr/share/nginx/html/public
+
+# Scripts
+COPY scripts/parse-beacon-logs.sh /usr/local/bin/parse-beacon-logs.sh
+COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+
+EXPOSE 80
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget -qO- http://127.0.0.1/ || exit 1
+
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

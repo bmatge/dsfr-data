@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Industrie du Futur - dsfr-data Builder</title>
+
+  <!-- Dependances CSS (DSFR) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css">
+
+  <!-- DSFR Chart (pour tous les graphiques) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css">
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"></script>
+
+  <!-- dsfr-data composants -->
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+
+  <style>
+    body { font-family: Marianne, arial, sans-serif; margin: 0; padding: 0; }
+    .test-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem; }
+    .test-section {
+      border: 2px solid #e5e5e5; padding: 1rem; border-radius: 8px;
+      min-height: 480px; display: flex; flex-direction: column;
+    }
+    .test-section h3 { margin: 0 0 0.25rem 0; color: #000091; font-size: 1rem; }
+    .test-label { font-size: 0.8rem; color: #666; margin: 0 0 0.5rem 0; }
+    .test-expected { font-size: 0.75rem; color: #999; margin: 0 0 0.5rem 0; font-style: italic; }
+    .chart-container { height: 380px; position: relative; flex: 1; }
+    .kpi-card {
+      background: var(--background-default-grey, #fff);
+      border-left: 4px solid #0063CB;
+      padding: 1.5rem 2rem; text-align: center; border-radius: 4px;
+    }
+    .kpi-value { display: block; font-size: 2.5rem; font-weight: 700; color: var(--text-title-grey, #161616); }
+    .kpi-label { display: block; font-size: 0.875rem; color: var(--text-mention-grey, #666); margin-top: 0.5rem; }
+    @media (max-width: 900px) { .test-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="fr-container fr-my-4w">
+    <h1 id="test-title">Test Industrie du Futur - Simulation Builder</h1>
+    <p>Jeu de donnees : <code>industrie-du-futur</code> (data.economie.gouv.fr) - 101 departements</p>
+    <p>16 use cases : 2 par type de graphique (brut embedded + dsfr-data-query dynamique)</p>
+
+    <!-- ============================================================ -->
+    <!-- SOURCE PARTAGEE pour tous les use cases "query" dynamiques    -->
+    <!-- ============================================================ -->
+    <dsfr-data-source
+      id="industrie-raw"
+      url="https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/industrie-du-futur/records?limit=100"
+      transform="results">
+    </dsfr-data-source>
+
+
+    <!-- ============================================================ -->
+    <!-- 1-2. BAR CHART                                                -->
+    <!-- ============================================================ -->
+    <h2>Bar Chart</h2>
+    <div class="test-grid">
+
+      <!-- 1. BAR - BRUT (embedded DSFR bar-chart) -->
+      <section id="bar-brut" class="test-section" data-testid="bar-brut">
+        <h3>1. BAR - Brut (Embedded)</h3>
+        <p class="test-label">Top 10 departements par nombre de beneficiaires</p>
+        <p class="test-expected">Attendu : RHONE (368), HAUTE-SAVOIE (317), ISERE (284), AIN (251), LOIRE (242), MAINE-ET-LOIRE (229), NORD (219), LOIRE-ATLANTIQUE (197), VENDEE (190), ILLE-ET-VILAINE (189)</p>
+        <div id="bar-brut-container" class="chart-container"></div>
+      </section>
+
+      <!-- 2. BAR - QUERY (dsfr-data-source + dsfr-data-query + dsfr-data-chart) -->
+      <section id="bar-query" class="test-section" data-testid="bar-query">
+        <h3>2. BAR - Query (dsfr-data-query)</h3>
+        <p class="test-label">Beneficiaires par region (group-by nom_region, aggregate sum)</p>
+        <p class="test-expected">Attendu : AUVERGNE-RHONE-ALPES (1948), PAYS DE LA LOIRE (836), NOUVELLE-AQUITAINE (682), ILE-DE-FRANCE (656), ...</p>
+        <dsfr-data-query
+          id="bar-query-data"
+          source="industrie-raw"
+          group-by="nom_region"
+          aggregate="nombre_beneficiaires:sum"
+          order-by="nombre_beneficiaires__sum:desc"
+          limit="10">
+        </dsfr-data-query>
+        <dsfr-data-chart
+          source="bar-query-data"
+          type="bar"
+          label-field="nom_region"
+          value-field="nombre_beneficiaires__sum"
+          limit="0"
+          title="Beneficiaires par region"
+          selected-palette="categorical">
+        </dsfr-data-chart>
+      </section>
+    </div>
+
+
+    <!-- ============================================================ -->
+    <!-- 3-4. HORIZONTAL BAR CHART                                     -->
+    <!-- ============================================================ -->
+    <h2>Horizontal Bar Chart</h2>
+    <div class="test-grid">
+
+      <!-- 3. HBAR - BRUT -->
+      <section id="hbar-brut" class="test-section" data-testid="hbar-brut">
+        <h3>3. HBAR - Brut (Embedded)</h3>
+        <p class="test-label">Top 10 departements par participation de l'Etat</p>
+        <p class="test-expected">Attendu : HAUTE-SAVOIE (~37.2M), RHONE (~32.9M), MAINE-ET-LOIRE (~32.2M), AIN (~30.9M), ...</p>
+        <div id="hbar-brut-container" class="chart-container"></div>
+      </section>
+
+      <!-- 4. HBAR - QUERY -->
+      <section id="hbar-query" class="test-section" data-testid="hbar-query">
+        <h3>4. HBAR - Query (dsfr-data-query)</h3>
+        <p class="test-label">Investissement moyen par region (filtre code_departement non null)</p>
+        <p class="test-expected">Attendu : Investissement moyen par departement, groupe par region, trie desc</p>
+        <dsfr-data-query
+          id="hbar-query-data"
+          source="industrie-raw"
+          filter="code_departement:isnotnull"
+          group-by="nom_region"
+          aggregate="montant_investissement:avg"
+          order-by="montant_investissement__avg:desc"
+          limit="10">
+        </dsfr-data-query>
+        <dsfr-data-chart
+          source="hbar-query-data"
+          type="bar"
+          horizontal
+          label-field="nom_region"
+          value-field="montant_investissement__avg"
+          limit="0"
+          title="Investissement moyen par region"
+          selected-palette="categorical">
+        </dsfr-data-chart>
+      </section>
+    </div>
+
+
+    <!-- ============================================================ -->
+    <!-- 5-6. LINE CHART                                               -->
+    <!-- ============================================================ -->
+    <h2>Line Chart</h2>
+    <div class="test-grid">
+
+      <!-- 5. LINE - BRUT -->
+      <section id="line-brut" class="test-section" data-testid="line-brut">
+        <h3>5. LINE - Brut (Embedded)</h3>
+        <p class="test-label">20 departements avec le moins d'investissement (croissant)</p>
+        <p class="test-expected">Attendu : ligne croissante des 20 plus petits investissements</p>
+        <div id="line-brut-container" class="chart-container"></div>
+      </section>
+
+      <!-- 6. LINE - QUERY -->
+      <section id="line-query" class="test-section" data-testid="line-query">
+        <h3>6. LINE - Query (dsfr-data-query)</h3>
+        <p class="test-label">Investissement des departements ayant >= 100 beneficiaires</p>
+        <p class="test-expected">Attendu : uniquement les departements avec >= 100 beneficiaires, investissement croissant</p>
+        <dsfr-data-query
+          id="line-query-data"
+          source="industrie-raw"
+          filter="nombre_beneficiaires:gte:100"
+          group-by="nom_departement"
+          aggregate="montant_investissement:sum"
+          order-by="montant_investissement__sum:asc">
+        </dsfr-data-query>
+        <dsfr-data-chart
+          source="line-query-data"
+          type="line"
+          label-field="nom_departement"
+          value-field="montant_investissement__sum"
+          limit="0"
+          title="Investissement (dept. >= 100 benef.)"
+          selected-palette="categorical">
+        </dsfr-data-chart>
+      </section>
+    </div>
+
+
+    <!-- ============================================================ -->
+    <!-- 7-8. PIE CHART                                                -->
+    <!-- ============================================================ -->
+    <h2>Pie Chart</h2>
+    <div class="test-grid">
+
+      <!-- 7. PIE - BRUT -->
+      <section id="pie-brut" class="test-section" data-testid="pie-brut">
+        <h3>7. PIE - Brut (Embedded)</h3>
+        <p class="test-label">Repartition des beneficiaires par region (top 8)</p>
+        <p class="test-expected">Attendu : camembert 8 parts, AUVERGNE-RHONE-ALPES dominant</p>
+        <div id="pie-brut-container" class="chart-container"></div>
+      </section>
+
+      <!-- 8. PIE - QUERY -->
+      <section id="pie-query" class="test-section" data-testid="pie-query">
+        <h3>8. PIE - Query (dsfr-data-query)</h3>
+        <p class="test-label">Investissement de 3 grandes regions (IDF, AURA, PDL)</p>
+        <p class="test-expected">Attendu : 3 parts, AUVERGNE-RHONE-ALPES largement dominant</p>
+        <dsfr-data-query
+          id="pie-query-data"
+          source="industrie-raw"
+          filter="nom_region:in:ÎLE-DE-FRANCE|AUVERGNE-RHÔNE-ALPES|PAYS DE LA LOIRE"
+          group-by="nom_region"
+          aggregate="montant_investissement:sum"
+          order-by="montant_investissement__sum:desc">
+        </dsfr-data-query>
+        <dsfr-data-chart
+          source="pie-query-data"
+          type="pie"
+          label-field="nom_region"
+          value-field="montant_investissement__sum"
+          limit="0"
+          title="Investissement 3 grandes regions"
+          selected-palette="categorical">
+        </dsfr-data-chart>
+      </section>
+    </div>
+
+
+    <!-- ============================================================ -->
+    <!-- 9-10. DOUGHNUT CHART                                          -->
+    <!-- ============================================================ -->
+    <h2>Doughnut Chart</h2>
+    <div class="test-grid">
+
+      <!-- 9. DOUGHNUT - BRUT -->
+      <section id="doughnut-brut" class="test-section" data-testid="doughnut-brut">
+        <h3>9. DOUGHNUT - Brut (Embedded)</h3>
+        <p class="test-label">Top 6 regions par participation de l'Etat</p>
+        <p class="test-expected">Attendu : donut 6 parts avec couleurs palette categorielle</p>
+        <div id="doughnut-brut-container" class="chart-container"></div>
+      </section>
+
+      <!-- 10. DOUGHNUT - QUERY -->
+      <section id="doughnut-query" class="test-section" data-testid="doughnut-query">
+        <h3>10. DOUGHNUT - Query (dsfr-data-query)</h3>
+        <p class="test-label">Nombre de departements par region (count)</p>
+        <p class="test-expected">Attendu : donut montrant combien de departements par region</p>
+        <dsfr-data-query
+          id="doughnut-query-data"
+          source="industrie-raw"
+          group-by="nom_region"
+          aggregate="nombre_beneficiaires:count"
+          order-by="nombre_beneficiaires__count:desc"
+          limit="6">
+        </dsfr-data-query>
+        <dsfr-data-chart
+          source="doughnut-query-data"
+          type="pie"
+          label-field="nom_region"
+          value-field="nombre_beneficiaires__count"
+          limit="0"
+          title="Departements par region (top 6)"
+          selected-palette="categorical">
+        </dsfr-data-chart>
+      </section>
+    </div>
+
+
+    <!-- ============================================================ -->
+    <!-- 11-12. RADAR CHART                                            -->
+    <!-- ============================================================ -->
+    <h2>Radar Chart</h2>
+    <div class="test-grid">
+
+      <!-- 11. RADAR - BRUT -->
+      <section id="radar-brut" class="test-section" data-testid="radar-brut">
+        <h3>11. RADAR - Brut (Embedded)</h3>
+        <p class="test-label">Moyenne de beneficiaires par departement, top 5 regions</p>
+        <p class="test-expected">Attendu : radar 5 axes representant les 5 regions les plus actives</p>
+        <div id="radar-brut-container" class="chart-container"></div>
+      </section>
+
+      <!-- 12. RADAR - QUERY -->
+      <section id="radar-query" class="test-section" data-testid="radar-query">
+        <h3>12. RADAR - Query (dsfr-data-query)</h3>
+        <p class="test-label">Departements de Bretagne, Normandie, Occitanie (beneficiaires)</p>
+        <p class="test-expected">Attendu : radar avec les departements de 3 regions filtrees</p>
+        <dsfr-data-query
+          id="radar-query-data"
+          source="industrie-raw"
+          filter="nom_region:in:BRETAGNE|NORMANDIE|OCCITANIE"
+          group-by="nom_departement"
+          aggregate="nombre_beneficiaires:sum"
+          order-by="nombre_beneficiaires__sum:desc"
+          limit="8">
+        </dsfr-data-query>
+        <dsfr-data-chart
+          source="radar-query-data"
+          type="radar"
+          label-field="nom_departement"
+          value-field="nombre_beneficiaires__sum"
+          limit="0"
+          title="Dept. Bretagne/Normandie/Occitanie"
+          selected-palette="categorical">
+        </dsfr-data-chart>
+      </section>
+    </div>
+
+
+    <!-- ============================================================ -->
+    <!-- 13-14. MAP CHART                                              -->
+    <!-- ============================================================ -->
+    <h2>Map Chart</h2>
+    <div class="test-grid">
+
+      <!-- 13. MAP - BRUT (embedded map-chart DSFR) -->
+      <section id="map-brut" class="test-section" data-testid="map-brut">
+        <h3>13. MAP - Brut (Embedded)</h3>
+        <p class="test-label">Carte des beneficiaires par departement</p>
+        <p class="test-expected">Attendu : carte de France coloree, RHONE et HAUTE-SAVOIE les plus fonces</p>
+        <div id="map-brut-container" class="chart-container"></div>
+      </section>
+
+      <!-- 14. MAP - QUERY (dsfr-data-chart dynamique) -->
+      <section id="map-query" class="test-section" data-testid="map-query">
+        <h3>14. MAP - Query (dsfr-data-chart)</h3>
+        <p class="test-label">Carte des investissements par departement</p>
+        <p class="test-expected">Attendu : carte de France coloree par montant d'investissement</p>
+        <div class="chart-container">
+          <dsfr-data-chart
+            source="industrie-raw"
+            type="map"
+            code-field="code_departement"
+            value-field="montant_investissement"
+            name="Investissements par departement"
+            selected-palette="sequentialAscending">
+          </dsfr-data-chart>
+        </div>
+      </section>
+    </div>
+
+
+    <!-- ============================================================ -->
+    <!-- 15-16. KPI                                                    -->
+    <!-- ============================================================ -->
+    <h2>KPI</h2>
+    <div class="test-grid">
+
+      <!-- 15. KPI - BRUT (embedded) -->
+      <section id="kpi-brut" class="test-section" data-testid="kpi-brut">
+        <h3>15. KPI - Brut (Embedded)</h3>
+        <p class="test-label">Total national des investissements</p>
+        <p class="test-expected">Attendu : un nombre > 3 milliards EUR</p>
+        <div id="kpi-brut-container" class="chart-container" style="display:flex;align-items:center;justify-content:center;">
+          <div class="kpi-card" id="kpi-brut-card">
+            <span class="kpi-value" id="kpi-brut-value">&#x2014;</span>
+            <span class="kpi-label">Total national des investissements</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 16. KPI - QUERY (dsfr-data-kpi avec dsfr-data-query) -->
+      <section id="kpi-query" class="test-section" data-testid="kpi-query">
+        <h3>16. KPI - Query (dsfr-data-kpi)</h3>
+        <p class="test-label">Beneficiaires en Ile-de-France</p>
+        <p class="test-expected">Attendu : 656 beneficiaires</p>
+        <div class="chart-container" style="display:flex;align-items:center;justify-content:center;">
+          <dsfr-data-query
+            id="kpi-query-data"
+            source="industrie-raw"
+            filter="nom_region:eq:ÎLE-DE-FRANCE">
+          </dsfr-data-query>
+          <dsfr-data-kpi
+            source="kpi-query-data"
+            valeur="sum:nombre_beneficiaires"
+            label="Beneficiaires en Ile-de-France"
+            format="nombre"
+            icone="ri-group-line"
+            couleur="bleu">
+          </dsfr-data-kpi>
+        </div>
+      </section>
+    </div>
+
+
+    <!-- Status indicator for test readiness -->
+    <div id="test-status" style="padding: 1rem; margin-top: 2rem; border: 2px solid #ccc; border-radius: 8px;">
+      <p id="status-text">Chargement en cours...</p>
+    </div>
+  </div>
+
+
+  <!-- ================================================================ -->
+  <!-- SCRIPTS : Embedded/brut chart rendering (simule le builder)      -->
+  <!-- ================================================================ -->
+  <script>
+    const API_BASE = 'https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/industrie-du-futur/records';
+
+    // Compteur de charts charges
+    let chartsLoaded = 0;
+    const TOTAL_EMBEDDED_CHARTS = 8; // 6 DSFR charts + 1 map + 1 KPI
+
+    function markLoaded() {
+      chartsLoaded++;
+      const statusEl = document.getElementById('status-text');
+      if (chartsLoaded >= TOTAL_EMBEDDED_CHARTS) {
+        statusEl.textContent = 'Tous les graphiques embedded sont charges (' + chartsLoaded + '/' + TOTAL_EMBEDDED_CHARTS + ')';
+        document.getElementById('test-status').style.borderColor = '#18753C';
+        document.getElementById('test-status').setAttribute('data-ready', 'true');
+      } else {
+        statusEl.textContent = 'Chargement : ' + chartsLoaded + '/' + TOTAL_EMBEDDED_CHARTS + ' graphiques embedded...';
+      }
+    }
+
+    function markError(name, err) {
+      console.error('Erreur chargement ' + name + ':', err);
+      chartsLoaded++;
+      const statusEl = document.getElementById('status-text');
+      statusEl.textContent = 'Erreur sur ' + name + ' : ' + err.message;
+      document.getElementById('test-status').style.borderColor = '#C9191E';
+    }
+
+    /**
+     * Helper: create a DSFR chart element and append it to a container.
+     * @param {string} containerId - ID of the container element
+     * @param {string} tagName - DSFR chart tag (bar-chart, line-chart, pie-chart, radar-chart)
+     * @param {Object} attrs - attributes to set on the element
+     */
+    function createDSFRChart(containerId, tagName, attrs) {
+      const container = document.getElementById(containerId);
+      const el = document.createElement(tagName);
+      for (const [key, value] of Object.entries(attrs)) {
+        el.setAttribute(key, value);
+      }
+      container.appendChild(el);
+    }
+
+    // ---------------------------------------------------------------
+    // 1. BAR - BRUT
+    // Builder: generateCode() -> fetch API aggregation -> DSFR bar-chart
+    // ---------------------------------------------------------------
+    async function loadBarBrut() {
+      const url = API_BASE + '?select=nom_departement,sum(nombre_beneficiaires) as value&group_by=nom_departement&order_by=value desc&limit=10';
+      const res = await fetch(url);
+      const json = await res.json();
+      const data = json.results || [];
+
+      const labels = data.map(d => d['nom_departement'] || 'N/A');
+      const values = data.map(d => Math.round((d.value || 0) * 100) / 100);
+
+      createDSFRChart('bar-brut-container', 'bar-chart', {
+        x: JSON.stringify([labels]),
+        y: JSON.stringify([values]),
+        name: JSON.stringify(['nombre_beneficiaires']),
+        'selected-palette': 'categorical',
+      });
+      markLoaded();
+    }
+
+    // ---------------------------------------------------------------
+    // 3. HBAR - BRUT
+    // Builder: generateCode() -> DSFR bar-chart with horizontal
+    // ---------------------------------------------------------------
+    async function loadHBarBrut() {
+      const url = API_BASE + '?select=nom_departement,sum(montant_participation_etat) as value&group_by=nom_departement&order_by=value desc&limit=10';
+      const res = await fetch(url);
+      const json = await res.json();
+      const data = json.results || [];
+
+      const labels = data.map(d => d['nom_departement'] || 'N/A');
+      const values = data.map(d => Math.round((d.value || 0) * 100) / 100);
+
+      createDSFRChart('hbar-brut-container', 'bar-chart', {
+        x: JSON.stringify([labels]),
+        y: JSON.stringify([values]),
+        name: JSON.stringify(['montant_participation_etat']),
+        horizontal: 'true',
+        'selected-palette': 'categorical',
+      });
+      markLoaded();
+    }
+
+    // ---------------------------------------------------------------
+    // 5. LINE - BRUT
+    // Builder: generateCode() -> DSFR line-chart, sorted asc
+    // ---------------------------------------------------------------
+    async function loadLineBrut() {
+      const url = API_BASE + '?select=nom_departement,sum(montant_investissement) as value&group_by=nom_departement&order_by=value asc&limit=20';
+      const res = await fetch(url);
+      const json = await res.json();
+      const data = json.results || [];
+
+      const labels = data.map(d => d['nom_departement'] || 'N/A');
+      const values = data.map(d => Math.round((d.value || 0) * 100) / 100);
+
+      createDSFRChart('line-brut-container', 'line-chart', {
+        x: JSON.stringify([labels]),
+        y: JSON.stringify([values]),
+        name: JSON.stringify(['montant_investissement']),
+        'selected-palette': 'categorical',
+      });
+      markLoaded();
+    }
+
+    // ---------------------------------------------------------------
+    // 7. PIE - BRUT
+    // Builder: generateCode() -> DSFR pie-chart with palette colors
+    // ---------------------------------------------------------------
+    async function loadPieBrut() {
+      const url = API_BASE + '?select=nom_region,sum(nombre_beneficiaires) as value&group_by=nom_region&order_by=value desc&limit=8';
+      const res = await fetch(url);
+      const json = await res.json();
+      const data = json.results || [];
+
+      const labels = data.map(d => d['nom_region'] || 'N/A');
+      const values = data.map(d => Math.round((d.value || 0) * 100) / 100);
+
+      createDSFRChart('pie-brut-container', 'pie-chart', {
+        x: JSON.stringify([labels]),
+        y: JSON.stringify([values]),
+        name: JSON.stringify(['nombre_beneficiaires']),
+        'selected-palette': 'categorical',
+      });
+      markLoaded();
+    }
+
+    // ---------------------------------------------------------------
+    // 9. DOUGHNUT - BRUT
+    // DSFR Chart has no doughnut type, use pie-chart instead
+    // ---------------------------------------------------------------
+    async function loadDoughnutBrut() {
+      const url = API_BASE + '?select=nom_region,sum(montant_participation_etat) as value&group_by=nom_region&order_by=value desc&limit=6';
+      const res = await fetch(url);
+      const json = await res.json();
+      const data = json.results || [];
+
+      const labels = data.map(d => d['nom_region'] || 'N/A');
+      const values = data.map(d => Math.round((d.value || 0) * 100) / 100);
+
+      createDSFRChart('doughnut-brut-container', 'pie-chart', {
+        x: JSON.stringify([labels]),
+        y: JSON.stringify([values]),
+        name: JSON.stringify(['montant_participation_etat']),
+        'selected-palette': 'categorical',
+      });
+      markLoaded();
+    }
+
+    // ---------------------------------------------------------------
+    // 11. RADAR - BRUT
+    // Builder: generateCode() -> DSFR radar-chart
+    // ---------------------------------------------------------------
+    async function loadRadarBrut() {
+      const url = API_BASE + '?select=nom_region,avg(nombre_beneficiaires) as value&group_by=nom_region&order_by=value desc&limit=5';
+      const res = await fetch(url);
+      const json = await res.json();
+      const data = json.results || [];
+
+      const labels = data.map(d => d['nom_region'] || 'N/A');
+      const values = data.map(d => Math.round((d.value || 0) * 100) / 100);
+
+      createDSFRChart('radar-brut-container', 'radar-chart', {
+        x: JSON.stringify([labels]),
+        y: JSON.stringify([values]),
+        name: JSON.stringify(['nombre_beneficiaires (avg)']),
+        'selected-palette': 'categorical',
+      });
+      markLoaded();
+    }
+
+    // ---------------------------------------------------------------
+    // 13. MAP - BRUT (embedded DSFR map-chart)
+    // Builder: generateCodeForLocalData() -> map-chart with data attr
+    // ---------------------------------------------------------------
+    async function loadMapBrut() {
+      const url = API_BASE + '?select=code_departement,sum(nombre_beneficiaires) as value&group_by=code_departement&order_by=value desc&limit=100';
+      const res = await fetch(url);
+      const json = await res.json();
+      const records = json.results || [];
+
+      // Transformer en format carte: {"code": valeur}
+      const mapData = {};
+      let totalValue = 0;
+      let count = 0;
+
+      function isValidDeptCode(code) {
+        if (!code || typeof code !== 'string') return false;
+        if (['N/A', 'null', 'undefined', '00', ''].includes(code)) return false;
+        if (code === '2A' || code === '2B') return true;
+        if (/^97[1-6]$/.test(code)) return true;
+        if (/^(0[1-9]|[1-8]\d|9[0-5])$/.test(code)) return true;
+        return false;
+      }
+
+      records.forEach(d => {
+        let code = String(d['code_departement'] || '').trim();
+        // Remove .0 from float codes
+        if (code.endsWith('.0')) code = code.slice(0, -2);
+        if (/^\d+$/.test(code) && code.length < 3) {
+          code = code.padStart(2, '0');
+        }
+        const value = d.value || 0;
+        if (isValidDeptCode(code)) {
+          mapData[code] = Math.round(value * 100) / 100;
+          totalValue += value;
+          count++;
+        }
+      });
+
+      const avgValue = count > 0 ? Math.round((totalValue / count) * 100) / 100 : 0;
+      const today = new Date().toISOString().split('T')[0];
+
+      createDSFRChart('map-brut-container', 'map-chart', {
+        data: JSON.stringify(mapData),
+        name: 'Beneficiaires par departement',
+        'selected-palette': 'sequentialAscending',
+      });
+      // DSFR Chart Vue components overwrite value/date with defaults on mount.
+      // Re-apply after Vue has mounted.
+      const mapEl = document.querySelector('#map-brut-container map-chart');
+      setTimeout(() => {
+        if (mapEl) {
+          mapEl.setAttribute('value', String(avgValue));
+          mapEl.setAttribute('date', today);
+        }
+      }, 500);
+      markLoaded();
+    }
+
+    // ---------------------------------------------------------------
+    // 15. KPI - BRUT (embedded)
+    // Builder: generateCode() -> fetch single agg value -> KPI card
+    // ---------------------------------------------------------------
+    async function loadKPIBrut() {
+      const url = API_BASE + '?select=sum(montant_investissement) as value&limit=1';
+      const res = await fetch(url);
+      const json = await res.json();
+      const data = json.results || [];
+      const value = data[0]?.value || 0;
+
+      const formatted = new Intl.NumberFormat('fr-FR', {
+        style: 'currency', currency: 'EUR', maximumFractionDigits: 0
+      }).format(value);
+
+      document.getElementById('kpi-brut-value').textContent = formatted;
+      markLoaded();
+    }
+
+    // ---------------------------------------------------------------
+    // Lancer tous les chargements embedded
+    // ---------------------------------------------------------------
+    Promise.all([
+      loadBarBrut().catch(e => markError('bar-brut', e)),
+      loadHBarBrut().catch(e => markError('hbar-brut', e)),
+      loadLineBrut().catch(e => markError('line-brut', e)),
+      loadPieBrut().catch(e => markError('pie-brut', e)),
+      loadDoughnutBrut().catch(e => markError('doughnut-brut', e)),
+      loadRadarBrut().catch(e => markError('radar-brut', e)),
+      loadMapBrut().catch(e => markError('map-brut', e)),
+      loadKPIBrut().catch(e => markError('kpi-brut', e)),
+    ]);
+  </script>
+</body>
+</html>

@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dsfr-data-source — Exemples - Guide - dsfr-data</title>
+  <style>@view-transition{navigation:auto}app-header:not(:defined){display:block;min-height:56px}app-footer:not(:defined){display:block;min-height:48px}</style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css">
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"></script>
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script src="guide-menu.js"></script>
+  <style>
+    .guide-layout { display: flex; gap: 2rem; }
+    .guide-content { flex: 1; min-width: 0; }
+    @media (max-width: 992px) {
+      .guide-layout { flex-direction: column; }
+    }
+    .guide-content h2 { padding-top: 2rem; border-top: 1px solid var(--border-default-grey); margin-top: 3rem; }
+    .guide-content h2:first-of-type { border-top: none; margin-top: 0; padding-top: 0; }
+    .guide-content h3 { margin-top: 2rem; }
+    .guide-content h4 { margin-top: 1.5rem; }
+    .guide-content pre { background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 4px; font-family: monospace; font-size: 0.85rem; overflow-x: auto; white-space: pre-wrap; margin: 0; }
+    .guide-content ol, .guide-content ul { margin: 0.5rem 0 1rem 1.5rem; }
+    .guide-content li { margin-bottom: 0.25rem; }
+    .example-container { border: 1px solid var(--border-default-grey); border-radius: 4px; padding: 1rem; background: white; min-height: 100px; }
+    .example-loading { padding: 2rem; text-align: center; color: var(--text-mention-grey); border: 1px solid var(--border-default-grey); border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <app-header current-page="guide" base-path="../"></app-header>
+
+  <main class="fr-container fr-py-4w" id="main-content">
+    <div class="guide-layout">
+
+      <app-sidemenu section="guide"></app-sidemenu>
+
+      <div class="guide-content">
+
+        <h1><i class="ri-database-2-line fr-mr-1w"></i>dsfr-data-source</h1>
+        <p class="fr-text--lead">
+          <code>dsfr-data-source</code> recupere les donnees d'une API REST et les redistribue aux composants en aval.
+          Ici les donnees sont transmises <strong>directement</strong> au composant de visualisation, sans transformation intermediaire.
+        </p>
+
+        <!-- direct-bar -->
+        <h4>Barres — Taux de taxe fonciere par commune</h4>
+        <p>Graphique en barres affichant les taux de taxe fonciere de 15 communes.
+          <a href="../apps/playground/index.html?example=direct-bar" class="fr-link fr-link--sm">Tester dans le Playground</a>
+        </p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-d-bar">Code source</button></h3>
+          <div class="fr-collapse" id="code-d-bar">
+<pre class="example-code">&lt;dsfr-data-source id="data" api-type="opendatasoft"
+  dataset-id="fiscalite-locale-des-particuliers"
+  base-url="https://data.economie.gouv.fr"
+  limit="15"&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-chart source="data" type="bar"
+  label-field="libcom" value-field="taux_global_tfb"
+  unit-tooltip="%" selected-palette="categorical"&gt;
+&lt;/dsfr-data-chart&gt;</pre>
+          </div>
+        </section>
+
+        <!-- direct-line -->
+        <h4>Courbe — Beneficiaires Industrie du futur</h4>
+        <p>Courbe du nombre de beneficiaires par departement.
+          <a href="../apps/playground/index.html?example=direct-line" class="fr-link fr-link--sm">Tester dans le Playground</a>
+        </p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-d-line">Code source</button></h3>
+          <div class="fr-collapse" id="code-d-line">
+<pre class="example-code">&lt;dsfr-data-source id="data" api-type="opendatasoft"
+  dataset-id="industrie-du-futur"
+  base-url="https://data.economie.gouv.fr"
+  limit="20"&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-chart source="data" type="line"
+  label-field="nom_departement" value-field="nombre_beneficiaires"&gt;
+&lt;/dsfr-data-chart&gt;</pre>
+          </div>
+        </section>
+
+        <!-- direct-pie -->
+        <h4>Camembert — Poids demographique</h4>
+        <p>Diagramme circulaire du poids demographique par commune.
+          <a href="../apps/playground/index.html?example=direct-pie" class="fr-link fr-link--sm">Tester dans le Playground</a>
+        </p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-d-pie">Code source</button></h3>
+          <div class="fr-collapse" id="code-d-pie">
+<pre class="example-code">&lt;dsfr-data-source id="data" api-type="opendatasoft"
+  dataset-id="fiscalite-locale-des-particuliers"
+  base-url="https://data.economie.gouv.fr"
+  limit="8"&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-chart source="data" type="pie"
+  label-field="libcom" value-field="mpoid"&gt;
+&lt;/dsfr-data-chart&gt;</pre>
+          </div>
+        </section>
+
+        <!-- direct-radar -->
+        <h4>Radar — Beneficiaires par region</h4>
+        <p>Graphique radar montrant le profil des beneficiaires.
+          <a href="../apps/playground/index.html?example=direct-radar" class="fr-link fr-link--sm">Tester dans le Playground</a>
+        </p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-d-radar">Code source</button></h3>
+          <div class="fr-collapse" id="code-d-radar">
+<pre class="example-code">&lt;dsfr-data-source id="data" api-type="opendatasoft"
+  dataset-id="industrie-du-futur"
+  base-url="https://data.economie.gouv.fr"
+  limit="6"&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-chart source="data" type="radar"
+  label-field="nom_region" value-field="nombre_beneficiaires"&gt;
+&lt;/dsfr-data-chart&gt;</pre>
+          </div>
+        </section>
+
+        <!-- direct-gauge -->
+        <h4>Jauge — Taux de taxe fonciere</h4>
+        <p>Jauge affichant le taux de taxe fonciere d'une commune (1 enregistrement). Le taux TFB varie typiquement entre 30 et 55%.
+          <a href="../apps/playground/index.html?example=direct-gauge" class="fr-link fr-link--sm">Tester dans le Playground</a>
+        </p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-d-gauge">Code source</button></h3>
+          <div class="fr-collapse" id="code-d-gauge">
+<pre class="example-code">&lt;dsfr-data-source id="data" api-type="opendatasoft"
+  dataset-id="fiscalite-locale-des-particuliers"
+  base-url="https://data.economie.gouv.fr"
+  limit="1"&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-chart source="data" type="gauge"
+  value-field="taux_global_tfb"&gt;
+&lt;/dsfr-data-chart&gt;</pre>
+          </div>
+        </section>
+
+        <!-- direct-scatter -->
+        <h4>Nuage — Investissement vs participation</h4>
+        <p>Nuage de points croisant investissement et participation de l'Etat.
+          <a href="../apps/playground/index.html?example=direct-scatter" class="fr-link fr-link--sm">Tester dans le Playground</a>
+        </p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-d-scatter">Code source</button></h3>
+          <div class="fr-collapse" id="code-d-scatter">
+<pre class="example-code">&lt;dsfr-data-source id="data" api-type="opendatasoft"
+  dataset-id="industrie-du-futur"
+  base-url="https://data.economie.gouv.fr"&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-chart source="data" type="scatter"
+  label-field="montant_investissement"
+  value-field="montant_participation_etat"&gt;
+&lt;/dsfr-data-chart&gt;</pre>
+          </div>
+        </section>
+
+        <!-- direct-barline -->
+        <h4>Barres + ligne — Investissements</h4>
+        <p>Combine barres (investissement) et ligne (participation Etat) via <code>value-field-2</code>.
+          <a href="../apps/playground/index.html?example=direct-barline" class="fr-link fr-link--sm">Tester dans le Playground</a>
+        </p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-d-barline">Code source</button></h3>
+          <div class="fr-collapse" id="code-d-barline">
+<pre class="example-code">&lt;dsfr-data-source id="data" api-type="opendatasoft"
+  dataset-id="industrie-du-futur"
+  base-url="https://data.economie.gouv.fr"
+  limit="15"&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-chart source="data" type="bar-line"
+  label-field="nom_departement"
+  value-field="montant_investissement"
+  value-field-2="montant_participation_etat"
+  name='["Investissement", "Participation Etat"]'&gt;
+&lt;/dsfr-data-chart&gt;</pre>
+          </div>
+        </section>
+
+        <!-- direct-map -->
+        <h4>Carte — Beneficiaires par departement</h4>
+        <p>Carte de France coloree par nombre de beneficiaires, via <code>code-field</code>.
+          <a href="../apps/playground/index.html?example=direct-map" class="fr-link fr-link--sm">Tester dans le Playground</a>
+        </p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-d-map">Code source</button></h3>
+          <div class="fr-collapse" id="code-d-map">
+<pre class="example-code">&lt;dsfr-data-source id="data" api-type="opendatasoft"
+  dataset-id="industrie-du-futur"
+  base-url="https://data.economie.gouv.fr"&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-chart source="data" type="map"
+  code-field="code_departement" value-field="nombre_beneficiaires"
+  selected-palette="sequentialAscending"&gt;
+&lt;/dsfr-data-chart&gt;</pre>
+          </div>
+        </section>
+
+        <!-- direct-kpi -->
+        <h4>KPI — Indicateurs Industrie du futur</h4>
+        <p>Quatre indicateurs cles calcules directement depuis les donnees brutes.
+          <a href="../apps/playground/index.html?example=direct-kpi" class="fr-link fr-link--sm">Tester dans le Playground</a>
+        </p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-d-kpi">Code source</button></h3>
+          <div class="fr-collapse" id="code-d-kpi">
+<pre class="example-code">&lt;dsfr-data-source id="data" api-type="opendatasoft"
+  dataset-id="industrie-du-futur"
+  base-url="https://data.economie.gouv.fr"&gt;&lt;/dsfr-data-source&gt;
+
+&lt;div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;"&gt;
+  &lt;dsfr-data-kpi source="data" valeur="sum:nombre_beneficiaires"
+    label="Total beneficiaires" format="nombre"&gt;&lt;/dsfr-data-kpi&gt;
+  &lt;dsfr-data-kpi source="data" valeur="avg:nombre_beneficiaires"
+    label="Moyenne" format="decimal"&gt;&lt;/dsfr-data-kpi&gt;
+  &lt;dsfr-data-kpi source="data" valeur="max:montant_investissement"
+    label="Investissement max" format="euro" couleur="vert"&gt;&lt;/dsfr-data-kpi&gt;
+  &lt;dsfr-data-kpi source="data" valeur="count"
+    label="Enregistrements" format="nombre"&gt;&lt;/dsfr-data-kpi&gt;
+&lt;/div&gt;</pre>
+          </div>
+        </section>
+
+        <!-- direct-datalist -->
+        <h4>Tableau — Rappels de produits (ODS server-side)</h4>
+        <p>Tableau interactif avec recherche, tri serveur et pagination serveur. Utilise le dataset RappelConso (data.economie.gouv.fr).
+          <a href="../apps/playground/index.html?example=direct-datalist" class="fr-link fr-link--sm">Tester dans le Playground</a>
+        </p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-d-datalist">Code source</button></h3>
+          <div class="fr-collapse" id="code-d-datalist">
+<pre class="example-code">&lt;dsfr-data-source id="data" api-type="opendatasoft"
+  dataset-id="rappelconso-v2-gtin-trie"
+  base-url="https://data.economie.gouv.fr"
+  server-side page-size="10"
+  order-by="date_publication:desc"&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-list source="data"
+  colonnes="modeles_ou_references:Produit, categorie_produit:Categorie, marque_produit:Marque, date_publication:Date"
+  server-tri
+  pagination="10" export="csv"&gt;
+&lt;/dsfr-data-list&gt;</pre>
+          </div>
+        </section>
+
+        <!-- Pagination serveur -->
+        <h2 class="fr-mt-6w">Pagination serveur</h2>
+        <p>
+          Avec l'attribut <code>paginate</code>, <code>dsfr-data-source</code> active la pagination cote serveur :
+          chaque changement de page declenche un nouvel appel API. Cela permet de naviguer dans des datasets
+          de plusieurs dizaines de milliers d'enregistrements sans tout charger en memoire.
+        </p>
+
+        <h4>Tableau pagine cote serveur — Rappels de produits</h4>
+        <p>La pagination est geree par l'API ODS : cliquer sur "page 2" appelle la page suivante cote serveur.
+          <a href="../apps/playground/index.html?example=server-paginate-datalist" class="fr-link fr-link--sm">Tester dans le Playground</a>
+        </p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-d-paginate">Code source</button></h3>
+          <div class="fr-collapse" id="code-d-paginate">
+<pre class="example-code">&lt;dsfr-data-source id="data" api-type="opendatasoft"
+  dataset-id="rappelconso-v2-gtin-trie"
+  base-url="https://data.economie.gouv.fr"
+  server-side page-size="20"
+  order-by="date_publication:desc"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-list source="data"
+  colonnes="modeles_ou_references:Produit, categorie_produit:Categorie, marque_produit:Marque, date_publication:Date"
+  server-tri
+  pagination="20"&gt;
+&lt;/dsfr-data-list&gt;</pre>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </main>
+
+  <app-footer base-path="../"></app-footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      let exampleIndex = 0;
+      function getCodeForExample(placeholder) {
+        const accordion = placeholder.nextElementSibling;
+        if (!accordion) return null;
+        const pre = accordion.querySelector('.example-code');
+        return pre ? pre.textContent : null;
+      }
+      function makeIdsUnique(html, prefix) {
+        const idRegex = / id="([^"]+)"/g;
+        const ids = new Set();
+        let match;
+        while ((match = idRegex.exec(html)) !== null) ids.add(match[1]);
+        let result = html;
+        for (const id of ids) {
+          result = result.replaceAll(' id="' + id + '"', ' id="' + prefix + '-' + id + '"');
+          result = result.replaceAll('source="' + id + '"', 'source="' + prefix + '-' + id + '"');
+        }
+        return result;
+      }
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (!entry.isIntersecting) return;
+          const placeholder = entry.target;
+          observer.unobserve(placeholder);
+          const code = getCodeForExample(placeholder);
+          if (!code) return;
+          const prefix = 'ex' + (exampleIndex++);
+          const uniqueCode = makeIdsUnique(code, prefix);
+          const container = document.createElement('div');
+          container.className = 'example-container';
+          container.innerHTML = uniqueCode;
+          placeholder.replaceWith(container);
+        });
+      }, { rootMargin: '200px 0px' });
+      document.querySelectorAll('[data-example]').forEach(el => observer.observe(el));
+    });
+  </script>
+</body>
+</html>

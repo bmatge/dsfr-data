@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Parcours utilisateur - Guide - dsfr-data</title>
+  <style>@view-transition{navigation:auto}app-header:not(:defined){display:block;min-height:56px}app-footer:not(:defined){display:block;min-height:48px}</style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script src="guide-menu.js"></script>
+  <style>
+    .guide-layout { display: flex; gap: 2rem; }
+    .guide-content { flex: 1; min-width: 0; }
+    @media (max-width: 992px) {
+      .guide-layout { flex-direction: column; }
+    }
+    .guide-content img { max-width: 100%; height: auto; border: 1px solid var(--border-default-grey); border-radius: 4px; margin: 1rem 0; }
+    .guide-content .user-story { background: var(--background-alt-blue-france); border-left: 4px solid var(--border-action-high-blue-france); padding: 1rem 1.5rem; margin: 1.5rem 0; border-radius: 0 4px 4px 0; }
+    .guide-content .user-story strong { color: var(--text-action-high-blue-france); }
+    .guide-content .guide-note { background: var(--background-alt-grey); padding: 1rem 1.5rem; border-radius: 4px; margin: 1rem 0; }
+    .guide-content h2 { padding-top: 2rem; border-top: 1px solid var(--border-default-grey); margin-top: 3rem; }
+    .guide-content h2:first-of-type { border-top: none; margin-top: 0; padding-top: 0; }
+    .guide-content h3 { margin-top: 2rem; }
+    .guide-content pre { background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 4px; font-family: monospace; font-size: 0.85rem; overflow-x: auto; white-space: pre-wrap; }
+    .guide-content ol, .guide-content ul { margin: 0.5rem 0 1rem 1.5rem; }
+    .guide-content li { margin-bottom: 0.25rem; }
+  </style>
+</head>
+<body>
+  <app-header current-page="guide" base-path="../"></app-header>
+
+  <main class="fr-container fr-py-4w" id="main-content">
+    <div class="guide-layout">
+
+      <app-sidemenu section="guide"></app-sidemenu>
+
+      <!-- Contenu principal -->
+      <div class="guide-content">
+
+        <!-- Parcours A -->
+        <section id="parcours-a">
+          <h2>Creer un graphique a partir de donnees locales</h2>
+          <div class="user-story">
+            <strong>Pour</strong> afficher un graphique en barres du PIB par region sur mon site,
+            <strong>je dois</strong> creer une source de donnees manuelle dans Sources puis configurer le graphique dans le Builder,
+            <strong>afin d'</strong>obtenir un code HTML copier-coller integrable dans n'importe quelle page web.
+          </div>
+
+          <h3>Etape 1 — Ouvrir la page Sources</h3>
+          <p>Naviguez vers <strong>Sources</strong> depuis le menu. La page affiche les connexions existantes (Grist, API) et les sources sauvegardees. Cliquez sur <strong>"Creer une source manuelle"</strong>.</p>
+          <img src="images/guide-A1-sources-overview.png" alt="Page Sources — vue d'ensemble">
+
+          <h3>Etape 2 — Saisir les donnees</h3>
+          <p>La modale de creation s'ouvre avec trois modes de saisie : <strong>Tableau</strong> (saisie directe), <strong>JSON</strong> (coller du JSON) ou <strong>CSV</strong> (importer un fichier).</p>
+          <ol>
+            <li>Donnez un nom a la source (ex: "Statistiques regions")</li>
+            <li>Remplissez le tableau avec vos donnees</li>
+            <li>Cliquez sur <strong>Sauvegarder</strong></li>
+          </ol>
+          <img src="images/guide-A2-sources-manual-modal.png" alt="Modale de source manuelle">
+
+          <h3>Etape 3 — Ouvrir le Builder et charger la source</h3>
+          <p>Naviguez vers le <strong>Builder</strong>. Dans l'etape 1 "Source de donnees", selectionnez votre source dans la dropdown puis cliquez sur <strong>Charger</strong>. Les champs disponibles apparaissent dans les selecteurs.</p>
+          <img src="images/guide-A3-builder-source-loaded.png" alt="Builder — source chargee">
+
+          <h3>Etape 4 — Choisir le type de graphique</h3>
+          <p>L'etape 2 propose une grille de 11 types de graphiques : barres, lignes, camembert, radar, carte, KPI, tableau, etc. Cliquez sur le type souhaite (ici <strong>Barres</strong>).</p>
+          <img src="images/guide-A4-builder-chart-type.png" alt="Builder — choix du type">
+
+          <h3>Etape 5 — Configurer et generer</h3>
+          <p>Completez la configuration :</p>
+          <ul>
+            <li><strong>Axe X</strong> : le champ de categorie (ex: <code>region</code>)</li>
+            <li><strong>Axe Y</strong> : le champ numerique (ex: <code>PIB</code>)</li>
+            <li><strong>Agregation</strong> : moyenne, somme, comptage, min, max</li>
+            <li><strong>Titre et sous-titre</strong> dans l'onglet Apparence</li>
+          </ul>
+          <p>Puis cliquez sur <strong>Generer le graphique</strong>.</p>
+          <img src="images/guide-A5-builder-generated.png" alt="Builder — configuration complete">
+
+          <h3>Etape 6 — Copier le code genere</h3>
+          <p>Basculez sur l'onglet <strong>Code genere</strong> dans le panneau de droite. Le code HTML complet est affiche, pret a etre copie. Cliquez sur <strong>Copier le code</strong> pour l'integrer dans votre page.</p>
+          <img src="images/guide-A7-builder-code.png" alt="Builder — code genere">
+          <p>Le code genere est autonome : il inclut les balises DSFR Chart (<code>&lt;bar-chart&gt;</code>, <code>&lt;line-chart&gt;</code>, etc.) avec les donnees en attributs, ainsi que les liens vers les CSS et JS necessaires.</p>
+        </section>
+
+        <!-- Parcours B -->
+        <section id="parcours-b">
+          <h2>Creer un graphique dynamique depuis Grist</h2>
+          <div class="user-story">
+            <strong>Pour</strong> afficher un graphique alimente en temps reel par une table Grist,
+            <strong>je dois</strong> connecter mon instance Grist dans Sources puis generer un graphique en mode dynamique dans le Builder,
+            <strong>afin d'</strong>obtenir un widget HTML qui se met a jour automatiquement depuis Grist.
+          </div>
+
+          <h3>Etape 1 — Creer une connexion Grist</h3>
+          <p>Dans <strong>Sources</strong>, cliquez sur <strong>Nouvelle connexion</strong>. Selectionnez le type <strong>Grist</strong> et renseignez :</p>
+          <ol>
+            <li>Le nom de la connexion</li>
+            <li>L'URL du serveur Grist (ex: <code>https://grist.numerique.gouv.fr</code>)</li>
+            <li>Cochez "Document public" si le document est partage publiquement, sinon entrez votre cle API</li>
+          </ol>
+          <p>Cliquez sur <strong>Tester et sauvegarder</strong>.</p>
+          <img src="images/guide-B1-sources-grist-modal.png" alt="Connexion Grist">
+
+          <h3>Etape 2 — Explorer les donnees Grist</h3>
+          <p>Une fois connecte, cliquez sur la connexion dans la barre laterale. L'explorateur affiche les documents et tables disponibles. L'onglet <strong>Apercu</strong> permet de previsualiser les donnees.</p>
+          <img src="images/guide-B2-sources-grist-explorer.png" alt="Explorateur Grist">
+
+          <h3>Etape 3 — Activer le mode dynamique dans le Builder</h3>
+          <p>Dans le <strong>Builder</strong>, selectionnez la source Grist et chargez les champs. Une section supplementaire apparait : <strong>Mode de generation</strong>. Selectionnez <strong>Chargement dynamique</strong> pour que le code genere interroge Grist en temps reel.</p>
+          <img src="images/guide-B3-builder-dynamic-mode.png" alt="Mode dynamique">
+          <ul>
+            <li><strong>Donnees integrees</strong> : les donnees sont copiees en dur dans le HTML (statique)</li>
+            <li><strong>Chargement dynamique</strong> : utilise <code>&lt;dsfr-data-source&gt;</code> + <code>&lt;dsfr-data-query&gt;</code> + <code>&lt;dsfr-data-chart&gt;</code> pour charger les donnees en temps reel</li>
+          </ul>
+
+          <h3>Etape 4 — Code genere avec composants dynamiques</h3>
+          <p>Apres avoir configure et genere le graphique, le code genere contient les Web Components dsfr-data :</p>
+          <img src="images/guide-B4-builder-grist-code.png" alt="Code dynamique Grist">
+          <p>Le code genere ressemble a :</p>
+<pre>&lt;dsfr-data-source id="data" url="https://grist.numerique.gouv.fr/api/docs/xxx/tables/yyy/records"
+             transform="records"&gt;&lt;/dsfr-data-source&gt;
+&lt;dsfr-data-normalize id="clean" source="data" flatten="fields" trim numeric-auto&gt;&lt;/dsfr-data-normalize&gt;
+&lt;dsfr-data-query id="query-result" source="clean" group-by="Pays" aggregate="PIB:avg" order-by="value:desc"&gt;&lt;/dsfr-data-query&gt;
+&lt;dsfr-data-chart source="query-result" type="bar" label-field="Pays" value-field="PIB"
+                 title="PIB par pays"&gt;&lt;/dsfr-data-chart&gt;</pre>
+        </section>
+
+        <!-- Parcours C -->
+        <section id="parcours-c">
+          <h2>Generer un graphique avec l'IA (Builder IA)</h2>
+          <div class="user-story">
+            <strong>Pour</strong> generer rapidement un graphique en decrivant ce que je veux en langage naturel,
+            <strong>je dois</strong> selectionner une source de donnees puis discuter avec l'assistant Albert IA,
+            <strong>afin d'</strong>obtenir un graphique et son code sans ecrire de configuration manuelle.
+          </div>
+
+          <h3>Etape 1 — Charger une source et ouvrir le chat</h3>
+          <p>Dans le <strong>Builder IA</strong>, selectionnez une source de donnees et cliquez sur <strong>Charger</strong>. L'interface se compose de deux zones :</p>
+          <ol>
+            <li>Le panneau de configuration et le <strong>chat IA</strong> a gauche</li>
+            <li>Le panneau d'<strong>apercu</strong>, <strong>code</strong> et <strong>donnees</strong> a droite</li>
+          </ol>
+          <img src="images/guide-C1-builder-ia-overview.png" alt="Builder IA — vue d'ensemble">
+
+          <h3>Etape 2 — Decrire le graphique souhaite</h3>
+          <p>Ecrivez dans le chat ce que vous souhaitez, en langage naturel. Par exemple :</p>
+          <div class="guide-note">
+            "Fais-moi un graphique en barres des beneficiaires par region"
+          </div>
+          <p>L'IA analyse les champs disponibles dans vos donnees et genere la configuration correspondante. Elle propose ensuite des <strong>suggestions</strong> pour affiner le resultat.</p>
+          <img src="images/guide-C2-builder-ia-chat.png" alt="Chat IA">
+
+          <h3>Etape 3 — Iterer et exporter</h3>
+          <p>L'IA repond avec :</p>
+          <ul>
+            <li>Le graphique genere dans l'<strong>apercu</strong></li>
+            <li>L'action executee (en JSON)</li>
+            <li>Des <strong>suggestions</strong> pour modifier le graphique ("Passe en camembert", "Filtre sur IDF", etc.)</li>
+          </ul>
+          <p>Vous pouvez continuer la conversation pour ajuster le graphique, puis copier le code depuis l'onglet <strong>Code genere</strong>.</p>
+          <img src="images/guide-C3-builder-ia-result.png" alt="Builder IA — resultat">
+          <div class="guide-note">
+            <strong>Note</strong> : le Builder IA utilise l'API Albert (IA souveraine de l'Etat). Un token API Albert est necessaire, configurable dans la section "Configuration Albert IA".
+          </div>
+        </section>
+
+        <!-- Parcours D -->
+        <section id="parcours-d">
+          <h2>Prototyper avec le Playground</h2>
+          <div class="user-story">
+            <strong>Pour</strong> tester et modifier du code de composants dsfr-data en temps reel,
+            <strong>je dois</strong> utiliser le Playground avec ses exemples precharges ou ecrire mon propre code,
+            <strong>afin de</strong> prototyper rapidement des visualisations avant de les integrer.
+          </div>
+
+          <h3>Etape 1 — Charger un exemple</h3>
+          <p>Le <strong>Playground</strong> est un editeur de code split avec un apercu en temps reel. Un selecteur d'exemples propose des modeles classes en 3 categories :</p>
+          <ul>
+            <li><strong>Composants dsfr-data</strong> : <code>dsfr-data-source</code> + <code>dsfr-data-query</code> + <code>dsfr-data-chart</code> (barres, camembert, lignes), <code>dsfr-data-kpi</code>, <code>dsfr-data-list</code>, dashboard complet</li>
+            <li><strong>DSFR Chart natifs</strong> : composants DSFR (barres, lignes, camembert, jauge, radar, carte)</li>
+          </ul>
+          <img src="images/guide-D1-playground-overview.png" alt="Playground — vue d'ensemble">
+
+          <h3>Etape 2 — Executer et visualiser</h3>
+          <p>Selectionnez un exemple (ici "DSFR Bar Chart") et cliquez sur <strong>Executer</strong>. Le code a gauche est rendu en temps reel dans l'apercu a droite.</p>
+          <img src="images/guide-D2-playground-dsfr-bar.png" alt="Playground — DSFR Bar Chart">
+          <p>L'exemple ci-dessus charge les prix moyens du controle technique par region depuis l'API data.economie.gouv.fr et les affiche avec un composant <code>&lt;bar-chart&gt;</code> DSFR natif.</p>
+
+          <h3>Etape 3 — Modifier et sauvegarder</h3>
+          <p>Modifiez le code dans l'editeur (theme Dracula), puis :</p>
+          <ol>
+            <li>Cliquez sur <strong>Executer</strong> (ou <code>Ctrl+Entree</code>) pour voir le resultat</li>
+            <li>Cliquez sur <strong>Copier</strong> pour copier le code</li>
+            <li>Cliquez sur <strong>Favoris</strong> pour sauvegarder dans vos favoris</li>
+          </ol>
+          <img src="images/guide-D3-playground-dashboard.png" alt="Playground — dashboard dsfr-data">
+
+          <h3>Etape 4 — Tester les composants dsfr-data</h3>
+          <p>L'exemple "dsfr-data-source + dsfr-data-chart" montre comment connecter une source de donnees a un graphique DSFR via les Web Components :</p>
+          <img src="images/guide-D4-playground-dsfr-data-source.png" alt="Playground — dsfr-data-source + chart">
+        </section>
+
+        <!-- Parcours E -->
+        <section id="parcours-e">
+          <h2>Composer un tableau de bord</h2>
+          <div class="user-story">
+            <strong>Pour</strong> assembler plusieurs visualisations dans un tableau de bord,
+            <strong>je dois</strong> utiliser l'editeur de Dashboard pour glisser-deposer des widgets et les configurer,
+            <strong>afin d'</strong>obtenir une page de dashboard exportable en HTML.
+          </div>
+
+          <h3>Etape 1 — Decouvrir l'editeur de dashboard</h3>
+          <p>Le <strong>Dashboard</strong> est un editeur visuel avec :</p>
+          <ul>
+            <li>A gauche : la <strong>bibliotheque de widgets</strong> (KPI, Graphique, Tableau, Texte), les <strong>favoris</strong> sauvegardes, et les reglages de <strong>grille</strong></li>
+            <li>Au centre : la <strong>grille de placement</strong> avec des zones de depot</li>
+          </ul>
+          <img src="images/guide-E1-dashboard-overview.png" alt="Dashboard — vue d'ensemble">
+
+          <h3>Etape 2 — Placer des widgets</h3>
+          <p>Glissez un widget depuis la bibliotheque ou un favori vers une cellule de la grille. Chaque widget peut etre configure en cliquant dessus.</p>
+          <p>La barre d'outils permet de :</p>
+          <ul>
+            <li><strong>Nouveau</strong> / <strong>Ouvrir</strong> / <strong>Sauvegarder</strong> un dashboard</li>
+            <li><strong>Exporter HTML</strong> : telecharger le dashboard en page HTML autonome</li>
+            <li><strong>Apercu</strong> : voir le rendu final dans un navigateur</li>
+          </ul>
+          <img src="images/guide-E4-dashboard-toolbar.png" alt="Dashboard — barre d'outils">
+
+          <h3>Etape 3 — Configurer la grille</h3>
+          <p>La section <strong>Grille</strong> dans la barre laterale permet d'ajuster :</p>
+          <ul>
+            <li>Le nombre de <strong>colonnes</strong> (1 a 4)</li>
+            <li>L'<strong>espacement</strong> entre les widgets (Normal ou Sans)</li>
+          </ul>
+          <p>Chaque ligne peut avoir un nombre de colonnes different, permettant des layouts complexes (ex: 3 KPI en ligne 1, 2 graphiques en ligne 2).</p>
+          <img src="images/guide-E3-dashboard-sidebar.png" alt="Dashboard — barre laterale">
+          <p>Les onglets <strong>Code genere</strong> et <strong>JSON</strong> permettent de recuperer le code HTML ou la configuration JSON du dashboard.</p>
+        </section>
+
+        <!-- Parcours F -->
+        <section id="parcours-f">
+          <h2>Connecter une API REST externe</h2>
+          <div class="user-story">
+            <strong>Pour</strong> afficher des donnees issues d'une API publique (data.economie.gouv.fr, data.gouv.fr, etc.),
+            <strong>je dois</strong> creer une connexion API dans Sources puis utiliser le Builder pour configurer le graphique,
+            <strong>afin de</strong> creer un widget qui interroge l'API en temps reel.
+          </div>
+
+          <h3>Etape 1 — Creer une connexion API</h3>
+          <p>Dans <strong>Sources</strong>, cliquez sur <strong>Nouvelle connexion</strong> et selectionnez le type <strong>API REST/JSON</strong> :</p>
+          <ol>
+            <li>Selectionnez le type <strong>API</strong></li>
+            <li>Entrez l'<strong>URL de l'API</strong> (ex: <code>https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/industrie-du-futur/records</code>)</li>
+            <li>Indiquez le <strong>chemin vers les donnees</strong> dans la reponse JSON (ex: <code>results</code> pour OpenDataSoft, <code>data</code> pour tabular-api.data.gouv.fr)</li>
+            <li>Cliquez sur <strong>Tester et sauvegarder</strong></li>
+          </ol>
+          <img src="images/guide-F1-sources-api-modal.png" alt="Connexion API">
+          <div class="guide-note">
+            <strong>APIs testees :</strong>
+            <ul>
+              <li>OpenDataSoft : <code>data.economie.gouv.fr</code> (chemin : <code>results</code>)</li>
+              <li>Tabular API : <code>tabular-api.data.gouv.fr</code> (chemin : <code>data</code>)</li>
+              <li>Grist API : <code>grist.numerique.gouv.fr</code> (chemin : <code>records</code>, puis <code>dsfr-data-normalize flatten="fields"</code>)</li>
+            </ul>
+          </div>
+
+          <h3>Etape 2 — Generer le graphique</h3>
+          <p>Dans le <strong>Builder</strong>, selectionnez la source API, choisissez un type de graphique et configurez les champs. Ici, un graphique en lignes des beneficiaires de l'Industrie du futur par region :</p>
+          <img src="images/guide-F2-builder-api-chart.png" alt="Builder — graphique API">
+
+          <h3>Etape 3 — Recuperer le code</h3>
+          <p>Le code genere inclut soit un fetch direct vers l'API, soit les composants <code>&lt;dsfr-data-source&gt;</code> et <code>&lt;dsfr-data-chart&gt;</code> pour un chargement dynamique.</p>
+          <img src="images/guide-F3-builder-api-code.png" alt="Builder — code API">
+        </section>
+
+        <!-- Parcours G -->
+        <section id="parcours-g">
+          <h2>Suivre les deployements dans le Monitoring</h2>
+          <div class="user-story">
+            <strong>Pour</strong> connaitre quels widgets sont deployes et sur quels sites gouvernementaux,
+            <strong>je dois</strong> consulter la page Monitoring qui agrege les beacons envoyes par les composants,
+            <strong>afin d'</strong>avoir une vue d'ensemble de l'utilisation en production.
+          </div>
+
+          <h3>Vue d'ensemble</h3>
+          <p>La page <strong>Monitoring</strong> affiche automatiquement les donnees collectees par le systeme de beacons. Chaque composant dsfr-data envoie un signal au deploiement, permettant de suivre l'utilisation.</p>
+          <img src="images/guide-G1-monitoring-overview.png" alt="Monitoring — vue d'ensemble">
+
+          <h3>KPIs de suivi</h3>
+          <p>Quatre indicateurs en haut de page resument l'activite :</p>
+          <ul>
+            <li><strong>Sites deployes</strong> : nombre de domaines uniques utilisant les widgets</li>
+            <li><strong>Widgets actifs</strong> : nombre total d'instances de composants</li>
+            <li><strong>Appels totaux</strong> : volume cumule de chargements de pages</li>
+            <li><strong>Derniere mise a jour</strong> : horodatage de la derniere collecte</li>
+          </ul>
+          <img src="images/guide-G2-monitoring-kpis.png" alt="Monitoring — KPIs">
+
+          <h3>Filtrer et exporter</h3>
+          <p>Le tableau detaille liste chaque deploiement avec le site, la page, le composant utilise, le type de graphique, et les dates d'activite. Vous pouvez :</p>
+          <ul>
+            <li><strong>Filtrer</strong> par composant ou type de graphique</li>
+            <li><strong>Rechercher</strong> un domaine specifique</li>
+            <li><strong>Exporter en CSV</strong> pour analyse</li>
+            <li><strong>Actualiser</strong> pour recharger les donnees</li>
+          </ul>
+          <img src="images/guide-G3-monitoring-filters-table.png" alt="Monitoring — filtres et tableau">
+        </section>
+
+      </div><!-- /guide-content -->
+    </div><!-- /guide-layout -->
+  </main>
+
+  <app-footer base-path="../"></app-footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const links = document.querySelectorAll('[data-guide-link]');
+      const sections = [];
+      links.forEach(link => {
+        const href = link.getAttribute('href');
+        if (href && href.startsWith('#')) {
+          const section = document.getElementById(href.slice(1));
+          if (section) sections.push({ link, section });
+        }
+      });
+      if (!sections.length) return;
+      let currentActive = null;
+      const observer = new IntersectionObserver((entries) => {
+        let bestEntry = null;
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            if (!bestEntry || entry.boundingClientRect.top < bestEntry.boundingClientRect.top) bestEntry = entry;
+          }
+        }
+        if (bestEntry) {
+          const match = sections.find(s => s.section === bestEntry.target);
+          if (match && match.link !== currentActive) {
+            if (currentActive) { currentActive.removeAttribute('aria-current'); currentActive.closest('.fr-sidemenu__item')?.classList.remove('fr-sidemenu__item--active'); }
+            match.link.setAttribute('aria-current', 'true');
+            match.link.closest('.fr-sidemenu__item')?.classList.add('fr-sidemenu__item--active');
+            currentActive = match.link;
+          }
+        }
+      }, { rootMargin: '-80px 0px -60% 0px', threshold: 0 });
+      sections.forEach(s => observer.observe(s.section));
+      if (sections.length > 0) { sections[0].link.setAttribute('aria-current', 'true'); sections[0].link.closest('.fr-sidemenu__item')?.classList.add('fr-sidemenu__item--active'); currentActive = sections[0].link; }
+    });
+  </script>
+</body>
+</html>

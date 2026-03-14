@@ -1,0 +1,145 @@
+/**
+ * Styles communs pour les widgets Grist dsfr-data.
+ * Ces widgets s'affichent dans un iframe Grist, donc pas de header/footer.
+ * Zoom 80% pour afficher plus de contenu et reduire les marges DSFR.
+ */
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: auto;
+  font-family: 'Marianne', arial, sans-serif;
+}
+
+/* Conteneur principal du widget */
+.grist-widget {
+  padding: 0.5rem;
+  height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+.grist-widget-content {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* Etat de chargement */
+.grist-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-mention-grey);
+}
+
+.grist-loading::after {
+  content: '';
+  width: 24px;
+  height: 24px;
+  margin-left: 0.5rem;
+  border: 3px solid var(--border-default-grey);
+  border-top-color: var(--text-action-high-blue-france);
+  border-radius: 50%;
+  animation: grist-spin 0.8s linear infinite;
+}
+
+@keyframes grist-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Etat d'erreur */
+.grist-error {
+  padding: 1rem;
+  color: var(--text-default-error);
+  background-color: var(--background-alt-error);
+  border-radius: 4px;
+}
+
+/* Etat vide (pas encore de mapping) */
+.grist-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-mention-grey);
+  text-align: center;
+  gap: 0.5rem;
+}
+
+.grist-empty i {
+  font-size: 2rem;
+}
+
+/* Panneau d'options (mode edition) */
+.grist-options-panel {
+  display: none;
+}
+
+.grist-options-panel.visible {
+  display: block;
+}
+
+/* Toolbar (export buttons) */
+.grist-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.25rem 0;
+  gap: 0.5rem;
+}
+
+/* Panneau de code HTML */
+.grist-code-panel {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border-default-grey, #ddd);
+  margin-top: 0.5rem;
+  background: var(--background-default-grey, #fff);
+}
+
+.grist-code-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.25rem 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-mention-grey, #666);
+}
+
+.grist-code-tabs {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.grist-code-tab {
+  background: none;
+  border: none;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-mention-grey, #666);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+
+.grist-code-tab.active {
+  color: var(--text-action-high-blue-france, #000091);
+  border-bottom-color: var(--text-action-high-blue-france, #000091);
+}
+
+.grist-code-block {
+  margin: 0;
+  padding: 0.5rem;
+  background: var(--background-alt-grey, #f5f5f5);
+  border-radius: 4px;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  overflow: auto;
+  max-height: 300px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}

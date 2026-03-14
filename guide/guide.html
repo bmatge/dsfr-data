@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guide utilisateur - dsfr-data</title>
+  <style>@view-transition{navigation:auto}app-header:not(:defined){display:block;min-height:56px}app-footer:not(:defined){display:block;min-height:48px}</style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script src="guide-menu.js"></script>
+  <style>
+    .guide-layout { display: flex; gap: 2rem; }
+    .guide-content { flex: 1; min-width: 0; }
+    @media (max-width: 992px) {
+      .guide-layout { flex-direction: column; }
+    }
+    .guide-content img { max-width: 100%; height: auto; border: 1px solid var(--border-default-grey); border-radius: 4px; margin: 1rem 0; }
+    .guide-content .user-story { background: var(--background-alt-blue-france); border-left: 4px solid var(--border-action-high-blue-france); padding: 1rem 1.5rem; margin: 1.5rem 0; border-radius: 0 4px 4px 0; }
+    .guide-content .user-story strong { color: var(--text-action-high-blue-france); }
+    .guide-content h2 { padding-top: 2rem; border-top: 1px solid var(--border-default-grey); margin-top: 3rem; }
+    .guide-content h2:first-of-type { border-top: none; margin-top: 0; padding-top: 0; }
+    .guide-content h3 { margin-top: 2rem; }
+    .guide-content ol, .guide-content ul { margin: 0.5rem 0 1rem 1.5rem; }
+    .guide-content li { margin-bottom: 0.25rem; }
+  </style>
+</head>
+<body>
+  <app-header current-page="guide" base-path="../"></app-header>
+
+  <main class="fr-container fr-py-4w" id="main-content">
+    <div class="guide-layout">
+
+      <app-sidemenu section="guide"></app-sidemenu>
+
+      <!-- Contenu principal -->
+      <div class="guide-content">
+
+        <!-- Vue d'ensemble -->
+        <section id="overview">
+          <h1><i class="ri-book-open-line fr-mr-1w"></i>Guide utilisateur — dsfr-data</h1>
+          <p class="fr-text--lead">
+            Ce guide presente les principaux parcours d'utilisation de <strong>dsfr-data</strong>, une bibliotheque de Web Components de dataviz pour les sites gouvernementaux francais, conforme au DSFR.
+          </p>
+          <p>Chaque parcours est presente comme une <strong>user story</strong> :</p>
+          <div class="user-story">
+            <strong>Pour</strong> [objectif metier], <strong>je dois</strong> [etapes concretes], <strong>afin de</strong> [resultat d'integration].
+          </div>
+
+          <h2>L'interface</h2>
+          <p>L'application est accessible depuis la page d'accueil qui regroupe tous les outils :</p>
+          <img src="images/guide-hub.png" alt="Page d'accueil dsfr-data">
+          <p>Les outils disponibles sont :</p>
+          <ul>
+            <li><strong>Sources</strong> : connecter et gerer les sources de donnees (Grist, API, manuelles)</li>
+            <li><strong>Builder</strong> : generateur visuel de graphiques pas-a-pas</li>
+            <li><strong>Builder IA</strong> : generateur de graphiques par conversation avec l'IA Albert</li>
+            <li><strong>Playground</strong> : editeur de code interactif avec apercu temps reel</li>
+            <li><strong>Dashboard</strong> : editeur visuel de tableaux de bord multi-widgets</li>
+            <li><strong>Monitoring</strong> : suivi des deployements de widgets en production</li>
+          </ul>
+
+          <div class="fr-grid-row fr-grid-row--gutters fr-mt-4w">
+            <div class="fr-col-12 fr-col-md-6">
+              <div class="fr-card fr-enlarge-link">
+                <div class="fr-card__body">
+                  <div class="fr-card__content">
+                    <h3 class="fr-card__title"><a href="guide-parcours.html">Parcours utilisateur</a></h3>
+                    <p class="fr-card__desc">7 parcours pas-a-pas : donnees locales, Grist, Builder IA, Playground, Dashboard, API REST, Monitoring.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="fr-col-12 fr-col-md-6">
+              <div class="fr-card fr-enlarge-link">
+                <div class="fr-card__body">
+                  <div class="fr-card__content">
+                    <h3 class="fr-card__title"><a href="guide-exemples-source.html">Exemples par composant</a></h3>
+                    <p class="fr-card__desc">Exemples live avec code source : dsfr-data-source, normalize, query, search, facets, display.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Ressources -->
+        <section id="ressources" class="fr-mt-4w">
+          <h2>Ressources</h2>
+          <div class="fr-grid-row fr-grid-row--gutters">
+            <div class="fr-col-12 fr-col-md-4">
+              <div class="fr-card fr-card--no-arrow">
+                <div class="fr-card__body">
+                  <div class="fr-card__content">
+                    <h3 class="fr-card__title">Playground</h3>
+                    <p class="fr-card__desc">Editeur de code interactif avec exemples precharges et apercu en temps reel.</p>
+                  </div>
+                  <div class="fr-card__footer">
+                    <a class="fr-btn fr-btn--secondary" href="../apps/playground/index.html">Ouvrir le Playground</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="fr-col-12 fr-col-md-4">
+              <div class="fr-card fr-card--no-arrow">
+                <div class="fr-card__body">
+                  <div class="fr-card__content">
+                    <h3 class="fr-card__title">Demo composants</h3>
+                    <p class="fr-card__desc">Voir tous les composants avec leurs attributs et exemples interactifs.</p>
+                  </div>
+                  <div class="fr-card__footer">
+                    <a class="fr-btn fr-btn--secondary" href="../specs/index.html">Composants</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="fr-col-12 fr-col-md-4">
+              <div class="fr-card fr-card--no-arrow">
+                <div class="fr-card__body">
+                  <div class="fr-card__content">
+                    <h3 class="fr-card__title">DSFR Chart</h3>
+                    <p class="fr-card__desc">Documentation officielle des composants graphiques DSFR.</p>
+                  </div>
+                  <div class="fr-card__footer">
+                    <a class="fr-btn fr-btn--secondary" href="https://github.com/GouvernementFR/dsfr-chart" target="_blank" rel="noopener">GitHub DSFR Chart</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div><!-- /guide-content -->
+    </div><!-- /guide-layout -->
+  </main>
+
+  <app-footer base-path="../"></app-footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js"></script>
+</body>
+</html>

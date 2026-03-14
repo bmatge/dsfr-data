@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Charts builder — Accueil</title>
+  <style>@view-transition{navigation:auto}app-header:not(:defined){display:block;min-height:56px}app-footer:not(:defined){display:block;min-height:48px}</style>
+
+  <!-- DSFR -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css" integrity="sha384-VuzA/gYnk/ZqcT5a/ravR88otj71vNPl/h1JPrKoESV33DCX6SeXIxBcRr5qYPRj" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css" integrity="sha384-YR4AxNhFVy1qsQ0Hp7Rosg06e4sj2m9dLxiYZrtqJ0boIOiDbD8XkIsIPMMkf0VL" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
+
+  <!-- Composants dsfr-data -->
+  <script type="module" src="dist/dsfr-data.esm.js"></script>
+
+  <style>
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    main {
+      flex: 1;
+      background: var(--background-alt-grey);
+    }
+
+    .tiles-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 992px) {
+      .tiles-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 576px) {
+      .tiles-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .fr-tile {
+      height: 100%;
+    }
+
+    .fr-tile__pictogram {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .fr-tile__pictogram i {
+      font-size: 2.5rem;
+      color: var(--text-action-high-blue-france);
+    }
+
+    .workflow {
+      background: var(--background-default-grey);
+      border-radius: 8px;
+      padding: 1.5rem 2rem;
+      margin-top: 1rem;
+    }
+
+    .workflow h3 {
+      margin: 0 0 1.5rem;
+    }
+
+    .workflow-steps {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .workflow-step {
+      flex: 1;
+      min-width: 200px;
+      text-align: center;
+      padding: 1rem;
+    }
+
+    .workflow-step .step-number {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--background-action-high-blue-france);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 0.75rem;
+      font-weight: 700;
+    }
+
+    .workflow-step h4 {
+      margin: 0 0 0.5rem;
+      font-size: 1rem;
+    }
+
+    .workflow-step p {
+      font-size: 0.85rem;
+      color: var(--text-mention-grey);
+      margin: 0;
+    }
+
+    .arrow {
+      display: flex;
+      align-items: center;
+      color: var(--text-mention-grey);
+      font-size: 1.5rem;
+    }
+
+    @media (max-width: 768px) {
+      .arrow { display: none; }
+    }
+
+    .tile-disabled {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <app-header current-page="accueil" base-path=""></app-header>
+
+  <!-- Contenu principal -->
+  <main class="fr-pb-8w" id="main-content">
+    <div class="fr-container">
+      <!-- Avertissement -->
+      <div class="fr-alert fr-alert--warning fr-mt-4w">
+        <p>Cette application est experimentale, elle evolue chaque jour et peut donc se reveler tres instable le temps du developpement.</p>
+      </div>
+
+      <!-- Présentation du projet -->
+      <div class="fr-callout fr-my-4w">
+        <p class="fr-callout__text">
+          <strong>Charts builder</strong> est une suite d'outils pour créer des visualisations de données conformes au Design System de l'État (DSFR).
+          Générez des graphiques accessibles en quelques clics, connectez vos sources de données, et exportez du code prêt à intégrer dans vos sites.
+        </p>
+      </div>
+
+      <!-- Workflow -->
+      <div class="workflow">
+        <h3 class="fr-sr-only">Comment ça marche ?</h3>
+        <div class="workflow-steps">
+          <div class="workflow-step">
+            <div class="step-number">1</div>
+            <h4>Connectez vos données</h4>
+            <p>API OpenDataSoft, Tabular, Grist, ou données manuelles</p>
+          </div>
+          <div class="arrow">→</div>
+          <div class="workflow-step">
+            <div class="step-number">2</div>
+            <h4>Configurez le graphique</h4>
+            <p>Choisissez le type, mappez les champs, ajustez les couleurs</p>
+          </div>
+          <div class="arrow">→</div>
+          <div class="workflow-step">
+            <div class="step-number">3</div>
+            <h4>Exportez le code</h4>
+            <p>Copiez le HTML/JS généré dans votre site</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tuiles outils principaux -->
+      <div class="tiles-grid fr-mt-4w">
+
+        <!-- 1. Documentation -->
+        <div class="fr-tile fr-tile--horizontal fr-enlarge-link">
+          <div class="fr-tile__body">
+            <div class="fr-tile__content">
+              <h3 class="fr-tile__title">
+                <a href="specs/index.html">Documentation</a>
+              </h3>
+              <p class="fr-tile__detail">Découvrez les composants dsfr-data et les graphiques DSFR Chart disponibles.</p>
+            </div>
+          </div>
+          <div class="fr-tile__header">
+            <div class="fr-tile__pictogram">
+              <i class="ri-book-open-line"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Générateur de graphiques -->
+        <div class="fr-tile fr-tile--horizontal fr-enlarge-link">
+          <div class="fr-tile__body">
+            <div class="fr-tile__content">
+              <h3 class="fr-tile__title">
+                <a href="apps/builder/index.html">Générateur de graphiques</a>
+              </h3>
+              <p class="fr-tile__detail">Créez des graphiques en quelques clics : barres, lignes, camemberts... Connectez vos données et personnalisez l'apparence.</p>
+            </div>
+          </div>
+          <div class="fr-tile__header">
+            <div class="fr-tile__pictogram">
+              <i class="ri-bar-chart-box-line"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Générateur IA -->
+        <div class="fr-tile fr-tile--horizontal fr-enlarge-link">
+          <div class="fr-tile__body">
+            <div class="fr-tile__content">
+              <h3 class="fr-tile__title">
+                <a href="apps/builder-ia/index.html">Générateur IA (Albert)</a>
+              </h3>
+              <p class="fr-tile__detail">Décrivez en langage naturel le graphique que vous souhaitez. L'IA analyse vos données et génère la visualisation.</p>
+            </div>
+          </div>
+          <div class="fr-tile__header">
+            <div class="fr-tile__pictogram">
+              <i class="ri-robot-line"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. Playground -->
+        <div class="fr-tile fr-tile--horizontal fr-enlarge-link">
+          <div class="fr-tile__body">
+            <div class="fr-tile__content">
+              <h3 class="fr-tile__title">
+                <a href="apps/playground/index.html">Playground</a>
+              </h3>
+              <p class="fr-tile__detail">Écrivez du code et voyez le résultat en temps réel. Idéal pour apprendre et expérimenter avec les APIs.</p>
+            </div>
+          </div>
+          <div class="fr-tile__header">
+            <div class="fr-tile__pictogram">
+              <i class="ri-code-s-slash-line"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5. Sources -->
+        <div class="fr-tile fr-tile--horizontal fr-enlarge-link">
+          <div class="fr-tile__body">
+            <div class="fr-tile__content">
+              <h3 class="fr-tile__title">
+                <a href="apps/sources/index.html">Sources</a>
+              </h3>
+              <p class="fr-tile__detail">Connectez vos bases Grist, créez des jeux de données manuels, ou liez des APIs pour alimenter vos graphiques.</p>
+            </div>
+          </div>
+          <div class="fr-tile__header">
+            <div class="fr-tile__pictogram">
+              <i class="ri-database-2-line"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- 6. Dashboard Editor -->
+        <div class="fr-tile fr-tile--horizontal fr-enlarge-link">
+          <div class="fr-tile__body">
+            <div class="fr-tile__content">
+              <h3 class="fr-tile__title">
+                <a href="apps/dashboard/index.html">Dashboard Editor</a>
+              </h3>
+              <p class="fr-tile__detail">Composez des tableaux de bord en assemblant vos graphiques favoris.</p>
+            </div>
+          </div>
+          <div class="fr-tile__header">
+            <div class="fr-tile__pictogram">
+              <i class="ri-layout-grid-line"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- 7. Favoris -->
+        <div class="fr-tile fr-tile--horizontal fr-enlarge-link">
+          <div class="fr-tile__body">
+            <div class="fr-tile__content">
+              <h3 class="fr-tile__title">
+                <a href="apps/favorites/index.html">Mes favoris</a>
+              </h3>
+              <p class="fr-tile__detail">Retrouvez et gerez vos graphiques sauvegardes. Previsualisez, editez ou reutilisez-les.</p>
+            </div>
+          </div>
+          <div class="fr-tile__header">
+            <div class="fr-tile__pictogram">
+              <i class="ri-star-line"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- 8. Monitoring -->
+        <div class="fr-tile fr-tile--horizontal fr-enlarge-link">
+          <div class="fr-tile__body">
+            <div class="fr-tile__content">
+              <h3 class="fr-tile__title">
+                <a href="apps/monitoring/index.html">Monitoring</a>
+              </h3>
+              <p class="fr-tile__detail">Suivez les deploiements des widgets dsfr-data : sites, composants et types de graphiques utilises.</p>
+            </div>
+          </div>
+          <div class="fr-tile__header">
+            <div class="fr-tile__pictogram">
+              <i class="ri-pulse-line"></i>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <app-footer base-path=""></app-footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js" integrity="sha384-4dK3hBJJh/bjoOulz9Q1kNO2O09lzuKiFeF5c+0VguV1RT3IiLkv+Pt98Jul84V+" crossorigin="anonymous"></script>
+</body>
+</html>

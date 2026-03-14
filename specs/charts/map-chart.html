@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Map Chart - DSFR Chart - dsfr-data</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"></script>
+  <style>
+    body { min-height: 100vh; display: flex; flex-direction: column; }
+  </style>
+</head>
+<body>
+  <app-header current-page="composants" base-path="../../"></app-header>
+
+  <app-layout-demo title="Carte de France" icon="ri-map-line" active-path="charts/map-chart" base-path="../">
+    <div slot="content">
+      <p class="fr-text--lead">Les composants <code>&lt;map-chart&gt;</code> et <code>&lt;map-chart-reg&gt;</code> visualisent des donnees geographiques.</p>
+
+      <section class="demo-section">
+        <h3>Carte departementale</h3>
+        <p>Le composant <code>&lt;map-chart&gt;</code> affiche une carte de France avec donnees par departement.</p>
+        <map-chart
+          data='{"75": 95, "13": 82, "69": 78, "33": 71, "31": 68, "59": 88, "67": 75, "44": 80, "34": 72, "06": 91}'
+          date="2024-01-15"
+          name="Score RGAA"
+          value-nat="78"
+          selected-palette="sequentialAscending">
+        </map-chart>
+        <div class="code-block"><pre>&lt;map-chart
+  data='{"75": 95, "13": 82, "69": 78, "33": 71, "31": 68}'
+  date="2024-01-15"
+  name="Score RGAA"
+  value-nat="78"
+  selected-palette="sequentialAscending"&gt;
+&lt;/map-chart&gt;</pre></div>
+      </section>
+
+      <section class="demo-section">
+        <h3>Carte regionale</h3>
+        <div class="fr-callout fr-callout--brown-caramel fr-my-2w">
+          <p class="fr-callout__text">
+            <strong>Limitation connue :</strong> Le composant <code>&lt;map-chart-reg&gt;</code>
+            presente des bugs dans DSFR Chart v2.0.4 (affiche un decoupage departemental au lieu de regional).
+            Consultez la <a href="https://github.com/GouvernementFR/dsfr-chart/issues" target="_blank">page des issues GitHub</a> pour suivre les corrections.
+          </p>
+        </div>
+        <p>Syntaxe attendue pour <code>&lt;map-chart-reg&gt;</code> :</p>
+        <div class="code-block"><pre>&lt;map-chart-reg
+  data='{"75": 95, "77": 82, "78": 85, "91": 78, "92": 90}'
+  date="2024-01-15"
+  region="11"
+  name="Score RGAA"
+  selected-palette="sequentialAscending"&gt;
+&lt;/map-chart-reg&gt;</pre></div>
+      </section>
+
+      <h2 class="fr-mt-4w">Attributs requis</h2>
+      <table class="attr-table">
+        <thead>
+          <tr>
+            <th>Attribut</th>
+            <th>Type</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>data</code></td>
+            <td>String (JSON)</td>
+            <td>Dictionnaire JSON avec codes departement/region comme cles et valeurs numeriques</td>
+          </tr>
+          <tr>
+            <td><code>date</code></td>
+            <td>String</td>
+            <td>Date des donnees au format YYYY-MM-DD</td>
+          </tr>
+          <tr>
+            <td><code>highlight-index</code></td>
+            <td>String (JSON)</td>
+            <td>Liste des codes departements a mettre en avant : <code>'["75", "69"]'</code></td>
+          </tr>
+          <tr>
+            <td><code>name</code></td>
+            <td>String</td>
+            <td>Nom de l'indicateur affiche dans la legende</td>
+          </tr>
+          <tr>
+            <td><code>value-nat</code></td>
+            <td>Number</td>
+            <td>(map-chart uniquement) Valeur nationale de reference</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 class="fr-mt-4w">Codes des departements</h2>
+      <p>Les codes utilisent la nomenclature officielle INSEE :</p>
+      <ul>
+        <li><strong>Metropole</strong> : "01" a "95" (sauf Corse)</li>
+        <li><strong>Corse</strong> : "2A" (Corse-du-Sud), "2B" (Haute-Corse)</li>
+        <li><strong>DOM-TOM</strong> : "971" (Guadeloupe), "972" (Martinique), "973" (Guyane), "974" (Reunion), "976" (Mayotte)</li>
+      </ul>
+    </div>
+  </app-layout-demo>
+
+  <app-footer base-path="../../"></app-footer>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dsfr-data — Builder IA</title>
+  <style>@view-transition{navigation:auto}app-header:not(:defined){display:block;min-height:56px}app-footer:not(:defined){display:block;min-height:48px}.modal-overlay{display:none}</style>
+
+  <!-- DSFR -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css" integrity="sha384-VuzA/gYnk/ZqcT5a/ravR88otj71vNPl/h1JPrKoESV33DCX6SeXIxBcRr5qYPRj" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css" integrity="sha384-YR4AxNhFVy1qsQ0Hp7Rosg06e4sj2m9dLxiYZrtqJ0boIOiDbD8XkIsIPMMkf0VL" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" integrity="sha384-9nhczxUqK87bcKHh20fSQcTGD4qq5GhayNYSYWqwBkINBhOfQLg/P5HG5lF1urn4" crossorigin="anonymous"></script>
+
+  <!-- DSFR Chart (pour les cartes) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css" integrity="sha384-987+TUcyVaQAI/PaEqYIGNqku/bHSkNVAqOfNxyS1eE9SxeeH2Ue4FQZ3kKtnWfM" crossorigin="anonymous">
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js" integrity="sha384-xYrR55uYb2Y55H6eELrLA9ARM8YsjB1ksG6QHJZrhL49lzax9l7rHuQPjsZGiTYk" crossorigin="anonymous"></script>
+
+  <!-- Composants dsfr-data -->
+  <script type="module" src="../../dist/dsfr-data.esm.js"></script>
+</head>
+<body>
+  <!-- Header -->
+  <app-header current-page="builder-ia" base-path="../../"></app-header>
+
+  <app-layout-builder left-ratio="50">
+    <!-- ============================================ -->
+    <!-- PANNEAU GAUCHE : CONFIG + CHAT -->
+    <!-- ============================================ -->
+    <aside slot="left" class="builder-config-panel">
+
+      <!-- Source de donnees + Config IA -->
+      <div class="config-section" id="section-source">
+        <div class="config-section-header" onclick="toggleSection('section-source')">
+          <h3><i class="ri-database-2-line"></i> Source de donnees</h3>
+          <i class="ri-arrow-down-s-line collapse-icon"></i>
+        </div>
+        <div class="config-section-content">
+
+        <!-- Selection de source (grille 3 colonnes) -->
+        <div id="source-panel-saved" class="source-panel">
+          <!-- Ligne 1 : Select | Bouton | Status -->
+          <div class="source-grid">
+            <div class="fr-select-group fr-select-group--sm">
+              <label class="fr-label" for="saved-source">Source</label>
+              <select class="fr-select" id="saved-source">
+                <option value="">-- Choisir --</option>
+              </select>
+            </div>
+            <button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline source-btn" id="load-fields-btn" onclick="loadSavedSourceData()">
+              <i class="ri-refresh-line"></i> Charger
+            </button>
+            <div class="source-status" id="fields-status"></div>
+          </div>
+
+          <!-- Ligne 2 : Info | Lien | (vide) -->
+          <div class="source-grid source-grid-row2">
+            <div id="saved-source-info" class="source-info"></div>
+            <a href="../sources/index.html" class="fr-link fr-link--sm">
+              <i class="ri-add-line"></i> Nouvelle
+            </a>
+            <div></div>
+          </div>
+        </div>
+
+        </div>
+      </div>
+
+      <!-- Configuration IA -->
+      <div class="config-section collapsed" id="section-ia-config">
+        <div class="config-section-header" onclick="toggleSection('section-ia-config')">
+          <h3><i class="ri-robot-line"></i> Configuration IA</h3>
+          <i class="ri-arrow-down-s-line collapse-icon"></i>
+        </div>
+        <div class="config-section-content">
+          <div class="fr-input-group">
+            <label class="fr-label" for="ia-api-url">URL de l'API
+              <span class="fr-hint-text">Endpoint compatible OpenAI Chat Completions (Albert, OpenAI, Anthropic, Gemini...)</span>
+            </label>
+            <input class="fr-input" type="url" id="ia-api-url"
+                   value="https://albert.api.etalab.gouv.fr/v1/chat/completions"
+                   placeholder="https://api.openai.com/v1/chat/completions">
+          </div>
+          <div class="fr-input-group">
+            <label class="fr-label" for="ia-model">Modele
+              <span class="fr-hint-text">Identifiant du modele (ex: albert-large, gpt-4o, claude-sonnet-4-5-20250929...)</span>
+            </label>
+            <input class="fr-input" type="text" id="ia-model"
+                   value="albert-large"
+                   placeholder="albert-large">
+          </div>
+          <div class="fr-input-group">
+            <label class="fr-label" for="ia-token">Token API</label>
+            <input class="fr-input" type="password" id="ia-token" placeholder="Votre cle API (Bearer token)">
+          </div>
+          <div class="fr-input-group">
+            <label class="fr-label">Parametres supplementaires
+              <span class="fr-hint-text">Paires cle:valeur ajoutees au body de la requete (ex: max_tokens, temperature...)</span>
+            </label>
+            <div id="ia-extra-params">
+              <div class="ia-extra-param-row" style="display:flex;gap:0.5rem;margin-bottom:0.5rem;align-items:center;">
+                <input class="fr-input" type="text" placeholder="cle" value="temperature" style="flex:1;">
+                <input class="fr-input" type="text" placeholder="valeur" value="0.7" style="flex:1;">
+                <button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline" type="button" onclick="this.parentElement.remove()" title="Supprimer"><i class="ri-delete-bin-line"></i></button>
+              </div>
+              <div class="ia-extra-param-row" style="display:flex;gap:0.5rem;margin-bottom:0.5rem;align-items:center;">
+                <input class="fr-input" type="text" placeholder="cle" value="max_tokens" style="flex:1;">
+                <input class="fr-input" type="text" placeholder="valeur" value="4096" style="flex:1;">
+                <button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline" type="button" onclick="this.parentElement.remove()" title="Supprimer"><i class="ri-delete-bin-line"></i></button>
+              </div>
+            </div>
+            <button class="fr-btn fr-btn--sm fr-btn--tertiary" type="button" onclick="addExtraParam()">
+              <i class="ri-add-line"></i> Ajouter un parametre
+            </button>
+          </div>
+          <div class="fr-input-group">
+            <label class="fr-label" for="ia-system-prompt">System prompt</label>
+            <textarea class="fr-input" id="ia-system-prompt" rows="4" style="font-size: 0.75rem;">Tu es un assistant specialise dans la creation de graphiques et tableaux de bord pour les sites gouvernementaux francais. Tu utilises la bibliotheque dsfr-data (web components DSFR).
+
+## Architecture des donnees (pipeline)
+
+Les donnees suivent un pipeline de composants HTML, chacun transformant les donnees pour le suivant :
+
+```
+dsfr-data-source  -->  dsfr-data-normalize  -->  dsfr-data-facets  -->  dsfr-data-query  -->  dsfr-data-chart / dsfr-data-kpi / dsfr-data-list
+(API/donnees)    (nettoyage)         (filtres user)    (filtre/agr.)    (visualisation)
+```
+
+Chaque composant est optionnel. Pipeline minimal : source -> visualisation.
+Les composants communiquent par IDs : `<dsfr-data-source id="X">` puis `<dsfr-data-query source="X">`.
+
+## Ce que tu sais faire
+
+### Mode 1 : Apercu interactif (par defaut)
+Tu generes UNE action JSON dans un bloc ```json :
+- `createChart` : creer un graphique dans l'apercu (voir skill "Action createChart")
+- `reloadData` : recharger les donnees avec des filtres ODSQL serveur (voir skill "Action reloadData")
+
+### Mode 2 : Code embarquable (quand l'utilisateur demande "le code", "embarquer", "integrer")
+Tu generes du HTML avec les composants dsfr-data. Le code doit etre un snippet (PAS une page HTML complete). Voir skills des composants pour les attributs.
+
+## Composants disponibles
+- `dsfr-data-source` : connecte une API REST, distribue les donnees
+- `dsfr-data-normalize` : nettoie les donnees (trim, conversion numerique, renommage, remplacement). A placer AVANT dsfr-data-query.
+- `dsfr-data-facets` : filtres a facettes interactifs (checkboxes, selects). L'utilisateur filtre visuellement les donnees.
+- `dsfr-data-query` : filtre, agrege, trie les donnees (declaratif). Syntaxe : where="champ:op:valeur", aggregate="champ:fonction".
+- `dsfr-data-chart` : graphiques DSFR (bar, line, pie, radar, scatter, gauge, bar-line, map, map-reg)
+- `dsfr-data-kpi` : indicateur chiffre cle avec seuils de couleur
+- `dsfr-data-list` : tableau filtrable, triable, paginable avec export CSV
+
+## Regles strictes
+1. Genere TOUJOURS UN SEUL bloc ```json par reponse (jamais 2, jamais 0 quand un graphique est demande).
+2. Les seules actions valides sont "createChart" et "reloadData". Aucune autre.
+3. Pour `createChart`, utilise la syntaxe `config.where` : "champ:operateur:valeur" (ex: "region:eq:IDF").
+4. Pour `reloadData`, utilise la syntaxe ODSQL (SQL-like) dans `query.where` (ex: "population > 10000").
+5. Ne confonds JAMAIS ces deux syntaxes de filtre.
+6. Utilise les noms de champs EXACTS fournis dans le contexte des donnees. Ne les invente pas.
+7. Si la demande est ambigue, pose UNE question courte puis propose un graphique par defaut.
+8. Quand les donnees contiennent des valeurs textuelles representant des nombres (ex: "1 234"), suggere d'utiliser dsfr-data-normalize avec numeric ou numeric-auto.
+9. Quand les donnees ont des champs categoriques (ex: region, type, statut), suggere dsfr-data-facets si l'utilisateur veut explorer/filtrer interactivement.
+
+Sois concis. Reponds en francais.</textarea>
+          </div>
+          <button class="fr-btn fr-btn--sm fr-btn--secondary" onclick="saveIAConfig()">
+            <i class="ri-save-line"></i> Sauvegarder config
+          </button>
+        </div>
+      </div>
+
+      <!-- Zone Chat -->
+      <div class="chat-container">
+        <div class="chat-header">
+          <span><i class="ri-chat-3-line"></i> Assistant graphiques</span>
+          <button id="clear-chat" class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline" title="Effacer la conversation" style="margin-left:auto;padding:0.25rem 0.5rem;">
+            <i class="ri-delete-bin-line"></i>
+          </button>
+        </div>
+
+        <div class="chat-messages" id="chat-messages">
+          <!-- Messages will be added here -->
+        </div>
+
+        <div class="chat-input-container">
+          <div class="chat-input-wrapper">
+            <textarea class="chat-input" id="chat-input"
+                      placeholder="Decrivez le graphique que vous souhaitez creer..."
+                      rows="1"></textarea>
+            <button class="chat-send-btn" id="chat-send-btn" onclick="sendMessage()" aria-label="Envoyer">
+              <i class="ri-send-plane-fill"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- ============================================ -->
+    <!-- PANNEAU DROIT : APERCU -->
+    <!-- ============================================ -->
+    <app-preview-panel slot="right"
+      show-data-tab
+      show-save-button
+      show-playground-button
+      tab-labels="Apercu,Code,Donnees">
+
+      <!-- Tab Apercu -->
+      <div slot="preview">
+        <div class="preview-chart">
+          <h2 class="preview-title" id="preview-title">Mon graphique</h2>
+          <p class="preview-subtitle" id="preview-subtitle"></p>
+          <div class="chart-wrapper">
+            <div class="empty-state" id="empty-state">
+              <i class="ri-bar-chart-box-line"></i>
+              <p>Discutez avec l'assistant pour creer votre graphique</p>
+            </div>
+            <canvas id="preview-canvas" style="display: none;"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Code -->
+      <div slot="code">
+        <button class="fr-btn fr-btn--sm fr-btn--secondary copy-btn" onclick="copyCode()">
+          <i class="ri-file-copy-line"></i> Copier le code
+        </button>
+        <pre id="generated-code">// Le code sera genere ici apres creation du graphique</pre>
+      </div>
+
+      <!-- Tab Donnees -->
+      <div slot="data">
+        <div class="data-summary" id="data-summary">
+          <h4>Champs disponibles</h4>
+          <div class="field-list" id="field-list">
+            <span style="color: var(--text-mention-grey); font-size: 0.8rem;">
+              Selectionnez une source de donnees
+            </span>
+          </div>
+        </div>
+        <h4 style="font-size: 0.9rem; margin-bottom: 0.5rem;">Donnees brutes</h4>
+        <pre id="raw-data">// Selectionnez une source pour voir les donnees</pre>
+      </div>
+
+    </app-preview-panel>
+  </app-layout-builder>
+
+  <!-- Modale preview donnees -->
+  <div class="modal-overlay" id="data-preview-modal">
+    <div class="modal" style="max-width: 900px;">
+      <div class="modal-header">
+        <h3>Apercu des donnees</h3>
+        <button class="modal-close" id="data-preview-close">&times;</button>
+      </div>
+      <div class="modal-body" id="data-preview-body">
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="src/main.ts"></script>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js" integrity="sha384-4dK3hBJJh/bjoOulz9Q1kNO2O09lzuKiFeF5c+0VguV1RT3IiLkv+Pt98Jul84V+" crossorigin="anonymous"></script>
+</body>
+</html>

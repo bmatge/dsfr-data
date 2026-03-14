@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Widgets Grist - Guide - dsfr-data</title>
+  <style>@view-transition{navigation:auto}app-header:not(:defined){display:block;min-height:56px}app-footer:not(:defined){display:block;min-height:48px}</style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script src="guide-menu.js"></script>
+  <style>
+    .guide-layout { display: flex; gap: 2rem; }
+    .guide-content { flex: 1; min-width: 0; }
+    @media (max-width: 992px) {
+      .guide-layout { flex-direction: column; }
+    }
+    .guide-content img { max-width: 100%; height: auto; border: 1px solid var(--border-default-grey); border-radius: 4px; margin: 1rem 0; }
+    .guide-content .user-story { background: var(--background-alt-blue-france); border-left: 4px solid var(--border-action-high-blue-france); padding: 1rem 1.5rem; margin: 1.5rem 0; border-radius: 0 4px 4px 0; }
+    .guide-content .user-story strong { color: var(--text-action-high-blue-france); }
+    .guide-content h2 { padding-top: 2rem; border-top: 1px solid var(--border-default-grey); margin-top: 3rem; }
+    .guide-content h2:first-of-type { border-top: none; margin-top: 0; padding-top: 0; }
+    .guide-content h3 { margin-top: 2rem; }
+    .guide-content ol, .guide-content ul { margin: 0.5rem 0 1rem 1.5rem; }
+    .guide-content li { margin-bottom: 0.25rem; }
+  </style>
+</head>
+<body>
+  <app-header current-page="guide" base-path="../"></app-header>
+
+  <main class="fr-container fr-py-4w" id="main-content">
+    <div class="guide-layout">
+
+      <app-sidemenu section="guide"></app-sidemenu>
+
+      <!-- Contenu principal -->
+      <div class="guide-content">
+
+        <section id="grist-widgets">
+          <h1><i class="ri-pie-chart-2-line fr-mr-1w"></i>Widgets Grist</h1>
+          <p>
+            Les composants <strong>dsfr-data</strong> sont disponibles sous forme de <strong>custom widgets</strong> pour
+            <a href="https://www.getgrist.com/" target="_blank" rel="noopener">Grist</a>, le tableur collaboratif open-source.
+            Ces widgets permettent de visualiser les donnees de vos tables Grist avec des graphiques, cartes et tableaux conformes au DSFR.
+          </p>
+          <p>
+            Les widgets sont deployes sur GitHub Pages et accessibles a cette adresse :
+            <a href="https://bmatge.github.io/dsfr-data/" target="_blank" rel="noopener">bmatge.github.io/dsfr-data</a>
+          </p>
+
+          <h2>Widgets disponibles</h2>
+
+          <div class="fr-table fr-table--bordered">
+            <table>
+              <thead>
+                <tr>
+                  <th>Widget</th>
+                  <th>URL</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Graphique / Carte / KPI</strong></td>
+                  <td><code>https://bmatge.github.io/dsfr-data/chart/</code></td>
+                  <td>Widget polyvalent : 7 types de graphiques, 2 cartes France, KPI</td>
+                </tr>
+                <tr>
+                  <td><strong>Tableau DSFR</strong></td>
+                  <td><code>https://bmatge.github.io/dsfr-data/datalist/</code></td>
+                  <td>Tableau avec recherche, tri, pagination et export CSV</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2>Ajouter un widget dans Grist</h2>
+          <ol>
+            <li>Ouvrez votre document Grist et placez-vous sur la page souhaitee</li>
+            <li>Cliquez sur <strong>Ajouter un widget</strong> en haut de la page</li>
+            <li>Selectionnez <strong>Custom URL</strong> comme type de widget</li>
+            <li>Collez l'URL du widget (voir tableau ci-dessus) dans le champ URL</li>
+            <li>Dans <strong>Acces</strong>, selectionnez <strong>Lire la table</strong> pour autoriser le widget a acceder aux donnees</li>
+            <li>Cliquez sur <strong>Ajouter a la page</strong></li>
+          </ol>
+
+          <h2>Widget Graphique / Carte / KPI</h2>
+          <p>Ce widget unique supporte <strong>10 types de visualisations</strong> configurables depuis le panneau d'options :</p>
+
+          <h3>Types de visualisation</h3>
+          <div class="fr-table fr-table--bordered">
+            <table>
+              <thead>
+                <tr>
+                  <th>Categorie</th>
+                  <th>Type</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td rowspan="7">Graphiques</td><td><code>bar</code></td><td>Barres verticales (ou horizontales)</td></tr>
+                <tr><td><code>line</code></td><td>Courbes / lignes</td></tr>
+                <tr><td><code>pie</code></td><td>Camembert / donut</td></tr>
+                <tr><td><code>radar</code></td><td>Diagramme radar</td></tr>
+                <tr><td><code>scatter</code></td><td>Nuage de points</td></tr>
+                <tr><td><code>gauge</code></td><td>Jauge de progression</td></tr>
+                <tr><td><code>bar-line</code></td><td>Barres + lignes combines</td></tr>
+                <tr><td rowspan="2">Cartes</td><td><code>map</code></td><td>Carte de France par departements</td></tr>
+                <tr><td><code>map-reg</code></td><td>Carte de France par regions</td></tr>
+                <tr><td>KPI</td><td><code>kpi</code></td><td>Indicateur cle de performance (valeur agregee)</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Mapping des colonnes</h3>
+          <p>Apres avoir ajoute le widget, mappez les colonnes de votre table Grist dans la section <strong>Colonnes</strong> du panneau de configuration :</p>
+          <div class="fr-table fr-table--bordered">
+            <table>
+              <thead>
+                <tr>
+                  <th>Colonne</th>
+                  <th>Type</th>
+                  <th>Utilisation</th>
+                  <th>Obligatoire</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Label</strong></td>
+                  <td>Texte</td>
+                  <td>Etiquettes (graphiques) ou noms (cartes)</td>
+                  <td>Optionnel</td>
+                </tr>
+                <tr>
+                  <td><strong>Value</strong></td>
+                  <td>Numerique</td>
+                  <td>Valeur principale a afficher</td>
+                  <td>Requis</td>
+                </tr>
+                <tr>
+                  <td><strong>Value2</strong></td>
+                  <td>Numerique</td>
+                  <td>Serie secondaire (graphiques multi-series)</td>
+                  <td>Optionnel</td>
+                </tr>
+                <tr>
+                  <td><strong>Code</strong></td>
+                  <td>Texte</td>
+                  <td>Code geographique INSEE (cartes uniquement)</td>
+                  <td>Pour cartes uniquement</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Options de configuration</h3>
+          <p>Cliquez sur l'icone <strong>engrenage</strong> dans le widget pour acceder aux options :</p>
+          <ul>
+            <li><strong>Type de visualisation</strong> : choisir parmi les 10 types disponibles</li>
+            <li><strong>Palette de couleurs</strong> : Bleu France, categorielle, sequentielle (asc./desc.), divergente (asc./desc.), neutre</li>
+            <li><strong>Unite (tooltip)</strong> : texte affiche dans l'infobulle (ex: EUR, %, habitants)</li>
+            <li><strong>Barres horizontales</strong> : orientation horizontale (types bar/line uniquement)</li>
+            <li><strong>Barres empilees</strong> : empilement des series (types bar/line uniquement)</li>
+          </ul>
+
+          <p><strong>Options specifiques au KPI :</strong></p>
+          <ul>
+            <li><strong>Agregation</strong> : moyenne, somme, comptage, minimum, maximum</li>
+            <li><strong>Format</strong> : nombre, pourcentage, euro, decimal</li>
+            <li><strong>Libelle</strong> : texte affiche sous la valeur</li>
+            <li><strong>Icone</strong> : classe Remix Icon (ex: <code>ri-line-chart-line</code>)</li>
+            <li><strong>Couleur</strong> : bleu, vert, orange, rouge, ou automatique (seuils)</li>
+          </ul>
+
+          <h2>Widget Tableau DSFR</h2>
+          <p>Le widget Tableau affiche automatiquement <strong>toutes les colonnes</strong> de la table Grist sans configuration de mapping. Les options disponibles sont :</p>
+          <ul>
+            <li><strong>Lignes par page</strong> : 10, 20, 50 ou tout afficher</li>
+            <li><strong>Barre de recherche</strong> : filtrage en temps reel sur toutes les colonnes</li>
+            <li><strong>Export CSV</strong> : bouton de telechargement des donnees</li>
+          </ul>
+
+          <h2>Enregistrement via manifeste</h2>
+          <p>
+            Pour que les widgets apparaissent directement dans la liste des widgets disponibles dans Grist (sans avoir a saisir l'URL manuellement),
+            enregistrez l'URL du manifeste dans l'administration de votre instance Grist :
+          </p>
+          <p><code>https://bmatge.github.io/dsfr-data/manifest.json</code></p>
+          <p>
+            Dans Grist, accedez a <strong>Manage Widgets</strong> dans les parametres d'administration et ajoutez cette URL.
+            Les widgets seront ensuite proposes automatiquement lors de l'ajout d'un widget Custom.
+          </p>
+
+          <div class="user-story">
+            <strong>Pour</strong> visualiser les donnees d'une table Grist avec un graphique DSFR,
+            <strong>je dois</strong> ajouter un widget Custom avec l'URL du widget Chart, mapper mes colonnes (Label + Value) et choisir le type de graphique,
+            <strong>afin de</strong> obtenir une visualisation interactive conforme au Design System de l'Etat directement dans mon document Grist.
+          </div>
+        </section>
+
+      </div><!-- /guide-content -->
+    </div><!-- /guide-layout -->
+  </main>
+
+  <app-footer base-path="../"></app-footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js"></script>
+</body>
+</html>

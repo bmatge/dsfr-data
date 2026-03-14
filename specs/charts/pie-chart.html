@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pie Chart - DSFR Chart - dsfr-data</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"></script>
+  <style>
+    body { min-height: 100vh; display: flex; flex-direction: column; }
+  </style>
+</head>
+<body>
+  <app-header current-page="composants" base-path="../../"></app-header>
+
+  <app-layout-demo title="Diagramme circulaire" icon="ri-pie-chart-line" active-path="charts/pie-chart" base-path="../">
+    <div slot="content">
+      <p class="fr-text--lead">Le composant <code>&lt;pie-chart&gt;</code> represente des proportions et distributions.</p>
+
+      <h2>Attributs</h2>
+      <table class="attr-table">
+        <thead><tr><th>Attribut</th><th>Type</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>x</code></td><td>String</td><td>Labels en JSON : <code>'[["A", "B", "C"]]'</code></td></tr>
+          <tr><td><code>y</code></td><td>String</td><td>Valeurs en JSON : <code>'[[30, 50, 20]]'</code></td></tr>
+          <tr><td><code>name</code></td><td>String</td><td>Noms pour la legende</td></tr>
+          <tr><td><code>selected-palette</code></td><td>String</td><td>Palette de couleurs</td></tr>
+          <tr><td><code>unit-tooltip</code></td><td>String</td><td>Unite dans les tooltips</td></tr>
+          <tr><td><code>fill</code></td><td>Boolean</td><td>Remplissage plein (true) ou donut (false)</td></tr>
+        </tbody>
+      </table>
+
+      <h2 class="fr-mt-4w">Exemples</h2>
+
+      <section class="demo-section">
+        <h3>1. Donut (par defaut)</h3>
+        <pie-chart
+          x='[["Actifs", "Inactifs", "En maintenance"]]'
+          y="[[75, 15, 10]]"
+          name='["Actifs", "Inactifs", "En maintenance"]'
+          selected-palette="categorical"
+          unit-tooltip="%">
+        </pie-chart>
+        <div class="code-block"><pre>&lt;pie-chart
+  x='[["Actifs", "Inactifs", "En maintenance"]]'
+  y="[[75, 15, 10]]"
+  name='["Actifs", "Inactifs", "En maintenance"]'
+  selected-palette="categorical"
+  unit-tooltip="%"&gt;
+&lt;/pie-chart&gt;</pre></div>
+      </section>
+
+      <section class="demo-section">
+        <h3>2. Camembert plein</h3>
+        <pie-chart
+          x='[["CDI", "CDD", "Interim", "Apprentis"]]'
+          y="[[74.8, 9.3, 2.6, 1.6]]"
+          fill="true"
+          selected-palette="sequentialDescending"
+          unit-tooltip="%">
+        </pie-chart>
+        <div class="code-block"><pre>&lt;pie-chart
+  x='[["CDI", "CDD", "Interim", "Apprentis"]]'
+  y="[[74.8, 9.3, 2.6, 1.6]]"
+  fill="true"
+  selected-palette="sequentialDescending"&gt;
+&lt;/pie-chart&gt;</pre></div>
+      </section>
+
+      <section class="demo-section">
+        <h3>3. Repartition budgetaire</h3>
+        <pie-chart
+          x='[["Education", "Sante", "Defense", "Ecologie", "Autres"]]'
+          y="[[28, 22, 18, 15, 17]]"
+          selected-palette="divergentAscending"
+          unit-tooltip="%">
+        </pie-chart>
+        <div class="code-block"><pre>&lt;pie-chart
+  x='[["Education", "Sante", "Defense", "Ecologie", "Autres"]]'
+  y="[[28, 22, 18, 15, 17]]"
+  selected-palette="divergentAscending"&gt;
+&lt;/pie-chart&gt;</pre></div>
+      </section>
+    </div>
+  </app-layout-demo>
+
+  <app-footer base-path="../../"></app-footer>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js"></script>
+</body>
+</html>

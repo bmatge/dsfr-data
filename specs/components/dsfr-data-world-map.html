@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dsfr-data-world-map - Composants - dsfr-data</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <style>
+    body { min-height: 100vh; display: flex; flex-direction: column; }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <app-header current-page="composants" base-path="../../"></app-header>
+
+  <!-- Layout documentation avec sidemenu -->
+  <app-layout-demo
+    title="dsfr-data-world-map"
+    icon="ri-earth-line"
+    active-path="components/dsfr-data-world-map"
+    base-path="../">
+    <div slot="content">
+        <p class="fr-text--lead">
+          Carte du monde choropleth avec zoom interactif par continent.
+          Colorie les pays selon une valeur numerique issue d'une source de donnees.
+        </p>
+
+        <div class="fr-callout fr-callout--blue-ecume fr-mb-4w">
+          <p class="fr-callout__text">
+            Ce composant est developpe specifiquement pour dsfr-data (pas un composant DSFR Chart).
+            Il utilise <strong>d3-geo</strong> pour la projection et <strong>topojson-client</strong>
+            pour les geometries. Les ~177 pays de la carte sont charges en lazy-loading.
+          </p>
+        </div>
+
+        <h2>Attributs</h2>
+        <table class="attr-table">
+          <thead><tr><th>Attribut</th><th>Type</th><th>Defaut</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>source</code></td><td>String</td><td>-</td><td>ID du <code>&lt;dsfr-data-source&gt;</code> ou <code>&lt;dsfr-data-query&gt;</code> fournissant les donnees (requis)</td></tr>
+            <tr><td><code>code-field</code></td><td>String</td><td>-</td><td>Chemin vers le code pays dans chaque enregistrement (requis)</td></tr>
+            <tr><td><code>value-field</code></td><td>String</td><td>-</td><td>Chemin vers la valeur numerique a representer (requis)</td></tr>
+            <tr><td><code>code-format</code></td><td>String</td><td><code>iso-a2</code></td><td>Format des codes pays : <code>iso-a2</code> (FR), <code>iso-a3</code> (FRA), <code>iso-num</code> (250)</td></tr>
+            <tr><td><code>name</code></td><td>String</td><td>-</td><td>Titre affiche dans la legende</td></tr>
+            <tr><td><code>selected-palette</code></td><td>String</td><td><code>sequentialAscending</code></td><td>Palette de couleurs DSFR (voir ci-dessous)</td></tr>
+            <tr><td><code>unit-tooltip</code></td><td>String</td><td>-</td><td>Unite affichee dans les tooltips (ex: "Mds USD")</td></tr>
+            <tr><td><code>zoom</code></td><td>String</td><td><code>continent</code></td><td><code>continent</code> : zoom au clic | <code>none</code> : desactive</td></tr>
+          </tbody>
+        </table>
+
+        <h2 class="fr-mt-4w">Palettes disponibles</h2>
+        <table class="attr-table">
+          <thead><tr><th>Palette</th><th>Usage</th><th>Apercu</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>sequentialAscending</code></td>
+              <td>Donnees ordonnees croissantes (clair → fonce)</td>
+              <td><span style="display:inline-flex;gap:1px;">
+                <span style="width:16px;height:12px;display:inline-block;background:#F5F5FE;border:1px solid #eee;"></span>
+                <span style="width:16px;height:12px;display:inline-block;background:#C1C1FB;"></span>
+                <span style="width:16px;height:12px;display:inline-block;background:#8585F6;"></span>
+                <span style="width:16px;height:12px;display:inline-block;background:#4747E5;"></span>
+                <span style="width:16px;height:12px;display:inline-block;background:#000091;"></span>
+              </span></td>
+            </tr>
+            <tr>
+              <td><code>sequentialDescending</code></td>
+              <td>Donnees ordonnees decroissantes (fonce → clair)</td>
+              <td><span style="display:inline-flex;gap:1px;">
+                <span style="width:16px;height:12px;display:inline-block;background:#000091;"></span>
+                <span style="width:16px;height:12px;display:inline-block;background:#4747E5;"></span>
+                <span style="width:16px;height:12px;display:inline-block;background:#8585F6;"></span>
+                <span style="width:16px;height:12px;display:inline-block;background:#C1C1FB;"></span>
+                <span style="width:16px;height:12px;display:inline-block;background:#F5F5FE;border:1px solid #eee;"></span>
+              </span></td>
+            </tr>
+            <tr>
+              <td><code>divergentAscending</code></td>
+              <td>Donnees bipolaires (bleu → neutre → rouge)</td>
+              <td><span style="display:inline-flex;gap:1px;">
+                <span style="width:16px;height:12px;display:inline-block;background:#000091;"></span>
+                <span style="width:16px;height:12px;display:inline-block;background:#8585F6;"></span>
+                <span style="width:16px;height:12px;display:inline-block;background:#F5F5F5;border:1px solid #eee;"></span>
+                <span style="width:16px;height:12px;display:inline-block;background:#F58050;"></span>
+                <span style="width:16px;height:12px;display:inline-block;background:#C9191E;"></span>
+              </span></td>
+            </tr>
+            <tr>
+              <td><code>neutral</code></td>
+              <td>Donnees neutres (nuances de gris)</td>
+              <td><span style="display:inline-flex;gap:1px;">
+                <span style="width:16px;height:12px;display:inline-block;background:#F6F6F6;border:1px solid #eee;"></span>
+                <span style="width:16px;height:12px;display:inline-block;background:#CECECE;"></span>
+                <span style="width:16px;height:12px;display:inline-block;background:#929292;"></span>
+                <span style="width:16px;height:12px;display:inline-block;background:#666666;"></span>
+                <span style="width:16px;height:12px;display:inline-block;background:#161616;"></span>
+              </span></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2 class="fr-mt-4w">Formats de code pays</h2>
+        <table class="attr-table">
+          <thead><tr><th>Format</th><th>Exemple (France)</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>iso-a2</code></td><td>FR</td><td>ISO 3166-1 alpha-2 (2 lettres)</td></tr>
+            <tr><td><code>iso-a3</code></td><td>FRA</td><td>ISO 3166-1 alpha-3 (3 lettres)</td></tr>
+            <tr><td><code>iso-num</code></td><td>250</td><td>ISO 3166-1 numerique (3 chiffres)</td></tr>
+          </tbody>
+        </table>
+
+        <h2 class="fr-mt-4w">Exemples</h2>
+
+        <section class="demo-section">
+          <h3>1. Carte simple avec donnees embarquees</h3>
+
+          <dsfr-data-source id="demo-pib" data='[
+            {"code":"US","pib":25462},{"code":"CN","pib":17963},{"code":"JP","pib":4231},
+            {"code":"DE","pib":4072},{"code":"GB","pib":3070},{"code":"IN","pib":3385},
+            {"code":"FR","pib":2783},{"code":"IT","pib":2010},{"code":"CA","pib":2139},
+            {"code":"KR","pib":1665},{"code":"BR","pib":1920},{"code":"AU","pib":1675},
+            {"code":"RU","pib":2240},{"code":"MX","pib":1293},{"code":"ES","pib":1397},
+            {"code":"ID","pib":1319},{"code":"SA","pib":1108},{"code":"NL","pib":991},
+            {"code":"TR","pib":906},{"code":"CH","pib":818},{"code":"PL","pib":688},
+            {"code":"SE","pib":586},{"code":"BE","pib":578},{"code":"NO","pib":579},
+            {"code":"AR","pib":632},{"code":"NG","pib":477},{"code":"ZA","pib":405},
+            {"code":"TH","pib":495},{"code":"EG","pib":476},{"code":"DK","pib":395},
+            {"code":"PH","pib":404},{"code":"CL","pib":301},{"code":"CO","pib":343},
+            {"code":"FI","pib":281},{"code":"CZ","pib":290},{"code":"PT","pib":253},
+            {"code":"NZ","pib":247},{"code":"RO","pib":301},{"code":"PE","pib":242},
+            {"code":"GR","pib":219},{"code":"KZ","pib":220},{"code":"DZ","pib":187},
+            {"code":"MA","pib":134},{"code":"KE","pib":113},{"code":"ET","pib":126}
+          ]'></dsfr-data-source>
+
+          <dsfr-data-world-map source="demo-pib"
+            code-field="code"
+            value-field="pib"
+            code-format="iso-a2"
+            name="PIB"
+            unit-tooltip="Mds USD"
+            selected-palette="sequentialAscending">
+          </dsfr-data-world-map>
+
+          <div class="code-block fr-mt-2w"><pre>&lt;dsfr-data-source id="data"
+  data='[{"code":"FR","pib":2783},{"code":"US","pib":25462},...]'&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-world-map source="data"
+  code-field="code"
+  value-field="pib"
+  code-format="iso-a2"
+  name="PIB"
+  unit-tooltip="Mds USD"
+  selected-palette="sequentialAscending"&gt;
+&lt;/dsfr-data-world-map&gt;</pre></div>
+        </section>
+
+        <section class="demo-section fr-mt-4w">
+          <h3>2. Avec une API (ODS/Tabular)</h3>
+          <div class="code-block"><pre>&lt;dsfr-data-source id="population"
+  api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr"
+  dataset-id="population-mondiale"
+  select="pays_code, population"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-world-map source="population"
+  code-field="pays_code"
+  value-field="population"
+  code-format="iso-a3"
+  name="Population"
+  unit-tooltip="hab."&gt;
+&lt;/dsfr-data-world-map&gt;</pre></div>
+        </section>
+
+        <section class="demo-section fr-mt-4w">
+          <h3>3. Sans zoom continent</h3>
+          <div class="code-block"><pre>&lt;dsfr-data-world-map source="data"
+  code-field="code"
+  value-field="valeur"
+  zoom="none"&gt;
+&lt;/dsfr-data-world-map&gt;</pre></div>
+        </section>
+
+        <h2 class="fr-mt-4w">Fonctionnement</h2>
+        <h3>Echelle choropleth</h3>
+        <p>
+          Les couleurs sont attribuees par <strong>quantiles</strong> : les pays sont repartis en 9 groupes
+          de taille egale, chacun recevant une teinte de la palette. Cela garantit une bonne lisibilite
+          meme avec des distributions tres asymetriques (ex: PIB).
+        </p>
+        <p>
+          Les pays sans donnees sont affiches en gris clair (<code>#F0F0F0</code>).
+        </p>
+
+        <h3>Zoom continent</h3>
+        <p>
+          Cliquer sur un pays zoome sur son continent (recalcul de la projection via <code>fitExtent</code>).
+          Un bouton de retour apparait en haut a gauche. Cliquer a nouveau sur un pays du continent zoome
+          revient a la vue monde.
+        </p>
+
+        <h3>Tooltip</h3>
+        <p>
+          Au survol d'un pays, un tooltip affiche le nom du pays (en francais) et sa valeur formatee.
+          Si <code>unit-tooltip</code> est defini, l'unite est ajoutee apres la valeur.
+        </p>
+
+        <h3>Pipeline de donnees</h3>
+        <div class="code-block"><pre>dsfr-data-source (fetch / inline)
+  → dsfr-data-query (optionnel : group-by, aggregate)
+    → dsfr-data-world-map (affichage)</pre></div>
+    </div>
+  </app-layout-demo>
+
+  <!-- Footer -->
+  <app-footer base-path="../../"></app-footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js"></script>
+</body>
+</html>

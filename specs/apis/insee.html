@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>INSEE (Melodi) - API supportees - dsfr-data</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css" integrity="sha384-VuzA/gYnk/ZqcT5a/ravR88otj71vNPl/h1JPrKoESV33DCX6SeXIxBcRr5qYPRj" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css" integrity="sha384-YR4AxNhFVy1qsQ0Hp7Rosg06e4sj2m9dLxiYZrtqJ0boIOiDbD8XkIsIPMMkf0VL" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <style>
+    body { min-height: 100vh; display: flex; flex-direction: column; }
+    .capability-yes { color: var(--text-default-success); font-weight: bold; }
+    .capability-no { color: var(--text-default-error); }
+  </style>
+</head>
+<body>
+  <app-header current-page="composants" base-path="../../"></app-header>
+
+  <app-layout-demo
+    title="INSEE (Melodi)"
+    icon="ri-bar-chart-grouped-line"
+    active-path="apis/insee"
+    base-path="../">
+    <div slot="content">
+        <p class="fr-text--lead">
+          API <strong>Melodi</strong> de l'<a href="https://www.insee.fr" target="_blank" rel="noopener">INSEE</a>,
+          donnant acces a plus de 95 jeux de donnees statistiques (population, PIB, emploi, etc.)
+          du <a href="https://catalogue-donnees.insee.fr" target="_blank" rel="noopener">catalogue de donnees de l'INSEE</a>.
+        </p>
+
+        <div class="fr-callout fr-callout--brown-caramel">
+          <h4 class="fr-callout__title">Donnees statistiques dimensionnelles</h4>
+          <p class="fr-callout__text">
+            L'API Melodi utilise un modele <strong>dimensionnel</strong> : chaque observation est decrite par
+            des dimensions (GEO, TIME_PERIOD, FREQ...), une mesure (OBS_VALUE) et des attributs optionnels.
+            Le filtrage se fait par <strong>egalite sur les dimensions</strong> via des parametres de requete.
+            L'adapter aplatit automatiquement les observations en objets plats exploitables par les composants dsfr-data.
+          </p>
+        </div>
+
+        <div class="fr-callout fr-callout--blue-ecume fr-mt-2w">
+          <h4 class="fr-callout__title">CORS actif, pas de proxy</h4>
+          <p class="fr-callout__text">
+            L'API INSEE supporte nativement CORS. Aucun proxy n'est necessaire.
+            Acces anonyme, limite a <strong>30 requetes par minute</strong>.
+          </p>
+        </div>
+
+        <!-- Capacites serveur -->
+        <section class="fr-mt-4w">
+          <h2>Capacites serveur</h2>
+          <div class="fr-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Capacite</th>
+                  <th>Support</th>
+                  <th>Detail</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Fetch serveur</td>
+                  <td class="capability-yes">Oui</td>
+                  <td>Recuperation paginee des observations</td>
+                </tr>
+                <tr>
+                  <td>Facettes serveur</td>
+                  <td class="capability-no">Non</td>
+                  <td>Facettes calculees cote client</td>
+                </tr>
+                <tr>
+                  <td>Recherche serveur</td>
+                  <td class="capability-no">Non</td>
+                  <td>Recherche effectuee cote client</td>
+                </tr>
+                <tr>
+                  <td>Group-by serveur</td>
+                  <td class="capability-no">Non</td>
+                  <td>Agregation effectuee cote client via dsfr-data-query</td>
+                </tr>
+                <tr>
+                  <td>Tri serveur</td>
+                  <td class="capability-no">Non</td>
+                  <td>Tri effectue cote client via dsfr-data-query</td>
+                </tr>
+                <tr>
+                  <td>Agregation serveur</td>
+                  <td class="capability-no">Non</td>
+                  <td>Agregation effectuee cote client via dsfr-data-query</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Pagination -->
+        <section class="fr-mt-4w">
+          <h2>Pagination</h2>
+          <div class="fr-table">
+            <table>
+              <thead>
+                <tr><th>Parametre</th><th>Valeur</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Type</td><td><code>page</code> (par numero de page, 1-based)</td></tr>
+                <tr><td>Taille de page</td><td>1 000 enregistrements</td></tr>
+                <tr><td>Pages max</td><td>100</td></tr>
+                <tr><td>Enregistrements max</td><td>100 000</td></tr>
+                <tr><td>Parametres URL</td><td><code>page</code>, <code>maxResult</code></td></tr>
+                <tr><td>Total disponible</td><td><code>paging.count</code> (via <code>totalCount=TRUE</code>)</td></tr>
+                <tr><td>Page suivante</td><td><code>paging.next</code> dans la reponse</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Filtrage -->
+        <section class="fr-mt-4w">
+          <h2>Filtrage par dimensions</h2>
+          <p>
+            L'API Melodi filtre par <strong>egalite sur les dimensions</strong> via des parametres de requete.
+            Chaque jeu de donnees a ses propres dimensions (GEO, TIME_PERIOD, FREQ, etc.).
+          </p>
+
+          <h3 class="fr-mt-2w">Syntaxe API native</h3>
+          <pre><code>?TIME_PERIOD=2023&amp;GEO=FRANCE-F&amp;POPREF_MEASURE=PMUN</code></pre>
+          <p class="fr-mt-1w">
+            Multi-valeurs : repeter le parametre (<code>?POPREF_MEASURE=PMUN&amp;POPREF_MEASURE=PTOT</code>).
+          </p>
+
+          <h3 class="fr-mt-2w">Syntaxe colon (dsfr-data-source)</h3>
+          <p>
+            L'adapter convertit la syntaxe colon standard en parametres INSEE :
+          </p>
+          <div class="fr-table">
+            <table>
+              <thead>
+                <tr><th>Attribut <code>where</code></th><th>Parametre URL genere</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>TIME_PERIOD:eq:2023</code></td><td><code>?TIME_PERIOD=2023</code></td></tr>
+                <tr><td><code>GEO:in:FRANCE-F|FRANCE-M</code></td><td><code>?GEO=FRANCE-F&amp;GEO=FRANCE-M</code></td></tr>
+                <tr><td><code>TIME_PERIOD:eq:2023, GEO:eq:FRANCE-F</code></td><td><code>?TIME_PERIOD=2023&amp;GEO=FRANCE-F</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="fr-highlight fr-mt-2w">
+            <p>
+              Seuls les operateurs <code>eq</code> et <code>in</code> sont geres cote serveur.
+              Les operateurs avances (<code>gt</code>, <code>lt</code>, <code>contains</code>...)
+              sont appliques cote client par <code>dsfr-data-query</code>.
+            </p>
+          </div>
+        </section>
+
+        <!-- Structure de reponse -->
+        <section class="fr-mt-4w">
+          <h2>Structure de reponse</h2>
+          <p>
+            Les observations INSEE ont une structure <strong>dimensionnelle imbriquee</strong>,
+            automatiquement aplatie par l'adapter :
+          </p>
+          <div class="fr-table">
+            <table>
+              <thead>
+                <tr><th>Parametre</th><th>Valeur</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Chemin des donnees</td><td><code>observations</code></td></tr>
+                <tr><td>Chemin du total</td><td><code>paging.count</code></td></tr>
+                <tr><td>Donnees imbriquees</td><td>Oui : <code>dimensions</code>, <code>measures</code>, <code>attributes</code></td></tr>
+                <tr><td>Aplatissement auto</td><td>Oui (par l'adapter, pas besoin de <code>dsfr-data-normalize</code>)</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3 class="fr-mt-2w">Format brut de l'API</h3>
+          <pre><code>{
+  "observations": [{
+    "dimensions": { "GEO": "2025-FRANCE-F", "FREQ": "A", "TIME_PERIOD": "2023" },
+    "measures": { "OBS_VALUE_NIVEAU": { "value": 68094280.0 } },
+    "attributes": { "OBS_STATUS": "A" }
+  }],
+  "paging": { "count": 35355, "next": "...&amp;page=2" }
+}</code></pre>
+
+          <h3 class="fr-mt-2w">Apres aplatissement (exploitable par dsfr-data-query)</h3>
+          <pre><code>{
+  "GEO": "2025-FRANCE-F",
+  "FREQ": "A",
+  "TIME_PERIOD": "2023",
+  "OBS_VALUE": 68094280.0,
+  "OBS_STATUS": "A"
+}</code></pre>
+          <div class="fr-highlight fr-mt-2w">
+            <p>
+              La mesure <code>OBS_VALUE_NIVEAU</code> est renommee <code>OBS_VALUE</code>
+              (le suffixe <code>_NIVEAU</code> est supprime). D'autres mesures suivent le meme pattern.
+            </p>
+          </div>
+        </section>
+
+        <!-- Catalogue -->
+        <section class="fr-mt-4w">
+          <h2>Catalogue des jeux de donnees</h2>
+          <p>
+            L'endpoint <code>/catalog/all</code> liste les 95+ jeux de donnees disponibles.
+            Chaque entree contient l'identifiant, le titre, la description, le nombre d'observations
+            et la liste des dimensions (<code>ordreComposants</code>).
+          </p>
+          <h3 class="fr-mt-2w">Jeux de donnees courants</h3>
+          <div class="fr-table">
+            <table>
+              <thead>
+                <tr><th>Identifiant</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>DS_POPULATIONS_REFERENCE</code></td><td>Populations de reference (communes, departements, regions)</td></tr>
+                <tr><td><code>DD_CNA_AGREGATS</code></td><td>PIB et grands agregats economiques</td></tr>
+                <tr><td><code>DS_TOUR_FREQ</code></td><td>Frequentation touristique</td></tr>
+                <tr><td><code>DS_BPE</code></td><td>Base permanente des equipements</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="fr-mt-1w">
+            Liste complete : <a href="https://catalogue-donnees.insee.fr" target="_blank" rel="noopener">catalogue-donnees.insee.fr</a>
+          </p>
+        </section>
+
+        <!-- Authentification -->
+        <section class="fr-mt-4w">
+          <h2>Authentification</h2>
+          <p>
+            Type : <strong>aucune</strong>. L'API Melodi est publique et ne necessite pas d'authentification.
+            Le debit est limite a 30 requetes par minute en mode anonyme.
+          </p>
+        </section>
+
+        <!-- Detection automatique -->
+        <section class="fr-mt-4w">
+          <h2>Detection automatique</h2>
+          <p>
+            dsfr-data detecte automatiquement une source INSEE si l'URL contient :
+          </p>
+          <ul>
+            <li><code>melodi/data/{datasetId}</code></li>
+          </ul>
+          <p class="fr-mt-1w">
+            Base URL : <code>https://api.insee.fr/melodi</code>
+          </p>
+        </section>
+
+        <!-- Exemples -->
+        <section class="fr-mt-4w">
+          <h2>Exemples d'utilisation</h2>
+
+          <h3>Population municipale de France</h3>
+          <pre><code>&lt;dsfr-data-source
+  id="src"
+  api-type="insee"
+  base-url="https://api.insee.fr/melodi"
+  dataset-id="DS_POPULATIONS_REFERENCE"
+  where="POPREF_MEASURE:eq:PMUN, TIME_PERIOD:eq:2023, GEO:eq:FRANCE-F"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-kpi
+  source="src"
+  valeur="OBS_VALUE"
+  label="Population municipale 2023"
+  format="nombre"&gt;
+&lt;/dsfr-data-kpi&gt;</code></pre>
+
+          <h3 class="fr-mt-2w">Populations par departement avec graphique</h3>
+          <pre><code>&lt;dsfr-data-source
+  id="src"
+  api-type="insee"
+  base-url="https://api.insee.fr/melodi"
+  dataset-id="DS_POPULATIONS_REFERENCE"
+  where="POPREF_MEASURE:eq:PMUN, TIME_PERIOD:eq:2023"
+  limit="500"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-query
+  source="src"
+  filter="GEO:contains:DEP"
+  order-by="OBS_VALUE:desc"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;dsfr-data-chart
+  source="src"
+  type="bar"
+  name-field="GEO"
+  value-field="OBS_VALUE"&gt;
+&lt;/dsfr-data-chart&gt;</code></pre>
+
+          <h3 class="fr-mt-2w">Decoder les codes de dimension avec dsfr-data-normalize</h3>
+          <p>
+            Les dimensions INSEE utilisent des codes (<code>AGE: "Y30T39"</code>, <code>PCS: "3"</code>).
+            L'attribut <code>replace-fields</code> de <code>&lt;dsfr-data-normalize&gt;</code> permet de les
+            remplacer par des libelles lisibles, <strong>sans affecter</strong> les autres champs
+            qui pourraient contenir les memes valeurs.
+          </p>
+          <pre><code>&lt;dsfr-data-source
+  id="raw"
+  api-type="insee"
+  base-url="https://api.insee.fr/melodi"
+  dataset-id="DS_POPULATIONS_REFERENCE"
+  where="POPREF_MEASURE:eq:PMUN, TIME_PERIOD:eq:2023"
+  limit="500"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-normalize id="decoded" source="raw"
+  replace-fields="AGE:Y30T39:30-39 ans | AGE:Y_LT30:Moins de 30 ans | PCS:3:Cadres | PCS:5:Employes"
+  replace="N/A:"&gt;
+&lt;/dsfr-data-normalize&gt;
+
+&lt;dsfr-data-chart
+  source="decoded"
+  type="bar"
+  name-field="AGE"
+  value-field="OBS_VALUE"&gt;
+&lt;/dsfr-data-chart&gt;</code></pre>
+
+          <h3 class="fr-mt-2w">Datalist avec pagination serveur</h3>
+          <pre><code>&lt;dsfr-data-source
+  id="src"
+  api-type="insee"
+  base-url="https://api.insee.fr/melodi"
+  dataset-id="DS_POPULATIONS_REFERENCE"
+  where="POPREF_MEASURE:eq:PMUN, TIME_PERIOD:eq:2023"
+  server-side
+  page-size="50"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-list
+  source="src"
+  columns="GEO,OBS_VALUE"
+  page-size="50"&gt;
+&lt;/dsfr-data-list&gt;</code></pre>
+        </section>
+    </div>
+  </app-layout-demo>
+
+  <app-footer base-path="../../"></app-footer>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js"></script>
+</body>
+</html>

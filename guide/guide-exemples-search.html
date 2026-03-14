@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dsfr-data-search — Exemples - Guide - dsfr-data</title>
+  <style>@view-transition{navigation:auto}app-header:not(:defined){display:block;min-height:56px}app-footer:not(:defined){display:block;min-height:48px}</style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css">
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"></script>
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script src="guide-menu.js"></script>
+  <style>
+    .guide-layout { display: flex; gap: 2rem; }
+    .guide-content { flex: 1; min-width: 0; }
+    @media (max-width: 992px) {
+      .guide-layout { flex-direction: column; }
+    }
+    .guide-content h2 { padding-top: 2rem; border-top: 1px solid var(--border-default-grey); margin-top: 3rem; }
+    .guide-content h2:first-of-type { border-top: none; margin-top: 0; padding-top: 0; }
+    .guide-content h3 { margin-top: 2rem; }
+    .guide-content h4 { margin-top: 1.5rem; }
+    .guide-content pre { background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 4px; font-family: monospace; font-size: 0.85rem; overflow-x: auto; white-space: pre-wrap; margin: 0; }
+    .guide-content ol, .guide-content ul { margin: 0.5rem 0 1rem 1.5rem; }
+    .guide-content li { margin-bottom: 0.25rem; }
+    .example-container { border: 1px solid var(--border-default-grey); border-radius: 4px; padding: 1rem; background: white; min-height: 100px; }
+    .example-loading { padding: 2rem; text-align: center; color: var(--text-mention-grey); border: 1px solid var(--border-default-grey); border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <app-header current-page="guide" base-path="../"></app-header>
+
+  <main class="fr-container fr-py-4w" id="main-content">
+    <div class="guide-layout">
+
+      <app-sidemenu section="guide"></app-sidemenu>
+
+      <div class="guide-content">
+
+        <h1><i class="ri-search-line fr-mr-1w"></i>dsfr-data-search</h1>
+        <p class="fr-text--lead">
+          <code>dsfr-data-search</code> affiche un champ de recherche DSFR et filtre les donnees en amont avant de les redistribuer aux composants en aval. Se combine avec <code>dsfr-data-facets</code> et <code>dsfr-data-display</code>.
+        </p>
+
+        <!-- search-datalist (server-side ODS) -->
+        <h4>Tableau — Recherche serveur sur les rappels de produits</h4>
+        <p>Recherche full-text deleguee au serveur ODS via <code>dsfr-data-search server-search</code>. Le tableau supporte le tri serveur via <code>server-tri</code> et la pagination serveur. Chaque action (recherche, tri, page) declenche un nouvel appel API.
+          <a href="../apps/playground/index.html?example=search-datalist" class="fr-link fr-link--sm">Tester dans le Playground</a>
+        </p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-s-datalist">Code source</button></h3>
+          <div class="fr-collapse" id="code-s-datalist">
+<pre class="example-code">&lt;dsfr-data-source id="q" api-type="opendatasoft"
+  dataset-id="rappelconso-v2-gtin-trie"
+  base-url="https://data.economie.gouv.fr"
+  server-side page-size="20"
+  order-by="date_publication:desc"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-search id="s" source="q"
+  server-search
+  placeholder="Rechercher un produit rappele..."
+  min-length="2"
+  count&gt;
+&lt;/dsfr-data-search&gt;
+
+&lt;dsfr-data-list source="q"
+  colonnes="modeles_ou_references:Produit, categorie_produit:Categorie, marque_produit:Marque, date_publication:Date"
+  server-tri
+  pagination="20"&gt;
+&lt;/dsfr-data-list&gt;</pre>
+          </div>
+        </section>
+
+        <!-- search-display (server-side ODS) -->
+        <h4>Cartes — Recherche serveur sur Industrie du futur</h4>
+        <p>Recherche full-text serveur combinee avec <code>dsfr-data-display</code> pour afficher les resultats sous forme de cartes DSFR. La pagination est geree cote serveur.
+          <a href="../apps/playground/index.html?example=search-display" class="fr-link fr-link--sm">Tester dans le Playground</a>
+        </p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-s-display">Code source</button></h3>
+          <div class="fr-collapse" id="code-s-display">
+<pre class="example-code">&lt;dsfr-data-source id="q" api-type="opendatasoft"
+  dataset-id="industrie-du-futur"
+  base-url="https://data.economie.gouv.fr"
+  server-side page-size="9"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-search id="s" source="q"
+  server-search
+  placeholder="Entreprise, region ou departement..."
+  count&gt;
+&lt;/dsfr-data-search&gt;
+
+&lt;dsfr-data-display source="q" cols="3" pagination="9"&gt;
+  &lt;template&gt;
+    &lt;div class="fr-card"&gt;
+      &lt;div class="fr-card__body"&gt;
+        &lt;div class="fr-card__content"&gt;
+          &lt;h3 class="fr-card__title"&gt;{{nom_entreprise}}&lt;/h3&gt;
+          &lt;p class="fr-card__desc"&gt;{{nom_departement}} — {{nom_region}}&lt;/p&gt;
+        &lt;/div&gt;
+        &lt;div class="fr-card__footer"&gt;
+          &lt;p class="fr-badge fr-badge--sm"&gt;{{montant_investissement}} EUR&lt;/p&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/template&gt;
+&lt;/dsfr-data-display&gt;</pre>
+          </div>
+        </section>
+
+        <!-- search-facets-display (RappelConso ODS) -->
+        <h4>Recherche + facettes + cartes</h4>
+        <p>Pipeline complet : la recherche reduit le jeu de donnees, les facettes affinent par categorie et sous-categorie, et <code>dsfr-data-display</code> genere les cartes.
+          <a href="../apps/playground/index.html?example=search-facets-display" class="fr-link fr-link--sm">Tester dans le Playground</a>
+        </p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-s-facets">Code source</button></h3>
+          <div class="fr-collapse" id="code-s-facets">
+<pre class="example-code">&lt;dsfr-data-source id="raw" api-type="opendatasoft"
+  dataset-id="rappelconso-v2-gtin-trie"
+  base-url="https://data.economie.gouv.fr"
+  server-side page-size="100"&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-search id="searched" source="raw"
+  fields="libelle, marque_produit, motif_rappel"
+  placeholder="Rechercher un rappel..."
+  operator="words" count&gt;
+&lt;/dsfr-data-search&gt;
+
+&lt;dsfr-data-facets id="filtered" source="searched"
+  fields="categorie_produit, sous_categorie_produit"
+  labels="categorie_produit:Categorie | sous_categorie_produit:Sous-categorie"
+  display="categorie_produit:multiselect | sous_categorie_produit:select"
+  cols="6"&gt;
+&lt;/dsfr-data-facets&gt;
+
+&lt;dsfr-data-display source="filtered" cols="3" pagination="9"&gt;
+  &lt;template&gt;
+    &lt;div class="fr-card"&gt;
+      &lt;div class="fr-card__body"&gt;
+        &lt;div class="fr-card__content"&gt;
+          &lt;h3 class="fr-card__title"&gt;{{libelle}}&lt;/h3&gt;
+          &lt;p class="fr-card__desc"&gt;{{motif_rappel}}&lt;/p&gt;
+        &lt;/div&gt;
+        &lt;div class="fr-card__footer"&gt;
+          &lt;p class="fr-badge fr-badge--sm"&gt;{{categorie_produit}}&lt;/p&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/template&gt;
+&lt;/dsfr-data-display&gt;</pre>
+          </div>
+        </section>
+
+        <!-- search-kpi-chart -->
+        <h4>Recherche + KPI + graphique</h4>
+        <p>Les KPI et le graphique se recalculent en temps reel selon le terme de recherche.
+          <a href="../apps/playground/index.html?example=search-kpi-chart" class="fr-link fr-link--sm">Tester dans le Playground</a>
+        </p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-s-kpi">Code source</button></h3>
+          <div class="fr-collapse" id="code-s-kpi">
+<pre class="example-code">&lt;dsfr-data-source id="raw" api-type="opendatasoft"
+  dataset-id="industrie-du-futur"
+  base-url="https://data.economie.gouv.fr"&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-normalize id="clean" source="raw"
+  numeric="montant_investissement, nombre_beneficiaires"
+  rename="nom_region:Region | nom_departement:Departement | nom_entreprise:Entreprise"
+  trim&gt;
+&lt;/dsfr-data-normalize&gt;
+
+&lt;dsfr-data-search id="searched" source="clean"
+  fields="Entreprise, Region, Departement"
+  placeholder="Entreprise, region, departement..."
+  operator="words" count&gt;
+&lt;/dsfr-data-search&gt;
+
+&lt;div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;"&gt;
+  &lt;dsfr-data-kpi source="searched" valeur="count"
+    label="Projets" couleur="bleu"&gt;&lt;/dsfr-data-kpi&gt;
+  &lt;dsfr-data-kpi source="searched" valeur="sum:montant_investissement"
+    label="Investissement total" format="euro"&gt;&lt;/dsfr-data-kpi&gt;
+  &lt;dsfr-data-kpi source="searched" valeur="sum:nombre_beneficiaires"
+    label="Beneficiaires" format="nombre"&gt;&lt;/dsfr-data-kpi&gt;
+&lt;/div&gt;
+
+&lt;dsfr-data-query id="stats" source="searched"
+  group-by="Region"
+  aggregate="nombre_beneficiaires:sum:Beneficiaires"
+  order-by="Beneficiaires:desc" limit="10"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;dsfr-data-chart source="stats" type="bar"
+  label-field="Region" value-field="Beneficiaires"
+  selected-palette="categorical"&gt;
+&lt;/dsfr-data-chart&gt;</pre>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </main>
+
+  <app-footer base-path="../"></app-footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      let exampleIndex = 0;
+      function getCodeForExample(placeholder) {
+        const accordion = placeholder.nextElementSibling;
+        if (!accordion) return null;
+        const pre = accordion.querySelector('.example-code');
+        return pre ? pre.textContent : null;
+      }
+      function makeIdsUnique(html, prefix) {
+        const idRegex = / id="([^"]+)"/g;
+        const ids = new Set();
+        let match;
+        while ((match = idRegex.exec(html)) !== null) ids.add(match[1]);
+        let result = html;
+        for (const id of ids) {
+          result = result.replaceAll(' id="' + id + '"', ' id="' + prefix + '-' + id + '"');
+          result = result.replaceAll('source="' + id + '"', 'source="' + prefix + '-' + id + '"');
+        }
+        return result;
+      }
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (!entry.isIntersecting) return;
+          const placeholder = entry.target;
+          observer.unobserve(placeholder);
+          const code = getCodeForExample(placeholder);
+          if (!code) return;
+          const prefix = 'ex' + (exampleIndex++);
+          const uniqueCode = makeIdsUnique(code, prefix);
+          const container = document.createElement('div');
+          container.className = 'example-container';
+          container.innerHTML = uniqueCode;
+          placeholder.replaceWith(container);
+        });
+      }, { rootMargin: '200px 0px' });
+      document.querySelectorAll('[data-example]').forEach(el => observer.observe(el));
+    });
+  </script>
+</body>
+</html>

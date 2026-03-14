@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dsfr-data-display — Exemples - Guide - dsfr-data</title>
+  <style>@view-transition{navigation:auto}app-header:not(:defined){display:block;min-height:56px}app-footer:not(:defined){display:block;min-height:48px}</style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css">
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"></script>
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script src="guide-menu.js"></script>
+  <style>
+    .guide-layout { display: flex; gap: 2rem; }
+    .guide-content { flex: 1; min-width: 0; }
+    @media (max-width: 992px) {
+      .guide-layout { flex-direction: column; }
+    }
+    .guide-content h2 { padding-top: 2rem; border-top: 1px solid var(--border-default-grey); margin-top: 3rem; }
+    .guide-content h2:first-of-type { border-top: none; margin-top: 0; padding-top: 0; }
+    .guide-content h3 { margin-top: 2rem; }
+    .guide-content h4 { margin-top: 1.5rem; }
+    .guide-content pre { background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 4px; font-family: monospace; font-size: 0.85rem; overflow-x: auto; white-space: pre-wrap; margin: 0; }
+    .guide-content ol, .guide-content ul { margin: 0.5rem 0 1rem 1.5rem; }
+    .guide-content li { margin-bottom: 0.25rem; }
+    .example-container { border: 1px solid var(--border-default-grey); border-radius: 4px; padding: 1rem; background: white; min-height: 100px; }
+    .example-loading { padding: 2rem; text-align: center; color: var(--text-mention-grey); border: 1px solid var(--border-default-grey); border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <app-header current-page="guide" base-path="../"></app-header>
+
+  <main class="fr-container fr-py-4w" id="main-content">
+    <div class="guide-layout">
+
+      <app-sidemenu section="guide"></app-sidemenu>
+
+      <div class="guide-content">
+
+        <h1><i class="ri-layout-grid-line fr-mr-1w"></i>dsfr-data-display</h1>
+        <p class="fr-text--lead">
+          <code>dsfr-data-display</code> repete un template HTML pour chaque element de donnees.
+          Syntaxe : <code>{{champ}}</code> (echappe), <code>{{{champ}}}</code> (brut), <code>{{champ|defaut}}</code> (fallback), <code>{{$index}}</code> (index).
+        </p>
+
+        <!-- direct-display (server-side ODS) -->
+        <h4>Cartes — Industrie du futur (pagination serveur)</h4>
+        <p>Grille de cartes DSFR avec pagination serveur via <code>dsfr-data-source server-side</code>. Chaque page declenche un nouvel appel API.
+          <a href="../apps/playground/index.html?example=direct-display" class="fr-link fr-link--sm">Tester dans le Playground</a>
+        </p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-disp-cards">Code source</button></h3>
+          <div class="fr-collapse" id="code-disp-cards">
+<pre class="example-code">&lt;dsfr-data-source id="q" api-type="opendatasoft"
+  dataset-id="industrie-du-futur"
+  base-url="https://data.economie.gouv.fr"
+  server-side page-size="6"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-display source="q" cols="3" pagination="6"&gt;
+  &lt;template&gt;
+    &lt;div class="fr-card"&gt;
+      &lt;div class="fr-card__body"&gt;
+        &lt;div class="fr-card__content"&gt;
+          &lt;h3 class="fr-card__title"&gt;{{nom_departement}}&lt;/h3&gt;
+          &lt;p class="fr-card__desc"&gt;
+            Region : {{nom_region}}&lt;br&gt;
+            Beneficiaires : {{nombre_beneficiaires}}
+          &lt;/p&gt;
+        &lt;/div&gt;
+        &lt;div class="fr-card__footer"&gt;
+          &lt;p class="fr-badge fr-badge--sm"&gt;{{montant_investissement}} EUR&lt;/p&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/template&gt;
+&lt;/dsfr-data-display&gt;</pre>
+          </div>
+        </section>
+
+        <!-- query-display (server-side ODS) -->
+        <h4>Cartes — Rappels alimentaires (pagination serveur)</h4>
+        <p>Filtre les rappels alimentaires avec <code>dsfr-data-source server-side</code> (ODS, where server-side) puis affiche en cartes via <code>dsfr-data-display</code>.
+          <a href="../apps/playground/index.html?example=query-display" class="fr-link fr-link--sm">Tester dans le Playground</a>
+        </p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-disp-query">Code source</button></h3>
+          <div class="fr-collapse" id="code-disp-query">
+<pre class="example-code">&lt;dsfr-data-source id="q" api-type="opendatasoft"
+  dataset-id="rappelconso-v2-gtin-trie"
+  base-url="https://data.economie.gouv.fr"
+  where="categorie_produit = 'Alimentation'"
+  server-side page-size="8"
+  order-by="date_publication:desc"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-display source="q" cols="4" pagination="8"&gt;
+  &lt;template&gt;
+    &lt;div class="fr-card fr-card--shadow"&gt;
+      &lt;div class="fr-card__body"&gt;
+        &lt;div class="fr-card__content"&gt;
+          &lt;h3 class="fr-card__title"&gt;{{libelle}}&lt;/h3&gt;
+          &lt;p class="fr-card__desc"&gt;{{motif_rappel}}&lt;/p&gt;
+          &lt;div class="fr-card__start"&gt;
+            &lt;p class="fr-badge fr-badge--sm fr-badge--green-emeraude"&gt;{{sous_categorie_produit}}&lt;/p&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/template&gt;
+&lt;/dsfr-data-display&gt;</pre>
+          </div>
+        </section>
+
+        <!-- normalize-display -->
+        <h4>Tuiles — LOVAC logements vacants</h4>
+        <p>Donnees LOVAC nettoyees par <code>dsfr-data-normalize</code> puis affichees sous forme de tuiles DSFR.
+          <a href="../apps/playground/index.html?example=normalize-display" class="fr-link fr-link--sm">Tester dans le Playground</a>
+        </p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-disp-tiles">Code source</button></h3>
+          <div class="fr-collapse" id="code-disp-tiles">
+<pre class="example-code">&lt;dsfr-data-source id="raw"
+  url="https://tabular-api.data.gouv.fr/api/resources/42a34c0a-7c97-4463-b00e-5913ea5f7077/data/?page_size=101"
+  transform="data"&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-normalize id="clean" source="raw"
+  trim numeric-auto
+  rename="LIB_DEP:Departement | pp_vacant_25:Vacants | pp_total_24:Total logements | DEP:Code"&gt;
+&lt;/dsfr-data-normalize&gt;
+
+&lt;dsfr-data-query id="top" source="clean"
+  order-by="Vacants:desc" limit="9"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;dsfr-data-display source="top" cols="3"&gt;
+  &lt;template&gt;
+    &lt;div class="fr-tile"&gt;
+      &lt;div class="fr-tile__body"&gt;
+        &lt;div class="fr-tile__content"&gt;
+          &lt;h3 class="fr-tile__title"&gt;{{Departement}}&lt;/h3&gt;
+          &lt;p class="fr-tile__detail"&gt;Dept. {{Code}}&lt;/p&gt;
+          &lt;p class="fr-tile__desc"&gt;
+            {{Vacants}} logements vacants sur {{Total logements}} au total
+          &lt;/p&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/template&gt;
+&lt;/dsfr-data-display&gt;</pre>
+          </div>
+        </section>
+
+        <!-- Pagination serveur + cartes -->
+        <h2 class="fr-mt-6w">Pagination serveur</h2>
+        <p>
+          Avec <code>dsfr-data-source paginate</code>, chaque changement de page declenche un nouvel appel API.
+          <code>dsfr-data-display</code> detecte automatiquement la pagination serveur et affiche le nombre total
+          de pages calcule depuis les metadonnees de l'API.
+        </p>
+
+        <h4>Cartes paginee cote serveur — Rappels de produits</h4>
+        <p>Naviguez dans les rappels de produits page par page. Chaque page charge 12 enregistrements depuis l'API.
+          <a href="../apps/playground/index.html?example=server-paginate-display" class="fr-link fr-link--sm">Tester dans le Playground</a>
+        </p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-disp-paginate">Code source</button></h3>
+          <div class="fr-collapse" id="code-disp-paginate">
+<pre class="example-code">&lt;dsfr-data-source id="data" api-type="opendatasoft"
+  dataset-id="rappelconso-v2-gtin-trie"
+  base-url="https://data.economie.gouv.fr"
+  server-side page-size="12"
+  order-by="date_publication:desc"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-display source="data" cols="3" pagination="12"&gt;
+  &lt;template&gt;
+    &lt;div class="fr-card fr-card--shadow"&gt;
+      &lt;div class="fr-card__body"&gt;
+        &lt;div class="fr-card__content"&gt;
+          &lt;h3 class="fr-card__title"&gt;{{libelle}}&lt;/h3&gt;
+          &lt;p class="fr-card__desc"&gt;{{marque_produit}} — {{motif_rappel}}&lt;/p&gt;
+          &lt;div class="fr-card__start"&gt;
+            &lt;p class="fr-badge fr-badge--sm fr-badge--green-emeraude"&gt;
+              {{categorie_produit}}
+            &lt;/p&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/template&gt;
+&lt;/dsfr-data-display&gt;</pre>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </main>
+
+  <app-footer base-path="../"></app-footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      let exampleIndex = 0;
+      function getCodeForExample(placeholder) {
+        const accordion = placeholder.nextElementSibling;
+        if (!accordion) return null;
+        const pre = accordion.querySelector('.example-code');
+        return pre ? pre.textContent : null;
+      }
+      function makeIdsUnique(html, prefix) {
+        const idRegex = / id="([^"]+)"/g;
+        const ids = new Set();
+        let match;
+        while ((match = idRegex.exec(html)) !== null) ids.add(match[1]);
+        let result = html;
+        for (const id of ids) {
+          result = result.replaceAll(' id="' + id + '"', ' id="' + prefix + '-' + id + '"');
+          result = result.replaceAll('source="' + id + '"', 'source="' + prefix + '-' + id + '"');
+        }
+        return result;
+      }
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (!entry.isIntersecting) return;
+          const placeholder = entry.target;
+          observer.unobserve(placeholder);
+          const code = getCodeForExample(placeholder);
+          if (!code) return;
+          const prefix = 'ex' + (exampleIndex++);
+          const uniqueCode = makeIdsUnique(code, prefix);
+          const container = document.createElement('div');
+          container.className = 'example-container';
+          container.innerHTML = uniqueCode;
+          placeholder.replaceWith(container);
+        });
+      }, { rootMargin: '200px 0px' });
+      document.querySelectorAll('[data-example]').forEach(el => observer.observe(el));
+    });
+  </script>
+</body>
+</html>

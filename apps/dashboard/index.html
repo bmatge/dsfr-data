@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Visual Dashboard Editor - dsfr-data</title>
+  <style>@view-transition{navigation:auto}app-header:not(:defined){display:block;min-height:56px}app-footer:not(:defined){display:block;min-height:48px}</style>
+
+  <!-- DSFR -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css" integrity="sha384-VuzA/gYnk/ZqcT5a/ravR88otj71vNPl/h1JPrKoESV33DCX6SeXIxBcRr5qYPRj" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css" integrity="sha384-YR4AxNhFVy1qsQ0Hp7Rosg06e4sj2m9dLxiYZrtqJ0boIOiDbD8XkIsIPMMkf0VL" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
+
+  <!-- DSFR Chart -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css" integrity="sha384-987+TUcyVaQAI/PaEqYIGNqku/bHSkNVAqOfNxyS1eE9SxeeH2Ue4FQZ3kKtnWfM" crossorigin="anonymous">
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js" integrity="sha384-xYrR55uYb2Y55H6eELrLA9ARM8YsjB1ksG6QHJZrhL49lzax9l7rHuQPjsZGiTYk" crossorigin="anonymous"></script>
+
+  <!-- dsfr-data -->
+  <script type="module" src="../../dist/dsfr-data.esm.js"></script>
+
+  <!-- App styles -->
+  <link rel="stylesheet" href="src/styles/dashboard.css">
+</head>
+<body>
+  <!-- Header -->
+  <app-header current-page="dashboard" base-path="../.."></app-header>
+
+  <div class="vde-container">
+    <!-- Sidebar gauche -->
+    <aside class="vde-sidebar">
+      <!-- Bibliothèque de widgets -->
+      <div class="vde-sidebar-section">
+        <h3><i class="ri-dashboard-line"></i> Widgets</h3>
+        <div class="widget-library" id="widget-library">
+          <div class="widget-item" draggable="true" data-widget-type="kpi">
+            <i class="ri-number-1"></i>
+            <span>KPI</span>
+          </div>
+          <div class="widget-item" draggable="true" data-widget-type="chart">
+            <i class="ri-bar-chart-box-line"></i>
+            <span>Graphique</span>
+          </div>
+          <div class="widget-item" draggable="true" data-widget-type="table">
+            <i class="ri-table-line"></i>
+            <span>Tableau</span>
+          </div>
+          <div class="widget-item" draggable="true" data-widget-type="text">
+            <i class="ri-text"></i>
+            <span>Texte</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Favoris -->
+      <div class="vde-sidebar-section">
+        <h3><i class="ri-star-line"></i> Mes favoris</h3>
+        <div class="favorites-list" id="favorites-list">
+          <p class="favorites-empty">Chargement...</p>
+        </div>
+      </div>
+
+      <!-- Paramètres de grille -->
+      <div class="vde-sidebar-section">
+        <h3><i class="ri-settings-3-line"></i> Grille</h3>
+        <div class="grid-settings">
+          <label>
+            Colonnes par défaut
+            <select id="grid-columns">
+              <option value="1">1 colonne</option>
+              <option value="2" selected>2 colonnes</option>
+              <option value="3">3 colonnes</option>
+              <option value="4">4 colonnes</option>
+            </select>
+          </label>
+          <label>
+            Espacement
+            <select id="grid-gap">
+              <option value="fr-grid-row--gutters">Normal</option>
+              <option value="">Sans espacement</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <!-- Sources -->
+      <div class="vde-sidebar-section">
+        <h3><i class="ri-database-2-line"></i> Sources</h3>
+        <div id="sources-list">
+          <p class="favorites-empty">Aucune source</p>
+        </div>
+        <button class="fr-btn fr-btn--sm fr-btn--secondary fr-mt-1w" id="add-source-btn">
+          <i class="ri-add-line"></i> Ajouter une source
+        </button>
+      </div>
+    </aside>
+
+    <!-- Zone principale -->
+    <main class="vde-main" id="main-content">
+      <!-- Toolbar -->
+      <div class="vde-toolbar">
+        <div class="vde-toolbar-left">
+          <input type="text" class="dashboard-title-input" id="dashboard-title" value="Mon tableau de bord" placeholder="Titre du dashboard">
+        </div>
+        <div class="vde-toolbar-right">
+          <button class="fr-btn fr-btn--sm fr-btn--secondary" id="btn-new">
+            <i class="ri-file-add-line"></i> Nouveau
+          </button>
+          <button class="fr-btn fr-btn--sm fr-btn--secondary" id="btn-load">
+            <i class="ri-folder-open-line"></i> Ouvrir
+          </button>
+          <button class="fr-btn fr-btn--sm" id="btn-save">
+            <i class="ri-save-line"></i> Sauvegarder
+          </button>
+          <button class="fr-btn fr-btn--sm fr-btn--tertiary" id="btn-export">
+            <i class="ri-download-line"></i> Exporter HTML
+          </button>
+          <button class="fr-btn fr-btn--sm fr-btn--secondary" id="btn-preview">
+            <i class="ri-eye-line"></i> Apercu
+          </button>
+          <div class="fr-select-group fr-select-group--sm" style="display:inline-block;min-width:auto;">
+            <select id="template-select" class="fr-select fr-select--sm" style="padding:0.25rem 2rem 0.25rem 0.5rem;" aria-label="Templates">
+              <option value="">Templates...</option>
+              <option value="kpi-chart">3 KPIs + Graphique</option>
+              <option value="two-charts">2 Graphiques</option>
+              <option value="full">Dashboard complet</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Onglets -->
+      <div class="vde-tabs">
+        <button class="vde-tab active" data-tab="design">
+          <i class="ri-layout-masonry-line"></i> Design
+        </button>
+        <button class="vde-tab" data-tab="code">
+          <i class="ri-code-line"></i> Code genere
+        </button>
+        <button class="vde-tab" data-tab="json">
+          <i class="ri-braces-line"></i> JSON
+        </button>
+      </div>
+
+      <!-- Design (grille) -->
+      <div class="vde-tab-panel active" id="tab-design">
+        <div class="vde-preview">
+          <div class="vde-canvas">
+            <div class="dashboard-grid" id="dashboard-grid">
+              <!-- Ligne 1 -->
+              <div class="fr-grid-row fr-grid-row--gutters dashboard-row" data-row="0">
+                <div class="fr-col-12 fr-col-md-6">
+                  <div class="drop-cell empty" data-row="0" data-col="0" data-colspan="6">
+                    <div class="drop-cell-placeholder">
+                      <i class="ri-add-circle-line"></i>
+                      <span>Glisser un widget ici</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="fr-col-12 fr-col-md-6">
+                  <div class="drop-cell empty" data-row="0" data-col="1" data-colspan="6">
+                    <div class="drop-cell-placeholder">
+                      <i class="ri-add-circle-line"></i>
+                      <span>Glisser un widget ici</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <button class="add-row-btn" id="add-row-btn">
+              <i class="ri-add-line"></i> Ajouter une ligne
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Code genere -->
+      <div class="vde-tab-panel" id="tab-code">
+        <pre class="code-preview" id="generated-code"><!-- Le code sera genere ici --></pre>
+      </div>
+
+      <!-- JSON -->
+      <div class="vde-tab-panel" id="tab-json">
+        <pre class="code-preview" id="generated-json">{}</pre>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal de configuration -->
+  <div class="config-modal" id="config-modal">
+    <div class="config-modal-content">
+      <div class="config-modal-header">
+        <h3 id="config-modal-title">Configurer le widget</h3>
+        <button class="widget-action-btn" id="close-modal">
+          <i class="ri-close-line" style="font-size: 1.5rem;"></i>
+        </button>
+      </div>
+      <div class="config-modal-body" id="config-modal-body">
+        <!-- Contenu dynamique -->
+      </div>
+      <div class="config-modal-footer">
+        <button class="fr-btn fr-btn--secondary" id="cancel-config">Annuler</button>
+        <button class="fr-btn" id="apply-config">Appliquer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal liste des dashboards -->
+  <div class="config-modal" id="dashboards-modal">
+    <div class="config-modal-content">
+      <div class="config-modal-header">
+        <h3>Mes tableaux de bord</h3>
+        <button class="widget-action-btn" id="close-dashboards-modal">
+          <i class="ri-close-line" style="font-size: 1.5rem;"></i>
+        </button>
+      </div>
+      <div class="config-modal-body" id="dashboards-list">
+        <!-- Liste dynamique -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de sauvegarde -->
+  <div class="config-modal" id="save-modal">
+    <div class="config-modal-content" style="max-width: 480px;">
+      <div class="config-modal-header">
+        <h3>Sauvegarder le tableau de bord</h3>
+        <button class="widget-action-btn" id="close-save-modal">
+          <i class="ri-close-line" style="font-size: 1.5rem;"></i>
+        </button>
+      </div>
+      <div class="config-modal-body">
+        <div class="config-group">
+          <label for="save-dashboard-name">Nom</label>
+          <input type="text" class="fr-input" id="save-dashboard-name" placeholder="Mon tableau de bord">
+        </div>
+        <div class="config-group">
+          <label for="save-dashboard-description">Description (optionnelle)</label>
+          <textarea class="fr-input" id="save-dashboard-description" rows="3" placeholder="Decrivez votre tableau de bord..."></textarea>
+        </div>
+      </div>
+      <div class="config-modal-footer">
+        <button class="fr-btn fr-btn--secondary" id="cancel-save">Annuler</button>
+        <button class="fr-btn fr-icon-save-line fr-btn--icon-left" id="confirm-save">Sauvegarder</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de previsualisation -->
+  <div class="preview-modal" id="preview-modal">
+    <div class="preview-modal-header">
+      <h3>Apercu du tableau de bord</h3>
+      <button class="fr-btn fr-btn--sm fr-btn--secondary" id="close-preview-modal">
+        <i class="ri-close-line"></i> Fermer
+      </button>
+    </div>
+    <div class="preview-modal-body">
+      <iframe id="preview-iframe" sandbox="allow-scripts allow-same-origin" title="Apercu du dashboard"></iframe>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <app-footer base-path="../.."></app-footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js" integrity="sha384-4dK3hBJJh/bjoOulz9Q1kNO2O09lzuKiFeF5c+0VguV1RT3IiLkv+Pt98Jul84V+" crossorigin="anonymous"></script>
+  <!-- App entry point -->
+  <script type="module" src="src/main.ts"></script>
+</body>
+</html>

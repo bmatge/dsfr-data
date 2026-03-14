@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Compiled JS files in src/ (TypeScript build artifacts)
+src/**/*.js
+src/**/*.d.ts
+src/**/*.d.ts.map
+src/**/*.js.map
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test coverage
+coverage/
+
+# Test results (Playwright)
+test-results/
+playwright-report/
+e2e/screenshots
+
+# Server data (SQLite databases)
+server/data/
+
+# Temporary files
+*.tmp
+*.temp
+app-dist/

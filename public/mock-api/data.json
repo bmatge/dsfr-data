@@ -1,0 +1,208 @@
+{
+  "metadata": {
+    "total": 20,
+    "derniere_mise_a_jour": "2025-02-05T10:00:00Z"
+  },
+  "sites": [
+    {
+      "nom": "economie.gouv.fr",
+      "url": "https://www.economie.gouv.fr",
+      "ministere": "Économie et Finances",
+      "score_rgaa": 87,
+      "score_dsfr": 92,
+      "statut": "actif",
+      "certificat_valide": true,
+      "date_derniere_analyse": "2025-01-28"
+    },
+    {
+      "nom": "interieur.gouv.fr",
+      "url": "https://www.interieur.gouv.fr",
+      "ministere": "Intérieur",
+      "score_rgaa": 72,
+      "score_dsfr": 85,
+      "statut": "actif",
+      "certificat_valide": true,
+      "date_derniere_analyse": "2025-01-25"
+    },
+    {
+      "nom": "education.gouv.fr",
+      "url": "https://www.education.gouv.fr",
+      "ministere": "Éducation nationale",
+      "score_rgaa": 91,
+      "score_dsfr": 95,
+      "statut": "actif",
+      "certificat_valide": true,
+      "date_derniere_analyse": "2025-01-30"
+    },
+    {
+      "nom": "sante.gouv.fr",
+      "url": "https://www.sante.gouv.fr",
+      "ministere": "Santé",
+      "score_rgaa": 68,
+      "score_dsfr": 78,
+      "statut": "actif",
+      "certificat_valide": false,
+      "date_derniere_analyse": "2025-01-20"
+    },
+    {
+      "nom": "justice.gouv.fr",
+      "url": "https://www.justice.gouv.fr",
+      "ministere": "Justice",
+      "score_rgaa": 83,
+      "score_dsfr": 88,
+      "statut": "actif",
+      "certificat_valide": true,
+      "date_derniere_analyse": "2025-01-27"
+    },
+    {
+      "nom": "culture.gouv.fr",
+      "url": "https://www.culture.gouv.fr",
+      "ministere": "Culture",
+      "score_rgaa": 95,
+      "score_dsfr": 97,
+      "statut": "actif",
+      "certificat_valide": true,
+      "date_derniere_analyse": "2025-01-29"
+    },
+    {
+      "nom": "travail-emploi.gouv.fr",
+      "url": "https://www.travail-emploi.gouv.fr",
+      "ministere": "Travail",
+      "score_rgaa": 76,
+      "score_dsfr": 82,
+      "statut": "actif",
+      "certificat_valide": true,
+      "date_derniere_analyse": "2025-01-22"
+    },
+    {
+      "nom": "ecologie.gouv.fr",
+      "url": "https://www.ecologie.gouv.fr",
+      "ministere": "Transition écologique",
+      "score_rgaa": 89,
+      "score_dsfr": 91,
+      "statut": "actif",
+      "certificat_valide": true,
+      "date_derniere_analyse": "2025-01-26"
+    },
+    {
+      "nom": "diplomatie.gouv.fr",
+      "url": "https://www.diplomatie.gouv.fr",
+      "ministere": "Affaires étrangères",
+      "score_rgaa": 79,
+      "score_dsfr": 84,
+      "statut": "actif",
+      "certificat_valide": true,
+      "date_derniere_analyse": "2025-01-24"
+    },
+    {
+      "nom": "agriculture.gouv.fr",
+      "url": "https://www.agriculture.gouv.fr",
+      "ministere": "Agriculture",
+      "score_rgaa": 65,
+      "score_dsfr": 71,
+      "statut": "actif",
+      "certificat_valide": false,
+      "date_derniere_analyse": "2025-01-18"
+    },
+    {
+      "nom": "defense.gouv.fr",
+      "url": "https://www.defense.gouv.fr",
+      "ministere": "Armées",
+      "score_rgaa": 81,
+      "score_dsfr": 86,
+      "statut": "actif",
+      "certificat_valide": true,
+      "date_derniere_analyse": "2025-01-23"
+    },
+    {
+      "nom": "sports.gouv.fr",
+      "url": "https://www.sports.gouv.fr",
+      "ministere": "Sports",
+      "score_rgaa": 74,
+      "score_dsfr": 79,
+      "statut": "actif",
+      "certificat_valide": true,
+      "date_derniere_analyse": "2025-01-21"
+    },
+    {
+      "nom": "cohesion-territoires.gouv.fr",
+      "url": "https://www.cohesion-territoires.gouv.fr",
+      "ministere": "Territoires",
+      "score_rgaa": 58,
+      "score_dsfr": 65,
+      "statut": "actif",
+      "certificat_valide": false,
+      "date_derniere_analyse": "2025-01-15"
+    },
+    {
+      "nom": "mer.gouv.fr",
+      "url": "https://www.mer.gouv.fr",
+      "ministere": "Mer",
+      "score_rgaa": 82,
+      "score_dsfr": 87,
+      "statut": "actif",
+      "certificat_valide": true,
+      "date_derniere_analyse": "2025-01-25"
+    },
+    {
+      "nom": "fonction-publique.gouv.fr",
+      "url": "https://www.fonction-publique.gouv.fr",
+      "ministere": "Fonction publique",
+      "score_rgaa": 77,
+      "score_dsfr": 83,
+      "statut": "actif",
+      "certificat_valide": true,
+      "date_derniere_analyse": "2025-01-22"
+    },
+    {
+      "nom": "outre-mer.gouv.fr",
+      "url": "https://www.outre-mer.gouv.fr",
+      "ministere": "Outre-mer",
+      "score_rgaa": 69,
+      "score_dsfr": 74,
+      "statut": "inactif",
+      "certificat_valide": true,
+      "date_derniere_analyse": "2025-01-10"
+    },
+    {
+      "nom": "industrie.gouv.fr",
+      "url": "https://www.industrie.gouv.fr",
+      "ministere": "Économie et Finances",
+      "score_rgaa": 85,
+      "score_dsfr": 90,
+      "statut": "actif",
+      "certificat_valide": true,
+      "date_derniere_analyse": "2025-01-28"
+    },
+    {
+      "nom": "enseignementsup.gouv.fr",
+      "url": "https://www.enseignementsup.gouv.fr",
+      "ministere": "Éducation nationale",
+      "score_rgaa": 88,
+      "score_dsfr": 93,
+      "statut": "actif",
+      "certificat_valide": true,
+      "date_derniere_analyse": "2025-01-29"
+    },
+    {
+      "nom": "solidarites.gouv.fr",
+      "url": "https://www.solidarites.gouv.fr",
+      "ministere": "Santé",
+      "score_rgaa": 71,
+      "score_dsfr": 76,
+      "statut": "actif",
+      "certificat_valide": false,
+      "date_derniere_analyse": "2025-01-19"
+    },
+    {
+      "nom": "numerique.gouv.fr",
+      "url": "https://www.numerique.gouv.fr",
+      "ministere": "Fonction publique",
+      "score_rgaa": 98,
+      "score_dsfr": 99,
+      "statut": "actif",
+      "certificat_valide": true,
+      "date_derniere_analyse": "2025-01-31"
+    }
+  ]
+}

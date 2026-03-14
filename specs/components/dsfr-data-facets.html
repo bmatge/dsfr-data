@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dsfr-data-facets - Composants - dsfr-data</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"></script>
+  <style>
+    body { min-height: 100vh; display: flex; flex-direction: column; }
+    .attr-table { width: 100%; border-collapse: collapse; }
+    .attr-table th, .attr-table td { border: 1px solid var(--border-default-grey); padding: 0.5rem; text-align: left; }
+    .attr-table th { background: var(--background-contrast-grey); }
+    pre { background: var(--background-contrast-grey); padding: 1rem; border-radius: 4px; overflow-x: auto; }
+    code { font-size: 0.875em; }
+  </style>
+</head>
+<body>
+  <!-- ============================================================
+       Sources ODS : prix controle technique (data.economie.gouv.fr)
+       ============================================================ -->
+
+  <!-- Source server-side pour exemple 1 (datalist) -->
+  <dsfr-data-source id="ct-src1"
+    api-type="opendatasoft"
+    base-url="https://data.economie.gouv.fr"
+    dataset-id="prix-controle-technique"
+    server-side
+    page-size="10">
+  </dsfr-data-source>
+
+  <!-- Source client-side pour exemple 2 (chart) — charge ~1000 records -->
+  <dsfr-data-source id="ct-src2"
+    api-type="opendatasoft"
+    base-url="https://data.economie.gouv.fr"
+    dataset-id="prix-controle-technique">
+  </dsfr-data-source>
+
+  <!-- Source client-side pour exemple 3 (KPI + carte) — charge ~1000 records -->
+  <dsfr-data-source id="ct-src3"
+    api-type="opendatasoft"
+    base-url="https://data.economie.gouv.fr"
+    dataset-id="prix-controle-technique">
+  </dsfr-data-source>
+
+  <!-- Source client-side pour exemples 4, 5, 6 (demo modes d'affichage) -->
+  <dsfr-data-source id="ct-local"
+    api-type="opendatasoft"
+    base-url="https://data.economie.gouv.fr"
+    dataset-id="prix-controle-technique"
+    limit="200">
+  </dsfr-data-source>
+
+  <!-- Header -->
+  <app-header current-page="composants" base-path="../../"></app-header>
+
+  <!-- Layout documentation avec sidemenu -->
+  <app-layout-demo
+    title="dsfr-data-facets"
+    icon="ri-filter-3-line"
+    active-path="components/dsfr-data-facets"
+    base-path="../">
+    <div slot="content">
+        <p class="fr-text--lead">
+          Composant visuel intermediaire qui affiche des filtres interactifs (facettes)
+          bases sur les valeurs categoriques des donnees.
+        </p>
+
+        <div class="fr-callout fr-callout--green-emeraude">
+          <p class="fr-callout__text">
+            <strong>Visuel et intermediaire :</strong> Ce composant affiche des controles de filtre
+            ET redistribue les donnees filtrees aux composants en aval via le systeme d'evenements.
+          </p>
+        </div>
+
+        <h2>Position dans le pipeline</h2>
+        <div class="fr-highlight">
+          <p>
+            <code>dsfr-data-source</code> &rarr; <code>dsfr-data-normalize</code> &rarr; <strong><code>dsfr-data-facets</code></strong> &rarr; <code>dsfr-data-chart</code> / <code>dsfr-data-list</code>
+          </p>
+          <p>
+            Normaliser <strong>avant</strong> <code>dsfr-data-facets</code> permet d'avoir des valeurs
+            propres et coherentes dans les filtres (pas de doublons dus aux espaces ou casses differentes).
+          </p>
+        </div>
+
+        <h2>Cas d'usage</h2>
+        <ul>
+          <li><strong>Exploration de donnees</strong> : permettre a l'utilisateur de filtrer un jeu de donnees par categories</li>
+          <li><strong>Tableau de bord interactif</strong> : les graphiques et tableaux se mettent a jour en temps reel</li>
+          <li><strong>Recherche a facettes</strong> : comme sur un site e-commerce (filtrer par marque, prix, couleur...)</li>
+        </ul>
+
+        <h2>Attributs</h2>
+        <table class="attr-table">
+          <thead><tr><th>Attribut</th><th>Type</th><th>Defaut</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>id</code></td><td>String</td><td>-</td><td><strong>Requis.</strong> Identifiant de la sortie (donnees filtrees).</td></tr>
+            <tr><td><code>source</code></td><td>String</td><td><code>""</code></td><td><strong>Requis.</strong> ID de la source a ecouter.</td></tr>
+            <tr><td><code>fields</code></td><td>String</td><td><code>""</code></td><td>Champs a exposer comme facettes (virgule-separes). Vide = auto-detection.</td></tr>
+            <tr><td><code>labels</code></td><td>String</td><td><code>""</code></td><td>Labels custom : <code>"field:Label | field2:Label 2"</code></td></tr>
+            <tr><td><code>max-values</code></td><td>Number</td><td><code>6</code></td><td>Nb de valeurs visibles par facette avant "Voir plus".</td></tr>
+            <tr><td><code>disjunctive</code></td><td>String</td><td><code>""</code></td><td>Champs en mode multi-selection OU (virgule-separes).</td></tr>
+            <tr><td><code>sort</code></td><td>String</td><td><code>"count"</code></td><td>Tri des valeurs : <code>count</code>, <code>-count</code>, <code>alpha</code>, <code>-alpha</code>.</td></tr>
+            <tr><td><code>searchable</code></td><td>String</td><td><code>""</code></td><td>Champs avec barre de recherche (virgule-separes).</td></tr>
+            <tr><td><code>hide-empty</code></td><td>Boolean</td><td><code>false</code></td><td>Masquer les facettes avec une seule valeur.</td></tr>
+            <tr><td><code>display</code></td><td>String</td><td><code>""</code></td><td>Mode d'affichage par facette : <code>"field:select | field2:multiselect"</code>. Modes : <code>checkbox</code> (defaut), <code>select</code>, <code>multiselect</code>, <code>radio</code>.</td></tr>
+            <tr><td><code>hide-counts</code></td><td>Boolean</td><td><code>false</code></td><td>Masquer les compteurs a cote de chaque valeur de facette.</td></tr>
+            <tr><td><code>cols</code></td><td>String</td><td><code>""</code></td><td>Colonnage DSFR des facettes. Global : <code>"6"</code> (2 par ligne), <code>"4"</code> (3 par ligne). Par facette : <code>"region:4 | type:6"</code> (defaut fr-col-6 pour les non-specifies).</td></tr>
+            <tr><td><code>server-facets</code></td><td>Boolean</td><td><code>false</code></td><td>Deleguer le calcul des facettes au serveur via l'adapter (ODS, Grist). L'attribut <code>fields</code> est requis (pas d'auto-detection).</td></tr>
+            <tr><td><code>static-values</code></td><td>String</td><td><code>""</code></td><td>Valeurs de facettes pre-calculees (JSON). Affiche les valeurs sans les calculer depuis les donnees, les selections envoient des commandes WHERE a la source. Ex : <code>'{"sexe":["F","M"]}'</code>. Les compteurs sont masques automatiquement.</td></tr>
+          </tbody>
+        </table>
+
+        <div class="fr-callout fr-mt-3w">
+          <p class="fr-callout__text">
+            <strong>Logique de filtrage :</strong> au sein d'une facette, les selections sont en <strong>OU</strong>
+            (afficher Paris ou Lyon). Entre facettes differentes, c'est du <strong>ET</strong>
+            (region = PACA ET type = Commune). Les compteurs se recalculent dynamiquement.
+          </p>
+        </div>
+
+        <div class="fr-callout fr-callout--brown-caramel fr-mt-3w">
+          <p class="fr-callout__text">
+            <strong>Modes d'affichage :</strong><br>
+            <code>checkbox</code> (defaut) : checkboxes DSFR dans un fieldset ouvert.<br>
+            <code>select</code> : liste deroulante DSFR native, selection exclusive.<br>
+            <code>multiselect</code> : dropdown DSFR avec checkboxes, recherche, "Tout selectionner/deselectionner".<br>
+            <code>radio</code> : dropdown DSFR avec radio buttons, recherche, selection exclusive.<br>
+            Le mode <code>select</code>/<code>radio</code> est automatiquement exclusif, <code>multiselect</code> automatiquement disjonctif.
+          </p>
+        </div>
+
+        <div class="fr-callout fr-callout--blue-france fr-mt-3w">
+          <p class="fr-callout__text">
+            <strong>Facettes server-side :</strong> Avec une source <code>api-type="opendatasoft"</code>
+            et l'attribut <code>server-side</code>, les valeurs des facettes et les compteurs sont
+            calcules directement par l'API (pas de telechargement complet des donnees).
+            Les exemples ci-dessous utilisent le dataset
+            <em>Prix du controle technique</em> (~133 000 enregistrements) de data.economie.gouv.fr.
+          </p>
+        </div>
+
+        <!-- ========================================================
+             Exemple 1 : Facettes + Datalist (prix controle technique)
+             ======================================================== -->
+        <h2 class="fr-mt-4w">Exemple 1 : tableau filtrable avec facettes server-side</h2>
+        <p>Les facettes <code>Region</code> (multiselect), <code>Type de vehicule</code> (select) et <code>Energie</code> (radio) filtrent
+        le tableau des prix du controle technique avec colonnage DSFR (<code>cols="4"</code>).</p>
+
+        <dsfr-data-facets id="ct-filtered1" source="ct-src1"
+          server-facets
+          fields="nom_region, cat_vehicule_libelle, cat_energie_libelle"
+          labels="nom_region:Region | cat_vehicule_libelle:Type de vehicule | cat_energie_libelle:Energie"
+          display="nom_region:multiselect | cat_vehicule_libelle:select | cat_energie_libelle:radio"
+          cols="4">
+        </dsfr-data-facets>
+
+        <dsfr-data-list source="ct-filtered1"
+          colonnes="cct_commune, nom_departement, cat_vehicule_libelle, cat_energie_libelle, prix_visite"
+          server-tri
+          pagination="10">
+        </dsfr-data-list>
+
+        <h3 class="fr-mt-3w">Code</h3>
+        <pre><code>&lt;dsfr-data-source id="src"
+  api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr"
+  dataset-id="prix-controle-technique"
+  server-side
+  page-size="10"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-facets id="filtered" source="src"
+  server-facets
+  fields="nom_region, cat_vehicule_libelle, cat_energie_libelle"
+  labels="nom_region:Region | cat_vehicule_libelle:Type de vehicule | cat_energie_libelle:Energie"
+  display="nom_region:multiselect | cat_vehicule_libelle:select | cat_energie_libelle:radio"
+  cols="4"&gt;
+&lt;/dsfr-data-facets&gt;
+
+&lt;dsfr-data-list source="filtered"
+  colonnes="cct_commune, nom_departement, cat_vehicule_libelle, cat_energie_libelle, prix_visite"
+  server-tri
+  pagination="10"&gt;
+&lt;/dsfr-data-list&gt;</code></pre>
+
+        <!-- ========================================================
+             Exemple 2 : Facettes + Query + Barres (prix moyen par departement)
+             ======================================================== -->
+        <h2 class="fr-mt-6w">Exemple 2 : graphique filtre par region</h2>
+        <p>La facette Region en mode multiselect filtre les donnees, puis <code>dsfr-data-query</code> agrege
+        le prix moyen du controle technique par departement pour le graphique en barres.</p>
+
+        <dsfr-data-facets id="ct-filtered2" source="ct-src2"
+          server-facets
+          fields="nom_region"
+          labels="nom_region:Region"
+          display="nom_region:multiselect"
+          sort="alpha">
+        </dsfr-data-facets>
+
+        <dsfr-data-query id="ct-stats2" source="ct-filtered2"
+          group-by="nom_departement"
+          aggregate="prix_visite:avg:Prix_moyen"
+          order-by="Prix_moyen:desc"
+          limit="15">
+        </dsfr-data-query>
+
+        <dsfr-data-chart source="ct-stats2"
+          type="bar"
+          label-field="nom_departement"
+          value-field="Prix_moyen"
+          selected-palette="categorical">
+        </dsfr-data-chart>
+
+        <h3 class="fr-mt-3w">Code</h3>
+        <pre><code>&lt;dsfr-data-source id="src" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr"
+  dataset-id="prix-controle-technique"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-facets id="filtered" source="src"
+  server-facets
+  fields="nom_region"
+  labels="nom_region:Region"
+  display="nom_region:multiselect"
+  sort="alpha"&gt;
+&lt;/dsfr-data-facets&gt;
+
+&lt;dsfr-data-query id="stats" source="filtered"
+  group-by="nom_departement"
+  aggregate="prix_visite:avg:Prix_moyen"
+  order-by="Prix_moyen:desc"
+  limit="15"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;dsfr-data-chart source="stats" type="bar"
+  label-field="nom_departement"
+  value-field="Prix_moyen"
+  selected-palette="categorical"&gt;
+&lt;/dsfr-data-chart&gt;</code></pre>
+
+        <!-- ========================================================
+             Exemple 3 : Facettes + KPI + Carte (prix par departement)
+             ======================================================== -->
+        <h2 class="fr-mt-6w">Exemple 3 : KPI + carte filtres par region</h2>
+        <p>Un meme <code>dsfr-data-facets</code> alimente a la fois des <strong>KPI</strong> et une <strong>carte</strong>.
+        Selectionner des regions met a jour simultanement les indicateurs et la carte departementale.</p>
+
+        <dsfr-data-facets id="ct-filtered3" source="ct-src3"
+          server-facets
+          fields="nom_region"
+          labels="nom_region:Region"
+          display="nom_region:multiselect"
+          sort="alpha">
+        </dsfr-data-facets>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin: 1.5rem 0;">
+          <dsfr-data-kpi source="ct-filtered3"
+            valeur="count"
+            label="Centres"
+            format="nombre">
+          </dsfr-data-kpi>
+
+          <dsfr-data-kpi source="ct-filtered3"
+            valeur="avg:prix_visite"
+            label="Prix moyen"
+            format="euros">
+          </dsfr-data-kpi>
+        </div>
+
+        <dsfr-data-query id="ct-map-stats" source="ct-filtered3"
+          group-by="code_departement"
+          aggregate="prix_visite:avg:prix_moyen">
+        </dsfr-data-query>
+
+        <dsfr-data-chart source="ct-map-stats"
+          type="map"
+          code-field="code_departement"
+          value-field="prix_moyen"
+          selected-palette="sequentialAscending">
+        </dsfr-data-chart>
+
+        <h3 class="fr-mt-3w">Code</h3>
+        <pre><code>&lt;dsfr-data-source id="src" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr"
+  dataset-id="prix-controle-technique"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-facets id="filtered" source="src"
+  server-facets
+  fields="nom_region"
+  labels="nom_region:Region"
+  display="nom_region:multiselect"
+  sort="alpha"&gt;
+&lt;/dsfr-data-facets&gt;
+
+&lt;!-- KPI sur les donnees filtrees --&gt;
+&lt;dsfr-data-kpi source="filtered" valeur="count" label="Centres" format="nombre"&gt;&lt;/dsfr-data-kpi&gt;
+&lt;dsfr-data-kpi source="filtered" valeur="avg:prix_visite" label="Prix moyen" format="euros"&gt;&lt;/dsfr-data-kpi&gt;
+
+&lt;!-- Carte sur les donnees filtrees et agregees --&gt;
+&lt;dsfr-data-query id="stats" source="filtered"
+  group-by="code_departement"
+  aggregate="prix_visite:avg:prix_moyen"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;dsfr-data-chart source="stats" type="map"
+  code-field="code_departement"
+  value-field="prix_moyen"
+  selected-palette="sequentialAscending"&gt;
+&lt;/dsfr-data-chart&gt;</code></pre>
+
+        <!-- ========================================================
+             Exemple 4 : Modes d'affichage mixtes (4 modes)
+             ======================================================== -->
+        <h2 class="fr-mt-6w">Exemple 4 : les 4 modes d'affichage</h2>
+        <p>Quatre facettes avec des modes differents :
+        <code>radio</code> pour l'Energie (dropdown avec radio buttons, selection exclusive),
+        <code>multiselect</code> pour la Region (dropdown avec checkboxes, recherche et "Tout selectionner"),
+        <code>select</code> pour le Type de vehicule (liste deroulante native DSFR),
+        et <code>checkbox</code> (defaut) pour le Departement.</p>
+
+        <dsfr-data-facets id="ct-display-demo" source="ct-local"
+          server-facets
+          fields="cat_energie_libelle, nom_region, cat_vehicule_libelle, nom_departement"
+          labels="cat_energie_libelle:Energie | nom_region:Region | cat_vehicule_libelle:Type de vehicule | nom_departement:Departement"
+          display="cat_energie_libelle:radio | nom_region:multiselect | cat_vehicule_libelle:select"
+          max-values="6">
+        </dsfr-data-facets>
+
+        <dsfr-data-list source="ct-display-demo"
+          colonnes="cct_commune, nom_departement, cat_vehicule_libelle, prix_visite"
+          recherche="true"
+          pagination="5">
+        </dsfr-data-list>
+
+        <h3 class="fr-mt-3w">Code</h3>
+        <pre><code>&lt;dsfr-data-facets id="filtered" source="src"
+  server-facets
+  fields="cat_energie_libelle, nom_region, cat_vehicule_libelle, nom_departement"
+  labels="cat_energie_libelle:Energie | nom_region:Region | cat_vehicule_libelle:Type | nom_departement:Departement"
+  display="cat_energie_libelle:radio | nom_region:multiselect | cat_vehicule_libelle:select"
+  max-values="6"&gt;
+&lt;/dsfr-data-facets&gt;
+
+&lt;dsfr-data-list source="filtered"
+  colonnes="cct_commune, nom_departement, cat_vehicule_libelle, prix_visite"
+  pagination="5"&gt;
+&lt;/dsfr-data-list&gt;</code></pre>
+
+        <!-- ========================================================
+             Exemple 5 : hide-counts
+             ======================================================== -->
+        <h2 class="fr-mt-6w">Exemple 5 : masquer les compteurs</h2>
+        <p>L'attribut <code>hide-counts</code> masque les compteurs a cote de chaque valeur de facette,
+        pour un affichage plus epure.</p>
+
+        <dsfr-data-facets id="ct-hide-counts-demo" source="ct-local"
+          server-facets
+          fields="nom_region, cat_vehicule_libelle"
+          labels="nom_region:Region | cat_vehicule_libelle:Type de vehicule"
+          display="nom_region:multiselect | cat_vehicule_libelle:select"
+          hide-counts
+          cols="6">
+        </dsfr-data-facets>
+
+        <dsfr-data-list source="ct-hide-counts-demo"
+          colonnes="cct_commune, nom_departement, cat_vehicule_libelle, prix_visite"
+          recherche="true"
+          pagination="5">
+        </dsfr-data-list>
+
+        <h3 class="fr-mt-3w">Code</h3>
+        <pre><code>&lt;dsfr-data-facets id="filtered" source="src"
+  server-facets
+  fields="nom_region, cat_vehicule_libelle"
+  labels="nom_region:Region | cat_vehicule_libelle:Type de vehicule"
+  display="nom_region:multiselect | cat_vehicule_libelle:select"
+  hide-counts
+  cols="6"&gt;
+&lt;/dsfr-data-facets&gt;</code></pre>
+
+        <!-- ========================================================
+             Exemple 6 : Colonnage DSFR (cols)
+             ======================================================== -->
+        <h2 class="fr-mt-6w">Exemple 6 : colonnage DSFR des facettes</h2>
+        <p>L'attribut <code>cols</code> permet de controler la largeur de chaque facette
+        dans la grille DSFR. Ici, Region occupe la moitie (<code>col-6</code>),
+        Type de vehicule un tiers (<code>col-4</code>) et Energie toute la largeur (<code>col-12</code>).</p>
+
+        <dsfr-data-facets id="ct-cols-demo" source="ct-local"
+          server-facets
+          fields="nom_region, cat_vehicule_libelle, cat_energie_libelle"
+          labels="nom_region:Region | cat_vehicule_libelle:Type de vehicule | cat_energie_libelle:Energie"
+          display="nom_region:multiselect | cat_vehicule_libelle:select"
+          cols="nom_region:6 | cat_vehicule_libelle:4 | cat_energie_libelle:12"
+          max-values="8">
+        </dsfr-data-facets>
+
+        <dsfr-data-list source="ct-cols-demo"
+          colonnes="cct_commune, nom_departement, cat_vehicule_libelle, prix_visite"
+          recherche="true"
+          pagination="5">
+        </dsfr-data-list>
+
+        <h3 class="fr-mt-3w">Code</h3>
+        <pre><code>&lt;!-- Colonnage par facette --&gt;
+&lt;dsfr-data-facets id="filtered" source="src"
+  server-facets
+  fields="nom_region, cat_vehicule_libelle, cat_energie_libelle"
+  labels="nom_region:Region | cat_vehicule_libelle:Type | cat_energie_libelle:Energie"
+  display="nom_region:multiselect | cat_vehicule_libelle:select"
+  cols="nom_region:6 | cat_vehicule_libelle:4 | cat_energie_libelle:12"
+  max-values="8"&gt;
+&lt;/dsfr-data-facets&gt;
+
+&lt;!-- Colonnage global (toutes les facettes en col-6) --&gt;
+&lt;dsfr-data-facets id="filtered" source="src"
+  server-facets
+  fields="nom_region, cat_vehicule_libelle, cat_energie_libelle"
+  cols="6"&gt;
+&lt;/dsfr-data-facets&gt;</code></pre>
+
+    </div>
+  </app-layout-demo>
+
+  <!-- Footer -->
+  <app-footer base-path="../../"></app-footer>
+
+  <!-- DSFR JS -->
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dsfr-data-list - Composants - dsfr-data</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css" integrity="sha384-VuzA/gYnk/ZqcT5a/ravR88otj71vNPl/h1JPrKoESV33DCX6SeXIxBcRr5qYPRj" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css" integrity="sha384-YR4AxNhFVy1qsQ0Hp7Rosg06e4sj2m9dLxiYZrtqJ0boIOiDbD8XkIsIPMMkf0VL" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <style>
+    body { min-height: 100vh; display: flex; flex-direction: column; }
+  </style>
+</head>
+<body>
+  <!-- Source de donnees -->
+  <dsfr-data-source id="sites" url="/mock-api/data.json" transform="sites"></dsfr-data-source>
+
+  <!-- Header -->
+  <app-header current-page="composants" base-path="../../"></app-header>
+
+  <!-- Layout documentation avec sidemenu -->
+  <app-layout-demo
+    title="dsfr-data-list"
+    icon="ri-table-line"
+    active-path="components/dsfr-data-list"
+    base-path="../">
+    <div slot="content">
+        <p class="fr-text--lead">
+          Composant de tableau de donnees avec fonctionnalites de recherche, filtrage, tri, pagination et export CSV.
+          Se connecte a un <code>&lt;dsfr-data-source&gt;</code> pour recevoir les donnees dynamiquement.
+        </p>
+
+        <!-- Attributs -->
+        <h2>Attributs</h2>
+        <table class="attr-table">
+          <thead>
+            <tr><th>Attribut</th><th>Type</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>source</code></td><td>String</td><td>ID du <code>&lt;dsfr-data-source&gt;</code> a ecouter (requis)</td></tr>
+            <tr><td><code>colonnes</code></td><td>String</td><td>Colonnes a afficher : <code>"key:Label, key2:Label2"</code></td></tr>
+            <tr><td><code>recherche</code></td><td>Boolean</td><td>Afficher le champ de recherche</td></tr>
+            <tr><td><code>filtres</code></td><td>String</td><td>Colonnes filtrables : <code>"col1,col2"</code></td></tr>
+            <tr><td><code>tri</code></td><td>String</td><td>Tri par defaut : <code>"col:asc"</code> ou <code>"col:desc"</code></td></tr>
+            <tr><td><code>pagination</code></td><td>Number</td><td>Nombre d'elements par page (0 = pas de pagination)</td></tr>
+            <tr><td><code>export</code></td><td>String</td><td>Formats d'export disponibles : <code>"csv"</code></td></tr>
+            <tr><td><code>server-tri</code></td><td>Boolean</td><td>Deleguer le tri des colonnes au serveur via <code>dsfr-data-source-command</code> (orderBy). Les en-tetes de colonnes envoient des commandes de tri a la source amont au lieu de trier localement.</td></tr>
+          </tbody>
+        </table>
+
+        <!-- Variante 1: Tableau simple -->
+        <h2 class="fr-mt-4w">Variantes</h2>
+
+        <section class="demo-section" id="simple">
+          <h3>1. Tableau simple</h3>
+          <p>Affiche uniquement les donnees dans un tableau sans fonctionnalites supplementaires.</p>
+
+          <dsfr-data-list
+            source="sites"
+            colonnes="nom:Nom du site, ministere:Ministere, score_rgaa:RGAA (%)">
+          </dsfr-data-list>
+
+          <div class="code-block">
+            <pre>&lt;dsfr-data-list
+  source="sites"
+  colonnes="nom:Nom du site, ministere:Ministere, score_rgaa:RGAA (%)"&gt;
+&lt;/dsfr-data-list&gt;</pre>
+          </div>
+        </section>
+
+        <!-- Variante 2: Tableau + recherche -->
+        <section class="demo-section" id="search">
+          <h3>2. Tableau + recherche</h3>
+          <p>Ajoute un champ de recherche pour filtrer les donnees en temps reel.</p>
+
+          <dsfr-data-list
+            source="sites"
+            colonnes="nom:Nom du site, ministere:Ministere, score_rgaa:RGAA (%)"
+            recherche="true">
+          </dsfr-data-list>
+
+          <div class="code-block">
+            <pre>&lt;dsfr-data-list
+  source="sites"
+  colonnes="nom:Nom du site, ministere:Ministere, score_rgaa:RGAA (%)"
+  recherche="true"&gt;
+&lt;/dsfr-data-list&gt;</pre>
+          </div>
+        </section>
+
+        <!-- Variante 3: Tableau + filtres -->
+        <section class="demo-section" id="filters">
+          <h3>3. Tableau + filtres</h3>
+          <p>Ajoute des menus deroulants pour filtrer par colonne specifique.</p>
+
+          <dsfr-data-list
+            source="sites"
+            colonnes="nom:Nom du site, ministere:Ministere, statut:Statut, score_rgaa:RGAA (%)"
+            filtres="ministere,statut">
+          </dsfr-data-list>
+
+          <div class="code-block">
+            <pre>&lt;dsfr-data-list
+  source="sites"
+  colonnes="nom:Nom du site, ministere:Ministere, statut:Statut, score_rgaa:RGAA (%)"
+  filtres="ministere,statut"&gt;
+&lt;/dsfr-data-list&gt;</pre>
+          </div>
+        </section>
+
+        <!-- Variante 4: Tableau + tri -->
+        <section class="demo-section" id="sort">
+          <h3>4. Tableau + tri</h3>
+          <p>Definit un tri par defaut et permet de trier en cliquant sur les en-tetes.</p>
+
+          <dsfr-data-list
+            source="sites"
+            colonnes="nom:Nom du site, ministere:Ministere, score_rgaa:RGAA (%)"
+            tri="score_rgaa:desc">
+          </dsfr-data-list>
+
+          <div class="code-block">
+            <pre>&lt;dsfr-data-list
+  source="sites"
+  colonnes="nom:Nom du site, ministere:Ministere, score_rgaa:RGAA (%)"
+  tri="score_rgaa:desc"&gt;
+&lt;/dsfr-data-list&gt;</pre>
+          </div>
+        </section>
+
+        <!-- Variante 5: Tableau + pagination -->
+        <section class="demo-section" id="pagination">
+          <h3>5. Tableau + pagination</h3>
+          <p>Divise les donnees en pages pour une meilleure lisibilite.</p>
+
+          <dsfr-data-list
+            source="sites"
+            colonnes="nom:Nom du site, ministere:Ministere, score_rgaa:RGAA (%)"
+            pagination="5">
+          </dsfr-data-list>
+
+          <div class="code-block">
+            <pre>&lt;dsfr-data-list
+  source="sites"
+  colonnes="nom:Nom du site, ministere:Ministere, score_rgaa:RGAA (%)"
+  pagination="5"&gt;
+&lt;/dsfr-data-list&gt;</pre>
+          </div>
+        </section>
+
+        <!-- Variante 6: Tableau + export -->
+        <section class="demo-section" id="export">
+          <h3>6. Tableau + export CSV</h3>
+          <p>Ajoute un bouton pour exporter les donnees au format CSV.</p>
+
+          <dsfr-data-list
+            source="sites"
+            colonnes="nom:Nom du site, ministere:Ministere, score_rgaa:RGAA (%)"
+            export="csv">
+          </dsfr-data-list>
+
+          <div class="code-block">
+            <pre>&lt;dsfr-data-list
+  source="sites"
+  colonnes="nom:Nom du site, ministere:Ministere, score_rgaa:RGAA (%)"
+  export="csv"&gt;
+&lt;/dsfr-data-list&gt;</pre>
+          </div>
+        </section>
+
+        <!-- Variante 7: Tableau complet -->
+        <section class="demo-section" id="complete">
+          <h3>7. Tableau complet</h3>
+          <p>Combine toutes les fonctionnalites : recherche, filtres, tri, pagination et export.</p>
+
+          <dsfr-data-list
+            source="sites"
+            colonnes="nom:Nom du site, ministere:Ministere, score_rgaa:RGAA (%), score_dsfr:DSFR (%), statut:Statut, certificat_valide:Certificat"
+            recherche="true"
+            filtres="ministere,statut"
+            tri="score_rgaa:desc"
+            pagination="10"
+            export="csv">
+          </dsfr-data-list>
+
+          <div class="code-block">
+            <pre>&lt;dsfr-data-list
+  source="sites"
+  colonnes="nom:Nom du site, ministere:Ministere, score_rgaa:RGAA (%), score_dsfr:DSFR (%), statut:Statut, certificat_valide:Certificat"
+  recherche="true"
+  filtres="ministere,statut"
+  tri="score_rgaa:desc"
+  pagination="10"
+  export="csv"&gt;
+&lt;/dsfr-data-list&gt;</pre>
+          </div>
+        </section>
+
+        <!-- Variante 8: Pagination serveur -->
+        <section class="demo-section" id="server-pagination">
+          <h3>8. Pagination serveur</h3>
+          <p>
+            Quand la source utilise <code>paginate</code>, <code>dsfr-data-list</code> detecte automatiquement
+            la pagination serveur. Chaque changement de page declenche un nouvel appel API. Le nombre total
+            d'enregistrements et de pages vient des metadonnees de l'API.
+          </p>
+
+          <div class="code-block">
+            <pre>&lt;dsfr-data-source id="rappels"
+  api-type="opendatasoft"
+  dataset-id="rappelconso-v2-gtin-trie"
+  base-url="https://data.economie.gouv.fr"
+  server-side
+  paginate page-size="20"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-list source="rappels"
+  colonnes="modeles_ou_references:Produit, categorie_produit:Categorie, marque_produit:Marque"
+  recherche="true"
+  tri="date_publication:desc"
+  pagination="20"&gt;
+&lt;/dsfr-data-list&gt;</pre>
+          </div>
+          <div class="fr-callout fr-callout--blue-ecume fr-mt-2w">
+            <p class="fr-callout__text">
+              <strong>Comportement :</strong> en mode pagination serveur, le total affiche (ex: "34 874 resultats")
+              vient de <code>meta.total</code>. La recherche, le tri et les filtres ne s'appliquent qu'aux donnees
+              de la page courante. Pour filtrer sur tout le dataset, utilisez les parametres API via <code>params</code>.
+            </p>
+          </div>
+        </section>
+
+        <!-- Conseils d'utilisation -->
+        <h2 class="fr-mt-4w">Conseils d'utilisation</h2>
+        <div class="fr-callout">
+          <p class="fr-callout__text">
+            <strong>Performance :</strong> Pour les grands ensembles de donnees, utilisez toujours la pagination
+            pour eviter de surcharger le navigateur. Avec <code>paginate</code> sur <code>dsfr-data-source</code>,
+            la pagination est geree cote serveur et seule la page courante est en memoire.
+          </p>
+        </div>
+
+        <div class="fr-callout fr-callout--green-emeraude">
+          <p class="fr-callout__text">
+            <strong>Accessibilite :</strong> Le composant inclut automatiquement les attributs ARIA necessaires
+            pour les lecteurs d'ecran.
+          </p>
+        </div>
+    </div>
+  </app-layout-demo>
+
+  <!-- Footer -->
+  <app-footer base-path="../../"></app-footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js" integrity="sha384-4dK3hBJJh/bjoOulz9Q1kNO2O09lzuKiFeF5c+0VguV1RT3IiLkv+Pt98Jul84V+" crossorigin="anonymous"></script>
+</body>
+</html>

@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recherche Huwise — Exemples avances - Guide - dsfr-data</title>
+  <style>@view-transition{navigation:auto}app-header:not(:defined){display:block;min-height:56px}app-footer:not(:defined){display:block;min-height:48px}</style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css">
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"></script>
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script src="guide-menu.js"></script>
+  <style>
+    .guide-layout { display: flex; gap: 2rem; }
+    .guide-content { flex: 1; min-width: 0; }
+    @media (max-width: 992px) {
+      .guide-layout { flex-direction: column; }
+    }
+    .guide-content h2 { padding-top: 2rem; border-top: 1px solid var(--border-default-grey); margin-top: 3rem; }
+    .guide-content h2:first-of-type { border-top: none; margin-top: 0; padding-top: 0; }
+    .guide-content h3 { margin-top: 2rem; }
+    .guide-content h4 { margin-top: 1.5rem; }
+    .guide-content pre { background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 4px; font-family: monospace; font-size: 0.85rem; overflow-x: auto; white-space: pre-wrap; margin: 0; }
+    .guide-content ol, .guide-content ul { margin: 0.5rem 0 1rem 1.5rem; }
+    .guide-content li { margin-bottom: 0.25rem; }
+    .example-container { border: 1px solid var(--border-default-grey); border-radius: 4px; padding: 1rem; background: white; min-height: 100px; }
+    .pipeline-diagram { background: var(--background-alt-grey); padding: 1rem 1.5rem; border-radius: 4px; font-family: monospace; font-size: 0.85rem; line-height: 1.6; white-space: pre; overflow-x: auto; }
+    .rappel-card .fr-card__img img { width: 100%; height: 180px; object-fit: contain; background: #f6f6f6; }
+  </style>
+</head>
+<body>
+  <app-header current-page="guide" base-path="../"></app-header>
+
+  <main class="fr-container fr-py-4w" id="main-content">
+    <div class="guide-layout">
+
+      <app-sidemenu section="guide"></app-sidemenu>
+
+      <div class="guide-content">
+
+        <h1><i class="fr-mr-1w"></i>Recherche avec cartes - API Huwise</h1>
+        <p class="fr-text--lead">
+          Recherche et facettes multizone. Pipeline avance combinant recherche serveur, facettes serveur et split client-side en plusieurs zones d'affichage.
+        </p>
+
+        <h4>Architecture du pipeline</h4>
+        <div class="pipeline-diagram">dsfr-data-source "q" (server-side, ODS, 100 resultats)
+  |
+  |-- dsfr-data-search "search" (envoie where a q via whereKey)
+  |-- dsfr-data-facets "filtered" (envoie where a q via whereKey, re-emet)
+  |
+  v
+dsfr-data-facets "filtered" (donnees filtrees par q)
+  |-- dsfr-data-query "alim" (client, filtre Aliment, limit 3)
+  |     \-- dsfr-data-display (cartes, 3 cols)
+  |-- dsfr-data-query "autres" (client, filtre non-Aliment, limit 3)
+  |     \-- dsfr-data-display (cartes, 3 cols)
+  \-- dsfr-data-display (liste complete, pagination 20)</div>
+
+        <p class="fr-mt-2w">
+          La source <code>dsfr-data-source id="q"</code> server-side charge 100 resultats depuis l'API ODS RappelConso.
+          La recherche et les facettes envoient chacune des commandes <code>where</code> a la source avec des <code>whereKey</code> distincts.
+          La source merge automatiquement ces filtres et les facettes <code>dsfr-data-facets id="filtered"</code> réémettent les données filtrées.
+          Les donnees sont ensuite splitees par deux <code>dsfr-data-query</code> client-side (alimentation / autres) avant affichage en trois zones.
+        </p>
+
+        <h4 class="fr-mt-3w">Exemple live</h4>
+
+        <!-- ============================================================= -->
+        <!-- LIVE EXAMPLE                                                    -->
+        <!-- ============================================================= -->
+
+        <dsfr-data-source id="q"
+          api-type="opendatasoft"
+          dataset-id="rappelconso-v2-gtin-trie"
+          base-url="https://data.economie.gouv.fr"
+          order-by="date_publication:desc"
+          server-side
+          page-size="100">
+        </dsfr-data-source>
+
+        <dsfr-data-search id="search" source="q" server-search
+          placeholder="Rechercher un produit, une marque, un numero de fiche..."
+          count>
+        </dsfr-data-search>
+
+        <dsfr-data-facets id="filtered" source="q" server-facets
+          fields="categorie_produit, sous_categorie_produit"
+          labels="categorie_produit:Categorie de produit | sous_categorie_produit:Sous-categorie de produit"
+          display="categorie_produit:multiselect | sous_categorie_produit:multiselect"
+          max-values="8">
+        </dsfr-data-facets>
+
+        <dsfr-data-query id="alim" source="filtered"
+          where="categorie_produit:contains:Aliment"
+          order-by="date_publication:desc"
+          limit="3">
+        </dsfr-data-query>
+
+        <dsfr-data-query id="autres" source="filtered"
+          where="categorie_produit:notcontains:Aliment"
+          order-by="date_publication:desc"
+          limit="3">
+        </dsfr-data-query>
+
+        <div class="fr-my-4w">
+
+          <h2 class="fr-h3" style="border-top: none; margin-top: 0; padding-top: 0;">Rappels de produits</h2>
+
+          <h3 class="fr-h5 fr-mt-4w fr-mb-2w">Alimentation — derniers rappels</h3>
+
+          <dsfr-data-display source="alim" cols="3"
+            empty="Aucun rappel alimentaire recent.">
+            <template>
+              <div class="fr-card fr-card--shadow rappel-card">
+                <div class="fr-card__body">
+                  <div class="fr-card__content">
+                    <h3 class="fr-card__title">
+                      <a href="{{lien_vers_la_fiche_rappel}}" target="_blank" rel="noopener noreferrer">{{libelle}}</a>
+                    </h3>
+                    <p class="fr-card__desc">{{motif_rappel}}</p>
+                    <div class="fr-card__start">
+                      <ul class="fr-badges-group">
+                        <li><p class="fr-badge fr-badge--sm fr-badge--green-emeraude">{{categorie_produit}}</p></li>
+                        <li><p class="fr-badge fr-badge--sm">{{sous_categorie_produit}}</p></li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+                <div class="fr-card__header">
+                  <div class="fr-card__img">
+                    <img class="fr-responsive-img"
+                         src="{{liens_vers_les_images}}"
+                         alt="{{libelle}}"
+                         onerror="this.parentElement.parentElement.style.display='none'">
+                  </div>
+                </div>
+              </div>
+            </template>
+          </dsfr-data-display>
+
+          <hr class="fr-hr fr-mt-4w fr-mb-4w">
+
+          <h3 class="fr-h5 fr-mb-2w">Autres categories — derniers rappels</h3>
+
+          <dsfr-data-display source="autres" cols="3"
+            empty="Aucun rappel recent hors alimentation.">
+            <template>
+              <div class="fr-card fr-card--shadow rappel-card">
+                <div class="fr-card__body">
+                  <div class="fr-card__content">
+                    <h3 class="fr-card__title">
+                      <a href="{{lien_vers_la_fiche_rappel}}" target="_blank" rel="noopener noreferrer">{{libelle}}</a>
+                    </h3>
+                    <p class="fr-card__desc">{{motif_rappel}}</p>
+                    <div class="fr-card__start">
+                      <ul class="fr-badges-group">
+                        <li><p class="fr-badge fr-badge--sm fr-badge--green-emeraude">{{categorie_produit}}</p></li>
+                        <li><p class="fr-badge fr-badge--sm">{{sous_categorie_produit}}</p></li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+                <div class="fr-card__header">
+                  <div class="fr-card__img">
+                    <img class="fr-responsive-img"
+                         src="{{liens_vers_les_images}}"
+                         alt="{{libelle}}"
+                         onerror="this.parentElement.parentElement.style.display='none'">
+                  </div>
+                </div>
+              </div>
+            </template>
+          </dsfr-data-display>
+
+          <hr class="fr-hr fr-mt-4w fr-mb-4w">
+
+          <h3 class="fr-h5 fr-mb-2w">Tous les rappels</h3>
+
+          <dsfr-data-display source="filtered" cols="1" pagination="20"
+            empty="Aucun rappel trouve pour ces criteres.">
+            <template>
+              <div class="fr-card fr-card--horizontal fr-card--shadow rappel-card">
+                <div class="fr-card__body">
+                  <div class="fr-card__content">
+                    <h3 class="fr-card__title">
+                      <a href="{{lien_vers_la_fiche_rappel}}" target="_blank" rel="noopener noreferrer">{{libelle}}</a>
+                    </h3>
+                    <p class="fr-card__desc">{{motif_rappel}}</p>
+                    <div class="fr-card__start">
+                      <ul class="fr-badges-group">
+                        <li><p class="fr-badge fr-badge--sm fr-badge--green-emeraude">{{categorie_produit}}</p></li>
+                        <li><p class="fr-badge fr-badge--sm">{{sous_categorie_produit}}</p></li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+                <div class="fr-card__header">
+                  <div class="fr-card__img">
+                    <img class="fr-responsive-img"
+                         src="{{liens_vers_les_images}}"
+                         alt="{{libelle}}"
+                         onerror="this.parentElement.parentElement.style.display='none'">
+                  </div>
+                </div>
+              </div>
+            </template>
+          </dsfr-data-display>
+
+        </div>
+
+        <!-- Code source -->
+        <section class="fr-accordion fr-mt-2w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-avance">Code source complet</button></h3>
+          <div class="fr-collapse" id="code-avance">
+<pre class="example-code">&lt;style&gt;
+  .rappel-card .fr-card__img img {
+    width: 100%; height: 180px; object-fit: contain; background: #f6f6f6;
+  }
+&lt;/style&gt;
+
+&lt;!-- Source commune --&gt;
+&lt;dsfr-data-source id="q"
+  api-type="opendatasoft"
+  dataset-id="rappelconso-v2-gtin-trie"
+  base-url="https://data.economie.gouv.fr"
+  order-by="date_publication:desc"
+  server-side
+  page-size="100"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;!-- Recherche server-side --&gt;
+&lt;dsfr-data-search id="search" source="q" server-search
+  placeholder="Rechercher un produit, une marque, un numero de fiche..."
+  count&gt;
+&lt;/dsfr-data-search&gt;
+
+&lt;!-- Facettes server-side (mode dropdown DSFR) --&gt;
+&lt;dsfr-data-facets id="filtered" source="q" server-facets
+  fields="categorie_produit, sous_categorie_produit"
+  labels="categorie_produit:Categorie de produit | sous_categorie_produit:Sous-categorie de produit"
+  display="categorie_produit:multiselect | sous_categorie_produit:multiselect"
+  max-values="8"&gt;
+&lt;/dsfr-data-facets&gt;
+
+&lt;!-- Split client-side : alimentation (3 plus recents) --&gt;
+&lt;dsfr-data-query id="alim" source="filtered"
+  where="categorie_produit:contains:Aliment"
+  order-by="date_publication:desc"
+  limit="3"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;!-- Split client-side : autres (3 plus recents) --&gt;
+&lt;dsfr-data-query id="autres" source="filtered"
+  where="categorie_produit:notcontains:Aliment"
+  order-by="date_publication:desc"
+  limit="3"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;div class="fr-container fr-my-4w"&gt;
+  &lt;h1 class="fr-h2"&gt;Rappels de produits&lt;/h1&gt;
+
+  &lt;h2 class="fr-h4 fr-mt-4w fr-mb-2w"&gt;Alimentation — derniers rappels&lt;/h2&gt;
+  &lt;dsfr-data-display source="alim" cols="3"
+    empty="Aucun rappel alimentaire recent."&gt;
+    &lt;template&gt;
+      &lt;div class="fr-card fr-card--shadow rappel-card"&gt;
+        &lt;div class="fr-card__body"&gt;
+          &lt;div class="fr-card__content"&gt;
+            &lt;h3 class="fr-card__title"&gt;
+              &lt;a href="{{lien_vers_la_fiche_rappel}}" target="_blank" rel="noopener noreferrer"&gt;{{libelle}}&lt;/a&gt;
+            &lt;/h3&gt;
+            &lt;p class="fr-card__desc"&gt;{{motif_rappel}}&lt;/p&gt;
+            &lt;div class="fr-card__start"&gt;
+              &lt;ul class="fr-badges-group"&gt;
+                &lt;li&gt;&lt;p class="fr-badge fr-badge--sm fr-badge--green-emeraude"&gt;{{categorie_produit}}&lt;/p&gt;&lt;/li&gt;
+                &lt;li&gt;&lt;p class="fr-badge fr-badge--sm"&gt;{{sous_categorie_produit}}&lt;/p&gt;&lt;/li&gt;
+              &lt;/ul&gt;
+            &lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class="fr-card__header"&gt;
+          &lt;div class="fr-card__img"&gt;
+            &lt;img class="fr-responsive-img"
+                 src="{{liens_vers_les_images}}"
+                 alt="{{libelle}}"
+                 onerror="this.parentElement.parentElement.style.display='none'"&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/template&gt;
+  &lt;/dsfr-data-display&gt;
+
+  &lt;hr class="fr-hr fr-mt-4w fr-mb-4w"&gt;
+
+  &lt;h2 class="fr-h4 fr-mb-2w"&gt;Autres categories — derniers rappels&lt;/h2&gt;
+  &lt;dsfr-data-display source="autres" cols="3"
+    empty="Aucun rappel recent hors alimentation."&gt;
+    &lt;template&gt;
+      &lt;div class="fr-card fr-card--shadow rappel-card"&gt;
+        &lt;!-- meme template que ci-dessus --&gt;
+        &lt;div class="fr-card__body"&gt;
+          &lt;div class="fr-card__content"&gt;
+            &lt;h3 class="fr-card__title"&gt;
+              &lt;a href="{{lien_vers_la_fiche_rappel}}" target="_blank" rel="noopener noreferrer"&gt;{{libelle}}&lt;/a&gt;
+            &lt;/h3&gt;
+            &lt;p class="fr-card__desc"&gt;{{motif_rappel}}&lt;/p&gt;
+            &lt;div class="fr-card__start"&gt;
+              &lt;ul class="fr-badges-group"&gt;
+                &lt;li&gt;&lt;p class="fr-badge fr-badge--sm fr-badge--green-emeraude"&gt;{{categorie_produit}}&lt;/p&gt;&lt;/li&gt;
+                &lt;li&gt;&lt;p class="fr-badge fr-badge--sm"&gt;{{sous_categorie_produit}}&lt;/p&gt;&lt;/li&gt;
+              &lt;/ul&gt;
+            &lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class="fr-card__header"&gt;
+          &lt;div class="fr-card__img"&gt;
+            &lt;img class="fr-responsive-img"
+                 src="{{liens_vers_les_images}}"
+                 alt="{{libelle}}"
+                 onerror="this.parentElement.parentElement.style.display='none'"&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/template&gt;
+  &lt;/dsfr-data-display&gt;
+
+  &lt;hr class="fr-hr fr-mt-4w fr-mb-4w"&gt;
+
+  &lt;h2 class="fr-h4 fr-mb-2w"&gt;Tous les rappels&lt;/h2&gt;
+  &lt;dsfr-data-display source="filtered" cols="1" pagination="20"
+    empty="Aucun rappel trouve pour ces criteres."&gt;
+    &lt;template&gt;
+      &lt;div class="fr-card fr-card--horizontal fr-card--shadow rappel-card"&gt;
+        &lt;div class="fr-card__body"&gt;
+          &lt;div class="fr-card__content"&gt;
+            &lt;h3 class="fr-card__title"&gt;
+              &lt;a href="{{lien_vers_la_fiche_rappel}}" target="_blank" rel="noopener noreferrer"&gt;{{libelle}}&lt;/a&gt;
+            &lt;/h3&gt;
+            &lt;p class="fr-card__desc"&gt;{{motif_rappel}}&lt;/p&gt;
+            &lt;div class="fr-card__start"&gt;
+              &lt;ul class="fr-badges-group"&gt;
+                &lt;li&gt;&lt;p class="fr-badge fr-badge--sm fr-badge--green-emeraude"&gt;{{categorie_produit}}&lt;/p&gt;&lt;/li&gt;
+                &lt;li&gt;&lt;p class="fr-badge fr-badge--sm"&gt;{{sous_categorie_produit}}&lt;/p&gt;&lt;/li&gt;
+              &lt;/ul&gt;
+            &lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class="fr-card__header"&gt;
+          &lt;div class="fr-card__img"&gt;
+            &lt;img class="fr-responsive-img"
+                 src="{{liens_vers_les_images}}"
+                 alt="{{libelle}}"
+                 onerror="this.parentElement.parentElement.style.display='none'"&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/template&gt;
+  &lt;/dsfr-data-display&gt;
+&lt;/div&gt;</pre>
+          </div>
+        </section>
+
+        <!-- Points cles -->
+        <h4 class="fr-mt-3w">Points cles de cet exemple</h4>
+        <ul>
+          <li><strong>1 seule source serveur</strong> : <code>dsfr-data-source server-side</code> charge 100 resultats depuis l'API ODS.</li>
+          <li><strong>Recherche + facettes</strong> : <code>dsfr-data-search id="search" server-search</code> et <code>dsfr-data-facets id="filtered" server-facets</code> envoient chacun un <code>where</code> a la source, merges via <code>whereKey</code> distincts.</li>
+          <li><strong>Split client-side</strong> : deux <code>dsfr-data-query</code> filtrent localement les donnees re-emises par les facettes (alimentation vs autres).</li>
+          <li><strong>3 zones d'affichage</strong> : les 3 derniers rappels alimentaires, les 3 derniers autres, et la liste complete paginee.</li>
+          <li><strong>Cross-facet</strong> : les compteurs de chaque facette tiennent compte des selections des autres facettes.</li>
+        </ul>
+
+      </div>
+    </div>
+  </main>
+
+  <app-footer base-path="../"></app-footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js"></script>
+</body>
+</html>

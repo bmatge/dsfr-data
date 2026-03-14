@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generique (REST) - API supportees - dsfr-data</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css" integrity="sha384-VuzA/gYnk/ZqcT5a/ravR88otj71vNPl/h1JPrKoESV33DCX6SeXIxBcRr5qYPRj" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css" integrity="sha384-YR4AxNhFVy1qsQ0Hp7Rosg06e4sj2m9dLxiYZrtqJ0boIOiDbD8XkIsIPMMkf0VL" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <style>
+    body { min-height: 100vh; display: flex; flex-direction: column; }
+    .capability-yes { color: var(--text-default-success); font-weight: bold; }
+    .capability-no { color: var(--text-default-error); }
+  </style>
+</head>
+<body>
+  <app-header current-page="composants" base-path="../../"></app-header>
+
+  <app-layout-demo
+    title="Generique (REST)"
+    icon="ri-global-line"
+    active-path="apis/generic"
+    base-path="../">
+    <div slot="content">
+        <p class="fr-text--lead">
+          Mode <strong>generique</strong> pour toute API REST retournant du JSON.
+          C'est le mode de repli (<em>fallback</em>) quand l'URL ne correspond a aucun fournisseur connu.
+        </p>
+
+        <div class="fr-callout fr-callout--orange-terre-battue">
+          <h4 class="fr-callout__title">Tout cote client</h4>
+          <p class="fr-callout__text">
+            Le mode generique ne connait pas la structure de l'API cible. Il recupere les donnees
+            via <code>dsfr-data-source</code> et <strong>toutes les transformations</strong> (tri, filtrage,
+            agregation, facettes, recherche) sont effectuees cote client par <code>dsfr-data-query</code>.
+          </p>
+        </div>
+
+        <!-- Capacites serveur -->
+        <section class="fr-mt-4w">
+          <h2>Capacites serveur</h2>
+          <div class="fr-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Capacite</th>
+                  <th>Support</th>
+                  <th>Detail</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Fetch serveur</td>
+                  <td class="capability-no">Non</td>
+                  <td>Pas de pagination automatique</td>
+                </tr>
+                <tr>
+                  <td>Facettes serveur</td>
+                  <td class="capability-no">Non</td>
+                  <td>Facettes calculees cote client</td>
+                </tr>
+                <tr>
+                  <td>Recherche serveur</td>
+                  <td class="capability-no">Non</td>
+                  <td>Recherche effectuee cote client</td>
+                </tr>
+                <tr>
+                  <td>Group-by serveur</td>
+                  <td class="capability-no">Non</td>
+                  <td>Group-by effectue cote client</td>
+                </tr>
+                <tr>
+                  <td>Tri serveur</td>
+                  <td class="capability-no">Non</td>
+                  <td>Tri effectue cote client</td>
+                </tr>
+                <tr>
+                  <td>Agregation serveur</td>
+                  <td class="capability-no">Non</td>
+                  <td>Agregation effectuee cote client</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Pagination -->
+        <section class="fr-mt-4w">
+          <h2>Pagination</h2>
+          <p>
+            <strong>Aucune pagination automatique.</strong> dsfr-data recupere l'URL telle quelle et
+            traite la reponse JSON comme un tableau de donnees. Si votre API utilise de la pagination,
+            vous devez la gerer manuellement dans l'URL ou utiliser un des fournisseurs specialises.
+          </p>
+        </section>
+
+        <!-- Structure de reponse -->
+        <section class="fr-mt-4w">
+          <h2>Structure de reponse</h2>
+          <div class="fr-table">
+            <table>
+              <thead>
+                <tr><th>Parametre</th><th>Valeur</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Chemin des donnees</td><td>(racine du JSON)</td></tr>
+                <tr><td>Chemin du total</td><td>Non disponible</td></tr>
+                <tr><td>Donnees imbriquees</td><td>Non</td></tr>
+                <tr><td>Necessite flatten</td><td>Non</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="fr-highlight fr-mt-2w">
+            <p>
+              La reponse JSON doit etre un tableau d'objets a la racine, ou vous pouvez utiliser
+              l'attribut <code>data-path</code> sur <code>dsfr-data-source</code> pour specifier le
+              chemin vers le tableau de donnees dans la reponse.
+            </p>
+          </div>
+        </section>
+
+        <!-- Syntaxe de requete -->
+        <section class="fr-mt-4w">
+          <h2>Syntaxe de requete</h2>
+          <p>
+            Le mode generique n'envoie aucun parametre de requete a l'API. Toutes les
+            transformations sont effectuees <strong>cote client</strong> par <code>dsfr-data-query</code>
+            avec la syntaxe colon generique (<code>field:operator:value</code>).
+          </p>
+        </section>
+
+        <!-- Facettes -->
+        <section class="fr-mt-4w">
+          <h2>Facettes</h2>
+          <div class="fr-table">
+            <table>
+              <thead>
+                <tr><th>Parametre</th><th>Valeur</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Mode par defaut</td><td><strong>client</strong></td></tr>
+                <tr><td>Endpoint serveur</td><td>Non disponible</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Authentification -->
+        <section class="fr-mt-4w">
+          <h2>Authentification</h2>
+          <p>
+            Type : <strong>aucune</strong>. Le mode generique ne gere pas l'authentification
+            automatiquement. Si votre API necessite une cle, passez-la directement dans l'URL
+            ou configurez un proxy.
+          </p>
+        </section>
+
+        <!-- Detection automatique -->
+        <section class="fr-mt-4w">
+          <h2>Detection automatique</h2>
+          <p>
+            Le mode generique est le <strong>fallback</strong> : il est selectionne automatiquement
+            quand l'URL ne correspond a aucun des autres fournisseurs (OpenDataSoft, Tabular, Grist).
+          </p>
+        </section>
+
+        <!-- Exemple -->
+        <section class="fr-mt-4w">
+          <h2>Exemple d'utilisation</h2>
+
+          <h3>API JSON simple</h3>
+          <pre><code>&lt;dsfr-data-source
+  id="src"
+  url="https://mon-api.example.com/data.json"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-chart
+  source="src"
+  type="bar"
+  name-field="categorie"
+  value-field="valeur"&gt;
+&lt;/dsfr-data-chart&gt;</code></pre>
+
+          <h3 class="fr-mt-2w">API avec chemin de donnees</h3>
+          <pre><code>&lt;!-- Si la reponse JSON est { "results": { "items": [...] } } --&gt;
+&lt;dsfr-data-source
+  id="src"
+  url="https://mon-api.example.com/endpoint"
+  data-path="results.items"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-query
+  source="src"
+  group-by="type"
+  aggregate="montant:sum"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;dsfr-data-chart
+  source="src"
+  type="pie"
+  name-field="type"
+  value-field="montant"&gt;
+&lt;/dsfr-data-chart&gt;</code></pre>
+
+          <h3 class="fr-mt-2w">Avec normalize pour des donnees imbriquees</h3>
+          <pre><code>&lt;dsfr-data-source
+  id="src"
+  url="https://mon-api.example.com/nested-data.json"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-normalize
+  source="src"
+  id="flat"
+  flatten="data"&gt;
+&lt;/dsfr-data-normalize&gt;
+
+&lt;dsfr-data-list
+  source="flat"
+  columns="nom,valeur,date"
+  page-size="20"&gt;
+&lt;/dsfr-data-list&gt;</code></pre>
+        </section>
+    </div>
+  </app-layout-demo>
+
+  <app-footer base-path="../../"></app-footer>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js"></script>
+</body>
+</html>

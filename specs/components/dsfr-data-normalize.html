@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dsfr-data-normalize - Composants - dsfr-data</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"></script>
+  <style>
+    body { min-height: 100vh; display: flex; flex-direction: column; }
+    .attr-table { width: 100%; border-collapse: collapse; }
+    .attr-table th, .attr-table td { border: 1px solid var(--border-default-grey); padding: 0.5rem; text-align: left; }
+    .attr-table th { background: var(--background-contrast-grey); }
+    pre { background: var(--background-contrast-grey); padding: 1rem; border-radius: 4px; overflow-x: auto; }
+    code { font-size: 0.875em; }
+  </style>
+</head>
+<body>
+  <!-- Source de donnees brutes (RappelConso) -->
+  <dsfr-data-source
+    id="demo-raw"
+    api-type="opendatasoft"
+    dataset-id="rappelconso-v2-gtin-trie"
+    base-url="https://data.economie.gouv.fr"
+    server-side page-size="50">
+  </dsfr-data-source>
+
+  <!-- Header -->
+  <app-header current-page="composants" base-path="../../"></app-header>
+
+  <!-- Layout documentation avec sidemenu -->
+  <app-layout-demo
+    title="dsfr-data-normalize"
+    icon="ri-filter-line"
+    active-path="components/dsfr-data-normalize"
+    base-path="../">
+    <div slot="content">
+        <p class="fr-text--lead">
+          Composant intermediaire de normalisation et nettoyage des donnees.
+          Se place entre <code>&lt;dsfr-data-source&gt;</code> et <code>&lt;dsfr-data-query&gt;</code>
+          pour nettoyer les donnees avant traitement.
+        </p>
+
+        <div class="fr-callout fr-callout--blue-france">
+          <p class="fr-callout__text">
+            <strong>Invisible :</strong> Ce composant ne rend rien visuellement. Il normalise les donnees
+            et les redistribue aux composants en aval via le systeme d'evenements.
+          </p>
+        </div>
+
+        <h2>Position dans le pipeline</h2>
+        <div class="fr-highlight">
+          <p>
+            <code>dsfr-data-source</code> &rarr; <strong><code>dsfr-data-normalize</code></strong> &rarr; <code>dsfr-data-query</code> &rarr; <code>dsfr-data-chart</code>
+          </p>
+          <p>
+            Normaliser <strong>avant</strong> <code>dsfr-data-query</code> permet aux filtres et agregations de travailler
+            sur des donnees propres (evite les comparaisons string vs number).
+          </p>
+        </div>
+
+        <h2>Cas d'usage</h2>
+        <ul>
+          <li><strong>Nombres en string</strong> : valeurs numeriques stockees comme texte (<code>"1234"</code> au lieu de <code>1234</code>)</li>
+          <li><strong>Separateurs decimaux</strong> : virgule francaise vs point international (<code>"12,5"</code> vs <code>"12.5"</code>)</li>
+          <li><strong>Caracteres speciaux</strong> : balises HTML, espaces superflus dans les valeurs</li>
+          <li><strong>Libelles peu clairs</strong> : cles d'API cryptiques a renommer pour la lisibilite</li>
+          <li><strong>Valeurs manquantes</strong> : remplacer <code>N/A</code>, <code>n.d.</code>, <code>-</code> par des valeurs exploitables</li>
+          <li><strong>Decimales parasites</strong> : arrondir <code>32073247.269999996</code> a <code>32073247</code></li>
+          <li><strong>Objets imbriques</strong> : aplatir un sous-objet pour remonter ses cles au premier niveau</li>
+        </ul>
+
+        <h2>Attributs</h2>
+        <table class="attr-table">
+          <thead><tr><th>Attribut</th><th>Type</th><th>Defaut</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>id</code></td><td>String</td><td>-</td><td><strong>Requis.</strong> Identifiant de la sortie.</td></tr>
+            <tr><td><code>source</code></td><td>String</td><td><code>""</code></td><td><strong>Requis.</strong> ID de la source a ecouter.</td></tr>
+            <tr><td><code>numeric</code></td><td>String</td><td><code>""</code></td><td>Champs a forcer en nombre (virgule-separes).</td></tr>
+            <tr><td><code>numeric-auto</code></td><td>Boolean</td><td><code>false</code></td><td>Detection et conversion automatique des champs numeriques.</td></tr>
+            <tr><td><code>rename</code></td><td>String</td><td><code>""</code></td><td>Renommage de cles : <code>"ancien:nouveau | ancien2:nouveau2"</code></td></tr>
+            <tr><td><code>trim</code></td><td>Boolean</td><td><code>false</code></td><td>Supprime les espaces en debut/fin des valeurs string.</td></tr>
+            <tr><td><code>strip-html</code></td><td>Boolean</td><td><code>false</code></td><td>Supprime les balises HTML des valeurs string.</td></tr>
+            <tr><td><code>replace</code></td><td>String</td><td><code>""</code></td><td>Remplacement global de valeurs : <code>"N/A: | n.d.: | -:0"</code></td></tr>
+            <tr><td><code>replace-fields</code></td><td>String</td><td><code>""</code></td><td>Remplacement cible par champ : <code>"CHAMP:ancien:nouveau | CHAMP2:a:n"</code>. Ne remplace que dans le champ specifie. Combinable avec <code>replace</code>.</td></tr>
+            <tr><td><code>flatten</code></td><td>String</td><td><code>""</code></td><td>Cle du sous-objet a aplatir au premier niveau. Supporte la dot notation (<code>"data.attributes"</code>).</td></tr>
+            <tr><td><code>round</code></td><td>String</td><td><code>""</code></td><td>Arrondit les champs numeriques. Format : <code>"champ1, champ2"</code> (0 decimales) ou <code>"champ1:2, champ2:0"</code> (N decimales).</td></tr>
+            <tr><td><code>lowercase-keys</code></td><td>Boolean</td><td><code>false</code></td><td>Met toutes les cles en minuscules.</td></tr>
+          </tbody>
+        </table>
+
+        <div class="fr-callout fr-mt-3w">
+          <p class="fr-callout__text">
+            <strong>Separateurs :</strong> <code>rename</code> et <code>replace</code> utilisent le pipe <code>|</code>
+            pour separer les paires, et <code>:</code> pour separer la cle de la valeur.
+            <code>replace-fields</code> utilise le format <code>CHAMP:pattern:remplacement</code> (les 2 premiers <code>:</code> sont des delimiteurs).
+            <code>numeric</code> utilise la virgule.
+          </p>
+        </div>
+
+        <!-- Exemple 1 : conversion numerique + renommage -->
+        <h2 class="fr-mt-4w">Exemple : trim + renommage</h2>
+        <p>Les donnees brutes RappelConso contiennent des noms de colonnes longs et techniques.
+          On renomme les colonnes pour la lisibilite et on nettoie les espaces superflus.</p>
+
+        <dsfr-data-normalize
+          id="demo-clean"
+          source="demo-raw"
+          trim
+          rename="modeles_ou_references:Produit | categorie_produit:Categorie | marque_produit:Marque | date_publication:Date | motif_rappel:Motif">
+        </dsfr-data-normalize>
+
+        <div class="fr-grid-row fr-grid-row--gutters fr-mt-2w">
+          <div class="fr-col-12 fr-col-md-6">
+            <h3>Donnees brutes (JSON)</h3>
+            <pre><code>{
+  "modeles_ou_references": " Lot 2024-ABC ",
+  "categorie_produit": "Alimentation",
+  "marque_produit": "Ma Marque",
+  "date_publication": "2024-06-15",
+  "motif_rappel": "Presence de Listeria"
+}</code></pre>
+          </div>
+          <div class="fr-col-12 fr-col-md-6">
+            <h3>Apres normalisation</h3>
+            <pre><code>{
+  "Produit": "Lot 2024-ABC",       <em>// trim + rename</em>
+  "Categorie": "Alimentation",     <em>// rename</em>
+  "Marque": "Ma Marque",           <em>// rename</em>
+  "Date": "2024-06-15",            <em>// rename</em>
+  "Motif": "Presence de Listeria"  <em>// rename</em>
+}</code></pre>
+          </div>
+        </div>
+
+        <h3 class="fr-mt-3w">Code</h3>
+        <pre><code>&lt;dsfr-data-source id="raw" api-type="opendatasoft"
+  dataset-id="rappelconso-v2-gtin-trie"
+  base-url="https://data.economie.gouv.fr"
+  server-side page-size="50"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-normalize id="clean" source="raw"
+  trim
+  rename="modeles_ou_references:Produit | categorie_produit:Categorie | marque_produit:Marque | date_publication:Date | motif_rappel:Motif"&gt;
+&lt;/dsfr-data-normalize&gt;
+
+&lt;!-- Les donnees normalisees sont pretes pour query/chart --&gt;
+&lt;dsfr-data-list source="clean" pagination="5"&gt;&lt;/dsfr-data-list&gt;</code></pre>
+
+        <!-- Exemple 2 : pipeline complet -->
+        <h2 class="fr-mt-6w">Exemple : pipeline complet</h2>
+        <p>Source &rarr; Normalize &rarr; Query &rarr; Chart</p>
+
+        <pre><code>&lt;dsfr-data-source id="raw" url="..." transform="results"&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-normalize id="clean" source="raw"
+  numeric="population, budget"
+  rename="pop_tot:Population totale | lib_dep:Departement"
+  trim
+  replace="N/A: | n.d.:"&gt;
+&lt;/dsfr-data-normalize&gt;
+
+&lt;dsfr-data-query id="stats" source="clean"
+  group-by="Departement"
+  aggregate="population:sum"
+  order-by="population__sum:desc"
+  limit="10"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;dsfr-data-chart source="stats" type="bar"
+  label-field="Departement"
+  value-field="population__sum"&gt;
+&lt;/dsfr-data-chart&gt;</code></pre>
+
+        <!-- Exemple 3 : remplacement cible par champ (INSEE) -->
+        <h2 class="fr-mt-6w">Exemple : remplacement cible par champ (INSEE)</h2>
+        <p>
+          L'API INSEE Melodi retourne des codes de dimension (AGE: <code>"Y30T39"</code>, PCS: <code>"3"</code>).
+          <code>replace-fields</code> permet de les decoder sans affecter les autres champs
+          qui pourraient contenir les memes valeurs.
+        </p>
+
+        <pre><code>&lt;dsfr-data-source id="raw" api-type="insee"
+  base-url="https://api.insee.fr/melodi"
+  dataset-id="DS_POPULATIONS_REFERENCE"
+  where="POPREF_MEASURE:eq:PMUN, TIME_PERIOD:eq:2023"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-normalize id="decoded" source="raw"
+  replace-fields="AGE:Y30T39:30-39 ans | AGE:Y_LT30:Moins de 30 ans | PCS:3:Cadres | PCS:5:Employes"
+  replace="N/A:"&gt;
+&lt;/dsfr-data-normalize&gt;
+
+&lt;dsfr-data-chart source="decoded" type="bar"
+  label-field="AGE" value-field="OBS_VALUE"&gt;
+&lt;/dsfr-data-chart&gt;</code></pre>
+
+    </div>
+  </app-layout-demo>
+
+  <!-- Footer -->
+  <app-footer base-path="../../"></app-footer>
+
+  <!-- DSFR JS -->
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js"></script>
+</body>
+</html>

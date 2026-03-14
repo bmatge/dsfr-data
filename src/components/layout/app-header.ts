@@ -1,0 +1,277 @@
+import { LitElement, html, nothing } from 'lit';
+import { customElement, property, state } from 'lit/decorators.js';
+import { checkAuth, logout, onAuthChange, isDbMode, onSyncStatusChange } from '@dsfr-data/shared';
+import type { User, SyncStatus } from '@dsfr-data/shared';
+
+// Side-effect import: register <auth-modal> custom element
+import './auth-modal.js';
+
+/**
+ * <app-header> - Header DSFR avec navigation
+ *
+ * Affiche le header conforme DSFR avec logo, titre du service,
+ * et menu de navigation. La page active est mise en surbrillance.
+ * En mode DB, affiche un bouton Connexion/Deconnexion.
+ *
+ * @example
+ * <app-header current-page="builder" base-path=""></app-header>
+ * <app-header current-page="composants" base-path="../"></app-header>
+ */
+@customElement('app-header')
+export class AppHeader extends LitElement {
+  /**
+   * Page courante pour mettre en surbrillance dans la nav
+   * Valeurs: 'accueil' | 'composants' | 'builder' | 'builder-ia' | 'dashboard' | 'playground' | 'favoris' | 'sources'
+   */
+  @property({ type: String, attribute: 'current-page' })
+  currentPage = '';
+
+  /**
+   * Chemin de base pour les liens (ex: '', '../', '../../')
+   */
+  @property({ type: String, attribute: 'base-path' })
+  basePath = '';
+
+  @state()
+  private _favCount = 0;
+
+  @state()
+  private _user: User | null = null;
+
+  @state()
+  private _dbMode = false;
+
+  @state()
+  private _syncStatus: SyncStatus = 'idle';
+
+  @state()
+  private _syncErrorCount = 0;
+
+  private _unsubAuth?: () => void;
+  private _unsubSync?: () => void;
+
+  // Light DOM pour hériter des styles DSFR
+  createRenderRoot() {
+    return this;
+  }
+
+  /** Normalized base path with trailing slash */
+  private get _base(): string {
+    const bp = this.basePath;
+    if (!bp) return '';
+    return bp.endsWith('/') ? bp : bp + '/';
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    // Read favorites count
+    try {
+      const favs = JSON.parse(localStorage.getItem('dsfr-data-favorites') || '[]');
+      this._favCount = Array.isArray(favs) ? favs.length : 0;
+    } catch { /* ignore */ }
+    // Inject active page style once
+    if (!document.getElementById('app-header-active-style')) {
+      const style = document.createElement('style');
+      style.id = 'app-header-active-style';
+      style.textContent = `.fr-nav__link[aria-current="page"]{font-weight:700;border-bottom:2px solid var(--border-action-high-blue-france);color:var(--text-action-high-blue-france)}@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`;
+      document.head.appendChild(style);
+    }
+    // Check auth state
+    this._initAuth();
+    // Subscribe to sync status
+    this._unsubSync = onSyncStatusChange((status, errorCount) => {
+      this._syncStatus = status;
+      this._syncErrorCount = errorCount;
+    });
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this._unsubAuth?.();
+    this._unsubSync?.();
+  }
+
+  private async _initAuth(): Promise<void> {
+    try {
+      const authState = await checkAuth();
+      this._dbMode = await isDbMode(); // already cached, returns instantly
+      this._user = authState.user;
+      this._unsubAuth = onAuthChange((state) => {
+        this._user = state.user;
+      });
+    } catch {
+      // Backend not available — stay in simple mode
+    }
+  }
+
+  private _openAuthModal(): void {
+    const modal = this.querySelector('auth-modal') as any;
+    modal?.open('login');
+  }
+
+  private async _handleLogout(): Promise<void> {
+    await logout();
+    window.location.reload();
+  }
+
+  private _getNavItems() {
+    return [
+      { id: 'accueil', label: 'Accueil', href: 'index.html' },
+      { id: 'composants', label: 'Composants', href: 'specs/index.html' },
+      { id: 'sources', label: 'Sources', href: 'apps/sources/index.html' },
+      { id: 'builder', label: 'Builder', href: 'apps/builder/index.html' },
+      { id: 'builder-ia', label: 'Builder IA', href: 'apps/builder-ia/index.html' },
+      { id: 'playground', label: 'Playground', href: 'apps/playground/index.html' },
+      { id: 'dashboard', label: 'Dashboard', href: 'apps/dashboard/index.html' },
+      { id: 'monitoring', label: 'Monitoring', href: 'apps/monitoring/index.html' },
+    ];
+  }
+
+  private _renderSyncStatus() {
+    if (!this._dbMode) return nothing;
+    if (this._syncStatus === 'idle' && this._syncErrorCount === 0) return nothing;
+
+    if (this._syncStatus === 'syncing') {
+      return html`
+        <li>
+          <span class="fr-btn fr-btn--tertiary-no-outline" style="pointer-events:none;color:var(--text-mention-grey);" title="Synchronisation en cours...">
+            <i class="ri-refresh-line" style="animation:spin 1s linear infinite;"></i>
+          </span>
+        </li>
+      `;
+    }
+
+    if (this._syncStatus === 'error' || this._syncErrorCount > 0) {
+      return html`
+        <li>
+          <span class="fr-btn fr-btn--tertiary-no-outline" style="pointer-events:none;color:var(--text-default-warning);" title="Erreurs de synchronisation (${this._syncErrorCount})">
+            <i class="ri-error-warning-line"></i>
+          </span>
+        </li>
+      `;
+    }
+
+    return nothing;
+  }
+
+  private _renderAuthButton() {
+    if (!this._dbMode) return nothing;
+
+    if (this._user) {
+      return html`
+        <li>
+          <span class="fr-btn fr-btn--tertiary-no-outline fr-icon-account-circle-line" style="pointer-events:none;">
+            ${this._user.displayName || this._user.email}
+          </span>
+        </li>
+        <li>
+          <button class="fr-btn fr-btn--tertiary-no-outline fr-icon-logout-box-r-line"
+                  @click=${this._handleLogout}>
+            Deconnexion
+          </button>
+        </li>
+      `;
+    }
+
+    return html`
+      <li>
+        <button class="fr-btn fr-btn--tertiary-no-outline fr-icon-account-circle-line"
+                @click=${this._openAuthModal}>
+          Connexion
+        </button>
+      </li>
+    `;
+  }
+
+  render() {
+    const navItems = this._getNavItems();
+
+    return html`
+      <div class="fr-skiplinks">
+        <nav class="fr-container" role="navigation" aria-label="Accès rapide">
+          <ul class="fr-skiplinks__list">
+            <li><a class="fr-link" href="#main-content">Contenu</a></li>
+            <li><a class="fr-link" href="${this._base}specs/index.html">Composants</a></li>
+          </ul>
+        </nav>
+      </div>
+      <header role="banner" class="fr-header">
+        <div class="fr-header__body">
+          <div class="fr-container">
+            <div class="fr-header__body-row">
+              <div class="fr-header__brand fr-enlarge-link">
+                <div class="fr-header__brand-top">
+                  <div class="fr-header__logo">
+                    <p class="fr-logo">
+                      République<br>Française
+                    </p>
+                  </div>
+                  <div class="fr-header__navbar">
+                    <button class="fr-btn--menu fr-btn" data-fr-opened="false" aria-controls="modal-menu" aria-haspopup="menu" id="button-menu" title="Menu">
+                      Menu
+                    </button>
+                  </div>
+                </div>
+                <div class="fr-header__service">
+                  <a href="${this._base}index.html" title="Accueil - Charts builder">
+                    <p class="fr-header__service-title">Charts builder</p>
+                  </a>
+                  <p class="fr-header__service-tagline" style="display:flex;align-items:center;gap:0.5rem;">
+                    <span class="fr-badge fr-badge--sm fr-badge--warning fr-badge--no-icon">En developpement</span>
+                    Création de visualisations dynamiques conformes DSFR
+                  </p>
+                </div>
+              </div>
+              <div class="fr-header__tools">
+                <div class="fr-header__tools-links">
+                  <ul class="fr-btns-group">
+                    <li>
+                      <a class="fr-btn fr-btn--tertiary-no-outline fr-icon-book-2-line" href="${this._base}guide/guide.html">
+                        Guide
+                      </a>
+                    </li>
+                    <li>
+                      <a class="fr-btn fr-btn--tertiary-no-outline fr-icon-star-fill" href="${this._base}apps/favorites/index.html">
+                        Favoris${this._favCount > 0 ? html` <span class="fr-badge fr-badge--sm fr-badge--info">${this._favCount}</span>` : nothing}
+                      </a>
+                    </li>
+                    ${this._renderSyncStatus()}
+                    ${this._renderAuthButton()}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="fr-header__menu fr-modal" id="modal-menu" aria-labelledby="button-menu">
+          <div class="fr-container">
+            <button class="fr-btn--close fr-btn" aria-controls="modal-menu" title="Fermer">
+              Fermer
+            </button>
+            <div class="fr-header__menu-links"></div>
+            <nav class="fr-nav" id="header-navigation" role="navigation" aria-label="Menu principal">
+              <ul class="fr-nav__list">
+                ${navItems.map(item => html`
+                  <li class="fr-nav__item">
+                    <a class="fr-nav__link"
+                       href="${this._base}${item.href}"
+                       ${this.currentPage === item.id ? html`aria-current="page"` : ''}>
+                      ${item.label}
+                    </a>
+                  </li>
+                `)}
+              </ul>
+            </nav>
+          </div>
+        </div>
+      </header>
+      ${this._dbMode ? html`<auth-modal></auth-modal>` : nothing}
+    `;
+  }
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'app-header': AppHeader;
+  }
+}

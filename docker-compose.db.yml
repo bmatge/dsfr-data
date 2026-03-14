@@ -1,0 +1,22 @@
+# Docker Compose override for "database" mode.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.db.yml up -d --build
+#
+# Adds a backend Express + SQLite server with auth, RBAC, and data persistence.
+# Requires a .env file with JWT_SECRET.
+
+services:
+  chartsbuilder:
+    build:
+      context: .
+      dockerfile: Dockerfile.db
+    volumes:
+      - beacon-logs:/var/log/nginx
+      - db-data:/app/server/data
+    environment:
+      - GOUV_WIDGETS_MODE=database
+      - JWT_SECRET=${JWT_SECRET}
+      - DB_PATH=/app/server/data/dsfr-data.db
+
+volumes:
+  beacon-logs:
+  db-data:

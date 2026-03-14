@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dsfr-data — Playground</title>
+  <style>@view-transition{navigation:auto}app-header:not(:defined){display:block;min-height:56px}app-footer:not(:defined){display:block;min-height:48px}</style>
+
+  <!-- DSFR -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css" integrity="sha384-VuzA/gYnk/ZqcT5a/ravR88otj71vNPl/h1JPrKoESV33DCX6SeXIxBcRr5qYPRj" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css" integrity="sha384-YR4AxNhFVy1qsQ0Hp7Rosg06e4sj2m9dLxiYZrtqJ0boIOiDbD8XkIsIPMMkf0VL" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
+
+  <!-- DSFR Chart -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css" integrity="sha384-987+TUcyVaQAI/PaEqYIGNqku/bHSkNVAqOfNxyS1eE9SxeeH2Ue4FQZ3kKtnWfM" crossorigin="anonymous">
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js" integrity="sha384-xYrR55uYb2Y55H6eELrLA9ARM8YsjB1ksG6QHJZrhL49lzax9l7rHuQPjsZGiTYk" crossorigin="anonymous"></script>
+
+  <!-- CodeMirror -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.css" integrity="sha384-phfEUVAmRZV1Pzn/Xgxc3NH6zPMDuer0wHU9jRQKhNBBLyV4MP1gaBY1sxfxxPRT" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/theme/dracula.min.css" integrity="sha384-x8lRPRQIKDM8OaOd48WULD2bM7Ek4keq8dc8Czoge+6Pa0L7SuAsng4I4HyFI4kQ" crossorigin="anonymous">
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.js" integrity="sha384-CtBuRlcKITyrd+aBeTPNFB1/T8+kvtNQiWMCLtiGvD6NpLOJAdt8e8PpJJ2Gn1D0" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/htmlmixed/htmlmixed.min.js" integrity="sha384-st1zXlDDuVMrVzC853QA1g8CRGGc0xA2vSXGxn8U2YP2TldAsbkYQ6YI2R6vIW7/" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/xml/xml.min.js" integrity="sha384-3lcOr/GhqbTlJj8KlqKu4T5I0FPqlJYHQF7HahKTcptzg/jdReJp8nhmUdItNhq0" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/javascript/javascript.min.js" integrity="sha384-mNZ6k35sVNu7sE23KjWGt9HV//tFtxOxxBee7FzGSe32oiIpEd2jtDYWLJyciRSy" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/css/css.min.js" integrity="sha384-NkxEGGROUEEdSnL9fe7+sHh7etzS2GkUcwyirQtcV2pYmnaXTJ9no9lSm8PmwCpj" crossorigin="anonymous"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" integrity="sha384-9nhczxUqK87bcKHh20fSQcTGD4qq5GhayNYSYWqwBkINBhOfQLg/P5HG5lF1urn4" crossorigin="anonymous"></script>
+
+  <!-- Composants dsfr-data -->
+  <script type="module" src="../../dist/dsfr-data.esm.js"></script>
+
+  <!-- App styles -->
+  <link rel="stylesheet" href="src/styles/playground.css">
+</head>
+<body>
+  <!-- Header -->
+  <app-header current-page="playground" base-path="../.."></app-header>
+
+  <div class="example-selector">
+    <label for="example-select">Charger un exemple :</label>
+    <select id="example-select" class="fr-select fr-select--sm" style="width: auto; display: inline-block;">
+      <optgroup label="Mode direct (dsfr-data-source)">
+        <option value="direct-bar">Barres — Fiscalite locale</option>
+        <option value="direct-kpi">KPI — Industrie du futur</option>
+        <option value="direct-datalist">Tableau — Maires de France (server-side)</option>
+      </optgroup>
+      <optgroup label="Pagination serveur">
+        <option value="server-paginate-datalist">Tableau — Maires pagination serveur</option>
+        <option value="server-paginate-display">Cartes — Maires pagination serveur</option>
+        <option value="paginate-kpi-global">Pagination + KPI — Industrie du futur</option>
+      </optgroup>
+      <optgroup label="Avec requete (dsfr-data-query)">
+        <option value="query-bar">Barres — Beneficiaires par region</option>
+        <option value="query-pie">Camembert — Investissement par region</option>
+        <option value="query-map">Carte — Taux TFB par departement</option>
+      </optgroup>
+      <optgroup label="Avec normalisation (dsfr-data-normalize)">
+        <option value="normalize-bar">Barres — LOVAC vacants par dept</option>
+        <option value="normalize-pie">Camembert — LOVAC vacants >2 ans</option>
+        <option value="normalize-datalist">Tableau — LOVAC donnees nettoyees</option>
+      </optgroup>
+      <optgroup label="Affichage dynamique (dsfr-data-display)">
+        <option value="direct-display">Cartes — Industrie du futur (server-side)</option>
+        <option value="query-display">Cartes — Communes de l'Ain (server-side)</option>
+        <option value="normalize-display">Tuiles — LOVAC logements vacants</option>
+      </optgroup>
+      <optgroup label="Avec recherche (dsfr-data-search)">
+        <option value="search-datalist">Tableau — Rappels produits (recherche serveur)</option>
+        <option value="search-display">Cartes — Industrie (recherche serveur)</option>
+        <option value="search-kpi-chart">KPI + Barres — Recherche dynamique</option>
+      </optgroup>
+      <optgroup label="Avec facettes (dsfr-data-facets)">
+        <option value="facets-datalist">Tableau — Industrie avec facettes</option>
+        <option value="facets-bar">Barres — Industrie filtree par region</option>
+        <option value="facets-map">Carte + KPI — Fiscalite par region</option>
+      </optgroup>
+      <optgroup label="Server-side (recherche + tri serveur)">
+        <option value="server-side-ods">Recherche serveur — Rappels (ODS)</option>
+        <option value="server-side-tabular-tri">Tri serveur — Communes (Tabular)</option>
+        <option value="server-facets-display">Facettes serveur + normalize — Industrie (ODS)</option>
+      </optgroup>
+      <optgroup label="Carte du monde (dsfr-data-world-map)">
+        <option value="direct-worldmap">Carte — PIB par pays</option>
+      </optgroup>
+    </select>
+    <a href="../../guide/guide.html#exemples" class="fr-link fr-link--sm fr-ml-2w" style="white-space: nowrap;">
+      <i class="ri-book-open-line fr-mr-1v" aria-hidden="true"></i>Guide et exemples
+    </a>
+  </div>
+
+  <app-layout-builder left-ratio="50">
+    <div slot="left" class="playground-editor">
+      <div class="editor-toolbar">
+        <button id="run-btn" class="fr-btn fr-btn--sm fr-btn--icon-left fr-icon-play-line">
+          Executer
+        </button>
+        <button id="reset-btn" class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-refresh-line">
+          Reinitialiser
+        </button>
+        <span style="flex: 1;"></span>
+        <button id="deps-btn" class="fr-btn fr-btn--sm fr-btn--secondary" title="Ajouter ou retirer les dependances CDN pour usage externe">
+          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+          + Deps
+        </button>
+        <button id="copy-btn" class="fr-btn fr-btn--sm fr-btn--secondary">
+          <i class="ri-file-copy-line" aria-hidden="true"></i>
+          Copier
+        </button>
+        <button id="save-btn" class="fr-btn fr-btn--sm fr-btn--secondary">
+          <i class="ri-star-line" aria-hidden="true"></i>
+          Favoris
+        </button>
+      </div>
+      <textarea id="code-editor"></textarea>
+    </div>
+    <div slot="right" class="playground-preview">
+      <iframe id="preview-frame" class="preview-frame" sandbox="allow-scripts allow-same-origin" title="Apercu du code"></iframe>
+    </div>
+  </app-layout-builder>
+
+  <!-- Footer -->
+  <app-footer base-path="../.."></app-footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js" integrity="sha384-4dK3hBJJh/bjoOulz9Q1kNO2O09lzuKiFeF5c+0VguV1RT3IiLkv+Pt98Jul84V+" crossorigin="anonymous"></script>
+  <!-- App entry point -->
+  <script type="module" src="src/main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Ghibli - Guide - dsfr-data</title>
+  <style>@view-transition{navigation:auto}app-header:not(:defined){display:block;min-height:56px}app-footer:not(:defined){display:block;min-height:48px}</style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css">
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"></script>
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script src="guide-menu.js"></script>
+  <style>
+    .guide-layout { display: flex; gap: 2rem; }
+    .guide-content { flex: 1; min-width: 0; }
+    @media (max-width: 992px) {
+      .guide-layout { flex-direction: column; }
+    }
+    .guide-content h2 { padding-top: 2rem; border-top: 1px solid var(--border-default-grey); margin-top: 3rem; }
+    .guide-content h2:first-of-type { border-top: none; margin-top: 0; padding-top: 0; }
+    .guide-content h3 { margin-top: 2rem; }
+    .guide-content h4 { margin-top: 1.5rem; }
+    .guide-content pre { background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 4px; font-family: monospace; font-size: 0.85rem; overflow-x: auto; white-space: pre-wrap; margin: 0; }
+    .guide-content ol, .guide-content ul { margin: 0.5rem 0 1rem 1.5rem; }
+    .guide-content li { margin-bottom: 0.25rem; }
+    .example-container { border: 1px solid var(--border-default-grey); border-radius: 4px; padding: 1rem; background: white; min-height: 100px; }
+    .pipeline-diagram { background: var(--background-alt-grey); padding: 1rem 1.5rem; border-radius: 4px; font-family: monospace; font-size: 0.85rem; line-height: 1.6; white-space: pre; overflow-x: auto; }
+
+    /* Dashboard styles */
+    .dashboard-header {
+      background: var(--background-action-high-blue-france);
+      color: white;
+      padding: 2rem 0;
+      margin-bottom: 2rem;
+      border-radius: 8px;
+    }
+    .dashboard-header h1 { color: white; margin: 0; font-size: 1.75rem; }
+    .dashboard-header p { color: rgba(255,255,255,0.85); margin: 0.5rem 0 0; }
+    .section-title {
+      border-left: 4px solid var(--border-action-high-blue-france);
+      padding-left: 1rem;
+      margin: 2.5rem 0 1.5rem;
+      border-top: none;
+      padding-top: 0;
+    }
+    .chart-card {
+      background: var(--background-default-grey);
+      border: 1px solid var(--border-default-grey);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .chart-card h3 { margin-top: 0; font-size: 1.1rem; }
+    .chart-card h3 small { font-weight: 400; color: var(--text-mention-grey); font-size: 0.85rem; margin-left: 0.5rem; }
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .charts-2col {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 1.5rem;
+    }
+    .source-note {
+      margin-top: 2rem; padding: 1rem;
+      background: var(--background-alt-grey);
+      border-radius: 4px; font-size: 0.875rem;
+      color: var(--text-mention-grey); margin-bottom: 2rem;
+    }
+  </style>
+</head>
+<body>
+  <app-header current-page="guide" base-path="../"></app-header>
+
+  <main class="fr-container fr-py-4w" id="main-content">
+    <div class="guide-layout">
+
+      <app-sidemenu section="guide"></app-sidemenu>
+
+      <div class="guide-content">
+
+        <h1><i class="fr-mr-1w"></i>Dashboard Ghibli - API generic</h1>
+        <p class="fr-text--lead">
+          Tableau de bord filmographique du Studio Ghibli, construit a partir d'une API REST generique
+          (JSON plat, sans authentification, CORS natif).
+          Illustre l'usage du provider <code>generic</code>
+          avec le pipeline : source URL directe, normalisation, queries client-side et visualisations DSFR.
+        </p>
+
+        <div class="fr-callout fr-callout--blue-france fr-mt-2w">
+          <p class="fr-callout__text">
+            <strong>Provider generic :</strong> L'API Ghibli retourne directement un tableau JSON plat
+            (pas d'enveloppe, CORS natif). <code>dsfr-data-source</code> utilise une URL directe sans <code>api-type</code>
+            ni <code>transform</code>.
+            Les champs numeriques (<code>rt_score</code>, <code>running_time</code>,
+            <code>release_date</code>) arrivent en string et sont convertis via <code>dsfr-data-normalize numeric</code>.
+            Toutes les transformations (tri, filtre, group-by, agregation) sont effectuees client-side
+            par <code>dsfr-data-query</code>.
+          </p>
+        </div>
+
+        <h4>Architecture du pipeline</h4>
+        <div class="pipeline-diagram">dsfr-data-source "raw-films" (fetch URL directe, JSON plat, CORS natif)
+  \-- dsfr-data-normalize "films" (trim + numeric="rt_score,running_time,release_date")
+       |-- dsfr-data-query "by-score" (order-by rt_score:desc)
+       |     \-- dsfr-data-chart bar horizontal (scores RT)
+       |-- dsfr-data-query "by-duration" (order-by running_time:desc)
+       |     \-- dsfr-data-chart bar horizontal (durees)
+       |-- dsfr-data-query "by-director-count" (group-by director, count)
+       |     \-- dsfr-data-chart pie (nb films/realisateur)
+       |-- dsfr-data-query "by-director-score" (group-by director, avg rt_score)
+       |     \-- dsfr-data-chart bar (score moyen/realisateur)
+       |-- dsfr-data-query "recent-films" (where release_date >= 2000)
+       |     \-- dsfr-data-chart line x2 (score + duree dans le temps)
+       |-- dsfr-data-kpi x2 (score RT moyen, duree moyenne)
+       \-- dsfr-data-facets + dsfr-data-list (filmographie complete)</div>
+
+        <h4 class="fr-mt-3w">Exemple live</h4>
+
+        <!-- ============================================================= -->
+        <!-- PIPELINE                                                        -->
+        <!-- ============================================================= -->
+
+        <!-- 1. Fetch generique (URL directe, JSON plat, CORS natif) -->
+        <dsfr-data-source id="raw-films"
+          url="https://ghibliapi.vercel.app/films">
+        </dsfr-data-source>
+
+        <!-- 2. Normalisation : conversion numerique des champs string -->
+        <dsfr-data-normalize id="films"
+          source="raw-films"
+          trim
+          numeric="rt_score,running_time,release_date">
+        </dsfr-data-normalize>
+
+        <!-- 3. Queries derivees (tout client-side) -->
+
+        <!-- Films tries par score RT decroissant -->
+        <dsfr-data-query id="by-score"
+          source="films"
+          order-by="rt_score:desc">
+        </dsfr-data-query>
+
+        <!-- Films tries par duree decroissante -->
+        <dsfr-data-query id="by-duration"
+          source="films"
+          order-by="running_time:desc">
+        </dsfr-data-query>
+
+        <!-- Nb de films par realisateur -->
+        <dsfr-data-query id="by-director-count"
+          source="films"
+          group-by="director"
+          aggregate="id:count"
+          order-by="id__count:desc">
+        </dsfr-data-query>
+
+        <!-- Score RT moyen par realisateur -->
+        <dsfr-data-query id="by-director-score"
+          source="films"
+          group-by="director"
+          aggregate="rt_score:avg, id:count"
+          order-by="rt_score__avg:desc">
+        </dsfr-data-query>
+
+        <!-- Films recents (>= 2000) -->
+        <dsfr-data-query id="recent-films"
+          source="films"
+          where="release_date:gte:2000"
+          order-by="release_date:asc">
+        </dsfr-data-query>
+
+        <!-- ============================================================= -->
+        <!-- DASHBOARD                                                       -->
+        <!-- ============================================================= -->
+
+        <div class="dashboard-header fr-mt-3w">
+          <div class="fr-container">
+            <h1>Studio Ghibli — Tableau de bord filmographique</h1>
+            <p>Analyse des longs-metrages du Studio Ghibli : scores critiques, durees, realisateurs et evolutions dans le temps — Source : Ghibli API (generic)</p>
+          </div>
+        </div>
+
+        <!-- KPIs -->
+        <h2 class="section-title">Indicateurs cles</h2>
+
+        <div class="kpi-row">
+          <dsfr-data-kpi source="films"
+            valeur="avg:rt_score"
+            label="Score Rotten Tomatoes moyen (sur 100)"
+            format="nombre"
+            seuil-vert="90"
+            seuil-orange="75"
+            icone="ri-star-line"
+            couleur="bleu">
+          </dsfr-data-kpi>
+
+          <dsfr-data-kpi source="films"
+            valeur="avg:running_time"
+            label="Duree moyenne (minutes par film)"
+            format="nombre"
+            icone="ri-time-line"
+            couleur="orange">
+          </dsfr-data-kpi>
+        </div>
+
+        <!-- Scores et durees -->
+        <h2 class="section-title">Scores et durees</h2>
+
+        <div class="chart-card">
+          <h3>Score Rotten Tomatoes par film <small>trie du meilleur au moins bon</small></h3>
+          <dsfr-data-chart id="chart-score" source="by-score"
+            type="bar"
+            label-field="title"
+            value-field="rt_score"
+            selected-palette="sequentialAscending"
+            horizontal
+            unit-tooltip="%"
+            y-min="0"
+            y-max="100">
+          </dsfr-data-chart>
+          <dsfr-data-a11y for="chart-score" source="by-score" table download></dsfr-data-a11y>
+        </div>
+
+        <div class="chart-card">
+          <h3>Duree des films <small>en minutes, du plus long au plus court</small></h3>
+          <dsfr-data-chart id="chart-duration" source="by-duration"
+            type="bar"
+            label-field="title"
+            value-field="running_time"
+            selected-palette="divergentAscending"
+            horizontal
+            unit-tooltip=" min">
+          </dsfr-data-chart>
+          <dsfr-data-a11y for="chart-duration" source="by-duration" table download></dsfr-data-a11y>
+        </div>
+
+        <!-- Realisateurs -->
+        <h2 class="section-title">Analyse par realisateur</h2>
+
+        <div class="charts-2col">
+          <div class="chart-card">
+            <h3>Nombre de films par realisateur</h3>
+            <dsfr-data-chart id="chart-dir-count" source="by-director-count"
+              type="pie"
+              label-field="director"
+              value-field="id__count"
+              selected-palette="categorical">
+            </dsfr-data-chart>
+            <dsfr-data-a11y for="chart-dir-count" source="by-director-count" table download></dsfr-data-a11y>
+          </div>
+
+          <div class="chart-card">
+            <h3>Score RT moyen par realisateur</h3>
+            <dsfr-data-chart id="chart-dir-score" source="by-director-score"
+              type="bar"
+              label-field="director"
+              value-field="rt_score__avg"
+              selected-palette="sequentialDescending"
+              unit-tooltip="%"
+              y-min="0"
+              y-max="100">
+            </dsfr-data-chart>
+            <dsfr-data-a11y for="chart-dir-score" source="by-director-score" table download></dsfr-data-a11y>
+          </div>
+        </div>
+
+        <!-- Evolution dans le temps -->
+        <h2 class="section-title">Evolution dans le temps (films depuis 2000)</h2>
+
+        <div class="charts-2col">
+          <div class="chart-card">
+            <h3>Score RT par annee de sortie</h3>
+            <dsfr-data-chart id="chart-recent-score" source="recent-films"
+              type="line"
+              label-field="release_date"
+              value-field="rt_score"
+              selected-palette="categorical"
+              unit-tooltip="%"
+              y-min="0"
+              y-max="100">
+            </dsfr-data-chart>
+            <dsfr-data-a11y for="chart-recent-score" source="recent-films" table download></dsfr-data-a11y>
+          </div>
+
+          <div class="chart-card">
+            <h3>Duree par annee de sortie</h3>
+            <dsfr-data-chart id="chart-recent-duration" source="recent-films"
+              type="line"
+              label-field="release_date"
+              value-field="running_time"
+              selected-palette="divergentAscending"
+              unit-tooltip=" min">
+            </dsfr-data-chart>
+            <dsfr-data-a11y for="chart-recent-duration" source="recent-films" table download></dsfr-data-a11y>
+          </div>
+        </div>
+
+        <!-- Filmographie complete -->
+        <h2 class="section-title">Filmographie complete</h2>
+
+        <dsfr-data-facets id="films-filtered"
+          source="films"
+          fields="director,producer"
+          labels="director:Realisateur | producer:Producteur"
+          display="director:select | producer:select"
+          cols="6">
+        </dsfr-data-facets>
+
+        <dsfr-data-list source="films-filtered"
+          colonnes="title:Titre, director:Realisateur, release_date:Annee, running_time:Duree (min), rt_score:Score RT (%)"
+          recherche
+          tri="rt_score:desc"
+          pagination="10"
+          export="csv">
+        </dsfr-data-list>
+
+        <!-- Source -->
+        <div class="source-note">
+          <strong>Source :</strong> <a href="https://ghibliapi.vercel.app" target="_blank" rel="noopener">Ghibli API (ghibliapi.vercel.app)</a> — donnees publiques, CORS natif, aucune cle d'API<br>
+          <strong>Provider :</strong> generic (URL directe, tableau JSON plat, pas de <code>transform</code>)<br>
+          <strong>Pipeline 100% declaratif :</strong>
+          <code>dsfr-data-source</code> (fetch URL) &rarr;
+          <code>dsfr-data-normalize</code> (trim + numeric) &rarr;
+          6&times; <code>dsfr-data-query</code> client-side (group-by, aggregate, where, order-by) &rarr;
+          <code>dsfr-data-facets</code> (filtres interactifs) +
+          2&times; <code>dsfr-data-kpi</code> +
+          6&times; <code>dsfr-data-chart</code> +
+          <code>dsfr-data-list</code> +
+          6&times; <code>dsfr-data-a11y</code>
+        </div>
+
+        <!-- Code source -->
+        <section class="fr-accordion fr-mt-2w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-ghibli">Code source complet</button></h3>
+          <div class="fr-collapse" id="code-ghibli">
+<pre class="example-code">&lt;!-- 1. Fetch generique (URL directe, CORS natif) --&gt;
+&lt;dsfr-data-source id="raw-films"
+  url="https://ghibliapi.vercel.app/films"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;!-- 2. Normalisation : conversion numerique des champs string --&gt;
+&lt;dsfr-data-normalize id="films" source="raw-films"
+  trim
+  numeric="rt_score,running_time,release_date"&gt;
+&lt;/dsfr-data-normalize&gt;
+
+&lt;!-- 3. Queries derivees (tout client-side) --&gt;
+
+&lt;!-- Films tries par score RT decroissant --&gt;
+&lt;dsfr-data-query id="by-score" source="films"
+  order-by="rt_score:desc"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;!-- Films tries par duree decroissante --&gt;
+&lt;dsfr-data-query id="by-duration" source="films"
+  order-by="running_time:desc"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;!-- Nb de films par realisateur --&gt;
+&lt;dsfr-data-query id="by-director-count" source="films"
+  group-by="director"
+  aggregate="id:count"
+  order-by="id__count:desc"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;!-- Score RT moyen par realisateur --&gt;
+&lt;dsfr-data-query id="by-director-score" source="films"
+  group-by="director"
+  aggregate="rt_score:avg, id:count"
+  order-by="rt_score__avg:desc"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;!-- Films recents (&gt;= 2000) --&gt;
+&lt;dsfr-data-query id="recent-films" source="films"
+  where="release_date:gte:2000"
+  order-by="release_date:asc"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;!-- KPIs --&gt;
+&lt;div class="kpi-row"&gt;
+  &lt;dsfr-data-kpi source="films"
+    valeur="avg:rt_score"
+    label="Score Rotten Tomatoes moyen (sur 100)"
+    format="nombre"
+    seuil-vert="90" seuil-orange="75"
+    icone="ri-star-line" couleur="bleu"&gt;
+  &lt;/dsfr-data-kpi&gt;
+
+  &lt;dsfr-data-kpi source="films"
+    valeur="avg:running_time"
+    label="Duree moyenne (minutes par film)"
+    format="nombre"
+    icone="ri-time-line" couleur="orange"&gt;
+  &lt;/dsfr-data-kpi&gt;
+&lt;/div&gt;
+
+&lt;!-- Score RT par film (barres horizontales) --&gt;
+&lt;dsfr-data-chart id="chart-score" source="by-score"
+  type="bar" label-field="title" value-field="rt_score"
+  selected-palette="sequentialAscending"
+  horizontal unit-tooltip="%" y-min="0" y-max="100"&gt;
+&lt;/dsfr-data-chart&gt;
+&lt;dsfr-data-a11y for="chart-score" source="by-score" table download&gt;&lt;/dsfr-data-a11y&gt;
+
+&lt;!-- Duree des films (barres horizontales) --&gt;
+&lt;dsfr-data-chart id="chart-duration" source="by-duration"
+  type="bar" label-field="title" value-field="running_time"
+  selected-palette="divergentAscending"
+  horizontal unit-tooltip=" min"&gt;
+&lt;/dsfr-data-chart&gt;
+&lt;dsfr-data-a11y for="chart-duration" source="by-duration" table download&gt;&lt;/dsfr-data-a11y&gt;
+
+&lt;!-- Nb films par realisateur (camembert) --&gt;
+&lt;dsfr-data-chart id="chart-dir-count" source="by-director-count"
+  type="pie" label-field="director" value-field="id__count"
+  selected-palette="categorical"&gt;
+&lt;/dsfr-data-chart&gt;
+
+&lt;!-- Score RT moyen par realisateur (barres) --&gt;
+&lt;dsfr-data-chart id="chart-dir-score" source="by-director-score"
+  type="bar" label-field="director" value-field="rt_score__avg"
+  selected-palette="sequentialDescending"
+  unit-tooltip="%" y-min="0" y-max="100"&gt;
+&lt;/dsfr-data-chart&gt;
+
+&lt;!-- Evolution temporelle (films depuis 2000) --&gt;
+&lt;dsfr-data-chart source="recent-films"
+  type="line" label-field="release_date" value-field="rt_score"
+  selected-palette="categorical" unit-tooltip="%"
+  y-min="0" y-max="100"&gt;
+&lt;/dsfr-data-chart&gt;
+
+&lt;dsfr-data-chart source="recent-films"
+  type="line" label-field="release_date" value-field="running_time"
+  selected-palette="divergentAscending" unit-tooltip=" min"&gt;
+&lt;/dsfr-data-chart&gt;
+
+&lt;!-- Filmographie complete avec facettes et tableau --&gt;
+&lt;dsfr-data-facets id="films-filtered" source="films"
+  fields="director,producer"
+  labels="director:Realisateur | producer:Producteur"
+  display="director:select | producer:select"
+  cols="6"&gt;
+&lt;/dsfr-data-facets&gt;
+
+&lt;dsfr-data-list source="films-filtered"
+  colonnes="title:Titre, director:Realisateur, release_date:Annee, running_time:Duree (min), rt_score:Score RT (%)"
+  recherche tri="rt_score:desc" pagination="10" export="csv"&gt;
+&lt;/dsfr-data-list&gt;</pre>
+          </div>
+        </section>
+
+        <!-- Points cles -->
+        <h4 class="fr-mt-3w">Points cles de cet exemple</h4>
+        <ul>
+          <li><strong>Provider generic</strong> : <code>dsfr-data-source</code> utilise une URL directe vers une API REST qui retourne un tableau JSON plat. Pas besoin d'<code>api-type</code> ni de <code>transform</code> — le cas d'usage le plus simple. L'API Ghibli supporte CORS nativement, donc pas besoin de <code>use-proxy</code>.</li>
+          <li><strong>Normalisation des types</strong> : l'API retourne <code>rt_score</code>, <code>running_time</code> et <code>release_date</code> en string. <code>dsfr-data-normalize numeric</code> les convertit en nombres pour permettre le tri, les agregations et les filtres numeriques.</li>
+          <li><strong>Queries multiples sur une seule source</strong> : 6 <code>dsfr-data-query</code> derivent chacun une vue differente des memes donnees (tri, group-by, aggregate, where) — tout en client-side.</li>
+          <li><strong>KPI avec agregation inline</strong> : <code>dsfr-data-kpi valeur="avg:rt_score"</code> calcule la moyenne directement, sans query intermediaire.</li>
+          <li><strong>Facettes et tableau interactif</strong> : <code>dsfr-data-facets</code> en mode select filtre par realisateur et producteur, <code>dsfr-data-list</code> ajoute la recherche, le tri et l'export CSV.</li>
+          <li><strong>Accessibilite</strong> : <code>dsfr-data-a11y</code> sur chaque graphique pour le telechargement CSV.</li>
+          <li><strong>0 ligne de JavaScript</strong> : tout le dashboard est 100% declaratif en HTML.</li>
+          <li><strong>CORS natif</strong> : l'API Ghibli autorise les requetes cross-origin — pas besoin de proxy. Pour les APIs sans CORS, utiliser <code>use-proxy</code> pour router via <code>/cors-proxy</code>.</li>
+        </ul>
+
+      </div>
+    </div>
+  </main>
+
+  <app-footer base-path="../"></app-footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js"></script>
+</body>
+</html>

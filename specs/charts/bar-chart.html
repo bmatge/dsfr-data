@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bar Chart - DSFR Chart - dsfr-data</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"></script>
+  <style>
+    body { min-height: 100vh; display: flex; flex-direction: column; }
+  </style>
+</head>
+<body>
+  <app-header current-page="composants" base-path="../../"></app-header>
+
+  <app-layout-demo title="Graphique en barres" icon="ri-bar-chart-horizontal-line" active-path="charts/bar-chart" base-path="../">
+    <div slot="content">
+      <p class="fr-text--lead">Le composant <code>&lt;bar-chart&gt;</code> permet de comparer des valeurs entre categories.</p>
+
+      <h2>Attributs</h2>
+      <table class="attr-table">
+        <thead><tr><th>Attribut</th><th>Type</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>x</code></td><td>String</td><td>Labels en JSON : <code>'[["A", "B", "C"]]'</code></td></tr>
+          <tr><td><code>y</code></td><td>String</td><td>Valeurs en JSON : <code>'[[10, 20, 30]]'</code></td></tr>
+          <tr><td><code>name</code></td><td>String</td><td>Noms des series : <code>'["Serie 1"]'</code></td></tr>
+          <tr><td><code>selected-palette</code></td><td>String</td><td>Palette de couleurs</td></tr>
+          <tr><td><code>unit-tooltip</code></td><td>String</td><td>Unite dans les tooltips</td></tr>
+          <tr><td><code>horizontal</code></td><td>Boolean</td><td>Barres horizontales</td></tr>
+          <tr><td><code>stacked</code></td><td>Boolean</td><td>Barres empilees</td></tr>
+          <tr><td><code>highlight-index</code></td><td>String</td><td>Index a mettre en avant</td></tr>
+        </tbody>
+      </table>
+
+      <h2 class="fr-mt-4w">Exemples</h2>
+
+      <section class="demo-section">
+        <h3>1. Barres verticales simples</h3>
+        <bar-chart
+          x='[["2020", "2021", "2022", "2023", "2024"]]'
+          y="[[65, 72, 78, 85, 91]]"
+          name='["Score RGAA"]'
+          selected-palette="default"
+          unit-tooltip="%">
+        </bar-chart>
+        <div class="code-block"><pre>&lt;bar-chart
+  x='[["2020", "2021", "2022", "2023", "2024"]]'
+  y="[[65, 72, 78, 85, 91]]"
+  name='["Score RGAA"]'
+  selected-palette="default"
+  unit-tooltip="%"&gt;
+&lt;/bar-chart&gt;</pre></div>
+      </section>
+
+      <section class="demo-section">
+        <h3>2. Barres horizontales</h3>
+        <bar-chart
+          x='[["Economie", "Education", "Culture", "Sante", "Justice"]]'
+          y="[[87, 91, 95, 68, 83]]"
+          horizontal="true"
+          selected-palette="categorical"
+          unit-tooltip="%">
+        </bar-chart>
+        <div class="code-block"><pre>&lt;bar-chart
+  x='[["Economie", "Education", "Culture", "Sante", "Justice"]]'
+  y="[[87, 91, 95, 68, 83]]"
+  horizontal="true"
+  selected-palette="categorical"
+  unit-tooltip="%"&gt;
+&lt;/bar-chart&gt;</pre></div>
+      </section>
+
+      <section class="demo-section">
+        <h3>3. Barres empilees (multi-series)</h3>
+        <bar-chart
+          x='[["T1", "T2", "T3", "T4"]]'
+          y="[[15, 19, 15, 13], [45, 40, 47, 41], [36, 32, 34, 44]]"
+          name='["RGAA", "DSFR", "Performance"]'
+          stacked="true"
+          selected-palette="categorical"
+          unit-tooltip="%">
+        </bar-chart>
+        <div class="code-block"><pre>&lt;bar-chart
+  x='[["T1", "T2", "T3", "T4"]]'
+  y="[[15, 19, 15, 13], [45, 40, 47, 41], [36, 32, 34, 44]]"
+  name='["RGAA", "DSFR", "Performance"]'
+  stacked="true"
+  selected-palette="categorical"&gt;
+&lt;/bar-chart&gt;</pre></div>
+      </section>
+
+      <section class="demo-section">
+        <h3>4. Mise en avant de certaines barres</h3>
+        <bar-chart
+          x='[["Jan", "Fev", "Mar", "Avr", "Mai", "Juin"]]'
+          y="[[50, 70, 30, 90, 60, 80]]"
+          selected-palette="neutral"
+          highlight-index="[3]"
+          unit-tooltip="k">
+        </bar-chart>
+        <div class="code-block"><pre>&lt;bar-chart
+  x='[["Jan", "Fev", "Mar", "Avr", "Mai", "Juin"]]'
+  y="[[50, 70, 30, 90, 60, 80]]"
+  selected-palette="neutral"
+  highlight-index="[3]"
+  unit-tooltip="k"&gt;
+&lt;/bar-chart&gt;</pre></div>
+      </section>
+
+      <section class="demo-section">
+        <h3>5. Palette sequentielle</h3>
+        <bar-chart
+          x='[["A", "B", "C", "D", "E"]]'
+          y="[[20, 40, 60, 80, 100]]"
+          selected-palette="sequentialAscending"
+          unit-tooltip="%">
+        </bar-chart>
+        <div class="code-block"><pre>&lt;bar-chart
+  x='[["A", "B", "C", "D", "E"]]'
+  y="[[20, 40, 60, 80, 100]]"
+  selected-palette="sequentialAscending"&gt;
+&lt;/bar-chart&gt;</pre></div>
+      </section>
+    </div>
+  </app-layout-demo>
+
+  <app-footer base-path="../../"></app-footer>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js"></script>
+</body>
+</html>

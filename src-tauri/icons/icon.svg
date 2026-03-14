@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="barGrad1" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="#000091"/>
+      <stop offset="100%" stop-color="#6A6AF4"/>
+    </linearGradient>
+    <linearGradient id="barGrad2" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="#000091"/>
+      <stop offset="100%" stop-color="#8585F6"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Fond -->
+
+  <rect width="200" height="200" rx="16" fill="#F5F5FE"/>
+
+  <!-- Axes -->
+
+  <line x1="40" y1="160" x2="170" y2="160" stroke="#000091" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="40" y1="160" x2="40" y2="30" stroke="#000091" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- Barres du graphique -->
+
+  <rect x="55" y="120" width="20" height="40" rx="3" fill="#000091" opacity="0.5"/>
+  <rect x="85" y="90" width="20" height="70" rx="3" fill="#000091" opacity="0.7"/>
+  <rect x="115" y="60" width="20" height="100" rx="3" fill="url(#barGrad1)"/>
+  <rect x="145" y="45" width="20" height="115" rx="3" fill="url(#barGrad2)"/>
+
+  <!-- Ligne de tendance -->
+
+<polyline points="65,115 95,82 125,52 155,38"
+fill="none" stroke="#E1000F" stroke-width="2.5"
+stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Points sur la ligne -->
+
+  <circle cx="65" cy="115" r="4" fill="#E1000F"/>
+  <circle cx="95" cy="82" r="4" fill="#E1000F"/>
+  <circle cx="125" cy="52" r="4" fill="#E1000F"/>
+  <circle cx="155" cy="38" r="4" fill="#E1000F"/>
+
+  <!-- Grille horizontale légère -->
+
+  <line x1="40" y1="120" x2="170" y2="120" stroke="#000091" stroke-width="0.5" opacity="0.15"/>
+  <line x1="40" y1="80" x2="170" y2="80" stroke="#000091" stroke-width="0.5" opacity="0.15"/>
+  <line x1="40" y1="40" x2="170" y2="40" stroke="#000091" stroke-width="0.5" opacity="0.15"/>
+</svg>

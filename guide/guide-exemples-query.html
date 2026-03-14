@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dsfr-data-query — Exemples - Guide - dsfr-data</title>
+  <style>@view-transition{navigation:auto}app-header:not(:defined){display:block;min-height:56px}app-footer:not(:defined){display:block;min-height:48px}</style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css">
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"></script>
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script src="guide-menu.js"></script>
+  <style>
+    .guide-layout { display: flex; gap: 2rem; }
+    .guide-content { flex: 1; min-width: 0; }
+    @media (max-width: 992px) {
+      .guide-layout { flex-direction: column; }
+    }
+    .guide-content h2 { padding-top: 2rem; border-top: 1px solid var(--border-default-grey); margin-top: 3rem; }
+    .guide-content h2:first-of-type { border-top: none; margin-top: 0; padding-top: 0; }
+    .guide-content h3 { margin-top: 2rem; }
+    .guide-content h4 { margin-top: 1.5rem; }
+    .guide-content pre { background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 4px; font-family: monospace; font-size: 0.85rem; overflow-x: auto; white-space: pre-wrap; margin: 0; }
+    .guide-content ol, .guide-content ul { margin: 0.5rem 0 1rem 1.5rem; }
+    .guide-content li { margin-bottom: 0.25rem; }
+    .example-container { border: 1px solid var(--border-default-grey); border-radius: 4px; padding: 1rem; background: white; min-height: 100px; }
+    .example-loading { padding: 2rem; text-align: center; color: var(--text-mention-grey); border: 1px solid var(--border-default-grey); border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <app-header current-page="guide" base-path="../"></app-header>
+
+  <main class="fr-container fr-py-4w" id="main-content">
+    <div class="guide-layout">
+
+      <app-sidemenu section="guide"></app-sidemenu>
+
+      <div class="guide-content">
+
+        <h1><i class="ri-filter-3-line fr-mr-1w"></i>dsfr-data-query</h1>
+        <p class="fr-text--lead">
+          <code>dsfr-data-query</code> filtre, regroupe et agrege les donnees avant de les transmettre aux composants de visualisation.
+          Supporte <code>group-by</code>, <code>aggregate</code>, <code>filter</code>, <code>order-by</code> et <code>limit</code>.
+        </p>
+
+        <p class="fr-mt-1w">
+          <a class="fr-link fr-link--icon-right fr-icon-arrow-right-line"
+             href="../specs/components/dsfr-data-query.html">
+            Reference API complete (attributs, operateurs, methodes)
+          </a>
+        </p>
+
+        <div class="fr-callout fr-callout--green-emeraude fr-mb-3w">
+          <h4 class="fr-callout__title">dsfr-data-source + dsfr-data-query</h4>
+          <p class="fr-callout__text">
+            <strong><code>dsfr-data-source</code></strong> est le connecteur de donnees : il recupere du JSON
+            depuis n'importe quelle API REST ou API connue (<code>api-type="opendatasoft"</code>,
+            <code>tabular</code>, <code>grist</code>) avec pagination automatique, proxy CORS
+            et support <code>headers</code> pour les jeux prives.<br><br>
+            <strong><code>dsfr-data-query</code></strong> est une couche de transformation pure : il ecoute
+            une source existante et filtre, groupe, agrege et trie les donnees cote client.
+            Il ne fetche jamais directement — il se branche toujours sur un <code>dsfr-data-source</code>.
+          </p>
+        </div>
+
+        <!-- query-bar -->
+        <h4 id="query-bar">Barres — Beneficiaires agreges par region</h4>
+        <p>Regroupe par region et somme les beneficiaires avec <code>group-by</code> + <code>aggregate</code>.
+          <a href="../apps/playground/index.html?example=query-bar" class="fr-link fr-link--sm">Tester dans le Playground</a>
+        </p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-q-bar">Code source</button></h3>
+          <div class="fr-collapse" id="code-q-bar">
+<pre class="example-code">&lt;dsfr-data-source id="data" api-type="opendatasoft"
+  dataset-id="industrie-du-futur"
+  base-url="https://data.economie.gouv.fr"&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-query id="q" source="data"
+  group-by="nom_region"
+  aggregate="nombre_beneficiaires:sum:beneficiaires"
+  order-by="beneficiaires:desc" limit="10"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;dsfr-data-chart source="q" type="bar"
+  label-field="nom_region" value-field="beneficiaires"&gt;
+&lt;/dsfr-data-chart&gt;</pre>
+          </div>
+        </section>
+
+        <!-- Variation: order-by asc vs desc -->
+        <h4 id="variation-order">Variation : tri ascendant</h4>
+        <p>Le meme graphique avec <code>order-by="beneficiaires:asc"</code> au lieu de <code>:desc</code> — les barres sont inversees.</p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-v-order">Code source</button></h3>
+          <div class="fr-collapse" id="code-v-order">
+<pre class="example-code">&lt;dsfr-data-source id="data" api-type="opendatasoft"
+  dataset-id="industrie-du-futur"
+  base-url="https://data.economie.gouv.fr"&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-query id="q" source="data"
+  group-by="nom_region"
+  aggregate="nombre_beneficiaires:sum:beneficiaires"
+  order-by="beneficiaires:asc" limit="10"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;dsfr-data-chart source="q" type="bar"
+  label-field="nom_region" value-field="beneficiaires"&gt;
+&lt;/dsfr-data-chart&gt;</pre>
+          </div>
+        </section>
+
+        <!-- query-line -->
+        <h4 id="query-line">Courbe — Taux moyen TFB par region</h4>
+        <p>Calcule la moyenne du taux de taxe fonciere par region.
+          <a href="../apps/playground/index.html?example=query-line" class="fr-link fr-link--sm">Tester dans le Playground</a>
+        </p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-q-line">Code source</button></h3>
+          <div class="fr-collapse" id="code-q-line">
+<pre class="example-code">&lt;dsfr-data-source id="data" api-type="opendatasoft"
+  dataset-id="fiscalite-locale-des-particuliers"
+  base-url="https://data.economie.gouv.fr"&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-query id="q" source="data"
+  group-by="libreg"
+  aggregate="taux_global_tfb:avg:taux_moyen"
+  order-by="taux_moyen:desc"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;dsfr-data-chart source="q" type="line"
+  label-field="libreg" value-field="taux_moyen" unit-tooltip="%"&gt;
+&lt;/dsfr-data-chart&gt;</pre>
+          </div>
+        </section>
+
+        <!-- query-pie (RappelConso ODS) -->
+        <h4 id="query-pie">Camembert — Rappels par categorie de produit</h4>
+        <p>Compte les rappels par categorie de produit via <code>count</code>.
+          <a href="../apps/playground/index.html?example=query-pie" class="fr-link fr-link--sm">Tester dans le Playground</a>
+        </p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-q-pie">Code source</button></h3>
+          <div class="fr-collapse" id="code-q-pie">
+<pre class="example-code">&lt;dsfr-data-source id="src" api-type="opendatasoft"
+  dataset-id="rappelconso-v2-gtin-trie"
+  base-url="https://data.economie.gouv.fr"
+  server-side page-size="100"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-query id="q" source="src"
+  group-by="categorie_produit"
+  aggregate="libelle:count:nombre"
+  order-by="nombre:desc" limit="8"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;dsfr-data-chart source="q" type="pie"
+  label-field="categorie_produit"
+  value-field="nombre"&gt;
+&lt;/dsfr-data-chart&gt;</pre>
+          </div>
+        </section>
+
+        <!-- Variation: limit 4 vs 8 -->
+        <h4 id="variation-limit">Variation : top 4 vs top 8</h4>
+        <p>Reduire <code>limit</code> de 8 a 4 concentre le camembert sur les categories principales.</p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-v-limit">Code source</button></h3>
+          <div class="fr-collapse" id="code-v-limit">
+<pre class="example-code">&lt;dsfr-data-source id="src" api-type="opendatasoft"
+  dataset-id="rappelconso-v2-gtin-trie"
+  base-url="https://data.economie.gouv.fr"
+  server-side page-size="100"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-query id="q" source="src"
+  group-by="categorie_produit"
+  aggregate="libelle:count:nombre"
+  order-by="nombre:desc" limit="4"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;dsfr-data-chart source="q" type="pie"
+  label-field="categorie_produit"
+  value-field="nombre"&gt;
+&lt;/dsfr-data-chart&gt;</pre>
+          </div>
+        </section>
+
+        <!-- query-radar -->
+        <h4 id="query-radar">Radar — Investissement moyen par region</h4>
+        <p>Calcule l'investissement moyen par region (limite a 6 pour lisibilite).
+          <a href="../apps/playground/index.html?example=query-radar" class="fr-link fr-link--sm">Tester dans le Playground</a>
+        </p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-q-radar">Code source</button></h3>
+          <div class="fr-collapse" id="code-q-radar">
+<pre class="example-code">&lt;dsfr-data-source id="data" api-type="opendatasoft"
+  dataset-id="industrie-du-futur"
+  base-url="https://data.economie.gouv.fr"&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-query id="q" source="data"
+  group-by="nom_region"
+  aggregate="montant_investissement:avg:investissement"
+  limit="6"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;dsfr-data-chart source="q" type="radar"
+  label-field="nom_region" value-field="investissement"&gt;
+&lt;/dsfr-data-chart&gt;</pre>
+          </div>
+        </section>
+
+        <!-- query-gauge -->
+        <h4 id="query-gauge">Jauge — Taux moyen TFB regional</h4>
+        <p>Calcule la moyenne du taux de taxe fonciere par region, trie par taux decroissant et affiche le plus eleve (limit=1). Les taux TFB varient de 30 a 55%.
+          <a href="../apps/playground/index.html?example=query-gauge" class="fr-link fr-link--sm">Tester dans le Playground</a>
+        </p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-q-gauge">Code source</button></h3>
+          <div class="fr-collapse" id="code-q-gauge">
+<pre class="example-code">&lt;dsfr-data-source id="data" api-type="opendatasoft"
+  dataset-id="fiscalite-locale-des-particuliers"
+  base-url="https://data.economie.gouv.fr"&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-query id="q" source="data"
+  group-by="libreg"
+  aggregate="taux_global_tfb:avg:taux_moyen"
+  order-by="taux_moyen:desc" limit="1"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;dsfr-data-chart source="q" type="gauge"
+  value-field="taux_moyen"&gt;
+&lt;/dsfr-data-chart&gt;</pre>
+          </div>
+        </section>
+
+        <!-- query-scatter -->
+        <h4 id="query-scatter">Nuage — TFB vs TH par departement</h4>
+        <p>Double agregation : moyenne TFB (axe X) et TH (axe Y) par departement.
+          <a href="../apps/playground/index.html?example=query-scatter" class="fr-link fr-link--sm">Tester dans le Playground</a>
+        </p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-q-scatter">Code source</button></h3>
+          <div class="fr-collapse" id="code-q-scatter">
+<pre class="example-code">&lt;dsfr-data-source id="data" api-type="opendatasoft"
+  dataset-id="fiscalite-locale-des-particuliers"
+  base-url="https://data.economie.gouv.fr"&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-query id="q" source="data"
+  group-by="libdep"
+  aggregate="taux_global_tfb:avg:tfb, taux_global_th:avg:th"
+  limit="30"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;dsfr-data-chart source="q" type="scatter"
+  label-field="tfb" value-field="th"&gt;
+&lt;/dsfr-data-chart&gt;</pre>
+          </div>
+        </section>
+
+        <!-- query-barline -->
+        <h4 id="query-barline">Barres + ligne — TFB et TH par region</h4>
+        <p>Barres pour le TFB moyen et ligne pour le TH moyen, combines via <code>value-field-2</code>.
+          <a href="../apps/playground/index.html?example=query-barline" class="fr-link fr-link--sm">Tester dans le Playground</a>
+        </p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-q-barline">Code source</button></h3>
+          <div class="fr-collapse" id="code-q-barline">
+<pre class="example-code">&lt;dsfr-data-source id="data" api-type="opendatasoft"
+  dataset-id="fiscalite-locale-des-particuliers"
+  base-url="https://data.economie.gouv.fr"&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-query id="q" source="data"
+  group-by="libreg"
+  aggregate="taux_global_tfb:avg:tfb, taux_global_th:avg:th"
+  order-by="tfb:desc"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;dsfr-data-chart source="q" type="bar-line"
+  label-field="libreg" value-field="tfb" value-field-2="th"
+  name='["Taxe fonciere (TFB)", "Taxe habitation (TH)"]'
+  unit-tooltip="%"&gt;
+&lt;/dsfr-data-chart&gt;</pre>
+          </div>
+        </section>
+
+        <!-- query-map -->
+        <h4 id="query-map">Carte — Taux TFB par departement</h4>
+        <p>Moyenne du taux TFB par code departement, affichee sur la carte de France.
+          <a href="../apps/playground/index.html?example=query-map" class="fr-link fr-link--sm">Tester dans le Playground</a>
+        </p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-q-map">Code source</button></h3>
+          <div class="fr-collapse" id="code-q-map">
+<pre class="example-code">&lt;dsfr-data-source id="data" api-type="opendatasoft"
+  dataset-id="fiscalite-locale-des-particuliers"
+  base-url="https://data.economie.gouv.fr"&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-query id="q" source="data"
+  group-by="dep"
+  aggregate="taux_global_tfb:avg:taux"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;dsfr-data-chart source="q" type="map"
+  code-field="dep" value-field="taux"
+  selected-palette="sequentialAscending"&gt;
+&lt;/dsfr-data-chart&gt;</pre>
+          </div>
+        </section>
+
+        <!-- Variation: max vs avg -->
+        <h4 id="variation-aggregate">Variation : max vs avg</h4>
+        <p>Remplace <code>avg</code> par <code>max</code> dans l'agregation pour voir le taux maximal par departement au lieu de la moyenne.</p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-v-agg">Code source</button></h3>
+          <div class="fr-collapse" id="code-v-agg">
+<pre class="example-code">&lt;dsfr-data-source id="data" api-type="opendatasoft"
+  dataset-id="fiscalite-locale-des-particuliers"
+  base-url="https://data.economie.gouv.fr"&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-query id="q" source="data"
+  group-by="dep"
+  aggregate="taux_global_tfb:max:taux"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;dsfr-data-chart source="q" type="map"
+  code-field="dep" value-field="taux"
+  selected-palette="sequentialAscending"&gt;
+&lt;/dsfr-data-chart&gt;</pre>
+          </div>
+        </section>
+
+        <!-- query-kpi (RappelConso ODS, filter by category) -->
+        <h4 id="query-kpi">KPI — Statistiques des rappels avec filtre</h4>
+        <p>Compare le nombre total de rappels au nombre de rappels alimentaires via <code>filter</code>.
+          <a href="../apps/playground/index.html?example=query-kpi" class="fr-link fr-link--sm">Tester dans le Playground</a>
+        </p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-q-kpi">Code source</button></h3>
+          <div class="fr-collapse" id="code-q-kpi">
+<pre class="example-code">&lt;dsfr-data-source id="src" api-type="opendatasoft"
+  dataset-id="rappelconso-v2-gtin-trie"
+  base-url="https://data.economie.gouv.fr"
+  server-side page-size="100"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-query id="q-alim" source="src"
+  filter="categorie_produit:contains:Aliment"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;"&gt;
+  &lt;dsfr-data-kpi source="src" valeur="count"
+    label="Total des rappels" format="nombre"&gt;&lt;/dsfr-data-kpi&gt;
+  &lt;dsfr-data-kpi source="q-alim" valeur="count"
+    label="Dont alimentaires" format="nombre" couleur="bleu"&gt;&lt;/dsfr-data-kpi&gt;
+&lt;/div&gt;</pre>
+          </div>
+        </section>
+
+        <!-- Variation: filtres combines -->
+        <h4 id="variation-filter">Variation : filtres combines</h4>
+        <p>Combine deux filtres avec <code>,</code> (logique ET) : ne garder que les rappels alimentaires contenant "lait".</p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-v-filter">Code source</button></h3>
+          <div class="fr-collapse" id="code-v-filter">
+<pre class="example-code">&lt;dsfr-data-source id="src" api-type="opendatasoft"
+  dataset-id="rappelconso-v2-gtin-trie"
+  base-url="https://data.economie.gouv.fr"
+  server-side page-size="100"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-query id="q-combine" source="src"
+  filter="categorie_produit:contains:Aliment, sous_categorie_produit:contains:Lait"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;"&gt;
+  &lt;dsfr-data-kpi source="src" valeur="count"
+    label="Total des rappels" format="nombre"&gt;&lt;/dsfr-data-kpi&gt;
+  &lt;dsfr-data-kpi source="q-combine" valeur="count"
+    label="Alimentaires (Lait)" format="nombre" couleur="bleu"&gt;&lt;/dsfr-data-kpi&gt;
+&lt;/div&gt;</pre>
+          </div>
+        </section>
+
+        <!-- query-datalist (RappelConso ODS, filter by category) -->
+        <h4 id="query-datalist">Tableau — Rappels filtres par categorie</h4>
+        <p>Filtre les rappels alimentaires et affiche le resultat dans un tableau interactif.
+          <a href="../apps/playground/index.html?example=query-datalist" class="fr-link fr-link--sm">Tester dans le Playground</a>
+        </p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-q-datalist">Code source</button></h3>
+          <div class="fr-collapse" id="code-q-datalist">
+<pre class="example-code">&lt;dsfr-data-source id="src" api-type="opendatasoft"
+  dataset-id="rappelconso-v2-gtin-trie"
+  base-url="https://data.economie.gouv.fr"
+  server-side page-size="100"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-query id="q" source="src"
+  filter="categorie_produit:contains:Aliment"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;dsfr-data-list source="q"
+  colonnes="modeles_ou_references:Produit, marque_produit:Marque, sous_categorie_produit:Sous-categorie"
+  recherche="true" tri="modeles_ou_references:asc" pagination="10" export="csv"&gt;
+&lt;/dsfr-data-list&gt;</pre>
+          </div>
+        </section>
+
+        <!-- Variation: operateur in -->
+        <h4 id="variation-in">Variation : operateur <code>in</code> pour plusieurs categories</h4>
+        <p>Utilise <code>filter="categorie_produit:in:Alimentation|Habitat"</code> pour selectionner plusieurs categories avec le separateur <code>|</code>.</p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-v-in">Code source</button></h3>
+          <div class="fr-collapse" id="code-v-in">
+<pre class="example-code">&lt;dsfr-data-source id="src" api-type="opendatasoft"
+  dataset-id="rappelconso-v2-gtin-trie"
+  base-url="https://data.economie.gouv.fr"
+  server-side page-size="100"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-query id="q" source="src"
+  filter="categorie_produit:in:Alimentation|Habitat"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;dsfr-data-list source="q"
+  colonnes="modeles_ou_references:Produit, categorie_produit:Categorie, marque_produit:Marque, date_publication:Date"
+  recherche="true" tri="categorie_produit:asc" pagination="10" export="csv"&gt;
+&lt;/dsfr-data-list&gt;</pre>
+          </div>
+        </section>
+
+        <!-- Multi-page ODS -->
+        <h2 id="multi-page" class="fr-mt-6w">Multi-page ODS</h2>
+        <p>
+          Avec <code>api-type="opendatasoft"</code> et <code>server-side page-size="100"</code>,
+          <code>dsfr-data-source</code> charge les donnees page par page (ici 100 records) avant de transmettre a <code>dsfr-data-query</code>.
+          Cela permet de faire un camembert ou un KPI sur un volume significatif de donnees.
+        </p>
+
+        <h4 id="query-tabular-pie">Camembert — Rappels par categorie (dataset complet)</h4>
+        <p>Charge les rappels de produits, puis compte par categorie de produit.
+          <a href="../apps/playground/index.html?example=query-tabular-pie" class="fr-link fr-link--sm">Tester dans le Playground</a>
+        </p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-q-tabular">Code source</button></h3>
+          <div class="fr-collapse" id="code-q-tabular">
+<pre class="example-code">&lt;dsfr-data-source id="src" api-type="opendatasoft"
+  dataset-id="rappelconso-v2-gtin-trie"
+  base-url="https://data.economie.gouv.fr"
+  server-side page-size="100"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-query id="q" source="src"
+  group-by="categorie_produit"
+  aggregate="libelle:count:nombre"
+  order-by="nombre:desc" limit="10"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;dsfr-data-chart source="q" type="pie"
+  label-field="categorie_produit"
+  value-field="nombre"
+  selected-palette="categorical"&gt;
+&lt;/dsfr-data-chart&gt;</pre>
+          </div>
+        </section>
+
+        <!-- Pagination serveur + KPI globaux -->
+        <h2 id="pagination-kpi" class="fr-mt-6w">Pagination serveur + KPI globaux</h2>
+        <p>
+          Quand <code>dsfr-data-source server-side</code> est actif, les composants en aval ne voient que la page courante.
+          Les KPI calcules sur une seule page sont trompeurs. La solution : utiliser <strong>deux sources</strong> —
+          une <code>dsfr-data-source server-side</code> pour la navigation + une <code>dsfr-data-source</code> avec <code>page-size</code> eleve pour les KPI globaux.
+        </p>
+
+        <h4 id="paginate-kpi">Double source — Navigation paginee + KPI sur un volume etendu</h4>
+        <p>Le datalist navigue page par page. Les KPI calculent les statistiques globales via une seconde source ODS avec page-size plus eleve.
+          <a href="../apps/playground/index.html?example=paginate-kpi-global" class="fr-link fr-link--sm">Tester dans le Playground</a>
+        </p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-q-paginate-kpi">Code source</button></h3>
+          <div class="fr-collapse" id="code-q-paginate-kpi">
+<pre class="example-code">&lt;!-- Source 1 : pagination serveur pour la navigation --&gt;
+&lt;dsfr-data-source id="browse" api-type="opendatasoft"
+  dataset-id="rappelconso-v2-gtin-trie"
+  base-url="https://data.economie.gouv.fr"
+  server-side page-size="20"
+  order-by="date_publication:desc"&gt;&lt;/dsfr-data-source&gt;
+
+&lt;!-- Source 2 : chargement etendu pour les KPI globaux --&gt;
+&lt;dsfr-data-source id="stats-src" api-type="opendatasoft"
+  dataset-id="rappelconso-v2-gtin-trie"
+  base-url="https://data.economie.gouv.fr"
+  server-side page-size="100"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-query id="global-stats" source="stats-src"
+  aggregate="libelle:count:total"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;dsfr-data-query id="global-alim" source="stats-src"
+  filter="categorie_produit:contains:Aliment"
+  aggregate="libelle:count:total_alim"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;"&gt;
+  &lt;dsfr-data-kpi source="global-stats" valeur="sum:total"
+    label="Total des rappels" format="nombre"&gt;&lt;/dsfr-data-kpi&gt;
+  &lt;dsfr-data-kpi source="global-alim" valeur="sum:total_alim"
+    label="Dont alimentaires" format="nombre" couleur="bleu"&gt;&lt;/dsfr-data-kpi&gt;
+&lt;/div&gt;
+
+&lt;dsfr-data-list source="browse"
+  colonnes="modeles_ou_references:Produit, categorie_produit:Categorie, marque_produit:Marque, date_publication:Date"
+  server-tri
+  pagination="20"&gt;
+&lt;/dsfr-data-list&gt;</pre>
+          </div>
+        </section>
+
+        <h2 id="server-side" class="fr-mt-6w">Mode server-side</h2>
+        <p>
+          Avec <code>server-side</code>, <code>dsfr-data-source</code> ne charge qu'<strong>une page</strong> a la fois
+          et ecoute les commandes des composants en aval (pagination, recherche, tri).
+          C'est utile pour les gros datasets ou la recherche full-text doit etre deleguee au serveur.
+        </p>
+        <div class="fr-callout fr-callout--blue-ecume fr-mb-3w">
+          <p class="fr-callout__text">
+            <strong>Quand utiliser server-side ?</strong>
+            En mode normal, <code>dsfr-data-source</code> charge tous les records disponibles.
+            Si le dataset est volumineux, ou si vous avez besoin de recherche full-text serveur,
+            utilisez <code>server-side</code>.
+          </p>
+        </div>
+
+        <h4 id="server-side-ods">Recherche serveur — Rappels de produits (ODS)</h4>
+        <p>Utilise <code>dsfr-data-source server-side</code> + <code>dsfr-data-search server-search</code> pour rechercher dans le dataset RappelConso.
+          <a href="../apps/playground/index.html?example=server-side-ods" class="fr-link fr-link--sm">Tester dans le Playground</a>
+        </p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-q-ss-ods">Code source</button></h3>
+          <div class="fr-collapse" id="code-q-ss-ods">
+<pre class="example-code">&lt;dsfr-data-source id="q" api-type="opendatasoft"
+  dataset-id="rappelconso-v2-gtin-trie"
+  base-url="https://data.economie.gouv.fr"
+  server-side page-size="10"
+  order-by="date_publication:desc"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-search id="s" source="q"
+  server-search
+  placeholder="Rechercher un produit..."
+  url-search-param="q" url-sync
+  count&gt;
+&lt;/dsfr-data-search&gt;
+
+&lt;dsfr-data-display source="q" cols="1" pagination="10"
+  url-sync url-page-param="page"&gt;
+  &lt;template&gt;
+    &lt;div class="fr-card fr-card--horizontal fr-card--sm fr-mb-2w"&gt;
+      &lt;div class="fr-card__body"&gt;
+        &lt;div class="fr-card__content"&gt;
+          &lt;h3 class="fr-card__title"&gt;{{modeles_ou_references}}&lt;/h3&gt;
+          &lt;p class="fr-card__desc"&gt;
+            &lt;strong&gt;{{categorie_produit}}&lt;/strong&gt; &#8212; {{marque_produit}}&lt;br&gt;
+            Publie le {{date_publication}}
+          &lt;/p&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/template&gt;
+&lt;/dsfr-data-display&gt;</pre>
+          </div>
+        </section>
+
+        <h4 id="server-side-tabular">Tri serveur — Rappels de produits (ODS)</h4>
+        <p>Utilise <code>dsfr-data-source server-side</code> + <code>dsfr-data-list server-tri</code> pour trier cote serveur.
+          <a href="../apps/playground/index.html?example=server-side-tabular-tri" class="fr-link fr-link--sm">Tester dans le Playground</a>
+        </p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-q-ss-tab">Code source</button></h3>
+          <div class="fr-collapse" id="code-q-ss-tab">
+<pre class="example-code">&lt;dsfr-data-source id="q" api-type="opendatasoft"
+  dataset-id="rappelconso-v2-gtin-trie"
+  base-url="https://data.economie.gouv.fr"
+  server-side page-size="20"
+  order-by="date_publication:desc"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-list source="q"
+  colonnes="modeles_ou_references:Produit, categorie_produit:Categorie, marque_produit:Marque, date_publication:Date"
+  server-tri
+  pagination="20"
+  url-sync&gt;
+&lt;/dsfr-data-list&gt;</pre>
+          </div>
+        </section>
+
+        <h2 id="headers" class="fr-mt-6w">Datasets prives (headers)</h2>
+        <p>
+          L'attribut <code>headers</code> permet de passer des headers HTTP (API key, Bearer token)
+          pour acceder a des datasets prives ou proteges. Il accepte un objet JSON en chaine de caracteres.
+          Cet attribut est disponible sur <code>dsfr-data-source</code> en mode <code>opendatasoft</code> et <code>tabular</code>.
+        </p>
+        <div class="fr-callout fr-callout--blue-ecume fr-mb-3w">
+          <p class="fr-callout__text">
+            <strong>Securite :</strong> les headers sont visibles dans le code source HTML.
+            Ne les utilisez que pour des cles a acces restreint (lecture seule)
+            ou dans des contextes proteges (intranet, applications internes).
+          </p>
+        </div>
+
+        <h4 id="headers-ods">Dataset prive ODS avec API key</h4>
+        <p>Passe une <code>apikey</code> via <code>dsfr-data-source headers</code> pour acceder a un dataset prive sur une instance OpenDataSoft.</p>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-q-headers">Code source</button></h3>
+          <div class="fr-collapse" id="code-q-headers">
+<pre class="example-code">&lt;dsfr-data-source id="src" api-type="opendatasoft"
+  dataset-id="mon-dataset-prive"
+  base-url="https://mon-instance.opendatasoft.com"
+  headers='{"apikey":"votre-cle-api"}'&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-query id="q" source="src"
+  group-by="region"
+  aggregate="population:sum:total"
+  order-by="total:desc"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;dsfr-data-chart source="q" type="bar"
+  label-field="region" value-field="total"&gt;
+&lt;/dsfr-data-chart&gt;</pre>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </main>
+
+  <app-footer base-path="../"></app-footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      let exampleIndex = 0;
+      function getCodeForExample(placeholder) {
+        const accordion = placeholder.nextElementSibling;
+        if (!accordion) return null;
+        const pre = accordion.querySelector('.example-code');
+        return pre ? pre.textContent : null;
+      }
+      function makeIdsUnique(html, prefix) {
+        const idRegex = / id="([^"]+)"/g;
+        const ids = new Set();
+        let match;
+        while ((match = idRegex.exec(html)) !== null) ids.add(match[1]);
+        let result = html;
+        for (const id of ids) {
+          result = result.replaceAll(' id="' + id + '"', ' id="' + prefix + '-' + id + '"');
+          result = result.replaceAll('source="' + id + '"', 'source="' + prefix + '-' + id + '"');
+        }
+        return result;
+      }
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (!entry.isIntersecting) return;
+          const placeholder = entry.target;
+          observer.unobserve(placeholder);
+          const code = getCodeForExample(placeholder);
+          if (!code) return;
+          const prefix = 'ex' + (exampleIndex++);
+          const uniqueCode = makeIdsUnique(code, prefix);
+          const container = document.createElement('div');
+          container.className = 'example-container';
+          container.innerHTML = uniqueCode;
+          placeholder.replaceWith(container);
+        });
+      }, { rootMargin: '200px 0px' });
+      document.querySelectorAll('[data-example]').forEach(el => observer.observe(el));
+    });
+  </script>
+</body>
+</html>

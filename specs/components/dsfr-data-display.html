@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dsfr-data-display - Composants - dsfr-data</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css" integrity="sha384-VuzA/gYnk/ZqcT5a/ravR88otj71vNPl/h1JPrKoESV33DCX6SeXIxBcRr5qYPRj" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css" integrity="sha384-YR4AxNhFVy1qsQ0Hp7Rosg06e4sj2m9dLxiYZrtqJ0boIOiDbD8XkIsIPMMkf0VL" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <style>
+    body { min-height: 100vh; display: flex; flex-direction: column; }
+  </style>
+</head>
+<body>
+  <!-- Source de donnees -->
+  <dsfr-data-source id="sites" url="/mock-api/data.json" transform="sites"></dsfr-data-source>
+
+  <!-- Header -->
+  <app-header current-page="composants" base-path="../../"></app-header>
+
+  <!-- Layout documentation avec sidemenu -->
+  <app-layout-demo
+    title="dsfr-data-display"
+    icon="ri-layout-grid-line"
+    active-path="components/dsfr-data-display"
+    base-path="../">
+    <div slot="content">
+        <p class="fr-text--lead">
+          Composant d'affichage dynamique qui genere des elements HTML repetitifs (cartes, tuiles, etc.)
+          a partir d'un template et d'une source de donnees.
+          Se connecte a un <code>&lt;dsfr-data-source&gt;</code>, <code>&lt;dsfr-data-query&gt;</code> ou
+          <code>&lt;dsfr-data-normalize&gt;</code> pour recevoir les donnees.
+        </p>
+
+        <!-- Attributs -->
+        <h2>Attributs</h2>
+        <table class="attr-table">
+          <thead>
+            <tr><th>Attribut</th><th>Type</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>source</code></td><td>String</td><td>ID de la source de donnees a ecouter (requis)</td></tr>
+            <tr><td><code>cols</code></td><td>Number</td><td>Nombre de colonnes dans la grille (1-6, defaut: 1)</td></tr>
+            <tr><td><code>pagination</code></td><td>Number</td><td>Nombre d'elements par page (0 = tout afficher)</td></tr>
+            <tr><td><code>empty</code></td><td>String</td><td>Message quand aucune donnee (defaut: "Aucun resultat")</td></tr>
+            <tr><td><code>gap</code></td><td>String</td><td>Classe CSS de gap pour la grille (defaut: "fr-grid-row--gutters")</td></tr>
+            <tr><td><code>uid-field</code></td><td>String</td><td>Champ de donnees a utiliser comme identifiant unique par element (vide = index)</td></tr>
+            <tr><td><code>url-sync</code></td><td>Boolean</td><td>Synchronise le numero de page dans l'URL via replaceState</td></tr>
+            <tr><td><code>url-page-param</code></td><td>String</td><td>Nom du parametre URL pour la page (defaut: "page")</td></tr>
+          </tbody>
+        </table>
+
+        <!-- Syntaxe du template -->
+        <h2 class="fr-mt-4w">Syntaxe du template</h2>
+        <table class="attr-table">
+          <thead>
+            <tr><th>Syntaxe</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>{{champ}}</code></td><td>Valeur echappee (HTML-safe)</td></tr>
+            <tr><td><code>{{{champ}}}</code></td><td>Valeur brute (non echappee)</td></tr>
+            <tr><td><code>{{champ|defaut}}</code></td><td>Valeur avec fallback si null/undefined</td></tr>
+            <tr><td><code>{{champ:number}}</code></td><td>Valeur avec separateurs de milliers (ex: 32073247 &rarr; 32 073 247)</td></tr>
+            <tr><td><code>{{champ:number|0}}</code></td><td>Format number + fallback si null/undefined</td></tr>
+            <tr><td><code>{{champ.sous.cle}}</code></td><td>Acces aux proprietes imbriquees</td></tr>
+            <tr><td><code>{{$index}}</code></td><td>Index de l'element (0-based)</td></tr>
+            <tr><td><code>{{$uid}}</code></td><td>Identifiant unique de l'element</td></tr>
+          </tbody>
+        </table>
+
+        <!-- Variante 1: Cartes simples -->
+        <h2 class="fr-mt-4w">Variantes</h2>
+
+        <section class="demo-section" id="cards">
+          <h3>1. Cartes DSFR</h3>
+          <p>Affiche les donnees sous forme de cartes DSFR dans une grille a 3 colonnes.</p>
+
+          <dsfr-data-display source="sites" cols="3" pagination="6">
+            <template>
+              <div class="fr-card">
+                <div class="fr-card__body">
+                  <div class="fr-card__content">
+                    <h3 class="fr-card__title">{{nom}}</h3>
+                    <p class="fr-card__desc">
+                      Ministere : {{ministere}}
+                    </p>
+                  </div>
+                  <div class="fr-card__footer">
+                    <p class="fr-badge fr-badge--sm">RGAA : {{score_rgaa}}%</p>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </dsfr-data-display>
+
+          <div class="code-block">
+            <pre>&lt;dsfr-data-display source="sites" cols="3" pagination="6"&gt;
+  &lt;template&gt;
+    &lt;div class="fr-card"&gt;
+      &lt;div class="fr-card__body"&gt;
+        &lt;div class="fr-card__content"&gt;
+          &lt;h3 class="fr-card__title"&gt;{{nom}}&lt;/h3&gt;
+          &lt;p class="fr-card__desc"&gt;Ministere : {{ministere}}&lt;/p&gt;
+        &lt;/div&gt;
+        &lt;div class="fr-card__footer"&gt;
+          &lt;p class="fr-badge fr-badge--sm"&gt;RGAA : {{score_rgaa}}%&lt;/p&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/template&gt;
+&lt;/dsfr-data-display&gt;</pre>
+          </div>
+        </section>
+
+        <!-- Variante 2: Tuiles -->
+        <section class="demo-section" id="tiles">
+          <h3>2. Tuiles DSFR</h3>
+          <p>Affiche les donnees sous forme de tuiles dans une grille a 4 colonnes.</p>
+
+          <dsfr-data-display source="sites" cols="4">
+            <template>
+              <div class="fr-tile">
+                <div class="fr-tile__body">
+                  <div class="fr-tile__content">
+                    <h3 class="fr-tile__title">{{nom}}</h3>
+                    <p class="fr-tile__detail">{{statut}}</p>
+                    <p class="fr-tile__desc">Score DSFR : {{score_dsfr}}%</p>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </dsfr-data-display>
+
+          <div class="code-block">
+            <pre>&lt;dsfr-data-display source="sites" cols="4"&gt;
+  &lt;template&gt;
+    &lt;div class="fr-tile"&gt;
+      &lt;div class="fr-tile__body"&gt;
+        &lt;div class="fr-tile__content"&gt;
+          &lt;h3 class="fr-tile__title"&gt;{{nom}}&lt;/h3&gt;
+          &lt;p class="fr-tile__detail"&gt;{{statut}}&lt;/p&gt;
+          &lt;p class="fr-tile__desc"&gt;Score DSFR : {{score_dsfr}}%&lt;/p&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/template&gt;
+&lt;/dsfr-data-display&gt;</pre>
+          </div>
+        </section>
+
+        <!-- Variante 3: Liste simple -->
+        <section class="demo-section" id="list">
+          <h3>3. Liste avec index</h3>
+          <p>Affiche une liste simple avec l'index de chaque element via <code>{{$index}}</code>.</p>
+
+          <dsfr-data-display source="sites" cols="1" pagination="5">
+            <template>
+              <div class="fr-callout" style="margin-bottom: 0;">
+                <h3 class="fr-callout__title">#{{$index}} — {{nom}}</h3>
+                <p class="fr-callout__text">
+                  {{ministere}} — Score RGAA : {{score_rgaa}}% | Score DSFR : {{score_dsfr}}%
+                </p>
+              </div>
+            </template>
+          </dsfr-data-display>
+
+          <div class="code-block">
+            <pre>&lt;dsfr-data-display source="sites" cols="1" pagination="5"&gt;
+  &lt;template&gt;
+    &lt;div class="fr-callout"&gt;
+      &lt;h3 class="fr-callout__title"&gt;#{{$index}} -- {{nom}}&lt;/h3&gt;
+      &lt;p class="fr-callout__text"&gt;
+        {{ministere}} -- Score RGAA : {{score_rgaa}}%
+      &lt;/p&gt;
+    &lt;/div&gt;
+  &lt;/template&gt;
+&lt;/dsfr-data-display&gt;</pre>
+          </div>
+        </section>
+
+        <!-- Variante 4: Valeur par defaut -->
+        <section class="demo-section" id="defaults">
+          <h3>4. Valeurs par defaut</h3>
+          <p>Utilise la syntaxe <code>{{champ|defaut}}</code> pour afficher une valeur de remplacement quand un champ est absent.</p>
+
+          <dsfr-data-display source="sites" cols="2" pagination="4">
+            <template>
+              <div class="fr-card fr-card--shadow">
+                <div class="fr-card__body">
+                  <div class="fr-card__content">
+                    <h3 class="fr-card__title">{{nom}}</h3>
+                    <p class="fr-card__desc">
+                      Categorie : {{categorie|Non renseignee}}<br>
+                      Statut : {{statut|Inconnu}}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </dsfr-data-display>
+
+          <div class="code-block">
+            <pre>&lt;dsfr-data-display source="sites" cols="2" pagination="4"&gt;
+  &lt;template&gt;
+    &lt;div class="fr-card fr-card--shadow"&gt;
+      &lt;div class="fr-card__body"&gt;
+        &lt;div class="fr-card__content"&gt;
+          &lt;h3 class="fr-card__title"&gt;{{nom}}&lt;/h3&gt;
+          &lt;p class="fr-card__desc"&gt;
+            Categorie : {{categorie|Non renseignee}}
+          &lt;/p&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/template&gt;
+&lt;/dsfr-data-display&gt;</pre>
+          </div>
+        </section>
+
+        <!-- Variante 5: Pagination serveur -->
+        <section class="demo-section" id="server-pagination">
+          <h3>5. Pagination serveur</h3>
+          <p>
+            Quand la source utilise <code>paginate</code>, <code>dsfr-data-display</code> detecte automatiquement
+            la pagination serveur. Chaque changement de page declenche un nouvel appel API au lieu de paginer en local.
+            Le nombre total de pages est calcule depuis les metadonnees de l'API (<code>meta.total</code>).
+          </p>
+
+          <div class="code-block">
+            <pre>&lt;dsfr-data-source id="elus"
+  url="https://tabular-api.data.gouv.fr/api/resources/.../data/"
+  paginate page-size="12"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-display source="elus" cols="3" pagination="12"&gt;
+  &lt;template&gt;
+    &lt;div class="fr-card"&gt;
+      &lt;div class="fr-card__body"&gt;
+        &lt;div class="fr-card__content"&gt;
+          &lt;h3 class="fr-card__title"&gt;{{Nom}} {{Prenom}}&lt;/h3&gt;
+          &lt;p class="fr-card__desc"&gt;{{Commune}}&lt;/p&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/template&gt;
+&lt;/dsfr-data-display&gt;</pre>
+          </div>
+          <div class="fr-callout fr-callout--blue-ecume fr-mt-2w">
+            <p class="fr-callout__text">
+              <strong>Comportement :</strong> en mode pagination serveur, les donnees recues sont affichees telles quelles
+              (pas de slicing client). Le total affiche (ex: "1 743 pages") vient de <code>meta.total / meta.page_size</code>.
+              La recherche et le tri ne s'appliquent qu'aux donnees de la page courante.
+            </p>
+          </div>
+        </section>
+
+        <!-- Conseils d'utilisation -->
+        <h2 class="fr-mt-4w">Conseils d'utilisation</h2>
+        <div class="fr-callout">
+          <p class="fr-callout__text">
+            <strong>Template :</strong> Le contenu du <code>&lt;template&gt;</code> est clone pour chaque element de donnees.
+            Utilisez n'importe quelle structure HTML DSFR (cartes, tuiles, callouts, badges...).
+          </p>
+        </div>
+
+        <div class="fr-callout fr-callout--green-emeraude">
+          <p class="fr-callout__text">
+            <strong>Performance :</strong> Pour les grands ensembles de donnees, utilisez l'attribut <code>pagination</code>
+            pour limiter le nombre d'elements rendus simultanement.
+          </p>
+        </div>
+
+        <div class="fr-callout fr-callout--blue-ecume">
+          <p class="fr-callout__text">
+            <strong>Securite :</strong> Les valeurs <code>{{champ}}</code> sont echappees par defaut (HTML-safe).
+            Utilisez <code>{{{champ}}}</code> (triple accolades) uniquement si vous faites confiance a la source de donnees.
+          </p>
+        </div>
+    </div>
+  </app-layout-demo>
+
+  <!-- Footer -->
+  <app-footer base-path="../../"></app-footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js" integrity="sha384-4dK3hBJJh/bjoOulz9Q1kNO2O09lzuKiFeF5c+0VguV1RT3IiLkv+Pt98Jul84V+" crossorigin="anonymous"></script>
+</body>
+</html>

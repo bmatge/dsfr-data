@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Widgets Grist DSFR - dsfr-data</title>
+
+  <!-- DSFR -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css" integrity="sha384-VuzA/gYnk/ZqcT5a/ravR88otj71vNPl/h1JPrKoESV33DCX6SeXIxBcRr5qYPRj" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css" integrity="sha384-YR4AxNhFVy1qsQ0Hp7Rosg06e4sj2m9dLxiYZrtqJ0boIOiDbD8XkIsIPMMkf0VL" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
+
+  <style>
+    body {
+      font-family: 'Marianne', arial, sans-serif;
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: var(--background-alt-grey);
+    }
+
+    main { flex: 1; }
+
+    .header-band {
+      background: var(--background-action-high-blue-france);
+      color: white;
+      padding: 2.5rem 0;
+    }
+
+    .header-band h1 {
+      margin: 0 0 0.5rem;
+      font-size: 1.75rem;
+    }
+
+    .header-band p {
+      margin: 0;
+      opacity: 0.9;
+      font-size: 1.1rem;
+    }
+
+    .widget-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1.5rem;
+      margin-top: 2rem;
+    }
+
+    .widget-card {
+      background: var(--background-default-grey);
+      border-radius: 8px;
+      border: 1px solid var(--border-default-grey);
+      overflow: hidden;
+    }
+
+    .widget-card-header {
+      background: var(--background-contrast-grey);
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      border-bottom: 1px solid var(--border-default-grey);
+    }
+
+    .widget-card-header i {
+      font-size: 1.75rem;
+      color: var(--text-action-high-blue-france);
+    }
+
+    .widget-card-header h2 {
+      margin: 0;
+      font-size: 1.25rem;
+    }
+
+    .widget-card-body {
+      padding: 1.5rem;
+    }
+
+    .widget-card-body p {
+      margin: 0 0 1rem;
+      color: var(--text-default-grey);
+    }
+
+    .widget-url {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--background-contrast-grey);
+      padding: 0.5rem 0.75rem;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 0.8rem;
+      word-break: break-all;
+      margin-bottom: 1rem;
+    }
+
+    .widget-url i { color: var(--text-mention-grey); flex-shrink: 0; }
+
+    .widget-types {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.375rem;
+      margin-top: 0.75rem;
+    }
+
+    .widget-types .fr-tag { font-size: 0.75rem; }
+
+    .section-manifest {
+      background: var(--background-default-grey);
+      border: 1px solid var(--border-default-grey);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-top: 2rem;
+    }
+
+    .section-manifest h2 {
+      margin: 0 0 1rem;
+      font-size: 1.1rem;
+    }
+
+    .code-block {
+      background: var(--background-contrast-grey);
+      border-radius: 4px;
+      padding: 1rem;
+      font-family: monospace;
+      font-size: 0.85rem;
+      word-break: break-all;
+      margin: 0.5rem 0;
+      border: 1px solid var(--border-default-grey);
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    .step {
+      text-align: center;
+      padding: 1rem;
+    }
+
+    .step-num {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--background-action-high-blue-france);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 0.75rem;
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+
+    .step h3 { margin: 0 0 0.25rem; font-size: 0.95rem; }
+    .step p { margin: 0; font-size: 0.85rem; color: var(--text-mention-grey); }
+
+    footer {
+      background: var(--background-default-grey);
+      border-top: 1px solid var(--border-default-grey);
+      padding: 1.5rem 0;
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--text-mention-grey);
+    }
+
+    footer a { color: var(--text-action-high-blue-france); }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <div class="header-band">
+    <div class="fr-container">
+      <h1><i class="ri-pie-chart-2-line fr-mr-1w"></i>Widgets Grist DSFR</h1>
+      <p>Custom widgets conformes au Design System de l'Etat pour <a href="https://www.getgrist.com/" target="_blank" rel="noopener" style="color: white; text-decoration: underline;">Grist</a></p>
+    </div>
+  </div>
+
+  <main class="fr-container fr-py-4w">
+
+    <!-- Quick start -->
+    <div class="fr-callout">
+      <h2 class="fr-callout__title">Utilisation rapide</h2>
+      <p class="fr-callout__text">
+        Ajoutez ces widgets dans Grist via <strong>Ajouter un widget &rarr; Custom &rarr; URL personnalisee</strong>,
+        ou enregistrez le manifeste pour les retrouver dans la liste des widgets disponibles.
+      </p>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h3>Ajoutez un widget Custom</h3>
+        <p>Dans votre page Grist, ajoutez un widget de type Custom URL</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h3>Collez l'URL</h3>
+        <p>Copiez l'URL du widget ci-dessous dans le champ URL</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h3>Mappez les colonnes</h3>
+        <p>Selectionnez les colonnes de votre table pour alimenter le widget</p>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <h3>Configurez les options</h3>
+        <p>Cliquez sur l'icone engrenage pour personnaliser l'affichage</p>
+      </div>
+    </div>
+
+    <!-- Widget cards -->
+    <div class="widget-cards">
+
+      <!-- Chart widget -->
+      <div class="widget-card">
+        <div class="widget-card-header">
+          <i class="ri-bar-chart-box-line"></i>
+          <h2>Graphique / Carte / KPI</h2>
+        </div>
+        <div class="widget-card-body">
+          <p>Widget polyvalent DSFR : graphiques, cartes de France et indicateurs cles de performance. Choisissez le type dans les options du widget.</p>
+          <div class="widget-url">
+            <i class="ri-link"></i>
+            <span>chart/</span>
+          </div>
+          <p><strong>Colonnes a mapper :</strong></p>
+          <ul class="fr-text--sm">
+            <li><strong>Label</strong> (texte, optionnel) : etiquettes ou noms</li>
+            <li><strong>Value</strong> (numerique, requis) : valeur principale</li>
+            <li><strong>Value2</strong> (numerique, optionnel) : serie secondaire</li>
+            <li><strong>Code</strong> (texte, optionnel) : code geo INSEE pour les cartes</li>
+          </ul>
+          <p class="fr-text--sm fr-mt-1w"><strong>Types disponibles :</strong></p>
+          <div class="widget-types">
+            <span class="fr-tag fr-tag--sm">Barres</span>
+            <span class="fr-tag fr-tag--sm">Lignes</span>
+            <span class="fr-tag fr-tag--sm">Camembert</span>
+            <span class="fr-tag fr-tag--sm">Radar</span>
+            <span class="fr-tag fr-tag--sm">Scatter</span>
+            <span class="fr-tag fr-tag--sm">Jauge</span>
+            <span class="fr-tag fr-tag--sm">Barres+Lignes</span>
+            <span class="fr-tag fr-tag--sm">Carte dept.</span>
+            <span class="fr-tag fr-tag--sm">Carte regions</span>
+            <span class="fr-tag fr-tag--sm">KPI</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Datalist widget -->
+      <div class="widget-card">
+        <div class="widget-card-header">
+          <i class="ri-table-line"></i>
+          <h2>Tableau DSFR</h2>
+        </div>
+        <div class="widget-card-body">
+          <p>Tableau de donnees conforme DSFR avec recherche, tri, pagination et export CSV. Affiche automatiquement toutes les colonnes de la table Grist.</p>
+          <div class="widget-url">
+            <i class="ri-link"></i>
+            <span>datalist/</span>
+          </div>
+          <p><strong>Colonnes :</strong> aucun mapping requis, toutes les colonnes sont affichees automatiquement.</p>
+          <p class="fr-text--sm fr-mt-1w"><strong>Options :</strong></p>
+          <div class="widget-types">
+            <span class="fr-tag fr-tag--sm">Pagination</span>
+            <span class="fr-tag fr-tag--sm">Recherche</span>
+            <span class="fr-tag fr-tag--sm">Export CSV</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Manifest registration -->
+    <div class="section-manifest">
+      <h2><i class="ri-file-list-3-line fr-mr-1w"></i>Enregistrement via manifeste</h2>
+      <p>Pour retrouver ces widgets dans la liste des widgets Grist disponibles, enregistrez l'URL du manifeste dans les parametres de votre instance Grist :</p>
+      <div class="code-block">
+        manifest.json
+      </div>
+      <p class="fr-text--sm fr-mt-1w">
+        Dans Grist : <strong>Manage Widgets</strong> (administration) &rarr; ajoutez l'URL complete du manifeste.
+        Les widgets apparaitront ensuite dans la liste lors de l'ajout d'un widget Custom.
+      </p>
+    </div>
+
+    <!-- Resources -->
+    <div class="fr-mt-4w">
+      <h2>Ressources</h2>
+      <div class="fr-grid-row fr-grid-row--gutters">
+        <div class="fr-col-12 fr-col-md-4">
+          <div class="fr-card fr-card--no-arrow">
+            <div class="fr-card__body">
+              <div class="fr-card__content">
+                <h3 class="fr-card__title">Code source</h3>
+                <p class="fr-card__desc">Voir le code source du projet sur GitHub.</p>
+              </div>
+              <div class="fr-card__footer">
+                <a class="fr-btn fr-btn--secondary" href="https://github.com/bmatge/dsfr-data" target="_blank" rel="noopener">GitHub</a>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="fr-col-12 fr-col-md-4">
+          <div class="fr-card fr-card--no-arrow">
+            <div class="fr-card__body">
+              <div class="fr-card__content">
+                <h3 class="fr-card__title">DSFR</h3>
+                <p class="fr-card__desc">Design System de l'Etat francais.</p>
+              </div>
+              <div class="fr-card__footer">
+                <a class="fr-btn fr-btn--secondary" href="https://www.systeme-de-design.gouv.fr/" target="_blank" rel="noopener">systeme-de-design.gouv.fr</a>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="fr-col-12 fr-col-md-4">
+          <div class="fr-card fr-card--no-arrow">
+            <div class="fr-card__body">
+              <div class="fr-card__content">
+                <h3 class="fr-card__title">Grist</h3>
+                <p class="fr-card__desc">Tableur collaboratif open-source.</p>
+              </div>
+              <div class="fr-card__footer">
+                <a class="fr-btn fr-btn--secondary" href="https://www.getgrist.com/" target="_blank" rel="noopener">getgrist.com</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <footer>
+    <div class="fr-container">
+      <p>
+        <strong>dsfr-data</strong> &mdash; Bibliotheque de Web Components de dataviz pour sites gouvernementaux francais
+        &mdash; <a href="https://github.com/bmatge/dsfr-data" target="_blank" rel="noopener">GitHub</a>
+      </p>
+    </div>
+  </footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js" integrity="sha384-4dK3hBJJh/bjoOulz9Q1kNO2O09lzuKiFeF5c+0VguV1RT3IiLkv+Pt98Jul84V+" crossorigin="anonymous"></script>
+</body>
+</html>

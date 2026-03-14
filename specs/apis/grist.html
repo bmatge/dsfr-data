@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Grist - API supportees - dsfr-data</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css" integrity="sha384-VuzA/gYnk/ZqcT5a/ravR88otj71vNPl/h1JPrKoESV33DCX6SeXIxBcRr5qYPRj" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css" integrity="sha384-YR4AxNhFVy1qsQ0Hp7Rosg06e4sj2m9dLxiYZrtqJ0boIOiDbD8XkIsIPMMkf0VL" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <style>
+    body { min-height: 100vh; display: flex; flex-direction: column; }
+    .capability-yes { color: var(--text-default-success); font-weight: bold; }
+    .capability-no { color: var(--text-default-error); }
+  </style>
+</head>
+<body>
+  <app-header current-page="composants" base-path="../../"></app-header>
+
+  <app-layout-demo
+    title="Grist"
+    icon="ri-table-2"
+    active-path="apis/grist"
+    base-path="../">
+    <div slot="content">
+        <p class="fr-text--lead">
+          API <strong>Grist</strong>, tableur collaboratif open source. Supporte
+          <a href="https://grist.numerique.gouv.fr" target="_blank" rel="noopener">grist.numerique.gouv.fr</a>
+          (instance souveraine) et <a href="https://docs.getgrist.com" target="_blank" rel="noopener">docs.getgrist.com</a>.
+        </p>
+
+        <div class="fr-callout fr-callout--green-emeraude">
+          <h4 class="fr-callout__title">Double mode : Records + SQL</h4>
+          <p class="fr-callout__text">
+            L'adapter Grist choisit automatiquement entre deux modes :
+            <strong>mode Records</strong> (GET /records) pour le filtrage par egalite, le tri et la pagination,
+            et <strong>mode SQL</strong> (POST /sql) pour le group-by, l'agregation, les facettes et
+            les operateurs avances (LIKE, comparaisons). Le fallback vers le mode Records + client-side
+            est automatique si le endpoint SQL n'est pas disponible.
+          </p>
+        </div>
+
+        <div class="fr-callout fr-callout--blue-france fr-mt-2w">
+          <h4 class="fr-callout__title">Aplatissement automatique</h4>
+          <p class="fr-callout__text">
+            Les enregistrements Grist sont structures en <code>records[].fields</code>.
+            L'adapter <strong>aplatit automatiquement</strong> les champs &mdash; pas besoin de
+            <code>dsfr-data-normalize</code>.
+          </p>
+        </div>
+
+        <!-- Capacites serveur -->
+        <section class="fr-mt-4w">
+          <h2>Capacites serveur</h2>
+          <div class="fr-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Capacite</th>
+                  <th>Support</th>
+                  <th>Mode</th>
+                  <th>Detail</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Fetch serveur</td>
+                  <td class="capability-yes">Oui</td>
+                  <td>Records</td>
+                  <td>Recuperation paginee des donnees</td>
+                </tr>
+                <tr>
+                  <td>Tri serveur</td>
+                  <td class="capability-yes">Oui</td>
+                  <td>Records</td>
+                  <td>Parametre <code>?sort=-col,col2</code></td>
+                </tr>
+                <tr>
+                  <td>Filtrage serveur (eq/in)</td>
+                  <td class="capability-yes">Oui</td>
+                  <td>Records</td>
+                  <td>Parametre <code>?filter={"col":["val"]}</code></td>
+                </tr>
+                <tr>
+                  <td>Filtrage avance (gt, lt, LIKE...)</td>
+                  <td class="capability-yes">Oui</td>
+                  <td>SQL</td>
+                  <td>Requete SQL parametree avec placeholders <code>?</code></td>
+                </tr>
+                <tr>
+                  <td>Facettes serveur</td>
+                  <td class="capability-yes">Oui</td>
+                  <td>SQL</td>
+                  <td><code>SELECT col, COUNT(*) ... GROUP BY col</code></td>
+                </tr>
+                <tr>
+                  <td>Group-by serveur</td>
+                  <td class="capability-yes">Oui</td>
+                  <td>SQL</td>
+                  <td>Clause <code>GROUP BY</code> SQLite</td>
+                </tr>
+                <tr>
+                  <td>Agregation serveur</td>
+                  <td class="capability-yes">Oui</td>
+                  <td>SQL</td>
+                  <td>Fonctions <code>SUM</code>, <code>AVG</code>, <code>COUNT</code>, <code>MIN</code>, <code>MAX</code></td>
+                </tr>
+                <tr>
+                  <td>Recherche serveur</td>
+                  <td class="capability-no">Non</td>
+                  <td>&mdash;</td>
+                  <td>Pas de full-text natif. Utiliser <code>search-template="champ:contains:{q}"</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Pagination -->
+        <section class="fr-mt-4w">
+          <h2>Pagination</h2>
+          <div class="fr-table">
+            <table>
+              <thead>
+                <tr><th>Parametre</th><th>Valeur</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Type</td><td><code>offset</code></td></tr>
+                <tr><td>Taille de page</td><td>100 enregistrements (par defaut)</td></tr>
+                <tr><td>Parametres URL</td><td><code>limit</code>, <code>offset</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="fr-highlight fr-mt-2w">
+            <p>
+              L'API Grist ne retourne pas de <code>total_count</code>. L'adapter utilise une heuristique :
+              si le nombre de resultats est inferieur a <code>pageSize</code>, c'est la derniere page.
+              Sinon, le total est indetermine.
+            </p>
+          </div>
+        </section>
+
+        <!-- Mode Records vs SQL -->
+        <section class="fr-mt-4w">
+          <h2>Mode Records vs Mode SQL</h2>
+
+          <h3>Mode Records (GET /records)</h3>
+          <p>
+            Utilise pour les cas simples : affichage pagine, filtrage par egalite/IN, tri.
+          </p>
+          <pre><code>GET /api/docs/{docId}/tables/{tableId}/records
+  ?filter={"region":["Bretagne","Normandie"]}
+  &amp;sort=-population
+  &amp;limit=20
+  &amp;offset=40</code></pre>
+
+          <h3 class="fr-mt-2w">Mode SQL (POST /sql)</h3>
+          <p>
+            Active automatiquement quand les capacites de l'endpoint Records sont insuffisantes
+            (group-by, agregation, operateurs avances comme <code>contains</code>, <code>gt</code>, <code>lt</code>).
+          </p>
+          <pre><code>POST /api/docs/{docId}/sql
+{
+  "sql": "SELECT \"region\", SUM(\"population\") as \"total\"
+          FROM \"Table1\"
+          WHERE \"nom\" LIKE ?
+          GROUP BY \"region\"
+          ORDER BY \"total\" DESC
+          LIMIT 20",
+  "args": ["%Paris%"],
+  "timeout": 800
+}</code></pre>
+
+          <div class="fr-highlight fr-mt-2w">
+            <p>
+              <strong>Securite :</strong> toutes les valeurs sont passees via des placeholders <code>?</code> (requetes parametrees).
+              Les noms de colonnes et tables sont echappes avec des guillemets doubles (standard SQLite).
+            </p>
+          </div>
+
+          <h3 class="fr-mt-2w">Fallback automatique</h3>
+          <p>
+            Si le endpoint SQL n'est pas disponible (ancienne version de Grist, restrictions admin),
+            l'adapter retombe en mode Records + traitement client-side. La disponibilite est cachee
+            par hostname pour eviter des requetes inutiles.
+          </p>
+        </section>
+
+        <!-- Structure de reponse -->
+        <section class="fr-mt-4w">
+          <h2>Structure de reponse</h2>
+          <div class="fr-table">
+            <table>
+              <thead>
+                <tr><th>Parametre</th><th>Valeur</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Chemin des donnees</td><td><code>records</code></td></tr>
+                <tr><td>Chemin du total</td><td>Non disponible</td></tr>
+                <tr><td>Donnees imbriquees</td><td>Oui (<code>fields</code>)</td></tr>
+                <tr><td>Aplatissement</td><td><strong>Automatique</strong> (par l'adapter, sans dsfr-data-normalize)</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3 class="fr-mt-2w">Format Records vs SQL</h3>
+          <div class="fr-grid-row fr-grid-row--gutters fr-mt-1w">
+            <div class="fr-col-12 fr-col-md-6">
+              <h4>Reponse Records (GET)</h4>
+              <pre><code>{
+  "records": [
+    {
+      "id": 1,
+      "fields": {
+        "nom": "Paris",
+        "population": 2165423
+      }
+    }
+  ]
+}</code></pre>
+            </div>
+            <div class="fr-col-12 fr-col-md-6">
+              <h4>Reponse SQL (POST)</h4>
+              <pre><code>{
+  "records": [
+    ["Bretagne", 3340000],
+    ["Normandie", 3300000]
+  ],
+  "columns": [
+    "region", "total"
+  ]
+}</code></pre>
+            </div>
+          </div>
+        </section>
+
+        <!-- Syntaxe de requete -->
+        <section class="fr-mt-4w">
+          <h2>Syntaxe de requete</h2>
+          <p>
+            L'adapter Grist utilise la syntaxe colon generique (<code>champ:operateur:valeur</code>)
+            et la convertit automatiquement :
+          </p>
+          <ul>
+            <li>En filtre JSON pour le mode Records (<code>eq</code>, <code>in</code> uniquement)</li>
+            <li>En SQL parametre pour le mode SQL (tous les operateurs)</li>
+          </ul>
+
+          <h3 class="fr-mt-2w">Operateurs supportes</h3>
+          <div class="fr-table">
+            <table>
+              <thead>
+                <tr><th>Operateur</th><th>Mode Records</th><th>Mode SQL</th><th>Exemple</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>eq</code></td><td class="capability-yes">Oui</td><td class="capability-yes">Oui</td><td><code>region:eq:Bretagne</code></td></tr>
+                <tr><td><code>in</code></td><td class="capability-yes">Oui</td><td class="capability-yes">Oui</td><td><code>region:in:IDF|OCC|BRE</code></td></tr>
+                <tr><td><code>neq</code></td><td class="capability-no">Non</td><td class="capability-yes">Oui</td><td><code>status:neq:archive</code></td></tr>
+                <tr><td><code>gt</code>, <code>gte</code></td><td class="capability-no">Non</td><td class="capability-yes">Oui</td><td><code>age:gt:18</code></td></tr>
+                <tr><td><code>lt</code>, <code>lte</code></td><td class="capability-no">Non</td><td class="capability-yes">Oui</td><td><code>prix:lt:50</code></td></tr>
+                <tr><td><code>contains</code></td><td class="capability-no">Non</td><td class="capability-yes">Oui</td><td><code>nom:contains:Paris</code></td></tr>
+                <tr><td><code>isnull</code></td><td class="capability-no">Non</td><td class="capability-yes">Oui</td><td><code>email:isnull:</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="fr-mt-1w">
+            Separateur WHERE : <code>, </code> (virgule + espace).
+            Agregation : syntaxe <code>sql</code> (traduite en SQLite natif).
+          </p>
+        </section>
+
+        <!-- Facettes -->
+        <section class="fr-mt-4w">
+          <h2>Facettes</h2>
+          <div class="fr-table">
+            <table>
+              <thead>
+                <tr><th>Parametre</th><th>Valeur</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Mode par defaut</td><td><strong>server</strong></td></tr>
+                <tr><td>Methode</td><td>SQL <code>GROUP BY</code> + <code>COUNT(*)</code></td></tr>
+                <tr><td>Limite par champ</td><td>200 valeurs distinctes</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="fr-mt-1w">
+            Les facettes sont calculees cote serveur via des requetes SQL.
+            Si le endpoint SQL n'est pas disponible, les facettes sont calculees cote client.
+          </p>
+        </section>
+
+        <!-- Introspection -->
+        <section class="fr-mt-4w">
+          <h2>Introspection</h2>
+          <p>
+            L'adapter expose des methodes d'introspection du schema Grist :
+          </p>
+          <div class="fr-table">
+            <table>
+              <thead>
+                <tr><th>Methode</th><th>Endpoint</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>fetchColumns()</code></td>
+                  <td><code>GET .../tables/{tableId}/columns</code></td>
+                  <td>Metadonnees des colonnes (id, label, type, formule)</td>
+                </tr>
+                <tr>
+                  <td><code>fetchTables()</code></td>
+                  <td><code>GET .../tables</code></td>
+                  <td>Liste des tables du document</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Authentification -->
+        <section class="fr-mt-4w">
+          <h2>Authentification</h2>
+          <p>
+            Type : <strong>Bearer token</strong>.<br>
+            Les documents Grist prives necessitent un jeton d'API passe dans le header
+            <code>Authorization: Bearer {token}</code>. En production, le proxy nginx gere
+            l'authentification.
+          </p>
+        </section>
+
+        <!-- Detection automatique -->
+        <section class="fr-mt-4w">
+          <h2>Detection automatique</h2>
+          <p>
+            dsfr-data detecte automatiquement une source Grist si l'URL contient :
+          </p>
+          <ul>
+            <li><code>/api/docs/{documentId}/tables/{tableId}</code></li>
+          </ul>
+
+          <h3 class="fr-mt-2w">Hosts connus et proxy</h3>
+          <div class="fr-table">
+            <table>
+              <thead>
+                <tr><th>Hostname</th><th>Endpoint proxy</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>grist.numerique.gouv.fr</code></td><td><code>/grist-gouv-proxy</code></td></tr>
+                <tr><td><code>docs.getgrist.com</code></td><td><code>/grist-proxy</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Exemples -->
+        <section class="fr-mt-4w">
+          <h2>Exemples d'utilisation</h2>
+
+          <h3>Graphique avec agregation serveur (SQL)</h3>
+          <pre><code>&lt;dsfr-data-source id="src" api-type="grist"
+  base-url="https://&lt;votre-proxy&gt;/grist-gouv-proxy/api/docs/DOC_ID/tables/Table1/records"
+  headers='{"Authorization":"Bearer API_KEY"}'&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-query id="data" source="src"
+  group-by="region"
+  aggregate="population:sum:total"
+  order-by="total:desc"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;dsfr-data-chart source="data" type="bar"
+  label-field="region" value-field="total"&gt;
+&lt;/dsfr-data-chart&gt;</code></pre>
+
+          <h3 class="fr-mt-2w">Datalist avec pagination serveur</h3>
+          <pre><code>&lt;dsfr-data-source id="src" api-type="grist"
+  base-url="https://&lt;votre-proxy&gt;/grist-gouv-proxy/api/docs/DOC_ID/tables/Table1/records"
+  server-side page-size="20"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-list source="src"
+  colonnes="nom,prenom,commune"
+  pagination="20"&gt;
+&lt;/dsfr-data-list&gt;</code></pre>
+
+          <h3 class="fr-mt-2w">Facettes serveur + recherche</h3>
+          <pre><code>&lt;dsfr-data-source id="src" api-type="grist"
+  base-url="https://&lt;votre-proxy&gt;/grist-gouv-proxy/api/docs/DOC_ID/tables/Table1/records"
+  server-side page-size="20"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-facets source="src"
+  fields="categorie,region"
+  labels="categorie:Categorie | region:Region"
+  server-facets&gt;
+&lt;/dsfr-data-facets&gt;
+
+&lt;dsfr-data-search source="src"
+  search-template="nom:contains:{q}"
+  placeholder="Rechercher par nom..."&gt;
+&lt;/dsfr-data-search&gt;
+
+&lt;dsfr-data-list source="src"
+  colonnes="nom,categorie,region"
+  pagination="20"&gt;
+&lt;/dsfr-data-list&gt;</code></pre>
+        </section>
+    </div>
+  </app-layout-demo>
+
+  <app-footer base-path="../../"></app-footer>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js"></script>
+</body>
+</html>

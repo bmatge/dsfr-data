@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dsfr-data — Mes favoris</title>
+  <style>@view-transition{navigation:auto}app-header:not(:defined){display:block;min-height:56px}app-footer:not(:defined){display:block;min-height:48px}.modal-overlay{display:none}</style>
+
+  <!-- DSFR -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css" integrity="sha384-VuzA/gYnk/ZqcT5a/ravR88otj71vNPl/h1JPrKoESV33DCX6SeXIxBcRr5qYPRj" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css" integrity="sha384-YR4AxNhFVy1qsQ0Hp7Rosg06e4sj2m9dLxiYZrtqJ0boIOiDbD8XkIsIPMMkf0VL" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" integrity="sha384-9nhczxUqK87bcKHh20fSQcTGD4qq5GhayNYSYWqwBkINBhOfQLg/P5HG5lF1urn4" crossorigin="anonymous"></script>
+
+  <!-- DSFR Chart -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css" integrity="sha384-987+TUcyVaQAI/PaEqYIGNqku/bHSkNVAqOfNxyS1eE9SxeeH2Ue4FQZ3kKtnWfM" crossorigin="anonymous">
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js" integrity="sha384-xYrR55uYb2Y55H6eELrLA9ARM8YsjB1ksG6QHJZrhL49lzax9l7rHuQPjsZGiTYk" crossorigin="anonymous"></script>
+
+  <!-- Composants dsfr-data -->
+  <script type="module" src="../../dist/dsfr-data.esm.js"></script>
+
+  <!-- App styles -->
+  <link rel="stylesheet" href="src/styles/favorites.css">
+</head>
+<body>
+  <!-- Header -->
+  <app-header current-page="favoris" base-path="../.."></app-header>
+
+  <div class="favorites-layout">
+    <!-- Sidebar avec liste des favoris -->
+    <aside class="favorites-sidebar">
+      <div class="sidebar-header">
+        <h2>
+          <i class="ri-star-fill" aria-hidden="true"></i>
+          Mes favoris
+          <span class="favorites-count" id="favorites-count">0</span>
+        </h2>
+      </div>
+      <div class="sidebar-controls fr-px-1w fr-mb-1w">
+        <select id="fav-sort" class="fr-select fr-select--sm fr-mb-1w" aria-label="Trier les favoris">
+          <option value="date-desc">Plus recents</option>
+          <option value="date-asc">Plus anciens</option>
+          <option value="name-asc">Nom (A-Z)</option>
+          <option value="type">Par type</option>
+        </select>
+        <div class="fr-btns-group fr-btns-group--sm fr-btns-group--inline">
+          <button class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-download-line" id="export-btn">Exporter</button>
+          <button class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-upload-line" id="import-btn">Importer</button>
+        </div>
+      </div>
+      <div class="fr-px-1w fr-mb-1w">
+        <input type="text" class="fr-input fr-input--sm" placeholder="Rechercher..." id="fav-search">
+      </div>
+      <div class="favorites-list" id="favorites-list">
+        <!-- Dynamic list -->
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <main class="favorites-content" id="main-content">
+      <!-- Dynamic content -->
+    </main>
+  </div>
+
+  <!-- Delete confirmation modal -->
+  <div class="modal-overlay" id="delete-modal">
+    <div class="modal-content">
+      <h3>Supprimer ce favori ?</h3>
+      <p>Cette action est irreversible. Le favori "<span id="delete-name"></span>" sera definitivement supprime.</p>
+      <div class="modal-actions">
+        <button class="fr-btn fr-btn--secondary" onclick="closeDeleteModal()">Annuler</button>
+        <button class="fr-btn fr-btn--tertiary-no-outline" id="confirm-delete-btn">
+          <i class="ri-delete-bin-line" aria-hidden="true"></i>
+          Supprimer
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <app-footer base-path="../.."></app-footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js" integrity="sha384-4dK3hBJJh/bjoOulz9Q1kNO2O09lzuKiFeF5c+0VguV1RT3IiLkv+Pt98Jul84V+" crossorigin="anonymous"></script>
+  <!-- App entry point -->
+  <script type="module" src="src/main.ts"></script>
+</body>
+</html>

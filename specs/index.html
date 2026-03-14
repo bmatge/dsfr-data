@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Composants - dsfr-data</title>
+
+  <!-- DSFR -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css">
+
+  <!-- DSFR Chart CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css">
+
+  <!-- dsfr-data - Production bundle -->
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+
+  <!-- DSFR Chart JS -->
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"></script>
+
+  <style>
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .fr-tile__pictogram {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <app-header current-page="composants" base-path="../"></app-header>
+
+  <!-- Layout documentation avec sidemenu -->
+  <app-layout-demo
+    title="Bibliotheque de composants"
+    active-path="overview"
+    base-path="">
+    <div slot="content">
+        <p class="fr-text--lead">
+          dsfr-data est une bibliotheque de Web Components pour creer des tableaux de bord
+          et visualisations de donnees conformes au Design System de l'Etat (DSFR).
+        </p>
+
+        <!-- Architecture et principe -->
+        <section class="fr-mt-4w">
+          <h2>Architecture</h2>
+          <p>
+            Cette bibliotheque s'articule autour de deux types de composants complementaires :
+          </p>
+
+          <div class="fr-grid-row fr-grid-row--gutters fr-mt-2w">
+            <div class="fr-col-12 fr-col-md-6">
+              <div class="fr-callout fr-callout--blue-ecume">
+                <h3 class="fr-callout__title">
+                  <span class="ri-tools-line fr-mr-1w" aria-hidden="true"></span>
+                  Composants dsfr-data
+                </h3>
+                <p class="fr-callout__text">
+                  Composants <strong>developpes specifiquement</strong> pour ce projet. Ils gerent la <strong>connexion aux donnees</strong>,
+                  les <strong>transformations</strong>, et l'<strong>affichage d'indicateurs</strong>.
+                  Ils communiquent entre eux via un systeme de <em>data-bridge</em> qui permet de partager
+                  les donnees sans ecrire de JavaScript.
+                </p>
+              </div>
+            </div>
+            <div class="fr-col-12 fr-col-md-6">
+              <div class="fr-callout fr-callout--green-emeraude">
+                <h3 class="fr-callout__title">
+                  <span class="ri-bar-chart-box-line fr-mr-1w" aria-hidden="true"></span>
+                  Graphiques DSFR Chart
+                </h3>
+                <p class="fr-callout__text">
+                  Graphiques provenant de la bibliotheque officielle
+                  <a href="https://gouvernementfr.github.io/dsfr-chart/" target="_blank" rel="noopener">DSFR Chart</a>.
+                  Ces composants sont <strong>conformes RGAA</strong> et respectent la charte graphique de l'Etat.
+                  Ils peuvent etre utilises directement ou via notre wrapper <code>dsfr-data-chart</code>
+                  pour une alimentation dynamique.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="fr-highlight fr-mt-3w">
+            <p>
+              <strong>Le pont entre les deux :</strong> Le composant <code>&lt;dsfr-data-chart&gt;</code> fait le lien
+              entre le systeme de donnees <code>dsfr-data-source</code> et les graphiques DSFR Chart,
+              permettant de creer des visualisations dynamiques alimentees par une API.
+            </p>
+          </div>
+        </section>
+
+        <!-- Section: Composants dsfr-data -->
+        <section class="fr-mt-6w">
+          <h2>
+            <span class="ri-tools-line fr-mr-1w" aria-hidden="true"></span>
+            Composants dsfr-data
+          </h2>
+          <p class="fr-mb-3w">
+            Ces composants gèrent la recuperation, la transformation et l'affichage des donnees.
+          </p>
+
+          <div class="fr-grid-row fr-grid-row--gutters">
+            <div class="fr-col-12 fr-col-md-6 fr-col-lg-4">
+              <div class="fr-tile fr-enlarge-link">
+                <div class="fr-tile__body">
+                  <div class="fr-tile__content">
+                    <h3 class="fr-tile__title">
+                      <a href="components/dsfr-data-source.html">dsfr-data-source</a>
+                    </h3>
+                    <p class="fr-tile__detail">Connecteur de donnees</p>
+                    <p class="fr-tile__desc">Recupere les donnees depuis une API et les distribue aux autres composants.</p>
+                  </div>
+                </div>
+                <div class="fr-tile__header">
+                  <div class="fr-tile__pictogram">
+                    <span class="ri-database-2-line ri-3x" aria-hidden="true" style="color: var(--text-action-high-blue-france);"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="fr-col-12 fr-col-md-6 fr-col-lg-4">
+              <div class="fr-tile fr-enlarge-link">
+                <div class="fr-tile__body">
+                  <div class="fr-tile__content">
+                    <h3 class="fr-tile__title">
+                      <a href="components/dsfr-data-normalize.html">dsfr-data-normalize</a>
+                    </h3>
+                    <p class="fr-tile__detail">Normalisation des donnees</p>
+                    <p class="fr-tile__desc">Nettoie et normalise les donnees : conversion numerique, renommage, trim.</p>
+                  </div>
+                </div>
+                <div class="fr-tile__header">
+                  <div class="fr-tile__pictogram">
+                    <span class="ri-filter-line ri-3x" aria-hidden="true" style="color: var(--text-action-high-blue-france);"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="fr-col-12 fr-col-md-6 fr-col-lg-4">
+              <div class="fr-tile fr-enlarge-link">
+                <div class="fr-tile__body">
+                  <div class="fr-tile__content">
+                    <h3 class="fr-tile__title">
+                      <a href="components/dsfr-data-query.html">dsfr-data-query</a>
+                    </h3>
+                    <p class="fr-tile__detail">Requetage des donnees</p>
+                    <p class="fr-tile__desc">Filtre, trie et agrege les donnees issues d'une source.</p>
+                  </div>
+                </div>
+                <div class="fr-tile__header">
+                  <div class="fr-tile__pictogram">
+                    <span class="ri-search-line ri-3x" aria-hidden="true" style="color: var(--text-action-high-blue-france);"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="fr-col-12 fr-col-md-6 fr-col-lg-4">
+              <div class="fr-tile fr-enlarge-link">
+                <div class="fr-tile__body">
+                  <div class="fr-tile__content">
+                    <h3 class="fr-tile__title">
+                      <a href="components/dsfr-data-facets.html">dsfr-data-facets</a>
+                    </h3>
+                    <p class="fr-tile__detail">Filtres a facettes</p>
+                    <p class="fr-tile__desc">Ajoute des filtres interactifs par facettes sur les donnees d'une source.</p>
+                  </div>
+                </div>
+                <div class="fr-tile__header">
+                  <div class="fr-tile__pictogram">
+                    <span class="ri-equalizer-line ri-3x" aria-hidden="true" style="color: var(--text-action-high-blue-france);"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="fr-col-12 fr-col-md-6 fr-col-lg-4">
+              <div class="fr-tile fr-enlarge-link">
+                <div class="fr-tile__body">
+                  <div class="fr-tile__content">
+                    <h3 class="fr-tile__title">
+                      <a href="components/dsfr-data-search.html">dsfr-data-search</a>
+                    </h3>
+                    <p class="fr-tile__detail">Recherche textuelle</p>
+                    <p class="fr-tile__desc">Champ de recherche DSFR qui filtre les donnees en amont. Se combine avec les facettes.</p>
+                  </div>
+                </div>
+                <div class="fr-tile__header">
+                  <div class="fr-tile__pictogram">
+                    <span class="ri-search-line ri-3x" aria-hidden="true" style="color: var(--text-action-high-blue-france);"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="fr-col-12 fr-col-md-6 fr-col-lg-4">
+              <div class="fr-tile fr-enlarge-link">
+                <div class="fr-tile__body">
+                  <div class="fr-tile__content">
+                    <h3 class="fr-tile__title">
+                      <a href="components/dsfr-data-list.html">dsfr-data-list</a>
+                    </h3>
+                    <p class="fr-tile__detail">Tableau de donnees</p>
+                    <p class="fr-tile__desc">Tableau avec recherche, filtres, tri, pagination et export CSV.</p>
+                  </div>
+                </div>
+                <div class="fr-tile__header">
+                  <div class="fr-tile__pictogram">
+                    <span class="ri-table-line ri-3x" aria-hidden="true" style="color: var(--text-action-high-blue-france);"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="fr-col-12 fr-col-md-6 fr-col-lg-4">
+              <div class="fr-tile fr-enlarge-link">
+                <div class="fr-tile__body">
+                  <div class="fr-tile__content">
+                    <h3 class="fr-tile__title">
+                      <a href="components/dsfr-data-display.html">dsfr-data-display</a>
+                    </h3>
+                    <p class="fr-tile__detail">Affichage dynamique</p>
+                    <p class="fr-tile__desc">Genere des cartes, tuiles ou tout motif HTML repetitif a partir d'un template et de donnees.</p>
+                  </div>
+                </div>
+                <div class="fr-tile__header">
+                  <div class="fr-tile__pictogram">
+                    <span class="ri-layout-grid-line ri-3x" aria-hidden="true" style="color: var(--text-action-high-blue-france);"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="fr-col-12 fr-col-md-6 fr-col-lg-4">
+              <div class="fr-tile fr-enlarge-link">
+                <div class="fr-tile__body">
+                  <div class="fr-tile__content">
+                    <h3 class="fr-tile__title">
+                      <a href="components/dsfr-data-kpi.html">dsfr-data-kpi</a>
+                    </h3>
+                    <p class="fr-tile__detail">Indicateur chiffre</p>
+                    <p class="fr-tile__desc">Affiche une valeur cle avec formatage, couleurs conditionnelles et icones.</p>
+                  </div>
+                </div>
+                <div class="fr-tile__header">
+                  <div class="fr-tile__pictogram">
+                    <span class="ri-funds-box-line ri-3x" aria-hidden="true" style="color: var(--text-action-high-blue-france);"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="fr-col-12 fr-col-md-6 fr-col-lg-4">
+              <div class="fr-tile fr-enlarge-link">
+                <div class="fr-tile__body">
+                  <div class="fr-tile__content">
+                    <h3 class="fr-tile__title">
+                      <a href="components/dsfr-data-chart.html">dsfr-data-chart</a>
+                    </h3>
+                    <p class="fr-tile__detail">Wrapper graphique</p>
+                    <p class="fr-tile__desc">Connecte les graphiques DSFR Chart au systeme de donnees dynamiques.</p>
+                  </div>
+                </div>
+                <div class="fr-tile__header">
+                  <div class="fr-tile__pictogram">
+                    <span class="ri-bar-chart-grouped-line ri-3x" aria-hidden="true" style="color: var(--text-action-high-blue-france);"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="fr-col-12 fr-col-md-6 fr-col-lg-4">
+              <div class="fr-tile fr-enlarge-link">
+                <div class="fr-tile__body">
+                  <div class="fr-tile__content">
+                    <h3 class="fr-tile__title">
+                      <a href="components/dsfr-data-world-map.html">dsfr-data-world-map</a>
+                    </h3>
+                    <p class="fr-tile__detail">Carte du monde</p>
+                    <p class="fr-tile__desc">Carte choropleth avec zoom interactif par continent et tooltips.</p>
+                  </div>
+                </div>
+                <div class="fr-tile__header">
+                  <div class="fr-tile__pictogram">
+                    <span class="ri-earth-line ri-3x" aria-hidden="true" style="color: var(--text-action-high-blue-france);"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="fr-col-12 fr-col-md-6 fr-col-lg-4">
+              <div class="fr-tile fr-enlarge-link">
+                <div class="fr-tile__body">
+                  <div class="fr-tile__content">
+                    <h3 class="fr-tile__title">
+                      <a href="components/dsfr-data-a11y.html">dsfr-data-a11y</a>
+                    </h3>
+                    <p class="fr-tile__detail">Accessibilite graphique</p>
+                    <p class="fr-tile__desc">Companion d'accessibilite unifie : tableau des donnees, telechargement CSV et description textuelle.</p>
+                  </div>
+                </div>
+                <div class="fr-tile__header">
+                  <div class="fr-tile__pictogram">
+                    <span class="ri-download-2-line ri-3x" aria-hidden="true" style="color: var(--text-action-high-blue-france);"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Section: Graphiques DSFR Chart -->
+        <section class="fr-mt-6w">
+          <h2>
+            <span class="ri-bar-chart-box-line fr-mr-1w" aria-hidden="true"></span>
+            Graphiques DSFR Chart
+          </h2>
+          <p class="fr-mb-3w">
+            Graphiques officiels conformes au DSFR. Utilisez-les directement ou via <code>dsfr-data-chart</code> pour des donnees dynamiques.
+          </p>
+
+          <div class="fr-grid-row fr-grid-row--gutters">
+            <div class="fr-col-12 fr-col-md-6 fr-col-lg-4">
+              <div class="fr-tile fr-enlarge-link">
+                <div class="fr-tile__body">
+                  <div class="fr-tile__content">
+                    <h3 class="fr-tile__title">
+                      <a href="charts/line-chart.html">line-chart</a>
+                    </h3>
+                    <p class="fr-tile__detail">Courbes et tendances</p>
+                    <p class="fr-tile__desc">Visualiser des evolutions dans le temps.</p>
+                  </div>
+                </div>
+                <div class="fr-tile__header">
+                  <div class="fr-tile__pictogram">
+                    <span class="ri-line-chart-line ri-3x" aria-hidden="true" style="color: var(--text-action-high-green-emeraude);"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="fr-col-12 fr-col-md-6 fr-col-lg-4">
+              <div class="fr-tile fr-enlarge-link">
+                <div class="fr-tile__body">
+                  <div class="fr-tile__content">
+                    <h3 class="fr-tile__title">
+                      <a href="charts/bar-chart.html">bar-chart</a>
+                    </h3>
+                    <p class="fr-tile__detail">Barres et comparaisons</p>
+                    <p class="fr-tile__desc">Comparer des valeurs entre categories.</p>
+                  </div>
+                </div>
+                <div class="fr-tile__header">
+                  <div class="fr-tile__pictogram">
+                    <span class="ri-bar-chart-horizontal-line ri-3x" aria-hidden="true" style="color: var(--text-action-high-green-emeraude);"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="fr-col-12 fr-col-md-6 fr-col-lg-4">
+              <div class="fr-tile fr-enlarge-link">
+                <div class="fr-tile__body">
+                  <div class="fr-tile__content">
+                    <h3 class="fr-tile__title">
+                      <a href="charts/pie-chart.html">pie-chart</a>
+                    </h3>
+                    <p class="fr-tile__detail">Camembert et proportions</p>
+                    <p class="fr-tile__desc">Representer des distributions et parts.</p>
+                  </div>
+                </div>
+                <div class="fr-tile__header">
+                  <div class="fr-tile__pictogram">
+                    <span class="ri-pie-chart-line ri-3x" aria-hidden="true" style="color: var(--text-action-high-green-emeraude);"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="fr-col-12 fr-col-md-6 fr-col-lg-4">
+              <div class="fr-tile fr-enlarge-link">
+                <div class="fr-tile__body">
+                  <div class="fr-tile__content">
+                    <h3 class="fr-tile__title">
+                      <a href="charts/radar-chart.html">radar-chart</a>
+                    </h3>
+                    <p class="fr-tile__detail">Radar multidimensionnel</p>
+                    <p class="fr-tile__desc">Comparer plusieurs variables simultanement.</p>
+                  </div>
+                </div>
+                <div class="fr-tile__header">
+                  <div class="fr-tile__pictogram">
+                    <span class="ri-focus-3-line ri-3x" aria-hidden="true" style="color: var(--text-action-high-green-emeraude);"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="fr-col-12 fr-col-md-6 fr-col-lg-4">
+              <div class="fr-tile fr-enlarge-link">
+                <div class="fr-tile__body">
+                  <div class="fr-tile__content">
+                    <h3 class="fr-tile__title">
+                      <a href="charts/gauge-chart.html">gauge-chart</a>
+                    </h3>
+                    <p class="fr-tile__detail">Jauge de progression</p>
+                    <p class="fr-tile__desc">Afficher une progression vers un objectif.</p>
+                  </div>
+                </div>
+                <div class="fr-tile__header">
+                  <div class="fr-tile__pictogram">
+                    <span class="ri-speed-line ri-3x" aria-hidden="true" style="color: var(--text-action-high-green-emeraude);"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="fr-col-12 fr-col-md-6 fr-col-lg-4">
+              <div class="fr-tile fr-enlarge-link">
+                <div class="fr-tile__body">
+                  <div class="fr-tile__content">
+                    <h3 class="fr-tile__title">
+                      <a href="charts/map-chart.html">map-chart</a>
+                    </h3>
+                    <p class="fr-tile__detail">Carte de France</p>
+                    <p class="fr-tile__desc">Visualiser des donnees geographiques.</p>
+                  </div>
+                </div>
+                <div class="fr-tile__header">
+                  <div class="fr-tile__pictogram">
+                    <span class="ri-map-line ri-3x" aria-hidden="true" style="color: var(--text-action-high-green-emeraude);"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="fr-col-12 fr-col-md-6 fr-col-lg-4">
+              <div class="fr-tile fr-enlarge-link">
+                <div class="fr-tile__body">
+                  <div class="fr-tile__content">
+                    <h3 class="fr-tile__title">
+                      <a href="charts/scatter-chart.html">scatter-chart</a>
+                    </h3>
+                    <p class="fr-tile__detail">Nuage de points</p>
+                    <p class="fr-tile__desc">Analyser des correlations entre variables.</p>
+                  </div>
+                </div>
+                <div class="fr-tile__header">
+                  <div class="fr-tile__pictogram">
+                    <span class="ri-bubble-chart-line ri-3x" aria-hidden="true" style="color: var(--text-action-high-green-emeraude);"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+    </div>
+  </app-layout-demo>
+
+  <!-- Footer -->
+  <app-footer base-path="../"></app-footer>
+
+  <!-- DSFR JS -->
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js"></script>
+</body>
+</html>

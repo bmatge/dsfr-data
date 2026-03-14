@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Line Chart - DSFR Chart - dsfr-data</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"></script>
+  <style>
+    body { min-height: 100vh; display: flex; flex-direction: column; }
+  </style>
+</head>
+<body>
+  <app-header current-page="composants" base-path="../../"></app-header>
+
+  <app-layout-demo title="Graphique en ligne" icon="ri-line-chart-line" active-path="charts/line-chart" base-path="../">
+    <div slot="content">
+      <p class="fr-text--lead">Le composant <code>&lt;line-chart&gt;</code> permet de visualiser des tendances et evolutions dans le temps.</p>
+
+      <h2>Attributs</h2>
+      <table class="attr-table">
+        <thead><tr><th>Attribut</th><th>Type</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>x</code></td><td>String</td><td>Valeurs axe X en JSON : <code>'[[1, 2, 3]]'</code></td></tr>
+          <tr><td><code>y</code></td><td>String</td><td>Valeurs axe Y en JSON : <code>'[[10, 20, 30]]'</code></td></tr>
+          <tr><td><code>selected-palette</code></td><td>String</td><td>Palette de couleurs</td></tr>
+          <tr><td><code>unit-tooltip</code></td><td>String</td><td>Unite dans les tooltips</td></tr>
+          <tr><td><code>x-min / x-max</code></td><td>Number</td><td>Limites axe X</td></tr>
+          <tr><td><code>y-min / y-max</code></td><td>Number</td><td>Limites axe Y</td></tr>
+        </tbody>
+      </table>
+
+      <h2 class="fr-mt-4w">Exemples</h2>
+
+      <section class="demo-section">
+        <h3>1. Ligne simple</h3>
+        <line-chart
+          x="[[2020, 2021, 2022, 2023, 2024]]"
+          y="[[65, 72, 78, 85, 91]]"
+          selected-palette="default"
+          unit-tooltip="%">
+        </line-chart>
+        <div class="code-block"><pre>&lt;line-chart
+  x="[[2020, 2021, 2022, 2023, 2024]]"
+  y="[[65, 72, 78, 85, 91]]"
+  selected-palette="default"
+  unit-tooltip="%"&gt;
+&lt;/line-chart&gt;</pre></div>
+      </section>
+
+      <section class="demo-section">
+        <h3>2. Multi-series</h3>
+        <line-chart
+          x="[[2020, 2021, 2022, 2023], [2020, 2021, 2022, 2023]]"
+          y="[[65, 72, 78, 85], [70, 75, 82, 88]]"
+          selected-palette="categorical"
+          unit-tooltip="%">
+        </line-chart>
+        <div class="code-block"><pre>&lt;line-chart
+  x="[[2020, 2021, 2022, 2023], [2020, 2021, 2022, 2023]]"
+  y="[[65, 72, 78, 85], [70, 75, 82, 88]]"
+  selected-palette="categorical"&gt;
+&lt;/line-chart&gt;</pre></div>
+      </section>
+
+      <section class="demo-section">
+        <h3>3. Palette divergente</h3>
+        <line-chart
+          x="[[1, 2, 3, 4, 5, 6]]"
+          y="[[10, 25, 15, 30, 20, 35]]"
+          selected-palette="divergentAscending"
+          unit-tooltip="pts">
+        </line-chart>
+        <div class="code-block"><pre>&lt;line-chart
+  x="[[1, 2, 3, 4, 5, 6]]"
+  y="[[10, 25, 15, 30, 20, 35]]"
+  selected-palette="divergentAscending"&gt;
+&lt;/line-chart&gt;</pre></div>
+      </section>
+    </div>
+  </app-layout-demo>
+
+  <app-footer base-path="../../"></app-footer>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js"></script>
+</body>
+</html>

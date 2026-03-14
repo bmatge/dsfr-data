@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Commerce exterieur — Exemples avances - Guide - dsfr-data</title>
+  <style>@view-transition{navigation:auto}app-header:not(:defined){display:block;min-height:56px}app-footer:not(:defined){display:block;min-height:48px}</style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css">
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"></script>
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script src="guide-menu.js"></script>
+  <style>
+    .guide-layout { display: flex; gap: 2rem; }
+    .guide-content { flex: 1; min-width: 0; }
+    @media (max-width: 992px) {
+      .guide-layout { flex-direction: column; }
+    }
+    .guide-content h2 { padding-top: 2rem; border-top: 1px solid var(--border-default-grey); margin-top: 3rem; }
+    .guide-content h2:first-of-type { border-top: none; margin-top: 0; padding-top: 0; }
+    .guide-content h3 { margin-top: 2rem; }
+    .guide-content h4 { margin-top: 1.5rem; }
+    .guide-content pre { background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 4px; font-family: monospace; font-size: 0.85rem; overflow-x: auto; white-space: pre-wrap; margin: 0; }
+    .guide-content ol, .guide-content ul { margin: 0.5rem 0 1rem 1.5rem; }
+    .guide-content li { margin-bottom: 0.25rem; }
+    .example-container { border: 1px solid var(--border-default-grey); border-radius: 4px; padding: 1rem; background: white; min-height: 100px; }
+    .pipeline-diagram { background: var(--background-alt-grey); padding: 1rem 1.5rem; border-radius: 4px; font-family: monospace; font-size: 0.85rem; line-height: 1.6; white-space: pre; overflow-x: auto; }
+
+    /* Dashboard styles */
+    .dashboard-header {
+      background: var(--background-action-high-blue-france);
+      color: white;
+      padding: 2rem 0;
+      margin-bottom: 2rem;
+      border-radius: 8px;
+    }
+    .dashboard-header h1 { color: white; margin: 0; font-size: 1.75rem; }
+    .dashboard-header p { color: rgba(255,255,255,0.85); margin: 0.5rem 0 0; }
+    .section-title {
+      border-left: 4px solid var(--border-action-high-blue-france);
+      padding-left: 1rem;
+      margin: 2.5rem 0 1.5rem;
+      border-top: none;
+      padding-top: 0;
+    }
+    .chart-card {
+      background: var(--background-default-grey);
+      border: 1px solid var(--border-default-grey);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .chart-card h3 { margin-top: 0; font-size: 1.1rem; }
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .charts-2col {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 1.5rem;
+    }
+    .source-note {
+      margin-top: 2rem; padding: 1rem;
+      background: var(--background-alt-grey);
+      border-radius: 4px; font-size: 0.875rem;
+      color: var(--text-mention-grey); margin-bottom: 2rem;
+    }
+  </style>
+</head>
+<body>
+  <app-header current-page="guide" base-path="../"></app-header>
+
+  <main class="fr-container fr-py-4w" id="main-content">
+    <div class="guide-layout">
+
+      <app-sidemenu section="guide"></app-sidemenu>
+
+      <div class="guide-content">
+
+        <h1><i class="fr-mr-1w"></i>Dashboard Commerce - API Huwise</h1>
+        <p class="fr-text--lead">
+          Tableau de bord des exportations francaises 2023 avec carte mondiale interactive.
+          Utilise <code>dsfr-data-world-map</code> pour visualiser les donnees geographiques
+          et <code>dsfr-data-source</code> avec agregation server-side OpenDataSoft.
+        </p>
+
+        <div class="fr-callout fr-callout--blue-france fr-mt-2w">
+          <p class="fr-callout__text">
+            <strong>dsfr-data-world-map :</strong> Ce composant affiche une carte choropleth
+            du monde basee sur les donnees d'une source. Il supporte les codes ISO alpha-2,
+            alpha-3 et numeriques via l'attribut <code>code-format</code>, le zoom par continent,
+            les palettes DSFR et les tooltips avec unite personnalisee.
+          </p>
+        </div>
+
+        <h4>Architecture du pipeline</h4>
+        <div class="pipeline-diagram">dsfr-data-source "src-pays" (ODS, group-by pays)  --> dsfr-data-query "top15" (limit 15) --> dsfr-data-chart (bar)
+                                                  --> dsfr-data-query "top8" (limit 8)  --> dsfr-data-chart (pie)
+                                                  --> dsfr-data-world-map (carte mondiale)
+
+dsfr-data-source "src-global" (ODS, somme globale)  --> dsfr-data-kpi x3 (valeur, flux, masse)
+dsfr-data-source "src-pays"                         --> dsfr-data-kpi (count pays)</div>
+
+        <h4 class="fr-mt-3w">Exemple live</h4>
+
+        <!-- ============================================================= -->
+        <!-- SOURCES                                                        -->
+        <!-- ============================================================= -->
+
+        <!-- Source : agregation serveur par pays (exports 2023) -->
+        <dsfr-data-source id="src-pays"
+          api-type="opendatasoft"
+          base-url="https://data.economie.gouv.fr"
+          dataset-id="statistiques-nationales-du-commerce-exterieur"
+          select="column_7 as pays, sum(column_8)/1000 as valeur, count(*) as nb_flux, sum(column_9)/1000 as masse"
+          where="column_1 = 'E' AND column_3 = 2023"
+          group-by="column_7"
+          order-by="valeur desc">
+        </dsfr-data-source>
+
+        <!-- Source pour KPI globaux (unites lisibles) -->
+        <dsfr-data-source id="src-global"
+          api-type="opendatasoft"
+          base-url="https://data.economie.gouv.fr"
+          dataset-id="statistiques-nationales-du-commerce-exterieur"
+          select="sum(column_8)/1000000 as valeur_mds, count(*)/1000000 as nb_flux_m, sum(column_9)/1000000000 as masse_mt"
+          where="column_1 = 'E' AND column_3 = 2023">
+        </dsfr-data-source>
+
+        <!-- ============================================================= -->
+        <!-- DASHBOARD                                                      -->
+        <!-- ============================================================= -->
+
+        <div class="dashboard-header fr-mt-3w">
+          <div class="fr-container">
+            <h1><span class="ri-exchange-line" aria-hidden="true"></span> Commerce exterieur de la France</h1>
+            <p>Exportations — Donnees 2023 — Source : data.economie.gouv.fr</p>
+          </div>
+        </div>
+
+        <!-- KPIs -->
+        <h2 class="section-title">Chiffres cles des exportations 2023</h2>
+
+        <div class="kpi-row">
+          <dsfr-data-kpi source="src-global"
+            valeur="valeur_mds"
+            label="Valeur exportee (Mds)"
+            format="decimal"
+            icone="ri-money-euro-circle-line"
+            couleur="bleu">
+          </dsfr-data-kpi>
+
+          <dsfr-data-kpi source="src-global"
+            valeur="nb_flux_m"
+            label="Flux d'exportation (millions)"
+            format="decimal"
+            icone="ri-exchange-funds-line"
+            couleur="bleu">
+          </dsfr-data-kpi>
+
+          <dsfr-data-kpi source="src-global"
+            valeur="masse_mt"
+            label="Masse totale (Mt)"
+            format="decimal"
+            icone="ri-scales-3-line"
+            couleur="bleu">
+          </dsfr-data-kpi>
+
+          <dsfr-data-kpi source="src-pays"
+            valeur="count:pays"
+            label="Pays partenaires"
+            format="nombre"
+            icone="ri-global-line"
+            couleur="vert">
+          </dsfr-data-kpi>
+        </div>
+
+        <!-- Graphiques -->
+        <h2 class="section-title">Repartition des exportations</h2>
+
+        <div class="charts-2col">
+          <!-- Bar chart : Top 15 pays -->
+          <div class="chart-card">
+            <h3>Top 15 pays destinataires</h3>
+            <dsfr-data-query id="top15" source="src-pays"
+              order-by="valeur:desc"
+              limit="15">
+            </dsfr-data-query>
+            <dsfr-data-chart id="bar-top15" source="top15" type="bar"
+              label-field="pays" value-field="valeur"
+              horizontal
+              selected-palette="sequentialDescending"
+              unit-tooltip="M">
+            </dsfr-data-chart>
+            <dsfr-data-a11y for="bar-top15" source="top15" table download></dsfr-data-a11y>
+          </div>
+
+          <!-- Pie chart : repartition top 8 -->
+          <div class="chart-card">
+            <h3>Repartition (top 8)</h3>
+            <dsfr-data-query id="top8" source="src-pays"
+              order-by="valeur:desc"
+              limit="8">
+            </dsfr-data-query>
+            <dsfr-data-chart id="pie-pays" source="top8" type="pie"
+              label-field="pays" value-field="valeur"
+              selected-palette="categorical"
+              unit-tooltip="M">
+            </dsfr-data-chart>
+            <dsfr-data-a11y for="pie-pays" source="top8" table download></dsfr-data-a11y>
+          </div>
+        </div>
+
+        <!-- World Map -->
+        <h2 class="section-title">Carte mondiale des exportations</h2>
+
+        <div class="chart-card">
+          <h3>Exportations francaises par pays (carte choropleth)</h3>
+          <dsfr-data-world-map source="src-pays"
+            code-field="pays"
+            value-field="valeur"
+            code-format="iso-a2"
+            name="Exportations francaises"
+            unit-tooltip="M"
+            selected-palette="sequentialAscending"
+            zoom="continent">
+          </dsfr-data-world-map>
+        </div>
+
+        <!-- Source -->
+        <div class="source-note">
+          <strong>Source :</strong> Statistiques nationales du commerce exterieur —
+          <a href="https://data.economie.gouv.fr/explore/dataset/statistiques-nationales-du-commerce-exterieur/" target="_blank" rel="noopener">data.economie.gouv.fr</a><br>
+          <strong>API :</strong> OpenDataSoft avec agregation server-side (<code>group-by</code>, <code>sum</code>, <code>count</code>)<br>
+          <strong>Filtre :</strong> <code>column_1 = 'E'</code> (exportations) AND <code>column_3 = 2023</code> (annee)<br>
+          <strong>Carte :</strong> <code>dsfr-data-world-map</code> avec codes ISO alpha-2, palette sequentielle et zoom par continent
+        </div>
+
+        <!-- Code source -->
+        <section class="fr-accordion fr-mt-2w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-world-map">Code source complet</button></h3>
+          <div class="fr-collapse" id="code-world-map">
+<pre class="example-code">&lt;!-- Source : agregation serveur par pays (exports 2023) --&gt;
+&lt;dsfr-data-source id="src-pays"
+  api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr"
+  dataset-id="statistiques-nationales-du-commerce-exterieur"
+  select="column_7 as pays, sum(column_8)/1000 as valeur,
+          count(*) as nb_flux, sum(column_9)/1000 as masse"
+  where="column_1 = 'E' AND column_3 = 2023"
+  group-by="column_7"
+  order-by="valeur desc"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;!-- Source pour KPI globaux --&gt;
+&lt;dsfr-data-source id="src-global"
+  api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr"
+  dataset-id="statistiques-nationales-du-commerce-exterieur"
+  select="sum(column_8)/1000000 as valeur_mds,
+          count(*)/1000000 as nb_flux_m,
+          sum(column_9)/1000000000 as masse_mt"
+  where="column_1 = 'E' AND column_3 = 2023"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;!-- KPIs --&gt;
+&lt;dsfr-data-kpi source="src-global" valeur="valeur_mds"
+  label="Valeur exportee (Mds)" format="decimal"
+  icone="ri-money-euro-circle-line" couleur="bleu"&gt;
+&lt;/dsfr-data-kpi&gt;
+
+&lt;dsfr-data-kpi source="src-pays" valeur="count:pays"
+  label="Pays partenaires" format="nombre"
+  icone="ri-global-line" couleur="vert"&gt;
+&lt;/dsfr-data-kpi&gt;
+
+&lt;!-- Top 15 : bar chart --&gt;
+&lt;dsfr-data-query id="top15" source="src-pays"
+  order-by="valeur:desc" limit="15"&gt;
+&lt;/dsfr-data-query&gt;
+&lt;dsfr-data-chart source="top15" type="bar"
+  label-field="pays" value-field="valeur"
+  horizontal selected-palette="sequentialDescending"
+  unit-tooltip="M"&gt;
+&lt;/dsfr-data-chart&gt;
+
+&lt;!-- Top 8 : pie chart --&gt;
+&lt;dsfr-data-query id="top8" source="src-pays"
+  order-by="valeur:desc" limit="8"&gt;
+&lt;/dsfr-data-query&gt;
+&lt;dsfr-data-chart source="top8" type="pie"
+  label-field="pays" value-field="valeur"
+  selected-palette="categorical"
+  unit-tooltip="M"&gt;
+&lt;/dsfr-data-chart&gt;
+
+&lt;!-- Carte mondiale --&gt;
+&lt;dsfr-data-world-map source="src-pays"
+  code-field="pays"
+  value-field="valeur"
+  code-format="iso-a2"
+  name="Exportations francaises"
+  unit-tooltip="M"
+  selected-palette="sequentialAscending"
+  zoom="continent"&gt;
+&lt;/dsfr-data-world-map&gt;</pre>
+          </div>
+        </section>
+
+        <!-- Points cles -->
+        <h4 class="fr-mt-3w">Points cles de cet exemple</h4>
+        <ul>
+          <li><strong>dsfr-data-world-map</strong> : carte choropleth mondiale. Attributs principaux : <code>code-field</code> (champ contenant le code pays), <code>value-field</code> (champ numerique), <code>code-format</code> (<code>iso-a2</code>, <code>iso-a3</code> ou <code>iso-num</code>), <code>zoom="continent"</code> (boutons de zoom par continent).</li>
+          <li><strong>Agregation server-side</strong> : <code>dsfr-data-source</code> utilise <code>select</code> avec <code>sum()</code> et <code>count()</code>, <code>group-by</code> et <code>order-by</code> pour agreger directement cote serveur OpenDataSoft.</li>
+          <li><strong>Pipeline de transformation</strong> : <code>dsfr-data-query</code> applique <code>limit</code> et <code>order-by</code> sur les donnees agregees pour alimenter les graphiques top 15 et top 8, tandis que la carte recoit toutes les donnees.</li>
+          <li><strong>KPI derives</strong> : <code>valeur="count:pays"</code> compte le nombre de valeurs distinctes du champ <code>pays</code> sans source supplementaire.</li>
+          <li><strong>Accessibilite</strong> : <code>dsfr-data-a11y</code> sur chaque graphique pour le telechargement CSV.</li>
+          <li><strong>0 ligne de JavaScript</strong> : tout le dashboard est 100% declaratif en HTML.</li>
+        </ul>
+
+      </div>
+    </div>
+  </main>
+
+  <app-footer base-path="../"></app-footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js"></script>
+</body>
+</html>

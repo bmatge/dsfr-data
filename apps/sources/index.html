@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dsfr-data — Gestion des sources de données</title>
+  <style>@view-transition{navigation:auto}app-header:not(:defined){display:block;min-height:56px}app-footer:not(:defined){display:block;min-height:48px}.modal-overlay{display:none}</style>
+
+  <!-- DSFR -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css" integrity="sha384-VuzA/gYnk/ZqcT5a/ravR88otj71vNPl/h1JPrKoESV33DCX6SeXIxBcRr5qYPRj" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css" integrity="sha384-YR4AxNhFVy1qsQ0Hp7Rosg06e4sj2m9dLxiYZrtqJ0boIOiDbD8XkIsIPMMkf0VL" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
+
+  <!-- Composants dsfr-data -->
+  <script type="module" src="../../dist/dsfr-data.esm.js"></script>
+</head>
+<body>
+  <!-- Header -->
+  <app-header current-page="sources" base-path="../../"></app-header>
+
+  <div class="fr-container fr-py-4w fr-sr-only">
+    <h1><i class="ri-database-2-line"></i> Sources de données</h1>
+    <p class="fr-text--lead">Connectez vos sources Grist, API ou créez des jeux de données manuels</p>
+  </div>
+
+  <!-- CONTENU PRINCIPAL -->
+  <app-layout-builder left-ratio="30">
+
+      <!-- SIDEBAR : Liste des connexions -->
+      <aside slot="left" class="sidebar">
+        <h2><i class="ri-link"></i> Connexions</h2>
+
+        <div id="connections-list">
+          <!-- Connexions chargées dynamiquement -->
+        </div>
+
+        <button class="fr-btn fr-btn--sm fr-btn--secondary add-btn" id="add-connection-btn">
+          <i class="ri-add-line"></i> Nouvelle connexion
+        </button>
+
+        <hr class="fr-mt-2w fr-mb-2w">
+
+        <h2><i class="ri-folder-chart-line"></i> Mes sources</h2>
+
+        <div id="sources-list">
+          <!-- Sources sauvegardées -->
+        </div>
+
+        <button class="fr-btn fr-btn--sm fr-btn--secondary add-btn" id="add-source-btn">
+          <i class="ri-add-line"></i> Créer une source manuelle
+        </button>
+
+        <hr class="fr-mt-2w fr-mb-2w">
+
+        <div style="display: flex; gap: 0.5rem;">
+          <button class="fr-btn fr-btn--sm fr-btn--tertiary" id="export-data-btn" title="Exporter toutes les donnees">
+            <i class="ri-download-line"></i> Exporter
+          </button>
+          <label class="fr-btn fr-btn--sm fr-btn--tertiary" id="import-data-btn" title="Importer des donnees" style="cursor:pointer;">
+            <i class="ri-upload-line"></i> Importer
+            <input type="file" id="import-data-file" accept=".json" style="display:none;">
+          </label>
+        </div>
+      </aside>
+
+      <!-- MAIN : Explorateur -->
+      <main slot="right" class="main-content" id="main-content">
+        <div id="explorer-empty" class="empty-state">
+          <i class="ri-database-2-line"></i>
+          <p>Sélectionnez une connexion pour explorer ses données,<br>ou créez une nouvelle source manuelle.</p>
+        </div>
+
+        <div id="explorer-content" style="display: none;">
+          <div class="action-bar">
+            <h2 id="explorer-title" style="margin: 0; flex: 1;">Explorer</h2>
+            <button class="fr-btn fr-btn--sm" id="use-in-builder-btn">
+              <i class="ri-bar-chart-box-line"></i> Utiliser dans le Builder
+            </button>
+            <button class="fr-btn fr-btn--sm fr-btn--secondary" id="save-favorite-btn" style="display: none;">
+              <i class="ri-star-line"></i> Garder en favori
+            </button>
+            <button class="fr-btn fr-btn--sm fr-btn--secondary" id="export-grist-btn" style="display: none;">
+              <i class="ri-upload-cloud-line"></i> Exporter vers Grist
+            </button>
+            <button class="fr-btn fr-btn--sm fr-btn--secondary" id="refresh-btn">
+              <i class="ri-refresh-line"></i> Rafraîchir
+            </button>
+          </div>
+
+          <div id="explorer-tabs" class="explorer-tabs">
+            <button class="explorer-tab active" data-tab="documents">Documents</button>
+            <button class="explorer-tab" data-tab="tables">Tables</button>
+            <button class="explorer-tab" data-tab="preview">Aperçu</button>
+          </div>
+
+          <div id="tab-documents" class="tab-panel">
+            <div id="documents-tree" class="tree-view">
+              <!-- Documents Grist -->
+            </div>
+          </div>
+
+          <div id="tab-tables" class="tab-panel" style="display: none;">
+            <div class="action-bar">
+              <button class="fr-btn fr-btn--sm fr-btn--secondary" id="create-table-btn">
+                <i class="ri-add-line"></i> Créer une table dans Grist
+              </button>
+            </div>
+            <div id="tables-tree" class="tree-view">
+              <!-- Tables -->
+            </div>
+          </div>
+
+          <div id="tab-preview" class="tab-panel" style="display: none;">
+            <p class="fr-text--sm" id="preview-info">Sélectionnez une table pour voir un aperçu des données.</p>
+            <div class="table-preview">
+              <table class="fr-table" id="preview-table">
+                <thead><tr></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </main>
+
+  </app-layout-builder>
+
+  <!-- MODAL : Ajouter une connexion -->
+  <div class="modal-overlay" id="connection-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3><i class="ri-link"></i> Nouvelle connexion</h3>
+        <button class="modal-close" onclick="closeModal('connection-modal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- Type de connexion -->
+        <fieldset class="fr-fieldset">
+          <legend class="fr-fieldset__legend">Type de connexion</legend>
+          <div class="fr-fieldset__content" style="display: flex; gap: 1rem;">
+            <div class="fr-radio-group">
+              <input type="radio" id="conn-type-grist" name="conn-type" value="grist" checked>
+              <label class="fr-label" for="conn-type-grist">
+                <span class="badge-source-type badge-grist" style="margin-right: 0.25rem;">Grist</span>
+                Base de données Grist
+              </label>
+            </div>
+            <div class="fr-radio-group">
+              <input type="radio" id="conn-type-api" name="conn-type" value="api">
+              <label class="fr-label" for="conn-type-api">
+                <span class="badge-source-type badge-api" style="margin-right: 0.25rem;">API</span>
+                API REST/JSON
+              </label>
+            </div>
+          </div>
+        </fieldset>
+
+        <div class="fr-input-group fr-mt-2w">
+          <label class="fr-label" for="conn-name">
+            Nom de la connexion
+            <span class="fr-hint-text">Un nom pour identifier cette connexion</span>
+          </label>
+          <input class="fr-input" type="text" id="conn-name" placeholder="Ex: Grist Production">
+        </div>
+
+        <!-- Champs Grist -->
+        <div id="grist-fields">
+          <div class="fr-input-group fr-mt-2w">
+            <label class="fr-label" for="conn-url">
+              URL du serveur Grist
+              <span class="fr-hint-text">Ex: https://grist.numerique.gouv.fr ou https://docs.getgrist.com</span>
+            </label>
+            <input class="fr-input" type="url" id="conn-url" placeholder="https://grist.numerique.gouv.fr" value="https://grist.numerique.gouv.fr">
+          </div>
+
+          <div class="fr-checkbox-group fr-mt-2w">
+            <input type="checkbox" id="conn-public" name="conn-public">
+            <label class="fr-label" for="conn-public">
+              Document public (sans clé API)
+              <span class="fr-hint-text">Pour les documents Grist partagés publiquement</span>
+            </label>
+          </div>
+
+          <div class="fr-input-group fr-mt-2w" id="api-key-group">
+            <label class="fr-label" for="conn-api-key">
+              Clé API
+              <span class="fr-hint-text">Trouvable dans Grist &gt; Paramètres du compte &gt; API</span>
+            </label>
+            <input class="fr-input" type="password" id="conn-api-key" placeholder="Votre clé API Grist" autocomplete="off" data-1p-ignore data-lpignore="true">
+          </div>
+
+          <div class="fr-alert fr-alert--info fr-alert--sm fr-mt-2w" id="api-key-info">
+            <p>La clé API est stockée uniquement dans votre navigateur (localStorage).</p>
+          </div>
+        </div>
+
+        <!-- Champs API REST -->
+        <div id="api-fields" style="display: none;">
+          <div class="fr-input-group fr-mt-2w">
+            <label class="fr-label" for="api-url">
+              URL de l'API
+              <span class="fr-hint-text">URL complète de l'endpoint JSON (ex: https://api.example.com/data)</span>
+            </label>
+            <input class="fr-input" type="url" id="api-url" placeholder="https://api.example.com/data.json">
+          </div>
+
+          <div class="fr-input-group fr-mt-2w">
+            <label class="fr-label" for="api-method">
+              Méthode HTTP
+            </label>
+            <select class="fr-select" id="api-method">
+              <option value="GET" selected>GET</option>
+              <option value="POST">POST</option>
+            </select>
+          </div>
+
+          <div class="fr-input-group fr-mt-2w">
+            <label class="fr-label" for="api-headers">
+              En-têtes (optionnel)
+              <span class="fr-hint-text">Format JSON. Ex: {"Authorization": "Bearer xxx"}</span>
+            </label>
+            <textarea class="fr-input" id="api-headers" rows="2" placeholder='{"Authorization": "Bearer votre_token"}'></textarea>
+          </div>
+
+          <div class="fr-input-group fr-mt-2w">
+            <label class="fr-label" for="api-data-path">
+              Chemin vers les données (optionnel)
+              <span class="fr-hint-text">Chemin JSON vers le tableau de données (ex: data.items, results)</span>
+            </label>
+            <input class="fr-input" type="text" id="api-data-path" placeholder="data.items">
+          </div>
+
+          <div class="fr-alert fr-alert--info fr-alert--sm fr-mt-2w">
+            <p>Les identifiants sont stockés uniquement dans votre navigateur (localStorage).</p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="fr-btn fr-btn--secondary" onclick="closeModal('connection-modal')">Annuler</button>
+        <button class="fr-btn" id="save-connection-btn">Tester et sauvegarder</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL : Créer une table Grist -->
+  <div class="modal-overlay" id="create-table-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3><i class="ri-table-line"></i> Créer une table dans Grist</h3>
+        <button class="modal-close" onclick="closeModal('create-table-modal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="fr-input-group">
+          <label class="fr-label" for="table-name">Nom de la table</label>
+          <input class="fr-input" type="text" id="table-name" placeholder="Ex: MesDonnees">
+        </div>
+
+        <div class="columns-editor fr-mt-2w">
+          <label class="fr-label">Colonnes</label>
+          <div id="columns-list">
+            <div class="column-item">
+              <input class="fr-input fr-input--sm" type="text" placeholder="Nom de colonne" value="Label">
+              <select class="fr-select fr-select--sm" style="width: 120px;">
+                <option value="Text">Texte</option>
+                <option value="Numeric">Nombre</option>
+                <option value="Date">Date</option>
+                <option value="Bool">Booléen</option>
+              </select>
+              <button class="fr-btn fr-btn--sm fr-btn--tertiary" onclick="this.parentElement.remove()">
+                <i class="ri-delete-bin-line"></i>
+              </button>
+            </div>
+            <div class="column-item">
+              <input class="fr-input fr-input--sm" type="text" placeholder="Nom de colonne" value="Valeur">
+              <select class="fr-select fr-select--sm" style="width: 120px;">
+                <option value="Text">Texte</option>
+                <option value="Numeric" selected>Nombre</option>
+                <option value="Date">Date</option>
+                <option value="Bool">Booléen</option>
+              </select>
+              <button class="fr-btn fr-btn--sm fr-btn--tertiary" onclick="this.parentElement.remove()">
+                <i class="ri-delete-bin-line"></i>
+              </button>
+            </div>
+          </div>
+          <button class="fr-btn fr-btn--sm fr-btn--tertiary fr-mt-1w" id="add-column-btn">
+            <i class="ri-add-line"></i> Ajouter une colonne
+          </button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="fr-btn fr-btn--secondary" onclick="closeModal('create-table-modal')">Annuler</button>
+        <button class="fr-btn" id="create-table-confirm-btn">Créer la table</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL : Exporter vers Grist -->
+  <div class="modal-overlay" id="export-grist-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3><i class="ri-upload-cloud-line"></i> Exporter vers Grist</h3>
+        <button class="modal-close" onclick="closeModal('export-grist-modal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="fr-alert fr-alert--info fr-alert--sm fr-mb-2w">
+          <p>Cette fonction va créer une nouvelle table dans votre document Grist avec les données de la source sélectionnée.</p>
+        </div>
+
+        <div class="fr-input-group">
+          <label class="fr-label" for="export-connection">
+            Connexion Grist
+            <span class="fr-hint-text">Sélectionnez une connexion avec clé API</span>
+          </label>
+          <select class="fr-select" id="export-connection">
+            <option value="">-- Sélectionner --</option>
+          </select>
+        </div>
+
+        <div class="fr-input-group fr-mt-2w" id="export-document-group" style="display: none;">
+          <label class="fr-label" for="export-document">
+            Document Grist
+          </label>
+          <select class="fr-select" id="export-document">
+            <option value="">-- Sélectionner --</option>
+          </select>
+        </div>
+
+        <div class="fr-input-group fr-mt-2w">
+          <label class="fr-label" for="export-table-name">
+            Nom de la nouvelle table
+          </label>
+          <input class="fr-input" type="text" id="export-table-name" placeholder="MaNouvelleTable">
+        </div>
+
+        <div id="export-preview" class="fr-mt-2w" style="display: none;">
+          <p class="fr-text--sm" style="color: var(--text-mention-grey);">
+            <i class="ri-database-2-line"></i> <span id="export-record-count">0</span> enregistrements,
+            <span id="export-column-count">0</span> colonnes
+          </p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="fr-btn fr-btn--secondary" onclick="closeModal('export-grist-modal')">Annuler</button>
+        <button class="fr-btn" id="export-grist-confirm-btn" disabled>
+          <i class="ri-upload-cloud-line"></i> Créer la table
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL : Créer une source manuelle -->
+  <div class="modal-overlay" id="manual-source-modal">
+    <div class="modal modal--wide">
+      <div class="modal-header">
+        <h3><i class="ri-edit-line"></i> Nouvelle source manuelle</h3>
+        <button class="modal-close" onclick="closeManualSourceModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="fr-input-group">
+          <label class="fr-label" for="source-name">Nom de la source</label>
+          <input class="fr-input" type="text" id="source-name" placeholder="Ex: Statistiques mensuelles">
+        </div>
+
+        <!-- Tabs pour les 3 modes -->
+        <div class="explorer-tabs fr-mt-2w" id="source-mode-tabs">
+          <button class="explorer-tab active" data-source-mode="table">
+            <i class="ri-table-line"></i> Tableau
+          </button>
+          <button class="explorer-tab" data-source-mode="json">
+            <i class="ri-code-s-slash-line"></i> Coller JSON
+          </button>
+          <button class="explorer-tab" data-source-mode="csv">
+            <i class="ri-file-text-line"></i> Importer CSV
+          </button>
+        </div>
+
+        <!-- Mode Tableau -->
+        <div id="source-mode-table" class="source-mode-panel">
+          <label class="fr-label">
+            Données
+            <span class="fr-hint-text">Renseignez les noms de colonnes puis remplissez les lignes du tableau</span>
+          </label>
+          <div class="table-editor-wrapper">
+            <table class="table-editor" id="source-table-editor">
+              <thead>
+                <tr>
+                  <th class="row-number">#</th>
+                  <th>
+                    <div class="col-header">
+                      <input type="text" value="label" placeholder="Colonne">
+                      <button class="col-remove-btn" title="Supprimer la colonne" onclick="removeTableColumn(this)"><i class="ri-close-line"></i></button>
+                    </div>
+                  </th>
+                  <th>
+                    <div class="col-header">
+                      <input type="text" value="valeur" placeholder="Colonne">
+                      <button class="col-remove-btn" title="Supprimer la colonne" onclick="removeTableColumn(this)"><i class="ri-close-line"></i></button>
+                    </div>
+                  </th>
+                  <th class="row-actions"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="row-number">1</td>
+                  <td><input type="text" placeholder="..."></td>
+                  <td><input type="text" placeholder="..."></td>
+                  <td class="row-actions"><button title="Supprimer la ligne" onclick="removeTableRow(this)"><i class="ri-close-line"></i></button></td>
+                </tr>
+                <tr>
+                  <td class="row-number">2</td>
+                  <td><input type="text" placeholder="..."></td>
+                  <td><input type="text" placeholder="..."></td>
+                  <td class="row-actions"><button title="Supprimer la ligne" onclick="removeTableRow(this)"><i class="ri-close-line"></i></button></td>
+                </tr>
+                <tr>
+                  <td class="row-number">3</td>
+                  <td><input type="text" placeholder="..."></td>
+                  <td><input type="text" placeholder="..."></td>
+                  <td class="row-actions"><button title="Supprimer la ligne" onclick="removeTableRow(this)"><i class="ri-close-line"></i></button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="table-editor-actions">
+            <button class="fr-btn fr-btn--sm fr-btn--tertiary" type="button" onclick="addTableRow()">
+              <i class="ri-add-line"></i> Ajouter une ligne
+            </button>
+            <button class="fr-btn fr-btn--sm fr-btn--tertiary" type="button" onclick="addTableColumn()">
+              <i class="ri-add-line"></i> Ajouter une colonne
+            </button>
+          </div>
+        </div>
+
+        <!-- Mode JSON -->
+        <div id="source-mode-json" class="source-mode-panel" style="display: none;">
+          <div class="fr-input-group">
+            <label class="fr-label" for="json-input">
+              Contenu JSON
+              <span class="fr-hint-text">Collez un tableau JSON ou un objet contenant un tableau</span>
+            </label>
+            <textarea class="fr-input" id="json-input" rows="10" placeholder='[
+  {"label": "Janvier", "valeur": 100},
+  {"label": "Février", "valeur": 150}
+]'></textarea>
+          </div>
+          <div class="fr-input-group fr-mt-1w">
+            <label class="fr-label" for="json-data-path">
+              Chemin vers les données (optionnel)
+              <span class="fr-hint-text">Si le tableau est imbriqué, indiquez le chemin (ex: data.items)</span>
+            </label>
+            <input class="fr-input" type="text" id="json-data-path" placeholder="data.items">
+          </div>
+          <div id="json-preview" class="fr-mt-2w" style="display: none;">
+            <p class="fr-text--sm" style="color: var(--text-mention-grey);">Aperçu : <span id="json-preview-count">0</span> éléments détectés</p>
+          </div>
+        </div>
+
+        <!-- Mode CSV -->
+        <div id="source-mode-csv" class="source-mode-panel" style="display: none;">
+          <div class="fr-upload-group">
+            <label class="fr-label" for="csv-file">
+              Fichier CSV
+              <span class="fr-hint-text">Sélectionnez un fichier CSV (séparateur : virgule ou point-virgule)</span>
+            </label>
+            <input class="fr-upload" type="file" id="csv-file" accept=".csv,text/csv">
+          </div>
+          <div class="fr-input-group fr-mt-2w">
+            <label class="fr-label" for="csv-separator">
+              Séparateur
+            </label>
+            <select class="fr-select" id="csv-separator">
+              <option value="auto">Automatique</option>
+              <option value=";">Point-virgule (;)</option>
+              <option value=",">Virgule (,)</option>
+              <option value="\t">Tabulation</option>
+            </select>
+          </div>
+          <div id="csv-preview" class="fr-mt-2w" style="display: none;">
+            <p class="fr-text--sm" style="color: var(--text-mention-grey);">Aperçu : <span id="csv-preview-count">0</span> lignes détectées</p>
+            <div class="table-preview" style="max-height: 200px;">
+              <table class="fr-table" id="csv-preview-table">
+                <thead><tr></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="fr-btn fr-btn--secondary" onclick="closeManualSourceModal()">Annuler</button>
+        <button class="fr-btn" id="save-source-btn">Sauvegarder</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="src/main.ts"></script>
+</body>
+</html>

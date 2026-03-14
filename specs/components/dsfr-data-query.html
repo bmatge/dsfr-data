@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dsfr-data-query - Composants - dsfr-data</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css" integrity="sha384-VuzA/gYnk/ZqcT5a/ravR88otj71vNPl/h1JPrKoESV33DCX6SeXIxBcRr5qYPRj" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css" integrity="sha384-YR4AxNhFVy1qsQ0Hp7Rosg06e4sj2m9dLxiYZrtqJ0boIOiDbD8XkIsIPMMkf0VL" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <style>
+    body { min-height: 100vh; display: flex; flex-direction: column; }
+  </style>
+</head>
+<body>
+  <!-- Source de donnees pour les exemples client-side (RappelConso) -->
+  <dsfr-data-source
+    id="demo-communes-src"
+    api-type="opendatasoft"
+    dataset-id="rappelconso-v2-gtin-trie"
+    base-url="https://data.economie.gouv.fr"
+    server-side page-size="100">
+  </dsfr-data-source>
+  <dsfr-data-query
+    id="demo-communes"
+    source="demo-communes-src">
+  </dsfr-data-query>
+
+  <!-- Header -->
+  <app-header current-page="composants" base-path="../../"></app-header>
+
+  <!-- Layout documentation avec sidemenu -->
+  <app-layout-demo
+    title="dsfr-data-query"
+    icon="ri-filter-3-line"
+    active-path="components/dsfr-data-query"
+    base-path="../">
+    <div slot="content">
+        <p class="fr-text--lead">
+          Composant de transformation de donnees.
+          Filtre, groupe, agrege et trie les donnees recues d'une <code>&lt;dsfr-data-source&gt;</code>
+          avant de les transmettre aux composants de visualisation.
+          Ne fait aucun fetch HTTP : c'est un pur transformateur.
+        </p>
+
+        <div class="fr-callout fr-callout--blue-france">
+          <p class="fr-callout__text">
+            <strong>Invisible :</strong> Ce composant ne rend rien visuellement. Il transforme les donnees
+            et les redistribue aux composants de visualisation via le systeme d'evenements.
+          </p>
+        </div>
+
+        <p class="fr-mt-2w">
+          <a class="fr-link fr-link--icon-right fr-icon-arrow-right-line"
+             href="../../guide/guide-exemples-query.html">
+            Voir les exemples live dans le Guide utilisateur
+          </a>
+        </p>
+
+        <h2 id="modes">Fonctionnement</h2>
+        <p><code>&lt;dsfr-data-query&gt;</code> est un pur transformateur de donnees. Il recoit les donnees
+          d'une <code>&lt;dsfr-data-source&gt;</code> (ou <code>&lt;dsfr-data-normalize&gt;</code>) via l'attribut <code>source</code>
+          et applique des transformations client-side (filter, group-by, aggregate, sort, limit).</p>
+
+        <h2 id="attributs" class="fr-mt-4w">Attributs</h2>
+        <table class="attr-table">
+          <thead><tr><th>Attribut</th><th>Type</th><th>Format / Valeurs</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>id</code></td><td>String</td><td><code>id="mon-query"</code></td><td>Identifiant unique (requis). Les composants de visualisation l'utilisent pour s'abonner aux donnees transformees.</td></tr>
+            <tr><td><code>source</code></td><td>String</td><td><code>source="id-source"</code></td><td>ID de la <code>&lt;dsfr-data-source&gt;</code> ou <code>&lt;dsfr-data-normalize&gt;</code> a ecouter (requis)</td></tr>
+            <tr><td><code>where</code></td><td>String</td><td><code>"champ:op:val, ..."</code></td><td>Filtres. Plusieurs filtres separes par <code>,</code> (logique ET)</td></tr>
+            <tr><td><code>filter</code></td><td>String</td><td>(meme format que <code>where</code>)</td><td>Alias pour <code>where</code></td></tr>
+            <tr><td><code>group-by</code></td><td>String</td><td><code>"champ1, champ2"</code></td><td>Champs de regroupement separes par virgule</td></tr>
+            <tr><td><code>aggregate</code></td><td>String</td><td><code>"champ:fn"</code> ou <code>"champ:fn:alias"</code></td><td>Agregations. Fonctions : <code>count</code> <code>sum</code> <code>avg</code> <code>min</code> <code>max</code>. Modes <code>generic</code> / <code>tabular</code></td></tr>
+            <tr><td><code>order-by</code></td><td>String</td><td><code>"champ:asc"</code> ou <code>"champ:desc"</code></td><td>Tri des resultats. Champs agreges : <code>"champ__fn:desc"</code> ou <code>"alias:desc"</code></td></tr>
+            <tr><td><code>limit</code></td><td>Number</td><td>Entier positif. <code>0</code> = illimite</td><td>Nombre maximum de resultats</td></tr>
+            <tr><td><code>transform</code></td><td>String</td><td><code>"results"</code>, <code>"data.items"</code></td><td>Chemin JSONPath pour extraire les donnees de la reponse API</td></tr>
+            <tr><td><code>server-side</code></td><td>Boolean</td><td>Presence = <code>true</code></td><td>Active le mode server-side pilotable (une page a la fois, ecoute les commandes des composants en aval)</td></tr>
+            <tr><td><code>page-size</code></td><td>Number</td><td>Entier positif. Defaut : <code>20</code></td><td>Taille de page en mode server-side</td></tr>
+            <tr><td><code>refresh</code></td><td>Number</td><td>Entier en secondes. <code>0</code> = off</td><td>Intervalle de rafraichissement automatique</td></tr>
+          </tbody>
+        </table>
+
+        <h3 class="fr-mt-3w">Syntaxe detaillee des attributs cles</h3>
+
+        <section class="demo-section">
+          <h4><code>where</code> / <code>filter</code> (modes generic et tabular)</h4>
+          <p>Format : <code>champ:operateur:valeur</code>. Plusieurs filtres separes par <code>,</code> (logique ET).</p>
+          <div class="code-block"><pre>where="population:gt:5000"
+where="population:gt:5000, region:in:IDF|OCC|BRE"
+where="email:isnull"                 &lt;!-- pas de valeur pour isnull/isnotnull --&gt;
+where="region:in:IDF|OCC|BRE"        &lt;!-- separateur | pour in/notin --&gt;</pre></div>
+          <p class="fr-text--sm fr-mt-1w">Les valeurs <code>"true"</code>/<code>"false"</code> sont parsees en booleen, les chaines numeriques en nombre.</p>
+        </section>
+
+        <section class="demo-section">
+          <h4><code>aggregate</code></h4>
+          <p>Format de base : <code>champ:fonction</code> — le champ de sortie est nomme <code>champ__fonction</code>.<br>
+            Avec alias : <code>champ:fonction:alias</code> — le champ de sortie porte le nom de l'alias.</p>
+          <div class="code-block"><pre>aggregate="population:sum"            &lt;!-- sortie : population__sum --&gt;
+aggregate="population:sum:total"      &lt;!-- sortie : total --&gt;
+aggregate="pop:sum:total, pop:count:nb"  &lt;!-- deux agregations --&gt;</pre></div>
+          <p class="fr-text--sm fr-mt-1w">Fonctions : <code>count</code> (nombre de lignes), <code>sum</code>, <code>avg</code>, <code>min</code>, <code>max</code>.</p>
+        </section>
+
+        <section class="demo-section">
+          <h4><code>order-by</code></h4>
+          <p>Format : <code>champ:direction</code> ou <code>champ</code> (defaut : <code>asc</code>).<br>
+            Pour trier des resultats agreges, utiliser le nom du champ de sortie.</p>
+          <div class="code-block"><pre>order-by="nom:asc"
+order-by="population__sum:desc"       &lt;!-- champ agrege sans alias --&gt;
+order-by="total:desc"                 &lt;!-- champ agrege avec alias --&gt;</pre></div>
+        </section>
+
+        <h2 id="operateurs" class="fr-mt-4w">Operateurs de filtre</h2>
+        <p>Utilisables dans les attributs <code>where</code> / <code>filter</code> (format <code>"champ:operateur:valeur"</code>) :</p>
+        <table class="attr-table">
+          <thead><tr><th>Operateur</th><th>Description</th><th>Exemple</th></tr></thead>
+          <tbody>
+            <tr><td><code>eq</code></td><td>Egal a</td><td><code>status:eq:active</code></td></tr>
+            <tr><td><code>neq</code></td><td>Different de</td><td><code>status:neq:archived</code></td></tr>
+            <tr><td><code>gt</code></td><td>Strictement superieur</td><td><code>population:gt:5000</code></td></tr>
+            <tr><td><code>gte</code></td><td>Superieur ou egal</td><td><code>population:gte:5000</code></td></tr>
+            <tr><td><code>lt</code></td><td>Strictement inferieur</td><td><code>population:lt:1000</code></td></tr>
+            <tr><td><code>lte</code></td><td>Inferieur ou egal</td><td><code>population:lte:1000</code></td></tr>
+            <tr><td><code>contains</code></td><td>Contient (insensible a la casse)</td><td><code>nom:contains:paris</code></td></tr>
+            <tr><td><code>notcontains</code></td><td>Ne contient pas</td><td><code>nom:notcontains:test</code></td></tr>
+            <tr><td><code>in</code></td><td>Dans une liste (separateur <code>|</code>)</td><td><code>region:in:IDF|OCC|BRE</code></td></tr>
+            <tr><td><code>notin</code></td><td>Pas dans une liste</td><td><code>region:notin:IDF|OCC</code></td></tr>
+            <tr><td><code>isnull</code></td><td>Est null/undefined</td><td><code>email:isnull</code></td></tr>
+            <tr><td><code>isnotnull</code></td><td>N'est pas null</td><td><code>email:isnotnull</code></td></tr>
+          </tbody>
+        </table>
+
+        <h2 id="exemples" class="fr-mt-4w">Exemples</h2>
+
+        <section class="demo-section">
+          <h3>Mode generic : filtrer et trier des donnees existantes</h3>
+          <p>
+            Recupere les donnees d'une <code>&lt;dsfr-data-source&gt;</code> et les filtre/trie cote client.
+            Ici on filtre les 10 premieres lignes triees par nom.
+            <a href="../../guide/guide-exemples-query.html#query-datalist" class="fr-link fr-link--sm">Voir l'exemple live</a>
+          </p>
+          <div class="code-block"><pre>&lt;dsfr-data-source
+  id="raw-data"
+  url="https://mon-api.gouv.fr/records"
+  transform="results"
+&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-query
+  id="filtered-data"
+  source="raw-data"
+  where="population:gt:5000"
+  order-by="nom:asc"
+  limit="10"
+&gt;&lt;/dsfr-data-query&gt;
+
+&lt;dsfr-data-chart
+  source="filtered-data"
+  type="bar"
+  label-field="nom"
+  value-field="population"
+&gt;&lt;/dsfr-data-chart&gt;</pre></div>
+        </section>
+
+        <section class="demo-section">
+          <h3>Mode generic : grouper et agreger</h3>
+          <p>
+            Regroupe les donnees par region et calcule la somme de la population
+            et le nombre d'enregistrements par groupe.
+            <a href="../../guide/guide-exemples-query.html#query-bar" class="fr-link fr-link--sm">Voir l'exemple live</a>
+          </p>
+          <div class="code-block"><pre>&lt;dsfr-data-source
+  id="communes"
+  url="https://mon-api.gouv.fr/communes"
+  transform="results"
+&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-query
+  id="stats-region"
+  source="communes"
+  group-by="region"
+  aggregate="population:sum, population:count"
+  order-by="population__sum:desc"
+  limit="10"
+&gt;&lt;/dsfr-data-query&gt;
+
+&lt;dsfr-data-chart
+  source="stats-region"
+  type="bar"
+  label-field="region"
+  value-field="population__sum"
+&gt;&lt;/dsfr-data-chart&gt;</pre></div>
+        </section>
+
+        <section class="demo-section">
+          <h3>OpenDataSoft : requete serveur via dsfr-data-source</h3>
+          <p>
+            Utilise <code>&lt;dsfr-data-source&gt;</code> pour interroger une API OpenDataSoft,
+            puis <code>&lt;dsfr-data-query&gt;</code> pour le tri et la limite cote client.
+            <a href="../../guide/guide-exemples-query.html#server-side-ods" class="fr-link fr-link--sm">Voir l'exemple live</a>
+          </p>
+          <div class="code-block"><pre>&lt;dsfr-data-source
+  id="ods-src"
+  api-type="opendatasoft"
+  dataset-id="demographyref-communes-2021"
+  base-url="https://data.opendatasoft.com"
+  select="sum(pop_municipale) as total_pop, nom_reg"
+  where="pop_municipale &gt; 5000"
+  group-by="nom_reg"
+&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-query
+  id="ods-stats"
+  source="ods-src"
+  order-by="total_pop:desc"
+  limit="15"
+&gt;&lt;/dsfr-data-query&gt;
+
+&lt;dsfr-data-chart
+  source="ods-stats"
+  type="bar"
+  label-field="nom_reg"
+  value-field="total_pop"
+&gt;&lt;/dsfr-data-chart&gt;</pre></div>
+        </section>
+
+        <section class="demo-section">
+          <h3>OpenDataSoft : requete data.economie.gouv.fr via dsfr-data-source</h3>
+          <p>
+            Utilise <code>&lt;dsfr-data-source&gt;</code> pour interroger une API OpenDataSoft,
+            puis <code>&lt;dsfr-data-query&gt;</code> pour le groupement et l'agregation.
+            <a href="../../guide/guide-exemples-query.html#query-pie" class="fr-link fr-link--sm">Voir l'exemple live</a>
+          </p>
+          <div class="code-block"><pre>&lt;dsfr-data-source
+  id="ods-src"
+  api-type="opendatasoft"
+  dataset-id="rappelconso-v2-gtin-trie"
+  base-url="https://data.economie.gouv.fr"
+  server-side page-size="100"
+&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-query
+  id="ods-stats"
+  source="ods-src"
+  group-by="categorie_produit"
+  aggregate="libelle:count:nombre"
+  order-by="nombre:desc"
+  limit="8"
+&gt;&lt;/dsfr-data-query&gt;
+
+&lt;dsfr-data-chart
+  source="ods-stats"
+  type="pie"
+  label-field="categorie_produit"
+  value-field="nombre"
+&gt;&lt;/dsfr-data-chart&gt;</pre></div>
+        </section>
+
+        <section class="demo-section">
+          <h3>Combinaison de filtres multiples</h3>
+          <p>
+            Plusieurs filtres peuvent etre combines en les separant par des virgules.
+            Tous les filtres doivent etre satisfaits (logique ET).
+            <a href="../../guide/guide-exemples-query.html#query-kpi" class="fr-link fr-link--sm">Voir l'exemple live</a>
+          </p>
+          <div class="code-block"><pre>&lt;dsfr-data-query
+  id="filtered"
+  source="raw-data"
+  where="population:gte:10000, region:in:IDF|OCC|BRE, status:eq:active"
+  order-by="population:desc"
+  limit="20"
+&gt;&lt;/dsfr-data-query&gt;</pre></div>
+        </section>
+
+        <section class="demo-section">
+          <h3>Dataset prive avec headers</h3>
+          <p>
+            L'attribut <code>headers</code> sur <code>&lt;dsfr-data-source&gt;</code> permet de passer des headers HTTP
+            (API key, Bearer token) pour acceder a des datasets prives.
+            <a href="../../guide/guide-exemples-query.html#headers" class="fr-link fr-link--sm">Voir l'exemple live</a>
+          </p>
+          <div class="code-block"><pre>&lt;dsfr-data-source
+  id="private-src"
+  api-type="opendatasoft"
+  dataset-id="mon-dataset-prive"
+  base-url="https://mon-instance.opendatasoft.com"
+  headers='{"apikey":"ma-cle-api"}'
+&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-query
+  id="private-data"
+  source="private-src"
+  group-by="region"
+  aggregate="population:sum:total"
+  order-by="total:desc"
+&gt;&lt;/dsfr-data-query&gt;
+
+&lt;dsfr-data-chart
+  source="private-data"
+  type="bar"
+  label-field="region"
+  value-field="total"
+&gt;&lt;/dsfr-data-chart&gt;</pre></div>
+          <div class="fr-callout fr-mt-2w">
+            <p class="fr-callout__text">
+              <strong>Securite :</strong> les headers sont visibles dans le code source HTML.
+              Ne les utilisez que pour des cles a acces restreint (lecture seule)
+              ou dans des contextes proteges (intranet, applications internes).
+            </p>
+          </div>
+        </section>
+
+        <section class="demo-section">
+          <h3>Rafraichissement automatique</h3>
+          <p>
+            L'attribut <code>refresh</code> sur <code>&lt;dsfr-data-source&gt;</code> permet de re-executer
+            la requete a intervalles reguliers.
+          </p>
+          <div class="code-block"><pre>&lt;dsfr-data-source
+  id="live-src"
+  api-type="opendatasoft"
+  dataset-id="mon-dataset"
+  base-url="https://data.opendatasoft.com"
+  select="count(*) as total"
+  refresh="30"
+&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-query
+  id="live-stats"
+  source="live-src"
+&gt;&lt;/dsfr-data-query&gt;</pre></div>
+        </section>
+
+        <h2 id="evenements" class="fr-mt-4w">Evenements</h2>
+        <p>Le composant emet les memes evenements que <code>&lt;dsfr-data-source&gt;</code> :</p>
+        <ul>
+          <li><code>dsfr-data-loaded</code> : Donnees transformees disponibles</li>
+          <li><code>dsfr-data-loading</code> : Traitement en cours</li>
+          <li><code>dsfr-data-error</code> : Erreur de traitement ou de requete</li>
+        </ul>
+
+        <h2 id="methodes" class="fr-mt-4w">Methodes publiques</h2>
+        <table class="attr-table">
+          <thead><tr><th>Methode</th><th>Retour</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>reload()</code></td><td>void</td><td>Force le rechargement / re-traitement des donnees</td></tr>
+            <tr><td><code>getData()</code></td><td>Array</td><td>Retourne les donnees transformees actuelles</td></tr>
+            <tr><td><code>isLoading()</code></td><td>Boolean</td><td>Indique si un traitement est en cours</td></tr>
+            <tr><td><code>getError()</code></td><td>Error | null</td><td>Retourne l'erreur eventuelle</td></tr>
+          </tbody>
+        </table>
+
+        <h2 id="conseils" class="fr-mt-4w">Conseils d'utilisation</h2>
+        <div class="fr-callout">
+          <p class="fr-callout__text">
+            <strong>Pipeline recommande :</strong> Utilisez <code>&lt;dsfr-data-source&gt;</code> pour le fetch HTTP
+            et <code>&lt;dsfr-data-query&gt;</code> pour les transformations client-side (filter, group-by, aggregate, sort).
+            Pour les gros volumes, deleguer les agregations a la source via les attributs de <code>&lt;dsfr-data-source&gt;</code>.
+          </p>
+        </div>
+        <div class="fr-callout fr-mt-2w">
+          <p class="fr-callout__text">
+            <strong>Nommage des champs agreges :</strong> En mode <code>generic</code>, les champs agreges sont nommes
+            automatiquement <code>champ__fonction</code> (ex: <code>population__sum</code>, <code>population__count</code>).
+            Vous pouvez definir un alias avec le format <code>"champ:fonction:alias"</code>.
+          </p>
+        </div>
+        <div class="fr-callout fr-mt-2w">
+          <p class="fr-callout__text">
+            <strong>Chainabilite :</strong> Un <code>&lt;dsfr-data-query&gt;</code> peut servir de source a un autre
+            <code>&lt;dsfr-data-query&gt;</code> en utilisant son <code>id</code> comme attribut <code>source</code>,
+            permettant de construire des pipelines de transformation.
+          </p>
+        </div>
+    </div>
+  </app-layout-demo>
+
+  <!-- Footer -->
+  <app-footer base-path="../../"></app-footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js" integrity="sha384-4dK3hBJJh/bjoOulz9Q1kNO2O09lzuKiFeF5c+0VguV1RT3IiLkv+Pt98Jul84V+" crossorigin="anonymous"></script>
+</body>
+</html>

@@ -1,0 +1,104 @@
+/* Monitoring app styles */
+
+.monitoring-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.monitoring-kpi {
+  background: var(--background-default-grey);
+  border-left: 4px solid var(--border-action-high-blue-france);
+  padding: 1rem 1.5rem;
+  border-radius: 0 4px 4px 0;
+}
+
+.monitoring-kpi__value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-title-grey);
+  line-height: 1.2;
+}
+
+.monitoring-kpi__label {
+  font-size: 0.875rem;
+  color: var(--text-mention-grey);
+  margin-top: 0.25rem;
+}
+
+.monitoring-filters {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.monitoring-filters .fr-input-group {
+  flex: 1;
+  min-width: 180px;
+  margin-bottom: 0;
+}
+
+.monitoring-badge {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: var(--background-contrast-blue-france);
+  color: var(--text-action-high-blue-france);
+}
+
+.monitoring-badge--type {
+  background: var(--background-contrast-green-emeraude);
+  color: var(--text-default-success);
+}
+
+.monitoring-table th {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.monitoring-table th:hover {
+  background: var(--background-alt-grey);
+}
+
+.monitoring-table th .sort-icon {
+  margin-left: 0.25rem;
+  opacity: 0.3;
+}
+
+.monitoring-table th .sort-icon.active {
+  opacity: 1;
+}
+
+.monitoring-empty {
+  text-align: center;
+  padding: 3rem;
+  color: var(--text-mention-grey);
+}
+
+.monitoring-error {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-default-error);
+}
+
+.monitoring-link {
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
+
+.monitoring-date {
+  white-space: nowrap;
+  font-size: 0.875rem;
+}
+
+.monitoring-count {
+  font-weight: 600;
+  text-align: right;
+}

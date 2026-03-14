@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Maires de France — Exemples avances - Guide - dsfr-data</title>
+  <style>@view-transition{navigation:auto}app-header:not(:defined){display:block;min-height:56px}app-footer:not(:defined){display:block;min-height:48px}</style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css">
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"></script>
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script src="guide-menu.js"></script>
+  <style>
+    .guide-layout { display: flex; gap: 2rem; }
+    .guide-content { flex: 1; min-width: 0; }
+    @media (max-width: 992px) {
+      .guide-layout { flex-direction: column; }
+    }
+    .guide-content h2 { padding-top: 2rem; border-top: 1px solid var(--border-default-grey); margin-top: 3rem; }
+    .guide-content h2:first-of-type { border-top: none; margin-top: 0; padding-top: 0; }
+    .guide-content h3 { margin-top: 2rem; }
+    .guide-content h4 { margin-top: 1.5rem; }
+    .guide-content pre { background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 4px; font-family: monospace; font-size: 0.85rem; overflow-x: auto; white-space: pre-wrap; margin: 0; }
+    .guide-content ol, .guide-content ul { margin: 0.5rem 0 1rem 1.5rem; }
+    .guide-content li { margin-bottom: 0.25rem; }
+    .example-container { border: 1px solid var(--border-default-grey); border-radius: 4px; padding: 1rem; background: white; min-height: 100px; }
+    .pipeline-diagram { background: var(--background-alt-grey); padding: 1rem 1.5rem; border-radius: 4px; font-family: monospace; font-size: 0.85rem; line-height: 1.6; white-space: pre; overflow-x: auto; }
+
+    /* Dashboard styles */
+    .dashboard-header {
+      background: var(--background-action-high-blue-france);
+      color: white;
+      padding: 2rem 0;
+      margin-bottom: 2rem;
+      border-radius: 8px;
+    }
+    .dashboard-header h1 { color: white; margin: 0; font-size: 1.75rem; }
+    .dashboard-header p { color: rgba(255,255,255,0.85); margin: 0.5rem 0 0; }
+    .section-title {
+      border-left: 4px solid var(--border-action-high-blue-france);
+      padding-left: 1rem;
+      margin: 2.5rem 0 1.5rem;
+      border-top: none;
+      padding-top: 0;
+    }
+    .chart-card {
+      background: var(--background-default-grey);
+      border: 1px solid var(--border-default-grey);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .chart-card h3 { margin-top: 0; font-size: 1.1rem; }
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .charts-2col {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 1.5rem;
+    }
+    .source-note {
+      margin-top: 2rem; padding: 1rem;
+      background: var(--background-alt-grey);
+      border-radius: 4px; font-size: 0.875rem;
+      color: var(--text-mention-grey); margin-bottom: 2rem;
+    }
+  </style>
+</head>
+<body>
+  <app-header current-page="guide" base-path="../"></app-header>
+
+  <main class="fr-container fr-py-4w" id="main-content">
+    <div class="guide-layout">
+
+      <app-sidemenu section="guide"></app-sidemenu>
+
+      <div class="guide-content">
+
+        <h1><i class="fr-mr-1w"></i>Dashboard Maires - API Tabular</h1>
+        <p class="fr-text--lead">
+          Tableau de bord sur les maires de France a partir du Repertoire National des Elus (RNE)
+          via l'API Tabular data.gouv.fr. Architecture hybride : donnees pre-calculees pour
+          les graphiques et facettes, exploration par cartes avec pagination serveur.
+        </p>
+
+        <div class="fr-callout fr-callout--blue-france fr-mt-2w">
+          <p class="fr-callout__text">
+            <strong>Architecture hybride :</strong> L'API Tabular ne supporte pas les agregations
+            server-side (<code>group-by</code>, <code>count</code>). Les donnees des graphiques et KPI
+            sont donc pre-calculees et injectees via <code>dsfr-data-source data="..."</code> (inline JSON,
+            zero requete HTTP). L'exploration utilise l'API en mode <code>server-side</code> avec
+            pagination (15 fiches/page), des facettes a valeurs pre-calculees (<code>static-values</code>)
+            et un affichage en cartes.
+          </p>
+        </div>
+
+        <h4>Architecture du pipeline</h4>
+        <div class="pipeline-diagram">dsfr-data-source "d-*" (inline JSON, pre-calcule)       --> dsfr-data-kpi (chiffres cles)
+                                                      --> dsfr-data-chart (graphiques)
+
+dsfr-data-source "s-browse" (tabular, server-side, 15/p) --> dsfr-data-normalize (rename + decode)
+      ^                                                  --> dsfr-data-display (cartes, pagination serveur)
+      |
+      |--- dsfr-data-search (server-search, WHERE "Nom:contains:{q}")
+      |--- dsfr-data-facets (static-values, WHERE par facette)</div>
+
+        <h4 class="fr-mt-3w">Exemple live</h4>
+
+        <!-- ============================================================= -->
+        <!-- SOURCES PRE-CALCULEES (inline JSON, zero requete HTTP)         -->
+        <!-- ============================================================= -->
+
+        <!-- KPIs -->
+        <dsfr-data-source id="d-total" data='[{"total": 34874}]'></dsfr-data-source>
+        <dsfr-data-source id="d-femmes" data='[{"total": 7372}]'></dsfr-data-source>
+        <dsfr-data-source id="d-hommes" data='[{"total": 27502}]'></dsfr-data-source>
+
+        <!-- Sexe -->
+        <dsfr-data-source id="d-sexe" data='[{"Sexe": "Femme", "Nombre": 7372}, {"Sexe": "Homme", "Nombre": 27502}]'></dsfr-data-source>
+
+        <!-- CSP top 20 -->
+        <dsfr-data-source id="d-csp" data='[{"CSP": "Ancien cadre", "Nombre": 5528}, {"CSP": "Agriculteur sur moyenne exploitation", "Nombre": 2859}, {"CSP": "Ancien employe", "Nombre": 2228}, {"CSP": "Cadre administratif et commercial d&#39;entreprise", "Nombre": 1931}, {"CSP": "Ancien agriculteur exploitant", "Nombre": 1927}, {"CSP": "Cadre de la fonction publique", "Nombre": 1904}, {"CSP": "Ancienne profession intermediaire", "Nombre": 1428}, {"CSP": "Ancien artisan, commercant, chef d&#39;entreprise", "Nombre": 1395}, {"CSP": "Ingenieur et cadre technique d&#39;entreprise", "Nombre": 1246}, {"CSP": "Professeur, profession scientifique", "Nombre": 1207}, {"CSP": "Profession liberale", "Nombre": 1207}, {"CSP": "Technicien", "Nombre": 977}, {"CSP": "Employe civil et agent de service de la fonction publique", "Nombre": 887}, {"CSP": "Agriculteur sur petite exploitation", "Nombre": 804}, {"CSP": "Artisan", "Nombre": 784}, {"CSP": "Contremaitre, agent de maitrise", "Nombre": 780}, {"CSP": "Chef d&#39;entreprise de 10 salaries ou plus", "Nombre": 686}, {"CSP": "Commercant et assimile", "Nombre": 679}, {"CSP": "Profession intermediaire de la sante et du travail social", "Nombre": 679}, {"CSP": "Employe administratif d&#39;entreprise", "Nombre": 668}]'></dsfr-data-source>
+
+        <!-- CSP femmes top 10 -->
+        <dsfr-data-source id="d-csp-f" data='[{"CSP": "Ancien cadre", "Nombre": 781}, {"CSP": "Ancien employe", "Nombre": 596}, {"CSP": "Employe administratif d&#39;entreprise", "Nombre": 503}, {"CSP": "Cadre de la fonction publique", "Nombre": 487}, {"CSP": "Cadre administratif et commercial d&#39;entreprise", "Nombre": 443}, {"CSP": "Profession intermediaire de la sante et du travail social", "Nombre": 402}, {"CSP": "Ancienne profession intermediaire", "Nombre": 399}, {"CSP": "Personne diverse sans activite professionnelle de moins de 60 ans (sauf retraite)", "Nombre": 352}, {"CSP": "Profession intermediaire administrative de la fonction publique", "Nombre": 343}, {"CSP": "Professeur, profession scientifique", "Nombre": 305}]'></dsfr-data-source>
+
+        <!-- CSP hommes top 10 -->
+        <dsfr-data-source id="d-csp-h" data='[{"CSP": "Ancien cadre", "Nombre": 4747}, {"CSP": "Agriculteur sur moyenne exploitation", "Nombre": 2564}, {"CSP": "Ancien agriculteur exploitant", "Nombre": 1779}, {"CSP": "Ancien employe", "Nombre": 1632}, {"CSP": "Cadre administratif et commercial d&#39;entreprise", "Nombre": 1488}, {"CSP": "Cadre de la fonction publique", "Nombre": 1417}, {"CSP": "Ancien artisan, commercant, chef d&#39;entreprise", "Nombre": 1234}, {"CSP": "Ingenieur et cadre technique d&#39;entreprise", "Nombre": 1160}, {"CSP": "Ancienne profession intermediaire", "Nombre": 1029}, {"CSP": "Profession liberale", "Nombre": 939}]'></dsfr-data-source>
+
+        <!-- Regions -->
+        <dsfr-data-source id="d-region" data='[{"region": "Grand Est", "total": 5105}, {"region": "Occitanie", "total": 4433}, {"region": "Nouvelle-Aquitaine", "total": 4270}, {"region": "Auvergne-Rhone-Alpes", "total": 3994}, {"region": "Hauts-de-France", "total": 3779}, {"region": "Bourgogne-Franche-Comte", "total": 3676}, {"region": "Normandie", "total": 2632}, {"region": "Centre-Val de Loire", "total": 1750}, {"region": "Ile-de-France", "total": 1270}, {"region": "Pays de la Loire", "total": 1224}, {"region": "Bretagne", "total": 1200}, {"region": "Provence-Alpes-Cote d&#39;Azur", "total": 970}, {"region": "Corse", "total": 359}, {"region": "Guadeloupe", "total": 32}, {"region": "La Reunion", "total": 24}, {"region": "Mayotte", "total": 17}, {"region": "Martinique", "total": 1}]'></dsfr-data-source>
+
+        <!-- Top 15 departements -->
+        <dsfr-data-source id="d-dept-top" data='[{"Departement": "Pas-De-Calais", "Nombre": 886}, {"Departement": "Aisne", "Nombre": 794}, {"Departement": "Somme", "Nombre": 771}, {"Departement": "Moselle", "Nombre": 725}, {"Departement": "Seine-Maritime", "Nombre": 704}, {"Departement": "Cote-D&#39;Or", "Nombre": 698}, {"Departement": "Oise", "Nombre": 681}, {"Departement": "Nord", "Nombre": 647}, {"Departement": "Marne", "Nombre": 610}, {"Departement": "Haute-Garonne", "Nombre": 586}, {"Departement": "Meurthe-Et-Moselle", "Nombre": 586}, {"Departement": "Eure", "Nombre": 578}, {"Departement": "Saone-Et-Loire", "Nombre": 564}, {"Departement": "Haute-Saone", "Nombre": 561}, {"Departement": "Pyrenees-Atlantiques", "Nombre": 546}]'></dsfr-data-source>
+
+        <!-- Femmes par region -->
+        <dsfr-data-source id="d-parite" data='[{"region": "Nouvelle-Aquitaine", "total": 976}, {"region": "Grand Est", "total": 943}, {"region": "Occitanie", "total": 914}, {"region": "Auvergne-Rhone-Alpes", "total": 905}, {"region": "Bourgogne-Franche-Comte", "total": 779}, {"region": "Hauts-de-France", "total": 717}, {"region": "Normandie", "total": 583}, {"region": "Centre-Val de Loire", "total": 412}, {"region": "Ile-de-France", "total": 310}, {"region": "Pays de la Loire", "total": 281}, {"region": "Bretagne", "total": 275}, {"region": "Provence-Alpes-Cote d&#39;Azur", "total": 199}, {"region": "Corse", "total": 41}, {"region": "Guadeloupe", "total": 8}, {"region": "La Reunion", "total": 4}]'></dsfr-data-source>
+
+        <!-- Source paginee server-side pour le tableau -->
+        <dsfr-data-source id="s-browse" api-type="tabular"
+          resource="2876a346-d50c-4911-934e-19ee07b0e503"
+          server-side
+          page-size="15">
+        </dsfr-data-source>
+
+        <dsfr-data-normalize id="n-browse" source="s-browse" trim
+          replace-fields="Code sexe:M:Homme | Code sexe:F:Femme"
+          rename="Libellé du département:Département | Libellé de la commune:Commune | Nom de l'élu:Nom | Prénom de l'élu:Prénom | Code sexe:Sexe | Libellé de la catégorie socio-professionnelle:CSP | Date de début du mandat:Début mandat">
+        </dsfr-data-normalize>
+
+        <!-- ============================================================= -->
+        <!-- DASHBOARD                                                       -->
+        <!-- ============================================================= -->
+
+        <div class="dashboard-header fr-mt-3w">
+          <div class="fr-container">
+            <h1>Maires de France</h1>
+            <p>Repertoire National des Elus (RNE) — Donnees ouvertes data.gouv.fr</p>
+          </div>
+        </div>
+
+        <!-- KPIs -->
+        <h2 class="section-title">Chiffres cles</h2>
+
+        <div class="kpi-row">
+          <dsfr-data-kpi source="d-total"
+            valeur="total"
+            label="Maires en France"
+            icone="ri-government-line"
+            couleur="bleu">
+          </dsfr-data-kpi>
+
+          <dsfr-data-kpi source="d-femmes"
+            valeur="total"
+            label="Femmes maires"
+            icone="ri-women-line"
+            couleur="rouge">
+          </dsfr-data-kpi>
+
+          <dsfr-data-kpi source="d-hommes"
+            valeur="total"
+            label="Hommes maires"
+            icone="ri-men-line"
+            couleur="bleu">
+          </dsfr-data-kpi>
+
+
+        </div>
+
+        <!-- Repartition par sexe -->
+        <h2 class="section-title">Repartition par sexe</h2>
+
+        <div class="charts-2col">
+          <div class="chart-card">
+            <h3>Repartition Femmes / Hommes</h3>
+            <dsfr-data-chart id="chart-sexe" source="d-sexe" type="pie"
+              label-field="Sexe" value-field="Nombre"
+              selected-palette="categorical">
+            </dsfr-data-chart>
+            <dsfr-data-a11y for="chart-sexe" source="d-sexe" table download></dsfr-data-a11y>
+          </div>
+
+          <div class="chart-card">
+            <h3>Nombre de maires par sexe</h3>
+            <dsfr-data-chart source="d-sexe" type="bar"
+              label-field="Sexe" value-field="Nombre"
+              selected-palette="categorical"
+              unit-tooltip=" maires">
+            </dsfr-data-chart>
+          </div>
+        </div>
+
+        <!-- CSP -->
+        <h2 class="section-title">Repartition par categorie socio-professionnelle</h2>
+
+        <div class="chart-card">
+          <h3>Nombre de maires par CSP (top 20)</h3>
+          <dsfr-data-chart id="chart-csp" source="d-csp" type="bar"
+            label-field="CSP" value-field="Nombre"
+            horizontal
+            selected-palette="sequentialDescending"
+            unit-tooltip=" maires">
+          </dsfr-data-chart>
+          <dsfr-data-a11y for="chart-csp" source="d-csp" table download></dsfr-data-a11y>
+        </div>
+
+        <!-- CSP x Sexe -->
+        <h2 class="section-title">Croisement CSP et Sexe</h2>
+
+        <div class="charts-2col">
+          <div class="chart-card">
+            <h3>CSP des femmes maires (top 10)</h3>
+            <dsfr-data-chart source="d-csp-f" type="bar"
+              label-field="CSP" value-field="Nombre"
+              horizontal
+              selected-palette="sequentialAscending"
+              unit-tooltip=" maires">
+            </dsfr-data-chart>
+          </div>
+
+          <div class="chart-card">
+            <h3>CSP des hommes maires (top 10)</h3>
+            <dsfr-data-chart source="d-csp-h" type="bar"
+              label-field="CSP" value-field="Nombre"
+              horizontal
+              selected-palette="sequentialDescending"
+              unit-tooltip=" maires">
+            </dsfr-data-chart>
+          </div>
+        </div>
+
+        <!-- Regions -->
+        <h2 class="section-title">Repartition geographique</h2>
+
+        <div class="chart-card">
+          <h3>Nombre de maires par region</h3>
+          <dsfr-data-chart id="chart-region" source="d-region" type="bar"
+            label-field="region" value-field="total"
+            horizontal
+            selected-palette="categorical"
+            unit-tooltip=" maires">
+          </dsfr-data-chart>
+          <dsfr-data-a11y for="chart-region" source="d-region" table download></dsfr-data-a11y>
+        </div>
+
+        <!-- Top 15 departements -->
+        <div class="chart-card">
+          <h3>Top 15 des departements par nombre de communes</h3>
+          <dsfr-data-chart id="chart-dept" source="d-dept-top" type="bar"
+            label-field="Departement" value-field="Nombre"
+            horizontal
+            selected-palette="sequentialDescending"
+            unit-tooltip=" maires">
+          </dsfr-data-chart>
+          <dsfr-data-a11y for="chart-dept" source="d-dept-top" table download></dsfr-data-a11y>
+        </div>
+
+        <!-- Parite par region -->
+        <h2 class="section-title">Parite par region</h2>
+
+        <div class="chart-card">
+          <h3>Nombre de femmes maires par region</h3>
+          <dsfr-data-chart id="chart-parite" source="d-parite" type="bar"
+            label-field="region" value-field="total"
+            horizontal
+            selected-palette="sequentialAscending"
+            unit-tooltip=" femmes maires">
+          </dsfr-data-chart>
+          <dsfr-data-a11y for="chart-parite" source="d-parite" table download></dsfr-data-a11y>
+        </div>
+
+        <!-- Explorez les donnees -->
+        <h2 class="section-title">Explorez les donnees</h2>
+
+        <p class="fr-mb-2w">
+          Recherchez par nom ou filtrez par sexe, departement ou categorie socio-professionnelle.
+          La recherche et les facettes envoient des filtres a l'API Tabular ; la pagination server-side
+          ne charge que 15 fiches a la fois.
+        </p>
+
+        <!-- Recherche server-side (filtre par nom via __contains) -->
+        <dsfr-data-search source="s-browse" server-search
+          search-template="Nom de l'élu:contains:{q}"
+          placeholder="Rechercher un maire par nom..."
+          count>
+        </dsfr-data-search>
+
+        <!-- Facettes a valeurs pre-calculees : envoient des WHERE a s-browse -->
+        <dsfr-data-facets id="f-browse" source="s-browse"
+          fields="Code sexe, Libellé du département, Libellé de la catégorie socio-professionnelle"
+          labels="Code sexe:Sexe | Libellé du département:Département | Libellé de la catégorie socio-professionnelle:CSP"
+          static-values='{"Code sexe":["F","M"],"Libellé du département":["Ain","Aisne","Allier","Alpes-De-Haute-Provence","Alpes-Maritimes","Ardennes","Ardèche","Ariège","Aube","Aude","Aveyron","Bas-Rhin","Bouches-Du-Rhône","Calvados","Cantal","Charente","Charente-Maritime","Cher","Corrèze","Corse-Du-Sud","Creuse","Côte-D&#39;Or","Côtes-D&#39;Armor","Deux-Sèvres","Dordogne","Doubs","Drôme","Essonne","Eure","Eure-Et-Loir","Finistère","Gard","Gers","Gironde","Guadeloupe","Haut-Rhin","Haute-Corse","Haute-Garonne","Haute-Loire","Haute-Marne","Haute-Savoie","Haute-Saône","Haute-Vienne","Hautes-Alpes","Hautes-Pyrénées","Hauts-De-Seine","Hérault","Ille-Et-Vilaine","Indre","Indre-Et-Loire","Isère","Jura","La Réunion","Landes","Loir-Et-Cher","Loire","Loire-Atlantique","Loiret","Lot","Lot-Et-Garonne","Lozère","Maine-Et-Loire","Manche","Marne","Martinique","Mayenne","Mayotte","Meurthe-Et-Moselle","Meuse","Morbihan","Moselle","Nièvre","Nord","Oise","Orne","Paris","Pas-De-Calais","Puy-De-Dôme","Pyrénées-Atlantiques","Pyrénées-Orientales","Rhône","Sarthe","Savoie","Saône-Et-Loire","Seine-Et-Marne","Seine-Maritime","Seine-Saint-Denis","Somme","Tarn","Tarn-Et-Garonne","Territoire De Belfort","Val-D&#39;Oise","Val-De-Marne","Var","Vaucluse","Vendée","Vienne","Vosges","Yonne","Yvelines"],"Libellé de la catégorie socio-professionnelle":["Agriculteur propriétaire exploit. (obsolète)","Agriculteur sur grande exploitation","Agriculteur sur moyenne exploitation","Agriculteur sur petite exploitation","Ancien agriculteur exploitant","Ancien artisan, commerçant, chef d&#39;entreprise","Ancien cadre","Ancien employé","Ancien ouvrier","Ancienne profession intermédiaire","Artisan","Cadre administratif et commercial d&#39;entreprise","Cadre de la fonction publique","Chauffeur","Chef d&#39;entreprise de 10 salariés ou plus","Clergé, religieux","Commerçant et assimilé","Contremaître, agent de maîtrise","Elève, étudiant","Employé administratif d&#39;entreprise","Employé civil et agent de service de la fonction publique","Employé de commerce","Fonctionnaire de catégorie B (obsolète)","Ingénieur et cadre technique d&#39;entreprise","Militaire du contingent","Ouvrier agricole","Ouvrier non qualifié de type artisanal","Ouvrier non qualifié de type industriel","Ouvrier qualifié de la manutention, du magasinage et du transport","Ouvrier qualifié de type artisanal","Ouvrier qualifié de type industriel","Personne diverse sans activité professionnelle de 60 ans et plus (sauf retraité)","Personne diverse sans activité professionnelle de moins de 60 ans (sauf retraité)","Personnel des services directs aux particuliers","Policier et militaire","Professeur des écoles, instituteur et assimilé","Professeur, profession scientifique","Profession de l&#39;information, des arts et des spectacles","Profession intermédiaire administrative de la fonction publique","Profession intermédiaire administrative et commerciale des entreprises","Profession intermédiaire de la santé et du travail social","Profession libérale","Retraité des entreprises publiques (obsolète)","Technicien"]}'
+          display="Code sexe:select | Libellé du département:multiselect | Libellé de la catégorie socio-professionnelle:multiselect"
+          searchable="Libellé du département, Libellé de la catégorie socio-professionnelle"
+          disjunctive="Libellé du département, Libellé de la catégorie socio-professionnelle"
+          max-values="8"
+          cols="Code sexe:4 | Libellé du département:4 | Libellé de la catégorie socio-professionnelle:4">
+        </dsfr-data-facets>
+
+        <!-- Cartes avec pagination server-side -->
+        <div style="min-height: 600px;">
+          <dsfr-data-display source="n-browse" cols="3" pagination="15"
+            empty="Aucun maire trouve pour ces criteres">
+            <template>
+              <div class="fr-card fr-card--sm">
+                <div class="fr-card__body">
+                  <div class="fr-card__content">
+                    <h3 class="fr-card__title" style="font-size:1rem;">{{Prénom}} {{Nom}}</h3>
+                    <p class="fr-card__desc" style="margin:0.25rem 0;">
+                      Maire de <strong>{{Commune}}</strong><br>
+                      {{Département}}
+                    </p>
+                    <div class="fr-card__end" style="margin-top:0.5rem;">
+                      <p class="fr-badge fr-badge--sm fr-badge--blue-ecume" style="margin-right:0.5rem;">{{Sexe}}</p>
+                      <p class="fr-badge fr-badge--sm fr-badge--green-emeraude">{{CSP}}</p>
+                    </div>
+                    <p class="fr-card__detail" style="font-size:0.8rem; color:var(--text-mention-grey); margin-top:0.5rem;">
+                      Mandat depuis le {{Début mandat}}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </dsfr-data-display>
+        </div>
+
+        <!-- Source -->
+        <div class="source-note">
+          <strong>Source :</strong> Repertoire National des Elus (RNE) — Maires —
+          <a href="https://www.data.gouv.fr/fr/datasets/r/2876a346-d50c-4911-934e-19ee07b0e503" target="_blank" rel="noopener">data.gouv.fr</a><br>
+          <strong>API :</strong> <a href="https://tabular-api.data.gouv.fr/api/resources/2876a346-d50c-4911-934e-19ee07b0e503/swagger/" target="_blank" rel="noopener">API Tabular data.gouv.fr</a><br>
+          <strong>Graphiques :</strong>
+          Donnees pre-calculees dans <code>dsfr-data-source data="..."</code> (inline JSON, zero requete HTTP)<br>
+          <strong>Exploration :</strong>
+          <code>dsfr-data-search server-search</code> (WHERE par nom) +
+          <code>dsfr-data-facets static-values</code> (WHERE par facette) &rarr;
+          <code>dsfr-data-source server-side page-size="15"</code> &rarr;
+          <code>dsfr-data-normalize</code> (rename + decode) &rarr;
+          <code>dsfr-data-display</code> (cartes, pagination serveur)<br>
+          <strong>Note :</strong> L'API Tabular ne supporte pas les agregations server-side (group-by, count).
+          Les donnees des graphiques, KPI et valeurs de facettes sont pre-calculees a partir du CSV source (dec. 2025).
+        </div>
+
+        <!-- Code source -->
+        <section class="fr-accordion fr-mt-2w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-maires">Code source complet</button></h3>
+          <div class="fr-collapse" id="code-maires">
+<pre class="example-code">&lt;!-- Donnees pre-calculees (inline JSON, zero requete) --&gt;
+&lt;dsfr-data-source id="d-total" data='[{"total": 34874}]'&gt;&lt;/dsfr-data-source&gt;
+&lt;dsfr-data-source id="d-sexe"
+  data='[{"Sexe": "Femme", "Nombre": 7372},
+         {"Sexe": "Homme", "Nombre": 27502}]'&gt;
+&lt;/dsfr-data-source&gt;
+&lt;dsfr-data-source id="d-csp"
+  data='[{"CSP": "Ancien cadre", "Nombre": 5528}, ...]'&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;!-- KPIs et graphiques (donnees inline) --&gt;
+&lt;dsfr-data-kpi source="d-total" valeur="total"
+  label="Maires en France" icone="ri-government-line"&gt;
+&lt;/dsfr-data-kpi&gt;
+&lt;dsfr-data-chart source="d-sexe" type="pie"
+  label-field="Sexe" value-field="Nombre"&gt;
+&lt;/dsfr-data-chart&gt;
+
+&lt;!-- Exploration : source paginee + facettes + cartes --&gt;
+&lt;dsfr-data-source id="s-browse" api-type="tabular"
+  resource="2876a346-d50c-4911-934e-19ee07b0e503"
+  server-side page-size="15"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-normalize id="n-browse" source="s-browse" trim
+  replace-fields="Code sexe:M:Homme | Code sexe:F:Femme"
+  rename="Libelle du departement:Departement | ..."&gt;
+&lt;/dsfr-data-normalize&gt;
+
+&lt;!-- Recherche par nom (server-side WHERE) --&gt;
+&lt;dsfr-data-search source="s-browse" server-search
+  search-template="Nom de l'elu:contains:{q}"
+  placeholder="Rechercher un maire par nom..." count&gt;
+&lt;/dsfr-data-search&gt;
+
+&lt;!-- Facettes : valeurs pre-calculees, WHERE server-side --&gt;
+&lt;dsfr-data-facets id="f-browse" source="s-browse"
+  fields="Code sexe, Libelle du departement, ..."
+  labels="Code sexe:Sexe | Libelle du departement:Departement | ..."
+  static-values='{"Code sexe":["F","M"],...}'
+  display="Code sexe:checkbox | Libelle du departement:multiselect | ..."
+  searchable="Libelle du departement, ..."
+  max-values="8"&gt;
+&lt;/dsfr-data-facets&gt;
+
+&lt;!-- Cartes avec pagination server-side --&gt;
+&lt;dsfr-data-display source="n-browse" cols="3" pagination="15"
+  empty="Aucun maire trouve pour ces criteres"&gt;
+  &lt;template&gt;
+    &lt;div class="fr-card fr-card--sm"&gt;
+      &lt;div class="fr-card__body"&gt;
+        &lt;div class="fr-card__content"&gt;
+          &lt;h3 class="fr-card__title"&gt;{{Prenom}} {{Nom}}&lt;/h3&gt;
+          &lt;p class="fr-card__desc"&gt;Maire de {{Commune}} — {{Departement}}&lt;/p&gt;
+          &lt;p class="fr-badge fr-badge--sm"&gt;{{Sexe}}&lt;/p&gt;
+          &lt;p class="fr-badge fr-badge--sm"&gt;{{CSP}}&lt;/p&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/template&gt;
+&lt;/dsfr-data-display&gt;</pre>
+          </div>
+        </section>
+
+        <!-- Points cles -->
+        <h4 class="fr-mt-3w">Points cles de cet exemple</h4>
+        <ul>
+          <li><strong>Architecture hybride</strong> : l'API Tabular ne supporte pas les agregations server-side. Les donnees des graphiques et KPI sont pre-calculees a partir du CSV source et injectees via <code>dsfr-data-source data="..."</code> (inline JSON, zero requete HTTP).</li>
+          <li><strong>Chargement instantane</strong> : les graphiques et KPI s'affichent immediatement (donnees inline), sans attendre de reponse API.</li>
+          <li><strong>Recherche server-side</strong> : <code>dsfr-data-search server-search</code> envoie une commande WHERE (<code>Nom:contains:{q}</code>) a la source Tabular. La recherche et les facettes sont combinables (WHERE merges par la source).</li>
+          <li><strong>Facettes a valeurs pre-calculees</strong> : <code>dsfr-data-facets static-values</code> affiche les valeurs de facettes sans les calculer depuis les donnees. Les selections envoient des commandes WHERE a la source Tabular pour le filtrage server-side.</li>
+          <li><strong>Cartes paginees server-side</strong> : <code>dsfr-data-display</code> avec <code>pagination="15"</code> + <code>dsfr-data-source server-side page-size="15"</code> ne charge que 15 fiches a la fois.</li>
+          <li><strong>Decodage dans les cartes</strong> : <code>dsfr-data-normalize</code> renomme les colonnes et decode <code>Code sexe</code> en <code>Homme/Femme</code> via <code>replace-fields</code>.</li>
+          <li><strong>Accessibilite</strong> : <code>dsfr-data-a11y</code> sur chaque graphique pour le telechargement CSV.</li>
+          <li><strong>0 ligne de JavaScript</strong> : tout le dashboard est 100% declaratif en HTML.</li>
+          <li><strong>Limitation</strong> : les donnees pre-calculees (graphiques, facettes) sont un instantane (dec. 2025). Pour des donnees en temps reel, il faudrait un backend d'agregation ou une API supportant group-by.</li>
+        </ul>
+
+      </div>
+    </div>
+  </main>
+
+  <app-footer base-path="../"></app-footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js"></script>
+</body>
+</html>

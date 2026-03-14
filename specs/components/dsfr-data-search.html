@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dsfr-data-search - Composants - dsfr-data</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"></script>
+  <style>
+    body { min-height: 100vh; display: flex; flex-direction: column; }
+    .attr-table { width: 100%; border-collapse: collapse; }
+    .attr-table th, .attr-table td { border: 1px solid var(--border-default-grey); padding: 0.5rem; text-align: left; }
+    .attr-table th { background: var(--background-contrast-grey); }
+    pre { background: var(--background-contrast-grey); padding: 1rem; border-radius: 4px; overflow-x: auto; }
+    code { font-size: 0.875em; }
+  </style>
+</head>
+<body>
+  <!-- ============================================================
+       Sources de donnees pour les exemples live
+       ============================================================ -->
+
+  <!-- Exemple 1 & 2 : RappelConso (OpenDataSoft) -->
+  <dsfr-data-source id="elus-raw"
+    api-type="opendatasoft"
+    dataset-id="rappelconso-v2-gtin-trie"
+    base-url="https://data.economie.gouv.fr">
+  </dsfr-data-source>
+  <dsfr-data-normalize id="elus-clean" source="elus-raw"
+    rename="modeles_ou_references:Produit | categorie_produit:Categorie | marque_produit:Marque | date_publication:Date | motif_rappel:Motif"
+    trim>
+  </dsfr-data-normalize>
+
+  <!-- Exemple 3 : Industrie du futur -->
+  <dsfr-data-source id="industrie-raw"
+    api-type="opendatasoft"
+    dataset-id="industrie-du-futur"
+    base-url="https://data.economie.gouv.fr">
+  </dsfr-data-source>
+  <dsfr-data-normalize id="industrie-clean" source="industrie-raw"
+    numeric="montant_investissement, montant_participation_etat, nombre_beneficiaires"
+    rename="nom_region:Region | nom_departement:Departement | nom_entreprise:Entreprise"
+    trim>
+  </dsfr-data-normalize>
+
+  <!-- Header -->
+  <app-header current-page="composants" base-path="../../"></app-header>
+
+  <!-- Layout documentation avec sidemenu -->
+  <app-layout-demo
+    title="dsfr-data-search"
+    icon="ri-search-line"
+    active-path="components/dsfr-data-search"
+    base-path="../">
+    <div slot="content">
+        <p class="fr-text--lead">
+          Composant visuel intermediaire qui affiche un champ de recherche DSFR et filtre
+          les donnees en amont avant de les redistribuer aux composants en aval.
+        </p>
+
+        <div class="fr-callout fr-callout--green-emeraude">
+          <p class="fr-callout__text">
+            <strong>Visuel et intermediaire :</strong> Ce composant affiche un champ de recherche
+            ET redistribue les donnees filtrees aux composants en aval via le systeme d'evenements.
+            Il se combine naturellement avec <code>dsfr-data-facets</code>.
+          </p>
+        </div>
+
+        <h2>Position dans le pipeline</h2>
+        <div class="fr-highlight">
+          <p>
+            <code>dsfr-data-source</code> &rarr; <code>dsfr-data-normalize</code> &rarr; <strong><code>dsfr-data-search</code></strong> &rarr; <code>dsfr-data-facets</code> &rarr; <code>dsfr-data-display</code> / <code>dsfr-data-list</code>
+          </p>
+          <p>
+            La recherche reduit le jeu de donnees, les facettes affinent ensuite.
+            Les compteurs de facettes se recalculent dynamiquement.
+          </p>
+        </div>
+
+        <h2>Cas d'usage</h2>
+        <ul>
+          <li><strong>Recherche textuelle</strong> : filtrer des cartes, tableaux ou graphiques par texte libre</li>
+          <li><strong>Recherche + facettes</strong> : combiner recherche textuelle et filtres categoriques</li>
+          <li><strong>KPI dynamiques</strong> : les indicateurs se recalculent selon la recherche</li>
+          <li><strong>Recherche avec highlight</strong> : mettre en surbrillance les termes trouves dans les cartes</li>
+        </ul>
+
+        <h2>Attributs</h2>
+        <table class="attr-table">
+          <thead><tr><th>Attribut</th><th>Type</th><th>Defaut</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>id</code></td><td>String</td><td>-</td><td><strong>Requis.</strong> Identifiant de la sortie (donnees filtrees).</td></tr>
+            <tr><td><code>source</code></td><td>String</td><td><code>""</code></td><td><strong>Requis.</strong> ID de la source a ecouter.</td></tr>
+            <tr><td><code>fields</code></td><td>String</td><td><code>""</code></td><td>Champs a rechercher (virgule-separes). Vide = tous les champs.</td></tr>
+            <tr><td><code>placeholder</code></td><td>String</td><td><code>"Rechercher..."</code></td><td>Placeholder du champ de saisie.</td></tr>
+            <tr><td><code>label</code></td><td>String</td><td><code>"Rechercher"</code></td><td>Label du champ (accessible).</td></tr>
+            <tr><td><code>debounce</code></td><td>Number</td><td><code>300</code></td><td>Delai en ms avant declenchement du filtre.</td></tr>
+            <tr><td><code>min-length</code></td><td>Number</td><td><code>0</code></td><td>Nombre minimum de caracteres avant declenchement.</td></tr>
+            <tr><td><code>highlight</code></td><td>Boolean</td><td><code>false</code></td><td>Ajoute <code>_highlight</code> avec <code>&lt;mark&gt;</code> pour dsfr-data-display.</td></tr>
+            <tr><td><code>operator</code></td><td>String</td><td><code>"contains"</code></td><td>Mode : <code>contains</code>, <code>starts</code>, <code>words</code>.</td></tr>
+            <tr><td><code>sr-label</code></td><td>Boolean</td><td><code>false</code></td><td>Label en sr-only (masque visuellement, accessible).</td></tr>
+            <tr><td><code>count</code></td><td>Boolean</td><td><code>false</code></td><td>Affiche un compteur de resultats.</td></tr>
+            <tr><td><code>url-search-param</code></td><td>String</td><td><code>""</code></td><td>Nom du parametre URL a lire comme terme de recherche initial (vide = desactive).</td></tr>
+            <tr><td><code>url-sync</code></td><td>Boolean</td><td><code>false</code></td><td>Synchronise l'URL quand l'utilisateur tape (replaceState).</td></tr>
+            <tr><td><code>server-search</code></td><td>Boolean</td><td><code>false</code></td><td>Deleguer la recherche au serveur via l'adapter de la source amont. Envoie une commande WHERE a <code>dsfr-data-source</code> au lieu de filtrer localement.</td></tr>
+            <tr><td><code>search-template</code></td><td>String</td><td><code>""</code></td><td>Template de la clause WHERE server-side. <code>{q}</code> est remplace par le terme saisi. Ex : <code>"Nom:contains:{q}"</code>. Si vide et <code>server-search</code> actif, lu depuis l'adapter.</td></tr>
+          </tbody>
+        </table>
+
+        <div class="fr-callout fr-mt-3w">
+          <p class="fr-callout__text">
+            <strong>Modes de recherche :</strong><br>
+            <code>contains</code> (defaut) : sous-chaine insensible a la casse et aux accents.<br>
+            <code>starts</code> : chaque mot du champ doit commencer par le terme.<br>
+            <code>words</code> : tous les mots saisis doivent etre presents (dans n'importe quel champ, n'importe quel ordre). Le plus utile pour la recherche multi-criteres.
+          </p>
+        </div>
+
+        <!-- ========================================================
+             Exemple 1 : Recherche seule + Datalist
+             ======================================================== -->
+        <h2 class="fr-mt-4w">Exemple 1 : recherche simple + tableau</h2>
+        <p>Recherche textuelle sur les champs <code>Produit</code>, <code>Marque</code> et <code>Categorie</code>.
+        Le tableau se filtre en temps reel avec un compteur de resultats.</p>
+
+        <dsfr-data-search id="elus-searched" source="elus-clean"
+          fields="Produit, Marque, Categorie"
+          placeholder="Produit, marque ou categorie..."
+          operator="words"
+          min-length="2"
+          count>
+        </dsfr-data-search>
+
+        <dsfr-data-list source="elus-searched"
+          colonnes="Produit, Categorie, Marque, Date"
+          tri="Date:desc"
+          pagination="10">
+        </dsfr-data-list>
+
+        <h3 class="fr-mt-3w">Code</h3>
+        <pre><code>&lt;dsfr-data-search id="searched" source="clean"
+  fields="Produit, Marque, Categorie"
+  placeholder="Produit, marque ou categorie..."
+  operator="words"
+  min-length="2"
+  count&gt;
+&lt;/dsfr-data-search&gt;
+
+&lt;dsfr-data-list source="searched"
+  colonnes="Produit, Categorie, Marque, Date"
+  tri="Date:desc"
+  pagination="10"&gt;
+&lt;/dsfr-data-list&gt;</code></pre>
+
+        <!-- ========================================================
+             Exemple 2 : Recherche + Facettes + Display
+             ======================================================== -->
+        <h2 class="fr-mt-6w">Exemple 2 : recherche + facettes + cartes</h2>
+        <p>La recherche et les facettes se combinent. La recherche reduit le jeu de donnees,
+        les facettes affinent. Les cartes affichent les resultats.</p>
+
+        <dsfr-data-search id="elus-search-facets" source="elus-clean"
+          fields="Produit, Marque, Categorie"
+          placeholder="Rechercher un produit rappele..."
+          operator="words"
+          count>
+        </dsfr-data-search>
+
+        <dsfr-data-facets id="elus-search-filtered" source="elus-search-facets"
+          fields="Categorie, Marque"
+          labels="Categorie:Categorie | Marque:Marque"
+          max-values="6">
+        </dsfr-data-facets>
+
+        <dsfr-data-display source="elus-search-filtered" cols="3" pagination="9">
+          <template>
+            <div class="fr-card">
+              <div class="fr-card__body">
+                <div class="fr-card__content">
+                  <h3 class="fr-card__title">{{Produit}}</h3>
+                  <p class="fr-card__desc">{{Marque}}</p>
+                </div>
+                <div class="fr-card__footer">
+                  <p class="fr-badge fr-badge--sm fr-badge--blue-france">{{Categorie}}</p>
+                </div>
+              </div>
+            </div>
+          </template>
+        </dsfr-data-display>
+
+        <h3 class="fr-mt-3w">Code</h3>
+        <pre><code>&lt;dsfr-data-search id="searched" source="clean"
+  fields="Produit, Marque, Categorie"
+  placeholder="Rechercher un produit rappele..."
+  operator="words"
+  count&gt;
+&lt;/dsfr-data-search&gt;
+
+&lt;dsfr-data-facets id="filtered" source="searched"
+  fields="Categorie, Marque"
+  labels="Categorie:Categorie | Marque:Marque"
+  max-values="6"&gt;
+&lt;/dsfr-data-facets&gt;
+
+&lt;dsfr-data-display source="filtered" cols="3" pagination="9"&gt;
+  &lt;template&gt;
+    &lt;div class="fr-card"&gt;
+      &lt;div class="fr-card__body"&gt;
+        &lt;div class="fr-card__content"&gt;
+          &lt;h3 class="fr-card__title"&gt;{{Produit}}&lt;/h3&gt;
+          &lt;p class="fr-card__desc"&gt;{{Marque}}&lt;/p&gt;
+        &lt;/div&gt;
+        &lt;div class="fr-card__footer"&gt;
+          &lt;p class="fr-badge fr-badge--sm"&gt;{{Categorie}}&lt;/p&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/template&gt;
+&lt;/dsfr-data-display&gt;</code></pre>
+
+        <!-- ========================================================
+             Exemple 3 : Recherche + KPI dynamiques + Graphique
+             ======================================================== -->
+        <h2 class="fr-mt-6w">Exemple 3 : recherche + KPI + graphique</h2>
+        <p>Les KPI et le graphique se recalculent en temps reel selon la recherche.
+        Rechercher par nom d'entreprise, departement ou region.</p>
+
+        <dsfr-data-search id="industrie-searched" source="industrie-clean"
+          fields="Entreprise, Region, Departement"
+          placeholder="Entreprise, region, departement..."
+          operator="words"
+          count>
+        </dsfr-data-search>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin: 1.5rem 0;">
+          <dsfr-data-kpi source="industrie-searched"
+            valeur="count"
+            label="Projets"
+            couleur="bleu">
+          </dsfr-data-kpi>
+
+          <dsfr-data-kpi source="industrie-searched"
+            valeur="sum:montant_investissement"
+            label="Investissement total"
+            format="euro">
+          </dsfr-data-kpi>
+
+          <dsfr-data-kpi source="industrie-searched"
+            valeur="sum:nombre_beneficiaires"
+            label="Beneficiaires"
+            format="nombre">
+          </dsfr-data-kpi>
+        </div>
+
+        <dsfr-data-query id="industrie-search-stats" source="industrie-searched"
+          group-by="Region"
+          aggregate="nombre_beneficiaires:sum:Beneficiaires"
+          order-by="Beneficiaires:desc"
+          limit="10">
+        </dsfr-data-query>
+
+        <dsfr-data-chart source="industrie-search-stats"
+          type="bar"
+          label-field="Region"
+          value-field="Beneficiaires"
+          selected-palette="categorical">
+        </dsfr-data-chart>
+
+        <h3 class="fr-mt-3w">Code</h3>
+        <pre><code>&lt;dsfr-data-search id="searched" source="clean"
+  fields="Entreprise, Region, Departement"
+  placeholder="Entreprise, region, departement..."
+  operator="words"
+  count&gt;
+&lt;/dsfr-data-search&gt;
+
+&lt;dsfr-data-kpi source="searched" valeur="count" label="Projets" couleur="bleu"&gt;&lt;/dsfr-data-kpi&gt;
+&lt;dsfr-data-kpi source="searched" valeur="sum:montant_investissement" label="Investissement" format="euro"&gt;&lt;/dsfr-data-kpi&gt;
+
+&lt;dsfr-data-query id="stats" source="searched"
+  group-by="Region"
+  aggregate="nombre_beneficiaires:sum:Beneficiaires"
+  order-by="Beneficiaires:desc"
+  limit="10"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;dsfr-data-chart source="stats" type="bar"
+  label-field="Region"
+  value-field="Beneficiaires"
+  selected-palette="categorical"&gt;
+&lt;/dsfr-data-chart&gt;</code></pre>
+
+    </div>
+  </app-layout-demo>
+
+  <!-- Footer -->
+  <app-footer base-path="../../"></app-footer>
+
+  <!-- DSFR JS -->
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dsfr-data-chart - Composants - dsfr-data</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css" integrity="sha384-VuzA/gYnk/ZqcT5a/ravR88otj71vNPl/h1JPrKoESV33DCX6SeXIxBcRr5qYPRj" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css" integrity="sha384-YR4AxNhFVy1qsQ0Hp7Rosg06e4sj2m9dLxiYZrtqJ0boIOiDbD8XkIsIPMMkf0VL" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css" integrity="sha384-987+TUcyVaQAI/PaEqYIGNqku/bHSkNVAqOfNxyS1eE9SxeeH2Ue4FQZ3kKtnWfM" crossorigin="anonymous">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js" integrity="sha384-xYrR55uYb2Y55H6eELrLA9ARM8YsjB1ksG6QHJZrhL49lzax9l7rHuQPjsZGiTYk" crossorigin="anonymous"></script>
+  <style>
+    body { min-height: 100vh; display: flex; flex-direction: column; }
+  </style>
+</head>
+<body>
+  <app-header current-page="composants" base-path="../../"></app-header>
+
+  <dsfr-data-source id="sites" url="/mock-api/data.json" transform="sites"></dsfr-data-source>
+
+  <app-layout-demo title="dsfr-data-chart" icon="ri-bar-chart-grouped-line" active-path="components/dsfr-data-chart" base-path="../">
+    <div slot="content">
+      <p class="fr-text--lead">
+        Wrapper qui connecte les graphiques officiels DSFR Chart au systeme <code>dsfr-data-source</code>
+        pour une alimentation dynamique des donnees.
+      </p>
+
+      <div class="fr-callout fr-callout--green-emeraude">
+        <p class="fr-callout__text">
+          Ce composant utilise la bibliotheque officielle
+          <a href="https://gouvernementfr.github.io/dsfr-chart/" target="_blank">DSFR Chart</a>
+          tout en beneficiant de la connexion automatique aux sources de donnees.
+        </p>
+      </div>
+
+      <h2>Attributs</h2>
+      <table class="attr-table">
+        <thead><tr><th>Attribut</th><th>Type</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>source</code></td><td>String</td><td>ID du <code>&lt;dsfr-data-source&gt;</code> (requis)</td></tr>
+          <tr><td><code>type</code></td><td>String</td><td>Type de chart : <code>bar</code>, <code>line</code>, <code>pie</code>, <code>radar</code>, <code>gauge</code>, <code>scatter</code></td></tr>
+          <tr><td><code>label-field</code></td><td>String</td><td>Chemin vers le champ label dans les donnees</td></tr>
+          <tr><td><code>value-field</code></td><td>String</td><td>Chemin vers le champ valeur dans les donnees</td></tr>
+          <tr><td><code>selected-palette</code></td><td>String</td><td>Palette : <code>default</code>, <code>categorical</code>, <code>sequential*</code>, <code>divergent*</code></td></tr>
+          <tr><td><code>unit-tooltip</code></td><td>String</td><td>Unite affichee dans les tooltips (%, euro, etc.)</td></tr>
+          <tr><td><code>horizontal</code></td><td>Boolean</td><td>Barres horizontales (bar chart)</td></tr>
+          <tr><td><code>stacked</code></td><td>Boolean</td><td>Barres empilees (bar chart)</td></tr>
+          <tr><td><code>fill</code></td><td>Boolean</td><td>Remplissage plein (pie chart)</td></tr>
+        </tbody>
+      </table>
+
+      <h2 class="fr-mt-4w">Types de graphiques</h2>
+
+      <section class="demo-section">
+        <h3>1. Graphique en barres verticales</h3>
+        <dsfr-data-chart
+          source="sites"
+          type="bar"
+          label-field="nom"
+          value-field="score_rgaa"
+          selected-palette="categorical"
+          unit-tooltip="%">
+        </dsfr-data-chart>
+        <div class="code-block"><pre>&lt;dsfr-data-chart
+  source="sites"
+  type="bar"
+  label-field="nom"
+  value-field="score_rgaa"
+  selected-palette="categorical"
+  unit-tooltip="%"&gt;
+&lt;/dsfr-data-chart&gt;</pre></div>
+      </section>
+
+      <section class="demo-section">
+        <h3>2. Graphique en barres horizontales</h3>
+        <dsfr-data-chart
+          source="sites"
+          type="bar"
+          label-field="ministere"
+          value-field="score_rgaa"
+          selected-palette="sequentialAscending"
+          unit-tooltip="%"
+          horizontal="true">
+        </dsfr-data-chart>
+        <div class="code-block"><pre>&lt;dsfr-data-chart
+  source="sites"
+  type="bar"
+  label-field="ministere"
+  value-field="score_rgaa"
+  horizontal="true"&gt;
+&lt;/dsfr-data-chart&gt;</pre></div>
+      </section>
+
+      <section class="demo-section">
+        <h3>3. Graphique en ligne</h3>
+        <dsfr-data-chart
+          source="sites"
+          type="line"
+          label-field="nom"
+          value-field="score_dsfr"
+          selected-palette="default"
+          unit-tooltip="%">
+        </dsfr-data-chart>
+        <div class="code-block"><pre>&lt;dsfr-data-chart
+  source="sites"
+  type="line"
+  label-field="nom"
+  value-field="score_dsfr"
+  unit-tooltip="%"&gt;
+&lt;/dsfr-data-chart&gt;</pre></div>
+      </section>
+
+      <section class="demo-section">
+        <h3>4. Diagramme circulaire (Pie)</h3>
+        <dsfr-data-chart
+          source="sites"
+          type="pie"
+          label-field="ministere"
+          value-field="score_rgaa"
+          selected-palette="categorical"
+          unit-tooltip="%">
+        </dsfr-data-chart>
+        <div class="code-block"><pre>&lt;dsfr-data-chart
+  source="sites"
+  type="pie"
+  label-field="ministere"
+  value-field="score_rgaa"
+  selected-palette="categorical"&gt;
+&lt;/dsfr-data-chart&gt;</pre></div>
+      </section>
+
+      <section class="demo-section">
+        <h3>5. Graphique radar</h3>
+        <dsfr-data-chart
+          source="sites"
+          type="radar"
+          label-field="ministere"
+          value-field="score_rgaa"
+          selected-palette="default">
+        </dsfr-data-chart>
+        <div class="code-block"><pre>&lt;dsfr-data-chart
+  source="sites"
+  type="radar"
+  label-field="ministere"
+  value-field="score_rgaa"&gt;
+&lt;/dsfr-data-chart&gt;</pre></div>
+      </section>
+
+      <h2 class="fr-mt-4w">Comparaison : dsfr-data-chart vs DSFR Chart natif</h2>
+      <div class="fr-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Fonctionnalite</th>
+              <th>dsfr-data-chart</th>
+              <th>DSFR Chart natif</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Donnees dynamiques</td>
+              <td>Oui (via dsfr-data-source)</td>
+              <td>Non (statiques)</td>
+            </tr>
+            <tr>
+              <td>Rafraichissement auto</td>
+              <td>Oui</td>
+              <td>Non</td>
+            </tr>
+            <tr>
+              <td>Transformation donnees</td>
+              <td>Automatique</td>
+              <td>Manuelle</td>
+            </tr>
+            <tr>
+              <td>Complexite d'usage</td>
+              <td>Simple</td>
+              <td>Moyenne</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </app-layout-demo>
+
+  <app-footer base-path="../../"></app-footer>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js" integrity="sha384-4dK3hBJJh/bjoOulz9Q1kNO2O09lzuKiFeF5c+0VguV1RT3IiLkv+Pt98Jul84V+" crossorigin="anonymous"></script>
+</body>
+</html>

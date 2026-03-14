@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Monitoring - dsfr-data</title>
+  <style>@view-transition{navigation:auto}app-header:not(:defined){display:block;min-height:56px}app-footer:not(:defined){display:block;min-height:48px}</style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css" integrity="sha384-VuzA/gYnk/ZqcT5a/ravR88otj71vNPl/h1JPrKoESV33DCX6SeXIxBcRr5qYPRj" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css" integrity="sha384-YR4AxNhFVy1qsQ0Hp7Rosg06e4sj2m9dLxiYZrtqJ0boIOiDbD8XkIsIPMMkf0VL" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
+  <script type="module" src="../../dist/dsfr-data.esm.js"></script>
+  <link rel="stylesheet" href="src/styles/monitoring.css">
+</head>
+<body>
+  <app-header current-page="monitoring" base-path="../.."></app-header>
+
+  <main class="fr-pb-8w" id="main-content">
+    <div class="fr-container">
+      <h1 class="fr-mt-4w">
+        <i class="ri-pulse-line"></i> Monitoring des widgets
+      </h1>
+      <p class="fr-text--lead">
+        Suivi des deploiements de composants dsfr-data sur les sites gouvernementaux.
+      </p>
+
+      <div id="load-error" class="fr-alert fr-alert--info fr-mb-2w" style="display:none"></div>
+
+      <!-- KPIs -->
+      <div id="kpi-row" class="monitoring-kpi-row fr-mb-4w"></div>
+
+      <!-- Filters -->
+      <div class="fr-card fr-p-3w fr-mb-4w">
+        <div class="monitoring-filters">
+          <div class="fr-input-group">
+            <label class="fr-label" for="filter-component">Composant</label>
+            <select class="fr-select" id="filter-component">
+              <option value="">Tous</option>
+            </select>
+          </div>
+          <div class="fr-input-group">
+            <label class="fr-label" for="filter-type">Type de graphique</label>
+            <select class="fr-select" id="filter-type">
+              <option value="">Tous</option>
+            </select>
+          </div>
+          <div class="fr-input-group">
+            <label class="fr-label" for="search-referer">Rechercher un site</label>
+            <input class="fr-input" type="search" id="search-referer" placeholder="URL ou domaine...">
+          </div>
+          <div style="display:flex;gap:0.5rem">
+            <button class="fr-btn fr-btn--secondary fr-btn--sm fr-btn--icon-left" id="btn-export">
+              <i class="ri-download-line"></i> Export CSV
+            </button>
+            <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-left" id="btn-refresh">
+              <i class="ri-refresh-line"></i> Actualiser
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Data table -->
+      <div id="monitoring-table">
+        <div class="monitoring-empty">Chargement...</div>
+      </div>
+    </div>
+  </main>
+
+  <app-footer base-path="../.."></app-footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js" integrity="sha384-4dK3hBJJh/bjoOulz9Q1kNO2O09lzuKiFeF5c+0VguV1RT3IiLkv+Pt98Jul84V+" crossorigin="anonymous"></script>
+  <script type="module" src="src/main.ts"></script>
+</body>
+</html>

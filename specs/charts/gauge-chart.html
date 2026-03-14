@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gauge Chart - DSFR Chart - dsfr-data</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"></script>
+  <style>
+    body { min-height: 100vh; display: flex; flex-direction: column; }
+    .gauge-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; }
+  </style>
+</head>
+<body>
+  <app-header current-page="composants" base-path="../../"></app-header>
+
+  <app-layout-demo title="Jauge" icon="ri-speed-line" active-path="charts/gauge-chart" base-path="../">
+    <div slot="content">
+      <p class="fr-text--lead">Le composant <code>&lt;gauge-chart&gt;</code> affiche une progression vers un objectif.</p>
+
+      <section class="demo-section">
+        <h3>Exemples de jauges</h3>
+        <div class="gauge-grid">
+          <div>
+            <p><strong>Score RGAA</strong></p>
+            <gauge-chart percent="82" init="0" target="100"></gauge-chart>
+          </div>
+          <div>
+            <p><strong>Conformite DSFR</strong></p>
+            <gauge-chart percent="91" init="0" target="100"></gauge-chart>
+          </div>
+          <div>
+            <p><strong>Performance</strong></p>
+            <gauge-chart percent="65" init="0" target="100"></gauge-chart>
+          </div>
+        </div>
+        <div class="code-block"><pre>&lt;gauge-chart percent="82" init="0" target="100"&gt;&lt;/gauge-chart&gt;</pre></div>
+      </section>
+
+      <section class="demo-section">
+        <h3>Differentes valeurs</h3>
+        <div class="gauge-grid">
+          <div>
+            <p><strong>25%</strong></p>
+            <gauge-chart percent="25" init="0" target="100"></gauge-chart>
+          </div>
+          <div>
+            <p><strong>50%</strong></p>
+            <gauge-chart percent="50" init="0" target="100"></gauge-chart>
+          </div>
+          <div>
+            <p><strong>75%</strong></p>
+            <gauge-chart percent="75" init="0" target="100"></gauge-chart>
+          </div>
+          <div>
+            <p><strong>100%</strong></p>
+            <gauge-chart percent="100" init="0" target="100"></gauge-chart>
+          </div>
+        </div>
+      </section>
+    </div>
+  </app-layout-demo>
+
+  <app-footer base-path="../../"></app-footer>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test local - Widgets Grist DSFR</title>
+
+  <!-- DSFR -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css" integrity="sha384-VuzA/gYnk/ZqcT5a/ravR88otj71vNPl/h1JPrKoESV33DCX6SeXIxBcRr5qYPRj" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css" integrity="sha384-YR4AxNhFVy1qsQ0Hp7Rosg06e4sj2m9dLxiYZrtqJ0boIOiDbD8XkIsIPMMkf0VL" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
+
+  <!-- DSFR Chart -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css" integrity="sha384-987+TUcyVaQAI/PaEqYIGNqku/bHSkNVAqOfNxyS1eE9SxeeH2Ue4FQZ3kKtnWfM" crossorigin="anonymous">
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js" integrity="sha384-xYrR55uYb2Y55H6eELrLA9ARM8YsjB1ksG6QHJZrhL49lzax9l7rHuQPjsZGiTYk" crossorigin="anonymous"></script>
+
+  <!-- dsfr-data UMD -->
+  <script src="/lib/dsfr-data.umd.js"></script>
+
+  <style>
+    body { font-family: 'Marianne', arial, sans-serif; margin: 0; padding: 2rem; background: #f6f6f6; }
+    h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    p.subtitle { color: #666; margin-bottom: 2rem; }
+    .test-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+    .test-widget { background: white; border: 1px solid #ddd; border-radius: 8px; padding: 1rem; min-height: 300px; }
+    .test-widget h2 { font-size: 1rem; margin: 0 0 1rem 0; padding-bottom: 0.5rem; border-bottom: 2px solid var(--blue-france-sun-113-625); }
+    .test-controls { background: white; border: 1px solid #ddd; border-radius: 8px; padding: 1rem; margin-bottom: 2rem; }
+  </style>
+</head>
+<body>
+  <h1>Test local des widgets Grist DSFR</h1>
+  <p class="subtitle">Cette page simule l'API Grist pour tester les composants dsfr-data-* hors de Grist.</p>
+
+  <div class="test-controls">
+    <button class="fr-btn fr-btn--sm" id="btn-inject">Injecter les donnees de test</button>
+    <button class="fr-btn fr-btn--sm fr-btn--secondary" id="btn-update">Mettre a jour les donnees</button>
+    <button class="fr-btn fr-btn--sm fr-btn--tertiary" id="btn-error">Simuler une erreur</button>
+    <span class="fr-ml-2w fr-text--xs" id="status"></span>
+  </div>
+
+  <div class="test-grid">
+    <!-- Test Chart -->
+    <div class="test-widget">
+      <h2><i class="ri-bar-chart-box-line"></i> dsfr-data-chart (source="grist")</h2>
+      <dsfr-data-chart
+        source="grist"
+        type="bar"
+        label-field="Label"
+        value-field="Value"
+        selected-palette="categorical">
+      </dsfr-data-chart>
+    </div>
+
+    <!-- Test KPI -->
+    <div class="test-widget">
+      <h2><i class="ri-numbers-fill"></i> dsfr-data-kpi (source="grist")</h2>
+      <dsfr-data-kpi
+        source="grist"
+        valeur="avg:Value"
+        label="Score moyen"
+        format="decimal">
+      </dsfr-data-kpi>
+    </div>
+
+    <!-- Test Map -->
+    <div class="test-widget">
+      <h2><i class="ri-map-fill"></i> dsfr-data-chart type=map (source="grist-map")</h2>
+      <dsfr-data-chart
+        source="grist-map"
+        type="map"
+        label-field="Label"
+        value-field="Value"
+        code-field="Code"
+        selected-palette="sequentialAscending">
+      </dsfr-data-chart>
+    </div>
+
+    <!-- Test Datalist -->
+    <div class="test-widget">
+      <h2><i class="ri-table-line"></i> dsfr-data-list (source="grist")</h2>
+      <dsfr-data-list
+        source="grist"
+        colonnes="Label:Region | Value:Score | Category:Categorie"
+        recherche
+        pagination="5">
+      </dsfr-data-list>
+    </div>
+  </div>
+
+  <script>
+    // Donnees de test simulant ce que Grist enverrait
+    const TEST_DATA = [
+      { Label: 'Ile-de-France', Value: 87, Category: 'A' },
+      { Label: 'Auvergne-Rhone-Alpes', Value: 72, Category: 'B' },
+      { Label: 'Nouvelle-Aquitaine', Value: 65, Category: 'A' },
+      { Label: 'Occitanie', Value: 58, Category: 'B' },
+      { Label: 'Hauts-de-France', Value: 53, Category: 'C' },
+      { Label: 'Provence-Alpes-Cote d\'Azur', Value: 79, Category: 'A' },
+      { Label: 'Grand Est', Value: 61, Category: 'B' },
+      { Label: 'Bretagne', Value: 68, Category: 'A' },
+      { Label: 'Pays de la Loire', Value: 63, Category: 'C' },
+      { Label: 'Normandie', Value: 55, Category: 'B' },
+    ];
+
+    const MAP_DATA = [
+      { Code: '75', Label: 'Paris', Value: 92 },
+      { Code: '13', Label: 'Bouches-du-Rhone', Value: 78 },
+      { Code: '69', Label: 'Rhone', Value: 85 },
+      { Code: '33', Label: 'Gironde', Value: 67 },
+      { Code: '31', Label: 'Haute-Garonne', Value: 71 },
+      { Code: '59', Label: 'Nord', Value: 54 },
+      { Code: '44', Label: 'Loire-Atlantique', Value: 63 },
+      { Code: '34', Label: 'Herault', Value: 60 },
+      { Code: '67', Label: 'Bas-Rhin', Value: 58 },
+      { Code: '35', Label: 'Ille-et-Vilaine', Value: 72 },
+    ];
+
+    const UPDATED_DATA = TEST_DATA.map(d => ({
+      ...d,
+      Value: Math.round(d.Value * (0.8 + Math.random() * 0.4)),
+    }));
+
+    const status = document.getElementById('status');
+
+    document.getElementById('btn-inject').addEventListener('click', () => {
+      DsfrData.dispatchDataLoaded('grist', TEST_DATA);
+      DsfrData.dispatchDataLoaded('grist-map', MAP_DATA);
+      status.textContent = 'Donnees injectees (10 regions + 10 departements)';
+    });
+
+    document.getElementById('btn-update').addEventListener('click', () => {
+      const updated = TEST_DATA.map(d => ({
+        ...d,
+        Value: Math.round(d.Value * (0.8 + Math.random() * 0.4)),
+      }));
+      DsfrData.dispatchDataLoaded('grist', updated);
+      status.textContent = 'Donnees mises a jour (valeurs aleatoires)';
+    });
+
+    document.getElementById('btn-error').addEventListener('click', () => {
+      DsfrData.dispatchDataError('grist', new Error('Erreur simulee : colonnes non mappees'));
+      DsfrData.dispatchDataError('grist-map', new Error('Erreur simulee : colonnes non mappees'));
+      status.textContent = 'Erreur envoyee (grist + grist-map)';
+    });
+
+    // Auto-inject au chargement
+    setTimeout(() => {
+      document.getElementById('btn-inject').click();
+    }, 500);
+  </script>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js" integrity="sha384-4dK3hBJJh/bjoOulz9Q1kNO2O09lzuKiFeF5c+0VguV1RT3IiLkv+Pt98Jul84V+" crossorigin="anonymous"></script>
+</body>
+</html>

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scatter Chart - DSFR Chart - dsfr-data</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"></script>
+  <style>
+    body { min-height: 100vh; display: flex; flex-direction: column; }
+  </style>
+</head>
+<body>
+  <app-header current-page="composants" base-path="../../"></app-header>
+
+  <app-layout-demo title="Nuage de points" icon="ri-bubble-chart-line" active-path="charts/scatter-chart" base-path="../">
+    <div slot="content">
+      <p class="fr-text--lead">Le composant <code>&lt;scatter-chart&gt;</code> visualise des correlations entre deux variables.</p>
+
+      <section class="demo-section">
+        <h3>Nuage simple</h3>
+        <scatter-chart
+          x="[[10, 20, 30, 40, 50, 60, 70, 80]]"
+          y="[[25, 35, 20, 45, 30, 55, 40, 60]]"
+          selected-palette="categorical">
+        </scatter-chart>
+        <div class="code-block"><pre>&lt;scatter-chart
+  x="[[10, 20, 30, 40, 50, 60, 70, 80]]"
+  y="[[25, 35, 20, 45, 30, 55, 40, 60]]"
+  selected-palette="categorical"&gt;
+&lt;/scatter-chart&gt;</pre></div>
+      </section>
+
+      <section class="demo-section">
+        <h3>Correlation RGAA / DSFR</h3>
+        <p>Exemple montrant la correlation entre les scores RGAA et DSFR des sites gouvernementaux.</p>
+        <scatter-chart
+          x="[[65, 72, 91, 68, 83, 95, 76, 89, 79, 65, 81, 74, 58, 82, 77]]"
+          y="[[71, 85, 95, 78, 88, 97, 82, 91, 84, 71, 86, 79, 65, 87, 83]]"
+          selected-palette="default">
+        </scatter-chart>
+        <div class="code-block"><pre>&lt;scatter-chart
+  x="[[65, 72, 91, 68, 83, 95, 76, 89, 79, 65, 81, 74, 58, 82, 77]]"
+  y="[[71, 85, 95, 78, 88, 97, 82, 91, 84, 71, 86, 79, 65, 87, 83]]"
+  selected-palette="default"&gt;
+&lt;/scatter-chart&gt;</pre></div>
+      </section>
+    </div>
+  </app-layout-demo>
+
+  <app-footer base-path="../../"></app-footer>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js"></script>
+</body>
+</html>
