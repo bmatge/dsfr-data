@@ -108,132 +108,6 @@
         </div>
       </div>
 
-      <!-- ETAPE 1.6 : Nettoyage des donnees (mode dynamique uniquement) -->
-      <div class="config-section collapsed" id="section-normalize" style="display: none;">
-        <div class="config-section-header" onclick="toggleSection('section-normalize')">
-          <h3><i class="ri-eraser-line"></i> Nettoyage des donnees</h3>
-          <i class="ri-arrow-down-s-line collapse-icon"></i>
-        </div>
-        <div class="config-section-content">
-          <div class="fr-toggle">
-            <input type="checkbox" class="fr-toggle__input" id="normalize-enabled" aria-describedby="normalize-hint">
-            <label class="fr-toggle__label" for="normalize-enabled"
-              data-fr-checked-label="Active" data-fr-unchecked-label="Desactive">
-              Normalisation des donnees
-            </label>
-            <p class="fr-hint-text" id="normalize-hint">Nettoyer les donnees avant traitement (trim, conversion numerique, renommage...)</p>
-          </div>
-
-          <div id="normalize-options" style="display: none;" class="fr-mt-2w">
-            <div class="fr-input-group fr-input-group--sm">
-              <label class="fr-label" for="normalize-flatten">
-                Aplatir un sous-objet
-                <span class="fr-hint-text">Cle du sous-objet a promouvoir (ex: fields)</span>
-              </label>
-              <input class="fr-input" type="text" id="normalize-flatten" placeholder="Ex: fields">
-            </div>
-
-            <div class="fr-checkbox-group fr-checkbox-group--sm fr-mt-1w">
-              <input type="checkbox" id="normalize-trim">
-              <label class="fr-label" for="normalize-trim">Supprimer les espaces (trim)</label>
-            </div>
-
-            <div class="fr-checkbox-group fr-checkbox-group--sm fr-mt-1w">
-              <input type="checkbox" id="normalize-numeric-auto">
-              <label class="fr-label" for="normalize-numeric-auto">
-                Detection automatique des nombres
-                <span class="fr-hint-text">Convertit les chaines "123" en nombres</span>
-              </label>
-            </div>
-
-            <div class="fr-input-group fr-input-group--sm fr-mt-1w">
-              <label class="fr-label" for="normalize-numeric">
-                Champs numeriques explicites
-                <span class="fr-hint-text">Noms de champs separes par virgule</span>
-              </label>
-              <input class="fr-input" type="text" id="normalize-numeric" placeholder="Ex: population, budget, surface">
-            </div>
-
-            <div class="fr-input-group fr-input-group--sm fr-mt-1w">
-              <label class="fr-label" for="normalize-rename">
-                Renommer des champs
-                <span class="fr-hint-text">Format : ancien:nouveau | ancien2:nouveau2</span>
-              </label>
-              <input class="fr-input" type="text" id="normalize-rename" placeholder="Ex: pop_tot:Population | lib_dep:Departement">
-            </div>
-
-            <div class="fr-checkbox-group fr-checkbox-group--sm fr-mt-1w">
-              <input type="checkbox" id="normalize-strip-html">
-              <label class="fr-label" for="normalize-strip-html">Supprimer les balises HTML</label>
-            </div>
-
-            <div class="fr-input-group fr-input-group--sm fr-mt-1w">
-              <label class="fr-label" for="normalize-replace">
-                Remplacer des valeurs
-                <span class="fr-hint-text">Format : ancien:nouveau | ancien2:nouveau2 (vide pour supprimer)</span>
-              </label>
-              <input class="fr-input" type="text" id="normalize-replace" placeholder="Ex: N/A: | n.d.: | -:0">
-            </div>
-
-            <div class="fr-checkbox-group fr-checkbox-group--sm fr-mt-1w">
-              <input type="checkbox" id="normalize-lowercase-keys">
-              <label class="fr-label" for="normalize-lowercase-keys">Cles en minuscules</label>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ETAPE 1.7 : Filtres a facettes (mode dynamique uniquement) -->
-      <div class="config-section collapsed" id="section-facets" style="display: none;">
-        <div class="config-section-header" onclick="toggleSection('section-facets')">
-          <h3><i class="ri-filter-3-line"></i> Filtres a facettes</h3>
-          <i class="ri-arrow-down-s-line collapse-icon"></i>
-        </div>
-        <div class="config-section-content">
-          <div class="fr-toggle">
-            <input type="checkbox" class="fr-toggle__input" id="facets-enabled" aria-describedby="facets-hint">
-            <label class="fr-toggle__label" for="facets-enabled"
-              data-fr-checked-label="Active" data-fr-unchecked-label="Desactive">
-              Filtres interactifs
-            </label>
-            <p class="fr-hint-text" id="facets-hint">Ajouter des facettes pour filtrer les donnees dynamiquement</p>
-          </div>
-
-          <div id="facets-options" style="display: none;" class="fr-mt-2w">
-            <button class="fr-btn fr-btn--secondary fr-btn--sm fr-icon-settings-5-line fr-btn--icon-left"
-              id="facets-fields-btn" type="button">
-              Configurer les facettes
-            </button>
-            <p class="fr-text--xs fr-mt-1v" id="facets-fields-summary">Aucun champ configure</p>
-
-            <div class="fr-input-group fr-input-group--sm fr-mt-2w">
-              <label class="fr-label" for="facets-max-values">
-                Valeurs visibles par facette
-                <span class="fr-hint-text">Nombre de valeurs avant "Voir plus" (defaut: 6)</span>
-              </label>
-              <input class="fr-input" type="number" id="facets-max-values" value="6" min="2" max="50">
-            </div>
-
-            <div class="fr-select-group fr-select-group--sm fr-mt-1w">
-              <label class="fr-label" for="facets-sort">Tri des valeurs</label>
-              <select class="fr-select" id="facets-sort">
-                <option value="count">Par nombre (decroissant)</option>
-                <option value="-count">Par nombre (croissant)</option>
-                <option value="alpha">Alphabetique (A-Z)</option>
-                <option value="-alpha">Alphabetique (Z-A)</option>
-              </select>
-            </div>
-
-            <div class="fr-checkbox-group fr-checkbox-group--sm fr-mt-1w">
-              <input type="checkbox" id="facets-hide-empty">
-              <label class="fr-label" for="facets-hide-empty">
-                Masquer les facettes avec une seule valeur
-              </label>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- ETAPE 2 : Type de graphique -->
       <div class="config-section collapsed" id="section-type">
         <div class="config-section-header" onclick="toggleSection('section-type')">
@@ -299,26 +173,43 @@
         </div>
         <div class="config-section-content">
 
-        <!-- Ligne 1 : Axe X / Axe Y -->
-        <div class="config-grid-2col">
-          <div class="fr-select-group fr-select-group--sm">
+        <!-- Axe X -->
+        <div style="display: flex; gap: 0.5rem; align-items: flex-end;" class="fr-mb-1w">
+          <div class="fr-select-group fr-select-group--sm" style="flex: 1; margin-bottom: 0;">
             <label class="fr-label" for="label-field">
               Axe X / Categories
-              <span class="fr-hint-text">Labels</span>
+              <span class="fr-hint-text">Le champ utilise pour les labels</span>
             </label>
             <select class="fr-select" id="label-field">
               <option value="">— Charger les champs —</option>
             </select>
           </div>
+          <div class="fr-input-group fr-input-group--sm" style="flex: 1; margin-bottom: 0;">
+            <label class="fr-label" for="label-field-label">
+              Libelle
+              <span class="fr-hint-text">Nom affiche (vide = nom du champ)</span>
+            </label>
+            <input type="text" class="fr-input fr-input--sm" id="label-field-label" placeholder="Nom de l'axe X">
+          </div>
+        </div>
 
-          <div class="fr-select-group fr-select-group--sm">
+        <!-- Axe Y / Serie 1 -->
+        <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
+          <div class="fr-select-group fr-select-group--sm" style="flex: 1; margin-bottom: 0;">
             <label class="fr-label" for="value-field">
-              Axe Y / Valeurs
-              <span class="fr-hint-text">Champ numerique</span>
+              Axe Y / Valeurs (Serie 1)
+              <span class="fr-hint-text">Le champ numerique a mesurer</span>
             </label>
             <select class="fr-select" id="value-field">
               <option value="">— Charger les champs —</option>
             </select>
+          </div>
+          <div class="fr-input-group fr-input-group--sm" style="flex: 1; margin-bottom: 0;">
+            <label class="fr-label" for="value-field-label">
+              Libelle
+              <span class="fr-hint-text">Nom affiche (vide = nom du champ)</span>
+            </label>
+            <input type="text" class="fr-input fr-input--sm" id="value-field-label" placeholder="Nom de la serie">
           </div>
         </div>
 
@@ -515,27 +406,159 @@
         </div>
       </div>
 
-      <!-- Option accessibilite -->
-      <div class="config-section" id="section-a11y">
-        <div class="fr-checkbox-group fr-checkbox-group--sm">
-          <input type="checkbox" id="a11y-toggle" checked>
-          <label class="fr-label" for="a11y-toggle">
-            <i class="ri-accessibility-line fr-mr-1w" aria-hidden="true"></i>Ajouter accessibilite
-          </label>
+      <!-- Nettoyage des donnees (mode dynamique uniquement) -->
+      <div class="config-section collapsed" id="section-normalize" style="display: none;">
+        <div class="config-section-header" onclick="toggleSection('section-normalize')">
+          <h3><i class="ri-eraser-line"></i> Nettoyage des donnees</h3>
+          <i class="ri-arrow-down-s-line collapse-icon"></i>
         </div>
-        <div id="a11y-options" style="display: block; margin-left: 1.5rem; margin-top: 0.5rem;">
-          <div class="fr-checkbox-group fr-checkbox-group--sm fr-mb-1w">
-            <input type="checkbox" id="a11y-table" checked>
-            <label class="fr-label" for="a11y-table">Tableau de donnees</label>
+        <div class="config-section-content">
+          <div class="fr-toggle">
+            <input type="checkbox" class="fr-toggle__input" id="normalize-enabled" aria-describedby="normalize-hint">
+            <label class="fr-toggle__label" for="normalize-enabled"
+              data-fr-checked-label="Active" data-fr-unchecked-label="Desactive">
+              Normalisation des donnees
+            </label>
+            <p class="fr-hint-text" id="normalize-hint">Nettoyer les donnees avant traitement (trim, conversion numerique, renommage...)</p>
           </div>
-          <div class="fr-checkbox-group fr-checkbox-group--sm fr-mb-1w">
-            <input type="checkbox" id="a11y-download" checked>
-            <label class="fr-label" for="a11y-download">Telechargement CSV</label>
+
+          <div id="normalize-options" style="display: none;" class="fr-mt-2w">
+            <div class="fr-input-group fr-input-group--sm">
+              <label class="fr-label" for="normalize-flatten">
+                Aplatir un sous-objet
+                <span class="fr-hint-text">Cle du sous-objet a promouvoir (ex: fields)</span>
+              </label>
+              <input class="fr-input" type="text" id="normalize-flatten" placeholder="Ex: fields">
+            </div>
+
+            <div class="fr-checkbox-group fr-checkbox-group--sm fr-mt-1w">
+              <input type="checkbox" id="normalize-trim">
+              <label class="fr-label" for="normalize-trim">Supprimer les espaces (trim)</label>
+            </div>
+
+            <div class="fr-checkbox-group fr-checkbox-group--sm fr-mt-1w">
+              <input type="checkbox" id="normalize-numeric-auto">
+              <label class="fr-label" for="normalize-numeric-auto">
+                Detection automatique des nombres
+                <span class="fr-hint-text">Convertit les chaines "123" en nombres</span>
+              </label>
+            </div>
+
+            <div class="fr-input-group fr-input-group--sm fr-mt-1w">
+              <label class="fr-label" for="normalize-numeric">
+                Champs numeriques explicites
+                <span class="fr-hint-text">Noms de champs separes par virgule</span>
+              </label>
+              <input class="fr-input" type="text" id="normalize-numeric" placeholder="Ex: population, budget, surface">
+            </div>
+
+            <div class="fr-input-group fr-input-group--sm fr-mt-1w">
+              <label class="fr-label" for="normalize-rename">
+                Renommer des champs
+                <span class="fr-hint-text">Format : ancien:nouveau | ancien2:nouveau2</span>
+              </label>
+              <input class="fr-input" type="text" id="normalize-rename" placeholder="Ex: pop_tot:Population | lib_dep:Departement">
+            </div>
+
+            <div class="fr-checkbox-group fr-checkbox-group--sm fr-mt-1w">
+              <input type="checkbox" id="normalize-strip-html">
+              <label class="fr-label" for="normalize-strip-html">Supprimer les balises HTML</label>
+            </div>
+
+            <div class="fr-input-group fr-input-group--sm fr-mt-1w">
+              <label class="fr-label" for="normalize-replace">
+                Remplacer des valeurs
+                <span class="fr-hint-text">Format : ancien:nouveau | ancien2:nouveau2 (vide pour supprimer)</span>
+              </label>
+              <input class="fr-input" type="text" id="normalize-replace" placeholder="Ex: N/A: | n.d.: | -:0">
+            </div>
+
+            <div class="fr-checkbox-group fr-checkbox-group--sm fr-mt-1w">
+              <input type="checkbox" id="normalize-lowercase-keys">
+              <label class="fr-label" for="normalize-lowercase-keys">Cles en minuscules</label>
+            </div>
           </div>
-          <div class="fr-input-group fr-input-group--sm">
-            <label class="fr-label" for="a11y-description">Description (optionnelle)</label>
-            <textarea class="fr-input fr-input--sm" id="a11y-description" rows="2"
-              placeholder="Ex : Ce graphique montre la repartition par region..."></textarea>
+        </div>
+      </div>
+
+      <!-- Filtres a facettes (mode dynamique uniquement) -->
+      <div class="config-section collapsed" id="section-facets" style="display: none;">
+        <div class="config-section-header" onclick="toggleSection('section-facets')">
+          <h3><i class="ri-filter-3-line"></i> Filtres a facettes</h3>
+          <i class="ri-arrow-down-s-line collapse-icon"></i>
+        </div>
+        <div class="config-section-content">
+          <div class="fr-toggle">
+            <input type="checkbox" class="fr-toggle__input" id="facets-enabled" aria-describedby="facets-hint">
+            <label class="fr-toggle__label" for="facets-enabled"
+              data-fr-checked-label="Active" data-fr-unchecked-label="Desactive">
+              Filtres interactifs
+            </label>
+            <p class="fr-hint-text" id="facets-hint">Ajouter des facettes pour filtrer les donnees dynamiquement</p>
+          </div>
+
+          <div id="facets-options" style="display: none;" class="fr-mt-2w">
+            <button class="fr-btn fr-btn--secondary fr-btn--sm fr-icon-settings-5-line fr-btn--icon-left"
+              id="facets-fields-btn" type="button">
+              Configurer les facettes
+            </button>
+            <p class="fr-text--xs fr-mt-1v" id="facets-fields-summary">Aucun champ configure</p>
+
+            <div class="fr-input-group fr-input-group--sm fr-mt-2w">
+              <label class="fr-label" for="facets-max-values">
+                Valeurs visibles par facette
+                <span class="fr-hint-text">Nombre de valeurs avant "Voir plus" (defaut: 6)</span>
+              </label>
+              <input class="fr-input" type="number" id="facets-max-values" value="6" min="2" max="50">
+            </div>
+
+            <div class="fr-select-group fr-select-group--sm fr-mt-1w">
+              <label class="fr-label" for="facets-sort">Tri des valeurs</label>
+              <select class="fr-select" id="facets-sort">
+                <option value="count">Par nombre (decroissant)</option>
+                <option value="-count">Par nombre (croissant)</option>
+                <option value="alpha">Alphabetique (A-Z)</option>
+                <option value="-alpha">Alphabetique (Z-A)</option>
+              </select>
+            </div>
+
+            <div class="fr-checkbox-group fr-checkbox-group--sm fr-mt-1w">
+              <input type="checkbox" id="facets-hide-empty">
+              <label class="fr-label" for="facets-hide-empty">
+                Masquer les facettes avec une seule valeur
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Option accessibilite -->
+      <div class="config-section collapsed" id="section-a11y">
+        <div class="config-section-header" onclick="toggleSection('section-a11y')">
+          <h3><i class="ri-accessibility-line"></i> Accessibilite</h3>
+          <i class="ri-arrow-down-s-line collapse-icon"></i>
+        </div>
+        <div class="config-section-content">
+          <div class="fr-checkbox-group fr-checkbox-group--sm">
+            <input type="checkbox" id="a11y-toggle" checked>
+            <label class="fr-label" for="a11y-toggle">
+              Ajouter le composant accessibilite
+            </label>
+          </div>
+          <div id="a11y-options" style="display: block; margin-left: 1.5rem; margin-top: 0.5rem;">
+            <div class="fr-checkbox-group fr-checkbox-group--sm fr-mb-1w">
+              <input type="checkbox" id="a11y-table" checked>
+              <label class="fr-label" for="a11y-table">Tableau de donnees</label>
+            </div>
+            <div class="fr-checkbox-group fr-checkbox-group--sm fr-mb-1w">
+              <input type="checkbox" id="a11y-download" checked>
+              <label class="fr-label" for="a11y-download">Telechargement CSV</label>
+            </div>
+            <div class="fr-input-group fr-input-group--sm">
+              <label class="fr-label" for="a11y-description">Description (optionnelle)</label>
+              <textarea class="fr-input fr-input--sm" id="a11y-description" rows="2"
+                placeholder="Ex : Ce graphique montre la repartition par region..."></textarea>
+            </div>
           </div>
         </div>
       </div>

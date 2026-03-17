@@ -822,7 +822,7 @@ datalist.onSourceData(data);
 
   const activeExtraSeries = state.extraSeries.filter(s => s.field && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType));
   const allSeriesValues: number[][] = [values];
-  const allSeriesNames: string[] = [state.valueField];
+  const allSeriesNames: string[] = [state.valueFieldLabel || state.valueField];
 
   activeExtraSeries.forEach((s, i) => {
     allSeriesValues.push(state.data.map(d => Math.round(((d[`value${i + 2}`] as number) || 0) * 100) / 100));
@@ -1234,7 +1234,7 @@ ${middlewareHtml}
   if (extraVFs && extraVFs.length > 0) {
     extraFieldsAttr = `\n    value-fields="${extraVFs.join(',')}"`;
     // Build series names from labels
-    const seriesNames = [state.valueField, ...state.extraSeries.filter(s => s.field).map(s => s.label || s.field)];
+    const seriesNames = [state.valueFieldLabel || state.valueField, ...state.extraSeries.filter(s => s.field).map(s => s.label || s.field)];
     nameAttr = `name='${escapeSingleQuotes(JSON.stringify(seriesNames))}'`;
   } else if (queryValueField2) {
     extraFieldsAttr = `\n    value-field-2="${queryValueField2}"`;
@@ -1551,7 +1551,7 @@ ${middlewareHtml}
 
   if (queryExtraVFs.length > 0) {
     extraFieldsAttr = `\n    value-fields="${queryExtraVFs.join(',')}"`;
-    const seriesNames = [state.valueField, ...state.extraSeries.filter(s => s.field).map(s => s.label || s.field)];
+    const seriesNames = [state.valueFieldLabel || state.valueField, ...state.extraSeries.filter(s => s.field).map(s => s.label || s.field)];
     nameAttr = `name='${escapeSingleQuotes(JSON.stringify(seriesNames))}'`;
   } else if (queryValueField2) {
     extraFieldsAttr = `\n    value-field-2="${queryValueField2}"`;
@@ -1856,8 +1856,8 @@ loadMap();
   if (state.chartType === 'pie') extraAttrs.push('fill');
 
   const seriesNames = activeExtraSeriesCode.length > 0
-    ? JSON.stringify([state.valueField, ...activeExtraSeriesCode.map(s => s.label || s.field)])
-    : JSON.stringify([state.valueField]);
+    ? JSON.stringify([state.valueFieldLabel || state.valueField, ...activeExtraSeriesCode.map(s => s.label || s.field)])
+    : JSON.stringify([state.valueFieldLabel || state.valueField]);
 
   // Generate extra series extraction code
   const extraSeriesExtractCode = activeExtraSeriesCode.map((_, i) =>

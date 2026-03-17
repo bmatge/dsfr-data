@@ -15,7 +15,9 @@ export function getBuilderStateToSave(): Record<string, unknown> {
   return {
     chartType: state.chartType,
     labelField: state.labelField,
+    labelFieldLabel: state.labelFieldLabel,
     valueField: state.valueField,
+    valueFieldLabel: state.valueFieldLabel,
     valueField2: state.valueField2,
     codeField: state.codeField,
     aggregation: state.aggregation,

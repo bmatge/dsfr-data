@@ -224,6 +224,14 @@ export function loadFieldsFromLocalData(): void {
     if (dynamicWarning) {
       dynamicWarning.style.display = (source.type === 'grist' && !source.isPublic) ? 'block' : 'none';
     }
+    // Default to dynamic mode for sources that support it
+    state.generationMode = 'dynamic';
+    const dynamicRadio = document.getElementById('mode-dynamic') as HTMLInputElement | null;
+    const dynamicOptions = document.getElementById('dynamic-options') as HTMLElement | null;
+    if (dynamicRadio) dynamicRadio.checked = true;
+    const embeddedRadio = document.getElementById('mode-embedded') as HTMLInputElement | null;
+    if (embeddedRadio) embeddedRadio.checked = false;
+    if (dynamicOptions) dynamicOptions.style.display = 'none';
   } else {
     if (generationModeSection) generationModeSection.style.display = 'none';
   }
@@ -391,7 +399,11 @@ export function loadFavoriteState(): void {
         const sortSelect = document.getElementById('sort-order') as HTMLSelectElement | null;
 
         if (state.labelField && labelSelect) labelSelect.value = state.labelField;
+        const labelFieldLabelInput = document.getElementById('label-field-label') as HTMLInputElement | null;
+        if (labelFieldLabelInput) labelFieldLabelInput.value = state.labelFieldLabel || '';
         if (state.valueField && valueSelect) valueSelect.value = state.valueField;
+        const valueFieldLabelInput = document.getElementById('value-field-label') as HTMLInputElement | null;
+        if (valueFieldLabelInput) valueFieldLabelInput.value = state.valueFieldLabel || '';
         if (state.codeField && codeSelect) codeSelect.value = state.codeField;
         if (state.aggregation && aggSelect) aggSelect.value = state.aggregation;
         if (state.sortOrder && sortSelect) sortSelect.value = state.sortOrder;

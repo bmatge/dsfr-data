@@ -119,7 +119,9 @@ export interface BuilderState {
   fields: Field[];
   chartType: ChartType;
   labelField: string;
+  labelFieldLabel: string;
   valueField: string;
+  valueFieldLabel: string;
   valueField2: string;
   extraSeries: ExtraSeries[];
   codeField: string;
@@ -161,7 +163,9 @@ export const state: BuilderState = {
   fields: [],
   chartType: 'bar',
   labelField: '',
+  labelFieldLabel: '',
   valueField: '',
+  valueFieldLabel: '',
   valueField2: '',
   extraSeries: [],
   codeField: '',

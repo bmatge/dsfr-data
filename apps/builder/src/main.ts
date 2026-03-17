@@ -78,6 +78,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   const copyCodeBtn = document.getElementById('copy-code-btn');
   if (copyCodeBtn) copyCodeBtn.addEventListener('click', copyCode);
 
+  // Label field label input
+  const labelFieldLabelInput = document.getElementById('label-field-label') as HTMLInputElement | null;
+  if (labelFieldLabelInput) {
+    labelFieldLabelInput.addEventListener('input', (e) => {
+      state.labelFieldLabel = (e.target as HTMLInputElement).value;
+    });
+  }
+
+  // Value field label input (Serie 1)
+  const valueFieldLabelInput = document.getElementById('value-field-label') as HTMLInputElement | null;
+  if (valueFieldLabelInput) {
+    valueFieldLabelInput.addEventListener('input', (e) => {
+      state.valueFieldLabel = (e.target as HTMLInputElement).value;
+    });
+  }
+
   // Input changes (title/subtitle update state only — preview updates on "Generer")
   const chartTitleInput = document.getElementById('chart-title') as HTMLInputElement | null;
   if (chartTitleInput) {
