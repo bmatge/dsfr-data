@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+// Mock getProxiedUrl to return the URL as-is (avoid proxy rewriting in tests)
+vi.mock('@dsfr-data/shared', async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  return { ...actual, getProxiedUrl: (url: string) => url };
+});
+
 // Mock fetch globally
 const mockFetch = vi.fn();
 globalThis.fetch = mockFetch;

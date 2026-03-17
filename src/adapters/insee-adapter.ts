@@ -13,7 +13,7 @@ import type {
   FetchResult, ServerSideOverlay
 } from './api-adapter.js';
 import type { ProviderConfig } from '@dsfr-data/shared';
-import { INSEE_CONFIG } from '@dsfr-data/shared';
+import { INSEE_CONFIG, getProxiedUrl } from '@dsfr-data/shared';
 
 /** Default base URL for the Melodi API */
 const INSEE_BASE_URL = 'https://api.insee.fr/melodi';
@@ -72,7 +72,7 @@ export class InseeAdapter implements ApiAdapter {
       if (remaining <= 0) break;
 
       const effectivePageSize = Math.min(pageSize, remaining);
-      const url = this.buildUrl(params, effectivePageSize, page);
+      const url = getProxiedUrl(this.buildUrl(params, effectivePageSize, page));
 
       const response = await fetch(url, buildFetchOptions(params, signal));
       if (!response.ok) {
@@ -117,7 +117,7 @@ export class InseeAdapter implements ApiAdapter {
    * Fetch a single page in server-side pagination mode.
    */
   async fetchPage(params: AdapterParams, overlay: ServerSideOverlay, signal: AbortSignal): Promise<FetchResult> {
-    const url = this.buildServerSideUrl(params, overlay);
+    const url = getProxiedUrl(this.buildServerSideUrl(params, overlay));
 
     const response = await fetch(url, buildFetchOptions(params, signal));
     if (!response.ok) {

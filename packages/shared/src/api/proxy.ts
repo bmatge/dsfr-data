@@ -54,6 +54,10 @@ export function getProxiedUrl(url: string): string {
     return url.replace('https://albert.api.etalab.gouv.fr', `${config.baseUrl}${config.endpoints.albert}`);
   }
 
+  if (url.includes('api.insee.fr')) {
+    return url.replace('https://api.insee.fr', `${config.baseUrl}${config.endpoints.insee}`);
+  }
+
   return url;
 }
 
