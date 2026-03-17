@@ -33,8 +33,7 @@
   "workspaces": [
     "packages/*",
     "apps/*",
-    "server",
-    "mcp-server"
+    "server"
   ],
   "scripts": {
     "dev": "vite",
