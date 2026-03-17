@@ -202,6 +202,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupNormalizeListeners();
   setupFacetsListeners();
 
+  // Initialize UI for the default chart type (bar)
+  selectChartType(state.chartType);
+
   // Load saved sources and check for selected source from sources.html
   loadSavedSources();
   checkSelectedSource();
