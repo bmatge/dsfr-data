@@ -10,6 +10,7 @@ export interface ProxyConfig {
     gristGouv: string;
     albert: string;
     tabular: string;
+    insee: string;
     corsProxy: string;
   };
 }
@@ -46,6 +47,7 @@ export const DEFAULT_PROXY_CONFIG: ProxyConfig = {
     gristGouv: '/grist-gouv-proxy',
     albert: '/albert-proxy',
     tabular: '/tabular-proxy',
+    insee: '/insee-proxy',
     corsProxy: '/cors-proxy',
   }
 };

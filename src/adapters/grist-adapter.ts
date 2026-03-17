@@ -26,7 +26,7 @@ import type {
 } from './api-adapter.js';
 import type { QueryAggregate } from '../components/dsfr-data-query.js';
 import type { ProviderConfig } from '@dsfr-data/shared';
-import { GRIST_CONFIG } from '@dsfr-data/shared';
+import { GRIST_CONFIG, getProxiedUrl } from '@dsfr-data/shared';
 
 /** Construit les options fetch avec headers optionnels */
 function buildFetchOptions(params: Pick<AdapterParams, 'headers'>, signal?: AbortSignal): RequestInit {
@@ -100,7 +100,7 @@ export class GristAdapter implements ApiAdapter {
     }
 
     // Mode Records (enrichi avec filter/sort/limit)
-    const url = this.buildUrl(params);
+    const url = getProxiedUrl(this.buildUrl(params));
     const response = await fetch(url, buildFetchOptions(params, signal));
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 
@@ -121,7 +121,7 @@ export class GristAdapter implements ApiAdapter {
     }
 
     // Mode Records pagine
-    const url = this.buildServerSideUrl(params, overlay);
+    const url = getProxiedUrl(this.buildServerSideUrl(params, overlay));
     const response = await fetch(url, buildFetchOptions(params, signal));
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 
@@ -223,7 +223,7 @@ export class GristAdapter implements ApiAdapter {
       }
       sql += ` GROUP BY ${col} ORDER BY cnt DESC LIMIT 200`;
 
-      const sqlUrl = this._getSqlEndpointUrl(fullParams);
+      const sqlUrl = getProxiedUrl(this._getSqlEndpointUrl(fullParams));
       try {
         const response = await fetch(sqlUrl, {
           method: 'POST',
@@ -312,7 +312,7 @@ export class GristAdapter implements ApiAdapter {
     params: AdapterParams,
     signal?: AbortSignal
   ): Promise<GristColumn[]> {
-    const url = params.baseUrl.replace(/\/records.*$/, '/columns');
+    const url = getProxiedUrl(params.baseUrl.replace(/\/records.*$/, '/columns'));
     try {
       const response = await fetch(url, buildFetchOptions(params, signal));
       if (!response.ok) return [];
@@ -341,7 +341,7 @@ export class GristAdapter implements ApiAdapter {
     params: AdapterParams,
     signal?: AbortSignal
   ): Promise<GristTable[]> {
-    const url = params.baseUrl.replace(/\/tables\/[^/]+\/records.*$/, '/tables');
+    const url = getProxiedUrl(params.baseUrl.replace(/\/tables\/[^/]+\/records.*$/, '/tables'));
     try {
       const response = await fetch(url, buildFetchOptions(params, signal));
       if (!response.ok) return [];
@@ -455,7 +455,7 @@ export class GristAdapter implements ApiAdapter {
       offset ? `OFFSET ${offset}` : '',
     ].filter(Boolean).join(' ');
 
-    const sqlUrl = this._getSqlEndpointUrl(params);
+    const sqlUrl = getProxiedUrl(this._getSqlEndpointUrl(params));
     const response = await fetch(sqlUrl, {
       method: 'POST',
       headers: {
@@ -488,7 +488,7 @@ export class GristAdapter implements ApiAdapter {
 
   /** Fetch Records mode (internal fallback) */
   private async _fetchAllRecords(params: AdapterParams, signal: AbortSignal): Promise<FetchResult> {
-    const url = this.buildUrl(params);
+    const url = getProxiedUrl(this.buildUrl(params));
     const response = await fetch(url, buildFetchOptions(params, signal));
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 
@@ -704,7 +704,7 @@ export class GristAdapter implements ApiAdapter {
     if (cached !== undefined) return cached;
 
     try {
-      const sqlUrl = this._getSqlEndpointUrl(params);
+      const sqlUrl = getProxiedUrl(this._getSqlEndpointUrl(params));
       const response = await fetch(sqlUrl + '?q=SELECT%201', {
         method: 'GET',
         headers: (params.headers || {}) as Record<string, string>,

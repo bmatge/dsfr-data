@@ -11,7 +11,7 @@ import type {
 } from './api-adapter.js';
 import type { QueryAggregate } from '../components/dsfr-data-query.js';
 import type { ProviderConfig } from '@dsfr-data/shared';
-import { ODS_CONFIG } from '@dsfr-data/shared';
+import { ODS_CONFIG, getProxiedUrl } from '@dsfr-data/shared';
 
 /** Construit les options fetch avec headers optionnels */
 function buildFetchOptions(params: Pick<AdapterParams, 'headers'>, signal?: AbortSignal): RequestInit {
@@ -67,7 +67,7 @@ export class OpenDataSoftAdapter implements ApiAdapter {
       const remaining = requestedLimit - allResults.length;
       if (remaining <= 0) break;
 
-      const url = this.buildUrl(params, Math.min(pageSize, remaining), offset);
+      const url = getProxiedUrl(this.buildUrl(params, Math.min(pageSize, remaining), offset));
 
       const response = await fetch(url, buildFetchOptions(params, signal));
       if (!response.ok) {
@@ -111,7 +111,7 @@ export class OpenDataSoftAdapter implements ApiAdapter {
    * Fetch une seule page en mode server-side.
    */
   async fetchPage(params: AdapterParams, overlay: ServerSideOverlay, signal: AbortSignal): Promise<FetchResult> {
-    const url = this.buildServerSideUrl(params, overlay);
+    const url = getProxiedUrl(this.buildServerSideUrl(params, overlay));
 
     const response = await fetch(url, buildFetchOptions(params, signal));
     if (!response.ok) {
@@ -231,7 +231,7 @@ export class OpenDataSoftAdapter implements ApiAdapter {
       url.searchParams.set('where', where);
     }
 
-    const response = await fetch(url.toString(), buildFetchOptions(params, signal));
+    const response = await fetch(getProxiedUrl(url.toString()), buildFetchOptions(params, signal));
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }

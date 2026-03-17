@@ -92,6 +92,20 @@ export default defineConfig({
           });
         }
       },
+      // Proxy pour INSEE Melodi API
+      '/insee-proxy': {
+        target: 'https://api.insee.fr',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/insee-proxy/, ''),
+        secure: true,
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => {
+            proxyReq.removeHeader('cookie');
+            proxyReq.removeHeader('origin');
+            proxyReq.removeHeader('referer');
+          });
+        }
+      },
       // Proxy générique pour les APIs externes (legacy, prefer /cors-proxy middleware)
       '/api-proxy': {
         target: '',
