@@ -202,6 +202,29 @@ Si un attribut est ajoute a un composant sans maj du skill, le test echouera.
 
 **Note** : dsfr-data-source a deux modes (voir "Attributs dsfr-data-source" ci-dessus). dsfr-data-query est un pur transformateur et ne fait aucun fetch HTTP.
 
+## Deploiement serveur (VPS)
+
+Le repo s'appelle `dsfr-data` mais le projet Docker s'appelle `datasource-charts-webcomponents` (ancien nom).
+Le `.env` doit contenir `COMPOSE_PROJECT_NAME=datasource-charts-webcomponents` pour que Docker reuse les volumes existants.
+
+```bash
+# Premier deploiement depuis le nouveau repo
+cp ~/datasource-charts-webcomponents/.env .env
+echo "COMPOSE_PROJECT_NAME=datasource-charts-webcomponents" >> .env
+
+# Deploiement (arrete les conteneurs, git pull, build, redemarre)
+./deploy-server.sh
+```
+
+La DB SQLite est dans le volume `datasource-charts-webcomponents_db-data`, fichier `dsfr-data.db`.
+
+### mcp-server
+
+Le `mcp-server/` est un package **hors workspace npm** (pas dans `workspaces` du root `package.json`).
+Il a son propre `package-lock.json` et son propre `node_modules`.
+Le SDK est pinner a `1.12.1` (versions superieures utilisent zod v4 qui cause des erreurs TypeScript).
+Dans `Dockerfile.db`, le build mcp-server fait `npm ci && npm run build` depuis son repertoire.
+
 ## Release Tauri
 
 La release est declenchee par un tag git :
