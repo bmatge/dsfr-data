@@ -18,6 +18,7 @@ import { DsfrDataDisplay } from '../../../src/components/dsfr-data-display.js';
 import { DsfrDataSearch } from '../../../src/components/dsfr-data-search.js';
 import { DsfrDataA11y } from '../../../src/components/dsfr-data-a11y.js';
 import { DsfrDataKpiGroup } from '../../../src/components/dsfr-data-kpi-group.js';
+import { DsfrDataWorldMap } from '../../../src/components/dsfr-data-world-map.js';
 
 // Type/constant imports for alignment checks
 import type { FilterOperator, AggregateFunction } from '../../../src/components/dsfr-data-query.js';
@@ -45,8 +46,8 @@ function getHtmlAttributes(ComponentClass: typeof DsfrDataSource): Set<string> {
 }
 
 describe('builder-ia skills', () => {
-  it('should have 21 skill definitions', () => {
-    expect(Object.keys(SKILLS)).toHaveLength(21);
+  it('should have 22 skill definitions', () => {
+    expect(Object.keys(SKILLS)).toHaveLength(22);
   });
 
   it('should have expected skill IDs', () => {
@@ -70,6 +71,7 @@ describe('builder-ia skills', () => {
     expect(SKILLS).toHaveProperty('dsfrColors');
     expect(SKILLS).toHaveProperty('apiProviders');
     expect(SKILLS).toHaveProperty('dsfrDataA11y');
+    expect(SKILLS).toHaveProperty('dsfrDataWorldMap');
     expect(SKILLS).toHaveProperty('troubleshooting');
   });
 
@@ -256,6 +258,10 @@ describe('builder-ia skills', () => {
       it('dsfrDataKpiGroup skill covers all <dsfr-data-kpi-group> attributes', () => {
         assertAttributesCovered(DsfrDataKpiGroup as unknown as typeof DsfrDataSource, 'dsfrDataKpiGroup', 'dsfr-data-kpi-group');
       });
+
+      it('dsfrDataWorldMap skill covers all <dsfr-data-world-map> attributes', () => {
+        assertAttributesCovered(DsfrDataWorldMap as unknown as typeof DsfrDataSource, 'dsfrDataWorldMap', 'dsfr-data-world-map');
+      });
     });
 
     describe('chart types coverage', () => {
@@ -330,6 +336,7 @@ describe('builder-ia skills', () => {
         'DsfrDataList': 'dsfrDataList',
         'DsfrDataDisplay': 'dsfrDataDisplay',
         'DsfrDataChart': 'dsfrDataChart',
+        'DsfrDataWorldMap': 'dsfrDataWorldMap',
       };
 
       it('every data component has a corresponding skill', () => {

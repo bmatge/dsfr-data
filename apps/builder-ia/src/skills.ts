@@ -1920,6 +1920,70 @@ Quand \`for="mon-graph"\` est defini :
   },
 
   // ---------------------------------------------------------------------------
+  // dsfr-data-world-map
+  // ---------------------------------------------------------------------------
+
+  dsfrDataWorldMap: {
+    id: 'dsfrDataWorldMap',
+    name: 'dsfr-data-world-map',
+    description: 'Carte choroplèthe mondiale connectée à dsfr-data-source, colorie les pays selon une valeur numérique',
+    trigger: ['world-map', 'carte monde', 'carte mondiale', 'pays', 'choropleth', 'world map', 'planisphere', 'carte pays'],
+    content: `## dsfr-data-world-map — Carte choroplèthe mondiale
+
+Composant qui affiche une carte du monde SVG (projection Natural Earth)
+où chaque pays est colorié selon une valeur numérique.
+Chargé via le bundle \`dsfr-data.world-map.esm.js\` (séparé du core).
+
+### Attributs
+
+| Attribut | Type | Defaut | Requis | Description |
+|----------|------|--------|--------|-------------|
+| source | String | \`""\` | oui | ID du dsfr-data-source ou dsfr-data-query |
+| code-field | String | \`""\` | oui | Champ contenant le code pays |
+| value-field | String | \`""\` | oui | Champ numerique a visualiser |
+| code-format | String | \`"iso-a2"\` | non | Format du code pays : \`iso-a2\` (FR), \`iso-a3\` (FRA), \`iso-num\` (250) |
+| name | String | \`""\` | non | Libelle de la serie (legende) |
+| selected-palette | String | \`"sequentialAscending"\` | non | Palette choropleth : sequentialAscending, sequentialDescending, divergentAscending, divergentDescending, neutral |
+| unit-tooltip | String | \`""\` | non | Unite affichee dans le tooltip au survol |
+| zoom | String | \`"continent"\` | non | Comportement de zoom : \`"continent"\` (zoom sur le continent au clic) ou \`"none"\` |
+
+### Palettes disponibles
+
+- \`sequentialAscending\` : clair → fonce (bleu France, defaut)
+- \`sequentialDescending\` : fonce → clair
+- \`divergentAscending\` : bleu → rouge
+- \`divergentDescending\` : rouge → bleu
+- \`neutral\` : gris
+
+### Chargement du bundle
+
+\`\`\`html
+<script src="${'${LIB_URL}'}/dsfr-data.world-map.umd.js"></script>
+\`\`\`
+
+### Exemple complet
+
+\`\`\`html
+<dsfr-data-source id="world-data"
+  url="/api/countries"
+  transform="results">
+</dsfr-data-source>
+
+<dsfr-data-world-map
+  source="world-data"
+  code-field="iso_code"
+  value-field="gdp_per_capita"
+  code-format="iso-a3"
+  name="PIB par habitant"
+  selected-palette="sequentialAscending"
+  unit-tooltip="USD"
+  zoom="continent">
+</dsfr-data-world-map>
+\`\`\`
+`,
+  },
+
+  // ---------------------------------------------------------------------------
   // Troubleshooting et pieges courants
   // ---------------------------------------------------------------------------
 
