@@ -62,9 +62,9 @@ function buildDOM(): void {
       <select id="aggregation"></select>
     </div>
 
-    <!-- Multi-series value field 2 -->
-    <div id="value-field-2-group" style="display: none;">
-      <select id="value-field-2"></select>
+    <!-- Multi-series extra series -->
+    <div id="extra-series-group" style="display: none;">
+      <div id="extra-series-container"></div>
     </div>
 
     <!-- Map code field -->
@@ -79,6 +79,7 @@ function resetState(): void {
   state.chartType = 'bar';
   state.palette = 'default';
   state.valueField2 = '';
+  state.extraSeries = [];
   state.codeField = '';
 }
 
@@ -291,17 +292,17 @@ describe('selectChartType', () => {
     const noMultiSeriesTypes: ChartType[] = ['pie', 'doughnut', 'scatter', 'kpi', 'gauge', 'map', 'datalist'];
 
     for (const type of multiSeriesTypes) {
-      it(`should show value-field-2-group for ${type}`, () => {
+      it(`should show extra-series-group for ${type}`, () => {
         selectChartType(type);
-        const group = document.getElementById('value-field-2-group') as HTMLElement;
+        const group = document.getElementById('extra-series-group') as HTMLElement;
         expect(group.style.display).toBe('block');
       });
     }
 
     for (const type of noMultiSeriesTypes) {
-      it(`should hide value-field-2-group for ${type}`, () => {
+      it(`should hide extra-series-group for ${type}`, () => {
         selectChartType(type);
-        const group = document.getElementById('value-field-2-group') as HTMLElement;
+        const group = document.getElementById('extra-series-group') as HTMLElement;
         expect(group.style.display).toBe('none');
       });
     }
@@ -310,24 +311,25 @@ describe('selectChartType', () => {
   // -----------------------------------------------------------
   // 11. Resetting valueField2 when multi-series not supported
   // -----------------------------------------------------------
-  describe('valueField2 reset', () => {
-    it('should reset state.valueField2 to empty when type does not support multi-series', () => {
-      state.valueField2 = 'population';
+  describe('extraSeries reset', () => {
+    it('should reset state.extraSeries to empty when type does not support multi-series', () => {
+      state.extraSeries = [{ field: 'population', label: '' }];
       selectChartType('pie');
+      expect(state.extraSeries).toEqual([]);
       expect(state.valueField2).toBe('');
     });
 
-    it('should reset the value-field-2 select element', () => {
-      const vf2 = document.getElementById('value-field-2') as HTMLSelectElement;
-      vf2.value = 'some-field';
+    it('should clear the extra-series-container when type does not support multi-series', () => {
+      const container = document.getElementById('extra-series-container')!;
+      container.innerHTML = '<div>some series</div>';
       selectChartType('scatter');
-      expect(vf2.value).toBe('');
+      expect(container.innerHTML).toBe('');
     });
 
-    it('should not reset valueField2 when type supports multi-series', () => {
-      state.valueField2 = 'population';
+    it('should not reset extraSeries when type supports multi-series', () => {
+      state.extraSeries = [{ field: 'population', label: '' }];
       selectChartType('bar');
-      expect(state.valueField2).toBe('population');
+      expect(state.extraSeries).toEqual([{ field: 'population', label: '' }]);
     });
   });
 
@@ -424,9 +426,9 @@ describe('selectChartType', () => {
       expect(group.style.display).toBe('block');
     });
 
-    it('should hide value-field-2-group for datalist', () => {
+    it('should hide extra-series-group for datalist', () => {
       selectChartType('datalist');
-      const group = document.getElementById('value-field-2-group') as HTMLElement;
+      const group = document.getElementById('extra-series-group') as HTMLElement;
       expect(group.style.display).toBe('none');
     });
 

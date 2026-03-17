@@ -86,6 +86,12 @@ export interface Field {
 // Source is imported from @dsfr-data/shared (unified interface)
 export type { Source } from '@dsfr-data/shared';
 
+/** An extra data series configuration */
+export interface ExtraSeries {
+  field: string;
+  label: string;
+}
+
 /** A single data record (aggregated result) */
 export interface DataRecord {
   [key: string]: unknown;
@@ -115,6 +121,7 @@ export interface BuilderState {
   labelField: string;
   valueField: string;
   valueField2: string;
+  extraSeries: ExtraSeries[];
   codeField: string;
   aggregation: AggregationType;
   sortOrder: SortOrder;
@@ -156,6 +163,7 @@ export const state: BuilderState = {
   labelField: '',
   valueField: '',
   valueField2: '',
+  extraSeries: [],
   codeField: '',
   aggregation: 'avg',
   sortOrder: 'desc',
@@ -194,7 +202,7 @@ export const state: BuilderState = {
     sort: 'count',
     hideEmpty: false,
   },
-  a11yEnabled: false,
+  a11yEnabled: true,
   a11yTable: true,
   a11yDownload: true,
   a11yDescription: '',

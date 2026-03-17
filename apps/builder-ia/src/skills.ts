@@ -981,6 +981,7 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 | label-field | String | \`""\` | selon type | Chemin vers les labels dans les donnees |
 | value-field | String | \`""\` | oui (sauf gauge) | Chemin vers les valeurs |
 | value-field-2 | String | \`""\` | non | 2e serie de valeurs (bar-line) |
+| value-fields | String | \`""\` | non | Series supplementaires separees par virgules (ex: \`"budget,score"\`) |
 | name | String | \`""\` | non | Noms des series en JSON : \`'["Serie 1","Serie 2"]'\` |
 | selected-palette | String | \`"categorical"\` | non | Palette : categorical, sequentialAscending, sequentialDescending, divergentAscending, divergentDescending, neutral, default |
 | unit-tooltip | String | \`""\` | non | Unite dans les info-bulles : %, EUR, etc. |
@@ -1620,12 +1621,12 @@ Guide pour choisir le type de visualisation adapte aux donnees.
 - **Quand** : comparer des categories (5-15 ideal)
 - **Champs** : label-field (categories), value-field (valeurs)
 - **Options** : \`horizontal\` (barres horizontales), \`stacked\` (empile)
-- **Supporte** : value-field-2 pour 2e serie, highlight-index
+- **Supporte** : value-field-2 ou value-fields pour N series, highlight-index
 
 ### Lignes (line)
 - **Quand** : evolution temporelle, tendances
 - **Champs** : label-field (dates/temps), value-field (valeurs)
-- **Supporte** : value-field-2 pour comparaison, x-min/x-max/y-min/y-max
+- **Supporte** : value-field-2 ou value-fields pour comparaison, x-min/x-max/y-min/y-max
 
 ### Combine barres + ligne (bar-line)
 - **Quand** : comparer 2 metriques differentes (ex: CA en barres + objectif en ligne)
@@ -1640,7 +1641,7 @@ Guide pour choisir le type de visualisation adapte aux donnees.
 ### Radar
 - **Quand** : profils multicriteres, comparaison de dimensions
 - **Champs** : label-field (criteres), value-field (scores)
-- **Supporte** : value-field-2 pour comparer 2 profils
+- **Supporte** : value-field-2 ou value-fields pour comparer plusieurs profils
 
 ### Nuage de points (scatter)
 - **Quand** : correlation entre deux variables numeriques
@@ -1665,7 +1666,9 @@ Guide pour choisir le type de visualisation adapte aux donnees.
 - **Champs** : code-field (code region), value-field
 
 ### Series multiples (bar, line, bar-line, radar)
-Utiliser value-field-2 pour une seconde serie. Definir les noms avec \`name='["Serie 1","Serie 2"]'\`.`,
+Utiliser \`value-field-2\` pour une seconde serie, ou \`value-fields\` pour plusieurs series supplementaires (separees par virgules).
+Definir les noms avec \`name='["Serie 1","Serie 2","Serie 3"]'\`.
+Exemple multi-series : \`value-field="ca" value-fields="budget,objectif" name='["CA","Budget","Objectif"]'\``,
   },
 
   dsfrColors: {

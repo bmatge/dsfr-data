@@ -9,7 +9,7 @@ import { looksLikeNumber, toNumber, toastWarning } from '@dsfr-data/shared';
 // ============================================================
 
 export function getTableEditor(): HTMLTableElement | null {
-  return document.getElementById('manual-table') as HTMLTableElement | null;
+  return document.getElementById('source-table-editor') as HTMLTableElement | null;
 }
 
 export function getColumnCount(): number {

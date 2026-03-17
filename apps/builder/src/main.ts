@@ -27,6 +27,7 @@ import type { ChartType } from './state.js';
 import { setupDatalistListeners } from './ui/datalist-config.js';
 import { setupNormalizeListeners, updateMiddlewareSections } from './ui/normalize-config.js';
 import { setupFacetsListeners } from './ui/facets-config.js';
+import { addExtraSeries } from './ui/extra-series.js';
 
 // Expose functions called from inline onclick in HTML
 (window as any).toggleSection = toggleSection;
@@ -173,6 +174,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       state.queryAggregate = (e.target as HTMLInputElement).value;
     });
   }
+
+  // Extra series "add" button
+  const addSeriesBtn = document.getElementById('add-series-btn');
+  if (addSeriesBtn) addSeriesBtn.addEventListener('click', addExtraSeries);
 
   // Datalist config listeners
   setupDatalistListeners();

@@ -61,6 +61,10 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'value-field-2' })
   valueField2 = '';
 
+  /** Champs de valeur supplementaires, separes par des virgules (ex: 'budget,score') */
+  @property({ type: String, attribute: 'value-fields' })
+  valueFields = '';
+
   /** Noms des séries (ex: '["Série 1", "Série 2"]') */
   @property({ type: String })
   name = '';
@@ -133,30 +137,43 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
 
   // --- Data processing ---
 
+  /** Parse all value field names (value-field, value-field-2, value-fields) */
+  private _getAllValueFields(): string[] {
+    const fields = [this.valueField];
+    if (this.valueFields) {
+      fields.push(...this.valueFields.split(',').map(f => f.trim()).filter(Boolean));
+    } else if (this.valueField2) {
+      fields.push(this.valueField2);
+    }
+    return fields;
+  }
+
   private _processData(): { x: string; y: string; y2?: string; yMulti?: string; labels: string[]; values: number[]; values2: number[] } {
     if (!this._data || this._data.length === 0) {
       return { x: '[[]]', y: '[[]]', labels: [], values: [], values2: [] };
     }
 
+    const allFields = this._getAllValueFields();
     const labels: string[] = [];
-    const values: number[] = [];
-    const values2: number[] = [];
+    const allSeries: number[][] = allFields.map(() => []);
 
     for (const record of this._data) {
       labels.push(String(getByPath(record, this.labelField) ?? 'N/A'));
-      values.push(Number(getByPath(record, this.valueField)) || 0);
-
-      if (this.valueField2) {
-        values2.push(Number(getByPath(record, this.valueField2)) || 0);
+      for (let i = 0; i < allFields.length; i++) {
+        allSeries[i].push(Number(getByPath(record, allFields[i])) || 0);
       }
     }
+
+    const values = allSeries[0] || [];
+    const values2 = allSeries[1] || [];
+    const hasMulti = allFields.length > 1;
 
     return {
       x: JSON.stringify([labels]),
       y: JSON.stringify([values]),
-      y2: this.valueField2 ? JSON.stringify([values2]) : undefined,
-      // Combined y with both series for multi-series charts (bar, line, radar)
-      yMulti: this.valueField2 ? JSON.stringify([values, values2]) : undefined,
+      y2: hasMulti ? JSON.stringify([values2]) : undefined,
+      // Combined y with all series for multi-series charts (bar, line, radar)
+      yMulti: hasMulti ? JSON.stringify(allSeries) : undefined,
       labels,
       values,
       values2,
@@ -207,10 +224,8 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       if (isMap) {
         attrs['name'] = this.valueField;
       } else {
-        const names = this.valueField2
-          ? [this.valueField, this.valueField2]
-          : [this.valueField];
-        attrs['name'] = JSON.stringify(names);
+        const allFields = this._getAllValueFields();
+        attrs['name'] = JSON.stringify(allFields);
       }
     }
 

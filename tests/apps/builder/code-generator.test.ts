@@ -27,6 +27,7 @@ function resetState(): void {
   state.labelField = '';
   state.valueField = '';
   state.valueField2 = '';
+  state.extraSeries = [];
   state.codeField = '';
   state.aggregation = 'avg';
   state.sortOrder = 'desc';
@@ -1124,7 +1125,7 @@ describe('generateOdsQueryCode', () => {
 
   it('should generate second series aggregation', () => {
     state.aggregation = 'sum';
-    state.valueField2 = 'budget';
+    state.extraSeries = [{ field: 'budget', label: '' }];
     state.chartType = 'bar';
     const result = generateOdsQueryCode(
       { baseUrl: 'https://ods.example.com', datasetId: 'ds1' },
@@ -1209,7 +1210,7 @@ describe('generateTabularQueryCode', () => {
 
   it('should generate second series aggregation', () => {
     state.aggregation = 'avg';
-    state.valueField2 = 'budget';
+    state.extraSeries = [{ field: 'budget', label: '' }];
     state.chartType = 'line';
     state.fields = [{ name: 'budget', fullPath: 'budget', type: 'number', sample: 100 }];
     const result = generateTabularQueryCode(
@@ -1367,13 +1368,13 @@ describe('generateDynamicCode', () => {
     expect(code).not.toContain('refresh=');
   });
 
-  it('should include second series attribute when valueField2 is set', () => {
-    state.valueField2 = 'budget';
+  it('should include second series attribute when extraSeries is set', () => {
+    state.extraSeries = [{ field: 'budget', label: '' }];
     state.fields.push({ name: 'budget', fullPath: 'fields.budget', type: 'number', sample: 500 });
     state.aggregation = 'sum';
     generateDynamicCode();
     const code = document.getElementById('generated-code')!.textContent!;
-    expect(code).toContain('value-field-2=');
+    expect(code).toContain('value-fields=');
   });
 
   it('should generate horizontalBar as type="bar" with horizontal attribute', () => {
@@ -1719,12 +1720,12 @@ describe('generateDynamicCodeForApi', () => {
     };
     state.labelField = 'region';
     state.valueField = 'population';
-    state.valueField2 = 'budget';
+    state.extraSeries = [{ field: 'budget', label: '' }];
     state.aggregation = 'sum';
     state.chartType = 'bar';
     generateDynamicCodeForApi();
     const code = document.getElementById('generated-code')!.textContent!;
-    expect(code).toContain('value-field-2=');
+    expect(code).toContain('value-fields=');
   });
 });
 
@@ -2454,11 +2455,11 @@ describe('generateCode (API fetch embedded)', () => {
     state.chartType = 'bar';
     state.labelField = 'region';
     state.valueField = 'population';
-    state.valueField2 = 'budget';
+    state.extraSeries = [{ field: 'budget', label: '' }];
     generateCode('https://api.example.com?limit=200');
     const code = document.getElementById('generated-code')!.textContent!;
     expect(code).toContain('bar-chart');
-    expect(code).toContain('value2');
+    expect(code).toContain('values2');
     // name attribute should include both series
     expect(code).toContain('population');
     expect(code).toContain('budget');
@@ -2468,10 +2469,10 @@ describe('generateCode (API fetch embedded)', () => {
     state.chartType = 'pie';
     state.labelField = 'region';
     state.valueField = 'population';
-    state.valueField2 = 'budget';
+    state.extraSeries = [{ field: 'budget', label: '' }];
     generateCode('https://api.example.com?limit=200');
     const code = document.getElementById('generated-code')!.textContent!;
-    expect(code).not.toContain('value2');
+    expect(code).not.toContain('values2');
   });
 
   it('should include subtitle when set', () => {

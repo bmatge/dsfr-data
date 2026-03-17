@@ -10,6 +10,7 @@ import { selectChartType } from './ui/chart-type-selector.js';
 import { populateFieldSelects } from './sources-fields.js';
 import { generateCodeForLocalData } from './ui/code-generator.js';
 import { updateMiddlewareSections, autoEnableNormalizeForGrist } from './ui/normalize-config.js';
+import { restoreExtraSeriesFromState } from './ui/extra-series.js';
 
 /**
  * Load saved sources from localStorage and populate the dropdown.
@@ -227,11 +228,7 @@ export function loadFieldsFromLocalData(): void {
     if (generationModeSection) generationModeSection.style.display = 'none';
   }
 
-  // Show/hide accessibility option (available for dynamic sources)
-  const a11ySection = document.getElementById('section-a11y') as HTMLElement | null;
-  if (a11ySection) {
-    a11ySection.style.display = (source?.type === 'grist' || source?.type === 'api') ? 'block' : 'none';
-  }
+  // Accessibility option is always visible (works for all source types)
   updateMiddlewareSections();
 
   showDataPreviewButton();
@@ -389,17 +386,18 @@ export function loadFavoriteState(): void {
       setTimeout(() => {
         const labelSelect = document.getElementById('label-field') as HTMLSelectElement | null;
         const valueSelect = document.getElementById('value-field') as HTMLSelectElement | null;
-        const valueSelect2 = document.getElementById('value-field-2') as HTMLSelectElement | null;
         const codeSelect = document.getElementById('code-field') as HTMLSelectElement | null;
         const aggSelect = document.getElementById('aggregation') as HTMLSelectElement | null;
         const sortSelect = document.getElementById('sort-order') as HTMLSelectElement | null;
 
         if (state.labelField && labelSelect) labelSelect.value = state.labelField;
         if (state.valueField && valueSelect) valueSelect.value = state.valueField;
-        if (state.valueField2 && valueSelect2) valueSelect2.value = state.valueField2;
         if (state.codeField && codeSelect) codeSelect.value = state.codeField;
         if (state.aggregation && aggSelect) aggSelect.value = state.aggregation;
         if (state.sortOrder && sortSelect) sortSelect.value = state.sortOrder;
+
+        // Restore extra series (migrates old valueField2 if needed)
+        restoreExtraSeriesFromState();
       }, 0);
     }
 

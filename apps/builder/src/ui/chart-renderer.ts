@@ -206,9 +206,6 @@ export function renderChart(): void {
 
   const labels = state.data.map(d => (d[state.labelField] as string) || 'N/A');
   const values = state.data.map(d => Math.round(((d.value as number) || 0) * 100) / 100);
-  const values2 = state.valueField2
-    ? state.data.map(d => Math.round(((d.value2 as number) || 0) * 100) / 100)
-    : null;
 
   // Determine chart type for Chart.js
   let chartType: string = state.chartType;
@@ -270,17 +267,21 @@ export function renderChart(): void {
     fill: state.chartType !== 'line',
   }];
 
-  // Add second series if defined
-  if (values2 && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType)) {
+  // Add extra series if defined
+  const activeExtraSeries = state.extraSeries.filter(s => s.field && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType));
+  const extraColors = ['#E1000F', '#18753C', '#D64D00', '#0063CB', '#6E445A', '#009081', '#C08C36'];
+  activeExtraSeries.forEach((s, i) => {
+    const seriesValues = state.data.map(d => Math.round(((d[`value${i + 2}`] as number) || 0) * 100) / 100);
+    const seriesColor = extraColors[i % extraColors.length];
     datasets.push({
-      label: state.valueField2,
-      data: values2,
-      backgroundColor: state.color2,
-      borderColor: state.color2,
+      label: s.label || s.field,
+      data: seriesValues,
+      backgroundColor: seriesColor,
+      borderColor: seriesColor,
       borderWidth: state.chartType === 'line' ? 2 : 1,
       fill: false,
     });
-  }
+  });
 
   state.chartInstance = new (ChartJS())(canvas, {
     type: chartType,
