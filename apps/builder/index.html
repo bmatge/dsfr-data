@@ -322,15 +322,12 @@
           </div>
         </div>
 
-        <!-- Champs optionnels (affiches conditionnellement) -->
-        <div class="fr-select-group fr-select-group--sm fr-mt-1w" id="value-field-2-group" style="display: none;">
-          <label class="fr-label" for="value-field-2">
-            Serie 2 (optionnel)
-            <span class="fr-hint-text">Second champ pour comparaison</span>
-          </label>
-          <select class="fr-select" id="value-field-2">
-            <option value="">— Aucune (serie unique) —</option>
-          </select>
+        <!-- Series supplementaires (affiches conditionnellement) -->
+        <div id="extra-series-group" style="display: none;">
+          <div id="extra-series-container"></div>
+          <button type="button" class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-mt-1w" id="add-series-btn">
+            <i class="ri-add-line"></i> Ajouter une serie
+          </button>
         </div>
 
         <div class="fr-select-group fr-select-group--sm fr-mt-1w" id="code-field-group" style="display: none;">
@@ -519,14 +516,14 @@
       </div>
 
       <!-- Option accessibilite -->
-      <div class="config-section" id="section-a11y" style="display: none;">
+      <div class="config-section" id="section-a11y">
         <div class="fr-checkbox-group fr-checkbox-group--sm">
-          <input type="checkbox" id="a11y-toggle">
+          <input type="checkbox" id="a11y-toggle" checked>
           <label class="fr-label" for="a11y-toggle">
             <i class="ri-accessibility-line fr-mr-1w" aria-hidden="true"></i>Ajouter accessibilite
           </label>
         </div>
-        <div id="a11y-options" style="display: none; margin-left: 1.5rem; margin-top: 0.5rem;">
+        <div id="a11y-options" style="display: block; margin-left: 1.5rem; margin-top: 0.5rem;">
           <div class="fr-checkbox-group fr-checkbox-group--sm fr-mb-1w">
             <input type="checkbox" id="a11y-table" checked>
             <label class="fr-label" for="a11y-table">Tableau de donnees</label>

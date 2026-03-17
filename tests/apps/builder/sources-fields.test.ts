@@ -10,14 +10,15 @@ describe('builder sources-fields', () => {
     state.labelField = '';
     state.valueField = '';
     state.valueField2 = '';
+    state.extraSeries = [];
     state.codeField = '';
 
     // Setup DOM with required select elements
     document.body.innerHTML = `
       <select id="label-field"></select>
       <select id="value-field"></select>
-      <select id="value-field-2"></select>
       <select id="code-field"></select>
+      <div id="extra-series-container"></div>
     `;
   });
 
@@ -33,12 +34,10 @@ describe('builder sources-fields', () => {
 
     const labelSelect = document.getElementById('label-field') as HTMLSelectElement;
     const valueSelect = document.getElementById('value-field') as HTMLSelectElement;
-    const valueSelect2 = document.getElementById('value-field-2') as HTMLSelectElement;
     const codeSelect = document.getElementById('code-field') as HTMLSelectElement;
 
     expect(labelSelect.options).toHaveLength(1);
     expect(valueSelect.options).toHaveLength(1);
-    expect(valueSelect2.options).toHaveLength(1);
     expect(codeSelect.options).toHaveLength(1);
   });
 
@@ -55,19 +54,6 @@ describe('builder sources-fields', () => {
     // +1 for the default option
     expect(labelSelect.options).toHaveLength(3);
     expect(valueSelect.options).toHaveLength(3);
-  });
-
-  it('should only add numeric fields to value-field-2', () => {
-    state.fields = [
-      { name: 'region', type: 'string', sample: 'Bretagne' },
-      { name: 'population', type: 'number', sample: 3300000 },
-      { name: 'surface', type: 'number', sample: 27208 },
-    ];
-    populateFieldSelects();
-
-    const valueSelect2 = document.getElementById('value-field-2') as HTMLSelectElement;
-    // Default option + 2 numeric fields
-    expect(valueSelect2.options).toHaveLength(3);
   });
 
   it('should add string and number fields to code-field', () => {

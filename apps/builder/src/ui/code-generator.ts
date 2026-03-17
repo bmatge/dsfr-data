@@ -372,14 +372,14 @@ export async function generateChart(): Promise<void> {
   // Get current values from form
   const labelField = document.getElementById('label-field') as HTMLSelectElement | null;
   const valueField = document.getElementById('value-field') as HTMLSelectElement | null;
-  const valueField2 = document.getElementById('value-field-2') as HTMLSelectElement | null;
   const codeField = document.getElementById('code-field') as HTMLSelectElement | null;
   const aggregation = document.getElementById('aggregation') as HTMLSelectElement | null;
   const sortOrder = document.getElementById('sort-order') as HTMLSelectElement | null;
 
   if (labelField) state.labelField = labelField.value;
   if (valueField) state.valueField = valueField.value;
-  state.valueField2 = valueField2?.value || '';
+  // Sync valueField2 from extraSeries for backward compat
+  state.valueField2 = state.extraSeries.length > 0 ? state.extraSeries[0].field : '';
   state.codeField = codeField?.value || '';
   if (aggregation) state.aggregation = aggregation.value as typeof state.aggregation;
   if (sortOrder) state.sortOrder = sortOrder.value as typeof state.sortOrder;
@@ -444,11 +444,12 @@ export async function generateChart(): Promise<void> {
     ? 'count(*) as value'
     : `${state.aggregation}(${state.valueField}) as value`;
 
-  // Handle second series if defined
-  const hasSecondSeries = state.valueField2 && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType);
-  const valueExpression2 = hasSecondSeries
-    ? `, ${state.aggregation}(${state.valueField2}) as value2`
-    : '';
+  // Handle extra series if defined
+  const activeExtraSeries = state.extraSeries.filter(s => s.field && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType));
+  let extraValueExpressions = '';
+  activeExtraSeries.forEach((s, i) => {
+    extraValueExpressions += `, ${state.aggregation}(${s.field}) as value${i + 2}`;
+  });
 
   let params: URLSearchParams;
   if (isSingleValue) {
@@ -467,7 +468,7 @@ export async function generateChart(): Promise<void> {
   } else {
     // Chart: group by label field — limit=200 to fetch all categories
     params = new URLSearchParams({
-      select: `${state.labelField}, ${valueExpression}${valueExpression2}`,
+      select: `${state.labelField}, ${valueExpression}${extraValueExpressions}`,
       group_by: state.labelField,
       order_by: `value ${state.sortOrder}`,
       limit: '200',
@@ -536,12 +537,12 @@ export function generateChartFromLocalData(): void {
   }
 
   // Aggregate local data
-  const aggregated: Record<string, { values: number[]; values2: number[]; count: number }> = {};
+  const aggregated: Record<string, { values: number[]; extraValues: number[][]; count: number }> = {};
 
   // For maps, aggregate by codeField; for other charts, by labelField
   const isMap = state.chartType === 'map';
   const groupField = isMap ? state.codeField : state.labelField;
-  const hasSecondSeries = state.valueField2 && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType);
+  const activeExtraSeries = state.extraSeries.filter(s => s.field && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType));
 
   // Apply advanced mode filter to local data
   let filteredLocal = state.localData || [];
@@ -560,12 +561,12 @@ export function generateChartFromLocalData(): void {
       const value = toNumber(record[state.valueField]);
 
       if (!aggregated[groupKey]) {
-        aggregated[groupKey] = { values: [], values2: [], count: 0 };
+        aggregated[groupKey] = { values: [], extraValues: activeExtraSeries.map(() => []), count: 0 };
       }
       aggregated[groupKey].values.push(value);
-      if (hasSecondSeries) {
-        aggregated[groupKey].values2.push(toNumber(record[state.valueField2]));
-      }
+      activeExtraSeries.forEach((s, i) => {
+        aggregated[groupKey].extraValues[i].push(toNumber(record[s.field]));
+      });
       aggregated[groupKey].count++;
     });
   }
@@ -593,10 +594,12 @@ export function generateChartFromLocalData(): void {
       result[state.labelField] = groupKey;
     }
 
-    // Second series
-    if (hasSecondSeries && data.values2.length > 0) {
-      result.value2 = applyAgg(data.values2, data.count);
-    }
+    // Extra series
+    activeExtraSeries.forEach((_, i) => {
+      if (data.extraValues[i].length > 0) {
+        result[`value${i + 2}`] = applyAgg(data.extraValues[i], data.count);
+      }
+    });
 
     return result;
   });
@@ -817,17 +820,19 @@ datalist.onSourceData(data);
   const labels = state.data.map(d => (d[state.labelField] as string) || 'N/A');
   const values = state.data.map(d => Math.round(((d.value as number) || 0) * 100) / 100);
 
-  const hasSecondSeries = state.valueField2 && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType);
-  const values2 = hasSecondSeries
-    ? state.data.map(d => Math.round(((d.value2 as number) || 0) * 100) / 100)
-    : null;
+  const activeExtraSeries = state.extraSeries.filter(s => s.field && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType));
+  const allSeriesValues: number[][] = [values];
+  const allSeriesNames: string[] = [state.valueField];
+
+  activeExtraSeries.forEach((s, i) => {
+    allSeriesValues.push(state.data.map(d => Math.round(((d[`value${i + 2}`] as number) || 0) * 100) / 100));
+    allSeriesNames.push(s.label || s.field);
+  });
 
   const dsfrTag = DSFR_TAG_MAP[state.chartType] || 'bar-chart';
   const x = JSON.stringify([labels]);
-  const y = values2 ? JSON.stringify([values, values2]) : JSON.stringify([values]);
-  const seriesNames = values2
-    ? JSON.stringify([state.valueField, state.valueField2])
-    : JSON.stringify([state.valueField]);
+  const y = allSeriesValues.length > 1 ? JSON.stringify(allSeriesValues) : JSON.stringify([values]);
+  const seriesNames = JSON.stringify(allSeriesNames);
 
   // Build extra attributes
   const extraAttrs: string[] = [];
@@ -868,7 +873,7 @@ export function generateOdsQueryCode(
   odsInfo: { baseUrl: string; datasetId: string },
   labelFieldPath: string,
   valueFieldPath: string
-): { queryElement: string; chartSource: string; labelField: string; valueField: string; valueField2: string } {
+): { queryElement: string; chartSource: string; labelField: string; valueField: string; valueField2: string; extraValueFields: string[] } {
   // --- dsfr-data-source attributes (fetch + server-side processing) ---
   const srcAttrs: string[] = [];
   srcAttrs.push('api-type="opendatasoft"');
@@ -887,7 +892,8 @@ export function generateOdsQueryCode(
   let selectParts: string[] = [];
   if (groupByField) selectParts.push(groupByField);
 
-  const hasSecondSeries = state.valueField2 && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType);
+  const activeExtraSeries = state.extraSeries.filter(s => s.field && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType));
+  const extraValueFields: string[] = [];
 
   if (state.advancedMode && state.queryAggregate) {
     // Advanced mode: parse custom aggregation expressions
@@ -913,12 +919,13 @@ export function generateOdsQueryCode(
       selectParts.push(`${state.aggregation}(${valueFieldPath}) as ${alias}`);
       resultValueField = alias;
 
-      // Add second series aggregation
-      if (hasSecondSeries) {
-        const alias2 = `${state.valueField2}__${state.aggregation}`;
-        selectParts.push(`${state.aggregation}(${state.valueField2}) as ${alias2}`);
-        resultValueField2 = alias2;
-      }
+      // Add extra series aggregations
+      activeExtraSeries.forEach(s => {
+        const aliasN = `${s.field}__${state.aggregation}`;
+        selectParts.push(`${state.aggregation}(${s.field}) as ${aliasN}`);
+        extraValueFields.push(aliasN);
+      });
+      if (extraValueFields.length > 0) resultValueField2 = extraValueFields[0];
     }
   }
   srcAttrs.push(`select="${escapeHtml(selectParts.join(', '))}"`);
@@ -953,6 +960,7 @@ export function generateOdsQueryCode(
     labelField: groupByField,
     valueField: resultValueField,
     valueField2: resultValueField2,
+    extraValueFields,
   };
 }
 
@@ -964,7 +972,7 @@ export function generateTabularQueryCode(
   tabularInfo: { baseUrl: string; resourceId: string },
   labelFieldPath: string,
   valueFieldPath: string
-): { queryElement: string; chartSource: string; labelField: string; valueField: string; valueField2: string } {
+): { queryElement: string; chartSource: string; labelField: string; valueField: string; valueField2: string; extraValueFields: string[] } {
   // --- dsfr-data-source attributes (fetch + auto-pagination) ---
   const srcAttrs: string[] = [];
   srcAttrs.push('api-type="tabular"');
@@ -986,7 +994,8 @@ export function generateTabularQueryCode(
   let resultValueField2 = '';
   let aggregateExpr: string;
 
-  const hasSecondSeries = state.valueField2 && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType);
+  const activeExtraSeries = state.extraSeries.filter(s => s.field && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType));
+  const extraValueFields: string[] = [];
 
   if (state.advancedMode && state.queryAggregate) {
     aggregateExpr = state.queryAggregate;
@@ -997,12 +1006,13 @@ export function generateTabularQueryCode(
     aggregateExpr = `${valueFieldPath}:${state.aggregation}`;
     resultValueField = `${valueFieldPath}__${state.aggregation}`;
 
-    if (hasSecondSeries) {
-      const vf2Info = state.fields.find(f => f.name === state.valueField2);
-      const valueField2Path = vf2Info?.fullPath || state.valueField2;
-      aggregateExpr += `, ${valueField2Path}:${state.aggregation}`;
-      resultValueField2 = `${valueField2Path}__${state.aggregation}`;
-    }
+    activeExtraSeries.forEach(s => {
+      const info = state.fields.find(f => f.name === s.field);
+      const path = info?.fullPath || s.field;
+      aggregateExpr += `, ${path}:${state.aggregation}`;
+      extraValueFields.push(`${path}__${state.aggregation}`);
+    });
+    if (extraValueFields.length > 0) resultValueField2 = extraValueFields[0];
   }
   qAttrs.push(`aggregate="${escapeHtml(aggregateExpr)}"`);
 
@@ -1034,6 +1044,7 @@ export function generateTabularQueryCode(
     labelField: groupByField,
     valueField: resultValueField,
     valueField2: resultValueField2,
+    extraValueFields,
   };
 }
 
@@ -1046,7 +1057,7 @@ export function generateDsfrDataQueryCode(
   sourceId: string,
   labelFieldPath: string,
   valueFieldPath: string
-): { queryElement: string; chartSource: string; labelField: string; valueField: string; valueField2: string } {
+): { queryElement: string; chartSource: string; labelField: string; valueField: string; valueField2: string; extraValueFields: string[] } {
   const attrs: string[] = [];
   attrs.push(`source="${sourceId}"`);
 
@@ -1067,10 +1078,8 @@ export function generateDsfrDataQueryCode(
   let resultValueField: string;
   let resultValueField2 = '';
 
-  const hasSecondSeries = state.valueField2 && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType);
-  // Resolve valueField2 path for dynamic mode
-  const vf2Info = state.fields.find(f => f.name === state.valueField2);
-  const valueField2Path = vf2Info?.fullPath || state.valueField2;
+  const activeExtraSeries = state.extraSeries.filter(s => s.field && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType));
+  const extraValueFields: string[] = [];
 
   if (state.advancedMode && state.queryAggregate) {
     aggregateExpr = state.queryAggregate;
@@ -1080,11 +1089,14 @@ export function generateDsfrDataQueryCode(
     resultValueField = sortField;
   } else {
     aggregateExpr = `${valueFieldPath}:${state.aggregation}`;
-    // Add second series aggregation
-    if (hasSecondSeries) {
-      aggregateExpr += `, ${valueField2Path}:${state.aggregation}`;
-      resultValueField2 = `${valueField2Path}__${state.aggregation}`;
-    }
+    // Add extra series aggregations
+    activeExtraSeries.forEach(s => {
+      const info = state.fields.find(f => f.name === s.field);
+      const path = info?.fullPath || s.field;
+      aggregateExpr += `, ${path}:${state.aggregation}`;
+      extraValueFields.push(`${path}__${state.aggregation}`);
+    });
+    if (extraValueFields.length > 0) resultValueField2 = extraValueFields[0];
     sortField = `${valueFieldPath}__${state.aggregation}`;
     resultValueField = sortField;
   }
@@ -1112,6 +1124,7 @@ export function generateDsfrDataQueryCode(
     labelField: groupByField,
     valueField: resultValueField,
     valueField2: resultValueField2,
+    extraValueFields,
   };
 }
 
@@ -1202,7 +1215,7 @@ ${middlewareHtml}
     : labelFieldPath;
 
   // Generate dsfr-data-query for aggregation, sorting, filtering
-  const { queryElement, chartSource, labelField: queryLabelField, valueField: queryValueField, valueField2: queryValueField2 } =
+  const { queryElement, chartSource, labelField: queryLabelField, valueField: queryValueField, valueField2: queryValueField2, extraValueFields: queryExtraVFs } =
     generateDsfrDataQueryCode(querySourceId, groupByPath, valueFieldPath);
 
   // Map palette
@@ -1213,8 +1226,19 @@ ${middlewareHtml}
   // Map-specific attributes
   const codeFieldAttr = isMap && state.codeField ? `\n    code-field="${state.codeField}"` : '';
 
-  // Second series attribute
-  const valueField2Attr = queryValueField2 ? `\n    value-field-2="${queryValueField2}"` : '';
+  // Extra series attributes
+  const extraVFs = queryExtraVFs;
+  let extraFieldsAttr = '';
+  let nameAttr = `name="${escapeHtml(state.title || state.valueField)}"`;
+
+  if (extraVFs && extraVFs.length > 0) {
+    extraFieldsAttr = `\n    value-fields="${extraVFs.join(',')}"`;
+    // Build series names from labels
+    const seriesNames = [state.valueField, ...state.extraSeries.filter(s => s.field).map(s => s.label || s.field)];
+    nameAttr = `name='${escapeSingleQuotes(JSON.stringify(seriesNames))}'`;
+  } else if (queryValueField2) {
+    extraFieldsAttr = `\n    value-field-2="${queryValueField2}"`;
+  }
 
   const code = `<!-- Graphique dynamique genere avec dsfr-data Builder -->
 <!-- Source : ${escapeHtml(source.name)} (chargement dynamique depuis ${gristHost}) -->
@@ -1247,8 +1271,8 @@ ${middlewareHtml}${queryElement}
     source="${chartSource}"
     type="${state.chartType === 'horizontalBar' ? 'bar' : state.chartType === 'doughnut' ? 'pie' : state.chartType}"${dsfrChartAttrs()}${codeFieldAttr}
     label-field="${queryLabelField}"
-    value-field="${queryValueField}"${valueField2Attr}
-    name="${escapeHtml(state.title || state.valueField)}"
+    value-field="${queryValueField}"${extraFieldsAttr}
+    ${nameAttr}
     selected-palette="${palette}">
   </dsfr-data-chart>${generateA11yElement(chartSource, 'chart')}
 </div>`;
@@ -1466,13 +1490,12 @@ ${middlewareHtml}
   let queryLabelField: string;
   let queryValueField: string;
   let queryValueField2 = '';
+  let queryExtraVFs: string[] = [];
   let sourceElement: string;
   let middlewareHtml = '';
   let facetsHtml = '';
 
   if (provider.id === 'opendatasoft' && resourceIds?.datasetId) {
-    // ODS source: use dsfr-data-source + dsfr-data-query for
-    // server-side aggregation and automatic pagination (limit > 100)
     const odsInfo = { baseUrl: apiBaseUrl, datasetId: resourceIds.datasetId };
     const result = generateOdsQueryCode(odsInfo, groupByPath, valueFieldPath);
     queryElement = result.queryElement;
@@ -1480,13 +1503,11 @@ ${middlewareHtml}
     queryLabelField = result.labelField;
     queryValueField = result.valueField;
     queryValueField2 = result.valueField2 || '';
+    queryExtraVFs = result.extraValueFields;
     sourceElement = '';
-    // Facets after ODS query (filters aggregated results)
     const facets = generateFacetsElement(chartSource);
     if (facets.element) { facetsHtml = facets.element; chartSource = facets.finalSourceId; }
   } else if (provider.id === 'tabular' && resourceIds?.resourceId) {
-    // Tabular source: use dsfr-data-source + dsfr-data-query for
-    // automatic pagination (up to 50K records) and client-side aggregation
     const tabularInfo = { baseUrl: apiBaseUrl, resourceId: resourceIds.resourceId };
     const result = generateTabularQueryCode(tabularInfo, groupByPath, valueFieldPath);
     queryElement = result.queryElement;
@@ -1494,12 +1515,11 @@ ${middlewareHtml}
     queryLabelField = result.labelField;
     queryValueField = result.valueField;
     queryValueField2 = result.valueField2 || '';
+    queryExtraVFs = result.extraValueFields;
     sourceElement = '';
-    // Facets after Tabular query (filters aggregated results)
     const facets = generateFacetsElement(chartSource);
     if (facets.element) { facetsHtml = facets.element; chartSource = facets.finalSourceId; }
   } else {
-    // Non-ODS/Tabular source: use dsfr-data-source + dsfr-data-query (generic, client-side)
     const mw = generateMiddlewareElements('chart-data');
     middlewareHtml = mw.elements;
     const result = generateDsfrDataQueryCode(mw.finalSourceId, groupByPath, valueFieldPath);
@@ -1508,6 +1528,7 @@ ${middlewareHtml}
     queryLabelField = result.labelField;
     queryValueField = result.valueField;
     queryValueField2 = result.valueField2 || '';
+    queryExtraVFs = result.extraValueFields;
     sourceElement = `
   <!-- Source de donnees API -->
   <dsfr-data-source
@@ -1524,8 +1545,17 @@ ${middlewareHtml}
   // Map-specific attributes
   const codeFieldAttr = isMap && state.codeField ? `\n    code-field="${state.codeField}"` : '';
 
-  // Second series attribute
-  const valueField2Attr = queryValueField2 ? `\n    value-field-2="${queryValueField2}"` : '';
+  // Extra series attributes
+  let extraFieldsAttr = '';
+  let nameAttr = `name="${escapeHtml(state.title || state.valueField)}"`;
+
+  if (queryExtraVFs.length > 0) {
+    extraFieldsAttr = `\n    value-fields="${queryExtraVFs.join(',')}"`;
+    const seriesNames = [state.valueField, ...state.extraSeries.filter(s => s.field).map(s => s.label || s.field)];
+    nameAttr = `name='${escapeSingleQuotes(JSON.stringify(seriesNames))}'`;
+  } else if (queryValueField2) {
+    extraFieldsAttr = `\n    value-field-2="${queryValueField2}"`;
+  }
 
   const code = `<!-- Graphique dynamique genere avec dsfr-data Builder -->
 <!-- Source : ${escapeHtml(source.name)} (chargement dynamique) -->
@@ -1550,8 +1580,8 @@ ${sourceElement}${middlewareHtml}${queryElement}${facetsHtml}
     source="${chartSource}"
     type="${state.chartType === 'horizontalBar' ? 'bar' : state.chartType === 'doughnut' ? 'pie' : state.chartType}"${dsfrChartAttrs()}${codeFieldAttr}
     label-field="${queryLabelField}"
-    value-field="${queryValueField}"${valueField2Attr}
-    name="${escapeHtml(state.title || state.valueField)}"
+    value-field="${queryValueField}"${extraFieldsAttr}
+    ${nameAttr}
     selected-palette="${palette}">
   </dsfr-data-chart>${generateA11yElement(chartSource, 'chart')}
 </div>`;
@@ -1818,16 +1848,24 @@ loadMap();
   }
 
   // Build DSFR Chart type and extra attributes
-  const hasSecondSeries = state.valueField2 && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType);
+  const activeExtraSeriesCode = state.extraSeries.filter(s => s.field && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType));
   const dsfrTag = DSFR_TAG_MAP[state.chartType] || 'bar-chart';
 
   const extraAttrs: string[] = [];
   if (state.chartType === 'horizontalBar') extraAttrs.push('horizontal');
   if (state.chartType === 'pie') extraAttrs.push('fill');
 
-  const seriesNames = hasSecondSeries
-    ? JSON.stringify([state.valueField, state.valueField2])
+  const seriesNames = activeExtraSeriesCode.length > 0
+    ? JSON.stringify([state.valueField, ...activeExtraSeriesCode.map(s => s.label || s.field)])
     : JSON.stringify([state.valueField]);
+
+  // Generate extra series extraction code
+  const extraSeriesExtractCode = activeExtraSeriesCode.map((_, i) =>
+    `\n  const values${i + 2} = data.map(d => Math.round((d.value${i + 2} || 0) * 100) / 100);`
+  ).join('');
+  const allValuesArrayCode = activeExtraSeriesCode.length > 0
+    ? `JSON.stringify([values, ${activeExtraSeriesCode.map((_, i) => `values${i + 2}`).join(', ')}])`
+    : 'JSON.stringify([values])';
 
   const code = `<!-- Graphique genere avec dsfr-data Builder -->
 
@@ -1853,10 +1891,9 @@ async function loadChart() {
   const data = await fetchAllODS(API_URL);
 
   const labels = data.map(d => d['${state.labelField}'] || 'N/A');
-  const values = data.map(d => Math.round((d.value || 0) * 100) / 100);${hasSecondSeries ? `
-  const values2 = data.map(d => Math.round((d.value2 || 0) * 100) / 100);` : ''}
+  const values = data.map(d => Math.round((d.value || 0) * 100) / 100);${extraSeriesExtractCode}
 
-  const y = ${hasSecondSeries ? 'JSON.stringify([values, values2])' : 'JSON.stringify([values])'};
+  const y = ${allValuesArrayCode};
 
   var el = document.createElement('${dsfrTag}');
   el.setAttribute('x', JSON.stringify([labels]));

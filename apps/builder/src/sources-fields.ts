@@ -11,15 +11,13 @@ import { state } from './state.js';
 export function populateFieldSelects(): void {
   const labelSelect = document.getElementById('label-field') as HTMLSelectElement | null;
   const valueSelect = document.getElementById('value-field') as HTMLSelectElement | null;
-  const valueSelect2 = document.getElementById('value-field-2') as HTMLSelectElement | null;
   const codeSelect = document.getElementById('code-field') as HTMLSelectElement | null;
 
-  if (!labelSelect || !valueSelect || !valueSelect2 || !codeSelect) return;
+  if (!labelSelect || !valueSelect || !codeSelect) return;
 
   // Clear
   labelSelect.innerHTML = '<option value="">\u2014 S\u00e9lectionner \u2014</option>';
   valueSelect.innerHTML = '<option value="">\u2014 S\u00e9lectionner \u2014</option>';
-  valueSelect2.innerHTML = '<option value="">\u2014 Aucune (s\u00e9rie unique) \u2014</option>';
   codeSelect.innerHTML = '<option value="">\u2014 S\u00e9lectionner \u2014</option>';
 
   state.fields.forEach(field => {
@@ -36,14 +34,6 @@ export function populateFieldSelects(): void {
     optionValue.value = field.name;
     optionValue.textContent = displayText;
     valueSelect.appendChild(optionValue);
-
-    // Only add numeric fields to serie 2
-    if (field.type === 'number') {
-      const optionValue2 = document.createElement('option');
-      optionValue2.value = field.name;
-      optionValue2.textContent = displayText;
-      valueSelect2.appendChild(optionValue2);
-    }
 
     // Add string/number fields to code select (department codes can be strings like "2A" or numbers)
     if (field.type === 'string' || field.type === 'number') {
@@ -87,4 +77,35 @@ export function populateFieldSelects(): void {
   if (stringField) labelSelect.value = stringField.name;
   if (numberField) valueSelect.value = numberField.name;
   if (codeField) codeSelect.value = codeField.name;
+
+  // Re-populate existing extra series selects
+  refreshExtraSeriesSelects();
+}
+
+/**
+ * Build options HTML for an extra series field select.
+ */
+export function buildSeriesFieldOptions(): string {
+  let html = '<option value="">\u2014 S\u00e9lectionner \u2014</option>';
+  state.fields.forEach(field => {
+    const displayText = field.displayName
+      ? `${field.displayName} (${field.type})`
+      : `${field.name} (${field.type})`;
+    html += `<option value="${field.name}">${displayText}</option>`;
+  });
+  return html;
+}
+
+/**
+ * Refresh all extra series field selects with current fields.
+ */
+export function refreshExtraSeriesSelects(): void {
+  const container = document.getElementById('extra-series-container');
+  if (!container) return;
+  const selects = container.querySelectorAll<HTMLSelectElement>('.extra-series-field');
+  selects.forEach(select => {
+    const currentValue = select.value;
+    select.innerHTML = buildSeriesFieldOptions();
+    if (currentValue) select.value = currentValue;
+  });
 }

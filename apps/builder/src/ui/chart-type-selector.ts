@@ -81,12 +81,13 @@ export function selectChartType(type: ChartType): void {
 
   // Types that support multiple series: bar, horizontalBar, line, radar
   const supportsMultiSeries = ['bar', 'horizontalBar', 'line', 'radar'].includes(type);
-  const valueField2Group = document.getElementById('value-field-2-group') as HTMLElement | null;
-  if (valueField2Group) valueField2Group.style.display = supportsMultiSeries ? 'block' : 'none';
+  const extraSeriesGroup = document.getElementById('extra-series-group') as HTMLElement | null;
+  if (extraSeriesGroup) extraSeriesGroup.style.display = supportsMultiSeries ? 'block' : 'none';
   if (!supportsMultiSeries) {
     state.valueField2 = '';
-    const vf2Select = document.getElementById('value-field-2') as HTMLSelectElement | null;
-    if (vf2Select) vf2Select.value = '';
+    state.extraSeries = [];
+    const container = document.getElementById('extra-series-container');
+    if (container) container.innerHTML = '';
   }
 
   // Map chart needs code field for department codes

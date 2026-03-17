@@ -18,7 +18,7 @@ describe('builder chart-renderer', () => {
     state.data = [];
     state.labelField = 'region';
     state.valueField = 'population';
-    state.valueField2 = '';
+    state.extraSeries = [];
     state.codeField = '';
     state.title = 'Test Chart';
     state.palette = 'default';
@@ -591,10 +591,10 @@ describe('builder chart-renderer', () => {
   });
 
   describe('Multi-series', () => {
-    it('should add second dataset when valueField2 is set for bar type', async () => {
+    it('should add second dataset when extraSeries is set for bar type', async () => {
       const renderChart = await loadRenderChart();
       state.chartType = 'bar';
-      state.valueField2 = 'density';
+      state.extraSeries = [{ field: 'density', label: '' }];
       state.data = [
         { region: 'IDF', value: 100, value2: 50 },
         { region: 'PACA', value: 200, value2: 75 },
@@ -610,24 +610,24 @@ describe('builder chart-renderer', () => {
       expect(config.data.datasets[1].data).toEqual([50, 75]);
     });
 
-    it('should use color2 for the second dataset', async () => {
+    it('should use first extra color for the second dataset', async () => {
       const renderChart = await loadRenderChart();
       state.chartType = 'bar';
-      state.valueField2 = 'density';
-      state.color2 = '#FF0000';
+      state.extraSeries = [{ field: 'density', label: '' }];
       state.data = [{ region: 'IDF', value: 100, value2: 50 }];
 
       renderChart();
 
       const config = MockChart.mock.calls[0][1];
-      expect(config.data.datasets[1].backgroundColor).toBe('#FF0000');
-      expect(config.data.datasets[1].borderColor).toBe('#FF0000');
+      // First extra color in the extraColors array is '#E1000F'
+      expect(config.data.datasets[1].backgroundColor).toBe('#E1000F');
+      expect(config.data.datasets[1].borderColor).toBe('#E1000F');
     });
 
     it('should add second dataset for line type', async () => {
       const renderChart = await loadRenderChart();
       state.chartType = 'line';
-      state.valueField2 = 'density';
+      state.extraSeries = [{ field: 'density', label: '' }];
       state.data = [{ region: 'IDF', value: 100, value2: 50 }];
 
       renderChart();
@@ -637,10 +637,10 @@ describe('builder chart-renderer', () => {
       expect(config.data.datasets[1].fill).toBe(false);
     });
 
-    it('should NOT add second dataset for pie type even if valueField2 is set', async () => {
+    it('should NOT add second dataset for pie type even if extraSeries is set', async () => {
       const renderChart = await loadRenderChart();
       state.chartType = 'pie';
-      state.valueField2 = 'density';
+      state.extraSeries = [{ field: 'density', label: '' }];
       state.data = [
         { region: 'IDF', value: 100, value2: 50 },
         { region: 'PACA', value: 200, value2: 75 },
@@ -655,7 +655,7 @@ describe('builder chart-renderer', () => {
     it('should show legend when multiple datasets are present', async () => {
       const renderChart = await loadRenderChart();
       state.chartType = 'bar';
-      state.valueField2 = 'density';
+      state.extraSeries = [{ field: 'density', label: '' }];
       state.data = [{ region: 'IDF', value: 100, value2: 50 }];
 
       renderChart();
