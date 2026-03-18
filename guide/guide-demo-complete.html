@@ -100,11 +100,8 @@
           order-by="release_date:asc">
         </dsfr-data-query>
 
-        <!-- Agrégation globale pour la jauge -->
-        <dsfr-data-query id="q-gauge"
-          source="films"
-          aggregate="rt_score:avg">
-        </dsfr-data-query>
+        <!-- Pas de query pour la jauge : aggregate sans group-by n'est pas supporté
+             par dsfr-data-query. La valeur est lue sur le 1er film du top score. -->
 
         <!-- Films triés par durée croissante pour le scatter -->
         <dsfr-data-query id="q-scatter"
@@ -193,13 +190,13 @@
 
         <div class="fr-grid-row fr-grid-row--gutters fr-mb-4w">
           <div class="fr-col-12 fr-col-md-4">
-            <p class="fr-text--sm">Score Rotten Tomatoes moyen rapporté à 100 :</p>
+            <p class="fr-text--sm">Meilleur score Rotten Tomatoes du catalogue :</p>
             <dsfr-data-chart id="chart-gauge"
-              source="q-gauge"
+              source="q-by-score"
               type="gauge"
-              value-field="rt_score__avg">
+              value-field="rt_score">
             </dsfr-data-chart>
-            <dsfr-data-a11y for="chart-gauge" source="q-gauge" description></dsfr-data-a11y>
+            <dsfr-data-a11y for="chart-gauge" source="q-by-score" description></dsfr-data-a11y>
           </div>
           <div class="fr-col-12 fr-col-md-8">
             <p class="fr-text--sm">Score moyen par réalisateur :</p>
