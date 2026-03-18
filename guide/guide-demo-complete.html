@@ -353,16 +353,15 @@
 
         <div class="fr-grid-row fr-grid-row--gutters fr-mb-4w">
           <div class="fr-col-12 fr-col-md-6">
-            <p class="fr-text--sm">Entrées simulées par région (milliers) :</p>
-            <dsfr-data-chart id="chart-map-reg"
+            <p class="fr-text--sm">Entrées simulées par région (milliers) — tableau de données :</p>
+            <!-- map-chart-reg requiert un attribut `region` et zoome sur une région spécifique ;
+                 il n'est pas adapté à une carte choroplèthe nationale. On affiche les données sous forme de liste. -->
+            <dsfr-data-list
               source="region-data"
-              type="map-reg"
-              code-field="code"
-              value-field="n"
-              selected-palette="sequentialAscending"
-              unit-tooltip=" k entrées">
-            </dsfr-data-chart>
-            <dsfr-data-a11y for="chart-map-reg" source="region-data" table download></dsfr-data-a11y>
+              colonnes="code:Région INSEE,n:Entrées (k)"
+              tri="n:desc"
+              pagination="13">
+            </dsfr-data-list>
           </div>
           <div class="fr-col-12 fr-col-md-6">
             <p class="fr-text--sm">Entrées simulées par département (milliers) :</p>
@@ -371,6 +370,7 @@
               type="map"
               code-field="code"
               value-field="n"
+              name="Entrées (k)"
               selected-palette="sequentialAscending"
               unit-tooltip=" k entrées">
             </dsfr-data-chart>

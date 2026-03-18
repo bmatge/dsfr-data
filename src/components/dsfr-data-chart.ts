@@ -276,10 +276,11 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       }
       case 'map':
       case 'map-reg': {
-        attrs['data'] = this._processMapData();
-        // Compute national/regional average for the sidebar value.
-        // These go in `deferred` because the DSFR Chart Vue component
-        // overwrites props set before mount with defaults.
+        // All map attributes go in `deferred` because the DSFR Chart Vue component
+        // overwrites props set before mount with their default values.
+        // Deferred attrs are applied via setTimeout(500ms) after Vue has mounted,
+        // triggering the $props watcher which calls createChart() with correct data.
+        deferred['data'] = this._processMapData();
         if (this._data.length > 0) {
           let total = 0;
           let count = 0;
