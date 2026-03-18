@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Démo complète — dsfr-data</title>
+  <style>@view-transition{navigation:auto}app-header:not(:defined){display:block;min-height:56px}app-footer:not(:defined){display:block;min-height:48px}</style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css">
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"></script>
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script type="module" src="/dist/dsfr-data.world-map.esm.js"></script>
+  <script src="guide-menu.js"></script>
+  <style>
+    .guide-layout { display: flex; gap: 2rem; }
+    .guide-content { flex: 1; min-width: 0; }
+    @media (max-width: 992px) { .guide-layout { flex-direction: column; } }
+    .guide-content h2 { padding-top: 2rem; border-top: 1px solid var(--border-default-grey); margin-top: 3rem; }
+    .guide-content h2:first-of-type { border-top: none; margin-top: 0; padding-top: 0; }
+  </style>
+</head>
+<body>
+  <app-header current-page="guide" base-path="../"></app-header>
+
+  <main class="fr-container fr-py-4w" id="main-content">
+    <div class="guide-layout">
+
+      <app-sidemenu section="guide"></app-sidemenu>
+
+      <div class="guide-content">
+
+        <!-- ============================================================= -->
+        <!-- TITRE ET INTRO                                                 -->
+        <!-- ============================================================= -->
+
+        <h1>Démo complète — Studio Ghibli</h1>
+        <p class="fr-text--lead">
+          Tableau de bord filmographique du Studio Ghibli exploitant <strong>tous les composants dsfr-data</strong>
+          et <strong>tous les types de graphiques</strong>. Source principale : Ghibli API (générique, CORS natif).
+          Cartes géographiques : données fictives à titre illustratif.
+        </p>
+
+        <!-- ============================================================= -->
+        <!-- PIPELINE INVISIBLE — Sources, normalize, queries               -->
+        <!-- ============================================================= -->
+
+        <!-- Source principale : fetch URL directe, JSON plat, CORS natif -->
+        <dsfr-data-source id="raw-films"
+          url="https://ghibliapi.vercel.app/films">
+        </dsfr-data-source>
+
+        <!-- Normalisation : conversion numerique des champs string -->
+        <dsfr-data-normalize id="films"
+          source="raw-films"
+          trim
+          numeric="rt_score,running_time,release_date">
+        </dsfr-data-normalize>
+
+        <!-- Queries dérivées (tout client-side) -->
+
+        <!-- Films triés par score RT décroissant -->
+        <dsfr-data-query id="q-by-score"
+          source="films"
+          order-by="rt_score:desc">
+        </dsfr-data-query>
+
+        <!-- Films triés par durée décroissante -->
+        <dsfr-data-query id="q-by-duration"
+          source="films"
+          order-by="running_time:desc">
+        </dsfr-data-query>
+
+        <!-- Films triés par année de sortie croissante -->
+        <dsfr-data-query id="q-by-year"
+          source="films"
+          order-by="release_date:asc">
+        </dsfr-data-query>
+
+        <!-- Score RT moyen + nb films par réalisateur -->
+        <dsfr-data-query id="q-directors"
+          source="films"
+          group-by="director"
+          aggregate="id:count,rt_score:avg"
+          order-by="rt_score__avg:desc">
+        </dsfr-data-query>
+
+        <!-- Nb films par producteur -->
+        <dsfr-data-query id="q-producers"
+          source="films"
+          group-by="producer"
+          aggregate="id:count"
+          order-by="id__count:desc">
+        </dsfr-data-query>
+
+        <!-- Films en ordre chronologique pour bar-line -->
+        <dsfr-data-query id="q-bar-line"
+          source="films"
+          order-by="release_date:asc">
+        </dsfr-data-query>
+
+        <!-- Agrégation globale pour la jauge -->
+        <dsfr-data-query id="q-gauge"
+          source="films"
+          aggregate="rt_score:avg">
+        </dsfr-data-query>
+
+        <!-- Films triés par durée croissante pour le scatter -->
+        <dsfr-data-query id="q-scatter"
+          source="films"
+          order-by="running_time:asc">
+        </dsfr-data-query>
+
+        <!-- Source radar (inline — évaluation illustrative en 6 dimensions) -->
+        <dsfr-data-source id="radar-data"
+          data='[{"critere":"Excellence critique","score":89},{"critere":"Longévité artistique","score":95},{"critere":"Impact culturel","score":98},{"critere":"Diversité narrative","score":78},{"critere":"Reconnaissance mondiale","score":92},{"critere":"Qualité visuelle","score":97}]'>
+        </dsfr-data-source>
+
+        <!-- Source carte monde (données fictives — entrées simulées en milliers) -->
+        <dsfr-data-source id="world-data"
+          data='[{"code":"JP","n":12000},{"code":"FR","n":850},{"code":"US","n":3200},{"code":"CN","n":2800},{"code":"KR","n":1950},{"code":"TW","n":1200},{"code":"GB","n":890},{"code":"DE","n":720},{"code":"IT","n":630},{"code":"ES","n":410},{"code":"RU","n":420},{"code":"CA","n":540},{"code":"AU","n":290},{"code":"HK","n":680},{"code":"SG","n":320},{"code":"TH","n":290},{"code":"MX","n":260},{"code":"BR","n":380},{"code":"NL","n":210},{"code":"BE","n":195},{"code":"CH","n":185},{"code":"AT","n":140},{"code":"SE","n":175},{"code":"NO","n":95},{"code":"DK","n":110},{"code":"FI","n":85},{"code":"PL","n":145},{"code":"PT","n":130},{"code":"IN","n":180},{"code":"NZ","n":85}]'>
+        </dsfr-data-source>
+
+        <!-- Source régions France (données fictives) -->
+        <dsfr-data-source id="region-data"
+          data='[{"code":"11","n":285},{"code":"84","n":125},{"code":"93","n":98},{"code":"75","n":89},{"code":"76","n":82},{"code":"32","n":78},{"code":"44","n":65},{"code":"52","n":65},{"code":"53","n":58},{"code":"28","n":52},{"code":"27","n":48},{"code":"24","n":42},{"code":"94","n":8}]'>
+        </dsfr-data-source>
+
+        <!-- Source départements France (données fictives) -->
+        <dsfr-data-source id="dept-data"
+          data='[{"code":"75","n":95},{"code":"69","n":45},{"code":"13","n":38},{"code":"59","n":35},{"code":"31","n":32},{"code":"33","n":28},{"code":"44","n":25},{"code":"67","n":22},{"code":"06","n":22},{"code":"76","n":18},{"code":"34","n":20},{"code":"29","n":18},{"code":"35","n":20},{"code":"38","n":18},{"code":"57","n":15},{"code":"62","n":14},{"code":"74","n":14},{"code":"83","n":16},{"code":"30","n":14},{"code":"45","n":12},{"code":"21","n":12},{"code":"54","n":11},{"code":"63","n":12},{"code":"14","n":10},{"code":"971","n":8},{"code":"972","n":7},{"code":"974","n":12}]'>
+        </dsfr-data-source>
+
+        <!-- ============================================================= -->
+        <!-- DASHBOARD VISUEL                                               -->
+        <!-- ============================================================= -->
+
+        <div class="fr-callout fr-callout--blue-france fr-mt-2w fr-mb-4w">
+          <h2 class="fr-callout__title">Studio Ghibli — Analyse filmographique complète</h2>
+          <p class="fr-callout__text">
+            Analyse des 22 longs-métrages du Studio Ghibli (1984–2023) : scores critiques, durées,
+            réalisateurs, évolution dans le temps et diffusion mondiale.
+            Source : <strong>Ghibli API</strong> (générique, CORS natif, aucune clé requise).
+          </p>
+        </div>
+
+        <!-- ======================== KPIs ======================== -->
+        <h2>Indicateurs clés</h2>
+
+        <dsfr-data-kpi-group cols="4">
+          <dsfr-data-kpi
+            source="films"
+            valeur="count:title"
+            label="Nombre de films"
+            format="nombre"
+            icone="ri-film-line"
+            couleur="bleu">
+          </dsfr-data-kpi>
+
+          <dsfr-data-kpi
+            source="films"
+            valeur="avg:rt_score"
+            label="Score Rotten Tomatoes moyen (sur 100)"
+            format="nombre"
+            seuil-vert="90"
+            seuil-orange="75"
+            icone="ri-star-line">
+          </dsfr-data-kpi>
+
+          <dsfr-data-kpi
+            source="films"
+            valeur="avg:running_time"
+            label="Durée moyenne (minutes)"
+            format="nombre"
+            icone="ri-time-line"
+            couleur="orange">
+          </dsfr-data-kpi>
+
+          <dsfr-data-kpi
+            source="films"
+            valeur="max:rt_score"
+            label="Meilleur score RT"
+            format="nombre"
+            seuil-vert="99"
+            seuil-orange="95"
+            icone="ri-award-line">
+          </dsfr-data-kpi>
+        </dsfr-data-kpi-group>
+
+        <!-- ======================== JAUGE ET SCORE PAR RÉALISATEUR ======================== -->
+        <h2>Jauge et score par réalisateur</h2>
+
+        <div class="fr-grid-row fr-grid-row--gutters fr-mb-4w">
+          <div class="fr-col-12 fr-col-md-4">
+            <p class="fr-text--sm">Score Rotten Tomatoes moyen rapporté à 100 :</p>
+            <dsfr-data-chart id="chart-gauge"
+              source="q-gauge"
+              type="gauge"
+              value-field="rt_score__avg">
+            </dsfr-data-chart>
+            <dsfr-data-a11y for="chart-gauge" source="q-gauge" description></dsfr-data-a11y>
+          </div>
+          <div class="fr-col-12 fr-col-md-8">
+            <p class="fr-text--sm">Score moyen par réalisateur :</p>
+            <dsfr-data-chart id="chart-dir-score"
+              source="q-directors"
+              type="bar"
+              label-field="director"
+              value-field="rt_score__avg"
+              selected-palette="sequentialDescending"
+              unit-tooltip="%"
+              y-min="0"
+              y-max="100">
+            </dsfr-data-chart>
+            <dsfr-data-a11y for="chart-dir-score" source="q-directors" table download></dsfr-data-a11y>
+          </div>
+        </div>
+
+        <!-- ======================== SCORES ET DURÉES ======================== -->
+        <h2>Scores et durées</h2>
+
+        <div class="fr-grid-row fr-grid-row--gutters fr-mb-4w">
+          <div class="fr-col-12 fr-col-md-6">
+            <p class="fr-text--sm">Score Rotten Tomatoes par film (trié du meilleur au moins bon) :</p>
+            <dsfr-data-chart id="chart-score"
+              source="q-by-score"
+              type="bar"
+              label-field="title"
+              value-field="rt_score"
+              selected-palette="sequentialAscending"
+              horizontal
+              unit-tooltip="%"
+              y-min="0"
+              y-max="100">
+            </dsfr-data-chart>
+            <dsfr-data-a11y for="chart-score" source="q-by-score" table download></dsfr-data-a11y>
+          </div>
+          <div class="fr-col-12 fr-col-md-6">
+            <p class="fr-text--sm">Durée en minutes par film (du plus long au plus court) :</p>
+            <dsfr-data-chart id="chart-duration"
+              source="q-by-duration"
+              type="bar"
+              label-field="title"
+              value-field="running_time"
+              selected-palette="divergentAscending"
+              horizontal
+              unit-tooltip=" min">
+            </dsfr-data-chart>
+            <dsfr-data-a11y for="chart-duration" source="q-by-duration" table download></dsfr-data-a11y>
+          </div>
+        </div>
+
+        <!-- ======================== ÉVOLUTION TEMPORELLE ======================== -->
+        <h2>Évolution temporelle</h2>
+
+        <div class="fr-grid-row fr-grid-row--gutters fr-mb-4w">
+          <div class="fr-col-12 fr-col-md-6">
+            <p class="fr-text--sm">Score RT par année de sortie :</p>
+            <dsfr-data-chart id="chart-line"
+              source="q-by-year"
+              type="line"
+              label-field="release_date"
+              value-field="rt_score"
+              selected-palette="categorical"
+              unit-tooltip="%"
+              y-min="0"
+              y-max="100">
+            </dsfr-data-chart>
+            <dsfr-data-a11y for="chart-line" source="q-by-year" table download></dsfr-data-a11y>
+          </div>
+          <div class="fr-col-12 fr-col-md-6">
+            <p class="fr-text--sm">Score RT (barres) et durée (ligne) par film — ordre chronologique :</p>
+            <dsfr-data-chart id="chart-barline"
+              source="q-bar-line"
+              type="bar-line"
+              label-field="title"
+              value-field="rt_score"
+              value-field-2="running_time"
+              name='["Score RT (%)","Durée (min)"]'
+              unit-tooltip="%"
+              selected-palette="categorical">
+            </dsfr-data-chart>
+            <dsfr-data-a11y for="chart-barline" source="q-bar-line" table download></dsfr-data-a11y>
+          </div>
+        </div>
+
+        <!-- ======================== CORRÉLATIONS ET RÉPARTITION ======================== -->
+        <h2>Corrélations et répartition</h2>
+
+        <div class="fr-grid-row fr-grid-row--gutters fr-mb-4w">
+          <div class="fr-col-12 fr-col-md-6">
+            <p class="fr-text--sm">Corrélation durée / score RT (chaque point = 1 film) :</p>
+            <dsfr-data-chart id="chart-scatter"
+              source="q-scatter"
+              type="scatter"
+              label-field="running_time"
+              value-field="rt_score"
+              selected-palette="categorical"
+              unit-tooltip="%">
+            </dsfr-data-chart>
+            <dsfr-data-a11y for="chart-scatter" source="q-scatter" table download></dsfr-data-a11y>
+          </div>
+          <div class="fr-col-12 fr-col-md-6">
+            <p class="fr-text--sm">Profil qualitatif du Studio Ghibli (évaluation illustrative, 6 dimensions) :</p>
+            <dsfr-data-chart id="chart-radar"
+              source="radar-data"
+              type="radar"
+              label-field="critere"
+              value-field="score"
+              selected-palette="categorical"
+              y-min="0"
+              y-max="100">
+            </dsfr-data-chart>
+            <dsfr-data-a11y for="chart-radar" source="radar-data" table></dsfr-data-a11y>
+          </div>
+        </div>
+
+        <!-- ======================== RÉPARTITION PAR RÉALISATEUR ET PRODUCTEUR ======================== -->
+        <h2>Répartition par réalisateur et producteur</h2>
+
+        <div class="fr-grid-row fr-grid-row--gutters fr-mb-4w">
+          <div class="fr-col-12 fr-col-md-6">
+            <p class="fr-text--sm">Nombre de films par réalisateur (anneau) :</p>
+            <dsfr-data-chart id="chart-pie-dir"
+              source="q-directors"
+              type="pie"
+              label-field="director"
+              value-field="id__count"
+              selected-palette="categorical">
+            </dsfr-data-chart>
+            <dsfr-data-a11y for="chart-pie-dir" source="q-directors" table download></dsfr-data-a11y>
+          </div>
+          <div class="fr-col-12 fr-col-md-6">
+            <p class="fr-text--sm">Nombre de films par producteur (camembert plein) :</p>
+            <dsfr-data-chart id="chart-pie-prod"
+              source="q-producers"
+              type="pie"
+              label-field="producer"
+              value-field="id__count"
+              selected-palette="categorical"
+              fill>
+            </dsfr-data-chart>
+            <dsfr-data-a11y for="chart-pie-prod" source="q-producers" table download></dsfr-data-a11y>
+          </div>
+        </div>
+
+        <!-- ======================== CARTES FRANCE (DONNÉES FICTIVES) ======================== -->
+        <h2>Cartes France (données fictives)</h2>
+
+        <div class="fr-callout fr-callout--orange-terre-battue fr-callout--sm fr-mb-2w">
+          <p class="fr-callout__text">
+            Données fictives — Nombre d'entrées en salle simulées pour illustration du composant cartographique.
+            Ces chiffres ne correspondent à aucune statistique réelle.
+          </p>
+        </div>
+
+        <div class="fr-grid-row fr-grid-row--gutters fr-mb-4w">
+          <div class="fr-col-12 fr-col-md-6">
+            <p class="fr-text--sm">Entrées simulées par région (milliers) :</p>
+            <dsfr-data-chart id="chart-map-reg"
+              source="region-data"
+              type="map-reg"
+              code-field="code"
+              value-field="n"
+              selected-palette="sequentialAscending"
+              unit-tooltip=" k entrées">
+            </dsfr-data-chart>
+            <dsfr-data-a11y for="chart-map-reg" source="region-data" table download></dsfr-data-a11y>
+          </div>
+          <div class="fr-col-12 fr-col-md-6">
+            <p class="fr-text--sm">Entrées simulées par département (milliers) :</p>
+            <dsfr-data-chart id="chart-map"
+              source="dept-data"
+              type="map"
+              code-field="code"
+              value-field="n"
+              selected-palette="sequentialAscending"
+              unit-tooltip=" k entrées">
+            </dsfr-data-chart>
+            <dsfr-data-a11y for="chart-map" source="dept-data" table download></dsfr-data-a11y>
+          </div>
+        </div>
+
+        <!-- ======================== CARTE MONDIALE (DONNÉES FICTIVES) ======================== -->
+        <h2>Carte mondiale (données fictives)</h2>
+
+        <div class="fr-callout fr-callout--orange-terre-battue fr-callout--sm fr-mb-2w">
+          <p class="fr-callout__text">
+            Données fictives — Nombre d'entrées en salle simulées pour illustration du composant cartographique.
+            Ces chiffres ne correspondent à aucune statistique réelle.
+          </p>
+        </div>
+
+        <dsfr-data-world-map id="chart-world-map"
+          source="world-data"
+          code-field="code"
+          value-field="n"
+          code-format="iso-a2"
+          name="Entrées simulées (milliers)"
+          unit-tooltip=" k"
+          selected-palette="sequentialAscending"
+          zoom="continent">
+        </dsfr-data-world-map>
+
+        <!-- Tableau accessible pour la carte mondiale (dsfr-data-a11y ne supporte pas dsfr-data-world-map) -->
+        <dsfr-data-list id="list-world"
+          source="world-data"
+          colonnes="code:Pays,n:Entrées (k)"
+          pagination="10">
+        </dsfr-data-list>
+
+        <!-- ======================== FILMOGRAPHIE INTERACTIVE ======================== -->
+        <h2>Filmographie interactive</h2>
+
+        <p>Filtrez les films par réalisateur et producteur, puis parcourez les résultats sous forme de cartes.</p>
+
+        <!-- Pipeline search + facets pour la filmographie -->
+        <dsfr-data-search id="search-films"
+          source="films"
+          placeholder="Rechercher un film...">
+        </dsfr-data-search>
+
+        <dsfr-data-facets id="facets-films"
+          source="search-films"
+          fields="director,producer"
+          labels="director:Réalisateur | producer:Producteur"
+          display="director:select | producer:select"
+          cols="6">
+        </dsfr-data-facets>
+
+        <dsfr-data-display source="facets-films" cols="3" pagination="6">
+          <template>
+            <div class="fr-card">
+              <div class="fr-card__body">
+                <div class="fr-card__content">
+                  <h3 class="fr-card__title">{{title}}</h3>
+                  <p class="fr-card__desc">{{description}}</p>
+                </div>
+                <div class="fr-card__footer">
+                  <ul class="fr-badges-group">
+                    <li><p class="fr-badge fr-badge--sm fr-badge--blue-france">{{director}}</p></li>
+                    <li><p class="fr-badge fr-badge--sm">{{release_date}}</p></li>
+                    <li><p class="fr-badge fr-badge--sm fr-badge--green-tilleul-verveine">{{rt_score}} %</p></li>
+                  </ul>
+                </div>
+              </div>
+              <div class="fr-card__header">
+                <div class="fr-card__img">
+                  <img src="{{image}}" class="fr-responsive-img" alt="Affiche de {{title}}">
+                </div>
+              </div>
+            </div>
+          </template>
+        </dsfr-data-display>
+
+        <!-- ======================== CATALOGUE COMPLET ======================== -->
+        <h2>Catalogue complet</h2>
+
+        <dsfr-data-list id="list-films"
+          source="facets-films"
+          colonnes="title:Titre, director:Réalisateur, producer:Producteur, release_date:Année, running_time:Durée (min), rt_score:Score RT"
+          tri="rt_score:desc"
+          pagination="10"
+          export="csv"
+          recherche>
+        </dsfr-data-list>
+
+        <dsfr-data-a11y for="list-films" source="facets-films" download></dsfr-data-a11y>
+
+        <!-- ======================== NOTE DE SOURCE ======================== -->
+        <div class="fr-highlight fr-mt-4w">
+          <p>
+            <strong>Source principale :</strong>
+            <a href="https://ghibliapi.vercel.app" target="_blank" rel="noopener">Ghibli API (ghibliapi.vercel.app)</a>
+            — données publiques, CORS natif, aucune clé d'API requise.<br>
+            <strong>Pipeline :</strong> dsfr-data-source (URL directe) → dsfr-data-normalize (numeric) →
+            8× dsfr-data-query → dsfr-data-kpi-group (4 KPIs) + 13× dsfr-data-chart (tous types) +
+            dsfr-data-world-map + dsfr-data-search + dsfr-data-facets + dsfr-data-display + dsfr-data-list + dsfr-data-a11y.<br>
+            <strong>Cartes :</strong> données fictives — illustration uniquement.
+          </p>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <app-footer base-path="../"></app-footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js"></script>
+</body>
+</html>

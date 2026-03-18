@@ -39,7 +39,8 @@
           { id: "exemple-ods", label: "Recherche Huwise", href: "guide-exemple-ODS.html" },
           { id: "insee-erfs", label: "Dashboard INSEE", href: "guide-exemples-insee-erfs.html" },
           { id: "maires", label: "Dashboard Tabular (data.gouv)", href: "guide-exemples-maires.html" },
-          { id: "ghibli", label: "Dashboard generic (ghibli)", href: "guide-exemples-ghibli.html" }
+          { id: "ghibli", label: "Dashboard generic (ghibli)", href: "guide-exemples-ghibli.html" },
+          { id: "demo-complete", label: "Démo complète (tous composants)", href: "guide-demo-complete.html" }
         ]
       },
       { id: "grist-widgets", label: "Widgets Grist", href: "guide-grist-widgets.html" }
