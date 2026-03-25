@@ -548,19 +548,19 @@ describe('DsfrDataChart', () => {
       expect(chartEl.getAttribute('databox-source')).toBe('default');
     });
 
-    it('defers data-box insertion via requestAnimationFrame', async () => {
+    it('places data-box first in DOM order for Vue Teleport', () => {
       chart.databox = true;
       chart.databoxTitle = 'Mon titre';
 
       const wrapper = (chart as any)._createDataboxElement('bar-chart', { x: '[[]]', y: '[[]]' });
-      // data-box is NOT in wrapper yet (deferred)
-      expect(wrapper.querySelector('data-box')).toBeNull();
-      // After rAF, data-box is inserted
-      await new Promise(r => requestAnimationFrame(r));
       const db = wrapper.querySelector('data-box');
+      const chartEl = wrapper.querySelector('bar-chart');
       expect(db).toBeTruthy();
       expect(db.getAttribute('title')).toBe('Mon titre');
       expect(db.hasAttribute('segmented-control')).toBe(true);
+      // DataBox must be before chart for Vue Teleport to work
+      const children = [...wrapper.children];
+      expect(children.indexOf(db)).toBeLessThan(children.indexOf(chartEl));
     });
   });
 

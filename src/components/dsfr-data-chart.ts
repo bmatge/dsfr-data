@@ -477,22 +477,18 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     tableEl.setAttribute('name', JSON.stringify(allFields));
     tableEl.style.display = 'none';
 
-    // DataBox's Vue setup() runs document.querySelectorAll('[databox-id=...]')
-    // synchronously on connectedCallback. The chart+table siblings must be in
-    // the document BEFORE data-box is connected, otherwise setup() finds nothing.
+    // DataBox MUST be first in DOM order: its Vue template creates container
+    // divs (e.g. #databoxId-chart-default), then DSFR Chart components use
+    // Vue <Teleport> to render INTO those containers. If the chart is before
+    // DataBox, Teleport can't find the target and the chart renders outside.
     //
-    // Strategy: insert chart+table into wrapper first, return the wrapper so Lit
-    // connects it to the DOM, then inject data-box on next microtask so that
-    // chart+table are already queryable when DataBox setup() runs.
+    // The hidden table element feeds DataBox's segmented control table view.
+    // databox-source="default" must be explicit for DataBox's querySelector.
     const wrapper = document.createElement('div');
     wrapper.className = 'dsfr-data-chart__databox-wrapper';
+    wrapper.appendChild(databoxEl);
     wrapper.appendChild(chartEl);
     wrapper.appendChild(tableEl);
-
-    // Defer data-box insertion so siblings are in the document first
-    requestAnimationFrame(() => {
-      wrapper.insertBefore(databoxEl, chartEl);
-    });
 
     return wrapper;
   }
