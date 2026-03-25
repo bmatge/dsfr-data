@@ -423,69 +423,44 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     return wrapper;
   }
 
-  /** Build an HTML attribute string from key-value pairs.
-   *  Empty-string values produce boolean attributes (e.g. download=""). */
-  private _buildAttrString(attrs: Record<string, string>): string {
-    return Object.entries(attrs)
-      .filter(([, v]) => v !== undefined)
-      .map(([k, v]) => v === '' ? k : `${k}="${v.replace(/"/g, '&quot;')}"`)
-      .join(' ');
-  }
-
-  /** Wraps a chart inside a DSFR DataBox using innerHTML so the HTML parser
-   *  creates both elements in one pass — required for Vue slot discovery. */
+  /** Creates a DataBox + chart as siblings in a wrapper div.
+   *  DSFR DataBox discovers its chart via nextElementSibling or databox-id,
+   *  so the chart must be a SIBLING of <data-box>, not a child. */
   private _createDataboxElement(tagName: string, attributes: Record<string, string>, deferred: Record<string, string> = {}) {
     const databoxId = `databox-${this.id || `auto-${++databoxAutoId}`}`;
 
-    // Set databox-id/type on chart attributes BEFORE building HTML
+    // Set databox-id/type on chart so DataBox can find it
     attributes['databox-id'] = databoxId;
     attributes['databox-type'] = 'chart';
 
-    // Build DataBox attributes
-    const dbAttrs: Record<string, string> = { id: databoxId, 'segmented-control': '' };
-    if (this.databoxTitle) dbAttrs['title'] = this.databoxTitle;
-    if (this.databoxSource) dbAttrs['source'] = this.databoxSource;
-    if (this.databoxDate) dbAttrs['date'] = this.databoxDate;
-    if (this.databoxDownload) dbAttrs['download'] = '';
-    if (this.databoxScreenshot) dbAttrs['screenshot'] = '';
-    if (this.databoxFullscreen) dbAttrs['fullscreen'] = '';
-    if (this.databoxTrend) dbAttrs['trend'] = this.databoxTrend;
-    if (this.databoxTooltipTitle) dbAttrs['tooltip-title'] = this.databoxTooltipTitle;
-    if (this.databoxTooltipContent) dbAttrs['tooltip-content'] = this.databoxTooltipContent;
-    if (this.databoxModalTitle) dbAttrs['modal-title'] = this.databoxModalTitle;
-    if (this.databoxModalContent) dbAttrs['modal-content'] = this.databoxModalContent;
-    if (this.databoxDefaultSource) dbAttrs['default-source'] = this.databoxDefaultSource;
-    if (this.databoxActions) dbAttrs['actions'] = this.databoxActions;
+    // Create the DataBox element
+    const databoxEl = document.createElement('data-box');
+    databoxEl.id = databoxId;
+    databoxEl.setAttribute('segmented-control', '');
+    if (this.databoxTitle) databoxEl.setAttribute('title', this.databoxTitle);
+    if (this.databoxSource) databoxEl.setAttribute('source', this.databoxSource);
+    if (this.databoxDate) databoxEl.setAttribute('date', this.databoxDate);
+    if (this.databoxDownload) databoxEl.setAttribute('download', '');
+    if (this.databoxScreenshot) databoxEl.setAttribute('screenshot', '');
+    if (this.databoxFullscreen) databoxEl.setAttribute('fullscreen', '');
+    if (this.databoxTrend) databoxEl.setAttribute('trend', this.databoxTrend);
+    if (this.databoxTooltipTitle) databoxEl.setAttribute('tooltip-title', this.databoxTooltipTitle);
+    if (this.databoxTooltipContent) databoxEl.setAttribute('tooltip-content', this.databoxTooltipContent);
+    if (this.databoxModalTitle) databoxEl.setAttribute('modal-title', this.databoxModalTitle);
+    if (this.databoxModalContent) databoxEl.setAttribute('modal-content', this.databoxModalContent);
+    if (this.databoxDefaultSource) databoxEl.setAttribute('default-source', this.databoxDefaultSource);
+    if (this.databoxActions) databoxEl.setAttribute('actions', this.databoxActions);
 
-    // Use innerHTML so the HTML parser creates both data-box and chart together.
-    // This is required because <data-box> is a Vue web component that discovers
-    // its chart children via slots during mount — appendChild doesn't work.
-    // Chart attributes: filter out empty values (not boolean attrs)
-    const chartAttrStr = Object.entries(attributes)
-      .filter(([, v]) => v !== undefined && v !== '')
-      .map(([k, v]) => `${k}="${v.replace(/"/g, '&quot;')}"`)
-      .join(' ');
-    const container = document.createElement('div');
-    container.innerHTML =
-      `<data-box ${this._buildAttrString(dbAttrs)}>` +
-      `<${tagName} ${chartAttrStr}></${tagName}>` +
-      `</data-box>`;
+    // Create chart element as a sibling
+    const chartEl = this._createRawChartElement(tagName, attributes, deferred);
 
-    const databoxEl = container.firstElementChild as HTMLElement;
+    // Wrap both in a container div — DataBox + Chart as siblings
+    const wrapper = document.createElement('div');
+    wrapper.className = 'dsfr-data-chart__databox-wrapper';
+    wrapper.appendChild(databoxEl);
+    wrapper.appendChild(chartEl);
 
-    // Handle deferred attributes (e.g. map data/value/date overwritten by Vue mount)
-    if (Object.keys(deferred).length > 0) {
-      const chartEl = databoxEl.querySelector(tagName);
-      if (chartEl) {
-        setTimeout(() => {
-          for (const [key, value] of Object.entries(deferred)) {
-            chartEl.setAttribute(key, value);
-          }
-        }, 500);
-      }
-    }
-
-    return databoxEl;
+    return wrapper;
   }
 
   private _renderChart() {
@@ -507,8 +482,9 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       delete allAttrs['unit-tooltip'];
     }
 
-    // Replace previous chart wrapper if any
-    const prevWrapper = this.querySelector('.dsfr-data-chart__wrapper') || this.querySelector('data-box');
+    // Replace previous chart/databox wrapper if any
+    const prevWrapper = this.querySelector('.dsfr-data-chart__wrapper')
+      || this.querySelector('.dsfr-data-chart__databox-wrapper');
     if (prevWrapper) prevWrapper.remove();
 
     if (this.databox) {

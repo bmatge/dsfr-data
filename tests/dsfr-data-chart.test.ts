@@ -520,41 +520,49 @@ describe('DsfrDataChart', () => {
       chart.id = 'test-chart';
     });
 
-    it('creates a data-box element wrapping the chart', () => {
+    it('creates a wrapper with data-box and chart as siblings', () => {
       chart.databox = true;
       chart.databoxTitle = 'Mon titre';
       chart.databoxSource = 'INSEE';
       chart.databoxDate = 'Mars 2024';
       chart.databoxDownload = true;
 
-      const el = (chart as any)._createDataboxElement('bar-chart', { x: '[[]]', y: '[[]]' });
-      expect(el.tagName.toLowerCase()).toBe('data-box');
-      expect(el.getAttribute('title')).toBe('Mon titre');
-      expect(el.getAttribute('source')).toBe('INSEE');
-      expect(el.getAttribute('date')).toBe('Mars 2024');
-      expect(el.hasAttribute('download')).toBe(true);
-      expect(el.hasAttribute('segmented-control')).toBe(true);
+      const wrapper = (chart as any)._createDataboxElement('bar-chart', { x: '[[]]', y: '[[]]' });
+      expect(wrapper.className).toBe('dsfr-data-chart__databox-wrapper');
+      const db = wrapper.querySelector('data-box');
+      expect(db).toBeTruthy();
+      expect(db.getAttribute('title')).toBe('Mon titre');
+      expect(db.getAttribute('source')).toBe('INSEE');
+      expect(db.getAttribute('date')).toBe('Mars 2024');
+      expect(db.hasAttribute('download')).toBe(true);
+      expect(db.hasAttribute('segmented-control')).toBe(true);
     });
 
-    it('sets databox-id and databox-type on the inner chart element', () => {
+    it('places chart as sibling of data-box with databox-id/type', () => {
       chart.databox = true;
       chart.databoxTitle = 'Test';
 
-      const el = (chart as any)._createDataboxElement('bar-chart', { x: '[[]]', y: '[[]]' });
-      const inner = el.querySelector('bar-chart');
-      expect(inner).toBeTruthy();
-      expect(inner.getAttribute('databox-id')).toBe('databox-test-chart');
-      expect(inner.getAttribute('databox-type')).toBe('chart');
+      const wrapper = (chart as any)._createDataboxElement('bar-chart', { x: '[[]]', y: '[[]]' });
+      const db = wrapper.querySelector('data-box');
+      const chartEl = wrapper.querySelector('bar-chart');
+      expect(db).toBeTruthy();
+      expect(chartEl).toBeTruthy();
+      // Chart is sibling of data-box, not child
+      expect(chartEl.parentElement).toBe(wrapper);
+      expect(db.parentElement).toBe(wrapper);
+      expect(chartEl.getAttribute('databox-id')).toBe('databox-test-chart');
+      expect(chartEl.getAttribute('databox-type')).toBe('chart');
     });
 
     it('does not set optional attributes when empty', () => {
       chart.databox = true;
 
-      const el = (chart as any)._createDataboxElement('bar-chart', { x: '[[]]', y: '[[]]' });
-      expect(el.hasAttribute('title')).toBe(false);
-      expect(el.hasAttribute('screenshot')).toBe(false);
-      expect(el.hasAttribute('fullscreen')).toBe(false);
-      expect(el.hasAttribute('trend')).toBe(false);
+      const wrapper = (chart as any)._createDataboxElement('bar-chart', { x: '[[]]', y: '[[]]' });
+      const db = wrapper.querySelector('data-box');
+      expect(db.hasAttribute('title')).toBe(false);
+      expect(db.hasAttribute('screenshot')).toBe(false);
+      expect(db.hasAttribute('fullscreen')).toBe(false);
+      expect(db.hasAttribute('trend')).toBe(false);
     });
   });
 
@@ -576,11 +584,14 @@ describe('DsfrDataChart', () => {
       expect(result.values[0].className).toBe('dsfr-data-chart__wrapper');
     });
 
-    it('renders data-box when databox is true', () => {
+    it('renders databox wrapper with data-box and chart siblings when databox is true', () => {
       chart.databox = true;
       chart.databoxTitle = 'Test';
       const result = (chart as any)._renderChart();
-      expect(result.values[0].tagName.toLowerCase()).toBe('data-box');
+      const wrapper = result.values[0];
+      expect(wrapper.className).toBe('dsfr-data-chart__databox-wrapper');
+      expect(wrapper.querySelector('data-box')).toBeTruthy();
+      expect(wrapper.querySelector('bar-chart')).toBeTruthy();
     });
   });
 });
