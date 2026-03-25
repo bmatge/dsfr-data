@@ -1,0 +1,150 @@
+/* Admin app styles */
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+main { flex: 1; }
+
+.admin-loading {
+  color: var(--text-mention-grey);
+  font-style: italic;
+  padding: 2rem 0;
+  text-align: center;
+}
+
+/* KPI row */
+.admin-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+}
+
+.admin-kpi {
+  background: var(--background-default-grey);
+  border-left: 4px solid var(--border-action-high-blue-france);
+  padding: 1rem 1.5rem;
+  border-radius: 0 4px 4px 0;
+}
+
+.admin-kpi__value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-title-grey);
+}
+
+.admin-kpi__label {
+  font-size: 0.875rem;
+  color: var(--text-mention-grey);
+  margin-top: 0.25rem;
+}
+
+/* Table */
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-table th {
+  background: var(--background-alt-grey);
+  padding: 0.75rem;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 2px solid var(--border-default-grey);
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.admin-table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--border-default-grey);
+  font-size: 0.875rem;
+}
+
+.admin-table tr:hover {
+  background: var(--background-contrast-grey);
+}
+
+.admin-table tr[data-clickable] {
+  cursor: pointer;
+}
+
+/* Badges */
+.badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge--admin { background: var(--background-contrast-info); color: var(--text-default-info); }
+.badge--editor { background: var(--background-contrast-success); color: var(--text-default-success); }
+.badge--viewer { background: var(--background-alt-grey); color: var(--text-mention-grey); }
+.badge--active { background: var(--background-contrast-success); color: var(--text-default-success); }
+.badge--inactive { background: var(--background-contrast-error); color: var(--text-default-error); }
+.badge--local { background: var(--background-alt-grey); color: var(--text-mention-grey); }
+.badge--proconnect { background: var(--background-contrast-info); color: var(--text-default-info); }
+
+/* Pagination */
+.admin-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-pagination button {
+  min-width: 2.5rem;
+}
+
+/* Modal detail */
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 2rem;
+}
+
+.detail-grid dt {
+  font-weight: 600;
+  color: var(--text-mention-grey);
+  font-size: 0.875rem;
+}
+
+.detail-grid dd {
+  margin: 0 0 0.5rem;
+}
+
+.detail-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-default-grey);
+}
+
+/* Audit log */
+.audit-action {
+  font-family: monospace;
+  font-size: 0.8rem;
+  background: var(--background-alt-grey);
+  padding: 0.15rem 0.4rem;
+  border-radius: 2px;
+}
+
+.audit-details {
+  font-size: 0.8rem;
+  color: var(--text-mention-grey);
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Tabs fix for non-JS DSFR init */
+.fr-tabs__panel:not(.fr-tabs__panel--selected) {
+  display: none;
+}

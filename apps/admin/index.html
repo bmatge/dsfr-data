@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Administration - dsfr-data</title>
+  <style>@view-transition{navigation:auto}app-header:not(:defined){display:block;min-height:56px}app-footer:not(:defined){display:block;min-height:48px}</style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css" integrity="sha384-VuzA/gYnk/ZqcT5a/ravR88otj71vNPl/h1JPrKoESV33DCX6SeXIxBcRr5qYPRj" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css" integrity="sha384-YR4AxNhFVy1qsQ0Hp7Rosg06e4sj2m9dLxiYZrtqJ0boIOiDbD8XkIsIPMMkf0VL" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
+  <script type="module" src="../../dist/dsfr-data.esm.js"></script>
+  <link rel="stylesheet" href="src/styles/admin.css">
+</head>
+<body>
+  <app-header current-page="admin" base-path="../.."></app-header>
+
+  <main class="fr-pb-8w" id="main-content">
+    <div class="fr-container">
+      <h1 class="fr-mt-4w">
+        <i class="ri-admin-line"></i> Administration
+      </h1>
+      <p class="fr-text--lead" id="admin-subtitle">Gestion des utilisateurs et suivi des actions.</p>
+
+      <div id="access-denied" class="fr-alert fr-alert--error fr-mb-2w" style="display:none">
+        <p>Acces reserve aux administrateurs.</p>
+      </div>
+
+      <!-- Tabs -->
+      <div id="admin-tabs" style="display:none">
+        <nav class="fr-tabs" role="navigation" aria-label="Onglets admin">
+          <ul class="fr-tabs__list" role="tablist">
+            <li role="presentation">
+              <button id="tab-users" class="fr-tabs__tab" role="tab" aria-selected="true" aria-controls="panel-users">Utilisateurs</button>
+            </li>
+            <li role="presentation">
+              <button id="tab-audit" class="fr-tabs__tab" role="tab" aria-selected="false" aria-controls="panel-audit">Journal d'audit</button>
+            </li>
+            <li role="presentation">
+              <button id="tab-stats" class="fr-tabs__tab" role="tab" aria-selected="false" aria-controls="panel-stats">Statistiques</button>
+            </li>
+          </ul>
+        </nav>
+
+        <!-- Users panel -->
+        <div id="panel-users" class="fr-tabs__panel fr-tabs__panel--selected" role="tabpanel" aria-labelledby="tab-users">
+          <div id="users-list">
+            <p class="admin-loading">Chargement...</p>
+          </div>
+          <div id="users-pagination" class="fr-mt-2w"></div>
+        </div>
+
+        <!-- Audit panel -->
+        <div id="panel-audit" class="fr-tabs__panel" role="tabpanel" aria-labelledby="tab-audit">
+          <div id="audit-list">
+            <p class="admin-loading">Chargement...</p>
+          </div>
+          <div id="audit-pagination" class="fr-mt-2w"></div>
+        </div>
+
+        <!-- Stats panel -->
+        <div id="panel-stats" class="fr-tabs__panel" role="tabpanel" aria-labelledby="tab-stats">
+          <div id="stats-content">
+            <p class="admin-loading">Chargement...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- User detail modal -->
+      <dialog id="user-detail-modal" class="fr-modal" aria-labelledby="modal-title">
+        <div class="fr-container fr-container--fluid fr-container-md">
+          <div class="fr-grid-row fr-grid-row--center">
+            <div class="fr-col-12 fr-col-md-8">
+              <div class="fr-modal__body">
+                <div class="fr-modal__header">
+                  <button class="fr-btn--close fr-btn" title="Fermer" aria-controls="user-detail-modal" id="modal-close">Fermer</button>
+                </div>
+                <div class="fr-modal__content">
+                  <h1 id="modal-title" class="fr-modal__title">Detail utilisateur</h1>
+                  <div id="modal-body"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </dialog>
+    </div>
+  </main>
+
+  <app-footer base-path="../.."></app-footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js" integrity="sha384-4dK3hBJJh/bjoOulz9Q1kNO2O09lzuKiFeF5c+0VguV1RT3IiLkv+Pt98Jul84V+" crossorigin="anonymous"></script>
+  <script type="module" src="src/main.ts"></script>
+</body>
+</html>
