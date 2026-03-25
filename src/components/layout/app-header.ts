@@ -125,6 +125,7 @@ export class AppHeader extends LitElement {
       { id: 'playground', label: 'Playground', href: 'apps/playground/index.html' },
       { id: 'dashboard', label: 'Dashboard', href: 'apps/dashboard/index.html' },
       { id: 'monitoring', label: 'Monitoring', href: 'apps/monitoring/index.html' },
+      { id: 'admin', label: 'Admin', href: 'apps/admin/index.html' },
     ];
   }
 

@@ -3,14 +3,22 @@
  * Tests user-to-user sharing, group sharing, and global sharing flows.
  */
 
-import { describe, it, expect, beforeEach, afterAll } from 'vitest';
+import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
 import request from 'supertest';
-import { createTestApp, closeTestApp } from './test-helpers.js';
+import { createTestApp, closeTestApp, authCookie } from './test-helpers.js';
+import { execute, queryOne } from '../../server/src/db/database.js';
 import type { Express } from 'express';
+
+// Mock mailer
+vi.mock('../../server/src/utils/mailer.js', () => ({
+  sendVerificationEmail: vi.fn().mockResolvedValue(undefined),
+  sendWelcomeEmail: vi.fn().mockResolvedValue(undefined),
+  setTransporter: vi.fn(),
+}));
 
 let app: Express;
 
-/** Register a user and return { userId, cookies } */
+/** Register a user and return { userId, cookies }. Auto-verifies non-admin users. */
 async function registerUser(
   app: Express,
   email: string,
@@ -21,8 +29,18 @@ async function registerUser(
     .post('/api/auth/register')
     .send({ email, password, displayName });
   expect(res.status).toBe(201);
-  const cookies = res.headers['set-cookie'] as unknown as string[];
-  return { userId: res.body.user.id, cookies };
+
+  if (res.body.user) {
+    // Admin: already verified
+    const cookies = res.headers['set-cookie'] as unknown as string[];
+    return { userId: res.body.user.id, cookies };
+  }
+
+  // Non-admin: verify in DB and build cookie
+  await execute('UPDATE users SET email_verified = TRUE, verification_token_hash = NULL WHERE email = ?', [email]);
+  const user = await queryOne<{ id: string; role: string }>('SELECT id, role FROM users WHERE email = ?', [email]);
+  const cookie = authCookie({ userId: user!.id, email, role: user!.role });
+  return { userId: user!.id, cookies: [cookie] };
 }
 
 /** Create a source owned by the authenticated user, return source id */

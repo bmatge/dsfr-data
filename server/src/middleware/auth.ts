@@ -7,6 +7,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { queryOne } from '../db/database.js';
+import { isSessionValid } from '../utils/sessions.js';
 
 export interface JwtPayload {
   userId: string;
@@ -51,6 +52,9 @@ export async function authMiddleware(req: Request, _res: Response, next: NextFun
       [payload.userId],
     );
     if (!user || !user.is_active) {
+      authReq.user = null;
+    } else if (!(await isSessionValid(token))) {
+      // Session revoked
       authReq.user = null;
     } else {
       authReq.user = payload;

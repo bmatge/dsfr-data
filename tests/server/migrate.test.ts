@@ -2,10 +2,17 @@
  * Server tests for migration route (/api/migrate).
  */
 
-import { describe, it, expect, beforeEach, afterAll } from 'vitest';
+import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
 import request from 'supertest';
 import type { Express } from 'express';
 import { createTestApp, closeTestApp } from './test-helpers.js';
+
+// Mock mailer
+vi.mock('../../server/src/utils/mailer.js', () => ({
+  sendVerificationEmail: vi.fn().mockResolvedValue(undefined),
+  sendWelcomeEmail: vi.fn().mockResolvedValue(undefined),
+  setTransporter: vi.fn(),
+}));
 
 /** Extract the set-cookie header value to use in subsequent requests. */
 function extractCookie(res: request.Response): string {

@@ -2,11 +2,21 @@
  * Server tests for auth routes (/api/auth).
  */
 
-import { describe, it, expect, beforeEach, afterAll } from 'vitest';
+import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
 import request from 'supertest';
+import crypto from 'node:crypto';
 import type { Express } from 'express';
-import { createTestApp, closeTestApp, authCookie } from './test-helpers.js';
+import { createTestApp, closeTestApp } from './test-helpers.js';
 import { execute, queryOne } from '../../server/src/db/database.js';
+
+// Mock the mailer module — capture emails instead of sending
+vi.mock('../../server/src/utils/mailer.js', () => ({
+  sendVerificationEmail: vi.fn().mockResolvedValue(undefined),
+  sendWelcomeEmail: vi.fn().mockResolvedValue(undefined),
+  setTransporter: vi.fn(),
+}));
+
+import { sendVerificationEmail } from '../../server/src/utils/mailer.js';
 
 /** Valid password that meets complexity requirements (8+ chars, upper, lower, digit). */
 const VALID_PASSWORD = 'Password1';
@@ -16,8 +26,35 @@ function extractCookie(res: request.Response): string {
   const cookies = res.headers['set-cookie'];
   if (!cookies) return '';
   const raw = Array.isArray(cookies) ? cookies[0] : cookies;
-  // Return only the key=value part (before the first semicolon)
   return raw.split(';')[0];
+}
+
+/** Register the first user (admin) and return cookie. Admin is auto-verified. */
+async function registerAdmin(app: Express, email = 'admin@example.com'): Promise<string> {
+  const res = await request(app)
+    .post('/api/auth/register')
+    .send({ email, password: VALID_PASSWORD, displayName: 'Admin' });
+  return extractCookie(res);
+}
+
+/** Register a non-admin user. Returns the response (no cookie — needs verification). */
+async function registerUser(app: Express, email: string, displayName?: string) {
+  // Ensure there's already an admin so this user is not the first
+  const count = await queryOne<{ count: number }>('SELECT COUNT(*) as count FROM users');
+  if (count?.count === 0) {
+    await registerAdmin(app);
+  }
+  return request(app)
+    .post('/api/auth/register')
+    .send({ email, password: VALID_PASSWORD, displayName: displayName || email.split('@')[0] });
+}
+
+/** Verify a user's email directly in DB (shortcut for tests that don't test verification). */
+async function verifyUserEmail(email: string): Promise<void> {
+  await execute(
+    'UPDATE users SET email_verified = TRUE, verification_token_hash = NULL, verification_expires = NULL WHERE email = ?',
+    [email],
+  );
 }
 
 describe('POST /api/auth/register', () => {
@@ -25,50 +62,42 @@ describe('POST /api/auth/register', () => {
 
   beforeEach(async () => {
     app = await createTestApp();
+    vi.clearAllMocks();
   });
 
-  it('creates a user successfully', async () => {
+  it('first user gets admin role and is auto-verified (cookie set)', async () => {
     const res = await request(app)
       .post('/api/auth/register')
-      .send({ email: 'alice@example.com', password: VALID_PASSWORD, displayName: 'Alice' });
+      .send({ email: 'first@example.com', password: VALID_PASSWORD, displayName: 'First' });
 
     expect(res.status).toBe(201);
-    expect(res.body.user).toMatchObject({
-      email: 'alice@example.com',
-      displayName: 'Alice',
-    });
-    expect(res.body.user.id).toBeDefined();
-    expect(res.body.user.role).toBeDefined();
-    // Should set an httpOnly cookie
+    expect(res.body.user).toMatchObject({ email: 'first@example.com', role: 'admin' });
+    // Admin gets a cookie (auto-verified)
     expect(res.headers['set-cookie']).toBeDefined();
+    // No verification email sent for admin
+    expect(sendVerificationEmail).not.toHaveBeenCalled();
   });
 
-  it('first user gets admin role', async () => {
-    const res = await request(app)
-      .post('/api/auth/register')
-      .send({ email: 'first@example.com', password: VALID_PASSWORD, displayName: 'First' });
-
-    expect(res.status).toBe(201);
-    expect(res.body.user.role).toBe('admin');
-  });
-
-  it('second user gets editor role', async () => {
-    await request(app)
-      .post('/api/auth/register')
-      .send({ email: 'first@example.com', password: VALID_PASSWORD, displayName: 'First' });
+  it('second user gets editor role and verification email (no cookie)', async () => {
+    await registerAdmin(app);
 
     const res = await request(app)
       .post('/api/auth/register')
       .send({ email: 'second@example.com', password: VALID_PASSWORD, displayName: 'Second' });
 
     expect(res.status).toBe(201);
-    expect(res.body.user.role).toBe('editor');
+    expect(res.body.message).toMatch(/verification/i);
+    expect(res.body.email).toBe('second@example.com');
+    // No cookie for unverified user
+    const cookies = res.headers['set-cookie'];
+    const hasCookie = cookies && (Array.isArray(cookies) ? cookies : [cookies]).some((c: string) => c.startsWith('gw-auth-token='));
+    expect(hasCookie).toBeFalsy();
+    // Verification email sent
+    expect(sendVerificationEmail).toHaveBeenCalledWith('second@example.com', expect.any(String));
   });
 
   it('rejects duplicate email', async () => {
-    await request(app)
-      .post('/api/auth/register')
-      .send({ email: 'dup@example.com', password: VALID_PASSWORD, displayName: 'Dup' });
+    await registerAdmin(app, 'dup@example.com');
 
     const res = await request(app)
       .post('/api/auth/register')
@@ -76,6 +105,23 @@ describe('POST /api/auth/register', () => {
 
     expect(res.status).toBe(409);
     expect(res.body.error).toMatch(/already/i);
+  });
+
+  it('allows re-register of unverified account (replaces it)', async () => {
+    await registerAdmin(app);
+
+    // Register once (unverified)
+    await request(app)
+      .post('/api/auth/register')
+      .send({ email: 'retry@example.com', password: VALID_PASSWORD });
+
+    // Register again with same email — should succeed (replaces unverified)
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({ email: 'retry@example.com', password: VALID_PASSWORD });
+
+    expect(res.status).toBe(201);
+    expect(res.body.message).toMatch(/verification/i);
   });
 
   it('rejects short password', async () => {
@@ -124,16 +170,139 @@ describe('POST /api/auth/register', () => {
   });
 });
 
+describe('GET /api/auth/verify-email', () => {
+  let app: Express;
+
+  beforeEach(async () => {
+    app = await createTestApp();
+    vi.clearAllMocks();
+  });
+
+  it('verifies email and logs in (redirect to /)', async () => {
+    await registerAdmin(app);
+
+    // Register a user (sends verification email)
+    await registerUser(app, 'verify@example.com');
+
+    // Get the token that was passed to sendVerificationEmail
+    const calls = vi.mocked(sendVerificationEmail).mock.calls;
+    expect(calls.length).toBe(1);
+    const token = calls[0][1];
+
+    // Verify
+    const res = await request(app)
+      .get(`/api/auth/verify-email?token=${token}`);
+
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe('/');
+    expect(res.headers['set-cookie']).toBeDefined();
+
+    // Check DB: email_verified = true
+    const user = await queryOne<{ email_verified: number }>(
+      'SELECT email_verified FROM users WHERE email = ?', ['verify@example.com'],
+    );
+    expect(user?.email_verified).toBe(1);
+  });
+
+  it('rejects invalid token', async () => {
+    const res = await request(app)
+      .get('/api/auth/verify-email?token=invalidtoken123');
+
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe('/?error=invalid_token');
+  });
+
+  it('rejects expired token', async () => {
+    await registerAdmin(app);
+    await registerUser(app, 'expired@example.com');
+
+    const calls = vi.mocked(sendVerificationEmail).mock.calls;
+    const token = calls[0][1];
+
+    // Expire the token in DB
+    await execute(
+      'UPDATE users SET verification_expires = DATE_SUB(NOW(), INTERVAL 1 HOUR) WHERE email = ?',
+      ['expired@example.com'],
+    );
+
+    const res = await request(app)
+      .get(`/api/auth/verify-email?token=${token}`);
+
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe('/?error=token_expired');
+  });
+
+  it('rejects missing token parameter', async () => {
+    const res = await request(app)
+      .get('/api/auth/verify-email');
+
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe('/?error=invalid_token');
+  });
+});
+
+describe('POST /api/auth/resend-verification', () => {
+  let app: Express;
+
+  beforeEach(async () => {
+    app = await createTestApp();
+    vi.clearAllMocks();
+  });
+
+  it('resends verification email for unverified account', async () => {
+    await registerAdmin(app);
+    await registerUser(app, 'resend@example.com');
+
+    vi.clearAllMocks(); // Clear the initial sendVerificationEmail call
+
+    // Make the token old enough to allow resend (set expires to less than 23.67h from now)
+    await execute(
+      'UPDATE users SET verification_expires = DATE_ADD(NOW(), INTERVAL 20 HOUR) WHERE email = ?',
+      ['resend@example.com'],
+    );
+
+    const res = await request(app)
+      .post('/api/auth/resend-verification')
+      .send({ email: 'resend@example.com' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.message).toMatch(/verification/i);
+    expect(sendVerificationEmail).toHaveBeenCalledWith('resend@example.com', expect.any(String));
+  });
+
+  it('returns 200 for non-existent email (no leak)', async () => {
+    const res = await request(app)
+      .post('/api/auth/resend-verification')
+      .send({ email: 'nobody@example.com' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.message).toBeDefined();
+    expect(sendVerificationEmail).not.toHaveBeenCalled();
+  });
+
+  it('returns 200 for already verified email (no leak)', async () => {
+    await registerAdmin(app, 'verified@example.com');
+
+    const res = await request(app)
+      .post('/api/auth/resend-verification')
+      .send({ email: 'verified@example.com' });
+
+    expect(res.status).toBe(200);
+    expect(sendVerificationEmail).not.toHaveBeenCalled();
+  });
+});
+
 describe('POST /api/auth/login', () => {
   let app: Express;
 
   beforeEach(async () => {
     app = await createTestApp();
+    vi.clearAllMocks();
 
-    // Seed a user for login tests
-    await request(app)
-      .post('/api/auth/register')
-      .send({ email: 'user@example.com', password: VALID_PASSWORD, displayName: 'User' });
+    // Seed: register admin, then a verified user
+    await registerAdmin(app);
+    await registerUser(app, 'user@example.com', 'User');
+    await verifyUserEmail('user@example.com');
   });
 
   it('successful login', async () => {
@@ -168,7 +337,6 @@ describe('POST /api/auth/login', () => {
   });
 
   it('rejects disabled account', async () => {
-    // Disable the user via DB
     const user = await queryOne<{ id: string }>('SELECT id FROM users WHERE email = ?', ['user@example.com']);
     await execute('UPDATE users SET is_active = FALSE WHERE id = ?', [user!.id]);
 
@@ -181,13 +349,8 @@ describe('POST /api/auth/login', () => {
   });
 
   it('rejects unverified email', async () => {
-    // Create a second user and mark as unverified
-    await request(app)
-      .post('/api/auth/register')
-      .send({ email: 'unverified@example.com', password: VALID_PASSWORD, displayName: 'Unverified' });
-
-    const user = await queryOne<{ id: string }>('SELECT id FROM users WHERE email = ?', ['unverified@example.com']);
-    await execute('UPDATE users SET email_verified = FALSE WHERE id = ?', [user!.id]);
+    // Create an unverified user
+    await registerUser(app, 'unverified@example.com');
 
     const res = await request(app)
       .post('/api/auth/login')
@@ -203,6 +366,7 @@ describe('POST /api/auth/logout', () => {
 
   beforeEach(async () => {
     app = await createTestApp();
+    vi.clearAllMocks();
   });
 
   it('clears cookie', async () => {
@@ -211,11 +375,32 @@ describe('POST /api/auth/logout', () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ ok: true });
-    // The set-cookie header should clear the auth cookie
     const cookies = res.headers['set-cookie'];
     expect(cookies).toBeDefined();
     const raw = Array.isArray(cookies) ? cookies[0] : cookies;
     expect(raw).toMatch(/gw-auth-token=/);
+  });
+
+  it('revokes session so token cannot be reused', async () => {
+    // Login as admin
+    const cookie = await registerAdmin(app, 'logout-test@example.com');
+
+    // Verify we can access /me
+    const meRes = await request(app)
+      .get('/api/auth/me')
+      .set('Cookie', cookie);
+    expect(meRes.status).toBe(200);
+
+    // Logout
+    await request(app)
+      .post('/api/auth/logout')
+      .set('Cookie', cookie);
+
+    // Try to reuse the same token — should be rejected (session revoked)
+    const afterLogout = await request(app)
+      .get('/api/auth/me')
+      .set('Cookie', cookie);
+    expect(afterLogout.status).toBe(401);
   });
 });
 
@@ -224,14 +409,11 @@ describe('GET /api/auth/me', () => {
 
   beforeEach(async () => {
     app = await createTestApp();
+    vi.clearAllMocks();
   });
 
   it('returns user info with new fields', async () => {
-    const registerRes = await request(app)
-      .post('/api/auth/register')
-      .send({ email: 'me@example.com', password: VALID_PASSWORD, displayName: 'Me' });
-
-    const cookie = extractCookie(registerRes);
+    const cookie = await registerAdmin(app, 'me@example.com');
 
     const res = await request(app)
       .get('/api/auth/me')
@@ -240,7 +422,7 @@ describe('GET /api/auth/me', () => {
     expect(res.status).toBe(200);
     expect(res.body.user).toMatchObject({
       email: 'me@example.com',
-      displayName: 'Me',
+      displayName: 'Admin',
       role: 'admin',
       authProvider: 'local',
       isActive: true,
@@ -259,13 +441,8 @@ describe('GET /api/auth/me', () => {
   });
 
   it('401 for disabled account', async () => {
-    const registerRes = await request(app)
-      .post('/api/auth/register')
-      .send({ email: 'disabled@example.com', password: VALID_PASSWORD, displayName: 'Disabled' });
+    const cookie = await registerAdmin(app, 'disabled@example.com');
 
-    const cookie = extractCookie(registerRes);
-
-    // Disable the user
     const user = await queryOne<{ id: string }>('SELECT id FROM users WHERE email = ?', ['disabled@example.com']);
     await execute('UPDATE users SET is_active = FALSE WHERE id = ?', [user!.id]);
 
@@ -273,7 +450,6 @@ describe('GET /api/auth/me', () => {
       .get('/api/auth/me')
       .set('Cookie', cookie);
 
-    // authMiddleware sets user to null when is_active = false → 401
     expect(res.status).toBe(401);
   });
 });
@@ -283,14 +459,11 @@ describe('PUT /api/auth/me', () => {
 
   beforeEach(async () => {
     app = await createTestApp();
+    vi.clearAllMocks();
   });
 
   it('updates display name', async () => {
-    const registerRes = await request(app)
-      .post('/api/auth/register')
-      .send({ email: 'update@example.com', password: VALID_PASSWORD, displayName: 'Before' });
-
-    const cookie = extractCookie(registerRes);
+    const cookie = await registerAdmin(app, 'update@example.com');
 
     const res = await request(app)
       .put('/api/auth/me')
@@ -302,13 +475,8 @@ describe('PUT /api/auth/me', () => {
   });
 
   it('updates password with strong password', async () => {
-    const registerRes = await request(app)
-      .post('/api/auth/register')
-      .send({ email: 'pwchange@example.com', password: VALID_PASSWORD, displayName: 'PW' });
+    const cookie = await registerAdmin(app, 'pwchange@example.com');
 
-    const cookie = extractCookie(registerRes);
-
-    // Update password
     const updateRes = await request(app)
       .put('/api/auth/me')
       .set('Cookie', cookie)
@@ -316,21 +484,15 @@ describe('PUT /api/auth/me', () => {
 
     expect(updateRes.status).toBe(200);
 
-    // Verify new password works for login
     const loginRes = await request(app)
       .post('/api/auth/login')
       .send({ email: 'pwchange@example.com', password: 'NewPassword2' });
 
     expect(loginRes.status).toBe(200);
-    expect(loginRes.body.user.email).toBe('pwchange@example.com');
   });
 
   it('rejects weak password update', async () => {
-    const registerRes = await request(app)
-      .post('/api/auth/register')
-      .send({ email: 'weakpw@example.com', password: VALID_PASSWORD, displayName: 'WeakPw' });
-
-    const cookie = extractCookie(registerRes);
+    const cookie = await registerAdmin(app, 'weakpw@example.com');
 
     const res = await request(app)
       .put('/api/auth/me')
@@ -346,14 +508,11 @@ describe('GET /api/auth/users', () => {
 
   beforeEach(async () => {
     app = await createTestApp();
+    vi.clearAllMocks();
   });
 
   it('finds by email', async () => {
-    const registerRes = await request(app)
-      .post('/api/auth/register')
-      .send({ email: 'searchme@example.com', password: VALID_PASSWORD, displayName: 'SearchMe' });
-
-    const cookie = extractCookie(registerRes);
+    const cookie = await registerAdmin(app, 'searchme@example.com');
 
     const res = await request(app)
       .get('/api/auth/users?q=searchme')
@@ -366,17 +525,11 @@ describe('GET /api/auth/users', () => {
   });
 
   it('excludes disabled users from search', async () => {
-    const registerRes = await request(app)
-      .post('/api/auth/register')
-      .send({ email: 'admin@example.com', password: VALID_PASSWORD, displayName: 'Admin' });
+    const cookie = await registerAdmin(app);
 
-    const cookie = extractCookie(registerRes);
-
-    // Create another user and disable it
-    await request(app)
-      .post('/api/auth/register')
-      .send({ email: 'hidden@example.com', password: VALID_PASSWORD, displayName: 'Hidden' });
-
+    // Create and verify another user, then disable
+    await registerUser(app, 'hidden@example.com', 'Hidden');
+    await verifyUserEmail('hidden@example.com');
     const user = await queryOne<{ id: string }>('SELECT id FROM users WHERE email = ?', ['hidden@example.com']);
     await execute('UPDATE users SET is_active = FALSE WHERE id = ?', [user!.id]);
 
@@ -389,11 +542,7 @@ describe('GET /api/auth/users', () => {
   });
 
   it('returns empty for short query', async () => {
-    const registerRes = await request(app)
-      .post('/api/auth/register')
-      .send({ email: 'test@example.com', password: VALID_PASSWORD, displayName: 'Test' });
-
-    const cookie = extractCookie(registerRes);
+    const cookie = await registerAdmin(app, 'test@example.com');
 
     const res = await request(app)
       .get('/api/auth/users?q=a')

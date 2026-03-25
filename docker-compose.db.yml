@@ -42,6 +42,10 @@ services:
       - DB_USER=${DB_USER:-dsfr_data}
       - DB_PASSWORD=${DB_PASSWORD}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - SMTP_HOST=${SMTP_HOST:-mailserver}
+      - SMTP_PORT=${SMTP_PORT:-25}
+      - SMTP_FROM=${SMTP_FROM:-noreply@ecosysteme.matge.com}
+      - APP_URL=${APP_URL:-https://chartsbuilder.matge.com}
       - IA_DEFAULT_TOKEN=${IA_DEFAULT_TOKEN:-}
       - IA_DEFAULT_API_URL=${IA_DEFAULT_API_URL:-https://albert.api.etalab.gouv.fr/v1/chat/completions}
       - IA_DEFAULT_MODEL=${IA_DEFAULT_MODEL:-albert-large}
