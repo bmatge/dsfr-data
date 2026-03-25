@@ -53,10 +53,11 @@ export const examples: Record<string, string> = {
 </div>`,
 
   'direct-bar-databox': `<!--
-  Barres avec DataBox — Taux de taxe fonciere par commune
+  Barres avec DataBox complete — Taux de taxe fonciere par commune
   Mode direct : dsfr-data-source → dsfr-data-chart (bar + databox)
   Source : Fiscalite locale des particuliers (OpenDataSoft)
-  DataBox ajoute un habillage editorial : titre, source, date, CSV, switch chart/tableau
+  DataBox avec tous les attributs : titre, tooltip, modale, source,
+  date, tendance, screenshot, telechargement, plein ecran, actions
 -->
 
 <div class="fr-container fr-my-4w">
@@ -74,22 +75,30 @@ export const examples: Record<string, string> = {
     selected-palette="categorical"
     databox
     databox-title="Taux de taxe fonciere par commune"
-    databox-source="data.economie.gouv.fr — Fiscalite locale"
+    databox-tooltip-title="Taxe fonciere"
+    databox-tooltip-content="Taux global de taxe fonciere sur les proprietes baties (TFB) par commune. Source : DGFiP, donnees fiscales des particuliers."
+    databox-modal-title="A propos de ces donnees"
+    databox-modal-content="Les taux de fiscalite locale sont votes chaque annee par les collectivites territoriales. Le taux global TFB inclut les parts communale, intercommunale et departementale."
+    databox-source="DGFiP via data.economie.gouv.fr"
     databox-date="2024"
-    databox-download>
+    databox-trend="+1.2%"
+    databox-screenshot
+    databox-download
+    databox-fullscreen
+    databox-actions='["Voir sur data.economie.gouv.fr", "Methodologie DGFiP"]'>
   </dsfr-data-chart>
 
-  <!-- Avec DataBox : description seulement (table et CSV fournis par DataBox) -->
   <dsfr-data-a11y for="chart" source="data"
+    table download
     description="Ce graphique montre les taux de taxe fonciere globaux par commune.">
   </dsfr-data-a11y>
 </div>`,
 
   'direct-line-databox': `<!--
-  Ligne avec DataBox + screenshot + plein ecran
+  Ligne avec DataBox — Taux de taxe fonciere par commune
   Mode direct : dsfr-data-source → dsfr-data-chart (line + databox)
   Source : Fiscalite locale des particuliers (OpenDataSoft)
-  Demontre les options screenshot PNG et plein ecran de la DataBox
+  DataBox simplifiee : titre, source, date, tendance, telechargement
 -->
 
 <div class="fr-container fr-my-4w">
@@ -107,12 +116,20 @@ export const examples: Record<string, string> = {
     selected-palette="default"
     databox
     databox-title="Evolution du taux de taxe fonciere"
-    databox-source="data.economie.gouv.fr"
+    databox-tooltip-title="Taux TFB"
+    databox-tooltip-content="Evolution du taux global de taxe fonciere sur les proprietes baties par commune."
+    databox-source="DGFiP via data.economie.gouv.fr"
     databox-date="2024"
+    databox-trend="-0.3%"
     databox-download
     databox-screenshot
     databox-fullscreen>
   </dsfr-data-chart>
+
+  <dsfr-data-a11y for="chart" source="data"
+    table download
+    description="Ce graphique montre l'evolution des taux de taxe fonciere.">
+  </dsfr-data-a11y>
 </div>`,
 
   'direct-kpi': `<!--
