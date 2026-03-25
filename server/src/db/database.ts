@@ -153,6 +153,9 @@ async function runMigrations(): Promise<void> {
   if (currentVersion < 3) {
     await migrateV3();
   }
+  if (currentVersion < 4) {
+    await migrateV4();
+  }
 }
 
 /**
@@ -244,6 +247,35 @@ async function migrateV3(): Promise<void> {
 
     await conn.query('INSERT IGNORE INTO schema_version (version) VALUES (3)');
     console.log('[db] Migration v3 complete');
+  } finally {
+    conn.release();
+  }
+}
+
+/**
+ * Migration v4: audit_log table for tracking sensitive actions.
+ */
+async function migrateV4(): Promise<void> {
+  console.log('[db] Running migration v4: audit_log table');
+
+  const conn = await getPool().getConnection();
+  try {
+    await conn.query(`CREATE TABLE IF NOT EXISTS audit_log (
+      id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      user_id VARCHAR(36),
+      action VARCHAR(100) NOT NULL,
+      target_type VARCHAR(50),
+      target_id VARCHAR(36),
+      details JSON,
+      ip_address VARCHAR(45),
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_audit_user (user_id),
+      INDEX idx_audit_action (action),
+      INDEX idx_audit_created (created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+    await conn.query('INSERT IGNORE INTO schema_version (version) VALUES (4)');
+    console.log('[db] Migration v4 complete');
   } finally {
     conn.release();
   }

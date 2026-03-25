@@ -14,6 +14,7 @@ import sharesRoutes from './routes/shares.js';
 import cacheRoutes from './routes/cache.js';
 import migrateRoutes from './routes/migrate.js';
 import monitoringRoutes from './routes/monitoring.js';
+import adminRoutes from './routes/admin.js';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3002', 10);
@@ -46,6 +47,7 @@ app.use('/api/shares', sharesRoutes);
 app.use('/api/cache', cacheRoutes);
 app.use('/api/migrate', migrateRoutes);
 app.use('/api/monitoring', monitoringRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Graceful shutdown
 async function shutdown() {

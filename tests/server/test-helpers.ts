@@ -29,6 +29,7 @@ import sharesRoutes from '../../server/src/routes/shares.js';
 import cacheRoutes from '../../server/src/routes/cache.js';
 import migrateRoutes from '../../server/src/routes/migrate.js';
 import monitoringRoutes from '../../server/src/routes/monitoring.js';
+import adminRoutes from '../../server/src/routes/admin.js';
 import type { Express } from 'express';
 
 // Set test env defaults
@@ -46,6 +47,7 @@ let initialized = false;
  * Tables in reverse FK order for truncation.
  */
 const TABLES_TO_TRUNCATE = [
+  'audit_log',
   'sessions',
   'data_cache',
   'monitoring',
@@ -80,6 +82,7 @@ export async function createTestApp(): Promise<Express> {
   await execute('INSERT IGNORE INTO schema_version (version) VALUES (1)');
   await execute('INSERT IGNORE INTO schema_version (version) VALUES (2)');
   await execute('INSERT IGNORE INTO schema_version (version) VALUES (3)');
+  await execute('INSERT IGNORE INTO schema_version (version) VALUES (4)');
 
   const app = express();
   app.use(express.json({ limit: '10mb' }));
@@ -96,6 +99,7 @@ export async function createTestApp(): Promise<Express> {
   app.use('/api/cache', cacheRoutes);
   app.use('/api/migrate', migrateRoutes);
   app.use('/api/monitoring', monitoringRoutes);
+  app.use('/api/admin', adminRoutes);
 
   return app;
 }
