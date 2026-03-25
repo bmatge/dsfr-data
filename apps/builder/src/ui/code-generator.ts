@@ -79,20 +79,27 @@ function a11yDep(): string {
 function wrapWithDatabox(chartHtml: string, chartId: string): string {
   if (!state.databoxEnabled) return chartHtml;
   const dbId = `databox-${chartId}`;
+  // DataBox attributes — title, source, date are required
   const dbAttrs: string[] = [`id="${dbId}"`];
-  if (state.databoxTitle) dbAttrs.push(`title="${escapeHtml(state.databoxTitle)}"`);
-  if (state.databoxSource) dbAttrs.push(`source="${escapeHtml(state.databoxSource)}"`);
-  if (state.databoxDate) dbAttrs.push(`date="${escapeHtml(state.databoxDate)}"`);
+  dbAttrs.push(`title="${escapeHtml(state.databoxTitle || ' ')}"`);
+  dbAttrs.push(`source="${escapeHtml(state.databoxSource || ' ')}"`);
+  dbAttrs.push(`date="${escapeHtml(state.databoxDate || new Date().toISOString().split('T')[0])}"`);
   if (state.databoxDownload) dbAttrs.push('download');
   if (state.databoxScreenshot) dbAttrs.push('screenshot');
   if (state.databoxFullscreen) dbAttrs.push('fullscreen');
   if (state.databoxTrend) dbAttrs.push(`trend="${escapeHtml(state.databoxTrend)}"`);
   dbAttrs.push('segmented-control');
+
+  // Add databox-id, databox-type, databox-source on the chart element
   const chartWithDbAttrs = chartHtml.replace(
     /(<\w[\w-]*)(\s)/,
-    `$1 databox-id="${dbId}" databox-type="chart"$2`
+    `$1 databox-id="${dbId}" databox-type="chart" databox-source="default"$2`
   );
-  return `<data-box ${dbAttrs.join('\n    ')}>\n    ${chartWithDbAttrs}\n  </data-box>`;
+
+  // DataBox and chart must be SIBLINGS (not parent-child).
+  // DataBox uses Vue Teleport: it creates container divs, then chart teleports into them.
+  // A hidden table stub lets DataBox create the table container for segmented control.
+  return `<data-box ${dbAttrs.join('\n    ')}></data-box>\n  ${chartWithDbAttrs}\n  <div databox-id="${dbId}" databox-type="table" databox-source="default" style="display:none"></div>`;
 }
 
 /**
