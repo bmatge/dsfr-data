@@ -9,6 +9,16 @@ import { PROXY_BASE_URL } from '@dsfr-data/shared';
 const BEACON_URL = `${PROXY_BASE_URL}/beacon`;
 const sent = new Set<string>();
 
+/** Strip query string and hash from a URL to avoid leaking tokens/session params */
+function sanitizeUrl(href: string): string {
+  try {
+    const u = new URL(href);
+    return u.origin + u.pathname;
+  } catch {
+    return href;
+  }
+}
+
 /**
  * Send a beacon to track widget usage.
  * Deduplicated: only one beacon per component+type per page load.
@@ -30,12 +40,16 @@ export function sendWidgetBeacon(component: string, subtype?: string): void {
     return;
   }
 
+  // Send full URL (origin + path) for meaningful page tracking.
+  // Query string and hash are stripped to avoid leaking sensitive params.
+  const pageUrl = sanitizeUrl(window.location.href);
+
   const params = new URLSearchParams();
   params.set('c', component);
   if (subtype) params.set('t', subtype);
-  params.set('r', window.location.origin);
+  params.set('r', pageUrl);
 
-  // In DB mode, send as JSON POST to the API (more reliable, stored in SQLite)
+  // In DB mode, send as JSON POST to the API (more reliable, stored in MariaDB)
   // Fallback to pixel tracking if the POST fails
   const useApi = typeof window !== 'undefined' && (window as any).__gwDbMode === true;
 
@@ -48,7 +62,7 @@ export function sendWidgetBeacon(component: string, subtype?: string): void {
         body: JSON.stringify({
           component,
           chartType: subtype || null,
-          origin: window.location.origin,
+          pageUrl,
         }),
       }).catch(() => {
         // Fallback to pixel

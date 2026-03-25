@@ -4,11 +4,11 @@
  * Log format (pipe-delimited, one line per beacon hit):
  *   $time_iso8601|$http_referer|$arg_c|$arg_t|$remote_addr|$arg_r
  *
- * Field 6 ($arg_r) = explicit origin sent by JS (preferred over $http_referer).
+ * Field 6 ($arg_r) = explicit page URL sent by JS (preferred over $http_referer).
  * Old logs (5 fields) are still supported via fallback to $http_referer.
  *
  * Example:
- *   2026-02-07T10:23:45+00:00|https://ministere.gouv.fr/stats|dsfr-data-chart|bar|1.2.3.4|https://ministere.gouv.fr
+ *   2026-02-07T10:23:45+00:00|https://ministere.gouv.fr/stats|dsfr-data-chart|bar|1.2.3.4|https://ministere.gouv.fr/stats
  *
  * Usage:
  *   node scripts/parse-beacon-logs.js [beacon.log] [output.json]

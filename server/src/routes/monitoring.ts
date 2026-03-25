@@ -4,32 +4,35 @@
  */
 
 import { Router } from 'express';
-import { getDb } from '../db/database.js';
+import { query, queryOne, execute } from '../db/database.js';
 
 const router = Router();
 
 /**
  * POST /beacon - Record a widget usage beacon
  * No auth required (fire-and-forget from frontend).
+ * Accepts `pageUrl` (full origin+path, new) or `origin` (origin only, legacy).
  */
-router.post('/beacon', (req, res) => {
-  const { component, chartType, origin } = req.body;
+router.post('/beacon', async (req, res) => {
+  const { component, chartType, pageUrl, origin } = req.body;
 
-  if (!component || !origin) {
-    res.status(400).json({ error: 'component and origin are required' });
+  // Accept pageUrl (new) or origin (legacy) — prefer pageUrl
+  const url = pageUrl || origin;
+
+  if (!component || !url) {
+    res.status(400).json({ error: 'component and pageUrl are required' });
     return;
   }
 
-  const db = getDb();
-
   try {
-    db.prepare(
+    await execute(
       `INSERT INTO monitoring (component, chart_type, origin)
        VALUES (?, ?, ?)
-       ON CONFLICT(component, chart_type, origin) DO UPDATE SET
-         last_seen = datetime('now'),
+       ON DUPLICATE KEY UPDATE
+         last_seen = NOW(),
          call_count = call_count + 1`,
-    ).run(component, chartType || null, origin);
+      [component, chartType || null, url],
+    );
 
     res.json({ ok: true });
   } catch (err) {
@@ -40,51 +43,58 @@ router.post('/beacon', (req, res) => {
 
 /**
  * GET /data - Get monitoring data (compatible with monitoring-data.json format)
+ * Returns flat entries with referer (= origin column, now stores full URL).
  */
-router.get('/data', (req, res) => {
-  const db = getDb();
+router.get('/data', async (_req, res) => {
+  try {
+    const rows = await query<{
+      component: string;
+      chart_type: string | null;
+      origin: string;
+      first_seen: string;
+      last_seen: string;
+      call_count: number;
+    }>(
+      `SELECT component, chart_type, origin, first_seen, last_seen, call_count
+       FROM monitoring
+       ORDER BY last_seen DESC`,
+    );
 
-  const rows = db.prepare(
-    `SELECT component, chart_type, origin, first_seen, last_seen, call_count
-     FROM monitoring
-     ORDER BY last_seen DESC`,
-  ).all() as {
-    component: string;
-    chart_type: string | null;
-    origin: string;
-    first_seen: string;
-    last_seen: string;
-    call_count: number;
-  }[];
+    // Flat format compatible with the monitoring frontend
+    const entries = rows.map((row) => ({
+      referer: row.origin,
+      component: row.component,
+      chartType: row.chart_type,
+      firstSeen: row.first_seen,
+      lastSeen: row.last_seen,
+      callCount: row.call_count,
+    }));
 
-  // Group by origin for compatibility with existing monitoring app
-  const byOrigin: Record<string, { components: Record<string, { chartTypes: string[]; count: number; firstSeen: string; lastSeen: string }> }> = {};
+    const sites = new Set(entries.map((e) => {
+      try { return new URL(e.referer).hostname; } catch { return e.referer; }
+    }));
 
-  for (const row of rows) {
-    if (!byOrigin[row.origin]) {
-      byOrigin[row.origin] = { components: {} };
+    const byComponent: Record<string, number> = {};
+    const byChartType: Record<string, number> = {};
+    for (const e of entries) {
+      byComponent[e.component] = (byComponent[e.component] || 0) + 1;
+      if (e.chartType) byChartType[e.chartType] = (byChartType[e.chartType] || 0) + 1;
     }
-    const key = row.component;
-    if (!byOrigin[row.origin].components[key]) {
-      byOrigin[row.origin].components[key] = {
-        chartTypes: [],
-        count: 0,
-        firstSeen: row.first_seen,
-        lastSeen: row.last_seen,
-      };
-    }
-    const entry = byOrigin[row.origin].components[key];
-    if (row.chart_type) entry.chartTypes.push(row.chart_type);
-    entry.count += row.call_count;
-    if (row.first_seen < entry.firstSeen) entry.firstSeen = row.first_seen;
-    if (row.last_seen > entry.lastSeen) entry.lastSeen = row.last_seen;
+
+    res.json({
+      generated: new Date().toISOString(),
+      entries,
+      summary: {
+        totalSites: sites.size,
+        totalComponents: entries.length,
+        byComponent,
+        byChartType,
+      },
+    });
+  } catch (err) {
+    console.error('Get monitoring data error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
-
-  res.json({
-    origins: byOrigin,
-    totalBeacons: rows.reduce((sum, r) => sum + r.call_count, 0),
-    uniqueOrigins: Object.keys(byOrigin).length,
-  });
 });
 
 export default router;
