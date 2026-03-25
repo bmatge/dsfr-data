@@ -433,9 +433,13 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   private _createDataboxElement(tagName: string, attributes: Record<string, string>, deferred: Record<string, string> = {}) {
     const databoxId = `databox-${this.id || `auto-${++databoxAutoId}`}`;
 
-    // Set databox-id/type on chart so DataBox can find it
+    // Set databox-id/type/source on chart so DataBox can find it.
+    // databox-source must be explicit — DataBox querySelector uses it
+    // and won't match elements that merely default to the value.
+    const sourceName = 'default';
     attributes['databox-id'] = databoxId;
     attributes['databox-type'] = 'chart';
+    attributes['databox-source'] = sourceName;
 
     // Create the DataBox element
     const databoxEl = document.createElement('data-box');
@@ -464,6 +468,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     const tableEl = document.createElement('div');
     tableEl.setAttribute('databox-id', databoxId);
     tableEl.setAttribute('databox-type', 'table');
+    tableEl.setAttribute('databox-source', sourceName);
     tableEl.style.display = 'none';
     this._updateDataboxTable(tableEl);
 
