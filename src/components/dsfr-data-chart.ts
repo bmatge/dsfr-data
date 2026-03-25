@@ -190,6 +190,9 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
 
   onSourceData(data: unknown): void {
     this._data = Array.isArray(data) ? data : [];
+    if (this.databox) {
+      this._injectDataboxTable();
+    }
   }
 
 
@@ -478,6 +481,44 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     return wrapper;
   }
 
+  /** Inject an HTML table into DataBox's table container (async, after Vue render).
+   *  Same approach as dsfr-data-a11y: build an HTML table from the current data. */
+  private _injectDataboxTable() {
+    if (!this._data || this._data.length === 0) return;
+    // Wait for DataBox Vue to render and create the table container
+    setTimeout(() => {
+      const wrapper = this.querySelector('.dsfr-data-chart__databox-wrapper');
+      if (!wrapper) return;
+      const databoxEl = wrapper.querySelector('data-box');
+      if (!databoxEl) return;
+      const databoxId = databoxEl.id;
+      const containerId = `${databoxId}-table-default`;
+      const container = document.getElementById(containerId);
+      if (!container) return;
+
+      // Build table from data (like dsfr-data-a11y)
+      const columns = [this.labelField, this.valueField].filter(Boolean);
+      if (columns.length === 0) return;
+      const rows = this._data.slice(0, 100);
+
+      const headerCells = columns.map(c => `<th scope="col">${c}</th>`).join('');
+      const bodyRows = rows.map(row => {
+        const cells = columns.map(col => {
+          const val = getByPath(row, col);
+          return `<td>${val ?? ''}</td>`;
+        }).join('');
+        return `<tr>${cells}</tr>`;
+      }).join('');
+
+      container.innerHTML = `
+        <div class="fr-table fr-m-2w">
+          <table>
+            <thead><tr>${headerCells}</tr></thead>
+            <tbody>${bodyRows}</tbody>
+          </table>
+        </div>`;
+    }, 500);
+  }
 
   private _renderChart() {
     const tagName = CHART_TAG_MAP[this.type];
