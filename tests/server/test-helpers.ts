@@ -67,16 +67,17 @@ export async function createTestApp(): Promise<Express> {
   if (!initialized) {
     await initDatabase();
     initialized = true;
-  } else {
-    // Truncate all tables for clean state (disable FK checks temporarily)
-    await execute('SET FOREIGN_KEY_CHECKS = 0');
-    for (const table of TABLES_TO_TRUNCATE) {
-      await execute(`TRUNCATE TABLE ${table}`);
-    }
-    await execute('SET FOREIGN_KEY_CHECKS = 1');
-    // Re-insert schema_version
-    await execute('INSERT IGNORE INTO schema_version (version) VALUES (1)');
   }
+
+  // Truncate all tables for clean state (disable FK checks temporarily)
+  await execute('SET FOREIGN_KEY_CHECKS = 0');
+  for (const table of TABLES_TO_TRUNCATE) {
+    await execute(`TRUNCATE TABLE ${table}`);
+  }
+  await execute('SET FOREIGN_KEY_CHECKS = 1');
+  // Re-insert schema_version
+  await execute('INSERT IGNORE INTO schema_version (version) VALUES (1)');
+  await execute('INSERT IGNORE INTO schema_version (version) VALUES (2)');
 
   const app = express();
   app.use(express.json({ limit: '10mb' }));

@@ -2,7 +2,7 @@ import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import { initDatabase, closeDatabase } from './db/database.js';
+import { initDatabase, closeDatabase, execute } from './db/database.js';
 import { authMiddleware } from './middleware/auth.js';
 import authRoutes from './routes/auth.js';
 import sourcesRoutes from './routes/sources.js';
@@ -58,6 +58,20 @@ process.on('SIGINT', shutdown);
 // Start server after database initialization
 async function start() {
   await initDatabase();
+
+  // Cleanup expired unverified accounts (older than 7 days)
+  try {
+    const result = await execute(
+      `DELETE FROM users WHERE email_verified = FALSE AND verification_expires IS NOT NULL
+       AND verification_expires < DATE_SUB(NOW(), INTERVAL 7 DAY)`,
+    );
+    if (result.affectedRows > 0) {
+      console.log(`[server] Cleaned up ${result.affectedRows} expired unverified account(s)`);
+    }
+  } catch (err) {
+    console.error('[server] Failed to cleanup expired accounts:', err);
+  }
+
   app.listen(PORT, () => {
     console.log(`[server] dsfr-data API listening on port ${PORT}`);
   });
