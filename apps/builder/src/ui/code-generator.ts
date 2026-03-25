@@ -51,8 +51,8 @@ function generateDataboxAttrs(): string {
 function generateA11yElement(sourceId: string, chartId: string): string {
   if (!state.a11yEnabled) return '';
   const attrs: string[] = [`for="${chartId}"`, `source="${sourceId}"`];
-  if (state.a11yTable && !state.databoxEnabled) attrs.push('table');
-  if (state.a11yDownload && !state.databoxEnabled) attrs.push('download');
+  if (state.a11yTable) attrs.push('table');
+  if (state.a11yDownload) attrs.push('download');
   if (state.a11yDescription) attrs.push(`description="${state.a11yDescription.replace(/"/g, '&quot;')}"`);
   return `\n  <dsfr-data-a11y ${attrs.join(' ')}></dsfr-data-a11y>`;
 }
@@ -62,8 +62,8 @@ function generateEmbeddedA11y(chartId: string): string {
   if (!state.a11yEnabled) return '';
   const dataJson = JSON.stringify(state.data).replace(/'/g, '&#39;');
   const attrs: string[] = [`for="${chartId}"`, `source="a11y-data"`];
-  if (state.a11yTable && !state.databoxEnabled) attrs.push('table');
-  if (state.a11yDownload && !state.databoxEnabled) attrs.push('download');
+  if (state.a11yTable) attrs.push('table');
+  if (state.a11yDownload) attrs.push('download');
   if (state.a11yDescription) attrs.push(`description="${state.a11yDescription.replace(/"/g, '&quot;')}"`);
   return `\n  <dsfr-data-source id="a11y-data" data='${dataJson}'></dsfr-data-source>` +
          `\n  <dsfr-data-a11y ${attrs.join(' ')}></dsfr-data-a11y>`;

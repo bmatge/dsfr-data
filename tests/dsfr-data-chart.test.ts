@@ -535,7 +535,8 @@ describe('DsfrDataChart', () => {
       expect(db.getAttribute('source')).toBe('INSEE');
       expect(db.getAttribute('date')).toBe('Mars 2024');
       expect(db.hasAttribute('download')).toBe(true);
-      expect(db.hasAttribute('segmented-control')).toBe(true);
+      // No segmented-control: DataBox table doesn't work with async data
+      expect(db.hasAttribute('segmented-control')).toBe(false);
     });
 
     it('places chart as sibling of data-box with databox-id/type', () => {

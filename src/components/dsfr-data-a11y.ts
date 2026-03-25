@@ -72,20 +72,11 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
     return !this.table && !this.download && !this.description;
   }
 
-  /** Check if the target chart is wrapped in a DataBox (which provides table + CSV) */
-  private get _targetHasDatabox(): boolean {
-    if (!this.for) return false;
-    const target = document.getElementById(this.for);
-    return !!target?.querySelector('data-box');
-  }
-
   private get _showTable(): boolean {
-    if (this._targetHasDatabox) return false;
     return this.table || this._showAll;
   }
 
   private get _showDownload(): boolean {
-    if (this._targetHasDatabox) return false;
     return this.download || this._showAll;
   }
 

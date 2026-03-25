@@ -436,7 +436,8 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     // Create the DataBox element
     const databoxEl = document.createElement('data-box');
     databoxEl.id = databoxId;
-    databoxEl.setAttribute('segmented-control', '');
+    // No segmented-control: DataBox table view doesn't work with async data.
+    // Table/CSV are provided by dsfr-data-a11y instead.
     if (this.databoxTitle) databoxEl.setAttribute('title', this.databoxTitle);
     if (this.databoxSource) databoxEl.setAttribute('source', this.databoxSource);
     if (this.databoxDate) databoxEl.setAttribute('date', this.databoxDate);
