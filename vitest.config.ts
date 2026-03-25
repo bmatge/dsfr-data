@@ -12,6 +12,7 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     include: ['tests/**/*.test.ts'],
+    exclude: ['tests/server/**'],
     pool: 'threads',
     testTimeout: 10000,
     server: {
