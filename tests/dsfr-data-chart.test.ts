@@ -520,7 +520,7 @@ describe('DsfrDataChart', () => {
       chart.id = 'test-chart';
     });
 
-    it('creates a wrapper with chart and table elements immediately', () => {
+    it('creates a wrapper with databox and chart elements', () => {
       chart.databox = true;
       chart.databoxTitle = 'Mon titre';
       chart.databoxSource = 'INSEE';
@@ -528,12 +528,11 @@ describe('DsfrDataChart', () => {
 
       const wrapper = (chart as any)._createDataboxElement('bar-chart', { x: '[[]]', y: '[[]]' });
       expect(wrapper.className).toBe('dsfr-data-chart__databox-wrapper');
-      // Chart and table are present immediately
+      const db = wrapper.querySelector('data-box');
       const chartEl = wrapper.querySelector('bar-chart');
-      const tableEl = wrapper.querySelector('[databox-type="table"]');
+      expect(db).toBeTruthy();
       expect(chartEl).toBeTruthy();
-      expect(tableEl).toBeTruthy();
-      expect(tableEl.getAttribute('databox-source')).toBe('default');
+      expect(chartEl.getAttribute('databox-source')).toBe('default');
     });
 
     it('sets databox-id and databox-type on chart element', () => {
@@ -557,7 +556,8 @@ describe('DsfrDataChart', () => {
       const chartEl = wrapper.querySelector('bar-chart');
       expect(db).toBeTruthy();
       expect(db.getAttribute('title')).toBe('Mon titre');
-      expect(db.hasAttribute('segmented-control')).toBe(true);
+      // No segmented-control (incompatible with async data, a11y provides table)
+      expect(db.hasAttribute('segmented-control')).toBe(false);
       // DataBox must be before chart for Vue Teleport to work
       const children = [...wrapper.children];
       expect(children.indexOf(db)).toBeLessThan(children.indexOf(chartEl));
@@ -589,7 +589,7 @@ describe('DsfrDataChart', () => {
       const wrapper = result.values[0];
       expect(wrapper.className).toBe('dsfr-data-chart__databox-wrapper');
       expect(wrapper.querySelector('bar-chart')).toBeTruthy();
-      expect(wrapper.querySelector('[databox-type="table"]')).toBeTruthy();
+      expect(wrapper.querySelector('data-box')).toBeTruthy();
     });
   });
 });

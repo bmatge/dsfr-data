@@ -440,7 +440,8 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     // Create the DataBox element
     const databoxEl = document.createElement('data-box');
     databoxEl.id = databoxId;
-    databoxEl.setAttribute('segmented-control', '');
+    // No segmented-control: DataBox's native chart/table toggle requires static
+    // HTML parsed by Vue. dsfr-data-a11y provides the data table instead.
     if (this.databoxTitle) databoxEl.setAttribute('title', this.databoxTitle);
     if (this.databoxSource) databoxEl.setAttribute('source', this.databoxSource);
     if (this.databoxDate) databoxEl.setAttribute('date', this.databoxDate);
@@ -455,25 +456,21 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     if (this.databoxDefaultSource) databoxEl.setAttribute('default-source', this.databoxDefaultSource);
     if (this.databoxActions) databoxEl.setAttribute('actions', this.databoxActions);
 
-    // Create the CHART view element (databox-type="chart")
+    // Create chart element
     const chartEl = this._createRawChartElement(tagName, attributes, deferred);
-
-    // Create a TABLE view element — a SECOND native DSFR chart element with
-    // databox-type="table". DSFR Chart components render an HTML table (not a
-    // canvas) when databoxType="table", and use Vue <Teleport> to render into
-    // DataBox's table container. This is how native DSFR DataBox works.
-    const tableAttrs = { ...attributes, 'databox-type': 'table' };
-    const tableEl = this._createRawChartElement(tagName, tableAttrs, { ...deferred });
 
     // DataBox MUST be first in DOM order: its Vue template creates container
     // divs (e.g. #databoxId-chart-default), then DSFR Chart components use
     // Vue <Teleport> to render INTO those containers.
     // databox-source="default" must be explicit for DataBox's querySelector.
+    //
+    // NOTE: no segmented-control — DataBox's native chart/table toggle requires
+    // static HTML that Vue processes at parse time, incompatible with dynamic
+    // data injection. dsfr-data-a11y provides the accessible data table instead.
     const wrapper = document.createElement('div');
     wrapper.className = 'dsfr-data-chart__databox-wrapper';
     wrapper.appendChild(databoxEl);
     wrapper.appendChild(chartEl);
-    wrapper.appendChild(tableEl);
 
     return wrapper;
   }
