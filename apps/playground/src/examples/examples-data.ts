@@ -365,11 +365,15 @@ export const examples: Record<string, string> = {
     limit="10">
   </dsfr-data-query>
 
-  <dsfr-data-chart source="q-bar"
+  <dsfr-data-chart id="chart" source="q-bar"
     type="bar"
     label-field="nom_region"
     value-field="beneficiaires"
-    selected-palette="categorical">
+    selected-palette="categorical"
+    databox
+    databox-title="Beneficiaires Industrie du futur par region"
+    databox-source="data.economie.gouv.fr — Industrie du futur"
+    databox-download>
   </dsfr-data-chart>
 </div>`,
 
@@ -378,14 +382,10 @@ export const examples: Record<string, string> = {
   Mode requete : dsfr-data-source → dsfr-data-query → dsfr-data-chart (pie)
   Source : Industrie du futur (OpenDataSoft) — 101 records
   dsfr-data-query regroupe par region et somme les investissements
+  DataBox ajoute titre, source et telechargement CSV
 -->
 
 <div class="fr-container fr-my-4w">
-  <h2>Investissement Industrie du futur par region</h2>
-  <p class="fr-text--sm fr-text--light">
-    Source : data.economie.gouv.fr — Industrie du futur
-  </p>
-
   <dsfr-data-source id="src" api-type="opendatasoft"
     dataset-id="industrie-du-futur"
     base-url="https://data.economie.gouv.fr">
@@ -399,12 +399,16 @@ export const examples: Record<string, string> = {
   </dsfr-data-query>
 
   <div style="max-width: 500px; margin: 0 auto;">
-    <dsfr-data-chart source="q-pie"
+    <dsfr-data-chart id="chart" source="q-pie"
       type="pie"
       label-field="nom_region"
       value-field="investissement"
       unit-tooltip="EUR"
-      selected-palette="categorical">
+      selected-palette="categorical"
+      databox
+      databox-title="Investissement par region"
+      databox-source="data.economie.gouv.fr — Industrie du futur"
+      databox-download>
     </dsfr-data-chart>
   </div>
 </div>`,
@@ -487,7 +491,12 @@ export const examples: Record<string, string> = {
     type="bar"
     label-field="Departement"
     value-field="Vacants 2025"
-    selected-palette="categorical">
+    selected-palette="categorical"
+    databox
+    databox-title="Top 15 departements par logements vacants"
+    databox-source="tabular-api.data.gouv.fr — LOVAC"
+    databox-date="2025"
+    databox-download>
   </dsfr-data-chart>
 </div>`,
 
@@ -527,7 +536,12 @@ export const examples: Record<string, string> = {
       type="pie"
       label-field="Departement"
       value-field="Vacants longue duree"
-      selected-palette="categorical">
+      selected-palette="categorical"
+      databox
+      databox-title="Vacants longue duree (>2 ans)"
+      databox-source="tabular-api.data.gouv.fr — LOVAC"
+      databox-date="2025"
+      databox-download>
     </dsfr-data-chart>
   </div>
 </div>`,
@@ -673,7 +687,11 @@ export const examples: Record<string, string> = {
     type="bar"
     label-field="Departement"
     value-field="Beneficiaires"
-    selected-palette="categorical">
+    selected-palette="categorical"
+    databox
+    databox-title="Beneficiaires par departement"
+    databox-source="data.economie.gouv.fr — Industrie du futur"
+    databox-download>
   </dsfr-data-chart>
 </div>`,
 

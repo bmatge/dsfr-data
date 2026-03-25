@@ -557,4 +557,58 @@ describe('DsfrDataA11y', () => {
       expect(comp.createRenderRoot()).toBe(comp);
     });
   });
+
+  describe('DataBox cohabitation', () => {
+    it('_targetHasDatabox returns false when target has no data-box', () => {
+      const target = document.createElement('div');
+      target.id = 'chart-no-db';
+      target.setAttribute('data-test-target', '');
+      document.body.appendChild(target);
+
+      comp.for = 'chart-no-db';
+      expect((comp as any)._targetHasDatabox).toBe(false);
+    });
+
+    it('_targetHasDatabox returns true when target contains a data-box', () => {
+      const target = document.createElement('div');
+      target.id = 'chart-with-db';
+      target.setAttribute('data-test-target', '');
+      const databox = document.createElement('data-box');
+      target.appendChild(databox);
+      document.body.appendChild(target);
+
+      comp.for = 'chart-with-db';
+      expect((comp as any)._targetHasDatabox).toBe(true);
+    });
+
+    it('hides table and download when target has DataBox', () => {
+      const target = document.createElement('div');
+      target.id = 'chart-db-hide';
+      target.setAttribute('data-test-target', '');
+      const databox = document.createElement('data-box');
+      target.appendChild(databox);
+      document.body.appendChild(target);
+
+      comp.for = 'chart-db-hide';
+      comp.table = true;
+      comp.download = true;
+
+      expect((comp as any)._showTable).toBe(false);
+      expect((comp as any)._showDownload).toBe(false);
+    });
+
+    it('still shows description when target has DataBox', () => {
+      const target = document.createElement('div');
+      target.id = 'chart-db-desc';
+      target.setAttribute('data-test-target', '');
+      const databox = document.createElement('data-box');
+      target.appendChild(databox);
+      document.body.appendChild(target);
+
+      comp.for = 'chart-db-desc';
+      comp.description = 'Test description';
+
+      expect((comp as any)._showDescription).toBe(true);
+    });
+  });
 });

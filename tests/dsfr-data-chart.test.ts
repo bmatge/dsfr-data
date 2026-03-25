@@ -353,8 +353,8 @@ describe('DsfrDataChart', () => {
       chart.type = 'map';
       chart.codeField = 'dept';
 
-      const { attrs, deferred } = (chart as any)._getTypeSpecificAttributes();
-      expect(attrs['data']).toBeDefined();
+      const { deferred } = (chart as any)._getTypeSpecificAttributes();
+      expect(deferred['data']).toBeDefined();
       expect(deferred['value']).toBeDefined();
       expect(Number(deferred['value'])).toBe(150); // avg of 100 and 200
       expect(deferred['date']).toMatch(/^\d{4}-\d{2}-\d{2}$/);
@@ -486,6 +486,101 @@ describe('DsfrDataChart', () => {
       chart.connectedCallback();
 
       expect((chart as any)._data).toHaveLength(1);
+    });
+  });
+
+  describe('DataBox properties', () => {
+    it('databox defaults to false', () => {
+      expect(chart.databox).toBe(false);
+    });
+
+    it('databox string properties default to empty', () => {
+      expect(chart.databoxTitle).toBe('');
+      expect(chart.databoxSource).toBe('');
+      expect(chart.databoxDate).toBe('');
+      expect(chart.databoxTrend).toBe('');
+    });
+
+    it('databox boolean properties default to false', () => {
+      expect(chart.databoxDownload).toBe(false);
+      expect(chart.databoxScreenshot).toBe(false);
+      expect(chart.databoxFullscreen).toBe(false);
+    });
+  });
+
+  describe('_createDataboxElement', () => {
+    beforeEach(() => {
+      (chart as any)._data = [
+        { cat: 'A', val: 10 },
+        { cat: 'B', val: 20 },
+      ];
+      chart.labelField = 'cat';
+      chart.valueField = 'val';
+      chart.type = 'bar';
+      chart.id = 'test-chart';
+    });
+
+    it('creates a data-box element wrapping the chart', () => {
+      chart.databox = true;
+      chart.databoxTitle = 'Mon titre';
+      chart.databoxSource = 'INSEE';
+      chart.databoxDate = 'Mars 2024';
+      chart.databoxDownload = true;
+
+      const el = (chart as any)._createDataboxElement('bar-chart', { x: '[[]]', y: '[[]]' });
+      expect(el.tagName.toLowerCase()).toBe('data-box');
+      expect(el.getAttribute('title')).toBe('Mon titre');
+      expect(el.getAttribute('source')).toBe('INSEE');
+      expect(el.getAttribute('date')).toBe('Mars 2024');
+      expect(el.hasAttribute('download')).toBe(true);
+      expect(el.hasAttribute('segmented-control')).toBe(true);
+    });
+
+    it('sets databox-id and databox-type on the inner chart element', () => {
+      chart.databox = true;
+      chart.databoxTitle = 'Test';
+
+      const el = (chart as any)._createDataboxElement('bar-chart', { x: '[[]]', y: '[[]]' });
+      const inner = el.querySelector('bar-chart');
+      expect(inner).toBeTruthy();
+      expect(inner.getAttribute('databox-id')).toBe('databox-test-chart');
+      expect(inner.getAttribute('databox-type')).toBe('chart');
+    });
+
+    it('does not set optional attributes when empty', () => {
+      chart.databox = true;
+
+      const el = (chart as any)._createDataboxElement('bar-chart', { x: '[[]]', y: '[[]]' });
+      expect(el.hasAttribute('title')).toBe(false);
+      expect(el.hasAttribute('screenshot')).toBe(false);
+      expect(el.hasAttribute('fullscreen')).toBe(false);
+      expect(el.hasAttribute('trend')).toBe(false);
+    });
+  });
+
+  describe('_renderChart with databox', () => {
+    beforeEach(() => {
+      (chart as any)._data = [
+        { cat: 'A', val: 10 },
+        { cat: 'B', val: 20 },
+      ];
+      chart.labelField = 'cat';
+      chart.valueField = 'val';
+      chart.type = 'bar';
+      chart.id = 'test-chart';
+    });
+
+    it('renders standard wrapper when databox is false', () => {
+      chart.databox = false;
+      const result = (chart as any)._renderChart();
+      expect(result.values[0].className).toBe('dsfr-data-chart__wrapper');
+    });
+
+    it('renders data-box when databox is true', () => {
+      chart.databox = true;
+      chart.databoxTitle = 'Test';
+      const result = (chart as any)._renderChart();
+      expect(result.values[0].tagName.toLowerCase()).toBe('data-box');
     });
   });
 });

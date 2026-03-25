@@ -1074,6 +1074,12 @@ telechargement CSV, plein ecran, tendance.
 | databox-screenshot | Boolean | \`false\` | Bouton screenshot PNG |
 | databox-fullscreen | Boolean | \`false\` | Bouton plein ecran |
 | databox-trend | String | \`""\` | Tendance (ex: "+5.2" ou "-3.1") |
+| databox-tooltip-title | String | \`""\` | Titre du tooltip info |
+| databox-tooltip-content | String | \`""\` | Contenu du tooltip info |
+| databox-modal-title | String | \`""\` | Titre de la modale |
+| databox-modal-content | String | \`""\` | Contenu de la modale |
+| databox-default-source | String | \`""\` | Source par defaut (selecteur multi-source) |
+| databox-actions | String | \`""\` | Actions personnalisees (JSON array) |
 
 Quand \`databox\` est active, dsfr-data-a11y ne doit PAS inclure \`table\` ni \`download\`
 (DataBox les fournit deja). Conserver uniquement \`description\` sur dsfr-data-a11y.

@@ -195,7 +195,8 @@ dsfr-data-source "src-pays"                         --> dsfr-data-kpi (count pay
               label-field="pays" value-field="valeur"
               horizontal
               selected-palette="sequentialDescending"
-              unit-tooltip="M">
+              unit-tooltip="M"
+              databox databox-title="Top 15 pays destinataires" databox-source="Banque mondiale" databox-download>
             </dsfr-data-chart>
             <dsfr-data-a11y for="bar-top15" source="top15" table download></dsfr-data-a11y>
           </div>
@@ -210,7 +211,8 @@ dsfr-data-source "src-pays"                         --> dsfr-data-kpi (count pay
             <dsfr-data-chart id="pie-pays" source="top8" type="pie"
               label-field="pays" value-field="valeur"
               selected-palette="categorical"
-              unit-tooltip="M">
+              unit-tooltip="M"
+              databox databox-title="Repartition des exportations (top 8)" databox-source="Banque mondiale" databox-download>
             </dsfr-data-chart>
             <dsfr-data-a11y for="pie-pays" source="top8" table download></dsfr-data-a11y>
           </div>

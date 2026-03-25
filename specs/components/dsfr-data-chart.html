@@ -47,8 +47,39 @@
           <tr><td><code>horizontal</code></td><td>Boolean</td><td>Barres horizontales (bar chart)</td></tr>
           <tr><td><code>stacked</code></td><td>Boolean</td><td>Barres empilees (bar chart)</td></tr>
           <tr><td><code>fill</code></td><td>Boolean</td><td>Remplissage plein (pie chart)</td></tr>
+          <tr><td><code>code-field</code></td><td>String</td><td>Champ code departement/region (map, map-reg)</td></tr>
+          <tr><td><code>map-highlight</code></td><td>String</td><td>Departements/regions a surligner</td></tr>
+          <tr><td><code>gauge-value</code></td><td>Number</td><td>Valeur de la jauge 0-100 (type gauge)</td></tr>
+          <tr><td><code>value-field-2</code></td><td>String</td><td>2e serie de valeurs (bar-line)</td></tr>
+          <tr><td><code>value-fields</code></td><td>String</td><td>Series supplementaires separees par virgules</td></tr>
+          <tr><td><code>highlight-index</code></td><td>String</td><td>Indices a mettre en avant : <code>"[0, 2]"</code></td></tr>
         </tbody>
       </table>
+
+      <h3 class="fr-mt-3w">Attributs DataBox</h3>
+      <p>L'attribut <code>databox</code> active l'habillage DataBox DSFR autour du graphique :
+        cadre editorial avec titre, source, date, switch chart/tableau integre, screenshot PNG,
+        telechargement CSV, plein ecran, tendance.</p>
+      <table class="attr-table">
+        <thead><tr><th>Attribut</th><th>Type</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>databox</code></td><td>Boolean</td><td>Active l'habillage DataBox DSFR</td></tr>
+          <tr><td><code>databox-title</code></td><td>String</td><td>Titre affiche dans l'en-tete (ex: "Population par region")</td></tr>
+          <tr><td><code>databox-source</code></td><td>String</td><td>Source des donnees (ex: "INSEE, RP 2021")</td></tr>
+          <tr><td><code>databox-date</code></td><td>String</td><td>Date des donnees (ex: "Mars 2024")</td></tr>
+          <tr><td><code>databox-download</code></td><td>Boolean</td><td>Bouton telechargement CSV</td></tr>
+          <tr><td><code>databox-screenshot</code></td><td>Boolean</td><td>Bouton screenshot PNG</td></tr>
+          <tr><td><code>databox-fullscreen</code></td><td>Boolean</td><td>Bouton plein ecran</td></tr>
+          <tr><td><code>databox-trend</code></td><td>String</td><td>Tendance (ex: "+5.2" ou "-3.1")</td></tr>
+        </tbody>
+      </table>
+      <div class="fr-callout fr-callout--brown-caramel fr-mt-2w fr-mb-4w">
+        <p class="fr-callout__text">
+          Quand <code>databox</code> est active, <code>dsfr-data-a11y</code> ne doit PAS inclure
+          <code>table</code> ni <code>download</code> (DataBox les fournit deja).
+          Conserver uniquement <code>description</code> sur dsfr-data-a11y.
+        </p>
+      </div>
 
       <h2 class="fr-mt-4w">Types de graphiques</h2>
 
@@ -145,6 +176,41 @@
   label-field="ministere"
   value-field="score_rgaa"&gt;
 &lt;/dsfr-data-chart&gt;</pre></div>
+      </section>
+
+      <section class="demo-section">
+        <h3>6. Graphique avec DataBox</h3>
+        <dsfr-data-query id="data-databox" source="sites"
+          group-by="ministere" aggregate="score_rgaa:avg:score_moyen"
+          order-by="score_moyen:desc">
+        </dsfr-data-query>
+        <dsfr-data-chart id="chart-databox" source="data-databox" type="bar"
+          label-field="ministere" value-field="score_moyen"
+          selected-palette="sequentialDescending"
+          unit-tooltip="%"
+          databox
+          databox-title="Score RGAA moyen par ministere"
+          databox-source="Referentiel RGAA"
+          databox-date="2024"
+          databox-download
+          databox-screenshot>
+        </dsfr-data-chart>
+        <dsfr-data-a11y for="chart-databox" source="data-databox"
+          description="Ce graphique montre le score RGAA moyen par ministere.">
+        </dsfr-data-a11y>
+        <div class="code-block"><pre>&lt;dsfr-data-chart id="chart" source="data" type="bar"
+  label-field="ministere" value-field="score_moyen"
+  databox
+  databox-title="Score RGAA moyen par ministere"
+  databox-source="Referentiel RGAA"
+  databox-date="2024"
+  databox-download
+  databox-screenshot&gt;
+&lt;/dsfr-data-chart&gt;
+&lt;!-- Avec DataBox : pas de table ni download sur a11y --&gt;
+&lt;dsfr-data-a11y for="chart" source="data"
+  description="Ce graphique montre le score RGAA moyen par ministere."&gt;
+&lt;/dsfr-data-a11y&gt;</pre></div>
       </section>
 
       <h2 class="fr-mt-4w">Comparaison : dsfr-data-chart vs DSFR Chart natif</h2>

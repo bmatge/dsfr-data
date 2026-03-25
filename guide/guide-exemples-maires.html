@@ -225,7 +225,8 @@ dsfr-data-source "s-browse" (tabular, server-side, 15/p) --> dsfr-data-normalize
             label-field="CSP" value-field="Nombre"
             horizontal
             selected-palette="sequentialDescending"
-            unit-tooltip=" maires">
+            unit-tooltip=" maires"
+            databox databox-title="Nombre de maires par CSP (top 20)" databox-source="tabular-api.data.gouv.fr — RNE" databox-download>
           </dsfr-data-chart>
           <dsfr-data-a11y for="chart-csp" source="d-csp" table download></dsfr-data-a11y>
         </div>
@@ -264,7 +265,8 @@ dsfr-data-source "s-browse" (tabular, server-side, 15/p) --> dsfr-data-normalize
             label-field="region" value-field="total"
             horizontal
             selected-palette="categorical"
-            unit-tooltip=" maires">
+            unit-tooltip=" maires"
+            databox databox-title="Nombre de maires par region" databox-source="tabular-api.data.gouv.fr — RNE" databox-download>
           </dsfr-data-chart>
           <dsfr-data-a11y for="chart-region" source="d-region" table download></dsfr-data-a11y>
         </div>
@@ -276,7 +278,8 @@ dsfr-data-source "s-browse" (tabular, server-side, 15/p) --> dsfr-data-normalize
             label-field="Departement" value-field="Nombre"
             horizontal
             selected-palette="sequentialDescending"
-            unit-tooltip=" maires">
+            unit-tooltip=" maires"
+            databox databox-title="Top 15 des departements par nombre de communes" databox-source="tabular-api.data.gouv.fr — RNE" databox-download>
           </dsfr-data-chart>
           <dsfr-data-a11y for="chart-dept" source="d-dept-top" table download></dsfr-data-a11y>
         </div>
@@ -290,7 +293,8 @@ dsfr-data-source "s-browse" (tabular, server-side, 15/p) --> dsfr-data-normalize
             label-field="region" value-field="total"
             horizontal
             selected-palette="sequentialAscending"
-            unit-tooltip=" femmes maires">
+            unit-tooltip=" femmes maires"
+            databox databox-title="Nombre de femmes maires par region" databox-source="tabular-api.data.gouv.fr — RNE" databox-download>
           </dsfr-data-chart>
           <dsfr-data-a11y for="chart-parite" source="d-parite" table download></dsfr-data-a11y>
         </div>

@@ -90,6 +90,10 @@ export function selectChartType(type: ChartType): void {
     if (container) container.innerHTML = '';
   }
 
+  // DataBox section: hide for non-chart types (KPI, gauge, datalist)
+  const databoxSection = document.getElementById('section-databox') as HTMLElement | null;
+  if (databoxSection) databoxSection.style.display = (isSingleValue || isDatalist) ? 'none' : '';
+
   // Map chart needs code field for department codes
   const codeFieldGroup = document.getElementById('code-field-group') as HTMLElement | null;
   if (codeFieldGroup) codeFieldGroup.style.display = isMap ? 'block' : 'none';
