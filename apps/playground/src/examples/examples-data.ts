@@ -1204,4 +1204,131 @@ export const examples: Record<string, string> = {
   </div>
 </div>`,
 
+  // =====================================================================
+  // JOINTURE MULTI-SOURCES — dsfr-data-source (A) + dsfr-data-source (B) → dsfr-data-join → composant
+  // Croise deux jeux de donnees sur une cle pivot pour enrichir les donnees.
+  // =====================================================================
+
+  'join-basic': `<!--
+  Jointure — Budget par region (left join)
+  Mode jointure : dsfr-data-source x2 → dsfr-data-join → dsfr-data-chart
+  Donnees locales (inline) pour illustration
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>Budget par region</h2>
+  <p class="fr-text--sm fr-text--light">
+    Jointure gauche entre un dataset de population et un dataset de budgets
+  </p>
+
+  <!-- Source A : population par region -->
+  <dsfr-data-source id="pop"
+    data='[
+      {"code":"75","region":"Ile-de-France","population":12262544},
+      {"code":"13","region":"PACA","population":5098520},
+      {"code":"35","region":"Bretagne","population":3394567},
+      {"code":"14","region":"Normandie","population":3303500}
+    ]'>
+  </dsfr-data-source>
+
+  <!-- Source B : budget par region -->
+  <dsfr-data-source id="budget"
+    data='[
+      {"code":"75","budget":5200,"pib":710},
+      {"code":"13","budget":2100,"pib":165},
+      {"code":"35","budget":1500,"pib":100},
+      {"code":"14","budget":1400,"pib":90}
+    ]'>
+  </dsfr-data-source>
+
+  <!-- Jointure sur le code region -->
+  <dsfr-data-join id="enriched"
+    left="pop" right="budget"
+    on="code" type="left">
+  </dsfr-data-join>
+
+  <!-- Graphique sur les donnees jointes -->
+  <dsfr-data-chart source="enriched"
+    type="bar"
+    label-field="region"
+    value-field="budget"
+    unit-tooltip="M EUR"
+    selected-palette="categorical">
+  </dsfr-data-chart>
+
+  <dsfr-data-a11y for="enriched-chart" source="enriched" table></dsfr-data-a11y>
+
+  <div class="fr-callout fr-mt-4w">
+    <p class="fr-callout__text">
+      <strong>dsfr-data-join</strong> : composant invisible qui croise deux sources de donnees
+      sur une cle pivot (<code>on="code"</code>). Le <code>type="left"</code> conserve toutes
+      les lignes de la source gauche meme sans correspondance a droite.
+    </p>
+  </div>
+</div>`,
+
+  'join-query': `<!--
+  Jointure + tri — Investissement par region (inner join)
+  Mode jointure : dsfr-data-source x2 → dsfr-data-join → dsfr-data-query → dsfr-data-chart
+  Donnees locales (inline) pour illustration
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>Investissement par region (inner join + tri)</h2>
+  <p class="fr-text--sm fr-text--light">
+    Inner join : seules les regions presentes dans les deux sources sont affichees
+  </p>
+
+  <!-- Source A : 5 regions -->
+  <dsfr-data-source id="pop"
+    data='[
+      {"code":"75","region":"Ile-de-France","population":12262544},
+      {"code":"13","region":"PACA","population":5098520},
+      {"code":"35","region":"Bretagne","population":3394567},
+      {"code":"14","region":"Normandie","population":3303500},
+      {"code":"44","region":"Pays de la Loire","population":3838200}
+    ]'>
+  </dsfr-data-source>
+
+  <!-- Source B : 4 regions (pas de Normandie) -->
+  <dsfr-data-source id="invest"
+    data='[
+      {"code":"75","investissement":8500},
+      {"code":"13","investissement":3200},
+      {"code":"35","investissement":2100},
+      {"code":"44","investissement":2800}
+    ]'>
+  </dsfr-data-source>
+
+  <!-- Inner join : seules les 4 regions communes -->
+  <dsfr-data-join id="merged"
+    left="pop" right="invest"
+    on="code" type="inner">
+  </dsfr-data-join>
+
+  <!-- Tri par investissement decroissant -->
+  <dsfr-data-query id="sorted"
+    source="merged"
+    order-by="investissement:desc">
+  </dsfr-data-query>
+
+  <dsfr-data-chart source="sorted"
+    type="bar"
+    label-field="region"
+    value-field="investissement"
+    unit-tooltip="M EUR"
+    selected-palette="categorical">
+  </dsfr-data-chart>
+
+  <dsfr-data-a11y for="sorted-chart" source="sorted" table></dsfr-data-a11y>
+
+  <div class="fr-callout fr-mt-4w">
+    <p class="fr-callout__text">
+      <strong>Pipeline complet :</strong> deux sources → <code>dsfr-data-join</code> (inner join sur <code>code</code>)
+      → <code>dsfr-data-query</code> (tri par investissement decroissant) → graphique.
+      La Normandie (code 14) n'apparait pas car elle n'a pas de correspondance dans la source investissement.
+    </p>
+  </div>
+</div>`,
+
 };

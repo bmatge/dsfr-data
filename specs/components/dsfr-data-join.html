@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dsfr-data-join - Composants - dsfr-data</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css" integrity="sha384-VuzA/gYnk/ZqcT5a/ravR88otj71vNPl/h1JPrKoESV33DCX6SeXIxBcRr5qYPRj" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css" integrity="sha384-YR4AxNhFVy1qsQ0Hp7Rosg06e4sj2m9dLxiYZrtqJ0boIOiDbD8XkIsIPMMkf0VL" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <style>
+    body { min-height: 100vh; display: flex; flex-direction: column; }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <app-header current-page="composants" base-path="../../"></app-header>
+
+  <!-- Layout documentation avec sidemenu -->
+  <app-layout-demo
+    title="dsfr-data-join"
+    icon="ri-git-merge-line"
+    active-path="components/dsfr-data-join"
+    base-path="../">
+    <div slot="content">
+        <p class="fr-text--lead">
+          Composant de jointure multi-sources.
+          Joint deux jeux de donnees sur une ou plusieurs cles pivot pour produire un dataset enrichi.
+          Ne fait aucun fetch HTTP : c'est un pur transformateur.
+        </p>
+
+        <div class="fr-callout fr-callout--blue-france">
+          <p class="fr-callout__text">
+            <strong>Invisible :</strong> Ce composant ne rend rien visuellement. Il attend que ses deux sources
+            aient emis leurs donnees, les joint en memoire, puis redistribue le resultat via le systeme d'evenements.
+          </p>
+        </div>
+
+        <p class="fr-mt-2w">
+          <a class="fr-link fr-link--icon-right fr-icon-arrow-right-line"
+             href="../../guide/guide-exemples-join.html">
+            Voir les exemples live dans le Guide utilisateur
+          </a>
+        </p>
+
+        <h2 id="pipeline">Position dans le pipeline</h2>
+        <p><code>&lt;dsfr-data-join&gt;</code> se place entre les sources et les composants de transformation/visualisation.
+          Il souscrit a deux <code>&lt;dsfr-data-source&gt;</code> (ou tout composant emettant <code>dsfr-data-loaded</code>),
+          les joint, et emet le resultat sous son propre <code>id</code>.</p>
+        <div class="code-block"><pre>dsfr-data-source (A)  ──────┐
+                             ├──► dsfr-data-join ──► dsfr-data-query ──► dsfr-data-chart
+dsfr-data-source (B)  ──────┘</pre></div>
+
+        <h2 id="attributs" class="fr-mt-4w">Attributs</h2>
+        <table class="attr-table">
+          <thead><tr><th>Attribut</th><th>Type</th><th>Format / Valeurs</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>id</code></td><td>String</td><td><code>id="enriched"</code></td><td>Identifiant unique (requis). Les composants aval l'utilisent pour s'abonner aux donnees jointes.</td></tr>
+            <tr><td><code>left</code></td><td>String</td><td><code>left="id-source-a"</code></td><td>ID de la source gauche — source principale (requis)</td></tr>
+            <tr><td><code>right</code></td><td>String</td><td><code>right="id-source-b"</code></td><td>ID de la source droite (requis)</td></tr>
+            <tr><td><code>on</code></td><td>String</td><td>Voir formats ci-dessous</td><td>Cle(s) de jointure (requis)</td></tr>
+            <tr><td><code>type</code></td><td>String</td><td><code>inner</code> | <code>left</code> | <code>right</code> | <code>full</code></td><td>Type de jointure. Defaut : <code>left</code></td></tr>
+            <tr><td><code>prefix-left</code></td><td>String</td><td><code>prefix-left="pop_"</code></td><td>Prefixe pour les champs gauche en cas de collision. Defaut : vide</td></tr>
+            <tr><td><code>prefix-right</code></td><td>String</td><td><code>prefix-right="budget_"</code></td><td>Prefixe pour les champs droite en cas de collision. Defaut : <code>right_</code></td></tr>
+          </tbody>
+        </table>
+
+        <h3 class="fr-mt-3w">Format de l'attribut <code>on</code></h3>
+
+        <section class="demo-section">
+          <h4>Cle commune</h4>
+          <p>Quand le champ porte le meme nom dans les deux sources :</p>
+          <div class="code-block"><pre>on="code_dept"</pre></div>
+        </section>
+
+        <section class="demo-section">
+          <h4>Cle de nommage different</h4>
+          <p>Quand le champ a un nom different dans chaque source (gauche=droite) :</p>
+          <div class="code-block"><pre>on="dept_code=code"</pre></div>
+        </section>
+
+        <section class="demo-section">
+          <h4>Multi-cle</h4>
+          <p>Jointure sur plusieurs champs (separes par virgule) :</p>
+          <div class="code-block"><pre>on="annee,code_region"
+on="annee, dept_code=code"</pre></div>
+        </section>
+
+        <h2 id="types" class="fr-mt-4w">Types de jointure</h2>
+        <table class="attr-table">
+          <thead><tr><th>Type</th><th>Description</th><th>Equivalent SQL</th></tr></thead>
+          <tbody>
+            <tr><td><code>inner</code></td><td>Seuls les enregistrements presents dans les deux sources</td><td><code>INNER JOIN</code></td></tr>
+            <tr><td><code>left</code></td><td>Tous les enregistrements gauche ; champs droite a <code>null</code> si absent</td><td><code>LEFT JOIN</code></td></tr>
+            <tr><td><code>right</code></td><td>Tous les enregistrements droite ; champs gauche a <code>null</code> si absent</td><td><code>RIGHT JOIN</code></td></tr>
+            <tr><td><code>full</code></td><td>Union de tous les enregistrements ; <code>null</code> pour les champs manquants</td><td><code>FULL OUTER JOIN</code></td></tr>
+          </tbody>
+        </table>
+
+        <h2 id="exemples" class="fr-mt-4w">Exemples</h2>
+
+        <section class="demo-section">
+          <h3>Enrichir un dataset avec des donnees d'une autre source</h3>
+          <p>
+            Jointure gauche entre un dataset de population et un dataset de budgets, sur le code departement.
+            <a href="../../guide/guide-exemples-join.html" class="fr-link fr-link--sm">Voir l'exemple live</a>
+          </p>
+          <div class="code-block"><pre>&lt;dsfr-data-source id="pop" api-type="opendatasoft"
+  dataset-id="population-dept" base-url="https://data.economie.gouv.fr"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-source id="budget" api-type="tabular"
+  resource="abc123-budget-dept"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-join id="enriched"
+  left="pop" right="budget"
+  on="code_dept" type="left"
+  prefix-right="budget_"&gt;
+&lt;/dsfr-data-join&gt;
+
+&lt;dsfr-data-chart source="enriched" type="bar"
+  label-field="nom_dept" value-field="budget_montant"&gt;
+&lt;/dsfr-data-chart&gt;</pre></div>
+        </section>
+
+        <section class="demo-section">
+          <h3>Jointure avec transformation aval</h3>
+          <p>
+            Apres la jointure, un <code>&lt;dsfr-data-query&gt;</code> peut agreger et trier les donnees fusionnees.
+          </p>
+          <div class="code-block"><pre>&lt;dsfr-data-join id="joined"
+  left="src1" right="src2"
+  on="code_region" type="inner"&gt;
+&lt;/dsfr-data-join&gt;
+
+&lt;dsfr-data-query id="q" source="joined"
+  aggregate="population:sum:total,budget:sum:total_budget"
+  group-by="nom_region" order-by="total:desc"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;dsfr-data-chart source="q" type="horizontalBar"
+  label-field="nom_region" value-field="total"&gt;
+&lt;/dsfr-data-chart&gt;</pre></div>
+        </section>
+
+        <section class="demo-section">
+          <h3>Cles de nommage different</h3>
+          <p>
+            Quand le champ de jointure n'a pas le meme nom dans les deux sources :
+          </p>
+          <div class="code-block"><pre>&lt;dsfr-data-join id="merged"
+  left="src-a" right="src-b"
+  on="dept_code=code" type="inner"&gt;
+&lt;/dsfr-data-join&gt;</pre></div>
+        </section>
+
+        <h2 id="evenements" class="fr-mt-4w">Evenements</h2>
+        <p>Le composant emet les memes evenements que <code>&lt;dsfr-data-source&gt;</code> :</p>
+        <ul>
+          <li><code>dsfr-data-loaded</code> : Donnees jointes disponibles</li>
+          <li><code>dsfr-data-loading</code> : En attente d'une ou plusieurs sources</li>
+          <li><code>dsfr-data-error</code> : Erreur d'une source ou de la jointure</li>
+        </ul>
+
+        <h2 id="methodes" class="fr-mt-4w">Methodes publiques</h2>
+        <table class="attr-table">
+          <thead><tr><th>Methode</th><th>Retour</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>getData()</code></td><td>Array</td><td>Retourne les donnees jointes actuelles</td></tr>
+            <tr><td><code>isLoading()</code></td><td>Boolean</td><td>Indique si le composant attend encore des donnees</td></tr>
+            <tr><td><code>getError()</code></td><td>Error | null</td><td>Retourne l'erreur eventuelle</td></tr>
+          </tbody>
+        </table>
+
+        <h2 id="conseils" class="fr-mt-4w">Conseils d'utilisation</h2>
+        <div class="fr-callout">
+          <p class="fr-callout__text">
+            <strong>Collisions de noms :</strong> Si un champ existe dans les deux sources avec le meme nom
+            (hors cle de jointure), le <code>prefix-right</code> est applique au champ droit (defaut : <code>right_</code>).
+            Definissez <code>prefix-left</code> pour prefixer aussi les champs gauche.
+          </p>
+        </div>
+        <div class="fr-callout fr-mt-2w">
+          <p class="fr-callout__text">
+            <strong>Relations 1-N :</strong> Si plusieurs enregistrements de la source droite correspondent
+            a une cle de la source gauche, autant de lignes sont generees (comportement SQL standard).
+          </p>
+        </div>
+        <div class="fr-callout fr-mt-2w">
+          <p class="fr-callout__text">
+            <strong>Recalcul automatique :</strong> Si l'une des sources emet de nouvelles donnees (rechargement,
+            filtre, pagination), la jointure est recalculee automatiquement.
+          </p>
+        </div>
+    </div>
+  </app-layout-demo>
+
+  <!-- Footer -->
+  <app-footer base-path="../../"></app-footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js" integrity="sha384-4dK3hBJJh/bjoOulz9Q1kNO2O09lzuKiFeF5c+0VguV1RT3IiLkv+Pt98Jul84V+" crossorigin="anonymous"></script>
+</body>
+</html>

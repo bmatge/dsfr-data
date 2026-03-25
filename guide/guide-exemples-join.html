@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dsfr-data-join — Exemples - Guide - dsfr-data</title>
+  <style>@view-transition{navigation:auto}app-header:not(:defined){display:block;min-height:56px}app-footer:not(:defined){display:block;min-height:48px}</style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css">
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"></script>
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script src="guide-menu.js"></script>
+  <style>
+    .guide-layout { display: flex; gap: 2rem; }
+    .guide-content { flex: 1; min-width: 0; }
+    @media (max-width: 992px) {
+      .guide-layout { flex-direction: column; }
+    }
+    .guide-content h2 { padding-top: 2rem; border-top: 1px solid var(--border-default-grey); margin-top: 3rem; }
+    .guide-content h2:first-of-type { border-top: none; margin-top: 0; padding-top: 0; }
+    .guide-content h3 { margin-top: 2rem; }
+    .guide-content h4 { margin-top: 1.5rem; }
+    .guide-content pre { background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 4px; font-family: monospace; font-size: 0.85rem; overflow-x: auto; white-space: pre-wrap; margin: 0; }
+    .guide-content ol, .guide-content ul { margin: 0.5rem 0 1rem 1.5rem; }
+    .guide-content li { margin-bottom: 0.25rem; }
+    .example-container { border: 1px solid var(--border-default-grey); border-radius: 4px; padding: 1rem; background: white; min-height: 100px; }
+  </style>
+</head>
+<body>
+  <app-header current-page="guide" base-path="../"></app-header>
+
+  <main class="fr-container fr-py-4w" id="main-content">
+    <div class="guide-layout">
+
+      <app-sidemenu section="guide"></app-sidemenu>
+
+      <div class="guide-content">
+
+        <h1><i class="ri-git-merge-line fr-mr-1w"></i>dsfr-data-join</h1>
+        <p class="fr-text--lead">
+          <code>dsfr-data-join</code> joint deux sources de donnees sur une cle pivot pour produire un dataset enrichi.
+          Supporte les jointures <code>inner</code>, <code>left</code>, <code>right</code> et <code>full</code>.
+        </p>
+
+        <p class="fr-mt-1w">
+          <a class="fr-link fr-link--icon-right fr-icon-arrow-right-line"
+             href="../specs/components/dsfr-data-join.html">
+            Reference API complete (attributs, types de jointure, methodes)
+          </a>
+        </p>
+
+        <div class="fr-callout fr-callout--green-emeraude fr-mb-3w">
+          <h4 class="fr-callout__title">dsfr-data-source + dsfr-data-join + dsfr-data-query</h4>
+          <p class="fr-callout__text">
+            <strong><code>dsfr-data-source</code></strong> recupere les donnees depuis une API.
+            <strong><code>dsfr-data-join</code></strong> croise deux sources sur une cle commune
+            pour enrichir les donnees. <strong><code>dsfr-data-query</code></strong> filtre, groupe
+            et trie le resultat. Tous sont des composants invisibles qui se chainent
+            via le systeme d'evenements.
+          </p>
+        </div>
+
+        <!-- Exemple 1 : jointure avec donnees inline -->
+        <h2 id="join-basic">Jointure de base — donnees locales</h2>
+        <p>Deux sources de donnees inline jointes sur le champ <code>code</code>.
+          Le resultat enrichi est affiche dans un graphique en barres.
+          <a href="../apps/playground/index.html?example=join-basic" class="fr-link fr-link--sm">Tester dans le Playground</a>
+        </p>
+
+        <div class="example-container">
+          <dsfr-data-source id="join-pop"
+            data='[{"code":"75","region":"Ile-de-France","population":12262544},{"code":"13","region":"Provence-Alpes-Cote d Azur","population":5098520},{"code":"35","region":"Bretagne","population":3394567},{"code":"14","region":"Normandie","population":3303500}]'>
+          </dsfr-data-source>
+
+          <dsfr-data-source id="join-budget"
+            data='[{"code":"75","budget":5200,"pib":710},{"code":"13","budget":2100,"pib":165},{"code":"35","budget":1500,"pib":100},{"code":"14","budget":1400,"pib":90}]'>
+          </dsfr-data-source>
+
+          <dsfr-data-join id="join-enriched"
+            left="join-pop" right="join-budget"
+            on="code" type="left">
+          </dsfr-data-join>
+
+          <dsfr-data-chart source="join-enriched" type="bar"
+            label-field="region" value-field="budget"
+            title="Budget par region (M EUR)">
+          </dsfr-data-chart>
+
+          <dsfr-data-a11y for="join-chart-basic" source="join-enriched" table></dsfr-data-a11y>
+        </div>
+
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-join-basic">Code source</button></h3>
+          <div class="fr-collapse" id="code-join-basic">
+<pre class="example-code">&lt;!-- Source A : population par region --&gt;
+&lt;dsfr-data-source id="pop"
+  data='[
+    {"code":"75","region":"Ile-de-France","population":12262544},
+    {"code":"13","region":"Provence-Alpes-Cote d Azur","population":5098520},
+    {"code":"35","region":"Bretagne","population":3394567},
+    {"code":"14","region":"Normandie","population":3303500}
+  ]'&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;!-- Source B : budget par region --&gt;
+&lt;dsfr-data-source id="budget"
+  data='[
+    {"code":"75","budget":5200,"pib":710},
+    {"code":"13","budget":2100,"pib":165},
+    {"code":"35","budget":1500,"pib":100},
+    {"code":"14","budget":1400,"pib":90}
+  ]'&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;!-- Jointure sur le code region --&gt;
+&lt;dsfr-data-join id="enriched"
+  left="pop" right="budget"
+  on="code" type="left"&gt;
+&lt;/dsfr-data-join&gt;
+
+&lt;!-- Graphique sur les donnees jointes --&gt;
+&lt;dsfr-data-chart source="enriched" type="bar"
+  label-field="region" value-field="budget"
+  title="Budget par region (M EUR)"&gt;
+&lt;/dsfr-data-chart&gt;</pre>
+          </div>
+        </section>
+
+        <!-- Exemple 2 : inner join + query -->
+        <h2 id="join-query">Jointure + transformation — inner join avec agregation</h2>
+        <p>Inner join suivi d'un <code>dsfr-data-query</code> pour trier le resultat.
+          Seules les regions presentes dans les deux sources sont conservees.
+          <a href="../apps/playground/index.html?example=join-query" class="fr-link fr-link--sm">Tester dans le Playground</a>
+        </p>
+
+        <div class="example-container">
+          <dsfr-data-source id="join2-pop"
+            data='[{"code":"75","region":"Ile-de-France","population":12262544},{"code":"13","region":"PACA","population":5098520},{"code":"35","region":"Bretagne","population":3394567},{"code":"14","region":"Normandie","population":3303500},{"code":"44","region":"Pays de la Loire","population":3838200}]'>
+          </dsfr-data-source>
+
+          <dsfr-data-source id="join2-invest"
+            data='[{"code":"75","investissement":8500},{"code":"13","investissement":3200},{"code":"35","investissement":2100},{"code":"44","investissement":2800}]'>
+          </dsfr-data-source>
+
+          <dsfr-data-join id="join2-merged"
+            left="join2-pop" right="join2-invest"
+            on="code" type="inner">
+          </dsfr-data-join>
+
+          <dsfr-data-query id="join2-sorted"
+            source="join2-merged"
+            order-by="investissement:desc">
+          </dsfr-data-query>
+
+          <dsfr-data-chart source="join2-sorted" type="bar"
+            label-field="region" value-field="investissement"
+            title="Investissement par region (inner join, tri desc)">
+          </dsfr-data-chart>
+        </div>
+
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-join-query">Code source</button></h3>
+          <div class="fr-collapse" id="code-join-query">
+<pre class="example-code">&lt;!-- Source A : 5 regions --&gt;
+&lt;dsfr-data-source id="pop"
+  data='[
+    {"code":"75","region":"Ile-de-France","population":12262544},
+    {"code":"13","region":"PACA","population":5098520},
+    {"code":"35","region":"Bretagne","population":3394567},
+    {"code":"14","region":"Normandie","population":3303500},
+    {"code":"44","region":"Pays de la Loire","population":3838200}
+  ]'&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;!-- Source B : 4 regions (pas de Normandie) --&gt;
+&lt;dsfr-data-source id="invest"
+  data='[
+    {"code":"75","investissement":8500},
+    {"code":"13","investissement":3200},
+    {"code":"35","investissement":2100},
+    {"code":"44","investissement":2800}
+  ]'&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;!-- Inner join : seules les 4 regions communes --&gt;
+&lt;dsfr-data-join id="merged"
+  left="pop" right="invest"
+  on="code" type="inner"&gt;
+&lt;/dsfr-data-join&gt;
+
+&lt;!-- Tri par investissement decroissant --&gt;
+&lt;dsfr-data-query id="sorted"
+  source="merged"
+  order-by="investissement:desc"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;dsfr-data-chart source="sorted" type="bar"
+  label-field="region" value-field="investissement"
+  title="Investissement par region"&gt;
+&lt;/dsfr-data-chart&gt;</pre>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </main>
+
+  <app-footer base-path="../"></app-footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js"></script>
+</body>
+</html>
