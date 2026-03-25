@@ -465,19 +465,34 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     // Create a hidden table-data element for DataBox's segmented control.
     // DataBox reads x/y/name from an element with databox-type="table"
     // to build its table view. We feed it our processed data.
+    const { x, y } = this._processData();
+    const allFields = this._getAllValueFields();
+
     const tableEl = document.createElement('div');
     tableEl.setAttribute('databox-id', databoxId);
     tableEl.setAttribute('databox-type', 'table');
     tableEl.setAttribute('databox-source', sourceName);
+    tableEl.setAttribute('x', x);
+    tableEl.setAttribute('y', y);
+    tableEl.setAttribute('name', JSON.stringify(allFields));
     tableEl.style.display = 'none';
-    this._updateDataboxTable(tableEl);
 
-    // Wrap all three in a container div — DataBox + Chart + TableData as siblings
+    // DataBox's Vue setup() runs document.querySelectorAll('[databox-id=...]')
+    // synchronously on connectedCallback. The chart+table siblings must be in
+    // the document BEFORE data-box is connected, otherwise setup() finds nothing.
+    //
+    // Strategy: insert chart+table into wrapper first, return the wrapper so Lit
+    // connects it to the DOM, then inject data-box on next microtask so that
+    // chart+table are already queryable when DataBox setup() runs.
     const wrapper = document.createElement('div');
     wrapper.className = 'dsfr-data-chart__databox-wrapper';
-    wrapper.appendChild(databoxEl);
     wrapper.appendChild(chartEl);
     wrapper.appendChild(tableEl);
+
+    // Defer data-box insertion so siblings are in the document first
+    requestAnimationFrame(() => {
+      wrapper.insertBefore(databoxEl, chartEl);
+    });
 
     return wrapper;
   }

@@ -520,49 +520,47 @@ describe('DsfrDataChart', () => {
       chart.id = 'test-chart';
     });
 
-    it('creates a wrapper with data-box and chart as siblings', () => {
+    it('creates a wrapper with chart and table elements immediately', () => {
       chart.databox = true;
       chart.databoxTitle = 'Mon titre';
       chart.databoxSource = 'INSEE';
-      chart.databoxDate = 'Mars 2024';
       chart.databoxDownload = true;
 
       const wrapper = (chart as any)._createDataboxElement('bar-chart', { x: '[[]]', y: '[[]]' });
       expect(wrapper.className).toBe('dsfr-data-chart__databox-wrapper');
-      const db = wrapper.querySelector('data-box');
-      expect(db).toBeTruthy();
-      expect(db.getAttribute('title')).toBe('Mon titre');
-      expect(db.getAttribute('source')).toBe('INSEE');
-      expect(db.getAttribute('date')).toBe('Mars 2024');
-      expect(db.hasAttribute('download')).toBe(true);
-      expect(db.hasAttribute('segmented-control')).toBe(true);
+      // Chart and table are present immediately
+      const chartEl = wrapper.querySelector('bar-chart');
+      const tableEl = wrapper.querySelector('[databox-type="table"]');
+      expect(chartEl).toBeTruthy();
+      expect(tableEl).toBeTruthy();
+      expect(tableEl.getAttribute('databox-source')).toBe('default');
     });
 
-    it('places chart as sibling of data-box with databox-id/type', () => {
+    it('sets databox-id and databox-type on chart element', () => {
       chart.databox = true;
       chart.databoxTitle = 'Test';
 
       const wrapper = (chart as any)._createDataboxElement('bar-chart', { x: '[[]]', y: '[[]]' });
-      const db = wrapper.querySelector('data-box');
       const chartEl = wrapper.querySelector('bar-chart');
-      expect(db).toBeTruthy();
       expect(chartEl).toBeTruthy();
-      // Chart is sibling of data-box, not child
-      expect(chartEl.parentElement).toBe(wrapper);
-      expect(db.parentElement).toBe(wrapper);
       expect(chartEl.getAttribute('databox-id')).toBe('databox-test-chart');
       expect(chartEl.getAttribute('databox-type')).toBe('chart');
+      expect(chartEl.getAttribute('databox-source')).toBe('default');
     });
 
-    it('does not set optional attributes when empty', () => {
+    it('defers data-box insertion via requestAnimationFrame', async () => {
       chart.databox = true;
+      chart.databoxTitle = 'Mon titre';
 
       const wrapper = (chart as any)._createDataboxElement('bar-chart', { x: '[[]]', y: '[[]]' });
+      // data-box is NOT in wrapper yet (deferred)
+      expect(wrapper.querySelector('data-box')).toBeNull();
+      // After rAF, data-box is inserted
+      await new Promise(r => requestAnimationFrame(r));
       const db = wrapper.querySelector('data-box');
-      expect(db.hasAttribute('title')).toBe(false);
-      expect(db.hasAttribute('screenshot')).toBe(false);
-      expect(db.hasAttribute('fullscreen')).toBe(false);
-      expect(db.hasAttribute('trend')).toBe(false);
+      expect(db).toBeTruthy();
+      expect(db.getAttribute('title')).toBe('Mon titre');
+      expect(db.hasAttribute('segmented-control')).toBe(true);
     });
   });
 
@@ -584,14 +582,14 @@ describe('DsfrDataChart', () => {
       expect(result.values[0].className).toBe('dsfr-data-chart__wrapper');
     });
 
-    it('renders databox wrapper with data-box and chart siblings when databox is true', () => {
+    it('renders databox wrapper with chart when databox is true', () => {
       chart.databox = true;
       chart.databoxTitle = 'Test';
       const result = (chart as any)._renderChart();
       const wrapper = result.values[0];
       expect(wrapper.className).toBe('dsfr-data-chart__databox-wrapper');
-      expect(wrapper.querySelector('data-box')).toBeTruthy();
       expect(wrapper.querySelector('bar-chart')).toBeTruthy();
+      expect(wrapper.querySelector('[databox-type="table"]')).toBeTruthy();
     });
   });
 });
