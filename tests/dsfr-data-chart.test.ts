@@ -353,8 +353,8 @@ describe('DsfrDataChart', () => {
       chart.type = 'map';
       chart.codeField = 'dept';
 
-      const { attrs, deferred } = (chart as any)._getTypeSpecificAttributes();
-      expect(attrs['data']).toBeDefined();
+      const { deferred } = (chart as any)._getTypeSpecificAttributes();
+      expect(deferred['data']).toBeDefined();
       expect(deferred['value']).toBeDefined();
       expect(Number(deferred['value'])).toBe(150); // avg of 100 and 200
       expect(deferred['date']).toMatch(/^\d{4}-\d{2}-\d{2}$/);
@@ -486,6 +486,110 @@ describe('DsfrDataChart', () => {
       chart.connectedCallback();
 
       expect((chart as any)._data).toHaveLength(1);
+    });
+  });
+
+  describe('DataBox properties', () => {
+    it('databox defaults to false', () => {
+      expect(chart.databox).toBe(false);
+    });
+
+    it('databox string properties default to empty', () => {
+      expect(chart.databoxTitle).toBe('');
+      expect(chart.databoxSource).toBe('');
+      expect(chart.databoxDate).toBe('');
+      expect(chart.databoxTrend).toBe('');
+    });
+
+    it('databox boolean properties default to false', () => {
+      expect(chart.databoxDownload).toBe(false);
+      expect(chart.databoxScreenshot).toBe(false);
+      expect(chart.databoxFullscreen).toBe(false);
+    });
+  });
+
+  describe('_createDataboxElement', () => {
+    beforeEach(() => {
+      (chart as any)._data = [
+        { cat: 'A', val: 10 },
+        { cat: 'B', val: 20 },
+      ];
+      chart.labelField = 'cat';
+      chart.valueField = 'val';
+      chart.type = 'bar';
+      chart.id = 'test-chart';
+    });
+
+    it('creates a wrapper with databox and chart elements', () => {
+      chart.databox = true;
+      chart.databoxTitle = 'Mon titre';
+      chart.databoxSource = 'INSEE';
+      chart.databoxDownload = true;
+
+      const wrapper = (chart as any)._createDataboxElement('bar-chart', { x: '[[]]', y: '[[]]' });
+      expect(wrapper.className).toBe('dsfr-data-chart__databox-wrapper');
+      const db = wrapper.querySelector('data-box');
+      const chartEl = wrapper.querySelector('bar-chart');
+      expect(db).toBeTruthy();
+      expect(chartEl).toBeTruthy();
+      expect(chartEl.getAttribute('databox-source')).toBe('default');
+    });
+
+    it('sets databox-id and databox-type on chart element', () => {
+      chart.databox = true;
+      chart.databoxTitle = 'Test';
+
+      const wrapper = (chart as any)._createDataboxElement('bar-chart', { x: '[[]]', y: '[[]]' });
+      const chartEl = wrapper.querySelector('bar-chart');
+      expect(chartEl).toBeTruthy();
+      expect(chartEl.getAttribute('databox-id')).toBe('databox-test-chart');
+      expect(chartEl.getAttribute('databox-type')).toBe('chart');
+      expect(chartEl.getAttribute('databox-source')).toBe('default');
+    });
+
+    it('places data-box first in DOM order for Vue Teleport', () => {
+      chart.databox = true;
+      chart.databoxTitle = 'Mon titre';
+
+      const wrapper = (chart as any)._createDataboxElement('bar-chart', { x: '[[]]', y: '[[]]' });
+      const db = wrapper.querySelector('data-box');
+      const chartEl = wrapper.querySelector('bar-chart');
+      expect(db).toBeTruthy();
+      expect(db.getAttribute('title')).toBe('Mon titre');
+      // segmented-control is required for DataBox to create Teleport targets
+      expect(db.hasAttribute('segmented-control')).toBe(true);
+      // DataBox must be before chart for Vue Teleport to work
+      const children = [...wrapper.children];
+      expect(children.indexOf(db)).toBeLessThan(children.indexOf(chartEl));
+    });
+  });
+
+  describe('_renderChart with databox', () => {
+    beforeEach(() => {
+      (chart as any)._data = [
+        { cat: 'A', val: 10 },
+        { cat: 'B', val: 20 },
+      ];
+      chart.labelField = 'cat';
+      chart.valueField = 'val';
+      chart.type = 'bar';
+      chart.id = 'test-chart';
+    });
+
+    it('renders standard wrapper when databox is false', () => {
+      chart.databox = false;
+      const result = (chart as any)._renderChart();
+      expect(result.values[0].className).toBe('dsfr-data-chart__wrapper');
+    });
+
+    it('renders databox wrapper with chart when databox is true', () => {
+      chart.databox = true;
+      chart.databoxTitle = 'Test';
+      const result = (chart as any)._renderChart();
+      const wrapper = result.values[0];
+      expect(wrapper.className).toBe('dsfr-data-chart__databox-wrapper');
+      expect(wrapper.querySelector('bar-chart')).toBeTruthy();
+      expect(wrapper.querySelector('data-box')).toBeTruthy();
     });
   });
 });

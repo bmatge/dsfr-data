@@ -221,7 +221,11 @@
             horizontal
             unit-tooltip="%"
             y-min="0"
-            y-max="100">
+            y-max="100"
+            databox
+            databox-title="Score Rotten Tomatoes par film"
+            databox-source="Studio Ghibli API"
+            databox-download>
           </dsfr-data-chart>
           <dsfr-data-a11y for="chart-score" source="by-score" table download></dsfr-data-a11y>
         </div>
@@ -234,7 +238,11 @@
             value-field="running_time"
             selected-palette="divergentAscending"
             horizontal
-            unit-tooltip=" min">
+            unit-tooltip=" min"
+            databox
+            databox-title="Duree des films"
+            databox-source="Studio Ghibli API"
+            databox-download>
           </dsfr-data-chart>
           <dsfr-data-a11y for="chart-duration" source="by-duration" table download></dsfr-data-a11y>
         </div>
@@ -249,7 +257,11 @@
               type="pie"
               label-field="director"
               value-field="id__count"
-              selected-palette="categorical">
+              selected-palette="categorical"
+              databox
+              databox-title="Nombre de films par realisateur"
+              databox-source="Studio Ghibli API"
+              databox-download>
             </dsfr-data-chart>
             <dsfr-data-a11y for="chart-dir-count" source="by-director-count" table download></dsfr-data-a11y>
           </div>
@@ -263,7 +275,11 @@
               selected-palette="sequentialDescending"
               unit-tooltip="%"
               y-min="0"
-              y-max="100">
+              y-max="100"
+              databox
+              databox-title="Score RT moyen par realisateur"
+              databox-source="Studio Ghibli API"
+              databox-download>
             </dsfr-data-chart>
             <dsfr-data-a11y for="chart-dir-score" source="by-director-score" table download></dsfr-data-a11y>
           </div>

@@ -557,4 +557,16 @@ describe('DsfrDataA11y', () => {
       expect(comp.createRenderRoot()).toBe(comp);
     });
   });
+
+  describe('DataBox cohabitation', () => {
+    it('keeps table and download active even when DataBox is present', () => {
+      // DataBox table view does not work with async data,
+      // so dsfr-data-a11y keeps its own table/download features.
+      comp.table = true;
+      comp.download = true;
+
+      expect((comp as any)._showTable).toBe(true);
+      expect((comp as any)._showDownload).toBe(true);
+    });
+  });
 });

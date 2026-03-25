@@ -33,6 +33,20 @@ function displayGeneratedCode(code: string): void {
 const ODS_PAGE_SIZE = 100;
 const ODS_MAX_PAGES = 10;
 
+/** Generate DataBox attributes for dsfr-data-chart (dynamic mode) */
+function generateDataboxAttrs(): string {
+  if (!state.databoxEnabled) return '';
+  const attrs: string[] = ['\n    databox'];
+  if (state.databoxTitle) attrs.push(`databox-title="${escapeHtml(state.databoxTitle)}"`);
+  if (state.databoxSource) attrs.push(`databox-source="${escapeHtml(state.databoxSource)}"`);
+  if (state.databoxDate) attrs.push(`databox-date="${escapeHtml(state.databoxDate)}"`);
+  if (state.databoxDownload) attrs.push('databox-download');
+  if (state.databoxScreenshot) attrs.push('databox-screenshot');
+  if (state.databoxFullscreen) attrs.push('databox-fullscreen');
+  if (state.databoxTrend) attrs.push(`databox-trend="${escapeHtml(state.databoxTrend)}"`);
+  return attrs.join('\n    ');
+}
+
 /** Generate optional dsfr-data-a11y element for accessible data companion */
 function generateA11yElement(sourceId: string, chartId: string): string {
   if (!state.a11yEnabled) return '';
@@ -57,8 +71,28 @@ function generateEmbeddedA11y(chartId: string): string {
 
 /** dsfr-data dependency line for embedded code when a11y is enabled */
 function a11yDep(): string {
-  if (!state.a11yEnabled) return '';
+  if (!state.a11yEnabled && !state.databoxEnabled) return '';
   return `\n<script src="${LIB_URL}/dsfr-data.core.umd.js"><\/script>`;
+}
+
+/** Wrap an embedded chart element with DataBox markup (open + close tags) */
+function wrapWithDatabox(chartHtml: string, chartId: string): string {
+  if (!state.databoxEnabled) return chartHtml;
+  const dbId = `databox-${chartId}`;
+  const dbAttrs: string[] = [`id="${dbId}"`];
+  if (state.databoxTitle) dbAttrs.push(`title="${escapeHtml(state.databoxTitle)}"`);
+  if (state.databoxSource) dbAttrs.push(`source="${escapeHtml(state.databoxSource)}"`);
+  if (state.databoxDate) dbAttrs.push(`date="${escapeHtml(state.databoxDate)}"`);
+  if (state.databoxDownload) dbAttrs.push('download');
+  if (state.databoxScreenshot) dbAttrs.push('screenshot');
+  if (state.databoxFullscreen) dbAttrs.push('fullscreen');
+  if (state.databoxTrend) dbAttrs.push(`trend="${escapeHtml(state.databoxTrend)}"`);
+  dbAttrs.push('segmented-control');
+  const chartWithDbAttrs = chartHtml.replace(
+    /(<\w[\w-]*)(\s)/,
+    `$1 databox-id="${dbId}" databox-type="chart"$2`
+  );
+  return `<data-box ${dbAttrs.join('\n    ')}>\n    ${chartWithDbAttrs}\n  </data-box>`;
 }
 
 /**
@@ -751,12 +785,12 @@ datalist.onSourceData(data);
 <div class="fr-container fr-my-4w">
   <h2>${escapeHtml(state.title)}</h2>
 
-  <scatter-chart id="chart"
+  ${wrapWithDatabox(`<scatter-chart id="chart"
     x='${escapeSingleQuotes(JSON.stringify([xValues]))}'
     y='${escapeSingleQuotes(JSON.stringify([yValues]))}'
     name='${escapeSingleQuotes(JSON.stringify([`${state.labelField} vs ${state.valueField}`]))}'
     selected-palette="${state.palette}">
-  </scatter-chart>${generateEmbeddedA11y('chart')}
+  </scatter-chart>`, 'chart')}${generateEmbeddedA11y('chart')}
 </div>${dsfrDeferredScript('scatter-chart')}`;
     displayGeneratedCode(code);
     return;
@@ -804,13 +838,13 @@ datalist.onSourceData(data);
 <div class="fr-container fr-my-4w">
   <h2>${escapeHtml(state.title)}</h2>
   ${state.subtitle ? `<p class="fr-text--sm fr-text--light">${escapeHtml(state.subtitle)}</p>` : ''}
-  <map-chart id="chart"
+  ${wrapWithDatabox(`<map-chart id="chart"
     data='${JSON.stringify(mapData)}'
     name="${escapeHtml(state.title || 'Donn\u00e9es')}"
     date="${today}"
     value="${avgValue}"
     selected-palette="${mapPalette}"
-  ></map-chart>${generateEmbeddedA11y('chart')}
+  ></map-chart>`, 'chart')}${generateEmbeddedA11y('chart')}
 </div>${dsfrDeferredScript('map-chart')}`;
     displayGeneratedCode(mapCode);
     return;
@@ -853,12 +887,12 @@ datalist.onSourceData(data);
   <h2>${escapeHtml(state.title)}</h2>
   ${state.subtitle ? `<p class="fr-text--sm fr-text--light">${escapeHtml(state.subtitle)}</p>` : ''}
 
-  <${dsfrTag} id="chart"
+  ${wrapWithDatabox(`<${dsfrTag} id="chart"
     x='${escapeSingleQuotes(x)}'
     y='${escapeSingleQuotes(y)}'
     name='${escapeSingleQuotes(seriesNames)}'
     selected-palette="${state.palette}"${extraStr}>
-  </${dsfrTag}>${generateEmbeddedA11y('chart')}
+  </${dsfrTag}>`, 'chart')}${generateEmbeddedA11y('chart')}
 </div>${dsfrDeferredScript(dsfrTag)}`;
 
   displayGeneratedCode(code);
@@ -1273,7 +1307,7 @@ ${middlewareHtml}${queryElement}
     label-field="${queryLabelField}"
     value-field="${queryValueField}"${extraFieldsAttr}
     ${nameAttr}
-    selected-palette="${palette}">
+    selected-palette="${palette}"${generateDataboxAttrs()}>
   </dsfr-data-chart>${generateA11yElement(chartSource, 'chart')}
 </div>`;
 
@@ -1582,7 +1616,7 @@ ${sourceElement}${middlewareHtml}${queryElement}${facetsHtml}
     label-field="${queryLabelField}"
     value-field="${queryValueField}"${extraFieldsAttr}
     ${nameAttr}
-    selected-palette="${palette}">
+    selected-palette="${palette}"${generateDataboxAttrs()}>
   </dsfr-data-chart>${generateA11yElement(chartSource, 'chart')}
 </div>`;
 

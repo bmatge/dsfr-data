@@ -75,9 +75,15 @@
 
         <div class="example-container">
           <dsfr-data-chart id="guide-chart" source="sites-par-statut" type="bar"
-            label-field="statut" value-field="total" titre="Sites par statut">
+            label-field="statut" value-field="total"
+            databox
+            databox-title="Sites par statut"
+            databox-source="Donnees de test"
+            databox-download>
           </dsfr-data-chart>
-          <dsfr-data-a11y for="guide-chart" source="sites-par-statut" table download></dsfr-data-a11y>
+          <dsfr-data-a11y for="guide-chart" source="sites-par-statut"
+            description="Ce graphique montre la repartition des sites par statut.">
+          </dsfr-data-a11y>
         </div>
 
         <section class="fr-accordion fr-mt-1w">
@@ -92,9 +98,16 @@
 &lt;/dsfr-data-query&gt;
 
 &lt;dsfr-data-chart id="mon-graph" source="data" type="bar"
-  label-field="region" value-field="total"&gt;
+  label-field="region" value-field="total"
+  databox
+  databox-title="Population par region"
+  databox-source="data.economie.gouv.fr"
+  databox-download&gt;
 &lt;/dsfr-data-chart&gt;
-&lt;dsfr-data-a11y for="mon-graph" source="data" table download&gt;&lt;/dsfr-data-a11y&gt;</pre>
+&lt;!-- Avec DataBox : description seulement (table et CSV fournis par DataBox) --&gt;
+&lt;dsfr-data-a11y for="mon-graph" source="data"
+  description="L'Ile-de-France domine largement."&gt;
+&lt;/dsfr-data-a11y&gt;</pre>
           </div>
         </section>
 

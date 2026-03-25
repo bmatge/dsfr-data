@@ -107,7 +107,26 @@
         </section>
 
         <section class="demo-section">
-          <h3>3. Mode manuel (no-auto-aria)</h3>
+          <h3>3. Cohabitation avec DataBox</h3>
+          <p>
+            Quand le graphique cible utilise l'attribut <code>databox</code>, ne PAS ajouter
+            <code>table</code> ni <code>download</code> sur <code>dsfr-data-a11y</code>
+            (DataBox les fournit deja avec un meilleur rendu : switch chart/tableau integre, CSV natif).
+            Conserver uniquement <code>description</code> :
+          </p>
+          <div class="code-block"><pre>&lt;dsfr-data-chart id="mon-graph" source="data" type="bar"
+  label-field="region" value-field="total"
+  databox databox-title="Population par region"
+  databox-download databox-screenshot&gt;
+&lt;/dsfr-data-chart&gt;
+&lt;!-- Avec DataBox : pas de table ni download --&gt;
+&lt;dsfr-data-a11y for="mon-graph" source="data"
+  description="L'Ile-de-France concentre la majorite de la population."&gt;
+&lt;/dsfr-data-a11y&gt;</pre></div>
+        </section>
+
+        <section class="demo-section">
+          <h3>4. Mode manuel (no-auto-aria)</h3>
           <p>Si vous gerez manuellement les attributs ARIA :</p>
           <div class="code-block"><pre>&lt;dsfr-data-a11y source="data"
   no-auto-aria table download&gt;

@@ -532,6 +532,56 @@
         </div>
       </div>
 
+      <!-- Habillage DataBox -->
+      <div class="config-section collapsed" id="section-databox">
+        <div class="config-section-header" onclick="toggleSection('section-databox')">
+          <h3><i class="ri-layout-4-line"></i> Habillage DataBox</h3>
+          <i class="ri-arrow-down-s-line collapse-icon"></i>
+        </div>
+        <div class="config-section-content">
+          <div class="fr-checkbox-group fr-checkbox-group--sm">
+            <input type="checkbox" id="databox-toggle">
+            <label class="fr-label" for="databox-toggle">
+              Activer la DataBox DSFR
+            </label>
+          </div>
+          <div id="databox-options" style="display: none; margin-left: 1.5rem; margin-top: 0.5rem;">
+            <div class="fr-input-group fr-input-group--sm fr-mb-1w">
+              <label class="fr-label" for="databox-title">Titre</label>
+              <input class="fr-input fr-input--sm" type="text" id="databox-title"
+                placeholder="Ex : Population par region">
+            </div>
+            <div class="fr-input-group fr-input-group--sm fr-mb-1w">
+              <label class="fr-label" for="databox-source">Source</label>
+              <input class="fr-input fr-input--sm" type="text" id="databox-source"
+                placeholder="Ex : INSEE, RP 2021">
+            </div>
+            <div class="fr-input-group fr-input-group--sm fr-mb-1w">
+              <label class="fr-label" for="databox-date">Date</label>
+              <input class="fr-input fr-input--sm" type="text" id="databox-date"
+                placeholder="Ex : Mars 2024">
+            </div>
+            <div class="fr-input-group fr-input-group--sm fr-mb-1w">
+              <label class="fr-label" for="databox-trend">Tendance</label>
+              <input class="fr-input fr-input--sm" type="text" id="databox-trend"
+                placeholder="Ex : +5.2 ou -3.1">
+            </div>
+            <div class="fr-checkbox-group fr-checkbox-group--sm fr-mb-1w">
+              <input type="checkbox" id="databox-download" checked>
+              <label class="fr-label" for="databox-download">Telechargement CSV</label>
+            </div>
+            <div class="fr-checkbox-group fr-checkbox-group--sm fr-mb-1w">
+              <input type="checkbox" id="databox-screenshot">
+              <label class="fr-label" for="databox-screenshot">Screenshot PNG</label>
+            </div>
+            <div class="fr-checkbox-group fr-checkbox-group--sm">
+              <input type="checkbox" id="databox-fullscreen">
+              <label class="fr-label" for="databox-fullscreen">Plein ecran</label>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Option accessibilite -->
       <div class="config-section collapsed" id="section-a11y">
         <div class="config-section-header" onclick="toggleSection('section-a11y')">

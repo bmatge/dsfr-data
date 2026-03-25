@@ -7,6 +7,8 @@ import { isValidDeptCode } from '@dsfr-data/shared';
 
 type DSFRChartType = 'line' | 'bar' | 'pie' | 'radar' | 'gauge' | 'scatter' | 'bar-line' | 'map' | 'map-reg';
 
+let databoxAutoId = 0;
+
 /** Maps chart type -> DSFR custom element tag name */
 const CHART_TAG_MAP: Record<string, string> = {
   line: 'line-chart',
@@ -117,6 +119,62 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'map-highlight' })
   mapHighlight = '';
 
+  /** Envelopper le chart dans une DataBox DSFR native */
+  @property({ type: Boolean })
+  databox = false;
+
+  /** Titre affiché dans l'en-tête DataBox */
+  @property({ type: String, attribute: 'databox-title' })
+  databoxTitle = '';
+
+  /** Mention de la source (ex: "INSEE, 2024") */
+  @property({ type: String, attribute: 'databox-source' })
+  databoxSource = '';
+
+  /** Date de la donnée (ex: "Mars 2024") */
+  @property({ type: String, attribute: 'databox-date' })
+  databoxDate = '';
+
+  /** Bouton téléchargement CSV dans DataBox */
+  @property({ type: Boolean, attribute: 'databox-download' })
+  databoxDownload = false;
+
+  /** Bouton screenshot PNG */
+  @property({ type: Boolean, attribute: 'databox-screenshot' })
+  databoxScreenshot = false;
+
+  /** Bouton plein écran */
+  @property({ type: Boolean, attribute: 'databox-fullscreen' })
+  databoxFullscreen = false;
+
+  /** Badge tendance (ex: "+5.2", "-3.1") */
+  @property({ type: String, attribute: 'databox-trend' })
+  databoxTrend = '';
+
+  /** Titre du tooltip info DataBox */
+  @property({ type: String, attribute: 'databox-tooltip-title' })
+  databoxTooltipTitle = '';
+
+  /** Contenu du tooltip info DataBox */
+  @property({ type: String, attribute: 'databox-tooltip-content' })
+  databoxTooltipContent = '';
+
+  /** Titre de la modale DataBox */
+  @property({ type: String, attribute: 'databox-modal-title' })
+  databoxModalTitle = '';
+
+  /** Contenu de la modale DataBox */
+  @property({ type: String, attribute: 'databox-modal-content' })
+  databoxModalContent = '';
+
+  /** Source par defaut dans le selecteur multi-source DataBox */
+  @property({ type: String, attribute: 'databox-default-source' })
+  databoxDefaultSource = '';
+
+  /** Actions personnalisees DataBox (JSON array, ex: '["Source officielle","Pole emploi"]') */
+  @property({ type: String, attribute: 'databox-actions' })
+  databoxActions = '';
+
   @state()
   private _data: unknown[] = [];
 
@@ -132,6 +190,9 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
 
   onSourceData(data: unknown): void {
     this._data = Array.isArray(data) ? data : [];
+    if (this.databox) {
+      this._injectDataboxTable();
+    }
   }
 
 
@@ -332,7 +393,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     return `Graphique ${typeName}, ${count} valeurs`;
   }
 
-  private _createChartElement(tagName: string, attributes: Record<string, string>, deferred: Record<string, string> = {}) {
+  private _createRawChartElement(tagName: string, attributes: Record<string, string>, deferred: Record<string, string> = {}) {
     const el = document.createElement(tagName);
     for (const [key, value] of Object.entries(attributes)) {
       if (value !== undefined && value !== '') {
@@ -351,12 +412,118 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       }, 500);
     }
 
+    return el;
+  }
+
+  private _createChartElement(tagName: string, attributes: Record<string, string>, deferred: Record<string, string> = {}) {
+    const el = this._createRawChartElement(tagName, attributes, deferred);
+
     const wrapper = document.createElement('div');
     wrapper.className = 'dsfr-data-chart__wrapper';
     wrapper.setAttribute('role', 'img');
     wrapper.setAttribute('aria-label', this._getAriaLabel());
     wrapper.appendChild(el);
     return wrapper;
+  }
+
+  /** Creates a DataBox + chart as siblings in a wrapper div.
+   *  DSFR DataBox discovers its chart via nextElementSibling or databox-id,
+   *  so the chart must be a SIBLING of <data-box>, not a child. */
+  private _createDataboxElement(tagName: string, attributes: Record<string, string>, deferred: Record<string, string> = {}) {
+    const databoxId = `databox-${this.id || `auto-${++databoxAutoId}`}`;
+
+    // Set databox-id/type/source on chart so DataBox can find it.
+    // databox-source must be explicit — DataBox querySelector uses it
+    // and won't match elements that merely default to the value.
+    const sourceName = 'default';
+    attributes['databox-id'] = databoxId;
+    attributes['databox-type'] = 'chart';
+    attributes['databox-source'] = sourceName;
+
+    // Create the DataBox element
+    const databoxEl = document.createElement('data-box');
+    databoxEl.id = databoxId;
+    // segmented-control is needed even without a table element: DataBox only
+    // creates the Teleport target containers when segmented-control is set.
+    // Without it, the chart's Vue <Teleport> has no target and renders outside.
+    databoxEl.setAttribute('segmented-control', '');
+    // title, source, date are REQUIRED props for DataBox — always set them.
+    databoxEl.setAttribute('title', this.databoxTitle || ' ');
+    databoxEl.setAttribute('source', this.databoxSource || ' ');
+    databoxEl.setAttribute('date', this.databoxDate || new Date().toISOString().split('T')[0]);
+    if (this.databoxDownload) databoxEl.setAttribute('download', '');
+    if (this.databoxScreenshot) databoxEl.setAttribute('screenshot', '');
+    if (this.databoxFullscreen) databoxEl.setAttribute('fullscreen', '');
+    if (this.databoxTrend) databoxEl.setAttribute('trend', this.databoxTrend);
+    if (this.databoxTooltipTitle) databoxEl.setAttribute('tooltip-title', this.databoxTooltipTitle);
+    if (this.databoxTooltipContent) databoxEl.setAttribute('tooltip-content', this.databoxTooltipContent);
+    if (this.databoxModalTitle) databoxEl.setAttribute('modal-title', this.databoxModalTitle);
+    if (this.databoxModalContent) databoxEl.setAttribute('modal-content', this.databoxModalContent);
+    if (this.databoxDefaultSource) databoxEl.setAttribute('default-source', this.databoxDefaultSource);
+    if (this.databoxActions) databoxEl.setAttribute('actions', this.databoxActions);
+
+    // Create chart element
+    const chartEl = this._createRawChartElement(tagName, attributes, deferred);
+
+    // Hidden stub so DataBox's querySelectorAll finds a databox-type="table"
+    // element and creates the table container div. Without this, DataBox
+    // doesn't create #databoxId-table-default and there's nowhere to inject
+    // our HTML table. The actual table content is injected by _injectDataboxTable().
+    const tableStub = document.createElement('div');
+    tableStub.setAttribute('databox-id', databoxId);
+    tableStub.setAttribute('databox-type', 'table');
+    tableStub.setAttribute('databox-source', sourceName);
+    tableStub.style.display = 'none';
+
+    // DataBox MUST be first in DOM order: its Vue template creates container
+    // divs (e.g. #databoxId-chart-default), then DSFR Chart components use
+    // Vue <Teleport> to render INTO those containers.
+    const wrapper = document.createElement('div');
+    wrapper.className = 'dsfr-data-chart__databox-wrapper';
+    wrapper.appendChild(databoxEl);
+    wrapper.appendChild(chartEl);
+    wrapper.appendChild(tableStub);
+
+    return wrapper;
+  }
+
+  /** Inject an HTML table into DataBox's table container (async, after Vue render).
+   *  Same approach as dsfr-data-a11y: build an HTML table from the current data. */
+  private _injectDataboxTable() {
+    if (!this._data || this._data.length === 0) return;
+    // Wait for DataBox Vue to render and create the table container
+    setTimeout(() => {
+      const wrapper = this.querySelector('.dsfr-data-chart__databox-wrapper');
+      if (!wrapper) return;
+      const databoxEl = wrapper.querySelector('data-box');
+      if (!databoxEl) return;
+      const databoxId = databoxEl.id;
+      const containerId = `${databoxId}-table-default`;
+      const container = document.getElementById(containerId);
+      if (!container) return;
+
+      // Build table from data (like dsfr-data-a11y)
+      const columns = [this.labelField, this.valueField].filter(Boolean);
+      if (columns.length === 0) return;
+      const rows = this._data.slice(0, 100);
+
+      const headerCells = columns.map(c => `<th scope="col">${c}</th>`).join('');
+      const bodyRows = rows.map(row => {
+        const cells = columns.map(col => {
+          const val = getByPath(row, col);
+          return `<td>${val ?? ''}</td>`;
+        }).join('');
+        return `<tr>${cells}</tr>`;
+      }).join('');
+
+      container.innerHTML = `
+        <div class="fr-table fr-m-2w">
+          <table>
+            <thead><tr>${headerCells}</tr></thead>
+            <tbody>${bodyRows}</tbody>
+          </table>
+        </div>`;
+    }, 500);
   }
 
   private _renderChart() {
@@ -378,12 +545,16 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       delete allAttrs['unit-tooltip'];
     }
 
+    // Replace previous chart/databox wrapper if any
+    const prevWrapper = this.querySelector('.dsfr-data-chart__wrapper')
+      || this.querySelector('.dsfr-data-chart__databox-wrapper');
+    if (prevWrapper) prevWrapper.remove();
+
+    if (this.databox) {
+      const databoxEl = this._createDataboxElement(tagName, allAttrs, deferred);
+      return html`${databoxEl}`;
+    }
     const wrapper = this._createChartElement(tagName, allAttrs, deferred);
-
-    // Replace previous chart wrapper if any
-    const container = this.querySelector('.dsfr-data-chart__wrapper');
-    if (container) container.remove();
-
     return html`${wrapper}`;
   }
 

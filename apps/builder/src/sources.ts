@@ -386,6 +386,30 @@ export function loadFavoriteState(): void {
     const a11yDescEl = document.getElementById('a11y-description') as HTMLTextAreaElement | null;
     if (a11yDescEl) a11yDescEl.value = state.a11yDescription || '';
 
+    // Restore DataBox toggles
+    const databoxToggle = document.getElementById('databox-toggle') as HTMLInputElement | null;
+    if (databoxToggle) databoxToggle.checked = state.databoxEnabled || false;
+    const databoxOpts = document.getElementById('databox-options') as HTMLElement | null;
+    if (databoxOpts) databoxOpts.style.display = state.databoxEnabled ? 'block' : 'none';
+    const databoxTitleEl = document.getElementById('databox-title') as HTMLInputElement | null;
+    if (databoxTitleEl) databoxTitleEl.value = state.databoxTitle || '';
+    const databoxSourceEl = document.getElementById('databox-source') as HTMLInputElement | null;
+    if (databoxSourceEl) databoxSourceEl.value = state.databoxSource || '';
+    const databoxDateEl = document.getElementById('databox-date') as HTMLInputElement | null;
+    if (databoxDateEl) databoxDateEl.value = state.databoxDate || '';
+    const databoxTrendEl = document.getElementById('databox-trend') as HTMLInputElement | null;
+    if (databoxTrendEl) databoxTrendEl.value = state.databoxTrend || '';
+    const databoxDownloadEl = document.getElementById('databox-download') as HTMLInputElement | null;
+    if (databoxDownloadEl) databoxDownloadEl.checked = state.databoxDownload ?? true;
+    const databoxScreenshotEl = document.getElementById('databox-screenshot') as HTMLInputElement | null;
+    if (databoxScreenshotEl) databoxScreenshotEl.checked = state.databoxScreenshot || false;
+    const databoxFullscreenEl = document.getElementById('databox-fullscreen') as HTMLInputElement | null;
+    if (databoxFullscreenEl) databoxFullscreenEl.checked = state.databoxFullscreen || false;
+    if (state.databoxEnabled) {
+      if (a11yTableEl) (a11yTableEl.closest('.fr-checkbox-group') as HTMLElement | null)!.style.display = 'none';
+      if (a11yDownloadEl) (a11yDownloadEl.closest('.fr-checkbox-group') as HTMLElement | null)!.style.display = 'none';
+    }
+
     // Update fields if available
     if (state.fields && state.fields.length > 0) {
       populateFieldSelects();

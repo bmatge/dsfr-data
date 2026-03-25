@@ -150,6 +150,14 @@ export interface BuilderState {
   a11yTable: boolean;
   a11yDownload: boolean;
   a11yDescription: string;
+  databoxEnabled: boolean;
+  databoxTitle: string;
+  databoxSource: string;
+  databoxDate: string;
+  databoxDownload: boolean;
+  databoxScreenshot: boolean;
+  databoxFullscreen: boolean;
+  databoxTrend: string;
   /** Chart.js instance for preview (not serialized) */
   chartInstance: unknown;
 }
@@ -210,5 +218,13 @@ export const state: BuilderState = {
   a11yTable: true,
   a11yDownload: true,
   a11yDescription: '',
+  databoxEnabled: false,
+  databoxTitle: '',
+  databoxSource: '',
+  databoxDate: '',
+  databoxDownload: true,
+  databoxScreenshot: false,
+  databoxFullscreen: false,
+  databoxTrend: '',
   chartInstance: null,
 };

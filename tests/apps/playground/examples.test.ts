@@ -3,7 +3,8 @@ import { examples } from '../../../apps/playground/src/examples/examples-data';
 
 describe('playground examples', () => {
   const directKeys = [
-    'direct-bar', 'direct-kpi', 'direct-datalist', 'direct-worldmap'
+    'direct-bar', 'direct-bar-databox', 'direct-line-databox',
+    'direct-kpi', 'direct-datalist', 'direct-worldmap'
   ];
 
   const serverPaginateKeys = [
@@ -44,7 +45,11 @@ describe('playground examples', () => {
     'server-facets-display'
   ];
 
-  const allKeys = [...directKeys, ...serverPaginateKeys, ...queryKeys, ...normalizeKeys, ...displayKeys, ...facetsKeys, ...searchKeys, ...serverSideKeys, ...serverFacetsKeys];
+  const joinKeys = [
+    'join-basic', 'join-query'
+  ];
+
+  const allKeys = [...directKeys, ...serverPaginateKeys, ...queryKeys, ...normalizeKeys, ...displayKeys, ...facetsKeys, ...searchKeys, ...serverSideKeys, ...serverFacetsKeys, ...joinKeys];
 
   it('should have all expected example keys', () => {
     for (const key of allKeys) {
@@ -52,8 +57,8 @@ describe('playground examples', () => {
     }
   });
 
-  it('should have 25 examples', () => {
-    expect(Object.keys(examples)).toHaveLength(25);
+  it('should have 29 examples', () => {
+    expect(Object.keys(examples)).toHaveLength(29);
   });
 
   it('should have non-empty code for all examples', () => {
