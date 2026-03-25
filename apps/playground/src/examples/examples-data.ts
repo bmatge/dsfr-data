@@ -52,6 +52,69 @@ export const examples: Record<string, string> = {
   </dsfr-data-chart>
 </div>`,
 
+  'direct-bar-databox': `<!--
+  Barres avec DataBox — Taux de taxe fonciere par commune
+  Mode direct : dsfr-data-source → dsfr-data-chart (bar + databox)
+  Source : Fiscalite locale des particuliers (OpenDataSoft)
+  DataBox ajoute un habillage editorial : titre, source, date, CSV, switch chart/tableau
+-->
+
+<div class="fr-container fr-my-4w">
+  <dsfr-data-source id="data" api-type="opendatasoft"
+    dataset-id="fiscalite-locale-des-particuliers"
+    base-url="https://data.economie.gouv.fr"
+    limit="10">
+  </dsfr-data-source>
+
+  <dsfr-data-chart id="chart" source="data"
+    type="bar"
+    label-field="libcom"
+    value-field="taux_global_tfb"
+    unit-tooltip="%"
+    selected-palette="categorical"
+    databox
+    databox-title="Taux de taxe fonciere par commune"
+    databox-source="data.economie.gouv.fr — Fiscalite locale"
+    databox-date="2024"
+    databox-download>
+  </dsfr-data-chart>
+
+  <!-- Avec DataBox : description seulement (table et CSV fournis par DataBox) -->
+  <dsfr-data-a11y for="chart" source="data"
+    description="Ce graphique montre les taux de taxe fonciere globaux par commune.">
+  </dsfr-data-a11y>
+</div>`,
+
+  'direct-line-databox': `<!--
+  Ligne avec DataBox + screenshot + plein ecran
+  Mode direct : dsfr-data-source → dsfr-data-chart (line + databox)
+  Source : Fiscalite locale des particuliers (OpenDataSoft)
+  Demontre les options screenshot PNG et plein ecran de la DataBox
+-->
+
+<div class="fr-container fr-my-4w">
+  <dsfr-data-source id="data" api-type="opendatasoft"
+    dataset-id="fiscalite-locale-des-particuliers"
+    base-url="https://data.economie.gouv.fr"
+    limit="15">
+  </dsfr-data-source>
+
+  <dsfr-data-chart id="chart" source="data"
+    type="line"
+    label-field="libcom"
+    value-field="taux_global_tfb"
+    unit-tooltip="%"
+    selected-palette="default"
+    databox
+    databox-title="Evolution du taux de taxe fonciere"
+    databox-source="data.economie.gouv.fr"
+    databox-date="2024"
+    databox-download
+    databox-screenshot
+    databox-fullscreen>
+  </dsfr-data-chart>
+</div>`,
+
   'direct-kpi': `<!--
   KPI — Indicateurs cles Industrie du futur
   Mode direct : dsfr-data-source → dsfr-data-kpi (x4)
@@ -1210,34 +1273,35 @@ export const examples: Record<string, string> = {
   // =====================================================================
 
   'join-basic': `<!--
-  Jointure — Budget par region (left join)
+  Jointure — Population vs Budget (left join, 2 series)
   Mode jointure : dsfr-data-source x2 → dsfr-data-join → dsfr-data-chart
-  Donnees locales (inline) pour illustration
+  Le graphique affiche 2 series provenant chacune d'une source differente
 -->
 
 <div class="fr-container fr-my-4w">
-  <h2>Budget par region</h2>
+  <h2>Population vs Budget par region</h2>
   <p class="fr-text--sm fr-text--light">
-    Jointure gauche entre un dataset de population et un dataset de budgets
+    Deux sources independantes croisees par <code>dsfr-data-join</code> sur le code region.
+    Le graphique affiche deux series : <strong>population</strong> (source A) et <strong>budget</strong> (source B).
   </p>
 
-  <!-- Source A : population par region -->
+  <!-- Source A : population (en milliers) -->
   <dsfr-data-source id="pop"
     data='[
-      {"code":"75","region":"Ile-de-France","population":12262544},
-      {"code":"13","region":"PACA","population":5098520},
-      {"code":"35","region":"Bretagne","population":3394567},
-      {"code":"14","region":"Normandie","population":3303500}
+      {"code":"75","region":"Ile-de-France","population":12263},
+      {"code":"13","region":"PACA","population":5099},
+      {"code":"35","region":"Bretagne","population":3395},
+      {"code":"14","region":"Normandie","population":3304}
     ]'>
   </dsfr-data-source>
 
-  <!-- Source B : budget par region -->
+  <!-- Source B : budget (en M EUR) — meme echelle pour lisibilite -->
   <dsfr-data-source id="budget"
     data='[
-      {"code":"75","budget":5200,"pib":710},
-      {"code":"13","budget":2100,"pib":165},
-      {"code":"35","budget":1500,"pib":100},
-      {"code":"14","budget":1400,"pib":90}
+      {"code":"75","budget":5200},
+      {"code":"13","budget":2100},
+      {"code":"35","budget":1500},
+      {"code":"14","budget":1400}
     ]'>
   </dsfr-data-source>
 
@@ -1247,86 +1311,90 @@ export const examples: Record<string, string> = {
     on="code" type="left">
   </dsfr-data-join>
 
-  <!-- Graphique sur les donnees jointes -->
+  <!-- Graphique 2 series : population (source A) + budget (source B) -->
   <dsfr-data-chart source="enriched"
     type="bar"
     label-field="region"
-    value-field="budget"
-    unit-tooltip="M EUR"
-    selected-palette="categorical">
+    value-field="population"
+    value-fields="budget"
+    title="Population (milliers) vs Budget (M EUR) par region">
   </dsfr-data-chart>
 
   <dsfr-data-a11y for="enriched-chart" source="enriched" table></dsfr-data-a11y>
 
   <div class="fr-callout fr-mt-4w">
     <p class="fr-callout__text">
-      <strong>dsfr-data-join</strong> : composant invisible qui croise deux sources de donnees
-      sur une cle pivot (<code>on="code"</code>). Le <code>type="left"</code> conserve toutes
-      les lignes de la source gauche meme sans correspondance a droite.
+      <strong>L'interet de la jointure</strong> : les donnees de population et de budget viennent
+      de deux sources separees. <code>dsfr-data-join on="code"</code> les fusionne en un seul
+      dataset, ce qui permet d'afficher les deux series cote a cote avec
+      <code>value-field="population" value-fields="budget"</code>.
     </p>
   </div>
 </div>`,
 
   'join-query': `<!--
-  Jointure + tri — Investissement par region (inner join)
+  Jointure + query — Recettes vs Depenses (inner join + tri, 2 series)
   Mode jointure : dsfr-data-source x2 → dsfr-data-join → dsfr-data-query → dsfr-data-chart
-  Donnees locales (inline) pour illustration
+  Le graphique compare deux series issues de sources differentes
 -->
 
 <div class="fr-container fr-my-4w">
-  <h2>Investissement par region (inner join + tri)</h2>
+  <h2>Recettes vs Depenses par region</h2>
   <p class="fr-text--sm fr-text--light">
-    Inner join : seules les regions presentes dans les deux sources sont affichees
+    Inner join + tri : les recettes (source A) et les depenses (source B) sont croisees puis triees.
+    La Normandie n'a pas de donnees de depenses → elle est exclue par l'inner join.
   </p>
 
-  <!-- Source A : 5 regions -->
-  <dsfr-data-source id="pop"
+  <!-- Source A : recettes par region (5 regions) -->
+  <dsfr-data-source id="recettes"
     data='[
-      {"code":"75","region":"Ile-de-France","population":12262544},
-      {"code":"13","region":"PACA","population":5098520},
-      {"code":"35","region":"Bretagne","population":3394567},
-      {"code":"14","region":"Normandie","population":3303500},
-      {"code":"44","region":"Pays de la Loire","population":3838200}
+      {"code":"75","region":"Ile-de-France","recettes":8500},
+      {"code":"13","region":"PACA","recettes":3200},
+      {"code":"35","region":"Bretagne","recettes":2100},
+      {"code":"14","region":"Normandie","recettes":1800},
+      {"code":"44","region":"Pays de la Loire","recettes":2800}
     ]'>
   </dsfr-data-source>
 
-  <!-- Source B : 4 regions (pas de Normandie) -->
-  <dsfr-data-source id="invest"
+  <!-- Source B : depenses par region (4 regions, pas de Normandie) -->
+  <dsfr-data-source id="depenses"
     data='[
-      {"code":"75","investissement":8500},
-      {"code":"13","investissement":3200},
-      {"code":"35","investissement":2100},
-      {"code":"44","investissement":2800}
+      {"code":"75","depenses":7200},
+      {"code":"13","depenses":3500},
+      {"code":"35","depenses":1900},
+      {"code":"44","depenses":2600}
     ]'>
   </dsfr-data-source>
 
   <!-- Inner join : seules les 4 regions communes -->
   <dsfr-data-join id="merged"
-    left="pop" right="invest"
+    left="recettes" right="depenses"
     on="code" type="inner">
   </dsfr-data-join>
 
-  <!-- Tri par investissement decroissant -->
+  <!-- Tri par recettes decroissantes -->
   <dsfr-data-query id="sorted"
     source="merged"
-    order-by="investissement:desc">
+    order-by="recettes:desc">
   </dsfr-data-query>
 
+  <!-- 2 series : recettes (source A) vs depenses (source B) -->
   <dsfr-data-chart source="sorted"
     type="bar"
     label-field="region"
-    value-field="investissement"
-    unit-tooltip="M EUR"
-    selected-palette="categorical">
+    value-field="recettes"
+    value-fields="depenses"
+    title="Recettes vs Depenses (M EUR)">
   </dsfr-data-chart>
 
   <dsfr-data-a11y for="sorted-chart" source="sorted" table></dsfr-data-a11y>
 
   <div class="fr-callout fr-mt-4w">
     <p class="fr-callout__text">
-      <strong>Pipeline complet :</strong> deux sources → <code>dsfr-data-join</code> (inner join sur <code>code</code>)
-      → <code>dsfr-data-query</code> (tri par investissement decroissant) → graphique.
-      La Normandie (code 14) n'apparait pas car elle n'a pas de correspondance dans la source investissement.
+      <strong>Pipeline complet :</strong> deux sources → <code>dsfr-data-join type="inner"</code>
+      (exclut la Normandie absente de la source depenses) →
+      <code>dsfr-data-query order-by="recettes:desc"</code> → graphique 2 series.
+      Sans la jointure, il serait impossible de comparer recettes et depenses sur un meme graphique.
     </p>
   </div>
 </div>`,

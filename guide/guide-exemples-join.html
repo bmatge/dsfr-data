@@ -62,20 +62,20 @@
           </p>
         </div>
 
-        <!-- Exemple 1 : jointure avec donnees inline -->
-        <h2 id="join-basic">Jointure de base — donnees locales</h2>
-        <p>Deux sources de donnees inline jointes sur le champ <code>code</code>.
-          Le resultat enrichi est affiche dans un graphique en barres.
+        <!-- Exemple 1 : left join, 2 series -->
+        <h2 id="join-basic">Population vs Budget — left join, 2 series</h2>
+        <p>Deux sources croisees sur <code>code</code>. Le graphique affiche deux series :
+          <strong>population</strong> (source A) et <strong>budget</strong> (source B) cote a cote.
           <a href="../apps/playground/index.html?example=join-basic" class="fr-link fr-link--sm">Tester dans le Playground</a>
         </p>
 
         <div class="example-container">
           <dsfr-data-source id="join-pop"
-            data='[{"code":"75","region":"Ile-de-France","population":12262544},{"code":"13","region":"Provence-Alpes-Cote d Azur","population":5098520},{"code":"35","region":"Bretagne","population":3394567},{"code":"14","region":"Normandie","population":3303500}]'>
+            data='[{"code":"75","region":"Ile-de-France","population":12263},{"code":"13","region":"PACA","population":5099},{"code":"35","region":"Bretagne","population":3395},{"code":"14","region":"Normandie","population":3304}]'>
           </dsfr-data-source>
 
           <dsfr-data-source id="join-budget"
-            data='[{"code":"75","budget":5200,"pib":710},{"code":"13","budget":2100,"pib":165},{"code":"35","budget":1500,"pib":100},{"code":"14","budget":1400,"pib":90}]'>
+            data='[{"code":"75","budget":5200},{"code":"13","budget":2100},{"code":"35","budget":1500},{"code":"14","budget":1400}]'>
           </dsfr-data-source>
 
           <dsfr-data-join id="join-enriched"
@@ -84,8 +84,10 @@
           </dsfr-data-join>
 
           <dsfr-data-chart source="join-enriched" type="bar"
-            label-field="region" value-field="budget"
-            title="Budget par region (M EUR)">
+            label-field="region"
+            value-field="population"
+            value-fields="budget"
+            title="Population (milliers) vs Budget (M EUR)">
           </dsfr-data-chart>
 
           <dsfr-data-a11y for="join-chart-basic" source="join-enriched" table></dsfr-data-a11y>
@@ -94,23 +96,23 @@
         <section class="fr-accordion fr-mt-1w">
           <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-join-basic">Code source</button></h3>
           <div class="fr-collapse" id="code-join-basic">
-<pre class="example-code">&lt;!-- Source A : population par region --&gt;
+<pre class="example-code">&lt;!-- Source A : population (en milliers) --&gt;
 &lt;dsfr-data-source id="pop"
   data='[
-    {"code":"75","region":"Ile-de-France","population":12262544},
-    {"code":"13","region":"Provence-Alpes-Cote d Azur","population":5098520},
-    {"code":"35","region":"Bretagne","population":3394567},
-    {"code":"14","region":"Normandie","population":3303500}
+    {"code":"75","region":"Ile-de-France","population":12263},
+    {"code":"13","region":"PACA","population":5099},
+    {"code":"35","region":"Bretagne","population":3395},
+    {"code":"14","region":"Normandie","population":3304}
   ]'&gt;
 &lt;/dsfr-data-source&gt;
 
-&lt;!-- Source B : budget par region --&gt;
+&lt;!-- Source B : budget (en M EUR) --&gt;
 &lt;dsfr-data-source id="budget"
   data='[
-    {"code":"75","budget":5200,"pib":710},
-    {"code":"13","budget":2100,"pib":165},
-    {"code":"35","budget":1500,"pib":100},
-    {"code":"14","budget":1400,"pib":90}
+    {"code":"75","budget":5200},
+    {"code":"13","budget":2100},
+    {"code":"35","budget":1500},
+    {"code":"14","budget":1400}
   ]'&gt;
 &lt;/dsfr-data-source&gt;
 
@@ -120,85 +122,92 @@
   on="code" type="left"&gt;
 &lt;/dsfr-data-join&gt;
 
-&lt;!-- Graphique sur les donnees jointes --&gt;
+&lt;!-- 2 series : population (source A) + budget (source B) --&gt;
 &lt;dsfr-data-chart source="enriched" type="bar"
-  label-field="region" value-field="budget"
-  title="Budget par region (M EUR)"&gt;
+  label-field="region"
+  value-field="population"
+  value-fields="budget"
+  title="Population (milliers) vs Budget (M EUR)"&gt;
 &lt;/dsfr-data-chart&gt;</pre>
           </div>
         </section>
 
-        <!-- Exemple 2 : inner join + query -->
-        <h2 id="join-query">Jointure + transformation — inner join avec agregation</h2>
-        <p>Inner join suivi d'un <code>dsfr-data-query</code> pour trier le resultat.
-          Seules les regions presentes dans les deux sources sont conservees.
+        <!-- Exemple 2 : inner join + query, 2 series -->
+        <h2 id="join-query">Recettes vs Depenses — inner join + tri</h2>
+        <p>Inner join suivi d'un tri. Deux series comparees cote a cote.
+          La Normandie est exclue car absente de la source depenses.
           <a href="../apps/playground/index.html?example=join-query" class="fr-link fr-link--sm">Tester dans le Playground</a>
         </p>
 
         <div class="example-container">
-          <dsfr-data-source id="join2-pop"
-            data='[{"code":"75","region":"Ile-de-France","population":12262544},{"code":"13","region":"PACA","population":5098520},{"code":"35","region":"Bretagne","population":3394567},{"code":"14","region":"Normandie","population":3303500},{"code":"44","region":"Pays de la Loire","population":3838200}]'>
+          <dsfr-data-source id="join2-recettes"
+            data='[{"code":"75","region":"Ile-de-France","recettes":8500},{"code":"13","region":"PACA","recettes":3200},{"code":"35","region":"Bretagne","recettes":2100},{"code":"14","region":"Normandie","recettes":1800},{"code":"44","region":"Pays de la Loire","recettes":2800}]'>
           </dsfr-data-source>
 
-          <dsfr-data-source id="join2-invest"
-            data='[{"code":"75","investissement":8500},{"code":"13","investissement":3200},{"code":"35","investissement":2100},{"code":"44","investissement":2800}]'>
+          <dsfr-data-source id="join2-depenses"
+            data='[{"code":"75","depenses":7200},{"code":"13","depenses":3500},{"code":"35","depenses":1900},{"code":"44","depenses":2600}]'>
           </dsfr-data-source>
 
           <dsfr-data-join id="join2-merged"
-            left="join2-pop" right="join2-invest"
+            left="join2-recettes" right="join2-depenses"
             on="code" type="inner">
           </dsfr-data-join>
 
           <dsfr-data-query id="join2-sorted"
             source="join2-merged"
-            order-by="investissement:desc">
+            order-by="recettes:desc">
           </dsfr-data-query>
 
           <dsfr-data-chart source="join2-sorted" type="bar"
-            label-field="region" value-field="investissement"
-            title="Investissement par region (inner join, tri desc)">
+            label-field="region"
+            value-field="recettes"
+            value-fields="depenses"
+            title="Recettes vs Depenses (M EUR)">
           </dsfr-data-chart>
         </div>
 
         <section class="fr-accordion fr-mt-1w">
           <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-join-query">Code source</button></h3>
           <div class="fr-collapse" id="code-join-query">
-<pre class="example-code">&lt;!-- Source A : 5 regions --&gt;
-&lt;dsfr-data-source id="pop"
+<pre class="example-code">&lt;!-- Source A : recettes (5 regions) --&gt;
+&lt;dsfr-data-source id="recettes"
   data='[
-    {"code":"75","region":"Ile-de-France","population":12262544},
-    {"code":"13","region":"PACA","population":5098520},
-    {"code":"35","region":"Bretagne","population":3394567},
-    {"code":"14","region":"Normandie","population":3303500},
-    {"code":"44","region":"Pays de la Loire","population":3838200}
+    {"code":"75","region":"Ile-de-France","recettes":8500},
+    {"code":"13","region":"PACA","recettes":3200},
+    {"code":"35","region":"Bretagne","recettes":2100},
+    {"code":"14","region":"Normandie","recettes":1800},
+    {"code":"44","region":"Pays de la Loire","recettes":2800}
   ]'&gt;
 &lt;/dsfr-data-source&gt;
 
-&lt;!-- Source B : 4 regions (pas de Normandie) --&gt;
-&lt;dsfr-data-source id="invest"
+&lt;!-- Source B : depenses (4 regions, pas de Normandie) --&gt;
+&lt;dsfr-data-source id="depenses"
   data='[
-    {"code":"75","investissement":8500},
-    {"code":"13","investissement":3200},
-    {"code":"35","investissement":2100},
-    {"code":"44","investissement":2800}
+    {"code":"75","depenses":7200},
+    {"code":"13","depenses":3500},
+    {"code":"35","depenses":1900},
+    {"code":"44","depenses":2600}
   ]'&gt;
 &lt;/dsfr-data-source&gt;
 
-&lt;!-- Inner join : seules les 4 regions communes --&gt;
+&lt;!-- Inner join : exclut la Normandie --&gt;
 &lt;dsfr-data-join id="merged"
-  left="pop" right="invest"
+  left="recettes" right="depenses"
   on="code" type="inner"&gt;
 &lt;/dsfr-data-join&gt;
 
-&lt;!-- Tri par investissement decroissant --&gt;
+&lt;!-- Tri par recettes decroissantes --&gt;
 &lt;dsfr-data-query id="sorted"
   source="merged"
-  order-by="investissement:desc"&gt;
+  order-by="recettes:desc"&gt;
 &lt;/dsfr-data-query&gt;
 
+&lt;!-- 2 series : recettes vs depenses --&gt;
 &lt;dsfr-data-chart source="sorted" type="bar"
-  label-field="region" value-field="investissement"
-  title="Investissement par region"&gt;
+  label-field="region"
+  value-field="recettes"
+  value-fields="depenses"
+  title="Recettes vs Depenses (M EUR)"&gt;
 &lt;/dsfr-data-chart&gt;</pre>
           </div>
         </section>
