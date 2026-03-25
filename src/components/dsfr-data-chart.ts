@@ -440,8 +440,10 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     // Create the DataBox element
     const databoxEl = document.createElement('data-box');
     databoxEl.id = databoxId;
-    // No segmented-control: DataBox's native chart/table toggle requires static
-    // HTML parsed by Vue. dsfr-data-a11y provides the data table instead.
+    // segmented-control is needed even without a table element: DataBox only
+    // creates the Teleport target containers when segmented-control is set.
+    // Without it, the chart's Vue <Teleport> has no target and renders outside.
+    databoxEl.setAttribute('segmented-control', '');
     // title, source, date are REQUIRED props for DataBox — always set them.
     databoxEl.setAttribute('title', this.databoxTitle || ' ');
     databoxEl.setAttribute('source', this.databoxSource || ' ');

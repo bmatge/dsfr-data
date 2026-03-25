@@ -556,8 +556,8 @@ describe('DsfrDataChart', () => {
       const chartEl = wrapper.querySelector('bar-chart');
       expect(db).toBeTruthy();
       expect(db.getAttribute('title')).toBe('Mon titre');
-      // No segmented-control (incompatible with async data, a11y provides table)
-      expect(db.hasAttribute('segmented-control')).toBe(false);
+      // segmented-control is required for DataBox to create Teleport targets
+      expect(db.hasAttribute('segmented-control')).toBe(true);
       // DataBox must be before chart for Vue Teleport to work
       const children = [...wrapper.children];
       expect(children.indexOf(db)).toBeLessThan(children.indexOf(chartEl));
