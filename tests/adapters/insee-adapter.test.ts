@@ -69,6 +69,7 @@ describe('InseeAdapter', () => {
       serverSearch: false,
       serverGroupBy: false,
       serverOrderBy: false,
+      serverGeo: false,
       whereFormat: 'colon',
     });
   });

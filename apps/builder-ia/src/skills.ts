@@ -2069,6 +2069,187 @@ Chargé via le bundle \`dsfr-data.world-map.esm.js\` (séparé du core).
   },
 
   // ---------------------------------------------------------------------------
+  // dsfr-data-map + dsfr-data-map-layer
+  // ---------------------------------------------------------------------------
+
+  dsfrDataMap: {
+    id: 'dsfrDataMap',
+    name: 'dsfr-data-map',
+    description: 'Carte interactive Leaflet multi-couches avec POI, geoshape, cercles, clustering et chargement par viewport',
+    trigger: ['carte', 'map', 'leaflet', 'poi', 'marker', 'geoshape', 'geojson', 'clustering', 'bbox', 'viewport', 'tuiles', 'ign', 'geoplateforme', 'cercles proportionnels', 'heatmap', 'carte interactive', 'geo_point', 'geo_shape', 'choropleth carte', 'map layer'],
+    content: `## dsfr-data-map + dsfr-data-map-layer — Carte interactive multi-couches
+
+Deux composants complementaires :
+- \`dsfr-data-map\` : conteneur carte (init Leaflet, tuiles, viewport). **Ne consomme pas de donnees.**
+- \`dsfr-data-map-layer\` : couche de donnees (markers, geoshape, circle, heatmap). Utilise \`SourceSubscriberMixin\`.
+
+Cela permet le **multi-source** naturellement : chaque layer a sa propre source.
+
+### Chargement du bundle
+
+\`\`\`html
+<script src="\${'${LIB_URL}'}/dsfr-data.map.umd.js"></script>
+\`\`\`
+
+Ou via le bundle complet \`dsfr-data.esm.js\` / \`dsfr-data.umd.js\`.
+Leaflet est charge dynamiquement (pas inclus dans le bundle).
+
+### Attributs dsfr-data-map (conteneur)
+
+| Attribut | Type | Defaut | Description |
+|----------|------|--------|-------------|
+| center | String | \`"46.603,2.888"\` | Centre initial \`"lat,lon"\` |
+| zoom | Number | \`6\` | Zoom initial (1-18) |
+| min-zoom | Number | \`2\` | Zoom minimum |
+| max-zoom | Number | \`18\` | Zoom maximum |
+| height | String | \`"500px"\` | Hauteur CSS |
+| tiles | String | \`"ign-plan"\` | Fond de carte : \`ign-plan\`, \`ign-ortho\`, \`ign-cadastre\`, \`osm\`, ou URL template |
+| no-controls | Boolean | \`false\` | Masque les controles de zoom |
+| fit-bounds | Boolean | \`false\` | Ajuste le viewport aux donnees |
+| max-bounds | String | \`""\` | Limites \`"latSW,lonSW,latNE,lonNE"\` |
+| name | String | \`""\` | Titre (aria-label) |
+
+### Attributs dsfr-data-map-layer (couche)
+
+| Attribut | Type | Defaut | Description |
+|----------|------|--------|-------------|
+| source | String | \`""\` | ID de la source (requis) |
+| type | String | \`"marker"\` | \`marker\`, \`geoshape\`, \`circle\`, \`heatmap\` |
+| lat-field | String | \`""\` | Chemin vers latitude |
+| lon-field | String | \`""\` | Chemin vers longitude |
+| geo-field | String | \`""\` | Chemin vers GeoJSON (Point, Polygon) |
+| popup-template | String | \`""\` | Template : \`"{nom} — {val} kW"\` |
+| popup-fields | String | \`""\` | Champs pour tableau auto : \`"nom,adresse"\` |
+| tooltip-field | String | \`""\` | Champ affiche au survol |
+| color | String | \`"#000091"\` | Couleur (DSFR blue-france) |
+| fill-field | String | \`""\` | Champ numerique pour choropleth |
+| fill-opacity | Number | \`0.6\` | Opacite remplissage |
+| selected-palette | String | \`""\` | Palette choropleth |
+| radius | Number | \`8\` | Rayon fixe (circle) |
+| radius-field | String | \`""\` | Champ rayon variable |
+| radius-unit | String | \`"px"\` | \`px\` ou \`m\` |
+| radius-min | Number | \`4\` | Rayon min auto-scaling (px) |
+| radius-max | Number | \`30\` | Rayon max auto-scaling (px) |
+| heat-radius | Number | \`25\` | Rayon heatmap (px) |
+| heat-blur | Number | \`15\` | Flou heatmap (px) |
+| heat-field | String | \`""\` | Champ ponderation heatmap |
+| cluster | Boolean | \`false\` | Active le clustering |
+| cluster-radius | Number | \`80\` | Rayon clustering pixels |
+| min-zoom | Number | \`0\` | Zoom min pour cette couche |
+| max-zoom | Number | \`18\` | Zoom max pour cette couche |
+| bbox | Boolean | \`false\` | Chargement par viewport |
+| bbox-debounce | Number | \`300\` | Delai re-fetch (ms) |
+| bbox-field | String | \`""\` | Champ geo pour bbox (auto-detecte si vide) |
+| max-items | Number | \`5000\` | Limite elements rendus |
+| filter | String | \`""\` | Filtre client-side |
+
+### Resolution des coordonnees (3 modes)
+
+1. \`lat-field\` + \`lon-field\` : coordonnees separees
+2. \`geo-field\` vers GeoJSON Point : \`{ type: "Point", coordinates: [lon, lat] }\`
+3. \`geo-field\` vers ODS : \`{ lat: N, lon: N }\`
+4. Auto-detection : cherche \`geo_point_2d\`, \`geo_shape\`, \`geometry\`
+
+### Fonds de carte predefinis (sans cle API)
+
+- \`ign-plan\` : Plan IGN (Geoplateforme)
+- \`ign-ortho\` : Vue aerienne IGN
+- \`ign-topo\` : Carte topographique IGN (SCAN 25/100)
+- \`ign-cadastre\` : Parcelles cadastrales IGN
+- \`osm\` : OpenStreetMap France
+
+### Exemple : POI avec clustering
+
+\`\`\`html
+<dsfr-data-source id="bornes" api-type="opendatasoft"
+  base-url="https://odre.opendatasoft.com" dataset-id="bornes-irve"
+  select="geo_point_2d,nom_station,puissance_nominale"
+  limit="5000">
+</dsfr-data-source>
+
+<dsfr-data-map center="46.6,2.3" zoom="6" tiles="ign-plan" fit-bounds>
+  <dsfr-data-map-layer source="bornes" type="marker"
+    geo-field="geo_point_2d"
+    popup-fields="nom_station,puissance_nominale"
+    tooltip-field="nom_station"
+    cluster cluster-radius="60">
+  </dsfr-data-map-layer>
+</dsfr-data-map>
+\`\`\`
+
+### Exemple : cercles proportionnels
+
+\`\`\`html
+<dsfr-data-map center="46.6,2.3" zoom="6">
+  <dsfr-data-map-layer source="villes" type="circle"
+    lat-field="latitude" lon-field="longitude"
+    radius-field="population" radius-unit="px"
+    color="#000091" fill-opacity="0.4"
+    popup-fields="nom,population"
+    tooltip-field="nom">
+  </dsfr-data-map-layer>
+</dsfr-data-map>
+\`\`\`
+
+### Exemple : multi-couches geoshape + POI
+
+\`\`\`html
+<dsfr-data-map center="46.6,2.3" zoom="6" tiles="ign-plan">
+  <dsfr-data-map-layer source="departements" type="geoshape"
+    geo-field="geo_shape" fill-field="population"
+    selected-palette="sequentialAscending" fill-opacity="0.5"
+    popup-template="<b>{nom}</b><br>Population : {population}">
+  </dsfr-data-map-layer>
+  <dsfr-data-map-layer source="prefectures" type="marker"
+    geo-field="geo_point_2d"
+    tooltip-field="nom" color="#C9191E">
+  </dsfr-data-map-layer>
+</dsfr-data-map>
+\`\`\`
+
+### dsfr-data-map-popup — Affichage au clic
+
+Composant compagnon optionnel qui definit un template et un mode d'affichage pour le clic sur un element.
+
+| Attribut | Type | Defaut | Description |
+|----------|------|--------|-------------|
+| mode | String | \`"popup"\` | \`popup\`, \`modal\`, \`panel-right\`, \`panel-left\` |
+| title-field | String | \`""\` | Champ pour le titre panneau/modale |
+| width | String | \`"350px"\` | Largeur du panneau lateral |
+| for | String | \`""\` | ID du layer cible (vide = tous) |
+
+Template avec \`<template>\` et interpolation \`{{champ}}\`. Sans template, tableau auto.
+
+\`\`\`html
+<dsfr-data-map-popup mode="panel-right" title-field="nom" width="380px">
+  <template>
+    <h4>{{nom}}</h4>
+    <p>{{adresse}}, {{code_postal}} {{commune}}</p>
+    <p class="fr-text--bold">{{prix}} EUR</p>
+  </template>
+</dsfr-data-map-popup>
+\`\`\`
+
+### Exemple : zoom ranges (multi-resolution)
+
+\`\`\`html
+<dsfr-data-map center="46.6,2.3" zoom="6" height="600px">
+  <!-- Zoom 1-9 : regions -->
+  <dsfr-data-map-layer source="regions" type="geoshape"
+    geo-field="geo_shape" fill-field="population"
+    min-zoom="1" max-zoom="9">
+  </dsfr-data-map-layer>
+  <!-- Zoom 10+ : communes viewport -->
+  <dsfr-data-map-layer source="communes" type="geoshape"
+    geo-field="geo_shape" fill-field="population"
+    min-zoom="10" bbox>
+  </dsfr-data-map-layer>
+</dsfr-data-map>
+\`\`\`
+`,
+  },
+
+  // ---------------------------------------------------------------------------
   // Troubleshooting et pieges courants
   // ---------------------------------------------------------------------------
 

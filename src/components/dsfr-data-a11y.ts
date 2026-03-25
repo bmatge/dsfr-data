@@ -252,7 +252,11 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
   private _getAutoDescription(hasData: boolean, data: unknown): string {
     if (!hasData) return 'Aucune donnee disponible.';
     const count = (data as unknown[]).length;
-    const parts: string[] = [`Donnees du graphique : ${count} lignes.`];
+    // Detect if target is a map component
+    const target = this.for ? document.getElementById(this.for) : null;
+    const isMap = target?.tagName?.toLowerCase() === 'dsfr-data-map';
+    const label = isMap ? 'Donnees de la carte' : 'Donnees du graphique';
+    const parts: string[] = [`${label} : ${count} lignes.`];
     if (this.description) parts.push(this.description);
     if (this._showDownload) parts.push('Telechargement CSV disponible.');
     if (this._showTable) parts.push('Tableau de donnees disponible.');
@@ -299,7 +303,10 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
             ${this._showTable && hasData ? html`
               <div class="fr-table fr-mb-2w" id="${tableId}">
                 <table>
-                  <caption class="dsfr-data-a11y__sr-only">Donnees du graphique</caption>
+                  <caption class="dsfr-data-a11y__sr-only">${(() => {
+                    const t = this.for ? document.getElementById(this.for) : null;
+                    return t?.tagName?.toLowerCase() === 'dsfr-data-map' ? 'Donnees de la carte' : 'Donnees du graphique';
+                  })()}</caption>
                   <thead>
                     <tr>
                       ${columns.map(col => html`<th scope="col">${col}</th>`)}

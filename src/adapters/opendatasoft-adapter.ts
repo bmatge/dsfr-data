@@ -38,6 +38,7 @@ export class OpenDataSoftAdapter implements ApiAdapter {
     serverSearch: true,
     serverGroupBy: true,
     serverOrderBy: true,
+    serverGeo: true,
     whereFormat: 'odsql',
   };
 

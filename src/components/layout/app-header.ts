@@ -121,6 +121,7 @@ export class AppHeader extends LitElement {
       { id: 'sources', label: 'Sources', href: 'apps/sources/index.html' },
       { id: 'builder', label: 'Builder', href: 'apps/builder/index.html' },
       { id: 'builder-ia', label: 'Builder IA', href: 'apps/builder-ia/index.html' },
+      { id: 'builder-carto', label: 'Cartes', href: 'apps/builder-carto/index.html' },
       { id: 'playground', label: 'Playground', href: 'apps/playground/index.html' },
       { id: 'dashboard', label: 'Dashboard', href: 'apps/dashboard/index.html' },
       { id: 'monitoring', label: 'Monitoring', href: 'apps/monitoring/index.html' },

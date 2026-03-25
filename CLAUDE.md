@@ -93,6 +93,13 @@ dsfr-data-source  ──[fetch via adapter]──[paginate]──[cache]──�
   dsfr-data-source (A) ──┐
                          ├──► dsfr-data-join ──► dsfr-data-query ──► dsfr-data-chart
   dsfr-data-source (B) ──┘
+
+  Pipeline carte interactive (multi-couches, multi-sources) :
+
+  dsfr-data-source (A) ──► dsfr-data-map-layer (type="geoshape") ──┐
+  dsfr-data-source (B) ──► dsfr-data-map-layer (type="marker")  ──┼──► dsfr-data-map
+  dsfr-data-source (C) ──► dsfr-data-map-layer (type="heatmap") ──┘     │
+                                                                         └──► dsfr-data-a11y
 ```
 
 **Regles** :
@@ -101,6 +108,9 @@ dsfr-data-source  ──[fetch via adapter]──[paginate]──[cache]──�
 - **dsfr-data-join** est un pur transformateur multi-sources. Il joint deux sources sur une cle pivot (inner, left, right, full). Il ne fait aucun fetch HTTP.
 - Les commandes (page, where, orderBy) remontent vers dsfr-data-source via `dsfr-data-source-command`.
 - dsfr-data-facets et dsfr-data-search delegent la construction des WHERE clauses aux adapters.
+- **dsfr-data-map** est le conteneur carte Leaflet. Il ne consomme pas de donnees. Ce sont les **dsfr-data-map-layer** enfants qui utilisent `SourceSubscriberMixin`.
+- **dsfr-data-map-layer** projete les donnees sur la carte (marker, geoshape, circle, heatmap). Chaque layer a sa propre source → multi-source naturel.
+- Le viewport-driven fetch (`bbox`) envoie des commandes `dsfr-data-source-command` avec `whereKey: "map-bbox"` pour le merge avec les autres filtres.
 
 ### Pattern HTML
 
@@ -145,6 +155,7 @@ Pour les cas sans transformation (datalist, display), dsfr-data-query peut etre 
 | serverSearch | oui | non | non | non | non |
 | serverGroupBy | oui | oui | oui | non | non |
 | serverOrderBy | oui | oui | oui | non | non |
+| serverGeo | oui | non | non | non | non |
 | whereFormat | odsql | colon | colon | colon | odsql |
 
 **Formats WHERE** :
@@ -264,16 +275,18 @@ Le workflow `.github/workflows/release.yml` build automatiquement sur macOS (ARM
 
 ## Bundles de la bibliotheque
 
-Le build (`scripts/build-lib.ts`) produit 3 bundles dans `dist/` :
+Le build (`scripts/build-lib.ts`) produit 4 bundles dans `dist/` :
 
 | Bundle | Contenu | Taille gzip |
 |--------|---------|-------------|
-| `dsfr-data.core.{esm,umd}.js` | Tous composants sauf `dsfr-data-world-map` | ~52 Ko |
+| `dsfr-data.core.{esm,umd}.js` | Tous composants sauf `dsfr-data-world-map` et `dsfr-data-map` | ~52 Ko |
 | `dsfr-data.world-map.{esm,umd}.js` | `dsfr-data-world-map` (d3-geo, topojson) | ~30 Ko |
-| `dsfr-data.{esm,umd}.js` | Tout-en-un | ~70 Ko |
+| `dsfr-data.map.{esm,umd}.js` | `dsfr-data-map` + `dsfr-data-map-layer` (Leaflet charge dynamiquement) | ~15 Ko |
+| `dsfr-data.{esm,umd}.js` | Tout-en-un | ~80 Ko |
 
 Le code genere par les builders et le playground utilise le **core** bundle par defaut.
 Le TopoJSON (`dist/data/world-countries-110m.json`) est charge par fetch a l'execution.
+Leaflet (~40 Ko gzip) et leaflet.markercluster (~5 Ko) sont charges dynamiquement via `import()` — pas inclus dans les bundles.
 Publication npm : `npm publish` via workflow GitHub Actions sur tag `v*`.
 
 ## Beacon de tracking

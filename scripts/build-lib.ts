@@ -76,7 +76,15 @@ await buildBundle(
   ['es', 'umd'],
 );
 
-// 4. Copy TopoJSON to dist/data/ for runtime fetch
+// 4. Map add-on (Leaflet carte interactive — loaded as module complement)
+await buildBundle(
+  resolve(root, 'src/index-map.ts'),
+  'DsfrDataMap',
+  (fmt) => `dsfr-data.map.${fmt === 'es' ? 'esm' : fmt}.js`,
+  ['es', 'umd'],
+);
+
+// 5. Copy TopoJSON to dist/data/ for runtime fetch
 mkdirSync(resolve(root, 'dist/data'), { recursive: true });
 cpSync(
   resolve(root, 'src/data/world-countries-110m.json'),

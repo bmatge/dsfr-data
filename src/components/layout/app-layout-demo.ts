@@ -125,6 +125,7 @@ export class AppLayoutDemo extends LitElement {
           { id: 'components/dsfr-data-list', label: 'dsfr-data-list', href: 'components/dsfr-data-list.html' },
           { id: 'components/dsfr-data-display', label: 'dsfr-data-display', href: 'components/dsfr-data-display.html' },
           { id: 'components/dsfr-data-world-map', label: 'dsfr-data-world-map', href: 'components/dsfr-data-world-map.html' },
+          { id: 'components/dsfr-data-map', label: 'dsfr-data-map', href: 'components/dsfr-data-map.html' },
           { id: 'components/dsfr-data-a11y', label: 'dsfr-data-a11y', href: 'components/dsfr-data-a11y.html' },
           { id: 'components/dsfr-data-chart', label: 'dsfr-data-chart', href: 'components/dsfr-data-chart.html' },
         ]

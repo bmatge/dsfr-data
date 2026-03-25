@@ -47,8 +47,8 @@ function getHtmlAttributes(ComponentClass: typeof DsfrDataSource): Set<string> {
 }
 
 describe('builder-ia skills', () => {
-  it('should have 23 skill definitions', () => {
-    expect(Object.keys(SKILLS)).toHaveLength(23);
+  it('should have 24 skill definitions', () => {
+    expect(Object.keys(SKILLS)).toHaveLength(24);
   });
 
   it('should have expected skill IDs', () => {
@@ -73,6 +73,7 @@ describe('builder-ia skills', () => {
     expect(SKILLS).toHaveProperty('apiProviders');
     expect(SKILLS).toHaveProperty('dsfrDataA11y');
     expect(SKILLS).toHaveProperty('dsfrDataWorldMap');
+    expect(SKILLS).toHaveProperty('dsfrDataMap');
     expect(SKILLS).toHaveProperty('troubleshooting');
     expect(SKILLS).toHaveProperty('dsfrDataJoin');
   });

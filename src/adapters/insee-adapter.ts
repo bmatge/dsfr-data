@@ -43,6 +43,7 @@ export class InseeAdapter implements ApiAdapter {
     serverSearch: false,
     serverGroupBy: false,
     serverOrderBy: false,
+    serverGeo: false,
     whereFormat: 'colon',
   };
 

@@ -1434,4 +1434,204 @@ export const examples: Record<string, string> = {
   </div>
 </div>`,
 
+  // =====================================================================
+  // CARTE INTERACTIVE — dsfr-data-source → dsfr-data-map + dsfr-data-map-layer
+  // Cartes Leaflet multi-couches avec tuiles IGN souveraines.
+  // =====================================================================
+
+  'map-markers-cluster': `<!--
+  Carte — Centres de controle technique avec clustering
+  Mode carte : dsfr-data-source (ODS) → dsfr-data-map → dsfr-data-map-layer (marker + cluster)
+  Source : Prix du controle technique (data.economie.gouv.fr)
+  5000 centres VP essence avec clustering et panneau lateral au clic
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>Centres de controle technique en France</h2>
+  <p class="fr-text--sm fr-text--light">
+    Source : data.economie.gouv.fr — Prix du controle technique (VP essence)
+  </p>
+
+  <dsfr-data-source id="data" api-type="opendatasoft"
+    base-url="https://data.economie.gouv.fr"
+    dataset-id="prix-controle-technique"
+    where="cat_vehicule_id=1 AND cat_energie_id=1"
+    select="cct_denomination,cct_adresse,cct_commune,cct_code_postal,nom_departement,latitude,longitude,prix_visite,prix_contre_visite_mini,prix_contre_visite_maxi"
+    order-by="prix_visite"
+    limit="5000">
+  </dsfr-data-source>
+
+  <dsfr-data-map center="46.6,2.3" zoom="6" tiles="ign-plan" height="600px"
+    name="5000 centres de controle technique les moins chers">
+    <dsfr-data-map-layer source="data" type="marker"
+      lat-field="latitude" lon-field="longitude"
+      tooltip-field="cct_denomination"
+      cluster cluster-radius="60">
+    </dsfr-data-map-layer>
+
+    <dsfr-data-map-popup mode="panel-right" title-field="cct_denomination" width="380px">
+      <template>
+        <p>{{cct_adresse}}</p>
+        <p>{{cct_code_postal}} {{cct_commune}} ({{nom_departement}})</p>
+        <hr>
+        <table class="fr-table fr-table--sm">
+          <tr><th>Visite</th><td><strong>{{prix_visite}} EUR</strong></td></tr>
+          <tr><th>Contre-visite min</th><td>{{prix_contre_visite_mini}} EUR</td></tr>
+          <tr><th>Contre-visite max</th><td>{{prix_contre_visite_maxi}} EUR</td></tr>
+        </table>
+      </template>
+    </dsfr-data-map-popup>
+  </dsfr-data-map>
+
+  <dsfr-data-a11y for="data" source="data" table download
+    label-field="cct_denomination" value-field="cct_commune,prix_visite"
+    description="Carte des 5000 centres de controle technique les moins chers en France.">
+  </dsfr-data-a11y>
+
+  <div class="fr-callout fr-mt-4w">
+    <p class="fr-callout__text">
+      <strong>Carte interactive</strong> avec clustering (5000 POI), panneau lateral au clic
+      (<code>dsfr-data-map-popup mode="panel-right"</code>), et companion d'accessibilite
+      (<code>dsfr-data-a11y</code> avec tableau + CSV).
+    </p>
+  </div>
+</div>`,
+
+  'map-circles-proportional': `<!--
+  Carte — Cercles proportionnels (nombre de centres CT par ville)
+  Mode carte : dsfr-data-source (inline) → dsfr-data-map → dsfr-data-map-layer (circle)
+  Cercles avec auto-scaling : radius-field + radius-min/radius-max
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>Centres de controle technique par grande ville</h2>
+  <p class="fr-text--sm fr-text--light">
+    Donnees embarquees — Nombre approximatif de centres et prix moyen
+  </p>
+
+  <dsfr-data-source id="data" data='[
+    {"nom":"Paris","lat":48.8566,"lon":2.3522,"nb":142,"prix":95},
+    {"nom":"Marseille","lat":43.2965,"lon":5.3698,"nb":87,"prix":78},
+    {"nom":"Lyon","lat":45.7578,"lon":4.8320,"nb":95,"prix":82},
+    {"nom":"Toulouse","lat":43.6047,"lon":1.4442,"nb":63,"prix":71},
+    {"nom":"Nice","lat":43.7102,"lon":7.2620,"nb":48,"prix":89},
+    {"nom":"Nantes","lat":47.2184,"lon":-1.5536,"nb":52,"prix":68},
+    {"nom":"Strasbourg","lat":48.5734,"lon":7.7521,"nb":41,"prix":74},
+    {"nom":"Bordeaux","lat":44.8378,"lon":-0.5792,"nb":58,"prix":76},
+    {"nom":"Lille","lat":50.6292,"lon":3.0573,"nb":71,"prix":72},
+    {"nom":"Rennes","lat":48.1173,"lon":-1.6778,"nb":35,"prix":65},
+    {"nom":"Reims","lat":49.2583,"lon":4.0317,"nb":22,"prix":69},
+    {"nom":"Toulon","lat":43.1242,"lon":5.9280,"nb":31,"prix":85},
+    {"nom":"Montpellier","lat":43.6108,"lon":3.8767,"nb":44,"prix":77},
+    {"nom":"Grenoble","lat":45.1885,"lon":5.7245,"nb":38,"prix":79},
+    {"nom":"Rouen","lat":49.4432,"lon":1.0999,"nb":29,"prix":73}
+  ]'></dsfr-data-source>
+
+  <dsfr-data-map center="46.6,2.3" zoom="6" tiles="ign-ortho" height="550px"
+    name="Nombre de centres CT par grande ville">
+    <dsfr-data-map-layer source="data" type="circle"
+      lat-field="lat" lon-field="lon"
+      radius-field="nb" radius-min="6" radius-max="35"
+      color="#000091" fill-opacity="0.5"
+      tooltip-field="nom">
+    </dsfr-data-map-layer>
+
+    <dsfr-data-map-popup mode="modal" title-field="nom">
+      <template>
+        <div class="fr-grid-row fr-grid-row--gutters">
+          <div class="fr-col-6">
+            <p class="fr-text--bold fr-text--lg" style="color:var(--text-action-high-blue-france)">{{nb}}</p>
+            <p class="fr-text--sm">centres de CT</p>
+          </div>
+          <div class="fr-col-6">
+            <p class="fr-text--bold fr-text--lg" style="color:var(--text-action-high-blue-france)">{{prix}} EUR</p>
+            <p class="fr-text--sm">prix moyen visite</p>
+          </div>
+        </div>
+      </template>
+    </dsfr-data-map-popup>
+  </dsfr-data-map>
+
+  <div class="fr-callout fr-mt-4w">
+    <p class="fr-callout__text">
+      <strong>Cercles proportionnels</strong> avec auto-scaling (<code>radius-min="6" radius-max="35"</code>).
+      Les 142 centres de Paris donnent le plus grand cercle, les 22 de Reims le plus petit.
+      Clic → modale DSFR (<code>dsfr-data-map-popup mode="modal"</code>).
+    </p>
+  </div>
+</div>`,
+
+  'map-multi-layer': `<!--
+  Carte — Multi-couches avec heatmap + marqueurs
+  Mode carte : 2 sources ODS → dsfr-data-map → 2 layers (heatmap + markers)
+  Densite en fond + POI detailles par-dessus
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>Controles techniques en Ile-de-France</h2>
+  <p class="fr-text--sm fr-text--light">
+    Source : data.economie.gouv.fr — Heatmap de densite + marqueurs detailles
+  </p>
+
+  <!-- Source large pour la heatmap (1000 points) -->
+  <dsfr-data-source id="heat-src" api-type="opendatasoft"
+    base-url="https://data.economie.gouv.fr"
+    dataset-id="prix-controle-technique"
+    where="cat_vehicule_id=1 AND cat_energie_id=1 AND code_region=11"
+    select="latitude,longitude"
+    limit="1000">
+  </dsfr-data-source>
+
+  <!-- Source detaillee pour les marqueurs (200 points, tries par prix) -->
+  <dsfr-data-source id="poi-src" api-type="opendatasoft"
+    base-url="https://data.economie.gouv.fr"
+    dataset-id="prix-controle-technique"
+    where="cat_vehicule_id=1 AND cat_energie_id=1 AND code_region=11"
+    select="cct_denomination,cct_commune,latitude,longitude,prix_visite"
+    order-by="prix_visite"
+    limit="200">
+  </dsfr-data-source>
+
+  <dsfr-data-map center="48.86,2.35" zoom="10" tiles="ign-plan" height="600px"
+    name="Centres de controle technique en Ile-de-France">
+
+    <!-- Couche heatmap en fond -->
+    <dsfr-data-map-layer source="heat-src" type="heatmap"
+      lat-field="latitude" lon-field="longitude"
+      heat-radius="20" heat-blur="15">
+    </dsfr-data-map-layer>
+
+    <!-- Couche marqueurs par-dessus -->
+    <dsfr-data-map-layer id="poi-layer" source="poi-src" type="marker"
+      lat-field="latitude" lon-field="longitude"
+      tooltip-field="cct_denomination"
+      cluster cluster-radius="40">
+    </dsfr-data-map-layer>
+
+    <dsfr-data-map-popup mode="panel-left" title-field="cct_denomination" for="poi-layer" width="320px">
+      <template>
+        <p>{{cct_commune}}</p>
+        <p class="fr-text--bold" style="font-size:1.5rem;color:var(--text-action-high-blue-france)">
+          {{prix_visite}} EUR
+        </p>
+        <p class="fr-text--sm">Prix de la visite technique</p>
+      </template>
+    </dsfr-data-map-popup>
+  </dsfr-data-map>
+
+  <dsfr-data-a11y source="poi-src" table download
+    label-field="cct_denomination" value-field="cct_commune,prix_visite"
+    description="200 centres de controle technique les moins chers en Ile-de-France.">
+  </dsfr-data-a11y>
+
+  <div class="fr-callout fr-mt-4w">
+    <p class="fr-callout__text">
+      <strong>Multi-couches</strong> : heatmap de densite (1000 points) en fond +
+      marqueurs clusters (200 POI) par-dessus. Deux sources differentes alimentent deux layers.
+      Panneau lateral gauche au clic (<code>dsfr-data-map-popup mode="panel-left" for="poi-layer"</code>)
+      cible uniquement la couche marqueurs.
+    </p>
+  </div>
+</div>`,
+
 };

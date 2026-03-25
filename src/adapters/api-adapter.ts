@@ -25,6 +25,8 @@ export interface AdapterCapabilities {
   serverGroupBy: boolean;
   /** Supporte le tri cote serveur */
   serverOrderBy: boolean;
+  /** Supporte le filtrage geographique server-side (in_bbox) */
+  serverGeo: boolean;
   /** Format du where clause : 'odsql' ou 'colon' (field:op:value) */
   whereFormat: 'odsql' | 'colon';
 }

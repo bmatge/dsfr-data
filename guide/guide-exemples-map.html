@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dsfr-data-map — Exemples - Guide - dsfr-data</title>
+  <style>@view-transition{navigation:auto}app-header:not(:defined){display:block;min-height:56px}app-footer:not(:defined){display:block;min-height:48px}</style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script src="guide-menu.js"></script>
+  <style>
+    .guide-layout { display: flex; gap: 2rem; }
+    .guide-content { flex: 1; min-width: 0; }
+    @media (max-width: 992px) {
+      .guide-layout { flex-direction: column; }
+    }
+    .guide-content h2 { padding-top: 2rem; border-top: 1px solid var(--border-default-grey); margin-top: 3rem; }
+    .guide-content h2:first-of-type { border-top: none; margin-top: 0; padding-top: 0; }
+    .guide-content h3 { margin-top: 2rem; }
+    .guide-content h4 { margin-top: 1.5rem; }
+    .guide-content pre { background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 4px; font-family: monospace; font-size: 0.85rem; overflow-x: auto; white-space: pre-wrap; margin: 0; }
+    .guide-content ol, .guide-content ul { margin: 0.5rem 0 1rem 1.5rem; }
+    .guide-content li { margin-bottom: 0.25rem; }
+    .example-container { border: 1px solid var(--border-default-grey); border-radius: 4px; padding: 1rem; background: white; min-height: 100px; }
+    .example-loading { padding: 2rem; text-align: center; color: var(--text-mention-grey); border: 1px solid var(--border-default-grey); border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <app-header current-page="guide" base-path="../"></app-header>
+
+  <main class="fr-container fr-py-4w" id="main-content">
+    <div class="guide-layout">
+
+      <app-sidemenu section="guide"></app-sidemenu>
+
+      <div class="guide-content">
+
+        <h1><i class="ri-map-pin-line fr-mr-1w"></i>dsfr-data-map</h1>
+        <p class="fr-text--lead">
+          Carte interactive multi-couches avec fonds de carte souverains (IGN Geoplateforme).
+          Deux composants : <code>dsfr-data-map</code> (conteneur) et <code>dsfr-data-map-layer</code> (couche de donnees).
+        </p>
+
+        <div class="fr-callout fr-callout--blue-ecume fr-mb-3w">
+          <p class="fr-callout__text">
+            <code>dsfr-data-map</code> ne consomme pas de donnees. Ce sont les <code>dsfr-data-map-layer</code>
+            enfants qui utilisent le <code>SourceSubscriberMixin</code>. Cela permet le <strong>multi-source</strong>
+            naturellement : chaque couche peut avoir sa propre source de donnees.
+          </p>
+        </div>
+
+        <!-- ============================================================ -->
+        <h2>POI avec markers — Centres de controle technique</h2>
+        <p>
+          Affichage de POI depuis une API OpenDataSoft. Les markers utilisent les icones DSFR.
+          Les coordonnees sont extraites via <code>lat-field</code> + <code>lon-field</code>.
+        </p>
+
+        <h4>Les 200 centres les moins chers (voitures, essence)</h4>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-markers">Code source</button></h3>
+          <div class="fr-collapse" id="code-markers">
+<pre class="example-code">&lt;dsfr-data-source id="ct" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr"
+  dataset-id="prix-controle-technique"
+  where="cat_vehicule_id=1 AND cat_energie_id=1"
+  select="cct_denomination,cct_commune,nom_departement,latitude,longitude,prix_visite"
+  order-by="prix_visite" limit="200"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-map center="46.6,2.3" zoom="6" tiles="ign-plan" height="500px" name="200 centres CT les moins chers"&gt;
+  &lt;dsfr-data-map-layer source="ct" type="marker"
+    lat-field="latitude" lon-field="longitude"
+    popup-fields="cct_denomination,cct_commune,nom_departement,prix_visite"
+    tooltip-field="cct_denomination"&gt;
+  &lt;/dsfr-data-map-layer&gt;
+&lt;/dsfr-data-map&gt;</pre>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <h2>Clustering — Gros volume de POI</h2>
+        <p>
+          Pour les gros volumes (milliers de markers), activez le clustering
+          avec <code>cluster</code>. La librairie <code>leaflet.markercluster</code>
+          est chargee dynamiquement. Ici, 5000 centres de controle technique.
+        </p>
+
+        <h4>5000 centres avec clustering</h4>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-cluster">Code source</button></h3>
+          <div class="fr-collapse" id="code-cluster">
+<pre class="example-code">&lt;dsfr-data-source id="ct-cluster" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr"
+  dataset-id="prix-controle-technique"
+  where="cat_vehicule_id=1 AND cat_energie_id=1"
+  select="cct_denomination,cct_commune,latitude,longitude,prix_visite"
+  limit="5000"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-map center="46.6,2.3" zoom="6" tiles="osm" height="500px"&gt;
+  &lt;dsfr-data-map-layer source="ct-cluster" type="marker"
+    lat-field="latitude" lon-field="longitude"
+    popup-template="{cct_denomination}&lt;br&gt;{cct_commune} — {prix_visite} EUR"
+    tooltip-field="cct_denomination"
+    cluster cluster-radius="60"&gt;
+  &lt;/dsfr-data-map-layer&gt;
+&lt;/dsfr-data-map&gt;</pre>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <h2>Cercles proportionnels — Nombre de centres par ville</h2>
+        <p>
+          Utilise <code>type="circle"</code> avec <code>radius-field</code> pour varier la taille selon une valeur.
+          Le <code>radius-field</code> utilise la valeur brute comme rayon en pixels — les valeurs doivent etre
+          dans une plage raisonnable (3-30 px). Ici le champ <code>nb</code> represente le nombre de centres.
+        </p>
+
+        <h4>Nombre de centres par grande ville</h4>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-circles">Code source</button></h3>
+          <div class="fr-collapse" id="code-circles">
+<pre class="example-code">&lt;dsfr-data-source id="villes-nb" data='[
+  {"nom":"Paris","lat":48.8566,"lon":2.3522,"nb":28,"prix":"95 EUR"},
+  {"nom":"Marseille","lat":43.2965,"lon":5.3698,"nb":18,"prix":"78 EUR"},
+  {"nom":"Lyon","lat":45.7578,"lon":4.8320,"nb":22,"prix":"82 EUR"},
+  {"nom":"Toulouse","lat":43.6047,"lon":1.4442,"nb":15,"prix":"71 EUR"},
+  {"nom":"Nice","lat":43.7102,"lon":7.2620,"nb":12,"prix":"89 EUR"},
+  {"nom":"Nantes","lat":47.2184,"lon":-1.5536,"nb":10,"prix":"68 EUR"},
+  {"nom":"Strasbourg","lat":48.5734,"lon":7.7521,"nb":9,"prix":"74 EUR"},
+  {"nom":"Bordeaux","lat":44.8378,"lon":-0.5792,"nb":14,"prix":"76 EUR"},
+  {"nom":"Lille","lat":50.6292,"lon":3.0573,"nb":16,"prix":"72 EUR"},
+  {"nom":"Rennes","lat":48.1173,"lon":-1.6778,"nb":8,"prix":"65 EUR"},
+  {"nom":"Reims","lat":49.2583,"lon":4.0317,"nb":6,"prix":"69 EUR"},
+  {"nom":"Toulon","lat":43.1242,"lon":5.9280,"nb":7,"prix":"85 EUR"}
+]'&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-map center="46.6,2.3" zoom="6" tiles="ign-ortho" height="500px"&gt;
+  &lt;dsfr-data-map-layer source="villes-nb" type="circle"
+    lat-field="lat" lon-field="lon"
+    radius-field="nb" radius-unit="px"
+    color="#000091" fill-opacity="0.4"
+    popup-template="{nom} — {nb} centres — prix moyen {prix}"
+    tooltip-field="nom"&gt;
+  &lt;/dsfr-data-map-layer&gt;
+&lt;/dsfr-data-map&gt;</pre>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <h2>Heatmap — Densite de centres</h2>
+        <p>
+          Le type <code>heatmap</code> affiche une carte de chaleur via <code>leaflet.heat</code>.
+          L'attribut <code>heat-field</code> permet de ponderer les points par une valeur numerique.
+          Les attributs <code>heat-radius</code> et <code>heat-blur</code> controlent le rendu.
+        </p>
+
+        <h4>Densite des centres de controle technique en Ile-de-France</h4>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-heat">Code source</button></h3>
+          <div class="fr-collapse" id="code-heat">
+<pre class="example-code">&lt;dsfr-data-source id="ct-idf" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr"
+  dataset-id="prix-controle-technique"
+  where="cat_vehicule_id=1 AND cat_energie_id=1 AND code_region=11"
+  select="latitude,longitude,prix_visite"
+  limit="1000"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-map center="48.86,2.35" zoom="10" tiles="ign-cadastre" height="500px"&gt;
+  &lt;dsfr-data-map-layer source="ct-idf" type="heatmap"
+    lat-field="latitude" lon-field="longitude"
+    heat-radius="20" heat-blur="15"&gt;
+  &lt;/dsfr-data-map-layer&gt;
+&lt;/dsfr-data-map&gt;</pre>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <h2>Carte + Accessibilite (dsfr-data-a11y)</h2>
+        <p>
+          Le composant <code>dsfr-data-a11y</code> fonctionne avec les cartes comme avec les graphiques.
+          Il offre un tableau HTML et un export CSV des donnees de la couche, en alternative accessible.
+        </p>
+
+        <h4>Carte avec companion a11y</h4>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-a11y">Code source</button></h3>
+          <div class="fr-collapse" id="code-a11y">
+<pre class="example-code">&lt;dsfr-data-source id="ct-a11y" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr"
+  dataset-id="prix-controle-technique"
+  where="cat_vehicule_id=1 AND cat_energie_id=1 AND code_departement='75'"
+  select="cct_denomination,cct_commune,latitude,longitude,prix_visite"
+  limit="50"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-map id="map-a11y" center="48.86,2.35" zoom="12" tiles="osm" height="400px"&gt;
+  &lt;dsfr-data-map-layer source="ct-a11y" type="marker"
+    lat-field="latitude" lon-field="longitude"
+    popup-fields="cct_denomination,prix_visite"
+    tooltip-field="cct_denomination"&gt;
+  &lt;/dsfr-data-map-layer&gt;
+&lt;/dsfr-data-map&gt;
+
+&lt;dsfr-data-a11y for="map-a11y" source="ct-a11y" table download
+  label-field="cct_denomination" value-field="cct_commune,prix_visite"
+  description="Centres de controle technique a Paris avec leur prix de visite."&gt;
+&lt;/dsfr-data-a11y&gt;</pre>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <h2>Panneau lateral au clic (dsfr-data-map-popup)</h2>
+        <p>
+          Le composant <code>dsfr-data-map-popup</code> definit un template HTML et un mode d'affichage.
+          En mode <code>panel-right</code>, un panneau lateral s'ouvre au clic sur un POI et se met a jour
+          a chaque nouveau clic. Le template utilise la syntaxe <code>{{champ}}</code>.
+        </p>
+
+        <h4>Panneau lateral avec template personnalise</h4>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-panel">Code source</button></h3>
+          <div class="fr-collapse" id="code-panel">
+<pre class="example-code">&lt;dsfr-data-source id="ct-panel" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr"
+  dataset-id="prix-controle-technique"
+  where="cat_vehicule_id=1 AND cat_energie_id=1 AND code_departement='75'"
+  select="cct_denomination,cct_adresse,cct_commune,cct_code_postal,latitude,longitude,prix_visite,prix_contre_visite_mini,prix_contre_visite_maxi"
+  limit="50"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-map center="48.86,2.35" zoom="12" tiles="ign-plan" height="500px" name="Controles techniques Paris"&gt;
+  &lt;dsfr-data-map-layer source="ct-panel" type="marker"
+    lat-field="latitude" lon-field="longitude"
+    tooltip-field="cct_denomination"&gt;
+  &lt;/dsfr-data-map-layer&gt;
+
+  &lt;dsfr-data-map-popup mode="panel-right" title-field="cct_denomination" width="380px"&gt;
+    &lt;template&gt;
+      &lt;p&gt;{{cct_adresse}}&lt;/p&gt;
+      &lt;p&gt;{{cct_code_postal}} {{cct_commune}}&lt;/p&gt;
+      &lt;hr&gt;
+      &lt;table class="fr-table fr-table--sm"&gt;
+        &lt;tr&gt;&lt;th&gt;Visite&lt;/th&gt;&lt;td&gt;{{prix_visite}} EUR&lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;th&gt;Contre-visite min&lt;/th&gt;&lt;td&gt;{{prix_contre_visite_mini}} EUR&lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;th&gt;Contre-visite max&lt;/th&gt;&lt;td&gt;{{prix_contre_visite_maxi}} EUR&lt;/td&gt;&lt;/tr&gt;
+      &lt;/table&gt;
+    &lt;/template&gt;
+  &lt;/dsfr-data-map-popup&gt;
+&lt;/dsfr-data-map&gt;</pre>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <h2>Fonds de carte</h2>
+        <p>
+          Quatre presets souverains sont disponibles. Vous pouvez aussi passer une URL template personnalisee.
+        </p>
+        <table class="fr-table fr-table--sm fr-mt-1w">
+          <thead><tr><th>Preset</th><th>Source</th><th>Usage</th></tr></thead>
+          <tbody>
+            <tr><td><code>ign-plan</code></td><td>IGN Geoplateforme</td><td>Plan de base (defaut)</td></tr>
+            <tr><td><code>ign-ortho</code></td><td>IGN Geoplateforme</td><td>Vue aerienne</td></tr>
+            <tr><td><code>ign-topo</code></td><td>IGN Geoplateforme</td><td>Carte topographique (SCAN 25/100)</td></tr>
+            <tr><td><code>ign-cadastre</code></td><td>IGN Geoplateforme</td><td>Parcelles cadastrales</td></tr>
+            <tr><td><code>osm</code></td><td>OpenStreetMap France</td><td>Carte communautaire</td></tr>
+          </tbody>
+        </table>
+
+        <!-- ============================================================ -->
+        <h2>Zoom ranges et multi-couches</h2>
+        <p>
+          Les attributs <code>min-zoom</code> / <code>max-zoom</code> sur les layers permettent d'afficher
+          differentes couches selon le niveau de zoom. Combinee avec <code>bbox</code> pour le chargement
+          par viewport, cette technique permet la multi-resolution administrative.
+        </p>
+        <div class="code-block"><pre>Zoom 1-9  : regions (13 features, chargees une fois)
+Zoom 10+  : communes dans le viewport (bbox re-fetch)
+Zoom 13+  : POI dans le viewport (bbox re-fetch + cluster)</pre></div>
+
+        <!-- ============================================================ -->
+        <h2>Viewport-driven fetch (bbox)</h2>
+        <p>
+          L'attribut <code>bbox</code> sur un layer active le chargement par viewport.
+          A chaque deplacement de carte (debounce 300ms par defaut), le layer envoie une commande
+          <code>dsfr-data-source-command</code> avec un filtre geographique.
+        </p>
+        <ul>
+          <li><strong>ODS</strong> : filtre server-side <code>in_bbox(field, lat1, lon1, lat2, lon2)</code></li>
+          <li><strong>Tabular, Grist, Generic</strong> : fallback client-side (filtre en memoire)</li>
+        </ul>
+
+      </div>
+    </div>
+  </main>
+
+  <app-footer base-path="../"></app-footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      let exampleIndex = 0;
+      function getCodeForExample(placeholder) {
+        const accordion = placeholder.nextElementSibling;
+        if (!accordion) return null;
+        const pre = accordion.querySelector('.example-code');
+        return pre ? pre.textContent : null;
+      }
+      function makeIdsUnique(html, prefix) {
+        const idRegex = / id="([^"]+)"/g;
+        const ids = new Set();
+        let match;
+        while ((match = idRegex.exec(html)) !== null) ids.add(match[1]);
+        let result = html;
+        for (const id of ids) {
+          result = result.replaceAll(' id="' + id + '"', ' id="' + prefix + '-' + id + '"');
+          result = result.replaceAll('source="' + id + '"', 'source="' + prefix + '-' + id + '"');
+        }
+        return result;
+      }
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (!entry.isIntersecting) return;
+          const placeholder = entry.target;
+          observer.unobserve(placeholder);
+          const code = getCodeForExample(placeholder);
+          if (!code) return;
+          const prefix = 'ex' + (exampleIndex++);
+          const uniqueCode = makeIdsUnique(code, prefix);
+          const container = document.createElement('div');
+          container.className = 'example-container';
+          container.innerHTML = uniqueCode;
+          placeholder.replaceWith(container);
+        });
+      }, { rootMargin: '200px 0px' });
+      document.querySelectorAll('[data-example]').forEach(el => observer.observe(el));
+    });
+  </script>
+</body>
+</html>

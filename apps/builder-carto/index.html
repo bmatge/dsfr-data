@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generateur de cartes - dsfr-data</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css">
+  <script type="module" src="../../dist/dsfr-data.esm.js"></script>
+  <script type="module" src="src/main.ts"></script>
+</head>
+<body>
+  <app-header current-page="builder-carto" base-path="../../"></app-header>
+
+  <main class="fr-container--fluid fr-py-2w" id="main-content">
+    <div class="carto-layout">
+
+      <!-- Left: Layers panel -->
+      <div class="carto-layers">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+          <h2 class="fr-text--lg fr-mb-0"><i class="ri-stack-line fr-mr-1w"></i>Couches</h2>
+          <div>
+            <button id="btn-add-layer" class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-add-line" title="Ajouter une couche">Ajouter</button>
+            <button id="btn-remove-layer" class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-btn--icon-left fr-icon-delete-line" title="Supprimer la couche active">Supprimer</button>
+          </div>
+        </div>
+
+        <ul id="layers-list" class="carto-layers__list"></ul>
+
+        <hr class="fr-mt-2w fr-mb-2w">
+
+        <!-- Layer config (for active layer) -->
+        <div id="layer-config"></div>
+      </div>
+
+      <!-- Center: Preview -->
+      <div class="carto-preview">
+        <h2 class="fr-text--lg fr-mb-1w"><i class="ri-map-pin-line fr-mr-1w"></i>Apercu</h2>
+        <div class="carto-preview__map" id="map-preview">
+          <p class="fr-text--sm" style="text-align:center;padding:2rem;color:var(--text-mention-grey)">
+            L'apercu sera disponible apres avoir connecte les sources.<br>
+            En attendant, utilisez le code genere dans le playground.
+          </p>
+        </div>
+      </div>
+
+      <!-- Right: Map config + code -->
+      <div class="carto-config">
+        <div id="map-config"></div>
+
+        <div class="carto-config__section">
+          <h3>Code genere</h3>
+          <pre id="code-output" class="carto-code"></pre>
+          <div style="display:flex;gap:0.5rem;margin-top:0.75rem;">
+            <button id="btn-copy" class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-clipboard-line">Copier le code</button>
+            <button id="btn-playground" class="fr-btn fr-btn--sm fr-btn--icon-left fr-icon-code-s-slash-line">Tester dans le playground</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <app-footer base-path="../../"></app-footer>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js"></script>
+</body>
+</html>

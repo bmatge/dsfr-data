@@ -37,6 +37,7 @@ export class TabularAdapter implements ApiAdapter {
     serverSearch: false,
     serverGroupBy: true,
     serverOrderBy: true,
+    serverGeo: false,
     whereFormat: 'colon',
   };
 
