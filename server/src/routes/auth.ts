@@ -12,6 +12,7 @@ import type { AuthenticatedRequest } from '../middleware/auth.js';
 import { authLimiter } from '../middleware/rate-limit.js';
 import { isValidEmail, isStrongPassword } from '../utils/validation.js';
 import { sendVerificationEmail } from '../utils/mailer.js';
+import { createSession, revokeSession } from '../utils/sessions.js';
 
 const router = Router();
 const SALT_ROUNDS = 10;
@@ -84,6 +85,7 @@ router.post('/register', authLimiter, async (req, res) => {
 
       const token = createToken({ userId: id, email, role });
       setAuthCookie(res, token);
+      await createSession(id, token, 'local', req);
 
       res.status(201).json({
         user: { id, email, displayName: name, role },
@@ -162,6 +164,7 @@ router.get('/verify-email', async (req, res) => {
     // Log in
     const jwt = createToken({ userId: user.id, email: user.email, role: user.role });
     setAuthCookie(res, jwt);
+    await createSession(user.id, jwt, 'local', req);
 
     res.redirect('/');
   } catch (err) {
@@ -280,6 +283,7 @@ router.post('/login', authLimiter, async (req, res) => {
 
     const token = createToken({ userId: user.id, email: user.email, role: user.role });
     setAuthCookie(res, token);
+    await createSession(user.id, token, 'local', req);
     await execute('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
 
     res.json({
@@ -298,9 +302,17 @@ router.post('/login', authLimiter, async (req, res) => {
 
 /**
  * POST /api/auth/logout
- * Clear the auth cookie.
+ * Clear the auth cookie and revoke the session.
  */
-router.post('/logout', (_req, res) => {
+router.post('/logout', async (req, res) => {
+  const token = req.cookies?.['gw-auth-token'];
+  if (token) {
+    try {
+      await revokeSession(token);
+    } catch {
+      // Best-effort revocation
+    }
+  }
   clearAuthCookie(res);
   res.json({ ok: true });
 });

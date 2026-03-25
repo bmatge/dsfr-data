@@ -366,6 +366,7 @@ describe('POST /api/auth/logout', () => {
 
   beforeEach(async () => {
     app = await createTestApp();
+    vi.clearAllMocks();
   });
 
   it('clears cookie', async () => {
@@ -378,6 +379,28 @@ describe('POST /api/auth/logout', () => {
     expect(cookies).toBeDefined();
     const raw = Array.isArray(cookies) ? cookies[0] : cookies;
     expect(raw).toMatch(/gw-auth-token=/);
+  });
+
+  it('revokes session so token cannot be reused', async () => {
+    // Login as admin
+    const cookie = await registerAdmin(app, 'logout-test@example.com');
+
+    // Verify we can access /me
+    const meRes = await request(app)
+      .get('/api/auth/me')
+      .set('Cookie', cookie);
+    expect(meRes.status).toBe(200);
+
+    // Logout
+    await request(app)
+      .post('/api/auth/logout')
+      .set('Cookie', cookie);
+
+    // Try to reuse the same token — should be rejected (session revoked)
+    const afterLogout = await request(app)
+      .get('/api/auth/me')
+      .set('Cookie', cookie);
+    expect(afterLogout.status).toBe(401);
   });
 });
 

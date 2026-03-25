@@ -46,6 +46,7 @@ let initialized = false;
  * Tables in reverse FK order for truncation.
  */
 const TABLES_TO_TRUNCATE = [
+  'sessions',
   'data_cache',
   'monitoring',
   'shares',
@@ -78,6 +79,7 @@ export async function createTestApp(): Promise<Express> {
   // Re-insert schema_version
   await execute('INSERT IGNORE INTO schema_version (version) VALUES (1)');
   await execute('INSERT IGNORE INTO schema_version (version) VALUES (2)');
+  await execute('INSERT IGNORE INTO schema_version (version) VALUES (3)');
 
   const app = express();
   app.use(express.json({ limit: '10mb' }));
