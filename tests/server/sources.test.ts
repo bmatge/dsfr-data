@@ -12,7 +12,7 @@ let app: Express;
 /** Register a user via the API and return { id, email, cookie }. */
 async function registerUser(
   email: string,
-  password = 'password123',
+  password = 'Password1',
   displayName?: string,
 ) {
   const res = await request(app)

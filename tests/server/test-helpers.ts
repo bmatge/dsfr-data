@@ -32,6 +32,7 @@ import monitoringRoutes from '../../server/src/routes/monitoring.js';
 import type { Express } from 'express';
 
 // Set test env defaults
+process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret-key-for-tests';
 process.env.DB_HOST = process.env.DB_HOST || 'localhost';
 process.env.DB_PORT = process.env.DB_PORT || '3306';

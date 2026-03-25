@@ -6,6 +6,7 @@
 
 import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { queryOne } from '../db/database.js';
 
 export interface JwtPayload {
   userId: string;
@@ -29,8 +30,9 @@ const TOKEN_EXPIRY = '7d';
 /**
  * Middleware that extracts and validates JWT from cookie.
  * Always sets req.user (null if no valid token).
+ * Checks that the user account is still active in the database.
  */
-export function authMiddleware(req: Request, _res: Response, next: NextFunction): void {
+export async function authMiddleware(req: Request, _res: Response, next: NextFunction): Promise<void> {
   const authReq = req as AuthenticatedRequest;
   const token = req.cookies?.[COOKIE_NAME];
 
@@ -42,7 +44,17 @@ export function authMiddleware(req: Request, _res: Response, next: NextFunction)
 
   try {
     const payload = jwt.verify(token, JWT_SECRET()) as JwtPayload;
-    authReq.user = payload;
+
+    // Verify the account is still active in DB
+    const user = await queryOne<{ is_active: number }>(
+      'SELECT is_active FROM users WHERE id = ?',
+      [payload.userId],
+    );
+    if (!user || !user.is_active) {
+      authReq.user = null;
+    } else {
+      authReq.user = payload;
+    }
   } catch {
     authReq.user = null;
   }
