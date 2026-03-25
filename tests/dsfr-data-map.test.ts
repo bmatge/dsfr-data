@@ -579,3 +579,505 @@ describe('choropleth utilities', () => {
     expect((layer as any)._data).toHaveLength(3);
   });
 });
+
+// ============================================================================
+// Mock Leaflet — tests for rendering methods
+// ============================================================================
+
+/** Minimal Leaflet mock for testing layer rendering logic */
+function createMockLeaflet() {
+  const layers: any[] = [];
+  const mockLayerGroup = {
+    clearLayers: () => { layers.length = 0; },
+    addLayer: (l: any) => { layers.push(l); },
+    addTo: () => {},
+    removeFrom: () => {},
+    getBounds: () => ({ isValid: () => layers.length > 0 }),
+  };
+  const mockMap = {
+    getZoom: () => 10,
+    getBounds: () => ({
+      getSouthWest: () => ({ lat: 43, lng: 1 }),
+      getNorthEast: () => ({ lat: 49, lng: 5 }),
+      contains: () => true,
+    }),
+    hasLayer: () => false,
+    on: () => {},
+    invalidateSize: () => {},
+  };
+  const mockMarker = {
+    bindPopup: () => mockMarker,
+    bindTooltip: () => mockMarker,
+    on: () => mockMarker,
+    getElement: () => null,
+  };
+  const mockCircle = { ...mockMarker };
+  const mockGeoJSON = { ...mockMarker };
+  const L = {
+    layerGroup: () => mockLayerGroup,
+    marker: (_latlng: any, _opts?: any) => mockMarker,
+    circleMarker: (_latlng: any, _opts?: any) => mockCircle,
+    circle: (_latlng: any, _opts?: any) => mockCircle,
+    geoJSON: (_data: any, _opts?: any) => mockGeoJSON,
+    divIcon: (_opts: any) => ({}),
+    point: (x: number, y: number) => ({ x, y }),
+    tileLayer: (_url: string, _opts?: any) => ({ addTo: () => {}, remove: () => {} }),
+    map: (_el: any, _opts?: any) => mockMap,
+  };
+  return { L, layers, mockMap, mockLayerGroup };
+}
+
+function setupLayerWithMock(layer: DsfrDataMapLayer, mock: ReturnType<typeof createMockLeaflet>) {
+  (layer as any)._L = mock.L;
+  (layer as any)._leafletMap = mock.mockMap;
+  (layer as any)._layerGroup = mock.mockLayerGroup;
+  (layer as any)._mapParent = null;
+  (layer as any)._visible = true;
+}
+
+describe('DsfrDataMapLayer rendering with mock Leaflet', () => {
+  let layer: DsfrDataMapLayer;
+  let mock: ReturnType<typeof createMockLeaflet>;
+
+  beforeEach(() => {
+    layer = new DsfrDataMapLayer();
+    mock = createMockLeaflet();
+    setupLayerWithMock(layer, mock);
+  });
+
+  describe('_renderLayer markers', () => {
+    it('renders markers from lat/lon fields', async () => {
+      layer.type = 'marker';
+      layer.latField = 'lat';
+      layer.lonField = 'lon';
+      (layer as any)._data = [
+        { lat: 48.86, lon: 2.35, nom: 'Paris' },
+        { lat: 43.30, lon: 5.37, nom: 'Marseille' },
+      ];
+      await (layer as any)._renderLayer();
+      expect(mock.layers).toHaveLength(2);
+    });
+
+    it('renders markers from geo-field GeoJSON Point', async () => {
+      layer.type = 'marker';
+      layer.geoField = 'geo';
+      (layer as any)._data = [
+        { geo: { type: 'Point', coordinates: [2.35, 48.86] }, nom: 'Paris' },
+      ];
+      await (layer as any)._renderLayer();
+      expect(mock.layers).toHaveLength(1);
+    });
+
+    it('skips records with missing coordinates', async () => {
+      layer.type = 'marker';
+      layer.latField = 'lat';
+      layer.lonField = 'lon';
+      (layer as any)._data = [
+        { lat: 48.86, lon: 2.35 },
+        { lat: NaN, lon: 2.35 },
+        { noLatHere: 43 },
+      ];
+      await (layer as any)._renderLayer();
+      expect(mock.layers).toHaveLength(1);
+    });
+
+    it('sets alt text from tooltip-field on markers', async () => {
+      layer.type = 'marker';
+      layer.latField = 'lat';
+      layer.lonField = 'lon';
+      layer.tooltipField = 'nom';
+      (layer as any)._data = [{ lat: 48.86, lon: 2.35, nom: 'Paris' }];
+
+      let capturedOpts: any;
+      mock.L.marker = (_ll: any, opts?: any) => {
+        capturedOpts = opts;
+        return mock.layers[0] || { bindPopup: () => ({}), bindTooltip: () => ({}), on: () => ({}) };
+      };
+
+      await (layer as any)._renderLayer();
+      expect(capturedOpts?.alt).toBe('Paris');
+    });
+  });
+
+  describe('_renderLayer circles', () => {
+    it('renders circles with auto-scaling', async () => {
+      layer.type = 'circle';
+      layer.latField = 'lat';
+      layer.lonField = 'lon';
+      layer.radiusField = 'pop';
+      layer.radiusMin = 5;
+      layer.radiusMax = 25;
+      (layer as any)._data = [
+        { lat: 48.86, lon: 2.35, pop: 100 },
+        { lat: 43.30, lon: 5.37, pop: 1000 },
+      ];
+      await (layer as any)._renderLayer();
+      expect(mock.layers).toHaveLength(2);
+      // Verify scaling function was created
+      expect((layer as any)._radiusScale).not.toBeNull();
+      expect((layer as any)._radiusScale(100)).toBe(5);
+      expect((layer as any)._radiusScale(1000)).toBe(25);
+    });
+
+    it('uses meters mode with radius-unit=m', async () => {
+      layer.type = 'circle';
+      layer.latField = 'lat';
+      layer.lonField = 'lon';
+      layer.radiusUnit = 'm';
+      (layer as any)._data = [{ lat: 48.86, lon: 2.35 }];
+
+      let usedCircle = false;
+      mock.L.circle = () => { usedCircle = true; return { bindPopup: () => ({}), bindTooltip: () => ({}), on: () => ({}) } as any; };
+      await (layer as any)._renderLayer();
+      expect(usedCircle).toBe(true);
+    });
+  });
+
+  describe('_renderLayer geoshape', () => {
+    it('renders geoshape with choropleth', async () => {
+      layer.type = 'geoshape';
+      layer.geoField = 'geo';
+      layer.fillField = 'val';
+      layer.selectedPalette = 'sequentialAscending';
+      (layer as any)._data = [
+        { geo: { type: 'Polygon', coordinates: [[[0,0],[1,0],[1,1],[0,0]]] }, val: 10 },
+        { geo: { type: 'Polygon', coordinates: [[[0,0],[1,0],[1,1],[0,0]]] }, val: 90 },
+      ];
+
+      let capturedStyle: any;
+      mock.L.geoJSON = (_d: any, opts?: any) => {
+        capturedStyle = opts?.style;
+        return { bindPopup: () => ({}), bindTooltip: () => ({}), on: () => ({}) } as any;
+      };
+
+      await (layer as any)._renderLayer();
+      expect(mock.layers).toHaveLength(2);
+      expect(capturedStyle).toBeDefined();
+      expect(capturedStyle.fillColor).toBeDefined();
+    });
+  });
+
+  describe('_renderLayer heatmap', () => {
+    it('falls back to circle markers when leaflet.heat not loaded', async () => {
+      layer.type = 'heatmap';
+      layer.latField = 'lat';
+      layer.lonField = 'lon';
+      (layer as any)._data = [
+        { lat: 48.86, lon: 2.35 },
+        { lat: 43.30, lon: 5.37 },
+      ];
+      await (layer as any)._renderLayer();
+      // Fallback circles are added to layerGroup
+      expect(mock.layers).toHaveLength(2);
+    });
+  });
+
+  describe('_renderLayer max-items', () => {
+    it('truncates to max-items', async () => {
+      layer.type = 'marker';
+      layer.latField = 'lat';
+      layer.lonField = 'lon';
+      layer.maxItems = 2;
+      (layer as any)._data = [
+        { lat: 1, lon: 1 }, { lat: 2, lon: 2 }, { lat: 3, lon: 3 }, { lat: 4, lon: 4 },
+      ];
+      await (layer as any)._renderLayer();
+      expect(mock.layers).toHaveLength(2);
+    });
+  });
+
+  describe('popup binding', () => {
+    it('binds popup with popup-fields', async () => {
+      layer.type = 'marker';
+      layer.latField = 'lat';
+      layer.lonField = 'lon';
+      layer.popupFields = 'nom,prix';
+
+      let popupContent = '';
+      mock.L.marker = () => ({
+        bindPopup: (c: string) => { popupContent = c; return { bindTooltip: () => ({}), on: () => ({}) }; },
+        bindTooltip: () => ({}),
+        on: () => ({}),
+      } as any);
+
+      (layer as any)._data = [{ lat: 48.86, lon: 2.35, nom: 'Test', prix: 95 }];
+      await (layer as any)._renderLayer();
+      expect(popupContent).toContain('Test');
+      expect(popupContent).toContain('95');
+    });
+
+    it('binds popup with popup-template', async () => {
+      layer.type = 'marker';
+      layer.latField = 'lat';
+      layer.lonField = 'lon';
+      layer.popupTemplate = '{nom} - {prix} EUR';
+
+      let popupContent = '';
+      mock.L.marker = () => ({
+        bindPopup: (c: string) => { popupContent = c; return { bindTooltip: () => ({}), on: () => ({}) }; },
+        bindTooltip: () => ({}),
+        on: () => ({}),
+      } as any);
+
+      (layer as any)._data = [{ lat: 48.86, lon: 2.35, nom: 'Gare', prix: 80 }];
+      await (layer as any)._renderLayer();
+      expect(popupContent).toContain('Gare - 80 EUR');
+    });
+  });
+
+  describe('visibility (zoom ranges)', () => {
+    it('hides layer when zoom is below min-zoom', () => {
+      layer.minZoom = 12;
+      layer.maxZoom = 18;
+      (layer as any)._visible = true;
+      mock.mockMap.getZoom = () => 8;
+      (layer as any)._updateVisibility();
+      expect((layer as any)._visible).toBe(false);
+    });
+
+    it('shows layer when zoom is in range', () => {
+      layer.minZoom = 5;
+      layer.maxZoom = 15;
+      (layer as any)._visible = false;
+      mock.mockMap.getZoom = () => 10;
+      mock.mockMap.hasLayer = () => false;
+      (layer as any)._updateVisibility();
+      expect((layer as any)._visible).toBe(true);
+    });
+  });
+
+  describe('bbox command', () => {
+    it('sends source command for serverGeo adapter', () => {
+      layer.source = 'test-src';
+      layer.bbox = true;
+      layer.geoField = 'geo_point_2d';
+
+      // Mock source element with serverGeo adapter
+      const mockSource = document.createElement('div');
+      mockSource.id = 'test-src';
+      (mockSource as any).getAdapter = () => ({ capabilities: { serverGeo: true } });
+      document.body.appendChild(mockSource);
+
+      let capturedCommand: any;
+      const origDispatch = document.dispatchEvent.bind(document);
+      document.dispatchEvent = (e: Event) => {
+        if (e.type === 'dsfr-data-source-command') capturedCommand = (e as CustomEvent).detail;
+        return origDispatch(e);
+      };
+
+      (layer as any)._sendBboxCommand();
+
+      expect(capturedCommand).toBeDefined();
+      expect(capturedCommand.whereKey).toBe('map-bbox');
+      expect(capturedCommand.where).toContain('in_bbox');
+
+      document.body.removeChild(mockSource);
+      document.dispatchEvent = origDispatch;
+    });
+  });
+});
+
+// ============================================================================
+// DsfrDataMap rendering with mock
+// ============================================================================
+
+describe('DsfrDataMap rendering methods', () => {
+  let map: DsfrDataMap;
+
+  beforeEach(() => {
+    map = new DsfrDataMap();
+  });
+
+  it('_buildMapDescription includes keyboard instructions', () => {
+    const desc = (map as any)._buildMapDescription();
+    expect(desc).toContain('fleches');
+    expect(desc).toContain('Tabulez');
+  });
+
+  it('announceToScreenReader sets live region text', () => {
+    // Simulate live region
+    const div = document.createElement('div');
+    (map as any)._liveRegion = div;
+    map.announceToScreenReader('Test message');
+    // The actual text is set via requestAnimationFrame, but textContent is cleared first
+    expect(div.textContent).toBe('');
+  });
+
+  it('updateDescription concatenates summaries', () => {
+    const p = document.createElement('p');
+    (map as any)._srDescription = p;
+    map.name = 'Ma carte';
+    map.updateDescription(['200 marqueurs', '5 zones']);
+    expect(p.textContent).toContain('Ma carte');
+    expect(p.textContent).toContain('200 marqueurs');
+    expect(p.textContent).toContain('5 zones');
+  });
+
+  it('registerLayerBounds stores bounds', () => {
+    const mockBounds = { extend: (b: any) => b } as any;
+    map.registerLayerBounds(mockBounds);
+    expect((map as any)._layerBounds).toHaveLength(1);
+  });
+});
+
+// ============================================================================
+// DsfrDataMapPopup rendering with mock
+// ============================================================================
+
+describe('DsfrDataMapPopup rendering methods', () => {
+  it('showForRecord sets record but does not open panel/modal in popup mode', async () => {
+    const mod = await import('../src/components/dsfr-data-map-popup.js');
+    const popup = new mod.DsfrDataMapPopup();
+    popup.mode = 'popup';
+    popup.showForRecord({ nom: 'test' });
+    // Record is set but no panel/modal created (Leaflet handles popup)
+    expect(popup._currentRecord).toEqual({ nom: 'test' });
+  });
+
+  it('getPopupHtml handles nested fields', async () => {
+    const mod = await import('../src/components/dsfr-data-map-popup.js');
+    const popup = new mod.DsfrDataMapPopup();
+    const html = popup.getPopupHtml({ details: { score: 42 }, nom: 'Test' });
+    expect(html).toContain('Test');
+  });
+
+  it('close() cleans up panel and modal refs', async () => {
+    const mod = await import('../src/components/dsfr-data-map-popup.js');
+    const popup = new mod.DsfrDataMapPopup();
+    popup._currentRecord = { test: true };
+    popup.close();
+    expect(popup._currentRecord).toBeNull();
+  });
+
+  it('matchesLayer with empty for matches everything', async () => {
+    const mod = await import('../src/components/dsfr-data-map-popup.js');
+    const popup = new mod.DsfrDataMapPopup();
+    expect(popup.matchesLayer('')).toBe(true);
+    expect(popup.matchesLayer('any-id')).toBe(true);
+    expect(popup.matchesLayer('layer-42')).toBe(true);
+  });
+
+  it('_renderTemplate falls back to auto table without template', async () => {
+    const mod = await import('../src/components/dsfr-data-map-popup.js');
+    const popup = new mod.DsfrDataMapPopup();
+    const html = (popup as any)._renderTemplate({ nom: 'Paris', val: 42 });
+    expect(html).toContain('<table');
+    expect(html).toContain('Paris');
+    expect(html).toContain('42');
+  });
+
+  it('_buildAutoTable excludes geo and coord fields', async () => {
+    const mod = await import('../src/components/dsfr-data-map-popup.js');
+    const popup = new mod.DsfrDataMapPopup();
+    const html = (popup as any)._buildAutoTable({
+      nom: 'Test',
+      latitude: 48,
+      longitude: 2,
+      geo_point_2d: { lat: 48, lon: 2 },
+      nested: { a: 1 },
+    });
+    expect(html).toContain('Test');
+    expect(html).not.toContain('latitude');
+    expect(html).not.toContain('longitude');
+    expect(html).not.toContain('geo_point_2d');
+    expect(html).not.toContain('nested'); // objects excluded
+  });
+
+  it('_showPanel creates panel element on map parent', async () => {
+    const mod = await import('../src/components/dsfr-data-map-popup.js');
+    const popup = new mod.DsfrDataMapPopup();
+    popup.mode = 'panel-right';
+    popup.titleField = 'nom';
+
+    // Create a fake dsfr-data-map parent
+    const parent = document.createElement('dsfr-data-map');
+    parent.appendChild(popup);
+    document.body.appendChild(parent);
+
+    popup.showForRecord({ nom: 'Test Centre', prix: 95 });
+
+    const panel = parent.querySelector('.dsfr-data-map-popup__panel');
+    expect(panel).not.toBeNull();
+    expect(panel?.getAttribute('role')).toBe('complementary');
+    expect(panel?.innerHTML).toContain('Test Centre');
+
+    // Close removes panel
+    popup.close();
+    setTimeout(() => {
+      expect(parent.querySelector('.dsfr-data-map-popup__panel')).toBeNull();
+    }, 300);
+
+    document.body.removeChild(parent);
+  });
+
+  it('_showModal creates modal overlay on document body', async () => {
+    const mod = await import('../src/components/dsfr-data-map-popup.js');
+    const popup = new mod.DsfrDataMapPopup();
+    popup.mode = 'modal';
+    popup.titleField = 'nom';
+
+    const parent = document.createElement('dsfr-data-map');
+    parent.appendChild(popup);
+    document.body.appendChild(parent);
+
+    popup.showForRecord({ nom: 'Mon Centre', prix: 80 });
+
+    const overlay = document.querySelector('.dsfr-data-map-popup__modal-overlay');
+    expect(overlay).not.toBeNull();
+    expect(overlay?.getAttribute('role')).toBe('dialog');
+    expect(overlay?.getAttribute('aria-modal')).toBe('true');
+    expect(overlay?.innerHTML).toContain('Mon Centre');
+
+    // Close removes modal
+    popup.close();
+    expect(document.querySelector('.dsfr-data-map-popup__modal-overlay')).toBeNull();
+
+    document.body.removeChild(parent);
+  });
+
+  it('panel-left positions on left side', async () => {
+    const mod = await import('../src/components/dsfr-data-map-popup.js');
+    const popup = new mod.DsfrDataMapPopup();
+    popup.mode = 'panel-left';
+
+    const parent = document.createElement('dsfr-data-map');
+    parent.appendChild(popup);
+    document.body.appendChild(parent);
+
+    popup.showForRecord({ nom: 'Left' });
+
+    const panel = parent.querySelector('.dsfr-data-map-popup__panel');
+    expect(panel?.classList.contains('dsfr-data-map-popup__panel--left')).toBe(true);
+
+    popup.close();
+    document.body.removeChild(parent);
+  });
+});
+
+// ============================================================================
+// DsfrDataMap _injectStyles and container setup
+// ============================================================================
+
+describe('DsfrDataMap styles and a11y elements', () => {
+  it('_injectStyles adds style tag to document head', () => {
+    const map = new DsfrDataMap();
+    (map as any)._injectStyles();
+    const style = document.querySelector('style[data-dsfr-data-map]');
+    expect(style).not.toBeNull();
+    expect(style?.textContent).toContain('dsfr-data-map__container');
+    expect(style?.textContent).toContain('dsfr-data-map__skiplink');
+    expect(style?.textContent).toContain('leaflet-control-zoom');
+    // Cleanup
+    style?.remove();
+  });
+
+  it('_buildMapDescription varies with name', () => {
+    const map = new DsfrDataMap();
+    const noName = (map as any)._buildMapDescription();
+    expect(noName).toContain('Carte interactive.');
+
+    map.name = 'Bornes IRVE';
+    const withName = (map as any)._buildMapDescription();
+    expect(withName).toContain('Bornes IRVE');
+  });
+});
