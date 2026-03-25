@@ -4,7 +4,7 @@
  */
 
 import { Router } from 'express';
-import { getDb } from '../db/database.js';
+import { queryOne, execute } from '../db/database.js';
 import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
@@ -13,74 +13,94 @@ const router = Router();
  * GET /:sourceId - Get cached data for a source
  * Returns the data if cache is not expired (based on TTL).
  */
-router.get('/:sourceId', requireAuth, (req, res) => {
-  const db = getDb();
-  const cache = db.prepare(
-    `SELECT * FROM data_cache
-     WHERE source_id = ?
-     AND datetime(fetched_at, '+' || ttl_seconds || ' seconds') > datetime('now')`,
-  ).get(req.params.sourceId) as { data_json: string; data_hash: string; record_count: number; fetched_at: string; ttl_seconds: number } | undefined;
-
-  if (!cache) {
-    res.status(404).json({ error: 'No valid cache found' });
-    return;
-  }
-
-  let data: unknown;
+router.get('/:sourceId', requireAuth, async (req, res) => {
   try {
-    data = JSON.parse(cache.data_json);
-  } catch {
-    data = null;
-  }
+    const cache = await queryOne<{
+      data_json: string;
+      data_hash: string;
+      record_count: number;
+      fetched_at: string;
+      ttl_seconds: number;
+    }>(
+      `SELECT * FROM data_cache
+       WHERE source_id = ?
+       AND DATE_ADD(fetched_at, INTERVAL ttl_seconds SECOND) > NOW()`,
+      [req.params.sourceId],
+    );
 
-  res.json({
-    data,
-    dataHash: cache.data_hash,
-    recordCount: cache.record_count,
-    fetchedAt: cache.fetched_at,
-    ttlSeconds: cache.ttl_seconds,
-  });
+    if (!cache) {
+      res.status(404).json({ error: 'No valid cache found' });
+      return;
+    }
+
+    let data: unknown;
+    try {
+      data = JSON.parse(cache.data_json);
+    } catch {
+      data = null;
+    }
+
+    res.json({
+      data,
+      dataHash: cache.data_hash,
+      recordCount: cache.record_count,
+      fetchedAt: cache.fetched_at,
+      ttlSeconds: cache.ttl_seconds,
+    });
+  } catch (err) {
+    console.error('Get cache error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 /**
  * PUT /:sourceId - Store/update cached data for a source
  */
-router.put('/:sourceId', requireAuth, (req, res) => {
-  const { data, dataHash, recordCount, ttlSeconds } = req.body;
+router.put('/:sourceId', requireAuth, async (req, res) => {
+  try {
+    const { data, dataHash, recordCount, ttlSeconds } = req.body;
 
-  if (data === undefined) {
-    res.status(400).json({ error: 'data is required' });
-    return;
+    if (data === undefined) {
+      res.status(400).json({ error: 'data is required' });
+      return;
+    }
+
+    await execute(
+      `INSERT INTO data_cache (source_id, data_json, data_hash, record_count, ttl_seconds, fetched_at)
+       VALUES (?, ?, ?, ?, ?, NOW())
+       ON DUPLICATE KEY UPDATE
+         data_json = VALUES(data_json),
+         data_hash = VALUES(data_hash),
+         record_count = VALUES(record_count),
+         ttl_seconds = VALUES(ttl_seconds),
+         fetched_at = NOW()`,
+      [
+        req.params.sourceId,
+        JSON.stringify(data),
+        dataHash || null,
+        recordCount || 0,
+        ttlSeconds || 3600,
+      ],
+    );
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Put cache error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
-
-  const db = getDb();
-  db.prepare(
-    `INSERT INTO data_cache (source_id, data_json, data_hash, record_count, ttl_seconds, fetched_at)
-     VALUES (?, ?, ?, ?, ?, datetime('now'))
-     ON CONFLICT(source_id) DO UPDATE SET
-       data_json = excluded.data_json,
-       data_hash = excluded.data_hash,
-       record_count = excluded.record_count,
-       ttl_seconds = excluded.ttl_seconds,
-       fetched_at = datetime('now')`,
-  ).run(
-    req.params.sourceId,
-    JSON.stringify(data),
-    dataHash || null,
-    recordCount || 0,
-    ttlSeconds || 3600,
-  );
-
-  res.json({ ok: true });
 });
 
 /**
  * DELETE /:sourceId - Invalidate cache for a source
  */
-router.delete('/:sourceId', requireAuth, (req, res) => {
-  const db = getDb();
-  db.prepare('DELETE FROM data_cache WHERE source_id = ?').run(req.params.sourceId);
-  res.json({ ok: true });
+router.delete('/:sourceId', requireAuth, async (req, res) => {
+  try {
+    await execute('DELETE FROM data_cache WHERE source_id = ?', [req.params.sourceId]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Delete cache error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 export default router;

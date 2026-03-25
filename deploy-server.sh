@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# Deploiement en mode SERVEUR (nginx + Express + SQLite, auth JWT)
+# Deploiement en mode SERVEUR (nginx + Express + MariaDB, auth JWT)
 # Usage: ./deploy-server.sh
 #
 # Utilise Dockerfile.db + nginx-db.conf + docker-compose.db.yml
-# Les donnees SQLite sont persistees dans le volume Docker "db-data"
+# Les donnees MariaDB sont persistees dans le volume Docker "mariadb-data"
 
 set -e
 
@@ -13,18 +13,35 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-echo -e "${YELLOW}Mode: SERVEUR (nginx + Express + SQLite)${NC}"
+echo -e "${YELLOW}Mode: SERVEUR (nginx + Express + MariaDB)${NC}"
 echo ""
 
-# Generer .env avec JWT_SECRET si absent
+# Generer .env avec les secrets si absents
 if [ ! -f .env ]; then
-  echo -e "${YELLOW}Generation du fichier .env avec JWT_SECRET...${NC}"
+  echo -e "${YELLOW}Generation du fichier .env avec les secrets...${NC}"
   echo "JWT_SECRET=$(openssl rand -hex 32)" > .env
-  echo -e "${GREEN}.env cree${NC}"
-elif ! grep -q "JWT_SECRET" .env; then
-  echo -e "${YELLOW}Ajout de JWT_SECRET au .env existant...${NC}"
-  echo "JWT_SECRET=$(openssl rand -hex 32)" >> .env
-  echo -e "${GREEN}JWT_SECRET ajoute${NC}"
+  echo "DB_PASSWORD=$(openssl rand -hex 16)" >> .env
+  echo "DB_ROOT_PASSWORD=$(openssl rand -hex 16)" >> .env
+  echo "ENCRYPTION_KEY=$(openssl rand -hex 32)" >> .env
+  echo -e "${GREEN}.env cree avec JWT_SECRET, DB_PASSWORD, DB_ROOT_PASSWORD, ENCRYPTION_KEY${NC}"
+else
+  # Ajouter les secrets manquants au .env existant
+  if ! grep -q "JWT_SECRET" .env; then
+    echo "JWT_SECRET=$(openssl rand -hex 32)" >> .env
+    echo -e "${GREEN}JWT_SECRET ajoute${NC}"
+  fi
+  if ! grep -q "DB_PASSWORD" .env; then
+    echo "DB_PASSWORD=$(openssl rand -hex 16)" >> .env
+    echo -e "${GREEN}DB_PASSWORD ajoute${NC}"
+  fi
+  if ! grep -q "DB_ROOT_PASSWORD" .env; then
+    echo "DB_ROOT_PASSWORD=$(openssl rand -hex 16)" >> .env
+    echo -e "${GREEN}DB_ROOT_PASSWORD ajoute${NC}"
+  fi
+  if ! grep -q "ENCRYPTION_KEY" .env; then
+    echo "ENCRYPTION_KEY=$(openssl rand -hex 32)" >> .env
+    echo -e "${GREEN}ENCRYPTION_KEY ajoute${NC}"
+  fi
 fi
 
 echo -e "${YELLOW}1/4${NC} Arret des conteneurs..."

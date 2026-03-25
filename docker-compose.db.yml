@@ -1,25 +1,57 @@
 # Docker Compose override for "database" mode.
 # Usage: docker compose -f docker-compose.yml -f docker-compose.db.yml up -d --build
 #
-# Adds a backend Express + SQLite server with auth, RBAC, and data persistence.
-# Requires a .env file with JWT_SECRET.
+# Adds a backend Express + MariaDB server with auth, RBAC, and data persistence.
+# Requires a .env file with JWT_SECRET, DB_PASSWORD, DB_ROOT_PASSWORD, ENCRYPTION_KEY.
 
 services:
+  mariadb:
+    image: mariadb:11
+    container_name: dsfr-data-mariadb
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME:-dsfr_data}
+      MYSQL_USER: ${DB_USER:-dsfr_data}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - mariadb-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
   chartsbuilder:
     build:
       context: .
       dockerfile: Dockerfile.db
+    depends_on:
+      mariadb:
+        condition: service_healthy
     volumes:
       - beacon-logs:/var/log/nginx
-      - db-data:/app/server/data
     environment:
       - GOUV_WIDGETS_MODE=database
       - JWT_SECRET=${JWT_SECRET}
-      - DB_PATH=/app/server/data/dsfr-data.db
+      - DB_HOST=mariadb
+      - DB_PORT=3306
+      - DB_NAME=${DB_NAME:-dsfr_data}
+      - DB_USER=${DB_USER:-dsfr_data}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - IA_DEFAULT_TOKEN=${IA_DEFAULT_TOKEN:-}
       - IA_DEFAULT_API_URL=${IA_DEFAULT_API_URL:-https://albert.api.etalab.gouv.fr/v1/chat/completions}
       - IA_DEFAULT_MODEL=${IA_DEFAULT_MODEL:-albert-large}
+    networks:
+      - internal
+      - ecosystem-network
 
 volumes:
   beacon-logs:
-  db-data:
+  mariadb-data:
+
+networks:
+  internal:

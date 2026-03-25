@@ -33,7 +33,7 @@ RUN cd mcp-server && npm ci && npm run build
 FROM nginx:alpine
 
 # Copy Node.js binary from builder (same version that compiled native modules)
-# and add C++ runtime libraries needed by better-sqlite3 and bcrypt
+# and add C++ runtime libraries needed by bcrypt native addon
 COPY --from=builder /usr/local/bin/node /usr/local/bin/node
 RUN apk add --no-cache libstdc++ libgcc
 
@@ -49,8 +49,7 @@ COPY --from=builder /app/app-dist /usr/share/nginx/html
 # Backend server (compiled JS + deps from standalone install)
 COPY --from=builder /app/server/dist /app/server/dist
 COPY --from=builder /server-prod/node_modules /app/server/node_modules
-COPY --from=builder /app/server/src/db/schema.sql /app/server/dist/db/schema.sql
-RUN mkdir -p /app/server/data
+COPY --from=builder /app/server/src/db/schema-mariadb.sql /app/server/dist/db/schema-mariadb.sql
 
 # MCP server
 COPY --from=builder /app/mcp-server/dist /app/mcp-server/dist

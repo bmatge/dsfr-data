@@ -3,7 +3,7 @@
  * Tests user-to-user sharing, group sharing, and global sharing flows.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import request from 'supertest';
 import { createTestApp, closeTestApp } from './test-helpers.js';
 import type { Express } from 'express';
@@ -39,9 +39,12 @@ async function createSource(
   return res.body.id;
 }
 
-beforeEach(() => {
-  closeTestApp();
-  app = createTestApp();
+beforeEach(async () => {
+  app = await createTestApp();
+});
+
+afterAll(async () => {
+  await closeTestApp();
 });
 
 // --------------------------------------------------------------------------

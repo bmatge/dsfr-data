@@ -2,7 +2,7 @@
  * Server tests for the sources CRUD routes.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import request from 'supertest';
 import { createTestApp, closeTestApp, authCookie } from './test-helpers.js';
 import type { Express } from 'express';
@@ -44,9 +44,12 @@ async function createSource(
 }
 
 describe('Sources CRUD routes', () => {
-  beforeEach(() => {
-    closeTestApp();
-    app = createTestApp();
+  beforeEach(async () => {
+    app = await createTestApp();
+  });
+
+  afterAll(async () => {
+    await closeTestApp();
   });
 
   // ------------------------------------------------------------------

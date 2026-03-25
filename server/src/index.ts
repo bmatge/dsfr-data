@@ -18,9 +18,6 @@ import monitoringRoutes from './routes/monitoring.js';
 const app = express();
 const PORT = parseInt(process.env.PORT || '3002', 10);
 
-// Initialize database
-initDatabase();
-
 // Security & parsing middleware
 app.use(helmet());
 app.use(cors({
@@ -51,17 +48,24 @@ app.use('/api/migrate', migrateRoutes);
 app.use('/api/monitoring', monitoringRoutes);
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
-  closeDatabase();
+async function shutdown() {
+  await closeDatabase();
   process.exit(0);
-});
-process.on('SIGINT', () => {
-  closeDatabase();
-  process.exit(0);
-});
+}
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
 
-app.listen(PORT, () => {
-  console.log(`[server] dsfr-data API listening on port ${PORT}`);
+// Start server after database initialization
+async function start() {
+  await initDatabase();
+  app.listen(PORT, () => {
+    console.log(`[server] dsfr-data API listening on port ${PORT}`);
+  });
+}
+
+start().catch(err => {
+  console.error('[server] Failed to start:', err);
+  process.exit(1);
 });
 
 export default app;

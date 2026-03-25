@@ -1,74 +1,164 @@
 /**
- * SQLite database initialization and migration management.
- * Uses better-sqlite3 for synchronous, fast SQLite access.
+ * MariaDB database initialization and query helpers.
+ * Uses mysql2/promise for async pooled connections.
  */
 
-import Database from 'better-sqlite3';
+import mysql from 'mysql2/promise';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import type { PoolConnection, ResultSetHeader } from 'mysql2/promise';
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-let db: Database.Database | null = null;
+let pool: mysql.Pool | null = null;
 
 /**
- * Get the database instance. Must call initDatabase() first.
+ * Get the connection pool. Must call initDatabase() first.
  */
-export function getDb(): Database.Database {
-  if (!db) {
+function getPool(): mysql.Pool {
+  if (!pool) {
     throw new Error('Database not initialized. Call initDatabase() first.');
   }
-  return db;
+  return pool;
 }
 
 /**
- * Initialize the SQLite database.
- * Creates tables from schema.sql if they don't exist.
- * Enables WAL mode for better read concurrency.
- *
- * @param dbPath - Path to the SQLite file. Use ':memory:' for tests.
+ * Initialize the MariaDB connection pool and run schema + migrations.
  */
-export function initDatabase(dbPath?: string): Database.Database {
-  const resolvedPath = dbPath ?? process.env.DB_PATH ?? join(__dirname, '../../data/dsfr-data.db');
+export async function initDatabase(): Promise<void> {
+  pool = mysql.createPool({
+    host: process.env.DB_HOST || 'localhost',
+    port: parseInt(process.env.DB_PORT || '3306', 10),
+    database: process.env.DB_NAME || 'dsfr_data',
+    user: process.env.DB_USER || 'dsfr_data',
+    password: process.env.DB_PASSWORD || '',
+    connectionLimit: 10,
+    waitForConnections: true,
+    // Return dates as strings (same behavior as SQLite)
+    dateStrings: true,
+  });
 
-  db = new Database(resolvedPath);
+  await runSchema();
+  await runMigrations();
+}
 
-  // Enable WAL mode for better read performance
-  db.pragma('journal_mode = WAL');
-  // Enable foreign keys
-  db.pragma('foreign_keys = ON');
+/**
+ * Execute a SELECT query and return all rows.
+ */
+export async function query<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [rows] = await getPool().execute(sql, params as any);
+  return rows as T[];
+}
 
-  // Run initial schema
-  const schema = readFileSync(join(__dirname, 'schema.sql'), 'utf-8');
-  db.exec(schema);
+/**
+ * Execute a SELECT query and return the first row (or undefined).
+ */
+export async function queryOne<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T | undefined> {
+  const rows = await query<T>(sql, params);
+  return rows[0];
+}
 
-  // Run migrations
-  runMigrations(db);
+/**
+ * Execute an INSERT/UPDATE/DELETE query and return the result header.
+ */
+export async function execute(sql: string, params?: unknown[]): Promise<ResultSetHeader> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [result] = await getPool().execute(sql, params as any);
+  return result as ResultSetHeader;
+}
 
-  return db;
+/**
+ * Run a function inside a transaction.
+ * The connection is passed to the callback for use with connQuery/connExecute.
+ */
+export async function transaction<T>(fn: (conn: PoolConnection) => Promise<T>): Promise<T> {
+  const conn = await getPool().getConnection();
+  await conn.beginTransaction();
+  try {
+    const result = await fn(conn);
+    await conn.commit();
+    return result;
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+}
+
+/**
+ * Query helper for use inside a transaction (with a specific connection).
+ */
+export async function connQuery<T = Record<string, unknown>>(conn: PoolConnection, sql: string, params?: unknown[]): Promise<T[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [rows] = await conn.execute(sql, params as any);
+  return rows as T[];
+}
+
+/**
+ * Single-row query helper for use inside a transaction.
+ */
+export async function connQueryOne<T = Record<string, unknown>>(conn: PoolConnection, sql: string, params?: unknown[]): Promise<T | undefined> {
+  const rows = await connQuery<T>(conn, sql, params);
+  return rows[0];
+}
+
+/**
+ * Execute helper for use inside a transaction.
+ */
+export async function connExecute(conn: PoolConnection, sql: string, params?: unknown[]): Promise<ResultSetHeader> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [result] = await conn.execute(sql, params as any);
+  return result as ResultSetHeader;
+}
+
+/**
+ * Run the initial schema (CREATE TABLE IF NOT EXISTS = idempotent).
+ * MariaDB does not support multi-statement execute, so we split by semicolons.
+ */
+async function runSchema(): Promise<void> {
+  const schemaPath = join(__dirname, 'schema-mariadb.sql');
+  const schema = readFileSync(schemaPath, 'utf-8');
+
+  // Strip SQL comment lines, then split on semicolons
+  const cleaned = schema.replace(/^--.*$/gm, '');
+  const statements = cleaned
+    .split(';')
+    .map(s => s.trim())
+    .filter(s => s.length > 0);
+
+  const conn = await getPool().getConnection();
+  try {
+    for (const stmt of statements) {
+      await conn.query(stmt);
+    }
+  } finally {
+    conn.release();
+  }
 }
 
 /**
  * Run pending migrations based on the current schema_version.
  */
-function runMigrations(database: Database.Database): void {
-  const row = database.prepare('SELECT MAX(version) as version FROM schema_version').get() as { version: number } | undefined;
+async function runMigrations(): Promise<void> {
+  const row = await queryOne<{ version: number }>('SELECT MAX(version) as version FROM schema_version');
   const currentVersion = row?.version ?? 0;
 
   // Future migrations go here:
-  // if (currentVersion < 2) { migrate_v2(database); }
-  // if (currentVersion < 3) { migrate_v3(database); }
+  // if (currentVersion < 2) { await migrate_v2(); }
 
   void currentVersion; // suppress unused warning
 }
 
 /**
- * Close the database connection. Used in tests and graceful shutdown.
+ * Close the connection pool. Used for graceful shutdown.
  */
-export function closeDatabase(): void {
-  if (db) {
-    db.close();
-    db = null;
+export async function closeDatabase(): Promise<void> {
+  if (pool) {
+    await pool.end();
+    pool = null;
   }
 }

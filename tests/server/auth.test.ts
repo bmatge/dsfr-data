@@ -2,7 +2,7 @@
  * Server tests for auth routes (/api/auth).
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import request from 'supertest';
 import type { Express } from 'express';
 import { createTestApp, closeTestApp, authCookie } from './test-helpers.js';
@@ -19,9 +19,8 @@ function extractCookie(res: request.Response): string {
 describe('POST /api/auth/register', () => {
   let app: Express;
 
-  beforeEach(() => {
-    closeTestApp();
-    app = createTestApp();
+  beforeEach(async () => {
+    app = await createTestApp();
   });
 
   it('creates a user successfully', async () => {
@@ -98,8 +97,7 @@ describe('POST /api/auth/login', () => {
   let app: Express;
 
   beforeEach(async () => {
-    closeTestApp();
-    app = createTestApp();
+    app = await createTestApp();
 
     // Seed a user for login tests
     await request(app)
@@ -142,9 +140,8 @@ describe('POST /api/auth/login', () => {
 describe('POST /api/auth/logout', () => {
   let app: Express;
 
-  beforeEach(() => {
-    closeTestApp();
-    app = createTestApp();
+  beforeEach(async () => {
+    app = await createTestApp();
   });
 
   it('clears cookie', async () => {
@@ -164,9 +161,8 @@ describe('POST /api/auth/logout', () => {
 describe('GET /api/auth/me', () => {
   let app: Express;
 
-  beforeEach(() => {
-    closeTestApp();
-    app = createTestApp();
+  beforeEach(async () => {
+    app = await createTestApp();
   });
 
   it('returns user info', async () => {
@@ -202,9 +198,8 @@ describe('GET /api/auth/me', () => {
 describe('PUT /api/auth/me', () => {
   let app: Express;
 
-  beforeEach(() => {
-    closeTestApp();
-    app = createTestApp();
+  beforeEach(async () => {
+    app = await createTestApp();
   });
 
   it('updates display name', async () => {
@@ -251,9 +246,8 @@ describe('PUT /api/auth/me', () => {
 describe('GET /api/auth/users', () => {
   let app: Express;
 
-  beforeEach(() => {
-    closeTestApp();
-    app = createTestApp();
+  beforeEach(async () => {
+    app = await createTestApp();
   });
 
   it('finds by email', async () => {
@@ -287,4 +281,8 @@ describe('GET /api/auth/users', () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual([]);
   });
+});
+
+afterAll(async () => {
+  await closeTestApp();
 });

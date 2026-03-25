@@ -2,7 +2,7 @@
  * Server tests for cache routes (/api/cache).
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import request from 'supertest';
 import type { Express } from 'express';
 import { createTestApp, closeTestApp } from './test-helpers.js';
@@ -28,8 +28,7 @@ describe('PUT /api/cache/:sourceId', () => {
   let cookie: string;
 
   beforeEach(async () => {
-    closeTestApp();
-    app = createTestApp();
+    app = await createTestApp();
     cookie = await registerAndGetCookie(app);
   });
 
@@ -109,8 +108,7 @@ describe('GET /api/cache/:sourceId', () => {
   let cookie: string;
 
   beforeEach(async () => {
-    closeTestApp();
-    app = createTestApp();
+    app = await createTestApp();
     cookie = await registerAndGetCookie(app);
   });
 
@@ -136,8 +134,7 @@ describe('DELETE /api/cache/:sourceId', () => {
   let cookie: string;
 
   beforeEach(async () => {
-    closeTestApp();
-    app = createTestApp();
+    app = await createTestApp();
     cookie = await registerAndGetCookie(app);
   });
 
@@ -186,4 +183,8 @@ describe('DELETE /api/cache/:sourceId', () => {
 
     expect(res.status).toBe(401);
   });
+});
+
+afterAll(async () => {
+  await closeTestApp();
 });

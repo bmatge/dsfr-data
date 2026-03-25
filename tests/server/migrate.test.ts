@@ -2,7 +2,7 @@
  * Server tests for migration route (/api/migrate).
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import request from 'supertest';
 import type { Express } from 'express';
 import { createTestApp, closeTestApp } from './test-helpers.js';
@@ -48,9 +48,12 @@ describe('POST /api/migrate', () => {
   let cookie: string;
 
   beforeEach(async () => {
-    closeTestApp();
-    app = createTestApp();
+    app = await createTestApp();
     cookie = await registerAndGetCookie(app);
+  });
+
+  afterAll(async () => {
+    await closeTestApp();
   });
 
   it('imports all entity types (full migration)', async () => {

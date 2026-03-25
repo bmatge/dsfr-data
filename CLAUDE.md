@@ -234,7 +234,36 @@ echo "COMPOSE_PROJECT_NAME=datasource-charts-webcomponents" >> .env
 ./deploy-server.sh
 ```
 
-La DB SQLite est dans le volume `datasource-charts-webcomponents_db-data`, fichier `dsfr-data.db`.
+### Base de donnees MariaDB
+
+Le serveur Express utilise **MariaDB 11** via `mysql2/promise` (requetes async, pool de connexions).
+Le conteneur MariaDB est defini dans `docker-compose.db.yml` avec healthcheck.
+Les donnees sont persistees dans le volume Docker `mariadb-data`.
+
+**Variables d'environnement** (generees automatiquement par `deploy-server.sh`) :
+- `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_ROOT_PASSWORD`
+- `ENCRYPTION_KEY` — cle AES-256-GCM pour chiffrer les `api_key_encrypted` (64 hex chars)
+
+**Schema** : `server/src/db/schema-mariadb.sql` (execute au demarrage, idempotent via `CREATE TABLE IF NOT EXISTS`).
+**Helpers DB** : `server/src/db/database.ts` exporte `query()`, `queryOne()`, `execute()`, `transaction()`.
+
+### Migration SQLite → MariaDB
+
+Pour migrer les donnees d'une installation SQLite existante :
+
+```bash
+# 1. Copier le fichier SQLite depuis le volume Docker
+docker cp <container>:/app/server/data/dsfr-data.db ./dsfr-data.db
+
+# 2. Lancer le script de migration
+DB_PASSWORD=xxx ENCRYPTION_KEY=xxx npx tsx scripts/migrate-sqlite-to-mariadb.ts --sqlite ./dsfr-data.db
+```
+
+### Chiffrement des cles API
+
+Les cles API dans `connections.api_key_encrypted` sont chiffrees en AES-256-GCM (`server/src/utils/crypto.ts`).
+Format : `base64(iv):base64(authTag):base64(ciphertext)`.
+Si `ENCRYPTION_KEY` n'est pas defini, les cles sont stockees en clair (compatibilite).
 
 ### mcp-server
 

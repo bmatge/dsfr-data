@@ -1,12 +1,23 @@
 /**
  * Test helpers for server tests.
- * Creates an Express app with in-memory SQLite for each test suite.
+ * Creates an Express app backed by a MariaDB test database.
+ *
+ * Requires a running MariaDB instance. Configure via env vars:
+ *   DB_HOST (default: localhost)
+ *   DB_PORT (default: 3306)
+ *   DB_NAME (default: dsfr_data_test)
+ *   DB_USER (default: root)
+ *   DB_PASSWORD (default: test)
+ *
+ * Quick setup:
+ *   docker run -d --name mariadb-test -p 3306:3306 \
+ *     -e MYSQL_ROOT_PASSWORD=test -e MYSQL_DATABASE=dsfr_data_test mariadb:11
  */
 
 import express from 'express';
 import cookieParser from 'cookie-parser';
-import { initDatabase, closeDatabase } from '../../server/src/db/database.js';
-import { authMiddleware, createToken, setAuthCookie } from '../../server/src/middleware/auth.js';
+import { initDatabase, closeDatabase, execute, query } from '../../server/src/db/database.js';
+import { authMiddleware, createToken } from '../../server/src/middleware/auth.js';
 import type { JwtPayload } from '../../server/src/middleware/auth.js';
 import authRoutes from '../../server/src/routes/auth.js';
 import sourcesRoutes from '../../server/src/routes/sources.js';
@@ -20,15 +31,51 @@ import migrateRoutes from '../../server/src/routes/migrate.js';
 import monitoringRoutes from '../../server/src/routes/monitoring.js';
 import type { Express } from 'express';
 
-/**
- * Create a test Express app with in-memory SQLite.
- */
-export function createTestApp(): Express {
-  // Set JWT_SECRET for tests
-  process.env.JWT_SECRET = 'test-secret-key-for-tests';
+// Set test env defaults
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret-key-for-tests';
+process.env.DB_HOST = process.env.DB_HOST || 'localhost';
+process.env.DB_PORT = process.env.DB_PORT || '3306';
+process.env.DB_NAME = process.env.DB_NAME || 'dsfr_data_test';
+process.env.DB_USER = process.env.DB_USER || 'root';
+process.env.DB_PASSWORD = process.env.DB_PASSWORD || 'test';
 
-  // Initialize in-memory database
-  initDatabase(':memory:');
+let initialized = false;
+
+/**
+ * Tables in reverse FK order for truncation.
+ */
+const TABLES_TO_TRUNCATE = [
+  'data_cache',
+  'monitoring',
+  'shares',
+  'group_members',
+  'dashboards',
+  'favorites',
+  'connections',
+  'sources',
+  '`groups`',
+  'users',
+];
+
+/**
+ * Create a test Express app backed by MariaDB.
+ * On first call, initializes the database pool and schema.
+ * On subsequent calls, truncates all tables for a clean state.
+ */
+export async function createTestApp(): Promise<Express> {
+  if (!initialized) {
+    await initDatabase();
+    initialized = true;
+  } else {
+    // Truncate all tables for clean state (disable FK checks temporarily)
+    await execute('SET FOREIGN_KEY_CHECKS = 0');
+    for (const table of TABLES_TO_TRUNCATE) {
+      await execute(`TRUNCATE TABLE ${table}`);
+    }
+    await execute('SET FOREIGN_KEY_CHECKS = 1');
+    // Re-insert schema_version
+    await execute('INSERT IGNORE INTO schema_version (version) VALUES (1)');
+  }
 
   const app = express();
   app.use(express.json({ limit: '10mb' }));
@@ -50,10 +97,13 @@ export function createTestApp(): Express {
 }
 
 /**
- * Close the test database.
+ * Close the test database pool. Call once in afterAll().
  */
-export function closeTestApp(): void {
-  closeDatabase();
+export async function closeTestApp(): Promise<void> {
+  if (initialized) {
+    await closeDatabase();
+    initialized = false;
+  }
 }
 
 /**

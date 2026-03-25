@@ -5,7 +5,7 @@
 
 import type { Request, Response, NextFunction } from 'express';
 import type { AuthenticatedRequest } from './auth.js';
-import { getDb } from '../db/database.js';
+import { query, queryOne } from '../db/database.js';
 
 type ResourceType = 'source' | 'connection' | 'favorite' | 'dashboard';
 type Permission = 'read' | 'write';
@@ -50,25 +50,25 @@ export function requireRole(minRole: string) {
  * Check if a user can access a resource with a given permission.
  * Checks: ownership → direct user share → group share → global share.
  */
-export function canAccess(
+export async function canAccess(
   userId: string,
   resourceType: ResourceType,
   resourceId: string,
   permission: Permission,
-): boolean {
-  const db = getDb();
+): Promise<boolean> {
   const table = RESOURCE_TABLES[resourceType];
 
   // 1. Check ownership
-  const resource = db.prepare(`SELECT owner_id FROM ${table} WHERE id = ?`).get(resourceId) as { owner_id: string } | undefined;
+  const resource = await queryOne<{ owner_id: string }>(`SELECT owner_id FROM ${table} WHERE id = ?`, [resourceId]);
   if (!resource) return false;
   if (resource.owner_id === userId) return true;
 
   // 2. Check direct user share
-  const userShare = db.prepare(
+  const userShare = await queryOne<{ permission: string }>(
     `SELECT permission FROM shares
      WHERE resource_type = ? AND resource_id = ? AND target_type = 'user' AND target_id = ?`,
-  ).get(resourceType, resourceId, userId) as { permission: string } | undefined;
+    [resourceType, resourceId, userId],
+  );
 
   if (userShare) {
     if (permission === 'read') return true;
@@ -76,15 +76,17 @@ export function canAccess(
   }
 
   // 3. Check group shares
-  const userGroups = db.prepare(
+  const userGroups = await query<{ group_id: string }>(
     'SELECT group_id FROM group_members WHERE user_id = ?',
-  ).all(userId) as { group_id: string }[];
+    [userId],
+  );
 
   for (const { group_id } of userGroups) {
-    const groupShare = db.prepare(
+    const groupShare = await queryOne<{ permission: string }>(
       `SELECT permission FROM shares
        WHERE resource_type = ? AND resource_id = ? AND target_type = 'group' AND target_id = ?`,
-    ).get(resourceType, resourceId, group_id) as { permission: string } | undefined;
+      [resourceType, resourceId, group_id],
+    );
 
     if (groupShare) {
       if (permission === 'read') return true;
@@ -93,10 +95,11 @@ export function canAccess(
   }
 
   // 4. Check global share
-  const globalShare = db.prepare(
+  const globalShare = await queryOne<{ permission: string }>(
     `SELECT permission FROM shares
      WHERE resource_type = ? AND resource_id = ? AND target_type = 'global'`,
-  ).get(resourceType, resourceId) as { permission: string } | undefined;
+    [resourceType, resourceId],
+  );
 
   if (globalShare) {
     if (permission === 'read') return true;
@@ -111,7 +114,7 @@ export function canAccess(
  * Expects :id parameter in the route.
  */
 export function requireAccess(resourceType: ResourceType, permission: Permission) {
-  return (req: Request, res: Response, next: NextFunction): void => {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const authReq = req as AuthenticatedRequest;
     if (!authReq.user) {
       res.status(401).json({ error: 'Authentication required' });
@@ -124,7 +127,7 @@ export function requireAccess(resourceType: ResourceType, permission: Permission
       return;
     }
 
-    if (!canAccess(authReq.user!.userId, resourceType, resourceId as string, permission)) {
+    if (!(await canAccess(authReq.user!.userId, resourceType, resourceId as string, permission))) {
       res.status(403).json({ error: 'Access denied' });
       return;
     }
@@ -136,16 +139,15 @@ export function requireAccess(resourceType: ResourceType, permission: Permission
 /**
  * Get permissions info for a resource (used in API responses).
  */
-export function getPermissions(userId: string, resourceType: ResourceType, resourceId: string) {
-  const db = getDb();
+export async function getPermissions(userId: string, resourceType: ResourceType, resourceId: string) {
   const table = RESOURCE_TABLES[resourceType];
 
-  const resource = db.prepare(`SELECT owner_id FROM ${table} WHERE id = ?`).get(resourceId) as { owner_id: string } | undefined;
+  const resource = await queryOne<{ owner_id: string }>(`SELECT owner_id FROM ${table} WHERE id = ?`, [resourceId]);
   if (!resource) return null;
 
   const isOwner = resource.owner_id === userId;
 
-  const shares = db.prepare(
+  const shares = await query(
     `SELECT s.id, s.target_type, s.target_id, s.permission,
             CASE
               WHEN s.target_type = 'user' THEN u.display_name
@@ -154,13 +156,14 @@ export function getPermissions(userId: string, resourceType: ResourceType, resou
             END as target_name
      FROM shares s
      LEFT JOIN users u ON s.target_type = 'user' AND s.target_id = u.id
-     LEFT JOIN groups g ON s.target_type = 'group' AND s.target_id = g.id
+     LEFT JOIN \`groups\` g ON s.target_type = 'group' AND s.target_id = g.id
      WHERE s.resource_type = ? AND s.resource_id = ?`,
-  ).all(resourceType, resourceId);
+    [resourceType, resourceId],
+  );
 
   return {
     isOwner,
-    canEdit: isOwner || canAccess(userId, resourceType, resourceId, 'write'),
+    canEdit: isOwner || await canAccess(userId, resourceType, resourceId, 'write'),
     canDelete: isOwner,
     sharedWith: shares,
   };
