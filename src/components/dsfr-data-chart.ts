@@ -442,9 +442,10 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     databoxEl.id = databoxId;
     // No segmented-control: DataBox's native chart/table toggle requires static
     // HTML parsed by Vue. dsfr-data-a11y provides the data table instead.
-    if (this.databoxTitle) databoxEl.setAttribute('title', this.databoxTitle);
-    if (this.databoxSource) databoxEl.setAttribute('source', this.databoxSource);
-    if (this.databoxDate) databoxEl.setAttribute('date', this.databoxDate);
+    // title, source, date are REQUIRED props for DataBox — always set them.
+    databoxEl.setAttribute('title', this.databoxTitle || ' ');
+    databoxEl.setAttribute('source', this.databoxSource || ' ');
+    databoxEl.setAttribute('date', this.databoxDate || new Date().toISOString().split('T')[0]);
     if (this.databoxDownload) databoxEl.setAttribute('download', '');
     if (this.databoxScreenshot) databoxEl.setAttribute('screenshot', '');
     if (this.databoxFullscreen) databoxEl.setAttribute('fullscreen', '');
