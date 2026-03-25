@@ -118,6 +118,7 @@ export class AppLayoutDemo extends LitElement {
           { id: 'components/dsfr-data-source', label: 'dsfr-data-source', href: 'components/dsfr-data-source.html' },
           { id: 'components/dsfr-data-normalize', label: 'dsfr-data-normalize', href: 'components/dsfr-data-normalize.html' },
           { id: 'components/dsfr-data-query', label: 'dsfr-data-query', href: 'components/dsfr-data-query.html' },
+          { id: 'components/dsfr-data-join', label: 'dsfr-data-join', href: 'components/dsfr-data-join.html' },
           { id: 'components/dsfr-data-facets', label: 'dsfr-data-facets', href: 'components/dsfr-data-facets.html' },
           { id: 'components/dsfr-data-search', label: 'dsfr-data-search', href: 'components/dsfr-data-search.html' },
           { id: 'components/dsfr-data-kpi', label: 'dsfr-data-kpi', href: 'components/dsfr-data-kpi.html' },
