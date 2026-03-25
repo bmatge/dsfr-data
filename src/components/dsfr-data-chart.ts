@@ -465,18 +465,24 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     // Create chart element
     const chartEl = this._createRawChartElement(tagName, attributes, deferred);
 
+    // Hidden stub so DataBox's querySelectorAll finds a databox-type="table"
+    // element and creates the table container div. Without this, DataBox
+    // doesn't create #databoxId-table-default and there's nowhere to inject
+    // our HTML table. The actual table content is injected by _injectDataboxTable().
+    const tableStub = document.createElement('div');
+    tableStub.setAttribute('databox-id', databoxId);
+    tableStub.setAttribute('databox-type', 'table');
+    tableStub.setAttribute('databox-source', sourceName);
+    tableStub.style.display = 'none';
+
     // DataBox MUST be first in DOM order: its Vue template creates container
     // divs (e.g. #databoxId-chart-default), then DSFR Chart components use
     // Vue <Teleport> to render INTO those containers.
-    // databox-source="default" must be explicit for DataBox's querySelector.
-    //
-    // NOTE: no segmented-control — DataBox's native chart/table toggle requires
-    // static HTML that Vue processes at parse time, incompatible with dynamic
-    // data injection. dsfr-data-a11y provides the accessible data table instead.
     const wrapper = document.createElement('div');
     wrapper.className = 'dsfr-data-chart__databox-wrapper';
     wrapper.appendChild(databoxEl);
     wrapper.appendChild(chartEl);
+    wrapper.appendChild(tableStub);
 
     return wrapper;
   }
