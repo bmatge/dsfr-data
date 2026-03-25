@@ -14,7 +14,7 @@ let app: Express;
 async function registerUser(
   app: Express,
   email: string,
-  password = 'password123',
+  password = 'Password1',
   displayName?: string,
 ): Promise<{ userId: string; cookies: string[] }> {
   const res = await request(app)

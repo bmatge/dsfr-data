@@ -19,7 +19,7 @@ function extractCookie(res: request.Response): string {
 async function registerAndGetCookie(app: Express): Promise<string> {
   const res = await request(app)
     .post('/api/auth/register')
-    .send({ email: 'cache-user@example.com', password: 'password123', displayName: 'CacheUser' });
+    .send({ email: 'cache-user@example.com', password: 'Password1', displayName: 'CacheUser' });
   return extractCookie(res);
 }
 

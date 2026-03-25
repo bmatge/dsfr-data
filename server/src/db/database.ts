@@ -147,10 +147,72 @@ async function runMigrations(): Promise<void> {
   const row = await queryOne<{ version: number }>('SELECT MAX(version) as version FROM schema_version');
   const currentVersion = row?.version ?? 0;
 
-  // Future migrations go here:
-  // if (currentVersion < 2) { await migrate_v2(); }
+  if (currentVersion < 2) {
+    await migrateV2();
+  }
+}
 
-  void currentVersion; // suppress unused warning
+/**
+ * Migration v2: auth hardening + ProConnect preparation.
+ * - New columns on users: auth_provider, external_id, idp_id, siret,
+ *   organizational_unit, is_active, last_login, email_verified,
+ *   verification_token_hash, verification_expires
+ * - password_hash becomes nullable (ProConnect accounts have no local password)
+ * - Existing users marked as email_verified = TRUE
+ */
+async function migrateV2(): Promise<void> {
+  console.log('[db] Running migration v2: auth hardening + ProConnect prep');
+
+  const conn = await getPool().getConnection();
+  try {
+    // Check if migration already partially applied (column exists)
+    const [cols] = await conn.query(
+      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'auth_provider'`,
+    );
+    if ((cols as unknown[]).length > 0) {
+      // Already migrated, just update version
+      await conn.query('INSERT IGNORE INTO schema_version (version) VALUES (2)');
+      return;
+    }
+
+    await conn.beginTransaction();
+
+    // New columns on users
+    await conn.query(`ALTER TABLE users
+      ADD COLUMN auth_provider ENUM('local', 'proconnect') NOT NULL DEFAULT 'local' AFTER role,
+      ADD COLUMN external_id VARCHAR(255) NULL AFTER auth_provider,
+      ADD COLUMN idp_id VARCHAR(255) NULL AFTER external_id,
+      ADD COLUMN siret VARCHAR(14) NULL AFTER idp_id,
+      ADD COLUMN organizational_unit VARCHAR(255) NULL AFTER siret,
+      ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT TRUE AFTER organizational_unit,
+      ADD COLUMN last_login TIMESTAMP NULL AFTER is_active,
+      ADD COLUMN email_verified BOOLEAN NOT NULL DEFAULT FALSE AFTER last_login,
+      ADD COLUMN verification_token_hash VARCHAR(64) NULL AFTER email_verified,
+      ADD COLUMN verification_expires TIMESTAMP NULL AFTER verification_token_hash`);
+
+    // password_hash nullable for ProConnect accounts
+    await conn.query(`ALTER TABLE users MODIFY COLUMN password_hash VARCHAR(255) NULL`);
+
+    // Existing users are already verified
+    await conn.query(`UPDATE users SET email_verified = TRUE`);
+
+    // Indexes
+    await conn.query(`CREATE UNIQUE INDEX idx_users_external ON users(auth_provider, external_id)`);
+    await conn.query(`CREATE INDEX idx_users_active ON users(is_active)`);
+    await conn.query(`CREATE INDEX idx_users_verification ON users(verification_token_hash)`);
+
+    // Bump schema version
+    await conn.query('INSERT IGNORE INTO schema_version (version) VALUES (2)');
+
+    await conn.commit();
+    console.log('[db] Migration v2 complete');
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
 }
 
 /**
