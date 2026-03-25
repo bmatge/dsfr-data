@@ -26,6 +26,7 @@
           { id: "exemples-source", label: "dsfr-data-source", href: "guide-exemples-source.html" },
           { id: "exemples-normalize", label: "dsfr-data-normalize", href: "guide-exemples-normalize.html" },
           { id: "exemples-query", label: "dsfr-data-query", href: "guide-exemples-query.html" },
+          { id: "exemples-join", label: "dsfr-data-join", href: "guide-exemples-join.html" },
           { id: "exemples-search", label: "dsfr-data-search", href: "guide-exemples-search.html" },
           { id: "exemples-facets", label: "dsfr-data-facets", href: "guide-exemples-facets.html" },
           { id: "exemples-display", label: "dsfr-data-display", href: "guide-exemples-display.html" },

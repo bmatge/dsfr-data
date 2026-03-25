@@ -19,6 +19,7 @@ import { DsfrDataSearch } from '../../../src/components/dsfr-data-search.js';
 import { DsfrDataA11y } from '../../../src/components/dsfr-data-a11y.js';
 import { DsfrDataKpiGroup } from '../../../src/components/dsfr-data-kpi-group.js';
 import { DsfrDataWorldMap } from '../../../src/components/dsfr-data-world-map.js';
+import { DsfrDataJoin } from '../../../src/components/dsfr-data-join.js';
 
 // Type/constant imports for alignment checks
 import type { FilterOperator, AggregateFunction } from '../../../src/components/dsfr-data-query.js';
@@ -46,8 +47,8 @@ function getHtmlAttributes(ComponentClass: typeof DsfrDataSource): Set<string> {
 }
 
 describe('builder-ia skills', () => {
-  it('should have 22 skill definitions', () => {
-    expect(Object.keys(SKILLS)).toHaveLength(22);
+  it('should have 23 skill definitions', () => {
+    expect(Object.keys(SKILLS)).toHaveLength(23);
   });
 
   it('should have expected skill IDs', () => {
@@ -73,6 +74,7 @@ describe('builder-ia skills', () => {
     expect(SKILLS).toHaveProperty('dsfrDataA11y');
     expect(SKILLS).toHaveProperty('dsfrDataWorldMap');
     expect(SKILLS).toHaveProperty('troubleshooting');
+    expect(SKILLS).toHaveProperty('dsfrDataJoin');
   });
 
   it('each skill should have required properties', () => {
@@ -261,6 +263,10 @@ describe('builder-ia skills', () => {
 
       it('dsfrDataWorldMap skill covers all <dsfr-data-world-map> attributes', () => {
         assertAttributesCovered(DsfrDataWorldMap as unknown as typeof DsfrDataSource, 'dsfrDataWorldMap', 'dsfr-data-world-map');
+      });
+
+      it('dsfrDataJoin skill covers all <dsfr-data-join> attributes', () => {
+        assertAttributesCovered(DsfrDataJoin as unknown as typeof DsfrDataSource, 'dsfrDataJoin', 'dsfr-data-join');
       });
     });
 

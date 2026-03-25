@@ -945,7 +945,7 @@ Conteneur qui dispose plusieurs \`<dsfr-data-kpi>\` dans une grille CSS 12 colon
     id: 'dsfrDataChart',
     name: 'dsfr-data-chart',
     description: 'Wrapper DSFR Chart connecte aux sources de donnees',
-    trigger: ['graphique', 'chart', 'visualisation', 'barres', 'camembert', 'ligne', 'radar', 'nuage', 'scatter', 'carte', 'map', 'jauge', 'gauge', 'departement', 'region'],
+    trigger: ['graphique', 'chart', 'visualisation', 'barres', 'camembert', 'ligne', 'radar', 'nuage', 'scatter', 'carte', 'map', 'jauge', 'gauge', 'departement', 'region', 'databox', 'habillage', 'encadrer', 'titre graphique', 'source donnees', 'screenshot', 'capture ecran', 'plein ecran', 'fullscreen', 'tendance', 'trend'],
     content: `## <dsfr-data-chart> - Graphiques DSFR
 
 Wrapper connectant les composants DSFR Chart officiels au systeme dsfr-data-source/dsfr-data-query.
@@ -1056,6 +1056,41 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 
 <!-- Jauge -->
 <dsfr-data-chart type="gauge" gauge-value="73"></dsfr-data-chart>
+\`\`\`
+
+### Habillage DataBox (optionnel)
+
+L'attribut \`databox\` active l'habillage DataBox DSFR autour du graphique :
+cadre editorial avec titre, source, date, switch chart/tableau integre, screenshot PNG,
+telechargement CSV, plein ecran, tendance.
+
+| Attribut | Type | Defaut | Description |
+|----------|------|--------|-------------|
+| databox | Boolean | \`false\` | Active l'habillage DataBox DSFR |
+| databox-title | String | \`""\` | Titre affiche dans l'en-tete (ex: "Population par region") |
+| databox-source | String | \`""\` | Source des donnees (ex: "INSEE, RP 2021") |
+| databox-date | String | \`""\` | Date des donnees (ex: "Mars 2024") |
+| databox-download | Boolean | \`false\` | Bouton telechargement CSV |
+| databox-screenshot | Boolean | \`false\` | Bouton screenshot PNG |
+| databox-fullscreen | Boolean | \`false\` | Bouton plein ecran |
+| databox-trend | String | \`""\` | Tendance (ex: "+5.2" ou "-3.1") |
+
+Quand \`databox\` est active, dsfr-data-a11y ne doit PAS inclure \`table\` ni \`download\`
+(DataBox les fournit deja). Conserver uniquement \`description\` sur dsfr-data-a11y.
+
+\`\`\`html
+<!-- Graphique avec habillage DataBox -->
+<dsfr-data-chart source="data" type="bar"
+  label-field="region" value-field="total"
+  databox
+  databox-title="Population par region"
+  databox-source="INSEE, RP 2021"
+  databox-date="Mars 2024"
+  databox-download>
+</dsfr-data-chart>
+<dsfr-data-a11y for="chart" source="data"
+  description="L'Ile-de-France concentre la majorite de la population.">
+</dsfr-data-a11y>
 \`\`\``,
   },
 
@@ -1499,6 +1534,32 @@ Toujours inclure ces 6 dependances dans cet ordre exact :
 
 <dsfr-data-source id="data" url="VOTRE_URL_API" transform="results"></dsfr-data-source>
 <dsfr-data-chart source="data" type="bar" label-field="CHAMP_LABEL" value-field="CHAMP_VALEUR"></dsfr-data-chart>
+\`\`\`
+
+### Pattern avec habillage DataBox
+
+Utiliser ce pattern quand l'utilisateur demande un graphique "presentable", "publiable",
+"avec un titre", un export CSV/screenshot, un mode plein ecran, ou un cadre editorial.
+
+\`\`\`html
+<dsfr-data-source id="src" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr"
+  dataset-id="population-dept">
+</dsfr-data-source>
+<dsfr-data-query id="data" source="src"
+  group-by="region" aggregate="population:sum:total"
+  order-by="total:desc">
+</dsfr-data-query>
+<dsfr-data-chart id="chart" source="data" type="bar"
+  label-field="region" value-field="total"
+  databox databox-title="Population par region"
+  databox-source="INSEE via data.economie.gouv.fr"
+  databox-date="2024"
+  databox-download databox-screenshot>
+</dsfr-data-chart>
+<dsfr-data-a11y for="chart" source="data"
+  description="L'Ile-de-France domine largement.">
+</dsfr-data-a11y>
 \`\`\``,
   },
 
@@ -1912,6 +1973,24 @@ Quand \`for="mon-graph"\` est defini :
 <dsfr-data-a11y source="data" no-auto-aria table download></dsfr-data-a11y>
 \`\`\`
 
+### Cohabitation avec DataBox
+Si le graphique cible utilise l'attribut \`databox\`, ne PAS ajouter les attributs
+\`table\` et \`download\` sur dsfr-data-a11y (DataBox les fournit deja avec un meilleur
+rendu : switch chart/tableau integre, CSV natif). Conserver uniquement :
+- \`for\` + \`source\` (obligatoires)
+- \`description\` (texte accessible pour lecteurs d'ecran)
+
+\`\`\`html
+<!-- Avec DataBox : pas de table ni download sur a11y -->
+<dsfr-data-chart id="chart" source="data" type="bar"
+  label-field="region" value-field="total"
+  databox databox-title="Population" databox-download>
+</dsfr-data-chart>
+<dsfr-data-a11y for="chart" source="data"
+  description="L'Ile-de-France concentre la majorite.">
+</dsfr-data-a11y>
+\`\`\`
+
 ### Notes
 - Le contenu est dans un accordeon DSFR (replie par defaut)
 - Le CSV utilise le separateur \`;\` (standard francais)
@@ -2049,6 +2128,99 @@ cles de premier niveau.
 \`\`\`html
 <dsfr-data-normalize id="clean" source="raw" flatten="fields" trim></dsfr-data-normalize>
 \`\`\``,
+  },
+
+  dsfrDataJoin: {
+    id: 'dsfrDataJoin',
+    name: 'dsfr-data-join',
+    description: 'Jointure multi-sources autour d\'une cle pivot',
+    trigger: ['join', 'jointure', 'croiser', 'fusionner', 'enrichir', 'merge', 'left join', 'inner join', 'multi-source', 'combiner'],
+    content: `## <dsfr-data-join> - Jointure multi-sources
+
+Composant invisible qui joint deux sources de donnees sur une ou plusieurs cles pivot.
+Ne fait aucun fetch HTTP — c'est un pur transformateur de donnees.
+Il attend que les deux sources aient emis leurs donnees avant de calculer la jointure.
+Si une source se recharge, le join est recalcule automatiquement.
+
+### Position dans le pipeline
+\`\`\`
+dsfr-data-source (A)  ──────┐
+                             ├──► dsfr-data-join ──► dsfr-data-query ──► dsfr-data-chart
+dsfr-data-source (B)  ──────┘
+\`\`\`
+
+### Attributs
+| Attribut | Type | Defaut | Requis | Description |
+|----------|------|--------|--------|-------------|
+| left | String | "" | oui | ID de la source gauche (source principale) |
+| right | String | "" | oui | ID de la source droite |
+| on | String | "" | oui | Cle(s) de jointure (voir formats ci-dessous) |
+| type | String | "left" | non | Type de jointure : inner, left, right, full |
+| prefix-left | String | "" | non | Prefixe pour les champs gauche en cas de collision |
+| prefix-right | String | "right_" | non | Prefixe pour les champs droite en cas de collision |
+
+### Format de l'attribut \`on\`
+- Cle commune : \`on="code_dept"\`
+- Cle differente gauche/droite : \`on="dept_code=code"\`
+- Multi-cle : \`on="annee,code_region"\`
+
+### Types de jointure
+- **inner** : seuls les enregistrements presents dans les deux sources
+- **left** : tous les enregistrements de la source gauche, champs droite a null si absent
+- **right** : tous les enregistrements de la source droite, champs gauche a null si absent
+- **full** : union de tous les enregistrements, null pour les champs manquants
+
+### Gestion des collisions
+Si un champ existe dans les deux sources avec le meme nom :
+- Le \`prefix-right\` est applique au champ droit (defaut : \`right_\`)
+- Le \`prefix-left\` est applique au champ gauche si defini
+- La cle de jointure n'est jamais dupliquee
+
+### Exemple 1 : enrichir un dataset population avec des budgets
+\`\`\`html
+<dsfr-data-source id="pop" api-type="opendatasoft"
+  dataset-id="population-dept" base-url="https://data.economie.gouv.fr">
+</dsfr-data-source>
+<dsfr-data-source id="budget" api-type="tabular"
+  resource="abc123-budget-dept">
+</dsfr-data-source>
+<dsfr-data-join id="enriched"
+  left="pop" right="budget"
+  on="code_dept" type="left"
+  prefix-right="budget_">
+</dsfr-data-join>
+<dsfr-data-chart source="enriched" type="bar"
+  label-field="nom_dept" value-field="budget_montant">
+</dsfr-data-chart>
+\`\`\`
+
+### Exemple 2 : jointure avec transformation aval
+\`\`\`html
+<dsfr-data-join id="joined" left="src1" right="src2" on="code_region" type="inner">
+</dsfr-data-join>
+<dsfr-data-query id="q" source="joined"
+  aggregate="population:sum:total,budget:sum:total_budget"
+  group-by="nom_region" order-by="total:desc">
+</dsfr-data-query>
+<dsfr-data-chart source="q" type="horizontalBar"
+  label-field="nom_region" value-field="total">
+</dsfr-data-chart>
+\`\`\`
+
+### Exemple 3 : cles de nommage different
+\`\`\`html
+<!-- La source gauche a "dept_code", la droite a "code" -->
+<dsfr-data-join id="merged"
+  left="src-a" right="src-b"
+  on="dept_code=code" type="inner">
+</dsfr-data-join>
+\`\`\`
+
+### Notes
+- Le join est recalcule automatiquement quand l'une des sources emet de nouvelles donnees
+- Relations 1-N : si plusieurs enregistrements droite matchent une cle gauche, autant de lignes sont generees
+- Le composant emet \`dsfr-data-loading\` tant qu'une source n'a pas encore repondu
+- Le composant emet \`dsfr-data-error\` si l'une des sources est en erreur`,
   },
 };
 
