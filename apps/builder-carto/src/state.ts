@@ -3,17 +3,19 @@
  * Manages map config and multiple layers, each with its own source.
  */
 
-import type { Source } from '@dsfr-data/shared';
 export { PROXY_BASE_URL, LIB_URL } from '@dsfr-data/shared';
+
+/** Loose source type — the shared Source interface doesn't cover all provider fields */
+type AnySource = Record<string, any>;
 
 export type LayerType = 'marker' | 'geoshape' | 'circle' | 'heatmap';
 
-export type TilePreset = 'ign-plan' | 'ign-ortho' | 'ign-cadastre' | 'osm';
+export type TilePreset = 'ign-plan' | 'ign-ortho' | 'ign-topo' | 'ign-cadastre' | 'osm';
 
 export interface LayerConfig {
   id: string;
   name: string;
-  source: Source | null;
+  source: AnySource | null;
   type: LayerType;
   latField: string;
   lonField: string;

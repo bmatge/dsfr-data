@@ -5,10 +5,6 @@ import { state } from '../state.js';
 import type { LayerConfig } from '../state.js';
 import { LIB_URL } from '../state.js';
 
-function indent(str: string, level: number): string {
-  return str.split('\n').map(l => '  '.repeat(level) + l).join('\n');
-}
-
 function layerAttrs(layer: LayerConfig): string {
   const attrs: string[] = [];
   attrs.push(`source="${layer.id}"`);

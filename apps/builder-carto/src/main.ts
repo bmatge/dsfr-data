@@ -6,6 +6,7 @@ import { state, createLayer } from './state.js';
 import type { LayerConfig } from './state.js';
 import { generateCode } from './ui/code-generator.js';
 import { loadFromStorage, STORAGE_KEYS } from '@dsfr-data/shared';
+type AnySource = Record<string, any>;
 
 // Expose state for E2E tests
 (window as any).__BUILDER_CARTO_STATE__ = state;
@@ -49,7 +50,7 @@ function renderLayerConfig() {
     return;
   }
 
-  const savedSources = loadFromStorage<any[]>(STORAGE_KEYS.SAVED_SOURCES) || [];
+  const savedSources = loadFromStorage<AnySource[]>(STORAGE_KEYS.SOURCES, []);
 
   container.innerHTML = `
     <div class="carto-config__section">
@@ -221,7 +222,7 @@ function bindLayerInputs(layer: LayerConfig) {
   // Source change
   const sourceEl = document.getElementById('layer-source') as HTMLSelectElement | null;
   sourceEl?.addEventListener('change', () => {
-    const savedSources = loadFromStorage<any[]>(STORAGE_KEYS.SAVED_SOURCES) || [];
+    const savedSources = loadFromStorage<AnySource[]>(STORAGE_KEYS.SOURCES, []);
     const found = savedSources.find((s: any) => s.id === sourceEl.value);
     layer.source = found || null;
     renderLayersList();
