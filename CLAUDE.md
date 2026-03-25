@@ -87,11 +87,18 @@ dsfr-data-source  ──[fetch via adapter]──[paginate]──[cache]──�
   dsfr-data-chart / dsfr-data-list / dsfr-data-kpi / dsfr-data-display
          │
          └──► dsfr-data-a11y (companion accessibilite : tableau, CSV, description)
+
+  Pipeline multi-sources (jointure) :
+
+  dsfr-data-source (A) ──┐
+                         ├──► dsfr-data-join ──► dsfr-data-query ──► dsfr-data-chart
+  dsfr-data-source (B) ──┘
 ```
 
 **Regles** :
 - **dsfr-data-source** est le seul composant qui fait du fetch HTTP. Il supporte `api-type` pour ODS, Tabular, Grist et Generic.
 - **dsfr-data-query** est un pur transformateur de donnees (filter, group-by, aggregate, sort). Il ne fait jamais de requete HTTP.
+- **dsfr-data-join** est un pur transformateur multi-sources. Il joint deux sources sur une cle pivot (inner, left, right, full). Il ne fait aucun fetch HTTP.
 - Les commandes (page, where, orderBy) remontent vers dsfr-data-source via `dsfr-data-source-command`.
 - dsfr-data-facets et dsfr-data-search delegent la construction des WHERE clauses aux adapters.
 

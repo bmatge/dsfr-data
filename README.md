@@ -56,6 +56,11 @@ Les composants se chainent de facon declarative pour former un pipeline :
 dsfr-data-source → dsfr-data-normalize → dsfr-data-query → dsfr-data-chart / dsfr-data-kpi / dsfr-data-list
                                                           → dsfr-data-facets / dsfr-data-search
                                                           → dsfr-data-a11y
+
+Multi-sources :
+dsfr-data-source (A) ──┐
+                       ├──► dsfr-data-join ──► dsfr-data-query ──► dsfr-data-chart
+dsfr-data-source (B) ──┘
 ```
 
 ## Source de donnees (`dsfr-data-source`)
@@ -128,6 +133,42 @@ Transformateur client-side : filtre, regroupe, agrege et trie les donnees recues
   aggregate="nombre_beneficiaires:sum:total"
   order-by="total:desc" limit="10">
 </dsfr-data-query>
+```
+
+---
+
+## Jointure multi-sources (`dsfr-data-join`)
+
+Composant invisible qui joint deux sources de donnees sur une ou plusieurs cles pivot. Permet d'enrichir un jeu de donnees avec des informations provenant d'une autre source. Ne fait aucun fetch HTTP.
+
+### Parametres
+
+#### Obligatoires :
+
+- **left** : _(String)_ ID de la source gauche (source principale).
+- **right** : _(String)_ ID de la source droite.
+- **on** : _(String)_ Cle(s) de jointure. Formats : `"code"`, `"dept_code=code"`, `"annee,code_region"`.
+
+#### Optionnels :
+
+- **type** : _(String)_ Type de jointure : `inner`, `left` (defaut), `right`, `full`.
+- **prefix-left** : _(String)_ Prefixe pour les champs gauche en cas de collision (defaut : vide).
+- **prefix-right** : _(String)_ Prefixe pour les champs droite en cas de collision (defaut : `right_`).
+
+### Exemple
+
+```html
+<dsfr-data-source id="pop" data='[{"code":"75","region":"IDF","population":12263},...]'></dsfr-data-source>
+<dsfr-data-source id="budget" data='[{"code":"75","budget":5200},...]'></dsfr-data-source>
+
+<dsfr-data-join id="enriched"
+  left="pop" right="budget"
+  on="code" type="left">
+</dsfr-data-join>
+
+<dsfr-data-chart source="enriched" type="bar"
+  label-field="region" value-field="population" value-fields="budget">
+</dsfr-data-chart>
 ```
 
 ---
