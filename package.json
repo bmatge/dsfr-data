@@ -1,6 +1,6 @@
 {
   "name": "dsfr-data",
-  "version": "0.3.3",
+  "version": "0.4.0",
   "description": "Bibliothèque de Web Components de dataviz pour sites gouvernementaux",
   "repository": {
     "type": "git",
