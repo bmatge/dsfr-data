@@ -2,6 +2,10 @@
  * IA configuration management (generic API settings)
  * Supports any OpenAI-compatible chat completions API
  * (Albert, OpenAI, Anthropic, Gemini, Mistral, etc.)
+ *
+ * Two modes:
+ * - User config: user provides their own API key in localStorage
+ * - Server default: server-side token injected by /ia-proxy-default (token never exposed)
  */
 
 import { toastSuccess } from '@dsfr-data/shared';
@@ -15,7 +19,87 @@ export interface IAConfig {
   extraParams: Record<string, string>;
 }
 
+/** Server-side default config (token is never exposed to client) */
+export interface ServerIAConfig {
+  available: boolean;
+  apiUrl?: string;
+  model?: string;
+}
+
 const IA_CONFIG_KEY = 'dsfr-data-ia-config';
+
+/** Cached server config (fetched once per session) */
+let serverConfig: ServerIAConfig | null = null;
+
+/** Check if user has their own config with a token in localStorage */
+export function hasUserConfig(): boolean {
+  const raw = localStorage.getItem(IA_CONFIG_KEY);
+  if (!raw) return false;
+  try {
+    const config = JSON.parse(raw) as Partial<IAConfig>;
+    return !!config.token;
+  } catch {
+    return false;
+  }
+}
+
+/** Fetch the server-side default config (cached after first call) */
+export async function fetchServerConfig(): Promise<ServerIAConfig> {
+  if (serverConfig !== null) return serverConfig;
+  try {
+    const res = await fetch('/ia-server-config');
+    serverConfig = await res.json();
+  } catch {
+    serverConfig = { available: false };
+  }
+  return serverConfig!;
+}
+
+/** Whether we are currently in server-default mode */
+export function isServerMode(): boolean {
+  return !hasUserConfig() && serverConfig?.available === true;
+}
+
+/** Get cached server config (null if not fetched yet) */
+export function getServerConfig(): ServerIAConfig | null {
+  return serverConfig;
+}
+
+/** Update the IA config UI badge to show active mode */
+export function updateIAModeBadge(): void {
+  const badge = document.getElementById('ia-mode-badge');
+  if (!badge) return;
+
+  const tokenInput = document.getElementById('ia-token') as HTMLInputElement | null;
+
+  if (hasUserConfig() || tokenInput?.value) {
+    badge.textContent = 'Config perso';
+    badge.className = 'fr-badge fr-badge--sm fr-badge--success';
+  } else if (serverConfig?.available) {
+    badge.textContent = `Albert (serveur)`;
+    badge.className = 'fr-badge fr-badge--sm fr-badge--info';
+  } else {
+    badge.textContent = 'Non configure';
+    badge.className = 'fr-badge fr-badge--sm fr-badge--warning';
+  }
+}
+
+/** Clear user config from localStorage and revert to server default */
+export function resetIAConfig(): void {
+  localStorage.removeItem(IA_CONFIG_KEY);
+
+  // Reset form fields to defaults
+  const apiUrlEl = document.getElementById('ia-api-url') as HTMLInputElement;
+  const modelEl = document.getElementById('ia-model') as HTMLInputElement;
+  const tokenEl = document.getElementById('ia-token') as HTMLInputElement;
+
+  if (apiUrlEl) apiUrlEl.value = serverConfig?.apiUrl || 'https://albert.api.etalab.gouv.fr/v1/chat/completions';
+  if (modelEl) modelEl.value = serverConfig?.model || 'albert-large';
+  if (tokenEl) tokenEl.value = '';
+
+  updateIAModeBadge();
+  toastSuccess('Configuration reinitialise (mode serveur)');
+}
 
 /**
  * Toggle the IA config panel visibility

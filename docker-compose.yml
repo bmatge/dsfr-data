@@ -4,6 +4,12 @@ services:
     container_name: chartsbuilder
     restart: unless-stopped
 
+    # Variables d'environnement pour le proxy IA par defaut
+    environment:
+      - IA_DEFAULT_TOKEN=${IA_DEFAULT_TOKEN:-}
+      - IA_DEFAULT_API_URL=${IA_DEFAULT_API_URL:-https://albert.api.etalab.gouv.fr/v1/chat/completions}
+      - IA_DEFAULT_MODEL=${IA_DEFAULT_MODEL:-albert-large}
+
     # Persister les beacon logs pour le monitoring (survit aux redémarrages)
     volumes:
       - beacon-logs:/var/log/nginx

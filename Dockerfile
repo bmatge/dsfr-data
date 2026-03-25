@@ -45,6 +45,9 @@ COPY --from=builder /app/public /usr/share/nginx/html/public
 COPY scripts/parse-beacon-logs.sh /usr/local/bin/parse-beacon-logs.sh
 COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
+# IA default proxy server (serves /ia-server-config and /ia-proxy-default)
+COPY scripts/ia-default-server.js /app/scripts/ia-default-server.js
+
 EXPOSE 80
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \

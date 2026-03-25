@@ -71,7 +71,7 @@
       <!-- Configuration IA -->
       <div class="config-section collapsed" id="section-ia-config">
         <div class="config-section-header" onclick="toggleSection('section-ia-config')">
-          <h3><i class="ri-robot-line"></i> Configuration IA</h3>
+          <h3><i class="ri-robot-line"></i> Configuration IA <span id="ia-mode-badge" class="fr-badge fr-badge--sm"></span></h3>
           <i class="ri-arrow-down-s-line collapse-icon"></i>
         </div>
         <div class="config-section-content">
@@ -92,7 +92,9 @@
                    placeholder="albert-large">
           </div>
           <div class="fr-input-group">
-            <label class="fr-label" for="ia-token">Token API</label>
+            <label class="fr-label" for="ia-token">Token API
+              <span class="fr-hint-text">Laissez vide pour utiliser la configuration serveur (si disponible)</span>
+            </label>
             <input class="fr-input" type="password" id="ia-token" placeholder="Votre cle API (Bearer token)">
           </div>
           <div class="fr-input-group">
@@ -163,9 +165,14 @@ Tu generes du HTML avec les composants dsfr-data. Le code doit etre un snippet (
 
 Sois concis. Reponds en francais.</textarea>
           </div>
-          <button class="fr-btn fr-btn--sm fr-btn--secondary" onclick="saveIAConfig()">
-            <i class="ri-save-line"></i> Sauvegarder config
-          </button>
+          <div style="display:flex;gap:0.5rem;">
+            <button class="fr-btn fr-btn--sm fr-btn--secondary" onclick="saveIAConfig()">
+              <i class="ri-save-line"></i> Sauvegarder config
+            </button>
+            <button class="fr-btn fr-btn--sm fr-btn--tertiary" onclick="resetIAConfig()" title="Revenir a la configuration serveur par defaut">
+              <i class="ri-refresh-line"></i> Reinitialiser
+            </button>
+          </div>
         </div>
       </div>
 

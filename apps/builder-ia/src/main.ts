@@ -7,14 +7,15 @@ import './styles/builder-ia.css';
 import { initAuth } from '@dsfr-data/shared';
 
 import { loadSavedSources, handleSourceChange, loadSavedSourceData, initDataPreviewModal } from './sources.js';
-import { loadIAConfig, saveIAConfig, addExtraParam } from './ia/ia-config.js';
+import { loadIAConfig, saveIAConfig, addExtraParam, fetchServerConfig, updateIAModeBadge, resetIAConfig } from './ia/ia-config.js';
 import { addMessage, sendMessage } from './chat/chat.js';
 import { switchTab, toggleSection, copyCode, openInPlayground, saveFavorite } from './ui/ui-helpers.js';
 import { state } from './state.js';
 
 // Expose functions that are called from inline onclick attributes in HTML
 (window as unknown as Record<string, unknown>).toggleSection = toggleSection;
-(window as unknown as Record<string, unknown>).saveIAConfig = saveIAConfig;
+(window as unknown as Record<string, unknown>).saveIAConfig = () => { saveIAConfig(); updateIAModeBadge(); };
+(window as unknown as Record<string, unknown>).resetIAConfig = resetIAConfig;
 (window as unknown as Record<string, unknown>).addExtraParam = addExtraParam;
 (window as unknown as Record<string, unknown>).loadSavedSourceData = loadSavedSourceData;
 (window as unknown as Record<string, unknown>).sendMessage = sendMessage;
@@ -51,6 +52,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   loadSavedSources();
   loadIAConfig();
   initDataPreviewModal();
+
+  // Fetch server-side default IA config (non-blocking)
+  fetchServerConfig().then(() => updateIAModeBadge());
 
   // Restore previous conversation if any
   try {

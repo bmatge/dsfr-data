@@ -42,6 +42,12 @@ if [ "$GOUV_WIDGETS_MODE" = "database" ] && [ -f /app/server/dist/index.js ]; th
   fi
 fi
 
+# Start IA default proxy if token is configured (serves /ia-server-config and /ia-proxy-default)
+if [ -n "$IA_DEFAULT_TOKEN" ]; then
+  node /app/scripts/ia-default-server.js &
+  echo "[entrypoint] IA default proxy started on port 3003"
+fi
+
 # Start MCP server in background (reads skills from local file, no network dependency)
 SKILLS_FILE="/usr/share/nginx/html/dist/skills.json"
 if [ -f "$SKILLS_FILE" ]; then

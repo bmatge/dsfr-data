@@ -16,6 +16,9 @@ services:
       - GOUV_WIDGETS_MODE=database
       - JWT_SECRET=${JWT_SECRET}
       - DB_PATH=/app/server/data/dsfr-data.db
+      - IA_DEFAULT_TOKEN=${IA_DEFAULT_TOKEN:-}
+      - IA_DEFAULT_API_URL=${IA_DEFAULT_API_URL:-https://albert.api.etalab.gouv.fr/v1/chat/completions}
+      - IA_DEFAULT_MODEL=${IA_DEFAULT_MODEL:-albert-large}
 
 volumes:
   beacon-logs:

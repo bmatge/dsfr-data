@@ -4,7 +4,7 @@
 
 import { state } from '../state.js';
 import type { Message, ChartConfig } from '../state.js';
-import { getIAConfig } from '../ia/ia-config.js';
+import { getIAConfig, isServerMode } from '../ia/ia-config.js';
 import type { IAConfig } from '../ia/ia-config.js';
 import { SKILLS, getRelevantSkills, buildSkillsContext } from '../skills.js';
 import { applyChartConfig } from '../ui/chart-renderer.js';
@@ -94,9 +94,9 @@ export async function sendMessage(): Promise<void> {
   input.value = '';
   input.style.height = 'auto';
 
-  // Check if we have a token
+  // Check if we have a token (user config or server default)
   const config = getIAConfig();
-  if (!config.token) {
+  if (!config.token && !isServerMode()) {
     addMessage('assistant', `Je n'ai pas de token API configure. Veuillez ouvrir "Configuration IA" et entrer votre cle API.
 
 En attendant, je peux vous aider avec des commandes simples. Essayez :
@@ -289,33 +289,44 @@ CHAMPS : utilise UNIQUEMENT les noms de champs listes dans "Donnees actuelles".`
     }
   }
 
-  // For Gemini, API key goes in URL query param, not in headers
-  let targetUrl = config.apiUrl;
-  if (isGemini) {
-    const separator = targetUrl.includes('?') ? '&' : '?';
-    targetUrl = `${targetUrl}${separator}key=${config.token}`;
+  // Server-default mode: use /ia-proxy-default (token injected server-side)
+  const useServerDefault = !config.token && isServerMode();
+
+  let response: Response;
+
+  if (useServerDefault) {
+    // Server mode: always OpenAI-compatible (Albert), no auth header needed
+    response = await fetchWithTimeout('/ia-proxy-default', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody),
+    }, 30000);
+  } else {
+    // User-config mode: existing behavior with X-Target-URL and auth headers
+    let targetUrl = config.apiUrl;
+    if (isGemini) {
+      const separator = targetUrl.includes('?') ? '&' : '?';
+      targetUrl = `${targetUrl}${separator}key=${config.token}`;
+    }
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'X-Target-URL': targetUrl,
+    };
+
+    if (isAnthropic) {
+      headers['x-api-key'] = config.token;
+      headers['anthropic-version'] = '2023-06-01';
+    } else if (!isGemini) {
+      headers['Authorization'] = `Bearer ${config.token}`;
+    }
+
+    response = await fetchWithTimeout('/ia-proxy', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(requestBody),
+    }, 30000);
   }
-
-  // Build headers adapted to the provider
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    'X-Target-URL': targetUrl,
-  };
-
-  if (isAnthropic) {
-    headers['x-api-key'] = config.token;
-    headers['anthropic-version'] = '2023-06-01';
-  } else if (!isGemini) {
-    // OpenAI-compatible: Bearer token in Authorization header
-    headers['Authorization'] = `Bearer ${config.token}`;
-  }
-
-  // All API calls go through /ia-proxy/ to bypass CORS + CSP
-  const response = await fetchWithTimeout('/ia-proxy', {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(requestBody),
-  }, 30000);
 
   if (!response.ok) {
     // Try to extract the actual error message from the provider
@@ -330,6 +341,11 @@ CHAMPS : utilise UNIQUEMENT les noms de champs listes dans "Donnees actuelles".`
   }
 
   const data = await response.json();
+
+  // Server-default mode is always OpenAI-compatible (Albert)
+  if (useServerDefault) {
+    return data.choices[0].message.content;
+  }
 
   // Parse response based on provider format
   if (isGemini) {
