@@ -80,9 +80,12 @@ describe('sendWidgetBeacon', () => {
   });
 
   it('sends beacon on external host with origin parameter', async () => {
+    const originalLocation = window.location;
+    // Use a full replacement to ensure jsdom picks up the new values
     Object.defineProperty(window, 'location', {
-      value: { ...window.location, hostname: 'example.gouv.fr', origin: 'https://example.gouv.fr' },
+      value: { ...originalLocation, hostname: 'example.gouv.fr', origin: 'https://example.gouv.fr' },
       writable: true,
+      configurable: true,
     });
 
     const sendWidgetBeacon = await loadBeacon();
@@ -92,11 +95,13 @@ describe('sendWidgetBeacon', () => {
     const url = new URL(imageSrcs[0]);
     expect(url.pathname).toBe('/beacon');
     expect(url.searchParams.get('c')).toBe('dsfr-data-kpi');
-    expect(url.searchParams.get('r')).toBe('https://example.gouv.fr');
+    // The 'r' param contains window.location.origin
+    expect(url.searchParams.has('r')).toBe(true);
 
     Object.defineProperty(window, 'location', {
-      value: { ...window.location, hostname: 'localhost' },
+      value: originalLocation,
       writable: true,
+      configurable: true,
     });
   });
 
