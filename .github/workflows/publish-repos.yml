@@ -47,7 +47,7 @@ jobs:
         run: npm run build --workspace=@dsfr-data/app-grist-widgets
 
       - name: Build MCP server
-        run: npm run build --workspace=dsfr-data-mcp
+        run: cd mcp-server && npm ci && npm run build
 
       - name: Upload grist dist
         uses: actions/upload-artifact@v4
