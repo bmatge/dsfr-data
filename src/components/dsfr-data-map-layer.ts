@@ -704,12 +704,21 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
 
   // --- Popups ---
 
-  /** Find a dsfr-data-map-popup companion that matches this layer */
+  /** Find a dsfr-data-map-popup companion that matches this layer.
+   *  Priority: 1) popup child of this layer, 2) popup at map level with matching `for` */
   private _findPopupCompanion(): import('./dsfr-data-map-popup.js').DsfrDataMapPopup | null {
+    // 1. Check for popup nested inside this layer element
+    const ownPopup = this.querySelector('dsfr-data-map-popup');
+    if (ownPopup) return ownPopup as any;
+
+    // 2. Check for popup at map level with explicit `for` targeting this layer
     if (!this._mapParent) return null;
-    const popups = this._mapParent.querySelectorAll('dsfr-data-map-popup');
+    const layerId = this.id || this.source;
+    const popups = this._mapParent.querySelectorAll(':scope > dsfr-data-map-popup');
     for (const p of popups) {
-      if ((p as any).matchesLayer?.(this.id || '')) return p as any;
+      const popup = p as any;
+      // Only match map-level popups that explicitly target this layer via `for`
+      if (popup.for && popup.matchesLayer?.(layerId)) return popup;
     }
     return null;
   }
