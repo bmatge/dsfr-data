@@ -2,7 +2,7 @@
  * Data source loading, selection and field analysis
  */
 
-import { loadFromStorage, STORAGE_KEYS, escapeHtml, openModal, closeModal, setupModalOverlayClose, migrateSource } from '@dsfr-data/shared';
+import { loadFromStorage, STORAGE_KEYS, escapeHtml, openModal, closeModal, setupModalOverlayClose, migrateSource, SAMPLE_DATASETS } from '@dsfr-data/shared';
 import { state } from './state.js';
 import type { Source, Field } from './state.js';
 import { addMessage } from './chat/chat.js';
@@ -12,10 +12,29 @@ import { addMessage } from './chat/chat.js';
  */
 export function loadSavedSources(): void {
   const select = document.getElementById('saved-source') as HTMLSelectElement;
-  select.innerHTML = '<option value="">-- Choisir --</option>';
+  select.innerHTML = '<option value="">-- Choisir une source --</option>';
 
   const sources = loadFromStorage<Source[]>(STORAGE_KEYS.SOURCES, []).map(migrateSource);
   const selectedSource = (() => { const s = loadFromStorage<Source | null>(STORAGE_KEYS.SELECTED_SOURCE, null); return s ? migrateSource(s) : null; })();
+
+  // Add sample datasets
+  const sampleGroup = document.createElement('optgroup');
+  sampleGroup.label = 'Donn\u00e9es d\'exemple';
+  SAMPLE_DATASETS.forEach(ds => {
+    const option = document.createElement('option');
+    option.value = `sample:${ds.id}`;
+    option.textContent = `\uD83D\uDCCA ${ds.name}`;
+    const sampleSource: Source = {
+      id: `sample-${ds.id}`,
+      name: ds.name,
+      type: 'manual',
+      data: ds.rows as Record<string, unknown>[],
+      recordCount: ds.rows.length,
+    };
+    option.dataset.source = JSON.stringify(sampleSource);
+    sampleGroup.appendChild(option);
+  });
+  select.appendChild(sampleGroup);
 
   sources.forEach(source => {
     const option = document.createElement('option');

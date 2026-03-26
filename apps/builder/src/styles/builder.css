@@ -280,7 +280,57 @@ body {
   display: flex;
   gap: 0.5rem;
   justify-content: center;
+  margin-top: 0.5rem;
+}
+
+/* ─── Sample datasets ─── */
+
+.sample-datasets-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
   margin-top: 0.75rem;
+}
+.sample-dataset-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-default-grey);
+  border-radius: 4px;
+  background: var(--background-default-grey);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+.sample-dataset-card:hover,
+.sample-dataset-card:focus-visible {
+  border-color: var(--border-action-high-blue-france);
+  background: var(--background-action-low-blue-france);
+}
+.sample-dataset-card i {
+  font-size: 1.25rem;
+  color: var(--text-action-high-blue-france);
+  flex-shrink: 0;
+}
+.sample-dataset-name {
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.sample-dataset-desc {
+  color: var(--text-mention-grey);
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-badge-sample {
+  background: var(--background-action-low-blue-france) !important;
+  color: var(--text-action-high-blue-france) !important;
 }
 
 /* ─── Help tooltips ─── */

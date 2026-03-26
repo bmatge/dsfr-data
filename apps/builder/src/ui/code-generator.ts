@@ -25,8 +25,12 @@ import { updateAccessibleTable } from './accessible-table.js';
 
 /** Write the generated code to the code panel AND render it in the preview iframe. */
 function displayGeneratedCode(code: string): void {
+  // Prepend sample data comment if using example data
+  const finalCode = state.isSampleData
+    ? `<!-- Donnees d'exemple \u2014 remplacez par votre source de donnees -->\n${code}`
+    : code;
   const codeEl = document.getElementById('generated-code');
-  if (codeEl) codeEl.textContent = code;
+  if (codeEl) codeEl.textContent = finalCode;
   renderPreview(code);
 }
 

@@ -72,3 +72,7 @@ export { migrateSource, serializeSourceForServer } from './types/source.js';
 export { openModal, closeModal, setupModalOverlayClose, confirmDialog } from './ui/modal.js';
 export { showToast, toastSuccess, toastError, toastWarning, toastInfo } from './ui/toast.js';
 export { appHref, navigateTo } from './ui/navigation.js';
+
+// Sample data
+export type { SampleDataset } from './data/sample-datasets.js';
+export { SAMPLE_DATASETS } from './data/sample-datasets.js';

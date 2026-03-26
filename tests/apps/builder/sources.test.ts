@@ -94,10 +94,11 @@ describe('builder sources', () => {
       loadSavedSources();
 
       const select = document.getElementById('saved-source') as HTMLSelectElement;
-      // 1 default option + 2 source options
-      expect(select.options).toHaveLength(3);
-      expect(select.options[1].value).toBe('src-1');
-      expect(select.options[2].value).toBe('src-2');
+      // 1 default option + 3 sample options + 2 source options
+      expect(select.options).toHaveLength(6);
+      // Source options come after sample optgroup
+      const sourceOptions = Array.from(select.options).filter(o => o.value === 'src-1' || o.value === 'src-2');
+      expect(sourceOptions).toHaveLength(2);
     });
 
     it('adds badge emoji based on source type (grist)', () => {
@@ -107,9 +108,9 @@ describe('builder sources', () => {
       loadSavedSources();
 
       const select = document.getElementById('saved-source') as HTMLSelectElement;
-      // Grist badge: green circle emoji
-      expect(select.options[1].textContent).toContain('Grist');
-      expect(select.options[1].textContent).toContain('\uD83D\uDFE2');
+      const opt = Array.from(select.options).find(o => o.value === 'g1')!;
+      expect(opt.textContent).toContain('Grist');
+      expect(opt.textContent).toContain('\uD83D\uDFE2');
     });
 
     it('adds badge emoji based on source type (manual)', () => {
@@ -119,9 +120,9 @@ describe('builder sources', () => {
       loadSavedSources();
 
       const select = document.getElementById('saved-source') as HTMLSelectElement;
-      // Manual badge: purple circle emoji
-      expect(select.options[1].textContent).toContain('Manuel');
-      expect(select.options[1].textContent).toContain('\uD83D\uDFE3');
+      const opt = Array.from(select.options).find(o => o.value === 'm1')!;
+      expect(opt.textContent).toContain('Manuel');
+      expect(opt.textContent).toContain('\uD83D\uDFE3');
     });
 
     it('adds badge emoji based on source type (api)', () => {
@@ -131,9 +132,9 @@ describe('builder sources', () => {
       loadSavedSources();
 
       const select = document.getElementById('saved-source') as HTMLSelectElement;
-      // API badge: blue circle emoji
-      expect(select.options[1].textContent).toContain('API');
-      expect(select.options[1].textContent).toContain('\uD83D\uDD35');
+      const opt = Array.from(select.options).find(o => o.value === 'a1')!;
+      expect(opt.textContent).toContain('API');
+      expect(opt.textContent).toContain('\uD83D\uDD35');
     });
 
     it('adds selected source from localStorage even if not in sources list', () => {
@@ -145,12 +146,10 @@ describe('builder sources', () => {
       loadSavedSources();
 
       const select = document.getElementById('saved-source') as HTMLSelectElement;
-      // 1 default + 1 saved + 1 selected (recent)
-      expect(select.options).toHaveLength(3);
-      const lastOption = select.options[2];
-      expect(lastOption.value).toBe('src-selected');
-      expect(lastOption.textContent).toContain('(r\u00e9cent)');
-      expect(lastOption.selected).toBe(true);
+      const selectedOpt = Array.from(select.options).find(o => o.value === 'src-selected')!;
+      expect(selectedOpt).toBeDefined();
+      expect(selectedOpt.textContent).toContain('(r\u00e9cent)');
+      expect(selectedOpt.selected).toBe(true);
     });
 
     it('does not duplicate selected source if already in sources list', () => {
@@ -161,8 +160,9 @@ describe('builder sources', () => {
       loadSavedSources();
 
       const select = document.getElementById('saved-source') as HTMLSelectElement;
-      // 1 default + 1 saved (no duplicate)
-      expect(select.options).toHaveLength(2);
+      // No duplicate of the source (only 1 option with value src-1)
+      const srcOptions = Array.from(select.options).filter(o => o.value === 'src-1');
+      expect(srcOptions).toHaveLength(1);
     });
   });
 

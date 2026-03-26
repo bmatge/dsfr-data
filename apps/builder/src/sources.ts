@@ -4,7 +4,7 @@
  * and favorite state restoration.
  */
 
-import { loadFromStorage, STORAGE_KEYS, appHref, fetchWithTimeout, httpErrorMessage, escapeHtml, openModal, closeModal, setupModalOverlayClose, migrateSource } from '@dsfr-data/shared';
+import { loadFromStorage, STORAGE_KEYS, appHref, fetchWithTimeout, httpErrorMessage, escapeHtml, openModal, closeModal, setupModalOverlayClose, migrateSource, SAMPLE_DATASETS } from '@dsfr-data/shared';
 import { state, type Source, type Field } from './state.js';
 import { selectChartType } from './ui/chart-type-selector.js';
 import { populateFieldSelects } from './sources-fields.js';
@@ -38,16 +38,33 @@ export function loadSavedSources(): void {
     if (!panel.querySelector('.empty-sources-message')) {
       const emptyMsg = document.createElement('div');
       emptyMsg.className = 'empty-sources-message fr-mt-1w';
+      const sampleCards = SAMPLE_DATASETS.map(ds => `
+        <button type="button" class="sample-dataset-card" data-sample-id="${ds.id}">
+          <i class="${ds.icon}"></i>
+          <span class="sample-dataset-name">${ds.name}</span>
+          <span class="sample-dataset-desc">${ds.description}</span>
+        </button>
+      `).join('');
+
       emptyMsg.innerHTML = `
         <p><i class="ri-database-2-line" style="font-size: 2rem; display: block; margin-bottom: 0.5rem; opacity: 0.5;"></i></p>
         <p>Pas encore de donn\u00e9es\u00a0?</p>
-        <p class="empty-sources-desc">Cr\u00e9ez une source pour commencer.</p>
+        <p class="empty-sources-desc">Essayez avec des donn\u00e9es d'exemple :</p>
+        <div class="sample-datasets-grid">${sampleCards}</div>
         <div class="empty-sources-actions">
-          <a href="${appHref('sources')}" class="fr-btn fr-btn--sm fr-btn--secondary">
-            <i class="ri-add-line"></i> Ajouter une source
+          <a href="${appHref('sources')}" class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-mt-1w">
+            <i class="ri-add-line"></i> Ou ajoutez vos propres donn\u00e9es
           </a>
         </div>
       `;
+
+      // Bind sample dataset click handlers
+      emptyMsg.querySelectorAll('.sample-dataset-card').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = (btn as HTMLElement).dataset.sampleId;
+          if (id) loadSampleDataset(id);
+        });
+      });
       panel.insertBefore(emptyMsg, panel.firstChild);
     }
     return;
@@ -65,6 +82,18 @@ export function loadSavedSources(): void {
   if (!select) return;
 
   select.innerHTML = '<option value="">\u2014 Choisir une source \u2014</option>';
+
+  // Add sample datasets as options
+  const sampleGroup = document.createElement('optgroup');
+  sampleGroup.label = 'Donn\u00e9es d\'exemple';
+  SAMPLE_DATASETS.forEach(ds => {
+    const option = document.createElement('option');
+    option.value = `sample:${ds.id}`;
+    option.textContent = `\uD83D\uDCCA ${ds.name}`;
+    option.dataset.sampleId = ds.id;
+    sampleGroup.appendChild(option);
+  });
+  select.appendChild(sampleGroup);
 
   // Add saved sources
   sources.forEach((source: Source) => {
@@ -125,8 +154,15 @@ export function handleSavedSourceChange(): void {
   const selectedOption = select.options[select.selectedIndex];
   const infoEl = document.getElementById('saved-source-info');
 
+  // Handle sample dataset selection
+  if (selectedOption?.dataset.sampleId) {
+    loadSampleDataset(selectedOption.dataset.sampleId);
+    return;
+  }
+
   if (!selectedOption || !selectedOption.dataset.source) {
     if (infoEl) infoEl.innerHTML = '';
+    state.isSampleData = false;
     return;
   }
 
@@ -151,11 +187,97 @@ export function handleSavedSourceChange(): void {
     state.apiUrl = '';
   }
 
+  state.isSampleData = false;
+
   // If it has local data, load fields directly
   if (source.data && source.data.length > 0) {
     state.localData = source.data;
     loadFieldsFromLocalData();
   }
+}
+
+/**
+ * Load a sample dataset by ID.
+ * Injects sample data into state and updates the UI.
+ */
+export function loadSampleDataset(sampleId: string): void {
+  const dataset = SAMPLE_DATASETS.find(ds => ds.id === sampleId);
+  if (!dataset) return;
+
+  // Remove empty state if present
+  const panel = document.getElementById('source-panel-saved');
+  const emptyMsg = panel?.querySelector('.empty-sources-message');
+  if (emptyMsg) emptyMsg.remove();
+
+  // Show select group and select the sample option
+  const selectGroup = panel?.querySelector('.fr-select-group') as HTMLElement | null;
+  if (selectGroup) selectGroup.style.display = 'block';
+
+  const select = document.getElementById('saved-source') as HTMLSelectElement | null;
+  if (select) {
+    // Ensure sample options exist in select
+    const sampleValue = `sample:${dataset.id}`;
+    let sampleOption = select.querySelector(`option[value="${sampleValue}"]`) as HTMLOptionElement | null;
+    if (!sampleOption) {
+      // Create option group if not present
+      let group = select.querySelector('optgroup[label*="exemple"]') as HTMLOptGroupElement | null;
+      if (!group) {
+        group = document.createElement('optgroup');
+        group.label = 'Donn\u00e9es d\'exemple';
+        select.appendChild(group);
+      }
+      sampleOption = document.createElement('option');
+      sampleOption.value = sampleValue;
+      sampleOption.textContent = `\uD83D\uDCCA ${dataset.name}`;
+      sampleOption.dataset.sampleId = dataset.id;
+      group.appendChild(sampleOption);
+    }
+    sampleOption.selected = true;
+  }
+
+  // Set state
+  state.isSampleData = true;
+  state.localData = dataset.rows as Record<string, unknown>[];
+  state.savedSource = {
+    id: `sample-${dataset.id}`,
+    name: dataset.name,
+    type: 'manual',
+    data: dataset.rows as Record<string, unknown>[],
+    recordCount: dataset.rows.length,
+  };
+  state.apiUrl = '';
+
+  // Load fields
+  loadFieldsFromLocalData();
+
+  // Show sample badge in info
+  const infoEl = document.getElementById('saved-source-info');
+  if (infoEl) {
+    infoEl.innerHTML = `
+      <span class="source-badge source-badge-sample">Exemple</span>
+      ${dataset.rows.length} enregistrements
+    `;
+  }
+
+  // Pre-select suggested chart type and fields
+  selectChartType(dataset.suggestedChartType as any);
+
+  setTimeout(() => {
+    const labelSelect = document.getElementById('label-field') as HTMLSelectElement | null;
+    const valueSelect = document.getElementById('value-field') as HTMLSelectElement | null;
+    if (labelSelect && dataset.suggestedLabelField) {
+      labelSelect.value = dataset.suggestedLabelField;
+      state.labelField = dataset.suggestedLabelField;
+    }
+    if (valueSelect && dataset.suggestedValueField) {
+      valueSelect.value = dataset.suggestedValueField;
+      state.valueField = dataset.suggestedValueField;
+    }
+    updatePreviewSteps();
+  }, 0);
+
+  // Show data preview button
+  showDataPreviewButton();
 }
 
 /**

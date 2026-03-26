@@ -160,6 +160,8 @@ export interface BuilderState {
   databoxTrend: string;
   /** Chart.js instance for preview (not serialized) */
   chartInstance: unknown;
+  /** True when using sample data (transient, not serialized) */
+  isSampleData: boolean;
 }
 
 /** The singleton application state */
@@ -214,6 +216,7 @@ export const state: BuilderState = {
     sort: 'count',
     hideEmpty: false,
   },
+  isSampleData: false,
   a11yEnabled: true,
   a11yTable: true,
   a11yDownload: true,
