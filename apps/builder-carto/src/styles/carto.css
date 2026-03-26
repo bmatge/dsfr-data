@@ -22,11 +22,10 @@
   max-height: calc(100vh - 130px);
 }
 
-.carto-col-header {
+.carto-col-actions {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
 }
 
 /* ---- Col 2: Layer config ---- */
