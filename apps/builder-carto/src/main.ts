@@ -5,8 +5,13 @@ import './styles/carto.css';
 import { state, createLayer } from './state.js';
 import type { LayerConfig } from './state.js';
 import { generateCode } from './ui/code-generator.js';
-import { loadFromStorage, STORAGE_KEYS } from '@dsfr-data/shared';
+import { loadFromStorage, STORAGE_KEYS, migrateSource } from '@dsfr-data/shared';
 type AnySource = Record<string, any>;
+
+function loadSavedSources(): AnySource[] {
+  const raw = loadFromStorage<AnySource[]>(STORAGE_KEYS.SOURCES, []);
+  return raw.map(s => migrateSource(s as any) as unknown as AnySource);
+}
 
 // Expose state for E2E tests
 (window as any).__BUILDER_CARTO_STATE__ = state;
@@ -50,7 +55,7 @@ function renderLayerConfig() {
     return;
   }
 
-  const savedSources = loadFromStorage<AnySource[]>(STORAGE_KEYS.SOURCES, []);
+  const savedSources = loadSavedSources();
 
   container.innerHTML = `
     <div class="carto-config__section">
@@ -222,7 +227,7 @@ function bindLayerInputs(layer: LayerConfig) {
   // Source change
   const sourceEl = document.getElementById('layer-source') as HTMLSelectElement | null;
   sourceEl?.addEventListener('change', () => {
-    const savedSources = loadFromStorage<AnySource[]>(STORAGE_KEYS.SOURCES, []);
+    const savedSources = loadSavedSources();
     const found = savedSources.find((s: any) => s.id === sourceEl.value);
     layer.source = found || null;
     renderLayersList();
@@ -347,6 +352,20 @@ function sendToPlayground() {
   window.location.href = '../../apps/playground/index.html?from=builder-carto';
 }
 
+function executePreview() {
+  const preview = document.getElementById('map-preview');
+  if (!preview) return;
+
+  // Generate embedded code (no scripts/CSS — components are already loaded on this page)
+  const savedMode = state.generationMode;
+  state.generationMode = 'embedded';
+  const code = generateCode();
+  state.generationMode = savedMode;
+
+  // Clear previous preview and inject new code
+  preview.innerHTML = code;
+}
+
 // ---------------------------------------------------------------------------
 // Init
 // ---------------------------------------------------------------------------
@@ -361,4 +380,5 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-remove-layer')?.addEventListener('click', removeActiveLayer);
   document.getElementById('btn-copy')?.addEventListener('click', copyCode);
   document.getElementById('btn-playground')?.addEventListener('click', sendToPlayground);
+  document.getElementById('btn-execute')?.addEventListener('click', executePreview);
 });

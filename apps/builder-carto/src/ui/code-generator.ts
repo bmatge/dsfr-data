@@ -79,11 +79,13 @@ function sourceTag(layer: LayerConfig): string {
     attrs.push(`base-url="${baseUrl}"`);
     attrs.push(`dataset-id="${resourceIds.datasetId}"`);
     attrs.push('server-side');
+    attrs.push(`page-size="${layer.maxItems}"`);
   } else if (provider.id === 'tabular' && resourceIds?.resourceId) {
     attrs.push('api-type="tabular"');
     attrs.push(`base-url="https://tabular-api.data.gouv.fr"`);
     attrs.push(`resource="${resourceIds.resourceId}"`);
     attrs.push('server-side');
+    attrs.push(`page-size="${layer.maxItems}"`);
   } else if (provider.id === 'insee' && resourceIds?.datasetId) {
     const baseUrl = new URL(s.apiUrl!).origin;
     attrs.push('api-type="insee"');

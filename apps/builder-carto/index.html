@@ -36,11 +36,13 @@
 
       <!-- Center: Preview -->
       <div class="carto-preview">
-        <h2 class="fr-text--lg fr-mb-1w"><i class="ri-map-pin-line fr-mr-1w"></i>Apercu</h2>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
+          <h2 class="fr-text--lg fr-mb-0"><i class="ri-map-pin-line fr-mr-1w"></i>Apercu</h2>
+          <button id="btn-execute" class="fr-btn fr-btn--sm fr-btn--icon-left fr-icon-play-line">Executer</button>
+        </div>
         <div class="carto-preview__map" id="map-preview">
           <p class="fr-text--sm" style="text-align:center;padding:2rem;color:var(--text-mention-grey)">
-            L'apercu sera disponible apres avoir connecte les sources.<br>
-            En attendant, utilisez le code genere dans le playground.
+            Cliquez sur "Executer" pour afficher l'apercu de la carte.
           </p>
         </div>
       </div>
