@@ -58,23 +58,16 @@ function showAccessDenied(): void {
 // ---------------------------------------------------------------------------
 
 function setupTabs(): void {
+  // Let DSFR JS handle tab switching natively (aria-selected, left, etc.)
+  // We just listen for clicks to lazy-load data when a tab is first opened.
   const tabs = ['users', 'audit', 'stats'] as const;
   for (const tab of tabs) {
-    document.getElementById(`tab-${tab}`)!.addEventListener('click', () => switchTab(tab));
+    document.getElementById(`tab-${tab}`)!.addEventListener('click', () => onTabClick(tab));
   }
 }
 
-async function switchTab(tab: typeof currentTab): Promise<void> {
+async function onTabClick(tab: typeof currentTab): Promise<void> {
   currentTab = tab;
-  const tabs = ['users', 'audit', 'stats'] as const;
-  for (const t of tabs) {
-    const btn = document.getElementById(`tab-${t}`)!;
-    const panel = document.getElementById(`panel-${t}`)!;
-    const isActive = t === tab;
-    btn.setAttribute('aria-selected', String(isActive));
-    panel.classList.toggle('fr-tabs__panel--selected', isActive);
-  }
-
   if (tab === 'users' && users.length === 0) await loadUsers(1);
   if (tab === 'audit' && auditLogs.length === 0) await loadAudit(1);
   if (tab === 'stats' && !stats) await loadStats();
@@ -107,10 +100,9 @@ function renderUsersTable(): void {
 
   const rows = users.map(u => `
     <tr data-clickable data-user-id="${escapeHtml(u.id)}">
-      <td>${escapeHtml(u.email)}</td>
       <td>${escapeHtml(u.displayName)}</td>
+      <td>${escapeHtml(u.email)}</td>
       <td><span class="badge badge--${u.role}">${u.role}</span></td>
-      <td><span class="badge badge--${u.authProvider}">${u.authProvider}</span></td>
       <td><span class="badge badge--${u.isActive ? 'active' : 'inactive'}">${u.isActive ? 'Actif' : 'Inactif'}</span></td>
       <td>${u.lastLogin ? formatDate(u.lastLogin) : '<span style="color:var(--text-mention-grey)">Jamais</span>'}</td>
       <td>${formatDate(u.createdAt)}</td>
@@ -122,10 +114,9 @@ function renderUsersTable(): void {
       <table class="admin-table">
         <thead>
           <tr>
-            <th>Email</th>
             <th>Nom</th>
+            <th>Email</th>
             <th>Role</th>
-            <th>Provider</th>
             <th>Statut</th>
             <th>Derniere connexion</th>
             <th>Inscription</th>

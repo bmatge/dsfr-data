@@ -67,6 +67,31 @@ main { flex: 1; }
   padding: 0.75rem;
   border-bottom: 1px solid var(--border-default-grey);
   font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+/* Email column can truncate */
+.admin-table td:first-child {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Hide Provider column on smaller screens */
+@media (max-width: 1200px) {
+  .admin-table th:nth-child(4),
+  .admin-table td:nth-child(4) {
+    display: none;
+  }
+}
+
+/* Hide Role + Provider on narrow screens */
+@media (max-width: 900px) {
+  .admin-table th:nth-child(3),
+  .admin-table td:nth-child(3) {
+    display: none;
+  }
 }
 
 .admin-table tr:hover {
@@ -150,12 +175,4 @@ main { flex: 1; }
   white-space: nowrap;
 }
 
-/* Tabs fix */
-.fr-tabs__panel:not(.fr-tabs__panel--selected) {
-  display: none;
-}
-
-.fr-tabs__panel--selected {
-  max-width: 100%;
-  overflow: visible;
-}
+/* Let DSFR JS handle tab panel visibility natively */
