@@ -11,6 +11,10 @@ import { dispatchSourceCommand } from '../utils/data-bridge.js';
 import { getByPath } from '../utils/json-path.js';
 import { escapeHtml } from '@dsfr-data/shared';
 import type { DsfrDataMap } from './dsfr-data-map.js';
+// @ts-ignore — Vite ?inline import returns CSS as string
+import markerClusterCss from 'leaflet.markercluster/dist/MarkerCluster.css?inline';
+// @ts-ignore — Vite ?inline import returns CSS as string
+import markerClusterDefaultCss from 'leaflet.markercluster/dist/MarkerCluster.Default.css?inline';
 
 // Leaflet types
 type LeafletModule = typeof import('leaflet');
@@ -817,17 +821,12 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
 
   private async _loadMarkerCluster() {
     try {
-      // Inject MarkerCluster CSS
-      if (!document.querySelector('link[href*="MarkerCluster"]')) {
-        const css1 = document.createElement('link');
-        css1.rel = 'stylesheet';
-        css1.href = 'https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.css';
-        document.head.appendChild(css1);
-
-        const css2 = document.createElement('link');
-        css2.rel = 'stylesheet';
-        css2.href = 'https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css';
-        document.head.appendChild(css2);
+      // Inject MarkerCluster CSS (inlined to avoid CSP issues)
+      if (!document.querySelector('style[data-markercluster-css]')) {
+        const style = document.createElement('style');
+        style.setAttribute('data-markercluster-css', '');
+        style.textContent = markerClusterCss + '\n' + markerClusterDefaultCss;
+        document.head.appendChild(style);
       }
 
       // leaflet.markercluster is a UMD plugin that extends the global L.

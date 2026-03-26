@@ -7,6 +7,8 @@
 import { LitElement, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
+// @ts-ignore — Vite ?inline import returns CSS as string
+import leafletCss from 'leaflet/dist/leaflet.css?inline';
 
 // Leaflet types — loaded dynamically
 type LeafletMap = import('leaflet').Map;
@@ -214,12 +216,12 @@ export class DsfrDataMap extends LitElement {
   private async _initMap() {
     const leaflet = await loadLeaflet();
 
-    // Inject Leaflet CSS if not already present
-    if (!document.querySelector('link[href*="leaflet.css"]')) {
-      const link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css';
-      document.head.appendChild(link);
+    // Inject Leaflet CSS if not already present (inlined to avoid CSP issues)
+    if (!document.querySelector('style[data-leaflet-css]')) {
+      const style = document.createElement('style');
+      style.setAttribute('data-leaflet-css', '');
+      style.textContent = leafletCss;
+      document.head.appendChild(style);
     }
 
     // Inject component CSS
