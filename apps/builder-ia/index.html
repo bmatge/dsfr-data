@@ -95,11 +95,11 @@
             <label class="fr-label" for="ia-token">Token API
               <span class="fr-hint-text">Laissez vide pour utiliser la configuration serveur (si disponible)</span>
             </label>
-            <input class="fr-input" type="password" id="ia-token" placeholder="Votre cle API (Bearer token)">
+            <input class="fr-input" type="password" id="ia-token" placeholder="Votre cle API">
           </div>
           <div class="fr-input-group">
-            <label class="fr-label">Parametres supplementaires
-              <span class="fr-hint-text">Paires cle:valeur ajoutees au body de la requete (ex: max_tokens, temperature...)</span>
+            <label class="fr-label">Parametres de l'IA
+              <span class="fr-hint-text">Reglages avances : temperature (creativite), max_tokens (longueur de reponse)...</span>
             </label>
             <div id="ia-extra-params">
               <div class="ia-extra-param-row" style="display:flex;gap:0.5rem;margin-bottom:0.5rem;align-items:center;">
@@ -118,7 +118,9 @@
             </button>
           </div>
           <div class="fr-input-group">
-            <label class="fr-label" for="ia-system-prompt">System prompt</label>
+            <label class="fr-label" for="ia-system-prompt">Instructions pour l'IA (system prompt)
+              <span class="fr-hint-text">Optionnel : personnalise le comportement de l'assistant</span>
+            </label>
             <textarea class="fr-input" id="ia-system-prompt" rows="4" style="font-size: 0.75rem;">Tu es un assistant specialise dans la creation de graphiques et tableaux de bord pour les sites gouvernementaux francais. Tu utilises la bibliotheque dsfr-data (web components DSFR).
 
 ## Architecture des donnees (pipeline)

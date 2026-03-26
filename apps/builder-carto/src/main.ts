@@ -206,11 +206,15 @@ function renderMapConfig() {
         </div>
         <div class="carto-inline">
           <div class="carto-field">
-            <label for="map-center">Centre (lat,lon)</label>
+            <label for="map-center">Centre (lat,lon)
+              <span class="fr-hint-text">Ex : 46.6,2.4 (France) ou 48.86,2.35 (Paris)</span>
+            </label>
             <input type="text" id="map-center" value="${escapeAttr(m.center)}">
           </div>
           <div class="carto-field">
-            <label for="map-zoom">Zoom</label>
+            <label for="map-zoom">Zoom
+              <span class="fr-hint-text">1 = monde, 6 = France, 12 = ville</span>
+            </label>
             <input type="number" id="map-zoom" value="${m.zoom}" min="1" max="18">
           </div>
         </div>
@@ -232,7 +236,7 @@ function renderMapConfig() {
         </div>
         <div class="carto-field">
           <label for="map-max-bounds">Limites (max-bounds)
-            <span class="fr-hint-text">lat1,lon1,lat2,lon2</span>
+            <span class="fr-hint-text">Zone de navigation autorisee : lat-sud,lon-ouest,lat-nord,lon-est</span>
           </label>
           <input type="text" id="map-max-bounds" value="${escapeAttr(m.maxBounds)}" placeholder="43.0,-5.0,51.5,10.0">
         </div>
@@ -338,7 +342,9 @@ function renderLayerConfig() {
         </div>
         <hr class="fr-mt-1w fr-mb-1w">
         <div class="carto-field">
-          <label for="layer-geo-field">Champ geo (GeoJSON)</label>
+          <label for="layer-geo-field">Champ geo (GeoJSON)
+            <span class="fr-hint-text">Colonne contenant les coordonnees ou la geometrie</span>
+          </label>
           <input type="text" id="layer-geo-field" value="${escapeAttr(layer.geoField)}" placeholder="geo_point_2d, geo_shape...">
         </div>
         <p class="fr-text--xs fr-mb-1w" style="color:var(--text-mention-grey)">ou coordonnees separees :</p>
@@ -375,7 +381,9 @@ function renderLayerConfig() {
 
         ${layer.popupMode === 'tooltip' ? `
         <div class="carto-field">
-          <label for="layer-tooltip">Champ tooltip</label>
+          <label for="layer-tooltip">Champ tooltip
+            <span class="fr-hint-text">Texte affiche au survol d'un element</span>
+          </label>
           <input type="text" id="layer-tooltip" value="${escapeAttr(layer.tooltipField)}" placeholder="nom, denomination...">
         </div>
         ` : ''}
@@ -388,7 +396,9 @@ function renderLayerConfig() {
           <input type="text" id="layer-popup-fields" value="${escapeAttr(layer.popupFields)}" placeholder="nom,adresse,prix">
         </div>
         <div class="carto-field">
-          <label for="layer-title-field">Champ titre</label>
+          <label for="layer-title-field">Champ titre
+            <span class="fr-hint-text">Titre en haut du popup ou du panneau</span>
+          </label>
           <input type="text" id="layer-title-field" value="${escapeAttr(layer.titleField)}" placeholder="nom">
         </div>
         <div class="carto-field">
@@ -432,11 +442,15 @@ function renderLayerConfig() {
 
         ${layer.type === 'geoshape' ? `
         <div class="carto-field">
-          <label for="layer-fill-field">Champ valeur (coloration)</label>
+          <label for="layer-fill-field">Champ valeur (coloration)
+            <span class="fr-hint-text">Colore les zones selon ce champ numerique</span>
+          </label>
           <input type="text" id="layer-fill-field" value="${escapeAttr(layer.fillField)}">
         </div>
         <div class="carto-field">
-          <label for="layer-fill-opacity">Opacite de remplissage</label>
+          <label for="layer-fill-opacity">Opacite de remplissage
+            <span class="fr-hint-text">0 = transparent, 1 = opaque</span>
+          </label>
           <input type="number" id="layer-fill-opacity" value="${layer.fillOpacity}" min="0" max="1" step="0.1">
         </div>
         <div class="carto-field">
@@ -457,7 +471,9 @@ function renderLayerConfig() {
           <input type="number" id="layer-radius" value="${layer.radius}" min="1" max="100">
         </div>
         <div class="carto-field">
-          <label for="layer-radius-field">Champ rayon (proportionnel)</label>
+          <label for="layer-radius-field">Champ rayon (proportionnel)
+            <span class="fr-hint-text">La taille du cercle varie selon la valeur de ce champ</span>
+          </label>
           <input type="text" id="layer-radius-field" value="${escapeAttr(layer.radiusField)}">
         </div>
         <div class="carto-field">
@@ -491,7 +507,9 @@ function renderLayerConfig() {
           </div>
         </div>
         <div class="carto-field">
-          <label for="layer-heat-field">Champ ponderation</label>
+          <label for="layer-heat-field">Champ ponderation
+            <span class="fr-hint-text">Champ numerique pour l'intensite de la chaleur</span>
+          </label>
           <input type="text" id="layer-heat-field" value="${escapeAttr(layer.heatField)}">
         </div>
         ` : ''}
@@ -513,11 +531,15 @@ function renderLayerConfig() {
         ${layer.bbox ? `
         <div class="carto-inline">
           <div class="carto-field">
-            <label for="layer-bbox-debounce">Debounce (ms)</label>
+            <label for="layer-bbox-debounce">Delai de chargement (ms)
+              <span class="fr-hint-text">Temps d'attente apres un deplacement avant de recharger les donnees</span>
+            </label>
             <input type="number" id="layer-bbox-debounce" value="${layer.bboxDebounce}" min="0" max="2000">
           </div>
           <div class="carto-field">
-            <label for="layer-bbox-field">Champ bbox</label>
+            <label for="layer-bbox-field">Champ geographique pour le viewport
+              <span class="fr-hint-text">Colonne utilisee pour filtrer par zone visible</span>
+            </label>
             <input type="text" id="layer-bbox-field" value="${escapeAttr(layer.bboxField)}" placeholder="">
           </div>
         </div>
@@ -535,7 +557,9 @@ function renderLayerConfig() {
         </div>
 
         <div class="carto-field">
-          <label for="layer-max-items">Nombre max d'elements</label>
+          <label for="layer-max-items">Nombre max d'elements
+            <span class="fr-hint-text">Limite les donnees chargees (performance)</span>
+          </label>
           <input type="number" id="layer-max-items" value="${layer.maxItems}" min="1" max="100000">
         </div>
       </div>

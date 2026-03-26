@@ -405,7 +405,7 @@
         <div class="fr-input-group fr-mt-2w">
           <label class="fr-label" for="join-on">
             Cle de jointure
-            <span class="fr-hint-text">Champ commun (ex: code_dept) ou correspondance gauche=droite (ex: dept_code=code). Multi-cle : virgules.</span>
+            <span class="fr-hint-text">Le champ present dans les deux sources (ex : code_dept). Si les noms different : champ_gauche=champ_droite</span>
           </label>
           <input class="fr-input" type="text" id="join-on" placeholder="code_dept">
         </div>
@@ -423,7 +423,7 @@
         <div class="fr-input-group fr-mt-2w">
           <label class="fr-label" for="join-prefix-right">
             Prefixe des champs droite (en cas de collision)
-            <span class="fr-hint-text">Ajoute un prefixe aux champs de la source droite qui portent le meme nom</span>
+            <span class="fr-hint-text">Evite les conflits de noms : "budget" → "right_budget"</span>
           </label>
           <input class="fr-input" type="text" id="join-prefix-right" placeholder="right_" value="right_">
         </div>
@@ -477,7 +477,7 @@
         <div id="source-mode-table" class="source-mode-panel">
           <label class="fr-label">
             Données
-            <span class="fr-hint-text">Renseignez les noms de colonnes puis remplissez les lignes du tableau</span>
+            <span class="fr-hint-text">Saisissez vos donnees ligne par ligne. Ideal pour de petits jeux de donnees.</span>
           </label>
           <div class="table-editor-wrapper">
             <table class="table-editor" id="source-table-editor">
@@ -536,7 +536,7 @@
           <div class="fr-input-group">
             <label class="fr-label" for="json-input">
               Contenu JSON
-              <span class="fr-hint-text">Collez un tableau JSON ou un objet contenant un tableau</span>
+              <span class="fr-hint-text">Collez un tableau JSON (ex : [{"nom":"Paris","pop":2161000}]) ou un objet contenant un tableau</span>
             </label>
             <textarea class="fr-input" id="json-input" rows="10" placeholder='[
   {"label": "Janvier", "valeur": 100},

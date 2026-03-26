@@ -36,11 +36,15 @@ function getConfigForm(widget: Widget): string {
     case 'kpi':
       return commonFields + `
         <div class="config-group">
-          <label>Valeur (ou expression: sum:field, avg:field)</label>
+          <label>Valeur
+            <span class="fr-hint-text">Un nombre ou un calcul : sum:population, avg:budget, count:*</span>
+          </label>
           <input type="text" id="config-valeur" value="${escapeHtml(widget.config.valeur || '')}">
         </div>
         <div class="config-group">
-          <label>Label</label>
+          <label>Label
+            <span class="fr-hint-text">Texte affiche sous la valeur (ex : Population totale)</span>
+          </label>
           <input type="text" id="config-label" value="${escapeHtml(widget.config.label || '')}">
         </div>
         <div class="config-group">
@@ -53,7 +57,9 @@ function getConfigForm(widget: Widget): string {
           </select>
         </div>
         <div class="config-group">
-          <label>Icone (ex: ri-money-euro-circle-line)</label>
+          <label>Icone
+            <span class="fr-hint-text">Nom Remix Icon (ex : ri-money-euro-circle-line). <a href="https://remixicon.com/" target="_blank" rel="noopener">Catalogue</a></span>
+          </label>
           <input type="text" id="config-icone" value="${escapeHtml(widget.config.icone || '')}">
         </div>
       `;
@@ -79,11 +85,15 @@ function getConfigForm(widget: Widget): string {
           </select>
         </div>
         <div class="config-group">
-          <label>Champ pour les labels (axe X)</label>
+          <label>Champ pour les etiquettes (axe X)
+            <span class="fr-hint-text">Ex : region, annee, categorie</span>
+          </label>
           <input type="text" id="config-labelField" value="${escapeHtml(widget.config.labelField || '')}">
         </div>
         <div class="config-group">
-          <label>Champ pour les valeurs (axe Y)</label>
+          <label>Champ pour les valeurs (axe Y)
+            <span class="fr-hint-text">Ex : population, budget, score</span>
+          </label>
           <input type="text" id="config-valueField" value="${escapeHtml(widget.config.valueField || '')}">
         </div>
         <div class="config-group">
@@ -99,7 +109,9 @@ function getConfigForm(widget: Widget): string {
     case 'table':
       return commonFields + `
         <div class="config-group">
-          <label>Colonnes (separees par des virgules)</label>
+          <label>Colonnes
+            <span class="fr-hint-text">Noms des champs a afficher, separes par des virgules (ex : nom, ville, budget)</span>
+          </label>
           <input type="text" id="config-columns" value="${(widget.config.columns || []).join(', ')}">
         </div>
         <div class="config-group">
