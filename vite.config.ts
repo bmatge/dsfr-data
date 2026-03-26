@@ -140,6 +140,19 @@ export default defineConfig({
   },
   plugins: [
     {
+      name: 'dev-lib-redirect',
+      // In dev, redirect requests for the built bundle to the TS source
+      // so components work without running "npm run build" first.
+      configureServer(server) {
+        server.middlewares.use((req, _res, next) => {
+          if (req.url && req.url.endsWith('/dist/dsfr-data.esm.js')) {
+            req.url = '/src/index.ts';
+          }
+          next();
+        });
+      },
+    },
+    {
       name: 'api-proxy-silent',
       // Proxy vers le backend Express (mode database).
       // Remplace le proxy Vite standard pour eviter les logs ECONNREFUSED
