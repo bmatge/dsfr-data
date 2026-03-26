@@ -19,7 +19,6 @@ let usersPagination: Pagination = { page: 1, limit: 20, total: 0, pages: 0 };
 let auditLogs: AuditEntry[] = [];
 let auditPagination: Pagination = { page: 1, limit: 50, total: 0, pages: 0 };
 let stats: Stats | null = null;
-let currentTab: 'users' | 'audit' | 'stats' = 'users';
 
 // ---------------------------------------------------------------------------
 // Init
@@ -43,7 +42,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  document.getElementById('admin-tabs')!.style.display = 'block';
+  document.getElementById('admin-tabs')!.style.removeProperty('display');
   setupTabs();
   await loadUsers(1);
 });
@@ -58,19 +57,14 @@ function showAccessDenied(): void {
 // ---------------------------------------------------------------------------
 
 function setupTabs(): void {
-  // Let DSFR JS handle tab switching natively (aria-selected, left, etc.)
-  // We just listen for clicks to lazy-load data when a tab is first opened.
-  const tabs = ['users', 'audit', 'stats'] as const;
-  for (const tab of tabs) {
-    document.getElementById(`tab-${tab}`)!.addEventListener('click', () => onTabClick(tab));
-  }
-}
-
-async function onTabClick(tab: typeof currentTab): Promise<void> {
-  currentTab = tab;
-  if (tab === 'users' && users.length === 0) await loadUsers(1);
-  if (tab === 'audit' && auditLogs.length === 0) await loadAudit(1);
-  if (tab === 'stats' && !stats) await loadStats();
+  // DSFR JS handles tab switching natively.
+  // We just listen for clicks to lazy-load data on first open.
+  document.getElementById('tab-audit')!.addEventListener('click', () => {
+    if (auditLogs.length === 0) loadAudit(1);
+  });
+  document.getElementById('tab-stats')!.addEventListener('click', () => {
+    if (!stats) loadStats();
+  });
 }
 
 // ---------------------------------------------------------------------------

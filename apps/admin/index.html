@@ -25,40 +25,32 @@
         <p>Acces reserve aux administrateurs.</p>
       </div>
 
-      <!-- Tabs -->
-      <div id="admin-tabs" style="display:none">
-        <nav class="fr-tabs" role="navigation" aria-label="Onglets admin">
-          <ul class="fr-tabs__list" role="tablist">
-            <li role="presentation">
-              <button id="tab-users" class="fr-tabs__tab" role="tab" aria-selected="true" aria-controls="panel-users">Utilisateurs</button>
-            </li>
-            <li role="presentation">
-              <button id="tab-audit" class="fr-tabs__tab" role="tab" aria-selected="false" aria-controls="panel-audit">Journal d'audit</button>
-            </li>
-            <li role="presentation">
-              <button id="tab-stats" class="fr-tabs__tab" role="tab" aria-selected="false" aria-controls="panel-stats">Statistiques</button>
-            </li>
-          </ul>
-        </nav>
-
-        <!-- Users panel -->
-        <div id="panel-users" class="fr-tabs__panel fr-tabs__panel--selected" role="tabpanel" aria-labelledby="tab-users">
+      <!-- Tabs (DSFR native pattern) -->
+      <div id="admin-tabs" class="fr-tabs" style="display:none">
+        <ul class="fr-tabs__list" role="tablist" aria-label="Onglets administration">
+          <li role="presentation">
+            <button type="button" id="tab-users" class="fr-tabs__tab" tabindex="0" role="tab" aria-selected="true" aria-controls="panel-users">Utilisateurs</button>
+          </li>
+          <li role="presentation">
+            <button type="button" id="tab-audit" class="fr-tabs__tab" tabindex="-1" role="tab" aria-selected="false" aria-controls="panel-audit">Journal d'audit</button>
+          </li>
+          <li role="presentation">
+            <button type="button" id="tab-stats" class="fr-tabs__tab" tabindex="-1" role="tab" aria-selected="false" aria-controls="panel-stats">Statistiques</button>
+          </li>
+        </ul>
+        <div id="panel-users" class="fr-tabs__panel fr-tabs__panel--selected" role="tabpanel" aria-labelledby="tab-users" tabindex="0">
           <div id="users-list">
             <p class="admin-loading">Chargement...</p>
           </div>
           <div id="users-pagination" class="fr-mt-2w"></div>
         </div>
-
-        <!-- Audit panel -->
-        <div id="panel-audit" class="fr-tabs__panel" role="tabpanel" aria-labelledby="tab-audit">
+        <div id="panel-audit" class="fr-tabs__panel" role="tabpanel" aria-labelledby="tab-audit" tabindex="0">
           <div id="audit-list">
             <p class="admin-loading">Chargement...</p>
           </div>
           <div id="audit-pagination" class="fr-mt-2w"></div>
         </div>
-
-        <!-- Stats panel -->
-        <div id="panel-stats" class="fr-tabs__panel" role="tabpanel" aria-labelledby="tab-stats">
+        <div id="panel-stats" class="fr-tabs__panel" role="tabpanel" aria-labelledby="tab-stats" tabindex="0">
           <div id="stats-content">
             <p class="admin-loading">Chargement...</p>
           </div>
