@@ -126,7 +126,7 @@ router.get('/users/:id', async (req, res) => {
  */
 router.put('/users/:id/role', async (req, res) => {
   try {
-    const authReq = req as AuthenticatedRequest;
+    const authReq = req as unknown as AuthenticatedRequest;
     const { role } = req.body;
     const targetId = req.params.id;
 
@@ -177,7 +177,7 @@ router.put('/users/:id/role', async (req, res) => {
  */
 router.put('/users/:id/status', async (req, res) => {
   try {
-    const authReq = req as AuthenticatedRequest;
+    const authReq = req as unknown as AuthenticatedRequest;
     const { active } = req.body;
     const targetId = req.params.id;
 
@@ -233,7 +233,7 @@ router.put('/users/:id/status', async (req, res) => {
  */
 router.delete('/users/:id', async (req, res) => {
   try {
-    const authReq = req as AuthenticatedRequest;
+    const authReq = req as unknown as AuthenticatedRequest;
     const targetId = req.params.id;
 
     // Cannot delete yourself
