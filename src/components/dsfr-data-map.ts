@@ -96,6 +96,7 @@ export class DsfrDataMap extends LitElement {
   private _liveRegion: HTMLDivElement | null = null;
   private _afterMapAnchor: HTMLDivElement | null = null;
   private _visibilityObserver: IntersectionObserver | null = null;
+  private _resizeObserver: ResizeObserver | null = null;
 
   // Light DOM
   createRenderRoot() { return this; }
@@ -134,6 +135,8 @@ export class DsfrDataMap extends LitElement {
     super.disconnectedCallback();
     this._visibilityObserver?.disconnect();
     this._visibilityObserver = null;
+    this._resizeObserver?.disconnect();
+    this._resizeObserver = null;
     this._observer?.disconnect();
     this._observer = null;
     if (this._leafletMap) {
@@ -159,9 +162,45 @@ export class DsfrDataMap extends LitElement {
         this._updateTiles();
       }
       if (changedProperties.has('height') && this._container) {
-        this._container.style.height = this.height;
+        this._applyHeight();
         this._leafletMap.invalidateSize();
       }
+    }
+  }
+
+  /**
+   * Apply the height value to the host element.
+   * If height is a percentage (e.g. "60%"), it is interpreted as a ratio
+   * of the element's own width (aspect-ratio mode). A ResizeObserver keeps
+   * the height in sync when the width changes (responsive).
+   * Other CSS units (px, vh, rem, etc.) are applied directly.
+   */
+  private _applyHeight() {
+    const pctMatch = this.height.match(/^(\d+(?:\.\d+)?)%$/);
+    if (pctMatch) {
+      const ratio = parseFloat(pctMatch[1]) / 100;
+      const applyRatio = () => {
+        const w = this.clientWidth;
+        if (w > 0) {
+          this.style.height = `${Math.round(w * ratio)}px`;
+        }
+      };
+      applyRatio();
+      // Watch for width changes
+      this._resizeObserver?.disconnect();
+      this._resizeObserver = new ResizeObserver(() => {
+        applyRatio();
+        this._leafletMap?.invalidateSize();
+      });
+      this._resizeObserver.observe(this);
+    } else {
+      // Absolute unit — stop observing
+      this._resizeObserver?.disconnect();
+      this._resizeObserver = null;
+      this.style.height = this.height;
+    }
+    if (this._container) {
+      this._container.style.height = '100%';
     }
   }
 
@@ -252,8 +291,8 @@ export class DsfrDataMap extends LitElement {
     // Create container div
     this._container = document.createElement('div');
     this._container.className = 'dsfr-data-map__container';
-    this._container.style.height = this.height;
     this._container.style.width = '100%';
+    this._applyHeight();
     this._container.setAttribute('role', 'application');
     this._container.setAttribute('aria-label', `Carte interactive${this.name ? ` : ${this.name}` : ''}`);
     this._container.setAttribute('aria-describedby', descId);

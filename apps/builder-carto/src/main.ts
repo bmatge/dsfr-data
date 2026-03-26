@@ -215,7 +215,9 @@ function renderMapConfig() {
           </div>
         </div>
         <div class="carto-field">
-          <label for="map-height">Hauteur</label>
+          <label for="map-height">Hauteur
+            <span class="fr-hint-text">px, vh, ou % de la largeur (ex: 500px, 60vh, 60%)</span>
+          </label>
           <input type="text" id="map-height" value="${escapeAttr(m.height)}" placeholder="500px">
         </div>
         <div class="carto-inline">
@@ -396,7 +398,9 @@ function renderLayerConfig() {
           <textarea id="layer-popup-template" placeholder="<h3>{{nom}}</h3>\n<p>{{adresse}}</p>">${escapeAttr(layer.popupTemplate)}</textarea>
         </div>
         <div class="carto-field">
-          <label for="layer-popup-width">Largeur du panneau</label>
+          <label for="layer-popup-width">Largeur du panneau
+            <span class="fr-hint-text">px, % (ex: 350px, 33%, 50%)</span>
+          </label>
           <input type="text" id="layer-popup-width" value="${escapeAttr(layer.popupWidth)}" placeholder="350px">
         </div>
         ` : ''}
