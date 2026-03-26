@@ -16,9 +16,9 @@
   <main class="fr-container--fluid fr-py-2w" id="main-content">
     <div class="carto-layout">
 
-      <!-- Left: Layers panel -->
-      <div class="carto-layers">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+      <!-- Col 1: Layers list + Map config -->
+      <div class="carto-col-layers">
+        <div class="carto-col-header">
           <h2 class="fr-text--lg fr-mb-0"><i class="ri-stack-line fr-mr-1w"></i>Couches</h2>
           <div>
             <button id="btn-add-layer" class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-add-line" title="Ajouter une couche">Ajouter</button>
@@ -30,36 +30,42 @@
 
         <hr class="fr-mt-2w fr-mb-2w">
 
-        <!-- Layer config (for active layer) -->
+        <!-- Map global config -->
+        <div id="map-config"></div>
+      </div>
+
+      <!-- Col 2: Active layer config (accordions) -->
+      <div class="carto-col-config">
         <div id="layer-config"></div>
       </div>
 
-      <!-- Center: Preview -->
-      <div class="carto-preview">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
-          <h2 class="fr-text--lg fr-mb-0"><i class="ri-map-pin-line fr-mr-1w"></i>Apercu</h2>
-          <button id="btn-execute" class="fr-btn fr-btn--sm fr-btn--icon-left fr-icon-play-line">Executer</button>
-        </div>
-        <div class="carto-preview__map" id="map-preview">
-          <p class="fr-text--sm" style="text-align:center;padding:2rem;color:var(--text-mention-grey)">
-            Cliquez sur "Executer" pour afficher l'apercu de la carte.
-          </p>
-        </div>
-      </div>
+      <!-- Col 3: Preview panel -->
+      <app-preview-panel
+        show-save-button
+        show-playground-button
+        tab-labels="Apercu,Code genere">
 
-      <!-- Right: Map config + code -->
-      <div class="carto-config">
-        <div id="map-config"></div>
-
-        <div class="carto-config__section">
-          <h3>Code genere</h3>
-          <pre id="code-output" class="carto-code"></pre>
-          <div style="display:flex;gap:0.5rem;margin-top:0.75rem;">
-            <button id="btn-copy" class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-clipboard-line">Copier le code</button>
-            <button id="btn-playground" class="fr-btn fr-btn--sm fr-btn--icon-left fr-icon-code-s-slash-line">Tester dans le playground</button>
+        <div slot="preview">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem 0;">
+            <span></span>
+            <button id="btn-execute" class="fr-btn fr-btn--sm fr-btn--icon-left fr-icon-play-line">Executer</button>
+          </div>
+          <div class="carto-preview__map" id="map-preview">
+            <p class="fr-text--sm" style="text-align:center;padding:2rem;color:var(--text-mention-grey)">
+              Cliquez sur "Executer" pour afficher l'apercu de la carte.
+            </p>
           </div>
         </div>
-      </div>
+
+        <div slot="code">
+          <p class="fr-text--sm fr-mb-1w">Copiez ce code pour l'integrer dans votre page :</p>
+          <button class="fr-btn fr-btn--sm fr-btn--secondary fr-mb-1w" id="btn-copy">
+            <i class="ri-file-copy-line"></i> Copier le code
+          </button>
+          <pre class="carto-code" id="code-output"></pre>
+        </div>
+
+      </app-preview-panel>
 
     </div>
   </main>

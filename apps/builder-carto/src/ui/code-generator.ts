@@ -15,9 +15,15 @@ function layerAttrs(layer: LayerConfig): string {
   if (layer.lonField) attrs.push(`lon-field="${layer.lonField}"`);
   if (layer.geoField) attrs.push(`geo-field="${layer.geoField}"`);
 
-  if (layer.popupFields) attrs.push(`popup-fields="${layer.popupFields}"`);
-  if (layer.popupTemplate) attrs.push(`popup-template="${layer.popupTemplate}"`);
-  if (layer.tooltipField) attrs.push(`tooltip-field="${layer.tooltipField}"`);
+  // Tooltip (only if popupMode is tooltip)
+  if (layer.popupMode === 'tooltip' && layer.tooltipField) {
+    attrs.push(`tooltip-field="${layer.tooltipField}"`);
+  }
+
+  // Popup fields on layer (for popup mode without template)
+  if (layer.popupMode === 'popup' && layer.popupFields && !layer.popupTemplate) {
+    attrs.push(`popup-fields="${layer.popupFields}"`);
+  }
 
   if (layer.color !== '#000091') attrs.push(`color="${layer.color}"`);
 
@@ -28,7 +34,9 @@ function layerAttrs(layer: LayerConfig): string {
   }
 
   if (layer.type === 'circle') {
+    if (layer.radius !== 8) attrs.push(`radius="${layer.radius}"`);
     if (layer.radiusField) attrs.push(`radius-field="${layer.radiusField}"`);
+    if (layer.radiusUnit !== 'px') attrs.push(`radius-unit="${layer.radiusUnit}"`);
     if (layer.radiusMin !== 4) attrs.push(`radius-min="${layer.radiusMin}"`);
     if (layer.radiusMax !== 30) attrs.push(`radius-max="${layer.radiusMax}"`);
   }
@@ -44,12 +52,35 @@ function layerAttrs(layer: LayerConfig): string {
     if (layer.clusterRadius !== 80) attrs.push(`cluster-radius="${layer.clusterRadius}"`);
   }
 
+  if (layer.filter) attrs.push(`filter="${layer.filter}"`);
+
   if (layer.minZoom !== 0) attrs.push(`min-zoom="${layer.minZoom}"`);
   if (layer.maxZoom !== 18) attrs.push(`max-zoom="${layer.maxZoom}"`);
-  if (layer.bbox) attrs.push('bbox');
+  if (layer.bbox) {
+    attrs.push('bbox');
+    if (layer.bboxDebounce !== 300) attrs.push(`bbox-debounce="${layer.bboxDebounce}"`);
+    if (layer.bboxField) attrs.push(`bbox-field="${layer.bboxField}"`);
+  }
   if (layer.maxItems !== 5000) attrs.push(`max-items="${layer.maxItems}"`);
 
   return attrs.join('\n    ');
+}
+
+function popupTag(layer: LayerConfig): string {
+  const mode = layer.popupMode;
+  if (mode === 'none' || mode === 'tooltip') return '';
+
+  const attrs: string[] = [];
+  attrs.push(`mode="${mode}"`);
+  if (layer.titleField) attrs.push(`title-field="${layer.titleField}"`);
+  if (layer.popupWidth && layer.popupWidth !== '350px') attrs.push(`width="${layer.popupWidth}"`);
+
+  let inner = '';
+  if (layer.popupTemplate) {
+    inner = `\n      <template>${layer.popupTemplate}</template>\n    `;
+  }
+
+  return `    <dsfr-data-map-popup ${attrs.join(' ')}>${inner}</dsfr-data-map-popup>`;
 }
 
 function sourceTag(layer: LayerConfig): string {
@@ -62,7 +93,6 @@ function sourceTag(layer: LayerConfig): string {
   const resourceIds = s.apiUrl ? extractResourceIds(s.apiUrl, provider) : null;
 
   if (s.type === 'grist' && s.documentId && s.tableId) {
-    // Grist: build proxied URL (like main builder does)
     const gristProvider = getProvider('grist');
     let gristUrl = s.apiUrl || '';
     for (const host of gristProvider.knownHosts) {
@@ -89,11 +119,9 @@ function sourceTag(layer: LayerConfig): string {
     attrs.push(`base-url="${baseUrl}"`);
     attrs.push(`dataset-id="${resourceIds.datasetId}"`);
   } else if (s.apiUrl) {
-    // Generic API source
     attrs.push(`url="${s.apiUrl}"`);
     if (s.dataPath) attrs.push(`transform="${s.dataPath}"`);
   } else if (s.type === 'manual' && s.data?.length) {
-    // Manual/local data: inline as JSON
     attrs.push(`data='${JSON.stringify(s.data)}'`);
   }
 
@@ -111,8 +139,9 @@ export function generateCode(): string {
     lines.push('');
   }
 
-  // Sources
-  for (const layer of state.layers) {
+  // Sources (only visible layers)
+  const visibleLayers = state.layers.filter(l => l.visible);
+  for (const layer of visibleLayers) {
     const src = sourceTag(layer);
     if (src) {
       lines.push(src);
@@ -124,17 +153,28 @@ export function generateCode(): string {
   const mapAttrs: string[] = [];
   if (m.center !== '46.603,2.888') mapAttrs.push(`center="${m.center}"`);
   if (m.zoom !== 6) mapAttrs.push(`zoom="${m.zoom}"`);
+  if (m.minZoom !== 2) mapAttrs.push(`min-zoom="${m.minZoom}"`);
+  if (m.maxZoom !== 18) mapAttrs.push(`max-zoom="${m.maxZoom}"`);
   if (m.tiles !== 'ign-plan') mapAttrs.push(`tiles="${m.tiles}"`);
   if (m.height !== '500px') mapAttrs.push(`height="${m.height}"`);
   if (m.name) mapAttrs.push(`name="${m.name}"`);
   if (m.fitBounds) mapAttrs.push('fit-bounds');
+  if (m.noControls) mapAttrs.push('no-controls');
+  if (m.maxBounds) mapAttrs.push(`max-bounds="${m.maxBounds}"`);
 
   lines.push(`<dsfr-data-map${mapAttrs.length ? ' ' + mapAttrs.join(' ') : ''}>`);
 
-  // Layers
-  for (const layer of state.layers) {
+  // Layers (only visible)
+  for (const layer of visibleLayers) {
     if (!layer.source) continue;
     lines.push(`  <dsfr-data-map-layer ${layerAttrs(layer)}>`);
+
+    // Popup/panel component
+    const popup = popupTag(layer);
+    if (popup) {
+      lines.push(popup);
+    }
+
     lines.push(`  </dsfr-data-map-layer>`);
   }
 
