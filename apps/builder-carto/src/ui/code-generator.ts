@@ -4,6 +4,7 @@
 import { state } from '../state.js';
 import type { LayerConfig } from '../state.js';
 import { LIB_URL } from '../state.js';
+import { detectProvider, extractResourceIds, getProvider, PROXY_BASE_URL } from '@dsfr-data/shared';
 
 function layerAttrs(layer: LayerConfig): string {
   const attrs: string[] = [];
@@ -56,21 +57,46 @@ function sourceTag(layer: LayerConfig): string {
   const s = layer.source;
   const attrs: string[] = [`id="${layer.id}"`];
 
-  if (s.apiType && s.apiType !== 'generic') {
-    attrs.push(`api-type="${s.apiType}"`);
-    if (s.baseUrl) attrs.push(`base-url="${s.baseUrl}"`);
-    if (s.datasetId) attrs.push(`dataset-id="${s.datasetId}"`);
-    if (s.resource) attrs.push(`resource="${s.resource}"`);
-  } else if (s.url) {
-    attrs.push(`url="${s.url}"`);
-    if (s.transform) attrs.push(`transform="${s.transform}"`);
-  }
+  // Unified Source format: detect provider from apiUrl
+  const provider = s.apiUrl ? detectProvider(s.apiUrl) : getProvider('generic');
+  const resourceIds = s.apiUrl ? extractResourceIds(s.apiUrl, provider) : null;
 
-  if (s.where) attrs.push(`where="${s.where}"`);
-  if (s.select) attrs.push(`select="${s.select}"`);
-  if (s.limit) attrs.push(`limit="${s.limit}"`);
-  if (s.serverSide) attrs.push('server-side');
-  if (s.pageSize) attrs.push(`page-size="${s.pageSize}"`);
+  if (s.type === 'grist' && s.documentId && s.tableId) {
+    // Grist: build proxied URL (like main builder does)
+    const gristProvider = getProvider('grist');
+    let gristUrl = s.apiUrl || '';
+    for (const host of gristProvider.knownHosts) {
+      if (s.apiUrl?.includes(host.hostname)) {
+        gristUrl = `${PROXY_BASE_URL}${host.proxyEndpoint}/api/docs/${s.documentId}/tables/${s.tableId}/records`;
+        break;
+      }
+    }
+    attrs.push(`url="${gristUrl}"`);
+    attrs.push('transform="records"');
+  } else if (provider.id === 'opendatasoft' && resourceIds?.datasetId) {
+    const baseUrl = new URL(s.apiUrl!).origin;
+    attrs.push('api-type="opendatasoft"');
+    attrs.push(`base-url="${baseUrl}"`);
+    attrs.push(`dataset-id="${resourceIds.datasetId}"`);
+    attrs.push('server-side');
+  } else if (provider.id === 'tabular' && resourceIds?.resourceId) {
+    attrs.push('api-type="tabular"');
+    attrs.push(`base-url="https://tabular-api.data.gouv.fr"`);
+    attrs.push(`resource="${resourceIds.resourceId}"`);
+    attrs.push('server-side');
+  } else if (provider.id === 'insee' && resourceIds?.datasetId) {
+    const baseUrl = new URL(s.apiUrl!).origin;
+    attrs.push('api-type="insee"');
+    attrs.push(`base-url="${baseUrl}"`);
+    attrs.push(`dataset-id="${resourceIds.datasetId}"`);
+  } else if (s.apiUrl) {
+    // Generic API source
+    attrs.push(`url="${s.apiUrl}"`);
+    if (s.dataPath) attrs.push(`transform="${s.dataPath}"`);
+  } else if (s.type === 'manual' && s.data?.length) {
+    // Manual/local data: inline as JSON
+    attrs.push(`data='${JSON.stringify(s.data)}'`);
+  }
 
   return `<dsfr-data-source ${attrs.join('\n  ')}>\n</dsfr-data-source>`;
 }
