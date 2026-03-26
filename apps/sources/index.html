@@ -49,6 +49,9 @@
         <button class="fr-btn fr-btn--sm fr-btn--secondary add-btn" id="add-source-btn">
           <i class="ri-add-line"></i> Créer une source manuelle
         </button>
+        <button class="fr-btn fr-btn--sm fr-btn--secondary add-btn" id="add-join-btn" style="margin-top: 0.5rem;">
+          <i class="ri-link-unlink"></i> Joindre deux sources
+        </button>
 
         <hr class="fr-mt-2w fr-mb-2w">
 
@@ -343,6 +346,97 @@
         <button class="fr-btn" id="export-grist-confirm-btn" disabled>
           <i class="ri-upload-cloud-line"></i> Créer la table
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL : Joindre deux sources -->
+  <div class="modal-overlay" id="join-source-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3><i class="ri-link-unlink"></i> Joindre deux sources</h3>
+        <button class="modal-close" onclick="closeModal('join-source-modal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="fr-input-group">
+          <label class="fr-label" for="join-name">Nom de la source jointe</label>
+          <input class="fr-input" type="text" id="join-name" placeholder="Ex: Population + Budget">
+        </div>
+
+        <div class="fr-input-group fr-mt-2w">
+          <label class="fr-label" for="join-left-source">
+            Source gauche (principale)
+            <span class="fr-hint-text">Les lignes de cette source seront conservees selon le type de jointure</span>
+          </label>
+          <select class="fr-select" id="join-left-source">
+            <option value="">-- Selectionner --</option>
+          </select>
+        </div>
+
+        <div class="fr-input-group fr-mt-2w">
+          <label class="fr-label" for="join-right-source">
+            Source droite
+          </label>
+          <select class="fr-select" id="join-right-source">
+            <option value="">-- Selectionner --</option>
+          </select>
+        </div>
+
+        <!-- Fields display (populated dynamically) -->
+        <div id="join-fields-info" class="fr-mt-2w" style="display: none;">
+          <div style="display: flex; gap: 1rem;">
+            <div style="flex: 1;">
+              <p class="fr-text--sm fr-text--bold" style="margin-bottom: 0.25rem;">Champs gauche</p>
+              <p class="fr-text--sm" id="join-left-fields" style="color: var(--text-mention-grey);"></p>
+            </div>
+            <div style="flex: 1;">
+              <p class="fr-text--sm fr-text--bold" style="margin-bottom: 0.25rem;">Champs droite</p>
+              <p class="fr-text--sm" id="join-right-fields" style="color: var(--text-mention-grey);"></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="fr-input-group fr-mt-2w">
+          <label class="fr-label" for="join-on">
+            Cle de jointure
+            <span class="fr-hint-text">Champ commun (ex: code_dept) ou correspondance gauche=droite (ex: dept_code=code). Multi-cle : virgules.</span>
+          </label>
+          <input class="fr-input" type="text" id="join-on" placeholder="code_dept">
+        </div>
+
+        <div class="fr-input-group fr-mt-2w">
+          <label class="fr-label" for="join-type">Type de jointure</label>
+          <select class="fr-select" id="join-type">
+            <option value="left" selected>Left (toutes les lignes gauche)</option>
+            <option value="inner">Inner (seulement les correspondances)</option>
+            <option value="right">Right (toutes les lignes droite)</option>
+            <option value="full">Full (toutes les lignes des deux cotes)</option>
+          </select>
+        </div>
+
+        <div class="fr-input-group fr-mt-2w">
+          <label class="fr-label" for="join-prefix-right">
+            Prefixe des champs droite (en cas de collision)
+            <span class="fr-hint-text">Ajoute un prefixe aux champs de la source droite qui portent le meme nom</span>
+          </label>
+          <input class="fr-input" type="text" id="join-prefix-right" placeholder="right_" value="right_">
+        </div>
+
+        <div id="join-preview" class="fr-mt-2w" style="display: none;">
+          <p class="fr-text--sm" style="color: var(--text-mention-grey);">
+            <i class="ri-database-2-line"></i> Resultat : <span id="join-preview-count">0</span> enregistrements
+          </p>
+          <div class="table-preview" style="max-height: 200px;">
+            <table class="fr-table" id="join-preview-table">
+              <thead><tr></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="fr-btn fr-btn--secondary" onclick="closeModal('join-source-modal')">Annuler</button>
+        <button class="fr-btn" id="save-join-btn">Joindre et sauvegarder</button>
       </div>
     </div>
   </div>

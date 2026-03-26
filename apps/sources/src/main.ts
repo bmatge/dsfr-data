@@ -28,6 +28,10 @@ import {
   loadExportDocuments,
   updateExportButton,
   exportToGrist,
+  openJoinModal,
+  saveJoinSource,
+  updateJoinFieldsInfo,
+  previewJoinResult,
 } from './connections/connection-manager.js';
 
 import { createGristTable, addColumnRow, selectDocument, selectTable } from './connections/grist-explorer.js';
@@ -175,6 +179,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('export-document')?.addEventListener('change', updateExportButton);
   document.getElementById('export-table-name')?.addEventListener('input', updateExportButton);
   document.getElementById('export-grist-confirm-btn')?.addEventListener('click', exportToGrist);
+
+  // ---- Join modal ----
+  document.getElementById('add-join-btn')?.addEventListener('click', () => openJoinModal());
+  document.getElementById('save-join-btn')?.addEventListener('click', saveJoinSource);
+  document.getElementById('join-left-source')?.addEventListener('change', () => { updateJoinFieldsInfo(); previewJoinResult(); });
+  document.getElementById('join-right-source')?.addEventListener('change', () => { updateJoinFieldsInfo(); previewJoinResult(); });
+  document.getElementById('join-on')?.addEventListener('input', previewJoinResult);
+  document.getElementById('join-type')?.addEventListener('change', previewJoinResult);
+  document.getElementById('join-prefix-right')?.addEventListener('input', previewJoinResult);
 
   // ---- Explorer tab switching ----
   document.querySelectorAll('.explorer-tabs:not(#source-mode-tabs) .explorer-tab').forEach((tab) => {

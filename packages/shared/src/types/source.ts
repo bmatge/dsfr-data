@@ -8,6 +8,7 @@
  */
 
 import type { ProviderId } from '../providers/provider-config.js';
+import type { JoinType } from '../utils/join.js';
 import { detectProvider, extractResourceIds } from '../providers/index.js';
 
 export interface Source {
@@ -16,7 +17,7 @@ export interface Source {
 
   // --- Type and provider ---
   /** High-level source type */
-  type: 'grist' | 'api' | 'manual';
+  type: 'grist' | 'api' | 'manual' | 'join';
   /** Auto-detected provider (opendatasoft, tabular, grist, generic) */
   provider?: ProviderId;
 
@@ -42,6 +43,18 @@ export interface Source {
 
   // --- Origin connection ---
   connectionId?: string;
+
+  // --- Join specific ---
+  /** ID of the left source (for join type) */
+  leftSourceId?: string;
+  /** ID of the right source (for join type) */
+  rightSourceId?: string;
+  /** Join key expression: "field", "left_field=right_field", or comma-separated */
+  joinOn?: string;
+  /** Join type: inner, left, right, full */
+  joinType?: JoinType;
+  /** Prefix for right-side colliding fields */
+  joinPrefixRight?: string;
 }
 
 /**
@@ -77,6 +90,11 @@ export function migrateSource(raw: Partial<Source>): Source {
     if (cfg.isPublic !== undefined && source.isPublic === undefined) source.isPublic = cfg.isPublic as boolean;
     if (cfg.provider && !source.provider) source.provider = cfg.provider as ProviderId;
     if (cfg.resourceIds && !source.resourceIds) source.resourceIds = cfg.resourceIds as Record<string, string>;
+    if (cfg.leftSourceId && !source.leftSourceId) source.leftSourceId = cfg.leftSourceId as string;
+    if (cfg.rightSourceId && !source.rightSourceId) source.rightSourceId = cfg.rightSourceId as string;
+    if (cfg.joinOn && !source.joinOn) source.joinOn = cfg.joinOn as string;
+    if (cfg.joinType && !source.joinType) source.joinType = cfg.joinType as JoinType;
+    if (cfg.joinPrefixRight !== undefined && source.joinPrefixRight === undefined) source.joinPrefixRight = cfg.joinPrefixRight as string;
   }
 
   // data_json → data
@@ -96,6 +114,8 @@ export function migrateSource(raw: Partial<Source>): Source {
   if (!source.provider) {
     if (source.type === 'grist') {
       source.provider = 'grist';
+    } else if (source.type === 'join') {
+      source.provider = 'generic';
     } else if (source.type === 'api' && source.apiUrl) {
       source.provider = detectProvider(source.apiUrl).id;
     } else {
@@ -133,6 +153,11 @@ export function serializeSourceForServer(source: Source): Record<string, unknown
   if (source.isPublic !== undefined) configJson.isPublic = source.isPublic;
   if (source.provider) configJson.provider = source.provider;
   if (source.resourceIds) configJson.resourceIds = source.resourceIds;
+  if (source.leftSourceId) configJson.leftSourceId = source.leftSourceId;
+  if (source.rightSourceId) configJson.rightSourceId = source.rightSourceId;
+  if (source.joinOn) configJson.joinOn = source.joinOn;
+  if (source.joinType) configJson.joinType = source.joinType;
+  if (source.joinPrefixRight !== undefined) configJson.joinPrefixRight = source.joinPrefixRight;
 
   return {
     id: source.id,

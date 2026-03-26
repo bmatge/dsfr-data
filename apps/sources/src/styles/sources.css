@@ -181,6 +181,7 @@ body { min-height: 100vh; background: var(--background-alt-grey); }
 .badge-grist { background: #16a34a; color: white; }
 .badge-api { background: #2563eb; color: white; }
 .badge-manual { background: #9333ea; color: white; }
+.badge-join { background: #d97706; color: white; }
 
 .field-row {
   display: flex;

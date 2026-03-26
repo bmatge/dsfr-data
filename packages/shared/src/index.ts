@@ -3,6 +3,8 @@ export { escapeHtml } from './utils/escape-html.js';
 export { formatKPIValue, formatDateShort } from './utils/formatters.js';
 export { toNumber, looksLikeNumber } from './utils/number-parser.js';
 export { isValidDeptCode } from './utils/dept-codes.js';
+export type { JoinType, JoinKey, JoinOptions } from './utils/join.js';
+export { parseJoinKeys, performJoin } from './utils/join.js';
 
 // Constants
 export { DSFR_COLORS, PALETTE_PRIMARY_COLOR, PALETTE_COLORS } from './constants/dsfr-palettes.js';

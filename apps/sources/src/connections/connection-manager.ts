@@ -17,7 +17,9 @@ import {
   toastError,
   confirmDialog,
   getApiAdapter,
+  performJoin,
 } from '@dsfr-data/shared';
+import type { JoinType, Source } from '@dsfr-data/shared';
 
 import { state, EXTERNAL_PROXY } from '../state.js';
 import type { StoredConnection } from '../state.js';
@@ -550,7 +552,9 @@ export function renderSources(): void {
         ? '<span class="badge-source-type badge-api">API</span>'
         : source.type === 'grist'
           ? '<span class="badge-source-type badge-grist">Grist</span>'
-          : '<span class="badge-source-type badge-manual">Manuel</span>';
+          : source.type === 'join'
+            ? '<span class="badge-source-type badge-join">Jointure</span>'
+            : '<span class="badge-source-type badge-manual">Manuel</span>';
 
     card.innerHTML = `
       <div style="display: flex; align-items: center; gap: 0.5rem;">
@@ -625,9 +629,9 @@ export function previewSource(id: string): void {
   const previewPanel = document.getElementById('tab-preview');
   if (previewPanel) previewPanel.style.display = 'block';
 
-  // Show export button for manual sources
+  // Show export button for manual and join sources (local data)
   const exportBtn = document.getElementById('export-grist-btn');
-  if (exportBtn) exportBtn.style.display = source.type === 'manual' ? '' : 'none';
+  if (exportBtn) exportBtn.style.display = (source.type === 'manual' || source.type === 'join') ? '' : 'none';
 
   // Render preview table
   const info = document.getElementById('preview-info');
@@ -887,5 +891,186 @@ export async function exportToGrist(): Promise<void> {
       btn.disabled = false;
       btn.innerHTML = '<i class="ri-upload-cloud-line"></i> Creer la table';
     }
+  }
+}
+
+// ============================================================
+// Join sources
+// ============================================================
+
+export function openJoinModal(): void {
+  const sourcesWithData = state.sources.filter(s => s.data && s.data.length > 0);
+  if (sourcesWithData.length < 2) {
+    toastWarning('Il faut au moins 2 sources avec des donnees pour creer une jointure.');
+    return;
+  }
+
+  const leftSelect = document.getElementById('join-left-source') as HTMLSelectElement | null;
+  const rightSelect = document.getElementById('join-right-source') as HTMLSelectElement | null;
+
+  const options = '<option value="">-- Selectionner --</option>' +
+    sourcesWithData.map(s =>
+      `<option value="${s.id}">${escapeHtml(s.name)} (${s.recordCount || s.data!.length} lignes)</option>`,
+    ).join('');
+
+  if (leftSelect) leftSelect.innerHTML = options;
+  if (rightSelect) rightSelect.innerHTML = options;
+
+  // Reset fields
+  const nameEl = document.getElementById('join-name') as HTMLInputElement | null;
+  const onEl = document.getElementById('join-on') as HTMLInputElement | null;
+  const typeEl = document.getElementById('join-type') as HTMLSelectElement | null;
+  const prefixEl = document.getElementById('join-prefix-right') as HTMLInputElement | null;
+  if (nameEl) nameEl.value = '';
+  if (onEl) onEl.value = '';
+  if (typeEl) typeEl.value = 'left';
+  if (prefixEl) prefixEl.value = 'right_';
+
+  const fieldsInfo = document.getElementById('join-fields-info');
+  if (fieldsInfo) fieldsInfo.style.display = 'none';
+
+  const preview = document.getElementById('join-preview');
+  if (preview) preview.style.display = 'none';
+
+  openModal('join-source-modal');
+}
+
+/** Show fields of selected sources to help the user pick join keys. */
+export function updateJoinFieldsInfo(): void {
+  const leftId = (document.getElementById('join-left-source') as HTMLSelectElement | null)?.value;
+  const rightId = (document.getElementById('join-right-source') as HTMLSelectElement | null)?.value;
+  const fieldsInfo = document.getElementById('join-fields-info');
+
+  if (!leftId || !rightId || !fieldsInfo) {
+    if (fieldsInfo) fieldsInfo.style.display = 'none';
+    return;
+  }
+
+  const leftSource = state.sources.find(s => s.id === leftId);
+  const rightSource = state.sources.find(s => s.id === rightId);
+
+  if (!leftSource?.data?.length || !rightSource?.data?.length) {
+    fieldsInfo.style.display = 'none';
+    return;
+  }
+
+  const leftFields = Object.keys(leftSource.data[0]);
+  const rightFields = Object.keys(rightSource.data[0]);
+
+  const leftEl = document.getElementById('join-left-fields');
+  const rightEl = document.getElementById('join-right-fields');
+  if (leftEl) leftEl.textContent = leftFields.join(', ');
+  if (rightEl) rightEl.textContent = rightFields.join(', ');
+
+  fieldsInfo.style.display = 'block';
+
+  // Auto-suggest join key: first common field name
+  const onEl = document.getElementById('join-on') as HTMLInputElement | null;
+  if (onEl && !onEl.value) {
+    const common = leftFields.find(f => rightFields.includes(f));
+    if (common) onEl.value = common;
+  }
+}
+
+/** Preview the join result live. */
+export function previewJoinResult(): void {
+  const leftId = (document.getElementById('join-left-source') as HTMLSelectElement | null)?.value;
+  const rightId = (document.getElementById('join-right-source') as HTMLSelectElement | null)?.value;
+  const on = (document.getElementById('join-on') as HTMLInputElement | null)?.value.trim();
+  const joinType = (document.getElementById('join-type') as HTMLSelectElement | null)?.value as JoinType;
+  const prefixRight = (document.getElementById('join-prefix-right') as HTMLInputElement | null)?.value || 'right_';
+
+  const preview = document.getElementById('join-preview');
+  if (!preview) return;
+
+  if (!leftId || !rightId || !on) {
+    preview.style.display = 'none';
+    return;
+  }
+
+  const leftSource = state.sources.find(s => s.id === leftId);
+  const rightSource = state.sources.find(s => s.id === rightId);
+  if (!leftSource?.data?.length || !rightSource?.data?.length) {
+    preview.style.display = 'none';
+    return;
+  }
+
+  try {
+    const result = performJoin(leftSource.data, rightSource.data, {
+      on,
+      type: joinType,
+      prefixRight,
+    });
+
+    const countEl = document.getElementById('join-preview-count');
+    if (countEl) countEl.textContent = String(result.length);
+
+    // Render preview table (first 5 rows)
+    const table = document.getElementById('join-preview-table');
+    if (table && result.length > 0) {
+      const columns = Object.keys(result[0]);
+      const thead = table.querySelector('thead tr');
+      const tbody = table.querySelector('tbody');
+      if (thead) thead.innerHTML = columns.map(c => `<th>${escapeHtml(c)}</th>`).join('');
+      if (tbody) {
+        tbody.innerHTML = result.slice(0, 5).map(row =>
+          '<tr>' + columns.map(c => `<td>${escapeHtml(String(row[c] ?? ''))}</td>`).join('') + '</tr>',
+        ).join('');
+      }
+    }
+
+    preview.style.display = 'block';
+  } catch {
+    preview.style.display = 'none';
+  }
+}
+
+export function saveJoinSource(): void {
+  const name = (document.getElementById('join-name') as HTMLInputElement | null)?.value.trim();
+  const leftId = (document.getElementById('join-left-source') as HTMLSelectElement | null)?.value;
+  const rightId = (document.getElementById('join-right-source') as HTMLSelectElement | null)?.value;
+  const on = (document.getElementById('join-on') as HTMLInputElement | null)?.value.trim();
+  const joinType = (document.getElementById('join-type') as HTMLSelectElement | null)?.value as JoinType;
+  const prefixRight = (document.getElementById('join-prefix-right') as HTMLInputElement | null)?.value || 'right_';
+
+  if (!name) { toastWarning('Veuillez saisir un nom.'); return; }
+  if (!leftId || !rightId) { toastWarning('Veuillez selectionner les deux sources.'); return; }
+  if (leftId === rightId) { toastWarning('Les deux sources doivent etre differentes.'); return; }
+  if (!on) { toastWarning('Veuillez saisir la cle de jointure.'); return; }
+
+  const leftSource = state.sources.find(s => s.id === leftId);
+  const rightSource = state.sources.find(s => s.id === rightId);
+  if (!leftSource?.data || !rightSource?.data) {
+    toastWarning('Les sources selectionnees n\'ont pas de donnees.');
+    return;
+  }
+
+  try {
+    const result = performJoin(leftSource.data, rightSource.data, {
+      on,
+      type: joinType,
+      prefixRight,
+    });
+
+    const source: Source = {
+      id: crypto.randomUUID(),
+      name,
+      type: 'join',
+      data: result,
+      recordCount: result.length,
+      leftSourceId: leftId,
+      rightSourceId: rightId,
+      joinOn: on,
+      joinType,
+      joinPrefixRight: prefixRight,
+    };
+
+    state.sources.push(source);
+    saveToStorage(STORAGE_KEYS.SOURCES, state.sources);
+    renderSources();
+    closeModal('join-source-modal');
+    toastSuccess(`Source jointe "${name}" creee (${result.length} lignes)`);
+  } catch (err) {
+    toastError(`Erreur de jointure : ${(err as Error).message}`);
   }
 }

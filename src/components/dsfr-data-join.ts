@@ -9,15 +9,12 @@ import {
   subscribeToSource,
   getDataCache,
 } from '../utils/data-bridge.js';
+import { performJoin } from '@dsfr-data/shared';
+import type { JoinType } from '@dsfr-data/shared';
 
 type Row = Record<string, unknown>;
 
-export type JoinType = 'inner' | 'left' | 'right' | 'full';
-
-interface JoinKey {
-  left: string;
-  right: string;
-}
+export type { JoinType };
 
 /**
  * <dsfr-data-join> — Jointure multi-sources autour d'une clé pivot
@@ -217,8 +214,12 @@ export class DsfrDataJoin extends LitElement {
     }
 
     try {
-      const keys = this._parseKeys();
-      const result = this._performJoin(this._leftData, this._rightData, keys);
+      const result = performJoin(this._leftData, this._rightData, {
+        on: this.on,
+        type: this.type,
+        prefixLeft: this.prefixLeft,
+        prefixRight: this.prefixRight,
+      });
       this._data = result;
       this._error = null;
       this._loading = false;
@@ -229,182 +230,6 @@ export class DsfrDataJoin extends LitElement {
       dispatchDataError(this.id, this._error);
       console.error(`dsfr-data-join[${this.id}]: Erreur de jointure`, error);
     }
-  }
-
-  /**
-   * Parse l'attribut `on` en tableau de JoinKey.
-   * Formats supportés :
-   * - "code_dept" → [{ left: "code_dept", right: "code_dept" }]
-   * - "dept_code=code" → [{ left: "dept_code", right: "code" }]
-   * - "annee,code_region" → [{ left: "annee", right: "annee" }, { left: "code_region", right: "code_region" }]
-   */
-  _parseKeys(): JoinKey[] {
-    return this.on.split(',').map(part => {
-      const trimmed = part.trim();
-      const eqIndex = trimmed.indexOf('=');
-      if (eqIndex > 0) {
-        return {
-          left: trimmed.substring(0, eqIndex).trim(),
-          right: trimmed.substring(eqIndex + 1).trim(),
-        };
-      }
-      return { left: trimmed, right: trimmed };
-    });
-  }
-
-  /**
-   * Construit la clé composite pour l'indexation.
-   */
-  private _buildKey(row: Row, fields: string[]): string {
-    return fields.map(f => String(row[f] ?? '')).join('|');
-  }
-
-  /**
-   * Détecte les champs en collision entre left et right (hors clés de jointure).
-   */
-  private _detectCollisions(leftRow: Row | null, rightRow: Row | null, joinKeyFields: Set<string>): Set<string> {
-    if (!leftRow || !rightRow) return new Set();
-    const leftFields = new Set(Object.keys(leftRow));
-    const collisions = new Set<string>();
-    for (const field of Object.keys(rightRow)) {
-      if (leftFields.has(field) && !joinKeyFields.has(field)) {
-        collisions.add(field);
-      }
-    }
-    return collisions;
-  }
-
-  /**
-   * Fusionne une ligne gauche et une ligne droite.
-   * Les clés de jointure ne sont pas dupliquées.
-   * Les champs en collision reçoivent les préfixes configurés.
-   */
-  _mergeRow(
-    leftRow: Row | null,
-    rightRow: Row | null,
-    keys: JoinKey[],
-    collisions: Set<string>
-  ): Row {
-    const result: Row = {};
-
-    // Ajouter les champs gauche
-    if (leftRow) {
-      for (const [field, value] of Object.entries(leftRow)) {
-        const key = collisions.has(field) && this.prefixLeft
-          ? `${this.prefixLeft}${field}` : field;
-        result[key] = value;
-      }
-    }
-
-    // Ajouter les champs droite
-    const rightKeyFields = new Set(keys.map(k => k.right));
-    if (rightRow) {
-      for (const [field, value] of Object.entries(rightRow)) {
-        // Ne pas dupliquer les clés de jointure
-        if (rightKeyFields.has(field)) {
-          // Si la ligne gauche est null, on ajoute la clé depuis la droite
-          const leftKeyField = keys.find(k => k.right === field)!.left;
-          if (!leftRow) {
-            result[leftKeyField] = value;
-          }
-          continue;
-        }
-        const key = collisions.has(field)
-          ? `${this.prefixRight}${field}` : field;
-        result[key] = value;
-      }
-    }
-
-    // Pour un left join sans correspondance droite,
-    // ajouter les champs droite manquants comme null
-    // (on ne connaît pas les champs droite sans au moins une ligne de référence)
-
-    return result;
-  }
-
-  /**
-   * Effectue la jointure selon le type configuré. Algorithme O(n+m) via Map.
-   */
-  _performJoin(leftData: Row[], rightData: Row[], keys: JoinKey[]): Row[] {
-    const leftKeyFields = keys.map(k => k.left);
-    const rightKeyFields = keys.map(k => k.right);
-    const joinKeyFieldSet = new Set([...leftKeyFields, ...rightKeyFields]);
-
-    // Détecter les collisions une seule fois
-    const collisions = this._detectCollisions(
-      leftData[0] ?? null,
-      rightData[0] ?? null,
-      joinKeyFieldSet
-    );
-
-    // Indexer la source droite par clé
-    const rightIndex = new Map<string, Row[]>();
-    for (const row of rightData) {
-      const k = this._buildKey(row, rightKeyFields);
-      if (!rightIndex.has(k)) rightIndex.set(k, []);
-      rightIndex.get(k)!.push(row);
-    }
-
-    const result: Row[] = [];
-    const joinType = this.type;
-
-    if (joinType === 'inner' || joinType === 'left') {
-      // Parcourir la gauche, chercher les correspondances droite
-      for (const leftRow of leftData) {
-        const k = this._buildKey(leftRow, leftKeyFields);
-        const matches = rightIndex.get(k);
-        if (matches) {
-          for (const rightRow of matches) {
-            result.push(this._mergeRow(leftRow, rightRow, keys, collisions));
-          }
-        } else if (joinType === 'left') {
-          result.push(this._mergeRow(leftRow, null, keys, collisions));
-        }
-      }
-    } else if (joinType === 'right') {
-      // Indexer la gauche, parcourir la droite
-      const leftIndex = new Map<string, Row[]>();
-      for (const row of leftData) {
-        const k = this._buildKey(row, leftKeyFields);
-        if (!leftIndex.has(k)) leftIndex.set(k, []);
-        leftIndex.get(k)!.push(row);
-      }
-      for (const rightRow of rightData) {
-        const k = this._buildKey(rightRow, rightKeyFields);
-        const matches = leftIndex.get(k);
-        if (matches) {
-          for (const leftRow of matches) {
-            result.push(this._mergeRow(leftRow, rightRow, keys, collisions));
-          }
-        } else {
-          result.push(this._mergeRow(null, rightRow, keys, collisions));
-        }
-      }
-    } else if (joinType === 'full') {
-      // Full outer join
-      const matchedRightKeys = new Set<string>();
-      for (const leftRow of leftData) {
-        const k = this._buildKey(leftRow, leftKeyFields);
-        const matches = rightIndex.get(k);
-        if (matches) {
-          matchedRightKeys.add(k);
-          for (const rightRow of matches) {
-            result.push(this._mergeRow(leftRow, rightRow, keys, collisions));
-          }
-        } else {
-          result.push(this._mergeRow(leftRow, null, keys, collisions));
-        }
-      }
-      // Lignes droite sans correspondance gauche
-      for (const rightRow of rightData) {
-        const k = this._buildKey(rightRow, rightKeyFields);
-        if (!matchedRightKeys.has(k)) {
-          result.push(this._mergeRow(null, rightRow, keys, collisions));
-        }
-      }
-    }
-
-    return result;
   }
 
   // --- Cleanup ---
