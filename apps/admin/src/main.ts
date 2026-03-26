@@ -118,20 +118,22 @@ function renderUsersTable(): void {
   `).join('');
 
   el.innerHTML = `
-    <table class="admin-table">
-      <thead>
-        <tr>
-          <th>Email</th>
-          <th>Nom</th>
-          <th>Role</th>
-          <th>Provider</th>
-          <th>Statut</th>
-          <th>Derniere connexion</th>
-          <th>Inscription</th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>
+    <div class="admin-table-wrapper">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>Email</th>
+            <th>Nom</th>
+            <th>Role</th>
+            <th>Provider</th>
+            <th>Statut</th>
+            <th>Derniere connexion</th>
+            <th>Inscription</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
   `;
 
   // Click handlers
@@ -279,18 +281,20 @@ function renderAuditTable(): void {
   `).join('');
 
   el.innerHTML = `
-    <table class="admin-table">
-      <thead>
-        <tr>
-          <th>Date</th>
-          <th>Action</th>
-          <th>Cible</th>
-          <th>Details</th>
-          <th>IP</th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>
+    <div class="admin-table-wrapper">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Action</th>
+            <th>Cible</th>
+            <th>Details</th>
+            <th>IP</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
   `;
 
   renderPagination('audit-pagination', auditPagination, loadAudit);
