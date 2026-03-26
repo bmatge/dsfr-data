@@ -2102,7 +2102,7 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | zoom | Number | \`6\` | Zoom initial (1-18) |
 | min-zoom | Number | \`2\` | Zoom minimum |
 | max-zoom | Number | \`18\` | Zoom maximum |
-| height | String | \`"500px"\` | Hauteur CSS |
+| height | String | \`"500px"\` | Hauteur CSS (px, vh, rem). Un \`%\` est un ratio de la largeur (ex: \`"60%"\` = 60% de la largeur) |
 | tiles | String | \`"ign-plan"\` | Fond de carte : \`ign-plan\`, \`ign-ortho\`, \`ign-cadastre\`, \`osm\`, ou URL template |
 | no-controls | Boolean | \`false\` | Masque les controles de zoom |
 | fit-bounds | Boolean | \`false\` | Ajuste le viewport aux donnees |
