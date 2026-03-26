@@ -433,15 +433,20 @@ export async function generateChart(): Promise<void> {
 
   // Validation: datalist only needs labelField, KPI/Gauge need valueField, charts need both
   if (isDatalist && !state.labelField) {
-    toastWarning('Veuillez s\u00e9lectionner un champ pour les colonnes');
+    toastWarning('Il manque la s\u00e9lection des colonnes. Ouvrez la section "Configuration des donn\u00e9es" pour choisir le champ principal du tableau.');
     return;
   }
   if (!isSingleValue && !isDatalist && (!state.labelField || !state.valueField)) {
-    toastWarning('Veuillez s\u00e9lectionner les champs pour les axes X et Y');
+    const missing = !state.labelField && !state.valueField
+      ? 'les champs pour l\'axe X (cat\u00e9gories) et l\'axe Y (valeurs num\u00e9riques)'
+      : !state.labelField
+        ? 'le champ pour l\'axe X (ex\u00a0: r\u00e9gion, ann\u00e9e)'
+        : 'le champ pour l\'axe Y (ex\u00a0: population, budget)';
+    toastWarning(`Il manque ${missing}. Ouvrez la section "Configuration des donn\u00e9es".`);
     return;
   }
   if (isSingleValue && !state.valueField && state.aggregation !== 'count') {
-    toastWarning('Veuillez s\u00e9lectionner un champ pour la valeur');
+    toastWarning('Il manque le champ num\u00e9rique \u00e0 mesurer. S\u00e9lectionnez un champ dans "Axe Y / Valeurs" (ex\u00a0: population, budget).');
     return;
   }
 

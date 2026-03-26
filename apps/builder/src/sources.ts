@@ -11,6 +11,7 @@ import { populateFieldSelects } from './sources-fields.js';
 import { generateCodeForLocalData } from './ui/code-generator.js';
 import { updateMiddlewareSections, autoEnableNormalizeForGrist } from './ui/normalize-config.js';
 import { restoreExtraSeriesFromState } from './ui/extra-series.js';
+import { updatePreviewSteps } from './ui/help-tooltips.js';
 
 /**
  * Load saved sources from localStorage and populate the dropdown.
@@ -38,11 +39,14 @@ export function loadSavedSources(): void {
       const emptyMsg = document.createElement('div');
       emptyMsg.className = 'empty-sources-message fr-mt-1w';
       emptyMsg.innerHTML = `
-        <p><i class="ri-database-2-line" style="font-size: 2rem; display: block; margin-bottom: 0.5rem;"></i></p>
-        <p>Aucune source de donn\u00e9es enregistr\u00e9e</p>
-        <a href="${appHref('sources')}" class="fr-btn fr-btn--sm fr-btn--secondary fr-mt-1w">
-          <i class="ri-add-line"></i> Ajouter une source
-        </a>
+        <p><i class="ri-database-2-line" style="font-size: 2rem; display: block; margin-bottom: 0.5rem; opacity: 0.5;"></i></p>
+        <p>Pas encore de donn\u00e9es\u00a0?</p>
+        <p class="empty-sources-desc">Cr\u00e9ez une source pour commencer.</p>
+        <div class="empty-sources-actions">
+          <a href="${appHref('sources')}" class="fr-btn fr-btn--sm fr-btn--secondary">
+            <i class="ri-add-line"></i> Ajouter une source
+          </a>
+        </div>
       `;
       panel.insertBefore(emptyMsg, panel.firstChild);
     }
@@ -240,6 +244,7 @@ export function loadFieldsFromLocalData(): void {
   updateMiddlewareSections();
 
   showDataPreviewButton();
+  updatePreviewSteps();
 }
 
 /**

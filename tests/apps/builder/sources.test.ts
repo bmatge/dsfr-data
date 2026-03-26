@@ -77,7 +77,7 @@ describe('builder sources', () => {
       const panel = document.getElementById('source-panel-saved')!;
       const emptyMsg = panel.querySelector('.empty-sources-message');
       expect(emptyMsg).not.toBeNull();
-      expect(emptyMsg!.textContent).toContain('Aucune source');
+      expect(emptyMsg!.textContent).toContain('Pas encore de donn');
 
       // Select group should be hidden
       const selectGroup = panel.querySelector('.fr-select-group') as HTMLElement;

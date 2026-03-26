@@ -28,6 +28,7 @@ import { setupDatalistListeners } from './ui/datalist-config.js';
 import { setupNormalizeListeners, updateMiddlewareSections } from './ui/normalize-config.js';
 import { setupFacetsListeners } from './ui/facets-config.js';
 import { addExtraSeries } from './ui/extra-series.js';
+import { initHelpTooltips, updatePreviewSteps } from './ui/help-tooltips.js';
 
 // Expose functions called from inline onclick in HTML
 (window as any).toggleSection = toggleSection;
@@ -49,14 +50,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Saved sources dropdown
   const savedSourceSelect = document.getElementById('saved-source');
   if (savedSourceSelect) {
-    savedSourceSelect.addEventListener('change', handleSavedSourceChange);
+    savedSourceSelect.addEventListener('change', () => {
+      handleSavedSourceChange();
+      updatePreviewSteps();
+    });
   }
 
   // Chart type
   document.querySelectorAll('.chart-type-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const type = (btn as HTMLElement).dataset.type as ChartType | undefined;
-      if (type) selectChartType(type);
+      if (type) {
+        selectChartType(type);
+        updatePreviewSteps();
+      }
     });
   });
 
@@ -68,9 +75,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // Field selects — track changes for preview steps
+  const labelFieldSelect = document.getElementById('label-field') as HTMLSelectElement | null;
+  if (labelFieldSelect) {
+    labelFieldSelect.addEventListener('change', (e) => {
+      state.labelField = (e.target as HTMLSelectElement).value;
+      updatePreviewSteps();
+    });
+  }
+  const valueFieldSelect = document.getElementById('value-field') as HTMLSelectElement | null;
+  if (valueFieldSelect) {
+    valueFieldSelect.addEventListener('change', (e) => {
+      state.valueField = (e.target as HTMLSelectElement).value;
+      updatePreviewSteps();
+    });
+  }
+
   // Buttons
   const loadFieldsBtn = document.getElementById('load-fields-btn');
-  if (loadFieldsBtn) loadFieldsBtn.addEventListener('click', loadFields);
+  if (loadFieldsBtn) loadFieldsBtn.addEventListener('click', () => {
+    loadFields();
+    // After loadFields completes (async), update steps
+    setTimeout(updatePreviewSteps, 100);
+  });
 
   const generateBtn = document.getElementById('generate-btn');
   if (generateBtn) generateBtn.addEventListener('click', generateChart);
@@ -261,4 +288,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Load a favorite if coming from the favorites page
   loadFavoriteState();
+
+  // Initialize help tooltips
+  initHelpTooltips();
+
+  // Update preview steps based on current state
+  updatePreviewSteps();
 });

@@ -74,7 +74,8 @@ function renderSidebar(): void {
       <div class="empty-sidebar">
         <i class="ri-star-line"></i>
         <p>Aucun favori enregistre</p>
-        <p class="fr-text--sm">Creez un graphique dans le Builder ou Playground et sauvegardez-le en favori.</p>
+        <p class="fr-text--sm">Creez un graphique dans le Builder ou Playground, puis sauvegardez-le en favori.</p>
+        <a href="${appHref('builder')}" class="fr-btn fr-btn--sm fr-btn--secondary fr-mt-1w"><i class="ri-bar-chart-box-line"></i> Ouvrir le Builder</a>
       </div>
     `;
     return;

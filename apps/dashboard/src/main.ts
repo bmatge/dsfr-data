@@ -32,7 +32,7 @@ function renderFavorites(): void {
   if (!container) return;
 
   if (state.favorites.length === 0) {
-    container.innerHTML = '<p class="favorites-empty">Aucun favori. Creez des graphiques dans le Builder.</p>';
+    container.innerHTML = '<p class="favorites-empty"><i class="ri-star-line" style="display:block;font-size:1.5rem;opacity:0.4;margin-bottom:0.25rem;"></i>Aucun favori.<br><a href="../builder/index.html" class="fr-link fr-link--sm">Creer un graphique</a> dans le Builder pour l\'ajouter ici.</p>';
     return;
   }
 
@@ -56,7 +56,7 @@ function renderSources(sources: any[]): void {
   if (!container) return;
 
   if (!sources || sources.length === 0) {
-    container.innerHTML = '<p class="favorites-empty">Aucune source disponible</p>';
+    container.innerHTML = '<p class="favorites-empty"><i class="ri-database-2-line" style="display:block;font-size:1.5rem;opacity:0.4;margin-bottom:0.25rem;"></i>Aucune source.<br><a href="../sources/index.html" class="fr-link fr-link--sm">Ajouter une source</a> pour integrer des donnees.</p>';
     return;
   }
 

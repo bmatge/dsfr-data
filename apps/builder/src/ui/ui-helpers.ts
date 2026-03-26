@@ -54,7 +54,7 @@ export function openInPlayground(): void {
   const code = codeEl?.textContent || '';
 
   if (!code || code === '// Le code sera g\u00e9n\u00e9r\u00e9 ici...' || code.startsWith('//')) {
-    toastWarning('G\u00e9n\u00e9rez d\'abord un graphique avant de l\'ouvrir dans le Playground.');
+    toastWarning('Cliquez d\'abord sur "G\u00e9n\u00e9rer le graphique" pour voir le r\u00e9sultat, puis vous pourrez l\'ouvrir dans le Playground.');
     return;
   }
 
@@ -79,7 +79,7 @@ export function saveFavorite(): void {
   const code = codeEl?.textContent || '';
 
   if (!code || code === '// Le code sera g\u00e9n\u00e9r\u00e9 ici...' || code.startsWith('//')) {
-    toastWarning('G\u00e9n\u00e9rez d\'abord un graphique avant de le sauvegarder en favori.');
+    toastWarning('Cliquez d\'abord sur "G\u00e9n\u00e9rer le graphique" pour voir le r\u00e9sultat, puis vous pourrez le sauvegarder en favori.');
     return;
   }
 

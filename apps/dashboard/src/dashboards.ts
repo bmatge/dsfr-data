@@ -85,7 +85,7 @@ export function openDashboardsList(): void {
   if (!modal || !list) return;
 
   if (state.savedDashboards.length === 0) {
-    list.innerHTML = '<p class="favorites-empty">Aucun tableau de bord sauvegarde</p>';
+    list.innerHTML = '<p class="favorites-empty">Aucun tableau de bord sauvegarde.<br><span class="fr-text--sm" style="color:var(--text-mention-grey);">Utilisez la barre d\'outils pour en creer un.</span></p>';
   } else {
     list.innerHTML = state.savedDashboards.map(d => `
       <div class="dashboard-list-item" onclick="loadDashboard('${d.id}')">

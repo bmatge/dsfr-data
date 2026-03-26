@@ -37,7 +37,7 @@ export function renderConnections(): void {
 
   if (state.connections.length === 0) {
     container.innerHTML =
-      '<p class="fr-text--sm" style="color: var(--text-mention-grey);">Aucune connexion</p>';
+      '<p class="fr-text--sm" style="color: var(--text-mention-grey); text-align: center; padding: 0.5rem 0;"><i class="ri-link" style="display:block;font-size:1.25rem;opacity:0.4;margin-bottom:0.25rem;"></i>Aucune connexion.<br>Ajoutez une connexion Grist ou API.</p>';
     return;
   }
 
@@ -539,7 +539,7 @@ export function renderSources(): void {
 
   if (state.sources.length === 0) {
     container.innerHTML =
-      '<p class="fr-text--sm" style="color: var(--text-mention-grey);">Aucune source</p>';
+      '<p class="fr-text--sm" style="color: var(--text-mention-grey); text-align: center; padding: 0.5rem 0;"><i class="ri-file-list-3-line" style="display:block;font-size:1.25rem;opacity:0.4;margin-bottom:0.25rem;"></i>Aucune source.<br>Creez une source manuelle (CSV, JSON).</p>';
     return;
   }
 
