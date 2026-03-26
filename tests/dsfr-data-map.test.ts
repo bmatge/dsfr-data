@@ -1066,7 +1066,7 @@ describe('DsfrDataMap styles and a11y elements', () => {
     expect(style).not.toBeNull();
     expect(style?.textContent).toContain('dsfr-data-map__container');
     expect(style?.textContent).toContain('dsfr-data-map__skiplink');
-    expect(style?.textContent).toContain('leaflet-control-zoom');
+    expect(style?.textContent).toContain('max-width: none !important');
     // Cleanup
     style?.remove();
   });

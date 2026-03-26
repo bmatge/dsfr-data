@@ -346,22 +346,29 @@ export class DsfrDataMap extends LitElement {
       dsfr-data-map {
         display: block;
         position: relative;
+        overflow: hidden;
       }
       .dsfr-data-map__container {
         z-index: 0;
+        overflow: hidden;
       }
-      /* Fix DSFR vs Leaflet conflict — DSFR styles all [href] with underlines and ::before/::after */
-      .dsfr-data-map__container .leaflet-control-zoom a {
+      /* Fix DSFR vs Leaflet conflicts — DSFR styles all [href] with underlines, background-image and ::before/::after */
+      .dsfr-data-map__container a,
+      .dsfr-data-map__container a[href] {
         text-decoration: none;
         background-image: none !important;
       }
-      .dsfr-data-map__container .leaflet-control-zoom a::before,
-      .dsfr-data-map__container .leaflet-control-zoom a::after {
+      .dsfr-data-map__container a::before,
+      .dsfr-data-map__container a::after,
+      .dsfr-data-map__container a[href]::before,
+      .dsfr-data-map__container a[href]::after {
         content: none !important;
+        display: none !important;
       }
-      /* Also neutralize DSFR [href] on popup close button and attribution links */
-      .dsfr-data-map__container a[href] {
-        background-image: none !important;
+      /* Fix DSFR img max-width:100% breaking Leaflet tile positioning */
+      .dsfr-data-map__container img {
+        max-width: none !important;
+        max-height: none !important;
       }
       .dsfr-data-map__marker {
         background: none !important;
