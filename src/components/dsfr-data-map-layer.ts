@@ -637,7 +637,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
         // Fallback: load via CDN script tag
         await new Promise<void>((resolve, reject) => {
           const s = document.createElement('script');
-          s.src = 'https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js';
+          s.src = 'https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js';
           s.onload = () => resolve();
           s.onerror = () => reject(new Error('Failed to load leaflet.heat from CDN'));
           document.head.appendChild(s);
@@ -821,12 +821,12 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
       if (!document.querySelector('link[href*="MarkerCluster"]')) {
         const css1 = document.createElement('link');
         css1.rel = 'stylesheet';
-        css1.href = 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css';
+        css1.href = 'https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.css';
         document.head.appendChild(css1);
 
         const css2 = document.createElement('link');
         css2.rel = 'stylesheet';
-        css2.href = 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css';
+        css2.href = 'https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css';
         document.head.appendChild(css2);
       }
 
@@ -840,7 +840,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
         // Fallback: load via CDN script tag (guaranteed UMD global execution)
         await new Promise<void>((resolve, reject) => {
           const s = document.createElement('script');
-          s.src = 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js';
+          s.src = 'https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js';
           s.onload = () => resolve();
           s.onerror = () => reject(new Error('Failed to load leaflet.markercluster from CDN'));
           document.head.appendChild(s);

@@ -93,6 +93,7 @@ export class DsfrDataMap extends LitElement {
   private _srDescription: HTMLParagraphElement | null = null;
   private _liveRegion: HTMLDivElement | null = null;
   private _afterMapAnchor: HTMLDivElement | null = null;
+  private _visibilityObserver: IntersectionObserver | null = null;
 
   // Light DOM
   createRenderRoot() { return this; }
@@ -102,11 +103,35 @@ export class DsfrDataMap extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     sendWidgetBeacon('dsfr-data-map', this.tiles);
-    this._initMap();
+    this._deferInitUntilVisible();
+  }
+
+  /**
+   * Defer map initialization until the element is near the viewport.
+   * This avoids loading hundreds of tiles for off-screen maps.
+   */
+  private _deferInitUntilVisible() {
+    if (typeof IntersectionObserver === 'undefined') {
+      this._initMap();
+      return;
+    }
+    this._visibilityObserver = new IntersectionObserver(
+      (entries) => {
+        if (entries.some(e => e.isIntersecting)) {
+          this._visibilityObserver?.disconnect();
+          this._visibilityObserver = null;
+          this._initMap();
+        }
+      },
+      { rootMargin: '200px 0px' },
+    );
+    this._visibilityObserver.observe(this);
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    this._visibilityObserver?.disconnect();
+    this._visibilityObserver = null;
     this._observer?.disconnect();
     this._observer = null;
     if (this._leafletMap) {
@@ -193,7 +218,7 @@ export class DsfrDataMap extends LitElement {
     if (!document.querySelector('link[href*="leaflet.css"]')) {
       const link = document.createElement('link');
       link.rel = 'stylesheet';
-      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      link.href = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css';
       document.head.appendChild(link);
     }
 
