@@ -22,11 +22,41 @@ fi
 NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 awk -F'|' -v now="$NOW" '
+# Decode percent-encoded URLs (e.g. https%3A%2F%2F… → https://…)
+# POSIX awk compatible (no strtonum)
+function hex2dec(h,   val, i, c, d) {
+  val = 0
+  h = toupper(h)
+  for (i = 1; i <= length(h); i++) {
+    c = substr(h, i, 1)
+    if (c >= "0" && c <= "9") d = c + 0
+    else d = index("ABCDEF", c) + 9
+    val = val * 16 + d
+  }
+  return val
+}
+function urldecode(s,   i, len, c, hex, out) {
+  out = ""
+  len = length(s)
+  for (i = 1; i <= len; i++) {
+    c = substr(s, i, 1)
+    if (c == "%" && i + 2 <= len) {
+      hex = substr(s, i+1, 2)
+      if (hex ~ /^[0-9a-fA-F][0-9a-fA-F]$/) {
+        out = out sprintf("%c", hex2dec(hex))
+        i += 2
+        continue
+      }
+    }
+    out = out c
+  }
+  return out
+}
 NF >= 4 {
   # Prefer $6 (explicit JS origin) over $2 (HTTP Referer)
   eff_ref = ""
   if (NF >= 6 && $6 != "-" && $6 != "") {
-    eff_ref = $6
+    eff_ref = urldecode($6)
   } else if ($2 != "-" && $2 != "") {
     eff_ref = $2
   }

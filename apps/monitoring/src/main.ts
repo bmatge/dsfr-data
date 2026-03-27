@@ -9,6 +9,7 @@ import {
   getMockData,
   extractDomain,
   extractPath,
+  decodeUrl,
   type MonitoringData,
   type MonitoringEntry,
 } from './monitoring-data.js';
@@ -127,7 +128,7 @@ function applyFilters(): void {
   filteredEntries = data.entries.filter((e) => {
     if (component && e.component !== component) return false;
     if (chartType && e.chartType !== chartType) return false;
-    if (search && !e.referer.toLowerCase().includes(search)) return false;
+    if (search && !decodeUrl(e.referer).toLowerCase().includes(search)) return false;
     return true;
   });
 
@@ -203,7 +204,7 @@ function renderTable(): void {
     .map(
       (e) => `
     <tr>
-      <td><a href="${escapeHtml(e.referer)}" target="_blank" rel="noopener" class="monitoring-link" title="${escapeHtml(e.referer)}">${escapeHtml(extractDomain(e.referer))}</a></td>
+      <td><a href="${escapeHtml(decodeUrl(e.referer))}" target="_blank" rel="noopener" class="monitoring-link" title="${escapeHtml(decodeUrl(e.referer))}">${escapeHtml(extractDomain(e.referer))}</a></td>
       <td class="monitoring-link" title="${escapeHtml(extractPath(e.referer))}">${escapeHtml(extractPath(e.referer))}</td>
       <td><span class="monitoring-badge">${escapeHtml(e.component)}</span></td>
       <td>${e.chartType ? `<span class="monitoring-badge monitoring-badge--type">${escapeHtml(e.chartType)}</span>` : '-'}</td>
@@ -246,8 +247,8 @@ function renderTable(): void {
 function exportCsv(): void {
   const headers = ['Site', 'Page', 'Composant', 'Type', 'Premier appel', 'Dernier appel', 'Appels'];
   const rows = filteredEntries.map((e) => [
-    extractDomain(e.referer),
-    extractPath(e.referer),
+    extractDomain(decodeUrl(e.referer)),
+    extractPath(decodeUrl(e.referer)),
     e.component,
     e.chartType || '',
     e.firstSeen,
