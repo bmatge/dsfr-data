@@ -200,9 +200,22 @@ function positionStep(step: TourStep, index: number): void {
       }
     });
 
-    // Position popover
-    const pos = step.position || 'bottom';
+    // Position popover with auto-flip when overflowing viewport
     const pw = 340;
+    const estimatedPopoverHeight = 180; // approximate popover height
+    let pos = step.position || 'bottom';
+
+    // Auto-flip: if preferred position overflows, try the opposite
+    if (pos === 'bottom' && rect.bottom + pad + 8 + estimatedPopoverHeight > window.innerHeight) {
+      pos = 'top';
+    } else if (pos === 'top' && rect.top - pad - 8 - estimatedPopoverHeight < 0) {
+      pos = 'bottom';
+    } else if (pos === 'right' && rect.right + pad + 8 + pw > window.innerWidth) {
+      pos = 'left';
+    } else if (pos === 'left' && rect.left - pad - 8 - pw < 0) {
+      pos = 'right';
+    }
+
     let px: number, py: number;
 
     if (pos === 'bottom') {
@@ -219,17 +232,19 @@ function positionStep(step: TourStep, index: number): void {
       py = rect.top;
     }
 
-    // Keep in viewport
+    // Keep in viewport horizontally
     px = Math.max(12, Math.min(px, window.innerWidth - pw - 12));
-    py = Math.max(12, py);
 
     popoverEl.style.left = `${px}px`;
     popoverEl.style.width = `${pw}px`;
 
     if (pos === 'top') {
+      // Position above: use bottom anchor so popover grows upward
       popoverEl.style.bottom = `${window.innerHeight - py}px`;
       popoverEl.style.top = 'auto';
     } else {
+      // Position below/side: clamp to viewport bottom
+      py = Math.max(12, Math.min(py, window.innerHeight - estimatedPopoverHeight - 12));
       popoverEl.style.top = `${py}px`;
       popoverEl.style.bottom = 'auto';
     }
