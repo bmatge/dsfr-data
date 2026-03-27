@@ -8,28 +8,28 @@
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     },
     "./utils/*": {
-      "import": "./dist/utils/*.js",
-      "types": "./dist/utils/*.d.ts"
+      "types": "./dist/utils/*.d.ts",
+      "import": "./dist/utils/*.js"
     },
     "./constants/*": {
-      "import": "./dist/constants/*.js",
-      "types": "./dist/constants/*.d.ts"
+      "types": "./dist/constants/*.d.ts",
+      "import": "./dist/constants/*.js"
     },
     "./api/*": {
-      "import": "./dist/api/*.js",
-      "types": "./dist/api/*.d.ts"
+      "types": "./dist/api/*.d.ts",
+      "import": "./dist/api/*.js"
     },
     "./storage/*": {
-      "import": "./dist/storage/*.js",
-      "types": "./dist/storage/*.d.ts"
+      "types": "./dist/storage/*.d.ts",
+      "import": "./dist/storage/*.js"
     },
     "./ui/*": {
-      "import": "./dist/ui/*.js",
-      "types": "./dist/ui/*.d.ts"
+      "types": "./dist/ui/*.d.ts",
+      "import": "./dist/ui/*.js"
     }
   },
   "files": [
