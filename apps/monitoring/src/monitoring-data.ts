@@ -61,11 +61,18 @@ export async function triggerRefresh(): Promise<void> {
   await new Promise((r) => setTimeout(r, 4000));
 }
 
+/** Decode a possibly percent-encoded URL (e.g. https%3A%2F%2F… → https://…) */
+export function decodeUrl(url: string): string {
+  try { return decodeURIComponent(url); } catch { return url; }
+}
+
 /** Extract domain from a full URL */
 export function extractDomain(url: string): string {
   try {
     return new URL(url).hostname;
   } catch {
+    // URL may be percent-encoded — decode and retry
+    try { return new URL(decodeUrl(url)).hostname; } catch { /* */ }
     return url;
   }
 }
@@ -75,6 +82,7 @@ export function extractPath(url: string): string {
   try {
     return new URL(url).pathname;
   } catch {
+    try { return new URL(decodeUrl(url)).pathname; } catch { /* */ }
     return url;
   }
 }

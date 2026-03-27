@@ -47,7 +47,9 @@ for (const line of lines) {
   const [timestamp, httpReferer, component, chartType, _remoteAddr, argR] = parts;
 
   // Prefer explicit JS origin ($arg_r) over HTTP Referer
-  const referer = (argR && argR !== '-') ? argR : httpReferer;
+  // $arg_r may be URL-encoded by URLSearchParams (e.g. https%3A%2F%2F…) — decode it
+  let referer = (argR && argR !== '-') ? argR : httpReferer;
+  try { referer = decodeURIComponent(referer.trim()); } catch { /* keep as-is */ }
 
   if (!referer || referer === '-' || !component) continue;
 
