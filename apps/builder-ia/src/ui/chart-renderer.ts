@@ -90,6 +90,44 @@ function formatKPIValueLocal(value: number, unit?: string): string {
 }
 
 /**
+ * Reset the chart preview to its empty state (no chart, no config)
+ */
+export function resetChartPreview(): void {
+  const canvas = document.getElementById('preview-canvas') as HTMLCanvasElement;
+  const emptyState = document.getElementById('empty-state') as HTMLElement;
+  const chartWrapper = document.querySelector('.chart-wrapper') as HTMLElement;
+
+  // Destroy Chart.js instance
+  if (state.chart) {
+    (state.chart as { destroy(): void }).destroy();
+    state.chart = null;
+  }
+
+  // Remove special cards (KPI, gauge, map, datalist)
+  for (const sel of ['.kpi-card', '.gauge-card', '.map-card', '.datalist-card']) {
+    const el = chartWrapper.querySelector(sel);
+    if (el) el.remove();
+  }
+
+  // Reset canvas and empty state
+  canvas.style.display = 'none';
+  emptyState.style.display = '';
+
+  // Reset titles
+  (document.getElementById('preview-title') as HTMLElement).textContent = 'Mon graphique';
+  (document.getElementById('preview-subtitle') as HTMLElement).textContent = '';
+
+  // Clear chart config and generated code
+  state.chartConfig = null;
+
+  // Reset code tab
+  const previewPanel = document.querySelector('app-preview-panel');
+  if (previewPanel) {
+    (previewPanel as HTMLElement & { code: string }).code = '';
+  }
+}
+
+/**
  * Main orchestrator: aggregates data and calls the appropriate renderer
  */
 export function applyChartConfig(config: ChartConfig): void {

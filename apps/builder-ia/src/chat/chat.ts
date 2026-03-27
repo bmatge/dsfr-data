@@ -7,7 +7,7 @@ import type { Message, ChartConfig } from '../state.js';
 import { getIAConfig, isServerMode } from '../ia/ia-config.js';
 import type { IAConfig } from '../ia/ia-config.js';
 import { SKILLS, getRelevantSkills, buildSkillsContext } from '../skills.js';
-import { applyChartConfig } from '../ui/chart-renderer.js';
+import { applyChartConfig, resetChartPreview } from '../ui/chart-renderer.js';
 import { analyzeFields, updateFieldsList, updateRawData } from '../sources.js';
 import { fetchWithTimeout, httpErrorMessage, detectProvider } from '@dsfr-data/shared';
 
@@ -94,6 +94,20 @@ export async function sendMessage(): Promise<void> {
   input.value = '';
   input.style.height = 'auto';
 
+  // Detect reset/restart intent — handled client-side, no API call needed
+  const resetPattern = /^(reset|recommencer|reinitialiser|réinitialiser|nouveau graphique|repartir de zero|repartir à zero|on efface tout|efface le graphique|supprimer le graphique|repart de zero|repart à zero|clean|clear chart)\s*[.!?]?$/i;
+  if (resetPattern.test(message)) {
+    resetChartPreview();
+    addMessage('assistant', 'Apercu reinitialise ! Decrivez le graphique que vous souhaitez creer.', [
+      'Barres',
+      'Camembert',
+      'Courbe',
+      'Tableau',
+      'KPI',
+    ]);
+    return;
+  }
+
   // Check if we have a token (user config or server default)
   const config = getIAConfig();
   if (!config.token && !isServerMode()) {
@@ -140,6 +154,15 @@ En attendant, je peux vous aider avec des commandes simples. Essayez :
         suggestions.push('Generer le code embarquable');
       }
       addMessage('assistant', textWithoutJson || (chartConfig.type === 'datalist' ? 'Voici votre tableau !' : 'Voici votre graphique !'), suggestions);
+    } else if (action?.action === 'resetChart') {
+      resetChartPreview();
+      addMessage('assistant', textWithoutJson || 'Apercu reinitialise ! Decrivez le graphique que vous souhaitez creer.', [
+        'Barres',
+        'Camembert',
+        'Courbe',
+        'Tableau',
+        'KPI',
+      ]);
     } else if (action?.action === 'reloadData') {
       const success = await handleReloadData(action);
       if (success) {
@@ -205,6 +228,24 @@ Exemple d'enregistrement : ${JSON.stringify(state.localData[0])}${paginationNote
   const actionReminder = `\n\n---\nREGLE ABSOLUE - FORMAT DE REPONSE :
 Tu dois OBLIGATOIREMENT inclure UN bloc \`\`\`json dans CHAQUE reponse quand l'utilisateur parle de graphique, carte, KPI, tableau, couleur, palette, type, filtre, tri, etc.
 NE GENERE JAMAIS de code HTML (<dsfr-data-source>, <dsfr-data-chart>, etc.) SAUF si l'utilisateur dit explicitement "genere le code", "code embarquable", "integrer", "embarquer".
+
+IL N'EXISTE QUE 3 ACTIONS : "createChart", "reloadData" et "resetChart". AUCUNE AUTRE.
+Ne genere JAMAIS une action autre que ces trois-la. Pas de "table", "list", "filter", "sort", etc.
+Toute visualisation passe par createChart avec le bon "type" dans config.
+Si l'utilisateur veut recommencer, reinitialiser ou effacer le graphique : {"action":"resetChart"}
+
+MAPPING DES DEMANDES UTILISATEUR → action createChart :
+- "tableau", "table", "liste", "datalist" → {"action":"createChart","config":{"type":"datalist",...}}
+- "barres", "bar chart", "histogramme" → {"action":"createChart","config":{"type":"bar",...}}
+- "camembert", "pie", "donut", "doughnut" → {"action":"createChart","config":{"type":"pie",...}}
+- "courbe", "ligne", "line", "evolution" → {"action":"createChart","config":{"type":"line",...}}
+- "radar", "toile d'araignee" → {"action":"createChart","config":{"type":"radar",...}}
+- "nuage de points", "scatter" → {"action":"createChart","config":{"type":"scatter",...}}
+- "jauge", "gauge", "progression" → {"action":"createChart","config":{"type":"gauge",...}}
+- "KPI", "indicateur", "chiffre cle" → {"action":"createChart","config":{"type":"kpi",...}}
+- "carte", "map", "departements" → {"action":"createChart","config":{"type":"map",...}}
+- "carte regions" → {"action":"createChart","config":{"type":"map-reg",...}}
+- "barres + courbe", "bar-line", "double axe" → {"action":"createChart","config":{"type":"bar-line",...}}
 
 FORMAT OBLIGATOIRE :
 \`\`\`json
@@ -361,6 +402,57 @@ CHAMPS : utilise UNIQUEMENT les noms de champs listes dans "Donnees actuelles".`
 }
 
 /**
+ * Repair malformed actions from the AI.
+ * Maps unknown action names to createChart with the appropriate type,
+ * since smaller models sometimes invent action names like "table", "filter", etc.
+ */
+function repairAction(parsed: Record<string, unknown>): Record<string, unknown> {
+  if (parsed.action === 'createChart' || parsed.action === 'reloadData' || parsed.action === 'resetChart') {
+    return parsed;
+  }
+
+  // Handle reset actions
+  const resetActions = ['reset', 'resetchart', 'clear', 'clearchart', 'recommencer', 'reinitialiser'];
+  if (resetActions.includes(String(parsed.action).toLowerCase().trim())) {
+    return { action: 'resetChart' };
+  }
+
+  // Map common hallucinated action names to createChart types
+  const actionToType: Record<string, string> = {
+    table: 'datalist', datalist: 'datalist', list: 'datalist', tableau: 'datalist', liste: 'datalist',
+    bar: 'bar', bars: 'bar', barres: 'bar', histogram: 'bar', histogramme: 'bar', horizontalbar: 'bar',
+    pie: 'pie', camembert: 'pie', donut: 'pie', doughnut: 'pie',
+    line: 'line', ligne: 'line', courbe: 'line', evolution: 'line',
+    radar: 'radar', scatter: 'scatter', gauge: 'gauge', jauge: 'gauge',
+    kpi: 'kpi', indicateur: 'kpi',
+    map: 'map', carte: 'map', 'map-reg': 'map-reg',
+    'bar-line': 'bar-line', barline: 'bar-line',
+  };
+
+  const actionName = String(parsed.action).toLowerCase().trim();
+  const mappedType = actionToType[actionName];
+
+  if (mappedType) {
+    console.warn(`repairAction: mapped unknown action "${parsed.action}" → createChart type="${mappedType}"`);
+    const config = (parsed.config || parsed) as Record<string, unknown>;
+    // Don't overwrite type if the config already has one
+    if (!config.type) {
+      config.type = mappedType;
+    }
+    return { action: 'createChart', config };
+  }
+
+  // If the action is unknown but has a config with a valid type, assume createChart
+  if (parsed.config && (parsed.config as Record<string, unknown>).type) {
+    console.warn(`repairAction: unknown action "${parsed.action}" but config has type, assuming createChart`);
+    return { action: 'createChart', config: parsed.config };
+  }
+
+  console.warn(`repairAction: could not repair unknown action "${parsed.action}"`);
+  return parsed;
+}
+
+/**
  * Parse the AI response text for a JSON action block.
  * Tries multiple formats that a 24-34B model might produce:
  * 1. ```json { "action": ... } ```
@@ -374,20 +466,20 @@ function extractAction(text: string): Record<string, unknown> | null {
     try {
       const parsed = JSON.parse(fencedMatch[1]);
       if (parsed.action) {
-        return parsed;
+        return repairAction(parsed);
       }
     } catch (e) {
       console.warn('Failed to parse fenced action:', e);
     }
   }
 
-  // Strategy 2: bare JSON object containing "action" key (no backticks)
-  const bareMatch = text.match(/(\{\s*"action"\s*:\s*"(?:createChart|reloadData)"[\s\S]*\})/);
+  // Strategy 2: bare JSON object containing "action" key (any action name)
+  const bareMatch = text.match(/(\{\s*"action"\s*:\s*"[^"]*"[\s\S]*\})/);
   if (bareMatch) {
     try {
       const parsed = JSON.parse(bareMatch[1]);
       if (parsed.action) {
-        return parsed;
+        return repairAction(parsed);
       }
     } catch {
       // Try to find the balanced braces
@@ -401,7 +493,7 @@ function extractAction(text: string): Record<string, unknown> | null {
           if (depth === 0) { end = i + 1; break; }
         }
         const parsed = JSON.parse(text.slice(start, end));
-        if (parsed.action) return parsed;
+        if (parsed.action) return repairAction(parsed);
       } catch {
         console.warn('Failed to parse bare action JSON');
       }
@@ -421,9 +513,9 @@ function stripActionJson(text: string, action: Record<string, unknown> | null): 
   // Remove fenced code blocks first
   let cleaned = text.replace(/```(?:json)?\s*[\s\S]*?```/g, '');
 
-  // If we matched a bare JSON, also remove it
+  // If we matched a bare JSON, also remove it (any action name, since we repair them)
   if (cleaned.includes('"action"')) {
-    cleaned = cleaned.replace(/\{\s*"action"\s*:\s*"(?:createChart|reloadData)"[\s\S]*$/, '');
+    cleaned = cleaned.replace(/\{\s*"action"\s*:\s*"[^"]*"[\s\S]*$/, '');
   }
 
   return cleaned.trim();

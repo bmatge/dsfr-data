@@ -20,6 +20,9 @@ import { DsfrDataA11y } from '../../../src/components/dsfr-data-a11y.js';
 import { DsfrDataKpiGroup } from '../../../src/components/dsfr-data-kpi-group.js';
 import { DsfrDataWorldMap } from '../../../src/components/dsfr-data-world-map.js';
 import { DsfrDataJoin } from '../../../src/components/dsfr-data-join.js';
+import { DsfrDataMap } from '../../../src/components/dsfr-data-map.js';
+import { DsfrDataMapLayer } from '../../../src/components/dsfr-data-map-layer.js';
+import { DsfrDataMapPopup } from '../../../src/components/dsfr-data-map-popup.js';
 
 // Type/constant imports for alignment checks
 import type { FilterOperator, AggregateFunction } from '../../../src/components/dsfr-data-query.js';
@@ -269,6 +272,18 @@ describe('builder-ia skills', () => {
       it('dsfrDataJoin skill covers all <dsfr-data-join> attributes', () => {
         assertAttributesCovered(DsfrDataJoin as unknown as typeof DsfrDataSource, 'dsfrDataJoin', 'dsfr-data-join');
       });
+
+      it('dsfrDataMap skill covers all <dsfr-data-map> attributes', () => {
+        assertAttributesCovered(DsfrDataMap as unknown as typeof DsfrDataSource, 'dsfrDataMap', 'dsfr-data-map');
+      });
+
+      it('dsfrDataMap skill covers all <dsfr-data-map-layer> attributes', () => {
+        assertAttributesCovered(DsfrDataMapLayer as unknown as typeof DsfrDataSource, 'dsfrDataMap', 'dsfr-data-map-layer');
+      });
+
+      it('dsfrDataMap skill covers all <dsfr-data-map-popup> attributes', () => {
+        assertAttributesCovered(DsfrDataMapPopup as unknown as typeof DsfrDataSource, 'dsfrDataMap', 'dsfr-data-map-popup');
+      });
     });
 
     describe('chart types coverage', () => {
@@ -344,6 +359,9 @@ describe('builder-ia skills', () => {
         'DsfrDataDisplay': 'dsfrDataDisplay',
         'DsfrDataChart': 'dsfrDataChart',
         'DsfrDataWorldMap': 'dsfrDataWorldMap',
+        'DsfrDataMap': 'dsfrDataMap',
+        'DsfrDataA11y': 'dsfrDataA11y',
+        'DsfrDataJoin': 'dsfrDataJoin',
       };
 
       it('every data component has a corresponding skill', () => {

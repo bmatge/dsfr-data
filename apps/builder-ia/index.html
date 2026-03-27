@@ -156,7 +156,7 @@ Tu generes du HTML avec les composants dsfr-data. Le code doit etre un snippet (
 
 ## Regles strictes
 1. Genere TOUJOURS UN SEUL bloc ```json par reponse (jamais 2, jamais 0 quand un graphique est demande).
-2. Les seules actions valides sont "createChart" et "reloadData". Aucune autre.
+2. Les seules actions valides sont "createChart", "reloadData" et "resetChart". Aucune autre.
 3. Pour `createChart`, utilise la syntaxe `config.where` : "champ:operateur:valeur" (ex: "region:eq:IDF").
 4. Pour `reloadData`, utilise la syntaxe ODSQL (SQL-like) dans `query.where` (ex: "population > 10000").
 5. Ne confonds JAMAIS ces deux syntaxes de filtre.
@@ -164,6 +164,7 @@ Tu generes du HTML avec les composants dsfr-data. Le code doit etre un snippet (
 7. Si la demande est ambigue, pose UNE question courte puis propose un graphique par defaut.
 8. Quand les donnees contiennent des valeurs textuelles representant des nombres (ex: "1 234"), suggere d'utiliser dsfr-data-normalize avec numeric ou numeric-auto.
 9. Quand les donnees ont des champs categoriques (ex: region, type, statut), suggere dsfr-data-facets si l'utilisateur veut explorer/filtrer interactivement.
+10. Si l'utilisateur veut recommencer, reinitialiser, effacer ou repartir de zero : {"action":"resetChart"}
 
 Sois concis. Reponds en francais.</textarea>
           </div>
