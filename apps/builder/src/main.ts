@@ -29,6 +29,8 @@ import { setupNormalizeListeners, updateMiddlewareSections } from './ui/normaliz
 import { setupFacetsListeners } from './ui/facets-config.js';
 import { addExtraSeries } from './ui/extra-series.js';
 import { initHelpTooltips, updatePreviewSteps } from './ui/help-tooltips.js';
+import { startTourIfFirstVisit, injectTourStyles, resetTour, startTour } from '@dsfr-data/shared';
+import { BUILDER_TOUR } from './ui/tour.js';
 
 // Expose functions called from inline onclick in HTML
 (window as any).toggleSection = toggleSection;
@@ -294,4 +296,27 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Update preview steps based on current state
   updatePreviewSteps();
+
+  // Product tour (first visit only, or forced via ?tour=restart)
+  injectTourStyles();
+  const tourParam = new URLSearchParams(window.location.search).get('tour');
+  if (tourParam === 'restart') {
+    // Remove the query param from URL without reload
+    const url = new URL(window.location.href);
+    url.searchParams.delete('tour');
+    window.history.replaceState({}, '', url.toString());
+    resetTour(BUILDER_TOUR.id);
+    startTour(BUILDER_TOUR);
+  } else {
+    startTourIfFirstVisit(BUILDER_TOUR);
+  }
+
+  // Tour restart button
+  const restartTourBtn = document.getElementById('restart-tour-btn');
+  if (restartTourBtn) {
+    restartTourBtn.addEventListener('click', () => {
+      resetTour(BUILDER_TOUR.id);
+      startTour(BUILDER_TOUR);
+    });
+  }
 });

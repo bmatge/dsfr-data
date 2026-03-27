@@ -283,6 +283,18 @@ body {
   margin-top: 0.5rem;
 }
 
+/* ─── Tour trigger ─── */
+
+.builder-tour-trigger {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.25rem 0.5rem 0;
+}
+.builder-tour-trigger button {
+  font-size: 0.75rem;
+  color: var(--text-mention-grey);
+}
+
 /* ─── Sample datasets ─── */
 
 .sample-datasets-grid {

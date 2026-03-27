@@ -76,3 +76,7 @@ export { appHref, navigateTo } from './ui/navigation.js';
 // Sample data
 export type { SampleDataset } from './data/sample-datasets.js';
 export { SAMPLE_DATASETS } from './data/sample-datasets.js';
+
+// Product tour
+export type { TourStep, TourConfig } from './ui/product-tour.js';
+export { startTour, startTourIfFirstVisit, shouldShowTour, markTourComplete, resetTour, injectTourStyles } from './ui/product-tour.js';
