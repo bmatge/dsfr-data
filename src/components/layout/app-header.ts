@@ -117,14 +117,13 @@ export class AppHeader extends LitElement {
   private _getNavItems() {
     return [
       { id: 'accueil', label: 'Accueil', href: 'index.html' },
-      { id: 'composants', label: 'Composants', href: 'specs/index.html' },
       { id: 'sources', label: 'Sources', href: 'apps/sources/index.html' },
-      { id: 'builder', label: 'Builder', href: 'apps/builder/index.html' },
-      { id: 'builder-ia', label: 'Builder IA', href: 'apps/builder-ia/index.html' },
-      { id: 'builder-carto', label: 'Cartes', href: 'apps/builder-carto/index.html' },
-      { id: 'playground', label: 'Playground', href: 'apps/playground/index.html' },
-      { id: 'dashboard', label: 'Dashboard', href: 'apps/dashboard/index.html' },
-      { id: 'monitoring', label: 'Monitoring', href: 'apps/monitoring/index.html' },
+      { id: 'builder-ia', label: 'Assistant IA', href: 'apps/builder-ia/index.html' },
+      { id: 'builder', label: 'Créer graphique', href: 'apps/builder/index.html' },
+      { id: 'builder-carto', label: 'Créer carte', href: 'apps/builder-carto/index.html' },
+      { id: 'playground', label: 'Editeur HTML', href: 'apps/playground/index.html' },
+      { id: 'dashboard', label: 'Tableau de bord', href: 'apps/dashboard/index.html' },
+      { id: 'monitoring', label: 'Suivi', href: 'apps/monitoring/index.html' },
       { id: 'admin', label: 'Admin', href: 'apps/admin/index.html' },
     ];
   }
@@ -193,7 +192,7 @@ export class AppHeader extends LitElement {
         <nav class="fr-container" role="navigation" aria-label="Accès rapide">
           <ul class="fr-skiplinks__list">
             <li><a class="fr-link" href="#main-content">Contenu</a></li>
-            <li><a class="fr-link" href="${this._base}specs/index.html">Composants</a></li>
+            <li><a class="fr-link" href="${this._base}specs/index.html">Specs</a></li>
           </ul>
         </nav>
       </div>
@@ -230,6 +229,11 @@ export class AppHeader extends LitElement {
                     <li>
                       <a class="fr-btn fr-btn--tertiary-no-outline fr-icon-book-2-line" href="${this._base}guide/guide.html">
                         Guide
+                      </a>
+                    </li>
+                    <li>
+                      <a class="fr-btn fr-btn--tertiary-no-outline fr-icon-file-list-line" href="${this._base}specs/index.html">
+                        Specs
                       </a>
                     </li>
                     <li>
