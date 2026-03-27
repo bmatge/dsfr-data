@@ -13,9 +13,9 @@
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/dsfr-data.esm.js",
-      "require": "./dist/dsfr-data.umd.js",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/dsfr-data.umd.js"
     },
     "./core": {
       "import": "./dist/dsfr-data.core.esm.js",
