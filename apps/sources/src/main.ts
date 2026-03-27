@@ -4,7 +4,7 @@
  */
 
 import './styles/sources.css';
-import { openModal, closeModal, saveToStorage, loadFromStorage, STORAGE_KEYS, toastWarning, toastSuccess, toastError, navigateTo, initAuth, downloadExport, importFromFile, migrateSource } from '@dsfr-data/shared';
+import { openModal, closeModal, saveToStorage, loadFromStorage, STORAGE_KEYS, toastWarning, toastSuccess, toastError, navigateTo, initAuth, downloadExport, importFromFile, migrateSource, injectTourStyles, startTourIfFirstVisit, SOURCES_TOUR } from '@dsfr-data/shared';
 
 import {
   state,
@@ -268,4 +268,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     input.value = ''; // reset file input
   });
+
+  // Product tour
+  injectTourStyles();
+  startTourIfFirstVisit(SOURCES_TOUR);
 });

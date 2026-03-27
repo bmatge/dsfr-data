@@ -2,7 +2,7 @@
  * Playground app - main entry point
  */
 
-import { loadFromStorage, saveToStorage, STORAGE_KEYS, toastWarning, toastSuccess, appHref, confirmDialog, initAuth, CDN_URLS, LIB_URL } from '@dsfr-data/shared';
+import { loadFromStorage, saveToStorage, STORAGE_KEYS, toastWarning, toastSuccess, appHref, confirmDialog, initAuth, CDN_URLS, LIB_URL, injectTourStyles, startTourIfFirstVisit, PLAYGROUND_TOUR } from '@dsfr-data/shared';
 import { initEditor } from './editor.js';
 import type { CodeMirrorEditor } from './editor.js';
 import { examples } from './examples/examples-data.js';
@@ -224,4 +224,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       sessionStorage.removeItem('playground-code');
     }
   }
+
+  // Product tour
+  injectTourStyles();
+  startTourIfFirstVisit(PLAYGROUND_TOUR);
 });

@@ -5,7 +5,7 @@ import './styles/carto.css';
 import { state, createLayer } from './state.js';
 import type { LayerConfig, PopupMode } from './state.js';
 import { generateCode } from './ui/code-generator.js';
-import { loadFromStorage, saveToStorage, STORAGE_KEYS, migrateSource } from '@dsfr-data/shared';
+import { loadFromStorage, saveToStorage, STORAGE_KEYS, migrateSource, injectTourStyles, startTourIfFirstVisit, BUILDER_CARTO_TOUR } from '@dsfr-data/shared';
 type AnySource = Record<string, any>;
 
 const FAVORITES_KEY = 'dsfr-data-favorites';
@@ -798,4 +798,8 @@ document.addEventListener('DOMContentLoaded', () => {
     previewPanel.addEventListener('save-favorite', saveFavorite);
     previewPanel.addEventListener('open-playground', sendToPlayground);
   }
+
+  // Product tour
+  injectTourStyles();
+  startTourIfFirstVisit(BUILDER_CARTO_TOUR);
 });

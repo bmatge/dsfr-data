@@ -80,3 +80,4 @@ export { SAMPLE_DATASETS } from './data/sample-datasets.js';
 // Product tour
 export type { TourStep, TourConfig } from './ui/product-tour.js';
 export { startTour, startTourIfFirstVisit, shouldShowTour, markTourComplete, resetTour, injectTourStyles } from './ui/product-tour.js';
+export { SOURCES_TOUR, BUILDER_IA_TOUR, BUILDER_CARTO_TOUR, PLAYGROUND_TOUR, DASHBOARD_TOUR } from './tour/tour-configs.js';

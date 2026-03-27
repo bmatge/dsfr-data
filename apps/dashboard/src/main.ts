@@ -2,7 +2,7 @@
  * Dashboard app - Main entry point
  */
 
-import { escapeHtml, loadFromStorage, STORAGE_KEYS, confirmDialog, initAuth } from '@dsfr-data/shared';
+import { escapeHtml, loadFromStorage, STORAGE_KEYS, confirmDialog, initAuth, injectTourStyles, startTourIfFirstVisit, DASHBOARD_TOUR } from '@dsfr-data/shared';
 import { state } from './state.js';
 import { createEmptyDashboard } from './state.js';
 import { initDragAndDrop, handleFavoriteDragStart } from './drag-drop.js';
@@ -202,6 +202,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   initDragAndDrop();
   initEventListeners();
   updateGeneratedCode();
+
+  // Product tour
+  injectTourStyles();
+  startTourIfFirstVisit(DASHBOARD_TOUR);
 });
 
 // Expose functions globally for onclick handlers

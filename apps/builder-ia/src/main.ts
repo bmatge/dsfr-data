@@ -4,7 +4,7 @@
  */
 
 import './styles/builder-ia.css';
-import { initAuth } from '@dsfr-data/shared';
+import { initAuth, injectTourStyles, startTourIfFirstVisit, BUILDER_IA_TOUR } from '@dsfr-data/shared';
 
 import { loadSavedSources, handleSourceChange, loadSavedSourceData, initDataPreviewModal } from './sources.js';
 import { loadIAConfig, saveIAConfig, addExtraParam, fetchServerConfig, updateIAModeBadge, resetIAConfig } from './ia/ia-config.js';
@@ -91,4 +91,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     previewPanel.addEventListener('save-favorite', saveFavorite);
     previewPanel.addEventListener('open-playground', openInPlayground);
   }
+
+  // Product tour
+  injectTourStyles();
+  startTourIfFirstVisit(BUILDER_IA_TOUR);
 });
