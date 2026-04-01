@@ -29,7 +29,7 @@ services:
 
       # Router HTTPS
       - "traefik.http.routers.chartsbuilder-https.rule=Host(`${APP_DOMAIN:-chartsbuilder.matge.com}`)"
-      - "traefik.http.routers.chartsbuilder-https.middlewares=noindex-headers@file"
+      - "traefik.http.routers.chartsbuilder-https.middlewares=chartsbuilder-headers@file"
       - "traefik.http.routers.chartsbuilder-https.entrypoints=websecure"
       - "traefik.http.routers.chartsbuilder-https.tls=true"
       - "traefik.http.routers.chartsbuilder-https.tls.certresolver=letsencrypt"
