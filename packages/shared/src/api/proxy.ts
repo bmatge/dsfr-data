@@ -2,7 +2,7 @@
  * Proxy URL helpers for Grist, Albert, and other external APIs
  */
 
-import { getProxyConfig, PROXY_BASE_URL } from './proxy-config.js';
+import { getProxyConfig, isViteDevMode, PROXY_BASE_URL } from './proxy-config.js';
 
 /**
  * Get proxied URL for a Grist API endpoint
@@ -29,7 +29,8 @@ export function getProxyUrl(gristUrl: string, endpoint: string): string {
 
 /**
  * Get proxied URL for any external API URL
- * Handles known APIs (tabular, grist, albert) by routing through the CORS proxy.
+ * Handles known APIs (tabular, grist, albert) by routing through dedicated proxies.
+ * Unknown cross-origin URLs are routed through the generic CORS proxy.
  * Works in all environments: dev (Vite proxy), production, CodePen embeds, etc.
  */
 export function getProxiedUrl(url: string): string {
@@ -59,6 +60,27 @@ export function getProxiedUrl(url: string): string {
   }
 
   return url;
+}
+
+/**
+ * Check if a URL needs CORS proxying (cross-origin and not already proxied).
+ * Returns null if no proxying needed, or { url, headers } for the CORS proxy.
+ */
+export function getCorsProxyIfNeeded(url: string): { url: string; headers: Record<string, string> } | null {
+  if (!url) return null;
+  // In Vite dev mode, the Vite proxy handles CORS — no need for the generic proxy
+  if (isViteDevMode()) return null;
+  // Already a relative URL (already proxied)
+  if (!url.startsWith('https://') && !url.startsWith('http://')) return null;
+  // Same origin — no CORS issue
+  try {
+    if (typeof window !== 'undefined' && new URL(url).origin === window.location.origin) return null;
+  } catch { /* not a valid URL, skip */ }
+  // Known proxies already handled by getProxiedUrl — check if url was rewritten
+  const proxied = getProxiedUrl(url);
+  if (proxied !== url) return null;
+  // Cross-origin URL not handled by a dedicated proxy: use generic CORS proxy
+  return buildCorsProxyRequest(url);
 }
 
 /**
