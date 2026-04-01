@@ -36,6 +36,8 @@ export interface LayerConfig {
 
   // Appearance
   color: string;
+  colorField: string;
+  colorMap: string;
   filter: string;
 
   // Geoshape
@@ -121,6 +123,8 @@ export function createLayer(): LayerConfig {
     popupWidth: '350px',
 
     color: '#000091',
+    colorField: '',
+    colorMap: '',
     filter: '',
 
     fillField: '',

@@ -26,6 +26,8 @@ function layerAttrs(layer: LayerConfig): string {
   }
 
   if (layer.color !== '#000091') attrs.push(`color="${layer.color}"`);
+  if (layer.colorField) attrs.push(`color-field="${layer.colorField}"`);
+  if (layer.colorMap) attrs.push(`color-map="${layer.colorMap}"`);
 
   if (layer.type === 'geoshape') {
     if (layer.fillField) attrs.push(`fill-field="${layer.fillField}"`);

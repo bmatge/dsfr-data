@@ -425,9 +425,27 @@ function renderLayerConfig() {
       </div>
       <div class="config-section-content">
         <div class="carto-field">
-          <label for="layer-color">Couleur</label>
+          <label for="layer-color">Couleur ${layer.colorField ? '(fallback)' : ''}
+            <span class="fr-hint-text">Couleur unique ou couleur par defaut si mapping actif</span>
+          </label>
           <input type="color" id="layer-color" value="${layer.color}">
         </div>
+
+        <div class="carto-field">
+          <label for="layer-color-field">Champ couleur (mapping categoriel)
+            <span class="fr-hint-text">Champ dont la valeur determine la couleur de chaque element</span>
+          </label>
+          <input type="text" id="layer-color-field" value="${escapeAttr(layer.colorField)}" placeholder="">
+        </div>
+
+        ${layer.colorField ? `
+        <div class="carto-field">
+          <label for="layer-color-map">Mapping couleurs
+            <span class="fr-hint-text">Paires valeur:#couleur separees par virgule. Ex: 1:#00A95F,2:#FF9940,3:#E1000F</span>
+          </label>
+          <textarea id="layer-color-map" rows="3" class="fr-input" placeholder="val1:#couleur1,val2:#couleur2">${escapeAttr(layer.colorMap)}</textarea>
+        </div>
+        ` : ''}
 
         ${layer.type === 'marker' ? `
         <div class="carto-checkbox">
@@ -666,6 +684,13 @@ function bindLayerInputs(layer: LayerConfig) {
 
   // Options
   bind('layer-color', 'color');
+  const colorFieldEl = document.getElementById('layer-color-field') as HTMLInputElement | null;
+  colorFieldEl?.addEventListener('change', () => {
+    layer.colorField = colorFieldEl.value;
+    renderLayerConfig(); // show/hide color-map textarea
+    updateCodePreview();
+  });
+  bind('layer-color-map', 'colorMap');
   bind('layer-filter', 'filter');
 
   // Marker
