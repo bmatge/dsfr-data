@@ -2076,7 +2076,7 @@ Chargé via le bundle \`dsfr-data.world-map.esm.js\` (séparé du core).
     id: 'dsfrDataMap',
     name: 'dsfr-data-map',
     description: 'Carte interactive Leaflet multi-couches avec POI, geoshape, cercles, clustering et chargement par viewport',
-    trigger: ['carte', 'map', 'leaflet', 'poi', 'marker', 'geoshape', 'geojson', 'clustering', 'bbox', 'viewport', 'tuiles', 'ign', 'geoplateforme', 'cercles proportionnels', 'heatmap', 'carte interactive', 'geo_point', 'geo_shape', 'choropleth carte', 'map layer'],
+    trigger: ['carte', 'map', 'leaflet', 'poi', 'marker', 'geoshape', 'geojson', 'clustering', 'bbox', 'viewport', 'tuiles', 'ign', 'geoplateforme', 'cercles proportionnels', 'heatmap', 'carte interactive', 'geo_point', 'geo_shape', 'choropleth carte', 'map layer', 'timeline', 'animation temporelle', 'carte animee', 'evolution temporelle'],
     content: `## dsfr-data-map + dsfr-data-map-layer — Carte interactive multi-couches
 
 Deux composants complementaires :
@@ -2142,6 +2142,9 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | bbox-field | String | \`""\` | Champ geo pour bbox (auto-detecte si vide) |
 | max-items | Number | \`5000\` | Limite elements rendus |
 | filter | String | \`""\` | Filtre client-side |
+| time-field | String | \`""\` | Champ date/heure pour animation temporelle |
+| time-bucket | String | \`"none"\` | Granularite : \`none\`, \`hour\`, \`day\`, \`month\`, \`year\` |
+| time-mode | String | \`"snapshot"\` | \`snapshot\` (pas courant) ou \`cumulative\` (tout jusqu'au pas courant) |
 
 ### Resolution des coordonnees (3 modes)
 
@@ -2244,6 +2247,41 @@ Template avec \`<template>\` et interpolation \`{{champ}}\`. Sans template, tabl
     geo-field="geo_shape" fill-field="population"
     min-zoom="10" bbox>
   </dsfr-data-map-layer>
+</dsfr-data-map>
+\`\`\`
+
+### dsfr-data-map-timeline — Animation temporelle
+
+Composant compagnon place comme enfant de \`dsfr-data-map\`. Decouvre automatiquement les layers ayant \`time-field\` et pilote leur affichage frame par frame.
+
+| Attribut | Type | Defaut | Description |
+|----------|------|--------|-------------|
+| for | String | \`""\` | IDs des layers cibles (virgules). Vide = tous les layers avec time-field |
+| speed | Number | \`1\` | Multiplicateur vitesse (0.5, 1, 2, 4) |
+| interval | Number | \`1000\` | Intervalle de base entre frames (ms) |
+
+Controles : play/pause, stop, pas-a-pas, slider, vitesse.
+Clavier : Espace (play/pause), fleches (pas-a-pas), Home/End (debut/fin).
+Accessibilite : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, aria-live.
+
+\`\`\`html
+<dsfr-data-source id="donnees-temps" data='[
+  {"region":"Paris","lat":48.85,"lon":2.35,"valeur":120,"date":"2025-T1"},
+  {"region":"Paris","lat":48.85,"lon":2.35,"valeur":250,"date":"2025-T2"},
+  {"region":"Lyon","lat":45.76,"lon":4.83,"valeur":80,"date":"2025-T1"},
+  {"region":"Lyon","lat":45.76,"lon":4.83,"valeur":160,"date":"2025-T2"}
+]'></dsfr-data-source>
+
+<dsfr-data-map center="46.6,2.3" zoom="6" height="550px">
+  <dsfr-data-map-layer source="donnees-temps" type="circle"
+    lat-field="lat" lon-field="lon"
+    radius-field="valeur" radius-min="6" radius-max="35"
+    color="#000091" fill-opacity="0.5"
+    tooltip-field="region"
+    time-field="date" time-mode="snapshot">
+  </dsfr-data-map-layer>
+  <dsfr-data-map-timeline speed="1" interval="1500">
+  </dsfr-data-map-timeline>
 </dsfr-data-map>
 \`\`\`
 `,
