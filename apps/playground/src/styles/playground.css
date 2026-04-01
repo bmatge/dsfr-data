@@ -7,19 +7,42 @@ body {
   flex-direction: column;
 }
 
-.playground-editor {
-  display: flex;
-  flex-direction: column;
+/* --- Playground layout: sticky editor + auto-height preview -------------- */
+
+/* Let the layout grow beyond the viewport (no overflow clip) */
+app-layout-builder {
+  overflow: visible !important;
 }
 
-.playground-preview {
-  overflow: auto;
-  background: var(--background-default-grey);
+/* Container: don't constrain height, let right panel determine it.
+   align-items: flex-start so children keep their own height */
+.builder-layout-container {
+  align-items: flex-start !important;
+}
+
+/* Left panel: sticky — stays visible while scrolling through the preview.
+   Height = full viewport. CodeMirror scrolls internally. */
+.builder-layout-left {
+  position: sticky !important;
+  top: 0 !important;
+  height: 100vh !important;
+  overflow: hidden !important;
+}
+
+/* Right panel: no scroll — grows to fit the visualization */
+.builder-layout-right {
+  overflow: visible !important;
+  min-height: 100vh;
+}
+
+/* --- Editor panel -------------------------------------------------------- */
+
+.playground-editor {
   display: flex;
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  height: 100%;
+  overflow: hidden;
 }
 
 .editor-toolbar {
@@ -31,21 +54,27 @@ body {
 }
 
 .CodeMirror {
-  flex: 1;
   font-size: 13px;
-  height: auto !important;
 }
 
 /* Dracula theme accessibility fixes: increase contrast to meet WCAG 2 AA (4.5:1) on #282a36 */
 .cm-s-dracula .cm-comment { color: #8a9dc4 !important; }
 .cm-s-dracula .CodeMirror-linenumber { color: #88aba9 !important; }
 
+/* --- Preview panel ------------------------------------------------------- */
+
+.playground-preview {
+  background: var(--background-default-grey);
+}
+
 .preview-frame {
   width: 100%;
-  flex: 1;
-  min-height: 400px;
+  min-height: 200px;
   border: none;
+  display: block;
 }
+
+/* --- Example selector ---------------------------------------------------- */
 
 .example-selector {
   padding: 0.5rem 1rem;
@@ -58,4 +87,12 @@ body {
 
 .example-selector label {
   font-weight: 500;
+}
+
+/* --- Responsive: stack on mobile ---------------------------------------- */
+@media (max-width: 900px) {
+  .builder-layout-left {
+    position: static !important;
+    height: 50vh !important;
+  }
 }

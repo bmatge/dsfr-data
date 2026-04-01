@@ -11,6 +11,9 @@ export interface CodeMirrorEditor {
   getValue(): string;
   setValue(value: string): void;
   on(event: string, handler: (cm: CodeMirrorEditor, event: KeyboardEvent) => void): void;
+  setSize(width: number | string | null, height: number | string | null): void;
+  getWrapperElement(): HTMLElement;
+  refresh(): void;
 }
 
 export function initEditor(textareaId: string): CodeMirrorEditor {

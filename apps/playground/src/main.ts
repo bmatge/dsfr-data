@@ -75,6 +75,33 @@ function runCode(): void {
   const iframe = document.getElementById('preview-frame') as HTMLIFrameElement | null;
   if (iframe) {
     iframe.srcdoc = getPreviewHTML(code);
+    // Auto-resize iframe to fit its content once loaded
+    iframe.onload = () => autoResizeIframe(iframe);
+  }
+}
+
+/** Resize iframe height to match its content, with a ResizeObserver for dynamic content */
+function autoResizeIframe(iframe: HTMLIFrameElement): void {
+  try {
+    const doc = iframe.contentDocument;
+    if (!doc?.body) return;
+
+    const resize = () => {
+      const height = doc.documentElement.scrollHeight;
+      if (height > 0) {
+        iframe.style.height = height + 'px';
+      }
+    };
+
+    // Initial sizing after a short delay (let charts/components render)
+    setTimeout(resize, 300);
+    setTimeout(resize, 1000);
+
+    // Watch for dynamic content changes (chart renders, data loads, etc.)
+    const ro = new ResizeObserver(resize);
+    ro.observe(doc.body);
+  } catch {
+    // Cross-origin iframe — can't access content, keep default sizing
   }
 }
 
@@ -164,6 +191,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   editor = initEditor('code-editor');
+
+  // Dynamically size CodeMirror to fill the editor panel
+  const editorPanel = document.querySelector('.playground-editor') as HTMLElement;
+  const toolbar = document.querySelector('.editor-toolbar') as HTMLElement;
+  if (editorPanel && toolbar) {
+    const sizeEditor = () => {
+      const available = editorPanel.clientHeight - toolbar.offsetHeight;
+      if (available > 0) {
+        editor.setSize(null, available);
+      }
+    };
+    new ResizeObserver(sizeEditor).observe(editorPanel);
+    sizeEditor();
+  }
 
   // Load example from URL param, favorites, or default
   const exampleParam = new URLSearchParams(window.location.search).get('example');
