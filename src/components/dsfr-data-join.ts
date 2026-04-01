@@ -107,7 +107,11 @@ export class DsfrDataJoin extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     sendWidgetBeacon('dsfr-data-join');
-    this._initialize();
+    // Initialization is handled in updated() to avoid double-init with Lit lifecycle.
+    // Lit's first update fires as a microtask right after connectedCallback,
+    // and that updated() call will trigger _initialize() when it sees left/right/on
+    // in changedProperties. This prevents the double-subscribe + reset bug
+    // that can cause the join to miss source data.
   }
 
   disconnectedCallback() {
@@ -118,10 +122,20 @@ export class DsfrDataJoin extends LitElement {
     }
   }
 
-  updated(changedProperties: Map<string, unknown>) {
-    const joinProps = ['left', 'right', 'on', 'type', 'prefixLeft', 'prefixRight'];
-    if (joinProps.some(prop => changedProperties.has(prop))) {
+  willUpdate(changedProperties: Map<string, unknown>) {
+    super.willUpdate(changedProperties);
+
+    // Source identity changed → full re-subscribe
+    const sourceChanged = changedProperties.has('left') || changedProperties.has('right') || changedProperties.has('on');
+    if (sourceChanged) {
       this._initialize();
+      return;
+    }
+
+    // Only join parameters changed (type, prefix) → re-compute with existing data
+    const paramChanged = changedProperties.has('type') || changedProperties.has('prefixLeft') || changedProperties.has('prefixRight');
+    if (paramChanged && this._leftData !== null && this._rightData !== null) {
+      this._tryJoin();
     }
   }
 

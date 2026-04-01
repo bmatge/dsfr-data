@@ -40,6 +40,10 @@ describe('DsfrDataJoin', () => {
     clearDataCache('test-join');
     clearDataCache('left-source');
     clearDataCache('right-source');
+    clearDataCache('src-a');
+    clearDataCache('src-b');
+    clearDataCache('cached-left');
+    clearDataCache('cached-right');
     mockFetch.mockReset();
     join = new DsfrDataJoin();
     join.id = 'test-join';
@@ -411,10 +415,92 @@ describe('DsfrDataJoin', () => {
       expect((join as any)._unsubscribeRight).toBeNull();
     });
 
-    it('re-initializes when properties change', () => {
+    it('re-initializes when source properties change', () => {
       const initSpy = vi.spyOn(join as any, '_initialize');
-      join.updated(new Map([['left', '']]));
+      join.willUpdate(new Map([['left', '']]));
       expect(initSpy).toHaveBeenCalled();
+    });
+
+    it('re-initializes when on property changes', () => {
+      const initSpy = vi.spyOn(join as any, '_initialize');
+      join.willUpdate(new Map([['on', '']]));
+      expect(initSpy).toHaveBeenCalled();
+    });
+
+    it('re-computes join (without re-subscribing) when only type changes', () => {
+      // Setup: initialize and provide both sources
+      join.left = 'src-a';
+      join.right = 'src-b';
+      join.on = 'code';
+      join.type = 'inner';
+      join.id = 'test-join';
+      (join as any)._initialize();
+
+      dispatchDataLoaded('src-a', LEFT_DATA);
+      dispatchDataLoaded('src-b', RIGHT_DATA);
+      expect(join.getData()).toHaveLength(3); // inner: 3 matches
+
+      // Change type to left → should re-compute without full re-init
+      const initSpy = vi.spyOn(join as any, '_initialize');
+      join.type = 'left';
+      join.willUpdate(new Map([['type', 'inner']]));
+      expect(initSpy).not.toHaveBeenCalled(); // NOT re-initialized
+      expect(join.getData()).toHaveLength(4); // left: all 4 rows
+    });
+
+    it('does not re-init when only non-join properties change', () => {
+      const initSpy = vi.spyOn(join as any, '_initialize');
+      join.willUpdate(new Map([['_loading', true]]));
+      expect(initSpy).not.toHaveBeenCalled();
+    });
+
+    it('connectedCallback does not call _initialize', () => {
+      const initSpy = vi.spyOn(join as any, '_initialize');
+      join.connectedCallback();
+      expect(initSpy).not.toHaveBeenCalled();
+    });
+
+    it('handles Lit lifecycle: data arrives after updated()', () => {
+      // Simulate real Lit lifecycle:
+      // 1. connectedCallback (no init)
+      // 2. updated() with initial property changes → _initialize()
+      // 3. Data events arrive later
+      join.left = 'src-a';
+      join.right = 'src-b';
+      join.on = 'code';
+      join.id = 'test-join';
+
+      // Step 1: connectedCallback — no subscription
+      join.connectedCallback();
+      expect(join.getData()).toHaveLength(0);
+
+      // Step 2: first updated() — properties changed from defaults
+      join.willUpdate(new Map([['left', ''], ['right', ''], ['on', '']]));
+
+      // Step 3: Data arrives (simulating async fetch completion)
+      dispatchDataLoaded('src-a', LEFT_DATA);
+      expect(join.getData()).toHaveLength(0); // right not yet
+
+      dispatchDataLoaded('src-b', RIGHT_DATA);
+      expect(join.getData()).toHaveLength(4); // left join default
+    });
+
+    it('handles cached data available at updated() time', () => {
+      // Sources already emitted before join is created
+      setDataCache('cached-left', LEFT_DATA);
+      setDataCache('cached-right', RIGHT_DATA);
+
+      join.left = 'cached-left';
+      join.right = 'cached-right';
+      join.on = 'code';
+      join.id = 'test-join';
+
+      // Simulate Lit lifecycle
+      join.connectedCallback();
+      join.willUpdate(new Map([['left', ''], ['right', ''], ['on', '']]));
+
+      // Data should be available immediately from cache
+      expect(join.getData()).toHaveLength(4);
     });
   });
 
