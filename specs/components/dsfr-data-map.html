@@ -147,6 +147,56 @@
           </tbody>
         </table>
 
+        <h3>Animation temporelle</h3>
+        <table class="attr-table">
+          <thead><tr><th>Attribut</th><th>Type</th><th>Defaut</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>time-field</code></td><td>String</td><td><code>""</code></td><td>Champ date/heure pour le decoupage temporel</td></tr>
+            <tr><td><code>time-bucket</code></td><td>String</td><td><code>"none"</code></td><td>Granularite : <code>none</code> (valeurs brutes), <code>hour</code>, <code>day</code>, <code>month</code>, <code>year</code></td></tr>
+            <tr><td><code>time-mode</code></td><td>String</td><td><code>"snapshot"</code></td><td><code>snapshot</code> (affiche le pas courant) ou <code>cumulative</code> (tout jusqu'au pas courant)</td></tr>
+          </tbody>
+        </table>
+        <p>
+          Quand <code>time-field</code> est defini, les donnees sont pre-indexees par pas de temps.
+          Le composant compagnon <code>dsfr-data-map-timeline</code> pilote la lecture frame par frame.
+        </p>
+
+        <!-- ============================================================ -->
+        <!-- dsfr-data-map-timeline -->
+        <!-- ============================================================ -->
+
+        <h2 class="fr-mt-4w">dsfr-data-map-timeline — Animation temporelle</h2>
+        <p>
+          Composant compagnon place comme enfant de <code>dsfr-data-map</code>.
+          Decouvre automatiquement les layers ayant <code>time-field</code> et pilote
+          leur affichage frame par frame avec des controles de lecture.
+        </p>
+
+        <table class="attr-table">
+          <thead><tr><th>Attribut</th><th>Type</th><th>Defaut</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>for</code></td><td>String</td><td><code>""</code></td><td>IDs des layers cibles (virgules). Vide = tous les layers avec <code>time-field</code></td></tr>
+            <tr><td><code>speed</code></td><td>Number</td><td><code>1</code></td><td>Multiplicateur de vitesse (0.5, 1, 2, 4)</td></tr>
+            <tr><td><code>interval</code></td><td>Number</td><td><code>1000</code></td><td>Intervalle de base entre frames en ms</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Controles</h3>
+        <ul>
+          <li>Boutons : lecture/pause, stop (retour au debut), pas precedent/suivant</li>
+          <li>Slider : navigation directe vers un pas de temps</li>
+          <li>Selecteur de vitesse : 0.5x, 1x, 2x, 4x</li>
+          <li>Label du pas courant avec region aria-live</li>
+        </ul>
+
+        <h3>Accessibilite</h3>
+        <ul>
+          <li><strong>Pas d'auto-play</strong> — l'animation demarre uniquement sur action utilisateur</li>
+          <li><strong>Clavier</strong> : Espace (play/pause), fleches (pas-a-pas), Home/End (debut/fin)</li>
+          <li><strong>ARIA</strong> : labels sur tous les controles, <code>aria-live</code> sur le label courant, <code>aria-valuetext</code> sur le slider</li>
+          <li><strong><code>prefers-reduced-motion</code></strong> : desactive le bouton play (navigation manuelle uniquement)</li>
+        </ul>
+
         <!-- ============================================================ -->
         <!-- dsfr-data-map-popup -->
         <!-- ============================================================ -->
@@ -265,7 +315,31 @@
         </section>
 
         <section class="demo-section fr-mt-4w">
-          <h3>4. Geoshape + POI superposes</h3>
+          <h3>4. Animation temporelle</h3>
+          <div class="code-block"><pre>&lt;dsfr-data-source id="bornes-trim" data='[
+  {"region":"Paris","lat":48.85,"lon":2.35,"bornes":120,"date":"2025-T1"},
+  {"region":"Lyon","lat":45.76,"lon":4.83,"bornes":85,"date":"2025-T1"},
+  {"region":"Marseille","lat":43.30,"lon":5.37,"bornes":60,"date":"2025-T1"},
+  {"region":"Paris","lat":48.85,"lon":2.35,"bornes":250,"date":"2025-T2"},
+  {"region":"Lyon","lat":45.76,"lon":4.83,"bornes":160,"date":"2025-T2"},
+  {"region":"Marseille","lat":43.30,"lon":5.37,"bornes":130,"date":"2025-T2"}
+]'&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-map center="46.6,2.3" zoom="6" height="550px"&gt;
+  &lt;dsfr-data-map-layer source="bornes-trim" type="circle"
+    lat-field="lat" lon-field="lon"
+    radius-field="bornes" radius-min="6" radius-max="35"
+    color="#000091" fill-opacity="0.5"
+    tooltip-field="region"
+    time-field="date" time-mode="snapshot"&gt;
+  &lt;/dsfr-data-map-layer&gt;
+  &lt;dsfr-data-map-timeline speed="1" interval="1500"&gt;
+  &lt;/dsfr-data-map-timeline&gt;
+&lt;/dsfr-data-map&gt;</pre></div>
+        </section>
+
+        <section class="demo-section fr-mt-4w">
+          <h3>5. Geoshape + POI superposes</h3>
           <div class="code-block"><pre>&lt;dsfr-data-map center="46.6,2.3" zoom="6" tiles="ign-plan"&gt;
   &lt;dsfr-data-map-layer source="departements" type="geoshape"
     geo-field="geo_shape" fill-field="population"
