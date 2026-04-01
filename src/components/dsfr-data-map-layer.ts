@@ -102,6 +102,12 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   @property({ type: String })
   color = '#000091';
 
+  @property({ type: String, attribute: 'color-field' })
+  colorField = '';
+
+  @property({ type: String, attribute: 'color-map' })
+  colorMap = '';
+
   @property({ type: String, attribute: 'fill-field' })
   fillField = '';
 
@@ -197,6 +203,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   private _heatLayer: any = null;
   private _heatLoaded = false;
   private _radiusScale: ((val: number) => number) | null = null;
+  private _colorMapParsed: Map<string, string> | null = null;
 
   // Timeline state
   private _timeFrames: Map<string, Record<string, unknown>[]> = new Map();
@@ -205,6 +212,30 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
 
   // Light DOM — invisible component
   createRenderRoot() { return this; }
+
+  // --- Color mapping ---
+
+  /** Parse color-map="val1:#color1,val2:#color2" into a Map */
+  private _parseColorMap(): Map<string, string> {
+    const map = new Map<string, string>();
+    if (!this.colorMap) return map;
+    for (const pair of this.colorMap.split(',')) {
+      const sep = pair.lastIndexOf(':');
+      if (sep > 0) {
+        const value = pair.substring(0, sep).trim();
+        const color = pair.substring(sep + 1).trim();
+        if (value && color) map.set(value, color);
+      }
+    }
+    return map;
+  }
+
+  /** Resolve color for a record: color-field + color-map, or fallback to this.color */
+  private _resolveColor(record: Record<string, unknown>): string {
+    if (!this.colorField || !this._colorMapParsed?.size) return this.color;
+    const val = String(getByPath(record, this.colorField) ?? '');
+    return this._colorMapParsed.get(val) ?? this.color;
+  }
 
   // --- SourceSubscriberMixin hook ---
 
@@ -446,6 +477,9 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
       items = items.slice(0, this.maxItems);
     }
 
+    // Parse color-map (categorical color mapping)
+    this._colorMapParsed = this.colorField && this.colorMap ? this._parseColorMap() : null;
+
     // Choropleth setup (for geoshape with fill-field)
     let breaks: number[] = [];
     let palette: readonly string[] = [];
@@ -585,8 +619,9 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     const coords = this._extractCoords(record);
     if (!coords) return;
 
+    const markerColor = this._resolveColor(record);
     const icon = Leaf.divIcon({
-      html: `<span class="fr-icon-map-pin-2-fill" style="color: ${this.color}; font-size: 1.5rem;" aria-hidden="true"></span>`,
+      html: `<span class="fr-icon-map-pin-2-fill" style="color: ${markerColor}; font-size: 1.5rem;" aria-hidden="true"></span>`,
       className: 'dsfr-data-map__marker',
       iconSize: [24, 24],
       iconAnchor: [12, 24],
@@ -619,7 +654,8 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     const geoData = this.geoField ? getByPath(record, this.geoField) : null;
     if (!geoData || typeof geoData !== 'object') return;
 
-    let fillColor = this.color;
+    const recordColor = this._resolveColor(record);
+    let fillColor = recordColor;
     if (this.fillField && breaks.length > 0) {
       const val = Number(getByPath(record, this.fillField));
       if (!isNaN(val)) {
@@ -632,7 +668,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
 
     const layer = Leaf.geoJSON(geoJson as any, {
       style: {
-        color: this.color,
+        color: recordColor,
         weight: 1,
         fillColor,
         fillOpacity: this.fillOpacity,
@@ -658,20 +694,21 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
       }
     }
 
+    const circleColor = this._resolveColor(record);
     let circle: import('leaflet').Layer;
     if (this.radiusUnit === 'm') {
       circle = Leaf.circle([coords.lat, coords.lon], {
         radius: r,
-        color: this.color,
-        fillColor: this.color,
+        color: circleColor,
+        fillColor: circleColor,
         fillOpacity: this.fillOpacity,
         weight: 1,
       });
     } else {
       circle = Leaf.circleMarker([coords.lat, coords.lon], {
         radius: r,
-        color: this.color,
-        fillColor: this.color,
+        color: circleColor,
+        fillColor: circleColor,
         fillOpacity: this.fillOpacity,
         weight: 1,
       });
