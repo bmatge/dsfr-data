@@ -278,6 +278,94 @@
         </table>
 
         <!-- ============================================================ -->
+        <h2>Animation temporelle (timeline)</h2>
+        <p>
+          L'attribut <code>time-field</code> sur un layer active le decoupage temporel des donnees.
+          Le composant <code>dsfr-data-map-timeline</code> ajoute les controles de lecture (play, pause, pas-a-pas, vitesse).
+          Ici, l'evolution fictive du nombre de bornes de recharge electrique par region sur 4 trimestres.
+        </p>
+        <ul>
+          <li><code>time-bucket="none"</code> : utilise les valeurs brutes (ici les trimestres)</li>
+          <li><code>time-mode="snapshot"</code> : affiche uniquement le trimestre courant</li>
+          <li><code>time-mode="cumulative"</code> : cumule les donnees jusqu'au trimestre courant</li>
+        </ul>
+
+        <h4>Bornes de recharge par region — evolution trimestrielle (mode cumulatif)</h4>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-timeline">Code source</button></h3>
+          <div class="fr-collapse" id="code-timeline">
+<pre class="example-code">&lt;dsfr-data-source id="bornes-timeline" data='[
+  {"region":"Ile-de-France","lat":48.85,"lon":2.35,"bornes":120,"trimestre":"2025-T1"},
+  {"region":"Auvergne-Rhone-Alpes","lat":45.76,"lon":4.83,"bornes":85,"trimestre":"2025-T1"},
+  {"region":"Provence-Alpes-Cote Azur","lat":43.30,"lon":5.37,"bornes":60,"trimestre":"2025-T1"},
+  {"region":"Occitanie","lat":43.60,"lon":1.44,"bornes":45,"trimestre":"2025-T1"},
+  {"region":"Nouvelle-Aquitaine","lat":44.84,"lon":-0.58,"bornes":50,"trimestre":"2025-T1"},
+  {"region":"Hauts-de-France","lat":50.63,"lon":3.06,"bornes":55,"trimestre":"2025-T1"},
+  {"region":"Grand Est","lat":48.57,"lon":7.75,"bornes":40,"trimestre":"2025-T1"},
+  {"region":"Pays de la Loire","lat":47.22,"lon":-1.55,"bornes":35,"trimestre":"2025-T1"},
+  {"region":"Bretagne","lat":48.12,"lon":-1.68,"bornes":30,"trimestre":"2025-T1"},
+  {"region":"Normandie","lat":49.18,"lon":-0.37,"bornes":25,"trimestre":"2025-T1"},
+  {"region":"Bourgogne-Franche-Comte","lat":47.32,"lon":5.04,"bornes":20,"trimestre":"2025-T1"},
+  {"region":"Centre-Val de Loire","lat":47.39,"lon":1.69,"bornes":22,"trimestre":"2025-T1"},
+  {"region":"Corse","lat":42.15,"lon":9.10,"bornes":5,"trimestre":"2025-T1"},
+  {"region":"Ile-de-France","lat":48.85,"lon":2.35,"bornes":180,"trimestre":"2025-T2"},
+  {"region":"Auvergne-Rhone-Alpes","lat":45.76,"lon":4.83,"bornes":130,"trimestre":"2025-T2"},
+  {"region":"Provence-Alpes-Cote Azur","lat":43.30,"lon":5.37,"bornes":95,"trimestre":"2025-T2"},
+  {"region":"Occitanie","lat":43.60,"lon":1.44,"bornes":75,"trimestre":"2025-T2"},
+  {"region":"Nouvelle-Aquitaine","lat":44.84,"lon":-0.58,"bornes":80,"trimestre":"2025-T2"},
+  {"region":"Hauts-de-France","lat":50.63,"lon":3.06,"bornes":85,"trimestre":"2025-T2"},
+  {"region":"Grand Est","lat":48.57,"lon":7.75,"bornes":65,"trimestre":"2025-T2"},
+  {"region":"Pays de la Loire","lat":47.22,"lon":-1.55,"bornes":55,"trimestre":"2025-T2"},
+  {"region":"Bretagne","lat":48.12,"lon":-1.68,"bornes":50,"trimestre":"2025-T2"},
+  {"region":"Normandie","lat":49.18,"lon":-0.37,"bornes":40,"trimestre":"2025-T2"},
+  {"region":"Bourgogne-Franche-Comte","lat":47.32,"lon":5.04,"bornes":35,"trimestre":"2025-T2"},
+  {"region":"Centre-Val de Loire","lat":47.39,"lon":1.69,"bornes":38,"trimestre":"2025-T2"},
+  {"region":"Corse","lat":42.15,"lon":9.10,"bornes":8,"trimestre":"2025-T2"},
+  {"region":"Ile-de-France","lat":48.85,"lon":2.35,"bornes":260,"trimestre":"2025-T3"},
+  {"region":"Auvergne-Rhone-Alpes","lat":45.76,"lon":4.83,"bornes":190,"trimestre":"2025-T3"},
+  {"region":"Provence-Alpes-Cote Azur","lat":43.30,"lon":5.37,"bornes":140,"trimestre":"2025-T3"},
+  {"region":"Occitanie","lat":43.60,"lon":1.44,"bornes":120,"trimestre":"2025-T3"},
+  {"region":"Nouvelle-Aquitaine","lat":44.84,"lon":-0.58,"bornes":125,"trimestre":"2025-T3"},
+  {"region":"Hauts-de-France","lat":50.63,"lon":3.06,"bornes":120,"trimestre":"2025-T3"},
+  {"region":"Grand Est","lat":48.57,"lon":7.75,"bornes":100,"trimestre":"2025-T3"},
+  {"region":"Pays de la Loire","lat":47.22,"lon":-1.55,"bornes":80,"trimestre":"2025-T3"},
+  {"region":"Bretagne","lat":48.12,"lon":-1.68,"bornes":75,"trimestre":"2025-T3"},
+  {"region":"Normandie","lat":49.18,"lon":-0.37,"bornes":60,"trimestre":"2025-T3"},
+  {"region":"Bourgogne-Franche-Comte","lat":47.32,"lon":5.04,"bornes":55,"trimestre":"2025-T3"},
+  {"region":"Centre-Val de Loire","lat":47.39,"lon":1.69,"bornes":58,"trimestre":"2025-T3"},
+  {"region":"Corse","lat":42.15,"lon":9.10,"bornes":12,"trimestre":"2025-T3"},
+  {"region":"Ile-de-France","lat":48.85,"lon":2.35,"bornes":350,"trimestre":"2025-T4"},
+  {"region":"Auvergne-Rhone-Alpes","lat":45.76,"lon":4.83,"bornes":260,"trimestre":"2025-T4"},
+  {"region":"Provence-Alpes-Cote Azur","lat":43.30,"lon":5.37,"bornes":200,"trimestre":"2025-T4"},
+  {"region":"Occitanie","lat":43.60,"lon":1.44,"bornes":170,"trimestre":"2025-T4"},
+  {"region":"Nouvelle-Aquitaine","lat":44.84,"lon":-0.58,"bornes":180,"trimestre":"2025-T4"},
+  {"region":"Hauts-de-France","lat":50.63,"lon":3.06,"bornes":165,"trimestre":"2025-T4"},
+  {"region":"Grand Est","lat":48.57,"lon":7.75,"bornes":145,"trimestre":"2025-T4"},
+  {"region":"Pays de la Loire","lat":47.22,"lon":-1.55,"bornes":115,"trimestre":"2025-T4"},
+  {"region":"Bretagne","lat":48.12,"lon":-1.68,"bornes":105,"trimestre":"2025-T4"},
+  {"region":"Normandie","lat":49.18,"lon":-0.37,"bornes":85,"trimestre":"2025-T4"},
+  {"region":"Bourgogne-Franche-Comte","lat":47.32,"lon":5.04,"bornes":80,"trimestre":"2025-T4"},
+  {"region":"Centre-Val de Loire","lat":47.39,"lon":1.69,"bornes":82,"trimestre":"2025-T4"},
+  {"region":"Corse","lat":42.15,"lon":9.10,"bornes":18,"trimestre":"2025-T4"}
+]'&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-map center="46.6,2.3" zoom="6" height="550px" name="Bornes de recharge par region"&gt;
+  &lt;dsfr-data-map-layer source="bornes-timeline" type="circle"
+    lat-field="lat" lon-field="lon"
+    radius-field="bornes" radius-min="6" radius-max="35"
+    color="#000091" fill-opacity="0.5"
+    popup-template="{region}&lt;br&gt;{bornes} bornes — {trimestre}"
+    tooltip-field="region"
+    time-field="trimestre" time-mode="snapshot"&gt;
+  &lt;/dsfr-data-map-layer&gt;
+  &lt;dsfr-data-map-timeline speed="1" interval="1500"&gt;
+  &lt;/dsfr-data-map-timeline&gt;
+&lt;/dsfr-data-map&gt;</pre>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
         <h2>Zoom ranges et multi-couches</h2>
         <p>
           Les attributs <code>min-zoom</code> / <code>max-zoom</code> sur les layers permettent d'afficher

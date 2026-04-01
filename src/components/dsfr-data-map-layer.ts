@@ -162,6 +162,17 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'bbox-field' })
   bboxField = '';
 
+  // --- Timeline ---
+
+  @property({ type: String, attribute: 'time-field' })
+  timeField = '';
+
+  @property({ type: String, attribute: 'time-bucket' })
+  timeBucket: 'none' | 'hour' | 'day' | 'month' | 'year' = 'none';
+
+  @property({ type: String, attribute: 'time-mode' })
+  timeMode: 'snapshot' | 'cumulative' = 'snapshot';
+
   // --- Performance ---
 
   @property({ type: Number, attribute: 'max-items' })
@@ -187,6 +198,11 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   private _heatLoaded = false;
   private _radiusScale: ((val: number) => number) | null = null;
 
+  // Timeline state
+  private _timeFrames: Map<string, Record<string, unknown>[]> = new Map();
+  private _timeSteps: string[] = [];
+  private _currentFrameIndex = -1; // -1 = show all (no timeline active)
+
   // Light DOM — invisible component
   createRenderRoot() { return this; }
 
@@ -194,7 +210,91 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
 
   onSourceData(data: unknown): void {
     this._data = Array.isArray(data) ? data as Record<string, unknown>[] : [];
+    if (this.timeField) {
+      this._buildTimeFrames();
+      // If timeline is active, re-render current frame; else show all
+      if (this._currentFrameIndex >= 0) {
+        this.setTimelineFrame(Math.min(this._currentFrameIndex, this._timeSteps.length - 1));
+        return;
+      }
+    }
     this._renderLayer();
+  }
+
+  // --- Timeline API ---
+
+  /** Build time frame index from data */
+  private _buildTimeFrames(): void {
+    this._timeFrames.clear();
+    for (const record of this._data) {
+      const raw = getByPath(record, this.timeField);
+      const key = this._bucketTime(raw);
+      if (key === null) continue;
+      if (!this._timeFrames.has(key)) this._timeFrames.set(key, []);
+      this._timeFrames.get(key)!.push(record);
+    }
+    // Sort keys chronologically
+    this._timeSteps = [...this._timeFrames.keys()].sort();
+    // Notify any timeline companion
+    this.dispatchEvent(new CustomEvent('dsfr-data-map-layer-time-ready', {
+      bubbles: true,
+      detail: { steps: this._timeSteps },
+    }));
+  }
+
+  /** Bucket a raw date value to the configured granularity */
+  private _bucketTime(raw: unknown): string | null {
+    if (raw == null) return null;
+    const str = String(raw);
+    if (this.timeBucket === 'none') return str;
+    const d = new Date(str);
+    if (isNaN(d.getTime())) return null;
+    const pad = (n: number) => String(n).padStart(2, '0');
+    switch (this.timeBucket) {
+      case 'year':  return `${d.getFullYear()}`;
+      case 'month': return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+      case 'day':   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      case 'hour':  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:00`;
+      default:      return str;
+    }
+  }
+
+  /** Get data for a given frame index (snapshot or cumulative) */
+  private _getFrameData(frameIndex: number): Record<string, unknown>[] {
+    if (frameIndex < 0 || frameIndex >= this._timeSteps.length) return [];
+    if (this.timeMode === 'cumulative') {
+      const result: Record<string, unknown>[] = [];
+      for (let i = 0; i <= frameIndex; i++) {
+        const key = this._timeSteps[i];
+        result.push(...(this._timeFrames.get(key) || []));
+      }
+      return result;
+    }
+    // snapshot
+    const key = this._timeSteps[frameIndex];
+    return this._timeFrames.get(key) || [];
+  }
+
+  /** Called by dsfr-data-map-timeline to set current frame */
+  setTimelineFrame(index: number): void {
+    this._currentFrameIndex = index;
+    const items = this._getFrameData(index);
+    // Temporarily swap data, render, then restore
+    const savedData = this._data;
+    this._data = items;
+    this._renderLayer();
+    this._data = savedData;
+  }
+
+  /** Called by dsfr-data-map-timeline to reset (show all data) */
+  resetTimeline(): void {
+    this._currentFrameIndex = -1;
+    this._renderLayer();
+  }
+
+  /** Returns sorted time step labels */
+  getTimeSteps(): string[] {
+    return this._timeSteps;
   }
 
   // --- Map lifecycle ---

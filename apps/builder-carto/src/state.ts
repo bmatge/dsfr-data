@@ -59,6 +59,11 @@ export interface LayerConfig {
   heatBlur: number;
   heatField: string;
 
+  // Timeline
+  timeField: string;
+  timeBucket: 'none' | 'hour' | 'day' | 'month' | 'year';
+  timeMode: 'snapshot' | 'cumulative';
+
   // Viewport
   minZoom: number;
   maxZoom: number;
@@ -134,6 +139,10 @@ export function createLayer(): LayerConfig {
     heatRadius: 25,
     heatBlur: 15,
     heatField: '',
+
+    timeField: '',
+    timeBucket: 'none' as const,
+    timeMode: 'snapshot' as const,
 
     minZoom: 0,
     maxZoom: 18,

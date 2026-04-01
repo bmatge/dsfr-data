@@ -517,6 +517,37 @@ function renderLayerConfig() {
         <hr class="fr-mt-1w fr-mb-1w">
 
         <div class="carto-field">
+          <label for="layer-time-field">Champ temporel (animation)
+            <span class="fr-hint-text">Colonne date/heure pour animer la carte dans le temps</span>
+          </label>
+          <input type="text" id="layer-time-field" value="${escapeAttr(layer.timeField)}" placeholder="">
+        </div>
+
+        ${layer.timeField ? `
+        <div class="carto-inline">
+          <div class="carto-field">
+            <label for="layer-time-bucket">Granularite</label>
+            <select id="layer-time-bucket" class="fr-select fr-select--sm">
+              <option value="none" ${layer.timeBucket === 'none' ? 'selected' : ''}>Valeurs brutes</option>
+              <option value="hour" ${layer.timeBucket === 'hour' ? 'selected' : ''}>Heure</option>
+              <option value="day" ${layer.timeBucket === 'day' ? 'selected' : ''}>Jour</option>
+              <option value="month" ${layer.timeBucket === 'month' ? 'selected' : ''}>Mois</option>
+              <option value="year" ${layer.timeBucket === 'year' ? 'selected' : ''}>Annee</option>
+            </select>
+          </div>
+          <div class="carto-field">
+            <label for="layer-time-mode">Mode</label>
+            <select id="layer-time-mode" class="fr-select fr-select--sm">
+              <option value="snapshot" ${layer.timeMode === 'snapshot' ? 'selected' : ''}>Instantane</option>
+              <option value="cumulative" ${layer.timeMode === 'cumulative' ? 'selected' : ''}>Cumulatif</option>
+            </select>
+          </div>
+        </div>
+        ` : ''}
+
+        <hr class="fr-mt-1w fr-mb-1w">
+
+        <div class="carto-field">
           <label for="layer-filter">Filtre (expression)
             <span class="fr-hint-text">Ex: status = 'active'</span>
           </label>
@@ -663,6 +694,16 @@ function bindLayerInputs(layer: LayerConfig) {
   bind('layer-heat-radius', 'heatRadius', Number);
   bind('layer-heat-blur', 'heatBlur', Number);
   bind('layer-heat-field', 'heatField');
+
+  // Timeline
+  const timeFieldEl = document.getElementById('layer-time-field') as HTMLInputElement | null;
+  timeFieldEl?.addEventListener('change', () => {
+    layer.timeField = timeFieldEl.value;
+    renderLayerConfig(); // show/hide bucket+mode fields
+    updateCodePreview();
+  });
+  bind('layer-time-bucket', 'timeBucket');
+  bind('layer-time-mode', 'timeMode');
 
   // Viewport
   const bboxEl = document.getElementById('layer-bbox') as HTMLInputElement | null;

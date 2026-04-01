@@ -350,7 +350,8 @@ export class DsfrDataMap extends LitElement {
     this._observer = new MutationObserver((mutations) => {
       for (const m of mutations) {
         for (const node of m.addedNodes) {
-          if ((node as HTMLElement).tagName?.toLowerCase() === 'dsfr-data-map-layer') {
+          const tag = (node as HTMLElement).tagName?.toLowerCase();
+          if (tag === 'dsfr-data-map-layer' || tag === 'dsfr-data-map-timeline') {
             (node as any)._onMapReady?.();
           }
         }
@@ -392,6 +393,10 @@ export class DsfrDataMap extends LitElement {
     const layers = this.querySelectorAll('dsfr-data-map-layer');
     for (const layer of layers) {
       (layer as any)._onMapReady?.();
+    }
+    const timelines = this.querySelectorAll('dsfr-data-map-timeline');
+    for (const tl of timelines) {
+      (tl as any)._onMapReady?.();
     }
   }
 

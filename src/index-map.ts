@@ -7,3 +7,4 @@
 export { DsfrDataMap } from './components/dsfr-data-map.js';
 export { DsfrDataMapLayer } from './components/dsfr-data-map-layer.js';
 export { DsfrDataMapPopup } from './components/dsfr-data-map-popup.js';
+export { DsfrDataMapTimeline } from './components/dsfr-data-map-timeline.js';

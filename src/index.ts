@@ -20,6 +20,7 @@ export { DsfrDataWorldMap } from './components/dsfr-data-world-map.js';
 export { DsfrDataMap } from './components/dsfr-data-map.js';
 export { DsfrDataMapLayer } from './components/dsfr-data-map-layer.js';
 export { DsfrDataMapPopup } from './components/dsfr-data-map-popup.js';
+export { DsfrDataMapTimeline } from './components/dsfr-data-map-timeline.js';
 export { DsfrDataA11y } from './components/dsfr-data-a11y.js';
 
 // Composants de layout

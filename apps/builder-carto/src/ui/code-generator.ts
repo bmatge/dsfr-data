@@ -63,6 +63,13 @@ function layerAttrs(layer: LayerConfig): string {
   }
   if (layer.maxItems !== 5000) attrs.push(`max-items="${layer.maxItems}"`);
 
+  // Timeline
+  if (layer.timeField) {
+    attrs.push(`time-field="${layer.timeField}"`);
+    if (layer.timeBucket !== 'none') attrs.push(`time-bucket="${layer.timeBucket}"`);
+    if (layer.timeMode !== 'snapshot') attrs.push(`time-mode="${layer.timeMode}"`);
+  }
+
   return attrs.join('\n    ');
 }
 
@@ -176,6 +183,12 @@ export function generateCode(): string {
     }
 
     lines.push(`  </dsfr-data-map-layer>`);
+  }
+
+  // Timeline controls (if any layer has time-field)
+  if (visibleLayers.some(l => l.timeField)) {
+    lines.push('');
+    lines.push('  <dsfr-data-map-timeline></dsfr-data-map-timeline>');
   }
 
   lines.push('</dsfr-data-map>');

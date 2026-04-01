@@ -232,7 +232,7 @@ export class AppHeader extends LitElement {
                       </a>
                     </li>
                     <li>
-                      <a class="fr-btn fr-btn--tertiary-no-outline fr-icon-file-list-line" href="${this._base}specs/index.html">
+                      <a class="fr-btn fr-btn--tertiary-no-outline fr-icon-file-text-line" href="${this._base}specs/index.html">
                         Specs
                       </a>
                     </li>
