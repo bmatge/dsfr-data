@@ -95,7 +95,9 @@
             <tr><td><code>popup-template</code></td><td>String</td><td><code>""</code></td><td>Template HTML avec interpolation : <code>"{nom} — {puissance} kW"</code></td></tr>
             <tr><td><code>popup-fields</code></td><td>String</td><td><code>""</code></td><td>Champs separes par virgule pour un tableau auto</td></tr>
             <tr><td><code>tooltip-field</code></td><td>String</td><td><code>""</code></td><td>Champ affiche au survol</td></tr>
-            <tr><td><code>color</code></td><td>String</td><td><code>"#000091"</code></td><td>Couleur contours/markers (DSFR blue-france)</td></tr>
+            <tr><td><code>color</code></td><td>String</td><td><code>"#000091"</code></td><td>Couleur contours/markers (DSFR blue-france). Sert de fallback si <code>color-map</code> ne matche pas.</td></tr>
+            <tr><td><code>color-field</code></td><td>String</td><td><code>""</code></td><td>Champ dont la valeur determine la couleur (mapping categoriel)</td></tr>
+            <tr><td><code>color-map</code></td><td>String</td><td><code>""</code></td><td>Paires <code>valeur:#couleur</code> separees par virgule. Ex: <code>"1:#00A95F,2:#FF9940,3:#E1000F"</code></td></tr>
             <tr><td><code>fill-field</code></td><td>String</td><td><code>""</code></td><td>Champ numerique pour choropleth geoshape</td></tr>
             <tr><td><code>fill-opacity</code></td><td>Number</td><td><code>0.6</code></td><td>Opacite du remplissage</td></tr>
             <tr><td><code>selected-palette</code></td><td>String</td><td><code>""</code></td><td>Palette choropleth (memes noms que world-map)</td></tr>

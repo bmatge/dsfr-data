@@ -278,6 +278,45 @@
         </table>
 
         <!-- ============================================================ -->
+        <h2>Couleurs categorielles (color-map)</h2>
+        <p>
+          Les attributs <code>color-field</code> et <code>color-map</code> permettent d'associer une couleur
+          specifique a chaque valeur d'un champ. La couleur par defaut (<code>color</code>) s'applique
+          si la valeur n'est pas dans le mapping.
+        </p>
+
+        <h4>Statut sanitaire par ville (cercles colores)</h4>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-colormap">Code source</button></h3>
+          <div class="fr-collapse" id="code-colormap">
+<pre class="example-code">&lt;dsfr-data-source id="statuts" data='[
+  {"nom":"Paris","lat":48.85,"lon":2.35,"statut":"indemne"},
+  {"nom":"Lyon","lat":45.76,"lon":4.83,"statut":"surveillance"},
+  {"nom":"Marseille","lat":43.30,"lon":5.37,"statut":"foyer"},
+  {"nom":"Toulouse","lat":43.60,"lon":1.44,"statut":"indemne"},
+  {"nom":"Bordeaux","lat":44.84,"lon":-0.58,"statut":"zone reglementee"},
+  {"nom":"Nice","lat":43.71,"lon":7.26,"statut":"foyer"},
+  {"nom":"Strasbourg","lat":48.57,"lon":7.75,"statut":"indemne"},
+  {"nom":"Nantes","lat":47.22,"lon":-1.55,"statut":"surveillance"},
+  {"nom":"Lille","lat":50.63,"lon":3.06,"statut":"indemne"},
+  {"nom":"Montpellier","lat":43.61,"lon":3.88,"statut":"zone reglementee"}
+]'&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-map center="46.6,2.3" zoom="6" height="500px"&gt;
+  &lt;dsfr-data-map-layer source="statuts" type="circle"
+    lat-field="lat" lon-field="lon"
+    radius="12" fill-opacity="0.7"
+    color-field="statut"
+    color-map="indemne:#00A95F,surveillance:#FF9940,foyer:#E1000F,zone reglementee:#000091"
+    popup-template="{nom} — {statut}"
+    tooltip-field="nom"&gt;
+  &lt;/dsfr-data-map-layer&gt;
+&lt;/dsfr-data-map&gt;</pre>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
         <h2>Animation temporelle (timeline)</h2>
         <p>
           L'attribut <code>time-field</code> sur un layer active le decoupage temporel des donnees.

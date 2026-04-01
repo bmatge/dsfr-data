@@ -2076,7 +2076,7 @@ Chargé via le bundle \`dsfr-data.world-map.esm.js\` (séparé du core).
     id: 'dsfrDataMap',
     name: 'dsfr-data-map',
     description: 'Carte interactive Leaflet multi-couches avec POI, geoshape, cercles, clustering et chargement par viewport',
-    trigger: ['carte', 'map', 'leaflet', 'poi', 'marker', 'geoshape', 'geojson', 'clustering', 'bbox', 'viewport', 'tuiles', 'ign', 'geoplateforme', 'cercles proportionnels', 'heatmap', 'carte interactive', 'geo_point', 'geo_shape', 'choropleth carte', 'map layer', 'timeline', 'animation temporelle', 'carte animee', 'evolution temporelle'],
+    trigger: ['carte', 'map', 'leaflet', 'poi', 'marker', 'geoshape', 'geojson', 'clustering', 'bbox', 'viewport', 'tuiles', 'ign', 'geoplateforme', 'cercles proportionnels', 'heatmap', 'carte interactive', 'geo_point', 'geo_shape', 'choropleth carte', 'map layer', 'timeline', 'animation temporelle', 'carte animee', 'evolution temporelle', 'color-map', 'couleur categorielle', 'couleur par valeur'],
     content: `## dsfr-data-map + dsfr-data-map-layer — Carte interactive multi-couches
 
 Deux composants complementaires :
@@ -2121,7 +2121,9 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | popup-template | String | \`""\` | Template : \`"{nom} — {val} kW"\` |
 | popup-fields | String | \`""\` | Champs pour tableau auto : \`"nom,adresse"\` |
 | tooltip-field | String | \`""\` | Champ affiche au survol |
-| color | String | \`"#000091"\` | Couleur (DSFR blue-france) |
+| color | String | \`"#000091"\` | Couleur (DSFR blue-france). Fallback si color-map ne matche pas |
+| color-field | String | \`""\` | Champ dont la valeur determine la couleur (mapping categoriel) |
+| color-map | String | \`""\` | Paires \`valeur:#couleur\` separees par virgule. Ex: \`"1:#00A95F,2:#FF9940,3:#E1000F"\` |
 | fill-field | String | \`""\` | Champ numerique pour choropleth |
 | fill-opacity | Number | \`0.6\` | Opacite remplissage |
 | selected-palette | String | \`""\` | Palette choropleth |
@@ -2190,6 +2192,20 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
     color="#000091" fill-opacity="0.4"
     popup-fields="nom,population"
     tooltip-field="nom">
+  </dsfr-data-map-layer>
+</dsfr-data-map>
+\`\`\`
+
+### Exemple : couleurs categorielles (color-map)
+
+\`\`\`html
+<dsfr-data-map center="46.6,2.3" zoom="6">
+  <dsfr-data-map-layer source="depts" type="geoshape"
+    geo-field="geo_shape"
+    color-field="statut"
+    color-map="1:#00A95F,2:#FF9940,3:#E1000F,4:#000091"
+    fill-opacity="0.6"
+    popup-template="<b>{nom}</b><br>Statut : {statut_label}">
   </dsfr-data-map-layer>
 </dsfr-data-map>
 \`\`\`
