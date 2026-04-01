@@ -17,6 +17,7 @@ const root = resolve(__dirname, '..');
 
 const commonConfig = {
   esbuild: { keepNames: true },
+  define: { 'process.env.NODE_ENV': '"production"' },
   resolve: { alias: { '@': resolve(root, 'src') } },
   configFile: false,
   logLevel: 'warn' as const,

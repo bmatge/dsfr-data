@@ -522,7 +522,7 @@ describe('DsfrDataQuery', () => {
 
       const initSpy = vi.spyOn(query as any, '_initialize');
       const changedProps = new Map([['source', 'old-source']]);
-      query.updated(changedProps);
+      query.willUpdate(changedProps);
       expect(initSpy).toHaveBeenCalled();
       initSpy.mockRestore();
     });
@@ -534,7 +534,7 @@ describe('DsfrDataQuery', () => {
 
       const initSpy = vi.spyOn(query as any, '_initialize');
       const changedProps = new Map([['groupBy', '']]);
-      query.updated(changedProps);
+      query.willUpdate(changedProps);
       expect(initSpy).toHaveBeenCalled();
       initSpy.mockRestore();
     });
@@ -545,7 +545,7 @@ describe('DsfrDataQuery', () => {
 
       const refreshSpy = vi.spyOn(query as any, '_setupRefresh');
       const changedProps = new Map([['refresh', 0]]);
-      query.updated(changedProps);
+      query.willUpdate(changedProps);
       expect(refreshSpy).toHaveBeenCalled();
       refreshSpy.mockRestore();
     });

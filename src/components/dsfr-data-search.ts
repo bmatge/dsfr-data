@@ -142,8 +142,8 @@ export class DsfrDataSearch extends LitElement {
     }
   }
 
-  updated(changedProperties: Map<string, unknown>) {
-    super.updated(changedProperties);
+  willUpdate(changedProperties: Map<string, unknown>) {
+    super.willUpdate(changedProperties);
 
     if (changedProperties.has('source')) {
       this._initialize();

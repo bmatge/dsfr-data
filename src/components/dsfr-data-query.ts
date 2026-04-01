@@ -222,7 +222,9 @@ export class DsfrDataQuery extends LitElement {
     }
   }
 
-  updated(changedProperties: Map<string, unknown>) {
+  willUpdate(changedProperties: Map<string, unknown>) {
+    super.willUpdate(changedProperties);
+
     const queryProps = ['source', 'where', 'filter', 'groupBy', 'aggregate',
                         'orderBy', 'limit', 'transform', 'serverSide', 'pageSize'];
 

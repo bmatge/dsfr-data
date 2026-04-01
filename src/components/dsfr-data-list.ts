@@ -132,8 +132,8 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
     }
   }
 
-  updated(changedProperties: Map<string, unknown>) {
-    super.updated(changedProperties);
+  willUpdate(changedProperties: Map<string, unknown>) {
+    super.willUpdate(changedProperties);
     if (changedProperties.has('tri')) {
       this._initSort();
     }

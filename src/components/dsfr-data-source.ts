@@ -176,7 +176,9 @@ export class DsfrDataSource extends LitElement {
     }
   }
 
-  updated(changedProperties: Map<string, unknown>) {
+  willUpdate(changedProperties: Map<string, unknown>) {
+    super.willUpdate(changedProperties);
+
     // Mode inline data : pas de fetch, dispatch direct
     if (changedProperties.has('data') && this.data) {
       this._dispatchInlineData();
