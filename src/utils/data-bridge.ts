@@ -43,11 +43,12 @@ export const DATA_EVENTS = {
   SOURCE_COMMAND: 'dsfr-data-source-command'
 } as const;
 
-// Cache global des données par sourceId
-const dataCache = new Map<string, unknown>();
-
-// Cache des métadonnées de pagination par sourceId
-const metaCache = new Map<string, PaginationMeta>();
+// Cache global des données par sourceId — stocké sur window pour partage entre bundles UMD
+const _win = typeof window !== 'undefined' ? window as any : {} as any;
+if (!_win.__dsfrDataCache) _win.__dsfrDataCache = new Map<string, unknown>();
+if (!_win.__dsfrDataMeta) _win.__dsfrDataMeta = new Map<string, PaginationMeta>();
+const dataCache: Map<string, unknown> = _win.__dsfrDataCache;
+const metaCache: Map<string, PaginationMeta> = _win.__dsfrDataMeta;
 
 /**
  * Enregistre des données dans le cache global
