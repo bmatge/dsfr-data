@@ -1,6 +1,7 @@
 /**
- * Lightweight product tour system (zero dependencies).
+ * Lightweight product tour system.
  * Highlights elements with an overlay and shows a popover with step info.
+ * Tour completion state is stored via saveToStorage (synced to server when authenticated).
  */
 
 // ─── Types ─────────────────────────────────────────────────────────────
@@ -27,20 +28,60 @@ export interface TourConfig {
   onComplete?: () => void;
 }
 
-// ─── localStorage helpers ──────────────────────────────────────────────
+// ─── Tour state (synced to server via saveToStorage hook) ─────────────
 
-const STORAGE_PREFIX = 'dsfr-data-tour-';
+import { loadFromStorage, saveToStorage, STORAGE_KEYS } from '../storage/local-storage.js';
+
+type TourState = Record<string, string>; // tourId → ISO date of completion
+
+/** Migrate legacy per-tour localStorage keys (dsfr-data-tour-*) to unified TOURS key */
+let _migrated = false;
+function _migrateLegacyKeys(): void {
+  if (_migrated) return;
+  _migrated = true;
+  const prefix = 'dsfr-data-tour-';
+  const tourIds = ['builder', 'sources', 'builder-ia', 'builder-carto', 'playground', 'dashboard'];
+  let migrated = false;
+  const state = loadFromStorage<TourState>(STORAGE_KEYS.TOURS, {});
+  for (const id of tourIds) {
+    const val = localStorage.getItem(prefix + id);
+    if (val && !state[id]) {
+      state[id] = val;
+      migrated = true;
+    }
+    if (val) localStorage.removeItem(prefix + id);
+  }
+  if (migrated) saveToStorage(STORAGE_KEYS.TOURS, state);
+}
+
+function _loadState(): TourState {
+  _migrateLegacyKeys();
+  return loadFromStorage<TourState>(STORAGE_KEYS.TOURS, {});
+}
+
+function _saveState(state: TourState): void {
+  saveToStorage(STORAGE_KEYS.TOURS, state);
+}
 
 export function shouldShowTour(tourId: string): boolean {
-  return localStorage.getItem(STORAGE_PREFIX + tourId) === null;
+  return !_loadState()[tourId];
 }
 
 export function markTourComplete(tourId: string): void {
-  localStorage.setItem(STORAGE_PREFIX + tourId, new Date().toISOString());
+  const state = _loadState();
+  state[tourId] = new Date().toISOString();
+  _saveState(state);
 }
 
 export function resetTour(tourId: string): void {
-  localStorage.removeItem(STORAGE_PREFIX + tourId);
+  const state = _loadState();
+  delete state[tourId];
+  _saveState(state);
+}
+
+/** Reset all tour completions (for testing/debug) */
+export function resetAllTours(): void {
+  _saveState({});
 }
 
 // ─── Tour engine ───────────────────────────────────────────────────────
@@ -63,9 +104,21 @@ export function startTour(config: TourConfig): void {
 }
 
 /**
- * Start a tour only if it hasn't been completed yet.
+ * Start a tour only if it hasn't been completed yet, or forced via ?tour=restart.
+ * Handles the ?tour=restart URL parameter automatically (cleans up URL after use).
  */
 export function startTourIfFirstVisit(config: TourConfig, delay = 600): void {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('tour') === 'restart') {
+    // Remove query param without reload
+    params.delete('tour');
+    const clean = params.toString();
+    const url = window.location.pathname + (clean ? '?' + clean : '') + window.location.hash;
+    window.history.replaceState({}, '', url);
+    resetTour(config.id);
+    setTimeout(() => startTour(config), delay);
+    return;
+  }
   if (!shouldShowTour(config.id)) return;
   setTimeout(() => startTour(config), delay);
 }

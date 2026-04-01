@@ -46,5 +46,6 @@ export async function initAuth(): Promise<void> {
     loadData(STORAGE_KEYS.CONNECTIONS, []),
     loadData(STORAGE_KEYS.FAVORITES, []),
     loadData(STORAGE_KEYS.DASHBOARDS, []),
+    loadData(STORAGE_KEYS.TOURS, {}),
   ]);
 }

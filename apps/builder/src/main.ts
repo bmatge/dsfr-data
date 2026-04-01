@@ -299,17 +299,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Product tour (first visit only, or forced via ?tour=restart)
   injectTourStyles();
-  const tourParam = new URLSearchParams(window.location.search).get('tour');
-  if (tourParam === 'restart') {
-    // Remove the query param from URL without reload
-    const url = new URL(window.location.href);
-    url.searchParams.delete('tour');
-    window.history.replaceState({}, '', url.toString());
-    resetTour(BUILDER_TOUR.id);
-    startTour(BUILDER_TOUR);
-  } else {
-    startTourIfFirstVisit(BUILDER_TOUR);
-  }
+  startTourIfFirstVisit(BUILDER_TOUR);
 
   // Tour restart button
   const restartTourBtn = document.getElementById('restart-tour-btn');

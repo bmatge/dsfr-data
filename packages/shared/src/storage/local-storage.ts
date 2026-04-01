@@ -9,6 +9,7 @@ export const STORAGE_KEYS = {
   CONNECTIONS: 'dsfr-data-connections',
   SOURCES: 'dsfr-data-sources',
   SELECTED_SOURCE: 'dsfr-data-selected-source',
+  TOURS: 'dsfr-data-tours',
 } as const;
 
 /**
