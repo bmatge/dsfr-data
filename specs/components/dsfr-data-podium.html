@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dsfr-data-podium - Composants - dsfr-data</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css" integrity="sha384-VuzA/gYnk/ZqcT5a/ravR88otj71vNPl/h1JPrKoESV33DCX6SeXIxBcRr5qYPRj" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css" integrity="sha384-YR4AxNhFVy1qsQ0Hp7Rosg06e4sj2m9dLxiYZrtqJ0boIOiDbD8XkIsIPMMkf0VL" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+</head>
+<body>
+  <!-- Sources de donnees -->
+  <dsfr-data-source id="sites" url="/mock-api/data.json" transform="sites"></dsfr-data-source>
+
+  <!-- Header -->
+  <app-header current-page="composants" base-path="../../"></app-header>
+
+  <!-- Layout documentation avec sidemenu -->
+  <app-layout-demo
+    title="dsfr-data-podium"
+    icon="ri-bar-chart-horizontal-line"
+    active-path="components/dsfr-data-podium"
+    base-path="../">
+    <div slot="content">
+        <p class="fr-text--lead">
+          Affiche un classement visuel (top N) avec rang numerote, label, barre de progression proportionnelle et valeur formatee.
+        </p>
+
+        <h2>Attributs</h2>
+        <table class="attr-table">
+          <thead><tr><th>Attribut</th><th>Type</th><th>Defaut</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>source</code></td><td>String</td><td><code>""</code></td><td>ID du <code>&lt;dsfr-data-source&gt;</code> ou <code>&lt;dsfr-data-query&gt;</code> (requis)</td></tr>
+            <tr><td><code>label-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers le champ label (supporte dot notation)</td></tr>
+            <tr><td><code>value-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers le champ valeur numerique</td></tr>
+            <tr><td><code>subtitle</code></td><td>String</td><td><code>""</code></td><td>Texte fixe affiche sous chaque label</td></tr>
+            <tr><td><code>subtitle-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers un champ pour le sous-titre (prioritaire sur subtitle)</td></tr>
+            <tr><td><code>value-unit</code></td><td>String</td><td><code>""</code></td><td>Unite affichee apres la valeur</td></tr>
+            <tr><td><code>selected-palette</code></td><td>String</td><td><code>"sequentialDescending"</code></td><td>Palette de couleurs : sequentialDescending, sequentialAscending, categorical, neutral</td></tr>
+            <tr><td><code>max-items</code></td><td>Number</td><td><code>5</code></td><td>Nombre maximum d'items affiches</td></tr>
+            <tr><td><code>no-sort</code></td><td>Boolean</td><td><code>false</code></td><td>Desactive le tri automatique (desc par valeur)</td></tr>
+            <tr><td><code>bar-max</code></td><td>Number</td><td>-</td><td>Valeur max forcee pour les barres (ex: 100 pour des %)</td></tr>
+          </tbody>
+        </table>
+
+        <h2 class="fr-mt-4w">Palettes disponibles</h2>
+        <table class="attr-table">
+          <thead><tr><th>Palette</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>sequentialDescending</code></td><td>Bleu fonce vers bleu clair (defaut) — ideal pour les classements</td></tr>
+            <tr><td><code>sequentialAscending</code></td><td>Bleu clair vers bleu fonce</td></tr>
+            <tr><td><code>categorical</code></td><td>Couleurs contrastees — ideal quand les items ne sont pas ordonnes</td></tr>
+            <tr><td><code>neutral</code></td><td>Niveaux de gris</td></tr>
+          </tbody>
+        </table>
+
+        <h2 class="fr-mt-4w">Exemples</h2>
+
+        <section class="demo-section">
+          <h3>1. Top 5 des sites par score RGAA</h3>
+          <dsfr-data-podium
+            source="sites"
+            label-field="nom"
+            value-field="score_rgaa"
+            subtitle="Site gouvernemental"
+            value-unit="/ 100"
+            selected-palette="sequentialDescending"
+            max-items="5"
+            bar-max="100">
+          </dsfr-data-podium>
+          <div class="code-block"><pre>&lt;dsfr-data-podium
+  source="sites"
+  label-field="nom"
+  value-field="score_rgaa"
+  subtitle="Site gouvernemental"
+  value-unit="/ 100"
+  selected-palette="sequentialDescending"
+  max-items="5"
+  bar-max="100"&gt;
+&lt;/dsfr-data-podium&gt;</pre></div>
+        </section>
+
+        <section class="demo-section">
+          <h3>2. Top 3 avec palette categorielle</h3>
+          <dsfr-data-podium
+            source="sites"
+            label-field="nom"
+            value-field="score_dsfr"
+            subtitle="Conformite DSFR"
+            value-unit="%"
+            selected-palette="categorical"
+            max-items="3"
+            bar-max="100">
+          </dsfr-data-podium>
+          <div class="code-block"><pre>&lt;dsfr-data-podium
+  source="sites"
+  label-field="nom"
+  value-field="score_dsfr"
+  subtitle="Conformite DSFR"
+  value-unit="%"
+  selected-palette="categorical"
+  max-items="3"
+  bar-max="100"&gt;
+&lt;/dsfr-data-podium&gt;</pre></div>
+        </section>
+
+        <section class="demo-section">
+          <h3>3. Avec sous-titres dynamiques (subtitle-field)</h3>
+          <dsfr-data-podium
+            source="sites"
+            label-field="nom"
+            value-field="score_rgaa"
+            subtitle-field="ministere"
+            value-unit="/ 100"
+            bar-max="100"
+            max-items="5">
+          </dsfr-data-podium>
+          <div class="code-block"><pre>&lt;dsfr-data-podium
+  source="sites"
+  label-field="nom"
+  value-field="score_rgaa"
+  subtitle-field="ministere"
+  value-unit="/ 100"
+  bar-max="100"
+  max-items="5"&gt;
+&lt;/dsfr-data-podium&gt;</pre></div>
+        </section>
+
+        <section class="demo-section">
+          <h3>4. Sans tri (ordre de la source) + palette neutre</h3>
+          <dsfr-data-podium
+            source="sites"
+            label-field="nom"
+            value-field="score_rgaa"
+            value-unit="/ 100"
+            selected-palette="neutral"
+            max-items="5"
+            bar-max="100"
+            no-sort>
+          </dsfr-data-podium>
+          <div class="code-block"><pre>&lt;dsfr-data-podium
+  source="sites"
+  label-field="nom"
+  value-field="score_rgaa"
+  value-unit="/ 100"
+  selected-palette="neutral"
+  max-items="5"
+  bar-max="100"
+  no-sort&gt;
+&lt;/dsfr-data-podium&gt;</pre></div>
+        </section>
+
+        <section class="demo-section">
+          <h3>5. Avec dsfr-data-query (agregation par ministere)</h3>
+          <dsfr-data-query id="par-ministere" source="sites"
+            group-by="ministere"
+            aggregate="score_rgaa:avg:score_moyen"
+            order-by="score_moyen:desc">
+          </dsfr-data-query>
+          <dsfr-data-podium
+            source="par-ministere"
+            label-field="ministere"
+            value-field="score_moyen"
+            subtitle="Score RGAA moyen"
+            value-unit="/ 100"
+            bar-max="100"
+            max-items="5">
+          </dsfr-data-podium>
+          <div class="code-block"><pre>&lt;dsfr-data-query id="par-ministere" source="sites"
+  group-by="ministere"
+  aggregate="score_rgaa:avg:score_moyen"
+  order-by="score_moyen:desc"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;dsfr-data-podium
+  source="par-ministere"
+  label-field="ministere"
+  value-field="score_moyen"
+  subtitle="Score RGAA moyen"
+  value-unit="/ 100"
+  bar-max="100"
+  max-items="5"&gt;
+&lt;/dsfr-data-podium&gt;</pre></div>
+        </section>
+    </div>
+  </app-layout-demo>
+
+  <!-- Footer -->
+  <app-footer base-path="../../"></app-footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js" integrity="sha384-4dK3hBJJh/bjoOulz9Q1kNO2O09lzuKiFeF5c+0VguV1RT3IiLkv+Pt98Jul84V+" crossorigin="anonymous"></script>
+</body>
+</html>

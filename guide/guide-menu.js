@@ -30,6 +30,7 @@
           { id: "exemples-search", label: "dsfr-data-search", href: "guide-exemples-search.html" },
           { id: "exemples-facets", label: "dsfr-data-facets", href: "guide-exemples-facets.html" },
           { id: "exemples-display", label: "dsfr-data-display", href: "guide-exemples-display.html" },
+          { id: "exemples-podium", label: "dsfr-data-podium", href: "guide-exemples-podium.html" },
           { id: "exemples-chart-a11y", label: "dsfr-data-a11y", href: "guide-exemples-chart-a11y.html" },
           { id: "exemples-map", label: "dsfr-data-map", href: "guide-exemples-map.html" }
         ]

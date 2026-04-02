@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dsfr-data-podium — Exemples - Guide - dsfr-data</title>
+  <style>@view-transition{navigation:auto}app-header:not(:defined){display:block;min-height:56px}app-footer:not(:defined){display:block;min-height:48px}</style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script src="guide-menu.js"></script>
+  <style>
+    .guide-layout { display: flex; gap: 2rem; }
+    .guide-content { flex: 1; min-width: 0; }
+    @media (max-width: 992px) {
+      .guide-layout { flex-direction: column; }
+    }
+    .guide-content h2 { padding-top: 2rem; border-top: 1px solid var(--border-default-grey); margin-top: 3rem; }
+    .guide-content h2:first-of-type { border-top: none; margin-top: 0; padding-top: 0; }
+    .guide-content h3 { margin-top: 2rem; }
+    .guide-content h4 { margin-top: 1.5rem; }
+    .guide-content pre { background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 4px; font-family: monospace; font-size: 0.85rem; overflow-x: auto; white-space: pre-wrap; margin: 0; }
+    .guide-content ol, .guide-content ul { margin: 0.5rem 0 1rem 1.5rem; }
+    .guide-content li { margin-bottom: 0.25rem; }
+    .example-container { border: 1px solid var(--border-default-grey); border-radius: 4px; padding: 1rem; background: white; min-height: 100px; }
+  </style>
+</head>
+<body>
+  <app-header current-page="guide" base-path="../"></app-header>
+
+  <main class="fr-container fr-py-4w" id="main-content">
+    <div class="guide-layout">
+
+      <app-sidemenu section="guide"></app-sidemenu>
+
+      <div class="guide-content">
+
+        <h1><i class="ri-bar-chart-horizontal-line fr-mr-1w"></i>dsfr-data-podium</h1>
+        <p class="fr-text--lead">
+          <code>dsfr-data-podium</code> affiche un classement visuel (top N) avec rang, label, barre de progression et valeur formatee.
+          Ideal pour les palmares, classements, top 5/10, leaderboards.
+        </p>
+
+        <!-- Source commune -->
+        <dsfr-data-source id="sites" url="/mock-api/data.json" transform="sites"></dsfr-data-source>
+
+        <!-- ============================================================= -->
+        <h2>Podium simple — source directe</h2>
+        <!-- ============================================================= -->
+
+        <p>Le cas le plus simple : une source de donnees et un podium. Le composant trie automatiquement par valeur decroissante et affiche les N premiers.</p>
+
+        <h4>Top 5 des sites par score RGAA</h4>
+        <div class="example-container">
+          <dsfr-data-podium
+            source="sites"
+            label-field="nom"
+            value-field="score_rgaa"
+            subtitle="Site gouvernemental"
+            value-unit="/ 100"
+            bar-max="100"
+            max-items="5">
+          </dsfr-data-podium>
+        </div>
+        <pre>&lt;dsfr-data-source id="sites" url="/mock-api/data.json" transform="sites"&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-podium
+  source="sites"
+  label-field="nom"
+  value-field="score_rgaa"
+  subtitle="Site gouvernemental"
+  value-unit="/ 100"
+  bar-max="100"
+  max-items="5"&gt;
+&lt;/dsfr-data-podium&gt;</pre>
+
+        <!-- ============================================================= -->
+        <h2>Sous-titres dynamiques</h2>
+        <!-- ============================================================= -->
+
+        <p>Utilisez <code>subtitle-field</code> pour afficher un champ different sous chaque label, au lieu d'un texte fixe.</p>
+
+        <h4>Top 5 avec le ministere en sous-titre</h4>
+        <div class="example-container">
+          <dsfr-data-podium
+            source="sites"
+            label-field="nom"
+            value-field="score_rgaa"
+            subtitle-field="ministere"
+            value-unit="/ 100"
+            bar-max="100"
+            max-items="5">
+          </dsfr-data-podium>
+        </div>
+        <pre>&lt;dsfr-data-podium
+  source="sites"
+  label-field="nom"
+  value-field="score_rgaa"
+  subtitle-field="ministere"
+  value-unit="/ 100"
+  bar-max="100"
+  max-items="5"&gt;
+&lt;/dsfr-data-podium&gt;</pre>
+
+        <!-- ============================================================= -->
+        <h2>Palettes de couleurs</h2>
+        <!-- ============================================================= -->
+
+        <p>Le podium supporte 4 palettes DSFR. La palette determine la couleur de la bordure gauche et de la barre de progression.</p>
+
+        <h4>Palette categorielle</h4>
+        <div class="example-container">
+          <dsfr-data-podium
+            source="sites"
+            label-field="nom"
+            value-field="score_dsfr"
+            subtitle="Conformite DSFR"
+            value-unit="%"
+            selected-palette="categorical"
+            bar-max="100"
+            max-items="5">
+          </dsfr-data-podium>
+        </div>
+        <pre>&lt;dsfr-data-podium source="sites"
+  label-field="nom" value-field="score_dsfr"
+  subtitle="Conformite DSFR" value-unit="%"
+  selected-palette="categorical" bar-max="100" max-items="5"&gt;
+&lt;/dsfr-data-podium&gt;</pre>
+
+        <h4>Palette neutre</h4>
+        <div class="example-container">
+          <dsfr-data-podium
+            source="sites"
+            label-field="nom"
+            value-field="score_dsfr"
+            value-unit="%"
+            selected-palette="neutral"
+            bar-max="100"
+            max-items="5">
+          </dsfr-data-podium>
+        </div>
+
+        <!-- ============================================================= -->
+        <h2>Pipeline avec dsfr-data-query</h2>
+        <!-- ============================================================= -->
+
+        <p>Combinez avec <code>dsfr-data-query</code> pour agreger les donnees avant affichage. Ici on calcule le score RGAA moyen par ministere.</p>
+
+        <h4>Score moyen par ministere</h4>
+        <dsfr-data-query id="par-ministere" source="sites"
+          group-by="ministere"
+          aggregate="score_rgaa:avg:score_moyen"
+          order-by="score_moyen:desc">
+        </dsfr-data-query>
+        <div class="example-container">
+          <dsfr-data-podium
+            source="par-ministere"
+            label-field="ministere"
+            value-field="score_moyen"
+            subtitle="Score RGAA moyen"
+            value-unit="/ 100"
+            bar-max="100"
+            max-items="5">
+          </dsfr-data-podium>
+        </div>
+        <pre>&lt;dsfr-data-query id="par-ministere" source="sites"
+  group-by="ministere"
+  aggregate="score_rgaa:avg:score_moyen"
+  order-by="score_moyen:desc"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;dsfr-data-podium
+  source="par-ministere"
+  label-field="ministere"
+  value-field="score_moyen"
+  subtitle="Score RGAA moyen"
+  value-unit="/ 100"
+  bar-max="100"
+  max-items="5"&gt;
+&lt;/dsfr-data-podium&gt;</pre>
+
+        <!-- ============================================================= -->
+        <h2>Sans tri automatique</h2>
+        <!-- ============================================================= -->
+
+        <p>Avec <code>no-sort</code>, le podium conserve l'ordre de la source. Utile quand le tri est deja fait en amont par la query ou quand l'ordre n'est pas lie a la valeur.</p>
+
+        <div class="example-container">
+          <dsfr-data-podium
+            source="sites"
+            label-field="nom"
+            value-field="score_rgaa"
+            value-unit="/ 100"
+            selected-palette="neutral"
+            bar-max="100"
+            max-items="5"
+            no-sort>
+          </dsfr-data-podium>
+        </div>
+        <pre>&lt;dsfr-data-podium
+  source="sites"
+  label-field="nom" value-field="score_rgaa"
+  value-unit="/ 100" selected-palette="neutral"
+  bar-max="100" max-items="5" no-sort&gt;
+&lt;/dsfr-data-podium&gt;</pre>
+
+        <!-- ============================================================= -->
+        <h2>Source API dynamique (OpenDataSoft)</h2>
+        <!-- ============================================================= -->
+
+        <p>Pour des donnees qui se mettent a jour automatiquement, utilisez une source API. Le pipeline <code>dsfr-data-source</code> + <code>dsfr-data-query</code> gere la pagination et l'agregation cote serveur.</p>
+
+        <dsfr-data-source id="ods-regions"
+          api-type="opendatasoft"
+          base-url="https://data.economie.gouv.fr"
+          dataset-id="population-francaise-communes"
+          select="sum(population_totale) as population, nom_region"
+          group-by="nom_region"
+          limit="20">
+        </dsfr-data-source>
+
+        <h4>Population par region (API ODS)</h4>
+        <div class="example-container">
+          <dsfr-data-podium
+            source="ods-regions"
+            label-field="nom_region"
+            value-field="population"
+            subtitle="Region"
+            value-unit="hab."
+            selected-palette="sequentialDescending"
+            max-items="5">
+          </dsfr-data-podium>
+        </div>
+        <pre>&lt;dsfr-data-source id="ods-regions"
+  api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr"
+  dataset-id="population-francaise-communes"
+  select="sum(population_totale) as population, nom_region"
+  group-by="nom_region"
+  limit="20"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-podium
+  source="ods-regions"
+  label-field="nom_region"
+  value-field="population"
+  subtitle="Region"
+  value-unit="hab."
+  selected-palette="sequentialDescending"
+  max-items="5"&gt;
+&lt;/dsfr-data-podium&gt;</pre>
+
+      </div><!-- .guide-content -->
+    </div><!-- .guide-layout -->
+  </main>
+
+  <app-footer base-path="../"></app-footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js"></script>
+</body>
+</html>
