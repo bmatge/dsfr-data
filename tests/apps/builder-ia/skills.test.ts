@@ -23,6 +23,7 @@ import { DsfrDataJoin } from '../../../src/components/dsfr-data-join.js';
 import { DsfrDataMap } from '../../../src/components/dsfr-data-map.js';
 import { DsfrDataMapLayer } from '../../../src/components/dsfr-data-map-layer.js';
 import { DsfrDataMapPopup } from '../../../src/components/dsfr-data-map-popup.js';
+import { DsfrDataPodium } from '../../../src/components/dsfr-data-podium.js';
 
 // Type/constant imports for alignment checks
 import type { FilterOperator, AggregateFunction } from '../../../src/components/dsfr-data-query.js';
@@ -50,8 +51,8 @@ function getHtmlAttributes(ComponentClass: typeof DsfrDataSource): Set<string> {
 }
 
 describe('builder-ia skills', () => {
-  it('should have 24 skill definitions', () => {
-    expect(Object.keys(SKILLS)).toHaveLength(24);
+  it('should have 25 skill definitions', () => {
+    expect(Object.keys(SKILLS)).toHaveLength(25);
   });
 
   it('should have expected skill IDs', () => {
@@ -79,6 +80,7 @@ describe('builder-ia skills', () => {
     expect(SKILLS).toHaveProperty('dsfrDataMap');
     expect(SKILLS).toHaveProperty('troubleshooting');
     expect(SKILLS).toHaveProperty('dsfrDataJoin');
+    expect(SKILLS).toHaveProperty('dsfrDataPodium');
   });
 
   it('each skill should have required properties', () => {
@@ -284,6 +286,10 @@ describe('builder-ia skills', () => {
       it('dsfrDataMap skill covers all <dsfr-data-map-popup> attributes', () => {
         assertAttributesCovered(DsfrDataMapPopup as unknown as typeof DsfrDataSource, 'dsfrDataMap', 'dsfr-data-map-popup');
       });
+
+      it('dsfrDataPodium skill covers all <dsfr-data-podium> attributes', () => {
+        assertAttributesCovered(DsfrDataPodium as unknown as typeof DsfrDataSource, 'dsfrDataPodium', 'dsfr-data-podium');
+      });
     });
 
     describe('chart types coverage', () => {
@@ -362,6 +368,7 @@ describe('builder-ia skills', () => {
         'DsfrDataMap': 'dsfrDataMap',
         'DsfrDataA11y': 'dsfrDataA11y',
         'DsfrDataJoin': 'dsfrDataJoin',
+        'DsfrDataPodium': 'dsfrDataPodium',
       };
 
       it('every data component has a corresponding skill', () => {

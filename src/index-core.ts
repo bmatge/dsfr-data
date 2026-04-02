@@ -16,6 +16,7 @@ export { DsfrDataKpiGroup } from './components/dsfr-data-kpi-group.js';
 export { DsfrDataList } from './components/dsfr-data-list.js';
 export { DsfrDataDisplay } from './components/dsfr-data-display.js';
 export { DsfrDataChart } from './components/dsfr-data-chart.js';
+export { DsfrDataPodium } from './components/dsfr-data-podium.js';
 export { DsfrDataA11y } from './components/dsfr-data-a11y.js';
 
 // Composants de layout

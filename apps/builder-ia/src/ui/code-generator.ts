@@ -92,6 +92,12 @@ export function generateCode(config: ChartConfig, data: AggregatedResult[]): voi
     return;
   }
 
+  // Handle podium type
+  if (config.type === 'podium') {
+    codeEl.textContent = generatePodiumCode(config, data);
+    return;
+  }
+
   // Handle standard chart types (bar, line, pie, doughnut, radar, horizontalBar, bar-line)
   codeEl.textContent = generateStandardChartCode(config, data);
 }
@@ -952,4 +958,128 @@ new Chart(document.getElementById('myChart'), {
   }
 });
 <\/script>`;
+}
+
+// ---------------------------------------------------------------------------
+// Podium
+// ---------------------------------------------------------------------------
+
+function generatePodiumCode(config: ChartConfig, data: AggregatedResult[]): string {
+  const maxItems = config.limit || 5;
+  const palette = config.palette || 'sequentialDescending';
+  const unitAttr = config.unit ? `\n    value-unit="${escapeHtml(config.unit)}"` : '';
+  const subtitleAttr = config.subtitle ? `\n    subtitle="${escapeHtml(config.subtitle)}"` : '';
+
+  // API-dynamic variant (ODS)
+  if (state.source?.type === 'api' && state.source?.apiUrl) {
+    const provider = detectProvider(state.source.apiUrl);
+    const resourceIds = extractResourceIds(state.source.apiUrl, provider);
+    const apiBaseUrl = new URL(state.source.apiUrl).origin;
+
+    if (provider.id === 'opendatasoft' && resourceIds?.datasetId) {
+      const { selectExpr, resultField } = buildOdsSelect(config.aggregation || 'sum', config.valueField, config.labelField!);
+      const whereAttr = config.where ? `\n    where="${filterToOdsql(config.where)}"` : '';
+
+      return `<!-- Podium genere avec dsfr-data Builder IA -->
+<!-- Source API dynamique -->
+
+<!-- Dependances CSS (DSFR) -->
+<link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
+<link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
+<script src="${LIB_URL}/dsfr-data.core.umd.js"><\/script>
+
+<div class="fr-container fr-my-4w">
+  ${config.title ? `<h2>${escapeHtml(config.title)}</h2>` : ''}
+
+  <dsfr-data-source
+    id="podium-src"
+    api-type="opendatasoft"
+    base-url="${apiBaseUrl}"
+    dataset-id="${resourceIds.datasetId}"
+    select="${selectExpr}"
+    group-by="${config.labelField}"${whereAttr}>
+  </dsfr-data-source>
+
+  <dsfr-data-podium
+    source="podium-src"
+    label-field="${config.labelField}"
+    value-field="${resultField}"${subtitleAttr}${unitAttr}
+    selected-palette="${palette}"
+    max-items="${maxItems}">
+  </dsfr-data-podium>
+</div>`;
+    }
+
+    if (provider.id === 'tabular' && resourceIds?.resourceId) {
+      const aggregateExpr = config.aggregation === 'count'
+        ? `${config.labelField}:count:total`
+        : `${config.valueField}:${config.aggregation || 'sum'}:total`;
+      const whereAttr = config.where ? `\n    where="${config.where}"` : '';
+
+      return `<!-- Podium genere avec dsfr-data Builder IA -->
+<!-- Source API Tabular dynamique -->
+
+<!-- Dependances CSS (DSFR) -->
+<link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
+<link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
+<script src="${LIB_URL}/dsfr-data.core.umd.js"><\/script>
+
+<div class="fr-container fr-my-4w">
+  ${config.title ? `<h2>${escapeHtml(config.title)}</h2>` : ''}
+
+  <dsfr-data-source
+    id="podium-src"
+    api-type="tabular"
+    base-url="${apiBaseUrl}"
+    resource="${resourceIds.resourceId}"
+    server-side${whereAttr}>
+  </dsfr-data-source>
+  <dsfr-data-query
+    id="podium-data"
+    source="podium-src"
+    server-side
+    group-by="${config.labelField}"
+    aggregate="${aggregateExpr}"
+    order-by="total:desc">
+  </dsfr-data-query>
+
+  <dsfr-data-podium
+    source="podium-data"
+    label-field="${config.labelField}"
+    value-field="total"${subtitleAttr}${unitAttr}
+    selected-palette="${palette}"
+    max-items="${maxItems}">
+  </dsfr-data-podium>
+</div>`;
+    }
+  }
+
+  // Embedded data variant
+  const sourceName = state.source?.name || 'Donnees locales';
+  const sourceType = state.source?.type === 'grist' ? 'Grist' : 'source manuelle';
+
+  return `<!-- Podium genere avec dsfr-data Builder IA -->
+<!-- Source : ${sourceName} (${sourceType}) - donnees embarquees -->
+
+<!-- Dependances CSS (DSFR) -->
+<link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
+<link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
+<script src="${LIB_URL}/dsfr-data.core.umd.js"><\/script>
+
+<div class="fr-container fr-my-4w">
+  ${config.title ? `<h2>${escapeHtml(config.title)}</h2>` : ''}
+
+  <dsfr-data-source
+    id="podium-src"
+    data='${JSON.stringify(data.map(d => ({ [config.labelField!]: d.label, [config.valueField]: d.value })))}'>
+  </dsfr-data-source>
+
+  <dsfr-data-podium
+    source="podium-src"
+    label-field="${config.labelField}"
+    value-field="${config.valueField}"${subtitleAttr}${unitAttr}
+    selected-palette="${palette}"
+    max-items="${maxItems}">
+  </dsfr-data-podium>
+</div>`;
 }

@@ -1355,6 +1355,17 @@ name='["Serie A","Serie B"]'
     trigger: ['dashboard', 'tableau de bord', 'assembler', 'combiner', 'pipeline', 'plusieurs', 'ensemble', 'complet', 'page', 'embarquer', 'integrer'],
     content: `## Patterns de composition dsfr-data
 
+### REGLE IMPORTANTE : privilegier les sources dynamiques
+1. **Source API dynamique** (ODS, Tabular, INSEE) = premier choix. Les donnees se mettent a jour automatiquement, la pagination serveur est geree, les agregations et filtres sont delegues au serveur.
+2. **Grist** = excellent choix pour les donnees collaboratives (tableaux partages). Suggerer a l'utilisateur de publier ses donnees sur grist.numerique.gouv.fr s'il n'a pas d'API.
+3. **Donnees embarquees** (data='[...]') = dernier recours uniquement. Les donnees sont figees et alourdissent le HTML.
+
+### REGLE IMPORTANTE : deleguer le travail au serveur
+Preferer 3 \`dsfr-data-source\` bien cibles (avec select, where, group-by cote serveur) plutot qu'un seul source qui fetch tout sans filtre. Chainer les \`dsfr-data-query\` pour affiner :
+- \`dsfr-data-source\` avec \`select\`, \`where\`, \`group-by\` cote serveur → reduit le volume transfere
+- \`dsfr-data-query\` en chaine pour transformer/filtrer/agreger le resultat
+- Chaque visualisation peut avoir sa propre query pointant vers la meme source
+
 ### Architecture : composants freres lies par ID
 Les composants dsfr-data sont des elements HTML freres (pas imbriques).
 Ils communiquent via un bus evenementiel interne : \`source="id-de-la-source"\`.
@@ -2462,6 +2473,84 @@ Si un champ existe dans les deux sources avec le meme nom :
 - Relations 1-N : si plusieurs enregistrements droite matchent une cle gauche, autant de lignes sont generees
 - Le composant emet \`dsfr-data-loading\` tant qu'une source n'a pas encore repondu
 - Le composant emet \`dsfr-data-error\` si l'une des sources est en erreur`,
+  },
+
+  dsfrDataPodium: {
+    id: 'dsfrDataPodium',
+    name: 'dsfr-data-podium',
+    description: 'Classement visuel (top N) avec rang, barres proportionnelles et couleurs',
+    trigger: ['podium', 'classement', 'ranking', 'top', 'palmares', 'top 5', 'top 10', 'leaderboard'],
+    content: `## <dsfr-data-podium> - Classement visuel
+
+Affiche un podium (top N) avec rang numerote, label, sous-titre, barre de progression proportionnelle et valeur formatee.
+Se connecte au pipeline dsfr-data-source / dsfr-data-query via l'attribut \`source\`.
+
+### Attributs
+| Attribut | Type | Defaut | Requis | Description |
+|----------|------|--------|--------|-------------|
+| source | String | \`""\` | oui | ID de la dsfr-data-source ou dsfr-data-query |
+| label-field | String | \`""\` | oui | Chemin vers le champ label (supporte dot notation) |
+| value-field | String | \`""\` | oui | Chemin vers le champ valeur numerique |
+| subtitle | String | \`""\` | non | Texte fixe affiche sous chaque label |
+| subtitle-field | String | \`""\` | non | Chemin vers un champ pour le sous-titre (prioritaire sur subtitle) |
+| value-unit | String | \`""\` | non | Unite affichee apres la valeur (ex: "hab.", "€", "%") |
+| selected-palette | String | \`"sequentialDescending"\` | non | Palette de couleurs : sequentialDescending, sequentialAscending, categorical, neutral |
+| max-items | Number | \`5\` | non | Nombre maximum d'items affiches |
+| no-sort | Boolean | \`false\` | non | Desactive le tri automatique (desc par valeur) |
+| bar-max | Number | - | non | Valeur max forcee pour les barres (ex: 100 pour des pourcentages) |
+
+### Comportement
+- **Tri automatique** : les items sont tries par valeur decroissante (sauf si \`no-sort\` est present)
+- **Barres proportionnelles** : largeur relative au max des valeurs (ou \`bar-max\` si defini)
+- **Couleurs** : chaque item recoit une couleur de la palette choisie (bordure gauche + barre)
+- **Accessibilite** : \`<ol>\` semantique avec aria-label descriptif du classement complet
+
+### Exemples
+\`\`\`html
+<!-- Top 5 des regions par population -->
+<dsfr-data-source id="src" api-type="opendatasoft"
+  dataset-id="regions" base-url="https://data.gouv.fr">
+</dsfr-data-source>
+<dsfr-data-podium source="src"
+  label-field="nom"
+  value-field="population"
+  subtitle="Region"
+  value-unit="hab."
+  selected-palette="sequentialDescending"
+  max-items="5">
+</dsfr-data-podium>
+
+<!-- Podium avec donnees transformees par query -->
+<dsfr-data-query id="top-villes" source="src"
+  group-by="ville" aggregate="montant:sum:total"
+  order-by="total:desc">
+</dsfr-data-query>
+<dsfr-data-podium source="top-villes"
+  label-field="ville"
+  value-field="total"
+  value-unit="€"
+  max-items="10"
+  selected-palette="categorical">
+</dsfr-data-podium>
+
+<!-- Podium avec sous-titres dynamiques -->
+<dsfr-data-podium source="data"
+  label-field="nom"
+  value-field="score"
+  subtitle-field="categorie"
+  bar-max="100"
+  max-items="3">
+</dsfr-data-podium>
+
+<!-- Podium sans tri (ordre de la source) -->
+<dsfr-data-podium source="data"
+  label-field="etape"
+  value-field="progression"
+  value-unit="%"
+  bar-max="100"
+  no-sort>
+</dsfr-data-podium>
+\`\`\``,
   },
 };
 

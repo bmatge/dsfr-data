@@ -184,9 +184,9 @@ function createMcpServer(): McpServer {
 
   server.tool(
     'generate_widget_code',
-    'Get the full specification needed to generate dsfr-data HTML code: composition patterns, CDN dependencies, component docs, and troubleshooting tips.',
+    'Get the full specification needed to generate dsfr-data HTML code. IMPORTANT: always prefer dynamic API sources (ODS, Tabular, Grist) over embedded data. Use dsfr-data-query to chain filters and aggregations server-side rather than fetching everything.',
     {
-      chart_type: z.string().optional().describe('Optional chart type to focus on (bar, line, pie, map, kpi, datalist, etc.)'),
+      chart_type: z.string().optional().describe('Optional chart type to focus on (bar, line, pie, map, kpi, podium, datalist, etc.)'),
     },
     async ({ chart_type }) => {
       const skills = await loadSkills();
@@ -196,11 +196,12 @@ function createMcpServer(): McpServer {
       if (chart_type) {
         const lower = chart_type.toLowerCase();
         if (lower === 'kpi') ids.push('dsfrDataKpi');
+        if (lower === 'podium' || lower === 'classement' || lower === 'ranking') ids.push('dsfrDataPodium');
         if (lower === 'datalist' || lower === 'tableau') ids.push('dsfrDataList');
         if (lower === 'map' || lower === 'map-reg') ids.push('dsfrColors');
         if (lower.includes('bar') || lower.includes('pie') || lower.includes('line')) ids.push('chartTypes');
       } else {
-        ids.push('dsfrDataKpi', 'dsfrDataList', 'dsfrDataQuery', 'chartTypes', 'dsfrColors');
+        ids.push('dsfrDataKpi', 'dsfrDataPodium', 'dsfrDataList', 'dsfrDataQuery', 'chartTypes', 'dsfrColors');
       }
 
       if (!ids.includes('dsfrDataQuery')) ids.push('dsfrDataQuery');

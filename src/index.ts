@@ -16,6 +16,7 @@ export { DsfrDataKpiGroup } from './components/dsfr-data-kpi-group.js';
 export { DsfrDataList } from './components/dsfr-data-list.js';
 export { DsfrDataDisplay } from './components/dsfr-data-display.js';
 export { DsfrDataChart } from './components/dsfr-data-chart.js';
+export { DsfrDataPodium } from './components/dsfr-data-podium.js';
 export { DsfrDataWorldMap } from './components/dsfr-data-world-map.js';
 export { DsfrDataMap } from './components/dsfr-data-map.js';
 export { DsfrDataMapLayer } from './components/dsfr-data-map-layer.js';
