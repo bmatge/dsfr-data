@@ -41,6 +41,9 @@ e2e/screenshots
 # Server data (SQLite databases)
 server/data/
 
+# Generated examples manifest
+guide/examples/_list.json
+
 # Temporary files
 *.tmp
 *.temp
