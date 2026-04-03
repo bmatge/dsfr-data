@@ -46,7 +46,59 @@
           { id: "demo-complete", label: "Démo complète (tous composants)", href: "guide-demo-complete.html" }
         ]
       },
+      // Placeholder for dynamic "Autres exemples" — populated by _loadGuideExamples() below
       { id: "grist-widgets", label: "Widgets Grist", href: "guide-grist-widgets.html" }
     ]
   }
 ];
+
+/**
+ * Dynamically load HTML examples from guide/examples/ and inject them
+ * as an "Autres exemples" submenu before "Widgets Grist".
+ */
+(function _loadGuideExamples() {
+  // Determine the base URL for the examples list
+  // In dev (Vite), the plugin serves /guide/examples/_list.json
+  // In prod, a static _list.json is generated at build time
+  var basePath = '';
+  var scripts = document.getElementsByTagName('script');
+  for (var i = 0; i < scripts.length; i++) {
+    var src = scripts[i].src || '';
+    var idx = src.indexOf('guide-menu.js');
+    if (idx !== -1) {
+      basePath = src.substring(0, idx);
+      break;
+    }
+  }
+
+  fetch(basePath + 'examples/_list.json')
+    .then(function (r) { return r.ok ? r.json() : []; })
+    .then(function (examples) {
+      if (!examples || !examples.length) return;
+
+      var children = examples.map(function (ex) {
+        return {
+          id: 'example-' + ex.file.replace(/\.html$/, ''),
+          label: ex.title,
+          href: 'examples/' + ex.file
+        };
+      });
+
+      // Insert "Autres exemples" before "Widgets Grist" in the menu
+      var items = window.__APP_MENUS__.guide[0].items;
+      var gristIdx = items.findIndex(function (it) { return it.id === 'grist-widgets'; });
+      var insertAt = gristIdx !== -1 ? gristIdx : items.length;
+      items.splice(insertAt, 0, {
+        id: 'autres-exemples',
+        label: 'Autres exemples',
+        children: children
+      });
+
+      // Trigger re-render of the sidemenu component
+      var sidemenu = document.querySelector('app-sidemenu[section="guide"]');
+      if (sidemenu && sidemenu.requestUpdate) {
+        sidemenu.requestUpdate();
+      }
+    })
+    .catch(function () { /* silently ignore if no examples available */ });
+})();

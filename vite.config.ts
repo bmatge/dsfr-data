@@ -2,7 +2,7 @@ import { defineConfig, loadEnv } from 'vite';
 import { resolve } from 'path';
 import { request as httpsRequest } from 'https';
 import { request as httpRequest } from 'http';
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readFileSync, readdirSync } from 'fs';
 
 // Load .env so IA_DEFAULT_* vars are available in server plugins
 const rootEnv = loadEnv('development', __dirname, '');
@@ -139,6 +139,32 @@ export default defineConfig({
     }
   },
   plugins: [
+    {
+      name: 'guide-examples-list',
+      // Serve a JSON list of HTML files in guide/examples/ for the dynamic menu
+      configureServer(server) {
+        server.middlewares.use('/guide/examples/_list.json', (_req, res) => {
+          const examplesDir = resolve(__dirname, 'guide/examples');
+          const files: { file: string; title: string }[] = [];
+          if (existsSync(examplesDir)) {
+            for (const f of readdirSync(examplesDir)) {
+              if (!f.endsWith('.html')) continue;
+              let title = f.replace(/\.html$/, '').replace(/[-_]/g, ' ');
+              // Extract <title> from file if present
+              try {
+                const content = readFileSync(resolve(examplesDir, f), 'utf-8');
+                const m = content.match(/<title>([^<]+)<\/title>/i);
+                if (m) title = m[1].trim();
+              } catch { /* ignore */ }
+              files.push({ file: f, title });
+            }
+          }
+          files.sort((a, b) => a.title.localeCompare(b.title, 'fr'));
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify(files));
+        });
+      },
+    },
     {
       name: 'dev-lib-redirect',
       // In dev, redirect requests for the built bundle to the TS source
