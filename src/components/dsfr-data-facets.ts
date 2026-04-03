@@ -379,6 +379,24 @@ export class DsfrDataFacets extends LitElement {
     return parts.join(', ');
   }
 
+  /**
+   * Walk upstream through the source chain to find the actual dsfr-data-source element
+   * (the one with baseUrl/datasetId/headers). Intermediate components like dsfr-data-query
+   * have a `source` property pointing to their upstream.
+   */
+  private _findUpstreamSource(): HTMLElement | null {
+    let el: HTMLElement | null = document.getElementById(this.source);
+    // Walk up while the element is an intermediary (has source but no datasetId)
+    const maxDepth = 5; // safety limit
+    for (let i = 0; i < maxDepth && el; i++) {
+      if ('datasetId' in el || 'baseUrl' in el) return el;
+      const upstream = (el as any).source;
+      if (!upstream || typeof upstream !== 'string') break;
+      el = document.getElementById(upstream);
+    }
+    return el;
+  }
+
   /** Resolve a possibly dotted field path on a row (e.g. "fields.Region") */
   private _resolveValue(row: Record<string, unknown>, field: string): unknown {
     if (!field.includes('.')) return row[field];
@@ -506,7 +524,7 @@ export class DsfrDataFacets extends LitElement {
     const sourceEl = document.getElementById(this.source);
     if (!sourceEl) return;
 
-    // Get adapter from the source element (dsfr-data-query)
+    // Get adapter from the source element (dsfr-data-query delegates to dsfr-data-source)
     const adapter: ApiAdapter | undefined = (sourceEl as any).getAdapter?.();
     if (!adapter?.capabilities.serverFacets || !adapter.fetchFacets) {
       // Adapter does not support server facets — fallback to client-side
@@ -515,15 +533,19 @@ export class DsfrDataFacets extends LitElement {
       return;
     }
 
-    const baseUrl = (sourceEl as any).baseUrl
-      || sourceEl.getAttribute('base-url') || '';
-    const datasetId = (sourceEl as any).datasetId
-      || sourceEl.getAttribute('dataset-id') || '';
+    // Walk upstream to find the actual dsfr-data-source (which has baseUrl/datasetId/headers).
+    // The immediate source may be a dsfr-data-query intermediary.
+    const actualSourceEl = this._findUpstreamSource() || sourceEl;
+
+    const baseUrl = (actualSourceEl as any).baseUrl
+      || actualSourceEl.getAttribute('base-url') || '';
+    const datasetId = (actualSourceEl as any).datasetId
+      || actualSourceEl.getAttribute('dataset-id') || '';
     if (!datasetId) return;
 
-    // Parse headers from source element (dsfr-data-query)
+    // Parse headers from the actual source element (dsfr-data-source)
     let headers: Record<string, string> | undefined;
-    const headersAttr = (sourceEl as any).headers || sourceEl.getAttribute('headers') || '';
+    const headersAttr = (actualSourceEl as any).headers || actualSourceEl.getAttribute('headers') || '';
     if (headersAttr) {
       try { headers = JSON.parse(headersAttr); } catch { /* ignore */ }
     }

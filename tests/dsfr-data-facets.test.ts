@@ -862,6 +862,50 @@ describe('DsfrDataFacets', () => {
     });
   });
 
+  describe('_findUpstreamSource', () => {
+    it('finds dsfr-data-source through a dsfr-data-query intermediary', () => {
+      // Create mock dsfr-data-source with baseUrl/datasetId
+      const mockSource = document.createElement('div');
+      mockSource.id = 'src';
+      (mockSource as any).baseUrl = 'https://data.example.com';
+      (mockSource as any).datasetId = 'my-dataset';
+      document.body.appendChild(mockSource);
+
+      // Create mock dsfr-data-query pointing to source
+      const mockQuery = document.createElement('div');
+      mockQuery.id = 'query';
+      (mockQuery as any).source = 'src';
+      document.body.appendChild(mockQuery);
+
+      facets.source = 'query';
+      const upstream = (facets as any)._findUpstreamSource();
+      expect(upstream).toBe(mockSource);
+      expect((upstream as any).datasetId).toBe('my-dataset');
+
+      mockSource.remove();
+      mockQuery.remove();
+    });
+
+    it('returns direct source when it has datasetId', () => {
+      const mockSource = document.createElement('div');
+      mockSource.id = 'src';
+      (mockSource as any).datasetId = 'direct-dataset';
+      document.body.appendChild(mockSource);
+
+      facets.source = 'src';
+      const upstream = (facets as any)._findUpstreamSource();
+      expect(upstream).toBe(mockSource);
+
+      mockSource.remove();
+    });
+
+    it('returns null when source element not found', () => {
+      facets.source = 'nonexistent';
+      const upstream = (facets as any)._findUpstreamSource();
+      expect(upstream).toBeNull();
+    });
+  });
+
   // --- Static values mode ---
 
   describe('static-values mode', () => {

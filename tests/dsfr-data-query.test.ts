@@ -21,6 +21,8 @@ import {
   dispatchDataError,
   dispatchSourceCommand,
   getDataCache,
+  getDataMeta,
+  setDataMeta,
   subscribeToSourceCommands
 } from '../src/utils/data-bridge.js';
 
@@ -375,13 +377,24 @@ describe('DsfrDataQuery', () => {
       unsub();
     });
 
-    it('does not forward when server-side is false', () => {
+    it('forwards commands even when server-side is false (WHERE commands need to reach source)', () => {
       query.id = 'test-query';
       query.source = 'upstream-source';
       query.serverSide = false;
 
+      const received: any[] = [];
+      const unsub = subscribeToSourceCommands('upstream-source', (cmd) => {
+        received.push(cmd);
+      });
+
       (query as any)._setupCommandForwarding();
-      expect((query as any)._unsubscribeCommands).toBeNull();
+      expect((query as any)._unsubscribeCommands).toBeTypeOf('function');
+
+      dispatchSourceCommand('test-query', { where: 'region = "IDF"', whereKey: 'facets-1' });
+      expect(received).toHaveLength(1);
+      expect(received[0].where).toBe('region = "IDF"');
+
+      unsub();
     });
 
     it('cleans up command listener on cleanup', () => {
@@ -394,6 +407,39 @@ describe('DsfrDataQuery', () => {
 
       (query as any)._cleanup();
       expect((query as any)._unsubscribeCommands).toBeNull();
+    });
+  });
+
+  describe('Meta propagation', () => {
+    it('forwards pagination meta from upstream source', () => {
+      query.id = 'test-query';
+      query.source = 'test-source';
+
+      // Set pagination meta on the upstream source
+      setDataMeta('test-source', { page: 2, pageSize: 20, total: 100 });
+
+      // Feed data to the query
+      (query as any)._rawData = [{ name: 'A' }, { name: 'B' }];
+      (query as any)._processClientSide();
+
+      // Query should forward meta under its own ID
+      const meta = getDataMeta('test-query');
+      expect(meta).toBeDefined();
+      expect(meta!.page).toBe(2);
+      expect(meta!.pageSize).toBe(20);
+      expect(meta!.total).toBe(100);
+    });
+
+    it('does not set meta when upstream has none', () => {
+      query.id = 'test-query';
+      query.source = 'test-source';
+      clearDataMeta('test-source');
+      clearDataMeta('test-query');
+
+      (query as any)._rawData = [{ name: 'A' }];
+      (query as any)._processClientSide();
+
+      expect(getDataMeta('test-query')).toBeUndefined();
     });
   });
 

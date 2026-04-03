@@ -9,6 +9,7 @@ import {
   dispatchSourceCommand,
   clearDataCache,
   clearDataMeta,
+  setDataMeta,
   subscribeToSource,
   getDataCache,
   getDataMeta,
@@ -475,6 +476,13 @@ export class DsfrDataQuery extends LitElement {
     }
 
     this._data = result;
+
+    // Forward pagination meta from upstream source so downstream components
+    // (dsfr-data-facets, dsfr-data-search, dsfr-data-list) can access it.
+    if (meta) {
+      setDataMeta(this.id, meta);
+    }
+
     dispatchDataLoaded(this.id, this._data);
   }
 
@@ -683,8 +691,12 @@ export class DsfrDataQuery extends LitElement {
 
   /**
    * Forward commands from downstream components to the upstream source.
-   * In server-side mode, datalist/search/facets send commands to this query;
-   * we forward them to the actual dsfr-data-source.
+   * Datalist/search/facets send commands (page, where, orderBy) to this query;
+   * we forward them to the actual dsfr-data-source so it can re-fetch.
+   *
+   * Always enabled when there's a source — WHERE commands from server-search
+   * and server-facets need to reach dsfr-data-source even when this query
+   * doesn't have server-side pagination.
    */
   private _setupCommandForwarding() {
     if (this._unsubscribeCommands) {
@@ -692,9 +704,7 @@ export class DsfrDataQuery extends LitElement {
       this._unsubscribeCommands = null;
     }
 
-    if (!this.id || !this.serverSide) return;
-
-    if (!this.source) return;
+    if (!this.id || !this.source) return;
 
     this._unsubscribeCommands = subscribeToSourceCommands(this.id, (cmd) => {
       dispatchSourceCommand(this.source, cmd);
