@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Observatoire FranceNum – TPE/PME bénéficiaires des dispositifs numériques</title>
+    <!-- DSFR CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css">
+    <!-- DSFR Chart -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"></script>
+    <!--
+    Leaflet préchargé AVANT dsfr-data pour éviter l'échec du dynamic import
+    dans certains contextes (iframe, CSP stricte) — pattern identique
+    à l'exemple chambres d'agriculture.
+  -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- dsfr-data bundle complet (core + map) -->
+    <script src="https://chartsbuilder.matge.com/dist/dsfr-data.umd.js"></script>
+  </head>
+  <body>
+    <!-- =============================================
+       SOURCES DE DONNÉES (invisibles, chargées dynamiquement)
+       API : data.economie.gouv.fr – ODS v2.1
+  ============================================= -->
+    <!-- KPIs globaux : 1 ligne agrégée -->
+    <dsfr-data-source id="src-kpi" api-type="opendatasoft" base-url="https://data.economie.gouv.fr" dataset-id="tpe-pme-beneficiaires-des-dispositifs-france-num" select="count(*) as nb_total, sum(montant) as total_montant, avg(montant) as moy_montant, sum(nb_accompagnements) as total_accompagnements"></dsfr-data-source>
+    <!-- Répartition par secteur d'activité -->
+    <dsfr-data-source id="src-secteur" api-type="opendatasoft" base-url="https://data.economie.gouv.fr" dataset-id="tpe-pme-beneficiaires-des-dispositifs-france-num" select="count(*) as nb, secteur" group-by="secteur" order-by="nb:desc"></dsfr-data-source>
+    <!-- Répartition par type de dispositif -->
+    <dsfr-data-source id="src-dispositif" api-type="opendatasoft" base-url="https://data.economie.gouv.fr" dataset-id="tpe-pme-beneficiaires-des-dispositifs-france-num" select="count(*) as nb, dispositif" group-by="dispositif" order-by="nb:desc"></dsfr-data-source>
+    <!--
+    ── Données agrégées par département ──────────────────────────
+    group-by sur 3 clés pour conserver dep2 (code INSEE 2 chars),
+    departement (nom) et region dans le résultat agrégé.
+    dep2 sert de code-field pour le choroplèthe SVG natif DSFR.
+  -->
+    <dsfr-data-source id="src-dept" api-type="opendatasoft" base-url="https://data.economie.gouv.fr" dataset-id="tpe-pme-beneficiaires-des-dispositifs-france-num" select="count(*) as nb, sum(montant) as total_montant, dep2, departement, region" group-by="dep2,departement,region" order-by="nb:desc"></dsfr-data-source>
+    <!--
+    ── Géométries ODS (source brute) ─────────────────────────────
+    georef-france-departement sur public.opendatasoft.com.
+    dep_code = string "01"…"95", "2A", "2B", "971"…
+    dep_name = nom du département (pour le tooltip de la carte)
+    geo_shape = polygone GeoJSON (pour le rendu Leaflet)
+    ⚠️ PAS de numeric-auto → dep_code doit rester string "07" ≠ 7
+  -->
+    <dsfr-data-source id="src-geo-raw" api-type="opendatasoft" base-url="https://public.opendatasoft.com" dataset-id="georef-france-departement" select="dep_code,dep_name,geo_shape" limit="110"></dsfr-data-source>
+    <!--
+    ── Rename dep_code → dep2 pour aligner sur la clé FranceNum ──
+    trim seul, PAS numeric-auto, pour conserver dep2 comme string.
+  -->
+    <dsfr-data-normalize id="src-geo" source="src-geo-raw" rename="dep_code:dep2" trim></dsfr-data-normalize>
+    <!--
+    ── Jointure données FranceNum ↔ géométries ───────────────────
+    on="dep2" : même clé des 2 côtés après rename.
+    type="inner" : seuls les depts présents dans les 2 sources.
+    Résultat : dep2, departement, region, nb, total_montant,
+               dep_name, geo_shape.
+  -->
+    <dsfr-data-join id="src-map-joined" left="src-dept" right="src-geo" on="dep2" type="inner"></dsfr-data-join>
+    <!-- Répartition par taille d'entreprise -->
+    <dsfr-data-source id="src-taille" api-type="opendatasoft" base-url="https://data.economie.gouv.fr" dataset-id="tpe-pme-beneficiaires-des-dispositifs-france-num" select="count(*) as nb, taille" group-by="taille" order-by="nb:desc"></dsfr-data-source>
+    <!-- Évolution mensuelle -->
+    <dsfr-data-source id="src-date" api-type="opendatasoft" base-url="https://data.economie.gouv.fr" dataset-id="tpe-pme-beneficiaires-des-dispositifs-france-num" select="count(*) as nb, date" group-by="date" order-by="date:asc"></dsfr-data-source>
+    <!-- Source paginée pour le tableau détaillé -->
+    <dsfr-data-source id="src-list" api-type="opendatasoft" base-url="https://data.economie.gouv.fr" dataset-id="tpe-pme-beneficiaires-des-dispositifs-france-num" server-side page-size="10"></dsfr-data-source>
+    <!-- =============================================
+       EN-TÊTE
+  ============================================= -->
+    <header role="banner" class="fr-header">
+      <div class="fr-header__body">
+        <div class="fr-container">
+          <div class="fr-header__body-row">
+            <div class="fr-header__brand fr-enlarge-link">
+              <div class="fr-header__brand-top">
+                <div class="fr-header__logo">
+                  <p class="fr-logo"> Ministère <br> de l'Économie <br> et des Finances </p>
+                </div>
+              </div>
+              <div class="fr-header__service">
+                <a href="#" title="Accueil – FranceNum Observatoire">
+                  <p class="fr-header__service-title"> FranceNum <span class="fr-badge fr-badge--sm fr-badge--blue-ecume fr-ml-1w">Observatoire</span>
+                  </p>
+                </a>
+                <p class="fr-header__service-tagline">Bénéficiaires des dispositifs d'accompagnement à la transformation numérique des TPE/PME</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+    <main role="main" id="content">
+      <!-- =============================================
+         HERO / INTRODUCTION
+    ============================================= -->
+      <div class="fr-py-8w" style="background: var(--background-alt-blue-france);">
+        <div class="fr-container">
+          <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
+            <div class="fr-col-12 fr-col-md-7">
+              <p class="fr-badge fr-badge--blue-ecume fr-mb-2w">Plan de relance · Données ouvertes</p>
+              <h1 class="fr-display--xs fr-mb-3w"> Qui sont les entreprises accompagnées par FranceNum&nbsp;? </h1>
+              <p class="fr-text--lead fr-mb-3w"> Depuis 2020, le programme <strong>FranceNum</strong> soutient la numérisation des très petites et petites entreprises françaises à travers plusieurs dispositifs complémentaires&nbsp;: chèques numériques, ateliers de sensibilisation, accompagnements individuels et formations. </p>
+              <p class="fr-mb-0"> Ce tableau de bord analyse en temps réel les <strong>plus de 284&nbsp;000 bénéficiaires</strong> recensés, en les croisant par secteur, territoire, taille d'entreprise et type de dispositif mobilisé. </p>
+            </div>
+            <div class="fr-col-12 fr-col-md-5">
+              <div class="fr-callout fr-callout--blue-ecume">
+                <h2 class="fr-callout__title fr-icon-lightbulb-line">Contexte</h2>
+                <p class="fr-callout__text"> Financé par le <strong>Plan de relance</strong>, FranceNum s'inscrit dans une politique publique de réduction de la fracture numérique des entreprises. Les données présentées ici couvrent l'ensemble des dispositifs opérés par l'Agence de services et de paiement (ASP) et ses partenaires. </p>
+                <a class="fr-link fr-link--icon-right fr-icon-external-link-line fr-text--sm" href="https://data.economie.gouv.fr/explore/dataset/tpe-pme-beneficiaires-des-dispositifs-france-num/" target="_blank" rel="noopener"> Accéder au jeu de données </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="fr-container fr-py-6w">
+        <!-- =============================================
+           SECTION 1 – CHIFFRES CLÉS
+      ============================================= -->
+        <section aria-labelledby="titre-kpi" class="fr-mb-6w">
+          <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle fr-mb-3w">
+            <div class="fr-col">
+              <h2 id="titre-kpi" class="fr-h4 fr-mb-0">
+                <span class="fr-icon-dashboard-3-line fr-mr-1w" aria-hidden="true"></span> Chiffres clés du programme
+              </h2>
+            </div>
+            <div class="fr-col-auto">
+              <p class="fr-text--sm fr-text-mention--grey fr-mb-0"> Mise à jour automatique · API ODS v2.1 </p>
+            </div>
+          </div>
+          <dsfr-data-kpi-group cols="4" gap="md" aria-label="Indicateurs clés du programme FranceNum">
+            <dsfr-data-kpi source="src-kpi" valeur="nb_total" label="Bénéficiaires au total" icone="ri-team-line" format="nombre" couleur="bleu"></dsfr-data-kpi>
+            <dsfr-data-kpi source="src-kpi" valeur="total_montant" label="Montant total distribué" icone="ri-money-euro-circle-line" format="euro" couleur="vert"></dsfr-data-kpi>
+            <dsfr-data-kpi source="src-kpi" valeur="moy_montant" label="Montant moyen / bénéficiaire" icone="ri-bar-chart-grouped-line" format="euro" couleur="bleu"></dsfr-data-kpi>
+            <dsfr-data-kpi source="src-kpi" valeur="total_accompagnements" label="Accompagnements réalisés" icone="ri-award-line" format="nombre" couleur="bleu"></dsfr-data-kpi>
+          </dsfr-data-kpi-group>
+        </section>
+        <hr class="fr-hr fr-my-6w">
+        <!-- =============================================
+           SECTION 2 – SECTEUR & DISPOSITIF
+      ============================================= -->
+        <section aria-labelledby="titre-repartition" class="fr-mb-6w">
+          <h2 id="titre-repartition" class="fr-h4 fr-mb-1w">
+            <span class="fr-icon-pie-chart-2-line fr-mr-1w" aria-hidden="true"></span> Répartition par secteur et par dispositif
+          </h2>
+          <p class="fr-text--sm fr-mb-3w" style="color: var(--text-mention-grey);"> Le commerce et l'hébergement-restauration concentrent la majorité des bénéficiaires, des secteurs particulièrement exposés aux enjeux de visibilité en ligne et de prise de commandes numériques. Le <strong>Chèque France Num</strong>, remboursement forfaitaire de dépenses numériques, représente le dispositif le plus mobilisé grâce à sa simplicité d'accès. </p>
+          <div class="fr-grid-row fr-grid-row--gutters">
+            <div class="fr-col-12 fr-col-md-6">
+              <dsfr-data-chart id="chart-secteur" source="src-secteur" type="pie" label-field="secteur" value-field="nb" databox databox-title="Bénéficiaires par secteur d'activité" databox-source="FranceNum · data.economie.gouv.fr" databox-download></dsfr-data-chart>
+              <dsfr-data-a11y for="chart-secteur" source="src-secteur" description="Répartition en anneau des bénéficiaires FranceNum selon leur secteur d'activité. Le commerce et l'hébergement-restauration dominent."></dsfr-data-a11y>
+            </div>
+            <div class="fr-col-12 fr-col-md-6">
+              <dsfr-data-chart id="chart-dispositif" source="src-dispositif" type="pie" label-field="dispositif" value-field="nb" databox databox-title="Bénéficiaires par type de dispositif" databox-source="FranceNum · data.economie.gouv.fr" databox-download></dsfr-data-chart>
+              <dsfr-data-a11y for="chart-dispositif" source="src-dispositif" description="Répartition des bénéficiaires selon le dispositif FranceNum mobilisé (Chèque France Num, formations, ateliers…)."></dsfr-data-a11y>
+            </div>
+          </div>
+        </section>
+        <hr class="fr-hr fr-my-6w">
+        <!-- =============================================
+           SECTION 3 – ÉVOLUTION TEMPORELLE
+      ============================================= -->
+        <section aria-labelledby="titre-temporel" class="fr-mb-6w">
+          <h2 id="titre-temporel" class="fr-h4 fr-mb-1w">
+            <span class="fr-icon-line-chart-line fr-mr-1w" aria-hidden="true"></span> Évolution mensuelle des bénéficiaires
+          </h2>
+          <p class="fr-text--sm fr-mb-3w" style="color: var(--text-mention-grey);"> La montée en puissance du programme reflète les vagues successives du Plan de relance et les campagnes nationales de sensibilisation. Les pics d'activité correspondent aux périodes d'ouverture des guichets et aux délais de traitement de l'ASP. </p>
+          <dsfr-data-chart id="chart-date" source="src-date" type="line" label-field="date" value-field="nb" databox databox-title="Nouveaux bénéficiaires par mois" databox-source="FranceNum · data.economie.gouv.fr" databox-download databox-screenshot></dsfr-data-chart>
+          <dsfr-data-a11y for="chart-date" source="src-date" description="Courbe de l'évolution mensuelle du nombre de nouveaux bénéficiaires du programme FranceNum."></dsfr-data-a11y>
+        </section>
+        <hr class="fr-hr fr-my-6w">
+        <!-- =============================================
+           SECTION 4 – TERRITOIRE & TAILLE
+      ============================================= -->
+        <section aria-labelledby="titre-territoire" class="fr-mb-6w">
+          <h2 id="titre-territoire" class="fr-h4 fr-mb-1w">
+            <span class="fr-icon-map-pin-2-line fr-mr-1w" aria-hidden="true"></span> Dimension territoriale et profil des entreprises
+          </h2>
+          <p class="fr-text--sm fr-mb-3w" style="color: var(--text-mention-grey);"> FranceNum affiche une couverture nationale avec une concentration dans les régions à forte densité économique (Île-de-France, Auvergne-Rhône-Alpes, Nouvelle-Aquitaine). La cible prioritaire reste les <strong>TPE de moins de 10 salariés</strong>, qui représentent la quasi-totalité des bénéficiaires — ce qui correspond aux objectifs initiaux du programme centrés sur les entreprises les plus éloignées du numérique. </p>
+          <div class="fr-grid-row fr-grid-row--gutters">
+            <div class="fr-callout fr-callout--green-bourgeon fr-mt-2w">
+              <p class="fr-callout__title ">Lecture de la carte</p>
+              <p class="fr-callout__text fr-text--sm"> Cliquez sur n'importe quel département pour afficher dans un volet latéral le nombre de bénéficiaires et le montant total distribué. Le gradient bleu clair → foncé reflète l'intensité du programme&nbsp;: plus un département est foncé, plus il concentre de TPE/PME accompagnées. </p>
+            </div>
+            <!-- ── CARTE CHOROPLÈTHE ── col-12 pleine largeur ──────────── -->
+            <div class="fr-col-12">
+              <!--
+              dsfr-data-map : conteneur Leaflet (Leaflet préchargé en <head>).
+              center/zoom   : France métropolitaine.
+              tiles="ign-ortho" : vue aérienne IGN (cohérence avec l'exemple
+                                  de référence chambres d'agriculture).
+              fit-bounds    : ajuste le viewport aux données.
+              height="520px": hauteur fixe.
+            -->
+              <dsfr-data-map center="46.603,2.888" zoom="6" tiles="ign-ortho" fit-bounds height="520px" name="Carte choroplèthe des bénéficiaires FranceNum par département">
+                <!--
+                dsfr-data-map-layer id="layer-dept" : id requis par le popup (for="layer-dept").
+                fill-field="nb"     : choroplèthe quantitatif (gradient bleu clair→foncé).
+                selected-palette="sequentialAscending" : palette DSFR officielle.
+                tooltip-field="dep_name" : bulle de survol avec le nom du département.
+                                           dep_name vient de la source geo (après join).
+              -->
+                <dsfr-data-map-layer id="layer-dept" source="src-map-joined" type="geoshape" geo-field="geo_shape" fill-field="nb" selected-palette="sequentialAscending" fill-opacity="0.75" tooltip-field="dep_name"></dsfr-data-map-layer>
+                <!--
+                dsfr-data-map-popup for="layer-dept" : lie le popup au layer ci-dessus.
+                mode="panel-right"  : volet glissant depuis la droite.
+                title-field="dep_name" : titre du volet = nom officiel du département.
+                width="320px"       : largeur du volet.
+                Template : styles inline acceptés (pas de feuille CSS additionnelle).
+              -->
+                <dsfr-data-map-popup for="layer-dept" mode="panel-right" title-field="dep_name" width="320px">
+                  <template>
+                    <!--
+                    ── En-tête : badges région + code département ──
+                    fr-badge--blue-ecume : pastille bleue DSFR pour la région.
+                    fr-badge--new : pastille verte pour le code dept.
+                    Les deux sont rendus inline grâce aux classes fr-badge.
+                  -->
+                    <div style="margin-bottom:1.25rem">
+                      <span class="fr-badge fr-badge--blue-ecume fr-badge--sm">{{region}}</span>
+                      <span class="fr-badge fr-badge--new fr-badge--sm fr-ml-1w">N°&nbsp;{{dep2}}</span>
+                    </div>
+                    <!--
+                    ── Bloc KPI 1 : Bénéficiaires ──────────────────
+                    Reproduit visuellement le rendu dsfr-data-kpi :
+                    fond alt-blue, bordure gauche bleue France,
+                    grande valeur numérique, label et unité.
+                    {{nb:number}} = formatage milliers (ex: 1 234).
+                  -->
+                    <div class="fr-p-2w fr-mb-2w" style="background:var(--background-alt-blue-france);
+                           border-left:4px solid var(--border-action-high-blue-france);
+                           border-radius:4px">
+                      <p class="fr-text--sm fr-mb-1v" style="color:var(--text-mention-grey)">
+                        <span class="fr-icon-team-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span> Bénéficiaires
+                      </p>
+                      <p class="fr-display--xs fr-mb-1v" style="color:var(--text-action-high-blue-france);line-height:1">
+                        {{nb:number}}
+                      </p>
+                      <p class="fr-text--sm fr-mb-0" style="color:var(--text-mention-grey)"> entreprises accompagnées </p>
+                    </div>
+                    <!--
+                    ── Bloc KPI 2 : Montant distribué ──────────────
+                    Même structure, couleur vert bourgeon DSFR pour
+                    différencier visuellement les deux indicateurs.
+                    {{total_montant:number}} = formatage milliers + €.
+                  -->
+                    <div class="fr-p-2w fr-mb-2w" style="background:var(--background-alt-green-bourgeon);
+                           border-left:4px solid var(--border-action-high-green-bourgeon);
+                           border-radius:4px">
+                      <p class="fr-text--sm fr-mb-1v" style="color:var(--text-mention-grey)">
+                        <span class="fr-icon-money-euro-circle-line fr-icon--sm fr-mr-1v" aria-hidden="true"></span> Montant distribué
+                      </p>
+                      <p class="fr-display--xs fr-mb-1v" style="color:var(--text-action-high-green-bourgeon);line-height:1">
+                        {{total_montant:number}}&nbsp;€
+                      </p>
+                      <p class="fr-text--sm fr-mb-0" style="color:var(--text-mention-grey)"> financements mobilisés </p>
+                    </div>
+                    <!--
+                    ── Tag « nom complet » ──────────────────────────
+                    fr-tag affiche le nom complet du département
+                    (distinct du dep_name IGN) comme étiquette de
+                    confirmation visuelle.
+                  -->
+                    <div style="margin-bottom:1rem">
+                      <span class="fr-tag fr-tag--sm fr-tag--icon-left fr-icon-map-pin-2-fill">
+                        {{departement}}
+                      </span>
+                    </div>
+                    <!--
+                    ── Note source ──────────────────────────────────
+                    fr-text--xs + mention-grey pour la note de bas
+                    de volet, discrète mais présente.
+                  -->
+                    <p class="fr-text--sm fr-mb-0" style="color:var(--text-mention-grey);
+                           border-top:1px solid var(--border-default-grey);
+                           padding-top:.75rem"> Source&nbsp;: FranceNum · data.economie.gouv.fr <br> Tous dispositifs confondus (Chèque numérique, <br> formations, accompagnements). </p>
+                  </template>
+                </dsfr-data-map-popup>
+              </dsfr-data-map>
+              <dsfr-data-a11y for="layer-dept" source="src-map-joined" description="Carte choroplèthe par département. Plus la teinte est foncée, plus le département concentre de bénéficiaires FranceNum. Cliquez sur un département pour les chiffres détaillés."></dsfr-data-a11y>
+            </div>
+            <!-- /col-12 carte -->
+            <div class="fr-col-4"></div>
+          </div>
+          <!-- /grid-row carte -->
+          <!-- ── 2e rangée : taille entreprises + callout ─────────── -->
+          <div class="fr-grid-row fr-grid-row--gutters fr-mt-4w">
+            <div class="fr-col-12 fr-col-md-8">
+              <dsfr-data-chart id="chart-taille" source="src-taille" type="bar" label-field="taille" value-field="nb" selected-palette="categorical" databox databox-title="Répartition par taille d'entreprise" databox-source="FranceNum · data.economie.gouv.fr"></dsfr-data-chart>
+              <dsfr-data-a11y for="chart-taille" source="src-taille" description="Répartition des bénéficiaires FranceNum selon la taille de l'entreprise (nombre de salariés)."></dsfr-data-a11y>
+            </div>
+            <div class="fr-col-12 fr-col-md-4">
+              <div class="fr-callout fr-callout--brown-caramel fr-mt-2w">
+                <p class="fr-callout__title fr-icon-team-line">Focus TPE</p>
+                <p class="fr-callout__text fr-text--sm"> Les entreprises sans salarié et celles de 1 à 9 salariés constituent l'essentiel des bénéficiaires. Ce profil correspond aux objectifs du programme, qui cible les structures les moins matures digitalement et les moins bien informées des aides disponibles. </p>
+              </div>
+            </div>
+          </div>
+        </section>
+        <hr class="fr-hr fr-my-6w">
+      </div>
+      <!-- /fr-container -->
+    </main>
+    <!-- =============================================
+       PIED DE PAGE
+  ============================================= -->
+    <footer role="contentinfo" class="fr-footer fr-mt-6w">
+      <div class="fr-container">
+        <div class="fr-footer__body">
+          <div class="fr-footer__brand fr-enlarge-link">
+            <a href="/" title="Retour à l'accueil">
+              <p class="fr-logo">Ministère <br>de l'Économie <br>et des Finances </p>
+            </a>
+          </div>
+          <div class="fr-footer__content">
+            <p class="fr-footer__content-desc"> Dashboard généré avec <a href="https://chartsbuilder.matge.com" class="fr-link" target="_blank" rel="noopener">ChartsBuilder / dsfr-data</a> et les composants officiels <a href="https://www.systeme-de-design.gouv.fr/" class="fr-link" target="_blank" rel="noopener">DSFR</a>. Données issues de <a href="https://data.economie.gouv.fr" class="fr-link" target="_blank" rel="noopener">data.economie.gouv.fr</a> sous <a href="https://github.com/etalab/licence-ouverte/blob/master/LO.md" class="fr-link" target="_blank" rel="noopener">Licence Ouverte 2.0</a>. </p>
+            <ul class="fr-footer__content-list">
+              <li class="fr-footer__content-item">
+                <a class="fr-footer__content-link" href="https://data.economie.gouv.fr/explore/dataset/tpe-pme-beneficiaires-des-dispositifs-france-num/" target="_blank" rel="noopener"> Jeu de données open data </a>
+              </li>
+              <li class="fr-footer__content-item">
+                <a class="fr-footer__content-link" href="https://chartsbuilder.matge.com" target="_blank" rel="noopener"> ChartsBuilder </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+        <div class="fr-footer__bottom">
+          <ul class="fr-footer__bottom-list">
+            <li class="fr-footer__bottom-item">
+              <a class="fr-footer__bottom-link" href="#">Accessibilité : partiellement conforme</a>
+            </li>
+            <li class="fr-footer__bottom-item">
+              <a class="fr-footer__bottom-link" href="#">Mentions légales</a>
+            </li>
+            <li class="fr-footer__bottom-item">
+              <a class="fr-footer__bottom-link" href="#">Politique de confidentialité</a>
+            </li>
+          </ul>
+          <div class="fr-footer__bottom-copy">
+            <p>Sauf mention contraire, tous les contenus de ce site sont sous <a href="https://github.com/etalab/licence-ouverte/blob/master/LO.md" rel="noopener" target="_blank"> licence ouverte 2.0 </a>
+            </p>
+          </div>
+        </div>
+      </div>
+    </footer>
+    <!-- DSFR JS (doit être chargé en dernier) -->
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js"></script>
+    <script nomodule src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.nomodule.min.js"></script>
+  </body>
+</html>
