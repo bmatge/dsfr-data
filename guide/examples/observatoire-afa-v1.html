@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-scheme="default">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AFA – Chroniques jurisprudentielles 2021 / 2022</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"></script>
+  <link rel="stylesheet" href="https://chartsbuilder.matge.com/dist/dsfr-data.css">
+  <script src="https://chartsbuilder.matge.com/dist/dsfr-data.core.umd.js"></script>
+</head>
+<body>
+
+<!-- ── SOURCES DE DONNÉES (injectées via JS) ── -->
+<dsfr-data-source id="src-all"></dsfr-data-source>
+<dsfr-data-source id="src-globals"></dsfr-data-source>
+<dsfr-data-source id="src-infractions"></dsfr-data-source>
+<dsfr-data-query id="q-podium" source="src-infractions" order-by="nb:desc" limit="5"></dsfr-data-query>
+<dsfr-data-source id="src-issues"></dsfr-data-source>
+<dsfr-data-source id="src-comparaison"></dsfr-data-source>
+<dsfr-data-source id="src-taux"></dsfr-data-source>
+
+
+<!-- ══════════════════════════════════════════
+     EN-TÊTE
+══════════════════════════════════════════ -->
+<div class="fr-container fr-py-6w">
+
+  <div class="fr-mb-4w">
+    <p class="fr-badge fr-badge--blue-ecume fr-badge--no-icon fr-mb-2w">Agence Française Anticorruption · Publication 2024</p>
+    <h1 class="fr-h1">Chroniques jurisprudentielles<br>anticorruption 2021–2022</h1>
+    <p class="fr-text--lead">
+      L'AFA analyse chaque année les décisions pénales rendues en matière d'atteintes à la probité.
+      Ce tableau de bord restitue les enseignements des chroniques 2021 et 2022 à partir de
+      <strong>96 décisions</strong> — infractions retenues, issues judiciaires, tendances et profils.
+    </p>
+  </div>
+
+  <!-- ══ KPIs ══ -->
+  <dsfr-data-kpi-group cols="3" gap="md" fr-mb-6w aria-label="Indicateurs clés du corpus">
+    <dsfr-data-kpi source="src-all" valeur="count"
+      label="Décisions analysées" couleur="bleu"></dsfr-data-kpi>
+    <dsfr-data-kpi source="src-all" valeur="count:issue_court:Condamnation"
+      label="Condamnations" couleur="vert"></dsfr-data-kpi>
+    <dsfr-data-kpi source="src-all" valeur="count:issue_court:Relaxe"
+      label="Relaxes" couleur="rouge"></dsfr-data-kpi>
+    <dsfr-data-kpi source="src-globals" valeur="taux"
+      label="Taux de condamnation" format="pourcentage" couleur="orange"></dsfr-data-kpi>
+    <dsfr-data-kpi source="src-globals" valeur="qualifications"
+      label="Qualifications pénales distinctes" couleur="bleu"></dsfr-data-kpi>
+    <dsfr-data-kpi source="src-all" valeur="count:juridiction:Cour d'appel"
+      label="Affaires jugées en appel" couleur="bleu"></dsfr-data-kpi>
+  </dsfr-data-kpi-group>
+
+  <hr>
+
+
+  <!-- ══════════════════════════════════════════
+       SECTION 01 — VUE D'ENSEMBLE
+       col-7 texte | col-5 pie
+  ══════════════════════════════════════════ -->
+  <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle fr-py-4w">
+
+    <!-- Texte col-7 -->
+    <div class="fr-col-12 fr-col-md-7">
+      <p class="fr-badge fr-badge--blue-ecume fr-badge--no-icon fr-mb-2w">01 — Vue d'ensemble</p>
+      <h2 class="fr-h2">Un taux de condamnation qui témoigne de la maturité du droit de la probité</h2>
+      <p>
+        Sur les deux années couvertes, <strong>73 % des affaires débouchent sur une condamnation</strong>,
+        signe d'une jurisprudence stabilisée autour des principales infractions à la probité.
+        Ce taux couvre des réalités hétérogènes : des condamnations fermes avec emprisonnement
+        jusqu'aux dispenses de peine, en passant par les condamnations mixtes où plusieurs
+        prévenus d'une même procédure connaissent des sorts distincts.
+      </p>
+      <p>
+        Les <strong>13 relaxes</strong> prononcées illustrent la complexité de certaines qualifications —
+        en particulier le favoritisme et la prise illégale d'intérêts — dont les contours
+        jurisprudentiels continuent de se préciser. Plusieurs relaxes tiennent à des questions
+        de qualification de la qualité de l'auteur ou à l'absence d'élément intentionnel caractérisé.
+      </p>
+      <p>
+        Les 9 décisions à issue mixte traduisent des procédures impliquant plusieurs prévenus :
+        certains condamnés, d'autres relaxés au sein du même dossier pénal.
+      </p>
+
+      <div class="fr-callout fr-callout--blue-ecume fr-mt-3w">
+        <p class="fr-callout__title">Méthode de sélection AFA</p>
+        <p class="fr-callout__text">
+          L'AFA sélectionne les décisions rendues en matière d'infractions à la probité
+          (art. 432-10 à 432-16, 433-1 et suivants, 445-1 et suivants du Code pénal).
+          Seules les décisions définitives ou significatives sur le plan jurisprudentiel sont retenues.
+        </p>
+      </div>
+    </div>
+
+    <!-- Pie issues col-5 -->
+    <div class="fr-col-12 fr-col-md-5">
+      <dsfr-data-chart id="chart-issues" source="src-issues" type="pie"
+        label-field="issue" value-field="nb"
+        selected-palette="categorical"
+        databox
+        databox-title="Issues des procédures — AFA 2021–2022"
+        databox-source="AFA — Chroniques jurisprudentielles"
+        databox-date="2024"
+        databox-download>
+      </dsfr-data-chart>
+      <dsfr-data-a11y for="chart-issues" source="src-issues"
+        description="73 % des décisions aboutissent à une condamnation, 14 % à une relaxe, 9 % à une issue mixte et 4 % à une dispense de peine.">
+      </dsfr-data-a11y>
+    </div>
+
+  </div>
+
+  <hr>
+
+
+  <!-- ══════════════════════════════════════════
+       SECTION 02 — CARTOGRAPHIE DES INFRACTIONS
+       col-5 bar | col-7 texte + tableau top 5
+  ══════════════════════════════════════════ -->
+  <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle fr-py-4w">
+
+    <!-- Bar infractions col-5 -->
+    <div class="fr-col-12 fr-col-md-5">
+      <dsfr-data-chart id="chart-infractions" source="src-infractions" type="bar"
+        label-field="infraction" value-field="nb"
+        horizontal
+        selected-palette="categorical"
+        databox
+        databox-title="Infractions principales — AFA 2021–2022"
+        databox-source="AFA — Chroniques jurisprudentielles"
+        databox-date="2024"
+        databox-download databox-screenshot>
+      </dsfr-data-chart>
+      <dsfr-data-a11y for="chart-infractions" source="src-infractions"
+        description="Le détournement de fonds publics est l'infraction la plus fréquente (21 décisions), suivi de la corruption passive (17) et de la prise illégale d'intérêts (16).">
+      </dsfr-data-a11y>
+    </div>
+
+    <!-- Texte + tableau col-7 -->
+    <div class="fr-col-12 fr-col-md-7">
+      <p class="fr-badge fr-badge--blue-ecume fr-badge--no-icon fr-mb-2w">02 — Cartographie des infractions</p>
+      <h2 class="fr-h2">Détournement de fonds publics en tête, corruption en nette progression</h2>
+      <p>
+        Le <strong>détournement de fonds publics</strong> (art. 432-15 et 432-16 CP) demeure l'infraction
+        la plus représentée avec 21 décisions, devant la <strong>corruption passive</strong> (17 décisions)
+        et la <strong>prise illégale d'intérêts</strong> (16 décisions). Ces trois qualifications
+        couvrent à elles seules 56 % du corpus.
+      </p>
+      <p>
+        La <strong>corruption active</strong> progresse nettement sur la période, passant de 2 à 8 décisions
+        entre 2021 et 2022 — signal d'une plus grande attention portée aux corrupteurs.
+        Le favoritisme (14 décisions), souvent associé à des marchés publics, confirme
+        sa place structurelle dans la jurisprudence anticorruption.
+      </p>
+      <dsfr-data-podium source="q-podium"
+        label-field="infraction"
+        value-field="nb"
+        subtitle="Décisions 2021–2022"
+        value-unit="déc."
+        selected-palette="categorical"
+        max-items="5">
+      </dsfr-data-podium>
+    </div>
+
+  </div>
+
+  <hr>
+
+
+  <!-- ══════════════════════════════════════════
+       SECTION 03 — ÉVOLUTION 2021 → 2022
+       Titre plein | col-4 texte | col-4 quote + stats | col-4 bar comparatif
+  ══════════════════════════════════════════ -->
+  <div class="fr-py-4w">
+    <p class="fr-badge fr-badge--blue-ecume fr-badge--no-icon fr-mb-2w">03 — Évolution 2021 → 2022</p>
+    <h2 class="fr-h2 fr-mb-4w">Des tendances contrastées d'une année à l'autre</h2>
+
+    <div class="fr-grid-row fr-grid-row--gutters">
+
+      <!-- Col-4 texte analytique -->
+      <div class="fr-col-12 fr-col-md-4">
+        <p>
+          La comparaison des deux exercices révèle des mouvements significatifs.
+          La <strong>corruption passive multiplie ses affaires par 4,7</strong> entre 2021 (3 décisions)
+          et 2022 (14 décisions), faisant de 2022 une année charnière pour cette qualification
+          qui implique des agents publics bénéficiant d'avantages indus.
+        </p>
+        <p class="fr-mt-2w">
+          La <strong>corruption active</strong> suit la même dynamique, triplant en volume (2 → 8 décisions).
+          Ce double mouvement suggère une meilleure appréhension judiciaire de la chaîne de corruption,
+          qui poursuit désormais simultanément corrompus et corrupteurs.
+        </p>
+        <p class="fr-mt-2w">
+          À l'inverse, la <strong>prise illégale d'intérêts recule</strong> (11 → 5 décisions),
+          possible reflet d'une consolidation des pratiques de prévention dans les collectivités
+          territoriales après plusieurs années de jurisprudence dense.
+        </p>
+      </div>
+
+      <!-- Col-4 quote + highlights stats -->
+      <div class="fr-col-12 fr-col-md-4">
+        <figure class="fr-quote fr-mb-3w">
+          <blockquote>
+            <p>« La montée en puissance des poursuites pour corruption active traduit
+            une volonté judiciaire de cibler l'ensemble de la chaîne corruptive,
+            et non le seul bénéficiaire. »</p>
+          </blockquote>
+          <figcaption>
+            <p class="fr-quote__author">Lecture transversale</p>
+            <ul class="fr-quote__source">
+              <li><cite>Chroniques AFA 2021 et 2022</cite></li>
+            </ul>
+          </figcaption>
+        </figure>
+
+        <div class="fr-highlight fr-highlight--green-bourgeon fr-mb-2w">
+          <h3 class="fr-h2 fr-mb-0">+367 %</h3>
+          <p class="fr-text--sm">Corruption passive — 2021 → 2022</p>
+        </div>
+
+        <div class="fr-highlight fr-highlight--red-marianne">
+          <h3 class="fr-h2 fr-mb-0">−55 %</h3>
+          <p class="fr-text--sm">Prise illégale d'intérêts — 2021 → 2022</p>
+        </div>
+      </div>
+
+      <!-- Col-4 bar comparatif -->
+      <div class="fr-col-12 fr-col-md-4">
+        <dsfr-data-chart id="chart-compa" source="src-comparaison" type="bar"
+          label-field="infraction"
+          value-field="nb2021"
+          value-fields="nb2022"
+          name='["2021","2022"]'
+          selected-palette="categorical"
+          horizontal
+          databox
+          databox-title="Comparaison 2021 / 2022"
+          databox-source="AFA — Chroniques jurisprudentielles"
+          databox-date="2024"
+          databox-download>
+        </dsfr-data-chart>
+        <dsfr-data-a11y for="chart-compa" source="src-comparaison"
+          description="La corruption passive progresse de 3 à 14 décisions. La corruption active passe de 2 à 8. La prise illégale d'intérêts recule de 11 à 5 décisions.">
+        </dsfr-data-a11y>
+      </div>
+
+    </div>
+  </div>
+
+  <hr>
+
+
+  <!-- ══════════════════════════════════════════
+       SECTION 04 — TAUX DE CONDAMNATION
+       col-7 bar | col-5 texte + callouts
+  ══════════════════════════════════════════ -->
+  <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle fr-py-4w">
+
+    <!-- Bar taux col-7 -->
+    <div class="fr-col-12 fr-col-md-7">
+      <dsfr-data-chart id="chart-taux" source="src-taux" type="bar"
+        label-field="infraction" value-field="taux"
+        selected-palette="sequentialAscending"
+        horizontal
+        unit-tooltip="%"
+        databox
+        databox-title="Taux de condamnation par infraction"
+        databox-source="AFA — Chroniques jurisprudentielles 2021–2022"
+        databox-date="2024"
+        databox-download databox-screenshot>
+      </dsfr-data-chart>
+      <dsfr-data-a11y for="chart-taux" source="src-taux"
+        description="La corruption active, passive et le trafic d'influence passif atteignent 100 % de condamnations. Le favoritisme présente le taux le plus bas (57 %).">
+      </dsfr-data-a11y>
+    </div>
+
+    <!-- Texte + callouts col-5 -->
+    <div class="fr-col-12 fr-col-md-5">
+      <p class="fr-badge fr-badge--blue-ecume fr-badge--no-icon fr-mb-2w">04 — Taux de condamnation</p>
+      <h2 class="fr-h2">Corruption et trafic d'influence : des poursuites quasi systématiquement sanctionnées</h2>
+      <p>
+        Les infractions de <strong>corruption active, passive et trafic d'influence passif</strong>
+        présentent un taux de condamnation de 100 % sur le corpus analysé. Cette efficacité
+        s'explique en partie par le profil des affaires retenues : des dossiers solides,
+        souvent instruits par des parquets spécialisés ou le PNF.
+      </p>
+
+      <div class="fr-callout fr-mt-3w">
+        <p class="fr-callout__title">Favoritisme : 57 % de condamnations</p>
+        <p class="fr-callout__text">
+          Le favoritisme reste la qualification la moins efficacement poursuivie.
+          Les relaxes s'expliquent souvent par la difficile caractérisation de l'élément
+          intentionnel ou par la qualité d'agent public de l'auteur.
+        </p>
+      </div>
+    </div>
+
+  </div>
+
+  <hr>
+
+
+  <!-- ══════════════════════════════════════════
+       SECTION 05 — BASE DE DÉCISIONS
+       col-3 facettes | col-9 résultats fr-card
+  ══════════════════════════════════════════ -->
+  <div class="fr-py-4w">
+    <p class="fr-badge fr-badge--blue-ecume fr-badge--no-icon fr-mb-2w">05 — Base de décisions</p>
+    <h2 class="fr-h2">Explorez les 96 décisions analysées</h2>
+    <p class="fr-mb-3w">
+      Recherchez par ville, infraction ou qualité du prévenu. Filtrez par année, issue,
+      juridiction ou présence d'un marché public.
+    </p>
+
+    <dsfr-data-search id="searched" source="src-all"
+      fields="ville,infraction,qualite"
+      placeholder="Ville, infraction, type de prévenu…"
+      operator="contains"
+      count>
+    </dsfr-data-search>
+
+    <div class="fr-grid-row fr-grid-row--gutters fr-mt-2w">
+
+      <!-- Facettes col-3 -->
+      <div class="fr-col-12 fr-col-md-3">
+        <h3 class="fr-h6">Filtrer</h3>
+        <dsfr-data-facets id="filtered" source="searched"
+          fields="annee,issue_court,juridiction,marches_publics,infraction"
+          labels="annee:Année | issue_court:Issue | juridiction:Juridiction | marches_publics:Marchés publics | infraction:Infraction"
+          display="infraction:multiselect | issue_court:multiselect"
+          max-values="8"
+          sort="count">
+        </dsfr-data-facets>
+      </div>
+
+      <!-- Résultats fr-card col-9 -->
+      <div class="fr-col-12 fr-col-md-9">
+        <dsfr-data-display source="filtered" cols="2" pagination="12"
+          empty="Aucune décision ne correspond à votre recherche.">
+          <template>
+            <div class="fr-card">
+              <div class="fr-card__body">
+                <div class="fr-card__content">
+                  <p class="fr-card__detail fr-icon-scales-3-line fr-icon--sm">{{ville}} · {{date}} · {{juridiction}}</p>
+                  <h3 class="fr-card__title">{{infraction}}</h3>
+                  <p class="fr-card__desc">{{qualite}}</p>
+                </div>
+                <div class="fr-card__footer">
+                  <ul class="fr-badges-group">
+                    <li><p class="fr-badge fr-badge--sm {{issue_badge}}">{{issue_court}}</p></li>
+                    <li><p class="fr-badge fr-badge--sm fr-badge--blue-ecume fr-badge--no-icon">{{annee}}</p></li>
+                  </ul>
+                  <p class="fr-card__detail fr-mt-1w">{{peine_display}}</p>
+                </div>
+              </div>
+            </div>
+          </template>
+        </dsfr-data-display>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ── Pied de page ── -->
+  <div class="fr-mt-4w fr-pt-2w">
+    <hr>
+    <p class="fr-text--xs fr-text--mention-grey fr-mt-2w">
+      Source : Agence Française Anticorruption — Chroniques jurisprudentielles 2021 et 2022 ·
+      96 décisions analysées · Visualisation dsfr-data / ChartBuilder — MIWEB/MEFSIN
+    </p>
+  </div>
+
+</div>
+
+<script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js"></script>
+
+<script>
+
+const DATA_ALL = [{"id": 1, "annee": "2021", "date": "07/01/2021", "juridiction": "Tribunal judiciaire", "ville": "Lille", "qualite": "Établissement public", "infraction": "Favoritisme", "issue": "Relaxe", "issue_court": "Relaxe", "issue_badge": "fr-badge--success", "emprisonnement": "", "amende": "", "marches_publics": "Oui"}, {"id": 2, "annee": "2021", "date": "08/01/2021", "juridiction": "Tribunal judiciaire", "ville": "Nanterre", "qualite": "Dirigeant de société (secteur privé)", "infraction": "Corruption privée passive", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "24 mois", "amende": "10000 €", "marches_publics": "Non"}, {"id": 3, "annee": "2021", "date": "12/01/2021", "juridiction": "Tribunal judiciaire", "ville": "Paris", "qualite": "Élu (collectivité territoriale)", "infraction": "Prise illégale d'intérêts", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "", "amende": "20000 €", "marches_publics": "Non"}, {"id": 4, "annee": "2021", "date": "21/01/2021", "juridiction": "Tribunal judiciaire", "ville": "Marseille", "qualite": "Élu + Agent public (collectivité)", "infraction": "Favoritisme", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "30 mois", "amende": "", "marches_publics": "Oui"}, {"id": 5, "annee": "2021", "date": "22/01/2021", "juridiction": "Tribunal judiciaire", "ville": "Bastia", "qualite": "Élu (établissement public administratif)", "infraction": "Favoritisme", "issue": "Condamnation (dispense de peine)", "issue_court": "Dispense de peine", "issue_badge": "fr-badge--info", "emprisonnement": "", "amende": "", "marches_publics": "Oui"}, {"id": 6, "annee": "2021", "date": "01/03/2021", "juridiction": "Tribunal judiciaire", "ville": "Paris", "qualite": "Dirigeants de société + Commissaire aux comptes", "infraction": "Corruption privée", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "24 mois", "amende": "2000 €", "marches_publics": "Non"}, {"id": 7, "annee": "2021", "date": "03/03/2021", "juridiction": "Tribunal judiciaire", "ville": "Toulouse", "qualite": "Agent public (État)", "infraction": "Détournement de fonds publics", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "10 mois", "amende": "2000 €", "marches_publics": "Non"}, {"id": 8, "annee": "2021", "date": "03/03/2021", "juridiction": "Tribunal judiciaire", "ville": "Grasse", "qualite": "Agent public (collectivité territoriale)", "infraction": "Trafic d'influence passif", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "12 mois", "amende": "", "marches_publics": "Non"}, {"id": 9, "annee": "2021", "date": "08/04/2021", "juridiction": "Tribunal judiciaire", "ville": "Bordeaux", "qualite": "Agent public (État) + Établissement public", "infraction": "Concussion", "issue": "Relaxe", "issue_court": "Relaxe", "issue_badge": "fr-badge--success", "emprisonnement": "", "amende": "", "marches_publics": "Non"}, {"id": 10, "annee": "2021", "date": "13/04/2021", "juridiction": "Tribunal judiciaire", "ville": "Ajaccio", "qualite": "Élu (organisme public)", "infraction": "Prise illégale d'intérêts", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "", "amende": "5000 €", "marches_publics": "Non"}, {"id": 11, "annee": "2021", "date": "16/04/2021", "juridiction": "Tribunal judiciaire", "ville": "Paris", "qualite": "Élu (collectivité territoriale)", "infraction": "Prise illégale d'intérêts", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "12 mois", "amende": "100000 €", "marches_publics": "Non"}, {"id": 12, "annee": "2021", "date": "27/04/2021", "juridiction": "Tribunal judiciaire", "ville": "Bergerac", "qualite": "Élu (collectivité territoriale)", "infraction": "Prise illégale d'intérêts", "issue": "Relaxe", "issue_court": "Relaxe", "issue_badge": "fr-badge--success", "emprisonnement": "", "amende": "", "marches_publics": "Non"}, {"id": 13, "annee": "2021", "date": "14/05/2021", "juridiction": "Tribunal judiciaire", "ville": "Bordeaux", "qualite": "Particulier", "infraction": "Corruption active", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "", "amende": "", "marches_publics": "Non"}, {"id": 14, "annee": "2021", "date": "21/05/2021", "juridiction": "Tribunal judiciaire", "ville": "Lyon", "qualite": "Agent public (collectivité) + Employé", "infraction": "Prise illégale d'intérêts", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "12 mois", "amende": "15000 €", "marches_publics": "Non"}, {"id": 15, "annee": "2021", "date": "21/05/2021", "juridiction": "Tribunal judiciaire", "ville": "Bastia", "qualite": "Agent public (administration centrale)", "infraction": "Prise illégale d'intérêts", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "", "amende": "1500 €", "marches_publics": "Non"}, {"id": 16, "annee": "2021", "date": "01/06/2021", "juridiction": "Tribunal judiciaire", "ville": "Privas", "qualite": "Élu (collectivité territoriale)", "infraction": "Favoritisme", "issue": "Relaxe", "issue_court": "Relaxe", "issue_badge": "fr-badge--success", "emprisonnement": "", "amende": "", "marches_publics": "Non"}, {"id": 17, "annee": "2021", "date": "11/06/2021", "juridiction": "Tribunal judiciaire", "ville": "Annecy", "qualite": "Agent public (État)", "infraction": "Détournement de fonds publics par négligence", "issue": "Condamnation / Relaxe partielle", "issue_court": "Mixte", "issue_badge": "fr-badge--warning", "emprisonnement": "", "amende": "1000 €", "marches_publics": "Non"}, {"id": 18, "annee": "2021", "date": "14/06/2021", "juridiction": "Tribunal judiciaire", "ville": "Nice", "qualite": "Établissement public (EPIC)", "infraction": "Favoritisme", "issue": "Relaxe", "issue_court": "Relaxe", "issue_badge": "fr-badge--success", "emprisonnement": "", "amende": "", "marches_publics": "Oui"}, {"id": 19, "annee": "2021", "date": "18/06/2021", "juridiction": "Tribunal judiciaire", "ville": "Marseille", "qualite": "Élu + Agent public (collectivité)", "infraction": "Détournement de fonds publics", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "4 mois", "amende": "5000 €", "marches_publics": "Non"}, {"id": 20, "annee": "2021", "date": "21/06/2021", "juridiction": "Tribunal judiciaire", "ville": "Montpellier", "qualite": "Particulier", "infraction": "Trafic d'influence passif", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "6 mois", "amende": "5000 €", "marches_publics": "Non"}, {"id": 21, "annee": "2021", "date": "23/06/2021", "juridiction": "Tribunal judiciaire", "ville": "Marseille", "qualite": "Agent public (organisme public) + Dirigeant société", "infraction": "Favoritisme", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "4 mois", "amende": "8000 €", "marches_publics": "Oui"}, {"id": 22, "annee": "2021", "date": "24/06/2021", "juridiction": "Tribunal judiciaire", "ville": "Bonneville", "qualite": "Agent public (SEM) + Dirigeants de société", "infraction": "Prise illégale d'intérêts", "issue": "Condamnation / Relaxe partielle", "issue_court": "Mixte", "issue_badge": "fr-badge--warning", "emprisonnement": "", "amende": "8000 €", "marches_publics": "Non"}, {"id": 23, "annee": "2021", "date": "07/07/2021", "juridiction": "Tribunal judiciaire", "ville": "Créteil", "qualite": "Agent public (État) + Dirigeant société + Particuliers", "infraction": "Corruption passive", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "24 mois", "amende": "80000 €", "marches_publics": "Non"}, {"id": 24, "annee": "2021", "date": "20/07/2021", "juridiction": "Tribunal judiciaire", "ville": "Nice", "qualite": "Agent public (police nationale) + Particuliers", "infraction": "Corruption passive", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "48 mois", "amende": "5000 €", "marches_publics": "Non"}, {"id": 25, "annee": "2021", "date": "03/08/2021", "juridiction": "Tribunal judiciaire", "ville": "Épinal", "qualite": "Employé (association mission SP)", "infraction": "Prise illégale d'intérêts", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "4 mois", "amende": "10000 €", "marches_publics": "Non"}, {"id": 26, "annee": "2021", "date": "31/08/2021", "juridiction": "Tribunal judiciaire", "ville": "Valenciennes", "qualite": "Agent public (établissement public)", "infraction": "Détournement de fonds publics", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "12 mois", "amende": "", "marches_publics": "Non"}, {"id": 27, "annee": "2021", "date": "06/09/2021", "juridiction": "Tribunal judiciaire", "ville": "Albi", "qualite": "Employé (établissement public)", "infraction": "Détournement de fonds publics", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "12 mois", "amende": "", "marches_publics": "Non"}, {"id": 28, "annee": "2021", "date": "10/09/2021", "juridiction": "Tribunal judiciaire", "ville": "Paris", "qualite": "Agent public (établissement public)", "infraction": "Détournement de fonds publics", "issue": "Relaxe", "issue_court": "Relaxe", "issue_badge": "fr-badge--success", "emprisonnement": "", "amende": "", "marches_publics": "Non"}, {"id": 29, "annee": "2021", "date": "30/09/2021", "juridiction": "Tribunal judiciaire", "ville": "Toulon", "qualite": "Élu (collectivité territoriale)", "infraction": "Prise illégale d'intérêts", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "", "amende": "5000 €", "marches_publics": "Non"}, {"id": 30, "annee": "2021", "date": "30/09/2021", "juridiction": "Tribunal judiciaire", "ville": "Toulon", "qualite": "Élu (collectivité territoriale)", "infraction": "Prise illégale d'intérêts", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "", "amende": "30000 €", "marches_publics": "Oui"}, {"id": 31, "annee": "2021", "date": "06/10/2021", "juridiction": "Tribunal judiciaire", "ville": "Périgueux", "qualite": "Agent public (collectivité territoriale)", "infraction": "Détournement de fonds publics", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "4 mois", "amende": "", "marches_publics": "Non"}, {"id": 32, "annee": "2021", "date": "19/10/2021", "juridiction": "Tribunal judiciaire", "ville": "Amiens", "qualite": "Agent public (État)", "infraction": "Détournement de fonds publics", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "4 mois", "amende": "", "marches_publics": "Non"}, {"id": 33, "annee": "2021", "date": "25/10/2021", "juridiction": "Tribunal judiciaire", "ville": "Marseille", "qualite": "Agent public (établissement public) + Dirigeant société", "infraction": "Prise illégale d'intérêts", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "3 mois", "amende": "2000 €", "marches_publics": "Non"}, {"id": 34, "annee": "2021", "date": "10/11/2021", "juridiction": "Tribunal judiciaire", "ville": "Paris", "qualite": "Dirigeant de société + Association", "infraction": "Trafic d'influence", "issue": "Relaxe", "issue_court": "Relaxe", "issue_badge": "fr-badge--success", "emprisonnement": "", "amende": "", "marches_publics": "Non"}, {"id": 35, "annee": "2021", "date": "22/11/2021", "juridiction": "Tribunal judiciaire", "ville": "Marseille", "qualite": "Élu national", "infraction": "Détournement de fonds publics", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "12 mois", "amende": "10000 €", "marches_publics": "Non"}, {"id": 36, "annee": "2021", "date": "25/11/2021", "juridiction": "Tribunal judiciaire", "ville": "Saint-Pierre", "qualite": "Dirigeant de société (SAEM) + Employé + Avocat", "infraction": "Favoritisme", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "12 mois", "amende": "40000 €", "marches_publics": "Oui"}, {"id": 37, "annee": "2021", "date": "29/11/2021", "juridiction": "Tribunal judiciaire", "ville": "Montpellier", "qualite": "Agent public (collectivité territoriale) + Particuliers", "infraction": "Détournement de fonds publics", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "12 mois", "amende": "15000 €", "marches_publics": "Non"}, {"id": 38, "annee": "2021", "date": "30/11/2021", "juridiction": "Tribunal judiciaire", "ville": "Toulouse", "qualite": "Agent public (État)", "infraction": "Détournement de fonds publics", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "2 mois", "amende": "", "marches_publics": "Non"}, {"id": 39, "annee": "2021", "date": "30/11/2021", "juridiction": "Tribunal judiciaire", "ville": "Grenoble", "qualite": "Employé (établissement public)", "infraction": "Détournement de fonds publics", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "12 mois", "amende": "", "marches_publics": "Non"}, {"id": 40, "annee": "2021", "date": "01/12/2021", "juridiction": "Tribunal judiciaire", "ville": "Nancy", "qualite": "Agent public (hôpital)", "infraction": "Détournement de fonds publics", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "18 mois", "amende": "", "marches_publics": "Non"}, {"id": 41, "annee": "2021", "date": "08/12/2021", "juridiction": "Tribunal judiciaire", "ville": "Toulouse", "qualite": "Agent public (collectivité) + Dirigeant société", "infraction": "Corruption passive", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "30 mois", "amende": "15000 €", "marches_publics": "Non"}, {"id": 42, "annee": "2021", "date": "10/12/2021", "juridiction": "Tribunal judiciaire", "ville": "Paris", "qualite": "Dirigeants + Employés (secteur privé)", "infraction": "Corruption privée passive", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "24 mois", "amende": "20000 €", "marches_publics": "Non"}, {"id": 43, "annee": "2021", "date": "28/12/2021", "juridiction": "Tribunal judiciaire", "ville": "Chalon-sur-Saône", "qualite": "Particulier", "infraction": "Corruption active", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "", "amende": "", "marches_publics": "Non"}, {"id": 44, "annee": "2022", "date": "03/01/2022", "juridiction": "Tribunal judiciaire", "ville": "Nice", "qualite": "Employé (secteur privé)", "infraction": "Corruption passive", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "3 mois", "amende": "1500 €", "marches_publics": "Non"}, {"id": 45, "annee": "2022", "date": "07/01/2022", "juridiction": "Tribunal judiciaire", "ville": "Nice", "qualite": "Particulier", "infraction": "Corruption active", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "12 mois", "amende": "150 €", "marches_publics": "Non"}, {"id": 46, "annee": "2022", "date": "13/01/2022", "juridiction": "Tribunal judiciaire", "ville": "Beauvais", "qualite": "Agent public (État)", "infraction": "Trafic d'influence passif", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "5 mois", "amende": "500 €", "marches_publics": "Non"}, {"id": 47, "annee": "2022", "date": "14/01/2022", "juridiction": "Tribunal judiciaire", "ville": "Bordeaux", "qualite": "Agent public (collectivité territoriale)", "infraction": "Corruption passive", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "10 mois", "amende": "1000 €", "marches_publics": "Non"}, {"id": 48, "annee": "2022", "date": "14/01/2022", "juridiction": "Tribunal judiciaire", "ville": "Mulhouse", "qualite": "Employé (secteur privé)", "infraction": "Corruption active", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "3 mois", "amende": "", "marches_publics": "Non"}, {"id": 49, "annee": "2022", "date": "24/01/2022", "juridiction": "Tribunal judiciaire", "ville": "Marseille", "qualite": "Élu (collectivité territoriale)", "infraction": "Corruption passive", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "48 mois", "amende": "", "marches_publics": "Non"}, {"id": 50, "annee": "2022", "date": "26/01/2022", "juridiction": "Tribunal judiciaire", "ville": "Paris", "qualite": "Agent public + Particulier", "infraction": "Corruption active et passive", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "15 mois", "amende": "6000 €", "marches_publics": "Non"}, {"id": 51, "annee": "2022", "date": "11/02/2022", "juridiction": "Tribunal judiciaire", "ville": "Paris", "qualite": "Agent public (État) + Employés (secteur privé)", "infraction": "Corruption passive et active", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "10 mois", "amende": "5000 €", "marches_publics": "Non"}, {"id": 52, "annee": "2022", "date": "24/02/2022", "juridiction": "Tribunal judiciaire", "ville": "Metz", "qualite": "Agent public (État)", "infraction": "Favoritisme", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "8 mois", "amende": "", "marches_publics": "Oui"}, {"id": 53, "annee": "2022", "date": "02/03/2022", "juridiction": "Cour d'appel", "ville": "Montpellier", "qualite": "Dirigeant de société / Association", "infraction": "Favoritisme", "issue": "Relaxe partielle", "issue_court": "Relaxe", "issue_badge": "fr-badge--success", "emprisonnement": "", "amende": "4000 €", "marches_publics": "Oui"}, {"id": 54, "annee": "2022", "date": "08/03/2022", "juridiction": "Tribunal judiciaire", "ville": "Bordeaux", "qualite": "Particulier", "infraction": "Corruption active", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "4 mois", "amende": "", "marches_publics": "Non"}, {"id": 55, "annee": "2022", "date": "10/03/2022", "juridiction": "Tribunal judiciaire", "ville": "Paris", "qualite": "Employé (secteur privé)", "infraction": "Corruption passive privée", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "3 mois", "amende": "3500 €", "marches_publics": "Non"}, {"id": 56, "annee": "2022", "date": "14/03/2022", "juridiction": "Tribunal judiciaire", "ville": "Bordeaux", "qualite": "Établissement public (CHU) + Agents publics", "infraction": "Détournement de fonds publics", "issue": "Relaxe", "issue_court": "Relaxe", "issue_badge": "fr-badge--success", "emprisonnement": "", "amende": "", "marches_publics": "Non"}, {"id": 57, "annee": "2022", "date": "16/03/2022", "juridiction": "Tribunal judiciaire", "ville": "Paris", "qualite": "Agent public (collectivité) + Particulier", "infraction": "Corruption passive", "issue": "Condamnation / Relaxe partielle", "issue_court": "Mixte", "issue_badge": "fr-badge--warning", "emprisonnement": "12 mois", "amende": "", "marches_publics": "Non"}, {"id": 58, "annee": "2022", "date": "17/03/2022", "juridiction": "Cour d'appel", "ville": "Saint-Denis (La Réunion)", "qualite": "Dirigeant de SPL / Élu + Employée", "infraction": "Prise illégale d'intérêts", "issue": "Condamnation / Relaxe (concussion)", "issue_court": "Mixte", "issue_badge": "fr-badge--warning", "emprisonnement": "15 mois", "amende": "", "marches_publics": "Non"}, {"id": 59, "annee": "2022", "date": "31/03/2022", "juridiction": "Tribunal judiciaire", "ville": "Lille", "qualite": "Agent public (État)", "infraction": "Corruption passive", "issue": "Condamnation / Relaxe partielle", "issue_court": "Mixte", "issue_badge": "fr-badge--warning", "emprisonnement": "18 mois", "amende": "10000 €", "marches_publics": "Non"}, {"id": 60, "annee": "2022", "date": "05/04/2022", "juridiction": "Tribunal judiciaire", "ville": "Vienne", "qualite": "Agent public (collectivité territoriale)", "infraction": "Détournement de fonds publics", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "12 mois", "amende": "", "marches_publics": "Non"}, {"id": 61, "annee": "2022", "date": "08/04/2022", "juridiction": "Tribunal judiciaire", "ville": "Saint-Denis (La Réunion)", "qualite": "Particulier (détenu)", "infraction": "Corruption active", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "10 mois", "amende": "", "marches_publics": "Non"}, {"id": 62, "annee": "2022", "date": "21/04/2022", "juridiction": "Tribunal judiciaire", "ville": "Bobigny", "qualite": "Agent public (État)", "infraction": "Corruption passive", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "24 mois", "amende": "", "marches_publics": "Non"}, {"id": 63, "annee": "2022", "date": "11/05/2022", "juridiction": "Tribunal judiciaire", "ville": "Nanterre", "qualite": "Agent public (collectivité territoriale)", "infraction": "Détournement de fonds publics", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "8 mois", "amende": "1000 €", "marches_publics": "Non"}, {"id": 64, "annee": "2022", "date": "23/05/2022", "juridiction": "Tribunal judiciaire", "ville": "Marseille", "qualite": "Agent public (hôpital) + Dirigeants société", "infraction": "Favoritisme", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "24 mois", "amende": "30000 €", "marches_publics": "Oui"}, {"id": 65, "annee": "2022", "date": "24/05/2022", "juridiction": "Tribunal judiciaire", "ville": "Strasbourg", "qualite": "Employé (secteur privé) / Détenu", "infraction": "Corruption active", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "", "amende": "", "marches_publics": "Non"}, {"id": 66, "annee": "2022", "date": "25/05/2022", "juridiction": "Cour d'appel", "ville": "Amiens", "qualite": "Agent public (hôpital) + Assistante de direction", "infraction": "Détournement de fonds publics", "issue": "Condamnation / Relaxe partielle", "issue_court": "Mixte", "issue_badge": "fr-badge--warning", "emprisonnement": "24 mois", "amende": "", "marches_publics": "Oui"}, {"id": 67, "annee": "2022", "date": "27/05/2022", "juridiction": "Tribunal judiciaire", "ville": "Bobigny", "qualite": "Agent public (hôpital) + Dirigeant société", "infraction": "Favoritisme", "issue": "Relaxe", "issue_court": "Relaxe", "issue_badge": "fr-badge--success", "emprisonnement": "", "amende": "", "marches_publics": "Oui"}, {"id": 68, "annee": "2022", "date": "01/06/2022", "juridiction": "Tribunal judiciaire", "ville": "Bobigny", "qualite": "Particulier", "infraction": "Corruption active", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "", "amende": "2000 €", "marches_publics": "Non"}, {"id": 69, "annee": "2022", "date": "07/06/2022", "juridiction": "Tribunal judiciaire", "ville": "Nice", "qualite": "Agent public (État)", "infraction": "Détournement de fonds publics", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "24 mois", "amende": "", "marches_publics": "Non"}, {"id": 70, "annee": "2022", "date": "09/06/2022", "juridiction": "Tribunal judiciaire", "ville": "Toulouse", "qualite": "Agent public (État)", "infraction": "Corruption passive", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "10 mois", "amende": "", "marches_publics": "Non"}, {"id": 71, "annee": "2022", "date": "16/06/2022", "juridiction": "Tribunal judiciaire", "ville": "Amiens", "qualite": "Particulier", "infraction": "Corruption active", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "6 mois", "amende": "", "marches_publics": "Non"}, {"id": 72, "annee": "2022", "date": "20/07/2022", "juridiction": "Tribunal judiciaire", "ville": "Bobigny", "qualite": "Agent public (collectivité territoriale)", "infraction": "Corruption passive", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "8 mois", "amende": "3500 €", "marches_publics": "Non"}, {"id": 73, "annee": "2022", "date": "30/08/2022", "juridiction": "Tribunal judiciaire", "ville": "Bobigny", "qualite": "Agent public (État)", "infraction": "Détournement de fonds publics", "issue": "Relaxe", "issue_court": "Relaxe", "issue_badge": "fr-badge--success", "emprisonnement": "", "amende": "", "marches_publics": "Non"}, {"id": 74, "annee": "2022", "date": "31/08/2022", "juridiction": "Tribunal judiciaire", "ville": "Paris", "qualite": "Dirigeants de société (secteur privé)", "infraction": "Corruption privée active et passive", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "36 mois", "amende": "160000 €", "marches_publics": "Oui"}, {"id": 75, "annee": "2022", "date": "05/09/2022", "juridiction": "Tribunal judiciaire", "ville": "Albi", "qualite": "Agent public (collectivité territoriale)", "infraction": "Détournement de fonds publics", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "12 mois", "amende": "", "marches_publics": "Non"}, {"id": 76, "annee": "2022", "date": "05/09/2022", "juridiction": "Tribunal judiciaire", "ville": "Bordeaux", "qualite": "Agent public (hôpital)", "infraction": "Prise illégale d'intérêts", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "", "amende": "100000 €", "marches_publics": "Non"}, {"id": 77, "annee": "2022", "date": "06/09/2022", "juridiction": "Cour d'appel", "ville": "Aix-en-Provence", "qualite": "Élu (collectivité territoriale)", "infraction": "Prise illégale d'intérêts", "issue": "Condamnation / Relaxe partielle", "issue_court": "Mixte", "issue_badge": "fr-badge--warning", "emprisonnement": "18 mois", "amende": "8000 €", "marches_publics": "Oui"}, {"id": 78, "annee": "2022", "date": "08/09/2022", "juridiction": "Tribunal judiciaire", "ville": "Bobigny", "qualite": "Particulier", "infraction": "Corruption active", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "8 mois", "amende": "5000 €", "marches_publics": "Non"}, {"id": 79, "annee": "2022", "date": "26/09/2022", "juridiction": "Tribunal judiciaire", "ville": "Toulouse", "qualite": "Agent public (État)", "infraction": "Prise illégale d'intérêts", "issue": "Relaxe", "issue_court": "Relaxe", "issue_badge": "fr-badge--success", "emprisonnement": "", "amende": "", "marches_publics": "Oui"}, {"id": 80, "annee": "2022", "date": "29/09/2022", "juridiction": "Tribunal judiciaire", "ville": "Paris", "qualite": "Agent public / Établissement public + Acteurs privés", "infraction": "Trafic d'influence", "issue": "Relaxe", "issue_court": "Relaxe", "issue_badge": "fr-badge--success", "emprisonnement": "", "amende": "", "marches_publics": "Non"}, {"id": 81, "annee": "2022", "date": "29/09/2022", "juridiction": "Tribunal judiciaire", "ville": "Créteil", "qualite": "Élue / Agent chargé mission SP", "infraction": "Prise illégale d'intérêts", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "8 mois", "amende": "", "marches_publics": "Non"}, {"id": 82, "annee": "2022", "date": "30/09/2022", "juridiction": "Tribunal judiciaire", "ville": "Nanterre", "qualite": "Employé + Dirigeant société (secteur privé)", "infraction": "Corruption privée", "issue": "Condamnation / Relaxe partielle (prescription)", "issue_court": "Mixte", "issue_badge": "fr-badge--warning", "emprisonnement": "18 mois", "amende": "20000 €", "marches_publics": "Non"}, {"id": 83, "annee": "2022", "date": "10/10/2022", "juridiction": "Tribunal judiciaire", "ville": "Toulouse", "qualite": "Agent chargé mission SP (organisme droit privé)", "infraction": "Favoritisme", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "2 mois", "amende": "3000 €", "marches_publics": "Oui"}, {"id": 84, "annee": "2022", "date": "11/10/2022", "juridiction": "Tribunal judiciaire", "ville": "Paris", "qualite": "Employés (secteur privé)", "infraction": "Corruption passive privée", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "6 mois", "amende": "30000 €", "marches_publics": "Non"}, {"id": 85, "annee": "2022", "date": "12/10/2022", "juridiction": "Tribunal judiciaire", "ville": "Bobigny", "qualite": "Agent public (collectivité territoriale)", "infraction": "Corruption passive", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "8 mois", "amende": "", "marches_publics": "Non"}, {"id": 86, "annee": "2022", "date": "25/10/2022", "juridiction": "Tribunal judiciaire", "ville": "Paris", "qualite": "Agent public (police nationale) + Dirigeant société", "infraction": "Violation du secret professionnel", "issue": "Condamnation / Relaxe partielle", "issue_court": "Mixte", "issue_badge": "fr-badge--warning", "emprisonnement": "6 mois", "amende": "5000 €", "marches_publics": "Non"}, {"id": 87, "annee": "2022", "date": "02/11/2022", "juridiction": "Cour d'appel", "ville": "Aix-en-Provence", "qualite": "Agent public (collectivité territoriale)", "infraction": "Corruption passive", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "12 mois", "amende": "5000 €", "marches_publics": "Non"}, {"id": 88, "annee": "2022", "date": "02/11/2022", "juridiction": "Tribunal judiciaire", "ville": "Bobigny", "qualite": "Agent public (État)", "infraction": "Corruption passive", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "18 mois", "amende": "", "marches_publics": "Non"}, {"id": 89, "annee": "2022", "date": "08/11/2022", "juridiction": "Tribunal judiciaire", "ville": "Saint-Quentin", "qualite": "Agent public (EPIC) + Employé (secteur privé)", "infraction": "Favoritisme", "issue": "Relaxe", "issue_court": "Relaxe", "issue_badge": "fr-badge--success", "emprisonnement": "", "amende": "", "marches_publics": "Oui"}, {"id": 90, "annee": "2022", "date": "14/11/2022", "juridiction": "Tribunal judiciaire", "ville": "Bordeaux", "qualite": "Agent public hospitalier (EHPAD) + Dirigeant société", "infraction": "Favoritisme", "issue": "Condamnation / Relaxe (dirigeant)", "issue_court": "Mixte", "issue_badge": "fr-badge--warning", "emprisonnement": "", "amende": "2000 €", "marches_publics": "Oui"}, {"id": 91, "annee": "2022", "date": "16/11/2022", "juridiction": "Tribunal judiciaire", "ville": "Bobigny", "qualite": "Agent public (collectivité territoriale)", "infraction": "Corruption passive", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "12 mois", "amende": "", "marches_publics": "Non"}, {"id": 92, "annee": "2022", "date": "22/11/2022", "juridiction": "Tribunal judiciaire", "ville": "Angoulême", "qualite": "Agent public (organisme public)", "infraction": "Détournement de fonds publics", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "24 mois", "amende": "", "marches_publics": "Non"}, {"id": 93, "annee": "2022", "date": "30/11/2022", "juridiction": "Tribunal judiciaire", "ville": "Bastia", "qualite": "Agent public (État)", "infraction": "Corruption passive", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "6 mois", "amende": "500 €", "marches_publics": "Non"}, {"id": 94, "annee": "2022", "date": "30/11/2022", "juridiction": "Tribunal judiciaire", "ville": "Nanterre", "qualite": "Agent public (État)", "infraction": "Détournement de fonds publics", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "36 mois", "amende": "1000 €", "marches_publics": "Non"}, {"id": 95, "annee": "2022", "date": "05/12/2022", "juridiction": "Tribunal judiciaire", "ville": "Évreux", "qualite": "Agent public (État)", "infraction": "Corruption passive", "issue": "Condamnation", "issue_court": "Condamnation", "issue_badge": "fr-badge--error", "emprisonnement": "36 mois", "amende": "", "marches_publics": "Non"}, {"id": 96, "annee": "2022", "date": "06/12/2022", "juridiction": "Tribunal judiciaire", "ville": "Paris", "qualite": "Agent public (administration centrale) + Dirigeants + Association", "infraction": "Corruption active et passive", "issue": "Condamnation / Relaxe partielle", "issue_court": "Mixte", "issue_badge": "fr-badge--warning", "emprisonnement": "", "amende": "", "marches_publics": "Non"}];
+const DATA_GLOBALS = [{"taux": 73, "qualifications": 16}];
+const DATA_INFRACTIONS = [{"infraction": "Détournement de fonds publics", "nb": 21}, {"infraction": "Corruption passive", "nb": 17}, {"infraction": "Prise illégale d'intérêts", "nb": 16}, {"infraction": "Favoritisme", "nb": 14}, {"infraction": "Corruption active", "nb": 10}, {"infraction": "Trafic d'influence passif", "nb": 3}, {"infraction": "Corruption privée passive", "nb": 2}, {"infraction": "Corruption privée", "nb": 2}, {"infraction": "Trafic d'influence", "nb": 2}, {"infraction": "Corruption active et passive", "nb": 2}, {"infraction": "Corruption passive privée", "nb": 2}, {"infraction": "Concussion", "nb": 1}, {"infraction": "Détournement par négligence", "nb": 1}, {"infraction": "Violation du secret professionnel", "nb": 1}];
+const DATA_ISSUES = [{"issue": "Condamnation", "nb": 70}, {"issue": "Relaxe", "nb": 13}, {"issue": "Condamnation / Relaxe partielle", "nb": 9}, {"issue": "Dispense de peine", "nb": 4}];
+const DATA_COMPARAISON = [{"infraction": "Corruption passive", "nb2021": 3, "nb2022": 14}, {"infraction": "Corruption active", "nb2021": 2, "nb2022": 8}, {"infraction": "Favoritisme", "nb2021": 7, "nb2022": 7}, {"infraction": "Détournement fonds publics", "nb2021": 12, "nb2022": 9}, {"infraction": "Prise illégale d'intérêts", "nb2021": 11, "nb2022": 5}, {"infraction": "Trafic d'influence passif", "nb2021": 2, "nb2022": 1}];
+const DATA_TAUX = [{"infraction": "Corruption active", "taux": 100}, {"infraction": "Corruption passive", "taux": 100}, {"infraction": "Trafic d'influence passif", "taux": 100}, {"infraction": "Corruption privée", "taux": 100}, {"infraction": "Prise illégale d'intérêts", "taux": 88}, {"infraction": "Détournement fonds publics", "taux": 86}, {"infraction": "Favoritisme", "taux": 57}, {"infraction": "Trafic d'influence", "taux": 0}];
+
+function injectData() {
+  // Précomputer peine_display : "X mois · Y €" ou valeur disponible ou vide
+  DATA_ALL.forEach(function(r) {
+    var parts = [];
+    if (r.emprisonnement) parts.push(r.emprisonnement);
+    if (r.amende) parts.push(r.amende);
+    r.peine_display = parts.join(' · ');
+  });
+  document.getElementById('src-all').setAttribute('data', JSON.stringify(DATA_ALL));
+  document.getElementById('src-globals').setAttribute('data', JSON.stringify(DATA_GLOBALS));
+  document.getElementById('src-infractions').setAttribute('data', JSON.stringify(DATA_INFRACTIONS));
+  document.getElementById('src-issues').setAttribute('data', JSON.stringify(DATA_ISSUES));
+  document.getElementById('src-comparaison').setAttribute('data', JSON.stringify(DATA_COMPARAISON));
+  document.getElementById('src-taux').setAttribute('data', JSON.stringify(DATA_TAUX));
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', injectData);
+} else {
+  injectData();
+}
+</script>
+</body>
+</html>
