@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Élections des chambres d'agriculture 2025 — Résultats</title>
+
+  <!-- DSFR CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css">
+  <!-- DSFR Chart CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css">
+
+  <!--
+    Leaflet pré-chargé AVANT dsfr-data.map pour contourner le dynamic import
+    qui peut échouer dans certains contextes (iframe, CSP).
+  -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Chart.js — AVANT DSFRChart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"></script>
+  <!-- dsfr-data core + map -->
+<script src="https://chartsbuilder.matge.com/dist/dsfr-data.umd.js"></script>
+
+  <!-- DSFR JS (fr-tabs) -->
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js"></script>
+
+  <style>
+    /*
+      COULEURS DE LA LÉGENDE = palette "categorical" DSFR Chart en ordre index croissant.
+      Ces couleurs correspondent EXACTEMENT aux couleurs assignées par dsfr-data-map-layer
+      avec fill-field="liste_index" (valeurs 1→4) et selected-palette="categorical".
+      Elles correspondent aussi aux couleurs des camemberts (pie) si les données
+      sont triées par liste_index ASC (order-by="liste_index__min:asc").
+
+      index 1 → #000091  Bleu France    FNSEA/JA
+      index 2 → #E4794A  Brun orangé    Coord. Rurale
+      index 3 → #60E0EB  Cyan           Conf. Paysanne
+      index 4 → #FF9940  Ambre          MODEF
+    */
+    .legende-listes {
+      display: flex; flex-wrap: wrap;
+      gap: .5rem 1.5rem;
+      padding: .875rem 1rem;
+      background: var(--background-alt-grey);
+      border-radius: 4px;
+      margin-bottom: 1.5rem;
+    }
+    .legende-item { display: flex; align-items: center; gap: .5rem; font-size: .875rem; }
+    .leg-dot { width: 18px; height: 18px; border-radius: 3px; flex-shrink: 0; }
+    .l1 { background: #000091; }
+    .l2 { background: #E4794A; }
+    .l3 { background: #60E0EB; }
+    .l4 { background: #FF9940; }
+
+    .notice-demo {
+      border-left: 4px solid #ff9940;
+      padding: .6rem 1rem;
+      background: #fff8f3;
+      font-size: .8rem;
+      color: #555;
+      margin-bottom: 1.5rem;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     PIPELINE DONNÉES (composants invisibles, hors conteneur)
+
+     Grist × 3 collèges :
+       cN-raw → cN (normalize: flatten + trim + numeric explicite)
+       ⚠️ numeric EXPLICITE pour garder code_dept = "01" (string, pas number)
+
+     Géométries ODS (source unique, partagée) :
+
+       geo-raw → geo-depts (normalize: rename dep_code→code_dept)
+
+     Jointures × 3 :
+       cN + geo-depts → cN-join → cN-geo (normalize relais)
+
+     Queries statistiques × 3 :
+       cN-pie (camembert, trié par liste_index ASC = cohérence couleurs)
+       cN-top10 (barres top 10 participations)
+     ═══════════════════════════════════════════════════════════════ -->
+
+<!-- ── Sources Grist ── -->
+<dsfr-data-source id="c1-raw" api-type="grist"
+  base-url="https://chartsbuilder.matge.com/grist-gouv-proxy/api/docs/pU5HXX7VJC6jdgU6oBJRxn/tables/Scrutin_c1/records">
+</dsfr-data-source>
+<dsfr-data-normalize id="c1" source="c1-raw" flatten="fields" trim
+  numeric="liste_index,taux_participation,nb_inscrits,nb_sieges">
+</dsfr-data-normalize>
+
+<dsfr-data-source id="c2-raw" api-type="grist"
+  base-url="https://chartsbuilder.matge.com/grist-gouv-proxy/api/docs/pU5HXX7VJC6jdgU6oBJRxn/tables/Scrutin_c2/records">
+</dsfr-data-source>
+<dsfr-data-normalize id="c2" source="c2-raw" flatten="fields" trim
+  numeric="liste_index,taux_participation,nb_inscrits,nb_sieges">
+</dsfr-data-normalize>
+
+<dsfr-data-source id="c3-raw" api-type="grist"
+  base-url="https://chartsbuilder.matge.com/grist-gouv-proxy/api/docs/pU5HXX7VJC6jdgU6oBJRxn/tables/Scrutin_c3/records">
+</dsfr-data-source>
+<dsfr-data-normalize id="c3" source="c3-raw" flatten="fields" trim
+  numeric="liste_index,taux_participation,nb_inscrits,nb_sieges">
+</dsfr-data-normalize>
+
+<!-- ── Source géométries ODS (partagée) ── -->
+<dsfr-data-source id="geo-raw" api-type="opendatasoft"
+  base-url="https://public.opendatasoft.com"
+  dataset-id="georef-france-departement"
+  select="dep_code,dep_name,geo_shape"
+  limit="110">
+</dsfr-data-source>
+<dsfr-data-normalize id="geo-depts" source="geo-raw"
+  rename="dep_code:code_dept" trim>
+</dsfr-data-normalize>
+
+<!-- ── Jointures ── -->
+<dsfr-data-join id="c1-join" left="c1" right="geo-depts" on="code_dept" type="inner"></dsfr-data-join>
+<dsfr-data-normalize id="c1-geo" source="c1-join" trim></dsfr-data-normalize>
+
+<dsfr-data-join id="c2-join" left="c2" right="geo-depts" on="code_dept" type="inner"></dsfr-data-join>
+<dsfr-data-normalize id="c2-geo" source="c2-join" trim></dsfr-data-normalize>
+
+<dsfr-data-join id="c3-join" left="c3" right="geo-depts" on="code_dept" type="inner"></dsfr-data-join>
+<dsfr-data-normalize id="c3-geo" source="c3-join" trim></dsfr-data-normalize>
+
+<!-- ── Queries camembert ──
+     Triées par liste_index ASC via liste_index__min pour garantir
+     que la couleur du camembert (position dans le tableau)
+     correspond à la couleur de la carte (valeur liste_index 1→4).
+     FNSEA/JA (1) → 1er → bleu France, etc.
+-->
+<dsfr-data-query id="c1-pie" source="c1"
+  group-by="liste_gagnante"
+  aggregate="liste_index:count,liste_index:min"
+  order-by="liste_index__min:asc">
+</dsfr-data-query>
+<dsfr-data-query id="c2-pie" source="c2"
+  group-by="liste_gagnante"
+  aggregate="liste_index:count,liste_index:min"
+  order-by="liste_index__min:asc">
+</dsfr-data-query>
+<dsfr-data-query id="c3-pie" source="c3"
+  group-by="liste_gagnante"
+  aggregate="liste_index:count,liste_index:min"
+  order-by="liste_index__min:asc">
+</dsfr-data-query>
+
+<!-- ── Queries top 10 participations ── -->
+<dsfr-data-query id="c1-top10" source="c1" order-by="taux_participation:desc" limit="10"></dsfr-data-query>
+<dsfr-data-query id="c2-top10" source="c2" order-by="taux_participation:desc" limit="10"></dsfr-data-query>
+<dsfr-data-query id="c3-top10" source="c3" order-by="taux_participation:desc" limit="10"></dsfr-data-query>
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     MISE EN PAGE
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="fr-container fr-py-4w">
+
+  <!-- EN-TÊTE -->
+  <div class="fr-mb-3w">
+    <p><span class="fr-badge fr-badge--info fr-badge--no-icon">DÉMONSTRATION — Données fictives</span></p>
+    <h1 class="fr-h2 fr-mt-1w">Élections des membres des chambres d'agriculture 2025</h1>
+    <p class="fr-text--lead">Résultats consolidés par collège électoral</p>
+  </div>
+
+  <div class="notice-demo">
+    ⚠️ <strong>Prototype ChartBuilder / DICOM MASA</strong> — 100&nbsp;% déclaratif.
+    Sources : Grist (données électorales) + ODS public (géométries IGN).
+  </div>
+
+  <!-- KPIs globaux (collège 1) -->
+  <div class="fr-grid-row fr-grid-row--gutters fr-mb-4w">
+    <div class="fr-col-12 fr-col-sm-6 fr-col-md-3">
+      <dsfr-data-kpi source="c1" valeur="count"
+        label="Départements scrutés" couleur="bleu-france">
+      </dsfr-data-kpi>
+    </div>
+    <div class="fr-col-12 fr-col-sm-6 fr-col-md-3">
+      <dsfr-data-kpi source="c1" valeur="avg:taux_participation"
+        label="Participation moy. (col. 1)"
+        format="pourcentage" seuil-vert="35" seuil-orange="20">
+      </dsfr-data-kpi>
+    </div>
+    <div class="fr-col-12 fr-col-sm-6 fr-col-md-3">
+      <dsfr-data-kpi source="c1" valeur="count:liste_index:1"
+        label="Depts FNSEA/JA gagnants" couleur="bleu-france">
+      </dsfr-data-kpi>
+    </div>
+    <div class="fr-col-12 fr-col-sm-6 fr-col-md-3">
+      <dsfr-data-kpi source="c1" valeur="count:liste_index:2"
+        label="Depts Coord. Rurale gagnants" couleur="orange">
+      </dsfr-data-kpi>
+    </div>
+  </div>
+
+  <!--
+    LÉGENDE — couleurs synchronisées avec la palette categorical DSFR.
+    L'ordre (1→4) correspond à l'ordre des valeurs liste_index sur la carte
+    ET à l'ordre des secteurs dans les camemberts (triés par liste_index ASC).
+  -->
+  <div class="legende-listes">
+    <span class="legende-item"><span class="leg-dot l1"></span><strong>FNSEA / Jeunes Agriculteurs</strong></span>
+    <span class="legende-item"><span class="leg-dot l2"></span><strong>Coordination Rurale</strong></span>
+    <span class="legende-item"><span class="leg-dot l3"></span><strong>Confédération Paysanne</strong></span>
+    <span class="legende-item"><span class="leg-dot l4"></span><strong>MODEF / Paysans de France</strong></span>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       ONGLETS PAR COLLÈGE
+       Chaque onglet contient : carte Leaflet + popup + camembert + barres + tableau
+       ═══════════════════════════════════════════════════════════════ -->
+  <div class="fr-tabs">
+    <ul class="fr-tabs__list" role="tablist" aria-label="Collèges électoraux">
+      <li role="presentation">
+        <button id="tab-c1" class="fr-tabs__tab"
+          tabindex="0" role="tab" aria-selected="true" aria-controls="panel-c1">
+          Collège 1 — Agriculteurs
+        </button>
+      </li>
+      <li role="presentation">
+        <button id="tab-c2" class="fr-tabs__tab"
+          tabindex="-1" role="tab" aria-selected="false" aria-controls="panel-c2">
+          Collège 2 — Propriétaires fonciers
+        </button>
+      </li>
+      <li role="presentation">
+        <button id="tab-c3" class="fr-tabs__tab"
+          tabindex="-1" role="tab" aria-selected="false" aria-controls="panel-c3">
+          Collège 3 — Salariés agricoles
+        </button>
+      </li>
+    </ul>
+
+
+    <!-- ─────────────────────────────────────────────────────────────
+         COLLÈGE 1
+         ───────────────────────────────────────────────────────────── -->
+    <div id="panel-c1" class="fr-tabs__panel fr-tabs__panel--selected"
+      role="tabpanel" aria-labelledby="tab-c1">
+
+      <div class="fr-grid-row fr-grid-row--gutters fr-mb-3w">
+
+        <!-- Carte C1 -->
+        <div class="fr-col-12 fr-col-md-8">
+          <h2 class="fr-h5 fr-mb-1w">Liste gagnante par département</h2>
+          <p class="fr-text--sm fr-text--mention-grey fr-mb-1w">
+            Survolez un département — cliquez pour les détails du scrutin.
+          </p>
+          <dsfr-data-map center="46.603,2.888" zoom="6" tiles="ign-ortho"
+            height="480px" fit-bounds
+            name="Résultats collège Agriculteurs">
+            <dsfr-data-map-layer id="layer-c1" source="c1-geo" type="geoshape"
+              geo-field="geo_shape"
+color-field="liste_index"
+color-map="1:#000091,2:#E4794A,3:#60E0EB,4:#FF9940"
+fill-opacity="0.75"
+              tooltip-field="nom_dept">
+            </dsfr-data-map-layer>
+            <dsfr-data-map-popup for="layer-c1" mode="panel-right"
+              title-field="nom_dept" width="300px">
+              <template>
+                <p style="font-size:.75rem;color:#666;margin:0 0 .25rem">Collège 1 — Agriculteurs</p>
+                <p style="font-size:1rem;font-weight:700;margin:0 0 .75rem;color:#000091">{{liste_gagnante}}</p>
+                <table style="width:100%;font-size:.875rem;border-collapse:collapse">
+                  <tr><td style="color:#666;padding:.2rem 0">Participation</td><td style="font-weight:600">{{taux_participation}} %</td></tr>
+                  <tr><td style="color:#666;padding:.2rem 0">Inscrits</td><td>{{nb_inscrits}}</td></tr>
+                  <tr><td style="color:#666;padding:.2rem 0">Sièges</td><td>{{nb_sieges}}</td></tr>
+                  <tr><td style="color:#666;padding:.2rem 0">Région</td><td>{{region}}</td></tr>
+                </table>
+              </template>
+            </dsfr-data-map-popup>
+          </dsfr-data-map>
+        </div>
+
+        <!-- Stats C1 -->
+        <div class="fr-col-12 fr-col-md-4">
+          <h3 class="fr-h6">Répartition nationale</h3>
+          <dsfr-data-chart source="c1-pie" type="pie"
+            label-field="liste_gagnante" value-field="liste_index__count"
+            selected-palette="categorical">
+          </dsfr-data-chart>
+          <h3 class="fr-h6 fr-mt-2w">Top 10 participations</h3>
+          <dsfr-data-chart source="c1-top10" type="bar"
+            label-field="nom_dept" value-field="taux_participation"
+            selected-palette="sequentialAscending"
+            unit-tooltip="%" horizontal>
+          </dsfr-data-chart>
+        </div>
+      </div>
+
+      <!-- Tableau C1 -->
+      <h3 class="fr-h6 fr-mt-1w">Résultats détaillés</h3>
+      <dsfr-data-search id="s-c1" source="c1"
+        fields="nom_dept,liste_gagnante,region"
+        placeholder="Rechercher un département…" count>
+      </dsfr-data-search>
+      <dsfr-data-facets id="f-c1" source="s-c1"
+        fields="liste_gagnante,region"
+        labels="liste_gagnante:Liste gagnante | region:Région"
+        display="liste_gagnante:multiselect | region:multiselect"
+        cols="6">
+      </dsfr-data-facets>
+      <dsfr-data-list source="f-c1"
+        colonnes="nom_dept:Département,region:Région,liste_gagnante:Liste gagnante,taux_participation:Participation (%),nb_sieges:Sièges,nb_inscrits:Inscrits"
+        tri="taux_participation:desc" pagination="20" export="csv">
+      </dsfr-data-list>
+    </div>
+    <!-- /panel-c1 -->
+
+
+    <!-- ─────────────────────────────────────────────────────────────
+         COLLÈGE 2
+         ───────────────────────────────────────────────────────────── -->
+    <div id="panel-c2" class="fr-tabs__panel"
+      role="tabpanel" aria-labelledby="tab-c2">
+
+      <div class="fr-grid-row fr-grid-row--gutters fr-mb-3w">
+        <div class="fr-col-12 fr-col-md-8">
+          <h2 class="fr-h5 fr-mb-1w">Liste gagnante par département</h2>
+          <p class="fr-text--sm fr-text--mention-grey fr-mb-1w">
+            Collège Propriétaires fonciers — participation sensiblement plus faible.
+          </p>
+          <dsfr-data-map center="46.603,2.888" zoom="6" tiles="ign-ortho"
+            height="480px" fit-bounds
+            name="Résultats collège Propriétaires fonciers">
+            <dsfr-data-map-layer id="layer-c2" source="c2-geo" type="geoshape"
+              geo-field="geo_shape"
+color-field="liste_index"
+color-map="1:#000091,2:#E4794A,3:#60E0EB,4:#FF9940"
+fill-opacity="0.75"
+              tooltip-field="nom_dept">
+            </dsfr-data-map-layer>
+            <dsfr-data-map-popup for="layer-c2" mode="panel-right"
+              title-field="nom_dept" width="300px">
+              <template>
+                <p style="font-size:.75rem;color:#666;margin:0 0 .25rem">Collège 2 — Propriétaires fonciers</p>
+                <p style="font-size:1rem;font-weight:700;margin:0 0 .75rem;color:#000091">{{liste_gagnante}}</p>
+                <table style="width:100%;font-size:.875rem;border-collapse:collapse">
+                  <tr><td style="color:#666;padding:.2rem 0">Participation</td><td style="font-weight:600">{{taux_participation}} %</td></tr>
+                  <tr><td style="color:#666;padding:.2rem 0">Inscrits</td><td>{{nb_inscrits}}</td></tr>
+                  <tr><td style="color:#666;padding:.2rem 0">Sièges</td><td>{{nb_sieges}}</td></tr>
+                  <tr><td style="color:#666;padding:.2rem 0">Région</td><td>{{region}}</td></tr>
+                </table>
+              </template>
+            </dsfr-data-map-popup>
+          </dsfr-data-map>
+        </div>
+        <div class="fr-col-12 fr-col-md-4">
+          <h3 class="fr-h6">Répartition nationale</h3>
+          <dsfr-data-chart source="c2-pie" type="pie"
+            label-field="liste_gagnante" value-field="liste_index__count"
+            selected-palette="categorical">
+          </dsfr-data-chart>
+          <h3 class="fr-h6 fr-mt-2w">Top 10 participations</h3>
+          <dsfr-data-chart source="c2-top10" type="bar"
+            label-field="nom_dept" value-field="taux_participation"
+            selected-palette="sequentialAscending"
+            unit-tooltip="%" horizontal>
+          </dsfr-data-chart>
+        </div>
+      </div>
+
+      <h3 class="fr-h6 fr-mt-1w">Résultats détaillés</h3>
+      <dsfr-data-search id="s-c2" source="c2"
+        fields="nom_dept,liste_gagnante,region"
+        placeholder="Rechercher un département…" count>
+      </dsfr-data-search>
+      <dsfr-data-facets id="f-c2" source="s-c2"
+        fields="liste_gagnante,region"
+        labels="liste_gagnante:Liste gagnante | region:Région"
+        display="liste_gagnante:multiselect | region:multiselect"
+        cols="6">
+      </dsfr-data-facets>
+      <dsfr-data-list source="f-c2"
+        colonnes="nom_dept:Département,region:Région,liste_gagnante:Liste gagnante,taux_participation:Participation (%),nb_sieges:Sièges,nb_inscrits:Inscrits"
+        tri="taux_participation:desc" pagination="20" export="csv">
+      </dsfr-data-list>
+    </div>
+    <!-- /panel-c2 -->
+
+
+    <!-- ─────────────────────────────────────────────────────────────
+         COLLÈGE 3
+         ───────────────────────────────────────────────────────────── -->
+    <div id="panel-c3" class="fr-tabs__panel"
+      role="tabpanel" aria-labelledby="tab-c3">
+
+      <div class="fr-grid-row fr-grid-row--gutters fr-mb-3w">
+        <div class="fr-col-12 fr-col-md-8">
+          <h2 class="fr-h5 fr-mb-1w">Liste gagnante par département</h2>
+          <p class="fr-text--sm fr-text--mention-grey fr-mb-1w">
+            Collège Salariés agricoles — plus forte implantation de la Confédération Paysanne.
+          </p>
+          <dsfr-data-map center="46.603,2.888" zoom="6" tiles="ign-ortho"
+            height="480px" fit-bounds
+            name="Résultats collège Salariés agricoles">
+            <dsfr-data-map-layer id="layer-c3" source="c3-geo" type="geoshape"
+              geo-field="geo_shape"
+color-field="liste_index"
+color-map="1:#000091,2:#E4794A,3:#60E0EB,4:#FF9940"
+fill-opacity="0.75"
+              tooltip-field="nom_dept">
+            </dsfr-data-map-layer>
+            <dsfr-data-map-popup for="layer-c3" mode="panel-right"
+              title-field="nom_dept" width="300px">
+              <template>
+                <p style="font-size:.75rem;color:#666;margin:0 0 .25rem">Collège 3 — Salariés agricoles</p>
+                <p style="font-size:1rem;font-weight:700;margin:0 0 .75rem;color:#000091">{{liste_gagnante}}</p>
+                <table style="width:100%;font-size:.875rem;border-collapse:collapse">
+                  <tr><td style="color:#666;padding:.2rem 0">Participation</td><td style="font-weight:600">{{taux_participation}} %</td></tr>
+                  <tr><td style="color:#666;padding:.2rem 0">Inscrits</td><td>{{nb_inscrits}}</td></tr>
+                  <tr><td style="color:#666;padding:.2rem 0">Sièges</td><td>{{nb_sieges}}</td></tr>
+                  <tr><td style="color:#666;padding:.2rem 0">Région</td><td>{{region}}</td></tr>
+                </table>
+              </template>
+            </dsfr-data-map-popup>
+          </dsfr-data-map>
+        </div>
+        <div class="fr-col-12 fr-col-md-4">
+          <h3 class="fr-h6">Répartition nationale</h3>
+          <dsfr-data-chart source="c3-pie" type="pie"
+            label-field="liste_gagnante" value-field="liste_index__count"
+            selected-palette="categorical">
+          </dsfr-data-chart>
+          <h3 class="fr-h6 fr-mt-2w">Top 10 participations</h3>
+          <dsfr-data-chart source="c3-top10" type="bar"
+            label-field="nom_dept" value-field="taux_participation"
+            selected-palette="sequentialAscending"
+            unit-tooltip="%" horizontal>
+          </dsfr-data-chart>
+        </div>
+      </div>
+
+      <h3 class="fr-h6 fr-mt-1w">Résultats détaillés</h3>
+      <dsfr-data-search id="s-c3" source="c3"
+        fields="nom_dept,liste_gagnante,region"
+        placeholder="Rechercher un département…" count>
+      </dsfr-data-search>
+      <dsfr-data-facets id="f-c3" source="s-c3"
+        fields="liste_gagnante,region"
+        labels="liste_gagnante:Liste gagnante | region:Région"
+        display="liste_gagnante:multiselect | region:multiselect"
+        cols="6">
+      </dsfr-data-facets>
+      <dsfr-data-list source="f-c3"
+        colonnes="nom_dept:Département,region:Région,liste_gagnante:Liste gagnante,taux_participation:Participation (%),nb_sieges:Sièges,nb_inscrits:Inscrits"
+        tri="taux_participation:desc" pagination="20" export="csv">
+      </dsfr-data-list>
+    </div>
+    <!-- /panel-c3 -->
+
+  </div><!-- /fr-tabs -->
+
+</div><!-- /fr-container -->
+</body>
+</html>
