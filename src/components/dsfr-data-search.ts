@@ -117,6 +117,36 @@ export class DsfrDataSearch extends LitElement {
   private _unsubscribe: (() => void) | null = null;
   private _urlParamApplied = false;
 
+  // --- Public API (delegation to upstream source) ---
+
+  /**
+   * Retourne l'adapter de la source amont (delegation transparente).
+   * Permet aux composants en aval (dsfr-data-facets) d'acceder a l'adapter
+   * sans connaitre la structure du pipeline.
+   */
+  public getAdapter(): any {
+    if (this.source) {
+      const sourceEl = document.getElementById(this.source);
+      if (sourceEl && 'getAdapter' in sourceEl) {
+        return (sourceEl as any).getAdapter();
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Retourne le where effectif de la source amont (delegation transparente).
+   */
+  public getEffectiveWhere(excludeKey?: string): string {
+    if (this.source) {
+      const sourceEl = document.getElementById(this.source);
+      if (sourceEl && 'getEffectiveWhere' in sourceEl) {
+        return (sourceEl as any).getEffectiveWhere(excludeKey);
+      }
+    }
+    return '';
+  }
+
   createRenderRoot() {
     return this;
   }

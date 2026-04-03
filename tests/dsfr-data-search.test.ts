@@ -1192,4 +1192,48 @@ describe('DsfrDataSearch', () => {
       expect(search.getData()).toEqual([]);
     });
   });
+
+  describe('getAdapter delegation', () => {
+    it('delegates to upstream source element', () => {
+      const mockSource = document.createElement('div');
+      mockSource.id = 'mock-adapter-source';
+      (mockSource as any).getAdapter = () => ({
+        type: 'opendatasoft',
+        capabilities: { serverSearch: true },
+        getDefaultSearchTemplate: () => 'search("{q}")'
+      });
+      document.body.appendChild(mockSource);
+
+      search.source = 'mock-adapter-source';
+      const adapter = search.getAdapter();
+      expect(adapter).not.toBeNull();
+      expect(adapter.type).toBe('opendatasoft');
+
+      mockSource.remove();
+    });
+
+    it('returns null when no source set', () => {
+      search.source = '';
+      expect(search.getAdapter()).toBeNull();
+    });
+  });
+
+  describe('getEffectiveWhere delegation', () => {
+    it('delegates to upstream source element', () => {
+      const mockSource = document.createElement('div');
+      mockSource.id = 'mock-where-source';
+      (mockSource as any).getEffectiveWhere = () => 'region = "IDF"';
+      document.body.appendChild(mockSource);
+
+      search.source = 'mock-where-source';
+      expect(search.getEffectiveWhere()).toBe('region = "IDF"');
+
+      mockSource.remove();
+    });
+
+    it('returns empty string when source has no getEffectiveWhere', () => {
+      search.source = 'nonexistent';
+      expect(search.getEffectiveWhere()).toBe('');
+    });
+  });
 });

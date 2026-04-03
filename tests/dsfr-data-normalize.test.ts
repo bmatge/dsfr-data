@@ -927,4 +927,69 @@ describe('DsfrDataNormalize', () => {
       expect(getDataMeta('test-normalize')).toBeUndefined();
     });
   });
+
+  describe('getAdapter delegation', () => {
+    it('delegates to upstream source element', () => {
+      const mockSource = document.createElement('div');
+      mockSource.id = 'mock-source';
+      (mockSource as any).getAdapter = () => ({
+        type: 'opendatasoft',
+        capabilities: { serverFacets: true, serverSearch: true }
+      });
+      document.body.appendChild(mockSource);
+
+      normalize.source = 'mock-source';
+      const adapter = normalize.getAdapter();
+      expect(adapter).not.toBeNull();
+      expect(adapter.type).toBe('opendatasoft');
+      expect(adapter.capabilities.serverFacets).toBe(true);
+
+      mockSource.remove();
+    });
+
+    it('returns null when source has no getAdapter', () => {
+      const mockSource = document.createElement('div');
+      mockSource.id = 'mock-source-plain';
+      document.body.appendChild(mockSource);
+
+      normalize.source = 'mock-source-plain';
+      expect(normalize.getAdapter()).toBeNull();
+
+      mockSource.remove();
+    });
+
+    it('returns null when no source set', () => {
+      normalize.source = '';
+      expect(normalize.getAdapter()).toBeNull();
+    });
+  });
+
+  describe('getEffectiveWhere delegation', () => {
+    it('delegates to upstream source element', () => {
+      const mockSource = document.createElement('div');
+      mockSource.id = 'mock-source';
+      (mockSource as any).getEffectiveWhere = (excludeKey?: string) => {
+        if (excludeKey === 'facets') return 'search("test")';
+        return 'search("test") AND region = "IDF"';
+      };
+      document.body.appendChild(mockSource);
+
+      normalize.source = 'mock-source';
+      expect(normalize.getEffectiveWhere()).toBe('search("test") AND region = "IDF"');
+      expect(normalize.getEffectiveWhere('facets')).toBe('search("test")');
+
+      mockSource.remove();
+    });
+
+    it('returns empty string when source has no getEffectiveWhere', () => {
+      const mockSource = document.createElement('div');
+      mockSource.id = 'mock-source-plain';
+      document.body.appendChild(mockSource);
+
+      normalize.source = 'mock-source-plain';
+      expect(normalize.getEffectiveWhere()).toBe('');
+
+      mockSource.remove();
+    });
+  });
 });

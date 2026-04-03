@@ -1695,4 +1695,77 @@ describe('DsfrDataFacets', () => {
       document.body.removeChild(facets);
     });
   });
+
+  describe('getAdapter delegation', () => {
+    it('delegates to upstream source element', () => {
+      const mockSource = document.createElement('div');
+      mockSource.id = 'mock-adapter-src';
+      (mockSource as any).getAdapter = () => ({
+        type: 'opendatasoft',
+        capabilities: { serverFacets: true, whereFormat: 'odsql' },
+        buildFacetWhere: () => ''
+      });
+      document.body.appendChild(mockSource);
+
+      facets.source = 'mock-adapter-src';
+      const adapter = facets.getAdapter();
+      expect(adapter).not.toBeNull();
+      expect(adapter.type).toBe('opendatasoft');
+      expect(adapter.capabilities.serverFacets).toBe(true);
+
+      mockSource.remove();
+    });
+
+    it('chains through multiple intermediaries', () => {
+      // source → normalize → facets
+      const mockSource = document.createElement('div');
+      mockSource.id = 'chain-src';
+      (mockSource as any).getAdapter = () => ({ type: 'opendatasoft' });
+      document.body.appendChild(mockSource);
+
+      const mockNormalize = document.createElement('div');
+      mockNormalize.id = 'chain-norm';
+      (mockNormalize as any).source = 'chain-src';
+      (mockNormalize as any).getAdapter = () => {
+        const el = document.getElementById('chain-src');
+        return (el as any)?.getAdapter?.() ?? null;
+      };
+      document.body.appendChild(mockNormalize);
+
+      facets.source = 'chain-norm';
+      const adapter = facets.getAdapter();
+      expect(adapter).not.toBeNull();
+      expect(adapter.type).toBe('opendatasoft');
+
+      mockSource.remove();
+      mockNormalize.remove();
+    });
+
+    it('returns null when no source set', () => {
+      facets.source = '';
+      expect(facets.getAdapter()).toBeNull();
+    });
+  });
+
+  describe('getEffectiveWhere delegation', () => {
+    it('delegates to upstream source element', () => {
+      const mockSource = document.createElement('div');
+      mockSource.id = 'mock-where-src';
+      (mockSource as any).getEffectiveWhere = (excludeKey?: string) => {
+        return excludeKey ? 'partial' : 'full WHERE';
+      };
+      document.body.appendChild(mockSource);
+
+      facets.source = 'mock-where-src';
+      expect(facets.getEffectiveWhere()).toBe('full WHERE');
+      expect(facets.getEffectiveWhere('some-key')).toBe('partial');
+
+      mockSource.remove();
+    });
+
+    it('returns empty string when source has no getEffectiveWhere', () => {
+      facets.source = 'nonexistent';
+      expect(facets.getEffectiveWhere()).toBe('');
+    });
+  });
 });

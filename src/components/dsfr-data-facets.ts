@@ -151,6 +151,36 @@ export class DsfrDataFacets extends LitElement {
   private _unsubscribe: (() => void) | null = null;
   private _unsubscribeCommands: (() => void) | null = null;
   private _popstateHandler: (() => void) | null = null;
+
+  // --- Public API (delegation to upstream source) ---
+
+  /**
+   * Retourne l'adapter de la source amont (delegation transparente).
+   * Permet aux composants en aval d'acceder a l'adapter
+   * sans connaitre la structure du pipeline.
+   */
+  public getAdapter(): any {
+    if (this.source) {
+      const sourceEl = document.getElementById(this.source);
+      if (sourceEl && 'getAdapter' in sourceEl) {
+        return (sourceEl as any).getAdapter();
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Retourne le where effectif de la source amont (delegation transparente).
+   */
+  public getEffectiveWhere(excludeKey?: string): string {
+    if (this.source) {
+      const sourceEl = document.getElementById(this.source);
+      if (sourceEl && 'getEffectiveWhere' in sourceEl) {
+        return (sourceEl as any).getEffectiveWhere(excludeKey);
+      }
+    }
+    return '';
+  }
   private _urlParamsApplied = false;
 
   createRenderRoot() {
