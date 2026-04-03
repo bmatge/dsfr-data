@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DNC - Suivi epidemiologique</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css">
+  <!-- Leaflet : charge dynamiquement par dsfr-data.umd.js - NE PAS inclure manuellement -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"></script>
+  <script src="https://chartsbuilder.matge.com/dist/dsfr-data.umd.js"></script>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js"></script>
+</head>
+<body>
+
+<!--
+  PIPELINE (version finale validee dans le playground ChartBuilder)
+  -----------------------------------------------------------------
+
+  SOURCE DNC (Grist, 2 etapes) :
+    dnc-raw : url + transform="records"
+    dnc     : flatten="fields" + trim + numeric="statut,nb_foyers,nb_bovins"
+              PAS de numeric-auto -> code_dept conserve comme string "01","2A"
+
+  SOURCE GEO (ODS v1 API - solution validee Test C) :
+    ODS v1 (/api/records/1.0/search/) retourne dep_code comme STRING SCALAIRE "12"
+    et non comme TABLEAU ["12"] comme en v2.1 -> join fonctionne
+    geo_shape = Feature GeoJSON { type:"Feature", geometry:{...}, properties:{} }
+    -> format natif attendu par dsfr-data-map-layer type="geoshape"
+    transform="records" + flatten="fields" -> objets plats
+
+  JOINTURE DNC x GEO (inner, on="code_dept=dep_code") :
+    cles differentes : code_dept (DNC) = dep_code (ODS v1)
+
+  CARTE :
+    geo-field="geo_shape" -> Feature GeoJSON reconnu par le layer
+    color-field + color-map -> categoriel statut 1-4
+    time-field="date" + time-mode="snapshot" -> animation par date
+    dsfr-data-map-timeline -> controles natifs (enfant de dsfr-data-map)
+-->
+
+<!-- SOURCE DNC - etape 1 -->
+<dsfr-data-source id="dnc-raw"
+  url="https://chartsbuilder.matge.com/grist-gouv-proxy/api/docs/pU5HXX7VJC6jdgU6oBJRxn/tables/Dnc_epizootie/records"
+  transform="records">
+</dsfr-data-source>
+
+<!-- SOURCE DNC - etape 2 -->
+<dsfr-data-normalize id="dnc" source="dnc-raw"
+  flatten="fields"
+  trim
+  numeric="statut,nb_foyers,nb_bovins">
+</dsfr-data-normalize>
+
+<!--
+  SOURCE GEO : ODS v1 API
+  dep_code retourne en STRING scalaire "12" (pas tableau ["12"] comme v2.1)
+  geo_shape = Feature GeoJSON { type:"Feature", geometry:{Polygon...}, properties:{} }
+  rows=200 pour couvrir tous les departements (metropolitains + DOM)
+-->
+<dsfr-data-source id="geo-raw"
+  url="https://public.opendatasoft.com/api/records/1.0/search/?dataset=georef-france-departement&q=&rows=200&fields=dep_code,dep_name,geo_shape"
+  transform="records">
+</dsfr-data-source>
+
+<dsfr-data-normalize id="geo-depts" source="geo-raw"
+  flatten="fields"
+  trim>
+</dsfr-data-normalize>
+
+<!-- JOINTURE DNC x GEO -->
+<!-- on="code_dept=dep_code" : gauche code_dept (DNC), droite dep_code (ODS v1) -->
+<dsfr-data-join id="dnc-join"
+  left="dnc"
+  right="geo-depts"
+  on="code_dept=dep_code"
+  type="inner">
+</dsfr-data-join>
+
+<dsfr-data-normalize id="dnc-geo" source="dnc-join" trim></dsfr-data-normalize>
+
+<!-- KPIs derniere date -->
+<dsfr-data-query id="dnc-last"
+  source="dnc"
+  where="date:eq:2025-02-06">
+</dsfr-data-query>
+
+
+<div class="fr-container fr-py-3w">
+
+  <div class="fr-mb-2w">
+    <p><span class="fr-badge fr-badge--error fr-badge--no-icon">ALERTE SANITAIRE &mdash; Donn&eacute;es fictives</span></p>
+    <h1 class="fr-h2 fr-mt-1w">Dermatose Nodulaire Contagieuse &mdash; Suivi &eacute;pid&eacute;miologique</h1>
+    <p class="fr-text--lead">Carte anim&eacute;e de la propagation &middot; 5 &eacute;tapes cl&eacute;s &middot; Janvier&ndash;F&eacute;vrier 2025</p>
+    <p class="fr-text--sm fr-text--mention-grey">
+      Prototype ChartBuilder / DICOM MASA &mdash; 100&nbsp;% d&eacute;claratif.
+      Source DNC : Grist &middot; G&eacute;om&eacute;tries : ODS v1
+    </p>
+  </div>
+
+  <!-- KPIs -->
+  <div class="fr-grid-row fr-grid-row--gutters fr-mb-3w">
+    <div class="fr-col-12 fr-col-sm-6 fr-col-md-3">
+      <dsfr-data-kpi source="dnc-last" valeur="count:statut:3"
+        label="Foyers confirm&eacute;s" couleur="rouge">
+      </dsfr-data-kpi>
+    </div>
+    <div class="fr-col-12 fr-col-sm-6 fr-col-md-3">
+      <dsfr-data-kpi source="dnc-last" valeur="count:statut:4"
+        label="Zones r&eacute;glement&eacute;es" couleur="bleu-france">
+      </dsfr-data-kpi>
+    </div>
+    <div class="fr-col-12 fr-col-sm-6 fr-col-md-3">
+      <dsfr-data-kpi source="dnc-last" valeur="count:statut:2"
+        label="En surveillance" couleur="orange">
+      </dsfr-data-kpi>
+    </div>
+    <div class="fr-col-12 fr-col-sm-6 fr-col-md-3">
+      <dsfr-data-kpi source="dnc-last" valeur="sum:nb_bovins"
+        label="Bovins concern&eacute;s">
+      </dsfr-data-kpi>
+    </div>
+  </div>
+
+  <!-- LEGENDE -->
+  <div class="fr-grid-row fr-grid-row--gutters fr-mb-2w">
+    <div class="fr-col-auto">
+      <span class="fr-badge fr-badge--sm" style="background:#00A95F;color:#fff">1 &mdash; Indemne</span>
+    </div>
+    <div class="fr-col-auto">
+      <span class="fr-badge fr-badge--sm fr-badge--warning">2 &mdash; Surveillance</span>
+    </div>
+    <div class="fr-col-auto">
+      <span class="fr-badge fr-badge--sm fr-badge--error">3 &mdash; Foyer confirm&eacute;</span>
+    </div>
+    <div class="fr-col-auto">
+      <span class="fr-badge fr-badge--sm" style="background:#000091;color:#fff">4 &mdash; Zone r&eacute;glement&eacute;e</span>
+    </div>
+  </div>
+
+  <!-- CARTE -->
+  <dsfr-data-map center="44.603,2.888" zoom="5.5" tiles="ign-cadastre"
+    height="520px" fit-bounds
+    name="Propagation DNC &mdash; carte anim&eacute;e">
+
+    <dsfr-data-map-layer source="dnc-geo" type="geoshape"
+      geo-field="geo_shape"
+      color-field="statut"
+      color-map="1:#00A95F,2:#FF9940,3:#E1000F,4:#000091"
+      fill-opacity="0.75"
+      tooltip-field="nom_dept"
+      time-field="date"
+      time-mode="snapshot">
+    </dsfr-data-map-layer>
+
+    <dsfr-data-map-popup mode="panel-right"
+      title-field="nom_dept" width="280px">
+      <template>
+        <p class="fr-text--sm fr-mb-1w" style="color:#666">{{date}}</p>
+        <p class="fr-text--bold fr-mb-1w">{{statut_label}}</p>
+        <table style="width:100%;font-size:.875rem;border-collapse:collapse">
+          <tr><td style="color:#666;padding:.2rem 0">Foyers</td><td>{{nb_foyers}}</td></tr>
+          <tr><td style="color:#666;padding:.2rem 0">Bovins</td><td>{{nb_bovins}}</td></tr>
+          <tr><td style="color:#666;padding:.2rem 0">R&eacute;gion</td><td>{{region}}</td></tr>
+        </table>
+      </template>
+    </dsfr-data-map-popup>
+
+    <dsfr-data-map-timeline speed="1" interval="1200">
+    </dsfr-data-map-timeline>
+
+  </dsfr-data-map>
+
+
+  <!-- GRAPHIQUE -->
+  <h2 class="fr-h5 fr-mt-4w fr-mb-1w">Progression de l&apos;&eacute;pizootiee</h2>
+  <p class="fr-text--sm fr-text--mention-grey fr-mb-1w">
+    Nouveaux foyers confirm&eacute;s par &eacute;tape et cumul total.
+  </p>
+  <dsfr-data-query id="q-evolution"
+    source="dnc"
+    where="statut:gt:2"
+    group-by="date"
+    aggregate="nb_foyers:sum,statut:count"
+    order-by="date:asc">
+  </dsfr-data-query>
+  <dsfr-data-chart source="q-evolution" type="bar-line"
+    label-field="date"
+    value-field="nb_foyers__sum"
+    value-field-2="statut__count"
+    name='["Bovins affect&eacute;s (somme)","Depts touch&eacute;s (count)"]'
+    selected-palette="categorical"
+    databox
+    databox-title="Progression DNC &mdash; 5 &eacute;tapes"
+    databox-source="DGAL / MASA &mdash; Donn&eacute;es fictives"
+    databox-download databox-screenshot>
+  </dsfr-data-chart>
+
+</div>
+</body>
+</html>
