@@ -62,7 +62,7 @@ for (const dir of directories) {
 
 // Copy built apps
 console.log('\nCopying built apps...');
-const apps = ['favorites', 'playground', 'sources', 'builder-ia', 'builder', 'builder-carto', 'dashboard', 'monitoring', 'admin'];
+const apps = ['favorites', 'playground', 'sources', 'builder-ia', 'builder', 'builder-carto', 'dashboard', 'monitoring', 'admin', 'pipeline-helper'];
 for (const app of apps) {
   const appDist = join(rootDir, 'apps', app, 'dist');
   const dest = join(distDir, 'apps', app);
