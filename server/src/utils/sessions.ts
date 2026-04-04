@@ -45,7 +45,7 @@ export async function isSessionValid(token: string): Promise<boolean> {
     'SELECT revoked_at, expires_at FROM sessions WHERE token_hash = ?',
     [tokenHash]
   );
-  if (!session) return true; // No session record = legacy token (pre-sessions), allow
+  if (!session) return false; // No session record = legacy or invalid token, reject
   if (session.revoked_at) return false;
   if (new Date(session.expires_at) < new Date()) return false;
   return true;

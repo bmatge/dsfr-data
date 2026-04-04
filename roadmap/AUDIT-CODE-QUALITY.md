@@ -26,7 +26,7 @@ Le projet beneficiait d'un TypeScript strict et d'une couverture de test honorab
 
 **Cet audit a mis en place** : ESLint + Prettier, CI renforcee (typecheck + lint + format + coverage + npm audit), seuils de couverture (85/80%), pre-commit hooks (Husky + lint-staged), et corrige 6 findings de securite (XSS, JWT, email injection, beacon flooding, monitoring expose, cles API en clair). Le MCP server a ete refactore et teste (25 tests). 7 exports morts nettoyes dans shared.
 
-**Etat post-audit** : 79 fichiers de test (2842 tests), 0 erreur ESLint, 0 vulnerabilite npm, 91% couverture. Il reste 8 actions de priorite moyenne/basse (tests supplementaires, Dependabot, bundle monitoring).
+**Etat post-audit** : 79 fichiers de test (2842 tests), 0 erreur ESLint, 0 vulnerabilite npm, 91% couverture. Il reste 6 actions de priorite moyenne/basse (tests supplementaires, bundle monitoring).
 
 ---
 
@@ -41,7 +41,7 @@ Le projet beneficiait d'un TypeScript strict et d'une couverture de test honorab
 | Coverage | Collectee, aucun seuil | **Seuils 85/80% configures** |
 | Tests unitaires | 78 fichiers (2817 tests) | **79 fichiers (2842 tests)** |
 | E2E | Playwright builder (110 combinaisons) | Inchange |
-| Securite server | 5 findings medium | **2 restants** |
+| Securite server | 5 findings medium | **1 restant** (validation inputs) |
 | Vulnerabilites npm | 3 (2 high, 1 moderate) | **0** |
 
 ---
@@ -156,7 +156,7 @@ Fichiers > 700 LOC a auditer pour extractions possibles :
 - [x] Cles API masquees → **corrige** (affichage last 4 chars en list)
 
 **Findings medium restants** :
-- [ ] Tokens legacy bypass revocation (`sessions.ts:48`) — migration a planifier
+- [x] Tokens legacy bypass revocation (`sessions.ts:48`) — **corrige** (tokens sans session refuses)
 - [ ] Validation inputs incomplete (displayName longueur, group role en app layer)
 
 ### 5.3 Auth
@@ -229,7 +229,7 @@ Fichiers > 700 LOC a auditer pour extractions possibles :
 
 - [x] `npm audit fix` — 0 vulnerabilite
 - [x] `npm audit --audit-level=high` en CI (etape "Security audit")
-- [ ] Evaluer Dependabot ou Renovate
+- [x] Dependabot configure (`.github/dependabot.yml` — npm weekly + GitHub Actions weekly)
 
 ### 7.6 Bundle size monitoring
 
@@ -430,18 +430,20 @@ Toutes fixables via `npm audit fix`.
 | 11 | Nettoyage dead code shared (7 exports morts supprimes) | **Fait** |
 | 12 | Fix build shared (Error cause ES2021) | **Fait** |
 | 13 | Interface `SourceElement` partagee (21 `as any` elimines dans 6 fichiers) | **Fait** |
+| 14 | Fix tokens legacy bypass revocation (`sessions.ts`) | **Fait** |
+| 15 | Dependabot configure (npm + GitHub Actions, weekly) | **Fait** |
 
 ### Reste a faire
 
 | # | Action | Priorite | Effort |
 |---|--------|----------|--------|
-| 1 | Tokens legacy bypass revocation (migration sessions) | Moyenne | Moyen |
+| ~~1~~ | ~~Tokens legacy bypass revocation~~ | **Fait** | — |
 | ~~2~~ | ~~Pre-commit hooks (Husky + lint-staged)~~ | **Fait** | — |
 | ~~3~~ | ~~Interface `SourceElement` partagee~~ | **Fait** (21 casts elimines) | — |
 | 4 | Tests integration MCP (transport stdio/HTTP) | Moyenne | Moyen |
 | 5 | Tests dedies composants map (world-map, map-layer) | Moyenne | Moyen |
 | 6 | Tests apps sous-testees (admin, monitoring, favorites) | Moyenne | Moyen |
-| ~~7~~ | ~~`npm audit` en CI~~ + Dependabot | **Audit fait** / Dependabot a faire | — |
+| ~~7~~ | ~~`npm audit` en CI + Dependabot~~ | **Fait** | — |
 | ~~8~~ | ~~Nettoyage dead code shared~~ | **Fait** | — |
 | 9 | Bundle size monitoring (`size-limit`) | Basse | Faible |
 | 10 | Refacto code duplique builders | Basse | Fort |
