@@ -2,8 +2,7 @@
  * Monitoring app - tracks where dsfr-data are deployed.
  */
 
-import { escapeHtml } from '@dsfr-data/shared';
-import { checkAuth, isDbMode as checkDbMode } from '@dsfr-data/shared';
+import { escapeHtml, checkAuth } from '@dsfr-data/shared';
 import type { User } from '@dsfr-data/shared';
 import {
   fetchMonitoringData,
@@ -48,13 +47,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   const errorEl = document.getElementById('load-error');
 
   // Detect auth state for admin features
-  try {
-    dbMode = await checkDbMode();
-    if (dbMode) {
+  // Read __gwDbMode flag (set by the backend/Docker, not by shared isDbMode which has side effects)
+  dbMode = typeof window !== 'undefined' && (window as any).__gwDbMode === true;
+  if (dbMode) {
+    try {
       const authState = await checkAuth();
       currentUser = authState.user;
-    }
-  } catch { /* no backend */ }
+    } catch { /* no backend */ }
+  }
 
   try {
     data = await fetchMonitoringData();
