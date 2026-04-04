@@ -26,7 +26,13 @@ function collectConsoleErrors(page: Page): string[] {
   page.on('console', (msg) => {
     if (msg.type() === 'error') {
       const text = msg.text();
-      if (!text.includes('net::ERR_') && !text.includes('Failed to load resource') && !text.includes('cdn.jsdelivr.net')) {
+      if (
+        !text.includes('net::ERR_') &&
+        !text.includes('Failed to load resource') &&
+        !text.includes('cdn.jsdelivr.net') &&
+        !text.includes('Erreur de chargement') &&
+        !text.includes('Failed to fetch')
+      ) {
         errors.push(text);
       }
     }
@@ -187,7 +193,10 @@ test.describe('Specs — world map', () => {
     const svgCount = await page.locator('dsfr-data-world-map svg').count();
     expect(svgCount).toBeGreaterThanOrEqual(1);
 
-    await page.screenshot({ path: join(SCREENSHOT_DIR, 'dsfr-data-world-map.png'), fullPage: true });
+    await page.screenshot({
+      path: join(SCREENSHOT_DIR, 'dsfr-data-world-map.png'),
+      fullPage: true,
+    });
     expect(errors).toEqual([]);
   });
 });

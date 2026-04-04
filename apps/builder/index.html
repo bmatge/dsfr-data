@@ -79,7 +79,7 @@
       <!-- ETAPE 1.5 : Mode de generation (visible si source Grist) -->
       <div class="config-section collapsed" id="section-generation-mode" style="display: none;">
         <div class="config-section-header" onclick="toggleSection('section-generation-mode')">
-          <h3><i class="ri-code-s-slash-line"></i> Mode de generation <button type="button" class="help-btn" aria-describedby="help-generation-mode" data-help="generation-mode"><i class="ri-question-line" aria-hidden="true"></i></button></h3>
+          <h3><i class="ri-code-s-slash-line"></i> Mode de generation <button type="button" class="help-btn" aria-label="Aide" aria-describedby="help-generation-mode" data-help="generation-mode"><i class="ri-question-line" aria-hidden="true"></i></button></h3>
           <i class="ri-arrow-down-s-line collapse-icon"></i>
         </div>
         <div class="config-section-content">
@@ -184,7 +184,7 @@
           <div class="fr-select-group fr-select-group--sm" style="flex: 1; margin-bottom: 0;">
             <label class="fr-label" for="label-field">
               Axe X / Categories
-              <button type="button" class="help-btn" aria-describedby="help-label-field" data-help="label-field"><i class="ri-question-line" aria-hidden="true"></i></button>
+              <button type="button" class="help-btn" aria-label="Aide" aria-describedby="help-label-field" data-help="label-field"><i class="ri-question-line" aria-hidden="true"></i></button>
               <span class="fr-hint-text">Le champ pour les etiquettes (ex&nbsp;: region, annee)</span>
             </label>
             <select class="fr-select" id="label-field">
@@ -205,7 +205,7 @@
           <div class="fr-select-group fr-select-group--sm" style="flex: 1; margin-bottom: 0;">
             <label class="fr-label" for="value-field">
               Axe Y / Valeurs (Serie 1)
-              <button type="button" class="help-btn" aria-describedby="help-value-field" data-help="value-field"><i class="ri-question-line" aria-hidden="true"></i></button>
+              <button type="button" class="help-btn" aria-label="Aide" aria-describedby="help-value-field" data-help="value-field"><i class="ri-question-line" aria-hidden="true"></i></button>
               <span class="fr-hint-text">Le champ numerique a mesurer (ex&nbsp;: population, budget)</span>
             </label>
             <select class="fr-select" id="value-field">
@@ -244,7 +244,7 @@
           <div class="fr-select-group fr-select-group--sm">
             <label class="fr-label" for="aggregation">
               Agregation
-              <button type="button" class="help-btn" aria-describedby="help-aggregation" data-help="aggregation"><i class="ri-question-line" aria-hidden="true"></i></button>
+              <button type="button" class="help-btn" aria-label="Aide" aria-describedby="help-aggregation" data-help="aggregation"><i class="ri-question-line" aria-hidden="true"></i></button>
               <span class="fr-hint-text">Comment combiner les valeurs par etiquette</span>
             </label>
             <select class="fr-select" id="aggregation">
@@ -262,7 +262,7 @@
         <div class="fr-select-group fr-select-group--sm fr-mt-1w">
           <label class="fr-label" for="sort-order">
             Tri
-            <button type="button" class="help-btn" aria-describedby="help-sort-order" data-help="sort-order"><i class="ri-question-line" aria-hidden="true"></i></button>
+            <button type="button" class="help-btn" aria-label="Aide" aria-describedby="help-sort-order" data-help="sort-order"><i class="ri-question-line" aria-hidden="true"></i></button>
           </label>
           <select class="fr-select" id="sort-order">
             <option value="desc">Decroissant</option>
@@ -275,7 +275,7 @@
           <input type="checkbox" class="fr-toggle__input" id="advanced-mode-toggle" aria-describedby="advanced-mode-hint">
           <label class="fr-toggle__label" for="advanced-mode-toggle" data-fr-checked-label="Active" data-fr-unchecked-label="Desactive">
             Mode avance (filtres & requetes)
-            <button type="button" class="help-btn" aria-describedby="help-advanced-mode" data-help="advanced-mode"><i class="ri-question-line" aria-hidden="true"></i></button>
+            <button type="button" class="help-btn" aria-label="Aide" aria-describedby="help-advanced-mode" data-help="advanced-mode"><i class="ri-question-line" aria-hidden="true"></i></button>
           </label>
           <p class="fr-hint-text" id="advanced-mode-hint">Filtrer, regrouper ou transformer les donnees avant affichage</p>
         </div>
@@ -290,7 +290,7 @@
           <div class="fr-input-group fr-input-group--sm">
             <label class="fr-label" for="query-filter">
               Filtres
-              <button type="button" class="help-btn" aria-describedby="help-query-filter" data-help="query-filter"><i class="ri-question-line" aria-hidden="true"></i></button>
+              <button type="button" class="help-btn" aria-label="Aide" aria-describedby="help-query-filter" data-help="query-filter"><i class="ri-question-line" aria-hidden="true"></i></button>
               <span class="fr-hint-text">Format : champ:operateur:valeur (separes par virgule)</span>
             </label>
             <input class="fr-input" type="text" id="query-filter" placeholder="Ex: region:eq:Bretagne, population:gte:10000">
@@ -390,7 +390,7 @@
         <div class="fr-select-group fr-select-group--sm fr-mt-1w" id="palette-config">
           <label class="fr-label" for="chart-palette">
             Palette de couleurs
-            <button type="button" class="help-btn" aria-describedby="help-chart-palette" data-help="chart-palette"><i class="ri-question-line" aria-hidden="true"></i></button>
+            <button type="button" class="help-btn" aria-label="Aide" aria-describedby="help-chart-palette" data-help="chart-palette"><i class="ri-question-line" aria-hidden="true"></i></button>
           </label>
           <select class="fr-select" id="chart-palette">
             <option value="default">Bleu France</option>
@@ -429,7 +429,7 @@
       <!-- Nettoyage des donnees (mode dynamique uniquement) -->
       <div class="config-section collapsed" id="section-normalize" style="display: none;">
         <div class="config-section-header" onclick="toggleSection('section-normalize')">
-          <h3><i class="ri-eraser-line"></i> Nettoyage des donnees <button type="button" class="help-btn" aria-describedby="help-normalize" data-help="normalize"><i class="ri-question-line" aria-hidden="true"></i></button></h3>
+          <h3><i class="ri-eraser-line"></i> Nettoyage des donnees <button type="button" class="help-btn" aria-label="Aide" aria-describedby="help-normalize" data-help="normalize"><i class="ri-question-line" aria-hidden="true"></i></button></h3>
           <i class="ri-arrow-down-s-line collapse-icon"></i>
         </div>
         <div class="config-section-content">
@@ -504,7 +504,7 @@
       <!-- Filtres a facettes (mode dynamique uniquement) -->
       <div class="config-section collapsed" id="section-facets" style="display: none;">
         <div class="config-section-header" onclick="toggleSection('section-facets')">
-          <h3><i class="ri-filter-3-line"></i> Filtres a facettes <button type="button" class="help-btn" aria-describedby="help-facets" data-help="facets"><i class="ri-question-line" aria-hidden="true"></i></button></h3>
+          <h3><i class="ri-filter-3-line"></i> Filtres a facettes <button type="button" class="help-btn" aria-label="Aide" aria-describedby="help-facets" data-help="facets"><i class="ri-question-line" aria-hidden="true"></i></button></h3>
           <i class="ri-arrow-down-s-line collapse-icon"></i>
         </div>
         <div class="config-section-content">
@@ -555,7 +555,7 @@
       <!-- Habillage DataBox -->
       <div class="config-section collapsed" id="section-databox">
         <div class="config-section-header" onclick="toggleSection('section-databox')">
-          <h3><i class="ri-layout-4-line"></i> Habillage DataBox <button type="button" class="help-btn" aria-describedby="help-databox" data-help="databox"><i class="ri-question-line" aria-hidden="true"></i></button></h3>
+          <h3><i class="ri-layout-4-line"></i> Habillage DataBox <button type="button" class="help-btn" aria-label="Aide" aria-describedby="help-databox" data-help="databox"><i class="ri-question-line" aria-hidden="true"></i></button></h3>
           <i class="ri-arrow-down-s-line collapse-icon"></i>
         </div>
         <div class="config-section-content">
@@ -605,7 +605,7 @@
       <!-- Option accessibilite -->
       <div class="config-section collapsed" id="section-a11y">
         <div class="config-section-header" onclick="toggleSection('section-a11y')">
-          <h3><i class="ri-accessibility-line"></i> Accessibilite <button type="button" class="help-btn" aria-describedby="help-a11y" data-help="a11y"><i class="ri-question-line" aria-hidden="true"></i></button></h3>
+          <h3><i class="ri-accessibility-line"></i> Accessibilite <button type="button" class="help-btn" aria-label="Aide" aria-describedby="help-a11y" data-help="a11y"><i class="ri-question-line" aria-hidden="true"></i></button></h3>
           <i class="ri-arrow-down-s-line collapse-icon"></i>
         </div>
         <div class="config-section-content">

@@ -273,6 +273,7 @@ function renderMapConfig() {
       </div>
       <div class="config-section-content">
         <div class="carto-field">
+          <label class="fr-label fr-label--sm" for="gen-mode">Mode</label>
           <select id="gen-mode" class="fr-select fr-select--sm">
             <option value="embedded" ${state.generationMode === 'embedded' ? 'selected' : ''}>Embarque (composants seuls)</option>
             <option value="dynamic" ${state.generationMode === 'dynamic' ? 'selected' : ''}>Dynamique (avec scripts/CSS)</option>

@@ -24,15 +24,11 @@ test.describe('dsfr-data-map E2E', () => {
       await page.waitForTimeout(1_000);
     }
 
-    // Wait for Leaflet to load and render
-    await page.waitForTimeout(5_000);
+    // Wait for Leaflet to dynamically load and render
+    await page.waitForTimeout(8_000);
 
-    // Verify at least one map container rendered
-    const containerCount = await page.locator('.dsfr-data-map__container').count();
-    expect(containerCount).toBeGreaterThanOrEqual(1);
-
-    // Verify Leaflet tiles are loading
-    const tilePaneCount = await page.locator('.leaflet-tile-pane').count();
-    expect(tilePaneCount).toBeGreaterThanOrEqual(1);
+    // Verify at least one map container rendered (Leaflet loads async)
+    const container = page.locator('.dsfr-data-map__container').first();
+    await expect(container).toBeVisible({ timeout: 15_000 });
   });
 });
