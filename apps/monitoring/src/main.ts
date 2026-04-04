@@ -283,8 +283,6 @@ function renderComponentBadges(components: GroupedEntry['components']): string {
 
   return [...map.entries()]
     .map(([label, types]) => {
-      const count = map.get(label)!;
-      // Count = how many entries for this component (1 per chartType, or 1 if no type)
       const n = types.length || 1;
       const countPrefix = n > 1 ? `<span class="monitoring-badge__count">${n}</span>` : '';
       const typeSuffix = types.length
