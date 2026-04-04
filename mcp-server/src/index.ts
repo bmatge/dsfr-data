@@ -24,18 +24,9 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { createServer } from 'node:http';
 import { z } from 'zod';
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-interface Skill {
-  id: string;
-  name: string;
-  description: string;
-  trigger: string[];
-  content: string;
-}
+import { getArg, hasFlag } from './cli.js';
+import { matchSkills, getWidgetSkillIds } from './skills.js';
+import type { Skill } from './skills.js';
 
 // ---------------------------------------------------------------------------
 // Config
@@ -44,22 +35,10 @@ interface Skill {
 const DEFAULT_BASE_URL = 'https://chartsbuilder.matge.com';
 const DEFAULT_PORT = 3001;
 
-function getArg(flag: string): string | undefined {
-  const idx = process.argv.indexOf(flag);
-  if (idx !== -1 && process.argv[idx + 1] && !process.argv[idx + 1].startsWith('--')) {
-    return process.argv[idx + 1];
-  }
-  return undefined;
-}
-
-function hasFlag(flag: string): boolean {
-  return process.argv.includes(flag);
-}
-
-const baseUrl = (getArg('--url') ?? DEFAULT_BASE_URL).replace(/\/$/, '');
-const isHttpMode = hasFlag('--http');
-const httpPort = parseInt(getArg('--port') ?? String(DEFAULT_PORT), 10);
-const skillsFile = getArg('--skills-file');
+const baseUrl = (getArg(process.argv, '--url') ?? DEFAULT_BASE_URL).replace(/\/$/, '');
+const isHttpMode = hasFlag(process.argv, '--http');
+const httpPort = parseInt(getArg(process.argv, '--port') ?? String(DEFAULT_PORT), 10);
+const skillsFile = getArg(process.argv, '--skills-file');
 
 // ---------------------------------------------------------------------------
 // Skills loader
@@ -91,12 +70,7 @@ async function loadSkills(): Promise<Skill[]> {
   return skillsCache;
 }
 
-function matchSkills(skills: Skill[], message: string): Skill[] {
-  const lower = message.toLowerCase();
-  return skills.filter(s =>
-    s.trigger.some(t => lower.includes(t.toLowerCase())),
-  );
-}
+// matchSkills and getWidgetSkillIds imported from ./skills.js
 
 // ---------------------------------------------------------------------------
 // MCP Server (tools registration)
@@ -190,23 +164,9 @@ function createMcpServer(): McpServer {
     },
     async ({ chart_type }) => {
       const skills = await loadSkills();
+      const ids = getWidgetSkillIds(chart_type);
 
-      const ids = ['compositionPatterns', 'dsfrDataSource', 'dsfrDataChart', 'apiProviders', 'troubleshooting'];
-
-      if (chart_type) {
-        const lower = chart_type.toLowerCase();
-        if (lower === 'kpi') ids.push('dsfrDataKpi');
-        if (lower === 'podium' || lower === 'classement' || lower === 'ranking') ids.push('dsfrDataPodium');
-        if (lower === 'datalist' || lower === 'tableau') ids.push('dsfrDataList');
-        if (lower === 'map' || lower === 'map-reg') ids.push('dsfrColors');
-        if (lower.includes('bar') || lower.includes('pie') || lower.includes('line')) ids.push('chartTypes');
-      } else {
-        ids.push('dsfrDataKpi', 'dsfrDataPodium', 'dsfrDataList', 'dsfrDataQuery', 'chartTypes', 'dsfrColors');
-      }
-
-      if (!ids.includes('dsfrDataQuery')) ids.push('dsfrDataQuery');
-
-      const contents = [...new Set(ids)]
+      const contents = ids
         .map(id => skills.find(s => s.id === id))
         .filter(Boolean)
         .map(s => s!.content);

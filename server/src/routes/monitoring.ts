@@ -7,15 +7,17 @@ import { Router } from 'express';
 import { query, execute } from '../db/database.js';
 import { requireAuth } from '../middleware/auth.js';
 import { requireRole } from '../middleware/rbac.js';
+import { beaconRateLimiter } from '../middleware/rate-limit.js';
 
 const router = Router();
 
 /**
  * POST /beacon - Record a widget usage beacon
  * No auth required (fire-and-forget from frontend).
+ * Rate-limited: 60 requests/minute/IP.
  * Accepts `pageUrl` (full origin+path, new) or `origin` (origin only, legacy).
  */
-router.post('/beacon', async (req, res) => {
+router.post('/beacon', beaconRateLimiter, async (req, res) => {
   const { component, chartType, pageUrl, origin } = req.body;
 
   // Accept pageUrl (new) or origin (legacy) — prefer pageUrl
@@ -47,7 +49,7 @@ router.post('/beacon', async (req, res) => {
  * GET /data - Get monitoring data (compatible with monitoring-data.json format)
  * Returns flat entries with referer (= origin column, now stores full URL).
  */
-router.get('/data', async (_req, res) => {
+router.get('/data', requireAuth, async (_req, res) => {
   try {
     const rows = await query<{
       component: string;

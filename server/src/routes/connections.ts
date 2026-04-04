@@ -43,7 +43,18 @@ function decryptApiKey(value: string | null | undefined): string | null {
   return value;
 }
 
-function parseJsonColumns(row: Record<string, unknown>): Record<string, unknown> {
+/**
+ * Mask an API key: show only the last 4 characters.
+ */
+function maskApiKey(key: string): string {
+  if (key.length <= 4) return '****';
+  return '*'.repeat(key.length - 4) + key.slice(-4);
+}
+
+function parseJsonColumns(
+  row: Record<string, unknown>,
+  options?: { maskKey?: boolean }
+): Record<string, unknown> {
   const result = { ...row };
   for (const col of JSON_COLUMNS) {
     if (typeof result[col] === 'string') {
@@ -56,7 +67,8 @@ function parseJsonColumns(row: Record<string, unknown>): Record<string, unknown>
   }
   // Decrypt api_key_encrypted for the response
   if (result.api_key_encrypted) {
-    result.api_key_encrypted = decryptApiKey(result.api_key_encrypted as string);
+    const decrypted = decryptApiKey(result.api_key_encrypted as string);
+    result.api_key_encrypted = options?.maskKey && decrypted ? maskApiKey(decrypted) : decrypted;
   }
   return result;
 }
@@ -120,10 +132,13 @@ router.get('/', requireAuth, async (req, res) => {
 
     const all = [
       ...ownResources.map((r) => ({
-        ...parseJsonColumns(r as Record<string, unknown>),
+        ...parseJsonColumns(r as Record<string, unknown>, { maskKey: true }),
         _owned: true,
       })),
-      ...sharedResources.map((r) => ({ ...parseJsonColumns(r), _owned: false })),
+      ...sharedResources.map((r) => ({
+        ...parseJsonColumns(r, { maskKey: true }),
+        _owned: false,
+      })),
     ];
 
     const result = await Promise.all(
