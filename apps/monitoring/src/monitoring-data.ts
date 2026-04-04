@@ -66,6 +66,17 @@ export function decodeUrl(url: string): string {
   try { return decodeURIComponent(url); } catch { return url; }
 }
 
+/** Check if a URL is a real HTTP(S) origin (not file://, null, srcdoc, etc.) */
+export function isRealOrigin(url: string): boolean {
+  const decoded = decodeUrl(url);
+  try {
+    const u = new URL(decoded);
+    return u.protocol === 'http:' || u.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 /** Extract domain from a full URL */
 export function extractDomain(url: string): string {
   try {

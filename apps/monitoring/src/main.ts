@@ -11,6 +11,7 @@ import {
   extractDomain,
   extractPath,
   decodeUrl,
+  isRealOrigin,
   type MonitoringData,
   type MonitoringEntry,
 } from './monitoring-data.js';
@@ -74,6 +75,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.warn('[monitoring] fetch failed, using mock data:', detail);
   }
 
+  // Strip non-HTTP entries (local files, srcdoc, null origins)
+  data.entries = data.entries.filter((e) => isRealOrigin(e.referer));
   filteredEntries = data.entries;
   applyGrouping();
   renderKpis();
@@ -431,6 +434,9 @@ async function refreshData(): Promise<void> {
       errEl.style.display = 'block';
     }
   }
+
+  // Strip non-HTTP entries
+  data.entries = data.entries.filter((e) => isRealOrigin(e.referer));
 
   // Re-apply current filters
   applyFilters();

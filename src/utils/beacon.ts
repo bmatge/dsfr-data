@@ -31,8 +31,12 @@ export function sendWidgetBeacon(component: string, subtype?: string): void {
   if (sent.has(key)) return;
   sent.add(key);
 
-  // Skip in dev mode and on the app itself (only track external deployments)
+  // Skip non-HTTP origins (local files, srcdoc iframes, null origins)
   if (typeof window === 'undefined') return;
+  const proto = window.location.protocol;
+  if (proto !== 'http:' && proto !== 'https:') return;
+
+  // Skip in dev mode and on the app itself (only track external deployments)
   const host = window.location.hostname;
   if (
     host === 'localhost' ||
