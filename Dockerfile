@@ -12,6 +12,7 @@ COPY apps/builder-carto/package.json apps/builder-carto/
 COPY apps/dashboard/package.json apps/dashboard/
 COPY apps/monitoring/package.json apps/monitoring/
 COPY apps/admin/package.json apps/admin/
+COPY apps/pipeline-helper/package.json apps/pipeline-helper/
 RUN npm ci
 COPY . .
 RUN npm run build:all
