@@ -69,7 +69,7 @@ export function SourceSubscriberMixin<T extends Constructor<LitElement>>(superCl
     private _subscribeToSource() {
       this._cleanupSubscription();
 
-      const source = (this as any).source as string;
+      const source = (this as unknown as SourceSubscriberInterface).source;
       if (!source) return;
 
       // Récupère les données en cache

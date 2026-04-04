@@ -14,6 +14,7 @@ import {
   setDataMeta,
 } from '../utils/data-bridge.js';
 import type { ApiAdapter } from '../adapters/api-adapter.js';
+import type { SourceElement } from '../utils/source-element.js';
 
 type FacetDisplayMode = 'checkbox' | 'select' | 'multiselect' | 'radio';
 
@@ -159,11 +160,11 @@ export class DsfrDataFacets extends LitElement {
    * Permet aux composants en aval d'acceder a l'adapter
    * sans connaitre la structure du pipeline.
    */
-  public getAdapter(): any {
+  public getAdapter(): ApiAdapter | null {
     if (this.source) {
       const sourceEl = document.getElementById(this.source);
       if (sourceEl && 'getAdapter' in sourceEl) {
-        return (sourceEl as any).getAdapter();
+        return (sourceEl as unknown as SourceElement).getAdapter();
       }
     }
     return null;
@@ -176,7 +177,7 @@ export class DsfrDataFacets extends LitElement {
     if (this.source) {
       const sourceEl = document.getElementById(this.source);
       if (sourceEl && 'getEffectiveWhere' in sourceEl) {
-        return (sourceEl as any).getEffectiveWhere(excludeKey);
+        return (sourceEl as unknown as SourceElement).getEffectiveWhere(excludeKey);
       }
     }
     return '';
@@ -401,8 +402,9 @@ export class DsfrDataFacets extends LitElement {
    * Falls back to colon syntax if no adapter is available.
    */
   _buildFacetWhere(excludeField?: string): string {
-    const sourceEl = document.getElementById(this.source);
-    const adapter: ApiAdapter | undefined = (sourceEl as any)?.getAdapter?.();
+    const rawEl = document.getElementById(this.source);
+    const adapter: ApiAdapter | undefined =
+      (rawEl as unknown as SourceElement)?.getAdapter?.() ?? undefined;
     if (adapter?.buildFacetWhere) {
       return adapter.buildFacetWhere(this._activeSelections, excludeField);
     }
@@ -430,7 +432,7 @@ export class DsfrDataFacets extends LitElement {
     const maxDepth = 5; // safety limit
     for (let i = 0; i < maxDepth && el; i++) {
       if ('datasetId' in el || 'baseUrl' in el) return el;
-      const upstream = (el as any).source;
+      const upstream = (el as unknown as SourceElement).source;
       if (!upstream || typeof upstream !== 'string') break;
       el = document.getElementById(upstream);
     }
@@ -564,7 +566,8 @@ export class DsfrDataFacets extends LitElement {
     if (!sourceEl) return;
 
     // Get adapter from the source element (dsfr-data-query delegates to dsfr-data-source)
-    const adapter: ApiAdapter | undefined = (sourceEl as any).getAdapter?.();
+    const adapter: ApiAdapter | undefined =
+      (sourceEl as unknown as SourceElement).getAdapter?.() ?? undefined;
     if (!adapter?.capabilities.serverFacets || !adapter.fetchFacets) {
       // Adapter does not support server facets — fallback to client-side
       this._buildFacetGroups();
@@ -576,16 +579,13 @@ export class DsfrDataFacets extends LitElement {
     // The immediate source may be a dsfr-data-query intermediary.
     const actualSourceEl = this._findUpstreamSource() || sourceEl;
 
-    const baseUrl =
-      (actualSourceEl as any).baseUrl || actualSourceEl.getAttribute('base-url') || '';
-    const datasetId =
-      (actualSourceEl as any).datasetId || actualSourceEl.getAttribute('dataset-id') || '';
+    const baseUrl = actualSourceEl.getAttribute('base-url') || '';
+    const datasetId = actualSourceEl.getAttribute('dataset-id') || '';
     if (!datasetId) return;
 
     // Parse headers from the actual source element (dsfr-data-source)
     let headers: Record<string, string> | undefined;
-    const headersAttr =
-      (actualSourceEl as any).headers || actualSourceEl.getAttribute('headers') || '';
+    const headersAttr = actualSourceEl.getAttribute('headers') || '';
     if (headersAttr) {
       try {
         headers = JSON.parse(headersAttr);
@@ -603,7 +603,7 @@ export class DsfrDataFacets extends LitElement {
     // Fields sharing the same where can be fetched in a single API call
     const whereToFields = new Map<string, string[]>();
     for (const field of fields) {
-      const baseWhere = (sourceEl as any).getEffectiveWhere?.(this.id) || '';
+      const baseWhere = (sourceEl as unknown as SourceElement).getEffectiveWhere?.(this.id) || '';
       const otherFacetWhere = this._buildFacetWhere(field);
       const effectiveWhere = [baseWhere, otherFacetWhere].filter(Boolean).join(' AND ');
       if (!whereToFields.has(effectiveWhere)) whereToFields.set(effectiveWhere, []);

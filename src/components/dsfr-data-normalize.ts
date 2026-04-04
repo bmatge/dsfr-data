@@ -15,6 +15,7 @@ import {
   subscribeToSourceCommands,
   dispatchSourceCommand,
 } from '../utils/data-bridge.js';
+import type { SourceElement } from '../utils/source-element.js';
 
 /**
  * <dsfr-data-normalize> - Composant de normalisation de donnees
@@ -94,11 +95,11 @@ export class DsfrDataNormalize extends LitElement {
    * Permet aux composants en aval (dsfr-data-facets, dsfr-data-search)
    * d'acceder a l'adapter sans connaitre la structure du pipeline.
    */
-  public getAdapter(): any {
+  public getAdapter(): import('../adapters/api-adapter.js').ApiAdapter | null {
     if (this.source) {
       const sourceEl = document.getElementById(this.source);
       if (sourceEl && 'getAdapter' in sourceEl) {
-        return (sourceEl as any).getAdapter();
+        return (sourceEl as unknown as SourceElement).getAdapter();
       }
     }
     return null;
@@ -111,7 +112,7 @@ export class DsfrDataNormalize extends LitElement {
     if (this.source) {
       const sourceEl = document.getElementById(this.source);
       if (sourceEl && 'getEffectiveWhere' in sourceEl) {
-        return (sourceEl as any).getEffectiveWhere(excludeKey);
+        return (sourceEl as unknown as SourceElement).getEffectiveWhere(excludeKey);
       }
     }
     return '';

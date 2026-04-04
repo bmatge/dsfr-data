@@ -26,7 +26,7 @@ Le projet beneficiait d'un TypeScript strict et d'une couverture de test honorab
 
 **Cet audit a mis en place** : ESLint + Prettier, CI renforcee (typecheck + lint + format + coverage + npm audit), seuils de couverture (85/80%), pre-commit hooks (Husky + lint-staged), et corrige 6 findings de securite (XSS, JWT, email injection, beacon flooding, monitoring expose, cles API en clair). Le MCP server a ete refactore et teste (25 tests). 7 exports morts nettoyes dans shared.
 
-**Etat post-audit** : 79 fichiers de test (2842 tests), 0 erreur ESLint, 0 vulnerabilite npm, 91% couverture. Il reste 9 actions de priorite moyenne/basse (interface SourceElement, tests supplementaires).
+**Etat post-audit** : 79 fichiers de test (2842 tests), 0 erreur ESLint, 0 vulnerabilite npm, 91% couverture. Il reste 8 actions de priorite moyenne/basse (tests supplementaires, Dependabot, bundle monitoring).
 
 ---
 
@@ -74,7 +74,7 @@ Fichiers > 700 LOC a auditer pour extractions possibles :
 > Fait — voir [9.1 Resultats](#91-audit-any-explicites)
 
 - [x] Recenser tous les `any` dans `src/` → **67 occurrences dans 13 fichiers**
-- [ ] Typer les cas critiques → definir interface `SourceElement` (priorite moyenne)
+- [x] Typer les cas critiques → interface `SourceElement` creee, **21 `as any` elimines**
 
 ### 3.4 Dead code
 
@@ -246,7 +246,8 @@ Fichiers > 700 LOC a auditer pour extractions possibles :
 > Fait — voir [9.1 Resultats](#91-audit-any-explicites)
 
 - [x] Grep global → **152 occurrences dans 40 fichiers**
-- [ ] Typer les interfaces publiques (interface `SourceElement`, Leaflet types)
+- [x] Interface `SourceElement` partagee (`src/utils/source-element.ts`) — 21 `as any` elimines
+- [ ] Typer les Leaflet types dans `dsfr-data-map-layer`
 
 ### 8.2 Dependances
 
@@ -285,7 +286,7 @@ Fichiers > 700 LOC a auditer pour extractions possibles :
 5. `apps/pipeline-helper/src/editor.ts` — 8 (compat Rete.js)
 
 **Recommandations** :
-- Definir une interface `SourceElement` partagee (eliminerait ~25 casts)
+- ~~Definir une interface `SourceElement` partagee~~ → **Fait** (`src/utils/source-element.ts`, 21 casts elimines)
 - Exploiter `@types/leaflet` deja installe pour typer `dsfr-data-map-layer`
 - Typer les methodes publiques `getAdapter()` qui leakent `any`
 
@@ -428,6 +429,7 @@ Toutes fixables via `npm audit fix`.
 | 10 | `npm audit --audit-level=high` en CI | **Fait** |
 | 11 | Nettoyage dead code shared (7 exports morts supprimes) | **Fait** |
 | 12 | Fix build shared (Error cause ES2021) | **Fait** |
+| 13 | Interface `SourceElement` partagee (21 `as any` elimines dans 6 fichiers) | **Fait** |
 
 ### Reste a faire
 
@@ -435,7 +437,7 @@ Toutes fixables via `npm audit fix`.
 |---|--------|----------|--------|
 | 1 | Tokens legacy bypass revocation (migration sessions) | Moyenne | Moyen |
 | ~~2~~ | ~~Pre-commit hooks (Husky + lint-staged)~~ | **Fait** | — |
-| 3 | Interface `SourceElement` partagee (eliminer ~25 `as any`) | Moyenne | Moyen |
+| ~~3~~ | ~~Interface `SourceElement` partagee~~ | **Fait** (21 casts elimines) | — |
 | 4 | Tests integration MCP (transport stdio/HTTP) | Moyenne | Moyen |
 | 5 | Tests dedies composants map (world-map, map-layer) | Moyenne | Moyen |
 | 6 | Tests apps sous-testees (admin, monitoring, favorites) | Moyenne | Moyen |

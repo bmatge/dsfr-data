@@ -11,6 +11,7 @@ import { dispatchSourceCommand } from '../utils/data-bridge.js';
 import { getByPath } from '../utils/json-path.js';
 import { escapeHtml } from '@dsfr-data/shared';
 import type { DsfrDataMap } from './dsfr-data-map.js';
+import type { SourceElement } from '../utils/source-element.js';
 // @ts-ignore — Vite ?inline import returns CSS as string
 import markerClusterCss from 'leaflet.markercluster/dist/MarkerCluster.css?inline';
 // @ts-ignore — Vite ?inline import returns CSS as string
@@ -471,7 +472,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     const field = this.bboxField || this.geoField || this._autoDetectGeoField();
 
     // Find the source element to check adapter capabilities
-    const sourceEl = document.getElementById(this.source) as any;
+    const sourceEl = document.getElementById(this.source) as unknown as SourceElement | null;
     const adapter = sourceEl?.getAdapter?.();
 
     if (adapter?.capabilities?.serverGeo) {

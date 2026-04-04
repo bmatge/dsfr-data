@@ -12,6 +12,7 @@ import {
   getDataMeta,
   setDataMeta,
 } from '../utils/data-bridge.js';
+import type { SourceElement } from '../utils/source-element.js';
 
 type SearchOperator = 'contains' | 'starts' | 'words';
 
@@ -124,11 +125,11 @@ export class DsfrDataSearch extends LitElement {
    * Permet aux composants en aval (dsfr-data-facets) d'acceder a l'adapter
    * sans connaitre la structure du pipeline.
    */
-  public getAdapter(): any {
+  public getAdapter(): import('../adapters/api-adapter.js').ApiAdapter | null {
     if (this.source) {
       const sourceEl = document.getElementById(this.source);
       if (sourceEl && 'getAdapter' in sourceEl) {
-        return (sourceEl as any).getAdapter();
+        return (sourceEl as unknown as SourceElement).getAdapter();
       }
     }
     return null;
@@ -141,7 +142,7 @@ export class DsfrDataSearch extends LitElement {
     if (this.source) {
       const sourceEl = document.getElementById(this.source);
       if (sourceEl && 'getEffectiveWhere' in sourceEl) {
-        return (sourceEl as any).getEffectiveWhere(excludeKey);
+        return (sourceEl as unknown as SourceElement).getEffectiveWhere(excludeKey);
       }
     }
     return '';
@@ -239,7 +240,7 @@ export class DsfrDataSearch extends LitElement {
     // Read search template from adapter if empty and server-search enabled
     if (this.serverSearch && !this.searchTemplate) {
       const sourceEl = document.getElementById(this.source);
-      const adapter = (sourceEl as any)?.getAdapter?.();
+      const adapter = (sourceEl as unknown as SourceElement)?.getAdapter?.();
       if (adapter?.getDefaultSearchTemplate) {
         this.searchTemplate = adapter.getDefaultSearchTemplate() || '';
       }

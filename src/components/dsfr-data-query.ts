@@ -16,6 +16,7 @@ import {
   subscribeToSourceCommands,
 } from '../utils/data-bridge.js';
 import type { AdapterCapabilities } from '../adapters/api-adapter.js';
+import type { SourceElement } from '../utils/source-element.js';
 
 /**
  * Operateurs de filtre supportes
@@ -330,21 +331,19 @@ export class DsfrDataQuery extends LitElement {
     // Reset delegation state
     this._serverDelegated = { groupBy: false, aggregate: false, orderBy: false };
 
-    const sourceEl = document.getElementById(this.source);
-    if (!sourceEl || !('getAdapter' in sourceEl)) return;
+    const rawEl = document.getElementById(this.source);
+    if (!rawEl || !('getAdapter' in rawEl)) return;
+    const sourceEl = rawEl as unknown as SourceElement;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const adapter = (sourceEl as any).getAdapter?.();
+    const adapter = sourceEl.getAdapter?.();
     if (!adapter?.capabilities) return;
 
     const caps: AdapterCapabilities = adapter.capabilities;
 
     // Don't override if dsfr-data-source already has its own groupBy/aggregate
     // (user explicitly configured them on the source — respect that)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sourceGroupBy = (sourceEl as any).groupBy || '';
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sourceAggregate = (sourceEl as any).aggregate || '';
+    const sourceGroupBy = sourceEl.groupBy || '';
+    const sourceAggregate = sourceEl.aggregate || '';
 
     const cmd: Record<string, string> = {};
 
@@ -361,8 +360,7 @@ export class DsfrDataQuery extends LitElement {
     }
 
     // Delegate order-by
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sourceOrderBy = (sourceEl as any).orderBy || '';
+    const sourceOrderBy = sourceEl.orderBy || '';
     if (this.orderBy && caps.serverOrderBy && !sourceOrderBy) {
       cmd.orderBy = this.orderBy;
       this._serverDelegated.orderBy = true;
@@ -748,7 +746,7 @@ export class DsfrDataQuery extends LitElement {
     if (this.source) {
       const sourceEl = document.getElementById(this.source);
       if (sourceEl && 'getEffectiveWhere' in sourceEl) {
-        return (sourceEl as any).getEffectiveWhere(excludeKey);
+        return (sourceEl as unknown as SourceElement).getEffectiveWhere(excludeKey);
       }
     }
     return this.where || this.filter || '';
@@ -757,11 +755,11 @@ export class DsfrDataQuery extends LitElement {
   /**
    * Retourne l'adapter courant (delegue a la source amont)
    */
-  public getAdapter(): any {
+  public getAdapter(): import('../adapters/api-adapter.js').ApiAdapter | null {
     if (this.source) {
       const sourceEl = document.getElementById(this.source);
       if (sourceEl && 'getAdapter' in sourceEl) {
-        return (sourceEl as any).getAdapter();
+        return (sourceEl as unknown as SourceElement).getAdapter();
       }
     }
     return null;
