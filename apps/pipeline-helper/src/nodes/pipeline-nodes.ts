@@ -1,10 +1,19 @@
 import { ClassicPreset } from 'rete';
-import { PipelineNode } from './base-node.js';
+import { PipelineNode, AttributeControl, SavedSourceSelector } from './base-node.js';
 import { DataSocket, CommandSocket } from './sockets.js';
 import { NODE_CONFIGS } from './node-configs.js';
 
+/** Map Source.provider to dsfr-data-source api-type */
+const PROVIDER_TO_API_TYPE: Record<string, string> = {
+  opendatasoft: 'opendatasoft',
+  tabular: 'tabular',
+  grist: 'grist',
+  generic: 'generic',
+  insee: 'insee',
+};
+
 /**
- * Create a Source node.
+ * Create a Source node with saved-source selector.
  * Outputs: data
  * Inputs: command (from facets/search)
  */
@@ -12,7 +21,58 @@ export function createSourceNode(): PipelineNode {
   const node = new PipelineNode(NODE_CONFIGS.source);
   node.addOutput('data', new ClassicPreset.Output(DataSocket, 'Donnees'));
   node.addInput('command', new ClassicPreset.Input(CommandSocket, 'Commandes', true));
+
+  // Add saved-source selector as the FIRST control (inserted before attributes)
+  const selector = new SavedSourceSelector();
+  selector.onSourceSelected = (source: any | null) => {
+    if (!source) return;
+
+    // Auto-fill attribute controls from the saved source
+    const apiType = PROVIDER_TO_API_TYPE[source.provider] || 'generic';
+    setCtrl(node, 'api-type', apiType);
+
+    if (source.apiUrl) {
+      // Extract base-url (origin) from apiUrl
+      try {
+        const url = new URL(source.apiUrl);
+        setCtrl(node, 'base-url', url.origin);
+      } catch {
+        setCtrl(node, 'base-url', source.apiUrl);
+      }
+    }
+
+    // dataset-id from resourceIds
+    if (source.resourceIds?.datasetId) {
+      setCtrl(node, 'dataset-id', source.resourceIds.datasetId);
+    } else if (source.resourceIds?.resourceId) {
+      // Tabular uses resource instead of dataset
+      setCtrl(node, 'dataset-id', source.resourceIds.resourceId);
+    } else if (source.documentId && source.tableId) {
+      // Grist
+      setCtrl(node, 'dataset-id', `${source.documentId}/${source.tableId}`);
+    }
+  };
+
+  // Insert selector before other controls by removing and re-adding
+  // Controls are rendered in insertion order, so add selector first
+  const existingControls = { ...node.controls };
+  // Clear and re-add in order
+  for (const key of Object.keys(existingControls)) {
+    node.removeControl(key);
+  }
+  node.addControl('__saved-source__', selector);
+  for (const [key, ctrl] of Object.entries(existingControls)) {
+    node.addControl(key, ctrl);
+  }
+
   return node;
+}
+
+function setCtrl(node: PipelineNode, key: string, value: string) {
+  const ctrl = node.controls[key];
+  if (ctrl instanceof AttributeControl) {
+    ctrl.setValue(value);
+  }
 }
 
 /**
@@ -77,58 +137,18 @@ export function createFacetsNode(): PipelineNode {
 }
 
 /**
- * Create a Chart node.
+ * Create an Output node (virtual terminal — shows received data).
  * Inputs: data
  */
-export function createChartNode(): PipelineNode {
-  const node = new PipelineNode(NODE_CONFIGS.chart);
-  node.addInput('data', new ClassicPreset.Input(DataSocket, 'Donnees'));
-  return node;
-}
-
-/**
- * Create a List node.
- * Inputs: data
- */
-export function createListNode(): PipelineNode {
-  const node = new PipelineNode(NODE_CONFIGS.list);
-  node.addInput('data', new ClassicPreset.Input(DataSocket, 'Donnees'));
-  return node;
-}
-
-/**
- * Create a KPI node.
- * Inputs: data
- */
-export function createKpiNode(): PipelineNode {
-  const node = new PipelineNode(NODE_CONFIGS.kpi);
-  node.addInput('data', new ClassicPreset.Input(DataSocket, 'Donnees'));
-  return node;
-}
-
-/**
- * Create a Display node.
- * Inputs: data
- */
-export function createDisplayNode(): PipelineNode {
-  const node = new PipelineNode(NODE_CONFIGS.display);
-  node.addInput('data', new ClassicPreset.Input(DataSocket, 'Donnees'));
-  return node;
-}
-
-/**
- * Create a Podium node.
- * Inputs: data
- */
-export function createPodiumNode(): PipelineNode {
-  const node = new PipelineNode(NODE_CONFIGS.podium);
+export function createOutputNode(): PipelineNode {
+  const node = new PipelineNode(NODE_CONFIGS.output);
   node.addInput('data', new ClassicPreset.Input(DataSocket, 'Donnees'));
   return node;
 }
 
 /**
  * Create an A11y node.
- * Inputs: data (the display component it describes)
+ * Inputs: data
  */
 export function createA11yNode(): PipelineNode {
   const node = new PipelineNode(NODE_CONFIGS.a11y);
@@ -144,10 +164,6 @@ export const NODE_FACTORIES: Record<string, () => PipelineNode> = {
   join: createJoinNode,
   search: createSearchNode,
   facets: createFacetsNode,
-  chart: createChartNode,
-  list: createListNode,
-  kpi: createKpiNode,
-  display: createDisplayNode,
-  podium: createPodiumNode,
+  output: createOutputNode,
   a11y: createA11yNode,
 };

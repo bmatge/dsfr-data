@@ -124,6 +124,17 @@ export class PipelineExecutor {
     // Skip nodes that failed validation
     if (node.statusControl.result.status === 'warning') return;
 
+    // Virtual output node — just listen to upstream, don't create a DOM element
+    if (node.component === '__output__') {
+      if (gn.dataSource) {
+        node.statusControl.update({ status: 'loading', message: 'En attente des donnees...' });
+        this.subscribeToUpstreamEvents(gn);
+      } else {
+        node.statusControl.update({ status: 'warning', message: 'Non connecte a une source de donnees' });
+      }
+      return;
+    }
+
     node.statusControl.update({ status: 'loading' });
 
     // Create the REAL component element

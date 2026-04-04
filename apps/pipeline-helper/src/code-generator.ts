@@ -60,9 +60,11 @@ export function generateCode(
   const categoryOrder: Record<string, number> = {
     source: 0, transform: 1, interact: 2, display: 3, a11y: 4,
   };
-  const sorted = [...graphNodes.values()].sort(
-    (a, b) => (categoryOrder[a.node.category] ?? 5) - (categoryOrder[b.node.category] ?? 5)
-  );
+  const sorted = [...graphNodes.values()]
+    .filter(gn => gn.node.component !== '__output__') // Skip virtual output nodes
+    .sort(
+      (a, b) => (categoryOrder[a.node.category] ?? 5) - (categoryOrder[b.node.category] ?? 5)
+    );
 
   // Generate HTML
   const lines: string[] = [];

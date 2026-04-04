@@ -45,23 +45,8 @@
           <button class="fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-list-unordered" id="btn-add-facets" title="Ajouter des filtres a facettes interactifs">
             Facets
           </button>
-          <button class="fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-bar-chart-box-line" id="btn-add-chart" title="Ajouter un graphique (bar, line, pie, radar, carte...)">
-            Chart
-          </button>
-          <button class="fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-table-line" id="btn-add-list" title="Ajouter une liste / tableau de donnees">
-            List
-          </button>
-          <button class="fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-dashboard-3-line" id="btn-add-kpi" title="Ajouter un indicateur chiffre cle">
-            KPI
-          </button>
-          <button class="fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-article-line" id="btn-add-display" title="Affichage libre avec template HTML">
-            Display
-          </button>
-          <button class="fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-trophy-line" id="btn-add-podium" title="Affichage podium (top 3)">
-            Podium
-          </button>
-          <button class="fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-accessibility-line" id="btn-add-a11y" title="Companion accessibilite (tableau, CSV)">
-            A11y
+          <button class="fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-check-line" id="btn-add-output" title="Donnees recues en bout de chaine" style="border-color:#18753c;color:#18753c">
+            Sortie
           </button>
         </div>
         <div class="fr-btns-group fr-btns-group--inline fr-btns-group--sm">
@@ -77,7 +62,7 @@
           <button class="fr-btn fr-btn--icon-left fr-icon-play-circle-line" id="btn-execute" style="background:#009081;color:#fff" title="Executer le pipeline : fetch les donnees et affiche les resultats dans chaque noeud">
             Executer
           </button>
-          <button class="fr-btn fr-btn--icon-left fr-icon-code-s-line" id="btn-generate" title="Generer le code HTML correspondant au pipeline">
+          <button class="fr-btn fr-btn--icon-left fr-icon-terminal-line" id="btn-generate" title="Generer le code HTML correspondant au pipeline">
             Code
           </button>
         </div>
@@ -116,17 +101,22 @@
       </div>
     </div>
 
-    <!-- Code output panel -->
-    <div id="code-panel" class="fr-mt-2w" style="display:none;padding:0 1rem">
-      <div class="fr-callout">
-        <h3 class="fr-callout__title">Code HTML genere</h3>
-        <pre id="code-output" class="fr-p-2w" style="background:#1e1e1e;color:#d4d4d4;border-radius:4px;overflow-x:auto;font-size:0.85rem"></pre>
-        <button class="fr-btn fr-btn--sm fr-btn--secondary fr-mt-1w" id="btn-copy-code">
-          Copier le code
-        </button>
-        <button class="fr-btn fr-btn--sm fr-btn--secondary fr-mt-1w fr-ml-1w" id="btn-playground">
-          Ouvrir dans le Playground
-        </button>
+    <!-- Code modal -->
+    <div class="code-modal-overlay" id="code-modal" style="display:none">
+      <div class="code-modal">
+        <div class="code-modal__header">
+          <h3>Code HTML genere</h3>
+          <button class="fr-btn fr-btn--sm fr-btn--tertiary fr-icon-close-line" id="btn-close-modal" title="Fermer"></button>
+        </div>
+        <pre class="code-modal__code" id="code-output"></pre>
+        <div class="code-modal__actions">
+          <button class="fr-btn fr-btn--sm fr-btn--secondary fr-icon-clipboard-line fr-btn--icon-left" id="btn-copy-code">
+            Copier
+          </button>
+          <button class="fr-btn fr-btn--sm fr-btn--secondary fr-icon-external-link-line fr-btn--icon-left" id="btn-playground">
+            Ouvrir dans le Playground
+          </button>
+        </div>
       </div>
     </div>
   </div>

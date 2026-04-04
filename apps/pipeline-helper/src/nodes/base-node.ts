@@ -47,6 +47,24 @@ export class AttributeControl extends ClassicPreset.Control {
   }
 }
 
+/**
+ * Special control for selecting a saved source from the app's source catalog.
+ * When a source is selected, it auto-fills the node's attribute controls.
+ */
+export class SavedSourceSelector extends ClassicPreset.Control {
+  onChange?: () => void;
+  onSourceSelected?: (source: any | null) => void;
+
+  constructor(public value: string = '') {
+    super();
+  }
+
+  setValue(val: string) {
+    this.value = val;
+    this.onChange?.();
+  }
+}
+
 export type ExecutionStatus = 'idle' | 'loading' | 'success' | 'error' | 'warning';
 
 export interface ExecutionResult {

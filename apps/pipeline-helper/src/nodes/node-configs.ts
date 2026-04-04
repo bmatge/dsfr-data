@@ -130,100 +130,13 @@ export const FACETS_CONFIG: PipelineNodeConfig = {
   ],
 };
 
-export const CHART_CONFIG: PipelineNodeConfig = {
-  label: 'Chart',
-  component: 'dsfr-data-chart',
+export const OUTPUT_CONFIG: PipelineNodeConfig = {
+  label: 'Sortie',
+  component: '__output__',
   category: 'display',
-  icon: 'ri-bar-chart-box-line',
-  description: 'Graphique (bar, line, pie, radar, etc.)',
-  attributes: [
-    {
-      name: 'type',
-      label: 'Type',
-      type: 'select',
-      options: [
-        { value: 'bar', label: 'Barres' },
-        { value: 'horizontalBar', label: 'Barres horizontales' },
-        { value: 'line', label: 'Ligne' },
-        { value: 'pie', label: 'Camembert' },
-        { value: 'doughnut', label: 'Donut' },
-        { value: 'radar', label: 'Radar' },
-        { value: 'scatter', label: 'Nuage de points' },
-        { value: 'map', label: 'Carte departements' },
-        { value: 'map-reg', label: 'Carte regions' },
-        { value: 'worldMap', label: 'Carte monde' },
-      ],
-      default: 'bar',
-    },
-    {
-      name: 'label-field',
-      label: 'Champ label',
-      type: 'text',
-      placeholder: 'region',
-    },
-    {
-      name: 'value-field',
-      label: 'Champ valeur',
-      type: 'text',
-      placeholder: 'total',
-    },
-    {
-      name: 'title',
-      label: 'Titre',
-      type: 'text',
-      placeholder: 'Mon graphique',
-    },
-  ],
-};
-
-export const LIST_CONFIG: PipelineNodeConfig = {
-  label: 'List',
-  component: 'dsfr-data-list',
-  category: 'display',
-  icon: 'ri-table-line',
-  description: 'Liste / tableau de donnees avec pagination',
-  attributes: [
-    {
-      name: 'colonnes',
-      label: 'Colonnes',
-      type: 'text',
-      placeholder: 'nom,email,ville',
-    },
-    {
-      name: 'pagination',
-      label: 'Pagination',
-      type: 'number',
-      placeholder: '20',
-    },
-  ],
-};
-
-export const KPI_CONFIG: PipelineNodeConfig = {
-  label: 'KPI',
-  component: 'dsfr-data-kpi',
-  category: 'display',
-  icon: 'ri-dashboard-3-line',
-  description: 'Indicateur chiffre cle',
-  attributes: [
-    {
-      name: 'value-field',
-      label: 'Champ valeur',
-      type: 'text',
-      placeholder: 'total',
-    },
-    {
-      name: 'label',
-      label: 'Label',
-      type: 'text',
-      placeholder: 'Total population',
-    },
-    {
-      name: 'description',
-      label: 'Description',
-      type: 'text',
-      placeholder: 'Source : INSEE',
-    },
-  ],
+  icon: 'ri-check-double-line',
+  description: 'Donnees recues en bout de chaine',
+  attributes: [],
 };
 
 export const A11Y_CONFIG: PipelineNodeConfig = {
@@ -342,44 +255,6 @@ export const JOIN_CONFIG: PipelineNodeConfig = {
   ],
 };
 
-export const DISPLAY_CONFIG: PipelineNodeConfig = {
-  label: 'Display',
-  component: 'dsfr-data-display',
-  category: 'display',
-  icon: 'ri-article-line',
-  description: 'Affichage libre avec template HTML',
-  attributes: [
-    {
-      name: 'template',
-      label: 'Template',
-      type: 'text',
-      placeholder: '<p>{{nom}} - {{valeur}}</p>',
-    },
-  ],
-};
-
-export const PODIUM_CONFIG: PipelineNodeConfig = {
-  label: 'Podium',
-  component: 'dsfr-data-podium',
-  category: 'display',
-  icon: 'ri-trophy-line',
-  description: 'Affichage podium (top 3)',
-  attributes: [
-    {
-      name: 'label-field',
-      label: 'Champ label',
-      type: 'text',
-      placeholder: 'nom',
-    },
-    {
-      name: 'value-field',
-      label: 'Champ valeur',
-      type: 'text',
-      placeholder: 'score',
-    },
-  ],
-};
-
 /** All node configs indexed by type key */
 export const NODE_CONFIGS: Record<string, PipelineNodeConfig> = {
   source: SOURCE_CONFIG,
@@ -388,10 +263,6 @@ export const NODE_CONFIGS: Record<string, PipelineNodeConfig> = {
   join: JOIN_CONFIG,
   search: SEARCH_CONFIG,
   facets: FACETS_CONFIG,
-  chart: CHART_CONFIG,
-  list: LIST_CONFIG,
-  kpi: KPI_CONFIG,
-  display: DISPLAY_CONFIG,
-  podium: PODIUM_CONFIG,
+  output: OUTPUT_CONFIG,
   a11y: A11Y_CONFIG,
 };

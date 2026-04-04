@@ -3,11 +3,12 @@ import { AreaPlugin, AreaExtensions } from 'rete-area-plugin';
 import { ConnectionPlugin, Presets as ConnectionPresets } from 'rete-connection-plugin';
 import { LitPlugin, Presets as LitPresets } from '@retejs/lit-plugin';
 import { AutoArrangePlugin, Presets as ArrangePresets } from 'rete-auto-arrange-plugin';
-import { PipelineNode, AttributeControl, StatusControl } from './nodes/base-node.js';
+import { PipelineNode, AttributeControl, StatusControl, SavedSourceSelector } from './nodes/base-node.js';
 import { NODE_FACTORIES } from './nodes/pipeline-nodes.js';
 import { html } from 'lit';
 import './ui/attribute-control-element.js';
 import './ui/status-control-element.js';
+import './ui/saved-source-control.js';
 
 // Use 'any' for Rete schemes — Rete v2's generics are very strict
 // about Node subclass inference and fight with custom node types.
@@ -32,6 +33,10 @@ export class PipelineEditor {
     render.addPreset(LitPresets.classic.setup({
       customize: {
         control(context: any) {
+          if (context.payload instanceof SavedSourceSelector) {
+            const ctrl = context.payload as SavedSourceSelector;
+            return () => html`<saved-source-control .ctrl=${ctrl}></saved-source-control>`;
+          }
           if (context.payload instanceof StatusControl) {
             const ctrl = context.payload as StatusControl;
             return () => html`<status-control-element .ctrl=${ctrl}></status-control-element>`;
@@ -130,22 +135,18 @@ export class PipelineEditor {
     return this.editor.getConnections();
   }
 
-  /** Create a default example pipeline: Source -> Query -> Chart + A11y */
+  /** Create a default example pipeline: Source -> Query -> Sortie */
   async createExamplePipeline(): Promise<void> {
     const source = await this.addNode('source', 50, 150);
     const query = await this.addNode('query', 400, 150);
-    const chart = await this.addNode('chart', 750, 50);
-    const a11y = await this.addNode('a11y', 750, 350);
+    const output = await this.addNode('output', 750, 150);
 
-    if (source && query && chart && a11y) {
+    if (source && query && output) {
       await this.editor.addConnection(
         new ClassicPreset.Connection(source, 'data', query, 'data')
       );
       await this.editor.addConnection(
-        new ClassicPreset.Connection(query, 'data', chart, 'data')
-      );
-      await this.editor.addConnection(
-        new ClassicPreset.Connection(query, 'data', a11y, 'data')
+        new ClassicPreset.Connection(query, 'data', output, 'data')
       );
     }
 

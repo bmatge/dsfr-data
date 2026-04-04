@@ -312,6 +312,55 @@
           <img src="images/guide-G3-monitoring-filters-table.png" alt="Monitoring — filtres et tableau">
         </section>
 
+        <!-- Parcours H -->
+        <section id="parcours-h">
+          <h2>Debugger un pipeline avec le Pipeline Helper</h2>
+          <div class="user-story">
+            <strong>Pour</strong> comprendre comment les donnees circulent de la source au graphique et identifier ou ca bloque,
+            <strong>je dois</strong> utiliser le Pipeline Helper qui execute chaque etape du pipeline et montre les donnees intermediaires,
+            <strong>afin de</strong> debugger et optimiser mes pipelines dsfr-data.
+          </div>
+
+          <h3>Acceder au Pipeline Helper</h3>
+          <p>Deux points d'entree :</p>
+          <ul>
+            <li><strong>Menu principal</strong> : cliquez sur "Pipeline" dans la barre de navigation</li>
+            <li><strong>Depuis le Playground</strong> : cliquez sur le bouton "Pipeline" dans la toolbar pour importer votre code HTML existant directement dans l'editeur visuel</li>
+          </ul>
+
+          <h3>Construire un pipeline</h3>
+          <p>L'interface se compose de trois zones :</p>
+          <ul>
+            <li><strong>Barre d'outils</strong> (haut) : boutons pour ajouter des composants — Source, Normalize, Query, Join, Search, Facets, et Sortie</li>
+            <li><strong>Editeur de noeuds</strong> (2/3 gauche) : espace de travail Rete.js ou vous glissez et connectez les composants</li>
+            <li><strong>Panneau d'inspection</strong> (1/3 droite) : affiche les donnees du noeud selectionne</li>
+          </ul>
+          <p>Pour connecter deux noeuds, cliquez sur un cercle de sortie (droite) et glissez vers un cercle d'entree (gauche).</p>
+
+          <h3>Configurer une source</h3>
+          <p>Le noeud Source propose deux modes :</p>
+          <ul>
+            <li><strong>Source enregistree</strong> : selectionnez une source declaree dans l'app Sources — les champs sont auto-remplis</li>
+            <li><strong>Configuration manuelle</strong> : renseignez le type API, l'URL de base et le dataset ID</li>
+          </ul>
+
+          <h3>Executer et inspecter</h3>
+          <p>Cliquez sur <strong>Executer</strong> pour lancer le pipeline. Chaque noeud devient un vrai composant dsfr-data qui s'execute comme en production :</p>
+          <ul>
+            <li><strong>Source</strong> : affiche tous les champs et un apercu des donnees brutes</li>
+            <li><strong>Normalize</strong> : montre les donnees apres nettoyage (types, renommage, trim...)</li>
+            <li><strong>Query</strong> : montre les donnees apres group-by, aggregate, filtre, tri</li>
+            <li><strong>Sortie</strong> : affiche les donnees finales telles qu'un composant d'affichage les recevrait</li>
+          </ul>
+          <p>Cliquez sur un noeud pour voir dans le panneau de droite : la configuration, les champs disponibles, et un tableau de donnees.</p>
+
+          <h3>Generer le code</h3>
+          <p>Cliquez sur <strong>Code</strong> pour ouvrir une modale avec le HTML genere. Vous pouvez le copier ou l'ouvrir directement dans le Playground.</p>
+
+          <h3>Importer depuis le Playground</h3>
+          <p>Si vous avez deja du code dans le Playground, cliquez sur le bouton "Pipeline" dans la toolbar du Playground. Le code HTML est parse et les composants dsfr-data sont automatiquement recrees dans l'editeur visuel avec leurs attributs pre-remplis et leurs connexions.</p>
+        </section>
+
       </div><!-- /guide-content -->
     </div><!-- /guide-layout -->
   </main>

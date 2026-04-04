@@ -17,7 +17,8 @@
           { id: "parcours-d", label: "Playground", href: "guide-parcours.html#parcours-d" },
           { id: "parcours-e", label: "Tableau de bord", href: "guide-parcours.html#parcours-e" },
           { id: "parcours-f", label: "API REST externe", href: "guide-parcours.html#parcours-f" },
-          { id: "parcours-g", label: "Monitoring", href: "guide-parcours.html#parcours-g" }
+          { id: "parcours-g", label: "Monitoring", href: "guide-parcours.html#parcours-g" },
+          { id: "parcours-h", label: "Pipeline Helper", href: "guide-parcours.html#parcours-h" }
         ]
       },
       {

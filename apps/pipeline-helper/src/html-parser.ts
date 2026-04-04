@@ -12,12 +12,14 @@ const TAG_TO_TYPE: Record<string, string> = {
   'dsfr-data-join': 'join',
   'dsfr-data-search': 'search',
   'dsfr-data-facets': 'facets',
-  'dsfr-data-chart': 'chart',
-  'dsfr-data-list': 'list',
-  'dsfr-data-kpi': 'kpi',
-  'dsfr-data-display': 'display',
-  'dsfr-data-podium': 'podium',
-  'dsfr-data-a11y': 'a11y',
+  // Display components all map to the virtual "output" node
+  'dsfr-data-chart': 'output',
+  'dsfr-data-list': 'output',
+  'dsfr-data-kpi': 'output',
+  'dsfr-data-display': 'output',
+  'dsfr-data-podium': 'output',
+  'dsfr-data-a11y': 'output',
+  'dsfr-data-world-map': 'output',
 };
 
 interface ParsedComponent {

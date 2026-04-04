@@ -57,12 +57,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     'btn-add-join': 'join',
     'btn-add-search': 'search',
     'btn-add-facets': 'facets',
-    'btn-add-chart': 'chart',
-    'btn-add-list': 'list',
-    'btn-add-kpi': 'kpi',
-    'btn-add-display': 'display',
-    'btn-add-podium': 'podium',
-    'btn-add-a11y': 'a11y',
+    'btn-add-output': 'output',
   };
 
   for (const [btnId, nodeType] of Object.entries(nodeButtons)) {
@@ -114,17 +109,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     editor?.zoomToFit();
   });
 
-  // Generate code button
+  // Generate code → open modal
+  const codeModal = document.getElementById('code-modal');
+
   document.getElementById('btn-generate')?.addEventListener('click', () => {
-    if (!editor) return;
-
+    if (!editor || !codeModal) return;
     const code = generateCode(editor.getNodes(), editor.getConnections());
-    const codePanel = document.getElementById('code-panel');
     const codeOutput = document.getElementById('code-output');
+    if (codeOutput) codeOutput.textContent = code;
+    codeModal.style.display = 'flex';
+  });
 
-    if (codePanel && codeOutput) {
-      codePanel.style.display = 'block';
-      codeOutput.textContent = code;
+  // Close modal
+  document.getElementById('btn-close-modal')?.addEventListener('click', () => {
+    if (codeModal) codeModal.style.display = 'none';
+  });
+
+  // Close modal on overlay click
+  codeModal?.addEventListener('click', (e) => {
+    if (e.target === codeModal) codeModal.style.display = 'none';
+  });
+
+  // Close modal on Escape
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && codeModal?.style.display === 'flex') {
+      codeModal.style.display = 'none';
     }
   });
 
@@ -136,7 +145,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const btn = document.getElementById('btn-copy-code');
       if (btn) {
         const original = btn.textContent;
-        btn.textContent = 'Copie !';
+        btn.textContent = ' Copie !';
         setTimeout(() => { btn.textContent = original; }, 1500);
       }
     }
