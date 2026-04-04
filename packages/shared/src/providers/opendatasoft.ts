@@ -6,7 +6,7 @@ export const ODS_CONFIG: ProviderConfig = {
   id: 'opendatasoft',
   displayName: 'OpenDataSoft',
   urlPatterns: [ODS_DATASET_RE],
-  knownHosts: [],  // any ODS domain is valid — no fixed host
+  knownHosts: [], // any ODS domain is valid — no fixed host
   defaultBaseUrl: 'https://data.opendatasoft.com',
   defaultAuthType: 'apikey-header',
 

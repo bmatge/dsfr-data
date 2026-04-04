@@ -33,7 +33,7 @@ export class GenericAdapter implements ApiAdapter {
   }
 
   buildUrl(): string {
-    throw new Error('GenericAdapter ne construit pas d\'URL API');
+    throw new Error("GenericAdapter ne construit pas d'URL API");
   }
 
   buildServerSideUrl(): string {
@@ -48,10 +48,7 @@ export class GenericAdapter implements ApiAdapter {
     return GENERIC_CONFIG;
   }
 
-  buildFacetWhere(
-    selections: Record<string, Set<string>>,
-    excludeField?: string
-  ): string {
+  buildFacetWhere(selections: Record<string, Set<string>>, excludeField?: string): string {
     // Fallback colon syntax
     const parts: string[] = [];
     for (const [field, values] of Object.entries(selections)) {

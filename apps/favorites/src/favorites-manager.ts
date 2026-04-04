@@ -23,9 +23,9 @@ export function saveFavorites(favorites: Favorite[]): void {
 }
 
 export function deleteFavorite(favorites: Favorite[], id: string): Favorite[] {
-  return favorites.filter(f => f.id !== id);
+  return favorites.filter((f) => f.id !== id);
 }
 
 export function findFavorite(favorites: Favorite[], id: string): Favorite | undefined {
-  return favorites.find(f => f.id === id);
+  return favorites.find((f) => f.id === id);
 }

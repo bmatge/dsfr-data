@@ -32,10 +32,12 @@ async function loadTopology(): Promise<Topology> {
     try {
       const resp = await fetch(url);
       if (resp.ok) {
-        topologyCache = await resp.json() as Topology;
+        topologyCache = (await resp.json()) as Topology;
         return topologyCache;
       }
-    } catch { /* try next */ }
+    } catch {
+      /* try next */
+    }
   }
   throw new Error(`Could not load ${TOPO_ASSET} from any candidate path`);
 }
@@ -58,43 +60,92 @@ interface CountryFeature {
  * blue-france: 975→main-525 | red-marianne: 975→main-472 | grey: 975→main-50
  */
 const CHOROPLETH_PALETTES: Record<string, readonly string[]> = {
-  'sequentialAscending': [
-    '#F5F5FE', '#E3E3FD', '#C1C1FB', '#A1A1F8', '#8585F6',
-    '#6A6AF4', '#4747E5', '#2323B4', '#000091',
+  sequentialAscending: [
+    '#F5F5FE',
+    '#E3E3FD',
+    '#C1C1FB',
+    '#A1A1F8',
+    '#8585F6',
+    '#6A6AF4',
+    '#4747E5',
+    '#2323B4',
+    '#000091',
   ],
-  'sequentialDescending': [
-    '#000091', '#2323B4', '#4747E5', '#6A6AF4', '#8585F6',
-    '#A1A1F8', '#C1C1FB', '#E3E3FD', '#F5F5FE',
+  sequentialDescending: [
+    '#000091',
+    '#2323B4',
+    '#4747E5',
+    '#6A6AF4',
+    '#8585F6',
+    '#A1A1F8',
+    '#C1C1FB',
+    '#E3E3FD',
+    '#F5F5FE',
   ],
-  'divergentAscending': [
-    '#000091', '#4747E5', '#8585F6', '#C1C1FB', '#F5F5F5',
-    '#FCC0B4', '#F58050', '#E3541C', '#C9191E',
+  divergentAscending: [
+    '#000091',
+    '#4747E5',
+    '#8585F6',
+    '#C1C1FB',
+    '#F5F5F5',
+    '#FCC0B4',
+    '#F58050',
+    '#E3541C',
+    '#C9191E',
   ],
-  'divergentDescending': [
-    '#C9191E', '#E3541C', '#F58050', '#FCC0B4', '#F5F5F5',
-    '#C1C1FB', '#8585F6', '#4747E5', '#000091',
+  divergentDescending: [
+    '#C9191E',
+    '#E3541C',
+    '#F58050',
+    '#FCC0B4',
+    '#F5F5F5',
+    '#C1C1FB',
+    '#8585F6',
+    '#4747E5',
+    '#000091',
   ],
-  'neutral': [
-    '#F6F6F6', '#E5E5E5', '#CECECE', '#B5B5B5', '#929292',
-    '#777777', '#666666', '#3A3A3A', '#161616',
+  neutral: [
+    '#F6F6F6',
+    '#E5E5E5',
+    '#CECECE',
+    '#B5B5B5',
+    '#929292',
+    '#777777',
+    '#666666',
+    '#3A3A3A',
+    '#161616',
   ],
-  'default': [
-    '#F5F5FE', '#E3E3FD', '#C1C1FB', '#A1A1F8', '#8585F6',
-    '#6A6AF4', '#4747E5', '#2323B4', '#000091',
+  default: [
+    '#F5F5FE',
+    '#E3E3FD',
+    '#C1C1FB',
+    '#A1A1F8',
+    '#8585F6',
+    '#6A6AF4',
+    '#4747E5',
+    '#2323B4',
+    '#000091',
   ],
-  'categorical': [
-    '#000091', '#6A6AF4', '#009081', '#C9191E', '#FF9940',
-    '#A558A0', '#417DC4', '#716043', '#18753C',
+  categorical: [
+    '#000091',
+    '#6A6AF4',
+    '#009081',
+    '#C9191E',
+    '#FF9940',
+    '#A558A0',
+    '#417DC4',
+    '#716043',
+    '#18753C',
   ],
 };
 
 const CONTINENT_LABELS: Record<string, string> = {
-  'Africa': 'Afrique',
-  'Europe': 'Europe',
-  'Asia': 'Asie',
+  Africa: 'Afrique',
+  Europe: 'Europe',
+  Asia: 'Asie',
   'North America': 'Amerique du Nord',
   'South America': 'Amerique du Sud',
-  'Oceania': 'Oceanie',
+  Oceania: 'Oceanie',
 };
 
 /**
@@ -228,16 +279,21 @@ export class DsfrDataWorldMap extends SourceSubscriberMixin(LitElement) {
   }
 
   private _getProjection() {
-    const proj = geoNaturalEarth1().translate([WIDTH / 2, HEIGHT / 2]).scale(153);
+    const proj = geoNaturalEarth1()
+      .translate([WIDTH / 2, HEIGHT / 2])
+      .scale(153);
 
     if (this._zoomedContinent) {
       const features = this._getFeatures().filter(
-        f => COUNTRY_CONTINENT[f.id] === this._zoomedContinent
+        (f) => COUNTRY_CONTINENT[f.id] === this._zoomedContinent
       );
       if (features.length > 0) {
         const fc = { type: 'FeatureCollection' as const, features };
         proj.fitExtent(
-          [[PADDING, PADDING], [WIDTH - PADDING, HEIGHT - PADDING]],
+          [
+            [PADDING, PADDING],
+            [WIDTH - PADDING, HEIGHT - PADDING],
+          ],
           fc as GeoPermissibleObjects
         );
       }
@@ -287,7 +343,7 @@ export class DsfrDataWorldMap extends SourceSubscriberMixin(LitElement) {
     const colorScale = this._getColorScale(allValues);
     const noDataColor = '#F0F0F0';
 
-    const countryPaths = features.map(f => {
+    const countryPaths = features.map((f) => {
       const d = path(f.geometry as GeoPermissibleObjects) || '';
       const value = valueMap.get(f.id);
       const fill = value !== undefined ? colorScale(value) : noDataColor;
@@ -312,27 +368,30 @@ export class DsfrDataWorldMap extends SourceSubscriberMixin(LitElement) {
 
     return html`
       <div class="dsfr-data-world-map__container" style="position: relative;">
-        ${this._zoomedContinent ? html`
-          <button
-            class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline"
-            style="position: absolute; top: 8px; left: 8px; z-index: 2;"
-            @click=${this._onBackClick}
-            aria-label="Revenir a la vue monde">
-            <span class="fr-icon-arrow-left-line" aria-hidden="true"></span>
-            ${CONTINENT_LABELS[this._zoomedContinent] || this._zoomedContinent}
-          </button>
-        ` : nothing}
+        ${this._zoomedContinent
+          ? html`
+              <button
+                class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline"
+                style="position: absolute; top: 8px; left: 8px; z-index: 2;"
+                @click=${this._onBackClick}
+                aria-label="Revenir a la vue monde"
+              >
+                <span class="fr-icon-arrow-left-line" aria-hidden="true"></span>
+                ${CONTINENT_LABELS[this._zoomedContinent] || this._zoomedContinent}
+              </button>
+            `
+          : nothing}
 
         <svg
           viewBox="0 0 ${WIDTH} ${HEIGHT}"
           preserveAspectRatio="xMidYMid meet"
           role="img"
           aria-label=${this._getAriaLabel()}
-          style="width: 100%; height: auto; display: block;">
-          <g class="dsfr-data-world-map__countries">
-            ${countryPaths}
-          </g>
-          ${borderPath ? svg`<path
+          style="width: 100%; height: auto; display: block;"
+        >
+          <g class="dsfr-data-world-map__countries">${countryPaths}</g>
+          ${borderPath
+            ? svg`<path
             class="dsfr-data-world-map__borders"
             d=${borderPath}
             fill="none"
@@ -340,11 +399,11 @@ export class DsfrDataWorldMap extends SourceSubscriberMixin(LitElement) {
             stroke-width="0.5"
             stroke-linejoin="round"
             pointer-events="none"
-          />` : nothing}
+          />`
+            : nothing}
         </svg>
 
-        ${this._renderTooltip(valueMap)}
-        ${this._renderLegend(allValues, colorScale)}
+        ${this._renderTooltip(valueMap)} ${this._renderLegend(allValues, colorScale)}
       </div>
     `;
   }
@@ -352,24 +411,28 @@ export class DsfrDataWorldMap extends SourceSubscriberMixin(LitElement) {
   private _renderTooltip(valueMap: Map<string, number>) {
     if (!this._hoveredCountryId) return nothing;
 
-    const name = COUNTRY_NAMES_FR[this._hoveredCountryId]
-      || this._getFeatures().find(f => f.id === this._hoveredCountryId)?.properties?.name
-      || this._hoveredCountryId;
+    const name =
+      COUNTRY_NAMES_FR[this._hoveredCountryId] ||
+      this._getFeatures().find((f) => f.id === this._hoveredCountryId)?.properties?.name ||
+      this._hoveredCountryId;
     const value = valueMap.get(this._hoveredCountryId);
-    const valueText = value !== undefined
-      ? `${value.toLocaleString('fr-FR')}${this.unitTooltip ? ' ' + this.unitTooltip : ''}`
-      : 'Pas de donnees';
+    const valueText =
+      value !== undefined
+        ? `${value.toLocaleString('fr-FR')}${this.unitTooltip ? ' ' + this.unitTooltip : ''}`
+        : 'Pas de donnees';
 
     return html`
-      <div class="dsfr-data-world-map__tooltip"
+      <div
+        class="dsfr-data-world-map__tooltip"
         style="position: absolute; left: ${this._tooltipX}px; top: ${this._tooltipY}px;
           pointer-events: none; z-index: 10;
           background: var(--background-default-grey, #fff);
           color: var(--text-default-grey, #161616);
           border: 1px solid var(--border-default-grey, #ddd);
           border-radius: 4px; padding: 4px 8px; font-size: 0.8125rem;
-          box-shadow: 0 2px 6px rgba(0,0,0,0.15); white-space: nowrap;">
-        <strong>${name}</strong><br/>
+          box-shadow: 0 2px 6px rgba(0,0,0,0.15); white-space: nowrap;"
+      >
+        <strong>${name}</strong><br />
         ${valueText}
       </div>
     `;
@@ -384,12 +447,17 @@ export class DsfrDataWorldMap extends SourceSubscriberMixin(LitElement) {
     const max = sorted[sorted.length - 1];
 
     return html`
-      <div class="dsfr-data-world-map__legend" style="display: flex; align-items: center; gap: 4px;
-        margin-top: 8px; font-size: 0.75rem; color: var(--text-mention-grey, #666);">
-        ${this.name ? html`<span style="margin-right: 4px; font-weight: 500;">${this.name}</span>` : nothing}
+      <div
+        class="dsfr-data-world-map__legend"
+        style="display: flex; align-items: center; gap: 4px;
+        margin-top: 8px; font-size: 0.75rem; color: var(--text-mention-grey, #666);"
+      >
+        ${this.name
+          ? html`<span style="margin-right: 4px; font-weight: 500;">${this.name}</span>`
+          : nothing}
         <span>${min.toLocaleString('fr-FR')}</span>
         <div style="display: flex; height: 12px; border-radius: 2px; overflow: hidden;">
-          ${palette.map(c => html`<div style="width: 20px; background: ${c};"></div>`)}
+          ${palette.map((c) => html`<div style="width: 20px; background: ${c};"></div>`)}
         </div>
         <span>${max.toLocaleString('fr-FR')}</span>
         ${this.unitTooltip ? html`<span>${this.unitTooltip}</span>` : nothing}
@@ -414,8 +482,13 @@ export class DsfrDataWorldMap extends SourceSubscriberMixin(LitElement) {
         </div>
         <style>
           .dsfr-data-world-map__loading {
-            display: flex; align-items: center; justify-content: center;
-            gap: 0.5rem; padding: 2rem; color: var(--text-mention-grey, #666); font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 2rem;
+            color: var(--text-mention-grey, #666);
+            font-size: 0.875rem;
           }
         </style>
       `;
@@ -429,9 +502,13 @@ export class DsfrDataWorldMap extends SourceSubscriberMixin(LitElement) {
         </div>
         <style>
           .dsfr-data-world-map__error {
-            display: flex; align-items: center; gap: 0.5rem; padding: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem;
             color: var(--text-default-error, #ce0500);
-            background: var(--background-alt-red-marianne, #ffe5e5); border-radius: 4px;
+            background: var(--background-alt-red-marianne, #ffe5e5);
+            border-radius: 4px;
           }
         </style>
       `;
@@ -445,8 +522,13 @@ export class DsfrDataWorldMap extends SourceSubscriberMixin(LitElement) {
         </div>
         <style>
           .dsfr-data-world-map__loading {
-            display: flex; align-items: center; justify-content: center;
-            gap: 0.5rem; padding: 2rem; color: var(--text-mention-grey, #666); font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 2rem;
+            color: var(--text-mention-grey, #666);
+            font-size: 0.875rem;
           }
         </style>
       `;

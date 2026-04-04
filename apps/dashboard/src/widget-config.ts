@@ -34,7 +34,9 @@ function getConfigForm(widget: Widget): string {
 
   switch (widget.type) {
     case 'kpi':
-      return commonFields + `
+      return (
+        commonFields +
+        `
         <div class="config-group">
           <label>Valeur
             <span class="fr-hint-text">Un nombre ou un calcul : sum:population, avg:budget, count:*</span>
@@ -62,19 +64,25 @@ function getConfigForm(widget: Widget): string {
           </label>
           <input type="text" id="config-icone" value="${escapeHtml(widget.config.icone || '')}">
         </div>
-      `;
+      `
+      );
 
     case 'chart':
       if (widget.config.fromFavorite) {
-        return commonFields + `
+        return (
+          commonFields +
+          `
           <div class="fr-callout fr-callout--green-emeraude">
             <p class="fr-callout__text">
               Ce graphique provient de vos favoris et utilise sa configuration d'origine.
             </p>
           </div>
-        `;
+        `
+        );
       }
-      return commonFields + `
+      return (
+        commonFields +
+        `
         <div class="config-group">
           <label>Type de graphique</label>
           <select id="config-chartType">
@@ -104,10 +112,13 @@ function getConfigForm(widget: Widget): string {
             <option value="divergent" ${widget.config.palette === 'divergent' ? 'selected' : ''}>Divergente</option>
           </select>
         </div>
-      `;
+      `
+      );
 
     case 'table':
-      return commonFields + `
+      return (
+        commonFields +
+        `
         <div class="config-group">
           <label>Colonnes
             <span class="fr-hint-text">Noms des champs a afficher, separes par des virgules (ex : nom, ville, budget)</span>
@@ -126,10 +137,13 @@ function getConfigForm(widget: Widget): string {
             Tri active
           </label>
         </div>
-      `;
+      `
+      );
 
     case 'text':
-      return commonFields + `
+      return (
+        commonFields +
+        `
         <div class="config-group">
           <label>Contenu HTML</label>
           <textarea id="config-content">${escapeHtml(widget.config.content || '')}</textarea>
@@ -142,7 +156,8 @@ function getConfigForm(widget: Widget): string {
             <option value="callout" ${widget.config.style === 'callout' ? 'selected' : ''}>Callout</option>
           </select>
         </div>
-      `;
+      `
+      );
 
     default:
       return commonFields;
@@ -154,40 +169,59 @@ export function applyConfig(): void {
 
   const widget = state.selectedWidget;
 
-  widget.title = (document.getElementById('config-title') as HTMLInputElement)?.value || widget.title;
+  widget.title =
+    (document.getElementById('config-title') as HTMLInputElement)?.value || widget.title;
 
   switch (widget.type) {
     case 'kpi':
-      widget.config.valeur = (document.getElementById('config-valeur') as HTMLInputElement)?.value || '';
-      widget.config.label = (document.getElementById('config-label') as HTMLInputElement)?.value || '';
-      widget.config.format = (document.getElementById('config-format') as HTMLSelectElement)?.value || 'nombre';
-      widget.config.icone = (document.getElementById('config-icone') as HTMLInputElement)?.value || '';
+      widget.config.valeur =
+        (document.getElementById('config-valeur') as HTMLInputElement)?.value || '';
+      widget.config.label =
+        (document.getElementById('config-label') as HTMLInputElement)?.value || '';
+      widget.config.format =
+        (document.getElementById('config-format') as HTMLSelectElement)?.value || 'nombre';
+      widget.config.icone =
+        (document.getElementById('config-icone') as HTMLInputElement)?.value || '';
       break;
 
     case 'chart':
       if (!widget.config.fromFavorite) {
-        widget.config.chartType = (document.getElementById('config-chartType') as HTMLSelectElement)?.value || 'bar';
-        widget.config.labelField = (document.getElementById('config-labelField') as HTMLInputElement)?.value || '';
-        widget.config.valueField = (document.getElementById('config-valueField') as HTMLInputElement)?.value || '';
-        widget.config.palette = (document.getElementById('config-palette') as HTMLSelectElement)?.value || 'categorical';
+        widget.config.chartType =
+          (document.getElementById('config-chartType') as HTMLSelectElement)?.value || 'bar';
+        widget.config.labelField =
+          (document.getElementById('config-labelField') as HTMLInputElement)?.value || '';
+        widget.config.valueField =
+          (document.getElementById('config-valueField') as HTMLInputElement)?.value || '';
+        widget.config.palette =
+          (document.getElementById('config-palette') as HTMLSelectElement)?.value || 'categorical';
       }
       break;
 
     case 'table': {
-      const columnsStr = (document.getElementById('config-columns') as HTMLInputElement)?.value || '';
-      widget.config.columns = columnsStr.split(',').map(c => c.trim()).filter(c => c);
-      widget.config.searchable = (document.getElementById('config-searchable') as HTMLInputElement)?.checked ?? true;
-      widget.config.sortable = (document.getElementById('config-sortable') as HTMLInputElement)?.checked ?? true;
+      const columnsStr =
+        (document.getElementById('config-columns') as HTMLInputElement)?.value || '';
+      widget.config.columns = columnsStr
+        .split(',')
+        .map((c) => c.trim())
+        .filter((c) => c);
+      widget.config.searchable =
+        (document.getElementById('config-searchable') as HTMLInputElement)?.checked ?? true;
+      widget.config.sortable =
+        (document.getElementById('config-sortable') as HTMLInputElement)?.checked ?? true;
       break;
     }
 
     case 'text':
-      widget.config.content = (document.getElementById('config-content') as HTMLTextAreaElement)?.value || '';
-      widget.config.style = (document.getElementById('config-style') as HTMLSelectElement)?.value || 'paragraph';
+      widget.config.content =
+        (document.getElementById('config-content') as HTMLTextAreaElement)?.value || '';
+      widget.config.style =
+        (document.getElementById('config-style') as HTMLSelectElement)?.value || 'paragraph';
       break;
   }
 
-  const cell = document.querySelector(`.drop-cell[data-row="${widget.position.row}"][data-col="${widget.position.col}"]`) as HTMLElement | null;
+  const cell = document.querySelector(
+    `.drop-cell[data-row="${widget.position.row}"][data-col="${widget.position.col}"]`
+  ) as HTMLElement | null;
   if (cell) {
     renderWidget(widget, cell);
   }

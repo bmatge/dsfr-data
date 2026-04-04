@@ -10,7 +10,7 @@ import {
   getDataCache,
   dispatchSourceCommand,
   getDataMeta,
-  setDataMeta
+  setDataMeta,
 } from '../utils/data-bridge.js';
 
 type SearchOperator = 'contains' | 'starts' | 'words';
@@ -181,7 +181,7 @@ export class DsfrDataSearch extends LitElement {
     }
 
     const filterAttrs = ['fields', 'operator', 'minLength', 'highlight'];
-    const hasFilterChange = filterAttrs.some(attr => changedProperties.has(attr));
+    const hasFilterChange = filterAttrs.some((attr) => changedProperties.has(attr));
     if (hasFilterChange && this._allData.length > 0) {
       this._applyFilter();
     }
@@ -270,7 +270,7 @@ export class DsfrDataSearch extends LitElement {
       },
       onError: (error: Error) => {
         dispatchDataError(this.id, error);
-      }
+      },
     });
   }
 
@@ -338,15 +338,13 @@ export class DsfrDataSearch extends LitElement {
       const op = this.operator || 'contains';
       const normTerm = this._normalize(term);
 
-      this._filteredData = this._allData.filter(record =>
+      this._filteredData = this._allData.filter((record) =>
         this._matchRecord(record, normTerm, fields, op)
       );
     }
 
     if (this.highlight && term && term.length >= this.minLength) {
-      this._filteredData = this._filteredData.map(r =>
-        this._addHighlight(r, term)
-      );
+      this._filteredData = this._filteredData.map((r) => this._addHighlight(r, term));
     }
 
     this._resultCount = this._filteredData.length;
@@ -376,15 +374,17 @@ export class DsfrDataSearch extends LitElement {
     }
 
     // Emit dsfr-data-search-change event
-    document.dispatchEvent(new CustomEvent('dsfr-data-search-change', {
-      bubbles: true,
-      composed: true,
-      detail: {
-        sourceId: this.id,
-        term: this._term,
-        count: this._resultCount
-      }
-    }));
+    document.dispatchEvent(
+      new CustomEvent('dsfr-data-search-change', {
+        bubbles: true,
+        composed: true,
+        detail: {
+          sourceId: this.id,
+          term: this._term,
+          count: this._resultCount,
+        },
+      })
+    );
   }
 
   _matchRecord(
@@ -393,29 +393,26 @@ export class DsfrDataSearch extends LitElement {
     fields: string[],
     operator: SearchOperator
   ): boolean {
-    const searchFields = fields.length > 0
-      ? fields
-      : Object.keys(record).filter(k => !k.startsWith('_'));
+    const searchFields =
+      fields.length > 0 ? fields : Object.keys(record).filter((k) => !k.startsWith('_'));
 
     switch (operator) {
       case 'starts':
-        return searchFields.some(f => {
+        return searchFields.some((f) => {
           const words = this._normalize(String(record[f] ?? '')).split(/\s+/);
-          return words.some(w => w.startsWith(normTerm));
+          return words.some((w) => w.startsWith(normTerm));
         });
 
       case 'words': {
         const queryWords = normTerm.split(/\s+/).filter(Boolean);
-        return queryWords.every(qw =>
-          searchFields.some(f =>
-            this._normalize(String(record[f] ?? '')).includes(qw)
-          )
+        return queryWords.every((qw) =>
+          searchFields.some((f) => this._normalize(String(record[f] ?? '')).includes(qw))
         );
       }
 
       case 'contains':
       default:
-        return searchFields.some(f =>
+        return searchFields.some((f) =>
           this._normalize(String(record[f] ?? '')).includes(normTerm)
         );
     }
@@ -431,7 +428,10 @@ export class DsfrDataSearch extends LitElement {
 
   _getFields(): string[] {
     if (!this.fields) return [];
-    return this.fields.split(',').map(f => f.trim()).filter(Boolean);
+    return this.fields
+      .split(',')
+      .map((f) => f.trim())
+      .filter(Boolean);
   }
 
   _addHighlight(record: Record<string, unknown>, term: string): Record<string, unknown> {
@@ -439,12 +439,11 @@ export class DsfrDataSearch extends LitElement {
     const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const regex = new RegExp('(' + escaped + ')', 'gi');
     const fields = this._getFields();
-    const searchIn = fields.length > 0
-      ? fields
-      : Object.keys(record).filter(k => typeof record[k] === 'string');
+    const searchIn =
+      fields.length > 0 ? fields : Object.keys(record).filter((k) => typeof record[k] === 'string');
 
     const highlights: string[] = [];
-    searchIn.forEach(f => {
+    searchIn.forEach((f) => {
       if (typeof record[f] === 'string') {
         highlights.push((record[f] as string).replace(regex, '<mark>$1</mark>'));
       }
@@ -481,15 +480,17 @@ export class DsfrDataSearch extends LitElement {
       this._syncUrl();
     }
 
-    document.dispatchEvent(new CustomEvent('dsfr-data-search-change', {
-      bubbles: true,
-      composed: true,
-      detail: {
-        sourceId: this.id,
-        term: this._term,
-        count: this._filteredData.length
-      }
-    }));
+    document.dispatchEvent(
+      new CustomEvent('dsfr-data-search-change', {
+        bubbles: true,
+        composed: true,
+        detail: {
+          sourceId: this.id,
+          term: this._term,
+          count: this._filteredData.length,
+        },
+      })
+    );
   }
 
   /** Sync current search term back to URL (replaceState) */
@@ -512,31 +513,62 @@ export class DsfrDataSearch extends LitElement {
     const labelClass = this.srLabel ? 'fr-label sr-only' : 'fr-label';
 
     return html`
-      <div class="fr-search-bar" role="search" aria-label="${this.getAttribute('aria-label') || this.label}">
+      <div
+        class="fr-search-bar"
+        role="search"
+        aria-label="${this.getAttribute('aria-label') || this.label}"
+      >
         <label class="${labelClass}" for="dsfr-data-search-${id}">${this.label}</label>
-        <input class="fr-input"
+        <input
+          class="fr-input"
           type="search"
           id="dsfr-data-search-${id}"
           placeholder="${this.placeholder}"
           autocomplete="off"
           .value="${this._term}"
           @input="${(e: Event) => this._onInput((e.target as HTMLInputElement).value)}"
-          @search="${(e: Event) => { this._term = (e.target as HTMLInputElement).value; this._onSubmit(); }}"
-          @keydown="${(e: KeyboardEvent) => { if (e.key === 'Enter') { e.preventDefault(); this._onSubmit(); } if (e.key === 'Escape') { this.clear(); } }}">
-        <button class="fr-btn" title="Rechercher" type="button"
-          @click="${(e: Event) => { e.preventDefault(); this._onSubmit(); }}">
+          @search="${(e: Event) => {
+            this._term = (e.target as HTMLInputElement).value;
+            this._onSubmit();
+          }}"
+          @keydown="${(e: KeyboardEvent) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              this._onSubmit();
+            }
+            if (e.key === 'Escape') {
+              this.clear();
+            }
+          }}"
+        />
+        <button
+          class="fr-btn"
+          title="Rechercher"
+          type="button"
+          @click="${(e: Event) => {
+            e.preventDefault();
+            this._onSubmit();
+          }}"
+        >
           Rechercher
         </button>
       </div>
-      ${this.count ? html`
-        <p class="fr-text--sm fr-mt-1v dsfr-data-search-count" aria-live="polite" aria-atomic="true" role="status">
-          ${this._resultCount} resultat${this._resultCount !== 1 ? 's' : ''}
-        </p>
-      ` : html`
-        <p class="fr-sr-only" aria-live="polite" aria-atomic="true" role="status">
-          ${this._resultCount} resultat${this._resultCount !== 1 ? 's' : ''}
-        </p>
-      `}
+      ${this.count
+        ? html`
+            <p
+              class="fr-text--sm fr-mt-1v dsfr-data-search-count"
+              aria-live="polite"
+              aria-atomic="true"
+              role="status"
+            >
+              ${this._resultCount} resultat${this._resultCount !== 1 ? 's' : ''}
+            </p>
+          `
+        : html`
+            <p class="fr-sr-only" aria-live="polite" aria-atomic="true" role="status">
+              ${this._resultCount} resultat${this._resultCount !== 1 ? 's' : ''}
+            </p>
+          `}
     `;
   }
 }

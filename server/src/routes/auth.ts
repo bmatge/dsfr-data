@@ -56,7 +56,7 @@ router.post('/register', authLimiter, async (req, res) => {
     // Check if email already exists (active accounts only — allow re-register if previous expired)
     const existing = await queryOne<{ id: string; email_verified: number }>(
       'SELECT id, email_verified FROM users WHERE email = ?',
-      [email],
+      [email]
     );
     if (existing) {
       if (existing.email_verified) {
@@ -81,7 +81,7 @@ router.post('/register', authLimiter, async (req, res) => {
       await execute(
         `INSERT INTO users (id, email, password_hash, display_name, role, email_verified)
          VALUES (?, ?, ?, ?, ?, TRUE)`,
-        [id, email, passwordHash, name, role],
+        [id, email, passwordHash, name, role]
       );
       await execute('UPDATE users SET last_login = NOW() WHERE id = ?', [id]);
 
@@ -100,7 +100,7 @@ router.post('/register', authLimiter, async (req, res) => {
       await execute(
         `INSERT INTO users (id, email, password_hash, display_name, role, email_verified, verification_token_hash, verification_expires)
          VALUES (?, ?, ?, ?, ?, FALSE, ?, DATE_ADD(NOW(), INTERVAL ? HOUR))`,
-        [id, email, passwordHash, name, role, tokenHash, VERIFICATION_EXPIRY_HOURS],
+        [id, email, passwordHash, name, role, tokenHash, VERIFICATION_EXPIRY_HOURS]
       );
 
       // Send verification email (best-effort — if SMTP fails, user can resend)
@@ -137,11 +137,14 @@ router.get('/verify-email', async (req, res) => {
     const tokenHash = hashToken(token);
 
     const user = await queryOne<{
-      id: string; email: string; role: string; verification_expires: string;
+      id: string;
+      email: string;
+      role: string;
+      verification_expires: string;
     }>(
       `SELECT id, email, role, verification_expires FROM users
        WHERE verification_token_hash = ? AND email_verified = FALSE`,
-      [tokenHash],
+      [tokenHash]
     );
 
     if (!user) {
@@ -160,7 +163,7 @@ router.get('/verify-email', async (req, res) => {
     await execute(
       `UPDATE users SET email_verified = TRUE, verification_token_hash = NULL,
        verification_expires = NULL, last_login = NOW() WHERE id = ?`,
-      [user.id],
+      [user.id]
     );
 
     // Log in
@@ -192,7 +195,7 @@ router.post('/resend-verification', authLimiter, async (req, res) => {
     const user = await queryOne<{ id: string; verification_expires: string }>(
       `SELECT id, verification_expires FROM users
        WHERE email = ? AND email_verified = FALSE AND is_active = TRUE AND auth_provider = 'local'`,
-      [email],
+      [email]
     );
 
     if (!user) {
@@ -207,7 +210,7 @@ router.post('/resend-verification', authLimiter, async (req, res) => {
       const expires = new Date(user.verification_expires);
       const hoursUntilExpiry = (expires.getTime() - Date.now()) / (1000 * 60 * 60);
       // If token was generated less than 20 minutes ago (24h - 20min = 23.67h remaining), throttle
-      if (hoursUntilExpiry > (VERIFICATION_EXPIRY_HOURS - 1 / RESEND_MAX)) {
+      if (hoursUntilExpiry > VERIFICATION_EXPIRY_HOURS - 1 / RESEND_MAX) {
         res.json({ message: 'If an account exists, a verification email has been sent' });
         return;
       }
@@ -220,7 +223,7 @@ router.post('/resend-verification', authLimiter, async (req, res) => {
     await execute(
       `UPDATE users SET verification_token_hash = ?,
        verification_expires = DATE_ADD(NOW(), INTERVAL ? HOUR) WHERE id = ?`,
-      [tokenHash, VERIFICATION_EXPIRY_HOURS, user.id],
+      [tokenHash, VERIFICATION_EXPIRY_HOURS, user.id]
     );
 
     try {
@@ -250,11 +253,16 @@ router.post('/login', authLimiter, async (req, res) => {
     }
 
     const user = await queryOne<{
-      id: string; email: string; password_hash: string | null;
-      display_name: string; role: string; is_active: number; email_verified: number;
+      id: string;
+      email: string;
+      password_hash: string | null;
+      display_name: string;
+      role: string;
+      is_active: number;
+      email_verified: number;
     }>(
       'SELECT id, email, password_hash, display_name, role, is_active, email_verified FROM users WHERE email = ? AND auth_provider = ?',
-      [email, 'local'],
+      [email, 'local']
     );
 
     if (!user) {
@@ -327,11 +335,17 @@ router.get('/me', requireAuth, async (req, res) => {
   try {
     const authReq = req as AuthenticatedRequest;
     const user = await queryOne<{
-      id: string; email: string; display_name: string; role: string;
-      auth_provider: string; is_active: number; email_verified: number; created_at: string;
+      id: string;
+      email: string;
+      display_name: string;
+      role: string;
+      auth_provider: string;
+      is_active: number;
+      email_verified: number;
+      created_at: string;
     }>(
       'SELECT id, email, display_name, role, auth_provider, is_active, email_verified, created_at FROM users WHERE id = ?',
-      [authReq.user!.userId],
+      [authReq.user!.userId]
     );
 
     if (!user) {
@@ -367,10 +381,10 @@ router.put('/me', requireAuth, async (req, res) => {
     const { displayName, currentPassword, password } = req.body;
 
     if (displayName) {
-      await execute(
-        'UPDATE users SET display_name = ?, updated_at = NOW() WHERE id = ?',
-        [displayName, authReq.user!.userId],
-      );
+      await execute('UPDATE users SET display_name = ?, updated_at = NOW() WHERE id = ?', [
+        displayName,
+        authReq.user!.userId,
+      ]);
     }
 
     if (password) {
@@ -382,7 +396,7 @@ router.put('/me', requireAuth, async (req, res) => {
 
       const dbUser = await queryOne<{ password_hash: string | null }>(
         'SELECT password_hash FROM users WHERE id = ?',
-        [authReq.user!.userId],
+        [authReq.user!.userId]
       );
       if (!dbUser?.password_hash) {
         res.status(400).json({ error: 'Changement de mot de passe non disponible pour ce compte' });
@@ -401,10 +415,10 @@ router.put('/me', requireAuth, async (req, res) => {
         return;
       }
       const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-      await execute(
-        'UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?',
-        [passwordHash, authReq.user!.userId],
-      );
+      await execute('UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?', [
+        passwordHash,
+        authReq.user!.userId,
+      ]);
 
       // Revoke all other sessions (keep current one active)
       const currentToken = req.cookies?.['gw-auth-token'];
@@ -417,7 +431,7 @@ router.put('/me', requireAuth, async (req, res) => {
 
     const user = await queryOne<{ id: string; email: string; display_name: string; role: string }>(
       'SELECT id, email, display_name, role FROM users WHERE id = ?',
-      [authReq.user!.userId],
+      [authReq.user!.userId]
     );
 
     res.json({
@@ -442,7 +456,8 @@ router.put('/me', requireAuth, async (req, res) => {
 router.post('/forgot-password', authLimiter, async (req, res) => {
   try {
     const { email } = req.body;
-    const genericMsg = 'Si un compte existe avec cet email, un lien de reinitialisation a ete envoye';
+    const genericMsg =
+      'Si un compte existe avec cet email, un lien de reinitialisation a ete envoye';
 
     if (!email) {
       res.json({ message: genericMsg });
@@ -452,7 +467,7 @@ router.post('/forgot-password', authLimiter, async (req, res) => {
     const user = await queryOne<{ id: string; reset_token_expires: string | null }>(
       `SELECT id, reset_token_expires FROM users
        WHERE email = ? AND is_active = TRUE AND email_verified = TRUE AND auth_provider = 'local'`,
-      [email],
+      [email]
     );
 
     if (!user) {
@@ -464,7 +479,7 @@ router.post('/forgot-password', authLimiter, async (req, res) => {
     if (user.reset_token_expires) {
       const expires = new Date(user.reset_token_expires);
       const minutesUntilExpiry = (expires.getTime() - Date.now()) / (1000 * 60);
-      if (minutesUntilExpiry > (RESET_EXPIRY_HOURS * 60 - 5)) {
+      if (minutesUntilExpiry > RESET_EXPIRY_HOURS * 60 - 5) {
         res.json({ message: genericMsg });
         return;
       }
@@ -476,7 +491,7 @@ router.post('/forgot-password', authLimiter, async (req, res) => {
     await execute(
       `UPDATE users SET reset_token_hash = ?, reset_token_expires = DATE_ADD(NOW(), INTERVAL ? HOUR)
        WHERE id = ?`,
-      [tokenHash, RESET_EXPIRY_HOURS, user.id],
+      [tokenHash, RESET_EXPIRY_HOURS, user.id]
     );
 
     try {
@@ -514,11 +529,14 @@ router.post('/reset-password', authLimiter, async (req, res) => {
     const tokenHash = hashToken(token);
 
     const user = await queryOne<{
-      id: string; email: string; role: string; reset_token_expires: string;
+      id: string;
+      email: string;
+      role: string;
+      reset_token_expires: string;
     }>(
       `SELECT id, email, role, reset_token_expires FROM users
        WHERE reset_token_hash = ? AND is_active = TRUE`,
-      [tokenHash],
+      [tokenHash]
     );
 
     if (!user) {
@@ -537,7 +555,7 @@ router.post('/reset-password', authLimiter, async (req, res) => {
     await execute(
       `UPDATE users SET password_hash = ?, reset_token_hash = NULL, reset_token_expires = NULL,
        updated_at = NOW() WHERE id = ?`,
-      [passwordHash, user.id],
+      [passwordHash, user.id]
     );
 
     // Revoke all existing sessions
@@ -577,15 +595,17 @@ router.get('/users', requireAuth, async (req, res) => {
       `SELECT id, email, display_name, role FROM users
        WHERE is_active = TRUE AND (email LIKE ? OR display_name LIKE ?)
        LIMIT 10`,
-      [`%${q}%`, `%${q}%`],
+      [`%${q}%`, `%${q}%`]
     );
 
-    res.json(users.map(u => ({
-      id: u.id,
-      email: u.email,
-      displayName: u.display_name,
-      role: u.role,
-    })));
+    res.json(
+      users.map((u) => ({
+        id: u.id,
+        email: u.email,
+        displayName: u.display_name,
+        role: u.role,
+      }))
+    );
   } catch (err) {
     console.error('Search users error:', err);
     res.status(500).json({ error: 'Internal server error' });

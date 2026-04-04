@@ -29,7 +29,6 @@ const MAX_TABLE_ROWS = 100;
  */
 @customElement('dsfr-data-a11y')
 export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
-
   @property({ type: String })
   source = '';
 
@@ -176,7 +175,7 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
     // Clean aria-describedby
     const descId = `${this.id}-desc`;
     const existing = target.getAttribute('aria-describedby') || '';
-    const ids = existing.split(/\s+/).filter(id => id !== descId);
+    const ids = existing.split(/\s+/).filter((id) => id !== descId);
     if (ids.length > 0) {
       target.setAttribute('aria-describedby', ids.join(' '));
     } else {
@@ -205,13 +204,13 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
   _buildCsv(data: Record<string, unknown>[]): string {
     const keys = Object.keys(data[0]);
     const header = keys.join(';');
-    const rows = data.map(item =>
-      keys.map(key => {
-        const str = String(item[key] ?? '');
-        return str.includes(';') || str.includes('"')
-          ? `"${str.replace(/"/g, '""')}"`
-          : str;
-      }).join(';')
+    const rows = data.map((item) =>
+      keys
+        .map((key) => {
+          const str = String(item[key] ?? '');
+          return str.includes(';') || str.includes('"') ? `"${str.replace(/"/g, '""')}"` : str;
+        })
+        .join(';')
     );
     return [header, ...rows].join('\n');
   }
@@ -235,7 +234,7 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
       const cols: string[] = [];
       if (this.labelField) cols.push(this.labelField);
       if (this.valueField) {
-        for (const vf of this.valueField.split(',').map(f => f.trim())) {
+        for (const vf of this.valueField.split(',').map((f) => f.trim())) {
           if (vf) cols.push(vf);
         }
       }
@@ -280,11 +279,12 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
     const isTruncated = typedData.length > MAX_TABLE_ROWS;
 
     return html`
-      <section class="dsfr-data-a11y"
-               id="${this.id}-section"
-               role="complementary"
-               aria-label="${sectionLabel}">
-
+      <section
+        class="dsfr-data-a11y"
+        id="${this.id}-section"
+        role="complementary"
+        aria-label="${sectionLabel}"
+      >
         <!-- Concise description for aria-describedby (sr-only) -->
         <p id="${descId}" class="dsfr-data-a11y__sr-only">
           ${this._getAutoDescription(hasData, data)}
@@ -293,52 +293,65 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
         <details class="fr-accordion">
           <summary class="fr-accordion__btn">${sectionLabel}</summary>
           <div class="fr-accordion__content">
-
-            ${this._showDescription ? html`
-              <div class="fr-mb-2w">
-                <p class="fr-text--sm">${this.description}</p>
-              </div>
-            ` : nothing}
-
-            ${this._showTable && hasData ? html`
-              <div class="fr-table fr-mb-2w" id="${tableId}">
-                <table>
-                  <caption class="dsfr-data-a11y__sr-only">${(() => {
-                    const t = this.for ? document.getElementById(this.for) : null;
-                    return t?.tagName?.toLowerCase() === 'dsfr-data-map' ? 'Donnees de la carte' : 'Donnees du graphique';
-                  })()}</caption>
-                  <thead>
-                    <tr>
-                      ${columns.map(col => html`<th scope="col">${col}</th>`)}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${tableRows.map(row => html`
-                      <tr>
-                        ${columns.map(col => html`<td>${row[col] ?? ''}</td>`)}
-                      </tr>
-                    `)}
-                  </tbody>
-                </table>
-                ${isTruncated ? html`
-                  <p class="fr-text--xs fr-mt-1w">
-                    Affichage limite aux ${MAX_TABLE_ROWS} premieres lignes.
-                    ${this._showDownload ? 'Telechargez le CSV pour les donnees completes.' : ''}
-                  </p>
-                ` : nothing}
-              </div>
-            ` : nothing}
-
-            ${this._showDownload ? html`
-              <button
-                class="fr-btn fr-btn--secondary fr-btn--sm fr-btn--icon-left fr-icon-download-line"
-                @click="${this._handleDownload}"
-                ?disabled="${!hasData || this._sourceLoading}"
-                title="Telecharger les donnees (CSV)">
-                Telecharger en CSV
-              </button>
-            ` : nothing}
-
+            ${this._showDescription
+              ? html`
+                  <div class="fr-mb-2w">
+                    <p class="fr-text--sm">${this.description}</p>
+                  </div>
+                `
+              : nothing}
+            ${this._showTable && hasData
+              ? html`
+                  <div class="fr-table fr-mb-2w" id="${tableId}">
+                    <table>
+                      <caption class="dsfr-data-a11y__sr-only">
+                        ${(() => {
+                          const t = this.for ? document.getElementById(this.for) : null;
+                          return t?.tagName?.toLowerCase() === 'dsfr-data-map'
+                            ? 'Donnees de la carte'
+                            : 'Donnees du graphique';
+                        })()}
+                      </caption>
+                      <thead>
+                        <tr>
+                          ${columns.map((col) => html`<th scope="col">${col}</th>`)}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        ${tableRows.map(
+                          (row) => html`
+                            <tr>
+                              ${columns.map((col) => html`<td>${row[col] ?? ''}</td>`)}
+                            </tr>
+                          `
+                        )}
+                      </tbody>
+                    </table>
+                    ${isTruncated
+                      ? html`
+                          <p class="fr-text--xs fr-mt-1w">
+                            Affichage limite aux ${MAX_TABLE_ROWS} premieres lignes.
+                            ${this._showDownload
+                              ? 'Telechargez le CSV pour les donnees completes.'
+                              : ''}
+                          </p>
+                        `
+                      : nothing}
+                  </div>
+                `
+              : nothing}
+            ${this._showDownload
+              ? html`
+                  <button
+                    class="fr-btn fr-btn--secondary fr-btn--sm fr-btn--icon-left fr-icon-download-line"
+                    @click="${this._handleDownload}"
+                    ?disabled="${!hasData || this._sourceLoading}"
+                    title="Telecharger les donnees (CSV)"
+                  >
+                    Telecharger en CSV
+                  </button>
+                `
+              : nothing}
           </div>
         </details>
       </section>

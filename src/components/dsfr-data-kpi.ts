@@ -120,9 +120,17 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
     const formattedValue = formatValue(value as number, this.format);
     let label = `${this.label}: ${formattedValue}`;
 
-    if (typeof value === 'number' && (this.seuilVert !== undefined || this.seuilOrange !== undefined)) {
+    if (
+      typeof value === 'number' &&
+      (this.seuilVert !== undefined || this.seuilOrange !== undefined)
+    ) {
       const color = this._getColor();
-      const stateMap: Record<string, string> = { vert: 'bon', orange: 'attention', rouge: 'critique', bleu: '' };
+      const stateMap: Record<string, string> = {
+        vert: 'bon',
+        orange: 'attention',
+        rouge: 'critique',
+        bleu: '',
+      };
       const state = stateMap[color];
       if (state) label += `, etat ${state}`;
     }
@@ -137,38 +145,54 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
     const tendance = this._getTendanceInfo();
 
     return html`
-      <div
-        class="dsfr-data-kpi ${colorClass}"
-        role="figure"
-        aria-label="${this._getAriaLabel()}"
-      >
-        ${this._sourceLoading ? html`
-          <div class="dsfr-data-kpi__loading" aria-live="polite">
-            <span class="fr-icon-loader-4-line" aria-hidden="true"></span>
-            Chargement...
-          </div>
-        ` : this._sourceError ? html`
-          <div class="dsfr-data-kpi__error" aria-live="assertive">
-            <span class="fr-icon-error-line" aria-hidden="true"></span>
-            Erreur de chargement
-          </div>
-        ` : html`
-          <div class="dsfr-data-kpi__content">
-            ${this.icone ? html`
-              <span class="dsfr-data-kpi__icon ${this.icone}" aria-hidden="true"></span>
-            ` : ''}
-            <div class="dsfr-data-kpi__value-wrapper">
-              <span class="dsfr-data-kpi__value">${formattedValue}</span>
-              ${tendance ? html`
-                <span class="dsfr-data-kpi__tendance dsfr-data-kpi__tendance--${tendance.direction}" role="img" aria-label="${tendance.value > 0 ? `en hausse de ${Math.abs(tendance.value).toFixed(1)}%` : tendance.value < 0 ? `en baisse de ${Math.abs(tendance.value).toFixed(1)}%` : 'stable'}">
-                  ${tendance.direction === 'up' ? '↑' : tendance.direction === 'down' ? '↓' : '→'}
-                  ${Math.abs(tendance.value).toFixed(1)}%
-                </span>
-              ` : ''}
-            </div>
-            <span class="dsfr-data-kpi__label">${this.label}</span>
-          </div>
-        `}
+      <div class="dsfr-data-kpi ${colorClass}" role="figure" aria-label="${this._getAriaLabel()}">
+        ${this._sourceLoading
+          ? html`
+              <div class="dsfr-data-kpi__loading" aria-live="polite">
+                <span class="fr-icon-loader-4-line" aria-hidden="true"></span>
+                Chargement...
+              </div>
+            `
+          : this._sourceError
+            ? html`
+                <div class="dsfr-data-kpi__error" aria-live="assertive">
+                  <span class="fr-icon-error-line" aria-hidden="true"></span>
+                  Erreur de chargement
+                </div>
+              `
+            : html`
+                <div class="dsfr-data-kpi__content">
+                  ${this.icone
+                    ? html`
+                        <span class="dsfr-data-kpi__icon ${this.icone}" aria-hidden="true"></span>
+                      `
+                    : ''}
+                  <div class="dsfr-data-kpi__value-wrapper">
+                    <span class="dsfr-data-kpi__value">${formattedValue}</span>
+                    ${tendance
+                      ? html`
+                          <span
+                            class="dsfr-data-kpi__tendance dsfr-data-kpi__tendance--${tendance.direction}"
+                            role="img"
+                            aria-label="${tendance.value > 0
+                              ? `en hausse de ${Math.abs(tendance.value).toFixed(1)}%`
+                              : tendance.value < 0
+                                ? `en baisse de ${Math.abs(tendance.value).toFixed(1)}%`
+                                : 'stable'}"
+                          >
+                            ${tendance.direction === 'up'
+                              ? '↑'
+                              : tendance.direction === 'down'
+                                ? '↓'
+                                : '→'}
+                            ${Math.abs(tendance.value).toFixed(1)}%
+                          </span>
+                        `
+                      : ''}
+                  </div>
+                  <span class="dsfr-data-kpi__label">${this.label}</span>
+                </div>
+              `}
       </div>
       <style>
         .dsfr-data-kpi {
@@ -183,22 +207,66 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
           height: 100%;
           box-sizing: border-box;
         }
-        .dsfr-data-kpi--success { border-left-color: var(--background-flat-success); }
-        .dsfr-data-kpi--warning { border-left-color: var(--background-flat-warning); }
-        .dsfr-data-kpi--error { border-left-color: var(--background-flat-error); }
-        .dsfr-data-kpi--info { border-left-color: var(--background-flat-info); }
-        .dsfr-data-kpi__content { display: flex; flex-direction: column; gap: 0.5rem; }
-        .dsfr-data-kpi__icon { font-size: 1.5rem; color: var(--text-mention-grey); }
-        .dsfr-data-kpi__value-wrapper { display: flex; align-items: baseline; gap: 0.5rem; }
-        .dsfr-data-kpi__value { font-size: 2.5rem; font-weight: 700; line-height: 1; color: var(--text-title-grey); }
-        .dsfr-data-kpi__tendance { font-size: 0.875rem; font-weight: 500; }
-        .dsfr-data-kpi__tendance--up { color: var(--text-default-success); }
-        .dsfr-data-kpi__tendance--down { color: var(--text-default-error); }
-        .dsfr-data-kpi__tendance--stable { color: var(--text-mention-grey); }
-        .dsfr-data-kpi__label { font-size: 0.875rem; color: var(--text-mention-grey); }
+        .dsfr-data-kpi--success {
+          border-left-color: var(--background-flat-success);
+        }
+        .dsfr-data-kpi--warning {
+          border-left-color: var(--background-flat-warning);
+        }
+        .dsfr-data-kpi--error {
+          border-left-color: var(--background-flat-error);
+        }
+        .dsfr-data-kpi--info {
+          border-left-color: var(--background-flat-info);
+        }
+        .dsfr-data-kpi__content {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+        }
+        .dsfr-data-kpi__icon {
+          font-size: 1.5rem;
+          color: var(--text-mention-grey);
+        }
+        .dsfr-data-kpi__value-wrapper {
+          display: flex;
+          align-items: baseline;
+          gap: 0.5rem;
+        }
+        .dsfr-data-kpi__value {
+          font-size: 2.5rem;
+          font-weight: 700;
+          line-height: 1;
+          color: var(--text-title-grey);
+        }
+        .dsfr-data-kpi__tendance {
+          font-size: 0.875rem;
+          font-weight: 500;
+        }
+        .dsfr-data-kpi__tendance--up {
+          color: var(--text-default-success);
+        }
+        .dsfr-data-kpi__tendance--down {
+          color: var(--text-default-error);
+        }
+        .dsfr-data-kpi__tendance--stable {
+          color: var(--text-mention-grey);
+        }
+        .dsfr-data-kpi__label {
+          font-size: 0.875rem;
+          color: var(--text-mention-grey);
+        }
         .dsfr-data-kpi__loading,
-        .dsfr-data-kpi__error { display: flex; align-items: center; gap: 0.5rem; color: var(--text-mention-grey); font-size: 0.875rem; }
-        .dsfr-data-kpi__error { color: var(--text-default-error); }
+        .dsfr-data-kpi__error {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          color: var(--text-mention-grey);
+          font-size: 0.875rem;
+        }
+        .dsfr-data-kpi__error {
+          color: var(--text-default-error);
+        }
       </style>
     `;
   }

@@ -3,7 +3,7 @@ import type { ProviderConfig } from './provider-config.js';
 export const GENERIC_CONFIG: ProviderConfig = {
   id: 'generic',
   displayName: 'Generic REST',
-  urlPatterns: [],  // fallback — matches anything not matched by other providers
+  urlPatterns: [], // fallback — matches anything not matched by other providers
   knownHosts: [],
   defaultBaseUrl: '',
   defaultAuthType: 'none',

@@ -5,7 +5,15 @@ import './styles/carto.css';
 import { state, createLayer } from './state.js';
 import type { LayerConfig, PopupMode } from './state.js';
 import { generateCode } from './ui/code-generator.js';
-import { loadFromStorage, saveToStorage, STORAGE_KEYS, migrateSource, injectTourStyles, startTourIfFirstVisit, BUILDER_CARTO_TOUR } from '@dsfr-data/shared';
+import {
+  loadFromStorage,
+  saveToStorage,
+  STORAGE_KEYS,
+  migrateSource,
+  injectTourStyles,
+  startTourIfFirstVisit,
+  BUILDER_CARTO_TOUR,
+} from '@dsfr-data/shared';
 type AnySource = Record<string, any>;
 
 const FAVORITES_KEY = 'dsfr-data-favorites';
@@ -22,7 +30,7 @@ interface Favorite {
 
 function loadSavedSources(): AnySource[] {
   const raw = loadFromStorage<AnySource[]>(STORAGE_KEYS.SOURCES, []);
-  return raw.map(s => migrateSource(s as any) as unknown as AnySource);
+  return raw.map((s) => migrateSource(s as any) as unknown as AnySource);
 }
 
 // Expose state for E2E tests
@@ -42,7 +50,7 @@ function toggleSection(sectionId: string): void {
   if (isCurrentlyCollapsed) {
     const parent = section.parentElement;
     if (parent) {
-      parent.querySelectorAll('.config-section:not(#' + sectionId + ')').forEach(s => {
+      parent.querySelectorAll('.config-section:not(#' + sectionId + ')').forEach((s) => {
         if (s.querySelector('.config-section-header')) {
           s.classList.add('collapsed');
         }
@@ -78,13 +86,13 @@ function initDragListeners() {
     el.addEventListener('dragend', () => {
       (el as HTMLElement).classList.remove('dragging');
       draggedLayerIndex = null;
-      list.querySelectorAll('.drag-over').forEach(d => d.classList.remove('drag-over'));
+      list.querySelectorAll('.drag-over').forEach((d) => d.classList.remove('drag-over'));
     });
 
     el.addEventListener('dragover', (e) => {
       e.preventDefault();
       (e as DragEvent).dataTransfer!.dropEffect = 'move';
-      list.querySelectorAll('.drag-over').forEach(d => d.classList.remove('drag-over'));
+      list.querySelectorAll('.drag-over').forEach((d) => d.classList.remove('drag-over'));
       (el as HTMLElement).classList.add('drag-over');
     });
 
@@ -113,7 +121,7 @@ function initDragListeners() {
 // ---------------------------------------------------------------------------
 
 function getActiveLayer(): LayerConfig | undefined {
-  return state.layers.find(l => l.id === state.activeLayerId);
+  return state.layers.find((l) => l.id === state.activeLayerId);
 }
 
 function escapeAttr(val: string): string {
@@ -126,7 +134,9 @@ function escapeAttr(val: string): string {
 
 function renderLayersList() {
   const list = document.getElementById('layers-list')!;
-  list.innerHTML = state.layers.map(layer => `
+  list.innerHTML = state.layers
+    .map(
+      (layer) => `
     <li class="carto-layers__item ${layer.id === state.activeLayerId ? 'carto-layers__item--active' : ''}"
         data-layer-id="${layer.id}">
       <span class="carto-layers__item-drag" title="Glisser pour reordonner"><i class="ri-draggable"></i></span>
@@ -135,7 +145,7 @@ function renderLayersList() {
           <span class="carto-layers__item-name">${escapeAttr(layer.name)}</span>
           <span class="carto-layers__item-type">${layer.type}</span>
         </div>
-        <span class="carto-layers__item-source">${layer.source ? (layer.source.name || layer.source.datasetId || 'Source configuree') : '<span style="color:var(--text-default-warning)">Aucune source</span>'}</span>
+        <span class="carto-layers__item-source">${layer.source ? layer.source.name || layer.source.datasetId || 'Source configuree' : '<span style="color:var(--text-default-warning)">Aucune source</span>'}</span>
       </div>
       <div class="carto-layers__item-actions">
         <button class="carto-layers__btn-eye ${layer.visible ? '' : 'carto-layers__btn-eye--hidden'}"
@@ -144,14 +154,19 @@ function renderLayersList() {
         </button>
       </div>
     </li>
-  `).join('');
+  `
+    )
+    .join('');
 
   // Click handlers: select layer
-  list.querySelectorAll('.carto-layers__item').forEach(el => {
+  list.querySelectorAll('.carto-layers__item').forEach((el) => {
     el.addEventListener('click', (e) => {
       // Don't select when clicking eye button or drag handle
-      if ((e.target as HTMLElement).closest('.carto-layers__btn-eye') ||
-          (e.target as HTMLElement).closest('.carto-layers__item-drag')) return;
+      if (
+        (e.target as HTMLElement).closest('.carto-layers__btn-eye') ||
+        (e.target as HTMLElement).closest('.carto-layers__item-drag')
+      )
+        return;
       state.activeLayerId = el.getAttribute('data-layer-id')!;
       renderLayersList();
       renderLayerConfig();
@@ -159,11 +174,11 @@ function renderLayersList() {
   });
 
   // Eye toggle
-  list.querySelectorAll('.carto-layers__btn-eye').forEach(btn => {
+  list.querySelectorAll('.carto-layers__btn-eye').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const layerId = (btn as HTMLElement).getAttribute('data-eye-id')!;
-      const layer = state.layers.find(l => l.id === layerId);
+      const layer = state.layers.find((l) => l.id === layerId);
       if (layer) {
         layer.visible = !layer.visible;
         renderLayersList();
@@ -272,8 +287,12 @@ function renderMapConfig() {
     const el = document.getElementById(id) as HTMLInputElement | HTMLSelectElement | null;
     if (!el) return;
     el.addEventListener('change', () => {
-      const val = el.type === 'checkbox' ? (el as HTMLInputElement).checked
-        : transform ? transform(el.value) : el.value;
+      const val =
+        el.type === 'checkbox'
+          ? (el as HTMLInputElement).checked
+          : transform
+            ? transform(el.value)
+            : el.value;
       (m as any)[key] = val;
       updateCodePreview();
     });
@@ -305,12 +324,16 @@ function renderLayerConfig() {
   const container = document.getElementById('layer-config')!;
   const layer = getActiveLayer();
   if (!layer) {
-    container.innerHTML = '<p class="carto-col-config__empty"><i class="ri-information-line"></i><br>Selectionnez une couche.</p>';
+    container.innerHTML =
+      '<p class="carto-col-config__empty"><i class="ri-information-line"></i><br>Selectionnez une couche.</p>';
     return;
   }
 
   const savedSources = loadSavedSources();
-  const isPopupOrPanel = layer.popupMode === 'popup' || layer.popupMode === 'panel-right' || layer.popupMode === 'panel-left';
+  const isPopupOrPanel =
+    layer.popupMode === 'popup' ||
+    layer.popupMode === 'panel-right' ||
+    layer.popupMode === 'panel-left';
 
   container.innerHTML = `
     <!-- Section: Source -->
@@ -379,16 +402,22 @@ function renderLayerConfig() {
           </select>
         </div>
 
-        ${layer.popupMode === 'tooltip' ? `
+        ${
+          layer.popupMode === 'tooltip'
+            ? `
         <div class="carto-field">
           <label for="layer-tooltip">Champ tooltip
             <span class="fr-hint-text">Texte affiche au survol d'un element</span>
           </label>
           <input type="text" id="layer-tooltip" value="${escapeAttr(layer.tooltipField)}" placeholder="nom, denomination...">
         </div>
-        ` : ''}
+        `
+            : ''
+        }
 
-        ${isPopupOrPanel ? `
+        ${
+          isPopupOrPanel
+            ? `
         <div class="carto-field">
           <label for="layer-popup-fields">Champs affiches (virgules)
             <span class="fr-hint-text">Si vide, tableau auto de tous les champs</span>
@@ -413,7 +442,9 @@ function renderLayerConfig() {
           </label>
           <input type="text" id="layer-popup-width" value="${escapeAttr(layer.popupWidth)}" placeholder="350px">
         </div>
-        ` : ''}
+        `
+            : ''
+        }
       </div>
     </div>
 
@@ -438,16 +469,22 @@ function renderLayerConfig() {
           <input type="text" id="layer-color-field" value="${escapeAttr(layer.colorField)}" placeholder="">
         </div>
 
-        ${layer.colorField ? `
+        ${
+          layer.colorField
+            ? `
         <div class="carto-field">
           <label for="layer-color-map">Mapping couleurs
             <span class="fr-hint-text">Paires valeur:#couleur separees par virgule. Ex: 1:#00A95F,2:#FF9940,3:#E1000F</span>
           </label>
           <textarea id="layer-color-map" rows="3" class="fr-input" placeholder="val1:#couleur1,val2:#couleur2">${escapeAttr(layer.colorMap)}</textarea>
         </div>
-        ` : ''}
+        `
+            : ''
+        }
 
-        ${layer.type === 'marker' ? `
+        ${
+          layer.type === 'marker'
+            ? `
         <div class="carto-checkbox">
           <input type="checkbox" id="layer-cluster" ${layer.cluster ? 'checked' : ''}>
           <label for="layer-cluster">Activer le clustering</label>
@@ -456,9 +493,13 @@ function renderLayerConfig() {
           <label for="layer-cluster-radius">Rayon de cluster (px)</label>
           <input type="number" id="layer-cluster-radius" value="${layer.clusterRadius}" min="10" max="200">
         </div>
-        ` : ''}
+        `
+            : ''
+        }
 
-        ${layer.type === 'geoshape' ? `
+        ${
+          layer.type === 'geoshape'
+            ? `
         <div class="carto-field">
           <label for="layer-fill-field">Champ valeur (coloration)
             <span class="fr-hint-text">Colore les zones selon ce champ numerique</span>
@@ -481,9 +522,13 @@ function renderLayerConfig() {
             <option value="neutral" ${layer.selectedPalette === 'neutral' ? 'selected' : ''}>Neutre (gris)</option>
           </select>
         </div>
-        ` : ''}
+        `
+            : ''
+        }
 
-        ${layer.type === 'circle' ? `
+        ${
+          layer.type === 'circle'
+            ? `
         <div class="carto-field">
           <label for="layer-radius">Rayon fixe</label>
           <input type="number" id="layer-radius" value="${layer.radius}" min="1" max="100">
@@ -511,9 +556,13 @@ function renderLayerConfig() {
             <input type="number" id="layer-radius-max" value="${layer.radiusMax}" min="1" max="200">
           </div>
         </div>
-        ` : ''}
+        `
+            : ''
+        }
 
-        ${layer.type === 'heatmap' ? `
+        ${
+          layer.type === 'heatmap'
+            ? `
         <div class="carto-inline">
           <div class="carto-field">
             <label for="layer-heat-radius">Rayon</label>
@@ -530,7 +579,9 @@ function renderLayerConfig() {
           </label>
           <input type="text" id="layer-heat-field" value="${escapeAttr(layer.heatField)}">
         </div>
-        ` : ''}
+        `
+            : ''
+        }
 
         <hr class="fr-mt-1w fr-mb-1w">
 
@@ -541,7 +592,9 @@ function renderLayerConfig() {
           <input type="text" id="layer-time-field" value="${escapeAttr(layer.timeField)}" placeholder="">
         </div>
 
-        ${layer.timeField ? `
+        ${
+          layer.timeField
+            ? `
         <div class="carto-inline">
           <div class="carto-field">
             <label for="layer-time-bucket">Granularite</label>
@@ -561,7 +614,9 @@ function renderLayerConfig() {
             </select>
           </div>
         </div>
-        ` : ''}
+        `
+            : ''
+        }
 
         <hr class="fr-mt-1w fr-mb-1w">
 
@@ -577,7 +632,9 @@ function renderLayerConfig() {
           <label for="layer-bbox">Chargement par viewport (bbox)</label>
         </div>
 
-        ${layer.bbox ? `
+        ${
+          layer.bbox
+            ? `
         <div class="carto-inline">
           <div class="carto-field">
             <label for="layer-bbox-debounce">Delai de chargement (ms)
@@ -592,7 +649,9 @@ function renderLayerConfig() {
             <input type="text" id="layer-bbox-field" value="${escapeAttr(layer.bboxField)}" placeholder="">
           </div>
         </div>
-        ` : ''}
+        `
+            : ''
+        }
 
         <div class="carto-inline">
           <div class="carto-field">
@@ -625,12 +684,20 @@ function renderLayerConfig() {
 
 function bindLayerInputs(layer: LayerConfig) {
   const bind = (id: string, key: keyof LayerConfig, transform?: (v: string) => any) => {
-    const el = document.getElementById(id) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null;
+    const el = document.getElementById(id) as
+      | HTMLInputElement
+      | HTMLSelectElement
+      | HTMLTextAreaElement
+      | null;
     if (!el) return;
     const eventType = el.tagName === 'TEXTAREA' ? 'input' : 'change';
     el.addEventListener(eventType, () => {
-      const val = el.type === 'checkbox' ? (el as HTMLInputElement).checked
-        : transform ? transform(el.value) : el.value;
+      const val =
+        el.type === 'checkbox'
+          ? (el as HTMLInputElement).checked
+          : transform
+            ? transform(el.value)
+            : el.value;
       (layer as any)[key] = val;
       updateCodePreview();
     });
@@ -771,7 +838,7 @@ function addLayer() {
 
 function removeActiveLayer() {
   if (state.layers.length <= 1) return;
-  state.layers = state.layers.filter(l => l.id !== state.activeLayerId);
+  state.layers = state.layers.filter((l) => l.id !== state.activeLayerId);
   state.activeLayerId = state.layers[0].id;
   renderLayersList();
   renderLayerConfig();
@@ -785,7 +852,9 @@ function copyCode() {
   if (btn) {
     const original = btn.innerHTML;
     btn.innerHTML = '<i class="ri-check-line"></i> Copie !';
-    setTimeout(() => { btn.innerHTML = original; }, 1500);
+    setTimeout(() => {
+      btn.innerHTML = original;
+    }, 1500);
   }
 }
 

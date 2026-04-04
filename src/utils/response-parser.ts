@@ -11,9 +11,7 @@ import { getByPath } from './json-path.js';
  * Handles dataPath, nestedDataKey, and requiresFlatten.
  */
 export function extractData(json: unknown, config: ProviderConfig): unknown[] {
-  let data: unknown = config.response.dataPath
-    ? getByPath(json, config.response.dataPath)
-    : json;
+  let data: unknown = config.response.dataPath ? getByPath(json, config.response.dataPath) : json;
 
   if (!Array.isArray(data)) {
     data = data != null ? [data] : [];

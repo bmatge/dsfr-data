@@ -20,9 +20,14 @@ export function detectGristApi(): void {
   // 1. Detect API base URL via getAccessToken (requires 'full' access)
   try {
     if (typeof grist.docApi?.getAccessToken === 'function') {
-      grist.docApi.getAccessToken({ readOnly: true })
-        .then(info => { gristApiBaseUrl = info.baseUrl; })
-        .catch(() => { detectBaseUrlFromReferrer(); });
+      grist.docApi
+        .getAccessToken({ readOnly: true })
+        .then((info) => {
+          gristApiBaseUrl = info.baseUrl;
+        })
+        .catch(() => {
+          detectBaseUrlFromReferrer();
+        });
     } else {
       detectBaseUrlFromReferrer();
     }
@@ -34,11 +39,16 @@ export function detectGristApi(): void {
   try {
     const table = grist.selectedTable ?? grist.getTable();
     if (table && typeof table.getTableId === 'function') {
-      table.getTableId()
-        .then(id => { gristTableId = id; })
+      table
+        .getTableId()
+        .then((id) => {
+          gristTableId = id;
+        })
         .catch(() => {});
     }
-  } catch { /* getTable() not available */ }
+  } catch {
+    /* getTable() not available */
+  }
 }
 
 /**
@@ -55,7 +65,9 @@ function detectBaseUrlFromReferrer(): void {
     if (match) {
       gristApiBaseUrl = `${url.origin}${match[1]}/api/docs/${match[2]}`;
     }
-  } catch { /* parsing failed */ }
+  } catch {
+    /* parsing failed */
+  }
 }
 
 /**
@@ -66,7 +78,11 @@ export function getGristApiInfo(): {
   tableId: string | null;
   columnMappings: Record<string, string> | null;
 } {
-  return { apiBaseUrl: gristApiBaseUrl, tableId: gristTableId, columnMappings: gristColumnMappings };
+  return {
+    apiBaseUrl: gristApiBaseUrl,
+    tableId: gristTableId,
+    columnMappings: gristColumnMappings,
+  };
 }
 
 /**
@@ -96,9 +112,10 @@ export function initGristBridge(
     }
     const mapped = grist.mapColumnNames(records, mappings);
     if (!mapped) {
-      DsfrData.dispatchDataError(GRIST_SOURCE_ID, new Error(
-        'Colonnes non mappees. Configurez le mapping dans les options du widget Grist.'
-      ));
+      DsfrData.dispatchDataError(
+        GRIST_SOURCE_ID,
+        new Error('Colonnes non mappees. Configurez le mapping dans les options du widget Grist.')
+      );
       return;
     }
     DsfrData.dispatchDataLoaded(GRIST_SOURCE_ID, mapped);
@@ -108,9 +125,7 @@ export function initGristBridge(
 /**
  * Charge les options sauvegardees et ecoute les changements.
  */
-export function onGristOptions(
-  callback: (options: Record<string, unknown>) => void
-): void {
+export function onGristOptions(callback: (options: Record<string, unknown>) => void): void {
   grist.onOptions((opts) => {
     if (opts) {
       callback(opts);

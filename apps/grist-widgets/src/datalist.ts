@@ -124,7 +124,8 @@ function generateFixedHtml(): string {
 
 function generateDynamicHtml(): string {
   const { apiBaseUrl, tableId } = getGristApiInfo();
-  if (!apiBaseUrl || !tableId) return '(Information API Grist non disponible.\nLe widget doit etre charge dans Grist pour detecter l\'URL du document.)';
+  if (!apiBaseUrl || !tableId)
+    return "(Information API Grist non disponible.\nLe widget doit etre charge dans Grist pour detecter l'URL du document.)";
 
   const match = apiBaseUrl.match(/\/api\/docs\/([^/]+)/);
   if (!match) return '(URL API Grist non reconnue)';
@@ -141,7 +142,7 @@ function generateDynamicHtml(): string {
   const exportPart = exportAttr ? ` export="${exportAttr}"` : '';
 
   // Colonnes avec prefix fields. pour le format Grist API
-  const colonnes = dataColumnKeys.map(k => `fields.${k}:${k}`).join(' | ');
+  const colonnes = dataColumnKeys.map((k) => `fields.${k}:${k}`).join(' | ');
 
   const deps = [
     '<!-- Dependances dsfr-data (a ajouter dans le <head> si absentes) -->',
@@ -203,7 +204,9 @@ function copyCode() {
   navigator.clipboard.writeText(text).then(() => {
     const original = btn.innerHTML;
     btn.innerHTML = '<span class="ri-check-line" aria-hidden="true"></span> Copie !';
-    setTimeout(() => { btn.innerHTML = original; }, 1500);
+    setTimeout(() => {
+      btn.innerHTML = original;
+    }, 1500);
   });
 }
 
@@ -241,8 +244,8 @@ function autoConfigureColumns(data: Record<string, unknown>[]) {
   columnsDetermined = true;
 
   const first = data[0];
-  const keys = Object.keys(first).filter(k => k !== 'id');
-  const colonnes = keys.map(k => `${k}:${k}`).join(' | ');
+  const keys = Object.keys(first).filter((k) => k !== 'id');
+  const colonnes = keys.map((k) => `${k}:${k}`).join(' | ');
 
   const datalist = document.querySelector('dsfr-data-list');
   if (datalist) {
@@ -261,7 +264,7 @@ DsfrData.dispatchDataLoading(GRIST_SOURCE_ID);
 
 grist.onRecords((records) => {
   // Filtrer les metadonnees Grist (id, manualSort...)
-  const cleaned = records.map(r => {
+  const cleaned = records.map((r) => {
     const row: Record<string, unknown> = {};
     for (const [key, val] of Object.entries(r)) {
       if (key === 'id' || key === 'manualSort') continue;

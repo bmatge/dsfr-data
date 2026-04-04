@@ -47,7 +47,10 @@ export async function initDatabase(): Promise<void> {
 /**
  * Execute a SELECT query and return all rows.
  */
-export async function query<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T[]> {
+export async function query<T = Record<string, unknown>>(
+  sql: string,
+  params?: unknown[]
+): Promise<T[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [rows] = await getPool().execute(sql, params as any);
   return rows as T[];
@@ -56,7 +59,10 @@ export async function query<T = Record<string, unknown>>(sql: string, params?: u
 /**
  * Execute a SELECT query and return the first row (or undefined).
  */
-export async function queryOne<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T | undefined> {
+export async function queryOne<T = Record<string, unknown>>(
+  sql: string,
+  params?: unknown[]
+): Promise<T | undefined> {
   const rows = await query<T>(sql, params);
   return rows[0];
 }
@@ -92,7 +98,11 @@ export async function transaction<T>(fn: (conn: PoolConnection) => Promise<T>): 
 /**
  * Query helper for use inside a transaction (with a specific connection).
  */
-export async function connQuery<T = Record<string, unknown>>(conn: PoolConnection, sql: string, params?: unknown[]): Promise<T[]> {
+export async function connQuery<T = Record<string, unknown>>(
+  conn: PoolConnection,
+  sql: string,
+  params?: unknown[]
+): Promise<T[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [rows] = await conn.execute(sql, params as any);
   return rows as T[];
@@ -101,7 +111,11 @@ export async function connQuery<T = Record<string, unknown>>(conn: PoolConnectio
 /**
  * Single-row query helper for use inside a transaction.
  */
-export async function connQueryOne<T = Record<string, unknown>>(conn: PoolConnection, sql: string, params?: unknown[]): Promise<T | undefined> {
+export async function connQueryOne<T = Record<string, unknown>>(
+  conn: PoolConnection,
+  sql: string,
+  params?: unknown[]
+): Promise<T | undefined> {
   const rows = await connQuery<T>(conn, sql, params);
   return rows[0];
 }
@@ -109,7 +123,11 @@ export async function connQueryOne<T = Record<string, unknown>>(conn: PoolConnec
 /**
  * Execute helper for use inside a transaction.
  */
-export async function connExecute(conn: PoolConnection, sql: string, params?: unknown[]): Promise<ResultSetHeader> {
+export async function connExecute(
+  conn: PoolConnection,
+  sql: string,
+  params?: unknown[]
+): Promise<ResultSetHeader> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [result] = await conn.execute(sql, params as any);
   return result as ResultSetHeader;
@@ -127,8 +145,8 @@ async function runSchema(): Promise<void> {
   const cleaned = schema.replace(/^--.*$/gm, '');
   const statements = cleaned
     .split(';')
-    .map(s => s.trim())
-    .filter(s => s.length > 0);
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
 
   const conn = await getPool().getConnection();
   try {
@@ -144,7 +162,9 @@ async function runSchema(): Promise<void> {
  * Run pending migrations based on the current schema_version.
  */
 async function runMigrations(): Promise<void> {
-  const row = await queryOne<{ version: number }>('SELECT MAX(version) as version FROM schema_version');
+  const row = await queryOne<{ version: number }>(
+    'SELECT MAX(version) as version FROM schema_version'
+  );
   const currentVersion = row?.version ?? 0;
 
   if (currentVersion < 2) {
@@ -177,7 +197,7 @@ async function migrateV2(): Promise<void> {
     // Check if migration already partially applied (column exists)
     const [cols] = await conn.query(
       `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
-       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'auth_provider'`,
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'auth_provider'`
     );
     if ((cols as unknown[]).length > 0) {
       // Already migrated, just update version
@@ -294,7 +314,7 @@ async function migrateV5(): Promise<void> {
   try {
     const [cols] = await conn.query(
       `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
-       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'reset_token_hash'`,
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'reset_token_hash'`
     );
     if ((cols as unknown[]).length > 0) {
       await conn.query('INSERT IGNORE INTO schema_version (version) VALUES (5)');

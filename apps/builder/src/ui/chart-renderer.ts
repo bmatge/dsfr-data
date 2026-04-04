@@ -34,7 +34,9 @@ export function renderChart(): void {
   }
 
   // Remove any existing KPI/Gauge/Map/Datalist card
-  const existingCard = chartContainer.querySelector('.kpi-card, .gauge-card, .map-card, .datalist-card');
+  const existingCard = chartContainer.querySelector(
+    '.kpi-card, .gauge-card, .map-card, .datalist-card'
+  );
   if (existingCard) existingCard.remove();
 
   // Handle KPI type differently
@@ -93,16 +95,17 @@ export function renderChart(): void {
     canvas.style.display = 'none';
 
     // For choropleth maps, use sequential or divergent palette for gradient
-    const mapPalette = state.palette.includes('sequential') || state.palette.includes('divergent')
-      ? state.palette
-      : 'sequentialAscending';
+    const mapPalette =
+      state.palette.includes('sequential') || state.palette.includes('divergent')
+        ? state.palette
+        : 'sequentialAscending';
 
     // Transform data to DSFR format: {"code": value, ...}
     const mapData: Record<string, number> = {};
     let totalValue = 0;
     let count = 0;
 
-    state.data.forEach(d => {
+    state.data.forEach((d) => {
       // Department code can be in codeField or direct key
       const rawCode = (d[state.codeField] ?? (d as any).code ?? '') as string | number;
       // Normalize the code: convert to string and pad if necessary
@@ -152,29 +155,36 @@ export function renderChart(): void {
     const rawData = state.localData || [];
 
     // Use custom column config if available, otherwise auto-detect
-    const visibleCols = state.datalistColumns.filter(c => c.visible);
+    const visibleCols = state.datalistColumns.filter((c) => c.visible);
     let columnFields: string[];
     let columnLabels: string[];
     if (visibleCols.length > 0) {
-      columnFields = visibleCols.map(c => c.field);
-      columnLabels = visibleCols.map(c => c.label);
+      columnFields = visibleCols.map((c) => c.field);
+      columnLabels = visibleCols.map((c) => c.label);
     } else {
-      columnFields = state.fields.length > 0
-        ? state.fields.map(f => f.name)
-        : (rawData.length > 0 ? Object.keys(rawData[0]) : []);
+      columnFields =
+        state.fields.length > 0
+          ? state.fields.map((f) => f.name)
+          : rawData.length > 0
+            ? Object.keys(rawData[0])
+            : [];
       columnLabels = columnFields;
     }
 
     const rows = rawData;
 
-    const headerCells = columnLabels.map(c => `<th>${escapeHtml(c)}</th>`).join('');
-    const bodyRows = rows.map(row => {
-      const cells = columnFields.map(c => {
-        const val = row[c];
-        return `<td>${val === null || val === undefined ? '\u2014' : escapeHtml(String(val))}</td>`;
-      }).join('');
-      return `<tr>${cells}</tr>`;
-    }).join('');
+    const headerCells = columnLabels.map((c) => `<th>${escapeHtml(c)}</th>`).join('');
+    const bodyRows = rows
+      .map((row) => {
+        const cells = columnFields
+          .map((c) => {
+            const val = row[c];
+            return `<td>${val === null || val === undefined ? '\u2014' : escapeHtml(String(val))}</td>`;
+          })
+          .join('');
+        return `<tr>${cells}</tr>`;
+      })
+      .join('');
 
     // Feature badges
     const badges: string[] = [];
@@ -182,9 +192,10 @@ export function renderChart(): void {
     if (state.datalistFiltres) badges.push('Filtres');
     if (state.datalistExportCsv) badges.push('Export CSV');
     if (state.datalistExportHtml) badges.push('Export HTML');
-    const badgesHtml = badges.length > 0
-      ? `<p class="fr-text--xs fr-mb-1w" style="color: var(--text-mention-grey);">${badges.join(' \u00b7 ')}</p>`
-      : '';
+    const badgesHtml =
+      badges.length > 0
+        ? `<p class="fr-text--xs fr-mb-1w" style="color: var(--text-mention-grey);">${badges.join(' \u00b7 ')}</p>`
+        : '';
 
     const datalistCard = document.createElement('div');
     datalistCard.className = 'datalist-card';
@@ -204,8 +215,8 @@ export function renderChart(): void {
 
   canvas.style.display = 'block';
 
-  const labels = state.data.map(d => (d[state.labelField] as string) || 'N/A');
-  const values = state.data.map(d => Math.round(((d.value as number) || 0) * 100) / 100);
+  const labels = state.data.map((d) => (d[state.labelField] as string) || 'N/A');
+  const values = state.data.map((d) => Math.round(((d.value as number) || 0) * 100) / 100);
 
   // Determine chart type for Chart.js
   let chartType: string = state.chartType;
@@ -222,7 +233,7 @@ export function renderChart(): void {
 
   // Handle scatter chart (needs different data format)
   if (state.chartType === 'scatter') {
-    const scatterData = state.data.map(d => ({
+    const scatterData = state.data.map((d) => ({
       x: (d[state.labelField] as number) || 0,
       y: (d.value as number) || 0,
     }));
@@ -230,13 +241,15 @@ export function renderChart(): void {
     state.chartInstance = new (ChartJS())(canvas, {
       type: 'scatter',
       data: {
-        datasets: [{
-          label: `${state.labelField} vs ${state.valueField}`,
-          data: scatterData,
-          backgroundColor: primaryColor,
-          borderColor: primaryColor,
-          pointRadius: 6,
-        }],
+        datasets: [
+          {
+            label: `${state.labelField} vs ${state.valueField}`,
+            data: scatterData,
+            backgroundColor: primaryColor,
+            borderColor: primaryColor,
+            pointRadius: 6,
+          },
+        ],
       },
       options: {
         responsive: true,
@@ -258,20 +271,26 @@ export function renderChart(): void {
     : primaryColor;
 
   // Build datasets array
-  const datasets: any[] = [{
-    label: state.valueField,
-    data: values,
-    backgroundColor: colors,
-    borderColor: state.chartType === 'line' ? primaryColor : colors,
-    borderWidth: state.chartType === 'line' ? 2 : 1,
-    fill: state.chartType !== 'line',
-  }];
+  const datasets: any[] = [
+    {
+      label: state.valueField,
+      data: values,
+      backgroundColor: colors,
+      borderColor: state.chartType === 'line' ? primaryColor : colors,
+      borderWidth: state.chartType === 'line' ? 2 : 1,
+      fill: state.chartType !== 'line',
+    },
+  ];
 
   // Add extra series if defined
-  const activeExtraSeries = state.extraSeries.filter(s => s.field && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType));
+  const activeExtraSeries = state.extraSeries.filter(
+    (s) => s.field && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType)
+  );
   const extraColors = ['#E1000F', '#18753C', '#D64D00', '#0063CB', '#6E445A', '#009081', '#C08C36'];
   activeExtraSeries.forEach((s, i) => {
-    const seriesValues = state.data.map(d => Math.round(((d[`value${i + 2}`] as number) || 0) * 100) / 100);
+    const seriesValues = state.data.map(
+      (d) => Math.round(((d[`value${i + 2}`] as number) || 0) * 100) / 100
+    );
     const seriesColor = extraColors[i % extraColors.length];
     datasets.push({
       label: s.label || s.field,
@@ -298,10 +317,12 @@ export function renderChart(): void {
           display: isMultiColor || datasets.length > 1,
         },
       },
-      scales: isMultiColor ? {} : {
-        y: { beginAtZero: chartType !== 'bar' || indexAxis !== 'y' },
-        x: { beginAtZero: indexAxis === 'y' },
-      },
+      scales: isMultiColor
+        ? {}
+        : {
+            y: { beginAtZero: chartType !== 'bar' || indexAxis !== 'y' },
+            x: { beginAtZero: indexAxis === 'y' },
+          },
     },
   });
 }

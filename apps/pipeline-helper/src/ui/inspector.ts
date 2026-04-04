@@ -1,4 +1,4 @@
-import { PipelineNode, AttributeControl } from '../nodes/base-node.js';
+import { PipelineNode } from '../nodes/base-node.js';
 
 /**
  * Populate the inspector panel with data from a selected node.
@@ -31,7 +31,7 @@ export function showInspector(node: PipelineNode): void {
       <div class="inspector__fields">
         <h4>Champs disponibles (${result.fields.length})</h4>
         <div class="inspector__field-list">
-          ${result.fields.map(f => `<span class="inspector__field-tag">${escapeHtml(f)}</span>`).join('')}
+          ${result.fields.map((f) => `<span class="inspector__field-tag">${escapeHtml(f)}</span>`).join('')}
         </div>
       </div>
     `;
@@ -44,12 +44,16 @@ export function showInspector(node: PipelineNode): void {
     attrsHtml = `
       <div class="inspector__attrs">
         <h4>Configuration</h4>
-        ${attrEntries.map(([k, v]) => `
+        ${attrEntries
+          .map(
+            ([k, v]) => `
           <div class="inspector__attr-row">
             <span class="inspector__attr-key">${escapeHtml(k)}</span>
             <span class="inspector__attr-val">${escapeHtml(v)}</span>
           </div>
-        `).join('')}
+        `
+          )
+          .join('')}
       </div>
     `;
   }
@@ -64,17 +68,24 @@ export function showInspector(node: PipelineNode): void {
         <h4>Apercu des donnees (${rows.length} sur ${result.rowCount ?? '?'})</h4>
         <table class="inspector__table">
           <thead>
-            <tr>${fields.map(f => `<th title="${escapeHtml(f)}">${escapeHtml(f)}</th>`).join('')}</tr>
+            <tr>${fields.map((f) => `<th title="${escapeHtml(f)}">${escapeHtml(f)}</th>`).join('')}</tr>
           </thead>
           <tbody>
-            ${rows.map(row => `
-              <tr>${fields.map(f => `<td title="${escapeHtml(String(row[f] ?? ''))}">${escapeHtml(String(row[f] ?? ''))}</td>`).join('')}</tr>
-            `).join('')}
+            ${rows
+              .map(
+                (row) => `
+              <tr>${fields.map((f) => `<td title="${escapeHtml(String(row[f] ?? ''))}">${escapeHtml(String(row[f] ?? ''))}</td>`).join('')}</tr>
+            `
+              )
+              .join('')}
           </tbody>
         </table>
       </div>
     `;
-  } else if (result.status === 'success' && (!result.sampleData || result.sampleData.length === 0)) {
+  } else if (
+    result.status === 'success' &&
+    (!result.sampleData || result.sampleData.length === 0)
+  ) {
     dataHtml = `
       <div class="inspector__data">
         <p style="color:#888;font-size:0.85rem">Aucune donnee a afficher.</p>
@@ -98,5 +109,9 @@ export function showInspector(node: PipelineNode): void {
 }
 
 function escapeHtml(str: string): string {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }

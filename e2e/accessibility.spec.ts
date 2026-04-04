@@ -5,11 +5,14 @@ const pages = [
   { name: 'Hub', path: '/' },
   { name: 'Builder', path: '/apps/builder/index.html' },
   { name: 'Builder IA', path: '/apps/builder-ia/index.html' },
+  { name: 'Builder Carto', path: '/apps/builder-carto/index.html' },
   { name: 'Playground', path: '/apps/playground/index.html' },
   { name: 'Sources', path: '/apps/sources/index.html' },
   { name: 'Favorites', path: '/apps/favorites/index.html' },
   { name: 'Dashboard', path: '/apps/dashboard/index.html' },
   { name: 'Monitoring', path: '/apps/monitoring/index.html' },
+  { name: 'Pipeline Helper', path: '/apps/pipeline-helper/index.html' },
+  { name: 'Admin', path: '/apps/admin/index.html' },
 ];
 
 test.describe('Accessibility tests', () => {

@@ -137,7 +137,7 @@ export function restoreExtraSeriesFromState(): void {
   const seriesToRestore = [...state.extraSeries];
   state.extraSeries = [];
 
-  seriesToRestore.forEach(series => {
+  seriesToRestore.forEach((series) => {
     addExtraSeries();
     const rows = container.children;
     const lastRow = rows[rows.length - 1];

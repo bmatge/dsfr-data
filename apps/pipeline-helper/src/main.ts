@@ -146,7 +146,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (btn) {
         const original = btn.textContent;
         btn.textContent = ' Copie !';
-        setTimeout(() => { btn.textContent = original; }, 1500);
+        setTimeout(() => {
+          btn.textContent = original;
+        }, 1500);
       }
     }
   });
@@ -181,7 +183,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (e.key === 'Delete' || e.key === 'Backspace') {
       // Only delete if not focused on an input
       const active = document.activeElement;
-      if (active && (active.tagName === 'INPUT' || active.tagName === 'SELECT' || active.tagName === 'TEXTAREA')) {
+      if (
+        active &&
+        (active.tagName === 'INPUT' || active.tagName === 'SELECT' || active.tagName === 'TEXTAREA')
+      ) {
         return;
       }
       editor?.removeSelected();

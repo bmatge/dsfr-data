@@ -26,14 +26,16 @@ export async function gristFetch(endpoint: string): Promise<unknown> {
     throw new Error('Aucune connexion selectionnee');
   }
 
-  const conn = state.connections.find(c => c.id === state.selectedConnectionId);
+  const conn = state.connections.find((c) => c.id === state.selectedConnectionId);
   const connUrl = (conn as Record<string, unknown>).url as string | undefined;
   if (!connUrl) {
     throw new Error('URL du serveur Grist manquante dans la connexion');
   }
   const proxyUrl = getProxyUrl(connUrl, endpoint);
 
-  const apiKey = (conn as Record<string, unknown>).isPublic ? null : (conn as Record<string, unknown>).apiKey as string | null;
+  const apiKey = (conn as Record<string, unknown>).isPublic
+    ? null
+    : ((conn as Record<string, unknown>).apiKey as string | null);
   const response = await fetch(proxyUrl, { headers: buildGristHeaders(apiKey) });
 
   if (!response.ok) {
@@ -179,7 +181,7 @@ export async function loadTablePreview(): Promise<void> {
 
   try {
     const result = (await gristFetch(
-      `/docs/${state.selectedDocument}/tables/${state.selectedTable}/records?limit=20`,
+      `/docs/${state.selectedDocument}/tables/${state.selectedTable}/records?limit=20`
     )) as { records?: GristRecord[] };
     state.tableData = result.records || [];
 
@@ -263,17 +265,19 @@ export async function createGristTable(): Promise<void> {
 
   try {
     if (state.selectedConnectionId === null) return;
-    const conn = state.connections.find(c => c.id === state.selectedConnectionId);
+    const conn = state.connections.find((c) => c.id === state.selectedConnectionId);
     if (!conn) return;
 
     const createUrl = getProxyUrl(
       (conn as Record<string, unknown>).url as string,
-      `/docs/${state.selectedDocument}/tables`,
+      `/docs/${state.selectedDocument}/tables`
     );
 
     const response = await fetch(createUrl, {
       method: 'POST',
-      headers: buildGristHeaders((conn as Record<string, unknown>).apiKey as string, { contentType: true }),
+      headers: buildGristHeaders((conn as Record<string, unknown>).apiKey as string, {
+        contentType: true,
+      }),
       body: JSON.stringify({
         tables: [{ id: tableName, columns }],
       }),
@@ -281,7 +285,9 @@ export async function createGristTable(): Promise<void> {
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error((error as Record<string, unknown>).error as string || `HTTP ${response.status}`);
+      throw new Error(
+        ((error as Record<string, unknown>).error as string) || `HTTP ${response.status}`
+      );
     }
 
     toastSuccess(`Table "${tableName}" creee avec succes !`);
@@ -332,7 +338,7 @@ export function saveCurrentAsSource(): void {
     return;
   }
 
-  const conn = state.connections.find(c => c.id === state.selectedConnectionId);
+  const conn = state.connections.find((c) => c.id === state.selectedConnectionId);
   if (!conn) return;
   const doc = state.documents.find((d) => d.id === state.selectedDocument);
 
@@ -344,7 +350,9 @@ export function saveCurrentAsSource(): void {
     documentId: state.selectedDocument,
     tableId: state.selectedTable,
     apiUrl: `${(conn as Record<string, unknown>).url as string}/api/docs/${state.selectedDocument}/tables/${state.selectedTable}/records`,
-    apiKey: (conn as Record<string, unknown>).isPublic ? null : ((conn as Record<string, unknown>).apiKey as string | null),
+    apiKey: (conn as Record<string, unknown>).isPublic
+      ? null
+      : ((conn as Record<string, unknown>).apiKey as string | null),
     isPublic: !!(conn as Record<string, unknown>).isPublic,
     data: (state.tableData as GristRecord[]).map((r) => r.fields),
     rawRecords: state.tableData as GristRecord[],
@@ -382,7 +390,7 @@ export async function loadExportDocuments(): Promise<void> {
     return;
   }
 
-  const conn = state.connections.find(c => c.id === connId);
+  const conn = state.connections.find((c) => c.id === connId);
   if (!conn) return;
 
   try {
@@ -403,7 +411,10 @@ export async function loadExportDocuments(): Promise<void> {
 
     for (const org of orgs) {
       try {
-        const wsUrl = getProxyUrl((conn as Record<string, unknown>).url as string, `/orgs/${org.id}/workspaces`);
+        const wsUrl = getProxyUrl(
+          (conn as Record<string, unknown>).url as string,
+          `/orgs/${org.id}/workspaces`
+        );
         const wsResponse = await fetch(wsUrl, {
           headers: buildGristHeaders((conn as Record<string, unknown>).apiKey as string),
         });
@@ -493,7 +504,7 @@ export async function exportToGrist(): Promise<void> {
     return;
   }
 
-  const conn = state.connections.find(c => c.id === connId);
+  const conn = state.connections.find((c) => c.id === connId);
   if (!conn) {
     toastWarning('Connexion introuvable');
     return;
@@ -522,12 +533,14 @@ export async function exportToGrist(): Promise<void> {
     // 2. Create table
     const createTableUrl = getProxyUrl(
       (conn as Record<string, unknown>).url as string,
-      `/docs/${docId}/tables`,
+      `/docs/${docId}/tables`
     );
 
     const createResponse = await fetch(createTableUrl, {
       method: 'POST',
-      headers: buildGristHeaders((conn as Record<string, unknown>).apiKey as string, { contentType: true }),
+      headers: buildGristHeaders((conn as Record<string, unknown>).apiKey as string, {
+        contentType: true,
+      }),
       body: JSON.stringify({
         tables: [{ id: tableName, columns }],
       }),
@@ -536,8 +549,8 @@ export async function exportToGrist(): Promise<void> {
     if (!createResponse.ok) {
       const error = await createResponse.json();
       throw new Error(
-        (error as Record<string, unknown>).error as string ||
-          `Erreur creation table: HTTP ${createResponse.status}`,
+        ((error as Record<string, unknown>).error as string) ||
+          `Erreur creation table: HTTP ${createResponse.status}`
       );
     }
 
@@ -556,20 +569,22 @@ export async function exportToGrist(): Promise<void> {
 
     const insertUrl = getProxyUrl(
       (conn as Record<string, unknown>).url as string,
-      `/docs/${docId}/tables/${tableName}/records`,
+      `/docs/${docId}/tables/${tableName}/records`
     );
 
     const insertResponse = await fetch(insertUrl, {
       method: 'POST',
-      headers: buildGristHeaders((conn as Record<string, unknown>).apiKey as string, { contentType: true }),
+      headers: buildGristHeaders((conn as Record<string, unknown>).apiKey as string, {
+        contentType: true,
+      }),
       body: JSON.stringify({ records }),
     });
 
     if (!insertResponse.ok) {
       const error = await insertResponse.json();
       throw new Error(
-        (error as Record<string, unknown>).error as string ||
-          `Erreur insertion: HTTP ${insertResponse.status}`,
+        ((error as Record<string, unknown>).error as string) ||
+          `Erreur insertion: HTTP ${insertResponse.status}`
       );
     }
 

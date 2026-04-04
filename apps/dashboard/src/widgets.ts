@@ -14,7 +14,7 @@ export function addWidget(type: WidgetType, row: number, col: number, cell: HTML
     type,
     title: getDefaultTitle(type),
     position: { row, col },
-    config: getDefaultConfig(type)
+    config: getDefaultConfig(type),
   };
 
   state.dashboard.widgets.push(widget);
@@ -23,7 +23,12 @@ export function addWidget(type: WidgetType, row: number, col: number, cell: HTML
   updateGeneratedCode();
 }
 
-export function addWidgetFromFavorite(favorite: any, row: number, col: number, cell: HTMLElement): void {
+export function addWidgetFromFavorite(
+  favorite: any,
+  row: number,
+  col: number,
+  cell: HTMLElement
+): void {
   const widget: Widget = {
     id: crypto.randomUUID(),
     type: 'chart',
@@ -33,8 +38,8 @@ export function addWidgetFromFavorite(favorite: any, row: number, col: number, c
       fromFavorite: true,
       favoriteId: favorite.id,
       code: favorite.code,
-      builderState: favorite.builderState
-    }
+      builderState: favorite.builderState,
+    },
   };
 
   state.dashboard.widgets.push(widget);
@@ -47,7 +52,7 @@ export function getDefaultTitle(type: WidgetType): string {
     kpi: 'Indicateur',
     chart: 'Graphique',
     table: 'Tableau de donnees',
-    text: 'Texte'
+    text: 'Texte',
   };
   return titles[type] || 'Widget';
 }
@@ -99,7 +104,7 @@ export function getWidgetIcon(type: WidgetType): string {
     kpi: 'ri-number-1',
     chart: 'ri-bar-chart-box-line',
     table: 'ri-table-line',
-    text: 'ri-text'
+    text: 'ri-text',
   };
   return icons[type] || 'ri-question-line';
 }
@@ -137,21 +142,23 @@ function renderWidgetContent(widget: Widget): string {
 }
 
 export function editWidget(widgetId: string): void {
-  const widget = state.dashboard.widgets.find(w => w.id === widgetId);
+  const widget = state.dashboard.widgets.find((w) => w.id === widgetId);
   if (widget) {
     openConfigModal(widget);
   }
 }
 
 export async function deleteWidget(widgetId: string): Promise<void> {
-  if (!await confirmDialog('Supprimer ce widget ?')) return;
+  if (!(await confirmDialog('Supprimer ce widget ?'))) return;
 
-  const index = state.dashboard.widgets.findIndex(w => w.id === widgetId);
+  const index = state.dashboard.widgets.findIndex((w) => w.id === widgetId);
   if (index > -1) {
     const widget = state.dashboard.widgets[index];
     state.dashboard.widgets.splice(index, 1);
 
-    const cell = document.querySelector(`.drop-cell[data-row="${widget.position.row}"][data-col="${widget.position.col}"]`) as HTMLElement | null;
+    const cell = document.querySelector(
+      `.drop-cell[data-row="${widget.position.row}"][data-col="${widget.position.col}"]`
+    ) as HTMLElement | null;
     if (cell) {
       cell.classList.add('empty');
       cell.innerHTML = `
@@ -167,14 +174,14 @@ export async function deleteWidget(widgetId: string): Promise<void> {
 }
 
 export function openInBuilder(widgetId: string): void {
-  const widget = state.dashboard.widgets.find(w => w.id === widgetId);
+  const widget = state.dashboard.widgets.find((w) => w.id === widgetId);
   if (!widget?.config.builderState) return;
   sessionStorage.setItem('builder-state', JSON.stringify(widget.config.builderState));
   navigateTo('builder', { from: 'dashboard' });
 }
 
 export function duplicateWidget(widgetId: string): void {
-  const widget = state.dashboard.widgets.find(w => w.id === widgetId);
+  const widget = state.dashboard.widgets.find((w) => w.id === widgetId);
   if (!widget) return;
 
   // Find next empty cell

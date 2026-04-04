@@ -61,7 +61,7 @@ export function validateDashboard(raw: unknown): Record<string, unknown> | null 
 export function validateAndFilterArray<T>(
   items: unknown[],
   validator: (item: unknown) => T | null,
-  label: string,
+  label: string
 ): T[] {
   const valid: T[] = [];
   for (const item of items) {

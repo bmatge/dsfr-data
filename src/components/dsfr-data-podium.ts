@@ -7,21 +7,49 @@ import { sendWidgetBeacon } from '../utils/beacon.js';
 
 /** Palettes for podium items — reuses DSFR sequential palette */
 const PODIUM_PALETTES: Record<string, readonly string[]> = {
-  'sequentialDescending': [
-    '#000091', '#2323B4', '#4747E5', '#6A6AF4', '#8585F6',
-    '#A1A1F8', '#C1C1FB', '#E3E3FD', '#F5F5FE',
+  sequentialDescending: [
+    '#000091',
+    '#2323B4',
+    '#4747E5',
+    '#6A6AF4',
+    '#8585F6',
+    '#A1A1F8',
+    '#C1C1FB',
+    '#E3E3FD',
+    '#F5F5FE',
   ],
-  'sequentialAscending': [
-    '#F5F5FE', '#E3E3FD', '#C1C1FB', '#A1A1F8', '#8585F6',
-    '#6A6AF4', '#4747E5', '#2323B4', '#000091',
+  sequentialAscending: [
+    '#F5F5FE',
+    '#E3E3FD',
+    '#C1C1FB',
+    '#A1A1F8',
+    '#8585F6',
+    '#6A6AF4',
+    '#4747E5',
+    '#2323B4',
+    '#000091',
   ],
-  'categorical': [
-    '#000091', '#FCC63A', '#E4794A', '#60E0EB', '#009081',
-    '#FF6F4C', '#8585F6', '#CE614A', '#C3992A',
+  categorical: [
+    '#000091',
+    '#FCC63A',
+    '#E4794A',
+    '#60E0EB',
+    '#009081',
+    '#FF6F4C',
+    '#8585F6',
+    '#CE614A',
+    '#C3992A',
   ],
-  'neutral': [
-    '#161616', '#3A3A3A', '#666666', '#777777', '#929292',
-    '#B5B5B5', '#CECECE', '#E5E5E5', '#F6F6F6',
+  neutral: [
+    '#161616',
+    '#3A3A3A',
+    '#666666',
+    '#777777',
+    '#929292',
+    '#B5B5B5',
+    '#CECECE',
+    '#E5E5E5',
+    '#F6F6F6',
   ],
 };
 
@@ -114,7 +142,7 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
     if (!this._data.length || !this.labelField || !this.valueField) return [];
 
     // Extract label + value + subtitle
-    let items = this._data.map(record => ({
+    let items = this._data.map((record) => ({
       label: String(getByPath(record, this.labelField) ?? ''),
       subtitle: this.subtitleField
         ? String(getByPath(record, this.subtitleField) ?? '')
@@ -134,10 +162,11 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
     items = items.slice(0, this.maxItems);
 
     // Compute bar ratios
-    const maxValue = this.barMax ?? Math.max(...items.map(i => i.value), 1);
+    const maxValue = this.barMax ?? Math.max(...items.map((i) => i.value), 1);
 
     // Pick palette colors
-    const palette = PODIUM_PALETTES[this.selectedPalette] ?? PODIUM_PALETTES['sequentialDescending'];
+    const palette =
+      PODIUM_PALETTES[this.selectedPalette] ?? PODIUM_PALETTES['sequentialDescending'];
 
     items.forEach((item, index) => {
       item.ratio = maxValue > 0 ? item.value / maxValue : 0;
@@ -156,7 +185,7 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
   private _getAriaLabel(): string {
     const items = this._processItems();
     if (!items.length) return 'Classement vide';
-    return `Classement : ${items.map(i => `${i.rank}. ${i.label}, ${this._formatValue(i.value)}`).join(' ; ')}`;
+    return `Classement : ${items.map((i) => `${i.rank}. ${i.label}, ${this._formatValue(i.value)}`).join(' ; ')}`;
   }
 
   render() {
@@ -197,23 +226,30 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
 
     return html`
       <ol class="dsfr-data-podium" role="list" aria-label="${this._getAriaLabel()}">
-        ${items.map(item => html`
-          <li class="dsfr-data-podium__item" style="--podium-color: ${item.color}">
-            <span class="dsfr-data-podium__rank" aria-hidden="true">${item.rank}</span>
-            <div class="dsfr-data-podium__content">
-              <div class="dsfr-data-podium__header">
-                <div class="dsfr-data-podium__label-group">
-                  <span class="dsfr-data-podium__label">${item.label}</span>
-                  ${item.subtitle ? html`<span class="dsfr-data-podium__subtitle">${item.subtitle}</span>` : ''}
+        ${items.map(
+          (item) => html`
+            <li class="dsfr-data-podium__item" style="--podium-color: ${item.color}">
+              <span class="dsfr-data-podium__rank" aria-hidden="true">${item.rank}</span>
+              <div class="dsfr-data-podium__content">
+                <div class="dsfr-data-podium__header">
+                  <div class="dsfr-data-podium__label-group">
+                    <span class="dsfr-data-podium__label">${item.label}</span>
+                    ${item.subtitle
+                      ? html`<span class="dsfr-data-podium__subtitle">${item.subtitle}</span>`
+                      : ''}
+                  </div>
+                  <span class="dsfr-data-podium__value">${this._formatValue(item.value)}</span>
                 </div>
-                <span class="dsfr-data-podium__value">${this._formatValue(item.value)}</span>
+                <div class="dsfr-data-podium__bar-track" aria-hidden="true">
+                  <div
+                    class="dsfr-data-podium__bar-fill"
+                    style="width: ${Math.round(item.ratio * 100)}%"
+                  ></div>
+                </div>
               </div>
-              <div class="dsfr-data-podium__bar-track" aria-hidden="true">
-                <div class="dsfr-data-podium__bar-fill" style="width: ${Math.round(item.ratio * 100)}%"></div>
-              </div>
-            </div>
-          </li>
-        `)}
+            </li>
+          `
+        )}
       </ol>
       ${this._renderStyles()}
     `;

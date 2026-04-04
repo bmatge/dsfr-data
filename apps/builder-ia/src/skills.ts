@@ -24,7 +24,6 @@ export interface Skill {
 
 /** All available skills, keyed by ID */
 export const SKILLS: Record<string, Skill> = {
-
   // ---------------------------------------------------------------------------
   // Action builder-IA : createChart
   // ---------------------------------------------------------------------------
@@ -135,7 +134,7 @@ Genere TOUJOURS UN SEUL bloc JSON par reponse. Pour changer la couleur ou palett
   reloadDataAction: {
     id: 'reloadDataAction',
     name: 'Action reloadData',
-    description: "Recharger les donnees de la source avec des parametres ODSQL",
+    description: 'Recharger les donnees de la source avec des parametres ODSQL',
     trigger: ['recharger', 'reloaddata', 'nouveaux parametres', 'refiltrer'],
     content: `## Action reloadData (builder-IA uniquement)
 
@@ -308,7 +307,28 @@ tableau de donnees depuis la reponse. Le resultat DOIT etre un tableau d'objets 
     id: 'dsfrDataQuery',
     name: 'dsfr-data-query',
     description: 'Filtrage, agregation et tri declaratif des donnees',
-    trigger: ['filtre', 'filtrer', 'grouper', 'agreger', 'trier', 'transformer', 'query', 'requete', 'top', 'moyenne', 'somme', 'compter', 'seulement', 'uniquement', 'plus de', 'moins de', 'departement', 'region', 'dans le', 'pour le'],
+    trigger: [
+      'filtre',
+      'filtrer',
+      'grouper',
+      'agreger',
+      'trier',
+      'transformer',
+      'query',
+      'requete',
+      'top',
+      'moyenne',
+      'somme',
+      'compter',
+      'seulement',
+      'uniquement',
+      'plus de',
+      'moins de',
+      'departement',
+      'region',
+      'dans le',
+      'pour le',
+    ],
     content: `## <dsfr-data-query> - Transformation de donnees
 
 Composant invisible qui transforme les donnees recues d'une source (dsfr-data-source
@@ -466,7 +486,29 @@ Nommage automatique sans alias : \`champ__fonction\` (ex: \`population__sum\`)
     id: 'dsfrDataNormalize',
     name: 'dsfr-data-normalize',
     description: 'Nettoyage et normalisation des donnees avant traitement',
-    trigger: ['normaliser', 'nettoyer', 'renommer', 'convertir', 'normalize', 'clean', 'nettoyage', 'normalisation', 'grist', 'airtable', 'flatten', 'aplatir', 'nested', 'ods v1', 'records.fields', 'replace-fields', 'dimension codee', 'code insee', 'arrondir', 'round', 'decimales'],
+    trigger: [
+      'normaliser',
+      'nettoyer',
+      'renommer',
+      'convertir',
+      'normalize',
+      'clean',
+      'nettoyage',
+      'normalisation',
+      'grist',
+      'airtable',
+      'flatten',
+      'aplatir',
+      'nested',
+      'ods v1',
+      'records.fields',
+      'replace-fields',
+      'dimension codee',
+      'code insee',
+      'arrondir',
+      'round',
+      'decimales',
+    ],
     content: `## <dsfr-data-normalize> - Normalisation de donnees
 
 Composant invisible intermediaire qui nettoie et normalise les donnees avant traitement.
@@ -599,7 +641,15 @@ rendant les donnees compatibles avec tous les composants (facettes, datalist, gr
     id: 'dsfrDataFacets',
     name: 'dsfr-data-facets',
     description: 'Filtres a facettes interactifs pour exploration de donnees',
-    trigger: ['facette', 'facets', 'filtre interactif', 'categorie', 'refinement', 'exploration', 'filtrer par'],
+    trigger: [
+      'facette',
+      'facets',
+      'filtre interactif',
+      'categorie',
+      'refinement',
+      'exploration',
+      'filtrer par',
+    ],
     content: `## <dsfr-data-facets> - Filtres a facettes
 
 Composant visuel intermediaire qui affiche des filtres interactifs (checkboxes) bases sur les valeurs
@@ -721,7 +771,14 @@ champs de type string avec 2 a 50 valeurs uniques (exclut les champs ID-like).
     id: 'dsfrDataSearch',
     name: 'dsfr-data-search',
     description: 'Recherche textuelle avec champ DSFR, filtre les donnees en amont',
-    trigger: ['recherche', 'search', 'chercher', 'filtrer texte', 'barre de recherche', 'full-text'],
+    trigger: [
+      'recherche',
+      'search',
+      'chercher',
+      'filtrer texte',
+      'barre de recherche',
+      'full-text',
+    ],
     content: `## <dsfr-data-search> - Recherche textuelle
 
 Composant visuel intermediaire qui affiche un champ de recherche DSFR et filtre
@@ -814,7 +871,19 @@ la fonction ODSQL \`search()\` pour une recherche full-text. Personnalisable via
     id: 'dsfrDataKpi',
     name: 'dsfr-data-kpi',
     description: 'Composant KPI avec agregation, seuils et tendances',
-    trigger: ['kpi', 'indicateur', 'chiffre', 'valeur', 'tendance', 'seuil', 'pourcentage', 'euro', 'metrique', 'grouper', 'grille'],
+    trigger: [
+      'kpi',
+      'indicateur',
+      'chiffre',
+      'valeur',
+      'tendance',
+      'seuil',
+      'pourcentage',
+      'euro',
+      'metrique',
+      'grouper',
+      'grille',
+    ],
     content: `## <dsfr-data-kpi> - Indicateur chiffre cle
 
 Affiche une valeur numerique mise en avant avec formatage, couleur conditionnelle, icone et tendance.
@@ -905,7 +974,15 @@ Utiliser \`<dsfr-data-kpi-group>\` pour disposer plusieurs KPIs en grille respon
     id: 'dsfrDataKpiGroup',
     name: 'dsfr-data-kpi-group',
     description: 'Conteneur grille responsive pour grouper plusieurs KPIs',
-    trigger: ['grouper', 'grille', 'kpi-group', 'plusieurs kpi', 'groupe', 'dashboard kpi', 'colonnes kpi'],
+    trigger: [
+      'grouper',
+      'grille',
+      'kpi-group',
+      'plusieurs kpi',
+      'groupe',
+      'dashboard kpi',
+      'colonnes kpi',
+    ],
     content: `## <dsfr-data-kpi-group> - Groupe de KPIs en grille
 
 Conteneur qui dispose plusieurs \`<dsfr-data-kpi>\` dans une grille CSS 12 colonnes responsive.
@@ -954,7 +1031,34 @@ Conteneur qui dispose plusieurs \`<dsfr-data-kpi>\` dans une grille CSS 12 colon
     id: 'dsfrDataChart',
     name: 'dsfr-data-chart',
     description: 'Wrapper DSFR Chart connecte aux sources de donnees',
-    trigger: ['graphique', 'chart', 'visualisation', 'barres', 'camembert', 'ligne', 'radar', 'nuage', 'scatter', 'carte', 'map', 'jauge', 'gauge', 'departement', 'region', 'databox', 'habillage', 'encadrer', 'titre graphique', 'source donnees', 'screenshot', 'capture ecran', 'plein ecran', 'fullscreen', 'tendance', 'trend'],
+    trigger: [
+      'graphique',
+      'chart',
+      'visualisation',
+      'barres',
+      'camembert',
+      'ligne',
+      'radar',
+      'nuage',
+      'scatter',
+      'carte',
+      'map',
+      'jauge',
+      'gauge',
+      'departement',
+      'region',
+      'databox',
+      'habillage',
+      'encadrer',
+      'titre graphique',
+      'source donnees',
+      'screenshot',
+      'capture ecran',
+      'plein ecran',
+      'fullscreen',
+      'tendance',
+      'trend',
+    ],
     content: `## <dsfr-data-chart> - Graphiques DSFR
 
 Wrapper connectant les composants DSFR Chart officiels au systeme dsfr-data-source/dsfr-data-query.
@@ -1113,7 +1217,18 @@ Quand \`databox\` est active, dsfr-data-a11y ne doit PAS inclure \`table\` ni \`
     id: 'dsfrDataList',
     name: 'dsfr-data-list',
     description: 'Tableau de donnees avec recherche, filtres, tri, pagination et export CSV/HTML',
-    trigger: ['tableau', 'table', 'liste', 'colonnes', 'pagination', 'exporter', 'csv', 'html', 'recherche', 'datalist'],
+    trigger: [
+      'tableau',
+      'table',
+      'liste',
+      'colonnes',
+      'pagination',
+      'exporter',
+      'csv',
+      'html',
+      'recherche',
+      'datalist',
+    ],
     content: `## <dsfr-data-list> - Tableau de donnees
 
 Affiche un tableau DSFR filtrable, triable, paginable avec export CSV et/ou HTML.
@@ -1178,7 +1293,19 @@ Fonctionne avec la pagination client et serveur. Compatible avec les autres para
     id: 'dsfrDataDisplay',
     name: 'dsfr-data-display',
     description: 'Affichage dynamique de donnees via template HTML (cartes, tuiles, listes)',
-    trigger: ['cartes', 'carte', 'tuiles', 'tuile', 'cards', 'tiles', 'display', 'template', 'affichage', 'liste de resultats', 'motif repetitif'],
+    trigger: [
+      'cartes',
+      'carte',
+      'tuiles',
+      'tuile',
+      'cards',
+      'tiles',
+      'display',
+      'template',
+      'affichage',
+      'liste de resultats',
+      'motif repetitif',
+    ],
     content: `## <dsfr-data-display> - Affichage dynamique via template
 
 Genere des elements HTML repetitifs (cartes DSFR, tuiles, callouts, etc.) a partir
@@ -1296,7 +1423,18 @@ Quand la page est 1, le parametre est supprime de l'URL. Compatible avec les aut
     id: 'dsfrChartNative',
     name: 'Composants DSFR Chart natifs',
     description: 'Attributs detailles des composants line-chart, bar-chart, pie-chart, etc.',
-    trigger: ['dsfr', 'natif', 'officiel', 'accessibilite', 'rgaa', 'bar-chart', 'line-chart', 'pie-chart', 'map-chart', 'gauge-chart'],
+    trigger: [
+      'dsfr',
+      'natif',
+      'officiel',
+      'accessibilite',
+      'rgaa',
+      'bar-chart',
+      'line-chart',
+      'pie-chart',
+      'map-chart',
+      'gauge-chart',
+    ],
     content: `## Composants DSFR Chart natifs
 
 Les composants DSFR Chart sont des Web Components Vue utilises en interne par dsfr-data-chart.
@@ -1361,7 +1499,19 @@ name='["Serie A","Serie B"]'
     id: 'compositionPatterns',
     name: 'Patterns de composition',
     description: 'Assembler source, query et visualisations en dashboards',
-    trigger: ['dashboard', 'tableau de bord', 'assembler', 'combiner', 'pipeline', 'plusieurs', 'ensemble', 'complet', 'page', 'embarquer', 'integrer'],
+    trigger: [
+      'dashboard',
+      'tableau de bord',
+      'assembler',
+      'combiner',
+      'pipeline',
+      'plusieurs',
+      'ensemble',
+      'complet',
+      'page',
+      'embarquer',
+      'integrer',
+    ],
     content: `## Patterns de composition dsfr-data
 
 ### REGLE IMPORTANTE : privilegier les sources dynamiques
@@ -1801,7 +1951,20 @@ Exemple multi-series : \`value-field="ca" value-fields="budget,objectif" name='[
     id: 'apiProviders',
     name: 'Providers API',
     description: 'Fournisseurs de donnees supportes et leurs capacites',
-    trigger: ['provider', 'fournisseur', 'opendatasoft', 'tabular', 'data.gouv', 'grist', 'insee', 'melodi', 'api-type', 'source de donnees', 'quel api', 'quelle source'],
+    trigger: [
+      'provider',
+      'fournisseur',
+      'opendatasoft',
+      'tabular',
+      'data.gouv',
+      'grist',
+      'insee',
+      'melodi',
+      'api-type',
+      'source de donnees',
+      'quel api',
+      'quelle source',
+    ],
     content: `## Providers API supportes
 
 dsfr-data detecte automatiquement le provider a partir de l'URL de l'API.
@@ -1932,8 +2095,23 @@ APIs avec CORS natif (pas de proxy necessaire) :
   dsfrDataA11y: {
     id: 'dsfrDataA11y',
     name: 'dsfr-data-a11y',
-    description: 'Composant accessibilite unifie : tableau de donnees, telechargement CSV et description textuelle',
-    trigger: ['raw-data', 'telecharger', 'download', 'csv', 'accessibilite', 'a11y', 'lecteur ecran', 'screen reader', 'aria', 'tableau accessible', 'table', 'description graphique', 'chart-a11y'],
+    description:
+      'Composant accessibilite unifie : tableau de donnees, telechargement CSV et description textuelle',
+    trigger: [
+      'raw-data',
+      'telecharger',
+      'download',
+      'csv',
+      'accessibilite',
+      'a11y',
+      'lecteur ecran',
+      'screen reader',
+      'aria',
+      'tableau accessible',
+      'table',
+      'description graphique',
+      'chart-a11y',
+    ],
     content: `## dsfr-data-a11y — Companion d'accessibilite unifie
 
 Composant companion qui ameliore l'accessibilite d'une visualisation en offrant
@@ -2031,8 +2209,18 @@ rendu : switch chart/tableau integre, CSV natif). Conserver uniquement :
   dsfrDataWorldMap: {
     id: 'dsfrDataWorldMap',
     name: 'dsfr-data-world-map',
-    description: 'Carte choroplèthe mondiale connectée à dsfr-data-source, colorie les pays selon une valeur numérique',
-    trigger: ['world-map', 'carte monde', 'carte mondiale', 'pays', 'choropleth', 'world map', 'planisphere', 'carte pays'],
+    description:
+      'Carte choroplèthe mondiale connectée à dsfr-data-source, colorie les pays selon une valeur numérique',
+    trigger: [
+      'world-map',
+      'carte monde',
+      'carte mondiale',
+      'pays',
+      'choropleth',
+      'world map',
+      'planisphere',
+      'carte pays',
+    ],
     content: `## dsfr-data-world-map — Carte choroplèthe mondiale
 
 Composant qui affiche une carte du monde SVG (projection Natural Earth)
@@ -2095,8 +2283,37 @@ Chargé via le bundle \`dsfr-data.world-map.esm.js\` (séparé du core).
   dsfrDataMap: {
     id: 'dsfrDataMap',
     name: 'dsfr-data-map',
-    description: 'Carte interactive Leaflet multi-couches avec POI, geoshape, cercles, clustering et chargement par viewport',
-    trigger: ['carte', 'map', 'leaflet', 'poi', 'marker', 'geoshape', 'geojson', 'clustering', 'bbox', 'viewport', 'tuiles', 'ign', 'geoplateforme', 'cercles proportionnels', 'heatmap', 'carte interactive', 'geo_point', 'geo_shape', 'choropleth carte', 'map layer', 'timeline', 'animation temporelle', 'carte animee', 'evolution temporelle', 'color-map', 'couleur categorielle', 'couleur par valeur'],
+    description:
+      'Carte interactive Leaflet multi-couches avec POI, geoshape, cercles, clustering et chargement par viewport',
+    trigger: [
+      'carte',
+      'map',
+      'leaflet',
+      'poi',
+      'marker',
+      'geoshape',
+      'geojson',
+      'clustering',
+      'bbox',
+      'viewport',
+      'tuiles',
+      'ign',
+      'geoplateforme',
+      'cercles proportionnels',
+      'heatmap',
+      'carte interactive',
+      'geo_point',
+      'geo_shape',
+      'choropleth carte',
+      'map layer',
+      'timeline',
+      'animation temporelle',
+      'carte animee',
+      'evolution temporelle',
+      'color-map',
+      'couleur categorielle',
+      'couleur par valeur',
+    ],
     content: `## dsfr-data-map + dsfr-data-map-layer — Carte interactive multi-couches
 
 Deux composants complementaires :
@@ -2331,7 +2548,15 @@ Accessibilite : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, a
     id: 'troubleshooting',
     name: 'Troubleshooting',
     description: 'Pieges courants et erreurs frequentes',
-    trigger: ['erreur', 'bug', 'marche pas', 'probleme', 'vide', 'affiche pas', 'ne fonctionne pas'],
+    trigger: [
+      'erreur',
+      'bug',
+      'marche pas',
+      'probleme',
+      'vide',
+      'affiche pas',
+      'ne fonctionne pas',
+    ],
     content: `## Pieges courants et troubleshooting
 
 ### 1. Le graphique est vide / ne s'affiche pas
@@ -2394,8 +2619,19 @@ cles de premier niveau.
   dsfrDataJoin: {
     id: 'dsfrDataJoin',
     name: 'dsfr-data-join',
-    description: 'Jointure multi-sources autour d\'une cle pivot',
-    trigger: ['join', 'jointure', 'croiser', 'fusionner', 'enrichir', 'merge', 'left join', 'inner join', 'multi-source', 'combiner'],
+    description: "Jointure multi-sources autour d'une cle pivot",
+    trigger: [
+      'join',
+      'jointure',
+      'croiser',
+      'fusionner',
+      'enrichir',
+      'merge',
+      'left join',
+      'inner join',
+      'multi-source',
+      'combiner',
+    ],
     content: `## <dsfr-data-join> - Jointure multi-sources
 
 Composant invisible qui joint deux sources de donnees sur une ou plusieurs cles pivot.
@@ -2488,7 +2724,16 @@ Si un champ existe dans les deux sources avec le meme nom :
     id: 'dsfrDataPodium',
     name: 'dsfr-data-podium',
     description: 'Classement visuel (top N) avec rang, barres proportionnelles et couleurs',
-    trigger: ['podium', 'classement', 'ranking', 'top', 'palmares', 'top 5', 'top 10', 'leaderboard'],
+    trigger: [
+      'podium',
+      'classement',
+      'ranking',
+      'top',
+      'palmares',
+      'top 5',
+      'top 10',
+      'leaderboard',
+    ],
     content: `## <dsfr-data-podium> - Classement visuel
 
 Affiche un podium (top N) avec rang numerote, label, sous-titre, barre de progression proportionnelle et valeur formatee.
@@ -2571,71 +2816,89 @@ export function getRelevantSkills(message: string, currentSource: Source | null)
   const lowerMsg = message.toLowerCase();
 
   for (const [, skill] of Object.entries(SKILLS)) {
-    const triggered = skill.trigger.some(t => lowerMsg.includes(t.toLowerCase()));
+    const triggered = skill.trigger.some((t) => lowerMsg.includes(t.toLowerCase()));
     if (triggered) {
       relevant.push(skill);
     }
   }
 
   // Always include composition patterns for dashboard/integration requests
-  if (lowerMsg.match(/dashboard|tableau de bord|integrer|embarquer|page/) &&
-      !relevant.find(s => s.id === 'compositionPatterns')) {
+  if (
+    lowerMsg.match(/dashboard|tableau de bord|integrer|embarquer|page/) &&
+    !relevant.find((s) => s.id === 'compositionPatterns')
+  ) {
     relevant.push(SKILLS.compositionPatterns);
   }
 
   // Always include ODSQL if we have an API source
   if (currentSource?.type === 'api') {
-    if (!relevant.find(s => s.id === 'odsql')) {
+    if (!relevant.find((s) => s.id === 'odsql')) {
       relevant.push(SKILLS.odsql);
     }
-    if (!relevant.find(s => s.id === 'odsApiVersions')) {
+    if (!relevant.find((s) => s.id === 'odsApiVersions')) {
       relevant.push(SKILLS.odsApiVersions);
     }
   }
 
   // Always include apiProviders + compositionPatterns for Grist sources
   if (currentSource?.type === 'grist') {
-    if (!relevant.find(s => s.id === 'apiProviders')) {
+    if (!relevant.find((s) => s.id === 'apiProviders')) {
       relevant.push(SKILLS.apiProviders);
     }
-    if (!relevant.find(s => s.id === 'compositionPatterns')) {
+    if (!relevant.find((s) => s.id === 'compositionPatterns')) {
       relevant.push(SKILLS.compositionPatterns);
     }
   }
 
   // Always include dsfrDataSource and dsfrDataChart for chart-related requests
-  if (lowerMsg.match(/graphique|chart|visualis|barres|ligne|camembert|kpi|carte|map|jauge|gauge|tableau|datalist/)) {
-    if (!relevant.find(s => s.id === 'dsfrDataSource')) {
+  if (
+    lowerMsg.match(
+      /graphique|chart|visualis|barres|ligne|camembert|kpi|carte|map|jauge|gauge|tableau|datalist/
+    )
+  ) {
+    if (!relevant.find((s) => s.id === 'dsfrDataSource')) {
       relevant.push(SKILLS.dsfrDataSource);
     }
-    if (!relevant.find(s => s.id === 'dsfrDataChart')) {
+    if (!relevant.find((s) => s.id === 'dsfrDataChart')) {
       relevant.push(SKILLS.dsfrDataChart);
     }
   }
 
   // Auto-include dsfrDataQuery when visualization + filtering context detected
-  if (lowerMsg.match(/kpi|indicateur|graphique|chart|barres|camembert/) &&
-      lowerMsg.match(/departement|region|filtre|uniquement|seulement|dans le|pour le|ou\b|quand/)) {
-    if (!relevant.find(s => s.id === 'dsfrDataQuery')) {
+  if (
+    lowerMsg.match(/kpi|indicateur|graphique|chart|barres|camembert/) &&
+    lowerMsg.match(/departement|region|filtre|uniquement|seulement|dans le|pour le|ou\b|quand/)
+  ) {
+    if (!relevant.find((s) => s.id === 'dsfrDataQuery')) {
       relevant.push(SKILLS.dsfrDataQuery);
     }
   }
 
   // Auto-include dsfrDataSearch when search/filtering with display context detected
-  if (lowerMsg.match(/recherche|search|chercher|barre de recherche|full-text|filtrer texte/) &&
-      !relevant.find(s => s.id === 'dsfrDataSearch')) {
+  if (
+    lowerMsg.match(/recherche|search|chercher|barre de recherche|full-text|filtrer texte/) &&
+    !relevant.find((s) => s.id === 'dsfrDataSearch')
+  ) {
     relevant.push(SKILLS.dsfrDataSearch);
   }
 
   // Auto-include dsfrDataNormalize when data cleaning or nested data context detected
-  if (lowerMsg.match(/code embarquable|snippet|html|integrer|embarquer|pipeline|dashboard|tableau de bord|grist|airtable|flatten|aplatir|nested|ods v1|records\.fields/) &&
-      !relevant.find(s => s.id === 'dsfrDataNormalize')) {
+  if (
+    lowerMsg.match(
+      /code embarquable|snippet|html|integrer|embarquer|pipeline|dashboard|tableau de bord|grist|airtable|flatten|aplatir|nested|ods v1|records\.fields/
+    ) &&
+    !relevant.find((s) => s.id === 'dsfrDataNormalize')
+  ) {
     relevant.push(SKILLS.dsfrDataNormalize);
   }
 
   // Auto-include dsfrDataFacets when interactive filtering or exploration context detected
-  if (lowerMsg.match(/code embarquable|snippet|html|integrer|embarquer|interactif|explorer|exploration|dashboard|tableau de bord/) &&
-      !relevant.find(s => s.id === 'dsfrDataFacets')) {
+  if (
+    lowerMsg.match(
+      /code embarquable|snippet|html|integrer|embarquer|interactif|explorer|exploration|dashboard|tableau de bord/
+    ) &&
+    !relevant.find((s) => s.id === 'dsfrDataFacets')
+  ) {
     relevant.push(SKILLS.dsfrDataFacets);
   }
 
@@ -2648,15 +2911,19 @@ export function getRelevantSkills(message: string, currentSource: Source | null)
 export function buildSkillsContext(relevantSkills: Skill[]): string {
   if (relevantSkills.length === 0) return '';
 
-  const actionSkills = relevantSkills.filter(s => s.id.endsWith('Action'));
-  const componentSkills = relevantSkills.filter(s => !s.id.endsWith('Action'));
+  const actionSkills = relevantSkills.filter((s) => s.id.endsWith('Action'));
+  const componentSkills = relevantSkills.filter((s) => !s.id.endsWith('Action'));
 
   let context = '\n\n---\nSKILLS INJECTES :';
   if (actionSkills.length > 0) {
-    context += '\n\n### Actions (pour l\'apercu interactif)\n' + actionSkills.map(s => s.content).join('\n\n');
+    context +=
+      "\n\n### Actions (pour l'apercu interactif)\n" +
+      actionSkills.map((s) => s.content).join('\n\n');
   }
   if (componentSkills.length > 0) {
-    context += '\n\n### Composants et references (pour le code embarquable)\n' + componentSkills.map(s => s.content).join('\n\n');
+    context +=
+      '\n\n### Composants et references (pour le code embarquable)\n' +
+      componentSkills.map((s) => s.content).join('\n\n');
   }
   return context;
 }

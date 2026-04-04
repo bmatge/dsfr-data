@@ -9,7 +9,7 @@
  */
 export function buildGristHeaders(
   apiKey?: string | null,
-  options?: { contentType?: boolean },
+  options?: { contentType?: boolean }
 ): Record<string, string> {
   const headers: Record<string, string> = {};
   if (options?.contentType) headers['Content-Type'] = 'application/json';

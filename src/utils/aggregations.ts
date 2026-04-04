@@ -80,7 +80,7 @@ export function computeAggregation(data: unknown, expression: string): number | 
 
     case 'count':
       if (parsed.filterValue !== undefined) {
-        return items.filter(item => item[parsed.field] === parsed.filterValue).length;
+        return items.filter((item) => item[parsed.field] === parsed.filterValue).length;
       }
       return items.length;
 
@@ -90,21 +90,22 @@ export function computeAggregation(data: unknown, expression: string): number | 
         return acc + (isNaN(val) ? 0 : val);
       }, 0);
 
-    case 'avg':
+    case 'avg': {
       if (items.length === 0) return null;
       const sum = items.reduce((acc, item) => {
         const val = Number(item[parsed.field]);
         return acc + (isNaN(val) ? 0 : val);
       }, 0);
       return sum / items.length;
+    }
 
     case 'min':
       if (items.length === 0) return null;
-      return Math.min(...items.map(item => Number(item[parsed.field])).filter(v => !isNaN(v)));
+      return Math.min(...items.map((item) => Number(item[parsed.field])).filter((v) => !isNaN(v)));
 
     case 'max':
       if (items.length === 0) return null;
-      return Math.max(...items.map(item => Number(item[parsed.field])).filter(v => !isNaN(v)));
+      return Math.max(...items.map((item) => Number(item[parsed.field])).filter((v) => !isNaN(v)));
 
     default:
       return null;

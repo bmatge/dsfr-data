@@ -36,7 +36,11 @@ interface ParsedComponent {
  */
 export async function importFromHtml(editor: PipelineEditor, htmlCode: string): Promise<void> {
   const parsed = parseHtml(htmlCode);
-  console.log('[html-parser] Parsed components:', parsed.length, parsed.map(c => `${c.tag}#${c.id}`));
+  console.log(
+    '[html-parser] Parsed components:',
+    parsed.length,
+    parsed.map((c) => `${c.tag}#${c.id}`)
+  );
 
   if (parsed.length === 0) {
     console.warn('[html-parser] No dsfr-data-* components found in code');
@@ -50,7 +54,11 @@ export async function importFromHtml(editor: PipelineEditor, htmlCode: string): 
   const colWidth = 320;
   const rowHeight = 280;
   const categoryColumns: Record<string, number> = {
-    source: 0, transform: 1, interact: 2, display: 3, a11y: 4,
+    source: 0,
+    transform: 1,
+    interact: 2,
+    display: 3,
+    a11y: 4,
   };
   const categoryRowCounters: Record<string, number> = {};
 
@@ -66,11 +74,7 @@ export async function importFromHtml(editor: PipelineEditor, htmlCode: string): 
     const row = categoryRowCounters[cat] ?? 0;
     categoryRowCounters[cat] = row + 1;
 
-    const node = await editor.addNode(
-      comp.type,
-      50 + col * colWidth,
-      50 + row * rowHeight
-    );
+    const node = await editor.addNode(comp.type, 50 + col * colWidth, 50 + row * rowHeight);
     if (!node) continue;
 
     // Set label from id if available
@@ -127,7 +131,7 @@ export async function importFromHtml(editor: PipelineEditor, htmlCode: string): 
 
   // Wait for Lit components to mount, then re-apply values via setValue()
   // so the UI re-renders with the correct values
-  await new Promise(r => setTimeout(r, 200));
+  await new Promise((r) => setTimeout(r, 200));
 
   for (const comp of parsed) {
     const node = comp.id ? nodeMap.get(comp.id) : nodeMap.get(`__idx_${parsed.indexOf(comp)}`);

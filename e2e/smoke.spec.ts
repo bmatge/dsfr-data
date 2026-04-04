@@ -1,36 +1,29 @@
 import { test, expect } from '@playwright/test';
 
+const apps = [
+  { name: 'Hub', path: '/', selector: 'body', title: /Charts builder|dsfr-data/i },
+  { name: 'Builder', path: '/apps/builder/index.html', selector: '#source-panel-saved' },
+  { name: 'Builder IA', path: '/apps/builder-ia/index.html', selector: '#section-source' },
+  { name: 'Builder Carto', path: '/apps/builder-carto/index.html', selector: '#layers-list' },
+  { name: 'Playground', path: '/apps/playground/index.html', selector: '.CodeMirror, .cm-editor' },
+  { name: 'Sources', path: '/apps/sources/index.html', selector: '#connections-list' },
+  { name: 'Favorites', path: '/apps/favorites/index.html', selector: '#favorites-list' },
+  { name: 'Dashboard', path: '/apps/dashboard/index.html', selector: '#dashboard-grid' },
+  { name: 'Monitoring', path: '/apps/monitoring/index.html', selector: '#kpi-row' },
+  { name: 'Pipeline Helper', path: '/apps/pipeline-helper/index.html', selector: '.pipeline-page' },
+  { name: 'Admin', path: '/apps/admin/index.html', selector: '#main-content' },
+];
+
 test.describe('Smoke tests', () => {
-  test('Hub (index.html) loads correctly', async ({ page }) => {
-    await page.goto('/');
-    await expect(page).toHaveTitle(/Charts builder|dsfr-data/i);
-    await expect(page.locator('body')).toBeVisible();
-  });
-
-  test('Builder app loads', async ({ page }) => {
-    await page.goto('/apps/builder/index.html');
-    await expect(page.locator('#source-panel-saved')).toBeVisible();
-  });
-
-  test('Playground app loads', async ({ page }) => {
-    await page.goto('/apps/playground/index.html');
-    await expect(page.locator('.CodeMirror')).toBeVisible();
-  });
-
-  test('Sources app loads', async ({ page }) => {
-    await page.goto('/apps/sources/index.html');
-    await expect(page.locator('#connections-list')).toBeVisible();
-  });
-
-  test('Favorites app loads', async ({ page }) => {
-    await page.goto('/apps/favorites/index.html');
-    await expect(page.locator('#favorites-list')).toBeVisible();
-  });
-
-  test('Dashboard app loads', async ({ page }) => {
-    await page.goto('/apps/dashboard/index.html');
-    await expect(page.locator('#dashboard-grid')).toBeVisible();
-  });
+  for (const { name, path, selector, title } of apps) {
+    test(`${name} app loads`, async ({ page }) => {
+      await page.goto(path);
+      if (title) {
+        await expect(page).toHaveTitle(title);
+      }
+      await expect(page.locator(selector)).toBeVisible();
+    });
+  }
 
   test('No native alert() dialogs are triggered on load', async ({ page }) => {
     let alertFired = false;
@@ -39,7 +32,7 @@ test.describe('Smoke tests', () => {
       dialog.dismiss();
     });
 
-    for (const path of ['/', '/apps/builder/index.html', '/apps/playground/index.html', '/apps/sources/index.html', '/apps/favorites/index.html', '/apps/dashboard/index.html']) {
+    for (const { path } of apps) {
       await page.goto(path);
       await page.waitForTimeout(500);
     }

@@ -68,11 +68,16 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json();
 }
 
-export async function fetchUsers(page = 1, limit = 20): Promise<{ users: User[]; pagination: Pagination }> {
+export async function fetchUsers(
+  page = 1,
+  limit = 20
+): Promise<{ users: User[]; pagination: Pagination }> {
   return api(`/users?page=${page}&limit=${limit}`);
 }
 
-export async function fetchUserDetail(id: string): Promise<{ user: UserDetail; resources: Record<string, number> }> {
+export async function fetchUserDetail(
+  id: string
+): Promise<{ user: UserDetail; resources: Record<string, number> }> {
   return api(`/users/${id}`);
 }
 
@@ -104,7 +109,10 @@ export async function revokeSessions(userId: string): Promise<void> {
   await api(`/users/${userId}/sessions`, { method: 'DELETE' });
 }
 
-export async function fetchAudit(page = 1, limit = 50): Promise<{ logs: AuditEntry[]; pagination: Pagination }> {
+export async function fetchAudit(
+  page = 1,
+  limit = 50
+): Promise<{ logs: AuditEntry[]; pagination: Pagination }> {
   return api(`/audit?page=${page}&limit=${limit}`);
 }
 

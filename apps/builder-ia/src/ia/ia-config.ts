@@ -93,7 +93,9 @@ export function resetIAConfig(): void {
   const modelEl = document.getElementById('ia-model') as HTMLInputElement;
   const tokenEl = document.getElementById('ia-token') as HTMLInputElement;
 
-  if (apiUrlEl) apiUrlEl.value = serverConfig?.apiUrl || 'https://albert.api.etalab.gouv.fr/v1/chat/completions';
+  if (apiUrlEl)
+    apiUrlEl.value =
+      serverConfig?.apiUrl || 'https://albert.api.etalab.gouv.fr/v1/chat/completions';
   if (modelEl) modelEl.value = serverConfig?.model || 'albert-large';
   if (tokenEl) tokenEl.value = '';
 
@@ -181,7 +183,8 @@ export function loadIAConfig(): void {
       (document.getElementById('ia-token') as HTMLInputElement).value = config.token;
     }
     if (config.systemPrompt) {
-      (document.getElementById('ia-system-prompt') as HTMLTextAreaElement).value = config.systemPrompt;
+      (document.getElementById('ia-system-prompt') as HTMLTextAreaElement).value =
+        config.systemPrompt;
     }
     if (config.extraParams && Object.keys(config.extraParams).length > 0) {
       renderExtraParams(config.extraParams);

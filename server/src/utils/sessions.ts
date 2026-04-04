@@ -21,7 +21,7 @@ export async function createSession(
   userId: string,
   token: string,
   authProvider: 'local' | 'proconnect',
-  req: Request,
+  req: Request
 ): Promise<string> {
   const id = uuidv4();
   const tokenHash = hashToken(token);
@@ -31,7 +31,7 @@ export async function createSession(
   await execute(
     `INSERT INTO sessions (id, user_id, token_hash, auth_provider, ip_address, user_agent, expires_at)
      VALUES (?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 7 DAY))`,
-    [id, userId, tokenHash, authProvider, ip, userAgent],
+    [id, userId, tokenHash, authProvider, ip, userAgent]
   );
   return id;
 }
@@ -43,7 +43,7 @@ export async function isSessionValid(token: string): Promise<boolean> {
   const tokenHash = hashToken(token);
   const session = await queryOne<{ revoked_at: string | null; expires_at: string }>(
     'SELECT revoked_at, expires_at FROM sessions WHERE token_hash = ?',
-    [tokenHash],
+    [tokenHash]
   );
   if (!session) return true; // No session record = legacy token (pre-sessions), allow
   if (session.revoked_at) return false;
@@ -58,7 +58,7 @@ export async function revokeSession(token: string): Promise<void> {
   const tokenHash = hashToken(token);
   await execute(
     'UPDATE sessions SET revoked_at = NOW() WHERE token_hash = ? AND revoked_at IS NULL',
-    [tokenHash],
+    [tokenHash]
   );
 }
 
@@ -68,7 +68,7 @@ export async function revokeSession(token: string): Promise<void> {
 export async function revokeAllUserSessions(userId: string): Promise<number> {
   const result = await execute(
     'UPDATE sessions SET revoked_at = NOW() WHERE user_id = ? AND revoked_at IS NULL',
-    [userId],
+    [userId]
   );
   return result.affectedRows;
 }

@@ -4,7 +4,7 @@
  */
 
 import { Router } from 'express';
-import { query, queryOne, execute, transaction, connQuery, connQueryOne, connExecute } from '../db/database.js';
+import { query, queryOne, execute, transaction, connExecute } from '../db/database.js';
 import { requireAuth } from '../middleware/auth.js';
 import type { AuthenticatedRequest } from '../middleware/auth.js';
 import { requireRole } from '../middleware/rbac.js';
@@ -31,17 +31,23 @@ router.get('/users', async (req, res) => {
     const total = countRow?.total || 0;
 
     const users = await query<{
-      id: string; email: string; display_name: string; role: string;
-      auth_provider: string; is_active: number; email_verified: number;
-      last_login: string | null; created_at: string;
+      id: string;
+      email: string;
+      display_name: string;
+      role: string;
+      auth_provider: string;
+      is_active: number;
+      email_verified: number;
+      last_login: string | null;
+      created_at: string;
     }>(
       `SELECT id, email, display_name, role, auth_provider, is_active, email_verified, last_login, created_at
        FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?`,
-      [limit, offset],
+      [limit, offset]
     );
 
     res.json({
-      users: users.map(u => ({
+      users: users.map((u) => ({
         id: u.id,
         email: u.email,
         displayName: u.display_name,
@@ -67,15 +73,24 @@ router.get('/users', async (req, res) => {
 router.get('/users/:id', async (req, res) => {
   try {
     const user = await queryOne<{
-      id: string; email: string; display_name: string; role: string;
-      auth_provider: string; external_id: string | null; idp_id: string | null;
-      siret: string | null; organizational_unit: string | null;
-      is_active: number; email_verified: number; last_login: string | null; created_at: string;
+      id: string;
+      email: string;
+      display_name: string;
+      role: string;
+      auth_provider: string;
+      external_id: string | null;
+      idp_id: string | null;
+      siret: string | null;
+      organizational_unit: string | null;
+      is_active: number;
+      email_verified: number;
+      last_login: string | null;
+      created_at: string;
     }>(
       `SELECT id, email, display_name, role, auth_provider, external_id, idp_id, siret,
        organizational_unit, is_active, email_verified, last_login, created_at
        FROM users WHERE id = ?`,
-      [req.params.id],
+      [req.params.id]
     );
 
     if (!user) {
@@ -85,10 +100,18 @@ router.get('/users/:id', async (req, res) => {
 
     // Count resources
     const [sources, connections, favorites, dashboards] = await Promise.all([
-      queryOne<{ count: number }>('SELECT COUNT(*) as count FROM sources WHERE owner_id = ?', [user.id]),
-      queryOne<{ count: number }>('SELECT COUNT(*) as count FROM connections WHERE owner_id = ?', [user.id]),
-      queryOne<{ count: number }>('SELECT COUNT(*) as count FROM favorites WHERE owner_id = ?', [user.id]),
-      queryOne<{ count: number }>('SELECT COUNT(*) as count FROM dashboards WHERE owner_id = ?', [user.id]),
+      queryOne<{ count: number }>('SELECT COUNT(*) as count FROM sources WHERE owner_id = ?', [
+        user.id,
+      ]),
+      queryOne<{ count: number }>('SELECT COUNT(*) as count FROM connections WHERE owner_id = ?', [
+        user.id,
+      ]),
+      queryOne<{ count: number }>('SELECT COUNT(*) as count FROM favorites WHERE owner_id = ?', [
+        user.id,
+      ]),
+      queryOne<{ count: number }>('SELECT COUNT(*) as count FROM dashboards WHERE owner_id = ?', [
+        user.id,
+      ]),
     ]);
 
     res.json({
@@ -142,7 +165,8 @@ router.put('/users/:id/role', async (req, res) => {
     }
 
     const target = await queryOne<{ id: string; role: string }>(
-      'SELECT id, role FROM users WHERE id = ?', [targetId],
+      'SELECT id, role FROM users WHERE id = ?',
+      [targetId]
     );
     if (!target) {
       res.status(404).json({ error: 'User not found' });
@@ -153,7 +177,7 @@ router.put('/users/:id/role', async (req, res) => {
     if (target.role === 'admin' && role !== 'admin') {
       const adminCount = await queryOne<{ count: number }>(
         'SELECT COUNT(*) as count FROM users WHERE role = ? AND is_active = TRUE',
-        ['admin'],
+        ['admin']
       );
       if ((adminCount?.count || 0) <= 1) {
         res.status(400).json({ error: 'Cannot remove the last admin' });
@@ -193,7 +217,8 @@ router.put('/users/:id/status', async (req, res) => {
     }
 
     const target = await queryOne<{ id: string; role: string }>(
-      'SELECT id, role FROM users WHERE id = ?', [targetId],
+      'SELECT id, role FROM users WHERE id = ?',
+      [targetId]
     );
     if (!target) {
       res.status(404).json({ error: 'User not found' });
@@ -204,7 +229,7 @@ router.put('/users/:id/status', async (req, res) => {
     if (!active && target.role === 'admin') {
       const adminCount = await queryOne<{ count: number }>(
         'SELECT COUNT(*) as count FROM users WHERE role = ? AND is_active = TRUE',
-        ['admin'],
+        ['admin']
       );
       if ((adminCount?.count || 0) <= 1) {
         res.status(400).json({ error: 'Cannot deactivate the last admin' });
@@ -212,7 +237,10 @@ router.put('/users/:id/status', async (req, res) => {
       }
     }
 
-    await execute('UPDATE users SET is_active = ?, updated_at = NOW() WHERE id = ?', [active, targetId]);
+    await execute('UPDATE users SET is_active = ?, updated_at = NOW() WHERE id = ?', [
+      active,
+      targetId,
+    ]);
     await logAudit(req, active ? 'user_activate' : 'user_deactivate', 'user', targetId);
 
     // Revoke all sessions when deactivating
@@ -243,7 +271,8 @@ router.delete('/users/:id', async (req, res) => {
     }
 
     const target = await queryOne<{ id: string; role: string; email: string }>(
-      'SELECT id, role, email FROM users WHERE id = ?', [targetId],
+      'SELECT id, role, email FROM users WHERE id = ?',
+      [targetId]
     );
     if (!target) {
       res.status(404).json({ error: 'User not found' });
@@ -254,7 +283,7 @@ router.delete('/users/:id', async (req, res) => {
     if (target.role === 'admin') {
       const adminCount = await queryOne<{ count: number }>(
         'SELECT COUNT(*) as count FROM users WHERE role = ? AND is_active = TRUE',
-        ['admin'],
+        ['admin']
       );
       if ((adminCount?.count || 0) <= 1) {
         res.status(400).json({ error: 'Cannot delete the last admin' });
@@ -265,8 +294,11 @@ router.delete('/users/:id', async (req, res) => {
     // Cascade delete in transaction
     await transaction(async (conn) => {
       // Delete shares granted by or targeting this user
-      await connExecute(conn, 'DELETE FROM shares WHERE granted_by = ? OR (target_type = ? AND target_id = ?)',
-        [targetId, 'user', targetId]);
+      await connExecute(
+        conn,
+        'DELETE FROM shares WHERE granted_by = ? OR (target_type = ? AND target_id = ?)',
+        [targetId, 'user', targetId]
+      );
       // Delete resources
       for (const table of ['sources', 'connections', 'favorites', 'dashboards']) {
         await connExecute(conn, `DELETE FROM ${table} WHERE owner_id = ?`, [targetId]);
@@ -294,24 +326,31 @@ router.delete('/users/:id', async (req, res) => {
 router.get('/users/:id/sessions', async (req, res) => {
   try {
     const sessions = await query<{
-      id: string; auth_provider: string; ip_address: string | null;
-      user_agent: string | null; created_at: string; expires_at: string; revoked_at: string | null;
+      id: string;
+      auth_provider: string;
+      ip_address: string | null;
+      user_agent: string | null;
+      created_at: string;
+      expires_at: string;
+      revoked_at: string | null;
     }>(
       `SELECT id, auth_provider, ip_address, user_agent, created_at, expires_at, revoked_at
        FROM sessions WHERE user_id = ? ORDER BY created_at DESC LIMIT 50`,
-      [req.params.id],
+      [req.params.id]
     );
 
-    res.json(sessions.map(s => ({
-      id: s.id,
-      authProvider: s.auth_provider,
-      ipAddress: s.ip_address,
-      userAgent: s.user_agent,
-      createdAt: s.created_at,
-      expiresAt: s.expires_at,
-      revokedAt: s.revoked_at,
-      isActive: !s.revoked_at && new Date(s.expires_at) > new Date(),
-    })));
+    res.json(
+      sessions.map((s) => ({
+        id: s.id,
+        authProvider: s.auth_provider,
+        ipAddress: s.ip_address,
+        userAgent: s.user_agent,
+        createdAt: s.created_at,
+        expiresAt: s.expires_at,
+        revokedAt: s.revoked_at,
+        isActive: !s.revoked_at && new Date(s.expires_at) > new Date(),
+      }))
+    );
   } catch (err) {
     console.error('Admin list sessions error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -347,25 +386,38 @@ router.get('/audit', async (req, res) => {
 
     let where = '1=1';
     const params: unknown[] = [];
-    if (action) { where += ' AND action = ?'; params.push(action); }
-    if (userId) { where += ' AND user_id = ?'; params.push(userId); }
+    if (action) {
+      where += ' AND action = ?';
+      params.push(action);
+    }
+    if (userId) {
+      where += ' AND user_id = ?';
+      params.push(userId);
+    }
 
     const countRow = await queryOne<{ total: number }>(
-      `SELECT COUNT(*) as total FROM audit_log WHERE ${where}`, params,
+      `SELECT COUNT(*) as total FROM audit_log WHERE ${where}`,
+      params
     );
     const total = countRow?.total || 0;
 
     const logs = await query<{
-      id: number; user_id: string | null; action: string; target_type: string | null;
-      target_id: string | null; details: string | null; ip_address: string | null; created_at: string;
+      id: number;
+      user_id: string | null;
+      action: string;
+      target_type: string | null;
+      target_id: string | null;
+      details: string | null;
+      ip_address: string | null;
+      created_at: string;
     }>(
       `SELECT id, user_id, action, target_type, target_id, details, ip_address, created_at
        FROM audit_log WHERE ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
-      [...params, limit, offset],
+      [...params, limit, offset]
     );
 
     res.json({
-      logs: logs.map(l => ({
+      logs: logs.map((l) => ({
         id: l.id,
         userId: l.user_id,
         action: l.action,
@@ -391,10 +443,10 @@ router.get('/stats', async (req, res) => {
   try {
     const [byRole, byProvider, total, active] = await Promise.all([
       query<{ role: string; count: number }>(
-        'SELECT role, COUNT(*) as count FROM users GROUP BY role',
+        'SELECT role, COUNT(*) as count FROM users GROUP BY role'
       ),
       query<{ auth_provider: string; count: number }>(
-        'SELECT auth_provider, COUNT(*) as count FROM users GROUP BY auth_provider',
+        'SELECT auth_provider, COUNT(*) as count FROM users GROUP BY auth_provider'
       ),
       queryOne<{ count: number }>('SELECT COUNT(*) as count FROM users'),
       queryOne<{ count: number }>('SELECT COUNT(*) as count FROM users WHERE is_active = TRUE'),
@@ -403,8 +455,8 @@ router.get('/stats', async (req, res) => {
     res.json({
       totalUsers: total?.count || 0,
       activeUsers: active?.count || 0,
-      byRole: Object.fromEntries(byRole.map(r => [r.role, r.count])),
-      byProvider: Object.fromEntries(byProvider.map(p => [p.auth_provider, p.count])),
+      byRole: Object.fromEntries(byRole.map((r) => [r.role, r.count])),
+      byProvider: Object.fromEntries(byProvider.map((p) => [p.auth_provider, p.count])),
     });
   } catch (err) {
     console.error('Admin stats error:', err);

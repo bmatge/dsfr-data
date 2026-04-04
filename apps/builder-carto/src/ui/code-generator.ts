@@ -142,14 +142,16 @@ export function generateCode(): string {
   const lines: string[] = [];
 
   if (state.generationMode === 'dynamic') {
-    lines.push(`<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css">`);
+    lines.push(
+      `<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css">`
+    );
     lines.push(`<script type="module" src="${LIB_URL}/dsfr-data.core.esm.js"><\/script>`);
     lines.push(`<script type="module" src="${LIB_URL}/dsfr-data.map.esm.js"><\/script>`);
     lines.push('');
   }
 
   // Sources (only visible layers)
-  const visibleLayers = state.layers.filter(l => l.visible);
+  const visibleLayers = state.layers.filter((l) => l.visible);
   for (const layer of visibleLayers) {
     const src = sourceTag(layer);
     if (src) {
@@ -188,7 +190,7 @@ export function generateCode(): string {
   }
 
   // Timeline controls (if any layer has time-field)
-  if (visibleLayers.some(l => l.timeField)) {
+  if (visibleLayers.some((l) => l.timeField)) {
     lines.push('');
     lines.push('  <dsfr-data-map-timeline></dsfr-data-map-timeline>');
   }

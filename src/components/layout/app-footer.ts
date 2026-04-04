@@ -35,24 +35,36 @@ export class AppFooter extends LitElement {
         <div class="fr-container">
           <div class="fr-footer__body">
             <div class="fr-footer__brand fr-enlarge-link">
-              <a href="${this._base}index.html" title="Retour à l'accueil du site - République Française">
-                <p class="fr-logo">
-                  République<br>Française
-                </p>
+              <a
+                href="${this._base}index.html"
+                title="Retour à l'accueil du site - République Française"
+              >
+                <p class="fr-logo">République<br />Française</p>
               </a>
             </div>
             <div class="fr-footer__content">
               <p class="fr-footer__content-desc">
-                Charts builder est un projet open-source permettant de créer des visualisations de données conformes au Design System de l'État (DSFR).
+                Charts builder est un projet open-source permettant de créer des visualisations de
+                données conformes au Design System de l'État (DSFR).
               </p>
               <ul class="fr-footer__content-list">
                 <li class="fr-footer__content-item">
-                  <a class="fr-footer__content-link" target="_blank" rel="noopener" href="https://www.systeme-de-design.gouv.fr/">
+                  <a
+                    class="fr-footer__content-link"
+                    target="_blank"
+                    rel="noopener"
+                    href="https://www.systeme-de-design.gouv.fr/"
+                  >
                     systeme-de-design.gouv.fr
                   </a>
                 </li>
                 <li class="fr-footer__content-item">
-                  <a class="fr-footer__content-link" target="_blank" rel="noopener" href="https://github.com/bmatge/dsfr-data">
+                  <a
+                    class="fr-footer__content-link"
+                    target="_blank"
+                    rel="noopener"
+                    href="https://github.com/bmatge/dsfr-data"
+                  >
                     GitHub
                   </a>
                 </li>
@@ -70,8 +82,14 @@ export class AppFooter extends LitElement {
             </ul>
             <div class="fr-footer__bottom-copy">
               <p>
-                Sauf mention explicite de propriété intellectuelle détenue par des tiers, les contenus de ce site sont proposés sous
-                <a href="https://github.com/etalab/licence-ouverte/blob/master/LO.md" target="_blank" rel="noopener">licence etalab-2.0</a>
+                Sauf mention explicite de propriété intellectuelle détenue par des tiers, les
+                contenus de ce site sont proposés sous
+                <a
+                  href="https://github.com/etalab/licence-ouverte/blob/master/LO.md"
+                  target="_blank"
+                  rel="noopener"
+                  >licence etalab-2.0</a
+                >
               </p>
             </div>
           </div>

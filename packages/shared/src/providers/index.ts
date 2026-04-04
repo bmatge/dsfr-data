@@ -68,7 +68,7 @@ export function detectProvider(url: string): ProviderConfig {
  */
 export function extractResourceIds(
   url: string,
-  provider?: ProviderConfig,
+  provider?: ProviderConfig
 ): Record<string, string> | null {
   const p = provider ?? detectProvider(url);
   return p.resource.extractIds(url);

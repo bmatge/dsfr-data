@@ -21,15 +21,22 @@
  */
 
 import type {
-  ApiAdapter, AdapterCapabilities, AdapterParams,
-  FetchResult, FacetResult, ServerSideOverlay
+  ApiAdapter,
+  AdapterCapabilities,
+  AdapterParams,
+  FetchResult,
+  FacetResult,
+  ServerSideOverlay,
 } from './api-adapter.js';
 import type { QueryAggregate } from '../components/dsfr-data-query.js';
 import type { ProviderConfig } from '@dsfr-data/shared';
 import { GRIST_CONFIG, getProxiedUrl } from '@dsfr-data/shared';
 
 /** Construit les options fetch avec headers optionnels */
-function buildFetchOptions(params: Pick<AdapterParams, 'headers'>, signal?: AbortSignal): RequestInit {
+function buildFetchOptions(
+  params: Pick<AdapterParams, 'headers'>,
+  signal?: AbortSignal
+): RequestInit {
   const opts: RequestInit = {};
   if (signal) opts.signal = signal;
   if (params.headers && Object.keys(params.headers).length > 0) {
@@ -96,7 +103,7 @@ export class GristAdapter implements ApiAdapter {
   // =========================================================================
 
   async fetchAll(params: AdapterParams, signal: AbortSignal): Promise<FetchResult> {
-    if (this._needsSqlMode(params) && await this._checkSqlAvailability(params)) {
+    if (this._needsSqlMode(params) && (await this._checkSqlAvailability(params))) {
       return this._fetchSql(params, undefined, signal);
     }
 
@@ -116,8 +123,12 @@ export class GristAdapter implements ApiAdapter {
     };
   }
 
-  async fetchPage(params: AdapterParams, overlay: ServerSideOverlay, signal: AbortSignal): Promise<FetchResult> {
-    if (this._needsSqlMode(params, overlay) && await this._checkSqlAvailability(params)) {
+  async fetchPage(
+    params: AdapterParams,
+    overlay: ServerSideOverlay,
+    signal: AbortSignal
+  ): Promise<FetchResult> {
+    if (this._needsSqlMode(params, overlay) && (await this._checkSqlAvailability(params))) {
       return this._fetchSql(params, overlay, signal);
     }
 
@@ -133,9 +144,7 @@ export class GristAdapter implements ApiAdapter {
 
     return {
       data,
-      totalCount: isLastPage
-        ? ((overlay.page || 1) - 1) * pageSize + data.length
-        : -1,
+      totalCount: isLastPage ? ((overlay.page || 1) - 1) * pageSize + data.length : -1,
       needsClientProcessing: false,
     };
   }
@@ -209,7 +218,7 @@ export class GristAdapter implements ApiAdapter {
     const fullParams = params as AdapterParams;
 
     // Verifier que SQL est disponible
-    if (!await this._checkSqlAvailability(fullParams)) {
+    if (!(await this._checkSqlAvailability(fullParams))) {
       return results;
     }
 
@@ -270,10 +279,7 @@ export class GristAdapter implements ApiAdapter {
     return GRIST_CONFIG;
   }
 
-  buildFacetWhere(
-    selections: Record<string, Set<string>>,
-    excludeField?: string
-  ): string {
+  buildFacetWhere(selections: Record<string, Set<string>>, excludeField?: string): string {
     const parts: string[] = [];
     for (const [field, values] of Object.entries(selections)) {
       if (field === excludeField || values.size === 0) continue;
@@ -291,7 +297,7 @@ export class GristAdapter implements ApiAdapter {
   // =========================================================================
 
   parseAggregates(aggExpr: string): QueryAggregate[] {
-    return aggExpr.split(',').map(part => {
+    return aggExpr.split(',').map((part) => {
       const [field, func, alias] = part.trim().split(':');
       return {
         field,
@@ -309,10 +315,7 @@ export class GristAdapter implements ApiAdapter {
    * Recupere les metadonnees des colonnes d'une table Grist.
    * GET /api/docs/{docId}/tables/{tableId}/columns
    */
-  async fetchColumns(
-    params: AdapterParams,
-    signal?: AbortSignal
-  ): Promise<GristColumn[]> {
+  async fetchColumns(params: AdapterParams, signal?: AbortSignal): Promise<GristColumn[]> {
     const url = getProxiedUrl(params.baseUrl.replace(/\/records.*$/, '/columns'));
     try {
       const response = await fetch(url, buildFetchOptions(params, signal));
@@ -338,10 +341,7 @@ export class GristAdapter implements ApiAdapter {
    * Liste les tables d'un document Grist.
    * GET /api/docs/{docId}/tables
    */
-  async fetchTables(
-    params: AdapterParams,
-    signal?: AbortSignal
-  ): Promise<GristTable[]> {
+  async fetchTables(params: AdapterParams, signal?: AbortSignal): Promise<GristTable[]> {
     const url = getProxiedUrl(params.baseUrl.replace(/\/tables\/[^/]+\/records.*$/, '/tables'));
     try {
       const response = await fetch(url, buildFetchOptions(params, signal));
@@ -366,7 +366,10 @@ export class GristAdapter implements ApiAdapter {
    */
   _colonWhereToGristFilter(where: string): Record<string, string[]> | null {
     const filter: Record<string, string[]> = {};
-    const parts = where.split(',').map(p => p.trim()).filter(Boolean);
+    const parts = where
+      .split(',')
+      .map((p) => p.trim())
+      .filter(Boolean);
 
     for (const part of parts) {
       const [field, op, ...rest] = part.split(':');
@@ -388,10 +391,13 @@ export class GristAdapter implements ApiAdapter {
    * "population:desc, nom:asc" → "-population,nom"
    */
   _orderByToGristSort(orderBy: string): string {
-    return orderBy.split(',').map(part => {
-      const [field, dir] = part.trim().split(':');
-      return dir === 'desc' ? `-${field}` : field;
-    }).join(',');
+    return orderBy
+      .split(',')
+      .map((part) => {
+        const [field, dir] = part.trim().split(':');
+        return dir === 'desc' ? `-${field}` : field;
+      })
+      .join(',');
   }
 
   /** Aplatir records[].fields en objets plats */
@@ -399,7 +405,7 @@ export class GristAdapter implements ApiAdapter {
     return records.map((r: unknown) => {
       const rec = r as Record<string, unknown>;
       const fields = rec.fields as Record<string, unknown> | undefined;
-      return fields ? { ...fields } : rec as Record<string, unknown>;
+      return fields ? { ...fields } : (rec as Record<string, unknown>);
     });
   }
 
@@ -421,8 +427,19 @@ export class GristAdapter implements ApiAdapter {
   }
 
   private _hasAdvancedOperators(where: string): boolean {
-    const advancedOps = ['gt', 'gte', 'lt', 'lte', 'contains', 'notcontains', 'neq', 'isnull', 'isnotnull', 'notin'];
-    return where.split(',').some(part => {
+    const advancedOps = [
+      'gt',
+      'gte',
+      'lt',
+      'lte',
+      'contains',
+      'notcontains',
+      'neq',
+      'isnull',
+      'isnotnull',
+      'notin',
+    ];
+    return where.split(',').some((part) => {
       const segments = part.trim().split(':');
       return segments.length >= 2 && advancedOps.includes(segments[1]);
     });
@@ -443,8 +460,11 @@ export class GristAdapter implements ApiAdapter {
     signal: AbortSignal
   ): Promise<FetchResult> {
     const table = this._getTableId(params);
-    const { select, groupBy, where, orderBy, limit, offset, args } =
-      this._buildSqlQuery(params, overlay, table);
+    const { select, groupBy, where, orderBy, limit, offset, args } = this._buildSqlQuery(
+      params,
+      overlay,
+      table
+    );
 
     const sql = [
       `SELECT ${select}`,
@@ -454,7 +474,9 @@ export class GristAdapter implements ApiAdapter {
       orderBy ? `ORDER BY ${orderBy}` : '',
       limit ? `LIMIT ${limit}` : '',
       offset ? `OFFSET ${offset}` : '',
-    ].filter(Boolean).join(' ');
+    ]
+      .filter(Boolean)
+      .join(' ');
 
     const sqlUrl = getProxiedUrl(this._getSqlEndpointUrl(params));
     const response = await fetch(sqlUrl, {
@@ -470,7 +492,9 @@ export class GristAdapter implements ApiAdapter {
     if (!response.ok) {
       // Fallback : si SQL indisponible, revenir au mode Records
       if (response.status === 404 || response.status === 403) {
-        console.warn('[dsfr-data] Grist SQL endpoint not available, falling back to client-side processing');
+        console.warn(
+          '[dsfr-data] Grist SQL endpoint not available, falling back to client-side processing'
+        );
         this._sqlAvailableByHost.set(this._extractHostname(params.baseUrl), false);
         return this._fetchAllRecords(params, signal);
       }
@@ -507,7 +531,11 @@ export class GristAdapter implements ApiAdapter {
   // Mode SQL : construction de requete
   // =========================================================================
 
-  private _buildSqlQuery(params: AdapterParams, overlay: ServerSideOverlay | undefined, _table: string): SqlQuery {
+  private _buildSqlQuery(
+    params: AdapterParams,
+    overlay: ServerSideOverlay | undefined,
+    _table: string
+  ): SqlQuery {
     const args: (string | number)[] = [];
     let select = '*';
     let groupBy = '';
@@ -518,15 +546,16 @@ export class GristAdapter implements ApiAdapter {
 
     // SELECT + GROUP BY + AGGREGATE
     if (params.groupBy) {
-      const groupFields = params.groupBy.split(',').map(f => this._escapeIdentifier(f.trim()));
+      const groupFields = params.groupBy.split(',').map((f) => this._escapeIdentifier(f.trim()));
       groupBy = groupFields.join(', ');
 
       if (params.aggregate) {
         const aggParts = this.parseAggregates(params.aggregate);
         const selectParts = [
           ...groupFields,
-          ...aggParts.map(a =>
-            `${a.function.toUpperCase()}(${this._escapeIdentifier(a.field)}) as ${this._escapeIdentifier(a.alias || `${a.function}_${a.field}`)}`
+          ...aggParts.map(
+            (a) =>
+              `${a.function.toUpperCase()}(${this._escapeIdentifier(a.field)}) as ${this._escapeIdentifier(a.alias || `${a.function}_${a.field}`)}`
           ),
         ];
         select = selectParts.join(', ');
@@ -544,10 +573,13 @@ export class GristAdapter implements ApiAdapter {
     // ORDER BY
     const sort = overlay?.orderBy || params.orderBy;
     if (sort) {
-      orderBy = sort.split(',').map(part => {
-        const [field, dir] = part.trim().split(':');
-        return `${this._escapeIdentifier(field)} ${dir === 'desc' ? 'DESC' : 'ASC'}`;
-      }).join(', ');
+      orderBy = sort
+        .split(',')
+        .map((part) => {
+          const [field, dir] = part.trim().split(':');
+          return `${this._escapeIdentifier(field)} ${dir === 'desc' ? 'DESC' : 'ASC'}`;
+        })
+        .join(', ');
     }
 
     // LIMIT / OFFSET
@@ -573,7 +605,10 @@ export class GristAdapter implements ApiAdapter {
    */
   _colonWhereToSql(where: string, args: (string | number)[]): string {
     const clauses: string[] = [];
-    const parts = where.split(',').map(p => p.trim()).filter(Boolean);
+    const parts = where
+      .split(',')
+      .map((p) => p.trim())
+      .filter(Boolean);
 
     for (const part of parts) {
       const [field, op, ...rest] = part.split(':');
@@ -646,11 +681,16 @@ export class GristAdapter implements ApiAdapter {
    * Input:  { records: [[v1, v2], [v3, v4]], columns: ["col1", "col2"] }
    * Output: [{ col1: v1, col2: v2 }, { col1: v3, col2: v4 }]
    */
-  _sqlResultToObjects(json: { records?: unknown[][]; columns?: string[] }): Record<string, unknown>[] {
+  _sqlResultToObjects(json: {
+    records?: unknown[][];
+    columns?: string[];
+  }): Record<string, unknown>[] {
     const { records = [], columns = [] } = json;
-    return records.map(row => {
+    return records.map((row) => {
       const obj: Record<string, unknown> = {};
-      columns.forEach((col, i) => { obj[col] = row[i]; });
+      columns.forEach((col, i) => {
+        obj[col] = row[i];
+      });
       return obj;
     });
   }
@@ -699,7 +739,9 @@ export class GristAdapter implements ApiAdapter {
   // SQL availability check (per hostname cache)
   // =========================================================================
 
-  private async _checkSqlAvailability(params: Pick<AdapterParams, 'baseUrl' | 'headers'>): Promise<boolean> {
+  private async _checkSqlAvailability(
+    params: Pick<AdapterParams, 'baseUrl' | 'headers'>
+  ): Promise<boolean> {
     const hostname = this._extractHostname(params.baseUrl);
     const cached = this._sqlAvailableByHost.get(hostname);
     if (cached !== undefined) return cached;
@@ -714,17 +756,25 @@ export class GristAdapter implements ApiAdapter {
       const available = response.ok;
       this._sqlAvailableByHost.set(hostname, available);
       if (!available) {
-        console.info(`[dsfr-data] Grist SQL endpoint not available on ${hostname} — using client-side processing`);
+        console.info(
+          `[dsfr-data] Grist SQL endpoint not available on ${hostname} — using client-side processing`
+        );
       }
       return available;
     } catch {
       this._sqlAvailableByHost.set(hostname, false);
-      console.info(`[dsfr-data] Grist SQL endpoint not available on ${hostname} — using client-side processing`);
+      console.info(
+        `[dsfr-data] Grist SQL endpoint not available on ${hostname} — using client-side processing`
+      );
       return false;
     }
   }
 
   private _extractHostname(url: string): string {
-    try { return new URL(url).hostname; } catch { return url; }
+    try {
+      return new URL(url).hostname;
+    } catch {
+      return url;
+    }
   }
 }

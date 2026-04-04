@@ -14,7 +14,12 @@
  */
 
 import type { StorageAdapter } from './storage-adapter.js';
-import { loadFromStorage, saveToStorage, removeFromStorage, STORAGE_KEYS } from './local-storage.js';
+import {
+  loadFromStorage,
+  saveToStorage,
+  removeFromStorage,
+  STORAGE_KEYS,
+} from './local-storage.js';
 import { syncItems, deleteItem, setSyncBaseUrl } from './sync-queue.js';
 import type { Source } from '../types/source.js';
 import { serializeSourceForServer } from '../types/source.js';
@@ -23,9 +28,17 @@ import { serializeSourceForServer } from '../types/source.js';
 
 /** Fields managed by the server — must NOT be packed into configJson on round-trip. */
 const SERVER_ONLY_FIELDS = new Set([
-  'config_json', 'configJson', 'data_json', 'dataJson',
-  'record_count', 'owner_id', 'created_at', 'updated_at',
-  'api_key_encrypted', '_owned', '_permissions',
+  'config_json',
+  'configJson',
+  'data_json',
+  'dataJson',
+  'record_count',
+  'owner_id',
+  'created_at',
+  'updated_at',
+  'api_key_encrypted',
+  '_owned',
+  '_permissions',
 ]);
 
 /**
@@ -80,9 +93,11 @@ function flattenServerItem(item: Record<string, unknown>): Record<string, unknow
  */
 function hasCompleteServerConfig(item: Record<string, unknown>): boolean {
   const configJson = item.config_json ?? item.configJson;
-  return configJson != null
-    && typeof configJson === 'object'
-    && Object.keys(configJson as object).length > 0;
+  return (
+    configJson != null &&
+    typeof configJson === 'object' &&
+    Object.keys(configJson as object).length > 0
+  );
 }
 
 /**
@@ -114,14 +129,14 @@ function hasLocalConfig(item: Record<string, unknown>, key: string): boolean {
 function mergeServerWithLocal(
   serverItems: Record<string, unknown>[],
   localItems: Record<string, unknown>[],
-  key: string,
+  key: string
 ): Record<string, unknown>[] {
   const localById = new Map<string, Record<string, unknown>>();
   for (const item of localItems) {
     if (item.id) localById.set(item.id as string, item);
   }
 
-  return serverItems.map(serverItem => {
+  return serverItems.map((serverItem) => {
     const id = serverItem.id as string;
     if (!id) return flattenServerItem(serverItem);
 
@@ -191,18 +206,17 @@ export class ApiStorageAdapter implements StorageAdapter {
         return loadFromStorage(key, defaultValue);
       }
 
-      let data = await response.json() as T;
+      let data = (await response.json()) as T;
 
       // For sources/connections: merge server data with local to repair
       // items that have config_json: null (saved before serialization fix).
       // The save hook will re-sync repaired items to the server.
-      if (Array.isArray(data) && (key === STORAGE_KEYS.SOURCES || key === STORAGE_KEYS.CONNECTIONS)) {
+      if (
+        Array.isArray(data) &&
+        (key === STORAGE_KEYS.SOURCES || key === STORAGE_KEYS.CONNECTIONS)
+      ) {
         const localData = loadFromStorage<Record<string, unknown>[]>(key, []);
-        data = mergeServerWithLocal(
-          data as Record<string, unknown>[],
-          localData,
-          key,
-        ) as T;
+        data = mergeServerWithLocal(data as Record<string, unknown>[], localData, key) as T;
       }
 
       // Update localStorage cache

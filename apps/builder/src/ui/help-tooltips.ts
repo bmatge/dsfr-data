@@ -111,7 +111,7 @@ export function updatePreviewSteps(): void {
     return !!state.labelField && !!state.valueField;
   })();
 
-  steps.forEach(li => {
+  steps.forEach((li) => {
     const step = (li as HTMLElement).dataset.step;
     let done = false;
     if (step === 'source') done = hasSource;

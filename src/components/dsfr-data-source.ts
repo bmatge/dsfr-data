@@ -12,7 +12,7 @@ import {
   clearDataCache,
   setDataMeta,
   clearDataMeta,
-  subscribeToSourceCommands
+  subscribeToSourceCommands,
 } from '../utils/data-bridge.js';
 
 /**
@@ -190,16 +190,28 @@ export class DsfrDataSource extends LitElement {
     }
 
     // Detect changes that should trigger a re-fetch
-    const urlModeChanged = changedProperties.has('url') || changedProperties.has('params') || changedProperties.has('transform') || changedProperties.has('apiKeyRef');
-    const adapterModeChanged = changedProperties.has('apiType') || changedProperties.has('baseUrl') ||
-      changedProperties.has('datasetId') || changedProperties.has('resource') ||
-      changedProperties.has('where') || changedProperties.has('select') ||
-      changedProperties.has('groupBy') || changedProperties.has('aggregate') ||
-      changedProperties.has('orderBy') || changedProperties.has('limit');
+    const urlModeChanged =
+      changedProperties.has('url') ||
+      changedProperties.has('params') ||
+      changedProperties.has('transform') ||
+      changedProperties.has('apiKeyRef');
+    const adapterModeChanged =
+      changedProperties.has('apiType') ||
+      changedProperties.has('baseUrl') ||
+      changedProperties.has('datasetId') ||
+      changedProperties.has('resource') ||
+      changedProperties.has('where') ||
+      changedProperties.has('select') ||
+      changedProperties.has('groupBy') ||
+      changedProperties.has('aggregate') ||
+      changedProperties.has('orderBy') ||
+      changedProperties.has('limit');
 
     if (urlModeChanged || adapterModeChanged) {
-      if ((this.paginate || this.serverSide) &&
-        (changedProperties.has('url') || changedProperties.has('params') || adapterModeChanged)) {
+      if (
+        (this.paginate || this.serverSide) &&
+        (changedProperties.has('url') || changedProperties.has('params') || adapterModeChanged)
+      ) {
         this._currentPage = 1;
       }
       // Invalidate adapter cache on api-type change
@@ -213,8 +225,12 @@ export class DsfrDataSource extends LitElement {
       this._setupRefresh();
     }
 
-    if (changedProperties.has('paginate') || changedProperties.has('pageSize') ||
-      changedProperties.has('serverSide') || changedProperties.has('apiType')) {
+    if (
+      changedProperties.has('paginate') ||
+      changedProperties.has('pageSize') ||
+      changedProperties.has('serverSide') ||
+      changedProperties.has('apiType')
+    ) {
       this._setupCommandListener();
     }
   }
@@ -277,7 +293,9 @@ export class DsfrDataSource extends LitElement {
   }
 
   private _isAdapterMode(): boolean {
-    return this.apiType !== 'generic' || (this.apiType === 'generic' && !this.url && this.baseUrl !== '');
+    return (
+      this.apiType !== 'generic' || (this.apiType === 'generic' && !this.url && this.baseUrl !== '')
+    );
   }
 
   private _cleanup() {
@@ -401,7 +419,7 @@ export class DsfrDataSource extends LitElement {
 
       const response = await fetch(url, {
         ...options,
-        signal: this._abortController.signal
+        signal: this._abortController.signal,
       });
 
       if (!response.ok) {
@@ -414,14 +432,16 @@ export class DsfrDataSource extends LitElement {
         json = await response.json();
       } catch {
         const ct = response.headers?.get?.('content-type') || 'unknown';
-        throw new Error(`Reponse non-JSON (content-type: ${ct}) — verifiez l'URL ou la configuration du proxy`);
+        throw new Error(
+          `Reponse non-JSON (content-type: ${ct}) — verifiez l'URL ou la configuration du proxy`
+        );
       }
 
       if (this.paginate && json.meta) {
         setDataMeta(this.id, {
           page: json.meta.page ?? this._currentPage,
           pageSize: json.meta.page_size ?? this.pageSize,
-          total: json.meta.total ?? 0
+          total: json.meta.total ?? 0,
         });
       }
 
@@ -473,7 +493,9 @@ export class DsfrDataSource extends LitElement {
 
     const adapter = this.getAdapter();
     if (!adapter) {
-      console.warn(`dsfr-data-source[${this.id}]: adapter introuvable pour api-type="${this.apiType}"`);
+      console.warn(
+        `dsfr-data-source[${this.id}]: adapter introuvable pour api-type="${this.apiType}"`
+      );
       return;
     }
 
@@ -560,7 +582,11 @@ export class DsfrDataSource extends LitElement {
   private _getAdapterParams(): AdapterParams {
     let parsedHeaders: Record<string, string> | undefined;
     if (this.headers) {
-      try { parsedHeaders = JSON.parse(this.headers); } catch { /* ignore */ }
+      try {
+        parsedHeaders = JSON.parse(this.headers);
+      } catch {
+        /* ignore */
+      }
     }
 
     // api-key-ref takes precedence over explicit Authorization header
@@ -592,12 +618,16 @@ export class DsfrDataSource extends LitElement {
     if (!this.apiKeyRef) return null;
     const registry = window.DSFR_DATA_KEYS;
     if (!registry || typeof registry !== 'object') {
-      console.warn(`dsfr-data-source[${this.id}]: window.DSFR_DATA_KEYS non defini, api-key-ref="${this.apiKeyRef}" ignore`);
+      console.warn(
+        `dsfr-data-source[${this.id}]: window.DSFR_DATA_KEYS non defini, api-key-ref="${this.apiKeyRef}" ignore`
+      );
       return null;
     }
     const value = registry[this.apiKeyRef];
     if (!value || typeof value !== 'string') {
-      console.warn(`dsfr-data-source[${this.id}]: cle "${this.apiKeyRef}" introuvable dans window.DSFR_DATA_KEYS`);
+      console.warn(
+        `dsfr-data-source[${this.id}]: cle "${this.apiKeyRef}" introuvable dans window.DSFR_DATA_KEYS`
+      );
       return null;
     }
     return { Authorization: value };
@@ -630,7 +660,7 @@ export class DsfrDataSource extends LitElement {
 
   private _buildFetchOptions(): RequestInit {
     const options: RequestInit = {
-      method: this.method
+      method: this.method,
     };
 
     let headers: Record<string, string> = {};

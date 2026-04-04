@@ -18,7 +18,7 @@ export function generateHTMLCode(): string {
   const { dashboard } = state;
 
   const widgetsByRow: Record<number, Widget[]> = {};
-  dashboard.widgets.forEach(w => {
+  dashboard.widgets.forEach((w) => {
     if (!widgetsByRow[w.position.row]) {
       widgetsByRow[w.position.row] = [];
     }
@@ -26,25 +26,27 @@ export function generateHTMLCode(): string {
   });
 
   let widgetsHTML = '';
-  Object.keys(widgetsByRow).sort((a, b) => Number(a) - Number(b)).forEach(rowKey => {
-    const rowIdx = Number(rowKey);
-    const widgets = widgetsByRow[rowIdx];
+  Object.keys(widgetsByRow)
+    .sort((a, b) => Number(a) - Number(b))
+    .forEach((rowKey) => {
+      const rowIdx = Number(rowKey);
+      const widgets = widgetsByRow[rowIdx];
 
-    // Per-row column class
-    const columns = getRowColumns(dashboard, rowIdx);
-    const colSize = Math.floor(12 / columns);
-    const colClass = colSize === 12 ? 'fr-col-12' : `fr-col-12 fr-col-md-${colSize}`;
+      // Per-row column class
+      const columns = getRowColumns(dashboard, rowIdx);
+      const colSize = Math.floor(12 / columns);
+      const colClass = colSize === 12 ? 'fr-col-12' : `fr-col-12 fr-col-md-${colSize}`;
 
-    widgetsHTML += `    <div class="fr-grid-row ${dashboard.layout.gap}">\n`;
+      widgetsHTML += `    <div class="fr-grid-row ${dashboard.layout.gap}">\n`;
 
-    widgets.forEach(widget => {
-      widgetsHTML += `      <div class="${colClass}">\n`;
-      widgetsHTML += generateWidgetHTML(widget);
-      widgetsHTML += `      </div>\n`;
+      widgets.forEach((widget) => {
+        widgetsHTML += `      <div class="${colClass}">\n`;
+        widgetsHTML += generateWidgetHTML(widget);
+        widgetsHTML += `      </div>\n`;
+      });
+
+      widgetsHTML += `    </div>\n`;
     });
-
-    widgetsHTML += `    </div>\n`;
-  });
 
   return `<!DOCTYPE html>
 <html lang="fr" data-fr-theme>
@@ -102,7 +104,9 @@ ${indent}  selected-palette="${widget.config.palette || 'categorical'}">
 ${indent}</dsfr-data-chart>\n`;
 
     case 'table': {
-      const cols = widget.config.columns?.length ? ` columns='${JSON.stringify(widget.config.columns)}'` : '';
+      const cols = widget.config.columns?.length
+        ? ` columns='${JSON.stringify(widget.config.columns)}'`
+        : '';
       const searchable = widget.config.searchable ? ' searchable' : '';
       const sortable = widget.config.sortable ? ' sortable' : '';
       return `${indent}<dsfr-data-list${cols}${searchable}${sortable}>

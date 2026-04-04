@@ -4,7 +4,7 @@ export type NodeCategory = 'source' | 'transform' | 'interact' | 'display' | 'a1
 
 export interface PipelineNodeConfig {
   label: string;
-  component: string;          // dsfr-data-* tag name
+  component: string; // dsfr-data-* tag name
   category: NodeCategory;
   icon: string;
   description: string;
@@ -83,8 +83,8 @@ export class AggregateControl extends ClassicPreset.Control {
 
   get value(): string {
     return this.rows
-      .filter(r => r.field)
-      .map(r => r.alias ? `${r.field}:${r.fn}:${r.alias}` : `${r.field}:${r.fn}`)
+      .filter((r) => r.field)
+      .map((r) => (r.alias ? `${r.field}:${r.fn}:${r.alias}` : `${r.field}:${r.fn}`))
       .join(', ');
   }
 
@@ -92,7 +92,7 @@ export class AggregateControl extends ClassicPreset.Control {
     if (!val) {
       this.rows = [{ field: '', fn: 'sum', alias: '' }];
     } else {
-      this.rows = val.split(',').map(part => {
+      this.rows = val.split(',').map((part) => {
         const [field, fn, alias] = part.trim().split(':');
         return { field: field || '', fn: fn || 'sum', alias: alias || '' };
       });

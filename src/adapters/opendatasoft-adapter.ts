@@ -6,15 +6,22 @@
  */
 
 import type {
-  ApiAdapter, AdapterCapabilities, AdapterParams,
-  FetchResult, ServerSideOverlay, FacetResult
+  ApiAdapter,
+  AdapterCapabilities,
+  AdapterParams,
+  FetchResult,
+  ServerSideOverlay,
+  FacetResult,
 } from './api-adapter.js';
 import type { QueryAggregate } from '../components/dsfr-data-query.js';
 import type { ProviderConfig } from '@dsfr-data/shared';
 import { ODS_CONFIG, getProxiedUrl } from '@dsfr-data/shared';
 
 /** Construit les options fetch avec headers optionnels */
-function buildFetchOptions(params: Pick<AdapterParams, 'headers'>, signal?: AbortSignal): RequestInit {
+function buildFetchOptions(
+  params: Pick<AdapterParams, 'headers'>,
+  signal?: AbortSignal
+): RequestInit {
   const opts: RequestInit = {};
   if (signal) opts.signal = signal;
   if (params.headers && Object.keys(params.headers).length > 0) {
@@ -83,10 +90,7 @@ export class OpenDataSoftAdapter implements ApiAdapter {
         totalCount = json.total_count;
       }
 
-      if (
-        (totalCount >= 0 && allResults.length >= totalCount) ||
-        pageResults.length < pageSize
-      ) {
+      if ((totalCount >= 0 && allResults.length >= totalCount) || pageResults.length < pageSize) {
         break;
       }
 
@@ -97,7 +101,7 @@ export class OpenDataSoftAdapter implements ApiAdapter {
     if (totalCount >= 0 && allResults.length < totalCount && allResults.length < requestedLimit) {
       console.warn(
         `dsfr-data-query: pagination incomplete - ${allResults.length}/${totalCount} resultats recuperes ` +
-        `(limite de securite: ${ODS_MAX_PAGES} pages de ${ODS_PAGE_SIZE})`
+          `(limite de securite: ${ODS_MAX_PAGES} pages de ${ODS_PAGE_SIZE})`
       );
     }
 
@@ -111,7 +115,11 @@ export class OpenDataSoftAdapter implements ApiAdapter {
   /**
    * Fetch une seule page en mode server-side.
    */
-  async fetchPage(params: AdapterParams, overlay: ServerSideOverlay, signal: AbortSignal): Promise<FetchResult> {
+  async fetchPage(
+    params: AdapterParams,
+    overlay: ServerSideOverlay,
+    signal: AbortSignal
+  ): Promise<FetchResult> {
     const url = getProxiedUrl(this.buildServerSideUrl(params, overlay));
 
     const response = await fetch(url, buildFetchOptions(params, signal));
@@ -155,7 +163,10 @@ export class OpenDataSoftAdapter implements ApiAdapter {
     }
 
     if (params.orderBy) {
-      const sortExpr = params.orderBy.replace(/:(\w+)$/, (_, dir: string) => ` ${dir.toUpperCase()}`);
+      const sortExpr = params.orderBy.replace(
+        /:(\w+)$/,
+        (_, dir: string) => ` ${dir.toUpperCase()}`
+      );
       url.searchParams.set('order_by', sortExpr);
     }
 
@@ -199,7 +210,10 @@ export class OpenDataSoftAdapter implements ApiAdapter {
     // ORDER BY: overlay prioritaire, fallback statique
     const effectiveOrderBy = overlay.orderBy;
     if (effectiveOrderBy) {
-      const sortExpr = effectiveOrderBy.replace(/:(\w+)$/, (_, dir: string) => ` ${dir.toUpperCase()}`);
+      const sortExpr = effectiveOrderBy.replace(
+        /:(\w+)$/,
+        (_, dir: string) => ` ${dir.toUpperCase()}`
+      );
       url.searchParams.set('order_by', sortExpr);
     }
 
@@ -240,7 +254,7 @@ export class OpenDataSoftAdapter implements ApiAdapter {
     const json = await response.json();
     const results: FacetResult[] = [];
 
-    for (const facetData of (json.facets || [])) {
+    for (const facetData of json.facets || []) {
       results.push({
         field: facetData.name,
         values: (facetData.facets || []).map((v: { value: string; count: number }) => ({
@@ -261,10 +275,7 @@ export class OpenDataSoftAdapter implements ApiAdapter {
     return ODS_CONFIG;
   }
 
-  buildFacetWhere(
-    selections: Record<string, Set<string>>,
-    excludeField?: string
-  ): string {
+  buildFacetWhere(selections: Record<string, Set<string>>, excludeField?: string): string {
     const parts: string[] = [];
     for (const [field, values] of Object.entries(selections)) {
       if (field === excludeField || values.size === 0) continue;
@@ -272,7 +283,7 @@ export class OpenDataSoftAdapter implements ApiAdapter {
         const val = [...values][0].replace(/"/g, '\\"');
         parts.push(`${field} = "${val}"`);
       } else {
-        const vals = [...values].map(v => `"${v.replace(/"/g, '\\"')}"`).join(', ');
+        const vals = [...values].map((v) => `"${v.replace(/"/g, '\\"')}"`).join(', ');
         parts.push(`${field} IN (${vals})`);
       }
     }
@@ -282,7 +293,10 @@ export class OpenDataSoftAdapter implements ApiAdapter {
   parseAggregates(aggExpr: string): QueryAggregate[] {
     if (!aggExpr) return [];
     const aggregates: QueryAggregate[] = [];
-    const parts = aggExpr.split(',').map(p => p.trim()).filter(Boolean);
+    const parts = aggExpr
+      .split(',')
+      .map((p) => p.trim())
+      .filter(Boolean);
     for (const part of parts) {
       const segments = part.split(':');
       if (segments.length >= 2) {
@@ -309,7 +323,10 @@ export class OpenDataSoftAdapter implements ApiAdapter {
       selectParts.push(`${odsFunc} as ${alias}`);
     }
 
-    const groupFields = params.groupBy.split(',').map(f => f.trim()).filter(Boolean);
+    const groupFields = params.groupBy
+      .split(',')
+      .map((f) => f.trim())
+      .filter(Boolean);
     for (const gf of groupFields) {
       selectParts.push(gf);
     }

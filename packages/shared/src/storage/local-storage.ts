@@ -48,7 +48,11 @@ export function saveToStorage<T>(key: string, data: T): boolean {
     // Fire save hook for API sync (with re-entry guard)
     if (_saveHook && !_inHook) {
       _inHook = true;
-      try { _saveHook(key, data); } catch { /* ignore hook errors */ }
+      try {
+        _saveHook(key, data);
+      } catch {
+        /* ignore hook errors */
+      }
       _inHook = false;
     }
     return true;

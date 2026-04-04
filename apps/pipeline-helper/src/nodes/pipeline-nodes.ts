@@ -1,5 +1,10 @@
 import { ClassicPreset } from 'rete';
-import { PipelineNode, AttributeControl, SavedSourceSelector, AggregateControl } from './base-node.js';
+import {
+  PipelineNode,
+  AttributeControl,
+  SavedSourceSelector,
+  AggregateControl,
+} from './base-node.js';
 import { DataSocket, CommandSocket } from './sockets.js';
 import { NODE_CONFIGS } from './node-configs.js';
 

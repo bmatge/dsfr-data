@@ -89,8 +89,8 @@ export class AppLayoutBuilder extends LitElement {
     const rightContainer = this.querySelector('.builder-layout-right');
 
     if (leftContainer && rightContainer) {
-      this._leftContent.forEach(el => leftContainer.appendChild(el));
-      this._rightContent.forEach(el => rightContainer.appendChild(el));
+      this._leftContent.forEach((el) => leftContainer.appendChild(el));
+      this._rightContent.forEach((el) => rightContainer.appendChild(el));
       this._contentMoved = true;
     }
   }
@@ -171,9 +171,10 @@ export class AppLayoutBuilder extends LitElement {
           <!-- Contenu slot="left" sera déplacé ici -->
         </aside>
 
-        <div class="builder-layout-resizer ${this._isResizing ? 'dragging' : ''}"
-             @mousedown="${this._handleMouseDown}">
-        </div>
+        <div
+          class="builder-layout-resizer ${this._isResizing ? 'dragging' : ''}"
+          @mousedown="${this._handleMouseDown}"
+        ></div>
 
         <main class="builder-layout-right" id="main-content">
           <!-- Contenu slot="right" sera déplacé ici -->

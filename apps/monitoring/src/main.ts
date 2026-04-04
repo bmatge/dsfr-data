@@ -54,7 +54,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const authState = await checkAuth();
       currentUser = authState.user;
-    } catch { /* no backend */ }
+    } catch {
+      /* no backend */
+    }
   }
 
   try {
@@ -146,7 +148,9 @@ function renderKpis(): void {
   // Show "X / Y" when filtered
   const isFiltered = filteredEntries.length !== data.entries.length;
   const totalPages = isFiltered ? new Set(data.entries.map((e) => e.referer)).size : uniquePages;
-  const totalSites = isFiltered ? new Set(data.entries.map((e) => extractDomain(e.referer))).size : uniqueSites;
+  const totalSites = isFiltered
+    ? new Set(data.entries.map((e) => extractDomain(e.referer))).size
+    : uniqueSites;
 
   row.innerHTML = `
     <div class="monitoring-kpi">
@@ -205,7 +209,9 @@ function applyFilters(): void {
 
   const component = (document.getElementById('filter-component') as HTMLSelectElement).value;
   const chartType = (document.getElementById('filter-type') as HTMLSelectElement).value;
-  const search = (document.getElementById('search-referer') as HTMLInputElement).value.toLowerCase().trim();
+  const search = (document.getElementById('search-referer') as HTMLInputElement).value
+    .toLowerCase()
+    .trim();
 
   filteredEntries = data.entries.filter((e) => {
     if (component && e.component !== component) return false;
@@ -293,7 +299,12 @@ function renderComponentBadges(components: GroupedEntry['components']): string {
       const n = types.length || 1;
       const countPrefix = n > 1 ? `<span class="monitoring-badge__count">${n}</span>` : '';
       const typeSuffix = types.length
-        ? ' ' + types.map((t) => `<span class="monitoring-badge monitoring-badge--type">${escapeHtml(t)}</span>`).join(' ')
+        ? ' ' +
+          types
+            .map(
+              (t) => `<span class="monitoring-badge monitoring-badge--type">${escapeHtml(t)}</span>`
+            )
+            .join(' ')
         : '';
       return `<span class="monitoring-badge">${countPrefix}${escapeHtml(label)}</span>${typeSuffix}`;
     })
@@ -324,7 +335,8 @@ function renderTable(): void {
       <td class="monitoring-date">${formatDate(e.lastSeen)}</td>
       <td class="monitoring-count">${e.callCount.toLocaleString('fr-FR')}</td>
       ${showDelete ? `<td><button class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm monitoring-delete-btn" data-referer="${escapeHtml(e.referer)}" title="Supprimer"><i class="ri-delete-bin-line"></i></button></td>` : ''}
-    </tr>`)
+    </tr>`
+    )
     .join('');
 
   container.innerHTML = `
@@ -380,7 +392,8 @@ function renderAdminControls(): void {
 }
 
 async function purgeAll(): Promise<void> {
-  if (!confirm('Supprimer toutes les donnees de monitoring ? Cette action est irreversible.')) return;
+  if (!confirm('Supprimer toutes les donnees de monitoring ? Cette action est irreversible.'))
+    return;
 
   try {
     const res = await fetch('/api/monitoring/data', {
@@ -457,18 +470,31 @@ async function refreshData(): Promise<void> {
 // ---------------------------------------------------------------------------
 
 function exportCsv(): void {
-  const headers = ['Site', 'Page', 'Composants', 'Types', 'Premier appel', 'Dernier appel', 'Appels'];
+  const headers = [
+    'Site',
+    'Page',
+    'Composants',
+    'Types',
+    'Premier appel',
+    'Dernier appel',
+    'Appels',
+  ];
   const rows = groupedEntries.map((e) => [
     extractDomain(decodeUrl(e.referer)),
     extractPath(decodeUrl(e.referer)),
     e.components.map((c) => c.component).join(', '),
-    e.components.map((c) => c.chartType || '').filter(Boolean).join(', '),
+    e.components
+      .map((c) => c.chartType || '')
+      .filter(Boolean)
+      .join(', '),
     e.firstSeen,
     e.lastSeen,
     String(e.callCount),
   ]);
 
-  const csv = [headers, ...rows].map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(',')).join('\n');
+  const csv = [headers, ...rows]
+    .map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(','))
+    .join('\n');
 
   const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);

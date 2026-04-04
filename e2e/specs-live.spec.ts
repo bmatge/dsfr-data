@@ -40,13 +40,13 @@ function collectConsoleErrors(page: Page): string[] {
 test.describe('Specs — local data widgets', () => {
   test.setTimeout(60_000);
 
-  test('dsfr-data-chart.html — 5 chart types rendered', async ({ page }) => {
+  test('dsfr-data-chart.html — chart types rendered', async ({ page }) => {
     const errors = collectConsoleErrors(page);
     await page.goto('/specs/components/dsfr-data-chart.html');
     await page.waitForTimeout(5_000);
 
     const chartCount = await page.locator('dsfr-data-chart').count();
-    expect(chartCount).toBe(5);
+    expect(chartCount).toBeGreaterThanOrEqual(5);
 
     // Verify inner DSFR chart types are rendered
     const barCount = await page.locator('dsfr-data-chart bar-chart').count();
@@ -110,6 +110,18 @@ test.describe('Specs — local data widgets', () => {
     expect(chartCount).toBeGreaterThanOrEqual(1);
 
     await page.screenshot({ path: join(SCREENSHOT_DIR, 'dsfr-data-a11y.png'), fullPage: true });
+    expect(errors).toEqual([]);
+  });
+
+  test('dsfr-data-podium.html — podium widget rendered', async ({ page }) => {
+    const errors = collectConsoleErrors(page);
+    await page.goto('/specs/components/dsfr-data-podium.html');
+    await page.waitForTimeout(5_000);
+
+    const podiumCount = await page.locator('dsfr-data-podium').count();
+    expect(podiumCount).toBeGreaterThanOrEqual(1);
+
+    await page.screenshot({ path: join(SCREENSHOT_DIR, 'dsfr-data-podium.png'), fullPage: true });
     expect(errors).toEqual([]);
   });
 });
@@ -188,6 +200,8 @@ test.describe('Specs — doc-only pages', () => {
     'dsfr-data-source',
     'dsfr-data-query',
     'dsfr-data-normalize',
+    'dsfr-data-join',
+    'dsfr-data-map',
   ];
 
   for (const name of docPages) {

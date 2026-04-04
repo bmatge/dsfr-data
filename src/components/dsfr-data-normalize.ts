@@ -13,7 +13,7 @@ import {
   getDataMeta,
   setDataMeta,
   subscribeToSourceCommands,
-  dispatchSourceCommand
+  dispatchSourceCommand,
 } from '../utils/data-bridge.js';
 
 /**
@@ -157,8 +157,19 @@ export class DsfrDataNormalize extends LitElement {
     }
 
     // Re-traiter si les regles de normalisation changent
-    const normalizationAttrs = ['flatten', 'numeric', 'numericAuto', 'round', 'rename', 'trim', 'stripHtml', 'replace', 'replaceFields', 'lowercaseKeys'];
-    const hasNormalizationChange = normalizationAttrs.some(attr => changedProperties.has(attr));
+    const normalizationAttrs = [
+      'flatten',
+      'numeric',
+      'numericAuto',
+      'round',
+      'rename',
+      'trim',
+      'stripHtml',
+      'replace',
+      'replaceFields',
+      'lowercaseKeys',
+    ];
+    const hasNormalizationChange = normalizationAttrs.some((attr) => changedProperties.has(attr));
     if (hasNormalizationChange) {
       const cachedData = this.source ? getDataCache(this.source) : undefined;
       if (cachedData !== undefined) {
@@ -204,7 +215,7 @@ export class DsfrDataNormalize extends LitElement {
       },
       onError: (error: Error) => {
         dispatchDataError(this.id, error);
-      }
+      },
     });
 
     // Relayer les commandes vers la source upstream
@@ -221,7 +232,7 @@ export class DsfrDataNormalize extends LitElement {
 
       // Flatten: extract nested sub-object keys to top level (before all other transforms)
       if (this.flatten) {
-        rows = rows.map(row => {
+        rows = rows.map((row) => {
           if (row === null || row === undefined || typeof row !== 'object' || Array.isArray(row)) {
             return row;
           }
@@ -235,11 +246,18 @@ export class DsfrDataNormalize extends LitElement {
       const replaceMap = this._parsePipeMap(this.replace);
       const replaceFieldsMap = this._parseReplaceFields(this.replaceFields);
 
-      const result = rows.map(row => {
+      const result = rows.map((row) => {
         if (row === null || row === undefined || typeof row !== 'object') {
           return row;
         }
-        return this._normalizeRow(row as Record<string, unknown>, numericFields, roundFields, renameMap, replaceMap, replaceFieldsMap);
+        return this._normalizeRow(
+          row as Record<string, unknown>,
+          numericFields,
+          roundFields,
+          renameMap,
+          replaceMap,
+          replaceFieldsMap
+        );
       });
 
       dispatchDataLoaded(this.id, result);
@@ -306,7 +324,11 @@ export class DsfrDataNormalize extends LitElement {
       // 4. Numeric conversion (uses trimmed key for field matching)
       if (numericFields.has(key)) {
         normalizedValue = toNumber(normalizedValue);
-      } else if (this.numericAuto && typeof normalizedValue === 'string' && looksLikeNumber(normalizedValue)) {
+      } else if (
+        this.numericAuto &&
+        typeof normalizedValue === 'string' &&
+        looksLikeNumber(normalizedValue)
+      ) {
         const num = toNumber(normalizedValue, true);
         if (num !== null) {
           normalizedValue = num;
@@ -314,7 +336,11 @@ export class DsfrDataNormalize extends LitElement {
       }
 
       // 5. Round numeric values
-      if (roundFields.has(key) && typeof normalizedValue === 'number' && isFinite(normalizedValue)) {
+      if (
+        roundFields.has(key) &&
+        typeof normalizedValue === 'number' &&
+        isFinite(normalizedValue)
+      ) {
         const decimals = roundFields.get(key)!;
         if (decimals === 0) {
           normalizedValue = Math.round(normalizedValue);
@@ -353,7 +379,9 @@ export class DsfrDataNormalize extends LitElement {
   /** Resout un chemin en dot notation sur un objet */
   private _resolvePath(obj: Record<string, unknown>, path: string): unknown {
     return path.split('.').reduce<unknown>((acc, key) => {
-      return acc != null && typeof acc === 'object' ? (acc as Record<string, unknown>)[key] : undefined;
+      return acc != null && typeof acc === 'object'
+        ? (acc as Record<string, unknown>)[key]
+        : undefined;
     }, obj);
   }
 
@@ -368,7 +396,10 @@ export class DsfrDataNormalize extends LitElement {
   _parseNumericFields(): Set<string> {
     if (!this.numeric) return new Set();
     return new Set(
-      this.numeric.split(',').map(f => f.trim()).filter(Boolean)
+      this.numeric
+        .split(',')
+        .map((f) => f.trim())
+        .filter(Boolean)
     );
   }
 

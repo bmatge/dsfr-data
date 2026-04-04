@@ -25,7 +25,7 @@ router.get('/:sourceId', requireAuth, async (req, res) => {
       `SELECT * FROM data_cache
        WHERE source_id = ?
        AND DATE_ADD(fetched_at, INTERVAL ttl_seconds SECOND) > NOW()`,
-      [req.params.sourceId],
+      [req.params.sourceId]
     );
 
     if (!cache) {
@@ -80,7 +80,7 @@ router.put('/:sourceId', requireAuth, async (req, res) => {
         dataHash || null,
         recordCount || 0,
         ttlSeconds || 3600,
-      ],
+      ]
     );
 
     res.json({ ok: true });

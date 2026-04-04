@@ -91,7 +91,10 @@ export function resetGrid(): void {
   grid.innerHTML = `
     <div class="fr-grid-row ${state.dashboard.layout.gap} dashboard-row" data-row="0">
       ${buildRowControls(0, columns, 1)}
-      ${Array(columns).fill(0).map((_, i) => `
+      ${Array(columns)
+        .fill(0)
+        .map(
+          (_, i) => `
         <div class="${cc}">
           <div class="drop-cell empty" data-row="0" data-col="${i}">
             <div class="drop-cell-placeholder">
@@ -100,7 +103,9 @@ export function resetGrid(): void {
             </div>
           </div>
         </div>
-      `).join('')}
+      `
+        )
+        .join('')}
     </div>
   `;
 
@@ -143,7 +148,7 @@ export function rebuildGrid(): void {
 
     for (let colIdx = 0; colIdx < columns; colIdx++) {
       const widget = state.dashboard.widgets.find(
-        w => w.position.row === rowIdx && w.position.col === colIdx
+        (w) => w.position.row === rowIdx && w.position.col === colIdx
       );
       const colDiv = document.createElement('div');
       colDiv.className = cc;
@@ -188,13 +193,13 @@ export async function removeColumnFromRow(rowIndex: number): Promise<void> {
   if (current <= 1) return;
 
   const widgetsInLastCol = state.dashboard.widgets.filter(
-    w => w.position.row === rowIndex && w.position.col === current - 1
+    (w) => w.position.row === rowIndex && w.position.col === current - 1
   );
 
   if (widgetsInLastCol.length > 0) {
-    if (!await confirmDialog('Cette cellule contient un widget. Le supprimer ?')) return;
+    if (!(await confirmDialog('Cette cellule contient un widget. Le supprimer ?'))) return;
     state.dashboard.widgets = state.dashboard.widgets.filter(
-      w => !(w.position.row === rowIndex && w.position.col === current - 1)
+      (w) => !(w.position.row === rowIndex && w.position.col === current - 1)
     );
   }
 
@@ -209,17 +214,20 @@ export async function deleteRow(rowIndex: number): Promise<void> {
   const totalRows = grid?.querySelectorAll('.dashboard-row').length ?? 0;
   if (totalRows <= 1) return;
 
-  const widgetsInRow = state.dashboard.widgets.filter(w => w.position.row === rowIndex);
+  const widgetsInRow = state.dashboard.widgets.filter((w) => w.position.row === rowIndex);
 
   if (widgetsInRow.length > 0) {
-    if (!await confirmDialog(`Cette ligne contient ${widgetsInRow.length} widget(s). Supprimer ?`)) return;
+    if (
+      !(await confirmDialog(`Cette ligne contient ${widgetsInRow.length} widget(s). Supprimer ?`))
+    )
+      return;
   }
 
   // Remove widgets in the row
-  state.dashboard.widgets = state.dashboard.widgets.filter(w => w.position.row !== rowIndex);
+  state.dashboard.widgets = state.dashboard.widgets.filter((w) => w.position.row !== rowIndex);
 
   // Re-index widget positions for rows above the deleted one
-  state.dashboard.widgets.forEach(w => {
+  state.dashboard.widgets.forEach((w) => {
     if (w.position.row > rowIndex) {
       w.position.row -= 1;
     }

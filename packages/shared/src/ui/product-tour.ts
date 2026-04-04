@@ -147,10 +147,12 @@ function createOverlay(): void {
 
   // Click on overlay = skip
   overlayEl.addEventListener('click', (e) => {
-    if ((e.target as HTMLElement).classList.contains('tour-overlay-top') ||
-        (e.target as HTMLElement).classList.contains('tour-overlay-left') ||
-        (e.target as HTMLElement).classList.contains('tour-overlay-right') ||
-        (e.target as HTMLElement).classList.contains('tour-overlay-bottom')) {
+    if (
+      (e.target as HTMLElement).classList.contains('tour-overlay-top') ||
+      (e.target as HTMLElement).classList.contains('tour-overlay-left') ||
+      (e.target as HTMLElement).classList.contains('tour-overlay-right') ||
+      (e.target as HTMLElement).classList.contains('tour-overlay-bottom')
+    ) {
       endTour();
     }
   });
@@ -166,7 +168,10 @@ function handleEscape(e: KeyboardEvent): void {
 function showStep(index: number): void {
   if (!currentTour || !popoverEl || !overlayEl) return;
   const step = currentTour.steps[index];
-  if (!step) { endTour(); return; }
+  if (!step) {
+    endTour();
+    return;
+  }
 
   // onBeforeShow hook (e.g. open collapsed section)
   if (step.onBeforeShow) {

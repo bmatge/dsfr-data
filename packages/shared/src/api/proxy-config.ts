@@ -18,7 +18,8 @@ export interface ProxyConfig {
 /** Default production proxy base URL (overridable via VITE_PROXY_URL at build time) */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const _meta = import.meta as any;
-export const PROXY_BASE_URL: string = _meta.env?.VITE_PROXY_URL || 'https://chartsbuilder.matge.com';
+export const PROXY_BASE_URL: string =
+  _meta.env?.VITE_PROXY_URL || 'https://chartsbuilder.matge.com';
 
 /**
  * Base URL for the dsfr-data JS library in generated code.
@@ -49,15 +50,19 @@ export const DEFAULT_PROXY_CONFIG: ProxyConfig = {
     tabular: '/tabular-proxy',
     insee: '/insee-proxy',
     corsProxy: '/cors-proxy',
-  }
+  },
 };
 
 /** Detect if running in Vite dev server */
 export function isViteDevMode(): boolean {
   if (typeof window === 'undefined') return false;
   const { hostname, port } = window.location;
-  return (hostname === 'localhost' || hostname === '127.0.0.1')
-    && !!port && port !== '80' && port !== '443';
+  return (
+    (hostname === 'localhost' || hostname === '127.0.0.1') &&
+    !!port &&
+    port !== '80' &&
+    port !== '443'
+  );
 }
 
 /** Detect if running inside Tauri desktop app */
@@ -87,6 +92,6 @@ export function getProxyConfig(): ProxyConfig {
   // Production web: uses PROXY_BASE_URL (already respects VITE_PROXY_URL)
   return {
     baseUrl: PROXY_BASE_URL,
-    endpoints
+    endpoints,
   };
 }

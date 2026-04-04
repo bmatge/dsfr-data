@@ -20,7 +20,7 @@ export function populateFieldSelects(): void {
   valueSelect.innerHTML = '<option value="">\u2014 S\u00e9lectionner \u2014</option>';
   codeSelect.innerHTML = '<option value="">\u2014 S\u00e9lectionner \u2014</option>';
 
-  state.fields.forEach(field => {
+  state.fields.forEach((field) => {
     const displayText = field.displayName
       ? `${field.displayName} (${field.type})`
       : `${field.name} (${field.type})`;
@@ -48,30 +48,30 @@ export function populateFieldSelects(): void {
   const fieldNameLower = (f: { displayName?: string; name: string }): string =>
     (f.displayName || f.name).toLowerCase();
 
-  const stringField = state.fields.find(f =>
-    f.type === 'string' && (
-      fieldNameLower(f).includes('nom') ||
-      fieldNameLower(f).includes('region') ||
-      fieldNameLower(f).includes('departement') ||
-      fieldNameLower(f).includes('label')
-    )
+  const stringField = state.fields.find(
+    (f) =>
+      f.type === 'string' &&
+      (fieldNameLower(f).includes('nom') ||
+        fieldNameLower(f).includes('region') ||
+        fieldNameLower(f).includes('departement') ||
+        fieldNameLower(f).includes('label'))
   );
-  const numberField = state.fields.find(f =>
-    f.type === 'number' && (
-      fieldNameLower(f).includes('prix') ||
-      fieldNameLower(f).includes('score') ||
-      fieldNameLower(f).includes('valeur') ||
-      fieldNameLower(f).includes('value')
-    )
+  const numberField = state.fields.find(
+    (f) =>
+      f.type === 'number' &&
+      (fieldNameLower(f).includes('prix') ||
+        fieldNameLower(f).includes('score') ||
+        fieldNameLower(f).includes('valeur') ||
+        fieldNameLower(f).includes('value'))
   );
   // Auto-select code field for maps (look for code_dept, departement, code_insee, etc.)
-  const codeField = state.fields.find(f =>
-    (f.type === 'string' || f.type === 'number') && (
-      fieldNameLower(f).includes('code') ||
-      fieldNameLower(f).includes('dept') ||
-      fieldNameLower(f).includes('departement') ||
-      fieldNameLower(f).includes('insee')
-    )
+  const codeField = state.fields.find(
+    (f) =>
+      (f.type === 'string' || f.type === 'number') &&
+      (fieldNameLower(f).includes('code') ||
+        fieldNameLower(f).includes('dept') ||
+        fieldNameLower(f).includes('departement') ||
+        fieldNameLower(f).includes('insee'))
   );
 
   if (stringField) labelSelect.value = stringField.name;
@@ -87,7 +87,7 @@ export function populateFieldSelects(): void {
  */
 export function buildSeriesFieldOptions(): string {
   let html = '<option value="">\u2014 S\u00e9lectionner \u2014</option>';
-  state.fields.forEach(field => {
+  state.fields.forEach((field) => {
     const displayText = field.displayName
       ? `${field.displayName} (${field.type})`
       : `${field.name} (${field.type})`;
@@ -103,7 +103,7 @@ export function refreshExtraSeriesSelects(): void {
   const container = document.getElementById('extra-series-container');
   if (!container) return;
   const selects = container.querySelectorAll<HTMLSelectElement>('.extra-series-field');
-  selects.forEach(select => {
+  selects.forEach((select) => {
     const currentValue = select.value;
     select.innerHTML = buildSeriesFieldOptions();
     if (currentValue) select.value = currentValue;

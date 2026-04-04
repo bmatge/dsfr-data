@@ -11,7 +11,7 @@ export async function logAudit(
   action: string,
   targetType?: string,
   targetId?: string,
-  details?: Record<string, unknown>,
+  details?: Record<string, unknown>
 ): Promise<void> {
   const authReq = req as AuthenticatedRequest;
   const userId = authReq.user?.userId || null;
@@ -20,7 +20,14 @@ export async function logAudit(
     await execute(
       `INSERT INTO audit_log (user_id, action, target_type, target_id, details, ip_address)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [userId, action, targetType || null, targetId || null, details ? JSON.stringify(details) : null, ip],
+      [
+        userId,
+        action,
+        targetType || null,
+        targetId || null,
+        details ? JSON.stringify(details) : null,
+        ip,
+      ]
     );
   } catch (err) {
     // Best-effort logging — don't break the request

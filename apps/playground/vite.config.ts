@@ -11,6 +11,6 @@ export default defineConfig({
   resolve: {
     alias: {
       '@dsfr-data/shared': resolve(__dirname, '../../packages/shared/src'),
-    }
-  }
+    },
+  },
 });

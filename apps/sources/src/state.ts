@@ -150,7 +150,9 @@ export function normalizeConnections(connections: StoredConnection[]): StoredCon
 
 export function createInitialState(): SourcesState {
   return {
-    connections: normalizeConnections(loadFromStorage<StoredConnection[]>(STORAGE_KEYS.CONNECTIONS, [])),
+    connections: normalizeConnections(
+      loadFromStorage<StoredConnection[]>(STORAGE_KEYS.CONNECTIONS, [])
+    ),
     sources: loadFromStorage<Source[]>(STORAGE_KEYS.SOURCES, []).map(migrateSource),
     selectedConnectionId: null,
     selectedDocument: null,

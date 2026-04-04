@@ -11,6 +11,15 @@ let transporter: Transporter | null = null;
 const FROM = () => process.env.SMTP_FROM || 'noreply@ecosysteme.matge.com';
 const APP_URL = () => process.env.APP_URL || 'https://chartsbuilder.matge.com';
 
+/** Escape HTML special characters to prevent injection in email templates. */
+function esc(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 /**
  * Get or create the nodemailer transporter.
  * Lazy-initialized to allow env vars to be set before first use.
@@ -61,7 +70,7 @@ export async function sendWelcomeEmail(email: string, displayName: string): Prom
     to: email,
     subject: 'Bienvenue sur DSFR Data',
     html: `
-      <p>Bonjour ${displayName},</p>
+      <p>Bonjour ${esc(displayName)},</p>
       <p>Votre compte a ete cree sur <a href="${appUrl}">DSFR Data</a> via ProConnect.</p>
       <p>Vous disposez du role <strong>editeur</strong> et pouvez creer des visualisations de donnees.</p>
       <p>Si vous n'etes pas a l'origine de cette connexion, contactez l'administrateur.</p>

@@ -2,12 +2,7 @@
  * REST API data loading with full pagination support.
  */
 
-import {
-  escapeHtml,
-  getProxiedUrl,
-  saveToStorage,
-  STORAGE_KEYS,
-} from '@dsfr-data/shared';
+import { escapeHtml, getProxiedUrl, saveToStorage, STORAGE_KEYS } from '@dsfr-data/shared';
 
 import { state } from '../state.js';
 import type { Source } from '../state.js';
@@ -20,7 +15,7 @@ import { renderSources } from './connection-manager.js';
 export async function loadApiData(): Promise<void> {
   if (state.selectedConnectionId === null) return;
 
-  const conn = state.connections.find(c => c.id === state.selectedConnectionId);
+  const conn = state.connections.find((c) => c.id === state.selectedConnectionId);
   if (!conn || conn.type !== 'api') return;
 
   const info = document.getElementById('preview-info');
@@ -53,11 +48,10 @@ export async function loadApiData(): Promise<void> {
 
     while (currentUrl && pageCount < maxPages) {
       pageCount++;
-      info.textContent =
-        pageCount > 1 ? `Chargement... (page ${pageCount})` : 'Chargement...';
+      info.textContent = pageCount > 1 ? `Chargement... (page ${pageCount})` : 'Chargement...';
 
       const response = await fetch(currentUrl, {
-        method: (conn as Record<string, unknown>).method as string || 'GET',
+        method: ((conn as Record<string, unknown>).method as string) || 'GET',
         headers: connHeaders,
       });
 
@@ -74,8 +68,8 @@ export async function loadApiData(): Promise<void> {
         } else if (typeof jsonResponse.count === 'number') {
           apiTotalCount = jsonResponse.count;
         } else {
-          const headerTotal = response.headers.get('X-Total-Count')
-            || response.headers.get('X-Total');
+          const headerTotal =
+            response.headers.get('X-Total-Count') || response.headers.get('X-Total');
           if (headerTotal) apiTotalCount = parseInt(headerTotal, 10);
         }
       }
@@ -103,11 +97,7 @@ export async function loadApiData(): Promise<void> {
       let nextUrl: string | null = null;
 
       // Pattern 1: links.next (common in REST APIs like tabular-api.data.gouv.fr)
-      if (
-        jsonResponse.links &&
-        typeof jsonResponse.links === 'object' &&
-        jsonResponse.links.next
-      ) {
+      if (jsonResponse.links && typeof jsonResponse.links === 'object' && jsonResponse.links.next) {
         nextUrl = jsonResponse.links.next as string;
         // Handle relative URLs
         if (nextUrl && !nextUrl.startsWith('http')) {
@@ -199,7 +189,7 @@ export async function loadApiData(): Promise<void> {
 export function saveApiAsSource(): void {
   if (state.selectedConnectionId === null) return;
 
-  const conn = state.connections.find(c => c.id === state.selectedConnectionId);
+  const conn = state.connections.find((c) => c.id === state.selectedConnectionId);
   if (!conn) return;
 
   const source: Source = {

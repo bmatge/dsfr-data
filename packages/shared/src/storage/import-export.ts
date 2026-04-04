@@ -41,8 +41,8 @@ export function exportAllData(): ExportBundle {
   const dashboards = loadFromStorage<unknown[]>(STORAGE_KEYS.DASHBOARDS, []);
 
   // Strip sensitive data from connections
-  const safeConnections = connections.map(conn => {
-    const { apiKey, ...rest } = conn;
+  const safeConnections = connections.map((conn) => {
+    const { apiKey: _apiKey, ...rest } = conn;
     return rest;
   });
 
@@ -85,19 +85,28 @@ export function importData(bundle: unknown): ImportResult {
     throw new Error(`Version non supportee : ${data.version}`);
   }
 
-  const result: ImportResult = { sources: 0, connections: 0, favorites: 0, dashboards: 0, skipped: 0 };
+  const result: ImportResult = {
+    sources: 0,
+    connections: 0,
+    favorites: 0,
+    dashboards: 0,
+    skipped: 0,
+  };
 
   // Import sources
   if (Array.isArray(data.sources)) {
     const existing = loadFromStorage<Record<string, unknown>[]>(STORAGE_KEYS.SOURCES, []);
-    const existingIds = new Set(existing.map(s => (s as { id?: string }).id));
+    const existingIds = new Set(existing.map((s) => (s as { id?: string }).id));
 
     for (const raw of data.sources) {
       const validated = validateSource(raw);
-      if (!validated) { result.skipped++; continue; }
+      if (!validated) {
+        result.skipped++;
+        continue;
+      }
       if (existingIds.has(validated.id)) {
         // Update existing
-        const idx = existing.findIndex(s => (s as { id?: string }).id === validated.id);
+        const idx = existing.findIndex((s) => (s as { id?: string }).id === validated.id);
         if (idx >= 0) existing[idx] = validated as unknown as Record<string, unknown>;
       } else {
         existing.push(validated as unknown as Record<string, unknown>);
@@ -110,14 +119,17 @@ export function importData(bundle: unknown): ImportResult {
   // Import connections
   if (Array.isArray(data.connections)) {
     const existing = loadFromStorage<Record<string, unknown>[]>(STORAGE_KEYS.CONNECTIONS, []);
-    const existingIds = new Set(existing.map(c => (c as { id?: string }).id));
+    const existingIds = new Set(existing.map((c) => (c as { id?: string }).id));
 
     for (const raw of data.connections) {
       const validated = validateConnection(raw);
-      if (!validated) { result.skipped++; continue; }
+      if (!validated) {
+        result.skipped++;
+        continue;
+      }
       const id = validated.id as string;
       if (existingIds.has(id)) {
-        const idx = existing.findIndex(c => (c as { id?: string }).id === id);
+        const idx = existing.findIndex((c) => (c as { id?: string }).id === id);
         if (idx >= 0) existing[idx] = validated;
       } else {
         existing.push(validated);
@@ -130,14 +142,17 @@ export function importData(bundle: unknown): ImportResult {
   // Import favorites
   if (Array.isArray(data.favorites)) {
     const existing = loadFromStorage<Record<string, unknown>[]>(STORAGE_KEYS.FAVORITES, []);
-    const existingIds = new Set(existing.map(f => (f as { id?: string }).id));
+    const existingIds = new Set(existing.map((f) => (f as { id?: string }).id));
 
     for (const raw of data.favorites) {
       const validated = validateFavorite(raw);
-      if (!validated) { result.skipped++; continue; }
+      if (!validated) {
+        result.skipped++;
+        continue;
+      }
       const id = validated.id as string;
       if (existingIds.has(id)) {
-        const idx = existing.findIndex(f => (f as { id?: string }).id === id);
+        const idx = existing.findIndex((f) => (f as { id?: string }).id === id);
         if (idx >= 0) existing[idx] = validated;
       } else {
         existing.push(validated);
@@ -150,14 +165,17 @@ export function importData(bundle: unknown): ImportResult {
   // Import dashboards
   if (Array.isArray(data.dashboards)) {
     const existing = loadFromStorage<Record<string, unknown>[]>(STORAGE_KEYS.DASHBOARDS, []);
-    const existingIds = new Set(existing.map(d => (d as { id?: string }).id));
+    const existingIds = new Set(existing.map((d) => (d as { id?: string }).id));
 
     for (const raw of data.dashboards) {
       const validated = validateDashboard(raw);
-      if (!validated) { result.skipped++; continue; }
+      if (!validated) {
+        result.skipped++;
+        continue;
+      }
       const id = validated.id as string;
       if (existingIds.has(id)) {
-        const idx = existing.findIndex(d => (d as { id?: string }).id === id);
+        const idx = existing.findIndex((d) => (d as { id?: string }).id === id);
         if (idx >= 0) existing[idx] = validated;
       } else {
         existing.push(validated);

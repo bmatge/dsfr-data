@@ -38,11 +38,7 @@ export function sendWidgetBeacon(component: string, subtype?: string): void {
 
   // Skip in dev mode and on the app itself (only track external deployments)
   const host = window.location.hostname;
-  if (
-    host === 'localhost' ||
-    host === '127.0.0.1' ||
-    host === new URL(PROXY_BASE_URL).hostname
-  ) {
+  if (host === 'localhost' || host === '127.0.0.1' || host === new URL(PROXY_BASE_URL).hostname) {
     return;
   }
 

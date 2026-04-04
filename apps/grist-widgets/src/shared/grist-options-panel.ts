@@ -27,7 +27,6 @@ export function createOptionsPanel(
   currentValues: Record<string, unknown>,
   onSave?: () => void
 ): { getValues: () => Record<string, unknown>; save: () => void } {
-
   container.innerHTML = '';
 
   const form = document.createElement('div');
@@ -45,9 +44,12 @@ export function createOptionsPanel(
             ${def.hint ? `<span class="fr-hint-text">${def.hint}</span>` : ''}
           </label>
           <select class="fr-select" id="opt-${def.key}" data-option-key="${def.key}">
-            ${def.options.map(o =>
-              `<option value="${o.value}" ${(currentValues[def.key] ?? def.defaultValue) === o.value ? 'selected' : ''}>${o.label}</option>`
-            ).join('')}
+            ${def.options
+              .map(
+                (o) =>
+                  `<option value="${o.value}" ${(currentValues[def.key] ?? def.defaultValue) === o.value ? 'selected' : ''}>${o.label}</option>`
+              )
+              .join('')}
           </select>
         </div>
       `;
@@ -86,7 +88,10 @@ export function createOptionsPanel(
   const getValues = (): Record<string, unknown> => {
     const values: Record<string, unknown> = {};
     for (const def of definitions) {
-      const el = container.querySelector(`[data-option-key="${def.key}"]`) as HTMLInputElement | HTMLSelectElement | null;
+      const el = container.querySelector(`[data-option-key="${def.key}"]`) as
+        | HTMLInputElement
+        | HTMLSelectElement
+        | null;
       if (!el) continue;
       if (def.type === 'checkbox') {
         values[def.key] = (el as HTMLInputElement).checked;

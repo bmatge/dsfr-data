@@ -4,7 +4,24 @@
  */
 
 import './styles/sources.css';
-import { openModal, closeModal, saveToStorage, loadFromStorage, STORAGE_KEYS, toastWarning, toastSuccess, toastError, navigateTo, initAuth, downloadExport, importFromFile, migrateSource, injectTourStyles, startTourIfFirstVisit, SOURCES_TOUR } from '@dsfr-data/shared';
+import {
+  openModal,
+  closeModal,
+  saveToStorage,
+  loadFromStorage,
+  STORAGE_KEYS,
+  toastWarning,
+  toastSuccess,
+  toastError,
+  navigateTo,
+  initAuth,
+  downloadExport,
+  importFromFile,
+  migrateSource,
+  injectTourStyles,
+  startTourIfFirstVisit,
+  SOURCES_TOUR,
+} from '@dsfr-data/shared';
 
 import {
   state,
@@ -34,7 +51,12 @@ import {
   previewJoinResult,
 } from './connections/connection-manager.js';
 
-import { createGristTable, addColumnRow, selectDocument, selectTable } from './connections/grist-explorer.js';
+import {
+  createGristTable,
+  addColumnRow,
+  selectDocument,
+  selectTable,
+} from './connections/grist-explorer.js';
 
 import { parseJsonInput } from './parsers/json-parser.js';
 import { handleCsvFile, parseCsvText } from './parsers/csv-parser.js';
@@ -164,11 +186,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderSources();
 
   // ---- Button listeners ----
-  document.getElementById('add-connection-btn')?.addEventListener('click', () => openModal('connection-modal'));
-  document.getElementById('add-source-btn')?.addEventListener('click', () => openModal('manual-source-modal'));
+  document
+    .getElementById('add-connection-btn')
+    ?.addEventListener('click', () => openModal('connection-modal'));
+  document
+    .getElementById('add-source-btn')
+    ?.addEventListener('click', () => openModal('manual-source-modal'));
   document.getElementById('save-connection-btn')?.addEventListener('click', saveConnection);
   document.getElementById('save-source-btn')?.addEventListener('click', saveManualSource);
-  document.getElementById('create-table-btn')?.addEventListener('click', () => openModal('create-table-modal'));
+  document
+    .getElementById('create-table-btn')
+    ?.addEventListener('click', () => openModal('create-table-modal'));
   document.getElementById('add-column-btn')?.addEventListener('click', addColumnRow);
   document.getElementById('create-table-confirm-btn')?.addEventListener('click', createGristTable);
   document.getElementById('refresh-btn')?.addEventListener('click', refreshCurrentView);
@@ -183,18 +211,26 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ---- Join modal ----
   document.getElementById('add-join-btn')?.addEventListener('click', () => openJoinModal());
   document.getElementById('save-join-btn')?.addEventListener('click', saveJoinSource);
-  document.getElementById('join-left-source')?.addEventListener('change', () => { updateJoinFieldsInfo(); previewJoinResult(); });
-  document.getElementById('join-right-source')?.addEventListener('change', () => { updateJoinFieldsInfo(); previewJoinResult(); });
+  document.getElementById('join-left-source')?.addEventListener('change', () => {
+    updateJoinFieldsInfo();
+    previewJoinResult();
+  });
+  document.getElementById('join-right-source')?.addEventListener('change', () => {
+    updateJoinFieldsInfo();
+    previewJoinResult();
+  });
   document.getElementById('join-on')?.addEventListener('input', previewJoinResult);
   document.getElementById('join-type')?.addEventListener('change', previewJoinResult);
   document.getElementById('join-prefix-right')?.addEventListener('input', previewJoinResult);
 
   // ---- Explorer tab switching ----
-  document.querySelectorAll('.explorer-tabs:not(#source-mode-tabs) .explorer-tab').forEach((tab) => {
-    tab.addEventListener('click', () => {
-      switchExplorerTab((tab as HTMLElement).dataset.tab ?? '');
+  document
+    .querySelectorAll('.explorer-tabs:not(#source-mode-tabs) .explorer-tab')
+    .forEach((tab) => {
+      tab.addEventListener('click', () => {
+        switchExplorerTab((tab as HTMLElement).dataset.tab ?? '');
+      });
     });
-  });
 
   // ---- Connection type radio toggle ----
   const connPublic = document.getElementById('conn-public') as HTMLInputElement | null;
@@ -262,7 +298,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       state.sources = loadFromStorage(STORAGE_KEYS.SOURCES, []).map(migrateSource);
       renderConnections();
       renderSources();
-      toastSuccess(`Import : ${result.sources} sources, ${result.connections} connexions, ${result.favorites} favoris, ${result.dashboards} dashboards${result.skipped > 0 ? ` (${result.skipped} ignores)` : ''}`);
+      toastSuccess(
+        `Import : ${result.sources} sources, ${result.connections} connexions, ${result.favorites} favoris, ${result.dashboards} dashboards${result.skipped > 0 ? ` (${result.skipped} ignores)` : ''}`
+      );
     } catch (err) {
       toastError(`Erreur import : ${(err as Error).message}`);
     }

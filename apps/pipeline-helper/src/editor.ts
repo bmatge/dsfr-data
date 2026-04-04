@@ -3,7 +3,13 @@ import { AreaPlugin, AreaExtensions } from 'rete-area-plugin';
 import { ConnectionPlugin, Presets as ConnectionPresets } from 'rete-connection-plugin';
 import { LitPlugin, Presets as LitPresets } from '@retejs/lit-plugin';
 import { AutoArrangePlugin, Presets as ArrangePresets } from 'rete-auto-arrange-plugin';
-import { PipelineNode, AttributeControl, StatusControl, SavedSourceSelector, AggregateControl } from './nodes/base-node.js';
+import {
+  PipelineNode,
+  AttributeControl,
+  StatusControl,
+  SavedSourceSelector,
+  AggregateControl,
+} from './nodes/base-node.js';
 import { NODE_FACTORIES } from './nodes/pipeline-nodes.js';
 import { html } from 'lit';
 import './ui/attribute-control-element.js';
@@ -31,29 +37,33 @@ export class PipelineEditor {
 
     // Use default node rendering (handles sockets correctly)
     // but customize controls for our AttributeControl fields
-    render.addPreset(LitPresets.classic.setup({
-      customize: {
-        control(context: any) {
-          if (context.payload instanceof SavedSourceSelector) {
-            const ctrl = context.payload as SavedSourceSelector;
-            return () => html`<saved-source-control .ctrl=${ctrl}></saved-source-control>`;
-          }
-          if (context.payload instanceof AggregateControl) {
-            const ctrl = context.payload as AggregateControl;
-            return () => html`<aggregate-control-element .ctrl=${ctrl}></aggregate-control-element>`;
-          }
-          if (context.payload instanceof StatusControl) {
-            const ctrl = context.payload as StatusControl;
-            return () => html`<status-control-element .ctrl=${ctrl}></status-control-element>`;
-          }
-          if (context.payload instanceof AttributeControl) {
-            const ctrl = context.payload as AttributeControl;
-            return () => html`<attribute-control-element .ctrl=${ctrl}></attribute-control-element>`;
-          }
-          return null as any;
+    render.addPreset(
+      LitPresets.classic.setup({
+        customize: {
+          control(context: any) {
+            if (context.payload instanceof SavedSourceSelector) {
+              const ctrl = context.payload as SavedSourceSelector;
+              return () => html`<saved-source-control .ctrl=${ctrl}></saved-source-control>`;
+            }
+            if (context.payload instanceof AggregateControl) {
+              const ctrl = context.payload as AggregateControl;
+              return () =>
+                html`<aggregate-control-element .ctrl=${ctrl}></aggregate-control-element>`;
+            }
+            if (context.payload instanceof StatusControl) {
+              const ctrl = context.payload as StatusControl;
+              return () => html`<status-control-element .ctrl=${ctrl}></status-control-element>`;
+            }
+            if (context.payload instanceof AttributeControl) {
+              const ctrl = context.payload as AttributeControl;
+              return () =>
+                html`<attribute-control-element .ctrl=${ctrl}></attribute-control-element>`;
+            }
+            return null as any;
+          },
         },
-      },
-    }) as any);
+      }) as any
+    );
 
     connection.addPreset(ConnectionPresets.classic.setup() as any);
     this.arrange.addPreset(ArrangePresets.classic.setup());
@@ -74,7 +84,9 @@ export class PipelineEditor {
       if (context.type === 'nodepicked') {
         const nodeId = context.data?.id;
         if (nodeId && this.onNodeSelected) {
-          const node = this.editor.getNodes().find((n: any) => n.id === nodeId) as PipelineNode | undefined;
+          const node = this.editor.getNodes().find((n: any) => n.id === nodeId) as
+            | PipelineNode
+            | undefined;
           if (node) this.onNodeSelected(node);
         }
       }
@@ -108,9 +120,9 @@ export class PipelineEditor {
     const nodes = this.editor.getNodes();
     for (const node of nodes) {
       if ((node as any).selected) {
-        const connections = this.editor.getConnections().filter(
-          (c: any) => c.source === node.id || c.target === node.id
-        );
+        const connections = this.editor
+          .getConnections()
+          .filter((c: any) => c.source === node.id || c.target === node.id);
         for (const conn of connections) {
           await this.editor.removeConnection(conn.id);
         }
@@ -147,12 +159,8 @@ export class PipelineEditor {
     const output = await this.addNode('output', 750, 150);
 
     if (source && query && output) {
-      await this.editor.addConnection(
-        new ClassicPreset.Connection(source, 'data', query, 'data')
-      );
-      await this.editor.addConnection(
-        new ClassicPreset.Connection(query, 'data', output, 'data')
-      );
+      await this.editor.addConnection(new ClassicPreset.Connection(source, 'data', query, 'data'));
+      await this.editor.addConnection(new ClassicPreset.Connection(query, 'data', output, 'data'));
     }
 
     setTimeout(() => this.zoomToFit(), 200);

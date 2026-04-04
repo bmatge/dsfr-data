@@ -7,7 +7,7 @@ import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { query, queryOne, execute } from '../db/database.js';
 import { requireAuth } from '../middleware/auth.js';
-import { requireAccess, getPermissions, canAccess } from '../middleware/rbac.js';
+import { requireAccess, getPermissions } from '../middleware/rbac.js';
 import type { AuthenticatedRequest } from '../middleware/auth.js';
 
 type ResourceType = 'source' | 'connection' | 'favorite' | 'dashboard';
@@ -37,58 +37,75 @@ export function createResourceRouter(config: ResourceConfig): Router {
       const userId = authReq.user!.userId;
 
       // Own resources
-      const ownResources = await query(`SELECT * FROM ${table} WHERE owner_id = ? ORDER BY updated_at DESC`, [userId]);
+      const ownResources = await query(
+        `SELECT * FROM ${table} WHERE owner_id = ? ORDER BY updated_at DESC`,
+        [userId]
+      );
 
       // Resources shared with user (directly, via group, or globally)
-      const userGroupIds = (await query<{ group_id: string }>('SELECT group_id FROM group_members WHERE user_id = ?', [userId]))
-        .map(g => g.group_id);
+      const userGroupIds = (
+        await query<{ group_id: string }>('SELECT group_id FROM group_members WHERE user_id = ?', [
+          userId,
+        ])
+      ).map((g) => g.group_id);
 
       const sharedResourceIds = new Set<string>();
 
       // Direct user shares
       const userShares = await query<{ resource_id: string }>(
         `SELECT resource_id FROM shares WHERE resource_type = ? AND target_type = 'user' AND target_id = ?`,
-        [type, userId],
+        [type, userId]
       );
-      userShares.forEach(s => sharedResourceIds.add(s.resource_id));
+      userShares.forEach((s) => sharedResourceIds.add(s.resource_id));
 
       // Group shares
       for (const groupId of userGroupIds) {
         const groupShares = await query<{ resource_id: string }>(
           `SELECT resource_id FROM shares WHERE resource_type = ? AND target_type = 'group' AND target_id = ?`,
-          [type, groupId],
+          [type, groupId]
         );
-        groupShares.forEach(s => sharedResourceIds.add(s.resource_id));
+        groupShares.forEach((s) => sharedResourceIds.add(s.resource_id));
       }
 
       // Global shares
       const globalShares = await query<{ resource_id: string }>(
         `SELECT resource_id FROM shares WHERE resource_type = ? AND target_type = 'global'`,
-        [type],
+        [type]
       );
-      globalShares.forEach(s => sharedResourceIds.add(s.resource_id));
+      globalShares.forEach((s) => sharedResourceIds.add(s.resource_id));
 
       // Remove own resources from shared set (already included)
-      const ownIds = new Set((ownResources as { id: string }[]).map(r => r.id));
+      const ownIds = new Set((ownResources as { id: string }[]).map((r) => r.id));
       for (const id of ownIds) sharedResourceIds.delete(id);
 
       let sharedResources: Record<string, unknown>[] = [];
       if (sharedResourceIds.size > 0) {
         const placeholders = [...sharedResourceIds].map(() => '?').join(',');
-        sharedResources = await query(`SELECT * FROM ${table} WHERE id IN (${placeholders}) ORDER BY updated_at DESC`,
-          [...sharedResourceIds]);
+        sharedResources = await query(
+          `SELECT * FROM ${table} WHERE id IN (${placeholders}) ORDER BY updated_at DESC`,
+          [...sharedResourceIds]
+        );
       }
 
       const all = [
-        ...ownResources.map(r => ({ ...parseJsonColumns(r as Record<string, unknown>, jsonColumns), _owned: true })),
-        ...sharedResources.map(r => ({ ...parseJsonColumns(r, jsonColumns), _owned: false })),
+        ...ownResources.map((r) => ({
+          ...parseJsonColumns(r as Record<string, unknown>, jsonColumns),
+          _owned: true,
+        })),
+        ...sharedResources.map((r) => ({ ...parseJsonColumns(r, jsonColumns), _owned: false })),
       ];
 
       // Add permissions to each resource
-      const result = await Promise.all(all.map(async r => ({
-        ...r,
-        _permissions: await getPermissions(userId, type, (r as Record<string, unknown>).id as string),
-      })));
+      const result = await Promise.all(
+        all.map(async (r) => ({
+          ...r,
+          _permissions: await getPermissions(
+            userId,
+            type,
+            (r as Record<string, unknown>).id as string
+          ),
+        }))
+      );
 
       res.json(result);
     } catch (err) {
@@ -140,7 +157,10 @@ export function createResourceRouter(config: ResourceConfig): Router {
         values.push(jsonColumns.includes(col) ? JSON.stringify(value ?? null) : (value ?? null));
       }
 
-      await execute(`INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders.join(', ')})`, values);
+      await execute(
+        `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders.join(', ')})`,
+        values
+      );
 
       const created = await queryOne(`SELECT * FROM ${table} WHERE id = ?`, [id]);
       const parsed = parseJsonColumns(created as Record<string, unknown>, jsonColumns);
@@ -203,7 +223,10 @@ export function createResourceRouter(config: ResourceConfig): Router {
     try {
       const authReq = req as AuthenticatedRequest;
 
-      const resource = await queryOne<{ owner_id: string }>(`SELECT owner_id FROM ${table} WHERE id = ?`, [req.params.id]);
+      const resource = await queryOne<{ owner_id: string }>(
+        `SELECT owner_id FROM ${table} WHERE id = ?`,
+        [req.params.id]
+      );
       if (!resource) {
         res.status(404).json({ error: 'Resource not found' });
         return;
@@ -215,7 +238,10 @@ export function createResourceRouter(config: ResourceConfig): Router {
       }
 
       // Delete associated shares
-      await execute('DELETE FROM shares WHERE resource_type = ? AND resource_id = ?', [type, req.params.id]);
+      await execute('DELETE FROM shares WHERE resource_type = ? AND resource_id = ?', [
+        type,
+        req.params.id,
+      ]);
       // Delete the resource
       await execute(`DELETE FROM ${table} WHERE id = ?`, [req.params.id]);
 
@@ -232,7 +258,10 @@ export function createResourceRouter(config: ResourceConfig): Router {
 /**
  * Parse JSON columns in a row.
  */
-function parseJsonColumns(row: Record<string, unknown>, jsonColumns: string[]): Record<string, unknown> {
+function parseJsonColumns(
+  row: Record<string, unknown>,
+  jsonColumns: string[]
+): Record<string, unknown> {
   const result = { ...row };
   for (const col of jsonColumns) {
     if (typeof result[col] === 'string') {

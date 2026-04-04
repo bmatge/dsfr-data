@@ -90,7 +90,7 @@ export class AppLayoutDemo extends LitElement {
   private _moveContent() {
     const contentContainer = this.querySelector('.demo-content-slot');
     if (contentContainer) {
-      this._contentElements.forEach(el => contentContainer.appendChild(el));
+      this._contentElements.forEach((el) => contentContainer.appendChild(el));
       this._contentMoved = true;
     }
   }
@@ -108,28 +108,84 @@ export class AppLayoutDemo extends LitElement {
           { id: 'apis/grist', label: 'Grist', href: 'apis/grist.html' },
           { id: 'apis/insee', label: 'INSEE (Melodi)', href: 'apis/insee.html' },
           { id: 'apis/generic', label: 'Generique (REST)', href: 'apis/generic.html' },
-        ]
+        ],
       },
       {
         id: 'components',
         label: 'Composants dsfr-data',
         href: '#',
         children: [
-          { id: 'components/dsfr-data-source', label: 'dsfr-data-source', href: 'components/dsfr-data-source.html' },
-          { id: 'components/dsfr-data-normalize', label: 'dsfr-data-normalize', href: 'components/dsfr-data-normalize.html' },
-          { id: 'components/dsfr-data-query', label: 'dsfr-data-query', href: 'components/dsfr-data-query.html' },
-          { id: 'components/dsfr-data-join', label: 'dsfr-data-join', href: 'components/dsfr-data-join.html' },
-          { id: 'components/dsfr-data-facets', label: 'dsfr-data-facets', href: 'components/dsfr-data-facets.html' },
-          { id: 'components/dsfr-data-search', label: 'dsfr-data-search', href: 'components/dsfr-data-search.html' },
-          { id: 'components/dsfr-data-kpi', label: 'dsfr-data-kpi', href: 'components/dsfr-data-kpi.html' },
-          { id: 'components/dsfr-data-list', label: 'dsfr-data-list', href: 'components/dsfr-data-list.html' },
-          { id: 'components/dsfr-data-display', label: 'dsfr-data-display', href: 'components/dsfr-data-display.html' },
-          { id: 'components/dsfr-data-podium', label: 'dsfr-data-podium', href: 'components/dsfr-data-podium.html' },
-          { id: 'components/dsfr-data-world-map', label: 'dsfr-data-world-map', href: 'components/dsfr-data-world-map.html' },
-          { id: 'components/dsfr-data-map', label: 'dsfr-data-map', href: 'components/dsfr-data-map.html' },
-          { id: 'components/dsfr-data-a11y', label: 'dsfr-data-a11y', href: 'components/dsfr-data-a11y.html' },
-          { id: 'components/dsfr-data-chart', label: 'dsfr-data-chart', href: 'components/dsfr-data-chart.html' },
-        ]
+          {
+            id: 'components/dsfr-data-source',
+            label: 'dsfr-data-source',
+            href: 'components/dsfr-data-source.html',
+          },
+          {
+            id: 'components/dsfr-data-normalize',
+            label: 'dsfr-data-normalize',
+            href: 'components/dsfr-data-normalize.html',
+          },
+          {
+            id: 'components/dsfr-data-query',
+            label: 'dsfr-data-query',
+            href: 'components/dsfr-data-query.html',
+          },
+          {
+            id: 'components/dsfr-data-join',
+            label: 'dsfr-data-join',
+            href: 'components/dsfr-data-join.html',
+          },
+          {
+            id: 'components/dsfr-data-facets',
+            label: 'dsfr-data-facets',
+            href: 'components/dsfr-data-facets.html',
+          },
+          {
+            id: 'components/dsfr-data-search',
+            label: 'dsfr-data-search',
+            href: 'components/dsfr-data-search.html',
+          },
+          {
+            id: 'components/dsfr-data-kpi',
+            label: 'dsfr-data-kpi',
+            href: 'components/dsfr-data-kpi.html',
+          },
+          {
+            id: 'components/dsfr-data-list',
+            label: 'dsfr-data-list',
+            href: 'components/dsfr-data-list.html',
+          },
+          {
+            id: 'components/dsfr-data-display',
+            label: 'dsfr-data-display',
+            href: 'components/dsfr-data-display.html',
+          },
+          {
+            id: 'components/dsfr-data-podium',
+            label: 'dsfr-data-podium',
+            href: 'components/dsfr-data-podium.html',
+          },
+          {
+            id: 'components/dsfr-data-world-map',
+            label: 'dsfr-data-world-map',
+            href: 'components/dsfr-data-world-map.html',
+          },
+          {
+            id: 'components/dsfr-data-map',
+            label: 'dsfr-data-map',
+            href: 'components/dsfr-data-map.html',
+          },
+          {
+            id: 'components/dsfr-data-a11y',
+            label: 'dsfr-data-a11y',
+            href: 'components/dsfr-data-a11y.html',
+          },
+          {
+            id: 'components/dsfr-data-chart',
+            label: 'dsfr-data-chart',
+            href: 'components/dsfr-data-chart.html',
+          },
+        ],
       },
       {
         id: 'charts',
@@ -143,8 +199,8 @@ export class AppLayoutDemo extends LitElement {
           { id: 'charts/gauge-chart', label: 'gauge-chart', href: 'charts/gauge-chart.html' },
           { id: 'charts/map-chart', label: 'map-chart', href: 'charts/map-chart.html' },
           { id: 'charts/scatter-chart', label: 'scatter-chart', href: 'charts/scatter-chart.html' },
-        ]
-      }
+        ],
+      },
     ];
   }
 
@@ -154,7 +210,7 @@ export class AppLayoutDemo extends LitElement {
 
   private _isParentActive(item: MenuItem): boolean {
     if (!item.children) return false;
-    return item.children.some(child => this._isActive(child.id));
+    return item.children.some((child) => this._isActive(child.id));
   }
 
   private _renderMenuItem(item: MenuItem): TemplateResult {
@@ -168,14 +224,16 @@ export class AppLayoutDemo extends LitElement {
 
       return html`
         <li class="fr-sidemenu__item">
-          <button class="fr-sidemenu__btn"
-                  aria-expanded="${isExpanded}"
-                  aria-controls="${sectionId}">
+          <button
+            class="fr-sidemenu__btn"
+            aria-expanded="${isExpanded}"
+            aria-controls="${sectionId}"
+          >
             ${item.label}
           </button>
           <div class="fr-collapse ${isExpanded ? 'fr-collapse--expanded' : ''}" id="${sectionId}">
             <ul class="fr-sidemenu__list">
-              ${item.children.map(child => this._renderMenuItem(child))}
+              ${item.children.map((child) => this._renderMenuItem(child))}
             </ul>
           </div>
         </li>
@@ -184,9 +242,11 @@ export class AppLayoutDemo extends LitElement {
       // Lien simple
       return html`
         <li class="fr-sidemenu__item ${isActive ? 'fr-sidemenu__item--active' : ''}">
-          <a class="fr-sidemenu__link"
-             href="${this._base}${item.href}"
-             ${isActive ? html`aria-current="page"` : ''}>
+          <a
+            class="fr-sidemenu__link"
+            href="${this._base}${item.href}"
+            ${isActive ? html`aria-current="page"` : ''}
+          >
             ${item.label}
           </a>
         </li>
@@ -200,9 +260,7 @@ export class AppLayoutDemo extends LitElement {
     }
 
     const parts = this.activePath.split('/');
-    const breadcrumbItems = [
-      { label: 'Composants', href: `${this._base}index.html` }
-    ];
+    const breadcrumbItems = [{ label: 'Composants', href: `${this._base}index.html` }];
 
     if (parts.length > 1) {
       // Add section (components or charts)
@@ -220,14 +278,15 @@ export class AppLayoutDemo extends LitElement {
         </button>
         <div class="fr-collapse" id="breadcrumb">
           <ol class="fr-breadcrumb__list">
-            ${breadcrumbItems.map((item, index) => html`
-              <li>
-                ${index === breadcrumbItems.length - 1
-                  ? html`<a class="fr-breadcrumb__link" aria-current="page">${item.label}</a>`
-                  : html`<a class="fr-breadcrumb__link" href="${item.href}">${item.label}</a>`
-                }
-              </li>
-            `)}
+            ${breadcrumbItems.map(
+              (item, index) => html`
+                <li>
+                  ${index === breadcrumbItems.length - 1
+                    ? html`<a class="fr-breadcrumb__link" aria-current="page">${item.label}</a>`
+                    : html`<a class="fr-breadcrumb__link" href="${item.href}">${item.label}</a>`}
+                </li>
+              `
+            )}
           </ol>
         </div>
       </nav>
@@ -243,13 +302,18 @@ export class AppLayoutDemo extends LitElement {
           <!-- Sidemenu -->
           <nav class="fr-sidemenu" role="navigation" aria-labelledby="fr-sidemenu-title">
             <div class="fr-sidemenu__inner">
-              <button class="fr-sidemenu__btn" hidden aria-controls="fr-sidemenu-wrapper" aria-expanded="true">
+              <button
+                class="fr-sidemenu__btn"
+                hidden
+                aria-controls="fr-sidemenu-wrapper"
+                aria-expanded="true"
+              >
                 Menu
               </button>
               <div class="fr-collapse" id="fr-sidemenu-wrapper">
                 <div class="fr-sidemenu__title" id="fr-sidemenu-title">Composants</div>
                 <ul class="fr-sidemenu__list">
-                  ${menuItems.map(item => this._renderMenuItem(item))}
+                  ${menuItems.map((item) => this._renderMenuItem(item))}
                 </ul>
               </div>
             </div>
@@ -258,13 +322,16 @@ export class AppLayoutDemo extends LitElement {
           <!-- Contenu principal -->
           <div class="demo-content">
             ${this._renderBreadcrumb()}
-
-            ${this.title ? html`
-              <h1>
-                ${this.icon ? html`<span class="${this.icon} fr-mr-1w" aria-hidden="true"></span>` : ''}
-                ${this.title}
-              </h1>
-            ` : ''}
+            ${this.title
+              ? html`
+                  <h1>
+                    ${this.icon
+                      ? html`<span class="${this.icon} fr-mr-1w" aria-hidden="true"></span>`
+                      : ''}
+                    ${this.title}
+                  </h1>
+                `
+              : ''}
 
             <!-- Contenu slot="content" sera déplacé ici -->
             <div class="demo-content-slot"></div>

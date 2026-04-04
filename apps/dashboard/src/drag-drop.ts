@@ -9,7 +9,7 @@ import type { WidgetType } from './state.js';
 let draggedData: { type: string; widgetType?: string; favorite?: any } | null = null;
 
 export function initDragAndDrop(): void {
-  document.querySelectorAll('.widget-item').forEach(item => {
+  document.querySelectorAll('.widget-item').forEach((item) => {
     item.addEventListener('dragstart', handleWidgetDragStart as EventListener);
     item.addEventListener('dragend', handleDragEnd as EventListener);
   });
@@ -17,7 +17,7 @@ export function initDragAndDrop(): void {
 }
 
 export function initDropZones(): void {
-  document.querySelectorAll('.drop-cell').forEach(cell => {
+  document.querySelectorAll('.drop-cell').forEach((cell) => {
     cell.addEventListener('dragover', handleDragOver as EventListener);
     cell.addEventListener('dragleave', handleDragLeave as EventListener);
     cell.addEventListener('drop', handleDrop as EventListener);
@@ -36,7 +36,7 @@ function handleWidgetDragStart(e: DragEvent): void {
 export function handleFavoriteDragStart(e: DragEvent): void {
   const target = e.target as HTMLElement;
   const id = target.dataset.favoriteId;
-  const favorite = state.favorites.find(f => f.id === id);
+  const favorite = state.favorites.find((f) => f.id === id);
   draggedData = { type: 'favorite', favorite };
   target.classList.add('dragging');
   e.dataTransfer!.effectAllowed = 'copy';

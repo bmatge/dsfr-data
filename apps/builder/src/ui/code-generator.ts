@@ -57,7 +57,8 @@ function generateA11yElement(sourceId: string, chartId: string): string {
   const attrs: string[] = [`for="${chartId}"`, `source="${sourceId}"`];
   if (state.a11yTable) attrs.push('table');
   if (state.a11yDownload) attrs.push('download');
-  if (state.a11yDescription) attrs.push(`description="${state.a11yDescription.replace(/"/g, '&quot;')}"`);
+  if (state.a11yDescription)
+    attrs.push(`description="${state.a11yDescription.replace(/"/g, '&quot;')}"`);
   return `\n  <dsfr-data-a11y ${attrs.join(' ')}></dsfr-data-a11y>`;
 }
 
@@ -68,9 +69,12 @@ function generateEmbeddedA11y(chartId: string): string {
   const attrs: string[] = [`for="${chartId}"`, `source="a11y-data"`];
   if (state.a11yTable) attrs.push('table');
   if (state.a11yDownload) attrs.push('download');
-  if (state.a11yDescription) attrs.push(`description="${state.a11yDescription.replace(/"/g, '&quot;')}"`);
-  return `\n  <dsfr-data-source id="a11y-data" data='${dataJson}'></dsfr-data-source>` +
-         `\n  <dsfr-data-a11y ${attrs.join(' ')}></dsfr-data-a11y>`;
+  if (state.a11yDescription)
+    attrs.push(`description="${state.a11yDescription.replace(/"/g, '&quot;')}"`);
+  return (
+    `\n  <dsfr-data-source id="a11y-data" data='${dataJson}'></dsfr-data-source>` +
+    `\n  <dsfr-data-a11y ${attrs.join(' ')}></dsfr-data-a11y>`
+  );
 }
 
 /** dsfr-data dependency line for embedded code when a11y is enabled */
@@ -165,8 +169,10 @@ function dsfrChartAttrs(): string {
   const extra: string[] = [];
   if (state.chartType === 'horizontalBar') extra.push('horizontal');
   if (state.chartType === 'pie') extra.push('fill');
-  if (state.chartType === 'doughnut') { /* no fill = donut */ }
-  return extra.map(a => `\n    ${a}`).join('');
+  if (state.chartType === 'doughnut') {
+    /* no fill = donut */
+  }
+  return extra.map((a) => `\n    ${a}`).join('');
 }
 
 /**
@@ -248,7 +254,7 @@ export function generateFacetsElement(
   sourceId: string,
   mode?: FacetsMode
 ): { element: string; finalSourceId: string } {
-  const activeFields = state.facetsConfig.fields.filter(f => f.field);
+  const activeFields = state.facetsConfig.fields.filter((f) => f.field);
   if (!state.facetsConfig.enabled || activeFields.length === 0) {
     return { element: '', finalSourceId: sourceId };
   }
@@ -257,26 +263,30 @@ export function generateFacetsElement(
   const attrs: string[] = [`source="${sourceId}"`];
   const pfx = mode?.fieldPrefix || '';
 
-  attrs.push(`fields="${activeFields.map(f => pfx + f.field).join(', ')}"`);
+  attrs.push(`fields="${activeFields.map((f) => pfx + f.field).join(', ')}"`);
 
-  const labelsWithCustom = activeFields.filter(f => f.label && f.label !== f.field);
+  const labelsWithCustom = activeFields.filter((f) => f.label && f.label !== f.field);
   if (labelsWithCustom.length > 0) {
-    attrs.push(`labels="${escapeHtml(labelsWithCustom.map(f => `${pfx}${f.field}:${f.label}`).join(' | '))}"`);
+    attrs.push(
+      `labels="${escapeHtml(labelsWithCustom.map((f) => `${pfx}${f.field}:${f.label}`).join(' | '))}"`
+    );
   }
 
-  const nonDefaultDisplay = activeFields.filter(f => f.display !== 'checkbox');
+  const nonDefaultDisplay = activeFields.filter((f) => f.display !== 'checkbox');
   if (nonDefaultDisplay.length > 0) {
-    attrs.push(`display="${nonDefaultDisplay.map(f => `${pfx}${f.field}:${f.display}`).join(' | ')}"`);
+    attrs.push(
+      `display="${nonDefaultDisplay.map((f) => `${pfx}${f.field}:${f.display}`).join(' | ')}"`
+    );
   }
 
-  const disjunctiveFields = activeFields.filter(f => f.disjunctive);
+  const disjunctiveFields = activeFields.filter((f) => f.disjunctive);
   if (disjunctiveFields.length > 0) {
-    attrs.push(`disjunctive="${disjunctiveFields.map(f => pfx + f.field).join(', ')}"`);
+    attrs.push(`disjunctive="${disjunctiveFields.map((f) => pfx + f.field).join(', ')}"`);
   }
 
-  const searchableFields = activeFields.filter(f => f.searchable);
+  const searchableFields = activeFields.filter((f) => f.searchable);
   if (searchableFields.length > 0) {
-    attrs.push(`searchable="${searchableFields.map(f => pfx + f.field).join(', ')}"`);
+    attrs.push(`searchable="${searchableFields.map((f) => pfx + f.field).join(', ')}"`);
   }
 
   if (state.facetsConfig.maxValues !== 6) {
@@ -315,7 +325,7 @@ export function generateFacetsElement(
  * Used to generate static-values for non-ODS sources.
  */
 export function computeStaticFacetValues(): Record<string, string[]> | null {
-  const activeFields = state.facetsConfig.fields.filter(f => f.field);
+  const activeFields = state.facetsConfig.fields.filter((f) => f.field);
   if (!state.facetsConfig.enabled || activeFields.length === 0) return null;
   if (!state.localData || state.localData.length === 0) return null;
 
@@ -349,12 +359,16 @@ export function generateMiddlewareElements(
     const attrs: string[] = [`source="${currentSourceId}"`];
     if (state.normalizeConfig.trim) attrs.push('trim');
     if (state.normalizeConfig.numericAuto) attrs.push('numeric-auto');
-    if (state.normalizeConfig.numeric) attrs.push(`numeric="${escapeHtml(state.normalizeConfig.numeric)}"`);
-    if (state.normalizeConfig.rename) attrs.push(`rename="${escapeHtml(state.normalizeConfig.rename)}"`);
+    if (state.normalizeConfig.numeric)
+      attrs.push(`numeric="${escapeHtml(state.normalizeConfig.numeric)}"`);
+    if (state.normalizeConfig.rename)
+      attrs.push(`rename="${escapeHtml(state.normalizeConfig.rename)}"`);
     if (state.normalizeConfig.stripHtml) attrs.push('strip-html');
-    if (state.normalizeConfig.replace) attrs.push(`replace="${escapeHtml(state.normalizeConfig.replace)}"`);
+    if (state.normalizeConfig.replace)
+      attrs.push(`replace="${escapeHtml(state.normalizeConfig.replace)}"`);
     if (state.normalizeConfig.lowercaseKeys) attrs.push('lowercase-keys');
-    if (state.normalizeConfig.flatten) attrs.push(`flatten="${escapeHtml(state.normalizeConfig.flatten)}"`);
+    if (state.normalizeConfig.flatten)
+      attrs.push(`flatten="${escapeHtml(state.normalizeConfig.flatten)}"`);
 
     elements += `
   <!-- Nettoyage des donnees -->
@@ -381,15 +395,18 @@ export function generateMiddlewareElements(
  */
 function buildColonnesAttr(): string {
   // Use custom columns if configured
-  const visibleCols = state.datalistColumns.filter(c => c.visible);
+  const visibleCols = state.datalistColumns.filter((c) => c.visible);
   if (visibleCols.length > 0) {
-    return visibleCols.map(c => `${c.field}:${c.label}`).join(', ');
+    return visibleCols.map((c) => `${c.field}:${c.label}`).join(', ');
   }
   // Fallback: auto-detect from fields or raw data
-  const fields = state.fields.length > 0
-    ? state.fields.map(f => f.name)
-    : (state.localData && state.localData.length > 0 ? Object.keys(state.localData[0]) : []);
-  return fields.map(f => `${f}:${f}`).join(', ');
+  const fields =
+    state.fields.length > 0
+      ? state.fields.map((f) => f.name)
+      : state.localData && state.localData.length > 0
+        ? Object.keys(state.localData[0])
+        : [];
+  return fields.map((f) => `${f}:${f}`).join(', ');
 }
 
 /**
@@ -403,7 +420,9 @@ function buildDatalistAttrs(): string {
   if (state.datalistExportHtml) exportFormats.push('html');
   if (exportFormats.length > 0) attrs += `\n    export="${exportFormats.join(',')}"`;
 
-  const filtrables = state.datalistColumns.filter(c => c.visible && c.filtrable).map(c => c.field);
+  const filtrables = state.datalistColumns
+    .filter((c) => c.visible && c.filtrable)
+    .map((c) => c.field);
   if (state.datalistFiltres && filtrables.length > 0) {
     attrs += `\n    filtres="${filtrables.join(',')}"`;
   }
@@ -437,20 +456,25 @@ export async function generateChart(): Promise<void> {
 
   // Validation: datalist only needs labelField, KPI/Gauge need valueField, charts need both
   if (isDatalist && !state.labelField) {
-    toastWarning('Il manque la s\u00e9lection des colonnes. Ouvrez la section "Configuration des donn\u00e9es" pour choisir le champ principal du tableau.');
+    toastWarning(
+      'Il manque la s\u00e9lection des colonnes. Ouvrez la section "Configuration des donn\u00e9es" pour choisir le champ principal du tableau.'
+    );
     return;
   }
   if (!isSingleValue && !isDatalist && (!state.labelField || !state.valueField)) {
-    const missing = !state.labelField && !state.valueField
-      ? 'les champs pour l\'axe X (cat\u00e9gories) et l\'axe Y (valeurs num\u00e9riques)'
-      : !state.labelField
-        ? 'le champ pour l\'axe X (ex\u00a0: r\u00e9gion, ann\u00e9e)'
-        : 'le champ pour l\'axe Y (ex\u00a0: population, budget)';
+    const missing =
+      !state.labelField && !state.valueField
+        ? "les champs pour l'axe X (cat\u00e9gories) et l'axe Y (valeurs num\u00e9riques)"
+        : !state.labelField
+          ? "le champ pour l'axe X (ex\u00a0: r\u00e9gion, ann\u00e9e)"
+          : "le champ pour l'axe Y (ex\u00a0: population, budget)";
     toastWarning(`Il manque ${missing}. Ouvrez la section "Configuration des donn\u00e9es".`);
     return;
   }
   if (isSingleValue && !state.valueField && state.aggregation !== 'count') {
-    toastWarning('Il manque le champ num\u00e9rique \u00e0 mesurer. S\u00e9lectionnez un champ dans "Axe Y / Valeurs" (ex\u00a0: population, budget).');
+    toastWarning(
+      'Il manque le champ num\u00e9rique \u00e0 mesurer. S\u00e9lectionnez un champ dans "Axe Y / Valeurs" (ex\u00a0: population, budget).'
+    );
     return;
   }
 
@@ -482,20 +506,30 @@ export async function generateChart(): Promise<void> {
   // than client-side aggregation on the limited local data sample).
   // Non-ODS APIs (Tabular, Generic) use client-side aggregation because
   // fetchOdsResults() only handles ODS response format (json.results).
-  const isOdsApiSource = state.savedSource?.type === 'api' && state.apiUrl
-    && detectProvider(state.apiUrl).id === 'opendatasoft';
-  if (state.sourceType === 'saved' && state.localData && state.localData.length > 0 && !isOdsApiSource) {
+  const isOdsApiSource =
+    state.savedSource?.type === 'api' &&
+    state.apiUrl &&
+    detectProvider(state.apiUrl).id === 'opendatasoft';
+  if (
+    state.sourceType === 'saved' &&
+    state.localData &&
+    state.localData.length > 0 &&
+    !isOdsApiSource
+  ) {
     generateChartFromLocalData();
     return;
   }
 
   // Build API URL with aggregation
-  const valueExpression = state.aggregation === 'count'
-    ? 'count(*) as value'
-    : `${state.aggregation}(${state.valueField}) as value`;
+  const valueExpression =
+    state.aggregation === 'count'
+      ? 'count(*) as value'
+      : `${state.aggregation}(${state.valueField}) as value`;
 
   // Handle extra series if defined
-  const activeExtraSeries = state.extraSeries.filter(s => s.field && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType));
+  const activeExtraSeries = state.extraSeries.filter(
+    (s) => s.field && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType)
+  );
   let extraValueExpressions = '';
   activeExtraSeries.forEach((s, i) => {
     extraValueExpressions += `, ${state.aggregation}(${s.field}) as value${i + 2}`;
@@ -565,7 +599,10 @@ export function generateChartFromLocalData(): void {
   if (state.chartType === 'datalist') {
     let filteredLocal = state.localData || [];
     if (state.advancedMode && state.queryFilter) {
-      filteredLocal = applyLocalFilter(filteredLocal as Record<string, unknown>[], state.queryFilter);
+      filteredLocal = applyLocalFilter(
+        filteredLocal as Record<string, unknown>[],
+        state.queryFilter
+      );
     }
     state.data = filteredLocal as any[];
 
@@ -587,12 +624,15 @@ export function generateChartFromLocalData(): void {
   }
 
   // Aggregate local data
-  const aggregated: Record<string, { values: number[]; extraValues: number[][]; count: number }> = {};
+  const aggregated: Record<string, { values: number[]; extraValues: number[][]; count: number }> =
+    {};
 
   // For maps, aggregate by codeField; for other charts, by labelField
   const isMap = state.chartType === 'map';
   const groupField = isMap ? state.codeField : state.labelField;
-  const activeExtraSeries = state.extraSeries.filter(s => s.field && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType));
+  const activeExtraSeries = state.extraSeries.filter(
+    (s) => s.field && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType)
+  );
 
   // Apply advanced mode filter to local data
   let filteredLocal = state.localData || [];
@@ -601,7 +641,7 @@ export function generateChartFromLocalData(): void {
   }
 
   if (filteredLocal) {
-    filteredLocal.forEach(record => {
+    filteredLocal.forEach((record) => {
       const rawGroupKey = record[groupField] as string | number | null;
       // For maps, skip records with invalid codes
       if (isMap && (rawGroupKey === null || rawGroupKey === undefined || rawGroupKey === '')) {
@@ -611,7 +651,11 @@ export function generateChartFromLocalData(): void {
       const value = toNumber(record[state.valueField]);
 
       if (!aggregated[groupKey]) {
-        aggregated[groupKey] = { values: [], extraValues: activeExtraSeries.map(() => []), count: 0 };
+        aggregated[groupKey] = {
+          values: [],
+          extraValues: activeExtraSeries.map(() => []),
+          count: 0,
+        };
       }
       aggregated[groupKey].values.push(value);
       activeExtraSeries.forEach((s, i) => {
@@ -624,16 +668,21 @@ export function generateChartFromLocalData(): void {
   // Apply aggregation function
   function applyAgg(vals: number[], count: number): number {
     switch (state.aggregation) {
-      case 'sum': return vals.reduce((a, b) => a + b, 0);
-      case 'count': return count;
-      case 'min': return Math.min(...vals);
-      case 'max': return Math.max(...vals);
+      case 'sum':
+        return vals.reduce((a, b) => a + b, 0);
+      case 'count':
+        return count;
+      case 'min':
+        return Math.min(...vals);
+      case 'max':
+        return Math.max(...vals);
       case 'avg':
-      default: return vals.reduce((a, b) => a + b, 0) / vals.length;
+      default:
+        return vals.reduce((a, b) => a + b, 0) / vals.length;
     }
   }
 
-  let results = Object.entries(aggregated).map(([groupKey, data]) => {
+  const results = Object.entries(aggregated).map(([groupKey, data]) => {
     const value = applyAgg(data.values, data.count);
     const result: Record<string, unknown> = { value };
 
@@ -752,8 +801,10 @@ export function generateCodeForLocalData(): void {
   // Handle Datalist type (local data)
   if (state.chartType === 'datalist') {
     const colonnes = buildColonnesAttr();
-    const triAttr = state.sortOrder !== 'none' && state.labelField
-      ? `\n    tri="${state.labelField}:${state.sortOrder}"` : '';
+    const triAttr =
+      state.sortOrder !== 'none' && state.labelField
+        ? `\n    tri="${state.labelField}:${state.sortOrder}"`
+        : '';
     const code = `<!-- Tableau genere avec dsfr-data Builder -->
 <!-- Source : ${state.savedSource?.name || 'Donnees locales'} -->
 
@@ -789,8 +840,8 @@ datalist.onSourceData(data);
 
   // Handle Scatter type (local data)
   if (state.chartType === 'scatter') {
-    const xValues = state.data.map(d => (d[state.labelField] as number) || 0);
-    const yValues = state.data.map(d => (d.value as number) || 0);
+    const xValues = state.data.map((d) => (d[state.labelField] as number) || 0);
+    const yValues = state.data.map((d) => (d.value as number) || 0);
     const code = `<!-- Nuage de points genere avec dsfr-data Builder -->
 <!-- Source : ${state.savedSource?.name || 'Donnees locales'} -->
 
@@ -801,12 +852,15 @@ datalist.onSourceData(data);
 <div class="fr-container fr-my-4w">
   <h2>${escapeHtml(state.title)}</h2>
 
-  ${wrapWithDatabox(`<scatter-chart id="chart"
+  ${wrapWithDatabox(
+    `<scatter-chart id="chart"
     x='${escapeSingleQuotes(JSON.stringify([xValues]))}'
     y='${escapeSingleQuotes(JSON.stringify([yValues]))}'
     name='${escapeSingleQuotes(JSON.stringify([`${state.labelField} vs ${state.valueField}`]))}'
     selected-palette="${state.palette}">
-  </scatter-chart>`, 'chart')}${generateEmbeddedA11y('chart')}
+  </scatter-chart>`,
+    'chart'
+  )}${generateEmbeddedA11y('chart')}
 </div>${dsfrDeferredScript('scatter-chart')}`;
     displayGeneratedCode(code);
     return;
@@ -815,16 +869,17 @@ datalist.onSourceData(data);
   // Handle Map type (local data)
   if (state.chartType === 'map') {
     // For choropleth maps, use sequential or divergent palette for gradient
-    const mapPalette = state.palette.includes('sequential') || state.palette.includes('divergent')
-      ? state.palette
-      : 'sequentialAscending';
+    const mapPalette =
+      state.palette.includes('sequential') || state.palette.includes('divergent')
+        ? state.palette
+        : 'sequentialAscending';
 
     // Transform data to DSFR format: {"code": value, ...}
     const mapData: Record<string, number> = {};
     let totalValue = 0;
     let count = 0;
 
-    state.data.forEach(d => {
+    state.data.forEach((d) => {
       const rawCode = (d[state.codeField] ?? (d as any).code ?? '') as string | number;
       let code = String(rawCode).trim();
       if (/^\d+$/.test(code) && code.length < 3) {
@@ -854,28 +909,35 @@ datalist.onSourceData(data);
 <div class="fr-container fr-my-4w">
   <h2>${escapeHtml(state.title)}</h2>
   ${state.subtitle ? `<p class="fr-text--sm fr-text--light">${escapeHtml(state.subtitle)}</p>` : ''}
-  ${wrapWithDatabox(`<map-chart id="chart"
+  ${wrapWithDatabox(
+    `<map-chart id="chart"
     data='${JSON.stringify(mapData)}'
     name="${escapeHtml(state.title || 'Donn\u00e9es')}"
     date="${today}"
     value="${avgValue}"
     selected-palette="${mapPalette}"
-  ></map-chart>`, 'chart')}${generateEmbeddedA11y('chart')}
+  ></map-chart>`,
+    'chart'
+  )}${generateEmbeddedA11y('chart')}
 </div>${dsfrDeferredScript('map-chart')}`;
     displayGeneratedCode(mapCode);
     return;
   }
 
   // Build DSFR Chart element for static embed
-  const labels = state.data.map(d => (d[state.labelField] as string) || 'N/A');
-  const values = state.data.map(d => Math.round(((d.value as number) || 0) * 100) / 100);
+  const labels = state.data.map((d) => (d[state.labelField] as string) || 'N/A');
+  const values = state.data.map((d) => Math.round(((d.value as number) || 0) * 100) / 100);
 
-  const activeExtraSeries = state.extraSeries.filter(s => s.field && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType));
+  const activeExtraSeries = state.extraSeries.filter(
+    (s) => s.field && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType)
+  );
   const allSeriesValues: number[][] = [values];
   const allSeriesNames: string[] = [state.valueFieldLabel || state.valueField];
 
   activeExtraSeries.forEach((s, i) => {
-    allSeriesValues.push(state.data.map(d => Math.round(((d[`value${i + 2}`] as number) || 0) * 100) / 100));
+    allSeriesValues.push(
+      state.data.map((d) => Math.round(((d[`value${i + 2}`] as number) || 0) * 100) / 100)
+    );
     allSeriesNames.push(s.label || s.field);
   });
 
@@ -888,7 +950,7 @@ datalist.onSourceData(data);
   const extraAttrs: string[] = [];
   if (state.chartType === 'horizontalBar') extraAttrs.push('horizontal');
   if (state.chartType === 'pie') extraAttrs.push('fill');
-  const extraStr = extraAttrs.map(a => `\n    ${a}`).join('');
+  const extraStr = extraAttrs.map((a) => `\n    ${a}`).join('');
 
   const code = `<!-- Graphique genere avec dsfr-data Builder -->
 <!-- Source : ${state.savedSource?.name || 'Donnees locales'} -->
@@ -903,17 +965,19 @@ datalist.onSourceData(data);
   <h2>${escapeHtml(state.title)}</h2>
   ${state.subtitle ? `<p class="fr-text--sm fr-text--light">${escapeHtml(state.subtitle)}</p>` : ''}
 
-  ${wrapWithDatabox(`<${dsfrTag} id="chart"
+  ${wrapWithDatabox(
+    `<${dsfrTag} id="chart"
     x='${escapeSingleQuotes(x)}'
     y='${escapeSingleQuotes(y)}'
     name='${escapeSingleQuotes(seriesNames)}'
     selected-palette="${state.palette}"${extraStr}>
-  </${dsfrTag}>`, 'chart')}${generateEmbeddedA11y('chart')}
+  </${dsfrTag}>`,
+    'chart'
+  )}${generateEmbeddedA11y('chart')}
 </div>${dsfrDeferredScript(dsfrTag)}`;
 
   displayGeneratedCode(code);
 }
-
 
 /**
  * Generate <dsfr-data-source> + <dsfr-data-query> for ODS sources.
@@ -923,7 +987,14 @@ export function generateOdsQueryCode(
   odsInfo: { baseUrl: string; datasetId: string },
   labelFieldPath: string,
   valueFieldPath: string
-): { queryElement: string; chartSource: string; labelField: string; valueField: string; valueField2: string; extraValueFields: string[] } {
+): {
+  queryElement: string;
+  chartSource: string;
+  labelField: string;
+  valueField: string;
+  valueField2: string;
+  extraValueFields: string[];
+} {
   // --- dsfr-data-source attributes (fetch + server-side processing) ---
   const srcAttrs: string[] = [];
   srcAttrs.push('api-type="opendatasoft"');
@@ -931,7 +1002,8 @@ export function generateOdsQueryCode(
   srcAttrs.push(`dataset-id="${odsInfo.datasetId}"`);
 
   // Group by
-  const groupByField = state.advancedMode && state.queryGroupBy ? state.queryGroupBy : labelFieldPath;
+  const groupByField =
+    state.advancedMode && state.queryGroupBy ? state.queryGroupBy : labelFieldPath;
   if (groupByField) {
     srcAttrs.push(`group-by="${groupByField}"`);
   }
@@ -939,15 +1011,17 @@ export function generateOdsQueryCode(
   // Build ODSQL select clause with aggregation
   let resultValueField: string;
   let resultValueField2 = '';
-  let selectParts: string[] = [];
+  const selectParts: string[] = [];
   if (groupByField) selectParts.push(groupByField);
 
-  const activeExtraSeries = state.extraSeries.filter(s => s.field && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType));
+  const activeExtraSeries = state.extraSeries.filter(
+    (s) => s.field && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType)
+  );
   const extraValueFields: string[] = [];
 
   if (state.advancedMode && state.queryAggregate) {
     // Advanced mode: parse custom aggregation expressions
-    const aggParts = state.queryAggregate.split(',').map(a => a.trim());
+    const aggParts = state.queryAggregate.split(',').map((a) => a.trim());
     for (const agg of aggParts) {
       const segs = agg.split(':');
       if (segs.length >= 2) {
@@ -970,7 +1044,7 @@ export function generateOdsQueryCode(
       resultValueField = alias;
 
       // Add extra series aggregations
-      activeExtraSeries.forEach(s => {
+      activeExtraSeries.forEach((s) => {
         const aliasN = `${s.field}__${state.aggregation}`;
         selectParts.push(`${state.aggregation}(${s.field}) as ${aliasN}`);
         extraValueFields.push(aliasN);
@@ -1022,7 +1096,14 @@ export function generateTabularQueryCode(
   tabularInfo: { baseUrl: string; resourceId: string },
   labelFieldPath: string,
   valueFieldPath: string
-): { queryElement: string; chartSource: string; labelField: string; valueField: string; valueField2: string; extraValueFields: string[] } {
+): {
+  queryElement: string;
+  chartSource: string;
+  labelField: string;
+  valueField: string;
+  valueField2: string;
+  extraValueFields: string[];
+} {
   // --- dsfr-data-source attributes (fetch + auto-pagination) ---
   const srcAttrs: string[] = [];
   srcAttrs.push('api-type="tabular"');
@@ -1034,7 +1115,8 @@ export function generateTabularQueryCode(
   qAttrs.push('source="chart-src"');
 
   // Group by
-  const groupByField = state.advancedMode && state.queryGroupBy ? state.queryGroupBy : labelFieldPath;
+  const groupByField =
+    state.advancedMode && state.queryGroupBy ? state.queryGroupBy : labelFieldPath;
   if (groupByField) {
     qAttrs.push(`group-by="${groupByField}"`);
   }
@@ -1044,7 +1126,9 @@ export function generateTabularQueryCode(
   let resultValueField2 = '';
   let aggregateExpr: string;
 
-  const activeExtraSeries = state.extraSeries.filter(s => s.field && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType));
+  const activeExtraSeries = state.extraSeries.filter(
+    (s) => s.field && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType)
+  );
   const extraValueFields: string[] = [];
 
   if (state.advancedMode && state.queryAggregate) {
@@ -1056,8 +1140,8 @@ export function generateTabularQueryCode(
     aggregateExpr = `${valueFieldPath}:${state.aggregation}`;
     resultValueField = `${valueFieldPath}__${state.aggregation}`;
 
-    activeExtraSeries.forEach(s => {
-      const info = state.fields.find(f => f.name === s.field);
+    activeExtraSeries.forEach((s) => {
+      const info = state.fields.find((f) => f.name === s.field);
       const path = info?.fullPath || s.field;
       aggregateExpr += `, ${path}:${state.aggregation}`;
       extraValueFields.push(`${path}__${state.aggregation}`);
@@ -1107,12 +1191,20 @@ export function generateDsfrDataQueryCode(
   sourceId: string,
   labelFieldPath: string,
   valueFieldPath: string
-): { queryElement: string; chartSource: string; labelField: string; valueField: string; valueField2: string; extraValueFields: string[] } {
+): {
+  queryElement: string;
+  chartSource: string;
+  labelField: string;
+  valueField: string;
+  valueField2: string;
+  extraValueFields: string[];
+} {
   const attrs: string[] = [];
   attrs.push(`source="${sourceId}"`);
 
   // Group by: advanced custom field or default labelField
-  const groupByField = state.advancedMode && state.queryGroupBy ? state.queryGroupBy : labelFieldPath;
+  const groupByField =
+    state.advancedMode && state.queryGroupBy ? state.queryGroupBy : labelFieldPath;
   if (groupByField) {
     attrs.push(`group-by="${groupByField}"`);
   }
@@ -1128,7 +1220,9 @@ export function generateDsfrDataQueryCode(
   let resultValueField: string;
   let resultValueField2 = '';
 
-  const activeExtraSeries = state.extraSeries.filter(s => s.field && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType));
+  const activeExtraSeries = state.extraSeries.filter(
+    (s) => s.field && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType)
+  );
   const extraValueFields: string[] = [];
 
   if (state.advancedMode && state.queryAggregate) {
@@ -1140,8 +1234,8 @@ export function generateDsfrDataQueryCode(
   } else {
     aggregateExpr = `${valueFieldPath}:${state.aggregation}`;
     // Add extra series aggregations
-    activeExtraSeries.forEach(s => {
-      const info = state.fields.find(f => f.name === s.field);
+    activeExtraSeries.forEach((s) => {
+      const info = state.fields.find((f) => f.name === s.field);
       const path = info?.fullPath || s.field;
       aggregateExpr += `, ${path}:${state.aggregation}`;
       extraValueFields.push(`${path}__${state.aggregation}`);
@@ -1199,18 +1293,24 @@ export function generateDynamicCode(): void {
   }
 
   // Get field info for labels
-  const labelFieldInfo = state.fields.find(f => f.name === state.labelField);
-  const valueFieldInfo = state.fields.find(f => f.name === state.valueField);
+  const labelFieldInfo = state.fields.find((f) => f.name === state.labelField);
+  const valueFieldInfo = state.fields.find((f) => f.name === state.valueField);
 
   // After normalize flatten, data has flat field names (not nested fields.X)
   const isFlattened = state.normalizeConfig.enabled && !!state.normalizeConfig.flatten;
-  const labelFieldPath = isFlattened ? state.labelField : (labelFieldInfo?.fullPath || `fields.${state.labelField}`);
-  const valueFieldPath = isFlattened ? state.valueField : (valueFieldInfo?.fullPath || `fields.${state.valueField}`);
+  const labelFieldPath = isFlattened
+    ? state.labelField
+    : labelFieldInfo?.fullPath || `fields.${state.labelField}`;
+  const valueFieldPath = isFlattened
+    ? state.valueField
+    : valueFieldInfo?.fullPath || `fields.${state.valueField}`;
 
   const refreshAttr = state.refreshInterval > 0 ? `\n    refresh="${state.refreshInterval}"` : '';
 
   // Grist data has {fields: {X: ...}} structure — prefix facet field paths when not flattened
-  const gristFacetsMode: FacetsMode | undefined = isFlattened ? undefined : { fieldPrefix: 'fields.' };
+  const gristFacetsMode: FacetsMode | undefined = isFlattened
+    ? undefined
+    : { fieldPrefix: 'fields.' };
 
   // Handle KPI type (no DSFR Chart equivalent, fallback to embedded)
   if (state.chartType === 'kpi') {
@@ -1221,9 +1321,14 @@ export function generateDynamicCode(): void {
   // Handle Datalist type (Grist dynamic)
   if (state.chartType === 'datalist') {
     const colonnes = buildColonnesAttr();
-    const triAttr = state.sortOrder !== 'none' && state.labelField
-      ? `\n    tri="${state.labelField}:${state.sortOrder}"` : '';
-    const { elements: middlewareHtml, finalSourceId: datalistSource } = generateMiddlewareElements('table-data', gristFacetsMode);
+    const triAttr =
+      state.sortOrder !== 'none' && state.labelField
+        ? `\n    tri="${state.labelField}:${state.sortOrder}"`
+        : '';
+    const { elements: middlewareHtml, finalSourceId: datalistSource } = generateMiddlewareElements(
+      'table-data',
+      gristFacetsMode
+    );
     const code = `<!-- Tableau dynamique genere avec dsfr-data Builder -->
 <!-- Source : ${escapeHtml(source.name)} (chargement dynamique depuis ${gristHost}) -->
 
@@ -1256,21 +1361,35 @@ ${middlewareHtml}
   }
 
   // Middleware (normalize, facets) between source and query
-  const { elements: middlewareHtml, finalSourceId: querySourceId } = generateMiddlewareElements('chart-data', gristFacetsMode);
+  const { elements: middlewareHtml, finalSourceId: querySourceId } = generateMiddlewareElements(
+    'chart-data',
+    gristFacetsMode
+  );
 
   // For maps, group by codeField (not labelField)
   const isMap = state.chartType === 'map' || state.chartType === ('mapReg' as any);
-  const groupByPath = isMap && state.codeField
-    ? (isFlattened ? state.codeField : (`fields.${state.codeField}`))
-    : labelFieldPath;
+  const groupByPath =
+    isMap && state.codeField
+      ? isFlattened
+        ? state.codeField
+        : `fields.${state.codeField}`
+      : labelFieldPath;
 
   // Generate dsfr-data-query for aggregation, sorting, filtering
-  const { queryElement, chartSource, labelField: queryLabelField, valueField: queryValueField, valueField2: queryValueField2, extraValueFields: queryExtraVFs } =
-    generateDsfrDataQueryCode(querySourceId, groupByPath, valueFieldPath);
+  const {
+    queryElement,
+    chartSource,
+    labelField: queryLabelField,
+    valueField: queryValueField,
+    valueField2: queryValueField2,
+    extraValueFields: queryExtraVFs,
+  } = generateDsfrDataQueryCode(querySourceId, groupByPath, valueFieldPath);
 
   // Map palette
   const palette = isMap
-    ? (state.palette.includes('sequential') || state.palette.includes('divergent') ? state.palette : 'sequentialAscending')
+    ? state.palette.includes('sequential') || state.palette.includes('divergent')
+      ? state.palette
+      : 'sequentialAscending'
     : state.palette;
 
   // Map-specific attributes
@@ -1284,7 +1403,10 @@ ${middlewareHtml}
   if (extraVFs && extraVFs.length > 0) {
     extraFieldsAttr = `\n    value-fields="${extraVFs.join(',')}"`;
     // Build series names from labels
-    const seriesNames = [state.valueFieldLabel || state.valueField, ...state.extraSeries.filter(s => s.field).map(s => s.label || s.field)];
+    const seriesNames = [
+      state.valueFieldLabel || state.valueField,
+      ...state.extraSeries.filter((s) => s.field).map((s) => s.label || s.field),
+    ];
     nameAttr = `name='${escapeSingleQuotes(JSON.stringify(seriesNames))}'`;
   } else if (queryValueField2) {
     extraFieldsAttr = `\n    value-field-2="${queryValueField2}"`;
@@ -1343,12 +1465,16 @@ export function generateDynamicCodeForApi(): void {
   const apiBaseUrl = source.apiUrl ? new URL(source.apiUrl).origin : '';
 
   // Get field paths — after normalize flatten, data has flat field names
-  const labelFieldInfo = state.fields.find(f => f.name === state.labelField);
-  const valueFieldInfo = state.fields.find(f => f.name === state.valueField);
+  const labelFieldInfo = state.fields.find((f) => f.name === state.labelField);
+  const valueFieldInfo = state.fields.find((f) => f.name === state.valueField);
 
   const isFlattened = state.normalizeConfig.enabled && !!state.normalizeConfig.flatten;
-  const labelFieldPath = isFlattened ? state.labelField : (labelFieldInfo?.fullPath || state.labelField);
-  const valueFieldPath = isFlattened ? state.valueField : (valueFieldInfo?.fullPath || state.valueField);
+  const labelFieldPath = isFlattened
+    ? state.labelField
+    : labelFieldInfo?.fullPath || state.labelField;
+  const valueFieldPath = isFlattened
+    ? state.valueField
+    : valueFieldInfo?.fullPath || state.valueField;
 
   const refreshAttr = state.refreshInterval > 0 ? `\n    refresh="${state.refreshInterval}"` : '';
 
@@ -1358,16 +1484,24 @@ export function generateDynamicCodeForApi(): void {
   // Handle KPI type: use dsfr-data-source + dsfr-data-kpi for ODS/Tabular, fallback to embedded otherwise
   if (state.chartType === 'kpi') {
     if (provider.id === 'opendatasoft' && resourceIds?.datasetId) {
-      const selectExpr = state.aggregation === 'count'
-        ? 'count(*) as value'
-        : `${state.aggregation}(${valueFieldPath}) as value`;
-      const whereAttr = state.advancedMode && state.queryFilter
-        ? `\n    where="${escapeHtml(filterToOdsql(state.queryFilter))}"` : '';
+      const selectExpr =
+        state.aggregation === 'count'
+          ? 'count(*) as value'
+          : `${state.aggregation}(${valueFieldPath}) as value`;
+      const whereAttr =
+        state.advancedMode && state.queryFilter
+          ? `\n    where="${escapeHtml(filterToOdsql(state.queryFilter))}"`
+          : '';
       const unitInput = document.getElementById('kpi-unit') as HTMLInputElement | null;
       const unit = unitInput?.value || '';
-      const formatAttr = unit === '%' ? ' format="pourcentage"'
-        : (unit === '\u20ac' || unit === 'EUR') ? ' format="euro"'
-        : unit ? ' format="nombre"' : '';
+      const formatAttr =
+        unit === '%'
+          ? ' format="pourcentage"'
+          : unit === '\u20ac' || unit === 'EUR'
+            ? ' format="euro"'
+            : unit
+              ? ' format="nombre"'
+              : '';
       const code = `<!-- KPI dynamique genere avec dsfr-data Builder -->
 <!-- Source : ${escapeHtml(source.name)} (agregation serveur) -->
 
@@ -1403,12 +1537,16 @@ export function generateDynamicCodeForApi(): void {
   // Handle Datalist type (API dynamic)
   if (state.chartType === 'datalist') {
     const colonnes = buildColonnesAttr();
-    const triAttr = state.sortOrder !== 'none' && state.labelField
-      ? `\n    tri="${state.labelField}:${state.sortOrder}"` : '';
+    const triAttr =
+      state.sortOrder !== 'none' && state.labelField
+        ? `\n    tri="${state.labelField}:${state.sortOrder}"`
+        : '';
 
     if (provider.id === 'opendatasoft' && resourceIds?.datasetId) {
-      const whereAttr = state.advancedMode && state.queryFilter
-        ? `\n    where="${escapeHtml(filterToOdsql(state.queryFilter))}"` : '';
+      const whereAttr =
+        state.advancedMode && state.queryFilter
+          ? `\n    where="${escapeHtml(filterToOdsql(state.queryFilter))}"`
+          : '';
       // Facettes serveur ODS (fetch depuis l'API /facets)
       const facets = generateFacetsElement('table-query', { serverFacets: true });
       const datalistSource = facets.element ? facets.finalSourceId : 'table-query';
@@ -1453,11 +1591,16 @@ ${facets.element}
     }
 
     if (provider.id === 'tabular' && resourceIds?.resourceId) {
-      const filterAttr = state.advancedMode && state.queryFilter
-        ? `\n    where="${escapeHtml(state.queryFilter)}"` : '';
+      const filterAttr =
+        state.advancedMode && state.queryFilter
+          ? `\n    where="${escapeHtml(state.queryFilter)}"`
+          : '';
       // Facettes pre-calculees (Tabular ne supporte pas les facettes serveur)
       const staticVals = computeStaticFacetValues();
-      const facets = generateFacetsElement('table-query', staticVals ? { staticValues: staticVals } : undefined);
+      const facets = generateFacetsElement(
+        'table-query',
+        staticVals ? { staticValues: staticVals } : undefined
+      );
       const datalistSource = facets.element ? facets.finalSourceId : 'table-query';
       const code = `<!-- Tableau dynamique genere avec dsfr-data Builder -->
 <!-- Source : ${escapeHtml(source.name)} (pagination serveur : une page a la fois) -->
@@ -1500,7 +1643,8 @@ ${facets.element}
     }
 
     // Generic API: use dsfr-data-source (no automatic pagination)
-    const { elements: middlewareHtml, finalSourceId: datalistSource } = generateMiddlewareElements('table-data');
+    const { elements: middlewareHtml, finalSourceId: datalistSource } =
+      generateMiddlewareElements('table-data');
     const code = `<!-- Tableau dynamique genere avec dsfr-data Builder -->
 <!-- Source : ${escapeHtml(source.name)} (chargement dynamique) -->
 
@@ -1539,8 +1683,8 @@ ${middlewareHtml}
   let chartSource: string;
   let queryLabelField: string;
   let queryValueField: string;
-  let queryValueField2 = '';
-  let queryExtraVFs: string[] = [];
+  let queryValueField2: string;
+  let queryExtraVFs: string[];
   let sourceElement: string;
   let middlewareHtml = '';
   let facetsHtml = '';
@@ -1556,7 +1700,10 @@ ${middlewareHtml}
     queryExtraVFs = result.extraValueFields;
     sourceElement = '';
     const facets = generateFacetsElement(chartSource);
-    if (facets.element) { facetsHtml = facets.element; chartSource = facets.finalSourceId; }
+    if (facets.element) {
+      facetsHtml = facets.element;
+      chartSource = facets.finalSourceId;
+    }
   } else if (provider.id === 'tabular' && resourceIds?.resourceId) {
     const tabularInfo = { baseUrl: apiBaseUrl, resourceId: resourceIds.resourceId };
     const result = generateTabularQueryCode(tabularInfo, groupByPath, valueFieldPath);
@@ -1568,7 +1715,10 @@ ${middlewareHtml}
     queryExtraVFs = result.extraValueFields;
     sourceElement = '';
     const facets = generateFacetsElement(chartSource);
-    if (facets.element) { facetsHtml = facets.element; chartSource = facets.finalSourceId; }
+    if (facets.element) {
+      facetsHtml = facets.element;
+      chartSource = facets.finalSourceId;
+    }
   } else {
     const mw = generateMiddlewareElements('chart-data');
     middlewareHtml = mw.elements;
@@ -1589,7 +1739,9 @@ ${middlewareHtml}
 
   // Map palette
   const palette = isMap
-    ? (state.palette.includes('sequential') || state.palette.includes('divergent') ? state.palette : 'sequentialAscending')
+    ? state.palette.includes('sequential') || state.palette.includes('divergent')
+      ? state.palette
+      : 'sequentialAscending'
     : state.palette;
 
   // Map-specific attributes
@@ -1601,7 +1753,10 @@ ${middlewareHtml}
 
   if (queryExtraVFs.length > 0) {
     extraFieldsAttr = `\n    value-fields="${queryExtraVFs.join(',')}"`;
-    const seriesNames = [state.valueFieldLabel || state.valueField, ...state.extraSeries.filter(s => s.field).map(s => s.label || s.field)];
+    const seriesNames = [
+      state.valueFieldLabel || state.valueField,
+      ...state.extraSeries.filter((s) => s.field).map((s) => s.label || s.field),
+    ];
     nameAttr = `name='${escapeSingleQuotes(JSON.stringify(seriesNames))}'`;
   } else if (queryValueField2) {
     extraFieldsAttr = `\n    value-field-2="${queryValueField2}"`;
@@ -1747,8 +1902,10 @@ loadGauge();
   // Handle Datalist type (API fetch)
   if (state.chartType === 'datalist') {
     const colonnes = buildColonnesAttr();
-    const triAttr = state.sortOrder !== 'none' && state.labelField
-      ? `\n    tri="${state.labelField}:${state.sortOrder}"` : '';
+    const triAttr =
+      state.sortOrder !== 'none' && state.labelField
+        ? `\n    tri="${state.labelField}:${state.sortOrder}"`
+        : '';
     const code = `<!-- Tableau genere avec dsfr-data Builder -->
 
 <!-- Dependances CSS (DSFR) -->
@@ -1829,9 +1986,10 @@ loadChart();
   // Handle Map type
   if (state.chartType === 'map') {
     // For choropleth maps, use sequential or divergent palette for gradient
-    const mapPalette = state.palette.includes('sequential') || state.palette.includes('divergent')
-      ? state.palette
-      : 'sequentialAscending';
+    const mapPalette =
+      state.palette.includes('sequential') || state.palette.includes('divergent')
+        ? state.palette
+        : 'sequentialAscending';
 
     const code = `<!-- Carte g\u00e9n\u00e9r\u00e9e avec dsfr-data Builder -->
 <!-- Palette: ${mapPalette} -->
@@ -1898,24 +2056,34 @@ loadMap();
   }
 
   // Build DSFR Chart type and extra attributes
-  const activeExtraSeriesCode = state.extraSeries.filter(s => s.field && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType));
+  const activeExtraSeriesCode = state.extraSeries.filter(
+    (s) => s.field && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType)
+  );
   const dsfrTag = DSFR_TAG_MAP[state.chartType] || 'bar-chart';
 
   const extraAttrs: string[] = [];
   if (state.chartType === 'horizontalBar') extraAttrs.push('horizontal');
   if (state.chartType === 'pie') extraAttrs.push('fill');
 
-  const seriesNames = activeExtraSeriesCode.length > 0
-    ? JSON.stringify([state.valueFieldLabel || state.valueField, ...activeExtraSeriesCode.map(s => s.label || s.field)])
-    : JSON.stringify([state.valueFieldLabel || state.valueField]);
+  const seriesNames =
+    activeExtraSeriesCode.length > 0
+      ? JSON.stringify([
+          state.valueFieldLabel || state.valueField,
+          ...activeExtraSeriesCode.map((s) => s.label || s.field),
+        ])
+      : JSON.stringify([state.valueFieldLabel || state.valueField]);
 
   // Generate extra series extraction code
-  const extraSeriesExtractCode = activeExtraSeriesCode.map((_, i) =>
-    `\n  const values${i + 2} = data.map(d => Math.round((d.value${i + 2} || 0) * 100) / 100);`
-  ).join('');
-  const allValuesArrayCode = activeExtraSeriesCode.length > 0
-    ? `JSON.stringify([values, ${activeExtraSeriesCode.map((_, i) => `values${i + 2}`).join(', ')}])`
-    : 'JSON.stringify([values])';
+  const extraSeriesExtractCode = activeExtraSeriesCode
+    .map(
+      (_, i) =>
+        `\n  const values${i + 2} = data.map(d => Math.round((d.value${i + 2} || 0) * 100) / 100);`
+    )
+    .join('');
+  const allValuesArrayCode =
+    activeExtraSeriesCode.length > 0
+      ? `JSON.stringify([values, ${activeExtraSeriesCode.map((_, i) => `values${i + 2}`).join(', ')}])`
+      : 'JSON.stringify([values])';
 
   const code = `<!-- Graphique genere avec dsfr-data Builder -->
 
@@ -1949,9 +2117,17 @@ async function loadChart() {
   el.setAttribute('x', JSON.stringify([labels]));
   el.setAttribute('y', y);
   el.setAttribute('name', '${escapeSingleQuotes(seriesNames)}');
-  el.setAttribute('selected-palette', '${state.palette}');${state.chartType === 'horizontalBar' ? `
-  el.setAttribute('horizontal', '');` : ''}${state.chartType === 'pie' ? `
-  el.setAttribute('fill', '');` : ''}
+  el.setAttribute('selected-palette', '${state.palette}');${
+    state.chartType === 'horizontalBar'
+      ? `
+  el.setAttribute('horizontal', '');`
+      : ''
+  }${
+    state.chartType === 'pie'
+      ? `
+  el.setAttribute('fill', '');`
+      : ''
+  }
   document.getElementById('chart-container').appendChild(el);
 }
 

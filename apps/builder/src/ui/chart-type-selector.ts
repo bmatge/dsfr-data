@@ -10,7 +10,7 @@ import { initDatalistColumns } from './datalist-config.js';
  * Select a chart type and update the UI accordingly.
  */
 export function selectChartType(type: ChartType): void {
-  document.querySelectorAll('.chart-type-btn').forEach(b => b.classList.remove('selected'));
+  document.querySelectorAll('.chart-type-btn').forEach((b) => b.classList.remove('selected'));
   const selectedBtn = document.querySelector(`[data-type="${type}"]`);
   if (selectedBtn) selectedBtn.classList.add('selected');
   state.chartType = type;
@@ -38,7 +38,7 @@ export function selectChartType(type: ChartType): void {
 
   // Palette config: hide for KPI, gauge, and datalist
   const paletteConfig = document.getElementById('palette-config') as HTMLElement | null;
-  if (paletteConfig) paletteConfig.style.display = (isSingleValue || isDatalist) ? 'none' : 'block';
+  if (paletteConfig) paletteConfig.style.display = isSingleValue || isDatalist ? 'none' : 'block';
 
   // For maps, force a sequential palette for color gradient
   if (isMap && !state.palette.startsWith('sequential')) {
@@ -71,11 +71,14 @@ export function selectChartType(type: ChartType): void {
   const aggLabel = document.querySelector('label[for="aggregation"]');
   if (aggLabel) {
     if (isSingleValue) {
-      aggLabel.innerHTML = 'Agr\u00e9gation<span class="fr-hint-text">Calcul sur l\'ensemble des donn\u00e9es</span>';
+      aggLabel.innerHTML =
+        'Agr\u00e9gation<span class="fr-hint-text">Calcul sur l\'ensemble des donn\u00e9es</span>';
     } else if (isMap) {
-      aggLabel.innerHTML = 'Agr\u00e9gation<span class="fr-hint-text">Si plusieurs valeurs par d\u00e9partement</span>';
+      aggLabel.innerHTML =
+        'Agr\u00e9gation<span class="fr-hint-text">Si plusieurs valeurs par d\u00e9partement</span>';
     } else {
-      aggLabel.innerHTML = 'Agr\u00e9gation<span class="fr-hint-text">Comment regrouper les valeurs</span>';
+      aggLabel.innerHTML =
+        'Agr\u00e9gation<span class="fr-hint-text">Comment regrouper les valeurs</span>';
     }
   }
 
@@ -92,7 +95,7 @@ export function selectChartType(type: ChartType): void {
 
   // DataBox section: hide for non-chart types (KPI, gauge, datalist)
   const databoxSection = document.getElementById('section-databox') as HTMLElement | null;
-  if (databoxSection) databoxSection.style.display = (isSingleValue || isDatalist) ? 'none' : '';
+  if (databoxSection) databoxSection.style.display = isSingleValue || isDatalist ? 'none' : '';
 
   // Map chart needs code field for department codes
   const codeFieldGroup = document.getElementById('code-field-group') as HTMLElement | null;
@@ -109,26 +112,40 @@ export function selectChartType(type: ChartType): void {
 
   if (labelFieldLabel && valueFieldLabel) {
     if (isDatalist) {
-      labelFieldLabel.innerHTML = 'Colonnes<span class="fr-hint-text">Champ principal du tableau</span>';
-      valueFieldLabel.innerHTML = 'Valeurs<span class="fr-hint-text">Non utilis\u00e9 pour les tableaux</span>';
+      labelFieldLabel.innerHTML =
+        'Colonnes<span class="fr-hint-text">Champ principal du tableau</span>';
+      valueFieldLabel.innerHTML =
+        'Valeurs<span class="fr-hint-text">Non utilis\u00e9 pour les tableaux</span>';
     } else if (isScatter) {
-      labelFieldLabel.innerHTML = 'Axe X (num\u00e9rique)<span class="fr-hint-text">Valeurs horizontales</span>';
-      valueFieldLabel.innerHTML = 'Axe Y (num\u00e9rique)<span class="fr-hint-text">Valeurs verticales</span>';
+      labelFieldLabel.innerHTML =
+        'Axe X (num\u00e9rique)<span class="fr-hint-text">Valeurs horizontales</span>';
+      valueFieldLabel.innerHTML =
+        'Axe Y (num\u00e9rique)<span class="fr-hint-text">Valeurs verticales</span>';
     } else if (isMap) {
-      labelFieldLabel.innerHTML = 'Nom (optionnel)<span class="fr-hint-text">Nom du d\u00e9partement pour l\'affichage</span>';
-      valueFieldLabel.innerHTML = 'Valeur<span class="fr-hint-text">Le champ num\u00e9rique \u00e0 visualiser</span>';
+      labelFieldLabel.innerHTML =
+        'Nom (optionnel)<span class="fr-hint-text">Nom du d\u00e9partement pour l\'affichage</span>';
+      valueFieldLabel.innerHTML =
+        'Valeur<span class="fr-hint-text">Le champ num\u00e9rique \u00e0 visualiser</span>';
     } else if (isPieOrDoughnut) {
-      labelFieldLabel.innerHTML = 'Segments<span class="fr-hint-text">Cat\u00e9gories du camembert (max 7 recommand\u00e9)</span>';
-      valueFieldLabel.innerHTML = 'Valeurs<span class="fr-hint-text">Taille de chaque segment</span>';
+      labelFieldLabel.innerHTML =
+        'Segments<span class="fr-hint-text">Cat\u00e9gories du camembert (max 7 recommand\u00e9)</span>';
+      valueFieldLabel.innerHTML =
+        'Valeurs<span class="fr-hint-text">Taille de chaque segment</span>';
     } else if (isRadar) {
-      labelFieldLabel.innerHTML = 'Crit\u00e8res<span class="fr-hint-text">Axes du radar (ex: Performance, Qualit\u00e9...)</span>';
-      valueFieldLabel.innerHTML = 'Valeurs<span class="fr-hint-text">Score pour chaque crit\u00e8re</span>';
+      labelFieldLabel.innerHTML =
+        'Crit\u00e8res<span class="fr-hint-text">Axes du radar (ex: Performance, Qualit\u00e9...)</span>';
+      valueFieldLabel.innerHTML =
+        'Valeurs<span class="fr-hint-text">Score pour chaque crit\u00e8re</span>';
     } else if (type === 'line') {
-      labelFieldLabel.innerHTML = 'Axe X / Temps<span class="fr-hint-text">Dates ou cat\u00e9gories temporelles</span>';
-      valueFieldLabel.innerHTML = 'Valeurs (S\u00e9rie 1)<span class="fr-hint-text">Le champ num\u00e9rique \u00e0 mesurer</span>';
+      labelFieldLabel.innerHTML =
+        'Axe X / Temps<span class="fr-hint-text">Dates ou cat\u00e9gories temporelles</span>';
+      valueFieldLabel.innerHTML =
+        'Valeurs (S\u00e9rie 1)<span class="fr-hint-text">Le champ num\u00e9rique \u00e0 mesurer</span>';
     } else {
-      labelFieldLabel.innerHTML = 'Axe X / Cat\u00e9gories<span class="fr-hint-text">Le champ utilis\u00e9 pour les labels</span>';
-      valueFieldLabel.innerHTML = 'Axe Y / Valeurs (S\u00e9rie 1)<span class="fr-hint-text">Le champ num\u00e9rique \u00e0 mesurer</span>';
+      labelFieldLabel.innerHTML =
+        'Axe X / Cat\u00e9gories<span class="fr-hint-text">Le champ utilis\u00e9 pour les labels</span>';
+      valueFieldLabel.innerHTML =
+        'Axe Y / Valeurs (S\u00e9rie 1)<span class="fr-hint-text">Le champ num\u00e9rique \u00e0 mesurer</span>';
     }
   }
 }

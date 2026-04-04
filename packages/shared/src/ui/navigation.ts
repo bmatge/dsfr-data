@@ -3,16 +3,24 @@
  * Maps app identifiers to their paths under apps/.
  */
 
-type AppId = 'builder' | 'builder-ia' | 'dashboard' | 'monitoring' | 'playground' | 'sources' | 'favorites' | 'pipeline-helper';
+type AppId =
+  | 'builder'
+  | 'builder-ia'
+  | 'dashboard'
+  | 'monitoring'
+  | 'playground'
+  | 'sources'
+  | 'favorites'
+  | 'pipeline-helper';
 
 const APP_FILES: Record<AppId, string> = {
-  'builder': 'apps/builder/index.html',
+  builder: 'apps/builder/index.html',
   'builder-ia': 'apps/builder-ia/index.html',
-  'dashboard': 'apps/dashboard/index.html',
-  'monitoring': 'apps/monitoring/index.html',
-  'playground': 'apps/playground/index.html',
-  'sources': 'apps/sources/index.html',
-  'favorites': 'apps/favorites/index.html',
+  dashboard: 'apps/dashboard/index.html',
+  monitoring: 'apps/monitoring/index.html',
+  playground: 'apps/playground/index.html',
+  sources: 'apps/sources/index.html',
+  favorites: 'apps/favorites/index.html',
   'pipeline-helper': 'apps/pipeline-helper/index.html',
 };
 

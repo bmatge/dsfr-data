@@ -4,17 +4,43 @@
  */
 
 import './styles/builder-ia.css';
-import { initAuth, injectTourStyles, startTourIfFirstVisit, BUILDER_IA_TOUR } from '@dsfr-data/shared';
+import {
+  initAuth,
+  injectTourStyles,
+  startTourIfFirstVisit,
+  BUILDER_IA_TOUR,
+} from '@dsfr-data/shared';
 
-import { loadSavedSources, handleSourceChange, loadSavedSourceData, initDataPreviewModal } from './sources.js';
-import { loadIAConfig, saveIAConfig, addExtraParam, fetchServerConfig, updateIAModeBadge, resetIAConfig } from './ia/ia-config.js';
+import {
+  loadSavedSources,
+  handleSourceChange,
+  loadSavedSourceData,
+  initDataPreviewModal,
+} from './sources.js';
+import {
+  loadIAConfig,
+  saveIAConfig,
+  addExtraParam,
+  fetchServerConfig,
+  updateIAModeBadge,
+  resetIAConfig,
+} from './ia/ia-config.js';
 import { addMessage, sendMessage } from './chat/chat.js';
-import { switchTab, toggleSection, copyCode, openInPlayground, saveFavorite } from './ui/ui-helpers.js';
+import {
+  switchTab,
+  toggleSection,
+  copyCode,
+  openInPlayground,
+  saveFavorite,
+} from './ui/ui-helpers.js';
 import { state } from './state.js';
 
 // Expose functions that are called from inline onclick attributes in HTML
 (window as unknown as Record<string, unknown>).toggleSection = toggleSection;
-(window as unknown as Record<string, unknown>).saveIAConfig = () => { saveIAConfig(); updateIAModeBadge(); };
+(window as unknown as Record<string, unknown>).saveIAConfig = () => {
+  saveIAConfig();
+  updateIAModeBadge();
+};
 (window as unknown as Record<string, unknown>).resetIAConfig = resetIAConfig;
 (window as unknown as Record<string, unknown>).addExtraParam = addExtraParam;
 (window as unknown as Record<string, unknown>).loadSavedSourceData = loadSavedSourceData;
@@ -62,18 +88,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (savedMessages) {
       const messages = JSON.parse(savedMessages);
       if (Array.isArray(messages) && messages.length > 0) {
-        messages.forEach((m: { role: string; content: string }) => addMessage(m.role as 'user' | 'assistant', m.content));
+        messages.forEach((m: { role: string; content: string }) =>
+          addMessage(m.role as 'user' | 'assistant', m.content)
+        );
         state.messages = messages;
       }
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 
   // Welcome message (only if no restored conversation)
   if (state.messages.length === 0) {
-    addMessage('assistant', 'Bonjour ! Pour commencer :\n1. **Selectionnez une source de donnees** dans le panneau de gauche\n2. **Decrivez le graphique souhaite** en francais\n\nJe peux creer des barres, courbes, camemberts, KPIs, cartes, tableaux... et aussi nettoyer vos donnees ou ajouter des filtres interactifs.', [
-      'Quels types de graphiques ?',
-      'Comment fonctionne le pipeline ?',
-    ]);
+    addMessage(
+      'assistant',
+      'Bonjour ! Pour commencer :\n1. **Selectionnez une source de donnees** dans le panneau de gauche\n2. **Decrivez le graphique souhaite** en francais\n\nJe peux creer des barres, courbes, camemberts, KPIs, cartes, tableaux... et aussi nettoyer vos donnees ou ajouter des filtres interactifs.',
+      ['Quels types de graphiques ?', 'Comment fonctionne le pipeline ?']
+    );
   }
 
   // Clear conversation button

@@ -16,7 +16,10 @@ type LeafletTileLayer = import('leaflet').TileLayer;
 type LatLngBoundsExpression = import('leaflet').LatLngBoundsExpression;
 
 /** Tile presets — souverains, sans cle API */
-const TILE_PRESETS: Record<string, { url: string; attribution: string; options?: Record<string, unknown> }> = {
+const TILE_PRESETS: Record<
+  string,
+  { url: string; attribution: string; options?: Record<string, unknown> }
+> = {
   'ign-plan': {
     url: 'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',
     attribution: '&copy; <a href="https://www.ign.fr/">IGN</a>',
@@ -33,7 +36,7 @@ const TILE_PRESETS: Record<string, { url: string; attribution: string; options?:
     url: 'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=CADASTRALPARCELS.PARCELLAIRE_EXPRESS&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',
     attribution: '&copy; <a href="https://www.ign.fr/">IGN</a>',
   },
-  'osm': {
+  osm: {
     url: 'https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png',
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
   },
@@ -99,7 +102,9 @@ export class DsfrDataMap extends LitElement {
   private _resizeObserver: ResizeObserver | null = null;
 
   // Light DOM
-  createRenderRoot() { return this; }
+  createRenderRoot() {
+    return this;
+  }
 
   // --- Lifecycle ---
 
@@ -120,13 +125,13 @@ export class DsfrDataMap extends LitElement {
     }
     this._visibilityObserver = new IntersectionObserver(
       (entries) => {
-        if (entries.some(e => e.isIntersecting)) {
+        if (entries.some((e) => e.isIntersecting)) {
           this._visibilityObserver?.disconnect();
           this._visibilityObserver = null;
           this._initMap();
         }
       },
-      { rootMargin: '200px 0px' },
+      { rootMargin: '200px 0px' }
     );
     this._visibilityObserver.observe(this);
   }
@@ -294,7 +299,10 @@ export class DsfrDataMap extends LitElement {
     this._container.style.width = '100%';
     this._applyHeight();
     this._container.setAttribute('role', 'application');
-    this._container.setAttribute('aria-label', `Carte interactive${this.name ? ` : ${this.name}` : ''}`);
+    this._container.setAttribute(
+      'aria-label',
+      `Carte interactive${this.name ? ` : ${this.name}` : ''}`
+    );
     this._container.setAttribute('aria-describedby', descId);
     // Keyboard: allow Tab in, then Tab out cleanly (no trap)
     this._container.setAttribute('tabindex', '0');

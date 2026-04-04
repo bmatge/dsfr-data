@@ -11,7 +11,7 @@ import {
   dispatchSourceCommand,
   subscribeToSourceCommands,
   getDataMeta,
-  setDataMeta
+  setDataMeta,
 } from '../utils/data-bridge.js';
 import type { ApiAdapter } from '../adapters/api-adapter.js';
 
@@ -236,8 +236,18 @@ export class DsfrDataFacets extends LitElement {
       return;
     }
 
-    const facetAttrs = ['fields', 'labels', 'sort', 'hideEmpty', 'maxValues', 'disjunctive', 'searchable', 'display', 'cols'];
-    const hasFacetChange = facetAttrs.some(attr => changedProperties.has(attr));
+    const facetAttrs = [
+      'fields',
+      'labels',
+      'sort',
+      'hideEmpty',
+      'maxValues',
+      'disjunctive',
+      'searchable',
+      'display',
+      'cols',
+    ];
+    const hasFacetChange = facetAttrs.some((attr) => changedProperties.has(attr));
     if (hasFacetChange && this._rawData.length > 0) {
       if (this.serverFacets) {
         this._fetchServerFacets();
@@ -295,7 +305,7 @@ export class DsfrDataFacets extends LitElement {
       },
       onError: (error: Error) => {
         dispatchDataError(this.id, error);
-      }
+      },
     });
 
     // Forward downstream commands (page, orderBy) to upstream source
@@ -348,7 +358,7 @@ export class DsfrDataFacets extends LitElement {
     const labelMap = this._parseLabels();
 
     this._facetGroups = fields
-      .map(field => {
+      .map((field) => {
         const values = this._computeFacetValues(field);
         return {
           field,
@@ -356,7 +366,7 @@ export class DsfrDataFacets extends LitElement {
           values,
         };
       })
-      .filter(group => {
+      .filter((group) => {
         if (this.hideEmpty && group.values.length <= 1) return false;
         return group.values.length > 0;
       });
@@ -374,13 +384,13 @@ export class DsfrDataFacets extends LitElement {
       const fields = this.fields ? _parseCSV(this.fields) : Object.keys(parsed);
 
       this._facetGroups = fields
-        .filter(field => parsed[field] && parsed[field].length > 0)
-        .map(field => ({
+        .filter((field) => parsed[field] && parsed[field].length > 0)
+        .map((field) => ({
           field,
           label: labelMap.get(field) ?? field,
-          values: parsed[field].map(v => ({ value: v, count: 0 })),
+          values: parsed[field].map((v) => ({ value: v, count: 0 })),
         }))
-        .filter(group => !(this.hideEmpty && group.values.length <= 1));
+        .filter((group) => !(this.hideEmpty && group.values.length <= 1));
     } catch {
       console.warn('dsfr-data-facets: static-values invalide (JSON attendu)');
     }
@@ -433,7 +443,8 @@ export class DsfrDataFacets extends LitElement {
     const parts = field.split('.');
     let current: unknown = row;
     for (const part of parts) {
-      if (current === null || current === undefined || typeof current !== 'object') return undefined;
+      if (current === null || current === undefined || typeof current !== 'object')
+        return undefined;
       current = (current as Record<string, unknown>)[part];
     }
     return current;
@@ -504,13 +515,13 @@ export class DsfrDataFacets extends LitElement {
   /** Filter data by all active selections EXCEPT the given field */
   private _getDataFilteredExcluding(excludeField: string): Record<string, unknown>[] {
     const activeFields = Object.keys(this._activeSelections).filter(
-      f => f !== excludeField && this._activeSelections[f].size > 0
+      (f) => f !== excludeField && this._activeSelections[f].size > 0
     );
 
     if (activeFields.length === 0) return this._rawData;
 
-    return this._rawData.filter(row => {
-      return activeFields.every(field => {
+    return this._rawData.filter((row) => {
+      return activeFields.every((field) => {
         const selected = this._activeSelections[field];
         const val = this._resolveValue(row, field);
         if (val === null || val === undefined) return false;
@@ -544,9 +555,7 @@ export class DsfrDataFacets extends LitElement {
 
   /** Check if there are any active selections */
   private _hasActiveSelections(): boolean {
-    return Object.keys(this._activeSelections).some(
-      f => this._activeSelections[f].size > 0
-    );
+    return Object.keys(this._activeSelections).some((f) => this._activeSelections[f].size > 0);
   }
 
   /** Fetch facet values from server API with cross-facet counts */
@@ -567,17 +576,22 @@ export class DsfrDataFacets extends LitElement {
     // The immediate source may be a dsfr-data-query intermediary.
     const actualSourceEl = this._findUpstreamSource() || sourceEl;
 
-    const baseUrl = (actualSourceEl as any).baseUrl
-      || actualSourceEl.getAttribute('base-url') || '';
-    const datasetId = (actualSourceEl as any).datasetId
-      || actualSourceEl.getAttribute('dataset-id') || '';
+    const baseUrl =
+      (actualSourceEl as any).baseUrl || actualSourceEl.getAttribute('base-url') || '';
+    const datasetId =
+      (actualSourceEl as any).datasetId || actualSourceEl.getAttribute('dataset-id') || '';
     if (!datasetId) return;
 
     // Parse headers from the actual source element (dsfr-data-source)
     let headers: Record<string, string> | undefined;
-    const headersAttr = (actualSourceEl as any).headers || actualSourceEl.getAttribute('headers') || '';
+    const headersAttr =
+      (actualSourceEl as any).headers || actualSourceEl.getAttribute('headers') || '';
     if (headersAttr) {
-      try { headers = JSON.parse(headersAttr); } catch { /* ignore */ }
+      try {
+        headers = JSON.parse(headersAttr);
+      } catch {
+        /* ignore */
+      }
     }
 
     const fields = _parseCSV(this.fields);
@@ -619,9 +633,9 @@ export class DsfrDataFacets extends LitElement {
 
     // Order groups to match the fields attribute order
     this._facetGroups = fields
-      .map(f => allGroups.find(g => g.field === f))
+      .map((f) => allGroups.find((g) => g.field === f))
       .filter((g): g is FacetGroup => !!g)
-      .filter(g => !(this.hideEmpty && g.values.length <= 1));
+      .filter((g) => !(this.hideEmpty && g.values.length <= 1));
   }
 
   /** Dispatch facet where command to upstream dsfr-data-query */
@@ -634,15 +648,15 @@ export class DsfrDataFacets extends LitElement {
 
   _applyFilters() {
     const activeFields = Object.keys(this._activeSelections).filter(
-      f => this._activeSelections[f].size > 0
+      (f) => this._activeSelections[f].size > 0
     );
 
     let filtered: Record<string, unknown>[];
     if (activeFields.length === 0) {
       filtered = this._rawData;
     } else {
-      filtered = this._rawData.filter(row => {
-        return activeFields.every(field => {
+      filtered = this._rawData.filter((row) => {
+        return activeFields.every((field) => {
           const selected = this._activeSelections[field];
           const val = this._resolveValue(row, field);
           if (val === null || val === undefined) return false;
@@ -684,7 +698,10 @@ export class DsfrDataFacets extends LitElement {
       if (colonIndex === -1) continue;
       const key = pair.substring(0, colonIndex).trim();
       const value = pair.substring(colonIndex + 1).trim();
-      if (key && (value === 'checkbox' || value === 'select' || value === 'multiselect' || value === 'radio')) {
+      if (
+        key &&
+        (value === 'checkbox' || value === 'select' || value === 'multiselect' || value === 'radio')
+      ) {
         map.set(key, value);
       }
     }
@@ -736,8 +753,9 @@ export class DsfrDataFacets extends LitElement {
     const displayMode = this._getDisplayMode(field);
     const disjunctiveFields = _parseCSV(this.disjunctive);
     // select/radio = always exclusive, multiselect = always disjunctive, checkbox = check attribute
-    const isDisjunctive = displayMode === 'multiselect'
-      || (displayMode === 'checkbox' && disjunctiveFields.includes(field));
+    const isDisjunctive =
+      displayMode === 'multiselect' ||
+      (displayMode === 'checkbox' && disjunctiveFields.includes(field));
 
     const wasSelected = fieldSet.has(value);
     if (wasSelected) {
@@ -761,7 +779,9 @@ export class DsfrDataFacets extends LitElement {
     // Announce selection change for all interactive modes
     if (displayMode === 'multiselect' || displayMode === 'radio' || displayMode === 'checkbox') {
       const action = wasSelected ? 'deselectionnee' : 'selectionnee';
-      this._announce(`${value} ${action}, ${fieldSet.size} option${fieldSet.size > 1 ? 's' : ''} selectionnee${fieldSet.size > 1 ? 's' : ''}`);
+      this._announce(
+        `${value} ${action}, ${fieldSet.size} option${fieldSet.size > 1 ? 's' : ''} selectionnee${fieldSet.size > 1 ? 's' : ''}`
+      );
     }
   }
 
@@ -789,10 +809,10 @@ export class DsfrDataFacets extends LitElement {
   }
 
   private _selectAllValues(field: string) {
-    const group = this._facetGroups.find(g => g.field === field);
+    const group = this._facetGroups.find((g) => g.field === field);
     if (!group) return;
     const selections = { ...this._activeSelections };
-    selections[field] = new Set(group.values.map(v => v.value));
+    selections[field] = new Set(group.values.map((v) => v.value));
     this._activeSelections = selections;
     this._afterSelectionChange();
     this._announce(`${group.values.length} options selectionnees`);
@@ -806,15 +826,21 @@ export class DsfrDataFacets extends LitElement {
       this._openMultiselectField = field;
       this._setBackgroundInert(true);
       this.updateComplete.then(() => {
-        const panel = this.querySelector(`[data-multiselect="${field}"] .dsfr-data-facets__multiselect-panel`);
-        const firstFocusable = panel?.querySelector('button, input, select, [tabindex]') as HTMLElement;
+        const panel = this.querySelector(
+          `[data-multiselect="${field}"] .dsfr-data-facets__multiselect-panel`
+        );
+        const firstFocusable = panel?.querySelector(
+          'button, input, select, [tabindex]'
+        ) as HTMLElement;
         firstFocusable?.focus();
 
         // Announce panel context to screen readers
-        const group = this._facetGroups.find(g => g.field === field);
+        const group = this._facetGroups.find((g) => g.field === field);
         if (group) {
           const selected = this._activeSelections[field] ?? new Set();
-          this._announce(`${group.label}, ${group.values.length} options disponibles, ${selected.size} selectionnee${selected.size > 1 ? 's' : ''}`);
+          this._announce(
+            `${group.label}, ${group.values.length} options disponibles, ${selected.size} selectionnee${selected.size > 1 ? 's' : ''}`
+          );
         }
       });
     }
@@ -823,7 +849,9 @@ export class DsfrDataFacets extends LitElement {
   private _announce(message: string) {
     // Clear then set to ensure re-announcement of identical messages
     this._liveAnnouncement = '';
-    requestAnimationFrame(() => { this._liveAnnouncement = message; });
+    requestAnimationFrame(() => {
+      this._liveAnnouncement = message;
+    });
   }
 
   /**
@@ -833,7 +861,7 @@ export class DsfrDataFacets extends LitElement {
    */
   private _setBackgroundInert(active: boolean) {
     const host = this.closest('dsfr-data-facets') ?? this;
-    document.querySelectorAll('body > *').forEach(el => {
+    document.querySelectorAll('body > *').forEach((el) => {
       if (el.contains(host)) return; // skip our own ancestor
       if (active) {
         el.setAttribute('inert', '');
@@ -847,16 +875,24 @@ export class DsfrDataFacets extends LitElement {
     if (e.key === 'Escape') {
       this._openMultiselectField = null;
       this._setBackgroundInert(false);
-      const trigger = this.querySelector(`[data-multiselect="${field}"] .dsfr-data-facets__multiselect-trigger`) as HTMLElement;
+      const trigger = this.querySelector(
+        `[data-multiselect="${field}"] .dsfr-data-facets__multiselect-trigger`
+      ) as HTMLElement;
       trigger?.focus();
       return;
     }
 
     // Focus trap: Tab wraps within the dialog panel
     if (e.key === 'Tab') {
-      const panel = this.querySelector(`[data-multiselect="${field}"] .dsfr-data-facets__multiselect-panel`);
+      const panel = this.querySelector(
+        `[data-multiselect="${field}"] .dsfr-data-facets__multiselect-panel`
+      );
       if (!panel) return;
-      const focusables = [...panel.querySelectorAll<HTMLElement>('button:not([tabindex="-1"]), input, select, [tabindex]:not([tabindex="-1"])')];
+      const focusables = [
+        ...panel.querySelectorAll<HTMLElement>(
+          'button:not([tabindex="-1"]), input, select, [tabindex]:not([tabindex="-1"])'
+        ),
+      ];
       if (focusables.length === 0) return;
       const first = focusables[0];
       const last = focusables[focusables.length - 1];
@@ -872,9 +908,13 @@ export class DsfrDataFacets extends LitElement {
 
     // Arrow key navigation between checkboxes/radios
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Home' || e.key === 'End') {
-      const panel = this.querySelector(`[data-multiselect="${field}"] .dsfr-data-facets__multiselect-panel`);
+      const panel = this.querySelector(
+        `[data-multiselect="${field}"] .dsfr-data-facets__multiselect-panel`
+      );
       if (!panel) return;
-      const inputs = [...panel.querySelectorAll<HTMLInputElement>('input[type="checkbox"], input[type="radio"]')];
+      const inputs = [
+        ...panel.querySelectorAll<HTMLInputElement>('input[type="checkbox"], input[type="radio"]'),
+      ];
       if (inputs.length === 0) return;
 
       const currentIndex = inputs.indexOf(e.target as HTMLInputElement);
@@ -934,13 +974,17 @@ export class DsfrDataFacets extends LitElement {
     // Debounced announcement of filtered results count
     if (this._searchDebounceTimer) clearTimeout(this._searchDebounceTimer);
     this._searchDebounceTimer = setTimeout(() => {
-      const group = this._facetGroups.find(g => g.field === field);
+      const group = this._facetGroups.find((g) => g.field === field);
       if (!group) return;
       const query = input.value.toLowerCase();
       const count = query
-        ? group.values.filter(v => v.value.toLowerCase().includes(query)).length
+        ? group.values.filter((v) => v.value.toLowerCase().includes(query)).length
         : group.values.length;
-      this._announce(count === 0 ? 'Aucune option trouvee' : `${count} option${count > 1 ? 's' : ''} disponible${count > 1 ? 's' : ''}`);
+      this._announce(
+        count === 0
+          ? 'Aucune option trouvee'
+          : `${count} option${count > 1 ? 's' : ''} disponible${count > 1 ? 's' : ''}`
+      );
     }, 300);
   }
 
@@ -989,14 +1033,15 @@ export class DsfrDataFacets extends LitElement {
 
     for (const [paramName, paramValue] of params.entries()) {
       // Determine the target field name
-      const fieldName = paramMap.size > 0
-        ? (paramMap.get(paramName) ?? null)
-        : paramName;
+      const fieldName = paramMap.size > 0 ? (paramMap.get(paramName) ?? null) : paramName;
 
       if (!fieldName) continue;
 
       // Support comma-separated values in a single param: ?region=IDF,PACA
-      const values = paramValue.split(',').map(v => v.trim()).filter(Boolean);
+      const values = paramValue
+        .split(',')
+        .map((v) => v.trim())
+        .filter(Boolean);
 
       if (!selections[fieldName]) {
         selections[fieldName] = new Set();
@@ -1042,51 +1087,118 @@ export class DsfrDataFacets extends LitElement {
     }
 
     const hasActiveFilters = Object.keys(this._activeSelections).some(
-      f => this._activeSelections[f].size > 0
+      (f) => this._activeSelections[f].size > 0
     );
 
     const useDsfrGrid = !!this.cols;
 
     return html`
       <style>
-        .dsfr-data-facets { margin-bottom: 1.5rem; }
-        .dsfr-data-facets__header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
-        .dsfr-data-facets__groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1.5rem; }
-        .dsfr-data-facets__group { min-width: 0; }
-        .dsfr-data-facets__count { font-weight: 400; font-size: 0.75rem; color: var(--text-mention-grey, #666); margin-left: 0.25rem; }
+        .dsfr-data-facets {
+          margin-bottom: 1.5rem;
+        }
+        .dsfr-data-facets__header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 1rem;
+        }
+        .dsfr-data-facets__groups {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+          gap: 1.5rem;
+        }
+        .dsfr-data-facets__group {
+          min-width: 0;
+        }
+        .dsfr-data-facets__count {
+          font-weight: 400;
+          font-size: 0.75rem;
+          color: var(--text-mention-grey, #666);
+          margin-left: 0.25rem;
+        }
         .dsfr-data-facets .fr-radio-group .fr-label,
-        .dsfr-data-facets .fr-checkbox-group .fr-label { flex-wrap: nowrap; }
-        .dsfr-data-facets__multiselect { position: relative; }
-        .dsfr-data-facets__multiselect-trigger { width: 100%; text-align: left; cursor: pointer; appearance: none; }
-        .dsfr-data-facets__multiselect-trigger[aria-expanded="true"]::after { transform: rotate(180deg); }
-        .dsfr-data-facets__multiselect-panel { position: absolute; top: 100%; left: 0; right: 0; z-index: 1000; background: var(--background-default-grey, #fff); border: 1px solid var(--border-default-grey, #ddd); border-radius: 0 0 0.25rem 0.25rem; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); max-height: 320px; overflow-y: auto; padding: 0.75rem; }
-        .dsfr-data-facets__multiselect-panel .fr-search-bar { margin-bottom: 0.75rem; }
-        .dsfr-data-facets__dropdown-fieldset { margin: 0; padding: 0; border: none; }
-        .dsfr-data-facets__dropdown-fieldset .fr-fieldset__element { padding: 0; }
-        .dsfr-data-facets__multiselect-toggle { width: 100%; margin-bottom: 0.75rem; }
-        @media (max-width: 576px) { .dsfr-data-facets__groups { grid-template-columns: 1fr; } }
+        .dsfr-data-facets .fr-checkbox-group .fr-label {
+          flex-wrap: nowrap;
+        }
+        .dsfr-data-facets__multiselect {
+          position: relative;
+        }
+        .dsfr-data-facets__multiselect-trigger {
+          width: 100%;
+          text-align: left;
+          cursor: pointer;
+          appearance: none;
+        }
+        .dsfr-data-facets__multiselect-trigger[aria-expanded='true']::after {
+          transform: rotate(180deg);
+        }
+        .dsfr-data-facets__multiselect-panel {
+          position: absolute;
+          top: 100%;
+          left: 0;
+          right: 0;
+          z-index: 1000;
+          background: var(--background-default-grey, #fff);
+          border: 1px solid var(--border-default-grey, #ddd);
+          border-radius: 0 0 0.25rem 0.25rem;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+          max-height: 320px;
+          overflow-y: auto;
+          padding: 0.75rem;
+        }
+        .dsfr-data-facets__multiselect-panel .fr-search-bar {
+          margin-bottom: 0.75rem;
+        }
+        .dsfr-data-facets__dropdown-fieldset {
+          margin: 0;
+          padding: 0;
+          border: none;
+        }
+        .dsfr-data-facets__dropdown-fieldset .fr-fieldset__element {
+          padding: 0;
+        }
+        .dsfr-data-facets__multiselect-toggle {
+          width: 100%;
+          margin-bottom: 0.75rem;
+        }
+        @media (max-width: 576px) {
+          .dsfr-data-facets__groups {
+            grid-template-columns: 1fr;
+          }
+        }
       </style>
       <div class="dsfr-data-facets">
-        ${hasActiveFilters ? html`
-          <div class="dsfr-data-facets__header">
-            <button class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm fr-btn--icon-left fr-icon-close-circle-line" type="button" @click="${this._clearAll}">
-              Reinitialiser les filtres
-            </button>
-          </div>
-        ` : nothing}
-        ${useDsfrGrid ? html`
-          <div class="fr-grid-row fr-grid-row--gutters">
-            ${this._facetGroups.map(group => html`
-              <div class="${this._getColClass(group.field)}">
-                ${this._renderFacetGroup(group)}
+        ${hasActiveFilters
+          ? html`
+              <div class="dsfr-data-facets__header">
+                <button
+                  class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm fr-btn--icon-left fr-icon-close-circle-line"
+                  type="button"
+                  @click="${this._clearAll}"
+                >
+                  Reinitialiser les filtres
+                </button>
               </div>
-            `)}
-          </div>
-        ` : html`
-          <div class="dsfr-data-facets__groups">
-            ${this._facetGroups.map(group => this._renderFacetGroup(group))}
-          </div>
-        `}
+            `
+          : nothing}
+        ${useDsfrGrid
+          ? html`
+              <div class="fr-grid-row fr-grid-row--gutters">
+                ${this._facetGroups.map(
+                  (group) => html`
+                    <div class="${this._getColClass(group.field)}">
+                      ${this._renderFacetGroup(group)}
+                    </div>
+                  `
+                )}
+              </div>
+            `
+          : html`
+              <div class="dsfr-data-facets__groups">
+                ${this._facetGroups.map((group) => this._renderFacetGroup(group))}
+              </div>
+            `}
       </div>
     `;
   }
@@ -1114,7 +1226,7 @@ export class DsfrDataFacets extends LitElement {
 
     let displayValues = group.values;
     if (isSearchable && searchQuery) {
-      displayValues = displayValues.filter(v => v.value.toLowerCase().includes(searchQuery));
+      displayValues = displayValues.filter((v) => v.value.toLowerCase().includes(searchQuery));
     }
 
     const visibleValues = isExpanded ? displayValues : displayValues.slice(0, this.maxValues);
@@ -1125,41 +1237,62 @@ export class DsfrDataFacets extends LitElement {
       <fieldset class="fr-fieldset dsfr-data-facets__group" aria-labelledby="${uid}-legend">
         <legend class="fr-fieldset__legend fr-text--bold" id="${uid}-legend">${group.label}</legend>
         <div aria-live="polite" class="fr-sr-only">${this._liveAnnouncement}</div>
-        ${isSearchable ? html`
-          <div class="fr-fieldset__element">
-            <div class="fr-input-group">
-              <input class="fr-input fr-input--sm" type="search"
-                placeholder="Rechercher..."
-                .value="${this._searchQueries[group.field] ?? ''}"
-                @input="${(e: Event) => this._handleSearch(group.field, e)}"
-                aria-label="Rechercher dans ${group.label}">
-            </div>
-          </div>
-        ` : nothing}
-        ${visibleValues.map(fv => {
+        ${isSearchable
+          ? html`
+              <div class="fr-fieldset__element">
+                <div class="fr-input-group">
+                  <input
+                    class="fr-input fr-input--sm"
+                    type="search"
+                    placeholder="Rechercher..."
+                    .value="${this._searchQueries[group.field] ?? ''}"
+                    @input="${(e: Event) => this._handleSearch(group.field, e)}"
+                    aria-label="Rechercher dans ${group.label}"
+                  />
+                </div>
+              </div>
+            `
+          : nothing}
+        ${visibleValues.map((fv) => {
           const checkId = `${uid}-${fv.value.replace(/[^a-zA-Z0-9]/g, '_')}`;
           const isChecked = selected.has(fv.value);
           return html`
             <div class="fr-fieldset__element">
               <div class="fr-checkbox-group fr-checkbox-group--sm">
-                <input type="checkbox" id="${checkId}"
+                <input
+                  type="checkbox"
+                  id="${checkId}"
                   .checked="${isChecked}"
-                  @change="${() => this._toggleValue(group.field, fv.value)}">
+                  @change="${() => this._toggleValue(group.field, fv.value)}"
+                />
                 <label class="fr-label" for="${checkId}">
-                  ${fv.value}${this._effectiveHideCounts ? nothing : html`<span class="dsfr-data-facets__count" aria-hidden="true">${fv.count}</span><span class="fr-sr-only">, ${fv.count} resultat${fv.count > 1 ? 's' : ''}</span>`}
+                  ${fv.value}${this._effectiveHideCounts
+                    ? nothing
+                    : html`<span class="dsfr-data-facets__count" aria-hidden="true"
+                          >${fv.count}</span
+                        ><span class="fr-sr-only"
+                          >, ${fv.count} resultat${fv.count > 1 ? 's' : ''}</span
+                        >`}
                 </label>
               </div>
             </div>
           `;
         })}
-        ${hasMore ? html`
-          <div class="fr-fieldset__element">
-            <button class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm" type="button"
-              @click="${() => this._toggleExpand(group.field)}">
-              ${isExpanded ? 'Voir moins' : `Voir plus (${displayValues.length - this.maxValues})`}
-            </button>
-          </div>
-        ` : nothing}
+        ${hasMore
+          ? html`
+              <div class="fr-fieldset__element">
+                <button
+                  class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm"
+                  type="button"
+                  @click="${() => this._toggleExpand(group.field)}"
+                >
+                  ${isExpanded
+                    ? 'Voir moins'
+                    : `Voir plus (${displayValues.length - this.maxValues})`}
+                </button>
+              </div>
+            `
+          : nothing}
       </fieldset>
     `;
   }
@@ -1167,19 +1300,24 @@ export class DsfrDataFacets extends LitElement {
   private _renderSelectGroup(group: FacetGroup) {
     const uid = `facet-${this.id}-${group.field}`;
     const selected = this._activeSelections[group.field];
-    const selectedValue = selected ? [...selected][0] ?? '' : '';
+    const selectedValue = selected ? ([...selected][0] ?? '') : '';
 
     return html`
       <div class="dsfr-data-facets__group fr-select-group" data-field="${group.field}">
         <label class="fr-label" for="${uid}-select">${group.label}</label>
-        <select class="fr-select" id="${uid}-select"
-          @change="${(e: Event) => this._handleSelectChange(group.field, e)}">
+        <select
+          class="fr-select"
+          id="${uid}-select"
+          @change="${(e: Event) => this._handleSelectChange(group.field, e)}"
+        >
           <option value="" ?selected="${!selectedValue}">Tous</option>
-          ${group.values.map(fv => html`
-            <option value="${fv.value}" ?selected="${fv.value === selectedValue}">
-              ${this._effectiveHideCounts ? fv.value : `${fv.value} (${fv.count})`}
-            </option>
-          `)}
+          ${group.values.map(
+            (fv) => html`
+              <option value="${fv.value}" ?selected="${fv.value === selectedValue}">
+                ${this._effectiveHideCounts ? fv.value : `${fv.value} (${fv.count})`}
+              </option>
+            `
+          )}
         </select>
       </div>
     `;
@@ -1193,77 +1331,129 @@ export class DsfrDataFacets extends LitElement {
 
     let displayValues = group.values;
     if (searchQuery) {
-      displayValues = displayValues.filter(v => v.value.toLowerCase().includes(searchQuery));
+      displayValues = displayValues.filter((v) => v.value.toLowerCase().includes(searchQuery));
     }
 
-    const triggerLabel = selected.size > 0
-      ? `${selected.size} option${selected.size > 1 ? 's' : ''} selectionnee${selected.size > 1 ? 's' : ''}`
-      : 'Selectionnez des options';
+    const triggerLabel =
+      selected.size > 0
+        ? `${selected.size} option${selected.size > 1 ? 's' : ''} selectionnee${selected.size > 1 ? 's' : ''}`
+        : 'Selectionnez des options';
 
     // Selected values description for screen readers
     const selectedDesc = selected.size > 0 ? [...selected].join(', ') : '';
 
     return html`
-      <div class="fr-select-group dsfr-data-facets__group dsfr-data-facets__multiselect"
-           data-multiselect="${group.field}"
-           data-field="${group.field}"
-           @keydown="${(e: KeyboardEvent) => this._handleMultiselectKeydown(group.field, e)}"
-           @focusout="${(e: FocusEvent) => this._handleMultiselectFocusout(group.field, e)}">
+      <div
+        class="fr-select-group dsfr-data-facets__group dsfr-data-facets__multiselect"
+        data-multiselect="${group.field}"
+        data-field="${group.field}"
+        @keydown="${(e: KeyboardEvent) => this._handleMultiselectKeydown(group.field, e)}"
+        @focusout="${(e: FocusEvent) => this._handleMultiselectFocusout(group.field, e)}"
+      >
         <label class="fr-label" id="${uid}-legend">${group.label}</label>
-        ${selectedDesc ? html`<span class="fr-sr-only" id="${uid}-desc">${selectedDesc}</span>` : nothing}
-        <button class="fr-select dsfr-data-facets__multiselect-trigger"
+        ${selectedDesc
+          ? html`<span class="fr-sr-only" id="${uid}-desc">${selectedDesc}</span>`
+          : nothing}
+        <button
+          class="fr-select dsfr-data-facets__multiselect-trigger"
           type="button"
           aria-expanded="${isOpen}"
           aria-controls="${uid}-panel"
           aria-labelledby="${uid}-legend"
           aria-haspopup="dialog"
           aria-describedby="${selectedDesc ? `${uid}-desc` : nothing}"
-          @click="${(e: Event) => { e.stopPropagation(); this._toggleMultiselectDropdown(group.field); }}">
+          @click="${(e: Event) => {
+            e.stopPropagation();
+            this._toggleMultiselectDropdown(group.field);
+          }}"
+        >
           ${triggerLabel}
         </button>
-        ${isOpen ? html`
-          <div class="dsfr-data-facets__multiselect-panel" id="${uid}-panel"
-               role="dialog" aria-modal="true" aria-label="${group.label}"
-               @click="${(e: Event) => e.stopPropagation()}">
-            <div aria-live="polite" class="fr-sr-only">${this._liveAnnouncement}</div>
-            <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-left ${selected.size > 0 ? 'fr-icon-close-circle-line' : 'fr-icon-check-line'} dsfr-data-facets__multiselect-toggle"
-              type="button"
-              aria-label="${selected.size > 0 ? `Tout deselectionner pour ${group.label}` : `Tout selectionner pour ${group.label}`}"
-              @click="${() => selected.size > 0 ? this._clearFieldSelections(group.field) : this._selectAllValues(group.field)}">
-              ${selected.size > 0 ? 'Tout deselectionner' : 'Tout selectionner'}
-            </button>
-            <div class="fr-search-bar" role="search">
-              <label class="fr-label fr-sr-only" for="${uid}-search">Rechercher dans ${group.label}</label>
-              <input class="fr-input" type="search" id="${uid}-search"
-                placeholder="Rechercher..."
-                aria-describedby="${uid}-search-hint"
-                .value="${this._searchQueries[group.field] ?? ''}"
-                @input="${(e: Event) => this._handleSearch(group.field, e)}">
-              <span class="fr-sr-only" id="${uid}-search-hint">Les resultats se mettent a jour automatiquement</span>
-              <button class="fr-btn" type="button" title="Rechercher" aria-hidden="true" tabindex="-1">
-                Rechercher
-              </button>
-            </div>
-            <fieldset class="fr-fieldset dsfr-data-facets__dropdown-fieldset" aria-label="${group.label}">
-              ${displayValues.map(fv => {
-                const checkId = `${uid}-${fv.value.replace(/[^a-zA-Z0-9]/g, '_')}`;
-                const isChecked = selected.has(fv.value);
-                return html`
-                  <div class="fr-fieldset__element">
-                    <div class="fr-checkbox-group fr-checkbox-group--sm">
-                      <input type="checkbox" id="${checkId}"
-                        .checked="${isChecked}"
-                        @change="${() => this._toggleValue(group.field, fv.value)}">
-                      <label class="fr-label" for="${checkId}">
-                        ${fv.value}${this._effectiveHideCounts ? nothing : html`<span class="dsfr-data-facets__count" aria-hidden="true">${fv.count}</span><span class="fr-sr-only">, ${fv.count} resultat${fv.count > 1 ? 's' : ''}</span>`}
-                      </label>
-                    </div>
-                  </div>
-                `;
-              })}
-            </fieldset>
-          </div>
-        ` : nothing}
+        ${isOpen
+          ? html`
+              <div
+                class="dsfr-data-facets__multiselect-panel"
+                id="${uid}-panel"
+                role="dialog"
+                aria-modal="true"
+                aria-label="${group.label}"
+                @click="${(e: Event) => e.stopPropagation()}"
+              >
+                <div aria-live="polite" class="fr-sr-only">${this._liveAnnouncement}</div>
+                <button
+                  class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-left ${selected.size > 0
+                    ? 'fr-icon-close-circle-line'
+                    : 'fr-icon-check-line'} dsfr-data-facets__multiselect-toggle"
+                  type="button"
+                  aria-label="${selected.size > 0
+                    ? `Tout deselectionner pour ${group.label}`
+                    : `Tout selectionner pour ${group.label}`}"
+                  @click="${() =>
+                    selected.size > 0
+                      ? this._clearFieldSelections(group.field)
+                      : this._selectAllValues(group.field)}"
+                >
+                  ${selected.size > 0 ? 'Tout deselectionner' : 'Tout selectionner'}
+                </button>
+                <div class="fr-search-bar" role="search">
+                  <label class="fr-label fr-sr-only" for="${uid}-search"
+                    >Rechercher dans ${group.label}</label
+                  >
+                  <input
+                    class="fr-input"
+                    type="search"
+                    id="${uid}-search"
+                    placeholder="Rechercher..."
+                    aria-describedby="${uid}-search-hint"
+                    .value="${this._searchQueries[group.field] ?? ''}"
+                    @input="${(e: Event) => this._handleSearch(group.field, e)}"
+                  />
+                  <span class="fr-sr-only" id="${uid}-search-hint"
+                    >Les resultats se mettent a jour automatiquement</span
+                  >
+                  <button
+                    class="fr-btn"
+                    type="button"
+                    title="Rechercher"
+                    aria-hidden="true"
+                    tabindex="-1"
+                  >
+                    Rechercher
+                  </button>
+                </div>
+                <fieldset
+                  class="fr-fieldset dsfr-data-facets__dropdown-fieldset"
+                  aria-label="${group.label}"
+                >
+                  ${displayValues.map((fv) => {
+                    const checkId = `${uid}-${fv.value.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                    const isChecked = selected.has(fv.value);
+                    return html`
+                      <div class="fr-fieldset__element">
+                        <div class="fr-checkbox-group fr-checkbox-group--sm">
+                          <input
+                            type="checkbox"
+                            id="${checkId}"
+                            .checked="${isChecked}"
+                            @change="${() => this._toggleValue(group.field, fv.value)}"
+                          />
+                          <label class="fr-label" for="${checkId}">
+                            ${fv.value}${this._effectiveHideCounts
+                              ? nothing
+                              : html`<span class="dsfr-data-facets__count" aria-hidden="true"
+                                    >${fv.count}</span
+                                  ><span class="fr-sr-only"
+                                    >, ${fv.count} resultat${fv.count > 1 ? 's' : ''}</span
+                                  >`}
+                          </label>
+                        </div>
+                      </div>
+                    `;
+                  })}
+                </fieldset>
+              </div>
+            `
+          : nothing}
       </div>
     `;
   }
@@ -1276,73 +1466,118 @@ export class DsfrDataFacets extends LitElement {
 
     let displayValues = group.values;
     if (searchQuery) {
-      displayValues = displayValues.filter(v => v.value.toLowerCase().includes(searchQuery));
+      displayValues = displayValues.filter((v) => v.value.toLowerCase().includes(searchQuery));
     }
 
     const selectedValue = selected.size > 0 ? [...selected][0] : null;
     const triggerLabel = selectedValue ?? 'Selectionnez une option';
 
     return html`
-      <div class="fr-select-group dsfr-data-facets__group dsfr-data-facets__multiselect"
-           data-multiselect="${group.field}"
-           data-field="${group.field}"
-           @keydown="${(e: KeyboardEvent) => this._handleMultiselectKeydown(group.field, e)}"
-           @focusout="${(e: FocusEvent) => this._handleMultiselectFocusout(group.field, e)}">
+      <div
+        class="fr-select-group dsfr-data-facets__group dsfr-data-facets__multiselect"
+        data-multiselect="${group.field}"
+        data-field="${group.field}"
+        @keydown="${(e: KeyboardEvent) => this._handleMultiselectKeydown(group.field, e)}"
+        @focusout="${(e: FocusEvent) => this._handleMultiselectFocusout(group.field, e)}"
+      >
         <label class="fr-label" id="${uid}-legend">${group.label}</label>
-        <button class="fr-select dsfr-data-facets__multiselect-trigger"
+        <button
+          class="fr-select dsfr-data-facets__multiselect-trigger"
           type="button"
           aria-expanded="${isOpen}"
           aria-controls="${uid}-panel"
           aria-labelledby="${uid}-legend"
           aria-haspopup="dialog"
-          @click="${(e: Event) => { e.stopPropagation(); this._toggleMultiselectDropdown(group.field); }}">
+          @click="${(e: Event) => {
+            e.stopPropagation();
+            this._toggleMultiselectDropdown(group.field);
+          }}"
+        >
           ${triggerLabel}
         </button>
-        ${isOpen ? html`
-          <div class="dsfr-data-facets__multiselect-panel" id="${uid}-panel"
-               role="dialog" aria-modal="true" aria-label="${group.label}"
-               @click="${(e: Event) => e.stopPropagation()}">
-            <div aria-live="polite" class="fr-sr-only">${this._liveAnnouncement}</div>
-            ${selectedValue ? html`
-              <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-left fr-icon-close-circle-line dsfr-data-facets__multiselect-toggle"
-                type="button"
-                aria-label="Reinitialiser ${group.label}"
-                @click="${() => this._clearFieldSelections(group.field)}">
-                Reinitialiser
-              </button>
-            ` : nothing}
-            <div class="fr-search-bar" role="search">
-              <label class="fr-label fr-sr-only" for="${uid}-search">Rechercher dans ${group.label}</label>
-              <input class="fr-input" type="search" id="${uid}-search"
-                placeholder="Rechercher..."
-                aria-describedby="${uid}-search-hint"
-                .value="${this._searchQueries[group.field] ?? ''}"
-                @input="${(e: Event) => this._handleSearch(group.field, e)}">
-              <span class="fr-sr-only" id="${uid}-search-hint">Les resultats se mettent a jour automatiquement</span>
-              <button class="fr-btn" type="button" title="Rechercher" aria-hidden="true" tabindex="-1">
-                Rechercher
-              </button>
-            </div>
-            <fieldset class="fr-fieldset dsfr-data-facets__dropdown-fieldset" aria-label="${group.label}">
-              ${displayValues.map(fv => {
-                const radioId = `${uid}-${fv.value.replace(/[^a-zA-Z0-9]/g, '_')}`;
-                const isChecked = selected.has(fv.value);
-                return html`
-                  <div class="fr-fieldset__element">
-                    <div class="fr-radio-group fr-radio-group--sm">
-                      <input type="radio" id="${radioId}" name="${uid}-radio"
-                        .checked="${isChecked}"
-                        @change="${() => this._toggleValue(group.field, fv.value)}">
-                      <label class="fr-label" for="${radioId}">
-                        ${fv.value}${this._effectiveHideCounts ? nothing : html`<span class="dsfr-data-facets__count" aria-hidden="true">${fv.count}</span><span class="fr-sr-only">, ${fv.count} resultat${fv.count > 1 ? 's' : ''}</span>`}
-                      </label>
-                    </div>
-                  </div>
-                `;
-              })}
-            </fieldset>
-          </div>
-        ` : nothing}
+        ${isOpen
+          ? html`
+              <div
+                class="dsfr-data-facets__multiselect-panel"
+                id="${uid}-panel"
+                role="dialog"
+                aria-modal="true"
+                aria-label="${group.label}"
+                @click="${(e: Event) => e.stopPropagation()}"
+              >
+                <div aria-live="polite" class="fr-sr-only">${this._liveAnnouncement}</div>
+                ${selectedValue
+                  ? html`
+                      <button
+                        class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-left fr-icon-close-circle-line dsfr-data-facets__multiselect-toggle"
+                        type="button"
+                        aria-label="Reinitialiser ${group.label}"
+                        @click="${() => this._clearFieldSelections(group.field)}"
+                      >
+                        Reinitialiser
+                      </button>
+                    `
+                  : nothing}
+                <div class="fr-search-bar" role="search">
+                  <label class="fr-label fr-sr-only" for="${uid}-search"
+                    >Rechercher dans ${group.label}</label
+                  >
+                  <input
+                    class="fr-input"
+                    type="search"
+                    id="${uid}-search"
+                    placeholder="Rechercher..."
+                    aria-describedby="${uid}-search-hint"
+                    .value="${this._searchQueries[group.field] ?? ''}"
+                    @input="${(e: Event) => this._handleSearch(group.field, e)}"
+                  />
+                  <span class="fr-sr-only" id="${uid}-search-hint"
+                    >Les resultats se mettent a jour automatiquement</span
+                  >
+                  <button
+                    class="fr-btn"
+                    type="button"
+                    title="Rechercher"
+                    aria-hidden="true"
+                    tabindex="-1"
+                  >
+                    Rechercher
+                  </button>
+                </div>
+                <fieldset
+                  class="fr-fieldset dsfr-data-facets__dropdown-fieldset"
+                  aria-label="${group.label}"
+                >
+                  ${displayValues.map((fv) => {
+                    const radioId = `${uid}-${fv.value.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                    const isChecked = selected.has(fv.value);
+                    return html`
+                      <div class="fr-fieldset__element">
+                        <div class="fr-radio-group fr-radio-group--sm">
+                          <input
+                            type="radio"
+                            id="${radioId}"
+                            name="${uid}-radio"
+                            .checked="${isChecked}"
+                            @change="${() => this._toggleValue(group.field, fv.value)}"
+                          />
+                          <label class="fr-label" for="${radioId}">
+                            ${fv.value}${this._effectiveHideCounts
+                              ? nothing
+                              : html`<span class="dsfr-data-facets__count" aria-hidden="true"
+                                    >${fv.count}</span
+                                  ><span class="fr-sr-only"
+                                    >, ${fv.count} resultat${fv.count > 1 ? 's' : ''}</span
+                                  >`}
+                          </label>
+                        </div>
+                      </div>
+                    `;
+                  })}
+                </fieldset>
+              </div>
+            `
+          : nothing}
       </div>
     `;
   }
@@ -1351,7 +1586,10 @@ export class DsfrDataFacets extends LitElement {
 /** Parse a comma-separated string into trimmed non-empty tokens */
 export function _parseCSV(value: string): string[] {
   if (!value) return [];
-  return value.split(',').map(s => s.trim()).filter(Boolean);
+  return value
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 declare global {

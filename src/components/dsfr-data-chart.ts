@@ -3,9 +3,19 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { getByPath } from '../utils/json-path.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
+import { escapeHtml } from '@dsfr-data/shared';
 import { isValidDeptCode } from '@dsfr-data/shared';
 
-type DSFRChartType = 'line' | 'bar' | 'pie' | 'radar' | 'gauge' | 'scatter' | 'bar-line' | 'map' | 'map-reg';
+type DSFRChartType =
+  | 'line'
+  | 'bar'
+  | 'pie'
+  | 'radar'
+  | 'gauge'
+  | 'scatter'
+  | 'bar-line'
+  | 'map'
+  | 'map-reg';
 
 let databoxAutoId = 0;
 
@@ -195,21 +205,33 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     }
   }
 
-
   // --- Data processing ---
 
   /** Parse all value field names (value-field, value-field-2, value-fields) */
   private _getAllValueFields(): string[] {
     const fields = [this.valueField];
     if (this.valueFields) {
-      fields.push(...this.valueFields.split(',').map(f => f.trim()).filter(Boolean));
+      fields.push(
+        ...this.valueFields
+          .split(',')
+          .map((f) => f.trim())
+          .filter(Boolean)
+      );
     } else if (this.valueField2) {
       fields.push(this.valueField2);
     }
     return fields;
   }
 
-  private _processData(): { x: string; y: string; y2?: string; yMulti?: string; labels: string[]; values: number[]; values2: number[] } {
+  private _processData(): {
+    x: string;
+    y: string;
+    y2?: string;
+    yMulti?: string;
+    labels: string[];
+    values: number[];
+    values2: number[];
+  } {
     if (!this._data || this._data.length === 0) {
       return { x: '[[]]', y: '[[]]', labels: [], values: [], values2: [] };
     }
@@ -279,7 +301,9 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       const isMap = this.type === 'map' || this.type === 'map-reg';
       attrs['name'] = isMap
         ? trimmed
-        : trimmed.startsWith('[') ? trimmed : JSON.stringify([trimmed]);
+        : trimmed.startsWith('[')
+          ? trimmed
+          : JSON.stringify([trimmed]);
     } else if (this.valueField) {
       const isMap = this.type === 'map' || this.type === 'map-reg';
       if (isMap) {
@@ -293,14 +317,19 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     return attrs;
   }
 
-  private _getTypeSpecificAttributes(): { attrs: Record<string, string>; deferred: Record<string, string> } {
+  private _getTypeSpecificAttributes(): {
+    attrs: Record<string, string>;
+    deferred: Record<string, string>;
+  } {
     const { x, y, yMulti, labels, values, values2 } = this._processData();
     const attrs: Record<string, string> = {};
     const deferred: Record<string, string> = {};
 
     switch (this.type) {
       case 'gauge': {
-        const gaugeVal = this.gaugeValue ?? (this._data.length > 0 ? Number(getByPath(this._data[0], this.valueField)) || 0 : 0);
+        const gaugeVal =
+          this.gaugeValue ??
+          (this._data.length > 0 ? Number(getByPath(this._data[0], this.valueField)) || 0 : 0);
         attrs['percent'] = String(Math.round(gaugeVal));
         attrs['init'] = '0';
         attrs['target'] = '100';
@@ -328,7 +357,9 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
             const names: string[] = trimmed.startsWith('[') ? JSON.parse(trimmed) : [trimmed];
             if (names[0]) attrs['name-bar'] = names[0];
             if (names[1]) attrs['name-line'] = names[1];
-          } catch { /* ignore parse errors */ }
+          } catch {
+            /* ignore parse errors */
+          }
         }
         // BarLineChart uses unit-tooltip-bar / unit-tooltip-line (not unit-tooltip)
         if (this.unitTooltipBar) attrs['unit-tooltip-bar'] = this.unitTooltipBar;
@@ -347,7 +378,10 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
           let count = 0;
           for (const record of this._data) {
             const v = Number(getByPath(record, this.valueField));
-            if (!isNaN(v)) { total += v; count++; }
+            if (!isNaN(v)) {
+              total += v;
+              count++;
+            }
           }
           if (count > 0) {
             const avg = Math.round((total / count) * 100) / 100;
@@ -384,16 +418,26 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
    */
   private _getAriaLabel(): string {
     const typeLabels: Record<string, string> = {
-      bar: 'barres', line: 'lignes', pie: 'camembert', radar: 'radar',
-      gauge: 'jauge', scatter: 'nuage de points', 'bar-line': 'barres et lignes',
-      map: 'carte departements', 'map-reg': 'carte regions',
+      bar: 'barres',
+      line: 'lignes',
+      pie: 'camembert',
+      radar: 'radar',
+      gauge: 'jauge',
+      scatter: 'nuage de points',
+      'bar-line': 'barres et lignes',
+      map: 'carte departements',
+      'map-reg': 'carte regions',
     };
     const typeName = typeLabels[this.type] || this.type;
     const count = this._data.length;
     return `Graphique ${typeName}, ${count} valeurs`;
   }
 
-  private _createRawChartElement(tagName: string, attributes: Record<string, string>, deferred: Record<string, string> = {}) {
+  private _createRawChartElement(
+    tagName: string,
+    attributes: Record<string, string>,
+    deferred: Record<string, string> = {}
+  ) {
     const el = document.createElement(tagName);
     for (const [key, value] of Object.entries(attributes)) {
       if (value !== undefined && value !== '') {
@@ -415,7 +459,11 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     return el;
   }
 
-  private _createChartElement(tagName: string, attributes: Record<string, string>, deferred: Record<string, string> = {}) {
+  private _createChartElement(
+    tagName: string,
+    attributes: Record<string, string>,
+    deferred: Record<string, string> = {}
+  ) {
     const el = this._createRawChartElement(tagName, attributes, deferred);
 
     const wrapper = document.createElement('div');
@@ -429,7 +477,11 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   /** Creates a DataBox + chart as siblings in a wrapper div.
    *  DSFR DataBox discovers its chart via nextElementSibling or databox-id,
    *  so the chart must be a SIBLING of <data-box>, not a child. */
-  private _createDataboxElement(tagName: string, attributes: Record<string, string>, deferred: Record<string, string> = {}) {
+  private _createDataboxElement(
+    tagName: string,
+    attributes: Record<string, string>,
+    deferred: Record<string, string> = {}
+  ) {
     const databoxId = `databox-${this.id || `auto-${++databoxAutoId}`}`;
 
     // Set databox-id/type/source on chart so DataBox can find it.
@@ -456,10 +508,12 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     if (this.databoxFullscreen) databoxEl.setAttribute('fullscreen', '');
     if (this.databoxTrend) databoxEl.setAttribute('trend', this.databoxTrend);
     if (this.databoxTooltipTitle) databoxEl.setAttribute('tooltip-title', this.databoxTooltipTitle);
-    if (this.databoxTooltipContent) databoxEl.setAttribute('tooltip-content', this.databoxTooltipContent);
+    if (this.databoxTooltipContent)
+      databoxEl.setAttribute('tooltip-content', this.databoxTooltipContent);
     if (this.databoxModalTitle) databoxEl.setAttribute('modal-title', this.databoxModalTitle);
     if (this.databoxModalContent) databoxEl.setAttribute('modal-content', this.databoxModalContent);
-    if (this.databoxDefaultSource) databoxEl.setAttribute('default-source', this.databoxDefaultSource);
+    if (this.databoxDefaultSource)
+      databoxEl.setAttribute('default-source', this.databoxDefaultSource);
     if (this.databoxActions) databoxEl.setAttribute('actions', this.databoxActions);
 
     // Create chart element
@@ -507,14 +561,18 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       if (columns.length === 0) return;
       const rows = this._data.slice(0, 100);
 
-      const headerCells = columns.map(c => `<th scope="col">${c}</th>`).join('');
-      const bodyRows = rows.map(row => {
-        const cells = columns.map(col => {
-          const val = getByPath(row, col);
-          return `<td>${val ?? ''}</td>`;
-        }).join('');
-        return `<tr>${cells}</tr>`;
-      }).join('');
+      const headerCells = columns.map((c) => `<th scope="col">${escapeHtml(String(c))}</th>`).join('');
+      const bodyRows = rows
+        .map((row) => {
+          const cells = columns
+            .map((col) => {
+              const val = getByPath(row, col);
+              return `<td>${escapeHtml(String(val ?? ''))}</td>`;
+            })
+            .join('');
+          return `<tr>${cells}</tr>`;
+        })
+        .join('');
 
       container.innerHTML = `
         <div class="fr-table fr-m-2w">
@@ -529,7 +587,9 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   private _renderChart() {
     const tagName = CHART_TAG_MAP[this.type];
     if (!tagName) {
-      return html`<p class="fr-text--sm fr-text--error">Type de graphique non supporté: ${this.type}</p>`;
+      return html`<p class="fr-text--sm fr-text--error">
+        Type de graphique non supporté: ${this.type}
+      </p>`;
     }
 
     const { attrs: typeAttrs, deferred } = this._getTypeSpecificAttributes();
@@ -546,8 +606,9 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     }
 
     // Replace previous chart/databox wrapper if any
-    const prevWrapper = this.querySelector('.dsfr-data-chart__wrapper')
-      || this.querySelector('.dsfr-data-chart__databox-wrapper');
+    const prevWrapper =
+      this.querySelector('.dsfr-data-chart__wrapper') ||
+      this.querySelector('.dsfr-data-chart__databox-wrapper');
     if (prevWrapper) prevWrapper.remove();
 
     if (this.databox) {
@@ -567,8 +628,13 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
         </div>
         <style>
           .dsfr-data-chart__loading {
-            display: flex; align-items: center; justify-content: center;
-            gap: 0.5rem; padding: 2rem; color: var(--text-mention-grey, #666); font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 2rem;
+            color: var(--text-mention-grey, #666);
+            font-size: 0.875rem;
           }
         </style>
       `;
@@ -582,9 +648,13 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
         </div>
         <style>
           .dsfr-data-chart__error {
-            display: flex; align-items: center; gap: 0.5rem; padding: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem;
             color: var(--text-default-error, #ce0500);
-            background: var(--background-alt-red-marianne, #ffe5e5); border-radius: 4px;
+            background: var(--background-alt-red-marianne, #ffe5e5);
+            border-radius: 4px;
           }
         </style>
       `;
@@ -598,9 +668,13 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
         </div>
         <style>
           .dsfr-data-chart__empty {
-            display: flex; align-items: center; gap: 0.5rem; padding: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem;
             color: var(--text-mention-grey, #666);
-            background: var(--background-alt-grey, #f5f5f5); border-radius: 4px;
+            background: var(--background-alt-grey, #f5f5f5);
+            border-radius: 4px;
           }
         </style>
       `;

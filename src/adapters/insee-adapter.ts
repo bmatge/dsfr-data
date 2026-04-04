@@ -9,8 +9,11 @@
  */
 
 import type {
-  ApiAdapter, AdapterCapabilities, AdapterParams,
-  FetchResult, ServerSideOverlay
+  ApiAdapter,
+  AdapterCapabilities,
+  AdapterParams,
+  FetchResult,
+  ServerSideOverlay,
 } from './api-adapter.js';
 import type { ProviderConfig } from '@dsfr-data/shared';
 import { INSEE_CONFIG, getProxiedUrl } from '@dsfr-data/shared';
@@ -25,7 +28,10 @@ const INSEE_PAGE_SIZE = 1000;
 const INSEE_MAX_PAGES = 100;
 
 /** Constructs fetch options with optional headers */
-function buildFetchOptions(params: Pick<AdapterParams, 'headers'>, signal?: AbortSignal): RequestInit {
+function buildFetchOptions(
+  params: Pick<AdapterParams, 'headers'>,
+  signal?: AbortSignal
+): RequestInit {
   const opts: RequestInit = {};
   if (signal) opts.signal = signal;
   if (params.headers && Object.keys(params.headers).length > 0) {
@@ -103,7 +109,7 @@ export class InseeAdapter implements ApiAdapter {
     if (totalCount >= 0 && allResults.length < totalCount && allResults.length < requestedLimit) {
       console.warn(
         `dsfr-data-source[insee]: pagination incomplete - ${allResults.length}/${totalCount} resultats ` +
-        `(limite: ${INSEE_MAX_PAGES} pages de ${pageSize})`
+          `(limite: ${INSEE_MAX_PAGES} pages de ${pageSize})`
       );
     }
 
@@ -117,7 +123,11 @@ export class InseeAdapter implements ApiAdapter {
   /**
    * Fetch a single page in server-side pagination mode.
    */
-  async fetchPage(params: AdapterParams, overlay: ServerSideOverlay, signal: AbortSignal): Promise<FetchResult> {
+  async fetchPage(
+    params: AdapterParams,
+    overlay: ServerSideOverlay,
+    signal: AbortSignal
+  ): Promise<FetchResult> {
     const url = getProxiedUrl(this.buildServerSideUrl(params, overlay));
 
     const response = await fetch(url, buildFetchOptions(params, signal));
@@ -198,10 +208,7 @@ export class InseeAdapter implements ApiAdapter {
     return INSEE_CONFIG;
   }
 
-  buildFacetWhere(
-    selections: Record<string, Set<string>>,
-    excludeField?: string
-  ): string {
+  buildFacetWhere(selections: Record<string, Set<string>>, excludeField?: string): string {
     // Colon syntax fallback (same as GenericAdapter)
     const parts: string[] = [];
     for (const [field, values] of Object.entries(selections)) {
@@ -275,7 +282,10 @@ export class InseeAdapter implements ApiAdapter {
    * (client-side dsfr-data-query handles advanced filtering).
    */
   private _applyDimensionFilters(url: URL, whereClause: string): void {
-    const parts = whereClause.split(',').map(p => p.trim()).filter(Boolean);
+    const parts = whereClause
+      .split(',')
+      .map((p) => p.trim())
+      .filter(Boolean);
 
     for (const part of parts) {
       const segments = part.split(':');

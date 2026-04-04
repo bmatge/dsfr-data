@@ -28,7 +28,7 @@ export function initEditor(textareaId: string): CodeMirrorEditor {
     lineNumbers: true,
     lineWrapping: true,
     tabSize: 2,
-    indentWithTabs: false
+    indentWithTabs: false,
   });
 
   // CodeMirror creates a hidden textarea for input; label it for accessibility

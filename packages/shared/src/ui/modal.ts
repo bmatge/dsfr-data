@@ -104,7 +104,10 @@ export function confirmDialog(message: string): Promise<boolean> {
 
     overlay.addEventListener('click', (e: Event) => {
       const target = e.target as HTMLElement;
-      if (target === overlay) { cleanup(false); return; }
+      if (target === overlay) {
+        cleanup(false);
+        return;
+      }
       const action = target.dataset.action;
       if (action === 'confirm') cleanup(true);
       else if (action === 'cancel') cleanup(false);

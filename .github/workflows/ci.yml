@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  quality:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,8 +19,17 @@ jobs:
 
       - run: npm ci
 
-      - name: Run tests
-        run: npm run test:run
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Run tests with coverage
+        run: npm run test:coverage
 
       - name: Build shared package
         run: npm run build:shared

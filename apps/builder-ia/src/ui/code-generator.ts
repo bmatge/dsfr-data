@@ -3,8 +3,15 @@
  */
 
 import {
-  escapeHtml, DSFR_COLORS, isValidDeptCode, LIB_URL, CDN_URLS,
-  detectProvider, extractResourceIds, filterToOdsql, formatKPIValue,
+  escapeHtml,
+  DSFR_COLORS,
+  isValidDeptCode,
+  LIB_URL,
+  CDN_URLS,
+  detectProvider,
+  extractResourceIds,
+  filterToOdsql,
+  formatKPIValue,
 } from '@dsfr-data/shared';
 import { state } from '../state.js';
 import type { ChartConfig, AggregatedResult } from '../state.js';
@@ -16,7 +23,11 @@ import type { ChartConfig, AggregatedResult } from '../state.js';
  * This outputs the native ODS select param so the component doesn't need
  * to do aggregate-to-select conversion (works with any UMD version).
  */
-function buildOdsSelect(aggregation: string, valueField: string, groupByField: string): { selectExpr: string; resultField: string } {
+function buildOdsSelect(
+  aggregation: string,
+  valueField: string,
+  groupByField: string
+): { selectExpr: string; resultField: string } {
   const func = aggregation || 'sum';
   const odsFunc = func === 'count' ? 'count(*)' : `${func}(${valueField})`;
   const alias = func === 'count' ? 'count__count' : `${valueField}__${func}`;
@@ -32,8 +43,14 @@ function buildOdsSelect(aggregation: string, valueField: string, groupByField: s
  */
 function autoDetectCodeField(): string | undefined {
   const patterns = [
-    /^code.?dep/i, /^dep.?code/i, /^code.?region/i, /^reg.?code/i,
-    /^departement$/i, /^region$/i, /^code_geo/i, /^code_insee/i,
+    /^code.?dep/i,
+    /^dep.?code/i,
+    /^code.?region/i,
+    /^reg.?code/i,
+    /^departement$/i,
+    /^region$/i,
+    /^code_geo/i,
+    /^code_insee/i,
   ];
   for (const f of state.fields) {
     for (const p of patterns) {
@@ -49,9 +66,11 @@ function autoDetectCodeField(): string | undefined {
  * dsfr-data-query with pagination instead of raw fetch or embedded data.
  */
 function needsPagination(): boolean {
-  return !!(state.source?.recordCount
-    && state.localData
-    && state.source.recordCount > state.localData.length);
+  return !!(
+    state.source?.recordCount &&
+    state.localData &&
+    state.source.recordCount > state.localData.length
+  );
 }
 
 /**
@@ -113,9 +132,10 @@ function generateKPICode(config: ChartConfig, data: AggregatedResult[]): string 
 
   // API-dynamic variant
   if (state.source?.type === 'api' && state.source?.apiUrl) {
-    const valueExpr = config.aggregation === 'count'
-      ? 'count(*) as value'
-      : `${config.aggregation}(${config.valueField}) as value`;
+    const valueExpr =
+      config.aggregation === 'count'
+        ? 'count(*) as value'
+        : `${config.aggregation}(${config.valueField}) as value`;
 
     const params = new URLSearchParams({ select: valueExpr });
     if (config.where) {
@@ -246,7 +266,7 @@ function generateGaugeCode(config: ChartConfig, data: AggregatedResult[]): strin
 // ---------------------------------------------------------------------------
 
 function generateScatterCode(config: ChartConfig, data: AggregatedResult[]): string {
-  const scatterData = data.map(d => ({ x: parseFloat(d.label) || 0, y: d.value }));
+  const scatterData = data.map((d) => ({ x: parseFloat(d.label) || 0, y: d.value }));
 
   return `<!-- Nuage de points genere avec dsfr-data Builder IA -->
 <!-- Source : ${state.source?.name || 'Donnees locales'} -->
@@ -300,7 +320,7 @@ function generateMapCode(config: ChartConfig, data: AggregatedResult[]): string 
 
   // Transform data to DSFR format: {"code": value, ...}
   const mapData: Record<string, number> = {};
-  data.forEach(d => {
+  data.forEach((d) => {
     let code = String(d.code || d.label || '').trim();
     if (/^\d+$/.test(code) && code.length < 3) {
       code = code.padStart(2, '0');
@@ -321,9 +341,12 @@ function generateMapCode(config: ChartConfig, data: AggregatedResult[]): string 
       // ODS source: use dsfr-data-source + dsfr-data-query for automatic pagination
       const baseUrl = apiBaseUrl;
       const datasetId = resourceIds.datasetId;
-      const { selectExpr, resultField } = buildOdsSelect(config.aggregation || 'sum', config.valueField, codeField!);
-      const whereAttr = config.where
-        ? `\n    where="${filterToOdsql(config.where)}"` : '';
+      const { selectExpr, resultField } = buildOdsSelect(
+        config.aggregation || 'sum',
+        config.valueField,
+        codeField!
+      );
+      const whereAttr = config.where ? `\n    where="${filterToOdsql(config.where)}"` : '';
 
       return `<!-- Carte generee avec dsfr-data Builder IA -->
 <!-- Source API dynamique avec pagination automatique -->
@@ -366,14 +389,15 @@ function generateMapCode(config: ChartConfig, data: AggregatedResult[]): string 
 
     // Tabular source with pagination needed: use dsfr-data-source + dsfr-data-query
     if (provider.id === 'tabular' && resourceIds?.resourceId && needsPagination()) {
-      const aggregateExpr = config.aggregation === 'count'
-        ? `${codeField}:count`
-        : `${config.valueField}:${config.aggregation || 'sum'}`;
-      const resultField = config.aggregation === 'count'
-        ? `${codeField}__count`
-        : `${config.valueField}__${config.aggregation || 'sum'}`;
-      const filterAttr = config.where
-        ? `\n    filter="${config.where}"` : '';
+      const aggregateExpr =
+        config.aggregation === 'count'
+          ? `${codeField}:count`
+          : `${config.valueField}:${config.aggregation || 'sum'}`;
+      const resultField =
+        config.aggregation === 'count'
+          ? `${codeField}__count`
+          : `${config.valueField}__${config.aggregation || 'sum'}`;
+      const filterAttr = config.where ? `\n    filter="${config.where}"` : '';
 
       return `<!-- Carte generee avec dsfr-data Builder IA -->
 <!-- Source API Tabular avec pagination automatique -->
@@ -486,11 +510,13 @@ function generateDatalistCode(config: ChartConfig): string {
   if (config.colonnes) {
     colonnes = config.colonnes;
   } else {
-    colonnes = state.fields.map(f => `${f.name}:${f.name}`).join(', ');
+    colonnes = state.fields.map((f) => `${f.name}:${f.name}`).join(', ');
   }
 
-  const triAttr = config.sortOrder && config.labelField
-    ? `\n    tri="${config.labelField}:${config.sortOrder}"` : '';
+  const triAttr =
+    config.sortOrder && config.labelField
+      ? `\n    tri="${config.labelField}:${config.sortOrder}"`
+      : '';
   const pagination = config.pagination || 10;
 
   // API-dynamic variant
@@ -688,13 +714,23 @@ function generateStandardChartCode(config: ChartConfig, data: AggregatedResult[]
   return generateStandardChartCodeEmbedded(config, data, isMultiColor, colorsArray);
 }
 
-function generateStandardChartCodeODS(config: ChartConfig, baseUrl: string, datasetId: string): string {
-  const { selectExpr, resultField } = buildOdsSelect(config.aggregation || 'sum', config.valueField, config.labelField!);
-  const whereAttr = config.where
-    ? `\n    where="${filterToOdsql(config.where)}"` : '';
-  const orderAttr = config.sortOrder && config.labelField
-    ? `\n    order-by="${resultField}:${config.sortOrder}"` : '';
-  const chartType = config.type === 'horizontalBar' ? 'bar' : (config.type === 'bar-line' ? 'bar' : config.type);
+function generateStandardChartCodeODS(
+  config: ChartConfig,
+  baseUrl: string,
+  datasetId: string
+): string {
+  const { selectExpr, resultField } = buildOdsSelect(
+    config.aggregation || 'sum',
+    config.valueField,
+    config.labelField!
+  );
+  const whereAttr = config.where ? `\n    where="${filterToOdsql(config.where)}"` : '';
+  const orderAttr =
+    config.sortOrder && config.labelField
+      ? `\n    order-by="${resultField}:${config.sortOrder}"`
+      : '';
+  const chartType =
+    config.type === 'horizontalBar' ? 'bar' : config.type === 'bar-line' ? 'bar' : config.type;
   const horizontalAttr = config.type === 'horizontalBar' ? '\n    horizontal' : '';
 
   return `<!-- Graphique genere avec dsfr-data Builder IA -->
@@ -736,18 +772,26 @@ function generateStandardChartCodeODS(config: ChartConfig, baseUrl: string, data
 </div>`;
 }
 
-function generateStandardChartCodeTabular(config: ChartConfig, baseUrl: string, resourceId: string): string {
-  const aggregateExpr = config.aggregation === 'count'
-    ? `${config.labelField}:count`
-    : `${config.valueField}:${config.aggregation || 'sum'}`;
-  const resultField = config.aggregation === 'count'
-    ? `${config.labelField}__count`
-    : `${config.valueField}__${config.aggregation || 'sum'}`;
-  const filterAttr = config.where
-    ? `\n    filter="${config.where}"` : '';
-  const orderAttr = config.sortOrder && config.labelField
-    ? `\n    order-by="${resultField}:${config.sortOrder}"` : '';
-  const chartType = config.type === 'horizontalBar' ? 'bar' : (config.type === 'bar-line' ? 'bar' : config.type);
+function generateStandardChartCodeTabular(
+  config: ChartConfig,
+  baseUrl: string,
+  resourceId: string
+): string {
+  const aggregateExpr =
+    config.aggregation === 'count'
+      ? `${config.labelField}:count`
+      : `${config.valueField}:${config.aggregation || 'sum'}`;
+  const resultField =
+    config.aggregation === 'count'
+      ? `${config.labelField}__count`
+      : `${config.valueField}__${config.aggregation || 'sum'}`;
+  const filterAttr = config.where ? `\n    filter="${config.where}"` : '';
+  const orderAttr =
+    config.sortOrder && config.labelField
+      ? `\n    order-by="${resultField}:${config.sortOrder}"`
+      : '';
+  const chartType =
+    config.type === 'horizontalBar' ? 'bar' : config.type === 'bar-line' ? 'bar' : config.type;
   const horizontalAttr = config.type === 'horizontalBar' ? '\n    horizontal' : '';
 
   return `<!-- Graphique genere avec dsfr-data Builder IA -->
@@ -789,10 +833,15 @@ function generateStandardChartCodeTabular(config: ChartConfig, baseUrl: string, 
 </div>`;
 }
 
-function generateStandardChartCodeAPI(config: ChartConfig, isMultiColor: boolean, colorsArray: string): string {
-  const valueExpr = config.aggregation === 'count'
-    ? 'count(*) as value'
-    : `${config.aggregation}(${config.valueField}) as value`;
+function generateStandardChartCodeAPI(
+  config: ChartConfig,
+  isMultiColor: boolean,
+  colorsArray: string
+): string {
+  const valueExpr =
+    config.aggregation === 'count'
+      ? 'count(*) as value'
+      : `${config.aggregation}(${config.valueField}) as value`;
 
   const params = new URLSearchParams({
     select: `${config.labelField}, ${valueExpr}`,
@@ -887,7 +936,12 @@ loadChart();
 <\/script>`;
 }
 
-function generateStandardChartCodeEmbedded(config: ChartConfig, data: AggregatedResult[], isMultiColor: boolean, colorsArray: string): string {
+function generateStandardChartCodeEmbedded(
+  config: ChartConfig,
+  data: AggregatedResult[],
+  isMultiColor: boolean,
+  colorsArray: string
+): string {
   const sourceName = state.source?.name || 'Donnees locales';
   const sourceType = state.source?.type === 'grist' ? 'Grist' : 'source manuelle';
   const hasSecondSeries = !!(config.valueField2 && config.data2 && config.data2.length > 0);
@@ -906,7 +960,7 @@ function generateStandardChartCodeEmbedded(config: ChartConfig, data: Aggregated
     datasetsCode += `, {
       label: '${config.valueField2}',
       data: values2,
-      backgroundColor: '${isBarLine ? 'transparent' : (config.color2 || '#E1000F')}',
+      backgroundColor: '${isBarLine ? 'transparent' : config.color2 || '#E1000F'}',
       borderColor: '${config.color2 || '#E1000F'}',
       borderWidth: 2${isBarLine ? ",\n      type: 'line'" : ''}
     }`;
@@ -977,7 +1031,11 @@ function generatePodiumCode(config: ChartConfig, data: AggregatedResult[]): stri
     const apiBaseUrl = new URL(state.source.apiUrl).origin;
 
     if (provider.id === 'opendatasoft' && resourceIds?.datasetId) {
-      const { selectExpr, resultField } = buildOdsSelect(config.aggregation || 'sum', config.valueField, config.labelField!);
+      const { selectExpr, resultField } = buildOdsSelect(
+        config.aggregation || 'sum',
+        config.valueField,
+        config.labelField!
+      );
       const whereAttr = config.where ? `\n    where="${filterToOdsql(config.where)}"` : '';
 
       return `<!-- Podium genere avec dsfr-data Builder IA -->
@@ -1011,9 +1069,10 @@ function generatePodiumCode(config: ChartConfig, data: AggregatedResult[]): stri
     }
 
     if (provider.id === 'tabular' && resourceIds?.resourceId) {
-      const aggregateExpr = config.aggregation === 'count'
-        ? `${config.labelField}:count:total`
-        : `${config.valueField}:${config.aggregation || 'sum'}:total`;
+      const aggregateExpr =
+        config.aggregation === 'count'
+          ? `${config.labelField}:count:total`
+          : `${config.valueField}:${config.aggregation || 'sum'}:total`;
       const whereAttr = config.where ? `\n    where="${config.where}"` : '';
 
       return `<!-- Podium genere avec dsfr-data Builder IA -->
@@ -1071,7 +1130,7 @@ function generatePodiumCode(config: ChartConfig, data: AggregatedResult[]): stri
 
   <dsfr-data-source
     id="podium-src"
-    data='${JSON.stringify(data.map(d => ({ [config.labelField!]: d.label, [config.valueField]: d.value })))}'>
+    data='${JSON.stringify(data.map((d) => ({ [config.labelField!]: d.label, [config.valueField]: d.value })))}'>
   </dsfr-data-source>
 
   <dsfr-data-podium

@@ -5,9 +5,19 @@
 import './styles/admin.css';
 import { escapeHtml } from '@dsfr-data/shared';
 import {
-  fetchUsers, fetchUserDetail, fetchAudit, fetchStats,
-  changeRole, changeStatus, deleteUser, revokeSessions,
-  type User, type UserDetail, type AuditEntry, type Pagination, type Stats,
+  fetchUsers,
+  fetchUserDetail,
+  fetchAudit,
+  fetchStats,
+  changeRole,
+  changeStatus,
+  deleteUser,
+  revokeSessions,
+  type User,
+  type UserDetail,
+  type AuditEntry,
+  type Pagination,
+  type Stats,
 } from './api.js';
 
 // ---------------------------------------------------------------------------
@@ -92,7 +102,9 @@ function renderUsersTable(): void {
     return;
   }
 
-  const rows = users.map(u => `
+  const rows = users
+    .map(
+      (u) => `
     <tr data-clickable data-user-id="${escapeHtml(u.id)}">
       <td>${escapeHtml(u.displayName)}</td>
       <td>${escapeHtml(u.email)}</td>
@@ -101,7 +113,9 @@ function renderUsersTable(): void {
       <td>${u.lastLogin ? formatDate(u.lastLogin) : '<span style="color:var(--text-mention-grey)">Jamais</span>'}</td>
       <td>${formatDate(u.createdAt)}</td>
     </tr>
-  `).join('');
+  `
+    )
+    .join('');
 
   el.innerHTML = `
     <div class="admin-table-wrapper">
@@ -122,7 +136,7 @@ function renderUsersTable(): void {
   `;
 
   // Click handlers
-  el.querySelectorAll('tr[data-user-id]').forEach(tr => {
+  el.querySelectorAll('tr[data-user-id]').forEach((tr) => {
     tr.addEventListener('click', () => openUserDetail(tr.getAttribute('data-user-id')!));
   });
 
@@ -255,7 +269,9 @@ function renderAuditTable(): void {
     return;
   }
 
-  const rows = auditLogs.map(l => `
+  const rows = auditLogs
+    .map(
+      (l) => `
     <tr>
       <td>${formatDate(l.createdAt)}</td>
       <td><span class="audit-action">${escapeHtml(l.action)}</span></td>
@@ -263,7 +279,9 @@ function renderAuditTable(): void {
       <td class="audit-details">${l.details ? escapeHtml(JSON.stringify(l.details)) : ''}</td>
       <td>${l.ipAddress ? escapeHtml(l.ipAddress) : ''}</td>
     </tr>
-  `).join('');
+  `
+    )
+    .join('');
 
   el.innerHTML = `
     <div class="admin-table-wrapper">
@@ -335,14 +353,21 @@ function renderStats(): void {
 function formatDate(iso: string): string {
   try {
     const d = new Date(iso);
-    return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-      + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    return (
+      d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) +
+      ' ' +
+      d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+    );
   } catch {
     return iso;
   }
 }
 
-function renderPagination(containerId: string, pagination: Pagination, loadFn: (page: number) => Promise<void>): void {
+function renderPagination(
+  containerId: string,
+  pagination: Pagination,
+  loadFn: (page: number) => Promise<void>
+): void {
   const el = document.getElementById(containerId)!;
   if (pagination.pages <= 1) {
     el.innerHTML = '';
@@ -351,15 +376,21 @@ function renderPagination(containerId: string, pagination: Pagination, loadFn: (
 
   const buttons: string[] = [];
   if (pagination.page > 1) {
-    buttons.push(`<button class="fr-btn fr-btn--sm fr-btn--secondary" data-page="${pagination.page - 1}">&laquo; Prec.</button>`);
+    buttons.push(
+      `<button class="fr-btn fr-btn--sm fr-btn--secondary" data-page="${pagination.page - 1}">&laquo; Prec.</button>`
+    );
   }
-  buttons.push(`<span>Page ${pagination.page} / ${pagination.pages} (${pagination.total} resultats)</span>`);
+  buttons.push(
+    `<span>Page ${pagination.page} / ${pagination.pages} (${pagination.total} resultats)</span>`
+  );
   if (pagination.page < pagination.pages) {
-    buttons.push(`<button class="fr-btn fr-btn--sm fr-btn--secondary" data-page="${pagination.page + 1}">Suiv. &raquo;</button>`);
+    buttons.push(
+      `<button class="fr-btn fr-btn--sm fr-btn--secondary" data-page="${pagination.page + 1}">Suiv. &raquo;</button>`
+    );
   }
 
   el.innerHTML = `<div class="admin-pagination">${buttons.join('')}</div>`;
-  el.querySelectorAll('button[data-page]').forEach(btn => {
+  el.querySelectorAll('button[data-page]').forEach((btn) => {
     btn.addEventListener('click', () => loadFn(parseInt(btn.getAttribute('data-page')!)));
   });
 }

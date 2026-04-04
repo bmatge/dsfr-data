@@ -116,7 +116,11 @@ export interface ApiAdapter {
    * Fetch une seule page en mode server-side.
    * Retourne data + totalCount pour la meta de pagination.
    */
-  fetchPage(params: AdapterParams, overlay: ServerSideOverlay, signal: AbortSignal): Promise<FetchResult>;
+  fetchPage(
+    params: AdapterParams,
+    overlay: ServerSideOverlay,
+    signal: AbortSignal
+  ): Promise<FetchResult>;
 
   /**
    * Construit une URL pour le mode fetch complet (non-server-side).
@@ -156,10 +160,7 @@ export interface ApiAdapter {
    * Construit un WHERE clause a partir de selections de facettes.
    * Utilise par dsfr-data-facets pour generer les filtres dans la syntaxe du provider.
    */
-  buildFacetWhere?(
-    selections: Record<string, Set<string>>,
-    excludeField?: string
-  ): string;
+  buildFacetWhere?(selections: Record<string, Set<string>>, excludeField?: string): string;
 
   /**
    * Retourne la config provider declarative associee a cet adapter.

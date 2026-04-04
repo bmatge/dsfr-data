@@ -126,14 +126,20 @@ export class DsfrDataJoin extends LitElement {
     super.willUpdate(changedProperties);
 
     // Source identity changed → full re-subscribe
-    const sourceChanged = changedProperties.has('left') || changedProperties.has('right') || changedProperties.has('on');
+    const sourceChanged =
+      changedProperties.has('left') ||
+      changedProperties.has('right') ||
+      changedProperties.has('on');
     if (sourceChanged) {
       this._initialize();
       return;
     }
 
     // Only join parameters changed (type, prefix) → re-compute with existing data
-    const paramChanged = changedProperties.has('type') || changedProperties.has('prefixLeft') || changedProperties.has('prefixRight');
+    const paramChanged =
+      changedProperties.has('type') ||
+      changedProperties.has('prefixLeft') ||
+      changedProperties.has('prefixRight');
     if (paramChanged && this._leftData !== null && this._rightData !== null) {
       this._tryJoin();
     }
@@ -204,7 +210,7 @@ export class DsfrDataJoin extends LitElement {
         this._error = error;
         this._loading = false;
         dispatchDataError(this.id, error);
-      }
+      },
     });
 
     if (side === 'left') {

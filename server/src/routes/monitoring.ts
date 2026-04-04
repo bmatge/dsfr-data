@@ -4,7 +4,7 @@
  */
 
 import { Router } from 'express';
-import { query, queryOne, execute } from '../db/database.js';
+import { query, execute } from '../db/database.js';
 import { requireAuth } from '../middleware/auth.js';
 import { requireRole } from '../middleware/rbac.js';
 
@@ -33,7 +33,7 @@ router.post('/beacon', async (req, res) => {
        ON DUPLICATE KEY UPDATE
          last_seen = NOW(),
          call_count = call_count + 1`,
-      [component, chartType || null, url],
+      [component, chartType || null, url]
     );
 
     res.json({ ok: true });
@@ -59,7 +59,7 @@ router.get('/data', async (_req, res) => {
     }>(
       `SELECT component, chart_type, origin, first_seen, last_seen, call_count
        FROM monitoring
-       ORDER BY last_seen DESC`,
+       ORDER BY last_seen DESC`
     );
 
     // Flat format compatible with the monitoring frontend
@@ -72,9 +72,15 @@ router.get('/data', async (_req, res) => {
       callCount: row.call_count,
     }));
 
-    const sites = new Set(entries.map((e) => {
-      try { return new URL(e.referer).hostname; } catch { return e.referer; }
-    }));
+    const sites = new Set(
+      entries.map((e) => {
+        try {
+          return new URL(e.referer).hostname;
+        } catch {
+          return e.referer;
+        }
+      })
+    );
 
     const byComponent: Record<string, number> = {};
     const byChartType: Record<string, number> = {};

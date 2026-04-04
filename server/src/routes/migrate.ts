@@ -45,16 +45,18 @@ router.post('/', requireAuth, async (req, res) => {
             result.skipped.sources++;
             continue;
           }
-          await connExecute(conn,
+          await connExecute(
+            conn,
             'INSERT INTO sources (id, owner_id, name, type, config_json, data_json, record_count) VALUES (?, ?, ?, ?, ?, ?, ?)',
             [
-              id, userId,
+              id,
+              userId,
               s.name || 'Unnamed',
               s.type || 'manual',
               JSON.stringify(extractConfig(s)),
               s.data ? JSON.stringify(s.data) : null,
               s.recordCount || 0,
-            ],
+            ]
           );
           result.imported.sources++;
         }
@@ -65,21 +67,25 @@ router.post('/', requireAuth, async (req, res) => {
         for (const conn2 of payload.connections) {
           const c = conn2 as Record<string, unknown>;
           const id = (c.id as string) || uuidv4();
-          const existing = await connQueryOne(conn, 'SELECT id FROM connections WHERE id = ?', [id]);
+          const existing = await connQueryOne(conn, 'SELECT id FROM connections WHERE id = ?', [
+            id,
+          ]);
           if (existing) {
             result.skipped.connections++;
             continue;
           }
-          await connExecute(conn,
+          await connExecute(
+            conn,
             'INSERT INTO connections (id, owner_id, name, type, config_json, api_key_encrypted, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
             [
-              id, userId,
+              id,
+              userId,
               c.name || 'Unnamed',
               c.type || 'api',
               JSON.stringify(c),
               (c.apiKey as string) || null,
               (c.status as string) || 'unknown',
-            ],
+            ]
           );
           result.imported.connections++;
         }
@@ -95,16 +101,18 @@ router.post('/', requireAuth, async (req, res) => {
             result.skipped.favorites++;
             continue;
           }
-          await connExecute(conn,
+          await connExecute(
+            conn,
             'INSERT INTO favorites (id, owner_id, name, chart_type, code, builder_state_json, source_app) VALUES (?, ?, ?, ?, ?, ?, ?)',
             [
-              id, userId,
+              id,
+              userId,
               f.name || 'Unnamed',
               (f.chartType as string) || null,
               (f.code as string) || '',
               f.builderState ? JSON.stringify(f.builderState) : null,
               (f.source as string) || null,
-            ],
+            ]
           );
           result.imported.favorites++;
         }
@@ -120,15 +128,17 @@ router.post('/', requireAuth, async (req, res) => {
             result.skipped.dashboards++;
             continue;
           }
-          await connExecute(conn,
+          await connExecute(
+            conn,
             'INSERT INTO dashboards (id, owner_id, name, description, layout_json, widgets_json) VALUES (?, ?, ?, ?, ?, ?)',
             [
-              id, userId,
+              id,
+              userId,
               d.name || 'Unnamed',
               (d.description as string) || null,
               d.layout ? JSON.stringify(d.layout) : '{}',
               d.widgets ? JSON.stringify(d.widgets) : '[]',
-            ],
+            ]
           );
           result.imported.dashboards++;
         }

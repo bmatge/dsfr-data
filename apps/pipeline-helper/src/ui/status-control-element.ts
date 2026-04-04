@@ -63,26 +63,38 @@ export class StatusControlElement extends LitElement {
           <span class="exec-status__icon">&#9989;</span>
           <span>${r.rowCount ?? '?'} lignes &middot; ${r.fields?.length ?? 0} champs</span>
         </div>
-        ${r.fields && r.fields.length > 0 ? html`
-          <div class="exec-status__fields">
-            ${r.fields.map(f => html`<span class="exec-status__field">${f}</span>`)}
-          </div>
-        ` : nothing}
-        ${r.sampleData && r.sampleData.length > 0 ? html`
-          <details class="exec-status__sample">
-            <summary>Apercu (${r.sampleData.length} lignes)</summary>
-            <table class="exec-status__table">
-              <thead>
-                <tr>${r.fields?.slice(0, 5).map(f => html`<th>${f}</th>`)}</tr>
-              </thead>
-              <tbody>
-                ${r.sampleData.slice(0, 3).map(row => html`
-                  <tr>${r.fields?.slice(0, 5).map(f => html`<td>${String(row[f] ?? '')}</td>`)}</tr>
-                `)}
-              </tbody>
-            </table>
-          </details>
-        ` : nothing}
+        ${r.fields && r.fields.length > 0
+          ? html`
+              <div class="exec-status__fields">
+                ${r.fields.map((f) => html`<span class="exec-status__field">${f}</span>`)}
+              </div>
+            `
+          : nothing}
+        ${r.sampleData && r.sampleData.length > 0
+          ? html`
+              <details class="exec-status__sample">
+                <summary>Apercu (${r.sampleData.length} lignes)</summary>
+                <table class="exec-status__table">
+                  <thead>
+                    <tr>
+                      ${r.fields?.slice(0, 5).map((f) => html`<th>${f}</th>`)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${r.sampleData.slice(0, 3).map(
+                      (row) => html`
+                        <tr>
+                          ${r.fields
+                            ?.slice(0, 5)
+                            .map((f) => html`<td>${String(row[f] ?? '')}</td>`)}
+                        </tr>
+                      `
+                    )}
+                  </tbody>
+                </table>
+              </details>
+            `
+          : nothing}
       </div>
     `;
   }

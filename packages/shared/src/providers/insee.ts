@@ -19,15 +19,15 @@ export const INSEE_CONFIG: ProviderConfig = {
   displayName: 'INSEE (Melodi)',
   urlPatterns: [INSEE_RE],
 
-  knownHosts: [],              // CORS enabled, no proxy needed
+  knownHosts: [], // CORS enabled, no proxy needed
   defaultBaseUrl: 'https://api.insee.fr/melodi',
   defaultAuthType: 'none',
 
   response: {
-    dataPath: 'observations',  // { observations: [...] }
+    dataPath: 'observations', // { observations: [...] }
     totalCountPath: 'paging.count',
-    nestedDataKey: null,       // adapter handles flattening internally
-    requiresFlatten: true,     // observations have nested dimensions/measures/attributes
+    nestedDataKey: null, // adapter handles flattening internally
+    requiresFlatten: true, // observations have nested dimensions/measures/attributes
   },
 
   pagination: {
@@ -41,8 +41,8 @@ export const INSEE_CONFIG: ProviderConfig = {
     },
     nextPagePath: 'paging.next',
     serverMeta: {
-      pagePath: '',            // not available
-      pageSizePath: '',        // not available
+      pagePath: '', // not available
+      pageSizePath: '', // not available
       totalPath: 'paging.count',
     },
   },
@@ -79,7 +79,7 @@ export const INSEE_CONFIG: ProviderConfig = {
   codeGen: {
     usesDsfrDataSource: true,
     usesDsfrDataQuery: true,
-    usesDsfrDataNormalize: false,  // adapter flattens observations internally
+    usesDsfrDataNormalize: false, // adapter flattens observations internally
     sourceApiType: 'insee',
     fieldPrefix: '',
     dependencies: {

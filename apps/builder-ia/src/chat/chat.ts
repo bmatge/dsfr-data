@@ -14,14 +14,18 @@ import { fetchWithTimeout, httpErrorMessage, detectProvider } from '@dsfr-data/s
 /**
  * Add a message to the chat UI and state
  */
-export function addMessage(role: 'user' | 'assistant', content: string, suggestions: string[] = []): HTMLElement {
+export function addMessage(
+  role: 'user' | 'assistant',
+  content: string,
+  suggestions: string[] = []
+): HTMLElement {
   const container = document.getElementById('chat-messages') as HTMLElement;
 
   const messageEl = document.createElement('div');
   messageEl.className = `chat-message ${role}`;
 
   // Simple markdown-like formatting
-  let html = content
+  const html = content
     .replace(/```json\n?([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
     .replace(/```\n?([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
     .replace(/`([^`]+)`/g, '<code>$1</code>')
@@ -34,7 +38,7 @@ export function addMessage(role: 'user' | 'assistant', content: string, suggesti
   if (suggestions.length > 0 && role === 'assistant') {
     const suggestionsEl = document.createElement('div');
     suggestionsEl.className = 'chat-suggestions';
-    suggestions.forEach(s => {
+    suggestions.forEach((s) => {
       const btn = document.createElement('button');
       btn.className = 'chat-suggestion';
       btn.textContent = s;
@@ -53,7 +57,11 @@ export function addMessage(role: 'user' | 'assistant', content: string, suggesti
   state.messages.push({ role, content } as Message);
 
   // Persist conversation
-  try { sessionStorage.setItem('builder-ia-messages', JSON.stringify(state.messages)); } catch { /* ignore */ }
+  try {
+    sessionStorage.setItem('builder-ia-messages', JSON.stringify(state.messages));
+  } catch {
+    /* ignore */
+  }
 
   return messageEl;
 }
@@ -95,31 +103,31 @@ export async function sendMessage(): Promise<void> {
   input.style.height = 'auto';
 
   // Detect reset/restart intent — handled client-side, no API call needed
-  const resetPattern = /^(reset|recommencer|reinitialiser|réinitialiser|nouveau graphique|repartir de zero|repartir à zero|on efface tout|efface le graphique|supprimer le graphique|repart de zero|repart à zero|clean|clear chart)\s*[.!?]?$/i;
+  const resetPattern =
+    /^(reset|recommencer|reinitialiser|réinitialiser|nouveau graphique|repartir de zero|repartir à zero|on efface tout|efface le graphique|supprimer le graphique|repart de zero|repart à zero|clean|clear chart)\s*[.!?]?$/i;
   if (resetPattern.test(message)) {
     resetChartPreview();
-    addMessage('assistant', 'Apercu reinitialise ! Decrivez le graphique que vous souhaitez creer.', [
-      'Barres',
-      'Camembert',
-      'Courbe',
-      'Tableau',
-      'KPI',
-    ]);
+    addMessage(
+      'assistant',
+      'Apercu reinitialise ! Decrivez le graphique que vous souhaitez creer.',
+      ['Barres', 'Camembert', 'Courbe', 'Tableau', 'KPI']
+    );
     return;
   }
 
   // Check if we have a token (user config or server default)
   const config = getIAConfig();
   if (!config.token && !isServerMode()) {
-    addMessage('assistant', `Je n'ai pas de token API configure. Veuillez ouvrir "Configuration IA" et entrer votre cle API.
+    addMessage(
+      'assistant',
+      `Je n'ai pas de token API configure. Veuillez ouvrir "Configuration IA" et entrer votre cle API.
 
 En attendant, je peux vous aider avec des commandes simples. Essayez :
 - "barres [champ_label] [champ_valeur]"
 - "pie [champ_label] [champ_valeur]"
-- "ligne [champ_label] [champ_valeur]"`, [
-      'Configurer le token',
-      'Creer un graphique simple',
-    ]);
+- "ligne [champ_label] [champ_valeur]"`,
+      ['Configurer le token', 'Creer un graphique simple']
+    );
     return;
   }
 
@@ -141,43 +149,52 @@ En attendant, je peux vous aider avec des commandes simples. Essayez :
       const chartConfig = action.config as ChartConfig;
 
       // Build contextual post-chart suggestions
-      const textFields = state.fields.filter(f => f.type === 'texte');
+      const textFields = state.fields.filter((f) => f.type === 'texte');
       const hasCategories = textFields.length >= 2;
       let suggestions: string[];
       if (chartConfig.type === 'datalist') {
         suggestions = hasCategories
-          ? ['Ajouter des facettes interactives', 'Modifier les colonnes', 'Generer le code embarquable']
+          ? [
+              'Ajouter des facettes interactives',
+              'Modifier les colonnes',
+              'Generer le code embarquable',
+            ]
           : ['Modifier les colonnes', 'Changer la pagination', 'Generer le code embarquable'];
       } else {
         suggestions = ['Changer le type de graphique'];
         if (hasCategories) suggestions.push('Ajouter des facettes');
         suggestions.push('Generer le code embarquable');
       }
-      addMessage('assistant', textWithoutJson || (chartConfig.type === 'datalist' ? 'Voici votre tableau !' : 'Voici votre graphique !'), suggestions);
+      addMessage(
+        'assistant',
+        textWithoutJson ||
+          (chartConfig.type === 'datalist' ? 'Voici votre tableau !' : 'Voici votre graphique !'),
+        suggestions
+      );
     } else if (action?.action === 'resetChart') {
       resetChartPreview();
-      addMessage('assistant', textWithoutJson || 'Apercu reinitialise ! Decrivez le graphique que vous souhaitez creer.', [
-        'Barres',
-        'Camembert',
-        'Courbe',
-        'Tableau',
-        'KPI',
-      ]);
+      addMessage(
+        'assistant',
+        textWithoutJson || 'Apercu reinitialise ! Decrivez le graphique que vous souhaitez creer.',
+        ['Barres', 'Camembert', 'Courbe', 'Tableau', 'KPI']
+      );
     } else if (action?.action === 'reloadData') {
       const success = await handleReloadData(action);
       if (success) {
-        addMessage('assistant', textWithoutJson || (action.reason as string) || 'Donnees rechargees avec les filtres.', [
-          'Barres',
-          'Camembert',
-          'Courbe',
-        ]);
+        addMessage(
+          'assistant',
+          textWithoutJson || (action.reason as string) || 'Donnees rechargees avec les filtres.',
+          ['Barres', 'Camembert', 'Courbe']
+        );
       } else {
-        addMessage('assistant', textWithoutJson || 'Impossible de recharger les donnees avec ces filtres.');
+        addMessage(
+          'assistant',
+          textWithoutJson || 'Impossible de recharger les donnees avec ces filtres.'
+        );
       }
     } else {
       addMessage('assistant', response);
     }
-
   } catch (error: unknown) {
     removeThinkingMessage();
     const errMsg = error instanceof Error ? error.message : String(error);
@@ -201,9 +218,10 @@ async function callAlbertAPI(userMessage: string, config: IAConfig): Promise<str
     const detectedProvider = state.source?.apiUrl ? detectProvider(state.source.apiUrl).id : null;
     const isOds = detectedProvider === 'opendatasoft';
     const isTabular = detectedProvider === 'tabular';
-    const totalNote = state.source?.recordCount && state.source.recordCount > state.localData.length
-      ? ` (apercu limite, source complete: ${state.source.recordCount} enregistrements)`
-      : '';
+    const totalNote =
+      state.source?.recordCount && state.source.recordCount > state.localData.length
+        ? ` (apercu limite, source complete: ${state.source.recordCount} enregistrements)`
+        : '';
     const paginationNote = isOds
       ? `\nNOTE : l'apercu ne contient que ${state.localData.length} enregistrements. L'API ODS en contient probablement plus. Dans le code embarquable, utilise dsfr-data-source avec api-type="opendatasoft" pour recuperer automatiquement toutes les donnees (pagination automatique, max 1000), puis dsfr-data-query pour transformer.`
       : isTabular
@@ -214,7 +232,7 @@ async function callAlbertAPI(userMessage: string, config: IAConfig): Promise<str
       ? `\nIMPORTANT: Source Grist detectee. Les donnees sont sous "records[].fields". Pour le code embarquable, utiliser <dsfr-data-normalize flatten="fields" trim numeric-auto> et referencer les champs par leur nom plat (sans prefixe "fields.").`
       : '';
     dataContext = `\n\nDonnees actuelles (${state.localData.length} enregistrements${totalNote}) :
-Champs : ${state.fields.map(f => `${f.name} (${f.type})`).join(', ')}
+Champs : ${state.fields.map((f) => `${f.name} (${f.type})`).join(', ')}
 Exemple d'enregistrement : ${JSON.stringify(state.localData[0])}${paginationNote}${gristNote}`;
   }
 
@@ -223,7 +241,9 @@ Exemple d'enregistrement : ${JSON.stringify(state.localData[0])}${paginationNote
   const skillsContext = buildSkillsContext(relevantSkills);
 
   // Build available skills list for the system prompt
-  const skillsList = Object.values(SKILLS).map(s => `- ${s.name}: ${s.description}`).join('\n');
+  const skillsList = Object.values(SKILLS)
+    .map((s) => `- ${s.name}: ${s.description}`)
+    .join('\n');
 
   const actionReminder = `\n\n---\nREGLE ABSOLUE - FORMAT DE REPONSE :
 Tu dois OBLIGATOIREMENT inclure UN bloc \`\`\`json dans CHAQUE reponse quand l'utilisateur parle de graphique, carte, KPI, tableau, couleur, palette, type, filtre, tri, etc.
@@ -258,7 +278,8 @@ FACETTES : pas dans l'apercu. Genere le createChart puis propose de generer le c
 CARTES : genere le createChart type map/map-reg. Si les donnees sont incompletes (100 lignes ODS), ajoute un texte prevenant que l'apercu est partiel et propose le code embarquable.
 CHAMPS : utilise UNIQUEMENT les noms de champs listes dans "Donnees actuelles".`;
 
-  const systemPromptWithSkills = config.systemPrompt +
+  const systemPromptWithSkills =
+    config.systemPrompt +
     `\n\nSKILLS DISPONIBLES (seront injectes si pertinents):\n${skillsList}` +
     dataContext +
     skillsContext +
@@ -266,10 +287,11 @@ CHAMPS : utilise UNIQUEMENT les noms de champs listes dans "Donnees actuelles".`
 
   // Detect provider from API URL
   const isAnthropic = config.apiUrl.includes('anthropic.com');
-  const isGemini = config.apiUrl.includes('googleapis.com') || config.apiUrl.includes('generativelanguage');
+  const isGemini =
+    config.apiUrl.includes('googleapis.com') || config.apiUrl.includes('generativelanguage');
 
   const conversationMessages = [
-    ...state.messages.slice(-10).map(m => ({
+    ...state.messages.slice(-10).map((m) => ({
       role: m.role === 'assistant' ? 'assistant' : 'user',
       content: m.content,
     })),
@@ -281,7 +303,7 @@ CHAMPS : utilise UNIQUEMENT les noms de champs listes dans "Donnees actuelles".`
 
   if (isGemini) {
     // Gemini API: contents with role user/model, systemInstruction separate
-    const geminiContents = conversationMessages.map(m => ({
+    const geminiContents = conversationMessages.map((m) => ({
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: m.content }],
     }));
@@ -310,7 +332,11 @@ CHAMPS : utilise UNIQUEMENT les noms de champs listes dans "Donnees actuelles".`
     }
   } else if (isAnthropic) {
     // Anthropic Messages API: system is a top-level field, not in messages
-    requestBody = { model: config.model, system: systemPromptWithSkills, messages: conversationMessages };
+    requestBody = {
+      model: config.model,
+      system: systemPromptWithSkills,
+      messages: conversationMessages,
+    };
     for (const [key, val] of Object.entries(config.extraParams || {})) {
       const num = Number(val);
       requestBody[key] = !isNaN(num) && val !== '' ? num : val;
@@ -319,10 +345,7 @@ CHAMPS : utilise UNIQUEMENT les noms de champs listes dans "Donnees actuelles".`
     // OpenAI-compatible: system prompt is the first message
     requestBody = {
       model: config.model,
-      messages: [
-        { role: 'system', content: systemPromptWithSkills },
-        ...conversationMessages,
-      ],
+      messages: [{ role: 'system', content: systemPromptWithSkills }, ...conversationMessages],
     };
     for (const [key, val] of Object.entries(config.extraParams || {})) {
       const num = Number(val);
@@ -337,11 +360,15 @@ CHAMPS : utilise UNIQUEMENT les noms de champs listes dans "Donnees actuelles".`
 
   if (useServerDefault) {
     // Server mode: always OpenAI-compatible (Albert), no auth header needed
-    response = await fetchWithTimeout('/ia-proxy-default', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody),
-    }, 30000);
+    response = await fetchWithTimeout(
+      '/ia-proxy-default',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      },
+      30000
+    );
   } else {
     // User-config mode: existing behavior with X-Target-URL and auth headers
     let targetUrl = config.apiUrl;
@@ -362,11 +389,15 @@ CHAMPS : utilise UNIQUEMENT les noms de champs listes dans "Donnees actuelles".`
       headers['Authorization'] = `Bearer ${config.token}`;
     }
 
-    response = await fetchWithTimeout('/ia-proxy', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(requestBody),
-    }, 30000);
+    response = await fetchWithTimeout(
+      '/ia-proxy',
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(requestBody),
+      },
+      30000
+    );
   }
 
   if (!response.ok) {
@@ -374,11 +405,16 @@ CHAMPS : utilise UNIQUEMENT les noms de champs listes dans "Donnees actuelles".`
     let detail = '';
     try {
       const errBody = await response.json();
-      detail = errBody?.error?.message || errBody?.error?.type || JSON.stringify(errBody?.error) || '';
-    } catch { /* ignore parse errors */ }
-    throw new Error(detail
-      ? `${httpErrorMessage(response.status)} (${detail})`
-      : httpErrorMessage(response.status));
+      detail =
+        errBody?.error?.message || errBody?.error?.type || JSON.stringify(errBody?.error) || '';
+    } catch {
+      /* ignore parse errors */
+    }
+    throw new Error(
+      detail
+        ? `${httpErrorMessage(response.status)} (${detail})`
+        : httpErrorMessage(response.status)
+    );
   }
 
   const data = await response.json();
@@ -407,33 +443,68 @@ CHAMPS : utilise UNIQUEMENT les noms de champs listes dans "Donnees actuelles".`
  * since smaller models sometimes invent action names like "table", "filter", etc.
  */
 function repairAction(parsed: Record<string, unknown>): Record<string, unknown> {
-  if (parsed.action === 'createChart' || parsed.action === 'reloadData' || parsed.action === 'resetChart') {
+  if (
+    parsed.action === 'createChart' ||
+    parsed.action === 'reloadData' ||
+    parsed.action === 'resetChart'
+  ) {
     return parsed;
   }
 
   // Handle reset actions
-  const resetActions = ['reset', 'resetchart', 'clear', 'clearchart', 'recommencer', 'reinitialiser'];
+  const resetActions = [
+    'reset',
+    'resetchart',
+    'clear',
+    'clearchart',
+    'recommencer',
+    'reinitialiser',
+  ];
   if (resetActions.includes(String(parsed.action).toLowerCase().trim())) {
     return { action: 'resetChart' };
   }
 
   // Map common hallucinated action names to createChart types
   const actionToType: Record<string, string> = {
-    table: 'datalist', datalist: 'datalist', list: 'datalist', tableau: 'datalist', liste: 'datalist',
-    bar: 'bar', bars: 'bar', barres: 'bar', histogram: 'bar', histogramme: 'bar', horizontalbar: 'bar',
-    pie: 'pie', camembert: 'pie', donut: 'pie', doughnut: 'pie',
-    line: 'line', ligne: 'line', courbe: 'line', evolution: 'line',
-    radar: 'radar', scatter: 'scatter', gauge: 'gauge', jauge: 'gauge',
-    kpi: 'kpi', indicateur: 'kpi',
-    map: 'map', carte: 'map', 'map-reg': 'map-reg',
-    'bar-line': 'bar-line', barline: 'bar-line',
+    table: 'datalist',
+    datalist: 'datalist',
+    list: 'datalist',
+    tableau: 'datalist',
+    liste: 'datalist',
+    bar: 'bar',
+    bars: 'bar',
+    barres: 'bar',
+    histogram: 'bar',
+    histogramme: 'bar',
+    horizontalbar: 'bar',
+    pie: 'pie',
+    camembert: 'pie',
+    donut: 'pie',
+    doughnut: 'pie',
+    line: 'line',
+    ligne: 'line',
+    courbe: 'line',
+    evolution: 'line',
+    radar: 'radar',
+    scatter: 'scatter',
+    gauge: 'gauge',
+    jauge: 'gauge',
+    kpi: 'kpi',
+    indicateur: 'kpi',
+    map: 'map',
+    carte: 'map',
+    'map-reg': 'map-reg',
+    'bar-line': 'bar-line',
+    barline: 'bar-line',
   };
 
   const actionName = String(parsed.action).toLowerCase().trim();
   const mappedType = actionToType[actionName];
 
   if (mappedType) {
-    console.warn(`repairAction: mapped unknown action "${parsed.action}" → createChart type="${mappedType}"`);
+    console.warn(
+      `repairAction: mapped unknown action "${parsed.action}" → createChart type="${mappedType}"`
+    );
     const config = (parsed.config || parsed) as Record<string, unknown>;
     // Don't overwrite type if the config already has one
     if (!config.type) {
@@ -444,7 +515,9 @@ function repairAction(parsed: Record<string, unknown>): Record<string, unknown> 
 
   // If the action is unknown but has a config with a valid type, assume createChart
   if (parsed.config && (parsed.config as Record<string, unknown>).type) {
-    console.warn(`repairAction: unknown action "${parsed.action}" but config has type, assuming createChart`);
+    console.warn(
+      `repairAction: unknown action "${parsed.action}" but config has type, assuming createChart`
+    );
     return { action: 'createChart', config: parsed.config };
   }
 
@@ -490,7 +563,10 @@ function extractAction(text: string): Record<string, unknown> | null {
         for (let i = start; i < text.length; i++) {
           if (text[i] === '{') depth++;
           else if (text[i] === '}') depth--;
-          if (depth === 0) { end = i + 1; break; }
+          if (depth === 0) {
+            end = i + 1;
+            break;
+          }
         }
         const parsed = JSON.parse(text.slice(start, end));
         if (parsed.action) return repairAction(parsed);
@@ -526,7 +602,10 @@ function stripActionJson(text: string, action: Record<string, unknown> | null): 
  */
 async function handleReloadData(actionData: Record<string, unknown>): Promise<boolean> {
   if (!state.source?.apiUrl) {
-    addMessage('assistant', "Je ne peux pas recharger les donnees car aucune URL source n'est disponible.");
+    addMessage(
+      'assistant',
+      "Je ne peux pas recharger les donnees car aucune URL source n'est disponible."
+    );
     return false;
   }
 
@@ -553,7 +632,7 @@ async function handleReloadData(actionData: Record<string, unknown>): Promise<bo
       return false;
     }
 
-    state.localData = records.map(r => {
+    state.localData = records.map((r) => {
       const fields = r.fields;
       return (fields && typeof fields === 'object' ? fields : r) as Record<string, unknown>;
     });

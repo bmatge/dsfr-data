@@ -50,7 +50,9 @@ export class ShareDialog extends LitElement {
   @state() private _permission: 'read' | 'write' = 'read';
 
   // Light DOM for DSFR
-  createRenderRoot() { return this; }
+  createRenderRoot() {
+    return this;
+  }
 
   open(): void {
     if (!isAuthenticated()) return;
@@ -71,7 +73,7 @@ export class ShareDialog extends LitElement {
     try {
       const res = await fetch(
         `/api/shares?resource_type=${this.resourceType}&resource_id=${this.resourceId}`,
-        { credentials: 'include' },
+        { credentials: 'include' }
       );
       if (res.ok) {
         this._shares = await res.json();
@@ -164,67 +166,133 @@ export class ShareDialog extends LitElement {
     if (!this._open) return nothing;
 
     return html`
-      <dialog class="fr-modal fr-modal--opened" role="dialog" aria-labelledby="share-dialog-title" aria-modal="true"
-              style="display:flex" @click=${(e: Event) => { if (e.target === e.currentTarget) this.close(); }}>
+      <dialog
+        class="fr-modal fr-modal--opened"
+        role="dialog"
+        aria-labelledby="share-dialog-title"
+        aria-modal="true"
+        style="display:flex"
+        @click=${(e: Event) => {
+          if (e.target === e.currentTarget) this.close();
+        }}
+      >
         <div class="fr-container fr-container--fluid fr-container-md">
           <div class="fr-grid-row fr-grid-row--center">
             <div class="fr-col-12 fr-col-md-8 fr-col-lg-6">
               <div class="fr-modal__body">
                 <div class="fr-modal__header">
-                  <button class="fr-btn--close fr-btn" title="Fermer" @click=${() => this.close()}>Fermer</button>
+                  <button class="fr-btn--close fr-btn" title="Fermer" @click=${() => this.close()}>
+                    Fermer
+                  </button>
                 </div>
                 <div class="fr-modal__content">
                   <h1 id="share-dialog-title" class="fr-modal__title">Partager</h1>
 
-                  ${this._error ? html`
-                    <div class="fr-alert fr-alert--error fr-alert--sm" style="margin-bottom:1rem">
-                      <p>${this._error}</p>
-                    </div>
-                  ` : nothing}
+                  ${this._error
+                    ? html`
+                        <div
+                          class="fr-alert fr-alert--error fr-alert--sm"
+                          style="margin-bottom:1rem"
+                        >
+                          <p>${this._error}</p>
+                        </div>
+                      `
+                    : nothing}
 
                   <!-- Add share form -->
                   <div style="margin-bottom:1.5rem">
                     <div class="fr-select-group" style="margin-bottom:0.5rem">
                       <label class="fr-label" for="share-target-type">Partager avec</label>
-                      <select class="fr-select" id="share-target-type"
-                              @change=${(e: Event) => { this._targetType = (e.target as HTMLSelectElement).value as 'user' | 'group' | 'global'; }}>
-                        <option value="user" ?selected=${this._targetType === 'user'}>Un utilisateur</option>
-                        <option value="global" ?selected=${this._targetType === 'global'}>Tout le monde</option>
+                      <select
+                        class="fr-select"
+                        id="share-target-type"
+                        @change=${(e: Event) => {
+                          this._targetType = (e.target as HTMLSelectElement).value as
+                            | 'user'
+                            | 'group'
+                            | 'global';
+                        }}
+                      >
+                        <option value="user" ?selected=${this._targetType === 'user'}>
+                          Un utilisateur
+                        </option>
+                        <option value="global" ?selected=${this._targetType === 'global'}>
+                          Tout le monde
+                        </option>
                       </select>
                     </div>
 
-                    ${this._targetType === 'user' ? html`
-                      <div class="fr-input-group" style="margin-bottom:0.5rem; position:relative">
-                        <label class="fr-label" for="share-user-search">Rechercher un utilisateur</label>
-                        <input class="fr-input" type="text" id="share-user-search"
-                               .value=${this._searchQuery}
-                               @input=${(e: Event) => { this._searchQuery = (e.target as HTMLInputElement).value; this._searchUsers(); }}
-                               placeholder="Email ou nom...">
-                        ${this._searchResults.length > 0 ? html`
-                          <ul style="position:absolute;z-index:10;background:var(--background-default-grey);border:1px solid var(--border-default-grey);
-                                     list-style:none;padding:0;margin:0;width:100%;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.1)">
-                            ${this._searchResults.map(user => html`
-                              <li style="padding:0.5rem 0.75rem;cursor:pointer;border-bottom:1px solid var(--border-default-grey)"
-                                  @click=${() => this._selectUser(user)}>
-                                <strong>${escapeHtml(user.displayName)}</strong>
-                                <span style="color:var(--text-mention-grey);margin-left:0.5rem">${escapeHtml(user.email)}</span>
-                              </li>
-                            `)}
-                          </ul>
-                        ` : nothing}
-                      </div>
-                    ` : nothing}
+                    ${this._targetType === 'user'
+                      ? html`
+                          <div
+                            class="fr-input-group"
+                            style="margin-bottom:0.5rem; position:relative"
+                          >
+                            <label class="fr-label" for="share-user-search"
+                              >Rechercher un utilisateur</label
+                            >
+                            <input
+                              class="fr-input"
+                              type="text"
+                              id="share-user-search"
+                              .value=${this._searchQuery}
+                              @input=${(e: Event) => {
+                                this._searchQuery = (e.target as HTMLInputElement).value;
+                                this._searchUsers();
+                              }}
+                              placeholder="Email ou nom..."
+                            />
+                            ${this._searchResults.length > 0
+                              ? html`
+                                  <ul
+                                    style="position:absolute;z-index:10;background:var(--background-default-grey);border:1px solid var(--border-default-grey);
+                                     list-style:none;padding:0;margin:0;width:100%;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.1)"
+                                  >
+                                    ${this._searchResults.map(
+                                      (user) => html`
+                                        <li
+                                          style="padding:0.5rem 0.75rem;cursor:pointer;border-bottom:1px solid var(--border-default-grey)"
+                                          @click=${() => this._selectUser(user)}
+                                        >
+                                          <strong>${escapeHtml(user.displayName)}</strong>
+                                          <span
+                                            style="color:var(--text-mention-grey);margin-left:0.5rem"
+                                            >${escapeHtml(user.email)}</span
+                                          >
+                                        </li>
+                                      `
+                                    )}
+                                  </ul>
+                                `
+                              : nothing}
+                          </div>
+                        `
+                      : nothing}
 
                     <div class="fr-select-group" style="margin-bottom:0.5rem">
                       <label class="fr-label" for="share-permission">Permission</label>
-                      <select class="fr-select" id="share-permission"
-                              @change=${(e: Event) => { this._permission = (e.target as HTMLSelectElement).value as 'read' | 'write'; }}>
-                        <option value="read" ?selected=${this._permission === 'read'}>Lecture seule</option>
-                        <option value="write" ?selected=${this._permission === 'write'}>Lecture et ecriture</option>
+                      <select
+                        class="fr-select"
+                        id="share-permission"
+                        @change=${(e: Event) => {
+                          this._permission = (e.target as HTMLSelectElement).value as
+                            | 'read'
+                            | 'write';
+                        }}
+                      >
+                        <option value="read" ?selected=${this._permission === 'read'}>
+                          Lecture seule
+                        </option>
+                        <option value="write" ?selected=${this._permission === 'write'}>
+                          Lecture et ecriture
+                        </option>
                       </select>
                     </div>
 
-                    <button class="fr-btn fr-btn--sm fr-btn--icon-left fr-icon-add-line" @click=${this._addShare}>
+                    <button
+                      class="fr-btn fr-btn--sm fr-btn--icon-left fr-icon-add-line"
+                      @click=${this._addShare}
+                    >
                       Ajouter le partage
                     </button>
                   </div>
@@ -232,24 +300,42 @@ export class ShareDialog extends LitElement {
                   <!-- Existing shares -->
                   <h2 class="fr-text--lg" style="margin-bottom:0.5rem">Partages actuels</h2>
                   ${this._loading ? html`<p>Chargement...</p>` : nothing}
-                  ${!this._loading && this._shares.length === 0 ? html`
-                    <p class="fr-text--sm" style="color:var(--text-mention-grey)">Aucun partage pour cette ressource.</p>
-                  ` : nothing}
-                  ${this._shares.map(share => html`
-                    <div style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0;border-bottom:1px solid var(--border-default-grey)">
-                      <div>
-                        <strong>${escapeHtml(share.target_name)}</strong>
-                        ${share.target_email ? html`<span style="color:var(--text-mention-grey);margin-left:0.5rem">${escapeHtml(share.target_email)}</span>` : nothing}
-                        <span class="fr-badge fr-badge--sm ${share.permission === 'write' ? 'fr-badge--warning' : 'fr-badge--info'}" style="margin-left:0.5rem">
-                          ${share.permission === 'write' ? 'Ecriture' : 'Lecture'}
-                        </span>
+                  ${!this._loading && this._shares.length === 0
+                    ? html`
+                        <p class="fr-text--sm" style="color:var(--text-mention-grey)">
+                          Aucun partage pour cette ressource.
+                        </p>
+                      `
+                    : nothing}
+                  ${this._shares.map(
+                    (share) => html`
+                      <div
+                        style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0;border-bottom:1px solid var(--border-default-grey)"
+                      >
+                        <div>
+                          <strong>${escapeHtml(share.target_name)}</strong>
+                          ${share.target_email
+                            ? html`<span style="color:var(--text-mention-grey);margin-left:0.5rem"
+                                >${escapeHtml(share.target_email)}</span
+                              >`
+                            : nothing}
+                          <span
+                            class="fr-badge fr-badge--sm ${share.permission === 'write'
+                              ? 'fr-badge--warning'
+                              : 'fr-badge--info'}"
+                            style="margin-left:0.5rem"
+                          >
+                            ${share.permission === 'write' ? 'Ecriture' : 'Lecture'}
+                          </span>
+                        </div>
+                        <button
+                          class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-icon-delete-line"
+                          title="Supprimer ce partage"
+                          @click=${() => this._removeShare(share.id)}
+                        ></button>
                       </div>
-                      <button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-icon-delete-line"
-                              title="Supprimer ce partage"
-                              @click=${() => this._removeShare(share.id)}>
-                      </button>
-                    </div>
-                  `)}
+                    `
+                  )}
                 </div>
               </div>
             </div>

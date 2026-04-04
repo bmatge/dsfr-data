@@ -4,7 +4,13 @@
  */
 
 import { state, FAVORITES_KEY } from '../state.js';
-import { loadFromStorage, saveToStorage, toastWarning, toastSuccess, navigateTo } from '@dsfr-data/shared';
+import {
+  loadFromStorage,
+  saveToStorage,
+  toastWarning,
+  toastSuccess,
+  navigateTo,
+} from '@dsfr-data/shared';
 import type { Favorite } from '../state.js';
 
 /**
@@ -54,7 +60,9 @@ export function openInPlayground(): void {
   const code = codeEl?.textContent || '';
 
   if (!code || code === '// Le code sera g\u00e9n\u00e9r\u00e9 ici...' || code.startsWith('//')) {
-    toastWarning('Cliquez d\'abord sur "G\u00e9n\u00e9rer le graphique" pour voir le r\u00e9sultat, puis vous pourrez l\'ouvrir dans le Playground.');
+    toastWarning(
+      'Cliquez d\'abord sur "G\u00e9n\u00e9rer le graphique" pour voir le r\u00e9sultat, puis vous pourrez l\'ouvrir dans le Playground.'
+    );
     return;
   }
 
@@ -79,7 +87,9 @@ export function saveFavorite(): void {
   const code = codeEl?.textContent || '';
 
   if (!code || code === '// Le code sera g\u00e9n\u00e9r\u00e9 ici...' || code.startsWith('//')) {
-    toastWarning('Cliquez d\'abord sur "G\u00e9n\u00e9rer le graphique" pour voir le r\u00e9sultat, puis vous pourrez le sauvegarder en favori.');
+    toastWarning(
+      'Cliquez d\'abord sur "G\u00e9n\u00e9rer le graphique" pour voir le r\u00e9sultat, puis vous pourrez le sauvegarder en favori.'
+    );
     return;
   }
 
@@ -154,7 +164,7 @@ export function toggleSection(sectionId: string): void {
 
   // If opening a section, close all others
   if (isCurrentlyCollapsed) {
-    document.querySelectorAll('.config-section:not(#' + sectionId + ')').forEach(s => {
+    document.querySelectorAll('.config-section:not(#' + sectionId + ')').forEach((s) => {
       // Don't close the generate button section (no header)
       if (s.querySelector('.config-section-header')) {
         s.classList.add('collapsed');

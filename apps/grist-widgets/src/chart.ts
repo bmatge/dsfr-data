@@ -230,7 +230,9 @@ function generateFixedHtml(): string {
     const icone = opts.icone ? ` icone="${opts.icone}"` : '';
     const couleur = opts.couleur ? ` couleur="${opts.couleur}"` : '';
 
-    deps.push('<script src="https://cdn.jsdelivr.net/gh/bmatge/dsfr-data@main/dist/dsfr-data.umd.js"><\/script>');
+    deps.push(
+      '<script src="https://cdn.jsdelivr.net/gh/bmatge/dsfr-data@main/dist/dsfr-data.umd.js"><\/script>'
+    );
 
     return `${deps.join('\n')}
 
@@ -244,15 +246,21 @@ function generateFixedHtml(): string {
   }
 
   // Chart types: bar, line, pie, radar, scatter, gauge, bar-line, map, map-reg
-  deps.push('<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css">');
-  deps.push('<script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"><\/script>');
-  deps.push('<script src="https://cdn.jsdelivr.net/gh/bmatge/dsfr-data@main/dist/dsfr-data.umd.js"><\/script>');
+  deps.push(
+    '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css">'
+  );
+  deps.push(
+    '<script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"><\/script>'
+  );
+  deps.push(
+    '<script src="https://cdn.jsdelivr.net/gh/bmatge/dsfr-data@main/dist/dsfr-data.umd.js"><\/script>'
+  );
 
   const palette = opts.palette ? ` selected-palette="${opts.palette}"` : '';
   const horizontal = opts.horizontal === true ? ' horizontal' : '';
   const stacked = opts.stacked === true ? ' stacked' : '';
   const unitTooltip = opts.unitTooltip ? ` unit-tooltip="${opts.unitTooltip}"` : '';
-  const codeField = (type === 'map' || type === 'map-reg') ? ' code-field="Code"' : '';
+  const codeField = type === 'map' || type === 'map-reg' ? ' code-field="Code"' : '';
   const hasValue2 = data.length > 0 && 'Value2' in data[0];
   const valueField2 = hasValue2 ? ' value-field-2="Value2"' : '';
 
@@ -269,7 +277,8 @@ function generateFixedHtml(): string {
 
 function generateDynamicHtml(): string {
   const { apiBaseUrl, tableId, columnMappings } = getGristApiInfo();
-  if (!apiBaseUrl || !tableId) return '(Information API Grist non disponible.\nLe widget doit etre charge dans Grist pour detecter l\'URL du document.)';
+  if (!apiBaseUrl || !tableId)
+    return "(Information API Grist non disponible.\nLe widget doit etre charge dans Grist pour detecter l'URL du document.)";
 
   const match = apiBaseUrl.match(/\/api\/docs\/([^/]+)/);
   if (!match) return '(URL API Grist non reconnue)';
@@ -299,7 +308,9 @@ function generateDynamicHtml(): string {
     const icone = opts.icone ? ` icone="${opts.icone}"` : '';
     const couleur = opts.couleur ? ` couleur="${opts.couleur}"` : '';
 
-    deps.push('<script src="https://cdn.jsdelivr.net/gh/bmatge/dsfr-data@main/dist/dsfr-data.umd.js"><\/script>');
+    deps.push(
+      '<script src="https://cdn.jsdelivr.net/gh/bmatge/dsfr-data@main/dist/dsfr-data.umd.js"><\/script>'
+    );
 
     return `${deps.join('\n')}
 
@@ -314,15 +325,22 @@ function generateDynamicHtml(): string {
 <dsfr-data-kpi source="grist-data" valeur="${agg}:fields.${valueCol}" format="${format}" label="${label}"${icone}${couleur}></dsfr-data-kpi>`;
   }
 
-  deps.push('<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css">');
-  deps.push('<script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"><\/script>');
-  deps.push('<script src="https://cdn.jsdelivr.net/gh/bmatge/dsfr-data@main/dist/dsfr-data.umd.js"><\/script>');
+  deps.push(
+    '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css">'
+  );
+  deps.push(
+    '<script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"><\/script>'
+  );
+  deps.push(
+    '<script src="https://cdn.jsdelivr.net/gh/bmatge/dsfr-data@main/dist/dsfr-data.umd.js"><\/script>'
+  );
 
   const palette = opts.palette ? ` selected-palette="${opts.palette}"` : '';
   const horizontal = opts.horizontal === true ? ' horizontal' : '';
   const stacked = opts.stacked === true ? ' stacked' : '';
   const unitTooltip = opts.unitTooltip ? ` unit-tooltip="${opts.unitTooltip}"` : '';
-  const codeFieldAttr = (type === 'map' || type === 'map-reg') && codeCol ? ` code-field="fields.${codeCol}"` : '';
+  const codeFieldAttr =
+    (type === 'map' || type === 'map-reg') && codeCol ? ` code-field="fields.${codeCol}"` : '';
   const valueField2 = value2Col ? ` value-field-2="fields.${value2Col}"` : '';
 
   return `${deps.join('\n')}
@@ -379,7 +397,9 @@ function copyCode() {
   navigator.clipboard.writeText(text).then(() => {
     const original = btn.innerHTML;
     btn.innerHTML = '<span class="ri-check-line" aria-hidden="true"></span> Copie !';
-    setTimeout(() => { btn.innerHTML = original; }, 1500);
+    setTimeout(() => {
+      btn.innerHTML = original;
+    }, 1500);
   });
 }
 

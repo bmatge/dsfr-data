@@ -11,7 +11,7 @@ const DEFAULT_TIMEOUT_MS = 10_000;
 export async function fetchWithTimeout(
   input: RequestInfo | URL,
   init?: RequestInit,
-  timeoutMs: number = DEFAULT_TIMEOUT_MS,
+  timeoutMs: number = DEFAULT_TIMEOUT_MS
 ): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -19,11 +19,13 @@ export async function fetchWithTimeout(
   try {
     const response = await fetch(input, { ...init, signal: controller.signal });
     return response;
-  } catch (error: unknown) {
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      throw new Error('La requete a expire. Verifiez votre connexion ou reessayez.');
+  } catch (_error: unknown) {
+    if (_error instanceof DOMException && _error.name === 'AbortError') {
+      throw new Error('La requete a expire. Verifiez votre connexion ou reessayez.', {
+        cause: _error,
+      });
     }
-    throw error;
+    throw _error;
   } finally {
     clearTimeout(timer);
   }
@@ -37,7 +39,7 @@ export function httpErrorMessage(status: number): string {
     case status === 401 || status === 403:
       return 'Cle API invalide ou expiree. Verifiez votre configuration.';
     case status === 404:
-      return 'Ressource introuvable. Verifiez l\'URL de la source.';
+      return "Ressource introuvable. Verifiez l'URL de la source.";
     case status === 429:
       return 'Trop de requetes. Reessayez dans quelques secondes.';
     case status >= 500:

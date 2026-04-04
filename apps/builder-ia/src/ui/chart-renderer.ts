@@ -16,9 +16,10 @@ const Chart = (window as unknown as Record<string, unknown>).Chart as unknown;
  * Falls back to DSFR_COLORS if the palette name is unknown.
  */
 function resolvePalette(paletteName: string | undefined, count: number): string[] {
-  const base = (paletteName && PALETTE_COLORS[paletteName])
-    ? [...PALETTE_COLORS[paletteName]]
-    : [...DSFR_COLORS];
+  const base =
+    paletteName && PALETTE_COLORS[paletteName]
+      ? [...PALETTE_COLORS[paletteName]]
+      : [...DSFR_COLORS];
   const result: string[] = [];
   for (let i = 0; i < count; i++) {
     result.push(base[i % base.length]);
@@ -30,11 +31,17 @@ function resolvePalette(paletteName: string | undefined, count: number): string[
  * Apply a where filter to data (same syntax as dsfr-data-query: "field:op:value")
  * Multiple filters separated by comma (AND logic).
  */
-function applyWhereFilter(data: Record<string, unknown>[], where: string): Record<string, unknown>[] {
-  const parts = where.split(',').map(p => p.trim()).filter(Boolean);
+function applyWhereFilter(
+  data: Record<string, unknown>[],
+  where: string
+): Record<string, unknown>[] {
+  const parts = where
+    .split(',')
+    .map((p) => p.trim())
+    .filter(Boolean);
 
-  return data.filter(record => {
-    return parts.every(part => {
+  return data.filter((record) => {
+    return parts.every((part) => {
       const segments = part.split(':');
       if (segments.length < 2) return true;
       const field = segments[0];
@@ -60,9 +67,13 @@ function applyWhereFilter(data: Record<string, unknown>[], where: string): Recor
         case 'notcontains':
           return !String(itemValue).toLowerCase().includes(rawValue.toLowerCase());
         case 'in':
-          return rawValue.split('|').some(v => String(itemValue) === v || Number(itemValue) === Number(v));
+          return rawValue
+            .split('|')
+            .some((v) => String(itemValue) === v || Number(itemValue) === Number(v));
         case 'notin':
-          return !rawValue.split('|').some(v => String(itemValue) === v || Number(itemValue) === Number(v));
+          return !rawValue
+            .split('|')
+            .some((v) => String(itemValue) === v || Number(itemValue) === Number(v));
         case 'isnull':
           return itemValue === null || itemValue === undefined;
         case 'isnotnull':
@@ -134,23 +145,33 @@ export function applyChartConfig(config: ChartConfig): void {
   state.chartConfig = config;
 
   // Update UI
-  (document.getElementById('preview-title') as HTMLElement).textContent = config.title || 'Mon graphique';
+  (document.getElementById('preview-title') as HTMLElement).textContent =
+    config.title || 'Mon graphique';
   (document.getElementById('preview-subtitle') as HTMLElement).textContent = config.subtitle || '';
 
   // Generate chart data
   if (!state.localData || state.localData.length === 0) {
-    addMessage('assistant', 'Aucune donnee disponible. Veuillez selectionner une source de donnees.');
+    addMessage(
+      'assistant',
+      'Aucune donnee disponible. Veuillez selectionner une source de donnees.'
+    );
     return;
   }
 
   // Validate that fields exist in data
   const dataKeys = Object.keys(state.localData[0]);
   if (config.labelField && !dataKeys.includes(config.labelField)) {
-    addMessage('assistant', `Le champ "${config.labelField}" n'existe pas dans les donnees. Champs disponibles : ${dataKeys.join(', ')}`);
+    addMessage(
+      'assistant',
+      `Le champ "${config.labelField}" n'existe pas dans les donnees. Champs disponibles : ${dataKeys.join(', ')}`
+    );
     return;
   }
   if (config.valueField && !dataKeys.includes(config.valueField)) {
-    addMessage('assistant', `Le champ "${config.valueField}" n'existe pas dans les donnees. Champs disponibles : ${dataKeys.join(', ')}`);
+    addMessage(
+      'assistant',
+      `Le champ "${config.valueField}" n'existe pas dans les donnees. Champs disponibles : ${dataKeys.join(', ')}`
+    );
     return;
   }
 
@@ -159,7 +180,10 @@ export function applyChartConfig(config: ChartConfig): void {
   if (config.where) {
     workingData = applyWhereFilter(state.localData, config.where);
     if (workingData.length === 0) {
-      addMessage('assistant', `Aucun enregistrement ne correspond au filtre "${config.where}". Verifiez les noms de champs et les valeurs.`);
+      addMessage(
+        'assistant',
+        `Aucun enregistrement ne correspond au filtre "${config.where}". Verifiez les noms de champs et les valeurs.`
+      );
       return;
     }
   }
@@ -174,7 +198,7 @@ export function applyChartConfig(config: ChartConfig): void {
   // For KPI, aggregate all values into a single result
   if (config.type === 'kpi') {
     let kpiValue: number;
-    const values = workingData.map(r => parseFloat(String(r[config.valueField])) || 0);
+    const values = workingData.map((r) => parseFloat(String(r[config.valueField])) || 0);
 
     switch (config.aggregation) {
       case 'sum':
@@ -205,20 +229,24 @@ export function applyChartConfig(config: ChartConfig): void {
   const isMap = config.type === 'map' || config.type === 'map-reg';
   const codeField = config.codeField || config.labelField;
 
-  workingData.forEach(record => {
+  workingData.forEach((record) => {
     const label = isMap
       ? String(record[codeField!] || 'N/A')
       : String(record[config.labelField!] || 'N/A');
     const value = parseFloat(String(record[config.valueField])) || 0;
 
     if (!aggregated[label]) {
-      aggregated[label] = { values: [], count: 0, code: isMap ? String(record[codeField!] || '') : null };
+      aggregated[label] = {
+        values: [],
+        count: 0,
+        code: isMap ? String(record[codeField!] || '') : null,
+      };
     }
     aggregated[label].values.push(value);
     aggregated[label].count++;
   });
 
-  let results: AggregatedResult[] = Object.entries(aggregated).map(([label, data]) => {
+  const results: AggregatedResult[] = Object.entries(aggregated).map(([label, data]) => {
     let value: number;
     switch (config.aggregation) {
       case 'sum':
@@ -341,7 +369,7 @@ function renderChart(config: ChartConfig, data: AggregatedResult[]): void {
 
     // Transform data to DSFR format: {"code": value, ...}
     const mapData: Record<string, number> = {};
-    data.forEach(d => {
+    data.forEach((d) => {
       let code = String(d.code || d.label || '').trim();
       if (/^\d+$/.test(code) && code.length < 3) {
         code = code.padStart(2, '0');
@@ -369,12 +397,12 @@ function renderChart(config: ChartConfig, data: AggregatedResult[]): void {
   emptyState.style.display = 'none';
   canvas.style.display = 'block';
 
-  const labels = data.map(d => d.label);
-  const values = data.map(d => Math.round(d.value * 100) / 100);
+  const labels = data.map((d) => d.label);
+  const values = data.map((d) => Math.round(d.value * 100) / 100);
 
   // Handle scatter type
   if (config.type === 'scatter') {
-    const scatterData = data.map(d => ({
+    const scatterData = data.map((d) => ({
       x: parseFloat(d.label) || 0,
       y: d.value,
     }));
@@ -382,13 +410,15 @@ function renderChart(config: ChartConfig, data: AggregatedResult[]): void {
     state.chart = new (Chart as any)(canvas, {
       type: 'scatter',
       data: {
-        datasets: [{
-          label: config.valueField,
-          data: scatterData,
-          backgroundColor: config.color || '#000091',
-          borderColor: config.color || '#000091',
-          pointRadius: 6,
-        }],
+        datasets: [
+          {
+            label: config.valueField,
+            data: scatterData,
+            backgroundColor: config.color || '#000091',
+            borderColor: config.color || '#000091',
+            pointRadius: 6,
+          },
+        ],
       },
       options: {
         responsive: true,
@@ -401,7 +431,8 @@ function renderChart(config: ChartConfig, data: AggregatedResult[]): void {
     return;
   }
 
-  const chartType = config.type === 'horizontalBar' ? 'bar' : (config.type === 'bar-line' ? 'bar' : config.type);
+  const chartType =
+    config.type === 'horizontalBar' ? 'bar' : config.type === 'bar-line' ? 'bar' : config.type;
   const isMultiColor = ['pie', 'doughnut', 'radar'].includes(config.type);
   const isBarLine = config.type === 'bar-line';
 
@@ -410,22 +441,24 @@ function renderChart(config: ChartConfig, data: AggregatedResult[]): void {
   const primaryColor = config.color || paletteColors[0] || '#000091';
 
   // Build datasets array
-  const datasets: Record<string, unknown>[] = [{
-    label: config.valueField,
-    data: values,
-    backgroundColor: isMultiColor ? paletteColors : primaryColor,
-    borderColor: primaryColor,
-    borderWidth: config.type === 'line' ? 2 : 1,
-    type: isBarLine ? 'bar' : undefined,
-  }];
+  const datasets: Record<string, unknown>[] = [
+    {
+      label: config.valueField,
+      data: values,
+      backgroundColor: isMultiColor ? paletteColors : primaryColor,
+      borderColor: primaryColor,
+      borderWidth: config.type === 'line' ? 2 : 1,
+      type: isBarLine ? 'bar' : undefined,
+    },
+  ];
 
   // Handle multi-series (valueField2) or bar-line second series
   if (config.valueField2 && config.data2 && config.data2.length > 0) {
-    const values2 = config.data2.map(d => Math.round(d.value * 100) / 100);
+    const values2 = config.data2.map((d) => Math.round(d.value * 100) / 100);
     datasets.push({
       label: config.valueField2,
       data: values2,
-      backgroundColor: isBarLine ? 'transparent' : (config.color2 || '#E1000F'),
+      backgroundColor: isBarLine ? 'transparent' : config.color2 || '#E1000F',
       borderColor: config.color2 || '#E1000F',
       borderWidth: 2,
       type: isBarLine ? 'line' : undefined,
@@ -480,21 +513,25 @@ function renderDatalist(config: ChartConfig, data: Record<string, unknown>[]): v
   // Determine columns: from config.colonnes or auto-detect from data keys
   let columns: string[];
   if (config.colonnes) {
-    columns = config.colonnes.split(',').map(c => c.split(':')[0].trim());
+    columns = config.colonnes.split(',').map((c) => c.split(':')[0].trim());
   } else {
     columns = data.length > 0 ? Object.keys(data[0]) : [];
   }
 
   const rows = data;
 
-  const headerCells = columns.map(c => `<th>${escapeHtml(c)}</th>`).join('');
-  const bodyRows = rows.map(row => {
-    const cells = columns.map(c => {
-      const val = row[c];
-      return `<td>${val === null || val === undefined ? '\u2014' : escapeHtml(String(val))}</td>`;
-    }).join('');
-    return `<tr>${cells}</tr>`;
-  }).join('');
+  const headerCells = columns.map((c) => `<th>${escapeHtml(c)}</th>`).join('');
+  const bodyRows = rows
+    .map((row) => {
+      const cells = columns
+        .map((c) => {
+          const val = row[c];
+          return `<td>${val === null || val === undefined ? '\u2014' : escapeHtml(String(val))}</td>`;
+        })
+        .join('');
+      return `<tr>${cells}</tr>`;
+    })
+    .join('');
 
   const datalistCard = document.createElement('div');
   datalistCard.className = 'datalist-card';

@@ -21,7 +21,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@dsfr-data/shared': resolve(__dirname, '../../packages/shared/src'),
-    }
+    },
   },
   server: {
     proxy: {
@@ -44,14 +44,19 @@ export default defineConfig({
             'Content-Type': 'application/json',
             'Access-Control-Allow-Origin': '*',
           });
-          res.end(JSON.stringify(token
-            ? {
-              available: true,
-              apiUrl: process.env.IA_DEFAULT_API_URL || 'https://albert.api.etalab.gouv.fr/v1/chat/completions',
-              model: process.env.IA_DEFAULT_MODEL || 'albert-large',
-            }
-            : { available: false }
-          ));
+          res.end(
+            JSON.stringify(
+              token
+                ? {
+                    available: true,
+                    apiUrl:
+                      process.env.IA_DEFAULT_API_URL ||
+                      'https://albert.api.etalab.gouv.fr/v1/chat/completions',
+                    model: process.env.IA_DEFAULT_MODEL || 'albert-large',
+                  }
+                : { available: false }
+            )
+          );
         });
 
         // POST /ia-proxy-default — proxy with server-side token injection
@@ -67,7 +72,9 @@ export default defineConfig({
           }
 
           const token = process.env.IA_DEFAULT_TOKEN || '';
-          const apiUrl = process.env.IA_DEFAULT_API_URL || 'https://albert.api.etalab.gouv.fr/v1/chat/completions';
+          const apiUrl =
+            process.env.IA_DEFAULT_API_URL ||
+            'https://albert.api.etalab.gouv.fr/v1/chat/completions';
           const model = process.env.IA_DEFAULT_MODEL || 'albert-large';
 
           if (!token) {
@@ -105,24 +112,27 @@ export default defineConfig({
             const isHttps = parsed.protocol === 'https:';
             const doRequest = isHttps ? httpsRequest : httpRequest;
 
-            const proxyReq = doRequest({
-              hostname: parsed.hostname,
-              port: parsed.port || (isHttps ? 443 : 80),
-              path: parsed.pathname + parsed.search,
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Content-Length': String(Buffer.byteLength(payload)),
-                'Authorization': `Bearer ${token}`,
-                'Host': parsed.host,
+            const proxyReq = doRequest(
+              {
+                hostname: parsed.hostname,
+                port: parsed.port || (isHttps ? 443 : 80),
+                path: parsed.pathname + parsed.search,
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Content-Length': String(Buffer.byteLength(payload)),
+                  Authorization: `Bearer ${token}`,
+                  Host: parsed.host,
+                },
               },
-            }, (proxyRes) => {
-              res.writeHead(proxyRes.statusCode || 500, {
-                ...proxyRes.headers,
-                'access-control-allow-origin': '*',
-              });
-              proxyRes.pipe(res);
-            });
+              (proxyRes) => {
+                res.writeHead(proxyRes.statusCode || 500, {
+                  ...proxyRes.headers,
+                  'access-control-allow-origin': '*',
+                });
+                proxyRes.pipe(res);
+              }
+            );
 
             proxyReq.on('error', (err) => {
               res.writeHead(502, { 'Content-Type': 'application/json' });
@@ -145,7 +155,8 @@ export default defineConfig({
             res.writeHead(204, {
               'Access-Control-Allow-Origin': '*',
               'Access-Control-Allow-Methods': 'POST, OPTIONS',
-              'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Target-URL, x-api-key, anthropic-version',
+              'Access-Control-Allow-Headers':
+                'Content-Type, Authorization, X-Target-URL, x-api-key, anthropic-version',
             });
             res.end();
             return;
@@ -174,7 +185,14 @@ export default defineConfig({
             const isHttps = parsed.protocol === 'https:';
             const doRequest = isHttps ? httpsRequest : httpRequest;
 
-            const skipHeaders = new Set(['host', 'connection', 'x-target-url', 'transfer-encoding', 'origin', 'referer']);
+            const skipHeaders = new Set([
+              'host',
+              'connection',
+              'x-target-url',
+              'transfer-encoding',
+              'origin',
+              'referer',
+            ]);
             const forwardHeaders: Record<string, string> = {};
             for (const [key, val] of Object.entries(req.headers)) {
               if (skipHeaders.has(key)) continue;
@@ -185,19 +203,22 @@ export default defineConfig({
               forwardHeaders['content-length'] = String(body.length);
             }
 
-            const proxyReq = doRequest({
-              hostname: parsed.hostname,
-              port: parsed.port || (isHttps ? 443 : 80),
-              path: parsed.pathname + parsed.search,
-              method: req.method,
-              headers: forwardHeaders,
-            }, (proxyRes) => {
-              res.writeHead(proxyRes.statusCode || 500, {
-                ...proxyRes.headers,
-                'access-control-allow-origin': '*',
-              });
-              proxyRes.pipe(res);
-            });
+            const proxyReq = doRequest(
+              {
+                hostname: parsed.hostname,
+                port: parsed.port || (isHttps ? 443 : 80),
+                path: parsed.pathname + parsed.search,
+                method: req.method,
+                headers: forwardHeaders,
+              },
+              (proxyRes) => {
+                res.writeHead(proxyRes.statusCode || 500, {
+                  ...proxyRes.headers,
+                  'access-control-allow-origin': '*',
+                });
+                proxyRes.pipe(res);
+              }
+            );
 
             proxyReq.on('error', (err) => {
               res.writeHead(502, { 'Content-Type': 'application/json' });

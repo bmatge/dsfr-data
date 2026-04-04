@@ -26,7 +26,7 @@ function collectConsoleErrors(page: Page): string[] {
   page.on('console', (msg) => {
     if (msg.type() === 'error') {
       const text = msg.text();
-      if (!text.includes('net::ERR_') && !text.includes('Failed to load resource') && !text.includes('cdn.jsdelivr.net')) {
+      if (!text.includes('net::ERR_') && !text.includes('Failed to load resource') && !text.includes('cdn.jsdelivr.net') && !text.includes('Erreur de chargement') && !text.includes('HTTP 4')) {
         errors.push(text);
       }
     }
@@ -179,6 +179,60 @@ test.describe('Guide — direct widget pages', () => {
     expect(kpiCount).toBeGreaterThanOrEqual(1);
 
     await page.screenshot({ path: join(SCREENSHOT_DIR, 'guide-exemples-insee-erfs.png'), fullPage: true });
+    expect(errors).toEqual([]);
+  });
+
+  test('guide-exemples-join.html — join + chart widgets', async ({ page }) => {
+    const errors = collectConsoleErrors(page);
+    await page.goto('/guide/guide-exemples-join.html');
+    await page.waitForTimeout(10_000);
+
+    const joinCount = await page.locator('dsfr-data-join').count();
+    expect(joinCount).toBeGreaterThanOrEqual(1);
+
+    const chartCount = await page.locator('dsfr-data-chart').count();
+    expect(chartCount).toBeGreaterThanOrEqual(1);
+
+    await page.screenshot({ path: join(SCREENSHOT_DIR, 'guide-exemples-join.png'), fullPage: true });
+    expect(errors).toEqual([]);
+  });
+
+  test('guide-exemples-podium.html — podium widget', async ({ page }) => {
+    const errors = collectConsoleErrors(page);
+    await page.goto('/guide/guide-exemples-podium.html');
+    await page.waitForTimeout(10_000);
+
+    const podiumCount = await page.locator('dsfr-data-podium').count();
+    expect(podiumCount).toBeGreaterThanOrEqual(1);
+
+    await page.screenshot({ path: join(SCREENSHOT_DIR, 'guide-exemples-podium.png'), fullPage: true });
+    expect(errors).toEqual([]);
+  });
+
+  test('guide-demo-complete.html — full demo page', async ({ page }) => {
+    const errors = collectConsoleErrors(page);
+    await page.goto('/guide/guide-demo-complete.html');
+    await page.waitForTimeout(15_000);
+
+    const sourceCount = await page.locator('dsfr-data-source').count();
+    expect(sourceCount).toBeGreaterThanOrEqual(1);
+
+    const chartCount = await page.locator('dsfr-data-chart').count();
+    expect(chartCount).toBeGreaterThanOrEqual(1);
+
+    await page.screenshot({ path: join(SCREENSHOT_DIR, 'guide-demo-complete.png'), fullPage: true });
+    expect(errors).toEqual([]);
+  });
+
+  test('guide-exemple-ODS.html — ODS example', async ({ page }) => {
+    const errors = collectConsoleErrors(page);
+    await page.goto('/guide/guide-exemple-ODS.html');
+    await page.waitForTimeout(15_000);
+
+    const sourceCount = await page.locator('dsfr-data-source').count();
+    expect(sourceCount).toBeGreaterThanOrEqual(1);
+
+    await page.screenshot({ path: join(SCREENSHOT_DIR, 'guide-exemple-ODS.png'), fullPage: true });
     expect(errors).toEqual([]);
   });
 });

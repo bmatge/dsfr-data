@@ -47,23 +47,53 @@ export class DsfrDataKpiGroup extends LitElement {
       gap: var(--dsfr-data-kpi-group-gap, 1rem);
     }
 
-    :host([gap="sm"]) { --dsfr-data-kpi-group-gap: 0.5rem; }
-    :host([gap="md"]) { --dsfr-data-kpi-group-gap: 1rem; }
-    :host([gap="lg"]) { --dsfr-data-kpi-group-gap: 1.5rem; }
+    :host([gap='sm']) {
+      --dsfr-data-kpi-group-gap: 0.5rem;
+    }
+    :host([gap='md']) {
+      --dsfr-data-kpi-group-gap: 1rem;
+    }
+    :host([gap='lg']) {
+      --dsfr-data-kpi-group-gap: 1.5rem;
+    }
 
     /* Per-KPI col overrides (1-12) */
-    ::slotted([col="1"])  { grid-column: span 1; }
-    ::slotted([col="2"])  { grid-column: span 2; }
-    ::slotted([col="3"])  { grid-column: span 3; }
-    ::slotted([col="4"])  { grid-column: span 4; }
-    ::slotted([col="5"])  { grid-column: span 5; }
-    ::slotted([col="6"])  { grid-column: span 6; }
-    ::slotted([col="7"])  { grid-column: span 7; }
-    ::slotted([col="8"])  { grid-column: span 8; }
-    ::slotted([col="9"])  { grid-column: span 9; }
-    ::slotted([col="10"]) { grid-column: span 10; }
-    ::slotted([col="11"]) { grid-column: span 11; }
-    ::slotted([col="12"]) { grid-column: span 12; }
+    ::slotted([col='1']) {
+      grid-column: span 1;
+    }
+    ::slotted([col='2']) {
+      grid-column: span 2;
+    }
+    ::slotted([col='3']) {
+      grid-column: span 3;
+    }
+    ::slotted([col='4']) {
+      grid-column: span 4;
+    }
+    ::slotted([col='5']) {
+      grid-column: span 5;
+    }
+    ::slotted([col='6']) {
+      grid-column: span 6;
+    }
+    ::slotted([col='7']) {
+      grid-column: span 7;
+    }
+    ::slotted([col='8']) {
+      grid-column: span 8;
+    }
+    ::slotted([col='9']) {
+      grid-column: span 9;
+    }
+    ::slotted([col='10']) {
+      grid-column: span 10;
+    }
+    ::slotted([col='11']) {
+      grid-column: span 11;
+    }
+    ::slotted([col='12']) {
+      grid-column: span 12;
+    }
 
     /* Responsive: stack on mobile */
     @media (max-width: 767px) {

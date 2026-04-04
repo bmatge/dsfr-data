@@ -25,6 +25,12 @@ export default defineConfig({
       include: ['src/**/*.ts'],
       exclude: ['src/index.ts', 'src/index-*.ts', 'src/components/layout/**'],
       reporter: ['text', 'html'],
+      thresholds: {
+        statements: 85,
+        branches: 80,
+        functions: 85,
+        lines: 85,
+      },
     },
   },
 });

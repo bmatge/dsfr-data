@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await initAuth();
 
   // Tabs
-  document.querySelectorAll('.tab-btn').forEach(btn => {
+  document.querySelectorAll('.tab-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
       const tabId = (btn as HTMLElement).dataset.tab;
       if (tabId) switchTab(tabId);
@@ -59,7 +59,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Chart type
-  document.querySelectorAll('.chart-type-btn').forEach(btn => {
+  document.querySelectorAll('.chart-type-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
       const type = (btn as HTMLElement).dataset.type as ChartType | undefined;
       if (type) {
@@ -95,11 +95,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Buttons
   const loadFieldsBtn = document.getElementById('load-fields-btn');
-  if (loadFieldsBtn) loadFieldsBtn.addEventListener('click', () => {
-    loadFields();
-    // After loadFields completes (async), update steps
-    setTimeout(updatePreviewSteps, 100);
-  });
+  if (loadFieldsBtn)
+    loadFieldsBtn.addEventListener('click', () => {
+      loadFields();
+      // After loadFields completes (async), update steps
+      setTimeout(updatePreviewSteps, 100);
+    });
 
   const generateBtn = document.getElementById('generate-btn');
   if (generateBtn) generateBtn.addEventListener('click', generateChart);
@@ -108,7 +109,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (copyCodeBtn) copyCodeBtn.addEventListener('click', copyCode);
 
   // Label field label input
-  const labelFieldLabelInput = document.getElementById('label-field-label') as HTMLInputElement | null;
+  const labelFieldLabelInput = document.getElementById(
+    'label-field-label'
+  ) as HTMLInputElement | null;
   if (labelFieldLabelInput) {
     labelFieldLabelInput.addEventListener('input', (e) => {
       state.labelFieldLabel = (e.target as HTMLInputElement).value;
@@ -116,7 +119,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Value field label input (Serie 1)
-  const valueFieldLabelInput = document.getElementById('value-field-label') as HTMLInputElement | null;
+  const valueFieldLabelInput = document.getElementById(
+    'value-field-label'
+  ) as HTMLInputElement | null;
   if (valueFieldLabelInput) {
     valueFieldLabelInput.addEventListener('input', (e) => {
       state.valueFieldLabel = (e.target as HTMLInputElement).value;
@@ -139,7 +144,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Generation mode radio buttons
-  document.querySelectorAll('input[name="generation-mode"]').forEach(radio => {
+  document.querySelectorAll('input[name="generation-mode"]').forEach((radio) => {
     radio.addEventListener('change', (e) => {
       state.generationMode = (e.target as HTMLInputElement).value as typeof state.generationMode;
       const dynamicOptions = document.getElementById('dynamic-options') as HTMLElement | null;
@@ -151,7 +156,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
-  const refreshIntervalInput = document.getElementById('refresh-interval') as HTMLInputElement | null;
+  const refreshIntervalInput = document.getElementById(
+    'refresh-interval'
+  ) as HTMLInputElement | null;
   if (refreshIntervalInput) {
     refreshIntervalInput.addEventListener('input', (e) => {
       state.refreshInterval = parseInt((e.target as HTMLInputElement).value) || 0;
@@ -195,37 +202,59 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (databoxOptions) databoxOptions.style.display = state.databoxEnabled ? 'block' : 'none';
       const a11yTableEl = document.getElementById('a11y-table') as HTMLInputElement | null;
       const a11yDownloadEl = document.getElementById('a11y-download') as HTMLInputElement | null;
-      if (a11yTableEl) (a11yTableEl.closest('.fr-checkbox-group') as HTMLElement | null)!.style.display = state.databoxEnabled ? 'none' : '';
-      if (a11yDownloadEl) (a11yDownloadEl.closest('.fr-checkbox-group') as HTMLElement | null)!.style.display = state.databoxEnabled ? 'none' : '';
+      if (a11yTableEl)
+        (a11yTableEl.closest('.fr-checkbox-group') as HTMLElement | null)!.style.display =
+          state.databoxEnabled ? 'none' : '';
+      if (a11yDownloadEl)
+        (a11yDownloadEl.closest('.fr-checkbox-group') as HTMLElement | null)!.style.display =
+          state.databoxEnabled ? 'none' : '';
     });
   }
   const databoxTitleEl = document.getElementById('databox-title') as HTMLInputElement | null;
   if (databoxTitleEl) {
-    databoxTitleEl.addEventListener('input', (e) => { state.databoxTitle = (e.target as HTMLInputElement).value; });
+    databoxTitleEl.addEventListener('input', (e) => {
+      state.databoxTitle = (e.target as HTMLInputElement).value;
+    });
   }
   const databoxSourceEl = document.getElementById('databox-source') as HTMLInputElement | null;
   if (databoxSourceEl) {
-    databoxSourceEl.addEventListener('input', (e) => { state.databoxSource = (e.target as HTMLInputElement).value; });
+    databoxSourceEl.addEventListener('input', (e) => {
+      state.databoxSource = (e.target as HTMLInputElement).value;
+    });
   }
   const databoxDateEl = document.getElementById('databox-date') as HTMLInputElement | null;
   if (databoxDateEl) {
-    databoxDateEl.addEventListener('input', (e) => { state.databoxDate = (e.target as HTMLInputElement).value; });
+    databoxDateEl.addEventListener('input', (e) => {
+      state.databoxDate = (e.target as HTMLInputElement).value;
+    });
   }
   const databoxTrendEl = document.getElementById('databox-trend') as HTMLInputElement | null;
   if (databoxTrendEl) {
-    databoxTrendEl.addEventListener('input', (e) => { state.databoxTrend = (e.target as HTMLInputElement).value; });
+    databoxTrendEl.addEventListener('input', (e) => {
+      state.databoxTrend = (e.target as HTMLInputElement).value;
+    });
   }
   const databoxDownloadEl = document.getElementById('databox-download') as HTMLInputElement | null;
   if (databoxDownloadEl) {
-    databoxDownloadEl.addEventListener('change', (e) => { state.databoxDownload = (e.target as HTMLInputElement).checked; });
+    databoxDownloadEl.addEventListener('change', (e) => {
+      state.databoxDownload = (e.target as HTMLInputElement).checked;
+    });
   }
-  const databoxScreenshotEl = document.getElementById('databox-screenshot') as HTMLInputElement | null;
+  const databoxScreenshotEl = document.getElementById(
+    'databox-screenshot'
+  ) as HTMLInputElement | null;
   if (databoxScreenshotEl) {
-    databoxScreenshotEl.addEventListener('change', (e) => { state.databoxScreenshot = (e.target as HTMLInputElement).checked; });
+    databoxScreenshotEl.addEventListener('change', (e) => {
+      state.databoxScreenshot = (e.target as HTMLInputElement).checked;
+    });
   }
-  const databoxFullscreenEl = document.getElementById('databox-fullscreen') as HTMLInputElement | null;
+  const databoxFullscreenEl = document.getElementById(
+    'databox-fullscreen'
+  ) as HTMLInputElement | null;
   if (databoxFullscreenEl) {
-    databoxFullscreenEl.addEventListener('change', (e) => { state.databoxFullscreen = (e.target as HTMLInputElement).checked; });
+    databoxFullscreenEl.addEventListener('change', (e) => {
+      state.databoxFullscreen = (e.target as HTMLInputElement).checked;
+    });
   }
 
   // Advanced mode toggle

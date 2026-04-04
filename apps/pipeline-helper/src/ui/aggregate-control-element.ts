@@ -14,7 +14,9 @@ const AGG_FUNCTIONS = [
 export class AggregateControlElement extends LitElement {
   @property({ type: Object }) ctrl!: AggregateControl;
 
-  createRenderRoot() { return this; }
+  createRenderRoot() {
+    return this;
+  }
 
   updated(changed: Map<string, unknown>) {
     if (changed.has('ctrl') && this.ctrl) {
@@ -22,7 +24,9 @@ export class AggregateControlElement extends LitElement {
     }
   }
 
-  private _stop(e: Event) { e.stopPropagation(); }
+  private _stop(e: Event) {
+    e.stopPropagation();
+  }
 
   private _onFieldChange(index: number, e: Event) {
     e.stopPropagation();
@@ -73,38 +77,75 @@ export class AggregateControlElement extends LitElement {
     return html`
       <div class="agg-control">
         <label class="attr-label">Agregations</label>
-        ${this.ctrl.rows.map((row, i) => html`
-          <div class="agg-row">
-            ${hasFields ? html`
-              <select class="agg-field" .value=${row.field}
-                @change=${(e: Event) => this._onFieldChange(i, e)}
-                @pointerdown=${this._stop}>
-                <option value="">Champ...</option>
-                ${fields.map(f => html`<option value=${f} ?selected=${row.field === f}>${f}</option>`)}
-              </select>
-            ` : html`
-              <input class="agg-field" type="text" .value=${row.field}
-                placeholder="champ"
-                @input=${(e: Event) => { e.stopPropagation(); row.field = (e.target as HTMLInputElement).value; this.ctrl.onChange?.(); }}
+        ${this.ctrl.rows.map(
+          (row, i) => html`
+            <div class="agg-row">
+              ${hasFields
+                ? html`
+                    <select
+                      class="agg-field"
+                      .value=${row.field}
+                      @change=${(e: Event) => this._onFieldChange(i, e)}
+                      @pointerdown=${this._stop}
+                    >
+                      <option value="">Champ...</option>
+                      ${fields.map(
+                        (f) => html`<option value=${f} ?selected=${row.field === f}>${f}</option>`
+                      )}
+                    </select>
+                  `
+                : html`
+                    <input
+                      class="agg-field"
+                      type="text"
+                      .value=${row.field}
+                      placeholder="champ"
+                      @input=${(e: Event) => {
+                        e.stopPropagation();
+                        row.field = (e.target as HTMLInputElement).value;
+                        this.ctrl.onChange?.();
+                      }}
+                      @pointerdown=${this._stop}
+                      @dblclick=${this._stop}
+                    />
+                  `}
+              <select
+                class="agg-fn"
+                .value=${row.fn}
+                @change=${(e: Event) => this._onFnChange(i, e)}
                 @pointerdown=${this._stop}
-                @dblclick=${this._stop}>
-            `}
-            <select class="agg-fn" .value=${row.fn}
-              @change=${(e: Event) => this._onFnChange(i, e)}
-              @pointerdown=${this._stop}>
-              ${AGG_FUNCTIONS.map(f => html`<option value=${f.value} ?selected=${row.fn === f.value}>${f.label}</option>`)}
-            </select>
-            <input class="agg-alias" type="text" .value=${row.alias}
-              placeholder="alias"
-              @input=${(e: Event) => this._onAliasChange(i, e)}
-              @pointerdown=${this._stop}
-              @dblclick=${this._stop}>
-            ${this.ctrl.rows.length > 1 ? html`
-              <button class="agg-remove" @click=${(e: Event) => this._removeRow(i, e)}
-                @pointerdown=${this._stop} title="Supprimer">&#10005;</button>
-            ` : nothing}
-          </div>
-        `)}
+              >
+                ${AGG_FUNCTIONS.map(
+                  (f) =>
+                    html`<option value=${f.value} ?selected=${row.fn === f.value}>
+                      ${f.label}
+                    </option>`
+                )}
+              </select>
+              <input
+                class="agg-alias"
+                type="text"
+                .value=${row.alias}
+                placeholder="alias"
+                @input=${(e: Event) => this._onAliasChange(i, e)}
+                @pointerdown=${this._stop}
+                @dblclick=${this._stop}
+              />
+              ${this.ctrl.rows.length > 1
+                ? html`
+                    <button
+                      class="agg-remove"
+                      @click=${(e: Event) => this._removeRow(i, e)}
+                      @pointerdown=${this._stop}
+                      title="Supprimer"
+                    >
+                      &#10005;
+                    </button>
+                  `
+                : nothing}
+            </div>
+          `
+        )}
         <button class="agg-add" @click=${this._addRow} @pointerdown=${this._stop}>
           + Ajouter un champ
         </button>

@@ -36,12 +36,12 @@ export class PipelineNodeElement extends LitElement {
       border-radius: 8px;
       min-width: 230px;
       max-width: 280px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
       transition: box-shadow 0.15s ease;
     }
 
     .node:hover {
-      box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
     }
 
     .header {
@@ -61,7 +61,7 @@ export class PipelineNodeElement extends LitElement {
       font-size: 0.65rem;
       font-weight: 400;
       opacity: 0.8;
-      background: rgba(255,255,255,0.2);
+      background: rgba(255, 255, 255, 0.2);
       padding: 0.1rem 0.4rem;
       border-radius: 4px;
     }
@@ -151,9 +151,12 @@ export class PipelineNodeElement extends LitElement {
     const target = e.target as HTMLInputElement | HTMLSelectElement;
     const ctrl = this.data.controls[attrName];
     if (ctrl instanceof AttributeControl) {
-      ctrl.value = target.type === 'checkbox'
-        ? (target as HTMLInputElement).checked ? 'true' : ''
-        : target.value;
+      ctrl.value =
+        target.type === 'checkbox'
+          ? (target as HTMLInputElement).checked
+            ? 'true'
+            : ''
+          : target.value;
     }
   }
 
@@ -174,9 +177,13 @@ export class PipelineNodeElement extends LitElement {
             @pointerdown=${this._stopPropagation}
           >
             <option value="">--</option>
-            ${def.options.map(opt => html`
-              <option value=${opt.value} ?selected=${ctrl.value === opt.value}>${opt.label}</option>
-            `)}
+            ${def.options.map(
+              (opt) => html`
+                <option value=${opt.value} ?selected=${ctrl.value === opt.value}>
+                  ${opt.label}
+                </option>
+              `
+            )}
           </select>
         </div>
       `;
@@ -185,11 +192,12 @@ export class PipelineNodeElement extends LitElement {
     if (def.type === 'boolean') {
       return html`
         <div class="field" style="display:flex;align-items:center;gap:0.3rem">
-          <input type="checkbox"
+          <input
+            type="checkbox"
             ?checked=${ctrl.value === 'true'}
             @change=${(e: Event) => this._onFieldChange(name, e)}
             @pointerdown=${this._stopPropagation}
-          >
+          />
           <label style="margin:0;text-transform:none;font-size:0.78rem">${def.label}</label>
         </div>
       `;
@@ -205,7 +213,7 @@ export class PipelineNodeElement extends LitElement {
           @input=${(e: Event) => this._onFieldChange(name, e)}
           @pointerdown=${this._stopPropagation}
           @dblclick=${this._stopPropagation}
-        >
+        />
       </div>
     `;
   }
@@ -219,8 +227,9 @@ export class PipelineNodeElement extends LitElement {
 
     const inputs = Object.entries(node.inputs);
     const outputs = Object.entries(node.outputs);
-    const controls = Object.entries(node.controls)
-      .filter(([, c]) => c instanceof AttributeControl) as [string, AttributeControl][];
+    const controls = Object.entries(node.controls).filter(
+      ([, c]) => c instanceof AttributeControl
+    ) as [string, AttributeControl][];
 
     return html`
       <div class="node">
@@ -233,27 +242,42 @@ export class PipelineNodeElement extends LitElement {
           <div class="description">${node.description}</div>
 
           ${controls.map(([name, ctrl]) => this._renderControl(name, ctrl))}
-
-          ${(inputs.length > 0 || outputs.length > 0) ? html`
-            <div class="ports">
-              <div class="port-group">
-                ${inputs.map(([key, input]) => html`
-                  <div class="port" data-testid="input-${key}">
-                    <span style="color:${(input as any).socket === this._commandSocket ? '#009081' : '#000091'}">&#9679;</span>
-                    <span>${(input as ClassicPreset.Input<any>).label ?? key}</span>
+          ${inputs.length > 0 || outputs.length > 0
+            ? html`
+                <div class="ports">
+                  <div class="port-group">
+                    ${inputs.map(
+                      ([key, input]) => html`
+                        <div class="port" data-testid="input-${key}">
+                          <span
+                            style="color:${(input as any).socket === this._commandSocket
+                              ? '#009081'
+                              : '#000091'}"
+                            >&#9679;</span
+                          >
+                          <span>${(input as ClassicPreset.Input<any>).label ?? key}</span>
+                        </div>
+                      `
+                    )}
                   </div>
-                `)}
-              </div>
-              <div class="port-group">
-                ${outputs.map(([key, output]) => html`
-                  <div class="port port--output" data-testid="output-${key}">
-                    <span style="color:${(output as any).socket === this._commandSocket ? '#009081' : '#000091'}">&#9679;</span>
-                    <span>${(output as ClassicPreset.Output<any>).label ?? key}</span>
+                  <div class="port-group">
+                    ${outputs.map(
+                      ([key, output]) => html`
+                        <div class="port port--output" data-testid="output-${key}">
+                          <span
+                            style="color:${(output as any).socket === this._commandSocket
+                              ? '#009081'
+                              : '#000091'}"
+                            >&#9679;</span
+                          >
+                          <span>${(output as ClassicPreset.Output<any>).label ?? key}</span>
+                        </div>
+                      `
+                    )}
                   </div>
-                `)}
-              </div>
-            </div>
-          ` : nothing}
+                </div>
+              `
+            : nothing}
         </div>
       </div>
     `;

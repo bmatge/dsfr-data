@@ -24,6 +24,6 @@ export function formatDateShort(isoDate: string): string {
   return date.toLocaleDateString('fr-FR', {
     day: 'numeric',
     month: 'short',
-    year: 'numeric'
+    year: 'numeric',
   });
 }

@@ -24,6 +24,7 @@ Plans d'evolution, audits techniques et feature requests du projet dsfr-data.
 |---------|-------------|
 | `SOURCE_API_MANAGEMENT_AUDIT.md` | Audit de la gestion des APIs dispersee dans le code |
 | `AUDIT-STORAGE.md` | Audit du systeme de stockage (localStorage + SQLite) |
+| `AUDIT-CODE-QUALITY.md` | Audit qualite code complet (composants, apps, server, MCP, CI/CD) |
 | [`DATASHEET.md`](../DATASHEET.md) | Fiche produit : positionnement, comparatif, composants (racine du repo) |
 
 ## Bug reports

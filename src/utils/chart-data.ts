@@ -19,9 +19,9 @@ export type ChartAggregation = 'none' | 'sum' | 'avg' | 'count' | 'min' | 'max';
 export function extractLabelValues(
   data: unknown[],
   labelField: string,
-  valueField: string,
+  valueField: string
 ): ProcessedDataItem[] {
-  return data.map(record => ({
+  return data.map((record) => ({
     label: String(getByPath(record, labelField) ?? 'N/A'),
     value: Number(getByPath(record, valueField)) || 0,
   }));
@@ -32,7 +32,7 @@ export function extractLabelValues(
  */
 export function aggregateByLabel(
   data: ProcessedDataItem[],
-  aggregation: ChartAggregation,
+  aggregation: ChartAggregation
 ): ProcessedDataItem[] {
   if (aggregation === 'none') return data;
 
@@ -73,12 +73,10 @@ function computeGroupValue(values: number[], aggregation: ChartAggregation): num
  */
 export function sortByValue(
   data: ProcessedDataItem[],
-  order: 'none' | 'asc' | 'desc',
+  order: 'none' | 'asc' | 'desc'
 ): ProcessedDataItem[] {
   if (order === 'none') return data;
-  return [...data].sort((a, b) =>
-    order === 'desc' ? b.value - a.value : a.value - b.value
-  );
+  return [...data].sort((a, b) => (order === 'desc' ? b.value - a.value : a.value - b.value));
 }
 
 /**
@@ -90,7 +88,7 @@ export function processChartData(
   valueField: string,
   aggregation: ChartAggregation = 'none',
   sortOrder: 'none' | 'asc' | 'desc' = 'none',
-  limit = 0,
+  limit = 0
 ): { labels: string[]; values: number[] } {
   if (!rawData || rawData.length === 0) {
     return { labels: [], values: [] };
@@ -105,7 +103,7 @@ export function processChartData(
   }
 
   return {
-    labels: processed.map(p => p.label),
-    values: processed.map(p => Math.round(p.value * 100) / 100),
+    labels: processed.map((p) => p.label),
+    values: processed.map((p) => Math.round(p.value * 100) / 100),
   };
 }

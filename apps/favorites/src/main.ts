@@ -2,7 +2,23 @@
  * Favorites app - main entry point
  */
 
-import { escapeHtml, formatDateShort, openModal, closeModal, setupModalOverlayClose, toastInfo, toastSuccess, toastError, loadFromStorage, saveToStorage, STORAGE_KEYS, appHref, navigateTo, initAuth, getApiAdapter } from '@dsfr-data/shared';
+import {
+  escapeHtml,
+  formatDateShort,
+  openModal,
+  closeModal,
+  setupModalOverlayClose,
+  toastInfo,
+  toastSuccess,
+  toastError,
+  loadFromStorage,
+  saveToStorage,
+  STORAGE_KEYS,
+  appHref,
+  navigateTo,
+  initAuth,
+  getApiAdapter,
+} from '@dsfr-data/shared';
 import { loadFavorites, saveFavorites, deleteFavorite, findFavorite } from './favorites-manager.js';
 import type { Favorite } from './favorites-manager.js';
 import { getPreviewHTML } from './preview.js';
@@ -16,11 +32,16 @@ let currentSort = 'date-desc';
 function sortFavorites(favs: Favorite[], sortBy: string): Favorite[] {
   const sorted = [...favs];
   switch (sortBy) {
-    case 'date-desc': return sorted.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-    case 'date-asc': return sorted.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
-    case 'name-asc': return sorted.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-    case 'type': return sorted.sort((a, b) => (a.chartType || '').localeCompare(b.chartType || ''));
-    default: return sorted;
+    case 'date-desc':
+      return sorted.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    case 'date-asc':
+      return sorted.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+    case 'name-asc':
+      return sorted.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    case 'type':
+      return sorted.sort((a, b) => (a.chartType || '').localeCompare(b.chartType || ''));
+    default:
+      return sorted;
   }
 }
 
@@ -49,7 +70,10 @@ function importFavorites(): void {
         const imported = JSON.parse(reader.result as string);
         if (!Array.isArray(imported)) throw new Error('Format invalide');
         const existing = loadFromStorage<Favorite[]>(STORAGE_KEYS.FAVORITES, []);
-        const merged = [...existing, ...imported.filter((imp: Favorite) => !existing.some((e: Favorite) => e.id === imp.id))];
+        const merged = [
+          ...existing,
+          ...imported.filter((imp: Favorite) => !existing.some((e: Favorite) => e.id === imp.id)),
+        ];
         saveToStorage(STORAGE_KEYS.FAVORITES, merged);
         toastSuccess(`${imported.length} favoris importes`);
         window.location.reload();
@@ -83,12 +107,15 @@ function renderSidebar(): void {
 
   const sorted = sortFavorites(favorites, currentSort);
 
-  const searchTerm = (document.getElementById('fav-search') as HTMLInputElement | null)?.value?.toLowerCase() || '';
+  const searchTerm =
+    (document.getElementById('fav-search') as HTMLInputElement | null)?.value?.toLowerCase() || '';
   const filtered = searchTerm
-    ? sorted.filter(fav => fav.name.toLowerCase().includes(searchTerm))
+    ? sorted.filter((fav) => fav.name.toLowerCase().includes(searchTerm))
     : sorted;
 
-  listEl.innerHTML = filtered.map(fav => `
+  listEl.innerHTML = filtered
+    .map(
+      (fav) => `
     <div class="favorite-item ${selectedId === fav.id ? 'active' : ''}"
          data-id="${fav.id}"
          onclick="selectFavorite('${fav.id}')">
@@ -105,7 +132,9 @@ function renderSidebar(): void {
         <span>${fav.source || 'builder'}</span>
       </div>
     </div>
-  `).join('');
+  `
+    )
+    .join('');
 }
 
 function renderContent(): void {
@@ -118,11 +147,15 @@ function renderContent(): void {
         <i class="ri-bar-chart-box-line"></i>
         <h2>Selectionnez un favori</h2>
         <p>Choisissez un favori dans la liste de gauche pour voir son apercu et son code.</p>
-        ${favorites.length === 0 ? `
+        ${
+          favorites.length === 0
+            ? `
           <a href="${appHref('builder')}" class="fr-btn fr-btn--icon-left fr-icon-add-line">
             Creer un graphique
           </a>
-        ` : ''}
+        `
+            : ''
+        }
       </div>
     `;
     return;
@@ -219,7 +252,9 @@ function copyCode(id: string): void {
       if (btn) {
         const originalText = btn.innerHTML;
         btn.innerHTML = '<i class="ri-check-line" aria-hidden="true"></i> Copie !';
-        setTimeout(() => { btn.innerHTML = originalText; }, 2000);
+        setTimeout(() => {
+          btn.innerHTML = originalText;
+        }, 2000);
       }
     });
   }

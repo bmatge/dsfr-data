@@ -73,52 +73,69 @@ router.get('/', requireAuth, async (req, res) => {
     const authReq = req as AuthenticatedRequest;
     const userId = authReq.user!.userId;
 
-    const ownResources = await query(`SELECT * FROM ${TABLE} WHERE owner_id = ? ORDER BY updated_at DESC`, [userId]);
+    const ownResources = await query(
+      `SELECT * FROM ${TABLE} WHERE owner_id = ? ORDER BY updated_at DESC`,
+      [userId]
+    );
 
-    const userGroupIds = (await query<{ group_id: string }>('SELECT group_id FROM group_members WHERE user_id = ?', [userId]))
-      .map(g => g.group_id);
+    const userGroupIds = (
+      await query<{ group_id: string }>('SELECT group_id FROM group_members WHERE user_id = ?', [
+        userId,
+      ])
+    ).map((g) => g.group_id);
 
     const sharedResourceIds = new Set<string>();
 
     const userShares = await query<{ resource_id: string }>(
       `SELECT resource_id FROM shares WHERE resource_type = ? AND target_type = 'user' AND target_id = ?`,
-      [TYPE, userId],
+      [TYPE, userId]
     );
-    userShares.forEach(s => sharedResourceIds.add(s.resource_id));
+    userShares.forEach((s) => sharedResourceIds.add(s.resource_id));
 
     for (const groupId of userGroupIds) {
       const groupShares = await query<{ resource_id: string }>(
         `SELECT resource_id FROM shares WHERE resource_type = ? AND target_type = 'group' AND target_id = ?`,
-        [TYPE, groupId],
+        [TYPE, groupId]
       );
-      groupShares.forEach(s => sharedResourceIds.add(s.resource_id));
+      groupShares.forEach((s) => sharedResourceIds.add(s.resource_id));
     }
 
     const globalShares = await query<{ resource_id: string }>(
       `SELECT resource_id FROM shares WHERE resource_type = ? AND target_type = 'global'`,
-      [TYPE],
+      [TYPE]
     );
-    globalShares.forEach(s => sharedResourceIds.add(s.resource_id));
+    globalShares.forEach((s) => sharedResourceIds.add(s.resource_id));
 
-    const ownIds = new Set((ownResources as { id: string }[]).map(r => r.id));
+    const ownIds = new Set((ownResources as { id: string }[]).map((r) => r.id));
     for (const id of ownIds) sharedResourceIds.delete(id);
 
     let sharedResources: Record<string, unknown>[] = [];
     if (sharedResourceIds.size > 0) {
       const placeholders = [...sharedResourceIds].map(() => '?').join(',');
-      sharedResources = await query(`SELECT * FROM ${TABLE} WHERE id IN (${placeholders}) ORDER BY updated_at DESC`,
-        [...sharedResourceIds]);
+      sharedResources = await query(
+        `SELECT * FROM ${TABLE} WHERE id IN (${placeholders}) ORDER BY updated_at DESC`,
+        [...sharedResourceIds]
+      );
     }
 
     const all = [
-      ...ownResources.map(r => ({ ...parseJsonColumns(r as Record<string, unknown>), _owned: true })),
-      ...sharedResources.map(r => ({ ...parseJsonColumns(r), _owned: false })),
+      ...ownResources.map((r) => ({
+        ...parseJsonColumns(r as Record<string, unknown>),
+        _owned: true,
+      })),
+      ...sharedResources.map((r) => ({ ...parseJsonColumns(r), _owned: false })),
     ];
 
-    const result = await Promise.all(all.map(async r => ({
-      ...r,
-      _permissions: await getPermissions(userId, TYPE, (r as Record<string, unknown>).id as string),
-    })));
+    const result = await Promise.all(
+      all.map(async (r) => ({
+        ...r,
+        _permissions: await getPermissions(
+          userId,
+          TYPE,
+          (r as Record<string, unknown>).id as string
+        ),
+      }))
+    );
 
     res.json(result);
   } catch (err) {
@@ -176,7 +193,10 @@ router.post('/', requireAuth, async (req, res) => {
       }
     }
 
-    await execute(`INSERT INTO ${TABLE} (${columns.join(', ')}) VALUES (${placeholders.join(', ')})`, values);
+    await execute(
+      `INSERT INTO ${TABLE} (${columns.join(', ')}) VALUES (${placeholders.join(', ')})`,
+      values
+    );
 
     const created = await queryOne(`SELECT * FROM ${TABLE} WHERE id = ?`, [id]);
     const parsed = parseJsonColumns(created as Record<string, unknown>);
@@ -245,7 +265,10 @@ router.delete('/:id', requireAuth, async (req, res) => {
   try {
     const authReq = req as AuthenticatedRequest;
 
-    const resource = await queryOne<{ owner_id: string }>(`SELECT owner_id FROM ${TABLE} WHERE id = ?`, [req.params.id]);
+    const resource = await queryOne<{ owner_id: string }>(
+      `SELECT owner_id FROM ${TABLE} WHERE id = ?`,
+      [req.params.id]
+    );
     if (!resource) {
       res.status(404).json({ error: 'Resource not found' });
       return;
@@ -256,7 +279,10 @@ router.delete('/:id', requireAuth, async (req, res) => {
       return;
     }
 
-    await execute('DELETE FROM shares WHERE resource_type = ? AND resource_id = ?', [TYPE, req.params.id]);
+    await execute('DELETE FROM shares WHERE resource_type = ? AND resource_id = ?', [
+      TYPE,
+      req.params.id,
+    ]);
     await execute(`DELETE FROM ${TABLE} WHERE id = ?`, [req.params.id]);
 
     res.json({ ok: true });

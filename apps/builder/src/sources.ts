@@ -4,7 +4,19 @@
  * and favorite state restoration.
  */
 
-import { loadFromStorage, STORAGE_KEYS, appHref, fetchWithTimeout, httpErrorMessage, escapeHtml, openModal, closeModal, setupModalOverlayClose, migrateSource, SAMPLE_DATASETS } from '@dsfr-data/shared';
+import {
+  loadFromStorage,
+  STORAGE_KEYS,
+  appHref,
+  fetchWithTimeout,
+  httpErrorMessage,
+  escapeHtml,
+  openModal,
+  closeModal,
+  setupModalOverlayClose,
+  migrateSource,
+  SAMPLE_DATASETS,
+} from '@dsfr-data/shared';
 import { state, type Source, type Field } from './state.js';
 import { selectChartType } from './ui/chart-type-selector.js';
 import { populateFieldSelects } from './sources-fields.js';
@@ -21,11 +33,14 @@ export function loadSavedSources(): void {
   if (!panel) return;
 
   const sources = loadFromStorage<Source[]>(STORAGE_KEYS.SOURCES, []).map(migrateSource);
-  const selectedSource = (() => { const s = loadFromStorage<Source | null>(STORAGE_KEYS.SELECTED_SOURCE, null); return s ? migrateSource(s) : null; })();
+  const selectedSource = (() => {
+    const s = loadFromStorage<Source | null>(STORAGE_KEYS.SELECTED_SOURCE, null);
+    return s ? migrateSource(s) : null;
+  })();
 
   // Check if there are any sources
-  const hasAnySources = sources.length > 0 ||
-    (selectedSource && selectedSource.data && selectedSource.data.length > 0);
+  const hasAnySources =
+    sources.length > 0 || (selectedSource && selectedSource.data && selectedSource.data.length > 0);
 
   if (!hasAnySources) {
     // Show empty state message
@@ -38,13 +53,15 @@ export function loadSavedSources(): void {
     if (!panel.querySelector('.empty-sources-message')) {
       const emptyMsg = document.createElement('div');
       emptyMsg.className = 'empty-sources-message fr-mt-1w';
-      const sampleCards = SAMPLE_DATASETS.map(ds => `
+      const sampleCards = SAMPLE_DATASETS.map(
+        (ds) => `
         <button type="button" class="sample-dataset-card" data-sample-id="${ds.id}">
           <i class="${ds.icon}"></i>
           <span class="sample-dataset-name">${ds.name}</span>
           <span class="sample-dataset-desc">${ds.description}</span>
         </button>
-      `).join('');
+      `
+      ).join('');
 
       emptyMsg.innerHTML = `
         <p><i class="ri-database-2-line" style="font-size: 2rem; display: block; margin-bottom: 0.5rem; opacity: 0.5;"></i></p>
@@ -59,7 +76,7 @@ export function loadSavedSources(): void {
       `;
 
       // Bind sample dataset click handlers
-      emptyMsg.querySelectorAll('.sample-dataset-card').forEach(btn => {
+      emptyMsg.querySelectorAll('.sample-dataset-card').forEach((btn) => {
         btn.addEventListener('click', () => {
           const id = (btn as HTMLElement).dataset.sampleId;
           if (id) loadSampleDataset(id);
@@ -85,8 +102,8 @@ export function loadSavedSources(): void {
 
   // Add sample datasets as options
   const sampleGroup = document.createElement('optgroup');
-  sampleGroup.label = 'Donn\u00e9es d\'exemple';
-  SAMPLE_DATASETS.forEach(ds => {
+  sampleGroup.label = "Donn\u00e9es d'exemple";
+  SAMPLE_DATASETS.forEach((ds) => {
     const option = document.createElement('option');
     option.value = `sample:${ds.id}`;
     option.textContent = `\uD83D\uDCCA ${ds.name}`;
@@ -99,17 +116,27 @@ export function loadSavedSources(): void {
   sources.forEach((source: Source) => {
     const option = document.createElement('option');
     option.value = source.id;
-    const badge = source.type === 'grist' ? '\uD83D\uDFE2 Grist' : source.type === 'manual' ? '\uD83D\uDFE3 Manuel' : '\uD83D\uDD35 API';
+    const badge =
+      source.type === 'grist'
+        ? '\uD83D\uDFE2 Grist'
+        : source.type === 'manual'
+          ? '\uD83D\uDFE3 Manuel'
+          : '\uD83D\uDD35 API';
     option.textContent = `${badge} ${source.name}`;
     option.dataset.source = JSON.stringify(source);
     select.appendChild(option);
   });
 
   // If we have a selected source from sources.html, add it too if not already there
-  if (selectedSource && !sources.find(s => s.id === selectedSource.id)) {
+  if (selectedSource && !sources.find((s) => s.id === selectedSource.id)) {
     const option = document.createElement('option');
     option.value = selectedSource.id;
-    const badge = selectedSource.type === 'grist' ? '\uD83D\uDFE2 Grist' : selectedSource.type === 'manual' ? '\uD83D\uDFE3 Manuel' : '\uD83D\uDD35 API';
+    const badge =
+      selectedSource.type === 'grist'
+        ? '\uD83D\uDFE2 Grist'
+        : selectedSource.type === 'manual'
+          ? '\uD83D\uDFE3 Manuel'
+          : '\uD83D\uDD35 API';
     option.textContent = `${badge} ${selectedSource.name} (r\u00e9cent)`;
     option.dataset.source = JSON.stringify(selectedSource);
     option.selected = true;
@@ -170,7 +197,12 @@ export function handleSavedSourceChange(): void {
   state.savedSource = source;
 
   // Show info
-  const badge = source.type === 'grist' ? 'source-badge-grist' : source.type === 'manual' ? 'source-badge-manual' : 'source-badge-api';
+  const badge =
+    source.type === 'grist'
+      ? 'source-badge-grist'
+      : source.type === 'manual'
+        ? 'source-badge-manual'
+        : 'source-badge-api';
   const badgeText = source.type === 'grist' ? 'Grist' : source.type === 'manual' ? 'Manuel' : 'API';
 
   if (infoEl) {
@@ -201,7 +233,7 @@ export function handleSavedSourceChange(): void {
  * Injects sample data into state and updates the UI.
  */
 export function loadSampleDataset(sampleId: string): void {
-  const dataset = SAMPLE_DATASETS.find(ds => ds.id === sampleId);
+  const dataset = SAMPLE_DATASETS.find((ds) => ds.id === sampleId);
   if (!dataset) return;
 
   // Remove empty state if present
@@ -217,13 +249,15 @@ export function loadSampleDataset(sampleId: string): void {
   if (select) {
     // Ensure sample options exist in select
     const sampleValue = `sample:${dataset.id}`;
-    let sampleOption = select.querySelector(`option[value="${sampleValue}"]`) as HTMLOptionElement | null;
+    let sampleOption = select.querySelector(
+      `option[value="${sampleValue}"]`
+    ) as HTMLOptionElement | null;
     if (!sampleOption) {
       // Create option group if not present
       let group = select.querySelector('optgroup[label*="exemple"]') as HTMLOptGroupElement | null;
       if (!group) {
         group = document.createElement('optgroup');
-        group.label = 'Donn\u00e9es d\'exemple';
+        group.label = "Donn\u00e9es d'exemple";
         select.appendChild(group);
       }
       sampleOption = document.createElement('option');
@@ -295,13 +329,15 @@ export function loadFieldsFromLocalData(): void {
     const rawRecord = source.rawRecords[0];
     if (rawRecord && rawRecord.fields) {
       // Use flat field names — dsfr-data-normalize flatten="fields" will promote them
-      state.fields = Object.keys(rawRecord.fields).map((key): Field => ({
-        name: key,
-        fullPath: key,
-        displayName: key,
-        type: typeof rawRecord.fields[key],
-        sample: rawRecord.fields[key],
-      }));
+      state.fields = Object.keys(rawRecord.fields).map(
+        (key): Field => ({
+          name: key,
+          fullPath: key,
+          displayName: key,
+          type: typeof rawRecord.fields[key],
+          sample: rawRecord.fields[key],
+        })
+      );
       // Auto-enable normalize with flatten for Grist sources
       autoEnableNormalizeForGrist();
     }
@@ -341,14 +377,16 @@ export function loadFieldsFromLocalData(): void {
   populateFieldSelects();
 
   // Show/hide generation mode section based on source type
-  const generationModeSection = document.getElementById('section-generation-mode') as HTMLElement | null;
+  const generationModeSection = document.getElementById(
+    'section-generation-mode'
+  ) as HTMLElement | null;
   const dynamicWarning = document.getElementById('dynamic-warning') as HTMLElement | null;
 
   if (source?.type === 'grist' || source?.type === 'api') {
     if (generationModeSection) generationModeSection.style.display = 'block';
     // Show warning if Grist and not public
     if (dynamicWarning) {
-      dynamicWarning.style.display = (source.type === 'grist' && !source.isPublic) ? 'block' : 'none';
+      dynamicWarning.style.display = source.type === 'grist' && !source.isPublic ? 'block' : 'none';
     }
     // Default to dynamic mode for sources that support it
     state.generationMode = 'dynamic';
@@ -384,7 +422,8 @@ export async function loadFields(): Promise<void> {
   // Check if we have an API URL (from a saved API source)
   if (!state.apiUrl) {
     if (statusEl) {
-      statusEl.innerHTML = '<span class="fr-badge fr-badge--warning fr-badge--sm">S\u00e9lectionner</span>';
+      statusEl.innerHTML =
+        '<span class="fr-badge fr-badge--warning fr-badge--sm">S\u00e9lectionner</span>';
     }
     return;
   }
@@ -408,11 +447,13 @@ export async function loadFields(): Promise<void> {
 
     // Extract fields from first record
     const record = json.results[0] as Record<string, unknown>;
-    state.fields = Object.keys(record).map((key): Field => ({
-      name: key,
-      type: typeof record[key],
-      sample: record[key],
-    }));
+    state.fields = Object.keys(record).map(
+      (key): Field => ({
+        name: key,
+        type: typeof record[key],
+        sample: record[key],
+      })
+    );
 
     // Populate dropdowns
     populateFieldSelects();
@@ -473,8 +514,14 @@ export function loadFavoriteState(): void {
         const infoEl = document.getElementById('saved-source-info');
         if (infoEl) {
           const source = state.savedSource;
-          const badge = source.type === 'grist' ? 'source-badge-grist' : source.type === 'manual' ? 'source-badge-manual' : 'source-badge-api';
-          const badgeText = source.type === 'grist' ? 'Grist' : source.type === 'manual' ? 'Manuel' : 'API';
+          const badge =
+            source.type === 'grist'
+              ? 'source-badge-grist'
+              : source.type === 'manual'
+                ? 'source-badge-manual'
+                : 'source-badge-api';
+          const badgeText =
+            source.type === 'grist' ? 'Grist' : source.type === 'manual' ? 'Manuel' : 'API';
           infoEl.innerHTML = `<span class="source-badge ${badge}">${badgeText}</span> ${source.recordCount || '?'} enregistrements`;
         }
       }
@@ -492,11 +539,14 @@ export function loadFavoriteState(): void {
     if (paletteSelect) paletteSelect.value = state.palette || 'categorical';
 
     // Restore generation mode
-    const generationRadio = document.querySelector(`input[name="generation-mode"][value="${state.generationMode}"]`) as HTMLInputElement | null;
+    const generationRadio = document.querySelector(
+      `input[name="generation-mode"][value="${state.generationMode}"]`
+    ) as HTMLInputElement | null;
     if (generationRadio) {
       generationRadio.checked = true;
       const dynamicOptions = document.getElementById('dynamic-options') as HTMLElement | null;
-      if (dynamicOptions) dynamicOptions.style.display = state.generationMode === 'dynamic' ? 'block' : 'none';
+      if (dynamicOptions)
+        dynamicOptions.style.display = state.generationMode === 'dynamic' ? 'block' : 'none';
     }
     const refreshInput = document.getElementById('refresh-interval') as HTMLInputElement | null;
     if (refreshInput && state.refreshInterval) refreshInput.value = String(state.refreshInterval);
@@ -526,15 +576,24 @@ export function loadFavoriteState(): void {
     if (databoxDateEl) databoxDateEl.value = state.databoxDate || '';
     const databoxTrendEl = document.getElementById('databox-trend') as HTMLInputElement | null;
     if (databoxTrendEl) databoxTrendEl.value = state.databoxTrend || '';
-    const databoxDownloadEl = document.getElementById('databox-download') as HTMLInputElement | null;
+    const databoxDownloadEl = document.getElementById(
+      'databox-download'
+    ) as HTMLInputElement | null;
     if (databoxDownloadEl) databoxDownloadEl.checked = state.databoxDownload ?? true;
-    const databoxScreenshotEl = document.getElementById('databox-screenshot') as HTMLInputElement | null;
+    const databoxScreenshotEl = document.getElementById(
+      'databox-screenshot'
+    ) as HTMLInputElement | null;
     if (databoxScreenshotEl) databoxScreenshotEl.checked = state.databoxScreenshot || false;
-    const databoxFullscreenEl = document.getElementById('databox-fullscreen') as HTMLInputElement | null;
+    const databoxFullscreenEl = document.getElementById(
+      'databox-fullscreen'
+    ) as HTMLInputElement | null;
     if (databoxFullscreenEl) databoxFullscreenEl.checked = state.databoxFullscreen || false;
     if (state.databoxEnabled) {
-      if (a11yTableEl) (a11yTableEl.closest('.fr-checkbox-group') as HTMLElement | null)!.style.display = 'none';
-      if (a11yDownloadEl) (a11yDownloadEl.closest('.fr-checkbox-group') as HTMLElement | null)!.style.display = 'none';
+      if (a11yTableEl)
+        (a11yTableEl.closest('.fr-checkbox-group') as HTMLElement | null)!.style.display = 'none';
+      if (a11yDownloadEl)
+        (a11yDownloadEl.closest('.fr-checkbox-group') as HTMLElement | null)!.style.display =
+          'none';
     }
 
     // Update fields if available
@@ -550,10 +609,14 @@ export function loadFavoriteState(): void {
         const sortSelect = document.getElementById('sort-order') as HTMLSelectElement | null;
 
         if (state.labelField && labelSelect) labelSelect.value = state.labelField;
-        const labelFieldLabelInput = document.getElementById('label-field-label') as HTMLInputElement | null;
+        const labelFieldLabelInput = document.getElementById(
+          'label-field-label'
+        ) as HTMLInputElement | null;
         if (labelFieldLabelInput) labelFieldLabelInput.value = state.labelFieldLabel || '';
         if (state.valueField && valueSelect) valueSelect.value = state.valueField;
-        const valueFieldLabelInput = document.getElementById('value-field-label') as HTMLInputElement | null;
+        const valueFieldLabelInput = document.getElementById(
+          'value-field-label'
+        ) as HTMLInputElement | null;
         if (valueFieldLabelInput) valueFieldLabelInput.value = state.valueFieldLabel || '';
         if (state.codeField && codeSelect) codeSelect.value = state.codeField;
         if (state.aggregation && aggSelect) aggSelect.value = state.aggregation;
@@ -567,7 +630,9 @@ export function loadFavoriteState(): void {
     // Restore advanced mode
     if (state.advancedMode) {
       const toggleEl = document.getElementById('advanced-mode-toggle') as HTMLInputElement | null;
-      const queryOptionsEl = document.getElementById('advanced-query-options') as HTMLElement | null;
+      const queryOptionsEl = document.getElementById(
+        'advanced-query-options'
+      ) as HTMLElement | null;
       const filterEl = document.getElementById('query-filter') as HTMLInputElement | null;
       const groupByEl = document.getElementById('query-group-by') as HTMLInputElement | null;
       const aggregateEl = document.getElementById('query-aggregate') as HTMLInputElement | null;
@@ -605,7 +670,8 @@ export function loadFavoriteState(): void {
 function showDataPreviewButton(): void {
   const statusEl = document.getElementById('fields-status');
   if (statusEl) {
-    statusEl.innerHTML = '<button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline source-btn" id="show-data-preview-btn"><i class="ri-database-2-line"></i> Voir</button>';
+    statusEl.innerHTML =
+      '<button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline source-btn" id="show-data-preview-btn"><i class="ri-database-2-line"></i> Voir</button>';
     document.getElementById('show-data-preview-btn')?.addEventListener('click', showDataPreview);
   }
 }
@@ -621,16 +687,22 @@ function showDataPreview(): void {
   const keys = Object.keys(data[0]);
   const previewRows = data.slice(0, 20);
 
-  const headerCells = keys.map(k => `<th style="white-space:nowrap;font-size:0.8rem;">${escapeHtml(k)}</th>`).join('');
-  const bodyRows = previewRows.map(row => {
-    const cells = keys.map(k => {
-      const val = row[k];
-      const str = val === null || val === undefined ? '\u2014' : String(val);
-      const truncated = str.length > 60 ? str.slice(0, 57) + '...' : str;
-      return `<td style="font-size:0.8rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(truncated)}</td>`;
-    }).join('');
-    return `<tr>${cells}</tr>`;
-  }).join('');
+  const headerCells = keys
+    .map((k) => `<th style="white-space:nowrap;font-size:0.8rem;">${escapeHtml(k)}</th>`)
+    .join('');
+  const bodyRows = previewRows
+    .map((row) => {
+      const cells = keys
+        .map((k) => {
+          const val = row[k];
+          const str = val === null || val === undefined ? '\u2014' : String(val);
+          const truncated = str.length > 60 ? str.slice(0, 57) + '...' : str;
+          return `<td style="font-size:0.8rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(truncated)}</td>`;
+        })
+        .join('');
+      return `<tr>${cells}</tr>`;
+    })
+    .join('');
 
   body.innerHTML = `
     <p class="fr-text--sm fr-mb-1w">${data.length} enregistrement(s), ${keys.length} champs \u2014 apercu des 20 premiers</p>
@@ -650,5 +722,7 @@ function showDataPreview(): void {
  */
 export function initDataPreviewModal(): void {
   setupModalOverlayClose('data-preview-modal');
-  document.getElementById('data-preview-close')?.addEventListener('click', () => closeModal('data-preview-modal'));
+  document
+    .getElementById('data-preview-close')
+    ?.addEventListener('click', () => closeModal('data-preview-modal'));
 }

@@ -123,7 +123,7 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
   }
 
   onSourceData(data: unknown): void {
-    this._data = Array.isArray(data) ? data as Record<string, unknown>[] : [];
+    this._data = Array.isArray(data) ? (data as Record<string, unknown>[]) : [];
     this._hashScrollDone = false;
 
     // Detecter la pagination serveur via les metadonnees
@@ -277,7 +277,9 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
 
   private _announce(message: string) {
     this._liveAnnouncement = '';
-    requestAnimationFrame(() => { this._liveAnnouncement = message; });
+    requestAnimationFrame(() => {
+      this._liveAnnouncement = message;
+    });
   }
 
   private _handlePageChange(page: number) {
@@ -314,16 +316,16 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
 
   private _renderGrid(items: Record<string, unknown>[]) {
     const colClass = this._getColClass();
-    const startIndex = this.pagination > 0
-      ? (this._currentPage - 1) * this.pagination
-      : 0;
+    const startIndex = this.pagination > 0 ? (this._currentPage - 1) * this.pagination : 0;
 
-    const itemsHtml = items.map((item, i) => {
-      const globalIndex = startIndex + i;
-      const rendered = this._renderItem(item, globalIndex);
-      const uid = this._getItemUid(item, globalIndex);
-      return `<div class="${colClass}" id="${uid}">${rendered}</div>`;
-    }).join('');
+    const itemsHtml = items
+      .map((item, i) => {
+        const globalIndex = startIndex + i;
+        const rendered = this._renderItem(item, globalIndex);
+        const uid = this._getItemUid(item, globalIndex);
+        return `<div class="${colClass}" id="${uid}">${rendered}</div>`;
+      })
+      .join('');
 
     const gridHtml = `<div class="fr-grid-row ${this.gap}">${itemsHtml}</div>`;
     return html`<div .innerHTML="${gridHtml}"></div>`;
@@ -333,47 +335,82 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
     if (this.pagination <= 0 || totalPages <= 1) return '';
 
     const pages: number[] = [];
-    for (let i = Math.max(1, this._currentPage - 2); i <= Math.min(totalPages, this._currentPage + 2); i++) {
+    for (
+      let i = Math.max(1, this._currentPage - 2);
+      i <= Math.min(totalPages, this._currentPage + 2);
+      i++
+    ) {
       pages.push(i);
     }
 
     return html`
-      <nav class="fr-pagination fr-mt-2w" aria-label="${this.getAttribute('aria-label') ? 'Pagination - ' + this.getAttribute('aria-label') : 'Pagination'}">
+      <nav
+        class="fr-pagination fr-mt-2w"
+        aria-label="${this.getAttribute('aria-label')
+          ? 'Pagination - ' + this.getAttribute('aria-label')
+          : 'Pagination'}"
+      >
         <ul class="fr-pagination__list">
           <li>
-            <button class="fr-pagination__link fr-pagination__link--first"
+            <button
+              class="fr-pagination__link fr-pagination__link--first"
               ?disabled="${this._currentPage === 1}"
               @click="${() => this._handlePageChange(1)}"
-              aria-label="Premi\u00e8re page" type="button">Premi\u00e8re page</button>
+              aria-label="Première page"
+              type="button"
+            >
+              Première page
+            </button>
           </li>
           <li>
-            <button class="fr-pagination__link fr-pagination__link--prev"
+            <button
+              class="fr-pagination__link fr-pagination__link--prev"
               ?disabled="${this._currentPage === 1}"
               @click="${() => this._handlePageChange(this._currentPage - 1)}"
-              aria-label="Page pr\u00e9c\u00e9dente" type="button">Page pr\u00e9c\u00e9dente</button>
+              aria-label="Page précédente"
+              type="button"
+            >
+              Page précédente
+            </button>
           </li>
-          ${pages.map(page => html`
-            <li>
-              <button
-                class="fr-pagination__link ${page === this._currentPage ? 'fr-pagination__link--active' : ''}"
-                @click="${() => this._handlePageChange(page)}"
-                aria-current="${page === this._currentPage ? 'page' : nothing}"
-                aria-label="Page ${page} sur ${totalPages}"
-                type="button"
-              >${page}</button>
-            </li>
-          `)}
+          ${pages.map(
+            (page) => html`
+              <li>
+                <button
+                  class="fr-pagination__link ${page === this._currentPage
+                    ? 'fr-pagination__link--active'
+                    : ''}"
+                  @click="${() => this._handlePageChange(page)}"
+                  aria-current="${page === this._currentPage ? 'page' : nothing}"
+                  aria-label="Page ${page} sur ${totalPages}"
+                  type="button"
+                >
+                  ${page}
+                </button>
+              </li>
+            `
+          )}
           <li>
-            <button class="fr-pagination__link fr-pagination__link--next"
+            <button
+              class="fr-pagination__link fr-pagination__link--next"
               ?disabled="${this._currentPage === totalPages}"
               @click="${() => this._handlePageChange(this._currentPage + 1)}"
-              aria-label="Page suivante" type="button">Page suivante</button>
+              aria-label="Page suivante"
+              type="button"
+            >
+              Page suivante
+            </button>
           </li>
           <li>
-            <button class="fr-pagination__link fr-pagination__link--last"
+            <button
+              class="fr-pagination__link fr-pagination__link--last"
               ?disabled="${this._currentPage === totalPages}"
               @click="${() => this._handlePageChange(totalPages)}"
-              aria-label="Derni\u00e8re page" type="button">Derni\u00e8re page</button>
+              aria-label="Dernière page"
+              type="button"
+            >
+              Dernière page
+            </button>
           </li>
         </ul>
       </nav>
@@ -390,42 +427,66 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
     const totalItems = this._serverPagination ? this._serverTotal : this._data.length;
 
     return html`
-      <div class="dsfr-data-display" role="region" aria-label="${this.getAttribute('aria-label') || 'Liste de resultats'}">
-        <div aria-live="polite" aria-atomic="true" class="fr-sr-only">${this._liveAnnouncement}</div>
-        ${this._sourceLoading ? html`
-          <div class="dsfr-data-display__loading" aria-live="polite" aria-busy="true">
-            <span class="fr-icon-loader-4-line" aria-hidden="true"></span>
-            Chargement...
-          </div>
-        ` : this._sourceError ? html`
-          <div class="dsfr-data-display__error" aria-live="assertive" role="alert">
-            <span class="fr-icon-error-line" aria-hidden="true"></span>
-            Erreur de chargement
-          </div>
-        ` : totalItems === 0 ? html`
-          <div class="dsfr-data-display__empty" aria-live="polite" role="status">
-            ${this.empty}
-          </div>
-        ` : html`
-          <p class="fr-text--sm fr-mb-1w" aria-live="polite" aria-atomic="true" role="status">
-            ${totalItems} resultat${totalItems > 1 ? 's' : ''}
-          </p>
-          ${this._renderGrid(paginatedData)}
-          ${this._renderPagination(totalPages)}
-        `}
+      <div
+        class="dsfr-data-display"
+        role="region"
+        aria-label="${this.getAttribute('aria-label') || 'Liste de resultats'}"
+      >
+        <div aria-live="polite" aria-atomic="true" class="fr-sr-only">
+          ${this._liveAnnouncement}
+        </div>
+        ${this._sourceLoading
+          ? html`
+              <div class="dsfr-data-display__loading" aria-live="polite" aria-busy="true">
+                <span class="fr-icon-loader-4-line" aria-hidden="true"></span>
+                Chargement...
+              </div>
+            `
+          : this._sourceError
+            ? html`
+                <div class="dsfr-data-display__error" aria-live="assertive" role="alert">
+                  <span class="fr-icon-error-line" aria-hidden="true"></span>
+                  Erreur de chargement
+                </div>
+              `
+            : totalItems === 0
+              ? html`
+                  <div class="dsfr-data-display__empty" aria-live="polite" role="status">
+                    ${this.empty}
+                  </div>
+                `
+              : html`
+                  <p
+                    class="fr-text--sm fr-mb-1w"
+                    aria-live="polite"
+                    aria-atomic="true"
+                    role="status"
+                  >
+                    ${totalItems} resultat${totalItems > 1 ? 's' : ''}
+                  </p>
+                  ${this._renderGrid(paginatedData)} ${this._renderPagination(totalPages)}
+                `}
       </div>
 
       <style>
         .dsfr-data-display__loading,
         .dsfr-data-display__error {
-          display: flex; align-items: center; justify-content: center;
-          gap: 0.5rem; padding: 2rem; color: var(--text-mention-grey, #666);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.5rem;
+          padding: 2rem;
+          color: var(--text-mention-grey, #666);
           font-size: 0.875rem;
         }
-        .dsfr-data-display__error { color: var(--text-default-error, #ce0500); }
+        .dsfr-data-display__error {
+          color: var(--text-default-error, #ce0500);
+        }
         .dsfr-data-display__empty {
-          text-align: center; color: var(--text-mention-grey, #666);
-          padding: 2rem; font-size: 0.875rem;
+          text-align: center;
+          color: var(--text-mention-grey, #666);
+          padding: 2rem;
+          font-size: 0.875rem;
         }
       </style>
     `;

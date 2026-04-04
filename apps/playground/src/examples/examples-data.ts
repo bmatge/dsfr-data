@@ -18,7 +18,6 @@
  *  - Tabular API  : Registre des maires, Code officiel geographique, LOVAC (tabular-api.data.gouv.fr)
  */
 export const examples: Record<string, string> = {
-
   // =====================================================================
   // MODE DIRECT — dsfr-data-source → composant
   // Les donnees de la source sont transmises directement au composant
@@ -1633,5 +1632,4 @@ export const examples: Record<string, string> = {
     </p>
   </div>
 </div>`,
-
 };

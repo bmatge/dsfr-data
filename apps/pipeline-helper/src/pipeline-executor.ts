@@ -1,5 +1,10 @@
 import { ClassicPreset } from 'rete';
-import { PipelineNode, AttributeControl, AggregateControl, ExecutionResult } from './nodes/base-node.js';
+import {
+  PipelineNode,
+  AttributeControl,
+  AggregateControl,
+  ExecutionResult,
+} from './nodes/base-node.js';
 
 interface GraphNode {
   node: PipelineNode;
@@ -87,14 +92,23 @@ export class PipelineExecutor {
       if (node.component === 'dsfr-data-source') {
         const attrs = node.getAttributes();
         if (!attrs['api-type'] && !attrs['url']) {
-          node.statusControl.update({ status: 'warning', message: 'Configurez le type API ou une URL' });
+          node.statusControl.update({
+            status: 'warning',
+            message: 'Configurez le type API ou une URL',
+          });
         } else if (attrs['api-type'] !== 'generic' && !attrs['base-url'] && !attrs['dataset-id']) {
-          node.statusControl.update({ status: 'warning', message: 'Base URL et/ou Dataset ID manquant' });
+          node.statusControl.update({
+            status: 'warning',
+            message: 'Base URL et/ou Dataset ID manquant',
+          });
         }
       }
 
       if (node.category !== 'source' && !gn.dataSource) {
-        node.statusControl.update({ status: 'warning', message: 'Non connecte a une source de donnees' });
+        node.statusControl.update({
+          status: 'warning',
+          message: 'Non connecte a une source de donnees',
+        });
       }
     }
   }
@@ -130,7 +144,10 @@ export class PipelineExecutor {
         node.statusControl.update({ status: 'loading', message: 'En attente des donnees...' });
         this.subscribeToUpstreamEvents(gn);
       } else {
-        node.statusControl.update({ status: 'warning', message: 'Non connecte a une source de donnees' });
+        node.statusControl.update({
+          status: 'warning',
+          message: 'Non connecte a une source de donnees',
+        });
       }
       return;
     }
@@ -285,7 +302,7 @@ export class PipelineExecutor {
     }
 
     const fields = Object.keys(rows[0]).filter(
-      k => !k.startsWith('_') && k !== 'datasetid' && k !== 'recordid'
+      (k) => !k.startsWith('_') && k !== 'datasetid' && k !== 'recordid'
     );
 
     return {
@@ -303,8 +320,12 @@ export class PipelineExecutor {
       for (const [key, ctrl] of Object.entries(otherGn.node.controls)) {
         if (ctrl instanceof AggregateControl) {
           ctrl.setAvailableFields(fields);
-        } else if (ctrl instanceof AttributeControl && ctrl.def.type === 'text' && this.isFieldSelector(key)) {
-          ctrl.setOptions(fields.map(f => ({ value: f, label: f })));
+        } else if (
+          ctrl instanceof AttributeControl &&
+          ctrl.def.type === 'text' &&
+          this.isFieldSelector(key)
+        ) {
+          ctrl.setOptions(fields.map((f) => ({ value: f, label: f })));
         }
       }
 
@@ -314,10 +335,9 @@ export class PipelineExecutor {
   }
 
   private isFieldSelector(attrName: string): boolean {
-    return [
-      'label-field', 'value-field', 'group-by', 'order-by',
-      'fields', 'colonnes',
-    ].includes(attrName);
+    return ['label-field', 'value-field', 'group-by', 'order-by', 'fields', 'colonnes'].includes(
+      attrName
+    );
   }
 
   cleanup(): void {

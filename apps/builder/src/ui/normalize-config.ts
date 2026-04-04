@@ -54,7 +54,9 @@ export function setupNormalizeListeners(): void {
     });
   }
 
-  const numericAutoEl = document.getElementById('normalize-numeric-auto') as HTMLInputElement | null;
+  const numericAutoEl = document.getElementById(
+    'normalize-numeric-auto'
+  ) as HTMLInputElement | null;
   if (numericAutoEl) {
     numericAutoEl.addEventListener('change', () => {
       state.normalizeConfig.numericAuto = numericAutoEl.checked;
@@ -89,7 +91,9 @@ export function setupNormalizeListeners(): void {
     });
   }
 
-  const lowercaseKeysEl = document.getElementById('normalize-lowercase-keys') as HTMLInputElement | null;
+  const lowercaseKeysEl = document.getElementById(
+    'normalize-lowercase-keys'
+  ) as HTMLInputElement | null;
   if (lowercaseKeysEl) {
     lowercaseKeysEl.addEventListener('change', () => {
       state.normalizeConfig.lowercaseKeys = lowercaseKeysEl.checked;
@@ -118,7 +122,9 @@ export function autoEnableNormalizeForGrist(): void {
   const options = document.getElementById('normalize-options');
   const flattenEl = document.getElementById('normalize-flatten') as HTMLInputElement | null;
   const trimEl = document.getElementById('normalize-trim') as HTMLInputElement | null;
-  const numericAutoEl = document.getElementById('normalize-numeric-auto') as HTMLInputElement | null;
+  const numericAutoEl = document.getElementById(
+    'normalize-numeric-auto'
+  ) as HTMLInputElement | null;
 
   if (toggle) toggle.checked = true;
   if (options) options.style.display = 'block';

@@ -33,7 +33,11 @@ const TOKEN_EXPIRY = '7d';
  * Always sets req.user (null if no valid token).
  * Checks that the user account is still active in the database.
  */
-export async function authMiddleware(req: Request, _res: Response, next: NextFunction): Promise<void> {
+export async function authMiddleware(
+  req: Request,
+  _res: Response,
+  next: NextFunction
+): Promise<void> {
   const authReq = req as AuthenticatedRequest;
   const token = req.cookies?.[COOKIE_NAME];
 
@@ -44,13 +48,12 @@ export async function authMiddleware(req: Request, _res: Response, next: NextFun
   }
 
   try {
-    const payload = jwt.verify(token, JWT_SECRET()) as JwtPayload;
+    const payload = jwt.verify(token, JWT_SECRET(), { algorithms: ['HS256'] }) as JwtPayload;
 
     // Verify the account is still active in DB
-    const user = await queryOne<{ is_active: number }>(
-      'SELECT is_active FROM users WHERE id = ?',
-      [payload.userId],
-    );
+    const user = await queryOne<{ is_active: number }>('SELECT is_active FROM users WHERE id = ?', [
+      payload.userId,
+    ]);
     if (!user || !user.is_active) {
       authReq.user = null;
     } else if (!(await isSessionValid(token))) {

@@ -21,7 +21,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@dsfr-data/shared': resolve(__dirname, '../../packages/shared/src'),
-    }
+    },
   },
   plugins: [
     {
@@ -56,7 +56,7 @@ export default defineConfig({
   ],
   server: {
     fs: {
-      allow: [resolve(__dirname, '../..')]
-    }
-  }
+      allow: [resolve(__dirname, '../..')],
+    },
+  },
 });

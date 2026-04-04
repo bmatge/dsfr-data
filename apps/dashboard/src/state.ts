@@ -43,10 +43,10 @@ export function createEmptyDashboard(): DashboardData {
     updatedAt: null,
     layout: {
       columns: 2,
-      gap: 'fr-grid-row--gutters'
+      gap: 'fr-grid-row--gutters',
     },
     widgets: [],
-    sources: []
+    sources: [],
   };
 }
 
@@ -83,5 +83,5 @@ export const state: AppState = {
   dashboard: createEmptyDashboard(),
   selectedWidget: null,
   favorites: [],
-  savedDashboards: []
+  savedDashboards: [],
 };

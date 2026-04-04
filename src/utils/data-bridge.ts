@@ -27,12 +27,12 @@ export interface PaginationMeta {
 
 export interface SourceCommandEvent {
   sourceId: string;
-  page?: number;       // pagination
-  where?: string;      // recherche serveur (ODSQL pour ODS)
-  whereKey?: string;   // identifie la source du where (permet merge multi-sources)
-  orderBy?: string;    // tri serveur ("field:direction")
-  groupBy?: string;    // group-by serveur (delegue par dsfr-data-query)
-  aggregate?: string;  // agregation serveur (delegue par dsfr-data-query)
+  page?: number; // pagination
+  where?: string; // recherche serveur (ODSQL pour ODS)
+  whereKey?: string; // identifie la source du where (permet merge multi-sources)
+  orderBy?: string; // tri serveur ("field:direction")
+  groupBy?: string; // group-by serveur (delegue par dsfr-data-query)
+  aggregate?: string; // agregation serveur (delegue par dsfr-data-query)
 }
 
 // Noms des événements custom
@@ -40,11 +40,11 @@ export const DATA_EVENTS = {
   LOADED: 'dsfr-data-loaded',
   ERROR: 'dsfr-data-error',
   LOADING: 'dsfr-data-loading',
-  SOURCE_COMMAND: 'dsfr-data-source-command'
+  SOURCE_COMMAND: 'dsfr-data-source-command',
 } as const;
 
 // Cache global des données par sourceId — stocké sur window pour partage entre bundles UMD
-const _win = typeof window !== 'undefined' ? window as any : {} as any;
+const _win = typeof window !== 'undefined' ? (window as any) : ({} as any);
 if (!_win.__dsfrDataCache) _win.__dsfrDataCache = new Map<string, unknown>();
 if (!_win.__dsfrDataMeta) _win.__dsfrDataMeta = new Map<string, PaginationMeta>();
 const dataCache: Map<string, unknown> = _win.__dsfrDataCache;
@@ -101,7 +101,7 @@ export function dispatchDataLoaded(sourceId: string, data: unknown): void {
   const event = new CustomEvent<DataLoadedEvent>(DATA_EVENTS.LOADED, {
     bubbles: true,
     composed: true,
-    detail: { sourceId, data }
+    detail: { sourceId, data },
   });
 
   document.dispatchEvent(event);
@@ -114,7 +114,7 @@ export function dispatchDataError(sourceId: string, error: Error): void {
   const event = new CustomEvent<DataErrorEvent>(DATA_EVENTS.ERROR, {
     bubbles: true,
     composed: true,
-    detail: { sourceId, error }
+    detail: { sourceId, error },
   });
 
   document.dispatchEvent(event);
@@ -127,7 +127,7 @@ export function dispatchDataLoading(sourceId: string): void {
   const event = new CustomEvent<DataLoadingEvent>(DATA_EVENTS.LOADING, {
     bubbles: true,
     composed: true,
-    detail: { sourceId }
+    detail: { sourceId },
   });
 
   document.dispatchEvent(event);
@@ -136,11 +136,14 @@ export function dispatchDataLoading(sourceId: string): void {
 /**
  * Dispatch une commande vers une source (pagination, recherche, tri)
  */
-export function dispatchSourceCommand(sourceId: string, command: Omit<SourceCommandEvent, 'sourceId'>): void {
+export function dispatchSourceCommand(
+  sourceId: string,
+  command: Omit<SourceCommandEvent, 'sourceId'>
+): void {
   const event = new CustomEvent<SourceCommandEvent>(DATA_EVENTS.SOURCE_COMMAND, {
     bubbles: true,
     composed: true,
-    detail: { sourceId, ...command }
+    detail: { sourceId, ...command },
   });
 
   document.dispatchEvent(event);

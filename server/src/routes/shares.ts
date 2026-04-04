@@ -47,7 +47,7 @@ router.get('/', requireAuth, async (req, res) => {
        LEFT JOIN \`groups\` g ON s.target_type = 'group' AND s.target_id = g.id
        WHERE s.resource_type = ? AND s.resource_id = ?
        ORDER BY s.created_at DESC`,
-      [resource_type, resource_id],
+      [resource_type, resource_id]
     );
 
     res.json(shares);
@@ -87,7 +87,10 @@ router.post('/', requireAuth, async (req, res) => {
     }
 
     // Check ownership
-    const resource = await queryOne<{ owner_id: string }>(`SELECT owner_id FROM ${table} WHERE id = ?`, [resource_id]);
+    const resource = await queryOne<{ owner_id: string }>(
+      `SELECT owner_id FROM ${table} WHERE id = ?`,
+      [resource_id]
+    );
     if (!resource) {
       res.status(404).json({ error: 'Resource not found' });
       return;
@@ -111,13 +114,17 @@ router.post('/', requireAuth, async (req, res) => {
       await execute(
         `INSERT INTO shares (id, resource_type, resource_id, target_type, target_id, permission, granted_by)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [id, resource_type, resource_id, target_type, target_id || null, perm, authReq.user!.userId],
+        [id, resource_type, resource_id, target_type, target_id || null, perm, authReq.user!.userId]
       );
 
       const share = await queryOne('SELECT * FROM shares WHERE id = ?', [id]);
       res.status(201).json(share);
     } catch (err: unknown) {
-      if (err instanceof Error && 'code' in err && (err as { code: string }).code === 'ER_DUP_ENTRY') {
+      if (
+        err instanceof Error &&
+        'code' in err &&
+        (err as { code: string }).code === 'ER_DUP_ENTRY'
+      ) {
         res.status(409).json({ error: 'Share already exists' });
       } else {
         throw err;
@@ -136,10 +143,11 @@ router.delete('/:id', requireAuth, async (req, res) => {
   try {
     const authReq = req as AuthenticatedRequest;
 
-    const share = await queryOne<{ resource_type: string; resource_id: string; granted_by: string }>(
-      'SELECT * FROM shares WHERE id = ?',
-      [req.params.id],
-    );
+    const share = await queryOne<{
+      resource_type: string;
+      resource_id: string;
+      granted_by: string;
+    }>('SELECT * FROM shares WHERE id = ?', [req.params.id]);
     if (!share) {
       res.status(404).json({ error: 'Share not found' });
       return;
@@ -148,7 +156,10 @@ router.delete('/:id', requireAuth, async (req, res) => {
     // Check that the user owns the resource
     const table = RESOURCE_TABLES[share.resource_type];
     if (table) {
-      const resource = await queryOne<{ owner_id: string }>(`SELECT owner_id FROM ${table} WHERE id = ?`, [share.resource_id]);
+      const resource = await queryOne<{ owner_id: string }>(
+        `SELECT owner_id FROM ${table} WHERE id = ?`,
+        [share.resource_id]
+      );
       if (resource && resource.owner_id !== authReq.user!.userId) {
         res.status(403).json({ error: 'Only the resource owner can remove shares' });
         return;

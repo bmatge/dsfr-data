@@ -24,29 +24,71 @@ type LatLngBounds = import('leaflet').LatLngBounds;
 
 /** Choropleth palettes — shared with dsfr-data-world-map */
 const CHOROPLETH_PALETTES: Record<string, readonly string[]> = {
-  'sequentialAscending': [
-    '#F5F5FE', '#E3E3FD', '#C1C1FB', '#A1A1F8', '#8585F6',
-    '#6A6AF4', '#4747E5', '#2323B4', '#000091',
+  sequentialAscending: [
+    '#F5F5FE',
+    '#E3E3FD',
+    '#C1C1FB',
+    '#A1A1F8',
+    '#8585F6',
+    '#6A6AF4',
+    '#4747E5',
+    '#2323B4',
+    '#000091',
   ],
-  'sequentialDescending': [
-    '#000091', '#2323B4', '#4747E5', '#6A6AF4', '#8585F6',
-    '#A1A1F8', '#C1C1FB', '#E3E3FD', '#F5F5FE',
+  sequentialDescending: [
+    '#000091',
+    '#2323B4',
+    '#4747E5',
+    '#6A6AF4',
+    '#8585F6',
+    '#A1A1F8',
+    '#C1C1FB',
+    '#E3E3FD',
+    '#F5F5FE',
   ],
-  'divergentAscending': [
-    '#000091', '#4747E5', '#8585F6', '#C1C1FB', '#F5F5F5',
-    '#FCC0B4', '#F58050', '#E3541C', '#C9191E',
+  divergentAscending: [
+    '#000091',
+    '#4747E5',
+    '#8585F6',
+    '#C1C1FB',
+    '#F5F5F5',
+    '#FCC0B4',
+    '#F58050',
+    '#E3541C',
+    '#C9191E',
   ],
-  'divergentDescending': [
-    '#C9191E', '#E3541C', '#F58050', '#FCC0B4', '#F5F5F5',
-    '#C1C1FB', '#8585F6', '#4747E5', '#000091',
+  divergentDescending: [
+    '#C9191E',
+    '#E3541C',
+    '#F58050',
+    '#FCC0B4',
+    '#F5F5F5',
+    '#C1C1FB',
+    '#8585F6',
+    '#4747E5',
+    '#000091',
   ],
-  'neutral': [
-    '#F6F6F6', '#E5E5E5', '#CECECE', '#B5B5B5', '#929292',
-    '#777777', '#666666', '#3A3A3A', '#161616',
+  neutral: [
+    '#F6F6F6',
+    '#E5E5E5',
+    '#CECECE',
+    '#B5B5B5',
+    '#929292',
+    '#777777',
+    '#666666',
+    '#3A3A3A',
+    '#161616',
   ],
-  'default': [
-    '#F5F5FE', '#E3E3FD', '#C1C1FB', '#A1A1F8', '#8585F6',
-    '#6A6AF4', '#4747E5', '#2323B4', '#000091',
+  default: [
+    '#F5F5FE',
+    '#E3E3FD',
+    '#C1C1FB',
+    '#A1A1F8',
+    '#8585F6',
+    '#6A6AF4',
+    '#4747E5',
+    '#2323B4',
+    '#000091',
   ],
 };
 
@@ -70,7 +112,6 @@ function getColorForValue(value: number, breaks: number[], palette: readonly str
 
 @customElement('dsfr-data-map-layer')
 export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
-
   // --- Source & geo ---
 
   @property({ type: String })
@@ -211,7 +252,9 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   private _currentFrameIndex = -1; // -1 = show all (no timeline active)
 
   // Light DOM — invisible component
-  createRenderRoot() { return this; }
+  createRenderRoot() {
+    return this;
+  }
 
   // --- Color mapping ---
 
@@ -240,7 +283,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   // --- SourceSubscriberMixin hook ---
 
   onSourceData(data: unknown): void {
-    this._data = Array.isArray(data) ? data as Record<string, unknown>[] : [];
+    this._data = Array.isArray(data) ? (data as Record<string, unknown>[]) : [];
     if (this.timeField) {
       this._buildTimeFrames();
       // If timeline is active, re-render current frame; else show all
@@ -267,10 +310,12 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     // Sort keys chronologically
     this._timeSteps = [...this._timeFrames.keys()].sort();
     // Notify any timeline companion
-    this.dispatchEvent(new CustomEvent('dsfr-data-map-layer-time-ready', {
-      bubbles: true,
-      detail: { steps: this._timeSteps },
-    }));
+    this.dispatchEvent(
+      new CustomEvent('dsfr-data-map-layer-time-ready', {
+        bubbles: true,
+        detail: { steps: this._timeSteps },
+      })
+    );
   }
 
   /** Bucket a raw date value to the configured granularity */
@@ -282,11 +327,16 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     if (isNaN(d.getTime())) return null;
     const pad = (n: number) => String(n).padStart(2, '0');
     switch (this.timeBucket) {
-      case 'year':  return `${d.getFullYear()}`;
-      case 'month': return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
-      case 'day':   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-      case 'hour':  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:00`;
-      default:      return str;
+      case 'year':
+        return `${d.getFullYear()}`;
+      case 'month':
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+      case 'day':
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      case 'hour':
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:00`;
+      default:
+        return str;
     }
   }
 
@@ -440,7 +490,14 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   private _autoDetectGeoField(): string {
     if (this._data.length === 0) return 'geo_point_2d';
     const first = this._data[0];
-    for (const candidate of ['geo_point_2d', 'geo_shape', 'geometry', 'geom', 'geo_point', 'geopoint']) {
+    for (const candidate of [
+      'geo_point_2d',
+      'geo_shape',
+      'geometry',
+      'geom',
+      'geo_point',
+      'geopoint',
+    ]) {
       if (first[candidate] !== undefined) return candidate;
     }
     return 'geo_point_2d';
@@ -462,7 +519,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
 
     // Client-side bounds filter
     if (clientBounds) {
-      items = items.filter(record => {
+      items = items.filter((record) => {
         const coords = this._extractCoords(record);
         if (!coords) return false;
         return clientBounds.contains([coords.lat, coords.lon]);
@@ -485,8 +542,8 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     let palette: readonly string[] = [];
     if (this.fillField && this.selectedPalette && this.type === 'geoshape') {
       const values = items
-        .map(r => Number(getByPath(r, this.fillField)))
-        .filter(v => !isNaN(v));
+        .map((r) => Number(getByPath(r, this.fillField)))
+        .filter((v) => !isNaN(v));
       palette = CHOROPLETH_PALETTES[this.selectedPalette] || CHOROPLETH_PALETTES['default'];
       breaks = quantileBreaks(values, palette.length);
     }
@@ -495,8 +552,8 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     this._radiusScale = null;
     if (this.radiusField && this.type === 'circle') {
       const values = items
-        .map(r => Number(getByPath(r, this.radiusField)))
-        .filter(v => !isNaN(v) && isFinite(v));
+        .map((r) => Number(getByPath(r, this.radiusField)))
+        .filter((v) => !isNaN(v) && isFinite(v));
       if (values.length > 0) {
         const min = Math.min(...values);
         const max = Math.max(...values);
@@ -504,8 +561,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
         if (range > 0) {
           const rMin = this.radiusMin;
           const rMax = this.radiusMax;
-          this._radiusScale = (val: number) =>
-            rMin + ((val - min) / range) * (rMax - rMin);
+          this._radiusScale = (val: number) => rMin + ((val - min) / range) * (rMax - rMin);
         } else {
           const mid = (this.radiusMin + this.radiusMax) / 2;
           this._radiusScale = () => mid;
@@ -600,10 +656,14 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
         const layerEl = l as DsfrDataMapLayer;
         const count = (layerEl as any)._data?.length ?? 0;
         if (count > 0) {
-          const typeLabel = layerEl.type === 'marker' ? 'marqueurs'
-            : layerEl.type === 'geoshape' ? 'zones'
-            : layerEl.type === 'circle' ? 'cercles'
-            : 'points';
+          const typeLabel =
+            layerEl.type === 'marker'
+              ? 'marqueurs'
+              : layerEl.type === 'geoshape'
+                ? 'zones'
+                : layerEl.type === 'circle'
+                  ? 'cercles'
+                  : 'points';
           summaries.push(`${count} ${typeLabel}`);
         }
       }
@@ -629,9 +689,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     });
 
     // A11y: alt text on marker from tooltip-field (Leaflet uses title attr)
-    const altText = this.tooltipField
-      ? String(getByPath(record, this.tooltipField) ?? '')
-      : '';
+    const altText = this.tooltipField ? String(getByPath(record, this.tooltipField) ?? '') : '';
 
     const marker = Leaf.marker([coords.lat, coords.lon], {
       icon,
@@ -649,7 +707,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     Leaf: LeafletModule,
     group: LayerGroup,
     breaks: number[],
-    palette: readonly string[],
+    palette: readonly string[]
   ) {
     const geoData = this.geoField ? getByPath(record, this.geoField) : null;
     if (!geoData || typeof geoData !== 'object') return;
@@ -900,7 +958,9 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
       const popup = e.popup;
       const plainText = this._getPopupPlainText(record);
       this._mapParent?.announceToScreenReader(plainText);
-      const closeBtn = popup.getElement()?.querySelector('.leaflet-popup-close-button') as HTMLElement | null;
+      const closeBtn = popup
+        .getElement()
+        ?.querySelector('.leaflet-popup-close-button') as HTMLElement | null;
       if (closeBtn) {
         closeBtn.setAttribute('aria-label', 'Fermer la popup');
         setTimeout(() => closeBtn.focus(), 50);
@@ -924,8 +984,11 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   }
 
   private _buildPopupTable(record: Record<string, unknown>): string {
-    const fields = this.popupFields.split(',').map(f => f.trim()).filter(Boolean);
-    const rows = fields.map(field => {
+    const fields = this.popupFields
+      .split(',')
+      .map((f) => f.trim())
+      .filter(Boolean);
+    const rows = fields.map((field) => {
       const value = getByPath(record, field);
       const display = value !== undefined ? escapeHtml(String(value)) : '';
       return `<tr><th>${escapeHtml(field)}</th><td>${display}</td></tr>`;
@@ -946,9 +1009,12 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   /** Extract plain text from a popup record for screen reader announcement */
   private _getPopupPlainText(record: Record<string, unknown>): string {
     if (this.popupFields) {
-      const fields = this.popupFields.split(',').map(f => f.trim()).filter(Boolean);
+      const fields = this.popupFields
+        .split(',')
+        .map((f) => f.trim())
+        .filter(Boolean);
       return fields
-        .map(field => {
+        .map((field) => {
           const value = getByPath(record, field);
           return value !== undefined ? `${field}: ${value}` : '';
         })
@@ -958,7 +1024,10 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     if (this.popupTemplate) {
       // Strip HTML from interpolated template
       const html = this._interpolateTemplate(this.popupTemplate, record);
-      return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+      return html
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
     }
     return '';
   }
@@ -985,7 +1054,8 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
         // Fallback: load via CDN script tag (guaranteed UMD global execution)
         await new Promise<void>((resolve, reject) => {
           const s = document.createElement('script');
-          s.src = 'https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js';
+          s.src =
+            'https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js';
           s.onload = () => resolve();
           s.onerror = () => reject(new Error('Failed to load leaflet.markercluster from CDN'));
           document.head.appendChild(s);

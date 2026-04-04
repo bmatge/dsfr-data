@@ -24,7 +24,11 @@ const _listeners: Set<AuthChangeCallback> = new Set();
 
 function notify(): void {
   for (const cb of _listeners) {
-    try { cb(_state); } catch { /* ignore listener errors */ }
+    try {
+      cb(_state);
+    } catch {
+      /* ignore listener errors */
+    }
   }
 }
 
@@ -140,7 +144,7 @@ export async function login(request: LoginRequest): Promise<{ success: boolean; 
     await autoMigrateIfNeeded();
 
     return { success: true };
-  } catch (err) {
+  } catch {
     return { success: false, error: 'Network error' };
   }
 }
@@ -148,7 +152,9 @@ export async function login(request: LoginRequest): Promise<{ success: boolean; 
 /**
  * Register a new account.
  */
-export async function register(request: RegisterRequest): Promise<{ success: boolean; error?: string }> {
+export async function register(
+  request: RegisterRequest
+): Promise<{ success: boolean; error?: string }> {
   try {
     const res = await apiFetch('/api/auth/register', {
       method: 'POST',
@@ -167,7 +173,7 @@ export async function register(request: RegisterRequest): Promise<{ success: boo
     await autoMigrateIfNeeded();
 
     return { success: true };
-  } catch (err) {
+  } catch {
     return { success: false, error: 'Network error' };
   }
 }
@@ -177,7 +183,7 @@ export async function register(request: RegisterRequest): Promise<{ success: boo
  */
 export async function changePassword(
   currentPassword: string,
-  newPassword: string,
+  newPassword: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const res = await apiFetch('/api/auth/me', {
@@ -200,7 +206,9 @@ export async function changePassword(
  * Request a password reset email.
  * Always returns success to avoid leaking account existence.
  */
-export async function forgotPassword(email: string): Promise<{ success: boolean; message?: string }> {
+export async function forgotPassword(
+  email: string
+): Promise<{ success: boolean; message?: string }> {
   try {
     const res = await apiFetch('/api/auth/forgot-password', {
       method: 'POST',
@@ -210,7 +218,10 @@ export async function forgotPassword(email: string): Promise<{ success: boolean;
     const data = await res.json();
     return { success: true, message: data.message };
   } catch {
-    return { success: true, message: 'Si un compte existe avec cet email, un lien de reinitialisation a ete envoye' };
+    return {
+      success: true,
+      message: 'Si un compte existe avec cet email, un lien de reinitialisation a ete envoye',
+    };
   }
 }
 
@@ -219,7 +230,7 @@ export async function forgotPassword(email: string): Promise<{ success: boolean;
  */
 export async function resetPassword(
   token: string,
-  password: string,
+  password: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const res = await apiFetch('/api/auth/reset-password', {
@@ -257,7 +268,9 @@ export async function logout(): Promise<void> {
  */
 export function onAuthChange(callback: AuthChangeCallback): () => void {
   _listeners.add(callback);
-  return () => { _listeners.delete(callback); };
+  return () => {
+    _listeners.delete(callback);
+  };
 }
 
 /** Get current auth state (synchronous). */
@@ -291,8 +304,7 @@ async function autoMigrateIfNeeded(): Promise<void> {
   const dashboards = loadFromStorage<unknown[]>(STORAGE_KEYS.DASHBOARDS, []);
 
   const hasLocalData =
-    sources.length > 0 || connections.length > 0 ||
-    favorites.length > 0 || dashboards.length > 0;
+    sources.length > 0 || connections.length > 0 || favorites.length > 0 || dashboards.length > 0;
 
   if (!hasLocalData) {
     localStorage.setItem(MIGRATED_KEY, '1');

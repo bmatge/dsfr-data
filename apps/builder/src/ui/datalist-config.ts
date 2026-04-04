@@ -12,8 +12,8 @@ import { openModal, closeModal, setupModalOverlayClose } from '@dsfr-data/shared
 export function initDatalistColumns(): void {
   if (state.fields.length === 0) return;
 
-  const currentFieldNames = state.fields.map(f => f.name);
-  const existingFieldNames = state.datalistColumns.map(c => c.field);
+  const currentFieldNames = state.fields.map((f) => f.name);
+  const existingFieldNames = state.datalistColumns.map((c) => c.field);
 
   // Skip if already initialized with the same fields
   if (
@@ -24,7 +24,7 @@ export function initDatalistColumns(): void {
     return;
   }
 
-  state.datalistColumns = state.fields.map(f => ({
+  state.datalistColumns = state.fields.map((f) => ({
     field: f.name,
     label: f.name,
     visible: true,
@@ -44,14 +44,18 @@ export function openColumnsModal(): void {
   const listEl = document.getElementById('datalist-columns-list');
   if (!listEl) return;
 
-  listEl.innerHTML = state.datalistColumns.map((col, i) => `
+  listEl.innerHTML = state.datalistColumns
+    .map(
+      (col, i) => `
     <div class="datalist-column-row" data-index="${i}">
       <input type="checkbox" class="datalist-col-visible" ${col.visible ? 'checked' : ''}>
       <span class="datalist-col-field">${col.field}</span>
       <input type="text" class="fr-input fr-input--sm datalist-col-label" value="${col.label}" placeholder="Label">
       <input type="checkbox" class="datalist-col-filtrable" ${col.filtrable ? 'checked' : ''}> <small>Filtrable</small>
     </div>
-  `).join('');
+  `
+    )
+    .join('');
 
   openModal('datalist-columns-modal');
 }
@@ -63,14 +67,17 @@ export function saveColumnsModal(): void {
   const rows = document.querySelectorAll('#datalist-columns-list .datalist-column-row');
   const columns: DatalistColumn[] = [];
 
-  rows.forEach(row => {
+  rows.forEach((row) => {
     const index = parseInt(row.getAttribute('data-index') || '0', 10);
     const original = state.datalistColumns[index];
     if (!original) return;
 
-    const visible = (row.querySelector('.datalist-col-visible') as HTMLInputElement)?.checked ?? true;
-    const label = (row.querySelector('.datalist-col-label') as HTMLInputElement)?.value || original.field;
-    const filtrable = (row.querySelector('.datalist-col-filtrable') as HTMLInputElement)?.checked ?? false;
+    const visible =
+      (row.querySelector('.datalist-col-visible') as HTMLInputElement)?.checked ?? true;
+    const label =
+      (row.querySelector('.datalist-col-label') as HTMLInputElement)?.value || original.field;
+    const filtrable =
+      (row.querySelector('.datalist-col-filtrable') as HTMLInputElement)?.checked ?? false;
 
     columns.push({ field: original.field, label, visible, filtrable });
   });
@@ -94,28 +101,24 @@ export function setupDatalistListeners(): void {
   if (rechercheEl) {
     rechercheEl.addEventListener('change', () => {
       state.datalistRecherche = rechercheEl.checked;
-
     });
   }
 
   if (filtresEl) {
     filtresEl.addEventListener('change', () => {
       state.datalistFiltres = filtresEl.checked;
-
     });
   }
 
   if (exportEl) {
     exportEl.addEventListener('change', () => {
       state.datalistExportCsv = exportEl.checked;
-
     });
   }
 
   if (exportHtmlEl) {
     exportHtmlEl.addEventListener('change', () => {
       state.datalistExportHtml = exportHtmlEl.checked;
-
     });
   }
 

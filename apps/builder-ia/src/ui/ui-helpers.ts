@@ -3,13 +3,22 @@
  */
 
 import { state } from '../state.js';
-import { saveToStorage, loadFromStorage, STORAGE_KEYS, toastInfo, toastWarning, navigateTo } from '@dsfr-data/shared';
+import {
+  saveToStorage,
+  loadFromStorage,
+  STORAGE_KEYS,
+  toastInfo,
+  toastWarning,
+  navigateTo,
+} from '@dsfr-data/shared';
 
 /**
  * Switch active tab in the preview panel (delegates to app-preview-panel component)
  */
 export function switchTab(tabId: string): void {
-  const previewPanel = document.querySelector('app-preview-panel') as HTMLElement & { setActiveTab?(tab: string): void };
+  const previewPanel = document.querySelector('app-preview-panel') as HTMLElement & {
+    setActiveTab?(tab: string): void;
+  };
   if (previewPanel && previewPanel.setActiveTab) {
     previewPanel.setActiveTab(tabId);
   }
@@ -76,7 +85,8 @@ export function saveFavorite(): void {
     return;
   }
 
-  const title = (document.getElementById('preview-title') as HTMLElement).textContent || 'Mon graphique';
+  const title =
+    (document.getElementById('preview-title') as HTMLElement).textContent || 'Mon graphique';
   const name = prompt('Nom du favori :', title);
   if (!name) return;
 

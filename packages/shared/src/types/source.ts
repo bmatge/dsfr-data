@@ -81,20 +81,27 @@ export function migrateSource(raw: Partial<Source>): Source {
     const cfg = configJson as Record<string, unknown>;
     if (cfg.apiUrl && !source.apiUrl) source.apiUrl = cfg.apiUrl as string;
     if (cfg.method && !source.method) source.method = cfg.method as string;
-    if (cfg.headers !== undefined && source.headers === undefined) source.headers = cfg.headers as string | null;
-    if (cfg.dataPath !== undefined && source.dataPath === undefined) source.dataPath = cfg.dataPath as string | null;
+    if (cfg.headers !== undefined && source.headers === undefined)
+      source.headers = cfg.headers as string | null;
+    if (cfg.dataPath !== undefined && source.dataPath === undefined)
+      source.dataPath = cfg.dataPath as string | null;
     if (cfg.connectionId && !source.connectionId) source.connectionId = cfg.connectionId as string;
     if (cfg.documentId && !source.documentId) source.documentId = cfg.documentId as string;
     if (cfg.tableId && !source.tableId) source.tableId = cfg.tableId as string;
-    if (cfg.apiKey !== undefined && source.apiKey === undefined) source.apiKey = cfg.apiKey as string | null;
-    if (cfg.isPublic !== undefined && source.isPublic === undefined) source.isPublic = cfg.isPublic as boolean;
+    if (cfg.apiKey !== undefined && source.apiKey === undefined)
+      source.apiKey = cfg.apiKey as string | null;
+    if (cfg.isPublic !== undefined && source.isPublic === undefined)
+      source.isPublic = cfg.isPublic as boolean;
     if (cfg.provider && !source.provider) source.provider = cfg.provider as ProviderId;
-    if (cfg.resourceIds && !source.resourceIds) source.resourceIds = cfg.resourceIds as Record<string, string>;
+    if (cfg.resourceIds && !source.resourceIds)
+      source.resourceIds = cfg.resourceIds as Record<string, string>;
     if (cfg.leftSourceId && !source.leftSourceId) source.leftSourceId = cfg.leftSourceId as string;
-    if (cfg.rightSourceId && !source.rightSourceId) source.rightSourceId = cfg.rightSourceId as string;
+    if (cfg.rightSourceId && !source.rightSourceId)
+      source.rightSourceId = cfg.rightSourceId as string;
     if (cfg.joinOn && !source.joinOn) source.joinOn = cfg.joinOn as string;
     if (cfg.joinType && !source.joinType) source.joinType = cfg.joinType as JoinType;
-    if (cfg.joinPrefixRight !== undefined && source.joinPrefixRight === undefined) source.joinPrefixRight = cfg.joinPrefixRight as string;
+    if (cfg.joinPrefixRight !== undefined && source.joinPrefixRight === undefined)
+      source.joinPrefixRight = cfg.joinPrefixRight as string;
   }
 
   // data_json → data
@@ -104,8 +111,18 @@ export function migrateSource(raw: Partial<Source>): Source {
   }
 
   // Clean up server-only fields
-  for (const key of ['config_json', 'configJson', 'data_json', 'dataJson',
-    'record_count', 'owner_id', 'created_at', 'updated_at', '_owned', '_permissions']) {
+  for (const key of [
+    'config_json',
+    'configJson',
+    'data_json',
+    'dataJson',
+    'record_count',
+    'owner_id',
+    'created_at',
+    'updated_at',
+    '_owned',
+    '_permissions',
+  ]) {
     delete source[key];
   }
 

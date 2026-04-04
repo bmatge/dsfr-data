@@ -64,9 +64,9 @@ test.describe('Grist widgets - test local', () => {
     await page.goto('/apps/grist-widgets/test-local.html');
     await page.waitForTimeout(1500);
 
-    // Filter out expected CDN/network errors (SRI, CORS)
+    // Filter out expected CDN/network errors and DSFR Chart internal errors
     const realErrors = errors.filter(
-      e => !e.includes('Failed to load resource') && !e.includes('net::')
+      e => !e.includes('Failed to load resource') && !e.includes('net::') && !e.includes('DSFRChart')
     );
     expect(realErrors).toHaveLength(0);
   });

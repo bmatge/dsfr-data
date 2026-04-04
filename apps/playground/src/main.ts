@@ -2,7 +2,21 @@
  * Playground app - main entry point
  */
 
-import { loadFromStorage, saveToStorage, STORAGE_KEYS, toastWarning, toastSuccess, appHref, confirmDialog, initAuth, CDN_URLS, LIB_URL, injectTourStyles, startTourIfFirstVisit, PLAYGROUND_TOUR } from '@dsfr-data/shared';
+import {
+  loadFromStorage,
+  saveToStorage,
+  STORAGE_KEYS,
+  toastWarning,
+  toastSuccess,
+  appHref,
+  confirmDialog,
+  initAuth,
+  CDN_URLS,
+  LIB_URL,
+  injectTourStyles,
+  startTourIfFirstVisit,
+  PLAYGROUND_TOUR,
+} from '@dsfr-data/shared';
 import { initEditor } from './editor.js';
 import type { CodeMirrorEditor } from './editor.js';
 import { examples } from './examples/examples-data.js';
@@ -22,7 +36,8 @@ const DEPS_BLOCK = `<!-- Dependances (DSFR + DSFR Chart + dsfr-data) -->
 `;
 
 /** Regex to detect dependency lines (CDN links for dsfr, chart.js, dsfr-data) */
-const DEPS_LINE_RE = /^[ \t]*(<link[^>]*(dsfr|DSFRChart)[^>]*>|<script[^>]*(dsfr|chart\.js|DSFRChart|dsfr-data)[^>]*><\/script>)[ \t]*\n?/gm;
+const DEPS_LINE_RE =
+  /^[ \t]*(<link[^>]*(dsfr|DSFRChart)[^>]*>|<script[^>]*(dsfr|chart\.js|DSFRChart|dsfr-data)[^>]*><\/script>)[ \t]*\n?/gm;
 const DEPS_COMMENT_RE = /^[ \t]*<!--\s*Dependances[^>]*-->\s*\n?/gm;
 
 function hasDeps(code: string): boolean {
@@ -107,7 +122,12 @@ function autoResizeIframe(iframe: HTMLIFrameElement): void {
 
 async function loadExample(name: string, skipConfirm = false): Promise<void> {
   if (examples[name]) {
-    if (!skipConfirm && editor.getValue().trim() && !await confirmDialog('Remplacer le code actuel par cet exemple ?')) return;
+    if (
+      !skipConfirm &&
+      editor.getValue().trim() &&
+      !(await confirmDialog('Remplacer le code actuel par cet exemple ?'))
+    )
+      return;
     editor.setValue(examples[name]);
     DEPS_LINE_RE.lastIndex = 0;
     updateDepsButton(hasDeps(examples[name]));
@@ -152,7 +172,7 @@ function saveFavorite(): void {
     code,
     chartType: 'playground',
     source: 'playground',
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
   };
 
   favorites.unshift(favorite);
@@ -179,10 +199,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   const fromApp = new URLSearchParams(window.location.search).get('from');
   if (fromApp) {
     // When going back to builder, pass from=playground so builder can restore its state
-    const backHref = (fromApp === 'builder' || fromApp === 'builder-ia')
-      ? appHref(fromApp as any, { from: 'playground' })
-      : appHref(fromApp as any);
-    const backLabel = fromApp === 'builder' ? 'Builder' : fromApp === 'builder-ia' ? 'Builder IA' : fromApp;
+    const backHref =
+      fromApp === 'builder' || fromApp === 'builder-ia'
+        ? appHref(fromApp as any, { from: 'playground' })
+        : appHref(fromApp as any);
+    const backLabel =
+      fromApp === 'builder' ? 'Builder' : fromApp === 'builder-ia' ? 'Builder IA' : fromApp;
     const backBar = document.createElement('div');
     backBar.className = 'fr-mb-1w';
     backBar.innerHTML = `<a href="${backHref}" class="fr-link fr-icon-arrow-left-line fr-link--icon-left">Retour au ${backLabel}</a>`;
@@ -263,7 +285,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Load code from sessionStorage if coming from another app
   const urlParams = new URLSearchParams(window.location.search);
   const from = urlParams.get('from');
-  if (from === 'favorites' || from === 'builder' || from === 'builder-ia' || from === 'pipeline-helper') {
+  if (
+    from === 'favorites' ||
+    from === 'builder' ||
+    from === 'builder-ia' ||
+    from === 'pipeline-helper'
+  ) {
     const savedCode = sessionStorage.getItem('playground-code');
     if (savedCode) {
       editor.setValue(savedCode);

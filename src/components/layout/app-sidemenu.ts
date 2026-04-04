@@ -92,7 +92,7 @@ export class AppSidemenu extends LitElement {
       // No hash: if a child href matches filename + any hash, select first matching child
       // This ensures the parent section expands when visiting the page without a specific anchor
       if (!hash) {
-        const firstMatch = item.children.find(child => {
+        const firstMatch = item.children.find((child) => {
           const [childFile] = (child.href || '').split('#');
           return childFile === filename;
         });
@@ -108,8 +108,8 @@ export class AppSidemenu extends LitElement {
 
   private _isParentActive(item: SidemenuItem, activePath: string): boolean {
     if (!item.children) return false;
-    return item.children.some(child =>
-      this._isActive(child.id, activePath) || this._isParentActive(child, activePath)
+    return item.children.some(
+      (child) => this._isActive(child.id, activePath) || this._isParentActive(child, activePath)
     );
   }
 
@@ -122,14 +122,16 @@ export class AppSidemenu extends LitElement {
 
       return html`
         <li class="fr-sidemenu__item">
-          <button class="fr-sidemenu__btn"
-                  aria-expanded="${isExpanded}"
-                  aria-controls="${sectionId}">
+          <button
+            class="fr-sidemenu__btn"
+            aria-expanded="${isExpanded}"
+            aria-controls="${sectionId}"
+          >
             ${item.label}
           </button>
           <div class="fr-collapse ${isExpanded ? 'fr-collapse--expanded' : ''}" id="${sectionId}">
             <ul class="fr-sidemenu__list">
-              ${item.children.map(child => this._renderItem(child, activePath))}
+              ${item.children.map((child) => this._renderItem(child, activePath))}
             </ul>
           </div>
         </li>
@@ -138,9 +140,11 @@ export class AppSidemenu extends LitElement {
 
     return html`
       <li class="fr-sidemenu__item ${isActive ? 'fr-sidemenu__item--active' : ''}">
-        <a class="fr-sidemenu__link"
-           href="${this._base}${item.href}"
-           ${isActive ? html`aria-current="true"` : nothing}>
+        <a
+          class="fr-sidemenu__link"
+          href="${this._base}${item.href}"
+          ${isActive ? html`aria-current="true"` : nothing}
+        >
           ${item.label}
         </a>
       </li>
@@ -154,21 +158,38 @@ export class AppSidemenu extends LitElement {
     const activePath = this._getActivePath();
 
     return html`
-      <nav class="fr-sidemenu guide-sidemenu" role="navigation" aria-labelledby="app-sidemenu-title">
+      <nav
+        class="fr-sidemenu guide-sidemenu"
+        role="navigation"
+        aria-labelledby="app-sidemenu-title"
+      >
         <div class="fr-sidemenu__inner">
-          <button class="fr-sidemenu__btn" hidden aria-controls="app-sidemenu-wrapper" aria-expanded="true">Menu</button>
+          <button
+            class="fr-sidemenu__btn"
+            hidden
+            aria-controls="app-sidemenu-wrapper"
+            aria-expanded="true"
+          >
+            Menu
+          </button>
           <div class="fr-collapse" id="app-sidemenu-wrapper">
-            ${menu.map((section, i) => html`
-              ${section.title ? html`
-                <div class="fr-sidemenu__title ${i > 0 ? 'fr-mt-1w' : ''}"
-                     id="${i === 0 ? 'app-sidemenu-title' : `app-sidemenu-title-${i}`}">
-                  ${section.title}
-                </div>
-              ` : nothing}
-              <ul class="fr-sidemenu__list">
-                ${section.items.map(item => this._renderItem(item, activePath))}
-              </ul>
-            `)}
+            ${menu.map(
+              (section, i) => html`
+                ${section.title
+                  ? html`
+                      <div
+                        class="fr-sidemenu__title ${i > 0 ? 'fr-mt-1w' : ''}"
+                        id="${i === 0 ? 'app-sidemenu-title' : `app-sidemenu-title-${i}`}"
+                      >
+                        ${section.title}
+                      </div>
+                    `
+                  : nothing}
+                <ul class="fr-sidemenu__list">
+                  ${section.items.map((item) => this._renderItem(item, activePath))}
+                </ul>
+              `
+            )}
           </div>
         </div>
       </nav>
@@ -189,7 +210,7 @@ export class AppSidemenu extends LitElement {
             max-height: none;
           }
         }
-        .fr-sidemenu__link[aria-current="true"] {
+        .fr-sidemenu__link[aria-current='true'] {
           font-weight: 700;
           color: var(--text-action-high-blue-france);
         }

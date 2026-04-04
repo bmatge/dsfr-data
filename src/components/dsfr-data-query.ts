@@ -13,7 +13,7 @@ import {
   subscribeToSource,
   getDataCache,
   getDataMeta,
-  subscribeToSourceCommands
+  subscribeToSourceCommands,
 } from '../utils/data-bridge.js';
 import type { AdapterCapabilities } from '../adapters/api-adapter.js';
 
@@ -21,9 +21,18 @@ import type { AdapterCapabilities } from '../adapters/api-adapter.js';
  * Operateurs de filtre supportes
  */
 export type FilterOperator =
-  | 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte'
-  | 'contains' | 'notcontains' | 'in' | 'notin'
-  | 'isnull' | 'isnotnull';
+  | 'eq'
+  | 'neq'
+  | 'gt'
+  | 'gte'
+  | 'lt'
+  | 'lte'
+  | 'contains'
+  | 'notcontains'
+  | 'in'
+  | 'notin'
+  | 'isnull'
+  | 'isnotnull';
 
 /**
  * Fonctions d'agregation supportees
@@ -226,10 +235,20 @@ export class DsfrDataQuery extends LitElement {
   willUpdate(changedProperties: Map<string, unknown>) {
     super.willUpdate(changedProperties);
 
-    const queryProps = ['source', 'where', 'filter', 'groupBy', 'aggregate',
-                        'orderBy', 'limit', 'transform', 'serverSide', 'pageSize'];
+    const queryProps = [
+      'source',
+      'where',
+      'filter',
+      'groupBy',
+      'aggregate',
+      'orderBy',
+      'limit',
+      'transform',
+      'serverSide',
+      'pageSize',
+    ];
 
-    if (queryProps.some(prop => changedProperties.has(prop))) {
+    if (queryProps.some((prop) => changedProperties.has(prop))) {
       this._initialize();
     }
 
@@ -377,9 +396,11 @@ export class DsfrDataQuery extends LitElement {
    * Returns true if we delegated any operation server-side.
    */
   private _hasServerDelegation(): boolean {
-    return this._serverDelegated.groupBy ||
-           this._serverDelegated.aggregate ||
-           this._serverDelegated.orderBy;
+    return (
+      this._serverDelegated.groupBy ||
+      this._serverDelegated.aggregate ||
+      this._serverDelegated.orderBy
+    );
   }
 
   // --- Source subscription ---
@@ -409,7 +430,7 @@ export class DsfrDataQuery extends LitElement {
         this._error = error;
         this._loading = false;
         dispatchDataError(this.id, error);
-      }
+      },
     });
   }
 
@@ -456,16 +477,14 @@ export class DsfrDataQuery extends LitElement {
 
     // 2. Appliquer le groupement et les agregations
     // Skip si delegue server-side, SAUF si needsClientProcessing (fallback)
-    const needsClientGroupBy = this.groupBy &&
-      (!this._serverDelegated.groupBy || forceClientSide);
+    const needsClientGroupBy = this.groupBy && (!this._serverDelegated.groupBy || forceClientSide);
     if (needsClientGroupBy) {
       result = this._applyGroupByAndAggregate(result);
     }
 
     // 3. Appliquer le tri
     // Skip si delegue server-side, SAUF si needsClientProcessing (fallback)
-    const needsClientSort = this.orderBy &&
-      (!this._serverDelegated.orderBy || forceClientSide);
+    const needsClientSort = this.orderBy && (!this._serverDelegated.orderBy || forceClientSide);
     if (needsClientSort) {
       result = this._applySort(result);
     }
@@ -489,17 +508,23 @@ export class DsfrDataQuery extends LitElement {
   /**
    * Parse et applique les filtres (format: "field:operator:value")
    */
-  private _applyFilters(data: Record<string, unknown>[], filterExpr: string): Record<string, unknown>[] {
+  private _applyFilters(
+    data: Record<string, unknown>[],
+    filterExpr: string
+  ): Record<string, unknown>[] {
     const filters = this._parseFilters(filterExpr);
 
-    return data.filter(item => {
-      return filters.every(filter => this._matchesFilter(item, filter));
+    return data.filter((item) => {
+      return filters.every((filter) => this._matchesFilter(item, filter));
     });
   }
 
   private _parseFilters(filterExpr: string): QueryFilter[] {
     const filters: QueryFilter[] = [];
-    const parts = filterExpr.split(',').map(p => p.trim()).filter(Boolean);
+    const parts = filterExpr
+      .split(',')
+      .map((p) => p.trim())
+      .filter(Boolean);
 
     for (const part of parts) {
       const segments = part.split(':');
@@ -513,7 +538,7 @@ export class DsfrDataQuery extends LitElement {
 
           // Parse la valeur
           if (operator === 'in' || operator === 'notin') {
-            value = rawValue.split('|').map(v => {
+            value = rawValue.split('|').map((v) => {
               const parsed = this._parseValue(v);
               // Pour in/notin, on ne garde que string/number
               return typeof parsed === 'boolean' ? String(parsed) : parsed;
@@ -576,14 +601,17 @@ export class DsfrDataQuery extends LitElement {
    * Applique le GROUP BY et les agregations
    */
   private _applyGroupByAndAggregate(data: Record<string, unknown>[]): Record<string, unknown>[] {
-    const groupFields = this.groupBy.split(',').map(f => f.trim()).filter(Boolean);
+    const groupFields = this.groupBy
+      .split(',')
+      .map((f) => f.trim())
+      .filter(Boolean);
     const aggregates = this._parseAggregates(this.aggregate);
 
     // Creer les groupes
     const groups = new Map<string, Record<string, unknown>[]>();
 
     for (const item of data) {
-      const key = groupFields.map(f => String(getByPath(item, f) ?? '')).join('|||');
+      const key = groupFields.map((f) => String(getByPath(item, f) ?? '')).join('|||');
       if (!groups.has(key)) {
         groups.set(key, []);
       }
@@ -618,7 +646,10 @@ export class DsfrDataQuery extends LitElement {
     if (!aggExpr) return [];
 
     const aggregates: QueryAggregate[] = [];
-    const parts = aggExpr.split(',').map(p => p.trim()).filter(Boolean);
+    const parts = aggExpr
+      .split(',')
+      .map((p) => p.trim())
+      .filter(Boolean);
 
     for (const part of parts) {
       // Format: "field:function" ou "field:function:alias"
@@ -627,7 +658,7 @@ export class DsfrDataQuery extends LitElement {
         aggregates.push({
           field: segments[0],
           function: segments[1] as AggregateFunction,
-          alias: segments[2]
+          alias: segments[2],
         });
       }
     }
@@ -636,9 +667,7 @@ export class DsfrDataQuery extends LitElement {
   }
 
   private _computeAggregate(items: Record<string, unknown>[], agg: QueryAggregate): number {
-    const values = items
-      .map(item => Number(getByPath(item, agg.field)))
-      .filter(v => !isNaN(v));
+    const values = items.map((item) => Number(getByPath(item, agg.field))).filter((v) => !isNaN(v));
 
     switch (agg.function) {
       case 'count':
@@ -681,9 +710,7 @@ export class DsfrDataQuery extends LitElement {
       // Comparaison string
       const strA = String(valA ?? '');
       const strB = String(valB ?? '');
-      return direction === 'desc'
-        ? strB.localeCompare(strA)
-        : strA.localeCompare(strB);
+      return direction === 'desc' ? strB.localeCompare(strA) : strA.localeCompare(strB);
     });
   }
 

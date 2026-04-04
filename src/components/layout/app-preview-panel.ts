@@ -121,13 +121,13 @@ export class AppPreviewPanel extends LitElement {
     const dataContainer = this.querySelector('#tab-data');
 
     if (previewContainer) {
-      this._previewContent.forEach(el => previewContainer.appendChild(el));
+      this._previewContent.forEach((el) => previewContainer.appendChild(el));
     }
     if (codeContainer) {
-      this._codeContent.forEach(el => codeContainer.appendChild(el));
+      this._codeContent.forEach((el) => codeContainer.appendChild(el));
     }
     if (dataContainer) {
-      this._dataContent.forEach(el => dataContainer.appendChild(el));
+      this._dataContent.forEach((el) => dataContainer.appendChild(el));
     }
     this._contentMoved = true;
   }
@@ -149,30 +149,36 @@ export class AppPreviewPanel extends LitElement {
 
   private _handleTabClick(tab: string) {
     this._activeTab = tab;
-    this.dispatchEvent(new CustomEvent('tab-change', {
-      detail: { tab },
-      bubbles: true,
-      composed: true
-    }));
+    this.dispatchEvent(
+      new CustomEvent('tab-change', {
+        detail: { tab },
+        bubbles: true,
+        composed: true,
+      })
+    );
     this.requestUpdate();
   }
 
   private _getTabLabels(): string[] {
-    return this.tabLabels.split(',').map(l => l.trim());
+    return this.tabLabels.split(',').map((l) => l.trim());
   }
 
   private _handleSaveClick() {
-    this.dispatchEvent(new CustomEvent('save-favorite', {
-      bubbles: true,
-      composed: true
-    }));
+    this.dispatchEvent(
+      new CustomEvent('save-favorite', {
+        bubbles: true,
+        composed: true,
+      })
+    );
   }
 
   private _handlePlaygroundClick() {
-    this.dispatchEvent(new CustomEvent('open-playground', {
-      bubbles: true,
-      composed: true
-    }));
+    this.dispatchEvent(
+      new CustomEvent('open-playground', {
+        bubbles: true,
+        composed: true,
+      })
+    );
   }
 
   render() {
@@ -186,56 +192,73 @@ export class AppPreviewPanel extends LitElement {
           <button
             class="preview-panel-tab ${this._activeTab === 'preview' ? 'active' : ''}"
             data-tab="preview"
-            @click="${() => this._handleTabClick('preview')}">
+            @click="${() => this._handleTabClick('preview')}"
+          >
             ${previewLabel || 'Aperçu'}
           </button>
           <button
             class="preview-panel-tab ${this._activeTab === 'code' ? 'active' : ''}"
             data-tab="code"
-            @click="${() => this._handleTabClick('code')}">
+            @click="${() => this._handleTabClick('code')}"
+          >
             ${codeLabel || 'Code'}
           </button>
-          ${this.showDataTab ? html`
-            <button
-              class="preview-panel-tab ${this._activeTab === 'data' ? 'active' : ''}"
-              data-tab="data"
-              @click="${() => this._handleTabClick('data')}">
-              ${dataLabel || 'Données'}
-            </button>
-          ` : nothing}
-          ${this.showPlaygroundButton ? html`
-            <button
-              class="preview-panel-action-btn"
-              @click="${this._handlePlaygroundClick}"
-              title="Ouvrir dans le Playground">
-              <i class="ri-play-circle-line" aria-hidden="true"></i>
-              <span>Playground</span>
-            </button>
-          ` : nothing}
-          ${this.showSaveButton ? html`
-            <button
-              class="preview-panel-action-btn preview-panel-save-btn"
-              @click="${this._handleSaveClick}"
-              title="Sauvegarder en favoris">
-              <i class="ri-star-line" aria-hidden="true"></i>
-              <span>Favoris</span>
-            </button>
-          ` : nothing}
+          ${this.showDataTab
+            ? html`
+                <button
+                  class="preview-panel-tab ${this._activeTab === 'data' ? 'active' : ''}"
+                  data-tab="data"
+                  @click="${() => this._handleTabClick('data')}"
+                >
+                  ${dataLabel || 'Données'}
+                </button>
+              `
+            : nothing}
+          ${this.showPlaygroundButton
+            ? html`
+                <button
+                  class="preview-panel-action-btn"
+                  @click="${this._handlePlaygroundClick}"
+                  title="Ouvrir dans le Playground"
+                >
+                  <i class="ri-play-circle-line" aria-hidden="true"></i>
+                  <span>Playground</span>
+                </button>
+              `
+            : nothing}
+          ${this.showSaveButton
+            ? html`
+                <button
+                  class="preview-panel-action-btn preview-panel-save-btn"
+                  @click="${this._handleSaveClick}"
+                  title="Sauvegarder en favoris"
+                >
+                  <i class="ri-star-line" aria-hidden="true"></i>
+                  <span>Favoris</span>
+                </button>
+              `
+            : nothing}
         </div>
 
         <!-- Contenu des onglets -->
         <div class="preview-panel-content">
           <!-- Onglet Aperçu - contenu slot="preview" sera déplacé ici -->
-          <div class="preview-panel-tab-content ${this._activeTab === 'preview' ? 'active' : ''}" id="tab-preview">
-          </div>
+          <div
+            class="preview-panel-tab-content ${this._activeTab === 'preview' ? 'active' : ''}"
+            id="tab-preview"
+          ></div>
 
           <!-- Onglet Code - contenu slot="code" sera déplacé ici -->
-          <div class="preview-panel-tab-content ${this._activeTab === 'code' ? 'active' : ''}" id="tab-code">
-          </div>
+          <div
+            class="preview-panel-tab-content ${this._activeTab === 'code' ? 'active' : ''}"
+            id="tab-code"
+          ></div>
 
           <!-- Onglet Données - contenu slot="data" sera déplacé ici -->
-          <div class="preview-panel-tab-content ${this._activeTab === 'data' ? 'active' : ''}" id="tab-data">
-          </div>
+          <div
+            class="preview-panel-tab-content ${this._activeTab === 'data' ? 'active' : ''}"
+            id="tab-data"
+          ></div>
         </div>
       </div>
 
@@ -271,7 +294,9 @@ export class AppPreviewPanel extends LitElement {
           font-size: 0.85rem;
           border-bottom: 2px solid transparent;
           color: var(--text-mention-grey);
-          transition: color 0.15s, border-color 0.15s;
+          transition:
+            color 0.15s,
+            border-color 0.15s;
         }
 
         .preview-panel-tab:hover {

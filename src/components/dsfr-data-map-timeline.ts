@@ -29,7 +29,6 @@ const SPEEDS = [0.5, 1, 2, 4];
 
 @customElement('dsfr-data-map-timeline')
 export class DsfrDataMapTimeline extends LitElement {
-
   /** Target specific layer IDs (comma-separated). If empty, targets all layers with time-field. */
   @property({ type: String })
   for = '';
@@ -56,7 +55,9 @@ export class DsfrDataMapTimeline extends LitElement {
   private _boundOnTimeReady = this._onTimeReady.bind(this);
 
   // Light DOM — inherits DSFR styles
-  createRenderRoot() { return this; }
+  createRenderRoot() {
+    return this;
+  }
 
   connectedCallback() {
     super.connectedCallback();
@@ -88,13 +89,15 @@ export class DsfrDataMapTimeline extends LitElement {
     if (!map) return [];
 
     if (this.for) {
-      const ids = this.for.split(',').map(s => s.trim());
+      const ids = this.for.split(',').map((s) => s.trim());
       return ids
-        .map(id => map.querySelector(`#${id}`) as DsfrDataMapLayer | null)
+        .map((id) => map.querySelector(`#${id}`) as DsfrDataMapLayer | null)
         .filter((el): el is DsfrDataMapLayer => el !== null && el.timeField !== '');
     }
 
-    return Array.from(map.querySelectorAll('dsfr-data-map-layer[time-field]')) as DsfrDataMapLayer[];
+    return Array.from(
+      map.querySelectorAll('dsfr-data-map-layer[time-field]')
+    ) as DsfrDataMapLayer[];
   }
 
   // --- Time steps ---
@@ -315,21 +318,22 @@ export class DsfrDataMapTimeline extends LitElement {
     const total = this._steps.length;
 
     return html`
-      <div class="dsfr-data-map-timeline"
-           role="group"
-           aria-label="Controles de la frise chronologique"
-           @keydown=${this._onKeydown}
-           tabindex="0">
-
+      <div
+        class="dsfr-data-map-timeline"
+        role="group"
+        aria-label="Controles de la frise chronologique"
+        @keydown=${this._onKeydown}
+        tabindex="0"
+      >
         <!-- Current time label (live region) -->
-        <div class="dsfr-data-map-timeline__label"
-             aria-live="polite" aria-atomic="true">
+        <div class="dsfr-data-map-timeline__label" aria-live="polite" aria-atomic="true">
           ${currentLabel} (${this._currentIndex + 1}/${total})
         </div>
 
         <!-- Slider -->
         <div class="dsfr-data-map-timeline__slider">
-          <input type="range"
+          <input
+            type="range"
             min="0"
             max="${total - 1}"
             .value="${String(this._currentIndex)}"
@@ -344,42 +348,54 @@ export class DsfrDataMapTimeline extends LitElement {
 
         <!-- Transport controls -->
         <div class="dsfr-data-map-timeline__controls">
-          <button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline"
+          <button
+            class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline"
             @click=${this._stepBackward}
             aria-label="Image precedente"
-            ?disabled=${this._currentIndex === 0}>
+            ?disabled=${this._currentIndex === 0}
+          >
             <span class="fr-icon-arrow-left-s-line" aria-hidden="true"></span>
           </button>
 
-          <button class="fr-btn fr-btn--sm dsfr-data-map-timeline__play-btn"
+          <button
+            class="fr-btn fr-btn--sm dsfr-data-map-timeline__play-btn"
             data-auto
             @click=${this._togglePlay}
             aria-label="${this._playing ? 'Pause' : 'Lecture'}"
-            ?disabled=${this._prefersReducedMotion}>
-            <span class="${this._playing ? 'fr-icon-pause-circle-line' : 'fr-icon-play-circle-line'}"
-                  aria-hidden="true"></span>
+            ?disabled=${this._prefersReducedMotion}
+          >
+            <span
+              class="${this._playing ? 'fr-icon-pause-circle-line' : 'fr-icon-play-circle-line'}"
+              aria-hidden="true"
+            ></span>
           </button>
 
-          <button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline"
+          <button
+            class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline"
             @click=${this._stop}
-            aria-label="Arreter et revenir au debut">
+            aria-label="Arreter et revenir au debut"
+          >
             <span class="fr-icon-stop-circle-line" aria-hidden="true"></span>
           </button>
 
-          <button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline"
+          <button
+            class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline"
             @click=${this._stepForward}
             aria-label="Image suivante"
-            ?disabled=${this._currentIndex >= total - 1}>
+            ?disabled=${this._currentIndex >= total - 1}
+          >
             <span class="fr-icon-arrow-right-s-line" aria-hidden="true"></span>
           </button>
 
           <!-- Speed selector -->
-          <select class="dsfr-data-map-timeline__speed"
+          <select
+            class="dsfr-data-map-timeline__speed"
             @change=${this._onSpeedChange}
-            aria-label="Vitesse de lecture">
-            ${SPEEDS.map(s => html`
-              <option value="${s}" ?selected=${this.speed === s}>${s}x</option>
-            `)}
+            aria-label="Vitesse de lecture"
+          >
+            ${SPEEDS.map(
+              (s) => html` <option value="${s}" ?selected=${this.speed === s}>${s}x</option> `
+            )}
           </select>
         </div>
       </div>

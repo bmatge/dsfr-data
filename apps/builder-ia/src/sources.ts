@@ -2,7 +2,16 @@
  * Data source loading, selection and field analysis
  */
 
-import { loadFromStorage, STORAGE_KEYS, escapeHtml, openModal, closeModal, setupModalOverlayClose, migrateSource, SAMPLE_DATASETS } from '@dsfr-data/shared';
+import {
+  loadFromStorage,
+  STORAGE_KEYS,
+  escapeHtml,
+  openModal,
+  closeModal,
+  setupModalOverlayClose,
+  migrateSource,
+  SAMPLE_DATASETS,
+} from '@dsfr-data/shared';
 import { state } from './state.js';
 import type { Source, Field } from './state.js';
 import { addMessage } from './chat/chat.js';
@@ -15,12 +24,15 @@ export function loadSavedSources(): void {
   select.innerHTML = '<option value="">-- Choisir une source --</option>';
 
   const sources = loadFromStorage<Source[]>(STORAGE_KEYS.SOURCES, []).map(migrateSource);
-  const selectedSource = (() => { const s = loadFromStorage<Source | null>(STORAGE_KEYS.SELECTED_SOURCE, null); return s ? migrateSource(s) : null; })();
+  const selectedSource = (() => {
+    const s = loadFromStorage<Source | null>(STORAGE_KEYS.SELECTED_SOURCE, null);
+    return s ? migrateSource(s) : null;
+  })();
 
   // Add sample datasets
   const sampleGroup = document.createElement('optgroup');
-  sampleGroup.label = 'Donn\u00e9es d\'exemple';
-  SAMPLE_DATASETS.forEach(ds => {
+  sampleGroup.label = "Donn\u00e9es d'exemple";
+  SAMPLE_DATASETS.forEach((ds) => {
     const option = document.createElement('option');
     option.value = `sample:${ds.id}`;
     option.textContent = `\uD83D\uDCCA ${ds.name}`;
@@ -36,10 +48,15 @@ export function loadSavedSources(): void {
   });
   select.appendChild(sampleGroup);
 
-  sources.forEach(source => {
+  sources.forEach((source) => {
     const option = document.createElement('option');
     option.value = source.id;
-    const badge = source.type === 'grist' ? '\uD83D\uDFE2' : source.type === 'manual' ? '\uD83D\uDFE3' : '\uD83D\uDD35';
+    const badge =
+      source.type === 'grist'
+        ? '\uD83D\uDFE2'
+        : source.type === 'manual'
+          ? '\uD83D\uDFE3'
+          : '\uD83D\uDD35';
     option.textContent = `${badge} ${source.name}`;
     option.dataset.source = JSON.stringify(source);
     select.appendChild(option);
@@ -88,7 +105,12 @@ export function handleSourceChange(): void {
   const source: Source = JSON.parse(selectedOption.dataset.source);
   state.source = source;
 
-  const badge = source.type === 'grist' ? 'source-badge-grist' : source.type === 'manual' ? 'source-badge-manual' : 'source-badge-api';
+  const badge =
+    source.type === 'grist'
+      ? 'source-badge-grist'
+      : source.type === 'manual'
+        ? 'source-badge-manual'
+        : 'source-badge-api';
   const badgeText = source.type === 'grist' ? 'Grist' : source.type === 'manual' ? 'Manuel' : 'API';
 
   infoEl.innerHTML = `
@@ -103,9 +125,9 @@ export function handleSourceChange(): void {
     updateRawData();
 
     // Build contextual suggestions based on field types
-    const numericFields = state.fields.filter(f => f.type === 'numerique');
-    const textFields = state.fields.filter(f => f.type === 'texte');
-    const dateFields = state.fields.filter(f => f.type === 'date');
+    const numericFields = state.fields.filter((f) => f.type === 'numerique');
+    const textFields = state.fields.filter((f) => f.type === 'texte');
+    const dateFields = state.fields.filter((f) => f.type === 'date');
     const suggestions: string[] = [];
 
     if (numericFields.length > 0 && textFields.length > 0) {
@@ -126,12 +148,17 @@ export function handleSourceChange(): void {
     }
 
     // Inform the chat
-    addMessage('assistant', `Source "${source.name}" chargee (${source.data.length} lignes, ${state.fields.length} champs). Que voulez-vous visualiser ?`, suggestions.slice(0, 3));
+    addMessage(
+      'assistant',
+      `Source "${source.name}" chargee (${source.data.length} lignes, ${state.fields.length} champs). Que voulez-vous visualiser ?`,
+      suggestions.slice(0, 3)
+    );
 
     // Update status: show "Voir les donnees" button
     const statusEl = document.getElementById('fields-status');
     if (statusEl) {
-      statusEl.innerHTML = '<button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline source-btn" id="show-data-preview-btn"><i class="ri-database-2-line"></i> Voir</button>';
+      statusEl.innerHTML =
+        '<button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline source-btn" id="show-data-preview-btn"><i class="ri-database-2-line"></i> Voir</button>';
       document.getElementById('show-data-preview-btn')?.addEventListener('click', showDataPreview);
     }
   }
@@ -145,7 +172,8 @@ export function loadSavedSourceData(): void {
   if (!select.value) {
     const statusEl = document.getElementById('fields-status');
     if (statusEl) {
-      statusEl.innerHTML = '<span class="fr-badge fr-badge--warning fr-badge--sm">Selectionner</span>';
+      statusEl.innerHTML =
+        '<span class="fr-badge fr-badge--warning fr-badge--sm">Selectionner</span>';
     }
     return;
   }
@@ -159,7 +187,7 @@ export function analyzeFields(): void {
   if (!state.localData || state.localData.length === 0) return;
 
   const record = state.localData[0];
-  state.fields = Object.keys(record).map(key => {
+  state.fields = Object.keys(record).map((key) => {
     let value = record[key];
 
     // If first record has null, scan other records to find actual type
@@ -199,14 +227,17 @@ export function analyzeFields(): void {
 export function updateFieldsList(): void {
   const container = document.getElementById('field-list') as HTMLElement;
   if (state.fields.length === 0) {
-    container.innerHTML = '<span style="color: var(--text-mention-grey); font-size: 0.8rem;">Selectionnez une source de donnees</span>';
+    container.innerHTML =
+      '<span style="color: var(--text-mention-grey); font-size: 0.8rem;">Selectionnez une source de donnees</span>';
     return;
   }
 
-  container.innerHTML = state.fields.map(f => {
-    const isNumeric = f.type === 'numerique';
-    return `<span class="field-tag ${isNumeric ? 'numeric' : ''}">${f.name} <small>(${f.type})</small></span>`;
-  }).join('');
+  container.innerHTML = state.fields
+    .map((f) => {
+      const isNumeric = f.type === 'numerique';
+      return `<span class="field-tag ${isNumeric ? 'numeric' : ''}">${f.name} <small>(${f.type})</small></span>`;
+    })
+    .join('');
 }
 
 /**
@@ -230,16 +261,22 @@ export function showDataPreview(): void {
   const keys = Object.keys(data[0]);
   const previewRows = data.slice(0, 20);
 
-  const headerCells = keys.map(k => `<th style="white-space:nowrap;font-size:0.8rem;">${escapeHtml(k)}</th>`).join('');
-  const bodyRows = previewRows.map(row => {
-    const cells = keys.map(k => {
-      const val = row[k];
-      const str = val === null || val === undefined ? '\u2014' : String(val);
-      const truncated = str.length > 60 ? str.slice(0, 57) + '...' : str;
-      return `<td style="font-size:0.8rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(truncated)}</td>`;
-    }).join('');
-    return `<tr>${cells}</tr>`;
-  }).join('');
+  const headerCells = keys
+    .map((k) => `<th style="white-space:nowrap;font-size:0.8rem;">${escapeHtml(k)}</th>`)
+    .join('');
+  const bodyRows = previewRows
+    .map((row) => {
+      const cells = keys
+        .map((k) => {
+          const val = row[k];
+          const str = val === null || val === undefined ? '\u2014' : String(val);
+          const truncated = str.length > 60 ? str.slice(0, 57) + '...' : str;
+          return `<td style="font-size:0.8rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(truncated)}</td>`;
+        })
+        .join('');
+      return `<tr>${cells}</tr>`;
+    })
+    .join('');
 
   body.innerHTML = `
     <p class="fr-text--sm fr-mb-1w">${data.length} enregistrement(s), ${keys.length} champs \u2014 apercu des 20 premiers</p>
@@ -259,5 +296,7 @@ export function showDataPreview(): void {
  */
 export function initDataPreviewModal(): void {
   setupModalOverlayClose('data-preview-modal');
-  document.getElementById('data-preview-close')?.addEventListener('click', () => closeModal('data-preview-modal'));
+  document
+    .getElementById('data-preview-close')
+    ?.addEventListener('click', () => closeModal('data-preview-modal'));
 }

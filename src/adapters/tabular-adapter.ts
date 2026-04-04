@@ -6,14 +6,20 @@
  */
 
 import type {
-  ApiAdapter, AdapterCapabilities, AdapterParams,
-  FetchResult, ServerSideOverlay
+  ApiAdapter,
+  AdapterCapabilities,
+  AdapterParams,
+  FetchResult,
+  ServerSideOverlay,
 } from './api-adapter.js';
 import type { ProviderConfig } from '@dsfr-data/shared';
 import { getProxyConfig, TABULAR_CONFIG } from '@dsfr-data/shared';
 
 /** Construit les options fetch avec headers optionnels */
-function buildFetchOptions(params: Pick<AdapterParams, 'headers'>, signal?: AbortSignal): RequestInit {
+function buildFetchOptions(
+  params: Pick<AdapterParams, 'headers'>,
+  signal?: AbortSignal
+): RequestInit {
   const opts: RequestInit = {};
   if (signal) opts.signal = signal;
   if (params.headers && Object.keys(params.headers).length > 0) {
@@ -112,7 +118,7 @@ export class TabularAdapter implements ApiAdapter {
     if (totalCount >= 0 && allResults.length < totalCount && allResults.length < requestedLimit) {
       console.warn(
         `dsfr-data-query: pagination incomplete - ${allResults.length}/${totalCount} resultats recuperes ` +
-        `(limite de securite: ${TABULAR_MAX_PAGES} pages de ${TABULAR_PAGE_SIZE})`
+          `(limite de securite: ${TABULAR_MAX_PAGES} pages de ${TABULAR_PAGE_SIZE})`
       );
     }
 
@@ -129,7 +135,11 @@ export class TabularAdapter implements ApiAdapter {
   /**
    * Fetch une seule page en mode server-side.
    */
-  async fetchPage(params: AdapterParams, overlay: ServerSideOverlay, signal: AbortSignal): Promise<FetchResult> {
+  async fetchPage(
+    params: AdapterParams,
+    overlay: ServerSideOverlay,
+    signal: AbortSignal
+  ): Promise<FetchResult> {
     const url = this.buildServerSideUrl(params, overlay);
 
     const response = await fetch(url, buildFetchOptions(params, signal));
@@ -154,9 +164,10 @@ export class TabularAdapter implements ApiAdapter {
    */
   buildUrl(params: AdapterParams, pageSizeOverride?: number, pageOverride?: number): string {
     const base = this._getBaseUrl(params);
-    const origin = typeof window !== 'undefined' && window.location.origin !== 'null'
-      ? window.location.origin
-      : undefined;
+    const origin =
+      typeof window !== 'undefined' && window.location.origin !== 'null'
+        ? window.location.origin
+        : undefined;
     const url = new URL(`${base}/api/resources/${params.resource}/data/`, origin);
 
     // Filtres (format: "field:operator:value")
@@ -167,7 +178,7 @@ export class TabularAdapter implements ApiAdapter {
 
     // Group by
     if (params.groupBy) {
-      const groupFields = params.groupBy.split(',').map(f => f.trim());
+      const groupFields = params.groupBy.split(',').map((f) => f.trim());
       for (const field of groupFields) {
         url.searchParams.append(`${field}__groupby`, '');
       }
@@ -175,7 +186,7 @@ export class TabularAdapter implements ApiAdapter {
 
     // Agregations
     if (params.aggregate) {
-      const aggregates = params.aggregate.split(',').map(a => a.trim());
+      const aggregates = params.aggregate.split(',').map((a) => a.trim());
       for (const agg of aggregates) {
         const parts = agg.split(':');
         if (parts.length >= 2) {
@@ -213,9 +224,10 @@ export class TabularAdapter implements ApiAdapter {
    */
   buildServerSideUrl(params: AdapterParams, overlay: ServerSideOverlay): string {
     const base = this._getBaseUrl(params);
-    const origin = typeof window !== 'undefined' && window.location.origin !== 'null'
-      ? window.location.origin
-      : undefined;
+    const origin =
+      typeof window !== 'undefined' && window.location.origin !== 'null'
+        ? window.location.origin
+        : undefined;
     const url = new URL(`${base}/api/resources/${params.resource}/data/`, origin);
 
     // Filtres : effectiveWhere (statique + dynamique fusionne) ou fallback statique
@@ -244,7 +256,7 @@ export class TabularAdapter implements ApiAdapter {
    * Applique des filtres colon-syntax (field:op:value, ...) comme query params.
    */
   private _applyColonFilters(url: URL, filterExpr: string): void {
-    const filters = filterExpr.split(',').map(f => f.trim());
+    const filters = filterExpr.split(',').map((f) => f.trim());
     for (const filter of filters) {
       const parts = filter.split(':');
       if (parts.length >= 3) {
@@ -261,18 +273,18 @@ export class TabularAdapter implements ApiAdapter {
    */
   private _mapOperator(op: string): string {
     const mapping: Record<string, string> = {
-      'eq': 'exact',
-      'neq': 'differs',
-      'gt': 'strictly_greater',
-      'gte': 'greater',
-      'lt': 'strictly_less',
-      'lte': 'less',
-      'contains': 'contains',
-      'notcontains': 'notcontains',
-      'in': 'in',
-      'notin': 'notin',
-      'isnull': 'isnull',
-      'isnotnull': 'isnotnull',
+      eq: 'exact',
+      neq: 'differs',
+      gt: 'strictly_greater',
+      gte: 'greater',
+      lt: 'strictly_less',
+      lte: 'less',
+      contains: 'contains',
+      notcontains: 'notcontains',
+      in: 'in',
+      notin: 'notin',
+      isnull: 'isnull',
+      isnotnull: 'isnotnull',
     };
     return mapping[op] || op;
   }
@@ -285,10 +297,7 @@ export class TabularAdapter implements ApiAdapter {
     return TABULAR_CONFIG;
   }
 
-  buildFacetWhere(
-    selections: Record<string, Set<string>>,
-    excludeField?: string
-  ): string {
+  buildFacetWhere(selections: Record<string, Set<string>>, excludeField?: string): string {
     const parts: string[] = [];
     for (const [field, values] of Object.entries(selections)) {
       if (field === excludeField || values.size === 0) continue;

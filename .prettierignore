@@ -1,0 +1,8 @@
+dist/
+app-dist/
+coverage/
+node_modules/
+src-tauri/
+mcp-server/
+**/*.html
+**/*.md

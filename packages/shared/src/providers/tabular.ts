@@ -6,9 +6,7 @@ export const TABULAR_CONFIG: ProviderConfig = {
   id: 'tabular',
   displayName: 'Tabular (data.gouv.fr)',
   urlPatterns: [TABULAR_RE],
-  knownHosts: [
-    { hostname: 'tabular-api.data.gouv.fr', proxyEndpoint: '/tabular-proxy' },
-  ],
+  knownHosts: [{ hostname: 'tabular-api.data.gouv.fr', proxyEndpoint: '/tabular-proxy' }],
   defaultBaseUrl: 'https://tabular-api.data.gouv.fr',
   defaultAuthType: 'none',
 
@@ -48,9 +46,18 @@ export const TABULAR_CONFIG: ProviderConfig = {
     aggregationSyntax: 'colon-attr',
     searchTemplate: null,
     operatorMapping: {
-      eq: 'exact', neq: 'differs', gt: 'strictly_greater', gte: 'greater',
-      lt: 'strictly_less', lte: 'less', contains: 'contains', notcontains: 'notcontains',
-      in: 'in', notin: 'notin', isnull: 'isnull', isnotnull: 'isnotnull',
+      eq: 'exact',
+      neq: 'differs',
+      gt: 'strictly_greater',
+      gte: 'greater',
+      lt: 'strictly_less',
+      lte: 'less',
+      contains: 'contains',
+      notcontains: 'notcontains',
+      in: 'in',
+      notin: 'notin',
+      isnull: 'isnull',
+      isnotnull: 'isnotnull',
     },
   },
 

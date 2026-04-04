@@ -12,8 +12,8 @@ import { openModal, closeModal, setupModalOverlayClose } from '@dsfr-data/shared
 export function initFacetsFields(): void {
   if (state.fields.length === 0) return;
 
-  const currentFieldNames = state.fields.map(f => f.name);
-  const existingFieldNames = state.facetsConfig.fields.map(c => c.field);
+  const currentFieldNames = state.fields.map((f) => f.name);
+  const existingFieldNames = state.facetsConfig.fields.map((c) => c.field);
 
   // Skip if already initialized with the same fields
   if (
@@ -24,7 +24,7 @@ export function initFacetsFields(): void {
     return;
   }
 
-  state.facetsConfig.fields = state.fields.map(f => ({
+  state.facetsConfig.fields = state.fields.map((f) => ({
     field: f.name,
     label: f.name,
     display: 'checkbox' as const,
@@ -46,18 +46,19 @@ export function openFacetsModal(): void {
 
   // Find which fields are active (have been selected)
   const activeFieldNames = new Set(
-    state.facetsConfig.fields.filter(f => f.field).map(f => f.field)
+    state.facetsConfig.fields.filter((f) => f.field).map((f) => f.field)
   );
 
-  const rows = state.fields.map((field) => {
-    const config = state.facetsConfig.fields.find(c => c.field === field.name);
-    const isActive = config && activeFieldNames.has(field.name);
-    const label = config?.label || field.name;
-    const display = config?.display || 'checkbox';
-    const searchable = config?.searchable || false;
-    const disjunctive = config?.disjunctive || false;
+  const rows = state.fields
+    .map((field) => {
+      const config = state.facetsConfig.fields.find((c) => c.field === field.name);
+      const isActive = config && activeFieldNames.has(field.name);
+      const label = config?.label || field.name;
+      const display = config?.display || 'checkbox';
+      const searchable = config?.searchable || false;
+      const disjunctive = config?.disjunctive || false;
 
-    return `
+      return `
     <tr data-field="${field.name}">
       <td><input type="checkbox" class="facets-field-active" ${isActive ? 'checked' : ''}></td>
       <td><code>${field.name}</code></td>
@@ -71,7 +72,8 @@ export function openFacetsModal(): void {
       <td class="text-center"><input type="checkbox" class="facets-field-searchable" ${searchable ? 'checked' : ''}></td>
       <td class="text-center"><input type="checkbox" class="facets-field-disjunctive" ${disjunctive ? 'checked' : ''}></td>
     </tr>`;
-  }).join('');
+    })
+    .join('');
 
   listEl.innerHTML = `
     <div class="facets-toolbar">
@@ -94,10 +96,14 @@ export function openFacetsModal(): void {
 
   // Toolbar actions
   document.getElementById('facets-select-all')?.addEventListener('click', () => {
-    listEl.querySelectorAll<HTMLInputElement>('.facets-field-active').forEach(cb => cb.checked = true);
+    listEl
+      .querySelectorAll<HTMLInputElement>('.facets-field-active')
+      .forEach((cb) => (cb.checked = true));
   });
   document.getElementById('facets-select-none')?.addEventListener('click', () => {
-    listEl.querySelectorAll<HTMLInputElement>('.facets-field-active').forEach(cb => cb.checked = false);
+    listEl
+      .querySelectorAll<HTMLInputElement>('.facets-field-active')
+      .forEach((cb) => (cb.checked = false));
   });
 
   openModal('facets-fields-modal');
@@ -110,16 +116,22 @@ export function saveFacetsModal(): void {
   const rows = document.querySelectorAll('#facets-fields-list tr[data-field]');
   const fields: FacetFieldConfig[] = [];
 
-  rows.forEach(row => {
+  rows.forEach((row) => {
     const fieldName = row.getAttribute('data-field') || '';
-    const active = (row.querySelector('.facets-field-active') as HTMLInputElement)?.checked ?? false;
+    const active =
+      (row.querySelector('.facets-field-active') as HTMLInputElement)?.checked ?? false;
 
     if (!active) return; // Only keep active fields
 
-    const label = (row.querySelector('.facets-field-label') as HTMLInputElement)?.value || fieldName;
-    const display = (row.querySelector('.facets-field-display') as HTMLSelectElement)?.value as FacetFieldConfig['display'] || 'checkbox';
-    const searchable = (row.querySelector('.facets-field-searchable') as HTMLInputElement)?.checked ?? false;
-    const disjunctive = (row.querySelector('.facets-field-disjunctive') as HTMLInputElement)?.checked ?? false;
+    const label =
+      (row.querySelector('.facets-field-label') as HTMLInputElement)?.value || fieldName;
+    const display =
+      ((row.querySelector('.facets-field-display') as HTMLSelectElement)
+        ?.value as FacetFieldConfig['display']) || 'checkbox';
+    const searchable =
+      (row.querySelector('.facets-field-searchable') as HTMLInputElement)?.checked ?? false;
+    const disjunctive =
+      (row.querySelector('.facets-field-disjunctive') as HTMLInputElement)?.checked ?? false;
 
     fields.push({ field: fieldName, label, display, searchable, disjunctive });
   });
@@ -142,7 +154,7 @@ export function updateFacetsSummary(): void {
   } else if (count === 1) {
     summaryEl.textContent = `1 facette configuree (${state.facetsConfig.fields[0].field})`;
   } else {
-    summaryEl.textContent = `${count} facettes configurees (${state.facetsConfig.fields.map(f => f.field).join(', ')})`;
+    summaryEl.textContent = `${count} facettes configurees (${state.facetsConfig.fields.map((f) => f.field).join(', ')})`;
   }
 }
 

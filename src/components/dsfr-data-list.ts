@@ -148,7 +148,7 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
   }
 
   onSourceData(data: unknown): void {
-    this._data = Array.isArray(data) ? data as Record<string, unknown>[] : [];
+    this._data = Array.isArray(data) ? (data as Record<string, unknown>[]) : [];
 
     // Detecter la pagination serveur via les metadonnees
     const meta = this.source ? getDataMeta(this.source) : undefined;
@@ -167,7 +167,7 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
 
   parseColumns(): ColumnDef[] {
     if (!this.colonnes) return [];
-    return this.colonnes.split(',').map(col => {
+    return this.colonnes.split(',').map((col) => {
       const [key, label] = col.trim().split(':');
       return { key: key.trim(), label: label?.trim() || key.trim() };
     });
@@ -175,7 +175,7 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
 
   private _getFilterableColumns(): string[] {
     if (!this.filtres) return [];
-    return this.filtres.split(',').map(f => f.trim());
+    return this.filtres.split(',').map((f) => f.trim());
   }
 
   private _initSort() {
@@ -189,7 +189,7 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
 
   private _getUniqueValues(key: string): string[] {
     const values = new Set<string>();
-    this._data.forEach(item => {
+    this._data.forEach((item) => {
       const val = item[key];
       if (val !== undefined && val !== null) {
         values.add(String(val));
@@ -203,16 +203,14 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
 
     if (this._searchQuery) {
       const query = this._searchQuery.toLowerCase();
-      result = result.filter(item =>
-        Object.values(item).some(val =>
-          String(val).toLowerCase().includes(query)
-        )
+      result = result.filter((item) =>
+        Object.values(item).some((val) => String(val).toLowerCase().includes(query))
       );
     }
 
     Object.entries(this._activeFilters).forEach(([key, value]) => {
       if (value) {
-        result = result.filter(item => String(item[key]) === value);
+        result = result.filter((item) => String(item[key]) === value);
       }
     });
 
@@ -227,9 +225,10 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
         if (aVal === null || aVal === undefined) return 1;
         if (bVal === null || bVal === undefined) return -1;
 
-        const comparison = typeof aVal === 'number' && typeof bVal === 'number'
-          ? aVal - bVal
-          : String(aVal).localeCompare(String(bVal), 'fr');
+        const comparison =
+          typeof aVal === 'number' && typeof bVal === 'number'
+            ? aVal - bVal
+            : String(aVal).localeCompare(String(bVal), 'fr');
 
         return direction === 'desc' ? -comparison : comparison;
       });
@@ -304,23 +303,27 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
 
   private _announce(message: string) {
     this._liveAnnouncement = '';
-    requestAnimationFrame(() => { this._liveAnnouncement = message; });
+    requestAnimationFrame(() => {
+      this._liveAnnouncement = message;
+    });
   }
 
   private _handleSort(key: string) {
     const columns = this.parseColumns();
-    const label = columns.find(c => c.key === key)?.label ?? key;
+    const label = columns.find((c) => c.key === key)?.label ?? key;
     if (this._sort?.key === key) {
       this._sort = { key, direction: this._sort.direction === 'asc' ? 'desc' : 'asc' };
     } else {
       this._sort = { key, direction: 'asc' };
     }
-    this._announce(`Tri par ${label}, ordre ${this._sort.direction === 'asc' ? 'croissant' : 'decroissant'}`);
+    this._announce(
+      `Tri par ${label}, ordre ${this._sort.direction === 'asc' ? 'croissant' : 'decroissant'}`
+    );
 
     // In server-tri mode, delegate sorting to the upstream source
     if (this.serverTri && this.source) {
       dispatchSourceCommand(this.source, {
-        orderBy: `${this._sort.key}:${this._sort.direction}`
+        orderBy: `${this._sort.key}:${this._sort.direction}`,
       });
     }
   }
@@ -343,14 +346,14 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
     const columns = this.parseColumns();
     const data = this.getFilteredData();
 
-    const header = columns.map(c => c.label).join(';');
-    const rows = data.map(item =>
-      columns.map(c => {
-        const str = String(item[c.key] ?? '');
-        return str.includes(';') || str.includes('"')
-          ? `"${str.replace(/"/g, '""')}"`
-          : str;
-      }).join(';')
+    const header = columns.map((c) => c.label).join(';');
+    const rows = data.map((item) =>
+      columns
+        .map((c) => {
+          const str = String(item[c.key] ?? '');
+          return str.includes(';') || str.includes('"') ? `"${str.replace(/"/g, '""')}"` : str;
+        })
+        .join(';')
     );
 
     const csv = [header, ...rows].join('\n');
@@ -367,18 +370,20 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
     const columns = this.parseColumns();
     const data = this.getFilteredData();
 
-    const headerCells = columns.map(c =>
-      `<th>${escapeHtml(c.label)}</th>`
-    ).join('');
+    const headerCells = columns.map((c) => `<th>${escapeHtml(c.label)}</th>`).join('');
 
-    const bodyRows = data.map(item => {
-      const cells = columns.map(c => {
-        const val = item[c.key];
-        const display = val === null || val === undefined ? '' : escapeHtml(String(val));
-        return `<td>${display}</td>`;
-      }).join('');
-      return `<tr>${cells}</tr>`;
-    }).join('\n');
+    const bodyRows = data
+      .map((item) => {
+        const cells = columns
+          .map((c) => {
+            const val = item[c.key];
+            const display = val === null || val === undefined ? '' : escapeHtml(String(val));
+            return `<td>${display}</td>`;
+          })
+          .join('');
+        return `<tr>${cells}</tr>`;
+      })
+      .join('\n');
 
     const htmlContent = `<!DOCTYPE html>
 <html lang="fr">
@@ -426,8 +431,8 @@ ${bodyRows}
 
     return html`
       <div class="dsfr-data-list__filters">
-        ${filterableColumns.map(key => {
-          const column = columns.find(c => c.key === key);
+        ${filterableColumns.map((key) => {
+          const column = columns.find((c) => c.key === key);
           const label = column?.label || key;
           const values = this._getUniqueValues(key);
 
@@ -440,9 +445,13 @@ ${bodyRows}
                 @change="${(e: Event) => this._handleFilter(key, e)}"
               >
                 <option value="">Tous</option>
-                ${values.map(val => html`
-                  <option value="${val}" ?selected="${this._activeFilters[key] === val}">${val}</option>
-                `)}
+                ${values.map(
+                  (val) => html`
+                    <option value="${val}" ?selected="${this._activeFilters[key] === val}">
+                      ${val}
+                    </option>
+                  `
+                )}
               </select>
             </div>
           `;
@@ -457,45 +466,50 @@ ${bodyRows}
 
     return html`
       <div class="dsfr-data-list__toolbar">
-        ${this.recherche ? html`
-          <div class="fr-search-bar" role="search">
-            <label class="fr-label fr-sr-only" for="search-${this.source}">Rechercher</label>
-            <input
-              class="fr-input"
-              type="search"
-              id="search-${this.source}"
-              placeholder="Rechercher..."
-              .value="${this._searchQuery}"
-              @input="${this._handleSearch}"
-            />
-            <button class="fr-btn" title="Rechercher" type="button">
-              <span class="fr-icon-search-line" aria-hidden="true"></span>
-            </button>
-          </div>
-        ` : html`<div></div>`}
+        ${this.recherche
+          ? html`
+              <div class="fr-search-bar" role="search">
+                <label class="fr-label fr-sr-only" for="search-${this.source}">Rechercher</label>
+                <input
+                  class="fr-input"
+                  type="search"
+                  id="search-${this.source}"
+                  placeholder="Rechercher..."
+                  .value="${this._searchQuery}"
+                  @input="${this._handleSearch}"
+                />
+                <button class="fr-btn" title="Rechercher" type="button">
+                  <span class="fr-icon-search-line" aria-hidden="true"></span>
+                </button>
+              </div>
+            `
+          : html`<div></div>`}
 
         <div class="dsfr-data-list__export-buttons">
-          ${this.export?.includes('csv') ? html`
-            <button
-              class="fr-btn fr-btn--secondary fr-btn--sm"
-              @click="${this._exportCsv}"
-              type="button"
-            >
-              <span class="fr-icon-download-line fr-icon--sm" aria-hidden="true"></span>
-              Exporter CSV
-            </button>
-          ` : ''}
-
-          ${this.export?.includes('html') ? html`
-            <button
-              class="fr-btn fr-btn--secondary fr-btn--sm"
-              @click="${this._exportHtml}"
-              type="button"
-            >
-              <span class="fr-icon-code-s-slash-line fr-icon--sm" aria-hidden="true"></span>
-              Exporter HTML
-            </button>
-          ` : ''}
+          ${this.export?.includes('csv')
+            ? html`
+                <button
+                  class="fr-btn fr-btn--secondary fr-btn--sm"
+                  @click="${this._exportCsv}"
+                  type="button"
+                >
+                  <span class="fr-icon-download-line fr-icon--sm" aria-hidden="true"></span>
+                  Exporter CSV
+                </button>
+              `
+            : ''}
+          ${this.export?.includes('html')
+            ? html`
+                <button
+                  class="fr-btn fr-btn--secondary fr-btn--sm"
+                  @click="${this._exportHtml}"
+                  type="button"
+                >
+                  <span class="fr-icon-code-s-slash-line fr-icon--sm" aria-hidden="true"></span>
+                  Exporter HTML
+                </button>
+              `
+            : ''}
         </div>
       </div>
     `;
@@ -505,47 +519,55 @@ ${bodyRows}
     return html`
       <div class="fr-table fr-table--bordered">
         <table>
-          <caption class="fr-sr-only">Liste des données</caption>
+          <caption class="fr-sr-only">
+            Liste des données
+          </caption>
           <thead>
             <tr>
-              ${columns.map(col => {
+              ${columns.map((col) => {
                 const isSorted = this._sort?.key === col.key;
                 const sortDir = isSorted ? this._sort!.direction : null;
-                const ariaSortValue = sortDir === 'asc' ? 'ascending' : sortDir === 'desc' ? 'descending' : 'none';
+                const ariaSortValue =
+                  sortDir === 'asc' ? 'ascending' : sortDir === 'desc' ? 'descending' : 'none';
                 const sortLabel = isSorted
                   ? `Trier par ${col.label}, actuellement tri ${sortDir === 'asc' ? 'croissant' : 'decroissant'}`
                   : `Trier par ${col.label}`;
                 return html`
-                <th scope="col" aria-sort="${ariaSortValue}">
-                  <button
-                    class="dsfr-data-list__sort-btn"
-                    @click="${() => this._handleSort(col.key)}"
-                    aria-label="${sortLabel}"
-                    type="button"
-                  >
-                    ${col.label}
-                    ${isSorted ? html`
-                      <span aria-hidden="true">${sortDir === 'asc' ? '↑' : '↓'}</span>
-                    ` : ''}
-                  </button>
-                </th>
-              `;})}
+                  <th scope="col" aria-sort="${ariaSortValue}">
+                    <button
+                      class="dsfr-data-list__sort-btn"
+                      @click="${() => this._handleSort(col.key)}"
+                      aria-label="${sortLabel}"
+                      type="button"
+                    >
+                      ${col.label}
+                      ${isSorted
+                        ? html` <span aria-hidden="true">${sortDir === 'asc' ? '↑' : '↓'}</span> `
+                        : ''}
+                    </button>
+                  </th>
+                `;
+              })}
             </tr>
           </thead>
           <tbody>
-            ${paginatedData.length === 0 ? html`
-              <tr>
-                <td colspan="${columns.length}" class="dsfr-data-list__empty" role="status">
-                  Aucune donnée à afficher
-                </td>
-              </tr>
-            ` : paginatedData.map(item => html`
-              <tr>
-                ${columns.map(col => html`
-                  <td>${this.formatCellValue(item[col.key])}</td>
-                `)}
-              </tr>
-            `)}
+            ${paginatedData.length === 0
+              ? html`
+                  <tr>
+                    <td colspan="${columns.length}" class="dsfr-data-list__empty" role="status">
+                      Aucune donnée à afficher
+                    </td>
+                  </tr>
+                `
+              : paginatedData.map(
+                  (item) => html`
+                    <tr>
+                      ${columns.map(
+                        (col) => html` <td>${this.formatCellValue(item[col.key])}</td> `
+                      )}
+                    </tr>
+                  `
+                )}
           </tbody>
         </table>
       </div>
@@ -556,47 +578,82 @@ ${bodyRows}
     if (this.pagination <= 0 || totalPages <= 1) return '';
 
     const pages: number[] = [];
-    for (let i = Math.max(1, this._currentPage - 2); i <= Math.min(totalPages, this._currentPage + 2); i++) {
+    for (
+      let i = Math.max(1, this._currentPage - 2);
+      i <= Math.min(totalPages, this._currentPage + 2);
+      i++
+    ) {
       pages.push(i);
     }
 
     return html`
-      <nav class="fr-pagination" aria-label="${this.getAttribute('aria-label') ? 'Pagination - ' + this.getAttribute('aria-label') : 'Pagination'}">
+      <nav
+        class="fr-pagination"
+        aria-label="${this.getAttribute('aria-label')
+          ? 'Pagination - ' + this.getAttribute('aria-label')
+          : 'Pagination'}"
+      >
         <ul class="fr-pagination__list">
           <li>
-            <button class="fr-pagination__link fr-pagination__link--first"
+            <button
+              class="fr-pagination__link fr-pagination__link--first"
               ?disabled="${this._currentPage === 1}"
               @click="${() => this._handlePageChange(1)}"
-              aria-label="Premi\u00e8re page" type="button">Premi\u00e8re page</button>
+              aria-label="Première page"
+              type="button"
+            >
+              Première page
+            </button>
           </li>
           <li>
-            <button class="fr-pagination__link fr-pagination__link--prev"
+            <button
+              class="fr-pagination__link fr-pagination__link--prev"
               ?disabled="${this._currentPage === 1}"
               @click="${() => this._handlePageChange(this._currentPage - 1)}"
-              aria-label="Page pr\u00e9c\u00e9dente" type="button">Page pr\u00e9c\u00e9dente</button>
+              aria-label="Page précédente"
+              type="button"
+            >
+              Page précédente
+            </button>
           </li>
-          ${pages.map(page => html`
-            <li>
-              <button
-                class="fr-pagination__link ${page === this._currentPage ? 'fr-pagination__link--active' : ''}"
-                @click="${() => this._handlePageChange(page)}"
-                aria-current="${page === this._currentPage ? 'page' : nothing}"
-                aria-label="Page ${page} sur ${totalPages}"
-                type="button"
-              >${page}</button>
-            </li>
-          `)}
+          ${pages.map(
+            (page) => html`
+              <li>
+                <button
+                  class="fr-pagination__link ${page === this._currentPage
+                    ? 'fr-pagination__link--active'
+                    : ''}"
+                  @click="${() => this._handlePageChange(page)}"
+                  aria-current="${page === this._currentPage ? 'page' : nothing}"
+                  aria-label="Page ${page} sur ${totalPages}"
+                  type="button"
+                >
+                  ${page}
+                </button>
+              </li>
+            `
+          )}
           <li>
-            <button class="fr-pagination__link fr-pagination__link--next"
+            <button
+              class="fr-pagination__link fr-pagination__link--next"
               ?disabled="${this._currentPage === totalPages}"
               @click="${() => this._handlePageChange(this._currentPage + 1)}"
-              aria-label="Page suivante" type="button">Page suivante</button>
+              aria-label="Page suivante"
+              type="button"
+            >
+              Page suivante
+            </button>
           </li>
           <li>
-            <button class="fr-pagination__link fr-pagination__link--last"
+            <button
+              class="fr-pagination__link fr-pagination__link--last"
               ?disabled="${this._currentPage === totalPages}"
               @click="${() => this._handlePageChange(totalPages)}"
-              aria-label="Derni\u00e8re page" type="button">Derni\u00e8re page</button>
+              aria-label="Dernière page"
+              type="button"
+            >
+              Dernière page
+            </button>
           </li>
         </ul>
       </nav>
@@ -610,32 +667,45 @@ ${bodyRows}
     const filterableColumns = this._getFilterableColumns();
     const paginatedData = this._getPaginatedData();
     const totalPages = this._getTotalPages();
-    const totalFiltered = this._serverPagination ? this._serverTotal : this.getFilteredData().length;
+    const totalFiltered = this._serverPagination
+      ? this._serverTotal
+      : this.getFilteredData().length;
 
     return html`
-      <div class="dsfr-data-list" role="region" aria-label="${this.getAttribute('aria-label') || 'Liste de donnees'}">
-        ${this._renderFilters(columns, filterableColumns)}
-        ${this._renderToolbar()}
+      <div
+        class="dsfr-data-list"
+        role="region"
+        aria-label="${this.getAttribute('aria-label') || 'Liste de donnees'}"
+      >
+        ${this._renderFilters(columns, filterableColumns)} ${this._renderToolbar()}
 
-        <div aria-live="polite" aria-atomic="true" class="fr-sr-only">${this._liveAnnouncement}</div>
-        ${this._sourceLoading ? html`
-          <div class="dsfr-data-list__loading" aria-live="polite" aria-busy="true">
-            <span class="fr-icon-loader-4-line" aria-hidden="true"></span>
-            Chargement des données...
-          </div>
-        ` : this._sourceError && !(this._serverPagination && this._data.length > 0) ? html`
-          <div class="dsfr-data-list__error" aria-live="assertive" role="alert">
-            <span class="fr-icon-error-line" aria-hidden="true"></span>
-            Erreur: ${this._sourceError.message}
-          </div>
-        ` : html`
-          <p class="fr-text--sm" aria-live="polite" aria-atomic="true" role="status">
-            ${totalFiltered} résultat${totalFiltered > 1 ? 's' : ''}
-            ${!this._serverPagination && (this._searchQuery || Object.values(this._activeFilters).some(v => v)) ? ' (filtré)' : ''}
-          </p>
-          ${this._renderTable(columns, paginatedData)}
-          ${this._renderPagination(totalPages)}
-        `}
+        <div aria-live="polite" aria-atomic="true" class="fr-sr-only">
+          ${this._liveAnnouncement}
+        </div>
+        ${this._sourceLoading
+          ? html`
+              <div class="dsfr-data-list__loading" aria-live="polite" aria-busy="true">
+                <span class="fr-icon-loader-4-line" aria-hidden="true"></span>
+                Chargement des données...
+              </div>
+            `
+          : this._sourceError && !(this._serverPagination && this._data.length > 0)
+            ? html`
+                <div class="dsfr-data-list__error" aria-live="assertive" role="alert">
+                  <span class="fr-icon-error-line" aria-hidden="true"></span>
+                  Erreur: ${this._sourceError.message}
+                </div>
+              `
+            : html`
+                <p class="fr-text--sm" aria-live="polite" aria-atomic="true" role="status">
+                  ${totalFiltered} résultat${totalFiltered > 1 ? 's' : ''}
+                  ${!this._serverPagination &&
+                  (this._searchQuery || Object.values(this._activeFilters).some((v) => v))
+                    ? ' (filtré)'
+                    : ''}
+                </p>
+                ${this._renderTable(columns, paginatedData)} ${this._renderPagination(totalPages)}
+              `}
       </div>
 
       <style>
@@ -645,33 +715,71 @@ ${bodyRows}
           gap: 1rem;
           margin-bottom: 1rem;
         }
-        .dsfr-data-list__filters .fr-select-group { margin-bottom: 0; }
-        .dsfr-data-list__toolbar {
-          display: flex; flex-wrap: wrap; gap: 1rem;
-          align-items: center; justify-content: space-between; margin-bottom: 1rem;
+        .dsfr-data-list__filters .fr-select-group {
+          margin-bottom: 0;
         }
-        .dsfr-data-list__toolbar .fr-search-bar { flex: 1; min-width: 200px; max-width: 400px; }
+        .dsfr-data-list__toolbar {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 1rem;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 1rem;
+        }
+        .dsfr-data-list__toolbar .fr-search-bar {
+          flex: 1;
+          min-width: 200px;
+          max-width: 400px;
+        }
         @media (max-width: 576px) {
-          .dsfr-data-list__filters { grid-template-columns: 1fr; }
-          .dsfr-data-list__toolbar { flex-direction: column; align-items: stretch; }
-          .dsfr-data-list__toolbar .fr-search-bar { max-width: none; }
+          .dsfr-data-list__filters {
+            grid-template-columns: 1fr;
+          }
+          .dsfr-data-list__toolbar {
+            flex-direction: column;
+            align-items: stretch;
+          }
+          .dsfr-data-list__toolbar .fr-search-bar {
+            max-width: none;
+          }
         }
         .dsfr-data-list__export-buttons {
-          display: flex; gap: 0.5rem; flex-wrap: wrap;
+          display: flex;
+          gap: 0.5rem;
+          flex-wrap: wrap;
         }
         .dsfr-data-list__sort-btn {
-          background: none; border: none; cursor: pointer;
-          font-weight: 700; font-size: inherit; font-family: inherit;
-          display: flex; align-items: center; gap: 0.25rem;
+          background: none;
+          border: none;
+          cursor: pointer;
+          font-weight: 700;
+          font-size: inherit;
+          font-family: inherit;
+          display: flex;
+          align-items: center;
+          gap: 0.25rem;
         }
-        .dsfr-data-list__sort-btn:hover { text-decoration: underline; }
+        .dsfr-data-list__sort-btn:hover {
+          text-decoration: underline;
+        }
         .dsfr-data-list__loading,
         .dsfr-data-list__error {
-          display: flex; align-items: center; justify-content: center;
-          gap: 0.5rem; padding: 2rem; color: var(--text-mention-grey, #666); font-size: 0.875rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.5rem;
+          padding: 2rem;
+          color: var(--text-mention-grey, #666);
+          font-size: 0.875rem;
         }
-        .dsfr-data-list__error { color: var(--text-default-error, #ce0500); }
-        .dsfr-data-list__empty { text-align: center; color: var(--text-mention-grey); padding: 2rem !important; }
+        .dsfr-data-list__error {
+          color: var(--text-default-error, #ce0500);
+        }
+        .dsfr-data-list__empty {
+          text-align: center;
+          color: var(--text-mention-grey);
+          padding: 2rem !important;
+        }
       </style>
     `;
   }

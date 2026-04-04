@@ -37,8 +37,14 @@ interface GristApi {
   setOptions(options: Record<string, unknown>): Promise<void>;
   getOption(key: string): Promise<unknown>;
   getOptions(): Promise<Record<string, unknown> | null>;
-  mapColumnNames(records: GristRecord[], mappings?: GristColumnMappings): Record<string, unknown>[] | null;
-  mapColumnNamesBack(record: Record<string, unknown>, mappings?: GristColumnMappings): Record<string, unknown>;
+  mapColumnNames(
+    records: GristRecord[],
+    mappings?: GristColumnMappings
+  ): Record<string, unknown>[] | null;
+  mapColumnNamesBack(
+    record: Record<string, unknown>,
+    mappings?: GristColumnMappings
+  ): Record<string, unknown>;
   getTable(): GristTableApi;
   on(event: string, callback: (...args: unknown[]) => void): void;
   onNewRecord(callback: (record: GristRecord) => void): void;
@@ -58,7 +64,9 @@ interface GristDocApi {
   getDocName(): Promise<string>;
   listTables(): Promise<string[]>;
   fetchTable(tableId: string): Promise<Record<string, unknown[]>>;
-  getAccessToken(options: { readOnly: boolean }): Promise<{ baseUrl: string; token: string; ttl: number }>;
+  getAccessToken(options: {
+    readOnly: boolean;
+  }): Promise<{ baseUrl: string; token: string; ttl: number }>;
 }
 
 declare const grist: GristApi;
@@ -72,11 +80,14 @@ interface DsfrDataApi {
   dispatchDataError(sourceId: string, error: Error): void;
   dispatchDataLoading(sourceId: string): void;
   getDataCache(sourceId: string): unknown | undefined;
-  subscribeToSource(sourceId: string, callbacks: {
-    onLoaded?: (data: unknown) => void;
-    onError?: (error: Error) => void;
-    onLoading?: () => void;
-  }): () => void;
+  subscribeToSource(
+    sourceId: string,
+    callbacks: {
+      onLoaded?: (data: unknown) => void;
+      onError?: (error: Error) => void;
+      onLoading?: () => void;
+    }
+  ): () => void;
   DATA_EVENTS: {
     LOADED: 'dsfr-data-loaded';
     ERROR: 'dsfr-data-error';

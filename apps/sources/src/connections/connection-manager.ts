@@ -55,7 +55,8 @@ export function renderConnections(): void {
       ? '<span class="badge-source-type" style="background: #f59e0b; color: white; margin-left: 0.25rem;">Public</span>'
       : '';
 
-    const connUrl = (conn as Record<string, unknown>).url || (conn as Record<string, unknown>).apiUrl || '';
+    const connUrl =
+      (conn as Record<string, unknown>).url || (conn as Record<string, unknown>).apiUrl || '';
 
     card.innerHTML = `
       <div class="name" style="display: flex; align-items: center; gap: 0.5rem;">
@@ -111,7 +112,9 @@ export function renderConnections(): void {
 // ============================================================
 
 export async function saveConnection(): Promise<void> {
-  const connTypeEl = document.querySelector('input[name="conn-type"]:checked') as HTMLInputElement | null;
+  const connTypeEl = document.querySelector(
+    'input[name="conn-type"]:checked'
+  ) as HTMLInputElement | null;
   const connType = connTypeEl?.value ?? 'grist';
   const nameEl = document.getElementById('conn-name') as HTMLInputElement | null;
   const name = nameEl?.value.trim() ?? '';
@@ -164,9 +167,7 @@ export async function saveGristConnection(name: string): Promise<void> {
   const useLocalProxy = isViteDevMode();
   let testUrl: string;
   if (url.includes('docs.getgrist.com')) {
-    testUrl = useLocalProxy
-      ? '/grist-proxy/api/orgs'
-      : `${EXTERNAL_PROXY}/grist-proxy/api/orgs`;
+    testUrl = useLocalProxy ? '/grist-proxy/api/orgs' : `${EXTERNAL_PROXY}/grist-proxy/api/orgs`;
   } else if (url.includes('grist.numerique.gouv.fr')) {
     testUrl = useLocalProxy
       ? '/grist-gouv-proxy/api/orgs'
@@ -184,7 +185,7 @@ export async function saveGristConnection(name: string): Promise<void> {
   const orgs: unknown[] = await response.json();
 
   const editingConn = state.editingConnectionId
-    ? state.connections.find(c => c.id === state.editingConnectionId)
+    ? state.connections.find((c) => c.id === state.editingConnectionId)
     : null;
 
   const connection: StoredConnection = {
@@ -263,7 +264,7 @@ export async function saveApiConnection(name: string): Promise<void> {
   const count = isArray ? (data as unknown[]).length : data ? 1 : 0;
 
   const editingConn = state.editingConnectionId
-    ? state.connections.find(c => c.id === state.editingConnectionId)
+    ? state.connections.find((c) => c.id === state.editingConnectionId)
     : null;
 
   const connection: StoredConnection = {
@@ -297,7 +298,7 @@ export async function saveApiConnection(name: string): Promise<void> {
 // ============================================================
 
 export function editConnection(id: string): void {
-  const conn = state.connections.find(c => c.id === id);
+  const conn = state.connections.find((c) => c.id === id);
   if (!conn) return;
 
   state.editingConnectionId = id;
@@ -330,10 +331,13 @@ export function editConnection(id: string): void {
     const apiHeadersEl = document.getElementById('api-headers') as HTMLTextAreaElement | null;
     const apiDataPathEl = document.getElementById('api-data-path') as HTMLInputElement | null;
 
-    if (apiUrlEl) apiUrlEl.value = (conn as Record<string, unknown>).apiUrl as string || '';
-    if (apiMethodEl) apiMethodEl.value = (conn as Record<string, unknown>).method as string || 'GET';
-    if (apiHeadersEl) apiHeadersEl.value = (conn as Record<string, unknown>).headers as string || '';
-    if (apiDataPathEl) apiDataPathEl.value = (conn as Record<string, unknown>).dataPath as string || '';
+    if (apiUrlEl) apiUrlEl.value = ((conn as Record<string, unknown>).apiUrl as string) || '';
+    if (apiMethodEl)
+      apiMethodEl.value = ((conn as Record<string, unknown>).method as string) || 'GET';
+    if (apiHeadersEl)
+      apiHeadersEl.value = ((conn as Record<string, unknown>).headers as string) || '';
+    if (apiDataPathEl)
+      apiDataPathEl.value = ((conn as Record<string, unknown>).dataPath as string) || '';
   } else {
     const gristRadio = document.getElementById('conn-type-grist') as HTMLInputElement | null;
     if (gristRadio) gristRadio.checked = true;
@@ -347,9 +351,11 @@ export function editConnection(id: string): void {
     const publicEl = document.getElementById('conn-public') as HTMLInputElement | null;
     const apiKeyEl = document.getElementById('conn-api-key') as HTMLInputElement | null;
 
-    if (urlEl) urlEl.value = (conn as Record<string, unknown>).url as string || 'https://grist.numerique.gouv.fr';
+    if (urlEl)
+      urlEl.value =
+        ((conn as Record<string, unknown>).url as string) || 'https://grist.numerique.gouv.fr';
     if (publicEl) publicEl.checked = !!(conn as Record<string, unknown>).isPublic;
-    if (apiKeyEl) apiKeyEl.value = (conn as Record<string, unknown>).apiKey as string || '';
+    if (apiKeyEl) apiKeyEl.value = ((conn as Record<string, unknown>).apiKey as string) || '';
 
     // Show/hide API key field based on public mode
     const apiKeyGroup = document.getElementById('api-key-group');
@@ -367,7 +373,7 @@ export function editConnection(id: string): void {
 }
 
 export function deleteConnection(id: string): void {
-  state.connections = state.connections.filter(c => c.id !== id);
+  state.connections = state.connections.filter((c) => c.id !== id);
   saveToStorage(STORAGE_KEYS.CONNECTIONS, state.connections);
   getApiAdapter()?.deleteItemFromServer(STORAGE_KEYS.CONNECTIONS, id);
   if (state.selectedConnectionId === id) {
@@ -384,7 +390,7 @@ export async function selectConnection(id: string): Promise<void> {
   state.previewedSource = null;
   renderConnections();
 
-  const conn = state.connections.find(c => c.id === id);
+  const conn = state.connections.find((c) => c.id === id);
   if (!conn) return;
   const titleEl = document.getElementById('explorer-title');
   const emptyEl = document.getElementById('explorer-empty');
@@ -488,7 +494,7 @@ export function switchExplorerTab(tabId: string): void {
   });
 
   const tabBtn = document.querySelector(
-    `.explorer-tabs:not(#source-mode-tabs) [data-tab="${tabId}"]`,
+    `.explorer-tabs:not(#source-mode-tabs) [data-tab="${tabId}"]`
   );
   const tabPanel = document.getElementById(`tab-${tabId}`);
 
@@ -597,14 +603,14 @@ export function renderSources(): void {
 // ============================================================
 
 export function deleteSource(id: string): void {
-  state.sources = state.sources.filter(s => s.id !== id);
+  state.sources = state.sources.filter((s) => s.id !== id);
   saveToStorage(STORAGE_KEYS.SOURCES, state.sources);
   getApiAdapter()?.deleteItemFromServer(STORAGE_KEYS.SOURCES, id);
   renderSources();
 }
 
 export function previewSource(id: string): void {
-  const source = state.sources.find(s => s.id === id);
+  const source = state.sources.find((s) => s.id === id);
   if (!source) return;
 
   state.previewedSource = source;
@@ -631,7 +637,8 @@ export function previewSource(id: string): void {
 
   // Show export button for manual and join sources (local data)
   const exportBtn = document.getElementById('export-grist-btn');
-  if (exportBtn) exportBtn.style.display = (source.type === 'manual' || source.type === 'join') ? '' : 'none';
+  if (exportBtn)
+    exportBtn.style.display = source.type === 'manual' || source.type === 'join' ? '' : 'none';
 
   // Render preview table
   const info = document.getElementById('preview-info');
@@ -658,7 +665,7 @@ export function previewSource(id: string): void {
         (record) =>
           '<tr>' +
           columns.map((col) => `<td>${escapeHtml(String(record[col] ?? ''))}</td>`).join('') +
-          '</tr>',
+          '</tr>'
       )
       .join('');
   }
@@ -688,7 +695,7 @@ export function saveAsFavorite(): void {
     return;
   }
 
-  state.sources.push(source as unknown as typeof state.sources[0]);
+  state.sources.push(source as unknown as (typeof state.sources)[0]);
   saveToStorage(STORAGE_KEYS.SOURCES, state.sources);
   renderSources();
   toastSuccess('Source enregistree !');
@@ -729,7 +736,7 @@ export function openExportGristModal(): void {
 export async function loadExportDocuments(): Promise<void> {
   const selectEl = document.getElementById('export-connection') as HTMLSelectElement | null;
   const connId = selectEl?.value ?? '';
-  const conn = state.connections.find(c => c.id === connId);
+  const conn = state.connections.find((c) => c.id === connId);
 
   const docSelect = document.getElementById('export-document') as HTMLSelectElement | null;
   if (!docSelect || !conn || conn.type !== 'grist') return;
@@ -737,12 +744,11 @@ export async function loadExportDocuments(): Promise<void> {
   docSelect.innerHTML = '<option value="">Chargement...</option>';
 
   try {
-    const gristApiKey = (conn as Record<string, unknown>).isPublic ? null : (conn as Record<string, unknown>).apiKey as string | null;
+    const gristApiKey = (conn as Record<string, unknown>).isPublic
+      ? null
+      : ((conn as Record<string, unknown>).apiKey as string | null);
 
-    const proxyUrl = getProxyUrl(
-      (conn as Record<string, unknown>).url as string,
-      '/orgs',
-    );
+    const proxyUrl = getProxyUrl((conn as Record<string, unknown>).url as string, '/orgs');
     const orgsResp = await fetch(proxyUrl, { headers: buildGristHeaders(gristApiKey) });
     const orgs = (await orgsResp.json()) as Array<{ id: number; name: string }>;
 
@@ -751,7 +757,7 @@ export async function loadExportDocuments(): Promise<void> {
     for (const org of orgs) {
       const wsUrl = getProxyUrl(
         (conn as Record<string, unknown>).url as string,
-        `/orgs/${org.id}/workspaces`,
+        `/orgs/${org.id}/workspaces`
       );
       const wsResp = await fetch(wsUrl, { headers: buildGristHeaders(gristApiKey) });
       const workspaces = (await wsResp.json()) as Array<{
@@ -770,8 +776,7 @@ export async function loadExportDocuments(): Promise<void> {
 
     docSelect.innerHTML = options;
   } catch (err) {
-    docSelect.innerHTML =
-      '<option value="">Erreur de chargement</option>';
+    docSelect.innerHTML = '<option value="">Erreur de chargement</option>';
     console.error('Erreur chargement documents export:', err);
   }
 
@@ -801,7 +806,7 @@ export async function exportToGrist(): Promise<void> {
   const connId = connEl?.value ?? '';
   const docId = docEl?.value ?? '';
   const tableName = nameEl?.value.trim() ?? '';
-  const conn = state.connections.find(c => c.id === connId);
+  const conn = state.connections.find((c) => c.id === connId);
 
   if (!conn || !docId || !tableName) return;
 
@@ -812,8 +817,10 @@ export async function exportToGrist(): Promise<void> {
 
   try {
     const headers = buildGristHeaders(
-      (conn as Record<string, unknown>).isPublic ? null : (conn as Record<string, unknown>).apiKey as string | null,
-      { contentType: true },
+      (conn as Record<string, unknown>).isPublic
+        ? null
+        : ((conn as Record<string, unknown>).apiKey as string | null),
+      { contentType: true }
     );
 
     // Sanitize column IDs for Grist
@@ -842,7 +849,7 @@ export async function exportToGrist(): Promise<void> {
     // Create table
     const createTableUrl = getProxyUrl(
       (conn as Record<string, unknown>).url as string,
-      `/docs/${docId}/tables`,
+      `/docs/${docId}/tables`
     );
     const createResponse = await fetch(createTableUrl, {
       method: 'POST',
@@ -868,7 +875,7 @@ export async function exportToGrist(): Promise<void> {
 
     const insertUrl = getProxyUrl(
       (conn as Record<string, unknown>).url as string,
-      `/docs/${docId}/tables/${tableName}/records`,
+      `/docs/${docId}/tables/${tableName}/records`
     );
     const insertResponse = await fetch(insertUrl, {
       method: 'POST',
@@ -899,7 +906,7 @@ export async function exportToGrist(): Promise<void> {
 // ============================================================
 
 export function openJoinModal(): void {
-  const sourcesWithData = state.sources.filter(s => s.data && s.data.length > 0);
+  const sourcesWithData = state.sources.filter((s) => s.data && s.data.length > 0);
   if (sourcesWithData.length < 2) {
     toastWarning('Il faut au moins 2 sources avec des donnees pour creer une jointure.');
     return;
@@ -908,10 +915,14 @@ export function openJoinModal(): void {
   const leftSelect = document.getElementById('join-left-source') as HTMLSelectElement | null;
   const rightSelect = document.getElementById('join-right-source') as HTMLSelectElement | null;
 
-  const options = '<option value="">-- Selectionner --</option>' +
-    sourcesWithData.map(s =>
-      `<option value="${s.id}">${escapeHtml(s.name)} (${s.recordCount || s.data!.length} lignes)</option>`,
-    ).join('');
+  const options =
+    '<option value="">-- Selectionner --</option>' +
+    sourcesWithData
+      .map(
+        (s) =>
+          `<option value="${s.id}">${escapeHtml(s.name)} (${s.recordCount || s.data!.length} lignes)</option>`
+      )
+      .join('');
 
   if (leftSelect) leftSelect.innerHTML = options;
   if (rightSelect) rightSelect.innerHTML = options;
@@ -946,8 +957,8 @@ export function updateJoinFieldsInfo(): void {
     return;
   }
 
-  const leftSource = state.sources.find(s => s.id === leftId);
-  const rightSource = state.sources.find(s => s.id === rightId);
+  const leftSource = state.sources.find((s) => s.id === leftId);
+  const rightSource = state.sources.find((s) => s.id === rightId);
 
   if (!leftSource?.data?.length || !rightSource?.data?.length) {
     fieldsInfo.style.display = 'none';
@@ -967,7 +978,7 @@ export function updateJoinFieldsInfo(): void {
   // Auto-suggest join key: first common field name
   const onEl = document.getElementById('join-on') as HTMLInputElement | null;
   if (onEl && !onEl.value) {
-    const common = leftFields.find(f => rightFields.includes(f));
+    const common = leftFields.find((f) => rightFields.includes(f));
     if (common) onEl.value = common;
   }
 }
@@ -977,8 +988,10 @@ export function previewJoinResult(): void {
   const leftId = (document.getElementById('join-left-source') as HTMLSelectElement | null)?.value;
   const rightId = (document.getElementById('join-right-source') as HTMLSelectElement | null)?.value;
   const on = (document.getElementById('join-on') as HTMLInputElement | null)?.value.trim();
-  const joinType = (document.getElementById('join-type') as HTMLSelectElement | null)?.value as JoinType;
-  const prefixRight = (document.getElementById('join-prefix-right') as HTMLInputElement | null)?.value || 'right_';
+  const joinType = (document.getElementById('join-type') as HTMLSelectElement | null)
+    ?.value as JoinType;
+  const prefixRight =
+    (document.getElementById('join-prefix-right') as HTMLInputElement | null)?.value || 'right_';
 
   const preview = document.getElementById('join-preview');
   if (!preview) return;
@@ -988,8 +1001,8 @@ export function previewJoinResult(): void {
     return;
   }
 
-  const leftSource = state.sources.find(s => s.id === leftId);
-  const rightSource = state.sources.find(s => s.id === rightId);
+  const leftSource = state.sources.find((s) => s.id === leftId);
+  const rightSource = state.sources.find((s) => s.id === rightId);
   if (!leftSource?.data?.length || !rightSource?.data?.length) {
     preview.style.display = 'none';
     return;
@@ -1011,11 +1024,17 @@ export function previewJoinResult(): void {
       const columns = Object.keys(result[0]);
       const thead = table.querySelector('thead tr');
       const tbody = table.querySelector('tbody');
-      if (thead) thead.innerHTML = columns.map(c => `<th>${escapeHtml(c)}</th>`).join('');
+      if (thead) thead.innerHTML = columns.map((c) => `<th>${escapeHtml(c)}</th>`).join('');
       if (tbody) {
-        tbody.innerHTML = result.slice(0, 5).map(row =>
-          '<tr>' + columns.map(c => `<td>${escapeHtml(String(row[c] ?? ''))}</td>`).join('') + '</tr>',
-        ).join('');
+        tbody.innerHTML = result
+          .slice(0, 5)
+          .map(
+            (row) =>
+              '<tr>' +
+              columns.map((c) => `<td>${escapeHtml(String(row[c] ?? ''))}</td>`).join('') +
+              '</tr>'
+          )
+          .join('');
       }
     }
 
@@ -1030,18 +1049,32 @@ export function saveJoinSource(): void {
   const leftId = (document.getElementById('join-left-source') as HTMLSelectElement | null)?.value;
   const rightId = (document.getElementById('join-right-source') as HTMLSelectElement | null)?.value;
   const on = (document.getElementById('join-on') as HTMLInputElement | null)?.value.trim();
-  const joinType = (document.getElementById('join-type') as HTMLSelectElement | null)?.value as JoinType;
-  const prefixRight = (document.getElementById('join-prefix-right') as HTMLInputElement | null)?.value || 'right_';
+  const joinType = (document.getElementById('join-type') as HTMLSelectElement | null)
+    ?.value as JoinType;
+  const prefixRight =
+    (document.getElementById('join-prefix-right') as HTMLInputElement | null)?.value || 'right_';
 
-  if (!name) { toastWarning('Veuillez saisir un nom.'); return; }
-  if (!leftId || !rightId) { toastWarning('Veuillez selectionner les deux sources.'); return; }
-  if (leftId === rightId) { toastWarning('Les deux sources doivent etre differentes.'); return; }
-  if (!on) { toastWarning('Veuillez saisir la cle de jointure.'); return; }
+  if (!name) {
+    toastWarning('Veuillez saisir un nom.');
+    return;
+  }
+  if (!leftId || !rightId) {
+    toastWarning('Veuillez selectionner les deux sources.');
+    return;
+  }
+  if (leftId === rightId) {
+    toastWarning('Les deux sources doivent etre differentes.');
+    return;
+  }
+  if (!on) {
+    toastWarning('Veuillez saisir la cle de jointure.');
+    return;
+  }
 
-  const leftSource = state.sources.find(s => s.id === leftId);
-  const rightSource = state.sources.find(s => s.id === rightId);
+  const leftSource = state.sources.find((s) => s.id === leftId);
+  const rightSource = state.sources.find((s) => s.id === rightId);
   if (!leftSource?.data || !rightSource?.data) {
-    toastWarning('Les sources selectionnees n\'ont pas de donnees.');
+    toastWarning("Les sources selectionnees n'ont pas de donnees.");
     return;
   }
 

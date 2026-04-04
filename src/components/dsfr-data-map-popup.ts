@@ -22,7 +22,6 @@ export type PopupMode = 'popup' | 'modal' | 'panel-right' | 'panel-left';
 
 @customElement('dsfr-data-map-popup')
 export class DsfrDataMapPopup extends LitElement {
-
   @property({ type: String })
   mode: PopupMode = 'popup';
 
@@ -44,7 +43,9 @@ export class DsfrDataMapPopup extends LitElement {
   _currentRecord: Record<string, unknown> | null = null;
 
   // Light DOM
-  createRenderRoot() { return this; }
+  createRenderRoot() {
+    return this;
+  }
 
   connectedCallback() {
     super.connectedCallback();
@@ -118,11 +119,14 @@ export class DsfrDataMapPopup extends LitElement {
   }
 
   private _buildAutoTable(record: Record<string, unknown>): string {
-    const keys = Object.keys(record).filter(k =>
-      !k.startsWith('geo') && k !== 'latitude' && k !== 'longitude'
-      && typeof record[k] !== 'object'
+    const keys = Object.keys(record).filter(
+      (k) =>
+        !k.startsWith('geo') &&
+        k !== 'latitude' &&
+        k !== 'longitude' &&
+        typeof record[k] !== 'object'
     );
-    const rows = keys.map(key => {
+    const rows = keys.map((key) => {
       const value = record[key];
       const display = value !== undefined ? escapeHtml(String(value)) : '';
       return `<tr><th>${escapeHtml(key)}</th><td>${display}</td></tr>`;
@@ -144,7 +148,7 @@ export class DsfrDataMapPopup extends LitElement {
       this._panelEl.className = `dsfr-data-map-popup__panel dsfr-data-map-popup__panel--${side}`;
       this._panelEl.style.width = this.width;
       this._panelEl.setAttribute('role', 'complementary');
-      this._panelEl.setAttribute('aria-label', 'Details de l\'element selectionne');
+      this._panelEl.setAttribute('aria-label', "Details de l'element selectionne");
       this._panelEl.setAttribute('aria-live', 'polite');
       mapParent.appendChild(this._panelEl);
       // Trigger slide-in animation
@@ -215,7 +219,9 @@ export class DsfrDataMapPopup extends LitElement {
     document.body.appendChild(this._modalEl);
 
     // Focus trap: focus close button
-    const closeBtn = this._modalEl.querySelector('.dsfr-data-map-popup__modal-close') as HTMLElement;
+    const closeBtn = this._modalEl.querySelector(
+      '.dsfr-data-map-popup__modal-close'
+    ) as HTMLElement;
     setTimeout(() => closeBtn?.focus(), 50);
 
     // Close on button click

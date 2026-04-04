@@ -37,7 +37,9 @@ export async function initAuth(): Promise<void> {
 
   // Hook saveToStorage so existing sync writes also sync to API
   setSaveHook((key, data) => {
-    _apiAdapter!.save(key, data).catch(() => { /* handled by SyncQueue */ });
+    _apiAdapter!.save(key, data).catch(() => {
+      /* handled by SyncQueue */
+    });
   });
 
   // Prefetch from server to update localStorage cache

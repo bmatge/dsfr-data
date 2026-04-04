@@ -24,17 +24,19 @@ router.get('/', requireAuth, async (req, res) => {
        JOIN group_members gm ON g.id = gm.group_id
        WHERE gm.user_id = ?
        ORDER BY g.name`,
-      [authReq.user!.userId],
+      [authReq.user!.userId]
     );
 
     // Add member count to each group
-    const result = await Promise.all(groups.map(async g => {
-      const countRow = await queryOne<{ count: number }>(
-        'SELECT COUNT(*) as count FROM group_members WHERE group_id = ?',
-        [g.id],
-      );
-      return { ...g, memberCount: countRow?.count ?? 0 };
-    }));
+    const result = await Promise.all(
+      groups.map(async (g) => {
+        const countRow = await queryOne<{ count: number }>(
+          'SELECT COUNT(*) as count FROM group_members WHERE group_id = ?',
+          [g.id]
+        );
+        return { ...g, memberCount: countRow?.count ?? 0 };
+      })
+    );
 
     res.json(result);
   } catch (err) {
@@ -58,16 +60,19 @@ router.post('/', requireAuth, async (req, res) => {
 
     const id = uuidv4();
 
-    await execute(
-      'INSERT INTO `groups` (id, name, description, created_by) VALUES (?, ?, ?, ?)',
-      [id, name, description || null, authReq.user!.userId],
-    );
+    await execute('INSERT INTO `groups` (id, name, description, created_by) VALUES (?, ?, ?, ?)', [
+      id,
+      name,
+      description || null,
+      authReq.user!.userId,
+    ]);
 
     // Creator becomes admin of the group
-    await execute(
-      'INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, ?)',
-      [id, authReq.user!.userId, 'admin'],
-    );
+    await execute('INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, ?)', [
+      id,
+      authReq.user!.userId,
+      'admin',
+    ]);
 
     const group = await queryOne('SELECT * FROM `groups` WHERE id = ?', [id]);
     res.status(201).json({ ...group, memberCount: 1 });
@@ -87,7 +92,7 @@ router.put('/:id', requireAuth, async (req, res) => {
     // Check admin role in group
     const membership = await queryOne<{ role: string }>(
       'SELECT role FROM group_members WHERE group_id = ? AND user_id = ?',
-      [req.params.id, authReq.user!.userId],
+      [req.params.id, authReq.user!.userId]
     );
 
     if (!membership || membership.role !== 'admin') {
@@ -97,10 +102,11 @@ router.put('/:id', requireAuth, async (req, res) => {
 
     const { name, description } = req.body;
     if (name) {
-      await execute(
-        'UPDATE `groups` SET name = ?, description = ? WHERE id = ?',
-        [name, description ?? null, req.params.id],
-      );
+      await execute('UPDATE `groups` SET name = ?, description = ? WHERE id = ?', [
+        name,
+        description ?? null,
+        req.params.id,
+      ]);
     }
 
     const group = await queryOne('SELECT * FROM `groups` WHERE id = ?', [req.params.id]);
@@ -120,7 +126,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
 
     const membership = await queryOne<{ role: string }>(
       'SELECT role FROM group_members WHERE group_id = ? AND user_id = ?',
-      [req.params.id, authReq.user!.userId],
+      [req.params.id, authReq.user!.userId]
     );
 
     if (!membership || membership.role !== 'admin') {
@@ -129,7 +135,9 @@ router.delete('/:id', requireAuth, async (req, res) => {
     }
 
     // Delete group shares
-    await execute("DELETE FROM shares WHERE target_type = 'group' AND target_id = ?", [req.params.id]);
+    await execute("DELETE FROM shares WHERE target_type = 'group' AND target_id = ?", [
+      req.params.id,
+    ]);
     // Delete group (cascades to group_members)
     await execute('DELETE FROM `groups` WHERE id = ?', [req.params.id]);
 
@@ -150,7 +158,7 @@ router.get('/:id/members', requireAuth, async (req, res) => {
     // Check membership
     const membership = await queryOne(
       'SELECT role FROM group_members WHERE group_id = ? AND user_id = ?',
-      [req.params.id, authReq.user!.userId],
+      [req.params.id, authReq.user!.userId]
     );
 
     if (!membership) {
@@ -164,15 +172,17 @@ router.get('/:id/members', requireAuth, async (req, res) => {
        JOIN users u ON u.id = gm.user_id
        WHERE gm.group_id = ?
        ORDER BY gm.role DESC, u.display_name`,
-      [req.params.id],
+      [req.params.id]
     );
 
-    res.json(members.map(m => ({
-      id: m.id,
-      email: m.email,
-      displayName: m.display_name,
-      role: m.role,
-    })));
+    res.json(
+      members.map((m) => ({
+        id: m.id,
+        email: m.email,
+        displayName: m.display_name,
+        role: m.role,
+      }))
+    );
   } catch (err) {
     console.error('List members error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -188,7 +198,7 @@ router.post('/:id/members', requireAuth, async (req, res) => {
 
     const membership = await queryOne<{ role: string }>(
       'SELECT role FROM group_members WHERE group_id = ? AND user_id = ?',
-      [req.params.id, authReq.user!.userId],
+      [req.params.id, authReq.user!.userId]
     );
 
     if (!membership || membership.role !== 'admin') {
@@ -212,7 +222,7 @@ router.post('/:id/members', requireAuth, async (req, res) => {
     // Check not already a member
     const existing = await queryOne(
       'SELECT user_id FROM group_members WHERE group_id = ? AND user_id = ?',
-      [req.params.id, userId],
+      [req.params.id, userId]
     );
 
     if (existing) {
@@ -220,10 +230,11 @@ router.post('/:id/members', requireAuth, async (req, res) => {
       return;
     }
 
-    await execute(
-      'INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, ?)',
-      [req.params.id, userId, role || 'member'],
-    );
+    await execute('INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, ?)', [
+      req.params.id,
+      userId,
+      role || 'member',
+    ]);
 
     res.status(201).json({ ok: true });
   } catch (err) {
@@ -241,7 +252,7 @@ router.delete('/:id/members/:userId', requireAuth, async (req, res) => {
 
     const membership = await queryOne<{ role: string }>(
       'SELECT role FROM group_members WHERE group_id = ? AND user_id = ?',
-      [req.params.id, authReq.user!.userId],
+      [req.params.id, authReq.user!.userId]
     );
 
     if (!membership || membership.role !== 'admin') {
@@ -253,7 +264,7 @@ router.delete('/:id/members/:userId', requireAuth, async (req, res) => {
     if (req.params.userId === authReq.user!.userId) {
       const adminCount = await queryOne<{ count: number }>(
         "SELECT COUNT(*) as count FROM group_members WHERE group_id = ? AND role = 'admin'",
-        [req.params.id],
+        [req.params.id]
       );
 
       if ((adminCount?.count ?? 0) <= 1) {
@@ -262,10 +273,10 @@ router.delete('/:id/members/:userId', requireAuth, async (req, res) => {
       }
     }
 
-    await execute(
-      'DELETE FROM group_members WHERE group_id = ? AND user_id = ?',
-      [req.params.id, req.params.userId],
-    );
+    await execute('DELETE FROM group_members WHERE group_id = ? AND user_id = ?', [
+      req.params.id,
+      req.params.userId,
+    ]);
 
     res.json({ ok: true });
   } catch (err) {

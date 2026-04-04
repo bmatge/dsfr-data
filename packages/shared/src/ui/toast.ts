@@ -24,7 +24,7 @@ function getOrCreateContainer(): HTMLElement {
 export function showToast(
   message: string,
   type: ToastType = 'info',
-  duration: number = DEFAULT_DURATION,
+  duration: number = DEFAULT_DURATION
 ): void {
   const container = getOrCreateContainer();
 

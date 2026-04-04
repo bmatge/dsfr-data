@@ -26,7 +26,7 @@ const QUEUE_STORAGE_KEY = 'dsfr-data-sync-queue';
 
 let _status: SyncStatus = 'idle';
 let _errorCount = 0;
-let _listeners: Set<SyncStatusCallback> = new Set();
+const _listeners: Set<SyncStatusCallback> = new Set();
 let _queue: SyncOperation[] = [];
 let _processing = false;
 let _baseUrl = '';
@@ -40,7 +40,9 @@ function persistQueue(): void {
     } else {
       localStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(_queue));
     }
-  } catch { /* QuotaExceeded or unavailable — continue without persistence */ }
+  } catch {
+    /* QuotaExceeded or unavailable — continue without persistence */
+  }
 }
 
 function restoreQueue(): SyncOperation[] {
@@ -62,7 +64,11 @@ function setStatus(status: SyncStatus, errors: number): void {
   _status = status;
   _errorCount = errors;
   for (const cb of _listeners) {
-    try { cb(_status, _errorCount); } catch { /* ignore */ }
+    try {
+      cb(_status, _errorCount);
+    } catch {
+      /* ignore */
+    }
   }
 }
 
@@ -70,8 +76,14 @@ function setStatus(status: SyncStatus, errors: number): void {
 export function onSyncStatusChange(cb: SyncStatusCallback): () => void {
   _listeners.add(cb);
   // Immediately notify current state
-  try { cb(_status, _errorCount); } catch { /* ignore */ }
-  return () => { _listeners.delete(cb); };
+  try {
+    cb(_status, _errorCount);
+  } catch {
+    /* ignore */
+  }
+  return () => {
+    _listeners.delete(cb);
+  };
 }
 
 /** Get current sync status */
@@ -91,7 +103,11 @@ export function setSyncBaseUrl(url: string): void {
 }
 
 /** Enqueue a sync operation */
-export function enqueueSync(method: 'POST' | 'PUT' | 'DELETE', endpoint: string, body?: unknown): void {
+export function enqueueSync(
+  method: 'POST' | 'PUT' | 'DELETE',
+  endpoint: string,
+  body?: unknown
+): void {
   const url = `${_baseUrl}${endpoint}`;
   _queue.push({
     method,
@@ -104,13 +120,16 @@ export function enqueueSync(method: 'POST' | 'PUT' | 'DELETE', endpoint: string,
 }
 
 /** Sync an array of items to an API endpoint (smart diff without implicit DELETE) */
-export async function syncItems(endpoint: string, items: { id?: string; [key: string]: unknown }[]): Promise<void> {
+export async function syncItems(
+  endpoint: string,
+  items: { id?: string; [key: string]: unknown }[]
+): Promise<void> {
   if (!items || items.length === 0) return;
 
   setStatus('syncing', _errorCount);
 
   // Get current remote items
-  let remoteItems: { id: string }[] = [];
+  let remoteItems: { id: string }[];
   try {
     const response = await fetch(`${_baseUrl}${endpoint}`, {
       credentials: 'include',
@@ -129,16 +148,14 @@ export async function syncItems(endpoint: string, items: { id?: string; [key: st
     return;
   }
 
-  const remoteIds = new Set(remoteItems.map(r => r.id));
+  const remoteIds = new Set(remoteItems.map((r) => r.id));
 
   // Create or update local items on the server
   for (const item of items) {
     if (!item.id) continue;
 
     const method = remoteIds.has(item.id) ? 'PUT' : 'POST';
-    const url = method === 'PUT'
-      ? `${endpoint}/${item.id}`
-      : endpoint;
+    const url = method === 'PUT' ? `${endpoint}/${item.id}` : endpoint;
 
     enqueueSync(method, url, item);
   }
@@ -193,7 +210,7 @@ async function processQueue(): Promise<void> {
       } else {
         // Exponential backoff
         const delay = BACKOFF_BASE_MS * Math.pow(2, op.retries - 1);
-        await new Promise(resolve => setTimeout(resolve, delay));
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
   }
@@ -210,5 +227,9 @@ export function _resetSyncQueue(): void {
   _errorCount = 0;
   _listeners.clear();
   _baseUrl = '';
-  try { localStorage.removeItem(QUEUE_STORAGE_KEY); } catch { /* ignore */ }
+  try {
+    localStorage.removeItem(QUEUE_STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
 }

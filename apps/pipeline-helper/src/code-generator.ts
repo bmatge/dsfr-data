@@ -5,8 +5,8 @@ interface GraphNode {
   node: PipelineNode;
   id: string;
   htmlId: string;
-  sourceId?: string;  // html id of the source= attribute target
-  forId?: string;     // html id of the for= attribute target (a11y)
+  sourceId?: string; // html id of the source= attribute target
+  forId?: string; // html id of the for= attribute target (a11y)
 }
 
 /**
@@ -58,13 +58,15 @@ export function generateCode(
 
   // Sort nodes by dependency order (sources first, then transforms, then display)
   const categoryOrder: Record<string, number> = {
-    source: 0, transform: 1, interact: 2, display: 3, a11y: 4,
+    source: 0,
+    transform: 1,
+    interact: 2,
+    display: 3,
+    a11y: 4,
   };
   const sorted = [...graphNodes.values()]
-    .filter(gn => gn.node.component !== '__output__') // Skip virtual output nodes
-    .sort(
-      (a, b) => (categoryOrder[a.node.category] ?? 5) - (categoryOrder[b.node.category] ?? 5)
-    );
+    .filter((gn) => gn.node.component !== '__output__') // Skip virtual output nodes
+    .sort((a, b) => (categoryOrder[a.node.category] ?? 5) - (categoryOrder[b.node.category] ?? 5));
 
   // Generate HTML
   const lines: string[] = [];
@@ -117,12 +119,18 @@ export function generateCode(
 
 function getCategoryComment(cat: string): string {
   switch (cat) {
-    case 'source': return 'Source de donnees (fetch)';
-    case 'transform': return 'Transformation (filter, group, sort)';
-    case 'interact': return 'Interaction (recherche, facettes)';
-    case 'display': return 'Affichage (graphique, liste, KPI)';
-    case 'a11y': return 'Accessibilite';
-    default: return cat;
+    case 'source':
+      return 'Source de donnees (fetch)';
+    case 'transform':
+      return 'Transformation (filter, group, sort)';
+    case 'interact':
+      return 'Interaction (recherche, facettes)';
+    case 'display':
+      return 'Affichage (graphique, liste, KPI)';
+    case 'a11y':
+      return 'Accessibilite';
+    default:
+      return cat;
   }
 }
 
@@ -135,5 +143,9 @@ function isBooleanAttr(node: PipelineNode, key: string): boolean {
 }
 
 function escapeAttr(val: string): string {
-  return val.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return val
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }

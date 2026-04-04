@@ -2,7 +2,16 @@
  * Dashboard app - Dashboard CRUD operations
  */
 
-import { escapeHtml, saveToStorage, STORAGE_KEYS, toastWarning, toastSuccess, navigateTo, confirmDialog, getApiAdapter } from '@dsfr-data/shared';
+import {
+  escapeHtml,
+  saveToStorage,
+  STORAGE_KEYS,
+  toastWarning,
+  toastSuccess,
+  navigateTo,
+  confirmDialog,
+  getApiAdapter,
+} from '@dsfr-data/shared';
 import { state, createEmptyDashboard } from './state.js';
 import { resetGrid, rebuildGrid } from './grid.js';
 import { updateGeneratedCode, generateHTMLCode } from './code-generator.js';
@@ -11,7 +20,9 @@ import { updateGeneratedCode, generateHTMLCode } from './code-generator.js';
 export function openSaveModal(): void {
   const modal = document.getElementById('save-modal');
   const nameInput = document.getElementById('save-dashboard-name') as HTMLInputElement | null;
-  const descInput = document.getElementById('save-dashboard-description') as HTMLTextAreaElement | null;
+  const descInput = document.getElementById(
+    'save-dashboard-description'
+  ) as HTMLTextAreaElement | null;
   if (!modal) return;
 
   if (nameInput) nameInput.value = state.dashboard.name;
@@ -29,7 +40,9 @@ export function closeSaveModal(): void {
 /** Confirms save from the modal form */
 export function confirmSave(): void {
   const nameInput = document.getElementById('save-dashboard-name') as HTMLInputElement | null;
-  const descInput = document.getElementById('save-dashboard-description') as HTMLTextAreaElement | null;
+  const descInput = document.getElementById(
+    'save-dashboard-description'
+  ) as HTMLTextAreaElement | null;
 
   const name = nameInput?.value.trim() || '';
   if (!name) {
@@ -48,7 +61,7 @@ export function confirmSave(): void {
   }
 
   const clone = JSON.parse(JSON.stringify(state.dashboard));
-  const index = state.savedDashboards.findIndex(d => d.id === state.dashboard.id);
+  const index = state.savedDashboards.findIndex((d) => d.id === state.dashboard.id);
   if (index > -1) {
     state.savedDashboards[index] = clone;
   } else {
@@ -67,7 +80,11 @@ export function confirmSave(): void {
 
 export async function newDashboard(): Promise<void> {
   if (state.dashboard.widgets.length > 0) {
-    if (!await confirmDialog('Creer un nouveau tableau de bord ? Les modifications non sauvegardees seront perdues.')) {
+    if (
+      !(await confirmDialog(
+        'Creer un nouveau tableau de bord ? Les modifications non sauvegardees seront perdues.'
+      ))
+    ) {
       return;
     }
   }
@@ -85,9 +102,12 @@ export function openDashboardsList(): void {
   if (!modal || !list) return;
 
   if (state.savedDashboards.length === 0) {
-    list.innerHTML = '<p class="favorites-empty">Aucun tableau de bord sauvegarde.<br><span class="fr-text--sm" style="color:var(--text-mention-grey);">Utilisez la barre d\'outils pour en creer un.</span></p>';
+    list.innerHTML =
+      '<p class="favorites-empty">Aucun tableau de bord sauvegarde.<br><span class="fr-text--sm" style="color:var(--text-mention-grey);">Utilisez la barre d\'outils pour en creer un.</span></p>';
   } else {
-    list.innerHTML = state.savedDashboards.map(d => `
+    list.innerHTML = state.savedDashboards
+      .map(
+        (d) => `
       <div class="dashboard-list-item" onclick="loadDashboard('${d.id}')">
         <i class="ri-dashboard-line"></i>
         <div class="dashboard-list-item-info">
@@ -101,19 +121,21 @@ export function openDashboardsList(): void {
           <i class="ri-delete-bin-line"></i>
         </button>
       </div>
-    `).join('');
+    `
+      )
+      .join('');
   }
 
   modal.classList.add('active');
 }
 
 export async function deleteDashboard(id: string): Promise<void> {
-  const dashboard = state.savedDashboards.find(d => d.id === id);
+  const dashboard = state.savedDashboards.find((d) => d.id === id);
   if (!dashboard) return;
 
-  if (!await confirmDialog(`Supprimer le tableau de bord "${dashboard.name}" ?`)) return;
+  if (!(await confirmDialog(`Supprimer le tableau de bord "${dashboard.name}" ?`))) return;
 
-  state.savedDashboards = state.savedDashboards.filter(d => d.id !== id);
+  state.savedDashboards = state.savedDashboards.filter((d) => d.id !== id);
   saveToStorage(STORAGE_KEYS.DASHBOARDS, state.savedDashboards);
   getApiAdapter()?.deleteItemFromServer(STORAGE_KEYS.DASHBOARDS, id);
 
@@ -128,7 +150,7 @@ export async function deleteDashboard(id: string): Promise<void> {
 }
 
 export function loadDashboard(id: string): void {
-  const dashboard = state.savedDashboards.find(d => d.id === id);
+  const dashboard = state.savedDashboards.find((d) => d.id === id);
   if (!dashboard) return;
 
   state.dashboard = JSON.parse(JSON.stringify(dashboard));

@@ -49,8 +49,8 @@ export function parseCSVLine(line: string, separator: string): string[] {
  * Updates the DOM preview and sets parsedCsvData in state.
  */
 export function parseCsvText(text: string): void {
-  const separatorSelect = (document.getElementById('csv-separator') as HTMLSelectElement | null)
-    ?.value ?? 'auto';
+  const separatorSelect =
+    (document.getElementById('csv-separator') as HTMLSelectElement | null)?.value ?? 'auto';
   let separator = separatorSelect;
 
   // Auto-detect separator

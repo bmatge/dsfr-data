@@ -11,7 +11,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@dsfr-data/shared': resolve(__dirname, '../../packages/shared/src'),
-    }
+    },
   },
   server: {
     proxy: {
@@ -33,6 +33,6 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/tabular-proxy/, ''),
         secure: true,
       },
-    }
-  }
+    },
+  },
 });

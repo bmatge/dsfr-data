@@ -7,7 +7,10 @@ export type FormatType = 'nombre' | 'pourcentage' | 'euro' | 'decimal';
 /**
  * Formate un nombre selon le type spécifié
  */
-export function formatValue(value: number | string | null | undefined, format: FormatType = 'nombre'): string {
+export function formatValue(
+  value: number | string | null | undefined,
+  format: FormatType = 'nombre'
+): string {
   if (value === null || value === undefined || value === '') {
     return '—';
   }
@@ -37,7 +40,7 @@ export function formatValue(value: number | string | null | undefined, format: F
  */
 export function formatNumber(value: number): string {
   return new Intl.NumberFormat('fr-FR', {
-    maximumFractionDigits: 0
+    maximumFractionDigits: 0,
   }).format(Math.round(value));
 }
 
@@ -48,7 +51,7 @@ export function formatPercentage(value: number): string {
   return new Intl.NumberFormat('fr-FR', {
     style: 'percent',
     minimumFractionDigits: 0,
-    maximumFractionDigits: 1
+    maximumFractionDigits: 1,
   }).format(value / 100);
 }
 
@@ -60,7 +63,7 @@ export function formatCurrency(value: number): string {
     style: 'currency',
     currency: 'EUR',
     minimumFractionDigits: 0,
-    maximumFractionDigits: 0
+    maximumFractionDigits: 0,
   }).format(value);
 }
 
@@ -70,7 +73,7 @@ export function formatCurrency(value: number): string {
 export function formatDecimal(value: number): string {
   return new Intl.NumberFormat('fr-FR', {
     minimumFractionDigits: 1,
-    maximumFractionDigits: 2
+    maximumFractionDigits: 2,
   }).format(value);
 }
 
@@ -87,7 +90,7 @@ export function formatDate(value: string | Date): string {
   return new Intl.DateTimeFormat('fr-FR', {
     day: '2-digit',
     month: '2-digit',
-    year: 'numeric'
+    year: 'numeric',
   }).format(date);
 }
 
@@ -119,7 +122,7 @@ export function getDsfrColorClass(color: 'vert' | 'orange' | 'rouge' | 'bleu'): 
     vert: 'fr-badge--success',
     orange: 'fr-badge--warning',
     rouge: 'fr-badge--error',
-    bleu: 'fr-badge--info'
+    bleu: 'fr-badge--info',
   };
   return colorMap[color] || colorMap.bleu;
 }
@@ -132,7 +135,7 @@ export function getDsfrKpiColor(color: 'vert' | 'orange' | 'rouge' | 'bleu'): st
     vert: 'var(--background-contrast-success)',
     orange: 'var(--background-contrast-warning)',
     rouge: 'var(--background-contrast-error)',
-    bleu: 'var(--background-contrast-info)'
+    bleu: 'var(--background-contrast-info)',
   };
   return colorMap[color] || colorMap.bleu;
 }

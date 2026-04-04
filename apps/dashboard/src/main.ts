@@ -2,15 +2,41 @@
  * Dashboard app - Main entry point
  */
 
-import { escapeHtml, loadFromStorage, STORAGE_KEYS, confirmDialog, initAuth, injectTourStyles, startTourIfFirstVisit, DASHBOARD_TOUR } from '@dsfr-data/shared';
+import {
+  escapeHtml,
+  loadFromStorage,
+  STORAGE_KEYS,
+  confirmDialog,
+  initAuth,
+  injectTourStyles,
+  startTourIfFirstVisit,
+  DASHBOARD_TOUR,
+} from '@dsfr-data/shared';
 import { state } from './state.js';
 import { createEmptyDashboard } from './state.js';
 import { initDragAndDrop, handleFavoriteDragStart } from './drag-drop.js';
 import { editWidget, deleteWidget, openInBuilder, duplicateWidget } from './widgets.js';
 import { closeConfigModal, applyConfig } from './widget-config.js';
-import { addRow, resetGrid, rebuildGrid, addColumnToRow, removeColumnFromRow, deleteRow } from './grid.js';
+import {
+  addRow,
+  resetGrid,
+  rebuildGrid,
+  addColumnToRow,
+  removeColumnFromRow,
+  deleteRow,
+} from './grid.js';
 import { updateGeneratedCode } from './code-generator.js';
-import { openSaveModal, closeSaveModal, confirmSave, newDashboard, openDashboardsList, loadDashboard, deleteDashboard, exportHTML, navigateToSources } from './dashboards.js';
+import {
+  openSaveModal,
+  closeSaveModal,
+  confirmSave,
+  newDashboard,
+  openDashboardsList,
+  loadDashboard,
+  deleteDashboard,
+  exportHTML,
+  navigateToSources,
+} from './dashboards.js';
 import { openPreviewModal, closePreviewModal } from './preview.js';
 
 function loadFavorites(): void {
@@ -32,18 +58,23 @@ function renderFavorites(): void {
   if (!container) return;
 
   if (state.favorites.length === 0) {
-    container.innerHTML = '<p class="favorites-empty"><i class="ri-star-line" style="display:block;font-size:1.5rem;opacity:0.4;margin-bottom:0.25rem;"></i>Aucun favori.<br><a href="../builder/index.html" class="fr-link fr-link--sm">Creer un graphique</a> dans le Builder pour l\'ajouter ici.</p>';
+    container.innerHTML =
+      '<p class="favorites-empty"><i class="ri-star-line" style="display:block;font-size:1.5rem;opacity:0.4;margin-bottom:0.25rem;"></i>Aucun favori.<br><a href="../builder/index.html" class="fr-link fr-link--sm">Creer un graphique</a> dans le Builder pour l\'ajouter ici.</p>';
     return;
   }
 
-  container.innerHTML = state.favorites.map(fav => `
+  container.innerHTML = state.favorites
+    .map(
+      (fav) => `
     <div class="favorite-item" draggable="true" data-favorite-id="${fav.id}">
       <i class="ri-star-fill"></i>
       <span>${escapeHtml(fav.name)}</span>
     </div>
-  `).join('');
+  `
+    )
+    .join('');
 
-  container.querySelectorAll('.favorite-item').forEach(item => {
+  container.querySelectorAll('.favorite-item').forEach((item) => {
     item.addEventListener('dragstart', handleFavoriteDragStart as EventListener);
     item.addEventListener('dragend', (e) => {
       (e.target as HTMLElement).classList.remove('dragging');
@@ -56,21 +87,32 @@ function renderSources(sources: any[]): void {
   if (!container) return;
 
   if (!sources || sources.length === 0) {
-    container.innerHTML = '<p class="favorites-empty"><i class="ri-database-2-line" style="display:block;font-size:1.5rem;opacity:0.4;margin-bottom:0.25rem;"></i>Aucune source.<br><a href="../sources/index.html" class="fr-link fr-link--sm">Ajouter une source</a> pour integrer des donnees.</p>';
+    container.innerHTML =
+      '<p class="favorites-empty"><i class="ri-database-2-line" style="display:block;font-size:1.5rem;opacity:0.4;margin-bottom:0.25rem;"></i>Aucune source.<br><a href="../sources/index.html" class="fr-link fr-link--sm">Ajouter une source</a> pour integrer des donnees.</p>';
     return;
   }
 
-  container.innerHTML = sources.slice(0, 5).map(src => `
+  container.innerHTML = sources
+    .slice(0, 5)
+    .map(
+      (src) => `
     <div class="favorite-item source-item-readonly">
       <i class="ri-database-2-line"></i>
       <span>${escapeHtml(src.name)}</span>
     </div>
-  `).join('');
+  `
+    )
+    .join('');
 }
 
 async function loadTemplate(name: string): Promise<void> {
   if (state.dashboard.widgets.length > 0) {
-    if (!await confirmDialog('Charger un template ? Les modifications non sauvegardees seront perdues.')) return;
+    if (
+      !(await confirmDialog(
+        'Charger un template ? Les modifications non sauvegardees seront perdues.'
+      ))
+    )
+      return;
   }
   state.dashboard = createEmptyDashboard();
 
@@ -80,10 +122,34 @@ async function loadTemplate(name: string): Promise<void> {
       state.dashboard.layout.columns = 3;
       state.dashboard.layout.rowColumns = { 0: 3, 1: 1 };
       state.dashboard.widgets = [
-        { id: crypto.randomUUID(), type: 'kpi', title: 'Indicateur 1', position: { row: 0, col: 0 }, config: { valeur: '', format: 'nombre', icone: '', label: 'KPI 1' } },
-        { id: crypto.randomUUID(), type: 'kpi', title: 'Indicateur 2', position: { row: 0, col: 1 }, config: { valeur: '', format: 'nombre', icone: '', label: 'KPI 2' } },
-        { id: crypto.randomUUID(), type: 'kpi', title: 'Indicateur 3', position: { row: 0, col: 2 }, config: { valeur: '', format: 'nombre', icone: '', label: 'KPI 3' } },
-        { id: crypto.randomUUID(), type: 'chart', title: 'Graphique', position: { row: 1, col: 0 }, config: { chartType: 'bar', labelField: '', valueField: '', palette: 'categorical' } },
+        {
+          id: crypto.randomUUID(),
+          type: 'kpi',
+          title: 'Indicateur 1',
+          position: { row: 0, col: 0 },
+          config: { valeur: '', format: 'nombre', icone: '', label: 'KPI 1' },
+        },
+        {
+          id: crypto.randomUUID(),
+          type: 'kpi',
+          title: 'Indicateur 2',
+          position: { row: 0, col: 1 },
+          config: { valeur: '', format: 'nombre', icone: '', label: 'KPI 2' },
+        },
+        {
+          id: crypto.randomUUID(),
+          type: 'kpi',
+          title: 'Indicateur 3',
+          position: { row: 0, col: 2 },
+          config: { valeur: '', format: 'nombre', icone: '', label: 'KPI 3' },
+        },
+        {
+          id: crypto.randomUUID(),
+          type: 'chart',
+          title: 'Graphique',
+          position: { row: 1, col: 0 },
+          config: { chartType: 'bar', labelField: '', valueField: '', palette: 'categorical' },
+        },
       ];
       break;
     case 'two-charts':
@@ -91,8 +157,20 @@ async function loadTemplate(name: string): Promise<void> {
       state.dashboard.layout.columns = 2;
       state.dashboard.layout.rowColumns = { 0: 2 };
       state.dashboard.widgets = [
-        { id: crypto.randomUUID(), type: 'chart', title: 'Graphique 1', position: { row: 0, col: 0 }, config: { chartType: 'bar', labelField: '', valueField: '', palette: 'categorical' } },
-        { id: crypto.randomUUID(), type: 'chart', title: 'Graphique 2', position: { row: 0, col: 1 }, config: { chartType: 'line', labelField: '', valueField: '', palette: 'categorical' } },
+        {
+          id: crypto.randomUUID(),
+          type: 'chart',
+          title: 'Graphique 1',
+          position: { row: 0, col: 0 },
+          config: { chartType: 'bar', labelField: '', valueField: '', palette: 'categorical' },
+        },
+        {
+          id: crypto.randomUUID(),
+          type: 'chart',
+          title: 'Graphique 2',
+          position: { row: 0, col: 1 },
+          config: { chartType: 'line', labelField: '', valueField: '', palette: 'categorical' },
+        },
       ];
       break;
     case 'full':
@@ -100,10 +178,34 @@ async function loadTemplate(name: string): Promise<void> {
       state.dashboard.layout.columns = 2;
       state.dashboard.layout.rowColumns = { 0: 2, 1: 2 };
       state.dashboard.widgets = [
-        { id: crypto.randomUUID(), type: 'kpi', title: 'Indicateur', position: { row: 0, col: 0 }, config: { valeur: '', format: 'nombre', icone: '', label: 'Mon KPI' } },
-        { id: crypto.randomUUID(), type: 'text', title: 'Description', position: { row: 0, col: 1 }, config: { content: '<p>Description du dashboard</p>', style: 'callout' } },
-        { id: crypto.randomUUID(), type: 'chart', title: 'Graphique', position: { row: 1, col: 0 }, config: { chartType: 'bar', labelField: '', valueField: '', palette: 'categorical' } },
-        { id: crypto.randomUUID(), type: 'table', title: 'Tableau', position: { row: 1, col: 1 }, config: { columns: [], searchable: true, sortable: true } },
+        {
+          id: crypto.randomUUID(),
+          type: 'kpi',
+          title: 'Indicateur',
+          position: { row: 0, col: 0 },
+          config: { valeur: '', format: 'nombre', icone: '', label: 'Mon KPI' },
+        },
+        {
+          id: crypto.randomUUID(),
+          type: 'text',
+          title: 'Description',
+          position: { row: 0, col: 1 },
+          config: { content: '<p>Description du dashboard</p>', style: 'callout' },
+        },
+        {
+          id: crypto.randomUUID(),
+          type: 'chart',
+          title: 'Graphique',
+          position: { row: 1, col: 0 },
+          config: { chartType: 'bar', labelField: '', valueField: '', palette: 'categorical' },
+        },
+        {
+          id: crypto.randomUUID(),
+          type: 'table',
+          title: 'Tableau',
+          position: { row: 1, col: 1 },
+          config: { columns: [], searchable: true, sortable: true },
+        },
       ];
       break;
   }
@@ -143,12 +245,12 @@ function initEventListeners(): void {
     }
   });
 
-  document.querySelectorAll('.vde-tab').forEach(tab => {
+  document.querySelectorAll('.vde-tab').forEach((tab) => {
     tab.addEventListener('click', () => {
       const tabName = (tab as HTMLElement).dataset.tab;
 
-      document.querySelectorAll('.vde-tab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.vde-tab-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.vde-tab').forEach((t) => t.classList.remove('active'));
+      document.querySelectorAll('.vde-tab-panel').forEach((p) => p.classList.remove('active'));
 
       tab.classList.add('active');
       document.getElementById(`tab-${tabName}`)?.classList.add('active');
@@ -182,7 +284,7 @@ function initEventListeners(): void {
     }
   });
 
-  document.querySelectorAll('.config-modal').forEach(modal => {
+  document.querySelectorAll('.config-modal').forEach((modal) => {
     modal.addEventListener('click', (e) => {
       if (e.target === modal) {
         (modal as HTMLElement).classList.remove('active');

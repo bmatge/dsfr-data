@@ -54,12 +54,15 @@ export async function canAccess(
   userId: string,
   resourceType: ResourceType,
   resourceId: string,
-  permission: Permission,
+  permission: Permission
 ): Promise<boolean> {
   const table = RESOURCE_TABLES[resourceType];
 
   // 1. Check ownership
-  const resource = await queryOne<{ owner_id: string }>(`SELECT owner_id FROM ${table} WHERE id = ?`, [resourceId]);
+  const resource = await queryOne<{ owner_id: string }>(
+    `SELECT owner_id FROM ${table} WHERE id = ?`,
+    [resourceId]
+  );
   if (!resource) return false;
   if (resource.owner_id === userId) return true;
 
@@ -67,7 +70,7 @@ export async function canAccess(
   const userShare = await queryOne<{ permission: string }>(
     `SELECT permission FROM shares
      WHERE resource_type = ? AND resource_id = ? AND target_type = 'user' AND target_id = ?`,
-    [resourceType, resourceId, userId],
+    [resourceType, resourceId, userId]
   );
 
   if (userShare) {
@@ -78,14 +81,14 @@ export async function canAccess(
   // 3. Check group shares
   const userGroups = await query<{ group_id: string }>(
     'SELECT group_id FROM group_members WHERE user_id = ?',
-    [userId],
+    [userId]
   );
 
   for (const { group_id } of userGroups) {
     const groupShare = await queryOne<{ permission: string }>(
       `SELECT permission FROM shares
        WHERE resource_type = ? AND resource_id = ? AND target_type = 'group' AND target_id = ?`,
-      [resourceType, resourceId, group_id],
+      [resourceType, resourceId, group_id]
     );
 
     if (groupShare) {
@@ -98,7 +101,7 @@ export async function canAccess(
   const globalShare = await queryOne<{ permission: string }>(
     `SELECT permission FROM shares
      WHERE resource_type = ? AND resource_id = ? AND target_type = 'global'`,
-    [resourceType, resourceId],
+    [resourceType, resourceId]
   );
 
   if (globalShare) {
@@ -139,10 +142,17 @@ export function requireAccess(resourceType: ResourceType, permission: Permission
 /**
  * Get permissions info for a resource (used in API responses).
  */
-export async function getPermissions(userId: string, resourceType: ResourceType, resourceId: string) {
+export async function getPermissions(
+  userId: string,
+  resourceType: ResourceType,
+  resourceId: string
+) {
   const table = RESOURCE_TABLES[resourceType];
 
-  const resource = await queryOne<{ owner_id: string }>(`SELECT owner_id FROM ${table} WHERE id = ?`, [resourceId]);
+  const resource = await queryOne<{ owner_id: string }>(
+    `SELECT owner_id FROM ${table} WHERE id = ?`,
+    [resourceId]
+  );
   if (!resource) return null;
 
   const isOwner = resource.owner_id === userId;
@@ -158,12 +168,12 @@ export async function getPermissions(userId: string, resourceType: ResourceType,
      LEFT JOIN users u ON s.target_type = 'user' AND s.target_id = u.id
      LEFT JOIN \`groups\` g ON s.target_type = 'group' AND s.target_id = g.id
      WHERE s.resource_type = ? AND s.resource_id = ?`,
-    [resourceType, resourceId],
+    [resourceType, resourceId]
   );
 
   return {
     isOwner,
-    canEdit: isOwner || await canAccess(userId, resourceType, resourceId, 'write'),
+    canEdit: isOwner || (await canAccess(userId, resourceType, resourceId, 'write')),
     canDelete: isOwner,
     sharedWith: shares,
   };

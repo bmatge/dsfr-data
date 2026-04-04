@@ -1,4 +1,4 @@
-import { LitElement, html, css, nothing } from 'lit';
+import { LitElement, html, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { AttributeControl } from '../nodes/base-node.js';
 
@@ -27,9 +27,12 @@ export class AttributeControlElement extends LitElement {
     e.stopPropagation();
     const target = e.target as HTMLInputElement | HTMLSelectElement;
     if (this.ctrl) {
-      this.ctrl.value = target.type === 'checkbox'
-        ? (target as HTMLInputElement).checked ? 'true' : ''
-        : target.value;
+      this.ctrl.value =
+        target.type === 'checkbox'
+          ? (target as HTMLInputElement).checked
+            ? 'true'
+            : ''
+          : target.value;
     }
   }
 
@@ -45,15 +48,20 @@ export class AttributeControlElement extends LitElement {
       return html`
         <div class="attr-field">
           <label class="attr-label">${def.label}</label>
-          <select class="attr-input"
+          <select
+            class="attr-input"
             .value=${this.ctrl.value}
             @change=${this._onChange}
             @pointerdown=${this._stop}
           >
             <option value="">--</option>
-            ${def.options.map(opt => html`
-              <option value=${opt.value} ?selected=${this.ctrl.value === opt.value}>${opt.label}</option>
-            `)}
+            ${def.options.map(
+              (opt) => html`
+                <option value=${opt.value} ?selected=${this.ctrl.value === opt.value}>
+                  ${opt.label}
+                </option>
+              `
+            )}
           </select>
         </div>
       `;
@@ -62,11 +70,12 @@ export class AttributeControlElement extends LitElement {
     if (def.type === 'boolean') {
       return html`
         <div class="attr-field attr-field--check">
-          <input type="checkbox"
+          <input
+            type="checkbox"
             ?checked=${this.ctrl.value === 'true'}
             @change=${this._onChange}
             @pointerdown=${this._stop}
-          >
+          />
           <label class="attr-label attr-label--inline">${def.label}</label>
         </div>
       `;
@@ -75,14 +84,15 @@ export class AttributeControlElement extends LitElement {
     return html`
       <div class="attr-field">
         <label class="attr-label">${def.label}</label>
-        <input class="attr-input"
+        <input
+          class="attr-input"
           type=${def.type === 'number' ? 'number' : 'text'}
           .value=${this.ctrl.value}
           placeholder=${def.placeholder ?? ''}
           @input=${this._onChange}
           @pointerdown=${this._stop}
           @dblclick=${this._stop}
-        >
+        />
       </div>
     `;
   }

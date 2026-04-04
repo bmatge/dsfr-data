@@ -78,7 +78,9 @@ export class AppHeader extends LitElement {
     try {
       const favs = JSON.parse(localStorage.getItem('dsfr-data-favorites') || '[]');
       this._favCount = Array.isArray(favs) ? favs.length : 0;
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     // Inject active page style once
     if (!document.getElementById('app-header-active-style')) {
       const style = document.createElement('style');
@@ -183,7 +185,11 @@ export class AppHeader extends LitElement {
     if (this._syncStatus === 'syncing') {
       return html`
         <li>
-          <span class="fr-btn fr-btn--tertiary-no-outline" style="pointer-events:none;color:var(--text-mention-grey);" title="Synchronisation en cours...">
+          <span
+            class="fr-btn fr-btn--tertiary-no-outline"
+            style="pointer-events:none;color:var(--text-mention-grey);"
+            title="Synchronisation en cours..."
+          >
             <i class="ri-refresh-line" style="animation:spin 1s linear infinite;"></i>
           </span>
         </li>
@@ -193,7 +199,11 @@ export class AppHeader extends LitElement {
     if (this._syncStatus === 'error' || this._syncErrorCount > 0) {
       return html`
         <li>
-          <span class="fr-btn fr-btn--tertiary-no-outline" style="pointer-events:none;color:var(--text-default-warning);" title="Erreurs de synchronisation (${this._syncErrorCount})">
+          <span
+            class="fr-btn fr-btn--tertiary-no-outline"
+            style="pointer-events:none;color:var(--text-default-warning);"
+            title="Erreurs de synchronisation (${this._syncErrorCount})"
+          >
             <i class="ri-error-warning-line"></i>
           </span>
         </li>
@@ -210,10 +220,12 @@ export class AppHeader extends LitElement {
       const displayLabel = this._user.displayName || this._user.email;
       return html`
         <li class="app-header-user-menu">
-          <button class="fr-btn fr-btn--tertiary-no-outline fr-icon-account-circle-line"
-                  aria-expanded="${this._userMenuOpen}"
-                  aria-haspopup="menu"
-                  @click=${this._toggleUserMenu}>
+          <button
+            class="fr-btn fr-btn--tertiary-no-outline fr-icon-account-circle-line"
+            aria-expanded="${this._userMenuOpen}"
+            aria-haspopup="menu"
+            @click=${this._toggleUserMenu}
+          >
             Mon espace
           </button>
           <div class="app-header-user-menu__dropdown" ?data-open=${this._userMenuOpen}>
@@ -244,8 +256,10 @@ export class AppHeader extends LitElement {
 
     return html`
       <li>
-        <button class="fr-btn fr-btn--tertiary-no-outline fr-icon-account-circle-line"
-                @click=${this._openAuthModal}>
+        <button
+          class="fr-btn fr-btn--tertiary-no-outline fr-icon-account-circle-line"
+          @click=${this._openAuthModal}
+        >
           Connexion
         </button>
       </li>
@@ -271,12 +285,17 @@ export class AppHeader extends LitElement {
               <div class="fr-header__brand fr-enlarge-link">
                 <div class="fr-header__brand-top">
                   <div class="fr-header__logo">
-                    <p class="fr-logo">
-                      République<br>Française
-                    </p>
+                    <p class="fr-logo">République<br />Française</p>
                   </div>
                   <div class="fr-header__navbar">
-                    <button class="fr-btn--menu fr-btn" data-fr-opened="false" aria-controls="modal-menu" aria-haspopup="menu" id="button-menu" title="Menu">
+                    <button
+                      class="fr-btn--menu fr-btn"
+                      data-fr-opened="false"
+                      aria-controls="modal-menu"
+                      aria-haspopup="menu"
+                      id="button-menu"
+                      title="Menu"
+                    >
                       Menu
                     </button>
                   </div>
@@ -285,8 +304,13 @@ export class AppHeader extends LitElement {
                   <a href="${this._base}index.html" title="Accueil - Charts builder">
                     <p class="fr-header__service-title">Charts builder</p>
                   </a>
-                  <p class="fr-header__service-tagline" style="display:flex;align-items:center;gap:0.5rem;">
-                    <span class="fr-badge fr-badge--sm fr-badge--warning fr-badge--no-icon">En developpement</span>
+                  <p
+                    class="fr-header__service-tagline"
+                    style="display:flex;align-items:center;gap:0.5rem;"
+                  >
+                    <span class="fr-badge fr-badge--sm fr-badge--warning fr-badge--no-icon"
+                      >En developpement</span
+                    >
                     Création de visualisations dynamiques conformes DSFR
                   </p>
                 </div>
@@ -295,22 +319,34 @@ export class AppHeader extends LitElement {
                 <div class="fr-header__tools-links">
                   <ul class="fr-btns-group">
                     <li>
-                      <a class="fr-btn fr-btn--tertiary-no-outline fr-icon-book-2-line" href="${this._base}guide/guide.html">
+                      <a
+                        class="fr-btn fr-btn--tertiary-no-outline fr-icon-book-2-line"
+                        href="${this._base}guide/guide.html"
+                      >
                         Guide
                       </a>
                     </li>
                     <li>
-                      <a class="fr-btn fr-btn--tertiary-no-outline fr-icon-file-text-line" href="${this._base}specs/index.html">
+                      <a
+                        class="fr-btn fr-btn--tertiary-no-outline fr-icon-file-text-line"
+                        href="${this._base}specs/index.html"
+                      >
                         Specs
                       </a>
                     </li>
                     <li>
-                      <a class="fr-btn fr-btn--tertiary-no-outline fr-icon-star-fill" href="${this._base}apps/favorites/index.html">
-                        Favoris${this._favCount > 0 ? html` <span class="fr-badge fr-badge--sm fr-badge--info">${this._favCount}</span>` : nothing}
+                      <a
+                        class="fr-btn fr-btn--tertiary-no-outline fr-icon-star-fill"
+                        href="${this._base}apps/favorites/index.html"
+                      >
+                        Favoris${this._favCount > 0
+                          ? html` <span class="fr-badge fr-badge--sm fr-badge--info"
+                              >${this._favCount}</span
+                            >`
+                          : nothing}
                       </a>
                     </li>
-                    ${this._renderSyncStatus()}
-                    ${this._renderAuthButton()}
+                    ${this._renderSyncStatus()} ${this._renderAuthButton()}
                   </ul>
                 </div>
               </div>
@@ -323,23 +359,34 @@ export class AppHeader extends LitElement {
               Fermer
             </button>
             <div class="fr-header__menu-links"></div>
-            <nav class="fr-nav" id="header-navigation" role="navigation" aria-label="Menu principal">
+            <nav
+              class="fr-nav"
+              id="header-navigation"
+              role="navigation"
+              aria-label="Menu principal"
+            >
               <ul class="fr-nav__list">
-                ${navItems.map(item => html`
-                  <li class="fr-nav__item">
-                    <a class="fr-nav__link"
-                       href="${this._base}${item.href}"
-                       ${this.currentPage === item.id ? html`aria-current="page"` : ''}>
-                      ${item.label}
-                    </a>
-                  </li>
-                `)}
+                ${navItems.map(
+                  (item) => html`
+                    <li class="fr-nav__item">
+                      <a
+                        class="fr-nav__link"
+                        href="${this._base}${item.href}"
+                        ${this.currentPage === item.id ? html`aria-current="page"` : ''}
+                      >
+                        ${item.label}
+                      </a>
+                    </li>
+                  `
+                )}
               </ul>
             </nav>
           </div>
         </div>
       </header>
-      ${this._dbMode ? html`<auth-modal></auth-modal><password-change-modal></password-change-modal>` : nothing}
+      ${this._dbMode
+        ? html`<auth-modal></auth-modal><password-change-modal></password-change-modal>`
+        : nothing}
     `;
   }
 }

@@ -34,7 +34,7 @@ export interface JoinOptions {
  * - "annee,code_region" → multi-key
  */
 export function parseJoinKeys(on: string): JoinKey[] {
-  return on.split(',').map(part => {
+  return on.split(',').map((part) => {
     const trimmed = part.trim();
     const eqIndex = trimmed.indexOf('=');
     if (eqIndex > 0) {
@@ -50,26 +50,18 @@ export function parseJoinKeys(on: string): JoinKey[] {
 /**
  * Perform an in-memory join of two datasets. O(n+m) via Map indexing.
  */
-export function performJoin(
-  leftData: Row[],
-  rightData: Row[],
-  options: JoinOptions,
-): Row[] {
+export function performJoin(leftData: Row[], rightData: Row[], options: JoinOptions): Row[] {
   const keys = parseJoinKeys(options.on);
   const joinType: JoinType = options.type ?? 'left';
   const prefixLeft = options.prefixLeft ?? '';
   const prefixRight = options.prefixRight ?? 'right_';
 
-  const leftKeyFields = keys.map(k => k.left);
-  const rightKeyFields = keys.map(k => k.right);
+  const leftKeyFields = keys.map((k) => k.left);
+  const rightKeyFields = keys.map((k) => k.right);
   const joinKeyFieldSet = new Set([...leftKeyFields, ...rightKeyFields]);
 
   // Detect field-name collisions once (from first rows)
-  const collisions = detectCollisions(
-    leftData[0] ?? null,
-    rightData[0] ?? null,
-    joinKeyFieldSet,
-  );
+  const collisions = detectCollisions(leftData[0] ?? null, rightData[0] ?? null, joinKeyFieldSet);
 
   // Index the right side by key
   const rightIndex = new Map<string, Row[]>();
@@ -139,13 +131,13 @@ export function performJoin(
 // --- Internal helpers (not exported) ---
 
 function buildKey(row: Row, fields: string[]): string {
-  return fields.map(f => String(row[f] ?? '')).join('|');
+  return fields.map((f) => String(row[f] ?? '')).join('|');
 }
 
 function detectCollisions(
   leftRow: Row | null,
   rightRow: Row | null,
-  joinKeyFields: Set<string>,
+  joinKeyFields: Set<string>
 ): Set<string> {
   if (!leftRow || !rightRow) return new Set();
   const leftFields = new Set(Object.keys(leftRow));
@@ -164,33 +156,31 @@ function mergeRow(
   keys: JoinKey[],
   collisions: Set<string>,
   prefixLeft: string,
-  prefixRight: string,
+  prefixRight: string
 ): Row {
   const result: Row = {};
 
   // Left fields
   if (leftRow) {
     for (const [field, value] of Object.entries(leftRow)) {
-      const key = collisions.has(field) && prefixLeft
-        ? `${prefixLeft}${field}` : field;
+      const key = collisions.has(field) && prefixLeft ? `${prefixLeft}${field}` : field;
       result[key] = value;
     }
   }
 
   // Right fields
-  const rightKeyFields = new Set(keys.map(k => k.right));
+  const rightKeyFields = new Set(keys.map((k) => k.right));
   if (rightRow) {
     for (const [field, value] of Object.entries(rightRow)) {
       // Don't duplicate join keys
       if (rightKeyFields.has(field)) {
-        const leftKeyField = keys.find(k => k.right === field)!.left;
+        const leftKeyField = keys.find((k) => k.right === field)!.left;
         if (!leftRow) {
           result[leftKeyField] = value;
         }
         continue;
       }
-      const key = collisions.has(field)
-        ? `${prefixRight}${field}` : field;
+      const key = collisions.has(field) ? `${prefixRight}${field}` : field;
       result[key] = value;
     }
   }
