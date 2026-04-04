@@ -48,8 +48,17 @@ export class AppHeader extends LitElement {
   @state()
   private _syncErrorCount = 0;
 
+  @state()
+  private _userMenuOpen = false;
+
   private _unsubAuth?: () => void;
   private _unsubSync?: () => void;
+  private _outsideClickHandler = (e: MouseEvent) => {
+    const menu = this.querySelector('.app-header-user-menu');
+    if (menu && !menu.contains(e.target as Node)) {
+      this._userMenuOpen = false;
+    }
+  };
 
   // Light DOM pour hériter des styles DSFR
   createRenderRoot() {
@@ -74,7 +83,7 @@ export class AppHeader extends LitElement {
     if (!document.getElementById('app-header-active-style')) {
       const style = document.createElement('style');
       style.id = 'app-header-active-style';
-      style.textContent = `.fr-nav__link[aria-current="page"]{font-weight:700;border-bottom:2px solid var(--border-action-high-blue-france);color:var(--text-action-high-blue-france)}@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`;
+      style.textContent = `.fr-nav__link[aria-current="page"]{font-weight:700;border-bottom:2px solid var(--border-action-high-blue-france);color:var(--text-action-high-blue-france)}@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}.app-header-user-menu{position:relative}.app-header-user-menu__dropdown{display:none;position:absolute;right:0;top:100%;z-index:1000;min-width:240px;background:var(--background-default-grey);box-shadow:0 8px 16px rgba(0,0,0,.16);padding:0}.app-header-user-menu__dropdown[data-open]{display:block}.app-header-user-menu__info{padding:1rem 1.5rem;border-bottom:1px solid var(--border-default-grey)}.app-header-user-menu__info-name{font-weight:700;color:var(--text-title-grey);margin:0;font-size:.875rem}.app-header-user-menu__info-email{color:var(--text-mention-grey);margin:0;font-size:.75rem}.app-header-user-menu__list{list-style:none;padding:0;margin:0}.app-header-user-menu__list li{border-bottom:1px solid var(--border-default-grey)}.app-header-user-menu__list li:last-child{border-bottom:none}.app-header-user-menu__list button{display:flex;align-items:center;gap:.5rem;width:100%;padding:.75rem 1.5rem;border:none;background:none;cursor:pointer;font-size:.875rem;color:var(--text-action-high-blue-france);font-family:inherit}.app-header-user-menu__list button:hover{background:var(--background-alt-blue-france-hover)}.app-header-user-menu__list button::before{font-family:'remixicon';font-size:1rem}`;
       document.head.appendChild(style);
     }
     // Check auth state
@@ -90,6 +99,7 @@ export class AppHeader extends LitElement {
     super.disconnectedCallback();
     this._unsubAuth?.();
     this._unsubSync?.();
+    document.removeEventListener('click', this._outsideClickHandler);
   }
 
   private async _initAuth(): Promise<void> {
@@ -127,13 +137,28 @@ export class AppHeader extends LitElement {
   }
 
   private _openPasswordChangeModal(): void {
+    this._userMenuOpen = false;
     const modal = this.querySelector('password-change-modal') as any;
     modal?.open();
   }
 
   private async _handleLogout(): Promise<void> {
+    this._userMenuOpen = false;
     await logout();
     window.location.reload();
+  }
+
+  private _toggleUserMenu(e: Event): void {
+    e.stopPropagation();
+    this._userMenuOpen = !this._userMenuOpen;
+    if (this._userMenuOpen) {
+      // Defer so the current click doesn't immediately close
+      requestAnimationFrame(() => {
+        document.addEventListener('click', this._outsideClickHandler);
+      });
+    } else {
+      document.removeEventListener('click', this._outsideClickHandler);
+    }
   }
 
   private _getNavItems() {
@@ -182,24 +207,37 @@ export class AppHeader extends LitElement {
     if (!this._dbMode) return nothing;
 
     if (this._user) {
+      const displayLabel = this._user.displayName || this._user.email;
       return html`
-        <li>
-          <span class="fr-btn fr-btn--tertiary-no-outline fr-icon-account-circle-line" style="pointer-events:none;">
-            ${this._user.displayName || this._user.email}
-          </span>
-        </li>
-        <li>
-          <button class="fr-btn fr-btn--tertiary-no-outline fr-icon-lock-line"
-                  @click=${this._openPasswordChangeModal}
-                  title="Changer le mot de passe">
-            Mot de passe
+        <li class="app-header-user-menu">
+          <button class="fr-btn fr-btn--tertiary-no-outline fr-icon-account-circle-line"
+                  aria-expanded="${this._userMenuOpen}"
+                  aria-haspopup="menu"
+                  @click=${this._toggleUserMenu}>
+            Mon espace
           </button>
-        </li>
-        <li>
-          <button class="fr-btn fr-btn--tertiary-no-outline fr-icon-logout-box-r-line"
-                  @click=${this._handleLogout}>
-            Deconnexion
-          </button>
+          <div class="app-header-user-menu__dropdown" ?data-open=${this._userMenuOpen}>
+            <div class="app-header-user-menu__info">
+              <p class="app-header-user-menu__info-name">${displayLabel}</p>
+              ${this._user.displayName && this._user.email
+                ? html`<p class="app-header-user-menu__info-email">${this._user.email}</p>`
+                : nothing}
+            </div>
+            <ul class="app-header-user-menu__list" role="menu">
+              <li role="menuitem">
+                <button @click=${this._openPasswordChangeModal}>
+                  <span class="fr-icon-lock-line" aria-hidden="true"></span>
+                  Mot de passe
+                </button>
+              </li>
+              <li role="menuitem">
+                <button @click=${this._handleLogout}>
+                  <span class="fr-icon-logout-box-r-line" aria-hidden="true"></span>
+                  Se deconnecter
+                </button>
+              </li>
+            </ul>
+          </div>
         </li>
       `;
     }
