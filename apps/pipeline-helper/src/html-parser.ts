@@ -1,5 +1,5 @@
 import { ClassicPreset } from 'rete';
-import { AttributeControl } from './nodes/base-node.js';
+import { AttributeControl, AggregateControl } from './nodes/base-node.js';
 import { NODE_FACTORIES } from './nodes/pipeline-nodes.js';
 import type { PipelineEditor } from './editor.js';
 import type { PipelineNode } from './nodes/base-node.js';
@@ -81,8 +81,9 @@ export async function importFromHtml(editor: PipelineEditor, htmlCode: string): 
     // Pre-set attribute values on the control objects (before Lit renders)
     for (const [key, val] of Object.entries(comp.attributes)) {
       const ctrl = node.controls[key];
-      if (ctrl instanceof AttributeControl) {
-        // Set value directly first (for initial render)
+      if (ctrl instanceof AggregateControl) {
+        ctrl.setValue(val);
+      } else if (ctrl instanceof AttributeControl) {
         ctrl.value = val;
       }
     }
@@ -134,7 +135,9 @@ export async function importFromHtml(editor: PipelineEditor, htmlCode: string): 
 
     for (const [key, val] of Object.entries(comp.attributes)) {
       const ctrl = node.controls[key];
-      if (ctrl instanceof AttributeControl) {
+      if (ctrl instanceof AggregateControl) {
+        ctrl.setValue(val);
+      } else if (ctrl instanceof AttributeControl) {
         ctrl.setValue(val);
       }
     }

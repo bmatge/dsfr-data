@@ -1,5 +1,5 @@
 import { ClassicPreset } from 'rete';
-import { PipelineNode, AttributeControl, ExecutionResult } from './nodes/base-node.js';
+import { PipelineNode, AttributeControl, AggregateControl, ExecutionResult } from './nodes/base-node.js';
 
 interface GraphNode {
   node: PipelineNode;
@@ -301,8 +301,9 @@ export class PipelineExecutor {
       if (otherGn.dataSource !== gn) continue;
 
       for (const [key, ctrl] of Object.entries(otherGn.node.controls)) {
-        if (!(ctrl instanceof AttributeControl)) continue;
-        if (ctrl.def.type === 'text' && this.isFieldSelector(key)) {
+        if (ctrl instanceof AggregateControl) {
+          ctrl.setAvailableFields(fields);
+        } else if (ctrl instanceof AttributeControl && ctrl.def.type === 'text' && this.isFieldSelector(key)) {
           ctrl.setOptions(fields.map(f => ({ value: f, label: f })));
         }
       }

@@ -1,5 +1,5 @@
 import { ClassicPreset } from 'rete';
-import { PipelineNode, AttributeControl, SavedSourceSelector } from './base-node.js';
+import { PipelineNode, AttributeControl, SavedSourceSelector, AggregateControl } from './base-node.js';
 import { DataSocket, CommandSocket } from './sockets.js';
 import { NODE_CONFIGS } from './node-configs.js';
 
@@ -84,6 +84,20 @@ export function createQueryNode(): PipelineNode {
   const node = new PipelineNode(NODE_CONFIGS.query);
   node.addInput('data', new ClassicPreset.Input(DataSocket, 'Donnees'));
   node.addOutput('data', new ClassicPreset.Output(DataSocket, 'Donnees'));
+
+  // Insert AggregateControl after group-by, before order-by
+  const existingControls = { ...node.controls };
+  for (const key of Object.keys(existingControls)) {
+    node.removeControl(key);
+  }
+
+  // Re-add in order: group-by, aggregate builder, order-by, filter, __status__
+  if (existingControls['group-by']) node.addControl('group-by', existingControls['group-by']);
+  node.addControl('aggregate', new AggregateControl());
+  if (existingControls['order-by']) node.addControl('order-by', existingControls['order-by']);
+  if (existingControls['filter']) node.addControl('filter', existingControls['filter']);
+  if (existingControls['__status__']) node.addControl('__status__', existingControls['__status__']);
+
   return node;
 }
 

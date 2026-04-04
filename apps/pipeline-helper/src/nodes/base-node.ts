@@ -65,6 +65,62 @@ export class SavedSourceSelector extends ClassicPreset.Control {
   }
 }
 
+export interface AggregateRow {
+  field: string;
+  fn: string;
+  alias: string;
+}
+
+/**
+ * Control for building aggregate expressions line by line.
+ * Serializes to "field:fn:alias, field2:fn2:alias2" format.
+ */
+export class AggregateControl extends ClassicPreset.Control {
+  onChange?: () => void;
+  rows: AggregateRow[] = [{ field: '', fn: 'sum', alias: '' }];
+  /** Available fields from upstream (populated after execution) */
+  availableFields: string[] = [];
+
+  get value(): string {
+    return this.rows
+      .filter(r => r.field)
+      .map(r => r.alias ? `${r.field}:${r.fn}:${r.alias}` : `${r.field}:${r.fn}`)
+      .join(', ');
+  }
+
+  setValue(val: string) {
+    if (!val) {
+      this.rows = [{ field: '', fn: 'sum', alias: '' }];
+    } else {
+      this.rows = val.split(',').map(part => {
+        const [field, fn, alias] = part.trim().split(':');
+        return { field: field || '', fn: fn || 'sum', alias: alias || '' };
+      });
+      if (this.rows.length === 0) {
+        this.rows = [{ field: '', fn: 'sum', alias: '' }];
+      }
+    }
+    this.onChange?.();
+  }
+
+  setAvailableFields(fields: string[]) {
+    this.availableFields = fields;
+    this.onChange?.();
+  }
+
+  addRow() {
+    this.rows.push({ field: '', fn: 'sum', alias: '' });
+    this.onChange?.();
+  }
+
+  removeRow(index: number) {
+    if (this.rows.length > 1) {
+      this.rows.splice(index, 1);
+      this.onChange?.();
+    }
+  }
+}
+
 export type ExecutionStatus = 'idle' | 'loading' | 'success' | 'error' | 'warning';
 
 export interface ExecutionResult {
@@ -124,6 +180,8 @@ export class PipelineNode extends ClassicPreset.Node {
     const attrs: Record<string, string> = {};
     for (const [key, ctrl] of Object.entries(this.controls)) {
       if (ctrl instanceof AttributeControl && ctrl.value) {
+        attrs[key] = ctrl.value;
+      } else if (ctrl instanceof AggregateControl && ctrl.value) {
         attrs[key] = ctrl.value;
       }
     }

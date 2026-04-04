@@ -40,12 +40,17 @@ describe('pipeline-helper: node configs', () => {
     expect(attrs).toContain('dataset-id');
   });
 
-  it('query config should have group-by, aggregate, order-by, filter', () => {
+  it('query config should have group-by, order-by, filter (aggregate is a special control)', () => {
     const attrs = NODE_CONFIGS.query.attributes.map(a => a.name);
     expect(attrs).toContain('group-by');
-    expect(attrs).toContain('aggregate');
     expect(attrs).toContain('order-by');
     expect(attrs).toContain('filter');
+  });
+
+  it('query node should have an AggregateControl', () => {
+    const node = NODE_FACTORIES.query();
+    expect(node.controls['aggregate']).toBeDefined();
+    expect(node.controls['aggregate'].constructor.name).toBe('AggregateControl');
   });
 
   it('normalize config should have numeric, rename, flatten, trim attributes', () => {

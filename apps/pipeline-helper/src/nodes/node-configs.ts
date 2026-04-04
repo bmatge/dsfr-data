@@ -60,12 +60,7 @@ export const QUERY_CONFIG: PipelineNodeConfig = {
       type: 'text',
       placeholder: 'region',
     },
-    {
-      name: 'aggregate',
-      label: 'Aggregate',
-      type: 'text',
-      placeholder: 'population:sum:total',
-    },
+    // aggregate is handled by AggregateControl, not a simple attribute
     {
       name: 'order-by',
       label: 'Order By',

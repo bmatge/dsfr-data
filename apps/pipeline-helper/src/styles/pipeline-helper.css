@@ -135,6 +135,80 @@ rete-node {
   font-size: 0.78rem;
 }
 
+/* ---- Aggregate builder ---- */
+.agg-control {
+  margin: 4px 0;
+}
+
+.agg-row {
+  display: flex;
+  gap: 3px;
+  margin-bottom: 3px;
+  align-items: center;
+}
+
+.agg-field {
+  flex: 2;
+  min-width: 0;
+  padding: 2px 4px;
+  font-size: 0.72rem;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  background: #f8f8f8;
+  font-family: 'Marianne', system-ui, sans-serif;
+}
+
+.agg-fn {
+  flex: 1;
+  min-width: 0;
+  padding: 2px 2px;
+  font-size: 0.72rem;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  background: #f8f8f8;
+  font-family: 'Marianne', system-ui, sans-serif;
+}
+
+.agg-alias {
+  flex: 1.5;
+  min-width: 0;
+  padding: 2px 4px;
+  font-size: 0.72rem;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  background: #f8f8f8;
+  font-family: 'Marianne', system-ui, sans-serif;
+}
+
+.agg-remove {
+  background: none;
+  border: none;
+  color: #ce0500;
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 0 4px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.agg-add {
+  display: block;
+  width: 100%;
+  padding: 3px;
+  font-size: 0.7rem;
+  color: #000091;
+  background: #f0f0ff;
+  border: 1px dashed #000091;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: 'Marianne', system-ui, sans-serif;
+  margin-top: 2px;
+}
+
+.agg-add:hover {
+  background: #e0e0ff;
+}
+
 .attr-input {
   width: 100%;
   padding: 3px 6px;

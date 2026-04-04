@@ -3,12 +3,13 @@ import { AreaPlugin, AreaExtensions } from 'rete-area-plugin';
 import { ConnectionPlugin, Presets as ConnectionPresets } from 'rete-connection-plugin';
 import { LitPlugin, Presets as LitPresets } from '@retejs/lit-plugin';
 import { AutoArrangePlugin, Presets as ArrangePresets } from 'rete-auto-arrange-plugin';
-import { PipelineNode, AttributeControl, StatusControl, SavedSourceSelector } from './nodes/base-node.js';
+import { PipelineNode, AttributeControl, StatusControl, SavedSourceSelector, AggregateControl } from './nodes/base-node.js';
 import { NODE_FACTORIES } from './nodes/pipeline-nodes.js';
 import { html } from 'lit';
 import './ui/attribute-control-element.js';
 import './ui/status-control-element.js';
 import './ui/saved-source-control.js';
+import './ui/aggregate-control-element.js';
 
 // Use 'any' for Rete schemes — Rete v2's generics are very strict
 // about Node subclass inference and fight with custom node types.
@@ -36,6 +37,10 @@ export class PipelineEditor {
           if (context.payload instanceof SavedSourceSelector) {
             const ctrl = context.payload as SavedSourceSelector;
             return () => html`<saved-source-control .ctrl=${ctrl}></saved-source-control>`;
+          }
+          if (context.payload instanceof AggregateControl) {
+            const ctrl = context.payload as AggregateControl;
+            return () => html`<aggregate-control-element .ctrl=${ctrl}></aggregate-control-element>`;
           }
           if (context.payload instanceof StatusControl) {
             const ctrl = context.payload as StatusControl;
