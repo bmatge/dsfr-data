@@ -480,7 +480,7 @@ describe('PUT /api/auth/me', () => {
     const updateRes = await request(app)
       .put('/api/auth/me')
       .set('Cookie', cookie)
-      .send({ password: 'NewPassword2' });
+      .send({ currentPassword: VALID_PASSWORD, password: 'NewPassword2' });
 
     expect(updateRes.status).toBe(200);
 
@@ -491,13 +491,37 @@ describe('PUT /api/auth/me', () => {
     expect(loginRes.status).toBe(200);
   });
 
+  it('rejects password change without current password', async () => {
+    const cookie = await registerAdmin(app, 'nopw@example.com');
+
+    const res = await request(app)
+      .put('/api/auth/me')
+      .set('Cookie', cookie)
+      .send({ password: 'NewPassword2' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/actuel/i);
+  });
+
+  it('rejects password change with wrong current password', async () => {
+    const cookie = await registerAdmin(app, 'wrongpw@example.com');
+
+    const res = await request(app)
+      .put('/api/auth/me')
+      .set('Cookie', cookie)
+      .send({ currentPassword: 'WrongPassword1', password: 'NewPassword2' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/incorrect/i);
+  });
+
   it('rejects weak password update', async () => {
     const cookie = await registerAdmin(app, 'weakpw@example.com');
 
     const res = await request(app)
       .put('/api/auth/me')
       .set('Cookie', cookie)
-      .send({ password: 'short' });
+      .send({ currentPassword: VALID_PASSWORD, password: 'short' });
 
     expect(res.status).toBe(400);
   });

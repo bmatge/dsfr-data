@@ -156,6 +156,9 @@ async function runMigrations(): Promise<void> {
   if (currentVersion < 4) {
     await migrateV4();
   }
+  if (currentVersion < 5) {
+    await migrateV5();
+  }
 }
 
 /**
@@ -276,6 +279,43 @@ async function migrateV4(): Promise<void> {
 
     await conn.query('INSERT IGNORE INTO schema_version (version) VALUES (4)');
     console.log('[db] Migration v4 complete');
+  } finally {
+    conn.release();
+  }
+}
+
+/**
+ * Migration v5: password reset token columns on users.
+ */
+async function migrateV5(): Promise<void> {
+  console.log('[db] Running migration v5: password reset columns');
+
+  const conn = await getPool().getConnection();
+  try {
+    const [cols] = await conn.query(
+      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'reset_token_hash'`,
+    );
+    if ((cols as unknown[]).length > 0) {
+      await conn.query('INSERT IGNORE INTO schema_version (version) VALUES (5)');
+      return;
+    }
+
+    await conn.beginTransaction();
+
+    await conn.query(`ALTER TABLE users
+      ADD COLUMN reset_token_hash VARCHAR(64) NULL AFTER verification_expires,
+      ADD COLUMN reset_token_expires TIMESTAMP NULL AFTER reset_token_hash`);
+
+    await conn.query(`CREATE INDEX idx_users_reset_token ON users(reset_token_hash)`);
+
+    await conn.query('INSERT IGNORE INTO schema_version (version) VALUES (5)');
+
+    await conn.commit();
+    console.log('[db] Migration v5 complete');
+  } catch (err) {
+    await conn.rollback();
+    throw err;
   } finally {
     conn.release();
   }

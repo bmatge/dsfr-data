@@ -71,6 +71,28 @@ export async function sendWelcomeEmail(email: string, displayName: string): Prom
 }
 
 /**
+ * Send a password reset email with a one-time token link.
+ * Token expires in 1 hour.
+ */
+export async function sendPasswordResetEmail(email: string, token: string): Promise<void> {
+  const resetUrl = `${APP_URL()}/?reset-password=${token}`;
+  await getTransporter().sendMail({
+    from: `"DSFR Data" <${FROM()}>`,
+    to: email,
+    subject: 'Reinitialisation de votre mot de passe — DSFR Data',
+    html: `
+      <p>Bonjour,</p>
+      <p>Vous avez demande la reinitialisation de votre mot de passe sur <strong>DSFR Data</strong>.</p>
+      <p>Cliquez sur le lien ci-dessous pour choisir un nouveau mot de passe :</p>
+      <p><a href="${resetUrl}">${resetUrl}</a></p>
+      <p>Ce lien expire dans <strong>1 heure</strong>.</p>
+      <p>Si vous n'etes pas a l'origine de cette demande, ignorez cet email. Votre mot de passe actuel ne sera pas modifie.</p>
+    `,
+    text: `Reinitialisation de votre mot de passe DSFR Data.\n\nCliquez sur ce lien : ${resetUrl}\n\nCe lien expire dans 1 heure.\n\nSi vous n'etes pas a l'origine de cette demande, ignorez cet email.`,
+  });
+}
+
+/**
  * Override the transporter (for testing with a mock).
  */
 export function setTransporter(t: Transporter | null): void {
