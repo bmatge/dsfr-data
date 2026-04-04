@@ -53,7 +53,8 @@ for (const line of lines) {
 
   if (!referer || referer === '-' || !component) continue;
 
-  const key = `${referer}|${component}|${chartType || ''}`;
+  const ct = (chartType && chartType !== '-') ? chartType : '';
+  const key = `${referer}|${component}|${ct}`;
   const existing = agg.get(key);
 
   if (existing) {
@@ -64,7 +65,7 @@ for (const line of lines) {
     agg.set(key, {
       referer,
       component,
-      chartType: chartType || null,
+      chartType: (chartType && chartType !== '-') ? chartType : null,
       firstSeen: timestamp,
       lastSeen: timestamp,
       callCount: 1,

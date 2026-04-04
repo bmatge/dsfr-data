@@ -76,7 +76,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Strip non-HTTP entries (local files, srcdoc, null origins)
+  // Normalize chartType: treat "-" and "" as null (nginx logs write "-" for missing fields)
   data.entries = data.entries.filter((e) => isRealOrigin(e.referer));
+  for (const e of data.entries) {
+    if (e.chartType === '-' || e.chartType === '') e.chartType = null;
+  }
   filteredEntries = data.entries;
   applyGrouping();
   renderKpis();
@@ -435,8 +439,11 @@ async function refreshData(): Promise<void> {
     }
   }
 
-  // Strip non-HTTP entries
+  // Strip non-HTTP entries, normalize chartType
   data.entries = data.entries.filter((e) => isRealOrigin(e.referer));
+  for (const e of data.entries) {
+    if (e.chartType === '-' || e.chartType === '') e.chartType = null;
+  }
 
   // Re-apply current filters
   applyFilters();

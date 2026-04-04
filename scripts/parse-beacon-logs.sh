@@ -68,7 +68,7 @@ NF >= 4 {
   if (!(key in last)  || $1 > last[key])  last[key] = $1
   referer[key] = eff_ref
   component[key] = $3
-  charttype[key] = $4
+  charttype[key] = ($4 == "-") ? "" : $4
 }
 END {
   # Sort keys by count descending
