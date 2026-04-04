@@ -143,6 +143,7 @@ export class AppHeader extends LitElement {
       { id: 'builder-ia', label: 'Assistant IA', href: 'apps/builder-ia/index.html' },
       { id: 'builder', label: 'Créer graphique', href: 'apps/builder/index.html' },
       { id: 'builder-carto', label: 'Créer carte', href: 'apps/builder-carto/index.html' },
+      { id: 'pipeline-helper', label: 'Pipeline', href: 'apps/pipeline-helper/index.html' },
       { id: 'playground', label: 'Editeur HTML', href: 'apps/playground/index.html' },
       { id: 'dashboard', label: 'Tableau de bord', href: 'apps/dashboard/index.html' },
       { id: 'monitoring', label: 'Suivi', href: 'apps/monitoring/index.html' },

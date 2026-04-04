@@ -252,10 +252,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Save to favorites button
   document.getElementById('save-btn')?.addEventListener('click', saveFavorite);
 
+  // Pipeline helper button
+  document.getElementById('pipeline-btn')?.addEventListener('click', () => {
+    const code = editor.getValue();
+    if (!code.trim()) return;
+    sessionStorage.setItem('pipeline-helper-code', code);
+    window.location.href = appHref('pipeline-helper', { from: 'playground' });
+  });
+
   // Load code from sessionStorage if coming from another app
   const urlParams = new URLSearchParams(window.location.search);
   const from = urlParams.get('from');
-  if (from === 'favorites' || from === 'builder' || from === 'builder-ia') {
+  if (from === 'favorites' || from === 'builder' || from === 'builder-ia' || from === 'pipeline-helper') {
     const savedCode = sessionStorage.getItem('playground-code');
     if (savedCode) {
       editor.setValue(savedCode);
