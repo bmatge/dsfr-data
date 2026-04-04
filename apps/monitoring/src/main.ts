@@ -3,6 +3,8 @@
  */
 
 import { escapeHtml } from '@dsfr-data/shared';
+import { checkAuth, isDbMode as checkDbMode } from '@dsfr-data/shared';
+import type { User } from '@dsfr-data/shared';
 import {
   fetchMonitoringData,
   triggerRefresh,
@@ -15,13 +17,28 @@ import {
 } from './monitoring-data.js';
 
 // ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+interface GroupedEntry {
+  referer: string;
+  components: { component: string; chartType: string | null }[];
+  firstSeen: string;
+  lastSeen: string;
+  callCount: number;
+}
+
+// ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
 
 let data: MonitoringData | null = null;
 let filteredEntries: MonitoringEntry[] = [];
-let sortKey: keyof MonitoringEntry = 'lastSeen';
+let groupedEntries: GroupedEntry[] = [];
+let sortKey: 'referer' | 'firstSeen' | 'lastSeen' | 'callCount' = 'lastSeen';
 let sortDir: 'asc' | 'desc' = 'desc';
+let currentUser: User | null = null;
+let dbMode = false;
 
 // ---------------------------------------------------------------------------
 // Init
@@ -29,6 +46,15 @@ let sortDir: 'asc' | 'desc' = 'desc';
 
 document.addEventListener('DOMContentLoaded', async () => {
   const errorEl = document.getElementById('load-error');
+
+  // Detect auth state for admin features
+  try {
+    dbMode = await checkDbMode();
+    if (dbMode) {
+      const authState = await checkAuth();
+      currentUser = authState.user;
+    }
+  } catch { /* no backend */ }
 
   try {
     data = await fetchMonitoringData();
@@ -49,14 +75,46 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   filteredEntries = data.entries;
+  applyGrouping();
   renderKpis();
   populateFilters();
   renderTable();
+  renderAdminControls();
   setupEventListeners();
 });
 
 // ---------------------------------------------------------------------------
-// KPIs
+// Grouping — aggregate entries by page URL
+// ---------------------------------------------------------------------------
+
+function applyGrouping(): void {
+  const map = new Map<string, GroupedEntry>();
+
+  for (const e of filteredEntries) {
+    const key = e.referer;
+    let group = map.get(key);
+    if (!group) {
+      group = {
+        referer: key,
+        components: [],
+        firstSeen: e.firstSeen,
+        lastSeen: e.lastSeen,
+        callCount: 0,
+      };
+      map.set(key, group);
+    }
+    group.components.push({ component: e.component, chartType: e.chartType });
+    group.callCount += e.callCount;
+    if (e.firstSeen < group.firstSeen) group.firstSeen = e.firstSeen;
+    if (e.lastSeen > group.lastSeen) group.lastSeen = e.lastSeen;
+  }
+
+  groupedEntries = [...map.values()];
+  applySort();
+}
+
+// ---------------------------------------------------------------------------
+// KPIs — reactive to current filters
 // ---------------------------------------------------------------------------
 
 function renderKpis(): void {
@@ -64,9 +122,10 @@ function renderKpis(): void {
   const row = document.getElementById('kpi-row');
   if (!row) return;
 
-  const uniqueSites = new Set(data.entries.map((e) => extractDomain(e.referer))).size;
-  const totalComponents = data.entries.length;
-  const totalCalls = data.entries.reduce((s, e) => s + e.callCount, 0);
+  // Use filtered entries for KPIs so they reflect active filters
+  const uniqueSites = new Set(filteredEntries.map((e) => extractDomain(e.referer))).size;
+  const uniquePages = new Set(filteredEntries.map((e) => e.referer)).size;
+  const totalCalls = filteredEntries.reduce((s, e) => s + e.callCount, 0);
   const generated = data.generated
     ? new Date(data.generated).toLocaleDateString('fr-FR', {
         day: '2-digit',
@@ -77,14 +136,19 @@ function renderKpis(): void {
       })
     : '-';
 
+  // Show "X / Y" when filtered
+  const isFiltered = filteredEntries.length !== data.entries.length;
+  const totalPages = isFiltered ? new Set(data.entries.map((e) => e.referer)).size : uniquePages;
+  const totalSites = isFiltered ? new Set(data.entries.map((e) => extractDomain(e.referer))).size : uniqueSites;
+
   row.innerHTML = `
     <div class="monitoring-kpi">
-      <div class="monitoring-kpi__value">${uniqueSites}</div>
-      <div class="monitoring-kpi__label">Sites deployes</div>
+      <div class="monitoring-kpi__value">${uniqueSites}${isFiltered ? `<span class="monitoring-kpi__total"> / ${totalSites}</span>` : ''}</div>
+      <div class="monitoring-kpi__label">Sites</div>
     </div>
     <div class="monitoring-kpi">
-      <div class="monitoring-kpi__value">${totalComponents}</div>
-      <div class="monitoring-kpi__label">Widgets actifs</div>
+      <div class="monitoring-kpi__value">${uniquePages}${isFiltered ? `<span class="monitoring-kpi__total"> / ${totalPages}</span>` : ''}</div>
+      <div class="monitoring-kpi__label">Pages</div>
     </div>
     <div class="monitoring-kpi">
       <div class="monitoring-kpi__value">${totalCalls.toLocaleString('fr-FR')}</div>
@@ -107,15 +171,26 @@ function populateFilters(): void {
   const componentSelect = document.getElementById('filter-component') as HTMLSelectElement;
   const typeSelect = document.getElementById('filter-type') as HTMLSelectElement;
 
+  // Preserve current selection
+  const prevComponent = componentSelect.value;
+  const prevType = typeSelect.value;
+
   const components = [...new Set(data.entries.map((e) => e.component))].sort();
   const types = [...new Set(data.entries.map((e) => e.chartType).filter(Boolean))].sort();
 
+  componentSelect.innerHTML = '<option value="">Tous</option>';
   for (const c of components) {
     componentSelect.innerHTML += `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`;
   }
+
+  typeSelect.innerHTML = '<option value="">Tous</option>';
   for (const t of types) {
     typeSelect.innerHTML += `<option value="${escapeHtml(t!)}">${escapeHtml(t!)}</option>`;
   }
+
+  // Restore selection if still valid
+  componentSelect.value = prevComponent;
+  typeSelect.value = prevType;
 }
 
 function applyFilters(): void {
@@ -123,16 +198,22 @@ function applyFilters(): void {
 
   const component = (document.getElementById('filter-component') as HTMLSelectElement).value;
   const chartType = (document.getElementById('filter-type') as HTMLSelectElement).value;
-  const search = (document.getElementById('search-referer') as HTMLInputElement).value.toLowerCase();
+  const search = (document.getElementById('search-referer') as HTMLInputElement).value.toLowerCase().trim();
 
   filteredEntries = data.entries.filter((e) => {
     if (component && e.component !== component) return false;
     if (chartType && e.chartType !== chartType) return false;
-    if (search && !decodeUrl(e.referer).toLowerCase().includes(search)) return false;
+    if (search) {
+      const url = decodeUrl(e.referer).toLowerCase();
+      const domain = extractDomain(e.referer).toLowerCase();
+      const path = extractPath(e.referer).toLowerCase();
+      if (!url.includes(search) && !domain.includes(search) && !path.includes(search)) return false;
+    }
     return true;
   });
 
-  applySort();
+  applyGrouping();
+  renderKpis();
   renderTable();
 }
 
@@ -141,7 +222,7 @@ function applyFilters(): void {
 // ---------------------------------------------------------------------------
 
 function applySort(): void {
-  filteredEntries.sort((a, b) => {
+  groupedEntries.sort((a, b) => {
     const av = a[sortKey];
     const bv = b[sortKey];
     if (av == null && bv == null) return 0;
@@ -158,7 +239,7 @@ function applySort(): void {
   });
 }
 
-function toggleSort(key: keyof MonitoringEntry): void {
+function toggleSort(key: typeof sortKey): void {
   if (sortKey === key) {
     sortDir = sortDir === 'asc' ? 'desc' : 'asc';
   } else {
@@ -170,7 +251,7 @@ function toggleSort(key: keyof MonitoringEntry): void {
 }
 
 // ---------------------------------------------------------------------------
-// Table rendering
+// Table rendering — grouped by page
 // ---------------------------------------------------------------------------
 
 function sortIcon(key: string): string {
@@ -191,28 +272,43 @@ function formatDate(iso: string): string {
   }
 }
 
+function renderComponentBadges(components: GroupedEntry['components']): string {
+  return components
+    .map((c) => {
+      const label = c.component.replace('dsfr-data-', '');
+      const typeBadge = c.chartType
+        ? ` <span class="monitoring-badge monitoring-badge--type">${escapeHtml(c.chartType)}</span>`
+        : '';
+      return `<span class="monitoring-badge">${escapeHtml(label)}</span>${typeBadge}`;
+    })
+    .join(' ');
+}
+
+const isAdmin = () => currentUser?.role === 'admin' && dbMode;
+
 function renderTable(): void {
   const container = document.getElementById('monitoring-table');
   if (!container) return;
 
-  if (filteredEntries.length === 0) {
+  if (groupedEntries.length === 0) {
     container.innerHTML = '<div class="monitoring-empty">Aucun widget trouve</div>';
     return;
   }
 
-  const rows = filteredEntries
+  const showDelete = isAdmin();
+
+  const rows = groupedEntries
     .map(
       (e) => `
     <tr>
       <td><a href="${escapeHtml(decodeUrl(e.referer))}" target="_blank" rel="noopener" class="monitoring-link" title="${escapeHtml(decodeUrl(e.referer))}">${escapeHtml(extractDomain(e.referer))}</a></td>
       <td class="monitoring-link" title="${escapeHtml(extractPath(e.referer))}">${escapeHtml(extractPath(e.referer))}</td>
-      <td><span class="monitoring-badge">${escapeHtml(e.component)}</span></td>
-      <td>${e.chartType ? `<span class="monitoring-badge monitoring-badge--type">${escapeHtml(e.chartType)}</span>` : '-'}</td>
+      <td class="monitoring-components">${renderComponentBadges(e.components)}</td>
       <td class="monitoring-date">${formatDate(e.firstSeen)}</td>
       <td class="monitoring-date">${formatDate(e.lastSeen)}</td>
       <td class="monitoring-count">${e.callCount.toLocaleString('fr-FR')}</td>
-    </tr>`
-    )
+      ${showDelete ? `<td><button class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm monitoring-delete-btn" data-referer="${escapeHtml(e.referer)}" title="Supprimer"><i class="ri-delete-bin-line"></i></button></td>` : ''}
+    </tr>`)
     .join('');
 
   container.innerHTML = `
@@ -221,11 +317,11 @@ function renderTable(): void {
         <tr>
           <th data-sort="referer">Site ${sortIcon('referer')}</th>
           <th>Page</th>
-          <th data-sort="component">Composant ${sortIcon('component')}</th>
-          <th data-sort="chartType">Type ${sortIcon('chartType')}</th>
+          <th>Composants</th>
           <th data-sort="firstSeen">Premier appel ${sortIcon('firstSeen')}</th>
           <th data-sort="lastSeen">Dernier appel ${sortIcon('lastSeen')}</th>
           <th data-sort="callCount">Appels ${sortIcon('callCount')}</th>
+          ${showDelete ? '<th></th>' : ''}
         </tr>
       </thead>
       <tbody>${rows}</tbody>
@@ -235,9 +331,103 @@ function renderTable(): void {
   // Attach sort handlers
   container.querySelectorAll('th[data-sort]').forEach((th) => {
     th.addEventListener('click', () => {
-      toggleSort(th.getAttribute('data-sort') as keyof MonitoringEntry);
+      toggleSort(th.getAttribute('data-sort') as typeof sortKey);
     });
   });
+
+  // Attach delete handlers
+  if (showDelete) {
+    container.querySelectorAll('.monitoring-delete-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const referer = btn.getAttribute('data-referer')!;
+        deleteByReferer(referer);
+      });
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Admin controls — purge & per-page delete
+// ---------------------------------------------------------------------------
+
+function renderAdminControls(): void {
+  const slot = document.getElementById('admin-controls');
+  if (!slot || !isAdmin()) return;
+
+  slot.innerHTML = `
+    <button class="fr-btn fr-btn--secondary fr-btn--sm fr-btn--icon-left" id="btn-purge" style="color:var(--text-default-error);">
+      <i class="ri-delete-bin-2-line"></i> Purger tout
+    </button>
+  `;
+
+  document.getElementById('btn-purge')?.addEventListener('click', purgeAll);
+}
+
+async function purgeAll(): Promise<void> {
+  if (!confirm('Supprimer toutes les donnees de monitoring ? Cette action est irreversible.')) return;
+
+  try {
+    const res = await fetch('/api/monitoring/data', {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    await refreshData();
+  } catch (err) {
+    console.error('Purge failed:', err);
+    alert('Erreur lors de la purge');
+  }
+}
+
+async function deleteByReferer(referer: string): Promise<void> {
+  const domain = extractDomain(referer);
+  const path = extractPath(referer);
+  if (!confirm(`Supprimer les donnees de monitoring pour ${domain}${path} ?`)) return;
+
+  try {
+    const res = await fetch('/api/monitoring/entries', {
+      method: 'DELETE',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ referer }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    await refreshData();
+  } catch (err) {
+    console.error('Delete failed:', err);
+    alert('Erreur lors de la suppression');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Shared refresh logic
+// ---------------------------------------------------------------------------
+
+async function refreshData(): Promise<void> {
+  const errEl = document.getElementById('load-error');
+
+  try {
+    data = await fetchMonitoringData();
+    if (errEl) {
+      errEl.className = 'fr-alert fr-alert--success fr-mb-2w';
+      errEl.textContent = `Donnees reelles chargees (${data.entries.length} entrees)`;
+      errEl.style.display = 'block';
+    }
+  } catch (err) {
+    data = getMockData();
+    const detail = err instanceof Error ? err.message : String(err);
+    if (errEl) {
+      errEl.className = 'fr-alert fr-alert--warning fr-mb-2w';
+      errEl.innerHTML = `<strong>Donnees de demonstration</strong> — ${escapeHtml(detail)}`;
+      errEl.style.display = 'block';
+    }
+  }
+
+  // Re-apply current filters
+  applyFilters();
+  populateFilters();
+  renderKpis();
+  renderTable();
 }
 
 // ---------------------------------------------------------------------------
@@ -245,12 +435,12 @@ function renderTable(): void {
 // ---------------------------------------------------------------------------
 
 function exportCsv(): void {
-  const headers = ['Site', 'Page', 'Composant', 'Type', 'Premier appel', 'Dernier appel', 'Appels'];
-  const rows = filteredEntries.map((e) => [
+  const headers = ['Site', 'Page', 'Composants', 'Types', 'Premier appel', 'Dernier appel', 'Appels'];
+  const rows = groupedEntries.map((e) => [
     extractDomain(decodeUrl(e.referer)),
     extractPath(decodeUrl(e.referer)),
-    e.component,
-    e.chartType || '',
+    e.components.map((c) => c.component).join(', '),
+    e.components.map((c) => c.chartType || '').filter(Boolean).join(', '),
     e.firstSeen,
     e.lastSeen,
     String(e.callCount),
@@ -284,33 +474,12 @@ function setupEventListeners(): void {
   document.getElementById('btn-export')?.addEventListener('click', exportCsv);
   document.getElementById('btn-refresh')?.addEventListener('click', async () => {
     const btn = document.getElementById('btn-refresh') as HTMLButtonElement;
-    const errEl = document.getElementById('load-error');
     btn.disabled = true;
     btn.textContent = 'Mise a jour...';
 
-    // Trigger server-side parsing then fetch fresh data
     await triggerRefresh();
+    await refreshData();
 
-    try {
-      data = await fetchMonitoringData();
-      filteredEntries = data.entries;
-      if (errEl) {
-        errEl.className = 'fr-alert fr-alert--success fr-mb-2w';
-        errEl.textContent = `Donnees reelles chargees (${data.entries.length} entrees)`;
-        errEl.style.display = 'block';
-      }
-    } catch (err) {
-      data = getMockData();
-      filteredEntries = data.entries;
-      const detail = err instanceof Error ? err.message : String(err);
-      if (errEl) {
-        errEl.className = 'fr-alert fr-alert--warning fr-mb-2w';
-        errEl.innerHTML = `<strong>Donnees de demonstration</strong> — ${escapeHtml(detail)}`;
-        errEl.style.display = 'block';
-      }
-    }
-    renderKpis();
-    renderTable();
     btn.disabled = false;
     btn.innerHTML = '<i class="ri-refresh-line"></i> Actualiser';
   });

@@ -102,3 +102,20 @@
   font-weight: 600;
   text-align: right;
 }
+
+.monitoring-components {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.monitoring-kpi__total {
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--text-mention-grey);
+}
+
+.monitoring-delete-btn {
+  color: var(--text-default-error) !important;
+  padding: 0.25rem !important;
+}

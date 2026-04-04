@@ -5,6 +5,8 @@
 
 import { Router } from 'express';
 import { query, queryOne, execute } from '../db/database.js';
+import { requireAuth } from '../middleware/auth.js';
+import { requireRole } from '../middleware/rbac.js';
 
 const router = Router();
 
@@ -93,6 +95,38 @@ router.get('/data', async (_req, res) => {
     });
   } catch (err) {
     console.error('Get monitoring data error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * DELETE /data - Purge all monitoring data (admin only)
+ */
+router.delete('/data', requireAuth, requireRole('admin'), async (_req, res) => {
+  try {
+    await execute('DELETE FROM monitoring');
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Purge monitoring error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * DELETE /entries - Delete monitoring entries for a specific page URL (admin only)
+ */
+router.delete('/entries', requireAuth, requireRole('admin'), async (req, res) => {
+  const { referer } = req.body;
+  if (!referer) {
+    res.status(400).json({ error: 'referer is required' });
+    return;
+  }
+
+  try {
+    await execute('DELETE FROM monitoring WHERE origin = ?', [referer]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Delete monitoring entries error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
