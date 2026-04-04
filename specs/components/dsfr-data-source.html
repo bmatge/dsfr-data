@@ -113,6 +113,8 @@
             <tr><td><code>refresh</code></td><td>Number</td><td>Entier en secondes. <code>0</code> = off</td><td>Intervalle de rafraichissement automatique</td></tr>
             <tr><td><code>transform</code></td><td>String</td><td><code>"results"</code>, <code>"data.items"</code></td><td>Chemin JSON pour extraire les donnees de la reponse API</td></tr>
             <tr><td><code>headers</code></td><td>String</td><td><code>'{"apikey":"abc123"}'</code></td><td>Headers HTTP en JSON (API key, Bearer token, etc.)</td></tr>
+            <tr><td><code>api-key-ref</code></td><td>String</td><td><code>"tmdb"</code></td><td>Reference vers une cle API declaree dans <code>window.DSFR_DATA_KEYS</code>.
+              La valeur est injectee comme header <code>Authorization</code>. Prioritaire sur un header Authorization explicite.</td></tr>
             <tr><td><code>cache-ttl</code></td><td>Number</td><td>Entier en secondes. Defaut : <code>3600</code></td><td>Duree de cache serveur en mode DB (0 = pas de cache)</td></tr>
           </tbody>
         </table>
@@ -408,6 +410,44 @@ where="email:isnull"</pre></div>
         </section>
 
         <section class="demo-section">
+          <h3>Registre de cles API (<code>api-key-ref</code>)</h3>
+          <p>
+            Au lieu d'ecrire les tokens directement dans les attributs HTML, declarez-les une seule fois
+            dans un registre global <code>window.DSFR_DATA_KEYS</code>, puis referencez-les par nom
+            avec <code>api-key-ref</code>. La cle est injectee comme header <code>Authorization</code>.
+          </p>
+          <div class="code-block"><pre>&lt;script&gt;
+  window.DSFR_DATA_KEYS = {
+    tmdb: 'Bearer eyJhbGciOiJIUzI1NiJ9...',
+    monapi: 'Token abc123'
+  };
+&lt;/script&gt;
+
+&lt;dsfr-data-source
+  id="films"
+  url="https://api.themoviedb.org/3/movie/popular"
+  api-key-ref="tmdb"
+  transform="results"
+&gt;&lt;/dsfr-data-source&gt;</pre></div>
+          <div class="fr-callout fr-callout--blue-ecume fr-mt-2w">
+            <p class="fr-callout__text">
+              <strong>Comportement :</strong> si <code>api-key-ref</code> est defini et que la cle existe
+              dans <code>window.DSFR_DATA_KEYS</code>, elle est injectee en header <code>Authorization</code>
+              a chaque requete. Si la cle n'est pas trouvee, un avertissement est emis dans la console et
+              la requete est envoyee sans authentification. Fonctionne avec les deux modes (URL brute et adapter).
+            </p>
+          </div>
+          <div class="fr-callout fr-callout--orange-terre-battue fr-mt-2w">
+            <p class="fr-callout__text">
+              <strong>Securite :</strong> les cles restent lisibles par tout script sur la page
+              (meme modele de securite que l'attribut <code>headers</code>). Cette fonctionnalite est une
+              commodite pour separer la declaration des cles du markup, pas un mecanisme de protection.
+              Pour les cles sensibles, utilisez un proxy serveur.
+            </p>
+          </div>
+        </section>
+
+        <section class="demo-section">
           <h3>Rafraichissement automatique</h3>
           <p>
             L'attribut <code>refresh</code> re-execute la requete a intervalles reguliers (en secondes).
@@ -471,9 +511,10 @@ where="email:isnull"</pre></div>
         </div>
         <div class="fr-callout fr-mt-2w">
           <p class="fr-callout__text">
-            <strong>Securite :</strong> les headers et tokens sont visibles dans le code source HTML.
-            Ne les utilisez que pour des cles a acces restreint (lecture seule)
+            <strong>Securite :</strong> les headers, tokens et cles dans <code>window.DSFR_DATA_KEYS</code>
+            sont visibles dans le code source HTML. Ne les utilisez que pour des cles a acces restreint (lecture seule)
             ou dans des contextes proteges (intranet, applications internes).
+            Pour une separation propre entre markup et cles, utilisez <code>api-key-ref</code>.
           </p>
         </div>
     </div>

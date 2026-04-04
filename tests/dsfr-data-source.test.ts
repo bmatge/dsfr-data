@@ -1024,6 +1024,106 @@ describe('DsfrDataSource', () => {
     });
   });
 
+  describe('api-key-ref', () => {
+    afterEach(() => {
+      delete (window as any).DSFR_DATA_KEYS;
+    });
+
+    it('resolves Authorization header from window.DSFR_DATA_KEYS', () => {
+      (window as any).DSFR_DATA_KEYS = { tmdb: 'Bearer eyJtoken' };
+      source.apiKeyRef = 'tmdb';
+
+      const headers = (source as any)._resolveApiKeyHeaders();
+      expect(headers).toEqual({ Authorization: 'Bearer eyJtoken' });
+    });
+
+    it('returns null and warns when key is missing from registry', () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      (window as any).DSFR_DATA_KEYS = { other: 'token' };
+      source.apiKeyRef = 'tmdb';
+      source.id = 'test';
+
+      const headers = (source as any)._resolveApiKeyHeaders();
+      expect(headers).toBeNull();
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('introuvable'));
+      warnSpy.mockRestore();
+    });
+
+    it('returns null and warns when DSFR_DATA_KEYS is undefined', () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      source.apiKeyRef = 'tmdb';
+      source.id = 'test';
+
+      const headers = (source as any)._resolveApiKeyHeaders();
+      expect(headers).toBeNull();
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('non defini'));
+      warnSpy.mockRestore();
+    });
+
+    it('returns null when apiKeyRef is empty', () => {
+      source.apiKeyRef = '';
+      const headers = (source as any)._resolveApiKeyHeaders();
+      expect(headers).toBeNull();
+    });
+
+    it('injects api-key-ref into _buildFetchOptions (URL mode)', () => {
+      (window as any).DSFR_DATA_KEYS = { myapi: 'Token abc123' };
+      source.apiKeyRef = 'myapi';
+      source.method = 'GET';
+      source.headers = '';
+      source.params = '';
+
+      const options = (source as any)._buildFetchOptions();
+      expect(options.headers.Authorization).toBe('Token abc123');
+    });
+
+    it('api-key-ref overrides explicit Authorization header', () => {
+      (window as any).DSFR_DATA_KEYS = { myapi: 'Bearer fromRegistry' };
+      source.apiKeyRef = 'myapi';
+      source.method = 'GET';
+      source.headers = '{"Authorization": "Bearer fromAttribute"}';
+      source.params = '';
+
+      const options = (source as any)._buildFetchOptions();
+      expect(options.headers.Authorization).toBe('Bearer fromRegistry');
+    });
+
+    it('preserves other custom headers alongside api-key-ref', () => {
+      (window as any).DSFR_DATA_KEYS = { myapi: 'Bearer token' };
+      source.apiKeyRef = 'myapi';
+      source.method = 'GET';
+      source.headers = '{"X-Custom": "value"}';
+      source.params = '';
+
+      const options = (source as any)._buildFetchOptions();
+      expect(options.headers.Authorization).toBe('Bearer token');
+      expect(options.headers['X-Custom']).toBe('value');
+    });
+
+    it('injects api-key-ref into _getAdapterParams (adapter mode)', () => {
+      (window as any).DSFR_DATA_KEYS = { myapi: 'Bearer adapterToken' };
+      source.apiKeyRef = 'myapi';
+      source.apiType = 'opendatasoft';
+      source.baseUrl = 'https://data.example.com';
+      source.datasetId = 'test';
+
+      const params = (source as any)._getAdapterParams();
+      expect(params.headers).toEqual({ Authorization: 'Bearer adapterToken' });
+    });
+
+    it('merges api-key-ref with existing adapter headers', () => {
+      (window as any).DSFR_DATA_KEYS = { myapi: 'Bearer adapterToken' };
+      source.apiKeyRef = 'myapi';
+      source.apiType = 'opendatasoft';
+      source.baseUrl = 'https://data.example.com';
+      source.datasetId = 'test';
+      source.headers = '{"apikey": "secret"}';
+
+      const params = (source as any)._getAdapterParams();
+      expect(params.headers).toEqual({ apikey: 'secret', Authorization: 'Bearer adapterToken' });
+    });
+  });
+
   describe('createRenderRoot', () => {
     it('returns this (no shadow DOM)', () => {
       expect(source.createRenderRoot()).toBe(source);

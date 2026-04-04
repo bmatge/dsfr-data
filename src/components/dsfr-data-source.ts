@@ -72,6 +72,10 @@ export class DsfrDataSource extends LitElement {
   @property({ type: Boolean, attribute: 'use-proxy' })
   useProxy = false;
 
+  /** Reference vers une cle API declaree dans window.DSFR_DATA_KEYS */
+  @property({ type: String, attribute: 'api-key-ref' })
+  apiKeyRef = '';
+
   // --- Mode inline data ---
 
   /** Donnees JSON inline (pas de fetch) */
@@ -186,7 +190,7 @@ export class DsfrDataSource extends LitElement {
     }
 
     // Detect changes that should trigger a re-fetch
-    const urlModeChanged = changedProperties.has('url') || changedProperties.has('params') || changedProperties.has('transform');
+    const urlModeChanged = changedProperties.has('url') || changedProperties.has('params') || changedProperties.has('transform') || changedProperties.has('apiKeyRef');
     const adapterModeChanged = changedProperties.has('apiType') || changedProperties.has('baseUrl') ||
       changedProperties.has('datasetId') || changedProperties.has('resource') ||
       changedProperties.has('where') || changedProperties.has('select') ||
@@ -559,6 +563,12 @@ export class DsfrDataSource extends LitElement {
       try { parsedHeaders = JSON.parse(this.headers); } catch { /* ignore */ }
     }
 
+    // api-key-ref takes precedence over explicit Authorization header
+    const keyHeaders = this._resolveApiKeyHeaders();
+    if (keyHeaders) {
+      parsedHeaders = { ...(parsedHeaders || {}), ...keyHeaders };
+    }
+
     return {
       baseUrl: this.baseUrl,
       datasetId: this.datasetId,
@@ -574,6 +584,23 @@ export class DsfrDataSource extends LitElement {
       pageSize: this.pageSize,
       headers: parsedHeaders,
     };
+  }
+
+  // --- API key registry resolution ---
+
+  private _resolveApiKeyHeaders(): Record<string, string> | null {
+    if (!this.apiKeyRef) return null;
+    const registry = window.DSFR_DATA_KEYS;
+    if (!registry || typeof registry !== 'object') {
+      console.warn(`dsfr-data-source[${this.id}]: window.DSFR_DATA_KEYS non defini, api-key-ref="${this.apiKeyRef}" ignore`);
+      return null;
+    }
+    const value = registry[this.apiKeyRef];
+    if (!value || typeof value !== 'string') {
+      console.warn(`dsfr-data-source[${this.id}]: cle "${this.apiKeyRef}" introuvable dans window.DSFR_DATA_KEYS`);
+      return null;
+    }
+    return { Authorization: value };
   }
 
   // --- URL building (legacy mode) ---
@@ -606,20 +633,29 @@ export class DsfrDataSource extends LitElement {
       method: this.method
     };
 
+    let headers: Record<string, string> = {};
+
     if (this.headers) {
       try {
-        options.headers = JSON.parse(this.headers);
+        headers = JSON.parse(this.headers);
       } catch (e) {
         console.warn('dsfr-data-source: headers invalides (JSON attendu)', e);
       }
     }
 
+    // api-key-ref takes precedence over explicit Authorization header
+    const keyHeaders = this._resolveApiKeyHeaders();
+    if (keyHeaders) {
+      headers = { ...headers, ...keyHeaders };
+    }
+
     if (this.method === 'POST' && this.params) {
-      options.headers = {
-        'Content-Type': 'application/json',
-        ...(options.headers as Record<string, string> || {})
-      };
+      headers = { 'Content-Type': 'application/json', ...headers };
       options.body = this.params;
+    }
+
+    if (Object.keys(headers).length > 0) {
+      options.headers = headers;
     }
 
     return options;
@@ -652,6 +688,9 @@ export class DsfrDataSource extends LitElement {
 }
 
 declare global {
+  interface Window {
+    DSFR_DATA_KEYS?: Record<string, string>;
+  }
   interface HTMLElementTagNameMap {
     'dsfr-data-source': DsfrDataSource;
   }

@@ -223,6 +223,7 @@ tableau de donnees depuis la reponse. Le resultat DOIT etre un tableau d'objets 
 | limit | Number | \`0\` | non | Limite du nombre de resultats (0 = pas de limite). |
 | data | String | \`""\` | non | Donnees JSON inline (pas de fetch). Ex: \`data='[{"x":1},{"x":2}]'\` |
 | use-proxy | Boolean | \`false\` | non | Force le passage par le proxy CORS generique. Utile pour les APIs externes sans CORS. |
+| api-key-ref | String | \`""\` | non | Reference vers une cle API dans window.DSFR_DATA_KEYS. Injecte la valeur comme header Authorization. |
 
 ### Evenements emis
 - \`dsfr-data-loaded\` : donnees chargees (detail : tableau de donnees)
@@ -262,6 +263,14 @@ tableau de donnees depuis la reponse. Le resultat DOIT etre un tableau d'objets 
   url="https://tabular-api.data.gouv.fr/api/resources/RESOURCE_ID/data/"
   paginate
   page-size="20">
+</dsfr-data-source>
+
+<!-- API avec cle depuis le registre global (window.DSFR_DATA_KEYS) -->
+<script>window.DSFR_DATA_KEYS = { tmdb: 'Bearer eyJ...' };</script>
+<dsfr-data-source id="films"
+  url="https://api.themoviedb.org/3/movie/popular"
+  api-key-ref="tmdb"
+  transform="results">
 </dsfr-data-source>
 \`\`\`
 

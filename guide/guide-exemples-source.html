@@ -258,6 +258,48 @@
           </div>
         </section>
 
+        <!-- api-key-ref -->
+        <h2 class="fr-mt-6w">Registre de cles API (<code>api-key-ref</code>)</h2>
+        <p>
+          Plutot que d'ecrire les tokens dans les attributs HTML, declarez-les dans un registre global
+          <code>window.DSFR_DATA_KEYS</code> et referencez-les par nom. La cle est injectee comme header
+          <code>Authorization</code> a chaque requete.
+        </p>
+
+        <h4>API authentifiee via registre de cles</h4>
+        <p>La cle API n'apparait dans aucun attribut HTML du composant. Fonctionne avec les deux modes (URL brute et adapter).</p>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-d-apikeyref">Code source</button></h3>
+          <div class="fr-collapse" id="code-d-apikeyref">
+<pre class="example-code">&lt;!-- 1. Declarer les cles une seule fois --&gt;
+&lt;script&gt;
+  window.DSFR_DATA_KEYS = {
+    tmdb: 'Bearer eyJhbGci...',
+    monapi: 'Token abc123'
+  };
+&lt;/script&gt;
+
+&lt;!-- 2. Utiliser api-key-ref au lieu de headers --&gt;
+&lt;dsfr-data-source id="films"
+  url="https://api.themoviedb.org/3/movie/popular"
+  api-key-ref="tmdb"
+  transform="results"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-chart source="films" type="bar"
+  label-field="title" value-field="vote_average"&gt;
+&lt;/dsfr-data-chart&gt;</pre>
+          </div>
+        </section>
+
+        <div class="fr-callout fr-mt-2w fr-mb-4w">
+          <p class="fr-callout__text">
+            <strong>Avantage :</strong> un seul bloc <code>&lt;script&gt;</code> pour toutes vos cles.
+            Le markup reste propre et copiable sans risque de fuite de token.
+            Compatible avec le mode URL brute et le mode adapter.
+          </p>
+        </div>
+
         <!-- Pagination serveur -->
         <h2 class="fr-mt-6w">Pagination serveur</h2>
         <p>
