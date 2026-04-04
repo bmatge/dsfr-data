@@ -11,14 +11,16 @@ import { createToken, setAuthCookie, clearAuthCookie, requireAuth } from '../mid
 import type { AuthenticatedRequest } from '../middleware/auth.js';
 import { authLimiter } from '../middleware/rate-limit.js';
 import { isValidEmail, isStrongPassword } from '../utils/validation.js';
-import { sendVerificationEmail } from '../utils/mailer.js';
-import { createSession, revokeSession } from '../utils/sessions.js';
+import { sendVerificationEmail, sendPasswordResetEmail } from '../utils/mailer.js';
+import { createSession, revokeSession, revokeAllUserSessions } from '../utils/sessions.js';
 
 const router = Router();
 const SALT_ROUNDS = 10;
 const VERIFICATION_TOKEN_BYTES = 32;
 const VERIFICATION_EXPIRY_HOURS = 24;
 const RESEND_MAX = 3; // max resend per hour per email
+const RESET_TOKEN_BYTES = 32;
+const RESET_EXPIRY_HOURS = 1;
 
 /** Hash a verification token with SHA-256 for safe DB storage. */
 function hashToken(token: string): string {
@@ -362,7 +364,7 @@ router.get('/me', requireAuth, async (req, res) => {
 router.put('/me', requireAuth, async (req, res) => {
   try {
     const authReq = req as AuthenticatedRequest;
-    const { displayName, password } = req.body;
+    const { displayName, currentPassword, password } = req.body;
 
     if (displayName) {
       await execute(
@@ -372,6 +374,27 @@ router.put('/me', requireAuth, async (req, res) => {
     }
 
     if (password) {
+      // Require current password for security
+      if (!currentPassword) {
+        res.status(400).json({ error: 'Le mot de passe actuel est requis' });
+        return;
+      }
+
+      const dbUser = await queryOne<{ password_hash: string | null }>(
+        'SELECT password_hash FROM users WHERE id = ?',
+        [authReq.user!.userId],
+      );
+      if (!dbUser?.password_hash) {
+        res.status(400).json({ error: 'Changement de mot de passe non disponible pour ce compte' });
+        return;
+      }
+
+      const currentValid = await bcrypt.compare(currentPassword, dbUser.password_hash);
+      if (!currentValid) {
+        res.status(400).json({ error: 'Mot de passe actuel incorrect' });
+        return;
+      }
+
       const pwCheck = isStrongPassword(password);
       if (!pwCheck.valid) {
         res.status(400).json({ error: pwCheck.reason });
@@ -382,6 +405,14 @@ router.put('/me', requireAuth, async (req, res) => {
         'UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?',
         [passwordHash, authReq.user!.userId],
       );
+
+      // Revoke all other sessions (keep current one active)
+      const currentToken = req.cookies?.['gw-auth-token'];
+      await revokeAllUserSessions(authReq.user!.userId);
+      // Re-create current session so user stays logged in
+      if (currentToken) {
+        await createSession(authReq.user!.userId, currentToken, 'local', req);
+      }
     }
 
     const user = await queryOne<{ id: string; email: string; display_name: string; role: string }>(
@@ -399,6 +430,133 @@ router.put('/me', requireAuth, async (req, res) => {
     });
   } catch (err) {
     console.error('Update user error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * POST /api/auth/forgot-password
+ * Request a password reset email.
+ * Always returns 200 to avoid leaking account existence.
+ */
+router.post('/forgot-password', authLimiter, async (req, res) => {
+  try {
+    const { email } = req.body;
+    const genericMsg = 'Si un compte existe avec cet email, un lien de reinitialisation a ete envoye';
+
+    if (!email) {
+      res.json({ message: genericMsg });
+      return;
+    }
+
+    const user = await queryOne<{ id: string; reset_token_expires: string | null }>(
+      `SELECT id, reset_token_expires FROM users
+       WHERE email = ? AND is_active = TRUE AND email_verified = TRUE AND auth_provider = 'local'`,
+      [email],
+    );
+
+    if (!user) {
+      res.json({ message: genericMsg });
+      return;
+    }
+
+    // Throttle: if a reset token was generated less than 5 minutes ago, skip
+    if (user.reset_token_expires) {
+      const expires = new Date(user.reset_token_expires);
+      const minutesUntilExpiry = (expires.getTime() - Date.now()) / (1000 * 60);
+      if (minutesUntilExpiry > (RESET_EXPIRY_HOURS * 60 - 5)) {
+        res.json({ message: genericMsg });
+        return;
+      }
+    }
+
+    const resetToken = crypto.randomBytes(RESET_TOKEN_BYTES).toString('hex');
+    const tokenHash = hashToken(resetToken);
+
+    await execute(
+      `UPDATE users SET reset_token_hash = ?, reset_token_expires = DATE_ADD(NOW(), INTERVAL ? HOUR)
+       WHERE id = ?`,
+      [tokenHash, RESET_EXPIRY_HOURS, user.id],
+    );
+
+    try {
+      await sendPasswordResetEmail(email, resetToken);
+    } catch (err) {
+      console.error('Failed to send password reset email:', err);
+    }
+
+    res.json({ message: genericMsg });
+  } catch (err) {
+    console.error('Forgot password error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * POST /api/auth/reset-password
+ * Reset the password using a valid token.
+ */
+router.post('/reset-password', authLimiter, async (req, res) => {
+  try {
+    const { token, password } = req.body;
+
+    if (!token || !password) {
+      res.status(400).json({ error: 'Token et nouveau mot de passe requis' });
+      return;
+    }
+
+    const pwCheck = isStrongPassword(password);
+    if (!pwCheck.valid) {
+      res.status(400).json({ error: pwCheck.reason });
+      return;
+    }
+
+    const tokenHash = hashToken(token);
+
+    const user = await queryOne<{
+      id: string; email: string; role: string; reset_token_expires: string;
+    }>(
+      `SELECT id, email, role, reset_token_expires FROM users
+       WHERE reset_token_hash = ? AND is_active = TRUE`,
+      [tokenHash],
+    );
+
+    if (!user) {
+      res.status(400).json({ error: 'Lien invalide ou expire' });
+      return;
+    }
+
+    const expires = new Date(user.reset_token_expires);
+    if (expires < new Date()) {
+      res.status(400).json({ error: 'Lien expire, veuillez refaire une demande' });
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+
+    await execute(
+      `UPDATE users SET password_hash = ?, reset_token_hash = NULL, reset_token_expires = NULL,
+       updated_at = NOW() WHERE id = ?`,
+      [passwordHash, user.id],
+    );
+
+    // Revoke all existing sessions
+    await revokeAllUserSessions(user.id);
+
+    // Log user in with a fresh session
+    const jwt = createToken({ userId: user.id, email: user.email, role: user.role });
+    setAuthCookie(res, jwt);
+    await createSession(user.id, jwt, 'local', req);
+
+    res.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (err) {
+    console.error('Reset password error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -3,8 +3,9 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { checkAuth, logout, onAuthChange, isDbMode, onSyncStatusChange } from '@dsfr-data/shared';
 import type { User, SyncStatus } from '@dsfr-data/shared';
 
-// Side-effect import: register <auth-modal> custom element
+// Side-effect import: register custom elements
 import './auth-modal.js';
+import './password-change-modal.js';
 
 /**
  * <app-header> - Header DSFR avec navigation
@@ -99,6 +100,22 @@ export class AppHeader extends LitElement {
       this._unsubAuth = onAuthChange((state) => {
         this._user = state.user;
       });
+
+      // Auto-open reset password modal if URL has ?reset-password=TOKEN
+      if (this._dbMode && !this._user) {
+        const params = new URLSearchParams(window.location.search);
+        const resetToken = params.get('reset-password');
+        if (resetToken) {
+          // Clean URL
+          const url = new URL(window.location.href);
+          url.searchParams.delete('reset-password');
+          window.history.replaceState({}, '', url.toString());
+          // Wait for next render then open modal
+          await this.updateComplete;
+          const modal = this.querySelector('auth-modal') as any;
+          modal?.open('reset', resetToken);
+        }
+      }
     } catch {
       // Backend not available — stay in simple mode
     }
@@ -107,6 +124,11 @@ export class AppHeader extends LitElement {
   private _openAuthModal(): void {
     const modal = this.querySelector('auth-modal') as any;
     modal?.open('login');
+  }
+
+  private _openPasswordChangeModal(): void {
+    const modal = this.querySelector('password-change-modal') as any;
+    modal?.open();
   }
 
   private async _handleLogout(): Promise<void> {
@@ -121,6 +143,7 @@ export class AppHeader extends LitElement {
       { id: 'builder-ia', label: 'Assistant IA', href: 'apps/builder-ia/index.html' },
       { id: 'builder', label: 'Créer graphique', href: 'apps/builder/index.html' },
       { id: 'builder-carto', label: 'Créer carte', href: 'apps/builder-carto/index.html' },
+      { id: 'pipeline-helper', label: 'Pipeline', href: 'apps/pipeline-helper/index.html' },
       { id: 'playground', label: 'Editeur HTML', href: 'apps/playground/index.html' },
       { id: 'dashboard', label: 'Tableau de bord', href: 'apps/dashboard/index.html' },
       { id: 'monitoring', label: 'Suivi', href: 'apps/monitoring/index.html' },
@@ -164,6 +187,13 @@ export class AppHeader extends LitElement {
           <span class="fr-btn fr-btn--tertiary-no-outline fr-icon-account-circle-line" style="pointer-events:none;">
             ${this._user.displayName || this._user.email}
           </span>
+        </li>
+        <li>
+          <button class="fr-btn fr-btn--tertiary-no-outline fr-icon-lock-line"
+                  @click=${this._openPasswordChangeModal}
+                  title="Changer le mot de passe">
+            Mot de passe
+          </button>
         </li>
         <li>
           <button class="fr-btn fr-btn--tertiary-no-outline fr-icon-logout-box-r-line"
@@ -271,7 +301,7 @@ export class AppHeader extends LitElement {
           </div>
         </div>
       </header>
-      ${this._dbMode ? html`<auth-modal></auth-modal>` : nothing}
+      ${this._dbMode ? html`<auth-modal></auth-modal><password-change-modal></password-change-modal>` : nothing}
     `;
   }
 }

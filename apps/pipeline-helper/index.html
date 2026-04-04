@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dsfr-data — Pipeline Helper</title>
+
+  <!-- DSFR CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css">
+
+  <!-- dsfr-data library -->
+  <script type="module" src="../../dist/dsfr-data.esm.js"></script>
+
+  <!-- App entry point -->
+  <script type="module" src="src/main.ts"></script>
+</head>
+<body>
+  <app-header current-page="pipeline-helper" base-path="../../"></app-header>
+
+  <div class="pipeline-page">
+    <!-- Top bar: title + toolbar -->
+    <div class="pipeline-topbar">
+      <div class="pipeline-topbar__left">
+        <h1 class="pipeline-topbar__title">Pipeline Helper</h1>
+        <button class="fr-btn fr-btn--sm fr-btn--tertiary" id="btn-toggle-help" title="Aide">?</button>
+      </div>
+      <div class="pipeline-toolbar">
+        <div class="fr-btns-group fr-btns-group--inline fr-btns-group--sm">
+          <button class="fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-database-line" id="btn-add-source" title="Ajouter une source de donnees (fetch HTTP)">
+            Source
+          </button>
+          <button class="fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-edit-line" id="btn-add-normalize" title="Normaliser les donnees (types, renommage, trim, aplatir)">
+            Normalize
+          </button>
+          <button class="fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-filter-line" id="btn-add-query" title="Transformer les donnees (filtre, groupe, tri, agregation)">
+            Query
+          </button>
+          <button class="fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-git-merge-line" id="btn-add-join" title="Joindre deux sources sur une cle pivot">
+            Join
+          </button>
+          <button class="fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-search-line" id="btn-add-search" title="Ajouter une barre de recherche textuelle">
+            Search
+          </button>
+          <button class="fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-list-unordered" id="btn-add-facets" title="Ajouter des filtres a facettes interactifs">
+            Facets
+          </button>
+          <button class="fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-check-line" id="btn-add-output" title="Donnees recues en bout de chaine" style="border-color:#18753c;color:#18753c">
+            Sortie
+          </button>
+        </div>
+        <div class="fr-btns-group fr-btns-group--inline fr-btns-group--sm">
+          <button class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-delete-line" id="btn-delete" title="Supprimer le(s) noeud(s) selectionne(s) (ou touche Suppr)">
+            Supprimer
+          </button>
+          <button class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-layout-grid-line" id="btn-arrange" title="Reorganiser automatiquement les noeuds">
+            Reorganiser
+          </button>
+          <button class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-zoom-in-line" id="btn-fit" title="Recentrer la vue sur tous les noeuds">
+            Recentrer
+          </button>
+          <button class="fr-btn fr-btn--icon-left fr-icon-play-circle-line" id="btn-execute" style="background:#009081;color:#fff" title="Executer le pipeline : fetch les donnees et affiche les resultats dans chaque noeud">
+            Executer
+          </button>
+          <button class="fr-btn fr-btn--icon-left fr-icon-terminal-line" id="btn-generate" title="Generer le code HTML correspondant au pipeline">
+            Code
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Onboarding (collapsible) -->
+    <div class="onboarding" id="onboarding" style="display:none">
+      <div class="onboarding__title">Comment utiliser le Pipeline Helper</div>
+      <ol class="onboarding__steps">
+        <li><strong>Ajouter des composants</strong> avec les boutons de la barre d'outils.</li>
+        <li><strong>Connecter :</strong> glissez d'un <strong>cercle</strong> de sortie (droite) vers un cercle d'entree (gauche).</li>
+        <li><strong>Configurer :</strong> remplissez les champs dans chaque noeud.</li>
+        <li><strong>Executer :</strong> cliquez "Executer" pour voir les donnees traverser le pipeline.</li>
+        <li><strong>Inspecter :</strong> cliquez sur un noeud pour voir ses donnees dans le panneau de droite.</li>
+      </ol>
+      <div style="margin-top:0.4rem;font-size:0.8rem;color:#666">
+        Pipeline type : <strong>Source</strong> (fetch) &rarr; <strong>Query</strong> (transforme) &rarr; <strong>Chart / List / KPI</strong> (affiche).
+      </div>
+      <button class="onboarding__dismiss" id="btn-dismiss-onboarding">Masquer</button>
+    </div>
+
+    <!-- Main content: 2/3 editor + 1/3 inspector -->
+    <div class="pipeline-layout">
+      <div class="pipeline-layout__editor">
+        <div id="rete-container"></div>
+      </div>
+      <div class="pipeline-layout__inspector" id="inspector-panel">
+        <div class="inspector" id="inspector">
+          <div class="inspector__empty">
+            <div class="inspector__empty-icon">&#8592;</div>
+            <p>Cliquez sur un noeud du pipeline pour inspecter ses donnees.</p>
+            <p class="inspector__hint">Executez d'abord le pipeline pour voir les donnees circuler.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Code modal -->
+    <div class="code-modal-overlay" id="code-modal" style="display:none">
+      <div class="code-modal">
+        <div class="code-modal__header">
+          <h3>Code HTML genere</h3>
+          <button class="fr-btn fr-btn--sm fr-btn--tertiary fr-icon-close-line" id="btn-close-modal" title="Fermer"></button>
+        </div>
+        <pre class="code-modal__code" id="code-output"></pre>
+        <div class="code-modal__actions">
+          <button class="fr-btn fr-btn--sm fr-btn--secondary fr-icon-clipboard-line fr-btn--icon-left" id="btn-copy-code">
+            Copier
+          </button>
+          <button class="fr-btn fr-btn--sm fr-btn--secondary fr-icon-external-link-line fr-btn--icon-left" id="btn-playground">
+            Ouvrir dans le Playground
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

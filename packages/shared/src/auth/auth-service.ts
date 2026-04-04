@@ -173,6 +173,74 @@ export async function register(request: RegisterRequest): Promise<{ success: boo
 }
 
 /**
+ * Change password (requires current password).
+ */
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await apiFetch('/api/auth/me', {
+      method: 'PUT',
+      body: JSON.stringify({ currentPassword, password: newPassword }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json();
+      return { success: false, error: data.error || 'Erreur lors du changement de mot de passe' };
+    }
+
+    return { success: true };
+  } catch {
+    return { success: false, error: 'Erreur reseau' };
+  }
+}
+
+/**
+ * Request a password reset email.
+ * Always returns success to avoid leaking account existence.
+ */
+export async function forgotPassword(email: string): Promise<{ success: boolean; message?: string }> {
+  try {
+    const res = await apiFetch('/api/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+
+    const data = await res.json();
+    return { success: true, message: data.message };
+  } catch {
+    return { success: true, message: 'Si un compte existe avec cet email, un lien de reinitialisation a ete envoye' };
+  }
+}
+
+/**
+ * Reset password using a token (from email link).
+ */
+export async function resetPassword(
+  token: string,
+  password: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await apiFetch('/api/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ token, password }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json();
+      return { success: false, error: data.error || 'Erreur lors de la reinitialisation' };
+    }
+
+    const data = await res.json();
+    setState({ user: data.user, isAuthenticated: true, isLoading: false });
+    return { success: true };
+  } catch {
+    return { success: false, error: 'Erreur reseau' };
+  }
+}
+
+/**
  * Logout: clears cookie and local state.
  */
 export async function logout(): Promise<void> {

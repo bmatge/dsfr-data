@@ -52,6 +52,7 @@ export { validateSource, validateConnection, validateFavorite, validateDashboard
 export type { User, AuthState, LoginRequest, RegisterRequest, ShareTarget, ShareInfo } from './auth/auth-types.js';
 export {
   setAuthBaseUrl, isDbMode, checkAuth, login, register, logout,
+  changePassword, forgotPassword, resetPassword,
   onAuthChange, getAuthState, getUser, isAuthenticated,
 } from './auth/auth-service.js';
 export { initAuth, getApiAdapter } from './auth/init-auth.js';

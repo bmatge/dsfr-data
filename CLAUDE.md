@@ -265,6 +265,24 @@ Les cles API dans `connections.api_key_encrypted` sont chiffrees en AES-256-GCM 
 Format : `base64(iv):base64(authTag):base64(ciphertext)`.
 Si `ENCRYPTION_KEY` n'est pas defini, les cles sont stockees en clair (compatibilite).
 
+### Gestion des mots de passe utilisateur
+
+**Changement de mot de passe** (utilisateur connecte) :
+- `PUT /api/auth/me` avec `{ currentPassword, password }` — exige le mot de passe actuel
+- Apres changement, toutes les autres sessions sont revoquees (la session courante est recreee)
+- UI : bouton "Mot de passe" dans le header (composant `<password-change-modal>`)
+- Client : `changePassword(currentPassword, newPassword)` dans `auth-service.ts`
+
+**Mot de passe oublie** (reset par email) :
+- `POST /api/auth/forgot-password` — genere un token SHA-256 (1h), envoie un email, ne revele jamais si le compte existe
+- `POST /api/auth/reset-password` — valide le token, met a jour le password, revoque toutes les sessions, connecte l'utilisateur
+- Colonnes DB : `reset_token_hash` et `reset_token_expires` sur `users` (migration v5)
+- Email : `sendPasswordResetEmail()` dans `mailer.ts`, lien vers `/?reset-password=TOKEN`
+- UI : lien "Mot de passe oublie ?" dans la modale de login, detection automatique du parametre URL `?reset-password=TOKEN` dans `app-header.ts`
+- Client : `forgotPassword(email)` et `resetPassword(token, password)` dans `auth-service.ts`
+- Rate limiting : meme limiter que login/register (10 tentatives / 15 min / IP)
+- Throttle : 1 token de reset toutes les 5 minutes par email
+
 ### mcp-server
 
 Le `mcp-server/` est un package **hors workspace npm** (pas dans `workspaces` du root `package.json`).
