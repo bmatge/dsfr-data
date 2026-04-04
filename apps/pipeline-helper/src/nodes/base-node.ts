@@ -92,8 +92,8 @@ export class StatusControl extends ClassicPreset.Control {
  * A pipeline node representing a dsfr-data-* component.
  */
 export class PipelineNode extends ClassicPreset.Node {
-  width = 260;
-  height = 350;
+  width = 280;
+  height = 500;
   category: NodeCategory;
   component: string;
   icon: string;

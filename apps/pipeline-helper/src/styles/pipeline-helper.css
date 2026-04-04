@@ -93,6 +93,17 @@ rete-socket {
 rete-node {
   --node-color: #fff;
   --node-font-family: 'Marianne', system-ui, sans-serif;
+  overflow: visible !important;
+  min-height: auto !important;
+}
+
+/* Execution status field names: wrap instead of overflow */
+.exec-status__fields {
+  max-width: 240px;
+}
+
+.exec-status__field {
+  word-break: break-all;
 }
 
 /* ---- Attribute control fields inside nodes ---- */
