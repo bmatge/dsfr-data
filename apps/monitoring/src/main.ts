@@ -273,13 +273,24 @@ function formatDate(iso: string): string {
 }
 
 function renderComponentBadges(components: GroupedEntry['components']): string {
-  return components
-    .map((c) => {
-      const label = c.component.replace('dsfr-data-', '');
-      const typeBadge = c.chartType
-        ? ` <span class="monitoring-badge monitoring-badge--type">${escapeHtml(c.chartType)}</span>`
+  // Aggregate by component name, collect chart types per component
+  const map = new Map<string, string[]>();
+  for (const c of components) {
+    const label = c.component.replace('dsfr-data-', '');
+    if (!map.has(label)) map.set(label, []);
+    if (c.chartType) map.get(label)!.push(c.chartType);
+  }
+
+  return [...map.entries()]
+    .map(([label, types]) => {
+      const count = map.get(label)!;
+      // Count = how many entries for this component (1 per chartType, or 1 if no type)
+      const n = types.length || 1;
+      const countPrefix = n > 1 ? `<span class="monitoring-badge__count">${n}</span>` : '';
+      const typeSuffix = types.length
+        ? ' ' + types.map((t) => `<span class="monitoring-badge monitoring-badge--type">${escapeHtml(t)}</span>`).join(' ')
         : '';
-      return `<span class="monitoring-badge">${escapeHtml(label)}</span>${typeBadge}`;
+      return `<span class="monitoring-badge">${countPrefix}${escapeHtml(label)}</span>${typeSuffix}`;
     })
     .join(' ');
 }

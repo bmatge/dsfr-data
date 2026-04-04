@@ -103,10 +103,30 @@
   text-align: right;
 }
 
+.monitoring-table td:nth-child(3) {
+  min-width: 280px;
+}
+
 .monitoring-components {
   display: flex;
   flex-wrap: wrap;
   gap: 0.25rem;
+  line-height: 1.8;
+}
+
+.monitoring-badge__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.1em;
+  height: 1.1em;
+  padding: 0 0.2em;
+  margin-right: 0.2em;
+  border-radius: 50%;
+  font-size: 0.65rem;
+  font-weight: 700;
+  background: var(--text-action-high-blue-france);
+  color: var(--background-default-grey);
 }
 
 .monitoring-kpi__total {
