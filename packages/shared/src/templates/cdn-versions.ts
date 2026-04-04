@@ -3,7 +3,7 @@
  * Single source of truth — all code generators import from here.
  */
 
-export const CDN_VERSIONS = {
+const CDN_VERSIONS = {
   dsfr: '1.11.2',
   dsfrChart: '2.0.4',
   chartJs: '4.4.1',

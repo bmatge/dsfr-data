@@ -2,7 +2,7 @@
  * Proxy URL helpers for Grist, Albert, and other external APIs
  */
 
-import { getProxyConfig, isViteDevMode, PROXY_BASE_URL } from './proxy-config.js';
+import { getProxyConfig } from './proxy-config.js';
 
 /**
  * Get proxied URL for a Grist API endpoint
@@ -72,32 +72,6 @@ export function getProxiedUrl(url: string): string {
 }
 
 /**
- * Check if a URL needs CORS proxying (cross-origin and not already proxied).
- * Returns null if no proxying needed, or { url, headers } for the CORS proxy.
- */
-export function getCorsProxyIfNeeded(
-  url: string
-): { url: string; headers: Record<string, string> } | null {
-  if (!url) return null;
-  // In Vite dev mode, the Vite proxy handles CORS — no need for the generic proxy
-  if (isViteDevMode()) return null;
-  // Already a relative URL (already proxied)
-  if (!url.startsWith('https://') && !url.startsWith('http://')) return null;
-  // Same origin — no CORS issue
-  try {
-    if (typeof window !== 'undefined' && new URL(url).origin === window.location.origin)
-      return null;
-  } catch {
-    /* not a valid URL, skip */
-  }
-  // Known proxies already handled by getProxiedUrl — check if url was rewritten
-  const proxied = getProxiedUrl(url);
-  if (proxied !== url) return null;
-  // Cross-origin URL not handled by a dedicated proxy: use generic CORS proxy
-  return buildCorsProxyRequest(url);
-}
-
-/**
  * Build a CORS-proxied fetch request for any external URL.
  * Routes the request through the generic CORS proxy endpoint
  * (X-Target-URL header pattern).
@@ -118,11 +92,4 @@ export function buildCorsProxyRequest(
       'X-Target-URL': targetUrl,
     },
   };
-}
-
-/**
- * Get the external proxy base URL
- */
-export function getExternalProxyUrl(): string {
-  return PROXY_BASE_URL;
 }

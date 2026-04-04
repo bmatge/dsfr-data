@@ -21,9 +21,9 @@ export async function fetchWithTimeout(
     return response;
   } catch (_error: unknown) {
     if (_error instanceof DOMException && _error.name === 'AbortError') {
-      throw new Error('La requete a expire. Verifiez votre connexion ou reessayez.', {
-        cause: _error,
-      });
+      const err = new Error('La requete a expire. Verifiez votre connexion ou reessayez.');
+      (err as unknown as { cause: unknown }).cause = _error;
+      throw err;
     }
     throw _error;
   } finally {

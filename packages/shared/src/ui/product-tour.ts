@@ -79,11 +79,6 @@ export function resetTour(tourId: string): void {
   _saveState(state);
 }
 
-/** Reset all tour completions (for testing/debug) */
-export function resetAllTours(): void {
-  _saveState({});
-}
-
 // ─── Tour engine ───────────────────────────────────────────────────────
 
 let currentTour: TourConfig | null = null;

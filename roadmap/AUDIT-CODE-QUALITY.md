@@ -24,9 +24,9 @@
 
 Le projet beneficiait d'un TypeScript strict et d'une couverture de test honorable (78 fichiers, 2817 tests), mais plusieurs piliers qualite etaient absents : pas d'ESLint, pas de Prettier, pas de lint en CI, pas de seuils de couverture.
 
-**Cet audit a mis en place** : ESLint + Prettier, CI renforcee (typecheck + lint + format + coverage), seuils de couverture (85/80%), et corrige 6 findings de securite (XSS, JWT, email injection, beacon flooding, monitoring expose, cles API en clair). Le MCP server a ete refactore et teste (25 tests).
+**Cet audit a mis en place** : ESLint + Prettier, CI renforcee (typecheck + lint + format + coverage + npm audit), seuils de couverture (85/80%), pre-commit hooks (Husky + lint-staged), et corrige 6 findings de securite (XSS, JWT, email injection, beacon flooding, monitoring expose, cles API en clair). Le MCP server a ete refactore et teste (25 tests). 7 exports morts nettoyes dans shared.
 
-**Etat post-audit** : 79 fichiers de test (2842 tests), 0 erreur ESLint, 0 vulnerabilite npm, 91% couverture. Il reste 12 actions de priorite moyenne/basse (pre-commit hooks, interface SourceElement, tests supplementaires).
+**Etat post-audit** : 79 fichiers de test (2842 tests), 0 erreur ESLint, 0 vulnerabilite npm, 91% couverture. Il reste 9 actions de priorite moyenne/basse (interface SourceElement, tests supplementaires).
 
 ---
 
@@ -36,8 +36,8 @@ Le projet beneficiait d'un TypeScript strict et d'une couverture de test honorab
 |--------|------------|-------------|
 | TypeScript strict | Oui | Oui |
 | ESLint / Prettier | **Aucun** | **Installe et configure** |
-| Pre-commit hooks | **Aucun** | A faire |
-| CI | Build + tests seulement | **typecheck + lint + format + coverage** |
+| Pre-commit hooks | **Aucun** | **Husky + lint-staged** |
+| CI | Build + tests seulement | **typecheck + lint + format + coverage + audit** |
 | Coverage | Collectee, aucun seuil | **Seuils 85/80% configures** |
 | Tests unitaires | 78 fichiers (2817 tests) | **79 fichiers (2842 tests)** |
 | E2E | Playwright builder (110 combinaisons) | Inchange |
@@ -218,17 +218,17 @@ Fichiers > 700 LOC a auditer pour extractions possibles :
 
 ### 7.4 Pre-commit hooks
 
-> A faire (priorite moyenne)
+> **Fait**
 
-- [ ] Installer Husky + lint-staged
-- [ ] Configurer : lint + format sur fichiers stages
+- [x] Installer Husky + lint-staged
+- [x] Configurer : lint (ESLint --fix sur .ts) + format (Prettier sur ts/js/json/md/html/css) sur fichiers stages
 
 ### 7.5 Securite des dependances
 
 > Partiellement fait
 
 - [x] `npm audit fix` — 0 vulnerabilite
-- [ ] Ajouter `npm audit` en CI
+- [x] `npm audit --audit-level=high` en CI (etape "Security audit")
 - [ ] Evaluer Dependabot ou Renovate
 
 ### 7.6 Bundle size monitoring
@@ -319,22 +319,19 @@ Fichiers > 700 LOC a auditer pour extractions possibles :
 
 ### 9.4 Dead code
 
-**27 exports morts identifies, 0 methode publique morte sur les composants.**
+**7 exports morts supprimes, 0 methode publique morte sur les composants.**
 
-**Fonctions/constantes mortes dans `@dsfr-data/shared`** (9) :
-- `resetAllTours()`, `migrateStorageKeys()` — jamais appelees nulle part
-- `getCorsProxyIfNeeded()`, `getExternalProxyUrl()` — jamais importees
-- `normalizeChartType()`, `isValidChartType()` — usage interne uniquement
-- `CDN_VERSIONS` — seul `CDN_URLS` est utilise
-- `markTourComplete()`, `shouldShowTour()` — usage interne a shared seulement
+**Supprimes** (7) :
+- ~~`resetAllTours()`~~ — supprime (jamais appele)
+- ~~`migrateStorageKeys()`~~ — supprime (jamais appele)
+- ~~`getCorsProxyIfNeeded()`~~, ~~`getExternalProxyUrl()`~~ — supprimes (jamais importes)
+- ~~`normalizeChartType()`~~, ~~`isValidChartType()`~~ — supprimes (jamais importes)
+- ~~`CDN_VERSIONS`~~ — export retire (utilise en interne par `CDN_URLS`)
 
-**Types morts dans `@dsfr-data/shared`** (13) :
-`AuthState`, `LoginRequest`, `RegisterRequest`, `ShareTarget`, `ShareInfo`, `ExportBundle`, `ImportResult`, `JoinKey`, `JoinOptions`, `PaletteType`, `ProxyConfig`, `SampleDataset`, `TourStep` — jamais importes hors du package shared.
-*Note : certains peuvent etre volontairement exportes comme API publique npm.*
-
-**Interfaces mortes dans `src/utils/`** (5) :
-- `DataLoadedEvent`, `DataErrorEvent`, `DataLoadingEvent`, `SourceCommandEvent` (data-bridge.ts) — usage interne seulement
-- `SourceSubscriberInterface` (source-subscriber.ts) — usage interne seulement
+**Conserves (faux positifs)** :
+- `markTourComplete()`, `shouldShowTour()` — usage interne + API publique npm
+- 13 types (`AuthState`, `LoginRequest`, etc.) — API publique npm intentionnelle
+- 5 interfaces `src/utils/` — usage interne au module
 
 ### 9.5 Bundle sizes
 
@@ -402,6 +399,12 @@ Toutes fixables via `npm audit fix`.
 - [x] Refactoring : extraction `cli.ts` et `skills.ts` pour testabilite
 - [x] **25 tests unitaires** : matchSkills, getWidgetSkillIds, getArg, hasFlag
 
+### Pre-commit hooks et CI
+- [x] **Husky + lint-staged** : ESLint --fix sur .ts, Prettier sur ts/js/json/md/html/css
+- [x] **npm audit en CI** : `npm audit --audit-level=high` comme etape CI
+- [x] **Nettoyage dead code shared** : suppression de 7 exports morts (resetAllTours, migrateStorageKeys, getCorsProxyIfNeeded, getExternalProxyUrl, normalizeChartType, isValidChartType, CDN_VERSIONS)
+- [x] **Fix build shared** : correction erreur TS `Error({ cause })` incompatible ES2021
+
 ### Verification
 - [x] 79/79 tests passent (2842 tests), `tsc --noEmit` OK, 0 erreur ESLint, 0 vulnerabilite npm
 
@@ -421,19 +424,23 @@ Toutes fixables via `npm audit fix`.
 | 6 | Tests MCP server (25 tests, refactoring cli.ts + skills.ts) | **Fait** |
 | 7 | Reformatage Prettier (162 fichiers) | **Fait** |
 | 8 | Correction de 15 erreurs ESLint | **Fait** |
+| 9 | Pre-commit hooks (Husky + lint-staged) | **Fait** |
+| 10 | `npm audit --audit-level=high` en CI | **Fait** |
+| 11 | Nettoyage dead code shared (7 exports morts supprimes) | **Fait** |
+| 12 | Fix build shared (Error cause ES2021) | **Fait** |
 
 ### Reste a faire
 
 | # | Action | Priorite | Effort |
 |---|--------|----------|--------|
 | 1 | Tokens legacy bypass revocation (migration sessions) | Moyenne | Moyen |
-| 2 | Pre-commit hooks (Husky + lint-staged) | Moyenne | Faible |
+| ~~2~~ | ~~Pre-commit hooks (Husky + lint-staged)~~ | **Fait** | — |
 | 3 | Interface `SourceElement` partagee (eliminer ~25 `as any`) | Moyenne | Moyen |
 | 4 | Tests integration MCP (transport stdio/HTTP) | Moyenne | Moyen |
 | 5 | Tests dedies composants map (world-map, map-layer) | Moyenne | Moyen |
 | 6 | Tests apps sous-testees (admin, monitoring, favorites) | Moyenne | Moyen |
-| 7 | `npm audit` en CI + Dependabot | Moyenne | Faible |
-| 8 | Nettoyage dead code shared (27 exports morts) | Basse | Faible |
+| ~~7~~ | ~~`npm audit` en CI~~ + Dependabot | **Audit fait** / Dependabot a faire | — |
+| ~~8~~ | ~~Nettoyage dead code shared~~ | **Fait** | — |
 | 9 | Bundle size monitoring (`size-limit`) | Basse | Faible |
 | 10 | Refacto code duplique builders | Basse | Fort |
 | 11 | Mise a jour specs/guide | Basse | Moyen |

@@ -11,10 +11,10 @@ export { DSFR_COLORS, PALETTE_PRIMARY_COLOR, PALETTE_COLORS } from './constants/
 export type { PaletteType } from './constants/dsfr-palettes.js';
 
 // Templates / CDN
-export { CDN_VERSIONS, CDN_URLS, getPreviewHTML } from './templates/cdn-versions.js';
+export { CDN_URLS, getPreviewHTML } from './templates/cdn-versions.js';
 
 // Charts
-export { DSFR_TAG_MAP, normalizeChartType, isValidChartType } from './charts/chart-types.js';
+export { DSFR_TAG_MAP } from './charts/chart-types.js';
 export type { DSFRChartType } from './charts/chart-types.js';
 
 // Query / Filters
@@ -30,13 +30,7 @@ export {
   LIB_URL,
 } from './api/proxy-config.js';
 export type { ProxyConfig } from './api/proxy-config.js';
-export {
-  getProxyUrl,
-  getProxiedUrl,
-  getExternalProxyUrl,
-  buildCorsProxyRequest,
-  getCorsProxyIfNeeded,
-} from './api/proxy.js';
+export { getProxyUrl, getProxiedUrl, buildCorsProxyRequest } from './api/proxy.js';
 export { fetchWithTimeout, httpErrorMessage } from './api/fetch-helpers.js';
 export { buildGristHeaders } from './api/grist.js';
 
@@ -47,7 +41,6 @@ export {
   removeFromStorage,
   STORAGE_KEYS,
 } from './storage/local-storage.js';
-export { migrateStorageKeys } from './storage/migration.js';
 
 // Storage adapter (async API — supports localStorage and remote backends)
 export type { StorageAdapter } from './storage/storage-adapter.js';
@@ -145,7 +138,6 @@ export {
   shouldShowTour,
   markTourComplete,
   resetTour,
-  resetAllTours,
   injectTourStyles,
 } from './ui/product-tour.js';
 export {

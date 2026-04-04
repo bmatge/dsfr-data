@@ -29,18 +29,3 @@ export type DSFRChartType =
   | 'bar-line'
   | 'map'
   | 'map-reg';
-
-const ALIASES: Record<string, DSFRChartType> = {
-  horizontalBar: 'bar',
-  doughnut: 'pie',
-};
-
-/** Normalise a user-facing chart type to its canonical form */
-export function normalizeChartType(type: string): DSFRChartType {
-  return (ALIASES[type] || type) as DSFRChartType;
-}
-
-/** Check whether a chart type string is supported */
-export function isValidChartType(type: string): boolean {
-  return type in DSFR_TAG_MAP;
-}
