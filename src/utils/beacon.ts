@@ -8,6 +8,8 @@ import { PROXY_BASE_URL } from '@dsfr-data/shared';
 
 const BEACON_URL = `${PROXY_BASE_URL}/beacon`;
 const sent = new Set<string>();
+/** Keep references to pending beacon images to prevent GC before request completes */
+const pending: HTMLImageElement[] = [];
 
 /** Strip query string and hash from a URL to avoid leaking tokens/session params */
 function sanitizeUrl(href: string): string {
@@ -66,7 +68,13 @@ export function sendWidgetBeacon(component: string, subtype?: string): void {
         }),
       }).catch(() => {
         // Fallback to pixel
-        new Image().src = `${BEACON_URL}?${params.toString()}`;
+        const img = new Image();
+        pending.push(img);
+        img.onload = img.onerror = () => {
+          const idx = pending.indexOf(img);
+          if (idx >= 0) pending.splice(idx, 1);
+        };
+        img.src = `${BEACON_URL}?${params.toString()}`;
       });
       return;
     } catch {
@@ -77,7 +85,13 @@ export function sendWidgetBeacon(component: string, subtype?: string): void {
   const url = `${BEACON_URL}?${params.toString()}`;
 
   try {
-    new Image().src = url;
+    const img = new Image();
+    pending.push(img);
+    img.onload = img.onerror = () => {
+      const idx = pending.indexOf(img);
+      if (idx >= 0) pending.splice(idx, 1);
+    };
+    img.src = url;
   } catch {
     // Silently ignore beacon failures - never impact widget functionality
   }
