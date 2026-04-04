@@ -22,21 +22,27 @@
 
 ## 1. Synthese executive
 
-Le projet beneficie d'un TypeScript strict et d'une couverture de test honorable (90 fichiers de test, E2E Playwright sur le builder). Cependant, plusieurs piliers qualite sont absents : pas d'ESLint, pas de Prettier, pas de pre-commit hooks, pas de seuils de couverture, pas de lint en CI. L'audit vise a identifier les lacunes concretes et a les combler.
+Le projet beneficiait d'un TypeScript strict et d'une couverture de test honorable (78 fichiers, 2817 tests), mais plusieurs piliers qualite etaient absents : pas d'ESLint, pas de Prettier, pas de lint en CI, pas de seuils de couverture.
+
+**Cet audit a mis en place** : ESLint + Prettier, CI renforcee (typecheck + lint + format + coverage), seuils de couverture (85/80%), et corrige 6 findings de securite (XSS, JWT, email injection, beacon flooding, monitoring expose, cles API en clair). Le MCP server a ete refactore et teste (25 tests).
+
+**Etat post-audit** : 79 fichiers de test (2842 tests), 0 erreur ESLint, 0 vulnerabilite npm, 91% couverture. Il reste 12 actions de priorite moyenne/basse (pre-commit hooks, interface SourceElement, tests supplementaires).
 
 ---
 
 ## 2. Etat des lieux
 
-| Aspect | Aujourd'hui |
-|--------|------------|
-| TypeScript strict | Oui (strict + noUnusedLocals/Parameters) |
-| ESLint / Prettier | **Aucun** |
-| Pre-commit hooks | **Aucun** |
-| CI | Build + tests, **pas de lint ni type-check isole** |
-| Coverage | Collectee (v8), **aucun seuil minimum** |
-| Tests unitaires | 90 fichiers, bonne couverture adapteurs/shared |
-| E2E | Playwright builder (110 combinaisons) |
+| Aspect | Avant audit | Apres audit |
+|--------|------------|-------------|
+| TypeScript strict | Oui | Oui |
+| ESLint / Prettier | **Aucun** | **Installe et configure** |
+| Pre-commit hooks | **Aucun** | A faire |
+| CI | Build + tests seulement | **typecheck + lint + format + coverage** |
+| Coverage | Collectee, aucun seuil | **Seuils 85/80% configures** |
+| Tests unitaires | 78 fichiers (2817 tests) | **79 fichiers (2842 tests)** |
+| E2E | Playwright builder (110 combinaisons) | Inchange |
+| Securite server | 5 findings medium | **2 restants** |
+| Vulnerabilites npm | 3 (2 high, 1 moderate) | **0** |
 
 ---
 
@@ -46,9 +52,11 @@ Le projet beneficie d'un TypeScript strict et d'une couverture de test honorable
 
 ### 3.1 Tests manquants
 
-- [ ] `dsfr-data-world-map` — 0 test
-- [ ] `dsfr-data-map-layer` — 0 test (1063 LOC)
-- [ ] `dsfr-data-kpi-group` — 0 test
+> A faire (priorite moyenne)
+
+- [ ] `dsfr-data-world-map` — couverture existante (88.6%) mais pas de test dedie
+- [ ] `dsfr-data-map-layer` — couverture partielle (81.7%) mais pas de test dedie
+- [ ] `dsfr-data-kpi-group` — couverture 100% via tests indirects
 
 ### 3.2 Complexite
 
@@ -63,15 +71,21 @@ Fichiers > 700 LOC a auditer pour extractions possibles :
 
 ### 3.3 Audit `any` explicites
 
-- [ ] Recenser tous les `any` dans `src/`
-- [ ] Typer les cas critiques (interfaces publiques, retours de fonctions)
+> Fait — voir [9.1 Resultats](#91-audit-any-explicites)
+
+- [x] Recenser tous les `any` dans `src/` → **67 occurrences dans 13 fichiers**
+- [ ] Typer les cas critiques → definir interface `SourceElement` (priorite moyenne)
 
 ### 3.4 Dead code
 
-- [ ] Verifier les exports inutilises dans `src/utils/`
-- [ ] Verifier les methodes privees non appelees
+> Fait — voir [9.4 Resultats](#94-dead-code)
+
+- [x] Verifier les exports inutilises dans `src/utils/` → **5 interfaces mortes**
+- [x] Verifier les methodes privees non appelees → **0 methode morte**
 
 ### 3.5 Accessibilite
+
+> Non audite (hors perimetre de cet audit code)
 
 - [ ] Verifier les ARIA attrs sur les composants visuels (chart, list, kpi, map)
 
@@ -93,18 +107,25 @@ Fichiers > 700 LOC a auditer pour extractions possibles :
 
 ### 4.2 Securite front
 
-- [ ] Audit des usages `unsafeHTML` / `innerHTML` dans les templates Lit
-- [ ] Verifier l'echappement des donnees utilisateur dans les rendus
+> Fait — voir [9.2 Resultats](#92-audit-securite-front-unsafehtml)
+
+- [x] Audit des usages `unsafeHTML` / `innerHTML` → **10 findings, 2 actionnables**
+- [x] XSS dans dsfr-data-chart a11y → **corrige** (escapeHtml)
+- [x] Triple-accolade `{{{field}}}` dans dsfr-data-display → **by design** (documente)
 
 ### 4.3 Code duplique entre builders
+
+> Non audite (priorite basse)
 
 - [ ] Comparer `builder` et `builder-ia` : code gen, state management
 - [ ] Identifier les candidats a factoriser dans `shared`
 
 ### 4.4 Bundle size
 
-- [ ] Mesurer la taille de chaque app buildee
-- [ ] Identifier les dependances lourdes eventuelles
+> Fait — voir [9.5 Resultats](#95-bundle-sizes)
+
+- [x] Mesurer la taille de chaque app buildee → **576 Ko — 752 Ko**
+- [x] Identifier les dependances lourdes eventuelles → **RAS**
 
 ---
 
@@ -123,17 +144,28 @@ Fichiers > 700 LOC a auditer pour extractions possibles :
 
 ### 5.2 Securite OWASP
 
-- [ ] Injection SQL : verifier que toutes les requetes sont parametrees
-- [ ] Rate limiting : couverture exhaustive de toutes les routes sensibles
-- [ ] Validation des inputs : toutes les routes valident-elles les corps de requete ?
-- [ ] Error handling : aucune stack trace ne doit fuiter en production
-- [ ] CORS : configuration correcte
+> Fait — voir [9.3 Resultats](#93-audit-securite-server-owasp)
+
+- [x] Injection SQL → **toutes parametrees, 0 injection**
+- [x] Rate limiting → **beacon rate-limite (60/min/IP), auth rate-limite**
+- [x] Error handling → **aucune stack trace leakee**
+- [x] CORS → **strict (single origin)**
+- [x] JWT algorithm pince → **corrige** (`algorithms: ['HS256']`)
+- [x] Email HTML injection → **corrige** (escapeHtml sur displayName)
+- [x] Monitoring authentifie → **corrige** (requireAuth sur GET /data)
+- [x] Cles API masquees → **corrige** (affichage last 4 chars en list)
+
+**Findings medium restants** :
+- [ ] Tokens legacy bypass revocation (`sessions.ts:48`) — migration a planifier
+- [ ] Validation inputs incomplete (displayName longueur, group role en app layer)
 
 ### 5.3 Auth
 
-- [ ] Expiration/rotation des JWT
-- [ ] Revocation des sessions
-- [ ] Hashage des mots de passe (bcrypt, iterations)
+> Audite — voir [9.3 Resultats](#93-audit-securite-server-owasp)
+
+- [x] JWT : expiration 7j, secret env, algorithm pince
+- [x] Sessions : revocation via table, check a chaque requete
+- [x] Mots de passe : bcrypt 10 rounds, validation complexite (8+ chars, maj/min/chiffre)
 
 ---
 
@@ -141,12 +173,16 @@ Fichiers > 700 LOC a auditer pour extractions possibles :
 
 **Perimetre** : `mcp-server/`, `apps/builder-ia/src/skills.ts`
 
-### 6.1 MCP server (0 test actuellement)
+### 6.1 MCP server
 
-- [ ] Tests unitaires : parsing d'arguments CLI
-- [ ] Tests unitaires : dispatch des tools (list_skills, get_skill, get_relevant_skills, generate_widget_code)
-- [ ] Tests : transport stdio et HTTP
-- [ ] Securite HTTP : CORS, authentification, rate limiting
+> Fait — 25 tests ajoutes dans `tests/mcp/skills.test.ts`
+
+- [x] Refactoring : extraction `cli.ts` et `skills.ts` pour testabilite
+- [x] Tests unitaires : parsing d'arguments CLI (getArg, hasFlag) — **5 tests**
+- [x] Tests unitaires : matchSkills (keyword matching) — **7 tests**
+- [x] Tests unitaires : getWidgetSkillIds (selection skills par chart type) — **10 tests**
+- [ ] Tests integration : transport stdio et HTTP (necessite mock du SDK)
+- [ ] Securite HTTP : CORS trop permissif (`*`), pas d'authentification
 
 ### 6.2 Skills
 
@@ -157,33 +193,47 @@ Fichiers > 700 LOC a auditer pour extractions possibles :
 
 ## 7. Axe 5 — CI/CD
 
-### 7.1 Linting (absent)
+### 7.1 Linting
 
-- [ ] Installer et configurer ESLint (`eslint.config.js` flat config, `@typescript-eslint`, `eslint-plugin-lit`)
-- [ ] Installer et configurer Prettier (`.prettierrc`)
-- [ ] Ajouter scripts `lint` et `format:check` dans `package.json`
-- [ ] Ajouter etape lint + format dans `ci.yml`
+> **Fait**
+
+- [x] ESLint flat config (`eslint.config.js`, `@typescript-eslint`, `eslint-plugin-lit`)
+- [x] Prettier (`.prettierrc`, `.prettierignore`)
+- [x] Scripts `lint`, `lint:fix`, `format`, `format:check`, `typecheck`
+- [x] Etape lint + format + typecheck dans `ci.yml`
+- [x] 0 erreur ESLint, 242 warnings (principalement `any` et `no-console`)
 
 ### 7.2 Type-check isole
 
-- [ ] Ajouter `tsc --noEmit` comme etape CI separee (ne pas dependre du build)
+> **Fait**
+
+- [x] `tsc --noEmit` en CI comme etape separee
 
 ### 7.3 Seuils de couverture
 
-- [ ] Configurer `vitest` avec thresholds (ex: branches 70%, lines 75%)
-- [ ] Faire echouer la CI si les seuils ne sont pas atteints
+> **Fait**
+
+- [x] Thresholds vitest : 85% statements/functions/lines, 80% branches
+- [x] CI execute `test:coverage` qui echoue si seuils non atteints
 
 ### 7.4 Pre-commit hooks
+
+> A faire (priorite moyenne)
 
 - [ ] Installer Husky + lint-staged
 - [ ] Configurer : lint + format sur fichiers stages
 
 ### 7.5 Securite des dependances
 
+> Partiellement fait
+
+- [x] `npm audit fix` — 0 vulnerabilite
 - [ ] Ajouter `npm audit` en CI
 - [ ] Evaluer Dependabot ou Renovate
 
 ### 7.6 Bundle size monitoring
+
+> A faire (priorite basse)
 
 - [ ] Ajouter `size-limit` ou equivalent pour detecter les regressions de taille
 
@@ -193,15 +243,21 @@ Fichiers > 700 LOC a auditer pour extractions possibles :
 
 ### 8.1 Audit `any`
 
-- [ ] Grep global des `any` explicites dans tout le projet
-- [ ] Prioriser le typage des interfaces publiques
+> Fait — voir [9.1 Resultats](#91-audit-any-explicites)
+
+- [x] Grep global → **152 occurrences dans 40 fichiers**
+- [ ] Typer les interfaces publiques (interface `SourceElement`, Leaflet types)
 
 ### 8.2 Dependances
 
-- [ ] `npm audit` — vulnerabilites connues
+> Fait
+
+- [x] `npm audit` → **0 vulnerabilite** (apres fix)
 - [ ] Verifier les versions pinnees vs ranges
 
 ### 8.3 Documentation
+
+> Non audite
 
 - [ ] Les 30 specs HTML sont-elles a jour avec les composants actuels ?
 - [ ] Les exemples du guide fonctionnent-ils encore ?
@@ -337,27 +393,48 @@ Toutes fixables via `npm audit fix`.
 - [x] **HTML injection dans emails** : echappement de `displayName` dans le template HTML (`server/src/utils/mailer.ts`)
 - [x] **Dependances vulnerables** : `npm audit fix` — 0 vulnerabilite restante (brace-expansion, path-to-regexp, picomatch)
 
+### Hardening server
+- [x] **Rate-limit beacon** : 60 req/min/IP sur `POST /api/monitoring/beacon`
+- [x] **Auth monitoring data** : `requireAuth` sur `GET /api/monitoring/data`
+- [x] **Masquage cles API** : affichage des 4 derniers caracteres seulement dans les listes de connections
+
+### Tests MCP server
+- [x] Refactoring : extraction `cli.ts` et `skills.ts` pour testabilite
+- [x] **25 tests unitaires** : matchSkills, getWidgetSkillIds, getArg, hasFlag
+
 ### Verification
-- [x] 78/78 tests passent, `tsc --noEmit` OK, 0 erreur ESLint, 0 vulnerabilite npm
+- [x] 79/79 tests passent (2842 tests), `tsc --noEmit` OK, 0 erreur ESLint, 0 vulnerabilite npm
 
 ---
 
-## 11. Priorites restantes
+## 11. Bilan des actions
 
-| # | Action | Priorite | Effort | Statut |
-|---|--------|----------|--------|--------|
-| 1 | ~~ESLint + Prettier + CI lint~~ | ~~Haute~~ | ~~Moyen~~ | **Fait** |
-| 2 | ~~Type-check `tsc --noEmit` en CI~~ | ~~Haute~~ | ~~Faible~~ | **Fait** |
-| 3 | ~~Seuils de couverture vitest~~ | ~~Haute~~ | ~~Faible~~ | **Fait** |
-| 4 | ~~Corriger findings securite (JWT, email escape, XSS chart)~~ | ~~Haute~~ | ~~Faible~~ | **Fait** |
-| 5 | ~~`npm audit fix`~~ | ~~Moyenne~~ | ~~Faible~~ | **Fait** |
-| 6 | Rate-limit sur endpoint beacon + auth sur monitoring data | Haute | Faible |
-| 7 | Masquer les cles API dans les reponses connections (afficher seulement les 4 derniers chars) | Haute | Faible |
-| 8 | Tests MCP server | Haute | Moyen |
-| 9 | Tests composants manquants (world-map, map-layer, kpi-group) | Haute | Moyen |
-| 10 | Pre-commit hooks (Husky) | Moyenne | Faible |
-| 11 | Interface `SourceElement` partagee (eliminer ~25 `as any`) | Moyenne | Moyen |
-| 12 | Tests apps sous-testees | Moyenne | Moyen |
-| 13 | Bundle size monitoring | Basse | Faible |
-| 14 | Refacto code duplique builders | Basse | Fort |
-| 15 | Mise a jour specs/guide | Basse | Moyen |
+### Fait durant cet audit
+
+| # | Action | Statut |
+|---|--------|--------|
+| 1 | ESLint + Prettier + CI lint + typecheck | **Fait** |
+| 2 | Seuils de couverture vitest (85/80%) | **Fait** |
+| 3 | Fix securite : XSS chart a11y, JWT algorithm, email injection | **Fait** |
+| 4 | Fix securite : rate-limit beacon, auth monitoring, masquage cles API | **Fait** |
+| 5 | `npm audit fix` (0 vulnerabilite) | **Fait** |
+| 6 | Tests MCP server (25 tests, refactoring cli.ts + skills.ts) | **Fait** |
+| 7 | Reformatage Prettier (162 fichiers) | **Fait** |
+| 8 | Correction de 15 erreurs ESLint | **Fait** |
+
+### Reste a faire
+
+| # | Action | Priorite | Effort |
+|---|--------|----------|--------|
+| 1 | Tokens legacy bypass revocation (migration sessions) | Moyenne | Moyen |
+| 2 | Pre-commit hooks (Husky + lint-staged) | Moyenne | Faible |
+| 3 | Interface `SourceElement` partagee (eliminer ~25 `as any`) | Moyenne | Moyen |
+| 4 | Tests integration MCP (transport stdio/HTTP) | Moyenne | Moyen |
+| 5 | Tests dedies composants map (world-map, map-layer) | Moyenne | Moyen |
+| 6 | Tests apps sous-testees (admin, monitoring, favorites) | Moyenne | Moyen |
+| 7 | `npm audit` en CI + Dependabot | Moyenne | Faible |
+| 8 | Nettoyage dead code shared (27 exports morts) | Basse | Faible |
+| 9 | Bundle size monitoring (`size-limit`) | Basse | Faible |
+| 10 | Refacto code duplique builders | Basse | Fort |
+| 11 | Mise a jour specs/guide | Basse | Moyen |
+| 12 | Audit accessibilite ARIA | Basse | Moyen |
