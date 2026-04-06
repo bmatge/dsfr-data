@@ -21,10 +21,12 @@ const PORT = parseInt(process.env.PORT || '3002', 10);
 
 // Security & parsing middleware
 app.use(helmet());
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+    credentials: true,
+  })
+);
 app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
 
@@ -65,7 +67,7 @@ async function start() {
   try {
     const result = await execute(
       `DELETE FROM users WHERE email_verified = FALSE AND verification_expires IS NOT NULL
-       AND verification_expires < DATE_SUB(NOW(), INTERVAL 7 DAY)`,
+       AND verification_expires < DATE_SUB(NOW(), INTERVAL 7 DAY)`
     );
     if (result.affectedRows > 0) {
       console.log(`[server] Cleaned up ${result.affectedRows} expired unverified account(s)`);
@@ -79,7 +81,7 @@ async function start() {
   });
 }
 
-start().catch(err => {
+start().catch((err) => {
   console.error('[server] Failed to start:', err);
   process.exit(1);
 });

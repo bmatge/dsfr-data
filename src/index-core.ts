@@ -20,7 +20,12 @@ export { DsfrDataPodium } from './components/dsfr-data-podium.js';
 export { DsfrDataA11y } from './components/dsfr-data-a11y.js';
 
 // Composants de layout
-export { AppHeader, AppFooter, AppLayoutBuilder, AppLayoutDemo } from './components/layout/index.js';
+export {
+  AppHeader,
+  AppFooter,
+  AppLayoutBuilder,
+  AppLayoutDemo,
+} from './components/layout/index.js';
 
 // Utilitaires
 export {
@@ -29,18 +34,33 @@ export {
   getDataCache,
   dispatchDataLoaded,
   dispatchDataError,
-  dispatchDataLoading
+  dispatchDataLoading,
 } from './utils/data-bridge.js';
 
 export { getByPath, hasPath, getByPathOrDefault } from './utils/json-path.js';
-export { formatValue, formatNumber, formatPercentage, formatCurrency, formatDate } from './utils/formatters.js';
+export {
+  formatValue,
+  formatNumber,
+  formatPercentage,
+  formatCurrency,
+  formatDate,
+} from './utils/formatters.js';
 export { computeAggregation, parseExpression } from './utils/aggregations.js';
-export { processChartData, extractLabelValues, aggregateByLabel, sortByValue } from './utils/chart-data.js';
+export {
+  processChartData,
+  extractLabelValues,
+  aggregateByLabel,
+  sortByValue,
+} from './utils/chart-data.js';
 export { SourceSubscriberMixin } from './utils/source-subscriber.js';
 
 // Adapters
 export type {
-  ApiAdapter, AdapterCapabilities, AdapterParams,
-  FetchResult, FacetResult, ServerSideOverlay
+  ApiAdapter,
+  AdapterCapabilities,
+  AdapterParams,
+  FetchResult,
+  FacetResult,
+  ServerSideOverlay,
 } from './adapters/api-adapter.js';
 export { getAdapter, registerAdapter } from './adapters/api-adapter.js';
