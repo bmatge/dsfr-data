@@ -345,6 +345,14 @@ A la fin de chaque session de developpement avec Claude Code, suivre ce workflow
 2. **Creer un changeset si necessaire** : si `src/` ou `packages/shared/` ont ete modifies, lancer `npx changeset`
 3. **Commit** : avec un message conventional commit (`feat:`, `fix:`, `refactor:`, etc.)
 4. **Rappel** : ne pas oublier de pousser le changeset avec le code
+5. **Proposer une release** : demander a l'utilisateur s'il souhaite publier une nouvelle version. Si oui :
+   ```bash
+   npm run version-packages    # Bumpe package.json + CHANGELOG.md + sync Tauri
+   git add .
+   git commit -m "chore: release v$(node -p \"require('./package.json').version\")"
+   git tag "v$(node -p \"require('./package.json').version\")"
+   git push && git push --tags
+   ```
 
 Les changesets s'accumulent jusqu'a la prochaine release. Chaque release consomme tous les changesets en attente et genere une entree unique dans le CHANGELOG.
 
