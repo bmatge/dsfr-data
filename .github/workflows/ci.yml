@@ -22,6 +22,9 @@ jobs:
       - name: Security audit
         run: npm audit --audit-level=high
 
+      - name: Build shared package
+        run: npm run build:shared
+
       - name: Typecheck
         run: npm run typecheck
 
@@ -33,9 +36,6 @@ jobs:
 
       - name: Run tests with coverage
         run: npm run test:coverage
-
-      - name: Build shared package
-        run: npm run build:shared
 
       - name: Build library
         run: npm run build
