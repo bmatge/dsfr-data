@@ -54,6 +54,15 @@
   "overrides": {
     "qs": "6.14.2"
   },
+  "prettier": {
+    "singleQuote": true,
+    "trailingComma": "es5",
+    "printWidth": 100,
+    "tabWidth": 2,
+    "semi": true,
+    "bracketSpacing": true,
+    "arrowParens": "always"
+  },
   "lint-staged": {
     "*.ts": [
       "eslint --fix"
