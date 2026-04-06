@@ -171,13 +171,10 @@ export default defineConfig({
       name: 'dev-lib-redirect',
       // In dev, redirect requests for the built bundle to the TS source
       // so components work without running "npm run build" first.
-      configureServer(server) {
-        server.middlewares.use((req, _res, next) => {
-          if (req.url && req.url.endsWith('/dist/dsfr-data.esm.js')) {
-            req.url = '/packages/core/src/index.ts';
-          }
-          next();
-        });
+      resolveId(id) {
+        if (id.endsWith('dist/dsfr-data.esm.js')) {
+          return resolve(__dirname, 'packages/core/src/index.ts');
+        }
       },
     },
     {
