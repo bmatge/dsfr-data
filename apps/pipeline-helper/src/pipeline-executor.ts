@@ -101,6 +101,11 @@ export class PipelineExecutor {
             status: 'warning',
             message: 'Base URL et/ou Dataset ID manquant',
           });
+        } else if (attrs['api-type'] && attrs['api-type'] !== 'generic' && !attrs['dataset-id']) {
+          node.statusControl.update({
+            status: 'warning',
+            message: 'Dataset ID manquant',
+          });
         }
       }
 

@@ -20,18 +20,39 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/grist-proxy/, ''),
         secure: true,
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => {
+            proxyReq.removeHeader('cookie');
+            proxyReq.removeHeader('origin');
+            proxyReq.removeHeader('referer');
+          });
+        },
       },
       '/grist-gouv-proxy': {
         target: 'https://grist.numerique.gouv.fr',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/grist-gouv-proxy/, ''),
         secure: true,
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => {
+            proxyReq.removeHeader('cookie');
+            proxyReq.removeHeader('origin');
+            proxyReq.removeHeader('referer');
+          });
+        },
       },
       '/tabular-proxy': {
         target: 'https://tabular-api.data.gouv.fr',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/tabular-proxy/, ''),
         secure: true,
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => {
+            proxyReq.removeHeader('cookie');
+            proxyReq.removeHeader('origin');
+            proxyReq.removeHeader('referer');
+          });
+        },
       },
     },
   },

@@ -8,6 +8,12 @@ import {
 import { DataSocket, CommandSocket } from './sockets.js';
 import { NODE_CONFIGS } from './node-configs.js';
 
+declare global {
+  interface Window {
+    DSFR_DATA_KEYS?: Record<string, string>;
+  }
+}
+
 /** Map Source.provider to dsfr-data-source api-type */
 const PROVIDER_TO_API_TYPE: Record<string, string> = {
   opendatasoft: 'opendatasoft',
@@ -32,7 +38,43 @@ export function createSourceNode(): PipelineNode {
   selector.onSourceSelected = (source: any | null) => {
     if (!source) return;
 
-    // Auto-fill attribute controls from the saved source
+    // Connection selected (from saved-source-control)
+    if (source._isConnection) {
+      const apiType = PROVIDER_TO_API_TYPE[source.provider] || 'generic';
+      setCtrl(node, 'api-type', apiType);
+
+      if (source.type === 'grist') {
+        // Grist adapter expects base-url = full records endpoint URL
+        // e.g. https://grist.numerique.gouv.fr/api/docs/{docId}/tables/{tableId}/records
+        if (source.apiUrl && source.documentId && source.tableId) {
+          const recordsUrl = `${source.apiUrl}/api/docs/${source.documentId}/tables/${source.tableId}/records`;
+          setCtrl(node, 'base-url', recordsUrl);
+          setCtrl(node, 'dataset-id', `${source.documentId}/${source.tableId}`);
+        } else if (source.apiUrl) {
+          setCtrl(node, 'base-url', source.apiUrl);
+        }
+        // Register API key in window.DSFR_DATA_KEYS for dsfr-data-source
+        if (source.apiKey) {
+          const keyRef = `__conn_grist_${Date.now()}`;
+          if (!window.DSFR_DATA_KEYS) window.DSFR_DATA_KEYS = {};
+          window.DSFR_DATA_KEYS[keyRef] = source.apiKey;
+          setCtrl(node, 'api-key-ref', keyRef);
+        }
+      } else {
+        // API connection: extract base-url and dataset-id
+        if (source.baseUrl) {
+          setCtrl(node, 'base-url', source.baseUrl);
+        }
+        if (source.resourceIds?.datasetId) {
+          setCtrl(node, 'dataset-id', source.resourceIds.datasetId);
+        } else if (source.resourceIds?.resourceId) {
+          setCtrl(node, 'dataset-id', source.resourceIds.resourceId);
+        }
+      }
+      return;
+    }
+
+    // Regular saved source
     const apiType = PROVIDER_TO_API_TYPE[source.provider] || 'generic';
     setCtrl(node, 'api-type', apiType);
 

@@ -33,6 +33,12 @@ export const SOURCE_CONFIG: PipelineNodeConfig = {
       placeholder: 'mon-dataset',
     },
     {
+      name: 'api-key-ref',
+      label: 'Cle API (ref)',
+      type: 'text',
+      placeholder: 'ma-cle-grist',
+    },
+    {
       name: 'server-side',
       label: 'Pagination serveur',
       type: 'boolean',
