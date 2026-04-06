@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Charts Builder DSFR",
-  "version": "0.2.5",
+  "version": "0.4.0",
   "identifier": "fr.gouv.charts-builder",
   "build": {
     "frontendDist": "../app-dist",
@@ -26,7 +26,14 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["dmg", "app", "nsis", "msi", "deb", "appimage"],
+    "targets": [
+      "dmg",
+      "app",
+      "nsis",
+      "msi",
+      "deb",
+      "appimage"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

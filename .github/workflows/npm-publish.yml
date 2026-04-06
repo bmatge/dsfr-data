@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag (ex: v0.3.0)'
+        description: 'Version tag (ex: v0.4.0)'
         required: true
 
 permissions:
@@ -32,6 +32,19 @@ jobs:
 
       - name: Build library
         run: npm run build
+
+      - name: Verify version matches tag
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          if [ "${{ github.event_name }}" = "push" ]; then
+            TAG="${{ github.ref_name }}"
+            EXPECTED="v${PKG_VERSION}"
+            if [ "${TAG}" != "${EXPECTED}" ]; then
+              echo "::error::Tag ${TAG} does not match package.json version ${PKG_VERSION}"
+              exit 1
+            fi
+          fi
+          echo "Publishing version ${PKG_VERSION}"
 
       - name: Verify package contents
         run: npm pack --dry-run

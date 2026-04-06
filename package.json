@@ -58,7 +58,11 @@
     "format": "prettier --write 'src/**/*.ts' 'apps/**/*.ts' 'packages/**/*.ts' 'server/src/**/*.ts'",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run build:shared && npm run build",
-    "prepare": "husky"
+    "prepare": "husky",
+    "changeset": "changeset",
+    "version-packages": "changeset version && vite-node scripts/sync-versions.ts",
+    "sync-versions": "vite-node scripts/sync-versions.ts",
+    "release-publish": "npm run build:shared && npm run build && changeset publish"
   },
   "keywords": [
     "web-components",
@@ -95,6 +99,8 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.1",
+    "@changesets/changelog-github": "^0.6.0",
+    "@changesets/cli": "^2.30.0",
     "@eslint/js": "^10.0.1",
     "@open-wc/testing": "^4.0.0",
     "@playwright/test": "^1.58.2",

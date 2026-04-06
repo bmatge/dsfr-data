@@ -290,14 +290,71 @@ Il a son propre `package-lock.json` et son propre `node_modules`.
 Le SDK est pinner a `1.12.1` (versions superieures utilisent zod v4 qui cause des erreurs TypeScript).
 Dans `Dockerfile.db`, le build mcp-server fait `npm ci && npm run build` depuis son repertoire.
 
-## Release Tauri
+## Versioning et Releases
 
-La release est declenchee par un tag git :
+Le projet utilise [Changesets](https://github.com/changesets/changesets) pour le versioning semantique et la generation du CHANGELOG.
+
+### Semantic Versioning (semver)
+
+- **patch** (0.4.x) : corrections de bugs, fixes CSS, typos
+- **minor** (0.x.0) : nouvelles fonctionnalites, nouveaux composants, nouveaux adapters
+- **major** (x.0.0) : breaking changes (attributs renommes/supprimes, changement d'API)
+
+### Workflow de release
+
+**1. Pendant le developpement** — creer un changeset pour chaque modification notable :
 ```bash
-git tag v0.2.0
-git push origin v0.2.0
+npx changeset
+# → Selectionner dsfr-data
+# → Choisir major/minor/patch
+# → Decrire le changement (1-2 phrases, en francais)
 ```
-Le workflow `.github/workflows/release.yml` build automatiquement sur macOS (ARM + x86), Linux (deb + AppImage) et Windows (NSIS + MSI).
+Le fichier `.changeset/xxx.md` est commite avec le code.
+
+**2. A la release** — generer la version et publier :
+```bash
+npm run version-packages    # Bumpe package.json + CHANGELOG.md + sync Tauri
+git add .
+git commit -m "chore: release v$(node -p \"require('./package.json').version\")"
+git tag "v$(node -p \"require('./package.json').version\")"
+git push && git push --tags
+```
+
+**3. Automatiquement** — les workflows GitHub se declenchent sur le tag `v*` :
+- `npm-publish.yml` → publie sur npm
+- `release.yml` → build Tauri (macOS ARM+x86, Linux, Windows) + GitHub Release
+- `publish-repos.yml` → publie les sous-repos (grist, proxy, mcp)
+
+### Synchronisation des versions
+
+La version de reference est dans `package.json` (root). Le script `sync-versions` synchronise :
+- `src-tauri/tauri.conf.json`
+- `src-tauri/Cargo.toml`
+
+Il est execute automatiquement par `npm run version-packages`.
+
+### CI : verification des changesets
+
+Sur les PRs, le workflow CI verifie si un changeset est present quand `src/` ou `packages/shared/` sont modifies. Un warning est emis si le changeset est manquant.
+
+### Workflow de fin de session Claude Code
+
+A la fin de chaque session de developpement avec Claude Code, suivre ce workflow :
+
+1. **Verifier les modifications** : `git diff --stat` pour voir tous les fichiers modifies
+2. **Creer un changeset si necessaire** : si `src/` ou `packages/shared/` ont ete modifies, lancer `npx changeset`
+3. **Commit** : avec un message conventional commit (`feat:`, `fix:`, `refactor:`, etc.)
+4. **Rappel** : ne pas oublier de pousser le changeset avec le code
+5. **Proposer une release** : demander a l'utilisateur s'il souhaite publier une nouvelle version. Si oui :
+   ```bash
+   npm run version-packages    # Bumpe package.json + CHANGELOG.md + sync Tauri
+   git add .
+   git commit -m "chore: release v$(node -p \"require('./package.json').version\")"
+   git tag "v$(node -p \"require('./package.json').version\")"
+   git push && git push --tags
+   ```
+
+Les changesets s'accumulent jusqu'a la prochaine release. Chaque release consomme tous les changesets en attente et genere une entree unique dans le CHANGELOG.
 
 ## APIs externes utilisees
 
