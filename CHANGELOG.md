@@ -5,6 +5,23 @@ Toutes les modifications notables de ce projet sont documentees dans ce fichier.
 Le format est base sur [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/)
 et ce projet adhere au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.5.0] - 2026-04-06
+
+### Structure
+- Restructuration monorepo : `src/` deplace dans `packages/core/` (workspace npm)
+- `dsfr-data` est desormais un workspace versionnable par Changesets
+- Pipeline de release consolidee (suppression du workflow npm-publish redondant)
+- 33 fichiers de test migres vers l'alias `@/` (plus de chemins relatifs fragiles)
+
+### Securite
+- MCP SDK upgrade 1.12.1 → 1.29.0 (3 vulns high resolues)
+- Suppression du `server/package-lock.json` orphelin (fausse alerte Dependabot)
+
+### Documentation
+- CLAUDE.md et CONTRIBUTING.md mis a jour pour la nouvelle structure
+- Section "Structure du monorepo" ajoutee dans CONTRIBUTING.md
+- Section Changesets ajoutee dans CONTRIBUTING.md
+
 ## [0.4.1] - 2026-04-06
 
 ### Securite
