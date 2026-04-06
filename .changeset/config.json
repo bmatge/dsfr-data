@@ -1,18 +1,11 @@
 {
   "$schema": "https://unpkg.com/@changesets/config@3.1.1/schema.json",
-  "changelog": [
-    "@changesets/changelog-github",
-    { "repo": "bmatge/dsfr-data" }
-  ],
+  "changelog": ["@changesets/changelog-github", { "repo": "bmatge/dsfr-data" }],
   "commit": false,
   "fixed": [],
   "linked": [],
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": [
-    "@dsfr-data/app-*",
-    "@dsfr-data/server",
-    "dsfr-data-mcp"
-  ]
+  "ignore": ["@dsfr-data/app-*", "@dsfr-data/server"]
 }
