@@ -4,8 +4,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const mockFetch = vi.fn();
 globalThis.fetch = mockFetch;
 
-import { OpenDataSoftAdapter } from '../../src/adapters/opendatasoft-adapter.js';
-import type { AdapterParams, ServerSideOverlay } from '../../src/adapters/api-adapter.js';
+import { OpenDataSoftAdapter } from '@/adapters/opendatasoft-adapter.js';
+import type { AdapterParams, ServerSideOverlay } from '@/adapters/api-adapter.js';
 
 function makeParams(overrides: Partial<AdapterParams> = {}): AdapterParams {
   return {
@@ -47,7 +47,9 @@ describe('OpenDataSoftAdapter', () => {
   describe('URL building', () => {
     it('builds base URL correctly', () => {
       const url = adapter.buildUrl(makeParams());
-      expect(url).toContain('https://data.example.com/api/explore/v2.1/catalog/datasets/communes-france/records');
+      expect(url).toContain(
+        'https://data.example.com/api/explore/v2.1/catalog/datasets/communes-france/records'
+      );
     });
 
     it('uses default base URL when not specified', () => {
@@ -109,10 +111,12 @@ describe('OpenDataSoftAdapter', () => {
     });
 
     it('auto-converts aggregate + groupBy to ODS select', () => {
-      const url = adapter.buildUrl(makeParams({
-        aggregate: 'population:sum, count:count',
-        groupBy: 'region',
-      }));
+      const url = adapter.buildUrl(
+        makeParams({
+          aggregate: 'population:sum, count:count',
+          groupBy: 'region',
+        })
+      );
       const params = new URL(url).searchParams;
       const select = params.get('select')!;
       expect(select).toContain('sum(population)');
@@ -171,10 +175,7 @@ describe('OpenDataSoftAdapter', () => {
     });
 
     it('includes group_by when specified', () => {
-      const url = adapter.buildServerSideUrl(
-        makeParams({ groupBy: 'categorie' }),
-        overlay()
-      );
+      const url = adapter.buildServerSideUrl(makeParams({ groupBy: 'categorie' }), overlay());
       expect(url).toContain('group_by=categorie');
     });
 
@@ -194,10 +195,11 @@ describe('OpenDataSoftAdapter', () => {
     it('fetches single page when limit <= 100', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          results: Array.from({ length: 50 }, (_, i) => ({ dep: String(i), value: i })),
-          total_count: 50,
-        }),
+        json: () =>
+          Promise.resolve({
+            results: Array.from({ length: 50 }, (_, i) => ({ dep: String(i), value: i })),
+            total_count: 50,
+          }),
       });
 
       const result = await adapter.fetchAll(
@@ -213,17 +215,25 @@ describe('OpenDataSoftAdapter', () => {
     it('fetches multiple pages when limit > 100', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          results: Array.from({ length: 100 }, (_, i) => ({ dep: String(i).padStart(2, '0'), value: i })),
-          total_count: 108,
-        }),
+        json: () =>
+          Promise.resolve({
+            results: Array.from({ length: 100 }, (_, i) => ({
+              dep: String(i).padStart(2, '0'),
+              value: i,
+            })),
+            total_count: 108,
+          }),
       });
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          results: Array.from({ length: 8 }, (_, i) => ({ dep: String(100 + i), value: 100 + i })),
-          total_count: 108,
-        }),
+        json: () =>
+          Promise.resolve({
+            results: Array.from({ length: 8 }, (_, i) => ({
+              dep: String(100 + i),
+              value: 100 + i,
+            })),
+            total_count: 108,
+          }),
       });
 
       const result = await adapter.fetchAll(
@@ -239,10 +249,11 @@ describe('OpenDataSoftAdapter', () => {
     it('stops when page returns fewer results than page size', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          results: Array.from({ length: 75 }, (_, i) => ({ dep: String(i), value: i })),
-          total_count: 75,
-        }),
+        json: () =>
+          Promise.resolve({
+            results: Array.from({ length: 75 }, (_, i) => ({ dep: String(i), value: i })),
+            total_count: 75,
+          }),
       });
 
       const result = await adapter.fetchAll(
@@ -257,17 +268,22 @@ describe('OpenDataSoftAdapter', () => {
     it('sends correct offset in second page URL', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          results: Array.from({ length: 100 }, (_, i) => ({ dep: String(i), value: i })),
-          total_count: 110,
-        }),
+        json: () =>
+          Promise.resolve({
+            results: Array.from({ length: 100 }, (_, i) => ({ dep: String(i), value: i })),
+            total_count: 110,
+          }),
       });
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          results: Array.from({ length: 10 }, (_, i) => ({ dep: String(100 + i), value: 100 + i })),
-          total_count: 110,
-        }),
+        json: () =>
+          Promise.resolve({
+            results: Array.from({ length: 10 }, (_, i) => ({
+              dep: String(100 + i),
+              value: 100 + i,
+            })),
+            total_count: 110,
+          }),
       });
 
       await adapter.fetchAll(makeParams({ limit: 110 }), new AbortController().signal);
@@ -280,23 +296,25 @@ describe('OpenDataSoftAdapter', () => {
     it('fetches all records when limit=0, using total_count', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          results: Array.from({ length: 100 }, (_, i) => ({ dep: String(i), value: i })),
-          total_count: 108,
-        }),
+        json: () =>
+          Promise.resolve({
+            results: Array.from({ length: 100 }, (_, i) => ({ dep: String(i), value: i })),
+            total_count: 108,
+          }),
       });
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          results: Array.from({ length: 8 }, (_, i) => ({ dep: String(100 + i), value: 100 + i })),
-          total_count: 108,
-        }),
+        json: () =>
+          Promise.resolve({
+            results: Array.from({ length: 8 }, (_, i) => ({
+              dep: String(100 + i),
+              value: 100 + i,
+            })),
+            total_count: 108,
+          }),
       });
 
-      const result = await adapter.fetchAll(
-        makeParams({ limit: 0 }),
-        new AbortController().signal
-      );
+      const result = await adapter.fetchAll(makeParams({ limit: 0 }), new AbortController().signal);
 
       expect(mockFetch).toHaveBeenCalledTimes(2);
       expect(result.data).toHaveLength(108);
@@ -307,10 +325,11 @@ describe('OpenDataSoftAdapter', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          results: Array.from({ length: 50 }, (_, i) => ({ dep: String(i), value: i })),
-          total_count: 80,
-        }),
+        json: () =>
+          Promise.resolve({
+            results: Array.from({ length: 50 }, (_, i) => ({ dep: String(i), value: i })),
+            total_count: 80,
+          }),
       });
 
       await adapter.fetchAll(makeParams({ limit: 50 }), new AbortController().signal);
@@ -324,10 +343,11 @@ describe('OpenDataSoftAdapter', () => {
     it('fetches one page and returns data with totalCount', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          results: Array.from({ length: 20 }, (_, i) => ({ id: i, nom: `item-${i}` })),
-          total_count: 500,
-        }),
+        json: () =>
+          Promise.resolve({
+            results: Array.from({ length: 20 }, (_, i) => ({ id: i, nom: `item-${i}` })),
+            total_count: 500,
+          }),
       });
 
       const result = await adapter.fetchPage(
@@ -364,23 +384,22 @@ describe('OpenDataSoftAdapter', () => {
     it('fetches facet values from ODS /facets endpoint', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          facets: [
-            {
-              name: 'region',
-              facets: [
-                { value: 'IDF', count: 100 },
-                { value: 'PACA', count: 50 },
-              ],
-            },
-            {
-              name: 'type',
-              facets: [
-                { value: 'A', count: 80 },
-              ],
-            },
-          ],
-        }),
+        json: () =>
+          Promise.resolve({
+            facets: [
+              {
+                name: 'region',
+                facets: [
+                  { value: 'IDF', count: 100 },
+                  { value: 'PACA', count: 50 },
+                ],
+              },
+              {
+                name: 'type',
+                facets: [{ value: 'A', count: 80 }],
+              },
+            ],
+          }),
       });
 
       const results = await adapter.fetchFacets!(
@@ -408,11 +427,7 @@ describe('OpenDataSoftAdapter', () => {
         json: () => Promise.resolve({ facets: [] }),
       });
 
-      await adapter.fetchFacets!(
-        { baseUrl: '', datasetId: 'test' },
-        ['field1'],
-        ''
-      );
+      await adapter.fetchFacets!({ baseUrl: '', datasetId: 'test' }, ['field1'], '');
 
       const callUrl = mockFetch.mock.calls[0][0] as string;
       expect(callUrl).toContain('https://data.opendatasoft.com');
@@ -558,13 +573,13 @@ describe('OpenDataSoftAdapter', () => {
 
   describe('buildFacetWhere', () => {
     it('builds ODSQL for single value', () => {
-      expect(adapter.buildFacetWhere!({ region: new Set(['IDF']) }))
-        .toBe('region = "IDF"');
+      expect(adapter.buildFacetWhere!({ region: new Set(['IDF']) })).toBe('region = "IDF"');
     });
 
     it('builds ODSQL IN for multiple values', () => {
-      expect(adapter.buildFacetWhere!({ region: new Set(['IDF', 'PACA']) }))
-        .toBe('region IN ("IDF", "PACA")');
+      expect(adapter.buildFacetWhere!({ region: new Set(['IDF', 'PACA']) })).toBe(
+        'region IN ("IDF", "PACA")'
+      );
     });
 
     it('joins multiple fields with AND', () => {
@@ -576,15 +591,15 @@ describe('OpenDataSoftAdapter', () => {
     });
 
     it('excludes specified field', () => {
-      expect(adapter.buildFacetWhere!(
-        { region: new Set(['IDF']), type: new Set(['A']) },
-        'region'
-      )).toBe('type = "A"');
+      expect(
+        adapter.buildFacetWhere!({ region: new Set(['IDF']), type: new Set(['A']) }, 'region')
+      ).toBe('type = "A"');
     });
 
     it('escapes double quotes in values', () => {
-      expect(adapter.buildFacetWhere!({ name: new Set(['value with "quotes"']) }))
-        .toBe('name = "value with \\"quotes\\""');
+      expect(adapter.buildFacetWhere!({ name: new Set(['value with "quotes"']) })).toBe(
+        'name = "value with \\"quotes\\""'
+      );
     });
 
     it('returns empty string for empty selections', () => {
@@ -621,10 +636,11 @@ describe('OpenDataSoftAdapter', () => {
     it('fetches one page and returns data with totalCount', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          results: Array.from({ length: 20 }, (_, i) => ({ id: i })),
-          total_count: 500,
-        }),
+        json: () =>
+          Promise.resolve({
+            results: Array.from({ length: 20 }, (_, i) => ({ id: i })),
+            total_count: 500,
+          }),
       });
 
       const result = await adapter.fetchPage(
@@ -659,10 +675,11 @@ describe('OpenDataSoftAdapter', () => {
     it('handles page 3 with offset', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          results: [{ id: 1 }],
-          total_count: 50,
-        }),
+        json: () =>
+          Promise.resolve({
+            results: [{ id: 1 }],
+            total_count: 50,
+          }),
       });
 
       await adapter.fetchPage(
@@ -679,52 +696,58 @@ describe('OpenDataSoftAdapter', () => {
 
   describe('buildServerSideUrl', () => {
     it('builds URL with page and offset', () => {
-      const url = adapter.buildServerSideUrl(
-        makeParams({ pageSize: 20 }),
-        { page: 3, effectiveWhere: '', orderBy: '' }
-      );
+      const url = adapter.buildServerSideUrl(makeParams({ pageSize: 20 }), {
+        page: 3,
+        effectiveWhere: '',
+        orderBy: '',
+      });
       expect(url).toContain('limit=20');
       expect(url).toContain('offset=40');
     });
 
     it('does not include offset for page 1', () => {
-      const url = adapter.buildServerSideUrl(
-        makeParams({ pageSize: 20 }),
-        { page: 1, effectiveWhere: '', orderBy: '' }
-      );
+      const url = adapter.buildServerSideUrl(makeParams({ pageSize: 20 }), {
+        page: 1,
+        effectiveWhere: '',
+        orderBy: '',
+      });
       expect(url).toContain('limit=20');
       expect(url).not.toContain('offset=');
     });
 
     it('includes effectiveWhere as where param', () => {
-      const url = adapter.buildServerSideUrl(
-        makeParams(),
-        { page: 1, effectiveWhere: 'region = "IDF"', orderBy: '' }
-      );
+      const url = adapter.buildServerSideUrl(makeParams(), {
+        page: 1,
+        effectiveWhere: 'region = "IDF"',
+        orderBy: '',
+      });
       expect(url).toContain('where=');
     });
 
     it('includes orderBy from overlay', () => {
-      const url = adapter.buildServerSideUrl(
-        makeParams(),
-        { page: 1, effectiveWhere: '', orderBy: 'population:desc' }
-      );
+      const url = adapter.buildServerSideUrl(makeParams(), {
+        page: 1,
+        effectiveWhere: '',
+        orderBy: 'population:desc',
+      });
       expect(url).toContain('order_by=');
     });
 
     it('includes select from params', () => {
-      const url = adapter.buildServerSideUrl(
-        makeParams({ select: 'nom, count(*) as total' }),
-        { page: 1, effectiveWhere: '', orderBy: '' }
-      );
+      const url = adapter.buildServerSideUrl(makeParams({ select: 'nom, count(*) as total' }), {
+        page: 1,
+        effectiveWhere: '',
+        orderBy: '',
+      });
       expect(url).toContain('select=');
     });
 
     it('includes groupBy from params', () => {
-      const url = adapter.buildServerSideUrl(
-        makeParams({ groupBy: 'region' }),
-        { page: 1, effectiveWhere: '', orderBy: '' }
-      );
+      const url = adapter.buildServerSideUrl(makeParams({ groupBy: 'region' }), {
+        page: 1,
+        effectiveWhere: '',
+        orderBy: '',
+      });
       expect(url).toContain('group_by=region');
     });
 
@@ -742,23 +765,22 @@ describe('OpenDataSoftAdapter', () => {
     it('fetches multiple pages via offset', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          results: Array.from({ length: 100 }, (_, i) => ({ id: i })),
-          total_count: 150,
-        }),
+        json: () =>
+          Promise.resolve({
+            results: Array.from({ length: 100 }, (_, i) => ({ id: i })),
+            total_count: 150,
+          }),
       });
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          results: Array.from({ length: 50 }, (_, i) => ({ id: 100 + i })),
-          total_count: 150,
-        }),
+        json: () =>
+          Promise.resolve({
+            results: Array.from({ length: 50 }, (_, i) => ({ id: 100 + i })),
+            total_count: 150,
+          }),
       });
 
-      const result = await adapter.fetchAll(
-        makeParams({ limit: 0 }),
-        new AbortController().signal
-      );
+      const result = await adapter.fetchAll(makeParams({ limit: 0 }), new AbortController().signal);
 
       expect(mockFetch).toHaveBeenCalledTimes(2);
       expect(result.data).toHaveLength(150);
@@ -768,10 +790,11 @@ describe('OpenDataSoftAdapter', () => {
     it('stops at requested limit', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          results: Array.from({ length: 50 }, (_, i) => ({ id: i })),
-          total_count: 200,
-        }),
+        json: () =>
+          Promise.resolve({
+            results: Array.from({ length: 50 }, (_, i) => ({ id: i })),
+            total_count: 200,
+          }),
       });
 
       const result = await adapter.fetchAll(
@@ -787,16 +810,14 @@ describe('OpenDataSoftAdapter', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          results: Array.from({ length: 50 }, (_, i) => ({ id: i })),
-          total_count: 2000,
-        }),
+        json: () =>
+          Promise.resolve({
+            results: Array.from({ length: 50 }, (_, i) => ({ id: i })),
+            total_count: 2000,
+          }),
       });
 
-      await adapter.fetchAll(
-        makeParams({ limit: 200 }),
-        new AbortController().signal
-      );
+      await adapter.fetchAll(makeParams({ limit: 200 }), new AbortController().signal);
 
       expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('pagination incomplete'));
       warnSpy.mockRestore();

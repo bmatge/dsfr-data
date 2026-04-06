@@ -1,35 +1,14 @@
 {
-  "name": "dsfr-data",
-  "version": "0.4.1",
-  "description": "Bibliothèque de Web Components de dataviz pour sites gouvernementaux",
+  "name": "dsfr-data-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Monorepo dsfr-data — Web Components de dataviz pour sites gouvernementaux",
   "repository": {
     "type": "git",
     "url": "https://github.com/bmatge/dsfr-data.git"
   },
   "homepage": "https://bmatge.github.io/dsfr-data/specs/",
   "type": "module",
-  "main": "dist/dsfr-data.umd.js",
-  "module": "dist/dsfr-data.esm.js",
-  "types": "dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/dsfr-data.esm.js",
-      "require": "./dist/dsfr-data.umd.js"
-    },
-    "./core": {
-      "import": "./dist/dsfr-data.core.esm.js",
-      "require": "./dist/dsfr-data.core.umd.js"
-    },
-    "./world-map": {
-      "import": "./dist/dsfr-data.world-map.esm.js",
-      "require": "./dist/dsfr-data.world-map.umd.js"
-    }
-  },
-  "files": [
-    "dist/dsfr-data.*.js",
-    "dist/data/"
-  ],
   "workspaces": [
     "packages/*",
     "apps/*",
@@ -37,7 +16,7 @@
   ],
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite-node scripts/build-lib.ts && vite-node scripts/build-skills-json.ts && vite-node scripts/generate-examples-list.ts",
+    "build": "npm run build --workspace=dsfr-data",
     "build:shared": "npm run build --workspace=@dsfr-data/shared",
     "build:apps": "npm run build --workspace=@dsfr-data/app-favorites && npm run build --workspace=@dsfr-data/app-playground && npm run build --workspace=@dsfr-data/app-sources && npm run build --workspace=@dsfr-data/app-builder-ia && npm run build --workspace=@dsfr-data/app-builder && npm run build --workspace=@dsfr-data/app-builder-carto && npm run build --workspace=@dsfr-data/app-dashboard && npm run build --workspace=@dsfr-data/app-monitoring && npm run build --workspace=@dsfr-data/app-admin && npm run build --workspace=@dsfr-data/app-pipeline-helper && npm run build --workspace=@dsfr-data/app-grist-widgets",
     "build:all": "npm run build:shared && npm run build && npm run build:apps",
@@ -52,12 +31,11 @@
     "build:server": "npm run build --workspace=@dsfr-data/server",
     "dev:server": "npm run dev --workspace=@dsfr-data/server",
     "test:e2e": "playwright test",
-    "lint": "eslint 'src/**/*.ts' 'apps/**/*.ts' 'packages/**/*.ts' 'server/src/**/*.ts'",
-    "lint:fix": "eslint --fix 'src/**/*.ts' 'apps/**/*.ts' 'packages/**/*.ts' 'server/src/**/*.ts'",
-    "format:check": "prettier --check 'src/**/*.ts' 'apps/**/*.ts' 'packages/**/*.ts' 'server/src/**/*.ts'",
-    "format": "prettier --write 'src/**/*.ts' 'apps/**/*.ts' 'packages/**/*.ts' 'server/src/**/*.ts'",
-    "typecheck": "tsc --noEmit",
-    "prepublishOnly": "npm run build:shared && npm run build",
+    "lint": "eslint 'packages/core/src/**/*.ts' 'apps/**/*.ts' 'packages/shared/**/*.ts' 'server/src/**/*.ts'",
+    "lint:fix": "eslint --fix 'packages/core/src/**/*.ts' 'apps/**/*.ts' 'packages/shared/**/*.ts' 'server/src/**/*.ts'",
+    "format:check": "prettier --check 'packages/core/src/**/*.ts' 'apps/**/*.ts' 'packages/shared/**/*.ts' 'server/src/**/*.ts'",
+    "format": "prettier --write 'packages/core/src/**/*.ts' 'apps/**/*.ts' 'packages/shared/**/*.ts' 'server/src/**/*.ts'",
+    "typecheck": "npm run typecheck --workspace=dsfr-data",
     "prepare": "husky",
     "changeset": "changeset",
     "version-packages": "changeset version && vite-node scripts/sync-versions.ts",
@@ -73,19 +51,6 @@
   ],
   "author": "",
   "license": "MIT",
-  "dependencies": {
-    "@gouvfr/dsfr-chart": "^2.0.4",
-    "@types/leaflet": "^1.9.21",
-    "@types/leaflet.markercluster": "^1.5.6",
-    "@types/topojson-specification": "^1.0.5",
-    "d3-geo": "^3.1.1",
-    "leaflet": "^1.9.4",
-    "leaflet.heat": "^0.2.0",
-    "leaflet.markercluster": "^1.5.3",
-    "lit": "^3.1.0",
-    "topojson-client": "^3.1.0",
-    "world-atlas": "^2.0.2"
-  },
   "overrides": {
     "qs": "6.14.2"
   },
@@ -105,8 +70,6 @@
     "@open-wc/testing": "^4.0.0",
     "@playwright/test": "^1.58.2",
     "@tauri-apps/cli": "^2.10.0",
-    "@types/d3-geo": "^3.1.0",
-    "@types/topojson-client": "^3.1.5",
     "@vitest/coverage-istanbul": "^3.2.4",
     "@vitest/coverage-v8": "^3.0.0",
     "eslint": "^10.2.0",
@@ -119,6 +82,7 @@
     "typescript": "^5.3.0",
     "typescript-eslint": "^8.58.0",
     "vite": "^6.4.1",
+    "vite-node": "^3.0.0",
     "vitest": "^3.0.0"
   }
 }

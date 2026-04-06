@@ -4,7 +4,7 @@ import { resolve } from 'path';
 export default defineConfig({
   resolve: {
     alias: {
-      '@': resolve(__dirname, 'src'),
+      '@': resolve(__dirname, 'packages/core/src'),
       '@dsfr-data/shared': resolve(__dirname, 'packages/shared/src'),
     },
   },
@@ -22,8 +22,12 @@ export default defineConfig({
     },
     coverage: {
       provider: 'v8',
-      include: ['src/**/*.ts'],
-      exclude: ['src/index.ts', 'src/index-*.ts', 'src/components/layout/**'],
+      include: ['packages/core/src/**/*.ts'],
+      exclude: [
+        'packages/core/src/index.ts',
+        'packages/core/src/index-*.ts',
+        'packages/core/src/components/layout/**',
+      ],
       reporter: ['text', 'html'],
       thresholds: {
         statements: 85,

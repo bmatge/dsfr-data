@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { DsfrDataA11y } from '../src/components/dsfr-data-a11y.js';
+import { DsfrDataA11y } from '@/components/dsfr-data-a11y.js';
 import {
   clearDataCache,
   dispatchDataLoaded,
   dispatchDataLoading,
   dispatchDataError,
-} from '../src/utils/data-bridge.js';
+} from '@/utils/data-bridge.js';
 
 const SOURCE_ID = 'test-a11y-src';
 
@@ -21,7 +21,7 @@ describe('DsfrDataA11y', () => {
     if (comp.isConnected) {
       comp.disconnectedCallback();
     }
-    document.querySelectorAll('[data-test-target]').forEach(el => el.remove());
+    document.querySelectorAll('[data-test-target]').forEach((el) => el.remove());
   });
 
   // =========================================================================

@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { DsfrDataMap } from '../src/components/dsfr-data-map.js';
-import { DsfrDataMapLayer } from '../src/components/dsfr-data-map-layer.js';
-import { DsfrDataMapTimeline } from '../src/components/dsfr-data-map-timeline.js';
-import { clearDataCache, dispatchDataLoaded } from '../src/utils/data-bridge.js';
+import { DsfrDataMap } from '@/components/dsfr-data-map.js';
+import { DsfrDataMapLayer } from '@/components/dsfr-data-map-layer.js';
+import { DsfrDataMapTimeline } from '@/components/dsfr-data-map-timeline.js';
+import { clearDataCache, dispatchDataLoaded } from '@/utils/data-bridge.js';
 import { nothing } from 'lit';
 
 // ============================================================================
@@ -234,19 +234,18 @@ describe('DsfrDataMapLayer', () => {
   describe('popup generation', () => {
     it('interpolates popup template', () => {
       layer.popupTemplate = '{nom} — {puissance} kW';
-      const result = (layer as any)._interpolateTemplate(
-        layer.popupTemplate,
-        { nom: 'Station A', puissance: 22 },
-      );
+      const result = (layer as any)._interpolateTemplate(layer.popupTemplate, {
+        nom: 'Station A',
+        puissance: 22,
+      });
       expect(result).toBe('Station A — 22 kW');
     });
 
     it('escapes HTML in template values', () => {
       layer.popupTemplate = '{nom}';
-      const result = (layer as any)._interpolateTemplate(
-        layer.popupTemplate,
-        { nom: '<script>alert(1)</script>' },
-      );
+      const result = (layer as any)._interpolateTemplate(layer.popupTemplate, {
+        nom: '<script>alert(1)</script>',
+      });
       expect(result).not.toContain('<script>');
     });
 
@@ -275,7 +274,7 @@ describe('DsfrDataMapLayer', () => {
 
       const data = [
         { geo_point_2d: { lat: 48.86, lon: 2.35 }, nom: 'Paris' },
-        { geo_point_2d: { lat: 43.60, lon: 1.44 }, nom: 'Toulouse' },
+        { geo_point_2d: { lat: 43.6, lon: 1.44 }, nom: 'Toulouse' },
       ];
       dispatchDataLoaded('test-map-src', data);
 
@@ -334,10 +333,10 @@ describe('DsfrDataMapLayer', () => {
 // ============================================================================
 
 describe('DsfrDataMapPopup', () => {
-  let popup: import('../src/components/dsfr-data-map-popup.js').DsfrDataMapPopup;
+  let popup: import('@/components/dsfr-data-map-popup.js').DsfrDataMapPopup;
 
   beforeEach(async () => {
-    const mod = await import('../src/components/dsfr-data-map-popup.js');
+    const mod = await import('@/components/dsfr-data-map-popup.js');
     popup = new mod.DsfrDataMapPopup();
   });
 
@@ -411,7 +410,7 @@ describe('DsfrDataMapPopup', () => {
 
 describe('DsfrDataMapPopup template rendering', () => {
   it('escapes HTML in auto-generated table values', async () => {
-    const mod = await import('../src/components/dsfr-data-map-popup.js');
+    const mod = await import('@/components/dsfr-data-map-popup.js');
     const popup = new mod.DsfrDataMapPopup();
     const html = popup.getPopupHtml({ nom: '<script>xss</script>' });
     expect(html).not.toContain('<script>');
@@ -419,14 +418,14 @@ describe('DsfrDataMapPopup template rendering', () => {
   });
 
   it('wraps output in dsfr-data-map__popup div', async () => {
-    const mod = await import('../src/components/dsfr-data-map-popup.js');
+    const mod = await import('@/components/dsfr-data-map-popup.js');
     const popup = new mod.DsfrDataMapPopup();
     const html = popup.getPopupHtml({ nom: 'test' });
     expect(html).toContain('class="dsfr-data-map__popup"');
   });
 
   it('close() resets current record', async () => {
-    const mod = await import('../src/components/dsfr-data-map-popup.js');
+    const mod = await import('@/components/dsfr-data-map-popup.js');
     const popup = new mod.DsfrDataMapPopup();
     popup._currentRecord = { nom: 'test' };
     popup.close();
@@ -434,7 +433,7 @@ describe('DsfrDataMapPopup template rendering', () => {
   });
 
   it('supports all mode values', async () => {
-    const mod = await import('../src/components/dsfr-data-map-popup.js');
+    const mod = await import('@/components/dsfr-data-map-popup.js');
     const popup = new mod.DsfrDataMapPopup();
     for (const mode of ['popup', 'modal', 'panel-right', 'panel-left']) {
       popup.mode = mode as any;
@@ -449,18 +448,40 @@ describe('DsfrDataMapPopup template rendering', () => {
 
 describe('DsfrDataMapLayer all attribute defaults', () => {
   let layer: DsfrDataMapLayer;
-  beforeEach(() => { layer = new DsfrDataMapLayer(); });
+  beforeEach(() => {
+    layer = new DsfrDataMapLayer();
+  });
 
-  it('has popup-template empty', () => { expect(layer.popupTemplate).toBe(''); });
-  it('has popup-fields empty', () => { expect(layer.popupFields).toBe(''); });
-  it('has tooltip-field empty', () => { expect(layer.tooltipField).toBe(''); });
-  it('has fill-field empty', () => { expect(layer.fillField).toBe(''); });
-  it('has selected-palette empty', () => { expect(layer.selectedPalette).toBe(''); });
-  it('has radius 8', () => { expect(layer.radius).toBe(8); });
-  it('has radius-field empty', () => { expect(layer.radiusField).toBe(''); });
-  it('has bbox-field empty', () => { expect(layer.bboxField).toBe(''); });
-  it('has filter empty', () => { expect(layer.filter).toBe(''); });
-  it('has bbox-debounce 300', () => { expect(layer.bboxDebounce).toBe(300); });
+  it('has popup-template empty', () => {
+    expect(layer.popupTemplate).toBe('');
+  });
+  it('has popup-fields empty', () => {
+    expect(layer.popupFields).toBe('');
+  });
+  it('has tooltip-field empty', () => {
+    expect(layer.tooltipField).toBe('');
+  });
+  it('has fill-field empty', () => {
+    expect(layer.fillField).toBe('');
+  });
+  it('has selected-palette empty', () => {
+    expect(layer.selectedPalette).toBe('');
+  });
+  it('has radius 8', () => {
+    expect(layer.radius).toBe(8);
+  });
+  it('has radius-field empty', () => {
+    expect(layer.radiusField).toBe('');
+  });
+  it('has bbox-field empty', () => {
+    expect(layer.bboxField).toBe('');
+  });
+  it('has filter empty', () => {
+    expect(layer.filter).toBe('');
+  });
+  it('has bbox-debounce 300', () => {
+    expect(layer.bboxDebounce).toBe(300);
+  });
 });
 
 // ============================================================================
@@ -469,7 +490,9 @@ describe('DsfrDataMapLayer all attribute defaults', () => {
 
 describe('DsfrDataMap a11y methods', () => {
   let map: DsfrDataMap;
-  beforeEach(() => { map = new DsfrDataMap(); });
+  beforeEach(() => {
+    map = new DsfrDataMap();
+  });
 
   it('announceToScreenReader does not throw before init', () => {
     expect(() => map.announceToScreenReader('test')).not.toThrow();
@@ -537,19 +560,14 @@ describe('circle auto-scaling', () => {
     layer.radiusMax = 25;
 
     // Simulate what _renderLayer does for scaling
-    const items = [
-      { pop: 100 },
-      { pop: 500 },
-      { pop: 1000 },
-    ];
+    const items = [{ pop: 100 }, { pop: 500 }, { pop: 1000 }];
 
-    const values = items.map(r => r.pop);
+    const values = items.map((r) => r.pop);
     const min = Math.min(...values);
     const max = Math.max(...values);
     const range = max - min;
 
-    const scale = (val: number) =>
-      5 + ((val - min) / range) * (25 - 5);
+    const scale = (val: number) => 5 + ((val - min) / range) * (25 - 5);
 
     // min value → radiusMin
     expect(scale(100)).toBe(5);
@@ -573,9 +591,48 @@ describe('choropleth utilities', () => {
     layer.geoField = 'geo';
 
     (layer as any)._data = [
-      { geo: { type: 'Polygon', coordinates: [[[0,0],[1,0],[1,1],[0,0]]] }, population: 100 },
-      { geo: { type: 'Polygon', coordinates: [[[0,0],[1,0],[1,1],[0,0]]] }, population: 500 },
-      { geo: { type: 'Polygon', coordinates: [[[0,0],[1,0],[1,1],[0,0]]] }, population: 1000 },
+      {
+        geo: {
+          type: 'Polygon',
+          coordinates: [
+            [
+              [0, 0],
+              [1, 0],
+              [1, 1],
+              [0, 0],
+            ],
+          ],
+        },
+        population: 100,
+      },
+      {
+        geo: {
+          type: 'Polygon',
+          coordinates: [
+            [
+              [0, 0],
+              [1, 0],
+              [1, 1],
+              [0, 0],
+            ],
+          ],
+        },
+        population: 500,
+      },
+      {
+        geo: {
+          type: 'Polygon',
+          coordinates: [
+            [
+              [0, 0],
+              [1, 0],
+              [1, 1],
+              [0, 0],
+            ],
+          ],
+        },
+        population: 1000,
+      },
     ];
 
     expect((layer as any)._data).toHaveLength(3);
@@ -590,8 +647,12 @@ describe('choropleth utilities', () => {
 function createMockLeaflet() {
   const layers: any[] = [];
   const mockLayerGroup = {
-    clearLayers: () => { layers.length = 0; },
-    addLayer: (l: any) => { layers.push(l); },
+    clearLayers: () => {
+      layers.length = 0;
+    },
+    addLayer: (l: any) => {
+      layers.push(l);
+    },
     addTo: () => {},
     removeFrom: () => {},
     getBounds: () => ({ isValid: () => layers.length > 0 }),
@@ -654,7 +715,7 @@ describe('DsfrDataMapLayer rendering with mock Leaflet', () => {
       layer.lonField = 'lon';
       (layer as any)._data = [
         { lat: 48.86, lon: 2.35, nom: 'Paris' },
-        { lat: 43.30, lon: 5.37, nom: 'Marseille' },
+        { lat: 43.3, lon: 5.37, nom: 'Marseille' },
       ];
       await (layer as any)._renderLayer();
       expect(mock.layers).toHaveLength(2);
@@ -663,9 +724,7 @@ describe('DsfrDataMapLayer rendering with mock Leaflet', () => {
     it('renders markers from geo-field GeoJSON Point', async () => {
       layer.type = 'marker';
       layer.geoField = 'geo';
-      (layer as any)._data = [
-        { geo: { type: 'Point', coordinates: [2.35, 48.86] }, nom: 'Paris' },
-      ];
+      (layer as any)._data = [{ geo: { type: 'Point', coordinates: [2.35, 48.86] }, nom: 'Paris' }];
       await (layer as any)._renderLayer();
       expect(mock.layers).toHaveLength(1);
     });
@@ -711,7 +770,7 @@ describe('DsfrDataMapLayer rendering with mock Leaflet', () => {
       layer.radiusMax = 25;
       (layer as any)._data = [
         { lat: 48.86, lon: 2.35, pop: 100 },
-        { lat: 43.30, lon: 5.37, pop: 1000 },
+        { lat: 43.3, lon: 5.37, pop: 1000 },
       ];
       await (layer as any)._renderLayer();
       expect(mock.layers).toHaveLength(2);
@@ -729,7 +788,10 @@ describe('DsfrDataMapLayer rendering with mock Leaflet', () => {
       (layer as any)._data = [{ lat: 48.86, lon: 2.35 }];
 
       let usedCircle = false;
-      mock.L.circle = () => { usedCircle = true; return { bindPopup: () => ({}), bindTooltip: () => ({}), on: () => ({}) } as any; };
+      mock.L.circle = () => {
+        usedCircle = true;
+        return { bindPopup: () => ({}), bindTooltip: () => ({}), on: () => ({}) } as any;
+      };
       await (layer as any)._renderLayer();
       expect(usedCircle).toBe(true);
     });
@@ -742,8 +804,34 @@ describe('DsfrDataMapLayer rendering with mock Leaflet', () => {
       layer.fillField = 'val';
       layer.selectedPalette = 'sequentialAscending';
       (layer as any)._data = [
-        { geo: { type: 'Polygon', coordinates: [[[0,0],[1,0],[1,1],[0,0]]] }, val: 10 },
-        { geo: { type: 'Polygon', coordinates: [[[0,0],[1,0],[1,1],[0,0]]] }, val: 90 },
+        {
+          geo: {
+            type: 'Polygon',
+            coordinates: [
+              [
+                [0, 0],
+                [1, 0],
+                [1, 1],
+                [0, 0],
+              ],
+            ],
+          },
+          val: 10,
+        },
+        {
+          geo: {
+            type: 'Polygon',
+            coordinates: [
+              [
+                [0, 0],
+                [1, 0],
+                [1, 1],
+                [0, 0],
+              ],
+            ],
+          },
+          val: 90,
+        },
       ];
 
       let capturedStyle: any;
@@ -766,7 +854,7 @@ describe('DsfrDataMapLayer rendering with mock Leaflet', () => {
       layer.lonField = 'lon';
       (layer as any)._data = [
         { lat: 48.86, lon: 2.35 },
-        { lat: 43.30, lon: 5.37 },
+        { lat: 43.3, lon: 5.37 },
       ];
       await (layer as any)._renderLayer();
       // Fallback circles are added to layerGroup
@@ -781,7 +869,10 @@ describe('DsfrDataMapLayer rendering with mock Leaflet', () => {
       layer.lonField = 'lon';
       layer.maxItems = 2;
       (layer as any)._data = [
-        { lat: 1, lon: 1 }, { lat: 2, lon: 2 }, { lat: 3, lon: 3 }, { lat: 4, lon: 4 },
+        { lat: 1, lon: 1 },
+        { lat: 2, lon: 2 },
+        { lat: 3, lon: 3 },
+        { lat: 4, lon: 4 },
       ];
       await (layer as any)._renderLayer();
       expect(mock.layers).toHaveLength(2);
@@ -796,11 +887,15 @@ describe('DsfrDataMapLayer rendering with mock Leaflet', () => {
       layer.popupFields = 'nom,prix';
 
       let popupContent = '';
-      mock.L.marker = () => ({
-        bindPopup: (c: string) => { popupContent = c; return { bindTooltip: () => ({}), on: () => ({}) }; },
-        bindTooltip: () => ({}),
-        on: () => ({}),
-      } as any);
+      mock.L.marker = () =>
+        ({
+          bindPopup: (c: string) => {
+            popupContent = c;
+            return { bindTooltip: () => ({}), on: () => ({}) };
+          },
+          bindTooltip: () => ({}),
+          on: () => ({}),
+        }) as any;
 
       (layer as any)._data = [{ lat: 48.86, lon: 2.35, nom: 'Test', prix: 95 }];
       await (layer as any)._renderLayer();
@@ -815,11 +910,15 @@ describe('DsfrDataMapLayer rendering with mock Leaflet', () => {
       layer.popupTemplate = '{nom} - {prix} EUR';
 
       let popupContent = '';
-      mock.L.marker = () => ({
-        bindPopup: (c: string) => { popupContent = c; return { bindTooltip: () => ({}), on: () => ({}) }; },
-        bindTooltip: () => ({}),
-        on: () => ({}),
-      } as any);
+      mock.L.marker = () =>
+        ({
+          bindPopup: (c: string) => {
+            popupContent = c;
+            return { bindTooltip: () => ({}), on: () => ({}) };
+          },
+          bindTooltip: () => ({}),
+          on: () => ({}),
+        }) as any;
 
       (layer as any)._data = [{ lat: 48.86, lon: 2.35, nom: 'Gare', prix: 80 }];
       await (layer as any)._renderLayer();
@@ -928,7 +1027,7 @@ describe('DsfrDataMap rendering methods', () => {
 
 describe('DsfrDataMapPopup rendering methods', () => {
   it('showForRecord sets record but does not open panel/modal in popup mode', async () => {
-    const mod = await import('../src/components/dsfr-data-map-popup.js');
+    const mod = await import('@/components/dsfr-data-map-popup.js');
     const popup = new mod.DsfrDataMapPopup();
     popup.mode = 'popup';
     popup.showForRecord({ nom: 'test' });
@@ -937,14 +1036,14 @@ describe('DsfrDataMapPopup rendering methods', () => {
   });
 
   it('getPopupHtml handles nested fields', async () => {
-    const mod = await import('../src/components/dsfr-data-map-popup.js');
+    const mod = await import('@/components/dsfr-data-map-popup.js');
     const popup = new mod.DsfrDataMapPopup();
     const html = popup.getPopupHtml({ details: { score: 42 }, nom: 'Test' });
     expect(html).toContain('Test');
   });
 
   it('close() cleans up panel and modal refs', async () => {
-    const mod = await import('../src/components/dsfr-data-map-popup.js');
+    const mod = await import('@/components/dsfr-data-map-popup.js');
     const popup = new mod.DsfrDataMapPopup();
     popup._currentRecord = { test: true };
     popup.close();
@@ -952,7 +1051,7 @@ describe('DsfrDataMapPopup rendering methods', () => {
   });
 
   it('matchesLayer with empty for matches everything', async () => {
-    const mod = await import('../src/components/dsfr-data-map-popup.js');
+    const mod = await import('@/components/dsfr-data-map-popup.js');
     const popup = new mod.DsfrDataMapPopup();
     expect(popup.matchesLayer('')).toBe(true);
     expect(popup.matchesLayer('any-id')).toBe(true);
@@ -960,7 +1059,7 @@ describe('DsfrDataMapPopup rendering methods', () => {
   });
 
   it('_renderTemplate falls back to auto table without template', async () => {
-    const mod = await import('../src/components/dsfr-data-map-popup.js');
+    const mod = await import('@/components/dsfr-data-map-popup.js');
     const popup = new mod.DsfrDataMapPopup();
     const html = (popup as any)._renderTemplate({ nom: 'Paris', val: 42 });
     expect(html).toContain('<table');
@@ -969,7 +1068,7 @@ describe('DsfrDataMapPopup rendering methods', () => {
   });
 
   it('_buildAutoTable excludes geo and coord fields', async () => {
-    const mod = await import('../src/components/dsfr-data-map-popup.js');
+    const mod = await import('@/components/dsfr-data-map-popup.js');
     const popup = new mod.DsfrDataMapPopup();
     const html = (popup as any)._buildAutoTable({
       nom: 'Test',
@@ -986,7 +1085,7 @@ describe('DsfrDataMapPopup rendering methods', () => {
   });
 
   it('_showPanel creates panel element on map parent', async () => {
-    const mod = await import('../src/components/dsfr-data-map-popup.js');
+    const mod = await import('@/components/dsfr-data-map-popup.js');
     const popup = new mod.DsfrDataMapPopup();
     popup.mode = 'panel-right';
     popup.titleField = 'nom';
@@ -1013,7 +1112,7 @@ describe('DsfrDataMapPopup rendering methods', () => {
   });
 
   it('_showModal creates modal overlay on document body', async () => {
-    const mod = await import('../src/components/dsfr-data-map-popup.js');
+    const mod = await import('@/components/dsfr-data-map-popup.js');
     const popup = new mod.DsfrDataMapPopup();
     popup.mode = 'modal';
     popup.titleField = 'nom';
@@ -1038,7 +1137,7 @@ describe('DsfrDataMapPopup rendering methods', () => {
   });
 
   it('panel-left positions on left side', async () => {
-    const mod = await import('../src/components/dsfr-data-map-popup.js');
+    const mod = await import('@/components/dsfr-data-map-popup.js');
     const popup = new mod.DsfrDataMapPopup();
     popup.mode = 'panel-left';
 
@@ -1175,7 +1274,10 @@ describe('DsfrDataMapLayer color-field / color-map', () => {
     it('returns mapped color when match found', () => {
       layer.colorField = 'status';
       layer.color = '#000091';
-      (layer as any)._colorMapParsed = new Map([['active', '#00A95F'], ['inactive', '#E1000F']]);
+      (layer as any)._colorMapParsed = new Map([
+        ['active', '#00A95F'],
+        ['inactive', '#E1000F'],
+      ]);
       expect((layer as any)._resolveColor({ status: 'active' })).toBe('#00A95F');
     });
 
@@ -1189,7 +1291,10 @@ describe('DsfrDataMapLayer color-field / color-map', () => {
     it('converts non-string field values to string for lookup', () => {
       layer.colorField = 'code';
       layer.color = '#000091';
-      (layer as any)._colorMapParsed = new Map([['1', '#ff0000'], ['2', '#00ff00']]);
+      (layer as any)._colorMapParsed = new Map([
+        ['1', '#ff0000'],
+        ['2', '#00ff00'],
+      ]);
       expect((layer as any)._resolveColor({ code: 1 })).toBe('#ff0000');
     });
 
@@ -1217,7 +1322,7 @@ describe('DsfrDataMapLayer color-field / color-map', () => {
       layer.colorMap = 'open:#00A95F,closed:#E1000F';
       (layer as any)._data = [
         { lat: 48.86, lon: 2.35, status: 'open' },
-        { lat: 43.30, lon: 5.37, status: 'closed' },
+        { lat: 43.3, lon: 5.37, status: 'closed' },
       ];
       await (layer as any)._renderLayer();
       expect(mock.layers).toHaveLength(2);
@@ -1231,7 +1336,7 @@ describe('DsfrDataMapLayer color-field / color-map', () => {
       layer.colorMap = 'A:#ff0000,B:#00ff00';
       (layer as any)._data = [
         { lat: 48.86, lon: 2.35, type: 'A' },
-        { lat: 43.30, lon: 5.37, type: 'B' },
+        { lat: 43.3, lon: 5.37, type: 'B' },
       ];
       await (layer as any)._renderLayer();
       expect(mock.layers).toHaveLength(2);
@@ -1243,7 +1348,20 @@ describe('DsfrDataMapLayer color-field / color-map', () => {
       layer.colorField = 'zone';
       layer.colorMap = 'urban:#ff0000,rural:#00ff00';
       (layer as any)._data = [
-        { geo: { type: 'Polygon', coordinates: [[[0,0],[1,0],[1,1],[0,0]]] }, zone: 'urban' },
+        {
+          geo: {
+            type: 'Polygon',
+            coordinates: [
+              [
+                [0, 0],
+                [1, 0],
+                [1, 1],
+                [0, 0],
+              ],
+            ],
+          },
+          zone: 'urban',
+        },
       ];
       await (layer as any)._renderLayer();
       expect(mock.layers).toHaveLength(1);
@@ -1256,9 +1374,7 @@ describe('DsfrDataMapLayer color-field / color-map', () => {
       layer.color = '#000091';
       layer.colorField = 'status';
       layer.colorMap = 'open:#00A95F';
-      (layer as any)._data = [
-        { lat: 48.86, lon: 2.35, status: 'unknown_value' },
-      ];
+      (layer as any)._data = [{ lat: 48.86, lon: 2.35, status: 'unknown_value' }];
       await (layer as any)._renderLayer();
       // Should still render (with fallback color)
       expect(mock.layers).toHaveLength(1);
@@ -1345,11 +1461,7 @@ describe('DsfrDataMapLayer timeline support', () => {
     it('sorts time steps chronologically', () => {
       layer.timeField = 'date';
       layer.timeBucket = 'none';
-      (layer as any)._data = [
-        { date: '2023-01' },
-        { date: '2021-01' },
-        { date: '2022-01' },
-      ];
+      (layer as any)._data = [{ date: '2023-01' }, { date: '2021-01' }, { date: '2022-01' }];
       (layer as any)._buildTimeFrames();
       expect(layer.getTimeSteps()).toEqual(['2021-01', '2022-01', '2023-01']);
     });
@@ -1424,7 +1536,7 @@ describe('DsfrDataMapLayer timeline support', () => {
       layer.timeBucket = 'none';
       (layer as any)._data = [
         { date: '2021', lat: 48.86, lon: 2.35 },
-        { date: '2022', lat: 43.30, lon: 5.37 },
+        { date: '2022', lat: 43.3, lon: 5.37 },
       ];
       (layer as any)._buildTimeFrames();
     });
@@ -1694,7 +1806,7 @@ describe('DsfrDataMapTimeline', () => {
       (timeline as any)._steps = ['a', 'b', 'c'];
       (timeline as any)._prefersReducedMotion = false;
       (timeline as any)._play();
-      const oldTimer = (timeline as any)._timer;
+      const _oldTimer = (timeline as any)._timer;
       const event = { target: { value: '4' } } as any;
       (timeline as any)._onSpeedChange(event);
       expect(timeline.speed).toBe(4);
@@ -1899,10 +2011,7 @@ describe('DsfrDataMapTimeline', () => {
       layer1.timeBucket = 'none';
       layer1.timeMode = 'cumulative';
       layer1.id = 'cum';
-      (layer1 as any)._data = [
-        { date: '2021' },
-        { date: '2023' },
-      ];
+      (layer1 as any)._data = [{ date: '2021' }, { date: '2023' }];
       (layer1 as any)._buildTimeFrames();
 
       // Spy on setTimelineFrame
@@ -1914,11 +2023,7 @@ describe('DsfrDataMapTimeline', () => {
       layer2.timeBucket = 'none';
       layer2.timeMode = 'snapshot';
       layer2.id = 'snap';
-      (layer2 as any)._data = [
-        { date: '2021' },
-        { date: '2022' },
-        { date: '2023' },
-      ];
+      (layer2 as any)._data = [{ date: '2021' }, { date: '2022' }, { date: '2023' }];
       (layer2 as any)._buildTimeFrames();
 
       map.appendChild(layer1);
@@ -2001,7 +2106,17 @@ describe('choropleth quantileBreaks & getColorForValue', () => {
     layer.fillField = 'pop';
     layer.selectedPalette = 'sequentialAscending';
 
-    const poly = { type: 'Polygon', coordinates: [[[0,0],[1,0],[1,1],[0,0]]] };
+    const poly = {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [0, 0],
+          [1, 0],
+          [1, 1],
+          [0, 0],
+        ],
+      ],
+    };
     (layer as any)._data = [
       { geo: poly, pop: 100 },
       { geo: poly, pop: 500 },
@@ -2025,7 +2140,17 @@ describe('choropleth quantileBreaks & getColorForValue', () => {
     layer.fillField = 'pop';
     layer.selectedPalette = 'sequentialAscending';
 
-    const poly = { type: 'Polygon', coordinates: [[[0,0],[1,0],[1,1],[0,0]]] };
+    const poly = {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [0, 0],
+          [1, 0],
+          [1, 1],
+          [0, 0],
+        ],
+      ],
+    };
     (layer as any)._data = [
       { geo: poly, pop: 42 },
       { geo: poly, pop: 42 },
@@ -2045,10 +2170,20 @@ describe('choropleth quantileBreaks & getColorForValue', () => {
     layer.fillField = 'pop';
     layer.selectedPalette = 'sequentialAscending';
 
-    const poly = { type: 'Polygon', coordinates: [[[0,0],[1,0],[1,1],[0,0]]] };
+    const poly = {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [0, 0],
+          [1, 0],
+          [1, 1],
+          [0, 0],
+        ],
+      ],
+    };
     (layer as any)._data = [
       { geo: poly, pop: 100 },
-      { geo: poly },  // missing pop
+      { geo: poly }, // missing pop
       { geo: poly, pop: 'not_a_number' },
     ];
 
@@ -2066,7 +2201,17 @@ describe('choropleth quantileBreaks & getColorForValue', () => {
     layer.fillField = 'pop';
     layer.selectedPalette = 'nonexistent_palette';
 
-    const poly = { type: 'Polygon', coordinates: [[[0,0],[1,0],[1,1],[0,0]]] };
+    const poly = {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [0, 0],
+          [1, 0],
+          [1, 1],
+          [0, 0],
+        ],
+      ],
+    };
     (layer as any)._data = [{ geo: poly, pop: 100 }];
 
     (layer as any)._renderLayer();
@@ -2097,7 +2242,7 @@ describe('circle auto-scaling edge cases', () => {
   it('uses midpoint radius when all values are equal (range=0)', async () => {
     (layer as any)._data = [
       { lat: 48.86, lon: 2.35, pop: 100 },
-      { lat: 43.30, lon: 5.37, pop: 100 },
+      { lat: 43.3, lon: 5.37, pop: 100 },
     ];
     await (layer as any)._renderLayer();
     expect(mock.layers).toHaveLength(2);
@@ -2108,7 +2253,7 @@ describe('circle auto-scaling edge cases', () => {
   it('skips NaN and Infinity values in scaling', async () => {
     (layer as any)._data = [
       { lat: 48.86, lon: 2.35, pop: 100 },
-      { lat: 43.30, lon: 5.37, pop: NaN },
+      { lat: 43.3, lon: 5.37, pop: NaN },
       { lat: 44.0, lon: 3.0, pop: Infinity },
       { lat: 45.0, lon: 4.0, pop: 500 },
     ];
@@ -2119,9 +2264,7 @@ describe('circle auto-scaling edge cases', () => {
   });
 
   it('handles no valid radius values', async () => {
-    (layer as any)._data = [
-      { lat: 48.86, lon: 2.35, pop: 'abc' },
-    ];
+    (layer as any)._data = [{ lat: 48.86, lon: 2.35, pop: 'abc' }];
     await (layer as any)._renderLayer();
     expect((layer as any)._radiusScale).toBeNull();
   });
@@ -2140,43 +2283,33 @@ describe('DsfrDataMapLayer template and popup', () => {
 
   describe('_interpolateTemplate', () => {
     it('replaces {field} with record values', () => {
-      const result = (layer as any)._interpolateTemplate(
-        'Nom: {name}, Pop: {pop}',
-        { name: 'Paris', pop: 12000 }
-      );
+      const result = (layer as any)._interpolateTemplate('Nom: {name}, Pop: {pop}', {
+        name: 'Paris',
+        pop: 12000,
+      });
       expect(result).toBe('Nom: Paris, Pop: 12000');
     });
 
     it('escapes HTML in replaced values', () => {
-      const result = (layer as any)._interpolateTemplate(
-        '{name}',
-        { name: '<script>alert("xss")</script>' }
-      );
+      const result = (layer as any)._interpolateTemplate('{name}', {
+        name: '<script>alert("xss")</script>',
+      });
       expect(result).not.toContain('<script>');
       expect(result).toContain('&lt;script&gt;');
     });
 
     it('replaces missing fields with empty string', () => {
-      const result = (layer as any)._interpolateTemplate(
-        '{name}: {missing}',
-        { name: 'test' }
-      );
+      const result = (layer as any)._interpolateTemplate('{name}: {missing}', { name: 'test' });
       expect(result).toBe('test: ');
     });
 
     it('handles nested field paths', () => {
-      const result = (layer as any)._interpolateTemplate(
-        '{data.value}',
-        { data: { value: 42 } }
-      );
+      const result = (layer as any)._interpolateTemplate('{data.value}', { data: { value: 42 } });
       expect(result).toBe('42');
     });
 
     it('trims whitespace in field names', () => {
-      const result = (layer as any)._interpolateTemplate(
-        '{ name }',
-        { name: 'Paris' }
-      );
+      const result = (layer as any)._interpolateTemplate('{ name }', { name: 'Paris' });
       expect(result).toBe('Paris');
     });
   });
@@ -2309,7 +2442,7 @@ describe('DsfrDataMapLayer banner management', () => {
 
     (layer as any)._data = [
       { lat: 48.86, lon: 2.35 },
-      { lat: 43.30, lon: 5.37 },
+      { lat: 43.3, lon: 5.37 },
       { lat: 44.0, lon: 3.0 },
     ];
     await (layer as any)._renderLayer();
@@ -2333,9 +2466,7 @@ describe('DsfrDataMapLayer banner management', () => {
     document.body.appendChild(parent);
     (layer as any)._mapParent = parent;
 
-    (layer as any)._data = [
-      { lat: 48.86, lon: 2.35 },
-    ];
+    (layer as any)._data = [{ lat: 48.86, lon: 2.35 }];
     await (layer as any)._renderLayer();
 
     const banner = parent.querySelector('.dsfr-data-map__max-items-banner');
@@ -2357,7 +2488,7 @@ describe('DsfrDataMapLayer banner management', () => {
 
     (layer as any)._data = [
       { lat: 48.86, lon: 2.35 },
-      { lat: 43.30, lon: 5.37 },
+      { lat: 43.3, lon: 5.37 },
     ];
     await (layer as any)._renderLayer();
     await (layer as any)._renderLayer();
@@ -2451,7 +2582,9 @@ describe('DsfrDataMapLayer visibility management', () => {
     };
     const removed: string[] = [];
     const mockGroup = {
-      removeFrom: () => { removed.push('layer'); },
+      removeFrom: () => {
+        removed.push('layer');
+      },
       addTo: () => {},
     };
     (layer as any)._leafletMap = mockMap;
@@ -2476,7 +2609,9 @@ describe('DsfrDataMapLayer visibility management', () => {
       }),
     };
     const mockGroup = {
-      addTo: () => { added.push('layer'); },
+      addTo: () => {
+        added.push('layer');
+      },
       removeFrom: () => {},
     };
     (layer as any)._leafletMap = mockMap;
@@ -2502,8 +2637,12 @@ describe('DsfrDataMapLayer visibility management', () => {
     };
     const mockGroup = { removeFrom: () => {}, addTo: () => {} };
     const mockHeat = {
-      addTo: () => { heatActions.push('add'); },
-      removeFrom: () => { heatActions.push('remove'); },
+      addTo: () => {
+        heatActions.push('add');
+      },
+      removeFrom: () => {
+        heatActions.push('remove');
+      },
     };
     (layer as any)._leafletMap = mockMap;
     (layer as any)._layerGroup = mockGroup;
@@ -2761,7 +2900,19 @@ describe('DsfrDataMapLayer geoshape edge cases', () => {
 
   it('skips records with no geoData', async () => {
     (layer as any)._data = [
-      { geo: { type: 'Polygon', coordinates: [[[0,0],[1,0],[1,1],[0,0]]] } },
+      {
+        geo: {
+          type: 'Polygon',
+          coordinates: [
+            [
+              [0, 0],
+              [1, 0],
+              [1, 1],
+              [0, 0],
+            ],
+          ],
+        },
+      },
       { geo: null },
       { name: 'no geo' },
     ];
@@ -2771,8 +2922,31 @@ describe('DsfrDataMapLayer geoshape edge cases', () => {
 
   it('skips records where geoData has no type property', async () => {
     (layer as any)._data = [
-      { geo: { type: 'Polygon', coordinates: [[[0,0],[1,0],[1,1],[0,0]]] } },
-      { geo: { coordinates: [[[0,0],[1,0],[1,1],[0,0]]] } },  // missing type
+      {
+        geo: {
+          type: 'Polygon',
+          coordinates: [
+            [
+              [0, 0],
+              [1, 0],
+              [1, 1],
+              [0, 0],
+            ],
+          ],
+        },
+      },
+      {
+        geo: {
+          coordinates: [
+            [
+              [0, 0],
+              [1, 0],
+              [1, 1],
+              [0, 0],
+            ],
+          ],
+        },
+      }, // missing type
     ];
     await (layer as any)._renderLayer();
     expect(mock.layers).toHaveLength(1);
@@ -2781,7 +2955,19 @@ describe('DsfrDataMapLayer geoshape edge cases', () => {
   it('applies fillOpacity from attribute', async () => {
     layer.fillOpacity = 0.3;
     (layer as any)._data = [
-      { geo: { type: 'Polygon', coordinates: [[[0,0],[1,0],[1,1],[0,0]]] } },
+      {
+        geo: {
+          type: 'Polygon',
+          coordinates: [
+            [
+              [0, 0],
+              [1, 0],
+              [1, 1],
+              [0, 0],
+            ],
+          ],
+        },
+      },
     ];
     await (layer as any)._renderLayer();
     expect(mock.layers).toHaveLength(1);

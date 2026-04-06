@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getAdapter } from '../../src/adapters/api-adapter.js';
+import { getAdapter } from '@/adapters/api-adapter.js';
 
 describe('buildFacetWhere — ODS (ODSQL syntax)', () => {
   const adapter = getAdapter('opendatasoft');

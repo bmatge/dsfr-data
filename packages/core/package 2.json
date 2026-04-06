@@ -1,0 +1,55 @@
+{
+  "name": "dsfr-data",
+  "version": "0.4.1",
+  "description": "Bibliotheque de Web Components de dataviz pour sites gouvernementaux",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bmatge/dsfr-data.git"
+  },
+  "homepage": "https://bmatge.github.io/dsfr-data/specs/",
+  "type": "module",
+  "main": "dist/dsfr-data.umd.js",
+  "module": "dist/dsfr-data.esm.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/dsfr-data.esm.js",
+      "require": "./dist/dsfr-data.umd.js"
+    },
+    "./core": {
+      "import": "./dist/dsfr-data.core.esm.js",
+      "require": "./dist/dsfr-data.core.umd.js"
+    },
+    "./world-map": {
+      "import": "./dist/dsfr-data.world-map.esm.js",
+      "require": "./dist/dsfr-data.world-map.umd.js"
+    }
+  },
+  "files": ["dist/dsfr-data.*.js", "dist/data/"],
+  "scripts": {
+    "build": "tsc && vite-node ../../scripts/build-lib.ts && vite-node ../../scripts/build-skills-json.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@dsfr-data/shared": "^0.1.0",
+    "@gouvfr/dsfr-chart": "^2.0.4",
+    "@types/leaflet": "^1.9.21",
+    "@types/leaflet.markercluster": "^1.5.6",
+    "@types/topojson-specification": "^1.0.5",
+    "d3-geo": "^3.1.1",
+    "leaflet": "^1.9.4",
+    "leaflet.heat": "^0.2.0",
+    "leaflet.markercluster": "^1.5.3",
+    "lit": "^3.1.0",
+    "topojson-client": "^3.1.0",
+    "world-atlas": "^2.0.2"
+  },
+  "devDependencies": {
+    "@types/d3-geo": "^3.1.0",
+    "@types/topojson-client": "^3.1.5",
+    "typescript": "^5.3.0",
+    "vite": "^6.4.1"
+  },
+  "license": "MIT"
+}

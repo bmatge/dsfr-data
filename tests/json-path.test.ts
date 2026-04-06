@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getByPath, hasPath, setByPath, getByPathOrDefault } from '../src/utils/json-path.js';
+import { getByPath, hasPath, setByPath, getByPathOrDefault } from '@/utils/json-path.js';
 
 describe('json-path', () => {
   describe('getByPath', () => {
@@ -28,21 +28,21 @@ describe('json-path', () => {
       expect(getByPath(obj, 'data.items[1].name')).toBe('second');
     });
 
-    it('retourne l\'objet entier si le chemin est vide', () => {
+    it("retourne l'objet entier si le chemin est vide", () => {
       const obj = { name: 'test' };
       expect(getByPath(obj, '')).toBe(obj);
     });
 
-    it('retourne l\'objet entier si le chemin est whitespace', () => {
+    it("retourne l'objet entier si le chemin est whitespace", () => {
       const obj = { name: 'test' };
       expect(getByPath(obj, '   ')).toBe(obj);
     });
 
-    it('retourne undefined si l\'objet est null', () => {
+    it("retourne undefined si l'objet est null", () => {
       expect(getByPath(null, 'name')).toBeUndefined();
     });
 
-    it('retourne undefined si l\'objet est undefined', () => {
+    it("retourne undefined si l'objet est undefined", () => {
       expect(getByPath(undefined, 'name')).toBeUndefined();
     });
 
@@ -74,7 +74,12 @@ describe('json-path', () => {
     });
 
     it('gère les crochets multiples dans le chemin', () => {
-      const obj = { matrix: [[1, 2], [3, 4]] };
+      const obj = {
+        matrix: [
+          [1, 2],
+          [3, 4],
+        ],
+      };
       expect(getByPath(obj, 'matrix[1][0]')).toBe(3);
     });
 
@@ -95,7 +100,7 @@ describe('json-path', () => {
       expect(hasPath(obj, 'data.value')).toBe(true);
     });
 
-    it('retourne false si le chemin n\'existe pas', () => {
+    it("retourne false si le chemin n'existe pas", () => {
       const obj = { data: {} };
       expect(hasPath(obj, 'data.value')).toBe(false);
     });
@@ -168,7 +173,7 @@ describe('json-path', () => {
       expect(getByPathOrDefault(obj, 'count', 0)).toBe(10);
     });
 
-    it('retourne la valeur par défaut si le chemin n\'existe pas', () => {
+    it("retourne la valeur par défaut si le chemin n'existe pas", () => {
       const obj = {};
       expect(getByPathOrDefault(obj, 'count', 42)).toBe(42);
     });

@@ -10,8 +10,8 @@ vi.mock('@dsfr-data/shared', async (importOriginal) => {
 const mockFetch = vi.fn();
 globalThis.fetch = mockFetch;
 
-import { InseeAdapter } from '../../src/adapters/insee-adapter.js';
-import type { AdapterParams, ServerSideOverlay } from '../../src/adapters/api-adapter.js';
+import { InseeAdapter } from '@/adapters/insee-adapter.js';
+import type { AdapterParams, ServerSideOverlay } from '@/adapters/api-adapter.js';
 
 function makeParams(overrides: Partial<AdapterParams> = {}): AdapterParams {
   return {
@@ -101,7 +101,9 @@ describe('InseeAdapter', () => {
     });
 
     it('uses custom baseUrl when provided', () => {
-      const url = new URL(adapter.buildUrl(makeParams({ baseUrl: 'https://custom.api.fr/melodi' })));
+      const url = new URL(
+        adapter.buildUrl(makeParams({ baseUrl: 'https://custom.api.fr/melodi' }))
+      );
       expect(url.origin).toBe('https://custom.api.fr');
       expect(url.pathname).toBe('/melodi/data/DECES-2023');
     });
@@ -138,9 +140,13 @@ describe('InseeAdapter', () => {
     });
 
     it('applies multiple dimension filters', () => {
-      const url = new URL(adapter.buildUrl(makeParams({
-        where: 'TIME_PERIOD:eq:2023, GEO:eq:FRANCE-F',
-      })));
+      const url = new URL(
+        adapter.buildUrl(
+          makeParams({
+            where: 'TIME_PERIOD:eq:2023, GEO:eq:FRANCE-F',
+          })
+        )
+      );
       expect(url.searchParams.get('TIME_PERIOD')).toBe('2023');
       expect(url.searchParams.get('GEO')).toBe('FRANCE-F');
     });
@@ -204,13 +210,13 @@ describe('InseeAdapter', () => {
 
   describe('buildFacetWhere', () => {
     it('builds eq for single value', () => {
-      expect(adapter.buildFacetWhere({ GEO: new Set(['FRANCE-F']) }))
-        .toBe('GEO:eq:FRANCE-F');
+      expect(adapter.buildFacetWhere({ GEO: new Set(['FRANCE-F']) })).toBe('GEO:eq:FRANCE-F');
     });
 
     it('builds in for multiple values', () => {
-      expect(adapter.buildFacetWhere({ GEO: new Set(['FRANCE-F', 'FRANCE-M']) }))
-        .toBe('GEO:in:FRANCE-F|FRANCE-M');
+      expect(adapter.buildFacetWhere({ GEO: new Set(['FRANCE-F', 'FRANCE-M']) })).toBe(
+        'GEO:in:FRANCE-F|FRANCE-M'
+      );
     });
 
     it('joins multiple fields with comma', () => {
@@ -224,10 +230,9 @@ describe('InseeAdapter', () => {
     });
 
     it('excludes specified field', () => {
-      expect(adapter.buildFacetWhere(
-        { GEO: new Set(['FRANCE-F']), FREQ: new Set(['A']) },
-        'GEO'
-      )).toBe('FREQ:eq:A');
+      expect(
+        adapter.buildFacetWhere({ GEO: new Set(['FRANCE-F']), FREQ: new Set(['A']) }, 'GEO')
+      ).toBe('FREQ:eq:A');
     });
 
     it('skips empty value sets', () => {
@@ -266,13 +271,19 @@ describe('InseeAdapter — fetchAll', () => {
   });
 
   it('fetches and flattens observations', async () => {
-    mockFetch.mockResolvedValueOnce(inseeResponse(
-      [
-        obs({ GEO: 'FRANCE-F', FREQ: 'A' }, { OBS_VALUE_NIVEAU: { value: 123 } }, { OBS_STATUS: 'A' }),
-        obs({ GEO: 'FRANCE-M', FREQ: 'A' }, { OBS_VALUE_NIVEAU: { value: 456 } }),
-      ],
-      { count: 2, isLast: true }
-    ));
+    mockFetch.mockResolvedValueOnce(
+      inseeResponse(
+        [
+          obs(
+            { GEO: 'FRANCE-F', FREQ: 'A' },
+            { OBS_VALUE_NIVEAU: { value: 123 } },
+            { OBS_STATUS: 'A' }
+          ),
+          obs({ GEO: 'FRANCE-M', FREQ: 'A' }, { OBS_VALUE_NIVEAU: { value: 456 } }),
+        ],
+        { count: 2, isLast: true }
+      )
+    );
 
     const result = await adapter.fetchAll(makeParams(), new AbortController().signal);
 
@@ -285,10 +296,9 @@ describe('InseeAdapter — fetchAll', () => {
   });
 
   it('strips _NIVEAU suffix from measure keys', async () => {
-    mockFetch.mockResolvedValueOnce(inseeResponse(
-      [obs({}, { OBS_VALUE_NIVEAU: { value: 42 } })],
-      { isLast: true }
-    ));
+    mockFetch.mockResolvedValueOnce(
+      inseeResponse([obs({}, { OBS_VALUE_NIVEAU: { value: 42 } })], { isLast: true })
+    );
 
     const result = await adapter.fetchAll(makeParams(), new AbortController().signal);
     expect(result.data[0]).toHaveProperty('OBS_VALUE', 42);
@@ -296,30 +306,27 @@ describe('InseeAdapter — fetchAll', () => {
   });
 
   it('keeps measure keys without _NIVEAU suffix as-is', async () => {
-    mockFetch.mockResolvedValueOnce(inseeResponse(
-      [obs({}, { TAUX: { value: 3.14 } })],
-      { isLast: true }
-    ));
+    mockFetch.mockResolvedValueOnce(
+      inseeResponse([obs({}, { TAUX: { value: 3.14 } })], { isLast: true })
+    );
 
     const result = await adapter.fetchAll(makeParams(), new AbortController().signal);
     expect(result.data[0]).toHaveProperty('TAUX', 3.14);
   });
 
   it('handles observations without dimensions or attributes', async () => {
-    mockFetch.mockResolvedValueOnce(inseeResponse(
-      [{ measures: { OBS_VALUE_NIVEAU: { value: 99 } } }],
-      { isLast: true }
-    ));
+    mockFetch.mockResolvedValueOnce(
+      inseeResponse([{ measures: { OBS_VALUE_NIVEAU: { value: 99 } } }], { isLast: true })
+    );
 
     const result = await adapter.fetchAll(makeParams(), new AbortController().signal);
     expect(result.data).toEqual([{ OBS_VALUE: 99 }]);
   });
 
   it('handles measures without value property', async () => {
-    mockFetch.mockResolvedValueOnce(inseeResponse(
-      [obs({}, { OBS_VALUE_NIVEAU: { label: 'no value' } as any })],
-      { isLast: true }
-    ));
+    mockFetch.mockResolvedValueOnce(
+      inseeResponse([obs({}, { OBS_VALUE_NIVEAU: { label: 'no value' } as any })], { isLast: true })
+    );
 
     const result = await adapter.fetchAll(makeParams(), new AbortController().signal);
     // Measure without 'value' key is skipped
@@ -327,10 +334,11 @@ describe('InseeAdapter — fetchAll', () => {
   });
 
   it('handles null measure object', async () => {
-    mockFetch.mockResolvedValueOnce(inseeResponse(
-      [{ dimensions: { GEO: 'FR' }, measures: { OBS_VALUE_NIVEAU: null } }],
-      { isLast: true }
-    ));
+    mockFetch.mockResolvedValueOnce(
+      inseeResponse([{ dimensions: { GEO: 'FR' }, measures: { OBS_VALUE_NIVEAU: null } }], {
+        isLast: true,
+      })
+    );
 
     const result = await adapter.fetchAll(makeParams(), new AbortController().signal);
     expect(result.data[0]).toEqual({ GEO: 'FR' });
@@ -338,20 +346,26 @@ describe('InseeAdapter — fetchAll', () => {
 
   it('paginates across multiple pages', async () => {
     // Page 1
-    mockFetch.mockResolvedValueOnce(inseeResponse(
-      Array.from({ length: 10 }, (_, i) => obs({ id: String(i) }, { V: { value: i } })),
-      { count: 25, isLast: false, page: 1 }
-    ));
+    mockFetch.mockResolvedValueOnce(
+      inseeResponse(
+        Array.from({ length: 10 }, (_, i) => obs({ id: String(i) }, { V: { value: i } })),
+        { count: 25, isLast: false, page: 1 }
+      )
+    );
     // Page 2
-    mockFetch.mockResolvedValueOnce(inseeResponse(
-      Array.from({ length: 10 }, (_, i) => obs({ id: String(i + 10) }, { V: { value: i + 10 } })),
-      { count: 25, isLast: false, page: 2 }
-    ));
+    mockFetch.mockResolvedValueOnce(
+      inseeResponse(
+        Array.from({ length: 10 }, (_, i) => obs({ id: String(i + 10) }, { V: { value: i + 10 } })),
+        { count: 25, isLast: false, page: 2 }
+      )
+    );
     // Page 3 (last)
-    mockFetch.mockResolvedValueOnce(inseeResponse(
-      Array.from({ length: 5 }, (_, i) => obs({ id: String(i + 20) }, { V: { value: i + 20 } })),
-      { count: 25, isLast: true, page: 3 }
-    ));
+    mockFetch.mockResolvedValueOnce(
+      inseeResponse(
+        Array.from({ length: 5 }, (_, i) => obs({ id: String(i + 20) }, { V: { value: i + 20 } })),
+        { count: 25, isLast: true, page: 3 }
+      )
+    );
 
     const result = await adapter.fetchAll(
       makeParams({ pageSize: 10 }),
@@ -365,10 +379,12 @@ describe('InseeAdapter — fetchAll', () => {
 
   it('stops when totalCount is reached', async () => {
     // Page 1: 10 items, totalCount = 10
-    mockFetch.mockResolvedValueOnce(inseeResponse(
-      Array.from({ length: 10 }, (_, i) => obs({ id: String(i) }, {})),
-      { count: 10, isLast: false }
-    ));
+    mockFetch.mockResolvedValueOnce(
+      inseeResponse(
+        Array.from({ length: 10 }, (_, i) => obs({ id: String(i) }, {})),
+        { count: 10, isLast: false }
+      )
+    );
 
     const result = await adapter.fetchAll(
       makeParams({ pageSize: 10 }),
@@ -380,10 +396,12 @@ describe('InseeAdapter — fetchAll', () => {
   });
 
   it('stops when fewer results than pageSize', async () => {
-    mockFetch.mockResolvedValueOnce(inseeResponse(
-      Array.from({ length: 7 }, (_, i) => obs({ id: String(i) }, {})),
-      { count: -1 }  // no total count available
-    ));
+    mockFetch.mockResolvedValueOnce(
+      inseeResponse(
+        Array.from({ length: 7 }, (_, i) => obs({ id: String(i) }, {})),
+        { count: -1 } // no total count available
+      )
+    );
 
     const result = await adapter.fetchAll(
       makeParams({ pageSize: 10 }),
@@ -395,15 +413,14 @@ describe('InseeAdapter — fetchAll', () => {
   });
 
   it('respects params.limit', async () => {
-    mockFetch.mockResolvedValueOnce(inseeResponse(
-      Array.from({ length: 5 }, (_, i) => obs({ id: String(i) }, {})),
-      { isLast: true }
-    ));
-
-    const result = await adapter.fetchAll(
-      makeParams({ limit: 5 }),
-      new AbortController().signal
+    mockFetch.mockResolvedValueOnce(
+      inseeResponse(
+        Array.from({ length: 5 }, (_, i) => obs({ id: String(i) }, {})),
+        { isLast: true }
+      )
     );
+
+    const result = await adapter.fetchAll(makeParams({ limit: 5 }), new AbortController().signal);
 
     // URL should have maxResult=5
     const calledUrl = new URL(mockFetch.mock.calls[0][0]);
@@ -414,10 +431,7 @@ describe('InseeAdapter — fetchAll', () => {
   it('uses params.pageSize as effective page size', async () => {
     mockFetch.mockResolvedValueOnce(inseeResponse([], { isLast: true }));
 
-    await adapter.fetchAll(
-      makeParams({ pageSize: 500 }),
-      new AbortController().signal
-    );
+    await adapter.fetchAll(makeParams({ pageSize: 500 }), new AbortController().signal);
 
     const calledUrl = new URL(mockFetch.mock.calls[0][0]);
     expect(calledUrl.searchParams.get('maxResult')).toBe('500');
@@ -448,9 +462,9 @@ describe('InseeAdapter — fetchAll', () => {
       statusText: 'Internal Server Error',
     });
 
-    await expect(
-      adapter.fetchAll(makeParams(), new AbortController().signal)
-    ).rejects.toThrow('HTTP 500');
+    await expect(adapter.fetchAll(makeParams(), new AbortController().signal)).rejects.toThrow(
+      'HTTP 500'
+    );
   });
 
   it('throws on 404', async () => {
@@ -460,9 +474,9 @@ describe('InseeAdapter — fetchAll', () => {
       statusText: 'Not Found',
     });
 
-    await expect(
-      adapter.fetchAll(makeParams(), new AbortController().signal)
-    ).rejects.toThrow('HTTP 404');
+    await expect(adapter.fetchAll(makeParams(), new AbortController().signal)).rejects.toThrow(
+      'HTTP 404'
+    );
   });
 
   it('passes headers to fetch', async () => {
@@ -500,15 +514,19 @@ describe('InseeAdapter — fetchAll', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     // Single page returns 10 items but totalCount is 5000
-    mockFetch.mockResolvedValueOnce(inseeResponse(
-      Array.from({ length: 10 }, (_, i) => obs({ id: String(i) }, {})),
-      { count: 5000, isLast: false }
-    ));
+    mockFetch.mockResolvedValueOnce(
+      inseeResponse(
+        Array.from({ length: 10 }, (_, i) => obs({ id: String(i) }, {})),
+        { count: 5000, isLast: false }
+      )
+    );
     // Second page returns fewer items than page size (stops pagination)
-    mockFetch.mockResolvedValueOnce(inseeResponse(
-      Array.from({ length: 5 }, (_, i) => obs({ id: String(i + 10) }, {})),
-      { count: 5000, isLast: false }
-    ));
+    mockFetch.mockResolvedValueOnce(
+      inseeResponse(
+        Array.from({ length: 5 }, (_, i) => obs({ id: String(i + 10) }, {})),
+        { count: 5000, isLast: false }
+      )
+    );
 
     const result = await adapter.fetchAll(
       makeParams({ pageSize: 10 }),
@@ -523,10 +541,11 @@ describe('InseeAdapter — fetchAll', () => {
   it('returns totalCount from allResults.length when paging.count is missing', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve({
-        observations: [obs({ GEO: 'FR' }, {})],
-        // no paging at all
-      }),
+      json: () =>
+        Promise.resolve({
+          observations: [obs({ GEO: 'FR' }, {})],
+          // no paging at all
+        }),
     });
 
     const result = await adapter.fetchAll(makeParams(), new AbortController().signal);
@@ -535,15 +554,19 @@ describe('InseeAdapter — fetchAll', () => {
 
   it('uses 1-based page numbering', async () => {
     // Page 1
-    mockFetch.mockResolvedValueOnce(inseeResponse(
-      Array.from({ length: 5 }, () => obs({}, {})),
-      { count: 10, isLast: false }
-    ));
+    mockFetch.mockResolvedValueOnce(
+      inseeResponse(
+        Array.from({ length: 5 }, () => obs({}, {})),
+        { count: 10, isLast: false }
+      )
+    );
     // Page 2
-    mockFetch.mockResolvedValueOnce(inseeResponse(
-      Array.from({ length: 5 }, () => obs({}, {})),
-      { count: 10, isLast: true }
-    ));
+    mockFetch.mockResolvedValueOnce(
+      inseeResponse(
+        Array.from({ length: 5 }, () => obs({}, {})),
+        { count: 10, isLast: true }
+      )
+    );
 
     await adapter.fetchAll(makeParams({ pageSize: 5 }), new AbortController().signal);
 
@@ -566,10 +589,9 @@ describe('InseeAdapter — fetchPage', () => {
   });
 
   it('fetches a single page and flattens observations', async () => {
-    mockFetch.mockResolvedValueOnce(inseeResponse(
-      [obs({ GEO: 'FR' }, { OBS_VALUE_NIVEAU: { value: 100 } })],
-      { count: 50 }
-    ));
+    mockFetch.mockResolvedValueOnce(
+      inseeResponse([obs({ GEO: 'FR' }, { OBS_VALUE_NIVEAU: { value: 100 } })], { count: 50 })
+    );
 
     const overlay: ServerSideOverlay = { page: 3, effectiveWhere: '', orderBy: '' };
     const result = await adapter.fetchPage(

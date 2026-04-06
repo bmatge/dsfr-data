@@ -8,8 +8,8 @@ import {
   formatDate,
   getColorBySeuil,
   getDsfrColorClass,
-  getDsfrKpiColor
-} from '../src/utils/formatters.js';
+  getDsfrKpiColor,
+} from '@/utils/formatters.js';
 
 describe('formatters', () => {
   describe('formatNumber', () => {

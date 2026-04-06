@@ -12,7 +12,7 @@ const mockFetch = vi.fn();
 globalThis.fetch = mockFetch;
 
 // We need to import after setting up fetch mock
-import { DsfrDataQuery } from '../src/components/dsfr-data-query.js';
+import { DsfrDataQuery } from '@/components/dsfr-data-query.js';
 import {
   clearDataCache,
   clearDataMeta,
@@ -23,8 +23,8 @@ import {
   getDataCache,
   getDataMeta,
   setDataMeta,
-  subscribeToSourceCommands
-} from '../src/utils/data-bridge.js';
+  subscribeToSourceCommands,
+} from '@/utils/data-bridge.js';
 
 describe('DsfrDataQuery', () => {
   let query: DsfrDataQuery;
@@ -51,7 +51,7 @@ describe('DsfrDataQuery', () => {
       expect(filters[0]).toEqual({
         field: 'status',
         operator: 'eq',
-        value: 'active'
+        value: 'active',
       });
     });
 
@@ -90,7 +90,7 @@ describe('DsfrDataQuery', () => {
       population: 2200000,
       region: 'IDF',
       isCapital: true,
-      description: 'Capitale de la France'
+      description: 'Capitale de la France',
     };
 
     it('matches equality filter', () => {
@@ -154,7 +154,7 @@ describe('DsfrDataQuery', () => {
       expect(aggregates[0]).toEqual({
         field: 'population',
         function: 'sum',
-        alias: undefined
+        alias: undefined,
       });
     });
 
@@ -176,7 +176,7 @@ describe('DsfrDataQuery', () => {
     const testItems = [
       { region: 'IDF', population: 1000, score: 80 },
       { region: 'IDF', population: 2000, score: 90 },
-      { region: 'PACA', population: 500, score: 70 }
+      { region: 'PACA', population: 500, score: 70 },
     ];
 
     it('computes sum aggregation', () => {
@@ -218,7 +218,7 @@ describe('DsfrDataQuery', () => {
         { region: 'IDF', population: 1000 },
         { region: 'IDF', population: 2000 },
         { region: 'PACA', population: 500 },
-        { region: 'PACA', population: 300 }
+        { region: 'PACA', population: 300 },
       ];
     });
 
@@ -243,7 +243,7 @@ describe('DsfrDataQuery', () => {
       (query as any)._rawData = [
         { region: 'IDF', year: 2023, population: 1000 },
         { region: 'IDF', year: 2024, population: 1100 },
-        { region: 'PACA', year: 2023, population: 500 }
+        { region: 'PACA', year: 2023, population: 500 },
       ];
 
       const result = (query as any)._applyGroupByAndAggregate((query as any)._rawData);
@@ -255,7 +255,7 @@ describe('DsfrDataQuery', () => {
     const testData = [
       { name: 'Paris', value: 100 },
       { name: 'Lyon', value: 300 },
-      { name: 'Marseille', value: 200 }
+      { name: 'Marseille', value: 200 },
     ];
 
     it('sorts ascending by numeric field', () => {
@@ -295,7 +295,7 @@ describe('DsfrDataQuery', () => {
         { region: 'IDF', population: 2000 },
         { region: 'PACA', population: 500 },
         { region: 'ARA', population: 100 }, // Should be filtered out
-        { region: 'PACA', population: 800 }
+        { region: 'PACA', population: 800 },
       ];
     });
 
@@ -329,7 +329,7 @@ describe('DsfrDataQuery', () => {
 
       const data = query.getData() as Record<string, unknown>[];
       expect(data).toHaveLength(2);
-      const regionA = data.find(d => d.region === 'A');
+      const regionA = data.find((d) => d.region === 'A');
       expect(regionA?.value__sum).toBe(40);
     });
 
@@ -483,7 +483,7 @@ describe('DsfrDataQuery', () => {
       mockSource.id = 'mock-source';
       (mockSource as any).getAdapter = () => ({
         type: 'opendatasoft',
-        capabilities: { serverGroupBy: true, whereFormat: 'odsql' }
+        capabilities: { serverGroupBy: true, whereFormat: 'odsql' },
       });
       document.body.appendChild(mockSource);
 
@@ -725,7 +725,6 @@ describe('DsfrDataQuery', () => {
       query.reload();
       expect(query.getData()).toEqual([]);
     });
-
   });
 
   describe('_handleSourceData error handling', () => {

@@ -11,11 +11,11 @@ import { fileURLToPath } from 'url';
 import { SKILLS } from '../apps/builder-ia/src/skills.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const outDir = resolve(__dirname, '..', 'dist');
+const outDir = resolve(__dirname, '..', 'packages/core/dist');
 
 mkdirSync(outDir, { recursive: true });
 
-const skills = Object.values(SKILLS).map(s => ({
+const skills = Object.values(SKILLS).map((s) => ({
   id: s.id,
   name: s.name,
   description: s.description,

@@ -10,7 +10,7 @@ import { resolve } from 'path';
 
 const root = resolve(import.meta.dirname, '..');
 
-const pkg = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf-8'));
+const pkg = JSON.parse(readFileSync(resolve(root, 'packages/core/package.json'), 'utf-8'));
 const version = pkg.version;
 
 // Tauri conf
@@ -28,6 +28,7 @@ cargo = cargo.replace(/^version = ".+"$/m, `version = "${version}"`);
 writeFileSync(cargoPath, cargo);
 
 console.log(`Version synchronisee : ${version}`);
-if (oldTauriVersion !== version) console.log(`  tauri.conf.json : ${oldTauriVersion} -> ${version}`);
+if (oldTauriVersion !== version)
+  console.log(`  tauri.conf.json : ${oldTauriVersion} -> ${version}`);
 if (oldCargoVersion !== version) console.log(`  Cargo.toml : ${oldCargoVersion} -> ${version}`);
 if (oldTauriVersion === version && oldCargoVersion === version) console.log('  Deja a jour.');

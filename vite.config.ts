@@ -18,10 +18,10 @@ export default defineConfig({
   },
   build: {
     lib: {
-      entry: resolve(__dirname, 'src/index.ts'),
+      entry: resolve(__dirname, 'packages/core/src/index.ts'),
       name: 'DsfrData',
       fileName: (format) => `dsfr-data.${format === 'es' ? 'esm' : format}.js`,
-      formats: ['es', 'umd']
+      formats: ['es', 'umd'],
     },
     // Prevent Vite from inlining the TopoJSON as base64 (105 KB)
     assetsInlineLimit: 0,
@@ -31,13 +31,13 @@ export default defineConfig({
         globals: {},
         // Keep the TopoJSON asset with a predictable name
         assetFileNames: 'assets/[name][extname]',
-      }
-    }
+      },
+    },
   },
   resolve: {
     alias: {
-      '@': resolve(__dirname, 'src')
-    }
+      '@': resolve(__dirname, 'packages/core/src'),
+    },
   },
   server: {
     proxy: {
@@ -55,7 +55,7 @@ export default defineConfig({
             proxyReq.removeHeader('origin');
             proxyReq.removeHeader('referer');
           });
-        }
+        },
       },
       // Proxy pour Grist numerique.gouv.fr
       '/grist-gouv-proxy': {
@@ -70,7 +70,7 @@ export default defineConfig({
             proxyReq.removeHeader('origin');
             proxyReq.removeHeader('referer');
           });
-        }
+        },
       },
       // Proxy pour Albert API (IA)
       '/albert-proxy': {
@@ -84,7 +84,7 @@ export default defineConfig({
             proxyReq.removeHeader('origin');
             proxyReq.removeHeader('referer');
           });
-        }
+        },
       },
       // Proxy pour tabular-api.data.gouv.fr
       '/tabular-proxy': {
@@ -98,7 +98,7 @@ export default defineConfig({
             proxyReq.removeHeader('origin');
             proxyReq.removeHeader('referer');
           });
-        }
+        },
       },
       // Proxy pour INSEE Melodi API
       '/insee-proxy': {
@@ -112,7 +112,7 @@ export default defineConfig({
             proxyReq.removeHeader('origin');
             proxyReq.removeHeader('referer');
           });
-        }
+        },
       },
       // Proxy générique pour les APIs externes (legacy, prefer /cors-proxy middleware)
       '/api-proxy': {
@@ -120,7 +120,7 @@ export default defineConfig({
         changeOrigin: true,
         secure: true,
         configure: (proxy, options) => {
-          proxy.on('proxyReq', (proxyReq, req, res) => {
+          proxy.on('proxyReq', (proxyReq, req, _res) => {
             // Lire l'URL cible depuis le header X-Target-URL
             const targetUrl = req.headers['x-target-url'] as string;
             if (targetUrl) {
@@ -129,14 +129,14 @@ export default defineConfig({
                 options.target = url.origin;
                 proxyReq.path = url.pathname + url.search;
                 proxyReq.setHeader('host', url.host);
-              } catch (e) {
+              } catch {
                 console.error('Invalid target URL:', targetUrl);
               }
             }
           });
-        }
-      }
-    }
+        },
+      },
+    },
   },
   plugins: [
     {
@@ -155,7 +155,9 @@ export default defineConfig({
                 const content = readFileSync(resolve(examplesDir, f), 'utf-8');
                 const m = content.match(/<title>([^<]+)<\/title>/i);
                 if (m) title = m[1].trim();
-              } catch { /* ignore */ }
+              } catch {
+                /* ignore */
+              }
               files.push({ file: f, title });
             }
           }
@@ -172,7 +174,7 @@ export default defineConfig({
       configureServer(server) {
         server.middlewares.use((req, _res, next) => {
           if (req.url && req.url.endsWith('/dist/dsfr-data.esm.js')) {
-            req.url = '/src/index.ts';
+            req.url = '/packages/core/src/index.ts';
           }
           next();
         });
@@ -187,16 +189,19 @@ export default defineConfig({
         server.middlewares.use((req, res, next) => {
           if (!req.url || !req.url.startsWith('/api/')) return next();
 
-          const proxyReq = httpRequest({
-            hostname: 'localhost',
-            port: 3002,
-            path: req.url,
-            method: req.method,
-            headers: { ...req.headers, host: 'localhost:3002' },
-          }, (proxyRes) => {
-            res.writeHead(proxyRes.statusCode || 500, proxyRes.headers);
-            proxyRes.pipe(res);
-          });
+          const proxyReq = httpRequest(
+            {
+              hostname: 'localhost',
+              port: 3002,
+              path: req.url,
+              method: req.method,
+              headers: { ...req.headers, host: 'localhost:3002' },
+            },
+            (proxyRes) => {
+              res.writeHead(proxyRes.statusCode || 500, proxyRes.headers);
+              proxyRes.pipe(res);
+            }
+          );
 
           proxyReq.on('error', () => {
             if (!res.headersSent) {
@@ -213,7 +218,7 @@ export default defineConfig({
       name: 'dsfr-data-umd',
       // Serve the UMD bundle for grist-widgets pages (test-local.html, chart/, datalist/)
       configureServer(server) {
-        const umdPath = resolve(__dirname, 'dist/dsfr-data.umd.js');
+        const umdPath = resolve(__dirname, 'packages/core/dist/dsfr-data.umd.js');
         server.middlewares.use((req, res, next) => {
           if (req.url && req.url.endsWith('/lib/dsfr-data.umd.js')) {
             if (!existsSync(umdPath)) {
@@ -269,7 +274,14 @@ export default defineConfig({
             const isHttps = parsed.protocol === 'https:';
             const doRequest = isHttps ? httpsRequest : httpRequest;
 
-            const skipHeaders = new Set(['host', 'connection', 'x-target-url', 'transfer-encoding', 'origin', 'referer']);
+            const skipHeaders = new Set([
+              'host',
+              'connection',
+              'x-target-url',
+              'transfer-encoding',
+              'origin',
+              'referer',
+            ]);
             const forwardHeaders: Record<string, string> = {};
             for (const [key, val] of Object.entries(req.headers)) {
               if (skipHeaders.has(key)) continue;
@@ -280,19 +292,22 @@ export default defineConfig({
               forwardHeaders['content-length'] = String(body.length);
             }
 
-            const proxyReq = doRequest({
-              hostname: parsed.hostname,
-              port: parsed.port || (isHttps ? 443 : 80),
-              path: parsed.pathname + parsed.search,
-              method: req.method,
-              headers: forwardHeaders,
-            }, (proxyRes) => {
-              res.writeHead(proxyRes.statusCode || 500, {
-                ...proxyRes.headers,
-                'access-control-allow-origin': '*',
-              });
-              proxyRes.pipe(res);
-            });
+            const proxyReq = doRequest(
+              {
+                hostname: parsed.hostname,
+                port: parsed.port || (isHttps ? 443 : 80),
+                path: parsed.pathname + parsed.search,
+                method: req.method,
+                headers: forwardHeaders,
+              },
+              (proxyRes) => {
+                res.writeHead(proxyRes.statusCode || 500, {
+                  ...proxyRes.headers,
+                  'access-control-allow-origin': '*',
+                });
+                proxyRes.pipe(res);
+              }
+            );
 
             proxyReq.on('error', (err) => {
               res.writeHead(502, { 'Content-Type': 'application/json' });
@@ -315,14 +330,19 @@ export default defineConfig({
             'Content-Type': 'application/json',
             'Access-Control-Allow-Origin': '*',
           });
-          res.end(JSON.stringify(token
-            ? {
-              available: true,
-              apiUrl: process.env.IA_DEFAULT_API_URL || 'https://albert.api.etalab.gouv.fr/v1/chat/completions',
-              model: process.env.IA_DEFAULT_MODEL || 'albert-large',
-            }
-            : { available: false }
-          ));
+          res.end(
+            JSON.stringify(
+              token
+                ? {
+                    available: true,
+                    apiUrl:
+                      process.env.IA_DEFAULT_API_URL ||
+                      'https://albert.api.etalab.gouv.fr/v1/chat/completions',
+                    model: process.env.IA_DEFAULT_MODEL || 'albert-large',
+                  }
+                : { available: false }
+            )
+          );
         });
 
         // POST /ia-proxy-default — proxy with server-side token injection
@@ -338,7 +358,9 @@ export default defineConfig({
           }
 
           const token = process.env.IA_DEFAULT_TOKEN || '';
-          const apiUrl = process.env.IA_DEFAULT_API_URL || 'https://albert.api.etalab.gouv.fr/v1/chat/completions';
+          const apiUrl =
+            process.env.IA_DEFAULT_API_URL ||
+            'https://albert.api.etalab.gouv.fr/v1/chat/completions';
           const model = process.env.IA_DEFAULT_MODEL || 'albert-large';
 
           if (!token) {
@@ -375,24 +397,27 @@ export default defineConfig({
             const isHttps = parsed.protocol === 'https:';
             const doRequest = isHttps ? httpsRequest : httpRequest;
 
-            const proxyReq = doRequest({
-              hostname: parsed.hostname,
-              port: parsed.port || (isHttps ? 443 : 80),
-              path: parsed.pathname + parsed.search,
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Content-Length': String(Buffer.byteLength(payload)),
-                'Authorization': `Bearer ${token}`,
-                'Host': parsed.host,
+            const proxyReq = doRequest(
+              {
+                hostname: parsed.hostname,
+                port: parsed.port || (isHttps ? 443 : 80),
+                path: parsed.pathname + parsed.search,
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Content-Length': String(Buffer.byteLength(payload)),
+                  Authorization: `Bearer ${token}`,
+                  Host: parsed.host,
+                },
               },
-            }, (proxyRes) => {
-              res.writeHead(proxyRes.statusCode || 500, {
-                ...proxyRes.headers,
-                'access-control-allow-origin': '*',
-              });
-              proxyRes.pipe(res);
-            });
+              (proxyRes) => {
+                res.writeHead(proxyRes.statusCode || 500, {
+                  ...proxyRes.headers,
+                  'access-control-allow-origin': '*',
+                });
+                proxyRes.pipe(res);
+              }
+            );
 
             proxyReq.on('error', (err) => {
               res.writeHead(502, { 'Content-Type': 'application/json' });
@@ -415,7 +440,8 @@ export default defineConfig({
             res.writeHead(204, {
               'Access-Control-Allow-Origin': '*',
               'Access-Control-Allow-Methods': 'POST, OPTIONS',
-              'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Target-URL, x-api-key, anthropic-version',
+              'Access-Control-Allow-Headers':
+                'Content-Type, Authorization, X-Target-URL, x-api-key, anthropic-version',
             });
             res.end();
             return;
@@ -444,7 +470,14 @@ export default defineConfig({
             const isHttps = parsed.protocol === 'https:';
             const doRequest = isHttps ? httpsRequest : httpRequest;
 
-            const skipHeaders = new Set(['host', 'connection', 'x-target-url', 'transfer-encoding', 'origin', 'referer']);
+            const skipHeaders = new Set([
+              'host',
+              'connection',
+              'x-target-url',
+              'transfer-encoding',
+              'origin',
+              'referer',
+            ]);
             const forwardHeaders: Record<string, string> = {};
             for (const [key, val] of Object.entries(req.headers)) {
               if (skipHeaders.has(key)) continue;
@@ -455,19 +488,22 @@ export default defineConfig({
               forwardHeaders['content-length'] = String(body.length);
             }
 
-            const proxyReq = doRequest({
-              hostname: parsed.hostname,
-              port: parsed.port || (isHttps ? 443 : 80),
-              path: parsed.pathname + parsed.search,
-              method: req.method,
-              headers: forwardHeaders,
-            }, (proxyRes) => {
-              res.writeHead(proxyRes.statusCode || 500, {
-                ...proxyRes.headers,
-                'access-control-allow-origin': '*',
-              });
-              proxyRes.pipe(res);
-            });
+            const proxyReq = doRequest(
+              {
+                hostname: parsed.hostname,
+                port: parsed.port || (isHttps ? 443 : 80),
+                path: parsed.pathname + parsed.search,
+                method: req.method,
+                headers: forwardHeaders,
+              },
+              (proxyRes) => {
+                res.writeHead(proxyRes.statusCode || 500, {
+                  ...proxyRes.headers,
+                  'access-control-allow-origin': '*',
+                });
+                proxyRes.pipe(res);
+              }
+            );
 
             proxyReq.on('error', (err) => {
               res.writeHead(502, { 'Content-Type': 'application/json' });

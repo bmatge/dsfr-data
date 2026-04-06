@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { DsfrDataList } from '../src/components/dsfr-data-list.js';
+import { DsfrDataList } from '@/components/dsfr-data-list.js';
 import {
   clearDataCache,
   dispatchDataLoaded,
   setDataMeta,
   clearDataMeta,
-  subscribeToSourceCommands
-} from '../src/utils/data-bridge.js';
+  subscribeToSourceCommands,
+} from '@/utils/data-bridge.js';
 
 /**
  * Tests for DsfrDataList component logic.
@@ -20,7 +20,7 @@ import {
 /** Replicates parseColumns logic from DsfrDataList */
 function parseColumns(colonnes: string): { key: string; label: string }[] {
   if (!colonnes) return [];
-  return colonnes.split(',').map(col => {
+  return colonnes.split(',').map((col) => {
     const [key, label] = col.trim().split(':');
     return { key: key.trim(), label: label?.trim() || key.trim() };
   });
@@ -37,7 +37,7 @@ function formatCellValue(value: unknown): string {
 function sortData(
   data: Record<string, unknown>[],
   sortKey: string,
-  direction: 'asc' | 'desc',
+  direction: 'asc' | 'desc'
 ): Record<string, unknown>[] {
   const result = [...data];
   result.sort((a, b) => {
@@ -48,9 +48,10 @@ function sortData(
     if (aVal === null || aVal === undefined) return 1;
     if (bVal === null || bVal === undefined) return -1;
 
-    const comparison = typeof aVal === 'number' && typeof bVal === 'number'
-      ? aVal - bVal
-      : String(aVal).localeCompare(String(bVal), 'fr');
+    const comparison =
+      typeof aVal === 'number' && typeof bVal === 'number'
+        ? aVal - bVal
+        : String(aVal).localeCompare(String(bVal), 'fr');
 
     return direction === 'desc' ? -comparison : comparison;
   });
@@ -61,17 +62,19 @@ function sortData(
 function filterBySearch(data: Record<string, unknown>[], query: string): Record<string, unknown>[] {
   if (!query) return data;
   const q = query.toLowerCase();
-  return data.filter(item =>
-    Object.values(item).some(val =>
-      String(val).toLowerCase().includes(q)
-    )
+  return data.filter((item) =>
+    Object.values(item).some((val) => String(val).toLowerCase().includes(q))
   );
 }
 
 /** Replicates active filter logic */
-function filterByField(data: Record<string, unknown>[], key: string, value: string): Record<string, unknown>[] {
+function filterByField(
+  data: Record<string, unknown>[],
+  key: string,
+  value: string
+): Record<string, unknown>[] {
   if (!value) return data;
-  return data.filter(item => String(item[key]) === value);
+  return data.filter((item) => String(item[key]) === value);
 }
 
 describe('DsfrDataList logic', () => {
@@ -81,9 +84,7 @@ describe('DsfrDataList logic', () => {
     });
 
     it('parses single column definition', () => {
-      expect(parseColumns('name:Nom')).toEqual([
-        { key: 'name', label: 'Nom' },
-      ]);
+      expect(parseColumns('name:Nom')).toEqual([{ key: 'name', label: 'Nom' }]);
     });
 
     it('parses multiple column definitions', () => {
@@ -95,9 +96,7 @@ describe('DsfrDataList logic', () => {
     });
 
     it('uses key as label when label is missing', () => {
-      expect(parseColumns('name')).toEqual([
-        { key: 'name', label: 'name' },
-      ]);
+      expect(parseColumns('name')).toEqual([{ key: 'name', label: 'name' }]);
     });
 
     it('trims whitespace from keys and labels', () => {
@@ -158,22 +157,22 @@ describe('DsfrDataList logic', () => {
 
     it('sorts strings ascending (fr locale)', () => {
       const result = sortData(data, 'name', 'asc');
-      expect(result.map(r => r.name)).toEqual(['Alice', 'Bob', 'Charlie']);
+      expect(result.map((r) => r.name)).toEqual(['Alice', 'Bob', 'Charlie']);
     });
 
     it('sorts strings descending', () => {
       const result = sortData(data, 'name', 'desc');
-      expect(result.map(r => r.name)).toEqual(['Charlie', 'Bob', 'Alice']);
+      expect(result.map((r) => r.name)).toEqual(['Charlie', 'Bob', 'Alice']);
     });
 
     it('sorts numbers ascending', () => {
       const result = sortData(data, 'score', 'asc');
-      expect(result.map(r => r.score)).toEqual([70, 80, 95]);
+      expect(result.map((r) => r.score)).toEqual([70, 80, 95]);
     });
 
     it('sorts numbers descending', () => {
       const result = sortData(data, 'score', 'desc');
-      expect(result.map(r => r.score)).toEqual([95, 80, 70]);
+      expect(result.map((r) => r.score)).toEqual([95, 80, 70]);
     });
 
     it('pushes null/undefined values to the end', () => {
@@ -245,25 +244,19 @@ describe('DsfrDataList logic', () => {
   describe('CSV export logic', () => {
     it('escapes semicolons in values', () => {
       const val = 'hello;world';
-      const escaped = val.includes(';') || val.includes('"')
-        ? `"${val.replace(/"/g, '""')}"`
-        : val;
+      const escaped = val.includes(';') || val.includes('"') ? `"${val.replace(/"/g, '""')}"` : val;
       expect(escaped).toBe('"hello;world"');
     });
 
     it('escapes double quotes in values', () => {
       const val = 'say "hello"';
-      const escaped = val.includes(';') || val.includes('"')
-        ? `"${val.replace(/"/g, '""')}"`
-        : val;
+      const escaped = val.includes(';') || val.includes('"') ? `"${val.replace(/"/g, '""')}"` : val;
       expect(escaped).toBe('"say ""hello"""');
     });
 
     it('does not escape plain values', () => {
       const val = 'simple value';
-      const escaped = val.includes(';') || val.includes('"')
-        ? `"${val.replace(/"/g, '""')}"`
-        : val;
+      const escaped = val.includes(';') || val.includes('"') ? `"${val.replace(/"/g, '""')}"` : val;
       expect(escaped).toBe('simple value');
     });
   });
@@ -282,21 +275,23 @@ describe('DsfrDataList logic', () => {
 
     it('escapes ampersands in values', () => {
       const val = 'A&B';
-      const escaped = val
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
+      const escaped = val.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       expect(escaped).toBe('A&amp;B');
     });
 
     it('produces valid table structure', () => {
-      const columns = [{ key: 'name', label: 'Nom' }, { key: 'score', label: 'Score' }];
+      const columns = [
+        { key: 'name', label: 'Nom' },
+        { key: 'score', label: 'Score' },
+      ];
       const data = [{ name: 'Alice', score: 95 }];
 
-      const headerCells = columns.map(c => `<th>${c.label}</th>`).join('');
-      const bodyRows = data.map(item =>
-        '<tr>' + columns.map(c => `<td>${item[c.key] ?? ''}</td>`).join('') + '</tr>'
-      ).join('');
+      const headerCells = columns.map((c) => `<th>${c.label}</th>`).join('');
+      const bodyRows = data
+        .map(
+          (item) => '<tr>' + columns.map((c) => `<td>${item[c.key] ?? ''}</td>`).join('') + '</tr>'
+        )
+        .join('');
 
       const table = `<table><thead><tr>${headerCells}</tr></thead><tbody>${bodyRows}</tbody></table>`;
       expect(table).toContain('<th>Nom</th>');
@@ -879,11 +874,7 @@ describe('DsfrDataList component', () => {
 
   describe('_getUniqueValues', () => {
     it('returns unique values for a key', () => {
-      datalist.onSourceData([
-        { type: 'A' },
-        { type: 'B' },
-        { type: 'A' },
-      ]);
+      datalist.onSourceData([{ type: 'A' }, { type: 'B' }, { type: 'A' }]);
       const values = (datalist as any)._getUniqueValues('type');
       expect(values).toContain('A');
       expect(values).toContain('B');

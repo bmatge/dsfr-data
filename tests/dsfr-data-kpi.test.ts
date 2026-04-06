@@ -1,7 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { DsfrDataKpi } from '../src/components/dsfr-data-kpi.js';
-import { DsfrDataKpiGroup } from '../src/components/dsfr-data-kpi-group.js';
-import { clearDataCache, dispatchDataLoaded, dispatchDataLoading, dispatchDataError } from '../src/utils/data-bridge.js';
+import { DsfrDataKpi } from '@/components/dsfr-data-kpi.js';
+import { DsfrDataKpiGroup } from '@/components/dsfr-data-kpi-group.js';
+import {
+  clearDataCache,
+  dispatchDataLoaded,
+  dispatchDataLoading,
+  dispatchDataError,
+} from '@/utils/data-bridge.js';
 
 describe('DsfrDataKpi', () => {
   let kpi: DsfrDataKpi;

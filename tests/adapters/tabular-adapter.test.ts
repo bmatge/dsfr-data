@@ -4,8 +4,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const mockFetch = vi.fn();
 globalThis.fetch = mockFetch;
 
-import { TabularAdapter } from '../../src/adapters/tabular-adapter.js';
-import type { AdapterParams, ServerSideOverlay } from '../../src/adapters/api-adapter.js';
+import { TabularAdapter } from '@/adapters/tabular-adapter.js';
+import type { AdapterParams, ServerSideOverlay } from '@/adapters/api-adapter.js';
 
 function makeParams(overrides: Partial<AdapterParams> = {}): AdapterParams {
   return {
@@ -152,10 +152,7 @@ describe('TabularAdapter', () => {
     });
 
     it('includes static filters', () => {
-      const url = adapter.buildServerSideUrl(
-        makeParams({ filter: 'statut:eq:actif' }),
-        overlay()
-      );
+      const url = adapter.buildServerSideUrl(makeParams({ filter: 'statut:eq:actif' }), overlay());
       expect(url).toContain('statut__exact=actif');
     });
 
@@ -168,10 +165,7 @@ describe('TabularAdapter', () => {
     });
 
     it('falls back to static where when no effectiveWhere', () => {
-      const url = adapter.buildServerSideUrl(
-        makeParams({ where: 'statut:eq:actif' }),
-        overlay()
-      );
+      const url = adapter.buildServerSideUrl(makeParams({ where: 'statut:eq:actif' }), overlay());
       expect(url).toContain('statut__exact=actif');
     });
   });
@@ -180,19 +174,23 @@ describe('TabularAdapter', () => {
     it('fetches multiple pages via links.next', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          data: Array.from({ length: 100 }, (_, i) => ({ id: i })),
-          links: { next: 'https://tabular-api.data.gouv.fr/api/resources/resource-456/data/?page=2&page_size=100' },
-          meta: { page: 1, page_size: 100, total: 150 },
-        }),
+        json: () =>
+          Promise.resolve({
+            data: Array.from({ length: 100 }, (_, i) => ({ id: i })),
+            links: {
+              next: 'https://tabular-api.data.gouv.fr/api/resources/resource-456/data/?page=2&page_size=100',
+            },
+            meta: { page: 1, page_size: 100, total: 150 },
+          }),
       });
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          data: Array.from({ length: 50 }, (_, i) => ({ id: 100 + i })),
-          links: {},
-          meta: { page: 2, page_size: 100, total: 150 },
-        }),
+        json: () =>
+          Promise.resolve({
+            data: Array.from({ length: 50 }, (_, i) => ({ id: 100 + i })),
+            links: {},
+            meta: { page: 2, page_size: 100, total: 150 },
+          }),
       });
 
       const result = await adapter.fetchAll(makeParams(), new AbortController().signal);
@@ -205,11 +203,12 @@ describe('TabularAdapter', () => {
     it('stops when meta.total is reached', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          data: Array.from({ length: 30 }, (_, i) => ({ id: i })),
-          links: {},
-          meta: { page: 1, page_size: 100, total: 30 },
-        }),
+        json: () =>
+          Promise.resolve({
+            data: Array.from({ length: 30 }, (_, i) => ({ id: i })),
+            links: {},
+            meta: { page: 1, page_size: 100, total: 30 },
+          }),
       });
 
       const result = await adapter.fetchAll(makeParams(), new AbortController().signal);
@@ -221,11 +220,12 @@ describe('TabularAdapter', () => {
     it('trims to limit when limit > 0', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          data: Array.from({ length: 100 }, (_, i) => ({ id: i })),
-          links: {},
-          meta: { page: 1, page_size: 100, total: 200 },
-        }),
+        json: () =>
+          Promise.resolve({
+            data: Array.from({ length: 100 }, (_, i) => ({ id: i })),
+            links: {},
+            meta: { page: 1, page_size: 100, total: 200 },
+          }),
       });
 
       const result = await adapter.fetchAll(
@@ -239,19 +239,23 @@ describe('TabularAdapter', () => {
     it('extracts page number from links.next URL', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          data: Array.from({ length: 100 }, (_, i) => ({ id: i })),
-          links: { next: 'https://tabular-api.data.gouv.fr/api/resources/resource-456/data/?page=2&page_size=100' },
-          meta: { page: 1, page_size: 100, total: 200 },
-        }),
+        json: () =>
+          Promise.resolve({
+            data: Array.from({ length: 100 }, (_, i) => ({ id: i })),
+            links: {
+              next: 'https://tabular-api.data.gouv.fr/api/resources/resource-456/data/?page=2&page_size=100',
+            },
+            meta: { page: 1, page_size: 100, total: 200 },
+          }),
       });
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          data: Array.from({ length: 100 }, (_, i) => ({ id: 100 + i })),
-          links: {},
-          meta: { page: 2, page_size: 100, total: 200 },
-        }),
+        json: () =>
+          Promise.resolve({
+            data: Array.from({ length: 100 }, (_, i) => ({ id: 100 + i })),
+            links: {},
+            meta: { page: 2, page_size: 100, total: 200 },
+          }),
       });
 
       await adapter.fetchAll(makeParams(), new AbortController().signal);
@@ -263,11 +267,12 @@ describe('TabularAdapter', () => {
     it('returns needsClientProcessing=true when no groupBy/aggregate', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          data: [{ id: 1 }],
-          links: {},
-          meta: { page: 1, page_size: 100, total: 1 },
-        }),
+        json: () =>
+          Promise.resolve({
+            data: [{ id: 1 }],
+            links: {},
+            meta: { page: 1, page_size: 100, total: 1 },
+          }),
       });
 
       const result = await adapter.fetchAll(makeParams(), new AbortController().signal);
@@ -277,11 +282,12 @@ describe('TabularAdapter', () => {
     it('returns needsClientProcessing=false when groupBy is set', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          data: [{ region: 'IDF', count: 100 }],
-          links: {},
-          meta: { page: 1, page_size: 50, total: 1 },
-        }),
+        json: () =>
+          Promise.resolve({
+            data: [{ region: 'IDF', count: 100 }],
+            links: {},
+            meta: { page: 1, page_size: 50, total: 1 },
+          }),
       });
 
       const result = await adapter.fetchAll(
@@ -295,11 +301,12 @@ describe('TabularAdapter', () => {
     it('returns needsClientProcessing=false when aggregate is set', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          data: [{ region: 'IDF', sum_pop: 12000000 }],
-          links: {},
-          meta: { page: 1, page_size: 50, total: 1 },
-        }),
+        json: () =>
+          Promise.resolve({
+            data: [{ region: 'IDF', sum_pop: 12000000 }],
+            links: {},
+            meta: { page: 1, page_size: 50, total: 1 },
+          }),
       });
 
       const result = await adapter.fetchAll(
@@ -317,18 +324,19 @@ describe('TabularAdapter', () => {
         statusText: 'Service Unavailable',
       });
 
-      await expect(
-        adapter.fetchAll(makeParams(), new AbortController().signal)
-      ).rejects.toThrow('HTTP 503');
+      await expect(adapter.fetchAll(makeParams(), new AbortController().signal)).rejects.toThrow(
+        'HTTP 503'
+      );
     });
 
     it('handles missing links gracefully', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          data: [{ id: 1 }],
-          meta: { page: 1, page_size: 50, total: 1 },
-        }),
+        json: () =>
+          Promise.resolve({
+            data: [{ id: 1 }],
+            meta: { page: 1, page_size: 50, total: 1 },
+          }),
       });
 
       const result = await adapter.fetchAll(makeParams(), new AbortController().signal);
@@ -338,11 +346,12 @@ describe('TabularAdapter', () => {
     it('handles invalid links.next URL gracefully', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          data: Array.from({ length: 50 }, (_, i) => ({ id: i })),
-          links: { next: 'not-a-valid-url' },
-          meta: { page: 1, page_size: 50, total: 100 },
-        }),
+        json: () =>
+          Promise.resolve({
+            data: Array.from({ length: 50 }, (_, i) => ({ id: i })),
+            links: { next: 'not-a-valid-url' },
+            meta: { page: 1, page_size: 50, total: 100 },
+          }),
       });
 
       // Should not throw, just stop pagination
@@ -356,18 +365,17 @@ describe('TabularAdapter', () => {
       // Simulate a case where total > fetched but no next link
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          data: Array.from({ length: 50 }, (_, i) => ({ id: i })),
-          links: {},
-          meta: { page: 1, page_size: 50, total: 200 },
-        }),
+        json: () =>
+          Promise.resolve({
+            data: Array.from({ length: 50 }, (_, i) => ({ id: i })),
+            links: {},
+            meta: { page: 1, page_size: 50, total: 200 },
+          }),
       });
 
       await adapter.fetchAll(makeParams(), new AbortController().signal);
 
-      expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('pagination incomplete')
-      );
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('pagination incomplete'));
       warnSpy.mockRestore();
     });
   });
@@ -376,11 +384,12 @@ describe('TabularAdapter', () => {
     it('passes headers to fetch in fetchAll', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          data: [{ id: 1 }],
-          links: {},
-          meta: { page: 1, page_size: 100, total: 1 },
-        }),
+        json: () =>
+          Promise.resolve({
+            data: [{ id: 1 }],
+            links: {},
+            meta: { page: 1, page_size: 100, total: 1 },
+          }),
       });
 
       await adapter.fetchAll(
@@ -395,10 +404,11 @@ describe('TabularAdapter', () => {
     it('passes headers to fetch in fetchPage', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          data: [{ id: 1 }],
-          meta: { page: 1, page_size: 20, total: 1 },
-        }),
+        json: () =>
+          Promise.resolve({
+            data: [{ id: 1 }],
+            meta: { page: 1, page_size: 20, total: 1 },
+          }),
       });
 
       await adapter.fetchPage(
@@ -414,11 +424,12 @@ describe('TabularAdapter', () => {
     it('does not set headers when empty', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          data: [],
-          links: {},
-          meta: { page: 1, page_size: 100, total: 0 },
-        }),
+        json: () =>
+          Promise.resolve({
+            data: [],
+            links: {},
+            meta: { page: 1, page_size: 100, total: 0 },
+          }),
       });
 
       await adapter.fetchAll(makeParams(), new AbortController().signal);
@@ -432,10 +443,11 @@ describe('TabularAdapter', () => {
     it('fetches one page and returns data with totalCount', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          data: Array.from({ length: 20 }, (_, i) => ({ id: i })),
-          meta: { page: 1, page_size: 20, total: 300 },
-        }),
+        json: () =>
+          Promise.resolve({
+            data: Array.from({ length: 20 }, (_, i) => ({ id: i })),
+            meta: { page: 1, page_size: 20, total: 300 },
+          }),
       });
 
       const result = await adapter.fetchPage(
@@ -470,10 +482,11 @@ describe('TabularAdapter', () => {
     it('handles missing meta.total gracefully', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          data: [{ id: 1 }],
-          meta: {},
-        }),
+        json: () =>
+          Promise.resolve({
+            data: [{ id: 1 }],
+            meta: {},
+          }),
       });
 
       const result = await adapter.fetchPage(
@@ -488,10 +501,11 @@ describe('TabularAdapter', () => {
     it('passes signal to fetch', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          data: [],
-          meta: { total: 0 },
-        }),
+        json: () =>
+          Promise.resolve({
+            data: [],
+            meta: { total: 0 },
+          }),
       });
 
       const controller = new AbortController();
@@ -508,13 +522,13 @@ describe('TabularAdapter', () => {
 
   describe('buildFacetWhere', () => {
     it('builds colon syntax for single value', () => {
-      expect(adapter.buildFacetWhere!({ region: new Set(['IDF']) }))
-        .toBe('region:eq:IDF');
+      expect(adapter.buildFacetWhere!({ region: new Set(['IDF']) })).toBe('region:eq:IDF');
     });
 
     it('builds colon syntax IN for multiple values', () => {
-      expect(adapter.buildFacetWhere!({ region: new Set(['IDF', 'PACA']) }))
-        .toBe('region:in:IDF|PACA');
+      expect(adapter.buildFacetWhere!({ region: new Set(['IDF', 'PACA']) })).toBe(
+        'region:in:IDF|PACA'
+      );
     });
 
     it('joins multiple fields with comma', () => {
@@ -526,10 +540,9 @@ describe('TabularAdapter', () => {
     });
 
     it('excludes specified field', () => {
-      expect(adapter.buildFacetWhere!(
-        { region: new Set(['IDF']), type: new Set(['A']) },
-        'region'
-      )).toBe('type:eq:A');
+      expect(
+        adapter.buildFacetWhere!({ region: new Set(['IDF']), type: new Set(['A']) }, 'region')
+      ).toBe('type:eq:A');
     });
 
     it('returns empty string for empty selections', () => {
@@ -563,27 +576,18 @@ describe('TabularAdapter', () => {
     });
 
     it('handles orderBy without direction (defaults to asc)', () => {
-      const url = adapter.buildServerSideUrl(
-        makeParams(),
-        overlay({ orderBy: 'nom' })
-      );
+      const url = adapter.buildServerSideUrl(makeParams(), overlay({ orderBy: 'nom' }));
       expect(url).toContain('nom__sort=asc');
     });
 
     it('does not apply orderBy when overlay.orderBy is empty', () => {
-      const url = adapter.buildServerSideUrl(
-        makeParams({ orderBy: 'population:desc' }),
-        overlay()
-      );
+      const url = adapter.buildServerSideUrl(makeParams({ orderBy: 'population:desc' }), overlay());
       // Only overlay.orderBy is used, no fallback to params.orderBy
       expect(url).not.toContain('__sort');
     });
 
     it('uses params.filter as fallback when effectiveWhere is empty', () => {
-      const url = adapter.buildServerSideUrl(
-        makeParams({ filter: 'statut:eq:actif' }),
-        overlay()
-      );
+      const url = adapter.buildServerSideUrl(makeParams({ filter: 'statut:eq:actif' }), overlay());
       expect(url).toContain('statut__exact=actif');
     });
 

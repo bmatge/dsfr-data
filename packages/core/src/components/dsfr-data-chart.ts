@@ -561,7 +561,9 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       if (columns.length === 0) return;
       const rows = this._data.slice(0, 100);
 
-      const headerCells = columns.map((c) => `<th scope="col">${escapeHtml(String(c))}</th>`).join('');
+      const headerCells = columns
+        .map((c) => `<th scope="col">${escapeHtml(String(c))}</th>`)
+        .join('');
       const bodyRows = rows
         .map((row) => {
           const cells = columns

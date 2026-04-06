@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getAdapter } from '../../src/adapters/adapter-registry.js';
+import { describe, it, expect } from 'vitest';
+import { getAdapter } from '@/adapters/adapter-registry.js';
 
 // Test the DsfrDataSource class logic without full Lit rendering
 // We import the class and test its public API and adapter integration
@@ -42,9 +42,7 @@ describe('DsfrDataSource getEffectiveWhere logic', () => {
 
   it('merges with colon separator for non-ODS providers', () => {
     const staticWhere = 'region:eq:IDF';
-    const overlays = new Map<string, string>([
-      ['facets', 'dept:eq:75'],
-    ]);
+    const overlays = new Map<string, string>([['facets', 'dept:eq:75']]);
 
     const parts: string[] = [];
     if (staticWhere) parts.push(staticWhere);
@@ -147,14 +145,22 @@ describe('DsfrDataSource adapter params construction', () => {
   it('parses headers from JSON string', () => {
     const headersStr = '{"Authorization": "Bearer abc"}';
     let parsed: Record<string, string> | undefined;
-    try { parsed = JSON.parse(headersStr); } catch { /* ignore */ }
+    try {
+      parsed = JSON.parse(headersStr);
+    } catch {
+      /* ignore */
+    }
     expect(parsed).toEqual({ Authorization: 'Bearer abc' });
   });
 
   it('handles invalid headers gracefully', () => {
     const headersStr = 'not json';
     let parsed: Record<string, string> | undefined;
-    try { parsed = JSON.parse(headersStr); } catch { /* ignore */ }
+    try {
+      parsed = JSON.parse(headersStr);
+    } catch {
+      /* ignore */
+    }
     expect(parsed).toBeUndefined();
   });
 });
@@ -174,9 +180,7 @@ describe('DsfrDataSource command handling', () => {
   });
 
   it('empty where removes overlay', () => {
-    const overlays = new Map<string, string>([
-      ['facets-1', 'dept = "75"'],
-    ]);
+    const overlays = new Map<string, string>([['facets-1', 'dept = "75"']]);
 
     // Simulate clearing the where
     const cmd = { where: '', whereKey: 'facets-1' };
@@ -210,32 +214,61 @@ describe('DsfrDataSource command handling', () => {
 describe('DsfrDataSource adapter validation', () => {
   it('ODS adapter validates dataset-id', () => {
     const adapter = getAdapter('opendatasoft');
-    expect(adapter.validate({
-      baseUrl: 'https://data.example.com',
-      datasetId: '',
-      resource: '', select: '', where: '', filter: '',
-      groupBy: '', aggregate: '', orderBy: '', limit: 0,
-      transform: '', pageSize: 20,
-    })).toBe('attribut "dataset-id" requis pour les requetes OpenDataSoft');
+    expect(
+      adapter.validate({
+        baseUrl: 'https://data.example.com',
+        datasetId: '',
+        resource: '',
+        select: '',
+        where: '',
+        filter: '',
+        groupBy: '',
+        aggregate: '',
+        orderBy: '',
+        limit: 0,
+        transform: '',
+        pageSize: 20,
+      })
+    ).toBe('attribut "dataset-id" requis pour les requetes OpenDataSoft');
   });
 
   it('Tabular adapter validates resource', () => {
     const adapter = getAdapter('tabular');
-    expect(adapter.validate({
-      baseUrl: '', datasetId: '', resource: '',
-      select: '', where: '', filter: '',
-      groupBy: '', aggregate: '', orderBy: '', limit: 0,
-      transform: '', pageSize: 20,
-    })).toBe('attribut "resource" requis pour les requetes Tabular');
+    expect(
+      adapter.validate({
+        baseUrl: '',
+        datasetId: '',
+        resource: '',
+        select: '',
+        where: '',
+        filter: '',
+        groupBy: '',
+        aggregate: '',
+        orderBy: '',
+        limit: 0,
+        transform: '',
+        pageSize: 20,
+      })
+    ).toBe('attribut "resource" requis pour les requetes Tabular');
   });
 
   it('Grist adapter validates base-url', () => {
     const adapter = getAdapter('grist');
-    expect(adapter.validate({
-      baseUrl: '', datasetId: '', resource: '',
-      select: '', where: '', filter: '',
-      groupBy: '', aggregate: '', orderBy: '', limit: 0,
-      transform: '', pageSize: 20,
-    })).toBe('attribut "base-url" requis pour les requetes Grist');
+    expect(
+      adapter.validate({
+        baseUrl: '',
+        datasetId: '',
+        resource: '',
+        select: '',
+        where: '',
+        filter: '',
+        groupBy: '',
+        aggregate: '',
+        orderBy: '',
+        limit: 0,
+        transform: '',
+        pageSize: 20,
+      })
+    ).toBe('attribut "base-url" requis pour les requetes Grist');
   });
 });

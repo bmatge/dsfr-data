@@ -8,16 +8,15 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 const mockFetch = vi.fn();
 globalThis.fetch = mockFetch;
 
-import { DsfrDataJoin } from '../src/components/dsfr-data-join.js';
+import { DsfrDataJoin } from '@/components/dsfr-data-join.js';
 import { parseJoinKeys, performJoin } from '@dsfr-data/shared';
 import {
   clearDataCache,
   dispatchDataLoaded,
-  dispatchDataLoading,
   dispatchDataError,
   getDataCache,
   setDataCache,
-} from '../src/utils/data-bridge.js';
+} from '@/utils/data-bridge.js';
 
 // Données de test
 const LEFT_DATA = [
@@ -92,9 +91,14 @@ describe('DsfrDataJoin', () => {
     it('keeps only matching rows', () => {
       join.on = 'code';
       join.type = 'inner';
-      const result = performJoin(LEFT_DATA, RIGHT_DATA, { on: join.on, type: join.type, prefixLeft: join.prefixLeft, prefixRight: join.prefixRight });
+      const result = performJoin(LEFT_DATA, RIGHT_DATA, {
+        on: join.on,
+        type: join.type,
+        prefixLeft: join.prefixLeft,
+        prefixRight: join.prefixRight,
+      });
       expect(result).toHaveLength(3);
-      expect(result.map(r => r.code)).toEqual(['75', '13', '35']);
+      expect(result.map((r) => r.code)).toEqual(['75', '13', '35']);
       // Champs des deux sources présents
       expect(result[0]).toHaveProperty('region', 'Ile-de-France');
       expect(result[0]).toHaveProperty('budget', 500);
@@ -103,8 +107,13 @@ describe('DsfrDataJoin', () => {
     it('excludes non-matching rows', () => {
       join.on = 'code';
       join.type = 'inner';
-      const result = performJoin(LEFT_DATA, RIGHT_DATA, { on: join.on, type: join.type, prefixLeft: join.prefixLeft, prefixRight: join.prefixRight });
-      expect(result.find(r => r.code === '14')).toBeUndefined();
+      const result = performJoin(LEFT_DATA, RIGHT_DATA, {
+        on: join.on,
+        type: join.type,
+        prefixLeft: join.prefixLeft,
+        prefixRight: join.prefixRight,
+      });
+      expect(result.find((r) => r.code === '14')).toBeUndefined();
     });
   });
 
@@ -112,15 +121,25 @@ describe('DsfrDataJoin', () => {
     it('keeps all left rows', () => {
       join.on = 'code';
       join.type = 'left';
-      const result = performJoin(LEFT_DATA, RIGHT_DATA, { on: join.on, type: join.type, prefixLeft: join.prefixLeft, prefixRight: join.prefixRight });
+      const result = performJoin(LEFT_DATA, RIGHT_DATA, {
+        on: join.on,
+        type: join.type,
+        prefixLeft: join.prefixLeft,
+        prefixRight: join.prefixRight,
+      });
       expect(result).toHaveLength(4);
     });
 
     it('fills null for unmatched right fields', () => {
       join.on = 'code';
       join.type = 'left';
-      const result = performJoin(LEFT_DATA, RIGHT_DATA, { on: join.on, type: join.type, prefixLeft: join.prefixLeft, prefixRight: join.prefixRight });
-      const normandie = result.find(r => r.code === '14')!;
+      const result = performJoin(LEFT_DATA, RIGHT_DATA, {
+        on: join.on,
+        type: join.type,
+        prefixLeft: join.prefixLeft,
+        prefixRight: join.prefixRight,
+      });
+      const normandie = result.find((r) => r.code === '14')!;
       expect(normandie.region).toBe('Normandie');
       // Pas de correspondance droite → pas de champs droite (ou null)
       expect(normandie.budget).toBeUndefined();
@@ -129,8 +148,13 @@ describe('DsfrDataJoin', () => {
     it('merges matched rows correctly', () => {
       join.on = 'code';
       join.type = 'left';
-      const result = performJoin(LEFT_DATA, RIGHT_DATA, { on: join.on, type: join.type, prefixLeft: join.prefixLeft, prefixRight: join.prefixRight });
-      const idf = result.find(r => r.code === '75')!;
+      const result = performJoin(LEFT_DATA, RIGHT_DATA, {
+        on: join.on,
+        type: join.type,
+        prefixLeft: join.prefixLeft,
+        prefixRight: join.prefixRight,
+      });
+      const idf = result.find((r) => r.code === '75')!;
       expect(idf.region).toBe('Ile-de-France');
       expect(idf.population).toBe(12000);
       expect(idf.budget).toBe(500);
@@ -142,15 +166,25 @@ describe('DsfrDataJoin', () => {
     it('keeps all right rows', () => {
       join.on = 'code';
       join.type = 'right';
-      const result = performJoin(LEFT_DATA, RIGHT_DATA, { on: join.on, type: join.type, prefixLeft: join.prefixLeft, prefixRight: join.prefixRight });
+      const result = performJoin(LEFT_DATA, RIGHT_DATA, {
+        on: join.on,
+        type: join.type,
+        prefixLeft: join.prefixLeft,
+        prefixRight: join.prefixRight,
+      });
       expect(result).toHaveLength(3);
-      expect(result.map(r => r.code)).toEqual(['75', '13', '35']);
+      expect(result.map((r) => r.code)).toEqual(['75', '13', '35']);
     });
 
     it('includes left fields for matched rows', () => {
       join.on = 'code';
       join.type = 'right';
-      const result = performJoin(LEFT_DATA, RIGHT_DATA, { on: join.on, type: join.type, prefixLeft: join.prefixLeft, prefixRight: join.prefixRight });
+      const result = performJoin(LEFT_DATA, RIGHT_DATA, {
+        on: join.on,
+        type: join.type,
+        prefixLeft: join.prefixLeft,
+        prefixRight: join.prefixRight,
+      });
       expect(result[0].region).toBe('Ile-de-France');
       expect(result[0].budget).toBe(500);
     });
@@ -160,7 +194,12 @@ describe('DsfrDataJoin', () => {
     it('keeps all rows from both sides', () => {
       join.on = 'code';
       join.type = 'full';
-      const result = performJoin(LEFT_DATA, RIGHT_DATA, { on: join.on, type: join.type, prefixLeft: join.prefixLeft, prefixRight: join.prefixRight });
+      const result = performJoin(LEFT_DATA, RIGHT_DATA, {
+        on: join.on,
+        type: join.type,
+        prefixLeft: join.prefixLeft,
+        prefixRight: join.prefixRight,
+      });
       // 3 matched + 1 left-only (14)
       expect(result).toHaveLength(4);
     });
@@ -169,10 +208,14 @@ describe('DsfrDataJoin', () => {
       join.on = 'code';
       join.type = 'full';
       const rightWithExtra = [...RIGHT_DATA, { code: '99', budget: 50, status: 'C' }];
-      const result = performJoin(LEFT_DATA, rightWithExtra, { on: join.on, type: join.type, prefixRight: join.prefixRight });
+      const result = performJoin(LEFT_DATA, rightWithExtra, {
+        on: join.on,
+        type: join.type,
+        prefixRight: join.prefixRight,
+      });
       // 3 matched + 1 left-only (14) + 1 right-only (99)
       expect(result).toHaveLength(5);
-      const extra = result.find(r => r.code === '99')!;
+      const extra = result.find((r) => r.code === '99')!;
       expect(extra.budget).toBe(50);
       expect(extra.region).toBeUndefined();
     });
@@ -184,7 +227,11 @@ describe('DsfrDataJoin', () => {
     it('applies prefix-right on collision', () => {
       const leftData = [{ code: '75', name: 'Paris', value: 100 }];
       const rightData = [{ code: '75', name: 'Budget Paris', value: 500 }];
-      const result = performJoin(leftData, rightData, { on: 'code', type: 'inner', prefixRight: 'r_' });
+      const result = performJoin(leftData, rightData, {
+        on: 'code',
+        type: 'inner',
+        prefixRight: 'r_',
+      });
       expect(result[0].name).toBe('Paris');
       expect(result[0]['r_name']).toBe('Budget Paris');
       expect(result[0].value).toBe(100);
@@ -194,7 +241,12 @@ describe('DsfrDataJoin', () => {
     it('applies prefix-left on collision', () => {
       const leftData = [{ code: '75', name: 'Paris' }];
       const rightData = [{ code: '75', name: 'Budget' }];
-      const result = performJoin(leftData, rightData, { on: 'code', type: 'inner', prefixLeft: 'l_', prefixRight: 'r_' });
+      const result = performJoin(leftData, rightData, {
+        on: 'code',
+        type: 'inner',
+        prefixLeft: 'l_',
+        prefixRight: 'r_',
+      });
       expect(result[0]['l_name']).toBe('Paris');
       expect(result[0]['r_name']).toBe('Budget');
     });
@@ -234,9 +286,7 @@ describe('DsfrDataJoin', () => {
         { dept_code: '75', region: 'IDF' },
         { dept_code: '13', region: 'PACA' },
       ];
-      const rightData = [
-        { code: '75', budget: 500 },
-      ];
+      const rightData = [{ code: '75', budget: 500 }];
       const result = performJoin(leftData, rightData, { on: 'dept_code=code', type: 'inner' });
       expect(result).toHaveLength(1);
       expect(result[0]).toMatchObject({ dept_code: '75', region: 'IDF', budget: 500 });
@@ -257,8 +307,8 @@ describe('DsfrDataJoin', () => {
       ];
       const result = performJoin(leftData, rightData, { on: 'code', type: 'left' });
       expect(result).toHaveLength(3);
-      expect(result.map(r => r.projet)).toEqual(['A', 'B', 'C']);
-      expect(result.every(r => r.region === 'IDF')).toBe(true);
+      expect(result.map((r) => r.projet)).toEqual(['A', 'B', 'C']);
+      expect(result.every((r) => r.region === 'IDF')).toBe(true);
     });
   });
 
@@ -274,7 +324,10 @@ describe('DsfrDataJoin', () => {
         { code: null, budget: 0 },
         { code: '75', budget: 500 },
       ];
-      const result = performJoin(leftData as any[], rightData as any[], { on: 'code', type: 'inner' });
+      const result = performJoin(leftData as any[], rightData as any[], {
+        on: 'code',
+        type: 'inner',
+      });
       // null == null → match
       expect(result).toHaveLength(2);
     });
@@ -284,10 +337,11 @@ describe('DsfrDataJoin', () => {
         { region: 'Unknown' }, // pas de champ 'code'
         { code: '75', region: 'IDF' },
       ];
-      const rightData = [
-        { code: '75', budget: 500 },
-      ];
-      const result = performJoin(leftData as any[], rightData as any[], { on: 'code', type: 'inner' });
+      const rightData = [{ code: '75', budget: 500 }];
+      const result = performJoin(leftData as any[], rightData as any[], {
+        on: 'code',
+        type: 'inner',
+      });
       // Seul '75' matche
       expect(result).toHaveLength(1);
     });
@@ -475,7 +529,13 @@ describe('DsfrDataJoin', () => {
       expect(join.getData()).toHaveLength(0);
 
       // Step 2: first updated() — properties changed from defaults
-      join.willUpdate(new Map([['left', ''], ['right', ''], ['on', '']]));
+      join.willUpdate(
+        new Map([
+          ['left', ''],
+          ['right', ''],
+          ['on', ''],
+        ])
+      );
 
       // Step 3: Data arrives (simulating async fetch completion)
       dispatchDataLoaded('src-a', LEFT_DATA);
@@ -497,7 +557,13 @@ describe('DsfrDataJoin', () => {
 
       // Simulate Lit lifecycle
       join.connectedCallback();
-      join.willUpdate(new Map([['left', ''], ['right', ''], ['on', '']]));
+      join.willUpdate(
+        new Map([
+          ['left', ''],
+          ['right', ''],
+          ['on', ''],
+        ])
+      );
 
       // Data should be available immediately from cache
       expect(join.getData()).toHaveLength(4);

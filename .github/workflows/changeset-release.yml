@@ -40,7 +40,7 @@ jobs:
       - name: Tag and trigger Tauri release
         if: steps.changesets.outputs.published == 'true'
         run: |
-          VERSION=$(node -p "require('./package.json').version")
+          VERSION=$(node -p "require('./packages/core/package.json').version")
           TAG="v${VERSION}"
           echo "Publishing tag ${TAG}"
           git tag "${TAG}"

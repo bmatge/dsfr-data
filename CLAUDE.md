@@ -5,6 +5,7 @@
 Bibliotheque de Web Components de dataviz pour sites gouvernementaux francais.
 Composants Lit conformes DSFR (Design System de l'Etat).
 Architecture monorepo avec npm workspaces.
+La bibliotheque npm publiee `dsfr-data` se trouve dans `packages/core/`.
 
 ## Architecture
 
@@ -20,11 +21,13 @@ Architecture monorepo avec npm workspaces.
 │   ├── favorites/           # Gestion des favoris
 │   └── monitoring/          # Monitoring et logs
 ├── packages/
+│   ├── core/                # Bibliotheque npm `dsfr-data` (composants web Lit)
+│   │   ├── src/
+│   │   │   ├── adapters/    # Adapters API (ODS, Tabular, Grist, Generic)
+│   │   │   ├── components/  # Composants Lit (dsfr-data-source, dsfr-data-query, ...)
+│   │   │   └── utils/       # Utilitaires (beacon, etc.)
+│   │   └── dist/            # Build output (ESM + UMD)
 │   └── shared/              # Utilitaires partages (@dsfr-data/shared)
-├── src/                     # Composants web dsfr-data (Lit)
-│   ├── adapters/            # Adapters API (ODS, Tabular, Grist, Generic)
-│   └── components/          # Composants Lit (dsfr-data-source, dsfr-data-query, ...)
-├── dist/                    # Build output (ESM + UMD)
 ├── specs/                   # Specifications des composants
 ├── guide/                   # Guide utilisateur et exemples
 ├── tests/                   # Tests Vitest + Playwright E2E
@@ -38,7 +41,7 @@ Architecture monorepo avec npm workspaces.
 
 ```bash
 npm run dev           # Serveur de dev Vite (port 5173)
-npm run build         # Build bibliotheque TypeScript + Vite
+npm run build         # Build bibliotheque (delegue au workspace packages/core)
 npm run build:shared  # Build du package shared
 npm run build:apps    # Build de toutes les apps
 npm run build:all     # Build complet (shared + lib + apps)
@@ -141,9 +144,9 @@ Pour les cas sans transformation (datalist, display), dsfr-data-query peut etre 
 
 ### Adapters et ProviderConfig
 
-- **Adapters** (`src/adapters/`) : construisent les URLs, parsent les reponses, gerent la pagination. Chaque API a son adapter (ODS, Tabular, Grist, Generic).
+- **Adapters** (`packages/core/src/adapters/`) : construisent les URLs, parsent les reponses, gerent la pagination. Chaque API a son adapter (ODS, Tabular, Grist, Generic).
 - **ProviderConfig** (`packages/shared/src/providers/`) : configuration declarative par provider (pagination, response parsing, query syntax, code generation).
-- **Registre** (`src/adapters/adapter-registry.ts`) : `getAdapter(apiType)` retourne l'adapter pour un type donne.
+- **Registre** (`packages/core/src/adapters/adapter-registry.ts`) : `getAdapter(apiType)` retourne l'adapter pour un type donne.
 - Ajouter un nouveau provider (CKAN...) = 1 ProviderConfig + 1 Adapter, zero modification dans les composants.
 
 ### Capacites des adapters
@@ -183,7 +186,7 @@ L'adapter expose aussi `fetchColumns()` et `fetchTables()` pour l'introspection 
 ## Conventions de code
 
 - TypeScript strict mode
-- Composants Lit (LitElement, html, css)
+- Composants Lit (LitElement, html, css) dans `packages/core/src/`
 - Nommage : `dsfr-data-*` pour les composants publics, `app-*` pour les layouts
 - Tests : fichiers `*.test.ts` dans `/tests/`
 - Pas d'emoji dans le code sauf demande explicite
@@ -292,7 +295,7 @@ Dans `Dockerfile.db`, le build mcp-server fait `npm ci && npm run build` depuis 
 
 ## Versioning et Releases
 
-Le projet utilise [Changesets](https://github.com/changesets/changesets) pour le versioning semantique et la generation du CHANGELOG.
+Le projet utilise [Changesets](https://github.com/changesets/changesets) pour le versioning semantique et la generation du CHANGELOG. `dsfr-data` est un workspace npm dans `packages/core/`, ce qui permet a Changesets de gerer correctement le versioning et la publication.
 
 ### Semantic Versioning (semver)
 
@@ -335,14 +338,14 @@ Il est execute automatiquement par `npm run version-packages`.
 
 ### CI : verification des changesets
 
-Sur les PRs, le workflow CI verifie si un changeset est present quand `src/` ou `packages/shared/` sont modifies. Un warning est emis si le changeset est manquant.
+Sur les PRs, le workflow CI verifie si un changeset est present quand `packages/core/src/` ou `packages/shared/` sont modifies. Un warning est emis si le changeset est manquant.
 
 ### Workflow de fin de session Claude Code
 
 A la fin de chaque session de developpement avec Claude Code, suivre ce workflow :
 
 1. **Verifier les modifications** : `git diff --stat` pour voir tous les fichiers modifies
-2. **Creer un changeset si necessaire** : si `src/` ou `packages/shared/` ont ete modifies, lancer `npx changeset`
+2. **Creer un changeset si necessaire** : si `packages/core/src/` ou `packages/shared/` ont ete modifies, lancer `npx changeset`
 3. **Commit** : avec un message conventional commit (`feat:`, `fix:`, `refactor:`, etc.)
 4. **Rappel** : ne pas oublier de pousser le changeset avec le code
 5. **Proposer une release** : demander a l'utilisateur s'il souhaite publier une nouvelle version. Si oui :
@@ -379,7 +382,7 @@ Les changesets s'accumulent jusqu'a la prochaine release. Chaque release consomm
 
 ## Bundles de la bibliotheque
 
-Le build (`scripts/build-lib.ts`) produit 4 bundles dans `dist/` :
+Le build (`scripts/build-lib.ts`) produit 4 bundles dans `packages/core/dist/` :
 
 | Bundle | Contenu | Taille gzip |
 |--------|---------|-------------|
@@ -389,13 +392,13 @@ Le build (`scripts/build-lib.ts`) produit 4 bundles dans `dist/` :
 | `dsfr-data.{esm,umd}.js` | Tout-en-un | ~80 Ko |
 
 Le code genere par les builders et le playground utilise le **core** bundle par defaut.
-Le TopoJSON (`dist/data/world-countries-110m.json`) est charge par fetch a l'execution.
+Le TopoJSON (`packages/core/dist/data/world-countries-110m.json`) est charge par fetch a l'execution.
 Leaflet (~40 Ko gzip) et leaflet.markercluster (~5 Ko) sont charges dynamiquement via `import()` — pas inclus dans les bundles.
 Publication npm : `npm publish` via workflow GitHub Actions sur tag `v*`.
 
 ## Beacon de tracking
 
-Chaque composant `dsfr-data-*` envoie un beacon fire-and-forget a l'initialisation (`connectedCallback`) via `sendWidgetBeacon()` dans `src/utils/beacon.ts`. Le beacon transmet le nom du composant, le type de graphique et l'origine de la page (`window.location.origin` via le parametre `r=`) au proxy nginx qui les enregistre dans `beacon.log`. Un script periodique (`scripts/parse-beacon-logs.sh`) transforme ces logs en `monitoring-data.json` consomme par l'app monitoring.
+Chaque composant `dsfr-data-*` envoie un beacon fire-and-forget a l'initialisation (`connectedCallback`) via `sendWidgetBeacon()` dans `packages/core/src/utils/beacon.ts`. Le beacon transmet le nom du composant, le type de graphique et l'origine de la page (`window.location.origin` via le parametre `r=`) au proxy nginx qui les enregistre dans `beacon.log`. Un script periodique (`scripts/parse-beacon-logs.sh`) transforme ces logs en `monitoring-data.json` consomme par l'app monitoring.
 
 - Le parametre `r=` envoie `window.location.origin` pour identifier le site deployeur (plus fiable que le header HTTP Referer qui depend du Referrer-Policy du site)
 - Les parsers (sh et js) preferent `$arg_r` et tombent en fallback sur `$http_referer` pour compatibilite avec les anciens logs
@@ -415,7 +418,7 @@ fonctionnement des composants en production. Overhead negligeable (~2 Ko).
 Les composants DSFR Chart (`map-chart`, `map-chart-reg`) sont des Web Components Vue qui
 ecrasent certains attributs (`value`, `date`) avec leurs valeurs par defaut lors du montage Vue.
 `dsfr-data-chart` utilise un mecanisme de `setTimeout(500ms)` pour re-appliquer ces attributs
-apres le montage Vue (voir `_createChartElement` dans `src/components/dsfr-data-chart.ts`).
+apres le montage Vue (voir `_createChartElement` dans `packages/core/src/components/dsfr-data-chart.ts`).
 
 Si un nouveau composant DSFR Chart presente le meme comportement, ajouter les attributs
 concernes dans l'objet `deferred` retourne par `_getTypeSpecificAttributes()`.
@@ -530,6 +533,6 @@ Cette exposition permet aux tests de :
 
 ## Notes importantes
 
-- Les fichiers `.js` dans `/src/` sont des artefacts de build, ne pas les modifier
+- Les fichiers `.js` dans `packages/core/src/` sont des artefacts de build, ne pas les modifier
 - Toujours lancer `npm run build` apres modification des composants
 - Docker : `docker compose up -d --build` (utilise un volume `beacon-logs` pour persister les donnees de monitoring entre redemarrages)

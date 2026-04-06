@@ -1,6 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { DsfrDataDisplay } from '../src/components/dsfr-data-display.js';
-import { clearDataCache, dispatchDataLoaded, dispatchDataLoading, dispatchDataError, setDataMeta, clearDataMeta } from '../src/utils/data-bridge.js';
+import { DsfrDataDisplay } from '@/components/dsfr-data-display.js';
+import {
+  clearDataCache,
+  dispatchDataLoaded,
+  dispatchDataLoading,
+  dispatchDataError,
+  setDataMeta,
+  clearDataMeta,
+} from '@/utils/data-bridge.js';
 
 describe('DsfrDataDisplay', () => {
   let display: DsfrDataDisplay;

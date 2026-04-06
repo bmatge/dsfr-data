@@ -7,7 +7,7 @@ import {
   getDataCache,
   clearDataCache,
   setDataCache,
-} from '../src/utils/data-bridge.js';
+} from '@/utils/data-bridge.js';
 
 /**
  * Integration tests for the data-bridge flow.

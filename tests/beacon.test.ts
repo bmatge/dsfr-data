@@ -19,7 +19,9 @@ describe('sendWidgetBeacon', () => {
     // Mock Image to capture .src assignments
     globalThis.Image = class MockImage {
       private _src = '';
-      get src() { return this._src; }
+      get src() {
+        return this._src;
+      }
       set src(url: string) {
         this._src = url;
         imageSrcs.push(url);
@@ -35,7 +37,7 @@ describe('sendWidgetBeacon', () => {
   });
 
   async function loadBeacon() {
-    const mod = await import('../src/utils/beacon.js');
+    const mod = await import('@/utils/beacon.js');
     return mod.sendWidgetBeacon;
   }
 
@@ -83,7 +85,11 @@ describe('sendWidgetBeacon', () => {
     const originalLocation = window.location;
     // Use a full replacement to ensure jsdom picks up the new values
     Object.defineProperty(window, 'location', {
-      value: { ...originalLocation, hostname: 'example.gouv.fr', origin: 'https://example.gouv.fr' },
+      value: {
+        ...originalLocation,
+        hostname: 'example.gouv.fr',
+        origin: 'https://example.gouv.fr',
+      },
       writable: true,
       configurable: true,
     });

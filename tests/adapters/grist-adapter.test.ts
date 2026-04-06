@@ -4,8 +4,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const mockFetch = vi.fn();
 globalThis.fetch = mockFetch;
 
-import { GristAdapter } from '../../src/adapters/grist-adapter.js';
-import type { AdapterParams, ServerSideOverlay } from '../../src/adapters/api-adapter.js';
+import { GristAdapter } from '@/adapters/grist-adapter.js';
+import type { AdapterParams, ServerSideOverlay } from '@/adapters/api-adapter.js';
 
 const BASE_URL = 'https://proxy.example.com/grist-proxy/api/docs/docABC/tables/Table1/records';
 
@@ -36,18 +36,22 @@ describe('GristAdapter — Records mode conversions', () => {
 
   describe('_colonWhereToGristFilter', () => {
     it('converts eq to single-value array', () => {
-      expect(adapter._colonWhereToGristFilter('region:eq:Bretagne'))
-        .toEqual({ region: ['Bretagne'] });
+      expect(adapter._colonWhereToGristFilter('region:eq:Bretagne')).toEqual({
+        region: ['Bretagne'],
+      });
     });
 
     it('converts in to multi-value array', () => {
-      expect(adapter._colonWhereToGristFilter('region:in:Bretagne|Normandie'))
-        .toEqual({ region: ['Bretagne', 'Normandie'] });
+      expect(adapter._colonWhereToGristFilter('region:in:Bretagne|Normandie')).toEqual({
+        region: ['Bretagne', 'Normandie'],
+      });
     });
 
     it('handles multiple fields', () => {
-      expect(adapter._colonWhereToGristFilter('region:eq:Bretagne, annee:eq:2023'))
-        .toEqual({ region: ['Bretagne'], annee: ['2023'] });
+      expect(adapter._colonWhereToGristFilter('region:eq:Bretagne, annee:eq:2023')).toEqual({
+        region: ['Bretagne'],
+        annee: ['2023'],
+      });
     });
 
     it('ignores unsupported operators', () => {
@@ -55,8 +59,9 @@ describe('GristAdapter — Records mode conversions', () => {
     });
 
     it('handles values with colons', () => {
-      expect(adapter._colonWhereToGristFilter('url:eq:https://example.com'))
-        .toEqual({ url: ['https://example.com'] });
+      expect(adapter._colonWhereToGristFilter('url:eq:https://example.com')).toEqual({
+        url: ['https://example.com'],
+      });
     });
 
     it('returns null for empty string', () => {
@@ -82,8 +87,7 @@ describe('GristAdapter — Records mode conversions', () => {
     });
 
     it('converts multi-column', () => {
-      expect(adapter._orderByToGristSort('region:asc, population:desc'))
-        .toBe('region,-population');
+      expect(adapter._orderByToGristSort('region:asc, population:desc')).toBe('region,-population');
     });
   });
 
@@ -112,11 +116,15 @@ describe('GristAdapter — Records mode conversions', () => {
     });
 
     it('combines filter + sort + limit', () => {
-      const url = new URL(adapter.buildUrl(makeParams({
-        where: 'region:eq:Bretagne',
-        orderBy: 'population:desc',
-        limit: 10,
-      })));
+      const url = new URL(
+        adapter.buildUrl(
+          makeParams({
+            where: 'region:eq:Bretagne',
+            orderBy: 'population:desc',
+            limit: 10,
+          })
+        )
+      );
       expect(JSON.parse(url.searchParams.get('filter')!)).toEqual({ region: ['Bretagne'] });
       expect(url.searchParams.get('sort')).toBe('-population');
       expect(url.searchParams.get('limit')).toBe('10');
@@ -149,13 +157,23 @@ describe('GristAdapter — Records mode conversions', () => {
 
     it('uses overlay effectiveWhere over params where', () => {
       const overlay: ServerSideOverlay = { page: 1, effectiveWhere: 'region:eq:IDF', orderBy: '' };
-      const url = new URL(adapter.buildServerSideUrl(makeParams({ pageSize: 20, where: 'region:eq:Bretagne' }), overlay));
+      const url = new URL(
+        adapter.buildServerSideUrl(
+          makeParams({ pageSize: 20, where: 'region:eq:Bretagne' }),
+          overlay
+        )
+      );
       expect(JSON.parse(url.searchParams.get('filter')!)).toEqual({ region: ['IDF'] });
     });
 
     it('uses overlay orderBy over params orderBy', () => {
       const overlay: ServerSideOverlay = { page: 1, effectiveWhere: '', orderBy: 'nom:asc' };
-      const url = new URL(adapter.buildServerSideUrl(makeParams({ pageSize: 20, orderBy: 'population:desc' }), overlay));
+      const url = new URL(
+        adapter.buildServerSideUrl(
+          makeParams({ pageSize: 20, orderBy: 'population:desc' }),
+          overlay
+        )
+      );
       expect(url.searchParams.get('sort')).toBe('nom');
     });
   });
@@ -253,15 +271,13 @@ describe('GristAdapter — SQL mode utilities', () => {
 
     it('converts in to IN with multiple placeholders', () => {
       const args: (string | number)[] = [];
-      expect(adapter._colonWhereToSql('region:in:IDF|OCC|BRE', args))
-        .toBe('"region" IN (?,?,?)');
+      expect(adapter._colonWhereToSql('region:in:IDF|OCC|BRE', args)).toBe('"region" IN (?,?,?)');
       expect(args).toEqual(['IDF', 'OCC', 'BRE']);
     });
 
     it('converts notin to NOT IN', () => {
       const args: (string | number)[] = [];
-      expect(adapter._colonWhereToSql('region:notin:IDF|OCC', args))
-        .toBe('"region" NOT IN (?,?)');
+      expect(adapter._colonWhereToSql('region:notin:IDF|OCC', args)).toBe('"region" NOT IN (?,?)');
       expect(args).toEqual(['IDF', 'OCC']);
     });
 
@@ -299,7 +315,10 @@ describe('GristAdapter — SQL mode utilities', () => {
     it('converts columns + records to objects', () => {
       const result = adapter._sqlResultToObjects({
         columns: ['region', 'total'],
-        records: [['Bretagne', 100], ['Normandie', 200]],
+        records: [
+          ['Bretagne', 100],
+          ['Normandie', 200],
+        ],
       });
       expect(result).toEqual([
         { region: 'Bretagne', total: 100 },
@@ -322,13 +341,15 @@ describe('GristAdapter — SQL mode utilities', () => {
 
   describe('_getSqlEndpointUrl', () => {
     it('derives /sql from /tables/.../records', () => {
-      expect(adapter._getSqlEndpointUrl({ baseUrl: BASE_URL }))
-        .toBe('https://proxy.example.com/grist-proxy/api/docs/docABC/sql');
+      expect(adapter._getSqlEndpointUrl({ baseUrl: BASE_URL })).toBe(
+        'https://proxy.example.com/grist-proxy/api/docs/docABC/sql'
+      );
     });
 
     it('throws for non-Grist URL', () => {
-      expect(() => adapter._getSqlEndpointUrl({ baseUrl: 'https://example.com/data' }))
-        .toThrow('Cannot derive SQL endpoint');
+      expect(() => adapter._getSqlEndpointUrl({ baseUrl: 'https://example.com/data' })).toThrow(
+        'Cannot derive SQL endpoint'
+      );
     });
   });
 
@@ -342,8 +363,9 @@ describe('GristAdapter — SQL mode utilities', () => {
     });
 
     it('throws for URL without table', () => {
-      expect(() => adapter._getTableId({ baseUrl: 'https://example.com/api/docs/x/sql' }))
-        .toThrow('Cannot extract table ID');
+      expect(() => adapter._getTableId({ baseUrl: 'https://example.com/api/docs/x/sql' })).toThrow(
+        'Cannot extract table ID'
+      );
     });
   });
 
@@ -379,20 +401,22 @@ describe('GristAdapter — buildFacetWhere', () => {
   const adapter = new GristAdapter();
 
   it('builds colon syntax for single value', () => {
-    expect(adapter.buildFacetWhere({ region: new Set(['Bretagne']) }))
-      .toBe('region:eq:Bretagne');
+    expect(adapter.buildFacetWhere({ region: new Set(['Bretagne']) })).toBe('region:eq:Bretagne');
   });
 
   it('builds colon syntax for multiple values', () => {
-    expect(adapter.buildFacetWhere({ region: new Set(['Bretagne', 'Normandie']) }))
-      .toBe('region:in:Bretagne|Normandie');
+    expect(adapter.buildFacetWhere({ region: new Set(['Bretagne', 'Normandie']) })).toBe(
+      'region:in:Bretagne|Normandie'
+    );
   });
 
   it('excludes specified field', () => {
-    expect(adapter.buildFacetWhere(
-      { region: new Set(['Bretagne']), ville: new Set(['Rennes']) },
-      'region'
-    )).toBe('ville:eq:Rennes');
+    expect(
+      adapter.buildFacetWhere(
+        { region: new Set(['Bretagne']), ville: new Set(['Rennes']) },
+        'region'
+      )
+    ).toBe('ville:eq:Rennes');
   });
 
   it('returns empty string for empty selections', () => {
@@ -415,19 +439,19 @@ describe('GristAdapter — fetchAll', () => {
   it('fetches records and flattens fields', async () => {
     mockFetch
       // SQL availability check
-      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ records: [[1]] }) })
-      // SQL not needed (no groupBy), so this won't be called — let's test Records mode
-    ;
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ records: [[1]] }) });
+    // SQL not needed (no groupBy), so this won't be called — let's test Records mode
     // Reset and test Records mode (no groupBy/aggregate)
     mockFetch.mockReset();
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve({
-        records: [
-          { id: 1, fields: { nom: 'Paris', pop: 2000000 } },
-          { id: 2, fields: { nom: 'Lyon', pop: 500000 } },
-        ],
-      }),
+      json: () =>
+        Promise.resolve({
+          records: [
+            { id: 1, fields: { nom: 'Paris', pop: 2000000 } },
+            { id: 2, fields: { nom: 'Lyon', pop: 500000 } },
+          ],
+        }),
     });
 
     const result = await adapter.fetchAll(makeParams(), new AbortController().signal);
@@ -443,9 +467,10 @@ describe('GristAdapter — fetchAll', () => {
   it('returns needsClientProcessing=false when where is set', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve({
-        records: [{ id: 1, fields: { nom: 'Paris' } }],
-      }),
+      json: () =>
+        Promise.resolve({
+          records: [{ id: 1, fields: { nom: 'Paris' } }],
+        }),
     });
 
     const result = await adapter.fetchAll(
@@ -459,9 +484,10 @@ describe('GristAdapter — fetchAll', () => {
   it('returns needsClientProcessing=false when orderBy is set', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve({
-        records: [{ id: 1, fields: { nom: 'Paris' } }],
-      }),
+      json: () =>
+        Promise.resolve({
+          records: [{ id: 1, fields: { nom: 'Paris' } }],
+        }),
     });
 
     const result = await adapter.fetchAll(
@@ -481,10 +507,14 @@ describe('GristAdapter — fetchAll', () => {
     // SQL query
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve({
-        columns: ['region', 'count'],
-        records: [['Bretagne', 100], ['IDF', 200]],
-      }),
+      json: () =>
+        Promise.resolve({
+          columns: ['region', 'count'],
+          records: [
+            ['Bretagne', 100],
+            ['IDF', 200],
+          ],
+        }),
     });
 
     const result = await adapter.fetchAll(
@@ -510,10 +540,14 @@ describe('GristAdapter — fetchAll', () => {
     // SQL query
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve({
-        columns: ['region', 'sum_population'],
-        records: [['Bretagne', 3000000], ['IDF', 12000000]],
-      }),
+      json: () =>
+        Promise.resolve({
+          columns: ['region', 'sum_population'],
+          records: [
+            ['Bretagne', 3000000],
+            ['IDF', 12000000],
+          ],
+        }),
     });
 
     const result = await adapter.fetchAll(
@@ -531,9 +565,10 @@ describe('GristAdapter — fetchAll', () => {
     // Records mode fetch
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve({
-        records: [{ id: 1, fields: { nom: 'Paris' } }],
-      }),
+      json: () =>
+        Promise.resolve({
+          records: [{ id: 1, fields: { nom: 'Paris' } }],
+        }),
     });
 
     const warnSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
@@ -556,9 +591,9 @@ describe('GristAdapter — fetchAll', () => {
       statusText: 'Internal Server Error',
     });
 
-    await expect(
-      adapter.fetchAll(makeParams(), new AbortController().signal)
-    ).rejects.toThrow('HTTP 500');
+    await expect(adapter.fetchAll(makeParams(), new AbortController().signal)).rejects.toThrow(
+      'HTTP 500'
+    );
   });
 
   it('passes headers to fetch', async () => {
@@ -588,12 +623,13 @@ describe('GristAdapter — fetchPage', () => {
   it('fetches one page in Records mode', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve({
-        records: Array.from({ length: 20 }, (_, i) => ({
-          id: i,
-          fields: { nom: `item-${i}` },
-        })),
-      }),
+      json: () =>
+        Promise.resolve({
+          records: Array.from({ length: 20 }, (_, i) => ({
+            id: i,
+            fields: { nom: `item-${i}` },
+          })),
+        }),
     });
 
     const result = await adapter.fetchPage(
@@ -609,12 +645,13 @@ describe('GristAdapter — fetchPage', () => {
   it('calculates totalCount from last page (data < pageSize)', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve({
-        records: Array.from({ length: 15 }, (_, i) => ({
-          id: i,
-          fields: { nom: `item-${i}` },
-        })),
-      }),
+      json: () =>
+        Promise.resolve({
+          records: Array.from({ length: 15 }, (_, i) => ({
+            id: i,
+            fields: { nom: `item-${i}` },
+          })),
+        }),
     });
 
     const result = await adapter.fetchPage(
@@ -630,12 +667,13 @@ describe('GristAdapter — fetchPage', () => {
   it('returns totalCount=-1 when page is full (more pages exist)', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve({
-        records: Array.from({ length: 20 }, (_, i) => ({
-          id: i,
-          fields: { nom: `item-${i}` },
-        })),
-      }),
+      json: () =>
+        Promise.resolve({
+          records: Array.from({ length: 20 }, (_, i) => ({
+            id: i,
+            fields: { nom: `item-${i}` },
+          })),
+        }),
     });
 
     const result = await adapter.fetchPage(
@@ -656,10 +694,11 @@ describe('GristAdapter — fetchPage', () => {
     // SQL query
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve({
-        columns: ['region', 'count'],
-        records: [['Bretagne', 100]],
-      }),
+      json: () =>
+        Promise.resolve({
+          columns: ['region', 'count'],
+          records: [['Bretagne', 100]],
+        }),
     });
 
     const result = await adapter.fetchPage(
@@ -706,9 +745,14 @@ describe('GristAdapter — fetchFacets', () => {
     // Facet query for "region"
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve({
-        records: [['Bretagne', 50], ['IDF', 100], ['PACA', 30]],
-      }),
+      json: () =>
+        Promise.resolve({
+          records: [
+            ['Bretagne', 50],
+            ['IDF', 100],
+            ['PACA', 30],
+          ],
+        }),
     });
 
     const results = await adapter.fetchFacets!(
@@ -770,9 +814,14 @@ describe('GristAdapter — fetchFacets', () => {
     // Facet query returns some empty values
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve({
-        records: [['Bretagne', 50], [null, 10], ['', 5]],
-      }),
+      json: () =>
+        Promise.resolve({
+          records: [
+            ['Bretagne', 50],
+            [null, 10],
+            ['', 5],
+          ],
+        }),
     });
 
     const results = await adapter.fetchFacets!(
@@ -782,7 +831,7 @@ describe('GristAdapter — fetchFacets', () => {
     );
 
     // null → "null" which is not empty, but '' should be filtered
-    expect(results[0].values.some(v => v.value === '')).toBe(false);
+    expect(results[0].values.some((v) => v.value === '')).toBe(false);
   });
 
   it('continues on fetch error for individual field', async () => {
@@ -796,9 +845,13 @@ describe('GristAdapter — fetchFacets', () => {
     // Second field succeeds
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve({
-        records: [['A', 10], ['B', 20]],
-      }),
+      json: () =>
+        Promise.resolve({
+          records: [
+            ['A', 10],
+            ['B', 20],
+          ],
+        }),
     });
 
     const results = await adapter.fetchFacets!(
@@ -824,12 +877,21 @@ describe('GristAdapter — fetchColumns', () => {
   it('fetches and maps column metadata', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve({
-        columns: [
-          { id: 'nom', fields: { label: 'Nom', type: 'Text', isFormula: false, formula: '' } },
-          { id: 'pop', fields: { label: 'Population', type: 'Numeric', isFormula: true, formula: '$valeur * 1000' } },
-        ],
-      }),
+      json: () =>
+        Promise.resolve({
+          columns: [
+            { id: 'nom', fields: { label: 'Nom', type: 'Text', isFormula: false, formula: '' } },
+            {
+              id: 'pop',
+              fields: {
+                label: 'Population',
+                type: 'Numeric',
+                isFormula: true,
+                formula: '$valeur * 1000',
+              },
+            },
+          ],
+        }),
     });
 
     const columns = await adapter.fetchColumns(makeParams());
@@ -869,7 +931,9 @@ describe('GristAdapter — fetchColumns', () => {
     await adapter.fetchColumns(makeParams());
 
     const callUrl = mockFetch.mock.calls[0][0] as string;
-    expect(callUrl).toBe('https://proxy.example.com/grist-proxy/api/docs/docABC/tables/Table1/columns');
+    expect(callUrl).toBe(
+      'https://proxy.example.com/grist-proxy/api/docs/docABC/tables/Table1/columns'
+    );
   });
 });
 
@@ -884,12 +948,10 @@ describe('GristAdapter — fetchTables', () => {
   it('fetches and maps table list', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve({
-        tables: [
-          { id: 'Table1' },
-          { id: 'Table2' },
-        ],
-      }),
+      json: () =>
+        Promise.resolve({
+          tables: [{ id: 'Table1' }, { id: 'Table2' }],
+        }),
     });
 
     const tables = await adapter.fetchTables(makeParams());
@@ -947,9 +1009,10 @@ describe('GristAdapter — SQL fallback on error', () => {
     // Records fallback
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve({
-        records: [{ id: 1, fields: { nom: 'Paris' } }],
-      }),
+      json: () =>
+        Promise.resolve({
+          records: [{ id: 1, fields: { nom: 'Paris' } }],
+        }),
     });
 
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -978,10 +1041,7 @@ describe('GristAdapter — SQL fallback on error', () => {
     });
 
     await expect(
-      adapter.fetchAll(
-        makeParams({ groupBy: 'region' }),
-        new AbortController().signal
-      )
+      adapter.fetchAll(makeParams({ groupBy: 'region' }), new AbortController().signal)
     ).rejects.toThrow('Grist SQL HTTP 500');
   });
 });
@@ -1037,8 +1097,9 @@ describe('GristAdapter — SQL detection utilities', () => {
     });
 
     it('merges both with comma separator', () => {
-      expect((adapter as any)._mergeWhere('region:eq:IDF', 'dept:eq:75'))
-        .toBe('region:eq:IDF, dept:eq:75');
+      expect((adapter as any)._mergeWhere('region:eq:IDF', 'dept:eq:75')).toBe(
+        'region:eq:IDF, dept:eq:75'
+      );
     });
 
     it('returns empty string when both empty', () => {
@@ -1072,17 +1133,17 @@ describe('GristAdapter — SQL detection utilities', () => {
     });
 
     it('uses overlay effectiveWhere for detection', () => {
-      expect((adapter as any)._needsSqlMode(
-        { where: 'region:eq:IDF' },
-        { effectiveWhere: 'age:gt:18' }
-      )).toBe(true);
+      expect(
+        (adapter as any)._needsSqlMode({ where: 'region:eq:IDF' }, { effectiveWhere: 'age:gt:18' })
+      ).toBe(true);
     });
   });
 
   describe('_extractHostname', () => {
     it('extracts hostname from URL', () => {
-      expect((adapter as any)._extractHostname('https://grist.example.com/api/docs/x/tables/y/records'))
-        .toBe('grist.example.com');
+      expect(
+        (adapter as any)._extractHostname('https://grist.example.com/api/docs/x/tables/y/records')
+      ).toBe('grist.example.com');
     });
 
     it('returns input for invalid URL', () => {
@@ -1099,9 +1160,7 @@ describe('GristAdapter — SQL detection utilities', () => {
     });
 
     it('returns record as-is when no fields property', () => {
-      const result = (adapter as any)._flattenRecords([
-        { nom: 'Paris', pop: 2000000 },
-      ]);
+      const result = (adapter as any)._flattenRecords([{ nom: 'Paris', pop: 2000000 }]);
       expect(result).toEqual([{ nom: 'Paris', pop: 2000000 }]);
     });
 
@@ -1142,8 +1201,7 @@ describe('GristAdapter — SQL detection utilities', () => {
     });
 
     it('handles multiple sort fields', () => {
-      expect(adapter._orderByToGristSort('region:asc, population:desc'))
-        .toBe('region,-population');
+      expect(adapter._orderByToGristSort('region:asc, population:desc')).toBe('region,-population');
     });
 
     it('defaults to asc when no direction', () => {

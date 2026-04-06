@@ -5,7 +5,7 @@ import {
   ISO_A3_TO_NUM,
   toIsoNumeric,
   CONTINENTS,
-} from '../../src/data/continent-lookup.js';
+} from '@/data/continent-lookup.js';
 
 describe('COUNTRY_CONTINENT', () => {
   it('maps France (250) to Europe', () => {

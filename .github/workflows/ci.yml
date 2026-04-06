@@ -29,13 +29,13 @@ jobs:
           NEEDS_CHANGESET=false
           for file in $CHANGED; do
             case "$file" in
-              src/*|packages/shared/*) NEEDS_CHANGESET=true; break ;;
+              packages/core/src/*|packages/shared/*) NEEDS_CHANGESET=true; break ;;
             esac
           done
           if [ "$NEEDS_CHANGESET" = "true" ]; then
             CHANGESETS=$(ls .changeset/*.md 2>/dev/null | grep -v README.md || true)
             if [ -z "$CHANGESETS" ]; then
-              echo "::warning::Cette PR modifie src/ ou packages/shared/ mais ne contient pas de changeset."
+              echo "::warning::Cette PR modifie packages/core/src/ ou packages/shared/ mais ne contient pas de changeset."
               echo "::warning::Lancez 'npx changeset' pour en creer un."
             else
               echo "Changeset trouve."

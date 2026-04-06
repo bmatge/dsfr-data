@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { COUNTRY_NAMES_FR } from '../../src/data/country-names.js';
-import { COUNTRY_CONTINENT } from '../../src/data/continent-lookup.js';
+import { COUNTRY_NAMES_FR } from '@/data/country-names.js';
+import { COUNTRY_CONTINENT } from '@/data/continent-lookup.js';
 
 describe('COUNTRY_NAMES_FR', () => {
   it('contains France', () => {
@@ -57,9 +57,7 @@ describe('COUNTRY_NAMES_FR', () => {
   });
 
   it('covers nearly all countries in COUNTRY_CONTINENT', () => {
-    const missingNames = Object.keys(COUNTRY_CONTINENT).filter(
-      code => !COUNTRY_NAMES_FR[code]
-    );
+    const missingNames = Object.keys(COUNTRY_CONTINENT).filter((code) => !COUNTRY_NAMES_FR[code]);
     // A few small countries (e.g. Singapore 702, Bahrain 048) may not have French names
     expect(missingNames.length).toBeLessThanOrEqual(3);
   });

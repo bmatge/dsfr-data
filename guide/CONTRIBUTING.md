@@ -13,16 +13,37 @@ cd dsfr-data
 npm install
 ```
 
+## Structure du monorepo
+
+Le projet est organise en workspaces npm :
+
+```
+packages/core/       Bibliotheque de Web Components, publiee sur npm sous le nom `dsfr-data`
+packages/shared/     Utilitaires partages (`@dsfr-data/shared`)
+apps/                Applications web (builder, dashboard, playground, etc.)
+server/              Backend Express (API, auth, MariaDB)
+mcp-server/          Serveur MCP (hors workspace, installation separee)
+```
+
+- **`packages/core/`** contient les composants Lit (`dsfr-data-source`, `dsfr-data-chart`, etc.) et les adapters API. C'est le code publie sur npm.
+- **`packages/shared/`** contient les utilitaires communs (proxy, palettes, formatage, storage, navigation).
+- **`apps/`** contient les applications front-end, chacune avec son propre `package.json` et `vite.config.ts`.
+- **`server/`** contient le backend Express avec MariaDB, l'authentification et les API.
+- **`mcp-server/`** est un package independant (pas dans `workspaces` du `package.json` racine). Il a son propre `package-lock.json` et `node_modules`.
+
 ## Developpement
 
-### Bibliotheque de composants
+### Travailler sur les composants (`packages/core/`)
+
+Les composants web (`dsfr-data-source`, `dsfr-data-chart`, etc.) et les adapters API sont dans `packages/core/src/`.
 
 ```bash
 npm run dev          # Serveur de dev (port 5173)
 npm run build        # Build lib (ESM + UMD)
+npm run test:run     # Lancer les tests unitaires
 ```
 
-### Apps individuelles
+### Travailler sur les apps (`apps/`)
 
 Chaque app peut etre developpee independamment :
 
@@ -36,9 +57,9 @@ npm run dev --workspace=@dsfr-data/app-favorites
 npm run dev --workspace=@dsfr-data/app-monitoring
 ```
 
-### MCP server
+### Travailler sur le MCP server
 
-Le serveur MCP (Model Context Protocol) expose les skills dsfr-data aux outils IA :
+Le serveur MCP est hors workspace npm. Il a son propre `node_modules` et `package-lock.json`.
 
 ```bash
 cd mcp-server
@@ -88,7 +109,7 @@ tests/
   aggregations.test.ts         Fonctions d'agregation
   chart-data.test.ts           Traitement des donnees graphiques
   data-bridge.test.ts          Bus d'evenements inter-composants
-  formatters.test.ts           Formatage (src/utils)
+  formatters.test.ts           Formatage (packages/core/src/utils)
   json-path.test.ts            Acces par chemin JSON
   integration.test.ts          Tests d'integration inter-composants
   source-subscriber.test.ts    Mixin SourceSubscriber
@@ -199,6 +220,26 @@ cp .env.example .env
 | `JWT_SECRET` | Cle JWT (mode serveur) | Auto-genere |
 
 `VITE_PROXY_URL` est la variable cle : elle determine l'URL du proxy, du fichier JS de la librairie, et du beacon de tracking. Elle est injectee au build time par Vite dans `PROXY_BASE_URL` (`packages/shared/src/api/proxy-config.ts`).
+
+## Changesets
+
+Quand vous modifiez du code dans `packages/core/` ou `packages/shared/`, lancez `npx changeset` avant de committer :
+
+```bash
+npx changeset
+```
+
+Le CLI vous demande :
+1. Quels packages sont affectes (`dsfr-data`, `@dsfr-data/shared`, ou les deux)
+2. Le type de changement selon semver :
+   - **patch** : correction de bug, refactoring interne
+   - **minor** : nouvel attribut, nouveau composant, nouvelle fonctionnalite
+   - **major** : changement d'API incompatible (renommage d'attribut, suppression)
+3. Un resume du changement
+
+Un fichier `.changeset/*.md` est genere. Committez-le avec votre code.
+
+Lors de la release, les changesets sont consommes automatiquement pour mettre a jour les versions dans `package.json` et generer le `CHANGELOG.md`.
 
 ## Release
 

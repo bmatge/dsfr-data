@@ -1,6 +1,13 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { DsfrDataNormalize } from '../src/components/dsfr-data-normalize.js';
-import { clearDataCache, dispatchDataLoaded, getDataCache, setDataMeta, getDataMeta, clearDataMeta } from '../src/utils/data-bridge.js';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { DsfrDataNormalize } from '@/components/dsfr-data-normalize.js';
+import {
+  clearDataCache,
+  dispatchDataLoaded,
+  getDataCache,
+  setDataMeta,
+  getDataMeta,
+  clearDataMeta,
+} from '@/utils/data-bridge.js';
 
 describe('DsfrDataNormalize', () => {
   let normalize: DsfrDataNormalize;
@@ -129,9 +136,7 @@ describe('DsfrDataNormalize', () => {
       normalize.numeric = 'prix';
 
       normalize.connectedCallback();
-      dispatchDataLoaded('test-source', [
-        { nom: 'A', prix: '12.50' },
-      ]);
+      dispatchDataLoaded('test-source', [{ nom: 'A', prix: '12.50' }]);
 
       const result = getDataCache('test-normalize') as Record<string, unknown>[];
       expect(result[0].prix).toBe(12.5);
@@ -157,9 +162,7 @@ describe('DsfrDataNormalize', () => {
       normalize.numericAuto = true;
 
       normalize.connectedCallback();
-      dispatchDataLoaded('test-source', [
-        { nom: 'Paris', population: '2200000', code: '75' },
-      ]);
+      dispatchDataLoaded('test-source', [{ nom: 'Paris', population: '2200000', code: '75' }]);
 
       const result = getDataCache('test-normalize') as Record<string, unknown>[];
       expect(result[0].population).toBe(2200000);
@@ -173,9 +176,7 @@ describe('DsfrDataNormalize', () => {
       normalize.numericAuto = true;
 
       normalize.connectedCallback();
-      dispatchDataLoaded('test-source', [
-        { nom: 'Paris 10e', empty: '' },
-      ]);
+      dispatchDataLoaded('test-source', [{ nom: 'Paris 10e', empty: '' }]);
 
       const result = getDataCache('test-normalize') as Record<string, unknown>[];
       expect(result[0].nom).toBe('Paris 10e');
@@ -190,9 +191,7 @@ describe('DsfrDataNormalize', () => {
       normalize.rename = 'pop_tot:Population totale | lib_dep:Departement';
 
       normalize.connectedCallback();
-      dispatchDataLoaded('test-source', [
-        { pop_tot: 50000, lib_dep: 'Lozere', code: '48' },
-      ]);
+      dispatchDataLoaded('test-source', [{ pop_tot: 50000, lib_dep: 'Lozere', code: '48' }]);
 
       const result = getDataCache('test-normalize') as Record<string, unknown>[];
       expect(result[0]['Population totale']).toBe(50000);
@@ -210,9 +209,7 @@ describe('DsfrDataNormalize', () => {
       normalize.trim = true;
 
       normalize.connectedCallback();
-      dispatchDataLoaded('test-source', [
-        { nom: '  Paris  ', region: ' IDF', score: 42 },
-      ]);
+      dispatchDataLoaded('test-source', [{ nom: '  Paris  ', region: ' IDF', score: 42 }]);
 
       const result = getDataCache('test-normalize') as Record<string, unknown>[];
       expect(result[0].nom).toBe('Paris');
@@ -226,9 +223,7 @@ describe('DsfrDataNormalize', () => {
       normalize.trim = false;
 
       normalize.connectedCallback();
-      dispatchDataLoaded('test-source', [
-        { nom: '  Paris  ' },
-      ]);
+      dispatchDataLoaded('test-source', [{ nom: '  Paris  ' }]);
 
       const result = getDataCache('test-normalize') as Record<string, unknown>[];
       expect(result[0].nom).toBe('  Paris  ');
@@ -261,7 +256,12 @@ describe('DsfrDataNormalize', () => {
 
       normalize.connectedCallback();
       dispatchDataLoaded('test-source', [
-        { ' DEP ': ' 01 ', ' LIB_DEP ': ' Ain ', ' pp_vacant_25 ': ' 19 805   ', ' pp_total_24 ': ' 293 837   ' },
+        {
+          ' DEP ': ' 01 ',
+          ' LIB_DEP ': ' Ain ',
+          ' pp_vacant_25 ': ' 19 805   ',
+          ' pp_total_24 ': ' 293 837   ',
+        },
       ]);
 
       const result = getDataCache('test-normalize') as Record<string, unknown>[];
@@ -278,9 +278,7 @@ describe('DsfrDataNormalize', () => {
       normalize.rename = 'LIB_DEP:Departement | DEP:Code';
 
       normalize.connectedCallback();
-      dispatchDataLoaded('test-source', [
-        { ' DEP ': ' 01 ', ' LIB_DEP ': ' Ain ' },
-      ]);
+      dispatchDataLoaded('test-source', [{ ' DEP ': ' 01 ', ' LIB_DEP ': ' Ain ' }]);
 
       const result = getDataCache('test-normalize') as Record<string, unknown>[];
       expect(result[0]).toHaveProperty('Code');
@@ -314,9 +312,7 @@ describe('DsfrDataNormalize', () => {
       normalize.replace = 'N/A: | n.d.: | -:0';
 
       normalize.connectedCallback();
-      dispatchDataLoaded('test-source', [
-        { a: 'N/A', b: 'n.d.', c: '-', d: 'valide' },
-      ]);
+      dispatchDataLoaded('test-source', [{ a: 'N/A', b: 'n.d.', c: '-', d: 'valide' }]);
 
       const result = getDataCache('test-normalize') as Record<string, unknown>[];
       expect(result[0].a).toBe('');
@@ -331,9 +327,7 @@ describe('DsfrDataNormalize', () => {
       normalize.replace = 'N/A:';
 
       normalize.connectedCallback();
-      dispatchDataLoaded('test-source', [
-        { a: 'contient N/A dans le texte' },
-      ]);
+      dispatchDataLoaded('test-source', [{ a: 'contient N/A dans le texte' }]);
 
       const result = getDataCache('test-normalize') as Record<string, unknown>[];
       expect(result[0].a).toBe('contient N/A dans le texte');
@@ -347,9 +341,7 @@ describe('DsfrDataNormalize', () => {
       normalize.replaceFields = 'AGE:Y30T39:30-39 ans';
 
       normalize.connectedCallback();
-      dispatchDataLoaded('test-source', [
-        { AGE: 'Y30T39', PCS: '3', OBS_VALUE: 'Y30T39' },
-      ]);
+      dispatchDataLoaded('test-source', [{ AGE: 'Y30T39', PCS: '3', OBS_VALUE: 'Y30T39' }]);
 
       const result = getDataCache('test-normalize') as Record<string, unknown>[];
       expect(result[0].AGE).toBe('30-39 ans');
@@ -381,9 +373,7 @@ describe('DsfrDataNormalize', () => {
       normalize.replaceFields = 'AGE:Y30T39:30-39 ans';
 
       normalize.connectedCallback();
-      dispatchDataLoaded('test-source', [
-        { AGE: 'Y40T49', PCS: '3' },
-      ]);
+      dispatchDataLoaded('test-source', [{ AGE: 'Y40T49', PCS: '3' }]);
 
       const result = getDataCache('test-normalize') as Record<string, unknown>[];
       expect(result[0].AGE).toBe('Y40T49');
@@ -396,9 +386,7 @@ describe('DsfrDataNormalize', () => {
       normalize.replaceFields = 'status:N/A:';
 
       normalize.connectedCallback();
-      dispatchDataLoaded('test-source', [
-        { status: 'N/A', name: 'test' },
-      ]);
+      dispatchDataLoaded('test-source', [{ status: 'N/A', name: 'test' }]);
 
       const result = getDataCache('test-normalize') as Record<string, unknown>[];
       expect(result[0].status).toBe('');
@@ -424,9 +412,7 @@ describe('DsfrDataNormalize', () => {
       normalize.replace = 'N/A:';
 
       normalize.connectedCallback();
-      dispatchDataLoaded('test-source', [
-        { PCS: '3', status: 'N/A', other: 'N/A' },
-      ]);
+      dispatchDataLoaded('test-source', [{ PCS: '3', status: 'N/A', other: 'N/A' }]);
 
       const result = getDataCache('test-normalize') as Record<string, unknown>[];
       expect(result[0].PCS).toBe('Cadres');
@@ -441,9 +427,7 @@ describe('DsfrDataNormalize', () => {
       normalize.replace = 'B:C';
 
       normalize.connectedCallback();
-      dispatchDataLoaded('test-source', [
-        { code: 'A', other: 'B' },
-      ]);
+      dispatchDataLoaded('test-source', [{ code: 'A', other: 'B' }]);
 
       const result = getDataCache('test-normalize') as Record<string, unknown>[];
       expect(result[0].code).toBe('C');
@@ -469,9 +453,7 @@ describe('DsfrDataNormalize', () => {
       normalize.trim = true;
 
       normalize.connectedCallback();
-      dispatchDataLoaded('test-source', [
-        { ' AGE ': ' Y30T39 ' },
-      ]);
+      dispatchDataLoaded('test-source', [{ ' AGE ': ' Y30T39 ' }]);
 
       const result = getDataCache('test-normalize') as Record<string, unknown>[];
       expect(result[0]['AGE']).toBe('30-39 ans');
@@ -537,10 +519,7 @@ describe('DsfrDataNormalize', () => {
       normalize.round = 'taux:2';
 
       normalize.connectedCallback();
-      dispatchDataLoaded('test-source', [
-        { taux: 3.14159 },
-        { taux: 2.005 },
-      ]);
+      dispatchDataLoaded('test-source', [{ taux: 3.14159 }, { taux: 2.005 }]);
 
       const result = getDataCache('test-normalize') as Record<string, unknown>[];
       expect(result[0].taux).toBe(3.14);
@@ -569,9 +548,7 @@ describe('DsfrDataNormalize', () => {
       normalize.round = 'montant';
 
       normalize.connectedCallback();
-      dispatchDataLoaded('test-source', [
-        { montant: 1234.56, taux: 3.14159 },
-      ]);
+      dispatchDataLoaded('test-source', [{ montant: 1234.56, taux: 3.14159 }]);
 
       const result = getDataCache('test-normalize') as Record<string, unknown>[];
       expect(result[0].montant).toBe(1235);
@@ -585,9 +562,7 @@ describe('DsfrDataNormalize', () => {
       normalize.round = 'montant';
 
       normalize.connectedCallback();
-      dispatchDataLoaded('test-source', [
-        { montant: '32073247.27' },
-      ]);
+      dispatchDataLoaded('test-source', [{ montant: '32073247.27' }]);
 
       const result = getDataCache('test-normalize') as Record<string, unknown>[];
       expect(result[0].montant).toBe(32073247);
@@ -601,9 +576,7 @@ describe('DsfrDataNormalize', () => {
       normalize.lowercaseKeys = true;
 
       normalize.connectedCallback();
-      dispatchDataLoaded('test-source', [
-        { NOM: 'Paris', Region: 'IDF', 'Code Postal': '75000' },
-      ]);
+      dispatchDataLoaded('test-source', [{ NOM: 'Paris', Region: 'IDF', 'Code Postal': '75000' }]);
 
       const result = getDataCache('test-normalize') as Record<string, unknown>[];
       expect(result[0]['nom']).toBe('Paris');
@@ -660,9 +633,7 @@ describe('DsfrDataNormalize', () => {
       normalize.flatten = 'fields';
 
       normalize.connectedCallback();
-      dispatchDataLoaded('test-source', [
-        { id: 1, fields: { id: 'fiche-001', Nom: 'X' } },
-      ]);
+      dispatchDataLoaded('test-source', [{ id: 1, fields: { id: 'fiche-001', Nom: 'X' } }]);
 
       const result = getDataCache('test-normalize') as Record<string, unknown>[];
       expect(result[0].id).toBe('fiche-001');
@@ -768,9 +739,7 @@ describe('DsfrDataNormalize', () => {
       normalize.numeric = 'Montant';
 
       normalize.connectedCallback();
-      dispatchDataLoaded('test-source', [
-        { fields: { Nom: '  X  ', Montant: '42000' } },
-      ]);
+      dispatchDataLoaded('test-source', [{ fields: { Nom: '  X  ', Montant: '42000' } }]);
 
       const result = getDataCache('test-normalize') as Record<string, unknown>[];
       expect(result[0].Nom).toBe('X');
@@ -860,9 +829,7 @@ describe('DsfrDataNormalize', () => {
       normalize.numeric = 'score';
 
       normalize.connectedCallback();
-      dispatchDataLoaded('test-source', [
-        { nom: null, score: undefined },
-      ]);
+      dispatchDataLoaded('test-source', [{ nom: null, score: undefined }]);
 
       const result = getDataCache('test-normalize') as Record<string, unknown>[];
       expect(result).toHaveLength(1);
@@ -934,7 +901,7 @@ describe('DsfrDataNormalize', () => {
       mockSource.id = 'mock-source';
       (mockSource as any).getAdapter = () => ({
         type: 'opendatasoft',
-        capabilities: { serverFacets: true, serverSearch: true }
+        capabilities: { serverFacets: true, serverSearch: true },
       });
       document.body.appendChild(mockSource);
 

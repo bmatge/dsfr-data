@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { DsfrDataSearch } from '../src/components/dsfr-data-search.js';
+import { DsfrDataSearch } from '@/components/dsfr-data-search.js';
 import {
   clearDataCache,
   clearDataMeta,
@@ -9,8 +9,8 @@ import {
   getDataCache,
   getDataMeta,
   setDataMeta,
-  subscribeToSourceCommands
-} from '../src/utils/data-bridge.js';
+  subscribeToSourceCommands,
+} from '@/utils/data-bridge.js';
 
 const SAMPLE_DATA = [
   { Nom: 'NetCommerce', Region: 'PACA', SIRET: '12345678901234' },
@@ -111,9 +111,9 @@ describe('DsfrDataSearch', () => {
 
       const result = getDataCache('test-search') as Record<string, unknown>[];
       expect(result).toHaveLength(3);
-      expect(result.map(r => r.Nom)).toContain('NetCommerce');
-      expect(result.map(r => r.Nom)).toContain('NetPoint');
-      expect(result.map(r => r.Nom)).toContain('Internet Plus');
+      expect(result.map((r) => r.Nom)).toContain('NetCommerce');
+      expect(result.map((r) => r.Nom)).toContain('NetPoint');
+      expect(result.map((r) => r.Nom)).toContain('Internet Plus');
     });
 
     it('is case-insensitive', () => {
@@ -121,10 +121,7 @@ describe('DsfrDataSearch', () => {
       search.source = 'test-source';
       search.fields = 'Nom';
       search.connectedCallback();
-      dispatchDataLoaded('test-source', [
-        { Nom: 'NETCOMMERCE' },
-        { Nom: 'campus' },
-      ]);
+      dispatchDataLoaded('test-source', [{ Nom: 'NETCOMMERCE' }, { Nom: 'campus' }]);
 
       search._term = 'Campus';
       search._applyFilter();
@@ -139,10 +136,7 @@ describe('DsfrDataSearch', () => {
       search.source = 'test-source';
       search.fields = 'Nom';
       search.connectedCallback();
-      dispatchDataLoaded('test-source', [
-        { Nom: '\u00c9picerie Fine' },
-        { Nom: 'Boulangerie' },
-      ]);
+      dispatchDataLoaded('test-source', [{ Nom: '\u00c9picerie Fine' }, { Nom: 'Boulangerie' }]);
 
       search._term = 'epicerie';
       search._applyFilter();
@@ -169,8 +163,8 @@ describe('DsfrDataSearch', () => {
 
       const result = getDataCache('test-search') as Record<string, unknown>[];
       expect(result).toHaveLength(2);
-      expect(result.map(r => r.Nom)).toContain('NetCommerce');
-      expect(result.map(r => r.Nom)).toContain('NetPoint');
+      expect(result.map((r) => r.Nom)).toContain('NetCommerce');
+      expect(result.map((r) => r.Nom)).toContain('NetPoint');
       // Internet Plus should NOT match because "net" is not at word start
     });
   });
@@ -190,8 +184,8 @@ describe('DsfrDataSearch', () => {
 
       const result = getDataCache('test-search') as Record<string, unknown>[];
       expect(result).toHaveLength(2);
-      expect(result.map(r => r.Nom)).toContain('NetCommerce');
-      expect(result.map(r => r.Nom)).toContain('SuperCommerce');
+      expect(result.map((r) => r.Nom)).toContain('NetCommerce');
+      expect(result.map((r) => r.Nom)).toContain('SuperCommerce');
     });
 
     it('matches words across different fields', () => {
@@ -243,9 +237,7 @@ describe('DsfrDataSearch', () => {
 
     it('full-text (no fields) searches all fields', () => {
       search.fields = '';
-      dispatchDataLoaded('test-source', [
-        { Nom: 'A', Region: 'PACA', Code: '13' },
-      ]);
+      dispatchDataLoaded('test-source', [{ Nom: 'A', Region: 'PACA', Code: '13' }]);
 
       search._term = 'paca';
       search._applyFilter();
@@ -255,9 +247,7 @@ describe('DsfrDataSearch', () => {
     });
 
     it('numeric values match as strings', () => {
-      dispatchDataLoaded('test-source', [
-        { SIRET: 12345678901234, Nom: 'Test' },
-      ]);
+      dispatchDataLoaded('test-source', [{ SIRET: 12345678901234, Nom: 'Test' }]);
 
       search._term = '1234';
       search._applyFilter();
@@ -267,9 +257,7 @@ describe('DsfrDataSearch', () => {
     });
 
     it('null and undefined values are handled gracefully', () => {
-      dispatchDataLoaded('test-source', [
-        { Nom: null, Region: undefined, Code: 'ABC' },
-      ]);
+      dispatchDataLoaded('test-source', [{ Nom: null, Region: undefined, Code: 'ABC' }]);
 
       search._term = 'abc';
       search._applyFilter();
@@ -279,10 +267,7 @@ describe('DsfrDataSearch', () => {
     });
 
     it('special regex characters are escaped', () => {
-      dispatchDataLoaded('test-source', [
-        { Nom: 'Test (2024)' },
-        { Nom: 'Other' },
-      ]);
+      dispatchDataLoaded('test-source', [{ Nom: 'Test (2024)' }, { Nom: 'Other' }]);
 
       search._term = '(2024)';
       search._applyFilter();
@@ -326,9 +311,7 @@ describe('DsfrDataSearch', () => {
       search.fields = 'Nom';
       search.highlight = true;
       search.connectedCallback();
-      dispatchDataLoaded('test-source', [
-        { Nom: 'NetCommerce', Desc: 'Vente en ligne' },
-      ]);
+      dispatchDataLoaded('test-source', [{ Nom: 'NetCommerce', Desc: 'Vente en ligne' }]);
 
       search._term = 'Net';
       search._applyFilter();
@@ -344,9 +327,7 @@ describe('DsfrDataSearch', () => {
       search.fields = 'Nom';
       search.highlight = false;
       search.connectedCallback();
-      dispatchDataLoaded('test-source', [
-        { Nom: 'NetCommerce' },
-      ]);
+      dispatchDataLoaded('test-source', [{ Nom: 'NetCommerce' }]);
 
       search._term = 'Net';
       search._applyFilter();
@@ -360,9 +341,7 @@ describe('DsfrDataSearch', () => {
       search.source = 'test-source';
       search.highlight = true;
       search.connectedCallback();
-      dispatchDataLoaded('test-source', [
-        { Nom: 'NetCommerce' },
-      ]);
+      dispatchDataLoaded('test-source', [{ Nom: 'NetCommerce' }]);
 
       search._term = '';
       search._applyFilter();
@@ -377,9 +356,7 @@ describe('DsfrDataSearch', () => {
       search.fields = '';
       search.highlight = true;
       search.connectedCallback();
-      dispatchDataLoaded('test-source', [
-        { Nom: 'Test 42', Count: 42 },
-      ]);
+      dispatchDataLoaded('test-source', [{ Nom: 'Test 42', Count: 42 }]);
 
       search._term = '42';
       search._applyFilter();
@@ -1200,7 +1177,7 @@ describe('DsfrDataSearch', () => {
       (mockSource as any).getAdapter = () => ({
         type: 'opendatasoft',
         capabilities: { serverSearch: true },
-        getDefaultSearchTemplate: () => 'search("{q}")'
+        getDefaultSearchTemplate: () => 'search("{q}")',
       });
       document.body.appendChild(mockSource);
 

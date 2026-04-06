@@ -4,7 +4,7 @@ import {
   aggregateByLabel,
   sortByValue,
   processChartData,
-} from '../src/utils/chart-data.js';
+} from '@/utils/chart-data.js';
 
 describe('chart-data', () => {
   const rawData = [
@@ -24,10 +24,7 @@ describe('chart-data', () => {
     });
 
     it('handles nested fields', () => {
-      const nested = [
-        { fields: { nom: 'A', score: 90 } },
-        { fields: { nom: 'B', score: 70 } },
-      ];
+      const nested = [{ fields: { nom: 'A', score: 90 } }, { fields: { nom: 'B', score: 70 } }];
       const result = extractLabelValues(nested, 'fields.nom', 'fields.score');
       expect(result[0]).toEqual({ label: 'A', value: 90 });
       expect(result[1]).toEqual({ label: 'B', value: 70 });
@@ -60,33 +57,33 @@ describe('chart-data', () => {
 
     it('sums values by label', () => {
       const result = aggregateByLabel(items, 'sum');
-      const aItem = result.find(r => r.label === 'A');
-      const bItem = result.find(r => r.label === 'B');
+      const aItem = result.find((r) => r.label === 'A');
+      const bItem = result.find((r) => r.label === 'B');
       expect(aItem?.value).toBe(40);
       expect(bItem?.value).toBe(60);
     });
 
     it('averages values by label', () => {
       const result = aggregateByLabel(items, 'avg');
-      const aItem = result.find(r => r.label === 'A');
+      const aItem = result.find((r) => r.label === 'A');
       expect(aItem?.value).toBe(20);
     });
 
     it('counts values by label', () => {
       const result = aggregateByLabel(items, 'count');
-      const aItem = result.find(r => r.label === 'A');
+      const aItem = result.find((r) => r.label === 'A');
       expect(aItem?.value).toBe(2);
     });
 
     it('finds min by label', () => {
       const result = aggregateByLabel(items, 'min');
-      const aItem = result.find(r => r.label === 'A');
+      const aItem = result.find((r) => r.label === 'A');
       expect(aItem?.value).toBe(10);
     });
 
     it('finds max by label', () => {
       const result = aggregateByLabel(items, 'max');
-      const bItem = result.find(r => r.label === 'B');
+      const bItem = result.find((r) => r.label === 'B');
       expect(bItem?.value).toBe(40);
     });
   });

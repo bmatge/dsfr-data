@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       - 'apps/grist-widgets/**'
-      - 'src/**'
+      - 'packages/core/src/**'
       - 'packages/shared/**'
       - 'specs/**'
       - 'guide/**'
@@ -57,7 +57,7 @@ jobs:
           cp -r apps/grist-widgets/dist/* _site/
 
           # Library bundles (needed by specs and guide pages)
-          cp -r dist/ _site/dist/
+          cp -r packages/core/dist/ _site/dist/
 
           # Specs pages
           cp -r specs/ _site/specs/

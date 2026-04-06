@@ -7,26 +7,26 @@ import {
 import type { Source } from '../../../apps/builder-ia/src/state';
 
 // Component imports for introspection
-import { DsfrDataSource } from '../../../src/components/dsfr-data-source.js';
-import { DsfrDataQuery } from '../../../src/components/dsfr-data-query.js';
-import { DsfrDataKpi } from '../../../src/components/dsfr-data-kpi.js';
-import { DsfrDataList } from '../../../src/components/dsfr-data-list.js';
-import { DsfrDataChart } from '../../../src/components/dsfr-data-chart.js';
-import { DsfrDataNormalize } from '../../../src/components/dsfr-data-normalize.js';
-import { DsfrDataFacets } from '../../../src/components/dsfr-data-facets.js';
-import { DsfrDataDisplay } from '../../../src/components/dsfr-data-display.js';
-import { DsfrDataSearch } from '../../../src/components/dsfr-data-search.js';
-import { DsfrDataA11y } from '../../../src/components/dsfr-data-a11y.js';
-import { DsfrDataKpiGroup } from '../../../src/components/dsfr-data-kpi-group.js';
-import { DsfrDataWorldMap } from '../../../src/components/dsfr-data-world-map.js';
-import { DsfrDataJoin } from '../../../src/components/dsfr-data-join.js';
-import { DsfrDataMap } from '../../../src/components/dsfr-data-map.js';
-import { DsfrDataMapLayer } from '../../../src/components/dsfr-data-map-layer.js';
-import { DsfrDataMapPopup } from '../../../src/components/dsfr-data-map-popup.js';
-import { DsfrDataPodium } from '../../../src/components/dsfr-data-podium.js';
+import { DsfrDataSource } from '@/components/dsfr-data-source.js';
+import { DsfrDataQuery } from '@/components/dsfr-data-query.js';
+import { DsfrDataKpi } from '@/components/dsfr-data-kpi.js';
+import { DsfrDataList } from '@/components/dsfr-data-list.js';
+import { DsfrDataChart } from '@/components/dsfr-data-chart.js';
+import { DsfrDataNormalize } from '@/components/dsfr-data-normalize.js';
+import { DsfrDataFacets } from '@/components/dsfr-data-facets.js';
+import { DsfrDataDisplay } from '@/components/dsfr-data-display.js';
+import { DsfrDataSearch } from '@/components/dsfr-data-search.js';
+import { DsfrDataA11y } from '@/components/dsfr-data-a11y.js';
+import { DsfrDataKpiGroup } from '@/components/dsfr-data-kpi-group.js';
+import { DsfrDataWorldMap } from '@/components/dsfr-data-world-map.js';
+import { DsfrDataJoin } from '@/components/dsfr-data-join.js';
+import { DsfrDataMap } from '@/components/dsfr-data-map.js';
+import { DsfrDataMapLayer } from '@/components/dsfr-data-map-layer.js';
+import { DsfrDataMapPopup } from '@/components/dsfr-data-map-popup.js';
+import { DsfrDataPodium } from '@/components/dsfr-data-podium.js';
 
 // Type/constant imports for alignment checks
-import type { FilterOperator, AggregateFunction } from '../../../src/components/dsfr-data-query.js';
+import type { FilterOperator, AggregateFunction } from '@/components/dsfr-data-query.js';
 
 /**
  * Extract HTML attribute names from a Lit component class via elementProperties.
@@ -36,7 +36,7 @@ import type { FilterOperator, AggregateFunction } from '../../../src/components/
  */
 function getHtmlAttributes(ComponentClass: typeof DsfrDataSource): Set<string> {
   const attrs = new Set<string>();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const props = (ComponentClass as any).elementProperties as Map<string, { attribute?: string | false }> | undefined;
   if (!props) return attrs;
 

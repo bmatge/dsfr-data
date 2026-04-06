@@ -1,19 +1,19 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import type { Topology, GeometryCollection } from 'topojson-specification';
 
 // Mock beacon before importing the component
-vi.mock('../../src/utils/beacon.js', () => ({
+vi.mock('@/utils/beacon.js', () => ({
   sendWidgetBeacon: vi.fn(),
 }));
 
 // Mock data-bridge to avoid real subscriptions
-vi.mock('../../src/utils/data-bridge.js', () => ({
+vi.mock('@/utils/data-bridge.js', () => ({
   subscribeToSource: vi.fn(() => () => {}),
   getDataCache: vi.fn(() => undefined),
   publishCommand: vi.fn(),
 }));
 
-import { DsfrDataWorldMap } from '../../src/components/dsfr-data-world-map.js';
+import { DsfrDataWorldMap } from '@/components/dsfr-data-world-map.js';
 
 /**
  * Minimal valid TopoJSON topology with 2 countries (France 250, Germany 276).
@@ -24,9 +24,21 @@ function createMockTopology(): Topology {
     type: 'Topology',
     arcs: [
       // Arc 0: France-like polygon
-      [[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]],
+      [
+        [0, 0],
+        [10, 0],
+        [10, 10],
+        [0, 10],
+        [0, 0],
+      ],
       // Arc 1: Germany-like polygon
-      [[10, 0], [20, 0], [20, 10], [10, 10], [10, 0]],
+      [
+        [10, 0],
+        [20, 0],
+        [20, 10],
+        [10, 10],
+        [10, 0],
+      ],
     ],
     objects: {
       countries: {
@@ -106,8 +118,8 @@ describe('DsfrDataWorldMap', () => {
         { code: 'DE', val: 200 },
       ];
       const map = (el as any)._buildValueMap() as Map<string, number>;
-      expect(map.get('250')).toBe(100);  // FR -> 250
-      expect(map.get('276')).toBe(200);  // DE -> 276
+      expect(map.get('250')).toBe(100); // FR -> 250
+      expect(map.get('276')).toBe(200); // DE -> 276
     });
 
     it('builds map from iso-a3 codes', () => {
@@ -121,7 +133,7 @@ describe('DsfrDataWorldMap', () => {
         { code: 'USA', population: 330000000 },
       ];
       const map = (el as any)._buildValueMap() as Map<string, number>;
-      expect(map.get('250')).toBe(67000000);  // FRA -> 250
+      expect(map.get('250')).toBe(67000000); // FRA -> 250
       expect(map.get('840')).toBe(330000000); // USA -> 840
     });
 
@@ -133,7 +145,7 @@ describe('DsfrDataWorldMap', () => {
       });
       (el as any)._data = [
         { code: '250', val: 42 },
-        { code: '4', val: 10 },  // short numeric, should pad to 004
+        { code: '4', val: 10 }, // short numeric, should pad to 004
       ];
       const map = (el as any)._buildValueMap() as Map<string, number>;
       expect(map.get('250')).toBe(42);
@@ -183,7 +195,7 @@ describe('DsfrDataWorldMap', () => {
         codeFormat: 'iso-a2',
       });
       (el as any)._data = [
-        { code: 'XX', val: 10 },  // unknown country
+        { code: 'XX', val: 10 }, // unknown country
         { code: 'FR', val: 20 },
       ];
       const map = (el as any)._buildValueMap() as Map<string, number>;
@@ -211,9 +223,7 @@ describe('DsfrDataWorldMap', () => {
         valueField: 'val',
         codeFormat: 'iso-a2',
       });
-      (el as any)._data = [
-        { code: 'FR', val: 3.14159 },
-      ];
+      (el as any)._data = [{ code: 'FR', val: 3.14159 }];
       const map = (el as any)._buildValueMap() as Map<string, number>;
       expect(map.get('250')).toBe(3.14);
     });
@@ -224,9 +234,7 @@ describe('DsfrDataWorldMap', () => {
         valueField: 'stats.population',
         codeFormat: 'iso-a2',
       });
-      (el as any)._data = [
-        { country: { code: 'FR' }, stats: { population: 67000000 } },
-      ];
+      (el as any)._data = [{ country: { code: 'FR' }, stats: { population: 67000000 } }];
       const map = (el as any)._buildValueMap() as Map<string, number>;
       expect(map.get('250')).toBe(67000000);
     });
@@ -656,14 +664,14 @@ describe('DsfrDataWorldMap', () => {
     describe('_renderLegend', () => {
       it('returns nothing when no values', () => {
         const el = createWithTopology();
-        const colorScale = (v: number) => '#000';
+        const colorScale = (_v: number) => '#000';
         const result = (el as any)._renderLegend([], colorScale);
         expect(result).toBeDefined();
       });
 
       it('renders legend with values', () => {
         const el = createWithTopology({ name: 'Population' });
-        const colorScale = (v: number) => '#000';
+        const colorScale = (_v: number) => '#000';
         const result = (el as any)._renderLegend([10, 50, 100], colorScale);
         expect(result).toBeDefined();
         expect(result.strings).toBeDefined();
@@ -671,14 +679,14 @@ describe('DsfrDataWorldMap', () => {
 
       it('renders legend with unit tooltip', () => {
         const el = createWithTopology({ unitTooltip: 'habitants' });
-        const colorScale = (v: number) => '#000';
+        const colorScale = (_v: number) => '#000';
         const result = (el as any)._renderLegend([10, 20], colorScale);
         expect(result).toBeDefined();
       });
 
       it('renders legend without name', () => {
         const el = createWithTopology({ name: '' });
-        const colorScale = (v: number) => '#000';
+        const colorScale = (_v: number) => '#000';
         const result = (el as any)._renderLegend([1, 2, 3], colorScale);
         expect(result).toBeDefined();
       });
@@ -747,7 +755,7 @@ describe('DsfrDataWorldMap', () => {
       (el as any)._onCountryHover(mockEvent, '250');
       expect((el as any)._hoveredCountryId).toBe('250');
       expect((el as any)._tooltipX).toBe(112); // 100 - 0 + 12
-      expect((el as any)._tooltipY).toBe(42);  // 50 - 0 - 8
+      expect((el as any)._tooltipY).toBe(42); // 50 - 0 - 8
     });
 
     it('clears hovered country on null', () => {

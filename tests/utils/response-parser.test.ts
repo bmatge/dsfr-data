@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractData, extractTotalCount } from '../../src/utils/response-parser.js';
+import { extractData, extractTotalCount } from '@/utils/response-parser.js';
 import { ODS_CONFIG, TABULAR_CONFIG, GRIST_CONFIG, GENERIC_CONFIG } from '@dsfr-data/shared';
 
 describe('extractData', () => {
@@ -31,9 +31,7 @@ describe('extractData', () => {
 
   it('Grist: handles records without fields key', () => {
     const json = {
-      records: [
-        { id: 1, name: 'Raw record' },
-      ],
+      records: [{ id: 1, name: 'Raw record' }],
     };
     const data = extractData(json, GRIST_CONFIG);
     expect(data).toEqual([{ id: 1, name: 'Raw record' }]);

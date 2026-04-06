@@ -14,8 +14,8 @@ const mockFetch = vi.fn();
 globalThis.fetch = mockFetch;
 
 // We need to import after setting up fetch mock
-import { DsfrDataSource } from '../src/components/dsfr-data-source.js';
-import { getDataCache, clearDataCache, getDataMeta, clearDataMeta } from '../src/utils/data-bridge.js';
+import { DsfrDataSource } from '@/components/dsfr-data-source.js';
+import { getDataCache, clearDataCache, getDataMeta, clearDataMeta } from '@/utils/data-bridge.js';
 
 describe('DsfrDataSource', () => {
   let source: DsfrDataSource;
@@ -253,7 +253,7 @@ describe('DsfrDataSource', () => {
     it('stores pagination meta from API response', async () => {
       const testData = {
         data: [{ id: 1 }, { id: 2 }],
-        meta: { page: 1, page_size: 20, total: 100 }
+        meta: { page: 1, page_size: 20, total: 100 },
       };
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -279,7 +279,7 @@ describe('DsfrDataSource', () => {
       const testData = {
         data: [{ id: 1 }, { id: 2 }],
         meta: { page: 1, page_size: 20, total: 2 },
-        links: {}
+        links: {},
       };
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -302,7 +302,7 @@ describe('DsfrDataSource', () => {
       const testData = {
         data: [{ id: 1 }],
         results: [{ id: 99 }],
-        meta: { page: 1, page_size: 20, total: 1 }
+        meta: { page: 1, page_size: 20, total: 1 },
       };
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -473,10 +473,11 @@ describe('DsfrDataSource', () => {
     it('fetches data via adapter fetchAll', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          results: [{ dep: '75', value: 100 }],
-          total_count: 1,
-        }),
+        json: () =>
+          Promise.resolve({
+            results: [{ dep: '75', value: 100 }],
+            total_count: 1,
+          }),
       });
 
       source.apiType = 'opendatasoft';
@@ -524,10 +525,11 @@ describe('DsfrDataSource', () => {
     it('uses serverSide mode with fetchPage when serverSide=true', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          results: [{ dep: '75', value: 100 }],
-          total_count: 500,
-        }),
+        json: () =>
+          Promise.resolve({
+            results: [{ dep: '75', value: 100 }],
+            total_count: 500,
+          }),
       });
 
       source.apiType = 'opendatasoft';
@@ -841,12 +843,10 @@ describe('DsfrDataSource', () => {
       const cachedData = [{ id: 'cached' }];
 
       // First call: fetch fails; Second call: cache GET succeeds
-      mockFetch
-        .mockRejectedValueOnce(new Error('Server down'))
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve({ data: cachedData }),
-        });
+      mockFetch.mockRejectedValueOnce(new Error('Server down')).mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ data: cachedData }),
+      });
 
       source.url = 'https://api.example.com/data';
       source.id = 'test-source';
@@ -864,12 +864,10 @@ describe('DsfrDataSource', () => {
       const eventSpy = vi.fn();
       source.addEventListener('cache-fallback', eventSpy);
 
-      mockFetch
-        .mockRejectedValueOnce(new Error('Server down'))
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve({ data: cachedData }),
-        });
+      mockFetch.mockRejectedValueOnce(new Error('Server down')).mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ data: cachedData }),
+      });
 
       source.url = 'https://api.example.com/data';
       source.id = 'test-source';
@@ -928,12 +926,10 @@ describe('DsfrDataSource', () => {
       const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       const cachedData = [{ id: 'cached' }];
 
-      mockFetch
-        .mockRejectedValueOnce(new Error('API error'))
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve({ data: cachedData }),
-        });
+      mockFetch.mockRejectedValueOnce(new Error('API error')).mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ data: cachedData }),
+      });
 
       source.apiType = 'opendatasoft';
       source.id = 'test-source';

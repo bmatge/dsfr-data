@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseExpression, computeAggregation } from '../src/utils/aggregations.js';
+import { parseExpression, computeAggregation } from '@/utils/aggregations.js';
 
 describe('aggregations', () => {
   describe('parseExpression', () => {
@@ -20,7 +20,7 @@ describe('aggregations', () => {
         type: 'count',
         field: 'status',
         filterField: 'status',
-        filterValue: 'active'
+        filterValue: 'active',
       });
     });
 
@@ -29,7 +29,7 @@ describe('aggregations', () => {
         type: 'count',
         field: 'valid',
         filterField: 'valid',
-        filterValue: true
+        filterValue: true,
       });
     });
 
@@ -38,7 +38,7 @@ describe('aggregations', () => {
         type: 'count',
         field: 'valid',
         filterField: 'valid',
-        filterValue: false
+        filterValue: false,
       });
     });
   });
@@ -48,7 +48,7 @@ describe('aggregations', () => {
       { name: 'A', score: 80, active: true },
       { name: 'B', score: 60, active: false },
       { name: 'C', score: 100, active: true },
-      { name: 'D', score: 40, active: true }
+      { name: 'D', score: 40, active: true },
     ];
 
     it('calcule une moyenne', () => {
@@ -84,7 +84,7 @@ describe('aggregations', () => {
       expect(computeAggregation(testData, 'last:name')).toBe('D');
     });
 
-    it('accède directement à une propriété d\'un objet', () => {
+    it("accède directement à une propriété d'un objet", () => {
       const obj = { total: 42 };
       expect(computeAggregation(obj, 'total')).toBe(42);
     });

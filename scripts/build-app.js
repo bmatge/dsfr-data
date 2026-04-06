@@ -48,7 +48,17 @@ for (const file of rootFiles) {
 
 // Copy core directories
 console.log('\nCopying core directories...');
-const directories = ['specs', 'dist', 'guide'];
+const directories = ['specs', 'guide'];
+
+// Copy library dist from packages/core/dist
+const coreDistSrc = join(rootDir, 'packages/core/dist');
+const coreDistDest = join(distDir, 'dist');
+if (existsSync(coreDistSrc)) {
+  cpSync(coreDistSrc, coreDistDest, { recursive: true });
+  console.log('  + dist/ (from packages/core/dist/)');
+} else {
+  console.log('  - dist/ (packages/core/dist not found)');
+}
 for (const dir of directories) {
   const src = join(rootDir, dir);
   const dest = join(distDir, dir);
@@ -62,7 +72,18 @@ for (const dir of directories) {
 
 // Copy built apps
 console.log('\nCopying built apps...');
-const apps = ['favorites', 'playground', 'sources', 'builder-ia', 'builder', 'builder-carto', 'dashboard', 'monitoring', 'admin', 'pipeline-helper'];
+const apps = [
+  'favorites',
+  'playground',
+  'sources',
+  'builder-ia',
+  'builder',
+  'builder-carto',
+  'dashboard',
+  'monitoring',
+  'admin',
+  'pipeline-helper',
+];
 for (const app of apps) {
   const appDist = join(rootDir, 'apps', app, 'dist');
   const dest = join(distDir, 'apps', app);

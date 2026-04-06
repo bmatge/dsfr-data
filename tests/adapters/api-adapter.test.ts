@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { getAdapter, registerAdapter } from '../../src/adapters/api-adapter.js';
-import type { ApiAdapter, AdapterCapabilities, AdapterParams, FetchResult, ServerSideOverlay } from '../../src/adapters/api-adapter.js';
+import { getAdapter, registerAdapter } from '@/adapters/api-adapter.js';
+import type { ApiAdapter, AdapterParams, ServerSideOverlay } from '@/adapters/api-adapter.js';
 
 describe('API Adapter Factory', () => {
   it('returns opendatasoft adapter', () => {
@@ -24,7 +24,7 @@ describe('API Adapter Factory', () => {
   });
 
   it('throws for unknown api type', () => {
-    expect(() => getAdapter('unknown')).toThrow('Type d\'API non supporte: unknown');
+    expect(() => getAdapter('unknown')).toThrow("Type d'API non supporte: unknown");
   });
 
   it('allows registering custom adapters', () => {
@@ -104,7 +104,9 @@ describe('GenericAdapter', () => {
   });
 
   it('fetchPage throws', () => {
-    expect(() => adapter.fetchPage({} as AdapterParams, {} as ServerSideOverlay, new AbortController().signal)).toThrow();
+    expect(() =>
+      adapter.fetchPage({} as AdapterParams, {} as ServerSideOverlay, new AbortController().signal)
+    ).toThrow();
   });
 
   it('buildUrl throws', () => {
@@ -112,7 +114,9 @@ describe('GenericAdapter', () => {
   });
 
   it('buildServerSideUrl throws', () => {
-    expect(() => adapter.buildServerSideUrl({} as AdapterParams, {} as ServerSideOverlay)).toThrow();
+    expect(() =>
+      adapter.buildServerSideUrl({} as AdapterParams, {} as ServerSideOverlay)
+    ).toThrow();
   });
 });
 
@@ -120,12 +124,20 @@ describe('GristAdapter', () => {
   const adapter = getAdapter('grist');
 
   it('validate requires base-url', () => {
-    expect(adapter.validate({ baseUrl: '' } as AdapterParams)).toBe('attribut "base-url" requis pour les requetes Grist');
-    expect(adapter.validate({ baseUrl: 'https://example.com/api/docs/x/tables/y/records' } as AdapterParams)).toBeNull();
+    expect(adapter.validate({ baseUrl: '' } as AdapterParams)).toBe(
+      'attribut "base-url" requis pour les requetes Grist'
+    );
+    expect(
+      adapter.validate({
+        baseUrl: 'https://example.com/api/docs/x/tables/y/records',
+      } as AdapterParams)
+    ).toBeNull();
   });
 
   it('buildUrl returns base-url when no params', () => {
-    const url = adapter.buildUrl({ baseUrl: 'https://proxy.example.com/grist-proxy/api/docs/x/tables/y/records' } as AdapterParams);
+    const url = adapter.buildUrl({
+      baseUrl: 'https://proxy.example.com/grist-proxy/api/docs/x/tables/y/records',
+    } as AdapterParams);
     expect(url).toBe('https://proxy.example.com/grist-proxy/api/docs/x/tables/y/records');
   });
 
@@ -144,7 +156,9 @@ describe('GristAdapter', () => {
       where: 'region:in:Bretagne|Normandie',
     } as AdapterParams);
     const parsed = new URL(url);
-    expect(JSON.parse(parsed.searchParams.get('filter')!)).toEqual({ region: ['Bretagne', 'Normandie'] });
+    expect(JSON.parse(parsed.searchParams.get('filter')!)).toEqual({
+      region: ['Bretagne', 'Normandie'],
+    });
   });
 
   it('buildUrl adds sort param for orderBy', () => {
@@ -229,13 +243,13 @@ describe('GenericAdapter — buildFacetWhere', () => {
   const adapter = getAdapter('generic');
 
   it('builds colon syntax for single value', () => {
-    expect(adapter.buildFacetWhere!({ region: new Set(['IDF']) }))
-      .toBe('region:eq:IDF');
+    expect(adapter.buildFacetWhere!({ region: new Set(['IDF']) })).toBe('region:eq:IDF');
   });
 
   it('builds colon syntax IN for multiple values', () => {
-    expect(adapter.buildFacetWhere!({ region: new Set(['IDF', 'PACA']) }))
-      .toBe('region:in:IDF|PACA');
+    expect(adapter.buildFacetWhere!({ region: new Set(['IDF', 'PACA']) })).toBe(
+      'region:in:IDF|PACA'
+    );
   });
 
   it('joins multiple fields with comma', () => {
@@ -247,10 +261,9 @@ describe('GenericAdapter — buildFacetWhere', () => {
   });
 
   it('excludes specified field', () => {
-    expect(adapter.buildFacetWhere!(
-      { region: new Set(['IDF']), type: new Set(['A']) },
-      'region'
-    )).toBe('type:eq:A');
+    expect(
+      adapter.buildFacetWhere!({ region: new Set(['IDF']), type: new Set(['A']) }, 'region')
+    ).toBe('type:eq:A');
   });
 
   it('returns empty string for empty selections', () => {

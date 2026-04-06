@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   DATA_EVENTS,
   setDataCache,
@@ -9,8 +9,8 @@ import {
   dispatchDataLoading,
   subscribeToSource,
   dispatchSourceCommand,
-  subscribeToSourceCommands
-} from '../src/utils/data-bridge.js';
+  subscribeToSourceCommands,
+} from '@/utils/data-bridge.js';
 
 describe('data-bridge', () => {
   beforeEach(() => {
@@ -163,7 +163,11 @@ describe('data-bridge', () => {
 
       dispatchSourceCommand('my-source', { page: 2, where: 'search("x")', orderBy: 'date:desc' });
 
-      expect(callback).toHaveBeenCalledWith({ page: 2, where: 'search("x")', orderBy: 'date:desc' });
+      expect(callback).toHaveBeenCalledWith({
+        page: 2,
+        where: 'search("x")',
+        orderBy: 'date:desc',
+      });
       unsubscribe();
     });
 
@@ -201,9 +205,19 @@ describe('data-bridge', () => {
       const callback = vi.fn();
       const unsubscribe = subscribeToSourceCommands('my-source', callback);
 
-      dispatchSourceCommand('my-source', { page: 2, where: 'region = "IDF"', whereKey: 'facets-1', orderBy: 'nom:asc' });
+      dispatchSourceCommand('my-source', {
+        page: 2,
+        where: 'region = "IDF"',
+        whereKey: 'facets-1',
+        orderBy: 'nom:asc',
+      });
 
-      expect(callback).toHaveBeenCalledWith({ page: 2, where: 'region = "IDF"', whereKey: 'facets-1', orderBy: 'nom:asc' });
+      expect(callback).toHaveBeenCalledWith({
+        page: 2,
+        where: 'region = "IDF"',
+        whereKey: 'facets-1',
+        orderBy: 'nom:asc',
+      });
       unsubscribe();
     });
   });

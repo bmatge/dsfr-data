@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { DsfrDataChart } from '../src/components/dsfr-data-chart.js';
-import { clearDataCache, dispatchDataLoaded } from '../src/utils/data-bridge.js';
+import { DsfrDataChart } from '@/components/dsfr-data-chart.js';
+import { clearDataCache, dispatchDataLoaded } from '@/utils/data-bridge.js';
 
 describe('DsfrDataChart', () => {
   let chart: DsfrDataChart;
@@ -131,9 +131,7 @@ describe('DsfrDataChart', () => {
     });
 
     it('uses label-field when code-field is not set', () => {
-      (chart as any)._data = [
-        { label: '33', val: 150 },
-      ];
+      (chart as any)._data = [{ label: '33', val: 150 }];
       chart.type = 'map';
       chart.labelField = 'label';
       chart.valueField = 'val';
@@ -143,9 +141,7 @@ describe('DsfrDataChart', () => {
     });
 
     it('rounds values to 2 decimal places', () => {
-      (chart as any)._data = [
-        { dept: '75', val: 12.3456789 },
-      ];
+      (chart as any)._data = [{ dept: '75', val: 12.3456789 }];
       chart.type = 'map';
       chart.codeField = 'dept';
       chart.valueField = 'val';
@@ -289,9 +285,7 @@ describe('DsfrDataChart', () => {
     });
 
     it('returns bar-line specific attributes', () => {
-      (chart as any)._data = [
-        { cat: 'A', v1: 10, v2: 100 },
-      ];
+      (chart as any)._data = [{ cat: 'A', v1: 10, v2: 100 }];
       chart.type = 'bar-line';
       chart.valueField = 'v1';
       chart.valueField2 = 'v2';
@@ -411,9 +405,15 @@ describe('DsfrDataChart', () => {
     it('uses correct type names', () => {
       (chart as any)._data = [];
       const types: Record<string, string> = {
-        bar: 'barres', line: 'lignes', pie: 'camembert', radar: 'radar',
-        gauge: 'jauge', scatter: 'nuage de points', 'bar-line': 'barres et lignes',
-        map: 'carte departements', 'map-reg': 'carte regions',
+        bar: 'barres',
+        line: 'lignes',
+        pie: 'camembert',
+        radar: 'radar',
+        gauge: 'jauge',
+        scatter: 'nuage de points',
+        'bar-line': 'barres et lignes',
+        map: 'carte departements',
+        'map-reg': 'carte regions',
       };
       for (const [type, label] of Object.entries(types)) {
         chart.type = type as any;

@@ -1,6 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { DsfrDataPodium } from '../src/components/dsfr-data-podium.js';
-import { clearDataCache, dispatchDataLoaded, dispatchDataLoading, dispatchDataError } from '../src/utils/data-bridge.js';
+import { DsfrDataPodium } from '@/components/dsfr-data-podium.js';
+import {
+  clearDataCache,
+  dispatchDataLoaded,
+  dispatchDataLoading,
+  dispatchDataError,
+} from '@/utils/data-bridge.js';
 
 const REGIONS = [
   { nom: 'Ile-de-France', population: 12271794, type: 'Region' },
@@ -123,7 +128,9 @@ describe('DsfrDataPodium', () => {
     it('uses subtitleField over static subtitle', () => {
       podium.subtitle = 'Fallback';
       podium.subtitleField = 'type';
-      (podium as any)._data = [{ nom: 'Nouvelle-Aquitaine', population: 6109841, type: 'Departement' }];
+      (podium as any)._data = [
+        { nom: 'Nouvelle-Aquitaine', population: 6109841, type: 'Departement' },
+      ];
       podium.maxItems = 10;
       const items = (podium as any)._processItems();
       expect(items[0].subtitle).toBe('Departement');

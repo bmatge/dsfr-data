@@ -7,7 +7,7 @@ import {
   getDataCache,
   clearDataCache,
   subscribeToSource,
-} from '../src/utils/data-bridge.js';
+} from '@/utils/data-bridge.js';
 
 /**
  * Tests for the SourceSubscriberMixin behavior.
