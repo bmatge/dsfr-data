@@ -290,7 +290,7 @@ Si `ENCRYPTION_KEY` n'est pas defini, les cles sont stockees en clair (compatibi
 
 Le `mcp-server/` est un package **hors workspace npm** (pas dans `workspaces` du root `package.json`).
 Il a son propre `package-lock.json` et son propre `node_modules`.
-Le SDK est pinner a `1.12.1` (versions superieures utilisent zod v4 qui cause des erreurs TypeScript).
+Le SDK est en version `1.29.0` (la contrainte de pin a 1.12.1 pour zod v4 ne s'applique plus).
 Dans `Dockerfile.db`, le build mcp-server fait `npm ci && npm run build` depuis son repertoire.
 
 ## Versioning et Releases
