@@ -1,6 +1,8 @@
 services:
   chartsbuilder:
-    build: .
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
     container_name: chartsbuilder
     restart: unless-stopped
 

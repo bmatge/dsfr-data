@@ -233,3 +233,59 @@ jobs:
             git tag "${{ steps.version.outputs.tag }}"
             git push origin "${{ steps.version.outputs.tag }}" --force
           fi
+
+  # ---------------------------------------------------------------------------
+  # Publish : dsfr-data-docker (deploiement Docker autonome)
+  # ---------------------------------------------------------------------------
+  publish-docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=latest" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Prepare repo content
+        run: |
+          mkdir publish
+          cp docker/Dockerfile publish/
+          cp docker/Dockerfile.db publish/
+          cp docker/docker-compose.yml publish/
+          cp docker/docker-compose.db.yml publish/
+          cp docker/nginx.conf publish/
+          cp docker/nginx-db.conf publish/
+          cp docker/deploy.sh publish/
+          cp docker/deploy-server.sh publish/
+          cp .env.example publish/ 2>/dev/null || true
+          chmod +x publish/deploy.sh publish/deploy-server.sh
+
+      - name: Push to dsfr-data-docker repo
+        env:
+          GH_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
+        run: |
+          cd publish
+          git init
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          gh repo view "${{ github.repository_owner }}/dsfr-data-docker" >/dev/null 2>&1 || \
+            gh repo create "${{ github.repository_owner }}/dsfr-data-docker" \
+              --public \
+              --description "Docker deployment for dsfr-data webapp (nginx + Express + MariaDB)"
+
+          git add -A
+          git commit -m "publish ${{ steps.version.outputs.tag }} from ${{ github.repository }}"
+          git branch -M main
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository_owner }}/dsfr-data-docker.git"
+          git push -f origin main
+
+          if [[ "${{ steps.version.outputs.tag }}" != "latest" ]]; then
+            git tag "${{ steps.version.outputs.tag }}"
+            git push origin "${{ steps.version.outputs.tag }}" --force
+          fi

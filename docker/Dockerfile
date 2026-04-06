@@ -3,6 +3,7 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
 COPY packages/shared/package.json packages/shared/
+COPY packages/core/package.json packages/core/
 COPY apps/favorites/package.json apps/favorites/
 COPY apps/playground/package.json apps/playground/
 COPY apps/sources/package.json apps/sources/
@@ -28,7 +29,7 @@ FROM nginx:alpine
 RUN apk add --no-cache nodejs
 
 # Copier la config nginx
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 # Ajouter le log_format beacon et le cache proxy (inclus dans le bloc http par nginx)
 RUN echo "log_format beacon '\$time_iso8601|\$http_referer|\$arg_c|\$arg_t|\$remote_addr|\$arg_r';" > /etc/nginx/conf.d/beacon-log.conf \
  && echo "proxy_cache_path /var/cache/nginx/api levels=1:2 keys_zone=api_cache:10m max_size=100m inactive=5m;" > /etc/nginx/conf.d/cache.conf \

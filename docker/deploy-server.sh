@@ -1,12 +1,17 @@
 #!/bin/bash
 
 # Deploiement en mode SERVEUR (nginx + Express + MariaDB, auth JWT)
-# Usage: ./deploy-server.sh
+# Usage: ./docker/deploy-server.sh (depuis la racine du repo)
 #
-# Utilise Dockerfile.db + nginx-db.conf + docker-compose.db.yml
+# Utilise docker/Dockerfile.db + docker/nginx-db.conf + docker/docker-compose.db.yml
 # Les donnees MariaDB sont persistees dans le volume Docker "mariadb-data"
 
 set -e
+
+# Toujours executer depuis la racine du repo
+cd "$(dirname "$0")/.."
+
+COMPOSE="docker compose -f docker/docker-compose.yml -f docker/docker-compose.db.yml"
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -45,22 +50,22 @@ else
 fi
 
 echo -e "${YELLOW}1/4${NC} Arret des conteneurs..."
-docker compose -f docker-compose.yml -f docker-compose.db.yml down
+$COMPOSE down
 
 echo -e "${YELLOW}2/4${NC} Mise a jour du code..."
 git pull
 
 echo -e "${YELLOW}3/4${NC} Build de l'image (sans cache)..."
-docker compose -f docker-compose.yml -f docker-compose.db.yml build --no-cache
+$COMPOSE build --no-cache
 
 echo -e "${YELLOW}4/4${NC} Demarrage des conteneurs..."
-docker compose -f docker-compose.yml -f docker-compose.db.yml up -d
+$COMPOSE up -d
 
 echo ""
 echo -e "${GREEN}Deploiement serveur termine !${NC}"
 echo ""
 echo "Status:"
-docker compose -f docker-compose.yml -f docker-compose.db.yml ps
+$COMPOSE ps
 echo ""
 echo "URL: https://${APP_DOMAIN:-chartsbuilder.matge.com}"
 echo ""

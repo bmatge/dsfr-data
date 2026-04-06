@@ -1,5 +1,5 @@
 # Docker Compose override for "database" mode.
-# Usage: docker compose -f docker-compose.yml -f docker-compose.db.yml up -d --build
+# Usage: cd docker && docker compose -f docker-compose.yml -f docker-compose.db.yml up -d --build
 #
 # Adds a backend Express + MariaDB server with auth, RBAC, and data persistence.
 # Requires a .env file with JWT_SECRET, DB_PASSWORD, DB_ROOT_PASSWORD, ENCRYPTION_KEY.
@@ -26,8 +26,8 @@ services:
 
   chartsbuilder:
     build:
-      context: .
-      dockerfile: Dockerfile.db
+      context: ..
+      dockerfile: docker/Dockerfile.db
     depends_on:
       mariadb:
         condition: service_healthy

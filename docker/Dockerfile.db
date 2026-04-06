@@ -3,6 +3,7 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
 COPY packages/shared/package.json packages/shared/
+COPY packages/core/package.json packages/core/
 COPY apps/favorites/package.json apps/favorites/
 COPY apps/playground/package.json apps/playground/
 COPY apps/sources/package.json apps/sources/
@@ -25,8 +26,8 @@ RUN npm run build:server
 # Install server production deps standalone (workspace hoists to root node_modules,
 # but the production image needs them under /app/server/node_modules)
 RUN mkdir /server-prod \
- && cp server/package.json server/package-lock.json /server-prod/ \
- && cd /server-prod && npm ci --omit=dev
+ && cp server/package.json /server-prod/ && cd /server-prod && npm install --package-lock-only --omit=dev \
+ && npm ci --omit=dev
 
 # Build MCP server (separate package, outside workspace)
 RUN cd mcp-server && npm ci && npm run build
@@ -40,7 +41,7 @@ COPY --from=builder /usr/local/bin/node /usr/local/bin/node
 RUN apk add --no-cache libstdc++ libgcc
 
 # Nginx config (database mode with /api/ proxy)
-COPY nginx-db.conf /etc/nginx/conf.d/default.conf
+COPY docker/nginx-db.conf /etc/nginx/conf.d/default.conf
 RUN echo "log_format beacon '\$time_iso8601|\$http_referer|\$arg_c|\$arg_t|\$remote_addr|\$arg_r';" > /etc/nginx/conf.d/beacon-log.conf \
  && echo "proxy_cache_path /var/cache/nginx/api levels=1:2 keys_zone=api_cache:10m max_size=100m inactive=5m;" > /etc/nginx/conf.d/cache.conf \
  && mkdir -p /var/cache/nginx/api
