@@ -72,11 +72,11 @@ export function applyLocalFilter(
     filters.every((f) => {
       const v = row[f.field];
       switch (f.op) {
-        // eslint-disable-next-line eqeqeq
         case 'eq':
+          // eslint-disable-next-line eqeqeq -- loose equality intentional (string/number coercion)
           return v == f.value;
-        // eslint-disable-next-line eqeqeq
         case 'neq':
+          // eslint-disable-next-line eqeqeq -- loose equality intentional (string/number coercion)
           return v != f.value;
         case 'gt':
           return Number(v) > Number(f.value);
