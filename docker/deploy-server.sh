@@ -11,7 +11,7 @@ set -e
 # Toujours executer depuis la racine du repo
 cd "$(dirname "$0")/.."
 
-COMPOSE="docker compose -f docker/docker-compose.yml -f docker/docker-compose.db.yml"
+COMPOSE="docker compose --env-file .env -f docker/docker-compose.yml -f docker/docker-compose.db.yml"
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
