@@ -30,7 +30,7 @@
     "build:app": "node scripts/build-app.js",
     "build:server": "npm run build --workspace=@dsfr-data/server",
     "dev:server": "npm run dev --workspace=@dsfr-data/server",
-    "test:e2e": "playwright test",
+    "test:e2e": "playwright test --config e2e/playwright.config.ts",
     "lint": "eslint 'packages/core/src/**/*.ts' 'apps/**/*.ts' 'packages/shared/**/*.ts' 'server/src/**/*.ts'",
     "lint:fix": "eslint --fix 'packages/core/src/**/*.ts' 'apps/**/*.ts' 'packages/shared/**/*.ts' 'server/src/**/*.ts'",
     "format:check": "prettier --check 'packages/core/src/**/*.ts' 'apps/**/*.ts' 'packages/shared/**/*.ts' 'server/src/**/*.ts'",

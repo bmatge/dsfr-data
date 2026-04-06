@@ -405,8 +405,8 @@ npm install
 
 - [Specifications des composants](https://bmatge.github.io/dsfr-data/specs/) -- Demo interactive et reference des parametres
 - [Guide utilisateur](guide/USER-GUIDE.md) -- Parcours pas-a-pas
-- [Architecture](ARCHITECTURE.md) -- Architecture technique detaillee
-- [Fiche produit](DATASHEET.md) -- Positionnement, comparatif, cibles
+- [Architecture](guide/ARCHITECTURE.md) -- Architecture technique detaillee
+- [Fiche produit](guide/DATASHEET.md) -- Positionnement, comparatif, cibles
 - [Contribuer](guide/CONTRIBUTING.md) -- Guide de contribution
 - [Proxy CORS](proxy/README.md) -- Deploiement du proxy
 
