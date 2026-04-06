@@ -1,6 +1,7 @@
 {
   "name": "@dsfr-data/server",
   "version": "0.1.0",
+  "private": true,
   "description": "Backend API pour dsfr-data (auth, CRUD, cache, RBAC)",
   "type": "module",
   "main": "dist/index.js",

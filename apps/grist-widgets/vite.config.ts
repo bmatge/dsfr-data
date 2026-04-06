@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import { resolve } from 'path';
 import { cpSync, mkdirSync, existsSync, readFileSync } from 'fs';
 
-const umdSource = resolve(__dirname, '../../dist/dsfr-data.umd.js');
+const umdSource = resolve(__dirname, '../../packages/core/dist/dsfr-data.umd.js');
 
 export default defineConfig({
   root: resolve(__dirname),
