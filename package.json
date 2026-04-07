@@ -19,7 +19,7 @@
     "build": "npm run build --workspace=dsfr-data",
     "build:shared": "npm run build --workspace=@dsfr-data/shared",
     "build:apps": "npm run build --workspace=@dsfr-data/app-favorites && npm run build --workspace=@dsfr-data/app-playground && npm run build --workspace=@dsfr-data/app-sources && npm run build --workspace=@dsfr-data/app-builder-ia && npm run build --workspace=@dsfr-data/app-builder && npm run build --workspace=@dsfr-data/app-builder-carto && npm run build --workspace=@dsfr-data/app-dashboard && npm run build --workspace=@dsfr-data/app-monitoring && npm run build --workspace=@dsfr-data/app-admin && npm run build --workspace=@dsfr-data/app-pipeline-helper && npm run build --workspace=@dsfr-data/app-grist-widgets",
-    "build:all": "npm run build:shared && npm run build && npm run build:apps",
+    "build:all": "npm run build:shared && npm run build && npm run build:apps && npx tsx scripts/generate-examples-list.ts",
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
