@@ -2452,7 +2452,8 @@ describe('DsfrDataMapLayer banner management', () => {
     expect(banner?.textContent).toContain('2');
     expect(banner?.textContent).toContain('3');
 
-    document.body.removeChild(parent);
+    // happy-dom has a bug disconnecting Lit elements that contain rendered children
+    try { document.body.removeChild(parent); } catch { /* happy-dom cleanup bug */ }
   });
 
   it('does not create banner when not truncated', async () => {
@@ -2496,7 +2497,8 @@ describe('DsfrDataMapLayer banner management', () => {
     const banners = parent.querySelectorAll('.dsfr-data-map__max-items-banner');
     expect(banners).toHaveLength(1);
 
-    document.body.removeChild(parent);
+    // happy-dom has a bug disconnecting Lit elements that contain rendered children
+    try { document.body.removeChild(parent); } catch { /* happy-dom cleanup bug */ }
   });
 });
 

@@ -139,8 +139,8 @@ export function loadSavedSources(): void {
           : '\uD83D\uDD35 API';
     option.textContent = `${badge} ${selectedSource.name} (r\u00e9cent)`;
     option.dataset.source = JSON.stringify(selectedSource);
-    option.selected = true;
     select.appendChild(option);
+    option.selected = true;
   }
 }
 

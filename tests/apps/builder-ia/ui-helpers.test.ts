@@ -30,8 +30,10 @@ describe('builder-ia ui-helpers', () => {
       document.body.innerHTML = '<pre id="generated-code">const x = 42;</pre>';
 
       const writeTextMock = vi.fn().mockResolvedValue(undefined);
-      Object.assign(navigator, {
-        clipboard: { writeText: writeTextMock },
+      Object.defineProperty(navigator, 'clipboard', {
+        value: { writeText: writeTextMock },
+        writable: true,
+        configurable: true,
       });
       vi.spyOn(window, 'alert').mockImplementation(() => {});
 
