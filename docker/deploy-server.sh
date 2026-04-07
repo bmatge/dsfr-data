@@ -49,14 +49,14 @@ else
   fi
 fi
 
-echo -e "${YELLOW}1/4${NC} Arret des conteneurs..."
-$COMPOSE down
-
-echo -e "${YELLOW}2/4${NC} Mise a jour du code..."
+echo -e "${YELLOW}1/4${NC} Mise a jour du code..."
 git pull
 
-echo -e "${YELLOW}3/4${NC} Build de l'image (sans cache)..."
+echo -e "${YELLOW}2/4${NC} Build de l'image (sans cache)..."
 $COMPOSE build --no-cache
+
+echo -e "${YELLOW}3/4${NC} Arret des conteneurs..."
+$COMPOSE down
 
 echo -e "${YELLOW}4/4${NC} Demarrage des conteneurs..."
 $COMPOSE up -d
