@@ -398,12 +398,15 @@ Publication npm : `npm publish` via workflow GitHub Actions sur tag `v*`.
 
 ## Beacon de tracking
 
-Chaque composant `dsfr-data-*` envoie un beacon fire-and-forget a l'initialisation (`connectedCallback`) via `sendWidgetBeacon()` dans `packages/core/src/utils/beacon.ts`. Le beacon transmet le nom du composant, le type de graphique et l'origine de la page (`window.location.origin` via le parametre `r=`) au proxy nginx qui les enregistre dans `beacon.log`. Un script periodique (`scripts/parse-beacon-logs.sh`) transforme ces logs en `monitoring-data.json` consomme par l'app monitoring.
+Les beacons sont **desactives par defaut** (opt-in). Pour les activer, le site deployeur doit definir `window.DSFR_DATA_BEACON = true` avant le chargement des composants.
 
+Quand active, chaque composant `dsfr-data-*` envoie un beacon fire-and-forget a l'initialisation (`connectedCallback`) via `sendWidgetBeacon()` dans `packages/core/src/utils/beacon.ts`. Le beacon transmet le nom du composant, le type de graphique et l'origine de la page (`window.location.origin` via le parametre `r=`) au proxy nginx qui les enregistre dans `beacon.log`. Un script periodique (`scripts/parse-beacon-logs.sh`) transforme ces logs en `monitoring-data.json` consomme par l'app monitoring.
+
+- **Opt-in** : `window.DSFR_DATA_BEACON = true` requis pour activer l'envoi
 - Le parametre `r=` envoie `window.location.origin` pour identifier le site deployeur (plus fiable que le header HTTP Referer qui depend du Referrer-Policy du site)
 - Les parsers (sh et js) preferent `$arg_r` et tombent en fallback sur `$http_referer` pour compatibilite avec les anciens logs
 - Deduplication par `Set` en memoire (1 beacon par composant+type par page)
-- Skip en dev (localhost/127.0.0.1)
+- Skip en dev (localhost/127.0.0.1) et sur le domaine du proxy
 - Utilise un pixel de tracking (`new Image().src`) au lieu de `fetch()` : les requetes image sont regies par `img-src` (CSP) qui est quasi-toujours permissif, contrairement a `connect-src` qui bloque souvent les appels `fetch` cross-origin
 
 ## Build : esbuild keepNames
