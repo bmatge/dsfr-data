@@ -23,16 +23,19 @@ function sanitizeUrl(href: string): string {
 
 /**
  * Send a beacon to track widget usage.
+ * Disabled by default. Enable with: window.DSFR_DATA_BEACON = true
  * Deduplicated: only one beacon per component+type per page load.
  * Skipped in dev mode (localhost).
  */
 export function sendWidgetBeacon(component: string, subtype?: string): void {
+  // Opt-in: beacons are disabled unless explicitly enabled
+  if (typeof window === 'undefined' || !(window as any).DSFR_DATA_BEACON) return;
+
   const key = `${component}:${subtype || ''}`;
   if (sent.has(key)) return;
   sent.add(key);
 
   // Skip non-HTTP origins (local files, srcdoc iframes, null origins)
-  if (typeof window === 'undefined') return;
   const proto = window.location.protocol;
   if (proto !== 'http:' && proto !== 'https:') return;
 

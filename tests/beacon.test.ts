@@ -32,6 +32,7 @@ describe('sendWidgetBeacon', () => {
   afterEach(() => {
     globalThis.Image = OriginalImage;
     delete (window as any).__gwDbMode;
+    delete (window as any).DSFR_DATA_BEACON;
     vi.restoreAllMocks();
     vi.resetModules();
     vi.unstubAllGlobals();
@@ -42,14 +43,29 @@ describe('sendWidgetBeacon', () => {
     return mod.sendWidgetBeacon;
   }
 
-  it('skips on localhost', async () => {
+  it('skips when DSFR_DATA_BEACON is not set (opt-in)', async () => {
+    vi.stubGlobal('location', {
+      hostname: 'example.gouv.fr',
+      protocol: 'https:',
+      origin: 'https://example.gouv.fr',
+      href: 'https://example.gouv.fr/',
+    });
+
+    const sendWidgetBeacon = await loadBeacon();
+    sendWidgetBeacon('dsfr-data-kpi');
+    expect(imageSrcs).toHaveLength(0);
+  });
+
+  it('skips on localhost even when enabled', async () => {
+    (window as any).DSFR_DATA_BEACON = true;
     // happy-dom defaults to http://localhost/
     const sendWidgetBeacon = await loadBeacon();
     sendWidgetBeacon('dsfr-data-kpi');
     expect(imageSrcs).toHaveLength(0);
   });
 
-  it('skips on 127.0.0.1', async () => {
+  it('skips on 127.0.0.1 even when enabled', async () => {
+    (window as any).DSFR_DATA_BEACON = true;
     vi.stubGlobal('location', {
       hostname: '127.0.0.1',
       protocol: 'http:',
@@ -62,7 +78,8 @@ describe('sendWidgetBeacon', () => {
     expect(imageSrcs).toHaveLength(0);
   });
 
-  it('skips on chartsbuilder.matge.com', async () => {
+  it('skips on chartsbuilder.matge.com even when enabled', async () => {
+    (window as any).DSFR_DATA_BEACON = true;
     vi.stubGlobal('location', {
       hostname: 'chartsbuilder.matge.com',
       protocol: 'https:',
@@ -75,7 +92,8 @@ describe('sendWidgetBeacon', () => {
     expect(imageSrcs).toHaveLength(0);
   });
 
-  it('sends beacon on external host with origin parameter', async () => {
+  it('sends beacon on external host when enabled', async () => {
+    (window as any).DSFR_DATA_BEACON = true;
     vi.stubGlobal('location', {
       hostname: 'example.gouv.fr',
       protocol: 'https:',
@@ -95,6 +113,7 @@ describe('sendWidgetBeacon', () => {
   });
 
   it('includes subtype in beacon URL', async () => {
+    (window as any).DSFR_DATA_BEACON = true;
     vi.stubGlobal('location', {
       hostname: 'example.gouv.fr',
       protocol: 'https:',
@@ -112,6 +131,7 @@ describe('sendWidgetBeacon', () => {
   });
 
   it('deduplicates by component+type', async () => {
+    (window as any).DSFR_DATA_BEACON = true;
     vi.stubGlobal('location', {
       hostname: 'example.gouv.fr',
       protocol: 'https:',
@@ -128,6 +148,7 @@ describe('sendWidgetBeacon', () => {
   });
 
   it('sends separate beacons for different components', async () => {
+    (window as any).DSFR_DATA_BEACON = true;
     vi.stubGlobal('location', {
       hostname: 'example.gouv.fr',
       protocol: 'https:',
@@ -143,6 +164,7 @@ describe('sendWidgetBeacon', () => {
   });
 
   it('sends separate beacons for same component with different subtypes', async () => {
+    (window as any).DSFR_DATA_BEACON = true;
     vi.stubGlobal('location', {
       hostname: 'example.gouv.fr',
       protocol: 'https:',
@@ -158,6 +180,7 @@ describe('sendWidgetBeacon', () => {
   });
 
   it('uses tracking pixel (Image) instead of fetch when not in DB mode', async () => {
+    (window as any).DSFR_DATA_BEACON = true;
     vi.stubGlobal('location', {
       hostname: 'example.gouv.fr',
       protocol: 'https:',
@@ -174,6 +197,7 @@ describe('sendWidgetBeacon', () => {
   });
 
   it('in DB mode, uses fetch API instead of synchronous pixel', async () => {
+    (window as any).DSFR_DATA_BEACON = true;
     (window as any).__gwDbMode = true;
     vi.stubGlobal('location', {
       hostname: 'example.gouv.fr',
@@ -193,6 +217,7 @@ describe('sendWidgetBeacon', () => {
   });
 
   it('without DB mode, creates pixel synchronously', async () => {
+    (window as any).DSFR_DATA_BEACON = true;
     delete (window as any).__gwDbMode;
     vi.stubGlobal('location', {
       hostname: 'example.gouv.fr',
