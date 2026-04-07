@@ -374,9 +374,9 @@ Les changesets s'accumulent jusqu'a la prochaine release. Chaque release consomm
 - Tauri : proxy distant via detection `window.__TAURI__`
 - `PROXY_BASE_URL` dans `packages/shared/src/api/proxy-config.ts` lit `VITE_PROXY_URL` au build time (source de verite unique)
 - `LIB_URL` dans `packages/shared/src/api/proxy-config.ts` lit `VITE_LIB_URL` au build time (URL du JS dans le code genere)
-  - Non defini → `${PROXY_BASE_URL}/dist` (self-hosted)
-  - `"unpkg"` → `https://unpkg.com/dsfr-data/dist`
-  - `"jsdelivr"` → `https://cdn.jsdelivr.net/npm/dsfr-data/dist`
+  - Non defini / `"jsdelivr"` → `https://cdn.jsdelivr.net/npm/dsfr-data@0/dist` (defaut)
+  - `"unpkg"` → `https://unpkg.com/dsfr-data@0/dist`
+  - `"self"` → `${PROXY_BASE_URL}/dist` (self-hosted)
 - `APP_DOMAIN` dans `.env` configure Traefik (docker-compose.yml) et les scripts de deploiement
 - Voir `.env.example` pour toutes les variables
 
