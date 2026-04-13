@@ -11,12 +11,7 @@
   <!-- DSFR Chart CSS -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css">
 
-  <!--
-    Leaflet pré-chargé AVANT dsfr-data.map pour contourner le dynamic import
-    qui peut échouer dans certains contextes (iframe, CSP).
-  -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Leaflet est chargé dynamiquement par dsfr-data.umd.js depuis cdn.jsdelivr.net -->
 
   <!-- Chart.js — AVANT DSFRChart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
