@@ -2,7 +2,9 @@
 
 [![npm version](https://img.shields.io/npm/v/dsfr-data)](https://www.npmjs.com/package/dsfr-data)
 [![CI](https://github.com/bmatge/dsfr-data/actions/workflows/ci.yml/badge.svg)](https://github.com/bmatge/dsfr-data/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/bmatge/dsfr-data/actions/workflows/codeql.yml/badge.svg)](https://github.com/bmatge/dsfr-data/actions/workflows/codeql.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Security Policy](https://img.shields.io/badge/security-policy-red.svg)](./SECURITY.md)
 
 dsfr-data est un module complementaire au [Systeme de design de l'Etat](https://www.systeme-de-design.gouv.fr/) (DSFR) pour l'integration de donnees dynamiques. Il s'agit d'une bibliotheque de [Web Components](https://developer.mozilla.org/fr/docs/Web/API/Web_components) (Lit), sous la forme de balises HTML `<dsfr-data-*>`, a destination des developpeurs et integrateurs ayant besoin d'afficher des donnees issues d'APIs ouvertes dans leurs pages web.
 
