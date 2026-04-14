@@ -195,19 +195,27 @@ function saveFavorite(): void {
 document.addEventListener('DOMContentLoaded', async () => {
   await initAuth();
 
-  // Show back link if navigated from another app
+  // Show back link if navigated from another app. The `from` query param is
+  // user-controlled, so only accept a whitelisted set of values and build the
+  // anchor via DOM APIs (textContent) to avoid XSS.
   const fromApp = new URLSearchParams(window.location.search).get('from');
-  if (fromApp) {
-    // When going back to builder, pass from=playground so builder can restore its state
+  const BACK_LABELS: Record<string, string> = {
+    builder: 'Builder',
+    'builder-ia': 'Builder IA',
+    favorites: 'Favoris',
+  };
+  if (fromApp && Object.prototype.hasOwnProperty.call(BACK_LABELS, fromApp)) {
     const backHref =
       fromApp === 'builder' || fromApp === 'builder-ia'
-        ? appHref(fromApp as any, { from: 'playground' })
-        : appHref(fromApp as any);
-    const backLabel =
-      fromApp === 'builder' ? 'Builder' : fromApp === 'builder-ia' ? 'Builder IA' : fromApp;
+        ? appHref(fromApp as 'builder' | 'builder-ia', { from: 'playground' })
+        : appHref(fromApp as 'favorites');
     const backBar = document.createElement('div');
     backBar.className = 'fr-mb-1w';
-    backBar.innerHTML = `<a href="${backHref}" class="fr-link fr-icon-arrow-left-line fr-link--icon-left">Retour au ${backLabel}</a>`;
+    const link = document.createElement('a');
+    link.href = backHref;
+    link.className = 'fr-link fr-icon-arrow-left-line fr-link--icon-left';
+    link.textContent = `Retour au ${BACK_LABELS[fromApp]}`;
+    backBar.appendChild(link);
     const main = document.querySelector('main .fr-container') || document.querySelector('main');
     if (main) main.prepend(backBar);
   }
