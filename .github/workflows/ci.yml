@@ -118,6 +118,9 @@ jobs:
   secrets:
     name: Security — Secrets
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -131,6 +134,9 @@ jobs:
   sast:
     name: Security — SAST
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     container:
       image: semgrep/semgrep
     steps:
@@ -148,5 +154,13 @@ jobs:
             --severity=ERROR \
             --severity=WARNING \
             --metrics=off \
+            --sarif --output=semgrep.sarif \
             --error \
             packages/core/src apps server/src scripts
+
+      - name: Upload Semgrep SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep
