@@ -50,7 +50,7 @@ jobs:
         run: cd mcp-server && npm ci && npm run build
 
       - name: Upload grist dist
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: grist-dist
           path: |
@@ -58,14 +58,14 @@ jobs:
             apps/grist-widgets/README.md
 
       - name: Upload proxy
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: proxy-dist
           path: |
             proxy/
 
       - name: Upload MCP server
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: mcp-dist
           path: |
