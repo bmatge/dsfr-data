@@ -77,6 +77,7 @@ Les fichiers d'exclusion à jour :
 
 - **Fuite de secret détectée** → [docs/security-incident-response.md](./docs/security-incident-response.md) — runbook avec priorité révocation/rotation, options de réécriture d'historique, tableau des secrets manipulés.
 - **Lancer les scans en local** → [docs/security-dev-guide.md](./docs/security-dev-guide.md) — commandes Docker-only pour Trivy, Semgrep, Gitleaks.
+- **Réutiliser cette baseline sur un autre projet** → [docs/security-baseline.md](./docs/security-baseline.md) — template générique avec snippets prêts à copier-coller pour les 8 briques.
 
 ## Liens utiles
 
