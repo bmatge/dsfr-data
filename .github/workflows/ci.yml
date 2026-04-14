@@ -82,3 +82,35 @@ jobs:
 
       - name: Build app-dist
         run: node scripts/build-app.js
+
+  sca:
+    name: Security — SCA & config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: npm audit — mcp-server
+        working-directory: mcp-server
+        run: npm audit --audit-level=high
+
+      - name: Trivy — filesystem (vulnerabilities)
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          scan-type: fs
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          trivyignores: .trivyignore
+
+      - name: Trivy — config (Dockerfiles)
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          scan-type: config
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          trivyignores: .trivyignore
