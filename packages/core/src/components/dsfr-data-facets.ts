@@ -15,6 +15,7 @@ import {
 } from '../utils/data-bridge.js';
 import type { ApiAdapter } from '../adapters/api-adapter.js';
 import type { SourceElement } from '../utils/source-element.js';
+import { isUnsafeKey } from '@dsfr-data/shared';
 
 type FacetDisplayMode = 'checkbox' | 'select' | 'multiselect' | 'radio';
 
@@ -447,6 +448,8 @@ export class DsfrDataFacets extends LitElement {
     for (const part of parts) {
       if (current === null || current === undefined || typeof current !== 'object')
         return undefined;
+      if (isUnsafeKey(part)) return undefined;
+      // nosemgrep: javascript.lang.security.audit.prototype-pollution.prototype-pollution-loop.prototype-pollution-loop
       current = (current as Record<string, unknown>)[part];
     }
     return current;

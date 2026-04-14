@@ -120,6 +120,13 @@ describe('json-path', () => {
       const obj = { items: [{ id: 1 }] };
       expect(hasPath(obj, 'items[0].id')).toBe(true);
     });
+
+    it('rejette __proto__ (prototype pollution)', () => {
+      const obj = { a: 1 };
+      expect(getByPath(obj, '__proto__')).toBeUndefined();
+      expect(getByPath(obj, 'constructor')).toBeUndefined();
+      expect(getByPath(obj, 'a.__proto__')).toBeUndefined();
+    });
   });
 
   describe('setByPath', () => {
@@ -164,6 +171,18 @@ describe('json-path', () => {
       setByPath(obj, 'data.new_key', 'val');
       expect((obj as any).data.existing).toBe(true);
       expect((obj as any).data.new_key).toBe('val');
+    });
+
+    it("n'assigne pas une cle __proto__ (prototype pollution)", () => {
+      const obj: Record<string, unknown> = {};
+      setByPath(obj, '__proto__.polluted', 'yes');
+      expect(({} as any).polluted).toBeUndefined();
+    });
+
+    it("n'assigne pas via une cle constructor", () => {
+      const obj: Record<string, unknown> = {};
+      setByPath(obj, 'constructor.prototype.polluted', 'yes');
+      expect(({} as any).polluted).toBeUndefined();
     });
   });
 

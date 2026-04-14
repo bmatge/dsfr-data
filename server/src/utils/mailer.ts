@@ -30,6 +30,7 @@ function getTransporter(): Transporter {
       host: process.env.SMTP_HOST || 'mailserver',
       port: parseInt(process.env.SMTP_PORT || '25', 10),
       secure: false,
+      // nosemgrep: problem-based-packs.insecure-transport.js-node.bypass-tls-verification.bypass-tls-verification
       tls: { rejectUnauthorized: false },
       // No auth — internal Docker network
     });

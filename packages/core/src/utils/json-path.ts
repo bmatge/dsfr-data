@@ -3,6 +3,8 @@
  * Permet d'accéder à des propriétés imbriquées dans un objet JSON
  */
 
+import { isUnsafeKey } from '@dsfr-data/shared';
+
 /**
  * Extrait une valeur d'un objet en suivant un chemin de propriétés
  * @param obj - L'objet source
@@ -34,6 +36,11 @@ export function getByPath(obj: unknown, path: string): unknown {
       return undefined;
     }
 
+    if (isUnsafeKey(key)) {
+      return undefined;
+    }
+
+    // nosemgrep: javascript.lang.security.audit.prototype-pollution.prototype-pollution-loop.prototype-pollution-loop
     current = (current as Record<string, unknown>)[key];
   }
 
@@ -61,13 +68,21 @@ export function setByPath(obj: Record<string, unknown>, path: string, value: unk
   let current: Record<string, unknown> = obj;
   for (let i = 0; i < keys.length - 1; i++) {
     const key = keys[i];
+    if (isUnsafeKey(key)) {
+      return;
+    }
     if (!(key in current) || typeof current[key] !== 'object' || current[key] === null) {
       current[key] = {};
     }
+    // nosemgrep: javascript.lang.security.audit.prototype-pollution.prototype-pollution-loop.prototype-pollution-loop
     current = current[key] as Record<string, unknown>;
   }
 
-  current[keys[keys.length - 1]] = value;
+  const lastKey = keys[keys.length - 1];
+  if (isUnsafeKey(lastKey)) {
+    return;
+  }
+  current[lastKey] = value;
 }
 
 /**
