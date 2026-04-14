@@ -1,0 +1,62 @@
+name: Docker image scan
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docker/**'
+      - 'package-lock.json'
+      - 'mcp-server/package-lock.json'
+      - 'server/**'
+      - 'packages/**'
+      - 'apps/**'
+      - 'scripts/build-app.js'
+      - '.github/workflows/docker-scan.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docker/**'
+      - '.github/workflows/docker-scan.yml'
+  schedule:
+    # Scan hebdomadaire — les CVE OS arrivent après le build de l'image
+    - cron: '0 7 * * 1'
+  workflow_dispatch:
+
+jobs:
+  scan:
+    name: Trivy image (${{ matrix.image.name }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - name: dsfr-data
+            dockerfile: docker/Dockerfile
+            tag: dsfr-data:scan
+          - name: dsfr-data-db
+            dockerfile: docker/Dockerfile.db
+            tag: dsfr-data-db:scan
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: |
+          docker build \
+            -f ${{ matrix.image.dockerfile }} \
+            -t ${{ matrix.image.tag }} \
+            .
+
+      - name: Trivy — scan image
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: ${{ matrix.image.tag }}
+          severity: CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+          trivyignores: .trivyignore
+          format: table
