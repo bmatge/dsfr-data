@@ -39,33 +39,25 @@ export function getProxiedUrl(url: string): string {
   }
   const config = getProxyConfig();
 
-  if (url.includes('tabular-api.data.gouv.fr')) {
-    return url.replace(
-      'https://tabular-api.data.gouv.fr',
-      `${config.baseUrl}${config.endpoints.tabular}`
-    );
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return url;
   }
 
-  if (url.includes('docs.getgrist.com')) {
-    return url.replace('https://docs.getgrist.com', `${config.baseUrl}${config.endpoints.grist}`);
-  }
+  const rewrites: Array<[string, string]> = [
+    ['tabular-api.data.gouv.fr', config.endpoints.tabular],
+    ['docs.getgrist.com', config.endpoints.grist],
+    ['grist.numerique.gouv.fr', config.endpoints.gristGouv],
+    ['albert.api.etalab.gouv.fr', config.endpoints.albert],
+    ['api.insee.fr', config.endpoints.insee],
+  ];
 
-  if (url.includes('grist.numerique.gouv.fr')) {
-    return url.replace(
-      'https://grist.numerique.gouv.fr',
-      `${config.baseUrl}${config.endpoints.gristGouv}`
-    );
-  }
-
-  if (url.includes('albert.api.etalab.gouv.fr')) {
-    return url.replace(
-      'https://albert.api.etalab.gouv.fr',
-      `${config.baseUrl}${config.endpoints.albert}`
-    );
-  }
-
-  if (url.includes('api.insee.fr')) {
-    return url.replace('https://api.insee.fr', `${config.baseUrl}${config.endpoints.insee}`);
+  for (const [host, endpoint] of rewrites) {
+    if (parsed.hostname === host) {
+      return `${config.baseUrl}${endpoint}${parsed.pathname}${parsed.search}${parsed.hash}`;
+    }
   }
 
   return url;

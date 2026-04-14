@@ -127,7 +127,7 @@ export async function loadApiData(): Promise<void> {
         const currentPage = meta.page || 1;
         const totalPages = Math.ceil(meta.total / meta.page_size);
 
-        if (currentPage < totalPages && currentUrl) {
+        if (currentPage < totalPages) {
           const pageUrl: URL = new URL(currentUrl);
           pageUrl.searchParams.set('page', String(currentPage + 1));
           nextUrl = pageUrl.href;

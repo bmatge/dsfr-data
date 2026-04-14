@@ -156,8 +156,19 @@ router.post('/', requireAuth, async (req, res) => {
  * Extract config fields from a source object (everything except data, id, name, type, recordCount).
  */
 function extractConfig(source: Record<string, unknown>): Record<string, unknown> {
-  const config: Record<string, unknown> = {};
-  const skip = new Set(['id', 'name', 'type', 'data', 'recordCount', 'rawRecords']);
+  // Use a null-prototype object so user-supplied keys can't reach Object.prototype
+  const config: Record<string, unknown> = Object.create(null);
+  const skip = new Set([
+    'id',
+    'name',
+    'type',
+    'data',
+    'recordCount',
+    'rawRecords',
+    '__proto__',
+    'constructor',
+    'prototype',
+  ]);
   for (const [key, value] of Object.entries(source)) {
     if (!skip.has(key)) {
       config[key] = value;

@@ -9,7 +9,7 @@ import type { IAConfig } from '../ia/ia-config.js';
 import { SKILLS, getRelevantSkills, buildSkillsContext } from '../skills.js';
 import { applyChartConfig, resetChartPreview } from '../ui/chart-renderer.js';
 import { analyzeFields, updateFieldsList, updateRawData } from '../sources.js';
-import { fetchWithTimeout, httpErrorMessage, detectProvider } from '@dsfr-data/shared';
+import { fetchWithTimeout, httpErrorMessage, detectProvider, escapeHtml } from '@dsfr-data/shared';
 
 /**
  * Add a message to the chat UI and state
@@ -24,8 +24,9 @@ export function addMessage(
   const messageEl = document.createElement('div');
   messageEl.className = `chat-message ${role}`;
 
-  // Simple markdown-like formatting
-  const html = content
+  // Simple markdown-like formatting — escape HTML FIRST, then apply markdown
+  // tags. Prevents XSS via content that contains raw HTML.
+  const html = escapeHtml(content)
     .replace(/```json\n?([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
     .replace(/```\n?([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
     .replace(/`([^`]+)`/g, '<code>$1</code>')
@@ -285,10 +286,16 @@ CHAMPS : utilise UNIQUEMENT les noms de champs listes dans "Donnees actuelles".`
     skillsContext +
     actionReminder;
 
-  // Detect provider from API URL
-  const isAnthropic = config.apiUrl.includes('anthropic.com');
+  // Detect provider from API URL (hostname match, not substring)
+  let apiHostname = '';
+  try {
+    apiHostname = new URL(config.apiUrl).hostname;
+  } catch {
+    // malformed URL — leave apiHostname empty
+  }
+  const isAnthropic = apiHostname === 'api.anthropic.com' || apiHostname.endsWith('.anthropic.com');
   const isGemini =
-    config.apiUrl.includes('googleapis.com') || config.apiUrl.includes('generativelanguage');
+    apiHostname === 'generativelanguage.googleapis.com' || apiHostname.endsWith('.googleapis.com');
 
   const conversationMessages = [
     ...state.messages.slice(-10).map((m) => ({

@@ -82,15 +82,23 @@ export function confirmDialog(message: string): Promise<boolean> {
   return new Promise((resolve) => {
     const overlay = document.createElement('div');
     overlay.className = 'confirm-dialog-overlay';
-    overlay.innerHTML = `
-      <div class="confirm-dialog-content">
-        <p>${message}</p>
-        <div class="confirm-dialog-actions">
-          <button class="fr-btn fr-btn--secondary" data-action="cancel">Annuler</button>
-          <button class="fr-btn" data-action="confirm">Confirmer</button>
-        </div>
-      </div>
-    `;
+    const content = document.createElement('div');
+    content.className = 'confirm-dialog-content';
+    const messageEl = document.createElement('p');
+    messageEl.textContent = message;
+    const actions = document.createElement('div');
+    actions.className = 'confirm-dialog-actions';
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'fr-btn fr-btn--secondary';
+    cancelBtn.dataset.action = 'cancel';
+    cancelBtn.textContent = 'Annuler';
+    const confirmBtn = document.createElement('button');
+    confirmBtn.className = 'fr-btn';
+    confirmBtn.dataset.action = 'confirm';
+    confirmBtn.textContent = 'Confirmer';
+    actions.append(cancelBtn, confirmBtn);
+    content.append(messageEl, actions);
+    overlay.append(content);
 
     const cleanup = (result: boolean) => {
       document.removeEventListener('keydown', onKey);
@@ -117,7 +125,6 @@ export function confirmDialog(message: string): Promise<boolean> {
     document.body.appendChild(overlay);
 
     // Focus the confirm button for keyboard accessibility
-    const confirmBtn = overlay.querySelector<HTMLElement>('[data-action="confirm"]');
-    confirmBtn?.focus();
+    confirmBtn.focus();
   });
 }

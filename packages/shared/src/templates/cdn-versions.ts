@@ -27,7 +27,16 @@ export const CDN_URLS = {
  */
 export function getPreviewHTML(code: string): string {
   const origin = window.location.origin;
-  const cleanedCode = code.replace(/<script[^>]*dsfr-data[^>]*><\/script>\s*/gi, '');
+  // Strip any `<script ... dsfr-data ...></script>` tags the user copied in.
+  // `[^<]*?` is linear (not polynomial) and loop-until-stable handles nesting.
+  let cleanedCode = code;
+  let previous;
+  do {
+    previous = cleanedCode;
+    cleanedCode = cleanedCode.replace(/<script\b[^<]*?<\/script>\s*/gi, (match) =>
+      /dsfr-data/i.test(match) ? '' : match
+    );
+  } while (cleanedCode !== previous);
   return `<!DOCTYPE html>
 <html lang="fr" data-fr-theme>
 <head>

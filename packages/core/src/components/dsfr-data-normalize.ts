@@ -295,8 +295,13 @@ export class DsfrDataNormalize extends LitElement {
       }
 
       // 2. Strip HTML
+      // Loop until stable to handle nested patterns like `<a<b>c>` → `<ac>` → ``
       if (this.stripHtml && typeof normalizedValue === 'string') {
-        normalizedValue = (normalizedValue as string).replace(/<[^>]*>/g, '');
+        let previous;
+        do {
+          previous = normalizedValue;
+          normalizedValue = (normalizedValue as string).replace(/<[^>]*>/g, '');
+        } while (normalizedValue !== previous);
       }
 
       // 3a. Field-specific replace (replace-fields)

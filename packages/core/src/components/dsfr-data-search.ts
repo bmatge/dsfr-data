@@ -361,8 +361,7 @@ export class DsfrDataSearch extends LitElement {
     let where = '';
 
     if (term && term.length >= this.minLength) {
-      // Escape double quotes in search term
-      const escaped = term.replace(/"/g, '\\"');
+      const escaped = term.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
       where = this.searchTemplate.replace(/\{q\}/g, escaped);
     }
 

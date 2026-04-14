@@ -220,22 +220,51 @@ function positionStep(step: TourStep, index: number): void {
     const isLast = index === total - 1;
     const isFirst = index === 0;
 
-    // Popover content
-    popoverEl.innerHTML = `
-      <div class="tour-popover-header">
-        <span class="tour-popover-counter">${index + 1}/${total}</span>
-        <button class="tour-popover-close" aria-label="Fermer" type="button">&times;</button>
-      </div>
-      <h4 class="tour-popover-title">${step.title}</h4>
-      <p class="tour-popover-desc">${step.description}</p>
-      <div class="tour-popover-footer">
-        <button class="tour-popover-skip" type="button">Passer</button>
-        <div class="tour-popover-nav">
-          ${isFirst ? '' : '<button class="tour-popover-prev" type="button">Precedent</button>'}
-          <button class="tour-popover-next" type="button">${isLast ? 'Terminer' : 'Suivant'}</button>
-        </div>
-      </div>
-    `;
+    // Popover content — build via DOM API to avoid HTML injection from step config
+    popoverEl.replaceChildren();
+
+    const header = document.createElement('div');
+    header.className = 'tour-popover-header';
+    const counter = document.createElement('span');
+    counter.className = 'tour-popover-counter';
+    counter.textContent = `${index + 1}/${total}`;
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'tour-popover-close';
+    closeBtn.type = 'button';
+    closeBtn.setAttribute('aria-label', 'Fermer');
+    closeBtn.textContent = '\u00D7';
+    header.append(counter, closeBtn);
+
+    const title = document.createElement('h4');
+    title.className = 'tour-popover-title';
+    title.textContent = step.title;
+    const desc = document.createElement('p');
+    desc.className = 'tour-popover-desc';
+    desc.textContent = step.description;
+
+    const footer = document.createElement('div');
+    footer.className = 'tour-popover-footer';
+    const skipBtn = document.createElement('button');
+    skipBtn.className = 'tour-popover-skip';
+    skipBtn.type = 'button';
+    skipBtn.textContent = 'Passer';
+    const nav = document.createElement('div');
+    nav.className = 'tour-popover-nav';
+    if (!isFirst) {
+      const prevBtn = document.createElement('button');
+      prevBtn.className = 'tour-popover-prev';
+      prevBtn.type = 'button';
+      prevBtn.textContent = 'Precedent';
+      nav.append(prevBtn);
+    }
+    const nextBtn = document.createElement('button');
+    nextBtn.className = 'tour-popover-next';
+    nextBtn.type = 'button';
+    nextBtn.textContent = isLast ? 'Terminer' : 'Suivant';
+    nav.append(nextBtn);
+    footer.append(skipBtn, nav);
+
+    popoverEl.append(header, title, desc, footer);
 
     // Bind buttons
     popoverEl.querySelector('.tour-popover-close')?.addEventListener('click', endTour);

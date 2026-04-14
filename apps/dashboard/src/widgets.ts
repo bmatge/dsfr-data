@@ -72,31 +72,57 @@ export function getDefaultConfig(type: WidgetType): Record<string, any> {
   }
 }
 
+function makeActionBtn(iconClass: string, title: string, handler: () => void): HTMLButtonElement {
+  const btn = document.createElement('button');
+  btn.className = 'widget-action-btn';
+  btn.title = title;
+  btn.type = 'button';
+  const i = document.createElement('i');
+  i.className = iconClass;
+  btn.append(i);
+  btn.addEventListener('click', handler);
+  return btn;
+}
+
 export function renderWidget(widget: Widget, cell: HTMLElement): void {
   cell.classList.remove('empty');
-  cell.innerHTML = `
-    <div class="dashboard-widget" data-widget-id="${widget.id}">
-      <div class="widget-header">
-        <h4 class="widget-title">
-          <i class="${getWidgetIcon(widget.type)}"></i>
-          ${escapeHtml(widget.title)}
-        </h4>
-        <div class="widget-actions">
-          <button class="widget-action-btn" onclick="duplicateWidget('${widget.id}')" title="Dupliquer"><i class="ri-file-copy-line"></i></button>
-          ${widget.config.fromFavorite ? `<button class="widget-action-btn" onclick="openInBuilder('${widget.id}')" title="Editer dans le Builder"><i class="ri-edit-line"></i></button>` : ''}
-          <button class="widget-action-btn" onclick="editWidget('${widget.id}')" title="Configurer">
-            <i class="ri-settings-3-line"></i>
-          </button>
-          <button class="widget-action-btn" onclick="deleteWidget('${widget.id}')" title="Supprimer">
-            <i class="ri-delete-bin-line"></i>
-          </button>
-        </div>
-      </div>
-      <div class="widget-content">
-        ${renderWidgetContent(widget)}
-      </div>
-    </div>
-  `;
+  cell.replaceChildren();
+
+  const container = document.createElement('div');
+  container.className = 'dashboard-widget';
+  container.dataset.widgetId = widget.id;
+
+  const header = document.createElement('div');
+  header.className = 'widget-header';
+  const title = document.createElement('h4');
+  title.className = 'widget-title';
+  const titleIcon = document.createElement('i');
+  titleIcon.className = getWidgetIcon(widget.type);
+  title.append(titleIcon, ' ', document.createTextNode(widget.title));
+
+  const actions = document.createElement('div');
+  actions.className = 'widget-actions';
+  actions.append(makeActionBtn('ri-file-copy-line', 'Dupliquer', () => duplicateWidget(widget.id)));
+  if (widget.config.fromFavorite) {
+    actions.append(
+      makeActionBtn('ri-edit-line', 'Editer dans le Builder', () => openInBuilder(widget.id))
+    );
+  }
+  actions.append(makeActionBtn('ri-settings-3-line', 'Configurer', () => editWidget(widget.id)));
+  actions.append(
+    makeActionBtn('ri-delete-bin-line', 'Supprimer', () => void deleteWidget(widget.id))
+  );
+
+  header.append(title, actions);
+
+  const content = document.createElement('div');
+  content.className = 'widget-content';
+  // renderWidgetContent returns trusted template HTML (no user data interpolation
+  // beyond escapeHtml'd fields already handled inside).
+  content.innerHTML = renderWidgetContent(widget);
+
+  container.append(header, content);
+  cell.append(container);
 }
 
 export function getWidgetIcon(type: WidgetType): string {

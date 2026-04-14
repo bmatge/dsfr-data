@@ -167,9 +167,15 @@ export async function saveGristConnection(name: string): Promise<void> {
   // Build the test URL using the proxy
   const useLocalProxy = isViteDevMode();
   let testUrl: string;
-  if (url.includes('docs.getgrist.com')) {
+  let hostname: string | null = null;
+  try {
+    hostname = new URL(url).hostname;
+  } catch {
+    // malformed URL — leave hostname null, falls through to the else branch
+  }
+  if (hostname === 'docs.getgrist.com') {
     testUrl = useLocalProxy ? '/grist-proxy/api/orgs' : `${EXTERNAL_PROXY}/grist-proxy/api/orgs`;
-  } else if (url.includes('grist.numerique.gouv.fr')) {
+  } else if (hostname === 'grist.numerique.gouv.fr') {
     testUrl = useLocalProxy
       ? '/grist-gouv-proxy/api/orgs'
       : `${EXTERNAL_PROXY}/grist-gouv-proxy/api/orgs`;
