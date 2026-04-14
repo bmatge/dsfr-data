@@ -26,16 +26,16 @@ export const PROXY_BASE_URL: string =
  * Configurable via VITE_LIB_URL at build time.
  *
  * Supported values:
- *   - "unpkg"    → https://unpkg.com/dsfr-data@{version}/dist
- *   - "jsdelivr" → https://cdn.jsdelivr.net/npm/dsfr-data@{version}/dist
- *   - Custom URL → used as-is (e.g. "https://my-cdn.example.com/dist")
- *   - unset      → defaults to ${PROXY_BASE_URL}/dist
+ *   - unset / "jsdelivr" → https://cdn.jsdelivr.net/npm/dsfr-data@0/dist (default)
+ *   - "unpkg"            → https://unpkg.com/dsfr-data@0/dist
+ *   - "self"             → ${PROXY_BASE_URL}/dist (self-hosted)
+ *   - Custom URL         → used as-is (e.g. "https://my-cdn.example.com/dist")
  */
 function resolveLibUrl(): string {
   const raw: string = _meta.env?.VITE_LIB_URL || '';
-  if (!raw) return `${PROXY_BASE_URL}/dist`;
-  if (raw === 'unpkg') return 'https://unpkg.com/dsfr-data/dist';
-  if (raw === 'jsdelivr') return 'https://cdn.jsdelivr.net/npm/dsfr-data/dist';
+  if (!raw || raw === 'jsdelivr') return 'https://cdn.jsdelivr.net/npm/dsfr-data@0/dist';
+  if (raw === 'unpkg') return 'https://unpkg.com/dsfr-data@0/dist';
+  if (raw === 'self') return `${PROXY_BASE_URL}/dist`;
   return raw;
 }
 export const LIB_URL: string = resolveLibUrl();

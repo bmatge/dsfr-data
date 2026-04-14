@@ -1,0 +1,20 @@
+# .semgrepignore — chemins exclus du scan Semgrep
+# Format : glob-like, comme .gitignore
+#
+# Les exclusions par règle (pas par chemin) passent par :
+#   - CLI : --exclude-rule <full_check_id>  (utilisé dans .github/workflows/ci.yml)
+#   - Inline : // nosemgrep: <full_check_id>  dans le code (avec justification)
+
+# Artefacts de build
+dist/
+app-dist/
+node_modules/
+
+# Tests (trop de faux positifs sur des patterns volontaires)
+tests/
+e2e/
+*.test.ts
+
+# Generated code
+packages/core/dist/
+packages/shared/dist/

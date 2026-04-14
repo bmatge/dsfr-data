@@ -5,6 +5,7 @@ export { toNumber, looksLikeNumber } from './utils/number-parser.js';
 export { isValidDeptCode } from './utils/dept-codes.js';
 export type { JoinType, JoinKey, JoinOptions } from './utils/join.js';
 export { parseJoinKeys, performJoin } from './utils/join.js';
+export { isUnsafeKey } from './utils/security.js';
 
 // Constants
 export { DSFR_COLORS, PALETTE_PRIMARY_COLOR, PALETTE_COLORS } from './constants/dsfr-palettes.js';

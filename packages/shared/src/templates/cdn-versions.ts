@@ -4,7 +4,7 @@
  */
 
 const CDN_VERSIONS = {
-  dsfr: '1.11.2',
+  dsfr: '1.14.4',
   dsfrChart: '2.0.4',
   chartJs: '4.4.1',
 } as const;

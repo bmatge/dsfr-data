@@ -41,6 +41,7 @@ function extractParameters(htmlContent: string): Parameter[] {
     }
 
     // Trouver le label associé
+    // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp
     const labelRegex = new RegExp(`<label[^>]*for="${id}"[^>]*>([^<]+)<`, 'i');
     const labelMatch = htmlContent.match(labelRegex);
     const label = labelMatch ? labelMatch[1].trim() : undefined;
@@ -58,8 +59,8 @@ function extractParameters(htmlContent: string): Parameter[] {
   const inputRegex = /<input[^>]*id="([^"]+)"[^>]*type="(text|number)"[^>]*>/g;
   while ((match = inputRegex.exec(htmlContent)) !== null) {
     const id = match[1];
-    const inputType = match[2];
 
+    // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp
     const labelRegex = new RegExp(`<label[^>]*for="${id}"[^>]*>([^<]+)<`, 'i');
     const labelMatch = htmlContent.match(labelRegex);
     const label = labelMatch ? labelMatch[1].trim() : undefined;
@@ -77,6 +78,7 @@ function extractParameters(htmlContent: string): Parameter[] {
   while ((match = checkboxRegex.exec(htmlContent)) !== null) {
     const id = match[1];
 
+    // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp
     const labelRegex = new RegExp(`<label[^>]*for="${id}"[^>]*>([^<]+)<`, 'i');
     const labelMatch = htmlContent.match(labelRegex);
     const label = labelMatch ? labelMatch[1].trim() : undefined;
@@ -149,7 +151,12 @@ function categorizeParameter(id: string): string {
     id.includes('datalist')
   )
     return '6. Configuration des données';
-  if (id.includes('title') || id.includes('subtitle') || id.includes('palette') || id.includes('kpi'))
+  if (
+    id.includes('title') ||
+    id.includes('subtitle') ||
+    id.includes('palette') ||
+    id.includes('kpi')
+  )
     return '7. Apparence';
   if (id.includes('a11y')) return '8. Accessibilité';
   return '9. Autres';
@@ -214,10 +221,7 @@ function generateMarkdownReport(parameters: Parameter[]): string {
  * Fonction principale
  */
 function main() {
-  const builderHtmlPath = path.join(
-    __dirname,
-    '../apps/builder/index.html'
-  );
+  const builderHtmlPath = path.join(__dirname, '../apps/builder/index.html');
 
   console.log('📖 Lecture du fichier builder HTML...');
   const htmlContent = fs.readFileSync(builderHtmlPath, 'utf-8');

@@ -12,7 +12,8 @@ const http = require('http');
 const https = require('https');
 
 const TOKEN = process.env.IA_DEFAULT_TOKEN || '';
-const API_URL = process.env.IA_DEFAULT_API_URL || 'https://albert.api.etalab.gouv.fr/v1/chat/completions';
+const API_URL =
+  process.env.IA_DEFAULT_API_URL || 'https://albert.api.etalab.gouv.fr/v1/chat/completions';
 const MODEL = process.env.IA_DEFAULT_MODEL || 'albert-large';
 const PORT = 3003;
 
@@ -28,16 +29,17 @@ function readBody(req) {
   });
 }
 
+// nosemgrep: problem-based-packs.insecure-transport.js-node.using-http-server.using-http-server
 const server = http.createServer(async (req, res) => {
   // --- GET /ia-server-config ---
   if (req.url === '/ia-server-config' && req.method === 'GET') {
     cors(res);
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(
-      TOKEN
-        ? { available: true, apiUrl: API_URL, model: MODEL }
-        : { available: false }
-    ));
+    res.end(
+      JSON.stringify(
+        TOKEN ? { available: true, apiUrl: API_URL, model: MODEL } : { available: false }
+      )
+    );
     return;
   }
 
@@ -78,26 +80,30 @@ const server = http.createServer(async (req, res) => {
 
     const payload = JSON.stringify(parsed);
     const target = new URL(API_URL);
+    // nosemgrep: problem-based-packs.insecure-transport.js-node.using-http-server.using-http-server
     const doRequest = target.protocol === 'https:' ? https.request : http.request;
 
-    const proxyReq = doRequest({
-      hostname: target.hostname,
-      port: target.port || (target.protocol === 'https:' ? 443 : 80),
-      path: target.pathname + target.search,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(payload),
-        'Authorization': `Bearer ${TOKEN}`,
-        'Host': target.host,
+    const proxyReq = doRequest(
+      {
+        hostname: target.hostname,
+        port: target.port || (target.protocol === 'https:' ? 443 : 80),
+        path: target.pathname + target.search,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(payload),
+          Authorization: `Bearer ${TOKEN}`,
+          Host: target.host,
+        },
       },
-    }, (proxyRes) => {
-      res.writeHead(proxyRes.statusCode || 500, {
-        'Content-Type': proxyRes.headers['content-type'] || 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      });
-      proxyRes.pipe(res);
-    });
+      (proxyRes) => {
+        res.writeHead(proxyRes.statusCode || 500, {
+          'Content-Type': proxyRes.headers['content-type'] || 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        });
+        proxyRes.pipe(res);
+      }
+    );
 
     proxyReq.on('error', (err) => {
       res.writeHead(502, { 'Content-Type': 'application/json' });

@@ -438,7 +438,9 @@ export class DsfrDataSearch extends LitElement {
   _addHighlight(record: Record<string, unknown>, term: string): Record<string, unknown> {
     const clone = { ...record };
     const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const regex = new RegExp('(' + escaped + ')', 'gi');
+    // `escaped` is already regex-escaped above, so the resulting regex is linear.
+    // eslint-disable-next-line security/detect-non-literal-regexp
+    const regex = new RegExp('(' + escaped + ')', 'gi'); // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp
     const fields = this._getFields();
     const searchIn =
       fields.length > 0 ? fields : Object.keys(record).filter((k) => typeof record[k] === 'string');

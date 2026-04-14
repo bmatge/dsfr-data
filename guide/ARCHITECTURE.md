@@ -253,9 +253,9 @@ Le script `scripts/build-lib.ts` produit trois bundles via Vite en mode `lib` :
 Le TopoJSON (`dist/data/world-countries-110m.json`) est charge par `fetch` a l'execution au lieu d'etre inline en base64.
 
 La source du JS dans le code genere est configurable via `VITE_LIB_URL` :
-- Non defini → self-hosted (`${PROXY_BASE_URL}/dist`)
-- `"unpkg"` → `https://unpkg.com/dsfr-data/dist`
-- `"jsdelivr"` → `https://cdn.jsdelivr.net/npm/dsfr-data/dist`
+- Non defini / `"jsdelivr"` → `https://cdn.jsdelivr.net/npm/dsfr-data@0/dist` (defaut)
+- `"unpkg"` → `https://unpkg.com/dsfr-data@0/dist`
+- `"self"` → self-hosted (`${PROXY_BASE_URL}/dist`)
 - URL custom → utilisee telle quelle
 
 ### 5.3 Build des apps

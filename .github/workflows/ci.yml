@@ -82,3 +82,85 @@ jobs:
 
       - name: Build app-dist
         run: node scripts/build-app.js
+
+  sca:
+    name: Security — SCA & config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: npm audit — mcp-server
+        working-directory: mcp-server
+        run: npm audit --audit-level=high
+
+      - name: Trivy — filesystem (vulnerabilities)
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          scan-type: fs
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          trivyignores: .trivyignore
+
+      - name: Trivy — config (Dockerfiles)
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          scan-type: config
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          trivyignores: .trivyignore
+
+  secrets:
+    name: Security — Secrets
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  sast:
+    name: Security — SAST
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    container:
+      image: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Semgrep scan
+        run: |
+          semgrep scan \
+            --config=p/default \
+            --config=p/typescript \
+            --config=p/javascript \
+            --config=p/xss \
+            --config=p/security-audit \
+            --exclude-rule=html.security.audit.missing-integrity.missing-integrity \
+            --severity=ERROR \
+            --severity=WARNING \
+            --metrics=off \
+            --sarif --output=semgrep.sarif \
+            --error \
+            packages/core/src apps server/src scripts
+
+      - name: Upload Semgrep SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep

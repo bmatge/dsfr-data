@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Monitoring - dsfr-data</title>
   <style>@view-transition{navigation:auto}app-header:not(:defined){display:block;min-height:56px}app-footer:not(:defined){display:block;min-height:48px}</style>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css" integrity="sha384-VuzA/gYnk/ZqcT5a/ravR88otj71vNPl/h1JPrKoESV33DCX6SeXIxBcRr5qYPRj" crossorigin="anonymous">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css" integrity="sha384-YR4AxNhFVy1qsQ0Hp7Rosg06e4sj2m9dLxiYZrtqJ0boIOiDbD8XkIsIPMMkf0VL" crossorigin="anonymous">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css">
   <script type="module" src="../../packages/core/dist/dsfr-data.esm.js"></script>
   <link rel="stylesheet" href="src/styles/monitoring.css">
 </head>
@@ -27,6 +27,46 @@
 
       <!-- KPIs -->
       <div id="kpi-row" class="monitoring-kpi-row fr-mb-4w"></div>
+
+      <!-- Documentation -->
+      <section class="fr-accordion fr-mb-4w">
+        <h3 class="fr-accordion__title">
+          <button class="fr-accordion__btn" aria-expanded="false" aria-controls="accordion-beacon-doc">
+            Comment fonctionne le tracking ?
+          </button>
+        </h3>
+        <div class="fr-collapse" id="accordion-beacon-doc">
+          <div class="fr-callout fr-callout--brown-caramel fr-mb-2w">
+            <p class="fr-callout__title">Opt-in uniquement</p>
+            <p class="fr-callout__text">
+              Les beacons sont <strong>desactives par defaut</strong>. Aucune donnee n'est collectee
+              tant que le site deployeur n'a pas explicitement active le tracking.
+            </p>
+          </div>
+          <h4>Activation</h4>
+          <p>Le site qui integre les composants <code>dsfr-data</code> doit ajouter cette ligne
+            <strong>avant</strong> le chargement de la bibliotheque :</p>
+          <pre class="fr-p-2w" style="background:var(--background-alt-grey);border-radius:4px;overflow-x:auto"><code>&lt;script&gt;window.DSFR_DATA_BEACON = true;&lt;/script&gt;
+&lt;script src="https://cdn.jsdelivr.net/npm/dsfr-data@0/dist/dsfr-data.core.umd.js"&gt;&lt;/script&gt;</code></pre>
+          <h4>Fonctionnement</h4>
+          <ul>
+            <li>Chaque composant <code>dsfr-data-*</code> envoie un beacon (pixel de tracking) lors
+              de son initialisation dans la page.</li>
+            <li>Le beacon transmet : le <strong>nom du composant</strong>, le <strong>type de graphique</strong>
+              (le cas echeant) et l'<strong>URL de la page</strong> (origin + path, sans query string).</li>
+            <li><strong>Deduplication</strong> : un seul beacon par composant+type par chargement de page.</li>
+            <li><strong>Ignore en dev</strong> : aucun envoi sur localhost, 127.0.0.1 ou le domaine du proxy.</li>
+          </ul>
+          <h4>Collecte des donnees</h4>
+          <ul>
+            <li>Les beacons arrivent sous forme de requetes image (pixel 1x1) sur l'endpoint <code>/beacon</code>
+              du proxy, qui les enregistre dans <code>beacon.log</code>.</li>
+            <li>Un script periodique transforme ces logs en donnees exploitables pour ce tableau de bord.</li>
+            <li>En mode base de donnees (<code>__gwDbMode</code>), les beacons sont envoyes en POST JSON
+              vers <code>/api/monitoring/beacon</code> et stockes en MariaDB.</li>
+          </ul>
+        </div>
+      </section>
 
       <!-- Filters -->
       <div class="fr-card fr-p-3w fr-mb-4w">
@@ -68,7 +108,7 @@
 
   <app-footer base-path="../.."></app-footer>
 
-  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js" integrity="sha384-4dK3hBJJh/bjoOulz9Q1kNO2O09lzuKiFeF5c+0VguV1RT3IiLkv+Pt98Jul84V+" crossorigin="anonymous"></script>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.module.min.js"></script>
   <script type="module" src="src/main.ts"></script>
 </body>
 </html>

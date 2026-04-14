@@ -9,7 +9,12 @@ export default defineConfig({
     },
   },
   test: {
-    environment: 'jsdom',
+    environment: 'happy-dom',
+    environmentOptions: {
+      happyDOM: {
+        url: 'http://localhost/',
+      },
+    },
     globals: true,
     include: ['tests/**/*.test.ts'],
     exclude: ['tests/server/**'],

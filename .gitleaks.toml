@@ -1,0 +1,26 @@
+title = "dsfr-data gitleaks config"
+
+# Étend les règles par défaut de gitleaks (https://github.com/gitleaks/gitleaks/blob/master/config/gitleaks.toml).
+# Toute règle custom serait ajoutée ici sous [[rules]].
+[extend]
+useDefault = true
+
+# Allowlist prophylactique : chemins autorisés à contenir des patterns qui
+# ressemblent à des secrets (sans en être vraiment). Chaque entrée doit
+# être justifiée en commentaire.
+[allowlist]
+description = "Chemins autorisés à contenir des patterns de faux positif"
+
+paths = [
+  # .env.example ne contient que des variables commentées et des valeurs
+  # non sensibles (hosts, domaines). Il est commité pour documenter la config.
+  '''\.env\.example$''',
+
+  # Le CHANGELOG peut mentionner des noms de clés (JWT_SECRET, ENCRYPTION_KEY)
+  # sans en contenir la valeur.
+  '''CHANGELOG\.md$''',
+
+  # Runbook d'incident : référence des exemples de format de secret
+  # à des fins pédagogiques.
+  '''docs/security-incident-response\.md$''',
+]

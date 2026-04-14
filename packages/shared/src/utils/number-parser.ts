@@ -50,5 +50,7 @@ export function looksLikeNumber(val: unknown): boolean {
   if (typeof val !== 'string') return false;
   const cleaned = val.trim();
   if (cleaned === '') return false;
+  // Linear: [\d\s] and [.,] character classes don't overlap → no catastrophic backtracking.
+  // eslint-disable-next-line security/detect-unsafe-regex
   return /^-?[\d\s]+([.,]\d+)?$/.test(cleaned);
 }

@@ -166,6 +166,18 @@ export default defineConfig({
           res.end(JSON.stringify(files));
         });
       },
+      configurePreviewServer(server) {
+        server.middlewares.use('/guide/examples/_list.json', (_req, res) => {
+          const listPath = resolve(__dirname, 'guide/examples/_list.json');
+          if (existsSync(listPath)) {
+            res.setHeader('Content-Type', 'application/json');
+            res.end(readFileSync(listPath, 'utf-8'));
+          } else {
+            res.setHeader('Content-Type', 'application/json');
+            res.end('[]');
+          }
+        });
+      },
     },
     {
       name: 'dev-lib-redirect',
@@ -321,7 +333,7 @@ export default defineConfig({
       name: 'ia-server-config',
       configureServer(server) {
         // GET /ia-server-config — returns default IA config (no token exposed)
-        server.middlewares.use('/ia-server-config', (req, res) => {
+        server.middlewares.use('/ia-server-config', (_req, res) => {
           const token = process.env.IA_DEFAULT_TOKEN || '';
           res.writeHead(200, {
             'Content-Type': 'application/json',

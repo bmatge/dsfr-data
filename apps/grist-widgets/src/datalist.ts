@@ -105,8 +105,8 @@ function generateFixedHtml(): string {
 
   const deps = [
     '<!-- Dependances dsfr-data (a ajouter dans le <head> si absentes) -->',
-    '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css">',
-    '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css">',
+    '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css">',
+    '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css">',
     '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css">',
     '<script src="https://cdn.jsdelivr.net/gh/bmatge/dsfr-data@main/dist/dsfr-data.umd.js"><\/script>',
   ];
@@ -146,8 +146,8 @@ function generateDynamicHtml(): string {
 
   const deps = [
     '<!-- Dependances dsfr-data (a ajouter dans le <head> si absentes) -->',
-    '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css">',
-    '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css">',
+    '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css">',
+    '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css">',
     '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css">',
     '<script src="https://cdn.jsdelivr.net/gh/bmatge/dsfr-data@main/dist/dsfr-data.umd.js"><\/script>',
   ];

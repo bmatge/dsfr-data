@@ -12,18 +12,27 @@ vi.mock('@dsfr-data/shared', () => ({
   confirmDialog: vi.fn(),
   getApiAdapter: vi.fn(() => null),
   PROXY_BASE_URL: 'https://chartsbuilder.matge.com',
-  LIB_URL: 'https://chartsbuilder.matge.com/dist',
+  LIB_URL: 'https://cdn.jsdelivr.net/npm/dsfr-data@0/dist',
   CDN_URLS: {
-    dsfrCss: 'https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.min.css',
-    dsfrUtilityCss: 'https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/utility/utility.min.css',
-    dsfrModuleJs: 'https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.11.2/dist/dsfr.module.min.js',
-    dsfrChartCss: 'https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css',
-    dsfrChartJs: 'https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js',
+    dsfrCss: 'https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css',
+    dsfrUtilityCss: 'https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css',
+    dsfrModuleJs: 'https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.module.min.js',
+    dsfrChartCss:
+      'https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css',
+    dsfrChartJs:
+      'https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js',
     chartJs: 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js',
   },
 }));
 
-import { confirmSave, openSaveModal, closeSaveModal, newDashboard, loadDashboard, deleteDashboard } from '../../../apps/dashboard/src/dashboards';
+import {
+  confirmSave,
+  openSaveModal,
+  closeSaveModal,
+  newDashboard,
+  loadDashboard,
+  deleteDashboard,
+} from '../../../apps/dashboard/src/dashboards';
 import { saveToStorage, toastWarning, toastSuccess, confirmDialog } from '@dsfr-data/shared';
 
 describe('dashboard/dashboards', () => {
@@ -50,8 +59,12 @@ describe('dashboard/dashboards', () => {
       state.dashboard.name = 'Test Dashboard';
       state.dashboard.description = 'A description';
       openSaveModal();
-      expect((document.getElementById('save-dashboard-name') as HTMLInputElement).value).toBe('Test Dashboard');
-      expect((document.getElementById('save-dashboard-description') as HTMLTextAreaElement).value).toBe('A description');
+      expect((document.getElementById('save-dashboard-name') as HTMLInputElement).value).toBe(
+        'Test Dashboard'
+      );
+      expect(
+        (document.getElementById('save-dashboard-description') as HTMLTextAreaElement).value
+      ).toBe('A description');
       expect(document.getElementById('save-modal')?.classList.contains('active')).toBe(true);
     });
   });
@@ -74,7 +87,8 @@ describe('dashboard/dashboards', () => {
 
     it('should save a new dashboard with name and description', () => {
       (document.getElementById('save-dashboard-name') as HTMLInputElement).value = 'Mon Dashboard';
-      (document.getElementById('save-dashboard-description') as HTMLTextAreaElement).value = 'Une description';
+      (document.getElementById('save-dashboard-description') as HTMLTextAreaElement).value =
+        'Une description';
       confirmSave();
       expect(state.dashboard.name).toBe('Mon Dashboard');
       expect(state.dashboard.description).toBe('Une description');
@@ -98,7 +112,9 @@ describe('dashboard/dashboards', () => {
     it('should sync toolbar title after save', () => {
       (document.getElementById('save-dashboard-name') as HTMLInputElement).value = 'Updated Title';
       confirmSave();
-      expect((document.getElementById('dashboard-title') as HTMLInputElement).value).toBe('Updated Title');
+      expect((document.getElementById('dashboard-title') as HTMLInputElement).value).toBe(
+        'Updated Title'
+      );
     });
   });
 
@@ -110,7 +126,8 @@ describe('dashboard/dashboards', () => {
       vi.mocked(confirmDialog).mockResolvedValue(true);
 
       // Add dashboards-modal and dashboards-list for re-render
-      document.body.innerHTML += '<div id="dashboards-modal"><div id="dashboards-list"></div></div>';
+      document.body.innerHTML +=
+        '<div id="dashboards-modal"><div id="dashboards-list"></div></div>';
 
       await deleteDashboard('dash-1');
       expect(state.savedDashboards).toHaveLength(0);
@@ -124,7 +141,8 @@ describe('dashboard/dashboards', () => {
       state.dashboard.id = 'dash-1';
 
       vi.mocked(confirmDialog).mockResolvedValue(true);
-      document.body.innerHTML += '<div id="dashboards-modal"><div id="dashboards-list"></div></div>';
+      document.body.innerHTML +=
+        '<div id="dashboards-modal"><div id="dashboards-list"></div></div>';
 
       await deleteDashboard('dash-1');
       expect(state.dashboard.id).toBeNull();
@@ -162,7 +180,15 @@ describe('dashboard/dashboards', () => {
         ...createEmptyDashboard(),
         id: 'dash-1',
         name: 'Saved Dashboard',
-        widgets: [{ id: 'w-1', type: 'kpi' as const, title: 'KPI', position: { row: 0, col: 0 }, config: {} }],
+        widgets: [
+          {
+            id: 'w-1',
+            type: 'kpi' as const,
+            title: 'KPI',
+            position: { row: 0, col: 0 },
+            config: {},
+          },
+        ],
       };
       state.savedDashboards = [saved];
 

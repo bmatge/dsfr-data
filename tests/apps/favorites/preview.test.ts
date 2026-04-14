@@ -11,7 +11,7 @@ describe('getPreviewHTML', () => {
   it('should include DSFR stylesheet', () => {
     const result = getPreviewHTML('');
     expect(result).toContain('dsfr.min.css');
-    expect(result).toContain('dsfr@1.11.2');
+    expect(result).toContain('dsfr@1.14.4');
   });
 
   it('should include Chart.js', () => {
