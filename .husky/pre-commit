@@ -1,1 +1,17 @@
+#!/usr/bin/env sh
+
+# Secrets scan — gitleaks sur les modifs staged.
+# Soft check : si gitleaks n'est pas installé, on skip (la CI rattrapera).
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks protect --staged --redact --verbose || {
+    echo ""
+    echo "✗ gitleaks a détecté un secret dans les modifs staged."
+    echo "  Runbook : docs/security-incident-response.md"
+    exit 1
+  }
+else
+  echo "[gitleaks] binaire non trouvé — scan pre-commit ignoré (la CI le fera)."
+  echo "[gitleaks] install local : brew install gitleaks"
+fi
+
 npx lint-staged
