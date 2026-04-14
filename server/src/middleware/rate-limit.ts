@@ -46,3 +46,25 @@ export function beaconRateLimiter(req: Request, res: Response, next: NextFunctio
   }
   beaconLimiter(req, res, next);
 }
+
+const globalApiLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 300, // 300 requests per minute per IP (safety net against scraping/brute force)
+  message: { error: 'Trop de requetes, ralentissez' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
+ * Global safety-net rate limiter applied to every /api/* route before auth
+ * middleware kicks in. Much more permissive than the per-route auth limiter;
+ * its job is only to catch obvious abuse (scraping, brute force).
+ * Disabled in test environment.
+ */
+export function globalApiRateLimiter(req: Request, res: Response, next: NextFunction): void {
+  if (process.env.NODE_ENV === 'test') {
+    next();
+    return;
+  }
+  globalApiLimiter(req, res, next);
+}
