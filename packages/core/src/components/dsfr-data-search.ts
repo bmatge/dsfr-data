@@ -438,6 +438,7 @@ export class DsfrDataSearch extends LitElement {
   _addHighlight(record: Record<string, unknown>, term: string): Record<string, unknown> {
     const clone = { ...record };
     const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp
     const regex = new RegExp('(' + escaped + ')', 'gi');
     const fields = this._getFields();
     const searchIn =

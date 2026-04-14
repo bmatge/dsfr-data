@@ -18,6 +18,7 @@ import {
   confirmDialog,
   getApiAdapter,
   performJoin,
+  isUnsafeKey,
 } from '@dsfr-data/shared';
 import type { JoinType, Source } from '@dsfr-data/shared';
 
@@ -254,7 +255,12 @@ export async function saveApiConnection(name: string): Promise<void> {
   if (dataPath) {
     const parts = dataPath.split('.');
     for (const part of parts) {
+      if (isUnsafeKey(part)) {
+        data = undefined;
+        break;
+      }
       if (data && typeof data === 'object') {
+        // nosemgrep: javascript.lang.security.audit.prototype-pollution.prototype-pollution-loop.prototype-pollution-loop
         data = (data as Record<string, unknown>)[part];
       }
     }

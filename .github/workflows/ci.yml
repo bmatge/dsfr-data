@@ -127,3 +127,26 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  sast:
+    name: Security — SAST
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Semgrep scan
+        run: |
+          semgrep scan \
+            --config=p/default \
+            --config=p/typescript \
+            --config=p/javascript \
+            --config=p/xss \
+            --config=p/security-audit \
+            --exclude-rule=html.security.audit.missing-integrity.missing-integrity \
+            --severity=ERROR \
+            --severity=WARNING \
+            --metrics=off \
+            --error \
+            packages/core/src apps server/src scripts

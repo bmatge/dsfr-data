@@ -16,6 +16,7 @@ import {
   setupModalOverlayClose,
   migrateSource,
   SAMPLE_DATASETS,
+  isUnsafeKey,
 } from '@dsfr-data/shared';
 import { state, type Source, type Field } from './state.js';
 import { selectChartType } from './ui/chart-type-selector.js';
@@ -486,8 +487,12 @@ export function loadFavoriteState(): void {
     const favoriteState = JSON.parse(savedState);
     sessionStorage.removeItem('builder-state');
 
-    // Restore state
-    Object.assign(state, favoriteState);
+    // Restore state — filter out prototype-pollution keys before assigning
+    const stateRec = state as unknown as Record<string, unknown>;
+    for (const key of Object.keys(favoriteState)) {
+      if (isUnsafeKey(key)) continue;
+      stateRec[key] = favoriteState[key];
+    }
 
     // Restore source dropdown selection
     if (state.savedSource) {

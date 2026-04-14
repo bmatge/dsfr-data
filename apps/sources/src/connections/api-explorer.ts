@@ -2,7 +2,13 @@
  * REST API data loading with full pagination support.
  */
 
-import { escapeHtml, getProxiedUrl, saveToStorage, STORAGE_KEYS } from '@dsfr-data/shared';
+import {
+  escapeHtml,
+  getProxiedUrl,
+  isUnsafeKey,
+  saveToStorage,
+  STORAGE_KEYS,
+} from '@dsfr-data/shared';
 
 import { state } from '../state.js';
 import type { Source } from '../state.js';
@@ -80,7 +86,12 @@ export async function loadApiData(): Promise<void> {
       if (dataPath) {
         const parts = dataPath.split('.');
         for (const part of parts) {
+          if (isUnsafeKey(part)) {
+            pageData = undefined;
+            break;
+          }
           if (pageData && typeof pageData === 'object') {
+            // nosemgrep: javascript.lang.security.audit.prototype-pollution.prototype-pollution-loop.prototype-pollution-loop
             pageData = (pageData as Record<string, unknown>)[part];
           }
         }

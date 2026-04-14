@@ -3,6 +3,7 @@
  */
 
 import { setParsedJsonData } from '../state.js';
+import { isUnsafeKey } from '@dsfr-data/shared';
 
 // ============================================================
 // Parse JSON input from the manual source modal
@@ -34,7 +35,12 @@ export function parseJsonInput(): void {
     if (dataPath) {
       const parts = dataPath.split('.');
       for (const part of parts) {
+        if (isUnsafeKey(part)) {
+          data = undefined;
+          break;
+        }
         if (data && typeof data === 'object') {
+          // nosemgrep: javascript.lang.security.audit.prototype-pollution.prototype-pollution-loop.prototype-pollution-loop
           data = (data as Record<string, unknown>)[part];
         }
       }
