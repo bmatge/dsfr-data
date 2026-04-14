@@ -181,6 +181,8 @@ export class DsfrDataMap extends LitElement {
    * Other CSS units (px, vh, rem, etc.) are applied directly.
    */
   private _applyHeight() {
+    // Linear: \d and literal '.' / '%' don't overlap → no catastrophic backtracking.
+    // eslint-disable-next-line security/detect-unsafe-regex
     const pctMatch = this.height.match(/^(\d+(?:\.\d+)?)%$/);
     if (pctMatch) {
       const ratio = parseFloat(pctMatch[1]) / 100;
