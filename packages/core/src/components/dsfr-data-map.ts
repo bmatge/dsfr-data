@@ -7,7 +7,7 @@
 import { LitElement, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
-// @ts-ignore — Vite ?inline import returns CSS as string
+// @ts-expect-error — Vite ?inline import returns CSS as string
 import leafletCss from 'leaflet/dist/leaflet.css?inline';
 
 // Leaflet types — loaded dynamically

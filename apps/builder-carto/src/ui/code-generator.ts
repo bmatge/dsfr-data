@@ -145,8 +145,8 @@ export function generateCode(): string {
     lines.push(
       `<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css">`
     );
-    lines.push(`<script type="module" src="${LIB_URL}/dsfr-data.core.esm.js"><\/script>`);
-    lines.push(`<script type="module" src="${LIB_URL}/dsfr-data.map.esm.js"><\/script>`);
+    lines.push(`<script type="module" src="${LIB_URL}/dsfr-data.core.esm.js"></script>`);
+    lines.push(`<script type="module" src="${LIB_URL}/dsfr-data.map.esm.js"></script>`);
     lines.push('');
   }
 

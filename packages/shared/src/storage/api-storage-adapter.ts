@@ -144,7 +144,7 @@ function mergeServerWithLocal(
     if (!hasCompleteServerConfig(serverItem)) {
       const localItem = localById.get(id);
       if (localItem && hasLocalConfig(localItem, key)) {
-        console.info(`[ApiStorageAdapter] Repaired ${key} item ${id} from local data`);
+        console.warn(`[ApiStorageAdapter] Repaired ${key} item ${id} from local data`);
         return localItem;
       }
     }

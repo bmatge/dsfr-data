@@ -231,7 +231,7 @@ function generateFixedHtml(): string {
     const couleur = opts.couleur ? ` couleur="${opts.couleur}"` : '';
 
     deps.push(
-      '<script src="https://cdn.jsdelivr.net/gh/bmatge/dsfr-data@main/dist/dsfr-data.umd.js"><\/script>'
+      '<script src="https://cdn.jsdelivr.net/gh/bmatge/dsfr-data@main/dist/dsfr-data.umd.js"></script>'
     );
 
     return `${deps.join('\n')}
@@ -242,7 +242,7 @@ function generateFixedHtml(): string {
   customElements.whenDefined('dsfr-data-kpi').then(function() {
     DsfrData.dispatchDataLoaded('export', ${jsonData});
   });
-<\/script>`;
+</script>`;
   }
 
   // Chart types: bar, line, pie, radar, scatter, gauge, bar-line, map, map-reg
@@ -250,10 +250,10 @@ function generateFixedHtml(): string {
     '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css">'
   );
   deps.push(
-    '<script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"><\/script>'
+    '<script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"></script>'
   );
   deps.push(
-    '<script src="https://cdn.jsdelivr.net/gh/bmatge/dsfr-data@main/dist/dsfr-data.umd.js"><\/script>'
+    '<script src="https://cdn.jsdelivr.net/gh/bmatge/dsfr-data@main/dist/dsfr-data.umd.js"></script>'
   );
 
   const palette = opts.palette ? ` selected-palette="${opts.palette}"` : '';
@@ -272,7 +272,7 @@ function generateFixedHtml(): string {
   customElements.whenDefined('dsfr-data-chart').then(function() {
     DsfrData.dispatchDataLoaded('export', ${jsonData});
   });
-<\/script>`;
+</script>`;
 }
 
 function generateDynamicHtml(): string {
@@ -309,7 +309,7 @@ function generateDynamicHtml(): string {
     const couleur = opts.couleur ? ` couleur="${opts.couleur}"` : '';
 
     deps.push(
-      '<script src="https://cdn.jsdelivr.net/gh/bmatge/dsfr-data@main/dist/dsfr-data.umd.js"><\/script>'
+      '<script src="https://cdn.jsdelivr.net/gh/bmatge/dsfr-data@main/dist/dsfr-data.umd.js"></script>'
     );
 
     return `${deps.join('\n')}
@@ -329,10 +329,10 @@ function generateDynamicHtml(): string {
     '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css">'
   );
   deps.push(
-    '<script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"><\/script>'
+    '<script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"></script>'
   );
   deps.push(
-    '<script src="https://cdn.jsdelivr.net/gh/bmatge/dsfr-data@main/dist/dsfr-data.umd.js"><\/script>'
+    '<script src="https://cdn.jsdelivr.net/gh/bmatge/dsfr-data@main/dist/dsfr-data.umd.js"></script>'
   );
 
   const palette = opts.palette ? ` selected-palette="${opts.palette}"` : '';

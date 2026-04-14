@@ -756,14 +756,14 @@ export class GristAdapter implements ApiAdapter {
       const available = response.ok;
       this._sqlAvailableByHost.set(hostname, available);
       if (!available) {
-        console.info(
+        console.warn(
           `[dsfr-data] Grist SQL endpoint not available on ${hostname} — using client-side processing`
         );
       }
       return available;
     } catch {
       this._sqlAvailableByHost.set(hostname, false);
-      console.info(
+      console.warn(
         `[dsfr-data] Grist SQL endpoint not available on ${hostname} — using client-side processing`
       );
       return false;

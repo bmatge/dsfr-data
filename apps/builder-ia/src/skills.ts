@@ -1692,11 +1692,11 @@ Toujours inclure ces 6 dependances dans cet ordre exact :
 
 <!-- DSFR Chart (obligatoire pour les graphiques) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
-<script src="${CDN_URLS.chartJs}"><\/script>
-<script type="module" src="${CDN_URLS.dsfrChartJs}"><\/script>
+<script src="${CDN_URLS.chartJs}"></script>
+<script type="module" src="${CDN_URLS.dsfrChartJs}"></script>
 
 <!-- dsfr-data (obligatoire) -->
-<script src="${LIB_URL}/dsfr-data.core.umd.js"><\/script>
+<script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 \`\`\`
 
 ### Exemple de snippet complet
@@ -1704,9 +1704,9 @@ Toujours inclure ces 6 dependances dans cet ordre exact :
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
-<script src="${CDN_URLS.chartJs}"><\/script>
-<script type="module" src="${CDN_URLS.dsfrChartJs}"><\/script>
-<script src="${LIB_URL}/dsfr-data.core.umd.js"><\/script>
+<script src="${CDN_URLS.chartJs}"></script>
+<script type="module" src="${CDN_URLS.dsfrChartJs}"></script>
+<script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <dsfr-data-source id="data" url="VOTRE_URL_API" transform="results"></dsfr-data-source>
 <dsfr-data-chart source="data" type="bar" label-field="CHAMP_LABEL" value-field="CHAMP_VALEUR"></dsfr-data-chart>

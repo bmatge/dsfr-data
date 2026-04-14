@@ -36,6 +36,7 @@ interface ParsedComponent {
  */
 export async function importFromHtml(editor: PipelineEditor, htmlCode: string): Promise<void> {
   const parsed = parseHtml(htmlCode);
+  // eslint-disable-next-line no-console -- debug trace for HTML import
   console.log(
     '[html-parser] Parsed components:',
     parsed.length,
@@ -100,6 +101,7 @@ export async function importFromHtml(editor: PipelineEditor, htmlCode: string): 
     nodeMap.set(`__idx_${parsed.indexOf(comp)}`, node);
   }
 
+  // eslint-disable-next-line no-console -- debug trace for HTML import
   console.log('[html-parser] Created nodes:', nodeMap.size);
 
   // Create connections based on source= attributes
@@ -122,6 +124,7 @@ export async function importFromHtml(editor: PipelineEditor, htmlCode: string): 
         await editor.editor.addConnection(
           new ClassicPreset.Connection(sourceNode, 'data', targetNode, 'data')
         );
+        // eslint-disable-next-line no-console -- debug trace for HTML import
         console.log('[html-parser] Connected:', comp.sourceId, '->', comp.id || comp.tag);
       } catch (err) {
         console.warn('[html-parser] Connection failed:', err);

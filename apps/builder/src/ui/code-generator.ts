@@ -80,7 +80,7 @@ function generateEmbeddedA11y(chartId: string): string {
 /** dsfr-data dependency line for embedded code when a11y is enabled */
 function a11yDep(): string {
   if (!state.a11yEnabled && !state.databoxEnabled) return '';
-  return `\n<script src="${LIB_URL}/dsfr-data.core.umd.js"><\/script>`;
+  return `\n<script src="${LIB_URL}/dsfr-data.core.umd.js"></script>`;
 }
 
 /** Wrap an embedded chart element with DataBox markup (open + close tags) */
@@ -223,7 +223,7 @@ function dsfrDeferredScript(tagName: string): string {
   return `
 <script>
 (function(){var c=document.querySelector('${tagName}');if(!c)return;var s={};[].forEach.call(c.attributes,function(a){s[a.name]=a.value});customElements.whenDefined('${tagName}').then(function(){setTimeout(function(){Object.keys(s).forEach(function(k){c.setAttribute(k,s[k])})},500)})})();
-<\/script>`;
+</script>`;
 }
 
 // filterToOdsql and applyLocalFilter imported from @dsfr-data/shared
@@ -787,7 +787,7 @@ export function generateCodeForLocalData(): void {
 <!-- D\u00e9pendances (DSFR Chart) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
-<script type="module" src="${CDN_URLS.dsfrChartJs}"><\/script>
+<script type="module" src="${CDN_URLS.dsfrChartJs}"></script>
 
 <div class="fr-container fr-my-4w">
   <h2>${escapeHtml(state.title)}</h2>
@@ -813,7 +813,7 @@ export function generateCodeForLocalData(): void {
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 
 <!-- Dependances JS -->
-<script src="${LIB_URL}/dsfr-data.core.umd.js"><\/script>
+<script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
   ${state.title ? `<h2>${escapeHtml(state.title)}</h2>` : ''}
@@ -833,7 +833,7 @@ const data = ${JSON.stringify(state.localData?.slice(0, 500) || [], null, 2)};
 // Injecter les donnees dans le composant
 const datalist = document.getElementById('my-table');
 datalist.onSourceData(data);
-<\/script>`;
+</script>`;
     displayGeneratedCode(code);
     return;
   }
@@ -847,7 +847,7 @@ datalist.onSourceData(data);
 
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
-<script type="module" src="${CDN_URLS.dsfrChartJs}"><\/script>${a11yDep()}
+<script type="module" src="${CDN_URLS.dsfrChartJs}"></script>${a11yDep()}
 
 <div class="fr-container fr-my-4w">
   <h2>${escapeHtml(state.title)}</h2>
@@ -904,7 +904,7 @@ datalist.onSourceData(data);
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
-<script type="module" src="${CDN_URLS.dsfrChartJs}"><\/script>${a11yDep()}
+<script type="module" src="${CDN_URLS.dsfrChartJs}"></script>${a11yDep()}
 
 <div class="fr-container fr-my-4w">
   <h2>${escapeHtml(state.title)}</h2>
@@ -959,7 +959,7 @@ datalist.onSourceData(data);
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
-<script type="module" src="${CDN_URLS.dsfrChartJs}"><\/script>${a11yDep()}
+<script type="module" src="${CDN_URLS.dsfrChartJs}"></script>${a11yDep()}
 
 <div class="fr-container fr-my-4w">
   <h2>${escapeHtml(state.title)}</h2>
@@ -1337,7 +1337,7 @@ export function generateDynamicCode(): void {
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 
 <!-- Dependances JS -->
-<script src="${LIB_URL}/dsfr-data.core.umd.js"><\/script>
+<script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
   ${state.title ? `<h2>${escapeHtml(state.title)}</h2>` : ''}
@@ -1423,8 +1423,8 @@ ${state.advancedMode ? '<!-- Mode avance active : filtrage et agregation via dsf
 <link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
 
 <!-- Dependances JS -->
-<script type="module" src="${CDN_URLS.dsfrChartJs}"><\/script>
-<script src="${LIB_URL}/dsfr-data.core.umd.js"><\/script>
+<script type="module" src="${CDN_URLS.dsfrChartJs}"></script>
+<script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
   ${state.title ? `<h2>${escapeHtml(state.title)}</h2>` : ''}
@@ -1510,7 +1510,7 @@ export function generateDynamicCodeForApi(): void {
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 
 <!-- Dependances JS -->
-<script src="${LIB_URL}/dsfr-data.core.umd.js"><\/script>
+<script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
   <dsfr-data-source
@@ -1558,7 +1558,7 @@ export function generateDynamicCodeForApi(): void {
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 
 <!-- Dependances JS -->
-<script src="${LIB_URL}/dsfr-data.core.umd.js"><\/script>
+<script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
   ${state.title ? `<h2>${escapeHtml(state.title)}</h2>` : ''}
@@ -1610,7 +1610,7 @@ ${facets.element}
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 
 <!-- Dependances JS -->
-<script src="${LIB_URL}/dsfr-data.core.umd.js"><\/script>
+<script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
   ${state.title ? `<h2>${escapeHtml(state.title)}</h2>` : ''}
@@ -1653,7 +1653,7 @@ ${facets.element}
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 
 <!-- Dependances JS -->
-<script src="${LIB_URL}/dsfr-data.core.umd.js"><\/script>
+<script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
   ${state.title ? `<h2>${escapeHtml(state.title)}</h2>` : ''}
@@ -1772,8 +1772,8 @@ ${state.advancedMode ? '<!-- Mode avance active : filtrage et agregation via dsf
 <link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
 
 <!-- Dependances JS -->
-<script type="module" src="${CDN_URLS.dsfrChartJs}"><\/script>
-<script src="${LIB_URL}/dsfr-data.core.umd.js"><\/script>
+<script type="module" src="${CDN_URLS.dsfrChartJs}"></script>
+<script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
   ${state.title ? `<h2>${escapeHtml(state.title)}</h2>` : ''}
@@ -1859,7 +1859,7 @@ async function loadKPI() {
 }
 
 loadKPI();
-<\/script>`;
+</script>`;
     displayGeneratedCode(code);
     return;
   }
@@ -1872,7 +1872,7 @@ loadKPI();
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
-<script type="module" src="${CDN_URLS.dsfrChartJs}"><\/script>
+<script type="module" src="${CDN_URLS.dsfrChartJs}"></script>
 
 <div class="fr-container fr-my-4w">
   <h2>${escapeHtml(state.title)}</h2>
@@ -1894,7 +1894,7 @@ async function loadGauge() {
 }
 
 loadGauge();
-<\/script>`;
+</script>`;
     displayGeneratedCode(code);
     return;
   }
@@ -1913,7 +1913,7 @@ loadGauge();
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 
 <!-- Dependances JS -->
-<script src="${LIB_URL}/dsfr-data.core.umd.js"><\/script>
+<script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
   ${state.title ? `<h2>${escapeHtml(state.title)}</h2>` : ''}
@@ -1937,7 +1937,7 @@ async function loadTable() {
 }
 
 loadTable();
-<\/script>`;
+</script>`;
     displayGeneratedCode(code);
     return;
   }
@@ -1950,7 +1950,7 @@ loadTable();
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
-<script type="module" src="${CDN_URLS.dsfrChartJs}"><\/script>${a11yDep()}
+<script type="module" src="${CDN_URLS.dsfrChartJs}"></script>${a11yDep()}
 
 <div class="fr-container fr-my-4w">
   <h2>${escapeHtml(state.title)}</h2>
@@ -1978,7 +1978,7 @@ async function loadChart() {
 }
 
 loadChart();
-<\/script>`;
+</script>`;
     displayGeneratedCode(code);
     return;
   }
@@ -1998,7 +1998,7 @@ loadChart();
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
-<script type="module" src="${CDN_URLS.dsfrChartJs}"><\/script>${a11yDep()}
+<script type="module" src="${CDN_URLS.dsfrChartJs}"></script>${a11yDep()}
 
 <div class="fr-container fr-my-4w">
   <h2>${escapeHtml(state.title)}</h2>
@@ -2050,7 +2050,7 @@ async function loadMap() {
 }
 
 loadMap();
-<\/script>`;
+</script>`;
     displayGeneratedCode(code);
     return;
   }
@@ -2091,7 +2091,7 @@ loadMap();
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
-<script type="module" src="${CDN_URLS.dsfrChartJs}"><\/script>${a11yDep()}
+<script type="module" src="${CDN_URLS.dsfrChartJs}"></script>${a11yDep()}
 
 <div class="fr-container fr-my-4w">
   <h2>${escapeHtml(state.title)}</h2>
@@ -2132,7 +2132,7 @@ async function loadChart() {
 }
 
 loadChart();
-<\/script>`;
+</script>`;
 
   displayGeneratedCode(code);
 }

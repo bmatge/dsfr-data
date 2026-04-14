@@ -3,6 +3,8 @@
  * Uses mysql2/promise for async pooled connections.
  */
 
+/* eslint-disable no-console -- schema migration progress logs are intentional server-side output */
+
 import mysql from 'mysql2/promise';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';

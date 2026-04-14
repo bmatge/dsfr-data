@@ -203,7 +203,7 @@ async function loadKPI() {
 }
 
 loadKPI();
-<\/script>`;
+</script>`;
   }
 
   // Embedded-data variant
@@ -252,7 +252,7 @@ function generateGaugeCode(config: ChartConfig, data: AggregatedResult[]): strin
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
-<script type="module" src="${CDN_URLS.dsfrChartJs}"><\/script>
+<script type="module" src="${CDN_URLS.dsfrChartJs}"></script>
 
 <div class="fr-container fr-my-4w">
   <h2>${escapeHtml(config.title || 'Jauge')}</h2>
@@ -276,7 +276,7 @@ function generateScatterCode(config: ChartConfig, data: AggregatedResult[]): str
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 
 <!-- Dependances JS -->
-<script src="${CDN_URLS.chartJs}"><\/script>
+<script src="${CDN_URLS.chartJs}"></script>
 
 <div class="fr-container fr-my-4w">
   <h2>${escapeHtml(config.title || 'Nuage de points')}</h2>
@@ -307,7 +307,7 @@ new Chart(document.getElementById('myChart'), {
     maintainAspectRatio: false
   }
 });
-<\/script>`;
+</script>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -355,9 +355,9 @@ function generateMapCode(config: ChartConfig, data: AggregatedResult[]): string 
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
-<script src="${CDN_URLS.chartJs}"><\/script>
-<script type="module" src="${CDN_URLS.dsfrChartJs}"><\/script>
-<script src="${LIB_URL}/dsfr-data.core.umd.js"><\/script>
+<script src="${CDN_URLS.chartJs}"></script>
+<script type="module" src="${CDN_URLS.dsfrChartJs}"></script>
+<script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
   <h2>${escapeHtml(config.title || 'Carte de France')}</h2>
@@ -406,9 +406,9 @@ function generateMapCode(config: ChartConfig, data: AggregatedResult[]): string 
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
-<script src="${CDN_URLS.chartJs}"><\/script>
-<script type="module" src="${CDN_URLS.dsfrChartJs}"><\/script>
-<script src="${LIB_URL}/dsfr-data.core.umd.js"><\/script>
+<script src="${CDN_URLS.chartJs}"></script>
+<script type="module" src="${CDN_URLS.dsfrChartJs}"></script>
+<script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
   <h2>${escapeHtml(config.title || 'Carte de France')}</h2>
@@ -453,9 +453,9 @@ function generateMapCode(config: ChartConfig, data: AggregatedResult[]): string 
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
-<script src="${CDN_URLS.chartJs}"><\/script>
-<script type="module" src="${CDN_URLS.dsfrChartJs}"><\/script>
-<script src="${LIB_URL}/dsfr-data.core.umd.js"><\/script>
+<script src="${CDN_URLS.chartJs}"></script>
+<script type="module" src="${CDN_URLS.dsfrChartJs}"></script>
+<script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
   <h2>${escapeHtml(config.title || 'Carte de France')}</h2>
@@ -487,7 +487,7 @@ function generateMapCode(config: ChartConfig, data: AggregatedResult[]): string 
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
-<script type="module" src="${CDN_URLS.dsfrChartJs}"><\/script>
+<script type="module" src="${CDN_URLS.dsfrChartJs}"></script>
 
 <div class="fr-container fr-my-4w">
   <h2>${escapeHtml(config.title || 'Carte de France')}</h2>
@@ -538,7 +538,7 @@ function generateDatalistCode(config: ChartConfig): string {
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 
 <!-- Dependances JS -->
-<script src="${LIB_URL}/dsfr-data.core.umd.js"><\/script>
+<script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
   ${config.title ? `<h2>${escapeHtml(config.title)}</h2>` : ''}
@@ -581,7 +581,7 @@ function generateDatalistCode(config: ChartConfig): string {
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 
 <!-- Dependances JS -->
-<script src="${LIB_URL}/dsfr-data.core.umd.js"><\/script>
+<script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
   ${config.title ? `<h2>${escapeHtml(config.title)}</h2>` : ''}
@@ -628,7 +628,7 @@ function generateDatalistCode(config: ChartConfig): string {
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 
 <!-- Dependances JS -->
-<script src="${LIB_URL}/dsfr-data.core.umd.js"><\/script>
+<script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
   ${config.title ? `<h2>${escapeHtml(config.title)}</h2>` : ''}
@@ -660,7 +660,7 @@ function generateDatalistCode(config: ChartConfig): string {
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 
 <!-- Dependances JS -->
-<script src="${LIB_URL}/dsfr-data.core.umd.js"><\/script>
+<script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
   ${config.title ? `<h2>${escapeHtml(config.title)}</h2>` : ''}
@@ -681,7 +681,7 @@ const data = ${JSON.stringify(rawData.slice(0, 500), null, 2)};
 
 // Injecter les donnees dans le composant
 document.getElementById('my-table').onSourceData(data);
-<\/script>`;
+</script>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -740,9 +740,9 @@ function generateStandardChartCodeODS(
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
-<script src="${CDN_URLS.chartJs}"><\/script>
-<script type="module" src="${CDN_URLS.dsfrChartJs}"><\/script>
-<script src="${LIB_URL}/dsfr-data.core.umd.js"><\/script>
+<script src="${CDN_URLS.chartJs}"></script>
+<script type="module" src="${CDN_URLS.dsfrChartJs}"></script>
+<script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
   <h2>${escapeHtml(config.title || 'Mon graphique')}</h2>
@@ -801,9 +801,9 @@ function generateStandardChartCodeTabular(
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
-<script src="${CDN_URLS.chartJs}"><\/script>
-<script type="module" src="${CDN_URLS.dsfrChartJs}"><\/script>
-<script src="${LIB_URL}/dsfr-data.core.umd.js"><\/script>
+<script src="${CDN_URLS.chartJs}"></script>
+<script type="module" src="${CDN_URLS.dsfrChartJs}"></script>
+<script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
   <h2>${escapeHtml(config.title || 'Mon graphique')}</h2>
@@ -862,7 +862,7 @@ function generateStandardChartCodeAPI(
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 
 <!-- Dependances JS -->
-<script src="${CDN_URLS.chartJs}"><\/script>
+<script src="${CDN_URLS.chartJs}"></script>
 
 <div class="fr-container fr-my-4w">
   <h2>${escapeHtml(config.title || 'Mon graphique')}</h2>
@@ -933,7 +933,7 @@ async function loadChart() {
 }
 
 loadChart();
-<\/script>`;
+</script>`;
 }
 
 function generateStandardChartCodeEmbedded(
@@ -976,7 +976,7 @@ ${hasSecondSeries ? '<!-- Note: Graphique multi-series -->' : ''}
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 
 <!-- Dependances JS -->
-<script src="${CDN_URLS.chartJs}"><\/script>
+<script src="${CDN_URLS.chartJs}"></script>
 
 <div class="fr-container fr-my-4w">
   <h2>${escapeHtml(config.title || 'Mon graphique')}</h2>
@@ -1011,7 +1011,7 @@ new Chart(document.getElementById('myChart'), {
     plugins: { legend: { display: ${hasSecondSeries || isMultiColor || isBarLine} } }
   }
 });
-<\/script>`;
+</script>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -1044,7 +1044,7 @@ function generatePodiumCode(config: ChartConfig, data: AggregatedResult[]): stri
 <!-- Dependances CSS (DSFR) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
-<script src="${LIB_URL}/dsfr-data.core.umd.js"><\/script>
+<script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
   ${config.title ? `<h2>${escapeHtml(config.title)}</h2>` : ''}
@@ -1081,7 +1081,7 @@ function generatePodiumCode(config: ChartConfig, data: AggregatedResult[]): stri
 <!-- Dependances CSS (DSFR) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
-<script src="${LIB_URL}/dsfr-data.core.umd.js"><\/script>
+<script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
   ${config.title ? `<h2>${escapeHtml(config.title)}</h2>` : ''}
@@ -1123,7 +1123,7 @@ function generatePodiumCode(config: ChartConfig, data: AggregatedResult[]): stri
 <!-- Dependances CSS (DSFR) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
-<script src="${LIB_URL}/dsfr-data.core.umd.js"><\/script>
+<script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
   ${config.title ? `<h2>${escapeHtml(config.title)}</h2>` : ''}

@@ -29,9 +29,9 @@ const DEPS_BLOCK = `<!-- Dependances (DSFR + DSFR Chart + dsfr-data) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
-<script src="${CDN_URLS.chartJs}"><\/script>
-<script type="module" src="${CDN_URLS.dsfrChartJs}"><\/script>
-<script src="${LIB_URL}/dsfr-data.core.umd.js"><\/script>
+<script src="${CDN_URLS.chartJs}"></script>
+<script type="module" src="${CDN_URLS.dsfrChartJs}"></script>
+<script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 `;
 
