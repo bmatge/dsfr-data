@@ -314,7 +314,7 @@ router.post('/login', authLimiter, async (req, res) => {
  * POST /api/auth/logout
  * Clear the auth cookie and revoke the session.
  */
-router.post('/logout', async (req, res) => {
+router.post('/logout', authLimiter, async (req, res) => {
   const token = req.cookies?.['gw-auth-token'];
   if (token) {
     try {

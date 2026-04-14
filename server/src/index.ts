@@ -4,6 +4,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { initDatabase, closeDatabase, execute } from './db/database.js';
 import { authMiddleware } from './middleware/auth.js';
+import { globalApiRateLimiter } from './middleware/rate-limit.js';
 import authRoutes from './routes/auth.js';
 import sourcesRoutes from './routes/sources.js';
 import connectionsRoutes from './routes/connections.js';
@@ -29,6 +30,10 @@ app.use(
 );
 app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
+
+// Global safety-net rate limiter on all /api/* routes. Per-route auth limiters
+// (authLimiter) apply on top for sensitive auth flows.
+app.use('/api', globalApiRateLimiter);
 
 // Auth middleware (sets req.user on all requests)
 app.use(authMiddleware);
