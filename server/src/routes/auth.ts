@@ -585,8 +585,8 @@ router.post('/reset-password', authLimiter, async (req, res) => {
  */
 router.get('/users', requireAuth, async (req, res) => {
   try {
-    const q = req.query.q as string;
-    if (!q || q.length < 2) {
+    const q = req.query.q;
+    if (typeof q !== 'string' || q.length < 2) {
       res.json([]);
       return;
     }
