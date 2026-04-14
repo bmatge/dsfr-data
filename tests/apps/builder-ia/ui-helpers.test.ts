@@ -1,5 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { switchTab, toggleSection, copyCode, openInPlayground } from '../../../apps/builder-ia/src/ui/ui-helpers';
+import {
+  switchTab,
+  toggleSection,
+  copyCode,
+  openInPlayground,
+} from '../../../apps/builder-ia/src/ui/ui-helpers';
 import * as toast from '../../../packages/shared/src/ui/toast';
 
 describe('builder-ia ui-helpers', () => {
@@ -35,7 +40,7 @@ describe('builder-ia ui-helpers', () => {
         writable: true,
         configurable: true,
       });
-      vi.spyOn(window, 'alert').mockImplementation(() => {});
+      window.alert = vi.fn();
 
       copyCode();
       expect(writeTextMock).toHaveBeenCalledWith('const x = 42;');

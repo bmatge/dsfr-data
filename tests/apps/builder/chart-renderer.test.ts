@@ -3,7 +3,9 @@ import { state } from '../../../apps/builder/src/state';
 
 // Mock Chart.js constructor and instance
 const mockChartInstance = { destroy: vi.fn() };
-const MockChart = vi.fn(() => mockChartInstance);
+const MockChart = vi.fn(function MockChart(this: unknown) {
+  return mockChartInstance;
+});
 
 describe('builder chart-renderer', () => {
   beforeEach(() => {
@@ -317,7 +319,7 @@ describe('builder chart-renderer', () => {
       state.chartType = 'map';
       state.codeField = 'dept';
       state.data = [
-        { dept: '1', value: 50 },  // Should become "01"
+        { dept: '1', value: 50 }, // Should become "01"
         { dept: '34', value: 75 },
       ];
 
@@ -752,7 +754,6 @@ describe('builder chart-renderer', () => {
         { name: 'population', type: 'number', sample: 3300000 },
       ];
 
-
       renderChart();
 
       const canvas = document.getElementById('preview-canvas') as HTMLCanvasElement;
@@ -774,7 +775,6 @@ describe('builder chart-renderer', () => {
         { name: 'population', type: 'number', sample: 3300000 },
       ];
 
-
       renderChart();
 
       const datalistCard = document.querySelector('.datalist-card')!;
@@ -792,7 +792,6 @@ describe('builder chart-renderer', () => {
       state.chartType = 'datalist';
       state.localData = [{ region: 'Bretagne' }];
       state.fields = [{ name: 'region', type: 'string', sample: 'Bretagne' }];
-
 
       renderChart();
 
@@ -816,9 +815,7 @@ describe('builder chart-renderer', () => {
     it('should use custom column labels when datalistColumns is set', async () => {
       const renderChart = await loadRenderChart();
       state.chartType = 'datalist';
-      state.localData = [
-        { region: 'Bretagne', population: 3300000 },
-      ];
+      state.localData = [{ region: 'Bretagne', population: 3300000 }];
       state.fields = [
         { name: 'region', type: 'string', sample: 'Bretagne' },
         { name: 'population', type: 'number', sample: 3300000 },
@@ -827,7 +824,6 @@ describe('builder chart-renderer', () => {
         { field: 'region', label: 'Nom Region', visible: true, filtrable: false },
         { field: 'population', label: 'Pop.', visible: true, filtrable: false },
       ];
-
 
       renderChart();
 
@@ -840,9 +836,7 @@ describe('builder chart-renderer', () => {
     it('should hide columns where visible is false', async () => {
       const renderChart = await loadRenderChart();
       state.chartType = 'datalist';
-      state.localData = [
-        { region: 'Bretagne', population: 3300000, code: '35' },
-      ];
+      state.localData = [{ region: 'Bretagne', population: 3300000, code: '35' }];
       state.fields = [
         { name: 'region', type: 'string', sample: 'Bretagne' },
         { name: 'population', type: 'number', sample: 3300000 },
@@ -853,7 +847,6 @@ describe('builder chart-renderer', () => {
         { field: 'population', label: 'Pop.', visible: false, filtrable: false },
         { field: 'code', label: 'Code', visible: true, filtrable: false },
       ];
-
 
       renderChart();
 
@@ -871,7 +864,6 @@ describe('builder chart-renderer', () => {
       state.datalistRecherche = true;
       state.datalistFiltres = true;
       state.datalistExportCsv = true;
-
 
       renderChart();
 
