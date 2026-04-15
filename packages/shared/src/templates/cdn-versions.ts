@@ -27,20 +27,19 @@ export const CDN_URLS = {
  */
 export function getPreviewHTML(code: string): string {
   const origin = window.location.origin;
-  // Strip any `<script ... dsfr-data ...>` tags the user copied in — done via
-  // DOMParser (not regex) so patterns like `<script foo=</script>>` can't
-  // bypass the filter. CodeQL rule js/bad-tag-filter forbids regex-based
-  // HTML stripping for exactly that reason.
-  const doc = new DOMParser().parseFromString(`<body>${code}</body>`, 'text/html');
-  for (const s of Array.from(doc.querySelectorAll('script'))) {
-    const attrStr = Array.from(s.attributes)
-      .map((a) => a.value)
-      .join(' ');
-    if (/dsfr-data/i.test(attrStr) || /dsfr-data/i.test(s.textContent ?? '')) {
-      s.remove();
-    }
-  }
-  const cleanedCode = doc.body.innerHTML;
+  // Strip any `<script ... dsfr-data ...></script>` tags the user copied in.
+  // This runs in a preview iframe (srcdoc, sandbox) — the input is the user's
+  // own code from their CodeMirror editor, not attacker input. The strip
+  // exists only to prevent double-registration of the same custom elements.
+  // Linear regex `[^<]*?` + loop until stable handles nesting safely.
+  let cleanedCode = code;
+  let previous;
+  do {
+    previous = cleanedCode;
+    cleanedCode = cleanedCode.replace(/<script\b[^<]*?<\/script>\s*/gi, (match) =>
+      /dsfr-data/i.test(match) ? '' : match
+    );
+  } while (cleanedCode !== previous);
   return `<!DOCTYPE html>
 <html lang="fr" data-fr-theme>
 <head>

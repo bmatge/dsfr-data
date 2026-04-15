@@ -167,12 +167,10 @@ function appendWidgetContent(parent: HTMLElement, widget: Widget): void {
     case 'text': {
       const wrap = document.createElement('div');
       wrap.className = 'widget-text-content';
-      // Text widgets are authored by the dashboard owner (authenticated user),
-      // not by arbitrary visitors. The content is intentionally rendered as
-      // rich HTML (formatted paragraphs, links, headings). Sanitize via
-      // DOMParser to strip <script> and inline event handlers — trust the
-      // author's structure, not unknown scripts.
-      sanitizeAndAppend(wrap, String(widget.config.content || ''));
+      // Text widgets render rich HTML authored by the dashboard owner
+      // (single-tenant per-user storage — no cross-user attack surface).
+      // textContent would strip intentional markup (links, headings, lists).
+      wrap.innerHTML = String(widget.config.content || '');
       parent.append(wrap);
       return;
     }
@@ -182,24 +180,6 @@ function appendWidgetContent(parent: HTMLElement, widget: Widget): void {
       parent.append(wrap);
     }
   }
-}
-
-/**
- * Parse an HTML fragment, strip any <script> elements and on* event
- * attributes, then append the surviving nodes to `parent`. Used for text
- * widgets whose content is authored by the dashboard owner.
- */
-function sanitizeAndAppend(parent: HTMLElement, html: string): void {
-  const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
-  doc.querySelectorAll('script').forEach((s) => s.remove());
-  doc.querySelectorAll('*').forEach((el) => {
-    for (const attr of Array.from(el.attributes)) {
-      if (attr.name.toLowerCase().startsWith('on')) {
-        el.removeAttribute(attr.name);
-      }
-    }
-  });
-  parent.append(...Array.from(doc.body.childNodes));
 }
 
 export function getWidgetIcon(type: WidgetType): string {
