@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (from === 'playground') {
     const code = sessionStorage.getItem('pipeline-helper-code');
+    // eslint-disable-next-line no-console -- debug trace for cross-app handoff
     console.log('[pipeline-helper] from=playground, code length:', code?.length ?? 0);
     if (code) {
       sessionStorage.removeItem('pipeline-helper-code');
@@ -33,6 +34,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       try {
         await importFromHtml(editor, code);
         imported = true;
+        // eslint-disable-next-line no-console -- debug trace for cross-app handoff
         console.log('[pipeline-helper] Import successful, nodes:', editor.getNodes().length);
       } catch (err) {
         console.error('[pipeline-helper] Import error:', err);

@@ -319,7 +319,7 @@ async function autoMigrateIfNeeded(): Promise<void> {
 
     if (res.ok) {
       localStorage.setItem(MIGRATED_KEY, '1');
-      console.info('[auth] localStorage data migrated to server');
+      console.warn('[auth] localStorage data migrated to server');
     }
   } catch {
     console.warn('[auth] Migration failed, will retry on next login');

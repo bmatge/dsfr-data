@@ -62,10 +62,10 @@ export function generateHTMLCode(): string {
 
   <!-- DSFR Chart -->
   <link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
-  <script type="module" src="${CDN_URLS.dsfrChartJs}"><\/script>
+  <script type="module" src="${CDN_URLS.dsfrChartJs}"></script>
 
   <!-- dsfr-data -->
-  <script type="module" src="${LIB_URL}/dsfr-data.core.esm.js"><\/script>
+  <script type="module" src="${LIB_URL}/dsfr-data.core.esm.js"></script>
 </head>
 <body>
   <div class="fr-container fr-my-4w">
@@ -74,7 +74,7 @@ export function generateHTMLCode(): string {
 ${widgetsHTML}
   </div>
 
-  <script type="module" src="${CDN_URLS.dsfrModuleJs}"><\/script>
+  <script type="module" src="${CDN_URLS.dsfrModuleJs}"></script>
 </body>
 </html>`;
 }

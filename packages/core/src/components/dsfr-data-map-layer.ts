@@ -12,9 +12,9 @@ import { getByPath } from '../utils/json-path.js';
 import { escapeHtml } from '@dsfr-data/shared';
 import type { DsfrDataMap } from './dsfr-data-map.js';
 import type { SourceElement } from '../utils/source-element.js';
-// @ts-ignore — Vite ?inline import returns CSS as string
+// @ts-expect-error — Vite ?inline import returns CSS as string
 import markerClusterCss from 'leaflet.markercluster/dist/MarkerCluster.css?inline';
-// @ts-ignore — Vite ?inline import returns CSS as string
+// @ts-expect-error — Vite ?inline import returns CSS as string
 import markerClusterDefaultCss from 'leaflet.markercluster/dist/MarkerCluster.Default.css?inline';
 
 // Leaflet types

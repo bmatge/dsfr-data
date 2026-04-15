@@ -75,6 +75,7 @@ async function start() {
        AND verification_expires < DATE_SUB(NOW(), INTERVAL 7 DAY)`
     );
     if (result.affectedRows > 0) {
+      // eslint-disable-next-line no-console -- startup housekeeping log
       console.log(`[server] Cleaned up ${result.affectedRows} expired unverified account(s)`);
     }
   } catch (err) {
@@ -82,6 +83,7 @@ async function start() {
   }
 
   app.listen(PORT, () => {
+    // eslint-disable-next-line no-console -- startup banner
     console.log(`[server] dsfr-data API listening on port ${PORT}`);
   });
 }
