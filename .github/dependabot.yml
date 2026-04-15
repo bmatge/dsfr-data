@@ -1,11 +1,16 @@
 version: 2
 updates:
+  # See ADR-004 — Politique de sévérité SCA et défense en profondeur.
+  # Advisory-driven PRs get the "security" label automatically so they can be
+  # fast-tracked independently of the dev/production dependency groups.
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: weekly
       day: monday
     open-pull-requests-limit: 5
+    labels:
+      - security
     groups:
       dev-dependencies:
         dependency-type: development
@@ -22,6 +27,8 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 3
+    labels:
+      - security
 
   - package-ecosystem: cargo
     directory: /src-tauri
@@ -29,6 +36,8 @@ updates:
       interval: weekly
       day: monday
     open-pull-requests-limit: 5
+    labels:
+      - security
     groups:
       cargo-minor-patch:
         update-types:

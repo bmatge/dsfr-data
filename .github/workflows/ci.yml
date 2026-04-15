@@ -115,6 +115,61 @@ jobs:
           exit-code: '1'
           trivyignores: .trivyignore
 
+  sca-advisory:
+    # Non-blocking advisory channel — see ADR-004 (Politique de sévérité SCA).
+    # Gate reste HIGH/CRITICAL (job `sca` above). Ce job remonte les MODERATE
+    # en step summary sans casser la CI. Remédiation asynchrone via Dependabot
+    # (labels: [security] configurés dans .github/dependabot.yml).
+    name: Security — SCA advisory (non-blocking)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: npm audit (root, moderate+)
+        id: audit_root
+        continue-on-error: true
+        run: |
+          echo "### 📋 npm audit — root (moderate+)" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          npm audit --audit-level=moderate --omit=optional 2>&1 | tee -a $GITHUB_STEP_SUMMARY || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: npm audit (mcp-server, moderate+)
+        id: audit_mcp
+        continue-on-error: true
+        working-directory: mcp-server
+        run: |
+          echo "### 📋 npm audit — mcp-server (moderate+)" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          npm audit --audit-level=moderate 2>&1 | tee -a $GITHUB_STEP_SUMMARY || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Trivy — filesystem (MEDIUM+)
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          scan-type: fs
+          scanners: vuln
+          severity: MEDIUM,HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '0'
+          format: table
+          output: trivy-advisory.txt
+          trivyignores: .trivyignore
+
+      - name: Append Trivy output to summary
+        if: always()
+        run: |
+          echo "### 🛡️ Trivy fs — MEDIUM+ (non-blocking)" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat trivy-advisory.txt 2>/dev/null || echo "(no output)" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
   secrets:
     name: Security — Secrets
     runs-on: ubuntu-latest
