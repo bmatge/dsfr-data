@@ -2,7 +2,7 @@
  * Dashboard app - Widget management
  */
 
-import { escapeHtml, navigateTo, confirmDialog } from '@dsfr-data/shared';
+import { navigateTo, confirmDialog } from '@dsfr-data/shared';
 import { state } from './state.js';
 import { openConfigModal } from './widget-config.js';
 import { updateGeneratedCode } from './code-generator.js';
@@ -117,12 +117,89 @@ export function renderWidget(widget: Widget, cell: HTMLElement): void {
 
   const content = document.createElement('div');
   content.className = 'widget-content';
-  // renderWidgetContent returns trusted template HTML (no user data interpolation
-  // beyond escapeHtml'd fields already handled inside).
-  content.innerHTML = renderWidgetContent(widget);
+  appendWidgetContent(content, widget);
 
   container.append(header, content);
   cell.append(container);
+}
+
+function appendWidgetContent(parent: HTMLElement, widget: Widget): void {
+  switch (widget.type) {
+    case 'kpi': {
+      const wrap = document.createElement('div');
+      wrap.className = 'widget-preview-center';
+      const valueEl = document.createElement('div');
+      valueEl.className = 'widget-kpi-value';
+      valueEl.textContent = String(widget.config.valeur || '\u2014');
+      const labelEl = document.createElement('div');
+      labelEl.className = 'widget-kpi-label';
+      labelEl.textContent = String(widget.config.label || '');
+      wrap.append(valueEl, labelEl);
+      parent.append(wrap);
+      return;
+    }
+    case 'chart': {
+      const wrap = document.createElement('div');
+      wrap.className = 'widget-preview-center widget-preview-muted';
+      const icon = document.createElement('i');
+      icon.className = 'ri-bar-chart-box-line widget-preview-icon';
+      const text = document.createElement('p');
+      text.className = 'widget-preview-text';
+      text.textContent = widget.config.fromFavorite
+        ? 'Graphique depuis favoris'
+        : 'Configurez le graphique';
+      wrap.append(icon, text);
+      parent.append(wrap);
+      return;
+    }
+    case 'table': {
+      const wrap = document.createElement('div');
+      wrap.className = 'widget-preview-center widget-preview-muted';
+      const icon = document.createElement('i');
+      icon.className = 'ri-table-line widget-preview-icon';
+      const text = document.createElement('p');
+      text.className = 'widget-preview-text';
+      text.textContent = 'Tableau de donnees';
+      wrap.append(icon, text);
+      parent.append(wrap);
+      return;
+    }
+    case 'text': {
+      const wrap = document.createElement('div');
+      wrap.className = 'widget-text-content';
+      // Text widgets are authored by the dashboard owner (authenticated user),
+      // not by arbitrary visitors. The content is intentionally rendered as
+      // rich HTML (formatted paragraphs, links, headings). Sanitize via
+      // DOMParser to strip <script> and inline event handlers — trust the
+      // author's structure, not unknown scripts.
+      sanitizeAndAppend(wrap, String(widget.config.content || ''));
+      parent.append(wrap);
+      return;
+    }
+    default: {
+      const wrap = document.createElement('div');
+      wrap.textContent = 'Widget';
+      parent.append(wrap);
+    }
+  }
+}
+
+/**
+ * Parse an HTML fragment, strip any <script> elements and on* event
+ * attributes, then append the surviving nodes to `parent`. Used for text
+ * widgets whose content is authored by the dashboard owner.
+ */
+function sanitizeAndAppend(parent: HTMLElement, html: string): void {
+  const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
+  doc.querySelectorAll('script').forEach((s) => s.remove());
+  doc.querySelectorAll('*').forEach((el) => {
+    for (const attr of Array.from(el.attributes)) {
+      if (attr.name.toLowerCase().startsWith('on')) {
+        el.removeAttribute(attr.name);
+      }
+    }
+  });
+  parent.append(...Array.from(doc.body.childNodes));
 }
 
 export function getWidgetIcon(type: WidgetType): string {
@@ -133,38 +210,6 @@ export function getWidgetIcon(type: WidgetType): string {
     text: 'ri-text',
   };
   return icons[type] || 'ri-question-line';
-}
-
-function renderWidgetContent(widget: Widget): string {
-  switch (widget.type) {
-    case 'kpi':
-      return `
-        <div class="widget-preview-center">
-          <div class="widget-kpi-value">${widget.config.valeur || '\u2014'}</div>
-          <div class="widget-kpi-label">${escapeHtml(widget.config.label || '')}</div>
-        </div>
-      `;
-    case 'chart':
-      if (widget.config.fromFavorite) {
-        return `<div class="widget-preview-center widget-preview-muted">
-          <i class="ri-bar-chart-box-line widget-preview-icon"></i>
-          <p class="widget-preview-text">Graphique depuis favoris</p>
-        </div>`;
-      }
-      return `<div class="widget-preview-center widget-preview-muted">
-        <i class="ri-bar-chart-box-line widget-preview-icon"></i>
-        <p class="widget-preview-text">Configurez le graphique</p>
-      </div>`;
-    case 'table':
-      return `<div class="widget-preview-center widget-preview-muted">
-        <i class="ri-table-line widget-preview-icon"></i>
-        <p class="widget-preview-text">Tableau de donnees</p>
-      </div>`;
-    case 'text':
-      return `<div class="widget-text-content">${widget.config.content || ''}</div>`;
-    default:
-      return '<div>Widget</div>';
-  }
 }
 
 export function editWidget(widgetId: string): void {
