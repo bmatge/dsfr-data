@@ -49,3 +49,6 @@ guide/examples/_list.json
 *.tmp
 *.temp
 app-dist/
+
+# Local Claude Code agent state
+.claude/
