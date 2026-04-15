@@ -56,10 +56,13 @@ export function renderChart(): void {
     // Create KPI card
     const kpiCard = document.createElement('div');
     kpiCard.className = `kpi-card${variant ? ' kpi-card--' + variant : ''}`;
-    kpiCard.innerHTML = `
-      <span class="kpi-value">${formattedValue}</span>
-      <span class="kpi-label">${state.title}</span>
-    `;
+    const kpiValue = document.createElement('span');
+    kpiValue.className = 'kpi-value';
+    kpiValue.textContent = String(formattedValue);
+    const kpiLabel = document.createElement('span');
+    kpiLabel.className = 'kpi-label';
+    kpiLabel.textContent = state.title;
+    kpiCard.append(kpiValue, kpiLabel);
     chartContainer.appendChild(kpiCard);
     return;
   }
@@ -75,17 +78,39 @@ export function renderChart(): void {
     const gaugeColor = PALETTE_PRIMARY_COLOR[state.palette] || '#000091';
     const gaugeCard = document.createElement('div');
     gaugeCard.className = 'gauge-card';
-    gaugeCard.innerHTML = `
-      <div class="gauge-container">
-        <svg viewBox="0 0 100 60" class="gauge-svg">
-          <path d="M10 55 A40 40 0 0 1 90 55" fill="none" stroke="#e5e5e5" stroke-width="8" stroke-linecap="round"/>
-          <path d="M10 55 A40 40 0 0 1 90 55" fill="none" stroke="${gaugeColor}" stroke-width="8" stroke-linecap="round"
-            stroke-dasharray="${value * 1.26} 126" class="gauge-fill"/>
-        </svg>
-        <div class="gauge-value">${value}${unit}</div>
-      </div>
-      <div class="gauge-label">${state.title}</div>
-    `;
+
+    const svgNs = 'http://www.w3.org/2000/svg';
+    const container = document.createElement('div');
+    container.className = 'gauge-container';
+    const svg = document.createElementNS(svgNs, 'svg');
+    svg.setAttribute('viewBox', '0 0 100 60');
+    svg.setAttribute('class', 'gauge-svg');
+    const arcPath = 'M10 55 A40 40 0 0 1 90 55';
+    const bgPath = document.createElementNS(svgNs, 'path');
+    bgPath.setAttribute('d', arcPath);
+    bgPath.setAttribute('fill', 'none');
+    bgPath.setAttribute('stroke', '#e5e5e5');
+    bgPath.setAttribute('stroke-width', '8');
+    bgPath.setAttribute('stroke-linecap', 'round');
+    const fillPath = document.createElementNS(svgNs, 'path');
+    fillPath.setAttribute('d', arcPath);
+    fillPath.setAttribute('fill', 'none');
+    fillPath.setAttribute('stroke', gaugeColor);
+    fillPath.setAttribute('stroke-width', '8');
+    fillPath.setAttribute('stroke-linecap', 'round');
+    fillPath.setAttribute('stroke-dasharray', `${value * 1.26} 126`);
+    fillPath.setAttribute('class', 'gauge-fill');
+    svg.append(bgPath, fillPath);
+    const valueEl = document.createElement('div');
+    valueEl.className = 'gauge-value';
+    valueEl.textContent = `${value}${unit}`;
+    container.append(svg, valueEl);
+
+    const labelEl = document.createElement('div');
+    labelEl.className = 'gauge-label';
+    labelEl.textContent = state.title;
+
+    gaugeCard.append(container, labelEl);
     chartContainer.appendChild(gaugeCard);
     return;
   }

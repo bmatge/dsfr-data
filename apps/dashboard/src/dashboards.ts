@@ -3,7 +3,6 @@
  */
 
 import {
-  escapeHtml,
   saveToStorage,
   STORAGE_KEYS,
   toastWarning,
@@ -105,25 +104,59 @@ export function openDashboardsList(): void {
     list.innerHTML =
       '<p class="favorites-empty">Aucun tableau de bord sauvegarde.<br><span class="fr-text--sm" style="color:var(--text-mention-grey);">Utilisez la barre d\'outils pour en creer un.</span></p>';
   } else {
-    list.innerHTML = state.savedDashboards
-      .map(
-        (d) => `
-      <div class="dashboard-list-item" onclick="loadDashboard('${d.id}')">
-        <i class="ri-dashboard-line"></i>
-        <div class="dashboard-list-item-info">
-          <div class="dashboard-list-item-name">${escapeHtml(d.name)}</div>
-          ${d.description ? `<div class="dashboard-list-item-desc">${escapeHtml(d.description)}</div>` : ''}
-        </div>
-        <span class="dashboard-list-item-date">
-          ${new Date(d.updatedAt || '').toLocaleDateString('fr-FR')}
-        </span>
-        <button class="dashboard-list-item-delete" onclick="event.stopPropagation(); deleteDashboard('${d.id}')" title="Supprimer">
-          <i class="ri-delete-bin-line"></i>
-        </button>
-      </div>
-    `
-      )
-      .join('');
+    list.replaceChildren();
+    for (const d of state.savedDashboards) {
+      if (!d.id) continue;
+      const item = document.createElement('div');
+      item.className = 'dashboard-list-item';
+      item.dataset.dashboardId = d.id;
+
+      const icon = document.createElement('i');
+      icon.className = 'ri-dashboard-line';
+
+      const info = document.createElement('div');
+      info.className = 'dashboard-list-item-info';
+      const name = document.createElement('div');
+      name.className = 'dashboard-list-item-name';
+      name.textContent = d.name;
+      info.append(name);
+      if (d.description) {
+        const desc = document.createElement('div');
+        desc.className = 'dashboard-list-item-desc';
+        desc.textContent = d.description;
+        info.append(desc);
+      }
+
+      const date = document.createElement('span');
+      date.className = 'dashboard-list-item-date';
+      date.textContent = new Date(d.updatedAt || '').toLocaleDateString('fr-FR');
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'dashboard-list-item-delete';
+      delBtn.title = 'Supprimer';
+      delBtn.dataset.action = 'delete';
+      const delIcon = document.createElement('i');
+      delIcon.className = 'ri-delete-bin-line';
+      delBtn.append(delIcon);
+
+      item.append(icon, info, date, delBtn);
+      list.append(item);
+    }
+
+    // Event delegation — one listener, no inline handlers
+    list.onclick = (e) => {
+      const target = e.target as HTMLElement;
+      const item = target.closest<HTMLElement>('.dashboard-list-item');
+      if (!item) return;
+      const id = item.dataset.dashboardId;
+      if (!id) return;
+      if (target.closest('[data-action="delete"]')) {
+        e.stopPropagation();
+        void deleteDashboard(id);
+      } else {
+        loadDashboard(id);
+      }
+    };
   }
 
   modal.classList.add('active');

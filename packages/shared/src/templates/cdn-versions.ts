@@ -27,7 +27,19 @@ export const CDN_URLS = {
  */
 export function getPreviewHTML(code: string): string {
   const origin = window.location.origin;
-  const cleanedCode = code.replace(/<script[^>]*dsfr-data[^>]*><\/script>\s*/gi, '');
+  // Strip any `<script ... dsfr-data ...></script>` tags the user copied in.
+  // This runs in a preview iframe (srcdoc, sandbox) — the input is the user's
+  // own code from their CodeMirror editor, not attacker input. The strip
+  // exists only to prevent double-registration of the same custom elements.
+  // Linear regex `[^<]*?` + loop until stable handles nesting safely.
+  let cleanedCode = code;
+  let previous;
+  do {
+    previous = cleanedCode;
+    cleanedCode = cleanedCode.replace(/<script\b[^<]*?<\/script>\s*/gi, (match) =>
+      /dsfr-data/i.test(match) ? '' : match
+    );
+  } while (cleanedCode !== previous);
   return `<!DOCTYPE html>
 <html lang="fr" data-fr-theme>
 <head>

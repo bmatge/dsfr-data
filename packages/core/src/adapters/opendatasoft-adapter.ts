@@ -17,6 +17,15 @@ import type { QueryAggregate } from '../components/dsfr-data-query.js';
 import type { ProviderConfig } from '@dsfr-data/shared';
 import { ODS_CONFIG, getProxiedUrl } from '@dsfr-data/shared';
 
+/**
+ * Échappe une chaîne destinée à être interpolée dans une string ODSQL (`"…"`).
+ * Ordre crucial : backslashes d'abord (sinon les `\"` qu'on ajoute seraient
+ * ré-échappés), puis les doubles quotes.
+ */
+function escapeOdsqlString(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
 /** Construit les options fetch avec headers optionnels */
 function buildFetchOptions(
   params: Pick<AdapterParams, 'headers'>,
@@ -280,10 +289,10 @@ export class OpenDataSoftAdapter implements ApiAdapter {
     for (const [field, values] of Object.entries(selections)) {
       if (field === excludeField || values.size === 0) continue;
       if (values.size === 1) {
-        const val = [...values][0].replace(/"/g, '\\"');
+        const val = escapeOdsqlString([...values][0]);
         parts.push(`${field} = "${val}"`);
       } else {
-        const vals = [...values].map((v) => `"${v.replace(/"/g, '\\"')}"`).join(', ');
+        const vals = [...values].map((v) => `"${escapeOdsqlString(v)}"`).join(', ');
         parts.push(`${field} IN (${vals})`);
       }
     }
