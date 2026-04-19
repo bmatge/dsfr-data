@@ -51,9 +51,30 @@ export class AttributeControl extends ClassicPreset.Control {
  * Special control for selecting a saved source from the app's source catalog.
  * When a source is selected, it auto-fills the node's attribute controls.
  */
+/**
+ * Payload émis par le saved-source-control : soit une Source de l'utilisateur
+ * (STORAGE_KEYS.SOURCES), soit une Connection avec un flag `_isConnection`.
+ * Les deux types ont des champs dynamiques selon le provider (api-type, url,
+ * dataset-id…) ; on liste ici les champs concrètement lus par les consumers
+ * (pipeline-nodes.ts) et on laisse la signature ouverte pour le reste.
+ */
+export interface SavedSourcePayload {
+  id?: string;
+  _isConnection?: boolean;
+  provider?: string;
+  type?: string;
+  apiUrl?: string;
+  baseUrl?: string;
+  apiKey?: string | null;
+  documentId?: string;
+  tableId?: string;
+  resourceIds?: Record<string, string>;
+  [key: string]: unknown;
+}
+
 export class SavedSourceSelector extends ClassicPreset.Control {
   onChange?: () => void;
-  onSourceSelected?: (source: any | null) => void;
+  onSourceSelected?: (source: SavedSourcePayload | null) => void;
 
   constructor(public value: string = '') {
     super();

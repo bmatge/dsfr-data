@@ -70,8 +70,12 @@ export class PipelineExecutor {
       const target = this.graphNodes.get(conn.target);
       if (!source || !target) continue;
 
-      const sourceKey = (conn as any).sourceOutput as string;
-      const targetKey = (conn as any).targetInput as string;
+      // Les champs `sourceOutput` / `targetInput` sont attachés par Rete au
+      // runtime mais pas exposés dans les types de Connection.
+      const { sourceOutput: sourceKey, targetInput: targetKey } = conn as typeof conn & {
+        sourceOutput: string;
+        targetInput: string;
+      };
 
       if (sourceKey === 'data' && targetKey === 'data') {
         target.dataSource = source;
@@ -290,10 +294,13 @@ export class PipelineExecutor {
 
     if (Array.isArray(data)) {
       rows = data as Record<string, unknown>[];
-    } else if (data && typeof data === 'object' && 'results' in (data as any)) {
-      rows = (data as any).results;
-    } else if (data && typeof data === 'object' && 'records' in (data as any)) {
-      rows = (data as any).records;
+    } else if (data && typeof data === 'object') {
+      const wrapped = data as { results?: unknown; records?: unknown };
+      if (Array.isArray(wrapped.results)) {
+        rows = wrapped.results as Record<string, unknown>[];
+      } else if (Array.isArray(wrapped.records)) {
+        rows = wrapped.records as Record<string, unknown>[];
+      }
     }
 
     if (!Array.isArray(rows) || rows.length === 0) {
