@@ -57,7 +57,8 @@ export function getDefaultTitle(type: WidgetType): string {
   return titles[type] || 'Widget';
 }
 
-export function getDefaultConfig(type: WidgetType): Record<string, unknown> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- alimente Widget.config (cf. state.ts pour le rationale)
+export function getDefaultConfig(type: WidgetType): Record<string, any> {
   switch (type) {
     case 'kpi':
       return { valeur: '', format: 'nombre', icone: '', label: 'Mon KPI' };

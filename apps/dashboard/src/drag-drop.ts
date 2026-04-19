@@ -76,7 +76,7 @@ function handleDrop(e: DragEvent): void {
 
   if (draggedData!.type === 'new') {
     addWidget(draggedData!.widgetType as WidgetType, row, col, cell);
-  } else if (draggedData!.type === 'favorite') {
+  } else if (draggedData!.type === 'favorite' && draggedData!.favorite) {
     addWidgetFromFavorite(draggedData!.favorite, row, col, cell);
   }
 

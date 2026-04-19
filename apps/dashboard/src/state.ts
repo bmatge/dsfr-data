@@ -9,7 +9,8 @@ export interface Widget {
   type: WidgetType;
   title: string;
   position: { row: number; col: number };
-  config: Record<string, unknown>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- config shape varie par type (kpi, chart, table, text) et est consommée via accès dynamiques dans widget-config.ts et code-generator.ts. Un typage strict exigerait un discriminated union qui sort du scope #45 phase 1.
+  config: Record<string, any>;
 }
 
 export interface DashboardSource {
