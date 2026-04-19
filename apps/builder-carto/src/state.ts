@@ -5,8 +5,15 @@
 
 export { PROXY_BASE_URL, LIB_URL } from '@dsfr-data/shared';
 
-/** Loose source type — the shared Source interface doesn't cover all provider fields */
-type AnySource = Record<string, any>;
+/**
+ * Loose source type — the shared Source interface doesn't cover all provider
+ * fields, et les consommateurs (code-generator, main.ts) accèdent aux champs
+ * dynamiquement. Un `Record<string, unknown>` casserait les concatenations
+ * string. Retyper proprement = discriminated union par provider, hors scope
+ * du mécanique phase 3b.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- cf. commentaire bloc
+export type AnySource = Record<string, any>;
 
 export type LayerType = 'marker' | 'geoshape' | 'circle' | 'heatmap';
 

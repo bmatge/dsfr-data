@@ -3,7 +3,7 @@
  */
 import './styles/carto.css';
 import { state, createLayer } from './state.js';
-import type { LayerConfig, PopupMode } from './state.js';
+import type { AnySource, LayerConfig, LayerType, PopupMode } from './state.js';
 import { generateCode } from './ui/code-generator.js';
 import {
   loadFromStorage,
@@ -13,8 +13,8 @@ import {
   injectTourStyles,
   startTourIfFirstVisit,
   BUILDER_CARTO_TOUR,
+  type Source,
 } from '@dsfr-data/shared';
-type AnySource = Record<string, any>;
 
 const FAVORITES_KEY = 'dsfr-data-favorites';
 
@@ -30,11 +30,11 @@ interface Favorite {
 
 function loadSavedSources(): AnySource[] {
   const raw = loadFromStorage<AnySource[]>(STORAGE_KEYS.SOURCES, []);
-  return raw.map((s) => migrateSource(s as any) as unknown as AnySource);
+  return raw.map((s) => migrateSource(s as Partial<Source>) as unknown as AnySource);
 }
 
 // Expose state for E2E tests
-(window as any).__BUILDER_CARTO_STATE__ = state;
+(window as Window & { __BUILDER_CARTO_STATE__?: typeof state }).__BUILDER_CARTO_STATE__ = state;
 
 // ---------------------------------------------------------------------------
 // Accordion helper
@@ -62,7 +62,7 @@ function toggleSection(sectionId: string): void {
 }
 
 // Make toggleSection available for onclick handlers
-(window as any).toggleSection = toggleSection;
+(window as Window & { toggleSection?: typeof toggleSection }).toggleSection = toggleSection;
 
 // ---------------------------------------------------------------------------
 // Drag & Drop
@@ -284,7 +284,7 @@ function renderMapConfig() {
   `;
 
   // Bind map config
-  const bindMap = (id: string, key: keyof typeof m, transform?: (v: string) => any) => {
+  const bindMap = (id: string, key: keyof typeof m, transform?: (v: string) => unknown) => {
     const el = document.getElementById(id) as HTMLInputElement | HTMLSelectElement | null;
     if (!el) return;
     el.addEventListener('change', () => {
@@ -294,7 +294,7 @@ function renderMapConfig() {
           : transform
             ? transform(el.value)
             : el.value;
-      (m as any)[key] = val;
+      (m as unknown as Record<string, unknown>)[key] = val;
       updateCodePreview();
     });
   };
@@ -312,7 +312,7 @@ function renderMapConfig() {
 
   const genEl = document.getElementById('gen-mode') as HTMLSelectElement;
   genEl?.addEventListener('change', () => {
-    state.generationMode = genEl.value as any;
+    state.generationMode = genEl.value as 'embedded' | 'dynamic';
     updateCodePreview();
   });
 }
@@ -348,7 +348,7 @@ function renderLayerConfig() {
           <label for="layer-source">Source enregistree</label>
           <select id="layer-source" class="fr-select fr-select--sm">
             <option value="">-- Choisir une source --</option>
-            ${savedSources.map((s: any) => `<option value="${s.id}" ${layer.source?.id === s.id ? 'selected' : ''}>${escapeAttr(s.name || s.datasetId || s.url || '')}</option>`).join('')}
+            ${savedSources.map((s: AnySource) => `<option value="${s.id}" ${layer.source?.id === s.id ? 'selected' : ''}>${escapeAttr(String(s.name || s.datasetId || s.url || ''))}</option>`).join('')}
           </select>
         </div>
         <div class="carto-field">
@@ -684,7 +684,7 @@ function renderLayerConfig() {
 // ---------------------------------------------------------------------------
 
 function bindLayerInputs(layer: LayerConfig) {
-  const bind = (id: string, key: keyof LayerConfig, transform?: (v: string) => any) => {
+  const bind = (id: string, key: keyof LayerConfig, transform?: (v: string) => unknown) => {
     const el = document.getElementById(id) as
       | HTMLInputElement
       | HTMLSelectElement
@@ -699,7 +699,7 @@ function bindLayerInputs(layer: LayerConfig) {
           : transform
             ? transform(el.value)
             : el.value;
-      (layer as any)[key] = val;
+      (layer as unknown as Record<string, unknown>)[key] = val;
       updateCodePreview();
     });
   };
@@ -708,7 +708,7 @@ function bindLayerInputs(layer: LayerConfig) {
   const sourceEl = document.getElementById('layer-source') as HTMLSelectElement | null;
   sourceEl?.addEventListener('change', () => {
     const savedSources = loadSavedSources();
-    const found = savedSources.find((s: any) => s.id === sourceEl.value);
+    const found = savedSources.find((s: AnySource) => s.id === sourceEl.value);
     layer.source = found || null;
     renderLayersList();
     updateCodePreview();
@@ -717,7 +717,7 @@ function bindLayerInputs(layer: LayerConfig) {
   // Type change re-renders entire config (different options sections)
   const typeEl = document.getElementById('layer-type');
   typeEl?.addEventListener('change', () => {
-    layer.type = (typeEl as HTMLSelectElement).value as any;
+    layer.type = (typeEl as HTMLSelectElement).value as LayerType;
     renderLayerConfig();
     renderLayersList();
     updateCodePreview();
