@@ -112,6 +112,13 @@ docker run --rm -v "$PWD:/src" -w /src public.ecr.aws/aquasecurity/trivy:latest 
             --error \
             <chemin1> <chemin2>
 
+      - name: Strip nosemgrep-suppressed findings from SARIF
+        if: always()
+        run: |
+          jq '(.runs[].results) |= map(select((.suppressions // []) | length == 0))' \
+            semgrep.sarif > semgrep.filtered.sarif
+          mv semgrep.filtered.sarif semgrep.sarif
+
       - name: Upload Semgrep SARIF
         if: always()
         uses: github/codeql-action/upload-sarif@v3
@@ -119,6 +126,8 @@ docker run --rm -v "$PWD:/src" -w /src public.ecr.aws/aquasecurity/trivy:latest 
           sarif_file: semgrep.sarif
           category: semgrep
 ```
+
+**Pourquoi l'étape `Strip nosemgrep-suppressed findings`** : Semgrep OSS honore les `// nosemgrep: <rule-id>` inline et marque les findings correspondants avec `"suppressions": [{"kind": "inSource"}]` dans le SARIF. Mais **GitHub Code Scanning n'interprète pas ce flag** et remonte ces findings comme alertes ouvertes. Le `jq` filtre ces findings côté workflow avant l'upload pour éviter les re-dismissals manuels récurrents. `jq` est déjà présent dans l'image `semgrep/semgrep`.
 
 `.semgrepignore` :
 ```
