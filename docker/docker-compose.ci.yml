@@ -8,7 +8,8 @@
 #     up -d --build
 #
 # Differences vs production:
-#   - Maps nginx port 80 to host port 8080 (accessible from the runner / ZAP)
+#   - Maps nginx container port 8080 to host port 8080 (nginx runs non-root
+#     depuis #66 et écoute sur 8080 sans capability privileged)
 #   - Turns `ecosystem-network` into a locally-managed bridge (no external Traefik)
 #   - Sets `CORS_ORIGIN` so cookie-based auth flows don't reject the ZAP origin
 #
@@ -17,7 +18,7 @@
 services:
   chartsbuilder:
     ports:
-      - "8080:80"
+      - "8080:8080"
     environment:
       - CORS_ORIGIN=http://localhost:8080
 
