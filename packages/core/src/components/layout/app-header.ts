@@ -55,8 +55,10 @@ export class AppHeader extends LitElement {
   private _unsubAuth?: () => void;
   private _unsubSync?: () => void;
   private _outsideClickHandler = (e: MouseEvent) => {
-    const menu = this.querySelector('.app-header-user-menu');
-    if (menu && !menu.contains(e.target as Node)) {
+    const menus = this.querySelectorAll('.app-header-user-menu');
+    const target = e.target as Node;
+    const inside = Array.from(menus).some((m) => m.contains(target));
+    if (!inside) {
       this._userMenuOpen = false;
     }
   };
@@ -273,6 +275,40 @@ export class AppHeader extends LitElement {
     `;
   }
 
+  private _renderToolsList() {
+    return html`
+      <ul class="fr-btns-group">
+        <li>
+          <a
+            class="fr-btn fr-btn--tertiary-no-outline fr-icon-book-2-line"
+            href="${this._base}guide/guide.html"
+          >
+            Guide
+          </a>
+        </li>
+        <li>
+          <a
+            class="fr-btn fr-btn--tertiary-no-outline fr-icon-file-text-line"
+            href="${this._base}specs/index.html"
+          >
+            Specs
+          </a>
+        </li>
+        <li>
+          <a
+            class="fr-btn fr-btn--tertiary-no-outline fr-icon-star-fill"
+            href="${this._base}apps/favorites/index.html"
+          >
+            Favoris${this._favCount > 0
+              ? html` <span class="fr-badge fr-badge--sm fr-badge--info">${this._favCount}</span>`
+              : nothing}
+          </a>
+        </li>
+        ${this._renderSyncStatus()} ${this._renderAuthButton()}
+      </ul>
+    `;
+  }
+
   render() {
     const navItems = this._getNavItems();
 
@@ -323,39 +359,7 @@ export class AppHeader extends LitElement {
                 </div>
               </div>
               <div class="fr-header__tools">
-                <div class="fr-header__tools-links">
-                  <ul class="fr-btns-group">
-                    <li>
-                      <a
-                        class="fr-btn fr-btn--tertiary-no-outline fr-icon-book-2-line"
-                        href="${this._base}guide/guide.html"
-                      >
-                        Guide
-                      </a>
-                    </li>
-                    <li>
-                      <a
-                        class="fr-btn fr-btn--tertiary-no-outline fr-icon-file-text-line"
-                        href="${this._base}specs/index.html"
-                      >
-                        Specs
-                      </a>
-                    </li>
-                    <li>
-                      <a
-                        class="fr-btn fr-btn--tertiary-no-outline fr-icon-star-fill"
-                        href="${this._base}apps/favorites/index.html"
-                      >
-                        Favoris${this._favCount > 0
-                          ? html` <span class="fr-badge fr-badge--sm fr-badge--info"
-                              >${this._favCount}</span
-                            >`
-                          : nothing}
-                      </a>
-                    </li>
-                    ${this._renderSyncStatus()} ${this._renderAuthButton()}
-                  </ul>
-                </div>
+                <div class="fr-header__tools-links">${this._renderToolsList()}</div>
               </div>
             </div>
           </div>
@@ -365,7 +369,7 @@ export class AppHeader extends LitElement {
             <button class="fr-btn--close fr-btn" aria-controls="modal-menu" title="Fermer">
               Fermer
             </button>
-            <div class="fr-header__menu-links"></div>
+            <div class="fr-header__menu-links">${this._renderToolsList()}</div>
             <nav
               class="fr-nav"
               id="header-navigation"
