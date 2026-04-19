@@ -1,0 +1,114 @@
+name: DAST
+
+# Dynamic Application Security Testing — OWASP ZAP baseline scan.
+#
+# Spins up the full production stack (MariaDB + Express + nginx) inside the
+# runner, waits for /api/health, then runs ZAP passive scan (+ AJAX spider)
+# against the single entry point at http://localhost:8080/. The scan discovers
+# both the frontend surface and the /api/* routes since nginx proxies both on
+# the same origin — a separate "frontend" and "API" job would duplicate the
+# 3-4 min boot cost for zero coverage benefit.
+#
+# Non-blocking advisory channel, see ADR-004 (Politique de sévérité SCA et
+# défense en profondeur). Findings are uploaded as artifacts and surfaced via
+# the ZAP action's step summary; remediation is asynchronous.
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Weekly, Monday 08:00 UTC (after docker-scan Monday 07:00 UTC).
+    - cron: '0 8 * * 1'
+
+permissions:
+  contents: read
+  issues: read
+
+jobs:
+  dast:
+    name: DAST — OWASP ZAP baseline (non-blocking)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Generate ephemeral secrets for the CI stack
+        run: |
+          set -euo pipefail
+          JWT_SECRET=$(openssl rand -base64 48 | tr -d '\n=/+' | head -c 64)
+          DB_PASSWORD=$(openssl rand -base64 24 | tr -d '\n=/+' | head -c 24)
+          DB_ROOT_PASSWORD=$(openssl rand -base64 24 | tr -d '\n=/+' | head -c 24)
+          ENCRYPTION_KEY=$(openssl rand -hex 32)
+
+          # Mask in logs before writing anywhere.
+          echo "::add-mask::$JWT_SECRET"
+          echo "::add-mask::$DB_PASSWORD"
+          echo "::add-mask::$DB_ROOT_PASSWORD"
+          echo "::add-mask::$ENCRYPTION_KEY"
+
+          {
+            echo "JWT_SECRET=$JWT_SECRET"
+            echo "DB_PASSWORD=$DB_PASSWORD"
+            echo "DB_ROOT_PASSWORD=$DB_ROOT_PASSWORD"
+            echo "ENCRYPTION_KEY=$ENCRYPTION_KEY"
+          } > docker/.env
+
+      - name: Build and start stack (MariaDB + Express + nginx)
+        working-directory: docker
+        run: |
+          docker compose \
+            -f docker-compose.yml \
+            -f docker-compose.db.yml \
+            -f docker-compose.ci.yml \
+            up -d --build
+
+      - name: Wait for /api/health
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:8080/api/health >/dev/null 2>&1; then
+              echo "App is healthy after ${i} attempts:"
+              curl -s http://localhost:8080/api/health
+              exit 0
+            fi
+            echo "Attempt ${i}/60 — not ready yet, retrying in 5s…"
+            sleep 5
+          done
+          echo "::error::App did not become healthy within 5 minutes"
+          exit 1
+
+      - name: Dump stack logs if app never came up
+        if: failure()
+        working-directory: docker
+        run: |
+          docker compose \
+            -f docker-compose.yml \
+            -f docker-compose.db.yml \
+            -f docker-compose.ci.yml \
+            logs --tail=300
+
+      - name: OWASP ZAP baseline scan
+        # Passive scan + AJAX spider to cover the SPA-driven routing.
+        # -a: include alpha passive rules
+        # -j: use AJAX spider (headless Chromium bundled in the action image)
+        # -m 3: max spider time (minutes)
+        # -T 15: max total scan time (minutes, safety cap)
+        uses: zaproxy/action-baseline@v0.14.0
+        with:
+          target: 'http://localhost:8080/'
+          rules_file_name: '.zap/rules.tsv'
+          cmd_options: '-a -j -m 3 -T 15'
+          fail_action: false
+          allow_issue_writing: false
+          artifact_name: zap-baseline-report
+
+      - name: Tear down stack
+        if: always()
+        working-directory: docker
+        run: |
+          docker compose \
+            -f docker-compose.yml \
+            -f docker-compose.db.yml \
+            -f docker-compose.ci.yml \
+            down -v
