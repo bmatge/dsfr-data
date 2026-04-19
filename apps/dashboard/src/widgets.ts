@@ -6,7 +6,7 @@ import { navigateTo, confirmDialog } from '@dsfr-data/shared';
 import { state } from './state.js';
 import { openConfigModal } from './widget-config.js';
 import { updateGeneratedCode } from './code-generator.js';
-import type { Widget, WidgetType } from './state.js';
+import type { Widget, WidgetType, DashboardFavorite } from './state.js';
 
 export function addWidget(type: WidgetType, row: number, col: number, cell: HTMLElement): void {
   const widget: Widget = {
@@ -24,7 +24,7 @@ export function addWidget(type: WidgetType, row: number, col: number, cell: HTML
 }
 
 export function addWidgetFromFavorite(
-  favorite: any,
+  favorite: DashboardFavorite,
   row: number,
   col: number,
   cell: HTMLElement
@@ -32,7 +32,7 @@ export function addWidgetFromFavorite(
   const widget: Widget = {
     id: crypto.randomUUID(),
     type: 'chart',
-    title: favorite.name,
+    title: typeof favorite.name === 'string' ? favorite.name : 'Graphique',
     position: { row, col },
     config: {
       fromFavorite: true,
@@ -57,7 +57,7 @@ export function getDefaultTitle(type: WidgetType): string {
   return titles[type] || 'Widget';
 }
 
-export function getDefaultConfig(type: WidgetType): Record<string, any> {
+export function getDefaultConfig(type: WidgetType): Record<string, unknown> {
   switch (type) {
     case 'kpi':
       return { valeur: '', format: 'nombre', icone: '', label: 'Mon KPI' };

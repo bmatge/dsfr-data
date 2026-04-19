@@ -4,9 +4,9 @@
 
 import { state } from './state.js';
 import { addWidget, addWidgetFromFavorite } from './widgets.js';
-import type { WidgetType } from './state.js';
+import type { WidgetType, DashboardFavorite } from './state.js';
 
-let draggedData: { type: string; widgetType?: string; favorite?: any } | null = null;
+let draggedData: { type: string; widgetType?: string; favorite?: DashboardFavorite } | null = null;
 
 export function initDragAndDrop(): void {
   document.querySelectorAll('.widget-item').forEach((item) => {

@@ -9,7 +9,19 @@ export interface Widget {
   type: WidgetType;
   title: string;
   position: { row: number; col: number };
-  config: Record<string, any>;
+  config: Record<string, unknown>;
+}
+
+export interface DashboardSource {
+  id: string;
+  name: string;
+  [key: string]: unknown;
+}
+
+export interface DashboardFavorite {
+  id: string;
+  name?: string;
+  [key: string]: unknown;
 }
 
 export interface DashboardData {
@@ -24,13 +36,13 @@ export interface DashboardData {
     rowColumns?: Record<number, number>;
   };
   widgets: Widget[];
-  sources: any[];
+  sources: DashboardSource[];
 }
 
 export interface AppState {
   dashboard: DashboardData;
   selectedWidget: Widget | null;
-  favorites: any[];
+  favorites: DashboardFavorite[];
   savedDashboards: DashboardData[];
 }
 

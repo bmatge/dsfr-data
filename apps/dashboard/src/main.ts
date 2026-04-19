@@ -14,6 +14,7 @@ import {
 } from '@dsfr-data/shared';
 import { state } from './state.js';
 import { createEmptyDashboard } from './state.js';
+import type { DashboardData, DashboardSource, DashboardFavorite } from './state.js';
 import { initDragAndDrop, handleFavoriteDragStart } from './drag-drop.js';
 import { editWidget, deleteWidget, openInBuilder, duplicateWidget } from './widgets.js';
 import { closeConfigModal, applyConfig } from './widget-config.js';
@@ -40,16 +41,16 @@ import {
 import { openPreviewModal, closePreviewModal } from './preview.js';
 
 function loadFavorites(): void {
-  state.favorites = loadFromStorage<any[]>(STORAGE_KEYS.FAVORITES, []);
+  state.favorites = loadFromStorage<DashboardFavorite[]>(STORAGE_KEYS.FAVORITES, []);
   renderFavorites();
 }
 
 function loadSavedDashboards(): void {
-  state.savedDashboards = loadFromStorage<any[]>(STORAGE_KEYS.DASHBOARDS, []);
+  state.savedDashboards = loadFromStorage<DashboardData[]>(STORAGE_KEYS.DASHBOARDS, []);
 }
 
 function loadSources(): void {
-  const sources = loadFromStorage<any[]>(STORAGE_KEYS.SOURCES, []);
+  const sources = loadFromStorage<DashboardSource[]>(STORAGE_KEYS.SOURCES, []);
   renderSources(sources);
 }
 
@@ -82,7 +83,7 @@ function renderFavorites(): void {
   });
 }
 
-function renderSources(sources: any[]): void {
+function renderSources(sources: DashboardSource[]): void {
   const container = document.getElementById('sources-list');
   if (!container) return;
 

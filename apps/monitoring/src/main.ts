@@ -49,7 +49,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Detect auth state for admin features
   // Read __gwDbMode flag (set by the backend/Docker, not by shared isDbMode which has side effects)
-  dbMode = typeof window !== 'undefined' && (window as any).__gwDbMode === true;
+  dbMode =
+    typeof window !== 'undefined' &&
+    (window as Window & { __gwDbMode?: boolean }).__gwDbMode === true;
   if (dbMode) {
     try {
       const authState = await checkAuth();
