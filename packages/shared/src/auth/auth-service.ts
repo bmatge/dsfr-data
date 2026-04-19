@@ -25,6 +25,22 @@ const _listeners: Set<AuthChangeCallback> = new Set();
 
 const MUTATION_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
+/**
+ * Endpoints qui ne requièrent PAS de token CSRF côté client — doit rester
+ * synchronisé avec la SKIP_PATHS de server/src/middleware/csrf.ts (routes
+ * d'auth-bootstrap + health check + l'émetteur du token lui-même).
+ */
+const CSRF_SKIP_PATHS = new Set<string>([
+  '/api/health',
+  '/api/auth/csrf',
+  '/api/auth/login',
+  '/api/auth/register',
+  '/api/auth/verify-email',
+  '/api/auth/resend-verification',
+  '/api/auth/forgot-password',
+  '/api/auth/reset-password',
+]);
+
 function notify(): void {
   for (const cb of _listeners) {
     try {
@@ -59,7 +75,7 @@ async function fetchCsrfToken(): Promise<string | null> {
 
 async function apiFetchOnce(path: string, options?: RequestInit): Promise<Response> {
   const method = (options?.method ?? 'GET').toUpperCase();
-  const needsCsrf = MUTATION_METHODS.has(method);
+  const needsCsrf = MUTATION_METHODS.has(method) && !CSRF_SKIP_PATHS.has(path);
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -85,8 +101,9 @@ async function apiFetchOnce(path: string, options?: RequestInit): Promise<Respon
  */
 async function apiFetch(path: string, options?: RequestInit): Promise<Response> {
   const res = await apiFetchOnce(path, options);
+  const method = (options?.method ?? 'GET').toUpperCase();
 
-  if (res.status === 403 && MUTATION_METHODS.has((options?.method ?? 'GET').toUpperCase())) {
+  if (res.status === 403 && MUTATION_METHODS.has(method) && !CSRF_SKIP_PATHS.has(path)) {
     // Peek body for CSRF_INVALID without consuming it
     const cloned = res.clone();
     try {
@@ -404,6 +421,15 @@ export function _resetAuthState(): void {
   _baseUrl = '';
   _csrfToken = null;
   _listeners.clear();
+}
+
+/**
+ * Pré-positionne le CSRF token pour les tests qui veulent éviter le fetch
+ * implicite vers /api/auth/csrf avant leur première mutation. À n'utiliser
+ * que dans les tests.
+ */
+export function _setCsrfTokenForTest(token: string | null): void {
+  _csrfToken = token;
 }
 
 /**
