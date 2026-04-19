@@ -9,14 +9,4 @@
 # Règle d'or : jamais de masquage silencieux. Toute entrée sans justification
 # ou sans date de revue doit être retirée ou remplie.
 
-# ──────────────────────────────────────────────────────────────────
-# DS-0002 — Dockerfiles nginx sans directive USER non-root
-# Quoi   : trivy config signale docker/Dockerfile et docker/Dockerfile.db
-#          qui héritent de nginx:alpine et tournent en root.
-# Pourquoi : l'image de base binde le port 80 (privileged < 1024) et requiert
-#          donc root, ou une migration vers nginxinc/nginx-unprivileged:alpine
-#          avec adaptation de nginx.conf + docker-compose + healthcheck.
-#          Le fix propre est non trivial et sort du scope du job SCA (#56).
-# Suivi  : #66
-# Revue  : 2026-07-14
-DS-0002
+# (vide — toutes les entrées passées ont été résolues par des fixes applicatifs.)

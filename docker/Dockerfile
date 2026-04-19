@@ -22,8 +22,15 @@ RUN node scripts/build-app.js
 # Build MCP server (separate package, outside workspace)
 RUN cd mcp-server && npm ci && npm run build
 
-# Production stage - Nginx + MCP server
-FROM nginx:alpine
+# Production stage — nginx non-root + MCP server.
+# L'image `nginxinc/nginx-unprivileged:alpine` tourne en utilisateur `nginx`
+# (uid 101) et écoute sur 8080 par défaut — aucun privilège root requis.
+# Ferme le finding Trivy DS-0002. Cf. issue #66.
+FROM nginxinc/nginx-unprivileged:alpine
+
+# Les installs + copies doivent se faire en root ; on reviendra à `nginx`
+# en fin de stage pour le runtime.
+USER root
 
 # Add Node.js for the MCP server
 RUN apk add --no-cache nodejs
@@ -54,9 +61,16 @@ COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 # IA default proxy server (serves /ia-server-config and /ia-proxy-default)
 COPY scripts/ia-default-server.js /app/scripts/ia-default-server.js
 
-EXPOSE 80
+# Donner à l'utilisateur `nginx` l'écriture sur les répertoires de cache,
+# de logs (beacon-logs volume) et le workspace /app (MCP + ia-default).
+RUN chown -R nginx:nginx /var/cache/nginx /var/log/nginx /app \
+ && chmod +x /usr/local/bin/docker-entrypoint.sh /usr/local/bin/parse-beacon-logs.sh
+
+USER nginx
+
+EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget -qO- http://127.0.0.1/ || exit 1
+  CMD wget -qO- http://127.0.0.1:8080/ || exit 1
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

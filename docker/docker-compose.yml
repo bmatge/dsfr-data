@@ -38,8 +38,8 @@ services:
       - "traefik.http.routers.chartsbuilder-https.tls.options=anssi-strict@file"
       # Pas de Basic Auth - les clés API sont stockées en localStorage (privées par utilisateur)
 
-      # Service
-      - "traefik.http.services.chartsbuilder.loadbalancer.server.port=80"
+      # Service — nginx non-root écoute 8080 (cf. #66 / docker/Dockerfile)
+      - "traefik.http.services.chartsbuilder.loadbalancer.server.port=8080"
 
       # Middleware de redirection HTTPS
       - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
