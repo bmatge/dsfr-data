@@ -31,7 +31,10 @@ const REFRESH_URL = `${PROXY_BASE_URL}/api/refresh-monitoring`;
 const API_DATA_URL = '/api/monitoring/data';
 
 function isDbMode(): boolean {
-  return typeof window !== 'undefined' && (window as any).__gwDbMode === true;
+  return (
+    typeof window !== 'undefined' &&
+    (window as Window & { __gwDbMode?: boolean }).__gwDbMode === true
+  );
 }
 
 export async function fetchMonitoringData(): Promise<MonitoringData> {
