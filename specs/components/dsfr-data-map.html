@@ -50,6 +50,7 @@
             <tr><td><code>max-zoom</code></td><td>Number</td><td><code>18</code></td><td>Zoom maximum autorise</td></tr>
             <tr><td><code>height</code></td><td>String</td><td><code>"500px"</code></td><td>Hauteur du conteneur. Accepte toute unite CSS (<code>px</code>, <code>vh</code>, <code>rem</code>). Un pourcentage (ex: <code>"60%"</code>) est interprete comme un ratio de la largeur (aspect-ratio responsive).</td></tr>
             <tr><td><code>tiles</code></td><td>String</td><td><code>"ign-plan"</code></td><td>Fond de carte predefini ou URL template custom</td></tr>
+            <tr><td><code>sovereign-only</code></td><td>Boolean</td><td><code>false</code></td><td>Restreint <code>tiles</code> aux presets IGN souverains. Tout autre preset (ex. <code>osm-fr</code>) ou URL custom est refuse avec un <code>console.warn</code> et remplace par <code>ign-plan</code>.</td></tr>
             <tr><td><code>no-controls</code></td><td>Boolean</td><td><code>false</code></td><td>Masque les controles de zoom Leaflet</td></tr>
             <tr><td><code>fit-bounds</code></td><td>Boolean</td><td><code>false</code></td><td>Ajuste automatiquement le viewport aux donnees</td></tr>
             <tr><td><code>max-bounds</code></td><td>String</td><td><code>""</code></td><td>Limites <code>"latSW,lonSW,latNE,lonNE"</code></td></tr>
@@ -58,17 +59,19 @@
         </table>
 
         <h3>Fonds de carte predefinis</h3>
-        <p>Tuiles souveraines, accessibles <strong>sans cle API</strong> :</p>
+        <p>Tuiles accessibles <strong>sans cle API</strong>. Les presets <code>ign-*</code> sont servis par la <a href="https://geoservices.ign.fr/services-geoplateforme">Geoplateforme nationale IGN</a> (infrastructure cartographique de l'Etat, hebergee en France). Le preset <code>osm-fr</code> est servi par l'<a href="https://www.openstreetmap.fr/">association OpenStreetMap France</a> (association loi 1901, infra hebergee en France, distincte de l'OSM Foundation).</p>
         <table class="attr-table">
-          <thead><tr><th>Preset</th><th>Source</th></tr></thead>
+          <thead><tr><th>Preset</th><th>Source</th><th>Souverain</th><th>Endpoint</th></tr></thead>
           <tbody>
-            <tr><td><code>ign-plan</code></td><td>Geoplateforme IGN — Plan IGN</td></tr>
-            <tr><td><code>ign-ortho</code></td><td>Geoplateforme IGN — Orthophoto</td></tr>
-            <tr><td><code>ign-topo</code></td><td>Geoplateforme IGN — Carte topographique (SCAN 25/100)</td></tr>
-            <tr><td><code>ign-cadastre</code></td><td>Geoplateforme IGN — Cadastre</td></tr>
-            <tr><td><code>osm</code></td><td>OpenStreetMap France</td></tr>
+            <tr><td><code>ign-plan</code></td><td>Geoplateforme IGN — Plan IGN</td><td>Oui</td><td><code>data.geopf.fr/wmts</code> (layer <code>GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2</code>)</td></tr>
+            <tr><td><code>ign-ortho</code></td><td>Geoplateforme IGN — Orthophoto</td><td>Oui</td><td><code>data.geopf.fr/wmts</code> (layer <code>ORTHOIMAGERY.ORTHOPHOTOS</code>)</td></tr>
+            <tr><td><code>ign-topo</code></td><td>Geoplateforme IGN — Carte topographique (SCAN 25/100)</td><td>Oui</td><td><code>data.geopf.fr/wmts</code> (layer <code>GEOGRAPHICALGRIDSYSTEMS.MAPS.BDUNI.J1</code>)</td></tr>
+            <tr><td><code>ign-cadastre</code></td><td>Geoplateforme IGN — Cadastre</td><td>Oui</td><td><code>data.geopf.fr/wmts</code> (layer <code>CADASTRALPARCELS.PARCELLAIRE_EXPRESS</code>)</td></tr>
+            <tr><td><code>osm-fr</code></td><td>OpenStreetMap France (association)</td><td>Non (associatif hors Etat)</td><td><code>{s}.tile.openstreetmap.fr/osmfr</code></td></tr>
           </tbody>
         </table>
+        <p class="fr-mt-2w"><strong>Mode <code>sovereign-only</code></strong> : pour les DSI qui imposent une politique "zero tiers externe non souverain", ajouter l'attribut booleen <code>sovereign-only</code> sur <code>&lt;dsfr-data-map&gt;</code> restreint les presets disponibles aux seules tuiles IGN (<code>ign-plan</code>, <code>ign-ortho</code>, <code>ign-topo</code>, <code>ign-cadastre</code>). Tout autre preset ou URL custom est refuse avec un avertissement console et remplace par <code>ign-plan</code>.</p>
+        <p><strong>Alias de retrocompatibilite</strong> : <code>tiles="osm"</code> reste accepte et pointe vers le preset <code>osm-fr</code>.</p>
 
         <!-- ============================================================ -->
         <!-- dsfr-data-map-layer -->
