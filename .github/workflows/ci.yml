@@ -59,6 +59,9 @@ jobs:
       - name: Security audit
         run: npm audit --audit-level=high
 
+      - name: Check SRI hashes on CDN refs
+        run: npm run check:sri
+
       - name: Build shared package
         run: npm run build:shared
 
@@ -205,7 +208,6 @@ jobs:
             --config=p/javascript \
             --config=p/xss \
             --config=p/security-audit \
-            --exclude-rule=html.security.audit.missing-integrity.missing-integrity \
             --severity=ERROR \
             --severity=WARNING \
             --metrics=off \

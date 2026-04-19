@@ -40,6 +40,8 @@
     "changeset": "changeset",
     "version-packages": "changeset version && vite-node scripts/sync-versions.ts",
     "sync-versions": "vite-node scripts/sync-versions.ts",
+    "generate-sri": "vite-node scripts/generate-sri.ts",
+    "check:sri": "vite-node scripts/generate-sri.ts -- --check",
     "release-publish": "npm run build:shared && npm run build && changeset publish"
   },
   "keywords": [

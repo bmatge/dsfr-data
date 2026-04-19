@@ -5,21 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Observatoire FranceNum – Bénéficiaires</title>
     <!-- DSFR CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css" integrity="sha384-atVZ+aK6VI0nWyTEhKgze5InDJ+SWRRqa0BCZ2MTNyoOcBiHj1c3dGPdi6ML65B3" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css" integrity="sha384-5P5DFFqorcEBpfnK9WHu/Ralfr7ZxyCZh0ryaJbgucSvc71+qRYdGvNEcyMqQwa/" crossorigin="anonymous">
     <!-- DSFR Chart -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css" integrity="sha384-987+TUcyVaQAI/PaEqYIGNqku/bHSkNVAqOfNxyS1eE9SxeeH2Ue4FQZ3kKtnWfM" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" integrity="sha384-9nhczxUqK87bcKHh20fSQcTGD4qq5GhayNYSYWqwBkINBhOfQLg/P5HG5lF1urn4" crossorigin="anonymous"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js" integrity="sha384-xYrR55uYb2Y55H6eELrLA9ARM8YsjB1ksG6QHJZrhL49lzax9l7rHuQPjsZGiTYk" crossorigin="anonymous"></script>
     <!--
     Leaflet préchargé AVANT dsfr-data pour éviter l'échec du dynamic import
     dans certains contextes (iframe, CSP stricte) — pattern identique
     à l'exemple chambres d'agriculture.
   -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
     <!-- dsfr-data bundle complet (core + map) -->
-    <script src="https://cdn.jsdelivr.net/npm/dsfr-data@0/dist/dsfr-data.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dsfr-data@0/dist/dsfr-data.umd.js" integrity="sha384-LlslaQyGhbHWrcbIkBV7Spm2HojwcfODczpiLx8YyFCKdk4TudcuZu2KlgO/SVGj" crossorigin="anonymous"></script>
   </head>
   <body>
     <!-- =============================================
@@ -345,7 +345,7 @@
       </div>
     </footer>
     <!-- DSFR JS (doit être chargé en dernier) -->
-    <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.module.min.js"></script>
-    <script nomodule src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.nomodule.min.js"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.module.min.js" integrity="sha384-gPgRd2+olihO/srZe/Bqw6iVLiiaL7meuri1d5YVMejwPXg7VehLSBeORYq9yh2F" crossorigin="anonymous"></script>
+    <script nomodule src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.nomodule.min.js" integrity="sha384-Z4DUpohlJ2Fb0B8Lg02tWZXbOSM2tn+L1hEWTt5sf3gNXplIW00IoMarWgHBUffK" crossorigin="anonymous"></script>
   </body>
 </html>

@@ -96,6 +96,24 @@ Inclus dans `npm run lint` (eslint-plugin-security est déjà dans la config). P
 npm run lint 2>&1 | grep 'security/'
 ```
 
+## SRI — Subresource Integrity des assets CDN
+
+Toutes les balises `<script src="…">` et `<link href="…">` qui pointent vers un CDN (jsdelivr, unpkg) portent un attribut `integrity="sha384-…"` + `crossorigin="anonymous"`. Sans SRI, un CDN compromis (ou un MITM via CA compromis) permettrait l'exécution de code arbitraire côté navigateur.
+
+Le script [`scripts/generate-sri.ts`](../scripts/generate-sri.ts) automatise la génération et la mise à jour des hashes :
+
+```bash
+# Régénère / met à jour tous les integrity=
+npm run generate-sri
+
+# Dry-run (CI : exit 1 si un tag CDN est sans SRI)
+npm run check:sri
+```
+
+Le script est idempotent : une 2e passe ne modifie rien. Il fetch uniquement les URLs pointant vers un CDN whitelisté (`cdn.jsdelivr.net`, `unpkg.com`) et ignore les fichiers dans `**/dist/**`.
+
+**Quand relancer `npm run generate-sri`** : à chaque bump de version CDN — le hash est lié à un contenu précis, donc tout `@1.14.4 → @1.14.5` invalide le hash et casse la prod. Le job `quality` de la CI lance `check:sri` à chaque PR ; une divergence remonte en erreur.
+
 ## DAST — OWASP ZAP baseline
 
 Le scan DAST tourne en CI sur `workflow_dispatch` + chaque lundi 08:00 UTC (workflow [`.github/workflows/dast.yml`](../.github/workflows/dast.yml)). Pour le rejouer en local :
