@@ -672,15 +672,15 @@
             <iframe id="preview-iframe"
               sandbox="allow-scripts allow-same-origin"
               title="Apercu du graphique"
-              style="display: none; width: 100%; border: none; min-height: 400px; border-radius: 4px; background: white;">
+              style="display: none; width: 100%; height: calc(100vh - 280px); min-height: 460px; border: none; border-radius: 4px; background: white;">
             </iframe>
           </div>
         </div>
-
-        <!-- Apercu accessibilite (composant reel) -->
-        <dsfr-data-a11y id="a11y-preview" source="builder-preview"
-          no-auto-aria table download style="display: none;">
-        </dsfr-data-a11y>
+        <!--
+          Le companion dsfr-data-a11y est deja genere a l'interieur du code
+          injecte dans l'iframe (cf. generateEmbeddedA11y / generateA11yElement
+          dans ui/code-generator.ts). Pas de double dans le panel builder.
+        -->
       </div>
 
       <!-- Onglet Code -->
