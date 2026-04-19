@@ -29,7 +29,11 @@ function sanitizeUrl(href: string): string {
  */
 export function sendWidgetBeacon(component: string, subtype?: string): void {
   // Opt-in: beacons are disabled unless explicitly enabled
-  if (typeof window === 'undefined' || !(window as any).DSFR_DATA_BEACON) return;
+  if (
+    typeof window === 'undefined' ||
+    !(window as Window & { DSFR_DATA_BEACON?: boolean }).DSFR_DATA_BEACON
+  )
+    return;
 
   const key = `${component}:${subtype || ''}`;
   if (sent.has(key)) return;
@@ -56,7 +60,9 @@ export function sendWidgetBeacon(component: string, subtype?: string): void {
 
   // In DB mode, send as JSON POST to the API (more reliable, stored in MariaDB)
   // Fallback to pixel tracking if the POST fails
-  const useApi = typeof window !== 'undefined' && (window as any).__gwDbMode === true;
+  const useApi =
+    typeof window !== 'undefined' &&
+    (window as Window & { __gwDbMode?: boolean }).__gwDbMode === true;
 
   if (useApi) {
     try {

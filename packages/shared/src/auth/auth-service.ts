@@ -152,7 +152,7 @@ export async function isDbMode(): Promise<boolean> {
 
   // Set a global flag so fire-and-forget code (beacon) can detect DB mode synchronously
   if (_dbMode && typeof window !== 'undefined') {
-    (window as any).__gwDbMode = true;
+    (window as Window & { __gwDbMode?: boolean }).__gwDbMode = true;
   }
 
   return _dbMode;

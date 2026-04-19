@@ -33,10 +33,10 @@ import { startTourIfFirstVisit, injectTourStyles, resetTour, startTour } from '@
 import { BUILDER_TOUR } from './ui/tour.js';
 
 // Expose functions called from inline onclick in HTML
-(window as any).toggleSection = toggleSection;
+(window as Window & { toggleSection?: typeof toggleSection }).toggleSection = toggleSection;
 
 // Expose state for E2E tests
-(window as any).__BUILDER_STATE__ = state;
+(window as Window & { __BUILDER_STATE__?: typeof state }).__BUILDER_STATE__ = state;
 
 document.addEventListener('DOMContentLoaded', async () => {
   await initAuth();

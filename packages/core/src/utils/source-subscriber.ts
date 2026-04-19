@@ -7,7 +7,10 @@
 import type { LitElement } from 'lit';
 import { subscribeToSource, getDataCache } from './data-bridge.js';
 
-type Constructor<T = {}> = new (...args: any[]) => T;
+// Pattern Lit mixin canonique : le constructor doit être callable avec
+// n'importe quels args pour permettre le chaînage `class extends mixin(Parent)`.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- any[] est le pattern canonique des mixins Lit
+type Constructor<T = object> = new (...args: any[]) => T;
 
 export interface SourceSubscriberInterface {
   source: string;

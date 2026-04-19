@@ -34,8 +34,12 @@ export function generateCode(
     const targetGraphNode = graphNodes.get(conn.target);
     if (!sourceGraphNode || !targetGraphNode) continue;
 
-    const sourceKey = (conn as any).sourceOutput as string;
-    const targetKey = (conn as any).targetInput as string;
+    // Les champs `sourceOutput` / `targetInput` sont ajoutés par le runtime
+    // éditeur (drawflow) sur la connexion, pas présents dans le type exposé.
+    const { sourceOutput: sourceKey, targetInput: targetKey } = conn as typeof conn & {
+      sourceOutput: string;
+      targetInput: string;
+    };
 
     if (sourceKey === 'data' && targetKey === 'data') {
       // Data connection: target reads from source
