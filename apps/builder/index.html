@@ -28,7 +28,7 @@
   <!-- Header -->
   <app-header current-page="builder" base-path="../../"></app-header>
 
-  <app-layout-builder left-ratio="50">
+  <app-layout-builder left-ratio="38" min-right-width="480">
     <!-- ============================================ -->
     <!-- PANNEAU DE CONFIGURATION -->
     <!-- ============================================ -->
@@ -48,9 +48,16 @@
         </div>
         <div class="config-section-content">
 
-        <!-- Selection de source (grille 3 colonnes) -->
+        <!--
+          Selection de source sur une seule ligne :
+            [ select "Source"                 | #fields-status (bouton "Voir"
+                                                injecte par sources.ts)   | + Nouvelle ]
+          Le bouton "Charger" est retire : les fields sont charges
+          automatiquement dans handleSavedSourceChange() a chaque change.
+          Le nom et le compteur d'enregistrements apparaissent dans le resume
+          en tete de section (progress-indicator.ts), plus besoin de la ligne 2.
+        -->
         <div id="source-panel-saved" class="source-panel">
-          <!-- Ligne 1 : Select | Bouton | Status -->
           <div class="source-grid">
             <div class="fr-select-group fr-select-group--sm">
               <label class="fr-label" for="saved-source">Source</label>
@@ -58,19 +65,10 @@
                 <option value="">— Choisir —</option>
               </select>
             </div>
-            <button class="fr-btn fr-btn--sm fr-btn--secondary source-btn" id="load-fields-btn">
-              <i class="ri-refresh-line"></i> Charger
-            </button>
             <div class="source-status" id="fields-status" aria-live="polite"></div>
-          </div>
-
-          <!-- Ligne 2 : Info | Lien | (vide) -->
-          <div class="source-grid source-grid-row2">
-            <div id="saved-source-info" class="source-info"></div>
-            <a href="../sources/index.html" class="fr-link fr-link--sm">
+            <a href="../sources/index.html" class="fr-link fr-link--sm source-new-link">
               <i class="ri-add-line"></i> Nouvelle
             </a>
-            <div></div>
           </div>
         </div>
         </div>
@@ -634,10 +632,11 @@
       </div>
 
       <!-- BOUTON GENERER -->
-      <div class="config-section">
+      <div class="config-section generate-controls">
         <button class="fr-btn fr-btn--icon-left" id="generate-btn" style="width: 100%;">
           <i class="ri-play-fill"></i> Generer le graphique
         </button>
+        <p class="generate-missing" id="generate-missing" role="status" aria-live="polite" hidden></p>
       </div>
 
     </aside>
@@ -668,15 +667,15 @@
             <iframe id="preview-iframe"
               sandbox="allow-scripts allow-same-origin"
               title="Apercu du graphique"
-              style="display: none; width: 100%; border: none; min-height: 400px; border-radius: 4px; background: white;">
+              style="display: none; width: 100%; height: calc(100vh - 280px); min-height: 460px; border: none; border-radius: 4px; background: white;">
             </iframe>
           </div>
         </div>
-
-        <!-- Apercu accessibilite (composant reel) -->
-        <dsfr-data-a11y id="a11y-preview" source="builder-preview"
-          no-auto-aria table download style="display: none;">
-        </dsfr-data-a11y>
+        <!--
+          Le companion dsfr-data-a11y est deja genere a l'interieur du code
+          injecte dans l'iframe (cf. generateEmbeddedA11y / generateA11yElement
+          dans ui/code-generator.ts). Pas de double dans le panel builder.
+        -->
       </div>
 
       <!-- Onglet Code -->

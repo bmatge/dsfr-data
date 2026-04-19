@@ -222,10 +222,14 @@ export function handleSavedSourceChange(): void {
 
   state.isSampleData = false;
 
-  // If it has local data, load fields directly
+  // If it has local data, load fields directly.
+  // Otherwise, kick off the async field fetch right away so the user does
+  // not have to click a separate "Charger" button (retire from the UI).
   if (source.data && source.data.length > 0) {
     state.localData = source.data;
     loadFieldsFromLocalData();
+  } else if (state.apiUrl) {
+    void loadFields();
   }
 }
 
