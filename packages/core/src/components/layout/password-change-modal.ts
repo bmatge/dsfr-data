@@ -75,6 +75,7 @@ export class PasswordChangeModal extends LitElement {
     return html`
       <dialog
         class="fr-modal fr-modal--opened"
+        data-fr-opened="true"
         role="dialog"
         aria-labelledby="pw-change-title"
         aria-modal="true"

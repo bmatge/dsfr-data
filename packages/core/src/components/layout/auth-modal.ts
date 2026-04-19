@@ -275,6 +275,7 @@ export class AuthModal extends LitElement {
     return html`
       <dialog
         class="fr-modal fr-modal--opened"
+        data-fr-opened="true"
         role="dialog"
         aria-labelledby="auth-modal-title"
         aria-modal="true"
