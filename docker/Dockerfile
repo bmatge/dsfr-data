@@ -61,9 +61,13 @@ COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 # IA default proxy server (serves /ia-server-config and /ia-proxy-default)
 COPY scripts/ia-default-server.js /app/scripts/ia-default-server.js
 
-# Donner à l'utilisateur `nginx` l'écriture sur les répertoires de cache,
-# de logs (beacon-logs volume) et le workspace /app (MCP + ia-default).
-RUN chown -R nginx:nginx /var/cache/nginx /var/log/nginx /app \
+# Donner à l'utilisateur `nginx` l'écriture sur les répertoires que
+# l'entrypoint écrira :
+# - /var/cache/nginx  : proxy_cache_path
+# - /var/log/nginx    : access/error/beacon.log (volume nommé en runtime)
+# - /app              : MCP + ia-default workspace
+# - /usr/share/nginx/html/public : parse-beacon-logs.sh y écrit monitoring-data.json
+RUN chown -R nginx:nginx /var/cache/nginx /var/log/nginx /app /usr/share/nginx/html/public \
  && chmod +x /usr/local/bin/docker-entrypoint.sh /usr/local/bin/parse-beacon-logs.sh
 
 USER nginx
