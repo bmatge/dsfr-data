@@ -9,7 +9,7 @@ import {
   extractResourceIds,
 } from '@dsfr-data/shared';
 import type { Source } from '@dsfr-data/shared';
-import { SavedSourceSelector } from '../nodes/base-node.js';
+import { SavedSourceSelector, type SavedSourcePayload } from '../nodes/base-node.js';
 
 // ---------------------------------------------------------------------------
 // Connection types (lightweight — avoids coupling with sources app)
@@ -156,7 +156,7 @@ export class SavedSourceControlElement extends LitElement {
     // Check if it's a source
     const source = this._sources.find((s) => s.id === value);
     if (source) {
-      this.ctrl.onSourceSelected?.(source);
+      this.ctrl.onSourceSelected?.(source as unknown as SavedSourcePayload);
       return;
     }
 

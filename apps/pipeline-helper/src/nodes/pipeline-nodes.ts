@@ -4,6 +4,7 @@ import {
   AttributeControl,
   SavedSourceSelector,
   AggregateControl,
+  type SavedSourcePayload,
 } from './base-node.js';
 import { DataSocket, CommandSocket } from './sockets.js';
 import { NODE_CONFIGS } from './node-configs.js';
@@ -35,12 +36,12 @@ export function createSourceNode(): PipelineNode {
 
   // Add saved-source selector as the FIRST control (inserted before attributes)
   const selector = new SavedSourceSelector();
-  selector.onSourceSelected = (source: any | null) => {
+  selector.onSourceSelected = (source: SavedSourcePayload | null) => {
     if (!source) return;
 
     // Connection selected (from saved-source-control)
     if (source._isConnection) {
-      const apiType = PROVIDER_TO_API_TYPE[source.provider] || 'generic';
+      const apiType = PROVIDER_TO_API_TYPE[source.provider ?? ''] || 'generic';
       setCtrl(node, 'api-type', apiType);
 
       if (source.type === 'grist') {
@@ -75,7 +76,7 @@ export function createSourceNode(): PipelineNode {
     }
 
     // Regular saved source
-    const apiType = PROVIDER_TO_API_TYPE[source.provider] || 'generic';
+    const apiType = PROVIDER_TO_API_TYPE[source.provider ?? ''] || 'generic';
     setCtrl(node, 'api-type', apiType);
 
     if (source.apiUrl) {

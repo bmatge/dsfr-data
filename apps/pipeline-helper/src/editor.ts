@@ -17,8 +17,11 @@ import './ui/status-control-element.js';
 import './ui/saved-source-control.js';
 import './ui/aggregate-control-element.js';
 
-// Use 'any' for Rete schemes — Rete v2's generics are very strict
-// about Node subclass inference and fight with custom node types.
+// Use 'any' for Rete schemes — Rete v2's generics are très strictes sur
+// l'inférence des Node subclass et entrent en conflit avec nos custom nodes.
+// Les lignes suivantes utilisent des casts ou des paramètres typés `any`
+// pour la même raison : les types Rete (ControlContext, Pipe, Connection,
+// Node…) ne sont pas correctement narrowables avec nos classes custom.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type S = any;
 
@@ -40,6 +43,9 @@ export class PipelineEditor {
     render.addPreset(
       LitPresets.classic.setup({
         customize: {
+          // Rete ControlContext est génériquement typé ; `any` reste requis
+          // tant que type S = any.
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           control(context: any) {
             if (context.payload instanceof SavedSourceSelector) {
               const ctrl = context.payload as SavedSourceSelector;
@@ -59,12 +65,16 @@ export class PipelineEditor {
               return () =>
                 html`<attribute-control-element .ctrl=${ctrl}></attribute-control-element>`;
             }
-            return null as any;
+            return () => null;
           },
         },
+        // LitPresets.classic.setup a un type de retour dépendant des generics
+        // Rete ; cf. commentaire bloc sur `type S = any` au-dessus.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       }) as any
     );
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- idem ConnectionPresets
     connection.addPreset(ConnectionPresets.classic.setup() as any);
     this.arrange.addPreset(ArrangePresets.classic.setup());
 
@@ -79,12 +89,16 @@ export class PipelineEditor {
       accumulating: AreaExtensions.accumulateOnCtrl(),
     });
 
-    // Listen for node picks (clicks)
-    this.area.addPipe((context: any) => {
-      if (context.type === 'nodepicked') {
-        const nodeId = context.data?.id;
+    // Listen for node picks (clicks). Rete area pipes reçoivent un contexte
+    // union (nodepicked, noderemoved, etc.) dont les fields sont dépendants
+    // du scheme ; on narrowe sur le seul cas qui nous intéresse.
+    type NodePickedEvent = { type: 'nodepicked'; data: { id: string } };
+    this.area.addPipe((context) => {
+      const evt = context as Partial<NodePickedEvent>;
+      if (evt.type === 'nodepicked') {
+        const nodeId = evt.data?.id;
         if (nodeId && this.onNodeSelected) {
-          const node = this.editor.getNodes().find((n: any) => n.id === nodeId) as
+          const node = this.editor.getNodes().find((n) => n.id === nodeId) as
             | PipelineNode
             | undefined;
           if (node) this.onNodeSelected(node);
@@ -119,10 +133,14 @@ export class PipelineEditor {
   async removeSelected(): Promise<void> {
     const nodes = this.editor.getNodes();
     for (const node of nodes) {
-      if ((node as any).selected) {
+      // Rete's selectableNodes extension attaches `selected: boolean` au
+      // runtime sans le typer.
+      if ((node as { selected?: boolean }).selected) {
         const connections = this.editor
           .getConnections()
-          .filter((c: any) => c.source === node.id || c.target === node.id);
+          .filter(
+            (c: { source: string; target: string }) => c.source === node.id || c.target === node.id
+          );
         for (const conn of connections) {
           await this.editor.removeConnection(conn.id);
         }

@@ -22,6 +22,10 @@ const CATEGORY_COLORS: Record<NodeCategory, string> = {
 @customElement('pipeline-node-element')
 export class PipelineNodeElement extends LitElement {
   @property({ type: Object }) data!: PipelineNode;
+  // Rete passe un callback `emit` pour émettre des events (onresize, etc.) ;
+  // son type est dépendant des generics du scheme qu'on force à `any`
+  // (cf. editor.ts, type S = any).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- cf. commentaire bloc
   @property({ type: Object }) emit!: (event: any) => void;
 
   static styles = css`
@@ -250,12 +254,16 @@ export class PipelineNodeElement extends LitElement {
                       ([key, input]) => html`
                         <div class="port" data-testid="input-${key}">
                           <span
-                            style="color:${(input as any).socket === this._commandSocket
+                            style="color:${(input as ClassicPreset.Input<ClassicPreset.Socket>)
+                              .socket === this._commandSocket
                               ? '#009081'
                               : '#000091'}"
                             >&#9679;</span
                           >
-                          <span>${(input as ClassicPreset.Input<any>).label ?? key}</span>
+                          <span
+                            >${(input as ClassicPreset.Input<ClassicPreset.Socket>).label ??
+                            key}</span
+                          >
                         </div>
                       `
                     )}
@@ -265,12 +273,16 @@ export class PipelineNodeElement extends LitElement {
                       ([key, output]) => html`
                         <div class="port port--output" data-testid="output-${key}">
                           <span
-                            style="color:${(output as any).socket === this._commandSocket
+                            style="color:${(output as ClassicPreset.Output<ClassicPreset.Socket>)
+                              .socket === this._commandSocket
                               ? '#009081'
                               : '#000091'}"
                             >&#9679;</span
                           >
-                          <span>${(output as ClassicPreset.Output<any>).label ?? key}</span>
+                          <span
+                            >${(output as ClassicPreset.Output<ClassicPreset.Socket>).label ??
+                            key}</span
+                          >
                         </div>
                       `
                     )}
@@ -286,8 +298,13 @@ export class PipelineNodeElement extends LitElement {
   /** Reference to CommandSocket for color coding — injected by sockets module */
   private get _commandSocket() {
     // Lazy import to avoid circular deps: check socket name
-    const firstInput = Object.values(this.data.inputs)[0] as ClassicPreset.Input<any> | undefined;
-    if (firstInput && (firstInput.socket as any)?.name === 'command') {
+    const firstInput = Object.values(this.data.inputs)[0] as
+      | ClassicPreset.Input<ClassicPreset.Socket>
+      | undefined;
+    if (
+      firstInput &&
+      (firstInput.socket as ClassicPreset.Socket & { name?: string })?.name === 'command'
+    ) {
       return firstInput.socket;
     }
     return null;

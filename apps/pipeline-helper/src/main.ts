@@ -85,7 +85,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Run the pipeline
     try {
       await executor.execute(editor.getNodes(), editor.getConnections());
-    } catch (err: any) {
+    } catch (err) {
       console.error('Pipeline execution error:', err);
     }
 
