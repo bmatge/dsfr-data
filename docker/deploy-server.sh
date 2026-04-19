@@ -49,16 +49,30 @@ else
   fi
 fi
 
-echo -e "${YELLOW}1/4${NC} Mise a jour du code..."
+echo -e "${YELLOW}1/5${NC} Mise a jour du code..."
 git pull
 
-echo -e "${YELLOW}2/4${NC} Build de l'image (sans cache)..."
+echo -e "${YELLOW}2/5${NC} Build de l'image (sans cache)..."
 $COMPOSE build --no-cache
 
-echo -e "${YELLOW}3/4${NC} Arret des conteneurs..."
+echo -e "${YELLOW}3/5${NC} Arret des conteneurs..."
 $COMPOSE down
 
-echo -e "${YELLOW}4/4${NC} Demarrage des conteneurs..."
+# Depuis PR #113, nginx tourne en non-root (uid 101). Les volumes nommes
+# crees avant ce changement ont un ownership root:root qui masque le chown
+# fait dans le Dockerfile. Idempotent : chown -R 101:101 le volume beacon-logs
+# avant `up`. Safe aussi sur un volume fresh ou un deploiement from scratch.
+echo -e "${YELLOW}4/5${NC} Fix permissions volumes nginx non-root..."
+BEACON_VOL=$(docker volume ls --format '{{.Name}}' | grep -E '(^|_)beacon-logs$' | head -1 || true)
+if [ -n "$BEACON_VOL" ]; then
+  echo "  chown -R 101:101 sur $BEACON_VOL"
+  docker run --rm -v "${BEACON_VOL}:/data" --user root alpine:3 \
+    chown -R 101:101 /data
+else
+  echo -e "  ${YELLOW}(aucun volume beacon-logs existant — sera cree au up)${NC}"
+fi
+
+echo -e "${YELLOW}5/5${NC} Demarrage des conteneurs..."
 $COMPOSE up -d
 
 echo ""
