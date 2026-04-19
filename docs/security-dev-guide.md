@@ -194,7 +194,7 @@ Si les 4 passent, la CI passera aussi (sauf régression transverse).
 
 ## Liens
 
-- Politique globale : [SECURITY.md](../SECURITY.md)
+- Politique globale : [SECURITY.md](./SECURITY.md)
 - Runbook d'incident : [security-incident-response.md](./security-incident-response.md)
 - Tracking baseline : [issue #65](https://github.com/bmatge/dsfr-data/issues/65)
 - Policy calibration : [issue #73](https://github.com/bmatge/dsfr-data/issues/73)

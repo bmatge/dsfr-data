@@ -480,4 +480,4 @@ Non prioritaire tant qu'on ne duplique pas la baseline sur 3+ repos.
 - **Politique de sévérité** : [issue #73](https://github.com/bmatge/dsfr-data/issues/73)
 - **Runbook incident secret** : [docs/security-incident-response.md](./security-incident-response.md)
 - **Guide dev local** : [docs/security-dev-guide.md](./security-dev-guide.md)
-- **Politique publique** : [SECURITY.md](../SECURITY.md)
+- **Politique publique** : [SECURITY.md](./SECURITY.md)

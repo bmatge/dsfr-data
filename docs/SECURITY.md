@@ -74,7 +74,7 @@ Côté client, quatre couches protègent contre l'injection et le détournement 
 | **Headers hardening** | `X-Frame-Options: SAMEORIGIN`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` (caméra/micro/géo/etc. désactivés) | snippet `docker/security-headers.conf` inclus dans chaque `location` nginx |
 | **Server fingerprinting** | `server_tokens off` + bannière nginx masquée | toutes les réponses nginx |
 
-La CSP et les headers sont validés sur chaque URL crawlée par le job ZAP DAST. Le snippet d'en-têtes est inclus dans **chaque `location`** nginx (pas au niveau server) car nginx n'hérite pas les `add_header` dès qu'une location en déclare un — cette architecture est documentée dans [`docker/security-headers.conf`](./docker/security-headers.conf).
+La CSP et les headers sont validés sur chaque URL crawlée par le job ZAP DAST. Le snippet d'en-têtes est inclus dans **chaque `location`** nginx (pas au niveau server) car nginx n'hérite pas les `add_header` dès qu'une location en déclare un — cette architecture est documentée dans [`docker/security-headers.conf`](../docker/security-headers.conf).
 
 ## Hardening runtime
 
@@ -103,17 +103,17 @@ Aucun masquage silencieux. Toute exclusion de règle ou CVE est documentée avec
 
 Les fichiers d'exclusion à jour :
 
-- [`.trivyignore`](./.trivyignore)
-- [`.semgrepignore`](./.semgrepignore)
-- [`.gitleaks.toml`](./.gitleaks.toml)
-- [`.zap/rules.tsv`](./.zap/rules.tsv) — faux positifs DAST (ZAP baseline)
+- [`.trivyignore`](../.trivyignore)
+- [`.semgrepignore`](../.semgrepignore)
+- [`.gitleaks.toml`](../.gitleaks.toml)
+- [`.zap/rules.tsv`](../.zap/rules.tsv) — faux positifs DAST (ZAP baseline)
 - Exclusions inline (`// nosemgrep:`, `// eslint-disable-next-line security/…`) toujours avec un commentaire en ligne adjacente
 
 ## Procédures
 
-- **Fuite de secret détectée** → [docs/security-incident-response.md](./docs/security-incident-response.md) — runbook avec priorité révocation/rotation, options de réécriture d'historique, tableau des secrets manipulés.
-- **Lancer les scans en local** → [docs/security-dev-guide.md](./docs/security-dev-guide.md) — commandes Docker-only pour Trivy, Semgrep, Gitleaks.
-- **Réutiliser cette baseline sur un autre projet** → [docs/security-baseline.md](./docs/security-baseline.md) — template générique avec snippets prêts à copier-coller pour les 8 briques.
+- **Fuite de secret détectée** → [security-incident-response.md](./security-incident-response.md) — runbook avec priorité révocation/rotation, options de réécriture d'historique, tableau des secrets manipulés.
+- **Lancer les scans en local** → [security-dev-guide.md](./security-dev-guide.md) — commandes Docker-only pour Trivy, Semgrep, Gitleaks.
+- **Réutiliser cette baseline sur un autre projet** → [security-baseline.md](./security-baseline.md) — template générique avec snippets prêts à copier-coller pour les 8 briques.
 
 ## Baseline sécurité — statut
 

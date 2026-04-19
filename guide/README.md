@@ -1,18 +1,18 @@
 # guide/
 
-Documentation utilisateur et exemples d'utilisation des composants dsfr-data.
+Pages HTML interactives de démonstration des composants dsfr-data. La documentation Markdown correspondante (guide utilisateur, architecture, contribution…) est dans [`../docs/`](../docs/).
 
 ## Contenu
 
 | Fichier | Description |
 |---------|-------------|
-| `USER-GUIDE.md` | Guide utilisateur complet (6 parcours pas a pas) |
-| `CONTRIBUTING.md` | Guide de contribution pour les developpeurs |
-| `guide*.html` | Pages HTML interactives de demonstration des composants |
-| `images/` | Captures d'ecran et diagrammes |
+| `guide*.html` | Pages HTML interactives de démonstration des composants |
+| `guide-tours.js` | UI de la section « Visites guidées » |
+| `images/` | Captures d'écran et diagrammes |
+| `examples/` | Exemples HTML vivants (chargés dynamiquement dans le menu) |
 
-## Public cible
+## Documentation associée
 
-- **Communicants** : parcours builder pour creer un graphique sans coder
-- **Integrateurs web** : exemples HTML copier/coller pour integrer les composants
-- **Developpeurs** : [architecture technique](../ARCHITECTURE.md) et guide de contribution
+- [Guide utilisateur](../docs/USER-GUIDE.md) — parcours pas-à-pas
+- [Architecture](../docs/ARCHITECTURE.md) — architecture technique détaillée
+- [Contribuer](../docs/CONTRIBUTING.md) — guide de contribution
