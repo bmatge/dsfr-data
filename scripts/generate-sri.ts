@@ -1,13 +1,14 @@
 /**
  * Génère les attributs Subresource Integrity (SRI) sur les tags <script src>
- * et <link href> des `apps/** /*.html` qui pointent vers des CDN connus.
+ * et <link href> de tous les `*.html` du repo qui pointent vers un CDN connu.
  *
  * Usage :
- *   npx tsx scripts/generate-sri.ts          # écrit les modifs
- *   npx tsx scripts/generate-sri.ts --check  # dry-run, exit 1 si MAJ nécessaire
+ *   npm run generate-sri          # écrit les modifs
+ *   npm run check:sri             # dry-run, exit 1 si MAJ nécessaire
  *
  * Fonctionnement :
- *   1. Parcourt tous les `apps/ ** /*.html`.
+ *   1. Parcourt récursivement le repo (ignore node_modules, dist, app-dist,
+ *      coverage, .git, packages/core/dist).
  *   2. Pour chaque tag <script src="..."> ou <link href="..."> qui :
  *        - pointe vers un CDN de la whitelist (cdn.jsdelivr.net, unpkg.com)
  *        - n'a pas déjà d'attribut `integrity=`
@@ -19,12 +20,13 @@
  * pas de range). Un bump de version invalide le hash et casse la prod — il
  * faut donc relancer ce script après chaque bump.
  */
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { resolve, relative } from 'node:path';
-import { glob } from 'node:fs/promises';
+import { resolve, relative, join } from 'node:path';
 
 const CDN_WHITELIST = [/^https:\/\/cdn\.jsdelivr\.net\//, /^https:\/\/unpkg\.com\//];
+
+const FLOATING_VERSION_RE = /\/npm\/[^@]+@\d+(?:\/|$)/;
 
 const SCRIPT_TAG_RE = /<script\b([^>]*?)\bsrc="(https:\/\/[^"]+)"([^>]*?)>/g;
 const LINK_TAG_RE = /<link\b([^>]*?)\bhref="(https:\/\/[^"]+)"([^>]*?)>/g;
@@ -36,13 +38,14 @@ type HashResult = { url: string; integrity: string };
 
 const cache = new Map<string, string>();
 
-async function fetchIntegrity(url: string): Promise<string> {
+async function fetchIntegrity(url: string): Promise<string | null> {
   const cached = cache.get(url);
   if (cached) return cached;
 
   const res = await fetch(url);
   if (!res.ok) {
-    throw new Error(`Fetch ${url} → HTTP ${res.status}`);
+    console.warn(`  [skip] ${url} → HTTP ${res.status}`);
+    return null;
   }
   const buf = Buffer.from(await res.arrayBuffer());
   const integrity = `sha384-${createHash('sha384').update(buf).digest('base64')}`;
@@ -51,7 +54,11 @@ async function fetchIntegrity(url: string): Promise<string> {
 }
 
 function isCdn(url: string): boolean {
-  return CDN_WHITELIST.some((re) => re.test(url));
+  if (!CDN_WHITELIST.some((re) => re.test(url))) return false;
+  // Les URLs avec un major-only (@0, @1…) résolvent dynamiquement vers la
+  // dernière mineur/patch : tout bump invalide le hash. Les exclure.
+  if (FLOATING_VERSION_RE.test(url)) return false;
+  return true;
 }
 
 function hasIntegrity(attrs: string): boolean {
@@ -77,6 +84,7 @@ async function processFile(path: string): Promise<{ changed: boolean; updates: H
       if (!isCdn(url) || hasIntegrity(pre + post)) continue;
 
       const integrity = await fetchIntegrity(url);
+      if (integrity === null) continue;
       const newAttrs = injectIntegrityAttrs(`${pre}${urlAttr}="${url}"${post}`, integrity);
       const replacement = `<${tagName}${newAttrs}>`;
       replacements.push({ start: m.index, end: m.index + full.length, replacement });
@@ -99,12 +107,34 @@ async function processFile(path: string): Promise<{ changed: boolean; updates: H
   return { changed: true, updates };
 }
 
+const IGNORE_DIRS = new Set([
+  'node_modules',
+  '.git',
+  'dist',
+  'app-dist',
+  'coverage',
+  '.cache',
+  '.vite',
+  '.turbo',
+  '.changeset',
+]);
+
+function walkHtml(dir: string, out: string[]) {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name.startsWith('.') && entry.name !== '.') continue;
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (IGNORE_DIRS.has(entry.name)) continue;
+      walkHtml(full, out);
+    } else if (entry.isFile() && entry.name.endsWith('.html')) {
+      out.push(full);
+    }
+  }
+}
+
 async function main() {
   const files: string[] = [];
-  for await (const f of glob('apps/**/*.html', { cwd: ROOT })) {
-    if (f.includes('/dist/') || f.includes('/node_modules/')) continue;
-    files.push(resolve(ROOT, f));
-  }
+  walkHtml(ROOT, files);
   files.sort();
 
   let totalUpdates = 0;
