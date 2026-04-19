@@ -172,7 +172,7 @@ export class ShareDialog extends LitElement {
         role="dialog"
         aria-labelledby="share-dialog-title"
         aria-modal="true"
-        style="display:flex"
+        style="display:flex;opacity:1;visibility:visible"
         @click=${(e: Event) => {
           if (e.target === e.currentTarget) this.close();
         }}
