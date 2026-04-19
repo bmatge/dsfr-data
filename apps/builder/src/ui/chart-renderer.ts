@@ -13,8 +13,16 @@ import {
 } from '@dsfr-data/shared';
 import { state } from '../state.js';
 
-// Chart.js loaded via CDN
-const ChartJS = (): any => (window as any).Chart;
+/**
+ * Chart.js loaded via CDN — pas de package npm, on expose la surface
+ * minimale utilisée (constructor + destroy).
+ */
+type ChartJsLike = {
+  new (canvas: HTMLCanvasElement, config: Record<string, unknown>): ChartJsInstance;
+};
+type ChartJsInstance = { destroy: () => void };
+
+const ChartJS = (): ChartJsLike | undefined => (window as Window & { Chart?: ChartJsLike }).Chart;
 
 /**
  * Render the chart preview based on current state.
@@ -29,7 +37,7 @@ export function renderChart(): void {
 
   // Destroy previous chart
   if (state.chartInstance) {
-    (state.chartInstance as any).destroy();
+    (state.chartInstance as ChartJsInstance).destroy();
     state.chartInstance = null;
   }
 
@@ -132,7 +140,7 @@ export function renderChart(): void {
 
     state.data.forEach((d) => {
       // Department code can be in codeField or direct key
-      const rawCode = (d[state.codeField] ?? (d as any).code ?? '') as string | number;
+      const rawCode = (d[state.codeField] ?? d.code ?? '') as string | number;
       // Normalize the code: convert to string and pad if necessary
       let code = String(rawCode).trim();
       // Handle numeric codes (1 -> "01", 34 -> "34")
@@ -263,7 +271,9 @@ export function renderChart(): void {
       y: (d.value as number) || 0,
     }));
 
-    state.chartInstance = new (ChartJS())(canvas, {
+    const ChartCtor = ChartJS();
+    if (!ChartCtor) return;
+    state.chartInstance = new ChartCtor(canvas, {
       type: 'scatter',
       data: {
         datasets: [
@@ -296,7 +306,7 @@ export function renderChart(): void {
     : primaryColor;
 
   // Build datasets array
-  const datasets: any[] = [
+  const datasets: Record<string, unknown>[] = [
     {
       label: state.valueField,
       data: values,
@@ -327,7 +337,9 @@ export function renderChart(): void {
     });
   });
 
-  state.chartInstance = new (ChartJS())(canvas, {
+  const ChartCtor = ChartJS();
+  if (!ChartCtor) return;
+  state.chartInstance = new ChartCtor(canvas, {
     type: chartType,
     data: {
       labels: labels,
