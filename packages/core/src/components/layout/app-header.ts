@@ -2,10 +2,7 @@ import { LitElement, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { checkAuth, logout, onAuthChange, isDbMode, onSyncStatusChange } from '@dsfr-data/shared';
 import type { User, SyncStatus } from '@dsfr-data/shared';
-import pkg from '../../../package.json' with { type: 'json' };
-
-/** Version de la librairie `dsfr-data` — lue au build depuis packages/core/package.json. */
-const PACKAGE_VERSION: string = pkg.version;
+import { VERSION as PACKAGE_VERSION } from '../../version.js';
 
 // Side-effect import: register custom elements
 import './auth-modal.js';
