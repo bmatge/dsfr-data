@@ -58,7 +58,7 @@ export function getPreviewHTML(code: string): string {
       box-sizing: border-box;
     }
     body {
-      padding: 1rem;
+      padding: 1.5rem clamp(1rem, 8vw, 6rem);
       font-family: Marianne, arial, sans-serif;
       max-width: 100%;
     }

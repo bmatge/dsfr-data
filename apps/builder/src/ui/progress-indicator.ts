@@ -1,138 +1,173 @@
 /**
- * Progress indicator UI — stepper + section badges + generate button status.
+ * Progress indicator UI — section summaries + generate button status.
  *
- * Pure DOM update functions. The DOM skeleton (stepper container,
- * section-status spans, generate-missing div) lives in apps/builder/index.html.
- * These functions fill/toggle classes based on a `Completeness` object.
+ * Shows a compact text summary next to each section header (source name,
+ * chart type, fields, palette, checked options…) so the user sees their
+ * choices at a glance without expanding each section. Also keeps the
+ * Generate-button sub-text ("Il manque : X, Y") and the empty-state
+ * checklist in sync with the state.
+ *
+ * Pure DOM update functions — the skeleton lives in apps/builder/index.html.
  */
 
 import { state, getCompleteness, type BuilderState, type Completeness } from '../state.js';
 
-/** Key identifying each stepper step. Order matters (left → right). */
-type StepperKey = 'source' | 'type' | 'config' | 'generate';
+type StepKey = 'source' | 'type' | 'config' | 'generate';
 
-const STEPPER_ORDER: readonly StepperKey[] = ['source', 'type', 'config', 'generate'] as const;
-
-const STEPPER_LABELS: Record<StepperKey, string> = {
-  source: 'Source',
-  type: 'Type',
-  config: 'Configuration',
-  generate: 'Générer',
-};
-
-/** DOM ids / classes used by index.html. */
-const STEPPER_ID = 'progress-stepper';
 const GENERATE_MISSING_ID = 'generate-missing';
 const GENERATE_BTN_ID = 'generate-btn';
 
-/**
- * Returns whether the chart has been generated at least once.
- * True while the preview iframe is visible (empty-state is hidden).
- */
+const CHART_TYPE_LABELS: Record<string, string> = {
+  bar: 'Barres verticales',
+  horizontalBar: 'Barres horizontales',
+  line: 'Courbe',
+  pie: 'Camembert',
+  doughnut: 'Anneau',
+  radar: 'Radar',
+  scatter: 'Nuage de points',
+  gauge: 'Jauge',
+  kpi: 'Indicateur KPI',
+  map: 'Carte',
+  datalist: 'Tableau',
+};
+
+/** One entry per section header — value is a short text summary (may be ''). */
+interface SectionSummary {
+  /** If 'partial', render the badge in warning colors; 'done' in neutral. */
+  tone: 'done' | 'partial';
+  text: string;
+}
+
+/** Returns whether the chart has been generated at least once. */
 function isGenerated(): boolean {
   const empty = document.getElementById('empty-state');
   if (!empty) return false;
   return empty.style.display === 'none' || window.getComputedStyle(empty).display === 'none';
 }
 
-/** Render/update the 4-step horizontal stepper. */
-function renderStepper(c: Completeness): void {
-  const container = document.getElementById(STEPPER_ID);
-  if (!container) return;
-
-  // First call — inject skeleton. One pill per step, no separator bars.
-  // Using <span>✓</span> (not <i class="ri-check-line">) avoids a conflict
-  // with Remix Icon's global `[class^="ri-"] { display: inline-block }` rule
-  // which would otherwise keep the check visible on non-done steps.
-  if (!container.dataset.ready) {
-    container.innerHTML = STEPPER_ORDER.map((key, index) =>
-      `
-        <div class="progress-step" data-step="${key}" role="listitem">
-          <span class="progress-step-circle" aria-hidden="true">
-            <span class="progress-step-number">${index + 1}</span>
-            <span class="progress-step-check">✓</span>
-          </span>
-          <span class="progress-step-label">${STEPPER_LABELS[key]}</span>
-        </div>
-      `.trim()
-    ).join('');
-    container.dataset.ready = '1';
-  }
-
-  // Find the first incomplete step (becomes "current").
-  const currentKey = STEPPER_ORDER.find((k) => !c[k]) ?? null;
-
-  container.querySelectorAll<HTMLElement>('.progress-step').forEach((el) => {
-    const key = el.dataset.step as StepperKey | undefined;
-    if (!key) return;
-    const done = c[key];
-    const current = key === currentKey;
-    el.classList.toggle('progress-step--done', done);
-    el.classList.toggle('progress-step--current', current);
-    el.setAttribute('aria-current', current ? 'step' : 'false');
-    el.setAttribute(
-      'aria-label',
-      `${STEPPER_LABELS[key]}: ${done ? 'complété' : current ? 'en cours' : 'à faire'}`
-    );
-  });
+/** Join an array of checked-option labels with commas, return '' if empty. */
+function joinChecked(labels: Array<string | false>): string {
+  return labels.filter(Boolean).join(', ');
 }
 
-/**
- * Map each `.config-section-header` to a completeness signal, then toggle
- * a status span inside the header. The span is injected once on first call.
- *
- * Design: only mark a section "done" when the user has actually interacted
- * with it (non-default value). Sections that stay on their defaults show no
- * badge. This avoids the "everything looks done before you started" illusion.
- */
-function renderSectionIndicators(s: BuilderState, c: Completeness): void {
-  const titleCustomized = !!s.title && s.title !== 'Mon graphique';
-  const sourceChosen = c.source && !!s.savedSource;
+/** Human-readable summary for each configurable section. */
+function buildSummaries(s: BuilderState, c: Completeness): Record<string, SectionSummary | null> {
+  // Source — show name of the loaded source (or nothing if none).
+  const sourceName = s.savedSource?.name || s.savedSource?.id || '';
 
-  // Evaluate each section individually. "done" / "partial" / "idle".
-  const sections: Record<string, 'done' | 'partial' | 'idle'> = {
-    'section-source': sourceChosen ? 'done' : 'idle',
-    // Type: the default is "bar" so we only mark done when fields are filled
-    // for that type (otherwise the user hasn't really moved past it).
-    'section-type': c.source && c.type && c.config ? 'done' : 'idle',
-    'section-data': (() => {
-      if (!c.source || !c.type) return 'idle';
-      return c.config ? 'done' : 'partial';
-    })(),
-    'section-appearance': titleCustomized ? 'done' : 'idle',
-    'section-generation-mode': s.generationMode === 'dynamic' ? 'done' : 'idle',
-    'section-normalize': s.normalizeConfig.enabled ? 'done' : 'idle',
-    'section-facets': s.facetsConfig.enabled ? 'done' : 'idle',
-    'section-databox': s.databoxEnabled ? 'done' : 'idle',
-    // Accessibility is enabled by default — only mark done when the user
-    // has actually described the chart for screen readers.
-    'section-a11y': s.a11yDescription.trim() ? 'done' : 'idle',
+  // Type of chart — label only when a source is loaded (so the default "bar"
+  // doesn't mislead before the user interacts).
+  const typeLabel = c.source && s.chartType ? CHART_TYPE_LABELS[s.chartType] || s.chartType : '';
+
+  // Configuration — depends on chart type.
+  let configText = '';
+  let configTone: 'done' | 'partial' = 'done';
+  if (c.source && s.chartType) {
+    if (c.config) {
+      switch (s.chartType) {
+        case 'datalist':
+          configText = s.labelField;
+          break;
+        case 'kpi':
+        case 'gauge':
+          configText = s.valueField;
+          break;
+        case 'map':
+          configText = `${s.codeField} → ${s.valueField}`;
+          break;
+        default: {
+          const extra = s.extraSeries?.length || 0;
+          const main = `${s.labelField} × ${s.valueField}`;
+          configText = extra > 0 ? `${main} (+${extra} série${extra > 1 ? 's' : ''})` : main;
+        }
+      }
+    } else {
+      configText = 'à compléter';
+      configTone = 'partial';
+    }
+  }
+
+  // Appearance — palette (hide when still on DSFR default).
+  const paletteText = s.palette && s.palette !== 'default' ? s.palette : '';
+
+  // Generation mode — mention only when dynamic (non-default).
+  const genModeText = s.generationMode === 'dynamic' ? 'dynamique' : '';
+
+  // Normalize / Facets / DataBox / A11y — list checked options or count.
+  const normalizeText = s.normalizeConfig.enabled ? 'activée' : '';
+
+  const facetsText = s.facetsConfig.enabled
+    ? `${s.facetsConfig.fields.length || 0} champ${
+        (s.facetsConfig.fields.length || 0) > 1 ? 's' : ''
+      }`
+    : '';
+
+  const databoxText = s.databoxEnabled
+    ? joinChecked([
+        !!s.databoxTitle && 'titre',
+        !!s.databoxSource && 'source',
+        !!s.databoxDate && 'date',
+        s.databoxDownload && 'téléchargement',
+        s.databoxScreenshot && 'capture',
+        s.databoxFullscreen && 'plein écran',
+        !!s.databoxTrend && 'tendance',
+      ]) || 'activé'
+    : '';
+
+  const a11yText = s.a11yEnabled
+    ? joinChecked([
+        s.a11yTable && 'tableau',
+        s.a11yDownload && 'téléchargement',
+        !!s.a11yDescription.trim() && 'description',
+      ])
+    : '';
+
+  return {
+    'section-source': sourceName ? { tone: 'done', text: sourceName } : null,
+    'section-type': typeLabel ? { tone: 'done', text: typeLabel } : null,
+    'section-data': configText ? { tone: configTone, text: configText } : null,
+    'section-appearance': paletteText ? { tone: 'done', text: paletteText } : null,
+    'section-generation-mode': genModeText ? { tone: 'done', text: genModeText } : null,
+    'section-normalize': normalizeText ? { tone: 'done', text: normalizeText } : null,
+    'section-facets': facetsText ? { tone: 'done', text: facetsText } : null,
+    'section-databox': databoxText ? { tone: 'done', text: databoxText } : null,
+    'section-a11y': a11yText ? { tone: 'done', text: a11yText } : null,
   };
+}
 
-  for (const [id, status] of Object.entries(sections)) {
+/** Inject/update `.section-summary` next to each section <h3>. */
+function renderSectionSummaries(s: BuilderState, c: Completeness): void {
+  const summaries = buildSummaries(s, c);
+  for (const [id, summary] of Object.entries(summaries)) {
     const section = document.getElementById(id);
     if (!section) continue;
     const header = section.querySelector<HTMLElement>('.config-section-header');
     if (!header) continue;
 
-    let indicator = header.querySelector<HTMLElement>('.section-status');
-    if (!indicator) {
-      indicator = document.createElement('span');
-      indicator.className = 'section-status';
-      indicator.setAttribute('aria-hidden', 'true');
-      // Insert after the first <h3> (or at end of header).
+    // Legacy dot-badge from the first iteration — remove it if present.
+    header.querySelector('.section-status')?.remove();
+
+    let summaryEl = header.querySelector<HTMLElement>('.section-summary');
+    if (!summaryEl) {
+      summaryEl = document.createElement('span');
+      summaryEl.className = 'section-summary';
+      // Insert right after <h3>, before the caret icon.
       const h3 = header.querySelector('h3');
       if (h3 && h3.parentNode === header) {
-        h3.insertAdjacentElement('afterend', indicator);
+        h3.insertAdjacentElement('afterend', summaryEl);
       } else {
-        header.appendChild(indicator);
+        header.appendChild(summaryEl);
       }
     }
 
-    indicator.classList.toggle('section-status--done', status === 'done');
-    indicator.classList.toggle('section-status--partial', status === 'partial');
-    indicator.classList.toggle('section-status--idle', status === 'idle');
-    indicator.textContent = status === 'done' ? '✓' : status === 'partial' ? '◐' : '';
+    if (summary) {
+      summaryEl.textContent = summary.text;
+      summaryEl.classList.toggle('section-summary--partial', summary.tone === 'partial');
+      summaryEl.hidden = false;
+    } else {
+      summaryEl.textContent = '';
+      summaryEl.hidden = true;
+    }
   }
 }
 
@@ -144,8 +179,6 @@ function renderGenerateButton(c: Completeness): void {
 
   if (btn) {
     btn.classList.toggle('fr-btn--ready', ready);
-    // Keep it always enabled — clicking still shows an informative toast for
-    // edge cases. The visual state carries the signal.
   }
 
   if (missingEl) {
@@ -163,7 +196,7 @@ function renderGenerateButton(c: Completeness): void {
 function renderEmptyStateChecklist(c: Completeness): void {
   const steps = document.querySelectorAll<HTMLElement>('.empty-state-steps li');
   steps.forEach((li) => {
-    const step = li.dataset.step as StepperKey | undefined;
+    const step = li.dataset.step as StepKey | undefined;
     if (!step) return;
     li.classList.toggle('done', c[step]);
   });
@@ -171,14 +204,13 @@ function renderEmptyStateChecklist(c: Completeness): void {
 
 /**
  * Public API — single entry point. Recompute completeness from the current
- * state and refresh all four UI surfaces.
+ * state and refresh all three UI surfaces.
  *
  * Safe to call as often as needed (cheap DOM reads/writes, no layout thrash).
  */
 export function updateProgress(): void {
   const c = getCompleteness(state, isGenerated());
-  renderStepper(c);
-  renderSectionIndicators(state, c);
+  renderSectionSummaries(state, c);
   renderGenerateButton(c);
   renderEmptyStateChecklist(c);
 }
