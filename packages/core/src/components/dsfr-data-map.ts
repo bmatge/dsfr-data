@@ -15,7 +15,7 @@ type LeafletMap = import('leaflet').Map;
 type LeafletTileLayer = import('leaflet').TileLayer;
 type LatLngBoundsExpression = import('leaflet').LatLngBoundsExpression;
 
-/** Tile presets — souverains, sans cle API */
+/** Tile presets — souverains (IGN) ou europeens (OSM France), sans cle API */
 const TILE_PRESETS: Record<
   string,
   { url: string; attribution: string; options?: Record<string, unknown> }
@@ -36,11 +36,53 @@ const TILE_PRESETS: Record<
     url: 'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=CADASTRALPARCELS.PARCELLAIRE_EXPRESS&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',
     attribution: '&copy; <a href="https://www.ign.fr/">IGN</a>',
   },
-  osm: {
+  'osm-fr': {
     url: 'https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png',
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> — serveurs <a href="https://www.openstreetmap.fr/">OSM France</a>',
   },
 };
+
+/** Alias de presets pour retrocompatibilite. */
+const TILE_ALIASES: Record<string, string> = {
+  osm: 'osm-fr',
+};
+
+/** Presets consideres comme souverains (tuiles IGN Geoplateforme, hebergees en France). */
+const SOVEREIGN_PRESETS = new Set<string>(['ign-plan', 'ign-ortho', 'ign-topo', 'ign-cadastre']);
+
+/**
+ * Resout la valeur de `tiles` en cle de preset canonique ou `null` (URL custom).
+ * Applique les alias, puis la restriction `sovereign-only` si active.
+ * Retourne aussi `warning` quand un fallback a ete applique (pour logging par l'appelant).
+ *
+ * Expose pour les tests.
+ */
+export function resolveTilePreset(
+  requested: string,
+  sovereignOnly = false
+): { key: string | null; warning?: string } {
+  const canonical = TILE_ALIASES[requested] ?? requested;
+  const isKnownPreset = canonical in TILE_PRESETS;
+
+  if (sovereignOnly && (!isKnownPreset || !SOVEREIGN_PRESETS.has(canonical))) {
+    return {
+      key: 'ign-plan',
+      warning:
+        `tiles="${requested}" non autorise en mode sovereign-only. ` +
+        `Presets souverains : ${[...SOVEREIGN_PRESETS].join(', ')}. Fallback sur "ign-plan".`,
+    };
+  }
+
+  return { key: isKnownPreset ? canonical : null };
+}
+
+/** Expose pour les tests (valeurs read-only). */
+export const __tilePresetsForTests = {
+  presets: TILE_PRESETS,
+  aliases: TILE_ALIASES,
+  sovereign: SOVEREIGN_PRESETS,
+} as const;
 
 // Lazy Leaflet module cache
 let L: typeof import('leaflet') | null = null;
@@ -80,6 +122,9 @@ export class DsfrDataMap extends LitElement {
 
   @property({ type: String })
   tiles = 'ign-plan';
+
+  @property({ type: Boolean, attribute: 'sovereign-only' })
+  sovereignOnly = false;
 
   @property({ type: Boolean, attribute: 'no-controls' })
   noControls = false;
@@ -169,7 +214,7 @@ export class DsfrDataMap extends LitElement {
     super.updated(changedProperties);
 
     if (this._leafletMap) {
-      if (changedProperties.has('tiles')) {
+      if (changedProperties.has('tiles') || changedProperties.has('sovereignOnly')) {
         this._updateTiles();
       }
       if (changedProperties.has('height') && this._container) {
@@ -384,8 +429,12 @@ export class DsfrDataMap extends LitElement {
     if (this._tileLayer) {
       this._tileLayer.remove();
     }
-    const preset = TILE_PRESETS[this.tiles];
-    if (preset) {
+
+    const { key, warning } = resolveTilePreset(this.tiles, this.sovereignOnly);
+    if (warning) console.warn(`[dsfr-data-map] ${warning}`);
+
+    if (key !== null) {
+      const preset = TILE_PRESETS[key];
       this._tileLayer = L.tileLayer(preset.url, {
         attribution: preset.attribution,
         ...preset.options,

@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { DsfrDataMap } from '@/components/dsfr-data-map.js';
+import {
+  DsfrDataMap,
+  resolveTilePreset,
+  __tilePresetsForTests,
+} from '@/components/dsfr-data-map.js';
 import { DsfrDataMapLayer } from '@/components/dsfr-data-map-layer.js';
 import { DsfrDataMapTimeline } from '@/components/dsfr-data-map-timeline.js';
 import { clearDataCache, dispatchDataLoaded } from '@/utils/data-bridge.js';
@@ -47,6 +51,10 @@ describe('DsfrDataMap', () => {
       expect(map.tiles).toBe('ign-plan');
     });
 
+    it('has sovereign-only false', () => {
+      expect(map.sovereignOnly).toBe(false);
+    });
+
     it('has no-controls false', () => {
       expect(map.noControls).toBe(false);
     });
@@ -78,6 +86,85 @@ describe('DsfrDataMap', () => {
     it('getLeafletLib returns null before init', () => {
       expect(map.getLeafletLib()).toBeNull();
     });
+  });
+});
+
+describe('resolveTilePreset', () => {
+  it('resout les 5 presets canoniques sans warning', () => {
+    for (const preset of ['ign-plan', 'ign-ortho', 'ign-topo', 'ign-cadastre', 'osm-fr']) {
+      const { key, warning } = resolveTilePreset(preset, false);
+      expect(key).toBe(preset);
+      expect(warning).toBeUndefined();
+    }
+  });
+
+  it('mappe l\'alias "osm" sur "osm-fr"', () => {
+    const { key, warning } = resolveTilePreset('osm', false);
+    expect(key).toBe('osm-fr');
+    expect(warning).toBeUndefined();
+  });
+
+  it('retourne null sur une URL custom (pas de warning)', () => {
+    const custom = 'https://tiles.example.com/{z}/{x}/{y}.png';
+    const { key, warning } = resolveTilePreset(custom, false);
+    expect(key).toBeNull();
+    expect(warning).toBeUndefined();
+  });
+
+  describe('sovereign-only', () => {
+    it('accepte les 4 presets IGN', () => {
+      for (const preset of ['ign-plan', 'ign-ortho', 'ign-topo', 'ign-cadastre']) {
+        const { key, warning } = resolveTilePreset(preset, true);
+        expect(key).toBe(preset);
+        expect(warning).toBeUndefined();
+      }
+    });
+
+    it('refuse osm-fr et force ign-plan avec warning', () => {
+      const { key, warning } = resolveTilePreset('osm-fr', true);
+      expect(key).toBe('ign-plan');
+      expect(warning).toMatch(/osm-fr/);
+      expect(warning).toMatch(/sovereign-only/);
+    });
+
+    it("refuse l'alias osm et force ign-plan avec warning", () => {
+      const { key, warning } = resolveTilePreset('osm', true);
+      expect(key).toBe('ign-plan');
+      expect(warning).toMatch(/osm/);
+    });
+
+    it('refuse une URL custom et force ign-plan avec warning', () => {
+      const { key, warning } = resolveTilePreset('https://tiles.example.com/{z}/{x}/{y}.png', true);
+      expect(key).toBe('ign-plan');
+      expect(warning).toMatch(/sovereign-only/);
+    });
+  });
+});
+
+describe('TILE_PRESETS', () => {
+  it('contient les 5 presets documentes (4 IGN + osm-fr)', () => {
+    const keys = Object.keys(__tilePresetsForTests.presets).sort();
+    expect(keys).toEqual(['ign-cadastre', 'ign-ortho', 'ign-plan', 'ign-topo', 'osm-fr'].sort());
+  });
+
+  it('expose 4 presets souverains (tuiles IGN)', () => {
+    const sov = [...__tilePresetsForTests.sovereign].sort();
+    expect(sov).toEqual(['ign-cadastre', 'ign-ortho', 'ign-plan', 'ign-topo']);
+  });
+
+  it("expose l'alias osm -> osm-fr", () => {
+    expect(__tilePresetsForTests.aliases).toEqual({ osm: 'osm-fr' });
+  });
+
+  it('toutes les URLs pointent vers data.geopf.fr ou openstreetmap.fr (sans cle API)', () => {
+    for (const [key, preset] of Object.entries(__tilePresetsForTests.presets)) {
+      const allowedHosts = ['data.geopf.fr', 'openstreetmap.fr'];
+      expect(
+        allowedHosts.some((host) => preset.url.includes(host)),
+        `preset ${key} doit pointer vers ${allowedHosts.join(' ou ')}`
+      ).toBe(true);
+      expect(preset.url).not.toMatch(/[?&](key|api_key|apikey)=/);
+    }
   });
 });
 
@@ -2453,7 +2540,11 @@ describe('DsfrDataMapLayer banner management', () => {
     expect(banner?.textContent).toContain('3');
 
     // happy-dom has a bug disconnecting Lit elements that contain rendered children
-    try { document.body.removeChild(parent); } catch { /* happy-dom cleanup bug */ }
+    try {
+      document.body.removeChild(parent);
+    } catch {
+      /* happy-dom cleanup bug */
+    }
   });
 
   it('does not create banner when not truncated', async () => {
@@ -2498,7 +2589,11 @@ describe('DsfrDataMapLayer banner management', () => {
     expect(banners).toHaveLength(1);
 
     // happy-dom has a bug disconnecting Lit elements that contain rendered children
-    try { document.body.removeChild(parent); } catch { /* happy-dom cleanup bug */ }
+    try {
+      document.body.removeChild(parent);
+    } catch {
+      /* happy-dom cleanup bug */
+    }
   });
 });
 
