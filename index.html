@@ -20,107 +20,274 @@
       display: flex;
       flex-direction: column;
     }
-
     main {
       flex: 1;
-      background: var(--background-alt-grey);
     }
 
-    .tiles-grid {
+    /* ───────── HERO ───────── */
+    .home-hero {
+      background: var(--background-alt-blue-france);
+      border-bottom: 1px solid var(--border-default-blue-france);
+    }
+    .home-hero__inner {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+      gap: 3rem;
+      align-items: center;
+      padding: 2.5rem 0 2rem;
+    }
+    .home-hero__title {
+      font-size: 2.75rem; line-height: 3.25rem; font-weight: 700;
+      color: var(--text-title-grey);
+      letter-spacing: -0.015em;
+      margin: 0 0 0.875rem;
+    }
+    .home-hero__title em {
+      font-style: normal;
+      color: var(--text-action-high-blue-france);
+      position: relative;
+    }
+    .home-hero__title em::after {
+      content: ""; position: absolute; left: 0; right: 0; bottom: 0.15em; height: 4px;
+      background: #e1000f;
+    }
+    .home-hero__lead {
+      font-size: 1.0625rem; line-height: 1.625rem;
+      color: var(--text-default-grey);
+      margin: 0 0 1.25rem;
+      max-width: 52ch;
+    }
+    .home-hero__ctas {
+      display: flex; gap: 0.625rem; align-items: center; flex-wrap: wrap;
+    }
+    .home-hero__ctas .fr-btn i {
+      margin-right: 0.5rem;
+    }
+    .home-hero__steps {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 1.5rem;
+      margin-top: 1.75rem;
+      padding-top: 1.125rem;
+      border-top: 1px solid var(--border-default-blue-france);
+    }
+    .home-hero__step {
+      display: flex; flex-direction: column; gap: 0.25rem;
+      padding-right: 1rem;
+    }
+    .home-hero__step + .home-hero__step {
+      padding-left: 1rem;
+      border-left: 1px solid var(--border-default-blue-france);
+    }
+    .home-hero__step-num {
+      font-weight: 700; font-size: 0.75rem; line-height: 1rem;
+      color: var(--text-action-high-blue-france);
+      letter-spacing: 0.08em;
+    }
+    .home-hero__step-title {
+      font-weight: 700; font-size: 0.9375rem; line-height: 1.25rem;
+      color: var(--text-title-grey);
+    }
+    .home-hero__step-desc {
+      font-size: 0.8125rem; line-height: 1.125rem;
+      color: var(--text-mention-grey);
     }
 
-    @media (max-width: 992px) {
-      .tiles-grid {
-        grid-template-columns: repeat(2, 1fr);
-      }
+    /* ───────── CHART PANEL (preview carousel) ───────── */
+    .chart-panel {
+      background: var(--background-default-grey);
+      border: 1px solid var(--border-default-grey);
+      box-shadow: 0 4px 12px rgba(0,0,18,.08);
+      display: flex; flex-direction: column;
+      min-height: 420px;
     }
-
-    @media (max-width: 576px) {
-      .tiles-grid {
-        grid-template-columns: 1fr;
-      }
+    .chart-panel__header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border-default-grey);
+      background: var(--background-alt-grey);
+      gap: 0.75rem;
     }
-
-    .fr-tile {
+    .chart-panel__title {
+      display: flex; align-items: center; gap: 0.5rem;
+      min-width: 0;
+      font-size: 0.8125rem; line-height: 1.25rem;
+      color: var(--text-title-grey);
+    }
+    .chart-panel__title i {
+      color: var(--text-action-high-blue-france);
+      flex-shrink: 0;
+    }
+    .chart-panel__type {
+      font-weight: 700;
+      color: var(--text-title-grey);
+      white-space: nowrap;
+    }
+    .chart-panel__sep {
+      color: var(--text-mention-grey);
+      margin: 0 0.25rem;
+    }
+    .chart-panel__component {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.75rem;
+      color: var(--text-action-high-blue-france);
+      white-space: nowrap;
+    }
+    .chart-panel__actions {
+      display: flex; align-items: center; gap: 0.75rem;
+      flex-shrink: 0;
+    }
+    .chart-panel__pause {
+      background: none; border: 0; padding: 0.25rem;
+      color: var(--text-mention-grey); cursor: pointer;
+      font-size: 1rem; line-height: 1; border-radius: 2px;
+    }
+    .chart-panel__pause:hover { color: var(--text-action-high-blue-france); }
+    .chart-panel__pause:focus-visible {
+      outline: 2px solid var(--text-action-high-blue-france); outline-offset: 2px;
+    }
+    .chart-panel__body {
+      flex: 1;
+      display: block;
+      padding: 1rem 1rem 0;
+      overflow: hidden;
+    }
+    .chart-stage {
+      position: relative;
+      min-height: 340px;
       height: 100%;
     }
-
-    .fr-tile__pictogram {
-      display: flex;
-      align-items: center;
-      justify-content: center;
+    .chart-slot {
+      position: absolute; inset: 0 0 auto 0;
+      display: flex; flex-direction: column; justify-content: flex-start;
+      padding: 0;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(6px);
+      transition: opacity 260ms ease, transform 260ms ease, visibility 0s linear 260ms;
+      pointer-events: none;
+    }
+    .chart-slot[data-active="true"] {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+      pointer-events: auto;
+      transition: opacity 260ms ease, transform 260ms ease, visibility 0s linear 0s;
+    }
+    /* Tous les composants sont rendus à 80 % pour tenir dans l'aperçu
+       (simule un zoom navigateur, garde la mise en page native). */
+    .chart-slot > * {
+      transform: scale(0.8);
+      transform-origin: top left;
+      width: 125%;
+      height: 125%;
+      overflow: hidden;
+    }
+    .chart-dots-nav {
+      display: flex; gap: 0.375rem;
+    }
+    .chart-dots-nav__dot {
+      width: 1.125rem; height: 2px;
+      background: var(--border-default-grey);
+      border: 0; padding: 0; cursor: pointer;
+    }
+    .chart-dots-nav__dot[aria-current="true"] {
+      background: var(--text-action-high-blue-france);
+    }
+    .chart-dots-nav__dot:focus-visible {
+      outline: 2px solid var(--text-action-high-blue-france); outline-offset: 3px;
     }
 
-    .fr-tile__pictogram i {
-      font-size: 2.5rem;
-      color: var(--text-action-high-blue-france);
-    }
-
-    .workflow {
+    /* ───────── TOOLS GRID (compact) ───────── */
+    .home-tools {
+      padding: 2rem 0 2.5rem;
       background: var(--background-default-grey);
-      border-radius: 8px;
-      padding: 1.5rem 2rem;
-      margin-top: 1rem;
     }
-
-    .workflow h3 {
-      margin: 0 0 1.5rem;
+    .home-tools__head {
+      display: flex; align-items: baseline; justify-content: space-between;
+      margin-bottom: 1rem; gap: 1rem; flex-wrap: wrap;
     }
-
-    .workflow-steps {
-      display: flex;
-      gap: 1rem;
-      flex-wrap: wrap;
+    .home-tools__title {
+      font-size: 1.375rem; line-height: 1.75rem; font-weight: 700;
+      color: var(--text-title-grey); margin: 0;
     }
-
-    .workflow-step {
-      flex: 1;
-      min-width: 200px;
-      text-align: center;
-      padding: 1rem;
+    .home-tools__hint {
+      font-size: 0.875rem; line-height: 1.25rem;
+      color: var(--text-mention-grey);
     }
-
-    .workflow-step .step-number {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background: var(--background-action-high-blue-france);
-      color: white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0 auto 0.75rem;
-      font-weight: 700;
+    .home-tools__grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.75rem;
     }
-
-    .workflow-step h4 {
-      margin: 0 0 0.5rem;
-      font-size: 1rem;
+    .home-tool {
+      position: relative;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0.75rem;
+      align-items: start;
+      padding: 0.875rem 1rem;
+      background: var(--background-default-grey);
+      border: 1px solid var(--border-default-grey);
+      border-bottom: 3px solid var(--text-action-high-blue-france);
+      text-decoration: none;
+      color: var(--text-title-grey);
+      transition: background-color 80ms linear;
     }
-
-    .workflow-step p {
-      font-size: 0.85rem;
+    .home-tool:hover {
+      background: var(--background-alt-blue-france);
+    }
+    .home-tool__icon {
+      flex: 0 0 auto;
+      width: 1.75rem; height: 1.75rem;
+      display: inline-flex; align-items: center; justify-content: center;
+      color: var(--text-action-high-blue-france);
+      font-size: 1.25rem;
+      margin-top: 1px;
+    }
+    .home-tool__body {
+      display: flex; flex-direction: column; gap: 0.125rem;
+      min-width: 0;
+    }
+    .home-tool__title {
+      font-weight: 700; font-size: 0.9375rem; line-height: 1.25rem;
+      color: var(--text-action-high-blue-france);
+      margin: 0;
+    }
+    .home-tool__desc {
+      font-size: 0.8125rem; line-height: 1.125rem;
       color: var(--text-mention-grey);
       margin: 0;
     }
-
-    .arrow {
-      display: flex;
-      align-items: center;
-      color: var(--text-mention-grey);
-      font-size: 1.5rem;
+    .home-tool__tag {
+      position: absolute;
+      top: 0.5rem; right: 0.5rem;
+      font-weight: 700; font-size: 0.625rem; line-height: 0.875rem;
+      color: var(--text-action-high-blue-france);
+      background: var(--background-contrast-blue-france);
+      padding: 2px 6px;
+      letter-spacing: 0.04em;
     }
 
-    @media (max-width: 768px) {
-      .arrow { display: none; }
+    /* ───────── RESPONSIVE ───────── */
+    @media (max-width: 992px) {
+      .home-hero__inner { grid-template-columns: 1fr; gap: 2rem; }
+      .home-hero__title { font-size: 2.25rem; line-height: 2.75rem; }
+      .home-tools__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 576px) {
+      .home-hero__steps { grid-template-columns: 1fr; }
+      .home-hero__step + .home-hero__step {
+        padding-left: 0; border-left: 0;
+        padding-top: 0.75rem; margin-top: 0.75rem;
+        border-top: 1px solid var(--border-default-blue-france);
+      }
+      .home-tools__grid { grid-template-columns: 1fr; }
+      .chart-panel__body { grid-template-columns: 1fr; }
     }
 
-    .tile-disabled {
-      opacity: 0.6;
-      pointer-events: none;
+    /* ───────── REDUCED MOTION ───────── */
+    @media (prefers-reduced-motion: reduce) {
+      .chart-slot { transition: none; transform: none; }
     }
   </style>
 </head>
@@ -128,204 +295,366 @@
   <!-- Header -->
   <app-header current-page="accueil" base-path=""></app-header>
 
-  <!-- Contenu principal -->
-  <main class="fr-pb-8w" id="main-content">
-    <div class="fr-container">
-      <!-- Présentation du projet -->
-      <div class="fr-callout fr-my-4w">
-        <p class="fr-callout__text">
-          <strong>Charts builder</strong> est une suite d'outils pour créer des visualisations de données conformes au Design System de l'État (DSFR).
-          Générez des graphiques accessibles en quelques clics, connectez vos sources de données, et exportez du code prêt à intégrer dans vos sites.
-        </p>
-      </div>
+  <main id="main-content">
 
-      <!-- Workflow -->
-      <div class="workflow">
-        <h3 class="fr-sr-only">Comment ça marche ?</h3>
-        <div class="workflow-steps">
-          <div class="workflow-step">
-            <div class="step-number">1</div>
-            <h4>Connectez vos données</h4>
-            <p>API OpenDataSoft, Tabular, Grist, ou données manuelles</p>
+    <!-- Hero -->
+    <section class="home-hero">
+      <div class="fr-container home-hero__inner">
+        <div class="home-hero__left">
+          <h1 class="home-hero__title">
+            Créez des <em>visualisations</em> conformes au Design System de l'État.
+          </h1>
+          <p class="home-hero__lead">
+            Connectez vos sources (API OpenDataSoft, Tabular, Grist, ou données manuelles),
+            configurez un graphique accessible en quelques clics, et exportez le code prêt à intégrer.
+          </p>
+          <div class="home-hero__ctas">
+            <a class="fr-btn fr-btn--lg" href="apps/builder/index.html">
+              <i class="ri-line-chart-line" aria-hidden="true"></i>
+              Créer un graphique
+            </a>
+            <a class="fr-btn fr-btn--lg fr-btn--secondary" href="apps/builder-ia/index.html">
+              <i class="ri-robot-line" aria-hidden="true"></i>
+              Démarrer avec l'IA
+            </a>
           </div>
-          <div class="arrow">→</div>
-          <div class="workflow-step">
-            <div class="step-number">2</div>
-            <h4>Configurez le graphique</h4>
-            <p>Choisissez le type, mappez les champs, ajustez les couleurs</p>
+          <div class="home-hero__steps">
+            <div class="home-hero__step">
+              <div class="home-hero__step-num">01 · CONNECTER</div>
+              <div class="home-hero__step-title">Branchez vos données</div>
+              <div class="home-hero__step-desc">API OpenDataSoft, Tabular, Grist ou saisie manuelle.</div>
+            </div>
+            <div class="home-hero__step">
+              <div class="home-hero__step-num">02 · CONFIGURER</div>
+              <div class="home-hero__step-title">Choisissez le graphique</div>
+              <div class="home-hero__step-desc">Mappez les champs, ajustez les couleurs.</div>
+            </div>
+            <div class="home-hero__step">
+              <div class="home-hero__step-num">03 · EXPORTER</div>
+              <div class="home-hero__step-title">Copiez le code</div>
+              <div class="home-hero__step-desc">HTML / JS prêt à coller dans vos sites.</div>
+            </div>
           </div>
-          <div class="arrow">→</div>
-          <div class="workflow-step">
-            <div class="step-number">3</div>
-            <h4>Exportez le code</h4>
-            <p>Copiez le HTML/JS généré dans votre site</p>
+        </div>
+        <div class="home-hero__right">
+          <div class="chart-panel" data-chart-panel>
+            <div class="chart-panel__header">
+              <div class="chart-panel__title">
+                <i class="ri-layout-masonry-line" aria-hidden="true"></i>
+                <span class="chart-panel__type" data-chart-type></span>
+                <span class="chart-panel__sep" aria-hidden="true">·</span>
+                <span class="chart-panel__component" data-chart-component></span>
+              </div>
+              <div class="chart-panel__actions">
+                <div class="chart-dots-nav" role="tablist" aria-label="Choisir l'exemple affiché" data-dots-nav></div>
+                <button
+                  type="button"
+                  class="chart-panel__pause"
+                  data-chart-pause
+                  aria-label="Mettre en pause le défilement"
+                  aria-pressed="false"
+                >
+                  <i class="ri-pause-line" aria-hidden="true"></i>
+                </button>
+              </div>
+            </div>
+            <div class="chart-panel__body">
+              <div
+                class="chart-stage"
+                data-chart-stage
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                <!-- Shared source for all slots (téléservices publics fictifs) -->
+                <dsfr-data-source
+                  id="src-home-demo"
+                  data='[{"service":"impots.gouv.fr","ministere":"Économie","visits":41.2,"users":18.6,"uptime":99.8},{"service":"FranceConnect","ministere":"Numérique","visits":27.8,"users":14.2,"uptime":99.5},{"service":"ameli.fr","ministere":"Santé","visits":23.5,"users":12.1,"uptime":99.2},{"service":"service-public.fr","ministere":"Numérique","visits":18.7,"users":10.5,"uptime":99.9},{"service":"ANTS (titres)","ministere":"Intérieur","visits":12.9,"users":7.4,"uptime":98.4},{"service":"Mon espace santé","ministere":"Santé","visits":11.1,"users":6.8,"uptime":99.1},{"service":"Carte grise","ministere":"Intérieur","visits":9.4,"users":5.2,"uptime":98.9}]'
+                ></dsfr-data-source>
+
+                <div class="chart-slot chart-slot--kpi" data-slot="kpi" data-active="true" role="group" aria-label="Indicateurs clés">
+                  <dsfr-data-kpi-group cols="2" gap="sm">
+                    <dsfr-data-kpi
+                      source="src-home-demo"
+                      valeur="sum:visits"
+                      label="Visites annuelles (M)"
+                      format="decimal"
+                      icone="ri-eye-line"
+                      couleur="bleu"
+                    ></dsfr-data-kpi>
+                    <dsfr-data-kpi
+                      source="src-home-demo"
+                      valeur="sum:users"
+                      label="Utilisateurs actifs (M)"
+                      format="decimal"
+                      icone="ri-user-3-line"
+                      couleur="bleu"
+                    ></dsfr-data-kpi>
+                    <dsfr-data-kpi
+                      source="src-home-demo"
+                      valeur="avg:uptime"
+                      label="Disponibilité moyenne (%)"
+                      format="decimal"
+                      icone="ri-shield-check-line"
+                      couleur="vert"
+                    ></dsfr-data-kpi>
+                    <dsfr-data-kpi
+                      source="src-home-demo"
+                      valeur="count"
+                      label="Téléservices suivis"
+                      format="nombre"
+                      icone="ri-government-line"
+                      couleur="bleu"
+                    ></dsfr-data-kpi>
+                  </dsfr-data-kpi-group>
+                </div>
+
+                <div class="chart-slot chart-slot--podium" data-slot="podium" data-active="false" role="img" aria-label="Podium des services">
+                  <dsfr-data-podium
+                    source="src-home-demo"
+                    label-field="service"
+                    value-field="visits"
+                    subtitle-field="ministere"
+                    value-unit="M visites"
+                    selected-palette="sequentialDescending"
+                    max-items="3"
+                  ></dsfr-data-podium>
+                </div>
+
+                <div class="chart-slot chart-slot--list" data-slot="list" data-active="false" role="group" aria-label="Liste des services">
+                  <dsfr-data-list
+                    source="src-home-demo"
+                    colonnes="service:Service, ministere:Ministère, visits:Visites (M)"
+                    tri="visits:desc"
+                    recherche
+                    filtres="ministere"
+                    pagination="3"
+                  ></dsfr-data-list>
+                </div>
+
+                <!-- World map source: francophonie + partenaires (valeurs simulées) -->
+                <dsfr-data-source
+                  id="src-home-world"
+                  data='[{"code":"FR","country":"France","visits":30.4},{"code":"DZ","country":"Algérie","visits":3.2},{"code":"MA","country":"Maroc","visits":2.8},{"code":"TN","country":"Tunisie","visits":1.5},{"code":"SN","country":"Sénégal","visits":0.9},{"code":"CI","country":"Côte d&#39;Ivoire","visits":0.8},{"code":"CM","country":"Cameroun","visits":0.6},{"code":"BE","country":"Belgique","visits":2.1},{"code":"LU","country":"Luxembourg","visits":0.8},{"code":"CH","country":"Suisse","visits":1.3},{"code":"CA","country":"Canada","visits":1.2},{"code":"DE","country":"Allemagne","visits":1.8},{"code":"ES","country":"Espagne","visits":1.4},{"code":"IT","country":"Italie","visits":1.1},{"code":"PT","country":"Portugal","visits":0.9},{"code":"GB","country":"Royaume-Uni","visits":1.5},{"code":"US","country":"États-Unis","visits":2.2}]'
+                ></dsfr-data-source>
+
+                <div class="chart-slot chart-slot--world" data-slot="world" data-active="false" role="img" aria-label="Carte monde">
+                  <dsfr-data-world-map
+                    source="src-home-world"
+                    code-field="code"
+                    value-field="visits"
+                    code-format="iso-a2"
+                    name-field="country"
+                    selected-palette="sequentialAscending"
+                    unit-tooltip="M visites"
+                  ></dsfr-data-world-map>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
+    </section>
 
-      <!-- Tuiles outils principaux -->
-      <div class="tiles-grid fr-mt-4w">
-
-        <!-- 1. Documentation -->
-        <div class="fr-tile fr-tile--horizontal fr-enlarge-link">
-          <div class="fr-tile__body">
-            <div class="fr-tile__content">
-              <h3 class="fr-tile__title">
-                <a href="specs/index.html">Documentation</a>
-              </h3>
-              <p class="fr-tile__detail">Découvrez les composants dsfr-data et les graphiques DSFR Chart disponibles.</p>
-            </div>
-          </div>
-          <div class="fr-tile__header">
-            <div class="fr-tile__pictogram">
-              <i class="ri-book-open-line"></i>
-            </div>
-          </div>
+    <!-- Tools grid (aligned with nav) -->
+    <section class="home-tools">
+      <div class="fr-container">
+        <div class="home-tools__head">
+          <h2 class="home-tools__title">Tous les outils</h2>
+          <div class="home-tools__hint">9 modules · démarrez par le plus proche de votre besoin</div>
         </div>
-
-        <!-- 2. Générateur de graphiques -->
-        <div class="fr-tile fr-tile--horizontal fr-enlarge-link">
-          <div class="fr-tile__body">
-            <div class="fr-tile__content">
-              <h3 class="fr-tile__title">
-                <a href="apps/builder/index.html">Générateur de graphiques</a>
-              </h3>
-              <p class="fr-tile__detail">Créez des graphiques en quelques clics : barres, lignes, camemberts... Connectez vos données et personnalisez l'apparence.</p>
+        <div class="home-tools__grid">
+          <a class="home-tool" href="apps/sources/index.html">
+            <span class="home-tool__icon"><i class="ri-database-2-line" aria-hidden="true"></i></span>
+            <div class="home-tool__body">
+              <h3 class="home-tool__title">Sources</h3>
+              <p class="home-tool__desc">Grist, jeux manuels ou APIs pour alimenter vos visualisations.</p>
             </div>
-          </div>
-          <div class="fr-tile__header">
-            <div class="fr-tile__pictogram">
-              <i class="ri-bar-chart-box-line"></i>
+          </a>
+          <a class="home-tool" href="apps/builder-ia/index.html">
+            <span class="home-tool__icon"><i class="ri-robot-line" aria-hidden="true"></i></span>
+            <div class="home-tool__body">
+              <h3 class="home-tool__title">Assistant IA</h3>
+              <p class="home-tool__desc">Décrivez votre besoin, Albert génère la visualisation.</p>
             </div>
-          </div>
+            <span class="home-tool__tag">IA</span>
+          </a>
+          <a class="home-tool" href="apps/builder/index.html">
+            <span class="home-tool__icon"><i class="ri-bar-chart-2-line" aria-hidden="true"></i></span>
+            <div class="home-tool__body">
+              <h3 class="home-tool__title">Créer un graphique</h3>
+              <p class="home-tool__desc">Barres, lignes, camemberts… configurables en quelques clics.</p>
+            </div>
+            <span class="home-tool__tag">Populaire</span>
+          </a>
+          <a class="home-tool" href="apps/builder-carto/index.html">
+            <span class="home-tool__icon"><i class="ri-map-pin-line" aria-hidden="true"></i></span>
+            <div class="home-tool__body">
+              <h3 class="home-tool__title">Créer une carte</h3>
+              <p class="home-tool__desc">Cartes interactives : POI, zones, cercles, heatmaps.</p>
+            </div>
+          </a>
+          <a class="home-tool" href="apps/dashboard/index.html">
+            <span class="home-tool__icon"><i class="ri-layout-grid-line" aria-hidden="true"></i></span>
+            <div class="home-tool__body">
+              <h3 class="home-tool__title">Créer un tableau</h3>
+              <p class="home-tool__desc">Assemblez un tableau de bord à partir de vos graphiques.</p>
+            </div>
+          </a>
+          <a class="home-tool" href="apps/playground/index.html">
+            <span class="home-tool__icon"><i class="ri-code-s-slash-line" aria-hidden="true"></i></span>
+            <div class="home-tool__body">
+              <h3 class="home-tool__title">Playground</h3>
+              <p class="home-tool__desc">Éditeur HTML/JS avec aperçu temps réel, idéal pour expérimenter.</p>
+            </div>
+          </a>
+          <a class="home-tool" href="apps/pipeline-helper/index.html">
+            <span class="home-tool__icon"><i class="ri-node-tree" aria-hidden="true"></i></span>
+            <div class="home-tool__body">
+              <h3 class="home-tool__title">Pipeline</h3>
+              <p class="home-tool__desc">Orchestrez fetch, transformations et jointures multi-sources.</p>
+            </div>
+          </a>
+          <a class="home-tool" href="apps/monitoring/index.html">
+            <span class="home-tool__icon"><i class="ri-pulse-line" aria-hidden="true"></i></span>
+            <div class="home-tool__body">
+              <h3 class="home-tool__title">Suivi</h3>
+              <p class="home-tool__desc">Visualisez les déploiements des widgets dsfr-data.</p>
+            </div>
+          </a>
+          <a class="home-tool" href="apps/admin/index.html">
+            <span class="home-tool__icon"><i class="ri-settings-3-line" aria-hidden="true"></i></span>
+            <div class="home-tool__body">
+              <h3 class="home-tool__title">Admin</h3>
+              <p class="home-tool__desc">Utilisateurs, connexions et paramètres de la plateforme.</p>
+            </div>
+          </a>
         </div>
-
-        <!-- 3. Générateur IA -->
-        <div class="fr-tile fr-tile--horizontal fr-enlarge-link">
-          <div class="fr-tile__body">
-            <div class="fr-tile__content">
-              <h3 class="fr-tile__title">
-                <a href="apps/builder-ia/index.html">Générateur IA (Albert)</a>
-              </h3>
-              <p class="fr-tile__detail">Décrivez en langage naturel le graphique que vous souhaitez. L'IA analyse vos données et génère la visualisation.</p>
-            </div>
-          </div>
-          <div class="fr-tile__header">
-            <div class="fr-tile__pictogram">
-              <i class="ri-robot-line"></i>
-            </div>
-          </div>
-        </div>
-
-        <!-- 3b. Generateur de cartes -->
-        <div class="fr-tile fr-tile--horizontal fr-enlarge-link">
-          <div class="fr-tile__body">
-            <div class="fr-tile__content">
-              <h3 class="fr-tile__title">
-                <a href="apps/builder-carto/index.html">Generateur de cartes</a>
-              </h3>
-              <p class="fr-tile__detail">Construisez des cartes interactives multi-couches : POI, zones, cercles, heatmaps. Connectez vos sources et configurez les layers.</p>
-            </div>
-          </div>
-          <div class="fr-tile__header">
-            <div class="fr-tile__pictogram">
-              <i class="ri-map-pin-line"></i>
-            </div>
-          </div>
-        </div>
-
-        <!-- 4. Playground -->
-        <div class="fr-tile fr-tile--horizontal fr-enlarge-link">
-          <div class="fr-tile__body">
-            <div class="fr-tile__content">
-              <h3 class="fr-tile__title">
-                <a href="apps/playground/index.html">Playground</a>
-              </h3>
-              <p class="fr-tile__detail">Écrivez du code et voyez le résultat en temps réel. Idéal pour apprendre et expérimenter avec les APIs.</p>
-            </div>
-          </div>
-          <div class="fr-tile__header">
-            <div class="fr-tile__pictogram">
-              <i class="ri-code-s-slash-line"></i>
-            </div>
-          </div>
-        </div>
-
-        <!-- 5. Sources -->
-        <div class="fr-tile fr-tile--horizontal fr-enlarge-link">
-          <div class="fr-tile__body">
-            <div class="fr-tile__content">
-              <h3 class="fr-tile__title">
-                <a href="apps/sources/index.html">Sources</a>
-              </h3>
-              <p class="fr-tile__detail">Connectez vos bases Grist, créez des jeux de données manuels, ou liez des APIs pour alimenter vos graphiques.</p>
-            </div>
-          </div>
-          <div class="fr-tile__header">
-            <div class="fr-tile__pictogram">
-              <i class="ri-database-2-line"></i>
-            </div>
-          </div>
-        </div>
-
-        <!-- 6. Dashboard Editor -->
-        <div class="fr-tile fr-tile--horizontal fr-enlarge-link">
-          <div class="fr-tile__body">
-            <div class="fr-tile__content">
-              <h3 class="fr-tile__title">
-                <a href="apps/dashboard/index.html">Dashboard Editor</a>
-              </h3>
-              <p class="fr-tile__detail">Composez des tableaux de bord en assemblant vos graphiques favoris.</p>
-            </div>
-          </div>
-          <div class="fr-tile__header">
-            <div class="fr-tile__pictogram">
-              <i class="ri-layout-grid-line"></i>
-            </div>
-          </div>
-        </div>
-
-        <!-- 7. Favoris -->
-        <div class="fr-tile fr-tile--horizontal fr-enlarge-link">
-          <div class="fr-tile__body">
-            <div class="fr-tile__content">
-              <h3 class="fr-tile__title">
-                <a href="apps/favorites/index.html">Mes favoris</a>
-              </h3>
-              <p class="fr-tile__detail">Retrouvez et gerez vos graphiques sauvegardes. Previsualisez, editez ou reutilisez-les.</p>
-            </div>
-          </div>
-          <div class="fr-tile__header">
-            <div class="fr-tile__pictogram">
-              <i class="ri-star-line"></i>
-            </div>
-          </div>
-        </div>
-
-        <!-- 8. Monitoring -->
-        <div class="fr-tile fr-tile--horizontal fr-enlarge-link">
-          <div class="fr-tile__body">
-            <div class="fr-tile__content">
-              <h3 class="fr-tile__title">
-                <a href="apps/monitoring/index.html">Monitoring</a>
-              </h3>
-              <p class="fr-tile__detail">Suivez les deploiements des widgets dsfr-data : sites, composants et types de graphiques utilises.</p>
-            </div>
-          </div>
-          <div class="fr-tile__header">
-            <div class="fr-tile__pictogram">
-              <i class="ri-pulse-line"></i>
-            </div>
-          </div>
-        </div>
-
       </div>
+    </section>
 
-    </div>
   </main>
 
   <!-- Footer -->
   <app-footer base-path=""></app-footer>
+
+  <!-- Carousel (exemples de visualisations) -->
+  <script>
+    (function () {
+      const INTERVAL = 4800;
+
+      const SCENES = [
+        { id: 'kpi', typeLabel: 'Indicateurs clés', component: 'dsfr-data-kpi' },
+        { id: 'podium', typeLabel: 'Podium', component: 'dsfr-data-podium' },
+        { id: 'list', typeLabel: 'Liste filtrable', component: 'dsfr-data-list' },
+        { id: 'world', typeLabel: 'Carte du monde', component: 'dsfr-data-world-map' },
+      ];
+
+      const reduceMotion = window.matchMedia
+        ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        : false;
+
+      let index = 0;
+      let timer = null;
+      let paused = reduceMotion;
+
+      function initPanel(panel) {
+        const typeEl = panel.querySelector('[data-chart-type]');
+        const componentEl = panel.querySelector('[data-chart-component]');
+        const dotsNav = panel.querySelector('[data-dots-nav]');
+        const pauseBtn = panel.querySelector('[data-chart-pause]');
+        const slots = Array.from(panel.querySelectorAll('[data-slot]'));
+
+        // All slots contain real dsfr-data components (no SVG prerender needed)
+
+        if (dotsNav) {
+          dotsNav.innerHTML = SCENES.map((s, i) =>
+            `<button type="button" class="chart-dots-nav__dot" role="tab" data-scene="${i}" aria-label="Exemple ${i + 1} : ${s.typeLabel}" aria-current="${i === index}"></button>`
+          ).join('');
+          dotsNav.querySelectorAll('[data-scene]').forEach((b) => {
+            b.addEventListener('click', () => {
+              index = Number(b.dataset.scene);
+              renderCurrent();
+              if (!paused) resetTimer();
+            });
+          });
+        }
+
+        if (pauseBtn) {
+          updatePauseButton(pauseBtn);
+          pauseBtn.addEventListener('click', () => {
+            paused = !paused;
+            updatePauseButton(pauseBtn);
+            if (paused) stopTimer();
+            else startTimer();
+          });
+        }
+
+        return { typeEl, componentEl, dotsNav, pauseBtn, slots };
+      }
+
+      function updatePauseButton(btn) {
+        const icon = btn.querySelector('i');
+        if (paused) {
+          btn.setAttribute('aria-pressed', 'true');
+          btn.setAttribute('aria-label', 'Reprendre le défilement');
+          if (icon) icon.className = 'ri-play-line';
+        } else {
+          btn.setAttribute('aria-pressed', 'false');
+          btn.setAttribute('aria-label', 'Mettre en pause le défilement');
+          if (icon) icon.className = 'ri-pause-line';
+        }
+      }
+
+      function render(panel) {
+        const refs = panel.__refs || (panel.__refs = initPanel(panel));
+        const scene = SCENES[index];
+        refs.slots.forEach((slot, i) => {
+          slot.setAttribute('data-active', i === index ? 'true' : 'false');
+        });
+        if (refs.typeEl) refs.typeEl.textContent = scene.typeLabel;
+        if (refs.componentEl) refs.componentEl.textContent = scene.component;
+        if (refs.dotsNav) {
+          refs.dotsNav.querySelectorAll('[data-scene]').forEach((b, i) => {
+            b.setAttribute('aria-current', i === index ? 'true' : 'false');
+          });
+        }
+      }
+
+      function renderCurrent() {
+        document.querySelectorAll('[data-chart-panel]').forEach(render);
+      }
+
+      function tick() {
+        index = (index + 1) % SCENES.length;
+        renderCurrent();
+      }
+
+      function startTimer() {
+        stopTimer();
+        if (paused) return;
+        timer = window.setInterval(tick, INTERVAL);
+      }
+      function stopTimer() {
+        if (timer) { window.clearInterval(timer); timer = null; }
+      }
+      function resetTimer() { stopTimer(); startTimer(); }
+
+      function init() {
+        renderCurrent();
+        if (!paused) startTimer();
+        document.querySelectorAll('[data-chart-panel]').forEach((panel) => {
+          panel.addEventListener('mouseenter', () => { if (!paused) stopTimer(); });
+          panel.addEventListener('mouseleave', () => { if (!paused) startTimer(); });
+        });
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
+    })();
+  </script>
 
   <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.module.min.js" integrity="sha384-gPgRd2+olihO/srZe/Bqw6iVLiiaL7meuri1d5YVMejwPXg7VehLSBeORYq9yh2F" crossorigin="anonymous"></script>
 </body>
