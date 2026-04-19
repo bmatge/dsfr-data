@@ -215,6 +215,13 @@ jobs:
             --error \
             packages/core/src apps server/src scripts
 
+      - name: Strip nosemgrep-suppressed findings from SARIF
+        if: always()
+        run: |
+          jq '(.runs[].results) |= map(select((.suppressions // []) | length == 0))' \
+            semgrep.sarif > semgrep.filtered.sarif
+          mv semgrep.filtered.sarif semgrep.sarif
+
       - name: Upload Semgrep SARIF
         if: always()
         uses: github/codeql-action/upload-sarif@v4
