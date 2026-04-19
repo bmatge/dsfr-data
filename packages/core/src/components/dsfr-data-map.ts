@@ -49,9 +49,15 @@ async function loadLeaflet(): Promise<typeof import('leaflet')> {
   if (L) return L;
   L = await import('leaflet');
   // Expose L globally — required by Leaflet plugins (markercluster, heat)
-  (window as any).L = L;
+  (window as Window & { L?: typeof import('leaflet') }).L = L;
   return L;
 }
+
+/** Surface minimale appelée sur les dsfr-data-map-layer / timeline enfants. */
+type MapChildElement = Element & {
+  _onMapReady?: () => void;
+  _onViewportChange?: () => void;
+};
 
 @customElement('dsfr-data-map')
 export class DsfrDataMap extends LitElement {
@@ -362,7 +368,7 @@ export class DsfrDataMap extends LitElement {
         for (const node of m.addedNodes) {
           const tag = (node as HTMLElement).tagName?.toLowerCase();
           if (tag === 'dsfr-data-map-layer' || tag === 'dsfr-data-map-timeline') {
-            (node as any)._onMapReady?.();
+            (node as MapChildElement)._onMapReady?.();
           }
         }
       }
@@ -395,18 +401,18 @@ export class DsfrDataMap extends LitElement {
   private _notifyLayers() {
     const layers = this.querySelectorAll('dsfr-data-map-layer');
     for (const layer of layers) {
-      (layer as any)._onViewportChange?.();
+      (layer as MapChildElement)._onViewportChange?.();
     }
   }
 
   private _notifyExistingLayers() {
     const layers = this.querySelectorAll('dsfr-data-map-layer');
     for (const layer of layers) {
-      (layer as any)._onMapReady?.();
+      (layer as MapChildElement)._onMapReady?.();
     }
     const timelines = this.querySelectorAll('dsfr-data-map-timeline');
     for (const tl of timelines) {
-      (tl as any)._onMapReady?.();
+      (tl as MapChildElement)._onMapReady?.();
     }
   }
 

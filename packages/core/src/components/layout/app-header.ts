@@ -124,8 +124,10 @@ export class AppHeader extends LitElement {
           window.history.replaceState({}, '', url.toString());
           // Wait for next render then open modal
           await this.updateComplete;
-          const modal = this.querySelector('auth-modal') as any;
-          modal?.open('reset', resetToken);
+          const modal = this.querySelector('auth-modal') as
+            | (Element & { open?: (mode: string, token?: string) => void })
+            | null;
+          modal?.open?.('reset', resetToken);
         }
       }
     } catch {
@@ -134,14 +136,18 @@ export class AppHeader extends LitElement {
   }
 
   private _openAuthModal(): void {
-    const modal = this.querySelector('auth-modal') as any;
-    modal?.open('login');
+    const modal = this.querySelector('auth-modal') as
+      | (Element & { open?: (mode: string) => void })
+      | null;
+    modal?.open?.('login');
   }
 
   private _openPasswordChangeModal(): void {
     this._userMenuOpen = false;
-    const modal = this.querySelector('password-change-modal') as any;
-    modal?.open();
+    const modal = this.querySelector('password-change-modal') as
+      | (Element & { open?: () => void })
+      | null;
+    modal?.open?.();
   }
 
   private async _handleLogout(): Promise<void> {

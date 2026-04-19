@@ -173,7 +173,7 @@ export class DsfrDataMapPopup extends LitElement {
     closeBtn?.addEventListener('click', () => this.close());
 
     // Announce to screen reader via map's live region
-    const mapEl = mapParent as any;
+    const mapEl = mapParent as Element & { announceToScreenReader?: (msg: string) => void };
     if (title) {
       mapEl.announceToScreenReader?.(`Detail : ${title}`);
     }
@@ -242,7 +242,9 @@ export class DsfrDataMapPopup extends LitElement {
     document.addEventListener('keydown', escHandler);
 
     // Announce
-    const mapParent = this.closest('dsfr-data-map') as any;
+    const mapParent = this.closest('dsfr-data-map') as
+      | (Element & { announceToScreenReader?: (msg: string) => void })
+      | null;
     mapParent?.announceToScreenReader?.(`Modale ouverte : ${title}`);
   }
 

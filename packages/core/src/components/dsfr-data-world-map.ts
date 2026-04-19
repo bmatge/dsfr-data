@@ -269,7 +269,9 @@ export class DsfrDataWorldMap extends SourceSubscriberMixin(LitElement) {
     if (!this._topology) return [];
     const countries = this._topology.objects['countries'] as GeometryCollection;
     const fc = feature(this._topology, countries);
-    return (fc as any).features as CountryFeature[];
+    // `feature` peut renvoyer une Feature simple ou une FeatureCollection ; ici
+    // countries est une GeometryCollection donc on a une FeatureCollection.
+    return (fc as unknown as { features: CountryFeature[] }).features;
   }
 
   private _getBorders(): GeoPermissibleObjects | null {
