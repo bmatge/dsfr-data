@@ -181,6 +181,9 @@ async function runMigrations(): Promise<void> {
   if (currentVersion < 5) {
     await migrateV5();
   }
+  if (currentVersion < 6) {
+    await migrateV6();
+  }
 }
 
 /**
@@ -338,6 +341,31 @@ async function migrateV5(): Promise<void> {
   } catch (err) {
     await conn.rollback();
     throw err;
+  } finally {
+    conn.release();
+  }
+}
+
+/**
+ * Migration v6: tour_state column on users (product tour persistence).
+ */
+async function migrateV6(): Promise<void> {
+  console.log('[db] Running migration v6: tour_state column');
+
+  const conn = await getPool().getConnection();
+  try {
+    const [cols] = await conn.query(
+      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'tour_state'`
+    );
+    if ((cols as unknown[]).length > 0) {
+      await conn.query('INSERT IGNORE INTO schema_version (version) VALUES (6)');
+      return;
+    }
+
+    await conn.query(`ALTER TABLE users ADD COLUMN tour_state JSON NULL`);
+    await conn.query('INSERT IGNORE INTO schema_version (version) VALUES (6)');
+    console.log('[db] Migration v6 complete');
   } finally {
     conn.release();
   }

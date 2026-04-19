@@ -14,6 +14,8 @@ function openSection(sectionId: string): void {
 
 export const BUILDER_TOUR: TourConfig = {
   id: 'builder',
+  label: 'Builder',
+  version: 1,
   steps: [
     {
       selector: '#section-source',

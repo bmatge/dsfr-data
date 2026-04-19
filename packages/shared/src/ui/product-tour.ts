@@ -24,6 +24,13 @@ export interface TourConfig {
   id: string;
   /** Tour steps */
   steps: TourStep[];
+  /**
+   * Content version of the tour. Bump to re-show the tour to users who already
+   * completed a previous version. Defaults to 1 if omitted.
+   */
+  version?: number;
+  /** Human label displayed on the /guide page (defaults to id) */
+  label?: string;
   /** Called when tour completes or is skipped */
   onComplete?: () => void;
 }
@@ -31,51 +38,139 @@ export interface TourConfig {
 // ─── Tour state (synced to server via saveToStorage hook) ─────────────
 
 import { loadFromStorage, saveToStorage, STORAGE_KEYS } from '../storage/local-storage.js';
+import { toastSuccess } from './toast.js';
 
-type TourState = Record<string, string>; // tourId → ISO date of completion
+/** Entry stored per tour: when it was seen and which version. */
+export interface StoredTourEntry {
+  at: string;
+  version: number;
+}
 
-/** Migrate legacy per-tour localStorage keys (dsfr-data-tour-*) to unified TOURS key */
-let _migrated = false;
-function _migrateLegacyKeys(): void {
-  if (_migrated) return;
-  _migrated = true;
+/** Full state persisted under STORAGE_KEYS.TOURS. */
+export interface TourState {
+  /** If true, no tour auto-starts (the user can still manually restart one). */
+  disabled?: boolean;
+  /** Seen tours keyed by tour id. */
+  tours: Record<string, StoredTourEntry>;
+}
+
+function _emptyState(): TourState {
+  return { tours: {} };
+}
+
+/** Migrate legacy per-tour localStorage keys (dsfr-data-tour-*) into the unified TOURS state. */
+let _legacyMigrated = false;
+function _migrateLegacyPerTourKeys(state: TourState): boolean {
+  if (_legacyMigrated) return false;
+  _legacyMigrated = true;
   const prefix = 'dsfr-data-tour-';
   const tourIds = ['builder', 'sources', 'builder-ia', 'builder-carto', 'playground', 'dashboard'];
-  let migrated = false;
-  const state = loadFromStorage<TourState>(STORAGE_KEYS.TOURS, {});
+  let changed = false;
   for (const id of tourIds) {
     const val = localStorage.getItem(prefix + id);
-    if (val && !state[id]) {
-      state[id] = val;
-      migrated = true;
+    if (val && !state.tours[id]) {
+      state.tours[id] = { at: val, version: 1 };
+      changed = true;
     }
     if (val) localStorage.removeItem(prefix + id);
   }
-  if (migrated) saveToStorage(STORAGE_KEYS.TOURS, state);
+  return changed;
+}
+
+/**
+ * Migrate the old flat format `{ tourId: ISO }` to the new `{ disabled, tours: { tourId: {at, version} } }`.
+ * Detection: the new format exposes a `tours` object at the top level.
+ */
+function _normalizeState(raw: unknown): { state: TourState; migrated: boolean } {
+  if (!raw || typeof raw !== 'object') {
+    return { state: _emptyState(), migrated: false };
+  }
+  const obj = raw as Record<string, unknown>;
+  if (obj.tours && typeof obj.tours === 'object') {
+    // Already new format — coerce types defensively.
+    const tours: Record<string, StoredTourEntry> = {};
+    for (const [id, entry] of Object.entries(obj.tours as Record<string, unknown>)) {
+      if (entry && typeof entry === 'object') {
+        const e = entry as Record<string, unknown>;
+        tours[id] = {
+          at: typeof e.at === 'string' ? e.at : new Date().toISOString(),
+          version: typeof e.version === 'number' ? e.version : 1,
+        };
+      } else if (typeof entry === 'string') {
+        // Defensive: in case someone stored a raw date.
+        tours[id] = { at: entry, version: 1 };
+      }
+    }
+    return {
+      state: { disabled: obj.disabled === true, tours },
+      migrated: false,
+    };
+  }
+  // Old format: every key is a tour id mapped to an ISO string.
+  const tours: Record<string, StoredTourEntry> = {};
+  for (const [id, val] of Object.entries(obj)) {
+    if (typeof val === 'string') {
+      tours[id] = { at: val, version: 1 };
+    }
+  }
+  return { state: { tours }, migrated: true };
 }
 
 function _loadState(): TourState {
-  _migrateLegacyKeys();
-  return loadFromStorage<TourState>(STORAGE_KEYS.TOURS, {});
+  const raw = loadFromStorage<unknown>(STORAGE_KEYS.TOURS, null);
+  const { state, migrated: formatMigrated } = _normalizeState(raw);
+  const legacyMigrated = _migrateLegacyPerTourKeys(state);
+  if (formatMigrated || legacyMigrated) {
+    saveToStorage(STORAGE_KEYS.TOURS, state);
+  }
+  return state;
 }
 
 function _saveState(state: TourState): void {
   saveToStorage(STORAGE_KEYS.TOURS, state);
 }
 
-export function shouldShowTour(tourId: string): boolean {
-  return !_loadState()[tourId];
+/**
+ * Whether a tour should auto-show on app load.
+ * Returns false if tours are globally disabled, or if a seen entry exists
+ * whose stored version is greater than or equal to the requested version.
+ */
+export function shouldShowTour(tourId: string, version = 1): boolean {
+  const state = _loadState();
+  if (state.disabled) return false;
+  const seen = state.tours[tourId];
+  if (!seen) return true;
+  return seen.version < version;
 }
 
-export function markTourComplete(tourId: string): void {
+/** Mark the tour as seen at the given version. */
+export function markTourComplete(tourId: string, version = 1): void {
   const state = _loadState();
-  state[tourId] = new Date().toISOString();
+  state.tours[tourId] = { at: new Date().toISOString(), version };
   _saveState(state);
 }
 
+/** Remove any record of the tour — it will auto-show again on next load. */
 export function resetTour(tourId: string): void {
   const state = _loadState();
-  delete state[tourId];
+  delete state.tours[tourId];
+  _saveState(state);
+}
+
+/** Full snapshot for UIs like /guide that need to render status per tour. */
+export function getToursState(): TourState {
+  return _loadState();
+}
+
+/** Are tours globally disabled? */
+export function isToursDisabled(): boolean {
+  return _loadState().disabled === true;
+}
+
+/** Enable or disable all tours globally. */
+export function setToursDisabled(disabled: boolean): void {
+  const state = _loadState();
+  state.disabled = disabled;
   _saveState(state);
 }
 
@@ -101,6 +196,7 @@ export function startTour(config: TourConfig): void {
 /**
  * Start a tour only if it hasn't been completed yet, or forced via ?tour=restart.
  * Handles the ?tour=restart URL parameter automatically (cleans up URL after use).
+ * Respects the global disabled flag (skipped unless ?tour=restart forces it).
  */
 export function startTourIfFirstVisit(config: TourConfig, delay = 600): void {
   const params = new URLSearchParams(window.location.search);
@@ -114,7 +210,7 @@ export function startTourIfFirstVisit(config: TourConfig, delay = 600): void {
     setTimeout(() => startTour(config), delay);
     return;
   }
-  if (!shouldShowTour(config.id)) return;
+  if (!shouldShowTour(config.id, config.version ?? 1)) return;
   setTimeout(() => startTour(config), delay);
 }
 
@@ -244,10 +340,21 @@ function positionStep(step: TourStep, index: number): void {
 
     const footer = document.createElement('div');
     footer.className = 'tour-popover-footer';
+
+    const secondary = document.createElement('div');
+    secondary.className = 'tour-popover-secondary';
     const skipBtn = document.createElement('button');
     skipBtn.className = 'tour-popover-skip';
     skipBtn.type = 'button';
     skipBtn.textContent = 'Passer';
+    const disableBtn = document.createElement('button');
+    disableBtn.className = 'tour-popover-disable';
+    disableBtn.type = 'button';
+    disableBtn.textContent = 'Ne plus afficher les visites';
+    disableBtn.title =
+      'Désactive toutes les visites guidées. Vous pourrez les réactiver depuis la page Guide.';
+    secondary.append(skipBtn, disableBtn);
+
     const nav = document.createElement('div');
     nav.className = 'tour-popover-nav';
     if (!isFirst) {
@@ -262,13 +369,18 @@ function positionStep(step: TourStep, index: number): void {
     nextBtn.type = 'button';
     nextBtn.textContent = isLast ? 'Terminer' : 'Suivant';
     nav.append(nextBtn);
-    footer.append(skipBtn, nav);
+    footer.append(secondary, nav);
 
     popoverEl.append(header, title, desc, footer);
 
     // Bind buttons
     popoverEl.querySelector('.tour-popover-close')?.addEventListener('click', endTour);
     popoverEl.querySelector('.tour-popover-skip')?.addEventListener('click', endTour);
+    popoverEl.querySelector('.tour-popover-disable')?.addEventListener('click', () => {
+      setToursDisabled(true);
+      endTour();
+      toastSuccess('Visites guidées désactivées. Vous pouvez les réactiver depuis la page Guide.');
+    });
     popoverEl.querySelector('.tour-popover-prev')?.addEventListener('click', () => {
       currentStep = Math.max(0, currentStep - 1);
       showStep(currentStep);
@@ -338,7 +450,7 @@ function positionStep(step: TourStep, index: number): void {
 
 function endTour(): void {
   if (currentTour) {
-    markTourComplete(currentTour.id);
+    markTourComplete(currentTour.id, currentTour.version ?? 1);
     currentTour.onComplete?.();
   }
   cleanup();
@@ -434,21 +546,32 @@ export function injectTourStyles(): void {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      gap: 0.75rem;
+    }
+    .tour-popover-secondary {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.1rem;
     }
     .tour-popover-nav {
       display: flex;
       gap: 0.5rem;
     }
-    .tour-popover-skip {
+    .tour-popover-skip,
+    .tour-popover-disable {
       background: none;
       border: none;
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       color: var(--text-mention-grey, #666);
       cursor: pointer;
-      padding: 0.25rem 0;
+      padding: 0.15rem 0;
       text-decoration: underline;
+      text-align: left;
     }
-    .tour-popover-skip:hover { color: var(--text-default-grey, #333); }
+    .tour-popover-skip { font-size: 0.8rem; }
+    .tour-popover-skip:hover,
+    .tour-popover-disable:hover { color: var(--text-default-grey, #333); }
     .tour-popover-prev {
       padding: 0.35rem 0.75rem;
       border: 1px solid var(--border-default-grey, #ddd);

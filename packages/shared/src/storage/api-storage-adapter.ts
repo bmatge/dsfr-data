@@ -20,7 +20,7 @@ import {
   removeFromStorage,
   STORAGE_KEYS,
 } from './local-storage.js';
-import { syncItems, deleteItem, setSyncBaseUrl } from './sync-queue.js';
+import { syncItems, deleteItem, setSyncBaseUrl, enqueueSync } from './sync-queue.js';
 import type { Source } from '../types/source.js';
 import { serializeSourceForServer } from '../types/source.js';
 
@@ -178,7 +178,24 @@ const KEY_TO_ENDPOINT: Record<string, string> = {
   [STORAGE_KEYS.CONNECTIONS]: '/api/connections',
   [STORAGE_KEYS.FAVORITES]: '/api/favorites',
   [STORAGE_KEYS.DASHBOARDS]: '/api/dashboards',
+  [STORAGE_KEYS.TOURS]: '/api/tour-state',
 };
+
+/**
+ * Keys whose server endpoint returns a singleton (not an array). They use
+ * GET (read) / PUT (replace) semantics instead of the list + per-item sync.
+ */
+const SINGLETON_KEYS = new Set<string>([STORAGE_KEYS.TOURS]);
+
+/** Shape check: server-side empty tour state means "user has no entry yet". */
+function isEmptyTourState(data: unknown): boolean {
+  if (!data || typeof data !== 'object') return true;
+  const obj = data as Record<string, unknown>;
+  const hasDisabled = typeof obj.disabled === 'boolean';
+  const tours = obj.tours as Record<string, unknown> | undefined;
+  const hasTours = tours && typeof tours === 'object' && Object.keys(tours).length > 0;
+  return !hasDisabled && !hasTours;
+}
 
 export class ApiStorageAdapter implements StorageAdapter {
   private baseUrl: string;
@@ -219,6 +236,17 @@ export class ApiStorageAdapter implements StorageAdapter {
         data = mergeServerWithLocal(data as Record<string, unknown>[], localData, key) as T;
       }
 
+      // Singleton keys (tour-state): if the server response is empty but the
+      // user has local data (migrating from localStorage-only), preserve the
+      // local copy and re-push it via the save hook.
+      if (SINGLETON_KEYS.has(key) && isEmptyTourState(data)) {
+        const localData = loadFromStorage<unknown>(key, null);
+        if (localData && !isEmptyTourState(localData)) {
+          enqueueSync('PUT', endpoint, localData);
+          return localData as T;
+        }
+      }
+
       // Update localStorage cache
       saveToStorage(key, data);
       return data;
@@ -235,6 +263,12 @@ export class ApiStorageAdapter implements StorageAdapter {
 
     const endpoint = KEY_TO_ENDPOINT[key];
     if (!endpoint) {
+      return localResult;
+    }
+
+    // Singleton keys (tour-state): PUT the whole object to replace the state.
+    if (SINGLETON_KEYS.has(key)) {
+      enqueueSync('PUT', endpoint, data);
       return localResult;
     }
 

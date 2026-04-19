@@ -17,6 +17,7 @@ import cacheRoutes from './routes/cache.js';
 import migrateRoutes from './routes/migrate.js';
 import monitoringRoutes from './routes/monitoring.js';
 import adminRoutes from './routes/admin.js';
+import tourStateRoutes from './routes/tour-state.js';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3002', 10);
@@ -63,6 +64,7 @@ app.use('/api/cache', cacheRoutes);
 app.use('/api/migrate', migrateRoutes);
 app.use('/api/monitoring', monitoringRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/tour-state', tourStateRoutes);
 
 // CSRF error handler — renvoie 403 JSON structuré que le frontend détecte
 // pour refetch le token. Doit être déclaré APRÈS les routes.

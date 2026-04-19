@@ -1,6 +1,10 @@
 /**
  * Product tour configurations for all apps.
  * Each app imports its own config and calls startTourIfFirstVisit().
+ *
+ * The BUILDER tour is defined inside apps/builder because its steps rely on
+ * DOM hooks (openSection) specific to the builder app. It still registers its
+ * metadata via TOURS_REGISTRY so the /guide page can list it.
  */
 
 import type { TourConfig } from '../ui/product-tour.js';
@@ -9,6 +13,8 @@ import type { TourConfig } from '../ui/product-tour.js';
 
 export const SOURCES_TOUR: TourConfig = {
   id: 'sources',
+  label: 'Sources',
+  version: 1,
   steps: [
     {
       selector: '#add-connection-btn',
@@ -38,6 +44,8 @@ export const SOURCES_TOUR: TourConfig = {
 
 export const BUILDER_IA_TOUR: TourConfig = {
   id: 'builder-ia',
+  label: 'Builder IA',
+  version: 1,
   steps: [
     {
       selector: '#saved-source',
@@ -67,6 +75,8 @@ export const BUILDER_IA_TOUR: TourConfig = {
 
 export const BUILDER_CARTO_TOUR: TourConfig = {
   id: 'builder-carto',
+  label: 'Builder Carto',
+  version: 1,
   steps: [
     {
       selector: '#btn-add-layer',
@@ -103,6 +113,8 @@ export const BUILDER_CARTO_TOUR: TourConfig = {
 
 export const PLAYGROUND_TOUR: TourConfig = {
   id: 'playground',
+  label: 'Playground',
+  version: 1,
   steps: [
     {
       selector: '#example-select',
@@ -139,6 +151,8 @@ export const PLAYGROUND_TOUR: TourConfig = {
 
 export const DASHBOARD_TOUR: TourConfig = {
   id: 'dashboard',
+  label: 'Dashboard',
+  version: 1,
   steps: [
     {
       selector: '#widget-library',
@@ -163,3 +177,33 @@ export const DASHBOARD_TOUR: TourConfig = {
     },
   ],
 };
+
+// ─── Tour registry ─────────────────────────────────────────────────────
+
+/**
+ * Metadata shared with the /guide page to render the "visites guidées" section
+ * (status badge + restart link per tour). Includes tours whose full config is
+ * defined inside an app (e.g. Builder) and are therefore not exported from
+ * this module.
+ *
+ * Keep `version` in sync with the `version` of each TourConfig so that the
+ * /guide page displays "Non joué" to users who completed an older version.
+ *
+ * `appPath` is the path to the app index relative to the deployed site root
+ * (e.g. `/apps/builder/`). The /guide page appends `?tour=restart` to restart.
+ */
+export interface TourRegistryEntry {
+  id: string;
+  label: string;
+  version: number;
+  appPath: string;
+}
+
+export const TOURS_REGISTRY: TourRegistryEntry[] = [
+  { id: 'builder', label: 'Builder', version: 1, appPath: '/apps/builder/' },
+  { id: 'builder-ia', label: 'Builder IA', version: 1, appPath: '/apps/builder-ia/' },
+  { id: 'builder-carto', label: 'Builder Carto', version: 1, appPath: '/apps/builder-carto/' },
+  { id: 'sources', label: 'Sources', version: 1, appPath: '/apps/sources/' },
+  { id: 'playground', label: 'Playground', version: 1, appPath: '/apps/playground/' },
+  { id: 'dashboard', label: 'Dashboard', version: 1, appPath: '/apps/dashboard/' },
+];

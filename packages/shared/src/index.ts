@@ -133,7 +133,7 @@ export type { SampleDataset } from './data/sample-datasets.js';
 export { SAMPLE_DATASETS } from './data/sample-datasets.js';
 
 // Product tour
-export type { TourStep, TourConfig } from './ui/product-tour.js';
+export type { TourStep, TourConfig, TourState, StoredTourEntry } from './ui/product-tour.js';
 export {
   startTour,
   startTourIfFirstVisit,
@@ -141,11 +141,16 @@ export {
   markTourComplete,
   resetTour,
   injectTourStyles,
+  getToursState,
+  isToursDisabled,
+  setToursDisabled,
 } from './ui/product-tour.js';
+export type { TourRegistryEntry } from './tour/tour-configs.js';
 export {
   SOURCES_TOUR,
   BUILDER_IA_TOUR,
   BUILDER_CARTO_TOUR,
   PLAYGROUND_TOUR,
   DASHBOARD_TOUR,
+  TOURS_REGISTRY,
 } from './tour/tour-configs.js';

@@ -6,7 +6,7 @@
  */
 
 import type { User, AuthState, LoginRequest, RegisterRequest } from './auth-types.js';
-import { loadFromStorage, STORAGE_KEYS } from '../storage/local-storage.js';
+import { loadFromStorage, removeFromStorage, STORAGE_KEYS } from '../storage/local-storage.js';
 
 type AuthChangeCallback = (state: AuthState) => void;
 
@@ -336,6 +336,10 @@ export async function resetPassword(
 
 /**
  * Logout: clears cookie and local state.
+ *
+ * Also clears per-user localStorage entries that should not leak between
+ * accounts on a shared machine — currently the product tour state, which
+ * is re-hydrated from the server on next login.
  */
 export async function logout(): Promise<void> {
   try {
@@ -344,6 +348,7 @@ export async function logout(): Promise<void> {
     // Ignore errors — clear state anyway
   }
   _csrfToken = null;
+  removeFromStorage(STORAGE_KEYS.TOURS);
   setState({ user: null, isAuthenticated: false, isLoading: false });
 }
 
