@@ -196,7 +196,7 @@ export class AppSidemenu extends LitElement {
 
       <style>
         .guide-sidemenu {
-          flex: 0 0 280px;
+          flex: 0 0 220px;
           position: sticky;
           top: 1rem;
           height: fit-content;
@@ -209,6 +209,14 @@ export class AppSidemenu extends LitElement {
             flex: none;
             max-height: none;
           }
+        }
+        /* Autoriser les libellés longs à s'étaler sur 2 lignes au lieu de
+           forcer une largeur de menu plus grande. */
+        .guide-sidemenu .fr-sidemenu__link,
+        .guide-sidemenu .fr-sidemenu__btn {
+          white-space: normal;
+          word-break: break-word;
+          line-height: 1.3;
         }
         .fr-sidemenu__link[aria-current='true'] {
           font-weight: 700;
