@@ -22,6 +22,24 @@ type LeafletModule = typeof import('leaflet');
 type LeafletMap = import('leaflet').Map;
 type LayerGroup = import('leaflet').LayerGroup;
 type LatLngBounds = import('leaflet').LatLngBounds;
+type LeafletLayer = import('leaflet').Layer;
+type LeafletPopupEvent = import('leaflet').PopupEvent;
+type FeatureGroup = import('leaflet').FeatureGroup;
+
+/**
+ * Leaflet exposé sur window par dsfr-data-map (voir loadLeaflet). Ajoute
+ * `heatLayer` (plugin leaflet.heat) et `MarkerClusterGroup` (plugin
+ * leaflet.markercluster) qui ne sont pas dans les types officiels Leaflet.
+ */
+type LeafletWithPlugins = LeafletModule & {
+  heatLayer?: (
+    latLngs: Array<[number, number, number?]>,
+    opts?: Record<string, unknown>
+  ) => LeafletLayer;
+  markerClusterGroup?: (opts?: Record<string, unknown>) => FeatureGroup;
+  MarkerClusterGroup?: new (opts?: Record<string, unknown>) => FeatureGroup;
+};
+type WindowWithLeaflet = Window & { L?: LeafletWithPlugins };
 
 /** Choropleth palettes — shared with dsfr-data-world-map */
 const CHOROPLETH_PALETTES: Record<string, readonly string[]> = {
@@ -234,15 +252,15 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   private _mapParent: DsfrDataMap | null = null;
   private _leafletMap: LeafletMap | null = null;
   private _L: LeafletModule | null = null;
-  private _layerGroup: LayerGroup | null = null;
-  private _clusterGroup: any = null;
+  private _layerGroup: FeatureGroup | null = null;
+  private _clusterGroup: FeatureGroup | null = null;
   private _visible = true;
   private _data: Record<string, unknown>[] = [];
   private _bboxTimer: ReturnType<typeof setTimeout> | null = null;
   private _banner: HTMLDivElement | null = null;
   private _totalCount = 0;
   private _clusterLoaded = false;
-  private _heatLayer: any = null;
+  private _heatLayer: LeafletLayer | null = null;
   private _heatLoaded = false;
   private _radiusScale: ((val: number) => number) | null = null;
   private _colorMapParsed: Map<string, string> | null = null;
@@ -389,8 +407,8 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     this._L = this._mapParent.getLeafletLib();
     if (!this._leafletMap || !this._L) return;
 
-    // Create layer group
-    this._layerGroup = this._L.layerGroup();
+    // Create layer group (featureGroup → getBounds() disponible pour fit-bounds)
+    this._layerGroup = this._L.featureGroup();
 
     // Check initial zoom visibility
     this._updateVisibility();
@@ -583,14 +601,15 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     // Create cluster group if clustering
     if (this.cluster && this._clusterLoaded) {
       if (!this._clusterGroup) {
-        const WL = (window as any).L;
+        const WL = (window as WindowWithLeaflet).L;
+        if (!WL) return;
         // markerClusterGroup (lowercase factory) or new MarkerClusterGroup (constructor)
-        const createCluster = WL.markerClusterGroup
-          ? (opts: any) => WL.markerClusterGroup(opts)
-          : (opts: any) => new WL.MarkerClusterGroup(opts);
+        const createCluster: (opts: Record<string, unknown>) => FeatureGroup = WL.markerClusterGroup
+          ? (opts) => WL.markerClusterGroup!(opts)
+          : (opts) => new WL.MarkerClusterGroup!(opts);
         this._clusterGroup = createCluster({
           maxClusterRadius: this.clusterRadius,
-          iconCreateFunction: (clusterObj: any) => {
+          iconCreateFunction: (clusterObj: { getChildCount: () => number }) => {
             const count = clusterObj.getChildCount();
             const size = count < 10 ? 'small' : count < 100 ? 'medium' : 'large';
             return Leaf.divIcon({
@@ -655,7 +674,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
       const allLayers = this._mapParent.querySelectorAll('dsfr-data-map-layer');
       for (const l of allLayers) {
         const layerEl = l as DsfrDataMapLayer;
-        const count = (layerEl as any)._data?.length ?? 0;
+        const count = (layerEl as unknown as { _data?: unknown[] })._data?.length ?? 0;
         if (count > 0) {
           const typeLabel =
             layerEl.type === 'marker'
@@ -722,10 +741,11 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
       }
     }
 
-    const geoJson = (geoData as any).type ? geoData : null;
+    const geoJson =
+      geoData && typeof geoData === 'object' && 'type' in (geoData as object) ? geoData : null;
     if (!geoJson) return;
 
-    const layer = Leaf.geoJSON(geoJson as any, {
+    const layer = Leaf.geoJSON(geoJson as import('geojson').GeoJsonObject, {
       style: {
         color: recordColor,
         weight: 1,
@@ -773,8 +793,8 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
       });
     }
 
-    this._bindPopup(circle as any, record);
-    this._bindTooltip(circle as any, record);
+    this._bindPopup(circle, record);
+    this._bindTooltip(circle, record);
     group.addLayer(circle);
   }
 
@@ -803,13 +823,14 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
 
     if (points.length === 0) return;
 
-    if (this._heatLoaded && (window as any).L?.heatLayer) {
-      this._heatLayer = (window as any).L.heatLayer(points, {
+    const winL = (window as WindowWithLeaflet).L;
+    if (this._heatLoaded && winL?.heatLayer) {
+      this._heatLayer = winL.heatLayer(points, {
         radius: this.heatRadius,
         blur: this.heatBlur,
         maxZoom: this.maxZoom,
       });
-      if (this._visible) {
+      if (this._visible && this._leafletMap) {
         this._heatLayer.addTo(this._leafletMap);
       }
     } else {
@@ -831,9 +852,10 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     try {
       // leaflet.heat is a UMD plugin that extends global L.
       // Same approach as markercluster: try ESM import, fallback to CDN.
-      await import('leaflet.heat' as any);
+      // @ts-expect-error — leaflet.heat ships no types
+      await import('leaflet.heat');
 
-      if (!(window as any).L?.heatLayer) {
+      if (!(window as WindowWithLeaflet).L?.heatLayer) {
         // Fallback: load via CDN script tag
         await new Promise<void>((resolve, reject) => {
           const s = document.createElement('script');
@@ -844,7 +866,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
         });
       }
 
-      this._heatLoaded = !!(window as any).L?.heatLayer;
+      this._heatLoaded = !!(window as WindowWithLeaflet).L?.heatLayer;
     } catch {
       console.warn('dsfr-data-map-layer: leaflet.heat not available, using circle fallback');
       this._heatLoaded = false;
@@ -864,15 +886,24 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
 
     // Mode 2: geo-field (GeoJSON Point or {lat, lon} object)
     if (this.geoField) {
-      const geo = getByPath(record, this.geoField) as any;
+      const geo = getByPath(record, this.geoField) as
+        | { type?: string; coordinates?: unknown[]; lat?: unknown; lon?: unknown }
+        | unknown[]
+        | null
+        | undefined;
       if (!geo) return null;
 
       // GeoJSON Point: { type: "Point", coordinates: [lon, lat] }
-      if (geo.type === 'Point' && Array.isArray(geo.coordinates)) {
-        return { lat: geo.coordinates[1], lon: geo.coordinates[0] };
+      if (
+        !Array.isArray(geo) &&
+        geo.type === 'Point' &&
+        Array.isArray(geo.coordinates) &&
+        geo.coordinates.length >= 2
+      ) {
+        return { lat: Number(geo.coordinates[1]), lon: Number(geo.coordinates[0]) };
       }
       // ODS geo_point_2d: { lat: N, lon: N }
-      if (typeof geo.lat === 'number' && typeof geo.lon === 'number') {
+      if (!Array.isArray(geo) && typeof geo.lat === 'number' && typeof geo.lon === 'number') {
         return { lat: geo.lat, lon: geo.lon };
       }
       // Array [lat, lon]
@@ -884,10 +915,12 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
 
     // Auto-detect from known field names
     for (const candidate of ['geo_point_2d', 'geopoint', 'geo_point']) {
-      const geo = record[candidate] as any;
+      const geo = record[candidate] as
+        | { type?: string; coordinates?: unknown[]; lat?: unknown; lon?: unknown }
+        | undefined;
       if (geo) {
-        if (geo.type === 'Point' && Array.isArray(geo.coordinates)) {
-          return { lat: geo.coordinates[1], lon: geo.coordinates[0] };
+        if (geo.type === 'Point' && Array.isArray(geo.coordinates) && geo.coordinates.length >= 2) {
+          return { lat: Number(geo.coordinates[1]), lon: Number(geo.coordinates[0]) };
         }
         if (typeof geo.lat === 'number' && typeof geo.lon === 'number') {
           return { lat: geo.lat, lon: geo.lon };
@@ -905,21 +938,21 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   private _findPopupCompanion(): import('./dsfr-data-map-popup.js').DsfrDataMapPopup | null {
     // 1. Check for popup nested inside this layer element
     const ownPopup = this.querySelector('dsfr-data-map-popup');
-    if (ownPopup) return ownPopup as any;
+    if (ownPopup) return ownPopup as import('./dsfr-data-map-popup.js').DsfrDataMapPopup;
 
     // 2. Check for popup at map level with explicit `for` targeting this layer
     if (!this._mapParent) return null;
     const layerId = this.id || this.source;
     const popups = this._mapParent.querySelectorAll(':scope > dsfr-data-map-popup');
     for (const p of popups) {
-      const popup = p as any;
+      const popup = p as import('./dsfr-data-map-popup.js').DsfrDataMapPopup;
       // Only match map-level popups that explicitly target this layer via `for`
       if (popup.for && popup.matchesLayer?.(layerId)) return popup;
     }
     return null;
   }
 
-  private _bindPopup(layer: any, record: Record<string, unknown>): void {
+  private _bindPopup(layer: LeafletLayer, record: Record<string, unknown>): void {
     const companion = this._findPopupCompanion();
 
     if (companion) {
@@ -953,9 +986,9 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   }
 
   /** A11y bindings for Leaflet popups (both companion popup mode and legacy) */
-  private _bindPopupA11y(layer: any, record: Record<string, unknown>): void {
+  private _bindPopupA11y(layer: LeafletLayer, record: Record<string, unknown>): void {
     // A11y: on popup open, announce to screen reader + focus close button
-    layer.on('popupopen', (e: any) => {
+    layer.on('popupopen', (e: LeafletPopupEvent) => {
       const popup = e.popup;
       const plainText = this._getPopupPlainText(record);
       this._mapParent?.announceToScreenReader(plainText);
@@ -970,7 +1003,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
 
     // A11y: on popup close, return focus to the marker/layer
     layer.on('popupclose', () => {
-      const el = layer.getElement?.() as HTMLElement | null;
+      const el = (layer as LeafletLayer & { getElement?: () => HTMLElement | null }).getElement?.();
       if (el) {
         setTimeout(() => el.focus(), 50);
       }
@@ -999,7 +1032,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
 
   // --- Tooltips ---
 
-  private _bindTooltip(layer: any, record: Record<string, unknown>): void {
+  private _bindTooltip(layer: LeafletLayer, record: Record<string, unknown>): void {
     if (!this.tooltipField) return;
     const value = getByPath(record, this.tooltipField);
     if (value !== undefined) {
@@ -1051,7 +1084,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
       // then verify it worked. If not, load via script tag as fallback.
       await import('leaflet.markercluster');
 
-      if (!(window as any).L?.MarkerClusterGroup) {
+      if (!(window as WindowWithLeaflet).L?.MarkerClusterGroup) {
         // Fallback: load via CDN script tag (guaranteed UMD global execution)
         await new Promise<void>((resolve, reject) => {
           const s = document.createElement('script');
@@ -1063,7 +1096,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
         });
       }
 
-      this._clusterLoaded = !!(window as any).L?.MarkerClusterGroup;
+      this._clusterLoaded = !!(window as WindowWithLeaflet).L?.MarkerClusterGroup;
 
       // Inject DSFR cluster styles
       if (!document.querySelector('style[data-dsfr-map-cluster]')) {
