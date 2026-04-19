@@ -52,7 +52,36 @@ export function getPreviewHTML(code: string): string {
   <script type="module" src="${CDN_URLS.dsfrChartJs}"></script>
   <script type="module" src="${origin}/dist/dsfr-data.esm.js"></script>
   <style>
-    body { padding: 1rem; font-family: Marianne, arial, sans-serif; }
+    html, body {
+      margin: 0;
+      overflow-x: hidden;
+      box-sizing: border-box;
+    }
+    body {
+      padding: 1rem;
+      font-family: Marianne, arial, sans-serif;
+      max-width: 100%;
+    }
+    *, *::before, *::after { box-sizing: inherit; }
+    /*
+     * The DSFR Chart Vue components (bar-chart, line-chart, pie-chart, …)
+     * render with an internal fixed-width canvas. Force the host elements
+     * and their canvas children to fit the iframe viewport so the preview
+     * never overflows horizontally / vertically.
+     */
+    dsfr-data-chart, dsfr-data-list, dsfr-data-kpi, dsfr-data-display,
+    dsfr-data-map, dsfr-data-world-map,
+    bar-chart, line-chart, pie-chart, doughnut-chart, radar-chart,
+    scatter-chart, horizontal-bar-chart, gauge-chart, map-chart, map-chart-reg,
+    kpi-indicator {
+      display: block;
+      max-width: 100%;
+      width: 100%;
+    }
+    canvas {
+      max-width: 100% !important;
+      height: auto !important;
+    }
   </style>
 </head>
 <body>
