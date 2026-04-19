@@ -96,6 +96,7 @@ export {
   changePassword,
   forgotPassword,
   resetPassword,
+  authenticatedFetch,
   onAuthChange,
   getAuthState,
   getUser,

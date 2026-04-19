@@ -8,11 +8,16 @@ import {
   deleteItem,
   _resetSyncQueue,
 } from '../../packages/shared/src/storage/sync-queue';
+import { _setCsrfTokenForTest } from '../../packages/shared/src/auth/auth-service';
 
 describe('SyncQueue', () => {
   beforeEach(() => {
     _resetSyncQueue();
     vi.restoreAllMocks();
+    // Pré-positionne un token CSRF pour éviter qu'authenticatedFetch (utilisé
+    // dans le background sync) déclenche un fetch implicite vers /api/auth/csrf
+    // avant chaque mutation — les tests mockent directement les URLs d'API.
+    _setCsrfTokenForTest('test-csrf-token');
   });
 
   describe('getSyncStatus', () => {
@@ -41,13 +46,15 @@ describe('SyncQueue', () => {
     it('should set the base URL for operations', () => {
       setSyncBaseUrl('http://localhost:3000');
       // Verify indirectly by checking that enqueueSync uses it
-      const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
+      const fetchMock = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValue(new Response('{}', { status: 200 }));
       enqueueSync('POST', '/api/test', { id: '1' });
       // processQueue runs async, wait a tick
       return vi.waitFor(() => {
         expect(fetchMock).toHaveBeenCalledWith(
           'http://localhost:3000/api/test',
-          expect.objectContaining({ method: 'POST' }),
+          expect.objectContaining({ method: 'POST' })
         );
       });
     });
@@ -56,49 +63,47 @@ describe('SyncQueue', () => {
   describe('enqueueSync', () => {
     it('should process a POST operation successfully', async () => {
       setSyncBaseUrl('http://test');
-      const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-        new Response('{}', { status: 200 }),
-      );
+      const fetchMock = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValue(new Response('{}', { status: 200 }));
 
       enqueueSync('POST', '/api/sources', { id: 'a', name: 'src' });
 
+      // authenticatedFetch adds extra async hops vs raw fetch ; wait on the
+      // final state plutôt que sur le call count pour éviter le race.
       await vi.waitFor(() => {
-        expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(getSyncStatus().status).toBe('idle');
       });
 
+      expect(fetchMock).toHaveBeenCalledTimes(1);
       expect(fetchMock).toHaveBeenCalledWith(
         'http://test/api/sources',
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify({ id: 'a', name: 'src' }),
           credentials: 'include',
-        }),
+        })
       );
-
-      // After success, status should be idle
-      expect(getSyncStatus().status).toBe('idle');
     });
 
     it('should handle 404 as success (resource already gone)', async () => {
       setSyncBaseUrl('http://test');
-      const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-        new Response('', { status: 404 }),
-      );
+      const fetchMock = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValue(new Response('', { status: 404 }));
 
       enqueueSync('DELETE', '/api/sources/123');
 
       await vi.waitFor(() => {
-        expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(getSyncStatus().status).toBe('idle');
       });
 
-      expect(getSyncStatus().status).toBe('idle');
+      expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
     it('should handle 409 as success (resource already exists)', async () => {
       setSyncBaseUrl('http://test');
-      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-        new Response('', { status: 409 }),
-      );
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('', { status: 409 }));
 
       enqueueSync('POST', '/api/sources', { id: '1' });
 
@@ -109,9 +114,7 @@ describe('SyncQueue', () => {
 
     it('should clear queue on 401 (unauthorized)', async () => {
       setSyncBaseUrl('http://test');
-      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-        new Response('', { status: 401 }),
-      );
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('', { status: 401 }));
 
       enqueueSync('POST', '/api/sources', { id: '1' });
       enqueueSync('POST', '/api/sources', { id: '2' });
@@ -123,17 +126,18 @@ describe('SyncQueue', () => {
 
     it('should retry on server error and give up after MAX_RETRIES', async () => {
       setSyncBaseUrl('http://test');
-      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-        new Response('', { status: 500 }),
-      );
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('', { status: 500 }));
 
       enqueueSync('POST', '/api/sources', { id: '1' });
 
       // Wait for retries to complete (3 attempts with backoff)
       // Retries have exponential backoff but we're in test env
-      await vi.waitFor(() => {
-        expect(getSyncStatus().errorCount).toBeGreaterThan(0);
-      }, { timeout: 20000 });
+      await vi.waitFor(
+        () => {
+          expect(getSyncStatus().errorCount).toBeGreaterThan(0);
+        },
+        { timeout: 20000 }
+      );
 
       expect(getSyncStatus().status).toBe('error');
     }, 25000);
@@ -142,16 +146,16 @@ describe('SyncQueue', () => {
   describe('deleteItem', () => {
     it('should enqueue a DELETE operation', async () => {
       setSyncBaseUrl('http://test');
-      const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-        new Response('{}', { status: 200 }),
-      );
+      const fetchMock = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValue(new Response('{}', { status: 200 }));
 
       deleteItem('/api/sources', 'abc-123');
 
       await vi.waitFor(() => {
         expect(fetchMock).toHaveBeenCalledWith(
           'http://test/api/sources/abc-123',
-          expect.objectContaining({ method: 'DELETE' }),
+          expect.objectContaining({ method: 'DELETE' })
         );
       });
     });
@@ -174,9 +178,10 @@ describe('SyncQueue', () => {
       setSyncBaseUrl('http://test');
 
       // First call: GET remote items (return one existing item)
-      const fetchMock = vi.spyOn(globalThis, 'fetch')
+      const fetchMock = vi
+        .spyOn(globalThis, 'fetch')
         .mockResolvedValueOnce(
-          new Response(JSON.stringify([{ id: 'existing-1' }]), { status: 200 }),
+          new Response(JSON.stringify([{ id: 'existing-1' }]), { status: 200 })
         )
         // Then: PUT for existing, POST for new
         .mockResolvedValue(new Response('{}', { status: 200 }));
@@ -196,7 +201,7 @@ describe('SyncQueue', () => {
       expect(fetchMock.mock.calls[0][0]).toBe('http://test/api/sources');
 
       // The enqueued operations should use PUT for existing and POST for new
-      const methods = fetchMock.mock.calls.slice(1).map(c => (c[1] as RequestInit).method);
+      const methods = fetchMock.mock.calls.slice(1).map((c) => (c[1] as RequestInit).method);
       expect(methods).toContain('PUT');
       expect(methods).toContain('POST');
     });
@@ -207,7 +212,7 @@ describe('SyncQueue', () => {
       // Remote has items A and B, local only has A
       vi.spyOn(globalThis, 'fetch')
         .mockResolvedValueOnce(
-          new Response(JSON.stringify([{ id: 'A' }, { id: 'B' }]), { status: 200 }),
+          new Response(JSON.stringify([{ id: 'A' }, { id: 'B' }]), { status: 200 })
         )
         .mockResolvedValue(new Response('{}', { status: 200 }));
 
@@ -219,16 +224,14 @@ describe('SyncQueue', () => {
 
       // No DELETE call should have been made
       const allCalls = vi.mocked(globalThis.fetch).mock.calls;
-      const deleteCall = allCalls.find(c => (c[1] as RequestInit)?.method === 'DELETE');
+      const deleteCall = allCalls.find((c) => (c[1] as RequestInit)?.method === 'DELETE');
       expect(deleteCall).toBeUndefined();
     });
 
     it('should skip silently on 401', async () => {
       setSyncBaseUrl('http://test');
 
-      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-        new Response('', { status: 401 }),
-      );
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response('', { status: 401 }));
 
       await syncItems('/api/sources', [{ id: '1', name: 'test' }]);
 
@@ -249,7 +252,8 @@ describe('SyncQueue', () => {
     it('should skip items without id', async () => {
       setSyncBaseUrl('http://test');
 
-      const fetchMock = vi.spyOn(globalThis, 'fetch')
+      const fetchMock = vi
+        .spyOn(globalThis, 'fetch')
         .mockResolvedValueOnce(new Response('[]', { status: 200 }))
         .mockResolvedValue(new Response('{}', { status: 200 }));
 
@@ -270,12 +274,12 @@ describe('SyncQueue', () => {
   describe('status notifications', () => {
     it('should notify listeners on status changes', async () => {
       setSyncBaseUrl('http://test');
-      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-        new Response('{}', { status: 200 }),
-      );
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
 
       const statuses: string[] = [];
-      onSyncStatusChange((status) => { statuses.push(status); });
+      onSyncStatusChange((status) => {
+        statuses.push(status);
+      });
 
       enqueueSync('POST', '/api/test', { id: '1' });
 
@@ -286,7 +290,9 @@ describe('SyncQueue', () => {
     });
 
     it('should not throw if listener throws', () => {
-      const badCb = vi.fn(() => { throw new Error('oops'); });
+      const badCb = vi.fn(() => {
+        throw new Error('oops');
+      });
       expect(() => onSyncStatusChange(badCb)).not.toThrow();
     });
   });
@@ -319,13 +325,14 @@ describe('SyncQueue', () => {
 
     it('should restore persisted queue on setSyncBaseUrl', async () => {
       // Pre-persist a queue entry
-      localStorage.setItem('dsfr-data-sync-queue', JSON.stringify([
-        { method: 'DELETE', url: 'http://test/api/sources/old-id', retries: 2 },
-      ]));
-
-      const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-        new Response('{}', { status: 200 }),
+      localStorage.setItem(
+        'dsfr-data-sync-queue',
+        JSON.stringify([{ method: 'DELETE', url: 'http://test/api/sources/old-id', retries: 2 }])
       );
+
+      const fetchMock = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValue(new Response('{}', { status: 200 }));
 
       // Setting the base URL triggers restore + processing
       setSyncBaseUrl('http://test');
@@ -333,15 +340,16 @@ describe('SyncQueue', () => {
       await vi.waitFor(() => {
         expect(fetchMock).toHaveBeenCalledWith(
           'http://test/api/sources/old-id',
-          expect.objectContaining({ method: 'DELETE' }),
+          expect.objectContaining({ method: 'DELETE' })
         );
       });
     });
 
     it('should reset retries on restored operations', () => {
-      localStorage.setItem('dsfr-data-sync-queue', JSON.stringify([
-        { method: 'POST', url: 'http://test/api/x', body: '{}', retries: 5 },
-      ]));
+      localStorage.setItem(
+        'dsfr-data-sync-queue',
+        JSON.stringify([{ method: 'POST', url: 'http://test/api/x', body: '{}', retries: 5 }])
+      );
 
       vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
       setSyncBaseUrl('http://test');

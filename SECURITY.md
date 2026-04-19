@@ -49,6 +49,18 @@ Les scans périodiques :
 - **Trivy image** : hebdomadaire, lundi 07:00 UTC
 - **ZAP DAST** : hebdomadaire, lundi 08:00 UTC (+ `workflow_dispatch` manuel)
 
+## Backend — défenses applicatives
+
+Côté Express, trois couches empilées couvrent les surfaces auth + API :
+
+| Couche | Mécanisme | Activé sur | Raison |
+|---|---|---|---|
+| **Session** | Cookie httpOnly `gw-auth-token` (JWT 7j, SameSite=Strict) | toutes les routes `/api/*` via `authMiddleware` | Authentifie l'utilisateur sans exposer le token au JS côté navigateur |
+| **CSRF** | Double-submit cookie (`csrf-csrf` v4) — header `X-CSRF-Token` + cookie `gw-csrf`, liés à `userId` (ou IP si anonyme) | `POST/PUT/PATCH/DELETE` sauf auth-bootstrap (login, register, reset-password, verify-email) | Empêche qu'une form tierce déclenche une mutation via le cookie d'auth de la victime (cf. issue #92) |
+| **Rate limiting** | `express-rate-limit` 10/15min sur auth, 300/min safety-net sur `/api/*` | auth + global | Absorbe l'énumération / brute force avant qu'il ne tape l'application |
+
+Chiffrement au repos : les `connections.api_key_encrypted` sont chiffrées en AES-256-GCM (clé `ENCRYPTION_KEY`, 64 hex). Le secret CSRF dérive de la même env var par défaut ou est spécifié séparément via `CSRF_SECRET`.
+
 ## Dépendances — Dependabot
 
 - **Alertes Dependabot** : activées, visibles dans [l'onglet Security → Dependabot](https://github.com/bmatge/dsfr-data/security/dependabot).

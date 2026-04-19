@@ -9,6 +9,8 @@
  * - Persists queue to localStorage so operations survive page reloads
  */
 
+import { authenticatedFetch } from '../auth/auth-service.js';
+
 export type SyncStatus = 'idle' | 'syncing' | 'error' | 'offline';
 
 type SyncStatusCallback = (status: SyncStatus, errorCount: number) => void;
@@ -178,10 +180,11 @@ async function processQueue(): Promise<void> {
     setStatus('syncing', _errorCount);
 
     try {
-      const response = await fetch(op.url, {
+      // authenticatedFetch auto-inject `X-CSRF-Token` sur les mutations
+      // (POST/PUT/DELETE) et retry 1 fois sur 403 CSRF_INVALID (cf. #92).
+      const response = await authenticatedFetch(op.url, {
         method: op.method,
         headers: op.body ? { 'Content-Type': 'application/json' } : undefined,
-        credentials: 'include',
         body: op.body,
       });
 
