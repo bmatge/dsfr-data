@@ -28,8 +28,10 @@ FROM nginx:alpine
 # Add Node.js for the MCP server
 RUN apk add --no-cache nodejs
 
-# Copier la config nginx
+# Copier la config nginx + le snippet security-headers (inclus dans chaque
+# location block — cf. docker/security-headers.conf pour le pourquoi)
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
+COPY docker/security-headers.conf /etc/nginx/conf.d/security-headers.conf
 # Ajouter le log_format beacon et le cache proxy (inclus dans le bloc http par nginx)
 RUN echo "log_format beacon '\$time_iso8601|\$http_referer|\$arg_c|\$arg_t|\$remote_addr|\$arg_r';" > /etc/nginx/conf.d/beacon-log.conf \
  && echo "proxy_cache_path /var/cache/nginx/api levels=1:2 keys_zone=api_cache:10m max_size=100m inactive=5m;" > /etc/nginx/conf.d/cache.conf \
