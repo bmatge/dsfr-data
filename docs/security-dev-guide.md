@@ -114,6 +114,36 @@ Le script est idempotent : une 2e passe ne modifie rien. Il fetch uniquement les
 
 **Quand relancer `npm run generate-sri`** : à chaque bump de version CDN — le hash est lié à un contenu précis, donc tout `@1.14.4 → @1.14.5` invalide le hash et casse la prod. Le job `quality` de la CI lance `check:sri` à chaque PR ; une divergence remonte en erreur.
 
+## CSRF — double-submit cookie
+
+Toutes les routes muantes (`POST/PUT/PATCH/DELETE`) exigent un header `X-CSRF-Token` dont la valeur matche le cookie `gw-csrf`. Implémenté via `csrf-csrf` v4 (cf. [server/src/middleware/csrf.ts](../server/src/middleware/csrf.ts) + issue #92).
+
+### Côté frontend
+
+Le helper [`authenticatedFetch`](../packages/shared/src/auth/auth-service.ts) injecte automatiquement le header sur chaque mutation et retry une fois si le serveur renvoie `403 { code: 'CSRF_INVALID' }` (token expiré ou rotaté). Les consommateurs externes à auth-service (sync-queue, adapters) doivent importer ce helper au lieu de `fetch` natif :
+
+```ts
+import { authenticatedFetch } from '@dsfr-data/shared';
+
+// ✓ auto CSRF sur POST/PUT/DELETE
+await authenticatedFetch('/api/sources', { method: 'POST', body: JSON.stringify(src) });
+
+// ✗ raw fetch sur mutation → 403 CSRF_INVALID
+await fetch('/api/sources', { method: 'POST', ... });
+```
+
+### Routes exemptées
+
+Les routes d'auth-bootstrap (`login`, `register`, `forgot-password`, `reset-password`, `verify-email`, `resend-verification`) sont **skippées** — elles s'exécutent avant qu'un token puisse exister. Leur anti-CSRF repose sur `SameSite=Strict` du cookie d'auth + le rate-limiter.
+
+### Tests d'intégration
+
+Activer CSRF dans un test via l'option `csrf: true` de `createTestApp` + `process.env.CSRF_ENABLED = '1'`. Cf. [tests/server/csrf.test.ts](../tests/server/csrf.test.ts) pour l'exemple canonique.
+
+### Provisioning du secret
+
+`CSRF_SECRET=$(openssl rand -hex 32)` dans `.env` (ou s'appuyer sur `ENCRYPTION_KEY` en fallback — lisible par le middleware, pas de collision puisque les usages sont disjoints — AES vs HMAC).
+
 ## DAST — OWASP ZAP baseline
 
 Le scan DAST tourne en CI sur `workflow_dispatch` + chaque lundi 08:00 UTC (workflow [`.github/workflows/dast.yml`](../.github/workflows/dast.yml)). Pour le rejouer en local :

@@ -4,6 +4,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { initDatabase, closeDatabase, execute } from './db/database.js';
 import { authMiddleware } from './middleware/auth.js';
+import { doubleCsrfProtection, csrfErrorHandler } from './middleware/csrf.js';
 import { globalApiRateLimiter } from './middleware/rate-limit.js';
 import authRoutes from './routes/auth.js';
 import sourcesRoutes from './routes/sources.js';
@@ -38,6 +39,13 @@ app.use('/api', globalApiRateLimiter);
 // Auth middleware (sets req.user on all requests)
 app.use(authMiddleware);
 
+// CSRF protection — double-submit cookie pattern (csrf-csrf v4). Mounted
+// AFTER cookieParser + authMiddleware so it can access req.cookies + req.user
+// for session binding. Skips GET/HEAD/OPTIONS and auth-bootstrap routes
+// (login, register, forgot-password, reset-password, verify-email). See
+// server/src/middleware/csrf.ts for the skip list.
+app.use(doubleCsrfProtection);
+
 // Health check
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', mode: 'database' });
@@ -55,6 +63,10 @@ app.use('/api/cache', cacheRoutes);
 app.use('/api/migrate', migrateRoutes);
 app.use('/api/monitoring', monitoringRoutes);
 app.use('/api/admin', adminRoutes);
+
+// CSRF error handler — renvoie 403 JSON structuré que le frontend détecte
+// pour refetch le token. Doit être déclaré APRÈS les routes.
+app.use(csrfErrorHandler);
 
 // Graceful shutdown
 async function shutdown() {

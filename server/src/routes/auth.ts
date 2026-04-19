@@ -9,6 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { query, queryOne, execute } from '../db/database.js';
 import { createToken, setAuthCookie, clearAuthCookie, requireAuth } from '../middleware/auth.js';
 import type { AuthenticatedRequest } from '../middleware/auth.js';
+import { generateCsrfToken } from '../middleware/csrf.js';
 import { authLimiter } from '../middleware/rate-limit.js';
 import { isValidEmail, isStrongPassword } from '../utils/validation.js';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../utils/mailer.js';
@@ -610,6 +611,18 @@ router.get('/users', requireAuth, async (req, res) => {
     console.error('Search users error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+/**
+ * GET /api/auth/csrf
+ * Émet un fresh CSRF token (double-submit pattern). Pose le cookie `gw-csrf`
+ * ET renvoie la valeur dans le body pour que le frontend puisse l'écho dans
+ * le header `X-CSRF-Token` sur chaque requête muante. Appelable sans auth —
+ * le token est lié à `req.user?.userId ?? req.ip` côté server.
+ */
+router.get('/csrf', (req, res) => {
+  const token = generateCsrfToken(req, res);
+  res.json({ csrfToken: token });
 });
 
 export default router;

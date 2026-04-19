@@ -16,9 +16,10 @@
 
 import express from 'express';
 import cookieParser from 'cookie-parser';
-import { initDatabase, closeDatabase, execute, query } from '../../server/src/db/database.js';
+import { initDatabase, closeDatabase, execute } from '../../server/src/db/database.js';
 import { authMiddleware, createToken } from '../../server/src/middleware/auth.js';
 import type { JwtPayload } from '../../server/src/middleware/auth.js';
+import { doubleCsrfProtection, csrfErrorHandler } from '../../server/src/middleware/csrf.js';
 import authRoutes from '../../server/src/routes/auth.js';
 import sourcesRoutes from '../../server/src/routes/sources.js';
 import connectionsRoutes from '../../server/src/routes/connections.js';
@@ -61,12 +62,21 @@ const TABLES_TO_TRUNCATE = [
   'users',
 ];
 
+export interface TestAppOptions {
+  /**
+   * Enable CSRF protection in the test app (short-circuited by default via
+   * NODE_ENV=test). Set `true` on tests that verify CSRF behavior. Caller
+   * must also set `process.env.CSRF_ENABLED = '1'` before the request.
+   */
+  csrf?: boolean;
+}
+
 /**
  * Create a test Express app backed by MariaDB.
  * On first call, initializes the database pool and schema.
  * On subsequent calls, truncates all tables for a clean state.
  */
-export async function createTestApp(): Promise<Express> {
+export async function createTestApp(options: TestAppOptions = {}): Promise<Express> {
   if (!initialized) {
     await initDatabase();
     initialized = true;
@@ -89,6 +99,10 @@ export async function createTestApp(): Promise<Express> {
   app.use(cookieParser());
   app.use(authMiddleware);
 
+  if (options.csrf) {
+    app.use(doubleCsrfProtection);
+  }
+
   app.use('/api/auth', authRoutes);
   app.use('/api/sources', sourcesRoutes);
   app.use('/api/connections', connectionsRoutes);
@@ -100,6 +114,10 @@ export async function createTestApp(): Promise<Express> {
   app.use('/api/migrate', migrateRoutes);
   app.use('/api/monitoring', monitoringRoutes);
   app.use('/api/admin', adminRoutes);
+
+  if (options.csrf) {
+    app.use(csrfErrorHandler);
+  }
 
   return app;
 }
