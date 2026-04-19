@@ -5,7 +5,7 @@
  */
 
 import { TOOLTIPS } from './help-texts.js';
-import { state } from '../state.js';
+import { updateProgress } from './progress-indicator.js';
 
 let activePopover: HTMLElement | null = null;
 let activeBtn: HTMLElement | null = null;
@@ -96,28 +96,12 @@ function hidePopover(): void {
 }
 
 /**
- * Update the preview empty state steps (checkmarks).
- * Called after state changes that affect the steps.
+ * Update the preview empty state steps (checkmarks), the top stepper,
+ * section indicators and the Generate button sub-text.
+ *
+ * Backwards-compatible alias for `updateProgress()` — many call sites across
+ * the Builder still use this name.
  */
 export function updatePreviewSteps(): void {
-  const steps = document.querySelectorAll('.empty-state-steps li');
-  if (steps.length === 0) return;
-
-  const hasSource = state.fields && state.fields.length > 0;
-  const hasType = !!state.chartType;
-  const hasConfig = (() => {
-    if (state.chartType === 'datalist') return !!state.labelField;
-    if (state.chartType === 'kpi' || state.chartType === 'gauge') return !!state.valueField;
-    return !!state.labelField && !!state.valueField;
-  })();
-
-  steps.forEach((li) => {
-    const step = (li as HTMLElement).dataset.step;
-    let done = false;
-    if (step === 'source') done = hasSource;
-    else if (step === 'type') done = hasType;
-    else if (step === 'config') done = hasConfig;
-    // 'generate' is never checked here (it's done when the chart is actually generated)
-    li.classList.toggle('done', done);
-  });
+  updateProgress();
 }

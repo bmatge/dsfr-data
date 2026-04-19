@@ -103,7 +103,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
   const generateBtn = document.getElementById('generate-btn');
-  if (generateBtn) generateBtn.addEventListener('click', generateChart);
+  if (generateBtn) {
+    generateBtn.addEventListener('click', async () => {
+      await generateChart();
+      // Refresh stepper so the "Generate" step ticks once the preview iframe
+      // is visible (empty-state hidden). generateChart() renders synchronously
+      // in most paths but may be async for server-side aggregations.
+      updatePreviewSteps();
+    });
+  }
 
   const copyCodeBtn = document.getElementById('copy-code-btn');
   if (copyCodeBtn) copyCodeBtn.addEventListener('click', copyCode);

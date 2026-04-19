@@ -164,6 +164,81 @@ export interface BuilderState {
   isSampleData: boolean;
 }
 
+/** Result of computing how complete the current builder configuration is. */
+export interface Completeness {
+  /** True when a source has been loaded and fields are available. */
+  source: boolean;
+  /** True when a chart type is selected. */
+  type: boolean;
+  /** True when the mandatory fields for the selected chart type are filled. */
+  config: boolean;
+  /** True once the chart has been generated at least once (runtime-only). */
+  generate: boolean;
+  /**
+   * Human-readable labels describing what is missing for the current step.
+   * Empty when every step up to (and including) `config` is complete.
+   */
+  missing: string[];
+}
+
+/**
+ * Pure function: inspect the state and return which of the 4 "gates" (source,
+ * type, config, generate) are reached, plus a human list of what is missing.
+ *
+ * Used by the progress stepper, section indicators, empty-state checklist and
+ * the "Generate" button sub-text. Keeping it a pure function (no DOM access)
+ * makes it trivial to unit-test and safe to call on every input change.
+ *
+ * `generated` must be passed by the caller since it is not stored in `state`
+ * (it is runtime UI state tracked by the preview panel).
+ */
+export function getCompleteness(s: BuilderState, generated: boolean = false): Completeness {
+  const source = Array.isArray(s.fields) && s.fields.length > 0;
+  const type = !!s.chartType;
+
+  let config = false;
+  const missing: string[] = [];
+
+  if (!source) {
+    missing.push('une source de données');
+  }
+  if (!type) {
+    missing.push('un type de graphique');
+  }
+
+  if (source && type) {
+    switch (s.chartType) {
+      case 'datalist':
+        config = !!s.labelField;
+        if (!config) missing.push('le champ à afficher');
+        break;
+      case 'kpi':
+      case 'gauge':
+        config = !!s.valueField;
+        if (!config) missing.push('le champ numérique (valeur)');
+        break;
+      case 'map':
+        config = !!s.valueField && !!s.codeField;
+        if (!s.codeField) missing.push('le champ code (département/région)');
+        if (!s.valueField) missing.push('le champ numérique (valeur)');
+        break;
+      default:
+        config = !!s.labelField && !!s.valueField;
+        if (!s.labelField) missing.push('le champ catégorie (axe X)');
+        if (!s.valueField) missing.push('le champ numérique (axe Y)');
+        break;
+    }
+  }
+
+  return {
+    source,
+    type,
+    config,
+    generate: generated && source && type && config,
+    missing,
+  };
+}
+
 /** The singleton application state */
 export const state: BuilderState = {
   sourceType: 'saved',

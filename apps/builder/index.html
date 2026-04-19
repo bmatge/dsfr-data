@@ -40,6 +40,9 @@
         </button>
       </div>
 
+      <!-- STEPPER D'AVANCEMENT -->
+      <div class="progress-stepper" id="progress-stepper" role="list" aria-label="Avancement de la configuration"></div>
+
       <!-- ETAPE 1 : Source de donnees -->
       <div class="config-section" id="section-source">
         <div class="config-section-header" onclick="toggleSection('section-source')">
@@ -634,10 +637,11 @@
       </div>
 
       <!-- BOUTON GENERER -->
-      <div class="config-section">
+      <div class="config-section generate-controls">
         <button class="fr-btn fr-btn--icon-left" id="generate-btn" style="width: 100%;">
           <i class="ri-play-fill"></i> Generer le graphique
         </button>
+        <p class="generate-missing" id="generate-missing" role="status" aria-live="polite" hidden></p>
       </div>
 
     </aside>
