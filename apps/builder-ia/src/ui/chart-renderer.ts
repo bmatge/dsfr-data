@@ -8,8 +8,12 @@ import type { ChartConfig, AggregatedResult } from '../state.js';
 import { addMessage } from '../chat/chat.js';
 import { generateCode } from './code-generator.js';
 
-/** Chart.js loaded via CDN - access from window */
-const Chart = (window as unknown as Record<string, unknown>).Chart as unknown;
+/**
+ * Chart.js loaded via CDN — pas de package npm, on expose la surface
+ * minimale utilisée (constructor qui retourne une instance).
+ */
+type ChartJsCtor = new (canvas: HTMLCanvasElement, config: Record<string, unknown>) => unknown;
+const Chart = (window as Window & { Chart?: ChartJsCtor }).Chart;
 
 /**
  * Resolve a palette name to an array of colors, cycling if needed.
@@ -407,7 +411,7 @@ function renderChart(config: ChartConfig, data: AggregatedResult[]): void {
       y: d.value,
     }));
 
-    state.chart = new (Chart as any)(canvas, {
+    state.chart = new (Chart as ChartJsCtor)(canvas, {
       type: 'scatter',
       data: {
         datasets: [
@@ -465,7 +469,7 @@ function renderChart(config: ChartConfig, data: AggregatedResult[]): void {
     });
   }
 
-  state.chart = new (Chart as any)(canvas, {
+  state.chart = new (Chart as ChartJsCtor)(canvas, {
     type: chartType,
     data: {
       labels: labels,
