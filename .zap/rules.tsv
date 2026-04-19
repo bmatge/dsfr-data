@@ -1,0 +1,16 @@
+# ZAP Baseline rules — ignorations documentées.
+#
+# Format (tab-separated) : RULE_ID	ACTION	[URL_REGEX]	[NOTE]
+# Actions :
+#   IGNORE — règle totalement désactivée (faux positif ou non pertinent)
+#   WARN   — passe en WARN au lieu de FAIL
+#   FAIL   — passe en FAIL au lieu de WARN
+#
+# Référentiel des IDs : https://www.zaproxy.org/docs/alerts/
+#
+# Règle d'or (cf. SECURITY.md — section « Faux positifs et exclusions ») :
+# toute ligne ajoutée doit porter une note explicite avec la justification et
+# la date d'ajout, pour que les entrées restent réévaluables dans le temps.
+#
+# Liste initialement vide — on remplira au fil des premières exécutions, une
+# fois qu'on aura distingué signal et bruit sur cette app.

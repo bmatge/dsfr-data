@@ -96,6 +96,45 @@ Inclus dans `npm run lint` (eslint-plugin-security est déjà dans la config). P
 npm run lint 2>&1 | grep 'security/'
 ```
 
+## DAST — OWASP ZAP baseline
+
+Le scan DAST tourne en CI sur `workflow_dispatch` + chaque lundi 08:00 UTC (workflow [`.github/workflows/dast.yml`](../.github/workflows/dast.yml)). Pour le rejouer en local :
+
+```bash
+# 1. Démarrer la stack (MariaDB + Express + nginx) avec l'override CI
+cd docker
+cat > .env <<EOF
+JWT_SECRET=$(openssl rand -base64 48 | tr -d '\n=/+' | head -c 64)
+DB_PASSWORD=$(openssl rand -base64 24 | tr -d '\n=/+' | head -c 24)
+DB_ROOT_PASSWORD=$(openssl rand -base64 24 | tr -d '\n=/+' | head -c 24)
+ENCRYPTION_KEY=$(openssl rand -hex 32)
+EOF
+docker compose -f docker-compose.yml -f docker-compose.db.yml -f docker-compose.ci.yml up -d --build
+
+# 2. Attendre que l'API soit prête
+until curl -sf http://localhost:8080/api/health; do sleep 3; done
+
+# 3. Lancer ZAP baseline (même commande que la CI, artifacts locaux dans ./zap-report)
+mkdir -p zap-report
+docker run --rm \
+  --network host \
+  -v "$PWD/zap-report:/zap/wrk:rw" \
+  -v "$PWD/../.zap/rules.tsv:/zap/wrk/rules.tsv:ro" \
+  ghcr.io/zaproxy/zaproxy:stable \
+  zap-baseline.py -t http://localhost:8080/ -a -j -m 3 -T 15 \
+    -r report.html -w report.md -J report.json -c /zap/wrk/rules.tsv
+
+# 4. Lire le rapport
+open zap-report/report.html   # (Linux : xdg-open)
+
+# 5. Tear down
+docker compose -f docker-compose.yml -f docker-compose.db.yml -f docker-compose.ci.yml down -v
+```
+
+Les scans sont **non bloquants** (cf. [ADR-004](https://github.com/bmatge/dsfr-data/blob/main/CHANGELOG.md) — politique de sévérité SCA et défense en profondeur). Les findings sont traités asynchroniquement via les artifacts GitHub Actions.
+
+Pour ajouter un faux positif, éditer [`.zap/rules.tsv`](../.zap/rules.tsv) en suivant le format documenté en en-tête du fichier (RULE_ID, ACTION, URL_REGEX optionnel, note obligatoire avec date).
+
 ## Workflow suggéré avant un push coûteux
 
 1. `npm run lint` — catch les warnings security/* locaux

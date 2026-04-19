@@ -1,0 +1,26 @@
+# Docker Compose override for CI (GitHub Actions runner).
+#
+# Usage (from repo root):
+#   cd docker && docker compose \
+#     -f docker-compose.yml \
+#     -f docker-compose.db.yml \
+#     -f docker-compose.ci.yml \
+#     up -d --build
+#
+# Differences vs production:
+#   - Maps nginx port 80 to host port 8080 (accessible from the runner / ZAP)
+#   - Turns `ecosystem-network` into a locally-managed bridge (no external Traefik)
+#   - Sets `CORS_ORIGIN` so cookie-based auth flows don't reject the ZAP origin
+#
+# Used only by `.github/workflows/dast.yml`. Not intended for dev or prod.
+
+services:
+  chartsbuilder:
+    ports:
+      - "8080:80"
+    environment:
+      - CORS_ORIGIN=http://localhost:8080
+
+networks:
+  ecosystem-network:
+    external: false

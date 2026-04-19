@@ -30,7 +30,7 @@ Ce projet est en développement actif. Seule la branche `main` et la dernière v
 
 ## Pipeline de sécurité
 
-La CI exécute **8 jobs de sécurité** sur chaque pull request, et plusieurs workflows périodiques pour rattraper les CVE qui arrivent après un build :
+La CI exécute **9 jobs de sécurité** sur chaque pull request, et plusieurs workflows périodiques pour rattraper les CVE qui arrivent après un build :
 
 | Brique | Outil | Job / Workflow | Sévérité bloquante |
 |---|---|---|---|
@@ -42,10 +42,12 @@ La CI exécute **8 jobs de sécurité** sur chaque pull request, et plusieurs wo
 | **SAST — data flow** | `CodeQL` | `codeql.yml` | `security-and-quality` |
 | **Lint sécurité** | `eslint-plugin-security` | `quality` | toute erreur |
 | **Images Docker** | `trivy image` | `docker-scan.yml` (matrix sur 2 images) | CRITICAL |
+| **DAST — app live** | `OWASP ZAP baseline` | `dast.yml` (stack MariaDB+Express+nginx bootée dans le runner) | non bloquant (advisory) |
 
 Les scans périodiques :
 - **CodeQL** : hebdomadaire, lundi 06:00 UTC
 - **Trivy image** : hebdomadaire, lundi 07:00 UTC
+- **ZAP DAST** : hebdomadaire, lundi 08:00 UTC (+ `workflow_dispatch` manuel)
 
 ## Dépendances — Dependabot
 
@@ -71,6 +73,7 @@ Les fichiers d'exclusion à jour :
 - [`.trivyignore`](./.trivyignore)
 - [`.semgrepignore`](./.semgrepignore)
 - [`.gitleaks.toml`](./.gitleaks.toml)
+- [`.zap/rules.tsv`](./.zap/rules.tsv) — faux positifs DAST (ZAP baseline)
 - Exclusions inline (`// nosemgrep:`, `// eslint-disable-next-line security/…`) toujours avec un commentaire en ligne adjacente
 
 ## Procédures
