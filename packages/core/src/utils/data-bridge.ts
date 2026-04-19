@@ -44,7 +44,12 @@ export const DATA_EVENTS = {
 } as const;
 
 // Cache global des données par sourceId — stocké sur window pour partage entre bundles UMD
-const _win = typeof window !== 'undefined' ? (window as any) : ({} as any);
+type WindowWithCache = Window & {
+  __dsfrDataCache?: Map<string, unknown>;
+  __dsfrDataMeta?: Map<string, PaginationMeta>;
+};
+const _win: WindowWithCache | Record<string, never> =
+  typeof window !== 'undefined' ? (window as WindowWithCache) : {};
 if (!_win.__dsfrDataCache) _win.__dsfrDataCache = new Map<string, unknown>();
 if (!_win.__dsfrDataMeta) _win.__dsfrDataMeta = new Map<string, PaginationMeta>();
 const dataCache: Map<string, unknown> = _win.__dsfrDataCache;

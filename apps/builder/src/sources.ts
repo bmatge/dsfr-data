@@ -18,7 +18,7 @@ import {
   SAMPLE_DATASETS,
   isUnsafeKey,
 } from '@dsfr-data/shared';
-import { state, type Source, type Field } from './state.js';
+import { state, type ChartType, type Source, type Field } from './state.js';
 import { selectChartType } from './ui/chart-type-selector.js';
 import { populateFieldSelects } from './sources-fields.js';
 import { generateCodeForLocalData } from './ui/code-generator.js';
@@ -295,7 +295,7 @@ export function loadSampleDataset(sampleId: string): void {
   }
 
   // Pre-select suggested chart type and fields
-  selectChartType(dataset.suggestedChartType as any);
+  selectChartType(dataset.suggestedChartType as ChartType);
 
   setTimeout(() => {
     const labelSelect = document.getElementById('label-field') as HTMLSelectElement | null;

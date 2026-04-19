@@ -128,8 +128,10 @@ export function saveFavorite(): void {
  * Switch the active tab in the preview panel.
  */
 export function switchTab(tabId: string): void {
-  const previewPanel = document.querySelector('app-preview-panel') as any;
-  if (previewPanel && previewPanel.setActiveTab) {
+  const previewPanel = document.querySelector('app-preview-panel') as
+    | (Element & { setActiveTab?: (id: string) => void })
+    | null;
+  if (previewPanel?.setActiveTab) {
     previewPanel.setActiveTab(tabId);
   }
 }

@@ -19,7 +19,7 @@ import {
   extractResourceIds,
   getProvider,
 } from '@dsfr-data/shared';
-import { state, PROXY_BASE_URL, LIB_URL } from '../state.js';
+import { state, type DataRecord, PROXY_BASE_URL, LIB_URL } from '../state.js';
 import { renderPreview } from './preview.js';
 import { updateAccessibleTable } from './accessible-table.js';
 
@@ -604,7 +604,7 @@ export function generateChartFromLocalData(): void {
         state.queryFilter
       );
     }
-    state.data = filteredLocal as any[];
+    state.data = filteredLocal as DataRecord[];
 
     const rawDataEl = document.getElementById('raw-data');
     if (rawDataEl) rawDataEl.textContent = JSON.stringify(state.data, null, 2);
@@ -880,7 +880,7 @@ datalist.onSourceData(data);
     let count = 0;
 
     state.data.forEach((d) => {
-      const rawCode = (d[state.codeField] ?? (d as any).code ?? '') as string | number;
+      const rawCode = (d[state.codeField] ?? d.code ?? '') as string | number;
       let code = String(rawCode).trim();
       if (/^\d+$/.test(code) && code.length < 3) {
         code = code.padStart(2, '0');
@@ -1367,7 +1367,7 @@ ${middlewareHtml}
   );
 
   // For maps, group by codeField (not labelField)
-  const isMap = state.chartType === 'map' || state.chartType === ('mapReg' as any);
+  const isMap = state.chartType === 'map';
   const groupByPath =
     isMap && state.codeField
       ? isFlattened
@@ -1676,7 +1676,7 @@ ${middlewareHtml}
   }
 
   // For maps, group by codeField (not labelField)
-  const isMap = state.chartType === 'map' || state.chartType === ('mapReg' as any);
+  const isMap = state.chartType === 'map';
   const groupByPath = isMap && state.codeField ? state.codeField : labelFieldPath;
 
   let queryElement: string;
