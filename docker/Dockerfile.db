@@ -40,8 +40,9 @@ FROM nginx:alpine
 COPY --from=builder /usr/local/bin/node /usr/local/bin/node
 RUN apk add --no-cache libstdc++ libgcc
 
-# Nginx config (database mode with /api/ proxy)
+# Nginx config (database mode with /api/ proxy) + security-headers snippet
 COPY docker/nginx-db.conf /etc/nginx/conf.d/default.conf
+COPY docker/security-headers.conf /etc/nginx/conf.d/security-headers.conf
 RUN echo "log_format beacon '\$time_iso8601|\$http_referer|\$arg_c|\$arg_t|\$remote_addr|\$arg_r';" > /etc/nginx/conf.d/beacon-log.conf \
  && echo "proxy_cache_path /var/cache/nginx/api levels=1:2 keys_zone=api_cache:10m max_size=100m inactive=5m;" > /etc/nginx/conf.d/cache.conf \
  && mkdir -p /var/cache/nginx/api
