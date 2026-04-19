@@ -48,9 +48,16 @@
         </div>
         <div class="config-section-content">
 
-        <!-- Selection de source (grille 3 colonnes) -->
+        <!--
+          Selection de source sur une seule ligne :
+            [ select "Source"                 | #fields-status (bouton "Voir"
+                                                injecte par sources.ts)   | + Nouvelle ]
+          Le bouton "Charger" est retire : les fields sont charges
+          automatiquement dans handleSavedSourceChange() a chaque change.
+          Le nom et le compteur d'enregistrements apparaissent dans le resume
+          en tete de section (progress-indicator.ts), plus besoin de la ligne 2.
+        -->
         <div id="source-panel-saved" class="source-panel">
-          <!-- Ligne 1 : Select | Bouton | Status -->
           <div class="source-grid">
             <div class="fr-select-group fr-select-group--sm">
               <label class="fr-label" for="saved-source">Source</label>
@@ -58,19 +65,10 @@
                 <option value="">— Choisir —</option>
               </select>
             </div>
-            <button class="fr-btn fr-btn--sm fr-btn--secondary source-btn" id="load-fields-btn">
-              <i class="ri-refresh-line"></i> Charger
-            </button>
             <div class="source-status" id="fields-status" aria-live="polite"></div>
-          </div>
-
-          <!-- Ligne 2 : Info | Lien | (vide) -->
-          <div class="source-grid source-grid-row2">
-            <div id="saved-source-info" class="source-info"></div>
-            <a href="../sources/index.html" class="fr-link fr-link--sm">
+            <a href="../sources/index.html" class="fr-link fr-link--sm source-new-link">
               <i class="ri-add-line"></i> Nouvelle
             </a>
-            <div></div>
           </div>
         </div>
         </div>

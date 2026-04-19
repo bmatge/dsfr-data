@@ -156,16 +156,16 @@ body {
   height: 40px;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
 }
 
-.source-grid-row2 {
-  margin-top: 0.5rem;
+/* "+ Nouvelle" link — aligned vertically with the select. */
+.source-new-link {
+  height: 40px;
+  display: inline-flex;
   align-items: center;
-}
-
-.source-info {
-  font-size: 0.8rem;
-  color: var(--text-mention-grey);
+  white-space: nowrap;
 }
 
 /* Responsive : reduire quand le panneau est etroit */

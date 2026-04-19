@@ -10,7 +10,6 @@ import {
   loadSavedSources,
   checkSelectedSource,
   handleSavedSourceChange,
-  loadFields,
   loadFavoriteState,
   initDataPreviewModal,
 } from './sources.js';
@@ -93,14 +92,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // Buttons
-  const loadFieldsBtn = document.getElementById('load-fields-btn');
-  if (loadFieldsBtn)
-    loadFieldsBtn.addEventListener('click', () => {
-      loadFields();
-      // After loadFields completes (async), update steps
-      setTimeout(updatePreviewSteps, 100);
-    });
+  // Note: le bouton "Charger" a ete retire — handleSavedSourceChange()
+  // appelle loadFields() automatiquement sur chaque changement de source.
 
   const generateBtn = document.getElementById('generate-btn');
   if (generateBtn) {

@@ -52,8 +52,13 @@ function joinChecked(labels: Array<string | false>): string {
 
 /** Human-readable summary for each configurable section. */
 function buildSummaries(s: BuilderState, c: Completeness): Record<string, SectionSummary | null> {
-  // Source — show name of the loaded source (or nothing if none).
-  const sourceName = s.savedSource?.name || s.savedSource?.id || '';
+  // Source — show name (+ record count when available) of the loaded source.
+  let sourceName = '';
+  if (s.savedSource) {
+    const name = s.savedSource.name || s.savedSource.id || '';
+    const count = s.savedSource.recordCount;
+    sourceName = count ? `${name} · ${count} lignes` : name;
+  }
 
   // Type of chart — label only when a source is loaded (so the default "bar"
   // doesn't mislead before the user interacts).
