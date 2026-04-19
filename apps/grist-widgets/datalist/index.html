@@ -13,7 +13,10 @@
   <!-- dsfr-data (UMD : enregistre les custom elements + expose DsfrData global) -->
   <script src="../lib/dsfr-data.umd.js"></script>
 
-  <!-- Grist Plugin API -->
+  <!-- Grist Plugin API — URL versionless côté Grist, ajouter un SRI casserait
+       le widget à chaque update upstream. Trust model : Grist self-hosted par
+       les administrations qui déploient le widget (numerique.gouv.fr, docs.getgrist.com). -->
+  <!-- nosemgrep: html.security.audit.missing-integrity.missing-integrity -->
   <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
 
   <!-- Widget entry point -->
