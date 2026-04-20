@@ -1,5 +1,12 @@
 # dsfr-data
 
+## 0.7.1
+
+### Patch Changes
+
+- **Apps** : alignement du template DSFR sur toutes les pages de la webapp. Le footer `<app-footer>` manquait dans `builder`, `builder-ia`, `sources` et `pipeline-helper`. Le module `dsfr.module.min.js` (requis pour le menu mobile de `<app-header>` et les modales DSFR) manquait dans `sources` et `pipeline-helper`. Le style de pré-chargement `view-transition` manquait dans `pipeline-helper` et `builder-carto`. Toutes les pages partagent maintenant la même shell DSFR, sauf `grist-widgets` (exclusion légitime : widget embarqué dans Grist).
+- **Dark mode OS** : remplacement de `data-fr-theme` (attribut sans valeur, inopérant en DSFR 1.14) par `data-fr-scheme="system"` sur l'ensemble des pages HTML (apps, guide, specs, exemples). Le JS DSFR calcule désormais `data-fr-theme` automatiquement selon `prefers-color-scheme` de l'OS, activant le support natif light/dark partout.
+
 ## 0.7.0
 
 ### Minor Changes
