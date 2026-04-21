@@ -34,7 +34,7 @@
       grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
       gap: 3rem;
       align-items: center;
-      padding: 2.5rem 0 2rem;
+      padding-block: 2.5rem 2rem;
     }
     .home-hero__title {
       font-size: 2.75rem; line-height: 3.25rem; font-weight: 700;
@@ -99,6 +99,8 @@
       box-shadow: 0 4px 12px rgba(0,0,18,.08);
       display: flex; flex-direction: column;
       min-height: 420px;
+      overflow: hidden;
+      min-width: 0;
     }
     .chart-panel__header {
       display: flex; align-items: center; justify-content: space-between;
@@ -174,8 +176,11 @@
       transition: opacity 260ms ease, transform 260ms ease, visibility 0s linear 0s;
     }
     /* Tous les composants sont rendus à 80 % pour tenir dans l'aperçu
-       (simule un zoom navigateur, garde la mise en page native). */
+       (simule un zoom navigateur, garde la mise en page native).
+       display:block est requis pour que width:125% s'applique (les hosts
+       dsfr-data-* sont inline par défaut en light DOM). */
     .chart-slot > * {
+      display: block;
       transform: scale(0.8);
       transform-origin: top left;
       width: 125%;
@@ -275,6 +280,8 @@
       .home-tools__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
     @media (max-width: 576px) {
+      .home-hero__inner { padding-block: 1.5rem 1.5rem; gap: 1.5rem; }
+      .home-hero__title { font-size: 1.875rem; line-height: 2.25rem; }
       .home-hero__steps { grid-template-columns: 1fr; }
       .home-hero__step + .home-hero__step {
         padding-left: 0; border-left: 0;
@@ -282,7 +289,8 @@
         border-top: 1px solid var(--border-default-blue-france);
       }
       .home-tools__grid { grid-template-columns: 1fr; }
-      .chart-panel__body { grid-template-columns: 1fr; }
+      .chart-panel { min-height: 320px; }
+      .chart-stage { min-height: 240px; }
     }
 
     /* ───────── REDUCED MOTION ───────── */
