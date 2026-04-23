@@ -34,7 +34,7 @@
       grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
       gap: 3rem;
       align-items: center;
-      padding: 2.5rem 0 2rem;
+      padding-block: 2.5rem 2rem;
     }
     .home-hero__title {
       font-size: 2.75rem; line-height: 3.25rem; font-weight: 700;
@@ -270,7 +270,7 @@
 
     /* ───────── RESPONSIVE ───────── */
     @media (max-width: 992px) {
-      .home-hero__inner { grid-template-columns: 1fr; gap: 2rem; }
+      .home-hero__inner { grid-template-columns: minmax(0, 1fr); gap: 2rem; }
       .home-hero__title { font-size: 2.25rem; line-height: 2.75rem; }
       .home-tools__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
