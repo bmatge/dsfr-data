@@ -143,6 +143,7 @@ export class DsfrDataSource extends LitElement {
   private _refreshInterval: number | null = null;
   private _abortController: AbortController | null = null;
   private _unsubscribeCommands: (() => void) | null = null;
+  private _fetchScheduled = false;
 
   /** Dynamic WHERE overlays from dsfr-data-facets, dsfr-data-search, etc. */
   private _whereOverlays = new Map<string, string>();
@@ -218,7 +219,7 @@ export class DsfrDataSource extends LitElement {
       if (changedProperties.has('apiType')) {
         this._adapter = null;
       }
-      this._fetchData();
+      this._scheduleFetch();
     }
 
     if (changedProperties.has('refresh')) {
@@ -373,7 +374,7 @@ export class DsfrDataSource extends LitElement {
       }
 
       if (needsFetch) {
-        this._fetchData();
+        this._scheduleFetch();
       }
     });
   }
@@ -383,6 +384,22 @@ export class DsfrDataSource extends LitElement {
       return this._fetchViaAdapter();
     }
     return this._fetchViaUrl();
+  }
+
+  /**
+   * Coalesce fetches: defer to the next macrotask so concurrent willUpdates
+   * (from queries delegating server-side ops to this source) get to register
+   * their overlays before the first fetch runs. Without this, 3 queries on
+   * the same Grist source each trigger a command → 3 refetches, the first 2
+   * aborted (visible as NS_BINDING_ABORTED in Firefox).
+   */
+  private _scheduleFetch() {
+    if (this._fetchScheduled) return;
+    this._fetchScheduled = true;
+    setTimeout(() => {
+      this._fetchScheduled = false;
+      this._fetchData();
+    }, 0);
   }
 
   // --- URL mode (legacy, unchanged behavior) ---
