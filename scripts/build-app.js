@@ -46,6 +46,19 @@ for (const file of rootFiles) {
   }
 }
 
+// Favicons DSFR Marianne : dépose à la racine de app-dist/ pour que nginx
+// les serve à /favicon.ico et /favicon/... (et pas à /public/favicon/...).
+const faviconIco = join(rootDir, 'public/favicon.ico');
+if (existsSync(faviconIco)) {
+  cpSync(faviconIco, join(distDir, 'favicon.ico'));
+  console.log('  + favicon.ico');
+}
+const faviconDir = join(rootDir, 'public/favicon');
+if (existsSync(faviconDir)) {
+  cpSync(faviconDir, join(distDir, 'favicon'), { recursive: true });
+  console.log('  + favicon/');
+}
+
 // Copy core directories
 console.log('\nCopying core directories...');
 const directories = ['specs', 'guide'];
