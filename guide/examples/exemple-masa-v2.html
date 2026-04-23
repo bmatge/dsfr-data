@@ -124,27 +124,32 @@
 <dsfr-data-join id="c3-join" left="c3" right="geo-depts" on="code_dept" type="inner"></dsfr-data-join>
 <dsfr-data-normalize id="c3-geo" source="c3-join" trim></dsfr-data-normalize>
 
-<!-- ── Queries camembert ──
-     Triées par liste_index ASC via liste_index__min pour garantir
-     que la couleur du camembert (position dans le tableau)
-     correspond à la couleur de la carte (valeur liste_index 1→4).
-     FNSEA/JA (1) → 1er → bleu France, etc.
+<!-- ── Sources camembert (pré-agrégées server-side) ──
+     Sources Grist dédiées qui délèguent group-by + aggregate + order-by
+     directement à l'API SQL Grist. Séparées des cN-raw pour éviter que la
+     délégation n'écrase les données brutes consommées par les KPI et top10
+     (un même Grist source ne peut pas servir données brutes ET agrégées).
+     Tri par liste_index ASC pour que la couleur du camembert corresponde
+     à la couleur de la carte (FNSEA/JA → bleu France, etc.).
 -->
-<dsfr-data-query id="c1-pie" source="c1"
+<dsfr-data-source id="c1-pie" api-type="grist"
+  base-url="https://chartsbuilder.matge.com/grist-gouv-proxy/api/docs/pU5HXX7VJC6jdgU6oBJRxn/tables/Scrutin_c1/records"
   group-by="liste_gagnante"
   aggregate="liste_index:count,liste_index:min"
   order-by="liste_index__min:asc">
-</dsfr-data-query>
-<dsfr-data-query id="c2-pie" source="c2"
+</dsfr-data-source>
+<dsfr-data-source id="c2-pie" api-type="grist"
+  base-url="https://chartsbuilder.matge.com/grist-gouv-proxy/api/docs/pU5HXX7VJC6jdgU6oBJRxn/tables/Scrutin_c2/records"
   group-by="liste_gagnante"
   aggregate="liste_index:count,liste_index:min"
   order-by="liste_index__min:asc">
-</dsfr-data-query>
-<dsfr-data-query id="c3-pie" source="c3"
+</dsfr-data-source>
+<dsfr-data-source id="c3-pie" api-type="grist"
+  base-url="https://chartsbuilder.matge.com/grist-gouv-proxy/api/docs/pU5HXX7VJC6jdgU6oBJRxn/tables/Scrutin_c3/records"
   group-by="liste_gagnante"
   aggregate="liste_index:count,liste_index:min"
   order-by="liste_index__min:asc">
-</dsfr-data-query>
+</dsfr-data-source>
 
 <!-- ── Queries top 10 participations ── -->
 <dsfr-data-query id="c1-top10" source="c1" order-by="taux_participation:desc" limit="10"></dsfr-data-query>
