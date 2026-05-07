@@ -69,7 +69,8 @@ Elle est distincte du code embarquable HTML (voir skills composants dsfr-data).
 | aggregation | String | non | Fonction : sum, avg, count, min, max |
 | where | String | non | Filtre pre-agregation (voir syntaxe ci-dessous) |
 | limit | Number | non | Nombre max de resultats |
-| sortOrder | String | non | Tri : "asc" ou "desc" |
+| sortOrder | String | non | Tri : "asc", "desc" ou "none" (preserve l'ordre source — utile pour mois/jours/series temporelles deja ordonnees en amont) |
+| sortField | String | non | Champ de tri. Vide = trie par valeur agregee (defaut). Mettre labelField pour tri alphabetique sur les categories. |
 | title | String | non | Titre affiche |
 | subtitle | String | non | Sous-titre affiche |
 | color | String | non | Couleur primaire hex (defaut: #000091) |
@@ -364,7 +365,7 @@ Apres agregation, les champs sont nommes automatiquement : \`champ__fonction\`
 | filter | String | \`""\` | non | Alias de where (compatibilite) |
 | group-by | String | \`""\` | non | Champs de groupement (separes par virgule) |
 | aggregate | String | \`""\` | non | Agregations : \`"champ:fonction"\` ou \`"champ:fonction:alias"\` |
-| order-by | String | \`""\` | non | Tri : \`"champ:asc"\` ou \`"champ:desc"\` |
+| order-by | String | \`""\` | non | Tri : \`"champ:asc"\` ou \`"champ:desc"\`. **Omettre cet attribut preserve l'ordre source** (ordre de premiere apparition apres group-by) — utile pour les mois en lettres, jours de la semaine, ou toute serie deja ordonnee en amont. |
 | limit | Number | \`0\` | non | Limite de resultats (0 = illimite) |
 | transform | String | \`""\` | non | Chemin JSONPath dans les donnees recues |
 | refresh | Number | \`0\` | non | Rafraichissement en secondes (0 = desactive) |

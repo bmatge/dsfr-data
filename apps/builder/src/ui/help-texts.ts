@@ -13,7 +13,9 @@ export const TOOLTIPS = {
   aggregation:
     'Que faire quand plusieurs lignes ont la meme etiquette\u00a0?\n\u2022 Somme\u00a0: additionne les valeurs\n\u2022 Moyenne\u00a0: calcule la moyenne\n\u2022 Comptage\u00a0: compte le nombre de lignes\n\u2022 Min / Max\u00a0: garde la plus petite ou grande valeur',
   'sort-order':
-    "Dans quel ordre afficher les resultats\u00a0: du plus grand au plus petit (decroissant) ou l'inverse (croissant).",
+    "Dans quel ordre afficher les resultats\u00a0:\n\u2022 Decroissant\u00a0: du plus grand au plus petit\n\u2022 Croissant\u00a0: du plus petit au plus grand\n\u2022 Ordre source\u00a0: ne trie pas, conserve l'ordre des donnees recues. Utile pour les mois en lettres, jours de la semaine, ou toute serie deja ordonnee a la source.",
+  'sort-field':
+    'Le champ qui sert de critere de tri.\n\u2022 Auto (defaut)\u00a0: trie par la valeur agregee (hauteur des barres, taille des parts).\n\u2022 Champ cat\u00e9gorie\u00a0: trie alphabetiquement (utile pour ranger des departements ou des noms par ordre alphabetique).',
   'advanced-mode':
     "Active des options de filtrage et de transformation. Utile pour ne garder qu'une partie des donnees (ex\u00a0: uniquement l'Ile-de-France) ou combiner plusieurs agregations.",
   'query-filter':

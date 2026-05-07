@@ -257,15 +257,27 @@
         </div>
 
         <!-- Tri -->
-        <div class="fr-select-group fr-select-group--sm fr-mt-1w">
-          <label class="fr-label" for="sort-order">
-            Tri
-            <button type="button" class="help-btn" aria-label="Aide" aria-describedby="help-sort-order" data-help="sort-order"><i class="ri-question-line" aria-hidden="true"></i></button>
-          </label>
-          <select class="fr-select" id="sort-order">
-            <option value="desc">Decroissant</option>
-            <option value="asc">Croissant</option>
-          </select>
+        <div class="config-grid-2col fr-mt-1w">
+          <div class="fr-select-group fr-select-group--sm">
+            <label class="fr-label" for="sort-field">
+              Trier par
+              <button type="button" class="help-btn" aria-label="Aide" aria-describedby="help-sort-field" data-help="sort-field"><i class="ri-question-line" aria-hidden="true"></i></button>
+            </label>
+            <select class="fr-select" id="sort-field">
+              <option value="">Auto (valeur)</option>
+            </select>
+          </div>
+          <div class="fr-select-group fr-select-group--sm">
+            <label class="fr-label" for="sort-order">
+              Ordre
+              <button type="button" class="help-btn" aria-label="Aide" aria-describedby="help-sort-order" data-help="sort-order"><i class="ri-question-line" aria-hidden="true"></i></button>
+            </label>
+            <select class="fr-select" id="sort-order">
+              <option value="desc">Decroissant</option>
+              <option value="asc">Croissant</option>
+              <option value="none">Ordre source</option>
+            </select>
+          </div>
         </div>
 
         <!-- Toggle Mode Avance -->

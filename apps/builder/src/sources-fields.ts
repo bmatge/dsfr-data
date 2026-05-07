@@ -12,6 +12,7 @@ export function populateFieldSelects(): void {
   const labelSelect = document.getElementById('label-field') as HTMLSelectElement | null;
   const valueSelect = document.getElementById('value-field') as HTMLSelectElement | null;
   const codeSelect = document.getElementById('code-field') as HTMLSelectElement | null;
+  const sortFieldSelect = document.getElementById('sort-field') as HTMLSelectElement | null;
 
   if (!labelSelect || !valueSelect || !codeSelect) return;
 
@@ -19,6 +20,7 @@ export function populateFieldSelects(): void {
   labelSelect.innerHTML = '<option value="">\u2014 S\u00e9lectionner \u2014</option>';
   valueSelect.innerHTML = '<option value="">\u2014 S\u00e9lectionner \u2014</option>';
   codeSelect.innerHTML = '<option value="">\u2014 S\u00e9lectionner \u2014</option>';
+  if (sortFieldSelect) sortFieldSelect.innerHTML = '<option value="">Auto (valeur)</option>';
 
   state.fields.forEach((field) => {
     const displayText = field.displayName
@@ -41,6 +43,13 @@ export function populateFieldSelects(): void {
       optionCode.value = field.name;
       optionCode.textContent = displayText;
       codeSelect.appendChild(optionCode);
+    }
+
+    if (sortFieldSelect) {
+      const optionSort = document.createElement('option');
+      optionSort.value = field.name;
+      optionSort.textContent = displayText;
+      sortFieldSelect.appendChild(optionSort);
     }
   });
 
