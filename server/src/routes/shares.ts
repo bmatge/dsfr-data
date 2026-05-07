@@ -21,27 +21,36 @@ const RESOURCE_TABLES: Record<string, string> = {
 /**
  * A favorite "needs private proxy" when its saved source references a
  * connection or carries a (legacy) inline apiKey. The builder state is stored
- * as JSON in `favorites.builder_state_json` — MariaDB returns an already-parsed
- * object, but we accept either shape for safety.
+ * as JSON in `favorites.builder_state_json`.
+ *
+ * Edge cases this guards against (all observed in prod) :
+ *  - SQL NULL              → mysql2 returns JS `null`             → return false
+ *  - JSON literal `null`   → string `"null"`, parses to JS `null` → return false
+ *  - missing savedSource   → undefined                            → return false
+ *  - savedSource = null    → null                                 → return false
+ *  - non-object payload    → string/number/array                  → return false
+ *
+ * Anything that isn't a plain object with a privacy-marking field returns false
+ * (= treated as public-shareable).
  */
 export function favoriteNeedsPrivateProxy(rawBuilderState: unknown): boolean {
-  if (!rawBuilderState) return false;
-  let state: Record<string, unknown>;
+  let parsed: unknown = rawBuilderState;
   if (typeof rawBuilderState === 'string') {
     try {
-      state = JSON.parse(rawBuilderState) as Record<string, unknown>;
+      parsed = JSON.parse(rawBuilderState);
     } catch {
       return false;
     }
-  } else if (typeof rawBuilderState === 'object') {
-    state = rawBuilderState as Record<string, unknown>;
-  } else {
-    return false;
   }
-  const source = state.savedSource as Record<string, unknown> | undefined;
-  if (!source) return false;
-  if (source.connectionId) return true;
-  if (typeof source.apiKey === 'string' && source.apiKey.trim().length > 0) return true;
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return false;
+
+  const state = parsed as Record<string, unknown>;
+  const source = state.savedSource;
+  if (!source || typeof source !== 'object' || Array.isArray(source)) return false;
+
+  const s = source as Record<string, unknown>;
+  if (s.connectionId) return true;
+  if (typeof s.apiKey === 'string' && s.apiKey.trim().length > 0) return true;
   return false;
 }
 
