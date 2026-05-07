@@ -52,6 +52,15 @@ Trois bundles sont disponibles selon les besoins :
 | `dsfr-data.world-map.{esm,umd}.js` | Composant `dsfr-data-world-map` (d3-geo) | ~30 Ko |
 | `dsfr-data.{esm,umd}.js` | Tout-en-un (core + world-map) | ~70 Ko |
 
+## Deployer la webapp
+
+En plus de la bibliotheque, le repo contient une webapp (Builder, Builder IA, Sources, Playground, Favoris, Dashboard, Monitoring, Pipeline Helper, Admin) deployable en self-hosted via Docker. Deux modes :
+
+- **Statique** (nginx + localStorage) — usage individuel, aucune persistance serveur.
+- **Serveur** (nginx + Express + MariaDB) — multi-utilisateurs, auth JWT, partages, audit.
+
+Voir le **[guide de deploiement](docs/DEPLOYMENT.md)** pour les prerequis (Traefik, DNS, secrets), la configuration `.env`, les migrations de schema, la sauvegarde, le diagnostic et la checklist securite.
+
 ---
 
 # Composants disponibles
