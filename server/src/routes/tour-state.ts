@@ -27,6 +27,10 @@ function emptyState(): TourState {
   return { tours: {} };
 }
 
+// Guarde contre l'injection de propriété (__proto__, constructor…) en filtrant
+// les IDs de tour à un alphanumérique simple. Cf. CodeQL js/remote-property-injection.
+const SAFE_TOUR_ID = /^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/;
+
 /**
  * Accept loose shapes coming from the client and coerce them into a clean
  * TourState. Returns null if the payload is unusable (non-object).
@@ -40,6 +44,7 @@ function validate(body: unknown): TourState | null {
 
   if (obj.tours && typeof obj.tours === 'object') {
     for (const [id, entry] of Object.entries(obj.tours as Record<string, unknown>)) {
+      if (!SAFE_TOUR_ID.test(id)) continue;
       if (!entry || typeof entry !== 'object') continue;
       const e = entry as Record<string, unknown>;
       const at = typeof e.at === 'string' ? e.at : new Date().toISOString();
