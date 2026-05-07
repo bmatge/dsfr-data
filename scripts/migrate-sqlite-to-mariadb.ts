@@ -2,6 +2,11 @@
 /**
  * One-shot migration script: SQLite → MariaDB
  *
+ * Pre-requis: better-sqlite3 n'est pas installé par défaut (la migration vers
+ * MariaDB est faite). Avant de relancer ce script, installer la dépendance
+ * temporairement :
+ *   npm install --no-save better-sqlite3 @types/better-sqlite3
+ *
  * Usage:
  *   npx tsx scripts/migrate-sqlite-to-mariadb.ts --sqlite ./data/dsfr-data.db
  *
@@ -59,11 +64,59 @@ const TABLE_COLUMNS: Record<string, string[]> = {
   users: ['id', 'email', 'password_hash', 'display_name', 'role', 'created_at', 'updated_at'],
   groups: ['id', 'name', 'description', 'created_by', 'created_at'],
   group_members: ['group_id', 'user_id', 'role'],
-  sources: ['id', 'owner_id', 'name', 'type', 'config_json', 'data_json', 'record_count', 'created_at', 'updated_at'],
-  connections: ['id', 'owner_id', 'name', 'type', 'config_json', 'api_key_encrypted', 'status', 'created_at', 'updated_at'],
-  favorites: ['id', 'owner_id', 'name', 'chart_type', 'code', 'builder_state_json', 'source_app', 'created_at', 'updated_at'],
-  dashboards: ['id', 'owner_id', 'name', 'description', 'layout_json', 'widgets_json', 'created_at', 'updated_at'],
-  shares: ['id', 'resource_type', 'resource_id', 'target_type', 'target_id', 'permission', 'granted_by', 'created_at'],
+  sources: [
+    'id',
+    'owner_id',
+    'name',
+    'type',
+    'config_json',
+    'data_json',
+    'record_count',
+    'created_at',
+    'updated_at',
+  ],
+  connections: [
+    'id',
+    'owner_id',
+    'name',
+    'type',
+    'config_json',
+    'api_key_encrypted',
+    'status',
+    'created_at',
+    'updated_at',
+  ],
+  favorites: [
+    'id',
+    'owner_id',
+    'name',
+    'chart_type',
+    'code',
+    'builder_state_json',
+    'source_app',
+    'created_at',
+    'updated_at',
+  ],
+  dashboards: [
+    'id',
+    'owner_id',
+    'name',
+    'description',
+    'layout_json',
+    'widgets_json',
+    'created_at',
+    'updated_at',
+  ],
+  shares: [
+    'id',
+    'resource_type',
+    'resource_id',
+    'target_type',
+    'target_id',
+    'permission',
+    'granted_by',
+    'created_at',
+  ],
   data_cache: ['source_id', 'data_json', 'data_hash', 'record_count', 'fetched_at', 'ttl_seconds'],
   monitoring: ['id', 'component', 'chart_type', 'origin', 'first_seen', 'last_seen', 'call_count'],
 };
@@ -76,7 +129,9 @@ const BATCH_SIZE = 500;
 async function main() {
   console.log(`\n📦 Migration SQLite → MariaDB`);
   console.log(`   SQLite: ${sqlitePath}`);
-  console.log(`   MariaDB: ${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || '3306'}/${process.env.DB_NAME || 'dsfr_data'}`);
+  console.log(
+    `   MariaDB: ${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || '3306'}/${process.env.DB_NAME || 'dsfr_data'}`
+  );
 
   // Try to load encryption module
   if (process.env.ENCRYPTION_KEY && process.env.ENCRYPTION_KEY.length === 64) {
@@ -114,8 +169,8 @@ async function main() {
   const schema = readFileSync(schemaPath, 'utf-8');
   const statements = schema
     .split(';')
-    .map(s => s.trim())
-    .filter(s => s.length > 0 && !s.startsWith('--'));
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0 && !s.startsWith('--'));
 
   const conn = await pool.getConnection();
   try {
@@ -135,7 +190,9 @@ async function main() {
     const escapedTable = table === 'groups' ? '`groups`' : table;
 
     // Read from SQLite
-    const rows = sqlite.prepare(`SELECT * FROM ${table === 'groups' ? '"groups"' : table}`).all() as Record<string, unknown>[];
+    const rows = sqlite
+      .prepare(`SELECT * FROM ${table === 'groups' ? '"groups"' : table}`)
+      .all() as Record<string, unknown>[];
     const sqliteCount = rows.length;
 
     if (sqliteCount === 0) {
@@ -166,16 +223,21 @@ async function main() {
       }
 
       const sql = `INSERT IGNORE INTO ${escapedTable} (${columns.join(', ')}) VALUES ${placeholders}`;
-      const [result] = await pool.execute(sql, values) as [mysql.ResultSetHeader, unknown];
+      const [result] = (await pool.execute(sql, values)) as [mysql.ResultSetHeader, unknown];
       inserted += result.affectedRows;
     }
 
     // Verify count
-    const [[countRow]] = await pool.execute(`SELECT COUNT(*) as count FROM ${escapedTable}`) as [[{ count: number }], unknown];
+    const [[countRow]] = (await pool.execute(`SELECT COUNT(*) as count FROM ${escapedTable}`)) as [
+      [{ count: number }],
+      unknown,
+    ];
     const mariadbCount = countRow.count;
 
     const status = mariadbCount >= sqliteCount ? '✅' : '⚠️';
-    console.log(`   ${status} ${table}: ${sqliteCount} SQLite → ${mariadbCount} MariaDB (${inserted} inserted)`);
+    console.log(
+      `   ${status} ${table}: ${sqliteCount} SQLite → ${mariadbCount} MariaDB (${inserted} inserted)`
+    );
     report[table] = { sqlite: sqliteCount, mariadb: mariadbCount };
   }
 
@@ -198,7 +260,7 @@ async function main() {
   console.log('\nDone.\n');
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error('\n❌ Migration failed:', err);
   process.exit(1);
 });
