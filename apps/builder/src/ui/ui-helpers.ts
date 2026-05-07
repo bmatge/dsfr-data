@@ -104,9 +104,9 @@ export function saveFavorite(): void {
     name: name,
     code: code,
     chartType: state.chartType,
-    source: 'builder',
+    sourceApp: 'builder',
     createdAt: new Date().toISOString(),
-    builderState: getBuilderStateToSave(),
+    builderStateJson: getBuilderStateToSave(),
   };
 
   favorites.unshift(favorite);

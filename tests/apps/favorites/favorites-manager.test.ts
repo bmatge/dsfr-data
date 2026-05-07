@@ -8,6 +8,8 @@ import {
 import type { Favorite } from '../../../apps/favorites/src/favorites-manager';
 
 const sampleFavorites: Favorite[] = [
+  // Legacy entry — uses deprecated `source` / `builderState` field names.
+  // Kept here to exercise the read fallback in favorites/main.ts.
   {
     id: 'fav-1',
     name: 'Chart A',
@@ -16,14 +18,15 @@ const sampleFavorites: Favorite[] = [
     source: 'builder',
     createdAt: '2024-01-15T12:00:00Z',
   },
+  // New entry — uses canonical `sourceApp` / `builderStateJson`.
   {
     id: 'fav-2',
     name: 'Chart B',
     code: '<div>Chart B</div>',
     chartType: 'line',
-    source: 'playground',
+    sourceApp: 'playground',
     createdAt: '2024-02-20T14:30:00Z',
-    builderState: { some: 'state' },
+    builderStateJson: { some: 'state' },
   },
 ];
 

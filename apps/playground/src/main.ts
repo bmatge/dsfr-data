@@ -160,7 +160,8 @@ function saveFavorite(): void {
     name: string;
     code: string;
     chartType: string;
-    source: string;
+    /** Originating app — maps to server column `source_app`. */
+    sourceApp: string;
     createdAt: string;
   }
 
@@ -171,7 +172,7 @@ function saveFavorite(): void {
     name,
     code,
     chartType: 'playground',
-    source: 'playground',
+    sourceApp: 'playground',
     createdAt: new Date().toISOString(),
   };
 

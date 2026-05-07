@@ -38,7 +38,8 @@ export function addWidgetFromFavorite(
       fromFavorite: true,
       favoriteId: favorite.id,
       code: favorite.code,
-      builderState: favorite.builderState,
+      // Legacy entries used `builderState` ; new entries use `builderStateJson`.
+      builderState: favorite.builderStateJson ?? favorite.builderState,
     },
   };
 

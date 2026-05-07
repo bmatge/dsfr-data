@@ -9,8 +9,14 @@ export interface Favorite {
   name: string;
   code: string;
   chartType?: string;
+  /** Originating app — maps to server column `source_app`. */
+  sourceApp?: string;
+  /** @deprecated Legacy local-storage entries — read with `sourceApp ?? source`. */
   source?: string;
   createdAt: string;
+  /** Serialized builder state — maps to server column `builder_state_json`. */
+  builderStateJson?: Record<string, unknown>;
+  /** @deprecated Legacy local-storage entries — read with `builderStateJson ?? builderState`. */
   builderState?: Record<string, unknown>;
 }
 

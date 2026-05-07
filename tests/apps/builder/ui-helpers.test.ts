@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { toggleSection, switchTab } from '../../../apps/builder/src/ui/ui-helpers';
-import { state } from '../../../apps/builder/src/state';
+import { toggleSection, switchTab, saveFavorite } from '../../../apps/builder/src/ui/ui-helpers';
+import { state, FAVORITES_KEY } from '../../../apps/builder/src/state';
 
 describe('builder ui-helpers', () => {
   beforeEach(() => {
@@ -96,6 +96,50 @@ describe('builder ui-helpers', () => {
 
     it('should do nothing if preview panel element is missing', () => {
       expect(() => switchTab('code')).not.toThrow();
+    });
+  });
+
+  describe('saveFavorite payload (issue #149)', () => {
+    beforeEach(() => {
+      localStorage.clear();
+      document.body.innerHTML = `
+        <pre id="generated-code"></pre>
+        <button class="preview-panel-save-btn">Save</button>
+      `;
+      document.getElementById('generated-code')!.textContent =
+        '<dsfr-data-chart type="bar"></dsfr-data-chart>';
+      state.title = 'Test chart';
+      state.chartType = 'bar';
+      // happy-dom does not provide window.prompt by default
+      (window as unknown as { prompt: (msg?: string, def?: string) => string | null }).prompt = vi
+        .fn()
+        .mockReturnValue('My favorite');
+    });
+
+    it('writes sourceApp and builderStateJson (not the legacy field names)', () => {
+      saveFavorite();
+
+      const stored = JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]');
+      expect(stored).toHaveLength(1);
+      const fav = stored[0];
+
+      // New names (server-aligned)
+      expect(fav.sourceApp).toBe('builder');
+      expect(fav.builderStateJson).toBeDefined();
+      expect(fav.builderStateJson.chartType).toBe('bar');
+
+      // Legacy names must NOT be written anymore
+      expect(fav.source).toBeUndefined();
+      expect(fav.builderState).toBeUndefined();
+    });
+
+    it('does not save when generated code is the placeholder', () => {
+      document.getElementById('generated-code')!.textContent =
+        '// Le code sera g\u00e9n\u00e9r\u00e9 ici...';
+
+      saveFavorite();
+
+      expect(localStorage.getItem(FAVORITES_KEY)).toBeNull();
     });
   });
 });

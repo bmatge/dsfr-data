@@ -13,6 +13,8 @@ import {
   injectTourStyles,
   startTourIfFirstVisit,
   BUILDER_CARTO_TOUR,
+  initAuth,
+  toastWarning,
   type Source,
 } from '@dsfr-data/shared';
 
@@ -23,9 +25,18 @@ interface Favorite {
   name: string;
   code: string;
   chartType: string;
-  source: string;
+  /**
+   * Originating app — server column `source_app`. Older entries may still
+   * carry this value under the legacy field name `source`; readers must
+   * support both via `fav.sourceApp ?? fav.source`.
+   */
+  sourceApp: string;
   createdAt: string;
-  builderState?: unknown;
+  /**
+   * Serialized builder state — server column `builder_state_json`. Older
+   * entries may still carry this under the legacy field name `builderState`.
+   */
+  builderStateJson?: unknown;
 }
 
 function loadSavedSources(): AnySource[] {
@@ -867,7 +878,12 @@ function sendToPlayground() {
 
 function saveFavorite() {
   const code = generateCode();
-  if (!code.trim()) return;
+  if (!code.trim()) {
+    toastWarning(
+      'Cliquez d\u2019abord sur \u00ab\u00a0Ex\u00e9cuter\u00a0\u00bb pour g\u00e9n\u00e9rer la carte, puis vous pourrez la sauvegarder en favori.'
+    );
+    return;
+  }
 
   const name = prompt('Nom du favori :', state.map.name || 'Ma carte');
   if (!name) return;
@@ -879,9 +895,9 @@ function saveFavorite() {
     name,
     code,
     chartType: 'map',
-    source: 'builder-carto',
+    sourceApp: 'builder-carto',
     createdAt: new Date().toISOString(),
-    builderState: JSON.parse(JSON.stringify(state)),
+    builderStateJson: JSON.parse(JSON.stringify(state)),
   };
 
   favorites.unshift(favorite);
@@ -917,7 +933,12 @@ function executePreview() {
 // Init
 // ---------------------------------------------------------------------------
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // Hook saveToStorage to /api/* sync (when authenticated). Without this,
+  // favorites saved here stay only in localStorage and get wiped by the
+  // ApiStorageAdapter prefetch the next time another app loads.
+  await initAuth();
+
   renderLayersList();
   renderLayerConfig();
   renderMapConfig();

@@ -105,9 +105,17 @@ export interface Favorite {
   name: string;
   code: string;
   chartType: ChartType;
-  source: string;
+  /**
+   * Originating app. Maps to server column `source_app`. Older entries may
+   * still carry the legacy field name `source` — readers must support both.
+   */
+  sourceApp: string;
   createdAt: string;
-  builderState: Partial<BuilderState>;
+  /**
+   * Serialized builder state. Maps to server column `builder_state_json`.
+   * Older entries may still carry the legacy field name `builderState`.
+   */
+  builderStateJson: Partial<BuilderState>;
 }
 
 /** The builder state object (serializable parts for favorites) */

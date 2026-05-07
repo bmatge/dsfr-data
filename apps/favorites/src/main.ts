@@ -129,7 +129,7 @@ function renderSidebar(): void {
       <div class="favorite-item-meta">
         <span class="favorite-item-type">${fav.chartType || 'chart'}</span>
         <span>${formatDateShort(fav.createdAt)}</span>
-        <span>${fav.source || 'builder'}</span>
+        <span>${fav.sourceApp || fav.source || 'builder'}</span>
       </div>
     </div>
   `
@@ -200,7 +200,7 @@ function renderContent(): void {
       <div class="code-section">
         <div class="code-header">
           <span>Code HTML/JS</span>
-          <span class="fr-text--sm">${fav.source || 'builder'} - ${formatDateShort(fav.createdAt)}</span>
+          <span class="fr-text--sm">${fav.sourceApp || fav.source || 'builder'} - ${formatDateShort(fav.createdAt)}</span>
         </div>
         <pre id="code-display">${escapeHtml(fav.code)}</pre>
       </div>
@@ -233,8 +233,9 @@ function openInPlayground(id: string): void {
 function openInBuilder(id: string): void {
   const fav = findFavorite(favorites, id);
   if (fav) {
-    if (fav.builderState) {
-      sessionStorage.setItem('builder-state', JSON.stringify(fav.builderState));
+    const builderState = fav.builderStateJson ?? fav.builderState;
+    if (builderState) {
+      sessionStorage.setItem('builder-state', JSON.stringify(builderState));
       navigateTo('builder', { from: 'favorites' });
     } else {
       toastInfo('Ce favori a ete cree avant la mise a jour. Il sera ouvert dans le Playground.');
