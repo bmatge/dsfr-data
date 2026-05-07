@@ -22,6 +22,57 @@ et ce projet adhere au [Semantic Versioning](https://semver.org/lang/fr/).
 - Nouveau rate limiter dedie `publicShareRateLimiter` (60 req/min/IP) sur les routes `/api/public/share/*` — un lien fuite ne peut pas servir d'oracle d'aspiration de donnees.
 - Page publique : `X-Robots-Tag: noindex, nofollow`, `Cache-Control: private, max-age=30`, `credentials: 'omit'` cote client pour eviter toute fuite de cookie d'auth.
 
+> Le detail des releases publiees du package npm `dsfr-data` se trouve dans [`packages/core/CHANGELOG.md`](packages/core/CHANGELOG.md) (genere par Changesets). Le tableau ci-dessous resume les changements visibles utilisateur regroupes par release.
+
+## [0.7.1] - 2026-04-20
+
+### Corrections
+- **Alignement DSFR sur toutes les apps** : ajout du `<app-footer>` manquant dans `builder`, `builder-ia`, `sources` et `pipeline-helper`. Ajout de `dsfr.module.min.js` dans `sources` et `pipeline-helper` (requis pour le menu mobile et les modales). Ajout du style `view-transition` dans `pipeline-helper` et `builder-carto`. Toutes les pages partagent desormais la meme shell DSFR.
+- **Dark mode OS** : remplacement de `data-fr-theme` (inoperant en DSFR 1.14) par `data-fr-scheme="system"` sur l'ensemble des pages. Le JS DSFR calcule maintenant le theme automatiquement selon `prefers-color-scheme` de l'OS.
+
+## [0.7.0] - 2026-04-19
+
+### Ajouts
+- **Visites guidees v2 (product tour)** : nouveau schema d'etat `{ disabled?, tours: { [id]: { at, version } } }` avec migration auto depuis l'ancien format. Versioning par tour (`TourConfig.version`) — bumper la version re-propose le tour aux utilisateurs qui l'avaient deja complete.
+- **Lien « Ne plus afficher les visites guidees »** dans chaque popover, avec switch reversible depuis la page Guide.
+- **Page /guide** : tableau du statut par tour (Joue / Non joue, switch par tour, bouton Lancer / Relancer) + switch global de desactivation.
+- **Synchronisation serveur** du state des tours via `GET/PUT /api/tour-state` (migration DB v6, colonne `users.tour_state JSON`). Sync entre appareils pour les utilisateurs connectes, fallback localStorage en mode anonyme.
+- **Registre `TOURS_REGISTRY`** exporte depuis `@dsfr-data/shared` pour lister les tours depuis des UIs tierces.
+
+### Corrections
+- **Modales DSFR 1.14** : ajout de `data-fr-opened="true"` + style inline `opacity:1;visibility:visible` sur les `<dialog>` (`auth-modal`, `password-change-modal`, `share-dialog`). Le CSS DSFR forcait `opacity:0;visibility:hidden` malgre les classes `fr-modal--opened`.
+- **Politique cache nginx** : les bundles `/dist/*` et le HTML passent en `no-cache, must-revalidate` (revalidation systematique via ETag). Resout le bug ou un correctif live n'etait pas servi aux visiteurs deja venus a cause de l'ancien cache `1y`. Autres assets : `max-age=86400` (1 jour).
+- **app-header mobile** : le bouton « Connexion » apparait desormais dans le menu mobile. La duplication `tools-links → menu-links` etait faite par DSFR avant la resolution de `isDbMode()` (fetch async) — la liste est maintenant rendue dans les deux conteneurs via Lit.
+- **Renommage menu de navigation** : `Creer graphique` → `Creer un graphique`, `Creer carte` → `Creer une carte`, `Tableau de bord` → `Creer un tableau`, `Editeur HTML` → `Playground`, `Flux de donnees` → `Pipeline`. Reordonnancement pour regrouper les trois outils de creation.
+- **Clear au logout** de la cle `dsfr-data-tours` pour eviter les fuites d'etat entre comptes sur poste partage.
+
+## [0.6.1] - 2026-04-19
+
+### Corrections
+- **app-sidemenu (page guide)** : resserrage de `280px` a `220px` + autorisation des libelles longs sur deux lignes (`white-space: normal`, `word-break: break-word`). Le contenu principal gagne en largeur sans tronquer les titres.
+
+## [0.6.0] - 2026-04-19
+
+### Ajouts
+- **dsfr-data-map : argumentaire souverainete** ([#27](https://github.com/bmatge/dsfr-data/issues/27), partiel). Nouvel attribut booleen `sovereign-only` qui restreint `tiles` aux seuls presets IGN (`ign-plan`, `ign-ortho`, `ign-topo`, `ign-cadastre`). Tout autre preset est refuse et remplace par `ign-plan` avec avertissement console.
+- Renommage du preset `osm` en `osm-fr` (serveurs OpenStreetMap France, loi 1901 hebergee en France — distincte de l'OpenStreetMap Foundation). L'alias `osm` reste accepte.
+- Export d'une fonction pure `resolveTilePreset(requested, sovereignOnly)` pour les tests et outils tiers.
+
+## [0.5.1] - 2026-04-19
+
+### Securite
+- **Durcissement XSS et sanitization** (triage baseline securite, code-scanning CodeQL + Semgrep) :
+  - **ODS adapter** : echappement ODSQL safe sur les backslashes (`\\` → `\\\\`) avant les doubles quotes — evite qu'un `\"` utilisateur soit traite comme un quote deja echappe.
+  - **dsfr-data-search** : meme fix sur l'echappement du terme de recherche envoye via server-search.
+  - **dsfr-data-normalize** : `stripHtml` boucle jusqu'a stabilisation pour couvrir les patterns imbriques type `<a<b>c>`.
+  - **Preview template (cdn-versions)** : strip des balises `<script ... dsfr-data ...>` via regex lineaire (non-polynomial) et boucle.
+  - **Modal `confirmDialog`** : message insere via `textContent`, plus d'interpolation `innerHTML`.
+  - **Product tour** : titre/description des steps inseres via `textContent`.
+- **Prototype pollution** corrigee dans les helpers de traversee JSON ([#57](https://github.com/bmatge/dsfr-data/issues/57)) : `getByPath`, `setByPath` et la resolution de champ dotted de `dsfr-data-facets` rejettent les cles `__proto__`, `constructor` et `prototype`.
+
+### Corrections
+- Nettoyage mecanique des warnings ESLint ([#45](https://github.com/bmatge/dsfr-data/issues/45)) : `<\/script>` → `</script>` dans les code generators (meme chaine produite a l'execution, source plus propre), `@ts-ignore` → `@ts-expect-error` sur les imports Vite `?inline` de `dsfr-data-map`, `console.info` → `console.warn` sur les fallbacks SQL endpoint de l'adapter Grist.
+
 ## [0.5.0] - 2026-04-06
 
 ### Structure
