@@ -8,6 +8,11 @@ Ce guide couvre le deploiement de la **webapp dsfr-data** (apps Builder, Builder
 - [Choix du mode : statique ou serveur](#choix-du-mode--statique-ou-serveur)
 - [Prerequis VPS](#prerequis-vps)
 - [Variables d'environnement](#variables-denvironnement)
+- [Reverse proxy](#reverse-proxy)
+  - [Option A : exposer le port directement](#option-a--exposer-le-port-directement-sans-reverse-proxy)
+  - [Option B : Traefik](#option-b--traefik-config-fournie-en-exemple)
+  - [Option C : Caddy](#option-c--caddy)
+  - [Option D : nginx en frontal](#option-d--nginx-en-frontal)
 - [Premier deploiement](#premier-deploiement)
   - [Mode statique](#mode-statique)
   - [Mode serveur](#mode-serveur)
@@ -21,9 +26,9 @@ Ce guide couvre le deploiement de la **webapp dsfr-data** (apps Builder, Builder
 
 ## Vue d'ensemble
 
-L'image Docker construit toutes les apps Vite, copie le hub HTML et les bundles `dist/` de la lib, puis sert tout via **nginx** (non-root, port 8080). En mode serveur, un **Express** (port 3002) et une **MariaDB 11** sont ajoutes pour persister sources, connexions, favoris, dashboards et auth.
+L'image Docker construit toutes les apps Vite, copie le hub HTML et les bundles `dist/` de la lib, puis sert tout via **nginx** (non-root, port `8080` en interne). En mode serveur, un **Express** (port `3002` en interne) et une **MariaDB 11** sont ajoutes pour persister sources, connexions, favoris, dashboards et auth.
 
-Le HTTPS et la terminaison TLS sont **delegues a Traefik** : l'image n'expose pas de port public, elle s'attache au reseau Docker externe `ecosystem-network` ou Traefik gere les certificats Let's Encrypt et la redirection HTTP -> HTTPS via les labels du `docker-compose.yml`.
+Le conteneur **n'expose pas de port public** : la terminaison TLS et le HTTPS doivent etre faits par un **reverse proxy** en amont (Traefik, Caddy, nginx, HAProxy…) ou en publiant directement le port `8080` derriere un load balancer. Le repo fournit en exemple un `docker-compose.yml` avec des labels Traefik (cf. [Reverse proxy](#reverse-proxy)) — ces labels sont a adapter ou retirer selon ton setup.
 
 ## Choix du mode : statique ou serveur
 
@@ -42,13 +47,11 @@ Le HTTPS et la terminaison TLS sont **delegues a Traefik** : l'image n'expose pa
 ## Prerequis VPS
 
 - **Docker** 25+ et **Docker Compose** v2 (le `docker compose ...` plugin, pas le binaire `docker-compose` legacy).
-- **Traefik** deja en place sur le serveur, configure avec :
-  - Reseau Docker externe `ecosystem-network` (a creer si absent : `docker network create ecosystem-network`).
-  - EntryPoints `web` (80) et `websecure` (443) avec `redirect-to-https`.
-  - Resolver Let's Encrypt nomme `letsencrypt` (ou adapter le label dans [`docker-compose.yml`](../docker/docker-compose.yml)).
-  - Middleware nomme `chartsbuilder-headers@file` (security headers) et options TLS `anssi-strict@file`. Si tu n'as pas ces fichiers, retire les labels correspondants ou copie [`docker/security-headers.conf`](../docker/security-headers.conf) dans la conf Traefik dynamique.
-- **DNS** : un enregistrement A/AAAA pointant `${APP_DOMAIN}` vers l'IP publique du VPS.
-- **Mode serveur uniquement** : un MX/SMTP accessible si tu veux les emails de verification (par defaut le compose tente de joindre un container `mailserver` sur `ecosystem-network`).
+- **Reverse proxy avec HTTPS** termine en amont du conteneur (Traefik, Caddy, nginx, HAProxy, ALB…). Voir [Reverse proxy](#reverse-proxy) pour les exemples.
+- **DNS** : un enregistrement A/AAAA pointant `${APP_DOMAIN}` vers l'IP publique du serveur.
+- **Mode serveur uniquement** :
+  - Un **SMTP accessible** si tu veux activer les emails de verification / reset (cf. variables `SMTP_*`). Sans SMTP configure, l'inscription reste fonctionnelle mais l'utilisateur doit etre verifie a la main en DB ou via la route admin.
+  - Au moins **256 Mo de RAM disponibles** pour MariaDB, plus le runtime Node (~150 Mo).
 
 ## Variables d'environnement
 
@@ -56,7 +59,7 @@ Le fichier [`.env.example`](../.env.example) liste toutes les variables. Les pri
 
 | Variable | Mode | Description | Defaut |
 |---|---|---|---|
-| `APP_DOMAIN` | les 2 | Domaine public (Traefik) | `chartsbuilder.matge.com` |
+| `APP_DOMAIN` | les 2 | Domaine public sur lequel l'app sera accessible | `chartsbuilder.matge.com` |
 | `COMPOSE_PROJECT_NAME` | les 2 | Prefix Docker (volumes, conteneurs) | nom du dossier git |
 | `VITE_PROXY_URL` | les 2 | URL du proxy CORS injectee dans les bundles a la build | `https://${APP_DOMAIN}` |
 | `VITE_LIB_URL` | les 2 | Source des bundles dans le code genere : `jsdelivr`, `unpkg`, `self`, ou URL custom | `jsdelivr` |
@@ -65,36 +68,111 @@ Le fichier [`.env.example`](../.env.example) liste toutes les variables. Les pri
 | `DB_NAME` | serveur | Nom de la base | `dsfr_data` |
 | `ENCRYPTION_KEY` | serveur | AES-256-GCM, 32 bytes hex (chiffrement des `connections.api_key_encrypted`) | auto-genere |
 | `CSRF_SECRET` | serveur | HMAC pour les tokens CSRF | fallback `ENCRYPTION_KEY` |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM`, `APP_URL` | serveur | Envoi d'emails de verification / reset | mailserver interne |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM`, `APP_URL` | serveur | Envoi d'emails de verification / reset | non configure |
 | `IA_DEFAULT_TOKEN`, `IA_DEFAULT_API_URL`, `IA_DEFAULT_MODEL` | les 2 | Cle Albert partagee cote serveur (Builder IA fonctionne sans config utilisateur) | `albert-large` |
 
 **Securite** : `JWT_SECRET`, `DB_PASSWORD`, `DB_ROOT_PASSWORD`, `ENCRYPTION_KEY` sont **generes automatiquement** par `deploy-server.sh` s'ils manquent dans `.env`. Une fois generes, ne JAMAIS les changer en place : `JWT_SECRET` invalide les sessions actives, `ENCRYPTION_KEY` rend les cles API stockees illisibles. Les sauvegarder hors du serveur.
+
+## Reverse proxy
+
+Le conteneur expose nginx sur le port `8080` (interne). Il faut un reverse proxy en amont qui :
+
+1. Termine le HTTPS sur ton domaine (`${APP_DOMAIN}`).
+2. Forwarde vers `chartsbuilder:8080` (resolution DNS Docker) ou `localhost:<port-publie>` selon ta strategie reseau.
+3. Idealement : ajoute les **security headers** (HSTS, CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy). Le snippet [`docker/security-headers.conf`](../docker/security-headers.conf) liste l'ensemble que la baseline securite du projet attend.
+
+### Option A : exposer le port directement (sans reverse proxy)
+
+Pour un test rapide ou un reverse proxy externe (ALB, CloudFront, Cloudflare Tunnel…), edite [`docker/docker-compose.yml`](../docker/docker-compose.yml) pour publier le port :
+
+```yaml
+services:
+  chartsbuilder:
+    ports:
+      - "8080:8080"      # localhost:8080 -> conteneur:8080
+    # Supprimer les labels traefik.* et le `networks: [ecosystem-network]`
+```
+
+L'app sera accessible sur `http://<ip-vps>:8080` (HTTP en clair, **non recommande en prod**).
+
+### Option B : Traefik (config fournie en exemple)
+
+Le `docker-compose.yml` fourni est pre-cable pour Traefik. Prerequis :
+
+- Reseau Docker externe (le nom est libre, par defaut le compose utilise `ecosystem-network` — adapter si besoin) :
+  ```bash
+  docker network create ecosystem-network
+  ```
+- Traefik en cours, attache au meme reseau, avec les EntryPoints `web` (80) et `websecure` (443) et un certResolver (Let's Encrypt par exemple, nomme `letsencrypt` dans les labels). Ajuster les labels `traefik.http.routers.*.tls.certresolver=...` au nom de ton resolver.
+- Optionnel : middleware Traefik `chartsbuilder-headers@file` pour les security headers + options TLS `anssi-strict@file`. Si tu n'as pas ces fichiers, retire les deux labels correspondants ou definis-les dans ta conf dynamique Traefik.
+
+### Option C : Caddy
+
+```caddy
+chartsbuilder.example.org {
+    encode zstd gzip
+    header {
+        Strict-Transport-Security "max-age=63072000; includeSubDomains"
+        X-Frame-Options "DENY"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "interest-cohort=()"
+    }
+    reverse_proxy chartsbuilder:8080
+}
+```
+
+Caddy doit etre dans le meme reseau Docker que `chartsbuilder` (ou utiliser `localhost:<published-port>` apres avoir publie le port comme dans l'option A).
+
+### Option D : nginx en frontal
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name chartsbuilder.example.org;
+
+    ssl_certificate     /etc/letsencrypt/live/chartsbuilder.example.org/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/chartsbuilder.example.org/privkey.pem;
+
+    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;     # si port publie via Option A
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
 
 ## Premier deploiement
 
 ### Mode statique
 
 ```bash
-# Sur le VPS
 git clone https://github.com/bmatge/dsfr-data.git
 cd dsfr-data
 
-# Reseau Traefik (si pas deja en place)
+# Reseau Docker pour le reverse proxy (uniquement si tu utilises Traefik
+# avec un reseau partage — adapter le nom au reseau de ton reverse proxy).
+# Pas necessaire avec l'option A "ports publies".
 docker network create ecosystem-network 2>/dev/null || true
 
-# Configuration minimale
 cp .env.example .env
-# Editer APP_DOMAIN au besoin, puis :
+# Editer APP_DOMAIN. Adapter ou supprimer les labels traefik.* dans
+# docker/docker-compose.yml selon ton choix de reverse proxy.
 
 ./docker/deploy.sh
 ```
 
-Un seul conteneur tourne (`chartsbuilder`), nginx ecoute en interne sur le port 8080, Traefik route le trafic public.
+Un seul conteneur tourne (`chartsbuilder`), nginx ecoute en interne sur le port `8080`.
 
 ### Mode serveur
 
 ```bash
-# Sur le VPS
 git clone https://github.com/bmatge/dsfr-data.git
 cd dsfr-data
 
@@ -219,14 +297,14 @@ Voir [`scripts/migrate-sqlite-to-mariadb.ts`](../scripts/migrate-sqlite-to-maria
 
 ## Checklist securite
 
-- [ ] HTTPS termine par Traefik avec un cert valide (`tls.certresolver=letsencrypt`).
-- [ ] Options TLS `anssi-strict@file` actives (TLS 1.2+ uniquement, ciphers ANSSI).
-- [ ] Headers de securite ajoutes par le middleware Traefik `chartsbuilder-headers@file` ou via [`docker/security-headers.conf`](../docker/security-headers.conf) (HSTS, CSP, X-Frame-Options, Permissions-Policy).
+- [ ] HTTPS termine par le reverse proxy avec un certificat valide (Let's Encrypt, ACME, ou cert d'entreprise).
+- [ ] TLS 1.2+ uniquement, ciphers conformes ANSSI ou Mozilla Modern.
+- [ ] Headers de securite presents en reponse (HSTS, CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy). Cf. [`docker/security-headers.conf`](../docker/security-headers.conf) pour les valeurs attendues par la baseline du projet.
 - [ ] `.env` n'est PAS commite (`.gitignore` le couvre).
 - [ ] `JWT_SECRET`, `DB_*_PASSWORD`, `ENCRYPTION_KEY` sauvegardes hors du serveur (perte = perte de l'acces aux comptes ET aux cles API chiffrees).
 - [ ] Sauvegarde MariaDB programmee (cron + dump quotidien hors-site).
 - [ ] `IA_DEFAULT_TOKEN` (si utilise) jamais commit, jamais affiche dans les logs : c'est une cle Albert.
-- [ ] Reverse proxy Traefik a jour (CVEs reverse-proxy = critiques).
+- [ ] Reverse proxy a jour (CVEs reverse-proxy = critiques).
 - [ ] Conteneur nginx tourne **non-root** (uid 101) — verifie via `docker inspect`. C'est le defaut depuis [PR #113](https://github.com/bmatge/dsfr-data/pull/113).
 - [ ] CSP testee en pre-production avec un site qui embarque un widget genere (sources publiques).
 
@@ -234,19 +312,19 @@ Voir aussi [docs/SECURITY.md](SECURITY.md) (modele de menace, signalement de vul
 
 ## Pieges connus
 
-### Le projet Docker s'appelait `datasource-charts-webcomponents`
+### Volumes orphelins apres renommage de dossier
 
-Le repo a ete renomme `dsfr-data` mais le projet Docker en prod s'appelle encore `datasource-charts-webcomponents`. Pour reutiliser les volumes existants apres migration de repo :
+Docker prefixe les volumes par le nom du projet (par defaut le nom du dossier git). Si tu renommes le dossier ou le projet, Docker creera de nouveaux volumes vides et les donnees existantes resteront orphelines. Pour reutiliser les volumes existants, fixer explicitement :
 
 ```bash
-echo "COMPOSE_PROJECT_NAME=datasource-charts-webcomponents" >> .env
+echo "COMPOSE_PROJECT_NAME=<ancien-nom-du-projet>" >> .env
 ```
 
-Sinon Docker creera de nouveaux volumes vides et les donnees existantes resteront orphelines.
+(Par exemple, l'instance de reference utilise `COMPOSE_PROJECT_NAME=datasource-charts-webcomponents`, nom historique du repo avant son renommage en `dsfr-data`.)
 
 ### Cache d'IP Traefik apres recreation de conteneur
 
-Si tu recrees les conteneurs (par exemple apres `docker network rm` + recreation) et que les IPs internes changent, Traefik peut garder en cache l'ancienne IP et renvoyer 502. Solution : `docker restart <traefik-container>` apres le `up -d`.
+Specifique a Traefik : si tu recrees les conteneurs (par exemple apres `docker network rm` + recreation) et que les IPs internes changent, Traefik peut garder en cache l'ancienne IP et renvoyer 502. Solution : `docker restart <traefik-container>` apres le `up -d`.
 
 ### Volume `beacon-logs` pre-PR #113
 
