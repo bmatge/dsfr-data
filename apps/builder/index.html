@@ -237,25 +237,6 @@
           </select>
         </div>
 
-        <!-- Ligne 2 : Agregation / Limite -->
-        <div class="config-grid-2col fr-mt-1w">
-          <div class="fr-select-group fr-select-group--sm">
-            <label class="fr-label" for="aggregation">
-              Agregation
-              <button type="button" class="help-btn" aria-label="Aide" aria-describedby="help-aggregation" data-help="aggregation"><i class="ri-question-line" aria-hidden="true"></i></button>
-              <span class="fr-hint-text">Comment combiner les valeurs par etiquette</span>
-            </label>
-            <select class="fr-select" id="aggregation">
-              <option value="avg">Moyenne</option>
-              <option value="sum">Somme</option>
-              <option value="count">Comptage</option>
-              <option value="min">Min</option>
-              <option value="max">Max</option>
-            </select>
-          </div>
-
-        </div>
-
         <!-- Tri -->
         <div class="config-grid-2col fr-mt-1w">
           <div class="fr-select-group fr-select-group--sm">
@@ -278,6 +259,25 @@
               <option value="none">Ordre source</option>
             </select>
           </div>
+        </div>
+
+        <!-- Ligne : Agregation (label a gauche, select a droite) -->
+        <div class="fr-select-group fr-select-group--sm fr-mt-1w agg-row">
+          <div class="agg-row__label">
+            <label class="fr-label" for="aggregation">
+              Si plusieurs lignes par categorie, agreger par
+              <button type="button" class="help-btn" aria-label="Aide" aria-describedby="help-aggregation" data-help="aggregation"><i class="ri-question-line" aria-hidden="true"></i></button>
+            </label>
+            <span class="fr-hint-text">Comment combiner les valeurs partageant la meme categorie</span>
+            <span class="agg-badge" id="aggregation-badge" hidden></span>
+          </div>
+          <select class="fr-select agg-row__select" id="aggregation">
+            <option value="sum">Somme</option>
+            <option value="avg">Moyenne</option>
+            <option value="count">Comptage</option>
+            <option value="min">Min</option>
+            <option value="max">Max</option>
+          </select>
         </div>
 
         <!-- Toggle Mode Avance -->

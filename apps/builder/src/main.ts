@@ -28,6 +28,7 @@ import { setupNormalizeListeners, updateMiddlewareSections } from './ui/normaliz
 import { setupFacetsListeners } from './ui/facets-config.js';
 import { addExtraSeries } from './ui/extra-series.js';
 import { initHelpTooltips, updatePreviewSteps } from './ui/help-tooltips.js';
+import { applyAggregationDefault, updateAggregationBadge } from './ui/aggregation-smart.js';
 import { startTourIfFirstVisit, injectTourStyles, resetTour, startTour } from '@dsfr-data/shared';
 import { BUILDER_TOUR } from './ui/tour.js';
 
@@ -81,6 +82,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (labelFieldSelect) {
     labelFieldSelect.addEventListener('change', (e) => {
       state.labelField = (e.target as HTMLSelectElement).value;
+      updateAggregationBadge();
       updatePreviewSteps();
     });
   }
@@ -88,7 +90,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (valueFieldSelect) {
     valueFieldSelect.addEventListener('change', (e) => {
       state.valueField = (e.target as HTMLSelectElement).value;
+      applyAggregationDefault();
       updatePreviewSteps();
+    });
+  }
+
+  const aggregationSelect = document.getElementById('aggregation') as HTMLSelectElement | null;
+  if (aggregationSelect) {
+    aggregationSelect.addEventListener('change', (e) => {
+      state.aggregation = (e.target as HTMLSelectElement).value as typeof state.aggregation;
+      state.aggregationUserModified = true;
     });
   }
 

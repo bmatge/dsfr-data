@@ -63,22 +63,21 @@ export function selectChartType(type: ChartType): void {
   const sortGroup = sortSelect?.closest('.fr-select-group') as HTMLElement | null;
   if (sortGroup) sortGroup.style.display = hideSort ? 'none' : 'block';
 
-  // Aggregation: hide for datalist, update hint text for others
+  // Aggregation: hide for datalist, update hint text for others.
+  // Reset to '' (not 'block') so the CSS-defined display (grid for .agg-row)
+  // takes effect.
   const aggSelect = document.getElementById('aggregation');
   const aggGroup = aggSelect?.closest('.fr-select-group') as HTMLElement | null;
-  if (aggGroup) aggGroup.style.display = isDatalist ? 'none' : 'block';
+  if (aggGroup) aggGroup.style.display = isDatalist ? 'none' : '';
 
-  const aggLabel = document.querySelector('label[for="aggregation"]');
-  if (aggLabel) {
+  const aggHint = document.querySelector('label[for="aggregation"] .fr-hint-text');
+  if (aggHint) {
     if (isSingleValue) {
-      aggLabel.innerHTML =
-        'Agr\u00e9gation<span class="fr-hint-text">Calcul sur l\'ensemble des donn\u00e9es</span>';
+      aggHint.textContent = "Calcul sur l'ensemble des donnees";
     } else if (isMap) {
-      aggLabel.innerHTML =
-        'Agr\u00e9gation<span class="fr-hint-text">Si plusieurs valeurs par d\u00e9partement</span>';
+      aggHint.textContent = 'Si plusieurs valeurs par departement';
     } else {
-      aggLabel.innerHTML =
-        'Agr\u00e9gation<span class="fr-hint-text">Comment regrouper les valeurs</span>';
+      aggHint.textContent = 'Comment combiner les valeurs partageant la meme categorie';
     }
   }
 

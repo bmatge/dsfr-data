@@ -126,6 +126,12 @@ export interface BuilderState {
   extraSeries: ExtraSeries[];
   codeField: string;
   aggregation: AggregationType;
+  /**
+   * True once the user has explicitly picked an aggregation in the UI.
+   * While false, the smart default re-evaluates on each value-field change.
+   * Reset to false when a new source is loaded.
+   */
+  aggregationUserModified: boolean;
   sortOrder: SortOrder;
   /**
    * Field to sort by. Empty string means "auto" (sort by aggregated value for
@@ -261,6 +267,7 @@ export const state: BuilderState = {
   extraSeries: [],
   codeField: '',
   aggregation: 'avg',
+  aggregationUserModified: false,
   sortOrder: 'desc',
   sortField: '',
   title: 'Mon graphique',

@@ -353,6 +353,51 @@ body {
   color: var(--text-action-high-blue-france) !important;
 }
 
+/* ─── Aggregation row : label a gauche, select a droite ─── */
+
+.agg-row {
+  display: grid;
+  grid-template-columns: 1fr 12rem;
+  gap: 1rem;
+  align-items: center;
+}
+.agg-row__label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+.agg-row__label .fr-label {
+  margin-bottom: 0;
+}
+.agg-row__select {
+  align-self: center;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .agg-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ─── Aggregation neutralized badge ─── */
+
+.agg-badge {
+  display: inline-block;
+  align-self: flex-start;
+  margin-top: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-default-info);
+  background: var(--background-contrast-info);
+  border-radius: 0.25rem;
+  cursor: help;
+}
+.agg-badge[hidden] {
+  display: none;
+}
+
 /* ─── Help tooltips ─── */
 
 .help-btn {

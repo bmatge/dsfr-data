@@ -21,6 +21,11 @@ import {
 import { state, type ChartType, type Source, type Field } from './state.js';
 import { selectChartType } from './ui/chart-type-selector.js';
 import { populateFieldSelects } from './sources-fields.js';
+import {
+  applyAggregationDefault,
+  resetAggregationUserModified,
+  updateAggregationBadge,
+} from './ui/aggregation-smart.js';
 import { generateCodeForLocalData } from './ui/code-generator.js';
 import { updateMiddlewareSections, autoEnableNormalizeForGrist } from './ui/normalize-config.js';
 import { restoreExtraSeriesFromState } from './ui/extra-series.js';
@@ -380,6 +385,13 @@ export function loadFieldsFromLocalData(): void {
   }
 
   populateFieldSelects();
+
+  // Smart aggregation : on each fresh source, reset the "user-modified" flag
+  // so the default re-evaluates (count if no valueField, sum/avg by name).
+  // Then refresh the "donnees deja groupees" badge from the new sample.
+  resetAggregationUserModified();
+  applyAggregationDefault();
+  updateAggregationBadge();
 
   // Show/hide generation mode section based on source type
   const generationModeSection = document.getElementById(

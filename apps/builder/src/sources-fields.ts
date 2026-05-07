@@ -83,9 +83,18 @@ export function populateFieldSelects(): void {
         fieldNameLower(f).includes('insee'))
   );
 
-  if (stringField) labelSelect.value = stringField.name;
-  if (numberField) valueSelect.value = numberField.name;
-  if (codeField) codeSelect.value = codeField.name;
+  if (stringField) {
+    labelSelect.value = stringField.name;
+    state.labelField = stringField.name;
+  }
+  if (numberField) {
+    valueSelect.value = numberField.name;
+    state.valueField = numberField.name;
+  }
+  if (codeField) {
+    codeSelect.value = codeField.name;
+    state.codeField = codeField.name;
+  }
 
   // Re-populate existing extra series selects
   refreshExtraSeriesSelects();
