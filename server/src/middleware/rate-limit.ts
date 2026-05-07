@@ -68,3 +68,25 @@ export function globalApiRateLimiter(req: Request, res: Response, next: NextFunc
   }
   globalApiLimiter(req, res, next);
 }
+
+const publicShareLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 60, // 60 anonymous requests per minute per IP
+  message: { error: 'Too many requests for public share' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
+ * Rate limiter for anonymous public-share endpoints. Stricter than the global
+ * limiter because these endpoints have no auth — the only client identifier
+ * is the IP. Goal : a leaked link cannot be used to scrape data en masse.
+ * Disabled in test environment.
+ */
+export function publicShareRateLimiter(req: Request, res: Response, next: NextFunction): void {
+  if (process.env.NODE_ENV === 'test') {
+    next();
+    return;
+  }
+  publicShareLimiter(req, res, next);
+}

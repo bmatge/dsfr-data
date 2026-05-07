@@ -85,17 +85,21 @@ CREATE TABLE IF NOT EXISTS dashboards (
   FOREIGN KEY (owner_id) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Sharing (polymorphic)
+-- Sharing (polymorphic). target_type='public' = anonymous capability link
+-- (the row id is the unguessable token, target_id stays NULL).
 CREATE TABLE IF NOT EXISTS shares (
   id VARCHAR(36) NOT NULL PRIMARY KEY,
   resource_type VARCHAR(50) NOT NULL,
   resource_id VARCHAR(36) NOT NULL,
-  target_type ENUM('user', 'group', 'global') NOT NULL,
+  target_type ENUM('user', 'group', 'global', 'public') NOT NULL,
   target_id VARCHAR(36),
   permission ENUM('read', 'write') NOT NULL DEFAULT 'read',
   granted_by VARCHAR(36) NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE KEY uq_share (resource_type, resource_id, target_type, target_id),
+  expires_at TIMESTAMP NULL,
+  revoked_at TIMESTAMP NULL,
+  INDEX idx_shares_resource (resource_type, resource_id),
+  INDEX idx_shares_target (target_type, target_id),
   FOREIGN KEY (granted_by) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

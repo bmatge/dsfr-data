@@ -64,6 +64,48 @@
     </main>
   </div>
 
+  <!-- Share public link modal -->
+  <div class="modal-overlay" id="share-modal">
+    <div class="modal-content share-modal-content">
+      <h3>Partager publiquement</h3>
+      <p class="fr-text--sm">
+        Toute personne disposant de ce lien pourra voir le rendu du favori, sans creer de compte.
+        Le lien est secret&nbsp;: ne le diffusez qu'aux personnes a qui vous voulez donner acces.
+      </p>
+
+      <div id="share-modal-state-loading" class="share-modal-state">
+        <p class="fr-text--sm fr-mt-2w"><i class="ri-loader-4-line" aria-hidden="true"></i> Generation du lien&hellip;</p>
+      </div>
+
+      <div id="share-modal-state-active" class="share-modal-state" hidden>
+        <div class="fr-input-group fr-input-group--sm fr-mt-2w">
+          <label class="fr-label" for="share-public-url">Lien public</label>
+          <div class="share-url-row">
+            <input type="text" class="fr-input" id="share-public-url" readonly>
+            <button class="fr-btn fr-btn--sm fr-btn--icon-left fr-icon-clipboard-line" id="share-copy-btn">Copier</button>
+          </div>
+          <p class="fr-hint-text" id="share-expiration-hint"></p>
+        </div>
+        <div class="modal-actions">
+          <button class="fr-btn fr-btn--secondary" id="share-close-btn">Fermer</button>
+          <button class="fr-btn fr-btn--tertiary-no-outline" id="share-revoke-btn">
+            <i class="ri-link-unlink-m" aria-hidden="true"></i>
+            Revoquer le lien
+          </button>
+        </div>
+      </div>
+
+      <div id="share-modal-state-error" class="share-modal-state" hidden>
+        <div class="fr-alert fr-alert--warning fr-alert--sm fr-mt-2w">
+          <p id="share-error-message"></p>
+        </div>
+        <div class="modal-actions">
+          <button class="fr-btn fr-btn--secondary" id="share-error-close-btn">Fermer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Delete confirmation modal -->
   <div class="modal-overlay" id="delete-modal">
     <div class="modal-content">
