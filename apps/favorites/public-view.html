@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-scheme="system">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>dsfr-data &mdash; Vue partagee</title>
+
+  <!-- DSFR -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css" integrity="sha384-atVZ+aK6VI0nWyTEhKgze5InDJ+SWRRqa0BCZ2MTNyoOcBiHj1c3dGPdi6ML65B3" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css" integrity="sha384-5P5DFFqorcEBpfnK9WHu/Ralfr7ZxyCZh0ryaJbgucSvc71+qRYdGvNEcyMqQwa/" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
+
+  <link rel="stylesheet" href="src/styles/favorites.css">
+
+  <style>
+    .public-view-layout {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
+    .public-view-banner {
+      margin-bottom: 1rem;
+    }
+    .public-view-frame-wrap {
+      border: 1px solid var(--border-default-grey);
+      border-radius: 8px;
+      overflow: hidden;
+      background: white;
+    }
+    .public-view-frame {
+      width: 100%;
+      min-height: 480px;
+      border: 0;
+      display: block;
+    }
+    .public-view-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 4rem 1rem;
+      text-align: center;
+      color: var(--text-mention-grey);
+    }
+    .public-view-empty i {
+      font-size: 2.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="public-view-layout">
+    <div class="fr-alert fr-alert--info fr-alert--sm public-view-banner">
+      <p>
+        <i class="ri-share-line" aria-hidden="true"></i>
+        Vous consultez un favori partage publiquement par un utilisateur de dsfr-data.
+        Les donnees affichees viennent directement des sources publiques referencees dans le rendu.
+      </p>
+    </div>
+
+    <h1 id="public-view-title" class="fr-h3">Chargement&hellip;</h1>
+
+    <div id="public-view-content" class="public-view-frame-wrap">
+      <div class="public-view-empty">
+        <i class="ri-loader-4-line" aria-hidden="true"></i>
+        <p>Chargement du contenu partage&hellip;</p>
+      </div>
+    </div>
+
+    <p class="fr-text--xs fr-mt-2w" style="color: var(--text-mention-grey);">
+      Lien public &mdash; ce contenu peut etre revoque a tout moment par son auteur.
+    </p>
+  </div>
+
+  <!-- App entry point -->
+  <script type="module" src="src/public-view.ts"></script>
+</body>
+</html>

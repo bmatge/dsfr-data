@@ -184,6 +184,9 @@ async function runMigrations(): Promise<void> {
   if (currentVersion < 6) {
     await migrateV6();
   }
+  if (currentVersion < 7) {
+    await migrateV7();
+  }
 }
 
 /**
@@ -338,6 +341,69 @@ async function migrateV5(): Promise<void> {
 
     await conn.commit();
     console.log('[db] Migration v5 complete');
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+}
+
+/**
+ * Migration v7: extend `shares` to support public links (issue #148).
+ * - target_type ENUM gains a 'public' value
+ * - new columns expires_at + revoked_at on shares
+ * - drop the unique key uq_share, useless for public links (one share per
+ *   resource per user/group is replaced by one share row per public link —
+ *   target_id stays NULL, the row id IS the token, multiple links allowed
+ *   for the same resource)
+ */
+async function migrateV7(): Promise<void> {
+  console.log(
+    '[db] Running migration v7: shares.target_type adds public + expires_at + revoked_at'
+  );
+
+  const conn = await getPool().getConnection();
+  try {
+    const [cols] = await conn.query(
+      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'shares' AND COLUMN_NAME = 'expires_at'`
+    );
+    if ((cols as unknown[]).length > 0) {
+      await conn.query('INSERT IGNORE INTO schema_version (version) VALUES (7)');
+      return;
+    }
+
+    await conn.beginTransaction();
+
+    await conn.query(
+      `ALTER TABLE shares
+       MODIFY target_type ENUM('user', 'group', 'global', 'public') NOT NULL`
+    );
+
+    await conn.query(
+      `ALTER TABLE shares
+       ADD COLUMN expires_at TIMESTAMP NULL AFTER created_at,
+       ADD COLUMN revoked_at TIMESTAMP NULL AFTER expires_at`
+    );
+
+    // The legacy unique key (resource_type, resource_id, target_type, target_id)
+    // would block a second public link for the same resource (target_id=NULL
+    // collides with itself). Drop it and replace with a non-unique index that
+    // still keeps queries by resource fast.
+    const [keys] = await conn.query(
+      `SELECT INDEX_NAME FROM INFORMATION_SCHEMA.STATISTICS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'shares' AND INDEX_NAME = 'uq_share'`
+    );
+    if ((keys as unknown[]).length > 0) {
+      await conn.query(`ALTER TABLE shares DROP INDEX uq_share`);
+    }
+    await conn.query(`CREATE INDEX idx_shares_resource ON shares (resource_type, resource_id)`);
+    await conn.query(`CREATE INDEX idx_shares_target ON shares (target_type, target_id)`);
+
+    await conn.query('INSERT IGNORE INTO schema_version (version) VALUES (7)');
+    await conn.commit();
+    console.log('[db] Migration v7 complete');
   } catch (err) {
     await conn.rollback();
     throw err;

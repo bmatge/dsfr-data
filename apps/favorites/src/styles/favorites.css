@@ -1,4 +1,6 @@
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
 body {
   margin: 0;
@@ -255,4 +257,17 @@ body {
   gap: 0.5rem;
   justify-content: flex-end;
   margin-top: 1.5rem;
+}
+
+.share-modal-content {
+  max-width: 540px;
+}
+
+.share-url-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+.share-url-row .fr-input {
+  flex: 1;
 }

@@ -22,6 +22,7 @@ import {
 import { loadFavorites, saveFavorites, deleteFavorite, findFavorite } from './favorites-manager.js';
 import type { Favorite } from './favorites-manager.js';
 import { getPreviewHTML } from './preview.js';
+import { openShareModal } from './share-link.js';
 
 // State (re-loaded after initAuth in DOMContentLoaded)
 let favorites = loadFavorites();
@@ -187,6 +188,11 @@ function renderContent(): void {
                 onclick="copyCode('${fav.id}')">
           Copier le code
         </button>
+        <button class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-share-line"
+                onclick="shareFavorite('${fav.id}')"
+                title="Partager publiquement (lien anonyme)">
+          Partager
+        </button>
         <button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-icon-delete-line"
                 onclick="showDeleteModal('${fav.id}')"
                 title="Supprimer">
@@ -303,6 +309,13 @@ function renameFavorite(id: string): void {
   input.select();
 }
 
+function shareFavorite(id: string): void {
+  const fav = findFavorite(favorites, id);
+  if (!fav) return;
+  // openShareModal handles its own UI state (loading / active / error)
+  void openShareModal(id);
+}
+
 function showDeleteModal(id: string): void {
   const fav = findFavorite(favorites, id);
   if (fav) {
@@ -372,6 +385,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('import-btn')?.addEventListener('click', importFavorites);
 
   setupModalOverlayClose('delete-modal');
+  setupModalOverlayClose('share-modal');
 });
 
 // Expose functions globally for onclick handlers in HTML
@@ -381,6 +395,7 @@ declare global {
     openInPlayground: typeof openInPlayground;
     openInBuilder: typeof openInBuilder;
     copyCode: typeof copyCode;
+    shareFavorite: typeof shareFavorite;
     showDeleteModal: typeof showDeleteModal;
     closeDeleteModal: typeof handleCloseDeleteModal;
     renameFavorite: typeof renameFavorite;
@@ -391,6 +406,7 @@ window.selectFavorite = selectFavorite;
 window.openInPlayground = openInPlayground;
 window.openInBuilder = openInBuilder;
 window.copyCode = copyCode;
+window.shareFavorite = shareFavorite;
 window.showDeleteModal = showDeleteModal;
 window.closeDeleteModal = handleCloseDeleteModal;
 window.renameFavorite = renameFavorite;

@@ -13,6 +13,7 @@ import favoritesRoutes from './routes/favorites.js';
 import dashboardsRoutes from './routes/dashboards.js';
 import groupsRoutes from './routes/groups.js';
 import sharesRoutes from './routes/shares.js';
+import publicShareRoutes from './routes/public-share.js';
 import cacheRoutes from './routes/cache.js';
 import migrateRoutes from './routes/migrate.js';
 import monitoringRoutes from './routes/monitoring.js';
@@ -60,6 +61,11 @@ app.use('/api/favorites', favoritesRoutes);
 app.use('/api/dashboards', dashboardsRoutes);
 app.use('/api/groups', groupsRoutes);
 app.use('/api/shares', sharesRoutes);
+// Anonymous routes for public share resolution. Mounted at a distinct
+// /api/public/share/* path to make the public surface obvious. The router
+// only declares GET /:token (no mutations), so CSRF protection above does
+// not apply.
+app.use('/api/public/share', publicShareRoutes);
 app.use('/api/cache', cacheRoutes);
 app.use('/api/migrate', migrateRoutes);
 app.use('/api/monitoring', monitoringRoutes);

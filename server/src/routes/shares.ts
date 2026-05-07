@@ -19,6 +19,33 @@ const RESOURCE_TABLES: Record<string, string> = {
 };
 
 /**
+ * A favorite "needs private proxy" when its saved source references a
+ * connection or carries a (legacy) inline apiKey. The builder state is stored
+ * as JSON in `favorites.builder_state_json` — MariaDB returns an already-parsed
+ * object, but we accept either shape for safety.
+ */
+export function favoriteNeedsPrivateProxy(rawBuilderState: unknown): boolean {
+  if (!rawBuilderState) return false;
+  let state: Record<string, unknown>;
+  if (typeof rawBuilderState === 'string') {
+    try {
+      state = JSON.parse(rawBuilderState) as Record<string, unknown>;
+    } catch {
+      return false;
+    }
+  } else if (typeof rawBuilderState === 'object') {
+    state = rawBuilderState as Record<string, unknown>;
+  } else {
+    return false;
+  }
+  const source = state.savedSource as Record<string, unknown> | undefined;
+  if (!source) return false;
+  if (source.connectionId) return true;
+  if (typeof source.apiKey === 'string' && source.apiKey.trim().length > 0) return true;
+  return false;
+}
+
+/**
  * GET / - List shares for a resource
  * Query params: resource_type, resource_id
  */
@@ -76,12 +103,14 @@ router.post('/', requireAuth, async (req, res) => {
       return;
     }
 
-    if (!['user', 'group', 'global'].includes(target_type)) {
-      res.status(400).json({ error: 'target_type must be user, group, or global' });
+    if (!['user', 'group', 'global', 'public'].includes(target_type)) {
+      res.status(400).json({ error: 'target_type must be user, group, global, or public' });
       return;
     }
 
-    if (target_type !== 'global' && !target_id) {
+    // Public links don't need a target_id (target_id stays NULL — the share row id IS the token).
+    // user/group shares still require a target_id.
+    if (!['global', 'public'].includes(target_type) && !target_id) {
       res.status(400).json({ error: 'target_id is required for user and group shares' });
       return;
     }
@@ -107,14 +136,60 @@ router.post('/', requireAuth, async (req, res) => {
       return;
     }
 
+    // Public links : block favorites whose source needs server-side credentials
+    // (see issue #148 "PR2"). Detection : the saved source carries a connectionId
+    // OR a non-empty inline apiKey. For PR1 we cleanly refuse rather than serve
+    // a broken link. Other resource types (sources/connections/dashboards) are
+    // refused outright until the proxy work lands.
+    if (target_type === 'public') {
+      if (resource_type !== 'favorite') {
+        res
+          .status(400)
+          .json({ error: 'Public sharing is only available for favorites in this version' });
+        return;
+      }
+      const fav = await queryOne<{ builder_state_json: unknown }>(
+        'SELECT builder_state_json FROM favorites WHERE id = ?',
+        [resource_id]
+      );
+      if (fav && favoriteNeedsPrivateProxy(fav.builder_state_json)) {
+        res.status(400).json({
+          error:
+            "Cette favori utilise une source privee (connexion authentifiee). Le partage public est desactive pour l'instant — voir issue de suivi.",
+          code: 'PRIVATE_SOURCE_NOT_SUPPORTED',
+        });
+        return;
+      }
+    }
+
     const id = uuidv4();
     const perm = permission === 'write' ? 'write' : 'read';
 
+    // Optional expiration (only meaningful for public links).
+    let expiresAt: string | null = null;
+    if (req.body.expires_at) {
+      const d = new Date(req.body.expires_at);
+      if (Number.isNaN(d.getTime()) || d.getTime() <= Date.now()) {
+        res.status(400).json({ error: 'expires_at must be a future ISO timestamp' });
+        return;
+      }
+      expiresAt = d.toISOString().slice(0, 19).replace('T', ' ');
+    }
+
     try {
       await execute(
-        `INSERT INTO shares (id, resource_type, resource_id, target_type, target_id, permission, granted_by)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [id, resource_type, resource_id, target_type, target_id || null, perm, authReq.user!.userId]
+        `INSERT INTO shares (id, resource_type, resource_id, target_type, target_id, permission, granted_by, expires_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          id,
+          resource_type,
+          resource_id,
+          target_type,
+          target_id || null,
+          perm,
+          authReq.user!.userId,
+          expiresAt,
+        ]
       );
 
       const share = await queryOne('SELECT * FROM shares WHERE id = ?', [id]);
