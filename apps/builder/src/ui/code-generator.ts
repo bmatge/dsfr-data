@@ -37,6 +37,33 @@ function displayGeneratedCode(code: string): void {
 const ODS_PAGE_SIZE = 100;
 const ODS_MAX_PAGES = 10;
 
+/**
+ * Resolve the field name to use in `order-by` for dsfr-data-query.
+ * - sortOrder === 'none' → returns null (caller should skip the attribute)
+ * - sortField empty or === valueField → defaults to `defaultValueField` (the
+ *   aggregated alias, ex: "population__sum")
+ * - otherwise → returns sortField as-is (ex: labelField for alphabetical sort)
+ */
+function resolveSortField(defaultValueField: string): string | null {
+  if (state.sortOrder === 'none') return null;
+  if (!state.sortField || state.sortField === state.valueField) {
+    return defaultValueField;
+  }
+  return state.sortField;
+}
+
+/**
+ * Build the `tri="..."` attribute for dsfr-data-list.
+ * Defaults to labelField; user-chosen sortField overrides. Empty string when
+ * sortOrder === 'none' (preserve source order).
+ */
+function buildDatalistTriAttr(): string {
+  if (state.sortOrder === 'none') return '';
+  const field = state.sortField || state.labelField;
+  if (!field) return '';
+  return `\n    tri="${field}:${state.sortOrder}"`;
+}
+
 /** Generate DataBox attributes for dsfr-data-chart (dynamic mode) */
 function generateDataboxAttrs(): string {
   if (!state.databoxEnabled) return '';
@@ -439,6 +466,7 @@ export async function generateChart(): Promise<void> {
   const codeField = document.getElementById('code-field') as HTMLSelectElement | null;
   const aggregation = document.getElementById('aggregation') as HTMLSelectElement | null;
   const sortOrder = document.getElementById('sort-order') as HTMLSelectElement | null;
+  const sortField = document.getElementById('sort-field') as HTMLSelectElement | null;
 
   if (labelField) state.labelField = labelField.value;
   if (valueField) state.valueField = valueField.value;
@@ -447,6 +475,7 @@ export async function generateChart(): Promise<void> {
   state.codeField = codeField?.value || '';
   if (aggregation) state.aggregation = aggregation.value as typeof state.aggregation;
   if (sortOrder) state.sortOrder = sortOrder.value as typeof state.sortOrder;
+  if (sortField) state.sortField = sortField.value;
 
   const isKPI = state.chartType === 'kpi';
   const isGauge = state.chartType === 'gauge';
@@ -551,12 +580,18 @@ export async function generateChart(): Promise<void> {
     });
   } else {
     // Chart: group by label field — limit=200 to fetch all categories
-    params = new URLSearchParams({
+    const baseParams: Record<string, string> = {
       select: `${state.labelField}, ${valueExpression}${extraValueExpressions}`,
       group_by: state.labelField,
-      order_by: `value ${state.sortOrder}`,
       limit: '200',
-    });
+    };
+    // Skip order_by when sortOrder is 'none' (preserve source order)
+    if (state.sortOrder !== 'none') {
+      const odsSortField =
+        state.sortField && state.sortField !== state.valueField ? state.sortField : 'value';
+      baseParams.order_by = `${odsSortField} ${state.sortOrder}`;
+    }
+    params = new URLSearchParams(baseParams);
   }
 
   // Apply advanced mode filter to API request
@@ -703,12 +738,20 @@ export function generateChartFromLocalData(): void {
     return result;
   });
 
-  // Sort
-  results.sort((a, b) => {
-    return state.sortOrder === 'desc'
-      ? (b.value as number) - (a.value as number)
-      : (a.value as number) - (b.value as number);
-  });
+  // Sort (skip entirely when sortOrder === 'none' to preserve source order)
+  if (state.sortOrder !== 'none') {
+    const sortKey =
+      state.sortField && state.sortField !== state.valueField ? state.sortField : 'value';
+    const dir = state.sortOrder === 'desc' ? -1 : 1;
+    results.sort((a, b) => {
+      const va = a[sortKey];
+      const vb = b[sortKey];
+      const na = Number(va);
+      const nb = Number(vb);
+      if (!isNaN(na) && !isNaN(nb)) return (na - nb) * dir;
+      return String(va ?? '').localeCompare(String(vb ?? '')) * dir;
+    });
+  }
 
   state.data = results;
 
@@ -801,10 +844,7 @@ export function generateCodeForLocalData(): void {
   // Handle Datalist type (local data)
   if (state.chartType === 'datalist') {
     const colonnes = buildColonnesAttr();
-    const triAttr =
-      state.sortOrder !== 'none' && state.labelField
-        ? `\n    tri="${state.labelField}:${state.sortOrder}"`
-        : '';
+    const triAttr = buildDatalistTriAttr();
     const code = `<!-- Tableau genere avec dsfr-data Builder -->
 <!-- Source : ${state.savedSource?.name || 'Donnees locales'} -->
 
@@ -1063,8 +1103,9 @@ export function generateOdsQueryCode(
   // --- dsfr-data-query attributes (client-side post-processing) ---
   const qAttrs: string[] = [];
   qAttrs.push('source="chart-src"');
-  if (state.sortOrder && state.sortOrder !== 'none') {
-    qAttrs.push(`order-by="${resultValueField}:${state.sortOrder}"`);
+  const odsSortField = resolveSortField(resultValueField);
+  if (odsSortField) {
+    qAttrs.push(`order-by="${odsSortField}:${state.sortOrder}"`);
   }
 
   const queryElement = `
@@ -1156,8 +1197,9 @@ export function generateTabularQueryCode(
   }
 
   // Order by
-  if (state.sortOrder && state.sortOrder !== 'none') {
-    qAttrs.push(`order-by="${resultValueField}:${state.sortOrder}"`);
+  const tabularSortField = resolveSortField(resultValueField);
+  if (tabularSortField) {
+    qAttrs.push(`order-by="${tabularSortField}:${state.sortOrder}"`);
   }
 
   const queryElement = `
@@ -1247,8 +1289,9 @@ export function generateDsfrDataQueryCode(
   attrs.push(`aggregate="${escapeHtml(aggregateExpr)}"`);
 
   // Sort
-  if (state.sortOrder && state.sortOrder !== 'none') {
-    attrs.push(`order-by="${sortField}:${state.sortOrder}"`);
+  const dynSortField = resolveSortField(sortField);
+  if (dynSortField) {
+    attrs.push(`order-by="${dynSortField}:${state.sortOrder}"`);
   }
 
   const comment = state.advancedMode
@@ -1321,10 +1364,7 @@ export function generateDynamicCode(): void {
   // Handle Datalist type (Grist dynamic)
   if (state.chartType === 'datalist') {
     const colonnes = buildColonnesAttr();
-    const triAttr =
-      state.sortOrder !== 'none' && state.labelField
-        ? `\n    tri="${state.labelField}:${state.sortOrder}"`
-        : '';
+    const triAttr = buildDatalistTriAttr();
     const { elements: middlewareHtml, finalSourceId: datalistSource } = generateMiddlewareElements(
       'table-data',
       gristFacetsMode
@@ -1537,10 +1577,7 @@ export function generateDynamicCodeForApi(): void {
   // Handle Datalist type (API dynamic)
   if (state.chartType === 'datalist') {
     const colonnes = buildColonnesAttr();
-    const triAttr =
-      state.sortOrder !== 'none' && state.labelField
-        ? `\n    tri="${state.labelField}:${state.sortOrder}"`
-        : '';
+    const triAttr = buildDatalistTriAttr();
 
     if (provider.id === 'opendatasoft' && resourceIds?.datasetId) {
       const whereAttr =
@@ -1902,10 +1939,7 @@ loadGauge();
   // Handle Datalist type (API fetch)
   if (state.chartType === 'datalist') {
     const colonnes = buildColonnesAttr();
-    const triAttr =
-      state.sortOrder !== 'none' && state.labelField
-        ? `\n    tri="${state.labelField}:${state.sortOrder}"`
-        : '';
+    const triAttr = buildDatalistTriAttr();
     const code = `<!-- Tableau genere avec dsfr-data Builder -->
 
 <!-- Dependances CSS (DSFR) -->

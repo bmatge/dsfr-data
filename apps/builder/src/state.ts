@@ -127,6 +127,12 @@ export interface BuilderState {
   codeField: string;
   aggregation: AggregationType;
   sortOrder: SortOrder;
+  /**
+   * Field to sort by. Empty string means "auto" (sort by aggregated value for
+   * charts, by label for datalist). Set to a specific field name to sort by
+   * that field (e.g. labelField for alphabetical sort).
+   */
+  sortField: string;
   title: string;
   subtitle: string;
   palette: string;
@@ -256,6 +262,7 @@ export const state: BuilderState = {
   codeField: '',
   aggregation: 'avg',
   sortOrder: 'desc',
+  sortField: '',
   title: 'Mon graphique',
   subtitle: '',
   palette: 'default',

@@ -630,6 +630,8 @@ export function loadFavoriteState(): void {
         if (state.codeField && codeSelect) codeSelect.value = state.codeField;
         if (state.aggregation && aggSelect) aggSelect.value = state.aggregation;
         if (state.sortOrder && sortSelect) sortSelect.value = state.sortOrder;
+        const sortFieldSelect = document.getElementById('sort-field') as HTMLSelectElement | null;
+        if (sortFieldSelect) sortFieldSelect.value = state.sortField || '';
 
         // Restore extra series (migrates old valueField2 if needed)
         restoreExtraSeriesFromState();

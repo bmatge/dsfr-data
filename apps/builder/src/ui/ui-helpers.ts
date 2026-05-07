@@ -28,6 +28,7 @@ export function getBuilderStateToSave(): Record<string, unknown> {
     codeField: state.codeField,
     aggregation: state.aggregation,
     sortOrder: state.sortOrder,
+    sortField: state.sortField,
     title: state.title,
     subtitle: state.subtitle,
     palette: state.palette,
