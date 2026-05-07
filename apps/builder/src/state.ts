@@ -276,7 +276,7 @@ export const state: BuilderState = {
   codeField: '',
   aggregation: 'avg',
   aggregationUserModified: false,
-  sortOrder: 'desc',
+  sortOrder: 'none',
   sortField: '',
   title: 'Mon graphique',
   subtitle: '',

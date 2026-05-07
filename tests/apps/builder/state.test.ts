@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { state, PROXY_BASE_URL, FAVORITES_KEY } from '../../../apps/builder/src/state';
 import type {
-  BuilderState,
   ChartType,
   AggregationType,
   SortOrder,
@@ -23,7 +22,7 @@ describe('builder state', () => {
     expect(state.sourceType).toBe('saved');
     expect(state.chartType).toBe('bar');
     expect(state.aggregation).toBe('avg');
-    expect(state.sortOrder).toBe('desc');
+    expect(state.sortOrder).toBe('none');
     expect(state.title).toBe('Mon graphique');
     expect(state.palette).toBe('default');
     expect(state.color2).toBe('#E1000F');
@@ -42,8 +41,16 @@ describe('builder state', () => {
 
   it('should support all chart types', () => {
     const types: ChartType[] = [
-      'bar', 'horizontalBar', 'line', 'pie', 'doughnut',
-      'radar', 'scatter', 'gauge', 'kpi', 'map',
+      'bar',
+      'horizontalBar',
+      'line',
+      'pie',
+      'doughnut',
+      'radar',
+      'scatter',
+      'gauge',
+      'kpi',
+      'map',
     ];
     expect(types).toHaveLength(10);
   });
