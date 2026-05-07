@@ -225,7 +225,9 @@ body {
 
 .config-section-content {
   overflow: hidden;
-  max-height: 1000px;
+  /* Generous ceiling : fits the longest expanded form (incl. advanced mode +
+     databox + a11y options). Was 1000px → clipped "Agregations multiples". */
+  max-height: 5000px;
   transition:
     max-height 0.3s ease,
     padding 0.3s ease;
