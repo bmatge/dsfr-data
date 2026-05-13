@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <title>Effectifs lycées GT — Dashboard open data</title>
+
+  <!-- DSFR CSS -->
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css">
+
+  <!-- DSFR Chart -->
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"></script>
+
+  <!-- dsfr-data (web components) -->
+
+  <script src="https://cdn.jsdelivr.net/npm/dsfr-data@0/dist/dsfr-data.core.umd.js"></script>
+
+  <!-- DSFR JS (interactions UI) -->
+
+  <script defer type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.module.min.js"></script>
+
+</head>
+
+<body>
+  <!-- Liens d'évitement -->
+  <div class="fr-skiplinks">
+    <nav role="navigation" aria-label="Accès rapide">
+      <ul class="fr-skiplinks__list">
+        <li><a class="fr-link" href="#content">Contenu</a></li>
+        <li><a class="fr-link" href="#footer">Pied de page</a></li>
+      </ul>
+    </nav>
+  </div>
+
+  <!-- ══════════════════════════════
+       EN-TÊTE
+  ══════════════════════════════ -->
+
+  <header role="banner" class="fr-header">
+    <div class="fr-header__body">
+      <div class="fr-container">
+        <div class="fr-header__body-row">
+          <div class="fr-header__brand fr-enlarge-link">
+            <div class="fr-header__brand-top">
+              <div class="fr-header__logo">
+                <p class="fr-logo">Ministère<br>de l'Éducation<br>nationale</p>
+              </div>
+            </div>
+          </div>
+          <div class="fr-header__service">
+            <a href="#" title="Accueil — Effectifs lycées GT">
+              <p class="fr-header__service-title">Effectifs lycées GT</p>
+            </a>
+            <p class="fr-header__service-tagline">Dashboard open data — niveaux, sexe et langues vivantes</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ══════════════════════════════
+       CONTENU PRINCIPAL
+  ══════════════════════════════ -->
+
+  <main id="content" role="main">
+    <div class="fr-container fr-py-6w">
+
+```
+  <!-- ─────────────────────────────────────────────────────
+       SOURCES DE DONNÉES (composants invisibles)
+  ───────────────────────────────────────────────────── -->
+
+  <!-- KPIs globaux : agrégation serveur (1 ligne de résultat) -->
+  <dsfr-data-source id="src-kpi"
+    url="https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-lycee_gt-effectifs-niveau-sexe-lv/records"
+    params='{"select": "sum(nombre_d_eleves) as total_eleves, count(*) as nb_records", "limit": 1}'
+    transform="results">
+  </dsfr-data-source>
+
+  <!-- Secteur : PUBLIC / PRIVÉ -->
+  <dsfr-data-source id="src-secteur"
+    url="https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-lycee_gt-effectifs-niveau-sexe-lv/records"
+    params='{"select": "secteur, sum(nombre_d_eleves) as total", "group_by": "secteur", "order_by": "total desc"}'
+    transform="results">
+  </dsfr-data-source>
+
+  <!-- Dérivés secteur (pour KPIs public / privé) -->
+  <dsfr-data-query id="q-public" source="src-secteur" where="secteur:eq:PUBLIC"></dsfr-data-query>
+  <dsfr-data-query id="q-prive"  source="src-secteur" where="secteur:eq:PRIVE"></dsfr-data-query>
+
+  <!-- Par région académique -->
+  <dsfr-data-source id="src-region"
+    url="https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-lycee_gt-effectifs-niveau-sexe-lv/records"
+    params='{"select": "region_academique, sum(nombre_d_eleves) as total", "group_by": "region_academique", "order_by": "total desc", "limit": 20}'
+    transform="results">
+  </dsfr-data-source>
+
+  <!-- Évolution par rentrée scolaire -->
+  <dsfr-data-source id="src-evolution"
+    url="https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-lycee_gt-effectifs-niveau-sexe-lv/records"
+    params='{"select": "rentree_scolaire, sum(nombre_d_eleves) as total", "group_by": "rentree_scolaire", "order_by": "rentree_scolaire asc"}'
+    transform="results">
+  </dsfr-data-source>
+
+  <!-- Top 10 académies -->
+  <dsfr-data-source id="src-academie"
+    url="https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-lycee_gt-effectifs-niveau-sexe-lv/records"
+    params='{"select": "academie, sum(nombre_d_eleves) as total", "group_by": "academie", "order_by": "total desc", "limit": 10}'
+    transform="results">
+  </dsfr-data-source>
+
+  <!-- Dénomination des lycées : répartition des types -->
+  <dsfr-data-source id="src-type"
+    url="https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-lycee_gt-effectifs-niveau-sexe-lv/records"
+    params='{"select": "denomination_principale, sum(nombre_d_eleves) as total", "group_by": "denomination_principale", "order_by": "total desc", "limit": 8}'
+    transform="results">
+  </dsfr-data-source>
+
+  <!-- ─────────────────────────────────────────────────────
+       EN-TÊTE DE PAGE
+  ───────────────────────────────────────────────────── -->
+
+  <div class="fr-mb-5w">
+    <h1 class="fr-h2">
+      Effectifs des lycées d'enseignement général et technologique (GT)
+    </h1>
+    <p class="fr-text--lead fr-mb-3w">
+      Données annuelles par établissement, niveau (2nde / 1ère / Terminale),
+      sexe et langues vivantes (LV1 / LV2). Rentrées 2018‑2019 à aujourd'hui.
+      Plus de 15 000 enregistrements école‑année.
+    </p>
+
+    <div class="fr-notice fr-notice--info">
+      <div class="fr-container">
+        <div class="fr-notice__body">
+          <p class="fr-notice__title">
+            Source : <a
+              href="https://data.education.gouv.fr/explore/dataset/fr-en-lycee_gt-effectifs-niveau-sexe-lv/"
+              target="_blank" rel="noopener noreferrer"
+              class="fr-notice__title">
+              data.education.gouv.fr — Ministère de l'Éducation nationale et de la Jeunesse
+            </a>
+            — Licence Etalab 2.0 — Données actualisées chaque rentrée.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────
+       SECTION 1 — INDICATEURS CLÉS
+  ───────────────────────────────────────────────────── -->
+
+  <h2 class="fr-h4 fr-mb-2w">
+    Indicateurs clés
+    <span class="fr-badge fr-badge--info fr-badge--sm fr-ml-1w">Toutes rentrées cumulées</span>
+  </h2>
+
+  <dsfr-data-kpi-group cols="4" gap="md"
+    aria-label="Indicateurs clés — effectifs lycées GT"
+    class="fr-mb-6w">
+
+    <dsfr-data-kpi
+      source="src-kpi"
+      valeur="total_eleves"
+      label="Élèves recensés (cumul)"
+      format="nombre"
+      icone="ri-graduation-cap-line"
+      couleur="bleu">
+    </dsfr-data-kpi>
+
+    <dsfr-data-kpi
+      source="src-kpi"
+      valeur="nb_records"
+      label="Enregistrements école‑année"
+      format="nombre"
+      icone="ri-building-line"
+      couleur="bleu">
+    </dsfr-data-kpi>
+
+    <dsfr-data-kpi
+      source="q-public"
+      valeur="total"
+      label="Élèves en secteur public"
+      format="nombre"
+      icone="ri-government-line"
+      couleur="bleu">
+    </dsfr-data-kpi>
+
+    <dsfr-data-kpi
+      source="q-prive"
+      valeur="total"
+      label="Élèves en secteur privé"
+      format="nombre"
+      icone="ri-home-heart-line"
+      couleur="bleu">
+    </dsfr-data-kpi>
+
+  </dsfr-data-kpi-group>
+
+  <!-- ─────────────────────────────────────────────────────
+       SECTION 2 — RÉGIONS & SECTEUR
+  ───────────────────────────────────────────────────── -->
+
+  <h2 class="fr-h4 fr-mb-3w">Répartition géographique et sectorielle</h2>
+
+  <div class="fr-grid-row fr-grid-row--gutters fr-mb-5w">
+
+    <!-- Effectifs par région académique -->
+    <div class="fr-col-12 fr-col-md-8">
+      <dsfr-data-chart id="chart-region"
+        source="src-region"
+        type="bar"
+        label-field="region_academique"
+        value-field="total"
+        horizontal
+        selected-palette="sequentialDescending"
+        unit-tooltip="élèves"
+        databox
+        databox-title="Effectifs par région académique"
+        databox-source="data.education.gouv.fr — MEN"
+        databox-download
+        databox-screenshot>
+      </dsfr-data-chart>
+      <dsfr-data-a11y for="chart-region" source="src-region"
+        description="Diagramme en barres horizontales : total cumulé des effectifs des lycées GT par région académique. Île-de-France concentre habituellement le plus grand nombre d'élèves, devant Auvergne-Rhône-Alpes et Occitanie.">
+      </dsfr-data-a11y>
+    </div>
+
+    <!-- Public vs Privé -->
+    <div class="fr-col-12 fr-col-md-4">
+      <dsfr-data-chart id="chart-secteur"
+        source="src-secteur"
+        type="pie"
+        label-field="secteur"
+        value-field="total"
+        selected-palette="categorical"
+        unit-tooltip="élèves"
+        databox
+        databox-title="Secteur public / privé"
+        databox-source="data.education.gouv.fr — MEN">
+      </dsfr-data-chart>
+      <dsfr-data-a11y for="chart-secteur" source="src-secteur"
+        description="Diagramme en anneau : répartition des effectifs des lycées GT entre le secteur public et le secteur privé sous contrat. Le secteur public représente environ 80 % des effectifs.">
+      </dsfr-data-a11y>
+    </div>
+
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────
+       SECTION 3 — ÉVOLUTION & ACADÉMIES
+  ───────────────────────────────────────────────────── -->
+
+  <h2 class="fr-h4 fr-mb-3w">Évolution et palmarès des académies</h2>
+
+  <div class="fr-grid-row fr-grid-row--gutters fr-mb-5w">
+
+    <!-- Évolution annuelle -->
+    <div class="fr-col-12 fr-col-md-6">
+      <dsfr-data-chart id="chart-evolution"
+        source="src-evolution"
+        type="line"
+        label-field="rentree_scolaire"
+        value-field="total"
+        selected-palette="categorical"
+        unit-tooltip="élèves"
+        databox
+        databox-title="Évolution des effectifs par rentrée scolaire"
+        databox-source="data.education.gouv.fr — MEN"
+        databox-download>
+      </dsfr-data-chart>
+      <dsfr-data-a11y for="chart-evolution" source="src-evolution"
+        description="Graphique en courbes représentant l'évolution du nombre total d'élèves en lycée GT par rentrée scolaire, de 2018-2019 à la rentrée la plus récente disponible.">
+      </dsfr-data-a11y>
+    </div>
+
+    <!-- Top 10 académies -->
+    <div class="fr-col-12 fr-col-md-6">
+      <dsfr-data-chart id="chart-academie"
+        source="src-academie"
+        type="bar"
+        label-field="academie"
+        value-field="total"
+        horizontal
+        selected-palette="sequentialDescending"
+        unit-tooltip="élèves"
+        databox
+        databox-title="Top 10 académies (effectifs cumulés)"
+        databox-source="data.education.gouv.fr — MEN"
+        databox-download
+        databox-screenshot>
+      </dsfr-data-chart>
+      <dsfr-data-a11y for="chart-academie" source="src-academie"
+        description="Diagramme en barres horizontales : les 10 académies ayant le plus grand nombre cumulé d'élèves en lycée GT toutes années confondues.">
+      </dsfr-data-a11y>
+    </div>
+
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────
+       SECTION 4 — TYPES D'ÉTABLISSEMENTS
+  ───────────────────────────────────────────────────── -->
+
+  <h2 class="fr-h4 fr-mb-3w">Types d'établissements</h2>
+
+  <div class="fr-grid-row fr-grid-row--gutters fr-mb-5w">
+
+    <!-- Répartition par dénomination -->
+    <div class="fr-col-12 fr-col-md-7">
+      <dsfr-data-chart id="chart-type"
+        source="src-type"
+        type="bar"
+        label-field="denomination_principale"
+        value-field="total"
+        horizontal
+        selected-palette="categorical"
+        unit-tooltip="élèves"
+        databox
+        databox-title="Effectifs par type de lycée"
+        databox-source="data.education.gouv.fr — MEN"
+        databox-download>
+      </dsfr-data-chart>
+      <dsfr-data-a11y for="chart-type" source="src-type"
+        description="Diagramme en barres horizontales : répartition des effectifs selon la dénomination principale du lycée (lycée général, LGT lycée des métiers, lycée polyvalent, lycée technologique…).">
+      </dsfr-data-a11y>
+    </div>
+
+    <!-- Pie types -->
+    <div class="fr-col-12 fr-col-md-5">
+      <dsfr-data-chart id="chart-type-pie"
+        source="src-type"
+        type="pie"
+        label-field="denomination_principale"
+        value-field="total"
+        selected-palette="categorical"
+        unit-tooltip="élèves"
+        databox
+        databox-title="Part de chaque type de lycée"
+        databox-source="data.education.gouv.fr — MEN">
+      </dsfr-data-chart>
+      <dsfr-data-a11y for="chart-type-pie" source="src-type"
+        description="Diagramme en anneau : part relative de chaque type de lycée GT dans le total des effectifs.">
+      </dsfr-data-a11y>
+    </div>
+
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────
+       CALLOUT D'INFORMATION
+  ───────────────────────────────────────────────────── -->
+
+  <div class="fr-callout fr-callout--blue-ecume fr-mt-2w">
+    <h3 class="fr-callout__title">À propos des données</h3>
+    <p class="fr-callout__text">
+      Ce tableau de bord agrège les effectifs des lycées d'enseignement général et technologique
+      (GT) en France métropolitaine et outre-mer, par établissement et par rentrée scolaire.
+      Les chiffres sont <strong>cumulatifs sur toutes les rentrées disponibles</strong> (2018‑2019 à la plus récente).
+      Pour une analyse par année, utilisez les filtres disponibles sur
+      <a href="https://data.education.gouv.fr/explore/dataset/fr-en-lycee_gt-effectifs-niveau-sexe-lv/"
+         target="_blank" rel="noopener noreferrer">data.education.gouv.fr</a>.
+    </p>
+    <p class="fr-callout__text">
+      Champ : lycées publics et privés sous contrat ayant des classes de 2nde générale et
+      technologique, 1ère et/ou Terminale (filières G, STI2D, STL, STMG, ST2S, STD2A, STHR, TMD, BT).
+    </p>
+  </div>
+
+</div>
+```
+
+  </main>
+
+  <!-- ══════════════════════════════
+       PIED DE PAGE
+  ══════════════════════════════ -->
+
+  <footer class="fr-footer" role="contentinfo" id="footer">
+    <div class="fr-container">
+      <div class="fr-footer__body">
+        <div class="fr-footer__brand fr-enlarge-link">
+          <a href="#" title="Retour à l'accueil">
+            <p class="fr-logo">Ministère<br>de l'Éducation<br>nationale</p>
+          </a>
+        </div>
+        <div class="fr-footer__content">
+          <p class="fr-footer__content-desc">
+            Dashboard de visualisation des effectifs des lycées GT en France.
+            Données ouvertes disponibles sur
+            <a href="https://data.education.gouv.fr" target="_blank" rel="noopener noreferrer"
+               class="fr-footer__content-link">data.education.gouv.fr</a>.
+            Propulsé par
+            <a href="https://github.com/bmatge/dsfr-data" target="_blank" rel="noopener noreferrer"
+               class="fr-footer__content-link">dsfr-data</a>
+            et le
+            <a href="https://www.systeme-de-design.gouv.fr/" target="_blank" rel="noopener noreferrer"
+               class="fr-footer__content-link">Système de Design de l'État (DSFR)</a>.
+          </p>
+          <ul class="fr-footer__content-list">
+            <li class="fr-footer__content-item">
+              <a class="fr-footer__content-link" target="_blank" rel="noopener noreferrer"
+                href="https://legifrance.gouv.fr">legifrance.gouv.fr</a>
+            </li>
+            <li class="fr-footer__content-item">
+              <a class="fr-footer__content-link" target="_blank" rel="noopener noreferrer"
+                href="https://gouvernement.fr">gouvernement.fr</a>
+            </li>
+            <li class="fr-footer__content-item">
+              <a class="fr-footer__content-link" target="_blank" rel="noopener noreferrer"
+                href="https://service-public.fr">service-public.fr</a>
+            </li>
+            <li class="fr-footer__content-item">
+              <a class="fr-footer__content-link" target="_blank" rel="noopener noreferrer"
+                href="https://data.gouv.fr">data.gouv.fr</a>
+            </li>
+          </ul>
+        </div>
+      </div>
+      <div class="fr-footer__bottom">
+        <ul class="fr-footer__bottom-list">
+          <li class="fr-footer__bottom-item">
+            <a class="fr-footer__bottom-link" href="#">Accessibilité : partiellement conforme</a>
+          </li>
+          <li class="fr-footer__bottom-item">
+            <a class="fr-footer__bottom-link" href="#">Données sous licence Etalab 2.0</a>
+          </li>
+          <li class="fr-footer__bottom-item">
+            <a class="fr-footer__bottom-link" href="#">Mentions légales</a>
+          </li>
+        </ul>
+        <div class="fr-footer__bottom-copy">
+          <p>
+            Sauf mention contraire, tous les contenus de ce site sont sous
+            <a href="https://github.com/etalab/licence-ouverte/blob/master/LO.md"
+               target="_blank" rel="noopener noreferrer">licence etalab‑2.0</a>.
+          </p>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
