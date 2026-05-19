@@ -44,7 +44,7 @@
     "leaflet": "^1.9.4",
     "leaflet.heat": "^0.2.0",
     "leaflet.markercluster": "^1.5.3",
-    "lit": "^3.1.0",
+    "lit": "^3.3.3",
     "topojson-client": "^3.1.0",
     "world-atlas": "^2.0.2"
   },
