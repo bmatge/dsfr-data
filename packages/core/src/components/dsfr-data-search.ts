@@ -13,6 +13,7 @@ import {
   setDataMeta,
 } from '../utils/data-bridge.js';
 import type { SourceElement } from '../utils/source-element.js';
+import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 
 type SearchOperator = 'contains' | 'starts' | 'words';
 
@@ -113,6 +114,10 @@ export class DsfrDataSearch extends LitElement {
 
   @state()
   private _resultCount = 0;
+
+  /** Message d'erreur de configuration (id/source manquant) — rendu en alerte DSFR */
+  @state()
+  private _configError: string | null = null;
 
   private _debounceTimer: ReturnType<typeof setTimeout> | null = null;
   private _unsubscribe: (() => void) | null = null;
@@ -224,14 +229,17 @@ export class DsfrDataSearch extends LitElement {
 
   private _initialize() {
     if (!this.id) {
-      console.warn('dsfr-data-search: attribut "id" requis');
+      this._configError = reportConfigError(this, 'dsfr-data-search', 'attribut "id" requis');
       return;
     }
 
     if (!this.source) {
-      console.warn('dsfr-data-search: attribut "source" requis');
+      this._configError = reportConfigError(this, 'dsfr-data-search', 'attribut "source" requis');
       return;
     }
+
+    this._configError = null;
+    clearConfigError(this);
 
     if (this._unsubscribe) {
       this._unsubscribe();
@@ -511,6 +519,17 @@ export class DsfrDataSearch extends LitElement {
   }
 
   render() {
+    if (this._configError) {
+      return html`
+        <div class="fr-alert fr-alert--warning fr-alert--sm" role="alert">
+          <p>
+            <strong>&lt;dsfr-data-search&gt;</strong> : ${this._configError}. Le composant ne peut
+            pas s'initialiser.
+          </p>
+        </div>
+      `;
+    }
+
     const id = this.id || 'search';
     const labelClass = this.srLabel ? 'fr-label sr-only' : 'fr-label';
 

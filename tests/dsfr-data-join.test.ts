@@ -611,4 +611,47 @@ describe('DsfrDataJoin', () => {
       expect(join.getError()).toBeNull();
     });
   });
+
+  describe('_initialize edge cases', () => {
+    it('logs error and sets data-dsfr-config-error when id is missing', () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      // Override the default 'test-join' id set in beforeEach
+      join.id = '';
+      join.left = 'a';
+      join.right = 'b';
+      join.on = 'code';
+      (join as unknown as { _initialize(): void })._initialize();
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('attribut "id" requis'));
+      expect(join.getAttribute('data-dsfr-config-error')).toMatch(/id/);
+      errorSpy.mockRestore();
+    });
+
+    it('logs error when left/right/on are missing', () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      join.id = 'test-join';
+      join.left = '';
+      join.right = '';
+      join.on = '';
+      (join as unknown as { _initialize(): void })._initialize();
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('left'));
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('right'));
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('on'));
+      expect(join.getAttribute('data-dsfr-config-error')).toMatch(/left/);
+      errorSpy.mockRestore();
+    });
+
+    it('clears data-dsfr-config-error when config becomes valid', () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      join.id = '';
+      (join as unknown as { _initialize(): void })._initialize();
+      expect(join.hasAttribute('data-dsfr-config-error')).toBe(true);
+      join.id = 'test-join';
+      join.left = 'a';
+      join.right = 'b';
+      join.on = 'code';
+      (join as unknown as { _initialize(): void })._initialize();
+      expect(join.hasAttribute('data-dsfr-config-error')).toBe(false);
+      errorSpy.mockRestore();
+    });
+  });
 });

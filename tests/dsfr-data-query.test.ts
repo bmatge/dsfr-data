@@ -748,31 +748,46 @@ describe('DsfrDataQuery', () => {
   });
 
   describe('_initialize edge cases', () => {
-    it('warns when no id', () => {
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    it('logs error and sets data-dsfr-config-error when no id', () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       query.source = 'test-source';
       (query as any)._initialize();
-      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('attribut "id" requis'));
-      warnSpy.mockRestore();
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('attribut "id" requis'));
+      expect(query.getAttribute('data-dsfr-config-error')).toMatch(/id/);
+      errorSpy.mockRestore();
     });
 
-    it('warns when no source attribute', () => {
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    it('logs error when no source attribute', () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       query.id = 'test-query';
       query.source = '';
       (query as any)._initialize();
-      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('attribut "source" requis'));
-      warnSpy.mockRestore();
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('attribut "source" requis'));
+      expect(query.getAttribute('data-dsfr-config-error')).toMatch(/source/);
+      errorSpy.mockRestore();
     });
 
     it('does not initialize without source', () => {
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       query.id = 'test-query';
       query.source = '';
       (query as any)._initialize();
-      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('attribut "source" requis'));
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('attribut "source" requis'));
       expect((query as any)._unsubscribe).toBeNull();
-      warnSpy.mockRestore();
+      errorSpy.mockRestore();
+    });
+
+    it('clears data-dsfr-config-error when config becomes valid', () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      query.id = '';
+      query.source = '';
+      (query as any)._initialize();
+      expect(query.hasAttribute('data-dsfr-config-error')).toBe(true);
+      query.id = 'test-query';
+      query.source = 'test-source';
+      (query as any)._initialize();
+      expect(query.hasAttribute('data-dsfr-config-error')).toBe(false);
+      errorSpy.mockRestore();
     });
 
     it('deprecated properties (apiType, baseUrl, etc.) do not exist on element', () => {

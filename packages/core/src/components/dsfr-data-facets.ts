@@ -16,6 +16,7 @@ import {
 import type { ApiAdapter } from '../adapters/api-adapter.js';
 import type { SourceElement } from '../utils/source-element.js';
 import { isUnsafeKey } from '@dsfr-data/shared';
+import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 
 type FacetDisplayMode = 'checkbox' | 'select' | 'multiselect' | 'radio';
 
@@ -150,6 +151,10 @@ export class DsfrDataFacets extends LitElement {
   @state()
   private _liveAnnouncement = '';
 
+  /** Message d'erreur de configuration (id/source manquant) — rendu en alerte DSFR */
+  @state()
+  private _configError: string | null = null;
+
   private _unsubscribe: (() => void) | null = null;
   private _unsubscribeCommands: (() => void) | null = null;
   private _popstateHandler: (() => void) | null = null;
@@ -264,14 +269,21 @@ export class DsfrDataFacets extends LitElement {
 
   private _initialize() {
     if (!this.id) {
-      console.warn('dsfr-data-facets: attribut "id" requis pour identifier la sortie');
+      this._configError = reportConfigError(
+        this,
+        'dsfr-data-facets',
+        'attribut "id" requis pour identifier la sortie'
+      );
       return;
     }
 
     if (!this.source) {
-      console.warn('dsfr-data-facets: attribut "source" requis');
+      this._configError = reportConfigError(this, 'dsfr-data-facets', 'attribut "source" requis');
       return;
     }
+
+    this._configError = null;
+    clearConfigError(this);
 
     if (this._unsubscribe) {
       this._unsubscribe();
@@ -1085,6 +1097,17 @@ export class DsfrDataFacets extends LitElement {
   // --- Rendering ---
 
   render() {
+    if (this._configError) {
+      return html`
+        <div class="fr-alert fr-alert--warning fr-alert--sm" role="alert">
+          <p>
+            <strong>&lt;dsfr-data-facets&gt;</strong> : ${this._configError}. Le composant ne peut
+            pas s'initialiser.
+          </p>
+        </div>
+      `;
+    }
+
     if (this._rawData.length === 0 || this._facetGroups.length === 0) {
       return nothing;
     }

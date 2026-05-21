@@ -1073,22 +1073,36 @@ describe('DsfrDataSearch', () => {
   // --- _initialize edge cases ---
 
   describe('_initialize edge cases', () => {
-    it('warns and returns if no id', () => {
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    it('logs error and sets data-dsfr-config-error if no id', () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       search.source = 'test-source';
       search.connectedCallback();
 
-      expect(warnSpy).toHaveBeenCalledWith('dsfr-data-search: attribut "id" requis');
-      warnSpy.mockRestore();
+      expect(errorSpy).toHaveBeenCalledWith('dsfr-data-search: attribut "id" requis');
+      expect(search.getAttribute('data-dsfr-config-error')).toMatch(/id/);
+      expect((search as any)._configError).toMatch(/id/);
+      errorSpy.mockRestore();
     });
 
-    it('warns and returns if no source', () => {
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    it('logs error and sets data-dsfr-config-error if no source', () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       search.id = 'test-search';
       search.connectedCallback();
 
-      expect(warnSpy).toHaveBeenCalledWith('dsfr-data-search: attribut "source" requis');
-      warnSpy.mockRestore();
+      expect(errorSpy).toHaveBeenCalledWith('dsfr-data-search: attribut "source" requis');
+      expect(search.getAttribute('data-dsfr-config-error')).toMatch(/source/);
+      errorSpy.mockRestore();
+    });
+
+    it('renders DSFR alert when _configError is set', () => {
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      search.source = 'test-source';
+      search.connectedCallback();
+      const result = search.render();
+      const html = (result as { strings?: ReadonlyArray<string> }).strings?.join('') ?? '';
+      expect(html).toContain('fr-alert');
+      expect(html).toContain('fr-alert--warning');
+      expect(html).toContain('dsfr-data-search');
     });
 
     it('unsubscribes from previous source on re-initialization', () => {

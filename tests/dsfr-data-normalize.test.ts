@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { DsfrDataNormalize } from '@/components/dsfr-data-normalize.js';
 import {
   clearDataCache,
@@ -957,6 +957,40 @@ describe('DsfrDataNormalize', () => {
       expect(normalize.getEffectiveWhere()).toBe('');
 
       mockSource.remove();
+    });
+  });
+
+  describe('_initialize edge cases', () => {
+    it('logs error and sets data-dsfr-config-error when id is missing', () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      normalize.source = 'test-source';
+      (normalize as unknown as { _initialize(): void })._initialize();
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('attribut "id" requis'));
+      expect(normalize.getAttribute('data-dsfr-config-error')).toMatch(/id/);
+      errorSpy.mockRestore();
+    });
+
+    it('logs error and sets data-dsfr-config-error when source is missing', () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      normalize.id = 'test-normalize';
+      normalize.source = '';
+      (normalize as unknown as { _initialize(): void })._initialize();
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('attribut "source" requis'));
+      expect(normalize.getAttribute('data-dsfr-config-error')).toMatch(/source/);
+      errorSpy.mockRestore();
+    });
+
+    it('clears data-dsfr-config-error when config becomes valid', () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      normalize.id = '';
+      normalize.source = '';
+      (normalize as unknown as { _initialize(): void })._initialize();
+      expect(normalize.hasAttribute('data-dsfr-config-error')).toBe(true);
+      normalize.id = 'test-normalize';
+      normalize.source = 'test-source';
+      (normalize as unknown as { _initialize(): void })._initialize();
+      expect(normalize.hasAttribute('data-dsfr-config-error')).toBe(false);
+      errorSpy.mockRestore();
     });
   });
 });

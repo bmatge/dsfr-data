@@ -16,6 +16,7 @@ import {
   dispatchSourceCommand,
 } from '../utils/data-bridge.js';
 import type { SourceElement } from '../utils/source-element.js';
+import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 
 /**
  * <dsfr-data-normalize> - Composant de normalisation de donnees
@@ -181,14 +182,20 @@ export class DsfrDataNormalize extends LitElement {
 
   private _initialize() {
     if (!this.id) {
-      console.warn('dsfr-data-normalize: attribut "id" requis pour identifier la sortie');
+      reportConfigError(
+        this,
+        'dsfr-data-normalize',
+        'attribut "id" requis pour identifier la sortie'
+      );
       return;
     }
 
     if (!this.source) {
-      console.warn('dsfr-data-normalize: attribut "source" requis');
+      reportConfigError(this, 'dsfr-data-normalize', 'attribut "source" requis');
       return;
     }
+
+    clearConfigError(this);
 
     // Se desabonner de l'ancienne source
     if (this._unsubscribe) {

@@ -11,6 +11,7 @@ import {
 } from '../utils/data-bridge.js';
 import { performJoin } from '@dsfr-data/shared';
 import type { JoinType } from '@dsfr-data/shared';
+import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 
 type Row = Record<string, unknown>;
 
@@ -164,9 +165,24 @@ export class DsfrDataJoin extends LitElement {
   private _initialize() {
     this._cleanup();
 
-    if (!this.left || !this.right || !this.on) {
+    if (!this.id) {
+      reportConfigError(this, 'dsfr-data-join', 'attribut "id" requis pour identifier la sortie');
       return;
     }
+
+    if (!this.left || !this.right || !this.on) {
+      const missing = [!this.left && 'left', !this.right && 'right', !this.on && 'on']
+        .filter(Boolean)
+        .join(', ');
+      reportConfigError(
+        this,
+        `dsfr-data-join[${this.id}]`,
+        `attribut(s) requis manquant(s) : ${missing}`
+      );
+      return;
+    }
+
+    clearConfigError(this);
 
     this._leftData = null;
     this._rightData = null;

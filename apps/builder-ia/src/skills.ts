@@ -529,6 +529,7 @@ Sortie : meme tableau avec valeurs nettoyees/renommees.
 ### Attributs
 | Attribut | Type | Defaut | Requis | Description |
 |----------|------|--------|--------|-------------|
+| id | String | - | oui | Identifiant unique. Sans cet attribut, dsfr-data-normalize ne se monte pas (log \`console.error\` + attribut \`data-dsfr-config-error\` sur l'element). |
 | source | String | \`""\` | oui | ID de la source a ecouter |
 | flatten | String | \`""\` | non | Cle du sous-objet a extraire au premier niveau. Utilise pour les APIs Grist, ODS v1, Airtable qui wrappent les donnees sous \`fields\`. Supporte la dot notation (\`data.attributes\`). |
 | numeric | String | \`""\` | non | Champs a forcer en nombre (virgule-separes) : \`"population, surface"\` |
@@ -669,6 +670,7 @@ Sortie : meme tableau, filtre selon les selections de l'utilisateur.
 ### Attributs
 | Attribut | Type | Defaut | Requis | Description |
 |----------|------|--------|--------|-------------|
+| id | String | - | oui | Identifiant unique. Sans cet attribut, dsfr-data-facets affiche une alerte DSFR \`fr-alert--warning\` au lieu des facettes (et pose \`data-dsfr-config-error\` pour le debug). |
 | source | String | \`""\` | oui | ID de la source a ecouter |
 | fields | String | \`""\` | non | Champs a exposer comme facettes (virgule-separes). Vide = auto-detection |
 | labels | String | \`""\` | non | Labels custom : \`"field:Label | field2:Label 2"\` (pipe-separe) |
@@ -796,6 +798,7 @@ Les compteurs de facettes se recalculent dynamiquement.
 ### Attributs
 | Attribut | Type | Defaut | Requis | Description |
 |----------|------|--------|--------|-------------|
+| id | String | - | oui | Identifiant unique. Sans cet attribut, dsfr-data-search affiche une alerte DSFR \`fr-alert--warning\` au lieu de la barre de recherche (et pose \`data-dsfr-config-error\` pour le debug). |
 | source | String | "" | oui | ID de la source a ecouter |
 | fields | String | "" | non | Champs a rechercher (virgule-separes). Vide = tous les champs |
 | placeholder | String | "Rechercher..." | non | Placeholder du champ |
@@ -2654,6 +2657,7 @@ dsfr-data-source (B)  ──────┘
 ### Attributs
 | Attribut | Type | Defaut | Requis | Description |
 |----------|------|--------|--------|-------------|
+| id | String | - | oui | Identifiant unique. Sans cet attribut, dsfr-data-join ne se monte pas (log \`console.error\` + attribut \`data-dsfr-config-error\` sur l'element). |
 | left | String | "" | oui | ID de la source gauche (source principale) |
 | right | String | "" | oui | ID de la source droite |
 | on | String | "" | oui | Cle(s) de jointure (voir formats ci-dessous) |

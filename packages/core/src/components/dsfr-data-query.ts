@@ -17,6 +17,7 @@ import {
 } from '../utils/data-bridge.js';
 import type { AdapterCapabilities } from '../adapters/api-adapter.js';
 import type { SourceElement } from '../utils/source-element.js';
+import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 
 /**
  * Operateurs de filtre supportes
@@ -288,7 +289,7 @@ export class DsfrDataQuery extends LitElement {
 
   private _initialize() {
     if (!this.id) {
-      console.warn('dsfr-data-query: attribut "id" requis pour identifier la requete');
+      reportConfigError(this, 'dsfr-data-query', 'attribut "id" requis pour identifier la requete');
       return;
     }
 
@@ -303,9 +304,11 @@ export class DsfrDataQuery extends LitElement {
     }
 
     if (!this.source) {
-      console.warn(`dsfr-data-query[${this.id}]: attribut "source" requis`);
+      reportConfigError(this, `dsfr-data-query[${this.id}]`, 'attribut "source" requis');
       return;
     }
+
+    clearConfigError(this);
 
     // Negotiate server-side delegation BEFORE subscribing to data.
     // This sends commands to dsfr-data-source so it re-fetches with the right params.

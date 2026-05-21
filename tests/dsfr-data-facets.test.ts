@@ -1588,22 +1588,55 @@ describe('DsfrDataFacets', () => {
   });
 
   describe('_initialize edge cases', () => {
-    it('warns when id is missing', () => {
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    it('logs error and sets data-dsfr-config-error when id is missing', () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       facets.id = '';
       facets.source = 'test-source';
       (facets as any)._initialize();
-      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('id'));
-      warnSpy.mockRestore();
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('id'));
+      expect(facets.getAttribute('data-dsfr-config-error')).toMatch(/id/);
+      expect((facets as any)._configError).toMatch(/id/);
+      errorSpy.mockRestore();
     });
 
-    it('warns when source is missing', () => {
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    it('logs error and sets data-dsfr-config-error when source is missing', () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       facets.id = 'test-facets';
       facets.source = '';
       (facets as any)._initialize();
-      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('source'));
-      warnSpy.mockRestore();
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('source'));
+      expect(facets.getAttribute('data-dsfr-config-error')).toMatch(/source/);
+      expect((facets as any)._configError).toMatch(/source/);
+      errorSpy.mockRestore();
+    });
+
+    it('clears data-dsfr-config-error when configuration becomes valid', () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      // First: trigger error state
+      facets.id = '';
+      facets.source = '';
+      (facets as any)._initialize();
+      expect(facets.hasAttribute('data-dsfr-config-error')).toBe(true);
+      // Then: fix config
+      facets.id = 'test-facets';
+      facets.source = 'test-source';
+      (facets as any)._initialize();
+      expect(facets.hasAttribute('data-dsfr-config-error')).toBe(false);
+      expect((facets as any)._configError).toBeNull();
+      errorSpy.mockRestore();
+    });
+
+    it('renders DSFR alert when _configError is set', () => {
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      facets.id = '';
+      facets.source = 'test-source';
+      (facets as any)._initialize();
+      const result = facets.render();
+      // Lit TemplateResult — convert to string via the internal strings array
+      const html = (result as { strings?: ReadonlyArray<string> }).strings?.join('') ?? '';
+      expect(html).toContain('fr-alert');
+      expect(html).toContain('fr-alert--warning');
+      expect(html).toContain('dsfr-data-facets');
     });
   });
 
