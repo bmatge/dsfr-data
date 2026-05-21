@@ -415,12 +415,12 @@ git remote set-url --add --push origin https://github.com/mef-snum-miweb/dsfr-da
 
 Le build (`scripts/build-lib.ts`) produit 4 bundles dans `packages/core/dist/` :
 
-| Bundle | Contenu | Taille gzip |
+| Bundle | Contenu | Taille gzip (ESM) |
 |--------|---------|-------------|
-| `dsfr-data.core.{esm,umd}.js` | Tous composants sauf `dsfr-data-world-map` et `dsfr-data-map` | ~52 Ko |
-| `dsfr-data.world-map.{esm,umd}.js` | `dsfr-data-world-map` (d3-geo, topojson) | ~30 Ko |
-| `dsfr-data.map.{esm,umd}.js` | `dsfr-data-map` + `dsfr-data-map-layer` (Leaflet charge dynamiquement) | ~15 Ko |
-| `dsfr-data.{esm,umd}.js` | Tout-en-un | ~80 Ko |
+| `dsfr-data.core.{esm,umd}.js` | Tous composants sauf `dsfr-data-world-map`, `dsfr-data-map*`. **Inclut `dsfr-data-join`** (pur transformateur). | ~61 Ko |
+| `dsfr-data.world-map.{esm,umd}.js` | `dsfr-data-world-map` (d3-geo, topojson) | ~31 Ko |
+| `dsfr-data.map.{esm,umd}.js` | `dsfr-data-map` + `dsfr-data-map-layer` + popup/timeline (Leaflet charge dynamiquement en chunks separes) | ~33 Ko |
+| `dsfr-data.{esm,umd}.js` | Tout-en-un | ~97 Ko |
 
 Le code genere par les builders et le playground utilise le **core** bundle par defaut.
 Le TopoJSON (`packages/core/dist/data/world-countries-110m.json`) est charge par fetch a l'execution.
