@@ -359,6 +359,37 @@ A la fin de chaque session de developpement avec Claude Code, suivre ce workflow
 
 Les changesets s'accumulent jusqu'a la prochaine release. Chaque release consomme tous les changesets en attente et genere une entree unique dans le CHANGELOG.
 
+## Remotes Git (miroir mef-snum-miweb)
+
+Le repo est pousse simultanement sur **deux remotes GitHub** depuis 2026-05-24 :
+- `bmatge/dsfr-data` — repo historique (fetch + push)
+- `mef-snum-miweb/dsfr-data` — miroir org MEF SNUM (push uniquement)
+
+Configuration : un seul remote `origin` avec **multi-push URLs**. Un `git push origin <branche>` envoie aux deux destinations en une seule commande.
+
+```bash
+# Inspection
+git remote -v
+# origin  https://github.com/bmatge/dsfr-data.git (fetch)
+# origin  https://github.com/bmatge/dsfr-data.git (push)
+# origin  https://github.com/mef-snum-miweb/dsfr-data.git (push)
+```
+
+Si la config est perdue (reclone, autre poste) :
+
+```bash
+git remote set-url --add --push origin https://github.com/bmatge/dsfr-data.git
+git remote set-url --add --push origin https://github.com/mef-snum-miweb/dsfr-data.git
+```
+
+**Limites** :
+- Les merges effectues directement cote GitHub (UI bmatge, bot Dependabot, Changesets release PR...) **ne se propagent pas** au miroir miweb. Le miroir n'est rafraichi qu'au prochain `git push` local. Pour resynchroniser ponctuellement apres un merge UI :
+  ```bash
+  git fetch origin && git push origin refs/remotes/origin/main:refs/heads/main
+  ```
+- Les workflows GitHub Actions tournent **aussi cote miweb** sur chaque push. Les jobs qui dependent de secrets non configures la-bas (npm token, deploy keys, Tauri release...) vont failer. A desactiver dans `Settings → Actions` du repo miweb si besoin.
+- Tags : pousser explicitement via `git push origin --tags` apres une release pour les propager.
+
 ## APIs externes utilisees
 
 - Grist : docs.getgrist.com, grist.numerique.gouv.fr
