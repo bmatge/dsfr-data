@@ -80,6 +80,16 @@ jobs:
           </html>
           HEREDOC
 
+      - name: Replace app-header / app-footer with static blocks (Pages only)
+        run: |
+          # Les sources gardent <app-header>/<app-footer> pour la webapp
+          # déployée où le header est partagé entre toutes les pages
+          # (Builder, Dashboard, etc.). Sur GitHub Pages, seules specs/ et
+          # guide/ sont publiées — le menu pointerait vers des routes 404.
+          # On substitue donc en post-traitement, uniquement dans _site/.
+          npx tsx scripts/transform-docs-for-pages.ts _site/specs
+          npx tsx scripts/transform-docs-for-pages.ts _site/guide
+
       - name: Fix absolute paths for GitHub Pages
         run: |
           # Get the repository name for the base path
