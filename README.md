@@ -60,7 +60,7 @@ En plus de la bibliotheque, le repo contient une webapp (Builder, Builder IA, So
 - **Statique** (nginx + localStorage) — usage individuel, aucune persistance serveur.
 - **Serveur** (nginx + Express + MariaDB) — multi-utilisateurs, auth JWT, partages, audit.
 
-Voir le **[guide de deploiement](docs/DEPLOYMENT.md)** pour les prerequis (Traefik, DNS, secrets), la configuration `.env`, les migrations de schema, la sauvegarde, le diagnostic et la checklist securite.
+Voir le **[guide de deploiement](docs/DEPLOYMENT.md)** pour les prerequis (Traefik, DNS, secrets), la configuration `.env`, les migrations de schema, la sauvegarde, le diagnostic et la checklist securite. La section [Configuration self-hosted](docs/DEPLOYMENT.md#configuration-self-hosted) couvre les trois scenarios de deploiement (reference, proxy d'entreprise, reverse externe gerant les routes `/*-proxy/`) avec le contrat exhaustif des chemins de proxying.
 
 ---
 

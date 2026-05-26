@@ -237,6 +237,8 @@ echo "COMPOSE_PROJECT_NAME=datasource-charts-webcomponents" >> .env
 ./deploy-server.sh
 ```
 
+**Configuration self-hosted** (domaine arbitraire, proxy d'entreprise, reverse externe gerant les routes de proxying) : la procedure complete est dans [`docs/DEPLOYMENT.md` §"Configuration self-hosted"](docs/DEPLOYMENT.md#configuration-self-hosted). Elle couvre les 3 scenarios + le contrat exhaustif des chemins de proxying (`/grist-proxy/`, `/tabular-proxy/`, `/albert-proxy/`, etc.) pour qu'un operateur tiers puisse les repliquer derriere son propre reverse. Chaque bloc `location /*-proxy/` dans `docker/nginx.conf` et `nginx-db.conf` est annote `DESACTIVABLE` avec un renvoi vers cette section.
+
 ### Base de donnees MariaDB
 
 Le serveur Express utilise **MariaDB 11** via `mysql2/promise` (requetes async, pool de connexions).

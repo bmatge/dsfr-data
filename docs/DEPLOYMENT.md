@@ -13,6 +13,11 @@ Ce guide couvre le deploiement de la **webapp dsfr-data** (apps Builder, Builder
   - [Option B : Traefik](#option-b--traefik-config-fournie-en-exemple)
   - [Option C : Caddy](#option-c--caddy)
   - [Option D : nginx en frontal](#option-d--nginx-en-frontal)
+- [Configuration self-hosted](#configuration-self-hosted)
+  - [Scenario A : deploiement de reference](#scenario-a--deploiement-de-reference-traefik-integre)
+  - [Scenario B : derriere un proxy d'entreprise](#scenario-b--derriere-un-proxy-dentreprise)
+  - [Scenario C : reverse externe gerant les routes de proxying](#scenario-c--reverse-externe-gerant-les-routes-de-proxying)
+  - [Contrat des chemins de proxying](#contrat-des-chemins-de-proxying)
 - [Premier deploiement](#premier-deploiement)
   - [Mode statique](#mode-statique)
   - [Mode serveur](#mode-serveur)
@@ -155,6 +160,97 @@ server {
     }
 }
 ```
+
+## Configuration self-hosted
+
+Cette section couvre les trois scenarios de deploiement supportes, du plus simple (deploiement de reference) au plus contraint (proxy d'entreprise + reverse externe gerant les routes de proxying). L'objectif : un operateur tiers peut deployer sur un domaine arbitraire sans patcher le code source.
+
+Pre-requis communs :
+
+- `APP_DOMAIN`, `VITE_PROXY_URL` (et `APP_URL` en mode serveur) genere automatiquement par `deploy.sh` / `deploy-server.sh` depuis `APP_DOMAIN`. Cf. [Variables d'environnement](#variables-denvironnement).
+- Conteneur tourne sous l'utilisateur non-root `nginx` (uid 101).
+
+### Scenario A : deploiement de reference (Traefik integre)
+
+Le scenario par defaut. Aucune configuration particuliere requise au-dela de `APP_DOMAIN` :
+
+1. `cp .env.example .env`
+2. Editer `APP_DOMAIN=mon-domaine.example.com`
+3. `./docker/deploy.sh` (ou `deploy-server.sh` en mode serveur)
+
+Les scripts generent `VITE_PROXY_URL=https://${APP_DOMAIN}` et (mode serveur) `APP_URL=https://${APP_DOMAIN}`. Tous les chemins de proxying nginx (`/grist-proxy/`, `/tabular-proxy/`, `/albert-proxy/`, etc.) sont actifs cote conteneur. Le `docker-compose.yml` fournit des labels Traefik en exemple — adapter ou retirer selon le reverse proxy choisi (Caddy, nginx frontal, ALB…).
+
+### Scenario B : derriere un proxy d'entreprise
+
+Pour les operateurs dont le VPS n'a pas d'acces direct a Internet (proxy HTTP sortant obligatoire). Configurer les variables POSIX standard dans `.env` :
+
+```bash
+HTTP_PROXY=http://corporate.proxy.example.com:8080
+HTTPS_PROXY=http://corporate.proxy.example.com:8080
+NO_PROXY=localhost,127.0.0.1,mariadb,mailserver,.example.com
+```
+
+Ces variables sont propagees a deux niveaux :
+
+- **Build-time** (depuis [#168 PR-2](https://github.com/bmatge/dsfr-data/pull/173)) : `npm ci` et `apk add` dans le stage builder des Dockerfiles passent par le proxy.
+- **Runtime** (depuis [#168 PR-4](https://github.com/bmatge/dsfr-data/pull/178)) : les services Node embarques dans le conteneur (`scripts/ia-default-server.js` pour Albert IA, `mcp-server` pour `skills.json`) acheminent leurs appels HTTP sortants via le proxy. Implementation : `undici.EnvHttpProxyAgent` comme dispatcher global, conditionnel.
+
+**Inclure les hostnames Docker internes dans `NO_PROXY`** (`mariadb`, `mailserver`, `localhost`, `127.0.0.1`) pour preserver les communications inter-conteneurs. Sans ces entrees, le serveur Express enverrait son trafic SMTP via le proxy externe, qui ne sait pas atteindre le mailserver interne.
+
+Sans variable proxy definie, aucun dispatcher n'est installe — comportement strictement inchange. Cf. `.env.example` pour les details.
+
+### Scenario C : reverse externe gerant les routes de proxying
+
+Pour les operateurs qui preferent que leur reverse proxy d'entreprise (Traefik, nginx, HAProxy…) gere certaines routes de proxying API en frontal — par exemple parce qu'ils ont deja une politique de filtrage centralisee, du caching mutualise, ou des restrictions d'acces specifiques aux APIs externes.
+
+**Strategie** : commenter les blocs `location /*-proxy/` correspondants dans `docker/nginx.conf` et/ou `docker/nginx-db.conf`, puis declarer le chemin equivalent dans le reverse externe en respectant le [contrat des chemins de proxying](#contrat-des-chemins-de-proxying) ci-dessous.
+
+Exemple — vous voulez router `/tabular-proxy/` via votre reverse Traefik externe :
+
+```nginx
+# Dans docker/nginx.conf (et nginx-db.conf si mode serveur), commenter le bloc :
+
+# location /tabular-proxy/ {
+#     include /etc/nginx/conf.d/security-headers.conf;
+#     ...
+#     proxy_pass https://tabular-api.data.gouv.fr/;
+#     ...
+# }
+```
+
+Puis declarer dans votre reverse externe une regle qui :
+- Capture `https://${APP_DOMAIN}/tabular-proxy/*` AVANT que la requete n'atteigne le conteneur nginx.
+- Reverse-proxy vers `https://tabular-api.data.gouv.fr/*` en preservant le path apres `/tabular-proxy/`.
+- Ajoute les headers CORS (`Access-Control-Allow-Origin: *`, methods, headers — cf. tableau ci-dessous).
+- Supprime les headers `Origin` et `Referer` du forward (Tabular et certaines APIs gov rejettent les requetes browser).
+
+Les paires `/ia-server-config` + `/ia-proxy-default` doivent etre commentees ensemble — le premier annonce la disponibilite du proxy IA par defaut, le second l'execute. Commenter l'un sans l'autre laisse l'app dans un etat incoherent (UI affiche "IA disponible" mais l'appel echoue).
+
+**Tip** : les overrides specifiques a un site (compose, nginx custom) doivent passer par `docker-compose.override.yml` (gitignored) plutot que par des patches locaux des fichiers livres, sinon `git pull` les ecrasera. Cf. [issue #168](https://github.com/bmatge/dsfr-data/issues/168) pour la motivation.
+
+### Contrat des chemins de proxying
+
+Liste exhaustive des routes que les apps et widgets attendent au runtime. Si vous desactivez un bloc cote nginx (scenario C), vous devez fournir une route equivalente dans votre reverse externe respectant la signature ci-dessous.
+
+| Chemin | Cible upstream | Methodes | Cache nginx | Notes |
+|---|---|---|---|---|
+| `/grist-gouv-proxy/` | `https://grist.numerique.gouv.fr/` | GET, POST, OPTIONS | GET 60s | Strip Origin + Referer (Grist rejette le navigateur direct) |
+| `/grist-proxy/` | `https://docs.getgrist.com/` | GET, POST, OPTIONS | GET 60s | Strip Origin + Referer |
+| `/albert-proxy/` | `https://albert.api.etalab.gouv.fr/` | GET, POST, PUT, PATCH, DELETE, OPTIONS | non | Token Albert dans `Authorization` cote client |
+| `/ia-proxy` | **Dynamique** (`X-Target-URL` du client) | POST, OPTIONS | non | Strip `X-Target-URL` + `Origin` + `Referer` avant forward. Resolver DNS requis (8.8.8.8 par defaut) |
+| `/ia-server-config` | `127.0.0.1:3003/ia-server-config` | GET | non | Endpoint local (`scripts/ia-default-server.js`) — disabler implique aussi de couper `/ia-proxy-default` |
+| `/ia-proxy-default` | `127.0.0.1:3003/ia-proxy-default` | POST, OPTIONS | non | Token Albert injecte cote serveur depuis `IA_DEFAULT_TOKEN` — disabler implique aussi de couper `/ia-server-config` |
+| `/insee-proxy/` | `https://api.insee.fr/` | GET, OPTIONS | GET 60s | Catalogue Melodi — strip Origin + Referer |
+| `/tabular-proxy/` | `https://tabular-api.data.gouv.fr/` | GET, POST, OPTIONS | GET 60s | Strip Origin + Referer |
+| `/cors-proxy` | **Dynamique** (`X-Target-URL` du client) | GET, POST, PUT, DELETE, PATCH, OPTIONS | non | Strip `X-Target-URL` + `Origin` + `Referer`. Resolver DNS requis. Utilise par `dsfr-data-source use-proxy` |
+
+**Headers communs** attendus en reponse sur tous les chemins :
+- `Access-Control-Allow-Origin: *`
+- `Access-Control-Allow-Methods: <selon la table>`
+- `Access-Control-Allow-Headers: Origin, Content-Type, Accept, Authorization` (a minima ; `X-Target-URL` en plus pour `/ia-proxy` et `/cors-proxy`)
+- Pour OPTIONS preflight : `Access-Control-Max-Age: 86400`
+
+**Reference d'implementation** : voir `docker/nginx.conf` (mode statique) et `docker/nginx-db.conf` (mode serveur). Chaque bloc est annote `DESACTIVABLE` avec un renvoi vers cette section.
 
 ## Premier deploiement
 
