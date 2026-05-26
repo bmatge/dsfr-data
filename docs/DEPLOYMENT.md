@@ -26,6 +26,7 @@ Ce guide couvre le deploiement de la **webapp dsfr-data** (apps Builder, Builder
 - [Migrations de schema MariaDB](#migrations-de-schema-mariadb)
 - [Sauvegarde et restauration](#sauvegarde-et-restauration)
 - [Diagnostic et logs](#diagnostic-et-logs)
+- [Validation post-deploiement](#validation-post-deploiement)
 - [Migration SQLite -> MariaDB](#migration-sqlite---mariadb)
 - [Checklist securite](#checklist-securite)
 - [Pieges connus](#pieges-connus)
@@ -430,6 +431,117 @@ L'app expose un endpoint sante sur `/api/health` (mode serveur) :
 curl https://${APP_DOMAIN}/api/health
 # {"status":"ok","mode":"database"}
 ```
+
+## Validation post-deploiement
+
+Une fois `./docker/deploy.sh` ou `./docker/deploy-server.sh` termine, executer la checklist ci-dessous pour valider que l'instance est saine. Toutes les commandes utilisent `${APP_DOMAIN}` — exporter la variable avant ou substituer.
+
+```bash
+export APP_DOMAIN=mon-domaine.example.com
+```
+
+### 1. Sante des conteneurs
+
+```bash
+docker compose --env-file .env -f docker/docker-compose.yml -f docker/docker-compose.db.yml ps
+# Attendu : tous les conteneurs en STATUS "Up" / "healthy" (mariadb doit afficher "healthy")
+```
+
+### 2. Healthcheck applicatif
+
+```bash
+# Mode statique
+curl -sf "https://${APP_DOMAIN}/" -o /dev/null && echo OK || echo FAIL
+
+# Mode serveur (en plus du ci-dessus)
+curl -sf "https://${APP_DOMAIN}/api/health" | grep -q '"status":"ok"' && echo OK || echo FAIL
+```
+
+### 3. Aucune URL ne fuit vers le domaine de reference
+
+Verifier qu'aucun bundle servi n'embarque `chartsbuilder.matge.com` en dur (sauf si c'est legitimement votre domaine). Adapter le pattern de match a votre domaine de reference si besoin :
+
+```bash
+# Bundle de la lib (servi sur /dist/)
+curl -sf "https://${APP_DOMAIN}/dist/dsfr-data.core.esm.js" | grep -c "chartsbuilder.matge.com" || echo "(0 fuites)"
+
+# Bundles des apps de creation
+for app in builder builder-ia builder-carto dashboard playground; do
+  echo "=== ${app} ==="
+  curl -sf "https://${APP_DOMAIN}/${app}/" \
+    | grep -oE 'src="/[^"]+\.js"' | head -1 \
+    | sed -E "s@src=\"(/[^\"]+)\"@https://${APP_DOMAIN}\1@" \
+    | xargs curl -sf \
+    | grep -c "chartsbuilder.matge.com" || echo "(0 fuites)"
+done
+```
+
+Resultat attendu : `0` partout (ou `(0 fuites)` si grep ne trouve rien). Si une valeur > 0 apparait, c'est probablement un `VITE_PROXY_URL` non propage au build (cf. issue #168 PR-1).
+
+### 4. Routes de proxying actives
+
+Chaque route doit repondre `204` au preflight OPTIONS (sauf si vous avez desactive le bloc en faveur d'un reverse externe — cf. [Scenario C](#scenario-c--reverse-externe-gerant-les-routes-de-proxying)).
+
+```bash
+for path in /grist-gouv-proxy/ /grist-proxy/ /albert-proxy/ /insee-proxy/ /tabular-proxy/ /cors-proxy /ia-proxy /ia-proxy-default; do
+  code=$(curl -s -o /dev/null -w "%{http_code}" -X OPTIONS "https://${APP_DOMAIN}${path}")
+  printf "%-25s %s\n" "${path}" "${code}"
+done
+# Attendu : 204 partout (ou code de votre reverse externe si scenario C)
+```
+
+### 5. Endpoint IA serveur (si `IA_DEFAULT_TOKEN` configure)
+
+```bash
+curl -sf "https://${APP_DOMAIN}/ia-server-config" | python3 -m json.tool
+# Attendu : { "available": true, "apiUrl": "...", "model": "..." } (sans le token)
+```
+
+### 6. Security headers + CSP
+
+```bash
+curl -sI "https://${APP_DOMAIN}/" | grep -iE "strict-transport|content-security|x-frame|x-content-type|referrer-policy|permissions-policy"
+# Attendu : 6 headers presents
+```
+
+Verifier visuellement la CSP dans la console DevTools du navigateur (`F12` → onglet `Console`) en chargeant une page qui consomme des donnees externes. Aucun message `Refused to ... violates Content Security Policy` ne doit apparaitre.
+
+### 7. Proxy d'entreprise active au runtime (si configure)
+
+Si `HTTP_PROXY` / `HTTPS_PROXY` est defini dans le `.env` (Scenario B), confirmer que le conteneur l'a bien charge :
+
+```bash
+docker compose --env-file .env -f docker/docker-compose.yml ${COMPOSE_DB:+-f docker/docker-compose.db.yml} \
+  logs chartsbuilder | grep -E "Outbound proxy enabled"
+# Attendu : "[ia-default-server] Outbound proxy enabled (HTTPS_PROXY=..., NO_PROXY=...)"
+#          + "[dsfr-data-mcp] Outbound proxy enabled (...)"
+```
+
+### 8. Bundles a jour (cache)
+
+Apres une mise a jour, vider le cache du navigateur (`Ctrl+Shift+R`) et verifier que les bundles sont reservis. Sinon, les bundles `/dist/*.js` (non hashes) doivent passer en revalidation systematique (cf. [ADR-008](https://github.com/bmatge/dsfr-data/blob/main/docs/ADR/ADR-008-politique-de-cache-http-pour-bundles-non-hashes.md)) :
+
+```bash
+curl -sI "https://${APP_DOMAIN}/dist/dsfr-data.core.esm.js" | grep -i "cache-control"
+# Attendu : "Cache-Control: no-cache, must-revalidate"
+```
+
+### 9. Smoke test fonctionnel
+
+Ouvrir `https://${APP_DOMAIN}/playground/` dans un navigateur et charger un exemple embarque. Le rendu doit s'afficher sans erreur dans la console DevTools.
+
+### Si une etape echoue
+
+| Etape | Probleme | Piste |
+|---|---|---|
+| 1-2 | Conteneur ne demarre pas | `docker compose ... logs --tail=200 chartsbuilder` |
+| 3 | URL `chartsbuilder.matge.com` baked dans le bundle | Verifier `VITE_PROXY_URL` dans `.env` ET rebuild avec `--no-cache` |
+| 4 | OPTIONS retourne 404 | Bloc nginx commente sans reverse externe configure (cf. [Scenario C](#scenario-c--reverse-externe-gerant-les-routes-de-proxying)) |
+| 5 | `available: false` | `IA_DEFAULT_TOKEN` non defini ou conteneur non redemarre apres ajout |
+| 6 | Headers manquants | Snippet `security-headers.conf` non charge ou Traefik qui les ecrase |
+| 7 | Pas de log "Outbound proxy enabled" | `HTTP_PROXY` non passe au runtime (`environment:` du docker-compose) |
+| 8 | Bundle servi en cache long | Conf nginx hors-date (cache 1y au lieu de no-cache, must-revalidate sur `/dist/*`) |
+| 9 | Erreur CSP / CORS en DevTools | Cf. CSP point 6 + routes proxy point 4 |
 
 ## Migration SQLite -> MariaDB
 
