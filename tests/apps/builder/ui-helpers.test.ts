@@ -1,4 +1,15 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+// Mock promptDialog from shared — happy-dom can't drive the DSFR modal,
+// and saveFavorite() now awaits it.
+vi.mock('@dsfr-data/shared', async () => {
+  const actual = await vi.importActual<typeof import('@dsfr-data/shared')>('@dsfr-data/shared');
+  return {
+    ...actual,
+    promptDialog: vi.fn().mockResolvedValue('My favorite'),
+  };
+});
+
 import { toggleSection, switchTab, saveFavorite } from '../../../apps/builder/src/ui/ui-helpers';
 import { state, FAVORITES_KEY } from '../../../apps/builder/src/state';
 
@@ -104,20 +115,16 @@ describe('builder ui-helpers', () => {
       localStorage.clear();
       document.body.innerHTML = `
         <pre id="generated-code"></pre>
-        <button class="preview-panel-save-btn">Save</button>
+        <button class="preview-panel-save-btn"><i class="ri-star-line"></i></button>
       `;
       document.getElementById('generated-code')!.textContent =
         '<dsfr-data-chart type="bar"></dsfr-data-chart>';
       state.title = 'Test chart';
       state.chartType = 'bar';
-      // happy-dom does not provide window.prompt by default
-      (window as unknown as { prompt: (msg?: string, def?: string) => string | null }).prompt = vi
-        .fn()
-        .mockReturnValue('My favorite');
     });
 
-    it('writes sourceApp and builderStateJson (not the legacy field names)', () => {
-      saveFavorite();
+    it('writes sourceApp and builderStateJson (not the legacy field names)', async () => {
+      await saveFavorite();
 
       const stored = JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]');
       expect(stored).toHaveLength(1);
@@ -133,11 +140,11 @@ describe('builder ui-helpers', () => {
       expect(fav.builderState).toBeUndefined();
     });
 
-    it('does not save when generated code is the placeholder', () => {
+    it('does not save when generated code is the placeholder', async () => {
       document.getElementById('generated-code')!.textContent =
         '// Le code sera g\u00e9n\u00e9r\u00e9 ici...';
 
-      saveFavorite();
+      await saveFavorite();
 
       expect(localStorage.getItem(FAVORITES_KEY)).toBeNull();
     });

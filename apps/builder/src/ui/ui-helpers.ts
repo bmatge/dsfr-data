@@ -9,7 +9,9 @@ import {
   saveToStorage,
   toastWarning,
   toastSuccess,
+  toastInfo,
   navigateTo,
+  promptDialog,
 } from '@dsfr-data/shared';
 import type { Favorite } from '../state.js';
 
@@ -81,9 +83,27 @@ export function openInPlayground(): void {
 }
 
 /**
+ * Sync the favorite button icon (filled vs outline) with the current
+ * generated code: filled if the code matches an existing favorite, outline otherwise.
+ * Safe to call multiple times; resilient to the button not being mounted yet.
+ */
+export function syncFavoriteIcon(): void {
+  const btn = document.querySelector('.preview-panel-save-btn');
+  const icon = btn?.querySelector('i');
+  if (!icon) return;
+
+  const code = document.getElementById('generated-code')?.textContent || '';
+  const favorites = loadFromStorage<Favorite[]>(FAVORITES_KEY, []);
+  const isFavorite = !!code && favorites.some((f) => f.code === code);
+
+  icon.classList.toggle('ri-star-fill', isFavorite);
+  icon.classList.toggle('ri-star-line', !isFavorite);
+}
+
+/**
  * Save the current chart configuration as a favorite.
  */
-export function saveFavorite(): void {
+export async function saveFavorite(): Promise<void> {
   const codeEl = document.getElementById('generated-code');
   const code = codeEl?.textContent || '';
 
@@ -94,10 +114,24 @@ export function saveFavorite(): void {
     return;
   }
 
-  const name = prompt('Nom du favori :', state.title || 'Mon graphique');
-  if (!name) return;
-
   const favorites = loadFromStorage<Favorite[]>(FAVORITES_KEY, []);
+
+  // Idempotence \u2014 same generated code = same favorite. No duplicate.
+  const existing = favorites.find((f) => f.code === code);
+  if (existing) {
+    toastInfo(
+      `Ce graphique est d\u00e9j\u00e0 dans vos favoris (\u00ab\u00a0${existing.name}\u00a0\u00bb).`
+    );
+    syncFavoriteIcon();
+    return;
+  }
+
+  const name = await promptDialog('Sauvegarder en favoris', state.title || 'Mon graphique', {
+    label: 'Nom du favori',
+    placeholder: 'Ex : Population par r\u00e9gion 2024',
+    confirmLabel: 'Sauvegarder',
+  });
+  if (!name) return;
 
   const favorite: Favorite = {
     id: crypto.randomUUID(),
@@ -112,17 +146,8 @@ export function saveFavorite(): void {
   favorites.unshift(favorite);
   saveToStorage(FAVORITES_KEY, favorites);
 
-  // Visual feedback
-  const btn = document.querySelector('.preview-panel-save-btn') as HTMLButtonElement | null;
-  if (btn) {
-    const originalHTML = btn.innerHTML;
-    btn.innerHTML = '<i class="ri-check-line" aria-hidden="true"></i> Sauvegard\u00e9 !';
-    btn.style.background = 'var(--background-contrast-success)';
-    setTimeout(() => {
-      btn.innerHTML = originalHTML;
-      btn.style.background = '';
-    }, 2000);
-  }
+  syncFavoriteIcon();
+  toastSuccess(`Graphique \u00ab\u00a0${name}\u00a0\u00bb ajout\u00e9 \u00e0 vos favoris.`);
 }
 
 /**

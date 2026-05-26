@@ -21,6 +21,7 @@ import {
   switchTab,
   copyCode,
   toggleSection,
+  syncFavoriteIcon,
 } from './ui/ui-helpers.js';
 import type { ChartType } from './state.js';
 import { setupDatalistListeners } from './ui/datalist-config.js';
@@ -114,6 +115,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       // is visible (empty-state hidden). generateChart() renders synchronously
       // in most paths but may be async for server-side aggregations.
       updatePreviewSteps();
+      syncFavoriteIcon();
     });
   }
 
