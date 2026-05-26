@@ -1,5 +1,20 @@
 # Build stage
 FROM node:24-alpine AS builder
+
+# Proxy HTTP sortant pour `npm ci` et `apk add` dans le builder.
+# Permet `docker compose build` derrière un proxy d'entreprise. Variables
+# minuscules acceptées par alpine apk + curl ; majuscules acceptées par npm.
+# Cf. issue #168 — PR-2 (build-time). PR-4 traitera le runtime côté Node.
+ARG HTTP_PROXY=""
+ARG HTTPS_PROXY=""
+ARG NO_PROXY=""
+ENV HTTP_PROXY=$HTTP_PROXY \
+    HTTPS_PROXY=$HTTPS_PROXY \
+    NO_PROXY=$NO_PROXY \
+    http_proxy=$HTTP_PROXY \
+    https_proxy=$HTTPS_PROXY \
+    no_proxy=$NO_PROXY
+
 WORKDIR /app
 COPY package*.json ./
 COPY packages/shared/package.json packages/shared/
@@ -40,12 +55,21 @@ RUN cd mcp-server && npm ci && npm run build
 # Ferme le finding Trivy DS-0002. Cf. issue #66.
 FROM nginxinc/nginx-unprivileged:alpine
 
+# Proxy HTTP sortant — déclaré en ARG (pas ENV) pour rester strictement
+# build-time. Utilisé inline dans le `RUN apk add` ci-dessous, sans
+# pollution du runtime de l'image. Cf. issue #168 — PR-2.
+ARG HTTP_PROXY=""
+ARG HTTPS_PROXY=""
+ARG NO_PROXY=""
+
 # Les installs + copies doivent se faire en root ; on reviendra à `nginx`
 # en fin de stage pour le runtime.
 USER root
 
 # Add Node.js for the MCP server
-RUN apk add --no-cache nodejs
+RUN HTTP_PROXY=$HTTP_PROXY HTTPS_PROXY=$HTTPS_PROXY NO_PROXY=$NO_PROXY \
+    http_proxy=$HTTP_PROXY https_proxy=$HTTPS_PROXY no_proxy=$NO_PROXY \
+    apk add --no-cache nodejs
 
 # Copier la config nginx + le snippet security-headers (inclus dans chaque
 # location block — cf. docker/security-headers.conf pour le pourquoi)

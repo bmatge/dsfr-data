@@ -11,6 +11,12 @@ services:
         # Cf. issue #168 (PR-1).
         VITE_PROXY_URL: ${VITE_PROXY_URL:-}
         VITE_LIB_URL: ${VITE_LIB_URL:-}
+        # Proxy HTTP sortant pour `npm ci` + `apk add` au build derrière
+        # un proxy d'entreprise. Build-time uniquement (pas runtime).
+        # Cf. issue #168 (PR-2). PR-4 traitera le runtime côté Node.
+        HTTP_PROXY: ${HTTP_PROXY:-}
+        HTTPS_PROXY: ${HTTPS_PROXY:-}
+        NO_PROXY: ${NO_PROXY:-}
     container_name: chartsbuilder
     restart: unless-stopped
 
