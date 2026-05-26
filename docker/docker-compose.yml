@@ -3,6 +3,14 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile
+      args:
+        # Propagation des variables build-time consommées par Vite.
+        # Valeurs lues depuis le `.env` du repo (`--env-file .env` côté
+        # deploy.sh / deploy-server.sh). Si absentes, le build retombe
+        # sur le fallback historique de packages/shared/src/api/proxy-config.ts.
+        # Cf. issue #168 (PR-1).
+        VITE_PROXY_URL: ${VITE_PROXY_URL:-}
+        VITE_LIB_URL: ${VITE_LIB_URL:-}
     container_name: chartsbuilder
     restart: unless-stopped
 

@@ -16,6 +16,18 @@ COPY apps/admin/package.json apps/admin/
 COPY apps/pipeline-helper/package.json apps/pipeline-helper/
 RUN npm ci
 COPY . .
+
+# Build-time configuration injected via `docker compose build` --build-arg
+# (or build.args dans docker-compose.yml). Vite consomme automatiquement
+# les variables `VITE_*` présentes dans l'environnement du process. Si
+# elles ne sont pas fournies, packages/shared/src/api/proxy-config.ts
+# applique son fallback historique (le domaine de référence).
+# Cf. issue #168 — PR-3 transformera ce fallback en fail-fast.
+ARG VITE_PROXY_URL=""
+ARG VITE_LIB_URL=""
+ENV VITE_PROXY_URL=$VITE_PROXY_URL \
+    VITE_LIB_URL=$VITE_LIB_URL
+
 RUN npm run build:all
 RUN node scripts/build-app.js
 

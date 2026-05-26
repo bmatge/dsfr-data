@@ -15,11 +15,29 @@ export interface ProxyConfig {
   };
 }
 
+/**
+ * Build-time configuration injectée par Vite via `import.meta.env`.
+ *
+ * Important : les accès doivent rester **statiques** (`import.meta.env.VITE_*`)
+ * pour que Vite remplace par les valeurs littérales au bundle. Toute indirection
+ * (`const m = import.meta; m.env...`) casse la substitution → les bundles
+ * retombent silencieusement sur les fallbacks ci-dessous.
+ *
+ * Types déclarés localement plutôt que via `vite/client` pour ne pas coupler
+ * `@dsfr-data/shared` à Vite (utilisable hors environnement Vite).
+ */
+declare global {
+  interface ImportMeta {
+    readonly env?: {
+      readonly VITE_PROXY_URL?: string;
+      readonly VITE_LIB_URL?: string;
+    };
+  }
+}
+
 /** Default production proxy base URL (overridable via VITE_PROXY_URL at build time) */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const _meta = import.meta as any;
 export const PROXY_BASE_URL: string =
-  _meta.env?.VITE_PROXY_URL || 'https://chartsbuilder.matge.com';
+  import.meta.env?.VITE_PROXY_URL || 'https://chartsbuilder.matge.com';
 
 /**
  * Base URL for the dsfr-data JS library in generated code.
@@ -32,7 +50,7 @@ export const PROXY_BASE_URL: string =
  *   - Custom URL         → used as-is (e.g. "https://my-cdn.example.com/dist")
  */
 function resolveLibUrl(): string {
-  const raw: string = _meta.env?.VITE_LIB_URL || '';
+  const raw: string = import.meta.env?.VITE_LIB_URL || '';
   if (!raw || raw === 'jsdelivr') return 'https://cdn.jsdelivr.net/npm/dsfr-data@0/dist';
   if (raw === 'unpkg') return 'https://unpkg.com/dsfr-data@0/dist';
   if (raw === 'self') return `${PROXY_BASE_URL}/dist`;
