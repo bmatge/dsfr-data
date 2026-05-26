@@ -31,7 +31,7 @@
 | Vous etes… | Vous voulez… | Allez ici |
 |---|---|---|
 | **Integrateur / developpeur web** | Coller un widget DSFR sur votre page | [Installation](#installation) ci-dessous + [specifications interactives](https://bmatge.github.io/dsfr-data/specs/) |
-| **Utilisateur metier / non-tech** | Generer un graphique sans coder via le Builder | [Guide utilisateur](docs/USER-GUIDE.md) |
+| **Utilisateur metier / non-tech** | Generer un graphique sans coder via le Builder | [Guide utilisateur](https://bmatge.github.io/dsfr-data/guide/) (parcours interactifs + exemples live) |
 | **Operateur / ops** | Heberger votre instance dsfr-data | [Guide de deploiement](docs/DEPLOYMENT.md) |
 | **Contributeur** | Contribuer au code, comprendre l'architecture | [Guide de contribution](docs/CONTRIBUTING.md) + [Architecture](docs/ARCHITECTURE.md) |
 | **Decideur / acheteur** | Positionnement produit, comparatifs, cibles | [Fiche produit](docs/DATASHEET.md) |
@@ -96,7 +96,8 @@ Pour le detail du monorepo, des conventions, du workflow de release Changesets e
 ## Documentation
 
 - [Specifications interactives des composants](https://bmatge.github.io/dsfr-data/specs/)
-- [Guide utilisateur](docs/USER-GUIDE.md) — parcours dans le Builder, exemples concrets
+- [Guide utilisateur](https://bmatge.github.io/dsfr-data/guide/) — parcours interactifs + exemples live (HTML)
+- [Guide utilisateur (markdown)](docs/USER-GUIDE.md) — meme contenu en markdown, navigable depuis GitHub
 - [Architecture](docs/ARCHITECTURE.md) — pipeline, adapters, bundles, build
 - [Guide de deploiement](docs/DEPLOYMENT.md) — Docker, 4 scenarios self-hosted, validation
 - [Contribuer](docs/CONTRIBUTING.md) — monorepo, conventions, release Changesets
