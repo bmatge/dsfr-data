@@ -126,7 +126,14 @@ export type { Source } from './types/source.js';
 export { migrateSource, serializeSourceForServer } from './types/source.js';
 
 // UI
-export { openModal, closeModal, setupModalOverlayClose, confirmDialog } from './ui/modal.js';
+export {
+  openModal,
+  closeModal,
+  setupModalOverlayClose,
+  confirmDialog,
+  promptDialog,
+} from './ui/modal.js';
+export type { PromptDialogOptions } from './ui/modal.js';
 export { showToast, toastSuccess, toastError, toastWarning, toastInfo } from './ui/toast.js';
 export { appHref, navigateTo } from './ui/navigation.js';
 
