@@ -19,6 +19,7 @@ import {
   getApiAdapter,
   performJoin,
   isUnsafeKey,
+  httpErrorMessage,
 } from '@dsfr-data/shared';
 import type { JoinType, Source } from '@dsfr-data/shared';
 
@@ -126,26 +127,31 @@ export async function saveConnection(): Promise<void> {
   }
 
   const btn = document.getElementById('save-connection-btn') as HTMLButtonElement | null;
+  const originalLabel = btn?.textContent ?? 'Tester et sauvegarder';
   if (btn) {
     btn.disabled = true;
-    btn.textContent = 'Test en cours...';
+    btn.textContent = 'Test en cours…';
   }
 
   try {
-    if (connType === 'grist') {
-      await saveGristConnection(name);
-    } else {
-      await saveApiConnection(name);
+    const ok =
+      connType === 'grist' ? await saveGristConnection(name) : await saveApiConnection(name);
+    // ok === false means a validation toastWarning was already shown; skip success toast.
+    if (ok) {
+      toastSuccess(`Connexion « ${name} » ajoutée.`);
     }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    toastError(`Connexion impossible : ${message}`);
   } finally {
     if (btn) {
       btn.disabled = false;
-      btn.textContent = 'Tester et sauvegarder';
+      btn.textContent = originalLabel;
     }
   }
 }
 
-export async function saveGristConnection(name: string): Promise<void> {
+export async function saveGristConnection(name: string): Promise<boolean> {
   const urlEl = document.getElementById('conn-url') as HTMLInputElement | null;
   const apiKeyEl = document.getElementById('conn-api-key') as HTMLInputElement | null;
   const publicEl = document.getElementById('conn-public') as HTMLInputElement | null;
@@ -156,12 +162,12 @@ export async function saveGristConnection(name: string): Promise<void> {
 
   if (!url) {
     toastWarning("Veuillez remplir l'URL du serveur Grist");
-    return;
+    return false;
   }
 
   if (!isPublic && !apiKey) {
     toastWarning('Cle API requise (sauf pour les documents publics)');
-    return;
+    return false;
   }
 
   // Build the test URL using the proxy
@@ -186,7 +192,7 @@ export async function saveGristConnection(name: string): Promise<void> {
   const response = await fetch(testUrl, { headers: buildGristHeaders(isPublic ? null : apiKey) });
 
   if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
+    throw new Error(httpErrorMessage(response.status));
   }
 
   const orgs: unknown[] = await response.json();
@@ -220,9 +226,10 @@ export async function saveGristConnection(name: string): Promise<void> {
   closeModal('connection-modal');
   resetConnectionForm();
   selectConnection(connection.id);
+  return true;
 }
 
-export async function saveApiConnection(name: string): Promise<void> {
+export async function saveApiConnection(name: string): Promise<boolean> {
   const apiUrlEl = document.getElementById('api-url') as HTMLInputElement | null;
   const methodEl = document.getElementById('api-method') as HTMLSelectElement | null;
   const headersEl = document.getElementById('api-headers') as HTMLTextAreaElement | null;
@@ -235,7 +242,7 @@ export async function saveApiConnection(name: string): Promise<void> {
 
   if (!apiUrl) {
     toastWarning("Veuillez remplir l'URL de l'API");
-    return;
+    return false;
   }
 
   // Parse headers
@@ -245,14 +252,14 @@ export async function saveApiConnection(name: string): Promise<void> {
       headers = JSON.parse(headersText);
     } catch {
       toastWarning('Les en-tetes doivent etre au format JSON valide');
-      return;
+      return false;
     }
   }
 
   const response = await fetch(getProxiedUrl(apiUrl), { method, headers });
 
   if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
+    throw new Error(httpErrorMessage(response.status));
   }
 
   let data: unknown = await response.json();
@@ -303,6 +310,7 @@ export async function saveApiConnection(name: string): Promise<void> {
   closeModal('connection-modal');
   resetConnectionForm();
   selectConnection(connection.id);
+  return true;
 }
 
 // ============================================================
