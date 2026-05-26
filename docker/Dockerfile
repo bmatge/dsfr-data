@@ -39,8 +39,12 @@ COPY . .
 # applique son fallback historique (le domaine de référence).
 # Cf. issue #168 — PR-3 transformera ce fallback en fail-fast.
 ARG VITE_PROXY_URL=""
+ARG VITE_PROXY_URL_EMBED=""
+ARG VITE_BEACON_URL=""
 ARG VITE_LIB_URL=""
 ENV VITE_PROXY_URL=$VITE_PROXY_URL \
+    VITE_PROXY_URL_EMBED=$VITE_PROXY_URL_EMBED \
+    VITE_BEACON_URL=$VITE_BEACON_URL \
     VITE_LIB_URL=$VITE_LIB_URL
 
 RUN npm run build:all

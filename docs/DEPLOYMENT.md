@@ -17,6 +17,7 @@ Ce guide couvre le deploiement de la **webapp dsfr-data** (apps Builder, Builder
   - [Scenario A : deploiement de reference](#scenario-a--deploiement-de-reference-traefik-integre)
   - [Scenario B : derriere un proxy d'entreprise](#scenario-b--derriere-un-proxy-dentreprise)
   - [Scenario C : reverse externe gerant les routes de proxying](#scenario-c--reverse-externe-gerant-les-routes-de-proxying)
+  - [Scenario D : app interne + widgets publics (separation runtime/embed)](#scenario-d--app-interne--widgets-publics-separation-runtimeembed)
   - [Contrat des chemins de proxying](#contrat-des-chemins-de-proxying)
 - [Premier deploiement](#premier-deploiement)
   - [Mode statique](#mode-statique)
@@ -227,6 +228,52 @@ Puis declarer dans votre reverse externe une regle qui :
 Les paires `/ia-server-config` + `/ia-proxy-default` doivent etre commentees ensemble — le premier annonce la disponibilite du proxy IA par defaut, le second l'execute. Commenter l'un sans l'autre laisse l'app dans un etat incoherent (UI affiche "IA disponible" mais l'appel echoue).
 
 **Tip** : les overrides specifiques a un site (compose, nginx custom) doivent passer par `docker-compose.override.yml` (gitignored) plutot que par des patches locaux des fichiers livres, sinon `git pull` les ecrasera. Cf. [issue #168](https://github.com/bmatge/dsfr-data/issues/168) pour la motivation.
+
+### Scenario D : app interne + widgets publics (separation runtime/embed)
+
+Pour les operateurs qui veulent decoupler les trois dimensions suivantes :
+
+- **Runtime app** — domaine ou l'app tourne (peut etre interne, prive, intranet).
+- **Embed** — domaine inline dans les widgets generes (doit etre stable et accessible aux sites tiers qui embarquent les widgets).
+- **Beacon** — domaine de collecte de la telemetrie (peut etre un endpoint d'analytics distinct).
+
+Cas typique : un operateur deploie l'app sur `app.interne.example` pour ses utilisateurs internes, mais veut que les widgets generes pointent vers `cdn.public.example` pour fonctionner sur des sites tiers sans dependre de l'infra interne.
+
+**Trois variables build-time en cascade** (cf. issue [#180](https://github.com/bmatge/dsfr-data/issues/180)) :
+
+```bash
+VITE_PROXY_URL=https://app.interne.example         # runtime app -- REQUISE
+VITE_PROXY_URL_EMBED=https://cdn.public.example    # optionnelle, fallback sur VITE_PROXY_URL
+VITE_BEACON_URL=https://analytics.example.com      # optionnelle, fallback sur VITE_PROXY_URL_EMBED
+```
+
+Resolution :
+
+- `PROXY_BASE_URL = VITE_PROXY_URL || 'https://chartsbuilder.matge.com'`
+- `PROXY_BASE_URL_EMBED = VITE_PROXY_URL_EMBED || PROXY_BASE_URL`
+- `BEACON_BASE_URL = VITE_BEACON_URL || PROXY_BASE_URL_EMBED`
+
+**Aucune regression possible** sans changement explicite : si seul `VITE_PROXY_URL` est defini (cas du deploiement de reference), les trois dimensions pointent vers le meme domaine.
+
+**Repartition par usage** :
+
+| Variable | Utilisee par |
+|---|---|
+| `PROXY_BASE_URL` (runtime) | `apps/grist-widgets`, `apps/monitoring`, `apps/sources`, `getProxyConfig()` de l'app |
+| `PROXY_BASE_URL_EMBED` (embed) | Code genere par `apps/builder`, `apps/builder-ia`, `apps/builder-carto` (attribut `base-url`/`url=` des widgets) |
+| `BEACON_BASE_URL` (beacon) | URL de telemetrie bakee dans le bundle lib `packages/core/dist/dsfr-data.*.js` |
+
+**Validation** : pour verifier qu'aucune URL n'a fui dans le mauvais sens apres build, `grep` les bundles produits :
+
+```bash
+VITE_PROXY_URL=https://app.test VITE_PROXY_URL_EMBED=https://cdn.test \
+  VITE_BEACON_URL=https://analytics.test npm run build:all
+
+# Code embed des builders doit contenir cdn.test, pas app.test
+grep -r "app.test\|cdn.test" apps/builder/dist/
+# Bundle lib doit contenir analytics.test pour le beacon
+grep -r "analytics.test" packages/core/dist/
+```
 
 ### Contrat des chemins de proxying
 

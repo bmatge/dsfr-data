@@ -4,7 +4,7 @@
  */
 
 import type { Source } from '@dsfr-data/shared';
-export { PROXY_BASE_URL, LIB_URL } from '@dsfr-data/shared';
+export { PROXY_BASE_URL, PROXY_BASE_URL_EMBED, LIB_URL } from '@dsfr-data/shared';
 
 /** Favorites localStorage key */
 export const FAVORITES_KEY = 'dsfr-data-favorites';

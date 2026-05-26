@@ -35,6 +35,10 @@ services:
         # historique de packages/shared/src/api/proxy-config.ts.
         # Cf. issue #168 (PR-1).
         VITE_PROXY_URL: ${VITE_PROXY_URL:-}
+        # Séparation app runtime / code embed / beacon télémétrie. Fallback en
+        # cascade dans packages/shared/src/api/proxy-config.ts. Cf. issue #180.
+        VITE_PROXY_URL_EMBED: ${VITE_PROXY_URL_EMBED:-}
+        VITE_BEACON_URL: ${VITE_BEACON_URL:-}
         VITE_LIB_URL: ${VITE_LIB_URL:-}
         # Proxy HTTP sortant pour `npm ci` + `apk add` au build derrière
         # un proxy d'entreprise. Build-time uniquement (pas runtime).

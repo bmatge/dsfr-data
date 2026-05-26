@@ -4,9 +4,9 @@
  * Used by the monitoring dashboard to track where widgets are deployed.
  */
 
-import { PROXY_BASE_URL } from '@dsfr-data/shared';
+import { BEACON_BASE_URL } from '@dsfr-data/shared';
 
-const BEACON_URL = `${PROXY_BASE_URL}/beacon`;
+const BEACON_URL = `${BEACON_BASE_URL}/beacon`;
 const sent = new Set<string>();
 /** Keep references to pending beacon images to prevent GC before request completes */
 const pending: HTMLImageElement[] = [];
@@ -43,9 +43,11 @@ export function sendWidgetBeacon(component: string, subtype?: string): void {
   const proto = window.location.protocol;
   if (proto !== 'http:' && proto !== 'https:') return;
 
-  // Skip in dev mode and on the app itself (only track external deployments)
+  // Skip in dev mode and on the beacon collection host itself (only track
+  // external deployments — internal pings would inflate stats with our own
+  // navigation on the app/embed domain).
   const host = window.location.hostname;
-  if (host === 'localhost' || host === '127.0.0.1' || host === new URL(PROXY_BASE_URL).hostname) {
+  if (host === 'localhost' || host === '127.0.0.1' || host === new URL(BEACON_BASE_URL).hostname) {
     return;
   }
 

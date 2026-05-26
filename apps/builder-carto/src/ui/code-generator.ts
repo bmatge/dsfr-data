@@ -4,7 +4,12 @@
 import { state } from '../state.js';
 import type { LayerConfig } from '../state.js';
 import { LIB_URL } from '../state.js';
-import { detectProvider, extractResourceIds, getProvider, PROXY_BASE_URL } from '@dsfr-data/shared';
+import {
+  detectProvider,
+  extractResourceIds,
+  getProvider,
+  PROXY_BASE_URL_EMBED,
+} from '@dsfr-data/shared';
 
 function layerAttrs(layer: LayerConfig): string {
   const attrs: string[] = [];
@@ -106,7 +111,7 @@ function sourceTag(layer: LayerConfig): string {
     let gristUrl = s.apiUrl || '';
     for (const host of gristProvider.knownHosts) {
       if (s.apiUrl?.includes(host.hostname)) {
-        gristUrl = `${PROXY_BASE_URL}${host.proxyEndpoint}/api/docs/${s.documentId}/tables/${s.tableId}/records`;
+        gristUrl = `${PROXY_BASE_URL_EMBED}${host.proxyEndpoint}/api/docs/${s.documentId}/tables/${s.tableId}/records`;
         break;
       }
     }

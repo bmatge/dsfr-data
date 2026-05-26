@@ -10,7 +10,7 @@
  * Tests in tests/apps/builder-ia/skills.test.ts verify alignment automatically.
  */
 
-import { CDN_URLS, PROXY_BASE_URL, LIB_URL } from '@dsfr-data/shared';
+import { CDN_URLS, PROXY_BASE_URL_EMBED, LIB_URL } from '@dsfr-data/shared';
 import type { Source } from './state.js';
 
 /** A single skill definition */
@@ -456,7 +456,7 @@ Nommage automatique sans alias : \`champ__fonction\` (ex: \`population__sum\`)
 
 <!-- Grist : source + normalize + query -->
 <dsfr-data-source id="src" api-type="grist"
-  base-url="${PROXY_BASE_URL}/grist-gouv-proxy/api/docs/DOC_ID/tables/TABLE/records"
+  base-url="${PROXY_BASE_URL_EMBED}/grist-gouv-proxy/api/docs/DOC_ID/tables/TABLE/records"
   headers='{"Authorization":"Bearer API_KEY"}'>
 </dsfr-data-source>
 <dsfr-data-normalize id="flat" source="src" flatten="fields"></dsfr-data-normalize>
@@ -1602,7 +1602,7 @@ L'adapter choisit entre mode Records (filter/sort/pagination) et mode SQL (group
 
 \`\`\`html
 <dsfr-data-source id="src" api-type="grist"
-  base-url="${PROXY_BASE_URL}/grist-gouv-proxy/api/docs/DOC_ID/tables/TABLE/records"
+  base-url="${PROXY_BASE_URL_EMBED}/grist-gouv-proxy/api/docs/DOC_ID/tables/TABLE/records"
   headers='{"Authorization":"Bearer API_KEY"}'>
 </dsfr-data-source>
 <dsfr-data-query id="data" source="src"
@@ -1621,7 +1621,7 @@ L'adapter choisit entre mode Records (filter/sort/pagination) et mode SQL (group
 ### Pipeline Grist avec facettes :
 \`\`\`html
 <dsfr-data-source id="src" api-type="grist"
-  base-url="${PROXY_BASE_URL}/grist-gouv-proxy/api/docs/DOC_ID/tables/TABLE/records"
+  base-url="${PROXY_BASE_URL_EMBED}/grist-gouv-proxy/api/docs/DOC_ID/tables/TABLE/records"
   headers='{"Authorization":"Bearer API_KEY"}'>
 </dsfr-data-source>
 
@@ -2036,7 +2036,7 @@ Chaque provider a des capacites differentes pour la pagination, l'agregation et 
 **Grist** (fetch serveur + auto-flatten, aggregation via SQL) :
 \`\`\`html
 <dsfr-data-source id="src" api-type="grist"
-  base-url="${PROXY_BASE_URL}/grist-gouv-proxy/api/docs/DOC_ID/tables/TABLE/records"
+  base-url="${PROXY_BASE_URL_EMBED}/grist-gouv-proxy/api/docs/DOC_ID/tables/TABLE/records"
   headers='{"Authorization":"Bearer API_KEY"}'>
 </dsfr-data-source>
 <dsfr-data-query id="data" source="src"
@@ -2083,9 +2083,9 @@ L'adapter INSEE aplatit automatiquement les observations (dimensions + measures 
 ### Proxy CORS
 Certaines APIs externes necessitent un proxy CORS en production.
 Les URLs connues sont automatiquement proxifiees :
-- \`grist.numerique.gouv.fr\` -> \`${PROXY_BASE_URL}/grist-gouv-proxy\`
-- \`docs.getgrist.com\` -> \`${PROXY_BASE_URL}/grist-proxy\`
-- \`tabular-api.data.gouv.fr\` -> \`${PROXY_BASE_URL}/tabular-proxy\`
+- \`grist.numerique.gouv.fr\` -> \`${PROXY_BASE_URL_EMBED}/grist-gouv-proxy\`
+- \`docs.getgrist.com\` -> \`${PROXY_BASE_URL_EMBED}/grist-proxy\`
+- \`tabular-api.data.gouv.fr\` -> \`${PROXY_BASE_URL_EMBED}/tabular-proxy\`
 
 APIs avec CORS natif (pas de proxy necessaire) :
 - OpenDataSoft (\`*.opendatasoft.com\` et portails publics)

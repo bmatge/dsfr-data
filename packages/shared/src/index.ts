@@ -28,6 +28,8 @@ export {
   isTauriMode,
   DEFAULT_PROXY_CONFIG,
   PROXY_BASE_URL,
+  PROXY_BASE_URL_EMBED,
+  BEACON_BASE_URL,
   LIB_URL,
 } from './api/proxy-config.js';
 export type { ProxyConfig } from './api/proxy-config.js';

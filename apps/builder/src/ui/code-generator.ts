@@ -19,7 +19,7 @@ import {
   extractResourceIds,
   getProvider,
 } from '@dsfr-data/shared';
-import { state, type DataRecord, PROXY_BASE_URL, LIB_URL } from '../state.js';
+import { state, type DataRecord, PROXY_BASE_URL_EMBED, LIB_URL } from '../state.js';
 import { renderPreview } from './preview.js';
 import { updateAccessibleTable } from './accessible-table.js';
 
@@ -1329,7 +1329,7 @@ export function generateDynamicCode(): void {
 
   for (const host of gristProvider.knownHosts) {
     if (source.apiUrl?.includes(host.hostname)) {
-      proxyUrl = `${PROXY_BASE_URL}${host.proxyEndpoint}/api/docs/${source.documentId}/tables/${source.tableId}/records`;
+      proxyUrl = `${PROXY_BASE_URL_EMBED}${host.proxyEndpoint}/api/docs/${source.documentId}/tables/${source.tableId}/records`;
       gristHost = host.hostname;
       break;
     }
@@ -1454,7 +1454,7 @@ ${middlewareHtml}
 
   const code = `<!-- Graphique dynamique genere avec dsfr-data Builder -->
 <!-- Source : ${escapeHtml(source.name)} (chargement dynamique depuis ${gristHost}) -->
-<!-- Les donnees sont chargees via le proxy ${PROXY_BASE_URL} -->
+<!-- Les donnees sont chargees via le proxy ${PROXY_BASE_URL_EMBED} -->
 ${state.advancedMode ? '<!-- Mode avance active : filtrage et agregation via dsfr-data-query -->' : ''}
 
 <!-- Dependances CSS (DSFR) -->

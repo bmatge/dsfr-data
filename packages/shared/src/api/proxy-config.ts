@@ -30,14 +30,40 @@ declare global {
   interface ImportMeta {
     readonly env?: {
       readonly VITE_PROXY_URL?: string;
+      readonly VITE_PROXY_URL_EMBED?: string;
+      readonly VITE_BEACON_URL?: string;
       readonly VITE_LIB_URL?: string;
     };
   }
 }
 
-/** Default production proxy base URL (overridable via VITE_PROXY_URL at build time) */
+/**
+ * URL de base **runtime de l'app** — utilisée par l'app elle-même pour ses
+ * propres appels (monitoring, widgets Grist consommant des données, etc.).
+ * Surchargeable via `VITE_PROXY_URL` au build. Cf. #180.
+ */
 export const PROXY_BASE_URL: string =
   import.meta.env?.VITE_PROXY_URL || 'https://chartsbuilder.matge.com';
+
+/**
+ * URL de base **inlinée dans le code généré** par les builders (widgets
+ * destinés à être collés sur un site tiers). Permet à un opérateur de
+ * self-héberger l'app sur un domaine interne tout en générant des widgets
+ * qui pointent vers un domaine public stable.
+ * Surchargeable via `VITE_PROXY_URL_EMBED` au build, fallback sur
+ * `PROXY_BASE_URL` (= cas du déploiement de référence). Cf. #180.
+ */
+export const PROXY_BASE_URL_EMBED: string = import.meta.env?.VITE_PROXY_URL_EMBED || PROXY_BASE_URL;
+
+/**
+ * URL de collecte du **beacon de télémétrie** baké dans le bundle lib
+ * (`packages/core`). Le bundle étant distribué sur npm/CDN et chargé par
+ * des sites tiers, l'URL doit pointer vers le domaine qui héberge la
+ * collecte (typiquement = domaine d'embed).
+ * Surchargeable via `VITE_BEACON_URL` au build, fallback sur
+ * `PROXY_BASE_URL_EMBED` (= cas du déploiement de référence). Cf. #180.
+ */
+export const BEACON_BASE_URL: string = import.meta.env?.VITE_BEACON_URL || PROXY_BASE_URL_EMBED;
 
 /**
  * Base URL for the dsfr-data JS library in generated code.
@@ -58,9 +84,16 @@ function resolveLibUrl(): string {
 }
 export const LIB_URL: string = resolveLibUrl();
 
-/** Default production proxy configuration */
+/**
+ * Default production proxy configuration. Utilise `PROXY_BASE_URL_EMBED`
+ * (= `PROXY_BASE_URL` par défaut) car les adapters de `packages/core`
+ * tournent dans le bundle lib, qui s'exécute aussi bien dans l'app
+ * elle-même (preview) que sur des sites tiers embarquant un widget.
+ * Dans les deux cas, l'URL doit être celle publiquement accessible.
+ * Cf. issue #180.
+ */
 export const DEFAULT_PROXY_CONFIG: ProxyConfig = {
-  baseUrl: PROXY_BASE_URL,
+  baseUrl: PROXY_BASE_URL_EMBED,
   endpoints: {
     grist: '/grist-proxy',
     gristGouv: '/grist-gouv-proxy',
@@ -89,10 +122,18 @@ export function isTauriMode(): boolean {
 }
 
 /**
- * Get the proxy configuration based on the current environment
+ * Get the proxy configuration based on the current environment.
  * - Dev mode: relative URLs (handled by Vite proxy)
- * - Tauri mode: full URLs to the production proxy
- * - Production web: configurable via VITE_PROXY_URL or defaults to production proxy
+ * - Tauri mode: full URLs to the production proxy (PROXY_BASE_URL_EMBED)
+ * - Production web: PROXY_BASE_URL_EMBED
+ *
+ * Note : utilise `PROXY_BASE_URL_EMBED` (et non `PROXY_BASE_URL` runtime) car
+ * cette config est consommée par les adapters de `packages/core` qui tournent
+ * dans le bundle lib — chargé indifféremment dans l'app elle-même (preview)
+ * ou sur un site tiers embarquant un widget. L'URL doit donc être celle
+ * publiquement accessible. Sans `VITE_PROXY_URL_EMBED` défini, la cascade
+ * retombe sur `PROXY_BASE_URL` (= déploiement de référence inchangé).
+ * Cf. issue #180.
  */
 export function getProxyConfig(): ProxyConfig {
   const endpoints = { ...DEFAULT_PROXY_CONFIG.endpoints };
@@ -102,14 +143,14 @@ export function getProxyConfig(): ProxyConfig {
     return { baseUrl: '', endpoints };
   }
 
-  // Tauri: always use the remote proxy
+  // Tauri: always use the remote proxy (embed URL = publicly accessible)
   if (isTauriMode()) {
-    return { baseUrl: DEFAULT_PROXY_CONFIG.baseUrl, endpoints };
+    return { baseUrl: PROXY_BASE_URL_EMBED, endpoints };
   }
 
-  // Production web: uses PROXY_BASE_URL (already respects VITE_PROXY_URL)
+  // Production web
   return {
-    baseUrl: PROXY_BASE_URL,
+    baseUrl: PROXY_BASE_URL_EMBED,
     endpoints,
   };
 }
