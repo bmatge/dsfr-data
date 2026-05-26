@@ -25,6 +25,13 @@ services:
       - IA_DEFAULT_TOKEN=${IA_DEFAULT_TOKEN:-}
       - IA_DEFAULT_API_URL=${IA_DEFAULT_API_URL:-https://albert.api.etalab.gouv.fr/v1/chat/completions}
       - IA_DEFAULT_MODEL=${IA_DEFAULT_MODEL:-albert-large}
+      # Proxy HTTP sortant au runtime (ia-default-server + mcp-server).
+      # Honoré via undici.EnvHttpProxyAgent : HTTP_PROXY/HTTPS_PROXY/NO_PROXY
+      # (et variantes minuscules) sont lues au démarrage. Sans variable,
+      # aucun proxy n'est installé. Cf. issue #168 PR-4.
+      - HTTP_PROXY=${HTTP_PROXY:-}
+      - HTTPS_PROXY=${HTTPS_PROXY:-}
+      - NO_PROXY=${NO_PROXY:-}
 
     # Persister les beacon logs pour le monitoring (survit aux redémarrages)
     volumes:

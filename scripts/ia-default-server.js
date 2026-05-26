@@ -6,16 +6,39 @@
  * Endpoints:
  *   GET  /ia-server-config   — returns { available, apiUrl, model } (no token)
  *   POST /ia-proxy-default   — forwards to Albert API with server-side token injected
+ *
+ * Proxy d'entreprise (runtime) : si HTTP_PROXY/HTTPS_PROXY est défini au
+ * niveau du conteneur (cf. docker-compose `environment:`), les appels
+ * sortants vers l'API Albert sont routés via le proxy. NO_PROXY est honoré.
+ * Cf. issue #168 — PR-4.
  */
 
 const http = require('http');
-const https = require('https');
+const { request, EnvHttpProxyAgent, setGlobalDispatcher } = require('undici');
 
 const TOKEN = process.env.IA_DEFAULT_TOKEN || '';
 const API_URL =
   process.env.IA_DEFAULT_API_URL || 'https://albert.api.etalab.gouv.fr/v1/chat/completions';
 const MODEL = process.env.IA_DEFAULT_MODEL || 'albert-large';
 const PORT = 3003;
+
+// Active le proxy HTTP sortant si HTTP_PROXY ou HTTPS_PROXY est défini.
+// EnvHttpProxyAgent lit HTTP_PROXY/HTTPS_PROXY/NO_PROXY (et variantes
+// minuscules) directement depuis process.env. Sans variable, on n'installe
+// aucun dispatcher : comportement strictement inchangé. Cf. issue #168 PR-4.
+if (
+  process.env.HTTP_PROXY ||
+  process.env.HTTPS_PROXY ||
+  process.env.http_proxy ||
+  process.env.https_proxy
+) {
+  setGlobalDispatcher(new EnvHttpProxyAgent());
+  console.log(
+    `[ia-default-server] Outbound proxy enabled ` +
+      `(HTTPS_PROXY=${process.env.HTTPS_PROXY || process.env.https_proxy || ''}, ` +
+      `NO_PROXY=${process.env.NO_PROXY || process.env.no_proxy || ''})`
+  );
+}
 
 function cors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -79,39 +102,27 @@ const server = http.createServer(async (req, res) => {
     }
 
     const payload = JSON.stringify(parsed);
-    const target = new URL(API_URL);
-    // nosemgrep: problem-based-packs.insecure-transport.js-node.using-http-server.using-http-server
-    const doRequest = target.protocol === 'https:' ? https.request : http.request;
 
-    const proxyReq = doRequest(
-      {
-        hostname: target.hostname,
-        port: target.port || (target.protocol === 'https:' ? 443 : 80),
-        path: target.pathname + target.search,
+    try {
+      // undici.request honore le dispatcher global (EnvHttpProxyAgent si
+      // HTTP_PROXY/HTTPS_PROXY est défini). Sans, requête directe.
+      const upstream = await request(API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(payload),
           Authorization: `Bearer ${TOKEN}`,
-          Host: target.host,
         },
-      },
-      (proxyRes) => {
-        res.writeHead(proxyRes.statusCode || 500, {
-          'Content-Type': proxyRes.headers['content-type'] || 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        });
-        proxyRes.pipe(res);
-      }
-    );
-
-    proxyReq.on('error', (err) => {
+        body: payload,
+      });
+      res.writeHead(upstream.statusCode || 500, {
+        'Content-Type': upstream.headers['content-type'] || 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      });
+      upstream.body.pipe(res);
+    } catch (err) {
       res.writeHead(502, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: `Proxy error: ${err.message}` }));
-    });
-
-    proxyReq.write(payload);
-    proxyReq.end();
+    }
     return;
   }
 

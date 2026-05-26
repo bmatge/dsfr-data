@@ -97,6 +97,11 @@ COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 # IA default proxy server (serves /ia-server-config and /ia-proxy-default)
 COPY scripts/ia-default-server.js /app/scripts/ia-default-server.js
 
+# undici pour le proxy HTTP sortant côté Node (require('undici') depuis
+# /app/scripts/ia-default-server.js). undici n'a aucune dépendance runtime,
+# on copie juste le module. Cf. issue #168 PR-4 (proxy d'entreprise au runtime).
+COPY --from=builder /app/node_modules/undici /app/node_modules/undici
+
 # Donner à l'utilisateur `nginx` l'écriture sur les répertoires que
 # l'entrypoint écrira :
 # - /var/cache/nginx  : proxy_cache_path

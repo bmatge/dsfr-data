@@ -74,6 +74,9 @@
       "prettier --write"
     ]
   },
+  "dependencies": {
+    "undici": "^7.25.0"
+  },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.3",
     "@changesets/changelog-github": "^0.7.0",

@@ -23,10 +23,34 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { createServer } from 'node:http';
+import { EnvHttpProxyAgent, setGlobalDispatcher } from 'undici';
 import { z } from 'zod';
 import { getArg, hasFlag } from './cli.js';
 import { matchSkills, getWidgetSkillIds } from './skills.js';
 import type { Skill } from './skills.js';
+
+// ---------------------------------------------------------------------------
+// Outbound proxy (runtime)
+// ---------------------------------------------------------------------------
+// Active le proxy HTTP sortant si HTTP_PROXY ou HTTPS_PROXY est défini.
+// EnvHttpProxyAgent lit HTTP_PROXY/HTTPS_PROXY/NO_PROXY (et variantes
+// minuscules) directement depuis process.env. Le global fetch() de Node
+// passe par le dispatcher global d'undici, donc le téléchargement de
+// skills.json (loadSkills) emprunte automatiquement le proxy. Sans
+// variable, comportement strictement inchangé. Cf. issue #168 PR-4.
+if (
+  process.env.HTTP_PROXY ||
+  process.env.HTTPS_PROXY ||
+  process.env.http_proxy ||
+  process.env.https_proxy
+) {
+  setGlobalDispatcher(new EnvHttpProxyAgent());
+  console.error(
+    `[dsfr-data-mcp] Outbound proxy enabled ` +
+      `(HTTPS_PROXY=${process.env.HTTPS_PROXY ?? process.env.https_proxy ?? ''}, ` +
+      `NO_PROXY=${process.env.NO_PROXY ?? process.env.no_proxy ?? ''})`,
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Config

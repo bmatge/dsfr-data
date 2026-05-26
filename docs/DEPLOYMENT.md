@@ -63,7 +63,7 @@ Le fichier [`.env.example`](../.env.example) liste toutes les variables. Les pri
 | `COMPOSE_PROJECT_NAME` | les 2 | Prefix Docker (volumes, conteneurs) | nom du dossier git |
 | `VITE_PROXY_URL` | les 2 **[REQUISE au build]** | URL du proxy CORS injectee dans les bundles a la compilation. Generee automatiquement par `deploy.sh` / `deploy-server.sh` depuis `APP_DOMAIN`. Contourner avec `DSFR_DATA_DEV_BUILD=1` (la build n'echoue pas si absent). | aucune |
 | `VITE_LIB_URL` | les 2 | Source du JS de la lib dans le code genere : `jsdelivr`, `unpkg`, `self`, ou URL custom | `jsdelivr` |
-| `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY` | les 2 (build only) | Proxy reseau pour les appels npm/build si le VPS est derriere un proxy d'entreprise | non configure |
+| `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY` | les 2 (build + runtime) | Proxy reseau pour `npm ci`/`apk add` au build, ET pour les appels sortants des services Node au runtime (ia-default-server, mcp-server) via undici `EnvHttpProxyAgent`. `NO_PROXY` doit lister les hostnames Docker internes (`mariadb`, `mailserver`). | non configure |
 | `JWT_SECRET` | serveur | HMAC pour les tokens JWT, 32 bytes hex | auto-genere |
 | `DB_USER`, `DB_PASSWORD`, `DB_ROOT_PASSWORD` | serveur | Identifiants MariaDB | `dsfr_data` / generes |
 | `DB_NAME` | serveur | Nom de la base | `dsfr_data` |
