@@ -482,6 +482,34 @@ describe('DsfrDataMapPopup', () => {
     it('returns false when no template child', () => {
       expect(popup.hasTemplate()).toBe(false);
     });
+
+    it('finds template added after connectedCallback (lazy lookup)', () => {
+      // Reproduces issue #156: when the component script is loaded in <head>
+      // without `defer`, customElements.define() runs before the body parser
+      // reaches the <template> child. connectedCallback fires with no children
+      // visible. The fix defers the lookup to the first call to hasTemplate()
+      // or _renderTemplate(), which happens after the parser has attached the
+      // template (typically on user interaction like a marker click).
+      const el = document.createElement('dsfr-data-map-popup');
+      document.body.appendChild(el);
+      const tpl = document.createElement('template');
+      tpl.innerHTML = '<p>{{nom}}</p>';
+      el.appendChild(tpl);
+      expect(el.hasTemplate()).toBe(true);
+      document.body.removeChild(el);
+    });
+
+    it('uses template content added after connectedCallback', () => {
+      const el = document.createElement('dsfr-data-map-popup');
+      document.body.appendChild(el);
+      const tpl = document.createElement('template');
+      tpl.innerHTML = '<p><strong>{{nom}}</strong></p>';
+      el.appendChild(tpl);
+      const html = el.getPopupHtml({ nom: 'Paris' });
+      expect(html).toContain('<strong>Paris</strong>');
+      expect(html).not.toContain('<table');
+      document.body.removeChild(el);
+    });
   });
 
   describe('Light DOM', () => {
