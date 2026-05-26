@@ -39,6 +39,7 @@ export class DsfrDataMapPopup extends LitElement {
   private _panelEl: HTMLDivElement | null = null;
   private _modalEl: HTMLDivElement | null = null;
   private _templateEl: HTMLTemplateElement | null = null;
+  private _templateRead = false;
   /** Currently displayed record (used by close to know state) */
   _currentRecord: Record<string, unknown> | null = null;
 
@@ -49,8 +50,20 @@ export class DsfrDataMapPopup extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
-    this._templateEl = this.querySelector('template');
+    // Note: do not query for <template> child here. When the component script
+    // is loaded in <head> without `defer`, customElements.define() runs before
+    // the body parser reaches the element, and connectedCallback fires before
+    // the <template> child is parsed. The lookup is deferred to _getTemplate(),
+    // which caches its result on first call.
     this._injectStyles();
+  }
+
+  private _getTemplate(): HTMLTemplateElement | null {
+    if (!this._templateRead) {
+      this._templateEl = this.querySelector('template');
+      this._templateRead = true;
+    }
+    return this._templateEl;
   }
 
   disconnectedCallback() {
@@ -94,7 +107,7 @@ export class DsfrDataMapPopup extends LitElement {
 
   /** Returns true if a custom template is defined */
   hasTemplate(): boolean {
-    return !!this._templateEl;
+    return !!this._getTemplate();
   }
 
   /** Close any open panel/modal */
@@ -107,11 +120,12 @@ export class DsfrDataMapPopup extends LitElement {
   // --- Template rendering ---
 
   private _renderTemplate(record: Record<string, unknown>): string {
-    if (!this._templateEl) {
+    const tpl = this._getTemplate();
+    if (!tpl) {
       return this._buildAutoTable(record);
     }
 
-    const templateHtml = this._templateEl.innerHTML;
+    const templateHtml = tpl.innerHTML;
     return templateHtml.replace(/\{\{([^}]+)\}\}/g, (_match, field: string) => {
       const value = getByPath(record, field.trim());
       return value !== undefined ? escapeHtml(String(value)) : '';
