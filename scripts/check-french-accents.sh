@@ -65,6 +65,8 @@ PATTERNS=(
 PATHS=(apps packages)
 
 # Build a single ERE alternation: \b(word1|word2|…)\b
+# IFS is scoped to the subshell, no leak to the parent shell.
+# nosemgrep: bash.lang.security.ifs-tampering.ifs-tampering
 joined=$(IFS='|'; echo "${PATTERNS[*]}")
 
 # Use git grep so .gitignore is honoured automatically.
