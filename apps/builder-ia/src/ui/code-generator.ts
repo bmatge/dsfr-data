@@ -143,8 +143,8 @@ function generateKPICode(config: ChartConfig, data: AggregatedResult[]): string 
     }
     const apiUrl = `${state.source.apiUrl}?${params}`;
 
-    return `<!-- KPI genere avec dsfr-data Builder IA -->
-<!-- Source API dynamique : les donnees se mettent a jour automatiquement -->
+    return `<!-- KPI généré avec dsfr-data Builder IA -->
+<!-- Source API dynamique : les données se mettent a jour automatiquement -->
 
 <!-- Dependances CSS (DSFR) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
@@ -174,7 +174,7 @@ function generateKPICode(config: ChartConfig, data: AggregatedResult[]): string 
 </div>
 
 <script>
-// URL de l'API avec agregation ODSQL
+// URL de l'API avec agrégation ODSQL
 const API_URL = '${apiUrl}';
 
 function formatKPIValue(value, unit) {
@@ -207,8 +207,8 @@ loadKPI();
   }
 
   // Embedded-data variant
-  return `<!-- KPI genere avec dsfr-data Builder IA -->
-<!-- Source : ${state.source?.name || 'Donnees locales'} - valeur embarquee -->
+  return `<!-- KPI généré avec dsfr-data Builder IA -->
+<!-- Source : ${state.source?.name || 'Données locales'} - valeur embarquee -->
 
 <!-- Dependances CSS (DSFR) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
@@ -246,7 +246,7 @@ function generateGaugeCode(config: ChartConfig, data: AggregatedResult[]): strin
   const gaugeValue = Math.round(data[0]?.value || 0);
 
   return `<!-- Jauge generee avec dsfr-data Builder IA -->
-<!-- Source : ${state.source?.name || 'Donnees locales'} -->
+<!-- Source : ${state.source?.name || 'Données locales'} -->
 
 <!-- Dependances (DSFR Chart) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
@@ -268,8 +268,8 @@ function generateGaugeCode(config: ChartConfig, data: AggregatedResult[]): strin
 function generateScatterCode(config: ChartConfig, data: AggregatedResult[]): string {
   const scatterData = data.map((d) => ({ x: parseFloat(d.label) || 0, y: d.value }));
 
-  return `<!-- Nuage de points genere avec dsfr-data Builder IA -->
-<!-- Source : ${state.source?.name || 'Donnees locales'} -->
+  return `<!-- Nuage de points généré avec dsfr-data Builder IA -->
+<!-- Source : ${state.source?.name || 'Données locales'} -->
 
 <!-- Dependances CSS (DSFR) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
@@ -288,7 +288,7 @@ function generateScatterCode(config: ChartConfig, data: AggregatedResult[]): str
 </div>
 
 <script>
-// Donnees embarquees
+// Données embarquees
 const scatterData = ${JSON.stringify(scatterData, null, 2)};
 
 new Chart(document.getElementById('myChart'), {
@@ -481,7 +481,7 @@ function generateMapCode(config: ChartConfig, data: AggregatedResult[]): string 
   // Embedded-data variant
   const mapTagEmbed = config.type === 'map-reg' ? 'map-chart-reg' : 'map-chart';
   return `<!-- Carte generee avec dsfr-data Builder IA -->
-<!-- Source : ${state.source?.name || 'Donnees locales'} -->
+<!-- Source : ${state.source?.name || 'Données locales'} -->
 
 <!-- Dependances CSS (DSFR) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
@@ -530,7 +530,7 @@ function generateDatalistCode(config: ChartConfig): string {
     if (provider.id === 'opendatasoft' && resourceIds?.datasetId && needsPagination()) {
       const whereAttr = whereOds ? `\n    where="${whereOds}"` : '';
 
-      return `<!-- Tableau dynamique genere avec dsfr-data Builder IA -->
+      return `<!-- Tableau dynamique généré avec dsfr-data Builder IA -->
 <!-- Source API dynamique avec pagination serveur -->
 
 <!-- Dependances CSS (DSFR) -->
@@ -573,7 +573,7 @@ function generateDatalistCode(config: ChartConfig): string {
     if (provider.id === 'tabular' && resourceIds?.resourceId && needsPagination()) {
       const whereAttr = config.where ? `\n    where="${config.where}"` : '';
 
-      return `<!-- Tableau dynamique genere avec dsfr-data Builder IA -->
+      return `<!-- Tableau dynamique généré avec dsfr-data Builder IA -->
 <!-- Source API Tabular avec pagination serveur -->
 
 <!-- Dependances CSS (DSFR) -->
@@ -620,8 +620,8 @@ function generateDatalistCode(config: ChartConfig): string {
       sourceUrl = url.toString();
     }
 
-    return `<!-- Tableau dynamique genere avec dsfr-data Builder IA -->
-<!-- Source API dynamique : les donnees se mettent a jour automatiquement -->
+    return `<!-- Tableau dynamique généré avec dsfr-data Builder IA -->
+<!-- Source API dynamique : les données se mettent a jour automatiquement -->
 
 <!-- Dependances CSS (DSFR) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
@@ -652,8 +652,8 @@ function generateDatalistCode(config: ChartConfig): string {
 
   // Embedded-data variant
   const rawData = state.localData || [];
-  return `<!-- Tableau genere avec dsfr-data Builder IA -->
-<!-- Source : ${state.source?.name || 'Donnees locales'} - donnees embarquees -->
+  return `<!-- Tableau généré avec dsfr-data Builder IA -->
+<!-- Source : ${state.source?.name || 'Données locales'} - données embarquees -->
 
 <!-- Dependances CSS (DSFR) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
@@ -676,10 +676,10 @@ function generateDatalistCode(config: ChartConfig): string {
 </div>
 
 <script>
-// Donnees integrees
+// Données integrees
 const data = ${JSON.stringify(rawData.slice(0, 500), null, 2)};
 
-// Injecter les donnees dans le composant
+// Injecter les données dans le composant
 document.getElementById('my-table').onSourceData(data);
 </script>`;
 }
@@ -733,7 +733,7 @@ function generateStandardChartCodeODS(
     config.type === 'horizontalBar' ? 'bar' : config.type === 'bar-line' ? 'bar' : config.type;
   const horizontalAttr = config.type === 'horizontalBar' ? '\n    horizontal' : '';
 
-  return `<!-- Graphique genere avec dsfr-data Builder IA -->
+  return `<!-- Graphique généré avec dsfr-data Builder IA -->
 <!-- Source API dynamique avec pagination automatique -->
 
 <!-- Dependances CSS (DSFR) -->
@@ -794,7 +794,7 @@ function generateStandardChartCodeTabular(
     config.type === 'horizontalBar' ? 'bar' : config.type === 'bar-line' ? 'bar' : config.type;
   const horizontalAttr = config.type === 'horizontalBar' ? '\n    horizontal' : '';
 
-  return `<!-- Graphique genere avec dsfr-data Builder IA -->
+  return `<!-- Graphique généré avec dsfr-data Builder IA -->
 <!-- Source API Tabular avec pagination automatique -->
 
 <!-- Dependances CSS (DSFR) -->
@@ -854,8 +854,8 @@ function generateStandardChartCodeAPI(
 
   const apiUrl = `${state.source!.apiUrl}?${params}`;
 
-  return `<!-- Graphique genere avec dsfr-data Builder IA -->
-<!-- Source API dynamique : les donnees se mettent a jour automatiquement -->
+  return `<!-- Graphique généré avec dsfr-data Builder IA -->
+<!-- Source API dynamique : les données se mettent a jour automatiquement -->
 
 <!-- Dependances CSS (DSFR) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
@@ -874,7 +874,7 @@ function generateStandardChartCodeAPI(
 
   <!-- Alternative accessible (RGAA) -->
   <details class="fr-accordion fr-mt-2w">
-    <summary class="fr-accordion__btn">Voir les donnees en tableau</summary>
+    <summary class="fr-accordion__btn">Voir les données en tableau</summary>
     <div class="fr-accordion__content">
       <table class="fr-table" id="data-table">
         <thead><tr><th>${escapeHtml(config.labelField || '')}</th><th>Valeur</th></tr></thead>
@@ -885,7 +885,7 @@ function generateStandardChartCodeAPI(
 </div>
 
 <script>
-// URL de l'API avec agregation ODSQL
+// URL de l'API avec agrégation ODSQL
 const API_URL = '${apiUrl}';
 
 // Palette DSFR
@@ -927,8 +927,8 @@ async function loadChart() {
       tbody.appendChild(tr);
     });
   } catch (error) {
-    console.error('Erreur chargement donnees:', error);
-    document.getElementById('chart-container').innerHTML = '<p class="fr-text--error">Erreur de chargement des donnees</p>';
+    console.error('Erreur chargement données:', error);
+    document.getElementById('chart-container').innerHTML = '<p class="fr-text--error">Erreur de chargement des données</p>';
   }
 }
 
@@ -942,7 +942,7 @@ function generateStandardChartCodeEmbedded(
   isMultiColor: boolean,
   colorsArray: string
 ): string {
-  const sourceName = state.source?.name || 'Donnees locales';
+  const sourceName = state.source?.name || 'Données locales';
   const sourceType = state.source?.type === 'grist' ? 'Grist' : 'source manuelle';
   const hasSecondSeries = !!(config.valueField2 && config.data2 && config.data2.length > 0);
   const isBarLine = config.type === 'bar-line';
@@ -967,9 +967,9 @@ function generateStandardChartCodeEmbedded(
   }
   datasetsCode += ']';
 
-  return `<!-- Graphique genere avec dsfr-data Builder IA -->
-<!-- Source : ${sourceName} (${sourceType}) - donnees embarquees -->
-${hasSecondSeries ? '<!-- Note: Graphique multi-series -->' : ''}
+  return `<!-- Graphique généré avec dsfr-data Builder IA -->
+<!-- Source : ${sourceName} (${sourceType}) - données embarquees -->
+${hasSecondSeries ? '<!-- Note: Graphique multi-séries -->' : ''}
 
 <!-- Dependances CSS (DSFR) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
@@ -988,7 +988,7 @@ ${hasSecondSeries ? '<!-- Note: Graphique multi-series -->' : ''}
 </div>
 
 <script>
-// Donnees embarquees (depuis ${sourceType})
+// Données embarquees (depuis ${sourceType})
 const data = ${JSON.stringify(data, null, 2)};
 ${hasSecondSeries ? `const data2 = ${JSON.stringify(config.data2, null, 2)};` : ''}
 
@@ -1038,7 +1038,7 @@ function generatePodiumCode(config: ChartConfig, data: AggregatedResult[]): stri
       );
       const whereAttr = config.where ? `\n    where="${filterToOdsql(config.where)}"` : '';
 
-      return `<!-- Podium genere avec dsfr-data Builder IA -->
+      return `<!-- Podium généré avec dsfr-data Builder IA -->
 <!-- Source API dynamique -->
 
 <!-- Dependances CSS (DSFR) -->
@@ -1075,7 +1075,7 @@ function generatePodiumCode(config: ChartConfig, data: AggregatedResult[]): stri
           : `${config.valueField}:${config.aggregation || 'sum'}:total`;
       const whereAttr = config.where ? `\n    where="${config.where}"` : '';
 
-      return `<!-- Podium genere avec dsfr-data Builder IA -->
+      return `<!-- Podium généré avec dsfr-data Builder IA -->
 <!-- Source API Tabular dynamique -->
 
 <!-- Dependances CSS (DSFR) -->
@@ -1114,11 +1114,11 @@ function generatePodiumCode(config: ChartConfig, data: AggregatedResult[]): stri
   }
 
   // Embedded data variant
-  const sourceName = state.source?.name || 'Donnees locales';
+  const sourceName = state.source?.name || 'Données locales';
   const sourceType = state.source?.type === 'grist' ? 'Grist' : 'source manuelle';
 
-  return `<!-- Podium genere avec dsfr-data Builder IA -->
-<!-- Source : ${sourceName} (${sourceType}) - donnees embarquees -->
+  return `<!-- Podium généré avec dsfr-data Builder IA -->
+<!-- Source : ${sourceName} (${sourceType}) - données embarquees -->
 
 <!-- Dependances CSS (DSFR) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">

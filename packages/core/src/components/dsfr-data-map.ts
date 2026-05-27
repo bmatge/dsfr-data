@@ -2,7 +2,7 @@
  * dsfr-data-map — Conteneur carte interactive Leaflet
  *
  * Orchestre ses couches enfantes (dsfr-data-map-layer), gere le viewport
- * et expose des controles utilisateur. Ne consomme pas de donnees directement.
+ * et expose des controles utilisateur. Ne consomme pas de données directement.
  */
 import { LitElement, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
@@ -15,7 +15,7 @@ type LeafletMap = import('leaflet').Map;
 type LeafletTileLayer = import('leaflet').TileLayer;
 type LatLngBoundsExpression = import('leaflet').LatLngBoundsExpression;
 
-/** Tile presets — souverains (IGN) ou europeens (OSM France), sans cle API */
+/** Tile presets — souverains (IGN) ou europeens (OSM France), sans clé API */
 const TILE_PRESETS: Record<
   string,
   { url: string; attribution: string; options?: Record<string, unknown> }
@@ -52,7 +52,7 @@ const TILE_ALIASES: Record<string, string> = {
 const SOVEREIGN_PRESETS = new Set<string>(['ign-plan', 'ign-ortho', 'ign-topo', 'ign-cadastre']);
 
 /**
- * Resout la valeur de `tiles` en cle de preset canonique ou `null` (URL custom).
+ * Resout la valeur de `tiles` en clé de preset canonique ou `null` (URL custom).
  * Applique les alias, puis la restriction `sovereign-only` si active.
  * Retourne aussi `warning` quand un fallback a ete applique (pour logging par l'appelant).
  *
@@ -138,7 +138,7 @@ export class DsfrDataMap extends LitElement {
   @property({ type: String })
   name = '';
 
-  // --- Etat interne ---
+  // --- État interne ---
 
   private _leafletMap: LeafletMap | null = null;
   private _tileLayer: LeafletTileLayer | null = null;
@@ -292,7 +292,7 @@ export class DsfrDataMap extends LitElement {
     });
   }
 
-  /** Met a jour la description de la carte (appele par les layers quand les donnees changent) */
+  /** Met a jour la description de la carte (appele par les layers quand les données changent) */
   updateDescription(layerSummaries: string[]): void {
     if (!this._srDescription) return;
     const parts = [this._buildMapDescription()];

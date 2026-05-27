@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { updateAccessibleTable } from '../../../apps/builder/src/ui/accessible-table';
 import { state } from '../../../apps/builder/src/state';
 
@@ -21,7 +21,8 @@ describe('updateAccessibleTable', () => {
     state.a11yTable = true;
     state.a11yDownload = true;
     state.a11yDescription = '';
-    document.body.innerHTML = '<dsfr-data-a11y id="a11y-preview" source="builder-preview" no-auto-aria style="display: none;"></dsfr-data-a11y>';
+    document.body.innerHTML =
+      '<dsfr-data-a11y id="a11y-preview" source="builder-preview" no-auto-aria style="display: none;"></dsfr-data-a11y>';
   });
 
   it('should do nothing when element is missing', () => {
@@ -80,10 +81,10 @@ describe('updateAccessibleTable', () => {
 
   it('should set description attribute when provided', () => {
     state.a11yEnabled = true;
-    state.a11yDescription = 'Mon graphique montre les donnees.';
+    state.a11yDescription = 'Mon graphique montre les données.';
     updateAccessibleTable();
     const el = document.getElementById('a11y-preview')!;
-    expect(el.getAttribute('description')).toBe('Mon graphique montre les donnees.');
+    expect(el.getAttribute('description')).toBe('Mon graphique montre les données.');
   });
 
   it('should remove description attribute when empty', () => {

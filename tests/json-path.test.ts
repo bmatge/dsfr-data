@@ -83,7 +83,7 @@ describe('json-path', () => {
       expect(getByPath(obj, 'matrix[1][0]')).toBe(3);
     });
 
-    it('gère les cles avec des chiffres dans le nom', () => {
+    it('gère les clés avec des chiffres dans le nom', () => {
       const obj = { field2: 'val' };
       expect(getByPath(obj, 'field2')).toBe('val');
     });
@@ -173,13 +173,13 @@ describe('json-path', () => {
       expect((obj as any).data.new_key).toBe('val');
     });
 
-    it("n'assigne pas une cle __proto__ (prototype pollution)", () => {
+    it("n'assigne pas une clé __proto__ (prototype pollution)", () => {
       const obj: Record<string, unknown> = {};
       setByPath(obj, '__proto__.polluted', 'yes');
       expect(({} as any).polluted).toBeUndefined();
     });
 
-    it("n'assigne pas via une cle constructor", () => {
+    it("n'assigne pas via une clé constructor", () => {
       const obj: Record<string, unknown> = {};
       setByPath(obj, 'constructor.prototype.polluted', 'yes');
       expect(({} as any).polluted).toBeUndefined();

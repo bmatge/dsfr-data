@@ -156,7 +156,7 @@ describe('TILE_PRESETS', () => {
     expect(__tilePresetsForTests.aliases).toEqual({ osm: 'osm-fr' });
   });
 
-  it('toutes les URLs pointent vers data.geopf.fr ou openstreetmap.fr (sans cle API)', () => {
+  it('toutes les URLs pointent vers data.geopf.fr ou openstreetmap.fr (sans clé API)', () => {
     for (const [key, preset] of Object.entries(__tilePresetsForTests.presets)) {
       const allowedHosts = ['data.geopf.fr', 'openstreetmap.fr'];
       expect(

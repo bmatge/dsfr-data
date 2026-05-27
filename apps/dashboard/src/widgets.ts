@@ -52,7 +52,7 @@ export function getDefaultTitle(type: WidgetType): string {
   const titles: Record<WidgetType, string> = {
     kpi: 'Indicateur',
     chart: 'Graphique',
-    table: 'Tableau de donnees',
+    table: 'Tableau de données',
     text: 'Texte',
   };
   return titles[type] || 'Widget';
@@ -161,7 +161,7 @@ function appendWidgetContent(parent: HTMLElement, widget: Widget): void {
       icon.className = 'ri-table-line widget-preview-icon';
       const text = document.createElement('p');
       text.className = 'widget-preview-text';
-      text.textContent = 'Tableau de donnees';
+      text.textContent = 'Tableau de données';
       wrap.append(icon, text);
       parent.append(wrap);
       return;

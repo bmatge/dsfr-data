@@ -18,23 +18,23 @@ export const SOURCES_TOUR: TourConfig = {
   steps: [
     {
       selector: '#add-connection-btn',
-      title: 'Connecter une base de donnees',
+      title: 'Connecter une base de données',
       description:
-        'Ajoutez une connexion a une base Grist ou une API publique (data.gouv.fr, OpenDataSoft...) pour acceder a vos donnees.',
+        'Ajoutez une connexion a une base Grist ou une API publique (data.gouv.fr, OpenDataSoft...) pour acceder a vos données.',
       position: 'right',
     },
     {
       selector: '#add-source-btn',
-      title: 'Creer une source manuelle',
+      title: 'Créer une source manuelle',
       description:
         "Pas d'API ? Creez une source en collant du JSON, en important un CSV, ou en saisissant un tableau directement.",
       position: 'right',
     },
     {
       selector: '#main-content',
-      title: 'Explorer et previsualiser',
+      title: 'Explorer et prévisualiser',
       description:
-        'Selectionnez une connexion pour parcourir ses tables et previsualiser les donnees avant de les utiliser dans le Builder.',
+        'Sélectionnez une connexion pour parcourir ses tables et prévisualiser les données avant de les utiliser dans le Builder.',
       position: 'left',
     },
   ],
@@ -51,21 +51,21 @@ export const BUILDER_IA_TOUR: TourConfig = {
       selector: '#saved-source',
       title: 'Choisissez une source',
       description:
-        "Selectionnez une source de donnees dans la liste. Vous pouvez aussi choisir un jeu de donnees d'exemple pour essayer tout de suite.",
+        "Sélectionnez une source de données dans la liste. Vous pouvez aussi choisir un jeu de données d'exemple pour essayer tout de suite.",
       position: 'bottom',
     },
     {
       selector: '#chat-input',
       title: 'Decrivez votre graphique',
       description:
-        'Ecrivez en francais ce que vous voulez : "un graphique en barres de la population par region", "un camembert du budget"... L\'IA genere le code.',
+        'Ecrivez en francais ce que vous voulez : "un graphique en barres de la population par region", "un camembert du budget"... L\'IA généré le code.',
       position: 'top',
     },
     {
       selector: 'app-preview-panel',
       title: 'Resultat et code',
       description:
-        'Le graphique genere s\'affiche ici. Basculez sur l\'onglet "Code" pour copier le HTML pret a integrer.',
+        'Le graphique généré s\'affiche ici. Basculez sur l\'onglet "Code" pour copier le HTML pret a integrer.',
       position: 'left',
     },
   ],
@@ -82,19 +82,19 @@ export const BUILDER_CARTO_TOUR: TourConfig = {
       selector: '#btn-add-layer',
       title: 'Ajouter une couche',
       description:
-        'Cliquez ici pour ajouter une couche de donnees sur la carte : marqueurs, zones colorees, cercles proportionnels ou carte de chaleur.',
+        'Cliquez ici pour ajouter une couche de données sur la carte : marqueurs, zones colorees, cercles proportionnels ou carte de chaleur.',
       position: 'bottom',
     },
     {
       selector: '.carto-col-config',
       title: 'Configurer la couche',
       description:
-        "Choisissez la source de donnees, le type de couche, le champ geographique et les options d'affichage (popup, couleur, clustering...).",
+        "Choisissez la source de données, le type de couche, le champ geographique et les options d'affichage (popup, couleur, clustering...).",
       position: 'right',
     },
     {
       selector: '#btn-execute',
-      title: 'Previsualiser',
+      title: 'Prévisualiser',
       description:
         'Cliquez sur "Executer" pour voir la carte en direct. Modifiez et re-executez autant de fois que necessaire.',
       position: 'bottom',
@@ -139,7 +139,7 @@ export const PLAYGROUND_TOUR: TourConfig = {
     },
     {
       selector: '#preview-frame',
-      title: 'Apercu en direct',
+      title: 'Aperçu en direct',
       description:
         'Le rendu de votre code s\'affiche ici. Utilisez les boutons "Copier" ou "+ Deps" pour obtenir un code autonome.',
       position: 'left',
@@ -165,7 +165,7 @@ export const DASHBOARD_TOUR: TourConfig = {
       selector: '#dashboard-grid',
       title: 'Votre grille',
       description:
-        'Deposez les widgets ici. Cliquez sur un widget pour le configurer (source de donnees, type de graphique, titre...).',
+        'Deposez les widgets ici. Cliquez sur un widget pour le configurer (source de données, type de graphique, titre...).',
       position: 'left',
     },
     {

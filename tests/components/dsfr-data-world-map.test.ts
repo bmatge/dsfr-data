@@ -630,7 +630,7 @@ describe('DsfrDataWorldMap', () => {
         expect(result.strings).toBeDefined();
       });
 
-      it('shows "Pas de donnees" when country has no value', () => {
+      it('shows "Pas de données" when country has no value', () => {
         const el = createWithTopology();
         (el as any)._hoveredCountryId = '250';
         (el as any)._tooltipX = 100;

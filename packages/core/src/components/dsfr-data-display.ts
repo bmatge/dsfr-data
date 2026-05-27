@@ -7,19 +7,19 @@ import { sendWidgetBeacon } from '../utils/beacon.js';
 import { getDataMeta, dispatchSourceCommand } from '../utils/data-bridge.js';
 
 /**
- * <dsfr-data-display> - Affichage dynamique de donnees via template HTML
+ * <dsfr-data-display> - Affichage dynamique de données via template HTML
  *
- * Recupere les donnees d'une source et les injecte dans un template HTML
- * defini par l'utilisateur, en generant autant d'elements qu'il y a de
- * resultats. Ideal pour creer des listes de cartes, tuiles, ou tout
+ * Recupere les données d'une source et les injecte dans un template HTML
+ * défini par l'utilisateur, en generant autant d'elements qu'il y a de
+ * resultats. Ideal pour créer des listes de cartes, tuiles, ou tout
  * autre motif repetitif DSFR.
  *
  * Le template utilise des placeholders :
  * - {{champ}}           : valeur echappee (HTML-safe)
  * - {{{champ}}}         : valeur brute (non echappee)
- * - {{champ|defaut}}    : valeur avec fallback si null/undefined
+ * - {{champ|défaut}}    : valeur avec fallback si null/undefined
  * - {{champ:number}}    : valeur formatee avec separateur de milliers (ex: 32 073 247)
- * - {{champ.sous.cle}}  : acces aux proprietes imbriquees
+ * - {{champ.sous.clé}}  : acces aux proprietes imbriquees
  * - {{$index}}          : index de l'element (0-based)
  *
  * @example
@@ -33,7 +33,7 @@ import { getDataMeta, dispatchSourceCommand } from '../utils/data-bridge.js';
  *           <p class="fr-card__desc">{{description}}</p>
  *         </div>
  *         <div class="fr-card__footer">
- *           <p class="fr-badge fr-badge--sm">{{categorie}}</p>
+ *           <p class="fr-badge fr-badge--sm">{{catégorie}}</p>
  *         </div>
  *       </div>
  *     </div>
@@ -45,7 +45,7 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
   @property({ type: String })
   source = '';
 
-  /** Nombre de colonnes dans la grille (1-6, defaut 1 = pleine largeur) */
+  /** Nombre de colonnes dans la grille (1-6, défaut 1 = pleine largeur) */
   @property({ type: Number })
   cols = 1;
 
@@ -57,11 +57,11 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
   @property({ type: String })
   empty = 'Aucun resultat';
 
-  /** Classe CSS de gap pour la grille (defaut: fr-grid-row--gutters) */
+  /** Classe CSS de gap pour la grille (défaut: fr-grid-row--gutters) */
   @property({ type: String })
   gap = 'fr-grid-row--gutters';
 
-  /** Champ de donnees a utiliser comme identifiant unique par item. Si vide, utilise l'index */
+  /** Champ de données a utiliser comme identifiant unique par item. Si vide, utilise l'index */
   @property({ type: String, attribute: 'uid-field' })
   uidField = '';
 
@@ -69,7 +69,7 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
   @property({ type: Boolean, attribute: 'url-sync' })
   urlSync = false;
 
-  /** Nom du parametre URL pour la page (defaut: "page") */
+  /** Nom du parametre URL pour la page (défaut: "page") */
   @property({ type: String, attribute: 'url-page-param' })
   urlPageParam = 'page';
 
@@ -91,7 +91,7 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
   private _hashScrollDone = false;
   private _popstateHandler: (() => void) | null = null;
 
-  /** Message annonce par la live region (lecteurs d'ecran) */
+  /** Message annonce par la live region (lecteurs d'écran) */
   @state()
   private _liveAnnouncement = '';
 
@@ -171,7 +171,7 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
       return value;
     });
 
-    // {{champ}} ou {{champ|defaut}} - valeur echappee
+    // {{champ}} ou {{champ|défaut}} - valeur echappee
     result = result.replace(/\{\{([^}]+)\}\}/g, (_match, expr: string) => {
       const value = this._resolveExpression(item, expr.trim(), index);
       return escapeHtml(value);
@@ -180,7 +180,7 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
     return result;
   }
 
-  /** Resout une expression : champ, champ:format, champ|defaut, champ:format|defaut, $index, $uid */
+  /** Resout une expression : champ, champ:format, champ|défaut, champ:format|défaut, $index, $uid */
   private _resolveExpression(item: Record<string, unknown>, expr: string, index: number): string {
     // Variable speciale : $index
     if (expr === '$index') return String(index);
@@ -228,7 +228,7 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
   // --- Pagination ---
 
   private _getPaginatedData(): Record<string, unknown>[] {
-    // En mode serveur, les donnees recues sont deja la bonne page
+    // En mode serveur, les données recues sont déjà la bonne page
     if (this._serverPagination) return this._data;
     if (!this.pagination || this.pagination <= 0) return this._data;
     const start = (this._currentPage - 1) * this.pagination;

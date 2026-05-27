@@ -1,7 +1,7 @@
 /**
  * Interface commune pour les adapters d'API.
  *
- * Chaque adapter encapsule la logique specifique a une API :
+ * Chaque adapter encapsule la logique spécifique a une API :
  * construction d'URL, pagination, parsing de reponse, mapping d'operateurs.
  * Les adapters sont stateless — tout l'etat est passe via AdapterParams.
  */
@@ -15,7 +15,7 @@ import type { ProviderConfig } from '@dsfr-data/shared';
  * peuvent consulter ces capacites pour adapter leur comportement.
  */
 export interface AdapterCapabilities {
-  /** Peut fetcher des donnees depuis une API distante */
+  /** Peut fetcher des données depuis une API distante */
   serverFetch: boolean;
   /** Supporte les facettes serveur (endpoint dedie) */
   serverFacets: boolean;
@@ -53,7 +53,7 @@ export interface AdapterParams {
 }
 
 /**
- * Etat overlay pour le mode server-side (page, where, orderBy dynamiques).
+ * État overlay pour le mode server-side (page, where, orderBy dynamiques).
  */
 export interface ServerSideOverlay {
   page: number;
@@ -80,7 +80,7 @@ export interface FetchResult {
 }
 
 /**
- * Resultat d'une requete de facettes serveur.
+ * Resultat d'une requête de facettes serveur.
  */
 export interface FacetResult {
   field: string;
@@ -90,7 +90,7 @@ export interface FacetResult {
 /**
  * Interface commune pour tous les adapters d'API.
  * Les adapters sont stateless : ils recoivent tout via les arguments
- * et retournent des structures de donnees pures. Pas d'acces DOM,
+ * et retournent des structures de données pures. Pas d'acces DOM,
  * pas d'effets de bord.
  */
 export interface ApiAdapter {
@@ -107,7 +107,7 @@ export interface ApiAdapter {
   validate(params: AdapterParams): string | null;
 
   /**
-   * Fetch toutes les donnees avec pagination automatique.
+   * Fetch toutes les données avec pagination automatique.
    * Utilise en mode non-server-side.
    */
   fetchAll(params: AdapterParams, signal: AbortSignal): Promise<FetchResult>;
@@ -145,20 +145,20 @@ export interface ApiAdapter {
   ): Promise<FacetResult[]>;
 
   /**
-   * Retourne le search template par defaut pour cette API.
+   * Retourne le search template par défaut pour cette API.
    * Ex: ODS retourne 'search("{q}")'.
    */
   getDefaultSearchTemplate?(): string | null;
 
   /**
-   * Parse l'expression d'agregation en objets structures.
+   * Parse l'expression d'agrégation en objets structures.
    * Partage entre le traitement client-side et la construction d'URL serveur.
    */
   parseAggregates?(aggExpr: string): QueryAggregate[];
 
   /**
    * Construit un WHERE clause a partir de selections de facettes.
-   * Utilise par dsfr-data-facets pour generer les filtres dans la syntaxe du provider.
+   * Utilise par dsfr-data-facets pour générer les filtres dans la syntaxe du provider.
    */
   buildFacetWhere?(selections: Record<string, Set<string>>, excludeField?: string): string;
 

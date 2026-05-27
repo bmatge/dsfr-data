@@ -157,7 +157,7 @@ export function applyChartConfig(config: ChartConfig): void {
   if (!state.localData || state.localData.length === 0) {
     addMessage(
       'assistant',
-      'Aucune donnee disponible. Veuillez selectionner une source de donnees.'
+      'Aucune donnee disponible. Veuillez sélectionner une source de données.'
     );
     return;
   }
@@ -167,14 +167,14 @@ export function applyChartConfig(config: ChartConfig): void {
   if (config.labelField && !dataKeys.includes(config.labelField)) {
     addMessage(
       'assistant',
-      `Le champ "${config.labelField}" n'existe pas dans les donnees. Champs disponibles : ${dataKeys.join(', ')}`
+      `Le champ "${config.labelField}" n'existe pas dans les données. Champs disponibles : ${dataKeys.join(', ')}`
     );
     return;
   }
   if (config.valueField && !dataKeys.includes(config.valueField)) {
     addMessage(
       'assistant',
-      `Le champ "${config.valueField}" n'existe pas dans les donnees. Champs disponibles : ${dataKeys.join(', ')}`
+      `Le champ "${config.valueField}" n'existe pas dans les données. Champs disponibles : ${dataKeys.join(', ')}`
     );
     return;
   }
@@ -186,7 +186,7 @@ export function applyChartConfig(config: ChartConfig): void {
     if (workingData.length === 0) {
       addMessage(
         'assistant',
-        `Aucun enregistrement ne correspond au filtre "${config.where}". Verifiez les noms de champs et les valeurs.`
+        `Aucun enregistrement ne correspond au filtre "${config.where}". Vérifiez les noms de champs et les valeurs.`
       );
       return;
     }
@@ -456,7 +456,7 @@ function renderChart(config: ChartConfig, data: AggregatedResult[]): void {
     },
   ];
 
-  // Handle multi-series (valueField2) or bar-line second series
+  // Handle multi-séries (valueField2) or bar-line second séries
   if (config.valueField2 && config.data2 && config.data2.length > 0) {
     const values2 = config.data2.map((d) => Math.round(d.value * 100) / 100);
     datasets.push({

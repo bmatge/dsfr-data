@@ -21,13 +21,13 @@ type SearchOperator = 'contains' | 'starts' | 'words';
  * <dsfr-data-search> - Recherche textuelle
  *
  * Composant visuel intermediaire qui affiche un champ de recherche DSFR et filtre
- * les donnees avant de les redistribuer aux composants en aval. Se place entre
+ * les données avant de les redistribuer aux composants en aval. Se place entre
  * une source/normalize et les facettes/visualisations.
  *
  * Position dans le pipeline :
  * dsfr-data-source -> dsfr-data-normalize -> dsfr-data-search -> dsfr-data-facets -> dsfr-data-display
  *
- * La recherche reduit le jeu de donnees, les facettes affinent ensuite.
+ * La recherche reduit le jeu de données, les facettes affinent ensuite.
  *
  * @example
  * <dsfr-data-search id="searched" source="clean"
@@ -38,7 +38,7 @@ type SearchOperator = 'contains' | 'starts' | 'words';
  */
 @customElement('dsfr-data-search')
 export class DsfrDataSearch extends LitElement {
-  /** ID de la source de donnees a ecouter */
+  /** ID de la source de données a ecouter */
   @property({ type: String })
   source = '';
 
@@ -58,7 +58,7 @@ export class DsfrDataSearch extends LitElement {
   @property({ type: Number })
   debounce = 300;
 
-  /** Nombre minimum de caracteres avant declenchement */
+  /** Nombre minimum de caractères avant declenchement */
   @property({ type: Number, attribute: 'min-length' })
   minLength = 0;
 
@@ -89,7 +89,7 @@ export class DsfrDataSearch extends LitElement {
   /**
    * Active le mode recherche serveur.
    * Au lieu de filtrer localement, envoie une commande { where } au source upstream
-   * (dsfr-data-query server-side) qui re-fetche les donnees avec le filtre search.
+   * (dsfr-data-query server-side) qui re-fetche les données avec le filtre search.
    */
   @property({ type: Boolean, attribute: 'server-search' })
   serverSearch = false;
@@ -195,7 +195,7 @@ export class DsfrDataSearch extends LitElement {
 
   // --- Public methods ---
 
-  /** Efface le champ et restaure toutes les donnees */
+  /** Efface le champ et restaure toutes les données */
   clear() {
     this._term = '';
     const input = this.querySelector('input');
@@ -214,12 +214,12 @@ export class DsfrDataSearch extends LitElement {
     this._applyFilter();
   }
 
-  /** Retourne les donnees actuellement filtrees */
+  /** Retourne les données actuellement filtrees */
   getData(): Record<string, unknown>[] {
     return this._filteredData;
   }
 
-  /** Remplace le jeu de donnees source */
+  /** Remplace le jeu de données source */
   setData(data: Record<string, unknown>[]) {
     this._allData = Array.isArray(data) ? data : [];
     this._applyFilter();

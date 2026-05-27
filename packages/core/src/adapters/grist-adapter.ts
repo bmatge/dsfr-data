@@ -1,7 +1,7 @@
 /**
- * Adapter pour l'API Grist (grist.numerique.gouv.fr, docs.getgrist.com).
+ * Adapter pour l'API Grist (grist.numérique.gouv.fr, docs.getgrist.com).
  *
- * Deux modes de fonctionnement, selectionnes automatiquement :
+ * Deux modes de fonctionnement, sélectionnés automatiquement :
  *
  * **Mode Records** (GET /records) :
  *   - filter equality/IN via ?filter={"col":["v1","v2"]}
@@ -16,7 +16,7 @@
  *   - Utilise quand group-by, aggregate ou operateurs avances sont demandes
  *   - Fallback gracieux en mode Records + client-side si endpoint SQL indisponible
  *
- * Le base-url passe en attribut doit deja inclure le proxy si necessaire
+ * Le base-url passe en attribut doit déjà inclure le proxy si necessaire
  * (ex: https://<proxy-domain>/grist-gouv-proxy/api/docs/xxx/tables/yyy/records).
  */
 
@@ -93,7 +93,7 @@ export class GristAdapter implements ApiAdapter {
 
   validate(params: AdapterParams): string | null {
     if (!params.baseUrl) {
-      return 'attribut "base-url" requis pour les requetes Grist';
+      return 'attribut "base-url" requis pour les requêtes Grist';
     }
     return null;
   }
@@ -217,7 +217,7 @@ export class GristAdapter implements ApiAdapter {
     const results: FacetResult[] = [];
     const fullParams = params as AdapterParams;
 
-    // Verifier que SQL est disponible
+    // Vérifier que SQL est disponible
     if (!(await this._checkSqlAvailability(fullParams))) {
       return results;
     }
@@ -414,7 +414,7 @@ export class GristAdapter implements ApiAdapter {
   // =========================================================================
 
   /**
-   * Determine si la requete necessite le mode SQL.
+   * Determine si la requête necessite le mode SQL.
    * SQL est active quand group-by, aggregate ou operateurs avances sont demandes.
    */
   private _needsSqlMode(params: AdapterParams, overlay?: ServerSideOverlay): boolean {
@@ -528,7 +528,7 @@ export class GristAdapter implements ApiAdapter {
   }
 
   // =========================================================================
-  // Mode SQL : construction de requete
+  // Mode SQL : construction de requête
   // =========================================================================
 
   private _buildSqlQuery(

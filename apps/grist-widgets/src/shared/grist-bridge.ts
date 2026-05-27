@@ -1,7 +1,7 @@
 /**
  * Grist Bridge - Pont entre l'API Grist et le data-bridge dsfr-data
  *
- * Utilise le global DsfrData (UMD) pour dispatcher les evenements
+ * Utilise le global DsfrData (UMD) pour dispatcher les événements
  * compatibles avec le systeme dsfr-data-loaded / dsfr-data-error.
  */
 
@@ -88,7 +88,7 @@ export function getGristApiInfo(): {
 /**
  * Initialise le pont Grist -> data-bridge.
  *
- * @param columns - Colonnes attendues (definies par le widget)
+ * @param columns - Colonnes attendues (définies par le widget)
  * @param options - Options supplementaires pour grist.ready()
  */
 export function initGristBridge(

@@ -1,10 +1,10 @@
 /**
  * Playground examples data
  *
- * 25 exemples organises en 9 categories :
+ * 25 exemples organises en 9 catégories :
  *
  * Mode direct       : dsfr-data-source → composant (dsfr-data-chart / dsfr-data-kpi / dsfr-data-list)
- * Mode requete      : dsfr-data-source → dsfr-data-query → composant
+ * Mode requête      : dsfr-data-source → dsfr-data-query → composant
  * Mode normalisation : dsfr-data-source → dsfr-data-normalize → dsfr-data-query → composant
  * Mode display      : dsfr-data-source → dsfr-data-display (template HTML dynamique)
  * Mode recherche    : dsfr-data-source → dsfr-data-search → composant
@@ -13,14 +13,14 @@
  * Server-side       : dsfr-data-source server-side → composant
  * Carte du monde    : dsfr-data-source → dsfr-data-world-map
  *
- * Sources de donnees :
+ * Sources de données :
  *  - OpenDataSoft : Fiscalite locale, Industrie du futur, RappelConso (data.economie.gouv.fr)
  *  - Tabular API  : Registre des maires, Code officiel geographique, LOVAC (tabular-api.data.gouv.fr)
  */
 export const examples: Record<string, string> = {
   // =====================================================================
   // MODE DIRECT — dsfr-data-source → composant
-  // Les donnees de la source sont transmises directement au composant
+  // Les données de la source sont transmises directement au composant
   // de visualisation, sans transformation intermediaire.
   // =====================================================================
 
@@ -56,7 +56,7 @@ export const examples: Record<string, string> = {
   Mode direct : dsfr-data-source → dsfr-data-chart (bar + databox)
   Source : Fiscalite locale des particuliers (OpenDataSoft)
   DataBox avec tous les attributs : titre, tooltip, modale, source,
-  date, tendance, screenshot, telechargement, plein ecran, actions
+  date, tendance, screenshot, téléchargement, plein écran, actions
 -->
 
 <div class="fr-container fr-my-4w">
@@ -75,8 +75,8 @@ export const examples: Record<string, string> = {
     databox
     databox-title="Taux de taxe fonciere par commune"
     databox-tooltip-title="Taxe fonciere"
-    databox-tooltip-content="Taux global de taxe fonciere sur les proprietes baties (TFB) par commune. Source : DGFiP, donnees fiscales des particuliers."
-    databox-modal-title="A propos de ces donnees"
+    databox-tooltip-content="Taux global de taxe fonciere sur les proprietes baties (TFB) par commune. Source : DGFiP, données fiscales des particuliers."
+    databox-modal-title="A propos de ces données"
     databox-modal-content="Les taux de fiscalite locale sont votes chaque annee par les collectivites territoriales. Le taux global TFB inclut les parts communale, intercommunale et departementale."
     databox-source="DGFiP via data.economie.gouv.fr"
     databox-date="2024"
@@ -97,7 +97,7 @@ export const examples: Record<string, string> = {
   Ligne avec DataBox — Taux de taxe fonciere par commune
   Mode direct : dsfr-data-source → dsfr-data-chart (line + databox)
   Source : Fiscalite locale des particuliers (OpenDataSoft)
-  DataBox simplifiee : titre, source, date, tendance, telechargement
+  DataBox simplifiee : titre, source, date, tendance, téléchargement
 -->
 
 <div class="fr-container fr-my-4w">
@@ -132,14 +132,14 @@ export const examples: Record<string, string> = {
 </div>`,
 
   'direct-kpi': `<!--
-  KPI — Indicateurs cles Industrie du futur
+  KPI — Indicateurs clés Industrie du futur
   Mode direct : dsfr-data-source → dsfr-data-kpi (x4)
   Source : Industrie du futur (OpenDataSoft)
-  Chaque KPI calcule une agregation sur les donnees brutes
+  Chaque KPI calcule une agrégation sur les données brutes
 -->
 
 <div class="fr-container fr-my-4w">
-  <h2>Indicateurs cles — Industrie du futur</h2>
+  <h2>Indicateurs clés — Industrie du futur</h2>
   <p class="fr-text--sm fr-text--light">
     Source : data.economie.gouv.fr — Industrie du futur
   </p>
@@ -242,7 +242,7 @@ export const examples: Record<string, string> = {
     <p class="fr-callout__text">
       Avec <code>paginate</code> et <code>page-size="20"</code>, <code>dsfr-data-source</code>
       injecte <code>?page=N&amp;page_size=20</code> dans l'URL. Pas besoin de <code>transform="data"</code> :
-      en mode pagination, les donnees sont auto-extraites depuis <code>json.data</code>.
+      en mode pagination, les données sont auto-extraites depuis <code>json.data</code>.
       Cliquer sur une page declenche un nouvel appel API.
     </p>
   </div>
@@ -297,7 +297,7 @@ export const examples: Record<string, string> = {
   <h2>Industrie du futur — Pagination + KPI</h2>
   <p class="fr-text--sm fr-text--light">
     Source : data.economie.gouv.fr — Industrie du futur
-    <br>Double source : pagination serveur pour la navigation, agregation pour les KPI
+    <br>Double source : pagination serveur pour la navigation, agrégation pour les KPI
   </p>
 
   <!-- Source 1 : pagination serveur pour la navigation -->
@@ -352,13 +352,13 @@ export const examples: Record<string, string> = {
 
   // =====================================================================
   // MODE AVEC REQUETE — dsfr-data-source → dsfr-data-query → composant
-  // Les donnees passent par dsfr-data-query qui les filtre, regroupe
-  // et/ou agrege avant de les transmettre au composant de visualisation.
+  // Les données passent par dsfr-data-query qui les filtre, regroupe
+  // et/ou agrégé avant de les transmettre au composant de visualisation.
   // =====================================================================
 
   'query-bar': `<!--
-  Barres — Beneficiaires agreges par region
-  Mode requete : dsfr-data-source → dsfr-data-query → dsfr-data-chart (bar)
+  Barres — Beneficiaires agrégés par region
+  Mode requête : dsfr-data-source → dsfr-data-query → dsfr-data-chart (bar)
   Source : Industrie du futur (OpenDataSoft)
   dsfr-data-query regroupe par region et somme les beneficiaires
 -->
@@ -395,10 +395,10 @@ export const examples: Record<string, string> = {
 
   'query-pie': `<!--
   Camembert — Investissement Industrie du futur par region
-  Mode requete : dsfr-data-source → dsfr-data-query → dsfr-data-chart (pie)
+  Mode requête : dsfr-data-source → dsfr-data-query → dsfr-data-chart (pie)
   Source : Industrie du futur (OpenDataSoft) — 101 records
   dsfr-data-query regroupe par region et somme les investissements
-  DataBox ajoute titre, source et telechargement CSV
+  DataBox ajoute titre, source et téléchargement CSV
 -->
 
 <div class="fr-container fr-my-4w">
@@ -431,7 +431,7 @@ export const examples: Record<string, string> = {
 
   'query-map': `<!--
   Carte — Taux TFB moyen par departement
-  Mode requete : dsfr-data-source → dsfr-data-query → dsfr-data-chart (map)
+  Mode requête : dsfr-data-source → dsfr-data-query → dsfr-data-chart (map)
   Source : Fiscalite locale des particuliers (OpenDataSoft)
   dsfr-data-query calcule la moyenne TFB par departement (code dep)
 -->
@@ -462,17 +462,17 @@ export const examples: Record<string, string> = {
 
   // =====================================================================
   // MODE AVEC NORMALISATION — dsfr-data-source → dsfr-data-normalize → dsfr-data-query → composant
-  // Les donnees passent par dsfr-data-normalize pour etre nettoyees
-  // (conversion numerique, renommage, trim) avant traitement par dsfr-data-query.
+  // Les données passent par dsfr-data-normalize pour etre nettoyees
+  // (conversion numérique, renommage, trim) avant traitement par dsfr-data-query.
   // =====================================================================
 
   'normalize-bar': `<!--
-  Barres — Logements vacants par departement (donnees LOVAC nettoyees)
+  Barres — Logements vacants par departement (données LOVAC nettoyees)
   Pipeline : dsfr-data-source → dsfr-data-normalize → dsfr-data-query → dsfr-data-chart (bar)
   Source : LOVAC - Logements vacants (tabular-api)
-  Probleme : les cles ont des espaces (" DEP ", " LIB_DEP ") et les
+  Probleme : les clés ont des espaces (" DEP ", " LIB_DEP ") et les
   nombres sont en string avec separateurs milliers (" 19 805   ").
-  dsfr-data-normalize nettoie les cles (trim), convertit les nombres (numeric-auto)
+  dsfr-data-normalize nettoie les clés (trim), convertit les nombres (numeric-auto)
   et renomme les colonnes cryptiques en noms lisibles.
 -->
 
@@ -489,8 +489,8 @@ export const examples: Record<string, string> = {
   </dsfr-data-source>
 
   <!-- Nettoyage :
-    - trim nettoie les cles (" DEP " → "DEP") ET les valeurs (" Ain " → "Ain")
-    - numeric-auto convertit " 19 805   " → 19805 (detecte les nombres avec espaces)
+    - trim nettoie les clés (" DEP " → "DEP") ET les valeurs (" Ain " → "Ain")
+    - numeric-auto convertit " 19 805   " → 19805 (détecté les nombres avec espaces)
     - rename donne des noms lisibles aux colonnes -->
   <dsfr-data-normalize id="clean" source="raw"
     trim
@@ -535,7 +535,7 @@ export const examples: Record<string, string> = {
     transform="data">
   </dsfr-data-source>
 
-  <!-- Nettoyage : trim (cles + valeurs), conversion numerique explicite, renommage -->
+  <!-- Nettoyage : trim (clés + valeurs), conversion numérique explicite, renommage -->
   <dsfr-data-normalize id="clean" source="raw"
     trim
     numeric="pp_vacant_plus_2ans_25"
@@ -563,10 +563,10 @@ export const examples: Record<string, string> = {
 </div>`,
 
   'normalize-datalist': `<!--
-  Tableau — Donnees LOVAC nettoyees et lisibles
+  Tableau — Données LOVAC nettoyees et lisibles
   Pipeline : dsfr-data-source → dsfr-data-normalize → dsfr-data-list
   Source : LOVAC - Logements vacants (tabular-api)
-  Les donnees brutes ont des cles avec espaces (" DEP ", " LIB_DEP "),
+  Les données brutes ont des clés avec espaces (" DEP ", " LIB_DEP "),
   des nombres en string (" 19 805   ") et des noms de colonnes cryptiques.
   dsfr-data-normalize nettoie tout avant l'affichage en tableau.
 -->
@@ -584,8 +584,8 @@ export const examples: Record<string, string> = {
   </dsfr-data-source>
 
   <!-- Nettoyage complet :
-    - trim : nettoie les espaces dans les cles ET les valeurs
-    - numeric-auto : detecte et convertit tous les champs numeriques
+    - trim : nettoie les espaces dans les clés ET les valeurs
+    - numeric-auto : détecté et convertit tous les champs numériques
     - rename : noms lisibles pour le tableau -->
   <dsfr-data-normalize id="clean" source="raw"
     trim
@@ -603,18 +603,18 @@ export const examples: Record<string, string> = {
 
   <div class="fr-callout fr-mt-4w">
     <p class="fr-callout__text">
-      Les donnees LOVAC brutes ont des cles avec espaces (<code>" DEP "</code>),
+      Les données LOVAC brutes ont des clés avec espaces (<code>" DEP "</code>),
       des nombres en texte avec separateurs milliers (<code>" 19 805   "</code>),
       et des noms de colonnes techniques. Avec <code>trim</code> + <code>numeric-auto</code>
-      + <code>rename</code>, les donnees deviennent propres et lisibles.
+      + <code>rename</code>, les données deviennent propres et lisibles.
     </p>
   </div>
 </div>`,
 
   // =====================================================================
   // MODE FACETTES — dsfr-data-source → dsfr-data-normalize → dsfr-data-facets → composant
-  // Les donnees passent par dsfr-data-facets qui affiche des filtres interactifs.
-  // L'utilisateur selectionne des valeurs et les composants en aval
+  // Les données passent par dsfr-data-facets qui affiche des filtres interactifs.
+  // L'utilisateur sélectionné des valeurs et les composants en aval
   // se mettent a jour automatiquement.
   // =====================================================================
 
@@ -664,7 +664,7 @@ export const examples: Record<string, string> = {
   Barres — Beneficiaires Industrie du futur filtres par region
   Pipeline : dsfr-data-source → dsfr-data-normalize → dsfr-data-facets → dsfr-data-query → dsfr-data-chart (bar)
   Source : Industrie du futur (OpenDataSoft)
-  dsfr-data-facets filtre par region, dsfr-data-query agrege ensuite les donnees filtrees
+  dsfr-data-facets filtre par region, dsfr-data-query agrégé ensuite les données filtrees
 -->
 
 <div class="fr-container fr-my-4w">
@@ -713,8 +713,8 @@ export const examples: Record<string, string> = {
 
   // =====================================================================
   // MODE DISPLAY — dsfr-data-source → dsfr-data-display (template HTML dynamique)
-  // dsfr-data-display repete un template HTML pour chaque element de donnees,
-  // ideal pour creer des cartes DSFR, tuiles ou tout motif repetitif.
+  // dsfr-data-display repete un template HTML pour chaque element de données,
+  // ideal pour créer des cartes DSFR, tuiles ou tout motif repetitif.
   // =====================================================================
 
   'direct-display': `<!--
@@ -809,10 +809,10 @@ export const examples: Record<string, string> = {
 </div>`,
 
   'normalize-display': `<!--
-  Tuiles DSFR — LOVAC logements vacants (donnees nettoyees)
+  Tuiles DSFR — LOVAC logements vacants (données nettoyees)
   Pipeline : dsfr-data-source → dsfr-data-normalize → dsfr-data-query → dsfr-data-display (tuiles)
   Source : LOVAC - Logements vacants (tabular-api)
-  Les donnees brutes sont nettoyees puis affichees sous forme de tuiles DSFR
+  Les données brutes sont nettoyees puis affichees sous forme de tuiles DSFR
 -->
 
 <div class="fr-container fr-my-4w">
@@ -857,7 +857,7 @@ export const examples: Record<string, string> = {
 
   <div class="fr-callout fr-mt-4w">
     <p class="fr-callout__text">
-      Les donnees LOVAC brutes ont des cles avec espaces et des nombres en texte.
+      Les données LOVAC brutes ont des clés avec espaces et des nombres en texte.
       <code>dsfr-data-normalize</code> nettoie tout avant l'affichage en tuiles DSFR
       via <code>dsfr-data-display</code>.
     </p>
@@ -866,7 +866,7 @@ export const examples: Record<string, string> = {
 
   // =====================================================================
   // MODE RECHERCHE — dsfr-data-source → dsfr-data-search → composant
-  // dsfr-data-search affiche un champ de recherche DSFR et filtre les donnees
+  // dsfr-data-search affiche un champ de recherche DSFR et filtre les données
   // en amont. Se combine naturellement avec dsfr-data-facets et dsfr-data-display.
   // =====================================================================
 
@@ -899,7 +899,7 @@ export const examples: Record<string, string> = {
   </dsfr-data-search>
 
   <dsfr-data-list source="q"
-    colonnes="modeles_ou_references:Produit, categorie_produit:Categorie, marque_produit:Marque, date_publication:Date"
+    colonnes="modeles_ou_references:Produit, categorie_produit:Catégorie, marque_produit:Marque, date_publication:Date"
     server-tri
     pagination="20">
   </dsfr-data-list>
@@ -1024,7 +1024,7 @@ export const examples: Record<string, string> = {
   Carte + KPI — Fiscalite locale filtree par region et departement
   Pipeline : dsfr-data-source → dsfr-data-normalize → dsfr-data-facets → dsfr-data-query → dsfr-data-chart (map) + dsfr-data-kpi
   Source : Fiscalite locale des particuliers (OpenDataSoft)
-  dsfr-data-facets filtre par region, la carte et les KPI refletent les donnees filtrees
+  dsfr-data-facets filtre par region, la carte et les KPI refletent les données filtrees
 -->
 
 <div class="fr-container fr-my-4w">
@@ -1052,7 +1052,7 @@ export const examples: Record<string, string> = {
     sort="alpha">
   </dsfr-data-facets>
 
-  <!-- KPI sur les donnees filtrees -->
+  <!-- KPI sur les données filtrees -->
   <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
     <dsfr-data-kpi source="filtered"
       valeur="count"
@@ -1073,7 +1073,7 @@ export const examples: Record<string, string> = {
     </dsfr-data-kpi>
   </div>
 
-  <!-- Carte sur les donnees filtrees et agregees -->
+  <!-- Carte sur les données filtrees et agregees -->
   <dsfr-data-query id="stats" source="filtered"
     group-by="dep"
     aggregate="taux_global_tfb:avg:taux">
@@ -1224,7 +1224,7 @@ export const examples: Record<string, string> = {
             <h3 class="fr-card__title">{{nombre_beneficiaires}} beneficiaires</h3>
             <p class="fr-card__desc">
               Investissement de {{montant_investissement:number}} \u20ac
-              dont {{montant_participation_etat:number}} \u20ac finances par l'Etat
+              dont {{montant_participation_etat:number}} \u20ac finances par l'État
             </p>
             <div class="fr-card__start">
               <p class="fr-badge fr-badge--sm fr-badge--green-emeraude">{{nom_region}}</p>
@@ -1251,15 +1251,15 @@ export const examples: Record<string, string> = {
   // =====================================================================
 
   'direct-worldmap': `<!--
-  Carte du monde — PIB par pays (donnees embarquees)
-  Mode direct : dsfr-data-source (donnees inline) → dsfr-data-world-map
+  Carte du monde — PIB par pays (données embarquees)
+  Mode direct : dsfr-data-source (données inline) → dsfr-data-world-map
   Cliquer sur un pays pour zoomer sur son continent
 -->
 
 <div class="fr-container fr-my-4w">
   <h2>PIB par pays (milliards USD)</h2>
   <p class="fr-text--sm fr-text--light">
-    Donnees embarquees — Source : Banque mondiale (extrait)
+    Données embarquees — Source : Banque mondiale (extrait)
   </p>
 
   <dsfr-data-source id="data"
@@ -1303,20 +1303,20 @@ export const examples: Record<string, string> = {
 
   // =====================================================================
   // JOINTURE MULTI-SOURCES — dsfr-data-source (A) + dsfr-data-source (B) → dsfr-data-join → composant
-  // Croise deux jeux de donnees sur une cle pivot pour enrichir les donnees.
+  // Croise deux jeux de données sur une clé pivot pour enrichir les données.
   // =====================================================================
 
   'join-basic': `<!--
-  Jointure — Population vs Budget (left join, 2 series)
+  Jointure — Population vs Budget (left join, 2 séries)
   Mode jointure : dsfr-data-source x2 → dsfr-data-join → dsfr-data-chart
-  Le graphique affiche 2 series provenant chacune d'une source differente
+  Le graphique affiche 2 séries provenant chacune d'une source differente
 -->
 
 <div class="fr-container fr-my-4w">
   <h2>Population vs Budget par region</h2>
   <p class="fr-text--sm fr-text--light">
     Deux sources independantes croisees par <code>dsfr-data-join</code> sur le code region.
-    Le graphique affiche deux series : <strong>population</strong> (source A) et <strong>budget</strong> (source B).
+    Le graphique affiche deux séries : <strong>population</strong> (source A) et <strong>budget</strong> (source B).
   </p>
 
   <!-- Source A : population (en milliers) -->
@@ -1329,7 +1329,7 @@ export const examples: Record<string, string> = {
     ]'>
   </dsfr-data-source>
 
-  <!-- Source B : budget (en M EUR) — meme echelle pour lisibilite -->
+  <!-- Source B : budget (en M EUR) — même echelle pour lisibilite -->
   <dsfr-data-source id="budget"
     data='[
       {"code":"75","budget":5200},
@@ -1345,7 +1345,7 @@ export const examples: Record<string, string> = {
     on="code" type="left">
   </dsfr-data-join>
 
-  <!-- Graphique 2 series : population (source A) + budget (source B) -->
+  <!-- Graphique 2 séries : population (source A) + budget (source B) -->
   <dsfr-data-chart source="enriched"
     type="bar"
     label-field="region"
@@ -1358,25 +1358,25 @@ export const examples: Record<string, string> = {
 
   <div class="fr-callout fr-mt-4w">
     <p class="fr-callout__text">
-      <strong>L'interet de la jointure</strong> : les donnees de population et de budget viennent
+      <strong>L'interet de la jointure</strong> : les données de population et de budget viennent
       de deux sources separees. <code>dsfr-data-join on="code"</code> les fusionne en un seul
-      dataset, ce qui permet d'afficher les deux series cote a cote avec
+      dataset, ce qui permet d'afficher les deux séries cote a cote avec
       <code>value-field="population" value-fields="budget"</code>.
     </p>
   </div>
 </div>`,
 
   'join-query': `<!--
-  Jointure + query — Recettes vs Depenses (inner join + tri, 2 series)
+  Jointure + query — Recettes vs Depenses (inner join + tri, 2 séries)
   Mode jointure : dsfr-data-source x2 → dsfr-data-join → dsfr-data-query → dsfr-data-chart
-  Le graphique compare deux series issues de sources differentes
+  Le graphique compare deux séries issues de sources differentes
 -->
 
 <div class="fr-container fr-my-4w">
   <h2>Recettes vs Depenses par region</h2>
   <p class="fr-text--sm fr-text--light">
     Inner join + tri : les recettes (source A) et les depenses (source B) sont croisees puis triees.
-    La Normandie n'a pas de donnees de depenses → elle est exclue par l'inner join.
+    La Normandie n'a pas de données de depenses → elle est exclue par l'inner join.
   </p>
 
   <!-- Source A : recettes par region (5 regions) -->
@@ -1412,7 +1412,7 @@ export const examples: Record<string, string> = {
     order-by="recettes:desc">
   </dsfr-data-query>
 
-  <!-- 2 series : recettes (source A) vs depenses (source B) -->
+  <!-- 2 séries : recettes (source A) vs depenses (source B) -->
   <dsfr-data-chart source="sorted"
     type="bar"
     label-field="region"
@@ -1427,8 +1427,8 @@ export const examples: Record<string, string> = {
     <p class="fr-callout__text">
       <strong>Pipeline complet :</strong> deux sources → <code>dsfr-data-join type="inner"</code>
       (exclut la Normandie absente de la source depenses) →
-      <code>dsfr-data-query order-by="recettes:desc"</code> → graphique 2 series.
-      Sans la jointure, il serait impossible de comparer recettes et depenses sur un meme graphique.
+      <code>dsfr-data-query order-by="recettes:desc"</code> → graphique 2 séries.
+      Sans la jointure, il serait impossible de comparer recettes et depenses sur un même graphique.
     </p>
   </div>
 </div>`,
@@ -1490,7 +1490,7 @@ export const examples: Record<string, string> = {
   <div class="fr-callout fr-mt-4w">
     <p class="fr-callout__text">
       <strong>Carte interactive</strong> avec clustering (5000 POI), panneau lateral au clic
-      (<code>dsfr-data-map-popup mode="panel-right"</code>), et companion d'accessibilite
+      (<code>dsfr-data-map-popup mode="panel-right"</code>), et companion d'accessibilité
       (<code>dsfr-data-a11y</code> avec tableau + CSV).
     </p>
   </div>
@@ -1505,7 +1505,7 @@ export const examples: Record<string, string> = {
 <div class="fr-container fr-my-4w">
   <h2>Centres de controle technique par grande ville</h2>
   <p class="fr-text--sm fr-text--light">
-    Donnees embarquees — Nombre approximatif de centres et prix moyen
+    Données embarquees — Nombre approximatif de centres et prix moyen
   </p>
 
   <dsfr-data-source id="data" data='[

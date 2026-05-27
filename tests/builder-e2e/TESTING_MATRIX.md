@@ -139,7 +139,7 @@ S'assurer que chaque paramètre :
 
 | Paramètre | Utilisation | Obligatoire |
 |-----------|-------------|-------------|
-| `label-field` | Axe X / Categories | Oui (sauf KPI) |
+| `label-field` | Axe X / Catégories | Oui (sauf KPI) |
 | `value-field` | Axe Y / Valeurs | Oui |
 | `value-field-2` | Série 2 | Non |
 | `code-field` | Code dept (maps) | Oui pour maps |
@@ -291,7 +291,7 @@ const expectedSum = 23300;
 | `a11y-toggle` | `<dsfr-data-a11y for="..." source="..." table download>` |
 
 **Test manuel** :
-1. Cocher "Ajouter accessibilite (tableau + CSV)"
+1. Cocher "Ajouter accessibilité (tableau + CSV)"
 2. ✅ Code contient `<dsfr-data-a11y>`
 
 ---

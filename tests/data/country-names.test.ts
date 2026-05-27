@@ -11,8 +11,8 @@ describe('COUNTRY_NAMES_FR', () => {
     expect(COUNTRY_NAMES_FR['276']).toBe('Allemagne');
   });
 
-  it('contains Etats-Unis (USA)', () => {
-    expect(COUNTRY_NAMES_FR['840']).toBe('Etats-Unis');
+  it('contains États-Unis (USA)', () => {
+    expect(COUNTRY_NAMES_FR['840']).toBe('États-Unis');
   });
 
   it('contains Royaume-Uni (UK)', () => {

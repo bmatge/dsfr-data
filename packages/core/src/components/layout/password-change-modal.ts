@@ -149,7 +149,7 @@ export class PasswordChangeModal extends LitElement {
                               required
                             />
                             <p class="fr-hint-text">
-                              8 caracteres minimum, 1 majuscule, 1 minuscule, 1 chiffre
+                              8 caractères minimum, 1 majuscule, 1 minuscule, 1 chiffre
                             </p>
                           </div>
 

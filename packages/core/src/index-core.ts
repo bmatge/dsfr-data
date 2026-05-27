@@ -5,7 +5,7 @@
  * Pour ajouter dsfr-data-world-map, charger aussi dsfr-data.world-map.esm.js
  */
 
-// Composants de donnees
+// Composants de données
 export { DsfrDataSource } from './components/dsfr-data-source.js';
 export { DsfrDataQuery } from './components/dsfr-data-query.js';
 export { DsfrDataJoin } from './components/dsfr-data-join.js';

@@ -284,7 +284,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ---- Import / Export ----
   document.getElementById('export-data-btn')?.addEventListener('click', () => {
     downloadExport();
-    toastSuccess('Export telecharge');
+    toastSuccess('Export téléchargé');
   });
 
   document.getElementById('import-data-file')?.addEventListener('change', async (e) => {

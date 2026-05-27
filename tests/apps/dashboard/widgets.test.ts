@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { getDefaultTitle, getDefaultConfig, getWidgetIcon } from '../../../apps/dashboard/src/widgets';
+import {
+  getDefaultTitle,
+  getDefaultConfig,
+  getWidgetIcon,
+} from '../../../apps/dashboard/src/widgets';
 import type { WidgetType } from '../../../apps/dashboard/src/state';
 
 describe('dashboard/widgets', () => {
@@ -12,8 +16,8 @@ describe('dashboard/widgets', () => {
       expect(getDefaultTitle('chart')).toBe('Graphique');
     });
 
-    it('should return "Tableau de donnees" for table', () => {
-      expect(getDefaultTitle('table')).toBe('Tableau de donnees');
+    it('should return "Tableau de données" for table', () => {
+      expect(getDefaultTitle('table')).toBe('Tableau de données');
     });
 
     it('should return "Texte" for text', () => {

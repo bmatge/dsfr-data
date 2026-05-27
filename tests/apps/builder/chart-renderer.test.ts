@@ -592,7 +592,7 @@ describe('builder chart-renderer', () => {
     });
   });
 
-  describe('Multi-series', () => {
+  describe('Multi-séries', () => {
     it('should add second dataset when extraSeries is set for bar type', async () => {
       const renderChart = await loadRenderChart();
       state.chartType = 'bar';
@@ -728,7 +728,7 @@ describe('builder chart-renderer', () => {
       expect(config.options.scales).toEqual({});
     });
 
-    it('should hide legend for single-series bar chart', async () => {
+    it('should hide legend for single-séries bar chart', async () => {
       const renderChart = await loadRenderChart();
       state.chartType = 'bar';
       state.valueField2 = '';

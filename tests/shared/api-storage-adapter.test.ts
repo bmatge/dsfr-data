@@ -120,17 +120,26 @@ describe('ApiStorageAdapter', () => {
     it('repairs connection with null config_json using local data', async () => {
       // Local has complete connection data (flat fields)
       const localConn = {
-        id: 'conn-1', name: 'My Grist', type: 'grist',
-        url: 'https://grist.numerique.gouv.fr', apiKey: null, isPublic: true,
-        status: 'connected', statusText: '6 documents',
+        id: 'conn-1',
+        name: 'My Grist',
+        type: 'grist',
+        url: 'https://grist.numérique.gouv.fr',
+        apiKey: null,
+        isPublic: true,
+        status: 'connected',
+        statusText: '6 documents',
       };
       localStorage.setItem(STORAGE_KEYS.CONNECTIONS, JSON.stringify([localConn]));
 
       // Server returns connection with null config_json (pre-fix data)
       const serverConn = {
-        id: 'conn-1', name: 'My Grist', type: 'grist',
-        config_json: null, status: 'unknown',
-        owner_id: 'user-1', _owned: true,
+        id: 'conn-1',
+        name: 'My Grist',
+        type: 'grist',
+        config_json: null,
+        status: 'unknown',
+        owner_id: 'user-1',
+        _owned: true,
       };
       globalThis.fetch = vi.fn().mockResolvedValue({
         ok: true,
@@ -141,21 +150,28 @@ describe('ApiStorageAdapter', () => {
 
       // Should use local data (has url field)
       expect(result).toHaveLength(1);
-      expect((result as Record<string, unknown>[])[0].url).toBe('https://grist.numerique.gouv.fr');
+      expect((result as Record<string, unknown>[])[0].url).toBe('https://grist.numérique.gouv.fr');
       expect((result as Record<string, unknown>[])[0].status).toBe('connected');
     });
 
     it('repairs source with null config_json using local data', async () => {
       const localSource = {
-        id: 'src-1', name: 'ODS Data', type: 'api',
+        id: 'src-1',
+        name: 'ODS Data',
+        type: 'api',
         apiUrl: 'https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/...',
-        provider: 'opendatasoft', recordCount: 42,
+        provider: 'opendatasoft',
+        recordCount: 42,
       };
       localStorage.setItem(STORAGE_KEYS.SOURCES, JSON.stringify([localSource]));
 
       const serverSource = {
-        id: 'src-1', name: 'ODS Data', type: 'api',
-        config_json: null, data_json: null, record_count: 0,
+        id: 'src-1',
+        name: 'ODS Data',
+        type: 'api',
+        config_json: null,
+        data_json: null,
+        record_count: 0,
         owner_id: 'user-1',
       };
       globalThis.fetch = vi.fn().mockResolvedValue({
@@ -172,17 +188,23 @@ describe('ApiStorageAdapter', () => {
 
     it('flattens server config_json to top-level fields (prevents double-nesting)', async () => {
       const localConn = {
-        id: 'conn-1', name: 'Old Name', type: 'grist',
-        url: 'https://old.url', status: 'connected',
+        id: 'conn-1',
+        name: 'Old Name',
+        type: 'grist',
+        url: 'https://old.url',
+        status: 'connected',
       };
       localStorage.setItem(STORAGE_KEYS.CONNECTIONS, JSON.stringify([localConn]));
 
       // Server has complete config_json (post-fix data)
       const serverConn = {
-        id: 'conn-1', name: 'New Name', type: 'grist',
-        config_json: { url: 'https://grist.numerique.gouv.fr', apiKey: null, isPublic: true },
+        id: 'conn-1',
+        name: 'New Name',
+        type: 'grist',
+        config_json: { url: 'https://grist.numérique.gouv.fr', apiKey: null, isPublic: true },
         status: 'connected',
-        owner_id: 'user-1', _owned: true,
+        owner_id: 'user-1',
+        _owned: true,
       };
       globalThis.fetch = vi.fn().mockResolvedValue({
         ok: true,
@@ -194,7 +216,7 @@ describe('ApiStorageAdapter', () => {
 
       // Server data should be flattened to client format
       expect(conn.name).toBe('New Name');
-      expect(conn.url).toBe('https://grist.numerique.gouv.fr');
+      expect(conn.url).toBe('https://grist.numérique.gouv.fr');
       expect(conn.apiKey).toBeNull();
       expect(conn.isPublic).toBe(true);
       // Server-only fields must be stripped (prevent re-packing into configJson)
@@ -207,7 +229,9 @@ describe('ApiStorageAdapter', () => {
       localStorage.removeItem(STORAGE_KEYS.SOURCES);
 
       const serverSource = {
-        id: 'src-1', name: 'My Source', type: 'api',
+        id: 'src-1',
+        name: 'My Source',
+        type: 'api',
         config_json: { apiUrl: 'https://example.com/api', method: 'GET' },
         data_json: [{ a: 1 }, { a: 2 }],
         record_count: 42,
@@ -238,8 +262,11 @@ describe('ApiStorageAdapter', () => {
       localStorage.removeItem(STORAGE_KEYS.CONNECTIONS);
 
       const serverConn = {
-        id: 'conn-1', name: 'Server Only', type: 'api',
-        config_json: null, status: 'unknown',
+        id: 'conn-1',
+        name: 'Server Only',
+        type: 'api',
+        config_json: null,
+        status: 'unknown',
       };
       globalThis.fetch = vi.fn().mockResolvedValue({
         ok: true,
@@ -255,7 +282,10 @@ describe('ApiStorageAdapter', () => {
     });
 
     it('does not merge for favorites (non-config resources)', async () => {
-      localStorage.setItem(STORAGE_KEYS.FAVORITES, JSON.stringify([{ id: 'fav-1', code: 'local' }]));
+      localStorage.setItem(
+        STORAGE_KEYS.FAVORITES,
+        JSON.stringify([{ id: 'fav-1', code: 'local' }])
+      );
 
       const serverFav = { id: 'fav-1', code: 'server' };
       globalThis.fetch = vi.fn().mockResolvedValue({

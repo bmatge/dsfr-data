@@ -39,7 +39,7 @@
           <div class="fr-callout fr-callout--brown-caramel fr-mb-2w">
             <p class="fr-callout__title">Opt-in uniquement</p>
             <p class="fr-callout__text">
-              Les beacons sont <strong>desactives par defaut</strong>. Aucune donnee n'est collectee
+              Les beacons sont <strong>desactives par défaut</strong>. Aucune donnee n'est collectee
               tant que le site deployeur n'a pas explicitement active le tracking.
             </p>
           </div>
@@ -57,12 +57,12 @@
             <li><strong>Deduplication</strong> : un seul beacon par composant+type par chargement de page.</li>
             <li><strong>Ignore en dev</strong> : aucun envoi sur localhost, 127.0.0.1 ou le domaine du proxy.</li>
           </ul>
-          <h4>Collecte des donnees</h4>
+          <h4>Collecte des données</h4>
           <ul>
-            <li>Les beacons arrivent sous forme de requetes image (pixel 1x1) sur l'endpoint <code>/beacon</code>
+            <li>Les beacons arrivent sous forme de requêtes image (pixel 1x1) sur l'endpoint <code>/beacon</code>
               du proxy, qui les enregistre dans <code>beacon.log</code>.</li>
-            <li>Un script periodique transforme ces logs en donnees exploitables pour ce tableau de bord.</li>
-            <li>En mode base de donnees (<code>__gwDbMode</code>), les beacons sont envoyes en POST JSON
+            <li>Un script periodique transforme ces logs en données exploitables pour ce tableau de bord.</li>
+            <li>En mode base de données (<code>__gwDbMode</code>), les beacons sont envoyes en POST JSON
               vers <code>/api/monitoring/beacon</code> et stockes en MariaDB.</li>
           </ul>
         </div>

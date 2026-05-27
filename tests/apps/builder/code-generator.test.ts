@@ -83,7 +83,7 @@ describe('generateDsfrDataQueryCode', () => {
     state.advancedMode = false;
     state.aggregation = 'avg';
     state.sortOrder = 'desc';
-  
+
     const result = generateDsfrDataQueryCode('my-source', 'fields.region', 'fields.population');
     expect(result.queryElement).toContain('<dsfr-data-query');
     expect(result.queryElement).toContain('source="my-source"');
@@ -119,7 +119,6 @@ describe('generateDsfrDataQueryCode', () => {
   it('should return chartSource = "query-data" when advancedMode is true', () => {
     state.advancedMode = true;
     state.sortOrder = 'desc';
-  
 
     const result = generateDsfrDataQueryCode('chart-data', 'fields.region', 'fields.value');
     expect(result.chartSource).toBe('query-data');
@@ -129,7 +128,6 @@ describe('generateDsfrDataQueryCode', () => {
     state.advancedMode = true;
     state.queryGroupBy = '';
     state.sortOrder = 'desc';
-  
 
     const result = generateDsfrDataQueryCode('chart-data', 'fields.commune', 'fields.value');
     expect(result.queryElement).toContain('group-by="fields.commune"');
@@ -140,7 +138,6 @@ describe('generateDsfrDataQueryCode', () => {
     state.queryAggregate = '';
     state.aggregation = 'sum';
     state.sortOrder = 'asc';
-  
 
     const result = generateDsfrDataQueryCode('chart-data', 'fields.region', 'fields.population');
     expect(result.queryElement).toContain('order-by="fields.population__sum:asc"');
@@ -151,7 +148,6 @@ describe('generateDsfrDataQueryCode', () => {
     state.queryFilter = '';
     state.sortOrder = 'desc';
 
-
     const result = generateDsfrDataQueryCode('chart-data', 'fields.region', 'fields.value');
     expect(result.queryElement).not.toContain('filter=');
   });
@@ -161,7 +157,6 @@ describe('generateDsfrDataQueryCode', () => {
     state.queryAggregate = '';
     state.aggregation = 'avg';
     state.sortOrder = 'desc';
-
 
     const result = generateDsfrDataQueryCode('chart-data', 'fields.region', 'fields.population');
     expect(result.queryElement).toContain('aggregate="fields.population:avg"');
@@ -192,13 +187,12 @@ describe('generateChartFromLocalData', () => {
     state.labelField = 'region';
     state.valueField = 'population';
     state.aggregation = 'avg';
-  
 
     generateChartFromLocalData();
 
-    const bretagne = state.data.find(d => d['region'] === 'Bretagne');
-    const normandie = state.data.find(d => d['region'] === 'Normandie');
-    const occitanie = state.data.find(d => d['region'] === 'Occitanie');
+    const bretagne = state.data.find((d) => d['region'] === 'Bretagne');
+    const normandie = state.data.find((d) => d['region'] === 'Normandie');
+    const occitanie = state.data.find((d) => d['region'] === 'Occitanie');
 
     expect(bretagne?.value).toBe(15); // (10 + 20) / 2
     expect(normandie?.value).toBe(35); // (30 + 40) / 2
@@ -210,12 +204,11 @@ describe('generateChartFromLocalData', () => {
     state.labelField = 'region';
     state.valueField = 'population';
     state.aggregation = 'sum';
-  
 
     generateChartFromLocalData();
 
-    const bretagne = state.data.find(d => d['region'] === 'Bretagne');
-    const normandie = state.data.find(d => d['region'] === 'Normandie');
+    const bretagne = state.data.find((d) => d['region'] === 'Bretagne');
+    const normandie = state.data.find((d) => d['region'] === 'Normandie');
 
     expect(bretagne?.value).toBe(30); // 10 + 20
     expect(normandie?.value).toBe(70); // 30 + 40
@@ -226,13 +219,12 @@ describe('generateChartFromLocalData', () => {
     state.labelField = 'region';
     state.valueField = 'population';
     state.aggregation = 'count';
-  
 
     generateChartFromLocalData();
 
-    const bretagne = state.data.find(d => d['region'] === 'Bretagne');
-    const normandie = state.data.find(d => d['region'] === 'Normandie');
-    const occitanie = state.data.find(d => d['region'] === 'Occitanie');
+    const bretagne = state.data.find((d) => d['region'] === 'Bretagne');
+    const normandie = state.data.find((d) => d['region'] === 'Normandie');
+    const occitanie = state.data.find((d) => d['region'] === 'Occitanie');
 
     expect(bretagne?.value).toBe(2);
     expect(normandie?.value).toBe(2);
@@ -244,12 +236,11 @@ describe('generateChartFromLocalData', () => {
     state.labelField = 'region';
     state.valueField = 'population';
     state.aggregation = 'min';
-  
 
     generateChartFromLocalData();
 
-    const bretagne = state.data.find(d => d['region'] === 'Bretagne');
-    const normandie = state.data.find(d => d['region'] === 'Normandie');
+    const bretagne = state.data.find((d) => d['region'] === 'Bretagne');
+    const normandie = state.data.find((d) => d['region'] === 'Normandie');
 
     expect(bretagne?.value).toBe(10);
     expect(normandie?.value).toBe(30);
@@ -260,12 +251,11 @@ describe('generateChartFromLocalData', () => {
     state.labelField = 'region';
     state.valueField = 'population';
     state.aggregation = 'max';
-  
 
     generateChartFromLocalData();
 
-    const bretagne = state.data.find(d => d['region'] === 'Bretagne');
-    const normandie = state.data.find(d => d['region'] === 'Normandie');
+    const bretagne = state.data.find((d) => d['region'] === 'Bretagne');
+    const normandie = state.data.find((d) => d['region'] === 'Normandie');
 
     expect(bretagne?.value).toBe(20);
     expect(normandie?.value).toBe(40);
@@ -277,11 +267,10 @@ describe('generateChartFromLocalData', () => {
     state.valueField = 'population';
     state.aggregation = 'sum';
     state.sortOrder = 'desc';
-  
 
     generateChartFromLocalData();
 
-    const values = state.data.map(d => d.value as number);
+    const values = state.data.map((d) => d.value as number);
     for (let i = 0; i < values.length - 1; i++) {
       expect(values[i]).toBeGreaterThanOrEqual(values[i + 1]);
     }
@@ -293,11 +282,10 @@ describe('generateChartFromLocalData', () => {
     state.valueField = 'population';
     state.aggregation = 'sum';
     state.sortOrder = 'asc';
-  
 
     generateChartFromLocalData();
 
-    const values = state.data.map(d => d.value as number);
+    const values = state.data.map((d) => d.value as number);
     for (let i = 0; i < values.length - 1; i++) {
       expect(values[i]).toBeLessThanOrEqual(values[i + 1]);
     }
@@ -311,13 +299,12 @@ describe('generateChartFromLocalData', () => {
     state.labelField = 'city';
     state.valueField = 'score';
     state.aggregation = 'sum';
-  
 
     generateChartFromLocalData();
 
     expect(state.data).toHaveLength(2);
-    expect(state.data.every(d => 'value' in d)).toBe(true);
-    expect(state.data.every(d => 'city' in d)).toBe(true);
+    expect(state.data.every((d) => 'value' in d)).toBe(true);
+    expect(state.data.every((d) => 'city' in d)).toBe(true);
   });
 
   it('should group by codeField instead of labelField for map chart type', () => {
@@ -331,13 +318,12 @@ describe('generateChartFromLocalData', () => {
     state.codeField = 'dept_code';
     state.valueField = 'population';
     state.aggregation = 'sum';
-  
 
     generateChartFromLocalData();
 
     // Results should be keyed by codeField, not labelField
-    const item35 = state.data.find(d => d['dept_code'] === '35');
-    const item76 = state.data.find(d => d['dept_code'] === '76');
+    const item35 = state.data.find((d) => d['dept_code'] === '35');
+    const item76 = state.data.find((d) => d['dept_code'] === '76');
 
     expect(item35).toBeDefined();
     expect(item35?.value).toBe(300);
@@ -345,18 +331,15 @@ describe('generateChartFromLocalData', () => {
     expect(item76?.value).toBe(150);
 
     // labelField should NOT be used as a key for map type
-    const byRegion = state.data.find(d => 'region' in d);
+    const byRegion = state.data.find((d) => 'region' in d);
     expect(byRegion).toBeUndefined();
   });
 
   it('should update raw-data element with JSON stringified results', () => {
-    state.localData = [
-      { city: 'Paris', score: 100 },
-    ];
+    state.localData = [{ city: 'Paris', score: 100 }];
     state.labelField = 'city';
     state.valueField = 'score';
     state.aggregation = 'sum';
-  
 
     generateChartFromLocalData();
 
@@ -369,7 +352,6 @@ describe('generateChartFromLocalData', () => {
     state.labelField = 'city';
     state.valueField = 'score';
     state.aggregation = 'sum';
-  
 
     generateChartFromLocalData();
 
@@ -381,7 +363,6 @@ describe('generateChartFromLocalData', () => {
     state.labelField = 'city';
     state.valueField = 'score';
     state.aggregation = 'sum';
-  
 
     generateChartFromLocalData();
 
@@ -547,7 +528,7 @@ describe('generateCodeForLocalData', () => {
 
     const code = document.getElementById('generated-code')!.textContent!;
     expect(code).toContain('<line-chart');
-    expect(code).toContain("x='[[\"2020\",\"2021\"]]'");
+    expect(code).toContain('x=\'[["2020","2021"]]\'');
     expect(code).toContain("y='[[1000,1100]]'");
   });
 
@@ -594,8 +575,8 @@ describe('generateCodeForLocalData', () => {
       { name: 'population', type: 'number', sample: 3300000 },
     ];
     state.labelField = 'region';
-    state.title = 'Donnees regionales';
-  
+    state.title = 'Données regionales';
+
     state.sortOrder = 'desc';
 
     generateCodeForLocalData();
@@ -606,7 +587,7 @@ describe('generateCodeForLocalData', () => {
     expect(code).toContain('recherche');
     expect(code).toContain('pagination=');
     expect(code).toContain('export="csv"');
-    expect(code).toContain('Donnees regionales');
+    expect(code).toContain('Données regionales');
     expect(code).toContain('onSourceData');
   });
 
@@ -619,7 +600,6 @@ describe('generateCodeForLocalData', () => {
     ];
     state.labelField = 'region';
     state.sortOrder = 'desc';
-  
 
     generateCodeForLocalData();
 
@@ -641,7 +621,6 @@ describe('generateCodeForLocalData', () => {
       { field: 'code', label: 'Code', visible: false, filtrable: false },
     ];
     state.labelField = 'region';
-  
 
     generateCodeForLocalData();
 
@@ -655,7 +634,7 @@ describe('generateCodeForLocalData', () => {
     state.localData = [{ region: 'Bretagne' }];
     state.fields = [{ name: 'region', type: 'string', sample: 'Bretagne' }];
     state.labelField = 'region';
-  
+
     state.datalistRecherche = false;
     state.datalistExportCsv = false;
 
@@ -679,7 +658,6 @@ describe('generateCodeForLocalData', () => {
     ];
     state.datalistFiltres = true;
     state.labelField = 'region';
-  
 
     generateCodeForLocalData();
 
@@ -716,7 +694,9 @@ describe('filterToOdsql', () => {
   });
 
   it('should convert in operator', () => {
-    expect(filterToOdsql('region:in:Bretagne|Normandie')).toBe('region in ("Bretagne", "Normandie")');
+    expect(filterToOdsql('region:in:Bretagne|Normandie')).toBe(
+      'region in ("Bretagne", "Normandie")'
+    );
   });
 
   it('should convert notin operator', () => {
@@ -823,7 +803,15 @@ describe('generateFacetsElement', () => {
 
   it('should return empty when facets are disabled', () => {
     state.facetsConfig.enabled = false;
-    state.facetsConfig.fields = [{ field: 'region', label: 'Region', display: 'checkbox', searchable: false, disjunctive: false }];
+    state.facetsConfig.fields = [
+      {
+        field: 'region',
+        label: 'Region',
+        display: 'checkbox',
+        searchable: false,
+        disjunctive: false,
+      },
+    ];
     const result = generateFacetsElement('chart-data');
     expect(result.element).toBe('');
     expect(result.finalSourceId).toBe('chart-data');
@@ -838,7 +826,9 @@ describe('generateFacetsElement', () => {
 
   it('should return empty when all fields have empty field name', () => {
     state.facetsConfig.enabled = true;
-    state.facetsConfig.fields = [{ field: '', label: '', display: 'checkbox', searchable: false, disjunctive: false }];
+    state.facetsConfig.fields = [
+      { field: '', label: '', display: 'checkbox', searchable: false, disjunctive: false },
+    ];
     const result = generateFacetsElement('chart-data');
     expect(result.element).toBe('');
   });
@@ -846,8 +836,20 @@ describe('generateFacetsElement', () => {
   it('should generate dsfr-data-facets with fields attribute', () => {
     state.facetsConfig.enabled = true;
     state.facetsConfig.fields = [
-      { field: 'region', label: 'Region', display: 'checkbox', searchable: false, disjunctive: false },
-      { field: 'dept', label: 'Departement', display: 'checkbox', searchable: false, disjunctive: false },
+      {
+        field: 'region',
+        label: 'Region',
+        display: 'checkbox',
+        searchable: false,
+        disjunctive: false,
+      },
+      {
+        field: 'dept',
+        label: 'Departement',
+        display: 'checkbox',
+        searchable: false,
+        disjunctive: false,
+      },
     ];
     const result = generateFacetsElement('chart-data');
     expect(result.element).toContain('<dsfr-data-facets');
@@ -860,7 +862,13 @@ describe('generateFacetsElement', () => {
   it('should include custom labels when different from field name', () => {
     state.facetsConfig.enabled = true;
     state.facetsConfig.fields = [
-      { field: 'region', label: 'Ma Region', display: 'checkbox', searchable: false, disjunctive: false },
+      {
+        field: 'region',
+        label: 'Ma Region',
+        display: 'checkbox',
+        searchable: false,
+        disjunctive: false,
+      },
     ];
     const result = generateFacetsElement('src');
     expect(result.element).toContain('labels="region:Ma Region"');
@@ -869,7 +877,13 @@ describe('generateFacetsElement', () => {
   it('should not include labels attribute when labels match field names', () => {
     state.facetsConfig.enabled = true;
     state.facetsConfig.fields = [
-      { field: 'region', label: 'region', display: 'checkbox', searchable: false, disjunctive: false },
+      {
+        field: 'region',
+        label: 'region',
+        display: 'checkbox',
+        searchable: false,
+        disjunctive: false,
+      },
     ];
     const result = generateFacetsElement('src');
     expect(result.element).not.toContain('labels=');
@@ -878,7 +892,13 @@ describe('generateFacetsElement', () => {
   it('should include display attribute for non-checkbox displays', () => {
     state.facetsConfig.enabled = true;
     state.facetsConfig.fields = [
-      { field: 'region', label: 'Region', display: 'select', searchable: false, disjunctive: false },
+      {
+        field: 'region',
+        label: 'Region',
+        display: 'select',
+        searchable: false,
+        disjunctive: false,
+      },
     ];
     const result = generateFacetsElement('src');
     expect(result.element).toContain('display="region:select"');
@@ -887,7 +907,13 @@ describe('generateFacetsElement', () => {
   it('should not include display attribute when all are checkbox', () => {
     state.facetsConfig.enabled = true;
     state.facetsConfig.fields = [
-      { field: 'region', label: 'Region', display: 'checkbox', searchable: false, disjunctive: false },
+      {
+        field: 'region',
+        label: 'Region',
+        display: 'checkbox',
+        searchable: false,
+        disjunctive: false,
+      },
     ];
     const result = generateFacetsElement('src');
     expect(result.element).not.toContain('display=');
@@ -896,7 +922,13 @@ describe('generateFacetsElement', () => {
   it('should include disjunctive attribute when fields are disjunctive', () => {
     state.facetsConfig.enabled = true;
     state.facetsConfig.fields = [
-      { field: 'region', label: 'Region', display: 'checkbox', searchable: false, disjunctive: true },
+      {
+        field: 'region',
+        label: 'Region',
+        display: 'checkbox',
+        searchable: false,
+        disjunctive: true,
+      },
     ];
     const result = generateFacetsElement('src');
     expect(result.element).toContain('disjunctive="region"');
@@ -905,7 +937,13 @@ describe('generateFacetsElement', () => {
   it('should include searchable attribute when fields are searchable', () => {
     state.facetsConfig.enabled = true;
     state.facetsConfig.fields = [
-      { field: 'region', label: 'Region', display: 'checkbox', searchable: true, disjunctive: false },
+      {
+        field: 'region',
+        label: 'Region',
+        display: 'checkbox',
+        searchable: true,
+        disjunctive: false,
+      },
     ];
     const result = generateFacetsElement('src');
     expect(result.element).toContain('searchable="region"');
@@ -915,7 +953,13 @@ describe('generateFacetsElement', () => {
     state.facetsConfig.enabled = true;
     state.facetsConfig.maxValues = 10;
     state.facetsConfig.fields = [
-      { field: 'region', label: 'Region', display: 'checkbox', searchable: false, disjunctive: false },
+      {
+        field: 'region',
+        label: 'Region',
+        display: 'checkbox',
+        searchable: false,
+        disjunctive: false,
+      },
     ];
     const result = generateFacetsElement('src');
     expect(result.element).toContain('max-values="10"');
@@ -925,7 +969,13 @@ describe('generateFacetsElement', () => {
     state.facetsConfig.enabled = true;
     state.facetsConfig.maxValues = 6;
     state.facetsConfig.fields = [
-      { field: 'region', label: 'Region', display: 'checkbox', searchable: false, disjunctive: false },
+      {
+        field: 'region',
+        label: 'Region',
+        display: 'checkbox',
+        searchable: false,
+        disjunctive: false,
+      },
     ];
     const result = generateFacetsElement('src');
     expect(result.element).not.toContain('max-values=');
@@ -935,7 +985,13 @@ describe('generateFacetsElement', () => {
     state.facetsConfig.enabled = true;
     state.facetsConfig.sort = 'alpha';
     state.facetsConfig.fields = [
-      { field: 'region', label: 'Region', display: 'checkbox', searchable: false, disjunctive: false },
+      {
+        field: 'region',
+        label: 'Region',
+        display: 'checkbox',
+        searchable: false,
+        disjunctive: false,
+      },
     ];
     const result = generateFacetsElement('src');
     expect(result.element).toContain('sort="alpha"');
@@ -945,7 +1001,13 @@ describe('generateFacetsElement', () => {
     state.facetsConfig.enabled = true;
     state.facetsConfig.hideEmpty = true;
     state.facetsConfig.fields = [
-      { field: 'region', label: 'Region', display: 'checkbox', searchable: false, disjunctive: false },
+      {
+        field: 'region',
+        label: 'Region',
+        display: 'checkbox',
+        searchable: false,
+        disjunctive: false,
+      },
     ];
     const result = generateFacetsElement('src');
     expect(result.element).toContain('hide-empty');
@@ -1005,7 +1067,13 @@ describe('generateMiddlewareElements', () => {
     state.normalizeConfig.flatten = 'fields';
     state.facetsConfig.enabled = true;
     state.facetsConfig.fields = [
-      { field: 'region', label: 'Region', display: 'checkbox', searchable: false, disjunctive: false },
+      {
+        field: 'region',
+        label: 'Region',
+        display: 'checkbox',
+        searchable: false,
+        disjunctive: false,
+      },
     ];
     const result = generateMiddlewareElements('chart-data');
     expect(result.elements).toContain('<dsfr-data-normalize');
@@ -1018,7 +1086,13 @@ describe('generateMiddlewareElements', () => {
   it('should generate only facets when normalize disabled', () => {
     state.facetsConfig.enabled = true;
     state.facetsConfig.fields = [
-      { field: 'region', label: 'Region', display: 'checkbox', searchable: false, disjunctive: false },
+      {
+        field: 'region',
+        label: 'Region',
+        display: 'checkbox',
+        searchable: false,
+        disjunctive: false,
+      },
     ];
     const result = generateMiddlewareElements('chart-data');
     expect(result.elements).not.toContain('<dsfr-data-normalize');
@@ -1040,7 +1114,8 @@ describe('generateOdsQueryCode', () => {
     state.aggregation = 'sum';
     const result = generateOdsQueryCode(
       { baseUrl: 'https://data.iledefrance.fr', datasetId: 'elus' },
-      'region', 'population'
+      'region',
+      'population'
     );
     expect(result.queryElement).toContain('api-type="opendatasoft"');
     expect(result.queryElement).toContain('base-url="https://data.iledefrance.fr"');
@@ -1052,7 +1127,8 @@ describe('generateOdsQueryCode', () => {
     state.aggregation = 'sum';
     const result = generateOdsQueryCode(
       { baseUrl: 'https://ods.example.com', datasetId: 'ds1' },
-      'region', 'population'
+      'region',
+      'population'
     );
     expect(result.queryElement).toContain('select="region, sum(population) as population__sum"');
     expect(result.valueField).toBe('population__sum');
@@ -1062,7 +1138,8 @@ describe('generateOdsQueryCode', () => {
     state.aggregation = 'count';
     const result = generateOdsQueryCode(
       { baseUrl: 'https://ods.example.com', datasetId: 'ds1' },
-      'region', 'population'
+      'region',
+      'population'
     );
     expect(result.queryElement).toContain('count(*) as count');
     expect(result.valueField).toBe('count');
@@ -1072,7 +1149,8 @@ describe('generateOdsQueryCode', () => {
     state.aggregation = 'avg';
     const result = generateOdsQueryCode(
       { baseUrl: 'https://ods.example.com', datasetId: 'ds1' },
-      'region', 'population'
+      'region',
+      'population'
     );
     expect(result.queryElement).toContain('group-by="region"');
     expect(result.labelField).toBe('region');
@@ -1083,7 +1161,8 @@ describe('generateOdsQueryCode', () => {
     state.sortOrder = 'desc';
     const result = generateOdsQueryCode(
       { baseUrl: 'https://ods.example.com', datasetId: 'ds1' },
-      'region', 'population'
+      'region',
+      'population'
     );
     expect(result.queryElement).toContain('order-by="population__sum:desc"');
   });
@@ -1093,7 +1172,8 @@ describe('generateOdsQueryCode', () => {
     state.sortOrder = 'none';
     const result = generateOdsQueryCode(
       { baseUrl: 'https://ods.example.com', datasetId: 'ds1' },
-      'region', 'population'
+      'region',
+      'population'
     );
     expect(result.queryElement).not.toContain('order-by=');
   });
@@ -1104,7 +1184,8 @@ describe('generateOdsQueryCode', () => {
     state.aggregation = 'sum';
     const result = generateOdsQueryCode(
       { baseUrl: 'https://ods.example.com', datasetId: 'ds1' },
-      'region', 'population'
+      'region',
+      'population'
     );
     expect(result.queryElement).toContain('where=');
   });
@@ -1116,20 +1197,22 @@ describe('generateOdsQueryCode', () => {
     state.sortOrder = 'desc';
     const result = generateOdsQueryCode(
       { baseUrl: 'https://ods.example.com', datasetId: 'ds1' },
-      'region', 'population'
+      'region',
+      'population'
     );
     expect(result.queryElement).toContain('group-by="dept"');
     expect(result.queryElement).toContain('sum(pop) as total_pop');
     expect(result.valueField).toBe('total_pop');
   });
 
-  it('should generate second series aggregation', () => {
+  it('should generate second séries aggregation', () => {
     state.aggregation = 'sum';
     state.extraSeries = [{ field: 'budget', label: '' }];
     state.chartType = 'bar';
     const result = generateOdsQueryCode(
       { baseUrl: 'https://ods.example.com', datasetId: 'ds1' },
-      'region', 'population'
+      'region',
+      'population'
     );
     expect(result.queryElement).toContain('sum(budget) as budget__sum');
     expect(result.valueField2).toBe('budget__sum');
@@ -1148,7 +1231,8 @@ describe('generateTabularQueryCode', () => {
     state.aggregation = 'sum';
     const result = generateTabularQueryCode(
       { baseUrl: 'https://tabular-api.data.gouv.fr', resourceId: 'abc-123' },
-      'region', 'population'
+      'region',
+      'population'
     );
     expect(result.queryElement).toContain('api-type="tabular"');
     expect(result.queryElement).toContain('base-url="https://tabular-api.data.gouv.fr"');
@@ -1160,7 +1244,8 @@ describe('generateTabularQueryCode', () => {
     state.aggregation = 'sum';
     const result = generateTabularQueryCode(
       { baseUrl: 'https://tabular-api.data.gouv.fr', resourceId: 'r1' },
-      'region', 'population'
+      'region',
+      'population'
     );
     expect(result.queryElement).toContain('aggregate="population:sum"');
     expect(result.valueField).toBe('population__sum');
@@ -1170,7 +1255,8 @@ describe('generateTabularQueryCode', () => {
     state.aggregation = 'avg';
     const result = generateTabularQueryCode(
       { baseUrl: 'https://tabular-api.data.gouv.fr', resourceId: 'r1' },
-      'region', 'population'
+      'region',
+      'population'
     );
     expect(result.queryElement).toContain('group-by="region"');
   });
@@ -1180,7 +1266,8 @@ describe('generateTabularQueryCode', () => {
     state.sortOrder = 'asc';
     const result = generateTabularQueryCode(
       { baseUrl: 'https://tabular-api.data.gouv.fr', resourceId: 'r1' },
-      'region', 'population'
+      'region',
+      'population'
     );
     expect(result.queryElement).toContain('order-by="population__sum:asc"');
   });
@@ -1191,7 +1278,8 @@ describe('generateTabularQueryCode', () => {
     state.aggregation = 'sum';
     const result = generateTabularQueryCode(
       { baseUrl: 'https://tabular-api.data.gouv.fr', resourceId: 'r1' },
-      'region', 'population'
+      'region',
+      'population'
     );
     expect(result.queryElement).toContain('filter="region:eq:Bretagne"');
   });
@@ -1202,20 +1290,22 @@ describe('generateTabularQueryCode', () => {
     state.sortOrder = 'desc';
     const result = generateTabularQueryCode(
       { baseUrl: 'https://tabular-api.data.gouv.fr', resourceId: 'r1' },
-      'region', 'population'
+      'region',
+      'population'
     );
     expect(result.queryElement).toContain('aggregate="pop:sum"');
     expect(result.valueField).toBe('pop__sum');
   });
 
-  it('should generate second series aggregation', () => {
+  it('should generate second séries aggregation', () => {
     state.aggregation = 'avg';
     state.extraSeries = [{ field: 'budget', label: '' }];
     state.chartType = 'line';
     state.fields = [{ name: 'budget', fullPath: 'budget', type: 'number', sample: 100 }];
     const result = generateTabularQueryCode(
       { baseUrl: 'https://tabular-api.data.gouv.fr', resourceId: 'r1' },
-      'region', 'population'
+      'region',
+      'population'
     );
     expect(result.queryElement).toContain('budget:avg');
     expect(result.valueField2).toContain('budget');
@@ -1239,7 +1329,7 @@ describe('generateDynamicCode', () => {
       id: '1',
       name: 'Ma source Grist',
       type: 'grist',
-      apiUrl: 'https://grist.numerique.gouv.fr/api/docs/doc1/tables/Table1/records',
+      apiUrl: 'https://grist.numérique.gouv.fr/api/docs/doc1/tables/Table1/records',
       documentId: 'doc1',
       tableId: 'Table1',
     };
@@ -1263,7 +1353,7 @@ describe('generateDynamicCode', () => {
     expect(code).toContain('transform="records"');
   });
 
-  it('should use proxy URL for grist.numerique.gouv.fr', () => {
+  it('should use proxy URL for grist.numérique.gouv.fr', () => {
     generateDynamicCode();
     const code = document.getElementById('generated-code')!.textContent!;
     expect(code).toContain('grist-gouv-proxy');
@@ -1304,7 +1394,12 @@ describe('generateDynamicCode', () => {
   it('should use codeField as group-by for map charts', () => {
     state.chartType = 'map';
     state.codeField = 'code_dept';
-    state.fields.push({ name: 'code_dept', fullPath: 'fields.code_dept', type: 'string', sample: '35' });
+    state.fields.push({
+      name: 'code_dept',
+      fullPath: 'fields.code_dept',
+      type: 'string',
+      sample: '35',
+    });
     state.aggregation = 'sum';
     generateDynamicCode();
     const code = document.getElementById('generated-code')!.textContent!;
@@ -1368,7 +1463,7 @@ describe('generateDynamicCode', () => {
     expect(code).not.toContain('refresh=');
   });
 
-  it('should include second series attribute when extraSeries is set', () => {
+  it('should include second séries attribute when extraSeries is set', () => {
     state.extraSeries = [{ field: 'budget', label: '' }];
     state.fields.push({ name: 'budget', fullPath: 'fields.budget', type: 'number', sample: 500 });
     state.aggregation = 'sum';
@@ -1411,7 +1506,13 @@ describe('generateDynamicCode', () => {
   it('should include facets when enabled', () => {
     state.facetsConfig.enabled = true;
     state.facetsConfig.fields = [
-      { field: 'region', label: 'Region', display: 'checkbox', searchable: false, disjunctive: false },
+      {
+        field: 'region',
+        label: 'Region',
+        display: 'checkbox',
+        searchable: false,
+        disjunctive: false,
+      },
     ];
     state.aggregation = 'sum';
     generateDynamicCode();
@@ -1465,8 +1566,11 @@ describe('generateDynamicCodeForApi', () => {
 
   it('should detect ODS source and generate dsfr-data-source + dsfr-data-query', () => {
     state.savedSource = {
-      id: '1', name: 'ODS Source', type: 'api',
-      apiUrl: 'https://data.iledefrance.fr/api/explore/v2.1/catalog/datasets/elus-regionaux/records',
+      id: '1',
+      name: 'ODS Source',
+      type: 'api',
+      apiUrl:
+        'https://data.iledefrance.fr/api/explore/v2.1/catalog/datasets/elus-regionaux/records',
     };
     state.labelField = 'region';
     state.valueField = 'population';
@@ -1485,7 +1589,9 @@ describe('generateDynamicCodeForApi', () => {
 
   it('should detect Tabular source and generate dsfr-data-source + dsfr-data-query', () => {
     state.savedSource = {
-      id: '1', name: 'Tabular Source', type: 'api',
+      id: '1',
+      name: 'Tabular Source',
+      type: 'api',
       apiUrl: 'https://tabular-api.data.gouv.fr/api/resources/abc-123/data/',
     };
     state.labelField = 'region';
@@ -1504,7 +1610,9 @@ describe('generateDynamicCodeForApi', () => {
 
   it('should use dsfr-data-source for generic API sources', () => {
     state.savedSource = {
-      id: '1', name: 'Generic API', type: 'api',
+      id: '1',
+      name: 'Generic API',
+      type: 'api',
       apiUrl: 'https://example.com/api/data',
     };
     state.labelField = 'region';
@@ -1521,7 +1629,9 @@ describe('generateDynamicCodeForApi', () => {
 
   it('should generate facets for ODS sources', () => {
     state.savedSource = {
-      id: '1', name: 'ODS Source', type: 'api',
+      id: '1',
+      name: 'ODS Source',
+      type: 'api',
       apiUrl: 'https://data.iledefrance.fr/api/explore/v2.1/catalog/datasets/elus/records',
     };
     state.labelField = 'region';
@@ -1530,7 +1640,13 @@ describe('generateDynamicCodeForApi', () => {
     state.chartType = 'bar';
     state.facetsConfig.enabled = true;
     state.facetsConfig.fields = [
-      { field: 'dept', label: 'Departement', display: 'checkbox', searchable: false, disjunctive: false },
+      {
+        field: 'dept',
+        label: 'Departement',
+        display: 'checkbox',
+        searchable: false,
+        disjunctive: false,
+      },
     ];
     generateDynamicCodeForApi();
     const code = document.getElementById('generated-code')!.textContent!;
@@ -1540,7 +1656,9 @@ describe('generateDynamicCodeForApi', () => {
 
   it('should generate facets for Tabular sources', () => {
     state.savedSource = {
-      id: '1', name: 'Tabular', type: 'api',
+      id: '1',
+      name: 'Tabular',
+      type: 'api',
       apiUrl: 'https://tabular-api.data.gouv.fr/api/resources/abc-123/data/',
     };
     state.labelField = 'region';
@@ -1549,7 +1667,13 @@ describe('generateDynamicCodeForApi', () => {
     state.chartType = 'bar';
     state.facetsConfig.enabled = true;
     state.facetsConfig.fields = [
-      { field: 'dept', label: 'Departement', display: 'checkbox', searchable: false, disjunctive: false },
+      {
+        field: 'dept',
+        label: 'Departement',
+        display: 'checkbox',
+        searchable: false,
+        disjunctive: false,
+      },
     ];
     generateDynamicCodeForApi();
     const code = document.getElementById('generated-code')!.textContent!;
@@ -1558,7 +1682,9 @@ describe('generateDynamicCodeForApi', () => {
 
   it('should use codeField as group-by for map charts', () => {
     state.savedSource = {
-      id: '1', name: 'ODS Source', type: 'api',
+      id: '1',
+      name: 'ODS Source',
+      type: 'api',
       apiUrl: 'https://data.iledefrance.fr/api/explore/v2.1/catalog/datasets/elus/records',
     };
     state.chartType = 'map';
@@ -1574,7 +1700,9 @@ describe('generateDynamicCodeForApi', () => {
 
   it('should generate dsfr-data-source + dsfr-data-kpi for ODS KPI type', () => {
     state.savedSource = {
-      id: '1', name: 'ODS Source', type: 'api',
+      id: '1',
+      name: 'ODS Source',
+      type: 'api',
       apiUrl: 'https://data.iledefrance.fr/api/explore/v2.1/catalog/datasets/elus/records',
     };
     state.chartType = 'kpi';
@@ -1592,7 +1720,9 @@ describe('generateDynamicCodeForApi', () => {
 
   it('should generate datalist for ODS source with server-side pagination', () => {
     state.savedSource = {
-      id: '1', name: 'ODS Source', type: 'api',
+      id: '1',
+      name: 'ODS Source',
+      type: 'api',
       apiUrl: 'https://data.iledefrance.fr/api/explore/v2.1/catalog/datasets/elus/records',
     };
     state.chartType = 'datalist';
@@ -1614,7 +1744,9 @@ describe('generateDynamicCodeForApi', () => {
 
   it('should generate datalist for Tabular source with server-side pagination', () => {
     state.savedSource = {
-      id: '1', name: 'Tabular', type: 'api',
+      id: '1',
+      name: 'Tabular',
+      type: 'api',
       apiUrl: 'https://tabular-api.data.gouv.fr/api/resources/abc-123/data/',
     };
     state.chartType = 'datalist';
@@ -1635,7 +1767,9 @@ describe('generateDynamicCodeForApi', () => {
 
   it('should generate datalist for generic API source without server-side', () => {
     state.savedSource = {
-      id: '1', name: 'API', type: 'api',
+      id: '1',
+      name: 'API',
+      type: 'api',
       apiUrl: 'https://example.com/api/data',
     };
     state.chartType = 'datalist';
@@ -1651,7 +1785,9 @@ describe('generateDynamicCodeForApi', () => {
 
   it('should use flat field paths when normalize flatten enabled', () => {
     state.savedSource = {
-      id: '1', name: 'API', type: 'api',
+      id: '1',
+      name: 'API',
+      type: 'api',
       apiUrl: 'https://example.com/api/data',
     };
     state.labelField = 'region';
@@ -1673,7 +1809,9 @@ describe('generateDynamicCodeForApi', () => {
 
   it('should use fullPath when normalize flatten is disabled', () => {
     state.savedSource = {
-      id: '1', name: 'API', type: 'api',
+      id: '1',
+      name: 'API',
+      type: 'api',
       apiUrl: 'https://example.com/api/data',
     };
     state.labelField = 'region';
@@ -1700,7 +1838,9 @@ describe('generateDynamicCodeForApi', () => {
 
   it('should include refresh attribute when set', () => {
     state.savedSource = {
-      id: '1', name: 'API', type: 'api',
+      id: '1',
+      name: 'API',
+      type: 'api',
       apiUrl: 'https://example.com/api/data',
     };
     state.labelField = 'region';
@@ -1713,9 +1853,11 @@ describe('generateDynamicCodeForApi', () => {
     expect(code).toContain('refresh="120"');
   });
 
-  it('should include second series for API sources', () => {
+  it('should include second séries for API sources', () => {
     state.savedSource = {
-      id: '1', name: 'ODS Source', type: 'api',
+      id: '1',
+      name: 'ODS Source',
+      type: 'api',
       apiUrl: 'https://data.iledefrance.fr/api/explore/v2.1/catalog/datasets/elus/records',
     };
     state.labelField = 'region';
@@ -1745,9 +1887,12 @@ describe('regression tests', () => {
 
   it('BUG FIX: normalize flatten should produce flat field paths in Grist dynamic code', () => {
     state.savedSource = {
-      id: '1', name: 'Grist', type: 'grist',
-      apiUrl: 'https://grist.numerique.gouv.fr/api/docs/doc1/tables/Table1/records',
-      documentId: 'doc1', tableId: 'Table1',
+      id: '1',
+      name: 'Grist',
+      type: 'grist',
+      apiUrl: 'https://grist.numérique.gouv.fr/api/docs/doc1/tables/Table1/records',
+      documentId: 'doc1',
+      tableId: 'Table1',
     };
     state.labelField = 'region';
     state.valueField = 'population';
@@ -1772,9 +1917,12 @@ describe('regression tests', () => {
 
   it('BUG FIX: map should group by codeField in Grist dynamic mode', () => {
     state.savedSource = {
-      id: '1', name: 'Grist', type: 'grist',
-      apiUrl: 'https://grist.numerique.gouv.fr/api/docs/doc1/tables/Table1/records',
-      documentId: 'doc1', tableId: 'Table1',
+      id: '1',
+      name: 'Grist',
+      type: 'grist',
+      apiUrl: 'https://grist.numérique.gouv.fr/api/docs/doc1/tables/Table1/records',
+      documentId: 'doc1',
+      tableId: 'Table1',
     };
     state.chartType = 'map';
     state.labelField = 'region';
@@ -1797,7 +1945,9 @@ describe('regression tests', () => {
 
   it('BUG FIX: facets should be generated for ODS API sources', () => {
     state.savedSource = {
-      id: '1', name: 'ODS', type: 'api',
+      id: '1',
+      name: 'ODS',
+      type: 'api',
       apiUrl: 'https://data.iledefrance.fr/api/explore/v2.1/catalog/datasets/elus/records',
     };
     state.labelField = 'region';
@@ -1806,7 +1956,13 @@ describe('regression tests', () => {
     state.chartType = 'bar';
     state.facetsConfig.enabled = true;
     state.facetsConfig.fields = [
-      { field: 'dept', label: 'Departement', display: 'checkbox', searchable: false, disjunctive: false },
+      {
+        field: 'dept',
+        label: 'Departement',
+        display: 'checkbox',
+        searchable: false,
+        disjunctive: false,
+      },
     ];
 
     generateDynamicCodeForApi();
@@ -1818,7 +1974,9 @@ describe('regression tests', () => {
 
   it('BUG FIX: facets should be generated for Tabular API sources', () => {
     state.savedSource = {
-      id: '1', name: 'Tabular', type: 'api',
+      id: '1',
+      name: 'Tabular',
+      type: 'api',
       apiUrl: 'https://tabular-api.data.gouv.fr/api/resources/abc-123/data/',
     };
     state.labelField = 'region';
@@ -1827,7 +1985,13 @@ describe('regression tests', () => {
     state.chartType = 'bar';
     state.facetsConfig.enabled = true;
     state.facetsConfig.fields = [
-      { field: 'dept', label: 'Departement', display: 'checkbox', searchable: false, disjunctive: false },
+      {
+        field: 'dept',
+        label: 'Departement',
+        display: 'checkbox',
+        searchable: false,
+        disjunctive: false,
+      },
     ];
 
     generateDynamicCodeForApi();
@@ -1839,9 +2003,12 @@ describe('regression tests', () => {
 
   it('BUG FIX: map codeField + normalize flatten in Grist dynamic code', () => {
     state.savedSource = {
-      id: '1', name: 'Grist', type: 'grist',
-      apiUrl: 'https://grist.numerique.gouv.fr/api/docs/doc1/tables/Table1/records',
-      documentId: 'doc1', tableId: 'Table1',
+      id: '1',
+      name: 'Grist',
+      type: 'grist',
+      apiUrl: 'https://grist.numérique.gouv.fr/api/docs/doc1/tables/Table1/records',
+      documentId: 'doc1',
+      tableId: 'Table1',
     };
     state.chartType = 'map';
     state.labelField = 'region';
@@ -1894,7 +2061,9 @@ describe('regression: api-type on dsfr-data-source not dsfr-data-query', () => {
 
   it('ODS bar chart should use dsfr-data-source for api-type, not dsfr-data-query', () => {
     state.savedSource = {
-      id: '1', name: 'ODS', type: 'api',
+      id: '1',
+      name: 'ODS',
+      type: 'api',
       apiUrl: 'https://data.iledefrance.fr/api/explore/v2.1/catalog/datasets/elus/records',
     };
     state.labelField = 'region';
@@ -1908,7 +2077,9 @@ describe('regression: api-type on dsfr-data-source not dsfr-data-query', () => {
 
   it('Tabular bar chart should use dsfr-data-source for api-type, not dsfr-data-query', () => {
     state.savedSource = {
-      id: '1', name: 'Tabular', type: 'api',
+      id: '1',
+      name: 'Tabular',
+      type: 'api',
       apiUrl: 'https://tabular-api.data.gouv.fr/api/resources/abc-123/data/',
     };
     state.labelField = 'region';
@@ -1922,7 +2093,9 @@ describe('regression: api-type on dsfr-data-source not dsfr-data-query', () => {
 
   it('ODS datalist should use dsfr-data-source for api-type, not dsfr-data-query', () => {
     state.savedSource = {
-      id: '1', name: 'ODS', type: 'api',
+      id: '1',
+      name: 'ODS',
+      type: 'api',
       apiUrl: 'https://data.iledefrance.fr/api/explore/v2.1/catalog/datasets/elus/records',
     };
     state.chartType = 'datalist';
@@ -1935,7 +2108,9 @@ describe('regression: api-type on dsfr-data-source not dsfr-data-query', () => {
 
   it('Tabular datalist should use dsfr-data-source for api-type, not dsfr-data-query', () => {
     state.savedSource = {
-      id: '1', name: 'Tabular', type: 'api',
+      id: '1',
+      name: 'Tabular',
+      type: 'api',
       apiUrl: 'https://tabular-api.data.gouv.fr/api/resources/abc-123/data/',
     };
     state.chartType = 'datalist';
@@ -1948,7 +2123,9 @@ describe('regression: api-type on dsfr-data-source not dsfr-data-query', () => {
 
   it('ODS map should use dsfr-data-source for api-type, not dsfr-data-query', () => {
     state.savedSource = {
-      id: '1', name: 'ODS', type: 'api',
+      id: '1',
+      name: 'ODS',
+      type: 'api',
       apiUrl: 'https://data.iledefrance.fr/api/explore/v2.1/catalog/datasets/elus/records',
     };
     state.chartType = 'map';
@@ -1963,7 +2140,9 @@ describe('regression: api-type on dsfr-data-source not dsfr-data-query', () => {
 
   it('Tabular map should use dsfr-data-source for api-type, not dsfr-data-query', () => {
     state.savedSource = {
-      id: '1', name: 'Tabular', type: 'api',
+      id: '1',
+      name: 'Tabular',
+      type: 'api',
       apiUrl: 'https://tabular-api.data.gouv.fr/api/resources/abc-123/data/',
     };
     state.chartType = 'map';
@@ -1978,7 +2157,9 @@ describe('regression: api-type on dsfr-data-source not dsfr-data-query', () => {
 
   it('ODS chart with facets should use dsfr-data-source for api-type, not dsfr-data-query', () => {
     state.savedSource = {
-      id: '1', name: 'ODS', type: 'api',
+      id: '1',
+      name: 'ODS',
+      type: 'api',
       apiUrl: 'https://data.iledefrance.fr/api/explore/v2.1/catalog/datasets/elus/records',
     };
     state.labelField = 'region';
@@ -1987,7 +2168,13 @@ describe('regression: api-type on dsfr-data-source not dsfr-data-query', () => {
     state.chartType = 'bar';
     state.facetsConfig.enabled = true;
     state.facetsConfig.fields = [
-      { field: 'dept', label: 'Departement', display: 'checkbox', searchable: false, disjunctive: false },
+      {
+        field: 'dept',
+        label: 'Departement',
+        display: 'checkbox',
+        searchable: false,
+        disjunctive: false,
+      },
     ];
     generateDynamicCodeForApi();
     const code = document.getElementById('generated-code')!.textContent!;
@@ -2098,7 +2285,8 @@ describe('alignment: aggregation types in generateOdsQueryCode', () => {
       state.sortOrder = 'desc';
       const result = generateOdsQueryCode(
         { baseUrl: 'https://ods.example.com', datasetId: 'ds1' },
-        'region', 'population'
+        'region',
+        'population'
       );
       if (agg === 'count') {
         expect(result.queryElement).toContain('count(*) as count');
@@ -2125,7 +2313,8 @@ describe('alignment: aggregation types in generateTabularQueryCode', () => {
       state.sortOrder = 'desc';
       const result = generateTabularQueryCode(
         { baseUrl: 'https://tabular-api.data.gouv.fr', resourceId: 'r1' },
-        'region', 'population'
+        'region',
+        'population'
       );
       expect(result.queryElement).toContain(`population:${agg}`);
     });
@@ -2136,7 +2325,20 @@ describe('alignment: aggregation types in generateTabularQueryCode', () => {
 // Alignment: all filter operators work in filterToOdsql
 // =====================================================================
 describe('alignment: all filter operators in filterToOdsql', () => {
-  const operators = ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'contains', 'notcontains', 'in', 'notin', 'isnull', 'isnotnull'];
+  const operators = [
+    'eq',
+    'neq',
+    'gt',
+    'gte',
+    'lt',
+    'lte',
+    'contains',
+    'notcontains',
+    'in',
+    'notin',
+    'isnull',
+    'isnotnull',
+  ];
 
   for (const op of operators) {
     it(`should handle ${op} operator`, () => {
@@ -2151,7 +2353,18 @@ describe('alignment: all filter operators in filterToOdsql', () => {
 // =====================================================================
 describe('alignment: all filter operators in applyLocalFilter', () => {
   const data = [{ field: 'value', num: 10 }];
-  const operators = ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'contains', 'notcontains', 'isnull', 'isnotnull'];
+  const operators = [
+    'eq',
+    'neq',
+    'gt',
+    'gte',
+    'lt',
+    'lte',
+    'contains',
+    'notcontains',
+    'isnull',
+    'isnotnull',
+  ];
 
   for (const op of operators) {
     it(`should handle ${op} operator without crashing`, () => {
@@ -2364,7 +2577,9 @@ describe('generateCode (API fetch embedded)', () => {
     state.codeField = 'code_dept';
     state.valueField = 'population';
     state.palette = 'sequentialAscending';
-    generateCode('https://api.example.com?select=code_dept,sum(pop)%20as%20value&group_by=code_dept&limit=200');
+    generateCode(
+      'https://api.example.com?select=code_dept,sum(pop)%20as%20value&group_by=code_dept&limit=200'
+    );
     const code = document.getElementById('generated-code')!.textContent!;
     expect(code).toContain('map-chart');
     expect(code).toContain('map-container');
@@ -2393,7 +2608,9 @@ describe('generateCode (API fetch embedded)', () => {
     state.valueField = 'population';
     state.palette = 'default';
     state.sortOrder = 'desc';
-    generateCode('https://api.example.com?select=region,sum(pop)%20as%20value&group_by=region&order_by=value%20desc&limit=200');
+    generateCode(
+      'https://api.example.com?select=region,sum(pop)%20as%20value&group_by=region&order_by=value%20desc&limit=200'
+    );
     const code = document.getElementById('generated-code')!.textContent!;
     expect(code).toContain('bar-chart');
     expect(code).toContain('chart-container');
@@ -2451,7 +2668,7 @@ describe('generateCode (API fetch embedded)', () => {
     expect(code).toContain('radar-chart');
   });
 
-  it('should generate second series for bar chart', () => {
+  it('should generate second séries for bar chart', () => {
     state.chartType = 'bar';
     state.labelField = 'region';
     state.valueField = 'population';
@@ -2460,12 +2677,12 @@ describe('generateCode (API fetch embedded)', () => {
     const code = document.getElementById('generated-code')!.textContent!;
     expect(code).toContain('bar-chart');
     expect(code).toContain('values2');
-    // name attribute should include both series
+    // name attribute should include both séries
     expect(code).toContain('population');
     expect(code).toContain('budget');
   });
 
-  it('should not generate second series for pie chart', () => {
+  it('should not generate second séries for pie chart', () => {
     state.chartType = 'pie';
     state.labelField = 'region';
     state.valueField = 'population';
@@ -2479,10 +2696,10 @@ describe('generateCode (API fetch embedded)', () => {
     state.chartType = 'bar';
     state.labelField = 'region';
     state.valueField = 'population';
-    state.subtitle = 'Donnees 2024';
+    state.subtitle = 'Données 2024';
     generateCode('https://api.example.com?limit=200');
     const code = document.getElementById('generated-code')!.textContent!;
-    expect(code).toContain('Donnees 2024');
+    expect(code).toContain('Données 2024');
     expect(code).toContain('fr-text--sm');
   });
 
@@ -2522,7 +2739,8 @@ describe('generateCode (API fetch embedded)', () => {
     state.chartType = 'bar';
     state.labelField = 'region';
     state.valueField = 'population';
-    const apiUrl = 'https://data.gouv.fr/api/explore/v2.1/catalog/datasets/test/records?select=region,sum(pop)%20as%20value&group_by=region';
+    const apiUrl =
+      'https://data.gouv.fr/api/explore/v2.1/catalog/datasets/test/records?select=region,sum(pop)%20as%20value&group_by=region';
     generateCode(apiUrl);
     const code = document.getElementById('generated-code')!.textContent!;
     expect(code).toContain(apiUrl);
@@ -2559,8 +2777,20 @@ describe('generateFacetsElement with FacetsMode', () => {
     resetState();
     state.facetsConfig.enabled = true;
     state.facetsConfig.fields = [
-      { field: 'region', label: 'Region', display: 'checkbox', searchable: false, disjunctive: false },
-      { field: 'dept', label: 'Departement', display: 'select', searchable: true, disjunctive: true },
+      {
+        field: 'region',
+        label: 'Region',
+        display: 'checkbox',
+        searchable: false,
+        disjunctive: false,
+      },
+      {
+        field: 'dept',
+        label: 'Departement',
+        display: 'select',
+        searchable: true,
+        disjunctive: true,
+      },
     ];
   });
 
@@ -2593,7 +2823,13 @@ describe('generateFacetsElement with FacetsMode', () => {
 
   it('should prefix labels with fieldPrefix', () => {
     state.facetsConfig.fields = [
-      { field: 'region', label: 'Ma Region', display: 'checkbox', searchable: false, disjunctive: false },
+      {
+        field: 'region',
+        label: 'Ma Region',
+        display: 'checkbox',
+        searchable: false,
+        disjunctive: false,
+      },
     ];
     const result = generateFacetsElement('src', { fieldPrefix: 'fields.' });
     expect(result.element).toContain('labels="fields.region:Ma Region"');
@@ -2629,7 +2865,15 @@ describe('computeStaticFacetValues', () => {
 
   it('should return null when no local data', () => {
     state.facetsConfig.enabled = true;
-    state.facetsConfig.fields = [{ field: 'region', label: 'Region', display: 'checkbox', searchable: false, disjunctive: false }];
+    state.facetsConfig.fields = [
+      {
+        field: 'region',
+        label: 'Region',
+        display: 'checkbox',
+        searchable: false,
+        disjunctive: false,
+      },
+    ];
     state.localData = null;
     expect(computeStaticFacetValues()).toBeNull();
   });
@@ -2637,7 +2881,13 @@ describe('computeStaticFacetValues', () => {
   it('should compute unique sorted values for each field', () => {
     state.facetsConfig.enabled = true;
     state.facetsConfig.fields = [
-      { field: 'region', label: 'Region', display: 'checkbox', searchable: false, disjunctive: false },
+      {
+        field: 'region',
+        label: 'Region',
+        display: 'checkbox',
+        searchable: false,
+        disjunctive: false,
+      },
     ];
     state.localData = [
       { region: 'Normandie' },
@@ -2653,7 +2903,13 @@ describe('computeStaticFacetValues', () => {
   it('should skip null/undefined/empty values', () => {
     state.facetsConfig.enabled = true;
     state.facetsConfig.fields = [
-      { field: 'region', label: 'Region', display: 'checkbox', searchable: false, disjunctive: false },
+      {
+        field: 'region',
+        label: 'Region',
+        display: 'checkbox',
+        searchable: false,
+        disjunctive: false,
+      },
     ];
     state.localData = [
       { region: 'Bretagne' },
@@ -2679,7 +2935,13 @@ describe('computeStaticFacetValues', () => {
   it('should compute values for multiple fields', () => {
     state.facetsConfig.enabled = true;
     state.facetsConfig.fields = [
-      { field: 'region', label: 'Region', display: 'checkbox', searchable: false, disjunctive: false },
+      {
+        field: 'region',
+        label: 'Region',
+        display: 'checkbox',
+        searchable: false,
+        disjunctive: false,
+      },
       { field: 'type', label: 'Type', display: 'checkbox', searchable: false, disjunctive: false },
     ];
     state.localData = [
@@ -2710,7 +2972,7 @@ describe('Grist facets field paths', () => {
       id: '1',
       name: 'Ma source Grist',
       type: 'grist',
-      apiUrl: 'https://grist.numerique.gouv.fr/api/docs/doc1/tables/Table1/records',
+      apiUrl: 'https://grist.numérique.gouv.fr/api/docs/doc1/tables/Table1/records',
       documentId: 'doc1',
       tableId: 'Table1',
     };
@@ -2728,7 +2990,13 @@ describe('Grist facets field paths', () => {
     state.chartType = 'bar';
     state.facetsConfig.enabled = true;
     state.facetsConfig.fields = [
-      { field: 'region', label: 'Region', display: 'checkbox', searchable: false, disjunctive: false },
+      {
+        field: 'region',
+        label: 'Region',
+        display: 'checkbox',
+        searchable: false,
+        disjunctive: false,
+      },
     ];
     generateDynamicCode();
     const code = document.getElementById('generated-code')!.textContent!;
@@ -2743,7 +3011,13 @@ describe('Grist facets field paths', () => {
     state.chartType = 'bar';
     state.facetsConfig.enabled = true;
     state.facetsConfig.fields = [
-      { field: 'region', label: 'Region', display: 'checkbox', searchable: false, disjunctive: false },
+      {
+        field: 'region',
+        label: 'Region',
+        display: 'checkbox',
+        searchable: false,
+        disjunctive: false,
+      },
     ];
     generateDynamicCode();
     const code = document.getElementById('generated-code')!.textContent!;
@@ -2755,12 +3029,16 @@ describe('Grist facets field paths', () => {
   it('BUG FIX: Grist datalist facets should also use fields.X paths', () => {
     state.normalizeConfig.enabled = false;
     state.chartType = 'datalist';
-    state.datalistColumns = [
-      { field: 'region', label: 'Region', visible: true, filtrable: false },
-    ];
+    state.datalistColumns = [{ field: 'region', label: 'Region', visible: true, filtrable: false }];
     state.facetsConfig.enabled = true;
     state.facetsConfig.fields = [
-      { field: 'region', label: 'Region', display: 'checkbox', searchable: false, disjunctive: false },
+      {
+        field: 'region',
+        label: 'Region',
+        display: 'checkbox',
+        searchable: false,
+        disjunctive: false,
+      },
     ];
     generateDynamicCode();
     const code = document.getElementById('generated-code')!.textContent!;

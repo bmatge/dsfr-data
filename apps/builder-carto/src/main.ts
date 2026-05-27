@@ -268,7 +268,7 @@ function renderMapConfig() {
         </div>
         <div class="carto-checkbox">
           <input type="checkbox" id="map-fit-bounds" ${m.fitBounds ? 'checked' : ''}>
-          <label for="map-fit-bounds">Ajuster aux donnees (fit-bounds)</label>
+          <label for="map-fit-bounds">Ajuster aux données (fit-bounds)</label>
         </div>
         <div class="carto-checkbox">
           <input type="checkbox" id="map-no-controls" ${m.noControls ? 'checked' : ''}>
@@ -337,7 +337,7 @@ function renderLayerConfig() {
   const layer = getActiveLayer();
   if (!layer) {
     container.innerHTML =
-      '<p class="carto-col-config__empty"><i class="ri-information-line"></i><br>Selectionnez une couche.</p>';
+      '<p class="carto-col-config__empty"><i class="ri-information-line"></i><br>Sélectionnez une couche.</p>';
     return;
   }
 
@@ -469,13 +469,13 @@ function renderLayerConfig() {
       <div class="config-section-content">
         <div class="carto-field">
           <label for="layer-color">Couleur ${layer.colorField ? '(fallback)' : ''}
-            <span class="fr-hint-text">Couleur unique ou couleur par defaut si mapping actif</span>
+            <span class="fr-hint-text">Couleur unique ou couleur par défaut si mapping actif</span>
           </label>
           <input type="color" id="layer-color" value="${layer.color}">
         </div>
 
         <div class="carto-field">
-          <label for="layer-color-field">Champ couleur (mapping categoriel)
+          <label for="layer-color-field">Champ couleur (mapping catégoriel)
             <span class="fr-hint-text">Champ dont la valeur determine la couleur de chaque element</span>
           </label>
           <input type="text" id="layer-color-field" value="${escapeAttr(layer.colorField)}" placeholder="">
@@ -514,7 +514,7 @@ function renderLayerConfig() {
             ? `
         <div class="carto-field">
           <label for="layer-fill-field">Champ valeur (coloration)
-            <span class="fr-hint-text">Colore les zones selon ce champ numerique</span>
+            <span class="fr-hint-text">Colore les zones selon ce champ numérique</span>
           </label>
           <input type="text" id="layer-fill-field" value="${escapeAttr(layer.fillField)}">
         </div>
@@ -587,7 +587,7 @@ function renderLayerConfig() {
         </div>
         <div class="carto-field">
           <label for="layer-heat-field">Champ ponderation
-            <span class="fr-hint-text">Champ numerique pour l'intensite de la chaleur</span>
+            <span class="fr-hint-text">Champ numérique pour l'intensite de la chaleur</span>
           </label>
           <input type="text" id="layer-heat-field" value="${escapeAttr(layer.heatField)}">
         </div>
@@ -650,7 +650,7 @@ function renderLayerConfig() {
         <div class="carto-inline">
           <div class="carto-field">
             <label for="layer-bbox-debounce">Delai de chargement (ms)
-              <span class="fr-hint-text">Temps d'attente apres un deplacement avant de recharger les donnees</span>
+              <span class="fr-hint-text">Temps d'attente apres un deplacement avant de recharger les données</span>
             </label>
             <input type="number" id="layer-bbox-debounce" value="${layer.bboxDebounce}" min="0" max="2000">
           </div>
@@ -678,7 +678,7 @@ function renderLayerConfig() {
 
         <div class="carto-field">
           <label for="layer-max-items">Nombre max d'elements
-            <span class="fr-hint-text">Limite les donnees chargees (performance)</span>
+            <span class="fr-hint-text">Limite les données chargees (performance)</span>
           </label>
           <input type="number" id="layer-max-items" value="${layer.maxItems}" min="1" max="100000">
         </div>

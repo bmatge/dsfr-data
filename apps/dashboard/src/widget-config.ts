@@ -94,7 +94,7 @@ function getConfigForm(widget: Widget): string {
         </div>
         <div class="config-group">
           <label>Champ pour les etiquettes (axe X)
-            <span class="fr-hint-text">Ex : region, annee, categorie</span>
+            <span class="fr-hint-text">Ex : region, annee, catégorie</span>
           </label>
           <input type="text" id="config-labelField" value="${escapeHtml(widget.config.labelField || '')}">
         </div>

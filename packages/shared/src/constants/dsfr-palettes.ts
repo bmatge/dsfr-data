@@ -1,5 +1,5 @@
 /**
- * DSFR (Design System de l'Etat) color palettes for charts
+ * DSFR (Design System de l'État) color palettes for charts
  */
 
 /** Default categorical colors from DSFR */

@@ -1,7 +1,7 @@
 /**
  * Widget Grist : Tableau DSFR
  *
- * Affiche les donnees Grist dans un tableau DSFR filtreable,
+ * Affiche les données Grist dans un tableau DSFR filtreable,
  * triable avec export CSV. Toutes les colonnes de la table sont
  * affichees automatiquement.
  *
@@ -236,8 +236,8 @@ function showOptionsPanel() {
 }
 
 /**
- * Genere automatiquement le mapping colonnes a partir
- * des cles du premier record recu.
+ * Généré automatiquement le mapping colonnes a partir
+ * des clés du premier record recu.
  */
 function autoConfigureColumns(data: Record<string, unknown>[]) {
   if (columnsDetermined || data.length === 0) return;

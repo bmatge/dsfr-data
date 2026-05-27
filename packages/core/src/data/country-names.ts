@@ -170,7 +170,7 @@ export const COUNTRY_NAMES_FR: Record<string, string> = {
   '818': 'Egypte',
   '826': 'Royaume-Uni',
   '834': 'Tanzanie',
-  '840': 'Etats-Unis',
+  '840': 'États-Unis',
   '854': 'Burkina Faso',
   '858': 'Uruguay',
   '860': 'Ouzbekistan',

@@ -39,7 +39,7 @@ function buildFetchOptions(
   return opts;
 }
 
-/** Nombre max de records par requete ODS */
+/** Nombre max de records par requête ODS */
 const ODS_PAGE_SIZE = 100;
 
 /** Nombre max de pages a fetcher (limite de securite : 1 000 records) */
@@ -60,14 +60,14 @@ export class OpenDataSoftAdapter implements ApiAdapter {
 
   validate(params: AdapterParams): string | null {
     if (!params.datasetId) {
-      return 'attribut "dataset-id" requis pour les requetes OpenDataSoft';
+      return 'attribut "dataset-id" requis pour les requêtes OpenDataSoft';
     }
     return null;
   }
 
   /**
-   * Fetch toutes les donnees avec pagination automatique via offset.
-   * ODS limite a 100 records par requete.
+   * Fetch toutes les données avec pagination automatique via offset.
+   * ODS limite a 100 records par requête.
    *
    * - limit > 0 : fetch exactement ce nombre de records
    * - limit = 0 : fetch TOUS les records disponibles (via total_count)

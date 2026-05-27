@@ -15,7 +15,7 @@ export function selectChartType(type: ChartType): void {
   if (selectedBtn) selectedBtn.classList.add('selected');
   state.chartType = type;
 
-  // Type categories
+  // Type catégories
   const isKPI = type === 'kpi';
   const isGauge = type === 'gauge';
   const isScatter = type === 'scatter';
@@ -73,15 +73,15 @@ export function selectChartType(type: ChartType): void {
   const aggHint = document.querySelector('label[for="aggregation"] .fr-hint-text');
   if (aggHint) {
     if (isSingleValue) {
-      aggHint.textContent = "Calcul sur l'ensemble des donnees";
+      aggHint.textContent = "Calcul sur l'ensemble des données";
     } else if (isMap) {
       aggHint.textContent = 'Si plusieurs valeurs par departement';
     } else {
-      aggHint.textContent = 'Comment combiner les valeurs partageant la meme categorie';
+      aggHint.textContent = 'Comment combiner les valeurs partageant la même catégorie';
     }
   }
 
-  // Types that support multiple series: bar, horizontalBar, line, radar
+  // Types that support multiple séries: bar, horizontalBar, line, radar
   const supportsMultiSeries = ['bar', 'horizontalBar', 'line', 'radar'].includes(type);
   const extraSeriesGroup = document.getElementById('extra-series-group') as HTMLElement | null;
   if (extraSeriesGroup) extraSeriesGroup.style.display = supportsMultiSeries ? 'block' : 'none';

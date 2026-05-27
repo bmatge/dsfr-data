@@ -73,7 +73,7 @@ export class StatusControlElement extends LitElement {
         ${r.sampleData && r.sampleData.length > 0
           ? html`
               <details class="exec-status__sample">
-                <summary>Apercu (${r.sampleData.length} lignes)</summary>
+                <summary>Aperçu (${r.sampleData.length} lignes)</summary>
                 <table class="exec-status__table">
                   <thead>
                     <tr>

@@ -1,5 +1,5 @@
 /**
- * Smart helpers around the "Agregation" select.
+ * Smart helpers around the "Agrégation" select.
  *
  * Two responsibilities :
  *  1. Propose a sensible default depending on the value field (and its name)
@@ -122,7 +122,7 @@ export function applyAggregationDefault(): void {
 }
 
 /**
- * Show or hide the "donnees deja groupees" badge next to the aggregation label.
+ * Show or hide the "données déjà groupees" badge next to the aggregation label.
  */
 export function updateAggregationBadge(): void {
   const badge = document.getElementById('aggregation-badge') as HTMLElement | null;
@@ -131,11 +131,11 @@ export function updateAggregationBadge(): void {
   const unique = isLabelFieldUniqueInSample();
   if (unique) {
     badge.hidden = false;
-    badge.textContent = 'Donnees deja groupees (1 ligne par categorie)';
+    badge.textContent = 'Données déjà groupees (1 ligne par catégorie)';
     badge.title =
       "Detecte sur l'echantillon charge : chaque valeur de '" +
       state.labelField +
-      "' n'apparait qu'une fois. L'agregation n'a pas d'effet visible (sauf 'count' qui renverra 1).";
+      "' n'apparait qu'une fois. L'agrégation n'a pas d'effet visible (sauf 'count' qui renverra 1).";
   } else {
     badge.hidden = true;
     badge.textContent = '';

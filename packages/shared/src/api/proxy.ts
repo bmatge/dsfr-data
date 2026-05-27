@@ -6,7 +6,7 @@ import { getProxyConfig } from './proxy-config.js';
 
 /**
  * Get proxied URL for a Grist API endpoint
- * Handles both docs.getgrist.com and grist.numerique.gouv.fr
+ * Handles both docs.getgrist.com and grist.numérique.gouv.fr
  */
 export function getProxyUrl(gristUrl: string, endpoint: string): string {
   if (!gristUrl) {
@@ -19,7 +19,7 @@ export function getProxyUrl(gristUrl: string, endpoint: string): string {
     return `${config.baseUrl}${config.endpoints.grist}/api${endpoint}`;
   }
 
-  if (url.hostname === 'grist.numerique.gouv.fr') {
+  if (url.hostname === 'grist.numérique.gouv.fr') {
     return `${config.baseUrl}${config.endpoints.gristGouv}/api${endpoint}`;
   }
 
@@ -49,7 +49,7 @@ export function getProxiedUrl(url: string): string {
   const rewrites: Array<[string, string]> = [
     ['tabular-api.data.gouv.fr', config.endpoints.tabular],
     ['docs.getgrist.com', config.endpoints.grist],
-    ['grist.numerique.gouv.fr', config.endpoints.gristGouv],
+    ['grist.numérique.gouv.fr', config.endpoints.gristGouv],
     ['albert.api.etalab.gouv.fr', config.endpoints.albert],
     ['api.insee.fr', config.endpoints.insee],
   ];

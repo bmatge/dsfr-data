@@ -1,7 +1,7 @@
 /**
  * Panneau de configuration pour les widgets Grist.
  *
- * Genere un panneau DSFR avec les controles de configuration
+ * Généré un panneau DSFR avec les controles de configuration
  * (type de chart, palette, unites, etc.) et persiste les choix
  * via grist.setOption().
  */

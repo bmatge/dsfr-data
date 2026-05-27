@@ -4,7 +4,7 @@
  * Widget unique supportant :
  * - Graphiques : bar, line, pie, radar, scatter, gauge, bar-line
  * - Cartes : map (departements), map-reg (regions)
- * - KPI : indicateur cle de performance
+ * - KPI : indicateur clé de performance
  *
  * L'utilisateur choisit le type dans les options et mappe les colonnes necessaires.
  * Les composants gouv-* sont charges via script tag UMD (DsfrData global).
@@ -65,7 +65,7 @@ const ALL_OPTIONS: OptionDef[] = [
   },
   {
     key: 'aggregation',
-    label: 'Agregation',
+    label: 'Agrégation',
     type: 'select',
     defaultValue: 'avg',
     hint: 'Pour type KPI uniquement',
@@ -419,7 +419,7 @@ function showOptionsPanel() {
     // Fermer le panneau apres sauvegarde
     panel.classList.remove('visible');
     content.style.display = 'block';
-    // Re-afficher la toolbar si des donnees sont presentes
+    // Re-afficher la toolbar si des données sont presentes
     const hasData = DsfrData.getDataCache('grist');
     if (toolbar && hasData) toolbar.style.display = 'flex';
     if (codePanel && codeVisible && hasData) {
@@ -433,8 +433,8 @@ function showOptionsPanel() {
 initGristBridge(
   [
     { name: 'Label', title: 'Etiquettes (graphiques) ou Nom (cartes)', optional: true },
-    { name: 'Value', title: 'Valeur numerique', type: 'Numeric' },
-    { name: 'Value2', title: 'Serie 2 (graphiques multi-series)', type: 'Numeric', optional: true },
+    { name: 'Value', title: 'Valeur numérique', type: 'Numeric' },
+    { name: 'Value2', title: 'Série 2 (graphiques multi-séries)', type: 'Numeric', optional: true },
     { name: 'Code', title: 'Code geo INSEE (cartes uniquement)', type: 'Text', optional: true },
   ],
   {

@@ -4,7 +4,7 @@
  * Se place comme enfant de dsfr-data-map. Decouvre automatiquement les layers
  * ayant un attribut time-field et pilote leur affichage frame par frame.
  *
- * Accessibilite :
+ * Accessibilité :
  * - Pas d'auto-play (l'utilisateur doit lancer la lecture)
  * - prefers-reduced-motion desactive l'auto-play
  * - Clavier : Espace=play/pause, fleches=pas a pas, Home/End=debut/fin

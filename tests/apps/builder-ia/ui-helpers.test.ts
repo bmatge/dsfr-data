@@ -49,7 +49,7 @@ describe('builder-ia ui-helpers', () => {
 
   describe('openInPlayground', () => {
     it('should show warning toast when no code is generated', () => {
-      document.body.innerHTML = '<pre id="generated-code">// Le code sera genere</pre>';
+      document.body.innerHTML = '<pre id="generated-code">// Le code sera généré</pre>';
       const warnSpy = vi.spyOn(toast, 'toastWarning').mockImplementation(() => {});
 
       openInPlayground();

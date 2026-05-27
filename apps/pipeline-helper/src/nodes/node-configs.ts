@@ -5,7 +5,7 @@ export const SOURCE_CONFIG: PipelineNodeConfig = {
   component: 'dsfr-data-source',
   category: 'source',
   icon: 'ri-database-2-line',
-  description: 'Recupere les donnees depuis une API ou un fichier',
+  description: 'Recupere les données depuis une API ou un fichier',
   attributes: [
     {
       name: 'api-type',
@@ -34,9 +34,9 @@ export const SOURCE_CONFIG: PipelineNodeConfig = {
     },
     {
       name: 'api-key-ref',
-      label: 'Cle API (ref)',
+      label: 'Clé API (ref)',
       type: 'text',
-      placeholder: 'ma-cle-grist',
+      placeholder: 'ma-clé-grist',
     },
     {
       name: 'server-side',
@@ -58,7 +58,7 @@ export const QUERY_CONFIG: PipelineNodeConfig = {
   component: 'dsfr-data-query',
   category: 'transform',
   icon: 'ri-filter-3-line',
-  description: 'Transforme les donnees : filtre, groupe, agrege, trie',
+  description: 'Transforme les données : filtre, groupe, agrégé, trie',
   attributes: [
     {
       name: 'group-by',
@@ -115,7 +115,7 @@ export const FACETS_CONFIG: PipelineNodeConfig = {
       name: 'fields',
       label: 'Champs',
       type: 'text',
-      placeholder: 'categorie,region',
+      placeholder: 'catégorie,region',
     },
     {
       name: 'type',
@@ -136,7 +136,7 @@ export const OUTPUT_CONFIG: PipelineNodeConfig = {
   component: '__output__',
   category: 'display',
   icon: 'ri-check-double-line',
-  description: 'Donnees recues en bout de chaine',
+  description: 'Données recues en bout de chaine',
   attributes: [],
 };
 
@@ -145,7 +145,7 @@ export const A11Y_CONFIG: PipelineNodeConfig = {
   component: 'dsfr-data-a11y',
   category: 'a11y',
   icon: 'ri-accessibility-line',
-  description: 'Accessibilite : tableau, CSV, description',
+  description: 'Accessibilité : tableau, CSV, description',
   attributes: [
     {
       name: 'table',
@@ -155,7 +155,7 @@ export const A11Y_CONFIG: PipelineNodeConfig = {
     },
     {
       name: 'download',
-      label: 'Telechargement CSV',
+      label: 'Téléchargement CSV',
       type: 'boolean',
       default: 'true',
     },
@@ -167,17 +167,17 @@ export const NORMALIZE_CONFIG: PipelineNodeConfig = {
   component: 'dsfr-data-normalize',
   category: 'transform',
   icon: 'ri-edit-2-line',
-  description: 'Nettoie et normalise les donnees (types, renommage, trim...)',
+  description: 'Nettoie et normalise les données (types, renommage, trim...)',
   attributes: [
     {
       name: 'numeric',
-      label: 'Champs numeriques',
+      label: 'Champs numériques',
       type: 'text',
       placeholder: 'population, surface',
     },
     {
       name: 'numeric-auto',
-      label: 'Detection auto numerique',
+      label: 'Detection auto numérique',
       type: 'boolean',
     },
     {
@@ -210,7 +210,7 @@ export const NORMALIZE_CONFIG: PipelineNodeConfig = {
     },
     {
       name: 'lowercase-keys',
-      label: 'Cles en minuscules',
+      label: 'Clés en minuscules',
       type: 'boolean',
     },
   ],
@@ -221,11 +221,11 @@ export const JOIN_CONFIG: PipelineNodeConfig = {
   component: 'dsfr-data-join',
   category: 'transform',
   icon: 'ri-git-merge-line',
-  description: 'Joint deux sources de donnees sur une cle pivot',
+  description: 'Joint deux sources de données sur une clé pivot',
   attributes: [
     {
       name: 'on',
-      label: 'Cle de jointure',
+      label: 'Clé de jointure',
       type: 'text',
       placeholder: 'code_dept ou left_key=right_key',
     },

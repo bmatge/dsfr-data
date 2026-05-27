@@ -22,7 +22,7 @@ export default defineConfig({
         secure: true,
       },
       '/grist-gouv-proxy': {
-        target: 'https://grist.numerique.gouv.fr',
+        target: 'https://grist.numérique.gouv.fr',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/grist-gouv-proxy/, ''),
         secure: true,

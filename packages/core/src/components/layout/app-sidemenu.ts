@@ -25,7 +25,7 @@ declare global {
 /**
  * <app-sidemenu> - Navigation laterale generique DSFR
  *
- * Lit le menu depuis window.__APP_MENUS__[section] (defini par un <script> externe).
+ * Lit le menu depuis window.__APP_MENUS__[section] (défini par un <script> externe).
  * Detecte automatiquement la page active via window.location.
  *
  * @example

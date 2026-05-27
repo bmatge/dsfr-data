@@ -1052,7 +1052,7 @@ describe('DsfrDataSource', () => {
 
       const headers = (source as any)._resolveApiKeyHeaders();
       expect(headers).toBeNull();
-      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('non defini'));
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('non défini'));
       warnSpy.mockRestore();
     });
 

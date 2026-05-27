@@ -124,7 +124,7 @@ export function addExtraParam(key = '', value = ''): void {
   row.className = 'ia-extra-param-row';
   row.style.cssText = 'display:flex;gap:0.5rem;margin-bottom:0.5rem;align-items:center;';
   row.innerHTML = `
-    <input class="fr-input" type="text" placeholder="cle" value="${key}" style="flex:1;">
+    <input class="fr-input" type="text" placeholder="clé" value="${key}" style="flex:1;">
     <input class="fr-input" type="text" placeholder="valeur" value="${value}" style="flex:1;">
     <button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline" type="button" onclick="this.parentElement.remove()" title="Supprimer"><i class="ri-delete-bin-line"></i></button>
   `;

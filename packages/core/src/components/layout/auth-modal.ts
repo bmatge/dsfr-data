@@ -172,7 +172,7 @@ export class AuthModal extends LitElement {
             }}
             required
           />
-          <p class="fr-hint-text">8 caracteres minimum, 1 majuscule, 1 minuscule, 1 chiffre</p>
+          <p class="fr-hint-text">8 caractères minimum, 1 majuscule, 1 minuscule, 1 chiffre</p>
         </div>
         <div class="fr-input-group">
           <label class="fr-label" for="auth-password-confirm">Confirmer le mot de passe</label>
@@ -244,7 +244,7 @@ export class AuthModal extends LitElement {
         />
         ${!isLogin
           ? html`<p class="fr-hint-text">
-              8 caracteres minimum, 1 majuscule, 1 minuscule, 1 chiffre
+              8 caractères minimum, 1 majuscule, 1 minuscule, 1 chiffre
             </p>`
           : nothing}
       </div>

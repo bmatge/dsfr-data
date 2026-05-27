@@ -16,15 +16,15 @@ import {
 } from '../utils/data-bridge.js';
 
 /**
- * <dsfr-data-source> - Connecteur de donnees
+ * <dsfr-data-source> - Connecteur de données
  *
- * Composant invisible qui se connecte a une API REST, recupere les donnees,
- * les normalise et les diffuse via des evenements custom.
+ * Composant invisible qui se connecte a une API REST, récupéré les données,
+ * les normalise et les diffuse via des événements custom.
  *
  * Deux modes de fonctionnement :
  * 1. Mode URL brute (existant) : `url` pointe vers une API REST quelconque
  * 2. Mode adapter (nouveau) : `api-type` active un adapter qui gere URL,
- *    pagination, parsing specifiques au provider.
+ *    pagination, parsing spécifiques au provider.
  *
  * @example Mode URL brute
  * <dsfr-data-source id="sites" url="https://api.example.com/sites"
@@ -72,13 +72,13 @@ export class DsfrDataSource extends LitElement {
   @property({ type: Boolean, attribute: 'use-proxy' })
   useProxy = false;
 
-  /** Reference vers une cle API declaree dans window.DSFR_DATA_KEYS */
+  /** Reference vers une clé API declaree dans window.DSFR_DATA_KEYS */
   @property({ type: String, attribute: 'api-key-ref' })
   apiKeyRef = '';
 
   // --- Mode inline data ---
 
-  /** Donnees JSON inline (pas de fetch) */
+  /** Données JSON inline (pas de fetch) */
   @property({ type: String })
   data = '';
 
@@ -112,7 +112,7 @@ export class DsfrDataSource extends LitElement {
   @property({ type: String, attribute: 'group-by' })
   groupBy = '';
 
-  /** Agregation (pour les APIs qui le supportent server-side) */
+  /** Agrégation (pour les APIs qui le supportent server-side) */
   @property({ type: String })
   aggregate = '';
 
@@ -287,7 +287,7 @@ export class DsfrDataSource extends LitElement {
       this._data = parsed;
       dispatchDataLoaded(this.id, this._data);
     } catch (e) {
-      this._error = new Error('Donnees inline invalides (JSON attendu)');
+      this._error = new Error('Données inline invalides (JSON attendu)');
       dispatchDataError(this.id, this._error);
       console.error(`dsfr-data-source[${this.id}]: JSON invalide dans data`, e);
     }
@@ -450,7 +450,7 @@ export class DsfrDataSource extends LitElement {
       } catch {
         const ct = response.headers?.get?.('content-type') || 'unknown';
         throw new Error(
-          `Reponse non-JSON (content-type: ${ct}) — verifiez l'URL ou la configuration du proxy`
+          `Reponse non-JSON (content-type: ${ct}) — vérifiez l'URL ou la configuration du proxy`
         );
       }
 
@@ -636,14 +636,14 @@ export class DsfrDataSource extends LitElement {
     const registry = window.DSFR_DATA_KEYS;
     if (!registry || typeof registry !== 'object') {
       console.warn(
-        `dsfr-data-source[${this.id}]: window.DSFR_DATA_KEYS non defini, api-key-ref="${this.apiKeyRef}" ignore`
+        `dsfr-data-source[${this.id}]: window.DSFR_DATA_KEYS non défini, api-key-ref="${this.apiKeyRef}" ignore`
       );
       return null;
     }
     const value = registry[this.apiKeyRef];
     if (!value || typeof value !== 'string') {
       console.warn(
-        `dsfr-data-source[${this.id}]: cle "${this.apiKeyRef}" introuvable dans window.DSFR_DATA_KEYS`
+        `dsfr-data-source[${this.id}]: clé "${this.apiKeyRef}" introuvable dans window.DSFR_DATA_KEYS`
       );
       return null;
     }

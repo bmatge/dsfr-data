@@ -19,13 +19,13 @@ import type { SourceElement } from '../utils/source-element.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 
 /**
- * <dsfr-data-normalize> - Composant de normalisation de donnees
+ * <dsfr-data-normalize> - Composant de normalisation de données
  *
  * S'insere entre une source (dsfr-data-source) et un consommateur (dsfr-data-query, dsfr-data-chart, etc.)
- * pour nettoyer et normaliser les donnees avant traitement.
+ * pour nettoyer et normaliser les données avant traitement.
  *
- * Position recommandee : AVANT dsfr-data-query pour que les filtres/agregations
- * travaillent sur des donnees propres.
+ * Position recommandee : AVANT dsfr-data-query pour que les filtres/agrégations
+ * travaillent sur des données propres.
  *
  * @example
  * <dsfr-data-source id="raw" url="https://api.example.com/data" transform="results"></dsfr-data-source>
@@ -42,7 +42,7 @@ import { reportConfigError, clearConfigError } from '../utils/config-error.js';
  */
 @customElement('dsfr-data-normalize')
 export class DsfrDataNormalize extends LitElement {
-  /** ID de la source de donnees a ecouter */
+  /** ID de la source de données a ecouter */
   @property({ type: String })
   source = '';
 
@@ -50,15 +50,15 @@ export class DsfrDataNormalize extends LitElement {
   @property({ type: String })
   numeric = '';
 
-  /** Detection automatique des champs numeriques via looksLikeNumber() */
+  /** Detection automatique des champs numériques via looksLikeNumber() */
   @property({ type: Boolean, attribute: 'numeric-auto' })
   numericAuto = false;
 
-  /** Renommage de cles. Format: "ancien:nouveau | ancien2:nouveau2" */
+  /** Renommage de clés. Format: "ancien:nouveau | ancien2:nouveau2" */
   @property({ type: String })
   rename = '';
 
-  /** Supprime les espaces en debut/fin de toutes les cles et valeurs string */
+  /** Supprime les espaces en debut/fin de toutes les clés et valeurs string */
   @property({ type: Boolean })
   trim = false;
 
@@ -74,15 +74,15 @@ export class DsfrDataNormalize extends LitElement {
   @property({ type: String, attribute: 'replace-fields' })
   replaceFields = '';
 
-  /** Cle du sous-objet a aplatir au premier niveau. Supporte la dot notation (ex: "data.attributes"). */
+  /** Clé du sous-objet a aplatir au premier niveau. Supporte la dot notation (ex: "data.attributes"). */
   @property({ type: String })
   flatten = '';
 
-  /** Arrondit les champs numeriques a l'entier (ou a N decimales). Format: "champ1, champ2" ou "champ1:2, champ2:0" */
+  /** Arrondit les champs numériques a l'entier (ou a N decimales). Format: "champ1, champ2" ou "champ1:2, champ2:0" */
   @property({ type: String })
   round = '';
 
-  /** Met toutes les cles en minuscules */
+  /** Met toutes les clés en minuscules */
   @property({ type: Boolean, attribute: 'lowercase-keys' })
   lowercaseKeys = false;
 
@@ -206,8 +206,8 @@ export class DsfrDataNormalize extends LitElement {
       this._unsubscribePageRequests = null;
     }
 
-    // Verifier le cache avant de s'abonner (evite une race condition
-    // si la source a deja emis ses donnees avant l'abonnement)
+    // Vérifier le cache avant de s'abonner (evite une race condition
+    // si la source a déjà emis ses données avant l'abonnement)
     const cachedData = getDataCache(this.source);
     if (cachedData !== undefined) {
       this._processData(cachedData);
@@ -398,7 +398,7 @@ export class DsfrDataNormalize extends LitElement {
     }, obj);
   }
 
-  /** Supprime une cle par chemin dot notation (supprime aussi la racine du chemin) */
+  /** Supprime une clé par chemin dot notation (supprime aussi la racine du chemin) */
   private _deleteByPath(obj: Record<string, unknown>, path: string): void {
     const parts = path.split('.');
     // Always delete the top-level key to remove the entire nested path
@@ -462,7 +462,7 @@ export class DsfrDataNormalize extends LitElement {
     return result;
   }
 
-  /** Parse un attribut pipe-separe en Map cle:valeur */
+  /** Parse un attribut pipe-separe en Map clé:valeur */
   _parsePipeMap(attr: string): Map<string, string> {
     const map = new Map<string, string>();
     if (!attr) return map;

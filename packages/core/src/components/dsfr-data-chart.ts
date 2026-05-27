@@ -42,7 +42,7 @@ const CHART_TAG_MAP: Record<string, string> = {
  * <dsfr-data-chart
  *   source="stats"
  *   type="bar"
- *   label-field="categorie"
+ *   label-field="catégorie"
  *   value-field="valeur"
  *   unit-tooltip="%"
  *   selected-palette="categorical">
@@ -177,7 +177,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'databox-modal-content' })
   databoxModalContent = '';
 
-  /** Source par defaut dans le selecteur multi-source DataBox */
+  /** Source par défaut dans le selecteur multi-source DataBox */
   @property({ type: String, attribute: 'databox-default-source' })
   databoxDefaultSource = '';
 
@@ -255,7 +255,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       x: JSON.stringify([labels]),
       y: JSON.stringify([values]),
       y2: hasMulti ? JSON.stringify([values2]) : undefined,
-      // Combined y with all series for multi-series charts (bar, line, radar)
+      // Combined y with all séries for multi-séries charts (bar, line, radar)
       yMulti: hasMulti ? JSON.stringify(allSeries) : undefined,
       labels,
       values,
@@ -339,7 +339,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
         attrs['x'] = x;
         attrs['y'] = y;
         // For pie charts, DSFR Chart expects one name per slice (category),
-        // not one per series. Use labels as legend entries.
+        // not one per séries. Use labels as legend entries.
         if (!this.name && labels.length > 0) {
           attrs['name'] = JSON.stringify(labels);
         }
@@ -393,7 +393,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       }
       default:
         attrs['x'] = x;
-        // For bar/line/radar with a second series, combine both into y
+        // For bar/line/radar with a second séries, combine both into y
         attrs['y'] = yMulti || y;
         break;
     }

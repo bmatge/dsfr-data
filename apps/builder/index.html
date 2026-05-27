@@ -40,10 +40,10 @@
         </button>
       </div>
 
-      <!-- ETAPE 1 : Source de donnees -->
+      <!-- ETAPE 1 : Source de données -->
       <div class="config-section" id="section-source">
         <div class="config-section-header" onclick="toggleSection('section-source')">
-          <h3><i class="ri-database-2-line"></i> Source de donnees</h3>
+          <h3><i class="ri-database-2-line"></i> Source de données</h3>
           <i class="ri-arrow-down-s-line collapse-icon"></i>
         </div>
         <div class="config-section-content">
@@ -84,15 +84,15 @@
           <div class="fr-radio-group">
             <input type="radio" id="mode-embedded" name="generation-mode" value="embedded" checked>
             <label class="fr-label" for="mode-embedded">
-              Donnees integrees
-              <span class="fr-hint-text">Les donnees sont copiees dans le code HTML (simple, mais ne se met pas a jour)</span>
+              Données integrees
+              <span class="fr-hint-text">Les données sont copiees dans le code HTML (simple, mais ne se met pas a jour)</span>
             </label>
           </div>
           <div class="fr-radio-group fr-mt-1w">
             <input type="radio" id="mode-dynamic" name="generation-mode" value="dynamic">
             <label class="fr-label" for="mode-dynamic">
               Chargement dynamique
-              <span class="fr-hint-text">Les donnees sont chargees depuis l'API a chaque affichage (toujours a jour)</span>
+              <span class="fr-hint-text">Les données sont chargees depuis l'API a chaque affichage (toujours a jour)</span>
             </label>
           </div>
 
@@ -107,7 +107,7 @@
           </div>
 
           <div id="dynamic-warning" class="fr-alert fr-alert--warning fr-alert--sm fr-mt-2w" style="display: none;">
-            <p>Ce document Grist n'est pas public. Le code genere ne fonctionnera que si le document est rendu public dans Grist.</p>
+            <p>Ce document Grist n'est pas public. Le code généré ne fonctionnera que si le document est rendu public dans Grist.</p>
           </div>
         </div>
       </div>
@@ -161,7 +161,7 @@
             <i class="ri-map-fill" aria-hidden="true"></i>
             <span>Carte</span>
           </button>
-          <button class="chart-type-btn" data-type="datalist" title="Tableau de donnees">
+          <button class="chart-type-btn" data-type="datalist" title="Tableau de données">
             <i class="ri-table-line" aria-hidden="true"></i>
             <span>Tableau</span>
           </button>
@@ -169,10 +169,10 @@
         </div>
       </div>
 
-      <!-- ETAPE 3 : Mapping des donnees -->
+      <!-- ETAPE 3 : Mapping des données -->
       <div class="config-section collapsed" id="section-data">
         <div class="config-section-header" onclick="toggleSection('section-data')">
-          <h3><i class="ri-equalizer-line"></i> Configuration des donnees</h3>
+          <h3><i class="ri-equalizer-line"></i> Configuration des données</h3>
           <i class="ri-arrow-down-s-line collapse-icon"></i>
         </div>
         <div class="config-section-content">
@@ -198,13 +198,13 @@
           </div>
         </div>
 
-        <!-- Valeur à mesurer (anciennement « Axe Y / Serie 1 ») -->
+        <!-- Valeur à mesurer (anciennement « Axe Y / Série 1 ») -->
         <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
           <div class="fr-select-group fr-select-group--sm" style="flex: 1; margin-bottom: 0;">
             <label class="fr-label" for="value-field">
               Valeur à mesurer (Série 1)
               <button type="button" class="help-btn" aria-label="Aide" aria-describedby="help-value-field" data-help="value-field"><i class="ri-question-line" aria-hidden="true"></i></button>
-              <span class="fr-hint-text">Le champ numerique a mesurer (ex&nbsp;: population, budget)</span>
+              <span class="fr-hint-text">Le champ numérique a mesurer (ex&nbsp;: population, budget)</span>
             </label>
             <select class="fr-select" id="value-field">
               <option value="">— Charger les champs —</option>
@@ -215,15 +215,15 @@
               Libelle
               <span class="fr-hint-text">Nom affiche (vide = nom du champ)</span>
             </label>
-            <input type="text" class="fr-input fr-input--sm" id="value-field-label" placeholder="Nom de la serie">
+            <input type="text" class="fr-input fr-input--sm" id="value-field-label" placeholder="Nom de la série">
           </div>
         </div>
 
-        <!-- Series supplementaires (affiches conditionnellement) -->
+        <!-- Séries supplementaires (affiches conditionnellement) -->
         <div id="extra-series-group" style="display: none;">
           <div id="extra-series-container"></div>
           <button type="button" class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-mt-1w" id="add-series-btn">
-            <i class="ri-add-line"></i> Ajouter une serie
+            <i class="ri-add-line"></i> Ajouter une série
           </button>
         </div>
 
@@ -261,14 +261,14 @@
           </div>
         </div>
 
-        <!-- Ligne : Agregation (label a gauche, select a droite) -->
+        <!-- Ligne : Agrégation (label a gauche, select a droite) -->
         <div class="fr-select-group fr-select-group--sm fr-mt-1w agg-row">
           <div class="agg-row__label">
             <label class="fr-label" for="aggregation">
-              Si plusieurs lignes par categorie, agreger par
+              Si plusieurs lignes par catégorie, agréger par
               <button type="button" class="help-btn" aria-label="Aide" aria-describedby="help-aggregation" data-help="aggregation"><i class="ri-question-line" aria-hidden="true"></i></button>
             </label>
-            <span class="fr-hint-text">Comment combiner les valeurs partageant la meme categorie</span>
+            <span class="fr-hint-text">Comment combiner les valeurs partageant la même catégorie</span>
             <span class="agg-badge" id="aggregation-badge" hidden></span>
           </div>
           <select class="fr-select agg-row__select" id="aggregation">
@@ -284,16 +284,16 @@
         <div class="fr-toggle fr-mt-2w">
           <input type="checkbox" class="fr-toggle__input" id="advanced-mode-toggle" aria-describedby="advanced-mode-hint">
           <label class="fr-toggle__label" for="advanced-mode-toggle" data-fr-checked-label="Active" data-fr-unchecked-label="Desactive">
-            Mode avance (filtres & requetes)
+            Mode avance (filtres & requêtes)
             <button type="button" class="help-btn" aria-label="Aide" aria-describedby="help-advanced-mode" data-help="advanced-mode"><i class="ri-question-line" aria-hidden="true"></i></button>
           </label>
-          <p class="fr-hint-text" id="advanced-mode-hint">Filtrer, regrouper ou transformer les donnees avant affichage</p>
+          <p class="fr-hint-text" id="advanced-mode-hint">Filtrer, regrouper ou transformer les données avant affichage</p>
         </div>
 
-        <!-- Options avancees (masquees par defaut) -->
+        <!-- Options avancees (masquees par défaut) -->
         <div id="advanced-query-options" class="fr-mt-2w" style="display: none;">
           <div class="fr-alert fr-alert--info fr-alert--sm fr-mb-2w">
-            <p>Le mode avance utilise <code>&lt;dsfr-data-query&gt;</code> pour filtrer, regrouper et agreger les donnees cote client avant de les afficher.</p>
+            <p>Le mode avance utilise <code>&lt;dsfr-data-query&gt;</code> pour filtrer, regrouper et agréger les données cote client avant de les afficher.</p>
           </div>
 
           <!-- Filtres -->
@@ -329,17 +329,17 @@
             <input class="fr-input" type="text" id="query-group-by" placeholder="Ex: region, annee">
           </div>
 
-          <!-- Agregations multiples -->
+          <!-- Agrégations multiples -->
           <div class="fr-input-group fr-input-group--sm fr-mt-1w">
             <label class="fr-label" for="query-aggregate">
-              Agregations multiples
+              Agrégations multiples
               <span class="fr-hint-text">Format : champ:fonction (separees par virgule)</span>
             </label>
             <input class="fr-input" type="text" id="query-aggregate" placeholder="Ex: population:sum, surface:avg, count:count">
           </div>
         </div>
 
-        <!-- Options specifiques Tableau -->
+        <!-- Options spécifiques Tableau -->
         <div class="datalist-config" id="datalist-config">
           <fieldset class="fr-fieldset fr-mt-2w">
             <legend class="fr-fieldset__legend fr-text--sm">Options du tableau</legend>
@@ -413,13 +413,13 @@
           </select>
         </div>
 
-        <!-- Options specifiques KPI -->
+        <!-- Options spécifiques KPI -->
         <div class="kpi-config" id="kpi-config">
           <div class="config-grid-2col fr-mt-1w">
             <div class="fr-select-group fr-select-group--sm">
               <label class="fr-label" for="kpi-variant">Style KPI</label>
               <select class="fr-select" id="kpi-variant">
-                <option value="">Par defaut</option>
+                <option value="">Par défaut</option>
                 <option value="info">Info (bleu)</option>
                 <option value="success">Succes (vert)</option>
                 <option value="warning">Attention (orange)</option>
@@ -436,10 +436,10 @@
         </div>
       </div>
 
-      <!-- Nettoyage des donnees (mode dynamique uniquement) -->
+      <!-- Nettoyage des données (mode dynamique uniquement) -->
       <div class="config-section collapsed" id="section-normalize" style="display: none;">
         <div class="config-section-header" onclick="toggleSection('section-normalize')">
-          <h3><i class="ri-eraser-line"></i> Nettoyage des donnees <button type="button" class="help-btn" aria-label="Aide" aria-describedby="help-normalize" data-help="normalize"><i class="ri-question-line" aria-hidden="true"></i></button></h3>
+          <h3><i class="ri-eraser-line"></i> Nettoyage des données <button type="button" class="help-btn" aria-label="Aide" aria-describedby="help-normalize" data-help="normalize"><i class="ri-question-line" aria-hidden="true"></i></button></h3>
           <i class="ri-arrow-down-s-line collapse-icon"></i>
         </div>
         <div class="config-section-content">
@@ -447,16 +447,16 @@
             <input type="checkbox" class="fr-toggle__input" id="normalize-enabled" aria-describedby="normalize-hint">
             <label class="fr-toggle__label" for="normalize-enabled"
               data-fr-checked-label="Active" data-fr-unchecked-label="Desactive">
-              Normalisation des donnees
+              Normalisation des données
             </label>
-            <p class="fr-hint-text" id="normalize-hint">Prepare les donnees brutes : supprime les espaces, convertit en nombres, renomme les colonnes</p>
+            <p class="fr-hint-text" id="normalize-hint">Prepare les données brutes : supprime les espaces, convertit en nombres, renomme les colonnes</p>
           </div>
 
           <div id="normalize-options" style="display: none;" class="fr-mt-2w">
             <div class="fr-input-group fr-input-group--sm">
               <label class="fr-label" for="normalize-flatten">
                 Aplatir un sous-objet
-                <span class="fr-hint-text">Cle du sous-objet a promouvoir (ex: fields)</span>
+                <span class="fr-hint-text">Clé du sous-objet a promouvoir (ex: fields)</span>
               </label>
               <input class="fr-input" type="text" id="normalize-flatten" placeholder="Ex: fields">
             </div>
@@ -476,7 +476,7 @@
 
             <div class="fr-input-group fr-input-group--sm fr-mt-1w">
               <label class="fr-label" for="normalize-numeric">
-                Champs numeriques explicites
+                Champs numériques explicites
                 <span class="fr-hint-text">Noms de champs separes par virgule</span>
               </label>
               <input class="fr-input" type="text" id="normalize-numeric" placeholder="Ex: population, budget, surface">
@@ -505,7 +505,7 @@
 
             <div class="fr-checkbox-group fr-checkbox-group--sm fr-mt-1w">
               <input type="checkbox" id="normalize-lowercase-keys">
-              <label class="fr-label" for="normalize-lowercase-keys">Cles en minuscules</label>
+              <label class="fr-label" for="normalize-lowercase-keys">Clés en minuscules</label>
             </div>
           </div>
         </div>
@@ -524,7 +524,7 @@
               data-fr-checked-label="Active" data-fr-unchecked-label="Desactive">
               Filtres interactifs
             </label>
-            <p class="fr-hint-text" id="facets-hint">L'utilisateur final pourra filtrer les donnees par categorie, annee, etc.</p>
+            <p class="fr-hint-text" id="facets-hint">L'utilisateur final pourra filtrer les données par catégorie, annee, etc.</p>
           </div>
 
           <div id="facets-options" style="display: none;" class="fr-mt-2w">
@@ -537,7 +537,7 @@
             <div class="fr-input-group fr-input-group--sm fr-mt-2w">
               <label class="fr-label" for="facets-max-values">
                 Valeurs visibles par facette
-                <span class="fr-hint-text">Nombre de valeurs avant "Voir plus" (defaut: 6)</span>
+                <span class="fr-hint-text">Nombre de valeurs avant "Voir plus" (défaut: 6)</span>
               </label>
               <input class="fr-input" type="number" id="facets-max-values" value="6" min="2" max="50">
             </div>
@@ -598,7 +598,7 @@
             </div>
             <div class="fr-checkbox-group fr-checkbox-group--sm fr-mb-1w">
               <input type="checkbox" id="databox-download" checked>
-              <label class="fr-label" for="databox-download">Telechargement CSV</label>
+              <label class="fr-label" for="databox-download">Téléchargement CSV</label>
             </div>
             <div class="fr-checkbox-group fr-checkbox-group--sm fr-mb-1w">
               <input type="checkbox" id="databox-screenshot">
@@ -606,33 +606,33 @@
             </div>
             <div class="fr-checkbox-group fr-checkbox-group--sm">
               <input type="checkbox" id="databox-fullscreen">
-              <label class="fr-label" for="databox-fullscreen">Plein ecran</label>
+              <label class="fr-label" for="databox-fullscreen">Plein écran</label>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Option accessibilite -->
+      <!-- Option accessibilité -->
       <div class="config-section collapsed" id="section-a11y">
         <div class="config-section-header" onclick="toggleSection('section-a11y')">
-          <h3><i class="ri-accessibility-line"></i> Accessibilite <button type="button" class="help-btn" aria-label="Aide" aria-describedby="help-a11y" data-help="a11y"><i class="ri-question-line" aria-hidden="true"></i></button></h3>
+          <h3><i class="ri-accessibility-line"></i> Accessibilité <button type="button" class="help-btn" aria-label="Aide" aria-describedby="help-a11y" data-help="a11y"><i class="ri-question-line" aria-hidden="true"></i></button></h3>
           <i class="ri-arrow-down-s-line collapse-icon"></i>
         </div>
         <div class="config-section-content">
           <div class="fr-checkbox-group fr-checkbox-group--sm">
             <input type="checkbox" id="a11y-toggle" checked>
             <label class="fr-label" for="a11y-toggle">
-              Ajouter le composant accessibilite
+              Ajouter le composant accessibilité
             </label>
           </div>
           <div id="a11y-options" style="display: block; margin-left: 1.5rem; margin-top: 0.5rem;">
             <div class="fr-checkbox-group fr-checkbox-group--sm fr-mb-1w">
               <input type="checkbox" id="a11y-table" checked>
-              <label class="fr-label" for="a11y-table">Tableau de donnees</label>
+              <label class="fr-label" for="a11y-table">Tableau de données</label>
             </div>
             <div class="fr-checkbox-group fr-checkbox-group--sm fr-mb-1w">
               <input type="checkbox" id="a11y-download" checked>
-              <label class="fr-label" for="a11y-download">Telechargement CSV</label>
+              <label class="fr-label" for="a11y-download">Téléchargement CSV</label>
             </div>
             <div class="fr-input-group fr-input-group--sm">
               <label class="fr-label" for="a11y-description">Description (optionnelle)</label>
@@ -646,7 +646,7 @@
       <!-- BOUTON GENERER -->
       <div class="config-section generate-controls">
         <button class="fr-btn fr-btn--icon-left" id="generate-btn" style="width: 100%;">
-          <i class="ri-play-fill"></i> Generer le graphique
+          <i class="ri-play-fill"></i> Générer le graphique
         </button>
         <p class="generate-missing" id="generate-missing" role="status" aria-live="polite" hidden></p>
       </div>
@@ -660,9 +660,9 @@
       show-data-tab
       show-save-button
       show-playground-button
-      tab-labels="Apercu,Code genere,Donnees brutes">
+      tab-labels="Aperçu,Code généré,Données brutes">
 
-      <!-- Onglet Apercu -->
+      <!-- Onglet Aperçu -->
       <div slot="preview">
         <div class="preview-chart">
           <div class="chart-container">
@@ -670,21 +670,21 @@
               <i class="ri-bar-chart-box-line"></i>
               <p class="empty-state-title">Votre graphique apparaitra ici</p>
               <ol class="empty-state-steps">
-                <li data-step="source">Charger une source de donnees</li>
+                <li data-step="source">Charger une source de données</li>
                 <li data-step="type">Choisir un type de graphique</li>
                 <li data-step="config">Configurer les champs (axes X et Y)</li>
-                <li data-step="generate">Cliquer sur "Generer le graphique"</li>
+                <li data-step="generate">Cliquer sur "Générer le graphique"</li>
               </ol>
             </div>
             <iframe id="preview-iframe"
               sandbox="allow-scripts allow-same-origin"
-              title="Apercu du graphique"
+              title="Aperçu du graphique"
               style="display: none; width: 100%; height: calc(100vh - 280px); min-height: 460px; border: none; border-radius: 4px; background: white;">
             </iframe>
           </div>
         </div>
         <!--
-          Le companion dsfr-data-a11y est deja genere a l'interieur du code
+          Le companion dsfr-data-a11y est déjà généré a l'interieur du code
           injecte dans l'iframe (cf. generateEmbeddedA11y / generateA11yElement
           dans ui/code-generator.ts). Pas de double dans le panel builder.
         -->
@@ -696,23 +696,23 @@
         <button class="fr-btn fr-btn--sm fr-btn--secondary fr-mb-1w" id="copy-code-btn">
           <i class="ri-file-copy-line"></i> Copier le code
         </button>
-        <pre class="code-output" id="generated-code">// Le code sera genere ici...</pre>
+        <pre class="code-output" id="generated-code">// Le code sera généré ici...</pre>
       </div>
 
-      <!-- Onglet Donnees -->
+      <!-- Onglet Données -->
       <div slot="data">
-        <p class="fr-text--sm">Donnees brutes recues de l'API :</p>
-        <pre class="code-output" id="raw-data">// Chargez d'abord les donnees...</pre>
+        <p class="fr-text--sm">Données brutes recues de l'API :</p>
+        <pre class="code-output" id="raw-data">// Chargez d'abord les données...</pre>
       </div>
 
     </app-preview-panel>
   </app-layout-builder>
 
-  <!-- Modale preview donnees -->
+  <!-- Modale preview données -->
   <div class="modal-overlay" id="data-preview-modal">
     <div class="modal" style="max-width: 900px;">
       <div class="modal-header">
-        <h3>Apercu des donnees</h3>
+        <h3>Aperçu des données</h3>
         <button class="modal-close" id="data-preview-close">&times;</button>
       </div>
       <div class="modal-body" id="data-preview-body">

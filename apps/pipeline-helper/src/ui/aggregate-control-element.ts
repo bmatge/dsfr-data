@@ -76,7 +76,7 @@ export class AggregateControlElement extends LitElement {
 
     return html`
       <div class="agg-control">
-        <label class="attr-label">Agregations</label>
+        <label class="attr-label">Agrégations</label>
         ${this.ctrl.rows.map(
           (row, i) => html`
             <div class="agg-row">

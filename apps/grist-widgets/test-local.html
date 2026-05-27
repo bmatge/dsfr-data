@@ -32,8 +32,8 @@
   <p class="subtitle">Cette page simule l'API Grist pour tester les composants dsfr-data-* hors de Grist.</p>
 
   <div class="test-controls">
-    <button class="fr-btn fr-btn--sm" id="btn-inject">Injecter les donnees de test</button>
-    <button class="fr-btn fr-btn--sm fr-btn--secondary" id="btn-update">Mettre a jour les donnees</button>
+    <button class="fr-btn fr-btn--sm" id="btn-inject">Injecter les données de test</button>
+    <button class="fr-btn fr-btn--sm fr-btn--secondary" id="btn-update">Mettre a jour les données</button>
     <button class="fr-btn fr-btn--sm fr-btn--tertiary" id="btn-error">Simuler une erreur</button>
     <span class="fr-ml-2w fr-text--xs" id="status"></span>
   </div>
@@ -80,7 +80,7 @@
       <h2><i class="ri-table-line"></i> dsfr-data-list (source="grist")</h2>
       <dsfr-data-list
         source="grist"
-        colonnes="Label:Region | Value:Score | Category:Categorie"
+        colonnes="Label:Region | Value:Score | Category:Catégorie"
         recherche
         pagination="5">
       </dsfr-data-list>
@@ -88,7 +88,7 @@
   </div>
 
   <script>
-    // Donnees de test simulant ce que Grist enverrait
+    // Données de test simulant ce que Grist enverrait
     const TEST_DATA = [
       { Label: 'Ile-de-France', Value: 87, Category: 'A' },
       { Label: 'Auvergne-Rhone-Alpes', Value: 72, Category: 'B' },
@@ -125,7 +125,7 @@
     document.getElementById('btn-inject').addEventListener('click', () => {
       DsfrData.dispatchDataLoaded('grist', TEST_DATA);
       DsfrData.dispatchDataLoaded('grist-map', MAP_DATA);
-      status.textContent = 'Donnees injectees (10 regions + 10 departements)';
+      status.textContent = 'Données injectees (10 regions + 10 departements)';
     });
 
     document.getElementById('btn-update').addEventListener('click', () => {
@@ -134,7 +134,7 @@
         Value: Math.round(d.Value * (0.8 + Math.random() * 0.4)),
       }));
       DsfrData.dispatchDataLoaded('grist', updated);
-      status.textContent = 'Donnees mises a jour (valeurs aleatoires)';
+      status.textContent = 'Données mises a jour (valeurs aleatoires)';
     });
 
     document.getElementById('btn-error').addEventListener('click', () => {

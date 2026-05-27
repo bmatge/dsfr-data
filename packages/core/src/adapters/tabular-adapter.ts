@@ -28,7 +28,7 @@ function buildFetchOptions(
   return opts;
 }
 
-/** Nombre max de records par requete Tabular (API max = 50) */
+/** Nombre max de records par requête Tabular (API max = 50) */
 const TABULAR_PAGE_SIZE = 50;
 
 /** Nombre max de pages a fetcher (limite de securite : 50K records) */
@@ -49,15 +49,15 @@ export class TabularAdapter implements ApiAdapter {
 
   validate(params: AdapterParams): string | null {
     if (!params.resource) {
-      return 'attribut "resource" requis pour les requetes Tabular';
+      return 'attribut "resource" requis pour les requêtes Tabular';
     }
     return null;
   }
 
   /**
-   * Fetch toutes les donnees avec pagination automatique via links.next.
+   * Fetch toutes les données avec pagination automatique via links.next.
    * Quand groupBy/aggregate sont presents, l'API Tabular les execute
-   * cote serveur et retourne les donnees deja agregees (needsClientProcessing=false).
+   * cote serveur et retourne les données déjà agregees (needsClientProcessing=false).
    */
   async fetchAll(params: AdapterParams, signal: AbortSignal): Promise<FetchResult> {
     const fetchAllRecords = params.limit <= 0;
@@ -122,7 +122,7 @@ export class TabularAdapter implements ApiAdapter {
       );
     }
 
-    // Quand l'API a execute groupBy/aggregate, les donnees sont deja traitees
+    // Quand l'API a execute groupBy/aggregate, les données sont déjà traitees
     const serverHandled = !!(params.groupBy || params.aggregate);
 
     return {
@@ -184,7 +184,7 @@ export class TabularAdapter implements ApiAdapter {
       }
     }
 
-    // Agregations
+    // Agrégations
     if (params.aggregate) {
       const aggregates = params.aggregate.split(',').map((a) => a.trim());
       for (const agg of aggregates) {

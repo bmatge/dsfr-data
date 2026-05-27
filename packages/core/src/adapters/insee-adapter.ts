@@ -4,7 +4,7 @@
  * Gere : construction d'URL avec filtres dimension, pagination page-based,
  * aplatissement des observations (dimensions + measures + attributes).
  *
- * L'API ne supporte ni tri, ni agregation, ni group-by, ni facettes,
+ * L'API ne supporte ni tri, ni agrégation, ni group-by, ni facettes,
  * ni recherche cote serveur. Tout traitement avance est client-side.
  */
 
@@ -55,7 +55,7 @@ export class InseeAdapter implements ApiAdapter {
 
   validate(params: AdapterParams): string | null {
     if (!params.datasetId) {
-      return 'attribut "dataset-id" requis pour les requetes INSEE Melodi';
+      return 'attribut "dataset-id" requis pour les requêtes INSEE Melodi';
     }
     return null;
   }

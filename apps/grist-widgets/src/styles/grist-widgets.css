@@ -4,7 +4,8 @@
  * Zoom 80% pour afficher plus de contenu et reduire les marges DSFR.
  */
 
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
   height: 100%;
@@ -27,7 +28,7 @@ html, body {
   overflow: auto;
 }
 
-/* Etat de chargement */
+/* État de chargement */
 .grist-loading {
   display: flex;
   align-items: center;
@@ -48,10 +49,12 @@ html, body {
 }
 
 @keyframes grist-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
-/* Etat d'erreur */
+/* État d'erreur */
 .grist-error {
   padding: 1rem;
   color: var(--text-default-error);
@@ -59,7 +62,7 @@ html, body {
   border-radius: 4px;
 }
 
-/* Etat vide (pas encore de mapping) */
+/* État vide (pas encore de mapping) */
 .grist-empty {
   display: flex;
   flex-direction: column;

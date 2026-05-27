@@ -24,7 +24,7 @@ import { sendWidgetBeacon } from '../utils/beacon.js';
  */
 @customElement('dsfr-data-kpi-group')
 export class DsfrDataKpiGroup extends LitElement {
-  /** Nombre de colonnes par defaut (1-12). Chaque enfant occupe Math.floor(12/cols) colonnes. */
+  /** Nombre de colonnes par défaut (1-12). Chaque enfant occupe Math.floor(12/cols) colonnes. */
   @property({ type: Number })
   cols = 3;
 

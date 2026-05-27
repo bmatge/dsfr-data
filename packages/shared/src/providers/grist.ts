@@ -7,10 +7,10 @@ export const GRIST_CONFIG: ProviderConfig = {
   displayName: 'Grist',
   urlPatterns: [GRIST_RE],
   knownHosts: [
-    { hostname: 'grist.numerique.gouv.fr', proxyEndpoint: '/grist-gouv-proxy' },
+    { hostname: 'grist.numérique.gouv.fr', proxyEndpoint: '/grist-gouv-proxy' },
     { hostname: 'docs.getgrist.com', proxyEndpoint: '/grist-proxy' },
   ],
-  defaultBaseUrl: 'https://grist.numerique.gouv.fr',
+  defaultBaseUrl: 'https://grist.numérique.gouv.fr',
   defaultAuthType: 'bearer',
 
   response: {

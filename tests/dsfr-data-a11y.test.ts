@@ -45,8 +45,8 @@ describe('DsfrDataA11y', () => {
       expect(comp.download).toBe(false);
     });
 
-    it('filename defaults to donnees.csv', () => {
-      expect(comp.filename).toBe('donnees.csv');
+    it('filename defaults to données.csv', () => {
+      expect(comp.filename).toBe('données.csv');
     });
 
     it('description defaults to empty string', () => {
@@ -257,7 +257,7 @@ describe('DsfrDataA11y', () => {
       const link = target.querySelector('a.dsfr-data-a11y__skiplink');
       expect(link).not.toBeNull();
       expect(link!.getAttribute('href')).toBe(`#${comp.id}-section`);
-      expect(link!.textContent).toBe('Voir les donnees accessibles');
+      expect(link!.textContent).toBe('Voir les données accessibles');
     });
 
     it('injects skip link as first child', () => {
@@ -499,13 +499,13 @@ describe('DsfrDataA11y', () => {
     it('mentions CSV download when enabled', () => {
       comp.download = true;
       const desc = (comp as any)._getAutoDescription(true, [{ a: 1 }]);
-      expect(desc).toContain('Telechargement CSV disponible.');
+      expect(desc).toContain('Téléchargement CSV disponible.');
     });
 
     it('mentions table when enabled', () => {
       comp.table = true;
       const desc = (comp as any)._getAutoDescription(true, [{ a: 1 }]);
-      expect(desc).toContain('Tableau de donnees disponible.');
+      expect(desc).toContain('Tableau de données disponible.');
     });
   });
 

@@ -52,7 +52,7 @@ export async function fetchMonitoringData(): Promise<MonitoringData> {
   const ct = response.headers.get('content-type') || '';
   if (!ct.includes('json')) {
     throw new Error(
-      `Le fichier monitoring-data.json n'existe pas encore sur le serveur (reponse ${ct || 'text/html'}). Lancez scripts/parse-beacon-logs.js pour le generer.`
+      `Le fichier monitoring-data.json n'existe pas encore sur le serveur (reponse ${ct || 'text/html'}). Lancez scripts/parse-beacon-logs.js pour le générer.`
     );
   }
   return response.json();
@@ -137,7 +137,7 @@ export function getMockData(): MonitoringData {
         callCount: 1245,
       },
       {
-        referer: 'https://education.gouv.fr/donnees/indicateurs',
+        referer: 'https://education.gouv.fr/données/indicateurs',
         component: 'dsfr-data-chart',
         chartType: 'line',
         firstSeen: '2026-01-20T14:05:12Z',
@@ -145,7 +145,7 @@ export function getMockData(): MonitoringData {
         callCount: 892,
       },
       {
-        referer: 'https://education.gouv.fr/donnees/indicateurs',
+        referer: 'https://education.gouv.fr/données/indicateurs',
         component: 'dsfr-data-list',
         chartType: null,
         firstSeen: '2026-01-22T09:15:00Z',

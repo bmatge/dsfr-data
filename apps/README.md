@@ -9,7 +9,7 @@ Applications web du projet dsfr-data. Chaque app est un workspace npm independan
 | `builder/` | `@dsfr-data/app-builder` | Generateur visuel de graphiques (assistant etape par etape) |
 | `builder-ia/` | `@dsfr-data/app-builder-ia` | Generateur de graphiques par IA (conversation avec Albert) |
 | `dashboard/` | `@dsfr-data/app-dashboard` | Editeur visuel de tableaux de bord (grille, preview, save/delete) |
-| `sources/` | `@dsfr-data/app-sources` | Gestionnaire de sources de donnees (API, CSV, Grist) |
+| `sources/` | `@dsfr-data/app-sources` | Gestionnaire de sources de données (API, CSV, Grist) |
 | `playground/` | `@dsfr-data/app-playground` | Editeur de code interactif avec preview en direct |
 | `favorites/` | `@dsfr-data/app-favorites` | Gestion des favoris (sauvegarde et consultation) |
 | `monitoring/` | `@dsfr-data/app-monitoring` | Monitoring et statistiques d'usage des widgets |
@@ -35,5 +35,5 @@ app-name/
   vite.config.ts    # Config Vite (proxy, build)
   index.html        # Point d'entree HTML
   src/              # Code source TypeScript
-  dist/             # Build output (genere)
+  dist/             # Build output (généré)
 ```

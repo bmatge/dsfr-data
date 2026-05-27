@@ -1,6 +1,8 @@
 /* Builder IA - Styles */
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
 body {
   margin: 0;
@@ -75,7 +77,7 @@ body {
   font-size: 0.8rem;
 }
 
-/* Grille source 3 colonnes (meme que builder.html) */
+/* Grille source 3 colonnes (même que builder.html) */
 .source-grid {
   display: grid;
   grid-template-columns: 1fr auto auto;
@@ -271,7 +273,7 @@ body {
 /* PANNEAU DROIT : les styles sont dans app-preview-panel */
 /* ============================================ */
 
-/* Styles specifiques - les styles communs sont dans app-preview-panel */
+/* Styles spécifiques - les styles communs sont dans app-preview-panel */
 
 .field-tag.numeric {
   background: var(--background-contrast-success);
@@ -285,12 +287,30 @@ body {
   text-align: center;
   border-radius: 4px;
 }
-.kpi-card--info { border-left-color: #0063CB; }
-.kpi-card--success { border-left-color: #18753C; }
-.kpi-card--warning { border-left-color: #D64D00; }
-.kpi-card--error { border-left-color: #C9191E; }
-.kpi-value { display: block; font-size: 2.5rem; font-weight: 700; color: var(--text-title-grey); }
-.kpi-label { display: block; font-size: 0.875rem; color: var(--text-mention-grey); margin-top: 0.5rem; }
+.kpi-card--info {
+  border-left-color: #0063cb;
+}
+.kpi-card--success {
+  border-left-color: #18753c;
+}
+.kpi-card--warning {
+  border-left-color: #d64d00;
+}
+.kpi-card--error {
+  border-left-color: #c9191e;
+}
+.kpi-value {
+  display: block;
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--text-title-grey);
+}
+.kpi-label {
+  display: block;
+  font-size: 0.875rem;
+  color: var(--text-mention-grey);
+  margin-top: 0.5rem;
+}
 
 /* Gauge Cards */
 .gauge-card {
@@ -304,8 +324,14 @@ body {
   align-items: center;
   justify-content: center;
 }
-.gauge-container { position: relative; width: 200px; }
-.gauge-svg { width: 100%; height: auto; }
+.gauge-container {
+  position: relative;
+  width: 200px;
+}
+.gauge-svg {
+  width: 100%;
+  height: auto;
+}
 .gauge-value {
   position: absolute;
   bottom: 20px;
@@ -332,8 +358,14 @@ body {
   font-weight: 600;
 }
 
-.source-badge-grist { background: #16a34a; color: white; }
-.source-badge-manual { background: #9333ea; color: white; }
+.source-badge-grist {
+  background: #16a34a;
+  color: white;
+}
+.source-badge-manual {
+  background: #9333ea;
+  color: white;
+}
 /* Le resizer et responsive sont geres par app-layout-builder */
 
 /* Sections collapsibles */
@@ -362,7 +394,9 @@ body {
 .config-section-content {
   overflow: hidden;
   max-height: 1000px;
-  transition: max-height 0.3s ease, padding 0.3s ease;
+  transition:
+    max-height 0.3s ease,
+    padding 0.3s ease;
 }
 
 .config-section.collapsed .config-section-content {

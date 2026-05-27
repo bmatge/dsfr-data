@@ -21,7 +21,7 @@ export async function fetchWithTimeout(
     return response;
   } catch (_error: unknown) {
     if (_error instanceof DOMException && _error.name === 'AbortError') {
-      const err = new Error('La requete a expire. Verifiez votre connexion ou reessayez.');
+      const err = new Error('La requête a expire. Vérifiez votre connexion ou reessayez.');
       (err as unknown as { cause: unknown }).cause = _error;
       throw err;
     }
@@ -37,11 +37,11 @@ export async function fetchWithTimeout(
 export function httpErrorMessage(status: number): string {
   switch (true) {
     case status === 401 || status === 403:
-      return 'Cle API invalide ou expiree. Verifiez votre configuration.';
+      return 'Clé API invalide ou expiree. Vérifiez votre configuration.';
     case status === 404:
-      return "Ressource introuvable. Verifiez l'URL de la source.";
+      return "Ressource introuvable. Vérifiez l'URL de la source.";
     case status === 429:
-      return 'Trop de requetes. Reessayez dans quelques secondes.';
+      return 'Trop de requêtes. Reessayez dans quelques secondes.';
     case status >= 500:
       return `Erreur serveur (${status}). Le service est peut-etre temporairement indisponible.`;
     default:

@@ -16,7 +16,7 @@ export function generateCode(
   nodes: PipelineNode[],
   connections: ClassicPreset.Connection<PipelineNode, PipelineNode>[]
 ): string {
-  if (nodes.length === 0) return '<!-- Ajoutez des composants pour generer du code -->';
+  if (nodes.length === 0) return '<!-- Ajoutez des composants pour générer du code -->';
 
   // Build graph info
   const graphNodes: Map<string, GraphNode> = new Map();
@@ -74,7 +74,7 @@ export function generateCode(
 
   // Generate HTML
   const lines: string[] = [];
-  lines.push('<!-- Pipeline genere par Pipeline Helper -->');
+  lines.push('<!-- Pipeline généré par Pipeline Helper -->');
   lines.push('');
 
   let lastCategory = '';
@@ -124,7 +124,7 @@ export function generateCode(
 function getCategoryComment(cat: string): string {
   switch (cat) {
     case 'source':
-      return 'Source de donnees (fetch)';
+      return 'Source de données (fetch)';
     case 'transform':
       return 'Transformation (filter, group, sort)';
     case 'interact':
@@ -132,7 +132,7 @@ function getCategoryComment(cat: string): string {
     case 'display':
       return 'Affichage (graphique, liste, KPI)';
     case 'a11y':
-      return 'Accessibilite';
+      return 'Accessibilité';
     default:
       return cat;
   }

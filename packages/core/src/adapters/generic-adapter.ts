@@ -1,6 +1,6 @@
 /**
  * Adapter pour le mode generic (client-side).
- * Pas de fetch API — les donnees viennent d'une source via data-bridge.
+ * Pas de fetch API — les données viennent d'une source via data-bridge.
  */
 
 import type { ApiAdapter, AdapterCapabilities, AdapterParams, FetchResult } from './api-adapter.js';

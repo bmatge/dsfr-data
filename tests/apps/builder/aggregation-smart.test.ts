@@ -141,7 +141,7 @@ describe('builder aggregation-smart', () => {
 
       const badge = document.getElementById('aggregation-badge') as HTMLElement;
       expect(badge.hidden).toBe(false);
-      expect(badge.textContent).toContain('deja groupees');
+      expect(badge.textContent).toContain('déjà groupees');
     });
 
     it('hides the badge when duplicates exist', () => {

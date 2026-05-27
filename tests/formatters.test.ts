@@ -124,7 +124,7 @@ describe('formatters', () => {
       expect(result).toMatch(/1\s*500\s*€/);
     });
 
-    it('formate une string numerique', () => {
+    it('formate une string numérique', () => {
       expect(formatValue('42', 'nombre')).toBe('42');
     });
   });

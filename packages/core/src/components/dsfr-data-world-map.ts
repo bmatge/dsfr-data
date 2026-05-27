@@ -421,7 +421,7 @@ export class DsfrDataWorldMap extends SourceSubscriberMixin(LitElement) {
     const valueText =
       value !== undefined
         ? `${value.toLocaleString('fr-FR')}${this.unitTooltip ? ' ' + this.unitTooltip : ''}`
-        : 'Pas de donnees';
+        : 'Pas de données';
 
     return html`
       <div

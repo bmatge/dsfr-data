@@ -116,7 +116,7 @@ export class PipelineExecutor {
       if (node.category !== 'source' && !gn.dataSource) {
         node.statusControl.update({
           status: 'warning',
-          message: 'Non connecte a une source de donnees',
+          message: 'Non connecte a une source de données',
         });
       }
     }
@@ -150,12 +150,12 @@ export class PipelineExecutor {
     // Virtual output node — just listen to upstream, don't create a DOM element
     if (node.component === '__output__') {
       if (gn.dataSource) {
-        node.statusControl.update({ status: 'loading', message: 'En attente des donnees...' });
+        node.statusControl.update({ status: 'loading', message: 'En attente des données...' });
         this.subscribeToUpstreamEvents(gn);
       } else {
         node.statusControl.update({
           status: 'warning',
-          message: 'Non connecte a une source de donnees',
+          message: 'Non connecte a une source de données',
         });
       }
       return;
@@ -235,7 +235,7 @@ export class PipelineExecutor {
       if (node.statusControl.result.status === 'loading') {
         node.statusControl.update({
           status: 'warning',
-          message: 'Pas de reponse apres 15s — verifiez la configuration',
+          message: 'Pas de reponse apres 15s — vérifiez la configuration',
         });
       }
     }, 15000);
@@ -282,7 +282,7 @@ export class PipelineExecutor {
       if (node.statusControl.result.status === 'loading') {
         node.statusControl.update({
           status: 'warning',
-          message: 'Pas de reponse apres 15s — verifiez la configuration',
+          message: 'Pas de reponse apres 15s — vérifiez la configuration',
         });
       }
     }, 15000);

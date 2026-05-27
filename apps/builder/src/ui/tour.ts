@@ -19,9 +19,9 @@ export const BUILDER_TOUR: TourConfig = {
   steps: [
     {
       selector: '#section-source',
-      title: 'Vos donnees',
+      title: 'Vos données',
       description:
-        "Commencez ici : choisissez une source de donnees existante, ou cliquez sur une des cartes d'exemple pour essayer tout de suite.",
+        "Commencez ici : choisissez une source de données existante, ou cliquez sur une des cartes d'exemple pour essayer tout de suite.",
       position: 'right',
       onBeforeShow: () => openSection('section-source'),
     },
@@ -37,22 +37,22 @@ export const BUILDER_TOUR: TourConfig = {
       selector: '#section-data',
       title: 'Configuration',
       description:
-        'Selectionnez les champs a afficher (axe X et axe Y). Les options avancees (filtres, agregations) sont accessibles via le mode avance.',
+        'Sélectionnez les champs a afficher (axe X et axe Y). Les options avancees (filtres, agrégations) sont accessibles via le mode avance.',
       position: 'right',
       onBeforeShow: () => openSection('section-data'),
     },
     {
       selector: '#generate-btn',
-      title: 'Generer !',
+      title: 'Générer !',
       description:
-        'Cliquez ici pour voir le resultat. Vous pouvez modifier et re-generer autant de fois que necessaire.',
+        'Cliquez ici pour voir le resultat. Vous pouvez modifier et re-générer autant de fois que necessaire.',
       position: 'right',
     },
     {
       selector: 'app-preview-panel',
-      title: 'Apercu et code',
+      title: 'Aperçu et code',
       description:
-        'Le graphique s\'affiche ici. Basculez sur l\'onglet "Code genere" pour copier le HTML pret a integrer dans votre site.',
+        'Le graphique s\'affiche ici. Basculez sur l\'onglet "Code généré" pour copier le HTML pret a integrer dans votre site.',
       position: 'left',
     },
   ],

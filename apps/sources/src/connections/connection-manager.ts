@@ -166,7 +166,7 @@ export async function saveGristConnection(name: string): Promise<boolean> {
   }
 
   if (!isPublic && !apiKey) {
-    toastWarning('Cle API requise (sauf pour les documents publics)');
+    toastWarning('Clé API requise (sauf pour les documents publics)');
     return false;
   }
 
@@ -181,7 +181,7 @@ export async function saveGristConnection(name: string): Promise<boolean> {
   }
   if (hostname === 'docs.getgrist.com') {
     testUrl = useLocalProxy ? '/grist-proxy/api/orgs' : `${EXTERNAL_PROXY}/grist-proxy/api/orgs`;
-  } else if (hostname === 'grist.numerique.gouv.fr') {
+  } else if (hostname === 'grist.numérique.gouv.fr') {
     testUrl = useLocalProxy
       ? '/grist-gouv-proxy/api/orgs'
       : `${EXTERNAL_PROXY}/grist-gouv-proxy/api/orgs`;
@@ -373,7 +373,7 @@ export function editConnection(id: string): void {
 
     if (urlEl)
       urlEl.value =
-        ((conn as Record<string, unknown>).url as string) || 'https://grist.numerique.gouv.fr';
+        ((conn as Record<string, unknown>).url as string) || 'https://grist.numérique.gouv.fr';
     if (publicEl) publicEl.checked = !!(conn as Record<string, unknown>).isPublic;
     if (apiKeyEl) apiKeyEl.value = ((conn as Record<string, unknown>).apiKey as string) || '';
 
@@ -454,7 +454,7 @@ export function resetConnectionForm(): void {
   if (nameEl) nameEl.value = '';
 
   const urlEl = document.getElementById('conn-url') as HTMLInputElement | null;
-  if (urlEl) urlEl.value = 'https://grist.numerique.gouv.fr';
+  if (urlEl) urlEl.value = 'https://grist.numérique.gouv.fr';
 
   const apiKeyEl = document.getElementById('conn-api-key') as HTMLInputElement | null;
   if (apiKeyEl) apiKeyEl.value = '';
@@ -704,14 +704,14 @@ export function saveAsFavorite(): void {
   try {
     source = JSON.parse(selectedSourceStr);
   } catch {
-    toastWarning('Erreur de lecture de la source selectionnee.');
+    toastWarning('Erreur de lecture de la source sélectionnée.');
     return;
   }
 
   // Check if already exists
   const exists = state.sources.some((s) => s.id === source.id);
   if (exists) {
-    toastWarning('Cette source est deja enregistree.');
+    toastWarning('Cette source est déjà enregistree.');
     return;
   }
 
@@ -883,7 +883,7 @@ export async function exportToGrist(): Promise<void> {
     }
 
     // Insert records
-    if (btn) btn.innerHTML = '<i class="ri-loader-4-line"></i> Insertion des donnees...';
+    if (btn) btn.innerHTML = '<i class="ri-loader-4-line"></i> Insertion des données...';
 
     const records = source.data.map((record) => {
       const sanitizedFields: Record<string, unknown> = {};
@@ -908,7 +908,7 @@ export async function exportToGrist(): Promise<void> {
       throw new Error(error.error || `Erreur insertion: HTTP ${insertResponse.status}`);
     }
 
-    toastSuccess(`Table "${tableName}" creee avec ${source.data.length} enregistrements !`);
+    toastSuccess(`Table "${tableName}" créée avec ${source.data.length} enregistrements !`);
     closeModal('export-grist-modal');
   } catch (error) {
     toastError(`Erreur : ${(error as Error).message}`);
@@ -916,7 +916,7 @@ export async function exportToGrist(): Promise<void> {
   } finally {
     if (btn) {
       btn.disabled = false;
-      btn.innerHTML = '<i class="ri-upload-cloud-line"></i> Creer la table';
+      btn.innerHTML = '<i class="ri-upload-cloud-line"></i> Créer la table';
     }
   }
 }
@@ -928,7 +928,7 @@ export async function exportToGrist(): Promise<void> {
 export function openJoinModal(): void {
   const sourcesWithData = state.sources.filter((s) => s.data && s.data.length > 0);
   if (sourcesWithData.length < 2) {
-    toastWarning('Il faut au moins 2 sources avec des donnees pour creer une jointure.');
+    toastWarning('Il faut au moins 2 sources avec des données pour créer une jointure.');
     return;
   }
 
@@ -936,7 +936,7 @@ export function openJoinModal(): void {
   const rightSelect = document.getElementById('join-right-source') as HTMLSelectElement | null;
 
   const options =
-    '<option value="">-- Selectionner --</option>' +
+    '<option value="">-- Sélectionner --</option>' +
     sourcesWithData
       .map(
         (s) =>
@@ -1079,7 +1079,7 @@ export function saveJoinSource(): void {
     return;
   }
   if (!leftId || !rightId) {
-    toastWarning('Veuillez selectionner les deux sources.');
+    toastWarning('Veuillez sélectionner les deux sources.');
     return;
   }
   if (leftId === rightId) {
@@ -1087,14 +1087,14 @@ export function saveJoinSource(): void {
     return;
   }
   if (!on) {
-    toastWarning('Veuillez saisir la cle de jointure.');
+    toastWarning('Veuillez saisir la clé de jointure.');
     return;
   }
 
   const leftSource = state.sources.find((s) => s.id === leftId);
   const rightSource = state.sources.find((s) => s.id === rightId);
   if (!leftSource?.data || !rightSource?.data) {
-    toastWarning("Les sources selectionnees n'ont pas de donnees.");
+    toastWarning("Les sources selectionnees n'ont pas de données.");
     return;
   }
 
@@ -1122,7 +1122,7 @@ export function saveJoinSource(): void {
     saveToStorage(STORAGE_KEYS.SOURCES, state.sources);
     renderSources();
     closeModal('join-source-modal');
-    toastSuccess(`Source jointe "${name}" creee (${result.length} lignes)`);
+    toastSuccess(`Source jointe "${name}" créée (${result.length} lignes)`);
   } catch (err) {
     toastError(`Erreur de jointure : ${(err as Error).message}`);
   }

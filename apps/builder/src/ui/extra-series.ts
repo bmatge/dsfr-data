@@ -1,6 +1,6 @@
 /**
- * Extra series management for multi-series charts.
- * Handles adding, removing, and rendering extra series field selectors.
+ * Extra séries management for multi-séries charts.
+ * Handles adding, removing, and rendering extra séries field selectors.
  */
 
 import { state } from '../state.js';
@@ -9,7 +9,7 @@ import { buildSeriesFieldOptions } from '../sources-fields.js';
 let seriesCounter = 0;
 
 /**
- * Add a new extra series to the UI and state.
+ * Add a new extra séries to the UI and state.
  */
 export function addExtraSeries(): void {
   seriesCounter++;
@@ -27,8 +27,8 @@ export function addExtraSeries(): void {
   row.innerHTML = `
     <div class="fr-select-group fr-select-group--sm" style="flex: 1; margin-bottom: 0;">
       <label class="fr-label" for="extra-series-field-${seriesCounter}">
-        Serie ${index + 2}
-        <span class="fr-hint-text">Champ numerique</span>
+        Série ${index + 2}
+        <span class="fr-hint-text">Champ numérique</span>
       </label>
       <select class="fr-select extra-series-field" id="extra-series-field-${seriesCounter}">
         ${buildSeriesFieldOptions()}
@@ -39,9 +39,9 @@ export function addExtraSeries(): void {
         Libelle
         <span class="fr-hint-text">Nom affiche (vide = nom du champ)</span>
       </label>
-      <input type="text" class="fr-input fr-input--sm extra-series-label" id="extra-series-label-${seriesCounter}" placeholder="Nom de la serie">
+      <input type="text" class="fr-input fr-input--sm extra-series-label" id="extra-series-label-${seriesCounter}" placeholder="Nom de la série">
     </div>
-    <button type="button" class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline remove-series-btn" title="Supprimer cette serie" style="margin-bottom: 2px;">
+    <button type="button" class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline remove-series-btn" title="Supprimer cette série" style="margin-bottom: 2px;">
       <i class="ri-delete-bin-line"></i>
     </button>
   `;
@@ -74,7 +74,7 @@ export function addExtraSeries(): void {
 }
 
 /**
- * Remove an extra series row from the UI and state.
+ * Remove an extra séries row from the UI and state.
  */
 function removeExtraSeries(row: HTMLElement): void {
   const idx = getRowIndex(row);
@@ -96,7 +96,7 @@ function getRowIndex(row: HTMLElement): number {
 }
 
 /**
- * Renumber series labels after removal.
+ * Renumber séries labels after removal.
  */
 function renumberSeriesRows(): void {
   const container = document.getElementById('extra-series-container');
@@ -105,9 +105,9 @@ function renumberSeriesRows(): void {
     const label = row.querySelector('.fr-select-group .fr-label');
     if (label) {
       const hint = label.querySelector('.fr-hint-text');
-      label.childNodes[0].textContent = `Serie ${index + 2} `;
+      label.childNodes[0].textContent = `Série ${index + 2} `;
       if (!hint) {
-        label.innerHTML = `Serie ${index + 2} <span class="fr-hint-text">Champ numerique</span>`;
+        label.innerHTML = `Série ${index + 2} <span class="fr-hint-text">Champ numérique</span>`;
       }
     }
   });
@@ -121,7 +121,7 @@ function syncValueField2(): void {
 }
 
 /**
- * Restore extra series UI from state (e.g. when loading favorites).
+ * Restore extra séries UI from state (e.g. when loading favorites).
  */
 export function restoreExtraSeriesFromState(): void {
   const container = document.getElementById('extra-series-container');
@@ -137,18 +137,18 @@ export function restoreExtraSeriesFromState(): void {
   const seriesToRestore = [...state.extraSeries];
   state.extraSeries = [];
 
-  seriesToRestore.forEach((series) => {
+  seriesToRestore.forEach((séries) => {
     addExtraSeries();
     const rows = container.children;
     const lastRow = rows[rows.length - 1];
     if (lastRow) {
       const fieldSelect = lastRow.querySelector('.extra-series-field') as HTMLSelectElement;
       const labelInput = lastRow.querySelector('.extra-series-label') as HTMLInputElement;
-      if (fieldSelect && series.field) fieldSelect.value = series.field;
-      if (labelInput && series.label) labelInput.value = series.label;
+      if (fieldSelect && séries.field) fieldSelect.value = séries.field;
+      if (labelInput && séries.label) labelInput.value = séries.label;
       // Update state entry
       const idx = state.extraSeries.length - 1;
-      state.extraSeries[idx] = { ...series };
+      state.extraSeries[idx] = { ...séries };
     }
   });
   syncValueField2();

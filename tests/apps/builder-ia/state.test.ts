@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { state } from '../../../apps/builder-ia/src/state';
-import type { AppState, ChartConfig, Source, Field, Message } from '../../../apps/builder-ia/src/state';
+import type { ChartConfig, Source, Field, Message } from '../../../apps/builder-ia/src/state';
 
 describe('builder-ia state', () => {
   it('should have expected initial state', () => {
@@ -28,11 +28,11 @@ describe('builder-ia state', () => {
   it('should have correct Field type shape', () => {
     const field: Field = {
       name: 'population',
-      type: 'numerique',
+      type: 'numérique',
       sample: 12345,
     };
     expect(field.name).toBe('population');
-    expect(field.type).toBe('numerique');
+    expect(field.type).toBe('numérique');
   });
 
   it('should have correct ChartConfig type shape', () => {
@@ -59,8 +59,16 @@ describe('builder-ia state', () => {
 
   it('should support all chart types', () => {
     const types: ChartConfig['type'][] = [
-      'bar', 'line', 'pie', 'doughnut', 'radar',
-      'horizontalBar', 'scatter', 'gauge', 'kpi', 'map',
+      'bar',
+      'line',
+      'pie',
+      'doughnut',
+      'radar',
+      'horizontalBar',
+      'scatter',
+      'gauge',
+      'kpi',
+      'map',
     ];
     for (const type of types) {
       const config: ChartConfig = { type, valueField: 'value' };

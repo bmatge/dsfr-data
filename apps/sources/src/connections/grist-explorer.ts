@@ -23,7 +23,7 @@ import { switchExplorerTab, renderSources } from './connection-manager.js';
 
 export async function gristFetch(endpoint: string): Promise<unknown> {
   if (state.selectedConnectionId === null) {
-    throw new Error('Aucune connexion selectionnee');
+    throw new Error('Aucune connexion sélectionnée');
   }
 
   const conn = state.connections.find((c) => c.id === state.selectedConnectionId);
@@ -123,7 +123,7 @@ export async function selectDocument(docId: string): Promise<void> {
 export async function loadTables(): Promise<void> {
   if (!state.selectedDocument) {
     const tree = document.getElementById('tables-tree');
-    if (tree) tree.innerHTML = "<p>Selectionnez d'abord un document</p>";
+    if (tree) tree.innerHTML = "<p>Sélectionnez d'abord un document</p>";
     return;
   }
 
@@ -233,7 +233,7 @@ export async function loadTablePreview(): Promise<void> {
 
 export async function createGristTable(): Promise<void> {
   if (!state.selectedDocument) {
-    toastWarning("Selectionnez d'abord un document Grist");
+    toastWarning("Sélectionnez d'abord un document Grist");
     return;
   }
 
@@ -290,7 +290,7 @@ export async function createGristTable(): Promise<void> {
       );
     }
 
-    toastSuccess(`Table "${tableName}" creee avec succes !`);
+    toastSuccess(`Table "${tableName}" créée avec succes !`);
     const { closeModal } = await import('@dsfr-data/shared');
     closeModal('create-table-modal');
 
@@ -385,7 +385,7 @@ export async function loadExportDocuments(): Promise<void> {
 
   if (!connId || !docSelect || !docGroup) {
     if (docGroup) docGroup.style.display = 'none';
-    if (docSelect) docSelect.innerHTML = '<option value="">-- Selectionner --</option>';
+    if (docSelect) docSelect.innerHTML = '<option value="">-- Sélectionner --</option>';
     updateExportButton();
     return;
   }
@@ -442,7 +442,7 @@ export async function loadExportDocuments(): Promise<void> {
       }
     }
 
-    docSelect.innerHTML = '<option value="">-- Selectionner --</option>';
+    docSelect.innerHTML = '<option value="">-- Sélectionner --</option>';
     if (allDocs.length === 0) {
       docSelect.innerHTML = '<option value="">Aucun document trouve</option>';
     } else {
@@ -556,7 +556,7 @@ export async function exportToGrist(): Promise<void> {
 
     // 3. Insert records (with sanitized column keys)
     if (btn) {
-      btn.innerHTML = '<i class="ri-loader-4-line"></i> Insertion des donnees...';
+      btn.innerHTML = '<i class="ri-loader-4-line"></i> Insertion des données...';
     }
 
     const records = source.data.map((record) => {
@@ -588,7 +588,7 @@ export async function exportToGrist(): Promise<void> {
       );
     }
 
-    toastSuccess(`Table "${tableName}" creee avec ${source.data.length} enregistrements !`);
+    toastSuccess(`Table "${tableName}" créée avec ${source.data.length} enregistrements !`);
     const { closeModal } = await import('@dsfr-data/shared');
     closeModal('export-grist-modal');
 
@@ -602,7 +602,7 @@ export async function exportToGrist(): Promise<void> {
   } finally {
     if (btn) {
       btn.disabled = false;
-      btn.innerHTML = '<i class="ri-upload-cloud-line"></i> Creer la table';
+      btn.innerHTML = '<i class="ri-upload-cloud-line"></i> Créer la table';
     }
   }
 }

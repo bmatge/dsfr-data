@@ -96,12 +96,12 @@ export function populateFieldSelects(): void {
     state.codeField = codeField.name;
   }
 
-  // Re-populate existing extra series selects
+  // Re-populate existing extra séries selects
   refreshExtraSeriesSelects();
 }
 
 /**
- * Build options HTML for an extra series field select.
+ * Build options HTML for an extra séries field select.
  */
 export function buildSeriesFieldOptions(): string {
   let html = '<option value="">\u2014 S\u00e9lectionner \u2014</option>';
@@ -115,7 +115,7 @@ export function buildSeriesFieldOptions(): string {
 }
 
 /**
- * Refresh all extra series field selects with current fields.
+ * Refresh all extra séries field selects with current fields.
  */
 export function refreshExtraSeriesSelects(): void {
   const container = document.getElementById('extra-series-container');

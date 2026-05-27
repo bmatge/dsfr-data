@@ -57,7 +57,7 @@ describe('DsfrDataDisplay', () => {
 
     it('returns default when field is null', () => {
       const itemWithNull = { val: null };
-      expect((display as any)._resolveExpression(itemWithNull, 'val|defaut', 0)).toBe('defaut');
+      expect((display as any)._resolveExpression(itemWithNull, 'val|défaut', 0)).toBe('défaut');
     });
   });
 

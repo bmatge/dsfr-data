@@ -35,7 +35,7 @@ describe('OpenDataSoftAdapter', () => {
   describe('validate', () => {
     it('returns error when datasetId is missing', () => {
       expect(adapter.validate(makeParams({ datasetId: '' }))).toBe(
-        'attribut "dataset-id" requis pour les requetes OpenDataSoft'
+        'attribut "dataset-id" requis pour les requêtes OpenDataSoft'
       );
     });
 
@@ -167,11 +167,11 @@ describe('OpenDataSoftAdapter', () => {
 
     it('includes select when specified', () => {
       const url = adapter.buildServerSideUrl(
-        makeParams({ select: 'nom, date, categorie' }),
+        makeParams({ select: 'nom, date, catégorie' }),
         overlay()
       );
       const params = new URL(url).searchParams;
-      expect(params.get('select')).toBe('nom, date, categorie');
+      expect(params.get('select')).toBe('nom, date, catégorie');
     });
 
     it('includes group_by when specified', () => {

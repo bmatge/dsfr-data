@@ -317,7 +317,7 @@ export function renderChart(): void {
     },
   ];
 
-  // Add extra series if defined
+  // Add extra séries if defined
   const activeExtraSeries = state.extraSeries.filter(
     (s) => s.field && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType)
   );

@@ -4,7 +4,6 @@
 
 import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
 import request from 'supertest';
-import crypto from 'node:crypto';
 import type { Express } from 'express';
 import { createTestApp, closeTestApp } from './test-helpers.js';
 import { execute, queryOne } from '../../server/src/db/database.js';
@@ -53,7 +52,7 @@ async function registerUser(app: Express, email: string, displayName?: string) {
 async function verifyUserEmail(email: string): Promise<void> {
   await execute(
     'UPDATE users SET email_verified = TRUE, verification_token_hash = NULL, verification_expires = NULL WHERE email = ?',
-    [email],
+    [email]
   );
 }
 
@@ -90,7 +89,11 @@ describe('POST /api/auth/register', () => {
     expect(res.body.email).toBe('second@example.com');
     // No cookie for unverified user
     const cookies = res.headers['set-cookie'];
-    const hasCookie = cookies && (Array.isArray(cookies) ? cookies : [cookies]).some((c: string) => c.startsWith('gw-auth-token='));
+    const hasCookie =
+      cookies &&
+      (Array.isArray(cookies) ? cookies : [cookies]).some((c: string) =>
+        c.startsWith('gw-auth-token=')
+      );
     expect(hasCookie).toBeFalsy();
     // Verification email sent
     expect(sendVerificationEmail).toHaveBeenCalledWith('second@example.com', expect.any(String));
@@ -130,7 +133,7 @@ describe('POST /api/auth/register', () => {
       .send({ email: 'short@example.com', password: 'Ab1', displayName: 'Short' });
 
     expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/8 caracteres/i);
+    expect(res.body.error).toMatch(/8 caractères/i);
   });
 
   it('rejects password without uppercase', async () => {
@@ -161,9 +164,7 @@ describe('POST /api/auth/register', () => {
   });
 
   it('rejects missing fields', async () => {
-    const res = await request(app)
-      .post('/api/auth/register')
-      .send({});
+    const res = await request(app).post('/api/auth/register').send({});
 
     expect(res.status).toBe(400);
     expect(res.body.error).toBeDefined();
@@ -190,8 +191,7 @@ describe('GET /api/auth/verify-email', () => {
     const token = calls[0][1];
 
     // Verify
-    const res = await request(app)
-      .get(`/api/auth/verify-email?token=${token}`);
+    const res = await request(app).get(`/api/auth/verify-email?token=${token}`);
 
     expect(res.status).toBe(302);
     expect(res.headers.location).toBe('/');
@@ -199,14 +199,14 @@ describe('GET /api/auth/verify-email', () => {
 
     // Check DB: email_verified = true
     const user = await queryOne<{ email_verified: number }>(
-      'SELECT email_verified FROM users WHERE email = ?', ['verify@example.com'],
+      'SELECT email_verified FROM users WHERE email = ?',
+      ['verify@example.com']
     );
     expect(user?.email_verified).toBe(1);
   });
 
   it('rejects invalid token', async () => {
-    const res = await request(app)
-      .get('/api/auth/verify-email?token=invalidtoken123');
+    const res = await request(app).get('/api/auth/verify-email?token=invalidtoken123');
 
     expect(res.status).toBe(302);
     expect(res.headers.location).toBe('/?error=invalid_token');
@@ -222,19 +222,17 @@ describe('GET /api/auth/verify-email', () => {
     // Expire the token in DB
     await execute(
       'UPDATE users SET verification_expires = DATE_SUB(NOW(), INTERVAL 1 HOUR) WHERE email = ?',
-      ['expired@example.com'],
+      ['expired@example.com']
     );
 
-    const res = await request(app)
-      .get(`/api/auth/verify-email?token=${token}`);
+    const res = await request(app).get(`/api/auth/verify-email?token=${token}`);
 
     expect(res.status).toBe(302);
     expect(res.headers.location).toBe('/?error=token_expired');
   });
 
   it('rejects missing token parameter', async () => {
-    const res = await request(app)
-      .get('/api/auth/verify-email');
+    const res = await request(app).get('/api/auth/verify-email');
 
     expect(res.status).toBe(302);
     expect(res.headers.location).toBe('/?error=invalid_token');
@@ -258,7 +256,7 @@ describe('POST /api/auth/resend-verification', () => {
     // Make the token old enough to allow resend (set expires to less than 23.67h from now)
     await execute(
       'UPDATE users SET verification_expires = DATE_ADD(NOW(), INTERVAL 20 HOUR) WHERE email = ?',
-      ['resend@example.com'],
+      ['resend@example.com']
     );
 
     const res = await request(app)
@@ -337,7 +335,9 @@ describe('POST /api/auth/login', () => {
   });
 
   it('rejects disabled account', async () => {
-    const user = await queryOne<{ id: string }>('SELECT id FROM users WHERE email = ?', ['user@example.com']);
+    const user = await queryOne<{ id: string }>('SELECT id FROM users WHERE email = ?', [
+      'user@example.com',
+    ]);
     await execute('UPDATE users SET is_active = FALSE WHERE id = ?', [user!.id]);
 
     const res = await request(app)
@@ -370,8 +370,7 @@ describe('POST /api/auth/logout', () => {
   });
 
   it('clears cookie', async () => {
-    const res = await request(app)
-      .post('/api/auth/logout');
+    const res = await request(app).post('/api/auth/logout');
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ ok: true });
@@ -386,20 +385,14 @@ describe('POST /api/auth/logout', () => {
     const cookie = await registerAdmin(app, 'logout-test@example.com');
 
     // Verify we can access /me
-    const meRes = await request(app)
-      .get('/api/auth/me')
-      .set('Cookie', cookie);
+    const meRes = await request(app).get('/api/auth/me').set('Cookie', cookie);
     expect(meRes.status).toBe(200);
 
     // Logout
-    await request(app)
-      .post('/api/auth/logout')
-      .set('Cookie', cookie);
+    await request(app).post('/api/auth/logout').set('Cookie', cookie);
 
     // Try to reuse the same token — should be rejected (session revoked)
-    const afterLogout = await request(app)
-      .get('/api/auth/me')
-      .set('Cookie', cookie);
+    const afterLogout = await request(app).get('/api/auth/me').set('Cookie', cookie);
     expect(afterLogout.status).toBe(401);
   });
 });
@@ -415,9 +408,7 @@ describe('GET /api/auth/me', () => {
   it('returns user info with new fields', async () => {
     const cookie = await registerAdmin(app, 'me@example.com');
 
-    const res = await request(app)
-      .get('/api/auth/me')
-      .set('Cookie', cookie);
+    const res = await request(app).get('/api/auth/me').set('Cookie', cookie);
 
     expect(res.status).toBe(200);
     expect(res.body.user).toMatchObject({
@@ -433,8 +424,7 @@ describe('GET /api/auth/me', () => {
   });
 
   it('401 without token', async () => {
-    const res = await request(app)
-      .get('/api/auth/me');
+    const res = await request(app).get('/api/auth/me');
 
     expect(res.status).toBe(401);
     expect(res.body.error).toMatch(/authentication/i);
@@ -443,12 +433,12 @@ describe('GET /api/auth/me', () => {
   it('401 for disabled account', async () => {
     const cookie = await registerAdmin(app, 'disabled@example.com');
 
-    const user = await queryOne<{ id: string }>('SELECT id FROM users WHERE email = ?', ['disabled@example.com']);
+    const user = await queryOne<{ id: string }>('SELECT id FROM users WHERE email = ?', [
+      'disabled@example.com',
+    ]);
     await execute('UPDATE users SET is_active = FALSE WHERE id = ?', [user!.id]);
 
-    const res = await request(app)
-      .get('/api/auth/me')
-      .set('Cookie', cookie);
+    const res = await request(app).get('/api/auth/me').set('Cookie', cookie);
 
     expect(res.status).toBe(401);
   });
@@ -538,9 +528,7 @@ describe('GET /api/auth/users', () => {
   it('finds by email', async () => {
     const cookie = await registerAdmin(app, 'searchme@example.com');
 
-    const res = await request(app)
-      .get('/api/auth/users?q=searchme')
-      .set('Cookie', cookie);
+    const res = await request(app).get('/api/auth/users?q=searchme').set('Cookie', cookie);
 
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
@@ -554,12 +542,12 @@ describe('GET /api/auth/users', () => {
     // Create and verify another user, then disable
     await registerUser(app, 'hidden@example.com', 'Hidden');
     await verifyUserEmail('hidden@example.com');
-    const user = await queryOne<{ id: string }>('SELECT id FROM users WHERE email = ?', ['hidden@example.com']);
+    const user = await queryOne<{ id: string }>('SELECT id FROM users WHERE email = ?', [
+      'hidden@example.com',
+    ]);
     await execute('UPDATE users SET is_active = FALSE WHERE id = ?', [user!.id]);
 
-    const res = await request(app)
-      .get('/api/auth/users?q=hidden')
-      .set('Cookie', cookie);
+    const res = await request(app).get('/api/auth/users?q=hidden').set('Cookie', cookie);
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual([]);
@@ -568,9 +556,7 @@ describe('GET /api/auth/users', () => {
   it('returns empty for short query', async () => {
     const cookie = await registerAdmin(app, 'test@example.com');
 
-    const res = await request(app)
-      .get('/api/auth/users?q=a')
-      .set('Cookie', cookie);
+    const res = await request(app).get('/api/auth/users?q=a').set('Cookie', cookie);
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual([]);

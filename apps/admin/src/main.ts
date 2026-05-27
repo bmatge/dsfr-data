@@ -174,7 +174,7 @@ function renderUserDetail(user: UserDetail, resources: Record<string, number>): 
       <dt>Role</dt><dd><span class="badge badge--${user.role}">${user.role}</span></dd>
       <dt>Provider</dt><dd><span class="badge badge--${user.authProvider}">${user.authProvider}</span></dd>
       <dt>Statut</dt><dd><span class="badge badge--${user.isActive ? 'active' : 'inactive'}">${user.isActive ? 'Actif' : 'Inactif'}</span></dd>
-      <dt>Email verifie</dt><dd>${user.emailVerified ? 'Oui' : 'Non'}</dd>
+      <dt>Email vérifié</dt><dd>${user.emailVerified ? 'Oui' : 'Non'}</dd>
       <dt>Derniere connexion</dt><dd>${user.lastLogin ? formatDate(user.lastLogin) : 'Jamais'}</dd>
       <dt>Inscription</dt><dd>${formatDate(user.createdAt)}</dd>
       ${user.siret ? `<dt>SIRET</dt><dd>${escapeHtml(user.siret)}</dd>` : ''}

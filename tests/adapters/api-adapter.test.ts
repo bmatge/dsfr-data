@@ -125,7 +125,7 @@ describe('GristAdapter', () => {
 
   it('validate requires base-url', () => {
     expect(adapter.validate({ baseUrl: '' } as AdapterParams)).toBe(
-      'attribut "base-url" requis pour les requetes Grist'
+      'attribut "base-url" requis pour les requêtes Grist'
     );
     expect(
       adapter.validate({

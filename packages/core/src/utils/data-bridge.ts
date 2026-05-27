@@ -32,7 +32,7 @@ export interface SourceCommandEvent {
   whereKey?: string; // identifie la source du where (permet merge multi-sources)
   orderBy?: string; // tri serveur ("field:direction")
   groupBy?: string; // group-by serveur (delegue par dsfr-data-query)
-  aggregate?: string; // agregation serveur (delegue par dsfr-data-query)
+  aggregate?: string; // agrégation serveur (delegue par dsfr-data-query)
 }
 
 // Noms des événements custom

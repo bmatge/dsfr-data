@@ -2,7 +2,7 @@
  * ProviderConfig for the INSEE Melodi API.
  *
  * Melodi gives access to 95+ statistical datasets from INSEE's catalog
- * (https://catalogue-donnees.insee.fr). Filtering is dimension-based
+ * (https://catalogue-données.insee.fr). Filtering is dimension-based
  * (equality via query params), pagination is page-based.
  *
  * API base URL: https://api.insee.fr/melodi

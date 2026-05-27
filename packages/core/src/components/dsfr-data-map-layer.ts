@@ -1,7 +1,7 @@
 /**
- * dsfr-data-map-layer — Couche de donnees pour dsfr-data-map
+ * dsfr-data-map-layer — Couche de données pour dsfr-data-map
  *
- * Composant invisible utilisant SourceSubscriberMixin pour recevoir des donnees
+ * Composant invisible utilisant SourceSubscriberMixin pour recevoir des données
  * et les projeter sur la carte parente (markers, geoshape, circle, heatmap).
  */
 import { LitElement } from 'lit';

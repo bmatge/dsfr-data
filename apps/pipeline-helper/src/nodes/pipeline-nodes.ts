@@ -31,7 +31,7 @@ const PROVIDER_TO_API_TYPE: Record<string, string> = {
  */
 export function createSourceNode(): PipelineNode {
   const node = new PipelineNode(NODE_CONFIGS.source);
-  node.addOutput('data', new ClassicPreset.Output(DataSocket, 'Donnees'));
+  node.addOutput('data', new ClassicPreset.Output(DataSocket, 'Données'));
   node.addInput('command', new ClassicPreset.Input(CommandSocket, 'Commandes', true));
 
   // Add saved-source selector as the FIRST control (inserted before attributes)
@@ -46,7 +46,7 @@ export function createSourceNode(): PipelineNode {
 
       if (source.type === 'grist') {
         // Grist adapter expects base-url = full records endpoint URL
-        // e.g. https://grist.numerique.gouv.fr/api/docs/{docId}/tables/{tableId}/records
+        // e.g. https://grist.numérique.gouv.fr/api/docs/{docId}/tables/{tableId}/records
         if (source.apiUrl && source.documentId && source.tableId) {
           const recordsUrl = `${source.apiUrl}/api/docs/${source.documentId}/tables/${source.tableId}/records`;
           setCtrl(node, 'base-url', recordsUrl);
@@ -130,8 +130,8 @@ function setCtrl(node: PipelineNode, key: string, value: string) {
  */
 export function createQueryNode(): PipelineNode {
   const node = new PipelineNode(NODE_CONFIGS.query);
-  node.addInput('data', new ClassicPreset.Input(DataSocket, 'Donnees'));
-  node.addOutput('data', new ClassicPreset.Output(DataSocket, 'Donnees'));
+  node.addInput('data', new ClassicPreset.Input(DataSocket, 'Données'));
+  node.addOutput('data', new ClassicPreset.Output(DataSocket, 'Données'));
 
   // Insert AggregateControl after group-by, before order-by
   const existingControls = { ...node.controls };
@@ -156,8 +156,8 @@ export function createQueryNode(): PipelineNode {
  */
 export function createNormalizeNode(): PipelineNode {
   const node = new PipelineNode(NODE_CONFIGS.normalize);
-  node.addInput('data', new ClassicPreset.Input(DataSocket, 'Donnees'));
-  node.addOutput('data', new ClassicPreset.Output(DataSocket, 'Donnees'));
+  node.addInput('data', new ClassicPreset.Input(DataSocket, 'Données'));
+  node.addOutput('data', new ClassicPreset.Output(DataSocket, 'Données'));
   return node;
 }
 
@@ -170,7 +170,7 @@ export function createJoinNode(): PipelineNode {
   const node = new PipelineNode(NODE_CONFIGS.join);
   node.addInput('left', new ClassicPreset.Input(DataSocket, 'Gauche'));
   node.addInput('right', new ClassicPreset.Input(DataSocket, 'Droite'));
-  node.addOutput('data', new ClassicPreset.Output(DataSocket, 'Donnees'));
+  node.addOutput('data', new ClassicPreset.Output(DataSocket, 'Données'));
   return node;
 }
 
@@ -181,7 +181,7 @@ export function createJoinNode(): PipelineNode {
  */
 export function createSearchNode(): PipelineNode {
   const node = new PipelineNode(NODE_CONFIGS.search);
-  node.addInput('data', new ClassicPreset.Input(DataSocket, 'Donnees'));
+  node.addInput('data', new ClassicPreset.Input(DataSocket, 'Données'));
   node.addOutput('command', new ClassicPreset.Output(CommandSocket, 'Commande'));
   return node;
 }
@@ -193,7 +193,7 @@ export function createSearchNode(): PipelineNode {
  */
 export function createFacetsNode(): PipelineNode {
   const node = new PipelineNode(NODE_CONFIGS.facets);
-  node.addInput('data', new ClassicPreset.Input(DataSocket, 'Donnees'));
+  node.addInput('data', new ClassicPreset.Input(DataSocket, 'Données'));
   node.addOutput('command', new ClassicPreset.Output(CommandSocket, 'Commande'));
   return node;
 }
@@ -204,7 +204,7 @@ export function createFacetsNode(): PipelineNode {
  */
 export function createOutputNode(): PipelineNode {
   const node = new PipelineNode(NODE_CONFIGS.output);
-  node.addInput('data', new ClassicPreset.Input(DataSocket, 'Donnees'));
+  node.addInput('data', new ClassicPreset.Input(DataSocket, 'Données'));
   return node;
 }
 
@@ -214,7 +214,7 @@ export function createOutputNode(): PipelineNode {
  */
 export function createA11yNode(): PipelineNode {
   const node = new PipelineNode(NODE_CONFIGS.a11y);
-  node.addInput('data', new ClassicPreset.Input(DataSocket, 'Donnees'));
+  node.addInput('data', new ClassicPreset.Input(DataSocket, 'Données'));
   return node;
 }
 

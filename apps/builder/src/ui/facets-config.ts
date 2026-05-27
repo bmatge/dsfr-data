@@ -77,7 +77,7 @@ export function openFacetsModal(): void {
 
   listEl.innerHTML = `
     <div class="facets-toolbar">
-      <button class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm" id="facets-select-all" type="button">Tout selectionner</button>
+      <button class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm" id="facets-select-all" type="button">Tout sélectionner</button>
       <button class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm" id="facets-select-none" type="button">Tout deselectionner</button>
     </div>
     <table class="fr-table fr-table--no-caption facets-table">

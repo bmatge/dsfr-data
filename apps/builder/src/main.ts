@@ -132,7 +132,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // Value field label input (Serie 1)
+  // Value field label input (Série 1)
   const valueFieldLabelInput = document.getElementById(
     'value-field-label'
   ) as HTMLInputElement | null;
@@ -142,7 +142,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // Input changes (title/subtitle update state only — preview updates on "Generer")
+  // Input changes (title/subtitle update state only — preview updates on "Générer")
   const chartTitleInput = document.getElementById('chart-title') as HTMLInputElement | null;
   if (chartTitleInput) {
     chartTitleInput.addEventListener('input', (e) => {
@@ -305,7 +305,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // Extra series "add" button
+  // Extra séries "add" button
   const addSeriesBtn = document.getElementById('add-series-btn');
   if (addSeriesBtn) addSeriesBtn.addEventListener('click', addExtraSeries);
 

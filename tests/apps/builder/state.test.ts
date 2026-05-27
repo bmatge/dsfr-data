@@ -73,7 +73,7 @@ describe('builder state', () => {
   it('should have correct Field type shape', () => {
     const field: Field = {
       name: 'population',
-      type: 'numerique',
+      type: 'numérique',
       sample: 12345,
       fullPath: 'data.population',
       displayName: 'Population',

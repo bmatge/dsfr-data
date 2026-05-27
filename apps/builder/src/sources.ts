@@ -172,7 +172,7 @@ export function checkSelectedSource(): void {
     // Trigger the change
     handleSavedSourceChange();
 
-    // Show "Voir les donnees" button
+    // Show "Voir les données" button
     showDataPreviewButton();
   }
 }
@@ -388,7 +388,7 @@ export function loadFieldsFromLocalData(): void {
 
   // Smart aggregation : on each fresh source, reset the "user-modified" flag
   // so the default re-evaluates (count if no valueField, sum/avg by name).
-  // Then refresh the "donnees deja groupees" badge from the new sample.
+  // Then refresh the "données déjà groupees" badge from the new sample.
   resetAggregationUserModified();
   applyAggregationDefault();
   updateAggregationBadge();
@@ -645,7 +645,7 @@ export function loadFavoriteState(): void {
         const sortFieldSelect = document.getElementById('sort-field') as HTMLSelectElement | null;
         if (sortFieldSelect) sortFieldSelect.value = state.sortField || '';
 
-        // Restore extra series (migrates old valueField2 if needed)
+        // Restore extra séries (migrates old valueField2 if needed)
         restoreExtraSeriesFromState();
       }, 0);
     }
@@ -672,7 +672,7 @@ export function loadFavoriteState(): void {
       setTimeout(() => {
         generateCodeForLocalData();
 
-        // Show "Voir les donnees" button
+        // Show "Voir les données" button
         showDataPreviewButton();
 
         // Open relevant sections
@@ -688,7 +688,7 @@ export function loadFavoriteState(): void {
 }
 
 /**
- * Show the "Voir les donnees" button in the status area
+ * Show the "Voir les données" button in the status area
  */
 function showDataPreviewButton(): void {
   const statusEl = document.getElementById('fields-status');
@@ -728,7 +728,7 @@ function showDataPreview(): void {
     .join('');
 
   body.innerHTML = `
-    <p class="fr-text--sm fr-mb-1w">${data.length} enregistrement(s), ${keys.length} champs \u2014 apercu des 20 premiers</p>
+    <p class="fr-text--sm fr-mb-1w">${data.length} enregistrement(s), ${keys.length} champs \u2014 aperçu des 20 premiers</p>
     <div style="overflow-x:auto;">
       <table class="fr-table fr-table--sm" style="font-size:0.8rem;">
         <thead><tr>${headerCells}</tr></thead>

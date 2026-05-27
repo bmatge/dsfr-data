@@ -56,10 +56,10 @@
         <hr class="fr-mt-2w fr-mb-2w">
 
         <div style="display: flex; gap: 0.5rem;">
-          <button class="fr-btn fr-btn--sm fr-btn--tertiary" id="export-data-btn" title="Exporter toutes les donnees">
+          <button class="fr-btn fr-btn--sm fr-btn--tertiary" id="export-data-btn" title="Exporter toutes les données">
             <i class="ri-download-line"></i> Exporter
           </button>
-          <label class="fr-btn fr-btn--sm fr-btn--tertiary" id="import-data-btn" title="Importer des donnees" style="cursor:pointer;">
+          <label class="fr-btn fr-btn--sm fr-btn--tertiary" id="import-data-btn" title="Importer des données" style="cursor:pointer;">
             <i class="ri-upload-line"></i> Importer
             <input type="file" id="import-data-file" accept=".json" style="display:none;">
           </label>
@@ -72,7 +72,7 @@
           <i class="ri-database-2-line"></i>
           <p style="font-weight: 600; margin-bottom: 0.5rem;">3 facons de commencer</p>
           <p style="font-size: 0.9rem; line-height: 1.6;">
-            <strong>Donnees manuelles</strong> : collez du JSON, CSV ou saisissez un tableau<br>
+            <strong>Données manuelles</strong> : collez du JSON, CSV ou saisissez un tableau<br>
             <strong>API publique</strong> : connectez data.gouv.fr, OpenDataSoft...<br>
             <strong>Grist</strong> : explorez un tableur collaboratif
           </p>
@@ -175,9 +175,9 @@
           <div class="fr-input-group fr-mt-2w">
             <label class="fr-label" for="conn-url">
               URL du serveur Grist
-              <span class="fr-hint-text">Ex: https://grist.numerique.gouv.fr ou https://docs.getgrist.com</span>
+              <span class="fr-hint-text">Ex: https://grist.numérique.gouv.fr ou https://docs.getgrist.com</span>
             </label>
-            <input class="fr-input" type="url" id="conn-url" placeholder="https://grist.numerique.gouv.fr" value="https://grist.numerique.gouv.fr">
+            <input class="fr-input" type="url" id="conn-url" placeholder="https://grist.numérique.gouv.fr" value="https://grist.numérique.gouv.fr">
           </div>
 
           <div class="fr-checkbox-group fr-mt-2w">
@@ -375,7 +375,7 @@
             <span class="fr-hint-text">Les lignes de cette source seront conservees selon le type de jointure</span>
           </label>
           <select class="fr-select" id="join-left-source">
-            <option value="">-- Selectionner --</option>
+            <option value="">-- Sélectionner --</option>
           </select>
         </div>
 
@@ -384,7 +384,7 @@
             Source droite
           </label>
           <select class="fr-select" id="join-right-source">
-            <option value="">-- Selectionner --</option>
+            <option value="">-- Sélectionner --</option>
           </select>
         </div>
 
@@ -404,7 +404,7 @@
 
         <div class="fr-input-group fr-mt-2w">
           <label class="fr-label" for="join-on">
-            Cle de jointure
+            Clé de jointure
             <span class="fr-hint-text">Le champ present dans les deux sources (ex : code_dept). Si les noms different : champ_gauche=champ_droite</span>
           </label>
           <input class="fr-input" type="text" id="join-on" placeholder="code_dept">
@@ -477,7 +477,7 @@
         <div id="source-mode-table" class="source-mode-panel">
           <label class="fr-label">
             Données
-            <span class="fr-hint-text">Saisissez vos donnees ligne par ligne. Ideal pour de petits jeux de donnees.</span>
+            <span class="fr-hint-text">Saisissez vos données ligne par ligne. Ideal pour de petits jeux de données.</span>
           </label>
           <div class="table-editor-wrapper">
             <table class="table-editor" id="source-table-editor">

@@ -8,7 +8,7 @@ const CATEGORY_LABELS: Record<NodeCategory, string> = {
   transform: 'Transformation',
   interact: 'Interaction',
   display: 'Affichage',
-  a11y: 'Accessibilite',
+  a11y: 'Accessibilité',
 };
 
 const CATEGORY_COLORS: Record<NodeCategory, string> = {

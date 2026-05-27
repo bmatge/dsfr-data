@@ -162,7 +162,7 @@ export class DsfrDataMapPopup extends LitElement {
       this._panelEl.className = `dsfr-data-map-popup__panel dsfr-data-map-popup__panel--${side}`;
       this._panelEl.style.width = this.width;
       this._panelEl.setAttribute('role', 'complementary');
-      this._panelEl.setAttribute('aria-label', "Details de l'element selectionne");
+      this._panelEl.setAttribute('aria-label', "Details de l'element sélectionné");
       this._panelEl.setAttribute('aria-live', 'polite');
       mapParent.appendChild(this._panelEl);
       // Trigger slide-in animation

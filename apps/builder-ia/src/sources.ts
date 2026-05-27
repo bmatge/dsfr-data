@@ -125,7 +125,7 @@ export function handleSourceChange(): void {
     updateRawData();
 
     // Build contextual suggestions based on field types
-    const numericFields = state.fields.filter((f) => f.type === 'numerique');
+    const numericFields = state.fields.filter((f) => f.type === 'numérique');
     const textFields = state.fields.filter((f) => f.type === 'texte');
     const dateFields = state.fields.filter((f) => f.type === 'date');
     const suggestions: string[] = [];
@@ -154,7 +154,7 @@ export function handleSourceChange(): void {
       suggestions.slice(0, 3)
     );
 
-    // Update status: show "Voir les donnees" button
+    // Update status: show "Voir les données" button
     const statusEl = document.getElementById('fields-status');
     if (statusEl) {
       statusEl.innerHTML =
@@ -173,7 +173,7 @@ export function loadSavedSourceData(): void {
     const statusEl = document.getElementById('fields-status');
     if (statusEl) {
       statusEl.innerHTML =
-        '<span class="fr-badge fr-badge--warning fr-badge--sm">Selectionner</span>';
+        '<span class="fr-badge fr-badge--warning fr-badge--sm">Sélectionner</span>';
     }
     return;
   }
@@ -206,7 +206,7 @@ export function analyzeFields(): void {
     if (value === null) {
       fieldType = 'texte'; // Default to text for null-only fields
     } else if (type === 'number') {
-      fieldType = 'numerique';
+      fieldType = 'numérique';
     } else if (type === 'string') {
       if (!isNaN(Date.parse(value as string))) {
         fieldType = 'date';
@@ -228,13 +228,13 @@ export function updateFieldsList(): void {
   const container = document.getElementById('field-list') as HTMLElement;
   if (state.fields.length === 0) {
     container.innerHTML =
-      '<span style="color: var(--text-mention-grey); font-size: 0.8rem;">Selectionnez une source de donnees</span>';
+      '<span style="color: var(--text-mention-grey); font-size: 0.8rem;">Sélectionnez une source de données</span>';
     return;
   }
 
   container.innerHTML = state.fields
     .map((f) => {
-      const isNumeric = f.type === 'numerique';
+      const isNumeric = f.type === 'numérique';
       return `<span class="field-tag ${isNumeric ? 'numeric' : ''}">${f.name} <small>(${f.type})</small></span>`;
     })
     .join('');
@@ -279,7 +279,7 @@ export function showDataPreview(): void {
     .join('');
 
   body.innerHTML = `
-    <p class="fr-text--sm fr-mb-1w">${data.length} enregistrement(s), ${keys.length} champs \u2014 apercu des 20 premiers</p>
+    <p class="fr-text--sm fr-mb-1w">${data.length} enregistrement(s), ${keys.length} champs \u2014 aperçu des 20 premiers</p>
     <div style="overflow-x:auto;">
       <table class="fr-table fr-table--sm" style="font-size:0.8rem;">
         <thead><tr>${headerCells}</tr></thead>

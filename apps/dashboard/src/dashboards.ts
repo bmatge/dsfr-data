@@ -81,7 +81,7 @@ export async function newDashboard(): Promise<void> {
   if (state.dashboard.widgets.length > 0) {
     if (
       !(await confirmDialog(
-        'Creer un nouveau tableau de bord ? Les modifications non sauvegardees seront perdues.'
+        'Créer un nouveau tableau de bord ? Les modifications non sauvegardees seront perdues.'
       ))
     ) {
       return;
@@ -102,7 +102,7 @@ export function openDashboardsList(): void {
 
   if (state.savedDashboards.length === 0) {
     list.innerHTML =
-      '<p class="favorites-empty">Aucun tableau de bord sauvegarde.<br><span class="fr-text--sm" style="color:var(--text-mention-grey);">Utilisez la barre d\'outils pour en creer un.</span></p>';
+      '<p class="favorites-empty">Aucun tableau de bord sauvegarde.<br><span class="fr-text--sm" style="color:var(--text-mention-grey);">Utilisez la barre d\'outils pour en créer un.</span></p>';
   } else {
     list.replaceChildren();
     for (const d of state.savedDashboards) {
@@ -206,7 +206,7 @@ export function exportHTML(): void {
   a.download = `${state.dashboard.name.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.html`;
   a.click();
   URL.revokeObjectURL(url);
-  toastSuccess('Fichier HTML telecharge');
+  toastSuccess('Fichier HTML téléchargé');
 }
 
 export function navigateToSources(): void {

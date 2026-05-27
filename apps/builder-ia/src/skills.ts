@@ -31,11 +31,11 @@ export const SKILLS: Record<string, Skill> = {
   createChartAction: {
     id: 'createChartAction',
     name: 'Action createChart',
-    description: "Specification de l'action JSON pour creer un graphique dans le builder-IA",
-    trigger: ['createchart', 'creer un graphique', 'apercu', 'preview'],
+    description: "Specification de l'action JSON pour créer un graphique dans le builder-IA",
+    trigger: ['createchart', 'créer un graphique', 'aperçu', 'preview'],
     content: `## Action createChart (builder-IA uniquement)
 
-Cette action genere un graphique interactif dans l'apercu du builder-IA.
+Cette action généré un graphique interactif dans l'aperçu du builder-IA.
 Elle est distincte du code embarquable HTML (voir skills composants dsfr-data).
 
 ### Format
@@ -64,16 +64,16 @@ Elle est distincte du code embarquable HTML (voir skills composants dsfr-data).
 | type | String | oui | Type de visualisation (voir ci-dessous) |
 | labelField | String | selon type | Champ pour les labels / axe X |
 | valueField | String | oui | Champ pour les valeurs / axe Y |
-| valueField2 | String | non | 2e serie (bar-line, comparaisons) |
+| valueField2 | String | non | 2e série (bar-line, comparaisons) |
 | codeField | String | non | Champ code departement/region (map, map-reg) |
 | aggregation | String | non | Fonction : sum, avg, count, min, max |
-| where | String | non | Filtre pre-agregation (voir syntaxe ci-dessous) |
+| where | String | non | Filtre pre-agrégation (voir syntaxe ci-dessous) |
 | limit | Number | non | Nombre max de resultats |
-| sortOrder | String | non | Tri : "asc", "desc" ou "none" (preserve l'ordre source — utile pour mois/jours/series temporelles deja ordonnees en amont) |
-| sortField | String | non | Champ de tri. Vide = trie par valeur agregee (defaut). Mettre labelField pour tri alphabetique sur les categories. |
+| sortOrder | String | non | Tri : "asc", "desc" ou "none" (preserve l'ordre source — utile pour mois/jours/séries temporelles déjà ordonnees en amont) |
+| sortField | String | non | Champ de tri. Vide = trie par valeur agregee (défaut). Mettre labelField pour tri alphabetique sur les catégories. |
 | title | String | non | Titre affiche |
 | subtitle | String | non | Sous-titre affiche |
-| color | String | non | Couleur primaire hex (defaut: #000091) |
+| color | String | non | Couleur primaire hex (défaut: #000091) |
 | color2 | String | non | Couleur secondaire hex (bar-line) |
 | variant | String | non | Style KPI : info, success, warning, error |
 | unit | String | non | Unite affichee : EUR, %, ou texte libre |
@@ -84,20 +84,20 @@ Elle est distincte du code embarquable HTML (voir skills composants dsfr-data).
 ### Types valides et champs requis
 | Type | labelField | valueField | Cas d'usage |
 |------|-----------|------------|-------------|
-| bar | oui | oui | Comparer des categories (5-15) |
+| bar | oui | oui | Comparer des catégories (5-15) |
 | line | oui | oui | Evolution temporelle, tendances |
 | pie | oui | oui | Parts d'un tout (max 5-7 segments) |
 | radar | oui | oui | Profils multicriteres |
-| scatter | oui | oui | Correlation entre 2 variables numeriques |
+| scatter | oui | oui | Correlation entre 2 variables numériques |
 | bar-line | oui | oui (+valueField2) | 2 metriques : barres + ligne |
 | gauge | non | oui | Progression 0-100% |
-| kpi | non | oui | Indicateur chiffre cle unique |
-| map | non (codeField) | oui | Donnees par departement francais |
-| map-reg | non (codeField) | oui | Donnees par region francaise |
-| datalist | non | non (colonnes) | Tableau de donnees filtrable |
+| kpi | non | oui | Indicateur chiffre clé unique |
+| map | non (codeField) | oui | Données par departement francais |
+| map-reg | non (codeField) | oui | Données par region francaise |
+| datalist | non | non (colonnes) | Tableau de données filtrable |
 
 IMPORTANT :
-- \`doughnut\` = \`pie\` (le composant pie est un anneau par defaut)
+- \`doughnut\` = \`pie\` (le composant pie est un anneau par défaut)
 - \`horizontalBar\` = \`bar\` (le renderer le convertit automatiquement)
 - Pour KPI et gauge : PAS de labelField
 - Pour map/map-reg : utiliser codeField (pas labelField)
@@ -106,7 +106,7 @@ IMPORTANT :
 Format : \`"champ:operateur:valeur"\`
 Multiples filtres : virgule = ET logique \`"champ1:op:val, champ2:op:val"\`
 Operateurs : eq, neq, gt, gte, lt, lte, contains, in (separateur |)
-Le filtre s'applique AVANT l'agregation. Utiliser les noms de champs bruts de la source.
+Le filtre s'applique AVANT l'agrégation. Utiliser les noms de champs bruts de la source.
 
 ### Exemples
 \`\`\`json
@@ -125,7 +125,7 @@ Le filtre s'applique AVANT l'agregation. Utiliser les noms de champs bruts de la
 {"action":"createChart","config":{"type":"pie","labelField":"region","valueField":"population","aggregation":"sum","palette":"divergentAscending","title":"Population par region"}}
 \`\`\`
 
-Genere TOUJOURS UN SEUL bloc JSON par reponse. Pour changer la couleur ou palette d'un graphique existant, regenere le meme createChart avec la palette souhaitee.`,
+Généré TOUJOURS UN SEUL bloc JSON par reponse. Pour changer la couleur ou palette d'un graphique existant, regenere le même createChart avec la palette souhaitee.`,
   },
 
   // ---------------------------------------------------------------------------
@@ -135,12 +135,12 @@ Genere TOUJOURS UN SEUL bloc JSON par reponse. Pour changer la couleur ou palett
   reloadDataAction: {
     id: 'reloadDataAction',
     name: 'Action reloadData',
-    description: 'Recharger les donnees de la source avec des parametres ODSQL',
+    description: 'Recharger les données de la source avec des parametres ODSQL',
     trigger: ['recharger', 'reloaddata', 'nouveaux parametres', 'refiltrer'],
     content: `## Action reloadData (builder-IA uniquement)
 
-Recharge les donnees depuis l'API source avec de nouveaux parametres ODSQL.
-Utile quand l'utilisateur veut modifier le jeu de donnees avant de creer un graphique.
+Recharge les données depuis l'API source avec de nouveaux parametres ODSQL.
+Utile quand l'utilisateur veut modifier le jeu de données avant de créer un graphique.
 
 ### Format
 \`\`\`json
@@ -148,7 +148,7 @@ Utile quand l'utilisateur veut modifier le jeu de donnees avant de creer un grap
   "action": "reloadData",
   "query": {
     "where": "condition ODSQL",
-    "select": "champs a selectionner",
+    "select": "champs a sélectionner",
     "group_by": "champ de groupement",
     "order_by": "champ ASC|DESC",
     "limit": 100
@@ -164,7 +164,7 @@ Utile quand l'utilisateur veut modifier le jeu de donnees avant de creer un grap
 | where | String | Filtre ODSQL : \`"population > 10000"\` ou \`"nom like 'Paris%'"\` |
 | group_by | String | Groupement : \`"region"\` |
 | order_by | String | Tri : \`"population DESC"\` |
-| limit | Number | Nombre max de resultats (defaut API : 10, max : 100 par requete) |
+| limit | Number | Nombre max de resultats (défaut API : 10, max : 100 par requête) |
 
 ### Exemples
 \`\`\`json
@@ -185,27 +185,27 @@ avec la syntaxe \`config.where\` de createChart qui utilise le format "champ:ope
   dsfrDataSource: {
     id: 'dsfrDataSource',
     name: 'dsfr-data-source',
-    description: 'Composant de connexion aux donnees (API REST)',
-    trigger: ['source', 'charger', 'connecter', 'rafraichir', 'url', 'api', 'donnees'],
-    content: `## <dsfr-data-source> - Connexion aux donnees
+    description: 'Composant de connexion aux données (API REST)',
+    trigger: ['source', 'charger', 'connecter', 'rafraichir', 'url', 'api', 'données'],
+    content: `## <dsfr-data-source> - Connexion aux données
 
-Composant invisible qui recupere des donnees depuis une API REST et les distribue
+Composant invisible qui récupéré des données depuis une API REST et les distribue
 aux autres composants via un systeme de bus evenementiel (data-bridge).
 
-### Format des donnees
+### Format des données
 dsfr-data-source attend une reponse JSON. L'attribut \`transform\` permet d'extraire le
-tableau de donnees depuis la reponse. Le resultat DOIT etre un tableau d'objets plats :
+tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets plats :
 \`[{"region": "IDF", "population": 12000000}, {"region": "OCC", "population": 6000000}]\`
 
 ### Attributs
-| Attribut | Type | Defaut | Requis | Description |
+| Attribut | Type | Défaut | Requis | Description |
 |----------|------|--------|--------|-------------|
 | id | String | - | oui | Identifiant unique. Les autres composants s'y abonnent via \`source="cet-id"\`. |
-| url | String | \`""\` | oui | URL de l'API (GET par defaut) |
-| method | String | \`"GET"\` | non | Methode HTTP : GET ou POST |
+| url | String | \`""\` | oui | URL de l'API (GET par défaut) |
+| method | String | \`"GET"\` | non | Méthode HTTP : GET ou POST |
 | headers | String | \`""\` | non | En-tetes HTTP en JSON : \`'{"Authorization": "Bearer xxx"}'\` |
 | params | String | \`""\` | non | Parametres query (GET) ou body (POST) en JSON |
-| transform | String | \`""\` | non | Chemin JSONPath vers les donnees : \`"results"\`, \`"data.items"\`, \`"records"\` |
+| transform | String | \`""\` | non | Chemin JSONPath vers les données : \`"results"\`, \`"data.items"\`, \`"records"\` |
 | refresh | Number | \`0\` | non | Rafraichissement auto en secondes (0 = desactive) |
 | paginate | Boolean | \`false\` | non | Active la pagination serveur (injecte page/page_size dans l'URL, stocke la meta) |
 | page-size | Number | \`20\` | non | Taille de page pour la pagination serveur (nombre de records par page) |
@@ -217,22 +217,22 @@ tableau de donnees depuis la reponse. Le resultat DOIT etre un tableau d'objets 
 | where | String | \`""\` | non | Clause WHERE statique (ODSQL ou colon syntax). |
 | select | String | \`""\` | non | Clause SELECT serveur (ODS). Ex: \`"count(*) as total, region"\` |
 | group-by | String | \`""\` | non | Group-by serveur (si supporte par le provider). |
-| aggregate | String | \`""\` | non | Agregation serveur. Ex: \`"population:sum"\` |
+| aggregate | String | \`""\` | non | Agrégation serveur. Ex: \`"population:sum"\` |
 | order-by | String | \`""\` | non | Tri serveur. Ex: \`"population:desc"\` |
 | server-side | Boolean | \`false\` | non | Active la pagination serveur page par page (datalist, tableaux). |
 | limit | Number | \`0\` | non | Limite du nombre de resultats (0 = pas de limite). |
-| data | String | \`""\` | non | Donnees JSON inline (pas de fetch). Ex: \`data='[{"x":1},{"x":2}]'\` |
+| data | String | \`""\` | non | Données JSON inline (pas de fetch). Ex: \`data='[{"x":1},{"x":2}]'\` |
 | use-proxy | Boolean | \`false\` | non | Force le passage par le proxy CORS generique. Utile pour les APIs externes sans CORS. |
-| api-key-ref | String | \`""\` | non | Reference vers une cle API dans window.DSFR_DATA_KEYS. Injecte la valeur comme header Authorization. |
+| api-key-ref | String | \`""\` | non | Reference vers une clé API dans window.DSFR_DATA_KEYS. Injecte la valeur comme header Authorization. |
 
-### Evenements emis
-- \`dsfr-data-loaded\` : donnees chargees (detail : tableau de donnees)
+### Événements emis
+- \`dsfr-data-loaded\` : données chargees (detail : tableau de données)
 - \`dsfr-data-loading\` : chargement en cours
 - \`dsfr-data-error\` : erreur (detail : objet Error)
 
 ### Methodes publiques
-- \`reload()\` : force le rechargement des donnees
-- \`getData()\` : retourne les donnees actuelles (tableau d'objets)
+- \`reload()\` : force le rechargement des données
+- \`getData()\` : retourne les données actuelles (tableau d'objets)
 
 ### Exemples
 \`\`\`html
@@ -265,7 +265,7 @@ tableau de donnees depuis la reponse. Le resultat DOIT etre un tableau d'objets 
   page-size="20">
 </dsfr-data-source>
 
-<!-- API avec cle depuis le registre global (window.DSFR_DATA_KEYS) -->
+<!-- API avec clé depuis le registre global (window.DSFR_DATA_KEYS) -->
 <script>window.DSFR_DATA_KEYS = { tmdb: 'Bearer eyJ...' };</script>
 <dsfr-data-source id="films"
   url="https://api.themoviedb.org/3/movie/popular"
@@ -274,12 +274,12 @@ tableau de donnees depuis la reponse. Le resultat DOIT etre un tableau d'objets 
 </dsfr-data-source>
 \`\`\`
 
-> **Note** : les APIs Grist et ODS v1 renvoient des donnees imbriquees sous \`fields\`.
+> **Note** : les APIs Grist et ODS v1 renvoient des données imbriquees sous \`fields\`.
 > Utilisez \`<dsfr-data-normalize flatten="fields">\` pour les aplatir avant de les passer
 > aux facettes, datalist ou graphiques. Voir la doc de dsfr-data-normalize.
 
 > **Mode adapter** : avec \`api-type\`, dsfr-data-source gere la pagination automatiquement.
-> ODS: max 1000 records, Tabular: max 25000 records (500 pages de 50), Grist: toutes les donnees.
+> ODS: max 1000 records, Tabular: max 25000 records (500 pages de 50), Grist: toutes les données.
 > Le mode adapter ecoute aussi les commandes \`dsfr-data-source-command\` (page, where, orderBy)
 > emises par dsfr-data-facets, dsfr-data-search et dsfr-data-list.
 
@@ -307,16 +307,16 @@ tableau de donnees depuis la reponse. Le resultat DOIT etre un tableau d'objets 
   dsfrDataQuery: {
     id: 'dsfrDataQuery',
     name: 'dsfr-data-query',
-    description: 'Filtrage, agregation et tri declaratif des donnees',
+    description: 'Filtrage, agrégation et tri declaratif des données',
     trigger: [
       'filtre',
       'filtrer',
       'grouper',
-      'agreger',
+      'agréger',
       'trier',
       'transformer',
       'query',
-      'requete',
+      'requête',
       'top',
       'moyenne',
       'somme',
@@ -330,16 +330,16 @@ tableau de donnees depuis la reponse. Le resultat DOIT etre un tableau d'objets 
       'dans le',
       'pour le',
     ],
-    content: `## <dsfr-data-query> - Transformation de donnees
+    content: `## <dsfr-data-query> - Transformation de données
 
-Composant invisible qui transforme les donnees recues d'une source (dsfr-data-source
-ou dsfr-data-normalize). Filtre, groupe, agrege et trie de facon declarative.
-Ne fait aucun fetch HTTP — les donnees transitent via le data-bridge.
+Composant invisible qui transforme les données recues d'une source (dsfr-data-source
+ou dsfr-data-normalize). Filtre, groupe, agrégé et trie de facon declarative.
+Ne fait aucun fetch HTTP — les données transitent via le data-bridge.
 Peut s'enchainer : un dsfr-data-query peut etre la source d'un autre dsfr-data-query.
 
 ### Pattern recommande : source -> query -> chart
 \`\`\`html
-<!-- 1. dsfr-data-source recupere les donnees -->
+<!-- 1. dsfr-data-source récupéré les données -->
 <dsfr-data-source id="src" api-type="opendatasoft"
   base-url="https://data.opendatasoft.com" dataset-id="mon-dataset"
   select="sum(population) as total, region" group-by="region">
@@ -350,29 +350,29 @@ Peut s'enchainer : un dsfr-data-query peut etre la source d'un autre dsfr-data-q
 <dsfr-data-chart source="data" type="bar" label-field="region" value-field="total"></dsfr-data-chart>
 \`\`\`
 
-### Format des donnees
+### Format des données
 Entree : tableau d'objets plats (fourni par dsfr-data-source ou un autre dsfr-data-query).
 Sortie : tableau d'objets plats, transforme selon les attributs.
-Apres agregation, les champs sont nommes automatiquement : \`champ__fonction\`
+Apres agrégation, les champs sont nommes automatiquement : \`champ__fonction\`
 (ex: \`population__sum\`, \`prix__avg\`).
 
 ### Attributs
-| Attribut | Type | Defaut | Requis | Description |
+| Attribut | Type | Défaut | Requis | Description |
 |----------|------|--------|--------|-------------|
 | id | String | - | oui | Identifiant unique |
 | source | String | \`""\` | oui | ID de la dsfr-data-source ou dsfr-data-query parente |
 | where | String | \`""\` | non | Filtres (voir syntaxe ci-dessous) |
 | filter | String | \`""\` | non | Alias de where (compatibilite) |
 | group-by | String | \`""\` | non | Champs de groupement (separes par virgule) |
-| aggregate | String | \`""\` | non | Agregations : \`"champ:fonction"\` ou \`"champ:fonction:alias"\` |
-| order-by | String | \`""\` | non | Tri : \`"champ:asc"\` ou \`"champ:desc"\`. **Omettre cet attribut preserve l'ordre source** (ordre de premiere apparition apres group-by) — utile pour les mois en lettres, jours de la semaine, ou toute serie deja ordonnee en amont. |
+| aggregate | String | \`""\` | non | Agrégations : \`"champ:fonction"\` ou \`"champ:fonction:alias"\` |
+| order-by | String | \`""\` | non | Tri : \`"champ:asc"\` ou \`"champ:desc"\`. **Omettre cet attribut preserve l'ordre source** (ordre de premiere apparition apres group-by) — utile pour les mois en lettres, jours de la semaine, ou toute série déjà ordonnee en amont. |
 | limit | Number | \`0\` | non | Limite de resultats (0 = illimite) |
-| transform | String | \`""\` | non | Chemin JSONPath dans les donnees recues |
+| transform | String | \`""\` | non | Chemin JSONPath dans les données recues |
 | refresh | Number | \`0\` | non | Rafraichissement en secondes (0 = desactive) |
 | server-side | Boolean | \`false\` | non | Active le transfert de commandes vers la source (pagination, recherche, tri) |
 | page-size | Number | \`20\` | non | Taille de page (transmise a la source en mode server-side) |
 
-> dsfr-data-query est un pur transformateur de donnees. Utilisez dsfr-data-source pour le fetch HTTP.
+> dsfr-data-query est un pur transformateur de données. Utilisez dsfr-data-source pour le fetch HTTP.
 
 ### Mode server-side
 Avec \`server-side\`, dsfr-data-query transfere les commandes des composants en aval
@@ -403,7 +403,7 @@ Multiples filtres separes par virgule (logique ET) :
 | isnull | Est vide/null | \`"email:isnull"\` |
 | isnotnull | N'est pas vide | \`"telephone:isnotnull"\` |
 
-### Fonctions d'agregation
+### Fonctions d'agrégation
 Format : \`"champ:fonction"\` ou \`"champ:fonction:alias"\`
 Nommage automatique sans alias : \`champ__fonction\` (ex: \`population__sum\`)
 
@@ -424,7 +424,7 @@ Nommage automatique sans alias : \`champ__fonction\` (ex: \`population__sum\`)
   limit="10">
 </dsfr-data-query>
 
-<!-- Grouper et agreger -->
+<!-- Grouper et agréger -->
 <dsfr-data-query id="stats" source="communes"
   group-by="region"
   aggregate="population:sum, population:count"
@@ -486,7 +486,7 @@ Nommage automatique sans alias : \`champ__fonction\` (ex: \`population__sum\`)
   dsfrDataNormalize: {
     id: 'dsfrDataNormalize',
     name: 'dsfr-data-normalize',
-    description: 'Nettoyage et normalisation des donnees avant traitement',
+    description: 'Nettoyage et normalisation des données avant traitement',
     trigger: [
       'normaliser',
       'nettoyer',
@@ -510,60 +510,60 @@ Nommage automatique sans alias : \`champ__fonction\` (ex: \`population__sum\`)
       'round',
       'decimales',
     ],
-    content: `## <dsfr-data-normalize> - Normalisation de donnees
+    content: `## <dsfr-data-normalize> - Normalisation de données
 
-Composant invisible intermediaire qui nettoie et normalise les donnees avant traitement.
+Composant invisible intermediaire qui nettoie et normalise les données avant traitement.
 Se place entre <dsfr-data-source> et <dsfr-data-query> (ou directement avant une visualisation).
 
 ### Position recommandee
 \`\`\`
 dsfr-data-source -> dsfr-data-normalize -> dsfr-data-query -> dsfr-data-chart
 \`\`\`
-Normaliser AVANT dsfr-data-query permet aux filtres et agregations de travailler sur des donnees propres
+Normaliser AVANT dsfr-data-query permet aux filtres et agrégations de travailler sur des données propres
 (evite les comparaisons string vs number).
 
-### Format des donnees
+### Format des données
 Entree : tableau d'objets (fourni par dsfr-data-source ou un autre composant).
-Sortie : meme tableau avec valeurs nettoyees/renommees.
+Sortie : même tableau avec valeurs nettoyees/renommees.
 
 ### Attributs
-| Attribut | Type | Defaut | Requis | Description |
+| Attribut | Type | Défaut | Requis | Description |
 |----------|------|--------|--------|-------------|
 | id | String | - | oui | Identifiant unique. Sans cet attribut, dsfr-data-normalize ne se monte pas (log \`console.error\` + attribut \`data-dsfr-config-error\` sur l'element). |
 | source | String | \`""\` | oui | ID de la source a ecouter |
-| flatten | String | \`""\` | non | Cle du sous-objet a extraire au premier niveau. Utilise pour les APIs Grist, ODS v1, Airtable qui wrappent les donnees sous \`fields\`. Supporte la dot notation (\`data.attributes\`). |
+| flatten | String | \`""\` | non | Clé du sous-objet a extraire au premier niveau. Utilise pour les APIs Grist, ODS v1, Airtable qui wrappent les données sous \`fields\`. Supporte la dot notation (\`data.attributes\`). |
 | numeric | String | \`""\` | non | Champs a forcer en nombre (virgule-separes) : \`"population, surface"\` |
-| numeric-auto | Boolean | \`false\` | non | Detection et conversion auto des champs numeriques |
+| numeric-auto | Boolean | \`false\` | non | Detection et conversion auto des champs numériques |
 | rename | String | \`""\` | non | Renommage : \`"ancien:nouveau | ancien2:nouveau2"\` (pipe-separe) |
-| trim | Boolean | \`false\` | non | Supprime les espaces en debut/fin des cles ET valeurs string |
+| trim | Boolean | \`false\` | non | Supprime les espaces en debut/fin des clés ET valeurs string |
 | strip-html | Boolean | \`false\` | non | Supprime les balises HTML des valeurs string |
 | replace | String | \`""\` | non | Remplace des valeurs globalement : \`"N/A: | n.d.: | -:0"\` (pipe-separe) |
 | replace-fields | String | \`""\` | non | Remplacement cible par champ : \`"CHAMP:ancien:nouveau | CHAMP2:a:n"\` (pipe-separe). Ne remplace que dans le champ specifie. |
-| round | String | \`""\` | non | Arrondit des champs numeriques : \`"montant, prix"\` (0 decimales) ou \`"taux:2, score:1"\` (decimales explicites) |
-| lowercase-keys | Boolean | \`false\` | non | Met toutes les cles en minuscules |
+| round | String | \`""\` | non | Arrondit des champs numériques : \`"montant, prix"\` (0 decimales) ou \`"taux:2, score:1"\` (decimales explicites) |
+| lowercase-keys | Boolean | \`false\` | non | Met toutes les clés en minuscules |
 
 ### Ordre d'execution des transformations
 1. **flatten** — aplatit le sous-objet designe
-2. trim — nettoie les espaces (cles et valeurs)
+2. trim — nettoie les espaces (clés et valeurs)
 3. strip-html — supprime le HTML
 4a. **replace-fields** — remplace les valeurs dans les champs specifies
 4b. replace — remplace les valeurs globalement (tous les champs)
 5. numeric / numeric-auto — conversion en nombres
-6. **round** — arrondit les valeurs numeriques
-7. rename — renomme les cles
-8. lowercase-keys — cles en minuscules
+6. **round** — arrondit les valeurs numériques
+7. rename — renomme les clés
+8. lowercase-keys — clés en minuscules
 
 ### Separateurs
 - \`numeric\` : champs separes par virgule
-- \`rename\` et \`replace\` : paires separees par \`|\`, cle et valeur separees par \`:\`
+- \`rename\` et \`replace\` : paires separees par \`|\`, clé et valeur separees par \`:\`
   Le \`:\` separe le pattern de sa valeur de remplacement (valeur vide = suppression).
 - \`replace-fields\` : paires separees par \`|\`, format \`CHAMP:pattern:remplacement\` (les 2 premiers \`:\` sont des delimiteurs, le remplacement peut contenir des \`:\`).
 
-### Aplatir des donnees imbriquees (Grist, ODS v1, Airtable)
+### Aplatir des données imbriquees (Grist, ODS v1, Airtable)
 
 Certaines APIs renvoient chaque enregistrement sous la forme \`{id, fields: {…}}\`.
-L'attribut \`flatten\` extrait les cles du sous-objet et les remonte au premier niveau,
-rendant les donnees compatibles avec tous les composants (facettes, datalist, graphiques, KPI).
+L'attribut \`flatten\` extrait les clés du sous-objet et les remonte au premier niveau,
+rendant les données compatibles avec tous les composants (facettes, datalist, graphiques, KPI).
 
 \`\`\`html
 <!-- Grist -->
@@ -591,7 +591,7 @@ rendant les donnees compatibles avec tous les composants (facettes, datalist, gr
 
 ### Exemples
 \`\`\`html
-<!-- Conversion numerique + renommage -->
+<!-- Conversion numérique + renommage -->
 <dsfr-data-source id="raw" url="https://api.fr/data" transform="results"></dsfr-data-source>
 <dsfr-data-normalize id="clean" source="raw"
   numeric="population, budget"
@@ -601,7 +601,7 @@ rendant les donnees compatibles avec tous les composants (facettes, datalist, gr
 <dsfr-data-query id="stats" source="clean" group-by="Departement" aggregate="population:sum"></dsfr-data-query>
 <dsfr-data-chart source="stats" type="bar" label-field="Departement" value-field="population__sum"></dsfr-data-chart>
 
-<!-- Grist : aplatir + nettoyer + forcer les types numeriques -->
+<!-- Grist : aplatir + nettoyer + forcer les types numériques -->
 <dsfr-data-normalize id="clean" source="raw"
   flatten="fields"
   trim
@@ -625,7 +625,7 @@ rendant les donnees compatibles avec tous les composants (facettes, datalist, gr
 <!-- Arrondir a 2 decimales (taux) -->
 <dsfr-data-normalize id="clean" source="raw" round="taux:2"></dsfr-data-normalize>
 
-<!-- Normalisation des cles en minuscules -->
+<!-- Normalisation des clés en minuscules -->
 <dsfr-data-normalize id="lower" source="raw" lowercase-keys></dsfr-data-normalize>
 
 <!-- INSEE Melodi : decoder les dimensions codees par champ -->
@@ -642,12 +642,12 @@ rendant les donnees compatibles avec tous les composants (facettes, datalist, gr
   dsfrDataFacets: {
     id: 'dsfrDataFacets',
     name: 'dsfr-data-facets',
-    description: 'Filtres a facettes interactifs pour exploration de donnees',
+    description: 'Filtres a facettes interactifs pour exploration de données',
     trigger: [
       'facette',
       'facets',
       'filtre interactif',
-      'categorie',
+      'catégorie',
       'refinement',
       'exploration',
       'filtrer par',
@@ -655,20 +655,20 @@ rendant les donnees compatibles avec tous les composants (facettes, datalist, gr
     content: `## <dsfr-data-facets> - Filtres a facettes
 
 Composant visuel intermediaire qui affiche des filtres interactifs (checkboxes) bases sur les valeurs
-categoriques des donnees. Se place entre une source/normalize/query et les composants de visualisation.
+categoriques des données. Se place entre une source/normalize/query et les composants de visualisation.
 
 ### Position dans le pipeline
 \`\`\`
 dsfr-data-source -> dsfr-data-normalize -> dsfr-data-facets -> dsfr-data-chart / dsfr-data-list
 \`\`\`
-Les donnees filtrees sont redistribuees automatiquement aux composants en aval.
+Les données filtrees sont redistribuees automatiquement aux composants en aval.
 
-### Format des donnees
+### Format des données
 Entree : tableau d'objets (fourni par dsfr-data-source, dsfr-data-normalize ou dsfr-data-query).
-Sortie : meme tableau, filtre selon les selections de l'utilisateur.
+Sortie : même tableau, filtre selon les selections de l'utilisateur.
 
 ### Attributs
-| Attribut | Type | Defaut | Requis | Description |
+| Attribut | Type | Défaut | Requis | Description |
 |----------|------|--------|--------|-------------|
 | id | String | - | oui | Identifiant unique. Sans cet attribut, dsfr-data-facets affiche une alerte DSFR \`fr-alert--warning\` au lieu des facettes (et pose \`data-dsfr-config-error\` pour le debug). |
 | source | String | \`""\` | oui | ID de la source a ecouter |
@@ -679,19 +679,19 @@ Sortie : meme tableau, filtre selon les selections de l'utilisateur.
 | sort | String | \`"count"\` | non | Tri des valeurs : count, -count, alpha, -alpha |
 | searchable | String | \`""\` | non | Champs avec barre de recherche (virgule-separes) |
 | hide-empty | Boolean | \`false\` | non | Masquer les facettes avec une seule valeur |
-| display | String | \`""\` | non | Mode d'affichage par facette : \`"field:select | field2:multiselect"\`. Modes : checkbox (defaut), select, multiselect, radio |
+| display | String | \`""\` | non | Mode d'affichage par facette : \`"field:select | field2:multiselect"\`. Modes : checkbox (défaut), select, multiselect, radio |
 | hide-counts | Boolean | \`false\` | non | Masquer les compteurs (N) a cote de chaque valeur de facette |
 | url-params | Boolean | \`false\` | non | Active la lecture des parametres d'URL comme pre-selections de facettes |
 | url-param-map | String | \`""\` | non | Mapping URL param -> champ : \`"r:region | t:type"\`. Si vide, correspondance directe |
 | url-sync | Boolean | \`false\` | non | Synchronise l'URL quand l'utilisateur change les facettes (replaceState) |
 | server-facets | Boolean | \`false\` | non | Active le mode facettes serveur ODS. Fetch les valeurs depuis l'API ODS /facets. Requiert source vers dsfr-data-source api-type="opendatasoft" server-side (via dsfr-data-query). En mode server-facets, fields est obligatoire |
 | static-values | String | \`""\` | non | Valeurs de facettes pre-calculees en JSON : \`'{"region":["IDF","PACA"],"type":["Commune"]}')\`. Les selections envoient des commandes WHERE en colon syntax au dsfr-data-query. Compteurs masques automatiquement. Utile pour Tabular/Grist/generique qui n'ont pas d'API facettes serveur |
-| cols | String | \`""\` | non | Colonnage DSFR : \`"6"\` (global, 2/ligne), \`"4"\` (3/ligne), ou par facette \`"region:4 | type:6"\` (defaut fr-col-6 pour non-specifies) |
+| cols | String | \`""\` | non | Colonnage DSFR : \`"6"\` (global, 2/ligne), \`"4"\` (3/ligne), ou par facette \`"region:4 | type:6"\` (défaut fr-col-6 pour non-specifies) |
 
 ### Modes d'affichage
-- **checkbox** (defaut) : fieldset DSFR avec checkboxes, compteurs, "Voir plus/moins", recherche optionnelle
+- **checkbox** (défaut) : fieldset DSFR avec checkboxes, compteurs, "Voir plus/moins", recherche optionnelle
 - **select** : liste deroulante DSFR standard, selection exclusive (une seule valeur)
-- **multiselect** : dropdown collapsible avec checkboxes DSFR, recherche integree, bouton "Tout selectionner/deselectionner"
+- **multiselect** : dropdown collapsible avec checkboxes DSFR, recherche integree, bouton "Tout sélectionner/deselectionner"
 - **radio** : dropdown collapsible avec radio buttons DSFR, recherche integree, selection exclusive
 
 Le mode \`select\` rend la facette automatiquement exclusive.
@@ -704,7 +704,7 @@ Le mode \`multiselect\` rend la facette automatiquement disjonctive (multi-selec
 - Les compteurs se recalculent dynamiquement selon les selections
 
 ### Auto-detection
-Si \`fields\` est omis, le composant detecte automatiquement les champs categoriques :
+Si \`fields\` est omis, le composant détecté automatiquement les champs categoriques :
 champs de type string avec 2 a 50 valeurs uniques (exclut les champs ID-like).
 
 ### Exemples
@@ -761,8 +761,8 @@ champs de type string avec 2 a 50 valeurs uniques (exclut les champs ID-like).
 <dsfr-data-query id="q" source="src" server-side></dsfr-data-query>
 <dsfr-data-search source="q" server-search placeholder="Rechercher..." count></dsfr-data-search>
 <dsfr-data-facets id="filtered" source="q" server-facets
-  fields="region, categorie"
-  labels="region:Region | categorie:Categorie">
+  fields="region, catégorie"
+  labels="region:Region | catégorie:Catégorie">
 </dsfr-data-facets>
 <dsfr-data-display source="filtered" cols="3" pagination="20">
   <template>...</template>
@@ -773,7 +773,7 @@ champs de type string avec 2 a 50 valeurs uniques (exclut les champs ID-like).
   dsfrDataSearch: {
     id: 'dsfrDataSearch',
     name: 'dsfr-data-search',
-    description: 'Recherche textuelle avec champ DSFR, filtre les donnees en amont',
+    description: 'Recherche textuelle avec champ DSFR, filtre les données en amont',
     trigger: [
       'recherche',
       'search',
@@ -785,18 +785,18 @@ champs de type string avec 2 a 50 valeurs uniques (exclut les champs ID-like).
     content: `## <dsfr-data-search> - Recherche textuelle
 
 Composant visuel intermediaire qui affiche un champ de recherche DSFR et filtre
-les donnees avant de les redistribuer aux composants en aval. Se place entre
+les données avant de les redistribuer aux composants en aval. Se place entre
 une source/normalize et les facettes/visualisations.
 
 ### Position dans le pipeline
 \`\`\`
 dsfr-data-source -> dsfr-data-normalize -> dsfr-data-search -> dsfr-data-facets -> dsfr-data-display
 \`\`\`
-La recherche reduit le jeu de donnees, les facettes affinent ensuite.
+La recherche reduit le jeu de données, les facettes affinent ensuite.
 Les compteurs de facettes se recalculent dynamiquement.
 
 ### Attributs
-| Attribut | Type | Defaut | Requis | Description |
+| Attribut | Type | Défaut | Requis | Description |
 |----------|------|--------|--------|-------------|
 | id | String | - | oui | Identifiant unique. Sans cet attribut, dsfr-data-search affiche une alerte DSFR \`fr-alert--warning\` au lieu de la barre de recherche (et pose \`data-dsfr-config-error\` pour le debug). |
 | source | String | "" | oui | ID de la source a ecouter |
@@ -804,7 +804,7 @@ Les compteurs de facettes se recalculent dynamiquement.
 | placeholder | String | "Rechercher..." | non | Placeholder du champ |
 | label | String | "Rechercher" | non | Label accessible |
 | debounce | Number | 300 | non | Delai en ms avant filtrage |
-| min-length | Number | 0 | non | Nb minimum de caracteres |
+| min-length | Number | 0 | non | Nb minimum de caractères |
 | highlight | Boolean | false | non | Ajoute _highlight avec <mark> pour dsfr-data-display |
 | operator | String | "contains" | non | Mode : contains, starts, words |
 | sr-label | Boolean | false | non | Label en sr-only (masque visuellement) |
@@ -816,11 +816,11 @@ Les compteurs de facettes se recalculent dynamiquement.
 
 ### Recherche serveur
 Avec \`server-search\`, au lieu de filtrer localement, dsfr-data-search envoie une commande
-\`{ where }\` au source upstream (dsfr-data-query server-side). Le template par defaut utilise
+\`{ where }\` au source upstream (dsfr-data-query server-side). Le template par défaut utilise
 la fonction ODSQL \`search()\` pour une recherche full-text. Personnalisable via \`search-template\`.
 
 ### Modes de recherche
-- **contains** (defaut) : sous-chaine insensible a la casse et aux accents
+- **contains** (défaut) : sous-chaine insensible a la casse et aux accents
 - **starts** : chaque mot du champ doit commencer par le terme
 - **words** : tous les mots saisis doivent etre presents (dans n'importe quel champ)
 
@@ -840,7 +840,7 @@ la fonction ODSQL \`search()\` pour une recherche full-text. Personnalisable via
   operator="words" count>
 </dsfr-data-search>
 <dsfr-data-facets id="filtered" source="searched"
-  fields="categorie, region">
+  fields="catégorie, region">
 </dsfr-data-facets>
 <dsfr-data-display source="filtered" ...>...</dsfr-data-display>
 
@@ -874,7 +874,7 @@ la fonction ODSQL \`search()\` pour une recherche full-text. Personnalisable via
   dsfrDataKpi: {
     id: 'dsfrDataKpi',
     name: 'dsfr-data-kpi',
-    description: 'Composant KPI avec agregation, seuils et tendances',
+    description: 'Composant KPI avec agrégation, seuils et tendances',
     trigger: [
       'kpi',
       'indicateur',
@@ -888,26 +888,26 @@ la fonction ODSQL \`search()\` pour une recherche full-text. Personnalisable via
       'grouper',
       'grille',
     ],
-    content: `## <dsfr-data-kpi> - Indicateur chiffre cle
+    content: `## <dsfr-data-kpi> - Indicateur chiffre clé
 
-Affiche une valeur numerique mise en avant avec formatage, couleur conditionnelle, icone et tendance.
+Affiche une valeur numérique mise en avant avec formatage, couleur conditionnelle, icone et tendance.
 Se connecte a une dsfr-data-source ou dsfr-data-query via l'attribut \`source\`.
 
-### Format des donnees
-Attend un tableau d'objets. L'attribut \`valeur\` determine comment extraire/agreger la donnee :
+### Format des données
+Attend un tableau d'objets. L'attribut \`valeur\` determine comment extraire/agréger la donnee :
 - Valeur directe d'un champ : \`valeur="score"\` (prend le 1er enregistrement)
-- Agregation sur tout le tableau : \`valeur="avg:score"\`, \`valeur="sum:montant"\`
+- Agrégation sur tout le tableau : \`valeur="avg:score"\`, \`valeur="sum:montant"\`
 
 ### Attributs
-| Attribut | Type | Defaut | Requis | Description |
+| Attribut | Type | Défaut | Requis | Description |
 |----------|------|--------|--------|-------------|
 | source | String | \`""\` | oui | ID de la dsfr-data-source ou dsfr-data-query |
 | valeur | String | \`""\` | oui | Expression : \`"champ"\`, \`"avg:champ"\`, \`"sum:champ"\`, \`"min:champ"\`, \`"max:champ"\`, \`"count:champ:valeur"\` |
 | label | String | \`""\` | non | Libelle sous la valeur |
-| description | String | \`""\` | non | Description pour accessibilite (sr-only) |
+| description | String | \`""\` | non | Description pour accessibilité (sr-only) |
 | icone | String | \`""\` | non | Classe Remix Icon : \`ri-global-line\`, \`ri-money-euro-circle-line\`, etc. |
 | format | String | \`"nombre"\` | non | Format : nombre, pourcentage, euro, decimal |
-| tendance | String | \`""\` | non | Expression de tendance : valeur fixe (\`"+3.2"\`) ou agregation |
+| tendance | String | \`""\` | non | Expression de tendance : valeur fixe (\`"+3.2"\`) ou agrégation |
 | couleur | String | \`""\` | non | Forcer la couleur : vert, orange, rouge, bleu |
 | seuil-vert | Number | - | non | Seuil au-dessus duquel couleur = vert |
 | seuil-orange | Number | - | non | Seuil au-dessus duquel couleur = orange (en-dessous = rouge) |
@@ -922,20 +922,20 @@ Utiliser \`<dsfr-data-kpi-group>\` pour disposer plusieurs KPIs en grille respon
   <dsfr-data-kpi source="data" valeur="count" label="Nombre" col="3"></dsfr-data-kpi>
 </dsfr-data-kpi-group>
 \`\`\`
-- \`cols\` : nombre de colonnes par defaut (chaque KPI occupe 12/cols colonnes)
+- \`cols\` : nombre de colonnes par défaut (chaque KPI occupe 12/cols colonnes)
 - \`col\` sur chaque dsfr-data-kpi : override individuel (1-12)
 - \`gap\` : espacement entre KPIs (sm, md, lg)
 - Responsive automatique : empile en mobile
 
 ### Logique des couleurs
-1. Si \`couleur\` est defini : applique cette couleur directement
-2. Si \`seuil-vert\` et \`seuil-orange\` sont definis : couleur automatique selon la valeur
+1. Si \`couleur\` est défini : applique cette couleur directement
+2. Si \`seuil-vert\` et \`seuil-orange\` sont définis : couleur automatique selon la valeur
    - valeur >= seuil-vert -> vert (success)
    - valeur >= seuil-orange -> orange (warning)
    - valeur < seuil-orange -> rouge (error)
-3. Sinon : bleu par defaut (info)
+3. Sinon : bleu par défaut (info)
 
-### Expressions d'agregation (attribut valeur)
+### Expressions d'agrégation (attribut valeur)
 | Expression | Description | Exemple |
 |-----------|-------------|---------|
 | \`"champ"\` | Valeur directe du 1er enregistrement | \`valeur="score_rgaa"\` |
@@ -992,18 +992,18 @@ Utiliser \`<dsfr-data-kpi-group>\` pour disposer plusieurs KPIs en grille respon
 Conteneur qui dispose plusieurs \`<dsfr-data-kpi>\` dans une grille CSS 12 colonnes responsive.
 
 ### Attributs
-| Attribut | Type | Defaut | Requis | Description |
+| Attribut | Type | Défaut | Requis | Description |
 |----------|------|--------|--------|-------------|
-| cols | Number | \`3\` | non | Nombre de colonnes par defaut (1-12) |
+| cols | Number | \`3\` | non | Nombre de colonnes par défaut (1-12) |
 | gap | String | \`"md"\` | non | Espacement : sm (0.5rem), md (1rem), lg (1.5rem) |
 | aria-label | String | \`""\` | non | Label accessible pour le groupe |
 
 ### Fonctionnement
 - Grille CSS 12 colonnes (systeme DSFR)
-- Chaque enfant occupe \`Math.floor(12 / cols)\` colonnes par defaut
+- Chaque enfant occupe \`Math.floor(12 / cols)\` colonnes par défaut
 - L'attribut \`col\` sur un enfant \`<dsfr-data-kpi>\` override la largeur (1-12)
 - Responsive : empile en mobile (<768px), grille complete en desktop
-- \`role="group"\` automatique pour l'accessibilite
+- \`role="group"\` automatique pour l'accessibilité
 
 ### Exemples
 \`\`\`html
@@ -1034,7 +1034,7 @@ Conteneur qui dispose plusieurs \`<dsfr-data-kpi>\` dans une grille CSS 12 colon
   dsfrDataChart: {
     id: 'dsfrDataChart',
     name: 'dsfr-data-chart',
-    description: 'Wrapper DSFR Chart connecte aux sources de donnees',
+    description: 'Wrapper DSFR Chart connecte aux sources de données',
     trigger: [
       'graphique',
       'chart',
@@ -1055,10 +1055,10 @@ Conteneur qui dispose plusieurs \`<dsfr-data-kpi>\` dans une grille CSS 12 colon
       'habillage',
       'encadrer',
       'titre graphique',
-      'source donnees',
+      'source données',
       'screenshot',
-      'capture ecran',
-      'plein ecran',
+      'capture écran',
+      'plein écran',
       'fullscreen',
       'tendance',
       'trend',
@@ -1066,10 +1066,10 @@ Conteneur qui dispose plusieurs \`<dsfr-data-kpi>\` dans une grille CSS 12 colon
     content: `## <dsfr-data-chart> - Graphiques DSFR
 
 Wrapper connectant les composants DSFR Chart officiels au systeme dsfr-data-source/dsfr-data-query.
-Se connecte a une source via l'attribut \`source\`. Genere automatiquement le format
+Se connecte a une source via l'attribut \`source\`. Généré automatiquement le format
 JSON imbrique attendu par les composants DSFR Chart natifs.
 
-### Format des donnees
+### Format des données
 Attend un tableau d'objets plats depuis la source :
 \`[{"region": "IDF", "population": 12000000}, {"region": "OCC", "population": 6000000}]\`
 
@@ -1082,24 +1082,24 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 |------|---------------|-------------|
 | bar | bar-chart | Barres verticales (ou horizontales avec \`horizontal\`) |
 | line | line-chart | Courbes / lignes |
-| pie | pie-chart | Anneau (defaut) ou camembert plein (avec \`fill\`) |
+| pie | pie-chart | Anneau (défaut) ou camembert plein (avec \`fill\`) |
 | radar | radar-chart | Diagramme radar |
 | scatter | scatter-chart | Nuage de points |
 | gauge | gauge-chart | Jauge circulaire 0-100% |
-| bar-line | bar-chart + line-chart | Combine barres et ligne (2 series) |
+| bar-line | bar-chart + line-chart | Combine barres et ligne (2 séries) |
 | map | map-chart | Carte par departement francais |
 | map-reg | map-chart-reg | Carte par region francaise |
 
 ### Attributs
-| Attribut | Type | Defaut | Requis | Description |
+| Attribut | Type | Défaut | Requis | Description |
 |----------|------|--------|--------|-------------|
 | source | String | \`""\` | oui | ID de la source ou query |
 | type | String | \`"bar"\` | oui | Type de graphique (voir tableau ci-dessus) |
-| label-field | String | \`""\` | selon type | Chemin vers les labels dans les donnees |
+| label-field | String | \`""\` | selon type | Chemin vers les labels dans les données |
 | value-field | String | \`""\` | oui (sauf gauge) | Chemin vers les valeurs |
-| value-field-2 | String | \`""\` | non | 2e serie de valeurs (bar-line) |
-| value-fields | String | \`""\` | non | Series supplementaires separees par virgules (ex: \`"budget,score"\`) |
-| name | String | \`""\` | non | Noms des series en JSON : \`'["Serie 1","Serie 2"]'\` |
+| value-field-2 | String | \`""\` | non | 2e série de valeurs (bar-line) |
+| value-fields | String | \`""\` | non | Séries supplementaires separees par virgules (ex: \`"budget,score"\`) |
+| name | String | \`""\` | non | Noms des séries en JSON : \`'["Série 1","Série 2"]'\` |
 | selected-palette | String | \`"categorical"\` | non | Palette : categorical, sequentialAscending, sequentialDescending, divergentAscending, divergentDescending, neutral, default |
 | unit-tooltip | String | \`""\` | non | Unite dans les info-bulles : %, EUR, etc. |
 | unit-tooltip-bar | String | \`""\` | non | Unite des barres dans un bar-line |
@@ -1138,7 +1138,7 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 
 <!-- Barres horizontales empilees -->
 <dsfr-data-chart source="data" type="bar"
-  label-field="categorie" value-field="valeur"
+  label-field="catégorie" value-field="valeur"
   horizontal stacked>
 </dsfr-data-chart>
 
@@ -1149,15 +1149,15 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
   unit-tooltip="EUR" unit-tooltip-bar="EUR">
 </dsfr-data-chart>
 
-<!-- Anneau (defaut de pie) -->
+<!-- Anneau (défaut de pie) -->
 <dsfr-data-chart source="repartition" type="pie"
-  label-field="categorie" value-field="montant"
+  label-field="catégorie" value-field="montant"
   unit-tooltip="%">
 </dsfr-data-chart>
 
 <!-- Camembert plein -->
 <dsfr-data-chart source="repartition" type="pie"
-  label-field="categorie" value-field="montant" fill>
+  label-field="catégorie" value-field="montant" fill>
 </dsfr-data-chart>
 
 <!-- Carte par departement -->
@@ -1179,27 +1179,27 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 
 L'attribut \`databox\` active l'habillage DataBox DSFR autour du graphique :
 cadre editorial avec titre, source, date, switch chart/tableau integre, screenshot PNG,
-telechargement CSV, plein ecran, tendance.
+téléchargement CSV, plein écran, tendance.
 
-| Attribut | Type | Defaut | Description |
+| Attribut | Type | Défaut | Description |
 |----------|------|--------|-------------|
 | databox | Boolean | \`false\` | Active l'habillage DataBox DSFR |
 | databox-title | String | \`""\` | Titre affiche dans l'en-tete (ex: "Population par region") |
-| databox-source | String | \`""\` | Source des donnees (ex: "INSEE, RP 2021") |
-| databox-date | String | \`""\` | Date des donnees (ex: "Mars 2024") |
-| databox-download | Boolean | \`false\` | Bouton telechargement CSV |
+| databox-source | String | \`""\` | Source des données (ex: "INSEE, RP 2021") |
+| databox-date | String | \`""\` | Date des données (ex: "Mars 2024") |
+| databox-download | Boolean | \`false\` | Bouton téléchargement CSV |
 | databox-screenshot | Boolean | \`false\` | Bouton screenshot PNG |
-| databox-fullscreen | Boolean | \`false\` | Bouton plein ecran |
+| databox-fullscreen | Boolean | \`false\` | Bouton plein écran |
 | databox-trend | String | \`""\` | Tendance (ex: "+5.2" ou "-3.1") |
 | databox-tooltip-title | String | \`""\` | Titre du tooltip info |
 | databox-tooltip-content | String | \`""\` | Contenu du tooltip info |
 | databox-modal-title | String | \`""\` | Titre de la modale |
 | databox-modal-content | String | \`""\` | Contenu de la modale |
-| databox-default-source | String | \`""\` | Source par defaut (selecteur multi-source) |
+| databox-default-source | String | \`""\` | Source par défaut (selecteur multi-source) |
 | databox-actions | String | \`""\` | Actions personnalisees (JSON array) |
 
 Quand \`databox\` est active, dsfr-data-a11y ne doit PAS inclure \`table\` ni \`download\`
-(DataBox les fournit deja). Conserver uniquement \`description\` sur dsfr-data-a11y.
+(DataBox les fournit déjà). Conserver uniquement \`description\` sur dsfr-data-a11y.
 
 \`\`\`html
 <!-- Graphique avec habillage DataBox -->
@@ -1220,7 +1220,7 @@ Quand \`databox\` est active, dsfr-data-a11y ne doit PAS inclure \`table\` ni \`
   dsfrDataList: {
     id: 'dsfrDataList',
     name: 'dsfr-data-list',
-    description: 'Tableau de donnees avec recherche, filtres, tri, pagination et export CSV/HTML',
+    description: 'Tableau de données avec recherche, filtres, tri, pagination et export CSV/HTML',
     trigger: [
       'tableau',
       'table',
@@ -1233,24 +1233,24 @@ Quand \`databox\` est active, dsfr-data-a11y ne doit PAS inclure \`table\` ni \`
       'recherche',
       'datalist',
     ],
-    content: `## <dsfr-data-list> - Tableau de donnees
+    content: `## <dsfr-data-list> - Tableau de données
 
 Affiche un tableau DSFR filtrable, triable, paginable avec export CSV et/ou HTML.
 Se connecte a une dsfr-data-source ou dsfr-data-query via l'attribut \`source\`.
 
-### Format des donnees
-Attend un tableau d'objets plats. Les colonnes sont definies par l'attribut \`colonnes\`
+### Format des données
+Attend un tableau d'objets plats. Les colonnes sont définies par l'attribut \`colonnes\`
 au format \`"cle_json:Label affiche, cle2:Label2"\`. Si \`colonnes\` est omis, toutes
-les cles du premier objet sont utilisees comme colonnes.
+les clés du premier objet sont utilisees comme colonnes.
 
 ### Attributs
-| Attribut | Type | Defaut | Requis | Description |
+| Attribut | Type | Défaut | Requis | Description |
 |----------|------|--------|--------|-------------|
 | source | String | \`""\` | oui | ID de la source ou query |
 | colonnes | String | \`""\` | non | Definition des colonnes : \`"key:Label, key2:Label2"\` |
 | recherche | Boolean | \`false\` | non | Afficher la barre de recherche full-text |
 | filtres | String | \`""\` | non | Colonnes filtrables (dropdown) : \`"col1,col2"\` |
-| tri | String | \`""\` | non | Tri par defaut : \`"col:asc"\` ou \`"col:desc"\` |
+| tri | String | \`""\` | non | Tri par défaut : \`"col:asc"\` ou \`"col:desc"\` |
 | pagination | Number | \`0\` | non | Lignes par page (0 = tout afficher sans pagination) |
 | export | String | \`""\` | non | Formats d'export : \`"csv"\`, \`"html"\` ou \`"csv,html"\` |
 | url-sync | Boolean | \`false\` | non | Synchronise le numero de page dans l'URL (?page=N) via replaceState |
@@ -1259,18 +1259,18 @@ les cles du premier objet sont utilisees comme colonnes.
 
 ### Tri serveur
 Avec \`server-tri\`, le clic sur un en-tete de colonne envoie une commande \`{ orderBy }\`
-au source upstream (dsfr-data-query server-side) au lieu de trier localement. Les donnees
-reviennent deja triees du serveur.
+au source upstream (dsfr-data-query server-side) au lieu de trier localement. Les données
+reviennent déjà triees du serveur.
 
 ### Pagination serveur
-Quand la source est un \`dsfr-data-source\` avec \`paginate\`, dsfr-data-list detecte automatiquement
+Quand la source est un \`dsfr-data-source\` avec \`paginate\`, dsfr-data-list détecté automatiquement
 la pagination serveur via les metadonnees (\`meta.total\`, \`meta.page_size\`).
 Chaque changement de page declenche un nouvel appel API (pas de pagination client).
 Le total affiche vient de \`meta.total\`. La recherche et le tri ne s'appliquent qu'a la page courante.
 
 ### Synchronisation URL
 Avec \`url-sync\`, le numero de page est synchronise dans l'URL via \`replaceState\`.
-L'attribut \`url-page-param\` permet de personnaliser le nom du parametre (defaut: "page").
+L'attribut \`url-page-param\` permet de personnaliser le nom du parametre (défaut: "page").
 Quand la page est 1, le parametre est supprime de l'URL pour des URLs plus propres.
 Fonctionne avec la pagination client et serveur. Compatible avec les autres params URL (facettes, recherche).
 
@@ -1296,7 +1296,7 @@ Fonctionne avec la pagination client et serveur. Compatible avec les autres para
   dsfrDataDisplay: {
     id: 'dsfrDataDisplay',
     name: 'dsfr-data-display',
-    description: 'Affichage dynamique de donnees via template HTML (cartes, tuiles, listes)',
+    description: 'Affichage dynamique de données via template HTML (cartes, tuiles, listes)',
     trigger: [
       'cartes',
       'carte',
@@ -1312,46 +1312,46 @@ Fonctionne avec la pagination client et serveur. Compatible avec les autres para
     ],
     content: `## <dsfr-data-display> - Affichage dynamique via template
 
-Genere des elements HTML repetitifs (cartes DSFR, tuiles, callouts, etc.) a partir
-d'un template et d'une source de donnees. Chaque element du tableau de donnees produit
+Généré des elements HTML repetitifs (cartes DSFR, tuiles, callouts, etc.) a partir
+d'un template et d'une source de données. Chaque element du tableau de données produit
 une instance du template avec les valeurs injectees.
 
 ### Syntaxe du template
-Le template est defini dans un element \`<template>\` enfant du composant.
-Les placeholders sont remplaces pour chaque element de donnees :
+Le template est défini dans un element \`<template>\` enfant du composant.
+Les placeholders sont remplaces pour chaque element de données :
 
 | Syntaxe | Description |
 |---------|-------------|
 | \`{{champ}}\` | Valeur echappee (HTML-safe) |
 | \`{{{champ}}}\` | Valeur brute (non echappee — utiliser avec precaution) |
-| \`{{champ|defaut}}\` | Valeur avec fallback si null/undefined |
+| \`{{champ|défaut}}\` | Valeur avec fallback si null/undefined |
 | \`{{champ:number}}\` | Valeur avec separateur de milliers (ex: 32073247 → 32 073 247) |
 | \`{{champ:number|0}}\` | Format number + fallback si null |
-| \`{{champ.sous.cle}}\` | Acces aux proprietes imbriquees (dot notation) |
+| \`{{champ.sous.clé}}\` | Acces aux proprietes imbriquees (dot notation) |
 | \`{{$index}}\` | Index de l'element dans le tableau (0-based) |
 | \`{{$uid}}\` | Identifiant unique de l'element (base sur uid-field ou index) |
 
 ### Attributs
-| Attribut | Type | Defaut | Requis | Description |
+| Attribut | Type | Défaut | Requis | Description |
 |----------|------|--------|--------|-------------|
 | source | String | \`""\` | oui | ID de la source, query ou normalize |
 | cols | Number | \`1\` | non | Nombre de colonnes dans la grille (1-6) |
 | pagination | Number | \`0\` | non | Elements par page (0 = tout afficher) |
 | empty | String | \`"Aucun resultat"\` | non | Message quand le tableau est vide |
 | gap | String | \`"fr-grid-row--gutters"\` | non | Classe CSS de gap pour la grille |
-| uid-field | String | \`""\` | non | Champ de donnees pour l'ID unique par item. Chaque item recoit un id="item-{valeur}" pour ancrage URL |
+| uid-field | String | \`""\` | non | Champ de données pour l'ID unique par item. Chaque item recoit un id="item-{valeur}" pour ancrage URL |
 | url-sync | Boolean | \`false\` | non | Synchronise le numero de page dans l'URL (?page=N) via replaceState |
 | url-page-param | String | \`"page"\` | non | Nom du parametre URL pour la page |
 
 ### Pagination serveur
-Quand la source est un \`dsfr-data-source\` avec \`paginate\`, dsfr-data-display detecte automatiquement
+Quand la source est un \`dsfr-data-source\` avec \`paginate\`, dsfr-data-display détecté automatiquement
 la pagination serveur via les metadonnees (\`meta.total\`, \`meta.page_size\`).
-Chaque changement de page declenche un nouvel appel API. Les donnees recues sont affichees
+Chaque changement de page declenche un nouvel appel API. Les données recues sont affichees
 telles quelles (pas de slicing client). Le nombre total de pages vient de \`meta.total / meta.page_size\`.
 
 ### Synchronisation URL
 Avec \`url-sync\`, le numero de page est synchronise dans l'URL via \`replaceState\`.
-L'attribut \`url-page-param\` permet de personnaliser le nom du parametre (defaut: "page").
+L'attribut \`url-page-param\` permet de personnaliser le nom du parametre (défaut: "page").
 Quand la page est 1, le parametre est supprime de l'URL. Compatible avec les autres params URL.
 
 ### Exemples
@@ -1366,7 +1366,7 @@ Quand la page est 1, le parametre est supprime de l'URL. Compatible avec les aut
           <p class="fr-card__desc">{{description}}</p>
         </div>
         <div class="fr-card__footer">
-          <p class="fr-badge fr-badge--sm">{{categorie}}</p>
+          <p class="fr-badge fr-badge--sm">{{catégorie}}</p>
         </div>
       </div>
     </div>
@@ -1431,7 +1431,7 @@ Quand la page est 1, le parametre est supprime de l'URL. Compatible avec les aut
       'dsfr',
       'natif',
       'officiel',
-      'accessibilite',
+      'accessibilité',
       'rgaa',
       'bar-chart',
       'line-chart',
@@ -1442,19 +1442,19 @@ Quand la page est 1, le parametre est supprime de l'URL. Compatible avec les aut
     content: `## Composants DSFR Chart natifs
 
 Les composants DSFR Chart sont des Web Components Vue utilises en interne par dsfr-data-chart.
-En usage direct (sans dsfr-data-chart), ils acceptent des donnees au format JSON stringifie.
+En usage direct (sans dsfr-data-chart), ils acceptent des données au format JSON stringifie.
 
-NOTE : preferer dsfr-data-chart qui gere automatiquement le format de donnees.
+NOTE : preferer dsfr-data-chart qui gere automatiquement le format de données.
 N'utiliser les composants natifs que pour des cas avances.
 
-### Format des donnees
+### Format des données
 \`\`\`html
 x='[["Jan","Fev","Mar"]]'     <!-- Labels (tableau imbrique) -->
 y='[[100, 200, 150]]'         <!-- Valeurs (tableau imbrique) -->
-<!-- Multi-series -->
+<!-- Multi-séries -->
 x='[["Jan","Fev"],["Jan","Fev"]]'
 y='[[100, 200],[150, 180]]'
-name='["Serie A","Serie B"]'
+name='["Série A","Série B"]'
 \`\`\`
 
 ### <bar-chart>
@@ -1466,7 +1466,7 @@ name='["Serie A","Serie B"]'
 - x-min, x-max, y-min, y-max : limites des axes
 
 ### <pie-chart>
-- fill="true" : camembert plein (defaut: anneau/donut)
+- fill="true" : camembert plein (défaut: anneau/donut)
 
 ### <gauge-chart>
 - percent : valeur actuelle (0-100)
@@ -1477,7 +1477,7 @@ name='["Serie A","Serie B"]'
 - x, y : coordonnees des points
 
 ### <radar-chart>
-- Multi-series pour comparer des profils
+- Multi-séries pour comparer des profils
 
 ### <map-chart> (carte par departement)
 - data='{"75": 95, "69": 78, "2A": 60}' : JSON code_dept -> valeur
@@ -1487,12 +1487,12 @@ name='["Serie A","Serie B"]'
 - selected-palette : palette de couleurs
 
 ### <map-chart-reg> (carte par region)
-- Meme format que map-chart avec codes region
+- Même format que map-chart avec codes region
 
 ### Attributs communs
 - selected-palette : categorical, sequentialAscending, sequentialDescending, divergentAscending, divergentDescending, neutral, default
 - unit-tooltip : unite dans les info-bulles
-- name : noms des series en JSON`,
+- name : noms des séries en JSON`,
   },
 
   // ---------------------------------------------------------------------------
@@ -1519,15 +1519,15 @@ name='["Serie A","Serie B"]'
     content: `## Patterns de composition dsfr-data
 
 ### REGLE IMPORTANTE : privilegier les sources dynamiques
-1. **Source API dynamique** (ODS, Tabular, INSEE) = premier choix. Les donnees se mettent a jour automatiquement, la pagination serveur est geree, les agregations et filtres sont delegues au serveur.
-2. **Grist** = excellent choix pour les donnees collaboratives (tableaux partages). Suggerer a l'utilisateur de publier ses donnees sur grist.numerique.gouv.fr s'il n'a pas d'API.
-3. **Donnees embarquees** (data='[...]') = dernier recours uniquement. Les donnees sont figees et alourdissent le HTML.
+1. **Source API dynamique** (ODS, Tabular, INSEE) = premier choix. Les données se mettent a jour automatiquement, la pagination serveur est geree, les agrégations et filtres sont delegues au serveur.
+2. **Grist** = excellent choix pour les données collaboratives (tableaux partages). Suggerer a l'utilisateur de publier ses données sur grist.numérique.gouv.fr s'il n'a pas d'API.
+3. **Données embarquees** (data='[...]') = dernier recours uniquement. Les données sont figees et alourdissent le HTML.
 
 ### REGLE IMPORTANTE : deleguer le travail au serveur
 Preferer 3 \`dsfr-data-source\` bien cibles (avec select, where, group-by cote serveur) plutot qu'un seul source qui fetch tout sans filtre. Chainer les \`dsfr-data-query\` pour affiner :
 - \`dsfr-data-source\` avec \`select\`, \`where\`, \`group-by\` cote serveur → reduit le volume transfere
-- \`dsfr-data-query\` en chaine pour transformer/filtrer/agreger le resultat
-- Chaque visualisation peut avoir sa propre query pointant vers la meme source
+- \`dsfr-data-query\` en chaine pour transformer/filtrer/agréger le resultat
+- Chaque visualisation peut avoir sa propre query pointant vers la même source
 
 ### Architecture : composants freres lies par ID
 Les composants dsfr-data sont des elements HTML freres (pas imbriques).
@@ -1556,8 +1556,8 @@ Ils communiquent via un bus evenementiel interne : \`source="id-de-la-source"\`.
 </dsfr-data-chart>
 \`\`\`
 
-### Accessibilite : ajouter dsfr-data-a11y
-Pour ameliorer l'accessibilite, ajoutez \`dsfr-data-a11y\` apres chaque visualisation :
+### Accessibilité : ajouter dsfr-data-a11y
+Pour ameliorer l'accessibilité, ajoutez \`dsfr-data-a11y\` apres chaque visualisation :
 \`\`\`html
 <dsfr-data-chart id="mon-graph" source="top10" type="bar"
   label-field="region" value-field="population__sum">
@@ -1626,8 +1626,8 @@ L'adapter choisit entre mode Records (filter/sort/pagination) et mode SQL (group
 </dsfr-data-source>
 
 <dsfr-data-facets id="filtered" source="src"
-  fields="categorie, region"
-  labels="categorie:Categorie | region:Region">
+  fields="catégorie, region"
+  labels="catégorie:Catégorie | region:Region">
 </dsfr-data-facets>
 
 <dsfr-data-display source="filtered" cols="3" pagination="12">
@@ -1636,7 +1636,7 @@ L'adapter choisit entre mode Records (filter/sort/pagination) et mode SQL (group
       <div class="fr-card__body">
         <div class="fr-card__content">
           <h3 class="fr-card__title">{{nom}}</h3>
-          <p class="fr-badge fr-badge--sm">{{categorie}}</p>
+          <p class="fr-badge fr-badge--sm">{{catégorie}}</p>
         </div>
       </div>
     </div>
@@ -1644,8 +1644,8 @@ L'adapter choisit entre mode Records (filter/sort/pagination) et mode SQL (group
 </dsfr-data-display>
 \`\`\`
 
-### IMPORTANT : Source ODS v1 ou Airtable (donnees imbriquees)
-Si la source utilise \`transform="records"\` et que les donnees sont sous \`fields\`,
+### IMPORTANT : Source ODS v1 ou Airtable (données imbriquees)
+Si la source utilise \`transform="records"\` et que les données sont sous \`fields\`,
 ajouter \`<dsfr-data-normalize flatten="fields" trim numeric-auto>\` apres la source.
 Les noms de champs doivent etre les noms APLATIS (ex: \`Departement\`) et non les chemins imbriques (\`fields.Departement\`).
 
@@ -1661,7 +1661,7 @@ Les noms de champs doivent etre les noms APLATIS (ex: \`Departement\`) et non le
 </dsfr-data-search>
 
 <dsfr-data-facets id="filtered" source="searched"
-  fields="categorie, region">
+  fields="catégorie, region">
 </dsfr-data-facets>
 
 <dsfr-data-display source="filtered" cols="3" pagination="12">
@@ -1670,7 +1670,7 @@ Les noms de champs doivent etre les noms APLATIS (ex: \`Departement\`) et non le
       <div class="fr-card__body">
         <div class="fr-card__content">
           <h3 class="fr-card__title">{{nom}}</h3>
-          <p class="fr-badge fr-badge--sm">{{categorie}}</p>
+          <p class="fr-badge fr-badge--sm">{{catégorie}}</p>
         </div>
       </div>
     </div>
@@ -1682,9 +1682,9 @@ La recherche et les facettes se combinent : la recherche reduit le jeu,
 les facettes affinent. Les KPI et graphiques en aval se mettent a jour en temps reel.
 
 ### Format de sortie : snippet embarquable (PAS une page HTML complete)
-Le code genere doit etre un **snippet** pret a copier-coller dans une page existante.
-- **NE PAS** generer \`<!DOCTYPE html>\`, \`<html>\`, \`<head>\`, \`<body>\` ni \`<meta>\`.
-- Generer uniquement : les dependances CDN (liens CSS + scripts) puis les composants HTML.
+Le code généré doit etre un **snippet** pret a copier-coller dans une page existante.
+- **NE PAS** générer \`<!DOCTYPE html>\`, \`<html>\`, \`<head>\`, \`<body>\` ni \`<meta>\`.
+- Générer uniquement : les dependances CDN (liens CSS + scripts) puis les composants HTML.
 - L'utilisateur collera ce snippet dans sa propre page.
 
 ### Dependances CDN requises
@@ -1719,7 +1719,7 @@ Toujours inclure ces 6 dependances dans cet ordre exact :
 ### Pattern avec habillage DataBox
 
 Utiliser ce pattern quand l'utilisateur demande un graphique "presentable", "publiable",
-"avec un titre", un export CSV/screenshot, un mode plein ecran, ou un cadre editorial.
+"avec un titre", un export CSV/screenshot, un mode plein écran, ou un cadre editorial.
 
 \`\`\`html
 <dsfr-data-source id="src" api-type="opendatasoft"
@@ -1750,28 +1750,28 @@ Utiliser ce pattern quand l'utilisateur demande un graphique "presentable", "pub
   odsql: {
     id: 'odsql',
     name: 'ODSQL (OpenDataSoft Query Language)',
-    description: 'Syntaxe de requetes pour les APIs OpenDataSoft',
+    description: 'Syntaxe de requêtes pour les APIs OpenDataSoft',
     trigger: ['odsql', 'opendatasoft'],
     content: `## ODSQL - OpenDataSoft Query Language
 
-Syntaxe de requetes utilisee par les APIs OpenDataSoft (mode \`api-type="opendatasoft"\` de dsfr-data-query)
+Syntaxe de requêtes utilisee par les APIs OpenDataSoft (mode \`api-type="opendatasoft"\` de dsfr-data-query)
 et par l'action \`reloadData\` du builder-IA.
 
-### Parametres de requete
+### Parametres de requête
 | Parametre | Description | Exemple |
 |-----------|-------------|---------|
 | select | Champs a retourner (avec aliases) | \`select=nom,population\` ou \`select=avg(prix) as prix_moyen\` |
 | where | Condition de filtrage | \`where=population>10000\` ou \`where=nom like "Paris%"\` |
 | group_by | Champ de groupement | \`group_by=region\` |
 | order_by | Tri | \`order_by=population DESC\` |
-| limit | Max resultats (defaut: 10, max: 100 par requete) | \`limit=100\` |
+| limit | Max resultats (défaut: 10, max: 100 par requête) | \`limit=100\` |
 | offset | Pagination | \`offset=100\` |
 
-IMPORTANT : \`limit\` est plafonne a 100 par requete par l'API ODS.
+IMPORTANT : \`limit\` est plafonne a 100 par requête par l'API ODS.
 dsfr-data-query gere automatiquement la pagination via offset quand la limite demandee > 100
 (ex: cartes departementales avec 101 departements). Max 10 pages (1000 resultats).
 
-### Fonctions d'agregation ODSQL
+### Fonctions d'agrégation ODSQL
 - count(*), count(champ)
 - sum(champ), avg(champ), min(champ), max(champ)
 - percentile(champ, 50) pour la mediane
@@ -1818,14 +1818,14 @@ dsfr-data-query mode generic (\`"champ:operateur:valeur"\`). Ce sont deux system
 ### API v1 (legacy)
 - URL: \`/api/records/1.0/search/?dataset={dataset_id}\`
 - Reponse: \`{ records: [{ fields: {...}, recordid: "..." }] }\`
-- \`transform="records"\` puis les donnees sont dans \`record.fields\`
+- \`transform="records"\` puis les données sont dans \`record.fields\`
 - Parametres differents: q (recherche), refine, exclude, rows, start
 
 ### Detection automatique
 - URL contient \`/v2.1/\` -> v2.1
 - URL contient \`/v2/\` -> v2
 - URL contient \`/1.0/\` ou \`rows=\` -> v1
-- Par defaut essayer v2.1
+- Par défaut essayer v2.1
 
 ### Migration v1 -> v2.1
 | v1 | v2.1 |
@@ -1856,13 +1856,13 @@ puis \`flatten="fields"\` sur dsfr-data-normalize :
     trigger: ['quel graphique', 'quel type', 'quel chart', 'recommand'],
     content: `## Choix du type de graphique
 
-Guide pour choisir le type de visualisation adapte aux donnees.
+Guide pour choisir le type de visualisation adapte aux données.
 
 ### Barres verticales (bar)
-- **Quand** : comparer des categories (5-15 ideal)
-- **Champs** : label-field (categories), value-field (valeurs)
+- **Quand** : comparer des catégories (5-15 ideal)
+- **Champs** : label-field (catégories), value-field (valeurs)
 - **Options** : \`horizontal\` (barres horizontales), \`stacked\` (empile)
-- **Supporte** : value-field-2 ou value-fields pour N series, highlight-index
+- **Supporte** : value-field-2 ou value-fields pour N séries, highlight-index
 
 ### Lignes (line)
 - **Quand** : evolution temporelle, tendances
@@ -1876,8 +1876,8 @@ Guide pour choisir le type de visualisation adapte aux donnees.
 
 ### Camembert / Anneau (pie)
 - **Quand** : parts d'un tout (100%), max 5-7 segments
-- **Champs** : label-field (categories), value-field (valeurs)
-- **Options** : \`fill\` (true = camembert plein, false = anneau par defaut)
+- **Champs** : label-field (catégories), value-field (valeurs)
+- **Options** : \`fill\` (true = camembert plein, false = anneau par défaut)
 
 ### Radar
 - **Quand** : profils multicriteres, comparaison de dimensions
@@ -1885,42 +1885,42 @@ Guide pour choisir le type de visualisation adapte aux donnees.
 - **Supporte** : value-field-2 ou value-fields pour comparer plusieurs profils
 
 ### Nuage de points (scatter)
-- **Quand** : correlation entre deux variables numeriques
-- **Champs** : label-field (axe X numerique), value-field (axe Y)
+- **Quand** : correlation entre deux variables numériques
+- **Champs** : label-field (axe X numérique), value-field (axe Y)
 
 ### Jauge (gauge)
 - **Quand** : progression vers un objectif (0-100%)
 - **Champs** : gauge-value uniquement (PAS de label-field ni source obligatoire)
 
 ### KPI (kpi - composant dsfr-data-kpi)
-- **Quand** : afficher UNE valeur cle (total, moyenne, comptage)
-- **Champs** : valeur (expression d'agregation), PAS de label-field
+- **Quand** : afficher UNE valeur clé (total, moyenne, comptage)
+- **Champs** : valeur (expression d'agrégation), PAS de label-field
 - **Options** : format (nombre, pourcentage, euro), couleur, seuils
 
 ### Carte departements (map)
-- **Quand** : donnees geographiques par departement francais
+- **Quand** : données geographiques par departement francais
 - **Champs** : code-field (code INSEE: 01-95, 2A, 2B, 971-976), value-field
 - **Palette recommandee** : sequentialAscending
 
 ### Carte regions (map-reg)
-- **Quand** : donnees geographiques par region francaise
+- **Quand** : données geographiques par region francaise
 - **Champs** : code-field (code region), value-field
 
-### Series multiples (bar, line, bar-line, radar)
-Utiliser \`value-field-2\` pour une seconde serie, ou \`value-fields\` pour plusieurs series supplementaires (separees par virgules).
-Definir les noms avec \`name='["Serie 1","Serie 2","Serie 3"]'\`.
-Exemple multi-series : \`value-field="ca" value-fields="budget,objectif" name='["CA","Budget","Objectif"]'\``,
+### Séries multiples (bar, line, bar-line, radar)
+Utiliser \`value-field-2\` pour une seconde série, ou \`value-fields\` pour plusieurs séries supplementaires (separees par virgules).
+Definir les noms avec \`name='["Série 1","Série 2","Série 3"]'\`.
+Exemple multi-séries : \`value-field="ca" value-fields="budget,objectif" name='["CA","Budget","Objectif"]'\``,
   },
 
   dsfrColors: {
     id: 'dsfrColors',
     name: 'Couleurs DSFR',
-    description: "Palette officielle du Design System de l'Etat",
+    description: "Palette officielle du Design System de l'État",
     trigger: ['couleur', 'color', 'palette', 'style'],
     content: `## Couleurs et palettes DSFR
 
 ### Couleurs hex principales
-- **Bleu France**: #000091 (couleur par defaut)
+- **Bleu France**: #000091 (couleur par défaut)
 - **Emeraude**: #009081 (succes)
 - **Marianne**: #C9191E (erreur)
 - **Orange**: #FF9940 (avertissement)
@@ -1931,16 +1931,16 @@ Exemple multi-series : \`value-field="ca" value-fields="budget,objectif" name='[
 ### Palettes DSFR Chart (attribut selected-palette)
 | Palette | Usage recommande |
 |---------|-----------------|
-| categorical | Comparer des groupes distincts (defaut pour bar, pie, radar) |
+| categorical | Comparer des groupes distincts (défaut pour bar, pie, radar) |
 | sequentialAscending | Gradient clair -> fonce (recommande pour map, classements) |
 | sequentialDescending | Gradient fonce -> clair |
 | divergentAscending | Echelle divergente (ecarts positifs/negatifs) |
 | divergentDescending | Echelle divergente inversee |
 | neutral | Neutre, utiliser avec highlight-index pour mettre en avant 1 barre |
-| default | Bleu France seul (serie unique) |
+| default | Bleu France seul (série unique) |
 
 ### Bonnes pratiques
-- Utiliser \`categorical\` pour pie, radar et comparaisons multi-categories
+- Utiliser \`categorical\` pour pie, radar et comparaisons multi-catégories
 - Utiliser \`sequentialAscending\` pour les cartes (map, map-reg)
 - Utiliser \`neutral\` + \`highlight-index\` pour mettre en avant une valeur
 - Assurer un contraste suffisant (conformite RGAA)
@@ -1954,7 +1954,7 @@ Exemple multi-series : \`value-field="ca" value-fields="budget,objectif" name='[
   apiProviders: {
     id: 'apiProviders',
     name: 'Providers API',
-    description: 'Fournisseurs de donnees supportes et leurs capacites',
+    description: 'Fournisseurs de données supportes et leurs capacites',
     trigger: [
       'provider',
       'fournisseur',
@@ -1965,14 +1965,14 @@ Exemple multi-series : \`value-field="ca" value-fields="budget,objectif" name='[
       'insee',
       'melodi',
       'api-type',
-      'source de donnees',
+      'source de données',
       'quel api',
       'quelle source',
     ],
     content: `## Providers API supportes
 
-dsfr-data detecte automatiquement le provider a partir de l'URL de l'API.
-Chaque provider a des capacites differentes pour la pagination, l'agregation et les facettes.
+dsfr-data détecté automatiquement le provider a partir de l'URL de l'API.
+Chaque provider a des capacites differentes pour la pagination, l'agrégation et les facettes.
 
 ### Matrice des capacites
 | Capacite | OpenDataSoft | Tabular (data.gouv.fr) | Grist | INSEE (Melodi) | Generique |
@@ -1982,7 +1982,7 @@ Chaque provider a des capacites differentes pour la pagination, l'agregation et 
 | Facettes serveur | oui | non | oui (SQL) | non | non |
 | Recherche serveur | oui (full-text) | non | non | non | non |
 | Group-by serveur | oui | oui (column__groupby) | oui (SQL) | non | non |
-| Agregation serveur | oui (ODSQL) | oui (column__sum, __avg, __count, __min, __max) | oui (SQL) | non | non |
+| Agrégation serveur | oui (ODSQL) | oui (column__sum, __avg, __count, __min, __max) | oui (SQL) | non | non |
 | Tri serveur | oui | oui | oui | non | non |
 | Pagination serveur | oui (offset) | oui (page) | oui (offset) | oui (page) | non |
 | Format filtre | ODSQL (SQL-like) | colon (champ:op:valeur) | colon | colon (dimension:eq:valeur) | colon |
@@ -2003,7 +2003,7 @@ Chaque provider a des capacites differentes pour la pagination, l'agregation et 
 | \`"tabular"\` | Tabular | \`base-url\` + \`resource\` |
 | \`"grist"\` | Grist | \`base-url\` (URL complete avec proxy) |
 | \`"insee"\` | INSEE (Melodi) | \`base-url\` + \`dataset-id\` |
-| \`"generic"\` (defaut) | Generique | \`url\` + \`transform\` |
+| \`"generic"\` (défaut) | Generique | \`url\` + \`transform\` |
 
 ### Pipeline par provider
 
@@ -2020,7 +2020,7 @@ Chaque provider a des capacites differentes pour la pagination, l'agregation et 
 </dsfr-data-query>
 \`\`\`
 
-**Tabular** (fetch serveur + agregation serveur) :
+**Tabular** (fetch serveur + agrégation serveur) :
 \`\`\`html
 <dsfr-data-source id="src" api-type="tabular"
   base-url="https://tabular-api.data.gouv.fr"
@@ -2072,7 +2072,7 @@ L'adapter INSEE aplatit automatiquement les observations (dimensions + measures 
 \`\`\`
 
 ### Authentification par provider
-| Provider | Methode | Header/Param |
+| Provider | Méthode | Header/Param |
 |----------|---------|-------------|
 | OpenDataSoft | API Key | \`headers='{"apikey":"KEY"}'\` |
 | Tabular | Aucune | Acces public uniquement |
@@ -2083,7 +2083,7 @@ L'adapter INSEE aplatit automatiquement les observations (dimensions + measures 
 ### Proxy CORS
 Certaines APIs externes necessitent un proxy CORS en production.
 Les URLs connues sont automatiquement proxifiees :
-- \`grist.numerique.gouv.fr\` -> \`${PROXY_BASE_URL_EMBED}/grist-gouv-proxy\`
+- \`grist.numérique.gouv.fr\` -> \`${PROXY_BASE_URL_EMBED}/grist-gouv-proxy\`
 - \`docs.getgrist.com\` -> \`${PROXY_BASE_URL_EMBED}/grist-proxy\`
 - \`tabular-api.data.gouv.fr\` -> \`${PROXY_BASE_URL_EMBED}/tabular-proxy\`
 
@@ -2093,22 +2093,22 @@ APIs avec CORS natif (pas de proxy necessaire) :
   },
 
   // ---------------------------------------------------------------------------
-  // dsfr-data-a11y : companion d'accessibilite unifie
+  // dsfr-data-a11y : companion d'accessibilité unifie
   // ---------------------------------------------------------------------------
 
   dsfrDataA11y: {
     id: 'dsfrDataA11y',
     name: 'dsfr-data-a11y',
     description:
-      'Composant accessibilite unifie : tableau de donnees, telechargement CSV et description textuelle',
+      'Composant accessibilité unifie : tableau de données, téléchargement CSV et description textuelle',
     trigger: [
       'raw-data',
-      'telecharger',
+      'télécharger',
       'download',
       'csv',
-      'accessibilite',
+      'accessibilité',
       'a11y',
-      'lecteur ecran',
+      'lecteur écran',
       'screen reader',
       'aria',
       'tableau accessible',
@@ -2116,39 +2116,39 @@ APIs avec CORS natif (pas de proxy necessaire) :
       'description graphique',
       'chart-a11y',
     ],
-    content: `## dsfr-data-a11y — Companion d'accessibilite unifie
+    content: `## dsfr-data-a11y — Companion d'accessibilité unifie
 
-Composant companion qui ameliore l'accessibilite d'une visualisation en offrant
+Composant companion qui ameliore l'accessibilité d'une visualisation en offrant
 trois alternatives activables independamment :
-1. **Tableau accessible** (\`table\`) : table HTML avec les donnees du graphique
-2. **Telechargement CSV** (\`download\`) : bouton pour exporter les donnees brutes
+1. **Tableau accessible** (\`table\`) : table HTML avec les données du graphique
+2. **Téléchargement CSV** (\`download\`) : bouton pour exporter les données brutes
 3. **Description textuelle** (\`description\`) : transcription libre du contenu du graphique
 
-Le contenu est replie dans un accordeon DSFR par defaut.
+Le contenu est replie dans un accordeon DSFR par défaut.
 
 ### Attributs
 
-| Attribut | Type | Defaut | Description |
+| Attribut | Type | Défaut | Description |
 |----------|------|--------|-------------|
 | source | String | \`""\` | ID du dsfr-data-source ou dsfr-data-query |
 | for | String | \`""\` | ID de l'element cible pour la liaison ARIA + skip link |
-| table | Boolean | \`false\` | Active l'affichage du tableau de donnees |
-| download | Boolean | \`false\` | Active le bouton de telechargement CSV |
-| filename | String | \`"donnees.csv"\` | Nom du fichier CSV telecharge |
+| table | Boolean | \`false\` | Active l'affichage du tableau de données |
+| download | Boolean | \`false\` | Active le bouton de téléchargement CSV |
+| filename | String | \`"données.csv"\` | Nom du fichier CSV téléchargé |
 | description | String | \`""\` | Description textuelle du graphique |
 | label-field | String | \`""\` | Colonne pour les labels du tableau |
 | value-field | String | \`""\` | Colonne(s) pour les valeurs du tableau (separees par virgules) |
 | label | String | \`""\` | Libelle personnalise de la section accessible |
 | no-auto-aria | Boolean | \`false\` | Desactive ARIA automatique et skip link |
 
-Si ni \`table\`, ni \`download\`, ni \`description\` ne sont definis, les trois sont affiches par defaut.
+Si ni \`table\`, ni \`download\`, ni \`description\` ne sont définis, les trois sont affiches par défaut.
 
 ### Fonctionnement ARIA (attribut \`for\`)
 
-Quand \`for="mon-graph"\` est defini :
+Quand \`for="mon-graph"\` est défini :
 1. Un **skip link** est injecte dans le graphique cible (visible au focus clavier)
 2. \`aria-describedby\` pointe vers un resume concis dans le composant
-3. \`aria-details\` pointe vers le tableau de donnees (si \`table\` est active)
+3. \`aria-details\` pointe vers le tableau de données (si \`table\` est active)
 4. A la deconnexion, tout est nettoye automatiquement
 
 ### Exemple basique
@@ -2183,10 +2183,10 @@ Quand \`for="mon-graph"\` est defini :
 
 ### Cohabitation avec DataBox
 Si le graphique cible utilise l'attribut \`databox\`, ne PAS ajouter les attributs
-\`table\` et \`download\` sur dsfr-data-a11y (DataBox les fournit deja avec un meilleur
+\`table\` et \`download\` sur dsfr-data-a11y (DataBox les fournit déjà avec un meilleur
 rendu : switch chart/tableau integre, CSV natif). Conserver uniquement :
 - \`for\` + \`source\` (obligatoires)
-- \`description\` (texte accessible pour lecteurs d'ecran)
+- \`description\` (texte accessible pour lecteurs d'écran)
 
 \`\`\`html
 <!-- Avec DataBox : pas de table ni download sur a11y -->
@@ -2200,9 +2200,9 @@ rendu : switch chart/tableau integre, CSV natif). Conserver uniquement :
 \`\`\`
 
 ### Notes
-- Le contenu est dans un accordeon DSFR (replie par defaut)
+- Le contenu est dans un accordeon DSFR (replie par défaut)
 - Le CSV utilise le separateur \`;\` (standard francais)
-- Le tableau est limite a 100 lignes ; le CSV contient toutes les donnees
+- Le tableau est limite a 100 lignes ; le CSV contient toutes les données
 - Compatible avec tous les composants de rendu (chart, datalist, display, kpi)`,
   },
 
@@ -2233,20 +2233,20 @@ Chargé via le bundle \`dsfr-data.world-map.esm.js\` (séparé du core).
 
 ### Attributs
 
-| Attribut | Type | Defaut | Requis | Description |
+| Attribut | Type | Défaut | Requis | Description |
 |----------|------|--------|--------|-------------|
 | source | String | \`""\` | oui | ID du dsfr-data-source ou dsfr-data-query |
 | code-field | String | \`""\` | oui | Champ contenant le code pays |
-| value-field | String | \`""\` | oui | Champ numerique a visualiser |
+| value-field | String | \`""\` | oui | Champ numérique a visualiser |
 | code-format | String | \`"iso-a2"\` | non | Format du code pays : \`iso-a2\` (FR), \`iso-a3\` (FRA), \`iso-num\` (250) |
-| name | String | \`""\` | non | Libelle de la serie (legende) |
+| name | String | \`""\` | non | Libelle de la série (legende) |
 | selected-palette | String | \`"sequentialAscending"\` | non | Palette choropleth : sequentialAscending, sequentialDescending, divergentAscending, divergentDescending, neutral |
 | unit-tooltip | String | \`""\` | non | Unite affichee dans le tooltip au survol |
 | zoom | String | \`"continent"\` | non | Comportement de zoom : \`"continent"\` (zoom sur le continent au clic) ou \`"none"\` |
 
 ### Palettes disponibles
 
-- \`sequentialAscending\` : clair → fonce (bleu France, defaut)
+- \`sequentialAscending\` : clair → fonce (bleu France, défaut)
 - \`sequentialDescending\` : fonce → clair
 - \`divergentAscending\` : bleu → rouge
 - \`divergentDescending\` : rouge → bleu
@@ -2315,7 +2315,7 @@ Chargé via le bundle \`dsfr-data.world-map.esm.js\` (séparé du core).
       'carte animee',
       'evolution temporelle',
       'color-map',
-      'couleur categorielle',
+      'couleur catégorielle',
       'couleur par valeur',
       'souverainete',
       'sovereign-only',
@@ -2324,8 +2324,8 @@ Chargé via le bundle \`dsfr-data.world-map.esm.js\` (séparé du core).
     content: `## dsfr-data-map + dsfr-data-map-layer — Carte interactive multi-couches
 
 Deux composants complementaires :
-- \`dsfr-data-map\` : conteneur carte (init Leaflet, tuiles, viewport). **Ne consomme pas de donnees.**
-- \`dsfr-data-map-layer\` : couche de donnees (markers, geoshape, circle, heatmap). Utilise \`SourceSubscriberMixin\`.
+- \`dsfr-data-map\` : conteneur carte (init Leaflet, tuiles, viewport). **Ne consomme pas de données.**
+- \`dsfr-data-map-layer\` : couche de données (markers, geoshape, circle, heatmap). Utilise \`SourceSubscriberMixin\`.
 
 Cela permet le **multi-source** naturellement : chaque layer a sa propre source.
 
@@ -2340,7 +2340,7 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 
 ### Attributs dsfr-data-map (conteneur)
 
-| Attribut | Type | Defaut | Description |
+| Attribut | Type | Défaut | Description |
 |----------|------|--------|-------------|
 | center | String | \`"46.603,2.888"\` | Centre initial \`"lat,lon"\` |
 | zoom | Number | \`6\` | Zoom initial (1-18) |
@@ -2350,13 +2350,13 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | tiles | String | \`"ign-plan"\` | Fond de carte : \`ign-plan\`, \`ign-ortho\`, \`ign-topo\`, \`ign-cadastre\`, \`osm-fr\` (alias : \`osm\`), ou URL template |
 | sovereign-only | Boolean | \`false\` | Restreint \`tiles\` aux presets IGN souverains. Tout autre preset (\`osm-fr\`) ou URL custom est refuse avec \`console.warn\` et remplace par \`ign-plan\`. |
 | no-controls | Boolean | \`false\` | Masque les controles de zoom |
-| fit-bounds | Boolean | \`false\` | Ajuste le viewport aux donnees |
+| fit-bounds | Boolean | \`false\` | Ajuste le viewport aux données |
 | max-bounds | String | \`""\` | Limites \`"latSW,lonSW,latNE,lonNE"\` |
 | name | String | \`""\` | Titre (aria-label) |
 
 ### Attributs dsfr-data-map-layer (couche)
 
-| Attribut | Type | Defaut | Description |
+| Attribut | Type | Défaut | Description |
 |----------|------|--------|-------------|
 | source | String | \`""\` | ID de la source (requis) |
 | type | String | \`"marker"\` | \`marker\`, \`geoshape\`, \`circle\`, \`heatmap\` |
@@ -2367,9 +2367,9 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | popup-fields | String | \`""\` | Champs pour tableau auto : \`"nom,adresse"\` |
 | tooltip-field | String | \`""\` | Champ affiche au survol |
 | color | String | \`"#000091"\` | Couleur (DSFR blue-france). Fallback si color-map ne matche pas |
-| color-field | String | \`""\` | Champ dont la valeur determine la couleur (mapping categoriel) |
+| color-field | String | \`""\` | Champ dont la valeur determine la couleur (mapping catégoriel) |
 | color-map | String | \`""\` | Paires \`valeur:#couleur\` separees par virgule. Ex: \`"1:#00A95F,2:#FF9940,3:#E1000F"\` |
-| fill-field | String | \`""\` | Champ numerique pour choropleth |
+| fill-field | String | \`""\` | Champ numérique pour choropleth |
 | fill-opacity | Number | \`0.6\` | Opacite remplissage |
 | selected-palette | String | \`""\` | Palette choropleth |
 | radius | Number | \`8\` | Rayon fixe (circle) |
@@ -2386,7 +2386,7 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | max-zoom | Number | \`18\` | Zoom max pour cette couche |
 | bbox | Boolean | \`false\` | Chargement par viewport |
 | bbox-debounce | Number | \`300\` | Delai re-fetch (ms) |
-| bbox-field | String | \`""\` | Champ geo pour bbox (auto-detecte si vide) |
+| bbox-field | String | \`""\` | Champ geo pour bbox (auto-détecté si vide) |
 | max-items | Number | \`5000\` | Limite elements rendus |
 | filter | String | \`""\` | Filtre client-side |
 | time-field | String | \`""\` | Champ date/heure pour animation temporelle |
@@ -2400,7 +2400,7 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 3. \`geo-field\` vers ODS : \`{ lat: N, lon: N }\`
 4. Auto-detection : cherche \`geo_point_2d\`, \`geo_shape\`, \`geometry\`
 
-### Fonds de carte predefinis (sans cle API)
+### Fonds de carte predefinis (sans clé API)
 
 - \`ign-plan\` : Plan IGN (Geoplateforme)
 - \`ign-ortho\` : Vue aerienne IGN
@@ -2441,7 +2441,7 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 </dsfr-data-map>
 \`\`\`
 
-### Exemple : couleurs categorielles (color-map)
+### Exemple : couleurs catégorielles (color-map)
 
 \`\`\`html
 <dsfr-data-map center="46.6,2.3" zoom="6">
@@ -2475,7 +2475,7 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 
 Composant compagnon optionnel qui definit un template et un mode d'affichage pour le clic sur un element.
 
-| Attribut | Type | Defaut | Description |
+| Attribut | Type | Défaut | Description |
 |----------|------|--------|-------------|
 | mode | String | \`"popup"\` | \`popup\`, \`modal\`, \`panel-right\`, \`panel-left\` |
 | title-field | String | \`""\` | Champ pour le titre panneau/modale |
@@ -2515,7 +2515,7 @@ Template avec \`<template>\` et interpolation \`{{champ}}\`. Sans template, tabl
 
 Composant compagnon place comme enfant de \`dsfr-data-map\`. Decouvre automatiquement les layers ayant \`time-field\` et pilote leur affichage frame par frame.
 
-| Attribut | Type | Defaut | Description |
+| Attribut | Type | Défaut | Description |
 |----------|------|--------|-------------|
 | for | String | \`""\` | IDs des layers cibles (virgules). Vide = tous les layers avec time-field |
 | speed | Number | \`1\` | Multiplicateur vitesse (0.5, 1, 2, 4) |
@@ -2523,10 +2523,10 @@ Composant compagnon place comme enfant de \`dsfr-data-map\`. Decouvre automatiqu
 
 Controles : play/pause, stop, pas-a-pas, slider, vitesse.
 Clavier : Espace (play/pause), fleches (pas-a-pas), Home/End (debut/fin).
-Accessibilite : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, aria-live.
+Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, aria-live.
 
 \`\`\`html
-<dsfr-data-source id="donnees-temps" data='[
+<dsfr-data-source id="source-temps" data='[
   {"region":"Paris","lat":48.85,"lon":2.35,"valeur":120,"date":"2025-T1"},
   {"region":"Paris","lat":48.85,"lon":2.35,"valeur":250,"date":"2025-T2"},
   {"region":"Lyon","lat":45.76,"lon":4.83,"valeur":80,"date":"2025-T1"},
@@ -2534,7 +2534,7 @@ Accessibilite : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, a
 ]'></dsfr-data-source>
 
 <dsfr-data-map center="46.6,2.3" zoom="6" height="550px">
-  <dsfr-data-map-layer source="donnees-temps" type="circle"
+  <dsfr-data-map-layer source="source-temps" type="circle"
     lat-field="lat" lon-field="lon"
     radius-field="valeur" radius-min="6" radius-max="35"
     color="#000091" fill-opacity="0.5"
@@ -2568,12 +2568,12 @@ Accessibilite : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, a
     content: `## Pieges courants et troubleshooting
 
 ### 1. Le graphique est vide / ne s'affiche pas
-- **Verifier \`transform\`** : l'API retourne souvent un objet enveloppe (\`{results: [...]}\`).
-  Si \`transform\` n'est pas defini ou pointe au mauvais endroit, les donnees seront vides.
+- **Vérifier \`transform\`** : l'API retourne souvent un objet enveloppe (\`{results: [...]}\`).
+  Si \`transform\` n'est pas défini ou pointe au mauvais endroit, les données seront vides.
   Exemples : \`transform="results"\` (ODS v2.1), \`transform="data"\` (Tabular), \`transform="records"\` (ODS v1)
-- **Verifier les noms de champs** : \`label-field\` et \`value-field\` doivent correspondre
-  exactement aux cles des objets JSON retournes (sensible a la casse).
-- **Verifier \`source\`** : l'attribut \`source="xxx"\` doit correspondre exactement a l'\`id="xxx"\`
+- **Vérifier les noms de champs** : \`label-field\` et \`value-field\` doivent correspondre
+  exactement aux clés des objets JSON retournes (sensible a la casse).
+- **Vérifier \`source\`** : l'attribut \`source="xxx"\` doit correspondre exactement a l'\`id="xxx"\`
   de la dsfr-data-source ou dsfr-data-query (sensible a la casse).
 
 ### 2. La carte ne s'affiche pas correctement
@@ -2585,12 +2585,12 @@ Accessibilite : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, a
   les valeurs. Le graphique peut mettre ~1s a apparaitre.
 
 ### 3. Limite de 100 resultats (API ODS)
-L'API OpenDataSoft retourne maximum 100 enregistrements par requete.
+L'API OpenDataSoft retourne maximum 100 enregistrements par requête.
 dsfr-data-query en mode \`opendatasoft\` gere automatiquement la pagination (max 10 pages = 1000 resultats).
 Pour une dsfr-data-source brute, ajouter \`limit=100\` dans l'URL ou utiliser dsfr-data-query.
 
-### 4. Nommage des champs agrege
-Apres une agregation dans dsfr-data-query, les champs sont renommes :
+### 4. Nommage des champs agrégé
+Apres une agrégation dans dsfr-data-query, les champs sont renommes :
 \`"champ__fonction"\` (double underscore). Exemple : \`aggregate="population:sum"\` produit
 le champ \`population__sum\`. Utiliser ce nom dans \`value-field\` et \`order-by\`.
 
@@ -2607,16 +2607,16 @@ Ne pas utiliser camelCase dans le HTML (\`labelField\` ne fonctionnera pas).
 En revanche, les proprietes JavaScript sont en camelCase (\`element.labelField\`).
 
 ### 8. La recherche ne filtre rien / cherche dans les mauvais champs
-- Verifier que \`fields\` liste les bons noms de champs (sensible a la casse)
-- Verifier que \`source\` pointe vers une source avec des donnees aplaties
+- Vérifier que \`fields\` liste les bons noms de champs (sensible a la casse)
+- Vérifier que \`source\` pointe vers une source avec des données aplaties
   (si Grist : s'assurer que flatten="fields" est actif sur le normalize)
 - Si \`fields\` est vide, la recherche porte sur TOUS les champs, y compris
   les champs techniques (id, SIRET...). Preciser les champs pour plus de precision.
 
 ### 7. Facettes / datalist vides avec Grist ou ODS v1
-Les APIs Grist, ODS v1, et Airtable wrappent les donnees sous \`records[].fields\`.
+Les APIs Grist, ODS v1, et Airtable wrappent les données sous \`records[].fields\`.
 Les composants dsfr-data-facets, dsfr-data-list, dsfr-data-query et dsfr-data-kpi attendent des
-cles de premier niveau.
+clés de premier niveau.
 
 **Solution** : ajouter \`flatten="fields"\` sur dsfr-data-normalize :
 \`\`\`html
@@ -2627,7 +2627,7 @@ cles de premier niveau.
   dsfrDataJoin: {
     id: 'dsfrDataJoin',
     name: 'dsfr-data-join',
-    description: "Jointure multi-sources autour d'une cle pivot",
+    description: "Jointure multi-sources autour d'une clé pivot",
     trigger: [
       'join',
       'jointure',
@@ -2642,9 +2642,9 @@ cles de premier niveau.
     ],
     content: `## <dsfr-data-join> - Jointure multi-sources
 
-Composant invisible qui joint deux sources de donnees sur une ou plusieurs cles pivot.
-Ne fait aucun fetch HTTP — c'est un pur transformateur de donnees.
-Il attend que les deux sources aient emis leurs donnees avant de calculer la jointure.
+Composant invisible qui joint deux sources de données sur une ou plusieurs clés pivot.
+Ne fait aucun fetch HTTP — c'est un pur transformateur de données.
+Il attend que les deux sources aient emis leurs données avant de calculer la jointure.
 Si une source se recharge, le join est recalcule automatiquement.
 
 ### Position dans le pipeline
@@ -2655,20 +2655,20 @@ dsfr-data-source (B)  ──────┘
 \`\`\`
 
 ### Attributs
-| Attribut | Type | Defaut | Requis | Description |
+| Attribut | Type | Défaut | Requis | Description |
 |----------|------|--------|--------|-------------|
 | id | String | - | oui | Identifiant unique. Sans cet attribut, dsfr-data-join ne se monte pas (log \`console.error\` + attribut \`data-dsfr-config-error\` sur l'element). |
 | left | String | "" | oui | ID de la source gauche (source principale) |
 | right | String | "" | oui | ID de la source droite |
-| on | String | "" | oui | Cle(s) de jointure (voir formats ci-dessous) |
+| on | String | "" | oui | Clé(s) de jointure (voir formats ci-dessous) |
 | type | String | "left" | non | Type de jointure : inner, left, right, full |
 | prefix-left | String | "" | non | Prefixe pour les champs gauche en cas de collision |
 | prefix-right | String | "right_" | non | Prefixe pour les champs droite en cas de collision |
 
 ### Format de l'attribut \`on\`
-- Cle commune : \`on="code_dept"\`
-- Cle differente gauche/droite : \`on="dept_code=code"\`
-- Multi-cle : \`on="annee,code_region"\`
+- Clé commune : \`on="code_dept"\`
+- Clé differente gauche/droite : \`on="dept_code=code"\`
+- Multi-clé : \`on="annee,code_region"\`
 
 ### Types de jointure
 - **inner** : seuls les enregistrements presents dans les deux sources
@@ -2677,10 +2677,10 @@ dsfr-data-source (B)  ──────┘
 - **full** : union de tous les enregistrements, null pour les champs manquants
 
 ### Gestion des collisions
-Si un champ existe dans les deux sources avec le meme nom :
-- Le \`prefix-right\` est applique au champ droit (defaut : \`right_\`)
-- Le \`prefix-left\` est applique au champ gauche si defini
-- La cle de jointure n'est jamais dupliquee
+Si un champ existe dans les deux sources avec le même nom :
+- Le \`prefix-right\` est applique au champ droit (défaut : \`right_\`)
+- Le \`prefix-left\` est applique au champ gauche si défini
+- La clé de jointure n'est jamais dupliquee
 
 ### Exemple 1 : enrichir un dataset population avec des budgets
 \`\`\`html
@@ -2713,7 +2713,7 @@ Si un champ existe dans les deux sources avec le meme nom :
 </dsfr-data-chart>
 \`\`\`
 
-### Exemple 3 : cles de nommage different
+### Exemple 3 : clés de nommage different
 \`\`\`html
 <!-- La source gauche a "dept_code", la droite a "code" -->
 <dsfr-data-join id="merged"
@@ -2723,8 +2723,8 @@ Si un champ existe dans les deux sources avec le meme nom :
 \`\`\`
 
 ### Notes
-- Le join est recalcule automatiquement quand l'une des sources emet de nouvelles donnees
-- Relations 1-N : si plusieurs enregistrements droite matchent une cle gauche, autant de lignes sont generees
+- Le join est recalcule automatiquement quand l'une des sources emet de nouvelles données
+- Relations 1-N : si plusieurs enregistrements droite matchent une clé gauche, autant de lignes sont generees
 - Le composant emet \`dsfr-data-loading\` tant qu'une source n'a pas encore repondu
 - Le composant emet \`dsfr-data-error\` si l'une des sources est en erreur`,
   },
@@ -2749,11 +2749,11 @@ Affiche un podium (top N) avec rang numerote, label, sous-titre, barre de progre
 Se connecte au pipeline dsfr-data-source / dsfr-data-query via l'attribut \`source\`.
 
 ### Attributs
-| Attribut | Type | Defaut | Requis | Description |
+| Attribut | Type | Défaut | Requis | Description |
 |----------|------|--------|--------|-------------|
 | source | String | \`""\` | oui | ID de la dsfr-data-source ou dsfr-data-query |
 | label-field | String | \`""\` | oui | Chemin vers le champ label (supporte dot notation) |
-| value-field | String | \`""\` | oui | Chemin vers le champ valeur numerique |
+| value-field | String | \`""\` | oui | Chemin vers le champ valeur numérique |
 | subtitle | String | \`""\` | non | Texte fixe affiche sous chaque label |
 | subtitle-field | String | \`""\` | non | Chemin vers un champ pour le sous-titre (prioritaire sur subtitle) |
 | value-unit | String | \`""\` | non | Unite affichee apres la valeur (ex: "hab.", "€", "%") |
@@ -2764,9 +2764,9 @@ Se connecte au pipeline dsfr-data-source / dsfr-data-query via l'attribut \`sour
 
 ### Comportement
 - **Tri automatique** : les items sont tries par valeur decroissante (sauf si \`no-sort\` est present)
-- **Barres proportionnelles** : largeur relative au max des valeurs (ou \`bar-max\` si defini)
+- **Barres proportionnelles** : largeur relative au max des valeurs (ou \`bar-max\` si défini)
 - **Couleurs** : chaque item recoit une couleur de la palette choisie (bordure gauche + barre)
-- **Accessibilite** : \`<ol>\` semantique avec aria-label descriptif du classement complet
+- **Accessibilité** : \`<ol>\` semantique avec aria-label descriptif du classement complet
 
 ### Exemples
 \`\`\`html
@@ -2783,7 +2783,7 @@ Se connecte au pipeline dsfr-data-source / dsfr-data-query via l'attribut \`sour
   max-items="5">
 </dsfr-data-podium>
 
-<!-- Podium avec donnees transformees par query -->
+<!-- Podium avec données transformees par query -->
 <dsfr-data-query id="top-villes" source="src"
   group-by="ville" aggregate="montant:sum:total"
   order-by="total:desc">
@@ -2800,7 +2800,7 @@ Se connecte au pipeline dsfr-data-source / dsfr-data-query via l'attribut \`sour
 <dsfr-data-podium source="data"
   label-field="nom"
   value-field="score"
-  subtitle-field="categorie"
+  subtitle-field="catégorie"
   bar-max="100"
   max-items="3">
 </dsfr-data-podium>
@@ -2926,7 +2926,7 @@ export function buildSkillsContext(relevantSkills: Skill[]): string {
   let context = '\n\n---\nSKILLS INJECTES :';
   if (actionSkills.length > 0) {
     context +=
-      "\n\n### Actions (pour l'apercu interactif)\n" +
+      "\n\n### Actions (pour l'aperçu interactif)\n" +
       actionSkills.map((s) => s.content).join('\n\n');
   }
   if (componentSkills.length > 0) {

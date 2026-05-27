@@ -110,7 +110,7 @@ export async function sendMessage(): Promise<void> {
     resetChartPreview();
     addMessage(
       'assistant',
-      'Apercu reinitialise ! Decrivez le graphique que vous souhaitez creer.',
+      'Aperçu reinitialise ! Decrivez le graphique que vous souhaitez créer.',
       ['Barres', 'Camembert', 'Courbe', 'Tableau', 'KPI']
     );
     return;
@@ -121,13 +121,13 @@ export async function sendMessage(): Promise<void> {
   if (!config.token && !isServerMode()) {
     addMessage(
       'assistant',
-      `Je n'ai pas de token API configure. Veuillez ouvrir "Configuration IA" et entrer votre cle API.
+      `Je n'ai pas de token API configure. Veuillez ouvrir "Configuration IA" et entrer votre clé API.
 
 En attendant, je peux vous aider avec des commandes simples. Essayez :
 - "barres [champ_label] [champ_valeur]"
 - "pie [champ_label] [champ_valeur]"
 - "ligne [champ_label] [champ_valeur]"`,
-      ['Configurer le token', 'Creer un graphique simple']
+      ['Configurer le token', 'Créer un graphique simple']
     );
     return;
   }
@@ -158,13 +158,13 @@ En attendant, je peux vous aider avec des commandes simples. Essayez :
           ? [
               'Ajouter des facettes interactives',
               'Modifier les colonnes',
-              'Generer le code embarquable',
+              'Générer le code embarquable',
             ]
-          : ['Modifier les colonnes', 'Changer la pagination', 'Generer le code embarquable'];
+          : ['Modifier les colonnes', 'Changer la pagination', 'Générer le code embarquable'];
       } else {
         suggestions = ['Changer le type de graphique'];
         if (hasCategories) suggestions.push('Ajouter des facettes');
-        suggestions.push('Generer le code embarquable');
+        suggestions.push('Générer le code embarquable');
       }
       addMessage(
         'assistant',
@@ -176,7 +176,7 @@ En attendant, je peux vous aider avec des commandes simples. Essayez :
       resetChartPreview();
       addMessage(
         'assistant',
-        textWithoutJson || 'Apercu reinitialise ! Decrivez le graphique que vous souhaitez creer.',
+        textWithoutJson || 'Aperçu reinitialise ! Decrivez le graphique que vous souhaitez créer.',
         ['Barres', 'Camembert', 'Courbe', 'Tableau', 'KPI']
       );
     } else if (action?.action === 'reloadData') {
@@ -184,13 +184,13 @@ En attendant, je peux vous aider avec des commandes simples. Essayez :
       if (success) {
         addMessage(
           'assistant',
-          textWithoutJson || (action.reason as string) || 'Donnees rechargees avec les filtres.',
+          textWithoutJson || (action.reason as string) || 'Données rechargees avec les filtres.',
           ['Barres', 'Camembert', 'Courbe']
         );
       } else {
         addMessage(
           'assistant',
-          textWithoutJson || 'Impossible de recharger les donnees avec ces filtres.'
+          textWithoutJson || 'Impossible de recharger les données avec ces filtres.'
         );
       }
     } else {
@@ -221,16 +221,16 @@ async function callAlbertAPI(userMessage: string, config: IAConfig): Promise<str
     const isTabular = detectedProvider === 'tabular';
     const totalNote =
       state.source?.recordCount && state.source.recordCount > state.localData.length
-        ? ` (apercu limite, source complete: ${state.source.recordCount} enregistrements)`
+        ? ` (aperçu limite, source complete: ${state.source.recordCount} enregistrements)`
         : '';
     const paginationNote = isOds
-      ? `\nNOTE : l'apercu ne contient que ${state.localData.length} enregistrements. L'API ODS en contient probablement plus. Dans le code embarquable, utilise dsfr-data-source avec api-type="opendatasoft" pour recuperer automatiquement toutes les donnees (pagination automatique, max 1000), puis dsfr-data-query pour transformer.`
+      ? `\nNOTE : l'aperçu ne contient que ${state.localData.length} enregistrements. L'API ODS en contient probablement plus. Dans le code embarquable, utilise dsfr-data-source avec api-type="opendatasoft" pour recuperer automatiquement toutes les données (pagination automatique, max 1000), puis dsfr-data-query pour transformer.`
       : isTabular
-        ? `\nNOTE : l'apercu ne contient que ${state.localData.length} enregistrements. L'API Tabular en contient probablement plus. Dans le code embarquable, utilise dsfr-data-source avec api-type="tabular" et resource="ID" pour recuperer automatiquement toutes les donnees (pagination automatique, max 50000), puis dsfr-data-query pour transformer.`
+        ? `\nNOTE : l'aperçu ne contient que ${state.localData.length} enregistrements. L'API Tabular en contient probablement plus. Dans le code embarquable, utilise dsfr-data-source avec api-type="tabular" et resource="ID" pour recuperer automatiquement toutes les données (pagination automatique, max 50000), puis dsfr-data-query pour transformer.`
         : '';
     const isGrist = state.source?.type === 'grist';
     const gristNote = isGrist
-      ? `\nIMPORTANT: Source Grist detectee. Les donnees sont sous "records[].fields". Pour le code embarquable, utiliser <dsfr-data-normalize flatten="fields" trim numeric-auto> et referencer les champs par leur nom plat (sans prefixe "fields.").`
+      ? `\nIMPORTANT: Source Grist détectée. Les données sont sous "records[].fields". Pour le code embarquable, utiliser <dsfr-data-normalize flatten="fields" trim numeric-auto> et referencer les champs par leur nom plat (sans prefixe "fields.").`
       : '';
     dataContext = `\n\nDonnees actuelles (${state.localData.length} enregistrements${totalNote}) :
 Champs : ${state.fields.map((f) => `${f.name} (${f.type})`).join(', ')}
@@ -248,10 +248,10 @@ Exemple d'enregistrement : ${JSON.stringify(state.localData[0])}${paginationNote
 
   const actionReminder = `\n\n---\nREGLE ABSOLUE - FORMAT DE REPONSE :
 Tu dois OBLIGATOIREMENT inclure UN bloc \`\`\`json dans CHAQUE reponse quand l'utilisateur parle de graphique, carte, KPI, tableau, couleur, palette, type, filtre, tri, etc.
-NE GENERE JAMAIS de code HTML (<dsfr-data-source>, <dsfr-data-chart>, etc.) SAUF si l'utilisateur dit explicitement "genere le code", "code embarquable", "integrer", "embarquer".
+NE GENERE JAMAIS de code HTML (<dsfr-data-source>, <dsfr-data-chart>, etc.) SAUF si l'utilisateur dit explicitement "généré le code", "code embarquable", "integrer", "embarquer".
 
 IL N'EXISTE QUE 3 ACTIONS : "createChart", "reloadData" et "resetChart". AUCUNE AUTRE.
-Ne genere JAMAIS une action autre que ces trois-la. Pas de "table", "list", "filter", "sort", etc.
+Ne généré JAMAIS une action autre que ces trois-la. Pas de "table", "list", "filter", "sort", etc.
 Toute visualisation passe par createChart avec le bon "type" dans config.
 Si l'utilisateur veut recommencer, reinitialiser ou effacer le graphique : {"action":"resetChart"}
 
@@ -263,7 +263,7 @@ MAPPING DES DEMANDES UTILISATEUR → action createChart :
 - "radar", "toile d'araignee" → {"action":"createChart","config":{"type":"radar",...}}
 - "nuage de points", "scatter" → {"action":"createChart","config":{"type":"scatter",...}}
 - "jauge", "gauge", "progression" → {"action":"createChart","config":{"type":"gauge",...}}
-- "KPI", "indicateur", "chiffre cle" → {"action":"createChart","config":{"type":"kpi",...}}
+- "KPI", "indicateur", "chiffre clé" → {"action":"createChart","config":{"type":"kpi",...}}
 - "carte", "map", "departements" → {"action":"createChart","config":{"type":"map",...}}
 - "carte regions" → {"action":"createChart","config":{"type":"map-reg",...}}
 - "barres + courbe", "bar-line", "double axe" → {"action":"createChart","config":{"type":"bar-line",...}}
@@ -275,9 +275,9 @@ FORMAT OBLIGATOIRE :
 
 PALETTES : categorical, sequentialAscending, sequentialDescending, divergentAscending, divergentDescending, neutral.
 FILTRES createChart : syntaxe "champ:op:valeur" (eq, neq, gt, gte, lt, lte, contains, in).
-FACETTES : pas dans l'apercu. Genere le createChart puis propose de generer le code embarquable.
-CARTES : genere le createChart type map/map-reg. Si les donnees sont incompletes (100 lignes ODS), ajoute un texte prevenant que l'apercu est partiel et propose le code embarquable.
-CHAMPS : utilise UNIQUEMENT les noms de champs listes dans "Donnees actuelles".`;
+FACETTES : pas dans l'aperçu. Généré le createChart puis propose de générer le code embarquable.
+CARTES : généré le createChart type map/map-reg. Si les données sont incompletes (100 lignes ODS), ajoute un texte prevenant que l'aperçu est partiel et propose le code embarquable.
+CHAMPS : utilise UNIQUEMENT les noms de champs listes dans "Données actuelles".`;
 
   const systemPromptWithSkills =
     config.systemPrompt +
@@ -611,7 +611,7 @@ async function handleReloadData(actionData: Record<string, unknown>): Promise<bo
   if (!state.source?.apiUrl) {
     addMessage(
       'assistant',
-      "Je ne peux pas recharger les donnees car aucune URL source n'est disponible."
+      "Je ne peux pas recharger les données car aucune URL source n'est disponible."
     );
     return false;
   }

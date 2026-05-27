@@ -37,7 +37,7 @@ export type FilterOperator =
   | 'isnotnull';
 
 /**
- * Fonctions d'agregation supportees
+ * Fonctions d'agrégation supportees
  */
 export type AggregateFunction = 'count' | 'sum' | 'avg' | 'min' | 'max';
 
@@ -51,7 +51,7 @@ export interface QueryFilter {
 }
 
 /**
- * Structure d'une agregation
+ * Structure d'une agrégation
  */
 export interface QueryAggregate {
   field: string;
@@ -68,23 +68,23 @@ export interface QuerySort {
 }
 
 /**
- * <dsfr-data-query> - Composant de transformation de donnees
+ * <dsfr-data-query> - Composant de transformation de données
  *
- * Transforme, filtre, agrege et trie des donnees provenant d'une source
+ * Transforme, filtre, agrégé et trie des données provenant d'une source
  * (dsfr-data-source ou dsfr-data-normalize).
  *
- * Ne fait aucun fetch HTTP : les donnees sont recues d'un composant amont
+ * Ne fait aucun fetch HTTP : les données sont recues d'un composant amont
  * (dsfr-data-source ou dsfr-data-normalize) via le data-bridge.
  *
  * **Negotiation server-side** : a l'initialisation, dsfr-data-query interroge les
  * capabilities de l'adapter (via dsfr-data-source.getAdapter()) et delegue
  * automatiquement les operations (group-by, aggregate, order-by) au serveur
  * quand l'adapter le supporte. Si l'adapter ne supporte pas l'operation,
- * ou si dsfr-data-source a deja ses propres attributs, dsfr-data-query fait le
+ * ou si dsfr-data-source a déjà ses propres attributs, dsfr-data-query fait le
  * traitement client-side en fallback.
  *
  * Si l'adapter signale needsClientProcessing=true (ex: Grist SQL indisponible),
- * dsfr-data-query reprend le traitement client-side meme pour les operations
+ * dsfr-data-query reprend le traitement client-side même pour les operations
  * initialement deleguees.
  *
  * @example Server-side automatique (ODS supporte group-by server-side)
@@ -109,7 +109,7 @@ export interface QuerySort {
 @customElement('dsfr-data-query')
 export class DsfrDataQuery extends LitElement {
   /**
-   * ID de la source de donnees (dsfr-data-source ou dsfr-data-normalize)
+   * ID de la source de données (dsfr-data-source ou dsfr-data-normalize)
    */
   @property({ type: String })
   source = '';
@@ -135,7 +135,7 @@ export class DsfrDataQuery extends LitElement {
   groupBy = '';
 
   /**
-   * Agregations pour mode generic/tabular
+   * Agrégations pour mode generic/tabular
    * Format: "field:function, field2:function"
    * Ex: "population:sum, count:count"
    */
@@ -157,7 +157,7 @@ export class DsfrDataQuery extends LitElement {
   limit = 0;
 
   /**
-   * Chemin vers les donnees dans la reponse API
+   * Chemin vers les données dans la reponse API
    */
   @property({ type: String })
   transform = '';
@@ -289,7 +289,7 @@ export class DsfrDataQuery extends LitElement {
 
   private _initialize() {
     if (!this.id) {
-      reportConfigError(this, 'dsfr-data-query', 'attribut "id" requis pour identifier la requete');
+      reportConfigError(this, 'dsfr-data-query', 'attribut "id" requis pour identifier la requête');
       return;
     }
 
@@ -455,7 +455,7 @@ export class DsfrDataQuery extends LitElement {
   // --- Client-side processing ---
 
   /**
-   * Traitement des donnees : applique client-side uniquement les operations
+   * Traitement des données : applique client-side uniquement les operations
    * qui n'ont pas ete delegues server-side.
    *
    * Si needsClientProcessing est true dans la meta de la source,
@@ -476,7 +476,7 @@ export class DsfrDataQuery extends LitElement {
       result = this._applyFilters(result, filterExpr);
     }
 
-    // 2. Appliquer le groupement et les agregations
+    // 2. Appliquer le groupement et les agrégations
     // Skip si delegue server-side, SAUF si needsClientProcessing (fallback)
     const needsClientGroupBy = this.groupBy && (!this._serverDelegated.groupBy || forceClientSide);
     if (needsClientGroupBy) {
@@ -599,7 +599,7 @@ export class DsfrDataQuery extends LitElement {
   }
 
   /**
-   * Applique le GROUP BY et les agregations
+   * Applique le GROUP BY et les agrégations
    */
   private _applyGroupByAndAggregate(data: Record<string, unknown>[]): Record<string, unknown>[] {
     const groupFields = this.groupBy
@@ -608,7 +608,7 @@ export class DsfrDataQuery extends LitElement {
       .filter(Boolean);
     const aggregates = this._parseAggregates(this.aggregate);
 
-    // Creer les groupes
+    // Créer les groupes
     const groups = new Map<string, Record<string, unknown>[]>();
 
     for (const item of data) {
@@ -619,7 +619,7 @@ export class DsfrDataQuery extends LitElement {
       groups.get(key)!.push(item);
     }
 
-    // Calculer les agregations pour chaque groupe
+    // Calculer les agrégations pour chaque groupe
     const result: Record<string, unknown>[] = [];
 
     for (const [key, items] of groups) {
@@ -631,7 +631,7 @@ export class DsfrDataQuery extends LitElement {
         setByPath(row, field, keyParts[i]);
       });
 
-      // Calculer les agregations (structure imbriquee preservee)
+      // Calculer les agrégations (structure imbriquee preservee)
       for (const agg of aggregates) {
         const fieldName = agg.alias || `${agg.field}__${agg.function}`;
         setByPath(row, fieldName, this._computeAggregate(items, agg));
@@ -700,7 +700,7 @@ export class DsfrDataQuery extends LitElement {
       const valA = getByPath(a, field);
       const valB = getByPath(b, field);
 
-      // Comparaison numerique si possible
+      // Comparaison numérique si possible
       const numA = Number(valA);
       const numB = Number(valB);
 
@@ -769,7 +769,7 @@ export class DsfrDataQuery extends LitElement {
   }
 
   /**
-   * Force le rechargement des donnees
+   * Force le rechargement des données
    */
   public reload() {
     if (this.source) {
@@ -782,7 +782,7 @@ export class DsfrDataQuery extends LitElement {
   }
 
   /**
-   * Retourne les donnees actuelles
+   * Retourne les données actuelles
    */
   public getData(): unknown[] {
     return this._data;

@@ -171,7 +171,7 @@ export class SavedSourceControlElement extends LitElement {
         const gristConn = conn as GristConnection;
         // Warn if API key seems missing for a non-public connection
         if (!gristConn.isPublic && !gristConn.apiKey) {
-          this._gristError = 'Cle API manquante — re-configurez la connexion dans Sources';
+          this._gristError = 'Clé API manquante — re-configurez la connexion dans Sources';
           return;
         }
         // Grist connection: emit partial info + start loading documents
@@ -225,7 +225,7 @@ export class SavedSourceControlElement extends LitElement {
     });
     // Redirect responses (3xx) = likely auth issue (Grist redirects to login page)
     if (response.type === 'opaqueredirect' || (response.status >= 300 && response.status < 400)) {
-      throw new Error('Redirection detectee — verifiez la cle API de la connexion');
+      throw new Error('Redirection détectée — vérifiez la clé API de la connexion');
     }
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return response.json();

@@ -27,7 +27,7 @@ import { updateAccessibleTable } from './accessible-table.js';
 function displayGeneratedCode(code: string): void {
   // Prepend sample data comment if using example data
   const finalCode = state.isSampleData
-    ? `<!-- Donnees d'exemple \u2014 remplacez par votre source de donnees -->\n${code}`
+    ? `<!-- Données d'exemple \u2014 remplacez par votre source de données -->\n${code}`
     : code;
   const codeEl = document.getElementById('generated-code');
   if (codeEl) codeEl.textContent = finalCode;
@@ -216,7 +216,7 @@ function escapeSingleQuotes(value: string): string {
  * Inline JS helper for ODS pagination in generated code.
  * Handles offset-based pagination (ODS API max 100 records/request).
  */
-const ODS_FETCH_HELPER = `// Pagination ODS (max 100 par requete)
+const ODS_FETCH_HELPER = `// Pagination ODS (max 100 par requête)
 async function fetchAllODS(apiUrl) {
   var allResults = [], offset = 0, url = new URL(apiUrl);
   var limit = parseInt(url.searchParams.get('limit') || '100');
@@ -398,7 +398,7 @@ export function generateMiddlewareElements(
       attrs.push(`flatten="${escapeHtml(state.normalizeConfig.flatten)}"`);
 
     elements += `
-  <!-- Nettoyage des donnees -->
+  <!-- Nettoyage des données -->
   <dsfr-data-normalize
     id="${normalizeId}"
     ${attrs.join('\n    ')}>
@@ -555,7 +555,7 @@ export async function generateChart(): Promise<void> {
       ? 'count(*) as value'
       : `${state.aggregation}(${state.valueField}) as value`;
 
-  // Handle extra series if defined
+  // Handle extra séries if defined
   const activeExtraSeries = state.extraSeries.filter(
     (s) => s.field && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType)
   );
@@ -579,7 +579,7 @@ export async function generateChart(): Promise<void> {
       limit: '200',
     });
   } else {
-    // Chart: group by label field — limit=200 to fetch all categories
+    // Chart: group by label field — limit=200 to fetch all catégories
     const baseParams: Record<string, string> = {
       select: `${state.labelField}, ${valueExpression}${extraValueExpressions}`,
       group_by: state.labelField,
@@ -728,7 +728,7 @@ export function generateChartFromLocalData(): void {
       result[state.labelField] = groupKey;
     }
 
-    // Extra series
+    // Extra séries
     activeExtraSeries.forEach((_, i) => {
       if (data.extraValues[i].length > 0) {
         result[`value${i + 2}`] = applyAgg(data.extraValues[i], data.count);
@@ -845,8 +845,8 @@ export function generateCodeForLocalData(): void {
   if (state.chartType === 'datalist') {
     const colonnes = buildColonnesAttr();
     const triAttr = buildDatalistTriAttr();
-    const code = `<!-- Tableau genere avec dsfr-data Builder -->
-<!-- Source : ${state.savedSource?.name || 'Donnees locales'} -->
+    const code = `<!-- Tableau généré avec dsfr-data Builder -->
+<!-- Source : ${state.savedSource?.name || 'Données locales'} -->
 
 <!-- Dependances CSS (DSFR) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
@@ -867,10 +867,10 @@ export function generateCodeForLocalData(): void {
 </div>
 
 <script>
-// Donnees integrees
+// Données integrees
 const data = ${JSON.stringify(state.localData?.slice(0, 500) || [], null, 2)};
 
-// Injecter les donnees dans le composant
+// Injecter les données dans le composant
 const datalist = document.getElementById('my-table');
 datalist.onSourceData(data);
 </script>`;
@@ -882,8 +882,8 @@ datalist.onSourceData(data);
   if (state.chartType === 'scatter') {
     const xValues = state.data.map((d) => (d[state.labelField] as number) || 0);
     const yValues = state.data.map((d) => (d.value as number) || 0);
-    const code = `<!-- Nuage de points genere avec dsfr-data Builder -->
-<!-- Source : ${state.savedSource?.name || 'Donnees locales'} -->
+    const code = `<!-- Nuage de points généré avec dsfr-data Builder -->
+<!-- Source : ${state.savedSource?.name || 'Données locales'} -->
 
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
@@ -992,8 +992,8 @@ datalist.onSourceData(data);
   if (state.chartType === 'pie') extraAttrs.push('fill');
   const extraStr = extraAttrs.map((a) => `\n    ${a}`).join('');
 
-  const code = `<!-- Graphique genere avec dsfr-data Builder -->
-<!-- Source : ${state.savedSource?.name || 'Donnees locales'} -->
+  const code = `<!-- Graphique généré avec dsfr-data Builder -->
+<!-- Source : ${state.savedSource?.name || 'Données locales'} -->
 
 <!-- Dependances (DSFR + DSFR Chart) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
@@ -1083,7 +1083,7 @@ export function generateOdsQueryCode(
       selectParts.push(`${state.aggregation}(${valueFieldPath}) as ${alias}`);
       resultValueField = alias;
 
-      // Add extra series aggregations
+      // Add extra séries aggregations
       activeExtraSeries.forEach((s) => {
         const aliasN = `${s.field}__${state.aggregation}`;
         selectParts.push(`${state.aggregation}(${s.field}) as ${aliasN}`);
@@ -1109,7 +1109,7 @@ export function generateOdsQueryCode(
   }
 
   const queryElement = `
-  <!-- Source ODS avec agregation serveur et pagination automatique -->
+  <!-- Source ODS avec agrégation serveur et pagination automatique -->
   <dsfr-data-source
     id="chart-src"
     ${srcAttrs.join('\n    ')}>
@@ -1208,7 +1208,7 @@ export function generateTabularQueryCode(
     id="chart-src"
     ${srcAttrs.join('\n    ')}>
   </dsfr-data-source>
-  <!-- Agregation client-side -->
+  <!-- Agrégation client-side -->
   <dsfr-data-query
     id="query-data"
     ${qAttrs.join('\n    ')}>
@@ -1275,7 +1275,7 @@ export function generateDsfrDataQueryCode(
     resultValueField = sortField;
   } else {
     aggregateExpr = `${valueFieldPath}:${state.aggregation}`;
-    // Add extra series aggregations
+    // Add extra séries aggregations
     activeExtraSeries.forEach((s) => {
       const info = state.fields.find((f) => f.name === s.field);
       const path = info?.fullPath || s.field;
@@ -1295,8 +1295,8 @@ export function generateDsfrDataQueryCode(
   }
 
   const comment = state.advancedMode
-    ? '<!-- Requete avancee (filtrage et agregation) -->'
-    : '<!-- Agregation et tri des donnees -->';
+    ? '<!-- Requête avancee (filtrage et agrégation) -->'
+    : '<!-- Agrégation et tri des données -->';
 
   const queryElement = `
   ${comment}
@@ -1369,7 +1369,7 @@ export function generateDynamicCode(): void {
       'table-data',
       gristFacetsMode
     );
-    const code = `<!-- Tableau dynamique genere avec dsfr-data Builder -->
+    const code = `<!-- Tableau dynamique généré avec dsfr-data Builder -->
 <!-- Source : ${escapeHtml(source.name)} (chargement dynamique depuis ${gristHost}) -->
 
 <!-- Dependances CSS (DSFR) -->
@@ -1435,14 +1435,14 @@ ${middlewareHtml}
   // Map-specific attributes
   const codeFieldAttr = isMap && state.codeField ? `\n    code-field="${state.codeField}"` : '';
 
-  // Extra series attributes
+  // Extra séries attributes
   const extraVFs = queryExtraVFs;
   let extraFieldsAttr = '';
   let nameAttr = `name="${escapeHtml(state.title || state.valueField)}"`;
 
   if (extraVFs && extraVFs.length > 0) {
     extraFieldsAttr = `\n    value-fields="${extraVFs.join(',')}"`;
-    // Build series names from labels
+    // Build séries names from labels
     const seriesNames = [
       state.valueFieldLabel || state.valueField,
       ...state.extraSeries.filter((s) => s.field).map((s) => s.label || s.field),
@@ -1452,10 +1452,10 @@ ${middlewareHtml}
     extraFieldsAttr = `\n    value-field-2="${queryValueField2}"`;
   }
 
-  const code = `<!-- Graphique dynamique genere avec dsfr-data Builder -->
+  const code = `<!-- Graphique dynamique généré avec dsfr-data Builder -->
 <!-- Source : ${escapeHtml(source.name)} (chargement dynamique depuis ${gristHost}) -->
-<!-- Les donnees sont chargees via le proxy ${PROXY_BASE_URL_EMBED} -->
-${state.advancedMode ? '<!-- Mode avance active : filtrage et agregation via dsfr-data-query -->' : ''}
+<!-- Les données sont chargees via le proxy ${PROXY_BASE_URL_EMBED} -->
+${state.advancedMode ? '<!-- Mode avance active : filtrage et agrégation via dsfr-data-query -->' : ''}
 
 <!-- Dependances CSS (DSFR) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
@@ -1470,7 +1470,7 @@ ${state.advancedMode ? '<!-- Mode avance active : filtrage et agregation via dsf
   ${state.title ? `<h2>${escapeHtml(state.title)}</h2>` : ''}
   ${state.subtitle ? `<p class="fr-text--sm fr-text--light">${escapeHtml(state.subtitle)}</p>` : ''}
 
-  <!-- Source de donnees (via proxy CORS) -->
+  <!-- Source de données (via proxy CORS) -->
   <dsfr-data-source
     id="chart-data"
     url="${proxyUrl}"
@@ -1542,8 +1542,8 @@ export function generateDynamicCodeForApi(): void {
             : unit
               ? ' format="nombre"'
               : '';
-      const code = `<!-- KPI dynamique genere avec dsfr-data Builder -->
-<!-- Source : ${escapeHtml(source.name)} (agregation serveur) -->
+      const code = `<!-- KPI dynamique généré avec dsfr-data Builder -->
+<!-- Source : ${escapeHtml(source.name)} (agrégation serveur) -->
 
 <!-- Dependances CSS (DSFR) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
@@ -1587,7 +1587,7 @@ export function generateDynamicCodeForApi(): void {
       // Facettes serveur ODS (fetch depuis l'API /facets)
       const facets = generateFacetsElement('table-query', { serverFacets: true });
       const datalistSource = facets.element ? facets.finalSourceId : 'table-query';
-      const code = `<!-- Tableau dynamique genere avec dsfr-data Builder -->
+      const code = `<!-- Tableau dynamique généré avec dsfr-data Builder -->
 <!-- Source : ${escapeHtml(source.name)} (pagination serveur : une page a la fois) -->
 
 <!-- Dependances CSS (DSFR) -->
@@ -1639,7 +1639,7 @@ ${facets.element}
         staticVals ? { staticValues: staticVals } : undefined
       );
       const datalistSource = facets.element ? facets.finalSourceId : 'table-query';
-      const code = `<!-- Tableau dynamique genere avec dsfr-data Builder -->
+      const code = `<!-- Tableau dynamique généré avec dsfr-data Builder -->
 <!-- Source : ${escapeHtml(source.name)} (pagination serveur : une page a la fois) -->
 
 <!-- Dependances CSS (DSFR) -->
@@ -1682,7 +1682,7 @@ ${facets.element}
     // Generic API: use dsfr-data-source (no automatic pagination)
     const { elements: middlewareHtml, finalSourceId: datalistSource } =
       generateMiddlewareElements('table-data');
-    const code = `<!-- Tableau dynamique genere avec dsfr-data Builder -->
+    const code = `<!-- Tableau dynamique généré avec dsfr-data Builder -->
 <!-- Source : ${escapeHtml(source.name)} (chargement dynamique) -->
 
 <!-- Dependances CSS (DSFR) -->
@@ -1767,7 +1767,7 @@ ${middlewareHtml}
     queryValueField2 = result.valueField2 || '';
     queryExtraVFs = result.extraValueFields;
     sourceElement = `
-  <!-- Source de donnees API -->
+  <!-- Source de données API -->
   <dsfr-data-source
     id="chart-data"
     url="${source.apiUrl}"${transformAttr}${refreshAttr}>
@@ -1784,7 +1784,7 @@ ${middlewareHtml}
   // Map-specific attributes
   const codeFieldAttr = isMap && state.codeField ? `\n    code-field="${state.codeField}"` : '';
 
-  // Extra series attributes
+  // Extra séries attributes
   let extraFieldsAttr = '';
   let nameAttr = `name="${escapeHtml(state.title || state.valueField)}"`;
 
@@ -1799,9 +1799,9 @@ ${middlewareHtml}
     extraFieldsAttr = `\n    value-field-2="${queryValueField2}"`;
   }
 
-  const code = `<!-- Graphique dynamique genere avec dsfr-data Builder -->
+  const code = `<!-- Graphique dynamique généré avec dsfr-data Builder -->
 <!-- Source : ${escapeHtml(source.name)} (chargement dynamique) -->
-${state.advancedMode ? '<!-- Mode avance active : filtrage et agregation via dsfr-data-query -->' : ''}
+${state.advancedMode ? '<!-- Mode avance active : filtrage et agrégation via dsfr-data-query -->' : ''}
 
 <!-- Dependances CSS (DSFR) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
@@ -1940,7 +1940,7 @@ loadGauge();
   if (state.chartType === 'datalist') {
     const colonnes = buildColonnesAttr();
     const triAttr = buildDatalistTriAttr();
-    const code = `<!-- Tableau genere avec dsfr-data Builder -->
+    const code = `<!-- Tableau généré avec dsfr-data Builder -->
 
 <!-- Dependances CSS (DSFR) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
@@ -1978,7 +1978,7 @@ loadTable();
 
   // Handle Scatter type
   if (state.chartType === 'scatter') {
-    const code = `<!-- Nuage de points genere avec dsfr-data Builder -->
+    const code = `<!-- Nuage de points généré avec dsfr-data Builder -->
 
 <!-- Dependances (DSFR + DSFR Chart) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
@@ -2107,7 +2107,7 @@ loadMap();
         ])
       : JSON.stringify([state.valueFieldLabel || state.valueField]);
 
-  // Generate extra series extraction code
+  // Generate extra séries extraction code
   const extraSeriesExtractCode = activeExtraSeriesCode
     .map(
       (_, i) =>
@@ -2119,7 +2119,7 @@ loadMap();
       ? `JSON.stringify([values, ${activeExtraSeriesCode.map((_, i) => `values${i + 2}`).join(', ')}])`
       : 'JSON.stringify([values])';
 
-  const code = `<!-- Graphique genere avec dsfr-data Builder -->
+  const code = `<!-- Graphique généré avec dsfr-data Builder -->
 
 <!-- Dependances (DSFR + DSFR Chart) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
@@ -2134,7 +2134,7 @@ loadMap();
 </div>
 
 <script type="module">
-// URL de l'API avec agregation
+// URL de l'API avec agrégation
 const API_URL = '${apiUrl}';
 
 ${ODS_FETCH_HELPER}

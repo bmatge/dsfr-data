@@ -50,7 +50,7 @@ export function copyCode(): void {
 export function openInPlayground(): void {
   const code = (document.getElementById('generated-code') as HTMLPreElement).textContent || '';
 
-  if (!code || code.startsWith('// Le code sera genere') || code.startsWith('//')) {
+  if (!code || code.startsWith('// Le code sera généré') || code.startsWith('//')) {
     toastWarning("Generez d'abord un graphique avant de l'ouvrir dans le Playground.");
     return;
   }
@@ -80,7 +80,7 @@ interface Favorite {
 export function saveFavorite(): void {
   const code = (document.getElementById('generated-code') as HTMLPreElement).textContent || '';
 
-  if (!code || code.startsWith('// Le code sera genere') || code.startsWith('//')) {
+  if (!code || code.startsWith('// Le code sera généré') || code.startsWith('//')) {
     toastWarning("Generez d'abord un graphique avant de le sauvegarder en favori.");
     return;
   }

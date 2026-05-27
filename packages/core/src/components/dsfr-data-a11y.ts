@@ -7,11 +7,11 @@ let autoIdCounter = 0;
 const MAX_TABLE_ROWS = 100;
 
 /**
- * <dsfr-data-a11y> - Companion d'accessibilite pour visualisations
+ * <dsfr-data-a11y> - Companion d'accessibilité pour visualisations
  *
  * Offre trois alternatives accessibles a un graphique, chacune activable :
- * - `table`       : tableau HTML avec les donnees du graphique
- * - `download`    : bouton de telechargement CSV
+ * - `table`       : tableau HTML avec les données du graphique
+ * - `download`    : bouton de téléchargement CSV
  * - `description` : transcription textuelle libre
  *
  * Via l'attribut `for`, il injecte :
@@ -42,7 +42,7 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
   download = false;
 
   @property({ type: String })
-  filename = 'donnees.csv';
+  filename = 'données.csv';
 
   @property({ type: String })
   description = '';
@@ -129,7 +129,7 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
     const link = document.createElement('a');
     link.href = `#${this.id}-section`;
     link.className = 'dsfr-data-a11y__skiplink';
-    link.textContent = 'Voir les donnees accessibles';
+    link.textContent = 'Voir les données accessibles';
     link.setAttribute('data-dsfr-data-a11y-link', this.id);
 
     target.insertBefore(link, target.firstChild);
@@ -254,11 +254,11 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
     // Detect if target is a map component
     const target = this.for ? document.getElementById(this.for) : null;
     const isMap = target?.tagName?.toLowerCase() === 'dsfr-data-map';
-    const label = isMap ? 'Donnees de la carte' : 'Donnees du graphique';
+    const label = isMap ? 'Données de la carte' : 'Données du graphique';
     const parts: string[] = [`${label} : ${count} lignes.`];
     if (this.description) parts.push(this.description);
-    if (this._showDownload) parts.push('Telechargement CSV disponible.');
-    if (this._showTable) parts.push('Tableau de donnees disponible.');
+    if (this._showDownload) parts.push('Téléchargement CSV disponible.');
+    if (this._showTable) parts.push('Tableau de données disponible.');
     return parts.join(' ');
   }
 
@@ -269,7 +269,7 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
   render() {
     const data = this._sourceData;
     const hasData = Array.isArray(data) && data.length > 0;
-    const sectionLabel = this.label || 'Accessibilite : donnees et description';
+    const sectionLabel = this.label || 'Accessibilité : données et description';
     const descId = `${this.id}-desc`;
     const tableId = `${this.id}-table`;
 
@@ -308,8 +308,8 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
                         ${(() => {
                           const t = this.for ? document.getElementById(this.for) : null;
                           return t?.tagName?.toLowerCase() === 'dsfr-data-map'
-                            ? 'Donnees de la carte'
-                            : 'Donnees du graphique';
+                            ? 'Données de la carte'
+                            : 'Données du graphique';
                         })()}
                       </caption>
                       <thead>
@@ -332,7 +332,7 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
                           <p class="fr-text--xs fr-mt-1w">
                             Affichage limite aux ${MAX_TABLE_ROWS} premieres lignes.
                             ${this._showDownload
-                              ? 'Telechargez le CSV pour les donnees completes.'
+                              ? 'Telechargez le CSV pour les données completes.'
                               : ''}
                           </p>
                         `
@@ -346,9 +346,9 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
                     class="fr-btn fr-btn--secondary fr-btn--sm fr-btn--icon-left fr-icon-download-line"
                     @click="${this._handleDownload}"
                     ?disabled="${!hasData || this._sourceLoading}"
-                    title="Telecharger les donnees (CSV)"
+                    title="Télécharger les données (CSV)"
                   >
-                    Telecharger en CSV
+                    Télécharger en CSV
                   </button>
                 `
               : nothing}

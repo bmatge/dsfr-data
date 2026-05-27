@@ -35,10 +35,10 @@ interface FacetGroup {
  * <dsfr-data-facets> - Filtres a facettes interactifs
  *
  * Composant visuel intermediaire qui affiche des controles de filtre
- * bases sur les valeurs categoriques des donnees. Se place entre une
+ * bases sur les valeurs categoriques des données. Se place entre une
  * source/normalize/query et les composants de visualisation.
  *
- * Les donnees filtrees sont redistribuees automatiquement aux composants en aval.
+ * Les données filtrees sont redistribuees automatiquement aux composants en aval.
  *
  * @example
  * <dsfr-data-source id="raw" url="https://api.example.com/data" transform="data"></dsfr-data-source>
@@ -48,7 +48,7 @@ interface FacetGroup {
  */
 @customElement('dsfr-data-facets')
 export class DsfrDataFacets extends LitElement {
-  /** ID de la source de donnees a ecouter */
+  /** ID de la source de données a ecouter */
   @property({ type: String })
   source = '';
 
@@ -80,7 +80,7 @@ export class DsfrDataFacets extends LitElement {
   @property({ type: Boolean, attribute: 'hide-empty' })
   hideEmpty = false;
 
-  /** Mode d'affichage par facette : "field:select | field2:multiselect". Defaut = checkbox */
+  /** Mode d'affichage par facette : "field:select | field2:multiselect". Défaut = checkbox */
   @property({ type: String })
   display = '';
 
@@ -108,8 +108,8 @@ export class DsfrDataFacets extends LitElement {
   /**
    * Valeurs de facettes pre-calculees (JSON).
    * Format: {"field": ["val1", "val2"], "field2": ["a", "b"]}
-   * Quand cet attribut est defini, les facettes utilisent ces valeurs sans les
-   * calculer depuis les donnees. Les selections envoient des commandes WHERE
+   * Quand cet attribut est défini, les facettes utilisent ces valeurs sans les
+   * calculer depuis les données. Les selections envoient des commandes WHERE
    * en colon syntax (compatible Tabular / generique) au dsfr-data-query en amont.
    * Attribut fields requis (pas d'auto-detection).
    */
@@ -147,7 +147,7 @@ export class DsfrDataFacets extends LitElement {
   @state()
   private _openMultiselectField: string | null = null;
 
-  /** Message annonce par la live region (lecteurs d'ecran) */
+  /** Message annonce par la live region (lecteurs d'écran) */
   @state()
   private _liveAnnouncement = '';
 
@@ -793,9 +793,9 @@ export class DsfrDataFacets extends LitElement {
 
     // Announce selection change for all interactive modes
     if (displayMode === 'multiselect' || displayMode === 'radio' || displayMode === 'checkbox') {
-      const action = wasSelected ? 'deselectionnee' : 'selectionnee';
+      const action = wasSelected ? 'deselectionnee' : 'sélectionnée';
       this._announce(
-        `${value} ${action}, ${fieldSet.size} option${fieldSet.size > 1 ? 's' : ''} selectionnee${fieldSet.size > 1 ? 's' : ''}`
+        `${value} ${action}, ${fieldSet.size} option${fieldSet.size > 1 ? 's' : ''} sélectionnée${fieldSet.size > 1 ? 's' : ''}`
       );
     }
   }
@@ -820,7 +820,7 @@ export class DsfrDataFacets extends LitElement {
     delete selections[field];
     this._activeSelections = selections;
     this._afterSelectionChange();
-    this._announce('Aucune option selectionnee');
+    this._announce('Aucune option sélectionnée');
   }
 
   private _selectAllValues(field: string) {
@@ -854,7 +854,7 @@ export class DsfrDataFacets extends LitElement {
         if (group) {
           const selected = this._activeSelections[field] ?? new Set();
           this._announce(
-            `${group.label}, ${group.values.length} options disponibles, ${selected.size} selectionnee${selected.size > 1 ? 's' : ''}`
+            `${group.label}, ${group.values.length} options disponibles, ${selected.size} sélectionnée${selected.size > 1 ? 's' : ''}`
           );
         }
       });
@@ -1362,8 +1362,8 @@ export class DsfrDataFacets extends LitElement {
 
     const triggerLabel =
       selected.size > 0
-        ? `${selected.size} option${selected.size > 1 ? 's' : ''} selectionnee${selected.size > 1 ? 's' : ''}`
-        : 'Selectionnez des options';
+        ? `${selected.size} option${selected.size > 1 ? 's' : ''} sélectionnée${selected.size > 1 ? 's' : ''}`
+        : 'Sélectionnez des options';
 
     // Selected values description for screen readers
     const selectedDesc = selected.size > 0 ? [...selected].join(', ') : '';
@@ -1413,13 +1413,13 @@ export class DsfrDataFacets extends LitElement {
                   type="button"
                   aria-label="${selected.size > 0
                     ? `Tout deselectionner pour ${group.label}`
-                    : `Tout selectionner pour ${group.label}`}"
+                    : `Tout sélectionner pour ${group.label}`}"
                   @click="${() =>
                     selected.size > 0
                       ? this._clearFieldSelections(group.field)
                       : this._selectAllValues(group.field)}"
                 >
-                  ${selected.size > 0 ? 'Tout deselectionner' : 'Tout selectionner'}
+                  ${selected.size > 0 ? 'Tout deselectionner' : 'Tout sélectionner'}
                 </button>
                 <div class="fr-search-bar" role="search">
                   <label class="fr-label fr-sr-only" for="${uid}-search"
@@ -1496,7 +1496,7 @@ export class DsfrDataFacets extends LitElement {
     }
 
     const selectedValue = selected.size > 0 ? [...selected][0] : null;
-    const triggerLabel = selectedValue ?? 'Selectionnez une option';
+    const triggerLabel = selectedValue ?? 'Sélectionnez une option';
 
     return html`
       <div

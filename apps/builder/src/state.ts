@@ -86,7 +86,7 @@ export interface Field {
 // Source is imported from @dsfr-data/shared (unified interface)
 export type { Source } from '@dsfr-data/shared';
 
-/** An extra data series configuration */
+/** An extra data séries configuration */
 export interface ExtraSeries {
   field: string;
   label: string;

@@ -35,7 +35,7 @@ describe('TabularAdapter', () => {
   describe('validate', () => {
     it('returns error when resource is missing', () => {
       expect(adapter.validate(makeParams({ resource: '' }))).toBe(
-        'attribut "resource" requis pour les requetes Tabular'
+        'attribut "resource" requis pour les requêtes Tabular'
       );
     });
 

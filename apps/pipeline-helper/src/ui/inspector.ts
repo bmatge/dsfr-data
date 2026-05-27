@@ -65,7 +65,7 @@ export function showInspector(node: PipelineNode): void {
     const rows = result.sampleData;
     dataHtml = `
       <div class="inspector__data">
-        <h4>Apercu des donnees (${rows.length} sur ${result.rowCount ?? '?'})</h4>
+        <h4>Aperçu des données (${rows.length} sur ${result.rowCount ?? '?'})</h4>
         <table class="inspector__table">
           <thead>
             <tr>${fields.map((f) => `<th title="${escapeHtml(f)}">${escapeHtml(f)}</th>`).join('')}</tr>

@@ -102,7 +102,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (state.messages.length === 0) {
     addMessage(
       'assistant',
-      'Bonjour ! Pour commencer :\n1. **Selectionnez une source de donnees** dans le panneau de gauche\n2. **Decrivez le graphique souhaite** en francais\n\nJe peux creer des barres, courbes, camemberts, KPIs, cartes, tableaux... et aussi nettoyer vos donnees ou ajouter des filtres interactifs.',
+      'Bonjour ! Pour commencer :\n1. **Sélectionnez une source de données** dans le panneau de gauche\n2. **Decrivez le graphique souhaite** en francais\n\nJe peux créer des barres, courbes, camemberts, KPIs, cartes, tableaux... et aussi nettoyer vos données ou ajouter des filtres interactifs.',
       ['Quels types de graphiques ?', 'Comment fonctionne le pipeline ?']
     );
   }

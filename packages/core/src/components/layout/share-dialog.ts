@@ -106,7 +106,7 @@ export class ShareDialog extends LitElement {
     this._error = '';
 
     if (this._targetType === 'user' && !this._selectedTarget) {
-      this._error = 'Selectionnez un utilisateur';
+      this._error = 'Sélectionnez un utilisateur';
       return;
     }
 

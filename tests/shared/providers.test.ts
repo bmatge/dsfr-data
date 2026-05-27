@@ -26,7 +26,7 @@ describe('ProviderConfig definitions', () => {
   });
 
   it('each config should have a unique id', () => {
-    const ids = ALL_CONFIGS.map(c => c.id);
+    const ids = ALL_CONFIGS.map((c) => c.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
 
@@ -148,7 +148,7 @@ describe('Grist config', () => {
 
   it('should have known proxy hosts', () => {
     expect(GRIST_CONFIG.knownHosts).toHaveLength(2);
-    expect(GRIST_CONFIG.knownHosts[0].hostname).toBe('grist.numerique.gouv.fr');
+    expect(GRIST_CONFIG.knownHosts[0].hostname).toBe('grist.numérique.gouv.fr');
     expect(GRIST_CONFIG.knownHosts[1].hostname).toBe('docs.getgrist.com');
   });
 
@@ -238,29 +238,33 @@ describe('INSEE config', () => {
 describe('detectProvider', () => {
   // ODS URLs
   it('detects ODS from data.economie.gouv.fr URL', () => {
-    const url = 'https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/fiscalite-locale-des-particuliers/records?limit=15';
+    const url =
+      'https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/fiscalite-locale-des-particuliers/records?limit=15';
     expect(detectProvider(url).id).toBe('opendatasoft');
   });
 
   it('detects ODS from any ODS domain', () => {
-    const url = 'https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/velib-disponibilite/records';
+    const url =
+      'https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/velib-disponibilite/records';
     expect(detectProvider(url).id).toBe('opendatasoft');
   });
 
   // Tabular URLs
   it('detects Tabular from tabular-api.data.gouv.fr URL', () => {
-    const url = 'https://tabular-api.data.gouv.fr/api/resources/2876a346-d50c-4911-934e-19ee07b0e503/data/';
+    const url =
+      'https://tabular-api.data.gouv.fr/api/resources/2876a346-d50c-4911-934e-19ee07b0e503/data/';
     expect(detectProvider(url).id).toBe('tabular');
   });
 
   it('detects Tabular with query params', () => {
-    const url = 'https://tabular-api.data.gouv.fr/api/resources/42a34c0a-7c97-4463-b00e-5913ea5f7077/data/?page_size=101';
+    const url =
+      'https://tabular-api.data.gouv.fr/api/resources/42a34c0a-7c97-4463-b00e-5913ea5f7077/data/?page_size=101';
     expect(detectProvider(url).id).toBe('tabular');
   });
 
   // Grist URLs
-  it('detects Grist from grist.numerique.gouv.fr URL', () => {
-    const url = 'https://grist.numerique.gouv.fr/api/docs/abc123/tables/Table1/records';
+  it('detects Grist from grist.numérique.gouv.fr URL', () => {
+    const url = 'https://grist.numérique.gouv.fr/api/docs/abc123/tables/Table1/records';
     expect(detectProvider(url).id).toBe('grist');
   });
 
@@ -297,10 +301,22 @@ describe('detectProvider', () => {
   // All playground example URLs
   describe('playground URLs', () => {
     const PLAYGROUND_URLS = [
-      { url: 'https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/fiscalite-locale-des-particuliers/records?limit=15', expected: 'opendatasoft' },
-      { url: 'https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/industrie-du-futur/records?limit=20', expected: 'opendatasoft' },
-      { url: 'https://tabular-api.data.gouv.fr/api/resources/2876a346-d50c-4911-934e-19ee07b0e503/data/', expected: 'tabular' },
-      { url: 'https://tabular-api.data.gouv.fr/api/resources/42a34c0a-7c97-4463-b00e-5913ea5f7077/data/?page_size=101', expected: 'tabular' },
+      {
+        url: 'https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/fiscalite-locale-des-particuliers/records?limit=15',
+        expected: 'opendatasoft',
+      },
+      {
+        url: 'https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/industrie-du-futur/records?limit=20',
+        expected: 'opendatasoft',
+      },
+      {
+        url: 'https://tabular-api.data.gouv.fr/api/resources/2876a346-d50c-4911-934e-19ee07b0e503/data/',
+        expected: 'tabular',
+      },
+      {
+        url: 'https://tabular-api.data.gouv.fr/api/resources/42a34c0a-7c97-4463-b00e-5913ea5f7077/data/?page_size=101',
+        expected: 'tabular',
+      },
     ];
 
     for (const { url, expected } of PLAYGROUND_URLS) {
@@ -317,19 +333,21 @@ describe('detectProvider', () => {
 
 describe('extractResourceIds', () => {
   it('extracts datasetId from ODS URL', () => {
-    const url = 'https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/fiscalite-locale-des-particuliers/records';
+    const url =
+      'https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/fiscalite-locale-des-particuliers/records';
     const ids = extractResourceIds(url);
     expect(ids).toEqual({ datasetId: 'fiscalite-locale-des-particuliers' });
   });
 
   it('extracts resourceId from Tabular URL', () => {
-    const url = 'https://tabular-api.data.gouv.fr/api/resources/2876a346-d50c-4911-934e-19ee07b0e503/data/';
+    const url =
+      'https://tabular-api.data.gouv.fr/api/resources/2876a346-d50c-4911-934e-19ee07b0e503/data/';
     const ids = extractResourceIds(url);
     expect(ids).toEqual({ resourceId: '2876a346-d50c-4911-934e-19ee07b0e503' });
   });
 
   it('extracts documentId and tableId from Grist URL', () => {
-    const url = 'https://grist.numerique.gouv.fr/api/docs/abc123/tables/Table1/records';
+    const url = 'https://grist.numérique.gouv.fr/api/docs/abc123/tables/Table1/records';
     const ids = extractResourceIds(url);
     expect(ids).toEqual({ documentId: 'abc123', tableId: 'Table1' });
   });
@@ -345,7 +363,8 @@ describe('extractResourceIds', () => {
   });
 
   it('works with explicit provider', () => {
-    const url = 'https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/my-dataset/records';
+    const url =
+      'https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/my-dataset/records';
     const ids = extractResourceIds(url, ODS_CONFIG);
     expect(ids).toEqual({ datasetId: 'my-dataset' });
   });
@@ -364,7 +383,9 @@ describe('migrateSource', () => {
 
   it('auto-detects opendatasoft provider from apiUrl', () => {
     const legacy = {
-      id: '2', name: 'ODS source', type: 'api' as const,
+      id: '2',
+      name: 'ODS source',
+      type: 'api' as const,
       apiUrl: 'https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/test/records',
     };
     const migrated = migrateSource(legacy);
@@ -374,7 +395,9 @@ describe('migrateSource', () => {
 
   it('auto-detects tabular provider from apiUrl', () => {
     const legacy = {
-      id: '3', name: 'Tabular source', type: 'api' as const,
+      id: '3',
+      name: 'Tabular source',
+      type: 'api' as const,
       apiUrl: 'https://tabular-api.data.gouv.fr/api/resources/abc-123/data/',
     };
     const migrated = migrateSource(legacy);
@@ -396,7 +419,9 @@ describe('migrateSource', () => {
 
   it('preserves existing provider if already set', () => {
     const source: Partial<Source> = {
-      id: '6', name: 'already migrated', type: 'api',
+      id: '6',
+      name: 'already migrated',
+      type: 'api',
       provider: 'tabular',
       apiUrl: 'https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/x/records',
     };
@@ -407,9 +432,13 @@ describe('migrateSource', () => {
 
   it('preserves all existing fields', () => {
     const legacy: Partial<Source> = {
-      id: '7', name: 'full', type: 'grist',
-      documentId: 'doc1', tableId: 'T1',
-      apiKey: 'key123', isPublic: false,
+      id: '7',
+      name: 'full',
+      type: 'grist',
+      documentId: 'doc1',
+      tableId: 'T1',
+      apiKey: 'key123',
+      isPublic: false,
       recordCount: 42,
     };
     const migrated = migrateSource(legacy);
@@ -423,8 +452,10 @@ describe('migrateSource', () => {
 
   it('extracts Grist resourceIds from apiUrl', () => {
     const legacy: Partial<Source> = {
-      id: '8', name: 'grist with url', type: 'grist',
-      apiUrl: 'https://grist.numerique.gouv.fr/api/docs/myDoc/tables/myTable/records',
+      id: '8',
+      name: 'grist with url',
+      type: 'grist',
+      apiUrl: 'https://grist.numérique.gouv.fr/api/docs/myDoc/tables/myTable/records',
     };
     const migrated = migrateSource(legacy);
     expect(migrated.provider).toBe('grist');
@@ -434,7 +465,9 @@ describe('migrateSource', () => {
   it('unpacks server format (record_count, config_json, data_json)', () => {
     // Simulate what the server returns after GET /api/sources
     const serverRow = {
-      id: 'api_123', name: 'ODS Source', type: 'api' as const,
+      id: 'api_123',
+      name: 'ODS Source',
+      type: 'api' as const,
       record_count: 10,
       config_json: {
         apiUrl: 'https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/test/records',
@@ -450,7 +483,9 @@ describe('migrateSource', () => {
 
     const migrated = migrateSource(serverRow);
     expect(migrated.recordCount).toBe(10);
-    expect(migrated.apiUrl).toBe('https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/test/records');
+    expect(migrated.apiUrl).toBe(
+      'https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/test/records'
+    );
     expect(migrated.method).toBe('GET');
     expect(migrated.connectionId).toBe('conn_1');
     expect(migrated.provider).toBe('opendatasoft');
@@ -471,11 +506,17 @@ describe('migrateSource', () => {
 describe('serializeSourceForServer', () => {
   it('packs client fields into server format', () => {
     const source: Source = {
-      id: 'api_1', name: 'Test', type: 'api',
-      apiUrl: 'https://example.com/api', method: 'GET',
-      headers: '{"X-Key": "abc"}', dataPath: 'results',
-      connectionId: 'conn_1', provider: 'opendatasoft',
-      data: [{ a: 1 }, { a: 2 }], recordCount: 100,
+      id: 'api_1',
+      name: 'Test',
+      type: 'api',
+      apiUrl: 'https://example.com/api',
+      method: 'GET',
+      headers: '{"X-Key": "abc"}',
+      dataPath: 'results',
+      connectionId: 'conn_1',
+      provider: 'opendatasoft',
+      data: [{ a: 1 }, { a: 2 }],
+      recordCount: 100,
     };
     const serialized = serializeSourceForServer(source);
     expect(serialized.id).toBe('api_1');
@@ -483,9 +524,12 @@ describe('serializeSourceForServer', () => {
     expect(serialized.type).toBe('api');
     expect(serialized.recordCount).toBe(100);
     expect(serialized.configJson).toEqual({
-      apiUrl: 'https://example.com/api', method: 'GET',
-      headers: '{"X-Key": "abc"}', dataPath: 'results',
-      connectionId: 'conn_1', provider: 'opendatasoft',
+      apiUrl: 'https://example.com/api',
+      method: 'GET',
+      headers: '{"X-Key": "abc"}',
+      dataPath: 'results',
+      connectionId: 'conn_1',
+      provider: 'opendatasoft',
     });
     expect(serialized.dataJson).toEqual([{ a: 1 }, { a: 2 }]);
     // Flat fields should NOT be in the serialized output
@@ -499,7 +543,13 @@ describe('serializeSourceForServer', () => {
 // =========================================================================
 
 describe('ProviderConfig alignment', () => {
-  const ALL_CONFIGS: ProviderConfig[] = [ODS_CONFIG, TABULAR_CONFIG, GRIST_CONFIG, INSEE_CONFIG, GENERIC_CONFIG];
+  const ALL_CONFIGS: ProviderConfig[] = [
+    ODS_CONFIG,
+    TABULAR_CONFIG,
+    GRIST_CONFIG,
+    INSEE_CONFIG,
+    GENERIC_CONFIG,
+  ];
 
   it('all configs have valid whereFormat', () => {
     for (const config of ALL_CONFIGS) {
@@ -521,7 +571,9 @@ describe('ProviderConfig alignment', () => {
 
   it('all configs have valid aggregation syntax', () => {
     for (const config of ALL_CONFIGS) {
-      expect(['odsql-select', 'colon-attr', 'client-only', 'sql']).toContain(config.query.aggregationSyntax);
+      expect(['odsql-select', 'colon-attr', 'client-only', 'sql']).toContain(
+        config.query.aggregationSyntax
+      );
     }
   });
 

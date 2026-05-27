@@ -62,7 +62,7 @@ function buildDOM(): void {
       <select id="aggregation"></select>
     </div>
 
-    <!-- Multi-series extra series -->
+    <!-- Multi-séries extra séries -->
     <div id="extra-series-group" style="display: none;">
       <div id="extra-series-container"></div>
     </div>
@@ -237,25 +237,33 @@ describe('selectChartType', () => {
   describe('label field visibility', () => {
     it('should hide the label field group for kpi', () => {
       selectChartType('kpi');
-      const group = document.getElementById('label-field')!.closest('.fr-select-group') as HTMLElement;
+      const group = document
+        .getElementById('label-field')!
+        .closest('.fr-select-group') as HTMLElement;
       expect(group.style.display).toBe('none');
     });
 
     it('should hide the label field group for gauge', () => {
       selectChartType('gauge');
-      const group = document.getElementById('label-field')!.closest('.fr-select-group') as HTMLElement;
+      const group = document
+        .getElementById('label-field')!
+        .closest('.fr-select-group') as HTMLElement;
       expect(group.style.display).toBe('none');
     });
 
     it('should show the label field group for bar', () => {
       selectChartType('bar');
-      const group = document.getElementById('label-field')!.closest('.fr-select-group') as HTMLElement;
+      const group = document
+        .getElementById('label-field')!
+        .closest('.fr-select-group') as HTMLElement;
       expect(group.style.display).toBe('block');
     });
 
     it('should show the label field group for scatter', () => {
       selectChartType('scatter');
-      const group = document.getElementById('label-field')!.closest('.fr-select-group') as HTMLElement;
+      const group = document
+        .getElementById('label-field')!
+        .closest('.fr-select-group') as HTMLElement;
       expect(group.style.display).toBe('block');
     });
   });
@@ -270,7 +278,9 @@ describe('selectChartType', () => {
     for (const type of hiddenSortTypes) {
       it(`should hide sort order for ${type}`, () => {
         selectChartType(type);
-        const group = document.getElementById('sort-order')!.closest('.fr-select-group') as HTMLElement;
+        const group = document
+          .getElementById('sort-order')!
+          .closest('.fr-select-group') as HTMLElement;
         expect(group.style.display).toBe('none');
       });
     }
@@ -278,18 +288,28 @@ describe('selectChartType', () => {
     for (const type of visibleSortTypes) {
       it(`should show sort order for ${type}`, () => {
         selectChartType(type);
-        const group = document.getElementById('sort-order')!.closest('.fr-select-group') as HTMLElement;
+        const group = document
+          .getElementById('sort-order')!
+          .closest('.fr-select-group') as HTMLElement;
         expect(group.style.display).toBe('block');
       });
     }
   });
 
   // -----------------------------------------------------------
-  // 10. Showing multi-series for bar/horizontalBar/line/radar
+  // 10. Showing multi-séries for bar/horizontalBar/line/radar
   // -----------------------------------------------------------
-  describe('multi-series support', () => {
+  describe('multi-séries support', () => {
     const multiSeriesTypes: ChartType[] = ['bar', 'horizontalBar', 'line', 'radar'];
-    const noMultiSeriesTypes: ChartType[] = ['pie', 'doughnut', 'scatter', 'kpi', 'gauge', 'map', 'datalist'];
+    const noMultiSeriesTypes: ChartType[] = [
+      'pie',
+      'doughnut',
+      'scatter',
+      'kpi',
+      'gauge',
+      'map',
+      'datalist',
+    ];
 
     for (const type of multiSeriesTypes) {
       it(`should show extra-series-group for ${type}`, () => {
@@ -309,24 +329,24 @@ describe('selectChartType', () => {
   });
 
   // -----------------------------------------------------------
-  // 11. Resetting valueField2 when multi-series not supported
+  // 11. Resetting valueField2 when multi-séries not supported
   // -----------------------------------------------------------
   describe('extraSeries reset', () => {
-    it('should reset state.extraSeries to empty when type does not support multi-series', () => {
+    it('should reset state.extraSeries to empty when type does not support multi-séries', () => {
       state.extraSeries = [{ field: 'population', label: '' }];
       selectChartType('pie');
       expect(state.extraSeries).toEqual([]);
       expect(state.valueField2).toBe('');
     });
 
-    it('should clear the extra-series-container when type does not support multi-series', () => {
+    it('should clear the extra-series-container when type does not support multi-séries', () => {
       const container = document.getElementById('extra-series-container')!;
-      container.innerHTML = '<div>some series</div>';
+      container.innerHTML = '<div>some séries</div>';
       selectChartType('scatter');
       expect(container.innerHTML).toBe('');
     });
 
-    it('should not reset extraSeries when type supports multi-series', () => {
+    it('should not reset extraSeries when type supports multi-séries', () => {
       state.extraSeries = [{ field: 'population', label: '' }];
       selectChartType('bar');
       expect(state.extraSeries).toEqual([{ field: 'population', label: '' }]);
@@ -403,26 +423,33 @@ describe('selectChartType', () => {
 
     it('should show label field for datalist', () => {
       selectChartType('datalist');
-      const group = document.getElementById('label-field')!.closest('.fr-select-group') as HTMLElement;
+      const group = document
+        .getElementById('label-field')!
+        .closest('.fr-select-group') as HTMLElement;
       expect(group.style.display).toBe('block');
     });
 
     it('should hide value field for datalist', () => {
       selectChartType('datalist');
-      const group = document.getElementById('value-field')!.closest('.fr-select-group') as HTMLElement;
+      const group = document
+        .getElementById('value-field')!
+        .closest('.fr-select-group') as HTMLElement;
       expect(group.style.display).toBe('none');
     });
 
     it('should hide aggregation for datalist', () => {
       selectChartType('datalist');
-      const group = document.getElementById('aggregation')!.closest('.fr-select-group') as HTMLElement;
+      const group = document
+        .getElementById('aggregation')!
+        .closest('.fr-select-group') as HTMLElement;
       expect(group.style.display).toBe('none');
     });
 
-
     it('should show sort order for datalist', () => {
       selectChartType('datalist');
-      const group = document.getElementById('sort-order')!.closest('.fr-select-group') as HTMLElement;
+      const group = document
+        .getElementById('sort-order')!
+        .closest('.fr-select-group') as HTMLElement;
       expect(group.style.display).toBe('block');
     });
 

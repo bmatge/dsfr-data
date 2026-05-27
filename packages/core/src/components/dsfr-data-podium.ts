@@ -88,7 +88,7 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'label-field' })
   labelField = '';
 
-  /** Chemin vers le champ valeur (numerique) */
+  /** Chemin vers le champ valeur (numérique) */
   @property({ type: String, attribute: 'value-field' })
   valueField = '';
 

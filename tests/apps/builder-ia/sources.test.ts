@@ -1,5 +1,9 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { analyzeFields, updateFieldsList, updateRawData } from '../../../apps/builder-ia/src/sources';
+import { describe, it, expect, beforeEach } from 'vitest';
+import {
+  analyzeFields,
+  updateFieldsList,
+  updateRawData,
+} from '../../../apps/builder-ia/src/sources';
 import { state } from '../../../apps/builder-ia/src/state';
 
 describe('builder-ia sources', () => {
@@ -29,15 +33,15 @@ describe('builder-ia sources', () => {
     it('should detect numeric fields', () => {
       state.localData = [{ population: 1000, nom: 'Paris' }];
       analyzeFields();
-      const popField = state.fields.find(f => f.name === 'population');
+      const popField = state.fields.find((f) => f.name === 'population');
       expect(popField).toBeDefined();
-      expect(popField!.type).toBe('numerique');
+      expect(popField!.type).toBe('numérique');
     });
 
     it('should detect text fields', () => {
       state.localData = [{ population: 1000, nom: 'Paris' }];
       analyzeFields();
-      const nameField = state.fields.find(f => f.name === 'nom');
+      const nameField = state.fields.find((f) => f.name === 'nom');
       expect(nameField).toBeDefined();
       expect(nameField!.type).toBe('texte');
     });
@@ -45,7 +49,7 @@ describe('builder-ia sources', () => {
     it('should detect date fields from ISO strings', () => {
       state.localData = [{ date: '2024-01-15', nom: 'test' }];
       analyzeFields();
-      const dateField = state.fields.find(f => f.name === 'date');
+      const dateField = state.fields.find((f) => f.name === 'date');
       expect(dateField).toBeDefined();
       expect(dateField!.type).toBe('date');
     });
@@ -62,16 +66,14 @@ describe('builder-ia sources', () => {
         { value: 100, label: 'b' },
       ];
       analyzeFields();
-      const valueField = state.fields.find(f => f.name === 'value');
+      const valueField = state.fields.find((f) => f.name === 'value');
       expect(valueField).toBeDefined();
-      expect(valueField!.type).toBe('numerique');
+      expect(valueField!.type).toBe('numérique');
       expect(valueField!.sample).toBe(100);
     });
 
     it('should default to texte for null-only fields', () => {
-      state.localData = [
-        { nothing: null },
-      ];
+      state.localData = [{ nothing: null }];
       analyzeFields();
       expect(state.fields[0].type).toBe('texte');
     });
@@ -80,7 +82,7 @@ describe('builder-ia sources', () => {
       state.localData = [{ a: 1, b: 'x', c: true }];
       analyzeFields();
       expect(state.fields).toHaveLength(3);
-      const names = state.fields.map(f => f.name);
+      const names = state.fields.map((f) => f.name);
       expect(names).toContain('a');
       expect(names).toContain('b');
       expect(names).toContain('c');
@@ -96,35 +98,31 @@ describe('builder-ia sources', () => {
       state.fields = [];
       updateFieldsList();
       const container = document.getElementById('field-list')!;
-      expect(container.innerHTML).toContain('Selectionnez une source');
+      expect(container.innerHTML).toContain('Sélectionnez une source');
     });
 
     it('should render field tags', () => {
       state.fields = [
         { name: 'nom', type: 'texte', sample: 'Paris' },
-        { name: 'score', type: 'numerique', sample: 42 },
+        { name: 'score', type: 'numérique', sample: 42 },
       ];
       updateFieldsList();
       const container = document.getElementById('field-list')!;
       expect(container.innerHTML).toContain('nom');
       expect(container.innerHTML).toContain('score');
       expect(container.innerHTML).toContain('texte');
-      expect(container.innerHTML).toContain('numerique');
+      expect(container.innerHTML).toContain('numérique');
     });
 
     it('should add numeric class for numeric fields', () => {
-      state.fields = [
-        { name: 'score', type: 'numerique', sample: 42 },
-      ];
+      state.fields = [{ name: 'score', type: 'numérique', sample: 42 }];
       updateFieldsList();
       const container = document.getElementById('field-list')!;
       expect(container.innerHTML).toContain('numeric');
     });
 
     it('should not add numeric class for text fields', () => {
-      state.fields = [
-        { name: 'nom', type: 'texte', sample: 'test' },
-      ];
+      state.fields = [{ name: 'nom', type: 'texte', sample: 'test' }];
       updateFieldsList();
       const container = document.getElementById('field-list')!;
       const tags = container.querySelectorAll('.field-tag');

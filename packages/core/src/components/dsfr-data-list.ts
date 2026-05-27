@@ -35,7 +35,7 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
   @property({ type: String })
   source = '';
 
-  /** Définition des colonnes: "cle:Label, cle2:Label2" */
+  /** Définition des colonnes: "clé:Label, cle2:Label2" */
   @property({ type: String })
   colonnes = '';
 
@@ -63,14 +63,14 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
   @property({ type: Boolean, attribute: 'url-sync' })
   urlSync = false;
 
-  /** Nom du parametre URL pour la page (defaut: "page") */
+  /** Nom du parametre URL pour la page (défaut: "page") */
   @property({ type: String, attribute: 'url-page-param' })
   urlPageParam = 'page';
 
   /**
    * Active le tri serveur.
    * Au lieu de trier localement, envoie une commande { orderBy } au source upstream
-   * (dsfr-data-query server-side) qui re-fetche les donnees triees.
+   * (dsfr-data-query server-side) qui re-fetche les données triees.
    */
   @property({ type: Boolean, attribute: 'server-tri' })
   serverTri = false;
@@ -99,7 +99,7 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
   private _previousPage = 1;
   private _popstateHandler: (() => void) | null = null;
 
-  /** Message annonce par la live region (lecteurs d'ecran) */
+  /** Message annonce par la live region (lecteurs d'écran) */
   @state()
   private _liveAnnouncement = '';
 
@@ -239,7 +239,7 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
 
   private _getPaginatedData(): Record<string, unknown>[] {
     const filtered = this.getFilteredData();
-    // En mode serveur, les donnees recues sont deja la bonne page
+    // En mode serveur, les données recues sont déjà la bonne page
     if (this._serverPagination) return filtered;
     if (!this.pagination || this.pagination <= 0) return filtered;
 
@@ -675,7 +675,7 @@ ${bodyRows}
       <div
         class="dsfr-data-list"
         role="region"
-        aria-label="${this.getAttribute('aria-label') || 'Liste de donnees'}"
+        aria-label="${this.getAttribute('aria-label') || 'Liste de données'}"
       >
         ${this._renderFilters(columns, filterableColumns)} ${this._renderToolbar()}
 

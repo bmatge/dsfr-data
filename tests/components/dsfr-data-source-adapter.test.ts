@@ -123,7 +123,7 @@ describe('DsfrDataSource adapter params construction', () => {
 
   it('builds correct AdapterParams for Grist', () => {
     const params = {
-      baseUrl: 'https://grist.numerique.gouv.fr/api/docs/x/tables/y/records',
+      baseUrl: 'https://grist.numérique.gouv.fr/api/docs/x/tables/y/records',
       datasetId: '',
       resource: '',
       select: '',
@@ -138,7 +138,7 @@ describe('DsfrDataSource adapter params construction', () => {
       headers: { Authorization: 'Bearer token123' },
     };
 
-    expect(params.baseUrl).toContain('grist.numerique.gouv.fr');
+    expect(params.baseUrl).toContain('grist.numérique.gouv.fr');
     expect(params.headers!.Authorization).toBe('Bearer token123');
   });
 
@@ -229,7 +229,7 @@ describe('DsfrDataSource adapter validation', () => {
         transform: '',
         pageSize: 20,
       })
-    ).toBe('attribut "dataset-id" requis pour les requetes OpenDataSoft');
+    ).toBe('attribut "dataset-id" requis pour les requêtes OpenDataSoft');
   });
 
   it('Tabular adapter validates resource', () => {
@@ -249,7 +249,7 @@ describe('DsfrDataSource adapter validation', () => {
         transform: '',
         pageSize: 20,
       })
-    ).toBe('attribut "resource" requis pour les requetes Tabular');
+    ).toBe('attribut "resource" requis pour les requêtes Tabular');
   });
 
   it('Grist adapter validates base-url', () => {
@@ -269,6 +269,6 @@ describe('DsfrDataSource adapter validation', () => {
         transform: '',
         pageSize: 20,
       })
-    ).toBe('attribut "base-url" requis pour les requetes Grist');
+    ).toBe('attribut "base-url" requis pour les requêtes Grist');
   });
 });

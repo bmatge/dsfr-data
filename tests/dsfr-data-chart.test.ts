@@ -219,9 +219,9 @@ describe('DsfrDataChart', () => {
     });
 
     it('passes JSON array name as-is', () => {
-      chart.name = '["Serie 1", "Serie 2"]';
+      chart.name = '["Série 1", "Série 2"]';
       const attrs = (chart as any)._getCommonAttributes();
-      expect(attrs['name']).toBe('["Serie 1", "Serie 2"]');
+      expect(attrs['name']).toBe('["Série 1", "Série 2"]');
     });
 
     it('auto-generates name from valueField when name is empty', () => {

@@ -146,13 +146,13 @@ function renderContent(): void {
     contentEl.innerHTML = `
       <div class="empty-content">
         <i class="ri-bar-chart-box-line"></i>
-        <h2>Selectionnez un favori</h2>
-        <p>Choisissez un favori dans la liste de gauche pour voir son apercu et son code.</p>
+        <h2>Sélectionnez un favori</h2>
+        <p>Choisissez un favori dans la liste de gauche pour voir son aperçu et son code.</p>
         ${
           favorites.length === 0
             ? `
           <a href="${appHref('builder')}" class="fr-btn fr-btn--icon-left fr-icon-add-line">
-            Creer un graphique
+            Créer un graphique
           </a>
         `
             : ''

@@ -65,7 +65,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     data = await fetchMonitoringData();
     if (errorEl) {
       errorEl.className = 'fr-alert fr-alert--success fr-mb-2w';
-      errorEl.textContent = `Donnees reelles chargees (${data.entries.length} entrees)`;
+      errorEl.textContent = `Données reelles chargees (${data.entries.length} entrees)`;
       errorEl.style.display = 'block';
     }
   } catch (err) {
@@ -73,7 +73,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const detail = err instanceof Error ? err.message : String(err);
     if (errorEl) {
       errorEl.className = 'fr-alert fr-alert--warning fr-mb-2w';
-      errorEl.innerHTML = `<strong>Donnees de demonstration</strong> — Impossible de charger les donnees reelles : <code>${escapeHtml(detail)}</code>`;
+      errorEl.innerHTML = `<strong>Données de demonstration</strong> — Impossible de charger les données reelles : <code>${escapeHtml(detail)}</code>`;
       errorEl.style.display = 'block';
     }
     console.warn('[monitoring] fetch failed, using mock data:', detail);
@@ -394,7 +394,7 @@ function renderAdminControls(): void {
 }
 
 async function purgeAll(): Promise<void> {
-  if (!confirm('Supprimer toutes les donnees de monitoring ? Cette action est irreversible.'))
+  if (!confirm('Supprimer toutes les données de monitoring ? Cette action est irreversible.'))
     return;
 
   try {
@@ -413,7 +413,7 @@ async function purgeAll(): Promise<void> {
 async function deleteByReferer(referer: string): Promise<void> {
   const domain = extractDomain(referer);
   const path = extractPath(referer);
-  if (!confirm(`Supprimer les donnees de monitoring pour ${domain}${path} ?`)) return;
+  if (!confirm(`Supprimer les données de monitoring pour ${domain}${path} ?`)) return;
 
   try {
     const res = await fetch('/api/monitoring/entries', {
@@ -441,7 +441,7 @@ async function refreshData(): Promise<void> {
     data = await fetchMonitoringData();
     if (errEl) {
       errEl.className = 'fr-alert fr-alert--success fr-mb-2w';
-      errEl.textContent = `Donnees reelles chargees (${data.entries.length} entrees)`;
+      errEl.textContent = `Données reelles chargees (${data.entries.length} entrees)`;
       errEl.style.display = 'block';
     }
   } catch (err) {
@@ -449,7 +449,7 @@ async function refreshData(): Promise<void> {
     const detail = err instanceof Error ? err.message : String(err);
     if (errEl) {
       errEl.className = 'fr-alert fr-alert--warning fr-mb-2w';
-      errEl.innerHTML = `<strong>Donnees de demonstration</strong> — ${escapeHtml(detail)}`;
+      errEl.innerHTML = `<strong>Données de demonstration</strong> — ${escapeHtml(detail)}`;
       errEl.style.display = 'block';
     }
   }
