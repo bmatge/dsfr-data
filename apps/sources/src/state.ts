@@ -71,6 +71,8 @@ export interface SourcesState {
   tableData: GristRecord[] | Record<string, unknown>[];
   /** ID of the connection being edited in the modal (null = creating new) */
   editingConnectionId: string | null;
+  /** ID of the manual source being edited in the modal (null = creating new) */
+  editingSourceId: string | null;
   previewedSource: Source | null;
   /** Total record count reported by API (e.g. ODS total_count), -1 if unknown */
   apiTotalCount: number;
@@ -161,6 +163,7 @@ export function createInitialState(): SourcesState {
     tables: [],
     tableData: [],
     editingConnectionId: null,
+    editingSourceId: null,
     previewedSource: null,
     apiTotalCount: -1,
   };

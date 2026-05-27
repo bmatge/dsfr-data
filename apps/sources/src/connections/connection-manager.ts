@@ -27,6 +27,7 @@ import { state, EXTERNAL_PROXY } from '../state.js';
 import type { StoredConnection } from '../state.js';
 import { loadDocuments } from './grist-explorer.js';
 import { loadApiData } from './api-explorer.js';
+import { loadTableData } from '../editors/table-editor.js';
 
 // ============================================================
 // Render
@@ -582,11 +583,22 @@ export function renderSources(): void {
             ? '<span class="badge-source-type badge-join">Jointure</span>'
             : '<span class="badge-source-type badge-manual">Manuel</span>';
 
+    // Edit button: only available on manual sources (API/Grist/join sources
+    // are derived from external state, not editable here).
+    const editBtn =
+      source.type === 'manual'
+        ? `<button class="edit-source-btn" title="Modifier"
+            style="background: none; border: none; cursor: pointer; color: var(--text-mention-grey); padding: 0.25rem; font-size: 0.875rem; border-radius: 3px;">
+            <i class="ri-pencil-line"></i>
+          </button>`
+        : '';
+
     card.innerHTML = `
       <div style="display: flex; align-items: center; gap: 0.5rem;">
         ${typeBadge}
         <span style="flex: 1; font-weight: 500;">${escapeHtml(source.name)}</span>
         <span class="count">${source.recordCount || 0} lignes</span>
+        ${editBtn}
         <button class="delete-source-btn" title="Supprimer"
           style="background: none; border: none; cursor: pointer; color: var(--text-mention-grey); padding: 0.25rem; font-size: 0.875rem; border-radius: 3px;">
           <i class="ri-delete-bin-line"></i>
@@ -595,9 +607,14 @@ export function renderSources(): void {
 
     card.addEventListener('click', (e: Event) => {
       const target = e.target as HTMLElement;
-      if (!target.closest('.delete-source-btn')) {
+      if (!target.closest('.delete-source-btn') && !target.closest('.edit-source-btn')) {
         previewSource(source.id);
       }
+    });
+
+    card.querySelector('.edit-source-btn')?.addEventListener('click', (e: Event) => {
+      e.stopPropagation();
+      editSource(source.id);
     });
 
     card.querySelector('.delete-source-btn')?.addEventListener('click', async (e: Event) => {
@@ -627,6 +644,37 @@ export function deleteSource(id: string): void {
   saveToStorage(STORAGE_KEYS.SOURCES, state.sources);
   getApiAdapter()?.deleteItemFromServer(STORAGE_KEYS.SOURCES, id);
   renderSources();
+}
+
+/**
+ * Open the "Nouvelle source manuelle" modal in edit mode, pre-filled with the
+ * existing source. Only valid for sources of type `manual`. The table editor
+ * is used for editing regardless of how the source was originally created
+ * (JSON, CSV, or table) — it's the most general view, and the user can still
+ * switch modes if they want to paste new JSON or import a new CSV.
+ */
+export function editSource(id: string): void {
+  const source = state.sources.find((s) => s.id === id);
+  if (!source || source.type !== 'manual') return;
+
+  state.editingSourceId = id;
+
+  const titleEl = document.querySelector('#manual-source-modal .modal-header h3');
+  if (titleEl) {
+    titleEl.innerHTML = '<i class="ri-pencil-line"></i> Modifier la source';
+  }
+  const saveBtnEl = document.getElementById('save-source-btn');
+  if (saveBtnEl) {
+    saveBtnEl.textContent = 'Enregistrer les modifications';
+  }
+
+  const nameEl = document.getElementById('source-name') as HTMLInputElement | null;
+  if (nameEl) nameEl.value = source.name || '';
+
+  switchSourceMode('table');
+  loadTableData(source.data as Record<string, unknown>[]);
+
+  openModal('manual-source-modal');
 }
 
 export function previewSource(id: string): void {
