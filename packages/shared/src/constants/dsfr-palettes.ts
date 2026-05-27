@@ -49,4 +49,20 @@ export const PALETTE_COLORS: Record<string, readonly string[]> = {
   neutral: ['#161616', '#3A3A3A', '#666666', '#929292', '#CECECE'],
 };
 
+/**
+ * Human-friendly display names per palette key.
+ * Used wherever the palette appears in user-visible UI (section summaries, badges, etc.)
+ * so the raw internal key (e.g. `sequentialAscending`) never leaks.
+ * Stay in sync with the `<option>` labels in `apps/builder/index.html` palette select.
+ */
+export const PALETTE_DISPLAY_NAMES: Record<string, string> = {
+  default: 'Bleu France',
+  categorical: 'Couleurs distinctes par catégorie',
+  sequentialAscending: 'Dégradé clair → foncé',
+  sequentialDescending: 'Dégradé foncé → clair',
+  divergentAscending: 'Bicolore (centre clair)',
+  divergentDescending: 'Bicolore (centre foncé)',
+  neutral: 'Tons neutres (gris)',
+};
+
 export type PaletteType = keyof typeof PALETTE_COLORS;

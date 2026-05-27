@@ -8,7 +8,12 @@ export { parseJoinKeys, performJoin } from './utils/join.js';
 export { isUnsafeKey } from './utils/security.js';
 
 // Constants
-export { DSFR_COLORS, PALETTE_PRIMARY_COLOR, PALETTE_COLORS } from './constants/dsfr-palettes.js';
+export {
+  DSFR_COLORS,
+  PALETTE_PRIMARY_COLOR,
+  PALETTE_COLORS,
+  PALETTE_DISPLAY_NAMES,
+} from './constants/dsfr-palettes.js';
 export type { PaletteType } from './constants/dsfr-palettes.js';
 
 // Templates / CDN
