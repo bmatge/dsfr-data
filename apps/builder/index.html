@@ -235,6 +235,14 @@
           <select class="fr-select" id="code-field">
             <option value="">— Charger les champs —</option>
           </select>
+          <!-- Avertissement affiché par updateMapCodeFieldWarning() quand aucun champ
+               de la source ne ressemble à un code INSEE valide (audit UX §m-B-6). -->
+          <div id="code-field-warning" class="field-warning" hidden>
+            <strong>Aucun code département détecté.</strong>
+            La source ne semble pas contenir de champ avec des codes INSEE
+            (01-95, 2A, 2B, 971-976). Convertissez vos noms de départements en
+            codes ou choisissez un autre type de graphique.
+          </div>
         </div>
 
         <!-- Tri -->
@@ -411,6 +419,8 @@
             <option value="divergentDescending">Bicolore (centre foncé)</option>
             <option value="neutral">Tons neutres (gris)</option>
           </select>
+          <!-- Aperçu visuel des couleurs de la palette sélectionnée. Rendu par renderPaletteSwatches(). -->
+          <div id="palette-swatches" class="palette-swatches" role="img" aria-label="Aperçu des couleurs de la palette"></div>
         </div>
 
         <!-- Options spécifiques KPI -->

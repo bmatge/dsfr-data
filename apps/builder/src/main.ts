@@ -22,6 +22,7 @@ import {
   copyCode,
   toggleSection,
   syncFavoriteIcon,
+  renderPaletteSwatches,
 } from './ui/ui-helpers.js';
 import type { ChartType } from './state.js';
 import { setupDatalistListeners } from './ui/datalist-config.js';
@@ -75,8 +76,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (paletteSelect) {
     paletteSelect.addEventListener('change', (e) => {
       state.palette = (e.target as HTMLSelectElement).value;
+      renderPaletteSwatches(state.palette);
     });
   }
+  // Render initial swatches for the default palette on page load.
+  renderPaletteSwatches();
 
   // Field selects — track changes for preview steps
   const labelFieldSelect = document.getElementById('label-field') as HTMLSelectElement | null;

@@ -5,6 +5,7 @@
 
 import { state, type ChartType } from '../state.js';
 import { initDatalistColumns } from './datalist-config.js';
+import { renderPaletteSwatches, updateMapCodeFieldWarning } from './ui-helpers.js';
 
 /**
  * Select a chart type and update the UI accordingly.
@@ -45,7 +46,13 @@ export function selectChartType(type: ChartType): void {
     state.palette = 'sequentialAscending';
     const paletteSelect = document.getElementById('chart-palette') as HTMLSelectElement | null;
     if (paletteSelect) paletteSelect.value = 'sequentialAscending';
+    renderPaletteSwatches(state.palette);
   }
+
+  // Warn the user if they pick "Carte départementale" on a source that doesn't
+  // actually contain INSEE codes (audit UX §m-B-6). Re-evaluated on every
+  // chart-type change since the warning only shows when chartType === 'map'.
+  updateMapCodeFieldWarning();
 
   // Label field: hide for single value types (KPI, gauge)
   const labelField = document.getElementById('label-field');

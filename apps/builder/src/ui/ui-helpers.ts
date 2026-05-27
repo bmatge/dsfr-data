@@ -12,6 +12,8 @@ import {
   toastInfo,
   navigateTo,
   promptDialog,
+  PALETTE_COLORS,
+  isValidDeptCode,
 } from '@dsfr-data/shared';
 import type { Favorite } from '../state.js';
 
@@ -80,6 +82,70 @@ export function openInPlayground(): void {
   sessionStorage.setItem('playground-code', code);
   // Redirect to the playground
   navigateTo('playground', { from: 'builder' });
+}
+
+/**
+ * Render the colour swatches preview right below the palette `<select>`,
+ * giving an immediate visual feedback on the selected palette without
+ * having to generate the chart (audit UX 2026-05-26 §T-5).
+ *
+ * Safe to call when the container is not mounted (no-op).
+ */
+export function renderPaletteSwatches(paletteKey: string = state.palette): void {
+  const container = document.getElementById('palette-swatches');
+  if (!container) return;
+  const colors = PALETTE_COLORS[paletteKey] ?? PALETTE_COLORS.default ?? [];
+  container.innerHTML = colors
+    .map((c) => `<span class="palette-swatch" style="background:${c}"></span>`)
+    .join('');
+}
+
+/**
+ * Detect whether the loaded source has a column that *looks like* it contains
+ * French INSEE department codes (sample-based validation via `isValidDeptCode`,
+ * not just name-matching). Used to warn the user when they pick "Carte
+ * départementale" on an incompatible source (audit UX §m-B-6).
+ *
+ * Returns the name of the best candidate column, or `null` if none qualifies.
+ */
+export function findDeptCodeField(): string | null {
+  const data = (state.data ?? state.localData ?? []) as Record<string, unknown>[];
+  if (!Array.isArray(data) || data.length === 0) return null;
+
+  // Only consider string/number fields (codes can be "2A" or numeric)
+  const candidates = state.fields.filter((f) => f.type === 'string' || f.type === 'number');
+  if (candidates.length === 0) return null;
+
+  const sample = data.slice(0, 50);
+  for (const field of candidates) {
+    let valid = 0;
+    let nonEmpty = 0;
+    for (const row of sample) {
+      const raw = row[field.name];
+      if (raw == null || raw === '') continue;
+      nonEmpty++;
+      if (isValidDeptCode(String(raw))) valid++;
+    }
+    // Accept the field if at least 80% of its non-empty sample values are valid codes
+    if (nonEmpty > 0 && valid / nonEmpty >= 0.8) return field.name;
+  }
+  return null;
+}
+
+/**
+ * Show or hide the warning below the `#code-field` select based on whether
+ * the loaded source actually contains valid INSEE department codes.
+ * Only relevant when the chart type is "map" (the warning element is hidden
+ * by the section toggle when not on map).
+ */
+export function updateMapCodeFieldWarning(): void {
+  const warning = document.getElementById('code-field-warning');
+  if (!warning) return;
+  if (state.chartType !== 'map' || state.fields.length === 0) {
+    warning.hidden = true;
+    return;
+  }
+  warning.hidden = findDeptCodeField() !== null;
 }
 
 /**

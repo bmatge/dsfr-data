@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { populateFieldSelects } from '../../../apps/builder/src/sources-fields';
 import { state } from '../../../apps/builder/src/state';
-import type { Field } from '../../../apps/builder/src/state';
 
 describe('builder sources-fields', () => {
   beforeEach(() => {
@@ -71,9 +70,7 @@ describe('builder sources-fields', () => {
   });
 
   it('should display field type in option text', () => {
-    state.fields = [
-      { name: 'score', type: 'number', sample: 42 },
-    ];
+    state.fields = [{ name: 'score', type: 'number', sample: 42 }];
     populateFieldSelects();
 
     const labelSelect = document.getElementById('label-field') as HTMLSelectElement;
@@ -83,7 +80,13 @@ describe('builder sources-fields', () => {
 
   it('should use displayName when available', () => {
     state.fields = [
-      { name: 'pop', displayName: 'Population', type: 'number', sample: 1000, fullPath: 'fields.pop' },
+      {
+        name: 'pop',
+        displayName: 'Population',
+        type: 'number',
+        sample: 1000,
+        fullPath: 'fields.pop',
+      },
     ];
     populateFieldSelects();
 
@@ -126,10 +129,14 @@ describe('builder sources-fields', () => {
       expect(codeSelect.value).toBe('code_dept');
     });
 
-    it('should not auto-select when no matching candidates', () => {
+    it('should not auto-select when several non-matching candidates exist', () => {
+      // 2+ string and 2+ number candidates, none matching domain keywords →
+      // ambiguous, leave the user choose.
       state.fields = [
         { name: 'x', type: 'string', sample: 'a' },
-        { name: 'y', type: 'number', sample: 1 },
+        { name: 'y', type: 'string', sample: 'b' },
+        { name: 'a', type: 'number', sample: 1 },
+        { name: 'b', type: 'number', sample: 2 },
       ];
       populateFieldSelects();
 
@@ -138,6 +145,22 @@ describe('builder sources-fields', () => {
       // No auto-selection: default option stays selected
       expect(labelSelect.value).toBe('');
       expect(valueSelect.value).toBe('');
+    });
+
+    it('should auto-select the only string/number field even without a keyword match (T-6)', () => {
+      // Smart-default fallback : if there is exactly one candidate of a given
+      // type, pre-select it (audit UX 2026-05-26 §T-6). Saves the user a click
+      // on simple datasets where there is no ambiguity.
+      state.fields = [
+        { name: 'x', type: 'string', sample: 'a' },
+        { name: 'y', type: 'number', sample: 1 },
+      ];
+      populateFieldSelects();
+
+      const labelSelect = document.getElementById('label-field') as HTMLSelectElement;
+      const valueSelect = document.getElementById('value-field') as HTMLSelectElement;
+      expect(labelSelect.value).toBe('x');
+      expect(valueSelect.value).toBe('y');
     });
   });
 });

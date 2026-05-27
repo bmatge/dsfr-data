@@ -4,6 +4,7 @@
  */
 
 import { state } from './state.js';
+import { updateMapCodeFieldWarning } from './ui/ui-helpers.js';
 
 /**
  * Populate label/value/code field dropdowns from state.fields.
@@ -57,22 +58,30 @@ export function populateFieldSelects(): void {
   const fieldNameLower = (f: { displayName?: string; name: string }): string =>
     (f.displayName || f.name).toLowerCase();
 
-  const stringField = state.fields.find(
-    (f) =>
-      f.type === 'string' &&
-      (fieldNameLower(f).includes('nom') ||
+  // Smart defaults (T-6 from audit UX 2026-05-26) : 1) prioritise field names
+  // matching domain keywords, 2) fall back to "the only candidate" when there
+  // is no ambiguity. Saves Marie one click on simple datasets.
+  const stringCandidates = state.fields.filter((f) => f.type === 'string');
+  const numberCandidates = state.fields.filter((f) => f.type === 'number');
+
+  const stringField =
+    stringCandidates.find(
+      (f) =>
+        fieldNameLower(f).includes('nom') ||
         fieldNameLower(f).includes('region') ||
         fieldNameLower(f).includes('departement') ||
-        fieldNameLower(f).includes('label'))
-  );
-  const numberField = state.fields.find(
-    (f) =>
-      f.type === 'number' &&
-      (fieldNameLower(f).includes('prix') ||
+        fieldNameLower(f).includes('label')
+    ) ?? (stringCandidates.length === 1 ? stringCandidates[0] : undefined);
+
+  const numberField =
+    numberCandidates.find(
+      (f) =>
+        fieldNameLower(f).includes('prix') ||
         fieldNameLower(f).includes('score') ||
         fieldNameLower(f).includes('valeur') ||
-        fieldNameLower(f).includes('value'))
-  );
+        fieldNameLower(f).includes('value')
+    ) ?? (numberCandidates.length === 1 ? numberCandidates[0] : undefined);
+
   // Auto-select code field for maps (look for code_dept, departement, code_insee, etc.)
   const codeField = state.fields.find(
     (f) =>
@@ -98,6 +107,9 @@ export function populateFieldSelects(): void {
 
   // Re-populate existing extra séries selects
   refreshExtraSeriesSelects();
+
+  // Re-evaluate the "no INSEE codes" warning now that the field list changed.
+  updateMapCodeFieldWarning();
 }
 
 /**

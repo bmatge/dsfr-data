@@ -809,3 +809,35 @@ h3 .help-btn i {
   text-decoration: line-through;
   text-decoration-color: rgba(0, 0, 0, 0.15);
 }
+
+/* Palette swatches — aperçu visuel des couleurs de la palette sélectionnée.
+   Affichés juste sous le select #chart-palette pour donner un feedback
+   visuel immédiat sur le rendu (audit UX 2026-05-26 §T-5). */
+.palette-swatches {
+  display: flex;
+  gap: 2px;
+  margin-top: 0.5rem;
+  height: 18px;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.palette-swatches .palette-swatch {
+  flex: 1;
+  min-width: 12px;
+}
+
+/* Warning sous le select Code département quand la source ne contient
+   manifestement pas de codes INSEE (audit UX 2026-05-26 §m-B-6). */
+.field-warning {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--background-action-high-warning, #d97706);
+  background: var(--background-contrast-warning, #fef3c7);
+  border-radius: 0 3px 3px 0;
+  font-size: 0.8125rem;
+  color: var(--text-default-grey, #3a3a3a);
+  line-height: 1.4;
+}
+.field-warning[hidden] {
+  display: none;
+}
