@@ -8,8 +8,10 @@ Toutes les 13 chaînes de templates HTML du `code-generator.ts` (variantes par t
 
 ```html
 <!-- Graphique généré avec dsfr-data Builder -->
-<!-- Doc des composants : https://chartsbuilder.matge.com/specs/ -->
+<!-- Doc des composants : ${PROXY_BASE_URL_EMBED}/specs/ -->
 ```
+
+L'URL est dérivée de `PROXY_BASE_URL_EMBED` (déjà exporté depuis `@dsfr-data/shared`) au moment de la génération du code — pas hardcodée — pour rester self-hostable conformément à l'épic #168 et l'ADR-026 (« accès direct `import.meta.env`, pas de valeur en dur »). Sur le déploiement de référence : `https://chartsbuilder.matge.com/specs/`. Sur une instance self-hostée : l'URL du domaine embed configuré via `VITE_PROXY_URL_EMBED`.
 
 Pour Sami (P2 data analyst) qui copie le code dans son site, c'est un point d'entrée immédiat vers la doc des attributs des composants dsfr-data utilisés. Avant, il devait chercher à la main.
 

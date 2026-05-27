@@ -846,7 +846,7 @@ export function generateCodeForLocalData(): void {
     const colonnes = buildColonnesAttr();
     const triAttr = buildDatalistTriAttr();
     const code = `<!-- Tableau généré avec dsfr-data Builder -->
-<!-- Doc des composants : https://chartsbuilder.matge.com/specs/ -->
+<!-- Doc des composants : ${PROXY_BASE_URL_EMBED}/specs/ -->
 <!-- Source : ${state.savedSource?.name || 'Données locales'} -->
 
 <!-- Dependances CSS (DSFR) -->
@@ -884,7 +884,7 @@ datalist.onSourceData(data);
     const xValues = state.data.map((d) => (d[state.labelField] as number) || 0);
     const yValues = state.data.map((d) => (d.value as number) || 0);
     const code = `<!-- Nuage de points généré avec dsfr-data Builder -->
-<!-- Doc des composants : https://chartsbuilder.matge.com/specs/ -->
+<!-- Doc des composants : ${PROXY_BASE_URL_EMBED}/specs/ -->
 <!-- Source : ${state.savedSource?.name || 'Données locales'} -->
 
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
@@ -995,7 +995,7 @@ datalist.onSourceData(data);
   const extraStr = extraAttrs.map((a) => `\n    ${a}`).join('');
 
   const code = `<!-- Graphique généré avec dsfr-data Builder -->
-<!-- Doc des composants : https://chartsbuilder.matge.com/specs/ -->
+<!-- Doc des composants : ${PROXY_BASE_URL_EMBED}/specs/ -->
 <!-- Source : ${state.savedSource?.name || 'Données locales'} -->
 
 <!-- Dependances (DSFR + DSFR Chart) -->
@@ -1373,7 +1373,7 @@ export function generateDynamicCode(): void {
       gristFacetsMode
     );
     const code = `<!-- Tableau dynamique généré avec dsfr-data Builder -->
-<!-- Doc des composants : https://chartsbuilder.matge.com/specs/ -->
+<!-- Doc des composants : ${PROXY_BASE_URL_EMBED}/specs/ -->
 <!-- Source : ${escapeHtml(source.name)} (chargement dynamique depuis ${gristHost}) -->
 
 <!-- Dependances CSS (DSFR) -->
@@ -1457,7 +1457,7 @@ ${middlewareHtml}
   }
 
   const code = `<!-- Graphique dynamique généré avec dsfr-data Builder -->
-<!-- Doc des composants : https://chartsbuilder.matge.com/specs/ -->
+<!-- Doc des composants : ${PROXY_BASE_URL_EMBED}/specs/ -->
 <!-- Source : ${escapeHtml(source.name)} (chargement dynamique depuis ${gristHost}) -->
 <!-- Les données sont chargees via le proxy ${PROXY_BASE_URL_EMBED} -->
 ${state.advancedMode ? '<!-- Mode avance active : filtrage et agrégation via dsfr-data-query -->' : ''}
@@ -1548,7 +1548,7 @@ export function generateDynamicCodeForApi(): void {
               ? ' format="nombre"'
               : '';
       const code = `<!-- KPI dynamique généré avec dsfr-data Builder -->
-<!-- Doc des composants : https://chartsbuilder.matge.com/specs/ -->
+<!-- Doc des composants : ${PROXY_BASE_URL_EMBED}/specs/ -->
 <!-- Source : ${escapeHtml(source.name)} (agrégation serveur) -->
 
 <!-- Dependances CSS (DSFR) -->
@@ -1594,7 +1594,7 @@ export function generateDynamicCodeForApi(): void {
       const facets = generateFacetsElement('table-query', { serverFacets: true });
       const datalistSource = facets.element ? facets.finalSourceId : 'table-query';
       const code = `<!-- Tableau dynamique généré avec dsfr-data Builder -->
-<!-- Doc des composants : https://chartsbuilder.matge.com/specs/ -->
+<!-- Doc des composants : ${PROXY_BASE_URL_EMBED}/specs/ -->
 <!-- Source : ${escapeHtml(source.name)} (pagination serveur : une page a la fois) -->
 
 <!-- Dependances CSS (DSFR) -->
@@ -1647,7 +1647,7 @@ ${facets.element}
       );
       const datalistSource = facets.element ? facets.finalSourceId : 'table-query';
       const code = `<!-- Tableau dynamique généré avec dsfr-data Builder -->
-<!-- Doc des composants : https://chartsbuilder.matge.com/specs/ -->
+<!-- Doc des composants : ${PROXY_BASE_URL_EMBED}/specs/ -->
 <!-- Source : ${escapeHtml(source.name)} (pagination serveur : une page a la fois) -->
 
 <!-- Dependances CSS (DSFR) -->
@@ -1691,7 +1691,7 @@ ${facets.element}
     const { elements: middlewareHtml, finalSourceId: datalistSource } =
       generateMiddlewareElements('table-data');
     const code = `<!-- Tableau dynamique généré avec dsfr-data Builder -->
-<!-- Doc des composants : https://chartsbuilder.matge.com/specs/ -->
+<!-- Doc des composants : ${PROXY_BASE_URL_EMBED}/specs/ -->
 <!-- Source : ${escapeHtml(source.name)} (chargement dynamique) -->
 
 <!-- Dependances CSS (DSFR) -->
@@ -1809,7 +1809,7 @@ ${middlewareHtml}
   }
 
   const code = `<!-- Graphique dynamique généré avec dsfr-data Builder -->
-<!-- Doc des composants : https://chartsbuilder.matge.com/specs/ -->
+<!-- Doc des composants : ${PROXY_BASE_URL_EMBED}/specs/ -->
 <!-- Source : ${escapeHtml(source.name)} (chargement dynamique) -->
 ${state.advancedMode ? '<!-- Mode avance active : filtrage et agrégation via dsfr-data-query -->' : ''}
 
@@ -1951,7 +1951,7 @@ loadGauge();
     const colonnes = buildColonnesAttr();
     const triAttr = buildDatalistTriAttr();
     const code = `<!-- Tableau généré avec dsfr-data Builder -->
-<!-- Doc des composants : https://chartsbuilder.matge.com/specs/ -->
+<!-- Doc des composants : ${PROXY_BASE_URL_EMBED}/specs/ -->
 
 <!-- Dependances CSS (DSFR) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
@@ -1990,7 +1990,7 @@ loadTable();
   // Handle Scatter type
   if (state.chartType === 'scatter') {
     const code = `<!-- Nuage de points généré avec dsfr-data Builder -->
-<!-- Doc des composants : https://chartsbuilder.matge.com/specs/ -->
+<!-- Doc des composants : ${PROXY_BASE_URL_EMBED}/specs/ -->
 
 <!-- Dependances (DSFR + DSFR Chart) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
@@ -2132,7 +2132,7 @@ loadMap();
       : 'JSON.stringify([values])';
 
   const code = `<!-- Graphique généré avec dsfr-data Builder -->
-<!-- Doc des composants : https://chartsbuilder.matge.com/specs/ -->
+<!-- Doc des composants : ${PROXY_BASE_URL_EMBED}/specs/ -->
 
 <!-- Dependances (DSFR + DSFR Chart) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
