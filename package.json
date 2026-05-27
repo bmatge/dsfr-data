@@ -43,6 +43,7 @@
     "sync-versions": "vite-node scripts/sync-versions.ts",
     "generate-sri": "vite-node scripts/generate-sri.ts",
     "check:sri": "vite-node scripts/generate-sri.ts -- --check",
+    "check:accents": "bash scripts/check-french-accents.sh",
     "release-publish": "npm run build:shared && npm run build && changeset publish"
   },
   "keywords": [

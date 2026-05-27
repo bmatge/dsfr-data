@@ -62,6 +62,9 @@ jobs:
       - name: Check SRI hashes on CDN refs
         run: npm run check:sri
 
+      - name: Check French accents on UI strings
+        run: npm run check:accents
+
       - name: Build shared package
         run: npm run build:shared
 
