@@ -71,10 +71,13 @@ joined=$(IFS='|'; echo "${PATTERNS[*]}")
 
 # Use git grep so .gitignore is honoured automatically.
 # -E: ERE alternation, -w: word boundaries, -n: line numbers, --: end of options.
+# CHANGELOG.md is excluded by design: it documents past mistakes ("avant : donnees,
+# après : données") and contains the unaccented forms as quoted examples.
 if matches=$(git grep -nwE "(${joined})" -- \
       "apps/**/*.ts" "apps/**/*.html" "apps/**/*.css" "apps/**/*.md" \
       "packages/**/*.ts" "packages/**/*.html" "packages/**/*.css" "packages/**/*.md" \
-      ':!**/dist/**' ':!**/node_modules/**' ':!**/*.min.*' 2>/dev/null); then
+      ':!**/dist/**' ':!**/node_modules/**' ':!**/*.min.*' \
+      ':!**/CHANGELOG.md' ':!**/CHANGELOG*' 2>/dev/null); then
   count=$(printf '%s\n' "$matches" | wc -l | tr -d ' ')
   printf '\n\033[31m✗ %d unaccented French word(s) found in UI source files:\033[0m\n\n' "$count"
   printf '%s\n' "$matches"
