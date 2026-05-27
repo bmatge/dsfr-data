@@ -49,6 +49,7 @@ import {
   saveJoinSource,
   updateJoinFieldsInfo,
   previewJoinResult,
+  addApiHeaderRow,
 } from './connections/connection-manager.js';
 
 import {
@@ -229,6 +230,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     .getElementById('add-source-btn')
     ?.addEventListener('click', () => openModal('manual-source-modal'));
   document.getElementById('save-connection-btn')?.addEventListener('click', saveConnection);
+  document.getElementById('add-api-header-btn')?.addEventListener('click', () => addApiHeaderRow());
   document.getElementById('save-source-btn')?.addEventListener('click', saveManualSource);
   document
     .getElementById('create-table-btn')

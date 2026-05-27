@@ -349,14 +349,13 @@ export function editConnection(id: string): void {
 
     const apiUrlEl = document.getElementById('api-url') as HTMLInputElement | null;
     const apiMethodEl = document.getElementById('api-method') as HTMLSelectElement | null;
-    const apiHeadersEl = document.getElementById('api-headers') as HTMLTextAreaElement | null;
     const apiDataPathEl = document.getElementById('api-data-path') as HTMLInputElement | null;
 
     if (apiUrlEl) apiUrlEl.value = ((conn as Record<string, unknown>).apiUrl as string) || '';
     if (apiMethodEl)
       apiMethodEl.value = ((conn as Record<string, unknown>).method as string) || 'GET';
-    if (apiHeadersEl)
-      apiHeadersEl.value = ((conn as Record<string, unknown>).headers as string) || '';
+    // Headers: populate the key/value editor (which keeps `#api-headers` in sync).
+    populateApiHeadersFromJson(((conn as Record<string, unknown>).headers as string) || '');
     if (apiDataPathEl)
       apiDataPathEl.value = ((conn as Record<string, unknown>).dataPath as string) || '';
   } else {
@@ -475,8 +474,8 @@ export function resetConnectionForm(): void {
   const methodEl = document.getElementById('api-method') as HTMLSelectElement | null;
   if (methodEl) methodEl.value = 'GET';
 
-  const headersEl = document.getElementById('api-headers') as HTMLTextAreaElement | null;
-  if (headersEl) headersEl.value = '';
+  // Headers: clear the key/value editor (also clears the hidden textarea).
+  clearApiHeadersEditor();
 
   const dataPathEl = document.getElementById('api-data-path') as HTMLInputElement | null;
   if (dataPathEl) dataPathEl.value = '';
@@ -539,6 +538,108 @@ export function refreshCurrentView(): void {
 // ============================================================
 // Source mode switching (manual source modal)
 // ============================================================
+
+// ============================================================
+// API headers — key/value editor
+// ============================================================
+
+/**
+ * Append an empty header row (name + value + remove button) to the editor.
+ * If `name`/`value` are provided, pre-fill them — used by `editConnection()`
+ * to populate the editor with the existing headers of a saved API connection.
+ */
+export function addApiHeaderRow(name = '', value = ''): void {
+  const editor = document.getElementById('api-headers-editor');
+  if (!editor) return;
+
+  const row = document.createElement('div');
+  row.className = 'api-headers-row';
+  row.style.cssText = 'display:flex;gap:0.5rem;align-items:center;margin-bottom:0.5rem;';
+
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text';
+  nameInput.className = 'fr-input fr-input--sm api-header-name';
+  nameInput.placeholder = 'Nom (ex : Authorization)';
+  nameInput.value = name;
+  nameInput.style.flex = '1';
+
+  const valueInput = document.createElement('input');
+  valueInput.type = 'text';
+  valueInput.className = 'fr-input fr-input--sm api-header-value';
+  valueInput.placeholder = 'Valeur (ex : Bearer votre_token)';
+  valueInput.value = value;
+  valueInput.style.flex = '2';
+
+  const removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.className = 'api-header-remove-btn';
+  removeBtn.title = 'Supprimer cet en-tête';
+  removeBtn.setAttribute('aria-label', 'Supprimer cet en-tête');
+  removeBtn.style.cssText =
+    'background:none;border:none;color:var(--text-mention-grey);cursor:pointer;padding:0.25rem;font-size:1rem;';
+  removeBtn.innerHTML = '<i class="ri-delete-bin-line" aria-hidden="true"></i>';
+  removeBtn.addEventListener('click', () => {
+    row.remove();
+    syncApiHeadersTextarea();
+  });
+
+  nameInput.addEventListener('input', syncApiHeadersTextarea);
+  valueInput.addEventListener('input', syncApiHeadersTextarea);
+
+  row.appendChild(nameInput);
+  row.appendChild(valueInput);
+  row.appendChild(removeBtn);
+  editor.appendChild(row);
+
+  syncApiHeadersTextarea();
+}
+
+/**
+ * Serialize all editor rows into the hidden `#api-headers` textarea
+ * (which `saveApiConnection` already consumes as JSON).
+ */
+function syncApiHeadersTextarea(): void {
+  const editor = document.getElementById('api-headers-editor');
+  const textarea = document.getElementById('api-headers') as HTMLTextAreaElement | null;
+  if (!editor || !textarea) return;
+
+  const headers: Record<string, string> = {};
+  editor.querySelectorAll('.api-headers-row').forEach((row) => {
+    const name = (row.querySelector('.api-header-name') as HTMLInputElement | null)?.value.trim();
+    const value = (row.querySelector('.api-header-value') as HTMLInputElement | null)?.value.trim();
+    if (name) headers[name] = value ?? '';
+  });
+
+  textarea.value = Object.keys(headers).length > 0 ? JSON.stringify(headers) : '';
+}
+
+/** Remove all rows from the API headers editor and clear the hidden textarea. */
+export function clearApiHeadersEditor(): void {
+  const editor = document.getElementById('api-headers-editor');
+  if (editor) editor.innerHTML = '';
+  const textarea = document.getElementById('api-headers') as HTMLTextAreaElement | null;
+  if (textarea) textarea.value = '';
+}
+
+/**
+ * Parse a JSON object of headers into editor rows. Silently ignores invalid
+ * JSON (the legacy textarea allowed any string; we don't want to crash on
+ * malformed saved data).
+ */
+export function populateApiHeadersFromJson(jsonStr: string | null | undefined): void {
+  clearApiHeadersEditor();
+  if (!jsonStr) return;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(jsonStr);
+  } catch {
+    return;
+  }
+  if (!parsed || typeof parsed !== 'object') return;
+  for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+    addApiHeaderRow(String(key), value == null ? '' : String(value));
+  }
+}
 
 export function switchSourceMode(mode: string): void {
   import('../state.js').then(({ setCurrentSourceMode }) => {
