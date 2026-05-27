@@ -1,8 +1,10 @@
 ---
-'dsfr-data': minor
+'dsfr-data': patch
 ---
 
 build: séparation `PROXY_BASE_URL` (runtime app) / `PROXY_BASE_URL_EMBED` (code généré) / `BEACON_BASE_URL` (télémétrie) — closes #180.
+
+**Note sur la classification semver** (relue en fin de session 2026-05-27) : initialement classé `minor` au prétexte de « nouveaux exports », ce changement n'ajoute en réalité aucun symbole à l'API publique du package npm `dsfr-data` (publié depuis `packages/core/`). Les nouvelles exports `PROXY_BASE_URL_EMBED` / `BEACON_BASE_URL` vivent uniquement dans `@dsfr-data/shared` qui est un **package interne** (workspace npm, jamais publié). Du point de vue d'un consumer npm de `dsfr-data`, ce changement est purement infrastructurel (les URL de proxy bakées dans le bundle restent fonctionnelles ; aucune signature publique modifiée). Reclassement en `patch` justifié.
 
 Permet aux opérateurs self-hostés de découpler le domaine où l'app tourne (potentiellement interne / privé) du domaine inliné dans les widgets générés (qui doit être public et stable pour fonctionner sur des sites tiers). Et optionnellement un troisième domaine pour la collecte télémétrie.
 
