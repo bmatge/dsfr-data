@@ -105,6 +105,28 @@ function saveManualSource(): void {
 
   if (!data) return;
 
+  const editingId = state.editingSourceId;
+  if (editingId) {
+    // Update in place — keep the same id so existing references (favorites,
+    // dashboards, builder state) still resolve.
+    const idx = state.sources.findIndex((s) => s.id === editingId);
+    if (idx >= 0) {
+      state.sources[idx] = {
+        ...state.sources[idx],
+        name,
+        data,
+        recordCount: data.length,
+      };
+      saveToStorage(STORAGE_KEYS.SOURCES, state.sources);
+      renderSources();
+      closeModal('manual-source-modal');
+      resetManualSourceModal();
+      toastSuccess(`Source « ${name} » mise à jour.`);
+      return;
+    }
+    // Edited source was deleted in another tab — fall through to create new.
+  }
+
   const source = {
     id: crypto.randomUUID(),
     name,
@@ -118,9 +140,23 @@ function saveManualSource(): void {
   renderSources();
   closeModal('manual-source-modal');
   resetManualSourceModal();
+  toastSuccess(`Source « ${name} » ajoutée.`);
 }
 
 function resetManualSourceModal(): void {
+  state.editingSourceId = null;
+
+  // Reset modal title and submit button back to the "create new" defaults
+  // (editSource() flips them to "Modifier" / "Enregistrer les modifications").
+  const titleEl = document.querySelector('#manual-source-modal .modal-header h3');
+  if (titleEl) {
+    titleEl.innerHTML = '<i class="ri-edit-line"></i> Nouvelle source manuelle';
+  }
+  const saveBtnEl = document.getElementById('save-source-btn');
+  if (saveBtnEl) {
+    saveBtnEl.textContent = 'Sauvegarder';
+  }
+
   const nameEl = document.getElementById('source-name') as HTMLInputElement | null;
   if (nameEl) nameEl.value = '';
 

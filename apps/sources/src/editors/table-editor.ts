@@ -206,6 +206,71 @@ export function collectTableData(): Record<string, unknown>[] {
 // Reset table editor
 // ============================================================
 
+/**
+ * Pre-fill the table editor with records from an existing source.
+ * Columns are derived from the keys of the first record. Rows after the
+ * first determine extra columns if their key set differs (sparse unions
+ * handled by the union of all keys).
+ */
+export function loadTableData(data: Record<string, unknown>[]): void {
+  const table = getTableEditor();
+  if (!table || data.length === 0) {
+    resetTableEditor();
+    return;
+  }
+
+  // Column union across all rows (preserves first-record order, then adds extras)
+  const seen = new Set<string>();
+  const columns: string[] = [];
+  for (const row of data) {
+    for (const key of Object.keys(row)) {
+      if (!seen.has(key)) {
+        seen.add(key);
+        columns.push(key);
+      }
+    }
+  }
+
+  const headerRow = table.querySelector('thead tr');
+  if (headerRow) {
+    let html = '<th style="width: 30px;">#</th>';
+    for (const col of columns) {
+      const escaped = col.replace(/"/g, '&quot;');
+      html += `<th style="position: relative;">
+        <input type="text" value="${escaped}" class="fr-input fr-input--sm" style="min-width: 80px;">
+        <button class="remove-col-btn" onclick="(window as any).removeTableColumn(this)" title="Supprimer la colonne"
+          style="position: absolute; top: -2px; right: -2px; background: var(--background-action-high-error); color: white; border: none; border-radius: 50%; width: 16px; height: 16px; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+          x
+        </button>
+      </th>`;
+    }
+    html += '<th style="width: 30px;"></th>';
+    headerRow.innerHTML = html;
+  }
+
+  const tbody = table.querySelector('tbody');
+  if (tbody) {
+    tbody.innerHTML = '';
+    data.forEach((row, idx) => {
+      const tr = document.createElement('tr');
+      let html = `<td class="row-number" style="text-align: center; color: var(--text-mention-grey); font-size: 0.75rem;">${idx + 1}</td>`;
+      for (const col of columns) {
+        const val = row[col];
+        const escaped = String(val ?? '').replace(/"/g, '&quot;');
+        html += `<td><input type="text" class="fr-input fr-input--sm" value="${escaped}"></td>`;
+      }
+      html += `<td>
+        <button onclick="(window as any).removeTableRow(this)" class="remove-row-btn" title="Supprimer"
+          style="background: none; border: none; color: var(--text-mention-grey); cursor: pointer; font-size: 0.875rem;">
+          <i class="ri-delete-bin-line"></i>
+        </button>
+      </td>`;
+      tr.innerHTML = html;
+      tbody.appendChild(tr);
+    });
+  }
+}
+
 export function resetTableEditor(): void {
   const table = getTableEditor();
   if (!table) return;
