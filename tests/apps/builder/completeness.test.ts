@@ -43,7 +43,7 @@ describe('getCompleteness', () => {
       expect(c.source).toBe(true);
       expect(c.type).toBe(true);
       expect(c.config).toBe(false);
-      expect(c.missing).toEqual(['le champ catégorie (axe X)', 'le champ numérique (axe Y)']);
+      expect(c.missing).toEqual(['le champ Étiquettes', 'le champ Valeur à mesurer']);
     });
   });
 

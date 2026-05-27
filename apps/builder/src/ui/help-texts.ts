@@ -23,7 +23,7 @@ export const TOOLTIPS = {
   'generation-mode':
     "Embarque\u00a0: les donnees sont copiees dans le code HTML. Simple, mais les donnees ne se mettent pas a jour.\n\nDynamique\u00a0: les donnees sont chargees depuis l'API a chaque affichage. Le graphique est toujours a jour.",
   'chart-palette':
-    'Jeu de couleurs pour le graphique.\n\u2022 Categoriel\u00a0: couleurs distinctes (ideal pour comparer des categories)\n\u2022 Sequentiel\u00a0: degrade du clair au fonce (ideal pour des valeurs ordonnees)\n\u2022 Divergent\u00a0: deux couleurs qui divergent depuis le centre',
+    'Jeu de couleurs pour le graphique.\n\u2022 Couleurs distinctes par cat\u00e9gorie\u00a0: id\u00e9al pour comparer des cat\u00e9gories ind\u00e9pendantes (r\u00e9gions, secteurs)\n\u2022 D\u00e9grad\u00e9 clair\u2009\u2192\u2009fonc\u00e9 (ou inverse)\u00a0: id\u00e9al pour des valeurs ordonn\u00e9es (population, intensit\u00e9)\n\u2022 Bicolore depuis le centre\u00a0: id\u00e9al pour repr\u00e9senter des \u00e9carts par rapport \u00e0 une r\u00e9f\u00e9rence (positif vs n\u00e9gatif)',
   normalize:
     'Prepare les donnees brutes avant traitement\u00a0: supprime les espaces, convertit les textes "123" en nombres, renomme les colonnes... Utile quand les donnees de l\'API ne sont pas propres.',
   facets:

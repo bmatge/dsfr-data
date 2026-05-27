@@ -177,11 +177,11 @@
         </div>
         <div class="config-section-content">
 
-        <!-- Axe X -->
+        <!-- Étiquettes (anciennement « Axe X ») -->
         <div style="display: flex; gap: 0.5rem; align-items: flex-end;" class="fr-mb-1w">
           <div class="fr-select-group fr-select-group--sm" style="flex: 1; margin-bottom: 0;">
             <label class="fr-label" for="label-field">
-              Axe X / Categories
+              Étiquettes (axe horizontal)
               <button type="button" class="help-btn" aria-label="Aide" aria-describedby="help-label-field" data-help="label-field"><i class="ri-question-line" aria-hidden="true"></i></button>
               <span class="fr-hint-text">Le champ pour les etiquettes (ex&nbsp;: region, annee)</span>
             </label>
@@ -194,15 +194,15 @@
               Libelle
               <span class="fr-hint-text">Nom affiche (vide = nom du champ)</span>
             </label>
-            <input type="text" class="fr-input fr-input--sm" id="label-field-label" placeholder="Nom de l'axe X">
+            <input type="text" class="fr-input fr-input--sm" id="label-field-label" placeholder="Nom des étiquettes">
           </div>
         </div>
 
-        <!-- Axe Y / Serie 1 -->
+        <!-- Valeur à mesurer (anciennement « Axe Y / Serie 1 ») -->
         <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
           <div class="fr-select-group fr-select-group--sm" style="flex: 1; margin-bottom: 0;">
             <label class="fr-label" for="value-field">
-              Axe Y / Valeurs (Serie 1)
+              Valeur à mesurer (Série 1)
               <button type="button" class="help-btn" aria-label="Aide" aria-describedby="help-value-field" data-help="value-field"><i class="ri-question-line" aria-hidden="true"></i></button>
               <span class="fr-hint-text">Le champ numerique a mesurer (ex&nbsp;: population, budget)</span>
             </label>
@@ -404,12 +404,12 @@
           </label>
           <select class="fr-select" id="chart-palette">
             <option value="default">Bleu France</option>
-            <option value="categorical">Categorielle</option>
-            <option value="sequentialAscending">Sequentielle &#8593;</option>
-            <option value="sequentialDescending">Sequentielle &#8595;</option>
-            <option value="divergentAscending">Divergente &#8593;</option>
-            <option value="divergentDescending">Divergente &#8595;</option>
-            <option value="neutral">Neutre</option>
+            <option value="categorical">Couleurs distinctes par catégorie</option>
+            <option value="sequentialAscending">Dégradé clair → foncé</option>
+            <option value="sequentialDescending">Dégradé foncé → clair</option>
+            <option value="divergentAscending">Bicolore (centre clair)</option>
+            <option value="divergentDescending">Bicolore (centre foncé)</option>
+            <option value="neutral">Tons neutres (gris)</option>
           </select>
         </div>
 
@@ -562,17 +562,17 @@
         </div>
       </div>
 
-      <!-- Habillage DataBox -->
+      <!-- Cadre officiel DSFR (anciennement « Habillage DataBox ») -->
       <div class="config-section collapsed" id="section-databox">
         <div class="config-section-header" onclick="toggleSection('section-databox')">
-          <h3><i class="ri-layout-4-line"></i> Habillage DataBox <button type="button" class="help-btn" aria-label="Aide" aria-describedby="help-databox" data-help="databox"><i class="ri-question-line" aria-hidden="true"></i></button></h3>
+          <h3><i class="ri-layout-4-line"></i> Cadre officiel DSFR <button type="button" class="help-btn" aria-label="Aide" aria-describedby="help-databox" data-help="databox"><i class="ri-question-line" aria-hidden="true"></i></button></h3>
           <i class="ri-arrow-down-s-line collapse-icon"></i>
         </div>
         <div class="config-section-content">
           <div class="fr-checkbox-group fr-checkbox-group--sm">
             <input type="checkbox" id="databox-toggle">
             <label class="fr-label" for="databox-toggle">
-              Activer la DataBox DSFR
+              Encadrer le graphique (titre, source, téléchargement)
             </label>
           </div>
           <div id="databox-options" style="display: none; margin-left: 1.5rem; margin-top: 0.5rem;">

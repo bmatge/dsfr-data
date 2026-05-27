@@ -244,8 +244,8 @@ export function getCompleteness(s: BuilderState, generated: boolean = false): Co
         break;
       default:
         config = !!s.labelField && !!s.valueField;
-        if (!s.labelField) missing.push('le champ catégorie (axe X)');
-        if (!s.valueField) missing.push('le champ numérique (axe Y)');
+        if (!s.labelField) missing.push('le champ Étiquettes');
+        if (!s.valueField) missing.push('le champ Valeur à mesurer');
         break;
     }
   }

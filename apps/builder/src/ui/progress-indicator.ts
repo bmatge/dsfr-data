@@ -10,6 +10,8 @@
  * Pure DOM update functions — the skeleton lives in apps/builder/index.html.
  */
 
+import { PALETTE_DISPLAY_NAMES } from '@dsfr-data/shared';
+
 import { state, getCompleteness, type BuilderState, type Completeness } from '../state.js';
 
 type StepKey = 'source' | 'type' | 'config' | 'generate';
@@ -92,8 +94,10 @@ function buildSummaries(s: BuilderState, c: Completeness): Record<string, Sectio
     }
   }
 
-  // Appearance — palette (hide when still on DSFR default).
-  const paletteText = s.palette && s.palette !== 'default' ? s.palette : '';
+  // Appearance — palette (hide when still on DSFR default). Use the
+  // human-friendly name; never leak the internal key like `sequentialAscending`.
+  const paletteText =
+    s.palette && s.palette !== 'default' ? PALETTE_DISPLAY_NAMES[s.palette] || s.palette : '';
 
   // Generation mode — mention only when dynamic (non-default).
   const genModeText = s.generationMode === 'dynamic' ? 'dynamique' : '';
