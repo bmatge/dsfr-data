@@ -13,6 +13,17 @@ cd "$(dirname "$0")/.."
 
 COMPOSE="docker compose --env-file .env -f docker/docker-compose.yml -f docker/docker-compose.db.yml"
 
+# Auto-merge des fichiers override locaux. Avec des `-f` explicites, Docker
+# Compose desactive l'auto-load de docker-compose.override.yml ; on le
+# remet manuellement pour que les surcharges d'un operateur (ports, env,
+# labels Traefik supplementaires...) soient prises en compte.
+for OVERRIDE in docker-compose.override.yml docker/docker-compose.override.yml; do
+  if [ -f "$OVERRIDE" ]; then
+    COMPOSE="$COMPOSE -f $OVERRIDE"
+    echo -e "${GREEN}Override detecte: $OVERRIDE${NC}"
+  fi
+done
+
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
