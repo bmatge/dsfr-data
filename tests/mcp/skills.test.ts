@@ -24,6 +24,9 @@ function getWidgetSkillIds(chartType?: string): string[] {
   const ids = [
     'compositionPatterns',
     'dsfrDataSource',
+    // Préparation des données : nettoyage/typage et bascule des tableurs "wide".
+    'dsfrDataNormalize',
+    'dsfrDataUnpivot',
     'dsfrDataChart',
     'apiProviders',
     'troubleshooting',
@@ -214,6 +217,16 @@ describe('getWidgetSkillIds', () => {
   it('has no duplicates', () => {
     const ids = getWidgetSkillIds();
     expect(ids.length).toBe(new Set(ids).size);
+  });
+
+  it('inclut toujours les skills de preparation des donnees (normalize + unpivot)', () => {
+    // Pipeline complet : la generation doit connaitre le nettoyage et la bascule
+    // des tableurs "wide", quel que soit le type de graphique.
+    for (const type of [undefined, 'bar', 'kpi', 'map', 'datalist']) {
+      const ids = getWidgetSkillIds(type);
+      expect(ids, `type=${type}`).toContain('dsfrDataNormalize');
+      expect(ids, `type=${type}`).toContain('dsfrDataUnpivot');
+    }
   });
 });
 
