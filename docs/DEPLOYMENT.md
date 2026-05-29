@@ -18,6 +18,7 @@ Ce guide couvre le deploiement de la **webapp dsfr-data** (apps Builder, Builder
   - [Scenario B : derriere un proxy d'entreprise](#scenario-b--derriere-un-proxy-dentreprise)
   - [Scenario C : reverse externe gerant les routes de proxying](#scenario-c--reverse-externe-gerant-les-routes-de-proxying)
   - [Scenario D : app interne + widgets publics (separation runtime/embed)](#scenario-d--app-interne--widgets-publics-separation-runtimeembed)
+  - [Scenario E : authentification derriere un reverse proxy externe](#scenario-e--authentification-derriere-un-reverse-proxy-externe-mode-serveur)
   - [Contrat des chemins de proxying](#contrat-des-chemins-de-proxying)
 - [Premier deploiement](#premier-deploiement)
   - [Mode statique](#mode-statique)
@@ -275,6 +276,110 @@ grep -r "app.test\|cdn.test" apps/builder/dist/
 # Bundle lib doit contenir analytics.test pour le beacon
 grep -r "analytics.test" packages/core/dist/
 ```
+
+### Scenario E : authentification derriere un reverse proxy externe (mode serveur)
+
+En mode serveur, l'authentification repose sur un cookie httpOnly `gw-auth-token`
+(JWT) pose par l'API. Quand un reverse proxy externe (sur une autre machine que
+le conteneur) se trouve devant l'app, quatre points doivent etre verifies. Tous
+sont pilotes par variables d'environnement, sans patch du code.
+
+> Note de diagnostic : un `401 {"error":"Authentication required"}` sur
+> `GET /api/auth/me` quand on n'est **pas** connecte est le comportement
+> **normal** — il prouve que l'API repond bien a travers le proxy. Le vrai
+> probleme se diagnostique sur la reponse de `POST /api/auth/register` et sur le
+> cycle de vie du cookie (onglets Reseau + Application des DevTools, cote client,
+> sans acces serveur).
+
+**1. Faire confiance au proxy (`TRUST_PROXY`)**
+
+Sans cela, `req.ip`, `req.secure` et les rate-limiters voient l'IP du proxy pour
+tout le monde (quota partage -> 429 premature ; detection HTTPS faussee). Defaut
+`loopback` (cas de reference : nginx parle a l'API via 127.0.0.1). Un proxy sur
+une autre machine doit declarer le nombre de sauts (hops) ou `true` :
+
+```bash
+TRUST_PROXY=true   # ou un entier (nombre de proxys de confiance), ex. 1 ou 2
+```
+
+**2. Servir en HTTPS de bout en bout**
+
+Le cookie est `Secure` en production : un navigateur **refuse de le stocker** s'il
+est recu sur une page **HTTP**. Le proxy doit donc presenter du HTTPS au
+navigateur (et idealement transmettre `X-Forwarded-Proto`, exploite grace au
+point 1). Symptome cote DevTools : `Set-Cookie` present a la connexion mais
+cookie non stocke, avec la raison « Secure but not received over a secure
+connection ».
+
+**3. CORS si l'app et l'API sont sur des origines distinctes**
+
+- **Meme origine** (le proxy sert la page **et** `/api` sous un seul hostname) :
+  CORS ne s'applique pas, rien a configurer. C'est la configuration recommandee.
+- **Origines distinctes** (sous-domaines, ex. `app.` et `api.` d'un meme parent,
+  ou domaines separes) : le cookie `SameSite=Strict` laisse **deja** passer les
+  sous-domaines d'un meme domaine enregistrable (notion de « site » = eTLD+1),
+  mais **CORS** bloque. Autoriser alors les origines concernees :
+
+```bash
+# Liste d'origines exactes (separees par des virgules) :
+CORS_ORIGIN=https://app.mon-domaine.fr,https://autre.mon-domaine.fr
+
+# Ou autoriser tout sous-domaine d'un parent (separes par des virgules) :
+CORS_ALLOW_SUBDOMAINS_OF=mon-domaine.fr
+```
+
+> Securite : `CORS_ALLOW_SUBDOMAINS_OF` autorise le CORS **avec credentials**
+> pour tout sous-domaine du parent declare. Ne declarez qu'un domaine que vous
+> maitrisez **entierement**. N'utilisez **jamais** un suffixe public partage
+> (un domaine gouvernemental commun, `fr`, `com`…) : cela ouvrirait l'API a tout
+> site tiers heberge sous ce suffixe.
+
+**4. Inscription sans serveur mail (`REQUIRE_EMAIL_VERIFICATION`)**
+
+Par defaut, seul le **premier** compte (admin) est auto-verifie ; les suivants
+recoivent un email de verification a cliquer pour activer le compte. Cela exige
+un SMTP joignable (`SMTP_HOST`/`SMTP_PORT`/`SMTP_FROM`) **et** `APP_URL`. Sans
+serveur mail, ces comptes ne peuvent pas etre actives. Pour les deploiements sans
+SMTP, auto-verifier les comptes a l'inscription et connecter l'utilisateur
+immediatement :
+
+```bash
+REQUIRE_EMAIL_VERIFICATION=false
+```
+
+**Bootstrap admin temporaire (`SEED_ADMIN_*`)**
+
+Pour debloquer un premier acces sans dependre de l'inscription/email, definir un
+compte admin cree au demarrage s'il n'existe pas. **A retirer apres usage** (sinon
+recree s'il est supprime) et changer le mot de passe ensuite :
+
+```bash
+SEED_ADMIN_EMAIL=admin@mon-domaine.fr
+SEED_ADMIN_PASSWORD=UnMotDePasseFort1   # >= 8 car., 1 minuscule, 1 majuscule, 1 chiffre
+```
+
+Pilote par environnement (jamais code en dur) pour ne pas committer
+d'identifiants par defaut. Au demarrage, le serveur loggue
+`[seed-admin] Compte admin de bootstrap cree...`.
+
+**Bloc `.env` « ceinture et bretelles »** (deploiement serveur derriere un proxy
+externe, app et API sous le meme hostname HTTPS) :
+
+```bash
+# Proxy
+TRUST_PROXY=true
+# Inscription utilisable sans SMTP
+REQUIRE_EMAIL_VERIFICATION=false
+# Acces admin immediat (a retirer apres connexion + changer le mot de passe)
+SEED_ADMIN_EMAIL=admin@mon-domaine.fr
+SEED_ADMIN_PASSWORD=UnMotDePasseFort1
+# CORS : uniquement si page et API sont sur des origines differentes
+# CORS_ALLOW_SUBDOMAINS_OF=mon-domaine.fr
+```
+
+Ces variables sont propagees au conteneur via `docker/docker-compose.db.yml`
+(toutes vides par defaut -> comportement inchange). Apres edition du `.env`,
+relancer `./docker/deploy-server.sh`.
 
 ### Contrat des chemins de proxying
 

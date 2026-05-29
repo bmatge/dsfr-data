@@ -54,7 +54,7 @@ app.set('trust proxy', parseTrustProxy(process.env.TRUST_PROXY));
  *   virgules (défaut : http://localhost:5173). Rétro-compatible avec une
  *   valeur unique.
  * - `CORS_ALLOW_SUBDOMAINS_OF` : liste de domaines parents (ex.
- *   `actimage.net`). Toute origine dont le hostname est ce parent OU un de ses
+ *   `exemple.fr`). Toute origine dont le hostname est ce parent OU un de ses
  *   sous-domaines est autorisée. Utile quand l'app et l'API sont sur des
  *   sous-domaines distincts du même parent (CORS bloque sinon, alors que le
  *   cookie SameSite=Strict passe déjà car ils sont « même site »).

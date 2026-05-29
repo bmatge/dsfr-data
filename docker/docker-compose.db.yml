@@ -72,7 +72,7 @@ services:
       - TRUST_PROXY=${TRUST_PROXY:-}
       - REQUIRE_EMAIL_VERIFICATION=${REQUIRE_EMAIL_VERIFICATION:-}
       # CORS : origines exactes (CSV) + autorisation des sous-domaines d'un
-      # parent (ex. actimage.net). Vides → only same-origin (cas de référence).
+      # parent (ex. exemple.fr). Vides → only same-origin (cas de référence).
       - CORS_ORIGIN=${CORS_ORIGIN:-}
       - CORS_ALLOW_SUBDOMAINS_OF=${CORS_ALLOW_SUBDOMAINS_OF:-}
       # Bootstrap admin TEMPORAIRE (à retirer après usage). Vides → inactif.
