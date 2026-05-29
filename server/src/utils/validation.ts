@@ -19,7 +19,7 @@ export function isValidEmail(email: string): boolean {
  */
 export function isStrongPassword(password: string): { valid: boolean; reason?: string } {
   if (!password || password.length < 8) {
-    return { valid: false, reason: 'Le mot de passe doit contenir au moins 8 caracteres' };
+    return { valid: false, reason: 'Le mot de passe doit contenir au moins 8 caractères' };
   }
   if (!/[a-z]/.test(password)) {
     return { valid: false, reason: 'Le mot de passe doit contenir au moins une minuscule' };

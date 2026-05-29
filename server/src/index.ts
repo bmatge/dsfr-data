@@ -3,6 +3,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { initDatabase, closeDatabase, execute } from './db/database.js';
+import { seedAdminFromEnv } from './utils/seed-admin.js';
 import { authMiddleware } from './middleware/auth.js';
 import { doubleCsrfProtection, csrfErrorHandler } from './middleware/csrf.js';
 import { globalApiRateLimiter } from './middleware/rate-limit.js';
@@ -22,6 +23,29 @@ import tourStateRoutes from './routes/tour-state.js';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3002', 10);
+
+/**
+ * Parse la valeur TRUST_PROXY en une valeur acceptée par Express :
+ *  - non défini / vide → 'loopback' (cas de référence : nginx parle à l'API
+ *    via 127.0.0.1 dans le même hôte/compose) ;
+ *  - 'true' / 'false' → booléen ;
+ *  - entier ≥ 0 → nombre de proxys de confiance (hops) ;
+ *  - autre → passé tel quel ('loopback', sous-réseau, liste CSV…).
+ *
+ * Un déploiement avec un reverse proxy sur une AUTRE machine doit définir
+ * TRUST_PROXY (typiquement le nombre de hops, ex. 1 ou 2) pour que req.ip,
+ * req.secure et les rate-limiters reflètent le vrai client.
+ */
+function parseTrustProxy(raw: string | undefined): boolean | number | string {
+  if (raw === undefined || raw.trim() === '') return 'loopback';
+  const v = raw.trim();
+  if (v === 'true') return true;
+  if (v === 'false') return false;
+  const n = Number(v);
+  if (Number.isInteger(n) && n >= 0) return n;
+  return v;
+}
+app.set('trust proxy', parseTrustProxy(process.env.TRUST_PROXY));
 
 // Security & parsing middleware
 app.use(helmet());
@@ -100,6 +124,13 @@ async function start() {
     }
   } catch (err) {
     console.error('[server] Failed to cleanup expired accounts:', err);
+  }
+
+  // Bootstrap admin facultatif (SEED_ADMIN_EMAIL/SEED_ADMIN_PASSWORD).
+  try {
+    await seedAdminFromEnv();
+  } catch (err) {
+    console.error('[server] Seed admin failed:', err);
   }
 
   app.listen(PORT, () => {

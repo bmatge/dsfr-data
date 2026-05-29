@@ -77,8 +77,14 @@ router.post('/register', authLimiter, async (req, res) => {
     const isFirstUser = countRow?.count === 0;
     const role = isFirstUser ? 'admin' : 'editor';
 
-    if (isFirstUser) {
-      // Admin: skip email verification, log in immediately
+    // Vérification email exigée par défaut. Désactivable via
+    // REQUIRE_EMAIL_VERIFICATION=false pour les déploiements sans SMTP
+    // (derrière un proxy, etc.) : les comptes sont alors auto-vérifiés et
+    // l'utilisateur est connecté immédiatement.
+    const requireVerification = process.env.REQUIRE_EMAIL_VERIFICATION !== 'false';
+
+    if (isFirstUser || !requireVerification) {
+      // Auto-vérifié + connecté immédiatement (admin si premier, editor sinon)
       await execute(
         `INSERT INTO users (id, email, password_hash, display_name, role, email_verified)
          VALUES (?, ?, ?, ?, ?, TRUE)`,
