@@ -2,6 +2,14 @@ import { LitElement, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 
 /**
+ * Constantes injectées au build de la lib par `scripts/build-lib.ts`
+ * (via le `define` esbuild). En l'absence de define (import direct hors
+ * build lib), les usages restent gardés par `typeof X !== 'undefined'`.
+ */
+declare const __DSFR_DATA_VERSION__: string;
+declare const __DSFR_DATA_COMMIT__: string;
+
+/**
  * <app-footer> - Footer DSFR
  *
  * Affiche le footer conforme DSFR avec logo, liens et mentions légales.
@@ -22,6 +30,16 @@ export class AppFooter extends LitElement {
     const bp = this.basePath;
     if (!bp) return '';
     return bp.endsWith('/') ? bp : bp + '/';
+  }
+
+  /** Version semver de la lib, injectée au build (vide hors build lib). */
+  private get _version(): string {
+    return typeof __DSFR_DATA_VERSION__ !== 'undefined' ? __DSFR_DATA_VERSION__ : '';
+  }
+
+  /** Hash court du commit buildé, injecté au build (vide si indisponible). */
+  private get _commit(): string {
+    return typeof __DSFR_DATA_COMMIT__ !== 'undefined' ? __DSFR_DATA_COMMIT__ : '';
   }
 
   // Light DOM pour hériter des styles DSFR
@@ -91,6 +109,22 @@ export class AppFooter extends LitElement {
                   >licence etalab-2.0</a
                 >
               </p>
+              ${this._version
+                ? html`<p class="fr-text--xs fr-mb-0" style="opacity: 0.7;">
+                    Composants dsfr-data
+                    v${this._version}${this._commit
+                      ? html` ·
+                          <a
+                            class="fr-footer__bottom-link"
+                            href="https://github.com/bmatge/dsfr-data/commit/${this._commit}"
+                            target="_blank"
+                            rel="noopener"
+                            title="Voir le commit sur GitHub"
+                            >${this._commit}</a
+                          >`
+                      : ''}
+                  </p>`
+                : ''}
             </div>
           </div>
         </div>

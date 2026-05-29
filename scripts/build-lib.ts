@@ -10,15 +10,34 @@
 import { build } from 'vite';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { cpSync, mkdirSync } from 'fs';
+import { cpSync, mkdirSync, readFileSync } from 'fs';
+import { execSync } from 'child_process';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
 const coreDir = resolve(root, 'packages/core');
 
+// Version + commit injectés dans les composants de layout (app-footer).
+// Version = semver publié (packages/core/package.json). Commit = hash court
+// git (overridable via DSFR_DATA_COMMIT pour les builds Docker sans .git).
+const version = JSON.parse(readFileSync(resolve(coreDir, 'package.json'), 'utf8'))
+  .version as string;
+let commit = process.env.DSFR_DATA_COMMIT ?? '';
+if (!commit) {
+  try {
+    commit = execSync('git rev-parse --short HEAD', { cwd: root }).toString().trim();
+  } catch {
+    commit = '';
+  }
+}
+
 const commonConfig = {
   esbuild: { keepNames: true },
-  define: { 'process.env.NODE_ENV': '"production"' },
+  define: {
+    'process.env.NODE_ENV': '"production"',
+    __DSFR_DATA_VERSION__: JSON.stringify(version),
+    __DSFR_DATA_COMMIT__: JSON.stringify(commit),
+  },
   resolve: { alias: { '@': resolve(coreDir, 'src') } },
   configFile: false,
   logLevel: 'warn' as const,
