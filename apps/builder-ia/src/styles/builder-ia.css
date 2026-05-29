@@ -7,8 +7,8 @@
 body {
   margin: 0;
   /* Hauteur mini + scroll (comme builder-carto et les autres apps) : la zone de
-     travail remplit le viewport quand il y a la place, mais sur petit ecran la
-     PAGE defile et le footer passe dessous, au lieu d'ecraser le chat et l'apercu.
+     travail remplit le viewport quand il y a la place, mais sur petit écran la
+     PAGE défile et le footer passe dessous, au lieu d'écraser le chat et l'aperçu.
      (Avant : height:100vh + overflow:hidden verrouillait tout dans le viewport.) */
   min-height: 100vh;
   display: flex;
@@ -16,9 +16,9 @@ body {
   background: var(--background-alt-grey);
 }
 
-/* La page peut grandir au-dela du viewport : on relache le clipping du layout
-   partage (app-layout-builder force overflow:hidden), sinon le contenu est rogne
-   au lieu de faire defiler la page. Meme approche que apps/playground. */
+/* La page peut grandir au-delà du viewport : on relâche le clipping du layout
+   partagé (app-layout-builder force overflow:hidden), sinon le contenu est rogné
+   au lieu de faire défiler la page. Même approche que apps/playground. */
 app-layout-builder {
   overflow: visible !important;
 }
@@ -45,8 +45,8 @@ app-layout-builder {
 /* PANNEAU GAUCHE : CONFIG + CHAT */
 /* ============================================ */
 .builder-config-panel {
-  /* Remplit la hauteur dispo, mais laisse le contenu deborder vers le scroll de
-     page (plus de clipping) : sur petit ecran la colonne grandit et la page defile. */
+  /* Remplit la hauteur dispo, mais laisse le contenu déborder vers le scroll de
+     page (plus de clipping) : sur petit écran la colonne grandit et la page défile. */
   flex: 1;
   display: flex;
   flex-direction: column;
