@@ -26,7 +26,7 @@ import { createServer } from 'node:http';
 import { EnvHttpProxyAgent, setGlobalDispatcher } from 'undici';
 import { z } from 'zod';
 import { getArg, hasFlag } from './cli.js';
-import { matchSkills, getWidgetSkillIds } from './skills.js';
+import { matchSkills, getWidgetSkillIds, routeMcpRequest } from './skills.js';
 import type { Skill } from './skills.js';
 
 // ---------------------------------------------------------------------------
@@ -271,12 +271,17 @@ async function startHttp() {
 
     // Get or create session
     const sessionId = req.headers['mcp-session-id'] as string | undefined;
+    const route = routeMcpRequest({
+      sessionId,
+      hasSession: !!(sessionId && sessions.has(sessionId)),
+      method: req.method,
+    });
 
-    if (sessionId && sessions.has(sessionId)) {
+    if (route === 'existing') {
       // Existing session
-      const session = sessions.get(sessionId)!;
+      const session = sessions.get(sessionId!)!;
       await session.transport.handleRequest(req, res);
-    } else if (!sessionId && req.method === 'POST') {
+    } else if (route === 'init') {
       // New session (initialization)
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: () => crypto.randomUUID(),
@@ -300,6 +305,20 @@ async function startHttp() {
         sessions.set(transport.sessionId, { server, transport });
         console.error(`[dsfr-data-mcp] New session ${transport.sessionId} (${sessions.size} active)`);
       }
+    } else if (route === 'not-found') {
+      // Session id présent mais inconnu (souvent : le serveur a redémarré et a
+      // perdu ses sessions en mémoire). 404 — et non 400 — pour que le client MCP
+      // ré-initialise automatiquement une session fraîche (spec StreamableHTTP).
+      // Sinon le connecteur reste bloqué et tous les appels d'outils échouent.
+      console.error(`[dsfr-data-mcp] Unknown session ${sessionId} → 404 (client should re-initialize)`);
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          jsonrpc: '2.0',
+          error: { code: -32001, message: 'Session not found' },
+          id: null,
+        }),
+      );
     } else {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Invalid request. Missing or unknown session ID.' }));

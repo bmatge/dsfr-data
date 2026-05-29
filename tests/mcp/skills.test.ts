@@ -57,6 +57,20 @@ function getWidgetSkillIds(chartType?: string): string[] {
   return [...new Set(ids)];
 }
 
+type McpRequestRoute = 'existing' | 'init' | 'not-found' | 'bad-request';
+
+function routeMcpRequest(opts: {
+  sessionId?: string;
+  hasSession: boolean;
+  method?: string;
+}): McpRequestRoute {
+  const { sessionId, hasSession, method } = opts;
+  if (sessionId && hasSession) return 'existing';
+  if (!sessionId && method === 'POST') return 'init';
+  if (sessionId && !hasSession) return 'not-found';
+  return 'bad-request';
+}
+
 function getArg(argv: string[], flag: string): string | undefined {
   const idx = argv.indexOf(flag);
   if (idx !== -1 && argv[idx + 1] && !argv[idx + 1].startsWith('--')) {
@@ -233,6 +247,40 @@ describe('getWidgetSkillIds', () => {
 // ---------------------------------------------------------------------------
 // Tests: CLI argument parsing
 // ---------------------------------------------------------------------------
+
+describe('routeMcpRequest', () => {
+  it('route une session connue vers le transport existant', () => {
+    expect(routeMcpRequest({ sessionId: 'abc', hasSession: true, method: 'POST' })).toBe(
+      'existing'
+    );
+  });
+
+  it('initialise une nouvelle session sur POST sans session id', () => {
+    expect(routeMcpRequest({ sessionId: undefined, hasSession: false, method: 'POST' })).toBe(
+      'init'
+    );
+  });
+
+  it('renvoie not-found (→ 404) pour une session id inconnue/perimee', () => {
+    // Cas du serveur redemarre : la session en memoire a disparu. Doit aboutir
+    // a un 404 pour que le client MCP re-initialise au lieu de rester bloque.
+    expect(routeMcpRequest({ sessionId: 'stale', hasSession: false, method: 'POST' })).toBe(
+      'not-found'
+    );
+    expect(routeMcpRequest({ sessionId: 'stale', hasSession: false, method: 'GET' })).toBe(
+      'not-found'
+    );
+  });
+
+  it('renvoie bad-request quand ni session ni POST d-initialisation', () => {
+    expect(routeMcpRequest({ sessionId: undefined, hasSession: false, method: 'GET' })).toBe(
+      'bad-request'
+    );
+    expect(routeMcpRequest({ sessionId: undefined, hasSession: false, method: 'DELETE' })).toBe(
+      'bad-request'
+    );
+  });
+});
 
 describe('getArg', () => {
   it('returns value after flag', () => {

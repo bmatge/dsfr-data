@@ -11,6 +11,30 @@ export interface Skill {
 }
 
 /**
+ * Routing decision for an incoming HTTP MCP request, based on its session id.
+ *
+ * Extracted (pure) for testability. Key point: a request carrying a session id
+ * the server doesn't know — typically because the server restarted and lost its
+ * in-memory sessions — must be answered with 404 (`not-found`), NOT 400. The
+ * StreamableHTTP spec lets the client re-initialize a fresh session on 404;
+ * a 400 leaves the client stuck (every tool call keeps failing) until it is
+ * manually reconnected.
+ */
+export type McpRequestRoute = 'existing' | 'init' | 'not-found' | 'bad-request';
+
+export function routeMcpRequest(opts: {
+  sessionId?: string;
+  hasSession: boolean;
+  method?: string;
+}): McpRequestRoute {
+  const { sessionId, hasSession, method } = opts;
+  if (sessionId && hasSession) return 'existing';
+  if (!sessionId && method === 'POST') return 'init';
+  if (sessionId && !hasSession) return 'not-found'; // stale session → 404 → client re-inits
+  return 'bad-request';
+}
+
+/**
  * Match skills whose triggers appear in the given message (case-insensitive).
  */
 export function matchSkills(skills: Skill[], message: string): Skill[] {
