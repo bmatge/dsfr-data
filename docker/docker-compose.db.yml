@@ -40,6 +40,9 @@ services:
         VITE_PROXY_URL_EMBED: ${VITE_PROXY_URL_EMBED:-}
         VITE_BEACON_URL: ${VITE_BEACON_URL:-}
         VITE_LIB_URL: ${VITE_LIB_URL:-}
+        # Hash court du commit affiché dans le footer (calculé par
+        # deploy-server.sh, .git absent du contexte Docker).
+        DSFR_DATA_COMMIT: ${DSFR_DATA_COMMIT:-}
         # Proxy HTTP sortant pour `npm ci` + `apk add` au build derrière
         # un proxy d'entreprise. Build-time uniquement (pas runtime).
         # Cf. issue #168 (PR-2). PR-4 traitera le runtime côté Node.

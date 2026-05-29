@@ -42,10 +42,14 @@ ARG VITE_PROXY_URL=""
 ARG VITE_PROXY_URL_EMBED=""
 ARG VITE_BEACON_URL=""
 ARG VITE_LIB_URL=""
+# Commit affiche dans le footer (app-footer). .git absent du contexte Docker
+# (.dockerignore) -> on passe le hash via build-arg depuis deploy-server.sh.
+ARG DSFR_DATA_COMMIT=""
 ENV VITE_PROXY_URL=$VITE_PROXY_URL \
     VITE_PROXY_URL_EMBED=$VITE_PROXY_URL_EMBED \
     VITE_BEACON_URL=$VITE_BEACON_URL \
-    VITE_LIB_URL=$VITE_LIB_URL
+    VITE_LIB_URL=$VITE_LIB_URL \
+    DSFR_DATA_COMMIT=$DSFR_DATA_COMMIT
 
 RUN npm run build:all
 RUN node scripts/build-app.js

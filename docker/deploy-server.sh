@@ -77,6 +77,11 @@ fi
 echo -e "${YELLOW}1/5${NC} Mise a jour du code..."
 git pull
 
+# Hash du commit deploye, injecte dans le footer (app-footer). Calcule ici
+# car .git est exclu du contexte Docker (.dockerignore) ; passe au build via
+# le build-arg DSFR_DATA_COMMIT (cf. docker-compose*.yml + Dockerfile*).
+export DSFR_DATA_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "")
+
 echo -e "${YELLOW}2/5${NC} Build de l'image (sans cache)..."
 $COMPOSE build --no-cache
 
