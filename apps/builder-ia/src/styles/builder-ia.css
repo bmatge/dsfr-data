@@ -6,15 +6,25 @@
 
 body {
   margin: 0;
-  /* Hauteur DEFINIE (pas seulement min-height) : sans ca, app-layout-builder
-     (flex:1) grandit jusqu'a son contenu et la page scrolle. Avec height:100vh,
-     la chaine flex est plafonnee et le scroll vit dans .chat-messages (pattern
-     chat IA moderne). */
-  height: 100vh;
+  /* Hauteur mini + scroll (comme builder-carto et les autres apps) : la zone de
+     travail remplit le viewport quand il y a la place, mais sur petit ecran la
+     PAGE defile et le footer passe dessous, au lieu d'ecraser le chat et l'apercu.
+     (Avant : height:100vh + overflow:hidden verrouillait tout dans le viewport.) */
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
   background: var(--background-alt-grey);
+}
+
+/* La page peut grandir au-dela du viewport : on relache le clipping du layout
+   partage (app-layout-builder force overflow:hidden), sinon le contenu est rogne
+   au lieu de faire defiler la page. Meme approche que apps/playground. */
+app-layout-builder {
+  overflow: visible !important;
+}
+.builder-layout-left,
+.builder-layout-right {
+  overflow: visible !important;
 }
 
 .builder-header {
@@ -35,13 +45,12 @@ body {
 /* PANNEAU GAUCHE : CONFIG + CHAT */
 /* ============================================ */
 .builder-config-panel {
-  /* Remplit toute la hauteur de la colonne gauche pour que .chat-container
-     (flex:1) absorbe l'espace restant sous les sections de config et que le
-     scroll vive dans .chat-messages, pas dans la colonne. */
+  /* Remplit la hauteur dispo, mais laisse le contenu deborder vers le scroll de
+     page (plus de clipping) : sur petit ecran la colonne grandit et la page defile. */
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
   min-height: 0;
 }
 
@@ -145,7 +154,7 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
   min-height: 0;
 }
 
