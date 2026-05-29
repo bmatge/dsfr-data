@@ -30,6 +30,51 @@ import { loadApiData } from './api-explorer.js';
 import { loadTableData } from '../editors/table-editor.js';
 
 // ============================================================
+// Parsing URL doc Grist public
+// ============================================================
+
+/**
+ * Extrait le serveur (`baseUrl`) et le `docId` d'une référence de document Grist.
+ *
+ * Accepte :
+ *  - URL UI : `https://grist.numerique.gouv.fr/o/mon-org/jGd2ge4dy2ZM/MaPage`
+ *  - URL UI sans org : `https://docs.getgrist.com/jGd2ge4dy2ZM/MonDoc`
+ *  - URL API : `https://grist.numerique.gouv.fr/api/docs/jGd2ge4dy2ZM/tables/...`
+ *  - docId brut : `jGd2ge4dy2ZM` (serveur par défaut grist.numerique.gouv.fr)
+ *
+ * Retourne `null` si l'entrée est vide ou non parsable.
+ */
+export function parseGristDocRef(input: string): { baseUrl: string; docId: string } | null {
+  const raw = input.trim();
+  if (!raw) return null;
+
+  // docId brut (ni schéma ni chemin) → serveur gouv par défaut.
+  if (!raw.includes('/') && !raw.includes(' ') && !raw.includes('.')) {
+    return { baseUrl: 'https://grist.numerique.gouv.fr', docId: raw };
+  }
+
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return null;
+  }
+
+  const baseUrl = `${url.protocol}//${url.host}`;
+  const segments = url.pathname.split('/').filter(Boolean);
+
+  const docsIdx = segments.indexOf('docs');
+  // Forme API : /api/docs/{docId}/... — sinon forme UI : /o/{org}/{docId}/{page} ou /{docId}/{page}
+  const docId =
+    docsIdx > 0 && segments[docsIdx - 1] === 'api' && segments[docsIdx + 1]
+      ? segments[docsIdx + 1]
+      : (segments[segments[0] === 'o' && segments.length >= 2 ? 2 : 0] ?? null);
+
+  if (!docId) return null;
+  return { baseUrl, docId };
+}
+
+// ============================================================
 // Render
 // ============================================================
 
@@ -156,10 +201,26 @@ export async function saveGristConnection(name: string): Promise<boolean> {
   const urlEl = document.getElementById('conn-url') as HTMLInputElement | null;
   const apiKeyEl = document.getElementById('conn-api-key') as HTMLInputElement | null;
   const publicEl = document.getElementById('conn-public') as HTMLInputElement | null;
+  const publicDocEl = document.getElementById('conn-public-doc-url') as HTMLInputElement | null;
 
-  const url = (urlEl?.value.trim() ?? '').replace(/\/$/, '');
+  let url = (urlEl?.value.trim() ?? '').replace(/\/$/, '');
   const apiKey = apiKeyEl?.value.trim() ?? '';
   const isPublic = publicEl?.checked ?? false;
+
+  // Mode "doc public par URL" : on dérive serveur + docId de l'URL collée.
+  // Le docId permet de cibler directement le doc, sans énumérer les orgs
+  // (qui renvoie vide en anonyme pour un doc partagé hors de notre équipe).
+  let publicDocId: string | null = null;
+  const publicDocInput = publicDocEl?.value.trim() ?? '';
+  if (isPublic && publicDocInput) {
+    const ref = parseGristDocRef(publicDocInput);
+    if (!ref) {
+      toastWarning("URL du document public invalide. Collez l'URL complète d'un doc Grist.");
+      return false;
+    }
+    url = ref.baseUrl;
+    publicDocId = ref.docId;
+  }
 
   if (!url) {
     toastWarning("Veuillez remplir l'URL du serveur Grist");
@@ -172,22 +233,27 @@ export async function saveGristConnection(name: string): Promise<boolean> {
   }
 
   // Build the test URL using the proxy
-  const useLocalProxy = isViteDevMode();
   let testUrl: string;
-  let hostname: string | null = null;
-  try {
-    hostname = new URL(url).hostname;
-  } catch {
-    // malformed URL — leave hostname null, falls through to the else branch
-  }
-  if (hostname === 'docs.getgrist.com') {
-    testUrl = useLocalProxy ? '/grist-proxy/api/orgs' : `${EXTERNAL_PROXY}/grist-proxy/api/orgs`;
-  } else if (hostname === 'grist.numerique.gouv.fr') {
-    testUrl = useLocalProxy
-      ? '/grist-gouv-proxy/api/orgs'
-      : `${EXTERNAL_PROXY}/grist-gouv-proxy/api/orgs`;
+  if (publicDocId) {
+    // Doc public ciblé : valide l'accès via /docs/{id}/tables (lisible en anonyme).
+    testUrl = getProxyUrl(url, `/docs/${publicDocId}/tables`);
   } else {
-    testUrl = `${url}/api/orgs`;
+    const useLocalProxy = isViteDevMode();
+    let hostname: string | null = null;
+    try {
+      hostname = new URL(url).hostname;
+    } catch {
+      // malformed URL — leave hostname null, falls through to the else branch
+    }
+    if (hostname === 'docs.getgrist.com') {
+      testUrl = useLocalProxy ? '/grist-proxy/api/orgs' : `${EXTERNAL_PROXY}/grist-proxy/api/orgs`;
+    } else if (hostname === 'grist.numerique.gouv.fr') {
+      testUrl = useLocalProxy
+        ? '/grist-gouv-proxy/api/orgs'
+        : `${EXTERNAL_PROXY}/grist-gouv-proxy/api/orgs`;
+    } else {
+      testUrl = `${url}/api/orgs`;
+    }
   }
 
   const response = await fetch(testUrl, { headers: buildGristHeaders(isPublic ? null : apiKey) });
@@ -196,7 +262,19 @@ export async function saveGristConnection(name: string): Promise<boolean> {
     throw new Error(httpErrorMessage(response.status));
   }
 
-  const orgs: unknown[] = await response.json();
+  const payload: unknown = await response.json();
+
+  let statusText: string;
+  if (publicDocId) {
+    const tables = (payload as { tables?: unknown[] })?.tables;
+    const count = Array.isArray(tables) ? tables.length : 0;
+    statusText = `Doc public (${count} table${count > 1 ? 's' : ''})`;
+  } else if (isPublic) {
+    statusText = 'Mode public';
+  } else {
+    const orgs = Array.isArray(payload) ? payload : [];
+    statusText = `Connecte (${orgs.length} org${orgs.length > 1 ? 's' : ''})`;
+  }
 
   const editingConn = state.editingConnectionId
     ? state.connections.find((c) => c.id === state.editingConnectionId)
@@ -209,10 +287,9 @@ export async function saveGristConnection(name: string): Promise<boolean> {
     url,
     apiKey: isPublic ? null : apiKey,
     isPublic,
+    publicDocId,
     status: 'connected',
-    statusText: isPublic
-      ? 'Mode public'
-      : `Connecte (${orgs.length} org${orgs.length > 1 ? 's' : ''})`,
+    statusText,
   };
 
   if (editingConn) {
@@ -377,16 +454,22 @@ export function editConnection(id: string): void {
     if (publicEl) publicEl.checked = !!(conn as Record<string, unknown>).isPublic;
     if (apiKeyEl) apiKeyEl.value = ((conn as Record<string, unknown>).apiKey as string) || '';
 
-    // Show/hide API key field based on public mode
+    // Pré-remplir l'URL du doc public (forme API round-trippable par parseGristDocRef).
+    const publicDocEl = document.getElementById('conn-public-doc-url') as HTMLInputElement | null;
+    const storedDocId = (conn as Record<string, unknown>).publicDocId as string | null | undefined;
+    if (publicDocEl) {
+      const base = ((conn as Record<string, unknown>).url as string) || '';
+      publicDocEl.value = storedDocId ? `${base}/api/docs/${storedDocId}` : '';
+    }
+
+    // Show/hide API key field + public-doc field based on public mode
+    const isPublic = !!(conn as Record<string, unknown>).isPublic;
     const apiKeyGroup = document.getElementById('api-key-group');
     const apiKeyInfo = document.getElementById('api-key-info');
-    if ((conn as Record<string, unknown>).isPublic) {
-      if (apiKeyGroup) apiKeyGroup.style.display = 'none';
-      if (apiKeyInfo) apiKeyInfo.style.display = 'none';
-    } else {
-      if (apiKeyGroup) apiKeyGroup.style.display = 'block';
-      if (apiKeyInfo) apiKeyInfo.style.display = 'block';
-    }
+    const publicDocGroup = document.getElementById('public-doc-group');
+    if (apiKeyGroup) apiKeyGroup.style.display = isPublic ? 'none' : 'block';
+    if (apiKeyInfo) apiKeyInfo.style.display = isPublic ? 'none' : 'block';
+    if (publicDocGroup) publicDocGroup.style.display = isPublic ? 'block' : 'none';
   }
 
   openModal('connection-modal');
@@ -465,6 +548,12 @@ export function resetConnectionForm(): void {
 
   const publicEl = document.getElementById('conn-public') as HTMLInputElement | null;
   if (publicEl) publicEl.checked = false;
+
+  const publicDocEl = document.getElementById('conn-public-doc-url') as HTMLInputElement | null;
+  if (publicDocEl) publicDocEl.value = '';
+
+  const publicDocGroup = document.getElementById('public-doc-group');
+  if (publicDocGroup) publicDocGroup.style.display = 'none';
 
   const apiKeyGroup = document.getElementById('api-key-group');
   if (apiKeyGroup) apiKeyGroup.style.display = 'block';

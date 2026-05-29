@@ -54,6 +54,27 @@ export async function loadDocuments(): Promise<void> {
   if (!tree) return;
   tree.innerHTML = '<p>Chargement...</p>';
 
+  // Doc public ciblé par URL : on saute l'énumération des orgs (vide en anonyme)
+  // et on charge directement le document, puis ses tables.
+  const conn = state.connections.find((c) => c.id === state.selectedConnectionId);
+  const publicDocId =
+    conn && ((conn as Record<string, unknown>).publicDocId as string | null | undefined);
+  if (publicDocId) {
+    let docName = publicDocId;
+    try {
+      const meta = (await gristFetch(`/docs/${publicDocId}`)) as { name?: string };
+      if (meta?.name) docName = meta.name;
+    } catch {
+      // métadonnées indisponibles → on garde le docId comme libellé
+    }
+    state.documents = [{ id: publicDocId, name: docName, orgId: 0, workspaceId: 0 }];
+    tree.innerHTML = `<div class="tree-item" data-doc-id="${escapeHtml(publicDocId)}" onclick="selectDocument('${escapeHtml(publicDocId)}')">
+      <i class="ri-file-text-line"></i> ${escapeHtml(docName)}
+    </div>`;
+    await selectDocument(publicDocId);
+    return;
+  }
+
   try {
     const orgs = (await gristFetch('/orgs')) as Array<{ id: number; name: string }>;
     state.documents = [];

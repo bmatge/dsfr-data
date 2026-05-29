@@ -273,10 +273,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ---- Connection type radio toggle ----
   const connPublic = document.getElementById('conn-public') as HTMLInputElement | null;
   connPublic?.addEventListener('change', () => {
-    const apiKeyGroup = document.getElementById('conn-apikey-group');
-    if (apiKeyGroup) {
-      apiKeyGroup.style.display = connPublic.checked ? 'none' : 'block';
-    }
+    const isPublic = connPublic.checked;
+    const apiKeyGroup = document.getElementById('api-key-group');
+    const apiKeyInfo = document.getElementById('api-key-info');
+    const publicDocGroup = document.getElementById('public-doc-group');
+    if (apiKeyGroup) apiKeyGroup.style.display = isPublic ? 'none' : 'block';
+    if (apiKeyInfo) apiKeyInfo.style.display = isPublic ? 'none' : 'block';
+    if (publicDocGroup) publicDocGroup.style.display = isPublic ? 'block' : 'none';
   });
 
   document.querySelectorAll('input[name="conn-type"]').forEach((radio) => {

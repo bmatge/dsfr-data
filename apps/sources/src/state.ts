@@ -17,6 +17,13 @@ export interface GristConnection {
   url: string;
   apiKey: string | null;
   isPublic: boolean;
+  /**
+   * Doc public ciblé directement par son URL/ID. Quand présent, l'explorateur
+   * saute l'énumération des orgs (`/api/orgs`, vide en anonyme) et liste les
+   * tables via `/api/docs/{publicDocId}/tables`. Cf. cas des docs partagés
+   * publiquement dont on n'est pas membre de l'équipe.
+   */
+  publicDocId?: string | null;
   status: string;
   statusText: string;
 }
@@ -112,6 +119,9 @@ export function normalizeConnection(conn: StoredConnection): StoredConnection {
     }
     if (config.isPublic !== undefined && normalized.isPublic === undefined) {
       normalized.isPublic = config.isPublic as boolean;
+    }
+    if (config.publicDocId !== undefined && normalized.publicDocId === undefined) {
+      normalized.publicDocId = config.publicDocId as string | null;
     }
     if (config.apiUrl && !normalized.apiUrl) {
       normalized.apiUrl = config.apiUrl as string;
