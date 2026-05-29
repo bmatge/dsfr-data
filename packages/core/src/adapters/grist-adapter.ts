@@ -1,5 +1,5 @@
 /**
- * Adapter pour l'API Grist (grist.numérique.gouv.fr, docs.getgrist.com).
+ * Adapter pour l'API Grist (grist.numerique.gouv.fr, docs.getgrist.com).
  *
  * Deux modes de fonctionnement, sélectionnés automatiquement :
  *

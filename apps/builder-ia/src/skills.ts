@@ -1520,7 +1520,7 @@ name='["Série A","Série B"]'
 
 ### REGLE IMPORTANTE : privilegier les sources dynamiques
 1. **Source API dynamique** (ODS, Tabular, INSEE) = premier choix. Les données se mettent a jour automatiquement, la pagination serveur est geree, les agrégations et filtres sont delegues au serveur.
-2. **Grist** = excellent choix pour les données collaboratives (tableaux partages). Suggerer a l'utilisateur de publier ses données sur grist.numérique.gouv.fr s'il n'a pas d'API.
+2. **Grist** = excellent choix pour les données collaboratives (tableaux partages). Suggerer a l'utilisateur de publier ses données sur grist.numerique.gouv.fr s'il n'a pas d'API.
 3. **Données embarquees** (data='[...]') = dernier recours uniquement. Les données sont figees et alourdissent le HTML.
 
 ### REGLE IMPORTANTE : deleguer le travail au serveur
@@ -2083,7 +2083,7 @@ L'adapter INSEE aplatit automatiquement les observations (dimensions + measures 
 ### Proxy CORS
 Certaines APIs externes necessitent un proxy CORS en production.
 Les URLs connues sont automatiquement proxifiees :
-- \`grist.numérique.gouv.fr\` -> \`${PROXY_BASE_URL_EMBED}/grist-gouv-proxy\`
+- \`grist.numerique.gouv.fr\` -> \`${PROXY_BASE_URL_EMBED}/grist-gouv-proxy\`
 - \`docs.getgrist.com\` -> \`${PROXY_BASE_URL_EMBED}/grist-proxy\`
 - \`tabular-api.data.gouv.fr\` -> \`${PROXY_BASE_URL_EMBED}/tabular-proxy\`
 

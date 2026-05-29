@@ -123,7 +123,7 @@ describe('ApiStorageAdapter', () => {
         id: 'conn-1',
         name: 'My Grist',
         type: 'grist',
-        url: 'https://grist.numérique.gouv.fr',
+        url: 'https://grist.numerique.gouv.fr',
         apiKey: null,
         isPublic: true,
         status: 'connected',
@@ -150,7 +150,7 @@ describe('ApiStorageAdapter', () => {
 
       // Should use local data (has url field)
       expect(result).toHaveLength(1);
-      expect((result as Record<string, unknown>[])[0].url).toBe('https://grist.numérique.gouv.fr');
+      expect((result as Record<string, unknown>[])[0].url).toBe('https://grist.numerique.gouv.fr');
       expect((result as Record<string, unknown>[])[0].status).toBe('connected');
     });
 
@@ -201,7 +201,7 @@ describe('ApiStorageAdapter', () => {
         id: 'conn-1',
         name: 'New Name',
         type: 'grist',
-        config_json: { url: 'https://grist.numérique.gouv.fr', apiKey: null, isPublic: true },
+        config_json: { url: 'https://grist.numerique.gouv.fr', apiKey: null, isPublic: true },
         status: 'connected',
         owner_id: 'user-1',
         _owned: true,
@@ -216,7 +216,7 @@ describe('ApiStorageAdapter', () => {
 
       // Server data should be flattened to client format
       expect(conn.name).toBe('New Name');
-      expect(conn.url).toBe('https://grist.numérique.gouv.fr');
+      expect(conn.url).toBe('https://grist.numerique.gouv.fr');
       expect(conn.apiKey).toBeNull();
       expect(conn.isPublic).toBe(true);
       // Server-only fields must be stripped (prevent re-packing into configJson)

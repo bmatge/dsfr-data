@@ -148,7 +148,7 @@ describe('Grist config', () => {
 
   it('should have known proxy hosts', () => {
     expect(GRIST_CONFIG.knownHosts).toHaveLength(2);
-    expect(GRIST_CONFIG.knownHosts[0].hostname).toBe('grist.numérique.gouv.fr');
+    expect(GRIST_CONFIG.knownHosts[0].hostname).toBe('grist.numerique.gouv.fr');
     expect(GRIST_CONFIG.knownHosts[1].hostname).toBe('docs.getgrist.com');
   });
 
@@ -263,8 +263,8 @@ describe('detectProvider', () => {
   });
 
   // Grist URLs
-  it('detects Grist from grist.numérique.gouv.fr URL', () => {
-    const url = 'https://grist.numérique.gouv.fr/api/docs/abc123/tables/Table1/records';
+  it('detects Grist from grist.numerique.gouv.fr URL', () => {
+    const url = 'https://grist.numerique.gouv.fr/api/docs/abc123/tables/Table1/records';
     expect(detectProvider(url).id).toBe('grist');
   });
 
@@ -347,7 +347,7 @@ describe('extractResourceIds', () => {
   });
 
   it('extracts documentId and tableId from Grist URL', () => {
-    const url = 'https://grist.numérique.gouv.fr/api/docs/abc123/tables/Table1/records';
+    const url = 'https://grist.numerique.gouv.fr/api/docs/abc123/tables/Table1/records';
     const ids = extractResourceIds(url);
     expect(ids).toEqual({ documentId: 'abc123', tableId: 'Table1' });
   });
@@ -455,7 +455,7 @@ describe('migrateSource', () => {
       id: '8',
       name: 'grist with url',
       type: 'grist',
-      apiUrl: 'https://grist.numérique.gouv.fr/api/docs/myDoc/tables/myTable/records',
+      apiUrl: 'https://grist.numerique.gouv.fr/api/docs/myDoc/tables/myTable/records',
     };
     const migrated = migrateSource(legacy);
     expect(migrated.provider).toBe('grist');

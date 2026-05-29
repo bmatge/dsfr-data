@@ -1329,7 +1329,7 @@ describe('generateDynamicCode', () => {
       id: '1',
       name: 'Ma source Grist',
       type: 'grist',
-      apiUrl: 'https://grist.numérique.gouv.fr/api/docs/doc1/tables/Table1/records',
+      apiUrl: 'https://grist.numerique.gouv.fr/api/docs/doc1/tables/Table1/records',
       documentId: 'doc1',
       tableId: 'Table1',
     };
@@ -1353,7 +1353,7 @@ describe('generateDynamicCode', () => {
     expect(code).toContain('transform="records"');
   });
 
-  it('should use proxy URL for grist.numérique.gouv.fr', () => {
+  it('should use proxy URL for grist.numerique.gouv.fr', () => {
     generateDynamicCode();
     const code = document.getElementById('generated-code')!.textContent!;
     expect(code).toContain('grist-gouv-proxy');
@@ -1890,7 +1890,7 @@ describe('regression tests', () => {
       id: '1',
       name: 'Grist',
       type: 'grist',
-      apiUrl: 'https://grist.numérique.gouv.fr/api/docs/doc1/tables/Table1/records',
+      apiUrl: 'https://grist.numerique.gouv.fr/api/docs/doc1/tables/Table1/records',
       documentId: 'doc1',
       tableId: 'Table1',
     };
@@ -1920,7 +1920,7 @@ describe('regression tests', () => {
       id: '1',
       name: 'Grist',
       type: 'grist',
-      apiUrl: 'https://grist.numérique.gouv.fr/api/docs/doc1/tables/Table1/records',
+      apiUrl: 'https://grist.numerique.gouv.fr/api/docs/doc1/tables/Table1/records',
       documentId: 'doc1',
       tableId: 'Table1',
     };
@@ -2006,7 +2006,7 @@ describe('regression tests', () => {
       id: '1',
       name: 'Grist',
       type: 'grist',
-      apiUrl: 'https://grist.numérique.gouv.fr/api/docs/doc1/tables/Table1/records',
+      apiUrl: 'https://grist.numerique.gouv.fr/api/docs/doc1/tables/Table1/records',
       documentId: 'doc1',
       tableId: 'Table1',
     };
@@ -2972,7 +2972,7 @@ describe('Grist facets field paths', () => {
       id: '1',
       name: 'Ma source Grist',
       type: 'grist',
-      apiUrl: 'https://grist.numérique.gouv.fr/api/docs/doc1/tables/Table1/records',
+      apiUrl: 'https://grist.numerique.gouv.fr/api/docs/doc1/tables/Table1/records',
       documentId: 'doc1',
       tableId: 'Table1',
     };

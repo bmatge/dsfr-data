@@ -183,7 +183,7 @@ const GRIST_SOURCE = {
   id: 'test-grist-001',
   name: 'Test Grist - Effectifs',
   type: 'grist',
-  apiUrl: 'https://grist.numérique.gouv.fr',
+  apiUrl: 'https://grist.numerique.gouv.fr',
   documentId: 'demo-doc-123',
   tableId: 'Effectifs',
   isPublic: true,

@@ -78,6 +78,15 @@ if matches=$(git grep -nwE "(${joined})" -- \
       "packages/**/*.ts" "packages/**/*.html" "packages/**/*.css" "packages/**/*.md" \
       ':!**/dist/**' ':!**/node_modules/**' ':!**/*.min.*' \
       ':!**/CHANGELOG.md' ':!**/CHANGELOG*' 2>/dev/null); then
+  # Allowlist : grist.numerique.gouv.fr est un vrai nom de domaine (ASCII), pas
+  # une chaîne d'UI française. Le pattern `numerique` matcherait `\bnumerique\b`
+  # dans le hostname et re-casserait le routage proxy Grist (cf. CORS prod).
+  # On retire ces lignes du résultat avant de décider de l'échec.
+  matches=$(printf '%s\n' "$matches" | grep -vE 'grist\.numerique\.gouv\.fr' || true)
+  if [ -z "$matches" ]; then
+    printf '\033[32m✓ No unaccented French words found in UI source files.\033[0m\n'
+    exit 0
+  fi
   count=$(printf '%s\n' "$matches" | wc -l | tr -d ' ')
   printf '\n\033[31m✗ %d unaccented French word(s) found in UI source files:\033[0m\n\n' "$count"
   printf '%s\n' "$matches"

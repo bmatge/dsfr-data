@@ -46,7 +46,7 @@ export function createSourceNode(): PipelineNode {
 
       if (source.type === 'grist') {
         // Grist adapter expects base-url = full records endpoint URL
-        // e.g. https://grist.numérique.gouv.fr/api/docs/{docId}/tables/{tableId}/records
+        // e.g. https://grist.numerique.gouv.fr/api/docs/{docId}/tables/{tableId}/records
         if (source.apiUrl && source.documentId && source.tableId) {
           const recordsUrl = `${source.apiUrl}/api/docs/${source.documentId}/tables/${source.tableId}/records`;
           setCtrl(node, 'base-url', recordsUrl);

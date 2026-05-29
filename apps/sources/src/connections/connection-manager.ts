@@ -182,7 +182,7 @@ export async function saveGristConnection(name: string): Promise<boolean> {
   }
   if (hostname === 'docs.getgrist.com') {
     testUrl = useLocalProxy ? '/grist-proxy/api/orgs' : `${EXTERNAL_PROXY}/grist-proxy/api/orgs`;
-  } else if (hostname === 'grist.numérique.gouv.fr') {
+  } else if (hostname === 'grist.numerique.gouv.fr') {
     testUrl = useLocalProxy
       ? '/grist-gouv-proxy/api/orgs'
       : `${EXTERNAL_PROXY}/grist-gouv-proxy/api/orgs`;
@@ -373,7 +373,7 @@ export function editConnection(id: string): void {
 
     if (urlEl)
       urlEl.value =
-        ((conn as Record<string, unknown>).url as string) || 'https://grist.numérique.gouv.fr';
+        ((conn as Record<string, unknown>).url as string) || 'https://grist.numerique.gouv.fr';
     if (publicEl) publicEl.checked = !!(conn as Record<string, unknown>).isPublic;
     if (apiKeyEl) apiKeyEl.value = ((conn as Record<string, unknown>).apiKey as string) || '';
 
@@ -458,7 +458,7 @@ export function resetConnectionForm(): void {
   if (nameEl) nameEl.value = '';
 
   const urlEl = document.getElementById('conn-url') as HTMLInputElement | null;
-  if (urlEl) urlEl.value = 'https://grist.numérique.gouv.fr';
+  if (urlEl) urlEl.value = 'https://grist.numerique.gouv.fr';
 
   const apiKeyEl = document.getElementById('conn-api-key') as HTMLInputElement | null;
   if (apiKeyEl) apiKeyEl.value = '';

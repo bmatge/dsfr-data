@@ -123,7 +123,7 @@ describe('DsfrDataSource adapter params construction', () => {
 
   it('builds correct AdapterParams for Grist', () => {
     const params = {
-      baseUrl: 'https://grist.numérique.gouv.fr/api/docs/x/tables/y/records',
+      baseUrl: 'https://grist.numerique.gouv.fr/api/docs/x/tables/y/records',
       datasetId: '',
       resource: '',
       select: '',
@@ -138,7 +138,7 @@ describe('DsfrDataSource adapter params construction', () => {
       headers: { Authorization: 'Bearer token123' },
     };
 
-    expect(params.baseUrl).toContain('grist.numérique.gouv.fr');
+    expect(params.baseUrl).toContain('grist.numerique.gouv.fr');
     expect(params.headers!.Authorization).toBe('Bearer token123');
   });
 
