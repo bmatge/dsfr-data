@@ -25,6 +25,12 @@ export function getWidgetSkillIds(chartType?: string): string[] {
   const ids = [
     'compositionPatterns',
     'dsfrDataSource',
+    // Préparation des données : nettoyage/typage (compute, decimales FR) et bascule
+    // des tableurs "wide" (temps dans les noms de colonnes) via dsfr-data-unpivot.
+    // Pertinent quelle que soit la visualisation → toujours injecté pour que la
+    // génération connaisse le pipeline complet (source → unpivot → normalize → query → chart).
+    'dsfrDataNormalize',
+    'dsfrDataUnpivot',
     'dsfrDataChart',
     'apiProviders',
     'troubleshooting',
