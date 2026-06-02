@@ -574,35 +574,39 @@ export function injectTourStyles(): void {
     .tour-popover-disable:hover { color: var(--text-default-grey, #333); }
     .tour-popover-prev {
       padding: 0.35rem 0.75rem;
-      border: 1px solid var(--border-default-grey, #ddd);
+      border: 1px solid #ddd;
       border-radius: 4px;
-      background: var(--background-default-grey, #fff);
-      color: var(--text-default-grey, #3a3a3a);
+      background-color: #fff !important;
+      background-image: none !important;
+      color: #3a3a3a !important;
       cursor: pointer;
       font-size: 0.8rem;
     }
     .tour-popover-prev:hover,
     .tour-popover-prev:focus {
-      background: var(--background-default-grey, #fff);
-      color: var(--text-default-grey, #3a3a3a);
-      outline: 2px solid var(--border-default-grey, #ddd);
+      background-color: #fff !important;
+      background-image: none !important;
+      color: #3a3a3a !important;
+      outline: 2px solid #ddd;
       outline-offset: 2px;
     }
     .tour-popover-next {
       padding: 0.35rem 0.75rem;
       border: none;
       border-radius: 4px;
-      background: var(--background-action-high-blue-france, #000091);
-      color: #fff;
+      background-color: #000091 !important;
+      background-image: none !important;
+      color: #fff !important;
       cursor: pointer;
       font-size: 0.8rem;
       font-weight: 600;
     }
     .tour-popover-next:hover,
     .tour-popover-next:focus {
-      background: var(--background-action-high-blue-france, #000091);
-      color: #fff;
-      outline: 2px solid var(--background-action-high-blue-france, #000091);
+      background-color: #000091 !important;
+      background-image: none !important;
+      color: #fff !important;
+      outline: 2px solid #000091;
       outline-offset: 2px;
     }
   `;
