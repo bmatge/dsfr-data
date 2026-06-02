@@ -46,10 +46,22 @@ export interface StoredTourEntry {
   version: number;
 }
 
-/** Full state persisted under STORAGE_KEYS.TOURS. */
+/**
+ * Full state persisted under STORAGE_KEYS.TOURS.
+ *
+ * This singleton doubles as a small per-user UI-preferences blob (synced to
+ * `users.tour_state`). Besides the product-tour fields, it also carries the
+ * "demo datasets" preference managed from the /guide page, alongside the
+ * product-tour enable/disable toggle.
+ */
 export interface TourState {
   /** If true, no tour auto-starts (the user can still manually restart one). */
   disabled?: boolean;
+  /**
+   * If true, the sample/demo datasets are hidden from the builders' source
+   * pickers. Managed from /guide, next to the product-tour toggle.
+   */
+  demoDatasetsDisabled?: boolean;
   /** Seen tours keyed by tour id. */
   tours: Record<string, StoredTourEntry>;
 }
@@ -102,7 +114,11 @@ function _normalizeState(raw: unknown): { state: TourState; migrated: boolean } 
       }
     }
     return {
-      state: { disabled: obj.disabled === true, tours },
+      state: {
+        disabled: obj.disabled === true,
+        demoDatasetsDisabled: obj.demoDatasetsDisabled === true,
+        tours,
+      },
       migrated: false,
     };
   }
@@ -171,6 +187,21 @@ export function isToursDisabled(): boolean {
 export function setToursDisabled(disabled: boolean): void {
   const state = _loadState();
   state.disabled = disabled;
+  _saveState(state);
+}
+
+/**
+ * Are the demo (sample) datasets hidden from the builders' source pickers?
+ * Defaults to false — demo datasets are shown unless explicitly disabled.
+ */
+export function isDemoDatasetsDisabled(): boolean {
+  return _loadState().demoDatasetsDisabled === true;
+}
+
+/** Show or hide the demo (sample) datasets in the builders. */
+export function setDemoDatasetsDisabled(disabled: boolean): void {
+  const state = _loadState();
+  state.demoDatasetsDisabled = disabled;
   _saveState(state);
 }
 

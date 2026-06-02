@@ -20,6 +20,7 @@ interface StoredTourEntry {
 
 interface TourState {
   disabled?: boolean;
+  demoDatasetsDisabled?: boolean;
   tours: Record<string, StoredTourEntry>;
 }
 
@@ -41,6 +42,7 @@ function validate(body: unknown): TourState | null {
 
   const state: TourState = { tours: {} };
   if (obj.disabled === true) state.disabled = true;
+  if (obj.demoDatasetsDisabled === true) state.demoDatasetsDisabled = true;
 
   if (obj.tours && typeof obj.tours === 'object') {
     for (const [id, entry] of Object.entries(obj.tours as Record<string, unknown>)) {

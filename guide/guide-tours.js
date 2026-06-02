@@ -3,7 +3,9 @@
  *
  * Reads/writes the tour state from localStorage under `dsfr-data-tours`
  * using the same schema as packages/shared/src/ui/product-tour.ts
- * (`{ disabled?: boolean, tours: { [id]: { at: ISO, version: number } } }`).
+ * (`{ disabled?: boolean, demoDatasetsDisabled?: boolean,
+ *    tours: { [id]: { at: ISO, version: number } } }`).
+ * The `demoDatasetsDisabled` flag toggles the sample datasets in the builders.
  *
  * Duplicates the storage logic deliberately: /guide is served as static HTML
  * (no bundler) so we avoid pulling the whole `@dsfr-data/shared` module just
@@ -34,7 +36,11 @@
     }
     if (!raw || typeof raw !== 'object') return { tours: {} };
     if (raw.tours && typeof raw.tours === 'object') {
-      return { disabled: raw.disabled === true, tours: raw.tours };
+      return {
+        disabled: raw.disabled === true,
+        demoDatasetsDisabled: raw.demoDatasetsDisabled === true,
+        tours: raw.tours,
+      };
     }
     // Old format: flat map of tourId → ISO — normalize.
     var tours = {};
@@ -216,8 +222,21 @@
     });
   }
 
+  function initDemoDatasetsToggle() {
+    var input = document.getElementById('demo-datasets-disabled-toggle');
+    if (!input) return;
+    var state = loadState();
+    input.checked = state.demoDatasetsDisabled === true;
+    input.addEventListener('change', function () {
+      var current = loadState();
+      current.demoDatasetsDisabled = input.checked;
+      saveState(current);
+    });
+  }
+
   function init() {
     initDisabledToggle();
+    initDemoDatasetsToggle();
     renderTable();
   }
 

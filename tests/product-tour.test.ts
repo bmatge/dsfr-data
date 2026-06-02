@@ -7,6 +7,8 @@ import {
   getToursState,
   isToursDisabled,
   setToursDisabled,
+  isDemoDatasetsDisabled,
+  setDemoDatasetsDisabled,
 } from '@dsfr-data/shared';
 import { STORAGE_KEYS } from '@dsfr-data/shared';
 
@@ -72,6 +74,42 @@ describe('product-tour state', () => {
     expect(state.disabled).toBe(true);
     expect(state.tours.builder).toBeTruthy();
     expect(state.tours.builder.version).toBe(1);
+  });
+
+  it('isDemoDatasetsDisabled defaults to false when no state exists', () => {
+    expect(isDemoDatasetsDisabled()).toBe(false);
+  });
+
+  it('setDemoDatasetsDisabled toggles the demo datasets flag', () => {
+    setDemoDatasetsDisabled(true);
+    expect(isDemoDatasetsDisabled()).toBe(true);
+    setDemoDatasetsDisabled(false);
+    expect(isDemoDatasetsDisabled()).toBe(false);
+  });
+
+  it('demo datasets flag is independent from the tours disabled flag', () => {
+    setDemoDatasetsDisabled(true);
+    expect(isToursDisabled()).toBe(false);
+    expect(shouldShowTour('builder')).toBe(true);
+  });
+
+  it('demo datasets flag persists alongside tours state and disabled flag', () => {
+    markTourComplete('builder', 1);
+    setToursDisabled(true);
+    setDemoDatasetsDisabled(true);
+    const state = getToursState();
+    expect(state.disabled).toBe(true);
+    expect(state.demoDatasetsDisabled).toBe(true);
+    expect(state.tours.builder).toBeTruthy();
+  });
+
+  it('preserves demoDatasetsDisabled when reading the new format', async () => {
+    localStorage.setItem(
+      STORAGE_KEYS.TOURS,
+      JSON.stringify({ demoDatasetsDisabled: true, tours: {} })
+    );
+    const mod = await freshImport();
+    expect(mod.isDemoDatasetsDisabled()).toBe(true);
   });
 
   it('migrates legacy flat format { tourId: ISO } on first read', async () => {

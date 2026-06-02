@@ -107,6 +107,39 @@ describe('builder sources', () => {
       expect(sourceOptions).toHaveLength(2);
     });
 
+    it('hides the sample optgroup when demo datasets are disabled', () => {
+      localStorage.setItem(
+        'dsfr-data-tours',
+        JSON.stringify({ demoDatasetsDisabled: true, tours: {} })
+      );
+      const sources: Source[] = [makeSource({ id: 'src-1', name: 'Source A', type: 'grist' })];
+      localStorage.setItem('dsfr-data-sources', JSON.stringify(sources));
+
+      loadSavedSources();
+
+      const select = document.getElementById('saved-source') as HTMLSelectElement;
+      // 1 default option + 1 source option (no sample optgroup)
+      expect(select.options).toHaveLength(2);
+      const groups = Array.from(select.querySelectorAll('optgroup')).map((g) => g.label);
+      expect(groups).not.toContain('Préenregistré');
+    });
+
+    it('hides sample cards in the empty state when demo datasets are disabled', () => {
+      localStorage.setItem(
+        'dsfr-data-tours',
+        JSON.stringify({ demoDatasetsDisabled: true, tours: {} })
+      );
+
+      loadSavedSources();
+
+      const panel = document.getElementById('source-panel-saved')!;
+      const emptyMsg = panel.querySelector('.empty-sources-message')!;
+      expect(emptyMsg).not.toBeNull();
+      // Still invites the user to add their own data, but no sample cards.
+      expect(emptyMsg.querySelectorAll('.sample-dataset-card')).toHaveLength(0);
+      expect(emptyMsg.textContent).toContain('Ajoutez vos propres donn');
+    });
+
     it('groups grist sources under "En ligne"', () => {
       const sources: Source[] = [makeSource({ id: 'g1', name: 'Grist Source', type: 'grist' })];
       localStorage.setItem('dsfr-data-sources', JSON.stringify(sources));

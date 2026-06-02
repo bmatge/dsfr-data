@@ -171,6 +171,8 @@ export {
   getToursState,
   isToursDisabled,
   setToursDisabled,
+  isDemoDatasetsDisabled,
+  setDemoDatasetsDisabled,
 } from './ui/product-tour.js';
 export type { TourRegistryEntry } from './tour/tour-configs.js';
 export {

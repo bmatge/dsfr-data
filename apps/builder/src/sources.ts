@@ -16,6 +16,7 @@ import {
   setupModalOverlayClose,
   migrateSource,
   SAMPLE_DATASETS,
+  isDemoDatasetsDisabled,
   isUnsafeKey,
 } from '@dsfr-data/shared';
 import { state, type ChartType, type Source, type Field } from './state.js';
@@ -59,24 +60,31 @@ export function loadSavedSources(): void {
     if (!panel.querySelector('.empty-sources-message')) {
       const emptyMsg = document.createElement('div');
       emptyMsg.className = 'empty-sources-message fr-mt-1w';
-      const sampleCards = SAMPLE_DATASETS.map(
-        (ds) => `
+
+      // Demo datasets can be hidden from the /guide page. When disabled, the
+      // empty state only invites the user to add their own data.
+      const demoHidden = isDemoDatasetsDisabled();
+      const sampleSection = demoHidden
+        ? ''
+        : `
+        <p class="empty-sources-desc">Essayez avec des donn\u00e9es d'exemple :</p>
+        <div class="sample-datasets-grid">${SAMPLE_DATASETS.map(
+          (ds) => `
         <button type="button" class="sample-dataset-card" data-sample-id="${ds.id}">
           <i class="${ds.icon}"></i>
           <span class="sample-dataset-name">${ds.name}</span>
           <span class="sample-dataset-desc">${ds.description}</span>
         </button>
       `
-      ).join('');
+        ).join('')}</div>`;
 
       emptyMsg.innerHTML = `
         <p><i class="ri-database-2-line" style="font-size: 2rem; display: block; margin-bottom: 0.5rem; opacity: 0.5;"></i></p>
         <p>Pas encore de donn\u00e9es\u00a0?</p>
-        <p class="empty-sources-desc">Essayez avec des donn\u00e9es d'exemple :</p>
-        <div class="sample-datasets-grid">${sampleCards}</div>
+        ${sampleSection}
         <div class="empty-sources-actions">
           <a href="${appHref('sources')}" class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-mt-1w">
-            <i class="ri-add-line"></i> Ou ajoutez vos propres donn\u00e9es
+            <i class="ri-add-line"></i> ${demoHidden ? 'Ajoutez vos propres donn\u00e9es' : 'Ou ajoutez vos propres donn\u00e9es'}
           </a>
         </div>
       `;
@@ -106,17 +114,19 @@ export function loadSavedSources(): void {
 
   select.innerHTML = '<option value="">\u2014 Choisir une source \u2014</option>';
 
-  // 1. Pr\u00e9enregistr\u00e9 (jeux de donn\u00e9es d'exemple).
-  const sampleGroup = document.createElement('optgroup');
-  sampleGroup.label = 'Pr\u00e9enregistr\u00e9';
-  SAMPLE_DATASETS.forEach((ds) => {
-    const option = document.createElement('option');
-    option.value = `sample:${ds.id}`;
-    option.textContent = sourceOptionLabel(ds.name, ds.rows.length);
-    option.dataset.sampleId = ds.id;
-    sampleGroup.appendChild(option);
-  });
-  select.appendChild(sampleGroup);
+  // 1. Pr\u00e9enregistr\u00e9 (jeux de donn\u00e9es d'exemple) \u2014 masquable depuis /guide.
+  if (!isDemoDatasetsDisabled()) {
+    const sampleGroup = document.createElement('optgroup');
+    sampleGroup.label = 'Pr\u00e9enregistr\u00e9';
+    SAMPLE_DATASETS.forEach((ds) => {
+      const option = document.createElement('option');
+      option.value = `sample:${ds.id}`;
+      option.textContent = sourceOptionLabel(ds.name, ds.rows.length);
+      option.dataset.sampleId = ds.id;
+      sampleGroup.appendChild(option);
+    });
+    select.appendChild(sampleGroup);
+  }
 
   // La source r\u00e9cemment ouverte depuis sources.html, si absente de la liste.
   const allSources = [...sources];

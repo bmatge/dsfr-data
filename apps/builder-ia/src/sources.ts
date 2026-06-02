@@ -11,6 +11,7 @@ import {
   setupModalOverlayClose,
   migrateSource,
   SAMPLE_DATASETS,
+  isDemoDatasetsDisabled,
 } from '@dsfr-data/shared';
 import { state } from './state.js';
 import type { Source, Field } from './state.js';
@@ -30,24 +31,26 @@ export function loadSavedSources(): void {
     return s ? migrateSource(s) : null;
   })();
 
-  // 1. Pr\u00e9enregistr\u00e9 (jeux de donn\u00e9es d'exemple).
-  const sampleGroup = document.createElement('optgroup');
-  sampleGroup.label = 'Pr\u00e9enregistr\u00e9';
-  SAMPLE_DATASETS.forEach((ds) => {
-    const option = document.createElement('option');
-    option.value = `sample:${ds.id}`;
-    option.textContent = sourceOptionLabel(ds.name, ds.rows.length);
-    const sampleSource: Source = {
-      id: `sample-${ds.id}`,
-      name: ds.name,
-      type: 'manual',
-      data: ds.rows as Record<string, unknown>[],
-      recordCount: ds.rows.length,
-    };
-    option.dataset.source = JSON.stringify(sampleSource);
-    sampleGroup.appendChild(option);
-  });
-  select.appendChild(sampleGroup);
+  // 1. Pr\u00e9enregistr\u00e9 (jeux de donn\u00e9es d'exemple) \u2014 masquable depuis /guide.
+  if (!isDemoDatasetsDisabled()) {
+    const sampleGroup = document.createElement('optgroup');
+    sampleGroup.label = 'Pr\u00e9enregistr\u00e9';
+    SAMPLE_DATASETS.forEach((ds) => {
+      const option = document.createElement('option');
+      option.value = `sample:${ds.id}`;
+      option.textContent = sourceOptionLabel(ds.name, ds.rows.length);
+      const sampleSource: Source = {
+        id: `sample-${ds.id}`,
+        name: ds.name,
+        type: 'manual',
+        data: ds.rows as Record<string, unknown>[],
+        recordCount: ds.rows.length,
+      };
+      option.dataset.source = JSON.stringify(sampleSource);
+      sampleGroup.appendChild(option);
+    });
+    select.appendChild(sampleGroup);
+  }
 
   // La source r\u00e9cemment ouverte (depuis sources.html), si absente de la liste.
   const allSources = [...sources];

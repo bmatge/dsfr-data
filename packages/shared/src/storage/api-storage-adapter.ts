@@ -192,9 +192,10 @@ function isEmptyTourState(data: unknown): boolean {
   if (!data || typeof data !== 'object') return true;
   const obj = data as Record<string, unknown>;
   const hasDisabled = typeof obj.disabled === 'boolean';
+  const hasDemoPref = typeof obj.demoDatasetsDisabled === 'boolean';
   const tours = obj.tours as Record<string, unknown> | undefined;
   const hasTours = tours && typeof tours === 'object' && Object.keys(tours).length > 0;
-  return !hasDisabled && !hasTours;
+  return !hasDisabled && !hasDemoPref && !hasTours;
 }
 
 export class ApiStorageAdapter implements StorageAdapter {
