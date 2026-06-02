@@ -501,6 +501,78 @@ describe('DsfrDataQuery', () => {
     });
   });
 
+  describe('server-side delegation negotiation', () => {
+    let mockSource: HTMLElement;
+    let commands: Array<Record<string, unknown>>;
+    let unsubscribe: () => void;
+
+    function setupSource(supportsServerFields?: (fields: string[]) => boolean) {
+      mockSource = document.createElement('div');
+      mockSource.id = 'neg-source';
+      (mockSource as any).getAdapter = () => ({
+        type: 'tabular',
+        capabilities: {
+          serverGroupBy: true,
+          serverOrderBy: true,
+          whereFormat: 'colon',
+        },
+        ...(supportsServerFields ? { supportsServerFields } : {}),
+      });
+      document.body.appendChild(mockSource);
+      query.source = 'neg-source';
+      commands = [];
+      unsubscribe = subscribeToSourceCommands('neg-source', (cmd) => commands.push(cmd));
+    }
+
+    afterEach(() => {
+      unsubscribe?.();
+      mockSource?.remove();
+    });
+
+    it('delegates group-by/aggregate server-side when fields are safe', () => {
+      setupSource((fields) => fields.every((f) => /^[\p{L}\p{N}_]+$/u.test(f)));
+      query.groupBy = 'region';
+      query.aggregate = 'population:sum';
+
+      (query as any)._negotiateServerSide();
+
+      expect((query as any)._serverDelegated.groupBy).toBe(true);
+      expect((query as any)._serverDelegated.aggregate).toBe(true);
+      expect(commands.some((c) => c.groupBy === 'region')).toBe(true);
+    });
+
+    it('falls back to client-side when a field name is unsafe (spaces/parens)', () => {
+      setupSource((fields) => fields.every((f) => /^[\p{L}\p{N}_]+$/u.test(f)));
+      query.groupBy = 'Date - Journée gazière';
+      query.aggregate = 'Inventaire LNG (m3 LNG):sum';
+
+      (query as any)._negotiateServerSide();
+
+      expect((query as any)._serverDelegated.groupBy).toBe(false);
+      expect((query as any)._serverDelegated.aggregate).toBe(false);
+      expect(commands.length).toBe(0);
+    });
+
+    it('delegates when adapter does not implement supportsServerFields (default)', () => {
+      setupSource(undefined);
+      query.groupBy = 'Date - Journée gazière';
+      query.aggregate = 'Inventaire LNG (m3 LNG):sum';
+
+      (query as any)._negotiateServerSide();
+
+      expect((query as any)._serverDelegated.groupBy).toBe(true);
+    });
+
+    it('does not delegate order-by on an unsafe field name', () => {
+      setupSource((fields) => fields.every((f) => /^[\p{L}\p{N}_]+$/u.test(f)));
+      query.orderBy = 'Inventaire LNG (m3 LNG):desc';
+
+      (query as any)._negotiateServerSide();
+
+      expect((query as any)._serverDelegated.orderBy).toBe(false);
+    });
+  });
+
   describe('Public API', () => {
     it('getData returns current data', () => {
       (query as any)._data = [{ test: 1 }];

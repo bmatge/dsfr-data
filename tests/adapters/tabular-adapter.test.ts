@@ -44,6 +44,36 @@ describe('TabularAdapter', () => {
     });
   });
 
+  describe('supportsServerFields', () => {
+    it('accepts simple identifier columns', () => {
+      expect(adapter.supportsServerFields(['region', 'population'])).toBe(true);
+    });
+
+    it('accepts accented single-token columns', () => {
+      expect(adapter.supportsServerFields(['methanier', 'Journée'])).toBe(true);
+    });
+
+    it('accepts post-aggregation alias columns with underscores', () => {
+      expect(adapter.supportsServerFields(['population__sum'])).toBe(true);
+    });
+
+    it('rejects columns containing spaces or hyphens', () => {
+      expect(adapter.supportsServerFields(['Date - Journée gazière'])).toBe(false);
+    });
+
+    it('rejects columns containing parentheses', () => {
+      expect(adapter.supportsServerFields(['Inventaire LNG (m3 LNG)'])).toBe(false);
+    });
+
+    it('rejects if ANY field is unsafe', () => {
+      expect(adapter.supportsServerFields(['region', 'Inventaire LNG (m3 LNG)'])).toBe(false);
+    });
+
+    it('accepts an empty field list', () => {
+      expect(adapter.supportsServerFields([])).toBe(true);
+    });
+  });
+
   describe('URL building', () => {
     it('builds base URL correctly', () => {
       const url = adapter.buildUrl(makeParams());

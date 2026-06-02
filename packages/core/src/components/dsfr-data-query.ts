@@ -350,23 +350,40 @@ export class DsfrDataQuery extends LitElement {
 
     const cmd: Record<string, string> = {};
 
+    // Certains adapters (Tabular) ne peuvent pas deleguer des champs dont le nom
+    // contient des espaces/ponctuation (syntaxe a suffixe `colonne__op`). On les
+    // interroge avant de deleguer ; sinon on retombe sur le client-side.
+    const canDelegateFields = (fields: string[]): boolean => {
+      const clean = fields.map((f) => f.trim()).filter(Boolean);
+      return adapter.supportsServerFields?.(clean) !== false;
+    };
+
     // Delegate group-by + aggregate together (they're coupled).
     // Don't override if source already has its own groupBy or aggregate.
     if (this.groupBy && caps.serverGroupBy && !sourceGroupBy && !sourceAggregate) {
-      cmd.groupBy = this.groupBy;
-      this._serverDelegated.groupBy = true;
+      const fields = [
+        ...this.groupBy.split(','),
+        ...this._parseAggregates(this.aggregate).map((a) => a.field),
+      ];
+      if (canDelegateFields(fields)) {
+        cmd.groupBy = this.groupBy;
+        this._serverDelegated.groupBy = true;
 
-      if (this.aggregate) {
-        cmd.aggregate = this.aggregate;
-        this._serverDelegated.aggregate = true;
+        if (this.aggregate) {
+          cmd.aggregate = this.aggregate;
+          this._serverDelegated.aggregate = true;
+        }
       }
     }
 
     // Delegate order-by
     const sourceOrderBy = sourceEl.orderBy || '';
     if (this.orderBy && caps.serverOrderBy && !sourceOrderBy) {
-      cmd.orderBy = this.orderBy;
-      this._serverDelegated.orderBy = true;
+      const orderField = this.orderBy.split(':')[0] || '';
+      if (canDelegateFields([orderField])) {
+        cmd.orderBy = this.orderBy;
+        this._serverDelegated.orderBy = true;
+      }
     }
 
     if (Object.keys(cmd).length > 0) {

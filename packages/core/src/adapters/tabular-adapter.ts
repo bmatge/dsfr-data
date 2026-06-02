@@ -28,6 +28,18 @@ function buildFetchOptions(
   return opts;
 }
 
+/**
+ * Un nom de colonne est utilisable dans la syntaxe a suffixe Tabular
+ * (`colonne__op`) seulement s'il ne contient que des lettres, chiffres et
+ * underscores. Les espaces, tirets et parentheses (ex. "Date - Journee
+ * gaziere", "Inventaire LNG (m3 LNG)") cassent le parser de l'API et
+ * provoquent un "Malformed query". Les noms d'agregats post-traitement
+ * (`population__sum`) restent valides (seulement lettres/chiffres/underscores).
+ */
+function isTabularServerFieldSafe(field: string): boolean {
+  return /^[\p{L}\p{N}_]+$/u.test(field);
+}
+
 /** Nombre max de records par requête Tabular (API max = 50) */
 const TABULAR_PAGE_SIZE = 50;
 
@@ -52,6 +64,17 @@ export class TabularAdapter implements ApiAdapter {
       return 'attribut "resource" requis pour les requêtes Tabular';
     }
     return null;
+  }
+
+  /**
+   * Tabular delegue group-by/aggregate/order-by via une syntaxe a suffixe
+   * (`colonne__op`) qui ne tolere pas les noms de colonnes avec espaces ou
+   * ponctuation. On ne delegue cote serveur que si TOUS les champs sont "safe" ;
+   * sinon dsfr-data-query agrege client-side (resultat identique, sur toutes
+   * les lignes).
+   */
+  supportsServerFields(fields: string[]): boolean {
+    return fields.every((f) => isTabularServerFieldSafe(f));
   }
 
   /**
