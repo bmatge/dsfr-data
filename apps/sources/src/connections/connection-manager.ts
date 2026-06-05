@@ -360,7 +360,9 @@ export async function saveApiConnection(name: string): Promise<boolean> {
     headers = authNorm.headers;
     headersText = JSON.stringify(headers);
     populateApiHeadersFromJson(headersText);
-    toastWarning("Cle reformatee en en-tete « Authorization: Apikey … » (format attendu par OpenDataSoft).");
+    toastWarning(
+      'Cle reformatee en en-tete « Authorization: Apikey … » (format attendu par OpenDataSoft).'
+    );
   }
 
   const { url: testUrl, headers: reqHeaders } = buildProxiedRequest(apiUrl, headers);
