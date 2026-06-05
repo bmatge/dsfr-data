@@ -8,7 +8,7 @@ import {
   STORAGE_KEYS,
   openModal,
   closeModal,
-  getProxiedUrl,
+  buildProxiedRequest,
   getProxyUrl,
   buildGristHeaders,
   isViteDevMode,
@@ -351,7 +351,8 @@ export async function saveApiConnection(name: string): Promise<boolean> {
     }
   }
 
-  const response = await fetch(getProxiedUrl(apiUrl), { method, headers });
+  const { url: testUrl, headers: reqHeaders } = buildProxiedRequest(apiUrl, headers);
+  const response = await fetch(testUrl, { method, headers: reqHeaders });
 
   if (!response.ok) {
     throw new Error(httpErrorMessage(response.status));

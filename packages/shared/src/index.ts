@@ -42,7 +42,12 @@ export {
   LIB_URL,
 } from './api/proxy-config.js';
 export type { ProxyConfig } from './api/proxy-config.js';
-export { getProxyUrl, getProxiedUrl, buildCorsProxyRequest } from './api/proxy.js';
+export {
+  getProxyUrl,
+  getProxiedUrl,
+  buildCorsProxyRequest,
+  buildProxiedRequest,
+} from './api/proxy.js';
 export { fetchWithTimeout, httpErrorMessage } from './api/fetch-helpers.js';
 export { buildGristHeaders } from './api/grist.js';
 

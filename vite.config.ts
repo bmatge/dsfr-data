@@ -251,10 +251,16 @@ export default defineConfig({
         // et forwarde la requete cote serveur (contourne CORS)
         server.middlewares.use('/cors-proxy', (req, res) => {
           if (req.method === 'OPTIONS') {
+            // Echo des en-tetes demandes : autorise tout en-tete custom
+            // (Apikey, x-api-key, etc.) afin que le preflight passe pour les
+            // connexions API a cle en en-tete (parite avec nginx prod).
+            const reqHeaders =
+              (req.headers['access-control-request-headers'] as string) ||
+              'Content-Type, Authorization, X-Target-URL';
             res.writeHead(204, {
               'Access-Control-Allow-Origin': '*',
               'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
-              'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Target-URL',
+              'Access-Control-Allow-Headers': reqHeaders,
             });
             res.end();
             return;

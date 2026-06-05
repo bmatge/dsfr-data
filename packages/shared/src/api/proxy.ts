@@ -3,6 +3,7 @@
  */
 
 import { getProxyConfig } from './proxy-config.js';
+import type { ProxyConfig } from './proxy-config.js';
 
 /**
  * Get proxied URL for a Grist API endpoint
@@ -28,24 +29,10 @@ export function getProxyUrl(gristUrl: string, endpoint: string): string {
 }
 
 /**
- * Get proxied URL for any external API URL
- * Handles known APIs (tabular, grist, albert) by routing through dedicated proxies.
- * Unknown cross-origin URLs are routed through the generic CORS proxy.
- * Works in all environments: dev (Vite proxy), production, CodePen embeds, etc.
+ * If `parsed` matches a known API host, return the URL rewritten to its
+ * dedicated (CORS-enabled) proxy endpoint. Otherwise return `null`.
  */
-export function getProxiedUrl(url: string): string {
-  if (!url) {
-    throw new Error('getProxiedUrl: url is required');
-  }
-  const config = getProxyConfig();
-
-  let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
-    return url;
-  }
-
+function rewriteKnownHost(parsed: URL, config: ProxyConfig): string | null {
   const rewrites: Array<[string, string]> = [
     ['tabular-api.data.gouv.fr', config.endpoints.tabular],
     ['docs.getgrist.com', config.endpoints.grist],
@@ -60,7 +47,81 @@ export function getProxiedUrl(url: string): string {
     }
   }
 
-  return url;
+  return null;
+}
+
+/**
+ * Get proxied URL for any external API URL
+ * Handles known APIs (tabular, grist, albert) by routing through dedicated proxies.
+ * Unknown hosts are returned unchanged (direct fetch).
+ * Works in all environments: dev (Vite proxy), production, CodePen embeds, etc.
+ *
+ * Note : pour router *aussi* les hôtes inconnus via le proxy CORS générique
+ * (nécessaire dès qu'on envoie un en-tête custom comme `Apikey` qui déclenche
+ * un preflight), utiliser `buildProxiedRequest` qui renvoie url + en-têtes.
+ */
+export function getProxiedUrl(url: string): string {
+  if (!url) {
+    throw new Error('getProxiedUrl: url is required');
+  }
+  const config = getProxyConfig();
+
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return url;
+  }
+
+  return rewriteKnownHost(parsed, config) ?? url;
+}
+
+/**
+ * Construit la requête (url + en-têtes) pour atteindre n'importe quelle API
+ * externe sans buter sur CORS :
+ *   - hôte connu (tabular, grist, albert, insee) → proxy dédié, en-têtes inchangés ;
+ *   - même origine que l'app → URL inchangée, en-têtes inchangés ;
+ *   - hôte inconnu cross-origin → proxy CORS générique via l'en-tête `X-Target-URL`.
+ *
+ * Indispensable quand la requête porte un en-tête custom (ex. `Apikey`), qui
+ * rend la requête "non-simple" et déclenche un preflight OPTIONS que les API
+ * tierces (OpenDataSoft, etc.) ne savent pas honorer. En passant par le proxy,
+ * c'est nginx (côté serveur) qui transmet l'en-tête à la cible.
+ */
+export function buildProxiedRequest(
+  url: string,
+  extraHeaders: Record<string, string> = {}
+): { url: string; headers: Record<string, string> } {
+  if (!url) {
+    throw new Error('buildProxiedRequest: url is required');
+  }
+  const headers: Record<string, string> = { ...extraHeaders };
+  const config = getProxyConfig();
+
+  let parsed: URL;
+  try {
+    parsed = new URL(url, typeof window !== 'undefined' ? window.location.href : undefined);
+  } catch {
+    // URL relative ou invalide → on laisse tel quel (same-origin)
+    return { url, headers };
+  }
+
+  // Hôtes connus : proxies dédiés déjà configurés pour CORS
+  const known = rewriteKnownHost(parsed, config);
+  if (known) {
+    return { url: known, headers };
+  }
+
+  // Même origine que l'app : aucun problème de CORS, fetch direct
+  if (typeof window !== 'undefined' && parsed.origin === window.location.origin) {
+    return { url, headers };
+  }
+
+  // Hôte inconnu cross-origin : proxy CORS générique (X-Target-URL)
+  return {
+    url: `${config.baseUrl}${config.endpoints.corsProxy}`,
+    headers: { ...headers, 'X-Target-URL': parsed.href },
+  };
 }
 
 /**

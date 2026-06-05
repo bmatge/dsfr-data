@@ -9,7 +9,7 @@
 
 import {
   escapeHtml,
-  getProxiedUrl,
+  buildProxiedRequest,
   httpErrorMessage,
   isUnsafeKey,
   saveToStorage,
@@ -224,11 +224,15 @@ function renderPaginationBanner(opts: {
 // Core fetch loop
 // ============================================================
 
-async function fetchOnePage(ctx: LoadContext, url: string): Promise<Response> {
+async function fetchOnePage(ctx: LoadContext, rawUrl: string): Promise<Response> {
   const method = (ctx.conn.method as string) || 'GET';
+  // `rawUrl` est l'URL cible brute (non proxifiée). On la route au moment du
+  // fetch via le proxy adéquat (dédié, direct ou CORS générique) en injectant
+  // les en-têtes utilisateur — indispensable pour les API à clé en en-tête.
+  const { url, headers } = buildProxiedRequest(rawUrl, ctx.connHeaders);
   return fetch(url, {
     method,
-    headers: ctx.connHeaders,
+    headers,
     signal: ctx.controller.signal,
   });
 }
@@ -267,8 +271,8 @@ async function runFetchLoop(ctx: LoadContext, maxAdditionalPages: number): Promi
     }
 
     ctx.pageCount++;
-    const detected = detectNextUrl(jsonResponse, ctx.nextUrl, ctx.conn);
-    ctx.nextUrl = detected ? getProxiedUrl(detected) : null;
+    // On stocke l'URL de page suivante BRUTE : fetchOnePage la proxifiera.
+    ctx.nextUrl = detectNextUrl(jsonResponse, ctx.nextUrl, ctx.conn);
   }
 }
 
@@ -361,7 +365,7 @@ export async function loadApiData(): Promise<void> {
     conn: connRecord,
     connHeaders,
     allData: [],
-    nextUrl: getProxiedUrl(apiUrl),
+    nextUrl: apiUrl,
     pageCount: 0,
     apiTotalCount: -1,
     controller: new AbortController(),
