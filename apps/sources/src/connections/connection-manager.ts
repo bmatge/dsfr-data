@@ -21,6 +21,7 @@ import {
   isUnsafeKey,
   httpErrorMessage,
   resolveSourceUrl,
+  normalizeProviderAuthHeaders,
   parseDataGouvDataset,
   dataGouvDatasetApiUrl,
   looksLikeNumber,
@@ -332,7 +333,7 @@ export async function saveApiConnection(name: string): Promise<boolean> {
 
   const apiUrl = apiUrlEl?.value.trim() ?? '';
   const method = methodEl?.value ?? 'GET';
-  const headersText = headersEl?.value.trim() ?? '';
+  let headersText = headersEl?.value.trim() ?? '';
   const dataPath = dataPathEl?.value.trim() ?? '';
 
   if (!apiUrl) {
@@ -349,6 +350,17 @@ export async function saveApiConnection(name: string): Promise<boolean> {
       toastWarning('Les en-tetes doivent etre au format JSON valide');
       return false;
     }
+  }
+
+  // Adapte la cle au format d'auth du provider (ex. ODS : une cle fournie via un
+  // en-tete `Apikey`/`api-key` est ignoree par ODS, qui attend `Authorization:
+  // Apikey <cle>`). On persiste la correction pour que le chargement fonctionne.
+  const authNorm = normalizeProviderAuthHeaders(apiUrl, headers);
+  if (authNorm.changed) {
+    headers = authNorm.headers;
+    headersText = JSON.stringify(headers);
+    populateApiHeadersFromJson(headersText);
+    toastWarning("Cle reformatee en en-tete « Authorization: Apikey … » (format attendu par OpenDataSoft).");
   }
 
   const { url: testUrl, headers: reqHeaders } = buildProxiedRequest(apiUrl, headers);

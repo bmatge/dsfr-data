@@ -10,6 +10,7 @@
 import {
   escapeHtml,
   buildProxiedRequest,
+  normalizeProviderAuthHeaders,
   httpErrorMessage,
   isUnsafeKey,
   saveToStorage,
@@ -361,9 +362,14 @@ export async function loadApiData(): Promise<void> {
     }
   }
 
+  // Adapte la cle au format d'auth du provider (ex. ODS attend
+  // `Authorization: Apikey <cle>`), y compris pour les connexions enregistrees
+  // avant cette correction.
+  const { headers: authHeaders } = normalizeProviderAuthHeaders(apiUrl, connHeaders);
+
   const ctx: LoadContext = {
     conn: connRecord,
-    connHeaders,
+    connHeaders: authHeaders,
     allData: [],
     nextUrl: apiUrl,
     pageCount: 0,

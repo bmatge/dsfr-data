@@ -3,6 +3,7 @@ import {
   detectProvider,
   extractResourceIds,
   resolveSourceUrl,
+  normalizeProviderAuthHeaders,
   parseDataGouvDataset,
   dataGouvDatasetApiUrl,
   extractDataGouvResources,
@@ -479,6 +480,84 @@ describe('resolveSourceUrl', () => {
     expect(r.provider.id).toBe('generic');
     expect(r.baseUrl).toBeNull();
     expect(r.apiUrl).toBeNull();
+  });
+
+  it('preserves the apikey query param on an ODS records URL (normalized=false)', () => {
+    const r = resolveSourceUrl(
+      'https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/ccsf/records?apikey=SECRET'
+    );
+    expect(r.apiUrl).toBe(
+      'https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/ccsf/records?apikey=SECRET'
+    );
+    expect(r.normalized).toBe(false);
+  });
+
+  it('preserves the apikey query param when normalizing an ODS page URL', () => {
+    const r = resolveSourceUrl(
+      'https://data.economie.gouv.fr/explore/dataset/ccsf/table/?apikey=SECRET'
+    );
+    expect(r.apiUrl).toBe(
+      'https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/ccsf/records?apikey=SECRET'
+    );
+    expect(r.normalized).toBe(true);
+  });
+
+  it('drops non-auth query params (limit) but keeps the path canonical', () => {
+    const r = resolveSourceUrl(
+      'https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/test/records?limit=15'
+    );
+    expect(r.apiUrl).toBe(
+      'https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/test/records'
+    );
+    expect(r.normalized).toBe(false);
+  });
+});
+
+// =========================================================================
+// normalizeProviderAuthHeaders (ODS apikey → Authorization: Apikey <key>)
+// =========================================================================
+
+describe('normalizeProviderAuthHeaders', () => {
+  const odsUrl = 'https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/x/records';
+
+  it('rewrites a misnamed ODS apikey header into Authorization: Apikey', () => {
+    const r = normalizeProviderAuthHeaders(odsUrl, { Apikey: 'KEY' });
+    expect(r.changed).toBe(true);
+    expect(r.headers).toEqual({ Authorization: 'Apikey KEY' });
+  });
+
+  it('also handles api-key / x-api-key variants', () => {
+    expect(normalizeProviderAuthHeaders(odsUrl, { 'api-key': 'K' }).headers).toEqual({
+      Authorization: 'Apikey K',
+    });
+    expect(normalizeProviderAuthHeaders(odsUrl, { 'X-API-Key': 'K' }).headers).toEqual({
+      Authorization: 'Apikey K',
+    });
+  });
+
+  it('leaves an existing Authorization header untouched', () => {
+    const headers = { Authorization: 'Apikey EXISTING', Apikey: 'IGNORED' };
+    const r = normalizeProviderAuthHeaders(odsUrl, headers);
+    expect(r.changed).toBe(false);
+    expect(r.headers).toBe(headers);
+  });
+
+  it('preserves other headers while moving the key', () => {
+    const r = normalizeProviderAuthHeaders(odsUrl, { Apikey: 'KEY', Accept: 'application/json' });
+    expect(r.headers).toEqual({ Accept: 'application/json', Authorization: 'Apikey KEY' });
+  });
+
+  it('does nothing for non-ODS providers (Tabular)', () => {
+    const r = normalizeProviderAuthHeaders('https://tabular-api.data.gouv.fr/api/resources/abc/data/', {
+      Apikey: 'KEY',
+    });
+    expect(r.changed).toBe(false);
+    expect(r.headers).toEqual({ Apikey: 'KEY' });
+  });
+
+  it('does nothing when ODS has no apikey-like header', () => {
+    const r = normalizeProviderAuthHeaders(odsUrl, { 'X-Custom': 'v' });
+    expect(r.changed).toBe(false);
   });
 });
 

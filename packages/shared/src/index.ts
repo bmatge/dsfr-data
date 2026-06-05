@@ -139,6 +139,7 @@ export {
   detectProvider,
   extractResourceIds,
   resolveSourceUrl,
+  normalizeProviderAuthHeaders,
   parseDataGouvDataset,
   dataGouvDatasetApiUrl,
   extractDataGouvResources,
