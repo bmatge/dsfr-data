@@ -19,3 +19,15 @@ INSEE) gardent leurs proxies dédiés ; le same-origin reste en fetch direct.
 Le gestionnaire de connexions API (test à l'enregistrement + chargement paginé)
 utilise désormais ce helper. Le preflight `/cors-proxy` (nginx + dev Vite)
 autorise les en-têtes custom arbitraires.
+
+Côté authentification OpenDataSoft : ODS n'authentifie qu'une clé passée via
+`Authorization: Apikey <clé>` (en-tête) ou `?apikey=` (query). Deux corrections :
+
+- Nouveau helper `normalizeProviderAuthHeaders(apiUrl, headers)` qui détecte une
+  clé fournie sous un en-tête mal nommé (`Apikey`, `api-key`, `x-api-key`) sur
+  une source ODS et la réécrit au format `Authorization: Apikey <clé>`. Sans
+  ça, ODS ignorait la clé et renvoyait un 404 trompeur (datasets privés masqués).
+  Appliqué au test à l'enregistrement (avec persistance) et au chargement.
+- `resolveSourceUrl` conserve désormais le param `apikey` collé dans l'URL lors
+  de la normalisation vers l'endpoint `/records` (les autres params restent
+  gérés par l'adapter), pour que la méthode `?apikey=` fonctionne aussi.
