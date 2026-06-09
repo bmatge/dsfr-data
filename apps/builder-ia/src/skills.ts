@@ -367,7 +367,6 @@ Apres agrégation, les champs sont nommes automatiquement : \`champ__fonction\`
 | aggregate | String | \`""\` | non | Agrégations : \`"champ:fonction"\` ou \`"champ:fonction:alias"\` |
 | order-by | String | \`""\` | non | Tri : \`"champ:asc"\` ou \`"champ:desc"\`. **Omettre cet attribut preserve l'ordre source** (ordre de premiere apparition apres group-by) — utile pour les mois en lettres, jours de la semaine, ou toute série déjà ordonnee en amont. |
 | limit | Number | \`0\` | non | Limite de resultats (0 = illimite) |
-| refresh | Number | \`0\` | non | Rafraichissement en secondes (0 = desactive) |
 
 > dsfr-data-query est un pur transformateur de données. Utilisez dsfr-data-source pour le fetch HTTP.
 > Le where de query est colon-only : la syntaxe ODSQL ne s'utilise que sur le where de dsfr-data-source.

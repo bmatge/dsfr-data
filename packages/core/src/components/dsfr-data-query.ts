@@ -167,12 +167,6 @@ export class DsfrDataQuery extends LitElement {
   @property({ type: Number })
   limit = 0;
 
-  /**
-   * Intervalle de rafraichissement en secondes
-   */
-  @property({ type: Number })
-  refresh = 0;
-
   @state()
   private _loading = false;
 
@@ -185,7 +179,6 @@ export class DsfrDataQuery extends LitElement {
   @state()
   private _rawData: unknown[] = [];
 
-  private _refreshInterval: number | null = null;
   private _unsubscribe: (() => void) | null = null;
   private _unsubscribeCommands: (() => void) | null = null;
 
@@ -234,8 +227,9 @@ export class DsfrDataQuery extends LitElement {
   }
 
   /**
-   * Attributs supprimes (#277) : ils etaient declares mais jamais lus
-   * (no-ops). Previent les integrateurs qui les utilisaient encore.
+   * Attributs supprimes (#277, #279) : transform/server-side/page-size
+   * etaient declares mais jamais lus (no-ops), refresh appartient a la
+   * source. Previent les integrateurs qui les utilisaient encore.
    */
   private _warnRemovedAttributes() {
     const removed: Array<[string, string]> = [
@@ -248,6 +242,10 @@ export class DsfrDataQuery extends LitElement {
         'le relais de commandes (page, where, orderBy) vers la source est toujours actif',
       ],
       ['page-size', 'la taille de page se configure sur dsfr-data-source (attribut "page-size")'],
+      [
+        'refresh',
+        'le rafraichissement periodique se configure sur dsfr-data-source (attribut "refresh") — la source refetche et le pipeline suit (#279)',
+      ],
     ];
     for (const [attr, hint] of removed) {
       if (this.hasAttribute(attr)) {
@@ -277,17 +275,9 @@ export class DsfrDataQuery extends LitElement {
     if (queryProps.some((prop) => changedProperties.has(prop))) {
       this._initialize();
     }
-
-    if (changedProperties.has('refresh')) {
-      this._setupRefresh();
-    }
   }
 
   private _cleanup() {
-    if (this._refreshInterval) {
-      clearInterval(this._refreshInterval);
-      this._refreshInterval = null;
-    }
     if (this._unsubscribe) {
       this._unsubscribe();
       this._unsubscribe = null;
@@ -295,19 +285,6 @@ export class DsfrDataQuery extends LitElement {
     if (this._unsubscribeCommands) {
       this._unsubscribeCommands();
       this._unsubscribeCommands = null;
-    }
-  }
-
-  private _setupRefresh() {
-    if (this._refreshInterval) {
-      clearInterval(this._refreshInterval);
-      this._refreshInterval = null;
-    }
-
-    if (this.refresh > 0) {
-      this._refreshInterval = window.setInterval(() => {
-        this._initialize();
-      }, this.refresh * 1000);
     }
   }
 
@@ -1058,15 +1035,31 @@ export class DsfrDataQuery extends LitElement {
   }
 
   /**
-   * Force le rechargement des données
+   * Force le rechargement des données.
+   *
+   * Semantique de pur transformateur (#279) : delegue le refetch a la
+   * source amont — meme contrat que dsfr-data-source.reload(). L'emission
+   * qui suit redescend naturellement le pipeline jusqu'ici (une chaine
+   * query → query → source propage le reload jusqu'a la source).
+   *
+   * Repli : si l'amont n'expose pas reload() (normalize/unpivot/join avant
+   * EPIC C #262), retraite le cache courant (ancien comportement).
    */
   public reload() {
-    if (this.source) {
-      const cachedData = getDataCache(this.source);
-      if (cachedData !== undefined) {
-        this._rawData = Array.isArray(cachedData) ? cachedData : [cachedData];
-        this._handleSourceData();
-      }
+    if (!this.source) return;
+
+    const upstream = document.getElementById(this.source) as
+      | (HTMLElement & { reload?: () => void })
+      | null;
+    if (upstream && typeof upstream.reload === 'function') {
+      upstream.reload();
+      return;
+    }
+
+    const cachedData = getDataCache(this.source);
+    if (cachedData !== undefined) {
+      this._rawData = Array.isArray(cachedData) ? cachedData : [cachedData];
+      this._handleSourceData();
     }
   }
 
