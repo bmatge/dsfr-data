@@ -4,6 +4,7 @@ import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { formatValue, FormatType, getColorBySeuil } from '../utils/formatters.js';
 import { computeAggregation } from '../utils/aggregations.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
+import { renderSourceLoading, renderSourceError } from '../utils/status-templates.js';
 
 type KpiColor = 'vert' | 'orange' | 'rouge' | 'bleu';
 
@@ -147,19 +148,9 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
     return html`
       <div class="dsfr-data-kpi ${colorClass}" role="figure" aria-label="${this._getAriaLabel()}">
         ${this._sourceLoading
-          ? html`
-              <div class="dsfr-data-kpi__loading" aria-live="polite">
-                <span class="fr-icon-loader-4-line" aria-hidden="true"></span>
-                Chargement...
-              </div>
-            `
+          ? renderSourceLoading('dsfr-data-kpi')
           : this._sourceError
-            ? html`
-                <div class="dsfr-data-kpi__error" aria-live="assertive">
-                  <span class="fr-icon-error-line" aria-hidden="true"></span>
-                  Erreur de chargement
-                </div>
-              `
+            ? renderSourceError('dsfr-data-kpi', this._sourceError)
             : html`
                 <div class="dsfr-data-kpi__content">
                   ${this.icone

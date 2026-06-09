@@ -4,6 +4,7 @@ import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { getByPath } from '../utils/json-path.js';
 import { escapeHtml } from '@dsfr-data/shared/lib';
 import { sendWidgetBeacon } from '../utils/beacon.js';
+import { renderSourceLoading, renderSourceError } from '../utils/status-templates.js';
 import { getDataMeta, dispatchSourceCommand } from '../utils/data-bridge.js';
 
 /**
@@ -78,6 +79,7 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
 
   @state()
   private _currentPage = 1;
+  private _previousPage = 1;
 
   /** True quand la source fournit des metadonnees de pagination serveur */
   @state()
@@ -120,6 +122,22 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
     if (this._popstateHandler) {
       window.removeEventListener('popstate', this._popstateHandler);
       this._popstateHandler = null;
+    }
+  }
+
+  onSourceReset(): void {
+    // Changer de source ne doit pas laisser les elements precedents (#284)
+    this._data = [];
+    this._serverPagination = false;
+    this._currentPage = 1;
+  }
+
+  onSourceError(_error: Error): void {
+    // En pagination serveur, revert a la page precedente sur echec du fetch
+    // (ex: limite d'offset API depassee) — meme contrat que dsfr-data-list (#284).
+    // Les donnees courantes restent affichees.
+    if (this._serverPagination && this._data.length > 0) {
+      this._currentPage = this._previousPage;
     }
   }
 
@@ -288,6 +306,7 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
   }
 
   private _handlePageChange(page: number) {
+    this._previousPage = this._currentPage;
     this._currentPage = page;
     const totalPages = this._getTotalPages();
     this._announce(`Page ${page} sur ${totalPages}`);
@@ -444,19 +463,9 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
           ${this._liveAnnouncement}
         </div>
         ${this._sourceLoading
-          ? html`
-              <div class="dsfr-data-display__loading" aria-live="polite" aria-busy="true">
-                <span class="fr-icon-loader-4-line" aria-hidden="true"></span>
-                Chargement...
-              </div>
-            `
-          : this._sourceError
-            ? html`
-                <div class="dsfr-data-display__error" aria-live="assertive" role="alert">
-                  <span class="fr-icon-error-line" aria-hidden="true"></span>
-                  Erreur de chargement
-                </div>
-              `
+          ? renderSourceLoading('dsfr-data-display')
+          : this._sourceError && !(this._serverPagination && this._data.length > 0)
+            ? renderSourceError('dsfr-data-display', this._sourceError)
             : totalItems === 0
               ? html`
                   <div class="dsfr-data-display__empty" aria-live="polite" role="status">

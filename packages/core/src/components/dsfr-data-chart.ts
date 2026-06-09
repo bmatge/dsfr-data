@@ -3,6 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { getByPath } from '../utils/json-path.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
+import { renderSourceLoading, renderSourceError } from '../utils/status-templates.js';
 import { escapeHtml } from '@dsfr-data/shared/lib';
 import { isValidDeptCode } from '@dsfr-data/shared/lib';
 
@@ -205,6 +206,10 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   connectedCallback() {
     super.connectedCallback();
     sendWidgetBeacon('dsfr-data-chart', this.type);
+  }
+
+  onSourceReset(): void {
+    this._data = [];
   }
 
   onSourceData(data: unknown): void {
@@ -711,10 +716,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   render() {
     if (this._sourceLoading) {
       return html`
-        <div class="dsfr-data-chart__loading" aria-live="polite">
-          <span class="fr-icon-loader-4-line" aria-hidden="true"></span>
-          Chargement du graphique...
-        </div>
+        ${renderSourceLoading('dsfr-data-chart', 'Chargement du graphique...')}
         <style>
           .dsfr-data-chart__loading {
             display: flex;
@@ -731,10 +733,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
 
     if (this._sourceError) {
       return html`
-        <div class="dsfr-data-chart__error" aria-live="assertive">
-          <span class="fr-icon-error-line" aria-hidden="true"></span>
-          Erreur de chargement: ${this._sourceError.message}
-        </div>
+        ${renderSourceError('dsfr-data-chart', this._sourceError)}
         <style>
           .dsfr-data-chart__error {
             display: flex;

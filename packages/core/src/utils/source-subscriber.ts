@@ -19,6 +19,7 @@ export interface SourceSubscriberInterface {
   _sourceError: Error | null;
   onSourceData(data: unknown): void;
   onSourceError?(error: Error): void;
+  onSourceReset?(): void;
 }
 
 /**
@@ -49,6 +50,16 @@ export function SourceSubscriberMixin<T extends Constructor<LitElement>>(superCl
      * À surcharger pour gérer les erreurs (ex: revert pagination).
      */
     onSourceError(_error: Error): void {
+      // default: no-op
+    }
+
+    /**
+     * Hook appelé à chaque (re)souscription, APRÈS la purge des états du
+     * mixin et AVANT la lecture du cache (#284). À surcharger pour purger
+     * l'état dérivé de l'hôte (lignes, valeurs calculées…) — changer de
+     * `source` ne doit pas laisser l'affichage précédent.
+     */
+    onSourceReset(): void {
       // default: no-op
     }
 
@@ -84,6 +95,14 @@ export function SourceSubscriberMixin<T extends Constructor<LitElement>>(superCl
 
     private _subscribeToSource() {
       this._cleanupSubscription();
+
+      // Purge des états : changer de source (y compris vers une source sans
+      // cache) ne doit pas laisser un affichage périmé sans indicateur (#284)
+      this._sourceData = null;
+      this._sourceError = null;
+      this._sourceLoading = false;
+      this.onSourceReset();
+      this.requestUpdate();
 
       const source = (this as unknown as SourceSubscriberInterface).source;
       if (!source) return;

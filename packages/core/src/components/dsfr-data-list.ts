@@ -2,6 +2,7 @@ import { LitElement, html, css, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
+import { renderSourceLoading, renderSourceError } from '../utils/status-templates.js';
 import { escapeHtml, buildCsv } from '@dsfr-data/shared/lib';
 import { getDataMeta, dispatchSourceCommand } from '../utils/data-bridge.js';
 
@@ -138,6 +139,13 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
     if (changedProperties.has('tri')) {
       this._initSort();
     }
+  }
+
+  onSourceReset(): void {
+    // Changer de source ne doit pas laisser les lignes precedentes (#284)
+    this._data = [];
+    this._serverPagination = false;
+    this._currentPage = 1;
   }
 
   onSourceError(_error: Error): void {
@@ -690,19 +698,9 @@ ${bodyRows}
           ${this._liveAnnouncement}
         </div>
         ${this._sourceLoading
-          ? html`
-              <div class="dsfr-data-list__loading" aria-live="polite" aria-busy="true">
-                <span class="fr-icon-loader-4-line" aria-hidden="true"></span>
-                Chargement des données...
-              </div>
-            `
+          ? renderSourceLoading('dsfr-data-list', 'Chargement des données...')
           : this._sourceError && !(this._serverPagination && this._data.length > 0)
-            ? html`
-                <div class="dsfr-data-list__error" aria-live="assertive" role="alert">
-                  <span class="fr-icon-error-line" aria-hidden="true"></span>
-                  Erreur: ${this._sourceError.message}
-                </div>
-              `
+            ? renderSourceError('dsfr-data-list', this._sourceError)
             : html`
                 <p class="fr-text--sm" aria-live="polite" aria-atomic="true" role="status">
                   ${totalFiltered} résultat${totalFiltered > 1 ? 's' : ''}

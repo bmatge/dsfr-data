@@ -4,6 +4,7 @@ import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { getByPath } from '../utils/json-path.js';
 import { formatNumber } from '../utils/formatters.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
+import { renderSourceLoading, renderSourceError } from '../utils/status-templates.js';
 
 /** Palettes for podium items — reuses DSFR sequential palette */
 const PODIUM_PALETTES: Record<string, readonly string[]> = {
@@ -134,6 +135,10 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
 
   static styles = [];
 
+  onSourceReset(): void {
+    this._data = [];
+  }
+
   onSourceData(data: unknown): void {
     this._data = Array.isArray(data) ? data : [];
   }
@@ -191,23 +196,15 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
   render() {
     if (this._sourceLoading) {
       return html`
-        <div class="dsfr-data-podium" role="status" aria-live="polite">
-          <div class="dsfr-data-podium__loading">
-            <span class="fr-icon-loader-4-line" aria-hidden="true"></span>
-            Chargement...
-          </div>
-        </div>
+        <div class="dsfr-data-podium">${renderSourceLoading('dsfr-data-podium')}</div>
         ${this._renderStyles()}
       `;
     }
 
     if (this._sourceError) {
       return html`
-        <div class="dsfr-data-podium" role="alert">
-          <div class="dsfr-data-podium__error">
-            <span class="fr-icon-error-line" aria-hidden="true"></span>
-            Erreur de chargement
-          </div>
+        <div class="dsfr-data-podium">
+          ${renderSourceError('dsfr-data-podium', this._sourceError)}
         </div>
         ${this._renderStyles()}
       `;

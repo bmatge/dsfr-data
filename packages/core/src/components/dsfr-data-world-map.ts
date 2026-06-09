@@ -3,6 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { getByPath } from '../utils/json-path.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
+import { renderSourceLoading, renderSourceError } from '../utils/status-templates.js';
 import { geoPath, geoNaturalEarth1 } from 'd3-geo';
 import type { GeoPermissibleObjects } from 'd3-geo';
 import { feature, mesh } from 'topojson-client';
@@ -205,6 +206,10 @@ export class DsfrDataWorldMap extends SourceSubscriberMixin(LitElement) {
     super.connectedCallback();
     sendWidgetBeacon('dsfr-data-world-map');
     this._loadMap();
+  }
+
+  onSourceReset(): void {
+    this._data = [];
   }
 
   onSourceData(data: unknown): void {
@@ -478,10 +483,7 @@ export class DsfrDataWorldMap extends SourceSubscriberMixin(LitElement) {
   render() {
     if (this._sourceLoading) {
       return html`
-        <div class="dsfr-data-world-map__loading" aria-live="polite">
-          <span class="fr-icon-loader-4-line" aria-hidden="true"></span>
-          Chargement de la carte...
-        </div>
+        ${renderSourceLoading('dsfr-data-world-map', 'Chargement de la carte...')}
         <style>
           .dsfr-data-world-map__loading {
             display: flex;
@@ -498,10 +500,7 @@ export class DsfrDataWorldMap extends SourceSubscriberMixin(LitElement) {
 
     if (this._sourceError) {
       return html`
-        <div class="dsfr-data-world-map__error" aria-live="assertive">
-          <span class="fr-icon-error-line" aria-hidden="true"></span>
-          Erreur de chargement: ${this._sourceError.message}
-        </div>
+        ${renderSourceError('dsfr-data-world-map', this._sourceError)}
         <style>
           .dsfr-data-world-map__error {
             display: flex;
