@@ -1,9 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { STORAGE_KEYS } from '../../packages/shared/src/storage/local-storage';
-import {
-  exportAllData,
-  importData,
-} from '../../packages/shared/src/storage/import-export';
+import { exportAllData, importData } from '../../packages/shared/src/storage/import-export';
 
 describe('import-export', () => {
   beforeEach(() => {
@@ -22,12 +19,14 @@ describe('import-export', () => {
     });
 
     it('should export stored data', () => {
-      localStorage.setItem(STORAGE_KEYS.SOURCES, JSON.stringify([
-        { id: 'src-1', name: 'Source 1', type: 'manual' },
-      ]));
-      localStorage.setItem(STORAGE_KEYS.FAVORITES, JSON.stringify([
-        { id: 'fav-1', name: 'Fav', code: '<div/>' },
-      ]));
+      localStorage.setItem(
+        STORAGE_KEYS.SOURCES,
+        JSON.stringify([{ id: 'src-1', name: 'Source 1', type: 'manual' }])
+      );
+      localStorage.setItem(
+        STORAGE_KEYS.FAVORITES,
+        JSON.stringify([{ id: 'fav-1', name: 'Fav', code: '<div/>' }])
+      );
 
       const bundle = exportAllData();
       expect(bundle.sources).toHaveLength(1);
@@ -36,9 +35,12 @@ describe('import-export', () => {
     });
 
     it('should strip apiKey from connections', () => {
-      localStorage.setItem(STORAGE_KEYS.CONNECTIONS, JSON.stringify([
-        { id: 'c-1', name: 'Grist', type: 'grist', url: 'http://test', apiKey: 'SECRET-KEY-123' },
-      ]));
+      localStorage.setItem(
+        STORAGE_KEYS.CONNECTIONS,
+        JSON.stringify([
+          { id: 'c-1', name: 'Grist', type: 'grist', url: 'http://test', apiKey: 'SECRET-KEY-123' },
+        ])
+      );
 
       const bundle = exportAllData();
       expect(bundle.connections).toHaveLength(1);
@@ -52,6 +54,64 @@ describe('import-export', () => {
       const bundle = exportAllData();
       expect(() => new Date(bundle.exportedAt)).not.toThrow();
       expect(new Date(bundle.exportedAt).toISOString()).toBe(bundle.exportedAt);
+    });
+
+    it('should strip apiKey from sources too (#316 — Grist Bearer tokens)', () => {
+      localStorage.setItem(
+        STORAGE_KEYS.SOURCES,
+        JSON.stringify([
+          {
+            id: 's-1',
+            name: 'Doc Grist',
+            type: 'grist',
+            documentId: 'doc1',
+            apiKey: 'SECRET-GRIST-TOKEN',
+          },
+        ])
+      );
+
+      const bundle = exportAllData();
+      const exported = bundle.sources[0] as Record<string, unknown>;
+      expect(exported.id).toBe('s-1');
+      expect(exported.apiKey).toBeUndefined();
+      expect(JSON.stringify(bundle)).not.toContain('SECRET-GRIST-TOKEN');
+    });
+
+    it('should redact sensitive headers from sources and connections', () => {
+      localStorage.setItem(
+        STORAGE_KEYS.SOURCES,
+        JSON.stringify([
+          {
+            id: 's-1',
+            name: 'API',
+            type: 'api',
+            headers: JSON.stringify({
+              Authorization: 'Bearer SECRET-TOKEN',
+              Apikey: 'SECRET-ODS',
+              Accept: 'application/json',
+            }),
+          },
+        ])
+      );
+      localStorage.setItem(
+        STORAGE_KEYS.CONNECTIONS,
+        JSON.stringify([
+          {
+            id: 'c-1',
+            name: 'REST',
+            type: 'api',
+            headers: { 'X-API-Key': 'SECRET-X', 'Content-Type': 'application/json' },
+          },
+        ])
+      );
+
+      const bundle = exportAllData();
+      const json = JSON.stringify(bundle);
+      expect(json).not.toContain('SECRET-TOKEN');
+      expect(json).not.toContain('SECRET-ODS');
+      expect(json).not.toContain('SECRET-X');
+      // Les en-tetes non sensibles sont conserves
+      expect(json).toContain('application/json');
     });
   });
 
@@ -94,8 +154,8 @@ describe('import-export', () => {
         version: 1,
         sources: [
           { id: 'src-1', name: 'Valid', type: 'manual' },
-          { name: 'No ID', type: 'manual' },  // invalid: no id
-          null,  // invalid
+          { name: 'No ID', type: 'manual' }, // invalid: no id
+          null, // invalid
         ],
       });
 
@@ -106,9 +166,7 @@ describe('import-export', () => {
     it('should import valid connections', () => {
       const result = importData({
         version: 1,
-        connections: [
-          { id: 'c-1', name: 'Conn 1', type: 'grist' },
-        ],
+        connections: [{ id: 'c-1', name: 'Conn 1', type: 'grist' }],
       });
 
       expect(result.connections).toBe(1);
@@ -119,9 +177,7 @@ describe('import-export', () => {
     it('should import valid favorites', () => {
       const result = importData({
         version: 1,
-        favorites: [
-          { id: 'f-1', name: 'Fav', code: '<div/>' },
-        ],
+        favorites: [{ id: 'f-1', name: 'Fav', code: '<div/>' }],
       });
 
       expect(result.favorites).toBe(1);
@@ -130,9 +186,7 @@ describe('import-export', () => {
     it('should import valid dashboards', () => {
       const result = importData({
         version: 1,
-        dashboards: [
-          { id: 'd-1', name: 'Dash' },
-        ],
+        dashboards: [{ id: 'd-1', name: 'Dash' }],
       });
 
       expect(result.dashboards).toBe(1);
@@ -140,15 +194,14 @@ describe('import-export', () => {
 
     it('should upsert by ID (update existing)', () => {
       // Pre-populate with a source
-      localStorage.setItem(STORAGE_KEYS.SOURCES, JSON.stringify([
-        { id: 'src-1', name: 'Old Name', type: 'manual' },
-      ]));
+      localStorage.setItem(
+        STORAGE_KEYS.SOURCES,
+        JSON.stringify([{ id: 'src-1', name: 'Old Name', type: 'manual' }])
+      );
 
       const result = importData({
         version: 1,
-        sources: [
-          { id: 'src-1', name: 'Updated Name', type: 'manual' },
-        ],
+        sources: [{ id: 'src-1', name: 'Updated Name', type: 'manual' }],
       });
 
       expect(result.sources).toBe(1);
@@ -158,15 +211,14 @@ describe('import-export', () => {
     });
 
     it('should merge new items with existing', () => {
-      localStorage.setItem(STORAGE_KEYS.SOURCES, JSON.stringify([
-        { id: 'src-1', name: 'Existing', type: 'manual' },
-      ]));
+      localStorage.setItem(
+        STORAGE_KEYS.SOURCES,
+        JSON.stringify([{ id: 'src-1', name: 'Existing', type: 'manual' }])
+      );
 
       const result = importData({
         version: 1,
-        sources: [
-          { id: 'src-2', name: 'New', type: 'grist' },
-        ],
+        sources: [{ id: 'src-2', name: 'New', type: 'grist' }],
       });
 
       expect(result.sources).toBe(1);
@@ -185,28 +237,90 @@ describe('import-export', () => {
         dashboards: [],
       });
 
-      expect(result).toEqual({ sources: 0, connections: 0, favorites: 0, dashboards: 0, skipped: 0 });
+      expect(result).toEqual({
+        sources: 0,
+        connections: 0,
+        favorites: 0,
+        dashboards: 0,
+        skipped: 0,
+      });
     });
 
     it('should handle missing arrays gracefully', () => {
       const result = importData({ version: 1 });
-      expect(result).toEqual({ sources: 0, connections: 0, favorites: 0, dashboards: 0, skipped: 0 });
+      expect(result).toEqual({
+        sources: 0,
+        connections: 0,
+        favorites: 0,
+        dashboards: 0,
+        skipped: 0,
+      });
+    });
+
+    it('should neutralize __proto__ keys in imported items (prototype pollution)', () => {
+      const forged = JSON.parse(
+        '{"version":1,"sources":[{"id":"s-1","name":"Forged","type":"manual",' +
+          '"__proto__":{"polluted":true},' +
+          '"data":[{"a":1,"__proto__":{"pollutedDeep":true}}]}]}'
+      );
+
+      const result = importData(forged);
+      expect(result.sources).toBe(1);
+
+      const stored = JSON.parse(localStorage.getItem(STORAGE_KEYS.SOURCES)!);
+      // La cle dangereuse n'atteint jamais le storage (un spread/assign aval
+      // sur l'objet stocke declencherait la pollution d'Object.prototype)
+      expect(JSON.stringify(stored)).not.toContain('__proto__');
+      expect(JSON.stringify(stored)).not.toContain('polluted');
+      expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+    });
+
+    it('should skip a forged favorite whose code exceeds the size cap', () => {
+      const result = importData({
+        version: 1,
+        favorites: [{ id: 'f-1', name: 'Bombe', code: 'x'.repeat(300_000) }],
+      });
+      expect(result.favorites).toBe(0);
+      expect(result.skipped).toBe(1);
+    });
+
+    it('should drop mistyped optional fields from imported sources', () => {
+      const result = importData({
+        version: 1,
+        sources: [
+          {
+            id: 's-1',
+            name: 'Bad fields',
+            type: 'api',
+            apiUrl: { evil: true },
+            data: 'not-an-array',
+            apiKey: 12345,
+          },
+        ],
+      });
+      expect(result.sources).toBe(1);
+
+      const stored = JSON.parse(localStorage.getItem(STORAGE_KEYS.SOURCES)!);
+      expect(stored[0].apiUrl).toBeUndefined();
+      expect(stored[0].data).toBeUndefined();
+      expect(stored[0].apiKey).toBeUndefined();
     });
 
     it('should round-trip export then import', () => {
       // Populate data
-      localStorage.setItem(STORAGE_KEYS.SOURCES, JSON.stringify([
-        { id: 's-1', name: 'Src', type: 'manual' },
-      ]));
-      localStorage.setItem(STORAGE_KEYS.CONNECTIONS, JSON.stringify([
-        { id: 'c-1', name: 'Conn', type: 'grist' },
-      ]));
-      localStorage.setItem(STORAGE_KEYS.FAVORITES, JSON.stringify([
-        { id: 'f-1', name: 'Fav', code: '<div/>' },
-      ]));
-      localStorage.setItem(STORAGE_KEYS.DASHBOARDS, JSON.stringify([
-        { id: 'd-1', name: 'Dash' },
-      ]));
+      localStorage.setItem(
+        STORAGE_KEYS.SOURCES,
+        JSON.stringify([{ id: 's-1', name: 'Src', type: 'manual' }])
+      );
+      localStorage.setItem(
+        STORAGE_KEYS.CONNECTIONS,
+        JSON.stringify([{ id: 'c-1', name: 'Conn', type: 'grist' }])
+      );
+      localStorage.setItem(
+        STORAGE_KEYS.FAVORITES,
+        JSON.stringify([{ id: 'f-1', name: 'Fav', code: '<div/>' }])
+      );
+      localStorage.setItem(STORAGE_KEYS.DASHBOARDS, JSON.stringify([{ id: 'd-1', name: 'Dash' }]));
 
       const bundle = exportAllData();
 

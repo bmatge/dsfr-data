@@ -31,8 +31,54 @@ export interface ImportResult {
 }
 
 /**
+ * En-têtes dont la valeur est un secret : jamais exportés.
+ * (Authorization Bearer, Apikey ODS, X-API-Key, cookies...)
+ */
+const SENSITIVE_HEADER_RE =
+  /^(authorization|proxy-authorization|cookie|set-cookie|apikey|api[-_]?key|x[-_]api[-_]key|x[-_]auth[-_]?token)$/i;
+
+/** Retire les en-têtes sensibles. Accepte la forme objet ou chaîne JSON. */
+function redactHeaders(headers: unknown): unknown {
+  if (typeof headers === 'string') {
+    try {
+      const parsed = JSON.parse(headers);
+      const redacted = redactHeaders(parsed);
+      return JSON.stringify(redacted);
+    } catch {
+      // Chaîne non-JSON : on ne sait pas la filtrer → on ne l'exporte pas
+      return undefined;
+    }
+  }
+  if (headers && typeof headers === 'object' && !Array.isArray(headers)) {
+    const out: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(headers)) {
+      if (SENSITIVE_HEADER_RE.test(key)) continue;
+      out[key] = value;
+    }
+    return out;
+  }
+  return headers;
+}
+
+/**
+ * Copie exportable d'un item : `apiKey` retiré, en-têtes sensibles expurgés.
+ * Les sources portent aussi des secrets (champ Grist `apiKey`,
+ * `headers` Authorization/Apikey) — pas seulement les connections (#316).
+ */
+function stripSecrets(item: unknown): unknown {
+  if (!item || typeof item !== 'object') return item;
+  const { apiKey: _apiKey, ...rest } = item as Record<string, unknown>;
+  if (rest.headers !== undefined) {
+    const redacted = redactHeaders(rest.headers);
+    if (redacted === undefined) delete rest.headers;
+    else rest.headers = redacted;
+  }
+  return rest;
+}
+
+/**
  * Export all user data as a JSON bundle.
- * API keys are stripped from connections for security.
+ * API keys and sensitive headers are stripped from sources AND connections.
  */
 export function exportAllData(): ExportBundle {
   const sources = loadFromStorage<unknown[]>(STORAGE_KEYS.SOURCES, []);
@@ -40,17 +86,11 @@ export function exportAllData(): ExportBundle {
   const favorites = loadFromStorage<unknown[]>(STORAGE_KEYS.FAVORITES, []);
   const dashboards = loadFromStorage<unknown[]>(STORAGE_KEYS.DASHBOARDS, []);
 
-  // Strip sensitive data from connections
-  const safeConnections = connections.map((conn) => {
-    const { apiKey: _apiKey, ...rest } = conn;
-    return rest;
-  });
-
   return {
     version: 1,
     exportedAt: new Date().toISOString(),
-    sources,
-    connections: safeConnections,
+    sources: sources.map(stripSecrets),
+    connections: connections.map(stripSecrets),
     favorites,
     dashboards,
   };
