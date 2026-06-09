@@ -130,14 +130,15 @@ describe('DsfrDataSource', () => {
       expect(mockFetch).not.toHaveBeenCalled();
     });
 
-    it('warns when id is not set', async () => {
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    it('reports config error when id is not set (#283)', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       source.url = 'https://api.example.com/data';
       // id is empty
       await (source as any)._fetchData();
-      expect(warnSpy).toHaveBeenCalled();
+      expect(errorSpy).toHaveBeenCalled();
+      expect(source.getAttribute('data-dsfr-config-error')).toMatch(/id/);
       expect(mockFetch).not.toHaveBeenCalled();
-      warnSpy.mockRestore();
+      errorSpy.mockRestore();
     });
 
     it('fetches data and dispatches loaded event', async () => {
@@ -444,30 +445,31 @@ describe('DsfrDataSource', () => {
   });
 
   describe('adapter mode fetching', () => {
-    it('warns and skips when id is not set in adapter mode', async () => {
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    it('reports config error and skips when id is not set in adapter mode (#283)', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       source.apiType = 'opendatasoft';
       source.id = '';
       source.datasetId = 'test-dataset';
 
       await (source as any)._fetchViaAdapter();
 
-      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('id'));
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('id'));
       expect(mockFetch).not.toHaveBeenCalled();
-      warnSpy.mockRestore();
+      errorSpy.mockRestore();
     });
 
-    it('warns and skips when adapter validation fails', async () => {
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    it('reports config error and dispatches dsfr-data-error when validation fails (#283)', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       source.apiType = 'opendatasoft';
       source.id = 'test-source';
       source.datasetId = ''; // Missing required dataset-id
 
       await (source as any)._fetchViaAdapter();
 
-      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('dataset-id'));
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('dataset-id'));
+      expect(source.getAttribute('data-dsfr-config-error')).toContain('dataset-id');
       expect(mockFetch).not.toHaveBeenCalled();
-      warnSpy.mockRestore();
+      errorSpy.mockRestore();
     });
 
     it('fetches data via adapter fetchAll', async () => {
@@ -607,14 +609,14 @@ describe('DsfrDataSource', () => {
       expect(source.getData()).toEqual([{ nom: 'Paris' }, { nom: 'Lyon' }]);
     });
 
-    it('warns when id is not set for inline data', () => {
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    it('reports config error when id is not set for inline data (#283)', () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       source.data = '[1, 2, 3]';
 
       (source as any)._dispatchInlineData();
 
-      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('id'));
-      warnSpy.mockRestore();
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('id'));
+      errorSpy.mockRestore();
     });
 
     it('sets error for invalid inline JSON', () => {

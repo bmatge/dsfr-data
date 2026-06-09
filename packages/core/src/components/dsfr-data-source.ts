@@ -1,6 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { getByPath } from '../utils/json-path.js';
+import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { getProxiedUrl, buildCorsProxyRequest } from '@dsfr-data/shared/lib';
 // Import app-side tolere temporairement (cache serveur /api/cache) — a
@@ -284,7 +285,7 @@ export class DsfrDataSource extends LitElement {
 
   private _dispatchInlineData() {
     if (!this.id) {
-      console.warn('dsfr-data-source: attribut "id" requis pour identifier la source');
+      reportConfigError(this, 'dsfr-data-source', 'attribut "id" requis pour identifier la source');
       return;
     }
     try {
@@ -438,7 +439,7 @@ export class DsfrDataSource extends LitElement {
     if (!this.url) return;
 
     if (!this.id) {
-      console.warn('dsfr-data-source: attribut "id" requis pour identifier la source');
+      reportConfigError(this, 'dsfr-data-source', 'attribut "id" requis pour identifier la source');
       return;
     }
 
@@ -535,15 +536,19 @@ export class DsfrDataSource extends LitElement {
 
   private async _fetchViaAdapter() {
     if (!this.id) {
-      console.warn('dsfr-data-source: attribut "id" requis pour identifier la source');
+      reportConfigError(this, 'dsfr-data-source', 'attribut "id" requis pour identifier la source');
       return;
     }
 
     const adapter = this.getAdapter();
     if (!adapter) {
-      console.warn(
-        `dsfr-data-source[${this.id}]: adapter introuvable pour api-type="${this.apiType}"`
-      );
+      // api-type inconnu (#283) : signal DOM + erreur aval — l'ancien throw
+      // du registre remontait hors try via setTimeout (unhandled rejection,
+      // consommateurs geles en loading)
+      const message = `api-type "${this.apiType}" inconnu — types supportes : generic, opendatasoft, tabular, grist, insee (ou registerAdapter)`;
+      reportConfigError(this, `dsfr-data-source[${this.id}]`, message);
+      this._error = new Error(message);
+      dispatchDataError(this.id, this._error);
       return;
     }
 
@@ -551,9 +556,14 @@ export class DsfrDataSource extends LitElement {
     const params = this.getAdapterParams();
     const validationError = adapter.validate(params);
     if (validationError) {
-      console.warn(`dsfr-data-source[${this.id}]: ${validationError}`);
+      // Erreur de config muette pour l'aval avant #283 (console.warn seul)
+      reportConfigError(this, `dsfr-data-source[${this.id}]`, validationError);
+      this._error = new Error(validationError);
+      dispatchDataError(this.id, this._error);
       return;
     }
+
+    clearConfigError(this);
 
     if (this._abortController) {
       this._abortController.abort();

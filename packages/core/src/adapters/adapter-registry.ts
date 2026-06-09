@@ -21,15 +21,16 @@ const ADAPTER_REGISTRY = new Map<string, ApiAdapter>([
 ]);
 
 /**
- * Retourne l'adapter pour un api-type donne.
+ * Retourne l'adapter pour un api-type donne, ou null s'il est inconnu.
  * Les adapters sont des singletons (stateless).
+ *
+ * Ne THROW plus (#283) : l'ancien throw remontait hors try via le
+ * setTimeout de _scheduleFetch → unhandled rejection, aucun dsfr-data-error,
+ * consommateurs geles en loading. Le call-site (dsfr-data-source) signale
+ * l'api-type inconnu via reportConfigError + dispatchDataError.
  */
-export function getAdapter(apiType: string): ApiAdapter {
-  const adapter = ADAPTER_REGISTRY.get(apiType);
-  if (!adapter) {
-    throw new Error(`Type d'API non supporte: ${apiType}`);
-  }
-  return adapter;
+export function getAdapter(apiType: string): ApiAdapter | null {
+  return ADAPTER_REGISTRY.get(apiType) ?? null;
 }
 
 /**

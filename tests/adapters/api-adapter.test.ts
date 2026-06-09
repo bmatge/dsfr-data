@@ -23,8 +23,8 @@ describe('API Adapter Factory', () => {
     expect(adapter.type).toBe('generic');
   });
 
-  it('throws for unknown api type', () => {
-    expect(() => getAdapter('unknown')).toThrow("Type d'API non supporte: unknown");
+  it('returns null for unknown api type (no throw, #283)', () => {
+    expect(getAdapter('unknown')).toBeNull();
   });
 
   it('allows registering custom adapters', () => {
