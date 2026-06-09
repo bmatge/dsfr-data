@@ -1,0 +1,5 @@
+---
+'dsfr-data': patch
+---
+
+Filtres et tri de `dsfr-data-query` fiabilisés (#278) : `in`/`notin` adoptent la même coercition lâche que `eq` (`dept:in:75|13` matche enfin `"75"` string), avec une égalité unique gérant aussi les booléens (`true` vs `"true"`). Les opérateurs positifs (eq, in, contains, gt/gte/lt/lte) ne matchent plus jamais `null`/`undefined` (`Number(null)===0` faisait passer les nulls, `String(undefined)` matchait `"undefined"`), les négatifs (neq, notin, notcontains) les laissent passer. Les comparaisons retombent en lexicographique pour les non-numériques (dates ISO). Le tri devient un comparateur total à 3 niveaux (null/vide < numérique < chaîne) — transitif, stable, fini l'ordre arbitraire sur colonnes mixtes — et supporte le multi-champs (`"region:asc, population:desc"`, grammaire #273). `aggregate` sans `group-by` produit désormais un agrégat global (une ligne, alias `field__fn`) au lieu d'un no-op silencieux — idéal pour alimenter un KPI. `applyLocalFilter` (shared) aligné sur la même sémantique (parité #315).

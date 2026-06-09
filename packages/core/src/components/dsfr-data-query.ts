@@ -18,7 +18,7 @@ import {
 import type { AdapterCapabilities } from '../adapters/api-adapter.js';
 import type { SourceElement } from '../utils/source-element.js';
 import { parseAggregates, type ParsedAggregate } from '../utils/aggregates.js';
-import { unescapeColonValue, filterToOdsql } from '../utils/where.js';
+import { unescapeColonValue, filterToOdsql, parseOrderBy } from '../utils/where.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 
 /**
@@ -688,6 +688,11 @@ export class DsfrDataQuery extends LitElement {
     const needsClientGroupBy = this.groupBy && (!this._serverDelegated.groupBy || forceClientSide);
     if (needsClientGroupBy) {
       result = this._applyGroupByAndAggregate(result);
+    } else if (!this.groupBy && this.aggregate) {
+      // Agregat global (#278) : aggregate sans group-by produit UNE ligne
+      // (la grammaire etait acceptee mais no-op silencieux). Cas d'usage
+      // typique : alimenter un dsfr-data-kpi (total, moyenne...).
+      result = [this._computeGlobalAggregates(result)];
     }
 
     // 3. Appliquer le tri
@@ -771,32 +776,93 @@ export class DsfrDataQuery extends LitElement {
     return val;
   }
 
+  /**
+   * Egalite unique du pipeline de filtres (#278) : coercition lache
+   * string/number (`"75" == 75`), repli `String === String` pour les
+   * booleens (`true` vs `"true"` — le `==` JS les declare differents).
+   * Utilisee par eq, neq, in, notin : meme entree, memes lignes gardees.
+   */
+  private _looseEquals(a: unknown, b: unknown): boolean {
+    if (a === null || a === undefined) return b === null || b === undefined;
+    // eslint-disable-next-line eqeqeq -- coercition lache intentionnelle
+    if (a == b) return true;
+    return String(a) === String(b);
+  }
+
+  /** True si la valeur est interpretable comme nombre (hors null/''). */
+  private _isNumericValue(v: unknown): boolean {
+    if (typeof v === 'number') return !isNaN(v);
+    if (typeof v === 'string') return v.trim() !== '' && !isNaN(Number(v));
+    return false;
+  }
+
+  /**
+   * Comparaison pour gt/gte/lt/lte (#278). Retourne null si la valeur est
+   * absente — null/undefined ne matchent JAMAIS une comparaison
+   * (`Number(null) === 0` faisait passer les nulls). Numerique si les deux
+   * cotes le sont, sinon repli lexicographique (dates ISO).
+   */
+  private _compareForRange(value: unknown, ref: unknown): number | null {
+    if (value === null || value === undefined || value === '') return null;
+    if (this._isNumericValue(value) && this._isNumericValue(ref)) {
+      return Number(value) - Number(ref);
+    }
+    return String(value).localeCompare(String(ref));
+  }
+
   private _matchesFilter(item: Record<string, unknown>, filter: QueryFilter): boolean {
     const value = getByPath(item, filter.field);
 
     switch (filter.operator) {
       case 'eq':
-        // eslint-disable-next-line eqeqeq
-        return value == filter.value;
+        return this._looseEquals(value, filter.value);
       case 'neq':
-        // eslint-disable-next-line eqeqeq
-        return value != filter.value;
-      case 'gt':
-        return Number(value) > Number(filter.value);
-      case 'gte':
-        return Number(value) >= Number(filter.value);
-      case 'lt':
-        return Number(value) < Number(filter.value);
-      case 'lte':
-        return Number(value) <= Number(filter.value);
+        return !this._looseEquals(value, filter.value);
+      case 'gt': {
+        const cmp = this._compareForRange(value, filter.value);
+        return cmp !== null && cmp > 0;
+      }
+      case 'gte': {
+        const cmp = this._compareForRange(value, filter.value);
+        return cmp !== null && cmp >= 0;
+      }
+      case 'lt': {
+        const cmp = this._compareForRange(value, filter.value);
+        return cmp !== null && cmp < 0;
+      }
+      case 'lte': {
+        const cmp = this._compareForRange(value, filter.value);
+        return cmp !== null && cmp <= 0;
+      }
       case 'contains':
-        return String(value).toLowerCase().includes(String(filter.value).toLowerCase());
+        // null ne contient rien (String(undefined)="undefined" matchait, #278)
+        return (
+          value !== null &&
+          value !== undefined &&
+          String(value).toLowerCase().includes(String(filter.value).toLowerCase())
+        );
       case 'notcontains':
-        return !String(value).toLowerCase().includes(String(filter.value).toLowerCase());
+        return (
+          value === null ||
+          value === undefined ||
+          !String(value).toLowerCase().includes(String(filter.value).toLowerCase())
+        );
       case 'in':
-        return Array.isArray(filter.value) && filter.value.includes(value as string | number);
+        // Meme semantique lache que eq sur chaque valeur (#278) —
+        // dept:in:75|13 matche "75" string comme dept:eq:75
+        return (
+          value !== null &&
+          value !== undefined &&
+          Array.isArray(filter.value) &&
+          filter.value.some((v) => this._looseEquals(value, v))
+        );
       case 'notin':
-        return Array.isArray(filter.value) && !filter.value.includes(value as string | number);
+        return (
+          value === null ||
+          value === undefined ||
+          !Array.isArray(filter.value) ||
+          !filter.value.some((v) => this._looseEquals(value, v))
+        );
       case 'isnull':
         return value === null || value === undefined;
       case 'isnotnull':
@@ -855,6 +921,18 @@ export class DsfrDataQuery extends LitElement {
     return parseAggregates(aggExpr);
   }
 
+  /**
+   * Agregat global (#278) : agrege l'ensemble des lignes (filtrees) en une
+   * seule ligne, avec la meme convention d'alias field__fn que le group-by.
+   */
+  private _computeGlobalAggregates(data: Record<string, unknown>[]): Record<string, unknown> {
+    const row: Record<string, unknown> = {};
+    for (const agg of this._parseAggregates(this.aggregate)) {
+      setByPath(row, agg.alias, this._computeAggregate(data, agg));
+    }
+    return row;
+  }
+
   private _computeAggregate(items: Record<string, unknown>[], agg: QueryAggregate): number {
     const values = items.map((item) => Number(getByPath(item, agg.field))).filter((v) => !isNaN(v));
 
@@ -875,31 +953,40 @@ export class DsfrDataQuery extends LitElement {
   }
 
   /**
-   * Applique le tri
+   * Comparateur total a 3 niveaux : null/vide < numerique < chaine (#278).
+   * Transitif — l'ancien comparateur mixte (numerique si LES DEUX valeurs
+   * sont numeriques, sinon string) produisait un ordre arbitraire sur les
+   * colonnes mixtes, et `Number(null) === 0` classait les nulls parmi les
+   * nombres.
+   */
+  private _compareValues(valA: unknown, valB: unknown): number {
+    const rank = (v: unknown): number => {
+      if (v === null || v === undefined || v === '') return 0;
+      return this._isNumericValue(v) ? 1 : 2;
+    };
+    const rankA = rank(valA);
+    const rankB = rank(valB);
+    if (rankA !== rankB) return rankA - rankB;
+    if (rankA === 0) return 0;
+    if (rankA === 1) return Number(valA) - Number(valB);
+    return String(valA).localeCompare(String(valB));
+  }
+
+  /**
+   * Applique le tri — grammaire commune du pipeline `"field:dir, field2:dir"`
+   * (#273), tri stable, comparateur total (#278). En desc, l'ordre est
+   * exactement inverse (nulls en dernier).
    */
   private _applySort(data: Record<string, unknown>[]): Record<string, unknown>[] {
-    const sortParts = this.orderBy.split(':');
-    if (sortParts.length < 1) return data;
-
-    const field = sortParts[0];
-    const direction = (sortParts[1] || 'asc').toLowerCase();
+    const parts = parseOrderBy(this.orderBy);
+    if (parts.length === 0) return data;
 
     return [...data].sort((a, b) => {
-      const valA = getByPath(a, field);
-      const valB = getByPath(b, field);
-
-      // Comparaison numérique si possible
-      const numA = Number(valA);
-      const numB = Number(valB);
-
-      if (!isNaN(numA) && !isNaN(numB)) {
-        return direction === 'desc' ? numB - numA : numA - numB;
+      for (const { field, direction } of parts) {
+        const cmp = this._compareValues(getByPath(a, field), getByPath(b, field));
+        if (cmp !== 0) return direction === 'desc' ? -cmp : cmp;
       }
-
-      // Comparaison string
-      const strA = String(valA ?? '');
-      const strB = String(valB ?? '');
-      return direction === 'desc' ? strB.localeCompare(strA) : strA.localeCompare(strB);
+      return 0;
     });
   }
 
