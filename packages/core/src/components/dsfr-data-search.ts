@@ -11,6 +11,7 @@ import {
   subscribeToSource,
   getDataCache,
   dispatchSourceCommand,
+  subscribeToSourceCommands,
   getDataMeta,
   setDataMeta,
 } from '../utils/data-bridge.js';
@@ -123,6 +124,7 @@ export class DsfrDataSearch extends LitElement {
 
   private _debounceTimer: ReturnType<typeof setTimeout> | null = null;
   private _unsubscribe: (() => void) | null = null;
+  private _unsubscribeCommands: (() => void) | null = null;
   private _urlParamApplied = false;
 
   // --- Public API (delegation to upstream source) ---
@@ -174,6 +176,10 @@ export class DsfrDataSearch extends LitElement {
     if (this._unsubscribe) {
       this._unsubscribe();
       this._unsubscribe = null;
+    }
+    if (this._unsubscribeCommands) {
+      this._unsubscribeCommands();
+      this._unsubscribeCommands = null;
     }
     if (this.id) {
       clearDataCache(this.id);
@@ -246,6 +252,10 @@ export class DsfrDataSearch extends LitElement {
     if (this._unsubscribe) {
       this._unsubscribe();
     }
+    if (this._unsubscribeCommands) {
+      this._unsubscribeCommands();
+      this._unsubscribeCommands = null;
+    }
 
     // Read search template from adapter if empty and server-search enabled
     if (this.serverSearch && !this.searchTemplate) {
@@ -282,6 +292,13 @@ export class DsfrDataSearch extends LitElement {
       onError: (error: Error) => {
         dispatchDataError(this.id, error);
       },
+    });
+
+    // Relaye les commandes aval (page, where, orderBy) vers la source amont,
+    // comme query/normalize/unpivot : un dsfr-data-list pagine derriere ce
+    // search dispatche vers notre id — sans relais, la commande etait perdue (#272)
+    this._unsubscribeCommands = subscribeToSourceCommands(this.id, (cmd) => {
+      dispatchSourceCommand(this.source, cmd);
     });
   }
 

@@ -8,6 +8,8 @@ import {
   clearDataCache,
   subscribeToSource,
   getDataCache,
+  subscribeToSourceCommands,
+  dispatchSourceCommand,
 } from '../utils/data-bridge.js';
 import { performJoin } from '@dsfr-data/shared/lib';
 import type { JoinType } from '@dsfr-data/shared/lib';
@@ -96,6 +98,7 @@ export class DsfrDataJoin extends LitElement {
   private _rightData: Row[] | null = null;
   private _unsubscribeLeft: (() => void) | null = null;
   private _unsubscribeRight: (() => void) | null = null;
+  private _unsubscribeCommands: (() => void) | null = null;
 
   protected createRenderRoot(): HTMLElement | DocumentFragment {
     return this;
@@ -191,6 +194,14 @@ export class DsfrDataJoin extends LitElement {
 
     this._subscribeToSource('left');
     this._subscribeToSource('right');
+
+    // Relaye les commandes aval (page, where, orderBy) vers la source GAUCHE,
+    // porteuse des lignes principales du join — la droite est traitee comme
+    // table de reference et n'est pas filtree/paginee (#272). Sans relais,
+    // un dsfr-data-list pagine derriere un join perdait ses commandes.
+    this._unsubscribeCommands = subscribeToSourceCommands(this.id, (cmd) => {
+      dispatchSourceCommand(this.left, cmd);
+    });
   }
 
   private _subscribeToSource(side: 'left' | 'right') {
@@ -278,6 +289,10 @@ export class DsfrDataJoin extends LitElement {
     if (this._unsubscribeRight) {
       this._unsubscribeRight();
       this._unsubscribeRight = null;
+    }
+    if (this._unsubscribeCommands) {
+      this._unsubscribeCommands();
+      this._unsubscribeCommands = null;
     }
   }
 }
