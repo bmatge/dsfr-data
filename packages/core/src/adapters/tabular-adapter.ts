@@ -15,7 +15,7 @@ import type {
 import type { ProviderConfig } from '@dsfr-data/shared/lib';
 import { getProxyConfig, TABULAR_CONFIG } from '@dsfr-data/shared/lib';
 import { parseAggregates } from '../utils/aggregates.js';
-import { buildColonFacetWhere, unescapeColonValue } from '../utils/where.js';
+import { buildColonFacetWhere, unescapeColonValue, parseOrderBy } from '../utils/where.js';
 
 /** Construit les options fetch avec headers optionnels */
 function buildFetchOptions(
@@ -220,10 +220,11 @@ export class TabularAdapter implements ApiAdapter {
 
     // Tri
     if (params.orderBy) {
-      const parts = params.orderBy.split(':');
-      const field = parts[0];
-      const direction = parts[1] || 'asc';
-      url.searchParams.set(`${field}__sort`, direction);
+      // Grammaire commune "field:dir, field2:dir2" (#273) — le split(':')
+      // global produisait un tri malforme en multi-champs
+      for (const part of parseOrderBy(params.orderBy)) {
+        url.searchParams.set(`${part.field}__sort`, part.direction);
+      }
     }
 
     // Pagination
@@ -260,10 +261,10 @@ export class TabularAdapter implements ApiAdapter {
     // ORDER BY: overlay prioritaire, fallback statique
     const effectiveOrderBy = overlay.orderBy;
     if (effectiveOrderBy) {
-      const parts = effectiveOrderBy.split(':');
-      const field = parts[0];
-      const direction = parts[1] || 'asc';
-      url.searchParams.set(`${field}__sort`, direction);
+      // Grammaire commune "field:dir, field2:dir2" (#273)
+      for (const part of parseOrderBy(effectiveOrderBy)) {
+        url.searchParams.set(`${part.field}__sort`, part.direction);
+      }
     }
 
     // PAGINATION: une seule page
@@ -284,10 +285,11 @@ export class TabularAdapter implements ApiAdapter {
         const field = parts[0];
         const op = this._mapOperator(parts[1]);
         const raw = parts.slice(2).join(':');
-        // in/notin : decoder chaque token apres decoupage sur | (#271)
+        // in/notin : decoder chaque token apres decoupage sur |, puis
+        // traduire vers la liste a virgules attendue par l'API Tabular (#273)
         const value =
           op === 'in' || op === 'notin'
-            ? raw.split('|').map(unescapeColonValue).join('|')
+            ? raw.split('|').map(unescapeColonValue).join(',')
             : unescapeColonValue(raw);
         url.searchParams.set(`${field}__${op}`, value);
       }

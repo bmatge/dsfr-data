@@ -15,6 +15,7 @@ import type {
 } from './api-adapter.js';
 import type { QueryAggregate } from '../components/dsfr-data-query.js';
 import { parseAggregates } from '../utils/aggregates.js';
+import { parseOrderBy } from '../utils/where.js';
 import type { ProviderConfig } from '@dsfr-data/shared/lib';
 import { ODS_CONFIG, getProxiedUrl } from '@dsfr-data/shared/lib';
 
@@ -25,6 +26,13 @@ import { ODS_CONFIG, getProxiedUrl } from '@dsfr-data/shared/lib';
  */
 function escapeOdsqlString(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+/** `"a:desc, b:asc"` → `"a DESC, b ASC"` — multi-champs via la grammaire commune (#273) */
+function toOdsOrderBy(orderBy: string): string {
+  return parseOrderBy(orderBy)
+    .map((p) => `${p.field} ${p.direction.toUpperCase()}`)
+    .join(', ');
 }
 
 /** Construit les options fetch avec headers optionnels */
@@ -173,11 +181,7 @@ export class OpenDataSoftAdapter implements ApiAdapter {
     }
 
     if (params.orderBy) {
-      const sortExpr = params.orderBy.replace(
-        /:(\w+)$/,
-        (_, dir: string) => ` ${dir.toUpperCase()}`
-      );
-      url.searchParams.set('order_by', sortExpr);
+      url.searchParams.set('order_by', toOdsOrderBy(params.orderBy));
     }
 
     if (limitOverride !== undefined) {
@@ -220,11 +224,7 @@ export class OpenDataSoftAdapter implements ApiAdapter {
     // ORDER BY: overlay prioritaire, fallback statique
     const effectiveOrderBy = overlay.orderBy;
     if (effectiveOrderBy) {
-      const sortExpr = effectiveOrderBy.replace(
-        /:(\w+)$/,
-        (_, dir: string) => ` ${dir.toUpperCase()}`
-      );
-      url.searchParams.set('order_by', sortExpr);
+      url.searchParams.set('order_by', toOdsOrderBy(effectiveOrderBy));
     }
 
     // PAGINATION: une seule page

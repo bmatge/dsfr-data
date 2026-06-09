@@ -60,3 +60,27 @@ export function joinWhere(format: WhereFormat, clauses: Array<string | undefined
   const list = clauses.filter((c): c is string => !!c);
   return list.join(format === 'odsql' ? ' AND ' : ', ');
 }
+
+/** Partie d'un tri multi-champs. */
+export interface OrderByPart {
+  field: string;
+  direction: 'asc' | 'desc';
+}
+
+/**
+ * Parse la grammaire de tri commune `"field:dir, field2:dir2"` (#273).
+ * Même grammaire sur tous les adapters — ODS ne transformait que le dernier
+ * segment, Tabular splittait sur `:` globalement (malformé en multi-champs).
+ */
+export function parseOrderBy(orderBy: string): OrderByPart[] {
+  if (!orderBy) return [];
+  return orderBy
+    .split(',')
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((part) => {
+      const [field, dir] = part.split(':').map((s) => s.trim());
+      return { field, direction: dir === 'desc' ? 'desc' : 'asc' } as OrderByPart;
+    })
+    .filter((p) => !!p.field);
+}

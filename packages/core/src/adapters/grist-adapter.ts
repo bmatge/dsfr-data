@@ -30,7 +30,7 @@ import type {
 } from './api-adapter.js';
 import type { QueryAggregate } from '../components/dsfr-data-query.js';
 import { parseAggregates } from '../utils/aggregates.js';
-import { buildColonFacetWhere, unescapeColonValue } from '../utils/where.js';
+import { buildColonFacetWhere, unescapeColonValue, parseOrderBy } from '../utils/where.js';
 import type { ProviderConfig } from '@dsfr-data/shared/lib';
 import { GRIST_CONFIG, getProxiedUrl } from '@dsfr-data/shared/lib';
 
@@ -387,12 +387,9 @@ export class GristAdapter implements ApiAdapter {
    * "population:desc, nom:asc" → "-population,nom"
    */
   _orderByToGristSort(orderBy: string): string {
-    return orderBy
-      .split(',')
-      .map((part) => {
-        const [field, dir] = part.trim().split(':');
-        return dir === 'desc' ? `-${field}` : field;
-      })
+    // Grammaire commune "field:dir, field2:dir2" (#273)
+    return parseOrderBy(orderBy)
+      .map((p) => (p.direction === 'desc' ? `-${p.field}` : p.field))
       .join(',');
   }
 
@@ -569,12 +566,8 @@ export class GristAdapter implements ApiAdapter {
     // ORDER BY
     const sort = overlay?.orderBy || params.orderBy;
     if (sort) {
-      orderBy = sort
-        .split(',')
-        .map((part) => {
-          const [field, dir] = part.trim().split(':');
-          return `${this._escapeIdentifier(field)} ${dir === 'desc' ? 'DESC' : 'ASC'}`;
-        })
+      orderBy = parseOrderBy(sort)
+        .map((p) => `${this._escapeIdentifier(p.field)} ${p.direction.toUpperCase()}`)
         .join(', ');
     }
 
