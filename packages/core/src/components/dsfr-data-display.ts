@@ -163,21 +163,19 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
   private _renderItem(item: Record<string, unknown>, index: number): string {
     if (!this._templateContent) return '';
 
-    let result = this._templateContent;
-
-    // {{{champ}}} - valeur brute (triple braces, non echappee)
-    result = result.replace(/\{\{\{([^}]+)\}\}\}/g, (_match, expr: string) => {
-      const value = this._resolveExpression(item, expr.trim(), index);
-      return value;
-    });
-
-    // {{champ}} ou {{champ|défaut}} - valeur echappee
-    result = result.replace(/\{\{([^}]+)\}\}/g, (_match, expr: string) => {
-      const value = this._resolveExpression(item, expr.trim(), index);
-      return escapeHtml(value);
-    });
-
-    return result;
+    // Une seule passe pour {{{champ}}} (brut) et {{champ}} (echappe) :
+    // la valeur substituee n'est jamais re-scannee, donc une donnee qui
+    // contient elle-meme "{{x}}" est rendue litteralement (pas d'injection
+    // de template en cascade).
+    return this._templateContent.replace(
+      /\{\{\{([^}]+)\}\}\}|\{\{([^}]+)\}\}/g,
+      (_match, rawExpr: string | undefined, escExpr: string | undefined) => {
+        if (rawExpr !== undefined) {
+          return this._resolveExpression(item, rawExpr.trim(), index);
+        }
+        return escapeHtml(this._resolveExpression(item, (escExpr as string).trim(), index));
+      }
+    );
   }
 
   /** Resout une expression : champ, champ:format, champ|défaut, champ:format|défaut, $index, $uid */

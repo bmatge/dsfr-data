@@ -1,5 +1,6 @@
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+import { escapeHtml } from '@dsfr-data/shared';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import {
   dispatchDataLoaded,
@@ -454,9 +455,18 @@ export class DsfrDataSearch extends LitElement {
 
     const highlights: string[] = [];
     searchIn.forEach((f) => {
-      if (typeof record[f] === 'string') {
-        highlights.push((record[f] as string).replace(regex, '<mark>$1</mark>'));
-      }
+      const value = record[f];
+      if (typeof value !== 'string') return;
+      // split avec groupe capturant : les matchs sont aux indices impairs.
+      // Chaque segment est echappe AVANT insertion des <mark> pour que du HTML
+      // present dans la donnee source reste inerte (XSS via {{{_highlight}}}).
+      const parts = value.split(regex);
+      if (parts.length < 2) return; // aucun match dans ce champ : pas de highlight
+      highlights.push(
+        parts
+          .map((seg, i) => (i % 2 === 1 ? `<mark>${escapeHtml(seg)}</mark>` : escapeHtml(seg)))
+          .join('')
+      );
     });
     clone._highlight = highlights.join(' \u2026 ');
     return clone;

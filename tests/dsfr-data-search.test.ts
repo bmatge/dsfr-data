@@ -350,6 +350,58 @@ describe('DsfrDataSearch', () => {
       expect(result[0]._highlight).toBeUndefined();
     });
 
+    it('escapes HTML from source data in _highlight (XSS)', () => {
+      search.id = 'test-search';
+      search.source = 'test-source';
+      search.fields = 'Nom';
+      search.highlight = true;
+      search.connectedCallback();
+      dispatchDataLoaded('test-source', [{ Nom: 'Net<img src=x onerror=alert(1)>Commerce' }]);
+
+      search._term = 'Net';
+      search._applyFilter();
+
+      const result = getDataCache('test-search') as Record<string, unknown>[];
+      const highlight = result[0]._highlight as string;
+      expect(highlight).not.toContain('<img');
+      expect(highlight).toContain('&lt;img src=x onerror=alert(1)&gt;');
+      expect(highlight).toContain('<mark>Net</mark>');
+    });
+
+    it('escapes HTML even when the matched term itself contains markup', () => {
+      search.id = 'test-search';
+      search.source = 'test-source';
+      search.fields = 'Nom';
+      search.highlight = true;
+      search.connectedCallback();
+      dispatchDataLoaded('test-source', [{ Nom: '<script>alert(1)</script>' }]);
+
+      search._term = '<script>';
+      search._applyFilter();
+
+      const result = getDataCache('test-search') as Record<string, unknown>[];
+      const highlight = result[0]._highlight as string;
+      expect(highlight).not.toContain('<script>');
+      expect(highlight).toContain('<mark>&lt;script&gt;</mark>');
+    });
+
+    it('only includes fields that actually match in _highlight', () => {
+      search.id = 'test-search';
+      search.source = 'test-source';
+      search.fields = '';
+      search.highlight = true;
+      search.connectedCallback();
+      dispatchDataLoaded('test-source', [{ Nom: 'NetCommerce', Region: 'PACA' }]);
+
+      search._term = 'Net';
+      search._applyFilter();
+
+      const result = getDataCache('test-search') as Record<string, unknown>[];
+      const highlight = result[0]._highlight as string;
+      expect(highlight).toContain('<mark>Net</mark>');
+      expect(highlight).not.toContain('PACA');
+    });
+
     it('highlight ignores non-string fields', () => {
       search.id = 'test-search';
       search.source = 'test-source';

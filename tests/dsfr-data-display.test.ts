@@ -166,6 +166,29 @@ describe('DsfrDataDisplay', () => {
       const result = (display as any)._renderItem(numItem, 0);
       expect(result.replace(/\s/g, ' ')).toContain('1 234 567 EUR');
     });
+
+    it('does not re-interpret placeholders contained in raw data (template injection)', () => {
+      const trickyItem = { raw: 'Hello {{secret}}', secret: 'LEAK' };
+      (display as any)._templateContent = '<p>{{{raw}}}</p>';
+      const result = (display as any)._renderItem(trickyItem, 0);
+      expect(result).toBe('<p>Hello {{secret}}</p>');
+      expect(result).not.toContain('LEAK');
+    });
+
+    it('does not re-interpret placeholders from escaped data either', () => {
+      const trickyItem = { nom: '{{secret}}', secret: 'LEAK' };
+      (display as any)._templateContent = '<p>{{nom}}</p>';
+      const result = (display as any)._renderItem(trickyItem, 0);
+      expect(result).toBe('<p>{{secret}}</p>');
+      expect(result).not.toContain('LEAK');
+    });
+
+    it('mixes triple and double braces in a single pass', () => {
+      const mixed = { html: '<em>ok</em>', txt: 'a & b' };
+      (display as any)._templateContent = '<p>{{{html}}} {{txt}}</p>';
+      const result = (display as any)._renderItem(mixed, 0);
+      expect(result).toBe('<p><em>ok</em> a &amp; b</p>');
+    });
   });
 
   describe('onSourceData', () => {
