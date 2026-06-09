@@ -386,9 +386,14 @@ describe('GristAdapter — SQL mode utilities', () => {
       expect(result[1]).toEqual({ field: 'population', function: 'avg', alias: 'moyenne' });
     });
 
-    it('generates default alias when missing', () => {
+    it('generates the pipeline-wide default alias field__fn (#269)', () => {
       const result = adapter.parseAggregates('population:sum');
-      expect(result[0].alias).toBe('sum_population');
+      expect(result[0].alias).toBe('population__sum');
+    });
+
+    it('ignores malformed segments (trailing comma, missing function)', () => {
+      expect(adapter.parseAggregates('population:sum,')).toHaveLength(1);
+      expect(adapter.parseAggregates('population')).toHaveLength(0);
     });
   });
 });
@@ -542,7 +547,7 @@ describe('GristAdapter — fetchAll', () => {
       ok: true,
       json: () =>
         Promise.resolve({
-          columns: ['region', 'sum_population'],
+          columns: ['region', 'population__sum'],
           records: [
             ['Bretagne', 3000000],
             ['IDF', 12000000],

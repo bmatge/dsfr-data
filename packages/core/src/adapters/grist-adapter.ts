@@ -29,6 +29,7 @@ import type {
   ServerSideOverlay,
 } from './api-adapter.js';
 import type { QueryAggregate } from '../components/dsfr-data-query.js';
+import { parseAggregates } from '../utils/aggregates.js';
 import type { ProviderConfig } from '@dsfr-data/shared/lib';
 import { GRIST_CONFIG, getProxiedUrl } from '@dsfr-data/shared/lib';
 
@@ -296,15 +297,14 @@ export class GristAdapter implements ApiAdapter {
   // parseAggregates
   // =========================================================================
 
+  /**
+   * Delegue au parseur partage (#269). L'alias par defaut est desormais
+   * `field__fn` comme partout (query client-side, ODS, Tabular) — l'ancien
+   * `fn_field` cassait le value-field des charts a la bascule de provider
+   * ou de mode SQL <-> Records.
+   */
   parseAggregates(aggExpr: string): QueryAggregate[] {
-    return aggExpr.split(',').map((part) => {
-      const [field, func, alias] = part.trim().split(':');
-      return {
-        field,
-        function: func as QueryAggregate['function'],
-        alias: alias || `${func}_${field}`,
-      };
-    });
+    return parseAggregates(aggExpr);
   }
 
   // =========================================================================
@@ -555,7 +555,7 @@ export class GristAdapter implements ApiAdapter {
           ...groupFields,
           ...aggParts.map(
             (a) =>
-              `${a.function.toUpperCase()}(${this._escapeIdentifier(a.field)}) as ${this._escapeIdentifier(a.alias || `${a.function}_${a.field}`)}`
+              `${a.function.toUpperCase()}(${this._escapeIdentifier(a.field)}) as ${this._escapeIdentifier(a.alias || `${a.field}__${a.function}`)}`
           ),
         ];
         select = selectParts.join(', ');

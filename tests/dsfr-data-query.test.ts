@@ -154,7 +154,8 @@ describe('DsfrDataQuery', () => {
       expect(aggregates[0]).toEqual({
         field: 'population',
         function: 'sum',
-        alias: undefined,
+        // Convention d'alias unique du pipeline (#269)
+        alias: 'population__sum',
       });
     });
 

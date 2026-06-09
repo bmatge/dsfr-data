@@ -17,6 +17,7 @@ import {
 } from '../utils/data-bridge.js';
 import type { AdapterCapabilities } from '../adapters/api-adapter.js';
 import type { SourceElement } from '../utils/source-element.js';
+import { parseAggregates, type ParsedAggregate } from '../utils/aggregates.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 
 /**
@@ -650,8 +651,7 @@ export class DsfrDataQuery extends LitElement {
 
       // Calculer les agrégations (structure imbriquee preservee)
       for (const agg of aggregates) {
-        const fieldName = agg.alias || `${agg.field}__${agg.function}`;
-        setByPath(row, fieldName, this._computeAggregate(items, agg));
+        setByPath(row, agg.alias, this._computeAggregate(items, agg));
       }
 
       result.push(row);
@@ -660,28 +660,9 @@ export class DsfrDataQuery extends LitElement {
     return result;
   }
 
-  _parseAggregates(aggExpr: string): QueryAggregate[] {
-    if (!aggExpr) return [];
-
-    const aggregates: QueryAggregate[] = [];
-    const parts = aggExpr
-      .split(',')
-      .map((p) => p.trim())
-      .filter(Boolean);
-
-    for (const part of parts) {
-      // Format: "field:function" ou "field:function:alias"
-      const segments = part.split(':');
-      if (segments.length >= 2) {
-        aggregates.push({
-          field: segments[0],
-          function: segments[1] as AggregateFunction,
-          alias: segments[2],
-        });
-      }
-    }
-
-    return aggregates;
+  /** Delegue au parseur partage (convention d'alias unique field__fn, #269) */
+  _parseAggregates(aggExpr: string): ParsedAggregate[] {
+    return parseAggregates(aggExpr);
   }
 
   private _computeAggregate(items: Record<string, unknown>[], agg: QueryAggregate): number {

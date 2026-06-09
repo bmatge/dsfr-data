@@ -14,6 +14,7 @@ import type {
   FacetResult,
 } from './api-adapter.js';
 import type { QueryAggregate } from '../components/dsfr-data-query.js';
+import { parseAggregates } from '../utils/aggregates.js';
 import type { ProviderConfig } from '@dsfr-data/shared/lib';
 import { ODS_CONFIG, getProxiedUrl } from '@dsfr-data/shared/lib';
 
@@ -299,24 +300,9 @@ export class OpenDataSoftAdapter implements ApiAdapter {
     return parts.join(' AND ');
   }
 
+  /** Delegue au parseur partage (convention d'alias unique field__fn, #269) */
   parseAggregates(aggExpr: string): QueryAggregate[] {
-    if (!aggExpr) return [];
-    const aggregates: QueryAggregate[] = [];
-    const parts = aggExpr
-      .split(',')
-      .map((p) => p.trim())
-      .filter(Boolean);
-    for (const part of parts) {
-      const segments = part.split(':');
-      if (segments.length >= 2) {
-        aggregates.push({
-          field: segments[0],
-          function: segments[1] as QueryAggregate['function'],
-          alias: segments[2],
-        });
-      }
-    }
-    return aggregates;
+    return parseAggregates(aggExpr);
   }
 
   /**

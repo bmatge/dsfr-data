@@ -552,7 +552,7 @@ describe('OpenDataSoftAdapter', () => {
     it('parses single aggregation', () => {
       const aggs = adapter.parseAggregates!('population:sum');
       expect(aggs).toHaveLength(1);
-      expect(aggs[0]).toEqual({ field: 'population', function: 'sum', alias: undefined });
+      expect(aggs[0]).toEqual({ field: 'population', function: 'sum', alias: 'population__sum' });
     });
 
     it('parses aggregation with alias', () => {

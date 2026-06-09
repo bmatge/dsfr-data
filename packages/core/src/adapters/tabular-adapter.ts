@@ -14,6 +14,7 @@ import type {
 } from './api-adapter.js';
 import type { ProviderConfig } from '@dsfr-data/shared/lib';
 import { getProxyConfig, TABULAR_CONFIG } from '@dsfr-data/shared/lib';
+import { parseAggregates } from '../utils/aggregates.js';
 
 /** Construit les options fetch avec headers optionnels */
 function buildFetchOptions(
@@ -207,16 +208,12 @@ export class TabularAdapter implements ApiAdapter {
       }
     }
 
-    // Agrégations
+    // Agrégations — l'API Tabular nomme la colonne retournee `field__func`,
+    // ce qui correspond a la convention d'alias unique du pipeline (#269).
+    // Les alias personnalises (3e segment) ne sont pas supportes server-side.
     if (params.aggregate) {
-      const aggregates = params.aggregate.split(',').map((a) => a.trim());
-      for (const agg of aggregates) {
-        const parts = agg.split(':');
-        if (parts.length >= 2) {
-          const field = parts[0];
-          const func = parts[1];
-          url.searchParams.append(`${field}__${func}`, '');
-        }
+      for (const agg of parseAggregates(params.aggregate)) {
+        url.searchParams.append(`${agg.field}__${agg.function}`, '');
       }
     }
 
