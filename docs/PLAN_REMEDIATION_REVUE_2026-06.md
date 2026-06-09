@@ -30,17 +30,21 @@ Les 4 chantiers structurants :
 
 | Epic | Thème | Priorité | Issues |
 |------|-------|----------|--------|
-| A | Contrats du pipeline data | P0 | 6 |
+| A | Contrats du pipeline data | P0 | 7 |
 | B | dsfr-data-query : délégation serveur et attributs fantômes | P0 | 5 |
 | C | Pattern transformateur unifié et gestion d'erreurs | P1 | 5 |
 | D | Adapters : brancher ProviderConfig et harmoniser | P1 | 5 |
-| E | Sécurité et exports | P0 | 4 |
+| E | Sécurité et exports | P0 | 5 |
 | F | Cartes : fuites, races, contrats popup/timeline | P1 | 6 |
-| G | Affichage : harmonisation attributs, formatage, palettes | P1/P2 | 6 |
-| H | Séparation bibliothèque / code applicatif | P1 | 3 |
+| G | Affichage : harmonisation attributs, formatage, palettes | P1/P2 | 7 |
+| H | Séparation bibliothèque / code applicatif | P0/P1 | 5 |
 | I | dsfr-data-facets : robustesse et accessibilité | P1 | 5 |
+| J | @dsfr-data/shared côté app : auth, storage, sync | P1 | 3 |
 
-**Total : 9 epics, 41 issues.**
+**Total : 10 epics, 49 issues.**
+
+> Les epics A, E, G, H et le nouvel epic J intègrent les constats de la revue
+> complémentaire de `@dsfr-data/shared` (voir l'addendum en fin de document).
 
 Ordre d'attaque recommandé : **E (sécurité) et A (contrats) d'abord**, puis B
 (query), puis C+D (fondations factorisation) qui réduisent mécaniquement le coût
@@ -146,6 +150,20 @@ chemin (client/serveur) emprunté. Cet epic rend le contrat unique.
   facets consomme cette interface.
 - **AC** : facettes serveur fonctionnelles sur source `api-key-ref` ; facets
   derrière unpivot/join atteignent l'adapter.
+
+### A7. filter-translator : 3e implémentation divergente des opérateurs (shared)
+- **Gravité** : bug probable (code généré par les builders).
+- **Constats** (`packages/shared/src/query/filter-translator.ts`) :
+  - `filterToOdsql` n'échappe ni `"` ni `\` (`:30-46`) — une valeur avec
+    guillemet produit un WHERE ODSQL invalide/injectable dans le code généré
+    (8 points d'appel builder-ia, 6 builder) ; `gt/gte/lt/lte` quotent les
+    valeurs numériques (comparaison string côté ODS).
+  - `applyLocalFilter` ne supporte pas `in`/`notin` (`:97-98`, `default: return
+    true`) : le même filtre filtre côté serveur et **retourne tout** en local.
+- **Fix** : fusionner avec la couche WHERE factorisée de A3 (échappement par
+  dialecte, grammaire unique avec `dsfr-data-query._matchesFilter`).
+- **AC** : mêmes résultats serveur/local pour les 12 opérateurs ; valeur avec
+  guillemet correctement échappée dans le code généré.
 
 ---
 
@@ -432,6 +450,22 @@ divergences réelles. Le fix du double-init n'existe que dans join.
   conventions de sous-type documentées dans `beacon.ts`.
 - **AC** : le monitoring voit les types de couches déployés.
 
+### E5. Export/import localStorage : fuite des clés API Grist + validation superficielle
+- **Gravité** : sécurité.
+- **Constats** (`packages/shared/src/storage/import-export.ts`) :
+  - Seul `apiKey` des **connections** est strippé (`:44-47`) ; les **sources**
+    sont exportées brutes (`:38, 52`) alors qu'elles portent aussi `apiKey`
+    (`types/source.ts:34`) → un export JSON partagé/commité contient les Bearer
+    tokens Grist.
+  - Validation d'import superficielle : seuls `id`/`name` sont vérifiés ;
+    `data`, `headers`, le `code` HTML des favoris passent tels quels du JSON
+    importé vers localStorage puis les previews — le contrat « Imports validate
+    each item » est très au-dessus de la réalité.
+- **Fix** : strip de `apiKey` sur les sources à l'export (ou export chiffré
+  opt-in) ; validation structurelle des champs sensibles à l'import.
+- **AC** : un export ne contient aucun secret ; un import forgé ne peut pas
+  injecter de code dans les previews.
+
 ---
 
 ## EPIC F — Cartes : fuites, races, contrats popup/timeline (P1)
@@ -593,6 +627,19 @@ divergences réelles. Le fix du double-init n'existe que dans join.
 - **AC** : update de données sans remount Vue ; pas de timer résiduel après
   disconnect ; `value-fields` seul rend N séries propres.
 
+### G7. Formatage : shared vs core divergents (preview ≠ rendu final)
+- **Gravité** : incohérence.
+- **Constats** :
+  - `formatKPIValue` (shared, previews des apps) vs formatters de core
+    (composants) : euro 2 décimales vs 0 ; `%` = suffixe texte vs
+    `style:'percent'` qui divise par 100. La preview du builder n'affiche pas
+    ce que rendra le composant.
+  - `looksLikeNumber` et `toNumber` incohérents entre eux (`'1e3'`, `'50%'`,
+    `'+123'` rejetés par l'un, parsés par l'autre), non documenté.
+- **Fix** : une seule famille de formatters (shared), consommée par les
+  composants ET les previews ; politique documentée pour `%`.
+- **AC** : preview builder = rendu composant pour les 4 formats KPI.
+
 ---
 
 ## EPIC H — Séparation bibliothèque / code applicatif (P1)
@@ -629,6 +676,39 @@ divergences réelles. Le fix du double-init n'existe que dans join.
 - **Fix** : même approche hook que H2 (le transport par défaut reste le pixel) ;
   renommage cohérent.
 - **AC** : `beacon.ts` ne référence plus d'API applicative.
+
+### H4. Packaging : `npm install dsfr-data` cassé (dépendance privée)
+- **Gravité** : bug P0 (consommateur npm), vérifié.
+- **Constat** : `packages/core/package.json` déclare `"@dsfr-data/shared":
+  "^0.1.0"` en `dependencies` ; ce package est `"private": true` et répond E404
+  sur le registre → la résolution npm échoue pour tout consommateur. Des
+  `@types/*` sont aussi en `dependencies` au lieu de `devDependencies`. Aucun
+  champ `sideEffects` dans les deux package.json (tree-shaking dégradé).
+- **Fix** : shared en `devDependency` bundlé dans `dist/` (il l'est déjà de
+  fait) ou publication de `@dsfr-data/shared` ; nettoyage des deps ;
+  `sideEffects: false` (ou liste) sur les deux packages.
+- **AC** : `npm install dsfr-data` dans un projet vierge fonctionne ;
+  `npm pack` ne déclare aucune dépendance fantôme.
+
+### H5. Proxy par défaut baké + partition officielle lib/app de shared
+- **Gravité** : sécurité/souveraineté + architecture (P0/P1), vérifié.
+- **Constats** :
+  - `PROXY_BASE_URL` retombe sur `https://chartsbuilder.matge.com`
+    (`proxy-config.ts:45-46`), présent 2× dans les bundles publiés : sans
+    `VITE_*` au build, tout le trafic Tabular/Grist/INSEE/Albert d'un site
+    tiers transite par ce domaine personnel (URL cible en `X-Target-URL`).
+  - `isViteDevMode()` (`proxy-config.ts:108-117`) : tout `localhost:<port>` est
+    traité comme le dev de CE repo → chemins `/tabular-proxy/...` relatifs →
+    404 systématiques pour un intégrateur tiers en dev local.
+  - Aucune frontière publiable/interne dans shared : le barrel unique exporte
+    auth, storage, ui, tours avec les utilitaires purs.
+- **Fix** : config proxy injectable au runtime (`window.DSFR_DATA_PROXY` ou
+  attribut), défaut = accès direct sans proxy ; partition de shared en deux
+  entrées (`/lib` vs `/app`) ou deux packages ; lint interdisant l'import
+  `/app` depuis `packages/core/src`.
+- **AC** : bundle publié sans domaine personnel ; un site tiers sur
+  `localhost:3000` fetch les APIs directement ; les imports app-side sont
+  bloqués par lint dans core.
 
 ---
 
@@ -688,6 +768,60 @@ params source et l'abonnement.)
 
 ---
 
+## EPIC J — @dsfr-data/shared côté app : auth, storage, sync (P1)
+
+Constats de la passe shared sur la chaîne applicative (apps + mode DB). Aucun
+impact sur les sites tiers, mais des pertes de données utilisateur possibles.
+
+### J1. Double instance des singletons auth/sync-queue (bundle vs apps)
+- **Gravité** : bug probable / perte d'écritures.
+- **Constat** : les apps chargent les composants via le bundle pré-compilé
+  (`dist/dsfr-data.esm.js`) ET importent `@dsfr-data/shared` aliasé sur `src`
+  → deux copies de `auth-service` (`_state`, `_csrfToken`, `_checkAuthPromise`)
+  et `sync-queue` à l'exécution : double `/api/auth/me` au démarrage,
+  indicateur de sync du header (copie bundle) aveugle aux syncs réels (copie
+  app), et les deux copies persistent sous la même clé
+  `'dsfr-data-sync-queue'` → `persistQueue()` d'une copie peut écraser les
+  opérations en attente de l'autre.
+- **Fix** : un seul canal (étatpartagé sur `window` comme le data-bridge, ou
+  injection du service par l'app dans les composants layout — caduc si H1
+  sort layout/ du bundle).
+- **AC** : un seul checkAuth au démarrage ; l'indicateur de sync reflète les
+  syncs réels ; pas d'écrasement de file.
+
+### J2. Storage/sync : merge destructif, write-back massif, conflits ignorés
+- **Gravité** : bug probable / perte de données.
+- **Constats** :
+  - `mergeServerWithLocal` (`api-storage-adapter.ts:139`) : `return
+    serverItems.map(...)` — un item local absent du serveur disparaît, puis
+    `load()` écrase le cache local (`:252`). Favorites/dashboards : pas de
+    merge du tout. Contradiction avec le « local-first » annoncé.
+  - Chaque `load()` re-PUT toute la collection via le save-hook d'`initAuth`
+    (GET + un PUT par item) ; `initAuth` préfetch 5 clés → chaque ouverture
+    d'app re-téléverse tout. Last-write-wins sans version/etag.
+  - sync-queue : `409` traité comme un succès et jeté (`:191`) ; GET initial ni
+    queué ni retryé ; URLs persistées absolues avec baseUrl figé.
+- **Fix** : merge par timestamp/version (ou tombstones), suppression du
+  write-back au load, gestion 409 (rejouer en PUT), file robuste.
+- **AC** : un item créé hors-ligne survit à la reconnexion ; ouvrir une app ne
+  génère aucun PUT si rien n'a changé.
+
+### J3. Shared app-side : nettoyages et contrats
+- **Gravité** : fil de l'eau.
+- **Constats** : `setAuthBaseUrl` exporté jamais appelé (doc mensongère) ;
+  `_dbMode` figé à `false` sur échec transitoire du premier ping ;
+  `window.__gwDbMode` non typé, préfixe legacy `gw` (lié à H3) ;
+  `fetchWithTimeout` écrase le `signal` de l'appelant ; `cdn-versions.ts`
+  désynchronisé (`dsfrChart: '2.0.4'` vs `^2.0.5` installé) et `getPreviewHTML`
+  hardcode `${origin}/dist/...` ; `migration.ts` vestige ;
+  `validateAndFilterArray`/`getAllProviders` morts ; `saveToStorage` importe le
+  toast (persistance → UI) ; `PaletteType` résolu en `string`.
+- **Fix** : suppression du mort, contrats typés, resync des versions CDN
+  (idéalement générées depuis package.json).
+- **AC** : zéro export sans consommateur dans shared ; versions CDN alignées.
+
+---
+
 ## Hors périmètre de ce plan (constats mineurs non bloquants)
 
 Consignés ici pour mémoire, à traiter au fil de l'eau dans les epics
@@ -702,6 +836,120 @@ collisions join sur la seule première ligne, `aria-sort` posé sur toutes les
 colonnes (list), tri lexicographique des options de filtre (list),
 `updated()` de map ignorant center/zoom, `attribute: 'for'` vs `htmlFor`,
 `données.csv` comme nom de fichier par défaut.
+
+## Addendum — Revue de `@dsfr-data/shared` (passe complémentaire)
+
+Revue dédiée de `packages/shared/src` (~5 600 lignes, 43 fichiers) : providers/,
+api/, storage/, auth/, ui/, query/, utils/. Constats intégrés aux epics
+ci-dessus (A7, E5, G7, H4, H5, epic J). Synthèse :
+
+### Constats critiques (vérifiés)
+
+1. **`npm install dsfr-data` est cassé** : `packages/core/package.json` déclare
+   `"@dsfr-data/shared": "^0.1.0"` en `dependencies`, or ce package est
+   `"private": true` et répond E404 sur le registre npm (vérifié via
+   `npm view`). Tout consommateur npm échoue à la résolution ; seul l'usage CDN
+   fonctionne (bundles `dist/` autonomes). Des `@types/*` traînent aussi en
+   `dependencies`. → **H4**
+2. **La chaîne auth complète est dans les bundles npm publiés** (vérifié par
+   build + grep sur `dist/dsfr-data.core.esm.js`) : 16× `/api/auth`, la modale
+   de connexion, `/api/cache`, `/api/monitoring`, toasts. Causes : exports
+   `layout/` + import `isAuthenticated` dans `dsfr-data-source` + barrel unique
+   de shared sans champ `sideEffects`. → renforce **H1/H2**
+3. **`chartsbuilder.matge.com` baké en défaut dans les bundles** (2 occurrences
+   vérifiées) : sans variables `VITE_*` au build, `getProxiedUrl()` réécrit tout
+   le trafic Tabular/Grist/INSEE/Albert vers ce domaine personnel, avec l'URL
+   cible en header `X-Target-URL`. Et `isViteDevMode()` traite tout
+   `localhost:<port>` comme le dev de CE repo → 404 systématiques pour un
+   intégrateur tiers en dev local. → **H5**
+4. **Double instance des singletons module-level** : les apps chargent les
+   composants via le bundle pré-compilé ET importent `@dsfr-data/shared` aliasé
+   sur `src` → deux copies de `auth-service` (`_state`, `_csrfToken`,
+   `_checkAuthPromise`) et de `sync-queue` coexistent. Double `checkAuth` au
+   démarrage, indicateur de sync du header aveugle aux syncs réels, et les deux
+   copies persistent leur file sous la même clé `'dsfr-data-sync-queue'` →
+   **écrasement possible d'opérations en attente (perte d'écritures)**. → **J1**
+5. **Perte de données dans la couche storage app** :
+   `mergeServerWithLocal` retourne `serverItems.map(...)` — un item local absent
+   du serveur (créé hors-ligne, ou POST abandonné après 3 retries) disparaît,
+   puis `load()` écrase le cache local. Et chaque `load()` re-PUT toute la
+   collection (write-back via le save-hook d'`initAuth`) → à chaque ouverture
+   d'app, tout est re-téléversé, last-write-wins sans version/etag, `409` traité
+   comme un succès et jeté. → **J2**
+6. **Fuite des clés API Grist dans l'export JSON** : `import-export.ts` strippe
+   `apiKey` des connections mais exporte les **sources** brutes, qui portent
+   aussi `apiKey` (`types/source.ts:34`). Un export partagé contient les Bearer
+   tokens. Validation d'import par ailleurs superficielle (le `code` HTML des
+   favoris importés passe tel quel). → **E5**
+7. **`filter-translator.ts` = 3e implémentation divergente des opérateurs** :
+   `filterToOdsql` n'échappe ni `"` ni `\` (ODSQL cassé/injectable dans le code
+   généré par les builders), quote les valeurs numériques de gt/lt ;
+   `applyLocalFilter` ne supporte pas `in`/`notin` (retourne tout,
+   silencieusement) là où le chemin serveur filtre. → **A7**
+8. **`toNumber` : séparateurs multiples mal parsés** (vérifié par exécution) :
+   `toNumber('1,234,567')` → `1.234` ; `'1.234.567'` → `1.234`. Consommé par
+   compute et dsfr-data-normalize. → intégré à **G2**
+
+### ProviderConfig : état des lieux pour l'epic D1
+
+- ~60 % des champs ne sont lus par personne (`capabilities.*`, `query.*`,
+  `facets.*`, `codeGen.*` entier) ; les seuls lecteurs de `pagination`/`response`
+  sont les modules morts de core. `getProviderConfig()` est implémenté sur les
+  5 adapters et jamais appelé.
+- **La config ment** : `GENERIC_CONFIG.query.whereFormat: 'colon'` vs adapter
+  core `'odsql'` (et c'est l'adapter qui agit). Deux schémas de capacités non
+  alignés (shared n'a ni `serverGeo` ni `whereFormat` dans capabilities).
+- Ce que la config ne sait pas encore exprimer (à modéliser pour D1) : grammaire
+  d'agrégat et règle d'alias, format order-by (template + multi-champs),
+  sérialisation des opérateurs (suffixe `__op`, query-params, SQL paramétré),
+  bimode Grist Records/SQL, contraintes `supportsServerFields`, échappement par
+  dialecte.
+- Il manque un **test d'alignement config↔adapter** sur le modèle de
+  `skills.test.ts` — c'est son absence qui a permis la divergence.
+- → intégré à l'issue **D1 (#285)**.
+
+### Divergences de formatage et de palettes (intégrées à G)
+
+- `formatKPIValue` (shared, utilisé par les previews des apps) et les
+  formatters de core (utilisés par les composants) divergent : euro 2 décimales
+  vs 0 ; `%` suffixe vs `style:'percent'` (÷100). **Preview ≠ rendu final.**
+  `looksLikeNumber` et `toNumber` incohérents entre eux. → **G7**
+- Les palettes shared (5 pas, hexes `#9A9AFF`/`#E5E5F4` introuvables ailleurs)
+  ne sont **pas** la bonne base : les échelles 9 pas de core (blue-france
+  975→main-525), cohérentes entre podium/map-layer/world-map, doivent devenir
+  la version shared. → intégré à **G3 (#302)**.
+
+### Partition lib / app proposée pour shared
+
+- **Côté LIB (publiable)** : `utils/` (escape-html, security, number-parser,
+  join, unpivot, compute, dept-codes), `constants/dsfr-palettes`,
+  `charts/chart-types`, `providers/`, et `api/proxy*` **après** refonte H5
+  (config runtime injectable).
+- **Côté APP (jamais dans les bundles)** : `auth/`, `storage/`, `ui/`, `tour/`,
+  `templates/cdn-versions`, `data/sample-datasets`, `validation/`,
+  `types/source`, `query/filter-translator` (à fusionner avec la couche WHERE
+  des adapters — A7).
+- Matérialiser la frontière : deux entrées (`@dsfr-data/shared/lib` vs `/app`)
+  ou deux packages + champ `sideEffects` + interdiction lint d'importer `/app`
+  depuis `packages/core/src`. → **H5**
+
+### Constats secondaires (epic J3 / fil de l'eau)
+
+`setAuthBaseUrl` exporté jamais appelé (la doc décrit un usage inexistant) ;
+`_dbMode` figé à `false` sur échec transitoire du premier ping ;
+`window.__gwDbMode` : contrat inter-packages non typé, préfixe legacy `gw` ;
+`fetchWithTimeout` écrase le `signal` de l'appelant (annulation impossible) ;
+`cdn-versions.ts` désynchronisé (`dsfrChart: '2.0.4'` vs `^2.0.5` installé,
+`getPreviewHTML` hardcode `${origin}/dist/...`) ; `migration.ts` vestige d'une
+ligne ; `validateAndFilterArray` et `getAllProviders` morts ;
+`storage → import dynamique du toast` (couche persistance qui affiche de l'UI) ;
+`PaletteType` résolu en `string` (ne contraint rien) ; `dept-codes` accepte
+`'20'` (Corse pré-1976) ; `sample-datasets` : clé accentuée `catégorie`.
+
+Points sains confirmés : `escape-html` et `security/isUnsafeKey` corrects ;
+pas de token en localStorage (session cookie + CSRF en mémoire, `checkAuth`
+concurrent dédupliqué) ; `resolveSourceUrl`/`normalizeProviderAuthHeaders`/
+`datagouv-dataset` bien conçus ; `product-tour` propre.
 
 ## Faut-il aller plus en profondeur ?
 
