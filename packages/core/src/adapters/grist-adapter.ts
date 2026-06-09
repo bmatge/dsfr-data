@@ -30,6 +30,7 @@ import type {
 } from './api-adapter.js';
 import type { QueryAggregate } from '../components/dsfr-data-query.js';
 import { parseAggregates } from '../utils/aggregates.js';
+import { buildColonFacetWhere, unescapeColonValue } from '../utils/where.js';
 import type { ProviderConfig } from '@dsfr-data/shared/lib';
 import { GRIST_CONFIG, getProxiedUrl } from '@dsfr-data/shared/lib';
 
@@ -285,16 +286,7 @@ export class GristAdapter implements ApiAdapter {
   }
 
   buildFacetWhere(selections: Record<string, Set<string>>, excludeField?: string): string {
-    const parts: string[] = [];
-    for (const [field, values] of Object.entries(selections)) {
-      if (field === excludeField || values.size === 0) continue;
-      if (values.size === 1) {
-        parts.push(`${field}:eq:${[...values][0]}`);
-      } else {
-        parts.push(`${field}:in:${[...values].join('|')}`);
-      }
-    }
-    return parts.join(', ');
+    return buildColonFacetWhere(selections, excludeField);
   }
 
   // =========================================================================
@@ -380,9 +372,9 @@ export class GristAdapter implements ApiAdapter {
       const value = rest.join(':');
 
       if (op === 'eq') {
-        filter[field] = [value];
+        filter[field] = [unescapeColonValue(value)];
       } else if (op === 'in') {
-        filter[field] = value.split('|');
+        filter[field] = value.split('|').map(unescapeColonValue);
       }
       // Autres operateurs : ignores (fallback client-side ou mode SQL)
     }
@@ -616,7 +608,8 @@ export class GristAdapter implements ApiAdapter {
 
     for (const part of parts) {
       const [field, op, ...rest] = part.split(':');
-      const value = rest.join(':');
+      // Valeurs percent-encodees par buildColonFacetWhere (#271)
+      const value = unescapeColonValue(rest.join(':'));
       const col = this._escapeIdentifier(field);
 
       switch (op) {
@@ -653,13 +646,13 @@ export class GristAdapter implements ApiAdapter {
           args.push(`%${value}%`);
           break;
         case 'in': {
-          const vals = value.split('|');
+          const vals = rest.join(':').split('|').map(unescapeColonValue);
           clauses.push(`${col} IN (${vals.map(() => '?').join(',')})`);
           args.push(...vals);
           break;
         }
         case 'notin': {
-          const vals = value.split('|');
+          const vals = rest.join(':').split('|').map(unescapeColonValue);
           clauses.push(`${col} NOT IN (${vals.map(() => '?').join(',')})`);
           args.push(...vals);
           break;

@@ -165,11 +165,11 @@ Pour les cas sans transformation (datalist, display), dsfr-data-query peut etre 
 | serverGroupBy | oui | oui | oui | non | non |
 | serverOrderBy | oui | oui | oui | non | non |
 | serverGeo | oui | non | non | non | non |
-| whereFormat | odsql | colon | colon | colon | odsql |
+| whereFormat | odsql | colon | colon | colon | colon |
 
 **Formats WHERE** :
-- **ODSQL** (OpenDataSoft) : syntaxe SQL-like — `population > 5000 AND status = 'active'`
-- **Colon** (Tabular, Grist) : syntaxe structuree — `field:operator:value, field2:operator:value2`
+- **ODSQL** (OpenDataSoft) : syntaxe SQL-like — `population > 5000 AND status = 'active'`, clauses jointes par ` AND `
+- **Colon** (Tabular, Grist, INSEE, Generic) : syntaxe structuree — `field:operator:value, field2:operator:value2`. Les caracteres structurels (`,` `:` `|`) presents dans une VALEUR sont percent-encodes (`escapeColonValue`/`unescapeColonValue` dans `packages/core/src/utils/where.ts`, cf. #271) ; tous les parseurs colon decodent apres decoupage.
 
 ### Attributs dsfr-data-source
 

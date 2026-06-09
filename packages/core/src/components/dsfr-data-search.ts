@@ -2,6 +2,7 @@ import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { escapeHtml } from '@dsfr-data/shared/lib';
 import { sendWidgetBeacon } from '../utils/beacon.js';
+import { escapeColonValue } from '../utils/where.js';
 import {
   dispatchDataLoaded,
   dispatchDataError,
@@ -370,7 +371,14 @@ export class DsfrDataSearch extends LitElement {
     let where = '';
 
     if (term && term.length >= this.minLength) {
-      const escaped = term.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+      // Echappement selon le dialecte du provider (#271) : ODSQL echappe
+      // \ et " (valeur entre guillemets), colon percent-encode , : |
+      // (caracteres structurels de la clause)
+      const format = this.getAdapter()?.capabilities?.whereFormat ?? 'odsql';
+      const escaped =
+        format === 'colon'
+          ? escapeColonValue(term)
+          : term.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
       where = this.searchTemplate.replace(/\{q\}/g, escaped);
     }
 

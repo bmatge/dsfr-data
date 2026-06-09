@@ -88,7 +88,8 @@ describe('Adapter Capabilities', () => {
     expect(caps.serverSearch).toBe(false);
     expect(caps.serverGroupBy).toBe(false);
     expect(caps.serverOrderBy).toBe(false);
-    expect(caps.whereFormat).toBe('odsql');
+    // #271 : aligne sur ce que l'adapter emet reellement (buildFacetWhere colon)
+    expect(caps.whereFormat).toBe('colon');
   });
 });
 

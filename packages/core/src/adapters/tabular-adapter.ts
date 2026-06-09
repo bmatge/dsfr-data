@@ -15,6 +15,7 @@ import type {
 import type { ProviderConfig } from '@dsfr-data/shared/lib';
 import { getProxyConfig, TABULAR_CONFIG } from '@dsfr-data/shared/lib';
 import { parseAggregates } from '../utils/aggregates.js';
+import { buildColonFacetWhere, unescapeColonValue } from '../utils/where.js';
 
 /** Construit les options fetch avec headers optionnels */
 function buildFetchOptions(
@@ -282,7 +283,12 @@ export class TabularAdapter implements ApiAdapter {
       if (parts.length >= 3) {
         const field = parts[0];
         const op = this._mapOperator(parts[1]);
-        const value = parts.slice(2).join(':');
+        const raw = parts.slice(2).join(':');
+        // in/notin : decoder chaque token apres decoupage sur | (#271)
+        const value =
+          op === 'in' || op === 'notin'
+            ? raw.split('|').map(unescapeColonValue).join('|')
+            : unescapeColonValue(raw);
         url.searchParams.set(`${field}__${op}`, value);
       }
     }
@@ -318,16 +324,7 @@ export class TabularAdapter implements ApiAdapter {
   }
 
   buildFacetWhere(selections: Record<string, Set<string>>, excludeField?: string): string {
-    const parts: string[] = [];
-    for (const [field, values] of Object.entries(selections)) {
-      if (field === excludeField || values.size === 0) continue;
-      if (values.size === 1) {
-        parts.push(`${field}:eq:${[...values][0]}`);
-      } else {
-        parts.push(`${field}:in:${[...values].join('|')}`);
-      }
-    }
-    return parts.join(', ');
+    return buildColonFacetWhere(selections, excludeField);
   }
 
   /**

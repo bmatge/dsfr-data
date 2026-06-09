@@ -17,6 +17,7 @@ import type { ApiAdapter } from '../adapters/api-adapter.js';
 import type { SourceElement } from '../utils/source-element.js';
 import { isUnsafeKey } from '@dsfr-data/shared/lib';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
+import { joinWhere } from '../utils/where.js';
 
 type FacetDisplayMode = 'checkbox' | 'select' | 'multiselect' | 'radio';
 
@@ -620,7 +621,13 @@ export class DsfrDataFacets extends LitElement {
     for (const field of fields) {
       const baseWhere = (sourceEl as unknown as SourceElement).getEffectiveWhere?.(this.id) || '';
       const otherFacetWhere = this._buildFacetWhere(field);
-      const effectiveWhere = [baseWhere, otherFacetWhere].filter(Boolean).join(' AND ');
+      // Jointure selon le dialecte du provider : ' AND ' en ODSQL, ', ' en
+      // colon — joindre du colon par AND produisait des clauses croisees
+      // invalides sur Grist/Tabular (#271)
+      const effectiveWhere = joinWhere(adapter.capabilities.whereFormat, [
+        baseWhere,
+        otherFacetWhere,
+      ]);
       if (!whereToFields.has(effectiveWhere)) whereToFields.set(effectiveWhere, []);
       whereToFields.get(effectiveWhere)!.push(field);
     }

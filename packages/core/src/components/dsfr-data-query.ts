@@ -18,6 +18,7 @@ import {
 import type { AdapterCapabilities } from '../adapters/api-adapter.js';
 import type { SourceElement } from '../utils/source-element.js';
 import { parseAggregates, type ParsedAggregate } from '../utils/aggregates.js';
+import { unescapeColonValue } from '../utils/where.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 
 /**
@@ -555,15 +556,16 @@ export class DsfrDataQuery extends LitElement {
         if (segments.length > 2) {
           const rawValue = segments.slice(2).join(':');
 
-          // Parse la valeur
+          // Parse la valeur (percent-decodee : , : | structurels echappes
+          // par buildColonFacetWhere, #271)
           if (operator === 'in' || operator === 'notin') {
             value = rawValue.split('|').map((v) => {
-              const parsed = this._parseValue(v);
+              const parsed = this._parseValue(unescapeColonValue(v));
               // Pour in/notin, on ne garde que string/number
               return typeof parsed === 'boolean' ? String(parsed) : parsed;
             }) as (string | number)[];
           } else {
-            value = this._parseValue(rawValue);
+            value = this._parseValue(unescapeColonValue(rawValue));
           }
         }
 
