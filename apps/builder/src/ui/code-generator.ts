@@ -1618,8 +1618,7 @@ export function generateDynamicCodeForApi(): void {
   </dsfr-data-source>
   <dsfr-data-query
     id="table-query"
-    source="table-data"
-    server-side>
+    source="table-data">
   </dsfr-data-query>
 ${facets.element}
   <dsfr-data-list
@@ -1671,8 +1670,7 @@ ${facets.element}
   </dsfr-data-source>
   <dsfr-data-query
     id="table-query"
-    source="table-data"
-    server-side>
+    source="table-data">
   </dsfr-data-query>
 ${facets.element}
   <dsfr-data-list

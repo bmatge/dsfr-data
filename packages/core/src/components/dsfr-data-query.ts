@@ -120,9 +120,15 @@ export class DsfrDataQuery extends LitElement {
   source = '';
 
   /**
-   * Clause WHERE / Filtres
-   * - opendatasoft: syntaxe ODSQL "population > 5000 AND status = 'active'"
-   * - tabular/generic: "field:operator:value, field2:operator:value2"
+   * Clause WHERE / Filtres — syntaxe colon UNIQUEMENT :
+   * "champ:operateur:valeur, champ2:operateur:valeur2"
+   * (operateurs : eq, neq, gt, gte, lt, lte, contains, notcontains, in,
+   * notin, isnull, isnotnull — multi-valeurs separees par |).
+   *
+   * La syntaxe ODSQL n'est PAS supportee ici (elle l'est sur le `where` de
+   * dsfr-data-source) : une clause non parsable est signalee via
+   * reportConfigError (#277). En delegation serveur, la clause est traduite
+   * au dialecte de l'adapter (#275).
    */
   @property({ type: String })
   where = '';
@@ -160,26 +166,6 @@ export class DsfrDataQuery extends LitElement {
    */
   @property({ type: Number })
   limit = 0;
-
-  /**
-   * Chemin vers les données dans la reponse API
-   */
-  @property({ type: String })
-  transform = '';
-
-  /**
-   * Active le mode server-side pilotable.
-   * En mode server-side, la source amont ne fetche qu'UNE page a la fois
-   * et ecoute les commandes (page, where, orderBy) des composants en aval.
-   */
-  @property({ type: Boolean, attribute: 'server-side' })
-  serverSide = false;
-
-  /**
-   * Taille de page pour le mode server-side (nombre de records par page)
-   */
-  @property({ type: Number, attribute: 'page-size' })
-  pageSize = 20;
 
   /**
    * Intervalle de rafraichissement en secondes
@@ -243,7 +229,33 @@ export class DsfrDataQuery extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     sendWidgetBeacon('dsfr-data-query');
+    this._warnRemovedAttributes();
     this._initialize();
+  }
+
+  /**
+   * Attributs supprimes (#277) : ils etaient declares mais jamais lus
+   * (no-ops). Previent les integrateurs qui les utilisaient encore.
+   */
+  private _warnRemovedAttributes() {
+    const removed: Array<[string, string]> = [
+      [
+        'transform',
+        'dsfr-data-query recoit un tableau via le data-bridge — utilisez l\'attribut "transform" de dsfr-data-source',
+      ],
+      [
+        'server-side',
+        'le relais de commandes (page, where, orderBy) vers la source est toujours actif',
+      ],
+      ['page-size', 'la taille de page se configure sur dsfr-data-source (attribut "page-size")'],
+    ];
+    for (const [attr, hint] of removed) {
+      if (this.hasAttribute(attr)) {
+        console.warn(
+          `dsfr-data-query[${this.id}]: l'attribut "${attr}" a été retiré (il était sans effet) — ${hint}`
+        );
+      }
+    }
   }
 
   disconnectedCallback() {
@@ -260,18 +272,7 @@ export class DsfrDataQuery extends LitElement {
   willUpdate(changedProperties: Map<string, unknown>) {
     super.willUpdate(changedProperties);
 
-    const queryProps = [
-      'source',
-      'where',
-      'filter',
-      'groupBy',
-      'aggregate',
-      'orderBy',
-      'limit',
-      'transform',
-      'serverSide',
-      'pageSize',
-    ];
+    const queryProps = ['source', 'where', 'filter', 'groupBy', 'aggregate', 'orderBy', 'limit'];
 
     if (queryProps.some((prop) => changedProperties.has(prop))) {
       this._initialize();
@@ -332,6 +333,18 @@ export class DsfrDataQuery extends LitElement {
     }
 
     clearConfigError(this);
+
+    // Un where non parsable etait silencieusement ignore (toutes les lignes
+    // passent) — le signaler immediatement (#277). Le traitement continue en
+    // mode degrade : les clauses valides s'appliquent, l'erreur est visible
+    // en console et via data-dsfr-config-error.
+    const filterExpr = this.filter || this.where;
+    if (filterExpr) {
+      const whereError = this._validateFilterExpr(filterExpr);
+      if (whereError) {
+        reportConfigError(this, `dsfr-data-query[${this.id}]`, whereError);
+      }
+    }
 
     // Negotiate server-side delegation BEFORE subscribing to data.
     // This sends commands to dsfr-data-source so it re-fetches with the right params.
@@ -501,6 +514,39 @@ export class DsfrDataQuery extends LitElement {
   }
 
   /**
+   * Valide la grammaire colon du where (#277). Retourne un message d'erreur
+   * lisible (destine a reportConfigError), ou null si toutes les clauses
+   * sont parsables.
+   */
+  private _validateFilterExpr(filterExpr: string): string | null {
+    const parts = filterExpr
+      .split(',')
+      .map((p) => p.trim())
+      .filter(Boolean);
+
+    for (const part of parts) {
+      const segments = part.split(':');
+      if (segments.length < 2) {
+        return (
+          `clause where non reconnue "${part}" — syntaxe attendue "champ:operateur[:valeur]" ` +
+          `(la syntaxe ODSQL n'est pas supportee par dsfr-data-query ; utilisez-la sur le where de dsfr-data-source)`
+        );
+      }
+      const operator = segments[1] as FilterOperator;
+      if (!FILTER_OPERATORS.includes(operator)) {
+        return (
+          `operateur inconnu "${operator}" dans la clause where "${part}" — ` +
+          `operateurs supportes : ${FILTER_OPERATORS.join(', ')}`
+        );
+      }
+      if (segments.length < 3 && operator !== 'isnull' && operator !== 'isnotnull') {
+        return `valeur manquante dans la clause where "${part}" (seuls isnull/isnotnull s'utilisent sans valeur)`;
+      }
+    }
+    return null;
+  }
+
+  /**
    * Prépare la délégation serveur du where (#275) : valide que chaque clause
    * est exprimable dans la grammaire colon (`field:op[:value]`) puis la
    * traduit au dialecte de l'adapter (ODSQL ou colon pass-through).
@@ -514,21 +560,17 @@ export class DsfrDataQuery extends LitElement {
   ): { ok: boolean; where: string; fields: string[] } {
     if (!filterExpr) return { ok: true, where: '', fields: [] };
 
-    const invalid = { ok: false, where: '', fields: [] };
-    const fields: string[] = [];
-    const parts = filterExpr
+    // Meme grammaire que la validation #277 : une clause non parsable rend
+    // le where intraduisible → aucune delegation.
+    if (this._validateFilterExpr(filterExpr) !== null) {
+      return { ok: false, where: '', fields: [] };
+    }
+
+    const fields = filterExpr
       .split(',')
       .map((p) => p.trim())
-      .filter(Boolean);
-
-    for (const part of parts) {
-      const segments = part.split(':');
-      if (segments.length < 2) return invalid;
-      const operator = segments[1] as FilterOperator;
-      if (!FILTER_OPERATORS.includes(operator)) return invalid;
-      if (segments.length < 3 && operator !== 'isnull' && operator !== 'isnotnull') return invalid;
-      fields.push(segments[0]);
-    }
+      .filter(Boolean)
+      .map((part) => part.split(':')[0]);
 
     const where = format === 'odsql' ? filterToOdsql(filterExpr) : filterExpr;
     return { ok: true, where, fields };

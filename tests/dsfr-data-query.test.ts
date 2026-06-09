@@ -354,10 +354,9 @@ describe('DsfrDataQuery', () => {
   });
 
   describe('Command forwarding', () => {
-    it('forwards commands to upstream source in server-side mode', () => {
+    it('forwards commands to upstream source', () => {
       query.id = 'test-query';
       query.source = 'upstream-source';
-      query.serverSide = true;
 
       const received: any[] = [];
       const unsub = subscribeToSourceCommands('upstream-source', (cmd) => {
@@ -378,10 +377,9 @@ describe('DsfrDataQuery', () => {
       unsub();
     });
 
-    it('forwards commands even when server-side is false (WHERE commands need to reach source)', () => {
+    it('forwards WHERE commands unconditionally (attribut server-side retire, #277)', () => {
       query.id = 'test-query';
       query.source = 'upstream-source';
-      query.serverSide = false;
 
       const received: any[] = [];
       const unsub = subscribeToSourceCommands('upstream-source', (cmd) => {
@@ -401,7 +399,6 @@ describe('DsfrDataQuery', () => {
     it('cleans up command listener on cleanup', () => {
       query.id = 'test-query';
       query.source = 'upstream-source';
-      query.serverSide = true;
 
       (query as any)._setupCommandForwarding();
       expect((query as any)._unsubscribeCommands).toBeTypeOf('function');
@@ -875,7 +872,6 @@ describe('DsfrDataQuery', () => {
     it('unsubscribes commands on re-initialization', () => {
       query.id = 'test-query';
       query.source = 'test-source';
-      query.serverSide = true;
       (query as any)._initialize();
       const oldCmdUnsub = (query as any)._unsubscribeCommands;
       expect(oldCmdUnsub).toBeTypeOf('function');

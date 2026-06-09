@@ -276,7 +276,7 @@
               <tr><td><code>url-param-map</code></td><td>String</td><td>Mapping URL param → champ : <code>param:field | param2:field2</code></td></tr>
               <tr><td><code>url-sync</code></td><td>Boolean</td><td>Synchronise l'URL quand l'utilisateur change les facettes</td></tr>
               <tr><td><code>cols</code></td><td>String</td><td>Colonnage DSFR : <code>"4"</code> (global) ou <code>"champ:4 | champ2:6"</code> (par facette). Utilise la grille DSFR <code>fr-col-N</code></td></tr>
-              <tr><td><code>server-facets</code></td><td>Boolean</td><td>Active le mode facettes serveur ODS (API <code>/facets</code>). Requiert <code>source</code> vers un <code>dsfr-data-query server-side</code> connecte a un <code>dsfr-data-source api-type="opendatasoft"</code>. <code>fields</code> obligatoire</td></tr>
+              <tr><td><code>server-facets</code></td><td>Boolean</td><td>Active le mode facettes serveur ODS (API <code>/facets</code>). Requiert <code>source</code> vers un <code>dsfr-data-source api-type="opendatasoft" server-side</code> (directement ou via un <code>dsfr-data-query</code>, qui relaie automatiquement les commandes). <code>fields</code> obligatoire</td></tr>
             </tbody>
           </table>
         </div>
