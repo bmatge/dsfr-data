@@ -564,7 +564,7 @@ describe('DsfrDataSource', () => {
       source.pageSize = 20;
       source.headers = '{"apikey": "secret"}';
 
-      const params = (source as any)._getAdapterParams();
+      const params = source.getAdapterParams();
 
       expect(params.baseUrl).toBe('https://data.example.com');
       expect(params.datasetId).toBe('test-dataset');
@@ -582,7 +582,7 @@ describe('DsfrDataSource', () => {
       source.resource = 'abc-123';
       source.headers = 'not-json';
 
-      const params = (source as any)._getAdapterParams();
+      const params = source.getAdapterParams();
       expect(params.headers).toBeUndefined();
     });
 
@@ -592,7 +592,7 @@ describe('DsfrDataSource', () => {
       source.orderBy = 'nom:asc';
       (source as any)._orderByOverlay = 'population:desc';
 
-      const params = (source as any)._getAdapterParams();
+      const params = source.getAdapterParams();
       expect(params.orderBy).toBe('population:desc');
     });
   });
@@ -1096,14 +1096,14 @@ describe('DsfrDataSource', () => {
       expect(options.headers['X-Custom']).toBe('value');
     });
 
-    it('injects api-key-ref into _getAdapterParams (adapter mode)', () => {
+    it('injects api-key-ref into getAdapterParams (adapter mode)', () => {
       (window as any).DSFR_DATA_KEYS = { myapi: 'Bearer adapterToken' };
       source.apiKeyRef = 'myapi';
       source.apiType = 'opendatasoft';
       source.baseUrl = 'https://data.example.com';
       source.datasetId = 'test';
 
-      const params = (source as any)._getAdapterParams();
+      const params = source.getAdapterParams();
       expect(params.headers).toEqual({ Authorization: 'Bearer adapterToken' });
     });
 
@@ -1115,7 +1115,7 @@ describe('DsfrDataSource', () => {
       source.datasetId = 'test';
       source.headers = '{"apikey": "secret"}';
 
-      const params = (source as any)._getAdapterParams();
+      const params = source.getAdapterParams();
       expect(params.headers).toEqual({ apikey: 'secret', Authorization: 'Bearer adapterToken' });
     });
   });

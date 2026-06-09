@@ -591,24 +591,37 @@ export class DsfrDataFacets extends LitElement {
       return;
     }
 
-    // Walk upstream to find the actual dsfr-data-source (which has baseUrl/datasetId/headers).
-    // The immediate source may be a dsfr-data-query intermediary.
-    const actualSourceEl = this._findUpstreamSource() || sourceEl;
+    // Parametres resolus par la source elle-meme (headers effectifs avec
+    // api-key-ref) via la delegation SourceElement — re-parser les attributs
+    // DOM ratait la resolution d'api-key-ref → 401 sur sources
+    // authentifiees (#274)
+    const resolvedParams = (sourceEl as unknown as SourceElement).getAdapterParams?.() ?? null;
 
-    const baseUrl = actualSourceEl.getAttribute('base-url') || '';
-    const datasetId = actualSourceEl.getAttribute('dataset-id') || '';
-    if (!datasetId) return;
-
-    // Parse headers from the actual source element (dsfr-data-source)
+    let baseUrl: string;
+    let datasetId: string;
     let headers: Record<string, string> | undefined;
-    const headersAttr = actualSourceEl.getAttribute('headers') || '';
-    if (headersAttr) {
-      try {
-        headers = JSON.parse(headersAttr);
-      } catch {
-        /* ignore */
+
+    if (resolvedParams) {
+      baseUrl = resolvedParams.baseUrl || '';
+      datasetId = resolvedParams.datasetId || '';
+      headers = resolvedParams.headers;
+    } else {
+      // Fallback legacy : remonter le pipeline et lire les attributs DOM
+      // (sources tierces n'implementant pas getAdapterParams)
+      const actualSourceEl = this._findUpstreamSource() || sourceEl;
+      baseUrl = actualSourceEl.getAttribute('base-url') || '';
+      datasetId = actualSourceEl.getAttribute('dataset-id') || '';
+      const headersAttr = actualSourceEl.getAttribute('headers') || '';
+      if (headersAttr) {
+        try {
+          headers = JSON.parse(headersAttr);
+        } catch {
+          /* ignore */
+        }
       }
     }
+
+    if (!datasetId) return;
 
     const fields = _parseCSV(this.fields);
     if (fields.length === 0) return; // fields requis en mode server

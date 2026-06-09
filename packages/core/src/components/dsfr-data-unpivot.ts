@@ -14,6 +14,7 @@ import {
   dispatchSourceCommand,
 } from '../utils/data-bridge.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
+import type { SourceElement } from '../utils/source-element.js';
 
 type Row = Record<string, unknown>;
 
@@ -136,6 +137,48 @@ export class DsfrDataUnpivot extends LitElement {
   }
 
   // --- Public API ---
+
+  // --- Delegation amont (SourceElement, #274) ---
+
+  /**
+   * Retourne l'adapter de la source amont (delegation transparente).
+   * Permet aux composants en aval (dsfr-data-facets, dsfr-data-search)
+   * d'atteindre l'adapter a travers ce transformateur.
+   */
+  public getAdapter(): import('../adapters/api-adapter.js').ApiAdapter | null {
+    if (this.source) {
+      const sourceEl = document.getElementById(this.source);
+      if (sourceEl && 'getAdapter' in sourceEl) {
+        return (sourceEl as unknown as SourceElement).getAdapter();
+      }
+    }
+    return null;
+  }
+
+  /** Retourne le where effectif de la source amont (delegation transparente). */
+  public getEffectiveWhere(excludeKey?: string): string {
+    if (this.source) {
+      const sourceEl = document.getElementById(this.source);
+      if (sourceEl && 'getEffectiveWhere' in sourceEl) {
+        return (sourceEl as unknown as SourceElement).getEffectiveWhere(excludeKey);
+      }
+    }
+    return '';
+  }
+
+  /**
+   * Retourne les parametres adapter resolus de la source amont
+   * (delegation transparente, headers api-key-ref inclus — #274).
+   */
+  public getAdapterParams(): import('../adapters/api-adapter.js').AdapterParams | null {
+    if (this.source) {
+      const sourceEl = document.getElementById(this.source);
+      if (sourceEl && 'getAdapterParams' in sourceEl) {
+        return (sourceEl as unknown as SourceElement).getAdapterParams?.() ?? null;
+      }
+    }
+    return null;
+  }
 
   getData(): Row[] {
     return this._data;

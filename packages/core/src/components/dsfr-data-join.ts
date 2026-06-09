@@ -14,6 +14,7 @@ import {
 import { performJoin } from '@dsfr-data/shared/lib';
 import type { JoinType } from '@dsfr-data/shared/lib';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
+import type { SourceElement } from '../utils/source-element.js';
 
 type Row = Record<string, unknown>;
 
@@ -150,6 +151,49 @@ export class DsfrDataJoin extends LitElement {
   }
 
   // --- Public API ---
+
+  // --- Delegation amont (SourceElement, #274) ---
+
+  /**
+   * Retourne l'adapter de la source GAUCHE (delegation transparente).
+   * Coherent avec le relais des commandes (#272) : la gauche porte les lignes.
+   * Permet aux composants en aval (dsfr-data-facets, dsfr-data-search)
+   * d'atteindre l'adapter a travers ce transformateur.
+   */
+  public getAdapter(): import('../adapters/api-adapter.js').ApiAdapter | null {
+    if (this.left) {
+      const sourceEl = document.getElementById(this.left);
+      if (sourceEl && 'getAdapter' in sourceEl) {
+        return (sourceEl as unknown as SourceElement).getAdapter();
+      }
+    }
+    return null;
+  }
+
+  /** Retourne le where effectif de la source amont (delegation transparente). */
+  public getEffectiveWhere(excludeKey?: string): string {
+    if (this.left) {
+      const sourceEl = document.getElementById(this.left);
+      if (sourceEl && 'getEffectiveWhere' in sourceEl) {
+        return (sourceEl as unknown as SourceElement).getEffectiveWhere(excludeKey);
+      }
+    }
+    return '';
+  }
+
+  /**
+   * Retourne les parametres adapter resolus de la source amont
+   * (delegation transparente, headers api-key-ref inclus — #274).
+   */
+  public getAdapterParams(): import('../adapters/api-adapter.js').AdapterParams | null {
+    if (this.left) {
+      const sourceEl = document.getElementById(this.left);
+      if (sourceEl && 'getAdapterParams' in sourceEl) {
+        return (sourceEl as unknown as SourceElement).getAdapterParams?.() ?? null;
+      }
+    }
+    return null;
+  }
 
   getData(): Row[] {
     return this._data;

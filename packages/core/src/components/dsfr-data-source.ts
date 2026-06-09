@@ -522,7 +522,7 @@ export class DsfrDataSource extends LitElement {
     }
 
     // Validate params
-    const params = this._getAdapterParams();
+    const params = this.getAdapterParams();
     const validationError = adapter.validate(params);
     if (validationError) {
       console.warn(`dsfr-data-source[${this.id}]: ${validationError}`);
@@ -606,7 +606,11 @@ export class DsfrDataSource extends LitElement {
     }
   }
 
-  private _getAdapterParams(): AdapterParams {
+  /**
+   * Parametres adapter resolus, headers effectifs inclus (headers +
+   * api-key-ref). Consomme par les composants aval via SourceElement (#274).
+   */
+  public getAdapterParams(): AdapterParams {
     let parsedHeaders: Record<string, string> | undefined;
     if (this.headers) {
       try {
