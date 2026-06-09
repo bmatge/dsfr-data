@@ -61,7 +61,7 @@ export class DsfrDataMapTimeline extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
-    sendWidgetBeacon('dsfr-data-map-timeline', '');
+    sendWidgetBeacon('dsfr-data-map-timeline');
     this._prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     // Listen for layers reporting their time steps
     const map = this.closest('dsfr-data-map');

@@ -26,6 +26,14 @@ function sanitizeUrl(href: string): string {
  * Disabled by default. Enable with: window.DSFR_DATA_BEACON = true
  * Deduplicated: only one beacon per component+type per page load.
  * Skipped in dev mode (localhost).
+ *
+ * Convention de sous-type (`subtype`) : la **variante fonctionnelle** du
+ * composant, jamais de la configuration technique.
+ * - dsfr-data-chart     -> type de graphique (`bar`, `pie`, ...)
+ * - dsfr-data-map-layer -> type de couche (`marker`, `geoshape`, `circle`, `heatmap`)
+ * - dsfr-data-source    -> api-type en mode adapter (`opendatasoft`, `grist`, ...)
+ * - autres composants   -> omettre le parametre (ne pas passer `''`)
+ * Ne PAS envoyer de preset de tuiles, d'URL, ni d'option d'affichage.
  */
 export function sendWidgetBeacon(component: string, subtype?: string): void {
   // Opt-in: beacons are disabled unless explicitly enabled

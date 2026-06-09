@@ -16,6 +16,7 @@
 import { LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { getByPath } from '../utils/json-path.js';
+import { sendWidgetBeacon } from '../utils/beacon.js';
 import { escapeHtml } from '@dsfr-data/shared/lib';
 
 export type PopupMode = 'popup' | 'modal' | 'panel-right' | 'panel-left';
@@ -50,6 +51,7 @@ export class DsfrDataMapPopup extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
+    sendWidgetBeacon('dsfr-data-map-popup');
     // Note: do not query for <template> child here. When the component script
     // is loaded in <head> without `defer`, customElements.define() runs before
     // the body parser reaches the element, and connectedCallback fires before

@@ -161,7 +161,10 @@ export class DsfrDataMap extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
-    sendWidgetBeacon('dsfr-data-map', this.tiles);
+    // Pas de sous-type : le preset de tuiles est de la config, pas une
+    // variante fonctionnelle (convention beacon.ts). Les types de couches
+    // sont remontes par chaque dsfr-data-map-layer.
+    sendWidgetBeacon('dsfr-data-map');
     this._deferInitUntilVisible();
   }
 

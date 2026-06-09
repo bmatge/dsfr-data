@@ -7,6 +7,7 @@
 import { LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
+import { sendWidgetBeacon } from '../utils/beacon.js';
 import { dispatchSourceCommand } from '../utils/data-bridge.js';
 import { getByPath } from '../utils/json-path.js';
 import { escapeHtml } from '@dsfr-data/shared/lib';
@@ -453,6 +454,11 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
       if (this._bboxTimer) clearTimeout(this._bboxTimer);
       this._bboxTimer = setTimeout(() => this._sendBboxCommand(), this.bboxDebounce);
     }
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    sendWidgetBeacon('dsfr-data-map-layer', this.type);
   }
 
   disconnectedCallback() {
