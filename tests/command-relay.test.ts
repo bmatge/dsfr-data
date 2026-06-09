@@ -72,7 +72,7 @@ describe('relais des commandes amont (#272)', () => {
     join.right = 'relay-right';
     join.on = 'k';
     // L'init de join passe par le cycle Lit (willUpdate) — appel direct ici
-    (join as unknown as { _initialize: () => void })._initialize();
+    join.reinitTransformer();
     cleanups.push(() => join.disconnectedCallback());
 
     dispatchSourceCommand('relay-join', { page: 2 });

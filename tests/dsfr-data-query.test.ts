@@ -319,7 +319,7 @@ describe('DsfrDataQuery', () => {
       query.groupBy = 'region';
       query.aggregate = 'value:sum';
 
-      (query as any)._subscribeToSourceData('test-source');
+      (query as any)._initialize();
 
       // Simulate source emitting data
       dispatchDataLoaded('test-source', [
@@ -345,7 +345,7 @@ describe('DsfrDataQuery', () => {
         { name: 'B', value: 30 },
       ]);
 
-      (query as any)._subscribeToSourceData('test-source');
+      (query as any)._initialize();
 
       const data = query.getData() as Record<string, unknown>[];
       expect(data).toHaveLength(2);
@@ -363,7 +363,7 @@ describe('DsfrDataQuery', () => {
         received.push(cmd);
       });
 
-      (query as any)._setupCommandForwarding();
+      (query as any)._initialize();
 
       dispatchSourceCommand('test-query', { page: 3 });
       expect(received).toHaveLength(1);
@@ -386,8 +386,8 @@ describe('DsfrDataQuery', () => {
         received.push(cmd);
       });
 
-      (query as any)._setupCommandForwarding();
-      expect((query as any)._unsubscribeCommands).toBeTypeOf('function');
+      (query as any)._initialize();
+      expect((query as any)._transformerUnsubCommands).toBeTypeOf('function');
 
       dispatchSourceCommand('test-query', { where: 'region = "IDF"', whereKey: 'facets-1' });
       expect(received).toHaveLength(1);
@@ -400,11 +400,11 @@ describe('DsfrDataQuery', () => {
       query.id = 'test-query';
       query.source = 'upstream-source';
 
-      (query as any)._setupCommandForwarding();
-      expect((query as any)._unsubscribeCommands).toBeTypeOf('function');
+      (query as any)._initialize();
+      expect((query as any)._transformerUnsubCommands).toBeTypeOf('function');
 
       (query as any)._cleanup();
-      expect((query as any)._unsubscribeCommands).toBeNull();
+      expect((query as any)._transformerUnsubCommands).toBeNull();
     });
   });
 
@@ -578,13 +578,13 @@ describe('DsfrDataQuery', () => {
     });
 
     it('isLoading returns loading state', () => {
-      (query as any)._loading = true;
+      (query as any)._transformerLoading = true;
       expect(query.isLoading()).toBe(true);
     });
 
     it('getError returns error state', () => {
       const error = new Error('Test error');
-      (query as any)._error = error;
+      (query as any)._transformerError = error;
       expect(query.getError()).toBe(error);
     });
   });
@@ -605,7 +605,7 @@ describe('DsfrDataQuery', () => {
       query.id = 'test-query';
       query.source = 'test-source';
       query.connectedCallback();
-      expect((query as any)._unsubscribe).toBeTypeOf('function');
+      expect((query as any)._transformerUnsubs.length).toBe(1);
     });
 
     it('disconnectedCallback cleans up', () => {
@@ -613,9 +613,9 @@ describe('DsfrDataQuery', () => {
       query.source = 'test-source';
       query.connectedCallback();
 
-      expect((query as any)._unsubscribe).toBeTypeOf('function');
+      expect((query as any)._transformerUnsubs.length).toBe(1);
       query.disconnectedCallback();
-      expect((query as any)._unsubscribe).toBeNull();
+      expect((query as any)._transformerUnsubs.length).toBe(0);
     });
 
     it('disconnectedCallback clears data cache', () => {
@@ -660,7 +660,7 @@ describe('DsfrDataQuery', () => {
     it('forwards loading from source subscription', () => {
       query.id = 'test-query';
       query.source = 'test-source';
-      (query as any)._subscribeToSourceData('test-source');
+      (query as any)._initialize();
 
       // Simulate source emitting loading
       dispatchDataLoading('test-source');
@@ -671,7 +671,7 @@ describe('DsfrDataQuery', () => {
     it('forwards error from source subscription', () => {
       query.id = 'test-query';
       query.source = 'test-source';
-      (query as any)._subscribeToSourceData('test-source');
+      (query as any)._initialize();
 
       // Simulate source emitting error
       dispatchDataError('test-source', new Error('test error'));
@@ -694,7 +694,7 @@ describe('DsfrDataQuery', () => {
         { name: 'B', value: 30 },
       ]);
 
-      (query as any)._subscribeToSourceData('test-source');
+      (query as any)._initialize();
       const data1 = query.getData() as Record<string, unknown>[];
       expect(data1[0].name).toBe('B');
 
@@ -768,7 +768,7 @@ describe('DsfrDataQuery', () => {
       query.source = '';
       (query as any)._initialize();
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('attribut "source" requis'));
-      expect((query as any)._unsubscribe).toBeNull();
+      expect((query as any)._transformerUnsubs.length).toBe(0);
       errorSpy.mockRestore();
     });
 
@@ -798,13 +798,13 @@ describe('DsfrDataQuery', () => {
       query.id = 'test-query';
       query.source = 'test-source';
       (query as any)._initialize();
-      const oldCmdUnsub = (query as any)._unsubscribeCommands;
+      const oldCmdUnsub = (query as any)._transformerUnsubCommands;
       expect(oldCmdUnsub).toBeTypeOf('function');
 
       // Re-initialize
       (query as any)._initialize();
       // Should have new command listener
-      expect((query as any)._unsubscribeCommands).toBeTypeOf('function');
+      expect((query as any)._transformerUnsubCommands).toBeTypeOf('function');
     });
   });
 

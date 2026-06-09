@@ -2,24 +2,13 @@ import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { getByPath, setByPath } from '../utils/json-path.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
-import {
-  dispatchDataLoaded,
-  dispatchDataError,
-  dispatchDataLoading,
-  dispatchSourceCommand,
-  clearDataCache,
-  clearDataMeta,
-  setDataMeta,
-  subscribeToSource,
-  getDataCache,
-  getDataMeta,
-  subscribeToSourceCommands,
-} from '../utils/data-bridge.js';
+import { dispatchSourceCommand, getDataCache, getDataMeta } from '../utils/data-bridge.js';
+import { TransformerMixin } from '../utils/transformer-mixin.js';
 import type { AdapterCapabilities } from '../adapters/api-adapter.js';
 import type { SourceElement } from '../utils/source-element.js';
 import { parseAggregates, type ParsedAggregate } from '../utils/aggregates.js';
 import { unescapeColonValue, filterToOdsql, parseOrderBy } from '../utils/where.js';
-import { reportConfigError, clearConfigError } from '../utils/config-error.js';
+import { reportConfigError } from '../utils/config-error.js';
 
 /**
  * Operateurs de filtre supportes
@@ -112,7 +101,7 @@ export interface QuerySort {
  * </dsfr-data-query>
  */
 @customElement('dsfr-data-query')
-export class DsfrDataQuery extends LitElement {
+export class DsfrDataQuery extends TransformerMixin(LitElement) {
   /**
    * ID de la source de données (dsfr-data-source ou dsfr-data-normalize)
    */
@@ -168,19 +157,10 @@ export class DsfrDataQuery extends LitElement {
   limit = 0;
 
   @state()
-  private _loading = false;
-
-  @state()
-  private _error: Error | null = null;
-
-  @state()
   private _data: unknown[] = [];
 
   @state()
   private _rawData: unknown[] = [];
-
-  private _unsubscribe: (() => void) | null = null;
-  private _unsubscribeCommands: (() => void) | null = null;
 
   /**
    * Tracks which operations have been delegated to dsfr-data-source server-side.
@@ -257,14 +237,9 @@ export class DsfrDataQuery extends LitElement {
   }
 
   disconnectedCallback() {
-    super.disconnectedCallback();
     // Clear server-side overlays on dsfr-data-source before cleanup
     this._clearServerDelegation();
-    this._cleanup();
-    if (this.id) {
-      clearDataCache(this.id);
-      clearDataMeta(this.id);
-    }
+    super.disconnectedCallback();
   }
 
   willUpdate(changedProperties: Map<string, unknown>) {
@@ -277,40 +252,24 @@ export class DsfrDataQuery extends LitElement {
     }
   }
 
-  private _cleanup() {
-    if (this._unsubscribe) {
-      this._unsubscribe();
-      this._unsubscribe = null;
-    }
-    if (this._unsubscribeCommands) {
-      this._unsubscribeCommands();
-      this._unsubscribeCommands = null;
-    }
+  /** Alias historique de reinitTransformer() — conserve pour les tests */
+  _initialize() {
+    this.reinitTransformer();
   }
 
-  private _initialize() {
-    if (!this.id) {
-      reportConfigError(this, 'dsfr-data-query', 'attribut "id" requis pour identifier la requête');
-      return;
-    }
+  // --- Hooks TransformerMixin (#280) ---
 
-    // Unsubscribe from previous source
-    if (this._unsubscribe) {
-      this._unsubscribe();
-      this._unsubscribe = null;
-    }
-    if (this._unsubscribeCommands) {
-      this._unsubscribeCommands();
-      this._unsubscribeCommands = null;
-    }
+  protected transformerName(): string {
+    return 'dsfr-data-query';
+  }
 
-    if (!this.source) {
-      reportConfigError(this, `dsfr-data-query[${this.id}]`, 'attribut "source" requis');
-      return;
-    }
+  protected validateTransformerConfig(): string | null {
+    if (!this.id) return 'attribut "id" requis pour identifier la requête';
+    if (!this.source) return 'attribut "source" requis';
+    return null;
+  }
 
-    clearConfigError(this);
-
+  protected beforeTransformerSubscribe(): void {
     // Un where non parsable etait silencieusement ignore (toutes les lignes
     // passent) — le signaler immediatement (#277). Le traitement continue en
     // mode degrade : les clauses valides s'appliquent, l'erreur est visible
@@ -326,11 +285,20 @@ export class DsfrDataQuery extends LitElement {
     // Negotiate server-side delegation BEFORE subscribing to data.
     // This sends commands to dsfr-data-source so it re-fetches with the right params.
     this._negotiateServerSide();
+  }
 
-    this._subscribeToSourceData(this.source);
+  /**
+   * Le cache de la source est perime entre une commande envoyee et
+   * l'emission suivante (#276) — ne pas le lire dans cet intervalle.
+   */
+  protected shouldReadInitialCache(): boolean {
+    return this._sourceEmittedSinceCommand;
+  }
 
-    // Forward commands from downstream to upstream source
-    this._setupCommandForwarding();
+  protected onTransformerData(data: unknown): void {
+    this._sourceEmittedSinceCommand = true;
+    this._rawData = Array.isArray(data) ? data : [data];
+    this._handleSourceData();
   }
 
   // --- Server-side negotiation ---
@@ -580,54 +548,16 @@ export class DsfrDataQuery extends LitElement {
     );
   }
 
-  // --- Source subscription ---
-
-  private _subscribeToSourceData(sourceId: string) {
-    // Check cache first (avoids race condition if source already emitted).
-    // BUT skip cache if a command was just sent and no emission followed —
-    // the cached data is stale (pre-command). A deduplicated re-negotiation
-    // (#276) keeps the right to read the cache: it matches the current
-    // overlay state of the source.
-    if (this._sourceEmittedSinceCommand) {
-      const cachedData = getDataCache(sourceId);
-      if (cachedData !== undefined) {
-        this._rawData = Array.isArray(cachedData) ? cachedData : [cachedData];
-        this._handleSourceData();
-      }
-    }
-
-    this._unsubscribe = subscribeToSource(sourceId, {
-      onLoaded: (data: unknown) => {
-        this._sourceEmittedSinceCommand = true;
-        this._rawData = Array.isArray(data) ? data : [data];
-        this._handleSourceData();
-      },
-      onLoading: () => {
-        this._loading = true;
-        dispatchDataLoading(this.id);
-      },
-      onError: (error: Error) => {
-        this._error = error;
-        this._loading = false;
-        dispatchDataError(this.id, error);
-      },
-    });
-  }
-
   /**
-   * Handle data received from upstream source.
+   * Handle data received from upstream source (via onTransformerData).
    */
   private _handleSourceData() {
     try {
-      dispatchDataLoading(this.id);
-      this._loading = true;
+      this.emitTransformerLoading();
       this._processClientSide();
     } catch (error) {
-      this._error = error as Error;
-      dispatchDataError(this.id, this._error);
+      this.emitTransformerError(error as Error);
       console.error(`dsfr-data-query[${this.id}]: Erreur de traitement`, error);
-    } finally {
-      this._loading = false;
     }
   }
 
@@ -686,13 +616,10 @@ export class DsfrDataQuery extends LitElement {
 
     this._data = result;
 
-    // Forward pagination meta from upstream source so downstream components
-    // (dsfr-data-facets, dsfr-data-search, dsfr-data-list) can access it.
-    if (meta) {
-      setDataMeta(this.id, meta);
-    }
-
-    dispatchDataLoaded(this.id, this._data);
+    // Emission via le mixin : la meta de pagination amont est propagee et
+    // posee AVANT le dispatch (#282) pour les composants aval
+    // (dsfr-data-facets, dsfr-data-search, dsfr-data-list).
+    this.emitTransformedData(this._data);
   }
 
   /**
@@ -967,30 +894,6 @@ export class DsfrDataQuery extends LitElement {
     });
   }
 
-  // --- Command forwarding ---
-
-  /**
-   * Forward commands from downstream components to the upstream source.
-   * Datalist/search/facets send commands (page, where, orderBy) to this query;
-   * we forward them to the actual dsfr-data-source so it can re-fetch.
-   *
-   * Always enabled when there's a source — WHERE commands from server-search
-   * and server-facets need to reach dsfr-data-source even when this query
-   * doesn't have server-side pagination.
-   */
-  private _setupCommandForwarding() {
-    if (this._unsubscribeCommands) {
-      this._unsubscribeCommands();
-      this._unsubscribeCommands = null;
-    }
-
-    if (!this.id || !this.source) return;
-
-    this._unsubscribeCommands = subscribeToSourceCommands(this.id, (cmd) => {
-      dispatchSourceCommand(this.source, cmd);
-    });
-  }
-
   // --- Public API ---
 
   /**
@@ -1065,23 +968,10 @@ export class DsfrDataQuery extends LitElement {
 
   /**
    * Retourne les données actuelles
+   * (isLoading() et getError() sont fournis par TransformerMixin, #280)
    */
   public getData(): unknown[] {
     return this._data;
-  }
-
-  /**
-   * Retourne l'etat de chargement
-   */
-  public isLoading(): boolean {
-    return this._loading;
-  }
-
-  /**
-   * Retourne l'erreur eventuelle
-   */
-  public getError(): Error | null {
-    return this._error;
   }
 }
 

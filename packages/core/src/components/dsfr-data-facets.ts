@@ -1,22 +1,11 @@
 import { LitElement, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
-import {
-  dispatchDataLoaded,
-  dispatchDataError,
-  dispatchDataLoading,
-  clearDataCache,
-  subscribeToSource,
-  getDataCache,
-  dispatchSourceCommand,
-  subscribeToSourceCommands,
-  getDataMeta,
-  setDataMeta,
-} from '../utils/data-bridge.js';
+import { dispatchSourceCommand } from '../utils/data-bridge.js';
+import { TransformerMixin } from '../utils/transformer-mixin.js';
 import type { ApiAdapter } from '../adapters/api-adapter.js';
 import type { SourceElement } from '../utils/source-element.js';
 import { isUnsafeKey } from '@dsfr-data/shared/lib';
-import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import { joinWhere } from '../utils/where.js';
 
 type FacetDisplayMode = 'checkbox' | 'select' | 'multiselect' | 'radio';
@@ -48,7 +37,7 @@ interface FacetGroup {
  * <dsfr-data-chart source="filtered" type="bar" label-field="region" value-field="population"></dsfr-data-chart>
  */
 @customElement('dsfr-data-facets')
-export class DsfrDataFacets extends LitElement {
+export class DsfrDataFacets extends TransformerMixin(LitElement) {
   /** ID de la source de données a ecouter */
   @property({ type: String })
   source = '';
@@ -156,8 +145,6 @@ export class DsfrDataFacets extends LitElement {
   @state()
   private _configError: string | null = null;
 
-  private _unsubscribe: (() => void) | null = null;
-  private _unsubscribeCommands: (() => void) | null = null;
   private _popstateHandler: (() => void) | null = null;
 
   // --- Public API (delegation to upstream source) ---
@@ -218,17 +205,6 @@ export class DsfrDataFacets extends LitElement {
       window.removeEventListener('popstate', this._popstateHandler);
       this._popstateHandler = null;
     }
-    if (this._unsubscribe) {
-      this._unsubscribe();
-      this._unsubscribe = null;
-    }
-    if (this._unsubscribeCommands) {
-      this._unsubscribeCommands();
-      this._unsubscribeCommands = null;
-    }
-    if (this.id) {
-      clearDataCache(this.id);
-    }
   }
 
   willUpdate(changedProperties: Map<string, unknown>) {
@@ -268,28 +244,31 @@ export class DsfrDataFacets extends LitElement {
     }
   }
 
-  private _initialize() {
+  /** Alias historique de reinitTransformer() — conserve pour les tests */
+  _initialize() {
+    this.reinitTransformer();
+  }
+
+  // --- Hooks TransformerMixin (#280) ---
+
+  protected transformerName(): string {
+    return 'dsfr-data-facets';
+  }
+
+  protected validateTransformerConfig(): string | null {
     if (!this.id) {
-      this._configError = reportConfigError(
-        this,
-        'dsfr-data-facets',
-        'attribut "id" requis pour identifier la sortie'
-      );
-      return;
+      this._configError = 'attribut "id" requis pour identifier la sortie';
+      return this._configError;
     }
-
     if (!this.source) {
-      this._configError = reportConfigError(this, 'dsfr-data-facets', 'attribut "source" requis');
-      return;
+      this._configError = 'attribut "source" requis';
+      return this._configError;
     }
-
     this._configError = null;
-    clearConfigError(this);
+    return null;
+  }
 
-    if (this._unsubscribe) {
-      this._unsubscribe();
-    }
-
+  protected beforeTransformerSubscribe(): void {
     this._activeSelections = {};
     this._expandedFacets = new Set();
     this._searchQueries = {};
@@ -305,31 +284,19 @@ export class DsfrDataFacets extends LitElement {
         this._dispatchFacetCommand();
       }
     }
+  }
 
-    const cachedData = getDataCache(this.source);
-    if (cachedData !== undefined) {
-      this._onData(cachedData);
-    }
+  protected onTransformerData(data: unknown): void {
+    this._onData(data);
+  }
 
-    this._unsubscribe = subscribeToSource(this.source, {
-      onLoaded: (data: unknown) => {
-        this._onData(data);
-      },
-      onLoading: () => {
-        dispatchDataLoading(this.id);
-      },
-      onError: (error: Error) => {
-        dispatchDataError(this.id, error);
-      },
-    });
-
-    // Forward downstream commands (page, orderBy) to upstream source
-    if (this._unsubscribeCommands) {
-      this._unsubscribeCommands();
-    }
-    this._unsubscribeCommands = subscribeToSourceCommands(this.id, (cmd) => {
-      dispatchSourceCommand(this.source, cmd);
-    });
+  /**
+   * Meta amont propagee telle quelle en mode serveur (lignes pre-filtrees,
+   * total valide). En filtre client le nombre de lignes change : pas de
+   * meta (#282).
+   */
+  protected transformMeta(meta: import('../utils/data-bridge.js').PaginationMeta) {
+    return this.serverFacets || this.staticValues ? meta : null;
   }
 
   private _onData(data: unknown) {
@@ -346,20 +313,13 @@ export class DsfrDataFacets extends LitElement {
     }
     if (this.serverFacets) {
       this._fetchServerFacets();
-      // Re-emit data as-is (no local filtering), forwarding pagination metadata
-      if (this.id) {
-        const meta = getDataMeta(this.source);
-        if (meta) setDataMeta(this.id, meta);
-        dispatchDataLoaded(this.id, this._rawData);
-      }
+      // Re-emit data as-is (no local filtering) — meta posee AVANT le
+      // dispatch par le mixin
+      this.emitTransformedData(this._rawData);
     } else if (this.staticValues) {
       this._buildStaticFacetGroups();
-      // Re-emit data as-is (filtering happens server-side), forwarding pagination metadata
-      if (this.id) {
-        const meta = getDataMeta(this.source);
-        if (meta) setDataMeta(this.id, meta);
-        dispatchDataLoaded(this.id, this._rawData);
-      }
+      // Re-emit data as-is (filtering happens server-side)
+      this.emitTransformedData(this._rawData);
     } else {
       this._buildFacetGroups();
       this._applyFilters();
@@ -700,7 +660,7 @@ export class DsfrDataFacets extends LitElement {
       });
     }
 
-    dispatchDataLoaded(this.id, filtered);
+    this.emitTransformedData(filtered);
   }
 
   // --- Parsing helpers ---

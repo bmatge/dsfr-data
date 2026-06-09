@@ -39,8 +39,7 @@ describe('DsfrDataSearch', () => {
 
   afterEach(() => {
     // Always clean up subscription (even if not connected to DOM)
-    (search as any)._unsubscribe?.();
-    (search as any)._unsubscribe = null;
+    (search as any)._cleanup?.();
     if (search._debounceTimer !== null) {
       clearTimeout(search._debounceTimer);
       (search as any)._debounceTimer = null;
@@ -1141,7 +1140,9 @@ describe('DsfrDataSearch', () => {
       search.id = 'test-search';
       search.connectedCallback();
 
-      expect(errorSpy).toHaveBeenCalledWith('dsfr-data-search: attribut "source" requis');
+      expect(errorSpy).toHaveBeenCalledWith(
+        'dsfr-data-search[test-search]: attribut "source" requis'
+      );
       expect(search.getAttribute('data-dsfr-config-error')).toMatch(/source/);
       errorSpy.mockRestore();
     });
@@ -1163,13 +1164,13 @@ describe('DsfrDataSearch', () => {
       search.connectedCallback();
 
       // Store old unsubscribe
-      const oldUnsub = (search as any)._unsubscribe;
+      const oldUnsub = (search as any)._transformerUnsubs[0];
       expect(oldUnsub).toBeTypeOf('function');
 
       // Re-initialize
       (search as any)._initialize();
       // New unsubscribe should be created
-      expect((search as any)._unsubscribe).toBeTypeOf('function');
+      expect((search as any)._transformerUnsubs.length).toBe(1);
     });
 
     it('server-search in _initialize sends command when URL param is set', () => {

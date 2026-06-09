@@ -142,8 +142,7 @@ describe('#275 — délégation serveur du where de dsfr-data-query', () => {
     query.groupBy = 'region';
     query.aggregate = 'population:sum:total';
 
-    (query as any)._negotiateServerSide();
-    (query as any)._subscribeToSourceData('b1-src');
+    (query as any)._initialize();
 
     // Le serveur (simulé) renvoie les lignes agrégées : le champ brut
     // `population` n'existe plus. Avant le fix, le filtre population:gt:2500
@@ -219,8 +218,7 @@ describe('#275 — délégation serveur du where de dsfr-data-query', () => {
     queryA.groupBy = 'region';
     queryA.aggregate = 'population:sum:total';
 
-    (queryA as any)._negotiateServerSide();
-    (queryA as any)._subscribeToSourceData('b1-src-a');
+    (queryA as any)._initialize();
     dispatchDataLoaded('b1-src-a', RAW_ROWS);
     const resultClient = queryA.getData();
 
@@ -231,9 +229,8 @@ describe('#275 — délégation serveur du where de dsfr-data-query', () => {
     query.groupBy = 'region';
     query.aggregate = 'population:sum:total';
 
-    (query as any)._negotiateServerSide();
+    (query as any)._initialize();
     expect(commands).toHaveLength(1);
-    (query as any)._subscribeToSourceData('b1-src');
     dispatchDataLoaded('b1-src', AGGREGATED_ROWS);
     const resultServer = query.getData();
 

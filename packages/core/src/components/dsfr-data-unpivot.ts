@@ -3,17 +3,8 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { performUnpivot } from '@dsfr-data/shared/lib';
 import type { UnpivotOptions } from '@dsfr-data/shared/lib';
 import { sendWidgetBeacon } from '../utils/beacon.js';
-import {
-  dispatchDataLoaded,
-  dispatchDataError,
-  dispatchDataLoading,
-  clearDataCache,
-  subscribeToSource,
-  getDataCache,
-  subscribeToSourceCommands,
-  dispatchSourceCommand,
-} from '../utils/data-bridge.js';
-import { reportConfigError, clearConfigError } from '../utils/config-error.js';
+import { getDataCache } from '../utils/data-bridge.js';
+import { TransformerMixin } from '../utils/transformer-mixin.js';
 import type { SourceElement } from '../utils/source-element.js';
 
 type Row = Record<string, unknown>;
@@ -44,7 +35,7 @@ type Row = Record<string, unknown>;
  * </dsfr-data-chart>
  */
 @customElement('dsfr-data-unpivot')
-export class DsfrDataUnpivot extends LitElement {
+export class DsfrDataUnpivot extends TransformerMixin(LitElement) {
   /** ID de la source de données à écouter */
   @property({ type: String })
   source = '';
@@ -84,9 +75,6 @@ export class DsfrDataUnpivot extends LitElement {
   @state()
   private _data: Row[] = [];
 
-  private _unsubscribe: (() => void) | null = null;
-  private _unsubscribeCommands: (() => void) | null = null;
-
   protected createRenderRoot(): HTMLElement | DocumentFragment {
     return this;
   }
@@ -98,15 +86,7 @@ export class DsfrDataUnpivot extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     sendWidgetBeacon('dsfr-data-unpivot');
-    this._initialize();
-  }
-
-  disconnectedCallback() {
-    super.disconnectedCallback();
-    this._cleanup();
-    if (this.id) {
-      clearDataCache(this.id);
-    }
+    this.reinitTransformer();
   }
 
   updated(changedProperties: Map<string, unknown>) {
@@ -114,7 +94,7 @@ export class DsfrDataUnpivot extends LitElement {
 
     // Source identity changed → re-subscribe
     if (changedProperties.has('source')) {
-      this._initialize();
+      this.reinitTransformer();
       return;
     }
 
@@ -184,42 +164,19 @@ export class DsfrDataUnpivot extends LitElement {
     return this._data;
   }
 
-  // --- Initialization ---
+  // --- Hooks TransformerMixin (#280) ---
 
-  private _initialize() {
-    this._cleanup();
+  protected transformerName(): string {
+    return 'dsfr-data-unpivot';
+  }
 
-    if (!this.id) {
-      reportConfigError(
-        this,
-        'dsfr-data-unpivot',
-        'attribut "id" requis pour identifier la sortie'
-      );
-      return;
-    }
-    if (!this.source) {
-      reportConfigError(this, 'dsfr-data-unpivot', 'attribut "source" requis');
-      return;
-    }
+  protected onTransformerData(data: unknown): void {
+    this._processData(data);
+  }
 
-    clearConfigError(this);
-
-    // Cache check before subscribing (avoid race if source already emitted)
-    const cachedData = getDataCache(this.source);
-    if (cachedData !== undefined) {
-      this._processData(cachedData);
-    }
-
-    this._unsubscribe = subscribeToSource(this.source, {
-      onLoaded: (data: unknown) => this._processData(data),
-      onLoading: () => dispatchDataLoading(this.id),
-      onError: (error: Error) => dispatchDataError(this.id, error),
-    });
-
-    // Relay downstream commands (page, where, orderBy) to the upstream source.
-    this._unsubscribeCommands = subscribeToSourceCommands(this.id, (cmd) => {
-      dispatchSourceCommand(this.source, cmd);
-    });
+  /** Pas de meta propagee (l'unpivot change le nombre de lignes — cf. #282) */
+  protected transformMeta(): null {
+    return null;
   }
 
   private _buildOptions(): UnpivotOptions {
@@ -242,24 +199,13 @@ export class DsfrDataUnpivot extends LitElement {
 
   private _processData(rawData: unknown) {
     try {
-      dispatchDataLoading(this.id);
+      this.emitTransformerLoading();
       const rows = Array.isArray(rawData) ? (rawData as Row[]) : [rawData as Row];
       this._data = performUnpivot(rows, this._buildOptions());
-      dispatchDataLoaded(this.id, this._data);
+      this.emitTransformedData(this._data);
     } catch (error) {
-      dispatchDataError(this.id, error as Error);
+      this.emitTransformerError(error as Error);
       console.error(`dsfr-data-unpivot[${this.id}]: Erreur de dépivotage`, error);
-    }
-  }
-
-  private _cleanup() {
-    if (this._unsubscribe) {
-      this._unsubscribe();
-      this._unsubscribe = null;
-    }
-    if (this._unsubscribeCommands) {
-      this._unsubscribeCommands();
-      this._unsubscribeCommands = null;
     }
   }
 }

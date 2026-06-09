@@ -263,7 +263,7 @@ describe('DsfrDataUnpivot — cycle de vie', () => {
 
   it('updated() re-initialise quand source change', () => {
     el.connectedCallback();
-    const spy = vi.spyOn(el as any, '_initialize');
+    const spy = vi.spyOn(el as any, 'reinitTransformer');
     (el as any).updated(new Map([['source', 'ancienne']]));
     expect(spy).toHaveBeenCalled();
   });

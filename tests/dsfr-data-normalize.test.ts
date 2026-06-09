@@ -960,11 +960,11 @@ describe('DsfrDataNormalize', () => {
     });
   });
 
-  describe('_initialize edge cases', () => {
+  describe('reinitTransformer edge cases', () => {
     it('logs error and sets data-dsfr-config-error when id is missing', () => {
       const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       normalize.source = 'test-source';
-      (normalize as unknown as { _initialize(): void })._initialize();
+      normalize.reinitTransformer();
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('attribut "id" requis'));
       expect(normalize.getAttribute('data-dsfr-config-error')).toMatch(/id/);
       errorSpy.mockRestore();
@@ -974,7 +974,7 @@ describe('DsfrDataNormalize', () => {
       const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       normalize.id = 'test-normalize';
       normalize.source = '';
-      (normalize as unknown as { _initialize(): void })._initialize();
+      normalize.reinitTransformer();
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('attribut "source" requis'));
       expect(normalize.getAttribute('data-dsfr-config-error')).toMatch(/source/);
       errorSpy.mockRestore();
@@ -984,11 +984,11 @@ describe('DsfrDataNormalize', () => {
       const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       normalize.id = '';
       normalize.source = '';
-      (normalize as unknown as { _initialize(): void })._initialize();
+      normalize.reinitTransformer();
       expect(normalize.hasAttribute('data-dsfr-config-error')).toBe(true);
       normalize.id = 'test-normalize';
       normalize.source = 'test-source';
-      (normalize as unknown as { _initialize(): void })._initialize();
+      normalize.reinitTransformer();
       expect(normalize.hasAttribute('data-dsfr-config-error')).toBe(false);
       errorSpy.mockRestore();
     });

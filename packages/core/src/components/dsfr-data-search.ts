@@ -3,20 +3,9 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { escapeHtml } from '@dsfr-data/shared/lib';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { escapeColonValue } from '../utils/where.js';
-import {
-  dispatchDataLoaded,
-  dispatchDataError,
-  dispatchDataLoading,
-  clearDataCache,
-  subscribeToSource,
-  getDataCache,
-  dispatchSourceCommand,
-  subscribeToSourceCommands,
-  getDataMeta,
-  setDataMeta,
-} from '../utils/data-bridge.js';
+import { dispatchSourceCommand, getDataMeta } from '../utils/data-bridge.js';
+import { TransformerMixin } from '../utils/transformer-mixin.js';
 import type { SourceElement } from '../utils/source-element.js';
-import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 
 type SearchOperator = 'contains' | 'starts' | 'words';
 
@@ -40,7 +29,7 @@ type SearchOperator = 'contains' | 'starts' | 'words';
  * </dsfr-data-search>
  */
 @customElement('dsfr-data-search')
-export class DsfrDataSearch extends LitElement {
+export class DsfrDataSearch extends TransformerMixin(LitElement) {
   /** ID de la source de données a ecouter */
   @property({ type: String })
   source = '';
@@ -123,8 +112,6 @@ export class DsfrDataSearch extends LitElement {
   private _configError: string | null = null;
 
   private _debounceTimer: ReturnType<typeof setTimeout> | null = null;
-  private _unsubscribe: (() => void) | null = null;
-  private _unsubscribeCommands: (() => void) | null = null;
   private _urlParamApplied = false;
 
   // --- Public API (delegation to upstream source) ---
@@ -187,17 +174,6 @@ export class DsfrDataSearch extends LitElement {
       clearTimeout(this._debounceTimer);
       this._debounceTimer = null;
     }
-    if (this._unsubscribe) {
-      this._unsubscribe();
-      this._unsubscribe = null;
-    }
-    if (this._unsubscribeCommands) {
-      this._unsubscribeCommands();
-      this._unsubscribeCommands = null;
-    }
-    if (this.id) {
-      clearDataCache(this.id);
-    }
   }
 
   willUpdate(changedProperties: Map<string, unknown>) {
@@ -249,28 +225,31 @@ export class DsfrDataSearch extends LitElement {
 
   // --- Private implementation ---
 
-  private _initialize() {
+  /** Alias historique de reinitTransformer() — conserve pour les tests */
+  _initialize() {
+    this.reinitTransformer();
+  }
+
+  // --- Hooks TransformerMixin (#280) ---
+
+  protected transformerName(): string {
+    return 'dsfr-data-search';
+  }
+
+  protected validateTransformerConfig(): string | null {
     if (!this.id) {
-      this._configError = reportConfigError(this, 'dsfr-data-search', 'attribut "id" requis');
-      return;
+      this._configError = 'attribut "id" requis';
+      return this._configError;
     }
-
     if (!this.source) {
-      this._configError = reportConfigError(this, 'dsfr-data-search', 'attribut "source" requis');
-      return;
+      this._configError = 'attribut "source" requis';
+      return this._configError;
     }
-
     this._configError = null;
-    clearConfigError(this);
+    return null;
+  }
 
-    if (this._unsubscribe) {
-      this._unsubscribe();
-    }
-    if (this._unsubscribeCommands) {
-      this._unsubscribeCommands();
-      this._unsubscribeCommands = null;
-    }
-
+  protected beforeTransformerSubscribe(): void {
     // Read search template from adapter if empty and server-search enabled
     if (this.serverSearch && !this.searchTemplate) {
       const sourceEl = document.getElementById(this.source);
@@ -290,30 +269,19 @@ export class DsfrDataSearch extends LitElement {
         this._applyServerSearch();
       }
     }
+  }
 
-    const cachedData = getDataCache(this.source);
-    if (cachedData !== undefined) {
-      this._onData(cachedData);
-    }
+  protected onTransformerData(data: unknown): void {
+    this._onData(data);
+  }
 
-    this._unsubscribe = subscribeToSource(this.source, {
-      onLoaded: (data: unknown) => {
-        this._onData(data);
-      },
-      onLoading: () => {
-        dispatchDataLoading(this.id);
-      },
-      onError: (error: Error) => {
-        dispatchDataError(this.id, error);
-      },
-    });
-
-    // Relaye les commandes aval (page, where, orderBy) vers la source amont,
-    // comme query/normalize/unpivot : un dsfr-data-list pagine derriere ce
-    // search dispatche vers notre id — sans relais, la commande etait perdue (#272)
-    this._unsubscribeCommands = subscribeToSourceCommands(this.id, (cmd) => {
-      dispatchSourceCommand(this.source, cmd);
-    });
+  /**
+   * Meta amont propagee telle quelle en server-search (lignes pre-filtrees
+   * par le serveur, total valide). En filtre client le nombre de lignes
+   * change : pas de meta (#282).
+   */
+  protected transformMeta(meta: import('../utils/data-bridge.js').PaginationMeta) {
+    return this.serverSearch ? meta : null;
   }
 
   private _onData(data: unknown) {
@@ -329,11 +297,8 @@ export class DsfrDataSearch extends LitElement {
       const meta = getDataMeta(this.source);
       this._resultCount = meta?.total ?? rows.length;
 
-      // Re-emit under our own ID, forwarding pagination metadata
-      if (this.id) {
-        if (meta) setDataMeta(this.id, meta);
-        dispatchDataLoaded(this.id, rows);
-      }
+      // Re-emit under our own ID — meta posee AVANT le dispatch par le mixin
+      this.emitTransformedData(rows);
 
       // On first load with URL param, trigger server search
       if (this.urlSearchParam && !this._urlParamApplied) {
@@ -533,7 +498,7 @@ export class DsfrDataSearch extends LitElement {
   private _dispatch() {
     if (!this.id) return;
 
-    dispatchDataLoaded(this.id, this._filteredData);
+    this.emitTransformedData(this._filteredData);
 
     if (this.urlSync && this.urlSearchParam) {
       this._syncUrl();

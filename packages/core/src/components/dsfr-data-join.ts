@@ -1,19 +1,9 @@
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
-import {
-  dispatchDataLoaded,
-  dispatchDataError,
-  dispatchDataLoading,
-  clearDataCache,
-  subscribeToSource,
-  getDataCache,
-  subscribeToSourceCommands,
-  dispatchSourceCommand,
-} from '../utils/data-bridge.js';
 import { performJoin } from '@dsfr-data/shared/lib';
 import type { JoinType } from '@dsfr-data/shared/lib';
-import { reportConfigError, clearConfigError } from '../utils/config-error.js';
+import { TransformerMixin } from '../utils/transformer-mixin.js';
 import type { SourceElement } from '../utils/source-element.js';
 
 type Row = Record<string, unknown>;
@@ -46,7 +36,7 @@ export type { JoinType };
  * </dsfr-data-chart>
  */
 @customElement('dsfr-data-join')
-export class DsfrDataJoin extends LitElement {
+export class DsfrDataJoin extends TransformerMixin(LitElement) {
   /**
    * ID de la source gauche (source principale)
    */
@@ -87,19 +77,10 @@ export class DsfrDataJoin extends LitElement {
   prefixRight = 'right_';
 
   @state()
-  private _loading = false;
-
-  @state()
-  private _error: Error | null = null;
-
-  @state()
   private _data: Row[] = [];
 
   private _leftData: Row[] | null = null;
   private _rightData: Row[] | null = null;
-  private _unsubscribeLeft: (() => void) | null = null;
-  private _unsubscribeRight: (() => void) | null = null;
-  private _unsubscribeCommands: (() => void) | null = null;
 
   protected createRenderRoot(): HTMLElement | DocumentFragment {
     return this;
@@ -119,14 +100,6 @@ export class DsfrDataJoin extends LitElement {
     // that can cause the join to miss source data.
   }
 
-  disconnectedCallback() {
-    super.disconnectedCallback();
-    this._cleanup();
-    if (this.id) {
-      clearDataCache(this.id);
-    }
-  }
-
   willUpdate(changedProperties: Map<string, unknown>) {
     super.willUpdate(changedProperties);
 
@@ -136,7 +109,7 @@ export class DsfrDataJoin extends LitElement {
       changedProperties.has('right') ||
       changedProperties.has('on');
     if (sourceChanged) {
-      this._initialize();
+      this.reinitTransformer();
       return;
     }
 
@@ -199,96 +172,57 @@ export class DsfrDataJoin extends LitElement {
     return this._data;
   }
 
-  isLoading(): boolean {
-    return this._loading;
+  // --- Hooks TransformerMixin (#280) ---
+
+  protected transformerName(): string {
+    return 'dsfr-data-join';
   }
 
-  getError(): Error | null {
-    return this._error;
+  /** Deux sources amont : index 0 = left, index 1 = right */
+  protected transformerSources(): string[] {
+    return [this.left, this.right];
   }
 
-  // --- Initialization ---
+  /**
+   * Relaye les commandes aval (page, where, orderBy) vers la source GAUCHE,
+   * porteuse des lignes principales du join — la droite est traitee comme
+   * table de reference et n'est pas filtree/paginee (#272). Sans relais,
+   * un dsfr-data-list pagine derriere un join perdait ses commandes.
+   */
+  protected transformerCommandTarget(): string | null {
+    return this.left || null;
+  }
 
-  private _initialize() {
-    this._cleanup();
-
-    if (!this.id) {
-      reportConfigError(this, 'dsfr-data-join', 'attribut "id" requis pour identifier la sortie');
-      return;
-    }
-
+  protected validateTransformerConfig(): string | null {
+    if (!this.id) return 'attribut "id" requis pour identifier la sortie';
     if (!this.left || !this.right || !this.on) {
       const missing = [!this.left && 'left', !this.right && 'right', !this.on && 'on']
         .filter(Boolean)
         .join(', ');
-      reportConfigError(
-        this,
-        `dsfr-data-join[${this.id}]`,
-        `attribut(s) requis manquant(s) : ${missing}`
-      );
-      return;
+      return `attribut(s) requis manquant(s) : ${missing}`;
     }
-
-    clearConfigError(this);
-
-    this._leftData = null;
-    this._rightData = null;
-    this._loading = true;
-    dispatchDataLoading(this.id);
-
-    this._subscribeToSource('left');
-    this._subscribeToSource('right');
-
-    // Relaye les commandes aval (page, where, orderBy) vers la source GAUCHE,
-    // porteuse des lignes principales du join — la droite est traitee comme
-    // table de reference et n'est pas filtree/paginee (#272). Sans relais,
-    // un dsfr-data-list pagine derriere un join perdait ses commandes.
-    this._unsubscribeCommands = subscribeToSourceCommands(this.id, (cmd) => {
-      dispatchSourceCommand(this.left, cmd);
-    });
+    return null;
   }
 
-  private _subscribeToSource(side: 'left' | 'right') {
-    const sourceId = side === 'left' ? this.left : this.right;
+  protected beforeTransformerSubscribe(): void {
+    this._leftData = null;
+    this._rightData = null;
+    this.emitTransformerLoading();
+  }
 
-    // Check cache first
-    const cachedData = getDataCache(sourceId);
-    if (cachedData !== undefined) {
-      const rows = this._toRows(cachedData);
-      if (side === 'left') {
-        this._leftData = rows;
-      } else {
-        this._rightData = rows;
-      }
-      this._tryJoin();
-    }
-
-    const unsubscribe = subscribeToSource(sourceId, {
-      onLoaded: (data: unknown) => {
-        const rows = this._toRows(data);
-        if (side === 'left') {
-          this._leftData = rows;
-        } else {
-          this._rightData = rows;
-        }
-        this._tryJoin();
-      },
-      onLoading: () => {
-        this._loading = true;
-        dispatchDataLoading(this.id);
-      },
-      onError: (error: Error) => {
-        this._error = error;
-        this._loading = false;
-        dispatchDataError(this.id, error);
-      },
-    });
-
-    if (side === 'left') {
-      this._unsubscribeLeft = unsubscribe;
+  protected onTransformerData(data: unknown, _sourceId: string, sourceIndex: number): void {
+    const rows = this._toRows(data);
+    if (sourceIndex === 0) {
+      this._leftData = rows;
     } else {
-      this._unsubscribeRight = unsubscribe;
+      this._rightData = rows;
     }
+    this._tryJoin();
+  }
+
+  /** Pas de meta propagee (le join change le nombre de lignes — cf. #282) */
+  protected transformMeta(): null {
+    return null;
   }
 
   private _toRows(data: unknown): Row[] {
@@ -312,31 +246,10 @@ export class DsfrDataJoin extends LitElement {
         prefixRight: this.prefixRight,
       });
       this._data = result;
-      this._error = null;
-      this._loading = false;
-      dispatchDataLoaded(this.id, this._data);
+      this.emitTransformedData(this._data);
     } catch (error) {
-      this._error = error as Error;
-      this._loading = false;
-      dispatchDataError(this.id, this._error);
+      this.emitTransformerError(error as Error);
       console.error(`dsfr-data-join[${this.id}]: Erreur de jointure`, error);
-    }
-  }
-
-  // --- Cleanup ---
-
-  private _cleanup() {
-    if (this._unsubscribeLeft) {
-      this._unsubscribeLeft();
-      this._unsubscribeLeft = null;
-    }
-    if (this._unsubscribeRight) {
-      this._unsubscribeRight();
-      this._unsubscribeRight = null;
-    }
-    if (this._unsubscribeCommands) {
-      this._unsubscribeCommands();
-      this._unsubscribeCommands = null;
     }
   }
 }

@@ -360,7 +360,7 @@ describe('DsfrDataJoin', () => {
       join.type = 'inner';
       join.id = 'test-join';
 
-      (join as any)._initialize();
+      join.reinitTransformer();
 
       expect(join.getData()).toHaveLength(3);
       expect(getDataCache('test-join')).toHaveLength(3);
@@ -372,7 +372,7 @@ describe('DsfrDataJoin', () => {
       join.on = 'code';
       join.id = 'test-join';
 
-      (join as any)._initialize();
+      join.reinitTransformer();
 
       // Envoyer seulement la gauche
       dispatchDataLoaded('src-a', LEFT_DATA);
@@ -390,7 +390,7 @@ describe('DsfrDataJoin', () => {
       join.type = 'inner';
       join.id = 'test-join';
 
-      (join as any)._initialize();
+      join.reinitTransformer();
 
       dispatchDataLoaded('src-a', LEFT_DATA);
       dispatchDataLoaded('src-b', RIGHT_DATA);
@@ -417,7 +417,7 @@ describe('DsfrDataJoin', () => {
       join.on = 'code';
       join.id = 'test-join';
 
-      (join as any)._initialize();
+      join.reinitTransformer();
       // Un événement loading est émis à l'init
       expect(loadingEvents.length).toBeGreaterThan(0);
 
@@ -435,7 +435,7 @@ describe('DsfrDataJoin', () => {
       join.on = 'code';
       join.id = 'test-join';
 
-      (join as any)._initialize();
+      join.reinitTransformer();
 
       const error = new Error('Source failed');
       dispatchDataError('src-a', error);
@@ -448,7 +448,7 @@ describe('DsfrDataJoin', () => {
 
   describe('Lifecycle', () => {
     it('does not initialize without required props', () => {
-      (join as any)._initialize();
+      join.reinitTransformer();
       expect(join.getData()).toHaveLength(0);
     });
 
@@ -458,25 +458,23 @@ describe('DsfrDataJoin', () => {
       join.on = 'code';
       join.id = 'test-join';
 
-      (join as any)._initialize();
+      join.reinitTransformer();
 
       // Vérifier que les unsubscribe existent
-      expect((join as any)._unsubscribeLeft).not.toBeNull();
-      expect((join as any)._unsubscribeRight).not.toBeNull();
+      expect((join as any)._transformerUnsubs.length).toBe(2);
 
       (join as any)._cleanup();
-      expect((join as any)._unsubscribeLeft).toBeNull();
-      expect((join as any)._unsubscribeRight).toBeNull();
+      expect((join as any)._transformerUnsubs.length).toBe(0);
     });
 
     it('re-initializes when source properties change', () => {
-      const initSpy = vi.spyOn(join as any, '_initialize');
+      const initSpy = vi.spyOn(join as any, 'reinitTransformer');
       join.willUpdate(new Map([['left', '']]));
       expect(initSpy).toHaveBeenCalled();
     });
 
     it('re-initializes when on property changes', () => {
-      const initSpy = vi.spyOn(join as any, '_initialize');
+      const initSpy = vi.spyOn(join as any, 'reinitTransformer');
       join.willUpdate(new Map([['on', '']]));
       expect(initSpy).toHaveBeenCalled();
     });
@@ -488,14 +486,14 @@ describe('DsfrDataJoin', () => {
       join.on = 'code';
       join.type = 'inner';
       join.id = 'test-join';
-      (join as any)._initialize();
+      join.reinitTransformer();
 
       dispatchDataLoaded('src-a', LEFT_DATA);
       dispatchDataLoaded('src-b', RIGHT_DATA);
       expect(join.getData()).toHaveLength(3); // inner: 3 matches
 
       // Change type to left → should re-compute without full re-init
-      const initSpy = vi.spyOn(join as any, '_initialize');
+      const initSpy = vi.spyOn(join as any, 'reinitTransformer');
       join.type = 'left';
       join.willUpdate(new Map([['type', 'inner']]));
       expect(initSpy).not.toHaveBeenCalled(); // NOT re-initialized
@@ -503,13 +501,13 @@ describe('DsfrDataJoin', () => {
     });
 
     it('does not re-init when only non-join properties change', () => {
-      const initSpy = vi.spyOn(join as any, '_initialize');
+      const initSpy = vi.spyOn(join as any, 'reinitTransformer');
       join.willUpdate(new Map([['_loading', true]]));
       expect(initSpy).not.toHaveBeenCalled();
     });
 
-    it('connectedCallback does not call _initialize', () => {
-      const initSpy = vi.spyOn(join as any, '_initialize');
+    it('connectedCallback does not call reinitTransformer', () => {
+      const initSpy = vi.spyOn(join as any, 'reinitTransformer');
       join.connectedCallback();
       expect(initSpy).not.toHaveBeenCalled();
     });
@@ -612,7 +610,7 @@ describe('DsfrDataJoin', () => {
     });
   });
 
-  describe('_initialize edge cases', () => {
+  describe('reinitTransformer edge cases', () => {
     it('logs error and sets data-dsfr-config-error when id is missing', () => {
       const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       // Override the default 'test-join' id set in beforeEach
@@ -620,7 +618,7 @@ describe('DsfrDataJoin', () => {
       join.left = 'a';
       join.right = 'b';
       join.on = 'code';
-      (join as unknown as { _initialize(): void })._initialize();
+      join.reinitTransformer();
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('attribut "id" requis'));
       expect(join.getAttribute('data-dsfr-config-error')).toMatch(/id/);
       errorSpy.mockRestore();
@@ -632,7 +630,7 @@ describe('DsfrDataJoin', () => {
       join.left = '';
       join.right = '';
       join.on = '';
-      (join as unknown as { _initialize(): void })._initialize();
+      join.reinitTransformer();
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('left'));
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('right'));
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('on'));
@@ -643,13 +641,13 @@ describe('DsfrDataJoin', () => {
     it('clears data-dsfr-config-error when config becomes valid', () => {
       const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       join.id = '';
-      (join as unknown as { _initialize(): void })._initialize();
+      join.reinitTransformer();
       expect(join.hasAttribute('data-dsfr-config-error')).toBe(true);
       join.id = 'test-join';
       join.left = 'a';
       join.right = 'b';
       join.on = 'code';
-      (join as unknown as { _initialize(): void })._initialize();
+      join.reinitTransformer();
       expect(join.hasAttribute('data-dsfr-config-error')).toBe(false);
       errorSpy.mockRestore();
     });
