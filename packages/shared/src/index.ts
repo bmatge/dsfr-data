@@ -12,6 +12,7 @@ export { compileCompute, applyCompute } from './utils/compute.js';
 export { isUnsafeKey } from './utils/security.js';
 export type { CsvColumn, BuildCsvOptions } from './utils/csv.js';
 export { buildCsv, CSV_BOM } from './utils/csv.js';
+export { escapeColonValue, unescapeColonValue } from './utils/colon-escape.js';
 
 // Constants
 export {

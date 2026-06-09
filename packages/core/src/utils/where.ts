@@ -17,19 +17,11 @@ import type { AdapterCapabilities } from '../adapters/api-adapter.js';
 
 export type WhereFormat = AdapterCapabilities['whereFormat'];
 
-/** Encode les caractères structurels de la syntaxe colon dans une valeur. */
-export function escapeColonValue(value: string): string {
-  return value.replace(/%/g, '%25').replace(/,/g, '%2C').replace(/:/g, '%3A').replace(/\|/g, '%7C');
-}
-
-/** Décode une valeur issue d'une clause colon (inverse d'escapeColonValue). */
-export function unescapeColonValue(value: string): string {
-  return value
-    .replace(/%2C/gi, ',')
-    .replace(/%3A/gi, ':')
-    .replace(/%7C/gi, '|')
-    .replace(/%25/gi, '%');
-}
+// Implementation partagee avec les utilitaires app-side (filter-translator) :
+// definie dans @dsfr-data/shared (lib-safe), re-exportee ici pour les
+// consommateurs de packages/core (#315).
+export { escapeColonValue, unescapeColonValue } from '@dsfr-data/shared/lib';
+import { escapeColonValue } from '@dsfr-data/shared/lib';
 
 /**
  * Construit la clause WHERE colon des sélections de facettes.

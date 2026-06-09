@@ -679,10 +679,11 @@ describe('filterToOdsql', () => {
   });
 
   it('should convert gt/gte/lt/lte operators', () => {
-    expect(filterToOdsql('pop:gt:1000')).toBe('pop > "1000"');
-    expect(filterToOdsql('pop:gte:1000')).toBe('pop >= "1000"');
-    expect(filterToOdsql('pop:lt:500')).toBe('pop < "500"');
-    expect(filterToOdsql('pop:lte:500')).toBe('pop <= "500"');
+    // #315 : litteral numerique non quote (sinon ODS compare des strings)
+    expect(filterToOdsql('pop:gt:1000')).toBe('pop > 1000');
+    expect(filterToOdsql('pop:gte:1000')).toBe('pop >= 1000');
+    expect(filterToOdsql('pop:lt:500')).toBe('pop < 500');
+    expect(filterToOdsql('pop:lte:500')).toBe('pop <= 500');
   });
 
   it('should convert contains to LIKE', () => {
@@ -713,7 +714,7 @@ describe('filterToOdsql', () => {
 
   it('should join multiple filters with AND', () => {
     const result = filterToOdsql('region:eq:Bretagne, pop:gt:1000');
-    expect(result).toBe('region = "Bretagne" AND pop > "1000"');
+    expect(result).toBe('region = "Bretagne" AND pop > 1000');
   });
 
   it('should skip invalid segments (less than 3 parts)', () => {
