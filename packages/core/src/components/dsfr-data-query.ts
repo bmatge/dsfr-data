@@ -214,6 +214,23 @@ export class DsfrDataQuery extends LitElement {
     where: false,
   };
 
+  /** Source qui detient actuellement nos overlays de delegation (#276) */
+  private _delegatedSourceId: string | null = null;
+
+  /**
+   * Derniere commande de delegation dispatchee (cible + contenu) : une
+   * re-negociation identique ne redispatche pas — la source est deja dans
+   * cet etat, son cache est valide (#276).
+   */
+  private _lastDelegation: { sourceId: string; cmdJson: string } | null = null;
+
+  /**
+   * False entre l'envoi d'une commande a la source et l'emission suivante :
+   * le cache de la source est alors perime (pre-commande) et ne doit pas
+   * etre lu. Une re-negociation dedupliquee ne le repasse pas a false.
+   */
+  private _sourceEmittedSinceCommand = true;
+
   // Pas de rendu - composant invisible
   protected createRenderRoot(): HTMLElement | DocumentFragment {
     return this;
@@ -337,79 +354,141 @@ export class DsfrDataQuery extends LitElement {
    * or when dsfr-data-source already has its own groupBy/aggregate attributes.
    */
   private _negotiateServerSide() {
+    const prev = this._serverDelegated;
+    const prevSourceId = this._delegatedSourceId;
+
     // Reset delegation state
     this._serverDelegated = { groupBy: false, aggregate: false, orderBy: false, where: false };
 
-    const rawEl = document.getElementById(this.source);
-    if (!rawEl || !('getAdapter' in rawEl)) return;
-    const sourceEl = rawEl as unknown as SourceElement;
-
-    const adapter = sourceEl.getAdapter?.();
-    if (!adapter?.capabilities) return;
-
-    const caps: AdapterCapabilities = adapter.capabilities;
-
-    // Don't override if dsfr-data-source already has its own groupBy/aggregate
-    // (user explicitly configured them on the source — respect that)
-    const sourceGroupBy = sourceEl.groupBy || '';
-    const sourceAggregate = sourceEl.aggregate || '';
+    // Cleanup adresse a l'ANCIENNE source quand la cible a change (#276) —
+    // sinon elle garderait indefiniment nos overlays (donnees agregees
+    // servies a ses autres abonnes).
+    if (prevSourceId && prevSourceId !== this.source) {
+      this._sendDelegationClears(prevSourceId, prev);
+    }
 
     const cmd: Record<string, string> = {};
 
-    // Certains adapters (Tabular) ne peuvent pas deleguer des champs dont le nom
-    // contient des espaces/ponctuation (syntaxe a suffixe `colonne__op`). On les
-    // interroge avant de deleguer ; sinon on retombe sur le client-side.
-    const canDelegateFields = (fields: string[]): boolean => {
-      const clean = fields.map((f) => f.trim()).filter(Boolean);
-      return adapter.supportsServerFields?.(clean) !== false;
-    };
+    const rawEl = document.getElementById(this.source);
+    const sourceEl = rawEl && 'getAdapter' in rawEl ? (rawEl as unknown as SourceElement) : null;
+    const adapter = sourceEl?.getAdapter?.();
+    const caps: AdapterCapabilities | undefined = adapter?.capabilities;
 
-    // Delegate group-by + aggregate together (they're coupled).
-    // Don't override if source already has its own groupBy or aggregate.
-    if (this.groupBy && caps.serverGroupBy && !sourceGroupBy && !sourceAggregate) {
-      // Le where conditionne la délégation du group-by (#275) : un filtre
-      // intraduisible doit s'appliquer client-side sur les lignes BRUTES,
-      // donc avant un group-by qui reste alors client-side lui aussi.
-      // Sans cela, le filtre serait ré-appliqué sur les lignes agrégées où
-      // les champs bruts n'existent plus → toutes les lignes éliminées.
-      const whereDelegation = this._buildWhereDelegation(
-        this.filter || this.where,
-        caps.whereFormat
-      );
-      const fields = [
-        ...this.groupBy.split(','),
-        ...this._parseAggregates(this.aggregate).map((a) => a.field),
-        ...whereDelegation.fields,
-      ];
-      if (whereDelegation.ok && canDelegateFields(fields)) {
-        cmd.groupBy = this.groupBy;
-        this._serverDelegated.groupBy = true;
+    if (sourceEl && adapter && caps) {
+      // Don't override if dsfr-data-source already has its own groupBy/aggregate
+      // (user explicitly configured them on the source — respect that)
+      const sourceGroupBy = sourceEl.groupBy || '';
+      const sourceAggregate = sourceEl.aggregate || '';
 
-        if (this.aggregate) {
-          cmd.aggregate = this.aggregate;
-          this._serverDelegated.aggregate = true;
+      // Certains adapters (Tabular) ne peuvent pas deleguer des champs dont le nom
+      // contient des espaces/ponctuation (syntaxe a suffixe `colonne__op`). On les
+      // interroge avant de deleguer ; sinon on retombe sur le client-side.
+      const canDelegateFields = (fields: string[]): boolean => {
+        const clean = fields.map((f) => f.trim()).filter(Boolean);
+        return adapter.supportsServerFields?.(clean) !== false;
+      };
+
+      // Delegate group-by + aggregate together (they're coupled).
+      // Don't override if source already has its own groupBy or aggregate.
+      if (this.groupBy && caps.serverGroupBy && !sourceGroupBy && !sourceAggregate) {
+        // Le where conditionne la délégation du group-by (#275) : un filtre
+        // intraduisible doit s'appliquer client-side sur les lignes BRUTES,
+        // donc avant un group-by qui reste alors client-side lui aussi.
+        // Sans cela, le filtre serait ré-appliqué sur les lignes agrégées où
+        // les champs bruts n'existent plus → toutes les lignes éliminées.
+        const whereDelegation = this._buildWhereDelegation(
+          this.filter || this.where,
+          caps.whereFormat
+        );
+        const fields = [
+          ...this.groupBy.split(','),
+          ...this._parseAggregates(this.aggregate).map((a) => a.field),
+          ...whereDelegation.fields,
+        ];
+        if (whereDelegation.ok && canDelegateFields(fields)) {
+          cmd.groupBy = this.groupBy;
+          this._serverDelegated.groupBy = true;
+
+          if (this.aggregate) {
+            cmd.aggregate = this.aggregate;
+            this._serverDelegated.aggregate = true;
+          }
+
+          if (whereDelegation.where) {
+            cmd.where = whereDelegation.where;
+            cmd.whereKey = this._whereOverlayKey();
+            this._serverDelegated.where = true;
+          }
         }
+      }
 
-        if (whereDelegation.where) {
-          cmd.where = whereDelegation.where;
-          cmd.whereKey = this._whereOverlayKey();
-          this._serverDelegated.where = true;
+      // Delegate order-by
+      const sourceOrderBy = sourceEl.orderBy || '';
+      if (this.orderBy && caps.serverOrderBy && !sourceOrderBy) {
+        const orderField = this.orderBy.split(':')[0] || '';
+        if (canDelegateFields([orderField])) {
+          cmd.orderBy = this.orderBy;
+          this._serverDelegated.orderBy = true;
         }
       }
     }
 
-    // Delegate order-by
-    const sourceOrderBy = sourceEl.orderBy || '';
-    if (this.orderBy && caps.serverOrderBy && !sourceOrderBy) {
-      const orderField = this.orderBy.split(':')[0] || '';
-      if (canDelegateFields([orderField])) {
-        cmd.orderBy = this.orderBy;
-        this._serverDelegated.orderBy = true;
+    // Diff same-source : liberer les operations qui ne sont plus deleguees
+    // (retrait de group-by, where disparu…) — envoye dans la MEME commande
+    // que les nouvelles delegations pour un seul refetch (#276).
+    if (prevSourceId && prevSourceId === this.source) {
+      if (prev.groupBy && !this._serverDelegated.groupBy) cmd.groupBy = '';
+      if (prev.aggregate && !this._serverDelegated.aggregate) cmd.aggregate = '';
+      if (prev.orderBy && !this._serverDelegated.orderBy) cmd.orderBy = '';
+      if (prev.where && !this._serverDelegated.where) {
+        cmd.where = '';
+        cmd.whereKey = this._whereOverlayKey();
       }
     }
 
+    this._delegatedSourceId = this._hasServerDelegation() ? this.source : null;
+
+    if (Object.keys(cmd).length === 0) {
+      this._lastDelegation = null;
+      return;
+    }
+
+    // Dedup cote query (#276) : commande identique a la derniere envoyee a
+    // la meme cible → la source est deja dans cet etat, son cache est
+    // valide. Redispatchcer ferait sauter le cache a _subscribeToSourceData
+    // en attendant une emission que la source (qui deduplique aussi) ne
+    // renverrait qu'en async — gel evitable.
+    const cmdJson = JSON.stringify(cmd);
+    if (
+      this._lastDelegation?.sourceId === this.source &&
+      this._lastDelegation.cmdJson === cmdJson
+    ) {
+      return;
+    }
+
+    this._lastDelegation = { sourceId: this.source, cmdJson };
+    this._sourceEmittedSinceCommand = false;
+    dispatchSourceCommand(this.source, cmd);
+  }
+
+  /**
+   * Envoie les commandes de liberation des operations deleguees a une
+   * source donnee (valeurs vides → la source revert a ses propres attributs).
+   */
+  private _sendDelegationClears(
+    targetId: string,
+    delegated: { groupBy: boolean; aggregate: boolean; orderBy: boolean; where: boolean }
+  ) {
+    const cmd: Record<string, string> = {};
+    if (delegated.groupBy) cmd.groupBy = '';
+    if (delegated.aggregate) cmd.aggregate = '';
+    if (delegated.orderBy) cmd.orderBy = '';
+    if (delegated.where) {
+      cmd.where = '';
+      cmd.whereKey = this._whereOverlayKey();
+    }
     if (Object.keys(cmd).length > 0) {
-      dispatchSourceCommand(this.source, cmd);
+      dispatchSourceCommand(targetId, cmd);
     }
   }
 
@@ -458,24 +537,16 @@ export class DsfrDataQuery extends LitElement {
   /**
    * Clear server-side overlays on dsfr-data-source (disconnect cleanup).
    * Sends empty values so dsfr-data-source reverts to its own attributes.
+   * Adresse a la source reellement deleguee (#276) — pas a `this.source`,
+   * qui peut avoir change entre-temps.
    */
   private _clearServerDelegation() {
-    if (!this.source || !this._hasServerDelegation()) return;
-
-    const cmd: Record<string, string> = {};
-    if (this._serverDelegated.groupBy) cmd.groupBy = '';
-    if (this._serverDelegated.aggregate) cmd.aggregate = '';
-    if (this._serverDelegated.orderBy) cmd.orderBy = '';
-    if (this._serverDelegated.where) {
-      cmd.where = '';
-      cmd.whereKey = this._whereOverlayKey();
+    if (this._delegatedSourceId && this._hasServerDelegation()) {
+      this._sendDelegationClears(this._delegatedSourceId, this._serverDelegated);
     }
-
-    if (Object.keys(cmd).length > 0) {
-      dispatchSourceCommand(this.source, cmd);
-    }
-
     this._serverDelegated = { groupBy: false, aggregate: false, orderBy: false, where: false };
+    this._delegatedSourceId = null;
+    this._lastDelegation = null;
   }
 
   /**
@@ -494,9 +565,11 @@ export class DsfrDataQuery extends LitElement {
 
   private _subscribeToSourceData(sourceId: string) {
     // Check cache first (avoids race condition if source already emitted).
-    // BUT skip cache if we just sent server-side commands — the cached data
-    // is stale (pre-delegation). Wait for fresh data from dsfr-data-source.
-    if (!this._hasServerDelegation()) {
+    // BUT skip cache if a command was just sent and no emission followed —
+    // the cached data is stale (pre-command). A deduplicated re-negotiation
+    // (#276) keeps the right to read the cache: it matches the current
+    // overlay state of the source.
+    if (this._sourceEmittedSinceCommand) {
       const cachedData = getDataCache(sourceId);
       if (cachedData !== undefined) {
         this._rawData = Array.isArray(cachedData) ? cachedData : [cachedData];
@@ -506,6 +579,7 @@ export class DsfrDataQuery extends LitElement {
 
     this._unsubscribe = subscribeToSource(sourceId, {
       onLoaded: (data: unknown) => {
+        this._sourceEmittedSinceCommand = true;
         this._rawData = Array.isArray(data) ? data : [data];
         this._handleSourceData();
       },

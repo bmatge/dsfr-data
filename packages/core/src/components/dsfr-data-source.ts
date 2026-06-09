@@ -148,6 +148,7 @@ export class DsfrDataSource extends LitElement {
   private _abortController: AbortController | null = null;
   private _unsubscribeCommands: (() => void) | null = null;
   private _fetchScheduled = false;
+  private _reemitScheduled = false;
 
   /** Dynamic WHERE overlays from dsfr-data-facets, dsfr-data-search, etc. */
   private _whereOverlays = new Map<string, string>();
@@ -384,8 +385,28 @@ export class DsfrDataSource extends LitElement {
 
       if (needsFetch) {
         this._scheduleFetch();
+      } else if (this._data !== null && !this._fetchScheduled && !this._loading) {
+        // Commande entierement dedupliquee : re-emettre le cache pour qu'un
+        // transformateur qui attend une emission post-commande ne gele pas
+        // (#276). Contrat : une commande produit TOUJOURS une emission.
+        // Async (macrotask) pour laisser l'appelant s'abonner apres sa
+        // commande ; coalesce si plusieurs commandes no-op arrivent.
+        this._scheduleReemit();
       }
     });
+  }
+
+  /** Re-emission asynchrone du cache (commande no-op, #276) */
+  private _scheduleReemit() {
+    if (this._reemitScheduled) return;
+    this._reemitScheduled = true;
+    setTimeout(() => {
+      this._reemitScheduled = false;
+      // Un fetch a pu etre demande entre-temps : son emission suffira
+      if (!this._fetchScheduled && !this._loading && this._data !== null) {
+        dispatchDataLoaded(this.id, this._data);
+      }
+    }, 0);
   }
 
   private async _fetchData() {
