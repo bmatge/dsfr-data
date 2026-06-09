@@ -41,6 +41,26 @@ type LeafletWithPlugins = LeafletModule & {
 };
 type WindowWithLeaflet = Window & { L?: LeafletWithPlugins };
 
+type HeatLayerFactory = NonNullable<LeafletWithPlugins['heatLayer']>;
+type ClusterFactory = (opts: Record<string, unknown>) => FeatureGroup;
+
+/**
+ * Résout un symbole ajouté par un plugin Leaflet (markercluster, heat) après
+ * son `import()` dynamique. Les plugins UMD étendent l'objet `module.exports`
+ * de Leaflet ; selon l'interop CJS du bundler, l'ajout est visible sur
+ * `window.L` (namespace exposé par loadLeaflet) ou seulement sur l'export
+ * `default` du module Leaflet bundlé — on consulte les deux. Plus aucun
+ * fallback CDN runtime (#292) : incompatible CSP strict et sovereign-only.
+ */
+async function resolveLeafletPluginSymbol<T>(name: string): Promise<T | undefined> {
+  const winL = (window as WindowWithLeaflet).L as Record<string, unknown> | undefined;
+  if (winL?.[name]) return winL[name] as T;
+  const ns = (await import('leaflet')) as unknown as Record<string, unknown> & {
+    default?: Record<string, unknown>;
+  };
+  return (ns[name] ?? ns.default?.[name]) as T | undefined;
+}
+
 /** Choropleth palettes — shared with dsfr-data-world-map */
 const CHOROPLETH_PALETTES: Record<string, readonly string[]> = {
   sequentialAscending: [
@@ -260,8 +280,10 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   private _banner: HTMLDivElement | null = null;
   private _totalCount = 0;
   private _clusterLoaded = false;
+  private _markerClusterFactory: ClusterFactory | null = null;
   private _heatLayer: LeafletLayer | null = null;
   private _heatLoaded = false;
+  private _heatLayerFactory: HeatLayerFactory | null = null;
   private _radiusScale: ((val: number) => number) | null = null;
   private _colorMapParsed: Map<string, string> | null = null;
 
@@ -601,12 +623,8 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     // Create cluster group if clustering
     if (this.cluster && this._clusterLoaded) {
       if (!this._clusterGroup) {
-        const WL = (window as WindowWithLeaflet).L;
-        if (!WL) return;
-        // markerClusterGroup (lowercase factory) or new MarkerClusterGroup (constructor)
-        const createCluster: (opts: Record<string, unknown>) => FeatureGroup = WL.markerClusterGroup
-          ? (opts) => WL.markerClusterGroup!(opts)
-          : (opts) => new WL.MarkerClusterGroup!(opts);
+        const createCluster = this._markerClusterFactory;
+        if (!createCluster) return;
         this._clusterGroup = createCluster({
           maxClusterRadius: this.clusterRadius,
           iconCreateFunction: (clusterObj: { getChildCount: () => number }) => {
@@ -823,9 +841,8 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
 
     if (points.length === 0) return;
 
-    const winL = (window as WindowWithLeaflet).L;
-    if (this._heatLoaded && winL?.heatLayer) {
-      this._heatLayer = winL.heatLayer(points, {
+    if (this._heatLoaded && this._heatLayerFactory) {
+      this._heatLayer = this._heatLayerFactory(points, {
         radius: this.heatRadius,
         blur: this.heatBlur,
         maxZoom: this.maxZoom,
@@ -850,23 +867,17 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
 
   private async _loadHeatLayer() {
     try {
-      // leaflet.heat is a UMD plugin that extends global L.
-      // Same approach as markercluster: try ESM import, fallback to CDN.
+      // leaflet.heat est un plugin UMD qui étend l'objet Leaflet : l'import
+      // dynamique (chunk produit par le build) déclenche l'effet de bord,
+      // puis on résout heatLayer là où l'interop l'a déposé.
       // @ts-expect-error — leaflet.heat ships no types
       await import('leaflet.heat');
-
-      if (!(window as WindowWithLeaflet).L?.heatLayer) {
-        // Fallback: load via CDN script tag
-        await new Promise<void>((resolve, reject) => {
-          const s = document.createElement('script');
-          s.src = 'https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js';
-          s.onload = () => resolve();
-          s.onerror = () => reject(new Error('Failed to load leaflet.heat from CDN'));
-          document.head.appendChild(s);
-        });
+      this._heatLayerFactory =
+        (await resolveLeafletPluginSymbol<HeatLayerFactory>('heatLayer')) ?? null;
+      this._heatLoaded = !!this._heatLayerFactory;
+      if (!this._heatLoaded) {
+        console.warn('dsfr-data-map-layer: leaflet.heat not available, using circle fallback');
       }
-
-      this._heatLoaded = !!(window as WindowWithLeaflet).L?.heatLayer;
     } catch {
       console.warn('dsfr-data-map-layer: leaflet.heat not available, using circle fallback');
       this._heatLoaded = false;
@@ -1078,25 +1089,20 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
         document.head.appendChild(style);
       }
 
-      // leaflet.markercluster is a UMD plugin that extends the global L.
-      // Vite may bundle it as ESM which breaks the global L extension.
-      // We import it (which triggers the side-effect of extending L),
-      // then verify it worked. If not, load via script tag as fallback.
+      // leaflet.markercluster est un plugin UMD qui étend l'objet Leaflet :
+      // l'import dynamique (chunk produit par le build) déclenche l'effet de
+      // bord, puis on résout la factory/le constructeur là où l'interop CJS
+      // l'a déposé (window.L ou export default du module Leaflet bundlé).
       await import('leaflet.markercluster');
 
-      if (!(window as WindowWithLeaflet).L?.MarkerClusterGroup) {
-        // Fallback: load via CDN script tag (guaranteed UMD global execution)
-        await new Promise<void>((resolve, reject) => {
-          const s = document.createElement('script');
-          s.src =
-            'https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js';
-          s.onload = () => resolve();
-          s.onerror = () => reject(new Error('Failed to load leaflet.markercluster from CDN'));
-          document.head.appendChild(s);
-        });
-      }
-
-      this._clusterLoaded = !!(window as WindowWithLeaflet).L?.MarkerClusterGroup;
+      const factory = await resolveLeafletPluginSymbol<ClusterFactory>('markerClusterGroup');
+      const ctor = factory
+        ? undefined
+        : await resolveLeafletPluginSymbol<new (opts?: Record<string, unknown>) => FeatureGroup>(
+            'MarkerClusterGroup'
+          );
+      this._markerClusterFactory = factory ?? (ctor ? (opts) => new ctor(opts) : null);
+      this._clusterLoaded = !!this._markerClusterFactory;
 
       // Inject DSFR cluster styles
       if (!document.querySelector('style[data-dsfr-map-cluster]')) {
