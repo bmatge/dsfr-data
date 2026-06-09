@@ -490,7 +490,7 @@ describe('DsfrDataList component', () => {
   describe('server pagination', () => {
     it('detects server pagination when meta is present', () => {
       datalist.source = 'test-dl-src';
-      setDataMeta('test-dl-src', { page: 1, pageSize: 20, total: 500 });
+      setDataMeta('test-dl-src', { page: 1, pageSize: 20, total: 500, serverSide: true });
       datalist.onSourceData(Array.from({ length: 20 }, (_, i) => ({ id: i })));
 
       expect((datalist as any)._serverPagination).toBe(true);
@@ -500,7 +500,7 @@ describe('DsfrDataList component', () => {
 
     it('uses meta.page as current page (does not reset to 1)', () => {
       datalist.source = 'test-dl-src';
-      setDataMeta('test-dl-src', { page: 5, pageSize: 20, total: 500 });
+      setDataMeta('test-dl-src', { page: 5, pageSize: 20, total: 500, serverSide: true });
       datalist.onSourceData(Array.from({ length: 20 }, (_, i) => ({ id: i })));
 
       expect((datalist as any)._currentPage).toBe(5);
@@ -509,7 +509,7 @@ describe('DsfrDataList component', () => {
     it('returns all data (no client slicing) in server mode', () => {
       datalist.source = 'test-dl-src';
       datalist.pagination = 10;
-      setDataMeta('test-dl-src', { page: 1, pageSize: 20, total: 500 });
+      setDataMeta('test-dl-src', { page: 1, pageSize: 20, total: 500, serverSide: true });
       datalist.onSourceData(Array.from({ length: 20 }, (_, i) => ({ id: i })));
 
       expect((datalist as any)._getPaginatedData()).toHaveLength(20);
@@ -518,7 +518,7 @@ describe('DsfrDataList component', () => {
     it('computes total pages from server meta', () => {
       datalist.source = 'test-dl-src';
       datalist.pagination = 10;
-      setDataMeta('test-dl-src', { page: 1, pageSize: 20, total: 500 });
+      setDataMeta('test-dl-src', { page: 1, pageSize: 20, total: 500, serverSide: true });
       datalist.onSourceData(Array.from({ length: 20 }, (_, i) => ({ id: i })));
 
       expect((datalist as any)._getTotalPages()).toBe(25);
@@ -530,6 +530,37 @@ describe('DsfrDataList component', () => {
       datalist.onSourceData(Array.from({ length: 25 }, (_, i) => ({ id: i })));
 
       expect((datalist as any)._serverPagination).toBe(false);
+      expect((datalist as any)._getTotalPages()).toBe(3);
+    });
+
+    it('does NOT activate server pagination on fetchAll meta (#270 — Infinity pages)', () => {
+      datalist.source = 'test-dl-src';
+      datalist.pagination = 10;
+      // Meta publiee par un fetchAll : total connu mais pageSize 0, serverSide false
+      setDataMeta('test-dl-src', { page: 1, pageSize: 0, total: 500, serverSide: false });
+      datalist.onSourceData(Array.from({ length: 25 }, (_, i) => ({ id: i })));
+
+      expect((datalist as any)._serverPagination).toBe(false);
+      expect((datalist as any)._getTotalPages()).toBe(3);
+      expect(Number.isFinite((datalist as any)._getTotalPages())).toBe(true);
+    });
+
+    it('activates server pagination with unknown total — Grist Records (#270)', () => {
+      datalist.source = 'test-dl-src';
+      // Grist Records hors derniere page : total inconnu (undefined)
+      setDataMeta('test-dl-src', { page: 2, pageSize: 20, total: undefined, serverSide: true });
+      datalist.onSourceData(Array.from({ length: 20 }, (_, i) => ({ id: i })));
+
+      expect((datalist as any)._serverPagination).toBe(true);
+      // Page pleine : il y a une page suivante
+      expect((datalist as any)._getTotalPages()).toBe(3);
+    });
+
+    it('stops at current page when last page is partial and total unknown', () => {
+      datalist.source = 'test-dl-src';
+      setDataMeta('test-dl-src', { page: 3, pageSize: 20, total: undefined, serverSide: true });
+      datalist.onSourceData(Array.from({ length: 7 }, (_, i) => ({ id: i })));
+
       expect((datalist as any)._getTotalPages()).toBe(3);
     });
   });

@@ -65,14 +65,24 @@ export interface ServerSideOverlay {
 
 /**
  * Resultat d'une operation de fetch (paginee ou page unique).
+ *
+ * CONTRAT (#270) :
+ * - `totalCount` : total de lignes cote serveur. `undefined` quand le
+ *   provider ne le connait pas (ex. Grist Records hors derniere page) —
+ *   JAMAIS `-1` ni autre sentinelle.
+ * - `needsClientProcessing` : true ssi des transformations demandees dans
+ *   les params (group-by, aggregate, where avance, order-by) n'ont PAS ete
+ *   appliquees par l'adapter — l'aval (dsfr-data-query) doit les
+ *   (re)appliquer. False quand tout ce qui etait demande a ete traite,
+ *   y compris quand rien n'etait demande.
  */
 export interface FetchResult {
   data: unknown[];
-  totalCount: number;
+  /** Total cote serveur ; undefined = inconnu (jamais -1) */
+  totalCount?: number;
   /**
-   * True si un traitement client-side (group-by, aggregate, sort, limit)
-   * est necessaire apres le fetch. Tabular multi-page retourne true ;
-   * ODS gere ca cote serveur et retourne false.
+   * True ssi des transformations demandees (group-by, aggregate, where
+   * avance, order-by) n'ont pas ete appliquees par l'adapter.
    */
   needsClientProcessing: boolean;
   /** JSON brut de la reponse (pour appliquer transform sur la bonne racine) */

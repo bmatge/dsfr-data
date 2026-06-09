@@ -17,10 +17,24 @@ export interface DataLoadingEvent {
   sourceId: string;
 }
 
+/**
+ * Metadonnees de pagination publiees par les sources (#270).
+ *
+ * CONTRAT :
+ * - `serverSide: true` est le SEUL signal qui active la pagination serveur
+ *   en aval (list, display). Ne jamais inferer depuis `total` — un fetchAll
+ *   publie aussi un total.
+ * - `total` : undefined = inconnu (ex. Grist Records hors derniere page).
+ *   L'aval doit alors proposer "page suivante" tant que la page est pleine.
+ * - `pageSize` : 0 quand non pagine (fetchAll).
+ */
 export interface PaginationMeta {
   page: number;
   pageSize: number;
-  total: number;
+  /** Total de lignes cote serveur ; undefined = inconnu */
+  total?: number;
+  /** True si la source pagine cote serveur (fetchPage) */
+  serverSide?: boolean;
   /** True si le fetch n'a pas pu traiter group-by/aggregate server-side (fallback client) */
   needsClientProcessing?: boolean;
 }

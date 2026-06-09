@@ -466,7 +466,8 @@ describe('GristAdapter — fetchAll', () => {
       { nom: 'Lyon', pop: 500000 },
     ]);
     expect(result.totalCount).toBe(2);
-    expect(result.needsClientProcessing).toBe(true);
+    // Records applique tout ce qui etait demande (rien ici) : false (#270)
+    expect(result.needsClientProcessing).toBe(false);
   });
 
   it('returns needsClientProcessing=false when where is set', async () => {
@@ -669,7 +670,7 @@ describe('GristAdapter — fetchPage', () => {
     expect(result.totalCount).toBe(55);
   });
 
-  it('returns totalCount=-1 when page is full (more pages exist)', async () => {
+  it('returns totalCount=undefined when page is full (more pages exist)', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: () =>
@@ -687,7 +688,8 @@ describe('GristAdapter — fetchPage', () => {
       new AbortController().signal
     );
 
-    expect(result.totalCount).toBe(-1);
+    // Contrat #270 : total inconnu = undefined, jamais -1
+    expect(result.totalCount).toBeUndefined();
   });
 
   it('uses SQL mode for fetchPage when groupBy is set', async () => {

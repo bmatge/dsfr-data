@@ -602,7 +602,8 @@ describe('InseeAdapter — fetchPage', () => {
 
     expect(result.data).toEqual([{ GEO: 'FR', OBS_VALUE: 100 }]);
     expect(result.totalCount).toBe(50);
-    expect(result.needsClientProcessing).toBe(true);
+    // Contrat #270 : rien a re-traiter cote client quand aucun group-by/aggregate demande
+    expect(result.needsClientProcessing).toBe(false);
     expect(result.rawJson).toBeDefined();
   });
 

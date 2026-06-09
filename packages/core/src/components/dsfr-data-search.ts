@@ -295,7 +295,7 @@ export class DsfrDataSearch extends LitElement {
 
       // Use meta.total if available for count, otherwise use row count
       const meta = getDataMeta(this.source);
-      this._resultCount = meta ? meta.total : rows.length;
+      this._resultCount = meta?.total ?? rows.length;
 
       // Re-emit under our own ID, forwarding pagination metadata
       if (this.id) {

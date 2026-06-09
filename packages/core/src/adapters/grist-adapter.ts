@@ -119,8 +119,10 @@ export class GristAdapter implements ApiAdapter {
     return {
       data,
       totalCount: data.length,
-      // Server-side si filter ou sort appliques, sinon client-side
-      needsClientProcessing: !params.where && !params.orderBy,
+      // Records applique filter (eq/in), sort et limit. Si on est ici alors
+      // que le SQL etait requis (group-by/aggregate/operateurs avances) mais
+      // indisponible, ces transformations restent a faire cote client (#270).
+      needsClientProcessing: this._needsSqlMode(params),
     };
   }
 
@@ -145,7 +147,9 @@ export class GristAdapter implements ApiAdapter {
 
     return {
       data,
-      totalCount: isLastPage ? ((overlay.page || 1) - 1) * pageSize + data.length : -1,
+      // Total inconnu hors derniere page : undefined, jamais -1 (#270).
+      // L'aval propose "page suivante" tant que la page courante est pleine.
+      totalCount: isLastPage ? ((overlay.page || 1) - 1) * pageSize + data.length : undefined,
       needsClientProcessing: false,
     };
   }

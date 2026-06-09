@@ -463,6 +463,7 @@ export class DsfrDataSource extends LitElement {
           page: json.meta.page ?? this._currentPage,
           pageSize: json.meta.page_size ?? this.pageSize,
           total: json.meta.total ?? 0,
+          serverSide: true,
         });
       }
 
@@ -549,22 +550,27 @@ export class DsfrDataSource extends LitElement {
         };
         result = await adapter.fetchPage(params, overlay, this._abortController.signal);
 
-        // Publish pagination meta
+        // Publish pagination meta — serverSide:true est le signal d'activation
+        // de la pagination serveur en aval (contrat #270)
         setDataMeta(this.id, {
           page: this._currentPage,
           pageSize: this.pageSize,
           total: result.totalCount,
+          serverSide: true,
           needsClientProcessing: result.needsClientProcessing,
         });
       } else {
         // Fetch all with auto-pagination
         result = await adapter.fetchAll(params, this._abortController.signal);
 
-        // Publish meta with needsClientProcessing flag
+        // Publish meta with needsClientProcessing flag. serverSide:false —
+        // l'aval ne doit PAS activer sa pagination serveur sur un fetchAll
+        // (pageSize 0 produisait des totaux de pages Infinity, #270)
         setDataMeta(this.id, {
           page: 1,
           pageSize: 0,
           total: result.totalCount,
+          serverSide: false,
           needsClientProcessing: result.needsClientProcessing,
         });
       }

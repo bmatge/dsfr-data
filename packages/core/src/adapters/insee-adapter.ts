@@ -143,7 +143,10 @@ export class InseeAdapter implements ApiAdapter {
     return {
       data,
       totalCount,
-      needsClientProcessing: true,
+      // Aligne sur les autres adapters (#270) : true seulement si des
+      // transformations demandees restent a appliquer. INSEE ne sait pas
+      // faire de group-by/aggregate server-side.
+      needsClientProcessing: !!(params.groupBy || params.aggregate),
       rawJson: json,
     };
   }

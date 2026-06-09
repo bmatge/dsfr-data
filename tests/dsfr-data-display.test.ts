@@ -344,7 +344,7 @@ describe('DsfrDataDisplay', () => {
   describe('server pagination', () => {
     it('detects server pagination when meta is present', () => {
       display.source = 'test-display-src';
-      setDataMeta('test-display-src', { page: 1, pageSize: 20, total: 100 });
+      setDataMeta('test-display-src', { page: 1, pageSize: 20, total: 100, serverSide: true });
       display.onSourceData(Array.from({ length: 20 }, (_, i) => ({ id: i })));
 
       expect((display as any)._serverPagination).toBe(true);
@@ -354,7 +354,7 @@ describe('DsfrDataDisplay', () => {
 
     it('uses meta.page as current page (does not reset to 1)', () => {
       display.source = 'test-display-src';
-      setDataMeta('test-display-src', { page: 3, pageSize: 20, total: 100 });
+      setDataMeta('test-display-src', { page: 3, pageSize: 20, total: 100, serverSide: true });
       display.onSourceData(Array.from({ length: 20 }, (_, i) => ({ id: i })));
 
       expect((display as any)._currentPage).toBe(3);
@@ -363,7 +363,7 @@ describe('DsfrDataDisplay', () => {
     it('returns all data (no client slicing) in server mode', () => {
       display.source = 'test-display-src';
       display.pagination = 10;
-      setDataMeta('test-display-src', { page: 1, pageSize: 20, total: 100 });
+      setDataMeta('test-display-src', { page: 1, pageSize: 20, total: 100, serverSide: true });
       display.onSourceData(Array.from({ length: 20 }, (_, i) => ({ id: i })));
 
       // In server mode, should return all 20 items (the full page from server)
@@ -373,7 +373,7 @@ describe('DsfrDataDisplay', () => {
     it('computes total pages from server meta', () => {
       display.source = 'test-display-src';
       display.pagination = 10;
-      setDataMeta('test-display-src', { page: 1, pageSize: 20, total: 100 });
+      setDataMeta('test-display-src', { page: 1, pageSize: 20, total: 100, serverSide: true });
       display.onSourceData(Array.from({ length: 20 }, (_, i) => ({ id: i })));
 
       expect((display as any)._getTotalPages()).toBe(5);

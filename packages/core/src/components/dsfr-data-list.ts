@@ -94,7 +94,8 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
   @state()
   private _serverPagination = false;
 
-  private _serverTotal = 0;
+  /** Total serveur ; undefined = inconnu (ex. Grist Records hors derniere page) */
+  private _serverTotal: number | undefined = 0;
   private _serverPageSize = 0;
   private _previousPage = 1;
   private _popstateHandler: (() => void) | null = null;
@@ -150,9 +151,11 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
   onSourceData(data: unknown): void {
     this._data = Array.isArray(data) ? (data as Record<string, unknown>[]) : [];
 
-    // Detecter la pagination serveur via les metadonnees
+    // Detecter la pagination serveur via le flag explicite serverSide (#270).
+    // Ne jamais inferer depuis total : un fetchAll publie aussi un total
+    // (pageSize 0 -> Infinity pages).
     const meta = this.source ? getDataMeta(this.source) : undefined;
-    if (meta && meta.total > 0) {
+    if (meta && meta.serverSide && meta.pageSize > 0) {
       this._serverPagination = true;
       this._serverTotal = meta.total;
       this._serverPageSize = meta.pageSize;
@@ -249,7 +252,14 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
 
   private _getTotalPages(): number {
     if (this._serverPagination) {
-      return Math.ceil(this._serverTotal / this._serverPageSize);
+      // Total inconnu (ex. Grist Records hors derniere page) : proposer la
+      // page suivante tant que la page courante est pleine ; le total exact
+      // arrive avec la derniere page (#270)
+      if (this._serverTotal === undefined) {
+        const pageFull = this._data.length >= this._serverPageSize;
+        return pageFull ? this._currentPage + 1 : this._currentPage;
+      }
+      return Math.max(1, Math.ceil(this._serverTotal / this._serverPageSize));
     }
     if (!this.pagination || this.pagination <= 0) return 1;
     return Math.ceil(this.getFilteredData().length / this.pagination);
@@ -664,7 +674,8 @@ ${bodyRows}
     const paginatedData = this._getPaginatedData();
     const totalPages = this._getTotalPages();
     const totalFiltered = this._serverPagination
-      ? this._serverTotal
+      ? // Total inconnu : afficher au moins le nombre de lignes vues
+        (this._serverTotal ?? (this._currentPage - 1) * this._serverPageSize + this._data.length)
       : this.getFilteredData().length;
 
     return html`
