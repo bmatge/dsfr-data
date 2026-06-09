@@ -2,7 +2,7 @@ import { LitElement, html, css, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
-import { escapeHtml } from '@dsfr-data/shared';
+import { escapeHtml, buildCsv } from '@dsfr-data/shared';
 import { getDataMeta, dispatchSourceCommand } from '../utils/data-bridge.js';
 
 interface ColumnDef {
@@ -346,17 +346,13 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
     const columns = this.parseColumns();
     const data = this.getFilteredData();
 
-    const header = columns.map((c) => c.label).join(';');
-    const rows = data.map((item) =>
-      columns
-        .map((c) => {
-          const str = String(item[c.key] ?? '');
-          return str.includes(';') || str.includes('"') ? `"${str.replace(/"/g, '""')}"` : str;
-        })
-        .join(';')
-    );
+    if (this._serverPagination) {
+      console.warn(
+        'dsfr-data-list: export CSV en mode serveur — seule la page courante est exportée'
+      );
+    }
 
-    const csv = [header, ...rows].join('\n');
+    const csv = buildCsv(data, { columns });
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

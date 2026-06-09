@@ -1,5 +1,6 @@
 import { LitElement, html, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
+import { buildCsv } from '@dsfr-data/shared';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 
@@ -202,17 +203,12 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
   }
 
   _buildCsv(data: Record<string, unknown>[]): string {
-    const keys = Object.keys(data[0]);
-    const header = keys.join(';');
-    const rows = data.map((item) =>
-      keys
-        .map((key) => {
-          const str = String(item[key] ?? '');
-          return str.includes(';') || str.includes('"') ? `"${str.replace(/"/g, '""')}"` : str;
-        })
-        .join(';')
-    );
-    return [header, ...rows].join('\n');
+    // Memes colonnes que le tableau rendu (label-field/value-field si definis),
+    // champs techniques `_*` exclus dans tous les cas.
+    const columns = this._getColumns(data)
+      .filter((key) => !key.startsWith('_'))
+      .map((key) => ({ key }));
+    return buildCsv(data, { columns });
   }
 
   private _triggerDownload(csv: string) {

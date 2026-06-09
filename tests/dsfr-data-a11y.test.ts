@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { CSV_BOM } from '@dsfr-data/shared';
 import { DsfrDataA11y } from '@/components/dsfr-data-a11y.js';
 import {
   clearDataCache,
@@ -310,43 +311,69 @@ describe('DsfrDataA11y', () => {
         { nom: 'Lyon', pop: 500000 },
       ];
       const csv = comp._buildCsv(data);
-      expect(csv).toBe('nom;pop\nParis;2000000\nLyon;500000');
+      expect(csv).toBe(`${CSV_BOM}nom;pop\nParis;2000000\nLyon;500000`);
     });
 
     it('escapes quotes in values', () => {
       const data = [{ nom: 'Ville "Test"', pop: 100 }];
       const csv = comp._buildCsv(data);
-      expect(csv).toBe('nom;pop\n"Ville ""Test""";100');
+      expect(csv).toBe(`${CSV_BOM}nom;pop\n"Ville ""Test""";100`);
     });
 
     it('escapes semicolons in values', () => {
       const data = [{ desc: 'a;b', val: 1 }];
       const csv = comp._buildCsv(data);
-      expect(csv).toBe('desc;val\n"a;b";1');
+      expect(csv).toBe(`${CSV_BOM}desc;val\n"a;b";1`);
     });
 
     it('handles null and undefined values', () => {
       const data = [{ a: null, b: undefined, c: 'ok' }];
       const csv = comp._buildCsv(data as Record<string, unknown>[]);
-      expect(csv).toBe('a;b;c\n;;ok');
+      expect(csv).toBe(`${CSV_BOM}a;b;c\n;;ok`);
     });
 
     it('generates header-only for single-row empty data', () => {
       const data = [{ col1: '', col2: '' }];
       const csv = comp._buildCsv(data);
-      expect(csv).toBe('col1;col2\n;');
+      expect(csv).toBe(`${CSV_BOM}col1;col2\n;`);
     });
 
     it('handles numeric values correctly', () => {
       const data = [{ x: 3.14, y: -42 }];
       const csv = comp._buildCsv(data);
-      expect(csv).toBe('x;y\n3.14;-42');
+      expect(csv).toBe(`${CSV_BOM}x;y\n3.14;-42`);
     });
 
     it('handles boolean values', () => {
       const data = [{ flag: true, active: false }];
       const csv = comp._buildCsv(data);
-      expect(csv).toBe('flag;active\ntrue;false');
+      expect(csv).toBe(`${CSV_BOM}flag;active\ntrue;false`);
+    });
+
+    it('quotes multi-line values (RFC 4180)', () => {
+      const data = [{ adresse: '12 rue X\n75001 Paris', ville: 'Paris' }];
+      const csv = comp._buildCsv(data);
+      expect(csv).toBe(`${CSV_BOM}adresse;ville\n"12 rue X\n75001 Paris";Paris`);
+    });
+
+    it('neutralizes spreadsheet formulas', () => {
+      const data = [{ a: '=SUM(A1:A2)', b: 12 }];
+      const csv = comp._buildCsv(data);
+      expect(csv).toBe(`${CSV_BOM}a;b\n'=SUM(A1:A2);12`);
+    });
+
+    it('excludes technical _* fields (e.g. _highlight) from export', () => {
+      const data = [{ nom: 'Paris', _highlight: '<mark>Pa</mark>ris' }];
+      const csv = comp._buildCsv(data);
+      expect(csv).toBe(`${CSV_BOM}nom\nParis`);
+    });
+
+    it('exports the same columns as the rendered table when label/value fields are set', () => {
+      comp.labelField = 'nom';
+      comp.valueField = 'pop';
+      const data = [{ nom: 'Paris', pop: 2000000, interne: 'x', _highlight: 'y' }];
+      const csv = comp._buildCsv(data);
+      expect(csv).toBe(`${CSV_BOM}nom;pop\nParis;2000000`);
     });
   });
 

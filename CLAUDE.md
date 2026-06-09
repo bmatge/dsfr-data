@@ -202,6 +202,7 @@ L'adapter expose aussi `fetchColumns()` et `fetchTables()` pour l'introspection 
 
 Utilitaires partages entre toutes les apps :
 - `escapeHtml()` - Echappement HTML
+- `buildCsv()`, `CSV_BOM` - Export CSV robuste (quoting RFC 4180, BOM UTF-8, neutralisation des formules tableur)
 - `formatKPIValue()`, `formatDateShort()` - Formatage
 - `toNumber()`, `looksLikeNumber()` - Parsing numerique
 - `isValidDeptCode()` - Validation codes departementaux
