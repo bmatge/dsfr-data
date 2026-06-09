@@ -4,6 +4,7 @@ import { sendWidgetBeacon } from '../utils/beacon.js';
 import { performJoin } from '@dsfr-data/shared/lib';
 import type { JoinType } from '@dsfr-data/shared/lib';
 import { TransformerMixin } from '../utils/transformer-mixin.js';
+import type { PaginationMeta } from '../utils/data-bridge.js';
 import type { SourceElement } from '../utils/source-element.js';
 
 type Row = Record<string, unknown>;
@@ -196,9 +197,13 @@ export class DsfrDataJoin extends TransformerMixin(LitElement) {
     this._tryJoin();
   }
 
-  /** Pas de meta propagee (le join change le nombre de lignes — cf. #282) */
-  protected transformMeta(): null {
-    return null;
+  /**
+   * Meta de la source GAUCHE propagee avec `total` invalide (#282) — la
+   * gauche porte les lignes (coherent avec le relais de commandes #272),
+   * et le join change le nombre de lignes.
+   */
+  protected transformMeta(meta: PaginationMeta): PaginationMeta {
+    return { ...meta, total: undefined };
   }
 
   /** Changement d'identite des sources → re-souscription complete (#281) */

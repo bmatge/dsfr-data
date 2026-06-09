@@ -3,7 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { performUnpivot } from '@dsfr-data/shared/lib';
 import type { UnpivotOptions } from '@dsfr-data/shared/lib';
 import { sendWidgetBeacon } from '../utils/beacon.js';
-import { getDataCache } from '../utils/data-bridge.js';
+import { getDataCache, type PaginationMeta } from '../utils/data-bridge.js';
 import { TransformerMixin } from '../utils/transformer-mixin.js';
 import type { SourceElement } from '../utils/source-element.js';
 
@@ -146,9 +146,14 @@ export class DsfrDataUnpivot extends TransformerMixin(LitElement) {
     this._processData(data);
   }
 
-  /** Pas de meta propagee (l'unpivot change le nombre de lignes — cf. #282) */
-  protected transformMeta(): null {
-    return null;
+  /**
+   * Meta amont propagee avec `total` invalide (#282) : l'unpivot change le
+   * nombre de lignes, mais needsClientProcessing/serverSide doivent suivre
+   * — un query aval d'un unpivot sur fallback Grist sautait son traitement
+   * client sur des donnees brutes.
+   */
+  protected transformMeta(meta: PaginationMeta): PaginationMeta {
+    return { ...meta, total: undefined };
   }
 
   /** Parametres d'unpivot → retraitement des donnees en cache (#281) */
