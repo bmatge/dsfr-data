@@ -185,7 +185,6 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   connectedCallback() {
     super.connectedCallback();
     sendWidgetBeacon('dsfr-data-facets');
-    this._initialize();
     document.addEventListener('click', this._onClickOutsideMultiselect);
     if (this.urlSync) {
       this._popstateHandler = () => {
@@ -207,20 +206,14 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     }
   }
 
-  willUpdate(changedProperties: Map<string, unknown>) {
-    super.willUpdate(changedProperties);
+  /** Changement de mode (serveur/statique) → re-souscription complete (#281) */
+  protected transformerReinitProps(): string[] {
+    return ['source', 'serverFacets', 'staticValues'];
+  }
 
-    if (changedProperties.has('source')) {
-      this._initialize();
-      return;
-    }
-
-    if (changedProperties.has('serverFacets') || changedProperties.has('staticValues')) {
-      this._initialize();
-      return;
-    }
-
-    const facetAttrs = [
+  /** Parametres de facettes → reconstruction des groupes (#281) */
+  protected transformerReprocessProps(): string[] {
+    return [
       'fields',
       'labels',
       'sort',
@@ -231,16 +224,17 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
       'display',
       'cols',
     ];
-    const hasFacetChange = facetAttrs.some((attr) => changedProperties.has(attr));
-    if (hasFacetChange && this._rawData.length > 0) {
-      if (this.serverFacets) {
-        this._fetchServerFacets();
-      } else if (this.staticValues) {
-        this._buildStaticFacetGroups();
-      } else {
-        this._buildFacetGroups();
-        this._applyFilters();
-      }
+  }
+
+  protected onTransformerReprocess(): void {
+    if (this._rawData.length === 0) return;
+    if (this.serverFacets) {
+      this._fetchServerFacets();
+    } else if (this.staticValues) {
+      this._buildStaticFacetGroups();
+    } else {
+      this._buildFacetGroups();
+      this._applyFilters();
     }
   }
 

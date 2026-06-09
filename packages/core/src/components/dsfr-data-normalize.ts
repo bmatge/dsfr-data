@@ -140,20 +140,17 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
   connectedCallback() {
     super.connectedCallback();
     sendWidgetBeacon('dsfr-data-normalize');
-    this.reinitTransformer();
   }
 
-  updated(changedProperties: Map<string, unknown>) {
-    super.updated(changedProperties);
+  // --- Hooks TransformerMixin (#280) ---
 
-    // Re-initialiser si source change
-    if (changedProperties.has('source')) {
-      this.reinitTransformer();
-      return;
-    }
+  protected transformerName(): string {
+    return 'dsfr-data-normalize';
+  }
 
-    // Re-traiter si les regles de normalisation changent
-    const normalizationAttrs = [
+  /** Regles de normalisation → retraitement des donnees en cache (#281) */
+  protected transformerReprocessProps(): string[] {
+    return [
       'flatten',
       'numeric',
       'numericAuto',
@@ -166,19 +163,13 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
       'lowercaseKeys',
       'compute',
     ];
-    const hasNormalizationChange = normalizationAttrs.some((attr) => changedProperties.has(attr));
-    if (hasNormalizationChange) {
-      const cachedData = this.source ? getDataCache(this.source) : undefined;
-      if (cachedData !== undefined) {
-        this._processData(cachedData);
-      }
-    }
   }
 
-  // --- Hooks TransformerMixin (#280) ---
-
-  protected transformerName(): string {
-    return 'dsfr-data-normalize';
+  protected onTransformerReprocess(): void {
+    const cachedData = this.source ? getDataCache(this.source) : undefined;
+    if (cachedData !== undefined) {
+      this._processData(cachedData);
+    }
   }
 
   protected onTransformerData(data: unknown): void {

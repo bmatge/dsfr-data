@@ -93,34 +93,10 @@ export class DsfrDataJoin extends TransformerMixin(LitElement) {
   connectedCallback() {
     super.connectedCallback();
     sendWidgetBeacon('dsfr-data-join');
-    // Initialization is handled in updated() to avoid double-init with Lit lifecycle.
-    // Lit's first update fires as a microtask right after connectedCallback,
-    // and that updated() call will trigger _initialize() when it sees left/right/on
-    // in changedProperties. This prevents the double-subscribe + reset bug
-    // that can cause the join to miss source data.
-  }
-
-  willUpdate(changedProperties: Map<string, unknown>) {
-    super.willUpdate(changedProperties);
-
-    // Source identity changed → full re-subscribe
-    const sourceChanged =
-      changedProperties.has('left') ||
-      changedProperties.has('right') ||
-      changedProperties.has('on');
-    if (sourceChanged) {
-      this.reinitTransformer();
-      return;
-    }
-
-    // Only join parameters changed (type, prefix) → re-compute with existing data
-    const paramChanged =
-      changedProperties.has('type') ||
-      changedProperties.has('prefixLeft') ||
-      changedProperties.has('prefixRight');
-    if (paramChanged && this._leftData !== null && this._rightData !== null) {
-      this._tryJoin();
-    }
+    // L'init unique au montage est geree par TransformerMixin (#281) — un
+    // join sans attributs signale enfin sa config manquante (avant : si
+    // left/right/on etaient tous vides, _initialize n'etait jamais appele,
+    // echec 100 % silencieux).
   }
 
   // --- Public API ---
@@ -223,6 +199,22 @@ export class DsfrDataJoin extends TransformerMixin(LitElement) {
   /** Pas de meta propagee (le join change le nombre de lignes — cf. #282) */
   protected transformMeta(): null {
     return null;
+  }
+
+  /** Changement d'identite des sources → re-souscription complete (#281) */
+  protected transformerReinitProps(): string[] {
+    return ['left', 'right', 'on'];
+  }
+
+  /** Parametres de jointure → recalcul avec les donnees deja recues (#281) */
+  protected transformerReprocessProps(): string[] {
+    return ['type', 'prefixLeft', 'prefixRight'];
+  }
+
+  protected onTransformerReprocess(): void {
+    if (this._leftData !== null && this._rightData !== null) {
+      this._tryJoin();
+    }
   }
 
   private _toRows(data: unknown): Row[] {

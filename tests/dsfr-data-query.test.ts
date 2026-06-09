@@ -631,26 +631,26 @@ describe('DsfrDataQuery', () => {
       expect(getDataCache('test-query')).toBeUndefined();
     });
 
-    it('updated re-initializes when source changes', () => {
+    it('willUpdate re-initializes when source changes (#281)', () => {
       query.id = 'test-query';
       query.source = 'test-source';
       query.connectedCallback();
 
-      const initSpy = vi.spyOn(query as any, '_initialize');
-      const changedProps = new Map([['source', 'old-source']]);
-      query.willUpdate(changedProps);
+      const initSpy = vi.spyOn(query as any, 'reinitTransformer');
+      (query as any)._transformerMountCycleDone = true; // cycle de montage consomme
+      query.willUpdate(new Map([['source', 'old-source']]));
       expect(initSpy).toHaveBeenCalled();
       initSpy.mockRestore();
     });
 
-    it('updated re-initializes when query props change', () => {
+    it('willUpdate re-initializes when query props change (#281)', () => {
       query.id = 'test-query';
       query.source = 'test-source';
       query.connectedCallback();
 
-      const initSpy = vi.spyOn(query as any, '_initialize');
-      const changedProps = new Map([['groupBy', '']]);
-      query.willUpdate(changedProps);
+      const initSpy = vi.spyOn(query as any, 'reinitTransformer');
+      (query as any)._transformerMountCycleDone = true;
+      query.willUpdate(new Map([['groupBy', '']]));
       expect(initSpy).toHaveBeenCalled();
       initSpy.mockRestore();
     });

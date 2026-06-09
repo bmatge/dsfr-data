@@ -203,7 +203,6 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     super.connectedCallback();
     sendWidgetBeacon('dsfr-data-query');
     this._warnRemovedAttributes();
-    this._initialize();
   }
 
   /**
@@ -242,16 +241,6 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     super.disconnectedCallback();
   }
 
-  willUpdate(changedProperties: Map<string, unknown>) {
-    super.willUpdate(changedProperties);
-
-    const queryProps = ['source', 'where', 'filter', 'groupBy', 'aggregate', 'orderBy', 'limit'];
-
-    if (queryProps.some((prop) => changedProperties.has(prop))) {
-      this._initialize();
-    }
-  }
-
   /** Alias historique de reinitTransformer() — conserve pour les tests */
   _initialize() {
     this.reinitTransformer();
@@ -261,6 +250,11 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
 
   protected transformerName(): string {
     return 'dsfr-data-query';
+  }
+
+  /** Tout changement de prop de requete re-negocie et re-souscrit (#281) */
+  protected transformerReinitProps(): string[] {
+    return ['source', 'where', 'filter', 'groupBy', 'aggregate', 'orderBy', 'limit'];
   }
 
   protected validateTransformerConfig(): string | null {

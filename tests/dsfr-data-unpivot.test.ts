@@ -253,18 +253,20 @@ describe('DsfrDataUnpivot — cycle de vie', () => {
     expect(el.getData()).toHaveLength(6);
   });
 
-  it('updated() re-traite quand un parametre change', () => {
+  it('willUpdate re-traite quand un parametre change (#281)', () => {
     setDataCache('lc-src', WIDE_DATA);
     el.connectedCallback();
     el.dropEmpty = true;
-    (el as any).updated(new Map([['dropEmpty', false]]));
+    (el as any)._transformerMountCycleDone = true;
+    (el as any).willUpdate(new Map([['dropEmpty', false]]));
     expect(el.getData()).toHaveLength(6);
   });
 
-  it('updated() re-initialise quand source change', () => {
+  it('willUpdate re-initialise quand source change (#281)', () => {
     el.connectedCallback();
     const spy = vi.spyOn(el as any, 'reinitTransformer');
-    (el as any).updated(new Map([['source', 'ancienne']]));
+    (el as any)._transformerMountCycleDone = true; // cycle de montage consomme
+    (el as any).willUpdate(new Map([['source', 'ancienne']]));
     expect(spy).toHaveBeenCalled();
   });
 

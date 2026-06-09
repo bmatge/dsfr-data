@@ -165,7 +165,6 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
   connectedCallback() {
     super.connectedCallback();
     sendWidgetBeacon('dsfr-data-search');
-    this._initialize();
   }
 
   disconnectedCallback() {
@@ -176,17 +175,13 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
     }
   }
 
-  willUpdate(changedProperties: Map<string, unknown>) {
-    super.willUpdate(changedProperties);
+  /** Parametres de recherche → re-filtrage local (#281) */
+  protected transformerReprocessProps(): string[] {
+    return ['fields', 'operator', 'minLength', 'highlight'];
+  }
 
-    if (changedProperties.has('source')) {
-      this._initialize();
-      return;
-    }
-
-    const filterAttrs = ['fields', 'operator', 'minLength', 'highlight'];
-    const hasFilterChange = filterAttrs.some((attr) => changedProperties.has(attr));
-    if (hasFilterChange && this._allData.length > 0) {
+  protected onTransformerReprocess(): void {
+    if (this._allData.length > 0) {
       this._applyFilter();
     }
   }

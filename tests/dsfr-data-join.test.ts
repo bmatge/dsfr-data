@@ -469,12 +469,14 @@ describe('DsfrDataJoin', () => {
 
     it('re-initializes when source properties change', () => {
       const initSpy = vi.spyOn(join as any, 'reinitTransformer');
+      (join as any)._transformerMountCycleDone = true; // cycle de montage consomme
       join.willUpdate(new Map([['left', '']]));
       expect(initSpy).toHaveBeenCalled();
     });
 
     it('re-initializes when on property changes', () => {
       const initSpy = vi.spyOn(join as any, 'reinitTransformer');
+      (join as any)._transformerMountCycleDone = true;
       join.willUpdate(new Map([['on', '']]));
       expect(initSpy).toHaveBeenCalled();
     });
@@ -495,6 +497,7 @@ describe('DsfrDataJoin', () => {
       // Change type to left → should re-compute without full re-init
       const initSpy = vi.spyOn(join as any, 'reinitTransformer');
       join.type = 'left';
+      (join as any)._transformerMountCycleDone = true;
       join.willUpdate(new Map([['type', 'inner']]));
       expect(initSpy).not.toHaveBeenCalled(); // NOT re-initialized
       expect(join.getData()).toHaveLength(4); // left: all 4 rows
@@ -502,14 +505,19 @@ describe('DsfrDataJoin', () => {
 
     it('does not re-init when only non-join properties change', () => {
       const initSpy = vi.spyOn(join as any, 'reinitTransformer');
+      (join as any)._transformerMountCycleDone = true;
       join.willUpdate(new Map([['_loading', true]]));
       expect(initSpy).not.toHaveBeenCalled();
     });
 
-    it('connectedCallback does not call reinitTransformer', () => {
+    it('connectedCallback initialise UNE fois, le premier willUpdate ne re-init pas (#281)', () => {
       const initSpy = vi.spyOn(join as any, 'reinitTransformer');
       join.connectedCallback();
-      expect(initSpy).not.toHaveBeenCalled();
+      expect(initSpy).toHaveBeenCalledTimes(1);
+      // Cycle de montage Lit : toutes les props posees figurent dans
+      // changedProperties — sans le flag, double init
+      join.willUpdate(new Map([['left', undefined]]));
+      expect(initSpy).toHaveBeenCalledTimes(1);
     });
 
     it('handles Lit lifecycle: data arrives after updated()', () => {

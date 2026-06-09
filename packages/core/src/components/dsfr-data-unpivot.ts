@@ -86,34 +86,6 @@ export class DsfrDataUnpivot extends TransformerMixin(LitElement) {
   connectedCallback() {
     super.connectedCallback();
     sendWidgetBeacon('dsfr-data-unpivot');
-    this.reinitTransformer();
-  }
-
-  updated(changedProperties: Map<string, unknown>) {
-    super.updated(changedProperties);
-
-    // Source identity changed → re-subscribe
-    if (changedProperties.has('source')) {
-      this.reinitTransformer();
-      return;
-    }
-
-    // Unpivot parameters changed → re-compute with existing data
-    const paramAttrs = [
-      'idCols',
-      'valueCols',
-      'valueColsPattern',
-      'varName',
-      'varFormat',
-      'valueName',
-      'dropEmpty',
-    ];
-    if (paramAttrs.some((attr) => changedProperties.has(attr))) {
-      const cachedData = this.source ? getDataCache(this.source) : undefined;
-      if (cachedData !== undefined) {
-        this._processData(cachedData);
-      }
-    }
   }
 
   // --- Public API ---
@@ -177,6 +149,26 @@ export class DsfrDataUnpivot extends TransformerMixin(LitElement) {
   /** Pas de meta propagee (l'unpivot change le nombre de lignes — cf. #282) */
   protected transformMeta(): null {
     return null;
+  }
+
+  /** Parametres d'unpivot → retraitement des donnees en cache (#281) */
+  protected transformerReprocessProps(): string[] {
+    return [
+      'idCols',
+      'valueCols',
+      'valueColsPattern',
+      'varName',
+      'varFormat',
+      'valueName',
+      'dropEmpty',
+    ];
+  }
+
+  protected onTransformerReprocess(): void {
+    const cachedData = this.source ? getDataCache(this.source) : undefined;
+    if (cachedData !== undefined) {
+      this._processData(cachedData);
+    }
   }
 
   private _buildOptions(): UnpivotOptions {

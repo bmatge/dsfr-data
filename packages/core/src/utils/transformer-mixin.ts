@@ -75,6 +75,15 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
     /** Désabonnement du relais de commandes */
     _transformerUnsubCommands: (() => void) | null = null;
 
+    /**
+     * Premier willUpdate (cycle de montage Lit) déjà consommé (#281).
+     * Au montage, TOUTES les props posées figurent dans changedProperties :
+     * sans ce flag, l'init de connectedCallback était immédiatement suivie
+     * d'une re-init (double abonnement, double lecture du cache, double
+     * émission, double négociation serveur).
+     */
+    protected _transformerMountCycleDone = false;
+
     // --- Hooks à surcharger par l'hôte ---
 
     /** Nom du composant pour les messages d'erreur (défaut : tag name) */
@@ -105,6 +114,30 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
 
     /** Appelé après validation, avant abonnement (query : négociation serveur) */
     protected beforeTransformerSubscribe(): void {
+      // défaut : no-op
+    }
+
+    /**
+     * Props dont le changement déclenche une re-souscription complète
+     * (reinitTransformer). Query y ajoute ses props de requête, join déclare
+     * [left, right, on].
+     */
+    protected transformerReinitProps(): string[] {
+      return ['source'];
+    }
+
+    /**
+     * Props dont le changement déclenche un retraitement local
+     * (onTransformerReprocess) SANS re-souscription — paramètres de
+     * transformation (colonnes d'unpivot, règles de normalize, type de
+     * join…).
+     */
+    protected transformerReprocessProps(): string[] {
+      return [];
+    }
+
+    /** Retraitement local quand une reprocess-prop change (hors montage) */
+    protected onTransformerReprocess(): void {
       // défaut : no-op
     }
 
@@ -234,6 +267,36 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
       this._transformerLoading = true;
       if (this.id) dispatchDataLoading(this.id);
       this.requestUpdate();
+    }
+
+    /**
+     * Init unique au montage (#281) : connectedCallback est le SEUL point
+     * d'init — le premier willUpdate est consommé sans re-init. Gère aussi
+     * le re-attach DOM (Lit ne re-déclenche pas willUpdate à la reconnexion,
+     * un transformateur déplacé restait mort).
+     */
+    connectedCallback() {
+      super.connectedCallback();
+      this.reinitTransformer();
+    }
+
+    willUpdate(changedProperties: Map<PropertyKey, unknown>) {
+      super.willUpdate(changedProperties);
+
+      // Cycle de montage : l'init a déjà eu lieu dans connectedCallback (#281)
+      if (!this._transformerMountCycleDone) {
+        this._transformerMountCycleDone = true;
+        return;
+      }
+
+      if (this.transformerReinitProps().some((p) => changedProperties.has(p))) {
+        this.reinitTransformer();
+        return;
+      }
+
+      if (this.transformerReprocessProps().some((p) => changedProperties.has(p))) {
+        this.onTransformerReprocess();
+      }
     }
 
     disconnectedCallback() {
