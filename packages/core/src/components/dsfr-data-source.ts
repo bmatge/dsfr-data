@@ -352,14 +352,19 @@ export class DsfrDataSource extends LitElement {
 
       if (cmd.where !== undefined) {
         const key = cmd.whereKey || '__default';
-        if (cmd.where) {
+        const previous = this._whereOverlays.get(key);
+        // Dedup : une commande where identique ne refetche pas (#275) —
+        // les re-negociations de dsfr-data-query renvoient le meme where
+        if (cmd.where && cmd.where !== previous) {
           this._whereOverlays.set(key, cmd.where);
-        } else {
+          // Reset to page 1 when filters change
+          this._currentPage = 1;
+          needsFetch = true;
+        } else if (!cmd.where && previous !== undefined) {
           this._whereOverlays.delete(key);
+          this._currentPage = 1;
+          needsFetch = true;
         }
-        // Reset to page 1 when filters change
-        this._currentPage = 1;
-        needsFetch = true;
       }
 
       if (cmd.orderBy !== undefined && cmd.orderBy !== this._orderByOverlay) {

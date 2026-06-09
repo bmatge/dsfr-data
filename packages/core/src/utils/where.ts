@@ -20,7 +20,7 @@ export type WhereFormat = AdapterCapabilities['whereFormat'];
 // Implementation partagee avec les utilitaires app-side (filter-translator) :
 // definie dans @dsfr-data/shared (lib-safe), re-exportee ici pour les
 // consommateurs de packages/core (#315).
-export { escapeColonValue, unescapeColonValue } from '@dsfr-data/shared/lib';
+export { escapeColonValue, unescapeColonValue, filterToOdsql } from '@dsfr-data/shared/lib';
 import { escapeColonValue } from '@dsfr-data/shared/lib';
 
 /**

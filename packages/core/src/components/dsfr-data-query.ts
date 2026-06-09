@@ -18,25 +18,28 @@ import {
 import type { AdapterCapabilities } from '../adapters/api-adapter.js';
 import type { SourceElement } from '../utils/source-element.js';
 import { parseAggregates, type ParsedAggregate } from '../utils/aggregates.js';
-import { unescapeColonValue } from '../utils/where.js';
+import { unescapeColonValue, filterToOdsql } from '../utils/where.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 
 /**
  * Operateurs de filtre supportes
  */
-export type FilterOperator =
-  | 'eq'
-  | 'neq'
-  | 'gt'
-  | 'gte'
-  | 'lt'
-  | 'lte'
-  | 'contains'
-  | 'notcontains'
-  | 'in'
-  | 'notin'
-  | 'isnull'
-  | 'isnotnull';
+export const FILTER_OPERATORS = [
+  'eq',
+  'neq',
+  'gt',
+  'gte',
+  'lt',
+  'lte',
+  'contains',
+  'notcontains',
+  'in',
+  'notin',
+  'isnull',
+  'isnotnull',
+] as const;
+
+export type FilterOperator = (typeof FILTER_OPERATORS)[number];
 
 /**
  * Fonctions d'agrégation supportees
@@ -208,6 +211,7 @@ export class DsfrDataQuery extends LitElement {
     groupBy: false,
     aggregate: false,
     orderBy: false,
+    where: false,
   };
 
   // Pas de rendu - composant invisible
@@ -334,7 +338,7 @@ export class DsfrDataQuery extends LitElement {
    */
   private _negotiateServerSide() {
     // Reset delegation state
-    this._serverDelegated = { groupBy: false, aggregate: false, orderBy: false };
+    this._serverDelegated = { groupBy: false, aggregate: false, orderBy: false, where: false };
 
     const rawEl = document.getElementById(this.source);
     if (!rawEl || !('getAdapter' in rawEl)) return;
@@ -363,17 +367,33 @@ export class DsfrDataQuery extends LitElement {
     // Delegate group-by + aggregate together (they're coupled).
     // Don't override if source already has its own groupBy or aggregate.
     if (this.groupBy && caps.serverGroupBy && !sourceGroupBy && !sourceAggregate) {
+      // Le where conditionne la délégation du group-by (#275) : un filtre
+      // intraduisible doit s'appliquer client-side sur les lignes BRUTES,
+      // donc avant un group-by qui reste alors client-side lui aussi.
+      // Sans cela, le filtre serait ré-appliqué sur les lignes agrégées où
+      // les champs bruts n'existent plus → toutes les lignes éliminées.
+      const whereDelegation = this._buildWhereDelegation(
+        this.filter || this.where,
+        caps.whereFormat
+      );
       const fields = [
         ...this.groupBy.split(','),
         ...this._parseAggregates(this.aggregate).map((a) => a.field),
+        ...whereDelegation.fields,
       ];
-      if (canDelegateFields(fields)) {
+      if (whereDelegation.ok && canDelegateFields(fields)) {
         cmd.groupBy = this.groupBy;
         this._serverDelegated.groupBy = true;
 
         if (this.aggregate) {
           cmd.aggregate = this.aggregate;
           this._serverDelegated.aggregate = true;
+        }
+
+        if (whereDelegation.where) {
+          cmd.where = whereDelegation.where;
+          cmd.whereKey = this._whereOverlayKey();
+          this._serverDelegated.where = true;
         }
       }
     }
@@ -394,6 +414,48 @@ export class DsfrDataQuery extends LitElement {
   }
 
   /**
+   * Clé du where overlay de cette query sur dsfr-data-source : permet le
+   * merge avec les overlays des autres composants (facets, search, bbox).
+   */
+  private _whereOverlayKey(): string {
+    return `query-${this.id}`;
+  }
+
+  /**
+   * Prépare la délégation serveur du where (#275) : valide que chaque clause
+   * est exprimable dans la grammaire colon (`field:op[:value]`) puis la
+   * traduit au dialecte de l'adapter (ODSQL ou colon pass-through).
+   *
+   * Retourne ok=false si une clause est intraduisible (syntaxe non-colon,
+   * opérateur inconnu) — l'appelant ne délègue alors RIEN.
+   */
+  private _buildWhereDelegation(
+    filterExpr: string,
+    format: AdapterCapabilities['whereFormat']
+  ): { ok: boolean; where: string; fields: string[] } {
+    if (!filterExpr) return { ok: true, where: '', fields: [] };
+
+    const invalid = { ok: false, where: '', fields: [] };
+    const fields: string[] = [];
+    const parts = filterExpr
+      .split(',')
+      .map((p) => p.trim())
+      .filter(Boolean);
+
+    for (const part of parts) {
+      const segments = part.split(':');
+      if (segments.length < 2) return invalid;
+      const operator = segments[1] as FilterOperator;
+      if (!FILTER_OPERATORS.includes(operator)) return invalid;
+      if (segments.length < 3 && operator !== 'isnull' && operator !== 'isnotnull') return invalid;
+      fields.push(segments[0]);
+    }
+
+    const where = format === 'odsql' ? filterToOdsql(filterExpr) : filterExpr;
+    return { ok: true, where, fields };
+  }
+
+  /**
    * Clear server-side overlays on dsfr-data-source (disconnect cleanup).
    * Sends empty values so dsfr-data-source reverts to its own attributes.
    */
@@ -404,12 +466,16 @@ export class DsfrDataQuery extends LitElement {
     if (this._serverDelegated.groupBy) cmd.groupBy = '';
     if (this._serverDelegated.aggregate) cmd.aggregate = '';
     if (this._serverDelegated.orderBy) cmd.orderBy = '';
+    if (this._serverDelegated.where) {
+      cmd.where = '';
+      cmd.whereKey = this._whereOverlayKey();
+    }
 
     if (Object.keys(cmd).length > 0) {
       dispatchSourceCommand(this.source, cmd);
     }
 
-    this._serverDelegated = { groupBy: false, aggregate: false, orderBy: false };
+    this._serverDelegated = { groupBy: false, aggregate: false, orderBy: false, where: false };
   }
 
   /**
@@ -419,7 +485,8 @@ export class DsfrDataQuery extends LitElement {
     return (
       this._serverDelegated.groupBy ||
       this._serverDelegated.aggregate ||
-      this._serverDelegated.orderBy
+      this._serverDelegated.orderBy ||
+      this._serverDelegated.where
     );
   }
 
@@ -489,9 +556,14 @@ export class DsfrDataQuery extends LitElement {
     const meta = getDataMeta(this.source);
     const forceClientSide = meta?.needsClientProcessing === true;
 
-    // 1. Appliquer les filtres (toujours client-side pour dsfr-data-query)
+    // 1. Appliquer les filtres
+    // Skip si le where est delegue server-side (#275) : apres agregation
+    // serveur les champs bruts n'existent plus, re-filtrer eliminerait
+    // toutes les lignes. Fallback client si needsClientProcessing (les
+    // lignes recues sont alors brutes).
     const filterExpr = this.filter || this.where;
-    if (filterExpr) {
+    const needsClientFilter = filterExpr && (!this._serverDelegated.where || forceClientSide);
+    if (needsClientFilter) {
       result = this._applyFilters(result, filterExpr);
     }
 
