@@ -3,8 +3,8 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { getByPath } from '../utils/json-path.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
-import { escapeHtml } from '@dsfr-data/shared';
-import { isValidDeptCode } from '@dsfr-data/shared';
+import { escapeHtml } from '@dsfr-data/shared/lib';
+import { isValidDeptCode } from '@dsfr-data/shared/lib';
 
 type DSFRChartType =
   | 'line'

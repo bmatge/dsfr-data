@@ -72,6 +72,49 @@ export default tseslint.config(
     },
   },
 
+  // Frontière lib/app (#319) : la bibliothèque publiée (packages/core) ne doit
+  // importer que l'entrée lib-safe de shared. Le barrel racine ré-exporte
+  // auth/, storage/, ui/ (modales, toasts, appels /api/*) qui n'ont rien à
+  // faire dans les bundles npm/CDN.
+  {
+    files: ['packages/core/src/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@dsfr-data/shared',
+              message:
+                "packages/core ne doit importer que la frontière lib-safe : utiliser '@dsfr-data/shared/lib' (#319).",
+            },
+          ],
+          patterns: [
+            {
+              group: [
+                '@dsfr-data/shared/auth/*',
+                '@dsfr-data/shared/storage/*',
+                '@dsfr-data/shared/ui/*',
+              ],
+              message: 'Module app-side interdit dans packages/core (#319).',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  // Dette tolérée : composants layout/ (auth, partage — extraction prévue #306)
+  // et isAuthenticated dans dsfr-data-source (cache /api/cache — hook prévu #307).
+  {
+    files: [
+      'packages/core/src/components/layout/**/*.ts',
+      'packages/core/src/components/dsfr-data-source.ts',
+    ],
+    rules: {
+      'no-restricted-imports': 'off',
+    },
+  },
+
   // Relax rules for test files
   {
     files: ['tests/**/*.ts', '**/*.test.ts', '**/*.spec.ts'],

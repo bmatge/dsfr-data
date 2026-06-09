@@ -9,7 +9,7 @@ import { customElement, property } from 'lit/decorators.js';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { dispatchSourceCommand } from '../utils/data-bridge.js';
 import { getByPath } from '../utils/json-path.js';
-import { escapeHtml } from '@dsfr-data/shared';
+import { escapeHtml } from '@dsfr-data/shared/lib';
 import type { DsfrDataMap } from './dsfr-data-map.js';
 import type { SourceElement } from '../utils/source-element.js';
 // @ts-expect-error — Vite ?inline import returns CSS as string

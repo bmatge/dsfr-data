@@ -15,8 +15,8 @@ import type {
   FetchResult,
   ServerSideOverlay,
 } from './api-adapter.js';
-import type { ProviderConfig } from '@dsfr-data/shared';
-import { INSEE_CONFIG, getProxiedUrl } from '@dsfr-data/shared';
+import type { ProviderConfig } from '@dsfr-data/shared/lib';
+import { INSEE_CONFIG, getProxiedUrl } from '@dsfr-data/shared/lib';
 
 /** Default base URL for the Melodi API */
 const INSEE_BASE_URL = 'https://api.insee.fr/melodi';

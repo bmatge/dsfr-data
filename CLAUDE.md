@@ -200,6 +200,15 @@ L'adapter expose aussi `fetchColumns()` et `fetchTables()` pour l'introspection 
 
 ## Package shared (@dsfr-data/shared)
 
+**Frontiere lib/app (#319)** : `packages/core/src` ne doit importer que l'entree
+lib-safe `@dsfr-data/shared/lib` (utils purs, palettes, providers, proxy).
+Le barrel racine `@dsfr-data/shared` re-exporte en plus les modules app-side
+(auth/, storage/, ui/, tour/) reserves aux apps — une regle ESLint
+`no-restricted-imports` l'interdit dans core (exceptions temporaires :
+`components/layout/` cf. #306, `isAuthenticated` de dsfr-data-source cf. #307).
+Tout nouvel export lib-safe doit etre ajoute aux DEUX barrels (`src/lib.ts` et
+`src/index.ts`).
+
 Utilitaires partages entre toutes les apps :
 - `escapeHtml()` - Echappement HTML
 - `buildCsv()`, `CSV_BOM` - Export CSV robuste (quoting RFC 4180, BOM UTF-8, neutralisation des formules tableur)
@@ -410,8 +419,10 @@ git remote set-url --add --push origin https://github.com/mef-snum-miweb/dsfr-da
 ## Proxy et URLs
 
 - Dev : Vite proxy (configure dans vite.config.ts de chaque app)
-- Production : proxy nginx, domaine configurable via `VITE_PROXY_URL` (defaut : `chartsbuilder.matge.com`)
-- Tauri : proxy distant via detection `window.__TAURI__`
+- Production : proxy nginx, domaine configurable via `VITE_PROXY_URL` (**requis** pour les deploiements de l'app — aucun fallback code en dur depuis #319)
+- **Defaut sans configuration** (bundle npm/CDN sur un site tiers) : mode `direct` — les URLs externes sont fetchees telles quelles, aucun trafic ne transite par un domaine tiers
+- **Override runtime** : le site deployeur peut definir `window.DSFR_DATA_PROXY` avant le chargement des composants (`'https://mon-proxy.fr'`, `{ baseUrl, endpoints }`, ou `false` pour forcer le direct)
+- Tauri : proxy distant via `VITE_PROXY_URL_EMBED` injectee au build (validate-build-env)
 - `PROXY_BASE_URL` dans `packages/shared/src/api/proxy-config.ts` lit `VITE_PROXY_URL` au build time (source de verite unique)
 - `LIB_URL` dans `packages/shared/src/api/proxy-config.ts` lit `VITE_LIB_URL` au build time (URL du JS dans le code genere)
   - Non defini / `"jsdelivr"` → `https://cdn.jsdelivr.net/npm/dsfr-data@0/dist` (defaut)

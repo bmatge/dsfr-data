@@ -16,7 +16,7 @@
 import { LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { getByPath } from '../utils/json-path.js';
-import { escapeHtml } from '@dsfr-data/shared';
+import { escapeHtml } from '@dsfr-data/shared/lib';
 
 export type PopupMode = 'popup' | 'modal' | 'panel-right' | 'panel-left';
 

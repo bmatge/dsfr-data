@@ -4,8 +4,8 @@
  */
 
 import type { ApiAdapter, AdapterCapabilities, AdapterParams, FetchResult } from './api-adapter.js';
-import type { ProviderConfig } from '@dsfr-data/shared';
-import { GENERIC_CONFIG } from '@dsfr-data/shared';
+import type { ProviderConfig } from '@dsfr-data/shared/lib';
+import { GENERIC_CONFIG } from '@dsfr-data/shared/lib';
 
 export class GenericAdapter implements ApiAdapter {
   readonly type = 'generic';

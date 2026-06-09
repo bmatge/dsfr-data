@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { performUnpivot } from '@dsfr-data/shared';
-import type { UnpivotOptions } from '@dsfr-data/shared';
+import { performUnpivot } from '@dsfr-data/shared/lib';
+import type { UnpivotOptions } from '@dsfr-data/shared/lib';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import {
   dispatchDataLoaded,

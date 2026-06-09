@@ -9,8 +9,8 @@ import {
   subscribeToSource,
   getDataCache,
 } from '../utils/data-bridge.js';
-import { performJoin } from '@dsfr-data/shared';
-import type { JoinType } from '@dsfr-data/shared';
+import { performJoin } from '@dsfr-data/shared/lib';
+import type { JoinType } from '@dsfr-data/shared/lib';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 
 type Row = Record<string, unknown>;

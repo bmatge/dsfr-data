@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
   createInitialState,
-  setCurrentSourceMode,
   setParsedJsonData,
   setParsedCsvData,
   EXTERNAL_PROXY,
@@ -22,8 +21,10 @@ describe('sources state', () => {
     expect(state.previewedSource).toBeNull();
   });
 
-  it('should have EXTERNAL_PROXY constant', () => {
-    expect(EXTERNAL_PROXY).toBe('https://chartsbuilder.matge.com');
+  it('should re-export EXTERNAL_PROXY driven by VITE_PROXY_URL (no hardcoded fallback)', () => {
+    // #319 : la valeur vient de l'env au build (vide sans VITE_PROXY_URL),
+    // plus aucun domaine code en dur.
+    expect(EXTERNAL_PROXY).toBe(import.meta.env?.VITE_PROXY_URL || '');
   });
 
   it('should update currentSourceMode via setter', async () => {

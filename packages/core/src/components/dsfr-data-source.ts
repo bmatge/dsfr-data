@@ -2,7 +2,11 @@ import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { getByPath } from '../utils/json-path.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
-import { getProxiedUrl, buildCorsProxyRequest, isAuthenticated } from '@dsfr-data/shared';
+import { getProxiedUrl, buildCorsProxyRequest } from '@dsfr-data/shared/lib';
+// Import app-side tolere temporairement (cache serveur /api/cache) — a
+// extraire vers un hook applicatif, cf. #307. Exception eslint dans
+// eslint.config.js.
+import { isAuthenticated } from '@dsfr-data/shared';
 import type { ApiAdapter, AdapterParams, ServerSideOverlay } from '../adapters/api-adapter.js';
 import { getAdapter } from '../adapters/adapter-registry.js';
 import {

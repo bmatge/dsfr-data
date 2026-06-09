@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import { toNumber, looksLikeNumber, compileCompute, applyCompute } from '@dsfr-data/shared';
-import type { CompiledCompute } from '@dsfr-data/shared';
+import { toNumber, looksLikeNumber, compileCompute, applyCompute } from '@dsfr-data/shared/lib';
+import type { CompiledCompute } from '@dsfr-data/shared/lib';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import {
   dispatchDataLoaded,

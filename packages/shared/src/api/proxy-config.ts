@@ -3,6 +3,8 @@
  * Supports dev (Vite proxy), production (external proxy), and Tauri modes
  */
 
+export type ProxyMode = 'dev-relative' | 'remote' | 'direct';
+
 export interface ProxyConfig {
   baseUrl: string;
   endpoints: {
@@ -13,6 +15,28 @@ export interface ProxyConfig {
     insee: string;
     corsProxy: string;
   };
+  /**
+   * - `remote` : proxy configuré (distant, ou relatif à l'origine si baseUrl vide)
+   * - `dev-relative` : dev Vite de CE repo (routes proxy servies par vite.config.ts)
+   * - `direct` : aucun proxy — les URLs externes sont fetchées telles quelles
+   */
+  mode: ProxyMode;
+}
+
+/**
+ * Override runtime injecté par le site déployeur AVANT le chargement des
+ * composants :
+ *
+ *   window.DSFR_DATA_PROXY = 'https://mon-proxy.example.fr';   // domaine du proxy
+ *   window.DSFR_DATA_PROXY = { baseUrl: '', endpoints: {...} } // chemins relatifs / personnalisés
+ *   window.DSFR_DATA_PROXY = false;                            // désactive tout proxying
+ *
+ * Sans override ni variables VITE_* au build, le défaut est l'accès direct
+ * (mode `direct`) : aucun trafic ne transite par un domaine tiers.
+ */
+export interface RuntimeProxyConfig {
+  baseUrl?: string;
+  endpoints?: Partial<ProxyConfig['endpoints']>;
 }
 
 /**
@@ -29,6 +53,7 @@ export interface ProxyConfig {
 declare global {
   interface ImportMeta {
     readonly env?: {
+      readonly DEV?: boolean;
       readonly VITE_PROXY_URL?: string;
       readonly VITE_PROXY_URL_EMBED?: string;
       readonly VITE_BEACON_URL?: string;
@@ -41,9 +66,12 @@ declare global {
  * URL de base **runtime de l'app** — utilisée par l'app elle-même pour ses
  * propres appels (monitoring, widgets Grist consommant des données, etc.).
  * Surchargeable via `VITE_PROXY_URL` au build. Cf. #180.
+ *
+ * Pas de fallback codé en dur : sans variable au build, la valeur est vide et
+ * le mode `direct` s'applique (cf. #319). Les déploiements de l'app passent
+ * par `validate-build-env.ts` qui exige `VITE_PROXY_URL`.
  */
-export const PROXY_BASE_URL: string =
-  import.meta.env?.VITE_PROXY_URL || 'https://chartsbuilder.matge.com';
+export const PROXY_BASE_URL: string = import.meta.env?.VITE_PROXY_URL || '';
 
 /**
  * URL de base **inlinée dans le code généré** par les builders (widgets
@@ -92,21 +120,33 @@ export const LIB_URL: string = resolveLibUrl();
  * Dans les deux cas, l'URL doit être celle publiquement accessible.
  * Cf. issue #180.
  */
-export const DEFAULT_PROXY_CONFIG: ProxyConfig = {
-  baseUrl: PROXY_BASE_URL_EMBED,
-  endpoints: {
-    grist: '/grist-proxy',
-    gristGouv: '/grist-gouv-proxy',
-    albert: '/albert-proxy',
-    tabular: '/tabular-proxy',
-    insee: '/insee-proxy',
-    corsProxy: '/cors-proxy',
-  },
+const DEFAULT_ENDPOINTS: ProxyConfig['endpoints'] = {
+  grist: '/grist-proxy',
+  gristGouv: '/grist-gouv-proxy',
+  albert: '/albert-proxy',
+  tabular: '/tabular-proxy',
+  insee: '/insee-proxy',
+  corsProxy: '/cors-proxy',
 };
 
-/** Detect if running in Vite dev server */
+export const DEFAULT_PROXY_CONFIG: ProxyConfig = {
+  baseUrl: PROXY_BASE_URL_EMBED,
+  endpoints: { ...DEFAULT_ENDPOINTS },
+  mode: PROXY_BASE_URL_EMBED ? 'remote' : 'direct',
+};
+
+/**
+ * Detect if running in THIS repo's Vite dev server.
+ *
+ * `import.meta.env.DEV` est substitué statiquement par Vite : `true` dans le
+ * dev des apps de ce repo (qui ont les routes `/*-proxy/` dans leur
+ * vite.config), `false` (objet env inliné) dans les bundles construits
+ * distribués sur npm/CDN. Un intégrateur tiers en dev local
+ * (`localhost:3000`) n'est donc jamais traité comme notre dev server (#319).
+ */
 export function isViteDevMode(): boolean {
   if (typeof window === 'undefined') return false;
+  if (import.meta.env?.DEV !== true) return false;
   const { hostname, port } = window.location;
   return (
     (hostname === 'localhost' || hostname === '127.0.0.1') &&
@@ -121,36 +161,65 @@ export function isTauriMode(): boolean {
   return typeof window !== 'undefined' && '__TAURI__' in window;
 }
 
+function readRuntimeProxy(): string | false | RuntimeProxyConfig | undefined {
+  if (typeof window === 'undefined') return undefined;
+  return (window as Window & { DSFR_DATA_PROXY?: string | false | RuntimeProxyConfig })
+    .DSFR_DATA_PROXY;
+}
+
+function stripTrailingSlash(url: string): string {
+  return url.replace(/\/+$/, '');
+}
+
 /**
  * Get the proxy configuration based on the current environment.
- * - Dev mode: relative URLs (handled by Vite proxy)
- * - Tauri mode: full URLs to the production proxy (PROXY_BASE_URL_EMBED)
- * - Production web: PROXY_BASE_URL_EMBED
+ *
+ * Ordre de résolution (cf. #319) :
+ * 1. `window.DSFR_DATA_PROXY = false` → mode `direct`, aucun proxying.
+ * 2. `window.DSFR_DATA_PROXY` (string ou objet) → proxy du site déployeur.
+ * 3. Dev Vite de CE repo → chemins relatifs (routes de vite.config.ts).
+ * 4. `VITE_PROXY_URL_EMBED`/`VITE_PROXY_URL` injectées au build (déploiement
+ *    self-hosted de l'app, Tauri) → proxy distant.
+ * 5. Défaut (consommateur npm/CDN sans configuration) → mode `direct` :
+ *    les URLs externes sont fetchées telles quelles, aucun trafic ne
+ *    transite par un domaine tiers.
  *
  * Note : utilise `PROXY_BASE_URL_EMBED` (et non `PROXY_BASE_URL` runtime) car
  * cette config est consommée par les adapters de `packages/core` qui tournent
  * dans le bundle lib — chargé indifféremment dans l'app elle-même (preview)
- * ou sur un site tiers embarquant un widget. L'URL doit donc être celle
- * publiquement accessible. Sans `VITE_PROXY_URL_EMBED` défini, la cascade
- * retombe sur `PROXY_BASE_URL` (= déploiement de référence inchangé).
- * Cf. issue #180.
+ * ou sur un site tiers embarquant un widget. Cf. issue #180.
  */
 export function getProxyConfig(): ProxyConfig {
-  const endpoints = { ...DEFAULT_PROXY_CONFIG.endpoints };
+  const endpoints = { ...DEFAULT_ENDPOINTS };
+  const runtime = readRuntimeProxy();
 
-  // Vite dev: relative URLs, proxy handled by vite.config.ts
+  // 1. Opt-out runtime explicite : aucun proxy
+  if (runtime === false) {
+    return { baseUrl: '', endpoints, mode: 'direct' };
+  }
+
+  // 2. Override runtime fourni par le site déployeur
+  if (typeof runtime === 'string' && runtime.trim()) {
+    return { baseUrl: stripTrailingSlash(runtime.trim()), endpoints, mode: 'remote' };
+  }
+  if (runtime && typeof runtime === 'object') {
+    return {
+      baseUrl: stripTrailingSlash(runtime.baseUrl?.trim() ?? ''),
+      endpoints: { ...endpoints, ...runtime.endpoints },
+      mode: 'remote',
+    };
+  }
+
+  // 3. Vite dev de ce repo : URLs relatives, proxy assuré par vite.config.ts
   if (isViteDevMode()) {
-    return { baseUrl: '', endpoints };
+    return { baseUrl: '', endpoints, mode: 'dev-relative' };
   }
 
-  // Tauri: always use the remote proxy (embed URL = publicly accessible)
-  if (isTauriMode()) {
-    return { baseUrl: PROXY_BASE_URL_EMBED, endpoints };
+  // 4. Config injectée au build (app self-hosted, Tauri)
+  if (PROXY_BASE_URL_EMBED) {
+    return { baseUrl: PROXY_BASE_URL_EMBED, endpoints, mode: 'remote' };
   }
 
-  // Production web
-  return {
-    baseUrl: PROXY_BASE_URL_EMBED,
-    endpoints,
-  };
+  // 5. Défaut npm/CDN : accès direct, sans proxy
+  return { baseUrl: '', endpoints, mode: 'direct' };
 }

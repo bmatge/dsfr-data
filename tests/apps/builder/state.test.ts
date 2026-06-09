@@ -10,8 +10,10 @@ import type {
 } from '../../../apps/builder/src/state';
 
 describe('builder state', () => {
-  it('should have PROXY_BASE_URL constant', () => {
-    expect(PROXY_BASE_URL).toBe('https://chartsbuilder.matge.com');
+  it('should re-export PROXY_BASE_URL driven by VITE_PROXY_URL (no hardcoded fallback)', () => {
+    // #319 : la valeur vient de l'env au build (vide sans VITE_PROXY_URL),
+    // plus aucun domaine code en dur.
+    expect(PROXY_BASE_URL).toBe(import.meta.env?.VITE_PROXY_URL || '');
   });
 
   it('should have FAVORITES_KEY constant', () => {

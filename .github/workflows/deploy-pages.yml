@@ -28,6 +28,13 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Depuis #319, plus aucun domaine de proxy n'est code en dur dans
+    # packages/shared : les bundles et apps construits sans VITE_PROXY_URL
+    # sont en mode "direct" (aucun proxying). Les widgets Grist et les
+    # exemples specs/guide publies sur Pages dependent du proxy CORS de
+    # l'instance de reference -> on l'injecte explicitement ici.
+    env:
+      VITE_PROXY_URL: https://chartsbuilder.matge.com
     steps:
       - name: Checkout
         uses: actions/checkout@v6

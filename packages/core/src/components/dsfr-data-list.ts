@@ -2,7 +2,7 @@ import { LitElement, html, css, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
-import { escapeHtml, buildCsv } from '@dsfr-data/shared';
+import { escapeHtml, buildCsv } from '@dsfr-data/shared/lib';
 import { getDataMeta, dispatchSourceCommand } from '../utils/data-bridge.js';
 
 interface ColumnDef {

@@ -7,7 +7,7 @@
  */
 
 import type { QueryAggregate } from '../components/dsfr-data-query.js';
-import type { ProviderConfig } from '@dsfr-data/shared';
+import type { ProviderConfig } from '@dsfr-data/shared/lib';
 
 /**
  * Declare ce qu'un adapter peut faire cote serveur.

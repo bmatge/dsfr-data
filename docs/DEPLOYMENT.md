@@ -173,6 +173,34 @@ Pre-requis communs :
 - `APP_DOMAIN`, `VITE_PROXY_URL` (et `APP_URL` en mode serveur) genere automatiquement par `deploy.sh` / `deploy-server.sh` depuis `APP_DOMAIN`. Cf. [Variables d'environnement](#variables-denvironnement).
 - Conteneur tourne sous l'utilisateur non-root `nginx` (uid 101).
 
+### Proxy CORS cote widgets : defaut direct + override runtime (#319)
+
+Depuis #319, **aucun domaine de proxy n'est code en dur** dans les bundles
+`dsfr-data` publies sur npm/CDN :
+
+- **Sans configuration**, les composants sont en mode `direct` : les URLs
+  externes (OpenDataSoft, Tabular, Grist, INSEE...) sont fetchees telles
+  quelles depuis le navigateur. Suffisant pour les APIs qui exposent les
+  en-tetes CORS (la majorite des portails open data).
+- **Si un proxy CORS est necessaire** (en-tetes custom type `Apikey`,
+  API sans CORS), le site deployeur le declare au runtime, avant le
+  chargement des composants :
+
+  ```html
+  <script>
+    // Domaine d'un proxy compatible (memes chemins /grist-proxy/, /tabular-proxy/...)
+    window.DSFR_DATA_PROXY = 'https://mon-proxy.example.fr';
+    // ou chemins personnalises, eventuellement relatifs a l'origine du site :
+    window.DSFR_DATA_PROXY = { baseUrl: '', endpoints: { tabular: '/mon-tabular-proxy' } };
+    // ou forcer l'acces direct meme si une URL est bakee dans le bundle :
+    window.DSFR_DATA_PROXY = false;
+  </script>
+  ```
+
+- **Pour l'app self-hosted**, rien ne change : `VITE_PROXY_URL` (generee par
+  les scripts de deploiement depuis `APP_DOMAIN`) est injectee au build des
+  bundles et des apps, qui pointent donc vers le proxy nginx du conteneur.
+
 ### Scenario A : deploiement de reference (Traefik integre)
 
 Le scenario par defaut. Aucune configuration particuliere requise au-dela de `APP_DOMAIN` :

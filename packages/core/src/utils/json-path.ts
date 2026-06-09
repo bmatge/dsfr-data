@@ -3,7 +3,7 @@
  * Permet d'accéder à des propriétés imbriquées dans un objet JSON
  */
 
-import { isUnsafeKey } from '@dsfr-data/shared';
+import { isUnsafeKey } from '@dsfr-data/shared/lib';
 
 /**
  * Extrait une valeur d'un objet en suivant un chemin de propriétés

@@ -12,8 +12,8 @@ import type {
   FetchResult,
   ServerSideOverlay,
 } from './api-adapter.js';
-import type { ProviderConfig } from '@dsfr-data/shared';
-import { getProxyConfig, TABULAR_CONFIG } from '@dsfr-data/shared';
+import type { ProviderConfig } from '@dsfr-data/shared/lib';
+import { getProxyConfig, TABULAR_CONFIG } from '@dsfr-data/shared/lib';
 
 /** Construit les options fetch avec headers optionnels */
 function buildFetchOptions(
@@ -341,6 +341,10 @@ export class TabularAdapter implements ApiAdapter {
       return params.baseUrl;
     }
     const config = getProxyConfig();
+    // Aucun proxy configuré : appel direct de l'API Tabular (CORS ouvert)
+    if (config.mode === 'direct') {
+      return TABULAR_CONFIG.defaultBaseUrl || 'https://tabular-api.data.gouv.fr';
+    }
     return `${config.baseUrl}${config.endpoints.tabular}`;
   }
 }

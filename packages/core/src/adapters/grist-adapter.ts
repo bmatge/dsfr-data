@@ -29,8 +29,8 @@ import type {
   ServerSideOverlay,
 } from './api-adapter.js';
 import type { QueryAggregate } from '../components/dsfr-data-query.js';
-import type { ProviderConfig } from '@dsfr-data/shared';
-import { GRIST_CONFIG, getProxiedUrl } from '@dsfr-data/shared';
+import type { ProviderConfig } from '@dsfr-data/shared/lib';
+import { GRIST_CONFIG, getProxiedUrl } from '@dsfr-data/shared/lib';
 
 /** Construit les options fetch avec headers optionnels */
 function buildFetchOptions(

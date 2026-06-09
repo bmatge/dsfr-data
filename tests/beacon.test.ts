@@ -36,12 +36,35 @@ describe('sendWidgetBeacon', () => {
     vi.restoreAllMocks();
     vi.resetModules();
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
   });
 
-  async function loadBeacon() {
+  async function loadBeacon(beaconUrl = 'https://chartsbuilder.matge.com') {
+    // BEACON_BASE_URL est une constante module-level lue depuis import.meta.env
+    // au chargement : on fixe l'env AVANT l'import frais pour que les tests ne
+    // dependent pas du .env local (vide en CI → beacon desactive par defaut).
+    // Les 3 variables sont stubbees a cause de la cascade de fallback
+    // VITE_BEACON_URL || VITE_PROXY_URL_EMBED || VITE_PROXY_URL.
+    vi.stubEnv('VITE_BEACON_URL', beaconUrl);
+    vi.stubEnv('VITE_PROXY_URL_EMBED', beaconUrl);
+    vi.stubEnv('VITE_PROXY_URL', beaconUrl);
     const mod = await import('@/utils/beacon.js');
     return mod.sendWidgetBeacon;
   }
+
+  it('skips when no beacon collection URL is baked in the bundle', async () => {
+    (window as any).DSFR_DATA_BEACON = true;
+    vi.stubGlobal('location', {
+      hostname: 'example.gouv.fr',
+      protocol: 'https:',
+      origin: 'https://example.gouv.fr',
+      href: 'https://example.gouv.fr/',
+    });
+
+    const sendWidgetBeacon = await loadBeacon('');
+    sendWidgetBeacon('dsfr-data-kpi');
+    expect(imageSrcs).toHaveLength(0);
+  });
 
   it('skips when DSFR_DATA_BEACON is not set (opt-in)', async () => {
     vi.stubGlobal('location', {

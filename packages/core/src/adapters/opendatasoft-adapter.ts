@@ -14,8 +14,8 @@ import type {
   FacetResult,
 } from './api-adapter.js';
 import type { QueryAggregate } from '../components/dsfr-data-query.js';
-import type { ProviderConfig } from '@dsfr-data/shared';
-import { ODS_CONFIG, getProxiedUrl } from '@dsfr-data/shared';
+import type { ProviderConfig } from '@dsfr-data/shared/lib';
+import { ODS_CONFIG, getProxiedUrl } from '@dsfr-data/shared/lib';
 
 /**
  * Échappe une chaîne destinée à être interpolée dans une string ODSQL (`"…"`).

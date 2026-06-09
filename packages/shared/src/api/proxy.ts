@@ -16,6 +16,11 @@ export function getProxyUrl(gristUrl: string, endpoint: string): string {
   const config = getProxyConfig();
   const url = new URL(gristUrl);
 
+  // Aucun proxy configuré : acces direct a l'instance Grist
+  if (config.mode === 'direct') {
+    return `${gristUrl}/api${endpoint}`;
+  }
+
   if (url.hostname === 'docs.getgrist.com') {
     return `${config.baseUrl}${config.endpoints.grist}/api${endpoint}`;
   }
@@ -33,6 +38,9 @@ export function getProxyUrl(gristUrl: string, endpoint: string): string {
  * dedicated (CORS-enabled) proxy endpoint. Otherwise return `null`.
  */
 function rewriteKnownHost(parsed: URL, config: ProxyConfig): string | null {
+  // Mode direct (aucun proxy configuré) : jamais de réécriture
+  if (config.mode === 'direct') return null;
+
   const rewrites: Array<[string, string]> = [
     ['tabular-api.data.gouv.fr', config.endpoints.tabular],
     ['docs.getgrist.com', config.endpoints.grist],
@@ -117,6 +125,12 @@ export function buildProxiedRequest(
     return { url, headers };
   }
 
+  // Aucun proxy configuré : fetch direct (l'API cible doit accepter le CORS,
+  // sinon le déployeur fournit son proxy via window.DSFR_DATA_PROXY)
+  if (config.mode === 'direct') {
+    return { url, headers };
+  }
+
   // Hôte inconnu cross-origin : proxy CORS générique (X-Target-URL)
   return {
     url: `${config.baseUrl}${config.endpoints.corsProxy}`,
@@ -138,6 +152,12 @@ export function buildCorsProxyRequest(
   extraHeaders?: Record<string, string>
 ): { url: string; headers: Record<string, string> } {
   const config = getProxyConfig();
+
+  // Aucun proxy configuré : requête directe vers la cible
+  if (config.mode === 'direct') {
+    return { url: targetUrl, headers: { ...(extraHeaders || {}) } };
+  }
+
   return {
     url: `${config.baseUrl}${config.endpoints.corsProxy}`,
     headers: {

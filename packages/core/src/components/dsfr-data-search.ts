@@ -1,6 +1,6 @@
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { escapeHtml } from '@dsfr-data/shared';
+import { escapeHtml } from '@dsfr-data/shared/lib';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import {
   dispatchDataLoaded,

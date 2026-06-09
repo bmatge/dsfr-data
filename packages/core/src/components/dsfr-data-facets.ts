@@ -15,7 +15,7 @@ import {
 } from '../utils/data-bridge.js';
 import type { ApiAdapter } from '../adapters/api-adapter.js';
 import type { SourceElement } from '../utils/source-element.js';
-import { isUnsafeKey } from '@dsfr-data/shared';
+import { isUnsafeKey } from '@dsfr-data/shared/lib';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 
 type FacetDisplayMode = 'checkbox' | 'select' | 'multiselect' | 'radio';

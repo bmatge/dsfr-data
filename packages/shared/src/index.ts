@@ -43,7 +43,7 @@ export {
   BEACON_BASE_URL,
   LIB_URL,
 } from './api/proxy-config.js';
-export type { ProxyConfig } from './api/proxy-config.js';
+export type { ProxyConfig, ProxyMode, RuntimeProxyConfig } from './api/proxy-config.js';
 export {
   getProxyUrl,
   getProxiedUrl,

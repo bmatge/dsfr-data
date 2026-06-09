@@ -4,7 +4,7 @@
  * Used by the monitoring dashboard to track where widgets are deployed.
  */
 
-import { BEACON_BASE_URL } from '@dsfr-data/shared';
+import { BEACON_BASE_URL } from '@dsfr-data/shared/lib';
 
 const BEACON_URL = `${BEACON_BASE_URL}/beacon`;
 const sent = new Set<string>();
@@ -34,6 +34,10 @@ export function sendWidgetBeacon(component: string, subtype?: string): void {
     !(window as Window & { DSFR_DATA_BEACON?: boolean }).DSFR_DATA_BEACON
   )
     return;
+
+  // Pas de domaine de collecte baké dans le bundle (build sans VITE_BEACON_URL
+  // ni VITE_PROXY_URL*) : aucun endroit où envoyer le beacon
+  if (!BEACON_BASE_URL) return;
 
   const key = `${component}:${subtype || ''}`;
   if (sent.has(key)) return;

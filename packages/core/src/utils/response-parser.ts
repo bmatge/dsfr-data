@@ -3,7 +3,7 @@
  * responses using ProviderConfig's response structure definition.
  */
 
-import type { ProviderConfig } from '@dsfr-data/shared';
+import type { ProviderConfig } from '@dsfr-data/shared/lib';
 import { getByPath } from './json-path.js';
 
 /**
