@@ -61,6 +61,11 @@ export function toNumber(val: unknown, strict = false): number | null {
 /**
  * Check if a string value looks like a number
  * Accepts: 123, 123.45, 123,45, 1 234, 1 234,56, -123, etc.
+ *
+ * VOLONTAIREMENT plus strict que toNumber (#317) : detection conservatrice
+ * (numeric-auto ne doit convertir que l'evident — '1e3', '50%', '+123'
+ * sont rejetes ici) quand toNumber est un PARSEUR tolerant pour les champs
+ * explicitement declares numeriques.
  */
 export function looksLikeNumber(val: unknown): boolean {
   if (typeof val !== 'string') return false;

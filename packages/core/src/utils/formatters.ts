@@ -1,102 +1,16 @@
-import { toNumber } from '@dsfr-data/shared/lib';
 /**
- * Formatters - Fonctions de formatage pour l'affichage des données
+ * Formatters — re-export de la famille UNIQUE @dsfr-data/shared (#317).
+ * Les previews des apps consomment les memes fonctions : preview = rendu.
  */
-
-export type FormatType = 'nombre' | 'pourcentage' | 'euro' | 'decimal';
-
-/**
- * Formate un nombre selon le type spécifié
- */
-export function formatValue(
-  value: number | string | null | undefined,
-  format: FormatType = 'nombre'
-): string {
-  if (value === null || value === undefined || value === '') {
-    return '—';
-  }
-
-  // toNumber strict (#301) : '1 234,5' n'est plus tronque a 1 par
-  // parseFloat, et 'abc' reste non-numerique (-> '—') au lieu de 0
-  const parsed = typeof value === 'string' ? toNumber(value, true) : value;
-  const num = parsed === null ? NaN : parsed;
-
-  if (isNaN(num)) {
-    return '—';
-  }
-
-  switch (format) {
-    case 'nombre':
-      return formatNumber(num);
-    case 'pourcentage':
-      return formatPercentage(num);
-    case 'euro':
-      return formatCurrency(num);
-    case 'decimal':
-      return formatDecimal(num);
-    default:
-      return formatNumber(num);
-  }
-}
-
-/**
- * Formate un nombre avec séparateurs de milliers (format français)
- */
-export function formatNumber(value: number): string {
-  return new Intl.NumberFormat('fr-FR', {
-    maximumFractionDigits: 0,
-  }).format(Math.round(value));
-}
-
-/**
- * Formate un pourcentage
- */
-export function formatPercentage(value: number): string {
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'percent',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 1,
-  }).format(value / 100);
-}
-
-/**
- * Formate une valeur monétaire en euros
- */
-export function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
-/**
- * Formate un nombre décimal
- */
-export function formatDecimal(value: number): string {
-  return new Intl.NumberFormat('fr-FR', {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
-
-/**
- * Formate une date en format français
- */
-export function formatDate(value: string | Date): string {
-  const date = typeof value === 'string' ? new Date(value) : value;
-
-  if (isNaN(date.getTime())) {
-    return '—';
-  }
-
-  return new Intl.DateTimeFormat('fr-FR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(date);
-}
+export {
+  formatValue,
+  formatNumber,
+  formatPercentage,
+  formatCurrency,
+  formatDecimal,
+  formatDate,
+} from '@dsfr-data/shared/lib';
+export type { FormatType } from '@dsfr-data/shared/lib';
 
 /**
  * Détermine la couleur selon les seuils

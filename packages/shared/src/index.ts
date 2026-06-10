@@ -1,6 +1,16 @@
 // Utils
 export { escapeHtml } from './utils/escape-html.js';
-export { formatKPIValue, formatDateShort } from './utils/formatters.js';
+export {
+  formatKPIValue,
+  formatDateShort,
+  formatValue,
+  formatNumber,
+  formatPercentage,
+  formatCurrency,
+  formatDecimal,
+  formatDate,
+} from './utils/formatters.js';
+export type { FormatType } from './utils/formatters.js';
 export { toNumber, looksLikeNumber } from './utils/number-parser.js';
 export { isValidDeptCode } from './utils/dept-codes.js';
 export type { JoinType, JoinKey, JoinOptions } from './utils/join.js';

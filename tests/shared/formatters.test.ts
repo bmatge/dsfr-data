@@ -2,17 +2,17 @@ import { describe, it, expect } from 'vitest';
 import { formatKPIValue, formatDateShort } from '../../packages/shared/src/utils/formatters';
 
 describe('formatKPIValue', () => {
-  it('should format plain number with French locale', () => {
+  it('should format plain number with French locale (contrat composant : entier, #317)', () => {
     const result = formatKPIValue(1234.5);
-    // Intl.NumberFormat fr-FR uses narrow no-break space (\u202F) as thousands separator
-    expect(result.replace(/\s/g, ' ')).toBe('1 234,5');
+    // Aligne sur formatValue 'nombre' du composant kpi : arrondi entier
+    // (la preview rendait '1 234,5' quand le composant affichait '1 235')
+    expect(result.replace(/\s/g, ' ')).toBe('1 235');
   });
 
-  it('should format currency with EUR unit', () => {
+  it('should format currency with EUR unit (0 décimale, contrat composant #317)', () => {
     const result = formatKPIValue(1234.56, 'EUR');
-    expect(result).toContain('1');
-    expect(result).toContain('234');
-    expect(result).toContain('\u20AC'); // Euro sign
+    // formatCurrency du composant : 0 décimale (la preview montrait 2)
+    expect(result.replace(/\s/g, ' ')).toBe('1 235 €');
   });
 
   it('should format currency with euro symbol', () => {
