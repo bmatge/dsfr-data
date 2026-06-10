@@ -1,5 +1,0 @@
----
-'dsfr-data': patch
----
-
-`dsfr-data-map-layer` — bbox client et cleanup (#297) : le fallback bbox client (adapters sans `serverGeo` : Tabular, Grist, Generic) sait enfin filtrer les **géométries** (bbox GeoJSON par parcours des coordonnées, Feature/Polygon/MultiPolygon) — tous les polygones disparaissaient au premier pan, `_extractCoords` ne sachant extraire que des points ; une géométrie inextractible est conservée. Retirer un layer **libère le filtre viewport** poussé sur la source (`whereKey: map-bbox`) — la source restait filtrée sur le dernier viewport pour tous ses autres consommateurs. Annexes : compagnon popup résolu une fois par rendu (jusqu'à 5000 `querySelector` par rendu avant), `radius-unit="m"` + `radius-field` utilise la valeur brute en mètres (l'échelle px produisait des cercles invisibles), banners de troncature empilés au lieu de superposés, attribut fantôme `filter` supprimé (warn de migration) — le champ « Filtre » du builder carto génère désormais un vrai `dsfr-data-query` intermédiaire.
