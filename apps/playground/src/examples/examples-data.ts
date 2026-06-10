@@ -151,26 +151,26 @@ export const examples: Record<string, string> = {
 
   <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">
     <dsfr-data-kpi source="data"
-      valeur="sum:nombre_beneficiaires"
+      value="nombre_beneficiaires:sum"
       label="Total beneficiaires"
       format="nombre">
     </dsfr-data-kpi>
 
     <dsfr-data-kpi source="data"
-      valeur="avg:nombre_beneficiaires"
+      value="nombre_beneficiaires:avg"
       label="Moyenne par enregistrement"
       format="decimal">
     </dsfr-data-kpi>
 
     <dsfr-data-kpi source="data"
-      valeur="max:montant_investissement"
+      value="montant_investissement:max"
       label="Investissement max"
       format="euro"
-      couleur="vert">
+      color="vert">
     </dsfr-data-kpi>
 
     <dsfr-data-kpi source="data"
-      valeur="count"
+      value="count"
       label="Enregistrements"
       format="nombre">
     </dsfr-data-kpi>
@@ -199,8 +199,8 @@ export const examples: Record<string, string> = {
   </dsfr-data-source>
 
   <dsfr-data-list source="data"
-    colonnes="Nom de l'élu:Nom, Prénom de l'élu:Prenom, Libellé du département:Departement, Libellé de la commune:Commune"
-    tri="Nom de l'élu:asc"
+    columns="Nom de l'élu:Nom, Prénom de l'élu:Prenom, Libellé du département:Departement, Libellé de la commune:Commune"
+    sort="Nom de l'élu:asc"
     pagination="20"
     export="csv">
   </dsfr-data-list>
@@ -232,9 +232,9 @@ export const examples: Record<string, string> = {
   </dsfr-data-source>
 
   <dsfr-data-list source="data"
-    colonnes="Nom de l'élu:Nom, Prénom de l'élu:Prenom, Libellé du département:Departement, Libellé de la commune:Commune"
-    recherche="true"
-    tri="Nom de l'élu:asc"
+    columns="Nom de l'élu:Nom, Prénom de l'élu:Prenom, Libellé du département:Departement, Libellé de la commune:Commune"
+    search="true"
+    sort="Nom de l'élu:asc"
     pagination="20">
   </dsfr-data-list>
 
@@ -315,28 +315,28 @@ export const examples: Record<string, string> = {
 
   <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
     <dsfr-data-kpi source="all"
-      valeur="count"
+      value="count"
       label="Projets"
       format="nombre">
     </dsfr-data-kpi>
 
     <dsfr-data-kpi source="all"
-      valeur="sum:nombre_beneficiaires"
+      value="nombre_beneficiaires:sum"
       label="Total beneficiaires"
       format="nombre"
-      couleur="bleu">
+      color="bleu">
     </dsfr-data-kpi>
 
     <dsfr-data-kpi source="all"
-      valeur="sum:montant_investissement"
+      value="montant_investissement:sum"
       label="Investissement total"
       format="euro"
-      couleur="vert">
+      color="vert">
     </dsfr-data-kpi>
   </div>
 
   <dsfr-data-list source="browse"
-    colonnes="nom_departement:Departement, nom_region:Region, nombre_beneficiaires:Beneficiaires, montant_investissement:Investissement"
+    columns="nom_departement:Departement, nom_region:Region, nombre_beneficiaires:Beneficiaires, montant_investissement:Investissement"
     pagination="20">
   </dsfr-data-list>
 
@@ -594,9 +594,9 @@ export const examples: Record<string, string> = {
   </dsfr-data-normalize>
 
   <dsfr-data-list source="clean"
-    colonnes="Code, Departement, Vacants 2025, Vacants >2 ans, Total logements 2024, Vacants 2024"
-    recherche="true"
-    tri="Vacants 2025:desc"
+    columns="Code, Departement, Vacants 2025, Vacants >2 ans, Total logements 2024, Vacants 2024"
+    search="true"
+    sort="Vacants 2025:desc"
     pagination="15"
     export="csv">
   </dsfr-data-list>
@@ -652,9 +652,9 @@ export const examples: Record<string, string> = {
   </dsfr-data-facets>
 
   <dsfr-data-list source="filtered"
-    colonnes="Departement, Region, nombre_beneficiaires:Beneficiaires, montant_investissement:Investissement"
-    recherche="true"
-    tri="Departement:asc"
+    columns="Departement, Region, nombre_beneficiaires:Beneficiaires, montant_investissement:Investissement"
+    search="true"
+    sort="Departement:asc"
     pagination="10"
     export="csv">
   </dsfr-data-list>
@@ -899,8 +899,8 @@ export const examples: Record<string, string> = {
   </dsfr-data-search>
 
   <dsfr-data-list source="q"
-    colonnes="modeles_ou_references:Produit, categorie_produit:Catégorie, marque_produit:Marque, date_publication:Date"
-    server-tri
+    columns="modeles_ou_references:Produit, categorie_produit:Catégorie, marque_produit:Marque, date_publication:Date"
+    server-sort
     pagination="20">
   </dsfr-data-list>
 </div>`,
@@ -987,19 +987,19 @@ export const examples: Record<string, string> = {
 
   <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin: 1.5rem 0;">
     <dsfr-data-kpi source="searched"
-      valeur="count"
+      value="count"
       label="Projets"
-      couleur="bleu">
+      color="bleu">
     </dsfr-data-kpi>
 
     <dsfr-data-kpi source="searched"
-      valeur="sum:montant_investissement"
+      value="montant_investissement:sum"
       label="Investissement total"
       format="euro">
     </dsfr-data-kpi>
 
     <dsfr-data-kpi source="searched"
-      valeur="sum:nombre_beneficiaires"
+      value="nombre_beneficiaires:sum"
       label="Beneficiaires"
       format="nombre">
     </dsfr-data-kpi>
@@ -1055,19 +1055,19 @@ export const examples: Record<string, string> = {
   <!-- KPI sur les données filtrees -->
   <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
     <dsfr-data-kpi source="filtered"
-      valeur="count"
+      value="count"
       label="Communes"
       format="nombre">
     </dsfr-data-kpi>
 
     <dsfr-data-kpi source="filtered"
-      valeur="avg:taux_global_tfb"
+      value="taux_global_tfb:avg"
       label="Taux TFB moyen"
       format="pourcentage">
     </dsfr-data-kpi>
 
     <dsfr-data-kpi source="filtered"
-      valeur="avg:taux_global_th"
+      value="taux_global_th:avg"
       label="Taux TH moyen"
       format="pourcentage">
     </dsfr-data-kpi>
@@ -1163,8 +1163,8 @@ export const examples: Record<string, string> = {
   </dsfr-data-source>
 
   <dsfr-data-list source="q"
-    colonnes="COM:Code commune, LIBELLE:Commune, DEP:Departement, REG:Region"
-    server-tri
+    columns="COM:Code commune, LIBELLE:Commune, DEP:Departement, REG:Region"
+    server-sort
     pagination="20"
     url-sync>
   </dsfr-data-list>

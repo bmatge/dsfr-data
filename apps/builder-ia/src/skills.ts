@@ -906,15 +906,15 @@ Attend un tableau d'objets. L'attribut \`valeur\` determine comment extraire/agr
 | Attribut | Type | Défaut | Requis | Description |
 |----------|------|--------|--------|-------------|
 | source | String | \`""\` | oui | ID de la dsfr-data-source ou dsfr-data-query |
-| valeur | String | \`""\` | oui | Expression : \`"champ"\`, \`"avg:champ"\`, \`"sum:champ"\`, \`"min:champ"\`, \`"max:champ"\`, \`"count:champ:valeur"\` |
+| value | String | \`""\` | oui | Expression : \`"champ"\`, \`"champ:avg"\`, \`"champ:sum"\`, \`"champ:min"\`, \`"champ:max"\`, \`"count:champ:valeur"\` (grammaire commune champ:fn, #303). Alias deprecie : \`valeur\` |
 | label | String | \`""\` | non | Libelle sous la valeur |
 | description | String | \`""\` | non | Description pour accessibilité (sr-only) |
-| icone | String | \`""\` | non | Classe Remix Icon : \`ri-global-line\`, \`ri-money-euro-circle-line\`, etc. |
+| icon | String | \`""\` | non | Classe Remix Icon : \`ri-global-line\`, \`ri-money-euro-circle-line\`, etc. Alias deprecie : \`icone\` |
 | format | String | \`"nombre"\` | non | Format : nombre, pourcentage, euro, decimal |
-| tendance | String | \`""\` | non | Expression de tendance : valeur fixe (\`"+3.2"\`) ou agrégation |
-| couleur | String | \`""\` | non | Forcer la couleur : vert, orange, rouge, bleu |
-| seuil-vert | Number | - | non | Seuil au-dessus duquel couleur = vert |
-| seuil-orange | Number | - | non | Seuil au-dessus duquel couleur = orange (en-dessous = rouge) |
+| trend | String | \`""\` | non | Expression d'agregation pour la tendance (\`"evolution:avg"\`), evaluee sur les donnees — PAS un litteral. Rendue en pourcentage fr-FR. Alias deprecie : \`tendance\` |
+| color | String | \`""\` | non | Forcer la couleur : vert, orange, rouge, bleu. Alias deprecie : \`couleur\` |
+| threshold-green | Number | - | non | Seuil au-dessus duquel couleur = vert. Alias deprecie : \`seuil-vert\` |
+| threshold-orange | Number | - | non | Seuil au-dessus duquel couleur = orange (en-dessous = rouge). Alias deprecie : \`seuil-orange\` |
 | col | Number | - | non | Largeur en colonnes DSFR (1-12), actif uniquement dans un \`<dsfr-data-kpi-group>\` |
 
 ### Grouper des KPIs : \`<dsfr-data-kpi-group>\`
@@ -1252,15 +1252,15 @@ les clés du premier objet sont utilisees comme colonnes.
 | Attribut | Type | Défaut | Requis | Description |
 |----------|------|--------|--------|-------------|
 | source | String | \`""\` | oui | ID de la source ou query |
-| colonnes | String | \`""\` | non | Definition des colonnes : \`"key:Label, key2:Label2"\` |
-| recherche | Boolean | \`false\` | non | Afficher la barre de recherche full-text |
-| filtres | String | \`""\` | non | Colonnes filtrables (dropdown) : \`"col1,col2"\` |
-| tri | String | \`""\` | non | Tri par défaut : \`"col:asc"\` ou \`"col:desc"\` |
+| columns | String | \`""\` | non | Definition des colonnes : \`"key:Label, key2:Label2"\`. Alias deprecie : \`colonnes\` |
+| search | Boolean | \`false\` | non | Afficher la barre de recherche full-text (desactivee en pagination serveur, #304). Alias deprecie : \`recherche\` |
+| filters | String | \`""\` | non | Colonnes filtrables (dropdown) : \`"col1,col2"\`. Alias deprecie : \`filtres\` |
+| sort | String | \`""\` | non | Tri par défaut : \`"col:asc"\` ou \`"col:desc"\`. Alias deprecie : \`tri\` |
 | pagination | Number | \`0\` | non | Lignes par page (0 = tout afficher sans pagination) |
 | export | String | \`""\` | non | Formats d'export : \`"csv"\`, \`"html"\` ou \`"csv,html"\` |
 | url-sync | Boolean | \`false\` | non | Synchronise le numero de page dans l'URL (?page=N) via replaceState |
 | url-page-param | String | \`"page"\` | non | Nom du parametre URL pour la page |
-| server-tri | Boolean | \`false\` | non | Delegue le tri au serveur (le dsfr-data-query amont relaie automatiquement vers la source server-side) |
+| server-sort | Boolean | \`false\` | non | Delegue le tri au serveur (retour page 1 automatique, #304). Alias deprecie : \`server-tri\` |
 
 ### Tri serveur
 Avec \`server-tri\`, le clic sur un en-tete de colonne envoie une commande \`{ orderBy }\`

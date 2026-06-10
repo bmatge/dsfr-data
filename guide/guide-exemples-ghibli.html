@@ -190,21 +190,21 @@
 
         <div class="kpi-row">
           <dsfr-data-kpi source="films"
-            valeur="avg:rt_score"
+            value="rt_score:avg"
             label="Score Rotten Tomatoes moyen (sur 100)"
             format="nombre"
-            seuil-vert="90"
-            seuil-orange="75"
-            icone="ri-star-line"
-            couleur="bleu">
+            threshold-green="90"
+            threshold-orange="75"
+            icon="ri-star-line"
+            color="bleu">
           </dsfr-data-kpi>
 
           <dsfr-data-kpi source="films"
-            valeur="avg:running_time"
+            value="running_time:avg"
             label="Duree moyenne (minutes par film)"
             format="nombre"
-            icone="ri-time-line"
-            couleur="orange">
+            icon="ri-time-line"
+            color="orange">
           </dsfr-data-kpi>
         </div>
 
@@ -328,9 +328,9 @@
         </dsfr-data-facets>
 
         <dsfr-data-list source="films-filtered"
-          colonnes="title:Titre, director:Realisateur, release_date:Annee, running_time:Duree (min), rt_score:Score RT (%)"
-          recherche
-          tri="rt_score:desc"
+          columns="title:Titre, director:Realisateur, release_date:Annee, running_time:Duree (min), rt_score:Score RT (%)"
+          search
+          sort="rt_score:desc"
           pagination="10"
           export="csv">
         </dsfr-data-list>
@@ -400,18 +400,18 @@
 &lt;!-- KPIs --&gt;
 &lt;div class="kpi-row"&gt;
   &lt;dsfr-data-kpi source="films"
-    valeur="avg:rt_score"
+    value="rt_score:avg"
     label="Score Rotten Tomatoes moyen (sur 100)"
     format="nombre"
-    seuil-vert="90" seuil-orange="75"
-    icone="ri-star-line" couleur="bleu"&gt;
+    threshold-green="90" threshold-orange="75"
+    icon="ri-star-line" color="bleu"&gt;
   &lt;/dsfr-data-kpi&gt;
 
   &lt;dsfr-data-kpi source="films"
-    valeur="avg:running_time"
+    value="running_time:avg"
     label="Duree moyenne (minutes par film)"
     format="nombre"
-    icone="ri-time-line" couleur="orange"&gt;
+    icon="ri-time-line" color="orange"&gt;
   &lt;/dsfr-data-kpi&gt;
 &lt;/div&gt;
 
@@ -465,7 +465,7 @@
 &lt;/dsfr-data-facets&gt;
 
 &lt;dsfr-data-list source="films-filtered"
-  colonnes="title:Titre, director:Realisateur, release_date:Annee, running_time:Duree (min), rt_score:Score RT (%)"
+  columns="title:Titre, director:Realisateur, release_date:Annee, running_time:Duree (min), rt_score:Score RT (%)"
   recherche tri="rt_score:desc" pagination="10" export="csv"&gt;
 &lt;/dsfr-data-list&gt;</pre>
           </div>
@@ -477,7 +477,7 @@
           <li><strong>Provider generic</strong> : <code>dsfr-data-source</code> utilise une URL directe vers une API REST qui retourne un tableau JSON plat. Pas besoin d'<code>api-type</code> ni de <code>transform</code> — le cas d'usage le plus simple. L'API Ghibli supporte CORS nativement, donc pas besoin de <code>use-proxy</code>.</li>
           <li><strong>Normalisation des types</strong> : l'API retourne <code>rt_score</code>, <code>running_time</code> et <code>release_date</code> en string. <code>dsfr-data-normalize numeric</code> les convertit en nombres pour permettre le tri, les agregations et les filtres numeriques.</li>
           <li><strong>Queries multiples sur une seule source</strong> : 6 <code>dsfr-data-query</code> derivent chacun une vue differente des memes donnees (tri, group-by, aggregate, where) — tout en client-side.</li>
-          <li><strong>KPI avec agregation inline</strong> : <code>dsfr-data-kpi valeur="avg:rt_score"</code> calcule la moyenne directement, sans query intermediaire.</li>
+          <li><strong>KPI avec agregation inline</strong> : <code>dsfr-data-kpi value="rt_score:avg"</code> calcule la moyenne directement, sans query intermediaire.</li>
           <li><strong>Facettes et tableau interactif</strong> : <code>dsfr-data-facets</code> en mode select filtre par realisateur et producteur, <code>dsfr-data-list</code> ajoute la recherche, le tri et l'export CSV.</li>
           <li><strong>Accessibilite</strong> : <code>dsfr-data-a11y</code> sur chaque graphique pour le telechargement CSV.</li>
           <li><strong>0 ligne de JavaScript</strong> : tout le dashboard est 100% declaratif en HTML.</li>

@@ -227,8 +227,8 @@ function generateFixedHtml(): string {
     const agg = (opts.aggregation || 'avg') as string;
     const format = (opts.format || 'nombre') as string;
     const label = (opts.label || 'Indicateur') as string;
-    const icone = opts.icone ? ` icone="${opts.icone}"` : '';
-    const couleur = opts.couleur ? ` couleur="${opts.couleur}"` : '';
+    const icone = opts.icone ? ` icon="${opts.icone}"` : '';
+    const couleur = opts.couleur ? ` color="${opts.couleur}"` : '';
 
     deps.push(
       '<script src="https://cdn.jsdelivr.net/gh/bmatge/dsfr-data@main/dist/dsfr-data.umd.js"></script>'
@@ -237,7 +237,7 @@ function generateFixedHtml(): string {
     return `${deps.join('\n')}
 
 <!-- Widget KPI -->
-<dsfr-data-kpi source="export" valeur="${agg}:Value" format="${format}" label="${label}"${icone}${couleur}></dsfr-data-kpi>
+<dsfr-data-kpi source="export" value="Value:${agg}" format="${format}" label="${label}"${icone}${couleur}></dsfr-data-kpi>
 <script>
   customElements.whenDefined('dsfr-data-kpi').then(function() {
     DsfrData.dispatchDataLoaded('export', ${jsonData});
@@ -305,8 +305,8 @@ function generateDynamicHtml(): string {
     const agg = (opts.aggregation || 'avg') as string;
     const format = (opts.format || 'nombre') as string;
     const label = (opts.label || 'Indicateur') as string;
-    const icone = opts.icone ? ` icone="${opts.icone}"` : '';
-    const couleur = opts.couleur ? ` couleur="${opts.couleur}"` : '';
+    const icone = opts.icone ? ` icon="${opts.icone}"` : '';
+    const couleur = opts.couleur ? ` color="${opts.couleur}"` : '';
 
     deps.push(
       '<script src="https://cdn.jsdelivr.net/gh/bmatge/dsfr-data@main/dist/dsfr-data.umd.js"></script>'
@@ -322,7 +322,7 @@ function generateDynamicHtml(): string {
 </dsfr-data-source>
 
 <!-- Widget KPI -->
-<dsfr-data-kpi source="grist-data" valeur="${agg}:fields.${valueCol}" format="${format}" label="${label}"${icone}${couleur}></dsfr-data-kpi>`;
+<dsfr-data-kpi source="grist-data" value="fields.${valueCol}:${agg}" format="${format}" label="${label}"${icone}${couleur}></dsfr-data-kpi>`;
   }
 
   deps.push(

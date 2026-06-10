@@ -441,7 +441,7 @@ function buildColonnesAttr(): string {
  */
 function buildDatalistAttrs(): string {
   let attrs = '';
-  if (state.datalistRecherche) attrs += '\n    recherche';
+  if (state.datalistRecherche) attrs += '\n    search';
   const exportFormats: string[] = [];
   if (state.datalistExportCsv) exportFormats.push('csv');
   if (state.datalistExportHtml) exportFormats.push('html');
@@ -451,7 +451,7 @@ function buildDatalistAttrs(): string {
     .filter((c) => c.visible && c.filtrable)
     .map((c) => c.field);
   if (state.datalistFiltres && filtrables.length > 0) {
-    attrs += `\n    filtres="${filtrables.join(',')}"`;
+    attrs += `\n    filters="${filtrables.join(',')}"`;
   }
   return attrs;
 }
@@ -862,7 +862,7 @@ export function generateCodeForLocalData(): void {
 
   <dsfr-data-list
     id="my-table"
-    colonnes="${colonnes}"${buildDatalistAttrs()}${triAttr}
+    columns="${colonnes}"${buildDatalistAttrs()}${triAttr}
     pagination="10">
   </dsfr-data-list>${generateEmbeddedA11y('my-table')}
 </div>
@@ -1396,7 +1396,7 @@ ${middlewareHtml}
   <dsfr-data-list
     id="my-datalist"
     source="${datalistSource}"
-    colonnes="${colonnes}"${buildDatalistAttrs()}${triAttr}
+    columns="${colonnes}"${buildDatalistAttrs()}${triAttr}
     pagination="10">
   </dsfr-data-list>${generateA11yElement(datalistSource, 'my-datalist')}
 </div>`;
@@ -1568,7 +1568,7 @@ export function generateDynamicCodeForApi(): void {
   </dsfr-data-source>
   <dsfr-data-kpi
     source="kpi-src"
-    valeur="value"
+    value="value"
     label="${escapeHtml(state.title)}"${formatAttr}>
   </dsfr-data-kpi>
 </div>`;
@@ -1624,8 +1624,8 @@ ${facets.element}
   <dsfr-data-list
     id="my-datalist"
     source="${datalistSource}"
-    colonnes="${colonnes}"${buildDatalistAttrs()}${triAttr}
-    server-tri
+    columns="${colonnes}"${buildDatalistAttrs()}${triAttr}
+    server-sort
     pagination="20">
   </dsfr-data-list>${generateA11yElement(datalistSource, 'my-datalist')}
 </div>`;
@@ -1676,8 +1676,8 @@ ${facets.element}
   <dsfr-data-list
     id="my-datalist"
     source="${datalistSource}"
-    colonnes="${colonnes}"${buildDatalistAttrs()}${triAttr}
-    server-tri
+    columns="${colonnes}"${buildDatalistAttrs()}${triAttr}
+    server-sort
     pagination="20">
   </dsfr-data-list>${generateA11yElement(datalistSource, 'my-datalist')}
 </div>`;
@@ -1711,7 +1711,7 @@ ${middlewareHtml}
   <dsfr-data-list
     id="my-datalist"
     source="${datalistSource}"
-    colonnes="${colonnes}"${buildDatalistAttrs()}${triAttr}
+    columns="${colonnes}"${buildDatalistAttrs()}${triAttr}
     pagination="10">
   </dsfr-data-list>${generateA11yElement(datalistSource, 'my-datalist')}
 </div>`;
@@ -1964,7 +1964,7 @@ loadGauge();
 
   <dsfr-data-list
     id="my-table"
-    colonnes="${colonnes}"${buildDatalistAttrs()}${triAttr}
+    columns="${colonnes}"${buildDatalistAttrs()}${triAttr}
     pagination="10">
   </dsfr-data-list>${generateEmbeddedA11y('my-table')}
 </div>

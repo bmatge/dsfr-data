@@ -43,17 +43,33 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
 
   /** Définition des colonnes: "clé:Label, cle2:Label2" */
   @property({ type: String })
+  columns = '';
+
+  /** @deprecated alias français de `columns` (#300) */
+  @property({ type: String })
   colonnes = '';
 
   /** Afficher un champ de recherche */
+  @property({ type: Boolean })
+  search = false;
+
+  /** @deprecated alias français de `search` (#300) */
   @property({ type: Boolean })
   recherche = false;
 
   /** Colonnes filtrables: "ministere,statut" */
   @property({ type: String })
+  filters = '';
+
+  /** @deprecated alias français de `filters` (#300) */
+  @property({ type: String })
   filtres = '';
 
   /** Tri par défaut: "score:desc" */
+  @property({ type: String })
+  sort = '';
+
+  /** @deprecated alias français de `sort` (#300) */
   @property({ type: String })
   tri = '';
 
@@ -78,6 +94,10 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
    * Au lieu de trier localement, envoie une commande { orderBy } au source upstream
    * (dsfr-data-query server-side) qui re-fetche les données triees.
    */
+  @property({ type: Boolean, attribute: 'server-sort' })
+  serverSort = false;
+
+  /** @deprecated alias français de `server-sort` (#300) */
   @property({ type: Boolean, attribute: 'server-tri' })
   serverTri = false;
 
@@ -133,9 +153,27 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
 
   static styles = css``;
 
+  /** Warn-once : attributs français dépréciés (#300, cible = anglais) */
+  private _warnDeprecatedFrenchAttrs() {
+    const aliases: Array<[string, string]> = [
+      ['colonnes', 'columns'],
+      ['recherche', 'search'],
+      ['filtres', 'filters'],
+      ['tri', 'sort'],
+      ['server-tri', 'server-sort'],
+    ];
+    const used = aliases.filter(([fr]) => this.hasAttribute(fr)).map(([fr, en]) => `${fr}→${en}`);
+    if (used.length > 0) {
+      console.warn(
+        `dsfr-data-list: attributs français dépréciés (${used.join(', ')}) — la convention cible est l'anglais, les alias seront retirés à la 1.0 (#300)`
+      );
+    }
+  }
+
   connectedCallback() {
     super.connectedCallback();
     sendWidgetBeacon('dsfr-data-list');
+    this._warnDeprecatedFrenchAttrs();
     this._initSort();
     this._pager.connect();
   }
@@ -147,7 +185,7 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
 
   willUpdate(changedProperties: Map<string, unknown>) {
     super.willUpdate(changedProperties);
-    if (changedProperties.has('tri')) {
+    if (changedProperties.has('tri') || changedProperties.has('sort')) {
       this._initSort();
     }
   }
@@ -174,21 +212,24 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
   // --- Parsing ---
 
   parseColumns(): ColumnDef[] {
-    if (!this.colonnes) return [];
-    return this.colonnes.split(',').map((col) => {
+    const columnsExpr = this.columns || this.colonnes;
+    if (!columnsExpr) return [];
+    return columnsExpr.split(',').map((col) => {
       const [key, label] = col.trim().split(':');
       return { key: key.trim(), label: label?.trim() || key.trim() };
     });
   }
 
   private _getFilterableColumns(): string[] {
-    if (!this.filtres) return [];
-    return this.filtres.split(',').map((f) => f.trim());
+    const filtersExpr = this.filters || this.filtres;
+    if (!filtersExpr) return [];
+    return filtersExpr.split(',').map((f) => f.trim());
   }
 
   private _initSort() {
-    if (this.tri) {
-      const [key, direction] = this.tri.split(':');
+    const sortExpr = this.sort || this.tri;
+    if (sortExpr) {
+      const [key, direction] = sortExpr.split(':');
       this._sort = { key, direction: (direction as 'asc' | 'desc') || 'asc' };
     }
   }
@@ -223,7 +264,7 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
     });
 
     // Skip client-side sort in server-tri mode (data comes pre-sorted)
-    if (this._sort && !this.serverTri) {
+    if (this._sort && !(this.serverSort || this.serverTri)) {
       const { key, direction } = this._sort;
       result.sort((a, b) => {
         const aVal = a[key];
@@ -306,7 +347,7 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
     // In server-tri mode, delegate sorting to the upstream source —
     // retour page 1 dans la MEME commande (#304) : trier en page 5
     // affichait la page 5 du nouveau tri
-    if (this.serverTri && this.source) {
+    if ((this.serverSort || this.serverTri) && this.source) {
       this._pager.notifyServerSort(`${this._sort.key}:${this._sort.direction}`);
     }
   }
@@ -455,8 +496,9 @@ ${bodyRows}
     const hasExport = this.export?.includes('csv') || this.export?.includes('html');
     // En pagination serveur, la recherche locale n'opererait que sur la
     // page chargee : desactivee avec warning (#304)
-    const recherche = this.recherche && !this._serverPagination;
-    if (this.recherche && this._serverPagination) this._warnServerLocalFeatures('recherche');
+    const wantsSearch = this.search || this.recherche;
+    const recherche = wantsSearch && !this._serverPagination;
+    if (wantsSearch && this._serverPagination) this._warnServerLocalFeatures('recherche');
     if (!recherche && !hasExport) return '';
 
     return html`

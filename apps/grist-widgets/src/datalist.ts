@@ -99,7 +99,7 @@ function generateFixedHtml(): string {
   const hasRecherche = datalist?.hasAttribute('recherche');
   const exportAttr = datalist?.getAttribute('export') || '';
 
-  const recherche = hasRecherche ? ' recherche' : '';
+  const recherche = hasRecherche ? ' search' : '';
   const exportPart = exportAttr ? ` export="${exportAttr}"` : '';
   const jsonData = JSON.stringify(data);
 
@@ -114,7 +114,7 @@ function generateFixedHtml(): string {
   return `${deps.join('\n')}
 
 <!-- Widget tableau -->
-<dsfr-data-list source="export" colonnes="${colonnes}" pagination="${pagination}"${recherche}${exportPart}></dsfr-data-list>
+<dsfr-data-list source="export" columns="${colonnes}" pagination="${pagination}"${recherche}${exportPart}></dsfr-data-list>
 <script>
   customElements.whenDefined('dsfr-data-list').then(function() {
     DsfrData.dispatchDataLoaded('export', ${jsonData});
@@ -138,7 +138,7 @@ function generateDynamicHtml(): string {
   const hasRecherche = datalist?.hasAttribute('recherche');
   const exportAttr = datalist?.getAttribute('export') || '';
 
-  const recherche = hasRecherche ? ' recherche' : '';
+  const recherche = hasRecherche ? ' search' : '';
   const exportPart = exportAttr ? ` export="${exportAttr}"` : '';
 
   // Colonnes avec prefix fields. pour le format Grist API
@@ -162,7 +162,7 @@ function generateDynamicHtml(): string {
 </dsfr-data-source>
 
 <!-- Widget tableau -->
-<dsfr-data-list source="grist-data" colonnes="${colonnes}" pagination="${pagination}"${recherche}${exportPart}></dsfr-data-list>`;
+<dsfr-data-list source="grist-data" columns="${colonnes}" pagination="${pagination}"${recherche}${exportPart}></dsfr-data-list>`;
 }
 
 function updateCodePanel() {

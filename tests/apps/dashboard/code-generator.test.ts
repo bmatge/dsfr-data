@@ -21,7 +21,7 @@ describe('dashboard/code-generator', () => {
       });
       const html = generateWidgetHTML(widget);
       expect(html).toContain('<dsfr-data-kpi');
-      expect(html).toContain('valeur="1234"');
+      expect(html).toContain('value="1234"');
       expect(html).toContain('label="Total"');
       expect(html).toContain('format="nombre"');
     });
@@ -32,7 +32,7 @@ describe('dashboard/code-generator', () => {
         config: { valeur: '42', label: 'Count', format: 'nombre', icone: 'ri-user-line' },
       });
       const html = generateWidgetHTML(widget);
-      expect(html).toContain('icone="ri-user-line"');
+      expect(html).toContain('icon="ri-user-line"');
     });
 
     it('should not include icone attribute when empty', () => {
@@ -47,7 +47,12 @@ describe('dashboard/code-generator', () => {
     it('should generate chart HTML with dsfr-data-chart tag', () => {
       const widget = makeWidget({
         type: 'chart',
-        config: { chartType: 'line', labelField: 'date', valueField: 'count', palette: 'sequential' },
+        config: {
+          chartType: 'line',
+          labelField: 'date',
+          valueField: 'count',
+          palette: 'sequential',
+        },
       });
       const html = generateWidgetHTML(widget);
       expect(html).toContain('<dsfr-data-chart');
@@ -130,7 +135,12 @@ describe('dashboard/code-generator', () => {
     it('should escape HTML in titles and values', () => {
       const widget = makeWidget({
         type: 'kpi',
-        config: { valeur: '<script>alert("xss")</script>', label: 'Safe', format: 'nombre', icone: '' },
+        config: {
+          valeur: '<script>alert("xss")</script>',
+          label: 'Safe',
+          format: 'nombre',
+          icone: '',
+        },
       });
       const html = generateWidgetHTML(widget);
       expect(html).not.toContain('<script>');

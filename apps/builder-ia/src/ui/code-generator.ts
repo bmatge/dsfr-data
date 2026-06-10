@@ -559,9 +559,9 @@ function generateDatalistCode(config: ChartConfig): string {
 
   <dsfr-data-list
     source="table-data"
-    colonnes="${colonnes}"
-    recherche
-    server-tri${triAttr}
+    columns="${colonnes}"
+    search
+    server-sort${triAttr}
     pagination="${pagination}"
     export="csv">
   </dsfr-data-list>
@@ -601,9 +601,9 @@ function generateDatalistCode(config: ChartConfig): string {
 
   <dsfr-data-list
     source="table-data"
-    colonnes="${colonnes}"
-    recherche
-    server-tri${triAttr}
+    columns="${colonnes}"
+    search
+    server-sort${triAttr}
     pagination="${pagination}"
     export="csv">
   </dsfr-data-list>

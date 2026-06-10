@@ -84,9 +84,9 @@ export function generateWidgetHTML(widget: Widget): string {
 
   switch (widget.type) {
     case 'kpi': {
-      const iconeAttr = widget.config.icone ? ` icone="${widget.config.icone}"` : '';
+      const iconeAttr = widget.config.icone ? ` icon="${widget.config.icone}"` : '';
       return `${indent}<dsfr-data-kpi
-${indent}  valeur="${escapeHtml(widget.config.valeur || '')}"
+${indent}  value="${escapeHtml(widget.config.valeur || '')}"
 ${indent}  label="${escapeHtml(widget.config.label || widget.title)}"
 ${indent}  format="${widget.config.format || 'nombre'}"${iconeAttr}>
 ${indent}</dsfr-data-kpi>\n`;

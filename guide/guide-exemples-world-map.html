@@ -148,35 +148,35 @@ dsfr-data-source "src-pays"                         --> dsfr-data-kpi (count pay
 
         <div class="kpi-row">
           <dsfr-data-kpi source="src-global"
-            valeur="valeur_mds"
+            value="valeur_mds"
             label="Valeur exportee (Mds)"
             format="decimal"
-            icone="ri-money-euro-circle-line"
-            couleur="bleu">
+            icon="ri-money-euro-circle-line"
+            color="bleu">
           </dsfr-data-kpi>
 
           <dsfr-data-kpi source="src-global"
-            valeur="nb_flux_m"
+            value="nb_flux_m"
             label="Flux d'exportation (millions)"
             format="decimal"
-            icone="ri-exchange-funds-line"
-            couleur="bleu">
+            icon="ri-exchange-funds-line"
+            color="bleu">
           </dsfr-data-kpi>
 
           <dsfr-data-kpi source="src-global"
-            valeur="masse_mt"
+            value="masse_mt"
             label="Masse totale (Mt)"
             format="decimal"
-            icone="ri-scales-3-line"
-            couleur="bleu">
+            icon="ri-scales-3-line"
+            color="bleu">
           </dsfr-data-kpi>
 
           <dsfr-data-kpi source="src-pays"
-            valeur="count:pays"
+            value="count:pays"
             label="Pays partenaires"
             format="nombre"
-            icone="ri-global-line"
-            couleur="vert">
+            icon="ri-global-line"
+            color="vert">
           </dsfr-data-kpi>
         </div>
 
@@ -271,14 +271,14 @@ dsfr-data-source "src-pays"                         --> dsfr-data-kpi (count pay
 &lt;/dsfr-data-source&gt;
 
 &lt;!-- KPIs --&gt;
-&lt;dsfr-data-kpi source="src-global" valeur="valeur_mds"
+&lt;dsfr-data-kpi source="src-global" value="valeur_mds"
   label="Valeur exportee (Mds)" format="decimal"
-  icone="ri-money-euro-circle-line" couleur="bleu"&gt;
+  icon="ri-money-euro-circle-line" color="bleu"&gt;
 &lt;/dsfr-data-kpi&gt;
 
-&lt;dsfr-data-kpi source="src-pays" valeur="count:pays"
+&lt;dsfr-data-kpi source="src-pays" value="count:pays"
   label="Pays partenaires" format="nombre"
-  icone="ri-global-line" couleur="vert"&gt;
+  icon="ri-global-line" color="vert"&gt;
 &lt;/dsfr-data-kpi&gt;
 
 &lt;!-- Top 15 : bar chart --&gt;
@@ -320,7 +320,7 @@ dsfr-data-source "src-pays"                         --> dsfr-data-kpi (count pay
           <li><strong>dsfr-data-world-map</strong> : carte choropleth mondiale. Attributs principaux : <code>code-field</code> (champ contenant le code pays), <code>value-field</code> (champ numerique), <code>code-format</code> (<code>iso-a2</code>, <code>iso-a3</code> ou <code>iso-num</code>), <code>zoom="continent"</code> (boutons de zoom par continent).</li>
           <li><strong>Agregation server-side</strong> : <code>dsfr-data-source</code> utilise <code>select</code> avec <code>sum()</code> et <code>count()</code>, <code>group-by</code> et <code>order-by</code> pour agreger directement cote serveur OpenDataSoft.</li>
           <li><strong>Pipeline de transformation</strong> : <code>dsfr-data-query</code> applique <code>limit</code> et <code>order-by</code> sur les donnees agregees pour alimenter les graphiques top 15 et top 8, tandis que la carte recoit toutes les donnees.</li>
-          <li><strong>KPI derives</strong> : <code>valeur="count:pays"</code> compte le nombre de valeurs distinctes du champ <code>pays</code> sans source supplementaire.</li>
+          <li><strong>KPI derives</strong> : <code>value="count:pays"</code> compte le nombre de valeurs distinctes du champ <code>pays</code> sans source supplementaire.</li>
           <li><strong>Accessibilite</strong> : <code>dsfr-data-a11y</code> sur chaque graphique pour le telechargement CSV.</li>
           <li><strong>0 ligne de JavaScript</strong> : tout le dashboard est 100% declaratif en HTML.</li>
         </ul>

@@ -362,10 +362,10 @@
 &lt;/dsfr-data-query&gt;
 
 &lt;div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;"&gt;
-  &lt;dsfr-data-kpi source="src" valeur="count"
+  &lt;dsfr-data-kpi source="src" value="count"
     label="Total des rappels" format="nombre"&gt;&lt;/dsfr-data-kpi&gt;
-  &lt;dsfr-data-kpi source="q-alim" valeur="count"
-    label="Dont alimentaires" format="nombre" couleur="bleu"&gt;&lt;/dsfr-data-kpi&gt;
+  &lt;dsfr-data-kpi source="q-alim" value="count"
+    label="Dont alimentaires" format="nombre" color="bleu"&gt;&lt;/dsfr-data-kpi&gt;
 &lt;/div&gt;</pre>
           </div>
         </section>
@@ -388,10 +388,10 @@
 &lt;/dsfr-data-query&gt;
 
 &lt;div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;"&gt;
-  &lt;dsfr-data-kpi source="src" valeur="count"
+  &lt;dsfr-data-kpi source="src" value="count"
     label="Total des rappels" format="nombre"&gt;&lt;/dsfr-data-kpi&gt;
-  &lt;dsfr-data-kpi source="q-combine" valeur="count"
-    label="Alimentaires (Lait)" format="nombre" couleur="bleu"&gt;&lt;/dsfr-data-kpi&gt;
+  &lt;dsfr-data-kpi source="q-combine" value="count"
+    label="Alimentaires (Lait)" format="nombre" color="bleu"&gt;&lt;/dsfr-data-kpi&gt;
 &lt;/div&gt;</pre>
           </div>
         </section>
@@ -416,7 +416,7 @@
 &lt;/dsfr-data-query&gt;
 
 &lt;dsfr-data-list source="q"
-  colonnes="modeles_ou_references:Produit, marque_produit:Marque, sous_categorie_produit:Sous-categorie"
+  columns="modeles_ou_references:Produit, marque_produit:Marque, sous_categorie_produit:Sous-categorie"
   recherche="true" tri="modeles_ou_references:asc" pagination="10" export="csv"&gt;
 &lt;/dsfr-data-list&gt;</pre>
           </div>
@@ -440,7 +440,7 @@
 &lt;/dsfr-data-query&gt;
 
 &lt;dsfr-data-list source="q"
-  colonnes="modeles_ou_references:Produit, categorie_produit:Categorie, marque_produit:Marque, date_publication:Date"
+  columns="modeles_ou_references:Produit, categorie_produit:Categorie, marque_produit:Marque, date_publication:Date"
   recherche="true" tri="categorie_produit:asc" pagination="10" export="csv"&gt;
 &lt;/dsfr-data-list&gt;</pre>
           </div>
@@ -522,15 +522,15 @@
 &lt;/dsfr-data-query&gt;
 
 &lt;div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;"&gt;
-  &lt;dsfr-data-kpi source="global-stats" valeur="sum:total"
+  &lt;dsfr-data-kpi source="global-stats" value="total:sum"
     label="Total des rappels" format="nombre"&gt;&lt;/dsfr-data-kpi&gt;
-  &lt;dsfr-data-kpi source="global-alim" valeur="sum:total_alim"
-    label="Dont alimentaires" format="nombre" couleur="bleu"&gt;&lt;/dsfr-data-kpi&gt;
+  &lt;dsfr-data-kpi source="global-alim" value="total_alim:sum"
+    label="Dont alimentaires" format="nombre" color="bleu"&gt;&lt;/dsfr-data-kpi&gt;
 &lt;/div&gt;
 
 &lt;dsfr-data-list source="browse"
-  colonnes="modeles_ou_references:Produit, categorie_produit:Categorie, marque_produit:Marque, date_publication:Date"
-  server-tri
+  columns="modeles_ou_references:Produit, categorie_produit:Categorie, marque_produit:Marque, date_publication:Date"
+  server-sort
   pagination="20"&gt;
 &lt;/dsfr-data-list&gt;</pre>
           </div>
@@ -593,7 +593,7 @@
         </section>
 
         <h4 id="server-side-tabular">Tri serveur — Rappels de produits (ODS)</h4>
-        <p>Utilise <code>dsfr-data-source server-side</code> + <code>dsfr-data-list server-tri</code> pour trier cote serveur.
+        <p>Utilise <code>dsfr-data-source server-side</code> + <code>dsfr-data-list server-sort</code> pour trier cote serveur.
           <a href="../apps/playground/index.html?example=server-side-tabular-tri" class="fr-link fr-link--sm">Tester dans le Playground</a>
         </p>
         <div class="example-loading" data-example>Chargement...</div>
@@ -608,8 +608,8 @@
 &lt;/dsfr-data-source&gt;
 
 &lt;dsfr-data-list source="q"
-  colonnes="modeles_ou_references:Produit, categorie_produit:Categorie, marque_produit:Marque, date_publication:Date"
-  server-tri
+  columns="modeles_ou_references:Produit, categorie_produit:Categorie, marque_produit:Marque, date_publication:Date"
+  server-sort
   pagination="20"
   url-sync&gt;
 &lt;/dsfr-data-list&gt;</pre>

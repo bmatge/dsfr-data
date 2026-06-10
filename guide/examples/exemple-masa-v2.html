@@ -177,24 +177,24 @@
   <!-- KPIs globaux (collège 1) -->
   <div class="fr-grid-row fr-grid-row--gutters fr-mb-4w">
     <div class="fr-col-12 fr-col-sm-6 fr-col-md-3">
-      <dsfr-data-kpi source="c1" valeur="count"
-        label="Départements scrutés" couleur="bleu-france">
+      <dsfr-data-kpi source="c1" value="count"
+        label="Départements scrutés" color="bleu-france">
       </dsfr-data-kpi>
     </div>
     <div class="fr-col-12 fr-col-sm-6 fr-col-md-3">
-      <dsfr-data-kpi source="c1" valeur="avg:taux_participation"
+      <dsfr-data-kpi source="c1" value="taux_participation:avg"
         label="Participation moy. (col. 1)"
-        format="pourcentage" seuil-vert="35" seuil-orange="20">
+        format="pourcentage" threshold-green="35" threshold-orange="20">
       </dsfr-data-kpi>
     </div>
     <div class="fr-col-12 fr-col-sm-6 fr-col-md-3">
-      <dsfr-data-kpi source="c1" valeur="count:liste_index:1"
-        label="Depts FNSEA/JA gagnants" couleur="bleu-france">
+      <dsfr-data-kpi source="c1" value="count:liste_index:1"
+        label="Depts FNSEA/JA gagnants" color="bleu-france">
       </dsfr-data-kpi>
     </div>
     <div class="fr-col-12 fr-col-sm-6 fr-col-md-3">
-      <dsfr-data-kpi source="c1" valeur="count:liste_index:2"
-        label="Depts Coord. Rurale gagnants" couleur="orange">
+      <dsfr-data-kpi source="c1" value="count:liste_index:2"
+        label="Depts Coord. Rurale gagnants" color="orange">
       </dsfr-data-kpi>
     </div>
   </div>
@@ -308,8 +308,8 @@ fill-opacity="0.75"
         cols="6">
       </dsfr-data-facets>
       <dsfr-data-list source="f-c1"
-        colonnes="nom_dept:Département,region:Région,liste_gagnante:Liste gagnante,taux_participation:Participation (%),nb_sieges:Sièges,nb_inscrits:Inscrits"
-        tri="taux_participation:desc" pagination="20" export="csv">
+        columns="nom_dept:Département,region:Région,liste_gagnante:Liste gagnante,taux_participation:Participation (%),nb_sieges:Sièges,nb_inscrits:Inscrits"
+        sort="taux_participation:desc" pagination="20" export="csv">
       </dsfr-data-list>
     </div>
     <!-- /panel-c1 -->
@@ -379,8 +379,8 @@ fill-opacity="0.75"
         cols="6">
       </dsfr-data-facets>
       <dsfr-data-list source="f-c2"
-        colonnes="nom_dept:Département,region:Région,liste_gagnante:Liste gagnante,taux_participation:Participation (%),nb_sieges:Sièges,nb_inscrits:Inscrits"
-        tri="taux_participation:desc" pagination="20" export="csv">
+        columns="nom_dept:Département,region:Région,liste_gagnante:Liste gagnante,taux_participation:Participation (%),nb_sieges:Sièges,nb_inscrits:Inscrits"
+        sort="taux_participation:desc" pagination="20" export="csv">
       </dsfr-data-list>
     </div>
     <!-- /panel-c2 -->
@@ -450,8 +450,8 @@ fill-opacity="0.75"
         cols="6">
       </dsfr-data-facets>
       <dsfr-data-list source="f-c3"
-        colonnes="nom_dept:Département,region:Région,liste_gagnante:Liste gagnante,taux_participation:Participation (%),nb_sieges:Sièges,nb_inscrits:Inscrits"
-        tri="taux_participation:desc" pagination="20" export="csv">
+        columns="nom_dept:Département,region:Région,liste_gagnante:Liste gagnante,taux_participation:Participation (%),nb_sieges:Sièges,nb_inscrits:Inscrits"
+        sort="taux_participation:desc" pagination="20" export="csv">
       </dsfr-data-list>
     </div>
     <!-- /panel-c3 -->

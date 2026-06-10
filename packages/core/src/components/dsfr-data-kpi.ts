@@ -37,6 +37,14 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
   source = '';
 
   /** Expression pour la valeur à afficher (ex: "total", "avg:score_rgaa") */
+  /**
+   * Expression de valeur — convention cible anglaise (#300).
+   * Grammaire commune "champ:fn" (#303), ex. value="population:sum".
+   */
+  @property({ type: String })
+  value = '';
+
+  /** @deprecated alias français de `value` (#300) */
   @property({ type: String })
   valeur = '';
 
@@ -49,6 +57,10 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
   description = '';
 
   /** Classe d'icône (ex: ri-global-line) */
+  @property({ type: String })
+  icon = '';
+
+  /** @deprecated alias français de `icon` (#300) */
   @property({ type: String })
   icone = '';
 
@@ -64,17 +76,33 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
    * Le resultat est affiche en pourcentage fr-FR ("5,2 %").
    */
   @property({ type: String })
+  trend = '';
+
+  /** @deprecated alias français de `trend` (#300) */
+  @property({ type: String })
   tendance = '';
 
   /** Seuil au-dessus duquel la valeur est verte */
+  @property({ type: Number, attribute: 'threshold-green' })
+  thresholdGreen?: number;
+
+  /** @deprecated alias français de `threshold-green` (#300) */
   @property({ type: Number, attribute: 'seuil-vert' })
   seuilVert?: number;
 
   /** Seuil au-dessus duquel la valeur est orange */
+  @property({ type: Number, attribute: 'threshold-orange' })
+  thresholdOrange?: number;
+
+  /** @deprecated alias français de `threshold-orange` (#300) */
   @property({ type: Number, attribute: 'seuil-orange' })
   seuilOrange?: number;
 
   /** Couleur forcée: vert, orange, rouge, bleu */
+  @property({ type: String })
+  color: KpiColor | '' = '';
+
+  /** @deprecated alias français de `color` (#300) */
   @property({ type: String })
   couleur: KpiColor | '' = '';
 
@@ -87,31 +115,57 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
     return this;
   }
 
+  /** Warn-once : attributs français dépréciés (#300, cible = anglais) */
+  private _warnDeprecatedFrenchAttrs() {
+    const aliases: Array<[string, string]> = [
+      ['valeur', 'value'],
+      ['icone', 'icon'],
+      ['couleur', 'color'],
+      ['seuil-vert', 'threshold-green'],
+      ['seuil-orange', 'threshold-orange'],
+      ['tendance', 'trend'],
+    ];
+    const used = aliases.filter(([fr]) => this.hasAttribute(fr)).map(([fr, en]) => `${fr}→${en}`);
+    if (used.length > 0) {
+      console.warn(
+        `dsfr-data-kpi: attributs français dépréciés (${used.join(', ')}) — la convention cible est l'anglais, les alias seront retirés à la 1.0 (#300)`
+      );
+    }
+  }
+
   connectedCallback() {
     super.connectedCallback();
+    this._warnDeprecatedFrenchAttrs();
     sendWidgetBeacon('dsfr-data-kpi');
   }
 
   static styles = css``;
 
   private _computeValue(): number | string | null {
-    if (!this._sourceData || !this.valeur) return null;
-    return computeAggregation(this._sourceData, this.valeur);
+    const expr = this.value || this.valeur;
+    if (!this._sourceData || !expr) return null;
+    return computeAggregation(this._sourceData, expr);
   }
 
   private _getColor(): KpiColor {
-    if (this.couleur) return this.couleur;
+    const explicitColor = this.color || this.couleur;
+    if (explicitColor) return explicitColor;
 
     const value = this._computeValue();
     if (typeof value !== 'number') return 'bleu';
 
-    return getColorBySeuil(value, this.seuilVert, this.seuilOrange);
+    return getColorBySeuil(
+      value,
+      this.thresholdGreen ?? this.seuilVert,
+      this.thresholdOrange ?? this.seuilOrange
+    );
   }
 
   private _getTendanceInfo(): { value: number; direction: 'up' | 'down' | 'stable' } | null {
-    if (!this.tendance || !this._sourceData) return null;
+    const trendExpr = this.trend || this.tendance;
+    if (!trendExpr || !this._sourceData) return null;
 
-    const tendanceValue = computeAggregation(this._sourceData, this.tendance);
+    const tendanceValue = computeAggregation(this._sourceData, trendExpr);
     if (typeof tendanceValue !== 'number') return null;
 
     return {
@@ -129,7 +183,8 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
 
     if (
       typeof value === 'number' &&
-      (this.seuilVert !== undefined || this.seuilOrange !== undefined)
+      ((this.thresholdGreen ?? this.seuilVert) !== undefined ||
+        (this.thresholdOrange ?? this.seuilOrange) !== undefined)
     ) {
       const color = this._getColor();
       const stateMap: Record<string, string> = {
@@ -159,9 +214,12 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
             ? renderSourceError('dsfr-data-kpi', this._sourceError)
             : html`
                 <div class="dsfr-data-kpi__content">
-                  ${this.icone
+                  ${this.icon || this.icone
                     ? html`
-                        <span class="dsfr-data-kpi__icon ${this.icone}" aria-hidden="true"></span>
+                        <span
+                          class="dsfr-data-kpi__icon ${this.icon || this.icone}"
+                          aria-hidden="true"
+                        ></span>
                       `
                     : ''}
                   <div class="dsfr-data-kpi__value-wrapper">

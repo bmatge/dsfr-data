@@ -46,7 +46,7 @@
 
         <!-- search-datalist (server-side ODS) -->
         <h4>Tableau — Recherche serveur sur les rappels de produits</h4>
-        <p>Recherche full-text deleguee au serveur ODS via <code>dsfr-data-search server-search</code>. Le tableau supporte le tri serveur via <code>server-tri</code> et la pagination serveur. Chaque action (recherche, tri, page) declenche un nouvel appel API.
+        <p>Recherche full-text deleguee au serveur ODS via <code>dsfr-data-search server-search</code>. Le tableau supporte le tri serveur via <code>server-sort</code> et la pagination serveur. Chaque action (recherche, tri, page) declenche un nouvel appel API.
           <a href="../apps/playground/index.html?example=search-datalist" class="fr-link fr-link--sm">Tester dans le Playground</a>
         </p>
         <div class="example-loading" data-example>Chargement...</div>
@@ -68,8 +68,8 @@
 &lt;/dsfr-data-search&gt;
 
 &lt;dsfr-data-list source="q"
-  colonnes="modeles_ou_references:Produit, categorie_produit:Categorie, marque_produit:Marque, date_publication:Date"
-  server-tri
+  columns="modeles_ou_references:Produit, categorie_produit:Categorie, marque_produit:Marque, date_publication:Date"
+  server-sort
   pagination="20"&gt;
 &lt;/dsfr-data-list&gt;</pre>
           </div>
@@ -185,11 +185,11 @@
 &lt;/dsfr-data-search&gt;
 
 &lt;div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;"&gt;
-  &lt;dsfr-data-kpi source="searched" valeur="count"
-    label="Projets" couleur="bleu"&gt;&lt;/dsfr-data-kpi&gt;
-  &lt;dsfr-data-kpi source="searched" valeur="sum:montant_investissement"
+  &lt;dsfr-data-kpi source="searched" value="count"
+    label="Projets" color="bleu"&gt;&lt;/dsfr-data-kpi&gt;
+  &lt;dsfr-data-kpi source="searched" value="montant_investissement:sum"
     label="Investissement total" format="euro"&gt;&lt;/dsfr-data-kpi&gt;
-  &lt;dsfr-data-kpi source="searched" valeur="sum:nombre_beneficiaires"
+  &lt;dsfr-data-kpi source="searched" value="nombre_beneficiaires:sum"
     label="Beneficiaires" format="nombre"&gt;&lt;/dsfr-data-kpi&gt;
 &lt;/div&gt;
 
