@@ -117,12 +117,14 @@ describe('#283 — AC : api-type="typo" → erreur visible aval + data-dsfr-conf
     await (source as any)._fetchViaAdapter();
     expect(source.hasAttribute('data-dsfr-config-error')).toBe(true);
 
-    source.apiType = 'generic';
-    source.baseUrl = 'https://api.example.com';
+    // generic + base-url est un piege signale depuis #288 : la config
+    // valide utilise un vrai adapter
+    source.apiType = 'tabular';
+    source.resource = 'res-123';
     (source as any)._adapter = null;
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => [{ a: 1 }],
+      json: async () => ({ data: [{ a: 1 }], meta: { total: 1 }, links: {} }),
       headers: { get: () => 'application/json' },
     });
     await (source as any)._fetchViaAdapter();

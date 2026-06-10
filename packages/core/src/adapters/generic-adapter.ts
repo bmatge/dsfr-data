@@ -24,7 +24,14 @@ export class GenericAdapter implements ApiAdapter {
   };
 
   validate(_params: AdapterParams): string | null {
-    return null;
+    // Seul chemin qui appelle validate : le mode adapter de dsfr-data-source,
+    // active par le piege api-type="generic" + base-url (#288). L'adapter
+    // generic ne fetche pas — signaler la config au lieu de laisser fetchAll
+    // throw (unhandled rejection avant #283).
+    return (
+      'api-type "generic" ne fetche pas via base-url — fournissez "url" (mode URL) ' +
+      'ou un api-type concret (opendatasoft, tabular, grist, insee)'
+    );
   }
 
   fetchAll(): Promise<FetchResult> {

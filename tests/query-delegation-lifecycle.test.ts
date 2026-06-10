@@ -303,7 +303,9 @@ describe('#276 — scénario bout-en-bout : gel résolu via la ré-émission', (
 
     const source = new DsfrDataSource();
     source.id = 'b2-e2e-src';
-    source.paginate = true;
+    // Mode adapter : les commandes groupBy ne concernent que lui (#288)
+    source.apiType = 'grist';
+    source.baseUrl = 'https://grist.example.fr/api/docs/d/tables/T/records';
     (source as any)._setupCommandListener();
 
     const sourceEl = document.createElement('div');

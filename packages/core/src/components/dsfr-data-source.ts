@@ -150,6 +150,10 @@ export class DsfrDataSource extends LitElement {
   private _unsubscribeCommands: (() => void) | null = null;
   private _fetchScheduled = false;
   private _reemitScheduled = false;
+  /** Jeton de generation : seul le fetch courant pilote _loading (#288) */
+  private _fetchGeneration = 0;
+  /** Warn-once : commandes adapter recues en mode URL (#288) */
+  private _urlModeCommandWarned = false;
 
   /** Dynamic WHERE overlays from dsfr-data-facets, dsfr-data-search, etc. */
   private _whereOverlays = new Map<string, string>();
@@ -201,7 +205,9 @@ export class DsfrDataSource extends LitElement {
       changedProperties.has('url') ||
       changedProperties.has('params') ||
       changedProperties.has('transform') ||
-      changedProperties.has('apiKeyRef');
+      changedProperties.has('apiKeyRef') ||
+      changedProperties.has('method') ||
+      changedProperties.has('useProxy');
     const adapterModeChanged =
       changedProperties.has('apiType') ||
       changedProperties.has('baseUrl') ||
@@ -213,11 +219,20 @@ export class DsfrDataSource extends LitElement {
       changedProperties.has('aggregate') ||
       changedProperties.has('orderBy') ||
       changedProperties.has('limit');
+    // Attributs communs aux deux modes, historiquement non cables au
+    // refetch (#288) — headers a le meme role qu'api-key-ref qui refetchait
+    const sharedChanged =
+      changedProperties.has('pageSize') ||
+      changedProperties.has('serverSide') ||
+      changedProperties.has('headers');
 
-    if (urlModeChanged || adapterModeChanged) {
+    if (urlModeChanged || adapterModeChanged || sharedChanged) {
       if (
         (this.paginate || this.serverSide) &&
-        (changedProperties.has('url') || changedProperties.has('params') || adapterModeChanged)
+        (changedProperties.has('url') ||
+          changedProperties.has('params') ||
+          adapterModeChanged ||
+          sharedChanged)
       ) {
         this._currentPage = 1;
       }
@@ -352,6 +367,35 @@ export class DsfrDataSource extends LitElement {
         needsFetch = true;
       }
 
+      // Mode URL : les commandes adapter (where/orderBy/groupBy/aggregate)
+      // ne sont pas applicables — _buildUrl ne sait pas les serialiser pour
+      // une API arbitraire. Les accepter stockait un overlay jamais utilise
+      // et refetchait a URL identique : filtre silencieusement perdu (#288).
+      // Refus EXPLICITE (warn-once) ; la pagination querystring reste servie.
+      const hasAdapterCommand =
+        cmd.where !== undefined ||
+        cmd.orderBy !== undefined ||
+        cmd.groupBy !== undefined ||
+        cmd.aggregate !== undefined;
+      if (hasAdapterCommand && !this._isAdapterMode()) {
+        if (!this._urlModeCommandWarned) {
+          this._urlModeCommandWarned = true;
+          console.warn(
+            `dsfr-data-source[${this.id}]: commandes where/orderBy/groupBy/aggregate ignorees en mode URL — ` +
+              `utilisez un api-type (opendatasoft, tabular, grist, insee) pour les filtres serveur (#288)`
+          );
+        }
+        if (needsFetch) {
+          this._scheduleFetch();
+        } else if (this._data !== null && !this._fetchScheduled && !this._loading) {
+          // Le contrat « une commande produit toujours une emission » (#276)
+          // tient aussi pour une commande refusee : l'emetteur attend une
+          // reponse, le cache courant EST la reponse (rien n'a change)
+          this._scheduleReemit();
+        }
+        return;
+      }
+
       if (cmd.where !== undefined) {
         const key = cmd.whereKey || '__default';
         const previous = this._whereOverlays.get(key);
@@ -447,6 +491,7 @@ export class DsfrDataSource extends LitElement {
       this._abortController.abort();
     }
     this._abortController = new AbortController();
+    const generation = ++this._fetchGeneration;
 
     this._loading = true;
     this._error = null;
@@ -528,7 +573,11 @@ export class DsfrDataSource extends LitElement {
       dispatchDataError(this.id, this._error);
       console.error(`dsfr-data-source[${this.id}]: Erreur de chargement`, error);
     } finally {
-      this._loading = false;
+      // Un fetch remplace (abort concurrent) ne doit pas eteindre le
+      // loading du fetch courant (#288)
+      if (generation === this._fetchGeneration) {
+        this._loading = false;
+      }
     }
   }
 
@@ -569,6 +618,7 @@ export class DsfrDataSource extends LitElement {
       this._abortController.abort();
     }
     this._abortController = new AbortController();
+    const generation = ++this._fetchGeneration;
 
     this._loading = true;
     this._error = null;
@@ -638,7 +688,9 @@ export class DsfrDataSource extends LitElement {
       dispatchDataError(this.id, this._error);
       console.error(`dsfr-data-source[${this.id}]: Erreur de chargement`, error);
     } finally {
-      this._loading = false;
+      if (generation === this._fetchGeneration) {
+        this._loading = false;
+      }
     }
   }
 

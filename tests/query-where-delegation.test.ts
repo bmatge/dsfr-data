@@ -268,7 +268,10 @@ describe('#275 — dédup des commandes where côté dsfr-data-source', () => {
   beforeEach(() => {
     source = new DsfrDataSource();
     source.id = 'dedup-src';
-    source.paginate = true;
+    // Mode adapter : les commandes where ne concernent que lui (#288 — le
+    // mode URL les refuse explicitement)
+    source.apiType = 'opendatasoft';
+    source.datasetId = 'ds';
     clearDataCache('dedup-src');
     clearDataMeta('dedup-src');
   });

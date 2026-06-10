@@ -96,8 +96,8 @@ describe('Adapter Capabilities', () => {
 describe('GenericAdapter', () => {
   const adapter = getAdapter('generic');
 
-  it('validate returns null (no requirements)', () => {
-    expect(adapter.validate({} as AdapterParams)).toBeNull();
+  it('validate signale le piege generic + base-url (#288)', () => {
+    expect(adapter.validate({} as AdapterParams)).toMatch(/api-type|url/);
   });
 
   it('fetchAll throws', () => {
