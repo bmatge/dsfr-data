@@ -16,12 +16,35 @@ const AUTH_STATE_DEFAULTS: AuthState = {
   isLoading: true,
 };
 
-let _state: AuthState = { ...AUTH_STATE_DEFAULTS };
-let _dbMode: boolean | null = null; // null = not yet detected
-let _checkAuthPromise: Promise<AuthState> | null = null;
-let _baseUrl = '';
-let _csrfToken: string | null = null; // fetched lazily, stored in memory only
-const _listeners: Set<AuthChangeCallback> = new Set();
+/**
+ * Etat MUTABLE partage via window (#320) : les apps chargent les composants
+ * via les bundles pre-compiles (dsfr-data.esm.js, app-ui.esm.js) ET
+ * importent @dsfr-data/shared aliase sur src — deux copies compilees de ce
+ * module coexistent a l'execution. Avec un etat module-level on avait :
+ * double fetch /api/auth/me au demarrage, caches CSRF separes, et
+ * l'indicateur de sync du header aveugle aux syncs reels. Meme pattern que
+ * le data-bridge (__dsfrDataCache).
+ */
+interface SharedAuthInternals {
+  state: AuthState;
+  dbMode: boolean | null;
+  checkAuthPromise: Promise<AuthState> | null;
+  baseUrl: string;
+  csrfToken: string | null;
+  listeners: Set<AuthChangeCallback>;
+}
+
+const _g = (typeof window !== 'undefined' ? window : globalThis) as {
+  __dsfrDataAuthShared?: SharedAuthInternals;
+};
+const shared: SharedAuthInternals = (_g.__dsfrDataAuthShared ??= {
+  state: { ...AUTH_STATE_DEFAULTS },
+  dbMode: null,
+  checkAuthPromise: null,
+  baseUrl: '',
+  csrfToken: null,
+  listeners: new Set(),
+});
 
 const MUTATION_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
@@ -42,9 +65,9 @@ const CSRF_SKIP_PATHS = new Set<string>([
 ]);
 
 function notify(): void {
-  for (const cb of _listeners) {
+  for (const cb of shared.listeners) {
     try {
-      cb(_state);
+      cb(shared.state);
     } catch {
       /* ignore listener errors */
     }
@@ -52,7 +75,7 @@ function notify(): void {
 }
 
 function setState(partial: Partial<AuthState>): void {
-  _state = { ..._state, ...partial };
+  shared.state = { ...shared.state, ...partial };
   notify();
 }
 
@@ -63,11 +86,11 @@ function setState(partial: Partial<AuthState>): void {
  */
 async function fetchCsrfToken(): Promise<string | null> {
   try {
-    const res = await fetch(`${_baseUrl}/api/auth/csrf`, { credentials: 'include' });
+    const res = await fetch(`${shared.baseUrl}/api/auth/csrf`, { credentials: 'include' });
     if (!res.ok) return null;
     const data = await res.json();
-    _csrfToken = typeof data?.csrfToken === 'string' ? data.csrfToken : null;
-    return _csrfToken;
+    shared.csrfToken = typeof data?.csrfToken === 'string' ? data.csrfToken : null;
+    return shared.csrfToken;
   } catch {
     return null;
   }
@@ -83,11 +106,11 @@ async function apiFetchOnce(path: string, options?: RequestInit): Promise<Respon
   };
 
   if (needsCsrf) {
-    if (!_csrfToken) await fetchCsrfToken();
-    if (_csrfToken) headers['X-CSRF-Token'] = _csrfToken;
+    if (!shared.csrfToken) await fetchCsrfToken();
+    if (shared.csrfToken) headers['X-CSRF-Token'] = shared.csrfToken;
   }
 
-  return fetch(`${_baseUrl}${path}`, {
+  return fetch(`${shared.baseUrl}${path}`, {
     ...options,
     credentials: 'include',
     headers,
@@ -109,7 +132,7 @@ async function apiFetch(path: string, options?: RequestInit): Promise<Response> 
     try {
       const data = await cloned.json();
       if (data?.code === 'CSRF_INVALID') {
-        _csrfToken = null;
+        shared.csrfToken = null;
         await fetchCsrfToken();
         return apiFetchOnce(path, options);
       }
@@ -130,7 +153,7 @@ async function apiFetch(path: string, options?: RequestInit): Promise<Response> 
  * Must be called before checkAuth().
  */
 export function setAuthBaseUrl(url: string): void {
-  _baseUrl = url;
+  shared.baseUrl = url;
 }
 
 /**
@@ -138,24 +161,24 @@ export function setAuthBaseUrl(url: string): void {
  * Caches the result after the first call.
  */
 export async function isDbMode(): Promise<boolean> {
-  if (_dbMode !== null) return _dbMode;
+  if (shared.dbMode !== null) return shared.dbMode;
 
   try {
-    const res = await fetch(`${_baseUrl}/api/auth/me`, {
+    const res = await fetch(`${shared.baseUrl}/api/auth/me`, {
       credentials: 'include',
     });
     // If we get any response (200 or 401), the backend is available
-    _dbMode = res.status === 200 || res.status === 401;
+    shared.dbMode = res.status === 200 || res.status === 401;
   } catch {
-    _dbMode = false;
+    shared.dbMode = false;
   }
 
   // Set a global flag so fire-and-forget code (beacon) can detect DB mode synchronously
-  if (_dbMode && typeof window !== 'undefined') {
+  if (shared.dbMode && typeof window !== 'undefined') {
     (window as Window & { __gwDbMode?: boolean }).__gwDbMode = true;
   }
 
-  return _dbMode;
+  return shared.dbMode;
 }
 
 /**
@@ -164,9 +187,9 @@ export async function isDbMode(): Promise<boolean> {
  * Caches the promise so concurrent callers (app + header) share one request.
  */
 export async function checkAuth(): Promise<AuthState> {
-  if (_checkAuthPromise) return _checkAuthPromise;
-  _checkAuthPromise = _doCheckAuth();
-  return _checkAuthPromise;
+  if (shared.checkAuthPromise) return shared.checkAuthPromise;
+  shared.checkAuthPromise = _doCheckAuth();
+  return shared.checkAuthPromise;
 }
 
 async function _doCheckAuth(): Promise<AuthState> {
@@ -175,7 +198,7 @@ async function _doCheckAuth(): Promise<AuthState> {
 
     if (!dbAvailable) {
       setState({ user: null, isAuthenticated: false, isLoading: false });
-      return _state;
+      return shared.state;
     }
 
     const res = await apiFetch('/api/auth/me');
@@ -187,11 +210,11 @@ async function _doCheckAuth(): Promise<AuthState> {
     }
   } catch {
     // Invalidate promise cache on failure so next caller can retry
-    _checkAuthPromise = null;
+    shared.checkAuthPromise = null;
     setState({ user: null, isAuthenticated: false, isLoading: false });
   }
 
-  return _state;
+  return shared.state;
 }
 
 /**
@@ -216,7 +239,7 @@ export async function login(request: LoginRequest): Promise<{ success: boolean; 
     // La session côté server vient de changer (anonymous → userId), donc le
     // token CSRF mis en cache est lié à l'ancienne session. On force un fresh
     // fetch pour les mutations qui suivent (auto-migrate, saves…).
-    _csrfToken = null;
+    shared.csrfToken = null;
     await fetchCsrfToken();
 
     // Auto-migrate localStorage data if not yet done
@@ -249,7 +272,7 @@ export async function register(
     setState({ user: data.user, isAuthenticated: true, isLoading: false });
 
     // Cf. login : session change → CSRF token à rafraîchir.
-    _csrfToken = null;
+    shared.csrfToken = null;
     await fetchCsrfToken();
 
     // Auto-migrate localStorage data after first registration
@@ -347,7 +370,7 @@ export async function logout(): Promise<void> {
   } catch {
     // Ignore errors — clear state anyway
   }
-  _csrfToken = null;
+  shared.csrfToken = null;
   removeFromStorage(STORAGE_KEYS.TOURS);
   setState({ user: null, isAuthenticated: false, isLoading: false });
 }
@@ -356,25 +379,25 @@ export async function logout(): Promise<void> {
  * Subscribe to auth state changes. Returns an unsubscribe function.
  */
 export function onAuthChange(callback: AuthChangeCallback): () => void {
-  _listeners.add(callback);
+  shared.listeners.add(callback);
   return () => {
-    _listeners.delete(callback);
+    shared.listeners.delete(callback);
   };
 }
 
 /** Get current auth state (synchronous). */
 export function getAuthState(): AuthState {
-  return _state;
+  return shared.state;
 }
 
 /** Get current user (synchronous). */
 export function getUser(): User | null {
-  return _state.user;
+  return shared.state.user;
 }
 
 /** Is user authenticated (synchronous). */
 export function isAuthenticated(): boolean {
-  return _state.isAuthenticated;
+  return shared.state.isAuthenticated;
 }
 
 // ──────────────────────────────────────────────────────────────
@@ -420,12 +443,12 @@ async function autoMigrateIfNeeded(): Promise<void> {
 // ──────────────────────────────────────────────────────────────
 
 export function _resetAuthState(): void {
-  _state = { ...AUTH_STATE_DEFAULTS };
-  _dbMode = null;
-  _checkAuthPromise = null;
-  _baseUrl = '';
-  _csrfToken = null;
-  _listeners.clear();
+  shared.state = { ...AUTH_STATE_DEFAULTS };
+  shared.dbMode = null;
+  shared.checkAuthPromise = null;
+  shared.baseUrl = '';
+  shared.csrfToken = null;
+  shared.listeners.clear();
 }
 
 /**
@@ -434,7 +457,7 @@ export function _resetAuthState(): void {
  * que dans les tests.
  */
 export function _setCsrfTokenForTest(token: string | null): void {
-  _csrfToken = token;
+  shared.csrfToken = token;
 }
 
 /**

@@ -26,21 +26,41 @@ const MAX_RETRIES = 3;
 const BACKOFF_BASE_MS = 2000;
 const QUEUE_STORAGE_KEY = 'dsfr-data-sync-queue';
 
-let _status: SyncStatus = 'idle';
-let _errorCount = 0;
-const _listeners: Set<SyncStatusCallback> = new Set();
-let _queue: SyncOperation[] = [];
-let _processing = false;
-let _baseUrl = '';
+/**
+ * Etat partage via window (#320) : deux copies compilees de ce module
+ * (bundle pre-compile + import src des apps) persistaient leur file sous
+ * la MEME cle localStorage — persistQueue() d'une copie pouvait ecraser
+ * les operations en attente de l'autre (perte d'ecritures).
+ */
+interface SharedSyncInternals {
+  status: SyncStatus;
+  errorCount: number;
+  listeners: Set<SyncStatusCallback>;
+  queue: SyncOperation[];
+  processing: boolean;
+  baseUrl: string;
+}
+
+const _g = (typeof window !== 'undefined' ? window : globalThis) as {
+  __dsfrDataSyncShared?: SharedSyncInternals;
+};
+const shared: SharedSyncInternals = (_g.__dsfrDataSyncShared ??= {
+  status: 'idle',
+  errorCount: 0,
+  listeners: new Set(),
+  queue: [],
+  processing: false,
+  baseUrl: '',
+});
 
 // ---- Persistence helpers ----
 
 function persistQueue(): void {
   try {
-    if (_queue.length === 0) {
+    if (shared.queue.length === 0) {
       localStorage.removeItem(QUEUE_STORAGE_KEY);
     } else {
-      localStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(_queue));
+      localStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(shared.queue));
     }
   } catch {
     /* QuotaExceeded or unavailable — continue without persistence */
@@ -63,11 +83,11 @@ function restoreQueue(): SyncOperation[] {
 // ---- Status management ----
 
 function setStatus(status: SyncStatus, errors: number): void {
-  _status = status;
-  _errorCount = errors;
-  for (const cb of _listeners) {
+  shared.status = status;
+  shared.errorCount = errors;
+  for (const cb of shared.listeners) {
     try {
-      cb(_status, _errorCount);
+      cb(shared.status, shared.errorCount);
     } catch {
       /* ignore */
     }
@@ -76,30 +96,30 @@ function setStatus(status: SyncStatus, errors: number): void {
 
 /** Subscribe to sync status changes. Returns unsubscribe function. */
 export function onSyncStatusChange(cb: SyncStatusCallback): () => void {
-  _listeners.add(cb);
+  shared.listeners.add(cb);
   // Immediately notify current state
   try {
-    cb(_status, _errorCount);
+    cb(shared.status, shared.errorCount);
   } catch {
     /* ignore */
   }
   return () => {
-    _listeners.delete(cb);
+    shared.listeners.delete(cb);
   };
 }
 
 /** Get current sync status */
 export function getSyncStatus(): { status: SyncStatus; errorCount: number } {
-  return { status: _status, errorCount: _errorCount };
+  return { status: shared.status, errorCount: shared.errorCount };
 }
 
 /** Set the API base URL for sync operations */
 export function setSyncBaseUrl(url: string): void {
-  _baseUrl = url;
+  shared.baseUrl = url;
   // Restore persisted queue and resume processing
   const restored = restoreQueue();
   if (restored.length > 0) {
-    _queue.push(...restored);
+    shared.queue.push(...restored);
     processQueue();
   }
 }
@@ -110,8 +130,8 @@ export function enqueueSync(
   endpoint: string,
   body?: unknown
 ): void {
-  const url = `${_baseUrl}${endpoint}`;
-  _queue.push({
+  const url = `${shared.baseUrl}${endpoint}`;
+  shared.queue.push({
     method,
     url,
     body: body ? JSON.stringify(body) : undefined,
@@ -128,25 +148,25 @@ export async function syncItems(
 ): Promise<void> {
   if (!items || items.length === 0) return;
 
-  setStatus('syncing', _errorCount);
+  setStatus('syncing', shared.errorCount);
 
   // Get current remote items
   let remoteItems: { id: string }[];
   try {
-    const response = await fetch(`${_baseUrl}${endpoint}`, {
+    const response = await fetch(`${shared.baseUrl}${endpoint}`, {
       credentials: 'include',
     });
     if (!response.ok) {
       if (response.status === 401) {
         // Not authenticated — skip sync silently
-        setStatus('idle', _errorCount);
+        setStatus('idle', shared.errorCount);
         return;
       }
       throw new Error(`HTTP ${response.status}`);
     }
     remoteItems = await response.json();
   } catch {
-    setStatus('error', _errorCount + 1);
+    setStatus('error', shared.errorCount + 1);
     return;
   }
 
@@ -172,12 +192,12 @@ export function deleteItem(endpoint: string, id: string): void {
 }
 
 async function processQueue(): Promise<void> {
-  if (_processing) return;
-  _processing = true;
+  if (shared.processing) return;
+  shared.processing = true;
 
-  while (_queue.length > 0) {
-    const op = _queue[0];
-    setStatus('syncing', _errorCount);
+  while (shared.queue.length > 0) {
+    const op = shared.queue[0];
+    setStatus('syncing', shared.errorCount);
 
     try {
       // authenticatedFetch auto-inject `X-CSRF-Token` sur les mutations
@@ -190,12 +210,12 @@ async function processQueue(): Promise<void> {
 
       if (response.ok || response.status === 404 || response.status === 409) {
         // Success, or resource already gone/exists — remove from queue
-        _queue.shift();
+        shared.queue.shift();
         persistQueue();
-        _errorCount = Math.max(0, _errorCount - 1);
+        shared.errorCount = Math.max(0, shared.errorCount - 1);
       } else if (response.status === 401) {
         // Not authenticated — clear queue, no point retrying
-        _queue.length = 0;
+        shared.queue.length = 0;
         persistQueue();
         setStatus('idle', 0);
         break;
@@ -206,9 +226,9 @@ async function processQueue(): Promise<void> {
       op.retries++;
       if (op.retries >= MAX_RETRIES) {
         // Give up on this operation
-        _queue.shift();
+        shared.queue.shift();
         persistQueue();
-        _errorCount++;
+        shared.errorCount++;
         console.warn(`[SyncQueue] Gave up on ${op.method} ${op.url} after ${MAX_RETRIES} retries`);
       } else {
         // Exponential backoff
@@ -218,18 +238,18 @@ async function processQueue(): Promise<void> {
     }
   }
 
-  _processing = false;
-  setStatus(_errorCount > 0 ? 'error' : 'idle', _errorCount);
+  shared.processing = false;
+  setStatus(shared.errorCount > 0 ? 'error' : 'idle', shared.errorCount);
 }
 
 /** Reset sync state (for tests) */
 export function _resetSyncQueue(): void {
-  _queue = [];
-  _processing = false;
-  _status = 'idle';
-  _errorCount = 0;
-  _listeners.clear();
-  _baseUrl = '';
+  shared.queue = [];
+  shared.processing = false;
+  shared.status = 'idle';
+  shared.errorCount = 0;
+  shared.listeners.clear();
+  shared.baseUrl = '';
   try {
     localStorage.removeItem(QUEUE_STORAGE_KEY);
   } catch {
