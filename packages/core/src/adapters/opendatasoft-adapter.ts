@@ -105,13 +105,20 @@ export class OpenDataSoftAdapter implements ApiAdapter {
    */
   async fetchAll(params: AdapterParams, signal: AbortSignal): Promise<FetchResult> {
     const fetchAllRecords = params.limit <= 0;
-    const requestedLimit = fetchAllRecords ? ODS_MAX_PAGES * ODS_PAGE_SIZE : params.limit;
+    // max-records (#233) : plafond configurable — le 1000 historique n'est
+    // PAS une limite de l'API ODS, defaut conserve en garde-fou
+    const maxRecords =
+      params.maxRecords && params.maxRecords > 0
+        ? params.maxRecords
+        : ODS_MAX_PAGES * ODS_PAGE_SIZE;
+    const maxPages = Math.ceil(maxRecords / ODS_PAGE_SIZE);
+    const requestedLimit = fetchAllRecords ? maxRecords : params.limit;
     const pageSize = ODS_PAGE_SIZE;
     let allResults: unknown[] = [];
     let offset = 0;
     let totalCount = -1;
 
-    for (let page = 0; page < ODS_MAX_PAGES; page++) {
+    for (let page = 0; page < maxPages; page++) {
       const remaining = requestedLimit - allResults.length;
       if (remaining <= 0) break;
 
@@ -137,11 +144,19 @@ export class OpenDataSoftAdapter implements ApiAdapter {
       offset += pageResults.length;
     }
 
-    // Avertir si pagination incomplete
-    if (totalCount >= 0 && allResults.length < totalCount && allResults.length < requestedLimit) {
+    // Avertir si la recuperation est incomplete : short-read sous un limit
+    // explicite (anomalie serveur, comportement historique) OU troncature
+    // par le plafond en fetch-all (#233 — l'ancienne condition ne se
+    // declenchait jamais quand le cap etait atteint pile). Un limit
+    // explicite atteint = troncature voulue, pas de warn.
+    const incomplete =
+      totalCount >= 0 &&
+      allResults.length < totalCount &&
+      (fetchAllRecords || allResults.length < requestedLimit);
+    if (incomplete) {
       console.warn(
         `[dsfr-data] opendatasoft: pagination incomplete - ${allResults.length}/${totalCount} resultats recuperes ` +
-          `(limite de securite: ${ODS_MAX_PAGES} pages de ${ODS_PAGE_SIZE})`
+          `(plafond max-records: ${maxRecords} — relevable via l'attribut max-records, #233)`
       );
     }
 

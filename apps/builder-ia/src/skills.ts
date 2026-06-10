@@ -221,6 +221,7 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 | order-by | String | \`""\` | non | Tri serveur. Ex: \`"population:desc"\` |
 | server-side | Boolean | \`false\` | non | Active la pagination serveur page par page (datalist, tableaux). |
 | limit | Number | \`0\` | non | Limite du nombre de resultats (0 = pas de limite). |
+| max-records | Number | \`0\` | non | Plafond du fetchAll en mode adapter (#233). 0 = plafond par defaut de l'adapter (ODS : 1000). A relever explicitement pour les dashboards « un fetch, N agregations client » — attention au volume (requetes en boucle, memoire). |
 | data | String | \`""\` | non | Données JSON inline (pas de fetch). Ex: \`data='[{"x":1},{"x":2}]'\` |
 | use-proxy | Boolean | \`false\` | non | Force le passage par le proxy CORS generique. Utile pour les APIs externes sans CORS. |
 | api-key-ref | String | \`""\` | non | Reference vers une clé API dans window.DSFR_DATA_KEYS. Injecte la valeur comme header Authorization. |

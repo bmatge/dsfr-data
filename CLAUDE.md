@@ -169,7 +169,7 @@ Pour les cas sans transformation (datalist, display), dsfr-data-query peut etre 
 | serverOrderBy | oui | oui | oui | non | non |
 | serverGeo | oui | non | non | non | non |
 | whereFormat | odsql | colon | colon | colon | colon |
-| plafond fetchAll (#286) | 1 000 (10×100) | 25 000 (500×50) | illimite (1 requete) | 100 000 (100×1000) | n/a |
+| plafond fetchAll (#286) | 1 000 (10×100), relevable via `max-records` (#233) | 25 000 (500×50) | illimite (1 requete) | 100 000 (100×1000) | n/a |
 
 **Formats WHERE** :
 - **ODSQL** (OpenDataSoft) : syntaxe SQL-like — `population > 5000 AND status = 'active'`, clauses jointes par ` AND `
@@ -183,7 +183,7 @@ dsfr-data-source fonctionne en deux modes :
 
 **`cache-ttl` et le hook de cache (#307)** : la lib publiee n'appelle aucune API applicative. `cache-ttl` n'a d'effet que si la page hote enregistre un provider via `window.DSFR_DATA_CACHE_PROVIDER = { get(key), put(key, data, ttl) }` AVANT le chargement des composants (sans provider : no-op, embed anonyme). La cle inclut un hash du fingerprint de la requete (URL/params/where/page) — deux requetes differentes ne partagent jamais une entree. Les apps du repo enregistrent le provider `/api/cache` (mode DB) via `registerServerCacheProvider()` de `@dsfr-data/shared`, appele par `@dsfr-data/app-ui`.
 
-**Mode adapter** (api-type != generic ou base-url fourni) : `api-type`, `base-url`, `dataset-id`, `resource`, `where`, `select`, `group-by`, `aggregate`, `order-by`, `server-side`, `page-size`, `limit`
+**Mode adapter** (api-type != generic ou base-url fourni) : `api-type`, `base-url`, `dataset-id`, `resource`, `where`, `select`, `group-by`, `aggregate`, `order-by`, `server-side`, `page-size`, `limit`, `max-records` (#233 — plafond du fetchAll, 0 = defaut adapter ; a relever en connaissance de cause : requetes en boucle, memoire)
 
 ### Grist : mode Records vs SQL
 
