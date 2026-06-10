@@ -219,29 +219,50 @@ describe('sendWidgetBeacon', () => {
     expect(imageSrcs[0]).toContain('chartsbuilder.matge.com/beacon');
   });
 
-  it('in DB mode, uses fetch API instead of synchronous pixel', async () => {
+  it('un transport enregistré qui retourne true remplace le pixel (#308)', async () => {
     (window as any).DSFR_DATA_BEACON = true;
-    (window as any).__gwDbMode = true;
+    const transport = vi.fn().mockReturnValue(true);
+    (window as any).DSFR_DATA_BEACON_TRANSPORT = transport;
     vi.stubGlobal('location', {
       hostname: 'example.gouv.fr',
       protocol: 'https:',
       origin: 'https://example.gouv.fr',
       href: 'https://example.gouv.fr/',
     });
-    // Mock fetch to succeed so the catch handler (pixel fallback) is never triggered
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }));
 
     const sendWidgetBeacon = await loadBeacon();
     sendWidgetBeacon('dsfr-data-kpi');
 
-    // In DB mode, the beacon is sent via fetch (async), not via Image pixel (sync)
-    // So no synchronous Image.src assignment should have happened
+    expect(transport).toHaveBeenCalledWith({
+      component: 'dsfr-data-kpi',
+      chartType: null,
+      pageUrl: 'https://example.gouv.fr/',
+    });
     expect(imageSrcs).toHaveLength(0);
+    delete (window as any).DSFR_DATA_BEACON_TRANSPORT;
   });
 
-  it('without DB mode, creates pixel synchronously', async () => {
+  it('un transport qui retourne false ou jette laisse le pixel (#308)', async () => {
     (window as any).DSFR_DATA_BEACON = true;
-    delete (window as any).__gwDbMode;
+    (window as any).DSFR_DATA_BEACON_TRANSPORT = vi.fn().mockImplementation(() => {
+      throw new Error('transport KO');
+    });
+    vi.stubGlobal('location', {
+      hostname: 'example.gouv.fr',
+      protocol: 'https:',
+      origin: 'https://example.gouv.fr',
+      href: 'https://example.gouv.fr/',
+    });
+
+    const sendWidgetBeacon = await loadBeacon();
+    sendWidgetBeacon('dsfr-data-chart', 'bar');
+
+    expect(imageSrcs).toHaveLength(1);
+    delete (window as any).DSFR_DATA_BEACON_TRANSPORT;
+  });
+
+  it('sans transport, le pixel reste le transport par defaut', async () => {
+    (window as any).DSFR_DATA_BEACON = true;
     vi.stubGlobal('location', {
       hostname: 'example.gouv.fr',
       protocol: 'https:',

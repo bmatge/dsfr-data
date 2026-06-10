@@ -72,36 +72,28 @@ export function sendWidgetBeacon(component: string, subtype?: string): void {
   if (subtype) params.set('t', subtype);
   params.set('r', pageUrl);
 
-  // In DB mode, send as JSON POST to the API (more reliable, stored in MariaDB)
-  // Fallback to pixel tracking if the POST fails
-  const useApi =
-    typeof window !== 'undefined' &&
-    (window as Window & { __gwDbMode?: boolean }).__gwDbMode === true;
-
-  if (useApi) {
+  // Transport applicatif via hook (#308) : l'ancienne branche mode-DB qui
+  // POSTait sur l'endpoint de monitoring etait de la logique applicative
+  // dans la lib (nommage herite de l'ancien nom du projet). La page hote
+  // peut enregistrer un transport ; s'il retourne
+  // true le beacon est pris en charge, sinon le pixel opt-in reste le
+  // transport par defaut.
+  const transport = (
+    window as Window & {
+      DSFR_DATA_BEACON_TRANSPORT?: (payload: {
+        component: string;
+        chartType: string | null;
+        pageUrl: string;
+      }) => boolean | void;
+    }
+  ).DSFR_DATA_BEACON_TRANSPORT;
+  if (typeof transport === 'function') {
     try {
-      fetch('/api/monitoring/beacon', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          component,
-          chartType: subtype || null,
-          pageUrl,
-        }),
-      }).catch(() => {
-        // Fallback to pixel
-        const img = new Image();
-        pending.push(img);
-        img.onload = img.onerror = () => {
-          const idx = pending.indexOf(img);
-          if (idx >= 0) pending.splice(idx, 1);
-        };
-        img.src = `${BEACON_URL}?${params.toString()}`;
-      });
-      return;
+      if (transport({ component, chartType: subtype || null, pageUrl }) === true) {
+        return;
+      }
     } catch {
-      // Fall through to pixel
+      // Transport defaillant : pixel par defaut
     }
   }
 

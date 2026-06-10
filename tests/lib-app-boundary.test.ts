@@ -26,7 +26,7 @@ describe('#306 — AC : la lib publiée ne contient plus le chrome applicatif', 
     }
   });
 
-  it('aucun fichier de core ne référence /api/auth, /api/shares ni /api/cache (#307)', () => {
+  it('aucun fichier de core ne référence /api/auth, /api/shares, /api/cache ni /api/monitoring (#307/#308)', () => {
     const offenders: string[] = [];
     const walk = (dir: string) => {
       for (const e of readdirSync(dir, { withFileTypes: true })) {
@@ -34,7 +34,7 @@ describe('#306 — AC : la lib publiée ne contient plus le chrome applicatif', 
         if (e.isDirectory()) walk(p);
         else if (e.name.endsWith('.ts') && !e.name.endsWith('.test.ts')) {
           const content = readFileSync(p, 'utf8');
-          if (/\/api\/(auth|shares|cache)/.test(content)) offenders.push(p);
+          if (/\/api\/(auth|shares|cache|monitoring)/.test(content)) offenders.push(p);
         }
       }
     };
