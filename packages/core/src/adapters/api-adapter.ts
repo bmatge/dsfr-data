@@ -46,6 +46,13 @@ export interface AdapterParams {
   aggregate: string;
   orderBy: string;
   limit: number;
+  /**
+   * Plafond de records du fetchAll (#233) — 0/absent = plafond par defaut
+   * de l'adapter (garde-fou anti-surcharge). Ce n'est PAS une limite API :
+   * l'operateur le releve explicitement en connaissance de cause
+   * (requetes en boucle, poids memoire).
+   */
+  maxRecords?: number;
   transform: string;
   pageSize: number;
   /** Headers HTTP custom (ex: authentification, API key) */

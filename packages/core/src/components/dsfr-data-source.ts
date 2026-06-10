@@ -130,6 +130,15 @@ export class DsfrDataSource extends LitElement {
   @property({ type: Number })
   limit = 0;
 
+  /**
+   * Plafond de records du fetchAll en mode adapter (#233). 0 = plafond par
+   * defaut de l'adapter (ODS : 1000). A relever explicitement pour les
+   * dashboards « un fetch, N agregations client » — attention au nombre de
+   * requetes en boucle et au poids memoire.
+   */
+  @property({ type: Number, attribute: 'max-records' })
+  maxRecords = 0;
+
   // --- Internal state ---
 
   @state()
@@ -722,6 +731,7 @@ export class DsfrDataSource extends LitElement {
       aggregate: this._aggregateOverlay || this.aggregate,
       orderBy: this._orderByOverlay || this.orderBy,
       limit: this.limit,
+      maxRecords: this.maxRecords,
       transform: this.transform,
       pageSize: this.pageSize,
       headers: parsedHeaders,

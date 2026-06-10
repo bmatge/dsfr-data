@@ -149,6 +149,7 @@
             <tr><td><code>aggregate</code></td><td>String</td><td><code>"champ:fn"</code> ou <code>"champ:fn:alias"</code></td><td>Agregations server-side. Fonctions : <code>count</code> <code>sum</code> <code>avg</code> <code>min</code> <code>max</code>.</td></tr>
             <tr><td><code>order-by</code></td><td>String</td><td><code>"champ:asc"</code> ou <code>"champ:desc"</code></td><td>Tri des resultats. Peut etre surcharge dynamiquement par un <code>dsfr-data-list</code>.</td></tr>
             <tr><td><code>limit</code></td><td>Number</td><td>Entier positif. <code>0</code> = illimite</td><td>Nombre maximum de resultats</td></tr>
+            <tr><td><code>max-records</code></td><td>Number</td><td>Entier positif. <code>0</code> = plafond par defaut de l'adapter</td><td>Plafond du fetchAll en mode adapter (#233). Le defaut ODS (1 000) est un garde-fou, pas une limite API : le relever augmente le nombre de requetes en boucle et le poids memoire — a faire en connaissance de cause (dashboards « un fetch, N agregations client »).</td></tr>
             <tr><td><code>server-side</code></td><td>Boolean</td><td>Presence = <code>true</code></td><td>Mode pagination pilotable : charge une page a la fois, ecoute les commandes
               des composants en aval (<code>dsfr-data-list</code>, <code>dsfr-data-facets</code>, <code>dsfr-data-search</code>).</td></tr>
           </tbody>
