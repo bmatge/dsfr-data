@@ -13,6 +13,9 @@ type FacetDisplayMode = 'checkbox' | 'select' | 'multiselect' | 'radio';
 interface FacetValue {
   value: string;
   count: number;
+  /** Valeur selectionnee absente des donnees courantes (#310) : rendue
+   * desactivable pour ne pas laisser un filtre invisible actif */
+  missing?: boolean;
 }
 
 interface FacetGroup {
@@ -198,6 +201,9 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    // Abandonne le fetch de facettes en vol (#309)
+    this._facetsAbort?.abort();
+    this._facetsAbort = null;
     this._setBackgroundInert(false);
     document.removeEventListener('click', this._onClickOutsideMultiselect);
     if (this._popstateHandler) {
@@ -322,23 +328,55 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
 
   // --- Facet index building ---
 
+  /**
+   * Reinjecte les selections orphelines dans les groupes (#310) : apres un
+   * refetch, une valeur selectionnee disparue des donnees restait dans
+   * _activeSelections — la checkbox n'etait plus rendue mais le filtre
+   * restait actif (resultats vides inexplicables). Elle est rendue cochee,
+   * marquee indisponible, donc desactivable.
+   */
+  private _appendOrphanSelections(groups: FacetGroup[]): FacetGroup[] {
+    const labelMap = this._parseLabels();
+    const byField = new Map(groups.map((g) => [g.field, g]));
+    for (const [field, selected] of Object.entries(this._activeSelections)) {
+      if (selected.size === 0) continue;
+      let group = byField.get(field);
+      if (!group) {
+        // Groupe entier disparu (ex: 0 resultat) : le recreer pour garder
+        // les selections desactivables
+        group = { field, label: labelMap.get(field) ?? field, values: [] };
+        groups.push(group);
+        byField.set(field, group);
+      }
+      const known = new Set(group.values.map((v) => v.value));
+      for (const value of selected) {
+        if (!known.has(value)) {
+          group.values.push({ value, count: 0, missing: true });
+        }
+      }
+    }
+    return groups;
+  }
+
   _buildFacetGroups() {
     const fields = this._getFields();
     const labelMap = this._parseLabels();
 
-    this._facetGroups = fields
-      .map((field) => {
-        const values = this._computeFacetValues(field);
-        return {
-          field,
-          label: labelMap.get(field) ?? field,
-          values,
-        };
-      })
-      .filter((group) => {
-        if (this.hideEmpty && group.values.length <= 1) return false;
-        return group.values.length > 0;
-      });
+    this._facetGroups = this._appendOrphanSelections(
+      fields
+        .map((field) => {
+          const values = this._computeFacetValues(field);
+          return {
+            field,
+            label: labelMap.get(field) ?? field,
+            values,
+          };
+        })
+        .filter((group) => {
+          if (this.hideEmpty && group.values.length <= 1) return false;
+          return group.values.length > 0;
+        })
+    );
   }
 
   /**
@@ -530,6 +568,15 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     return Object.keys(this._activeSelections).some((f) => this._activeSelections[f].size > 0);
   }
 
+  /** AbortController du cycle de fetch de facettes en cours (#309) */
+  private _facetsAbort: AbortController | null = null;
+
+  /** Jeton de generation des fetch de facettes (#309) */
+  private _facetsGeneration = 0;
+
+  /** Erreur du dernier fetch de facettes (rendue, plus avalee — #309) */
+  private _facetsError: string | null = null;
+
   /** Fetch facet values from server API with cross-facet counts */
   private async _fetchServerFacets() {
     const sourceEl = document.getElementById(this.source);
@@ -599,14 +646,24 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
       whereToFields.get(effectiveWhere)!.push(field);
     }
 
+    // Deux interactions rapides = deux series de fetch concurrentes : la
+    // reponse la plus lente (potentiellement l'ancienne) ecrasait
+    // _facetGroups (#309). Abort du cycle precedent + jeton de generation.
+    this._facetsAbort?.abort();
+    const abort = new AbortController();
+    this._facetsAbort = abort;
+    const generation = ++this._facetsGeneration;
+
     // Fetch each group via adapter
     const allGroups: FacetGroup[] = [];
+    let fetchError: string | null = null;
     for (const [where, groupFields] of whereToFields) {
       try {
         const results = await adapter.fetchFacets(
           { baseUrl, datasetId, headers },
           groupFields,
-          where
+          where,
+          abort.signal
         );
         for (const result of results) {
           allGroups.push({
@@ -615,16 +672,27 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
             values: this._sortValues(result.values),
           });
         }
-      } catch {
-        // Ignore fetch errors — facets will simply not appear
+      } catch (e) {
+        if ((e as Error).name === 'AbortError') return;
+        // Erreur visible (plus avalee en silence, #309)
+        fetchError = (e as Error).message || 'Erreur de chargement des facettes';
+        console.warn(`dsfr-data-facets[${this.id}]: fetch des facettes en échec`, e);
       }
     }
 
+    // Une reponse perimee ne doit pas ecraser l'etat du dernier cycle
+    if (generation !== this._facetsGeneration) return;
+
+    this._facetsError = fetchError;
+
     // Order groups to match the fields attribute order
-    this._facetGroups = fields
-      .map((f) => allGroups.find((g) => g.field === f))
-      .filter((g): g is FacetGroup => !!g)
-      .filter((g) => !(this.hideEmpty && g.values.length <= 1));
+    this._facetGroups = this._appendOrphanSelections(
+      fields
+        .map((f) => allGroups.find((g) => g.field === f))
+        .filter((g): g is FacetGroup => !!g)
+        .filter((g) => !(this.hideEmpty && g.values.length <= 1))
+    );
+    this.requestUpdate();
   }
 
   /** Dispatch facet where command to upstream dsfr-data-query */
@@ -1082,13 +1150,27 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
       `;
     }
 
-    if (this._rawData.length === 0 || this._facetGroups.length === 0) {
-      return nothing;
-    }
-
     const hasActiveFilters = Object.keys(this._activeSelections).some(
       (f) => this._activeSelections[f].size > 0
     );
+
+    // UI jamais entierement disparue quand un filtre est actif (#310) :
+    // en mode serveur, _rawData est la page FILTREE — une selection donnant
+    // 0 resultat faisait disparaitre les checkboxes ET le bouton
+    // Reinitialiser (utilisateur coince)
+    if (this._rawData.length === 0 || this._facetGroups.length === 0) {
+      if (!hasActiveFilters && !this._facetsError) {
+        return nothing;
+      }
+    }
+
+    const facetsErrorBanner = this._facetsError
+      ? html`
+          <div class="fr-alert fr-alert--error fr-alert--sm" role="alert">
+            <p>Facettes indisponibles : ${this._facetsError}</p>
+          </div>
+        `
+      : nothing;
 
     const useDsfrGrid = !!this.cols;
 
@@ -1169,6 +1251,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
         }
       </style>
       <div class="dsfr-data-facets">
+        ${facetsErrorBanner}
         ${hasActiveFilters
           ? html`
               <div class="dsfr-data-facets__header">
