@@ -181,6 +181,8 @@ dsfr-data-source fonctionne en deux modes :
 
 **Mode URL (fetch direct)** : `url`, `method`, `headers`, `params`, `refresh`, `transform`, `paginate`, `page-size`, `cache-ttl`, `data` (inline JSON)
 
+**`cache-ttl` et le hook de cache (#307)** : la lib publiee n'appelle aucune API applicative. `cache-ttl` n'a d'effet que si la page hote enregistre un provider via `window.DSFR_DATA_CACHE_PROVIDER = { get(key), put(key, data, ttl) }` AVANT le chargement des composants (sans provider : no-op, embed anonyme). La cle inclut un hash du fingerprint de la requete (URL/params/where/page) — deux requetes differentes ne partagent jamais une entree. Les apps du repo enregistrent le provider `/api/cache` (mode DB) via `registerServerCacheProvider()` de `@dsfr-data/shared`, appele par `@dsfr-data/app-ui`.
+
 **Mode adapter** (api-type != generic ou base-url fourni) : `api-type`, `base-url`, `dataset-id`, `resource`, `where`, `select`, `group-by`, `aggregate`, `order-by`, `server-side`, `page-size`, `limit`
 
 ### Grist : mode Records vs SQL
@@ -208,8 +210,7 @@ L'adapter expose aussi `fetchColumns()` et `fetchTables()` pour l'introspection 
 lib-safe `@dsfr-data/shared/lib` (utils purs, palettes, providers, proxy).
 Le barrel racine `@dsfr-data/shared` re-exporte en plus les modules app-side
 (auth/, storage/, ui/, tour/) reserves aux apps — une regle ESLint
-`no-restricted-imports` l'interdit dans core (exceptions temporaires :
-`components/layout/` cf. #306, `isAuthenticated` de dsfr-data-source cf. #307).
+`no-restricted-imports` l'interdit dans core (plus aucune exception depuis #306/#307 — le chrome applicatif vit dans `packages/app-ui`, le cache serveur passe par le hook `window.DSFR_DATA_CACHE_PROVIDER`).
 Tout nouvel export lib-safe doit etre ajoute aux DEUX barrels (`src/lib.ts` et
 `src/index.ts`).
 

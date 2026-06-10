@@ -4,12 +4,9 @@ import { getByPath } from '../utils/json-path.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { getProxiedUrl, buildCorsProxyRequest } from '@dsfr-data/shared/lib';
-// Import app-side tolere temporairement (cache serveur /api/cache) — a
-// extraire vers un hook applicatif, cf. #307. Exception eslint dans
-// eslint.config.js.
-import { isAuthenticated } from '@dsfr-data/shared';
 import type { ApiAdapter, AdapterParams, ServerSideOverlay } from '../adapters/api-adapter.js';
 import { getAdapter } from '../adapters/adapter-registry.js';
+import { getCacheProvider, cacheKeyFor } from '../utils/cache-provider.js';
 import {
   dispatchDataLoaded,
   dispatchDataError,
@@ -549,8 +546,8 @@ export class DsfrDataSource extends LitElement {
 
       dispatchDataLoaded(this.id, this._data);
 
-      // Cache data server-side in DB mode (fire-and-forget)
-      if (this.cacheTtl > 0 && isAuthenticated()) {
+      // Cache externe via hook (fire-and-forget, #307)
+      if (this.cacheTtl > 0 && getCacheProvider()) {
         this._putCache(this._data).catch(() => {});
       }
     } catch (error) {
@@ -558,8 +555,8 @@ export class DsfrDataSource extends LitElement {
         return;
       }
 
-      // Try server cache fallback in DB mode
-      if (this.cacheTtl > 0 && isAuthenticated()) {
+      // Fallback offline via le hook de cache (#307)
+      if (this.cacheTtl > 0 && getCacheProvider()) {
         const cached = await this._getCache();
         if (cached) {
           this._data = cached;
@@ -664,8 +661,8 @@ export class DsfrDataSource extends LitElement {
       this._data = result.data;
       dispatchDataLoaded(this.id, this._data);
 
-      // Cache data server-side in DB mode (fire-and-forget)
-      if (this.cacheTtl > 0 && isAuthenticated()) {
+      // Cache externe via hook (fire-and-forget, #307)
+      if (this.cacheTtl > 0 && getCacheProvider()) {
         this._putCache(this._data).catch(() => {});
       }
     } catch (error) {
@@ -673,8 +670,8 @@ export class DsfrDataSource extends LitElement {
         return;
       }
 
-      // Try server cache fallback in DB mode
-      if (this.cacheTtl > 0 && isAuthenticated()) {
+      // Fallback offline via le hook de cache (#307)
+      if (this.cacheTtl > 0 && getCacheProvider()) {
         const cached = await this._getCache();
         if (cached) {
           this._data = cached;
@@ -812,24 +809,46 @@ export class DsfrDataSource extends LitElement {
 
   // --- Server cache (DB mode) ---
 
-  private async _putCache(data: unknown): Promise<void> {
-    const recordCount = Array.isArray(data) ? data.length : 1;
-    await fetch(`/api/cache/${encodeURIComponent(this.id)}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ data, recordCount, ttlSeconds: this.cacheTtl }),
-    });
+  /**
+   * Fingerprint de la requete courante (#307) : la cle de cache inclut
+   * URL/params/where/page... — l'ancienne cle (id seul) pouvait resservir
+   * la page 3 filtree d'hier pour une requete page 1 sans filtre.
+   */
+  private _cacheFingerprint(): unknown {
+    return {
+      url: this.url,
+      method: this.method,
+      params: this.params,
+      transform: this.transform,
+      apiType: this.apiType,
+      baseUrl: this.baseUrl,
+      datasetId: this.datasetId,
+      resource: this.resource,
+      where: this.getEffectiveWhere(),
+      select: this.select,
+      groupBy: this.groupBy,
+      aggregate: this.aggregate,
+      orderBy: this._orderByOverlay ?? this.orderBy,
+      page: this._currentPage,
+      pageSize: this.pageSize,
+      serverSide: this.serverSide,
+      limit: this.limit,
+    };
   }
 
+  /** Ecrit dans le cache externe si un provider est enregistre (#307). */
+  private _putCache(data: unknown): Promise<void> {
+    const provider = getCacheProvider();
+    if (!provider) return Promise.resolve();
+    return provider.put(cacheKeyFor(this.id, this._cacheFingerprint()), data, this.cacheTtl);
+  }
+
+  /** Lit le cache externe si un provider est enregistre (#307). */
   private async _getCache(): Promise<unknown | null> {
+    const provider = getCacheProvider();
+    if (!provider) return null;
     try {
-      const res = await fetch(`/api/cache/${encodeURIComponent(this.id)}`, {
-        credentials: 'include',
-      });
-      if (!res.ok) return null;
-      const json = await res.json();
-      return json.data ?? null;
+      return await provider.get(cacheKeyFor(this.id, this._cacheFingerprint()));
     } catch {
       return null;
     }

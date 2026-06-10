@@ -4,6 +4,12 @@
  * These components provide reusable layout structures
  * for the header, footer, and page layouts.
  */
+import { registerServerCacheProvider } from '@dsfr-data/shared';
+
+// Mode DB : branche le fallback offline /api/cache de dsfr-data-source via
+// le hook window.DSFR_DATA_CACHE_PROVIDER (#307) — la lib publiee ne
+// connait plus aucune API applicative.
+registerServerCacheProvider();
 
 export { AppHeader } from './app-header.js';
 export { AppFooter } from './app-footer.js';

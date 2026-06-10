@@ -103,15 +103,6 @@ export default tseslint.config(
       ],
     },
   },
-  // Dette tolérée : isAuthenticated dans dsfr-data-source (cache /api/cache — hook prévu #307).
-  // layout/ a été extrait vers packages/app-ui (#306).
-  {
-    files: ['packages/core/src/components/dsfr-data-source.ts'],
-    rules: {
-      'no-restricted-imports': 'off',
-    },
-  },
-
   // Relax rules for test files
   {
     files: ['tests/**/*.ts', '**/*.test.ts', '**/*.spec.ts'],
