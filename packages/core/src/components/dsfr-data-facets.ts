@@ -39,6 +39,8 @@ interface FacetGroup {
  * <dsfr-data-facets id="filtered" source="clean" fields="region, type"></dsfr-data-facets>
  * <dsfr-data-chart source="filtered" type="bar" label-field="region" value-field="population"></dsfr-data-chart>
  */
+let facetsInstanceSeq = 0;
+
 @customElement('dsfr-data-facets')
 export class DsfrDataFacets extends TransformerMixin(LitElement) {
   /** ID de la source de données a ecouter */
@@ -568,6 +570,10 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     return Object.keys(this._activeSelections).some((f) => this._activeSelections[f].size > 0);
   }
 
+  /** Uid d'instance pour les ids DOM (#311 — deux facets sans id explicite
+   * ou aux memes champs produisaient des ids en collision) */
+  private readonly _instanceUid = `dsfr-facets-${++facetsInstanceSeq}`;
+
   /** AbortController du cycle de fetch de facettes en cours (#309) */
   private _facetsAbort: AbortController | null = null;
 
@@ -835,7 +841,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
 
     // Announce selection change for all interactive modes
     if (displayMode === 'multiselect' || displayMode === 'radio' || displayMode === 'checkbox') {
-      const action = wasSelected ? 'deselectionnee' : 'sélectionnée';
+      const action = wasSelected ? 'désélectionnée' : 'sélectionnée';
       this._announce(
         `${value} ${action}, ${fieldSet.size} option${fieldSet.size > 1 ? 's' : ''} sélectionnée${fieldSet.size > 1 ? 's' : ''}`
       );
@@ -872,7 +878,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     selections[field] = new Set(group.values.map((v) => v.value));
     this._activeSelections = selections;
     this._afterSelectionChange();
-    this._announce(`${group.values.length} options selectionnees`);
+    this._announce(`${group.values.length} options sélectionnées`);
   }
 
   private _toggleMultiselectDropdown(field: string) {
@@ -1251,6 +1257,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
         }
       </style>
       <div class="dsfr-data-facets">
+        <div aria-live="polite" class="fr-sr-only">${this._liveAnnouncement}</div>
         ${facetsErrorBanner}
         ${hasActiveFilters
           ? html`
@@ -1260,7 +1267,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
                   type="button"
                   @click="${this._clearAll}"
                 >
-                  Reinitialiser les filtres
+                  Réinitialiser les filtres
                 </button>
               </div>
             `
@@ -1314,12 +1321,11 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
 
     const visibleValues = isExpanded ? displayValues : displayValues.slice(0, this.maxValues);
     const hasMore = displayValues.length > this.maxValues;
-    const uid = `facet-${this.id}-${group.field}`;
+    const uid = `${this._instanceUid}-${group.field}`;
 
     return html`
       <fieldset class="fr-fieldset dsfr-data-facets__group" aria-labelledby="${uid}-legend">
         <legend class="fr-fieldset__legend fr-text--bold" id="${uid}-legend">${group.label}</legend>
-        <div aria-live="polite" class="fr-sr-only">${this._liveAnnouncement}</div>
         ${isSearchable
           ? html`
               <div class="fr-fieldset__element">
@@ -1336,8 +1342,8 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
               </div>
             `
           : nothing}
-        ${visibleValues.map((fv) => {
-          const checkId = `${uid}-${fv.value.replace(/[^a-zA-Z0-9]/g, '_')}`;
+        ${visibleValues.map((fv, fvIndex) => {
+          const checkId = `${uid}-${fvIndex}`;
           const isChecked = selected.has(fv.value);
           return html`
             <div class="fr-fieldset__element">
@@ -1381,7 +1387,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   }
 
   private _renderSelectGroup(group: FacetGroup) {
-    const uid = `facet-${this.id}-${group.field}`;
+    const uid = `${this._instanceUid}-${group.field}`;
     const selected = this._activeSelections[group.field];
     const selectedValue = selected ? ([...selected][0] ?? '') : '';
 
@@ -1407,7 +1413,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   }
 
   private _renderMultiselectGroup(group: FacetGroup) {
-    const uid = `facet-${this.id}-${group.field}`;
+    const uid = `${this._instanceUid}-${group.field}`;
     const selected = this._activeSelections[group.field] ?? new Set();
     const isOpen = this._openMultiselectField === group.field;
     const searchQuery = (this._searchQueries[group.field] ?? '').toLowerCase();
@@ -1462,7 +1468,6 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
                 aria-label="${group.label}"
                 @click="${(e: Event) => e.stopPropagation()}"
               >
-                <div aria-live="polite" class="fr-sr-only">${this._liveAnnouncement}</div>
                 <button
                   class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-left ${selected.size > 0
                     ? 'fr-icon-close-circle-line'
@@ -1508,8 +1513,8 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
                   class="fr-fieldset dsfr-data-facets__dropdown-fieldset"
                   aria-label="${group.label}"
                 >
-                  ${displayValues.map((fv) => {
-                    const checkId = `${uid}-${fv.value.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                  ${displayValues.map((fv, fvIndex) => {
+                    const checkId = `${uid}-${fvIndex}`;
                     const isChecked = selected.has(fv.value);
                     return html`
                       <div class="fr-fieldset__element">
@@ -1542,7 +1547,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   }
 
   private _renderRadioGroup(group: FacetGroup) {
-    const uid = `facet-${this.id}-${group.field}`;
+    const uid = `${this._instanceUid}-${group.field}`;
     const selected = this._activeSelections[group.field] ?? new Set();
     const isOpen = this._openMultiselectField === group.field;
     const searchQuery = (this._searchQueries[group.field] ?? '').toLowerCase();
@@ -1588,16 +1593,15 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
                 aria-label="${group.label}"
                 @click="${(e: Event) => e.stopPropagation()}"
               >
-                <div aria-live="polite" class="fr-sr-only">${this._liveAnnouncement}</div>
                 ${selectedValue
                   ? html`
                       <button
                         class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-left fr-icon-close-circle-line dsfr-data-facets__multiselect-toggle"
                         type="button"
-                        aria-label="Reinitialiser ${group.label}"
+                        aria-label="Réinitialiser ${group.label}"
                         @click="${() => this._clearFieldSelections(group.field)}"
                       >
-                        Reinitialiser
+                        Réinitialiser
                       </button>
                     `
                   : nothing}
@@ -1631,8 +1635,8 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
                   class="fr-fieldset dsfr-data-facets__dropdown-fieldset"
                   aria-label="${group.label}"
                 >
-                  ${displayValues.map((fv) => {
-                    const radioId = `${uid}-${fv.value.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                  ${displayValues.map((fv, fvIndex) => {
+                    const radioId = `${uid}-${fvIndex}`;
                     const isChecked = selected.has(fv.value);
                     return html`
                       <div class="fr-fieldset__element">

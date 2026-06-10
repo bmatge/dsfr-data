@@ -134,7 +134,7 @@ describe('#310 — AC : 0 résultat → UI complète avec Réinitialiser actif',
     await facets.updateComplete;
 
     const reset = Array.from(facets.querySelectorAll('button')).find((b) =>
-      (b.textContent || '').includes('Reinitialiser')
+      (b.textContent || '').includes('initialiser')
     );
     expect(reset).toBeDefined();
 
