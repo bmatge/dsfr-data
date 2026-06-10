@@ -128,11 +128,56 @@ export class DsfrDataContextFilter extends LitElement {
     }
     // S'enregistre auprès du contexte (whereKey stable + détection doublon)
     this._context._registerFilter(this);
-    // Une UI déjà remplie au montage (ex: pré-remplissage URL, #231)
-    // applique son filtre immédiatement
+
+    // Pré-remplissage depuis l'URL (#231, ADR-031) : les valeurs passent
+    // par l'UI puis par le MÊME chemin d'émission qu'un clic utilisateur —
+    // jamais injectées directement dans un where
+    const urlValues = this._context._urlValuesFor(this.field);
+    if (urlValues) {
+      this._prefillUi(urlValues);
+    }
+
+    // Une UI déjà remplie au montage applique son filtre immédiatement
     if (this._currentValues().some((v) => v !== '')) {
       this._emit();
     }
+  }
+
+  /** Écrit des valeurs (issues de l'URL) dans les contrôles d'UI liés */
+  private _prefillUi(values: string[]): void {
+    if (this.operator === 'between') {
+      const [min, max] = values;
+      const [elMin, elMax] = this._uiEls as Array<HTMLInputElement | undefined>;
+      if (elMin && min !== undefined) elMin.value = min;
+      if (elMax && max !== undefined) elMax.value = max;
+      return;
+    }
+    const el = this._uiEls[0];
+    if (el instanceof HTMLSelectElement && el.multiple) {
+      const wanted = new Set(values);
+      for (const option of Array.from(el.options)) {
+        option.selected = wanted.has(option.value);
+      }
+      return;
+    }
+    (el as HTMLInputElement | HTMLSelectElement).value = values.join(',');
+  }
+
+  /**
+   * Valeur de ce filtre pour l'URL (#231) — encodage lisible ADR-031 :
+   * valeurs jointes par virgule ('' = filtre inactif, paramètre retiré).
+   */
+  urlValue(): string {
+    const values = this._currentValues();
+    if (this.operator === 'between') {
+      const [min, max] = values;
+      return min || max ? `${min ?? ''},${max ?? ''}` : '';
+    }
+    const raw = values[0] ?? '';
+    if (this.operator === 'in') {
+      return raw.split(/[|,]/).filter(Boolean).join(',');
+    }
+    return raw;
   }
 
   private _unbindUi(): void {
@@ -185,10 +230,11 @@ export class DsfrDataContextFilter extends LitElement {
     if (raw === '') return '';
 
     if (this.operator === 'in') {
+      // | (multi-select) et , (saisie texte / URL lisible ADR-031)
       const escaped = raw
-        .split('|')
+        .split(/[|,]/)
         .filter(Boolean)
-        .map((v) => escapeColonValue(v))
+        .map((v) => escapeColonValue(v.trim()))
         .join('|');
       return `${this.field}:in:${escaped}`;
     }

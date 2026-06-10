@@ -41,6 +41,20 @@ export class DsfrDataContext extends LitElement {
   @property({ type: String })
   sources = '';
 
+  /**
+   * Sérialisation URL des filtres (#231, ADR-031) — OPT-IN, défaut OFF
+   * (collision possible avec le routing query-string du site hôte).
+   * Lecture au chargement (pré-remplit les UI, qui repassent par le même
+   * chemin qu'un clic — aucune injection directe dans un where) ; écriture
+   * en history.replaceState à chaque changement.
+   */
+  @property({ type: Boolean, attribute: 'url-sync' })
+  urlSync = false;
+
+  /** Renommage des paramètres : "param:field | param2:field2" (#231) */
+  @property({ type: String, attribute: 'url-param-map' })
+  urlParamMap = '';
+
   /** Uid stable pour les whereKeys (contexte sans id explicite) */
   private readonly _uid = `dsfr-ctx-${++contextSeq}`;
 
@@ -135,6 +149,68 @@ export class DsfrDataContext extends LitElement {
       const where = colonWhere ? this._translateFor(sourceId, colonWhere) : '';
       dispatchSourceCommand(sourceId, { where, whereKey });
     }
+    if (this.urlSync && this.isConnected) {
+      this._syncUrl();
+    }
+  }
+
+  // --- Sérialisation URL (#231, pattern facets — leçon #312 incluse) ---
+
+  /** Map param URL → field (url-param-map "param:field | ...") */
+  private _parseParamMap(): Map<string, string> {
+    const map = new Map<string, string>();
+    if (!this.urlParamMap) return map;
+    for (const pair of this.urlParamMap.split('|')) {
+      const [param, field] = pair.split(':').map((s) => s.trim());
+      if (param && field) map.set(param, field);
+    }
+    return map;
+  }
+
+  /** Nom du paramètre URL d'un champ (reverse de url-param-map, défaut: field) */
+  private _paramNameFor(field: string): string {
+    for (const [param, f] of this._parseParamMap()) {
+      if (f === field) return param;
+    }
+    return field;
+  }
+
+  /**
+   * Valeurs URL pour un champ (consultées par les filtres à leur bind) —
+   * encodage lisible ADR-031 : valeurs jointes par virgule. null si absent
+   * ou si url-sync est OFF.
+   */
+  _urlValuesFor(field: string): string[] | null {
+    if (!this.urlSync) return null;
+    const params = new URLSearchParams(window.location.search);
+    const raw = params.get(this._paramNameFor(field));
+    if (raw === null || raw === '') return null;
+    return raw.split(',').map((v) => v.trim());
+  }
+
+  /**
+   * Écrit l'état courant des filtres dans l'URL. Part des paramètres
+   * EXISTANTS et ne gère que les siens (leçon #312 : repartir de zéro
+   * effaçait les paramètres des composants voisins). replaceState : pas
+   * d'entrée d'historique par frappe (ADR-031).
+   */
+  private _syncUrl(): void {
+    const params = new URLSearchParams(window.location.search);
+    for (const filter of this._filters) {
+      if (!filter.field) continue;
+      const name = this._paramNameFor(filter.field);
+      const value = filter.urlValue();
+      if (value) {
+        params.set(name, value);
+      } else {
+        params.delete(name);
+      }
+    }
+    const search = params.toString();
+    const newUrl = search
+      ? `${window.location.pathname}?${search}${window.location.hash}`
+      : `${window.location.pathname}${window.location.hash}`;
+    window.history.replaceState(null, '', newUrl);
   }
 
   /** Cibles effectives d'un filtre : sources du contexte ∩ apply-to */
