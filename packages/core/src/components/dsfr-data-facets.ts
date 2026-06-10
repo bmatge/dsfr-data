@@ -87,7 +87,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   @property({ type: String, attribute: 'url-param-map' })
   urlParamMap = '';
 
-  /** Synchronise l'URL quand l'utilisateur change les facettes (pushState) */
+  /** Synchronise l'URL quand l'utilisateur change les facettes (replaceState — pas d'entree d'historique par clic) */
   @property({ type: Boolean, attribute: 'url-sync' })
   urlSync = false;
 
@@ -1094,9 +1094,23 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     const paramMap = this._parseUrlParamMap();
     const selections: Record<string, Set<string>> = {};
 
+    // Sans url-param-map, seuls les params correspondant aux champs CONNUS
+    // deviennent des selections (#312) : ?utm_source=newsletter filtrait
+    // sur un champ inexistant -> 0 resultat inexplicable
+    const knownFields = new Set<string>([
+      ..._parseCSV(this.fields),
+      ...this._facetGroups.map((g) => g.field),
+      ...(this._rawData.length > 0 ? Object.keys(this._rawData[0]) : []),
+    ]);
+
     for (const [paramName, paramValue] of params.entries()) {
       // Determine the target field name
-      const fieldName = paramMap.size > 0 ? (paramMap.get(paramName) ?? null) : paramName;
+      const fieldName =
+        paramMap.size > 0
+          ? (paramMap.get(paramName) ?? null)
+          : knownFields.has(paramName)
+            ? paramName
+            : null;
 
       if (!fieldName) continue;
 
@@ -1121,12 +1135,23 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
 
   /** Sync current facet selections back to URL (replaceState) */
   private _syncUrl() {
-    const params = new URLSearchParams();
+    // Partir des params EXISTANTS (#312) : repartir de zero effacait le
+    // parametre du dsfr-data-search voisin et tout autre param de la page
+    // a chaque clic (search preserve, lui)
+    const params = new URLSearchParams(window.location.search);
     const paramMap = this._parseUrlParamMap();
     // Build reverse map: field -> URL param name
     const reverseMap = new Map<string, string>();
     for (const [paramName, fieldName] of paramMap) {
       reverseMap.set(fieldName, paramName);
+    }
+
+    // Retirer nos propres params perimes avant de poser les courants
+    for (const field of Object.keys(this._activeSelections)) {
+      params.delete(reverseMap.get(field) ?? field);
+    }
+    for (const group of this._facetGroups) {
+      params.delete(reverseMap.get(group.field) ?? group.field);
     }
 
     for (const [field, values] of Object.entries(this._activeSelections)) {

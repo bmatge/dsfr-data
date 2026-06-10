@@ -617,6 +617,11 @@ describe('DsfrDataFacets', () => {
     });
 
     describe('_applyUrlParams (direct mapping)', () => {
+      beforeEach(() => {
+        // Sans url-param-map, seuls les champs CONNUS sont acceptes (#312)
+        facets.fields = 'region, type';
+      });
+
       it('reads URL params matching field names', () => {
         setUrlParams('type=Commune');
         facets.urlParams = true;
@@ -644,13 +649,13 @@ describe('DsfrDataFacets', () => {
         expect(facets._activeSelections['region']?.has('Bretagne')).toBe(true);
       });
 
-      it('does nothing when no URL params match', () => {
-        setUrlParams('foo=bar');
+      it('un param inconnu (ex: utm_source) ne devient PAS une selection (#312)', () => {
+        setUrlParams('foo=bar&utm_source=newsletter');
         facets.urlParams = true;
         facets._applyUrlParams();
 
-        // foo is set but it's not a known facet field — still stored
-        expect(facets._activeSelections['foo']?.has('bar')).toBe(true);
+        expect(facets._activeSelections['foo']).toBeUndefined();
+        expect(facets._activeSelections['utm_source']).toBeUndefined();
       });
 
       it('does nothing when URL has no params', () => {
@@ -1194,12 +1199,16 @@ describe('DsfrDataFacets', () => {
       expect(params.get('t')).toBe('Commune');
     });
 
-    it('removes params when no selections', () => {
-      setUrlParams('type=Commune');
+    it('retire SES params sans selection — ceux des voisins survivent (#312)', () => {
+      setUrlParams('type=Commune&q=velo');
+      (facets as any)._facetGroups = [{ field: 'type', label: 'type', values: [] }];
       facets._activeSelections = {};
       (facets as any)._syncUrl();
 
-      expect(window.location.search).toBe('');
+      const params = new URLSearchParams(window.location.search);
+      expect(params.get('type')).toBeNull();
+      // Le parametre du dsfr-data-search voisin n'est plus efface
+      expect(params.get('q')).toBe('velo');
     });
 
     it('joins multiple values with comma', () => {

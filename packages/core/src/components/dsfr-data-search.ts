@@ -540,7 +540,9 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
     }
 
     const id = this.id || 'search';
-    const labelClass = this.srLabel ? 'fr-label sr-only' : 'fr-label';
+    // fr-sr-only : la classe sr-only n'existe pas en DSFR — l'attribut
+    // sr-label etait sans effet (#312)
+    const labelClass = this.srLabel ? 'fr-label fr-sr-only' : 'fr-label';
 
     return html`
       <div
