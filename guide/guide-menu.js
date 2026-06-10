@@ -5,52 +5,80 @@
  */
 (window.__APP_MENUS__ = window.__APP_MENUS__ || {}).guide = [
   {
-    title: "Guide",
+    title: 'Guide',
     items: [
-      { id: "overview", label: "Vue d'ensemble", href: "guide.html" },
+      { id: 'overview', label: "Vue d'ensemble", href: 'guide.html' },
       {
-        id: "parcours", label: "Parcours utilisateur",
+        id: 'parcours',
+        label: 'Parcours utilisateur',
         children: [
-          { id: "parcours-a", label: "Donnees locales", href: "guide-parcours.html#parcours-a" },
-          { id: "parcours-b", label: "Graphique Grist", href: "guide-parcours.html#parcours-b" },
-          { id: "parcours-c", label: "Builder IA", href: "guide-parcours.html#parcours-c" },
-          { id: "parcours-d", label: "Playground", href: "guide-parcours.html#parcours-d" },
-          { id: "parcours-e", label: "Tableau de bord", href: "guide-parcours.html#parcours-e" },
-          { id: "parcours-f", label: "API REST externe", href: "guide-parcours.html#parcours-f" },
-          { id: "parcours-g", label: "Monitoring", href: "guide-parcours.html#parcours-g" },
-          { id: "parcours-h", label: "Pipeline Helper", href: "guide-parcours.html#parcours-h" }
-        ]
+          { id: 'parcours-a', label: 'Donnees locales', href: 'guide-parcours.html#parcours-a' },
+          { id: 'parcours-b', label: 'Graphique Grist', href: 'guide-parcours.html#parcours-b' },
+          { id: 'parcours-c', label: 'Builder IA', href: 'guide-parcours.html#parcours-c' },
+          { id: 'parcours-d', label: 'Playground', href: 'guide-parcours.html#parcours-d' },
+          { id: 'parcours-e', label: 'Tableau de bord', href: 'guide-parcours.html#parcours-e' },
+          { id: 'parcours-f', label: 'API REST externe', href: 'guide-parcours.html#parcours-f' },
+          { id: 'parcours-g', label: 'Monitoring', href: 'guide-parcours.html#parcours-g' },
+          { id: 'parcours-h', label: 'Pipeline Helper', href: 'guide-parcours.html#parcours-h' },
+        ],
       },
       {
-        id: "guide-composants", label: "Guide par composant",
+        id: 'guide-composants',
+        label: 'Guide par composant',
         children: [
-          { id: "exemples-source", label: "dsfr-data-source", href: "guide-exemples-source.html" },
-          { id: "exemples-normalize", label: "dsfr-data-normalize", href: "guide-exemples-normalize.html" },
-          { id: "exemples-query", label: "dsfr-data-query", href: "guide-exemples-query.html" },
-          { id: "exemples-join", label: "dsfr-data-join", href: "guide-exemples-join.html" },
-          { id: "exemples-search", label: "dsfr-data-search", href: "guide-exemples-search.html" },
-          { id: "exemples-facets", label: "dsfr-data-facets", href: "guide-exemples-facets.html" },
-          { id: "exemples-display", label: "dsfr-data-display", href: "guide-exemples-display.html" },
-          { id: "exemples-podium", label: "dsfr-data-podium", href: "guide-exemples-podium.html" },
-          { id: "exemples-chart-a11y", label: "dsfr-data-a11y", href: "guide-exemples-chart-a11y.html" },
-          { id: "exemples-map", label: "dsfr-data-map", href: "guide-exemples-map.html" }
-        ]
+          { id: 'exemples-source', label: 'dsfr-data-source', href: 'guide-exemples-source.html' },
+          {
+            id: 'exemples-normalize',
+            label: 'dsfr-data-normalize',
+            href: 'guide-exemples-normalize.html',
+          },
+          { id: 'exemples-query', label: 'dsfr-data-query', href: 'guide-exemples-query.html' },
+          { id: 'exemples-join', label: 'dsfr-data-join', href: 'guide-exemples-join.html' },
+          { id: 'exemples-search', label: 'dsfr-data-search', href: 'guide-exemples-search.html' },
+          { id: 'exemples-facets', label: 'dsfr-data-facets', href: 'guide-exemples-facets.html' },
+          {
+            id: 'exemples-context',
+            label: 'dsfr-data-context',
+            href: 'guide-exemples-context.html',
+          },
+          {
+            id: 'exemples-display',
+            label: 'dsfr-data-display',
+            href: 'guide-exemples-display.html',
+          },
+          { id: 'exemples-podium', label: 'dsfr-data-podium', href: 'guide-exemples-podium.html' },
+          {
+            id: 'exemples-chart-a11y',
+            label: 'dsfr-data-a11y',
+            href: 'guide-exemples-chart-a11y.html',
+          },
+          { id: 'exemples-map', label: 'dsfr-data-map', href: 'guide-exemples-map.html' },
+        ],
       },
       {
-        id: "exemples-avances", label: "Exemples avances",
+        id: 'exemples-avances',
+        label: 'Exemples avances',
         children: [
-          { id: "world-map", label: "Dashboard Huwise", href: "guide-exemples-world-map.html" },
-          { id: "exemple-ods", label: "Recherche Huwise", href: "guide-exemple-ODS.html" },
-          { id: "insee-erfs", label: "Dashboard INSEE", href: "guide-exemples-insee-erfs.html" },
-          { id: "maires", label: "Dashboard Tabular (data.gouv)", href: "guide-exemples-maires.html" },
-          { id: "ghibli", label: "Dashboard generic (ghibli)", href: "guide-exemples-ghibli.html" },
-          { id: "demo-complete", label: "Démo complète (tous composants)", href: "guide-demo-complete.html" }
-        ]
+          { id: 'world-map', label: 'Dashboard Huwise', href: 'guide-exemples-world-map.html' },
+          { id: 'exemple-ods', label: 'Recherche Huwise', href: 'guide-exemple-ODS.html' },
+          { id: 'insee-erfs', label: 'Dashboard INSEE', href: 'guide-exemples-insee-erfs.html' },
+          {
+            id: 'maires',
+            label: 'Dashboard Tabular (data.gouv)',
+            href: 'guide-exemples-maires.html',
+          },
+          { id: 'ghibli', label: 'Dashboard generic (ghibli)', href: 'guide-exemples-ghibli.html' },
+          {
+            id: 'demo-complete',
+            label: 'Démo complète (tous composants)',
+            href: 'guide-demo-complete.html',
+          },
+        ],
       },
       // Placeholder for dynamic "Autres exemples" — populated by _loadGuideExamples() below
-      { id: "grist-widgets", label: "Widgets Grist", href: "guide-grist-widgets.html" }
-    ]
-  }
+      { id: 'grist-widgets', label: 'Widgets Grist', href: 'guide-grist-widgets.html' },
+    ],
+  },
 ];
 
 /**
@@ -73,7 +101,9 @@
   }
 
   fetch(basePath + 'examples/_list.json')
-    .then(function (r) { return r.ok ? r.json() : []; })
+    .then(function (r) {
+      return r.ok ? r.json() : [];
+    })
     .then(function (examples) {
       if (!examples || !examples.length) return;
 
@@ -81,18 +111,20 @@
         return {
           id: 'example-' + ex.file.replace(/\.html$/, ''),
           label: ex.title,
-          href: 'examples/' + ex.file
+          href: 'examples/' + ex.file,
         };
       });
 
       // Insert "Autres exemples" before "Widgets Grist" in the menu
       var items = window.__APP_MENUS__.guide[0].items;
-      var gristIdx = items.findIndex(function (it) { return it.id === 'grist-widgets'; });
+      var gristIdx = items.findIndex(function (it) {
+        return it.id === 'grist-widgets';
+      });
       var insertAt = gristIdx !== -1 ? gristIdx : items.length;
       items.splice(insertAt, 0, {
         id: 'autres-exemples',
         label: 'Autres exemples',
-        children: children
+        children: children,
       });
 
       // Trigger re-render of the sidemenu component
@@ -101,5 +133,7 @@
         sidemenu.requestUpdate();
       }
     })
-    .catch(function () { /* silently ignore if no examples available */ });
+    .catch(function () {
+      /* silently ignore if no examples available */
+    });
 })();

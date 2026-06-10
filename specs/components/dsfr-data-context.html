@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-scheme="system">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dsfr-data-context - Composants - dsfr-data</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css" integrity="sha384-atVZ+aK6VI0nWyTEhKgze5InDJ+SWRRqa0BCZ2MTNyoOcBiHj1c3dGPdi6ML65B3" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css" integrity="sha384-5P5DFFqorcEBpfnK9WHu/Ralfr7ZxyCZh0ryaJbgucSvc71+qRYdGvNEcyMqQwa/" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script type="module" src="/dist/app-ui.esm.js"></script>
+  <style>
+    body { min-height: 100vh; display: flex; flex-direction: column; }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <app-header current-page="composants" base-path="../../"></app-header>
+
+  <!-- Layout documentation avec sidemenu -->
+  <app-layout-demo
+    title="dsfr-data-context"
+    icon="ri-filter-3-line"
+    active-path="components/dsfr-data-context"
+    base-path="../">
+    <div slot="content">
+        <p class="fr-text--lead">
+          Filtres transverses multi-sources pour les dashboards a filtre commun.
+          Le contexte ecoute des elements d'UI natifs (<code>select</code>, <code>input</code>...)
+          et diffuse les filtres a N sources nommees — le « fan-out » declaratif qui evitait
+          jusqu'ici d'ecrire du JavaScript d'orchestration a la main.
+        </p>
+
+        <div class="fr-callout fr-callout--blue-france">
+          <p class="fr-callout__text">
+            <strong>Opt-in et additif (ADR-031) :</strong> sans contexte, chaque source reste
+            autonome — rien ne change pour les pages mono-graphique. Le contexte n'effectue
+            aucun fetch et ne transforme aucune donnee : il emet des commandes <code>where</code>
+            avec un <code>whereKey</code> stable par filtre, combinees en <strong>AND</strong> par
+            le merge multi-emetteurs des sources (jamais « le dernier gagne »).
+          </p>
+        </div>
+
+        <h2 class="fr-h4">Pattern</h2>
+        <pre class="fr-text--sm" style="background: var(--background-alt-grey); padding: 1rem; border-radius: 4px; overflow-x: auto;"><code>&lt;!-- UI native libre (formulaire DSFR) --&gt;
+&lt;select id="ui-categorie" multiple&gt;...&lt;/select&gt;
+&lt;input id="ui-mois" type="month"&gt;
+
+&lt;!-- Le contexte orchestre --&gt;
+&lt;dsfr-data-context sources="src-a src-b src-c" url-sync&gt;
+  &lt;dsfr-data-context-filter field="categorie_produit" label="Catégorie"
+    operator="in" ui="ui-categorie"&gt;&lt;/dsfr-data-context-filter&gt;
+  &lt;dsfr-data-context-filter field="date_rappel" label="Mois"
+    operator="month-of" ui="ui-mois"&gt;&lt;/dsfr-data-context-filter&gt;
+&lt;/dsfr-data-context&gt;
+
+&lt;!-- Recap supprimable des filtres actifs --&gt;
+&lt;dsfr-data-context-tags for="ctx"&gt;&lt;/dsfr-data-context-tags&gt;</code></pre>
+
+        <h2 class="fr-h4">Attributs — dsfr-data-context</h2>
+        <div class="fr-table fr-table--sm">
+          <table>
+            <thead>
+              <tr><th>Attribut</th><th>Type</th><th>Valeurs</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>sources</code></td><td>String</td><td>requis</td><td>Ids des sources cibles, separes par des espaces</td></tr>
+              <tr><td><code>url-sync</code></td><td>Boolean</td><td>defaut : off</td><td>Serialisation URL des filtres (lecture au chargement, ecriture replaceState). Opt-in : evite les collisions avec le routing du site hote. Les valeurs lues pre-remplissent les UI — jamais injectees directement dans un where.</td></tr>
+              <tr><td><code>url-param-map</code></td><td>String</td><td><code>"param:field | p2:f2"</code></td><td>Renommage des parametres URL (defaut : le nom du champ)</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 class="fr-h4">Attributs — dsfr-data-context-filter</h2>
+        <div class="fr-table fr-table--sm">
+          <table>
+            <thead>
+              <tr><th>Attribut</th><th>Type</th><th>Valeurs</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>field</code></td><td>String</td><td>requis</td><td>Colonne filtree</td></tr>
+              <tr><td><code>ui</code></td><td>String</td><td>requis</td><td>Id de l'element d'UI ecoute — DEUX ids (min puis max) pour <code>between</code></td></tr>
+              <tr><td><code>operator</code></td><td>String</td><td><code>eq</code></td><td>Voir le tableau des operateurs</td></tr>
+              <tr><td><code>apply-to</code></td><td>String</td><td><code>*</code></td><td><code>*</code> = toutes les sources du contexte, ou liste d'ids cibles</td></tr>
+              <tr><td><code>label</code></td><td>String</td><td>defaut : field</td><td>Libelle naturel pour l'affichage (tags)</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 class="fr-h4">Operateurs</h2>
+        <div class="fr-table fr-table--sm">
+          <table>
+            <thead>
+              <tr><th>Operateur</th><th>UI typique</th><th>Clause generee</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>eq</code></td><td>input, select</td><td><code>field = valeur</code></td></tr>
+              <tr><td><code>in</code></td><td>select multiple</td><td><code>field IN (v1, v2)</code> — valeurs separees par <code>|</code> ou <code>,</code></td></tr>
+              <tr><td><code>lt</code> / <code>gte</code></td><td>input</td><td>comparaison stricte / large</td></tr>
+              <tr><td><code>between</code></td><td>deux inputs (min, max)</td><td><code>gte min</code> + <code>lt max</code></td></tr>
+              <tr><td><code>month-of</code></td><td><code>input type="month"</code></td><td>plage <code>[1er du mois, 1er du mois suivant)</code></td></tr>
+              <tr><td><code>year-of</code></td><td>input annee</td><td>plage annuelle</td></tr>
+              <tr><td><code>lt-day-after</code></td><td><code>input type="date"</code></td><td>inclusif jusqu'au jour choisi</td></tr>
+              <tr><td><code>last-n-days</code></td><td>input N</td><td>borne dynamique « N derniers jours », recalculee a chaque diffusion</td></tr>
+              <tr><td><code>current-year</code></td><td>checkbox</td><td>plage de l'annee en cours (dynamique)</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="fr-callout fr-callout--green-emeraude">
+          <p class="fr-callout__text">
+            <strong>Dialectes :</strong> la clause est construite en colon (pivot) puis traduite
+            au <code>whereFormat</code> de chaque adapter cible (ODSQL pour OpenDataSoft, colon
+            pour Tabular/Grist). Les bornes dynamiques ne figent jamais de date dans le DOM, et
+            l'URL serialise l'<em>intention</em> (« 30 »), pas les dates resolues : un lien
+            partage ne gele pas de vieilles donnees.
+          </p>
+        </div>
+
+        <h2 class="fr-h4">Attributs — dsfr-data-context-tags</h2>
+        <div class="fr-table fr-table--sm">
+          <table>
+            <thead>
+              <tr><th>Attribut</th><th>Type</th><th>Valeurs</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>for</code></td><td>String</td><td>requis</td><td>Id du dsfr-data-context observe. Rend un tag DSFR supprimable par filtre actif : la croix vide l'UI du filtre (meme chemin qu'un clic utilisateur), sources, URL et tags se mettent a jour ensemble.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 class="fr-h4">Voir aussi</h2>
+        <ul>
+          <li><a href="../../guide/guide-exemples-context.html">Guide : dashboard RappelConso filtre</a></li>
+          <li><a href="dsfr-data-facets.html">dsfr-data-facets</a> — facettes calculees depuis les donnees (mono-source)</li>
+        </ul>
+    </div>
+  </app-layout-demo>
+
+  <app-footer base-path="../../"></app-footer>
+</body>
+</html>

@@ -151,6 +151,11 @@ export class AppLayoutDemo extends LitElement {
             href: 'components/dsfr-data-search.html',
           },
           {
+            id: 'components/dsfr-data-context',
+            label: 'dsfr-data-context',
+            href: 'components/dsfr-data-context.html',
+          },
+          {
             id: 'components/dsfr-data-kpi',
             label: 'dsfr-data-kpi',
             href: 'components/dsfr-data-kpi.html',

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-scheme="system">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dsfr-data-context — Exemples - Guide - dsfr-data</title>
+  <style>@view-transition{navigation:auto}app-header:not(:defined){display:block;min-height:56px}app-footer:not(:defined){display:block;min-height:48px}</style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css" integrity="sha384-atVZ+aK6VI0nWyTEhKgze5InDJ+SWRRqa0BCZ2MTNyoOcBiHj1c3dGPdi6ML65B3" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css" integrity="sha384-5P5DFFqorcEBpfnK9WHu/Ralfr7ZxyCZh0ryaJbgucSvc71+qRYdGvNEcyMqQwa/" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css" integrity="sha384-987+TUcyVaQAI/PaEqYIGNqku/bHSkNVAqOfNxyS1eE9SxeeH2Ue4FQZ3kKtnWfM" crossorigin="anonymous">
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js" integrity="sha384-xYrR55uYb2Y55H6eELrLA9ARM8YsjB1ksG6QHJZrhL49lzax9l7rHuQPjsZGiTYk" crossorigin="anonymous"></script>
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script type="module" src="/dist/app-ui.esm.js"></script>
+  <script src="guide-menu.js"></script>
+  <style>
+    .guide-layout { display: flex; gap: 2rem; }
+    .guide-content { flex: 1; min-width: 0; }
+    @media (max-width: 992px) {
+      .guide-layout { flex-direction: column; }
+    }
+    .guide-content h2 { padding-top: 2rem; border-top: 1px solid var(--border-default-grey); margin-top: 3rem; }
+    .guide-content h2:first-of-type { border-top: none; margin-top: 0; padding-top: 0; }
+    .guide-content pre { background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 4px; font-family: monospace; font-size: 0.85rem; overflow-x: auto; white-space: pre-wrap; margin: 0; }
+    .example-container { border: 1px solid var(--border-default-grey); border-radius: 4px; padding: 1rem; background: white; min-height: 100px; }
+    .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; }
+    @media (max-width: 992px) { .dashboard-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <app-header current-page="guide" base-path="../"></app-header>
+
+  <main class="fr-container fr-py-4w" id="main-content">
+    <div class="guide-layout">
+
+      <app-sidemenu section="guide"></app-sidemenu>
+
+      <div class="guide-content">
+
+        <h1><i class="ri-filter-3-line fr-mr-1w"></i>dsfr-data-context — dashboard à filtre commun</h1>
+        <p class="fr-text--lead">
+          <code>dsfr-data-context</code> orchestre des <strong>filtres transverses multi-sources</strong> :
+          un seul jeu de contrôles d'UI pilote toutes les vues d'un dashboard. Ici, les rappels de
+          produits <strong>RappelConso</strong> (DGCCRF) : une liste et un graphique partagent les
+          mêmes filtres catégorie + période, sans une ligne de JavaScript.
+        </p>
+
+        <div class="fr-callout fr-callout--blue-france">
+          <p class="fr-callout__text">
+            <strong>Opt-in :</strong> sans contexte, chaque <code>dsfr-data-source</code> reste un
+            pipeline autonome. On ne pose le contexte que pour un dashboard multi-vues. Les filtres
+            se combinent en <strong>AND</strong> (un <code>whereKey</code> stable par filtre) et
+            <code>url-sync</code> permet de <strong>partager un lien déjà filtré</strong>.
+          </p>
+        </div>
+
+        <h2>Démo — RappelConso filtré</h2>
+
+        <div class="example-container">
+          <!-- Contrôles d'UI natifs (formulaire DSFR libre) -->
+          <div class="fr-grid-row fr-grid-row--gutters fr-mb-2w">
+            <div class="fr-col-12 fr-col-md-5">
+              <div class="fr-select-group">
+                <label class="fr-label" for="ctx-categorie">Catégorie de produit</label>
+                <select class="fr-select" id="ctx-categorie">
+                  <option value="" selected>Toutes</option>
+                  <option value="Alimentation">Alimentation</option>
+                  <option value="Automobiles et moyens de déplacement">Automobiles et moyens de déplacement</option>
+                  <option value="Jouets">Jouets</option>
+                  <option value="Appareils électriques, électronique">Appareils électriques, électronique</option>
+                </select>
+              </div>
+            </div>
+            <div class="fr-col-12 fr-col-md-4">
+              <div class="fr-input-group">
+                <label class="fr-label" for="ctx-mois">Mois de publication</label>
+                <input class="fr-input" type="month" id="ctx-mois">
+              </div>
+            </div>
+            <div class="fr-col-12 fr-col-md-3">
+              <div class="fr-input-group">
+                <label class="fr-label" for="ctx-jours">N derniers jours</label>
+                <input class="fr-input" type="number" id="ctx-jours" min="1" placeholder="ex. 90">
+              </div>
+            </div>
+          </div>
+
+          <!-- Le contexte : 3 filtres → 2 sources -->
+          <dsfr-data-context id="ctx-rappel" sources="src-rappel-liste src-rappel-graph" url-sync>
+            <dsfr-data-context-filter field="categorie_produit" label="Catégorie"
+              operator="eq" ui="ctx-categorie"></dsfr-data-context-filter>
+            <dsfr-data-context-filter field="date_publication" label="Mois"
+              operator="month-of" ui="ctx-mois"></dsfr-data-context-filter>
+            <dsfr-data-context-filter field="date_publication" label="Période"
+              operator="last-n-days" ui="ctx-jours"></dsfr-data-context-filter>
+          </dsfr-data-context>
+
+          <!-- Récap supprimable des filtres actifs -->
+          <dsfr-data-context-tags for="ctx-rappel" class="fr-mb-2w"></dsfr-data-context-tags>
+
+          <div class="dashboard-grid">
+            <div>
+              <h3 class="fr-h6">Derniers rappels</h3>
+              <dsfr-data-source id="src-rappel-liste" api-type="opendatasoft"
+                base-url="https://data.economie.gouv.fr"
+                dataset-id="rappelconso-v2-gtin-trie"
+                order-by="date_publication:desc"
+                server-side page-size="5">
+              </dsfr-data-source>
+              <dsfr-data-list source="src-rappel-liste"
+                columns="date_publication:Date, denomination_modele:Produit, categorie_produit:Catégorie"
+                pagination="5">
+              </dsfr-data-list>
+            </div>
+            <div>
+              <h3 class="fr-h6">Rappels par sous-catégorie</h3>
+              <dsfr-data-source id="src-rappel-graph" api-type="opendatasoft"
+                base-url="https://data.economie.gouv.fr"
+                dataset-id="rappelconso-v2-gtin-trie"
+                group-by="sous_categorie_produit"
+                aggregate="categorie_produit:count:total"
+                order-by="total:desc"
+                server-side limit="8">
+              </dsfr-data-source>
+              <dsfr-data-chart source="src-rappel-graph" type="horizontalBar"
+                label-field="sous_categorie_produit" value-field="total" name="Rappels">
+              </dsfr-data-chart>
+            </div>
+          </div>
+        </div>
+
+        <h2>Le code</h2>
+        <pre><code>&lt;!-- 1. Contrôles d'UI natifs (aucune contrainte de structure) --&gt;
+&lt;select id="ctx-categorie"&gt;...&lt;/select&gt;
+&lt;input type="month" id="ctx-mois"&gt;
+&lt;input type="number" id="ctx-jours"&gt;
+
+&lt;!-- 2. Le contexte : qui écoute quoi, vers quelles sources --&gt;
+&lt;dsfr-data-context id="ctx-rappel" sources="src-rappel-liste src-rappel-graph" url-sync&gt;
+  &lt;dsfr-data-context-filter field="categorie_produit" label="Catégorie"
+    operator="eq" ui="ctx-categorie"&gt;&lt;/dsfr-data-context-filter&gt;
+  &lt;dsfr-data-context-filter field="date_publication" label="Mois"
+    operator="month-of" ui="ctx-mois"&gt;&lt;/dsfr-data-context-filter&gt;
+  &lt;dsfr-data-context-filter field="date_publication" label="Période"
+    operator="last-n-days" ui="ctx-jours"&gt;&lt;/dsfr-data-context-filter&gt;
+&lt;/dsfr-data-context&gt;
+
+&lt;!-- 3. Récap des filtres actifs (chaque tag est supprimable) --&gt;
+&lt;dsfr-data-context-tags for="ctx-rappel"&gt;&lt;/dsfr-data-context-tags&gt;
+
+&lt;!-- 4. Les vues : des pipelines source → affichage ordinaires --&gt;
+&lt;dsfr-data-source id="src-rappel-liste" api-type="opendatasoft" ... server-side&gt;&lt;/dsfr-data-source&gt;
+&lt;dsfr-data-list source="src-rappel-liste" ...&gt;&lt;/dsfr-data-list&gt;
+
+&lt;dsfr-data-source id="src-rappel-graph" api-type="opendatasoft" ... group-by="..." server-side&gt;&lt;/dsfr-data-source&gt;
+&lt;dsfr-data-chart source="src-rappel-graph" ...&gt;&lt;/dsfr-data-chart&gt;</code></pre>
+
+        <h2>Points clés</h2>
+        <ul>
+          <li><strong>AND systématique</strong> : catégorie + mois se cumulent ; deux filtres sur <code>date_publication</code> restent deux émetteurs distincts (plage = intersection).</li>
+          <li><strong>Dialectes automatiques</strong> : la clause est traduite en ODSQL pour OpenDataSoft, en colon pour Tabular/Grist — le même HTML marche sur les deux.</li>
+          <li><strong><code>url-sync</code></strong> : l'état des filtres vit dans l'URL (<code>?categorie_produit=Jouets&amp;date_publication=2026-05</code>) → rechargement et partage de lien. Les bornes dynamiques sérialisent l'<em>intention</em> (« 90 »), jamais les dates résolues.</li>
+          <li><strong><code>apply-to</code></strong> (non utilisé ici) : restreint un filtre à un sous-ensemble des sources.</li>
+        </ul>
+
+        <p class="fr-mt-4w">
+          <a class="fr-link fr-icon-arrow-right-line fr-link--icon-right" href="../specs/components/dsfr-data-context.html">
+            Spécification complète de dsfr-data-context
+          </a>
+        </p>
+
+      </div>
+    </div>
+  </main>
+
+  <app-footer base-path="../"></app-footer>
+</body>
+</html>
