@@ -4,8 +4,52 @@ import { escapeColonValue } from '../utils/where.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import type { DsfrDataContext } from './dsfr-data-context.js';
 
+/** YYYY-MM-DD en UTC (#230) */
+function isoDate(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+/** Plage [1er du mois, 1er du mois suivant) depuis "YYYY-MM" */
+function monthRange(value: string): [string, string] | null {
+  const m = /^(\d{4})-(\d{2})$/.exec(value);
+  if (!m) return null;
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  if (month < 1 || month > 12) return null;
+  const next = month === 12 ? `${year + 1}-01` : `${year}-${String(month + 1).padStart(2, '0')}`;
+  return [`${m[1]}-${m[2]}-01`, `${next}-01`];
+}
+
+/** Plage [1er janvier, 1er janvier suivant) depuis "YYYY" */
+function yearRange(value: string): [string, string] | null {
+  if (!/^\d{4}$/.test(value)) return null;
+  const year = Number(value);
+  return [`${value}-01-01`, `${year + 1}-01-01`];
+}
+
+/** Lendemain ISO de "YYYY-MM-DD" (borne haute exclusive = inclusif jusqu'au jour choisi) */
+function dayAfter(value: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const d = new Date(`${value}T00:00:00Z`);
+  if (isNaN(d.getTime())) return null;
+  d.setUTCDate(d.getUTCDate() + 1);
+  return isoDate(d);
+}
+
 /** Opérateurs du jeu de base (#229) */
-const OPERATORS = ['eq', 'in', 'lt', 'gte', 'between'] as const;
+const OPERATORS = [
+  'eq',
+  'in',
+  'lt',
+  'gte',
+  'between',
+  // Operateurs de date (#230) — clauses en plages [debut, fin)
+  'month-of',
+  'year-of',
+  'lt-day-after',
+  'last-n-days',
+  'current-year',
+] as const;
 type ContextOperator = (typeof OPERATORS)[number];
 
 /**
@@ -153,6 +197,10 @@ export class DsfrDataContextFilter extends LitElement {
       return;
     }
     const el = this._uiEls[0];
+    if (el instanceof HTMLInputElement && el.type === 'checkbox') {
+      el.checked = values[0] === 'on' || values[0] === 'true' || values[0] === '1';
+      return;
+    }
     if (el instanceof HTMLSelectElement && el.multiple) {
       const wanted = new Set(values);
       for (const option of Array.from(el.options)) {
@@ -200,6 +248,10 @@ export class DsfrDataContextFilter extends LitElement {
           .filter(Boolean)
           .join('|');
       }
+      if (el instanceof HTMLInputElement && el.type === 'checkbox') {
+        // current-year & co : la checkbox cochee active le filtre (#230)
+        return el.checked ? 'on' : '';
+      }
       return (el as HTMLInputElement | HTMLSelectElement).value ?? '';
     });
   }
@@ -228,6 +280,36 @@ export class DsfrDataContextFilter extends LitElement {
 
     const raw = values[0] ?? '';
     if (raw === '') return '';
+
+    // Operateurs de date (#230) : plages [debut, fin) en ISO. Les bornes
+    // DYNAMIQUES (last-n-days, current-year) se recalculent ICI, a chaque
+    // diffusion — jamais de date figee ; l'URL serialise l'intention (#231)
+    if (this.operator === 'month-of') {
+      const range = monthRange(raw);
+      if (!range) return '';
+      return `${this.field}:gte:${range[0]}, ${this.field}:lt:${range[1]}`;
+    }
+    if (this.operator === 'year-of') {
+      const range = yearRange(raw);
+      if (!range) return '';
+      return `${this.field}:gte:${range[0]}, ${this.field}:lt:${range[1]}`;
+    }
+    if (this.operator === 'lt-day-after') {
+      const bound = dayAfter(raw);
+      if (!bound) return '';
+      return `${this.field}:lt:${bound}`;
+    }
+    if (this.operator === 'last-n-days') {
+      const n = Number(raw);
+      if (!Number.isInteger(n) || n <= 0) return '';
+      const start = new Date();
+      start.setUTCDate(start.getUTCDate() - n);
+      return `${this.field}:gte:${isoDate(start)}`;
+    }
+    if (this.operator === 'current-year') {
+      const year = new Date().getUTCFullYear();
+      return `${this.field}:gte:${year}-01-01, ${this.field}:lt:${year + 1}-01-01`;
+    }
 
     if (this.operator === 'in') {
       // | (multi-select) et , (saisie texte / URL lisible ADR-031)

@@ -2693,13 +2693,17 @@ La valeur vide RETIRE le filtre. Les valeurs sont percent-encodees (#271).
 |----------|------|--------|--------|-------------|
 | field | String | \`""\` | oui | Colonne filtree |
 | ui | String | \`""\` | oui | Id de l'element d'UI ecoute — DEUX ids (min max) pour between |
-| operator | String | \`"eq"\` | non | eq, in, lt, gte, between (between -> gte + lt) |
+| operator | String | \`"eq"\` | non | eq, in, lt, gte, between (between -> gte + lt), et dates (#230) : month-of, year-of, lt-day-after, last-n-days, current-year (bornes dynamiques recalculees a chaque diffusion) |
 | apply-to | String | \`"*"\` | non | \`*\` = toutes les sources du contexte, ou liste d'ids cibles separes par des espaces |
 
 ### Operateurs
 
-- \`eq\` : egalite — \`in\` : multi-valeurs (select multiple, valeurs jointes par |)
+- \`eq\` : egalite — \`in\` : multi-valeurs (select multiple, valeurs jointes par | ou ,)
 - \`lt\` / \`gte\` : comparaisons — \`between\` : deux UI (min puis max) -> gte + lt
+- Dates (#230) : \`month-of\` (input type=month -> plage du mois), \`year-of\` (plage annuelle),
+  \`lt-day-after\` (inclusif jusqu'au jour choisi), \`last-n-days\` (N derniers jours, borne
+  dynamique), \`current-year\` (checkbox -> annee en cours). Plages [debut, fin) en ISO,
+  recalculees a chaque diffusion — l'URL serialise l'intention (« 30 »), pas les dates resolues.
 `,
   },
 
