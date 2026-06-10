@@ -363,8 +363,8 @@ describe('DsfrDataWorldMap', () => {
       expect((el as any)._zoomedContinent).toBeNull();
     });
 
-    it('does nothing when zoom is "none"', () => {
-      const el = createInstance({ zoom: 'none' });
+    it('does nothing when zoom-mode is "none" (#299)', () => {
+      const el = createInstance({ zoomMode: 'none' });
       (el as any)._onCountryClick('250');
       expect((el as any)._zoomedContinent).toBeNull();
     });
@@ -502,7 +502,7 @@ describe('DsfrDataWorldMap', () => {
       expect(el.name).toBe('');
       expect(el.selectedPalette).toBe('sequentialAscending');
       expect(el.unitTooltip).toBe('');
-      expect(el.zoom).toBe('continent');
+      expect(el.zoomMode).toBe('continent');
       expect((el as any)._data).toEqual([]);
       expect((el as any)._topology).toBeNull();
       expect((el as any)._zoomedContinent).toBeNull();

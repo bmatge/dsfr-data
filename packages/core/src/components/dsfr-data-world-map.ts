@@ -3,6 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { getByPath } from '../utils/json-path.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
+import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import { renderSourceLoading, renderSourceError } from '../utils/status-templates.js';
 import { geoPath, geoNaturalEarth1 } from 'd3-geo';
 import type { GeoPermissibleObjects } from 'd3-geo';
@@ -19,8 +20,20 @@ let topologyCache: Topology | null = null;
 // detect it as a static asset and inline it as base64 (~140 KB).
 const TOPO_ASSET = 'world-countries-110m.json';
 
+/** Promesse en vol partagee (#299) : deux world-maps = UN seul fetch */
+let topologyPromise: Promise<Topology> | null = null;
+
 async function loadTopology(): Promise<Topology> {
   if (topologyCache) return topologyCache;
+  if (topologyPromise) return topologyPromise;
+  topologyPromise = _doLoadTopology().catch((e) => {
+    topologyPromise = null;
+    throw e;
+  });
+  return topologyPromise;
+}
+
+async function _doLoadTopology(): Promise<Topology> {
   // Try loading from data/ relative to the library script location,
   // then fall back to /data/ (served by public/ in dev or by the host in prod).
   const scriptBase = import.meta.url.replace(/\/[^/]+$/, '');
@@ -188,8 +201,14 @@ export class DsfrDataWorldMap extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'unit-tooltip' })
   unitTooltip = '';
 
-  @property({ type: String })
-  zoom: 'continent' | 'none' = 'continent';
+  /**
+   * Mode de zoom : "continent" (clic = zoom continent) ou "none".
+   * Renomme depuis `zoom` (#299) — dsfr-data-map a un `zoom` NUMERIQUE
+   * Leaflet : meme nom, types opposes dans la meme famille carte.
+   * L'ancien attribut `zoom` reste lu (alias deprecie, warn).
+   */
+  @property({ type: String, attribute: 'zoom-mode' })
+  zoomMode: 'continent' | 'none' = 'continent';
 
   @state() private _data: unknown[] = [];
   @state() private _topology: Topology | null = null;
@@ -205,7 +224,34 @@ export class DsfrDataWorldMap extends SourceSubscriberMixin(LitElement) {
   connectedCallback() {
     super.connectedCallback();
     sendWidgetBeacon('dsfr-data-world-map');
+    // Alias deprecie (#299) : zoom="continent|none" -> zoom-mode
+    if (this.hasAttribute('zoom') && !this.hasAttribute('zoom-mode')) {
+      const legacy = this.getAttribute('zoom');
+      if (legacy === 'continent' || legacy === 'none') {
+        this.zoomMode = legacy;
+        console.warn(
+          `dsfr-data-world-map: l'attribut "zoom" est déprécié (collision avec le zoom numérique de dsfr-data-map) — utilisez "zoom-mode"`
+        );
+      }
+    }
+    this._validateFields();
     this._loadMap();
+  }
+
+  /** code-field/value-field manquants avec une source : carte grise silencieuse sinon (#299) */
+  private _validateFields() {
+    if (this.source && (!this.codeField || !this.valueField)) {
+      const missing = [!this.codeField && 'code-field', !this.valueField && 'value-field']
+        .filter(Boolean)
+        .join(', ');
+      reportConfigError(
+        this,
+        'dsfr-data-world-map',
+        `attribut(s) requis manquant(s) avec une source : ${missing}`
+      );
+    } else {
+      clearConfigError(this);
+    }
   }
 
   onSourceReset(): void {
@@ -312,7 +358,7 @@ export class DsfrDataWorldMap extends SourceSubscriberMixin(LitElement) {
   // --- Event handlers ---
 
   private _onCountryClick(countryId: string) {
-    if (this.zoom === 'none') return;
+    if (this.zoomMode === 'none') return;
 
     if (this._zoomedContinent) {
       // Already zoomed: clicking again resets
@@ -356,6 +402,13 @@ export class DsfrDataWorldMap extends SourceSubscriberMixin(LitElement) {
       const fill = value !== undefined ? colorScale(value) : noDataColor;
       const isHovered = this._hoveredCountryId === f.id;
 
+      // A11y (#299) : pays focusable, annonce nom + valeur au focus,
+      // Entree/Espace = clic — l'interaction etait 100 % souris
+      const countryName = COUNTRY_NAMES_FR[f.id] || f.properties?.name || f.id;
+      const ariaValue =
+        value !== undefined
+          ? `${value.toLocaleString('fr-FR')}${this.unitTooltip ? ' ' + this.unitTooltip : ''}`
+          : 'pas de données';
       return svg`<path
         class="dsfr-data-world-map__country"
         d=${d}
@@ -363,8 +416,23 @@ export class DsfrDataWorldMap extends SourceSubscriberMixin(LitElement) {
         stroke=${isHovered ? '#000091' : 'none'}
         stroke-width=${isHovered ? '1.5' : '0'}
         data-id=${f.id}
-        style="cursor: ${this.zoom !== 'none' ? 'pointer' : 'default'}"
+        tabindex="0"
+        role=${this.zoomMode !== 'none' ? 'button' : 'img'}
+        aria-label="${countryName} : ${ariaValue}"
+        style="cursor: ${this.zoomMode !== 'none' ? 'pointer' : 'default'}"
         @click=${() => this._onCountryClick(f.id)}
+        @keydown=${(e: KeyboardEvent) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            this._onCountryClick(f.id);
+          }
+        }}
+        @focus=${() => {
+          this._hoveredCountryId = f.id;
+        }}
+        @blur=${() => {
+          this._hoveredCountryId = null;
+        }}
         @mouseenter=${(e: MouseEvent) => this._onCountryHover(e, f.id)}
         @mousemove=${(e: MouseEvent) => this._onCountryHover(e, f.id)}
         @mouseleave=${(e: MouseEvent) => this._onCountryHover(e, null)}
@@ -535,11 +603,8 @@ export class DsfrDataWorldMap extends SourceSubscriberMixin(LitElement) {
       `;
     }
 
-    if (!this._data || this._data.length === 0) {
-      // Render map even without data (shows countries in grey)
-      return this._renderMap();
-    }
-
+    // Avec ou sans donnees, la carte se rend (pays en gris sans valeur) —
+    // les deux branches identiques (#299) sont fusionnees
     return this._renderMap();
   }
 }

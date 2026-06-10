@@ -2247,7 +2247,7 @@ Chargé via le bundle \`dsfr-data.world-map.esm.js\` (séparé du core).
 | name | String | \`""\` | non | Libelle de la série (legende) |
 | selected-palette | String | \`"sequentialAscending"\` | non | Palette choropleth : sequentialAscending, sequentialDescending, divergentAscending, divergentDescending, neutral |
 | unit-tooltip | String | \`""\` | non | Unite affichee dans le tooltip au survol |
-| zoom | String | \`"continent"\` | non | Comportement de zoom : \`"continent"\` (zoom sur le continent au clic) ou \`"none"\` |
+| zoom-mode | String | \`"continent"\` | non | Comportement de zoom : \`"continent"\` (zoom sur le continent au clic) ou \`"none"\`. Ancien nom \`zoom\` deprecie (collision avec le zoom numerique de dsfr-data-map) |
 
 ### Palettes disponibles
 
