@@ -4,7 +4,8 @@ import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { renderSourceLoading, renderSourceError } from '../utils/status-templates.js';
 import { escapeHtml, buildCsv } from '@dsfr-data/shared/lib';
-import { getDataMeta, dispatchSourceCommand } from '../utils/data-bridge.js';
+import { getDataMeta } from '../utils/data-bridge.js';
+import { PaginationController } from '../utils/pagination-controller.js';
 
 interface ColumnDef {
   key: string;
@@ -31,8 +32,12 @@ interface SortState {
  *   pagination="10">
  * </dsfr-data-list>
  */
+let listInstanceSeq = 0;
+
 @customElement('dsfr-data-list')
 export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
+  /** Prefixe d'ids DOM unique par instance (#304 — ids dupliques entre listes) */
+  private readonly _uid = `dsfr-list-${++listInstanceSeq}`;
   @property({ type: String })
   source = '';
 
@@ -89,17 +94,33 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
   private _sort: SortState | null = null;
 
   @state()
-  private _currentPage = 1;
+  /** Controleur de pagination partage avec dsfr-data-display (#304) */
+  private _pager = new PaginationController(this);
 
   /** True quand la source fournit des metadonnees de pagination serveur */
   @state()
-  private _serverPagination = false;
 
   /** Total serveur ; undefined = inconnu (ex. Grist Records hors derniere page) */
-  private _serverTotal: number | undefined = 0;
-  private _serverPageSize = 0;
-  private _previousPage = 1;
-  private _popstateHandler: (() => void) | null = null;
+
+  // Accesseurs de compatibilite (etat porte par le controleur #304)
+  private get _currentPage(): number {
+    return this._pager.currentPage;
+  }
+  private set _currentPage(v: number) {
+    this._pager.currentPage = v;
+  }
+  protected get _previousPage(): number {
+    return this._pager.previousPage;
+  }
+  private get _serverPagination(): boolean {
+    return this._pager.serverMode;
+  }
+  private get _serverTotal(): number | undefined {
+    return this._pager.serverTotal;
+  }
+  private get _serverPageSize(): number {
+    return this._pager.serverPageSize;
+  }
 
   /** Message annonce par la live region (lecteurs d'écran) */
   @state()
@@ -116,22 +137,12 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
     super.connectedCallback();
     sendWidgetBeacon('dsfr-data-list');
     this._initSort();
-    if (this.urlSync) {
-      this._applyUrlPage();
-      this._popstateHandler = () => {
-        this._applyUrlPage();
-        this.requestUpdate();
-      };
-      window.addEventListener('popstate', this._popstateHandler);
-    }
+    this._pager.connect();
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
-    if (this._popstateHandler) {
-      window.removeEventListener('popstate', this._popstateHandler);
-      this._popstateHandler = null;
-    }
+    this._pager.disconnect();
   }
 
   willUpdate(changedProperties: Map<string, unknown>) {
@@ -144,34 +155,20 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
   onSourceReset(): void {
     // Changer de source ne doit pas laisser les lignes precedentes (#284)
     this._data = [];
-    this._serverPagination = false;
-    this._currentPage = 1;
+    this._pager.reset();
   }
 
   onSourceError(_error: Error): void {
     // In server pagination mode, revert to previous page on fetch failure
     // (e.g., API offset limit exceeded). Keep showing current data.
-    if (this._serverPagination && this._data.length > 0) {
-      this._currentPage = this._previousPage;
-    }
+    this._pager.onError(this._data.length > 0);
   }
 
   onSourceData(data: unknown): void {
     this._data = Array.isArray(data) ? (data as Record<string, unknown>[]) : [];
-
-    // Detecter la pagination serveur via le flag explicite serverSide (#270).
-    // Ne jamais inferer depuis total : un fetchAll publie aussi un total
-    // (pageSize 0 -> Infinity pages).
-    const meta = this.source ? getDataMeta(this.source) : undefined;
-    if (meta && meta.serverSide && meta.pageSize > 0) {
-      this._serverPagination = true;
-      this._serverTotal = meta.total;
-      this._serverPageSize = meta.pageSize;
-      this._currentPage = meta.page;
-    } else {
-      this._serverPagination = false;
-      this._currentPage = 1;
-    }
+    // Detection serveur via le flag explicite serverSide (#270) ; le
+    // controleur preserve une page restauree depuis l'URL (#304)
+    this._pager.onData(this.source ? getDataMeta(this.source) : undefined);
   }
 
   // --- Parsing ---
@@ -276,47 +273,15 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
   // --- Event handlers ---
 
   /** Read page number from URL and apply */
-  private _applyUrlPage() {
-    const params = new URLSearchParams(window.location.search);
-    const pageStr = params.get(this.urlPageParam);
-    if (pageStr) {
-      const page = parseInt(pageStr, 10);
-      if (!isNaN(page) && page >= 1) {
-        this._currentPage = page;
-        // Always send page command if source exists — dsfr-data-query in server-side
-        // mode will use it; non-server sources harmlessly ignore it.
-        if (this.source) {
-          dispatchSourceCommand(this.source, { page });
-        }
-      }
-    }
-  }
-
-  /** Sync current page to URL via replaceState */
-  private _syncPageUrl() {
-    const params = new URLSearchParams(window.location.search);
-    if (this._currentPage > 1) {
-      params.set(this.urlPageParam, String(this._currentPage));
-    } else {
-      params.delete(this.urlPageParam);
-    }
-    const search = params.toString();
-    const newUrl = search
-      ? `${window.location.pathname}?${search}${window.location.hash}`
-      : `${window.location.pathname}${window.location.hash}`;
-    window.history.replaceState(null, '', newUrl);
-  }
 
   private _handleSearch(e: Event) {
     this._searchQuery = (e.target as HTMLInputElement).value;
-    this._currentPage = 1;
-    if (this.urlSync) this._syncPageUrl();
+    this._pager.resetToFirstPage();
   }
 
   private _handleFilter(key: string, e: Event) {
     this._activeFilters = { ...this._activeFilters, [key]: (e.target as HTMLSelectElement).value };
-    this._currentPage = 1;
-    if (this.urlSync) this._syncPageUrl();
+    this._pager.resetToFirstPage();
   }
 
   private _announce(message: string) {
@@ -338,24 +303,17 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
       `Tri par ${label}, ordre ${this._sort.direction === 'asc' ? 'croissant' : 'decroissant'}`
     );
 
-    // In server-tri mode, delegate sorting to the upstream source
+    // In server-tri mode, delegate sorting to the upstream source —
+    // retour page 1 dans la MEME commande (#304) : trier en page 5
+    // affichait la page 5 du nouveau tri
     if (this.serverTri && this.source) {
-      dispatchSourceCommand(this.source, {
-        orderBy: `${this._sort.key}:${this._sort.direction}`,
-      });
+      this._pager.notifyServerSort(`${this._sort.key}:${this._sort.direction}`);
     }
   }
 
   private _handlePageChange(page: number) {
-    this._previousPage = this._currentPage;
-    this._currentPage = page;
-    const totalPages = this._getTotalPages();
-    this._announce(`Page ${page} sur ${totalPages}`);
-    // En mode serveur, demander la page a la source
-    if (this._serverPagination && this.source) {
-      dispatchSourceCommand(this.source, { page });
-    }
-    if (this.urlSync) this._syncPageUrl();
+    this._pager.changePage(page);
+    this._announce(`Page ${page} sur ${this._getTotalPages()}`);
   }
 
   // --- Export ---
@@ -442,6 +400,12 @@ ${bodyRows}
 
   private _renderFilters(columns: ColumnDef[], filterableColumns: string[]) {
     if (filterableColumns.length === 0) return '';
+    // Options construites sur la page chargee + compteur faux : filtres
+    // locaux desactives en pagination serveur (#304)
+    if (this._serverPagination) {
+      this._warnServerLocalFeatures('le filtre');
+      return '';
+    }
 
     return html`
       <div class="dsfr-data-list__filters">
@@ -474,20 +438,37 @@ ${bodyRows}
     `;
   }
 
+  /** Warn-once : recherche/filtres locaux inoperants en pagination serveur (#304) */
+  private _serverLocalFeaturesWarned = false;
+
+  private _warnServerLocalFeatures(feature: string) {
+    if (this._serverLocalFeaturesWarned) return;
+    this._serverLocalFeaturesWarned = true;
+    console.warn(
+      `dsfr-data-list: ${feature} locale desactivee en pagination serveur — elle n'opererait que ` +
+        `sur la page chargee (compteurs faux, options de filtre partielles). Utilisez ` +
+        `dsfr-data-search server-search / dsfr-data-facets server-facets en amont (#304)`
+    );
+  }
+
   private _renderToolbar() {
     const hasExport = this.export?.includes('csv') || this.export?.includes('html');
-    if (!this.recherche && !hasExport) return '';
+    // En pagination serveur, la recherche locale n'opererait que sur la
+    // page chargee : desactivee avec warning (#304)
+    const recherche = this.recherche && !this._serverPagination;
+    if (this.recherche && this._serverPagination) this._warnServerLocalFeatures('recherche');
+    if (!recherche && !hasExport) return '';
 
     return html`
       <div class="dsfr-data-list__toolbar">
-        ${this.recherche
+        ${recherche
           ? html`
               <div class="fr-search-bar" role="search">
-                <label class="fr-label fr-sr-only" for="search-${this.source}">Rechercher</label>
+                <label class="fr-label fr-sr-only" for="${this._uid}-search">Rechercher</label>
                 <input
                   class="fr-input"
                   type="search"
-                  id="search-${this.source}"
+                  id="${this._uid}-search"
                   placeholder="Rechercher..."
                   .value="${this._searchQuery}"
                   @input="${this._handleSearch}"
@@ -589,7 +570,10 @@ ${bodyRows}
   }
 
   private _renderPagination(totalPages: number) {
-    if (this.pagination <= 0 || totalPages <= 1) return '';
+    // En mode serveur la pagination s'affiche meme sans attribut
+    // `pagination` redonde avec le page-size de la source (#304)
+    if (!this._serverPagination && (this.pagination <= 0 || totalPages <= 1)) return '';
+    if (this._serverPagination && totalPages <= 1) return '';
 
     const pages: number[] = [];
     for (

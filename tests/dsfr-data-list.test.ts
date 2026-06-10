@@ -678,11 +678,11 @@ describe('DsfrDataList component', () => {
       expect((urlDatalist as any)._currentPage).toBe(4);
     });
 
-    it('cleans up popstate listener on disconnect', () => {
+    it('cleans up popstate listener on disconnect (controleur #304)', () => {
       urlDatalist.connectedCallback();
-      expect((urlDatalist as any)._popstateHandler).not.toBeNull();
+      expect((urlDatalist as any)._pager._popstateHandler).not.toBeNull();
       urlDatalist.disconnectedCallback();
-      expect((urlDatalist as any)._popstateHandler).toBeNull();
+      expect((urlDatalist as any)._pager._popstateHandler).toBeNull();
     });
 
     it('ignores invalid page values in URL', () => {

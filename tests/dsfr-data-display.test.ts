@@ -285,43 +285,43 @@ describe('DsfrDataDisplay', () => {
     it('returns item-{index} when no uid-field set', () => {
       display.uidField = '';
       const uid = (display as any)._getItemUid({ id: 42 }, 3);
-      expect(uid).toBe('item-3');
+      expect(uid).toMatch(/-item-3$/);
     });
 
     it('uses uid-field value when set', () => {
       display.uidField = 'id';
       const uid = (display as any)._getItemUid({ id: 42 }, 3);
-      expect(uid).toBe('item-42');
+      expect(uid).toMatch(/-item-42$/);
     });
 
     it('falls back to index when uid-field value is null', () => {
       display.uidField = 'id';
       const uid = (display as any)._getItemUid({ id: null }, 3);
-      expect(uid).toBe('item-3');
+      expect(uid).toMatch(/-item-3$/);
     });
 
     it('falls back to index when uid-field value is empty', () => {
       display.uidField = 'id';
       const uid = (display as any)._getItemUid({ id: '' }, 3);
-      expect(uid).toBe('item-3');
+      expect(uid).toMatch(/-item-3$/);
     });
 
     it('sanitizes special characters in uid value', () => {
       display.uidField = 'code';
       const uid = (display as any)._getItemUid({ code: 'FR/IDF 75' }, 0);
-      expect(uid).toBe('item-FR_IDF_75');
+      expect(uid).toMatch(/-item-FR_IDF_75$/);
     });
 
     it('supports nested field paths', () => {
       display.uidField = 'meta.uid';
       const uid = (display as any)._getItemUid({ meta: { uid: 'abc123' } }, 0);
-      expect(uid).toBe('item-abc123');
+      expect(uid).toMatch(/-item-abc123$/);
     });
 
     it('preserves hyphens and underscores', () => {
       display.uidField = 'slug';
       const uid = (display as any)._getItemUid({ slug: 'my-item_01' }, 0);
-      expect(uid).toBe('item-my-item_01');
+      expect(uid).toMatch(/-item-my-item_01$/);
     });
   });
 
@@ -330,7 +330,7 @@ describe('DsfrDataDisplay', () => {
       display.uidField = 'id';
       (display as any)._templateContent = '<a href="#{{$uid}}">Link</a>';
       const result = (display as any)._renderItem({ id: 42, nom: 'Test' }, 0);
-      expect(result).toContain('href="#item-42"');
+      expect(result).toMatch(/href="#[^"]*-item-42"/);
     });
 
     it('resolves $uid with index fallback', () => {
@@ -510,9 +510,9 @@ describe('DsfrDataDisplay', () => {
 
     it('cleans up popstate listener on disconnect', () => {
       urlDisplay.connectedCallback();
-      expect((urlDisplay as any)._popstateHandler).not.toBeNull();
+      expect((urlDisplay as any)._pager._popstateHandler).not.toBeNull();
       urlDisplay.disconnectedCallback();
-      expect((urlDisplay as any)._popstateHandler).toBeNull();
+      expect((urlDisplay as any)._pager._popstateHandler).toBeNull();
     });
 
     it('ignores invalid page values in URL', () => {
