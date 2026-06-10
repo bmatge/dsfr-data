@@ -157,6 +157,15 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   /** Cle stable des bounds aupres de la carte parente (#294) */
   private readonly _boundsKey = `dsfr-map-layer-${++layerBoundsSeq}`;
 
+  /**
+   * Jeton de generation des rendus (#295) : deux _renderLayer qui se
+   * chevauchent pendant le await import(...) (cluster/heatmap)
+   * franchissaient chacun clearLayers() puis ajoutaient CHACUN tous les
+   * items — doublons visibles. Le rendu obsolete s'abandonne apres chaque
+   * await.
+   */
+  private _renderGeneration = 0;
+
   // --- Source & geo ---
 
   @property({ type: String })
@@ -406,12 +415,11 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   /** Called by dsfr-data-map-timeline to set current frame */
   setTimelineFrame(index: number): void {
     this._currentFrameIndex = index;
-    const items = this._getFrameData(index);
-    // Temporarily swap data, render, then restore
-    const savedData = this._data;
-    this._data = items;
-    this._renderLayer();
-    this._data = savedData;
+    // Items passes en parametre (#295) : l'ancien swap temporaire de
+    // this._data autour d'un _renderLayer() non awaite ne tenait que parce
+    // que la lecture etait dans la portion synchrone — bombe a retardement,
+    // et observable par un rendu concurrent.
+    this._renderLayer(undefined, this._getFrameData(index));
   }
 
   /** Called by dsfr-data-map-timeline to reset (show all data) */
@@ -559,9 +567,13 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
 
   // --- Render layer ---
 
-  private async _renderLayer(clientBounds?: LatLngBounds) {
+  private async _renderLayer(
+    clientBounds?: LatLngBounds,
+    itemsOverride?: Record<string, unknown>[]
+  ) {
     if (!this._leafletMap || !this._L || !this._layerGroup) return;
     const Leaf = this._L;
+    const generation = ++this._renderGeneration;
 
     // Clear previous layer content
     this._layerGroup.clearLayers();
@@ -569,7 +581,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
       this._clusterGroup.clearLayers();
     }
 
-    let items = this._data;
+    let items = itemsOverride ?? this._data;
 
     // Client-side bounds filter
     if (clientBounds) {
@@ -626,11 +638,14 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     // Load heatmap if needed
     if (this.type === 'heatmap' && !this._heatLoaded) {
       await this._loadHeatLayer();
+      // Rendu obsolete : un _renderLayer plus recent est passe (#295)
+      if (generation !== this._renderGeneration) return;
     }
 
     // Load clustering if needed
     if (this.cluster && !this._clusterLoaded) {
       await this._loadMarkerCluster();
+      if (generation !== this._renderGeneration) return;
     }
 
     // Create cluster group if clustering
