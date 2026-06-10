@@ -351,7 +351,9 @@ describe('DsfrDataChart', () => {
       expect(deferred['data']).toBeDefined();
       expect(deferred['value']).toBeDefined();
       expect(Number(deferred['value'])).toBe(150); // avg of 100 and 200
-      expect(deferred['date']).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      // #305 : plus de new Date() — la date du JOUR etait presentee comme
+      // date de la donnee ; date n'est envoyee que si databox-date est fourni
+      expect(deferred['date']).toBeUndefined();
     });
 
     it('includes horizontal and stacked for bar type', () => {

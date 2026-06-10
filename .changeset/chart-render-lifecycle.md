@@ -1,0 +1,5 @@
+---
+'dsfr-data': patch
+---
+
+`dsfr-data-chart` : cycle de rendu assaini (#305). Les updates de données mettent à jour les attributs de l'élément DSFR Chart **en place** (Vue observe ses props) — l'ancien remontage complet à chaque update perdait l'état d'animation et remontait périodiquement avec `refresh` sur la source ; l'élément n'est recréé qu'au changement de `type`. Les `setTimeout(500)` des attributs différés sont trackés et **annulés au disconnect** (ils s'empilaient à chaque `onSourceData` et pouvaient cibler des éléments remplacés — gardés par `isConnected`). `value-fields` sans `value-field` ne produit plus de série fantôme `''` (première série à zéro + nom vide dans la légende). Les cartes n'affichent plus la date du **jour** comme date de la donnée (`date` n'est envoyé que si `databox-date` est fourni). `utils/chart-data.ts` supprimé (code mort : seuls les ré-exports l'importaient, `computeGroupValue` dupliquait `computeAggregation`) ; double import `@dsfr-data/shared` fusionné.

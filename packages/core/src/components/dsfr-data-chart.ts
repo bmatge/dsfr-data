@@ -4,8 +4,7 @@ import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { getByPath } from '../utils/json-path.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { renderSourceLoading, renderSourceError } from '../utils/status-templates.js';
-import { escapeHtml, toNumber } from '@dsfr-data/shared/lib';
-import { isValidDeptCode } from '@dsfr-data/shared/lib';
+import { escapeHtml, toNumber, isValidDeptCode } from '@dsfr-data/shared/lib';
 
 type DSFRChartType =
   | 'line'
@@ -198,6 +197,20 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   @state()
   private _data: unknown[] = [];
 
+  /** Timers differes en vol — annules au disconnect (#305) */
+  private _pendingTimers = new Set<number>();
+
+  /** Attributs poses par la mise a jour incrementale (#305) */
+  private _managedChartAttrs = new Set<string>();
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    // Annule les timers differes (#305) : ils s'empilaient a chaque
+    // onSourceData et survivaient au composant
+    for (const t of this._pendingTimers) clearTimeout(t);
+    this._pendingTimers.clear();
+  }
+
   // Light DOM pour les styles DSFR
   createRenderRoot() {
     return this;
@@ -223,7 +236,11 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
 
   /** Parse all value field names (value-field, value-field-2, value-fields) */
   private _getAllValueFields(): string[] {
-    const fields = [this.valueField];
+    // value-fields SANS value-field (#305) : l'ancien code incluait
+    // toujours '' en tete -> getByPath(record, '') retournait l'objet
+    // entier, premiere serie a zero + nom de serie vide dans la legende
+    const fields: string[] = [];
+    if (this.valueField) fields.push(this.valueField);
     if (this.valueFields) {
       fields.push(
         ...this.valueFields
@@ -234,7 +251,9 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     } else if (this.valueField2) {
       fields.push(this.valueField2);
     }
-    return fields;
+    // Sans aucun champ : comportement historique conserve (les chemins
+    // lisent allSeries[0])
+    return fields.length > 0 ? fields : [this.valueField];
   }
 
   /**
@@ -480,7 +499,11 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
             deferred['value'] = String(avg);
           }
         }
-        deferred['date'] = new Date().toISOString().split('T')[0];
+        // Plus de new Date() (#305) : la date du JOUR etait presentee comme
+        // date de la donnee sur les cartes — n'envoyer date que si fournie
+        if (this.databoxDate) {
+          deferred['date'] = this.databoxDate;
+        }
         break;
       }
       default:
@@ -540,15 +563,53 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     // DSFR Chart components are Vue-based web components that overwrite certain
     // attributes (value, date) with default prop values on mount.
     // We re-apply deferred attributes after Vue has mounted.
-    if (Object.keys(deferred).length > 0) {
-      setTimeout(() => {
-        for (const [key, value] of Object.entries(deferred)) {
-          el.setAttribute(key, value);
-        }
-      }, 500);
-    }
+    this._scheduleDeferredAttrs(el, deferred);
 
     return el;
+  }
+
+  /**
+   * Met a jour les attributs d'un element chart EXISTANT (#305) : pose les
+   * nouveaux, retire ceux que nous gerions et qui ont disparu, re-applique
+   * les differes. Vue (DSFR Chart) observe ses props — pas besoin de
+   * remonter le composant.
+   */
+  private _applyChartAttributes(
+    el: HTMLElement,
+    attributes: Record<string, string>,
+    deferred: Record<string, string>
+  ) {
+    const next = new Set(Object.keys(attributes).filter((k) => attributes[k] !== ''));
+    for (const [key, value] of Object.entries(attributes)) {
+      if (value !== undefined && value !== '' && el.getAttribute(key) !== value) {
+        el.setAttribute(key, value);
+      }
+    }
+    for (const key of this._managedChartAttrs) {
+      if (!next.has(key) && !(key in deferred)) {
+        el.removeAttribute(key);
+      }
+    }
+    this._managedChartAttrs = next;
+    this._scheduleDeferredAttrs(el, deferred);
+  }
+
+  /**
+   * Re-applique les attributs differes apres le montage Vue — timer TRACKE
+   * (#305) : les setTimeout(500) s'empilaient a chaque onSourceData sans
+   * jamais etre annules au disconnect, et pouvaient cibler des elements
+   * remplaces entre-temps (gardes isConnected).
+   */
+  private _scheduleDeferredAttrs(el: HTMLElement, deferred: Record<string, string>) {
+    if (Object.keys(deferred).length === 0) return;
+    const timer = window.setTimeout(() => {
+      this._pendingTimers.delete(timer);
+      if (!el.isConnected) return;
+      for (const [key, value] of Object.entries(deferred)) {
+        el.setAttribute(key, value);
+      }
+    }, 500);
+    this._pendingTimers.add(timer);
   }
 
   private _createChartElement(
@@ -638,7 +699,8 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   private _injectDataboxTable() {
     if (!this._data || this._data.length === 0) return;
     // Wait for DataBox Vue to render and create the table container
-    setTimeout(() => {
+    const timer = window.setTimeout(() => {
+      this._pendingTimers.delete(timer);
       const wrapper = this.querySelector('.dsfr-data-chart__databox-wrapper');
       if (!wrapper) return;
       const databoxEl = wrapper.querySelector('data-box');
@@ -676,6 +738,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
           </table>
         </div>`;
     }, 500);
+    this._pendingTimers.add(timer);
   }
 
   private _renderChart() {
@@ -699,7 +762,23 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       delete allAttrs['unit-tooltip'];
     }
 
-    // Replace previous chart/databox wrapper if any
+    // Mise a jour INCREMENTALE (#305) : si l'element chart existe deja avec
+    // le meme tag (type inchange) et hors databox, mettre a jour ses
+    // attributs en place — l'ancien remount complet a chaque update
+    // (donnees, refresh) repassait par tout le cycle Vue (perte d'etat
+    // d'animation, remount periodique avec refresh sur la source)
+    if (!this.databox) {
+      const prevSimpleWrapper = this.querySelector('.dsfr-data-chart__wrapper');
+      const existing = prevSimpleWrapper?.querySelector(tagName) as HTMLElement | null;
+      if (prevSimpleWrapper && existing) {
+        this._applyChartAttributes(existing, allAttrs, deferred);
+        prevSimpleWrapper.setAttribute('aria-label', this._getAriaLabel());
+        return html`${prevSimpleWrapper}`;
+      }
+    }
+
+    // Replace previous chart/databox wrapper if any (changement de type,
+    // bascule databox, ou premier rendu)
     const prevWrapper =
       this.querySelector('.dsfr-data-chart__wrapper') ||
       this.querySelector('.dsfr-data-chart__databox-wrapper');

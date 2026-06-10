@@ -52,12 +52,6 @@ export {
   formatDate,
 } from './utils/formatters.js';
 export { computeAggregation, parseExpression } from './utils/aggregations.js';
-export {
-  processChartData,
-  extractLabelValues,
-  aggregateByLabel,
-  sortByValue,
-} from './utils/chart-data.js';
 export { SourceSubscriberMixin } from './utils/source-subscriber.js';
 
 // Adapters (pour usage avance et extensibilite)
