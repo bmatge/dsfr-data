@@ -90,8 +90,17 @@ export class GristAdapter implements ApiAdapter {
     whereFormat: 'colon',
   };
 
-  /** Cache de disponibilite du endpoint SQL par hostname */
-  private _sqlAvailableByHost = new Map<string, boolean>();
+  /**
+   * Cache de disponibilite du endpoint SQL, par ENDPOINT (host + document)
+   * et avec TTL (#287) : un 403 ponctuel sur un document ne condamne plus
+   * tous les documents du host, ni definitivement. (Etat d'instance assume
+   * sur un adapter singleton : memoisation revocable, pas un etat metier.)
+   */
+  private _sqlAvailability = new Map<string, { available: boolean; expiresAt: number }>();
+
+  /** TTL du cache de dispo SQL : long quand ca marche, court quand ca echoue */
+  private static readonly SQL_AVAILABLE_TTL_MS = 30 * 60 * 1000;
+  private static readonly SQL_UNAVAILABLE_TTL_MS = 2 * 60 * 1000;
 
   validate(params: AdapterParams): string | null {
     if (!params.baseUrl) {
@@ -105,7 +114,7 @@ export class GristAdapter implements ApiAdapter {
   // =========================================================================
 
   async fetchAll(params: AdapterParams, signal: AbortSignal): Promise<FetchResult> {
-    if (this._needsSqlMode(params) && (await this._checkSqlAvailability(params))) {
+    if (this._needsSqlMode(params) && (await this._checkSqlAvailability(params, signal))) {
       return this._fetchSql(params, undefined, signal);
     }
 
@@ -132,7 +141,7 @@ export class GristAdapter implements ApiAdapter {
     overlay: ServerSideOverlay,
     signal: AbortSignal
   ): Promise<FetchResult> {
-    if (this._needsSqlMode(params, overlay) && (await this._checkSqlAvailability(params))) {
+    if (this._needsSqlMode(params, overlay) && (await this._checkSqlAvailability(params, signal))) {
       return this._fetchSql(params, overlay, signal);
     }
 
@@ -439,7 +448,9 @@ export class GristAdapter implements ApiAdapter {
   }
 
   private _mergeWhere(staticWhere?: string, overlayWhere?: string): string {
-    if (overlayWhere && staticWhere) return `${staticWhere}, ${overlayWhere}`;
+    // effectiveWhere (getEffectiveWhere de la source) contient DEJA le where
+    // statique : le re-merger dupliquait chaque clause — SQL `WHERE X AND X`
+    // avec args doubles (#287). Pattern des autres adapters.
     return overlayWhere || staticWhere || '';
   }
 
@@ -488,7 +499,10 @@ export class GristAdapter implements ApiAdapter {
         console.warn(
           '[dsfr-data] Grist SQL endpoint not available, falling back to client-side processing'
         );
-        this._sqlAvailableByHost.set(this._extractHostname(params.baseUrl), false);
+        this._sqlAvailability.set(this._getSqlEndpointUrl(params), {
+          available: false,
+          expiresAt: Date.now() + GristAdapter.SQL_UNAVAILABLE_TTL_MS,
+        });
         return this._fetchAllRecords(params, signal);
       }
       throw new Error(`Grist SQL HTTP ${response.status}: ${response.statusText}`);
@@ -539,7 +553,13 @@ export class GristAdapter implements ApiAdapter {
 
     // SELECT + GROUP BY + AGGREGATE
     if (params.groupBy) {
-      const groupFields = params.groupBy.split(',').map((f) => this._escapeIdentifier(f.trim()));
+      // filter(Boolean) : "region," ne doit pas produire d'identifiant vide
+      // (throw `Empty SQL identifier`, #287)
+      const groupFields = params.groupBy
+        .split(',')
+        .map((f) => f.trim())
+        .filter(Boolean)
+        .map((f) => this._escapeIdentifier(f));
       groupBy = groupFields.join(', ');
 
       if (params.aggregate) {
@@ -601,6 +621,9 @@ export class GristAdapter implements ApiAdapter {
 
     for (const part of parts) {
       const [field, op, ...rest] = part.split(':');
+      // Clause sans champ ou sans operateur : ignoree (un where malforme est
+      // deja signale en amont par reportConfigError #277 — ne pas jeter ici)
+      if (!field || !op) continue;
       // Valeurs percent-encodees par buildColonFacetWhere (#271)
       const value = unescapeColonValue(rest.join(':'));
       const col = this._escapeIdentifier(field);
@@ -730,21 +753,35 @@ export class GristAdapter implements ApiAdapter {
   // =========================================================================
 
   private async _checkSqlAvailability(
-    params: Pick<AdapterParams, 'baseUrl' | 'headers'>
+    params: Pick<AdapterParams, 'baseUrl' | 'headers'>,
+    signal?: AbortSignal
   ): Promise<boolean> {
+    const endpoint = this._getSqlEndpointUrl(params);
+    const cached = this._sqlAvailability.get(endpoint);
+    if (cached && cached.expiresAt > Date.now()) return cached.available;
+
     const hostname = this._extractHostname(params.baseUrl);
-    const cached = this._sqlAvailableByHost.get(hostname);
-    if (cached !== undefined) return cached;
+    // Sonde limitee a 2s ET liee au signal du composant (#287) : un
+    // composant demonte n'a pas a attendre la sonde
+    const probeSignal =
+      signal && typeof AbortSignal.any === 'function'
+        ? AbortSignal.any([signal, AbortSignal.timeout(2000)])
+        : AbortSignal.timeout(2000);
 
     try {
-      const sqlUrl = getProxiedUrl(this._getSqlEndpointUrl(params));
+      const sqlUrl = getProxiedUrl(endpoint);
       const response = await fetch(sqlUrl + '?q=SELECT%201', {
         method: 'GET',
         headers: (params.headers || {}) as Record<string, string>,
-        signal: AbortSignal.timeout(2000),
+        signal: probeSignal,
       });
       const available = response.ok;
-      this._sqlAvailableByHost.set(hostname, available);
+      this._sqlAvailability.set(endpoint, {
+        available,
+        expiresAt:
+          Date.now() +
+          (available ? GristAdapter.SQL_AVAILABLE_TTL_MS : GristAdapter.SQL_UNAVAILABLE_TTL_MS),
+      });
       if (!available) {
         console.warn(
           `[dsfr-data] Grist SQL endpoint not available on ${hostname} — using client-side processing`
@@ -752,7 +789,13 @@ export class GristAdapter implements ApiAdapter {
       }
       return available;
     } catch {
-      this._sqlAvailableByHost.set(hostname, false);
+      // Abort du COMPOSANT : la sonde n'a rien prouve — ne pas empoisonner
+      // le cache (#287), la prochaine tentative re-sondera
+      if (signal?.aborted) return false;
+      this._sqlAvailability.set(endpoint, {
+        available: false,
+        expiresAt: Date.now() + GristAdapter.SQL_UNAVAILABLE_TTL_MS,
+      });
       console.warn(
         `[dsfr-data] Grist SQL endpoint not available on ${hostname} — using client-side processing`
       );

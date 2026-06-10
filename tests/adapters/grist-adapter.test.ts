@@ -1103,8 +1103,10 @@ describe('GristAdapter — SQL detection utilities', () => {
       expect((adapter as any)._mergeWhere('region:eq:IDF', '')).toBe('region:eq:IDF');
     });
 
-    it('merges both with comma separator', () => {
-      expect((adapter as any)._mergeWhere('region:eq:IDF', 'dept:eq:75')).toBe(
+    it("l'overlay (effectiveWhere) prime : il contient deja le statique (#287)", () => {
+      // getEffectiveWhere de la source joint statique + overlays — re-merger
+      // produisait `WHERE X AND X` avec args doubles
+      expect((adapter as any)._mergeWhere('region:eq:IDF', 'region:eq:IDF, dept:eq:75')).toBe(
         'region:eq:IDF, dept:eq:75'
       );
     });
