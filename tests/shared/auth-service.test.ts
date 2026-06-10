@@ -10,7 +10,6 @@ import {
   isAuthenticated,
   getAuthState,
   onAuthChange,
-  setAuthBaseUrl,
 } from '../../packages/shared/src/auth/auth-service';
 
 describe('AuthService', () => {
@@ -54,7 +53,8 @@ describe('AuthService', () => {
     it('sets user when authenticated', async () => {
       const user = { id: '1', email: 'a@b.com', displayName: 'A', role: 'admin' };
 
-      globalThis.fetch = vi.fn()
+      globalThis.fetch = vi
+        .fn()
         .mockResolvedValueOnce({ status: 200 }) // isDbMode
         .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ user }) }); // GET /me
 
@@ -66,7 +66,8 @@ describe('AuthService', () => {
     });
 
     it('sets unauthenticated when 401', async () => {
-      globalThis.fetch = vi.fn()
+      globalThis.fetch = vi
+        .fn()
         .mockResolvedValueOnce({ status: 401 }) // isDbMode (still returns true)
         .mockResolvedValueOnce({ ok: false, status: 401 }); // GET /me
 
@@ -92,7 +93,8 @@ describe('AuthService', () => {
       const user = { id: '1', email: 'a@b.com', displayName: 'A', role: 'editor' };
 
       // First call is isDbMode (from _resetAuthState), then login POST, then migration check
-      globalThis.fetch = vi.fn()
+      globalThis.fetch = vi
+        .fn()
         .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ user }) }) // POST /login
         .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({}) }); // POST /migrate
 
@@ -104,11 +106,10 @@ describe('AuthService', () => {
     });
 
     it('returns error on failure', async () => {
-      globalThis.fetch = vi.fn()
-        .mockResolvedValueOnce({
-          ok: false,
-          json: () => Promise.resolve({ error: 'Invalid email or password' }),
-        });
+      globalThis.fetch = vi.fn().mockResolvedValueOnce({
+        ok: false,
+        json: () => Promise.resolve({ error: 'Invalid email or password' }),
+      });
 
       const result = await login({ email: 'a@b.com', password: 'wrong' });
 
@@ -131,11 +132,16 @@ describe('AuthService', () => {
     it('succeeds and sets state', async () => {
       const user = { id: '1', email: 'new@b.com', displayName: 'New', role: 'admin' };
 
-      globalThis.fetch = vi.fn()
+      globalThis.fetch = vi
+        .fn()
         .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ user }) }) // POST /register
         .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({}) }); // POST /migrate
 
-      const result = await register({ email: 'new@b.com', password: 'pass123', displayName: 'New' });
+      const result = await register({
+        email: 'new@b.com',
+        password: 'pass123',
+        displayName: 'New',
+      });
 
       expect(result.success).toBe(true);
       expect(isAuthenticated()).toBe(true);
@@ -143,13 +149,16 @@ describe('AuthService', () => {
     });
 
     it('returns error on duplicate email', async () => {
-      globalThis.fetch = vi.fn()
-        .mockResolvedValueOnce({
-          ok: false,
-          json: () => Promise.resolve({ error: 'Email already registered' }),
-        });
+      globalThis.fetch = vi.fn().mockResolvedValueOnce({
+        ok: false,
+        json: () => Promise.resolve({ error: 'Email already registered' }),
+      });
 
-      const result = await register({ email: 'dup@b.com', password: 'pass123', displayName: 'Dup' });
+      const result = await register({
+        email: 'dup@b.com',
+        password: 'pass123',
+        displayName: 'Dup',
+      });
 
       expect(result.success).toBe(false);
       expect(result.error).toMatch(/already/i);
@@ -160,7 +169,8 @@ describe('AuthService', () => {
     it('clears state', async () => {
       const user = { id: '1', email: 'a@b.com', displayName: 'A', role: 'admin' };
 
-      globalThis.fetch = vi.fn()
+      globalThis.fetch = vi
+        .fn()
         .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ user }) }) // login
         .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({}) }) // migrate
         .mockResolvedValueOnce({ ok: true }); // logout
@@ -176,7 +186,8 @@ describe('AuthService', () => {
     it('clears state even if API fails', async () => {
       const user = { id: '1', email: 'a@b.com', displayName: 'A', role: 'admin' };
 
-      globalThis.fetch = vi.fn()
+      globalThis.fetch = vi
+        .fn()
         .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ user }) }) // login
         .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({}) }) // migrate
         .mockRejectedValueOnce(new Error('offline')); // logout
@@ -191,10 +202,13 @@ describe('AuthService', () => {
   describe('onAuthChange', () => {
     it('notifies on state change', async () => {
       const changes: boolean[] = [];
-      onAuthChange((state) => { changes.push(state.isAuthenticated); });
+      onAuthChange((state) => {
+        changes.push(state.isAuthenticated);
+      });
 
       const user = { id: '1', email: 'a@b.com', displayName: 'A', role: 'admin' };
-      globalThis.fetch = vi.fn()
+      globalThis.fetch = vi
+        .fn()
         .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ user }) })
         .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({}) });
 
@@ -205,11 +219,14 @@ describe('AuthService', () => {
 
     it('returns unsubscribe function', async () => {
       const changes: boolean[] = [];
-      const unsub = onAuthChange((state) => { changes.push(state.isAuthenticated); });
+      const unsub = onAuthChange((state) => {
+        changes.push(state.isAuthenticated);
+      });
 
       unsub();
 
-      globalThis.fetch = vi.fn()
+      globalThis.fetch = vi
+        .fn()
         .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ user: { id: '1' } }) })
         .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({}) });
 
@@ -234,7 +251,10 @@ describe('AuthService', () => {
           migrateCalled = true;
           const body = JSON.parse(options.body as string);
           expect(body.sources).toEqual([{ id: 'src-1', name: 'Test' }]);
-          return Promise.resolve({ ok: true, json: () => Promise.resolve({ imported: { sources: 1 } }) });
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ imported: { sources: 1 } }),
+          });
         }
         return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
       });
@@ -288,20 +308,15 @@ describe('AuthService', () => {
     });
   });
 
-  describe('setAuthBaseUrl', () => {
-    it('prepends baseUrl to fetch calls', async () => {
-      setAuthBaseUrl('http://localhost:3001');
-      globalThis.fetch = vi.fn().mockResolvedValue({ status: 200 });
-
+  describe('isDbMode — echec reseau non fige (#322)', () => {
+    it('un ping en echec ne fige plus le simple mode : re-sonde au prochain appel', async () => {
       _resetAuthState();
-      setAuthBaseUrl('http://localhost:3001');
+      globalThis.fetch = vi.fn().mockRejectedValueOnce(new Error('backend redemarre'));
+      expect(await isDbMode()).toBe(false);
 
-      await isDbMode();
-
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        'http://localhost:3001/api/auth/me',
-        expect.any(Object),
-      );
+      // Le backend revient : le prochain appel re-sonde (dbMode etait null)
+      globalThis.fetch = vi.fn().mockResolvedValue({ status: 200 });
+      expect(await isDbMode()).toBe(true);
     });
   });
 

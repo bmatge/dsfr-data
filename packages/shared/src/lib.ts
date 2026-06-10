@@ -96,7 +96,6 @@ export {
   GENERIC_CONFIG,
   registerProvider,
   getProvider,
-  getAllProviders,
   detectProvider,
   extractResourceIds,
   resolveSourceUrl,

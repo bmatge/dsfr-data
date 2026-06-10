@@ -106,7 +106,6 @@ export {
   validateConnection,
   validateFavorite,
   validateDashboard,
-  validateAndFilterArray,
 } from './validation/validators.js';
 
 // Auth
@@ -119,7 +118,6 @@ export type {
   ShareInfo,
 } from './auth/auth-types.js';
 export {
-  setAuthBaseUrl,
   isDbMode,
   checkAuth,
   login,
@@ -153,7 +151,6 @@ export {
   GENERIC_CONFIG,
   registerProvider,
   getProvider,
-  getAllProviders,
   detectProvider,
   extractResourceIds,
   resolveSourceUrl,

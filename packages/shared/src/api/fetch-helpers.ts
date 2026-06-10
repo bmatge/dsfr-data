@@ -16,8 +16,14 @@ export async function fetchWithTimeout(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
+  // Composer avec le signal de l'appelant (#322) : l'ecraser rendait toute
+  // annulation amont impossible
+  const signal = init?.signal
+    ? AbortSignal.any([init.signal, controller.signal])
+    : controller.signal;
+
   try {
-    const response = await fetch(input, { ...init, signal: controller.signal });
+    const response = await fetch(input, { ...init, signal });
     return response;
   } catch (_error: unknown) {
     if (_error instanceof DOMException && _error.name === 'AbortError') {

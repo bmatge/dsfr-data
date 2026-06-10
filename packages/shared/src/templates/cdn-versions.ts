@@ -3,9 +3,14 @@
  * Single source of truth — all code generators import from here.
  */
 
-const CDN_VERSIONS = {
+/**
+ * Versions alignees sur packages/core/package.json (#322) — un test de
+ * garde (tests/shared/cdn-versions-alignment.test.ts) echoue si la
+ * dependance installee diverge de la version CDN generee.
+ */
+export const CDN_VERSIONS = {
   dsfr: '1.14.4',
-  dsfrChart: '2.0.4',
+  dsfrChart: '2.0.5',
   chartJs: '4.4.1',
 } as const;
 

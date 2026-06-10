@@ -14,6 +14,14 @@ registerServerCacheProvider();
 // window.DSFR_DATA_BEACON_TRANSPORT (#308) — transport par defaut : pixel.
 registerDbBeaconTransport();
 
+// La couche persistance n'affiche plus d'UI (#322) : c'est le chrome qui
+// transforme le depassement de quota en toast DSFR.
+window.addEventListener('dsfr-data:storage-quota', () => {
+  import('@dsfr-data/shared').then(({ toastError }) => {
+    toastError('Espace de stockage plein. Supprimez des elements pour continuer.');
+  });
+});
+
 export { AppHeader } from './app-header.js';
 export { AppFooter } from './app-footer.js';
 export { AppLayoutBuilder } from './app-layout-builder.js';

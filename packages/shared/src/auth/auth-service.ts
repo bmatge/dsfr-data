@@ -149,14 +149,6 @@ async function apiFetch(path: string, options?: RequestInit): Promise<Response> 
 // ──────────────────────────────────────────────────────────────
 
 /**
- * Set the API base URL (e.g. 'http://localhost:3001' in dev).
- * Must be called before checkAuth().
- */
-export function setAuthBaseUrl(url: string): void {
-  shared.baseUrl = url;
-}
-
-/**
  * Detect whether the backend API is available.
  * Caches the result after the first call.
  */
@@ -170,7 +162,11 @@ export async function isDbMode(): Promise<boolean> {
     // If we get any response (200 or 401), the backend is available
     shared.dbMode = res.status === 200 || res.status === 401;
   } catch {
-    shared.dbMode = false;
+    // Echec RESEAU (backend qui redemarre) : ne pas figer le mode (#322) —
+    // l'app restait en 'simple mode' jusqu'au reload. null = re-sonde au
+    // prochain appel.
+    shared.dbMode = null;
+    return false;
   }
 
   // Set a global flag so fire-and-forget code (beacon) can detect DB mode synchronously
