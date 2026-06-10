@@ -152,6 +152,16 @@ export class DsfrDataContext extends LitElement {
     if (this.urlSync && this.isConnected) {
       this._syncUrl();
     }
+    // Notifie les observateurs (dsfr-data-context-tags, #232)
+    this.dispatchEvent(new CustomEvent('dsfr-data-context-change'));
+  }
+
+  /**
+   * Filtres actifs du contexte (#232) — pour les composants d'affichage
+   * (tags). Un filtre est actif si sa clause courante est non vide.
+   */
+  activeFilters(): DsfrDataContextFilter[] {
+    return this._filters.filter((f) => f.isConnected && f.buildColonWhere() !== '');
   }
 
   // --- Sérialisation URL (#231, pattern facets — leçon #312 incluse) ---

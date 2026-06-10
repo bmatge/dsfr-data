@@ -2695,6 +2695,7 @@ La valeur vide RETIRE le filtre. Les valeurs sont percent-encodees (#271).
 | ui | String | \`""\` | oui | Id de l'element d'UI ecoute — DEUX ids (min max) pour between |
 | operator | String | \`"eq"\` | non | eq, in, lt, gte, between (between -> gte + lt), et dates (#230) : month-of, year-of, lt-day-after, last-n-days, current-year (bornes dynamiques recalculees a chaque diffusion) |
 | apply-to | String | \`"*"\` | non | \`*\` = toutes les sources du contexte, ou liste d'ids cibles separes par des espaces |
+| label | String | \`""\` | non | Libelle naturel pour l'affichage (tags #232) — defaut : field |
 
 ### Operateurs
 
@@ -2704,6 +2705,36 @@ La valeur vide RETIRE le filtre. Les valeurs sont percent-encodees (#271).
   \`lt-day-after\` (inclusif jusqu'au jour choisi), \`last-n-days\` (N derniers jours, borne
   dynamique), \`current-year\` (checkbox -> annee en cours). Plages [debut, fin) en ISO,
   recalculees a chaque diffusion — l'URL serialise l'intention (« 30 »), pas les dates resolues.
+`,
+  },
+
+  dsfrDataContextTags: {
+    id: 'dsfrDataContextTags',
+    name: 'dsfr-data-context-tags',
+    description: "Tags DSFR recapitulant les filtres actifs d'un contexte (supprimables)",
+    trigger: ['context-tags', 'tags filtres', 'filtres actifs', 'recap filtres', 'retirer filtre'],
+    content: `## <dsfr-data-context-tags> - Recap des filtres actifs
+
+Affiche des tags DSFR supprimables : un tag par filtre actif du contexte observe
+(libelle naturel + valeur). La croix reinitialise le filtre en VIDANT son UI —
+meme chemin qu'un utilisateur qui efface le champ : sources, URL et tags se
+mettent a jour ensemble.
+
+### Attributs
+
+| Attribut | Type | Défaut | Requis | Description |
+|----------|------|--------|--------|-------------|
+| for | String | \`""\` | oui | Id du dsfr-data-context observe |
+
+### Pattern
+
+\`\`\`html
+<dsfr-data-context id="ctx" sources="src-a src-b" url-sync>
+  <dsfr-data-context-filter field="categorie" label="Catégorie" operator="in" ui="ui-cat">
+  </dsfr-data-context-filter>
+</dsfr-data-context>
+<dsfr-data-context-tags for="ctx"></dsfr-data-context-tags>
+\`\`\`
 `,
   },
 

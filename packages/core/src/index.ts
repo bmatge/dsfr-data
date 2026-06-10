@@ -11,6 +11,7 @@ export { DsfrDataJoin } from './components/dsfr-data-join.js';
 export { DsfrDataUnpivot } from './components/dsfr-data-unpivot.js';
 export { DsfrDataContext } from './components/dsfr-data-context.js';
 export { DsfrDataContextFilter } from './components/dsfr-data-context-filter.js';
+export { DsfrDataContextTags } from './components/dsfr-data-context-tags.js';
 export { DsfrDataNormalize } from './components/dsfr-data-normalize.js';
 export { DsfrDataFacets } from './components/dsfr-data-facets.js';
 export { DsfrDataSearch } from './components/dsfr-data-search.js';

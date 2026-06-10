@@ -81,6 +81,10 @@ export class DsfrDataContextFilter extends LitElement {
   @property({ type: String, attribute: 'apply-to' })
   applyTo = '*';
 
+  /** Libellé naturel pour l'affichage (tags #232) — défaut : field */
+  @property({ type: String })
+  label = '';
+
   private _context: DsfrDataContext | null = null;
 
   private _uiEls: HTMLElement[] = [];
@@ -209,6 +213,42 @@ export class DsfrDataContextFilter extends LitElement {
       return;
     }
     (el as HTMLInputElement | HTMLSelectElement).value = values.join(',');
+  }
+
+  /** Libellé d'affichage (tags #232) */
+  displayLabel(): string {
+    return this.label || this.field;
+  }
+
+  /** Valeur d'affichage humaine du filtre (tags #232) */
+  displayValue(): string {
+    const values = this._currentValues();
+    if (this.operator === 'between') {
+      const [min, max] = values;
+      return [min, max].filter(Boolean).join(' – ');
+    }
+    const raw = values[0] ?? '';
+    if (this.operator === 'current-year') return 'année en cours';
+    if (this.operator === 'last-n-days') return `${raw} derniers jours`;
+    return raw.split(/[|,]/).filter(Boolean).join(', ');
+  }
+
+  /**
+   * Réinitialise le filtre en VIDANT ses contrôles d'UI puis ré-émet —
+   * exactement le chemin d'un utilisateur qui efface le champ (#232) :
+   * sources, URL et tags se mettent à jour ensemble.
+   */
+  clear(): void {
+    for (const el of this._uiEls) {
+      if (el instanceof HTMLInputElement && el.type === 'checkbox') {
+        el.checked = false;
+      } else if (el instanceof HTMLSelectElement && el.multiple) {
+        for (const option of Array.from(el.options)) option.selected = false;
+      } else {
+        (el as HTMLInputElement | HTMLSelectElement).value = '';
+      }
+    }
+    this._emit();
   }
 
   /**
