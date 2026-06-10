@@ -208,11 +208,25 @@ async function processQueue(): Promise<void> {
         body: op.body,
       });
 
-      if (response.ok || response.status === 404 || response.status === 409) {
-        // Success, or resource already gone/exists — remove from queue
+      if (response.ok || response.status === 404) {
+        // Success, or resource already gone — remove from queue
         shared.queue.shift();
         persistQueue();
         shared.errorCount = Math.max(0, shared.errorCount - 1);
+      } else if (response.status === 409 && op.method === 'POST') {
+        // La ressource existe deja (#321) : rejouer en PUT au lieu de
+        // defiler silencieusement (la modif etait PERDUE)
+        const id = op.body ? (JSON.parse(op.body) as { id?: string }).id : undefined;
+        shared.queue.shift();
+        if (id) {
+          shared.queue.unshift({
+            method: 'PUT',
+            url: `${op.url.replace(/\/$/, '')}/${id}`,
+            body: op.body,
+            retries: op.retries,
+          });
+        }
+        persistQueue();
       } else if (response.status === 401) {
         // Not authenticated — clear queue, no point retrying
         shared.queue.length = 0;

@@ -17,6 +17,7 @@ import type { StorageAdapter } from './storage-adapter.js';
 import {
   loadFromStorage,
   saveToStorage,
+  saveToStorageQuiet,
   removeFromStorage,
   STORAGE_KEYS,
 } from './local-storage.js';
@@ -154,6 +155,28 @@ function mergeServerWithLocal(
   });
 }
 
+/**
+ * Merge local-first (#321) : un item present en local mais ABSENT du
+ * serveur (cree hors-ligne, ou POST abandonne apres les retries) etait
+ * purement supprime par serverItems.map(...) puis le cache local etait
+ * ecrase — contradiction avec le local-first annonce. Les locaux inconnus
+ * du serveur sont conserves en fin de liste ; le prochain save les
+ * re-poussera (POST).
+ */
+function appendLocalOnlyItems(
+  merged: Record<string, unknown>[],
+  localItems: Record<string, unknown>[]
+): Record<string, unknown>[] {
+  const serverIds = new Set(merged.map((i) => i.id).filter(Boolean));
+  const localOnly = localItems.filter((i) => i.id && !serverIds.has(i.id));
+  if (localOnly.length > 0) {
+    console.warn(
+      `[ApiStorageAdapter] ${localOnly.length} item(s) local(aux) absent(s) du serveur conserve(s) (creation hors-ligne ?)`
+    );
+  }
+  return [...merged, ...localOnly];
+}
+
 /** Server columns for connections: name, type, config_json, api_key_encrypted, status */
 const CONNECTION_TOP_LEVEL = new Set(['id', 'name', 'type', 'status']);
 
@@ -237,6 +260,16 @@ export class ApiStorageAdapter implements StorageAdapter {
         data = mergeServerWithLocal(data as Record<string, unknown>[], localData, key) as T;
       }
 
+      // Local-first (#321) : pour TOUTE collection, les items locaux absents
+      // du serveur survivent (favorites/dashboards n'avaient aucun merge —
+      // le serveur remplacait le local, un item cree hors-ligne disparaissait)
+      if (Array.isArray(data)) {
+        const localData = loadFromStorage<Record<string, unknown>[]>(key, []);
+        if (Array.isArray(localData) && localData.length > 0) {
+          data = appendLocalOnlyItems(data as Record<string, unknown>[], localData) as T;
+        }
+      }
+
       // Singleton keys (tour-state): if the server response is empty but the
       // user has local data (migrating from localStorage-only), preserve the
       // local copy and re-push it via the save hook.
@@ -248,8 +281,11 @@ export class ApiStorageAdapter implements StorageAdapter {
         }
       }
 
-      // Update localStorage cache
-      saveToStorage(key, data);
+      // Update localStorage cache SANS declencher le save-hook (#321) :
+      // load() -> saveToStorage -> hook initAuth -> adapter.save ->
+      // syncItems -> GET + un PUT PAR ITEM, pour les 5 cles prefetchees a
+      // CHAQUE ouverture d'app — re-televersement integral sans changement
+      saveToStorageQuiet(key, data);
       return data;
     } catch {
       // Network error: fallback to localStorage

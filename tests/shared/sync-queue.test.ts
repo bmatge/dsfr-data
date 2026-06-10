@@ -101,15 +101,31 @@ describe('SyncQueue', () => {
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
-    it('should handle 409 as success (resource already exists)', async () => {
+    it("rejoue un POST en PUT sur 409 — la modif n'est plus perdue (#321)", async () => {
       setSyncBaseUrl('http://test');
-      vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('', { status: 409 }));
+      const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+        const u = String(url);
+        if (u.includes('/api/auth/csrf')) {
+          return new Response(JSON.stringify({ token: 't' }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+        if ((init?.method ?? 'GET') === 'POST') return new Response('', { status: 409 });
+        return new Response('', { status: 200 });
+      });
 
       enqueueSync('POST', '/api/sources', { id: '1' });
 
       await vi.waitFor(() => {
         expect(getSyncStatus().status).toBe('idle');
       });
+
+      // L'ancien comportement defilait le 409 en silence ; desormais la
+      // ressource existante est mise a jour via PUT /api/sources/1
+      const putCall = fetchMock.mock.calls.find(([, init]) => init?.method === 'PUT');
+      expect(putCall).toBeDefined();
+      expect(String(putCall![0])).toContain('/api/sources/1');
     });
 
     it('should clear queue on 401 (unauthorized)', async () => {

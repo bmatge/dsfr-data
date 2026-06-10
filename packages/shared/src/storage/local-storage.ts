@@ -42,6 +42,20 @@ export function loadFromStorage<T>(key: string, defaultValue: T): T {
  * Shows a toast if quota is exceeded.
  * If a save hook is registered (DB mode), also syncs to backend in background.
  */
+/**
+ * Variante SANS save-hook (#321) : pour les mises a jour de cache issues
+ * du serveur (load) — declencher le hook re-televersait l'integralite des
+ * collections a chaque ouverture d'app.
+ */
+export function saveToStorageQuiet<T>(key: string, data: T): boolean {
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function saveToStorage<T>(key: string, data: T): boolean {
   try {
     localStorage.setItem(key, JSON.stringify(data));
