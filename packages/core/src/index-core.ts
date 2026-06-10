@@ -21,14 +21,6 @@ export { DsfrDataChart } from './components/dsfr-data-chart.js';
 export { DsfrDataPodium } from './components/dsfr-data-podium.js';
 export { DsfrDataA11y } from './components/dsfr-data-a11y.js';
 
-// Composants de layout
-export {
-  AppHeader,
-  AppFooter,
-  AppLayoutBuilder,
-  AppLayoutDemo,
-} from './components/layout/index.js';
-
 // Utilitaires
 export {
   DATA_EVENTS,

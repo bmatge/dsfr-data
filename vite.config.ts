@@ -187,6 +187,10 @@ export default defineConfig({
         if (id.endsWith('dist/dsfr-data.esm.js')) {
           return resolve(__dirname, 'packages/core/src/index.ts');
         }
+        // Chrome applicatif extrait de la lib (#306) : meme redirection dev
+        if (id.endsWith('dist/app-ui.esm.js')) {
+          return resolve(__dirname, 'packages/app-ui/src/index.ts');
+        }
       },
     },
     {

@@ -25,14 +25,6 @@ export { DsfrDataMapPopup } from './components/dsfr-data-map-popup.js';
 export { DsfrDataMapTimeline } from './components/dsfr-data-map-timeline.js';
 export { DsfrDataA11y } from './components/dsfr-data-a11y.js';
 
-// Composants de layout
-export {
-  AppHeader,
-  AppFooter,
-  AppLayoutBuilder,
-  AppLayoutDemo,
-} from './components/layout/index.js';
-
 // Utilitaires (pour usage avancé)
 export {
   DATA_EVENTS,

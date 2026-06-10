@@ -72,6 +72,16 @@ if (existsSync(coreDistSrc)) {
 } else {
   console.log('  - dist/ (packages/core/dist not found)');
 }
+
+// Chrome applicatif (#306) : bundle separe, hors lib npm — sert /dist/app-ui.esm.js
+const appUiBundle = join(rootDir, 'packages/app-ui/dist/app-ui.esm.js');
+if (existsSync(appUiBundle)) {
+  mkdirSync(coreDistDest, { recursive: true });
+  cpSync(appUiBundle, join(coreDistDest, 'app-ui.esm.js'));
+  console.log('  + dist/app-ui.esm.js (from packages/app-ui/dist/)');
+} else {
+  console.log('  - dist/app-ui.esm.js (packages/app-ui/dist not found — npm run build:app-ui)');
+}
 for (const dir of directories) {
   const src = join(rootDir, dir);
   const dest = join(distDir, dir);
