@@ -986,8 +986,10 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     const popups = this._mapParent.querySelectorAll(':scope > dsfr-data-map-popup');
     for (const p of popups) {
       const popup = p as import('./dsfr-data-map-popup.js').DsfrDataMapPopup;
-      // Only match map-level popups that explicitly target this layer via `for`
-      if (popup.for && popup.matchesLayer?.(layerId)) return popup;
+      // Aligne sur matchesLayer() (#296) : sans `for`, le popup matche
+      // toutes les couches — l'exemple de la docstring (popup enfant de la
+      // carte, sans for) ne fonctionnait pas car le layer exigeait un for
+      if (popup.matchesLayer?.(layerId)) return popup;
     }
     return null;
   }

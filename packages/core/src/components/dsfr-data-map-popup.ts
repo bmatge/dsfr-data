@@ -68,9 +68,18 @@ export class DsfrDataMapPopup extends LitElement {
     return this._templateEl;
   }
 
+  /** Handler Escape pose sur document — retire dans _removeModal (#296) */
+  private _escHandler: ((e: KeyboardEvent) => void) | null = null;
+
+  /** Timer de suppression animee du panneau — annule a la reouverture (#296) */
+  private _panelRemoveTimer: number | null = null;
+
+  /** Element focus avant l'ouverture de la modale (restitution RGAA, #296) */
+  private _previousFocus: HTMLElement | null = null;
+
   disconnectedCallback() {
     super.disconnectedCallback();
-    this._removePanel();
+    this._removePanel(true);
     this._removeModal();
   }
 
@@ -159,6 +168,13 @@ export class DsfrDataMapPopup extends LitElement {
     const side = this.mode === 'panel-left' ? 'left' : 'right';
     const title = this.titleField ? String(getByPath(record, this.titleField) ?? '') : '';
 
+    // Reouverture < 200 ms : annule la suppression animee en cours, sinon
+    // le panneau frais serait supprime avec son contenu (#296)
+    if (this._panelRemoveTimer !== null) {
+      clearTimeout(this._panelRemoveTimer);
+      this._panelRemoveTimer = null;
+    }
+
     if (!this._panelEl) {
       this._panelEl = document.createElement('div');
       this._panelEl.className = `dsfr-data-map-popup__panel dsfr-data-map-popup__panel--${side}`;
@@ -195,14 +211,30 @@ export class DsfrDataMapPopup extends LitElement {
     }
   }
 
-  private _removePanel() {
-    if (this._panelEl) {
-      this._panelEl.classList.remove('dsfr-data-map-popup__panel--open');
-      setTimeout(() => {
-        this._panelEl?.remove();
-        this._panelEl = null;
-      }, 200);
+  private _removePanel(immediate = false) {
+    if (this._panelRemoveTimer !== null) {
+      clearTimeout(this._panelRemoveTimer);
+      this._panelRemoveTimer = null;
     }
+    if (!this._panelEl) return;
+
+    if (immediate) {
+      // Retrait differe en microtask : au disconnect du popup pendant le
+      // demontage du sous-arbre carte, retirer le panneau en pleine
+      // traversee est une mutation reentrante. Apres le demontage, remove()
+      // sur un noeud deja detache est inoffensif.
+      const panel = this._panelEl;
+      this._panelEl = null;
+      queueMicrotask(() => panel.remove());
+      return;
+    }
+
+    this._panelEl.classList.remove('dsfr-data-map-popup__panel--open');
+    this._panelRemoveTimer = window.setTimeout(() => {
+      this._panelRemoveTimer = null;
+      this._panelEl?.remove();
+      this._panelEl = null;
+    }, 200);
   }
 
   // --- Modal mode ---
@@ -234,7 +266,9 @@ export class DsfrDataMapPopup extends LitElement {
 
     document.body.appendChild(this._modalEl);
 
-    // Focus trap: focus close button
+    // Memorise le declencheur pour restitution a la fermeture (RGAA, #296)
+    this._previousFocus = (document.activeElement as HTMLElement | null) ?? null;
+
     const closeBtn = this._modalEl.querySelector(
       '.dsfr-data-map-popup__modal-close'
     ) as HTMLElement;
@@ -248,14 +282,32 @@ export class DsfrDataMapPopup extends LitElement {
       if (e.target === this._modalEl) this.close();
     });
 
-    // Close on Escape
-    const escHandler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        this.close();
-        document.removeEventListener('keydown', escHandler);
+    // Vrai focus trap (#296) : Tab/Shift+Tab bouclent dans la modale —
+    // l'ancien commentaire "Focus trap" ne piegeait rien (aria-modal seul)
+    this._modalEl.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.key !== 'Tab' || !this._modalEl) return;
+      const focusables = this._modalEl.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
       }
+    });
+
+    // Close on Escape — handler retire dans _removeModal quel que soit le
+    // chemin de fermeture (bouton, overlay, Escape) : il s'empilait sur
+    // document pour toujours hors fermeture clavier (#296)
+    this._escHandler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') this.close();
     };
-    document.addEventListener('keydown', escHandler);
+    document.addEventListener('keydown', this._escHandler);
 
     // Announce
     const mapParent = this.closest('dsfr-data-map') as
@@ -265,9 +317,16 @@ export class DsfrDataMapPopup extends LitElement {
   }
 
   private _removeModal() {
+    if (this._escHandler) {
+      document.removeEventListener('keydown', this._escHandler);
+      this._escHandler = null;
+    }
     if (this._modalEl) {
       this._modalEl.remove();
       this._modalEl = null;
+      // Restitution du focus au declencheur (RGAA, #296)
+      this._previousFocus?.focus?.();
+      this._previousFocus = null;
     }
   }
 
