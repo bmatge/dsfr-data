@@ -206,6 +206,11 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     // Abandonne le fetch de facettes en vol (#309)
     this._facetsAbort?.abort();
     this._facetsAbort = null;
+    // Nettoie le debounce de recherche (#313 — search nettoie le sien)
+    if (this._searchDebounceTimer) {
+      clearTimeout(this._searchDebounceTimer);
+      this._searchDebounceTimer = null;
+    }
     this._setBackgroundInert(false);
     document.removeEventListener('click', this._onClickOutsideMultiselect);
     if (this._popstateHandler) {
@@ -314,10 +319,18 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
       }
     }
     if (this.serverFacets) {
-      this._fetchServerFacets();
-      // Re-emit data as-is (no local filtering) — meta posee AVANT le
-      // dispatch par le mixin
-      this.emitTransformedData(this._rawData);
+      if (this._serverFacetsSupported()) {
+        this._fetchServerFacets();
+        // Re-emit data as-is (no local filtering) — meta posee AVANT le
+        // dispatch par le mixin
+        this.emitTransformedData(this._rawData);
+      } else {
+        // Fallback client (#313) : UN seul dispatch (filtre) — l'ancien
+        // chemin emettait le brut ici PUIS _fetchServerFacets, en
+        // fallback synchrone, re-emettait le filtre (contenus differents)
+        this._buildFacetGroups();
+        this._applyFilters();
+      }
     } else if (this.staticValues) {
       this._buildStaticFacetGroups();
       // Re-emit data as-is (filtering happens server-side)
@@ -358,6 +371,70 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
       }
     }
     return groups;
+  }
+
+  // --- Templates partages entre les 3 modes de rendu (#313) ---
+
+  /** Libelle « valeur + compteur » — etait copie 3x (checkbox, multiselect, radio) */
+  private _renderValueLabel(fv: FacetValue) {
+    const missingHint = fv.missing
+      ? html`<span class="fr-hint-text">(indisponible)</span>`
+      : nothing;
+    return html`${fv.value}${missingHint}${this._effectiveHideCounts || fv.missing
+      ? nothing
+      : html`<span class="dsfr-data-facets__count" aria-hidden="true">${fv.count}</span
+          ><span class="fr-sr-only">, ${fv.count} resultat${fv.count > 1 ? 's' : ''}</span>`}`;
+  }
+
+  /** Barre de recherche des panels multiselect/radio — etait copiee 2x */
+  private _renderPanelSearchBar(group: FacetGroup, uid: string) {
+    return html`
+      <div class="fr-search-bar" role="search">
+        <label class="fr-label fr-sr-only" for="${uid}-search"
+          >Rechercher dans ${group.label}</label
+        >
+        <input
+          class="fr-input"
+          type="search"
+          id="${uid}-search"
+          placeholder="Rechercher..."
+          aria-describedby="${uid}-search-hint"
+          .value="${this._searchQueries[group.field] ?? ''}"
+          @input="${(e: Event) => this._handleSearch(group.field, e)}"
+        />
+        <span class="fr-sr-only" id="${uid}-search-hint"
+          >Les resultats se mettent a jour automatiquement</span
+        >
+        <button class="fr-btn" type="button" title="Rechercher" aria-hidden="true" tabindex="-1">
+          Rechercher
+        </button>
+      </div>
+    `;
+  }
+
+  /** Element checkbox/radio complet — etait copie 3x */
+  private _renderToggleItem(
+    group: FacetGroup,
+    fv: FacetValue,
+    inputId: string,
+    kind: 'checkbox' | 'radio',
+    radioName?: string
+  ) {
+    const isChecked = (this._activeSelections[group.field] ?? new Set()).has(fv.value);
+    return html`
+      <div class="fr-fieldset__element">
+        <div class="fr-${kind}-group fr-${kind}-group--sm">
+          <input
+            type="${kind}"
+            id="${inputId}"
+            name="${radioName ?? nothing}"
+            .checked="${isChecked}"
+            @change="${() => this._toggleValue(group.field, fv.value)}"
+          />
+          <label class="fr-label" for="${inputId}"> ${this._renderValueLabel(fv)} </label>
+        </div>
+      </div>
+    `;
   }
 
   _buildFacetGroups() {
@@ -583,6 +660,14 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   /** Erreur du dernier fetch de facettes (rendue, plus avalee — #309) */
   private _facetsError: string | null = null;
 
+  /** L'adapter amont supporte-t-il les facettes serveur ? (#313) */
+  private _serverFacetsSupported(): boolean {
+    const sourceEl = document.getElementById(this.source);
+    const adapter: ApiAdapter | undefined =
+      (sourceEl as unknown as SourceElement)?.getAdapter?.() ?? undefined;
+    return !!(adapter?.capabilities.serverFacets && adapter.fetchFacets);
+  }
+
   /** Fetch facet values from server API with cross-facet counts */
   private async _fetchServerFacets() {
     const sourceEl = document.getElementById(this.source);
@@ -638,8 +723,9 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     // Cross-facet: group fields by their effective where clause
     // Fields sharing the same where can be fetched in a single API call
     const whereToFields = new Map<string, string[]>();
+    // baseWhere est invariant : il etait recalcule a chaque iteration (#313)
+    const baseWhere = (sourceEl as unknown as SourceElement).getEffectiveWhere?.(this.id) || '';
     for (const field of fields) {
-      const baseWhere = (sourceEl as unknown as SourceElement).getEffectiveWhere?.(this.id) || '';
       const otherFacetWhere = this._buildFacetWhere(field);
       // Jointure selon le dialecte du provider : ' AND ' en ODSQL, ', ' en
       // colon — joindre du colon par AND produisait des clauses croisees
@@ -923,9 +1009,10 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
    * page content behind the panel (complements aria-modal="true").
    */
   private _setBackgroundInert(active: boolean) {
-    const host = this.closest('dsfr-data-facets') ?? this;
+    // this EST le facets — l'ancien closest('dsfr-data-facets') ?? this
+    // etait du code mort (#313)
     document.querySelectorAll('body > *').forEach((el) => {
-      if (el.contains(host)) return; // skip our own ancestor
+      if (el.contains(this)) return; // skip our own ancestor
       if (active) {
         el.setAttribute('inert', '');
       } else {
@@ -1337,7 +1424,6 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     const isSearchable = searchableFields.includes(group.field);
     const searchQuery = (this._searchQueries[group.field] ?? '').toLowerCase();
     const isExpanded = this._expandedFacets.has(group.field);
-    const selected = this._activeSelections[group.field] ?? new Set();
 
     let displayValues = group.values;
     if (isSearchable && searchQuery) {
@@ -1367,31 +1453,9 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
               </div>
             `
           : nothing}
-        ${visibleValues.map((fv, fvIndex) => {
-          const checkId = `${uid}-${fvIndex}`;
-          const isChecked = selected.has(fv.value);
-          return html`
-            <div class="fr-fieldset__element">
-              <div class="fr-checkbox-group fr-checkbox-group--sm">
-                <input
-                  type="checkbox"
-                  id="${checkId}"
-                  .checked="${isChecked}"
-                  @change="${() => this._toggleValue(group.field, fv.value)}"
-                />
-                <label class="fr-label" for="${checkId}">
-                  ${fv.value}${this._effectiveHideCounts
-                    ? nothing
-                    : html`<span class="dsfr-data-facets__count" aria-hidden="true"
-                          >${fv.count}</span
-                        ><span class="fr-sr-only"
-                          >, ${fv.count} resultat${fv.count > 1 ? 's' : ''}</span
-                        >`}
-                </label>
-              </div>
-            </div>
-          `;
-        })}
+        ${visibleValues.map((fv, fvIndex) =>
+          this._renderToggleItem(group, fv, `${uid}-${fvIndex}`, 'checkbox')
+        )}
         ${hasMore
           ? html`
               <div class="fr-fieldset__element">
@@ -1428,7 +1492,9 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
           ${group.values.map(
             (fv) => html`
               <option value="${fv.value}" ?selected="${fv.value === selectedValue}">
-                ${this._effectiveHideCounts ? fv.value : `${fv.value} (${fv.count})`}
+                ${this._effectiveHideCounts || fv.missing
+                  ? `${fv.value}${fv.missing ? ' (indisponible)' : ''}`
+                  : `${fv.value} (${fv.count})`}
               </option>
             `
           )}
@@ -1508,61 +1574,14 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
                 >
                   ${selected.size > 0 ? 'Tout deselectionner' : 'Tout sélectionner'}
                 </button>
-                <div class="fr-search-bar" role="search">
-                  <label class="fr-label fr-sr-only" for="${uid}-search"
-                    >Rechercher dans ${group.label}</label
-                  >
-                  <input
-                    class="fr-input"
-                    type="search"
-                    id="${uid}-search"
-                    placeholder="Rechercher..."
-                    aria-describedby="${uid}-search-hint"
-                    .value="${this._searchQueries[group.field] ?? ''}"
-                    @input="${(e: Event) => this._handleSearch(group.field, e)}"
-                  />
-                  <span class="fr-sr-only" id="${uid}-search-hint"
-                    >Les resultats se mettent a jour automatiquement</span
-                  >
-                  <button
-                    class="fr-btn"
-                    type="button"
-                    title="Rechercher"
-                    aria-hidden="true"
-                    tabindex="-1"
-                  >
-                    Rechercher
-                  </button>
-                </div>
+                ${this._renderPanelSearchBar(group, uid)}
                 <fieldset
                   class="fr-fieldset dsfr-data-facets__dropdown-fieldset"
                   aria-label="${group.label}"
                 >
-                  ${displayValues.map((fv, fvIndex) => {
-                    const checkId = `${uid}-${fvIndex}`;
-                    const isChecked = selected.has(fv.value);
-                    return html`
-                      <div class="fr-fieldset__element">
-                        <div class="fr-checkbox-group fr-checkbox-group--sm">
-                          <input
-                            type="checkbox"
-                            id="${checkId}"
-                            .checked="${isChecked}"
-                            @change="${() => this._toggleValue(group.field, fv.value)}"
-                          />
-                          <label class="fr-label" for="${checkId}">
-                            ${fv.value}${this._effectiveHideCounts
-                              ? nothing
-                              : html`<span class="dsfr-data-facets__count" aria-hidden="true"
-                                    >${fv.count}</span
-                                  ><span class="fr-sr-only"
-                                    >, ${fv.count} resultat${fv.count > 1 ? 's' : ''}</span
-                                  >`}
-                          </label>
-                        </div>
-                      </div>
-                    `;
-                  })}
+                  ${displayValues.map((fv, fvIndex) =>
+                    this._renderToggleItem(group, fv, `${uid}-${fvIndex}`, 'checkbox')
+                  )}
                 </fieldset>
               </div>
             `
@@ -1630,62 +1649,14 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
                       </button>
                     `
                   : nothing}
-                <div class="fr-search-bar" role="search">
-                  <label class="fr-label fr-sr-only" for="${uid}-search"
-                    >Rechercher dans ${group.label}</label
-                  >
-                  <input
-                    class="fr-input"
-                    type="search"
-                    id="${uid}-search"
-                    placeholder="Rechercher..."
-                    aria-describedby="${uid}-search-hint"
-                    .value="${this._searchQueries[group.field] ?? ''}"
-                    @input="${(e: Event) => this._handleSearch(group.field, e)}"
-                  />
-                  <span class="fr-sr-only" id="${uid}-search-hint"
-                    >Les resultats se mettent a jour automatiquement</span
-                  >
-                  <button
-                    class="fr-btn"
-                    type="button"
-                    title="Rechercher"
-                    aria-hidden="true"
-                    tabindex="-1"
-                  >
-                    Rechercher
-                  </button>
-                </div>
+                ${this._renderPanelSearchBar(group, uid)}
                 <fieldset
                   class="fr-fieldset dsfr-data-facets__dropdown-fieldset"
                   aria-label="${group.label}"
                 >
-                  ${displayValues.map((fv, fvIndex) => {
-                    const radioId = `${uid}-${fvIndex}`;
-                    const isChecked = selected.has(fv.value);
-                    return html`
-                      <div class="fr-fieldset__element">
-                        <div class="fr-radio-group fr-radio-group--sm">
-                          <input
-                            type="radio"
-                            id="${radioId}"
-                            name="${uid}-radio"
-                            .checked="${isChecked}"
-                            @change="${() => this._toggleValue(group.field, fv.value)}"
-                          />
-                          <label class="fr-label" for="${radioId}">
-                            ${fv.value}${this._effectiveHideCounts
-                              ? nothing
-                              : html`<span class="dsfr-data-facets__count" aria-hidden="true"
-                                    >${fv.count}</span
-                                  ><span class="fr-sr-only"
-                                    >, ${fv.count} resultat${fv.count > 1 ? 's' : ''}</span
-                                  >`}
-                          </label>
-                        </div>
-                      </div>
-                    `;
-                  })}
+                  ${displayValues.map((fv, fvIndex) =>
+                    this._renderToggleItem(group, fv, `${uid}-${fvIndex}`, 'radio', `${uid}-radio`)
+                  )}
                 </fieldset>
               </div>
             `
