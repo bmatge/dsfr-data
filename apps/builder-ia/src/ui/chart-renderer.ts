@@ -26,9 +26,11 @@ const Chart = (window as Window & { Chart?: ChartJsCtor }).Chart;
  * Falls back to DSFR_COLORS if the palette name is unknown.
  */
 function resolvePalette(paletteName: string | undefined, count: number): string[] {
+  // PaletteType est redevenu un keyof strict (#322) : garde `in` pour
+  // retrecir la cle au lieu d'indexer avec une string libre
   const base =
-    paletteName && PALETTE_COLORS[paletteName]
-      ? [...PALETTE_COLORS[paletteName]]
+    paletteName && paletteName in PALETTE_COLORS
+      ? [...PALETTE_COLORS[paletteName as keyof typeof PALETTE_COLORS]]
       : [...DSFR_COLORS];
   const result: string[] = [];
   for (let i = 0; i < count; i++) {

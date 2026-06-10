@@ -262,7 +262,10 @@ export function renderChart(): void {
 
   // Get palette colors
   const primaryColor = PALETTE_PRIMARY_COLOR[state.palette] || '#000091';
-  const paletteColors = PALETTE_COLORS[state.palette] || PALETTE_COLORS['categorical'];
+  const paletteColors =
+    state.palette in PALETTE_COLORS
+      ? PALETTE_COLORS[state.palette as keyof typeof PALETTE_COLORS]
+      : PALETTE_COLORS['categorical'];
 
   // Handle scatter chart (needs different data format)
   if (state.chartType === 'scatter') {

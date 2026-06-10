@@ -94,7 +94,10 @@ export function openInPlayground(): void {
 export function renderPaletteSwatches(paletteKey: string = state.palette): void {
   const container = document.getElementById('palette-swatches');
   if (!container) return;
-  const colors = PALETTE_COLORS[paletteKey] ?? PALETTE_COLORS.default ?? [];
+  const colors =
+    paletteKey in PALETTE_COLORS
+      ? PALETTE_COLORS[paletteKey as keyof typeof PALETTE_COLORS]
+      : (PALETTE_COLORS.default ?? []);
   container.innerHTML = colors
     .map((c) => `<span class="palette-swatch" style="background:${c}"></span>`)
     .join('');
