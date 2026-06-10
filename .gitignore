@@ -52,3 +52,4 @@ app-dist/
 
 # Local Claude Code agent state
 .claude/
+audit-ui-*/
