@@ -144,8 +144,10 @@ describe('DsfrDataPodium', () => {
       ];
       podium.maxItems = 10;
       const items = (podium as any)._processItems();
+      // Palette categorical PARTAGEE (#302) : la meme que chart/PALETTE_COLORS
+      // — l'ancienne copie locale divergeait (#FCC63A en 2e position)
       expect(items[0].color).toBe('#000091');
-      expect(items[1].color).toBe('#FCC63A');
+      expect(items[1].color).toBe('#6A6AF4');
     });
 
     it('falls back to sequentialDescending for unknown palette', () => {
@@ -217,14 +219,14 @@ describe('DsfrDataPodium', () => {
     it('wraps palette colors when more items than palette length', () => {
       podium.selectedPalette = 'categorical';
       podium.maxItems = 12;
-      // categorical has 9 colors — 10th item should wrap to index 0
-      (podium as any)._data = Array.from({ length: 10 }, (_, i) => ({
+      // categorical partagee = 10 couleurs (#302) — le 11e item boucle
+      (podium as any)._data = Array.from({ length: 11 }, (_, i) => ({
         nom: `Item ${i}`,
         population: 100 - i,
       }));
       const items = (podium as any)._processItems();
-      expect(items).toHaveLength(10);
-      expect(items[9].color).toBe(items[0].color); // wraps around
+      expect(items).toHaveLength(11);
+      expect(items[10].color).toBe(items[0].color); // wraps around
     });
 
     it('returns empty subtitle when neither subtitle nor subtitleField set', () => {

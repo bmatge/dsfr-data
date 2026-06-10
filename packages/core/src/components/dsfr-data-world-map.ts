@@ -4,6 +4,7 @@ import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { getByPath } from '../utils/json-path.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
+import { CHOROPLETH_SCALES, quantileBreaks, getColorForValue } from '@dsfr-data/shared/lib';
 import { renderSourceLoading, renderSourceError } from '../utils/status-templates.js';
 import { geoPath, geoNaturalEarth1 } from 'd3-geo';
 import type { GeoPermissibleObjects } from 'd3-geo';
@@ -73,85 +74,8 @@ interface CountryFeature {
  * Palettes choropleth 9 teintes — tokens DSFR complets
  * blue-france: 975→main-525 | red-marianne: 975→main-472 | grey: 975→main-50
  */
-const CHOROPLETH_PALETTES: Record<string, readonly string[]> = {
-  sequentialAscending: [
-    '#F5F5FE',
-    '#E3E3FD',
-    '#C1C1FB',
-    '#A1A1F8',
-    '#8585F6',
-    '#6A6AF4',
-    '#4747E5',
-    '#2323B4',
-    '#000091',
-  ],
-  sequentialDescending: [
-    '#000091',
-    '#2323B4',
-    '#4747E5',
-    '#6A6AF4',
-    '#8585F6',
-    '#A1A1F8',
-    '#C1C1FB',
-    '#E3E3FD',
-    '#F5F5FE',
-  ],
-  divergentAscending: [
-    '#000091',
-    '#4747E5',
-    '#8585F6',
-    '#C1C1FB',
-    '#F5F5F5',
-    '#FCC0B4',
-    '#F58050',
-    '#E3541C',
-    '#C9191E',
-  ],
-  divergentDescending: [
-    '#C9191E',
-    '#E3541C',
-    '#F58050',
-    '#FCC0B4',
-    '#F5F5F5',
-    '#C1C1FB',
-    '#8585F6',
-    '#4747E5',
-    '#000091',
-  ],
-  neutral: [
-    '#F6F6F6',
-    '#E5E5E5',
-    '#CECECE',
-    '#B5B5B5',
-    '#929292',
-    '#777777',
-    '#666666',
-    '#3A3A3A',
-    '#161616',
-  ],
-  default: [
-    '#F5F5FE',
-    '#E3E3FD',
-    '#C1C1FB',
-    '#A1A1F8',
-    '#8585F6',
-    '#6A6AF4',
-    '#4747E5',
-    '#2323B4',
-    '#000091',
-  ],
-  categorical: [
-    '#000091',
-    '#6A6AF4',
-    '#009081',
-    '#C9191E',
-    '#FF9940',
-    '#A558A0',
-    '#417DC4',
-    '#716043',
-    '#18753C',
-  ],
-};
+// Echelles choroplethes : source unique @dsfr-data/shared (#302) — la copie
+// locale bucketait en sens OPPOSE de map-layer (v >= break vs value <= break).
 
 const CONTINENT_LABELS: Record<string, string> = {
   Africa: 'Afrique',
@@ -291,27 +215,19 @@ export class DsfrDataWorldMap extends SourceSubscriberMixin(LitElement) {
   }
 
   private _getChoroplethPalette(): readonly string[] {
-    return CHOROPLETH_PALETTES[this.selectedPalette] || CHOROPLETH_PALETTES['sequentialAscending'];
+    return CHOROPLETH_SCALES[this.selectedPalette] || CHOROPLETH_SCALES['sequentialAscending'];
   }
 
   private _getColorScale(values: number[]): (v: number) => string {
     if (values.length === 0) return () => '#E5E5F4';
     const palette = this._getChoroplethPalette();
 
-    // Quantile breaks: each color bucket covers the same number of countries
-    const sorted = [...values].sort((a, b) => a - b);
-    const breaks: number[] = [];
-    for (let i = 1; i < palette.length; i++) {
-      breaks.push(sorted[Math.floor((i / palette.length) * sorted.length)]);
-    }
-
-    return (v: number) => {
-      let idx = 0;
-      for (let i = 0; i < breaks.length; i++) {
-        if (v >= breaks[i]) idx = i + 1;
-      }
-      return palette[Math.min(idx, palette.length - 1)];
-    };
+    // Quantiles + bucketing partages (#302) : la convention unique est
+    // `value <= break` (bornes superieures inclusives) — l'ancien `v >=
+    // break` colorait differemment de map-layer une meme valeur posee sur
+    // un break
+    const breaks = quantileBreaks(values, palette.length);
+    return (v: number) => getColorForValue(v, breaks, palette);
   }
 
   // --- Geo helpers ---

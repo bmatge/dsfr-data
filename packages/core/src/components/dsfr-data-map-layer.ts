@@ -10,6 +10,7 @@ import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { dispatchSourceCommand } from '../utils/data-bridge.js';
 import { getByPath } from '../utils/json-path.js';
+import { CHOROPLETH_SCALES, quantileBreaks, getColorForValue } from '@dsfr-data/shared/lib';
 import { escapeHtml } from '@dsfr-data/shared/lib';
 import type { DsfrDataMap } from './dsfr-data-map.js';
 import type { SourceElement } from '../utils/source-element.js';
@@ -62,93 +63,9 @@ async function resolveLeafletPluginSymbol<T>(name: string): Promise<T | undefine
   return (ns[name] ?? ns.default?.[name]) as T | undefined;
 }
 
-/** Choropleth palettes — shared with dsfr-data-world-map */
-const CHOROPLETH_PALETTES: Record<string, readonly string[]> = {
-  sequentialAscending: [
-    '#F5F5FE',
-    '#E3E3FD',
-    '#C1C1FB',
-    '#A1A1F8',
-    '#8585F6',
-    '#6A6AF4',
-    '#4747E5',
-    '#2323B4',
-    '#000091',
-  ],
-  sequentialDescending: [
-    '#000091',
-    '#2323B4',
-    '#4747E5',
-    '#6A6AF4',
-    '#8585F6',
-    '#A1A1F8',
-    '#C1C1FB',
-    '#E3E3FD',
-    '#F5F5FE',
-  ],
-  divergentAscending: [
-    '#000091',
-    '#4747E5',
-    '#8585F6',
-    '#C1C1FB',
-    '#F5F5F5',
-    '#FCC0B4',
-    '#F58050',
-    '#E3541C',
-    '#C9191E',
-  ],
-  divergentDescending: [
-    '#C9191E',
-    '#E3541C',
-    '#F58050',
-    '#FCC0B4',
-    '#F5F5F5',
-    '#C1C1FB',
-    '#8585F6',
-    '#4747E5',
-    '#000091',
-  ],
-  neutral: [
-    '#F6F6F6',
-    '#E5E5E5',
-    '#CECECE',
-    '#B5B5B5',
-    '#929292',
-    '#777777',
-    '#666666',
-    '#3A3A3A',
-    '#161616',
-  ],
-  default: [
-    '#F5F5FE',
-    '#E3E3FD',
-    '#C1C1FB',
-    '#A1A1F8',
-    '#8585F6',
-    '#6A6AF4',
-    '#4747E5',
-    '#2323B4',
-    '#000091',
-  ],
-};
-
-/** Compute quantile breaks for choropleth */
-function quantileBreaks(values: number[], n: number): number[] {
-  const sorted = [...values].sort((a, b) => a - b);
-  const breaks: number[] = [];
-  for (let i = 1; i < n; i++) {
-    const idx = Math.floor((i / n) * sorted.length);
-    breaks.push(sorted[Math.min(idx, sorted.length - 1)]);
-  }
-  return breaks;
-}
-
-function getColorForValue(value: number, breaks: number[], palette: readonly string[]): string {
-  for (let i = 0; i < breaks.length; i++) {
-    if (value <= breaks[i]) return palette[i];
-  }
-  return palette[palette.length - 1];
-}
+// Echelles choroplethes + bucketing : source unique @dsfr-data/shared (#302)
+// — la copie locale divergeait de world-map (categorical absente, bucketing
+// oppose : value <= break ici, v >= break la-bas).
 
 let layerBoundsSeq = 0;
 
@@ -625,7 +542,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
       const values = items
         .map((r) => Number(getByPath(r, this.fillField)))
         .filter((v) => !isNaN(v));
-      palette = CHOROPLETH_PALETTES[this.selectedPalette] || CHOROPLETH_PALETTES['default'];
+      palette = CHOROPLETH_SCALES[this.selectedPalette] || CHOROPLETH_SCALES['sequentialAscending'];
       breaks = quantileBreaks(values, palette.length);
     }
 

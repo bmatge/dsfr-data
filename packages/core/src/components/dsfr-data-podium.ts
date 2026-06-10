@@ -1,59 +1,15 @@
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { toNumber } from '@dsfr-data/shared/lib';
+import { toNumber, CHOROPLETH_SCALES } from '@dsfr-data/shared/lib';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { getByPath } from '../utils/json-path.js';
 import { formatNumber } from '../utils/formatters.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { renderSourceLoading, renderSourceError } from '../utils/status-templates.js';
 
-/** Palettes for podium items — reuses DSFR sequential palette */
-const PODIUM_PALETTES: Record<string, readonly string[]> = {
-  sequentialDescending: [
-    '#000091',
-    '#2323B4',
-    '#4747E5',
-    '#6A6AF4',
-    '#8585F6',
-    '#A1A1F8',
-    '#C1C1FB',
-    '#E3E3FD',
-    '#F5F5FE',
-  ],
-  sequentialAscending: [
-    '#F5F5FE',
-    '#E3E3FD',
-    '#C1C1FB',
-    '#A1A1F8',
-    '#8585F6',
-    '#6A6AF4',
-    '#4747E5',
-    '#2323B4',
-    '#000091',
-  ],
-  categorical: [
-    '#000091',
-    '#FCC63A',
-    '#E4794A',
-    '#60E0EB',
-    '#009081',
-    '#FF6F4C',
-    '#8585F6',
-    '#CE614A',
-    '#C3992A',
-  ],
-  neutral: [
-    '#161616',
-    '#3A3A3A',
-    '#666666',
-    '#777777',
-    '#929292',
-    '#B5B5B5',
-    '#CECECE',
-    '#E5E5E5',
-    '#F6F6F6',
-  ],
-};
+// Palettes : source unique @dsfr-data/shared (#302) — la categorical locale
+// differait de PALETTE_COLORS : meme attribut selected-palette que chart,
+// couleurs differentes (dashboard incoherent visuellement).
 
 interface PodiumItem {
   label: string;
@@ -172,7 +128,7 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
 
     // Pick palette colors
     const palette =
-      PODIUM_PALETTES[this.selectedPalette] ?? PODIUM_PALETTES['sequentialDescending'];
+      CHOROPLETH_SCALES[this.selectedPalette] ?? CHOROPLETH_SCALES['sequentialDescending'];
 
     items.forEach((item, index) => {
       item.ratio = maxValue > 0 ? item.value / maxValue : 0;

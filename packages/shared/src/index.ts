@@ -20,6 +20,9 @@ export {
   PALETTE_PRIMARY_COLOR,
   PALETTE_COLORS,
   PALETTE_DISPLAY_NAMES,
+  CHOROPLETH_SCALES,
+  quantileBreaks,
+  getColorForValue,
 } from './constants/dsfr-palettes.js';
 export type { PaletteType } from './constants/dsfr-palettes.js';
 
