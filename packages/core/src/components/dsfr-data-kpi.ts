@@ -1,7 +1,7 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
-import { formatValue, FormatType, getColorBySeuil } from '../utils/formatters.js';
+import { formatValue, formatPercentage, FormatType, getColorBySeuil } from '../utils/formatters.js';
 import { computeAggregation } from '../utils/aggregations.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { renderSourceLoading, renderSourceError } from '../utils/status-templates.js';
@@ -56,7 +56,13 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
   @property({ type: String })
   format: FormatType = 'nombre';
 
-  /** Expression pour la tendance (ex: "+3.2") */
+  /**
+   * Expression d'agregation pour la tendance, evaluee sur les donnees de la
+   * source (grammaire commune "champ:fn", ex. "evolution:avg") — PAS un
+   * litteral : l'ancienne doc ("+3.2") laissait croire qu'on passait une
+   * valeur, la chaine etait interpretee comme nom de champ (#303).
+   * Le resultat est affiche en pourcentage fr-FR ("5,2 %").
+   */
   @property({ type: String })
   tendance = '';
 
@@ -166,9 +172,9 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
                             class="dsfr-data-kpi__tendance dsfr-data-kpi__tendance--${tendance.direction}"
                             role="img"
                             aria-label="${tendance.value > 0
-                              ? `en hausse de ${Math.abs(tendance.value).toFixed(1)}%`
+                              ? `en hausse de ${formatPercentage(Math.abs(tendance.value))}`
                               : tendance.value < 0
-                                ? `en baisse de ${Math.abs(tendance.value).toFixed(1)}%`
+                                ? `en baisse de ${formatPercentage(Math.abs(tendance.value))}`
                                 : 'stable'}"
                           >
                             ${tendance.direction === 'up'
@@ -176,7 +182,7 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
                               : tendance.direction === 'down'
                                 ? '↓'
                                 : '→'}
-                            ${Math.abs(tendance.value).toFixed(1)}%
+                            ${formatPercentage(Math.abs(tendance.value))}
                           </span>
                         `
                       : ''}
