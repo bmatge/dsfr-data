@@ -87,6 +87,10 @@ export const __tilePresetsForTests = {
 // Lazy Leaflet module cache
 let L: typeof import('leaflet') | null = null;
 
+/** Ids ARIA uniques (#298) — Date.now() dupliquait les ids de deux cartes
+ * creees dans la meme milliseconde */
+let mapIdSeq = 0;
+
 async function loadLeaflet(): Promise<typeof import('leaflet')> {
   if (L) return L;
   L = await import('leaflet');
@@ -150,6 +154,8 @@ export class DsfrDataMap extends LitElement {
   private _liveRegion: HTMLDivElement | null = null;
   private _afterMapAnchor: HTMLDivElement | null = null;
   private _visibilityObserver: IntersectionObserver | null = null;
+  /** Init en cours (pendant les await) — garde anti double-init (#298) */
+  private _initInFlight = false;
   private _resizeObserver: ResizeObserver | null = null;
 
   // Light DOM
@@ -202,6 +208,7 @@ export class DsfrDataMap extends LitElement {
       this._leafletMap.remove();
       this._leafletMap = null;
     }
+    this._initInFlight = false;
     this._container = null;
     this._skipLink?.remove();
     this._skipLink = null;
@@ -328,7 +335,21 @@ export class DsfrDataMap extends LitElement {
   // --- Init ---
 
   private async _initMap() {
+    // Garde anti double-init (#298) : reconnexion DOM (dashboard qui
+    // reordonne) ou IntersectionObserver pendant un await en vol ->
+    // deux init concurrentes (double skip-link, deux instances L.map)
+    if (this._leafletMap || this._initInFlight) return;
+    this._initInFlight = true;
+
     const leaflet = await loadLeaflet();
+
+    // Init posthume (#298) : si l'element a ete deconnecte pendant
+    // l'await, ne pas creer une carte sur un element detache (jamais
+    // remove() -> fuite du listener resize window pose par Leaflet)
+    if (!this.isConnected) {
+      this._initInFlight = false;
+      return;
+    }
 
     // Inject Leaflet CSS if not already present (inlined to avoid CSP issues)
     if (!document.querySelector('style[data-leaflet-css]')) {
@@ -343,7 +364,7 @@ export class DsfrDataMap extends LitElement {
 
     // Ensure stable ID for ARIA references
     if (!this.id) {
-      this.id = `dsfr-data-map-${Date.now()}`;
+      this.id = `dsfr-data-map-${++mapIdSeq}`;
     }
     const mapId = this.id;
     const descId = `${mapId}-desc`;
@@ -439,6 +460,11 @@ export class DsfrDataMap extends LitElement {
 
     // Notify already-present layers
     this._notifyExistingLayers();
+
+    // Init terminee : libere le verrou (#298) — au cycle disconnect/
+    // reconnect, disconnectedCallback detruit la carte et la reconnexion
+    // doit pouvoir re-initialiser
+    this._initInFlight = false;
   }
 
   private _updateTiles() {
