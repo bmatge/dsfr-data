@@ -80,6 +80,24 @@ export class TabularAdapter implements ApiAdapter {
   }
 
   /**
+   * True si le group-by/aggregate de params est entierement delegable
+   * (tous les champs surs pour la syntaxe a suffixe `colonne__op`, #289).
+   */
+  private _canServerProcessGroupBy(params: AdapterParams): boolean {
+    if (!params.groupBy && !params.aggregate) return true;
+    const fields = [
+      ...(params.groupBy
+        ? params.groupBy
+            .split(',')
+            .map((f) => f.trim())
+            .filter(Boolean)
+        : []),
+      ...parseAggregates(params.aggregate || '').map((a) => a.field),
+    ];
+    return this.supportsServerFields(fields);
+  }
+
+  /**
    * Fetch toutes les données avec pagination automatique via links.next.
    * Quand groupBy/aggregate sont presents, l'API Tabular les execute
    * cote serveur et retourne les données déjà agregees (needsClientProcessing=false).
@@ -87,6 +105,16 @@ export class TabularAdapter implements ApiAdapter {
   async fetchAll(params: AdapterParams, signal: AbortSignal): Promise<FetchResult> {
     const fetchAllRecords = params.limit <= 0;
     const requestedLimit = fetchAllRecords ? TABULAR_MAX_PAGES * TABULAR_PAGE_SIZE : params.limit;
+
+    // Champs non delegables (#289) : prevenu une fois, lignes brutes +
+    // needsClientProcessing — l'aval (query) retraite client-side
+    const canServerProcess = this._canServerProcessGroupBy(params);
+    if (!canServerProcess && (params.groupBy || params.aggregate)) {
+      console.warn(
+        `[dsfr-data] tabular: group-by/aggregate non delegables (champ avec espaces/ponctuation : ` +
+          `"${params.groupBy || params.aggregate}") — lignes brutes renvoyees, traitement client requis`
+      );
+    }
     let allResults: unknown[] = [];
     let totalCount = -1;
     let currentPage = 1;
@@ -95,7 +123,8 @@ export class TabularAdapter implements ApiAdapter {
       const remaining = requestedLimit - allResults.length;
       if (remaining <= 0) break;
 
-      const url = this.buildUrl(params, TABULAR_PAGE_SIZE, currentPage);
+      // Derniere page bornee a remaining : plus d'over-fetch de 50 (#289)
+      const url = this.buildUrl(params, Math.min(TABULAR_PAGE_SIZE, remaining), currentPage);
 
       const response = await fetch(url, buildFetchOptions(params, signal));
       if (!response.ok) {
@@ -142,13 +171,14 @@ export class TabularAdapter implements ApiAdapter {
     // Avertir si pagination incomplete
     if (totalCount >= 0 && allResults.length < totalCount && allResults.length < requestedLimit) {
       console.warn(
-        `dsfr-data-query: pagination incomplete - ${allResults.length}/${totalCount} resultats recuperes ` +
+        `[dsfr-data] tabular: pagination incomplete - ${allResults.length}/${totalCount} resultats recuperes ` +
           `(limite de securite: ${TABULAR_MAX_PAGES} pages de ${TABULAR_PAGE_SIZE})`
       );
     }
 
-    // Quand l'API a execute groupBy/aggregate, les données sont déjà traitees
-    const serverHandled = !!(params.groupBy || params.aggregate);
+    // Quand l'API a reellement execute groupBy/aggregate, les données sont
+    // déjà traitees — pas quand le garde-fou #289 a retire les parametres
+    const serverHandled = !!(params.groupBy || params.aggregate) && canServerProcess;
 
     return {
       data: allResults,
@@ -201,20 +231,30 @@ export class TabularAdapter implements ApiAdapter {
       this._applyColonFilters(url, filterExpr);
     }
 
-    // Group by
-    if (params.groupBy) {
-      const groupFields = params.groupBy.split(',').map((f) => f.trim());
-      for (const field of groupFields) {
-        url.searchParams.append(`${field}__groupby`, '');
+    // Group by + agregations : seulement si TOUS les champs sont surs (#289).
+    // Le garde-fou isTabularServerFieldSafe n'etait consulte que par la
+    // delegation query (#275) — un group-by pose directement sur la source
+    // (mode documente) avec un champ a espaces produisait le "Malformed
+    // query" que la fonction pretend eviter. Champs non surs → lignes brutes
+    // (needsClientProcessing signale par fetchAll).
+    if (this._canServerProcessGroupBy(params)) {
+      if (params.groupBy) {
+        const groupFields = params.groupBy
+          .split(',')
+          .map((f) => f.trim())
+          .filter(Boolean);
+        for (const field of groupFields) {
+          url.searchParams.append(`${field}__groupby`, '');
+        }
       }
-    }
 
-    // Agrégations — l'API Tabular nomme la colonne retournee `field__func`,
-    // ce qui correspond a la convention d'alias unique du pipeline (#269).
-    // Les alias personnalises (3e segment) ne sont pas supportes server-side.
-    if (params.aggregate) {
-      for (const agg of parseAggregates(params.aggregate)) {
-        url.searchParams.append(`${agg.field}__${agg.function}`, '');
+      // Agrégations — l'API Tabular nomme la colonne retournee `field__func`,
+      // ce qui correspond a la convention d'alias unique du pipeline (#269).
+      // Les alias personnalises (3e segment) ne sont pas supportes server-side.
+      if (params.aggregate) {
+        for (const agg of parseAggregates(params.aggregate)) {
+          url.searchParams.append(`${agg.field}__${agg.function}`, '');
+        }
       }
     }
 
@@ -291,7 +331,8 @@ export class TabularAdapter implements ApiAdapter {
           op === 'in' || op === 'notin'
             ? raw.split('|').map(unescapeColonValue).join(',')
             : unescapeColonValue(raw);
-        url.searchParams.set(`${field}__${op}`, value);
+        // append : deux filtres meme champ+op sont AND-es comme Grist/ODS (#289)
+        url.searchParams.append(`${field}__${op}`, value);
       }
     }
   }
