@@ -2393,7 +2393,6 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | bbox-debounce | Number | \`300\` | Delai re-fetch (ms) |
 | bbox-field | String | \`""\` | Champ geo pour bbox (auto-détecté si vide) |
 | max-items | Number | \`5000\` | Limite elements rendus |
-| filter | String | \`""\` | Filtre client-side |
 | time-field | String | \`""\` | Champ date/heure pour animation temporelle |
 | time-bucket | String | \`"none"\` | Granularite : \`none\`, \`hour\`, \`day\`, \`month\`, \`year\` |
 | time-mode | String | \`"snapshot"\` | \`snapshot\` (pas courant) ou \`cumulative\` (tout jusqu'au pas courant) |

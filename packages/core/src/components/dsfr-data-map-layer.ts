@@ -279,9 +279,6 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   @property({ type: Number, attribute: 'max-items' })
   maxItems = 5000;
 
-  @property({ type: String })
-  filter = '';
-
   // --- Internal state ---
 
   private _mapParent: DsfrDataMap | null = null;
@@ -300,6 +297,9 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   private _heatLoaded = false;
   private _heatLayerFactory: HeatLayerFactory | null = null;
   private _radiusScale: ((val: number) => number) | null = null;
+
+  /** Compagnon popup resolu une fois par rendu (#297) */
+  private _popupCompanion: import('./dsfr-data-map-popup.js').DsfrDataMapPopup | null = null;
   private _colorMapParsed: Map<string, string> | null = null;
 
   // Timeline state
@@ -471,6 +471,13 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
 
   connectedCallback() {
     super.connectedCallback();
+    // Attribut retire (#297) : declare mais jamais lu (no-op)
+    if (this.hasAttribute('filter')) {
+      console.warn(
+        `dsfr-data-map-layer[${this.id}]: l'attribut "filter" a été retiré (il était sans effet) — ` +
+          `filtrez en amont via dsfr-data-query ou le where de dsfr-data-source`
+      );
+    }
     sendWidgetBeacon('dsfr-data-map-layer', this.type);
   }
 
@@ -478,6 +485,12 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     super.disconnectedCallback();
     // Libere les bounds enregistres aupres de la carte (#294)
     this._mapParent?.unregisterLayerBounds?.(this._boundsKey);
+    // Libere le filtre viewport pousse sur la source (#297) : un layer
+    // retire laissait la source filtree sur le dernier viewport pour tous
+    // ses autres consommateurs
+    if (this.bbox && this.source) {
+      dispatchSourceCommand(this.source, { where: '', whereKey: 'map-bbox' });
+    }
     if (this._bboxTimer) clearTimeout(this._bboxTimer);
     if (this._layerGroup && this._leafletMap) {
       this._layerGroup.removeFrom(this._leafletMap);
@@ -583,13 +596,15 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
 
     let items = itemsOverride ?? this._data;
 
-    // Client-side bounds filter
+    // Compagnon popup resolu une fois par rendu (#297) — _findPopupCompanion
+    // etait appele PAR RECORD (jusqu'a maxItems querySelector par rendu)
+    this._popupCompanion = this._findPopupCompanion();
+
+    // Client-side bounds filter — points ET geometries (#297) : ne savoir
+    // extraire que des points faisait disparaitre TOUS les polygones des le
+    // premier pan quand bbox est actif sans serverGeo
     if (clientBounds) {
-      items = items.filter((record) => {
-        const coords = this._extractCoords(record);
-        if (!coords) return false;
-        return clientBounds.contains([coords.lat, coords.lon]);
-      });
+      items = items.filter((record) => this._recordIntersectsBounds(record, clientBounds));
     }
 
     this._totalCount = items.length;
@@ -816,7 +831,9 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     if (this.radiusField) {
       const val = Number(getByPath(record, this.radiusField));
       if (!isNaN(val)) {
-        r = this._radiusScale ? this._radiusScale(val) : val;
+        // radius-unit="m" : la valeur du champ EST en metres — l'echelle px
+        // (radius-min..radius-max) produisait des cercles invisibles (#297)
+        r = this.radiusUnit === 'm' ? val : this._radiusScale ? this._radiusScale(val) : val;
       }
     }
 
@@ -915,6 +932,71 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
 
   // --- Coordinate extraction ---
 
+  /**
+   * Le record intersecte-t-il le viewport ? Points ET geometries (#297).
+   * Une geometrie inextractible est CONSERVEE : ne pas faire disparaitre
+   * ce qu'on ne sait pas filtrer.
+   */
+  private _recordIntersectsBounds(record: Record<string, unknown>, bounds: LatLngBounds): boolean {
+    const coords = this._extractCoords(record);
+    if (coords) {
+      return bounds.contains([coords.lat, coords.lon]);
+    }
+
+    const geoValue = this.geoField
+      ? getByPath(record, this.geoField)
+      : (record['geo_shape'] ?? record['geometry'] ?? record['geom']);
+    const bbox = this._geometryBbox(geoValue);
+    if (!bbox) return true;
+
+    const sw = bounds.getSouthWest();
+    const ne = bounds.getNorthEast();
+    return (
+      bbox.maxLat >= sw.lat &&
+      bbox.minLat <= ne.lat &&
+      bbox.maxLon >= sw.lng &&
+      bbox.minLon <= ne.lng
+    );
+  }
+
+  /**
+   * Bbox d'une geometrie GeoJSON (Feature, Polygon, MultiPolygon, lignes...)
+   * par parcours des coordonnees [lon, lat] (#297). null si inextractible.
+   */
+  private _geometryBbox(
+    geo: unknown
+  ): { minLat: number; minLon: number; maxLat: number; maxLon: number } | null {
+    const g = geo as
+      | { type?: string; coordinates?: unknown; geometry?: unknown }
+      | null
+      | undefined;
+    if (!g || typeof g !== 'object') return null;
+    if (g.type === 'Feature' && g.geometry) return this._geometryBbox(g.geometry);
+    if (!g.coordinates) return null;
+
+    let minLat = Infinity;
+    let minLon = Infinity;
+    let maxLat = -Infinity;
+    let maxLon = -Infinity;
+    const walk = (node: unknown): void => {
+      if (!Array.isArray(node)) return;
+      if (node.length >= 2 && typeof node[0] === 'number' && typeof node[1] === 'number') {
+        const lon = node[0];
+        const lat = node[1];
+        if (lat < minLat) minLat = lat;
+        if (lat > maxLat) maxLat = lat;
+        if (lon < minLon) minLon = lon;
+        if (lon > maxLon) maxLon = lon;
+        return;
+      }
+      for (const child of node) walk(child);
+    };
+    walk(g.coordinates);
+
+    if (!isFinite(minLat)) return null;
+    return { minLat, minLon, maxLat, maxLon };
+  }
+
   private _extractCoords(record: Record<string, unknown>): { lat: number; lon: number } | null {
     // Mode 1: lat-field + lon-field
     if (this.latField && this.lonField) {
@@ -995,7 +1077,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   }
 
   private _bindPopup(layer: LeafletLayer, record: Record<string, unknown>): void {
-    const companion = this._findPopupCompanion();
+    const companion = this._popupCompanion;
 
     if (companion) {
       // Companion popup component handles display
@@ -1182,6 +1264,13 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     this._banner = document.createElement('div');
     this._banner.className = 'dsfr-data-map__max-items-banner';
     this._banner.textContent = `${displayedCount.toLocaleString('fr-FR')} elements affiches sur ${this._totalCount.toLocaleString('fr-FR')} disponibles. Zoomez pour voir plus de detail.`;
+    // Plusieurs layers tronques : empiler les banners au lieu de les
+    // superposer (#297)
+    const existing =
+      this._mapParent?.querySelectorAll('.dsfr-data-map__max-items-banner').length ?? 0;
+    if (existing > 0) {
+      this._banner.style.bottom = `${10 + existing * 36}px`;
+    }
     this._mapParent?.appendChild(this._banner);
   }
 

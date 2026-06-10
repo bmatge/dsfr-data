@@ -13,7 +13,8 @@ import {
 
 function layerAttrs(layer: LayerConfig): string {
   const attrs: string[] = [];
-  attrs.push(`source="${layer.id}"`);
+  // Avec un filtre, le layer consomme le dsfr-data-query intermediaire (#297)
+  attrs.push(`source="${layer.filter ? `${layer.id}-filtre` : layer.id}"`);
   attrs.push(`type="${layer.type}"`);
 
   if (layer.latField) attrs.push(`lat-field="${layer.latField}"`);
@@ -58,8 +59,6 @@ function layerAttrs(layer: LayerConfig): string {
     attrs.push('cluster');
     if (layer.clusterRadius !== 80) attrs.push(`cluster-radius="${layer.clusterRadius}"`);
   }
-
-  if (layer.filter) attrs.push(`filter="${layer.filter}"`);
 
   if (layer.minZoom !== 0) attrs.push(`min-zoom="${layer.minZoom}"`);
   if (layer.maxZoom !== 18) attrs.push(`max-zoom="${layer.maxZoom}"`);
@@ -161,6 +160,13 @@ export function generateCode(): string {
     const src = sourceTag(layer);
     if (src) {
       lines.push(src);
+      // Filtre du layer : un dsfr-data-query intermediaire (#297) —
+      // l'ancien attribut filter du layer etait un no-op (jamais lu)
+      if (layer.filter) {
+        lines.push(
+          `<dsfr-data-query id="${layer.id}-filtre" source="${layer.id}" where="${layer.filter}">\n</dsfr-data-query>`
+        );
+      }
       lines.push('');
     }
   }

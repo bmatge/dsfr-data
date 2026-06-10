@@ -636,7 +636,7 @@ function renderLayerConfig() {
           <label for="layer-filter">Filtre (expression)
             <span class="fr-hint-text">Ex: status = 'active'</span>
           </label>
-          <input type="text" id="layer-filter" value="${escapeAttr(layer.filter)}" placeholder="">
+          <input type="text" id="layer-filter" value="${escapeAttr(layer.filter)}" placeholder="champ:eq:valeur, champ2:gt:100">
         </div>
 
         <div class="carto-checkbox">

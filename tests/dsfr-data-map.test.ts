@@ -591,8 +591,8 @@ describe('DsfrDataMapLayer all attribute defaults', () => {
   it('has bbox-field empty', () => {
     expect(layer.bboxField).toBe('');
   });
-  it('has filter empty', () => {
-    expect(layer.filter).toBe('');
+  it("n'a plus d'attribut filter (no-op supprime, #297)", () => {
+    expect('filter' in layer).toBe(false);
   });
   it('has bbox-debounce 300', () => {
     expect(layer.bboxDebounce).toBe(300);
