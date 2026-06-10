@@ -2628,6 +2628,79 @@ clés de premier niveau.
 \`\`\``,
   },
 
+  dsfrDataContext: {
+    id: 'dsfrDataContext',
+    name: 'dsfr-data-context',
+    description: 'Filtres transverses multi-sources (dashboard a filtre commun)',
+    trigger: [
+      'context',
+      'contexte',
+      'filtre commun',
+      'filtre partage',
+      'filtre transverse',
+      'dashboard filtre',
+      'multi-vues',
+      'fan-out',
+      'orchestration',
+    ],
+    content: `## <dsfr-data-context> - Filtres transverses multi-sources
+
+Chef d'orchestre OPT-IN (#229, ADR-031) : tient les filtres communs d'un dashboard
+multi-vues et les diffuse a N sources nommees. Ne fait aucun fetch HTTP, ne transforme
+aucune donnee — il emet des commandes where (un whereKey stable par filtre, combinaison
+en AND par le merge multi-emetteurs des sources ; jamais « le dernier gagne »).
+Sans contexte, chaque source reste autonome (defaut inchange).
+
+### Attributs
+
+| Attribut | Type | Défaut | Requis | Description |
+|----------|------|--------|--------|-------------|
+| sources | String | \`""\` | oui | Ids des sources cibles, separes par des espaces |
+
+### Pattern
+
+\`\`\`html
+<select id="ui-categorie" multiple>...</select>
+
+<dsfr-data-context sources="src-a src-b src-c">
+  <dsfr-data-context-filter field="categorie" operator="in" ui="ui-categorie">
+  </dsfr-data-context-filter>
+</dsfr-data-context>
+\`\`\`
+
+Les enfants <dsfr-data-context-filter> declarent chacun UN filtre. La clause est
+construite en colon (dialecte pivot) puis traduite au whereFormat de chaque adapter
+(ODSQL pour OpenDataSoft). Le disconnect du contexte libere tous ses filtres.
+`,
+  },
+
+  dsfrDataContextFilter: {
+    id: 'dsfrDataContextFilter',
+    name: 'dsfr-data-context-filter',
+    description: "Un filtre d'un dsfr-data-context (ecoute un element d'UI)",
+    trigger: ['context-filter', 'filtre contexte', 'filtre ui', 'apply-to'],
+    content: `## <dsfr-data-context-filter> - Un filtre du contexte
+
+Enfant de <dsfr-data-context>. Ecoute les change/input de l'element d'UI reference
+par \`ui\` (select, input, select multiple) et confie sa clause au contexte parent.
+La valeur vide RETIRE le filtre. Les valeurs sont percent-encodees (#271).
+
+### Attributs
+
+| Attribut | Type | Défaut | Requis | Description |
+|----------|------|--------|--------|-------------|
+| field | String | \`""\` | oui | Colonne filtree |
+| ui | String | \`""\` | oui | Id de l'element d'UI ecoute — DEUX ids (min max) pour between |
+| operator | String | \`"eq"\` | non | eq, in, lt, gte, between (between -> gte + lt) |
+| apply-to | String | \`"*"\` | non | \`*\` = toutes les sources du contexte, ou liste d'ids cibles separes par des espaces |
+
+### Operateurs
+
+- \`eq\` : egalite — \`in\` : multi-valeurs (select multiple, valeurs jointes par |)
+- \`lt\` / \`gte\` : comparaisons — \`between\` : deux UI (min puis max) -> gte + lt
+`,
+  },
+
   dsfrDataJoin: {
     id: 'dsfrDataJoin',
     name: 'dsfr-data-join',
