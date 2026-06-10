@@ -10,7 +10,7 @@
  */
 export const CDN_VERSIONS = {
   dsfr: '1.14.4',
-  dsfrChart: '2.0.5',
+  dsfrChart: '2.1.1',
   chartJs: '4.4.1',
 } as const;
 
