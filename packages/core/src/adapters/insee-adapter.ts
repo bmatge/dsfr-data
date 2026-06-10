@@ -68,7 +68,12 @@ export class InseeAdapter implements ApiAdapter {
    * The `paging.count` field gives total records, `paging.isLast` signals the last page.
    */
   async fetchAll(params: AdapterParams, signal: AbortSignal): Promise<FetchResult> {
-    const pageSize = params.pageSize > 0 ? params.pageSize : INSEE_PAGE_SIZE;
+    // Pages de 1000 TOUJOURS (#286) : params.pageSize (defaut 20 venant de
+    // la source) ne concerne que la pagination serveur (fetchPage). L'utiliser
+    // ici plafonnait fetchAll a INSEE_MAX_PAGES x 20 = 2000 records (au lieu
+    // des 100 000 documentes) avec 50x plus de requetes — ODS et Tabular
+    // ignorent params.pageSize en fetchAll, INSEE s'aligne.
+    const pageSize = INSEE_PAGE_SIZE;
     const fetchAllRecords = params.limit <= 0;
     const requestedLimit = fetchAllRecords ? INSEE_MAX_PAGES * pageSize : params.limit;
 

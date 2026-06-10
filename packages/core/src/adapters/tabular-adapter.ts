@@ -45,7 +45,7 @@ function isTabularServerFieldSafe(field: string): boolean {
 /** Nombre max de records par requête Tabular (API max = 50) */
 const TABULAR_PAGE_SIZE = 50;
 
-/** Nombre max de pages a fetcher (limite de securite : 50K records) */
+/** Nombre max de pages a fetcher (limite de securite : 500 x 50 = 25 000 records, #286) */
 const TABULAR_MAX_PAGES = 500;
 
 export class TabularAdapter implements ApiAdapter {

@@ -169,6 +169,7 @@ Pour les cas sans transformation (datalist, display), dsfr-data-query peut etre 
 | serverOrderBy | oui | oui | oui | non | non |
 | serverGeo | oui | non | non | non | non |
 | whereFormat | odsql | colon | colon | colon | colon |
+| plafond fetchAll (#286) | 1 000 (10×100) | 25 000 (500×50) | illimite (1 requete) | 100 000 (100×1000) | n/a |
 
 **Formats WHERE** :
 - **ODSQL** (OpenDataSoft) : syntaxe SQL-like — `population > 5000 AND status = 'active'`, clauses jointes par ` AND `

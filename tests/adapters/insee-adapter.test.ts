@@ -263,11 +263,63 @@ describe('InseeAdapter', () => {
 // Fetch-based tests
 // =============================================================================
 
-describe('InseeAdapter — fetchAll', () => {
+describe('InseeAdapter — fetchAll pagine par pages de 1000 (#286)', () => {
   const adapter = new InseeAdapter();
 
   beforeEach(() => {
     mockFetch.mockReset();
+  });
+
+  it('AC #286 : 10 000 lignes = 10 requêtes, pas 500', async () => {
+    // Simule l'API : 10 pages pleines de 1000 observations
+    const TOTAL = 10_000;
+    let served = 0;
+    mockFetch.mockImplementation((url: string) => {
+      const parsed = new URL(url, 'https://api.insee.fr');
+      const maxResult = Number(parsed.searchParams.get('maxResult'));
+      const batch = Math.min(maxResult, TOTAL - served);
+      served += batch;
+      return Promise.resolve(
+        inseeResponse(
+          Array.from({ length: batch }, (_, i) =>
+            obs({ GEO: `G${i}` }, { OBS_VALUE_NIVEAU: { value: i } })
+          ),
+          { count: TOTAL, isLast: served >= TOTAL }
+        )
+      );
+    });
+
+    // params.pageSize = 20 (défaut de la source) : fetchAll doit l'IGNORER
+    // — avant le fix, il paginait par 20 (500 requêtes pour 10 000 lignes,
+    // plafonnées à 100 pages = 2000 records au lieu des 100 000 promis)
+    const result = await adapter.fetchAll(makeParams({ pageSize: 20 }), {
+      aborted: false,
+    } as AbortSignal);
+
+    expect(result.data).toHaveLength(TOTAL);
+    expect(mockFetch).toHaveBeenCalledTimes(10);
+    const firstUrl = new URL(mockFetch.mock.calls[0][0], 'https://api.insee.fr');
+    expect(firstUrl.searchParams.get('maxResult')).toBe('1000');
+  });
+
+  it('limit explicite : pages de 1000 plafonnées au limit', async () => {
+    mockFetch.mockImplementation(() =>
+      Promise.resolve(
+        inseeResponse(
+          Array.from({ length: 500 }, (_, i) => obs({ GEO: `G${i}` }, { V_NIVEAU: { value: i } })),
+          { count: 50_000, isLast: false }
+        )
+      )
+    );
+
+    const result = await adapter.fetchAll(makeParams({ limit: 500, pageSize: 20 }), {
+      aborted: false,
+    } as AbortSignal);
+
+    expect(result.data).toHaveLength(500);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const url = new URL(mockFetch.mock.calls[0][0], 'https://api.insee.fr');
+    expect(url.searchParams.get('maxResult')).toBe('500');
   });
 
   it('fetches and flattens observations', async () => {
@@ -344,26 +396,26 @@ describe('InseeAdapter — fetchAll', () => {
     expect(result.data[0]).toEqual({ GEO: 'FR' });
   });
 
-  it('paginates across multiple pages', async () => {
-    // Page 1
+  it('paginates across multiple pages (pages de 1000, pageSize ignore — #286)', async () => {
+    // Page 1 (pleine : 1000)
     mockFetch.mockResolvedValueOnce(
       inseeResponse(
-        Array.from({ length: 10 }, (_, i) => obs({ id: String(i) }, { V: { value: i } })),
-        { count: 25, isLast: false, page: 1 }
+        Array.from({ length: 1000 }, (_, i) => obs({ id: String(i) }, { V: { value: i } })),
+        { count: 2500, isLast: false, page: 1 }
       )
     );
-    // Page 2
+    // Page 2 (pleine)
     mockFetch.mockResolvedValueOnce(
       inseeResponse(
-        Array.from({ length: 10 }, (_, i) => obs({ id: String(i + 10) }, { V: { value: i + 10 } })),
-        { count: 25, isLast: false, page: 2 }
+        Array.from({ length: 1000 }, (_, i) => obs({ id: String(i + 1000) }, { V: { value: i } })),
+        { count: 2500, isLast: false, page: 2 }
       )
     );
-    // Page 3 (last)
+    // Page 3 (derniere : 500)
     mockFetch.mockResolvedValueOnce(
       inseeResponse(
-        Array.from({ length: 5 }, (_, i) => obs({ id: String(i + 20) }, { V: { value: i + 20 } })),
-        { count: 25, isLast: true, page: 3 }
+        Array.from({ length: 500 }, (_, i) => obs({ id: String(i + 2000) }, { V: { value: i } })),
+        { count: 2500, isLast: true, page: 3 }
       )
     );
 
@@ -372,8 +424,8 @@ describe('InseeAdapter — fetchAll', () => {
       new AbortController().signal
     );
 
-    expect(result.data).toHaveLength(25);
-    expect(result.totalCount).toBe(25);
+    expect(result.data).toHaveLength(2500);
+    expect(result.totalCount).toBe(2500);
     expect(mockFetch).toHaveBeenCalledTimes(3);
   });
 
@@ -428,13 +480,13 @@ describe('InseeAdapter — fetchAll', () => {
     expect(result.data).toHaveLength(5);
   });
 
-  it('uses params.pageSize as effective page size', async () => {
+  it('ignores params.pageSize in fetchAll (pages de 1000 — #286)', async () => {
     mockFetch.mockResolvedValueOnce(inseeResponse([], { isLast: true }));
 
     await adapter.fetchAll(makeParams({ pageSize: 500 }), new AbortController().signal);
 
     const calledUrl = new URL(mockFetch.mock.calls[0][0]);
-    expect(calledUrl.searchParams.get('maxResult')).toBe('500');
+    expect(calledUrl.searchParams.get('maxResult')).toBe('1000');
   });
 
   it('handles empty observations array', async () => {
@@ -513,25 +565,16 @@ describe('InseeAdapter — fetchAll', () => {
   it('warns on incomplete pagination', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    // Single page returns 10 items but totalCount is 5000
+    // La page renvoie moins que 1000 (short read) alors que count = 5000 :
+    // la pagination s'arrete et signale l'incompletude
     mockFetch.mockResolvedValueOnce(
       inseeResponse(
-        Array.from({ length: 10 }, (_, i) => obs({ id: String(i) }, {})),
-        { count: 5000, isLast: false }
-      )
-    );
-    // Second page returns fewer items than page size (stops pagination)
-    mockFetch.mockResolvedValueOnce(
-      inseeResponse(
-        Array.from({ length: 5 }, (_, i) => obs({ id: String(i + 10) }, {})),
+        Array.from({ length: 15 }, (_, i) => obs({ id: String(i) }, {})),
         { count: 5000, isLast: false }
       )
     );
 
-    const result = await adapter.fetchAll(
-      makeParams({ pageSize: 10 }),
-      new AbortController().signal
-    );
+    const result = await adapter.fetchAll(makeParams(), new AbortController().signal);
 
     expect(result.data).toHaveLength(15);
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('pagination incomplete'));
@@ -553,18 +596,18 @@ describe('InseeAdapter — fetchAll', () => {
   });
 
   it('uses 1-based page numbering', async () => {
-    // Page 1
+    // Page 1 (pleine : 1000)
     mockFetch.mockResolvedValueOnce(
       inseeResponse(
-        Array.from({ length: 5 }, () => obs({}, {})),
-        { count: 10, isLast: false }
+        Array.from({ length: 1000 }, () => obs({}, {})),
+        { count: 1500, isLast: false }
       )
     );
     // Page 2
     mockFetch.mockResolvedValueOnce(
       inseeResponse(
-        Array.from({ length: 5 }, () => obs({}, {})),
-        { count: 10, isLast: true }
+        Array.from({ length: 500 }, () => obs({}, {})),
+        { count: 1500, isLast: true }
       )
     );
 
