@@ -1,3 +1,5 @@
+import { toNumber } from '@dsfr-data/shared/lib';
+
 /**
  * Aggregations - Fonctions d'agrégation pour les KPIs
  * Permet de calculer des agrégats (avg, sum, count, min, max) sur des tableaux de données
@@ -85,29 +87,43 @@ export function computeAggregation(data: unknown, expression: string): number | 
       return items.length;
 
     case 'sum':
-      return items.reduce((acc, item) => {
-        const val = Number(item[parsed.field]);
-        return acc + (isNaN(val) ? 0 : val);
-      }, 0);
+      // toNumber : decimales francaises ('1 234,5') parsees ; NaN exclu (#301)
+      return collectNumericValues(items, parsed.field).reduce((acc, v) => acc + v, 0);
 
     case 'avg': {
-      if (items.length === 0) return null;
-      const sum = items.reduce((acc, item) => {
-        const val = Number(item[parsed.field]);
-        return acc + (isNaN(val) ? 0 : val);
-      }, 0);
-      return sum / items.length;
+      // Moyenne sur les seules valeurs numeriques — diviser par
+      // items.length comptait les non-numeriques comme des zeros (#301)
+      const values = collectNumericValues(items, parsed.field);
+      if (values.length === 0) return null;
+      return values.reduce((acc, v) => acc + v, 0) / values.length;
     }
 
-    case 'min':
-      if (items.length === 0) return null;
-      return Math.min(...items.map((item) => Number(item[parsed.field])).filter((v) => !isNaN(v)));
+    case 'min': {
+      // Le garde portait sur items.length, pas sur le tableau filtre :
+      // aucune valeur numerique -> Math.min(...[]) = Infinity (#301)
+      const values = collectNumericValues(items, parsed.field);
+      return values.length > 0 ? Math.min(...values) : null;
+    }
 
-    case 'max':
-      if (items.length === 0) return null;
-      return Math.max(...items.map((item) => Number(item[parsed.field])).filter((v) => !isNaN(v)));
+    case 'max': {
+      const values = collectNumericValues(items, parsed.field);
+      return values.length > 0 ? Math.max(...values) : null;
+    }
 
     default:
       return null;
   }
+}
+
+/**
+ * Valeurs numeriques d'un champ — toNumber strict (#301) : les decimales
+ * francaises sont parsees, les non-numeriques sont EXCLUS (jamais 0).
+ */
+function collectNumericValues(items: Record<string, unknown>[], field: string): number[] {
+  const out: number[] = [];
+  for (const item of items) {
+    const v = toNumber(item[field], true);
+    if (v !== null) out.push(v);
+  }
+  return out;
 }

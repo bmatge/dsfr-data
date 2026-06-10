@@ -4,7 +4,7 @@ import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { getByPath } from '../utils/json-path.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { renderSourceLoading, renderSourceError } from '../utils/status-templates.js';
-import { escapeHtml } from '@dsfr-data/shared/lib';
+import { escapeHtml, toNumber } from '@dsfr-data/shared/lib';
 import { isValidDeptCode } from '@dsfr-data/shared/lib';
 
 type DSFRChartType =
@@ -291,7 +291,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       const li = labelIndex.get(l);
       const si = seriesIndex.get(s);
       if (li !== undefined && si !== undefined) {
-        allSeries[si][li] = Number(getByPath(record, this.valueField)) || 0;
+        allSeries[si][li] = toNumber(getByPath(record, this.valueField));
       }
     }
 
@@ -335,7 +335,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     for (const record of this._data) {
       labels.push(String(getByPath(record, this.labelField) ?? 'N/A'));
       for (let i = 0; i < allFields.length; i++) {
-        allSeries[i].push(Number(getByPath(record, allFields[i])) || 0);
+        allSeries[i].push(toNumber(getByPath(record, allFields[i])));
       }
     }
 
@@ -366,7 +366,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       if (/^\d+$/.test(code) && code.length < 3) {
         code = code.padStart(2, '0');
       }
-      const value = Number(getByPath(record, this.valueField)) || 0;
+      const value = toNumber(getByPath(record, this.valueField));
       if (this.type === 'map' ? isValidDeptCode(code) : code !== '') {
         mapData[code] = Math.round(value * 100) / 100;
       }
@@ -421,7 +421,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       case 'gauge': {
         const gaugeVal =
           this.gaugeValue ??
-          (this._data.length > 0 ? Number(getByPath(this._data[0], this.valueField)) || 0 : 0);
+          (this._data.length > 0 ? toNumber(getByPath(this._data[0], this.valueField)) : 0);
         attrs['percent'] = String(Math.round(gaugeVal));
         attrs['init'] = '0';
         attrs['target'] = '100';
@@ -469,8 +469,8 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
           let total = 0;
           let count = 0;
           for (const record of this._data) {
-            const v = Number(getByPath(record, this.valueField));
-            if (!isNaN(v)) {
+            const v = toNumber(getByPath(record, this.valueField), true);
+            if (v !== null) {
               total += v;
               count++;
             }

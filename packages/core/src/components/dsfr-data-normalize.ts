@@ -281,7 +281,10 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
 
       // 4. Numeric conversion (uses trimmed key for field matching)
       if (numericFields.has(key)) {
-        normalizedValue = toNumber(normalizedValue);
+        // Semantique stricte alignee sur numeric-auto (#301) : "N/A"/null
+        // devenait 0 et faussait les sommes — desormais null (exclu des
+        // agregats par la politique NaN unique)
+        normalizedValue = toNumber(normalizedValue, true);
       } else if (
         this.numericAuto &&
         typeof normalizedValue === 'string' &&

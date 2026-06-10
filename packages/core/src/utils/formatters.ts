@@ -1,3 +1,4 @@
+import { toNumber } from '@dsfr-data/shared/lib';
 /**
  * Formatters - Fonctions de formatage pour l'affichage des données
  */
@@ -15,7 +16,10 @@ export function formatValue(
     return '—';
   }
 
-  const num = typeof value === 'string' ? parseFloat(value) : value;
+  // toNumber strict (#301) : '1 234,5' n'est plus tronque a 1 par
+  // parseFloat, et 'abc' reste non-numerique (-> '—') au lieu de 0
+  const parsed = typeof value === 'string' ? toNumber(value, true) : value;
+  const num = parsed === null ? NaN : parsed;
 
   if (isNaN(num)) {
     return '—';

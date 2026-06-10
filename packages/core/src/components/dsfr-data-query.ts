@@ -1,6 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { getByPath, setByPath } from '../utils/json-path.js';
+import { toNumber } from '@dsfr-data/shared/lib';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { dispatchSourceCommand, getDataCache, getDataMeta } from '../utils/data-bridge.js';
 import { TransformerMixin } from '../utils/transformer-mixin.js';
@@ -832,7 +833,10 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
   }
 
   private _computeAggregate(items: Record<string, unknown>[], agg: QueryAggregate): number {
-    const values = items.map((item) => Number(getByPath(item, agg.field))).filter((v) => !isNaN(v));
+    // toNumber strict (#301) : decimales francaises parsees, NaN exclus
+    const values = items
+      .map((item) => toNumber(getByPath(item, agg.field), true))
+      .filter((v): v is number => v !== null);
 
     switch (agg.function) {
       case 'count':

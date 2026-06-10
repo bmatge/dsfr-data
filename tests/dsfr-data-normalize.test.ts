@@ -834,7 +834,7 @@ describe('DsfrDataNormalize', () => {
       const result = getDataCache('test-normalize') as Record<string, unknown>[];
       expect(result).toHaveLength(1);
       expect(result[0].nom).toBe(null);
-      expect(result[0].score).toBe(0); // toNumber(undefined) returns 0
+      expect(result[0].score).toBe(null); // semantique stricte #301 : non-parseable -> null, plus jamais 0
     });
 
     it('uses cached data on connect if source already emitted', () => {

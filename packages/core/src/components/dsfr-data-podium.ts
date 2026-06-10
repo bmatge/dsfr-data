@@ -1,5 +1,6 @@
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+import { toNumber } from '@dsfr-data/shared/lib';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { getByPath } from '../utils/json-path.js';
 import { formatNumber } from '../utils/formatters.js';
@@ -152,7 +153,7 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
       subtitle: this.subtitleField
         ? String(getByPath(record, this.subtitleField) ?? '')
         : this.subtitle,
-      value: Number(getByPath(record, this.valueField)) || 0,
+      value: toNumber(getByPath(record, this.valueField)),
       ratio: 0,
       color: '',
       rank: 0,
