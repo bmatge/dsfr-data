@@ -298,27 +298,15 @@ export class TabularAdapter implements ApiAdapter {
 
   /**
    * Mappe les operateurs generiques vers la syntaxe Tabular.
+   * Source de verite : TABULAR_CONFIG.query.operatorMapping (#285) —
+   * l'adapter dupliquait le mapping mot pour mot.
    */
   private _mapOperator(op: string): string {
-    const mapping: Record<string, string> = {
-      eq: 'exact',
-      neq: 'differs',
-      gt: 'strictly_greater',
-      gte: 'greater',
-      lt: 'strictly_less',
-      lte: 'less',
-      contains: 'contains',
-      notcontains: 'notcontains',
-      in: 'in',
-      notin: 'notin',
-      isnull: 'isnull',
-      isnotnull: 'isnotnull',
-    };
-    return mapping[op] || op;
+    return this.getProviderConfig().query.operatorMapping?.[op] || op;
   }
 
-  getDefaultSearchTemplate(): null {
-    return null;
+  getDefaultSearchTemplate(): string | null {
+    return this.getProviderConfig().query.searchTemplate ?? null;
   }
 
   getProviderConfig(): ProviderConfig {

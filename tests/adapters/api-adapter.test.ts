@@ -229,13 +229,11 @@ describe('buildFacetWhere is implemented on all adapters', () => {
   }
 });
 
-describe('ProviderConfig.codeGen.sourceApiType', () => {
+describe('ProviderConfig.id', () => {
   for (const type of ['opendatasoft', 'tabular', 'grist', 'generic'] as const) {
-    it(`${type} config has codeGen.sourceApiType matching provider`, () => {
-      const config = getAdapter(type).getProviderConfig!();
-      expect(config.codeGen.usesDsfrDataSource).toBe(true);
-      expect(config.codeGen.usesDsfrDataQuery).toBe(true);
-      expect(config.codeGen.sourceApiType).toBe(type);
+    it(`${type} config id matches provider (codeGen supprime, #285)`, () => {
+      const config = getAdapter(type)!.getProviderConfig!();
+      expect(config.id).toBe(type);
     });
   }
 });

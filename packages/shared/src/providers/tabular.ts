@@ -48,12 +48,11 @@ export const TABULAR_CONFIG: ProviderConfig = {
     serverSearch: false,
     serverGroupBy: true,
     serverOrderBy: true,
-    serverAggregation: true,
+    serverGeo: false,
+    whereFormat: 'colon',
   },
 
   query: {
-    whereFormat: 'colon',
-    whereSeparator: ', ',
     aggregationSyntax: 'colon-attr',
     searchTemplate: null,
     operatorMapping: {
@@ -83,14 +82,5 @@ export const TABULAR_CONFIG: ProviderConfig = {
       const m = url.match(TABULAR_API_RE) ?? url.match(TABULAR_PERMALINK_RE);
       return m ? { resourceId: m[1] } : null;
     },
-  },
-
-  codeGen: {
-    usesDsfrDataSource: true,
-    usesDsfrDataQuery: true,
-    usesDsfrDataNormalize: false,
-    sourceApiType: 'tabular',
-    fieldPrefix: '',
-    dependencies: { dsfr: true, dsfrChart: true, dsfrData: true },
   },
 };

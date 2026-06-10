@@ -38,12 +38,11 @@ export const GRIST_CONFIG: ProviderConfig = {
     serverSearch: false,
     serverGroupBy: true,
     serverOrderBy: true,
-    serverAggregation: true,
+    serverGeo: false,
+    whereFormat: 'colon',
   },
 
   query: {
-    whereFormat: 'colon',
-    whereSeparator: ', ',
     aggregationSyntax: 'sql',
     searchTemplate: null,
   },
@@ -59,14 +58,5 @@ export const GRIST_CONFIG: ProviderConfig = {
       const m = url.match(GRIST_RE);
       return m ? { documentId: m[1], tableId: m[2] } : null;
     },
-  },
-
-  codeGen: {
-    usesDsfrDataSource: true,
-    usesDsfrDataQuery: true,
-    usesDsfrDataNormalize: false,
-    sourceApiType: 'grist',
-    fieldPrefix: '',
-    dependencies: { dsfr: true, dsfrChart: true, dsfrData: true },
   },
 };

@@ -43,12 +43,11 @@ export const ODS_CONFIG: ProviderConfig = {
     serverSearch: true,
     serverGroupBy: true,
     serverOrderBy: true,
-    serverAggregation: true,
+    serverGeo: true,
+    whereFormat: 'odsql',
   },
 
   query: {
-    whereFormat: 'odsql',
-    whereSeparator: ' AND ',
     aggregationSyntax: 'odsql-select',
     searchTemplate: 'search("{q}")',
   },
@@ -65,14 +64,5 @@ export const ODS_CONFIG: ProviderConfig = {
       const m = url.match(ODS_API_RE) ?? url.match(ODS_PAGE_RE);
       return m ? { datasetId: m[1] } : null;
     },
-  },
-
-  codeGen: {
-    usesDsfrDataSource: true,
-    usesDsfrDataQuery: true,
-    usesDsfrDataNormalize: false,
-    sourceApiType: 'opendatasoft',
-    fieldPrefix: '',
-    dependencies: { dsfr: true, dsfrChart: true, dsfrData: true },
   },
 };

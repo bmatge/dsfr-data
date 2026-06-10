@@ -30,12 +30,11 @@ export const GENERIC_CONFIG: ProviderConfig = {
     serverSearch: false,
     serverGroupBy: false,
     serverOrderBy: false,
-    serverAggregation: false,
+    serverGeo: false,
+    whereFormat: 'colon',
   },
 
   query: {
-    whereFormat: 'colon',
-    whereSeparator: ', ',
     aggregationSyntax: 'client-only',
     searchTemplate: null,
   },
@@ -48,14 +47,5 @@ export const GENERIC_CONFIG: ProviderConfig = {
     idFields: [],
     apiPathTemplate: '',
     extractIds: () => null,
-  },
-
-  codeGen: {
-    usesDsfrDataSource: true,
-    usesDsfrDataQuery: true,
-    usesDsfrDataNormalize: false,
-    sourceApiType: 'generic',
-    fieldPrefix: '',
-    dependencies: { dsfr: true, dsfrChart: true, dsfrData: true },
   },
 };

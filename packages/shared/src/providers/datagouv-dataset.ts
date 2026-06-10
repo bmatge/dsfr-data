@@ -5,7 +5,16 @@
  * queryable resource: it holds N files (resources), and only those ingested
  * by the Tabular API are queryable. Unlike OpenDataSoft (1 page = 1 API URL),
  * resolving a data.gouv dataset therefore requires a network lookup + a user
- * choice of which resource to use. This module provides the pure pieces:
+ * choice of which resource to use.
+ *
+ * PAR DESIGN (#285), ce module n'a NI ProviderId NI adapter : un dataset
+ * data.gouv n'est pas un protocole d'API mais un AIGUILLAGE vers des
+ * ressources Tabular (chaque ressource retenue est ensuite servie par
+ * TABULAR_CONFIG + TabularAdapter). La règle « 1 ProviderConfig + 1 Adapter
+ * par protocole d'API » reste donc entière — ne pas créer de
+ * 'datagouv-dataset' dans ProviderId.
+ *
+ * This module provides the pure pieces:
  *   - parseDataGouvDataset()    : URL → dataset slug (page detection)
  *   - dataGouvDatasetApiUrl()   : slug → data.gouv catalog API URL (CORS-open)
  *   - extractDataGouvResources(): catalog JSON → typed resource list, with the

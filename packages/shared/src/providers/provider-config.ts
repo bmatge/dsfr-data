@@ -66,26 +66,38 @@ export interface ProviderConfig {
   };
 
   // --- Server capabilities ---
+  /**
+   * Miroir EXACT de `AdapterCapabilities` (packages/core) — un test
+   * d'alignement (#285) garantit que chaque adapter declare les memes
+   * valeurs que sa config : toute deviation fait echouer la CI.
+   * (`serverAggregation` supprime : jamais lu, couple a serverGroupBy ;
+   * `whereFormat` demenage ici depuis query, seul foyer.)
+   */
   capabilities: {
     serverFetch: boolean;
     serverFacets: boolean;
     serverSearch: boolean;
     serverGroupBy: boolean;
     serverOrderBy: boolean;
-    serverAggregation: boolean;
+    serverGeo: boolean;
+    /** Dialecte WHERE — separateur derive : ' AND ' (odsql) / ', ' (colon), cf. joinWhere (#271) */
+    whereFormat: 'odsql' | 'colon';
   };
 
   // --- Query syntax ---
   query: {
-    /** Filter format: ODSQL SQL-like or colon syntax field:op:value */
-    whereFormat: 'odsql' | 'colon';
-    /** Separator for joining WHERE clauses */
-    whereSeparator: string;
-    /** Aggregation syntax for code generation */
+    /** Mecanisme d'agregation du provider (descriptif) */
     aggregationSyntax: 'odsql-select' | 'colon-attr' | 'client-only' | 'sql';
-    /** Mapping of generic operators to native syntax */
+    /**
+     * Mapping operateurs generiques -> syntaxe native.
+     * SOURCE DE VERITE consommee par l'adapter (#285) — ne pas dupliquer.
+     */
     operatorMapping?: Record<string, string>;
-    /** Full-text search template. Use {q} as placeholder. null = no server search. */
+    /**
+     * Template de recherche plein-texte ({q} = placeholder), null = pas de
+     * recherche serveur. SOURCE DE VERITE : getDefaultSearchTemplate() des
+     * adapters la lit (#285).
+     */
     searchTemplate?: string | null;
   };
 
@@ -105,25 +117,5 @@ export interface ProviderConfig {
     apiPathTemplate: string;
     /** Extract resource IDs from a URL */
     extractIds: (url: string) => Record<string, string> | null;
-  };
-
-  // --- Code generation ---
-  codeGen: {
-    /** Does the generated pipeline use dsfr-data-source? (always true) */
-    usesDsfrDataSource: boolean;
-    /** Does the generated pipeline use dsfr-data-query? */
-    usesDsfrDataQuery: boolean;
-    /** Does the generated pipeline use dsfr-data-normalize? */
-    usesDsfrDataNormalize: boolean;
-    /** api-type value for dsfr-data-source */
-    sourceApiType: ProviderId;
-    /** Field prefix for nested data paths (e.g. 'fields.' for Grist without flatten) */
-    fieldPrefix: string;
-    /** Required CSS/JS dependencies */
-    dependencies: {
-      dsfr: boolean;
-      dsfrChart: boolean;
-      dsfrData: boolean;
-    };
   };
 }

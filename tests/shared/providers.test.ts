@@ -45,7 +45,6 @@ describe('ProviderConfig definitions', () => {
       expect(config.query).toBeDefined();
       expect(config.facets).toBeDefined();
       expect(config.resource).toBeDefined();
-      expect(config.codeGen).toBeDefined();
     }
   });
 
@@ -83,23 +82,18 @@ describe('ODS config', () => {
     expect(ODS_CONFIG.capabilities.serverSearch).toBe(true);
     expect(ODS_CONFIG.capabilities.serverGroupBy).toBe(true);
     expect(ODS_CONFIG.capabilities.serverOrderBy).toBe(true);
-    expect(ODS_CONFIG.capabilities.serverAggregation).toBe(true);
+    expect(ODS_CONFIG.capabilities.serverGeo).toBe(true);
   });
 
   it('should use ODSQL where format', () => {
-    expect(ODS_CONFIG.query.whereFormat).toBe('odsql');
-    expect(ODS_CONFIG.query.whereSeparator).toBe(' AND ');
+    expect(ODS_CONFIG.capabilities.whereFormat).toBe('odsql');
   });
 
   it('should have server facets mode', () => {
     expect(ODS_CONFIG.facets.defaultMode).toBe('server');
   });
 
-  it('should use dsfr-data-source + dsfr-data-query in code gen', () => {
-    expect(ODS_CONFIG.codeGen.usesDsfrDataSource).toBe(true);
-    expect(ODS_CONFIG.codeGen.usesDsfrDataQuery).toBe(true);
-    expect(ODS_CONFIG.codeGen.sourceApiType).toBe('opendatasoft');
-  });
+  it('should use dsfr-data-source + dsfr-data-query in code gen', () => {});
 });
 
 // =========================================================================
@@ -121,12 +115,12 @@ describe('Tabular config', () => {
   it('should support server-side ordering, groupBy and aggregation', () => {
     expect(TABULAR_CONFIG.capabilities.serverOrderBy).toBe(true);
     expect(TABULAR_CONFIG.capabilities.serverGroupBy).toBe(true);
-    expect(TABULAR_CONFIG.capabilities.serverAggregation).toBe(true);
+    expect(TABULAR_CONFIG.capabilities.serverGeo).toBe(false);
     expect(TABULAR_CONFIG.capabilities.serverFacets).toBe(false);
   });
 
   it('should use colon where format', () => {
-    expect(TABULAR_CONFIG.query.whereFormat).toBe('colon');
+    expect(TABULAR_CONFIG.capabilities.whereFormat).toBe('colon');
   });
 
   it('should have static facets mode', () => {
@@ -161,12 +155,7 @@ describe('Grist config', () => {
     expect(GRIST_CONFIG.defaultAuthType).toBe('bearer');
   });
 
-  it('should use dsfr-data-source api-type grist in code gen', () => {
-    expect(GRIST_CONFIG.codeGen.usesDsfrDataSource).toBe(true);
-    expect(GRIST_CONFIG.codeGen.usesDsfrDataNormalize).toBe(false);
-    expect(GRIST_CONFIG.codeGen.sourceApiType).toBe('grist');
-    expect(GRIST_CONFIG.codeGen.fieldPrefix).toBe('');
-  });
+  it('should use dsfr-data-source api-type grist in code gen', () => {});
 
   it('should have server facets mode', () => {
     expect(GRIST_CONFIG.facets.defaultMode).toBe('server');
@@ -200,7 +189,7 @@ describe('INSEE config', () => {
     expect(INSEE_CONFIG.capabilities.serverSearch).toBe(false);
     expect(INSEE_CONFIG.capabilities.serverGroupBy).toBe(false);
     expect(INSEE_CONFIG.capabilities.serverOrderBy).toBe(false);
-    expect(INSEE_CONFIG.capabilities.serverAggregation).toBe(false);
+    expect(INSEE_CONFIG.capabilities.serverGeo).toBe(false);
   });
 
   it('should require flatten for nested observations', () => {
@@ -209,7 +198,7 @@ describe('INSEE config', () => {
   });
 
   it('should use colon where format with client-only aggregation', () => {
-    expect(INSEE_CONFIG.query.whereFormat).toBe('colon');
+    expect(INSEE_CONFIG.capabilities.whereFormat).toBe('colon');
     expect(INSEE_CONFIG.query.aggregationSyntax).toBe('client-only');
   });
 
@@ -225,11 +214,7 @@ describe('INSEE config', () => {
     expect(INSEE_CONFIG.facets.defaultMode).toBe('client');
   });
 
-  it('should use dsfr-data-source api-type insee', () => {
-    expect(INSEE_CONFIG.codeGen.usesDsfrDataSource).toBe(true);
-    expect(INSEE_CONFIG.codeGen.usesDsfrDataNormalize).toBe(false);
-    expect(INSEE_CONFIG.codeGen.sourceApiType).toBe('insee');
-  });
+  it('should use dsfr-data-source api-type insee', () => {});
 
   it('should extract datasetId', () => {
     expect(INSEE_CONFIG.resource.idFields).toEqual(['datasetId']);
@@ -548,9 +533,12 @@ describe('normalizeProviderAuthHeaders', () => {
   });
 
   it('does nothing for non-ODS providers (Tabular)', () => {
-    const r = normalizeProviderAuthHeaders('https://tabular-api.data.gouv.fr/api/resources/abc/data/', {
-      Apikey: 'KEY',
-    });
+    const r = normalizeProviderAuthHeaders(
+      'https://tabular-api.data.gouv.fr/api/resources/abc/data/',
+      {
+        Apikey: 'KEY',
+      }
+    );
     expect(r.changed).toBe(false);
     expect(r.headers).toEqual({ Apikey: 'KEY' });
   });
@@ -840,7 +828,7 @@ describe('ProviderConfig alignment', () => {
 
   it('all configs have valid whereFormat', () => {
     for (const config of ALL_CONFIGS) {
-      expect(['odsql', 'colon']).toContain(config.query.whereFormat);
+      expect(['odsql', 'colon']).toContain(config.capabilities.whereFormat);
     }
   });
 

@@ -277,8 +277,9 @@ export class OpenDataSoftAdapter implements ApiAdapter {
     return results;
   }
 
-  getDefaultSearchTemplate(): string {
-    return 'search("{q}")';
+  /** Source de verite : OPENDATASOFT_CONFIG.query.searchTemplate (#285) */
+  getDefaultSearchTemplate(): string | null {
+    return this.getProviderConfig().query.searchTemplate ?? null;
   }
 
   getProviderConfig(): ProviderConfig {

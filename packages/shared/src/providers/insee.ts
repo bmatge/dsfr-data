@@ -53,12 +53,11 @@ export const INSEE_CONFIG: ProviderConfig = {
     serverSearch: false,
     serverGroupBy: false,
     serverOrderBy: false,
-    serverAggregation: false,
+    serverGeo: false,
+    whereFormat: 'colon',
   },
 
   query: {
-    whereFormat: 'colon',
-    whereSeparator: ', ',
     aggregationSyntax: 'client-only',
     searchTemplate: null,
   },
@@ -73,19 +72,6 @@ export const INSEE_CONFIG: ProviderConfig = {
     extractIds: (url: string) => {
       const m = url.match(INSEE_RE);
       return m ? { datasetId: m[1] } : null;
-    },
-  },
-
-  codeGen: {
-    usesDsfrDataSource: true,
-    usesDsfrDataQuery: true,
-    usesDsfrDataNormalize: false, // adapter flattens observations internally
-    sourceApiType: 'insee',
-    fieldPrefix: '',
-    dependencies: {
-      dsfr: true,
-      dsfrChart: true,
-      dsfrData: true,
     },
   },
 };
