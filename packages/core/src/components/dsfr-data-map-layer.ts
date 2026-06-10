@@ -150,8 +150,13 @@ function getColorForValue(value: number, breaks: number[], palette: readonly str
   return palette[palette.length - 1];
 }
 
+let layerBoundsSeq = 0;
+
 @customElement('dsfr-data-map-layer')
 export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
+  /** Cle stable des bounds aupres de la carte parente (#294) */
+  private readonly _boundsKey = `dsfr-map-layer-${++layerBoundsSeq}`;
+
   // --- Source & geo ---
 
   @property({ type: String })
@@ -463,6 +468,8 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    // Libere les bounds enregistres aupres de la carte (#294)
+    this._mapParent?.unregisterLayerBounds?.(this._boundsKey);
     if (this._bboxTimer) clearTimeout(this._bboxTimer);
     if (this._layerGroup && this._leafletMap) {
       this._layerGroup.removeFrom(this._leafletMap);
@@ -681,11 +688,12 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
       }
     }
 
-    // Report bounds for fit-bounds
+    // Report bounds for fit-bounds — par cle de layer, remplacement a
+    // chaque rendu (#294)
     if (this._mapParent?.fitBounds) {
       const layerBounds = (this._clusterGroup || this._layerGroup).getBounds?.();
       if (layerBounds?.isValid?.()) {
-        this._mapParent.registerLayerBounds(layerBounds);
+        this._mapParent.registerLayerBounds(this._boundsKey, layerBounds);
       }
     }
 

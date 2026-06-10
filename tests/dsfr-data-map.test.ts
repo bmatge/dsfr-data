@@ -1129,10 +1129,10 @@ describe('DsfrDataMap rendering methods', () => {
     expect(p.textContent).toContain('5 zones');
   });
 
-  it('registerLayerBounds stores bounds', () => {
+  it('registerLayerBounds stores bounds par cle de layer (#294)', () => {
     const mockBounds = { extend: (b: any) => b } as any;
-    map.registerLayerBounds(mockBounds);
-    expect((map as any)._layerBounds).toHaveLength(1);
+    map.registerLayerBounds('layer-1', mockBounds);
+    expect((map as any)._layerBounds.size).toBe(1);
   });
 });
 
@@ -2860,19 +2860,19 @@ describe('DsfrDataMap updateDescription', () => {
 // DsfrDataMap: registerLayerBounds
 // ============================================================================
 
-describe('DsfrDataMap registerLayerBounds', () => {
-  it('stores bounds', () => {
+describe('DsfrDataMap registerLayerBounds (#294)', () => {
+  it('stores bounds par cle', () => {
     const map = new DsfrDataMap();
     const bounds = { isValid: () => true };
-    map.registerLayerBounds(bounds as any);
-    expect((map as any)._layerBounds).toHaveLength(1);
+    map.registerLayerBounds('a', bounds as any);
+    expect((map as any)._layerBounds.size).toBe(1);
   });
 
-  it('accumulates multiple bounds', () => {
+  it('cumule les bounds de layers DIFFERENTS', () => {
     const map = new DsfrDataMap();
-    map.registerLayerBounds({ isValid: () => true } as any);
-    map.registerLayerBounds({ isValid: () => true } as any);
-    expect((map as any)._layerBounds).toHaveLength(2);
+    map.registerLayerBounds('a', { isValid: () => true } as any);
+    map.registerLayerBounds('b', { isValid: () => true } as any);
+    expect((map as any)._layerBounds.size).toBe(2);
   });
 });
 
