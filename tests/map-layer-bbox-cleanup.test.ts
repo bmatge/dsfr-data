@@ -166,7 +166,7 @@ describe('#297 — AC : retirer un layer libère le filtre bbox de la source', (
 });
 
 describe('#297 — annexes', () => {
-  it('le compagnon popup est résolu UNE fois par rendu (pas par record)', () => {
+  it('le compagnon popup est résolu UNE fois par rendu (pas par record)', async () => {
     const layer = new DsfrDataMapLayer();
     const spy = vi.spyOn(layer as any, '_findPopupCompanion').mockReturnValue(null);
 
@@ -177,6 +177,9 @@ describe('#297 — annexes', () => {
         addTo: () => {},
         getBounds: () => ({ isValid: () => false }),
       }),
+      // divIcon manquait : _addMarker rejetait en async hors du test
+      // (Unhandled Rejection attrapee par la CI, race en local)
+      divIcon: () => ({}),
       marker: () => ({ bindPopup: () => {}, bindTooltip: () => {}, on: () => {} }),
     };
     (layer as any)._leafletMap = { getZoom: () => 10, hasLayer: () => false, on: () => {} };
@@ -188,7 +191,7 @@ describe('#297 — annexes', () => {
     layer.lonField = 'lon';
     (layer as any)._data = Array.from({ length: 25 }, (_, i) => ({ lat: 48 + i / 100, lon: 2 }));
 
-    (layer as any)._renderLayer();
+    await (layer as any)._renderLayer();
 
     expect(spy).toHaveBeenCalledTimes(1);
   });
