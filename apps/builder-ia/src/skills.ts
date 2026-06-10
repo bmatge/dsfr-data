@@ -2656,6 +2656,8 @@ Sans contexte, chaque source reste autonome (defaut inchange).
 | Attribut | Type | Défaut | Requis | Description |
 |----------|------|--------|--------|-------------|
 | sources | String | \`""\` | oui | Ids des sources cibles, separes par des espaces |
+| url-sync | Boolean | \`false\` | non | Serialisation URL des filtres (#231, opt-in) : lecture au chargement (pre-remplit les UI), ecriture replaceState, parametres voisins preserves |
+| url-param-map | String | \`""\` | non | Renommage des parametres URL : \`"param:field \| param2:field2"\` |
 
 ### Pattern
 
