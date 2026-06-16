@@ -20,7 +20,7 @@
     "helmet": "^8.2.0",
     "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.22.5",
-    "nodemailer": "^8.0.10",
+    "nodemailer": "^9.0.0",
     "uuid": "^14.0.0"
   },
   "devDependencies": {
