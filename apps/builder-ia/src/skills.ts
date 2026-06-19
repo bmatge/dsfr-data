@@ -908,11 +908,13 @@ Attend un tableau d'objets. L'attribut \`valeur\` determine comment extraire/agr
 |----------|------|--------|--------|-------------|
 | source | String | \`""\` | oui | ID de la dsfr-data-source ou dsfr-data-query |
 | value | String | \`""\` | oui | Expression : \`"champ"\`, \`"champ:avg"\`, \`"champ:sum"\`, \`"champ:min"\`, \`"champ:max"\`, \`"count:champ:valeur"\` (grammaire commune champ:fn, #303). Alias deprecie : \`valeur\` |
-| label | String | \`""\` | non | Libelle sous la valeur |
+| heading | String | \`""\` | non | Titre affiche AU-DESSUS de la valeur (surtitre, majuscules grises). Nomme \`heading\` (pas \`title\`, qui collisionne avec la propriete DOM native) |
+| label | String | \`""\` | non | Libelle sous la valeur (et sous les \`lines\`) |
 | description | String | \`""\` | non | Description pour accessibilité (sr-only) |
 | icon | String | \`""\` | non | Classe Remix Icon : \`ri-global-line\`, \`ri-money-euro-circle-line\`, etc. Alias deprecie : \`icone\` |
 | format | String | \`"nombre"\` | non | Format : nombre, pourcentage, euro, decimal |
-| trend | String | \`""\` | non | Expression d'agregation pour la tendance (\`"evolution:avg"\`), evaluee sur les donnees — PAS un litteral. Rendue en pourcentage fr-FR. Alias deprecie : \`tendance\` |
+| trend | String | \`""\` | non | RACCOURCI HERITE (preferez \`lines\`). Expression d'agregation \`"champ:fn"\` (\`"evolution:avg"\`) — PAS un litteral. Rendue avec une fleche en pourcentage fr-FR (\`↑ 5,2 %\`). Alias deprecie : \`tendance\` |
+| lines | String | \`""\` | non | Lignes secondaires declaratives (JSON), rendues ENTRE la valeur et le \`label\`. Chaque item : \`value\` (expression \`champ:fn\`) OU \`text\` (statique), + \`format\`, \`sign\`, \`prefix\`, \`suffix\`, \`color\` (\`"auto"\`=vert si >=0/rouge si <0, token DSFR, ou couleur CSS), \`na\` (repli si non fini). Ex. \`[{"value":"evol:avg","sign":true,"suffix":"vs mai 2025","color":"auto"}]\` |
 | color | String | \`""\` | non | Forcer la couleur : vert, orange, rouge, bleu. Alias deprecie : \`couleur\` |
 | threshold-green | Number | - | non | Seuil au-dessus duquel couleur = vert. Alias deprecie : \`seuil-vert\` |
 | threshold-orange | Number | - | non | Seuil au-dessus duquel couleur = orange (en-dessous = rouge). Alias deprecie : \`seuil-orange\` |
@@ -976,6 +978,15 @@ Utiliser \`<dsfr-data-kpi-group>\` pour disposer plusieurs KPIs en grille respon
   label="Sites actifs"
   couleur="bleu"
   trend="evolution:avg">
+</dsfr-data-kpi>
+
+<!-- Carte barometre : titre en haut, ligne d'evolution coloree, legende en bas -->
+<!-- value/lines acceptent une source mono-objet (un seul enregistrement courant) -->
+<dsfr-data-kpi source="barometre"
+  heading="Immat. VE — vehicules particuliers"
+  value="immat:sum"
+  lines='[{"value":"evol:avg","sign":true,"suffix":"vs mai 2025","color":"auto"}]'
+  label="Donnee mai 2026">
 </dsfr-data-kpi>
 \`\`\``,
   },

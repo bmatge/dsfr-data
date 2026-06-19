@@ -5,6 +5,8 @@ import { formatValue, formatPercentage, FormatType, getColorBySeuil } from '../u
 import { computeAggregation } from '../utils/aggregations.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { renderSourceLoading, renderSourceError } from '../utils/status-templates.js';
+import { reportConfigError, clearConfigError } from '../utils/config-error.js';
+import { parseKpiLines, resolveKpiLines, type ResolvedKpiLine } from '../utils/kpi-lines.js';
 
 type KpiColor = 'vert' | 'orange' | 'rouge' | 'bleu';
 
@@ -48,7 +50,15 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
   @property({ type: String })
   valeur = '';
 
-  /** Libellé affiché sous le chiffre */
+  /**
+   * Titre affiché AU-DESSUS de la valeur (surtitre, style majuscules grises).
+   * Nommé `heading` et non `title` : ce dernier entrerait en collision avec la
+   * propriété DOM native HTMLElement.title (infobulle).
+   */
+  @property({ type: String })
+  heading = '';
+
+  /** Libellé affiché sous le chiffre (et sous les `lines`) */
   @property({ type: String })
   label = '';
 
@@ -69,11 +79,14 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
   format: FormatType = 'nombre';
 
   /**
+   * RACCOURCI HERITE — pour une ligne d'evolution riche (signe, suffixe,
+   * couleur, repli n.d.), preferez `lines`. Conserve pour compatibilite.
+   *
    * Expression d'agregation pour la tendance, evaluee sur les donnees de la
    * source (grammaire commune "champ:fn", ex. "evolution:avg") — PAS un
    * litteral : l'ancienne doc ("+3.2") laissait croire qu'on passait une
    * valeur, la chaine etait interpretee comme nom de champ (#303).
-   * Le resultat est affiche en pourcentage fr-FR ("5,2 %").
+   * Rendue avec une fleche (↑/↓) en pourcentage fr-FR ("↑ 5,2 %").
    */
   @property({ type: String })
   trend = '';
@@ -81,6 +94,16 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
   /** @deprecated alias français de `trend` (#300) */
   @property({ type: String })
   tendance = '';
+
+  /**
+   * Lignes secondaires declaratives (JSON), rendues ENTRE la valeur et le
+   * `label`. Chaque item est soit data-driven (`value` = expression
+   * "champ:fn"), soit texte statique (`text`), avec couleur declarative.
+   * Ex. `[{"value":"evol:avg","sign":true,"suffix":"vs mai 2025","color":"auto"}]`.
+   * Schema complet : packages/core/src/utils/kpi-lines.ts (KpiLineSpec).
+   */
+  @property({ type: String })
+  lines = '';
 
   /** Seuil au-dessus duquel la valeur est verte */
   @property({ type: Number, attribute: 'threshold-green' })
@@ -174,12 +197,64 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
     };
   }
 
+  /** Résout l'attribut `lines` en lignes affichables (pur, sans effet de bord). */
+  private _resolveLines(): ResolvedKpiLine[] {
+    if (!this.lines) return [];
+    const specs = parseKpiLines(this.lines);
+    if (!specs) return [];
+    return resolveKpiLines(specs, this._sourceData);
+  }
+
+  /** Dernier message d'erreur de config posé (anti-spam console). */
+  private _configErrorKey: string | null = null;
+
+  updated(changedProperties: Map<string, unknown>) {
+    super.updated(changedProperties);
+    this._validateConfig();
+  }
+
+  /**
+   * Diagnostic de configuration (hors render pour garder render() pur) :
+   * `lines` JSON invalide, ou raccourci hérité `trend` qui ne résout pas en
+   * nombre. Reporté une seule fois par état (au lieu de disparaître en
+   * silence — #338).
+   */
+  private _validateConfig() {
+    let message: string | null = null;
+
+    if (this.lines && parseKpiLines(this.lines) === null) {
+      message =
+        'lines : JSON invalide — attendu un tableau d’objets, ex. ' +
+        '[{"value":"evol:avg","suffix":"vs N-1","color":"auto"}]';
+    }
+
+    if (!message) {
+      const trendExpr = this.trend || this.tendance;
+      if (trendExpr && this._sourceData != null) {
+        const v = computeAggregation(this._sourceData, trendExpr);
+        if (typeof v !== 'number') {
+          message =
+            `trend="${trendExpr}" ne résout pas en nombre — attendu une ` +
+            'expression "champ:fn" (ex. "evolution:avg"), pas une valeur littérale';
+        }
+      }
+    }
+
+    if (message !== this._configErrorKey) {
+      this._configErrorKey = message;
+      if (message) reportConfigError(this, 'dsfr-data-kpi', message);
+      else clearConfigError(this);
+    }
+  }
+
   private _getAriaLabel(): string {
     if (this.description) return this.description;
 
     const value = this._computeValue();
     const formattedValue = formatValue(value as number, this.format);
-    let label = `${this.label}: ${formattedValue}`;
+    let label = this.heading
+      ? `${this.heading} — ${this.label}: ${formattedValue}`
+      : `${this.label}: ${formattedValue}`;
 
     if (
       typeof value === 'number' &&
@@ -197,6 +272,11 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
       if (state) label += `, etat ${state}`;
     }
 
+    const lineTexts = this._resolveLines()
+      .map((l) => l.text)
+      .filter(Boolean);
+    if (lineTexts.length > 0) label += `. ${lineTexts.join('. ')}`;
+
     return label;
   }
 
@@ -205,6 +285,7 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
     const formattedValue = formatValue(value as number, this.format);
     const colorClass = COLOR_CLASSES[this._getColor()] || COLOR_CLASSES.bleu;
     const tendance = this._getTendanceInfo();
+    const resolvedLines = this._resolveLines();
 
     return html`
       <div class="dsfr-data-kpi ${colorClass}" role="figure" aria-label="${this._getAriaLabel()}">
@@ -214,6 +295,9 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
             ? renderSourceError('dsfr-data-kpi', this._sourceError)
             : html`
                 <div class="dsfr-data-kpi__content">
+                  ${this.heading
+                    ? html`<span class="dsfr-data-kpi__heading">${this.heading}</span>`
+                    : ''}
                   ${this.icon || this.icone
                     ? html`
                         <span
@@ -245,6 +329,15 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
                         `
                       : ''}
                   </div>
+                  ${resolvedLines.map(
+                    (line) => html`
+                      <span
+                        class="dsfr-data-kpi__line"
+                        style=${line.color ? `color: ${line.color};` : ''}
+                        >${line.text}</span
+                      >
+                    `
+                  )}
                   <span class="dsfr-data-kpi__label">${this.label}</span>
                 </div>
               `}
@@ -278,6 +371,17 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
           display: flex;
           flex-direction: column;
           gap: 0.5rem;
+        }
+        .dsfr-data-kpi__heading {
+          font-size: 0.875rem;
+          font-weight: 500;
+          text-transform: uppercase;
+          letter-spacing: 0.01em;
+          color: var(--text-mention-grey);
+        }
+        .dsfr-data-kpi__line {
+          font-size: 0.875rem;
+          font-weight: 500;
         }
         .dsfr-data-kpi__icon {
           font-size: 1.5rem;
