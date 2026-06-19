@@ -142,7 +142,31 @@
         </section>
 
         <section class="demo-section">
-          <h3>5. Tableau de bord complet (CSS manuel)</h3>
+          <h3>5. Carte baromètre — titre (heading) + ligne d'évolution (lines)</h3>
+          <p class="fr-text--sm fr-text--light">
+            heading = surtitre au-dessus de la valeur ; lines = ligne secondaire data-driven
+            (signe +, suffixe, couleur « auto » verte si hausse) ; label = légende en bas.
+            Source mono-objet (un seul enregistrement courant) supportée.
+          </p>
+          <dsfr-data-source id="baro" data='[{"immat_ve":37849,"immat_ve_evol":92.5,"pdm_ve":29.4,"pdm_ve_evol":86.1,"pac":15041,"pac_evol":0.8}]'></dsfr-data-source>
+          <div class="kpi-grid">
+            <dsfr-data-kpi source="baro" heading="Immat. VE — véhicules particuliers" value="immat_ve" format="nombre" lines='[{"value":"immat_ve_evol","sign":true,"suffix":"vs mai 2025","color":"auto"}]' label="Donnée mai 2026"></dsfr-data-kpi>
+            <dsfr-data-kpi source="baro" heading="Part de marché VE (VP)" value="pdm_ve" format="pourcentage" lines='[{"value":"pdm_ve_evol","sign":true,"suffix":"vs mai 2025","color":"auto"}]' label="Donnée mai 2026"></dsfr-data-kpi>
+            <dsfr-data-kpi source="baro" heading="Ventes PAC air/eau" value="pac" format="nombre" lines='[{"value":"pac_evol","sign":true,"suffix":"vs mars 2025","color":"auto"}]' label="Donnée mars 2026"></dsfr-data-kpi>
+          </div>
+          <div class="code-block"><pre>&lt;dsfr-data-source id="baro" data='[{"immat_ve":37849,"immat_ve_evol":92.5}]'&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-kpi source="baro"
+  heading="Immat. VE — véhicules particuliers"
+  value="immat_ve"
+  format="nombre"
+  lines='[{"value":"immat_ve_evol","sign":true,"suffix":"vs mai 2025","color":"auto"}]'
+  label="Donnée mai 2026"&gt;
+&lt;/dsfr-data-kpi&gt;</pre></div>
+        </section>
+
+        <section class="demo-section">
+          <h3>6. Tableau de bord complet (CSS manuel)</h3>
           <div class="kpi-grid">
             <dsfr-data-kpi source="meta" valeur="total" label="Sites suivis" icone="ri-global-line" format="nombre"></dsfr-data-kpi>
             <dsfr-data-kpi source="sites" valeur="avg:score_rgaa" label="RGAA moyen" format="pourcentage" seuil-vert="80" seuil-orange="50"></dsfr-data-kpi>
@@ -154,7 +178,7 @@
         <h2 class="fr-mt-4w">Grouper des KPIs avec dsfr-data-kpi-group</h2>
 
         <section class="demo-section">
-          <h3>6. Colonnes egales (cols="4")</h3>
+          <h3>7. Colonnes egales (cols="4")</h3>
           <dsfr-data-kpi-group cols="4">
             <dsfr-data-kpi source="meta" valeur="total" label="Sites suivis" icone="ri-global-line" format="nombre"></dsfr-data-kpi>
             <dsfr-data-kpi source="sites" valeur="avg:score_rgaa" label="RGAA moyen" format="pourcentage" seuil-vert="80" seuil-orange="50"></dsfr-data-kpi>
@@ -170,7 +194,7 @@
         </section>
 
         <section class="demo-section">
-          <h3>7. Largeurs personnalisees (col)</h3>
+          <h3>8. Largeurs personnalisees (col)</h3>
           <dsfr-data-kpi-group>
             <dsfr-data-kpi source="meta" valeur="total" label="Sites suivis" icone="ri-global-line" format="nombre" col="6"></dsfr-data-kpi>
             <dsfr-data-kpi source="sites" valeur="avg:score_rgaa" label="RGAA moyen" format="pourcentage" seuil-vert="80" seuil-orange="50" col="3"></dsfr-data-kpi>
@@ -184,7 +208,7 @@
         </section>
 
         <section class="demo-section">
-          <h3>8. Espacement large (gap="lg")</h3>
+          <h3>9. Espacement large (gap="lg")</h3>
           <dsfr-data-kpi-group cols="2" gap="lg">
             <dsfr-data-kpi source="sites" valeur="min:score_rgaa" label="Plus bas RGAA" format="pourcentage" couleur="rouge"></dsfr-data-kpi>
             <dsfr-data-kpi source="sites" valeur="max:score_rgaa" label="Meilleur RGAA" format="pourcentage" couleur="vert"></dsfr-data-kpi>

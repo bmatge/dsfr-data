@@ -3,53 +3,53 @@ import { examples } from '../../../apps/playground/src/examples/examples-data';
 
 describe('playground examples', () => {
   const directKeys = [
-    'direct-bar', 'direct-bar-databox', 'direct-line-databox',
-    'direct-kpi', 'direct-datalist', 'direct-worldmap'
+    'direct-bar',
+    'direct-bar-databox',
+    'direct-line-databox',
+    'direct-kpi',
+    'kpi-barometre',
+    'direct-datalist',
+    'direct-worldmap',
   ];
 
   const serverPaginateKeys = [
-    'server-paginate-datalist', 'server-paginate-display', 'paginate-kpi-global'
+    'server-paginate-datalist',
+    'server-paginate-display',
+    'paginate-kpi-global',
   ];
 
-  const queryKeys = [
-    'query-bar', 'query-pie', 'query-map'
-  ];
+  const queryKeys = ['query-bar', 'query-pie', 'query-map'];
 
-  const normalizeKeys = [
-    'normalize-bar', 'normalize-pie', 'normalize-datalist'
-  ];
+  const normalizeKeys = ['normalize-bar', 'normalize-pie', 'normalize-datalist'];
 
-  const displayKeys = [
-    'direct-display', 'query-display', 'normalize-display'
-  ];
+  const displayKeys = ['direct-display', 'query-display', 'normalize-display'];
 
-  const facetsKeys = [
-    'facets-datalist', 'facets-bar', 'facets-map'
-  ];
+  const facetsKeys = ['facets-datalist', 'facets-bar', 'facets-map'];
 
-  const searchClientKeys = [
-    'search-kpi-chart'
-  ];
+  const searchClientKeys = ['search-kpi-chart'];
 
-  const searchServerKeys = [
-    'search-datalist', 'search-display'
-  ];
+  const searchServerKeys = ['search-datalist', 'search-display'];
 
   const searchKeys = [...searchClientKeys, ...searchServerKeys];
 
-  const serverSideKeys = [
-    'server-side-ods', 'server-side-tabular-tri'
-  ];
+  const serverSideKeys = ['server-side-ods', 'server-side-tabular-tri'];
 
-  const serverFacetsKeys = [
-    'server-facets-display'
-  ];
+  const serverFacetsKeys = ['server-facets-display'];
 
-  const joinKeys = [
-    'join-basic', 'join-query'
-  ];
+  const joinKeys = ['join-basic', 'join-query'];
 
-  const allKeys = [...directKeys, ...serverPaginateKeys, ...queryKeys, ...normalizeKeys, ...displayKeys, ...facetsKeys, ...searchKeys, ...serverSideKeys, ...serverFacetsKeys, ...joinKeys];
+  const allKeys = [
+    ...directKeys,
+    ...serverPaginateKeys,
+    ...queryKeys,
+    ...normalizeKeys,
+    ...displayKeys,
+    ...facetsKeys,
+    ...searchKeys,
+    ...serverSideKeys,
+    ...serverFacetsKeys,
+    ...joinKeys,
+  ];
 
   it('should have all expected example keys', () => {
     for (const key of allKeys) {
@@ -57,8 +57,8 @@ describe('playground examples', () => {
     }
   });
 
-  it('should have 32 examples', () => {
-    expect(Object.keys(examples)).toHaveLength(32);
+  it('should have 33 examples', () => {
+    expect(Object.keys(examples)).toHaveLength(33);
   });
 
   it('should have non-empty code for all examples', () => {
@@ -77,7 +77,15 @@ describe('playground examples', () => {
     for (const key of directKeys) {
       const hasSource = examples[key].includes('dsfr-data-source');
       expect(hasSource, `${key} should use dsfr-data-source`).toBe(true);
-      if (!['direct-kpi', 'direct-datalist', 'direct-display', 'direct-worldmap'].includes(key)) {
+      if (
+        ![
+          'direct-kpi',
+          'kpi-barometre',
+          'direct-datalist',
+          'direct-display',
+          'direct-worldmap',
+        ].includes(key)
+      ) {
         expect(examples[key], `${key} should use dsfr-data-chart`).toContain('dsfr-data-chart');
       }
     }
@@ -109,14 +117,18 @@ describe('playground examples', () => {
   it('normalize examples should use dsfr-data-source and dsfr-data-normalize', () => {
     for (const key of normalizeKeys) {
       expect(examples[key], `${key} should use dsfr-data-source`).toContain('dsfr-data-source');
-      expect(examples[key], `${key} should use dsfr-data-normalize`).toContain('dsfr-data-normalize');
+      expect(examples[key], `${key} should use dsfr-data-normalize`).toContain(
+        'dsfr-data-normalize'
+      );
     }
   });
 
   it('facets examples should use dsfr-data-source, dsfr-data-facets and dsfr-data-normalize', () => {
     for (const key of facetsKeys) {
       expect(examples[key], `${key} should use dsfr-data-source`).toContain('dsfr-data-source');
-      expect(examples[key], `${key} should use dsfr-data-normalize`).toContain('dsfr-data-normalize');
+      expect(examples[key], `${key} should use dsfr-data-normalize`).toContain(
+        'dsfr-data-normalize'
+      );
       expect(examples[key], `${key} should use dsfr-data-facets`).toContain('dsfr-data-facets');
     }
   });

@@ -177,6 +177,50 @@ export const examples: Record<string, string> = {
   </div>
 </div>`,
 
+  'kpi-barometre': `<!--
+  KPI baromètre — titre (heading) + ligne d'évolution (lines)
+  Mode direct : dsfr-data-source (data inline) → dsfr-data-kpi (x3)
+  Démontre :
+    - heading : surtitre AU-DESSUS de la valeur
+    - lines   : ligne secondaire data-driven entre la valeur et le label,
+                avec signe (+), suffixe ("vs mai 2025") et couleur "auto"
+                (vert si hausse, rouge si baisse)
+    - label   : légende sous la ligne d'évolution
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>Baromètre — Plan Électrification</h2>
+
+  <dsfr-data-source id="baro" data='[{"immat_ve":37849,"immat_ve_evol":92.5,"pdm_ve":29.4,"pdm_ve_evol":86.1,"pac":15041,"pac_evol":0.8}]'>
+  </dsfr-data-source>
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;">
+    <dsfr-data-kpi source="baro"
+      heading="Immat. VE — véhicules particuliers"
+      value="immat_ve"
+      format="nombre"
+      lines='[{"value":"immat_ve_evol","sign":true,"suffix":"vs mai 2025","color":"auto"}]'
+      label="Donnée mai 2026">
+    </dsfr-data-kpi>
+
+    <dsfr-data-kpi source="baro"
+      heading="Part de marché VE (VP)"
+      value="pdm_ve"
+      format="pourcentage"
+      lines='[{"value":"pdm_ve_evol","sign":true,"suffix":"vs mai 2025","color":"auto"}]'
+      label="Donnée mai 2026">
+    </dsfr-data-kpi>
+
+    <dsfr-data-kpi source="baro"
+      heading="Ventes PAC air/eau"
+      value="pac"
+      format="nombre"
+      lines='[{"value":"pac_evol","sign":true,"suffix":"vs mars 2025","color":"auto"}]'
+      label="Donnée mars 2026">
+    </dsfr-data-kpi>
+  </div>
+</div>`,
+
   'direct-datalist': `<!--
   Tableau — Maires de France (pagination serveur)
   Mode : dsfr-data-source (api-type="tabular", server-side) → dsfr-data-list
