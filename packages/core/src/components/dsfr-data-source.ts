@@ -74,6 +74,16 @@ export class DsfrDataSource extends LitElement {
   @property({ type: Boolean, attribute: 'use-proxy' })
   useProxy = false;
 
+  /**
+   * Domaine du proxy CORS pour CETTE source (#340), prioritaire sur
+   * `window.DSFR_DATA_PROXY` et la config build-time. Sert a la fois la
+   * reecriture d'hote connu (Grist gouv/SaaS, Tabular, INSEE) et le
+   * `use-proxy` generique. Vide = resolution proxy globale habituelle.
+   * Ex: `proxy-url="https://mon-proxy.fr"`.
+   */
+  @property({ type: String, attribute: 'proxy-url' })
+  proxyUrl = '';
+
   /** Reference vers une clé API declaree dans window.DSFR_DATA_KEYS */
   @property({ type: String, attribute: 'api-key-ref' })
   apiKeyRef = '';
@@ -230,7 +240,8 @@ export class DsfrDataSource extends LitElement {
     const sharedChanged =
       changedProperties.has('pageSize') ||
       changedProperties.has('serverSide') ||
-      changedProperties.has('headers');
+      changedProperties.has('headers') ||
+      changedProperties.has('proxyUrl');
 
     if (urlModeChanged || adapterModeChanged || sharedChanged) {
       if (
@@ -505,13 +516,17 @@ export class DsfrDataSource extends LitElement {
 
     try {
       const rawUrl = this._buildUrl();
-      let url = getProxiedUrl(rawUrl);
+      let url = getProxiedUrl(rawUrl, this.proxyUrl);
       const options = this._buildFetchOptions();
 
       // If use-proxy is set and URL was not already proxied by getProxiedUrl(),
       // route through the generic CORS proxy
       if (this.useProxy && url === rawUrl) {
-        const proxy = buildCorsProxyRequest(url, options.headers as Record<string, string>);
+        const proxy = buildCorsProxyRequest(
+          url,
+          options.headers as Record<string, string>,
+          this.proxyUrl
+        );
         url = proxy.url;
         options.headers = proxy.headers;
       }
@@ -735,6 +750,7 @@ export class DsfrDataSource extends LitElement {
       transform: this.transform,
       pageSize: this.pageSize,
       headers: parsedHeaders,
+      proxyUrl: this.proxyUrl || undefined,
     };
   }
 

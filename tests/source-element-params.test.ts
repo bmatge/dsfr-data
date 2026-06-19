@@ -56,6 +56,21 @@ describe('SourceElement.getAdapterParams (#274)', () => {
     expect(params?.headers).toEqual({ Authorization: 'Bearer SECRET-TOKEN' });
   });
 
+  it('proxy-url remonte dans les params adapter et traverse la délégation (#340)', () => {
+    const source = makeSource();
+    source.proxyUrl = 'https://mon-proxy.fr';
+    expect(source.getAdapterParams().proxyUrl).toBe('https://mon-proxy.fr');
+
+    const query = mount(new DsfrDataQuery(), 'ses-proxy-q');
+    query.source = 'ses-src';
+    expect(query.getAdapterParams()?.proxyUrl).toBe('https://mon-proxy.fr');
+  });
+
+  it('proxy-url vide → proxyUrl undefined dans les params (résolution globale)', () => {
+    const source = makeSource();
+    expect(source.getAdapterParams().proxyUrl).toBeUndefined();
+  });
+
   it('unpivot délègue getAdapter / getEffectiveWhere / getAdapterParams', () => {
     makeSource();
     const unpivot = mount(new DsfrDataUnpivot(), 'ses-unpivot');

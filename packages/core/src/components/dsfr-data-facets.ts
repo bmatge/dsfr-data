@@ -692,11 +692,13 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     let baseUrl: string;
     let datasetId: string;
     let headers: Record<string, string> | undefined;
+    let proxyUrl: string | undefined;
 
     if (resolvedParams) {
       baseUrl = resolvedParams.baseUrl || '';
       datasetId = resolvedParams.datasetId || '';
       headers = resolvedParams.headers;
+      proxyUrl = resolvedParams.proxyUrl;
     } else {
       // Fallback legacy : remonter le pipeline et lire les attributs DOM
       // (sources tierces n'implementant pas getAdapterParams)
@@ -752,7 +754,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     for (const [where, groupFields] of whereToFields) {
       try {
         const results = await adapter.fetchFacets(
-          { baseUrl, datasetId, headers },
+          { baseUrl, datasetId, headers, proxyUrl },
           groupFields,
           where,
           abort.signal

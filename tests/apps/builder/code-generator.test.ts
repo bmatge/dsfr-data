@@ -13,7 +13,7 @@ import {
   computeStaticFacetValues,
 } from '../../../apps/builder/src/ui/code-generator';
 import { filterToOdsql, applyLocalFilter } from '@dsfr-data/shared';
-import { state } from '../../../apps/builder/src/state';
+import { state, PROXY_BASE_URL_EMBED } from '../../../apps/builder/src/state';
 
 vi.mock('../../../apps/builder/src/ui/chart-renderer', () => ({
   renderChart: vi.fn(),
@@ -1354,21 +1354,32 @@ describe('generateDynamicCode', () => {
     expect(code).toContain('transform="records"');
   });
 
-  it('should use proxy URL for grist.numerique.gouv.fr', () => {
+  it('emits the real grist.numerique.gouv.fr URL + proxy-url (no baked proxy endpoint, #340)', () => {
     generateDynamicCode();
     const code = document.getElementById('generated-code')!.textContent!;
-    expect(code).toContain('grist-gouv-proxy');
-    expect(code).toContain('/api/docs/doc1/tables/Table1/records');
+    // URL Grist reelle, plus l'endpoint proxy opaque pre-compose
+    expect(code).toContain(
+      'url="https://grist.numerique.gouv.fr/api/docs/doc1/tables/Table1/records"'
+    );
+    expect(code).not.toContain('grist-gouv-proxy');
+    // Attribut proxy-url declaratif : emis seulement si un domaine de proxy est
+    // bake (PROXY_BASE_URL_EMBED vide en CI sans .env → pas d'attribut). On cible
+    // `proxy-url=` (l'attribut) et non `proxy-url` nu, present dans un commentaire.
+    if (PROXY_BASE_URL_EMBED) {
+      expect(code).toContain(`proxy-url="${PROXY_BASE_URL_EMBED}"`);
+    } else {
+      expect(code).not.toContain('proxy-url=');
+    }
   });
 
-  it('should use proxy URL for docs.getgrist.com', () => {
+  it('emits the real docs.getgrist.com URL (no baked proxy endpoint, #340)', () => {
     state.savedSource!.apiUrl = 'https://docs.getgrist.com/api/docs/doc2/tables/Table2/records';
     state.savedSource!.documentId = 'doc2';
     state.savedSource!.tableId = 'Table2';
     generateDynamicCode();
     const code = document.getElementById('generated-code')!.textContent!;
-    expect(code).toContain('grist-proxy');
-    expect(code).toContain('/api/docs/doc2/tables/Table2/records');
+    expect(code).toContain('url="https://docs.getgrist.com/api/docs/doc2/tables/Table2/records"');
+    expect(code).not.toContain('grist-proxy');
   });
 
   it('should use fields.X paths when normalize flatten is disabled', () => {

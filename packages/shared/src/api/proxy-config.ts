@@ -168,13 +168,21 @@ function readRuntimeProxy(): string | false | RuntimeProxyConfig | undefined {
 }
 
 function stripTrailingSlash(url: string): string {
-  return url.replace(/\/+$/, '');
+  // Parcours caractere par caractere plutot qu'un regex `/\/+$/` : `override`
+  // est une entree publique (attribut proxy-url, #340) et le `+$` ancre est
+  // signale ReDoS polynomial par CodeQL. Cette version est lineaire.
+  let end = url.length;
+  while (end > 0 && url.charCodeAt(end - 1) === 47 /* '/' */) end--;
+  return url.slice(0, end);
 }
 
 /**
  * Get the proxy configuration based on the current environment.
  *
- * Ordre de résolution (cf. #319) :
+ * Ordre de résolution (du plus spécifique au plus général ; cf. #319, #340) :
+ * 0. `override` (attribut `proxy-url` d'une source) → proxy explicite par
+ *    source, prioritaire sur tout le reste. String non vide → proxy distant ;
+ *    objet → merge baseUrl/endpoints ; vide/absent → ignoré (on continue).
  * 1. `window.DSFR_DATA_PROXY = false` → mode `direct`, aucun proxying.
  * 2. `window.DSFR_DATA_PROXY` (string ou objet) → proxy du site déployeur.
  * 3. Dev Vite de CE repo → chemins relatifs (routes de vite.config.ts).
@@ -188,9 +196,26 @@ function stripTrailingSlash(url: string): string {
  * cette config est consommée par les adapters de `packages/core` qui tournent
  * dans le bundle lib — chargé indifféremment dans l'app elle-même (preview)
  * ou sur un site tiers embarquant un widget. Cf. issue #180.
+ *
+ * @param override Override explicite (attribut `proxy-url`), prioritaire sur
+ *   `window.DSFR_DATA_PROXY` et la config build-time. Le plus spécifique gagne.
  */
-export function getProxyConfig(): ProxyConfig {
+export function getProxyConfig(override?: string | RuntimeProxyConfig): ProxyConfig {
   const endpoints = { ...DEFAULT_ENDPOINTS };
+
+  // 0. Override explicite par source (attribut proxy-url, #340) : le plus
+  //    spécifique gagne, prioritaire sur window.DSFR_DATA_PROXY et le build-time.
+  if (typeof override === 'string' && override.trim()) {
+    return { baseUrl: stripTrailingSlash(override.trim()), endpoints, mode: 'remote' };
+  }
+  if (override && typeof override === 'object') {
+    return {
+      baseUrl: stripTrailingSlash(override.baseUrl?.trim() ?? ''),
+      endpoints: { ...endpoints, ...override.endpoints },
+      mode: 'remote',
+    };
+  }
+
   const runtime = readRuntimeProxy();
 
   // 1. Opt-out runtime explicite : aucun proxy
@@ -215,7 +240,9 @@ export function getProxyConfig(): ProxyConfig {
     return { baseUrl: '', endpoints, mode: 'dev-relative' };
   }
 
-  // 4. Config injectée au build (app self-hosted, Tauri)
+  // 4. Config injectée au build (app self-hosted, Tauri).
+  //    @deprecated Résolution build-time conservée en fallback temporaire (#340) :
+  //    préférer l'attribut `proxy-url` par source ou `window.DSFR_DATA_PROXY`.
   if (PROXY_BASE_URL_EMBED) {
     return { baseUrl: PROXY_BASE_URL_EMBED, endpoints, mode: 'remote' };
   }

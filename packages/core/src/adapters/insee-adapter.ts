@@ -85,7 +85,7 @@ export class InseeAdapter implements ApiAdapter {
       if (remaining <= 0) break;
 
       const effectivePageSize = Math.min(pageSize, remaining);
-      const url = getProxiedUrl(this.buildUrl(params, effectivePageSize, page));
+      const url = getProxiedUrl(this.buildUrl(params, effectivePageSize, page), params.proxyUrl);
 
       const response = await fetch(url, buildFetchOptions(params, signal));
       if (!response.ok) {
@@ -134,7 +134,7 @@ export class InseeAdapter implements ApiAdapter {
     overlay: ServerSideOverlay,
     signal: AbortSignal
   ): Promise<FetchResult> {
-    const url = getProxiedUrl(this.buildServerSideUrl(params, overlay));
+    const url = getProxiedUrl(this.buildServerSideUrl(params, overlay), params.proxyUrl);
 
     const response = await fetch(url, buildFetchOptions(params, signal));
     if (!response.ok) {

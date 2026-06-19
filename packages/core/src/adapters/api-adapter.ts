@@ -57,6 +57,12 @@ export interface AdapterParams {
   pageSize: number;
   /** Headers HTTP custom (ex: authentification, API key) */
   headers?: Record<string, string>;
+  /**
+   * Override du proxy CORS par source (attribut `proxy-url`, #340) —
+   * prioritaire sur `window.DSFR_DATA_PROXY` et la config build-time.
+   * Vide/absent = résolution proxy globale habituelle.
+   */
+  proxyUrl?: string;
 }
 
 /**
@@ -155,7 +161,7 @@ export interface ApiAdapter {
    * Retourne null si la capacite serverFacets est false.
    */
   fetchFacets?(
-    params: Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers'>,
+    params: Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl'>,
     fields: string[],
     where: string,
     signal?: AbortSignal

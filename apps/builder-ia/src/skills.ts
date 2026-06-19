@@ -223,7 +223,8 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 | limit | Number | \`0\` | non | Limite du nombre de resultats (0 = pas de limite). |
 | max-records | Number | \`0\` | non | Plafond du fetchAll en mode adapter (#233). 0 = plafond par defaut de l'adapter (ODS : 1000). A relever explicitement pour les dashboards « un fetch, N agregations client » — attention au volume (requetes en boucle, memoire). |
 | data | String | \`""\` | non | Données JSON inline (pas de fetch). Ex: \`data='[{"x":1},{"x":2}]'\` |
-| use-proxy | Boolean | \`false\` | non | Force le passage par le proxy CORS generique. Utile pour les APIs externes sans CORS. |
+| use-proxy | Boolean | \`false\` | non | Force le passage par le proxy CORS generique. N'a d'effet QUE si une base de proxy est configuree (\`proxy-url\`, \`window.DSFR_DATA_PROXY\`, ou build) : en embed nu sur un site tiers sans aucune de ces sources, c'est un no-op (URL renvoyee inchangee). |
+| proxy-url | String | \`""\` | non | Domaine du proxy CORS pour CETTE source, prioritaire sur \`window.DSFR_DATA_PROXY\` et la config build. Sert la reecriture d'hote connu (Grist gouv/SaaS, Tabular, INSEE) ET le \`use-proxy\` generique. Ex: \`proxy-url="https://mon-proxy.fr"\`. Vide = resolution proxy globale habituelle. |
 | api-key-ref | String | \`""\` | non | Reference vers une clé API dans window.DSFR_DATA_KEYS. Injecte la valeur comme header Authorization. |
 
 ### Événements emis
@@ -2099,11 +2100,25 @@ L'adapter INSEE aplatit automatiquement les observations (dimensions + measures 
 | Generique | Variable | Via \`headers\` sur dsfr-data-source |
 
 ### Proxy CORS
-Certaines APIs externes necessitent un proxy CORS en production.
-Les URLs connues sont automatiquement proxifiees :
-- \`grist.numerique.gouv.fr\` -> \`${PROXY_BASE_URL_EMBED}/grist-gouv-proxy\`
-- \`docs.getgrist.com\` -> \`${PROXY_BASE_URL_EMBED}/grist-proxy\`
-- \`tabular-api.data.gouv.fr\` -> \`${PROXY_BASE_URL_EMBED}/tabular-proxy\`
+Certaines APIs externes (Grist gouv/SaaS, Tabular) ne supportent pas le CORS
+navigateur : il faut un proxy CORS. La voie recommandee est l'attribut
+**\`proxy-url\` par source** : on declare l'URL reelle de l'API + le domaine du
+proxy, l'integrateur peut remplacer ce domaine par le sien.
+
+\`\`\`html
+<!-- Grist gouv via proxy declaratif : URL reelle + proxy-url -->
+<dsfr-data-source id="src"
+  url="https://grist.numerique.gouv.fr/api/docs/DOC_ID/tables/TABLE/records"
+  proxy-url="https://mon-proxy.fr"
+  transform="records">
+</dsfr-data-source>
+\`\`\`
+
+\`proxy-url\` reecrit automatiquement les hotes connus vers leur endpoint dedie
+(\`/grist-gouv-proxy\`, \`/grist-proxy\`, \`/tabular-proxy\`, \`/insee-proxy\`). Il est
+prioritaire sur le global \`window.DSFR_DATA_PROXY\` et la config build. Sans
+\`proxy-url\` ni global, l'URL est fetchee en direct (echec CORS attendu sur les
+instances gouv).
 
 APIs avec CORS natif (pas de proxy necessaire) :
 - OpenDataSoft (\`*.opendatasoft.com\` et portails publics)

@@ -132,7 +132,13 @@
             <tr><td><code>page-size</code></td><td>Number</td><td>Entier positif. Défaut : <code>20</code></td><td>Taille de page pour la pagination manuelle</td></tr>
             <tr><td><code>use-proxy</code></td><td>Boolean</td><td>Presence = <code>true</code></td><td>Force le passage par le proxy CORS generique (<code>/cors-proxy</code>).
               Utile pour les APIs externes qui ne gerent pas CORS. La requête est routee cote serveur
-              via un header <code>X-Target-URL</code>.</td></tr>
+              via un header <code>X-Target-URL</code>. <strong>N'a d'effet que si une base de proxy est
+              configuree</strong> (<code>proxy-url</code>, <code>window.DSFR_DATA_PROXY</code> ou build) :
+              en embed nu sans proxy, c'est un no-op (URL renvoyee inchangee).</td></tr>
+            <tr><td><code>proxy-url</code></td><td>String</td><td><code>""</code></td><td>Domaine du proxy CORS pour
+              <strong>cette source</strong>, prioritaire sur <code>window.DSFR_DATA_PROXY</code> et la config build.
+              Sert a la fois la reecriture d'hote connu (Grist gouv/SaaS, Tabular, INSEE) et le <code>use-proxy</code>
+              generique. Ex : <code>proxy-url="https://mon-proxy.fr"</code>. Vide = resolution proxy globale habituelle.</td></tr>
           </tbody>
         </table>
 

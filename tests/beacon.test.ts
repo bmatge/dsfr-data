@@ -33,6 +33,7 @@ describe('sendWidgetBeacon', () => {
     globalThis.Image = OriginalImage;
     delete (window as any).__gwDbMode;
     delete (window as any).DSFR_DATA_BEACON;
+    delete (window as any).DSFR_DATA_BEACON_URL;
     vi.restoreAllMocks();
     vi.resetModules();
     vi.unstubAllGlobals();
@@ -276,5 +277,59 @@ describe('sendWidgetBeacon', () => {
     // Without DB mode, pixel is created synchronously
     expect(imageSrcs).toHaveLength(1);
     expect(imageSrcs[0]).toContain('chartsbuilder.matge.com/beacon');
+  });
+
+  // --- Override runtime de l'URL de collecte (#340) ---
+
+  it('window.DSFR_DATA_BEACON_URL prend le pas sur l URL bakee', async () => {
+    (window as any).DSFR_DATA_BEACON = true;
+    (window as any).DSFR_DATA_BEACON_URL = 'https://collecte.ministere.fr/';
+    vi.stubGlobal('location', {
+      hostname: 'example.gouv.fr',
+      protocol: 'https:',
+      origin: 'https://example.gouv.fr',
+      href: 'https://example.gouv.fr/',
+    });
+
+    const sendWidgetBeacon = await loadBeacon('https://chartsbuilder.matge.com');
+    sendWidgetBeacon('dsfr-data-kpi');
+
+    expect(imageSrcs).toHaveLength(1);
+    const url = new URL(imageSrcs[0]);
+    expect(url.origin).toBe('https://collecte.ministere.fr');
+    expect(url.pathname).toBe('/beacon');
+  });
+
+  it('window.DSFR_DATA_BEACON_URL active la collecte meme sans URL bakee', async () => {
+    (window as any).DSFR_DATA_BEACON = true;
+    (window as any).DSFR_DATA_BEACON_URL = 'https://collecte.ministere.fr';
+    vi.stubGlobal('location', {
+      hostname: 'example.gouv.fr',
+      protocol: 'https:',
+      origin: 'https://example.gouv.fr',
+      href: 'https://example.gouv.fr/',
+    });
+
+    const sendWidgetBeacon = await loadBeacon('');
+    sendWidgetBeacon('dsfr-data-kpi');
+
+    expect(imageSrcs).toHaveLength(1);
+    expect(imageSrcs[0]).toContain('https://collecte.ministere.fr/beacon');
+  });
+
+  it('skip sur le host de collecte resolu via override (pas de self-ping)', async () => {
+    (window as any).DSFR_DATA_BEACON = true;
+    (window as any).DSFR_DATA_BEACON_URL = 'https://collecte.ministere.fr';
+    vi.stubGlobal('location', {
+      hostname: 'collecte.ministere.fr',
+      protocol: 'https:',
+      origin: 'https://collecte.ministere.fr',
+      href: 'https://collecte.ministere.fr/',
+    });
+
+    const sendWidgetBeacon = await loadBeacon('https://chartsbuilder.matge.com');
+    sendWidgetBeacon('dsfr-data-kpi');
+
+    expect(imageSrcs).toHaveLength(0);
   });
 });

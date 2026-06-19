@@ -6,7 +6,24 @@
 
 import { BEACON_BASE_URL } from '@dsfr-data/shared/lib';
 
-const BEACON_URL = `${BEACON_BASE_URL}/beacon`;
+/**
+ * Resout la base de collecte du beacon **a l'appel** (#340) :
+ * `window.DSFR_DATA_BEACON_URL` (string non vide) est prioritaire sur la
+ * valeur bakee au build (`BEACON_BASE_URL`). Resolu dynamiquement et non en
+ * const au chargement pour que le site hote puisse la poser avant le 1er
+ * beacon. Vide → no-op (pas de domaine de collecte).
+ */
+function resolveBeaconBase(): string {
+  const override =
+    typeof window !== 'undefined'
+      ? (window as Window & { DSFR_DATA_BEACON_URL?: string }).DSFR_DATA_BEACON_URL
+      : undefined;
+  if (typeof override === 'string' && override.trim()) {
+    return override.trim().replace(/\/+$/, '');
+  }
+  return BEACON_BASE_URL;
+}
+
 const sent = new Set<string>();
 /** Keep references to pending beacon images to prevent GC before request completes */
 const pending: HTMLImageElement[] = [];
@@ -43,9 +60,10 @@ export function sendWidgetBeacon(component: string, subtype?: string): void {
   )
     return;
 
-  // Pas de domaine de collecte baké dans le bundle (build sans VITE_BEACON_URL
-  // ni VITE_PROXY_URL*) : aucun endroit où envoyer le beacon
-  if (!BEACON_BASE_URL) return;
+  // Aucun domaine de collecte (ni override runtime, ni bake au build) :
+  // aucun endroit où envoyer le beacon
+  const beaconBase = resolveBeaconBase();
+  if (!beaconBase) return;
 
   const key = `${component}:${subtype || ''}`;
   if (sent.has(key)) return;
@@ -59,7 +77,7 @@ export function sendWidgetBeacon(component: string, subtype?: string): void {
   // external deployments — internal pings would inflate stats with our own
   // navigation on the app/embed domain).
   const host = window.location.hostname;
-  if (host === 'localhost' || host === '127.0.0.1' || host === new URL(BEACON_BASE_URL).hostname) {
+  if (host === 'localhost' || host === '127.0.0.1' || host === new URL(beaconBase).hostname) {
     return;
   }
 
@@ -97,7 +115,7 @@ export function sendWidgetBeacon(component: string, subtype?: string): void {
     }
   }
 
-  const url = `${BEACON_URL}?${params.toString()}`;
+  const url = `${beaconBase}/beacon?${params.toString()}`;
 
   try {
     const img = new Image();

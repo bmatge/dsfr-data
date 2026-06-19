@@ -5,6 +5,7 @@ import {
   isTauriMode,
   getProxyConfig,
 } from '../../packages/shared/src/api/proxy-config';
+import { getProxiedUrl } from '../../packages/shared/src/api/proxy';
 
 /**
  * Recharge le module proxy-config avec des variables VITE_* contrôlées.
@@ -190,6 +191,71 @@ describe('proxy-config', () => {
           expect(getProxyConfig().mode).toBe('remote');
         });
       });
+    });
+  });
+
+  // --- Override explicite par source (attribut proxy-url, #340) ---
+  describe('getProxyConfig(override) — proxy-url par source', () => {
+    it('string override → proxy distant (trailing slash strippe)', () => {
+      const config = getProxyConfig('https://mon-proxy.fr/');
+      expect(config.mode).toBe('remote');
+      expect(config.baseUrl).toBe('https://mon-proxy.fr');
+    });
+
+    it('object override → merge baseUrl + endpoints', () => {
+      const config = getProxyConfig({ baseUrl: 'https://x.fr', endpoints: { tabular: '/t' } });
+      expect(config.mode).toBe('remote');
+      expect(config.baseUrl).toBe('https://x.fr');
+      expect(config.endpoints.tabular).toBe('/t');
+      expect(config.endpoints.grist).toBe('/grist-proxy');
+    });
+
+    it('override prend le pas sur window.DSFR_DATA_PROXY (le plus specifique gagne)', () => {
+      withRuntimeProxy('https://global-proxy.fr', () => {
+        const config = getProxyConfig('https://source-proxy.fr');
+        expect(config.baseUrl).toBe('https://source-proxy.fr');
+      });
+    });
+
+    it('override vide/whitespace → ignore, on retombe sur la resolution habituelle', () => {
+      withRuntimeProxy('https://global-proxy.fr', () => {
+        const config = getProxyConfig('   ');
+        expect(config.baseUrl).toBe('https://global-proxy.fr');
+      });
+    });
+
+    it('sans override ni global → defaut direct preserve', async () => {
+      const mod = await loadProxyConfigWithEnv({});
+      withLocation({ hostname: 'mon-site-tiers.example.fr', port: '' }, () => {
+        expect(mod.getProxyConfig().mode).toBe('direct');
+        expect(mod.getProxyConfig(undefined).mode).toBe('direct');
+      });
+    });
+  });
+
+  // --- getProxiedUrl avec override (proxy.ts, #340) ---
+  describe('getProxiedUrl(url, override)', () => {
+    it('reecrit un hote connu avec la base de l override', () => {
+      const url = getProxiedUrl(
+        'https://grist.numerique.gouv.fr/api/docs/x/tables/y/records',
+        'https://mon-proxy.fr'
+      );
+      expect(url).toBe('https://mon-proxy.fr/grist-gouv-proxy/api/docs/x/tables/y/records');
+    });
+
+    it('hote inconnu → URL inchangee meme avec override', () => {
+      const url = getProxiedUrl('https://api.example.com/data', 'https://mon-proxy.fr');
+      expect(url).toBe('https://api.example.com/data');
+    });
+
+    it('sans override ni proxy → URL directe (non-regression mode direct)', async () => {
+      // env vide → PROXY_BASE_URL_EMBED='' ; location happy-dom par defaut
+      // (localhost sans port) → isViteDevMode()=false → mode direct.
+      await loadProxyConfigWithEnv({});
+      const { getProxiedUrl: freshGetProxiedUrl } =
+        await import('../../packages/shared/src/api/proxy');
+      const url = freshGetProxiedUrl('https://grist.numerique.gouv.fr/api/docs/x/tables/y/records');
+      expect(url).toBe('https://grist.numerique.gouv.fr/api/docs/x/tables/y/records');
     });
   });
 });

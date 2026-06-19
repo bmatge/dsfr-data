@@ -3,17 +3,27 @@
  */
 
 import { getProxyConfig } from './proxy-config.js';
-import type { ProxyConfig } from './proxy-config.js';
+import type { ProxyConfig, RuntimeProxyConfig } from './proxy-config.js';
+
+/** Override proxy explicite (attribut `proxy-url` d'une source, #340). */
+type ProxyOverride = string | RuntimeProxyConfig | undefined;
 
 /**
  * Get proxied URL for a Grist API endpoint
  * Handles both docs.getgrist.com and grist.numerique.gouv.fr
+ *
+ * @param proxyOverride Override proxy par source (attribut `proxy-url`, #340),
+ *   prioritaire sur `window.DSFR_DATA_PROXY` et la config build-time.
  */
-export function getProxyUrl(gristUrl: string, endpoint: string): string {
+export function getProxyUrl(
+  gristUrl: string,
+  endpoint: string,
+  proxyOverride?: ProxyOverride
+): string {
   if (!gristUrl) {
     throw new Error('getProxyUrl: gristUrl is required');
   }
-  const config = getProxyConfig();
+  const config = getProxyConfig(proxyOverride);
   const url = new URL(gristUrl);
 
   // Aucun proxy configuré : acces direct a l'instance Grist
@@ -67,12 +77,15 @@ function rewriteKnownHost(parsed: URL, config: ProxyConfig): string | null {
  * Note : pour router *aussi* les hôtes inconnus via le proxy CORS générique
  * (nécessaire dès qu'on envoie un en-tête custom comme `Apikey` qui déclenche
  * un preflight), utiliser `buildProxiedRequest` qui renvoie url + en-têtes.
+ *
+ * @param proxyOverride Override proxy par source (attribut `proxy-url`, #340),
+ *   prioritaire sur `window.DSFR_DATA_PROXY` et la config build-time.
  */
-export function getProxiedUrl(url: string): string {
+export function getProxiedUrl(url: string, proxyOverride?: ProxyOverride): string {
   if (!url) {
     throw new Error('getProxiedUrl: url is required');
   }
-  const config = getProxyConfig();
+  const config = getProxyConfig(proxyOverride);
 
   let parsed: URL;
   try {
@@ -98,13 +111,14 @@ export function getProxiedUrl(url: string): string {
  */
 export function buildProxiedRequest(
   url: string,
-  extraHeaders: Record<string, string> = {}
+  extraHeaders: Record<string, string> = {},
+  proxyOverride?: ProxyOverride
 ): { url: string; headers: Record<string, string> } {
   if (!url) {
     throw new Error('buildProxiedRequest: url is required');
   }
   const headers: Record<string, string> = { ...extraHeaders };
-  const config = getProxyConfig();
+  const config = getProxyConfig(proxyOverride);
 
   let parsed: URL;
   try {
@@ -149,9 +163,10 @@ export function buildProxiedRequest(
  */
 export function buildCorsProxyRequest(
   targetUrl: string,
-  extraHeaders?: Record<string, string>
+  extraHeaders?: Record<string, string>,
+  proxyOverride?: ProxyOverride
 ): { url: string; headers: Record<string, string> } {
-  const config = getProxyConfig();
+  const config = getProxyConfig(proxyOverride);
 
   // Aucun proxy configuré : requête directe vers la cible
   if (config.mode === 'direct') {

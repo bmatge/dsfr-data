@@ -119,7 +119,7 @@ export class GristAdapter implements ApiAdapter {
     }
 
     // Mode Records (enrichi avec filter/sort/limit)
-    const url = getProxiedUrl(this.buildUrl(params));
+    const url = getProxiedUrl(this.buildUrl(params), params.proxyUrl);
     const response = await fetch(url, buildFetchOptions(params, signal));
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 
@@ -146,7 +146,7 @@ export class GristAdapter implements ApiAdapter {
     }
 
     // Mode Records pagine
-    const url = getProxiedUrl(this.buildServerSideUrl(params, overlay));
+    const url = getProxiedUrl(this.buildServerSideUrl(params, overlay), params.proxyUrl);
     const response = await fetch(url, buildFetchOptions(params, signal));
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 
@@ -224,7 +224,7 @@ export class GristAdapter implements ApiAdapter {
   // =========================================================================
 
   async fetchFacets(
-    params: Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers'>,
+    params: Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl'>,
     fields: string[],
     where: string,
     signal?: AbortSignal
@@ -248,7 +248,7 @@ export class GristAdapter implements ApiAdapter {
       }
       sql += ` GROUP BY ${col} ORDER BY cnt DESC LIMIT 200`;
 
-      const sqlUrl = getProxiedUrl(this._getSqlEndpointUrl(fullParams));
+      const sqlUrl = getProxiedUrl(this._getSqlEndpointUrl(fullParams), fullParams.proxyUrl);
       try {
         const response = await fetch(sqlUrl, {
           method: 'POST',
@@ -321,7 +321,7 @@ export class GristAdapter implements ApiAdapter {
    * GET /api/docs/{docId}/tables/{tableId}/columns
    */
   async fetchColumns(params: AdapterParams, signal?: AbortSignal): Promise<GristColumn[]> {
-    const url = getProxiedUrl(params.baseUrl.replace(/\/records.*$/, '/columns'));
+    const url = getProxiedUrl(params.baseUrl.replace(/\/records.*$/, '/columns'), params.proxyUrl);
     try {
       const response = await fetch(url, buildFetchOptions(params, signal));
       if (!response.ok) return [];
@@ -347,7 +347,10 @@ export class GristAdapter implements ApiAdapter {
    * GET /api/docs/{docId}/tables
    */
   async fetchTables(params: AdapterParams, signal?: AbortSignal): Promise<GristTable[]> {
-    const url = getProxiedUrl(params.baseUrl.replace(/\/tables\/[^/]+\/records.*$/, '/tables'));
+    const url = getProxiedUrl(
+      params.baseUrl.replace(/\/tables\/[^/]+\/records.*$/, '/tables'),
+      params.proxyUrl
+    );
     try {
       const response = await fetch(url, buildFetchOptions(params, signal));
       if (!response.ok) return [];
@@ -482,7 +485,7 @@ export class GristAdapter implements ApiAdapter {
       .filter(Boolean)
       .join(' ');
 
-    const sqlUrl = getProxiedUrl(this._getSqlEndpointUrl(params));
+    const sqlUrl = getProxiedUrl(this._getSqlEndpointUrl(params), params.proxyUrl);
     const response = await fetch(sqlUrl, {
       method: 'POST',
       headers: {
@@ -520,7 +523,7 @@ export class GristAdapter implements ApiAdapter {
 
   /** Fetch Records mode (internal fallback) */
   private async _fetchAllRecords(params: AdapterParams, signal: AbortSignal): Promise<FetchResult> {
-    const url = getProxiedUrl(this.buildUrl(params));
+    const url = getProxiedUrl(this.buildUrl(params), params.proxyUrl);
     const response = await fetch(url, buildFetchOptions(params, signal));
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 
@@ -753,7 +756,7 @@ export class GristAdapter implements ApiAdapter {
   // =========================================================================
 
   private async _checkSqlAvailability(
-    params: Pick<AdapterParams, 'baseUrl' | 'headers'>,
+    params: Pick<AdapterParams, 'baseUrl' | 'headers' | 'proxyUrl'>,
     signal?: AbortSignal
   ): Promise<boolean> {
     const endpoint = this._getSqlEndpointUrl(params);
@@ -769,7 +772,7 @@ export class GristAdapter implements ApiAdapter {
         : AbortSignal.timeout(2000);
 
     try {
-      const sqlUrl = getProxiedUrl(endpoint);
+      const sqlUrl = getProxiedUrl(endpoint, params.proxyUrl);
       const response = await fetch(sqlUrl + '?q=SELECT%201', {
         method: 'GET',
         headers: (params.headers || {}) as Record<string, string>,

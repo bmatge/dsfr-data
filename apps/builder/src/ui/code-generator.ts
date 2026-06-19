@@ -1325,18 +1325,30 @@ export function generateDynamicCode(): void {
   const source = state.savedSource;
   if (!source || source.type !== 'grist') return;
 
-  // Build full proxy URL via ProviderConfig knownHosts
+  // URL Grist reelle + proxy-url declaratif (#340) : on n'inline plus l'URL
+  // proxifiee complete (domaine opaque). L'integrateur voit l'URL Grist source
+  // et un proxy-url qu'il peut remplacer par son propre domaine de proxy.
   const gristProvider = getProvider('grist');
-  let proxyUrl = source.apiUrl || '';
+  let realUrl = source.apiUrl || '';
   let gristHost = 'Grist';
+  let knownHost = false;
 
   for (const host of gristProvider.knownHosts) {
     if (source.apiUrl?.includes(host.hostname)) {
-      proxyUrl = `${PROXY_BASE_URL_EMBED}${host.proxyEndpoint}/api/docs/${source.documentId}/tables/${source.tableId}/records`;
+      realUrl = `https://${host.hostname}/api/docs/${source.documentId}/tables/${source.tableId}/records`;
       gristHost = host.hostname;
+      knownHost = true;
       break;
     }
   }
+
+  // Hote gouv/SaaS (pas de CORS navigateur) -> emettre proxy-url si un domaine
+  // de proxy est bake. Instances self-hosted (CORS ouvert) : pas de proxy-url.
+  const proxyAttr =
+    knownHost && PROXY_BASE_URL_EMBED ? `\n    proxy-url="${PROXY_BASE_URL_EMBED}"` : '';
+  const proxyComment = proxyAttr
+    ? `  <!-- proxy-url : domaine du proxy CORS (${gristHost} ne supporte pas le CORS navigateur).\n       À REMPLACER par votre propre domaine de proxy en production. -->\n`
+    : '';
 
   // Get field info for labels
   const labelFieldInfo = state.fields.find((f) => f.name === state.labelField);
@@ -1387,9 +1399,9 @@ export function generateDynamicCode(): void {
   ${state.title ? `<h2>${escapeHtml(state.title)}</h2>` : ''}
   ${state.subtitle ? `<p class="fr-text--sm fr-text--light">${escapeHtml(state.subtitle)}</p>` : ''}
 
-  <dsfr-data-source
+${proxyComment}  <dsfr-data-source
     id="table-data"
-    url="${proxyUrl}"
+    url="${realUrl}"${proxyAttr}
     transform="records"${refreshAttr}>
   </dsfr-data-source>
 ${middlewareHtml}
@@ -1459,7 +1471,6 @@ ${middlewareHtml}
   const code = `<!-- Graphique dynamique généré avec dsfr-data Builder -->
 <!-- Doc des composants : ${PROXY_BASE_URL_EMBED}/specs/ -->
 <!-- Source : ${escapeHtml(source.name)} (chargement dynamique depuis ${gristHost}) -->
-<!-- Les données sont chargees via le proxy ${PROXY_BASE_URL_EMBED} -->
 ${state.advancedMode ? '<!-- Mode avance active : filtrage et agrégation via dsfr-data-query -->' : ''}
 
 <!-- Dependances CSS (DSFR) -->
@@ -1475,10 +1486,10 @@ ${state.advancedMode ? '<!-- Mode avance active : filtrage et agrégation via ds
   ${state.title ? `<h2>${escapeHtml(state.title)}</h2>` : ''}
   ${state.subtitle ? `<p class="fr-text--sm fr-text--light">${escapeHtml(state.subtitle)}</p>` : ''}
 
-  <!-- Source de données (via proxy CORS) -->
-  <dsfr-data-source
+  <!-- Source de données (via proxy CORS si proxy-url defini) -->
+${proxyComment}  <dsfr-data-source
     id="chart-data"
-    url="${proxyUrl}"
+    url="${realUrl}"${proxyAttr}
     transform="records"${refreshAttr}>
   </dsfr-data-source>
 ${middlewareHtml}${queryElement}

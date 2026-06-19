@@ -365,7 +365,7 @@ export class TabularAdapter implements ApiAdapter {
     if (params.baseUrl) {
       return params.baseUrl;
     }
-    const config = getProxyConfig();
+    const config = getProxyConfig(params.proxyUrl);
     // Aucun proxy configuré : appel direct de l'API Tabular (CORS ouvert)
     if (config.mode === 'direct') {
       return TABULAR_CONFIG.defaultBaseUrl || 'https://tabular-api.data.gouv.fr';
