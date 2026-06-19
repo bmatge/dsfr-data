@@ -187,6 +187,16 @@ describe('DsfrDataKpi', () => {
       expect(info.value).toBe(7.5);
       expect(info.direction).toBe('up');
     });
+
+    it('computes tendance from aggregation on a single-object source (#338)', () => {
+      // Source mono-objet (baromètre) : l'agrégation renvoyait null avant #338.
+      kpi.trend = 'evol_n1:avg';
+      (kpi as any)._sourceData = { valeur: 37849, evol_n1: 92.5 };
+      const info = (kpi as any)._getTendanceInfo();
+      expect(info).not.toBeNull();
+      expect(info.value).toBe(92.5);
+      expect(info.direction).toBe('up');
+    });
   });
 
   describe('_getAriaLabel', () => {
@@ -315,6 +325,28 @@ describe('DsfrDataKpi', () => {
       kpi.format = 'decimal';
       const label = (kpi as any)._getAriaLabel();
       expect(label).toMatch(/75[,.]5/);
+    });
+  });
+
+  describe('Trend rendering from single-object source (#338)', () => {
+    it('renders the trend span for an aggregation on a one-record source', async () => {
+      clearDataCache('kpi-mono');
+      kpi.source = 'kpi-mono';
+      kpi.value = 'valeur';
+      kpi.label = 'Test';
+      kpi.trend = 'evol_n1:avg';
+      document.body.appendChild(kpi);
+      kpi.connectedCallback();
+
+      // Source mono-objet (baromètre) : avant #338 la valeur s'affichait mais
+      // la tendance agrégée disparaissait silencieusement.
+      dispatchDataLoaded('kpi-mono', { valeur: 37849, evol_n1: 92.5 } as unknown as object);
+      await kpi.updateComplete;
+
+      const trendEl = kpi.querySelector('.dsfr-data-kpi__tendance');
+      expect(trendEl).not.toBeNull();
+      expect((trendEl!.textContent || '').replace(/\s+/g, ' ')).toContain('92,5');
+      kpi.remove();
     });
   });
 });

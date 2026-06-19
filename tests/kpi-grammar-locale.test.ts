@@ -57,6 +57,35 @@ describe('#303 — AC : chemins imbriqués via getByPath', () => {
   });
 });
 
+describe('#338 — agrégation sur source mono-objet (un seul enregistrement)', () => {
+  // Un baromètre n'expose qu'un chiffre courant : la source émet souvent un
+  // objet seul `{...}` et non un tableau. L'accès direct marchait déjà mais
+  // toute agrégation renvoyait null → la valeur s'affichait, pas la tendance.
+  it('avg sur un objet seul agrège l’unique enregistrement', () => {
+    expect(computeAggregation({ evol_n1: 92.5 }, 'evol_n1:avg')).toBe(92.5);
+  });
+
+  it('sum / min / max sur un objet seul', () => {
+    expect(computeAggregation({ v: 37849 }, 'v:sum')).toBe(37849);
+    expect(computeAggregation({ v: 12 }, 'v:min')).toBe(12);
+    expect(computeAggregation({ v: 12 }, 'v:max')).toBe(12);
+  });
+
+  it('count sur un objet seul vaut 1', () => {
+    expect(computeAggregation({ a: 1 }, 'count')).toBe(1);
+  });
+
+  it('chemin imbriqué + agrégation sur un objet seul', () => {
+    expect(computeAggregation({ fields: { score: 15 } }, 'fields.score:avg')).toBe(15);
+  });
+
+  it('null / primitif restent null (rien à agréger)', () => {
+    expect(computeAggregation(null, 'x:avg')).toBeNull();
+    expect(computeAggregation('texte', 'x:sum')).toBeNull();
+    expect(computeAggregation(42, 'x:avg')).toBeNull();
+  });
+});
+
 describe('#303 — count:field:value en égalité lâche', () => {
   it('"75" string matche le filtre numérique 75 (comme query)', () => {
     const rows = [{ dept: '75' }, { dept: 75 }, { dept: '13' }] as Record<string, unknown>[];

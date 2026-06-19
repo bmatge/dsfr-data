@@ -970,11 +970,12 @@ Utiliser \`<dsfr-data-kpi-group>\` pour disposer plusieurs KPIs en grille respon
 </dsfr-data-kpi>
 
 <!-- KPI avec couleur forcee et tendance -->
+<!-- trend est une EXPRESSION champ:fn evaluee sur la source (pas un litteral) -->
 <dsfr-data-kpi source="data"
   valeur="count:status:active"
   label="Sites actifs"
   couleur="bleu"
-  tendance="+12">
+  trend="evolution:avg">
 </dsfr-data-kpi>
 \`\`\``,
   },

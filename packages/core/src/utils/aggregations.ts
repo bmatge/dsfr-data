@@ -91,20 +91,27 @@ export function parseExpression(expression: string): ParsedExpression {
 export function computeAggregation(data: unknown, expression: string): number | string | null {
   const parsed = parseExpression(expression);
 
-  // Si c'est un accès direct à un objet (pas un tableau)
+  // Accès direct sur un objet seul (pas un tableau) : getByPath (#303) gère
+  // les chemins imbriques — valeur="fields.score" echouait silencieusement.
   if (parsed.type === 'direct' && !Array.isArray(data)) {
-    const obj = data as Record<string, unknown>;
-    // getByPath (#303) : seul composant sans chemins imbriques —
-    // valeur="fields.score" echouait silencieusement
-    return getByPath(obj, parsed.field) as number | string | null;
+    if (!data || typeof data !== 'object') return null;
+    return getByPath(data as Record<string, unknown>, parsed.field) as number | string | null;
   }
 
-  // Pour les agrégations, on a besoin d'un tableau
-  if (!Array.isArray(data)) {
+  // Agrégations : on raisonne sur un tableau. Une source mono-objet (un seul
+  // enregistrement emis sans wrapper tableau) est normalisee en tableau a 1
+  // element — l'acces direct ci-dessus accepte deja l'objet seul, sinon la
+  // valeur s'affichait mais pas la tendance/agregat (#338).
+  const items: Record<string, unknown>[] = Array.isArray(data)
+    ? (data as Record<string, unknown>[])
+    : data && typeof data === 'object'
+      ? [data as Record<string, unknown>]
+      : [];
+
+  // Ni tableau ni objet exploitable (null, chaine, nombre) : rien a agreger.
+  if (!Array.isArray(data) && items.length === 0) {
     return null;
   }
-
-  const items = data as Record<string, unknown>[];
 
   switch (parsed.type) {
     case 'direct':
