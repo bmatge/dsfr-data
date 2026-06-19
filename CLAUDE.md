@@ -489,11 +489,12 @@ Publication npm : `npm publish` via workflow GitHub Actions sur tag `v*`.
 
 ## Beacon de tracking
 
-Les beacons sont **desactives par defaut** (opt-in). Pour les activer, le site deployeur doit definir `window.DSFR_DATA_BEACON = true` avant le chargement des composants.
+Les beacons sont **desactives par defaut** (opt-in). Pour les activer, deux voies : poser `window.DSFR_DATA_BEACON = true` avant le chargement des composants, **ou** placer un element declaratif `<dsfr-data-beacon url="...">` dans la page (#345, voir ci-dessous).
 
 Quand active, chaque composant `dsfr-data-*` envoie un beacon fire-and-forget a l'initialisation (`connectedCallback`) via `sendWidgetBeacon()` dans `packages/core/src/utils/beacon.ts`. Le beacon transmet le nom du composant, le type de graphique et l'origine de la page (`window.location.origin` via le parametre `r=`) au proxy nginx qui les enregistre dans `beacon.log`. Un script periodique (`scripts/parse-beacon-logs.sh`) transforme ces logs en `monitoring-data.json` consomme par l'app monitoring.
 
-- **Opt-in** : `window.DSFR_DATA_BEACON = true` requis pour activer l'envoi
+- **Opt-in** : `window.DSFR_DATA_BEACON = true` **ou** un `<dsfr-data-beacon url="...">` present (avec `url` non vide) requis pour activer l'envoi
+- **`<dsfr-data-beacon url="...">` (#345)** — cible telemetrie **declarative** (pendant de `proxy-url`) : rend la collecte visible et retirable dans le HTML au lieu d'un `window.*` opaque. Sa presence vaut opt-in ET fournit l'URL de collecte. **Precedence de l'URL** : element `url` > `window.DSFR_DATA_BEACON_URL` (#340) > URL bakee au build. **Kill switch** : `window.DSFR_DATA_BEACON = false` neutralise meme un element present (coherent avec `window.DSFR_DATA_PROXY = false`). L'element est invisible, n'emet aucun beacon lui-meme, et vit dans le bundle **core** ; il est consulte en **lookup paresseux** au moment de l'envoi (#156), donc son ordre dans le DOM est indifferent (micro-defer `DOMContentLoaded`/microtask pour le cas « element declare apres un composant »).
 - Le parametre `r=` envoie `window.location.origin` pour identifier le site deployeur (plus fiable que le header HTTP Referer qui depend du Referrer-Policy du site)
 - Les parsers (sh et js) preferent `$arg_r` et tombent en fallback sur `$http_referer` pour compatibilite avec les anciens logs
 - Deduplication par `Set` en memoire (1 beacon par composant+type par page)

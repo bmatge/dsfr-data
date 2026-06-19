@@ -195,6 +195,11 @@ export class AppLayoutDemo extends LitElement {
             label: 'dsfr-data-chart',
             href: 'components/dsfr-data-chart.html',
           },
+          {
+            id: 'components/dsfr-data-beacon',
+            label: 'dsfr-data-beacon',
+            href: 'components/dsfr-data-beacon.html',
+          },
         ],
       },
       {

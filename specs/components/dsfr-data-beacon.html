@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-scheme="system">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dsfr-data-beacon - Composants - dsfr-data</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css" integrity="sha384-atVZ+aK6VI0nWyTEhKgze5InDJ+SWRRqa0BCZ2MTNyoOcBiHj1c3dGPdi6ML65B3" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css" integrity="sha384-5P5DFFqorcEBpfnK9WHu/Ralfr7ZxyCZh0ryaJbgucSvc71+qRYdGvNEcyMqQwa/" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script type="module" src="/dist/app-ui.esm.js"></script>
+  <style>
+    body { min-height: 100vh; display: flex; flex-direction: column; }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <app-header current-page="composants" base-path="../../"></app-header>
+
+  <!-- Layout documentation avec sidemenu -->
+  <app-layout-demo
+    title="dsfr-data-beacon"
+    icon="ri-radar-line"
+    active-path="components/dsfr-data-beacon"
+    base-path="../">
+    <div slot="content">
+        <p class="fr-text--lead">
+          Cible de telemetrie <strong>declarative</strong>. Pendant cote telemetrie de
+          <code>proxy-url</code> : rend la collecte d'usage <strong>visible et retirable</strong>
+          dans le HTML, au lieu d'un <code>window.*</code> opaque.
+        </p>
+
+        <div class="fr-callout fr-callout--blue-france">
+          <p class="fr-callout__text">
+            <strong>Invisible et opt-in :</strong> Ce composant ne rend rien et n'envoie aucun beacon
+            lui-même. Par defaut la telemetrie est <strong>desactivee</strong>. Poser un
+            <code>&lt;dsfr-data-beacon url="..."&gt;</code> avec un <code>url</code> non vide
+            <strong>active</strong> la collecte et en designe la cible.
+          </p>
+        </div>
+
+        <h2 id="probleme">Le probleme resolu</h2>
+        <p>
+          Historiquement, la telemetrie d'usage se pilotait uniquement par des variables globales posees
+          sur <code>window</code> avant le chargement des composants (<code>window.DSFR_DATA_BEACON = true</code>,
+          <code>window.DSFR_DATA_BEACON_URL</code>). Un integrateur qui colle un embed ne <em>voit</em> pas
+          qu'une telemetrie part, ni vers ou.
+        </p>
+        <p>
+          L'element rend cette intention explicite dans le DOM : un operateur (ministère, etablissement public)
+          peut diriger la collecte vers <strong>son propre collecteur</strong> sans toucher au JavaScript de la
+          page, et un integrateur peut la <strong>retirer en connaissance de cause</strong> (argument RGPD /
+          souverainete solide, contrairement a un <code>window.*</code> invisible).
+        </p>
+
+        <h2 id="attributs" class="fr-mt-4w">Attributs</h2>
+        <table class="attr-table">
+          <thead><tr><th>Attribut</th><th>Type</th><th>Format / Valeurs</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>url</code></td><td>String</td><td><code>url="https://collecte.ministere.fr"</code></td><td>Domaine de collecte du beacon. Présence avec valeur non vide = opt-in + cible. Vide ou absent = no-op (aucune collecte declarative).</td></tr>
+          </tbody>
+        </table>
+
+        <h2 id="precedence" class="fr-mt-4w">Precedence et opt-in</h2>
+        <p>L'URL de collecte est resolue, du plus spécifique au plus général :</p>
+        <div class="code-block"><pre>&lt;dsfr-data-beacon url&gt;  &gt;  window.DSFR_DATA_BEACON_URL  &gt;  URL bakee au build</pre></div>
+        <p>L'opt-in (off par défaut) est acquis si l'une de ces conditions est vraie :</p>
+        <ul>
+          <li><code>window.DSFR_DATA_BEACON === true</code> (opt-in global classique) ;</li>
+          <li>un <code>&lt;dsfr-data-beacon url="..."&gt;</code> avec <code>url</code> non vide est present.</li>
+        </ul>
+        <div class="fr-callout fr-callout--blue-france fr-mt-2w">
+          <p class="fr-callout__text">
+            <strong>Kill switch :</strong> <code>window.DSFR_DATA_BEACON = false</code> neutralise la collecte
+            <em>même</em> si un element est present (coherent avec <code>window.DSFR_DATA_PROXY = false</code>).
+          </p>
+        </div>
+
+        <h2 id="exemples" class="fr-mt-4w">Exemples</h2>
+
+        <section class="demo-section">
+          <h3>Telemetrie vers un collecteur souverain</h3>
+          <p>L'element, visible dans la page, active et cible la collecte. Il peut etre place avant ou apres les composants.</p>
+          <div class="code-block"><pre>&lt;dsfr-data-beacon url="https://collecte.ministere.fr"&gt;&lt;/dsfr-data-beacon&gt;
+
+&lt;dsfr-data-source id="src" api-type="opendatasoft"
+  dataset-id="..." base-url="https://data.gouv.fr"&gt;
+&lt;/dsfr-data-source&gt;
+&lt;dsfr-data-chart source="src" type="bar"
+  label-field="region" value-field="total"&gt;
+&lt;/dsfr-data-chart&gt;</pre></div>
+        </section>
+
+        <section class="demo-section">
+          <h3>Retrait par l'integrateur</h3>
+          <p>Pour desactiver la telemetrie, il suffit de retirer la ligne — ou de poser le kill switch :</p>
+          <div class="code-block"><pre>&lt;!-- Aucune ligne &lt;dsfr-data-beacon&gt; : aucune telemetrie declarative --&gt;
+
+&lt;!-- ...ou neutralisation explicite, même si un element traine ailleurs : --&gt;
+&lt;script&gt;window.DSFR_DATA_BEACON = false;&lt;/script&gt;</pre></div>
+        </section>
+
+        <h2 id="comportement" class="fr-mt-4w">Comportement</h2>
+        <ul>
+          <li><strong>Invisible :</strong> aucun rendu, aucun footprint de layout.</li>
+          <li><strong>N'emet rien lui-même :</strong> ce sont les composants <code>dsfr-data-*</code> qui envoient
+            le beacon a leur initialisation ; l'element fournit seulement la cible/opt-in.</li>
+          <li><strong>Ordre du DOM indifferent :</strong> l'element est consulte en lookup paresseux au moment de
+            l'envoi ; place après un composant dans le HTML, il est malgre tout pris en compte.</li>
+          <li><strong>Deduplication :</strong> un beacon par composant + variante par chargement de page.</li>
+          <li><strong>Skip en dev :</strong> aucun envoi sur <code>localhost</code> / <code>127.0.0.1</code> ni sur
+            le domaine de collecte lui-même.</li>
+        </ul>
+
+        <h2 id="conseils" class="fr-mt-4w">Conseils d'utilisation</h2>
+        <div class="fr-callout">
+          <p class="fr-callout__text">
+            <strong>Transparence d'abord :</strong> preferez l'element au <code>window.*</code> opaque pour les
+            embeds destines a des sites tiers — l'integrateur voit la collecte et peut l'auditer.
+          </p>
+        </div>
+        <div class="fr-callout fr-mt-2w">
+          <p class="fr-callout__text">
+            <strong>Self-hosting :</strong> pointez <code>url</code> vers votre propre collecteur compatible
+            (endpoint <code>/beacon</code>) pour garder la donnee d'usage chez vous.
+          </p>
+        </div>
+    </div>
+  </app-layout-demo>
+
+  <!-- Footer -->
+  <app-footer base-path="../../"></app-footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.module.min.js" integrity="sha384-gPgRd2+olihO/srZe/Bqw6iVLiiaL7meuri1d5YVMejwPXg7VehLSBeORYq9yh2F" crossorigin="anonymous"></script>
+</body>
+</html>

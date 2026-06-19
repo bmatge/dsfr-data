@@ -34,11 +34,29 @@ describe('sendWidgetBeacon', () => {
     delete (window as any).__gwDbMode;
     delete (window as any).DSFR_DATA_BEACON;
     delete (window as any).DSFR_DATA_BEACON_URL;
+    document.querySelectorAll('dsfr-data-beacon').forEach((e) => e.remove());
     vi.restoreAllMocks();
     vi.resetModules();
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
   });
+
+  /** Pose un <dsfr-data-beacon url="..."> dans le DOM (sans dependre du composant). */
+  function addBeaconElement(url: string): HTMLElement {
+    const el = document.createElement('dsfr-data-beacon');
+    if (url !== null) el.setAttribute('url', url);
+    document.body.appendChild(el);
+    return el;
+  }
+
+  function externalLocation() {
+    vi.stubGlobal('location', {
+      hostname: 'example.gouv.fr',
+      protocol: 'https:',
+      origin: 'https://example.gouv.fr',
+      href: 'https://example.gouv.fr/',
+    });
+  }
 
   async function loadBeacon(beaconUrl = 'https://chartsbuilder.matge.com') {
     // BEACON_BASE_URL est une constante module-level lue depuis import.meta.env
@@ -331,5 +349,75 @@ describe('sendWidgetBeacon', () => {
     sendWidgetBeacon('dsfr-data-kpi');
 
     expect(imageSrcs).toHaveLength(0);
+  });
+
+  // --- Cible declarative <dsfr-data-beacon> (#345) ---
+
+  it('un <dsfr-data-beacon url> vaut opt-in et fournit l URL, sans window.DSFR_DATA_BEACON', async () => {
+    externalLocation();
+    addBeaconElement('https://collecte.ministere.fr');
+
+    // Aucune URL bakee : seul l'element active et cible la collecte.
+    const sendWidgetBeacon = await loadBeacon('');
+    sendWidgetBeacon('dsfr-data-kpi');
+
+    expect(imageSrcs).toHaveLength(1);
+    expect(imageSrcs[0]).toContain('https://collecte.ministere.fr/beacon');
+  });
+
+  it('l URL de l element est prioritaire sur window.DSFR_DATA_BEACON_URL', async () => {
+    externalLocation();
+    (window as any).DSFR_DATA_BEACON = true;
+    (window as any).DSFR_DATA_BEACON_URL = 'https://override.window.fr';
+    addBeaconElement('https://collecte.element.fr/');
+
+    const sendWidgetBeacon = await loadBeacon('https://chartsbuilder.matge.com');
+    sendWidgetBeacon('dsfr-data-kpi');
+
+    expect(imageSrcs).toHaveLength(1);
+    const url = new URL(imageSrcs[0]);
+    expect(url.origin).toBe('https://collecte.element.fr');
+    expect(url.pathname).toBe('/beacon');
+  });
+
+  it('window.DSFR_DATA_BEACON = false neutralise meme un element present (kill switch)', async () => {
+    externalLocation();
+    (window as any).DSFR_DATA_BEACON = false;
+    addBeaconElement('https://collecte.ministere.fr');
+
+    const sendWidgetBeacon = await loadBeacon('');
+    sendWidgetBeacon('dsfr-data-kpi');
+
+    expect(imageSrcs).toHaveLength(0);
+  });
+
+  it('un <dsfr-data-beacon> sans url ne vaut pas opt-in', async () => {
+    externalLocation();
+    addBeaconElement(''); // attribut url vide
+
+    const sendWidgetBeacon = await loadBeacon('');
+    sendWidgetBeacon('dsfr-data-kpi');
+    await Promise.resolve();
+
+    expect(imageSrcs).toHaveLength(0);
+  });
+
+  it('rattrape un element declare APRES le composant (timing DOM order)', async () => {
+    externalLocation();
+    // readyState happy-dom = 'complete' → deferBeacon passe par queueMicrotask.
+    const sendWidgetBeacon = await loadBeacon('');
+
+    // Le composant emet AVANT que l'element existe (connectedCallback synchrone).
+    sendWidgetBeacon('dsfr-data-chart', 'bar');
+    expect(imageSrcs).toHaveLength(0); // rien d'envoye dans le tick synchrone
+
+    // L'element est parse juste apres, dans le meme tick.
+    addBeaconElement('https://collecte.ministere.fr');
+    // Couvre les deux branches de deferBeacon (DOMContentLoaded / microtask).
+    document.dispatchEvent(new Event('DOMContentLoaded'));
+    await Promise.resolve();
+
+    expect(imageSrcs).toHaveLength(1);
+    expect(imageSrcs[0]).toContain('https://collecte.ministere.fr/beacon');
   });
 });

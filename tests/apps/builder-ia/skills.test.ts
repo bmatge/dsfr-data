@@ -24,6 +24,7 @@ import { DsfrDataMap } from '@/components/dsfr-data-map.js';
 import { DsfrDataMapLayer } from '@/components/dsfr-data-map-layer.js';
 import { DsfrDataMapPopup } from '@/components/dsfr-data-map-popup.js';
 import { DsfrDataPodium } from '@/components/dsfr-data-podium.js';
+import { DsfrDataBeacon } from '@/components/dsfr-data-beacon.js';
 
 // Type/constant imports for alignment checks
 import type { FilterOperator, AggregateFunction } from '@/components/dsfr-data-query.js';
@@ -52,8 +53,8 @@ function getHtmlAttributes(ComponentClass: typeof DsfrDataSource): Set<string> {
 }
 
 describe('builder-ia skills', () => {
-  it('should have 29 skill definitions', () => {
-    expect(Object.keys(SKILLS)).toHaveLength(29);
+  it('should have 30 skill definitions', () => {
+    expect(Object.keys(SKILLS)).toHaveLength(30);
   });
 
   it('should have expected skill IDs', () => {
@@ -82,6 +83,7 @@ describe('builder-ia skills', () => {
     expect(SKILLS).toHaveProperty('troubleshooting');
     expect(SKILLS).toHaveProperty('dsfrDataJoin');
     expect(SKILLS).toHaveProperty('dsfrDataPodium');
+    expect(SKILLS).toHaveProperty('dsfrDataBeacon');
   });
 
   it('each skill should have required properties', () => {
@@ -384,6 +386,14 @@ describe('builder-ia skills', () => {
           DsfrDataPodium as unknown as typeof DsfrDataSource,
           'dsfrDataPodium',
           'dsfr-data-podium'
+        );
+      });
+
+      it('dsfrDataBeacon skill covers all <dsfr-data-beacon> attributes', () => {
+        assertAttributesCovered(
+          DsfrDataBeacon as unknown as typeof DsfrDataSource,
+          'dsfrDataBeacon',
+          'dsfr-data-beacon'
         );
       });
     });
