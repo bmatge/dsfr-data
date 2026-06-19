@@ -112,6 +112,36 @@
           </div>
         </section>
 
+        <!-- Lignes de référence -->
+        <h2>Lignes de référence</h2>
+        <p>L'attribut <code>reference-lines</code> superpose des repères sur les graphiques
+          cartésiens (line, bar, bar-line, scatter) : ligne verticale à une catégorie/date
+          (<code>axis:"x"</code>) ou horizontale à un seuil (<code>axis:"y"</code>), avec un
+          libellé en pastille. Les repères sont aussi annoncés dans l'<code>aria-label</code>
+          du graphique pour les lecteurs d'écran.</p>
+
+        <div class="example-container">
+          <dsfr-data-source id="immat-guide" data='[{"mois":"2025-11","ventes":21000},{"mois":"2025-12","ventes":23500},{"mois":"2026-01","ventes":22800},{"mois":"2026-02","ventes":28900},{"mois":"2026-03","ventes":33200},{"mois":"2026-04","ventes":35800},{"mois":"2026-05","ventes":37849}]'></dsfr-data-source>
+          <dsfr-data-chart id="guide-reflines" source="immat-guide" type="line"
+            label-field="mois" value-field="ventes"
+            name='["Immatriculations VE"]'
+            reference-lines='[{"axis":"x","value":"2026-02","label":"Lancement du plan","color":"#c9191e"},{"axis":"y","value":30000,"label":"Objectif","position":"start"}]'>
+          </dsfr-data-chart>
+        </div>
+
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-reflines">Code source</button></h3>
+          <div class="fr-collapse" id="code-reflines">
+<pre>&lt;dsfr-data-chart id="mon-graph" source="data" type="line"
+  label-field="mois" value-field="ventes"
+  reference-lines='[
+    {"axis":"x","value":"2026-02","label":"Lancement du plan","color":"#c9191e"},
+    {"axis":"y","value":30000,"label":"Objectif","position":"start"}
+  ]'&gt;
+&lt;/dsfr-data-chart&gt;</pre>
+          </div>
+        </section>
+
         <!-- Avec description -->
         <h2>Avec description textuelle</h2>
         <p>Ajoutez <code>description</code> pour fournir une transcription du graphique :</p>

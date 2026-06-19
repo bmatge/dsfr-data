@@ -221,6 +221,39 @@ export const examples: Record<string, string> = {
   </div>
 </div>`,
 
+  'chart-reference-lines': `<!--
+  Lignes de référence — repère vertical (lancement) + seuil horizontal (objectif)
+  Mode direct : dsfr-data-source (data inline) → dsfr-data-chart (type line)
+  Démontre l'attribut reference-lines :
+    - axis "x" : ligne verticale pointillée à une catégorie (mois) + pastille
+    - axis "y" : ligne horizontale à un seuil (objectif), libellé ancré à gauche
+  Les repères sont aussi annoncés dans l'aria-label du graphique.
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>Immatriculations VE — repères de référence</h2>
+
+  <dsfr-data-source id="immat" data='[
+    {"mois":"2025-11","ventes":21000},
+    {"mois":"2025-12","ventes":23500},
+    {"mois":"2026-01","ventes":22800},
+    {"mois":"2026-02","ventes":28900},
+    {"mois":"2026-03","ventes":33200},
+    {"mois":"2026-04","ventes":35800},
+    {"mois":"2026-05","ventes":37849}
+  ]'></dsfr-data-source>
+
+  <dsfr-data-chart source="immat" type="line"
+    label-field="mois" value-field="ventes"
+    name='["Immatriculations VE"]'
+    unit-tooltip=" VE"
+    reference-lines='[
+      {"axis":"x","value":"2026-02","label":"Lancement du plan","color":"#c9191e","dash":true},
+      {"axis":"y","value":30000,"label":"Objectif","position":"start"}
+    ]'>
+  </dsfr-data-chart>
+</div>`,
+
   'direct-datalist': `<!--
   Tableau — Maires de France (pagination serveur)
   Mode : dsfr-data-source (api-type="tabular", server-side) → dsfr-data-list
