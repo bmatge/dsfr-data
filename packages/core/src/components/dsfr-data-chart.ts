@@ -4,6 +4,16 @@ import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { getByPath } from '../utils/json-path.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { renderSourceLoading, renderSourceError } from '../utils/status-templates.js';
+import { reportConfigError, clearConfigError } from '../utils/config-error.js';
+import {
+  parseReferenceLines,
+  isCartesianChartType,
+  resolveChartInstance,
+  computeReferenceGeometries,
+  buildReferenceOverlaySvg,
+  referenceLinesAriaSummary,
+  type ReferenceLine,
+} from '../utils/chart-reference-lines.js';
 import { escapeHtml, toNumber, isValidDeptCode } from '@dsfr-data/shared/lib';
 
 type DSFRChartType =
@@ -194,11 +204,29 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'databox-actions' })
   databoxActions = '';
 
+  /**
+   * Lignes de reference (overlay) au format JSON. Graphiques cartesiens
+   * uniquement (line, bar, bar-line, scatter). Chaque item :
+   * `{ axis: "x"|"y", value: string|number, label?, color?, dash?, position? }`.
+   * `axis:"x"` → ligne verticale a une categorie/date ; `axis:"y"` → ligne
+   * horizontale a un seuil. Ex : `reference-lines='[{"axis":"x","value":"2026-02",
+   * "label":"Lancement","color":"#c9191e","dash":true}]'`.
+   */
+  @property({ type: String, attribute: 'reference-lines' })
+  referenceLines = '';
+
   @state()
   private _data: unknown[] = [];
 
   /** Timers differes en vol — annules au disconnect (#305) */
   private _pendingTimers = new Set<number>();
+
+  /** Lignes de reference : poll rAF en cours (annule au disconnect, #341) */
+  private _refOverlayRaf: number | null = null;
+  /** Lignes de reference : observer de resize du canvas (#341) */
+  private _refOverlayResize: ResizeObserver | null = null;
+  /** Lignes de reference : warn-once si l'instance Chart.js reste introuvable */
+  private _refOverlayWarned = false;
 
   /** Attributs poses par la mise a jour incrementale (#305) */
   private _managedChartAttrs = new Set<string>();
@@ -209,6 +237,15 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     // onSourceData et survivaient au composant
     for (const t of this._pendingTimers) clearTimeout(t);
     this._pendingTimers.clear();
+    this._cleanupReferenceOverlay();
+  }
+
+  updated(changed: Map<string, unknown>) {
+    super.updated(changed);
+    // Redessine l'overlay de lignes de reference apres chaque rendu (#341).
+    // Chart.js rend de maniere asynchrone → le draw poll en rAF jusqu'a ce que
+    // l'instance soit prete.
+    this._refreshReferenceOverlay();
   }
 
   // Light DOM pour les styles DSFR
@@ -545,7 +582,145 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     };
     const typeName = typeLabels[this.type] || this.type;
     const count = this._data.length;
-    return `Graphique ${typeName}, ${count} valeurs`;
+    let label = `Graphique ${typeName}, ${count} valeurs`;
+    // Repères de référence relayés a l'aria-label (overlay SVG aria-hidden, #341)
+    if (this.referenceLines && isCartesianChartType(this.type)) {
+      const { lines } = parseReferenceLines(this.referenceLines);
+      if (lines.length) label += `. ${referenceLinesAriaSummary(lines)}`;
+    }
+    return label;
+  }
+
+  // --- Lignes de reference (overlay SVG, #341) -------------------------------
+
+  /** Valide la config et (re)programme le dessin de l'overlay. */
+  private _refreshReferenceOverlay() {
+    if (this._refOverlayRaf !== null) {
+      cancelAnimationFrame(this._refOverlayRaf);
+      this._refOverlayRaf = null;
+    }
+
+    if (!this.referenceLines.trim()) {
+      this._cleanupReferenceOverlay();
+      clearConfigError(this);
+      return;
+    }
+
+    const { lines, error } = parseReferenceLines(this.referenceLines);
+    if (error) {
+      reportConfigError(this, 'dsfr-data-chart', error);
+      this._removeReferenceOverlay();
+      return;
+    }
+    if (!isCartesianChartType(this.type)) {
+      reportConfigError(
+        this,
+        'dsfr-data-chart',
+        `reference-lines : type "${this.type}" non supporté (cartésiens uniquement : line, bar, bar-line, scatter)`
+      );
+      this._removeReferenceOverlay();
+      return;
+    }
+
+    clearConfigError(this);
+    this._scheduleReferenceDraw(lines, 120);
+  }
+
+  /** Poll rAF jusqu'a ce que l'instance Chart.js soit prete (chartArea > 0). */
+  private _scheduleReferenceDraw(lines: ReferenceLine[], framesLeft: number) {
+    if (typeof requestAnimationFrame === 'undefined') return;
+    this._refOverlayRaf = requestAnimationFrame(() => {
+      this._refOverlayRaf = null;
+      if (!this.isConnected) return;
+      if (this._paintReferenceOverlay(lines)) {
+        this._observeReferenceResize(lines);
+        return;
+      }
+      if (framesLeft > 0) {
+        this._scheduleReferenceDraw(lines, framesLeft - 1);
+      } else if (!this._refOverlayWarned) {
+        this._refOverlayWarned = true;
+        console.warn(
+          `dsfr-data-chart[${this.id}]: instance Chart.js introuvable, lignes de référence non dessinées`
+        );
+      }
+    });
+  }
+
+  /** Localise le chart rendu + son canvas + le conteneur positionne. */
+  private _resolveOverlayTargets(): {
+    container: HTMLElement;
+    canvas: HTMLCanvasElement;
+    chartEl: HTMLElement;
+  } | null {
+    const tag = CHART_TAG_MAP[this.type];
+    if (!tag) return null;
+    const container = (this.querySelector('.dsfr-data-chart__wrapper') ||
+      this.querySelector('.dsfr-data-chart__databox-wrapper')) as HTMLElement | null;
+    const chartEl = this.querySelector(tag) as HTMLElement | null;
+    const canvas = (chartEl?.querySelector('canvas') ||
+      this.querySelector('canvas')) as HTMLCanvasElement | null;
+    if (!container || !chartEl || !canvas) return null;
+    return { container, canvas, chartEl };
+  }
+
+  /** Dessine l'overlay. Retourne false si l'instance Chart.js n'est pas prete. */
+  private _paintReferenceOverlay(lines: ReferenceLine[]): boolean {
+    const targets = this._resolveOverlayTargets();
+    if (!targets) return false;
+    const { container, canvas, chartEl } = targets;
+    const chart = resolveChartInstance(chartEl, canvas);
+    if (!chart || !chart.chartArea || chart.chartArea.width <= 0) return false;
+
+    const geometries = computeReferenceGeometries(chart, lines);
+    this._removeReferenceOverlay();
+
+    const w = canvas.clientWidth || canvas.width || 0;
+    const h = canvas.clientHeight || canvas.height || 0;
+    const svg = buildReferenceOverlaySvg(geometries, w, h);
+
+    // Aligner l'overlay sur le canvas dans le conteneur positionne
+    const cRect = canvas.getBoundingClientRect();
+    const wRect = container.getBoundingClientRect();
+    svg.style.left = `${Math.round(cRect.left - wRect.left)}px`;
+    svg.style.top = `${Math.round(cRect.top - wRect.top)}px`;
+    if (getComputedStyle(container).position === 'static') {
+      container.style.position = 'relative';
+    }
+    container.appendChild(svg);
+    return true;
+  }
+
+  /** Observe le resize du canvas pour recalculer l'overlay (debounce rAF). */
+  private _observeReferenceResize(lines: ReferenceLine[]) {
+    if (typeof ResizeObserver === 'undefined') return;
+    const targets = this._resolveOverlayTargets();
+    if (!targets) return;
+    this._refOverlayResize?.disconnect();
+    let pending = false;
+    this._refOverlayResize = new ResizeObserver(() => {
+      if (pending) return;
+      pending = true;
+      requestAnimationFrame(() => {
+        pending = false;
+        if (this.isConnected) this._paintReferenceOverlay(lines);
+      });
+    });
+    this._refOverlayResize.observe(targets.canvas);
+  }
+
+  private _removeReferenceOverlay() {
+    this.querySelector('.dsfr-data-chart__reflines')?.remove();
+  }
+
+  private _cleanupReferenceOverlay() {
+    if (this._refOverlayRaf !== null) {
+      cancelAnimationFrame(this._refOverlayRaf);
+      this._refOverlayRaf = null;
+    }
+    this._refOverlayResize?.disconnect();
+    this._refOverlayResize = null;
+    this._removeReferenceOverlay();
   }
 
   private _createRawChartElement(

@@ -1133,6 +1133,7 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 | gauge-value | Number | \`null\` | type gauge | Valeur de la jauge (0-100) |
 | code-field | String | \`""\` | type map/map-reg | Champ contenant le code departement ou region (prioritaire sur label-field) |
 | map-highlight | String | \`""\` | non | Departements/regions a surligner |
+| reference-lines | String | \`""\` | non | Lignes de reference (overlay) en JSON. Cartesiens uniquement (line, bar, bar-line, scatter). Chaque item : \`{ axis: "x" ou "y", value (string ou number), label?, color?, dash?, position? }\`. \`axis:"x"\` → ligne verticale a une categorie/date ; \`axis:"y"\` → ligne horizontale a un seuil. Ex : \`reference-lines='[{"axis":"x","value":"2026-02","label":"Lancement","color":"#c9191e","dash":true},{"axis":"y","value":3000,"label":"Objectif"}]'\`. |
 
 ### Attributs par type de graphique
 | Type | Attributs essentiels | Attributs optionnels |

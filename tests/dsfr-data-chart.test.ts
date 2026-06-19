@@ -594,4 +594,53 @@ describe('DsfrDataChart', () => {
       expect(wrapper.querySelector('data-box')).toBeTruthy();
     });
   });
+
+  // --- Lignes de reference (#341) -------------------------------------------
+  describe('reference-lines', () => {
+    let el: DsfrDataChart;
+
+    afterEach(() => {
+      el?.remove();
+    });
+
+    async function mount(props: Partial<DsfrDataChart>): Promise<DsfrDataChart> {
+      el = new DsfrDataChart();
+      Object.assign(el, props);
+      document.body.appendChild(el);
+      await el.updateComplete;
+      return el;
+    }
+
+    it('type non cartésien + reference-lines → data-dsfr-config-error', async () => {
+      await mount({ type: 'pie', referenceLines: '[{"axis":"y","value":10}]' });
+      expect(el.getAttribute('data-dsfr-config-error')).toMatch(/non supporté/);
+    });
+
+    it('JSON invalide → data-dsfr-config-error', async () => {
+      await mount({ type: 'line', referenceLines: '[{bad json}]' });
+      expect(el.getAttribute('data-dsfr-config-error')).toMatch(/JSON invalide/);
+    });
+
+    it('type cartésien + JSON valide → pas d erreur de config', async () => {
+      await mount({ type: 'line', referenceLines: '[{"axis":"y","value":10}]' });
+      expect(el.hasAttribute('data-dsfr-config-error')).toBe(false);
+    });
+
+    it('retrait de reference-lines efface l erreur', async () => {
+      await mount({ type: 'pie', referenceLines: '[{"axis":"y","value":10}]' });
+      expect(el.hasAttribute('data-dsfr-config-error')).toBe(true);
+      el.referenceLines = '';
+      await el.updateComplete;
+      expect(el.hasAttribute('data-dsfr-config-error')).toBe(false);
+    });
+
+    it('aria-label inclut le résumé des repères sur un cartésien', () => {
+      (chart as any)._data = [{ m: 'Jan', v: 1 }];
+      chart.type = 'line';
+      chart.labelField = 'm';
+      chart.valueField = 'v';
+      chart.referenceLines = '[{"axis":"x","value":"Jan","label":"Lancement"}]';
+      expect((chart as any)._getAriaLabel()).toContain('Lancement');
+    });
+  });
 });
