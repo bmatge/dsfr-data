@@ -1,13 +1,23 @@
 #!/usr/bin/env bash
 # Warn (NON-BLOCKING) about French UI labels written without accents.
 #
-# Scope volontairement réduit (cf. décision 2026-05-30) : UNIQUEMENT le contenu
-# textuel des balises HTML (apps/**/*.html, packages/**/*.html). Sont ignorés :
-#  - les fichiers .ts / .css / .md (commentaires de code, prompts, styles…),
-#  - les attributs HTML (placeholder=…, title=…) et les commentaires <!-- … -->.
-# Avant, le script grepait tout le contenu de tous les fichiers et bloquait la CI
-# sur des commentaires de code — friction inutile. Il ne vise désormais que le
-# texte réellement visible dans le HTML statique, et n'échoue JAMAIS (exit 0).
+# Principe (cf. décision 2026-05-30, élargie 2026-06-19) : on ne regarde QUE le
+# CONTENU TEXTUEL DES BALISES HTML, c.-à-d. ce qui est strictement entre un
+# « > » et un « < ». Ce filtre exclut mécaniquement tout le reste :
+#  - le code (corps de fonctions, identifiants, imports…),
+#  - les ATTRIBUTS HTML (entre « < » et « > » : placeholder=…, label=…, href=…),
+#  - les URLs (dans des attributs, ou sans « >…< » autour),
+#  - les commentaires <!-- … --> (commencent par « < »).
+# Grâce à ce filtre, on peut élargir le périmètre AUX FICHIERS .ts qui embarquent
+# des templates HTML (skills, exemples, générateurs, composants Lit) sans jamais
+# toucher au code : seul le texte des balises est inspecté.
+#
+# Périmètre des fichiers scannés :
+#  - HTML : apps/, packages/, specs/, guide/  (**/*.html)
+#  - TS   : apps/, packages/                  (**/*.ts — templates HTML embarqués)
+#  Exclus : dist/, node_modules/, *.min.*, et tests/ (hors apps|packages).
+#
+# Le script n'échoue JAMAIS (exit 0) : c'est un avertissement, pas une barrière.
 #
 # Each pattern is a French word that has NO valid English / identifier meaning
 # without its accent.
@@ -65,28 +75,29 @@ PATTERNS=(
   verifie verifier Verifier verifiez Verifiez
 )
 
-PATHS=(apps packages)
-
-# Build a single ERE alternation: \b(word1|word2|…)\b
+# Build a single ERE alternation: (word1|word2|…) — word boundaries via -w.
 # IFS is scoped to the subshell, no leak to the parent shell.
 # nosemgrep: bash.lang.security.ifs-tampering.ifs-tampering
 joined=$(IFS='|'; echo "${PATTERNS[*]}")
 
-# 1. git grep (honore .gitignore) sur les SEULS fichiers HTML.
+# 1. Pré-filtre git grep (honore .gitignore) : HTML (apps/packages/specs/guide)
+#    + TS (apps/packages), qui embarquent des templates HTML.
 raw=$(git grep -nwE "(${joined})" -- \
-      "apps/**/*.html" "packages/**/*.html" \
+      "apps/**/*.html" "packages/**/*.html" "specs/**/*.html" "guide/**/*.html" \
+      "apps/**/*.ts" "packages/**/*.ts" \
       ':!**/dist/**' ':!**/node_modules/**' ':!**/*.min.*' 2>/dev/null || true)
 
-# 2. Ne garder que les hits dont le mot survit au retrait des balises <…> et des
-#    commentaires <!-- … --> : ce qui reste est le TEXTE entre balises (le
-#    "contenu"). Les attributs et commentaires sont donc exclus.
+# 2. Ne garder que les hits où le mot apparaît dans le CONTENU D'UNE BALISE,
+#    c.-à-d. dans un segment « >…< ». Tout le reste — code, attributs (entre
+#    « < » et « > »), URLs, commentaires (« <!-- ») — n'a pas cette forme et est
+#    donc exclu. Robuste pour le HTML pur ET le HTML embarqué dans du .ts.
 matches=""
 if [ -n "$raw" ]; then
   while IFS= read -r line; do
     [ -z "$line" ] && continue
     content=${line#*:*:}                                  # file:line:CONTENU
-    stripped=$(printf '%s' "$content" | sed -E 's/<!--.*-->//g; s/<[^>]*>//g')
-    if printf '%s' "$stripped" | grep -qwE "(${joined})"; then
+    tagtext=$(printf '%s' "$content" | grep -oE '>[^<>]+<' || true)
+    if [ -n "$tagtext" ] && printf '%s' "$tagtext" | grep -qwE "(${joined})"; then
       matches="${matches}${line}"$'\n'
     fi
   done <<EOF
