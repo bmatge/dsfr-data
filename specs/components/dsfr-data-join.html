@@ -26,14 +26,14 @@
     <div slot="content">
         <p class="fr-text--lead">
           Composant de jointure multi-sources.
-          Joint deux jeux de donnees sur une ou plusieurs cles pivot pour produire un dataset enrichi.
+          Joint deux jeux de données sur une ou plusieurs clés pivot pour produire un dataset enrichi.
           Ne fait aucun fetch HTTP : c'est un pur transformateur.
         </p>
 
         <div class="fr-callout fr-callout--blue-france">
           <p class="fr-callout__text">
             <strong>Invisible :</strong> Ce composant ne rend rien visuellement. Il attend que ses deux sources
-            aient emis leurs donnees, les joint en memoire, puis redistribue le resultat via le systeme d'evenements.
+            aient emis leurs données, les joint en memoire, puis redistribue le resultat via le systeme d'événements.
           </p>
         </div>
 
@@ -56,32 +56,32 @@ dsfr-data-source (B)  ──────┘</pre></div>
         <table class="attr-table">
           <thead><tr><th>Attribut</th><th>Type</th><th>Format / Valeurs</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><code>id</code></td><td>String</td><td><code>id="enriched"</code></td><td>Identifiant unique (requis). Les composants aval l'utilisent pour s'abonner aux donnees jointes.</td></tr>
+            <tr><td><code>id</code></td><td>String</td><td><code>id="enriched"</code></td><td>Identifiant unique (requis). Les composants aval l'utilisent pour s'abonner aux données jointes.</td></tr>
             <tr><td><code>left</code></td><td>String</td><td><code>left="id-source-a"</code></td><td>ID de la source gauche — source principale (requis)</td></tr>
             <tr><td><code>right</code></td><td>String</td><td><code>right="id-source-b"</code></td><td>ID de la source droite (requis)</td></tr>
-            <tr><td><code>on</code></td><td>String</td><td>Voir formats ci-dessous</td><td>Cle(s) de jointure (requis)</td></tr>
-            <tr><td><code>type</code></td><td>String</td><td><code>inner</code> | <code>left</code> | <code>right</code> | <code>full</code></td><td>Type de jointure. Defaut : <code>left</code></td></tr>
-            <tr><td><code>prefix-left</code></td><td>String</td><td><code>prefix-left="pop_"</code></td><td>Prefixe pour les champs gauche en cas de collision. Defaut : vide</td></tr>
-            <tr><td><code>prefix-right</code></td><td>String</td><td><code>prefix-right="budget_"</code></td><td>Prefixe pour les champs droite en cas de collision. Defaut : <code>right_</code></td></tr>
+            <tr><td><code>on</code></td><td>String</td><td>Voir formats ci-dessous</td><td>Clé(s) de jointure (requis)</td></tr>
+            <tr><td><code>type</code></td><td>String</td><td><code>inner</code> | <code>left</code> | <code>right</code> | <code>full</code></td><td>Type de jointure. Défaut : <code>left</code></td></tr>
+            <tr><td><code>prefix-left</code></td><td>String</td><td><code>prefix-left="pop_"</code></td><td>Prefixe pour les champs gauche en cas de collision. Défaut : vide</td></tr>
+            <tr><td><code>prefix-right</code></td><td>String</td><td><code>prefix-right="budget_"</code></td><td>Prefixe pour les champs droite en cas de collision. Défaut : <code>right_</code></td></tr>
           </tbody>
         </table>
 
         <h3 class="fr-mt-3w">Format de l'attribut <code>on</code></h3>
 
         <section class="demo-section">
-          <h4>Cle commune</h4>
-          <p>Quand le champ porte le meme nom dans les deux sources :</p>
+          <h4>Clé commune</h4>
+          <p>Quand le champ porte le même nom dans les deux sources :</p>
           <div class="code-block"><pre>on="code_dept"</pre></div>
         </section>
 
         <section class="demo-section">
-          <h4>Cle de nommage different</h4>
+          <h4>Clé de nommage different</h4>
           <p>Quand le champ a un nom different dans chaque source (gauche=droite) :</p>
           <div class="code-block"><pre>on="dept_code=code"</pre></div>
         </section>
 
         <section class="demo-section">
-          <h4>Multi-cle</h4>
+          <h4>Multi-clé</h4>
           <p>Jointure sur plusieurs champs (separes par virgule) :</p>
           <div class="code-block"><pre>on="annee,code_region"
 on="annee, dept_code=code"</pre></div>
@@ -101,7 +101,7 @@ on="annee, dept_code=code"</pre></div>
         <h2 id="exemples" class="fr-mt-4w">Exemples</h2>
 
         <section class="demo-section">
-          <h3>Enrichir un dataset avec des donnees d'une autre source</h3>
+          <h3>Enrichir un dataset avec des données d'une autre source</h3>
           <p>
             Jointure gauche entre un dataset de population et un dataset de budgets, sur le code departement.
             <a href="../../guide/guide-exemples-join.html" class="fr-link fr-link--sm">Voir l'exemple live</a>
@@ -128,7 +128,7 @@ on="annee, dept_code=code"</pre></div>
         <section class="demo-section">
           <h3>Jointure avec transformation aval</h3>
           <p>
-            Apres la jointure, un <code>&lt;dsfr-data-query&gt;</code> peut agreger et trier les donnees fusionnees.
+            Apres la jointure, un <code>&lt;dsfr-data-query&gt;</code> peut agréger et trier les données fusionnees.
           </p>
           <div class="code-block"><pre>&lt;dsfr-data-join id="joined"
   left="src1" right="src2"
@@ -146,9 +146,9 @@ on="annee, dept_code=code"</pre></div>
         </section>
 
         <section class="demo-section">
-          <h3>Cles de nommage different</h3>
+          <h3>Clés de nommage different</h3>
           <p>
-            Quand le champ de jointure n'a pas le meme nom dans les deux sources :
+            Quand le champ de jointure n'a pas le même nom dans les deux sources :
           </p>
           <div class="code-block"><pre>&lt;dsfr-data-join id="merged"
   left="src-a" right="src-b"
@@ -156,20 +156,20 @@ on="annee, dept_code=code"</pre></div>
 &lt;/dsfr-data-join&gt;</pre></div>
         </section>
 
-        <h2 id="evenements" class="fr-mt-4w">Evenements</h2>
-        <p>Le composant emet les memes evenements que <code>&lt;dsfr-data-source&gt;</code> :</p>
+        <h2 id="evenements" class="fr-mt-4w">Événements</h2>
+        <p>Le composant emet les mêmes événements que <code>&lt;dsfr-data-source&gt;</code> :</p>
         <ul>
-          <li><code>dsfr-data-loaded</code> : Donnees jointes disponibles</li>
+          <li><code>dsfr-data-loaded</code> : Données jointes disponibles</li>
           <li><code>dsfr-data-loading</code> : En attente d'une ou plusieurs sources</li>
           <li><code>dsfr-data-error</code> : Erreur d'une source ou de la jointure</li>
         </ul>
 
         <h2 id="methodes" class="fr-mt-4w">Methodes publiques</h2>
         <table class="attr-table">
-          <thead><tr><th>Methode</th><th>Retour</th><th>Description</th></tr></thead>
+          <thead><tr><th>Méthode</th><th>Retour</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><code>getData()</code></td><td>Array</td><td>Retourne les donnees jointes actuelles</td></tr>
-            <tr><td><code>isLoading()</code></td><td>Boolean</td><td>Indique si le composant attend encore des donnees</td></tr>
+            <tr><td><code>getData()</code></td><td>Array</td><td>Retourne les données jointes actuelles</td></tr>
+            <tr><td><code>isLoading()</code></td><td>Boolean</td><td>Indique si le composant attend encore des données</td></tr>
             <tr><td><code>getError()</code></td><td>Error | null</td><td>Retourne l'erreur eventuelle</td></tr>
           </tbody>
         </table>
@@ -177,20 +177,20 @@ on="annee, dept_code=code"</pre></div>
         <h2 id="conseils" class="fr-mt-4w">Conseils d'utilisation</h2>
         <div class="fr-callout">
           <p class="fr-callout__text">
-            <strong>Collisions de noms :</strong> Si un champ existe dans les deux sources avec le meme nom
-            (hors cle de jointure), le <code>prefix-right</code> est applique au champ droit (defaut : <code>right_</code>).
+            <strong>Collisions de noms :</strong> Si un champ existe dans les deux sources avec le même nom
+            (hors clé de jointure), le <code>prefix-right</code> est applique au champ droit (défaut : <code>right_</code>).
             Definissez <code>prefix-left</code> pour prefixer aussi les champs gauche.
           </p>
         </div>
         <div class="fr-callout fr-mt-2w">
           <p class="fr-callout__text">
             <strong>Relations 1-N :</strong> Si plusieurs enregistrements de la source droite correspondent
-            a une cle de la source gauche, autant de lignes sont generees (comportement SQL standard).
+            a une clé de la source gauche, autant de lignes sont generees (comportement SQL standard).
           </p>
         </div>
         <div class="fr-callout fr-mt-2w">
           <p class="fr-callout__text">
-            <strong>Recalcul automatique :</strong> Si l'une des sources emet de nouvelles donnees (rechargement,
+            <strong>Recalcul automatique :</strong> Si l'une des sources emet de nouvelles données (rechargement,
             filtre, pagination), la jointure est recalculee automatiquement.
           </p>
         </div>

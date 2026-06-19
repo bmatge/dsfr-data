@@ -30,11 +30,11 @@
 
         <h2>Attributs</h2>
         <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Defaut</th><th>Description</th></tr></thead>
+          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
           <tbody>
             <tr><td><code>source</code></td><td>String</td><td><code>""</code></td><td>ID du <code>&lt;dsfr-data-source&gt;</code> ou <code>&lt;dsfr-data-query&gt;</code> (requis)</td></tr>
             <tr><td><code>label-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers le champ label (supporte dot notation)</td></tr>
-            <tr><td><code>value-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers le champ valeur numerique</td></tr>
+            <tr><td><code>value-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers le champ valeur numérique</td></tr>
             <tr><td><code>subtitle</code></td><td>String</td><td><code>""</code></td><td>Texte fixe affiche sous chaque label</td></tr>
             <tr><td><code>subtitle-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers un champ pour le sous-titre (prioritaire sur subtitle)</td></tr>
             <tr><td><code>value-unit</code></td><td>String</td><td><code>""</code></td><td>Unite affichee apres la valeur</td></tr>
@@ -49,7 +49,7 @@
         <table class="attr-table">
           <thead><tr><th>Palette</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><code>sequentialDescending</code></td><td>Bleu fonce vers bleu clair (defaut) — ideal pour les classements</td></tr>
+            <tr><td><code>sequentialDescending</code></td><td>Bleu fonce vers bleu clair (défaut) — ideal pour les classements</td></tr>
             <tr><td><code>sequentialAscending</code></td><td>Bleu clair vers bleu fonce</td></tr>
             <tr><td><code>categorical</code></td><td>Couleurs contrastees — ideal quand les items ne sont pas ordonnes</td></tr>
             <tr><td><code>neutral</code></td><td>Niveaux de gris</td></tr>
@@ -83,7 +83,7 @@
         </section>
 
         <section class="demo-section">
-          <h3>2. Top 3 avec palette categorielle</h3>
+          <h3>2. Top 3 avec palette catégorielle</h3>
           <dsfr-data-podium
             source="sites"
             label-field="nom"
@@ -153,7 +153,7 @@
         </section>
 
         <section class="demo-section">
-          <h3>5. Avec dsfr-data-query (agregation par ministere)</h3>
+          <h3>5. Avec dsfr-data-query (agrégation par ministere)</h3>
           <dsfr-data-query id="par-ministere" source="sites"
             group-by="ministere"
             aggregate="score_rgaa:avg:score_moyen"

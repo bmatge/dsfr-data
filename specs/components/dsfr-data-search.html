@@ -60,13 +60,13 @@
     <div slot="content">
         <p class="fr-text--lead">
           Composant visuel intermediaire qui affiche un champ de recherche DSFR et filtre
-          les donnees en amont avant de les redistribuer aux composants en aval.
+          les données en amont avant de les redistribuer aux composants en aval.
         </p>
 
         <div class="fr-callout fr-callout--green-emeraude">
           <p class="fr-callout__text">
             <strong>Visuel et intermediaire :</strong> Ce composant affiche un champ de recherche
-            ET redistribue les donnees filtrees aux composants en aval via le systeme d'evenements.
+            ET redistribue les données filtrees aux composants en aval via le systeme d'événements.
             Il se combine naturellement avec <code>dsfr-data-facets</code>.
           </p>
         </div>
@@ -77,7 +77,7 @@
             <code>dsfr-data-source</code> &rarr; <code>dsfr-data-normalize</code> &rarr; <strong><code>dsfr-data-search</code></strong> &rarr; <code>dsfr-data-facets</code> &rarr; <code>dsfr-data-display</code> / <code>dsfr-data-list</code>
           </p>
           <p>
-            La recherche reduit le jeu de donnees, les facettes affinent ensuite.
+            La recherche reduit le jeu de données, les facettes affinent ensuite.
             Les compteurs de facettes se recalculent dynamiquement.
           </p>
         </div>
@@ -92,15 +92,15 @@
 
         <h2>Attributs</h2>
         <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Defaut</th><th>Description</th></tr></thead>
+          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><code>id</code></td><td>String</td><td>-</td><td><strong>Requis.</strong> Identifiant de la sortie (donnees filtrees).</td></tr>
+            <tr><td><code>id</code></td><td>String</td><td>-</td><td><strong>Requis.</strong> Identifiant de la sortie (données filtrees).</td></tr>
             <tr><td><code>source</code></td><td>String</td><td><code>""</code></td><td><strong>Requis.</strong> ID de la source a ecouter.</td></tr>
             <tr><td><code>fields</code></td><td>String</td><td><code>""</code></td><td>Champs a rechercher (virgule-separes). Vide = tous les champs.</td></tr>
             <tr><td><code>placeholder</code></td><td>String</td><td><code>"Rechercher..."</code></td><td>Placeholder du champ de saisie.</td></tr>
             <tr><td><code>label</code></td><td>String</td><td><code>"Rechercher"</code></td><td>Label du champ (accessible).</td></tr>
             <tr><td><code>debounce</code></td><td>Number</td><td><code>300</code></td><td>Delai en ms avant declenchement du filtre.</td></tr>
-            <tr><td><code>min-length</code></td><td>Number</td><td><code>0</code></td><td>Nombre minimum de caracteres avant declenchement.</td></tr>
+            <tr><td><code>min-length</code></td><td>Number</td><td><code>0</code></td><td>Nombre minimum de caractères avant declenchement.</td></tr>
             <tr><td><code>highlight</code></td><td>Boolean</td><td><code>false</code></td><td>Ajoute <code>_highlight</code> avec <code>&lt;mark&gt;</code> pour dsfr-data-display.</td></tr>
             <tr><td><code>operator</code></td><td>String</td><td><code>"contains"</code></td><td>Mode : <code>contains</code>, <code>starts</code>, <code>words</code>.</td></tr>
             <tr><td><code>sr-label</code></td><td>Boolean</td><td><code>false</code></td><td>Label en sr-only (masque visuellement, accessible).</td></tr>
@@ -115,7 +115,7 @@
         <div class="fr-callout fr-mt-3w">
           <p class="fr-callout__text">
             <strong>Modes de recherche :</strong><br>
-            <code>contains</code> (defaut) : sous-chaine insensible a la casse et aux accents.<br>
+            <code>contains</code> (défaut) : sous-chaine insensible a la casse et aux accents.<br>
             <code>starts</code> : chaque mot du champ doit commencer par le terme.<br>
             <code>words</code> : tous les mots saisis doivent etre presents (dans n'importe quel champ, n'importe quel ordre). Le plus utile pour la recherche multi-criteres.
           </p>
@@ -125,7 +125,7 @@
              Exemple 1 : Recherche seule + Datalist
              ======================================================== -->
         <h2 class="fr-mt-4w">Exemple 1 : recherche simple + tableau</h2>
-        <p>Recherche textuelle sur les champs <code>Produit</code>, <code>Marque</code> et <code>Categorie</code>.
+        <p>Recherche textuelle sur les champs <code>Produit</code>, <code>Marque</code> et <code>Catégorie</code>.
         Le tableau se filtre en temps reel avec un compteur de resultats.</p>
 
         <dsfr-data-search id="elus-searched" source="elus-clean"
@@ -144,15 +144,15 @@
 
         <h3 class="fr-mt-3w">Code</h3>
         <pre><code>&lt;dsfr-data-search id="searched" source="clean"
-  fields="Produit, Marque, Categorie"
-  placeholder="Produit, marque ou categorie..."
+  fields="Produit, Marque, Catégorie"
+  placeholder="Produit, marque ou catégorie..."
   operator="words"
   min-length="2"
   count&gt;
 &lt;/dsfr-data-search&gt;
 
 &lt;dsfr-data-list source="searched"
-  colonnes="Produit, Categorie, Marque, Date"
+  colonnes="Produit, Catégorie, Marque, Date"
   tri="Date:desc"
   pagination="10"&gt;
 &lt;/dsfr-data-list&gt;</code></pre>
@@ -161,7 +161,7 @@
              Exemple 2 : Recherche + Facettes + Display
              ======================================================== -->
         <h2 class="fr-mt-6w">Exemple 2 : recherche + facettes + cartes</h2>
-        <p>La recherche et les facettes se combinent. La recherche reduit le jeu de donnees,
+        <p>La recherche et les facettes se combinent. La recherche reduit le jeu de données,
         les facettes affinent. Les cartes affichent les resultats.</p>
 
         <dsfr-data-search id="elus-search-facets" source="elus-clean"
@@ -186,7 +186,7 @@
                   <p class="fr-card__desc">{{Marque}}</p>
                 </div>
                 <div class="fr-card__footer">
-                  <p class="fr-badge fr-badge--sm fr-badge--blue-france">{{Categorie}}</p>
+                  <p class="fr-badge fr-badge--sm fr-badge--blue-france">{{Catégorie}}</p>
                 </div>
               </div>
             </div>
@@ -195,15 +195,15 @@
 
         <h3 class="fr-mt-3w">Code</h3>
         <pre><code>&lt;dsfr-data-search id="searched" source="clean"
-  fields="Produit, Marque, Categorie"
+  fields="Produit, Marque, Catégorie"
   placeholder="Rechercher un produit rappele..."
   operator="words"
   count&gt;
 &lt;/dsfr-data-search&gt;
 
 &lt;dsfr-data-facets id="filtered" source="searched"
-  fields="Categorie, Marque"
-  labels="Categorie:Categorie | Marque:Marque"
+  fields="Catégorie, Marque"
+  labels="Catégorie:Catégorie | Marque:Marque"
   max-values="6"&gt;
 &lt;/dsfr-data-facets&gt;
 
@@ -216,7 +216,7 @@
           &lt;p class="fr-card__desc"&gt;{{Marque}}&lt;/p&gt;
         &lt;/div&gt;
         &lt;div class="fr-card__footer"&gt;
-          &lt;p class="fr-badge fr-badge--sm"&gt;{{Categorie}}&lt;/p&gt;
+          &lt;p class="fr-badge fr-badge--sm"&gt;{{Catégorie}}&lt;/p&gt;
         &lt;/div&gt;
       &lt;/div&gt;
     &lt;/div&gt;

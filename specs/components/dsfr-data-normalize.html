@@ -41,15 +41,15 @@
     base-path="../">
     <div slot="content">
         <p class="fr-text--lead">
-          Composant intermediaire de normalisation et nettoyage des donnees.
+          Composant intermediaire de normalisation et nettoyage des données.
           Se place entre <code>&lt;dsfr-data-source&gt;</code> et <code>&lt;dsfr-data-query&gt;</code>
-          pour nettoyer les donnees avant traitement.
+          pour nettoyer les données avant traitement.
         </p>
 
         <div class="fr-callout fr-callout--blue-france">
           <p class="fr-callout__text">
-            <strong>Invisible :</strong> Ce composant ne rend rien visuellement. Il normalise les donnees
-            et les redistribue aux composants en aval via le systeme d'evenements.
+            <strong>Invisible :</strong> Ce composant ne rend rien visuellement. Il normalise les données
+            et les redistribue aux composants en aval via le systeme d'événements.
           </p>
         </div>
 
@@ -59,46 +59,46 @@
             <code>dsfr-data-source</code> &rarr; <strong><code>dsfr-data-normalize</code></strong> &rarr; <code>dsfr-data-query</code> &rarr; <code>dsfr-data-chart</code>
           </p>
           <p>
-            Normaliser <strong>avant</strong> <code>dsfr-data-query</code> permet aux filtres et agregations de travailler
-            sur des donnees propres (evite les comparaisons string vs number).
+            Normaliser <strong>avant</strong> <code>dsfr-data-query</code> permet aux filtres et agrégations de travailler
+            sur des données propres (evite les comparaisons string vs number).
           </p>
         </div>
 
         <h2>Cas d'usage</h2>
         <ul>
-          <li><strong>Nombres en string</strong> : valeurs numeriques stockees comme texte (<code>"1234"</code> au lieu de <code>1234</code>)</li>
+          <li><strong>Nombres en string</strong> : valeurs numériques stockees comme texte (<code>"1234"</code> au lieu de <code>1234</code>)</li>
           <li><strong>Separateurs decimaux</strong> : virgule francaise vs point international (<code>"12,5"</code> vs <code>"12.5"</code>)</li>
           <li><strong>Caracteres speciaux</strong> : balises HTML, espaces superflus dans les valeurs</li>
-          <li><strong>Libelles peu clairs</strong> : cles d'API cryptiques a renommer pour la lisibilite</li>
+          <li><strong>Libelles peu clairs</strong> : clés d'API cryptiques a renommer pour la lisibilite</li>
           <li><strong>Valeurs manquantes</strong> : remplacer <code>N/A</code>, <code>n.d.</code>, <code>-</code> par des valeurs exploitables</li>
           <li><strong>Decimales parasites</strong> : arrondir <code>32073247.269999996</code> a <code>32073247</code></li>
-          <li><strong>Objets imbriques</strong> : aplatir un sous-objet pour remonter ses cles au premier niveau</li>
+          <li><strong>Objets imbriques</strong> : aplatir un sous-objet pour remonter ses clés au premier niveau</li>
         </ul>
 
         <h2>Attributs</h2>
         <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Defaut</th><th>Description</th></tr></thead>
+          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
           <tbody>
             <tr><td><code>id</code></td><td>String</td><td>-</td><td><strong>Requis.</strong> Identifiant de la sortie.</td></tr>
             <tr><td><code>source</code></td><td>String</td><td><code>""</code></td><td><strong>Requis.</strong> ID de la source a ecouter.</td></tr>
             <tr><td><code>numeric</code></td><td>String</td><td><code>""</code></td><td>Champs a forcer en nombre (virgule-separes).</td></tr>
-            <tr><td><code>numeric-auto</code></td><td>Boolean</td><td><code>false</code></td><td>Detection et conversion automatique des champs numeriques.</td></tr>
-            <tr><td><code>rename</code></td><td>String</td><td><code>""</code></td><td>Renommage de cles : <code>"ancien:nouveau | ancien2:nouveau2"</code></td></tr>
+            <tr><td><code>numeric-auto</code></td><td>Boolean</td><td><code>false</code></td><td>Detection et conversion automatique des champs numériques.</td></tr>
+            <tr><td><code>rename</code></td><td>String</td><td><code>""</code></td><td>Renommage de clés : <code>"ancien:nouveau | ancien2:nouveau2"</code></td></tr>
             <tr><td><code>trim</code></td><td>Boolean</td><td><code>false</code></td><td>Supprime les espaces en debut/fin des valeurs string.</td></tr>
             <tr><td><code>strip-html</code></td><td>Boolean</td><td><code>false</code></td><td>Supprime les balises HTML des valeurs string.</td></tr>
             <tr><td><code>replace</code></td><td>String</td><td><code>""</code></td><td>Remplacement global de valeurs : <code>"N/A: | n.d.: | -:0"</code></td></tr>
             <tr><td><code>replace-fields</code></td><td>String</td><td><code>""</code></td><td>Remplacement cible par champ : <code>"CHAMP:ancien:nouveau | CHAMP2:a:n"</code>. Ne remplace que dans le champ specifie. Combinable avec <code>replace</code>.</td></tr>
-            <tr><td><code>flatten</code></td><td>String</td><td><code>""</code></td><td>Cle du sous-objet a aplatir au premier niveau. Supporte la dot notation (<code>"data.attributes"</code>).</td></tr>
-            <tr><td><code>round</code></td><td>String</td><td><code>""</code></td><td>Arrondit les champs numeriques. Format : <code>"champ1, champ2"</code> (0 decimales) ou <code>"champ1:2, champ2:0"</code> (N decimales).</td></tr>
-            <tr><td><code>lowercase-keys</code></td><td>Boolean</td><td><code>false</code></td><td>Met toutes les cles en minuscules.</td></tr>
-            <tr><td><code>compute</code></td><td>String</td><td><code>""</code></td><td>Colonnes calculees (ligne a ligne, en dernier). Format : <code>"cible = expression; cible2 = expr2"</code>. Supporte l'arithmetique <code>+ - * /</code>, la concatenation texte (<code>+</code> avec litteraux <code>'entre quotes'</code>) et les parentheses. Ex : <code>"pct = valeur * 100; serie = Indicateurs + ' / ' + Sous_theme"</code>. Hors perimetre : conditions, fonctions, calculs sur valeurs agregees.</td></tr>
+            <tr><td><code>flatten</code></td><td>String</td><td><code>""</code></td><td>Clé du sous-objet a aplatir au premier niveau. Supporte la dot notation (<code>"data.attributes"</code>).</td></tr>
+            <tr><td><code>round</code></td><td>String</td><td><code>""</code></td><td>Arrondit les champs numériques. Format : <code>"champ1, champ2"</code> (0 decimales) ou <code>"champ1:2, champ2:0"</code> (N decimales).</td></tr>
+            <tr><td><code>lowercase-keys</code></td><td>Boolean</td><td><code>false</code></td><td>Met toutes les clés en minuscules.</td></tr>
+            <tr><td><code>compute</code></td><td>String</td><td><code>""</code></td><td>Colonnes calculees (ligne a ligne, en dernier). Format : <code>"cible = expression; cible2 = expr2"</code>. Supporte l'arithmetique <code>+ - * /</code>, la concatenation texte (<code>+</code> avec litteraux <code>'entre quotes'</code>) et les parentheses. Ex : <code>"pct = valeur * 100; série = Indicateurs + ' / ' + Sous_theme"</code>. Hors perimetre : conditions, fonctions, calculs sur valeurs agregees.</td></tr>
           </tbody>
         </table>
 
         <div class="fr-callout fr-mt-3w">
           <p class="fr-callout__text">
             <strong>Separateurs :</strong> <code>rename</code> et <code>replace</code> utilisent le pipe <code>|</code>
-            pour separer les paires, et <code>:</code> pour separer la cle de la valeur.
+            pour separer les paires, et <code>:</code> pour separer la clé de la valeur.
             <code>replace-fields</code> utilise le format <code>CHAMP:pattern:remplacement</code> (les 2 premiers <code>:</code> sont des delimiteurs).
             <code>numeric</code> utilise la virgule.
           </p>
@@ -106,7 +106,7 @@
 
         <!-- Exemple 1 : conversion numerique + renommage -->
         <h2 class="fr-mt-4w">Exemple : trim + renommage</h2>
-        <p>Les donnees brutes RappelConso contiennent des noms de colonnes longs et techniques.
+        <p>Les données brutes RappelConso contiennent des noms de colonnes longs et techniques.
           On renomme les colonnes pour la lisibilite et on nettoie les espaces superflus.</p>
 
         <dsfr-data-normalize
@@ -118,7 +118,7 @@
 
         <div class="fr-grid-row fr-grid-row--gutters fr-mt-2w">
           <div class="fr-col-12 fr-col-md-6">
-            <h3>Donnees brutes (JSON)</h3>
+            <h3>Données brutes (JSON)</h3>
             <pre><code>{
   "modeles_ou_references": " Lot 2024-ABC ",
   "categorie_produit": "Alimentation",
@@ -131,7 +131,7 @@
             <h3>Apres normalisation</h3>
             <pre><code>{
   "Produit": "Lot 2024-ABC",       <em>// trim + rename</em>
-  "Categorie": "Alimentation",     <em>// rename</em>
+  "Catégorie": "Alimentation",     <em>// rename</em>
   "Marque": "Ma Marque",           <em>// rename</em>
   "Date": "2024-06-15",            <em>// rename</em>
   "Motif": "Presence de Listeria"  <em>// rename</em>
@@ -148,10 +148,10 @@
 
 &lt;dsfr-data-normalize id="clean" source="raw"
   trim
-  rename="modeles_ou_references:Produit | categorie_produit:Categorie | marque_produit:Marque | date_publication:Date | motif_rappel:Motif"&gt;
+  rename="modeles_ou_references:Produit | categorie_produit:Catégorie | marque_produit:Marque | date_publication:Date | motif_rappel:Motif"&gt;
 &lt;/dsfr-data-normalize&gt;
 
-&lt;!-- Les donnees normalisees sont pretes pour query/chart --&gt;
+&lt;!-- Les données normalisees sont pretes pour query/chart --&gt;
 &lt;dsfr-data-list source="clean" pagination="5"&gt;&lt;/dsfr-data-list&gt;</code></pre>
 
         <!-- Exemple 2 : pipeline complet -->
@@ -184,7 +184,7 @@
         <p>
           L'API INSEE Melodi retourne des codes de dimension (AGE: <code>"Y30T39"</code>, PCS: <code>"3"</code>).
           <code>replace-fields</code> permet de les decoder sans affecter les autres champs
-          qui pourraient contenir les memes valeurs.
+          qui pourraient contenir les mêmes valeurs.
         </p>
 
         <pre><code>&lt;dsfr-data-source id="raw" api-type="insee"

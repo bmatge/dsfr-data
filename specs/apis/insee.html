@@ -26,16 +26,16 @@
     <div slot="content">
         <p class="fr-text--lead">
           API <strong>Melodi</strong> de l'<a href="https://www.insee.fr" target="_blank" rel="noopener">INSEE</a>,
-          donnant acces a plus de 95 jeux de donnees statistiques (population, PIB, emploi, etc.)
-          du <a href="https://catalogue-donnees.insee.fr" target="_blank" rel="noopener">catalogue de donnees de l'INSEE</a>.
+          donnant acces a plus de 95 jeux de données statistiques (population, PIB, emploi, etc.)
+          du <a href="https://catalogue-donnees.insee.fr" target="_blank" rel="noopener">catalogue de données de l'INSEE</a>.
         </p>
 
         <div class="fr-callout fr-callout--brown-caramel">
-          <h4 class="fr-callout__title">Donnees statistiques dimensionnelles</h4>
+          <h4 class="fr-callout__title">Données statistiques dimensionnelles</h4>
           <p class="fr-callout__text">
             L'API Melodi utilise un modele <strong>dimensionnel</strong> : chaque observation est decrite par
             des dimensions (GEO, TIME_PERIOD, FREQ...), une mesure (OBS_VALUE) et des attributs optionnels.
-            Le filtrage se fait par <strong>egalite sur les dimensions</strong> via des parametres de requete.
+            Le filtrage se fait par <strong>egalite sur les dimensions</strong> via des parametres de requête.
             L'adapter aplatit automatiquement les observations en objets plats exploitables par les composants dsfr-data.
           </p>
         </div>
@@ -44,7 +44,7 @@
           <h4 class="fr-callout__title">CORS actif, pas de proxy</h4>
           <p class="fr-callout__text">
             L'API INSEE supporte nativement CORS. Aucun proxy n'est necessaire.
-            Acces anonyme, limite a <strong>30 requetes par minute</strong>.
+            Acces anonyme, limite a <strong>30 requêtes par minute</strong>.
           </p>
         </div>
 
@@ -79,7 +79,7 @@
                 <tr>
                   <td>Group-by serveur</td>
                   <td class="capability-no">Non</td>
-                  <td>Agregation effectuee cote client via dsfr-data-query</td>
+                  <td>Agrégation effectuee cote client via dsfr-data-query</td>
                 </tr>
                 <tr>
                   <td>Tri serveur</td>
@@ -87,9 +87,9 @@
                   <td>Tri effectue cote client via dsfr-data-query</td>
                 </tr>
                 <tr>
-                  <td>Agregation serveur</td>
+                  <td>Agrégation serveur</td>
                   <td class="capability-no">Non</td>
-                  <td>Agregation effectuee cote client via dsfr-data-query</td>
+                  <td>Agrégation effectuee cote client via dsfr-data-query</td>
                 </tr>
               </tbody>
             </table>
@@ -121,8 +121,8 @@
         <section class="fr-mt-4w">
           <h2>Filtrage par dimensions</h2>
           <p>
-            L'API Melodi filtre par <strong>egalite sur les dimensions</strong> via des parametres de requete.
-            Chaque jeu de donnees a ses propres dimensions (GEO, TIME_PERIOD, FREQ, etc.).
+            L'API Melodi filtre par <strong>egalite sur les dimensions</strong> via des parametres de requête.
+            Chaque jeu de données a ses propres dimensions (GEO, TIME_PERIOD, FREQ, etc.).
           </p>
 
           <h3 class="fr-mt-2w">Syntaxe API native</h3>
@@ -138,7 +138,7 @@
           <div class="fr-table">
             <table>
               <thead>
-                <tr><th>Attribut <code>where</code></th><th>Parametre URL genere</th></tr>
+                <tr><th>Attribut <code>where</code></th><th>Paramètre URL généré</th></tr>
               </thead>
               <tbody>
                 <tr><td><code>TIME_PERIOD:eq:2023</code></td><td><code>?TIME_PERIOD=2023</code></td></tr>
@@ -169,9 +169,9 @@
                 <tr><th>Parametre</th><th>Valeur</th></tr>
               </thead>
               <tbody>
-                <tr><td>Chemin des donnees</td><td><code>observations</code></td></tr>
+                <tr><td>Chemin des données</td><td><code>observations</code></td></tr>
                 <tr><td>Chemin du total</td><td><code>paging.count</code></td></tr>
-                <tr><td>Donnees imbriquees</td><td>Oui : <code>dimensions</code>, <code>measures</code>, <code>attributes</code></td></tr>
+                <tr><td>Données imbriquees</td><td>Oui : <code>dimensions</code>, <code>measures</code>, <code>attributes</code></td></tr>
                 <tr><td>Aplatissement auto</td><td>Oui (par l'adapter, pas besoin de <code>dsfr-data-normalize</code>)</td></tr>
               </tbody>
             </table>
@@ -198,20 +198,20 @@
           <div class="fr-highlight fr-mt-2w">
             <p>
               La mesure <code>OBS_VALUE_NIVEAU</code> est renommee <code>OBS_VALUE</code>
-              (le suffixe <code>_NIVEAU</code> est supprime). D'autres mesures suivent le meme pattern.
+              (le suffixe <code>_NIVEAU</code> est supprime). D'autres mesures suivent le même pattern.
             </p>
           </div>
         </section>
 
         <!-- Catalogue -->
         <section class="fr-mt-4w">
-          <h2>Catalogue des jeux de donnees</h2>
+          <h2>Catalogue des jeux de données</h2>
           <p>
-            L'endpoint <code>/catalog/all</code> liste les 95+ jeux de donnees disponibles.
+            L'endpoint <code>/catalog/all</code> liste les 95+ jeux de données disponibles.
             Chaque entree contient l'identifiant, le titre, la description, le nombre d'observations
             et la liste des dimensions (<code>ordreComposants</code>).
           </p>
-          <h3 class="fr-mt-2w">Jeux de donnees courants</h3>
+          <h3 class="fr-mt-2w">Jeux de données courants</h3>
           <div class="fr-table">
             <table>
               <thead>
@@ -226,7 +226,7 @@
             </table>
           </div>
           <p class="fr-mt-1w">
-            Liste complete : <a href="https://catalogue-donnees.insee.fr" target="_blank" rel="noopener">catalogue-donnees.insee.fr</a>
+            Liste complete : <a href="https://catalogue-donnees.insee.fr" target="_blank" rel="noopener">catalogue-données.insee.fr</a>
           </p>
         </section>
 
@@ -235,7 +235,7 @@
           <h2>Authentification</h2>
           <p>
             Type : <strong>aucune</strong>. L'API Melodi est publique et ne necessite pas d'authentification.
-            Le debit est limite a 30 requetes par minute en mode anonyme.
+            Le debit est limite a 30 requêtes par minute en mode anonyme.
           </p>
         </section>
 
@@ -243,7 +243,7 @@
         <section class="fr-mt-4w">
           <h2>Detection automatique</h2>
           <p>
-            dsfr-data detecte automatiquement une source INSEE si l'URL contient :
+            dsfr-data détecté automatiquement une source INSEE si l'URL contient :
           </p>
           <ul>
             <li><code>melodi/data/{datasetId}</code></li>
@@ -301,7 +301,7 @@
             Les dimensions INSEE utilisent des codes (<code>AGE: "Y30T39"</code>, <code>PCS: "3"</code>).
             L'attribut <code>replace-fields</code> de <code>&lt;dsfr-data-normalize&gt;</code> permet de les
             remplacer par des libelles lisibles, <strong>sans affecter</strong> les autres champs
-            qui pourraient contenir les memes valeurs.
+            qui pourraient contenir les mêmes valeurs.
           </p>
           <pre><code>&lt;dsfr-data-source
   id="raw"

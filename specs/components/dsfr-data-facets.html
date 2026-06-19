@@ -68,13 +68,13 @@
     <div slot="content">
         <p class="fr-text--lead">
           Composant visuel intermediaire qui affiche des filtres interactifs (facettes)
-          bases sur les valeurs categoriques des donnees.
+          bases sur les valeurs categoriques des données.
         </p>
 
         <div class="fr-callout fr-callout--green-emeraude">
           <p class="fr-callout__text">
             <strong>Visuel et intermediaire :</strong> Ce composant affiche des controles de filtre
-            ET redistribue les donnees filtrees aux composants en aval via le systeme d'evenements.
+            ET redistribue les données filtrees aux composants en aval via le systeme d'événements.
           </p>
         </div>
 
@@ -91,16 +91,16 @@
 
         <h2>Cas d'usage</h2>
         <ul>
-          <li><strong>Exploration de donnees</strong> : permettre a l'utilisateur de filtrer un jeu de donnees par categories</li>
+          <li><strong>Exploration de données</strong> : permettre a l'utilisateur de filtrer un jeu de données par catégories</li>
           <li><strong>Tableau de bord interactif</strong> : les graphiques et tableaux se mettent a jour en temps reel</li>
           <li><strong>Recherche a facettes</strong> : comme sur un site e-commerce (filtrer par marque, prix, couleur...)</li>
         </ul>
 
         <h2>Attributs</h2>
         <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Defaut</th><th>Description</th></tr></thead>
+          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><code>id</code></td><td>String</td><td>-</td><td><strong>Requis.</strong> Identifiant de la sortie (donnees filtrees).</td></tr>
+            <tr><td><code>id</code></td><td>String</td><td>-</td><td><strong>Requis.</strong> Identifiant de la sortie (données filtrees).</td></tr>
             <tr><td><code>source</code></td><td>String</td><td><code>""</code></td><td><strong>Requis.</strong> ID de la source a ecouter.</td></tr>
             <tr><td><code>fields</code></td><td>String</td><td><code>""</code></td><td>Champs a exposer comme facettes (virgule-separes). Vide = auto-detection.</td></tr>
             <tr><td><code>labels</code></td><td>String</td><td><code>""</code></td><td>Labels custom : <code>"field:Label | field2:Label 2"</code></td></tr>
@@ -109,11 +109,11 @@
             <tr><td><code>sort</code></td><td>String</td><td><code>"count"</code></td><td>Tri des valeurs : <code>count</code>, <code>-count</code>, <code>alpha</code>, <code>-alpha</code>.</td></tr>
             <tr><td><code>searchable</code></td><td>String</td><td><code>""</code></td><td>Champs avec barre de recherche (virgule-separes).</td></tr>
             <tr><td><code>hide-empty</code></td><td>Boolean</td><td><code>false</code></td><td>Masquer les facettes avec une seule valeur.</td></tr>
-            <tr><td><code>display</code></td><td>String</td><td><code>""</code></td><td>Mode d'affichage par facette : <code>"field:select | field2:multiselect"</code>. Modes : <code>checkbox</code> (defaut), <code>select</code>, <code>multiselect</code>, <code>radio</code>.</td></tr>
+            <tr><td><code>display</code></td><td>String</td><td><code>""</code></td><td>Mode d'affichage par facette : <code>"field:select | field2:multiselect"</code>. Modes : <code>checkbox</code> (défaut), <code>select</code>, <code>multiselect</code>, <code>radio</code>.</td></tr>
             <tr><td><code>hide-counts</code></td><td>Boolean</td><td><code>false</code></td><td>Masquer les compteurs a cote de chaque valeur de facette.</td></tr>
-            <tr><td><code>cols</code></td><td>String</td><td><code>""</code></td><td>Colonnage DSFR des facettes. Global : <code>"6"</code> (2 par ligne), <code>"4"</code> (3 par ligne). Par facette : <code>"region:4 | type:6"</code> (defaut fr-col-6 pour les non-specifies).</td></tr>
+            <tr><td><code>cols</code></td><td>String</td><td><code>""</code></td><td>Colonnage DSFR des facettes. Global : <code>"6"</code> (2 par ligne), <code>"4"</code> (3 par ligne). Par facette : <code>"region:4 | type:6"</code> (défaut fr-col-6 pour les non-specifies).</td></tr>
             <tr><td><code>server-facets</code></td><td>Boolean</td><td><code>false</code></td><td>Deleguer le calcul des facettes au serveur via l'adapter (ODS, Grist). L'attribut <code>fields</code> est requis (pas d'auto-detection).</td></tr>
-            <tr><td><code>static-values</code></td><td>String</td><td><code>""</code></td><td>Valeurs de facettes pre-calculees (JSON). Affiche les valeurs sans les calculer depuis les donnees, les selections envoient des commandes WHERE a la source. Ex : <code>'{"sexe":["F","M"]}'</code>. Les compteurs sont masques automatiquement.</td></tr>
+            <tr><td><code>static-values</code></td><td>String</td><td><code>""</code></td><td>Valeurs de facettes pre-calculees (JSON). Affiche les valeurs sans les calculer depuis les données, les selections envoient des commandes WHERE a la source. Ex : <code>'{"sexe":["F","M"]}'</code>. Les compteurs sont masques automatiquement.</td></tr>
           </tbody>
         </table>
 
@@ -128,9 +128,9 @@
         <div class="fr-callout fr-callout--brown-caramel fr-mt-3w">
           <p class="fr-callout__text">
             <strong>Modes d'affichage :</strong><br>
-            <code>checkbox</code> (defaut) : checkboxes DSFR dans un fieldset ouvert.<br>
+            <code>checkbox</code> (défaut) : checkboxes DSFR dans un fieldset ouvert.<br>
             <code>select</code> : liste deroulante DSFR native, selection exclusive.<br>
-            <code>multiselect</code> : dropdown DSFR avec checkboxes, recherche, "Tout selectionner/deselectionner".<br>
+            <code>multiselect</code> : dropdown DSFR avec checkboxes, recherche, "Tout sélectionner/deselectionner".<br>
             <code>radio</code> : dropdown DSFR avec radio buttons, recherche, selection exclusive.<br>
             Le mode <code>select</code>/<code>radio</code> est automatiquement exclusif, <code>multiselect</code> automatiquement disjonctif.
           </p>
@@ -140,7 +140,7 @@
           <p class="fr-callout__text">
             <strong>Facettes server-side :</strong> Avec une source <code>api-type="opendatasoft"</code>
             et l'attribut <code>server-side</code>, les valeurs des facettes et les compteurs sont
-            calcules directement par l'API (pas de telechargement complet des donnees).
+            calcules directement par l'API (pas de téléchargement complet des données).
             Les exemples ci-dessous utilisent le dataset
             <em>Prix du controle technique</em> (~133 000 enregistrements) de data.economie.gouv.fr.
           </p>
@@ -194,7 +194,7 @@
              Exemple 2 : Facettes + Query + Barres (prix moyen par departement)
              ======================================================== -->
         <h2 class="fr-mt-6w">Exemple 2 : graphique filtre par region</h2>
-        <p>La facette Region en mode multiselect filtre les donnees, puis <code>dsfr-data-query</code> agrege
+        <p>La facette Region en mode multiselect filtre les données, puis <code>dsfr-data-query</code> agrège
         le prix moyen du controle technique par departement pour le graphique en barres.</p>
 
         <dsfr-data-facets id="ct-filtered2" source="ct-src2"
@@ -250,8 +250,8 @@
              Exemple 3 : Facettes + KPI + Carte (prix par departement)
              ======================================================== -->
         <h2 class="fr-mt-6w">Exemple 3 : KPI + carte filtres par region</h2>
-        <p>Un meme <code>dsfr-data-facets</code> alimente a la fois des <strong>KPI</strong> et une <strong>carte</strong>.
-        Selectionner des regions met a jour simultanement les indicateurs et la carte departementale.</p>
+        <p>Un même <code>dsfr-data-facets</code> alimente a la fois des <strong>KPI</strong> et une <strong>carte</strong>.
+        Sélectionner des regions met a jour simultanement les indicateurs et la carte departementale.</p>
 
         <dsfr-data-facets id="ct-filtered3" source="ct-src3"
           server-facets
@@ -301,11 +301,11 @@
   sort="alpha"&gt;
 &lt;/dsfr-data-facets&gt;
 
-&lt;!-- KPI sur les donnees filtrees --&gt;
+&lt;!-- KPI sur les données filtrees --&gt;
 &lt;dsfr-data-kpi source="filtered" valeur="count" label="Centres" format="nombre"&gt;&lt;/dsfr-data-kpi&gt;
 &lt;dsfr-data-kpi source="filtered" valeur="avg:prix_visite" label="Prix moyen" format="euros"&gt;&lt;/dsfr-data-kpi&gt;
 
-&lt;!-- Carte sur les donnees filtrees et agregees --&gt;
+&lt;!-- Carte sur les données filtrees et agregees --&gt;
 &lt;dsfr-data-query id="stats" source="filtered"
   group-by="code_departement"
   aggregate="prix_visite:avg:prix_moyen"&gt;
@@ -323,9 +323,9 @@
         <h2 class="fr-mt-6w">Exemple 4 : les 4 modes d'affichage</h2>
         <p>Quatre facettes avec des modes differents :
         <code>radio</code> pour l'Energie (dropdown avec radio buttons, selection exclusive),
-        <code>multiselect</code> pour la Region (dropdown avec checkboxes, recherche et "Tout selectionner"),
+        <code>multiselect</code> pour la Region (dropdown avec checkboxes, recherche et "Tout sélectionner"),
         <code>select</code> pour le Type de vehicule (liste deroulante native DSFR),
-        et <code>checkbox</code> (defaut) pour le Departement.</p>
+        et <code>checkbox</code> (défaut) pour le Departement.</p>
 
         <dsfr-data-facets id="ct-display-demo" source="ct-local"
           server-facets

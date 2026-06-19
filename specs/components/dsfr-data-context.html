@@ -43,13 +43,13 @@
 
         <h2 class="fr-h4">Pattern</h2>
         <pre class="fr-text--sm" style="background: var(--background-alt-grey); padding: 1rem; border-radius: 4px; overflow-x: auto;"><code>&lt;!-- UI native libre (formulaire DSFR) --&gt;
-&lt;select id="ui-categorie" multiple&gt;...&lt;/select&gt;
+&lt;select id="ui-catégorie" multiple&gt;...&lt;/select&gt;
 &lt;input id="ui-mois" type="month"&gt;
 
 &lt;!-- Le contexte orchestre --&gt;
 &lt;dsfr-data-context sources="src-a src-b src-c" url-sync&gt;
   &lt;dsfr-data-context-filter field="categorie_produit" label="Catégorie"
-    operator="in" ui="ui-categorie"&gt;&lt;/dsfr-data-context-filter&gt;
+    operator="in" ui="ui-catégorie"&gt;&lt;/dsfr-data-context-filter&gt;
   &lt;dsfr-data-context-filter field="date_rappel" label="Mois"
     operator="month-of" ui="ui-mois"&gt;&lt;/dsfr-data-context-filter&gt;
 &lt;/dsfr-data-context&gt;
@@ -65,8 +65,8 @@
             </thead>
             <tbody>
               <tr><td><code>sources</code></td><td>String</td><td>requis</td><td>Ids des sources cibles, separes par des espaces</td></tr>
-              <tr><td><code>url-sync</code></td><td>Boolean</td><td>defaut : off</td><td>Serialisation URL des filtres (lecture au chargement, ecriture replaceState). Opt-in : evite les collisions avec le routing du site hote. Les valeurs lues pre-remplissent les UI — jamais injectees directement dans un where.</td></tr>
-              <tr><td><code>url-param-map</code></td><td>String</td><td><code>"param:field | p2:f2"</code></td><td>Renommage des parametres URL (defaut : le nom du champ)</td></tr>
+              <tr><td><code>url-sync</code></td><td>Boolean</td><td>défaut : off</td><td>Serialisation URL des filtres (lecture au chargement, ecriture replaceState). Opt-in : evite les collisions avec le routing du site hote. Les valeurs lues pre-remplissent les UI — jamais injectees directement dans un where.</td></tr>
+              <tr><td><code>url-param-map</code></td><td>String</td><td><code>"param:field | p2:f2"</code></td><td>Renommage des parametres URL (défaut : le nom du champ)</td></tr>
             </tbody>
           </table>
         </div>
@@ -82,7 +82,7 @@
               <tr><td><code>ui</code></td><td>String</td><td>requis</td><td>Id de l'element d'UI ecoute — DEUX ids (min puis max) pour <code>between</code></td></tr>
               <tr><td><code>operator</code></td><td>String</td><td><code>eq</code></td><td>Voir le tableau des operateurs</td></tr>
               <tr><td><code>apply-to</code></td><td>String</td><td><code>*</code></td><td><code>*</code> = toutes les sources du contexte, ou liste d'ids cibles</td></tr>
-              <tr><td><code>label</code></td><td>String</td><td>defaut : field</td><td>Libelle naturel pour l'affichage (tags)</td></tr>
+              <tr><td><code>label</code></td><td>String</td><td>défaut : field</td><td>Libelle naturel pour l'affichage (tags)</td></tr>
             </tbody>
           </table>
         </div>
@@ -113,7 +113,7 @@
             au <code>whereFormat</code> de chaque adapter cible (ODSQL pour OpenDataSoft, colon
             pour Tabular/Grist). Les bornes dynamiques ne figent jamais de date dans le DOM, et
             l'URL serialise l'<em>intention</em> (« 30 »), pas les dates resolues : un lien
-            partage ne gele pas de vieilles donnees.
+            partage ne gele pas de vieilles données.
           </p>
         </div>
 
@@ -124,7 +124,7 @@
               <tr><th>Attribut</th><th>Type</th><th>Valeurs</th><th>Description</th></tr>
             </thead>
             <tbody>
-              <tr><td><code>for</code></td><td>String</td><td>requis</td><td>Id du dsfr-data-context observe. Rend un tag DSFR supprimable par filtre actif : la croix vide l'UI du filtre (meme chemin qu'un clic utilisateur), sources, URL et tags se mettent a jour ensemble.</td></tr>
+              <tr><td><code>for</code></td><td>String</td><td>requis</td><td>Id du dsfr-data-context observe. Rend un tag DSFR supprimable par filtre actif : la croix vide l'UI du filtre (même chemin qu'un clic utilisateur), sources, URL et tags se mettent a jour ensemble.</td></tr>
             </tbody>
           </table>
         </div>
@@ -132,7 +132,7 @@
         <h2 class="fr-h4">Voir aussi</h2>
         <ul>
           <li><a href="../../guide/guide-exemples-context.html">Guide : dashboard RappelConso filtre</a></li>
-          <li><a href="dsfr-data-facets.html">dsfr-data-facets</a> — facettes calculees depuis les donnees (mono-source)</li>
+          <li><a href="dsfr-data-facets.html">dsfr-data-facets</a> — facettes calculees depuis les données (mono-source)</li>
         </ul>
     </div>
   </app-layout-demo>

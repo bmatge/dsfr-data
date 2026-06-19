@@ -32,9 +32,9 @@
         <div class="fr-callout fr-callout--orange-terre-battue">
           <h4 class="fr-callout__title">Tout cote client</h4>
           <p class="fr-callout__text">
-            Le mode generique ne connait pas la structure de l'API cible. Il recupere les donnees
+            Le mode generique ne connait pas la structure de l'API cible. Il recupere les données
             via <code>dsfr-data-source</code> et <strong>toutes les transformations</strong> (tri, filtrage,
-            agregation, facettes, recherche) sont effectuees cote client par <code>dsfr-data-query</code>.
+            agrégation, facettes, recherche) sont effectuees cote client par <code>dsfr-data-query</code>.
           </p>
         </div>
 
@@ -77,9 +77,9 @@
                   <td>Tri effectue cote client</td>
                 </tr>
                 <tr>
-                  <td>Agregation serveur</td>
+                  <td>Agrégation serveur</td>
                   <td class="capability-no">Non</td>
-                  <td>Agregation effectuee cote client</td>
+                  <td>Agrégation effectuee cote client</td>
                 </tr>
               </tbody>
             </table>
@@ -91,7 +91,7 @@
           <h2>Pagination</h2>
           <p>
             <strong>Aucune pagination automatique.</strong> dsfr-data recupere l'URL telle quelle et
-            traite la reponse JSON comme un tableau de donnees. Si votre API utilise de la pagination,
+            traite la reponse JSON comme un tableau de données. Si votre API utilise de la pagination,
             vous devez la gerer manuellement dans l'URL ou utiliser un des fournisseurs specialises.
           </p>
         </section>
@@ -105,9 +105,9 @@
                 <tr><th>Parametre</th><th>Valeur</th></tr>
               </thead>
               <tbody>
-                <tr><td>Chemin des donnees</td><td>(racine du JSON)</td></tr>
+                <tr><td>Chemin des données</td><td>(racine du JSON)</td></tr>
                 <tr><td>Chemin du total</td><td>Non disponible</td></tr>
-                <tr><td>Donnees imbriquees</td><td>Non</td></tr>
+                <tr><td>Données imbriquees</td><td>Non</td></tr>
                 <tr><td>Necessite flatten</td><td>Non</td></tr>
               </tbody>
             </table>
@@ -116,16 +116,16 @@
             <p>
               La reponse JSON doit etre un tableau d'objets a la racine, ou vous pouvez utiliser
               l'attribut <code>data-path</code> sur <code>dsfr-data-source</code> pour specifier le
-              chemin vers le tableau de donnees dans la reponse.
+              chemin vers le tableau de données dans la reponse.
             </p>
           </div>
         </section>
 
         <!-- Syntaxe de requete -->
         <section class="fr-mt-4w">
-          <h2>Syntaxe de requete</h2>
+          <h2>Syntaxe de requête</h2>
           <p>
-            Le mode generique n'envoie aucun parametre de requete a l'API. Toutes les
+            Le mode generique n'envoie aucun parametre de requête a l'API. Toutes les
             transformations sont effectuees <strong>cote client</strong> par <code>dsfr-data-query</code>
             avec la syntaxe colon generique (<code>field:operator:value</code>).
           </p>
@@ -140,7 +140,7 @@
                 <tr><th>Parametre</th><th>Valeur</th></tr>
               </thead>
               <tbody>
-                <tr><td>Mode par defaut</td><td><strong>client</strong></td></tr>
+                <tr><td>Mode par défaut</td><td><strong>client</strong></td></tr>
                 <tr><td>Endpoint serveur</td><td>Non disponible</td></tr>
               </tbody>
             </table>
@@ -152,7 +152,7 @@
           <h2>Authentification</h2>
           <p>
             Type : <strong>aucune</strong>. Le mode generique ne gere pas l'authentification
-            automatiquement. Si votre API necessite une cle, passez-la directement dans l'URL
+            automatiquement. Si votre API necessite une clé, passez-la directement dans l'URL
             ou configurez un proxy.
           </p>
         </section>
@@ -161,7 +161,7 @@
         <section class="fr-mt-4w">
           <h2>Detection automatique</h2>
           <p>
-            Le mode generique est le <strong>fallback</strong> : il est selectionne automatiquement
+            Le mode generique est le <strong>fallback</strong> : il est sélectionne automatiquement
             quand l'URL ne correspond a aucun des autres fournisseurs (OpenDataSoft, Tabular, Grist).
           </p>
         </section>
@@ -179,11 +179,11 @@
 &lt;dsfr-data-chart
   source="src"
   type="bar"
-  name-field="categorie"
+  name-field="catégorie"
   value-field="valeur"&gt;
 &lt;/dsfr-data-chart&gt;</code></pre>
 
-          <h3 class="fr-mt-2w">API avec chemin de donnees</h3>
+          <h3 class="fr-mt-2w">API avec chemin de données</h3>
           <pre><code>&lt;!-- Si la reponse JSON est { "results": { "items": [...] } } --&gt;
 &lt;dsfr-data-source
   id="src"
@@ -204,7 +204,7 @@
   value-field="montant"&gt;
 &lt;/dsfr-data-chart&gt;</code></pre>
 
-          <h3 class="fr-mt-2w">Avec normalize pour des donnees imbriquees</h3>
+          <h3 class="fr-mt-2w">Avec normalize pour des données imbriquees</h3>
           <pre><code>&lt;dsfr-data-source
   id="src"
   url="https://mon-api.example.com/nested-data.json"&gt;

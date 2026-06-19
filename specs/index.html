@@ -45,7 +45,7 @@
     <div slot="content">
         <p class="fr-text--lead">
           dsfr-data est une bibliotheque de Web Components pour creer des tableaux de bord
-          et visualisations de donnees conformes au Design System de l'Etat (DSFR).
+          et visualisations de données conformes au Design System de l'État (DSFR).
         </p>
 
         <!-- Architecture et principe -->
@@ -63,10 +63,10 @@
                   Composants dsfr-data
                 </h3>
                 <p class="fr-callout__text">
-                  Composants <strong>developpes specifiquement</strong> pour ce projet. Ils gerent la <strong>connexion aux donnees</strong>,
+                  Composants <strong>developpes specifiquement</strong> pour ce projet. Ils gerent la <strong>connexion aux données</strong>,
                   les <strong>transformations</strong>, et l'<strong>affichage d'indicateurs</strong>.
                   Ils communiquent entre eux via un systeme de <em>data-bridge</em> qui permet de partager
-                  les donnees sans ecrire de JavaScript.
+                  les données sans ecrire de JavaScript.
                 </p>
               </div>
             </div>
@@ -79,7 +79,7 @@
                 <p class="fr-callout__text">
                   Graphiques provenant de la bibliotheque officielle
                   <a href="https://gouvernementfr.github.io/dsfr-chart/" target="_blank" rel="noopener">DSFR Chart</a>.
-                  Ces composants sont <strong>conformes RGAA</strong> et respectent la charte graphique de l'Etat.
+                  Ces composants sont <strong>conformes RGAA</strong> et respectent la charte graphique de l'État.
                   Ils peuvent etre utilises directement ou via notre wrapper <code>dsfr-data-chart</code>
                   pour une alimentation dynamique.
                 </p>
@@ -90,7 +90,7 @@
           <div class="fr-highlight fr-mt-3w">
             <p>
               <strong>Le pont entre les deux :</strong> Le composant <code>&lt;dsfr-data-chart&gt;</code> fait le lien
-              entre le systeme de donnees <code>dsfr-data-source</code> et les graphiques DSFR Chart,
+              entre le systeme de données <code>dsfr-data-source</code> et les graphiques DSFR Chart,
               permettant de creer des visualisations dynamiques alimentees par une API.
             </p>
           </div>
@@ -103,7 +103,7 @@
             Composants dsfr-data
           </h2>
           <p class="fr-mb-3w">
-            Ces composants gèrent la recuperation, la transformation et l'affichage des donnees.
+            Ces composants gèrent la recuperation, la transformation et l'affichage des données.
           </p>
 
           <div class="fr-grid-row fr-grid-row--gutters">
@@ -114,8 +114,8 @@
                     <h3 class="fr-tile__title">
                       <a href="components/dsfr-data-source.html">dsfr-data-source</a>
                     </h3>
-                    <p class="fr-tile__detail">Connecteur de donnees</p>
-                    <p class="fr-tile__desc">Recupere les donnees depuis une API et les distribue aux autres composants.</p>
+                    <p class="fr-tile__detail">Connecteur de données</p>
+                    <p class="fr-tile__desc">Recupere les données depuis une API et les distribue aux autres composants.</p>
                   </div>
                 </div>
                 <div class="fr-tile__header">
@@ -133,8 +133,8 @@
                     <h3 class="fr-tile__title">
                       <a href="components/dsfr-data-normalize.html">dsfr-data-normalize</a>
                     </h3>
-                    <p class="fr-tile__detail">Normalisation des donnees</p>
-                    <p class="fr-tile__desc">Nettoie et normalise les donnees : conversion numerique, renommage, trim.</p>
+                    <p class="fr-tile__detail">Normalisation des données</p>
+                    <p class="fr-tile__desc">Nettoie et normalise les données : conversion numérique, renommage, trim.</p>
                   </div>
                 </div>
                 <div class="fr-tile__header">
@@ -152,8 +152,8 @@
                     <h3 class="fr-tile__title">
                       <a href="components/dsfr-data-query.html">dsfr-data-query</a>
                     </h3>
-                    <p class="fr-tile__detail">Requetage des donnees</p>
-                    <p class="fr-tile__desc">Filtre, trie et agrege les donnees issues d'une source.</p>
+                    <p class="fr-tile__detail">Requetage des données</p>
+                    <p class="fr-tile__desc">Filtre, trie et agrège les données issues d'une source.</p>
                   </div>
                 </div>
                 <div class="fr-tile__header">
@@ -172,7 +172,7 @@
                       <a href="components/dsfr-data-join.html">dsfr-data-join</a>
                     </h3>
                     <p class="fr-tile__detail">Jointure multi-sources</p>
-                    <p class="fr-tile__desc">Joint deux sources de donnees sur une cle pivot pour enrichir un jeu de donnees.</p>
+                    <p class="fr-tile__desc">Joint deux sources de données sur une clé pivot pour enrichir un jeu de données.</p>
                   </div>
                 </div>
                 <div class="fr-tile__header">
@@ -210,7 +210,7 @@
                       <a href="components/dsfr-data-facets.html">dsfr-data-facets</a>
                     </h3>
                     <p class="fr-tile__detail">Filtres a facettes</p>
-                    <p class="fr-tile__desc">Ajoute des filtres interactifs par facettes sur les donnees d'une source.</p>
+                    <p class="fr-tile__desc">Ajoute des filtres interactifs par facettes sur les données d'une source.</p>
                   </div>
                 </div>
                 <div class="fr-tile__header">
@@ -229,7 +229,7 @@
                       <a href="components/dsfr-data-search.html">dsfr-data-search</a>
                     </h3>
                     <p class="fr-tile__detail">Recherche textuelle</p>
-                    <p class="fr-tile__desc">Champ de recherche DSFR qui filtre les donnees en amont. Se combine avec les facettes.</p>
+                    <p class="fr-tile__desc">Champ de recherche DSFR qui filtre les données en amont. Se combine avec les facettes.</p>
                   </div>
                 </div>
                 <div class="fr-tile__header">
@@ -247,7 +247,7 @@
                     <h3 class="fr-tile__title">
                       <a href="components/dsfr-data-list.html">dsfr-data-list</a>
                     </h3>
-                    <p class="fr-tile__detail">Tableau de donnees</p>
+                    <p class="fr-tile__detail">Tableau de données</p>
                     <p class="fr-tile__desc">Tableau avec recherche, filtres, tri, pagination et export CSV.</p>
                   </div>
                 </div>
@@ -267,7 +267,7 @@
                       <a href="components/dsfr-data-display.html">dsfr-data-display</a>
                     </h3>
                     <p class="fr-tile__detail">Affichage dynamique</p>
-                    <p class="fr-tile__desc">Genere des cartes, tuiles ou tout motif HTML repetitif a partir d'un template et de donnees.</p>
+                    <p class="fr-tile__desc">Genere des cartes, tuiles ou tout motif HTML repetitif a partir d'un template et de données.</p>
                   </div>
                 </div>
                 <div class="fr-tile__header">
@@ -286,7 +286,7 @@
                       <a href="components/dsfr-data-kpi.html">dsfr-data-kpi</a>
                     </h3>
                     <p class="fr-tile__detail">Indicateur chiffre</p>
-                    <p class="fr-tile__desc">Affiche une valeur cle avec formatage, couleurs conditionnelles et icones.</p>
+                    <p class="fr-tile__desc">Affiche une valeur clé avec formatage, couleurs conditionnelles et icones.</p>
                   </div>
                 </div>
                 <div class="fr-tile__header">
@@ -324,7 +324,7 @@
                       <a href="components/dsfr-data-chart.html">dsfr-data-chart</a>
                     </h3>
                     <p class="fr-tile__detail">Wrapper graphique</p>
-                    <p class="fr-tile__desc">Connecte les graphiques DSFR Chart au systeme de donnees dynamiques.</p>
+                    <p class="fr-tile__desc">Connecte les graphiques DSFR Chart au systeme de données dynamiques.</p>
                   </div>
                 </div>
                 <div class="fr-tile__header">
@@ -380,8 +380,8 @@
                     <h3 class="fr-tile__title">
                       <a href="components/dsfr-data-a11y.html">dsfr-data-a11y</a>
                     </h3>
-                    <p class="fr-tile__detail">Accessibilite graphique</p>
-                    <p class="fr-tile__desc">Companion d'accessibilite unifie : tableau des donnees, telechargement CSV et description textuelle.</p>
+                    <p class="fr-tile__detail">Accessibilité graphique</p>
+                    <p class="fr-tile__desc">Companion d'accessibilité unifie : tableau des données, téléchargement CSV et description textuelle.</p>
                   </div>
                 </div>
                 <div class="fr-tile__header">
@@ -401,7 +401,7 @@
             Graphiques DSFR Chart
           </h2>
           <p class="fr-mb-3w">
-            Graphiques officiels conformes au DSFR. Utilisez-les directement ou via <code>dsfr-data-chart</code> pour des donnees dynamiques.
+            Graphiques officiels conformes au DSFR. Utilisez-les directement ou via <code>dsfr-data-chart</code> pour des données dynamiques.
           </p>
 
           <div class="fr-grid-row fr-grid-row--gutters">
@@ -432,7 +432,7 @@
                       <a href="charts/bar-chart.html">bar-chart</a>
                     </h3>
                     <p class="fr-tile__detail">Barres et comparaisons</p>
-                    <p class="fr-tile__desc">Comparer des valeurs entre categories.</p>
+                    <p class="fr-tile__desc">Comparer des valeurs entre catégories.</p>
                   </div>
                 </div>
                 <div class="fr-tile__header">
@@ -508,7 +508,7 @@
                       <a href="charts/map-chart.html">map-chart</a>
                     </h3>
                     <p class="fr-tile__detail">Carte de France</p>
-                    <p class="fr-tile__desc">Visualiser des donnees geographiques.</p>
+                    <p class="fr-tile__desc">Visualiser des données geographiques.</p>
                   </div>
                 </div>
                 <div class="fr-tile__header">

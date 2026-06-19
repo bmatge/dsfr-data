@@ -34,7 +34,7 @@
           <h4 class="fr-callout__title">API la plus riche</h4>
           <p class="fr-callout__text">
             OpenDataSoft supporte <strong>toutes les fonctionnalites serveur</strong> : pagination, facettes,
-            recherche full-text, group-by, tri et agregation. Les requetes utilisent la syntaxe
+            recherche full-text, group-by, tri et agrégation. Les requêtes utilisent la syntaxe
             <strong>ODSQL</strong>, un dialecte SQL simplifie.
           </p>
         </div>
@@ -55,7 +55,7 @@
                 <tr>
                   <td>Fetch serveur</td>
                   <td class="capability-yes">Oui</td>
-                  <td>Recuperation paginee des donnees</td>
+                  <td>Recuperation paginee des données</td>
                 </tr>
                 <tr>
                   <td>Facettes serveur</td>
@@ -78,7 +78,7 @@
                   <td>Clause <code>order_by</code> ODSQL</td>
                 </tr>
                 <tr>
-                  <td>Agregation serveur</td>
+                  <td>Agrégation serveur</td>
                   <td class="capability-yes">Oui</td>
                   <td>Fonctions <code>sum</code>, <code>avg</code>, <code>count</code>, <code>min</code>, <code>max</code> dans <code>select</code></td>
                 </tr>
@@ -107,7 +107,7 @@
           <div class="fr-highlight fr-mt-2w">
             <p>
               La limite de 1 000 enregistrements s'applique a la recuperation client-side via
-              <code>dsfr-data-source</code>. Pour les agregations et group-by, utilisez <code>dsfr-data-query</code>
+              <code>dsfr-data-source</code>. Pour les agrégations et group-by, utilisez <code>dsfr-data-query</code>
               qui delegue le calcul au serveur ODS.
             </p>
           </div>
@@ -115,7 +115,7 @@
 
         <!-- Syntaxe de requete -->
         <section class="fr-mt-4w">
-          <h2>Syntaxe de requete (ODSQL)</h2>
+          <h2>Syntaxe de requête (ODSQL)</h2>
           <p>
             OpenDataSoft utilise <strong>ODSQL</strong>, un dialecte SQL simplifie, pour les clauses
             <code>select</code>, <code>where</code>, <code>group_by</code> et <code>order_by</code>.
@@ -149,13 +149,13 @@
                 <tr><th>Parametre</th><th>Valeur</th></tr>
               </thead>
               <tbody>
-                <tr><td>Mode par defaut</td><td><strong>server</strong></td></tr>
+                <tr><td>Mode par défaut</td><td><strong>server</strong></td></tr>
                 <tr><td>Endpoint</td><td><code>/facets</code> (dedie)</td></tr>
               </tbody>
             </table>
           </div>
           <p class="fr-mt-1w">
-            Les facettes sont calculees cote serveur, ce qui est tres performant meme sur de gros jeux de donnees.
+            Les facettes sont calculees cote serveur, ce qui est tres performant même sur de gros jeux de données.
             Utilisez <code>&lt;dsfr-data-facets server-facets&gt;</code> pour activer ce mode.
           </p>
         </section>
@@ -166,7 +166,7 @@
           <p>
             Type : <strong>API key en header</strong> (<code>apikey-header</code>).<br>
             La plupart des portails ODS publics ne necessitent pas d'authentification.
-            Pour les datasets prives, ajoutez la cle API via le header <code>Authorization</code>.
+            Pour les datasets prives, ajoutez la clé API via le header <code>Authorization</code>.
           </p>
         </section>
 
@@ -179,9 +179,9 @@
                 <tr><th>Parametre</th><th>Valeur</th></tr>
               </thead>
               <tbody>
-                <tr><td>Chemin des donnees</td><td><code>results</code></td></tr>
+                <tr><td>Chemin des données</td><td><code>results</code></td></tr>
                 <tr><td>Chemin du total</td><td><code>total_count</code></td></tr>
-                <tr><td>Donnees imbriquees</td><td>Non (champs a plat)</td></tr>
+                <tr><td>Données imbriquees</td><td>Non (champs a plat)</td></tr>
                 <tr><td>Necessite flatten</td><td>Non</td></tr>
               </tbody>
             </table>
@@ -192,7 +192,7 @@
         <section class="fr-mt-4w">
           <h2>Detection automatique</h2>
           <p>
-            dsfr-data detecte automatiquement une source OpenDataSoft si l'URL contient :
+            dsfr-data détecté automatiquement une source OpenDataSoft si l'URL contient :
           </p>
           <ul>
             <li><code>/api/explore/v2.1/catalog/datasets/{datasetId}</code></li>

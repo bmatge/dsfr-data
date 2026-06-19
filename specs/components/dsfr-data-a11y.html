@@ -30,21 +30,21 @@
     base-path="../">
     <div slot="content">
         <p class="fr-text--lead">
-          Companion d'accessibilite unifie pour les visualisations. Offre trois
-          alternatives activables independamment : <strong>tableau de donnees</strong>,
-          <strong>telechargement CSV</strong> et <strong>description textuelle</strong>.
-          Le contenu est replie dans un accordeon DSFR par defaut.
+          Companion d'accessibilité unifie pour les visualisations. Offre trois
+          alternatives activables independamment : <strong>tableau de données</strong>,
+          <strong>téléchargement CSV</strong> et <strong>description textuelle</strong>.
+          Le contenu est replie dans un accordeon DSFR par défaut.
         </p>
 
         <div class="fr-callout fr-callout--green-emeraude fr-mb-4w">
           <h3 class="fr-callout__title">
             <span class="ri-accessibility-line fr-mr-1w" aria-hidden="true"></span>
-            Accessibilite
+            Accessibilité
           </h3>
           <p class="fr-callout__text">
-            Les graphiques (canvas, SVG) sont difficilement accessibles aux lecteurs d'ecran.
+            Les graphiques (canvas, SVG) sont difficilement accessibles aux lecteurs d'écran.
             <code>dsfr-data-a11y</code> offre trois alternatives complementaires :
-            un tableau HTML, un telechargement CSV et une description textuelle.
+            un tableau HTML, un téléchargement CSV et une description textuelle.
             Via l'attribut <code>for</code>, il injecte un skip link dans le graphique,
             pose <code>aria-describedby</code> et <code>aria-details</code> pour
             creer un lien semantique complet.
@@ -57,9 +57,9 @@
           <tbody>
             <tr><td><code>source</code></td><td>String</td><td>ID du <code>&lt;dsfr-data-source&gt;</code> ou <code>&lt;dsfr-data-query&gt;</code> (requis)</td></tr>
             <tr><td><code>for</code></td><td>String</td><td>ID de l'element cible pour skip link + ARIA automatique</td></tr>
-            <tr><td><code>table</code></td><td>Boolean</td><td>Active l'affichage du tableau de donnees</td></tr>
-            <tr><td><code>download</code></td><td>Boolean</td><td>Active le bouton de telechargement CSV</td></tr>
-            <tr><td><code>filename</code></td><td>String</td><td>Nom du fichier CSV (defaut : <code>donnees.csv</code>)</td></tr>
+            <tr><td><code>table</code></td><td>Boolean</td><td>Active l'affichage du tableau de données</td></tr>
+            <tr><td><code>download</code></td><td>Boolean</td><td>Active le bouton de téléchargement CSV</td></tr>
+            <tr><td><code>filename</code></td><td>String</td><td>Nom du fichier CSV (défaut : <code>données.csv</code>)</td></tr>
             <tr><td><code>description</code></td><td>String</td><td>Description textuelle du graphique</td></tr>
             <tr><td><code>label-field</code></td><td>String</td><td>Colonne pour les labels du tableau (optionnel)</td></tr>
             <tr><td><code>value-field</code></td><td>String</td><td>Colonne(s) pour les valeurs (separees par virgules, optionnel)</td></tr>
@@ -67,21 +67,21 @@
             <tr><td><code>no-auto-aria</code></td><td>Boolean</td><td>Desactive ARIA automatique et skip link</td></tr>
           </tbody>
         </table>
-        <p class="fr-text--sm fr-mt-1w">Si ni <code>table</code>, ni <code>download</code>, ni <code>description</code> ne sont definis, les trois sont actives par defaut.</p>
+        <p class="fr-text--sm fr-mt-1w">Si ni <code>table</code>, ni <code>download</code>, ni <code>description</code> ne sont définis, les trois sont actives par défaut.</p>
 
         <h2 class="fr-mt-4w">Fonctionnement ARIA</h2>
         <ol>
-          <li>Le composant genere automatiquement un <code>id</code> s'il n'en a pas</li>
+          <li>Le composant génère automatiquement un <code>id</code> s'il n'en a pas</li>
           <li>Un <strong>skip link</strong> est injecte dans le graphique cible (visible au focus clavier)</li>
           <li><code>aria-describedby</code> pointe vers un resume concis dans le composant</li>
-          <li><code>aria-details</code> pointe vers le tableau de donnees (si <code>table</code> est active)</li>
+          <li><code>aria-details</code> pointe vers le tableau de données (si <code>table</code> est active)</li>
           <li>A la deconnexion, tout est nettoye automatiquement</li>
         </ol>
 
         <h2 class="fr-mt-4w">Exemples</h2>
 
         <section class="demo-section">
-          <h3>1. Tableau + telechargement CSV</h3>
+          <h3>1. Tableau + téléchargement CSV</h3>
           <dsfr-data-query id="data-chart" source="sites"
             group-by="statut" aggregate="statut:count:total">
           </dsfr-data-query>

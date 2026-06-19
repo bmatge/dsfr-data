@@ -29,9 +29,9 @@
     <div slot="content">
         <p class="fr-text--lead">
           Composant d'affichage dynamique qui genere des elements HTML repetitifs (cartes, tuiles, etc.)
-          a partir d'un template et d'une source de donnees.
+          a partir d'un template et d'une source de données.
           Se connecte a un <code>&lt;dsfr-data-source&gt;</code>, <code>&lt;dsfr-data-query&gt;</code> ou
-          <code>&lt;dsfr-data-normalize&gt;</code> pour recevoir les donnees.
+          <code>&lt;dsfr-data-normalize&gt;</code> pour recevoir les données.
         </p>
 
         <!-- Attributs -->
@@ -41,14 +41,14 @@
             <tr><th>Attribut</th><th>Type</th><th>Description</th></tr>
           </thead>
           <tbody>
-            <tr><td><code>source</code></td><td>String</td><td>ID de la source de donnees a ecouter (requis)</td></tr>
-            <tr><td><code>cols</code></td><td>Number</td><td>Nombre de colonnes dans la grille (1-6, defaut: 1)</td></tr>
+            <tr><td><code>source</code></td><td>String</td><td>ID de la source de données a ecouter (requis)</td></tr>
+            <tr><td><code>cols</code></td><td>Number</td><td>Nombre de colonnes dans la grille (1-6, défaut: 1)</td></tr>
             <tr><td><code>pagination</code></td><td>Number</td><td>Nombre d'elements par page (0 = tout afficher)</td></tr>
-            <tr><td><code>empty</code></td><td>String</td><td>Message quand aucune donnee (defaut: "Aucun resultat")</td></tr>
-            <tr><td><code>gap</code></td><td>String</td><td>Classe CSS de gap pour la grille (defaut: "fr-grid-row--gutters")</td></tr>
-            <tr><td><code>uid-field</code></td><td>String</td><td>Champ de donnees a utiliser comme identifiant unique par element (vide = index)</td></tr>
+            <tr><td><code>empty</code></td><td>String</td><td>Message quand aucune donnee (défaut: "Aucun resultat")</td></tr>
+            <tr><td><code>gap</code></td><td>String</td><td>Classe CSS de gap pour la grille (défaut: "fr-grid-row--gutters")</td></tr>
+            <tr><td><code>uid-field</code></td><td>String</td><td>Champ de données a utiliser comme identifiant unique par element (vide = index)</td></tr>
             <tr><td><code>url-sync</code></td><td>Boolean</td><td>Synchronise le numero de page dans l'URL via replaceState</td></tr>
-            <tr><td><code>url-page-param</code></td><td>String</td><td>Nom du parametre URL pour la page (defaut: "page")</td></tr>
+            <tr><td><code>url-page-param</code></td><td>String</td><td>Nom du parametre URL pour la page (défaut: "page")</td></tr>
           </tbody>
         </table>
 
@@ -61,10 +61,10 @@
           <tbody>
             <tr><td><code>{{champ}}</code></td><td>Valeur echappee (HTML-safe)</td></tr>
             <tr><td><code>{{{champ}}}</code></td><td>Valeur brute (non echappee)</td></tr>
-            <tr><td><code>{{champ|defaut}}</code></td><td>Valeur avec fallback si null/undefined</td></tr>
+            <tr><td><code>{{champ|défaut}}</code></td><td>Valeur avec fallback si null/undefined</td></tr>
             <tr><td><code>{{champ:number}}</code></td><td>Valeur avec separateurs de milliers (ex: 32073247 &rarr; 32 073 247)</td></tr>
             <tr><td><code>{{champ:number|0}}</code></td><td>Format number + fallback si null/undefined</td></tr>
-            <tr><td><code>{{champ.sous.cle}}</code></td><td>Acces aux proprietes imbriquees</td></tr>
+            <tr><td><code>{{champ.sous.clé}}</code></td><td>Acces aux proprietes imbriquees</td></tr>
             <tr><td><code>{{$index}}</code></td><td>Index de l'element (0-based)</td></tr>
             <tr><td><code>{{$uid}}</code></td><td>Identifiant unique de l'element</td></tr>
           </tbody>
@@ -75,7 +75,7 @@
 
         <section class="demo-section" id="cards">
           <h3>1. Cartes DSFR</h3>
-          <p>Affiche les donnees sous forme de cartes DSFR dans une grille a 3 colonnes.</p>
+          <p>Affiche les données sous forme de cartes DSFR dans une grille a 3 colonnes.</p>
 
           <dsfr-data-display source="sites" cols="3" pagination="6">
             <template>
@@ -117,7 +117,7 @@
         <!-- Variante 2: Tuiles -->
         <section class="demo-section" id="tiles">
           <h3>2. Tuiles DSFR</h3>
-          <p>Affiche les donnees sous forme de tuiles dans une grille a 4 colonnes.</p>
+          <p>Affiche les données sous forme de tuiles dans une grille a 4 colonnes.</p>
 
           <dsfr-data-display source="sites" cols="4">
             <template>
@@ -182,8 +182,8 @@
 
         <!-- Variante 4: Valeur par defaut -->
         <section class="demo-section" id="defaults">
-          <h3>4. Valeurs par defaut</h3>
-          <p>Utilise la syntaxe <code>{{champ|defaut}}</code> pour afficher une valeur de remplacement quand un champ est absent.</p>
+          <h3>4. Valeurs par défaut</h3>
+          <p>Utilise la syntaxe <code>{{champ|défaut}}</code> pour afficher une valeur de remplacement quand un champ est absent.</p>
 
           <dsfr-data-display source="sites" cols="2" pagination="4">
             <template>
@@ -192,7 +192,7 @@
                   <div class="fr-card__content">
                     <h3 class="fr-card__title">{{nom}}</h3>
                     <p class="fr-card__desc">
-                      Categorie : {{categorie|Non renseignee}}<br>
+                      Catégorie : {{catégorie|Non renseignee}}<br>
                       Statut : {{statut|Inconnu}}
                     </p>
                   </div>
@@ -209,7 +209,7 @@
         &lt;div class="fr-card__content"&gt;
           &lt;h3 class="fr-card__title"&gt;{{nom}}&lt;/h3&gt;
           &lt;p class="fr-card__desc"&gt;
-            Categorie : {{categorie|Non renseignee}}
+            Catégorie : {{catégorie|Non renseignee}}
           &lt;/p&gt;
         &lt;/div&gt;
       &lt;/div&gt;
@@ -223,7 +223,7 @@
         <section class="demo-section" id="server-pagination">
           <h3>5. Pagination serveur</h3>
           <p>
-            Quand la source utilise <code>paginate</code>, <code>dsfr-data-display</code> detecte automatiquement
+            Quand la source utilise <code>paginate</code>, <code>dsfr-data-display</code> détecté automatiquement
             la pagination serveur. Chaque changement de page declenche un nouvel appel API au lieu de paginer en local.
             Le nombre total de pages est calcule depuis les metadonnees de l'API (<code>meta.total</code>).
           </p>
@@ -249,9 +249,9 @@
           </div>
           <div class="fr-callout fr-callout--blue-ecume fr-mt-2w">
             <p class="fr-callout__text">
-              <strong>Comportement :</strong> en mode pagination serveur, les donnees recues sont affichees telles quelles
+              <strong>Comportement :</strong> en mode pagination serveur, les données recues sont affichees telles quelles
               (pas de slicing client). Le total affiche (ex: "1 743 pages") vient de <code>meta.total / meta.page_size</code>.
-              La recherche et le tri ne s'appliquent qu'aux donnees de la page courante.
+              La recherche et le tri ne s'appliquent qu'aux données de la page courante.
             </p>
           </div>
         </section>
@@ -260,22 +260,22 @@
         <h2 class="fr-mt-4w">Conseils d'utilisation</h2>
         <div class="fr-callout">
           <p class="fr-callout__text">
-            <strong>Template :</strong> Le contenu du <code>&lt;template&gt;</code> est clone pour chaque element de donnees.
+            <strong>Template :</strong> Le contenu du <code>&lt;template&gt;</code> est clone pour chaque element de données.
             Utilisez n'importe quelle structure HTML DSFR (cartes, tuiles, callouts, badges...).
           </p>
         </div>
 
         <div class="fr-callout fr-callout--green-emeraude">
           <p class="fr-callout__text">
-            <strong>Performance :</strong> Pour les grands ensembles de donnees, utilisez l'attribut <code>pagination</code>
+            <strong>Performance :</strong> Pour les grands ensembles de données, utilisez l'attribut <code>pagination</code>
             pour limiter le nombre d'elements rendus simultanement.
           </p>
         </div>
 
         <div class="fr-callout fr-callout--blue-ecume">
           <p class="fr-callout__text">
-            <strong>Securite :</strong> Les valeurs <code>{{champ}}</code> sont echappees par defaut (HTML-safe).
-            Utilisez <code>{{{champ}}}</code> (triple accolades) uniquement si vous faites confiance a la source de donnees.
+            <strong>Securite :</strong> Les valeurs <code>{{champ}}</code> sont echappees par défaut (HTML-safe).
+            Utilisez <code>{{{champ}}}</code> (triple accolades) uniquement si vous faites confiance a la source de données.
           </p>
         </div>
     </div>

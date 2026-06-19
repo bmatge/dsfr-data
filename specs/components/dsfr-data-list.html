@@ -28,8 +28,8 @@
     base-path="../">
     <div slot="content">
         <p class="fr-text--lead">
-          Composant de tableau de donnees avec fonctionnalites de recherche, filtrage, tri, pagination et export CSV.
-          Se connecte a un <code>&lt;dsfr-data-source&gt;</code> pour recevoir les donnees dynamiquement.
+          Composant de tableau de données avec fonctionnalites de recherche, filtrage, tri, pagination et export CSV.
+          Se connecte a un <code>&lt;dsfr-data-source&gt;</code> pour recevoir les données dynamiquement.
         </p>
 
         <!-- Attributs -->
@@ -43,7 +43,7 @@
             <tr><td><code>colonnes</code></td><td>String</td><td>Colonnes a afficher : <code>"key:Label, key2:Label2"</code></td></tr>
             <tr><td><code>recherche</code></td><td>Boolean</td><td>Afficher le champ de recherche</td></tr>
             <tr><td><code>filtres</code></td><td>String</td><td>Colonnes filtrables : <code>"col1,col2"</code></td></tr>
-            <tr><td><code>tri</code></td><td>String</td><td>Tri par defaut : <code>"col:asc"</code> ou <code>"col:desc"</code></td></tr>
+            <tr><td><code>tri</code></td><td>String</td><td>Tri par défaut : <code>"col:asc"</code> ou <code>"col:desc"</code></td></tr>
             <tr><td><code>pagination</code></td><td>Number</td><td>Nombre d'elements par page (0 = pas de pagination)</td></tr>
             <tr><td><code>export</code></td><td>String</td><td>Formats d'export disponibles : <code>"csv"</code></td></tr>
             <tr><td><code>server-tri</code></td><td>Boolean</td><td>Deleguer le tri des colonnes au serveur via <code>dsfr-data-source-command</code> (orderBy). Les en-tetes de colonnes envoient des commandes de tri a la source amont au lieu de trier localement.</td></tr>
@@ -55,7 +55,7 @@
 
         <section class="demo-section" id="simple">
           <h3>1. Tableau simple</h3>
-          <p>Affiche uniquement les donnees dans un tableau sans fonctionnalites supplementaires.</p>
+          <p>Affiche uniquement les données dans un tableau sans fonctionnalites supplementaires.</p>
 
           <dsfr-data-list
             source="sites"
@@ -73,7 +73,7 @@
         <!-- Variante 2: Tableau + recherche -->
         <section class="demo-section" id="search">
           <h3>2. Tableau + recherche</h3>
-          <p>Ajoute un champ de recherche pour filtrer les donnees en temps reel.</p>
+          <p>Ajoute un champ de recherche pour filtrer les données en temps reel.</p>
 
           <dsfr-data-list
             source="sites"
@@ -93,7 +93,7 @@
         <!-- Variante 3: Tableau + filtres -->
         <section class="demo-section" id="filters">
           <h3>3. Tableau + filtres</h3>
-          <p>Ajoute des menus deroulants pour filtrer par colonne specifique.</p>
+          <p>Ajoute des menus deroulants pour filtrer par colonne spécifique.</p>
 
           <dsfr-data-list
             source="sites"
@@ -113,7 +113,7 @@
         <!-- Variante 4: Tableau + tri -->
         <section class="demo-section" id="sort">
           <h3>4. Tableau + tri</h3>
-          <p>Definit un tri par defaut et permet de trier en cliquant sur les en-tetes.</p>
+          <p>Definit un tri par défaut et permet de trier en cliquant sur les en-tetes.</p>
 
           <dsfr-data-list
             source="sites"
@@ -133,7 +133,7 @@
         <!-- Variante 5: Tableau + pagination -->
         <section class="demo-section" id="pagination">
           <h3>5. Tableau + pagination</h3>
-          <p>Divise les donnees en pages pour une meilleure lisibilite.</p>
+          <p>Divise les données en pages pour une meilleure lisibilite.</p>
 
           <dsfr-data-list
             source="sites"
@@ -153,7 +153,7 @@
         <!-- Variante 6: Tableau + export -->
         <section class="demo-section" id="export">
           <h3>6. Tableau + export CSV</h3>
-          <p>Ajoute un bouton pour exporter les donnees au format CSV.</p>
+          <p>Ajoute un bouton pour exporter les données au format CSV.</p>
 
           <dsfr-data-list
             source="sites"
@@ -202,7 +202,7 @@
         <section class="demo-section" id="server-pagination">
           <h3>8. Pagination serveur</h3>
           <p>
-            Quand la source utilise <code>paginate</code>, <code>dsfr-data-list</code> detecte automatiquement
+            Quand la source utilise <code>paginate</code>, <code>dsfr-data-list</code> détecté automatiquement
             la pagination serveur. Chaque changement de page declenche un nouvel appel API. Le nombre total
             d'enregistrements et de pages vient des metadonnees de l'API.
           </p>
@@ -217,7 +217,7 @@
 &lt;/dsfr-data-source&gt;
 
 &lt;dsfr-data-list source="rappels"
-  colonnes="modeles_ou_references:Produit, categorie_produit:Categorie, marque_produit:Marque"
+  colonnes="modeles_ou_references:Produit, categorie_produit:Catégorie, marque_produit:Marque"
   recherche="true"
   tri="date_publication:desc"
   pagination="20"&gt;
@@ -226,7 +226,7 @@
           <div class="fr-callout fr-callout--blue-ecume fr-mt-2w">
             <p class="fr-callout__text">
               <strong>Comportement :</strong> en mode pagination serveur, le total affiche (ex: "34 874 resultats")
-              vient de <code>meta.total</code>. La recherche, le tri et les filtres ne s'appliquent qu'aux donnees
+              vient de <code>meta.total</code>. La recherche, le tri et les filtres ne s'appliquent qu'aux données
               de la page courante. Pour filtrer sur tout le dataset, utilisez les parametres API via <code>params</code>.
             </p>
           </div>
@@ -236,7 +236,7 @@
         <h2 class="fr-mt-4w">Conseils d'utilisation</h2>
         <div class="fr-callout">
           <p class="fr-callout__text">
-            <strong>Performance :</strong> Pour les grands ensembles de donnees, utilisez toujours la pagination
+            <strong>Performance :</strong> Pour les grands ensembles de données, utilisez toujours la pagination
             pour eviter de surcharger le navigateur. Avec <code>paginate</code> sur <code>dsfr-data-source</code>,
             la pagination est geree cote serveur et seule la page courante est en memoire.
           </p>
@@ -244,8 +244,8 @@
 
         <div class="fr-callout fr-callout--green-emeraude">
           <p class="fr-callout__text">
-            <strong>Accessibilite :</strong> Le composant inclut automatiquement les attributs ARIA necessaires
-            pour les lecteurs d'ecran.
+            <strong>Accessibilité :</strong> Le composant inclut automatiquement les attributs ARIA necessaires
+            pour les lecteurs d'écran.
           </p>
         </div>
     </div>

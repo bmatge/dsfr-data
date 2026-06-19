@@ -32,7 +32,7 @@
         <div class="fr-callout fr-callout--blue-ecume fr-mb-4w">
           <p class="fr-callout__text">
             <strong>Architecture 2 composants</strong> : <code>dsfr-data-map</code> est le conteneur carte (init Leaflet, tuiles, viewport).
-            Les donnees sont projetees par des <code>dsfr-data-map-layer</code> enfants, chacun connecte a sa propre source.
+            Les données sont projetees par des <code>dsfr-data-map-layer</code> enfants, chacun connecte a sa propre source.
             Cela permet naturellement le <strong>multi-source</strong> (ex: departements choropleth + POI pharmacies).
           </p>
         </div>
@@ -43,9 +43,9 @@
 
         <h2>dsfr-data-map — Conteneur carte</h2>
         <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Defaut</th><th>Description</th></tr></thead>
+          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><code>center</code></td><td>String</td><td><code>"46.603,2.888"</code></td><td>Centre initial <code>"lat,lon"</code> (France metro par defaut)</td></tr>
+            <tr><td><code>center</code></td><td>String</td><td><code>"46.603,2.888"</code></td><td>Centre initial <code>"lat,lon"</code> (France metro par défaut)</td></tr>
             <tr><td><code>zoom</code></td><td>Number</td><td><code>6</code></td><td>Niveau de zoom initial (1-18)</td></tr>
             <tr><td><code>min-zoom</code></td><td>Number</td><td><code>2</code></td><td>Zoom minimum autorise</td></tr>
             <tr><td><code>max-zoom</code></td><td>Number</td><td><code>18</code></td><td>Zoom maximum autorise</td></tr>
@@ -53,14 +53,14 @@
             <tr><td><code>tiles</code></td><td>String</td><td><code>"ign-plan"</code></td><td>Fond de carte predefini ou URL template custom</td></tr>
             <tr><td><code>sovereign-only</code></td><td>Boolean</td><td><code>false</code></td><td>Restreint <code>tiles</code> aux presets IGN souverains. Tout autre preset (ex. <code>osm-fr</code>) ou URL custom est refuse avec un <code>console.warn</code> et remplace par <code>ign-plan</code>.</td></tr>
             <tr><td><code>no-controls</code></td><td>Boolean</td><td><code>false</code></td><td>Masque les controles de zoom Leaflet</td></tr>
-            <tr><td><code>fit-bounds</code></td><td>Boolean</td><td><code>false</code></td><td>Ajuste automatiquement le viewport aux donnees</td></tr>
+            <tr><td><code>fit-bounds</code></td><td>Boolean</td><td><code>false</code></td><td>Ajuste automatiquement le viewport aux données</td></tr>
             <tr><td><code>max-bounds</code></td><td>String</td><td><code>""</code></td><td>Limites <code>"latSW,lonSW,latNE,lonNE"</code></td></tr>
             <tr><td><code>name</code></td><td>String</td><td><code>""</code></td><td>Titre de la carte (aria-label et beacon)</td></tr>
           </tbody>
         </table>
 
         <h3>Fonds de carte predefinis</h3>
-        <p>Tuiles accessibles <strong>sans cle API</strong>. Les presets <code>ign-*</code> sont servis par la <a href="https://geoservices.ign.fr/services-geoplateforme">Geoplateforme nationale IGN</a> (infrastructure cartographique de l'Etat, hebergee en France). Le preset <code>osm-fr</code> est servi par l'<a href="https://www.openstreetmap.fr/">association OpenStreetMap France</a> (association loi 1901, infra hebergee en France, distincte de l'OSM Foundation).</p>
+        <p>Tuiles accessibles <strong>sans clé API</strong>. Les presets <code>ign-*</code> sont servis par la <a href="https://geoservices.ign.fr/services-geoplateforme">Geoplateforme nationale IGN</a> (infrastructure cartographique de l'État, hebergee en France). Le preset <code>osm-fr</code> est servi par l'<a href="https://www.openstreetmap.fr/">association OpenStreetMap France</a> (association loi 1901, infra hebergee en France, distincte de l'OSM Foundation).</p>
         <table class="attr-table">
           <thead><tr><th>Preset</th><th>Source</th><th>Souverain</th><th>Endpoint</th></tr></thead>
           <tbody>
@@ -68,7 +68,7 @@
             <tr><td><code>ign-ortho</code></td><td>Geoplateforme IGN — Orthophoto</td><td>Oui</td><td><code>data.geopf.fr/wmts</code> (layer <code>ORTHOIMAGERY.ORTHOPHOTOS</code>)</td></tr>
             <tr><td><code>ign-topo</code></td><td>Geoplateforme IGN — Carte topographique (SCAN 25/100)</td><td>Oui</td><td><code>data.geopf.fr/wmts</code> (layer <code>GEOGRAPHICALGRIDSYSTEMS.MAPS.BDUNI.J1</code>)</td></tr>
             <tr><td><code>ign-cadastre</code></td><td>Geoplateforme IGN — Cadastre</td><td>Oui</td><td><code>data.geopf.fr/wmts</code> (layer <code>CADASTRALPARCELS.PARCELLAIRE_EXPRESS</code>)</td></tr>
-            <tr><td><code>osm-fr</code></td><td>OpenStreetMap France (association)</td><td>Non (associatif hors Etat)</td><td><code>{s}.tile.openstreetmap.fr/osmfr</code></td></tr>
+            <tr><td><code>osm-fr</code></td><td>OpenStreetMap France (association)</td><td>Non (associatif hors État)</td><td><code>{s}.tile.openstreetmap.fr/osmfr</code></td></tr>
           </tbody>
         </table>
         <p class="fr-mt-2w"><strong>Mode <code>sovereign-only</code></strong> : pour les DSI qui imposent une politique "zero tiers externe non souverain", ajouter l'attribut booleen <code>sovereign-only</code> sur <code>&lt;dsfr-data-map&gt;</code> restreint les presets disponibles aux seules tuiles IGN (<code>ign-plan</code>, <code>ign-ortho</code>, <code>ign-topo</code>, <code>ign-cadastre</code>). Tout autre preset ou URL custom est refuse avec un avertissement console et remplace par <code>ign-plan</code>.</p>
@@ -78,13 +78,13 @@
         <!-- dsfr-data-map-layer -->
         <!-- ============================================================ -->
 
-        <h2 class="fr-mt-4w">dsfr-data-map-layer — Couche de donnees</h2>
+        <h2 class="fr-mt-4w">dsfr-data-map-layer — Couche de données</h2>
 
         <h3>Source et geolocalisation</h3>
         <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Defaut</th><th>Description</th></tr></thead>
+          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><code>source</code></td><td>String</td><td><code>""</code></td><td>ID de la source de donnees (requis)</td></tr>
+            <tr><td><code>source</code></td><td>String</td><td><code>""</code></td><td>ID de la source de données (requis)</td></tr>
             <tr><td><code>type</code></td><td>String</td><td><code>"marker"</code></td><td>Type de couche : <code>marker</code>, <code>geoshape</code>, <code>circle</code>, <code>heatmap</code></td></tr>
             <tr><td><code>lat-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers la latitude</td></tr>
             <tr><td><code>lon-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers la longitude</td></tr>
@@ -94,17 +94,17 @@
 
         <h3>Affichage</h3>
         <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Defaut</th><th>Description</th></tr></thead>
+          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
           <tbody>
             <tr><td><code>popup-template</code></td><td>String</td><td><code>""</code></td><td>Template HTML avec interpolation : <code>"{nom} — {puissance} kW"</code></td></tr>
             <tr><td><code>popup-fields</code></td><td>String</td><td><code>""</code></td><td>Champs separes par virgule pour un tableau auto</td></tr>
             <tr><td><code>tooltip-field</code></td><td>String</td><td><code>""</code></td><td>Champ affiche au survol</td></tr>
             <tr><td><code>color</code></td><td>String</td><td><code>"#000091"</code></td><td>Couleur contours/markers (DSFR blue-france). Sert de fallback si <code>color-map</code> ne matche pas.</td></tr>
-            <tr><td><code>color-field</code></td><td>String</td><td><code>""</code></td><td>Champ dont la valeur determine la couleur (mapping categoriel)</td></tr>
+            <tr><td><code>color-field</code></td><td>String</td><td><code>""</code></td><td>Champ dont la valeur determine la couleur (mapping catégoriel)</td></tr>
             <tr><td><code>color-map</code></td><td>String</td><td><code>""</code></td><td>Paires <code>valeur:#couleur</code> separees par virgule. Ex: <code>"1:#00A95F,2:#FF9940,3:#E1000F"</code></td></tr>
-            <tr><td><code>fill-field</code></td><td>String</td><td><code>""</code></td><td>Champ numerique pour choropleth geoshape</td></tr>
+            <tr><td><code>fill-field</code></td><td>String</td><td><code>""</code></td><td>Champ numérique pour choropleth geoshape</td></tr>
             <tr><td><code>fill-opacity</code></td><td>Number</td><td><code>0.6</code></td><td>Opacite du remplissage</td></tr>
-            <tr><td><code>selected-palette</code></td><td>String</td><td><code>""</code></td><td>Palette choropleth (memes noms que world-map)</td></tr>
+            <tr><td><code>selected-palette</code></td><td>String</td><td><code>""</code></td><td>Palette choropleth (mêmes noms que world-map)</td></tr>
             <tr><td><code>radius</code></td><td>Number</td><td><code>8</code></td><td>Rayon fixe (circle)</td></tr>
             <tr><td><code>radius-field</code></td><td>String</td><td><code>""</code></td><td>Champ pour rayon variable (cercles proportionnels)</td></tr>
             <tr><td><code>radius-unit</code></td><td>String</td><td><code>"px"</code></td><td><code>px</code> (pixels) ou <code>m</code> (metres)</td></tr>
@@ -115,17 +115,17 @@
 
         <h3>Heatmap</h3>
         <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Defaut</th><th>Description</th></tr></thead>
+          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
           <tbody>
             <tr><td><code>heat-radius</code></td><td>Number</td><td><code>25</code></td><td>Rayon de la heatmap en pixels</td></tr>
             <tr><td><code>heat-blur</code></td><td>Number</td><td><code>15</code></td><td>Flou de la heatmap en pixels</td></tr>
-            <tr><td><code>heat-field</code></td><td>String</td><td><code>""</code></td><td>Champ numerique pour ponderer l'intensite</td></tr>
+            <tr><td><code>heat-field</code></td><td>String</td><td><code>""</code></td><td>Champ numérique pour ponderer l'intensite</td></tr>
           </tbody>
         </table>
 
         <h3>Clustering</h3>
         <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Defaut</th><th>Description</th></tr></thead>
+          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
           <tbody>
             <tr><td><code>cluster</code></td><td>Boolean</td><td><code>false</code></td><td>Active le clustering (leaflet.markercluster)</td></tr>
             <tr><td><code>cluster-radius</code></td><td>Number</td><td><code>80</code></td><td>Rayon de clustering en pixels</td></tr>
@@ -134,19 +134,19 @@
 
         <h3>Zoom et viewport</h3>
         <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Defaut</th><th>Description</th></tr></thead>
+          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
           <tbody>
             <tr><td><code>min-zoom</code></td><td>Number</td><td><code>0</code></td><td>Zoom minimum pour afficher cette couche</td></tr>
             <tr><td><code>max-zoom</code></td><td>Number</td><td><code>18</code></td><td>Zoom maximum pour afficher cette couche</td></tr>
             <tr><td><code>bbox</code></td><td>Boolean</td><td><code>false</code></td><td>Active le filtrage par bounding box du viewport</td></tr>
             <tr><td><code>bbox-debounce</code></td><td>Number</td><td><code>300</code></td><td>Delai ms avant re-fetch apres pan/zoom</td></tr>
-            <tr><td><code>bbox-field</code></td><td>String</td><td><code>""</code></td><td>Champ geo pour la clause bbox (auto-detecte si vide)</td></tr>
+            <tr><td><code>bbox-field</code></td><td>String</td><td><code>""</code></td><td>Champ geo pour la clause bbox (auto-détecté si vide)</td></tr>
           </tbody>
         </table>
 
         <h3>Performance</h3>
         <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Defaut</th><th>Description</th></tr></thead>
+          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
           <tbody>
             <tr><td><code>max-items</code></td><td>Number</td><td><code>5000</code></td><td>Nombre max d'elements rendus (0 = illimite)</td></tr>
             <tr><td><code>filter</code></td><td>String</td><td><code>""</code></td><td>Filtre client-side</td></tr>
@@ -155,7 +155,7 @@
 
         <h3>Animation temporelle</h3>
         <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Defaut</th><th>Description</th></tr></thead>
+          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
           <tbody>
             <tr><td><code>time-field</code></td><td>String</td><td><code>""</code></td><td>Champ date/heure pour le decoupage temporel</td></tr>
             <tr><td><code>time-bucket</code></td><td>String</td><td><code>"none"</code></td><td>Granularite : <code>none</code> (valeurs brutes), <code>hour</code>, <code>day</code>, <code>month</code>, <code>year</code></td></tr>
@@ -163,7 +163,7 @@
           </tbody>
         </table>
         <p>
-          Quand <code>time-field</code> est defini, les donnees sont pre-indexees par pas de temps.
+          Quand <code>time-field</code> est défini, les données sont pre-indexees par pas de temps.
           Le composant compagnon <code>dsfr-data-map-timeline</code> pilote la lecture frame par frame.
         </p>
 
@@ -179,7 +179,7 @@
         </p>
 
         <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Defaut</th><th>Description</th></tr></thead>
+          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
           <tbody>
             <tr><td><code>for</code></td><td>String</td><td><code>""</code></td><td>IDs des layers cibles (virgules). Vide = tous les layers avec <code>time-field</code></td></tr>
             <tr><td><code>speed</code></td><td>Number</td><td><code>1</code></td><td>Multiplicateur de vitesse (0.5, 1, 2, 4)</td></tr>
@@ -195,7 +195,7 @@
           <li>Label du pas courant avec region aria-live</li>
         </ul>
 
-        <h3>Accessibilite</h3>
+        <h3>Accessibilité</h3>
         <ul>
           <li><strong>Pas d'auto-play</strong> — l'animation demarre uniquement sur action utilisateur</li>
           <li><strong>Clavier</strong> : Espace (play/pause), fleches (pas-a-pas), Home/End (debut/fin)</li>
@@ -215,7 +215,7 @@
         </p>
 
         <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Defaut</th><th>Description</th></tr></thead>
+          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
           <tbody>
             <tr><td><code>mode</code></td><td>String</td><td><code>"popup"</code></td><td><code>popup</code> (infobulle Leaflet), <code>modal</code> (modale DSFR), <code>panel-right</code>, <code>panel-left</code></td></tr>
             <tr><td><code>title-field</code></td><td>String</td><td><code>""</code></td><td>Champ pour le titre du panneau/modale</td></tr>
@@ -226,8 +226,8 @@
 
         <h3>Template</h3>
         <p>
-          Le contenu est defini via un element <code>&lt;template&gt;</code> enfant avec interpolation
-          <code>{{champ}}</code>. Sans template, un tableau cle/valeur est genere automatiquement.
+          Le contenu est défini via un element <code>&lt;template&gt;</code> enfant avec interpolation
+          <code>{{champ}}</code>. Sans template, un tableau clé/valeur est genere automatiquement.
         </p>
 
         <h3>Modes</h3>
@@ -385,7 +385,7 @@
           Les styles des clusters suivent les tokens DSFR.
         </p>
 
-        <h3>Pipeline de donnees</h3>
+        <h3>Pipeline de données</h3>
         <div class="code-block"><pre>dsfr-data-source (A) ──┐
                        ├──► dsfr-data-map
 dsfr-data-source (B) ──┘     ├── dsfr-data-map-layer (source="A", type="geoshape")

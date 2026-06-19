@@ -26,7 +26,7 @@
     <div slot="content">
         <p class="fr-text--lead">
           API <strong>Grist</strong>, tableur collaboratif open source. Supporte
-          <a href="https://grist.numerique.gouv.fr" target="_blank" rel="noopener">grist.numerique.gouv.fr</a>
+          <a href="https://grist.numerique.gouv.fr" target="_blank" rel="noopener">grist.numérique.gouv.fr</a>
           (instance souveraine) et <a href="https://docs.getgrist.com" target="_blank" rel="noopener">docs.getgrist.com</a>.
         </p>
 
@@ -35,7 +35,7 @@
           <p class="fr-callout__text">
             L'adapter Grist choisit automatiquement entre deux modes :
             <strong>mode Records</strong> (GET /records) pour le filtrage par egalite, le tri et la pagination,
-            et <strong>mode SQL</strong> (POST /sql) pour le group-by, l'agregation, les facettes et
+            et <strong>mode SQL</strong> (POST /sql) pour le group-by, l'agrégation, les facettes et
             les operateurs avances (LIKE, comparaisons). Le fallback vers le mode Records + client-side
             est automatique si le endpoint SQL n'est pas disponible.
           </p>
@@ -68,7 +68,7 @@
                   <td>Fetch serveur</td>
                   <td class="capability-yes">Oui</td>
                   <td>Records</td>
-                  <td>Recuperation paginee des donnees</td>
+                  <td>Recuperation paginee des données</td>
                 </tr>
                 <tr>
                   <td>Tri serveur</td>
@@ -86,7 +86,7 @@
                   <td>Filtrage avance (gt, lt, LIKE...)</td>
                   <td class="capability-yes">Oui</td>
                   <td>SQL</td>
-                  <td>Requete SQL parametree avec placeholders <code>?</code></td>
+                  <td>Requête SQL parametree avec placeholders <code>?</code></td>
                 </tr>
                 <tr>
                   <td>Facettes serveur</td>
@@ -101,7 +101,7 @@
                   <td>Clause <code>GROUP BY</code> SQLite</td>
                 </tr>
                 <tr>
-                  <td>Agregation serveur</td>
+                  <td>Agrégation serveur</td>
                   <td class="capability-yes">Oui</td>
                   <td>SQL</td>
                   <td>Fonctions <code>SUM</code>, <code>AVG</code>, <code>COUNT</code>, <code>MIN</code>, <code>MAX</code></td>
@@ -127,7 +127,7 @@
               </thead>
               <tbody>
                 <tr><td>Type</td><td><code>offset</code></td></tr>
-                <tr><td>Taille de page</td><td>100 enregistrements (par defaut)</td></tr>
+                <tr><td>Taille de page</td><td>100 enregistrements (par défaut)</td></tr>
                 <tr><td>Parametres URL</td><td><code>limit</code>, <code>offset</code></td></tr>
               </tbody>
             </table>
@@ -158,7 +158,7 @@
           <h3 class="fr-mt-2w">Mode SQL (POST /sql)</h3>
           <p>
             Active automatiquement quand les capacites de l'endpoint Records sont insuffisantes
-            (group-by, agregation, operateurs avances comme <code>contains</code>, <code>gt</code>, <code>lt</code>).
+            (group-by, agrégation, operateurs avances comme <code>contains</code>, <code>gt</code>, <code>lt</code>).
           </p>
           <pre><code>POST /api/docs/{docId}/sql
 {
@@ -174,7 +174,7 @@
 
           <div class="fr-highlight fr-mt-2w">
             <p>
-              <strong>Securite :</strong> toutes les valeurs sont passees via des placeholders <code>?</code> (requetes parametrees).
+              <strong>Securite :</strong> toutes les valeurs sont passees via des placeholders <code>?</code> (requêtes parametrees).
               Les noms de colonnes et tables sont echappes avec des guillemets doubles (standard SQLite).
             </p>
           </div>
@@ -183,7 +183,7 @@
           <p>
             Si le endpoint SQL n'est pas disponible (ancienne version de Grist, restrictions admin),
             l'adapter retombe en mode Records + traitement client-side. La disponibilite est cachee
-            par hostname pour eviter des requetes inutiles.
+            par hostname pour eviter des requêtes inutiles.
           </p>
         </section>
 
@@ -196,9 +196,9 @@
                 <tr><th>Parametre</th><th>Valeur</th></tr>
               </thead>
               <tbody>
-                <tr><td>Chemin des donnees</td><td><code>records</code></td></tr>
+                <tr><td>Chemin des données</td><td><code>records</code></td></tr>
                 <tr><td>Chemin du total</td><td>Non disponible</td></tr>
-                <tr><td>Donnees imbriquees</td><td>Oui (<code>fields</code>)</td></tr>
+                <tr><td>Données imbriquees</td><td>Oui (<code>fields</code>)</td></tr>
                 <tr><td>Aplatissement</td><td><strong>Automatique</strong> (par l'adapter, sans dsfr-data-normalize)</td></tr>
               </tbody>
             </table>
@@ -237,7 +237,7 @@
 
         <!-- Syntaxe de requete -->
         <section class="fr-mt-4w">
-          <h2>Syntaxe de requete</h2>
+          <h2>Syntaxe de requête</h2>
           <p>
             L'adapter Grist utilise la syntaxe colon generique (<code>champ:operateur:valeur</code>)
             et la convertit automatiquement :
@@ -266,7 +266,7 @@
           </div>
           <p class="fr-mt-1w">
             Separateur WHERE : <code>, </code> (virgule + espace).
-            Agregation : syntaxe <code>sql</code> (traduite en SQLite natif).
+            Agrégation : syntaxe <code>sql</code> (traduite en SQLite natif).
           </p>
         </section>
 
@@ -279,14 +279,14 @@
                 <tr><th>Parametre</th><th>Valeur</th></tr>
               </thead>
               <tbody>
-                <tr><td>Mode par defaut</td><td><strong>server</strong></td></tr>
-                <tr><td>Methode</td><td>SQL <code>GROUP BY</code> + <code>COUNT(*)</code></td></tr>
+                <tr><td>Mode par défaut</td><td><strong>server</strong></td></tr>
+                <tr><td>Méthode</td><td>SQL <code>GROUP BY</code> + <code>COUNT(*)</code></td></tr>
                 <tr><td>Limite par champ</td><td>200 valeurs distinctes</td></tr>
               </tbody>
             </table>
           </div>
           <p class="fr-mt-1w">
-            Les facettes sont calculees cote serveur via des requetes SQL.
+            Les facettes sont calculees cote serveur via des requêtes SQL.
             Si le endpoint SQL n'est pas disponible, les facettes sont calculees cote client.
           </p>
         </section>
@@ -295,12 +295,12 @@
         <section class="fr-mt-4w">
           <h2>Introspection</h2>
           <p>
-            L'adapter expose des methodes d'introspection du schema Grist :
+            L'adapter expose des méthodes d'introspection du schema Grist :
           </p>
           <div class="fr-table">
             <table>
               <thead>
-                <tr><th>Methode</th><th>Endpoint</th><th>Description</th></tr>
+                <tr><th>Méthode</th><th>Endpoint</th><th>Description</th></tr>
               </thead>
               <tbody>
                 <tr>
@@ -333,7 +333,7 @@
         <section class="fr-mt-4w">
           <h2>Detection automatique</h2>
           <p>
-            dsfr-data detecte automatiquement une source Grist si l'URL contient :
+            dsfr-data détecté automatiquement une source Grist si l'URL contient :
           </p>
           <ul>
             <li><code>/api/docs/{documentId}/tables/{tableId}</code></li>
@@ -346,7 +346,7 @@
                 <tr><th>Hostname</th><th>Endpoint proxy</th></tr>
               </thead>
               <tbody>
-                <tr><td><code>grist.numerique.gouv.fr</code></td><td><code>/grist-gouv-proxy</code></td></tr>
+                <tr><td><code>grist.numérique.gouv.fr</code></td><td><code>/grist-gouv-proxy</code></td></tr>
                 <tr><td><code>docs.getgrist.com</code></td><td><code>/grist-proxy</code></td></tr>
               </tbody>
             </table>
@@ -357,7 +357,7 @@
         <section class="fr-mt-4w">
           <h2>Exemples d'utilisation</h2>
 
-          <h3>Graphique avec agregation serveur (SQL)</h3>
+          <h3>Graphique avec agrégation serveur (SQL)</h3>
           <pre><code>&lt;dsfr-data-source id="src" api-type="grist"
   base-url="https://&lt;votre-proxy&gt;/grist-gouv-proxy/api/docs/DOC_ID/tables/Table1/records"
   headers='{"Authorization":"Bearer API_KEY"}'&gt;
@@ -391,8 +391,8 @@
 &lt;/dsfr-data-source&gt;
 
 &lt;dsfr-data-facets source="src"
-  fields="categorie,region"
-  labels="categorie:Categorie | region:Region"
+  fields="catégorie,region"
+  labels="catégorie:Catégorie | region:Region"
   server-facets&gt;
 &lt;/dsfr-data-facets&gt;
 
@@ -402,7 +402,7 @@
 &lt;/dsfr-data-search&gt;
 
 &lt;dsfr-data-list source="src"
-  colonnes="nom,categorie,region"
+  colonnes="nom,catégorie,region"
   pagination="20"&gt;
 &lt;/dsfr-data-list&gt;</code></pre>
         </section>

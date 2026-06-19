@@ -34,7 +34,7 @@
         <div class="fr-callout fr-callout--blue-france">
           <p class="fr-callout__text">
             <strong>Invisible :</strong> Ce composant ne rend rien visuellement. Il ecoute une source,
-            bascule ses colonnes en lignes, puis redistribue le resultat via le systeme d'evenements.
+            bascule ses colonnes en lignes, puis redistribue le resultat via le systeme d'événements.
             La valeur reste brute : le typage est delegue a <code>&lt;dsfr-data-normalize&gt;</code> (<code>numeric-auto</code>) en aval.
           </p>
         </div>
@@ -61,9 +61,9 @@ Immatriculations VE   | Vehicule Particulier | 2023-02 | 19965</pre></div>
             <tr><td><code>id-cols</code></td><td>String</td><td><code>id-cols="Indicateurs, Sous_theme"</code></td><td>Colonnes conservees telles quelles sur chaque ligne (virgule-separees)</td></tr>
             <tr><td><code>value-cols</code></td><td>String</td><td><code>value-cols="janv, fevr, mars"</code></td><td>Liste explicite des colonnes a deplier. Exclusif avec <code>value-cols-pattern</code></td></tr>
             <tr><td><code>value-cols-pattern</code></td><td>String</td><td><code>value-cols-pattern="c{YYYY}_{MM}"</code></td><td>Motif des colonnes a deplier (voir tokens ci-dessous)</td></tr>
-            <tr><td><code>var-name</code></td><td>String</td><td><code>var-name="mois"</code></td><td>Nom de la nouvelle colonne « variable » (cle depliee). Defaut : <code>variable</code></td></tr>
-            <tr><td><code>var-format</code></td><td>String</td><td><code>var-format="{YYYY}-{MM}"</code></td><td>Reformatage de la cle via les tokens du motif (<code>c2023_01</code> → <code>2023-01</code>)</td></tr>
-            <tr><td><code>value-name</code></td><td>String</td><td><code>value-name="valeur"</code></td><td>Nom de la nouvelle colonne « valeur ». Defaut : <code>value</code></td></tr>
+            <tr><td><code>var-name</code></td><td>String</td><td><code>var-name="mois"</code></td><td>Nom de la nouvelle colonne « variable » (clé depliee). Défaut : <code>variable</code></td></tr>
+            <tr><td><code>var-format</code></td><td>String</td><td><code>var-format="{YYYY}-{MM}"</code></td><td>Reformatage de la clé via les tokens du motif (<code>c2023_01</code> → <code>2023-01</code>)</td></tr>
+            <tr><td><code>value-name</code></td><td>String</td><td><code>value-name="valeur"</code></td><td>Nom de la nouvelle colonne « valeur ». Défaut : <code>value</code></td></tr>
             <tr><td><code>drop-empty</code></td><td>Boolean</td><td><code>drop-empty</code></td><td>Ne pas emettre de ligne quand la cellule depliee est vide / null</td></tr>
           </tbody>
         </table>
@@ -89,7 +89,7 @@ Immatriculations VE   | Vehicule Particulier | 2023-02 | 19965</pre></div>
             les valeurs, et on trace une courbe — sans une ligne de JavaScript.
           </p>
           <div class="code-block"><pre>&lt;dsfr-data-source id="grist_wide" api-type="grist"
-  base-url="https://grist.numerique.gouv.fr" doc-id="..." table="Plan_Elec"&gt;
+  base-url="https://grist.numérique.gouv.fr" doc-id="..." table="Plan_Elec"&gt;
 &lt;/dsfr-data-source&gt;
 
 &lt;dsfr-data-unpivot id="tidy" source="grist_wide"
@@ -111,12 +111,12 @@ Immatriculations VE   | Vehicule Particulier | 2023-02 | 19965</pre></div>
         </section>
 
         <section class="demo-section">
-          <h3>Cle de serie composite + multi-courbes (avec <code>compute</code> et <code>series-field</code>)</h3>
+          <h3>Clé de série composite + multi-courbes (avec <code>compute</code> et <code>series-field</code>)</h3>
           <p>
-            Quand l'identite d'une serie est repartie sur plusieurs colonnes (ici <code>Indicateurs</code>
+            Quand l'identite d'une série est repartie sur plusieurs colonnes (ici <code>Indicateurs</code>
             + <code>Sous_theme</code>), l'attribut <code>compute</code> de <code>&lt;dsfr-data-normalize&gt;</code>
-            les recolle en une cle unique. Le <code>series-field</code> de <code>&lt;dsfr-data-chart&gt;</code>
-            transforme alors cette cle tidy en une courbe par serie — sans une ligne de JavaScript.
+            les recolle en une clé unique. Le <code>series-field</code> de <code>&lt;dsfr-data-chart&gt;</code>
+            transforme alors cette clé tidy en une courbe par série — sans une ligne de JavaScript.
           </p>
           <div class="code-block"><pre>&lt;dsfr-data-normalize id="prep" source="tidy"
   numeric-auto
@@ -127,7 +127,7 @@ Immatriculations VE   | Vehicule Particulier | 2023-02 | 19965</pre></div>
   label-field="mois" series-field="groupe" value-field="valeur"&gt;
 &lt;/dsfr-data-chart&gt;</pre></div>
           <p class="fr-text--sm fr-mt-1w">
-            Alternative pour une seule serie : filtrer via <code>&lt;dsfr-data-query where="groupe = '...'"&gt;</code>.
+            Alternative pour une seule série : filtrer via <code>&lt;dsfr-data-query where="groupe = '...'"&gt;</code>.
           </p>
         </section>
 
@@ -141,19 +141,19 @@ Immatriculations VE   | Vehicule Particulier | 2023-02 | 19965</pre></div>
 &lt;/dsfr-data-unpivot&gt;</pre></div>
         </section>
 
-        <h2 id="evenements" class="fr-mt-4w">Evenements</h2>
-        <p>Le composant emet les memes evenements que <code>&lt;dsfr-data-source&gt;</code> :</p>
+        <h2 id="evenements" class="fr-mt-4w">Événements</h2>
+        <p>Le composant emet les mêmes événements que <code>&lt;dsfr-data-source&gt;</code> :</p>
         <ul>
-          <li><code>dsfr-data-loaded</code> : Donnees depliees disponibles</li>
+          <li><code>dsfr-data-loaded</code> : Données depliees disponibles</li>
           <li><code>dsfr-data-loading</code> : En attente de la source</li>
           <li><code>dsfr-data-error</code> : Erreur de la source ou du depivotage</li>
         </ul>
 
         <h2 id="methodes" class="fr-mt-4w">Methodes publiques</h2>
         <table class="attr-table">
-          <thead><tr><th>Methode</th><th>Retour</th><th>Description</th></tr></thead>
+          <thead><tr><th>Méthode</th><th>Retour</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><code>getData()</code></td><td>Array</td><td>Retourne les donnees depliees actuelles</td></tr>
+            <tr><td><code>getData()</code></td><td>Array</td><td>Retourne les données depliees actuelles</td></tr>
           </tbody>
         </table>
 
@@ -172,7 +172,7 @@ Immatriculations VE   | Vehicule Particulier | 2023-02 | 19965</pre></div>
         </div>
         <div class="fr-callout fr-mt-2w">
           <p class="fr-callout__text">
-            <strong>Recalcul automatique :</strong> si la source emet de nouvelles donnees (rechargement,
+            <strong>Recalcul automatique :</strong> si la source emet de nouvelles données (rechargement,
             filtre, pagination), le depivotage est recalcule automatiquement.
           </p>
         </div>

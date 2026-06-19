@@ -26,7 +26,7 @@
     <div slot="content">
         <p class="fr-text--lead">
           Carte du monde choropleth avec zoom interactif par continent.
-          Colorie les pays selon une valeur numerique issue d'une source de donnees.
+          Colorie les pays selon une valeur numérique issue d'une source de données.
         </p>
 
         <div class="fr-callout fr-callout--blue-ecume fr-mb-4w">
@@ -39,11 +39,11 @@
 
         <h2>Attributs</h2>
         <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Defaut</th><th>Description</th></tr></thead>
+          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><code>source</code></td><td>String</td><td>-</td><td>ID du <code>&lt;dsfr-data-source&gt;</code> ou <code>&lt;dsfr-data-query&gt;</code> fournissant les donnees (requis)</td></tr>
+            <tr><td><code>source</code></td><td>String</td><td>-</td><td>ID du <code>&lt;dsfr-data-source&gt;</code> ou <code>&lt;dsfr-data-query&gt;</code> fournissant les données (requis)</td></tr>
             <tr><td><code>code-field</code></td><td>String</td><td>-</td><td>Chemin vers le code pays dans chaque enregistrement (requis)</td></tr>
-            <tr><td><code>value-field</code></td><td>String</td><td>-</td><td>Chemin vers la valeur numerique a representer (requis)</td></tr>
+            <tr><td><code>value-field</code></td><td>String</td><td>-</td><td>Chemin vers la valeur numérique a representer (requis)</td></tr>
             <tr><td><code>code-format</code></td><td>String</td><td><code>iso-a2</code></td><td>Format des codes pays : <code>iso-a2</code> (FR), <code>iso-a3</code> (FRA), <code>iso-num</code> (250)</td></tr>
             <tr><td><code>name</code></td><td>String</td><td>-</td><td>Titre affiche dans la legende</td></tr>
             <tr><td><code>selected-palette</code></td><td>String</td><td><code>sequentialAscending</code></td><td>Palette de couleurs DSFR (voir ci-dessous)</td></tr>
@@ -54,11 +54,11 @@
 
         <h2 class="fr-mt-4w">Palettes disponibles</h2>
         <table class="attr-table">
-          <thead><tr><th>Palette</th><th>Usage</th><th>Apercu</th></tr></thead>
+          <thead><tr><th>Palette</th><th>Usage</th><th>Aperçu</th></tr></thead>
           <tbody>
             <tr>
               <td><code>sequentialAscending</code></td>
-              <td>Donnees ordonnees croissantes (clair → fonce)</td>
+              <td>Données ordonnees croissantes (clair → fonce)</td>
               <td><span style="display:inline-flex;gap:1px;">
                 <span style="width:16px;height:12px;display:inline-block;background:#F5F5FE;border:1px solid #eee;"></span>
                 <span style="width:16px;height:12px;display:inline-block;background:#C1C1FB;"></span>
@@ -69,7 +69,7 @@
             </tr>
             <tr>
               <td><code>sequentialDescending</code></td>
-              <td>Donnees ordonnees decroissantes (fonce → clair)</td>
+              <td>Données ordonnees decroissantes (fonce → clair)</td>
               <td><span style="display:inline-flex;gap:1px;">
                 <span style="width:16px;height:12px;display:inline-block;background:#000091;"></span>
                 <span style="width:16px;height:12px;display:inline-block;background:#4747E5;"></span>
@@ -80,7 +80,7 @@
             </tr>
             <tr>
               <td><code>divergentAscending</code></td>
-              <td>Donnees bipolaires (bleu → neutre → rouge)</td>
+              <td>Données bipolaires (bleu → neutre → rouge)</td>
               <td><span style="display:inline-flex;gap:1px;">
                 <span style="width:16px;height:12px;display:inline-block;background:#000091;"></span>
                 <span style="width:16px;height:12px;display:inline-block;background:#8585F6;"></span>
@@ -91,7 +91,7 @@
             </tr>
             <tr>
               <td><code>neutral</code></td>
-              <td>Donnees neutres (nuances de gris)</td>
+              <td>Données neutres (nuances de gris)</td>
               <td><span style="display:inline-flex;gap:1px;">
                 <span style="width:16px;height:12px;display:inline-block;background:#F6F6F6;border:1px solid #eee;"></span>
                 <span style="width:16px;height:12px;display:inline-block;background:#CECECE;"></span>
@@ -109,14 +109,14 @@
           <tbody>
             <tr><td><code>iso-a2</code></td><td>FR</td><td>ISO 3166-1 alpha-2 (2 lettres)</td></tr>
             <tr><td><code>iso-a3</code></td><td>FRA</td><td>ISO 3166-1 alpha-3 (3 lettres)</td></tr>
-            <tr><td><code>iso-num</code></td><td>250</td><td>ISO 3166-1 numerique (3 chiffres)</td></tr>
+            <tr><td><code>iso-num</code></td><td>250</td><td>ISO 3166-1 numérique (3 chiffres)</td></tr>
           </tbody>
         </table>
 
         <h2 class="fr-mt-4w">Exemples</h2>
 
         <section class="demo-section">
-          <h3>1. Carte simple avec donnees embarquees</h3>
+          <h3>1. Carte simple avec données embarquees</h3>
 
           <dsfr-data-source id="demo-pib" data='[
             {"code":"US","pib":25462},{"code":"CN","pib":17963},{"code":"JP","pib":4231},
@@ -191,10 +191,10 @@
         <p>
           Les couleurs sont attribuees par <strong>quantiles</strong> : les pays sont repartis en 9 groupes
           de taille egale, chacun recevant une teinte de la palette. Cela garantit une bonne lisibilite
-          meme avec des distributions tres asymetriques (ex: PIB).
+          même avec des distributions tres asymetriques (ex: PIB).
         </p>
         <p>
-          Les pays sans donnees sont affiches en gris clair (<code>#F0F0F0</code>).
+          Les pays sans données sont affiches en gris clair (<code>#F0F0F0</code>).
         </p>
 
         <h3>Zoom continent</h3>
@@ -207,10 +207,10 @@
         <h3>Tooltip</h3>
         <p>
           Au survol d'un pays, un tooltip affiche le nom du pays (en francais) et sa valeur formatee.
-          Si <code>unit-tooltip</code> est defini, l'unite est ajoutee apres la valeur.
+          Si <code>unit-tooltip</code> est défini, l'unite est ajoutee apres la valeur.
         </p>
 
-        <h3>Pipeline de donnees</h3>
+        <h3>Pipeline de données</h3>
         <div class="code-block"><pre>dsfr-data-source (fetch / inline)
   → dsfr-data-query (optionnel : group-by, aggregate)
     → dsfr-data-world-map (affichage)</pre></div>

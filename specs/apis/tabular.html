@@ -30,10 +30,10 @@
         </p>
 
         <div class="fr-callout fr-callout--green-emeraude">
-          <h4 class="fr-callout__title">Agregation et group-by serveur</h4>
+          <h4 class="fr-callout__title">Agrégation et group-by serveur</h4>
           <p class="fr-callout__text">
             Tabular supporte la <strong>pagination par page</strong> (500 pages de 50, soit 25 000 enregistrements),
-            le <strong>tri serveur</strong>, et surtout le <strong>group-by et l'agregation cote serveur</strong>
+            le <strong>tri serveur</strong>, et surtout le <strong>group-by et l'agrégation cote serveur</strong>
             (<code>sum</code>, <code>avg</code>, <code>count</code>, <code>min</code>, <code>max</code>).
             La recherche full-text et les facettes restent cote client.
           </p>
@@ -55,7 +55,7 @@
                 <tr>
                   <td>Fetch serveur</td>
                   <td class="capability-yes">Oui</td>
-                  <td>Recuperation paginee des donnees</td>
+                  <td>Recuperation paginee des données</td>
                 </tr>
                 <tr>
                   <td>Facettes serveur</td>
@@ -78,7 +78,7 @@
                   <td>Parametre <code>column__sort=asc|desc</code></td>
                 </tr>
                 <tr>
-                  <td>Agregation serveur</td>
+                  <td>Agrégation serveur</td>
                   <td class="capability-yes">Oui</td>
                   <td>Parametres <code>column__sum</code>, <code>__avg</code>, <code>__count</code>, <code>__min</code>, <code>__max</code></td>
                 </tr>
@@ -116,7 +116,7 @@
 
         <!-- Syntaxe de requete -->
         <section class="fr-mt-4w">
-          <h2>Syntaxe de requete</h2>
+          <h2>Syntaxe de requête</h2>
           <p>
             Tabular utilise une syntaxe <strong>colon</strong> (deux-points) pour les filtres :
             <code>field:operator:value</code>.
@@ -148,9 +148,9 @@
           <h3 class="fr-mt-2w">Separateur WHERE</h3>
           <p>Les clauses WHERE multiples sont jointes par <code>, </code> (virgule + espace).</p>
 
-          <h3 class="fr-mt-2w">Agregation serveur</h3>
+          <h3 class="fr-mt-2w">Agrégation serveur</h3>
           <p>
-            L'API supporte l'agregation cote serveur via des parametres URL :
+            L'API supporte l'agrégation cote serveur via des parametres URL :
           </p>
           <div class="fr-table">
             <table>
@@ -170,7 +170,7 @@
           <div class="fr-highlight fr-mt-2w">
             <p>
               Les colonnes de resultat sont nommees <code>column__operator</code> (ex : <code>population__sum</code>).
-              Les filtres sont appliques <strong>avant</strong> l'agregation.
+              Les filtres sont appliques <strong>avant</strong> l'agrégation.
             </p>
           </div>
         </section>
@@ -179,7 +179,7 @@
         <section class="fr-mt-4w">
           <h2>Selection de colonnes</h2>
           <p>
-            L'API supporte la selection de colonnes specifiques via le parametre <code>columns</code> :
+            L'API supporte la selection de colonnes spécifiques via le parametre <code>columns</code> :
           </p>
           <pre><code>?columns=nom,prenom,commune</code></pre>
           <p class="fr-mt-1w">
@@ -196,15 +196,15 @@
                 <tr><th>Parametre</th><th>Valeur</th></tr>
               </thead>
               <tbody>
-                <tr><td>Mode par defaut</td><td><strong>static</strong> (client-side)</td></tr>
+                <tr><td>Mode par défaut</td><td><strong>static</strong> (client-side)</td></tr>
                 <tr><td>Endpoint serveur</td><td>Non disponible</td></tr>
               </tbody>
             </table>
           </div>
           <p class="fr-mt-1w">
-            Les facettes sont calculees sur les donnees deja recuperees cote client.
-            Si le jeu de donnees est volumineux, pensez a utiliser <code>auto-pagination</code>
-            pour charger plus de donnees avant le calcul des facettes.
+            Les facettes sont calculees sur les données deja recuperees cote client.
+            Si le jeu de données est volumineux, pensez a utiliser <code>auto-pagination</code>
+            pour charger plus de données avant le calcul des facettes.
           </p>
         </section>
 
@@ -226,9 +226,9 @@
                 <tr><th>Parametre</th><th>Valeur</th></tr>
               </thead>
               <tbody>
-                <tr><td>Chemin des donnees</td><td><code>data</code></td></tr>
+                <tr><td>Chemin des données</td><td><code>data</code></td></tr>
                 <tr><td>Chemin du total</td><td><code>meta.total</code></td></tr>
-                <tr><td>Donnees imbriquees</td><td>Non (champs a plat)</td></tr>
+                <tr><td>Données imbriquees</td><td>Non (champs a plat)</td></tr>
                 <tr><td>Necessite flatten</td><td>Non</td></tr>
               </tbody>
             </table>
@@ -239,7 +239,7 @@
         <section class="fr-mt-4w">
           <h2>Detection automatique</h2>
           <p>
-            dsfr-data detecte automatiquement une source Tabular si l'URL contient :
+            dsfr-data détecté automatiquement une source Tabular si l'URL contient :
           </p>
           <ul>
             <li><code>tabular-api.data.gouv.fr/api/resources/{resourceId}</code></li>
@@ -253,7 +253,7 @@
         <section class="fr-mt-4w">
           <h2>Exemple d'utilisation</h2>
 
-          <h3>Graphique avec agregation</h3>
+          <h3>Graphique avec agrégation</h3>
           <pre><code>&lt;dsfr-data-source
   id="src"
   api-type="tabular"
