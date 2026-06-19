@@ -1,5 +1,0 @@
----
-'dsfr-data': minor
----
-
-Nouveaux composants `dsfr-data-context` + `dsfr-data-context-filter` (#229, epic #224, ADR-031) : le filtre transverse multi-sources qui manquait. Un dashboard multi-vues à filtre commun (date, catégorie…) exigeait du JS d'orchestration écrit à la main — le contexte écoute des éléments d'UI natifs (`select`, `input`, select multiple, deux champs pour `between`), recompose un `where` par source **au dialecte de son adapter** (colon pivot, traduit en ODSQL via la couche partagée #275) et le diffuse aux sources nommées. **Opt-in et additif** : sans contexte, rien ne change. Un `whereKey` stable par filtre → combinaison en **AND** par le merge multi-émetteurs existant des sources (jamais « le dernier gagne ») ; doublon field+operator signalé en warning ; la valeur vide retire le filtre ; le disconnect libère tout ; `apply-to` cible un sous-ensemble de sources ; opérateurs `eq`, `in`, `lt`, `gte`, `between` ; erreurs de configuration via `reportConfigError` (#283).

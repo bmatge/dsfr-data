@@ -1,5 +1,74 @@
 # dsfr-data
 
+## 0.9.0
+
+### Minor Changes
+
+- [#347](https://github.com/bmatge/dsfr-data/pull/347) [`54f48b9`](https://github.com/bmatge/dsfr-data/commit/54f48b99e303ab58a2f5fd977af8b8f426e43d8c) Thanks [@bmatge](https://github.com/bmatge)! - dsfr-data-chart : lignes de référence (verticale/horizontale) avec libellé ([#341](https://github.com/bmatge/dsfr-data/issues/341)).
+
+  - Nouvel attribut `reference-lines` (JSON) : superpose des repères sur les
+    graphiques **cartésiens** (line, bar, bar-line, scatter). Chaque item :
+    `{ axis: "x"|"y", value, label?, color?, dash?, position? }`. `axis:"x"` trace
+    une ligne **verticale** à une catégorie/date ; `axis:"y"` une ligne
+    **horizontale** à un seuil. Couleur par défaut rouge DSFR, pointillé par
+    défaut, libellé en pastille.
+  - Rendu via un **overlay SVG** dans le wrapper du chart (`pointer-events:none`,
+    `aria-hidden`), positionné depuis l'instance Chart.js de `@gouvfr/dsfr-chart`
+    (récupérée en interne, sans fork de la lib tierce). Repositionnement au resize
+    (`ResizeObserver`), nettoyage au démontage.
+  - Accessibilité : les repères sont relayés dans l'`aria-label` du graphique.
+  - Types non cartésiens (pie, gauge, radar, map…) ou JSON invalide : signalés via
+    `data-dsfr-config-error`, le rendu du graphique reste intact (dégradation
+    gracieuse si l'instance Chart.js est introuvable).
+
+- [#326](https://github.com/bmatge/dsfr-data/pull/326) [`c24cd4b`](https://github.com/bmatge/dsfr-data/commit/c24cd4b3a47243450ff79c6523cf3fbde68169d1) Thanks [@bmatge](https://github.com/bmatge)! - Nouveaux composants `dsfr-data-context` + `dsfr-data-context-filter` ([#229](https://github.com/bmatge/dsfr-data/issues/229), epic [#224](https://github.com/bmatge/dsfr-data/issues/224), ADR-031) : le filtre transverse multi-sources qui manquait. Un dashboard multi-vues à filtre commun (date, catégorie…) exigeait du JS d'orchestration écrit à la main — le contexte écoute des éléments d'UI natifs (`select`, `input`, select multiple, deux champs pour `between`), recompose un `where` par source **au dialecte de son adapter** (colon pivot, traduit en ODSQL via la couche partagée [#275](https://github.com/bmatge/dsfr-data/issues/275)) et le diffuse aux sources nommées. **Opt-in et additif** : sans contexte, rien ne change. Un `whereKey` stable par filtre → combinaison en **AND** par le merge multi-émetteurs existant des sources (jamais « le dernier gagne ») ; doublon field+operator signalé en warning ; la valeur vide retire le filtre ; le disconnect libère tout ; `apply-to` cible un sous-ensemble de sources ; opérateurs `eq`, `in`, `lt`, `gte`, `between` ; erreurs de configuration via `reportConfigError` ([#283](https://github.com/bmatge/dsfr-data/issues/283)).
+
+- [#326](https://github.com/bmatge/dsfr-data/pull/326) [`c24cd4b`](https://github.com/bmatge/dsfr-data/commit/c24cd4b3a47243450ff79c6523cf3fbde68169d1) Thanks [@bmatge](https://github.com/bmatge)! - Opérateurs de date pour `dsfr-data-context-filter` ([#230](https://github.com/bmatge/dsfr-data/issues/230)) — les dashboards datés (rappels, sanctions, dépenses…) : `month-of` (`<input type="month">` → plage du mois), `year-of` (plage annuelle), `lt-day-after` (inclusif jusqu'au jour choisi), `last-n-days` (« N derniers jours ») et `current-year` (checkbox → année en cours). Toutes les clauses sont des plages `[début, fin)` en ISO, générées au dialecte de chaque adapter (ODSQL/colon) ; les bornes **dynamiques** se recalculent à chaque diffusion (pas de date figée dans le DOM) et l'URL sérialise l'**intention** (« 30 »), jamais les dates résolues (ADR-031) — un lien partagé ne gèle pas de vieilles dates.
+
+- [#326](https://github.com/bmatge/dsfr-data/pull/326) [`c24cd4b`](https://github.com/bmatge/dsfr-data/commit/c24cd4b3a47243450ff79c6523cf3fbde68169d1) Thanks [@bmatge](https://github.com/bmatge)! - Nouveau composant `dsfr-data-context-tags` ([#232](https://github.com/bmatge/dsfr-data/issues/232)) : tags DSFR récapitulant les filtres actifs d'un `dsfr-data-context` (`for="ctx"`), chacun supprimable d'un clic — la croix réinitialise le filtre en **vidant son contrôle d'UI**, exactement le chemin d'un utilisateur qui efface le champ : sources, URL ([#231](https://github.com/bmatge/dsfr-data/issues/231)) et tags se mettent à jour ensemble. Libellé naturel via le nouvel attribut `label` de `dsfr-data-context-filter` (défaut : le champ) ; valeurs affichées humanisées (« année en cours », « 30 derniers jours », plages between en « min – max »).
+
+- [#326](https://github.com/bmatge/dsfr-data/pull/326) [`c24cd4b`](https://github.com/bmatge/dsfr-data/commit/c24cd4b3a47243450ff79c6523cf3fbde68169d1) Thanks [@bmatge](https://github.com/bmatge)! - `dsfr-data-context` : sérialisation URL des filtres ([#231](https://github.com/bmatge/dsfr-data/issues/231), ADR-031) — partage d'un lien vers un dashboard déjà filtré. **Opt-in** (`url-sync`, défaut OFF pour ne pas collisionner avec le routing du site hôte), encodage lisible (un paramètre par filtre nommé d'après le champ : `?categorie=alimentaire,jouets`, `?prix=10,20` pour between), renommage possible via `url-param-map="c:categorie"`. Écriture en `history.replaceState` (pas d'entrée d'historique par frappe) en **préservant les paramètres voisins** (leçon [#312](https://github.com/bmatge/dsfr-data/issues/312)). Sécurité conforme ADR-031 : les valeurs lues dans l'URL ne sont jamais injectées dans un `where` — elles pré-remplissent les contrôles d'UI, qui repassent par exactement le même chemin qu'un clic utilisateur. L'opérateur `in` accepte désormais la virgule comme séparateur de valeurs (en plus du pipe).
+
+- [#342](https://github.com/bmatge/dsfr-data/pull/342) [`796842d`](https://github.com/bmatge/dsfr-data/commit/796842d39115e720cb456c8f24470714669b2c5e) Thanks [@bmatge](https://github.com/bmatge)! - dsfr-data-kpi : carte enrichie « baromètre ».
+
+  - Nouvel attribut `heading` : titre affiché AU-DESSUS de la valeur (surtitre).
+  - Nouvel attribut `lines` (JSON) : lignes secondaires déclaratives rendues entre
+    la valeur et le `label`. Chaque ligne est data-driven (`value="champ:fn"`) ou
+    texte statique (`text`), avec `sign`, `prefix`/`suffix`, `color` (`"auto"` =
+    vert si ≥0 / rouge si <0, token DSFR, ou couleur CSS) et repli `na` si la
+    valeur n'est pas finie. Permet la ligne d'évolution type « +92,5 % vs mai 2025 ».
+  - Fix : `computeAggregation` gère désormais une source mono-objet (un seul
+    enregistrement) — l'agrégation renvoyait `null`, donc la valeur s'affichait
+    mais pas la tendance/les lignes agrégées (cas typique d'un baromètre).
+  - Le raccourci hérité `trend`/`tendance` (flèche `↑ 5,2 %`) reste fonctionnel ;
+    `lines` est désormais la voie recommandée.
+  - Une expression `trend` ou un JSON `lines` invalide est signalé via
+    `data-dsfr-config-error` au lieu de disparaître en silence.
+
+- [#324](https://github.com/bmatge/dsfr-data/pull/324) [`15833c0`](https://github.com/bmatge/dsfr-data/commit/15833c00e1eb845a2bb673e9fcab353ce6b0e1b5) Thanks [@bmatge](https://github.com/bmatge)! - Nouvel attribut `max-records` sur `dsfr-data-source` en mode adapter ([#233](https://github.com/bmatge/dsfr-data/issues/233)) : le plafond fetchAll de l'adapter OpenDataSoft (1 000 records) était codé en dur — ce n'est **pas** une limite de l'API. Il est désormais configurable (`max-records="5000"`), avec le défaut conservé à 1 000 en garde-fou anti-surcharge ; à relever explicitement pour les dashboards « un seul fetch server-side, puis N agrégations côté client » (attention au nombre de requêtes en boucle et au poids mémoire — documenté dans la spec). Au passage, le warn « pagination incomplete » se déclenche enfin quand le plafond tronque un fetch-all (l'ancienne condition ne couvrait que les short-reads sous un `limit` explicite).
+
+- [#346](https://github.com/bmatge/dsfr-data/pull/346) [`38f2a6f`](https://github.com/bmatge/dsfr-data/commit/38f2a6f3f6e34168487a8c81f77163e104f38f54) Thanks [@bmatge](https://github.com/bmatge)! - Proxy CORS déclaratif par source via le nouvel attribut `proxy-url` sur
+  `dsfr-data-source` ([#340](https://github.com/bmatge/dsfr-data/issues/340)).
+
+  - Nouvel attribut **`proxy-url`** : domaine du proxy CORS pour CETTE source,
+    prioritaire sur `window.DSFR_DATA_PROXY` et la config build-time (le plus
+    spécifique gagne). Sert à la fois la réécriture d'hôte connu (Grist
+    gouv/SaaS, Tabular, INSEE) et le `use-proxy` générique. Vide = résolution
+    proxy globale habituelle (rétrocompatible). Ex : `proxy-url="https://mon-proxy.fr"`.
+  - L'override est threadé jusqu'aux adapters (ODS, Grist, Tabular, INSEE) et aux
+    facettes serveur ; `getProxyConfig()`, `getProxiedUrl()`,
+    `buildProxiedRequest()`, `buildCorsProxyRequest()` et `getProxyUrl()`
+    acceptent désormais un override optionnel (paramètres rétrocompatibles).
+  - Beacon : nouvel override runtime `window.DSFR_DATA_BEACON_URL` (string),
+    prioritaire sur l'URL bakée au build et résolu à l'appel — un site hôte peut
+    rediriger la collecte de télémétrie vers son propre domaine sans rebuild.
+  - La résolution proxy build-time (`VITE_PROXY_URL_EMBED`) est marquée
+    `@deprecated` (conservée en fallback temporaire) au profit de `proxy-url` +
+    `window.DSFR_DATA_PROXY`.
+  - Clarification : `use-proxy` n'a d'effet que si une base de proxy est
+    configurée (`proxy-url`, `window.DSFR_DATA_PROXY` ou build) — no-op en embed
+    nu sur un site tiers.
+
 ## 0.8.0
 
 ### Minor Changes
