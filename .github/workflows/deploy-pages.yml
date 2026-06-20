@@ -37,7 +37,7 @@ jobs:
       VITE_PROXY_URL: https://chartsbuilder.matge.com
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Node
         uses: actions/setup-node@v4
