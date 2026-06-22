@@ -21,7 +21,7 @@
     "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.22.5",
     "nodemailer": "^9.0.1",
-    "uuid": "^14.0.0"
+    "uuid": "^14.0.1"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
