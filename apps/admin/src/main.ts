@@ -341,7 +341,7 @@ function renderStats(): void {
     <h3 class="fr-mt-4w">Par provider</h3>
     <div class="admin-kpi-row fr-mb-4w">
       ${kpi(stats.byProvider.local || 0, 'Local')}
-      ${kpi(stats.byProvider.proconnect || 0, 'ProConnect')}
+      ${kpi(stats.byProvider.oidc || 0, 'SSO (OIDC)')}
     </div>
   `;
 }

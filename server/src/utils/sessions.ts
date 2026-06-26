@@ -20,7 +20,7 @@ export function hashToken(token: string): string {
 export async function createSession(
   userId: string,
   token: string,
-  authProvider: 'local' | 'proconnect',
+  authProvider: 'local' | 'oidc',
   req: Request
 ): Promise<string> {
   const id = uuidv4();

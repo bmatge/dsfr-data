@@ -17,6 +17,25 @@ import { createSession, revokeSession, revokeAllUserSessions } from '../utils/se
 
 const router = Router();
 const SALT_ROUNDS = 10;
+
+/**
+ * GET /api/auth/providers
+ * Public list of external auth providers the server has configured.
+ * Returns [] when no SSO is enabled — front falls back to local login only.
+ * Drives the conditional "Se connecter avec…" button in the login modal.
+ */
+router.get('/providers', (_req, res) => {
+  const providers: Array<{ id: string; label: string; loginUrl: string }> = [];
+  if (process.env.OIDC_ENABLED === 'true') {
+    providers.push({
+      id: 'oidc',
+      label: process.env.OIDC_PROVIDER_LABEL || 'SSO',
+      loginUrl: '/api/auth/oidc/login',
+    });
+  }
+  res.json({ providers });
+});
+
 const VERIFICATION_TOKEN_BYTES = 32;
 const VERIFICATION_EXPIRY_HOURS = 24;
 const RESEND_MAX = 3; // max resend per hour per email

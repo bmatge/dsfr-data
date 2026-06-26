@@ -187,6 +187,9 @@ async function runMigrations(): Promise<void> {
   if (currentVersion < 7) {
     await migrateV7();
   }
+  if (currentVersion < 8) {
+    await migrateV8();
+  }
 }
 
 /**
@@ -432,6 +435,61 @@ async function migrateV6(): Promise<void> {
     await conn.query(`ALTER TABLE users ADD COLUMN tour_state JSON NULL`);
     await conn.query('INSERT IGNORE INTO schema_version (version) VALUES (6)');
     console.log('[db] Migration v6 complete');
+  } finally {
+    conn.release();
+  }
+}
+
+/**
+ * Migration v8: generic OIDC support (epic #359).
+ * - Rename ENUM value 'proconnect' → 'oidc' on users.auth_provider and sessions.auth_provider.
+ *   The 'proconnect' value was a type-only placeholder (cf. migrateV2) never wired up; no
+ *   production rows reference it. UPDATE statements are defensive normalization.
+ * - Add users.oidc_issuer to distinguish Authentik / ProConnect / autre at runtime — the
+ *   backend code stays generic (no hardcoded IdP name), the issuer URL is the only marker.
+ * - Add unique index (oidc_issuer, external_id) so the same OIDC subject across re-imports
+ *   maps to one user row, even if a future deployment connects multiple IdPs.
+ */
+async function migrateV8(): Promise<void> {
+  console.log(
+    '[db] Running migration v8: OIDC support (rename proconnect → oidc, add oidc_issuer)'
+  );
+
+  const conn = await getPool().getConnection();
+  try {
+    const [cols] = await conn.query(
+      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'oidc_issuer'`
+    );
+    if ((cols as unknown[]).length > 0) {
+      await conn.query('INSERT IGNORE INTO schema_version (version) VALUES (8)');
+      return;
+    }
+
+    await conn.beginTransaction();
+
+    await conn.query(`UPDATE users SET auth_provider = 'local' WHERE auth_provider = 'proconnect'`);
+    await conn.query(
+      `UPDATE sessions SET auth_provider = 'local' WHERE auth_provider = 'proconnect'`
+    );
+
+    await conn.query(`ALTER TABLE users
+      MODIFY COLUMN auth_provider ENUM('local', 'oidc') NOT NULL DEFAULT 'local'`);
+    await conn.query(`ALTER TABLE sessions
+      MODIFY COLUMN auth_provider ENUM('local', 'oidc') NOT NULL`);
+
+    await conn.query(`ALTER TABLE users ADD COLUMN oidc_issuer VARCHAR(255) NULL AFTER idp_id`);
+
+    await conn.query(
+      `CREATE UNIQUE INDEX idx_users_oidc_external ON users(oidc_issuer, external_id)`
+    );
+
+    await conn.query('INSERT IGNORE INTO schema_version (version) VALUES (8)');
+    await conn.commit();
+    console.log('[db] Migration v8 complete');
+  } catch (err) {
+    await conn.rollback();
+    throw err;
   } finally {
     conn.release();
   }

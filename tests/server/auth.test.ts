@@ -563,6 +563,45 @@ describe('GET /api/auth/users', () => {
   });
 });
 
+describe('GET /api/auth/providers', () => {
+  let app: Express;
+
+  beforeEach(async () => {
+    app = await createTestApp();
+    vi.clearAllMocks();
+    delete process.env.OIDC_ENABLED;
+    delete process.env.OIDC_PROVIDER_LABEL;
+  });
+
+  it('returns an empty list by default (OIDC disabled)', async () => {
+    const res = await request(app).get('/api/auth/providers');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ providers: [] });
+  });
+
+  it('returns the OIDC provider when OIDC_ENABLED=true', async () => {
+    process.env.OIDC_ENABLED = 'true';
+    process.env.OIDC_PROVIDER_LABEL = 'Authentik (lab)';
+    const res = await request(app).get('/api/auth/providers');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      providers: [{ id: 'oidc', label: 'Authentik (lab)', loginUrl: '/api/auth/oidc/login' }],
+    });
+  });
+
+  it('falls back to "SSO" label when OIDC_PROVIDER_LABEL is unset', async () => {
+    process.env.OIDC_ENABLED = 'true';
+    const res = await request(app).get('/api/auth/providers');
+    expect(res.status).toBe(200);
+    expect(res.body.providers[0].label).toBe('SSO');
+  });
+
+  it('requires no authentication', async () => {
+    const res = await request(app).get('/api/auth/providers');
+    expect(res.status).toBe(200);
+  });
+});
+
 afterAll(async () => {
   await closeTestApp();
 });

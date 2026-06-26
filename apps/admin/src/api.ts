@@ -7,7 +7,7 @@ export interface User {
   email: string;
   displayName: string;
   role: 'admin' | 'editor' | 'viewer';
-  authProvider: 'local' | 'proconnect';
+  authProvider: 'local' | 'oidc';
   isActive: boolean;
   emailVerified: boolean;
   lastLogin: string | null;
