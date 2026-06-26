@@ -131,6 +131,9 @@ export {
   getAuthState,
   getUser,
   isAuthenticated,
+  fetchAuthProviders,
+  type AuthProvider,
+  type AuthProvidersResponse,
 } from './auth/auth-service.js';
 export { registerServerCacheProvider } from './api/server-cache-provider.js';
 export { registerDbBeaconTransport } from './api/beacon-transport.js';

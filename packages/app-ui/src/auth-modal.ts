@@ -11,7 +11,14 @@
 
 import { LitElement, html, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import { login, register, forgotPassword, resetPassword } from '@dsfr-data/shared';
+import {
+  login,
+  register,
+  forgotPassword,
+  resetPassword,
+  fetchAuthProviders,
+  type AuthProvider,
+} from '@dsfr-data/shared';
 
 type Tab = 'login' | 'register' | 'forgot' | 'reset';
 
@@ -30,6 +37,10 @@ export class AuthModal extends LitElement {
   @state() private _successMessage = '';
   @state() private _resetToken = '';
 
+  // External providers (OIDC) — populated on open()
+  @state() private _providers: AuthProvider[] = [];
+  @state() private _oidcOnly = false;
+
   // Light DOM for DSFR
   createRenderRoot() {
     return this;
@@ -45,6 +56,16 @@ export class AuthModal extends LitElement {
     this._displayName = '';
     this._resetToken = resetToken || '';
     this._open = true;
+    void this._loadProviders();
+  }
+
+  private async _loadProviders(): Promise<void> {
+    const { providers, oidcOnly } = await fetchAuthProviders();
+    this._providers = providers;
+    this._oidcOnly = oidcOnly;
+    if (oidcOnly && (this._tab === 'register' || this._tab === 'forgot')) {
+      this._tab = 'login';
+    }
   }
 
   close(): void {
@@ -267,10 +288,41 @@ export class AuthModal extends LitElement {
     `;
   }
 
+  private _renderProviderButtons() {
+    if (this._providers.length === 0) return nothing;
+    if (this._tab !== 'login' && this._tab !== 'register') return nothing;
+    return html`
+      <div style="margin-bottom:1rem">
+        ${this._providers.map(
+          (p) => html`
+            <a
+              class="fr-btn fr-btn--secondary"
+              style="width:100%;justify-content:center;margin-bottom:0.5rem"
+              href=${p.loginUrl}
+            >
+              Se connecter avec ${p.label}
+            </a>
+          `
+        )}
+        ${this._oidcOnly
+          ? nothing
+          : html`
+              <div
+                style="text-align:center;color:var(--text-mention-grey);margin:0.5rem 0;font-size:0.875rem"
+              >
+                — ou —
+              </div>
+            `}
+      </div>
+    `;
+  }
+
   render() {
     if (!this._open) return nothing;
 
-    const showTabs = this._tab === 'login' || this._tab === 'register';
+    // OIDC_ONLY=true → no register tab, no forgot link, no local form.
+    const showTabs = !this._oidcOnly && (this._tab === 'login' || this._tab === 'register');
+    const showLocalForm = !this._oidcOnly || this._tab === 'reset';
 
     return html`
       <dialog
@@ -361,21 +413,32 @@ export class AuthModal extends LitElement {
                         </div>
                       `
                     : nothing}
+                  ${this._renderProviderButtons()}
+                  ${showLocalForm
+                    ? html`
+                        <form @submit=${this._handleSubmit}>
+                          ${this._renderForm()}
 
-                  <form @submit=${this._handleSubmit}>
-                    ${this._renderForm()}
-
-                    <div class="fr-input-group" style="margin-top:1.5rem">
-                      <button
-                        class="fr-btn"
-                        type="submit"
-                        ?disabled=${this._loading}
-                        style="width:100%"
-                      >
-                        ${this._renderSubmitLabel()}
-                      </button>
-                    </div>
-                  </form>
+                          <div class="fr-input-group" style="margin-top:1.5rem">
+                            <button
+                              class="fr-btn"
+                              type="submit"
+                              ?disabled=${this._loading}
+                              style="width:100%"
+                            >
+                              ${this._renderSubmitLabel()}
+                            </button>
+                          </div>
+                        </form>
+                      `
+                    : html`
+                        <p
+                          style="color:var(--text-mention-grey);font-size:0.875rem;text-align:center;margin:0"
+                        >
+                          La connexion locale par mot de passe est desactivee sur cette instance.
+                          Utilisez le bouton ci-dessus pour vous connecter.
+                        </p>
+                      `}
                 </div>
               </div>
             </div>

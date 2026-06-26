@@ -78,22 +78,31 @@ export async function sendVerificationEmail(email: string, token: string): Promi
 }
 
 /**
- * Send a welcome email for ProConnect users (first login).
- * Non-blocking: failure does not prevent login.
+ * Send a welcome email when a user is auto-provisioned via SSO/OIDC.
+ * `providerLabel` is the human-readable IdP name (OIDC_PROVIDER_LABEL, e.g.
+ * "Authentik", "ProConnect"). `role` defaults to "editeur" (the OIDC default).
+ * Non-blocking at the call site: failure does not prevent login.
  */
-export async function sendWelcomeEmail(email: string, displayName: string): Promise<void> {
+export async function sendWelcomeEmail(
+  email: string,
+  displayName: string,
+  providerLabel = 'SSO',
+  role = 'editeur'
+): Promise<void> {
   const appUrl = APP_URL();
+  const safeProvider = esc(providerLabel);
+  const safeRole = esc(role);
   await getTransporter().sendMail({
     from: `"DSFR Data" <${FROM()}>`,
     to: email,
     subject: 'Bienvenue sur DSFR Data',
     html: `
       <p>Bonjour ${esc(displayName)},</p>
-      <p>Votre compte a ete cree sur <a href="${appUrl}">DSFR Data</a> via ProConnect.</p>
-      <p>Vous disposez du role <strong>editeur</strong> et pouvez creer des visualisations de donnees.</p>
+      <p>Votre compte a ete cree sur <a href="${appUrl}">DSFR Data</a> via <strong>${safeProvider}</strong>.</p>
+      <p>Vous disposez du role <strong>${safeRole}</strong> et pouvez creer des visualisations de donnees.</p>
       <p>Si vous n'etes pas a l'origine de cette connexion, contactez l'administrateur.</p>
     `,
-    text: `Bonjour ${displayName},\n\nVotre compte a ete cree sur DSFR Data (${appUrl}) via ProConnect.\nRole : editeur.`,
+    text: `Bonjour ${displayName},\n\nVotre compte a ete cree sur DSFR Data (${appUrl}) via ${providerLabel}.\nRole : ${role}.`,
   });
 }
 

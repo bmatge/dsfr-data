@@ -14,7 +14,11 @@ import type { AuthenticatedRequest } from '../middleware/auth.js';
 import { generateCsrfToken } from '../middleware/csrf.js';
 import { authLimiter } from '../middleware/rate-limit.js';
 import { isValidEmail, isStrongPassword } from '../utils/validation.js';
-import { sendVerificationEmail, sendPasswordResetEmail } from '../utils/mailer.js';
+import {
+  sendVerificationEmail,
+  sendPasswordResetEmail,
+  sendWelcomeEmail,
+} from '../utils/mailer.js';
 import { createSession, revokeSession, revokeAllUserSessions } from '../utils/sessions.js';
 import { logAudit } from '../utils/audit.js';
 import {
@@ -24,6 +28,7 @@ import {
   getOidcIssuer,
   getOidcRedirectUri,
   getOidcDefaultRole,
+  getOidcProviderLabel,
   OIDC_STATE_COOKIE,
   OIDC_STATE_MAX_AGE_MS,
   OIDC_COOKIE_PATH,
@@ -247,6 +252,10 @@ router.get('/oidc/callback', authLimiter, async (req, res) => {
       );
       await logAudit(req, 'oidc.user.provisioned', 'user', newId, { email, issuer, sub, role });
       user = { id: newId, email, role, is_active: 1 };
+
+      sendWelcomeEmail(email, displayName, getOidcProviderLabel(), role).catch((mailErr) => {
+        console.error('[oidc] Welcome email failed (non-blocking):', mailErr);
+      });
     } else {
       await execute('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
     }

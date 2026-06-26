@@ -465,3 +465,43 @@ export function _setCsrfTokenForTest(token: string | null): void {
 export async function authenticatedFetch(path: string, options?: RequestInit): Promise<Response> {
   return apiFetch(path, options);
 }
+
+// ──────────────────────────────────────────────────────────────
+// External auth providers (SSO / OIDC) — epic #359
+// ──────────────────────────────────────────────────────────────
+
+export interface AuthProvider {
+  id: string;
+  label: string;
+  loginUrl: string;
+}
+
+export interface AuthProvidersResponse {
+  providers: AuthProvider[];
+  /** When true, local register / login / forgot / reset are 403. Front hides the local form. */
+  oidcOnly: boolean;
+}
+
+const EMPTY_PROVIDERS: AuthProvidersResponse = { providers: [], oidcOnly: false };
+
+/**
+ * GET /api/auth/providers — public endpoint, no auth.
+ * Returns the list of external SSO providers the server has configured
+ * (empty in self-hosted deployments that don't use SSO). Drives the
+ * conditional "Se connecter avec…" button in the login modal.
+ */
+export async function fetchAuthProviders(): Promise<AuthProvidersResponse> {
+  try {
+    const res = await fetch(`${shared.baseUrl}/api/auth/providers`, {
+      credentials: 'include',
+    });
+    if (!res.ok) return EMPTY_PROVIDERS;
+    const data = (await res.json()) as Partial<AuthProvidersResponse>;
+    return {
+      providers: Array.isArray(data.providers) ? data.providers : [],
+      oidcOnly: data.oidcOnly === true,
+    };
+  } catch {
+    return EMPTY_PROVIDERS;
+  }
+}
