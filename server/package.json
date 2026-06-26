@@ -21,6 +21,7 @@
     "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.22.5",
     "nodemailer": "^9.0.1",
+    "openid-client": "^6.8.4",
     "uuid": "^14.0.1"
   },
   "devDependencies": {

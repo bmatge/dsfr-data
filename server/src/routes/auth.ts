@@ -3,9 +3,11 @@
  */
 
 import { Router } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import crypto from 'node:crypto';
 import bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
+import * as oidc from 'openid-client';
 import { query, queryOne, execute } from '../db/database.js';
 import { createToken, setAuthCookie, clearAuthCookie, requireAuth } from '../middleware/auth.js';
 import type { AuthenticatedRequest } from '../middleware/auth.js';
@@ -14,6 +16,19 @@ import { authLimiter } from '../middleware/rate-limit.js';
 import { isValidEmail, isStrongPassword } from '../utils/validation.js';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../utils/mailer.js';
 import { createSession, revokeSession, revokeAllUserSessions } from '../utils/sessions.js';
+import { logAudit } from '../utils/audit.js';
+import {
+  isOidcEnabled,
+  isOidcOnly,
+  getOidcConfig,
+  getOidcIssuer,
+  getOidcRedirectUri,
+  getOidcDefaultRole,
+  OIDC_STATE_COOKIE,
+  OIDC_STATE_MAX_AGE_MS,
+  OIDC_COOKIE_PATH,
+  type OidcStatePayload,
+} from '../utils/oidc.js';
 
 const router = Router();
 const SALT_ROUNDS = 10;
@@ -33,7 +48,222 @@ router.get('/providers', (_req, res) => {
       loginUrl: '/api/auth/oidc/login',
     });
   }
-  res.json({ providers });
+  res.json({ providers, oidcOnly: isOidcOnly() });
+});
+
+/**
+ * GET /api/auth/oidc/login
+ * Kick off the OIDC authorization-code flow with PKCE.
+ * Generates state + nonce + code_verifier, stores them in a single signed
+ * cookie scoped to /api/auth/oidc, and 302-redirects to the IdP /authorize.
+ */
+router.get('/oidc/login', authLimiter, async (req, res) => {
+  if (!isOidcEnabled()) {
+    res.status(404).json({ error: 'OIDC is not enabled' });
+    return;
+  }
+
+  try {
+    const config = await getOidcConfig();
+    const state = oidc.randomState();
+    const nonce = oidc.randomNonce();
+    const codeVerifier = oidc.randomPKCECodeVerifier();
+    const codeChallenge = await oidc.calculatePKCECodeChallenge(codeVerifier);
+
+    const payload: OidcStatePayload = { state, nonce, codeVerifier };
+    res.cookie(OIDC_STATE_COOKIE, JSON.stringify(payload), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: OIDC_STATE_MAX_AGE_MS,
+      path: OIDC_COOKIE_PATH,
+    });
+
+    const authUrl = oidc.buildAuthorizationUrl(config, {
+      redirect_uri: getOidcRedirectUri(),
+      scope: 'openid profile email',
+      state,
+      nonce,
+      code_challenge: codeChallenge,
+      code_challenge_method: 'S256',
+    });
+
+    res.redirect(authUrl.toString());
+  } catch (err) {
+    console.error('[oidc] /login failed:', err);
+    await logAudit(req, 'oidc.login.error', undefined, undefined, {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    res.status(500).json({ error: 'OIDC login failed (check OIDC_* env vars)' });
+  }
+});
+
+/**
+ * GET /api/auth/oidc/callback
+ * Exchange the authorization code for tokens, validate the ID token, then:
+ *   1. lookup user by (oidc_issuer, external_id)  → return user
+ *   2. fallback lookup by email IF claims.email_verified=true → link account
+ *   3. else auto-provision a new user with OIDC_DEFAULT_ROLE
+ * In all cases a JWT cookie is issued and a session row is created.
+ *
+ * email_verified=false against an existing account is a security-critical
+ * refusal: an attacker controlling an unverified email at the IdP must not
+ * be able to take over a local account.
+ */
+router.get('/oidc/callback', authLimiter, async (req, res) => {
+  if (!isOidcEnabled()) {
+    res.status(404).json({ error: 'OIDC is not enabled' });
+    return;
+  }
+
+  const rawCookie = req.cookies?.[OIDC_STATE_COOKIE];
+  res.clearCookie(OIDC_STATE_COOKIE, { path: OIDC_COOKIE_PATH });
+
+  if (!rawCookie) {
+    res.status(400).json({ error: 'Missing OIDC state cookie (expired or third-party blocked)' });
+    return;
+  }
+
+  let stored: OidcStatePayload;
+  try {
+    stored = JSON.parse(rawCookie);
+    if (!stored.state || !stored.nonce || !stored.codeVerifier) throw new Error('incomplete');
+  } catch {
+    res.status(400).json({ error: 'Invalid OIDC state cookie' });
+    return;
+  }
+
+  try {
+    const config = await getOidcConfig();
+    const currentUrl = new URL(getOidcRedirectUri());
+    for (const [key, value] of Object.entries(req.query)) {
+      if (typeof value === 'string') currentUrl.searchParams.set(key, value);
+    }
+
+    const tokens = await oidc.authorizationCodeGrant(config, currentUrl, {
+      pkceCodeVerifier: stored.codeVerifier,
+      expectedState: stored.state,
+      expectedNonce: stored.nonce,
+    });
+
+    const claims = tokens.claims();
+    if (!claims || typeof claims.sub !== 'string') {
+      await logAudit(req, 'oidc.callback.no_claims');
+      res.status(400).json({ error: 'OIDC provider returned no ID token claims' });
+      return;
+    }
+
+    const sub = claims.sub;
+    const email = typeof claims.email === 'string' ? claims.email.toLowerCase() : '';
+    const emailVerified = claims.email_verified === true;
+    const displayName =
+      (typeof claims.name === 'string' && claims.name) ||
+      (typeof claims.preferred_username === 'string' && claims.preferred_username) ||
+      email ||
+      sub;
+
+    if (!email) {
+      await logAudit(req, 'oidc.callback.no_email', undefined, undefined, { sub });
+      res.status(400).json({ error: 'OIDC provider did not return an email claim' });
+      return;
+    }
+
+    const issuer = getOidcIssuer();
+
+    let user = await queryOne<{
+      id: string;
+      email: string;
+      role: string;
+      is_active: number;
+    }>('SELECT id, email, role, is_active FROM users WHERE oidc_issuer = ? AND external_id = ?', [
+      issuer,
+      sub,
+    ]);
+
+    if (user && !user.is_active) {
+      await logAudit(req, 'oidc.callback.account_disabled', 'user', user.id);
+      res.status(403).json({ error: 'Account disabled' });
+      return;
+    }
+
+    if (!user) {
+      const byEmail = await queryOne<{
+        id: string;
+        email: string;
+        role: string;
+        auth_provider: string;
+        is_active: number;
+      }>('SELECT id, email, role, auth_provider, is_active FROM users WHERE email = ?', [email]);
+
+      if (byEmail) {
+        if (!emailVerified) {
+          await logAudit(req, 'oidc.callback.denied_unverified_email', 'user', byEmail.id, {
+            issuer,
+            sub,
+          });
+          res.status(403).json({
+            error:
+              'Email not verified by OIDC provider — cannot link to an existing account. Contact an administrator.',
+          });
+          return;
+        }
+        if (!byEmail.is_active) {
+          await logAudit(req, 'oidc.callback.account_disabled', 'user', byEmail.id);
+          res.status(403).json({ error: 'Account disabled' });
+          return;
+        }
+
+        await execute(
+          `UPDATE users
+           SET auth_provider = 'oidc', external_id = ?, oidc_issuer = ?, email_verified = TRUE, last_login = NOW()
+           WHERE id = ?`,
+          [sub, issuer, byEmail.id]
+        );
+        await logAudit(req, 'oidc.callback.linked', 'user', byEmail.id, { issuer, sub });
+        user = { id: byEmail.id, email: byEmail.email, role: byEmail.role, is_active: 1 };
+      }
+    }
+
+    if (!user) {
+      if (!emailVerified) {
+        await logAudit(req, 'oidc.callback.denied_unverified_new', undefined, undefined, {
+          email,
+          issuer,
+          sub,
+        });
+        res.status(403).json({
+          error: 'Email not verified by OIDC provider — cannot provision a new account.',
+        });
+        return;
+      }
+
+      const newId = uuidv4();
+      const role = getOidcDefaultRole();
+      await execute(
+        `INSERT INTO users
+           (id, email, display_name, role, auth_provider, external_id, oidc_issuer, is_active, email_verified, last_login)
+         VALUES (?, ?, ?, ?, 'oidc', ?, ?, TRUE, TRUE, NOW())`,
+        [newId, email, displayName, role, sub, issuer]
+      );
+      await logAudit(req, 'oidc.user.provisioned', 'user', newId, { email, issuer, sub, role });
+      user = { id: newId, email, role, is_active: 1 };
+    } else {
+      await execute('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
+    }
+
+    const token = createToken({ userId: user.id, email: user.email, role: user.role });
+    setAuthCookie(res, token);
+    await createSession(user.id, token, 'oidc', req);
+    await logAudit(req, 'oidc.login.success', 'user', user.id, { issuer });
+
+    res.redirect('/');
+  } catch (err) {
+    console.error('[oidc] /callback failed:', err);
+    await logAudit(req, 'oidc.callback.error', undefined, undefined, {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    res.status(400).json({ error: 'OIDC callback failed' });
+  }
 });
 
 const VERIFICATION_TOKEN_BYTES = 32;
@@ -48,12 +278,25 @@ function hashToken(token: string): string {
 }
 
 /**
+ * Block local-auth routes when OIDC_ONLY=true.
+ * Applied to /register, /login, /forgot-password, /reset-password.
+ * /me, /logout, /csrf, /providers and /oidc/* stay open.
+ */
+function requireLocalAuthEnabled(_req: Request, res: Response, next: NextFunction): void {
+  if (isOidcOnly()) {
+    res.status(403).json({ error: 'Local authentication is disabled (OIDC_ONLY=true)' });
+    return;
+  }
+  next();
+}
+
+/**
  * POST /api/auth/register
  * Create a new user account.
  * First user (admin): auto-verified, logged in immediately.
  * Other users: verification email sent, must click link to activate.
  */
-router.post('/register', authLimiter, async (req, res) => {
+router.post('/register', requireLocalAuthEnabled, authLimiter, async (req, res) => {
   try {
     const { email, password, displayName } = req.body;
 
@@ -269,7 +512,7 @@ router.post('/resend-verification', authLimiter, async (req, res) => {
  * POST /api/auth/login
  * Authenticate with email and password.
  */
-router.post('/login', authLimiter, async (req, res) => {
+router.post('/login', requireLocalAuthEnabled, authLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -479,7 +722,7 @@ router.put('/me', requireAuth, async (req, res) => {
  * Request a password reset email.
  * Always returns 200 to avoid leaking account existence.
  */
-router.post('/forgot-password', authLimiter, async (req, res) => {
+router.post('/forgot-password', requireLocalAuthEnabled, authLimiter, async (req, res) => {
   try {
     const { email } = req.body;
     const genericMsg =
@@ -537,7 +780,7 @@ router.post('/forgot-password', authLimiter, async (req, res) => {
  * POST /api/auth/reset-password
  * Reset the password using a valid token.
  */
-router.post('/reset-password', authLimiter, async (req, res) => {
+router.post('/reset-password', requireLocalAuthEnabled, authLimiter, async (req, res) => {
   try {
     const { token, password } = req.body;
 

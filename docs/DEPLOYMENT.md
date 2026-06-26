@@ -691,6 +691,118 @@ DB_PASSWORD=xxx ENCRYPTION_KEY=xxx \
 
 Voir [`scripts/migrate-sqlite-to-mariadb.ts`](../scripts/migrate-sqlite-to-mariadb.ts) pour les options. Le script preserve les UUIDs, les owners, les shares et les chiffrements de cle API (re-chiffrement avec la nouvelle `ENCRYPTION_KEY`).
 
+## Auth OIDC (optionnel)
+
+Depuis l'epic [#359](https://github.com/bmatge/dsfr-data/issues/359), `dsfr-data` peut deleguer l'authentification a un IdP **OpenID Connect** (Authentik, ProConnect, Keycloak, etc.). La fonctionnalite est strictement **opt-in** : sans config, le serveur boote en auth locale uniquement (email/password + magic-link reset), exactement comme avant. Le repo reste self-hostable par un tiers qui ne veut aucun SSO.
+
+Le code client OIDC est **generique** — aucune reference en dur a un IdP. Brancher ProConnect a la place d'Authentik se fait uniquement en changeant les variables d'environnement.
+
+### Quand activer ?
+
+- Vous voulez SSO via Authentik / Keycloak / ProConnect / etc.
+- Vous deployez en interne ministeriel et avez besoin d'un mode "SSO uniquement" (`OIDC_ONLY=true`).
+- Vous voulez tester la compat ProConnect sans changer le code.
+
+### Variables d'environnement
+
+A ajouter dans `.env` (cf. section "SSO / Auth OIDC" de [`.env.example`](../.env.example)) :
+
+```bash
+OIDC_ENABLED=true                                                                    # requis
+OIDC_ISSUER=https://authentik.lab.miweb.run/application/o/chartsbuilder/             # requis
+OIDC_CLIENT_ID=<client_id genere cote IdP>                                            # requis
+OIDC_CLIENT_SECRET=<client_secret genere cote IdP>                                    # requis
+OIDC_REDIRECT_URI=https://chartsbuilder.miweb.run/api/auth/oidc/callback              # requis
+OIDC_DEFAULT_ROLE=editor                                                              # optionnel (editor|viewer|admin)
+OIDC_PROVIDER_LABEL=Authentik (lab)                                                   # optionnel
+OIDC_ONLY=false                                                                       # optionnel — true desactive comptes locaux
+```
+
+`OIDC_ISSUER` est l'URL de discovery — le serveur fait un GET sur `<issuer>/.well-known/openid-configuration` au premier login pour decouvrir les endpoints. Tester avec `curl <OIDC_ISSUER>/.well-known/openid-configuration`.
+
+### Exemple : Authentik
+
+```bash
+# Cote Authentik admin :
+#  1. Applications → Create. Slug : chartsbuilder. URL : https://chartsbuilder.miweb.run
+#  2. Providers → Create → OAuth2/OpenID Provider. Linker l'app.
+#     - Authorization flow : default-authentication-flow
+#     - Client type : Confidential
+#     - Redirect URIs : https://chartsbuilder.miweb.run/api/auth/oidc/callback
+#     - Scopes : openid, profile, email
+#     - Subject mode : Based on User's hashed ID (stable)
+#  3. Customisation → Groups → Create group "chartsbuilder-users".
+#  4. Policies → Bind a policy `ak_is_group_member(request.user, name="chartsbuilder-users")` a l'app.
+# Cote dsfr-data .env :
+OIDC_ENABLED=true
+OIDC_ISSUER=https://authentik.lab.miweb.run/application/o/chartsbuilder/
+OIDC_CLIENT_ID=<copie depuis Authentik UI>
+OIDC_CLIENT_SECRET=<copie depuis Authentik UI>
+OIDC_REDIRECT_URI=https://chartsbuilder.miweb.run/api/auth/oidc/callback
+OIDC_DEFAULT_ROLE=editor
+OIDC_PROVIDER_LABEL=Authentik (lab)
+```
+
+### Exemple : ProConnect
+
+```bash
+# Cote ProConnect (FranceConnect+Agent) : suivre la doc DINUM pour
+# recuperer client_id / client_secret et configurer le redirect_uri.
+# Cote dsfr-data .env (env integration) :
+OIDC_ENABLED=true
+OIDC_ISSUER=https://fca.integ01.dev-agentconnect.fr/api/v2
+OIDC_CLIENT_ID=<fourni par ProConnect>
+OIDC_CLIENT_SECRET=<fourni par ProConnect>
+OIDC_REDIRECT_URI=https://<votre-domaine>/api/auth/oidc/callback
+OIDC_DEFAULT_ROLE=editor
+OIDC_PROVIDER_LABEL=ProConnect
+# Pour un deploiement gouv qui veut interdire les comptes locaux :
+OIDC_ONLY=true
+```
+
+### Reconciliation des comptes
+
+Au callback, le serveur :
+
+1. Cherche un user par `(oidc_issuer, external_id)` → si trouve, login OK.
+2. Sinon, cherche un user par `email` :
+   - **Si** `claims.email_verified === true` cote IdP → liaison automatique (`auth_provider` passe a `oidc`).
+   - **Sinon** → refus (403) + entree dans `audit_log` (`oidc.callback.denied_unverified_email`). Validation manuelle admin requise.
+3. Sinon, auto-provisionne un nouveau user avec le role `OIDC_DEFAULT_ROLE` (defaut `editor`).
+
+La verification `email_verified=true` est un garde-fou de securite : un attaquant qui controlerait une boite mail non verifiee chez l'IdP ne peut pas prendre un compte local existant. Authentik et ProConnect emettent tous deux `email_verified=true` quand l'IdP a verifie l'email, donc en pratique la fusion est transparente.
+
+### Mode `OIDC_ONLY=true`
+
+Active : les routes locales `/register`, `/login`, `/forgot-password`, `/reset-password` retournent **403 — Local authentication is disabled (OIDC_ONLY=true)**. Les sessions existantes (comptes `auth_provider='local'`) restent valides jusqu'a expiration du JWT (7j). A utiliser pour les deploiements gouv qui ne veulent qu'une seule porte d'entree (SSO).
+
+### Verification post-deploiement
+
+```bash
+# 1. L'endpoint /providers expose le bouton SSO :
+curl -s https://<votre-domaine>/api/auth/providers
+# {"providers":[{"id":"oidc","label":"Authentik (lab)","loginUrl":"/api/auth/oidc/login"}],"oidcOnly":false}
+
+# 2. /oidc/login redirige vers /authorize de l'IdP :
+curl -sI https://<votre-domaine>/api/auth/oidc/login | grep -i location
+# location: https://authentik.lab.miweb.run/application/o/authorize/?response_type=code&...
+
+# 3. Trace l'audit log apres un login :
+docker compose ... exec -T mariadb sh -c \
+  'mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" dsfr_data \
+   -e "SELECT action,target_type,target_id,created_at FROM audit_log WHERE action LIKE \"oidc.%\" ORDER BY id DESC LIMIT 10;"'
+```
+
+### Troubleshooting
+
+| Symptome | Cause probable | Fix |
+|---|---|---|
+| `404 OIDC is not enabled` sur `/oidc/login` | `OIDC_ENABLED` ne vaut pas `true` (string) | Verifier `.env`. La valeur doit etre litterale `true`, pas `1` ni `True`. |
+| `500 OIDC login failed (check OIDC_* env vars)` | Une des 4 vars requises est vide ou l'issuer ne repond pas au discovery | `curl $OIDC_ISSUER/.well-known/openid-configuration` |
+| `400 Missing OIDC state cookie` au callback | Cookie expire (>10 min entre login et callback) ou bloque (3rd-party cookies) | Reessayer le flow. Verifier que le navigateur ne bloque pas les cookies sameSite=lax. |
+| `403 Email not verified by OIDC provider` | L'IdP n'emet pas `email_verified=true` | Cote IdP : forcer la verification email. Cote dsfr-data : valider manuellement le compte via l'admin. |
+| Boucle de redirect au callback | `OIDC_REDIRECT_URI` differe de celui declare cote IdP | Aligner exactement (avec/sans `/` final, scheme `https://`). |
+
 ## Checklist securite
 
 - [ ] HTTPS termine par le reverse proxy avec un certificat valide (Let's Encrypt, ACME, ou cert d'entreprise).
