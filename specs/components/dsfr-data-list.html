@@ -40,15 +40,18 @@
           </thead>
           <tbody>
             <tr><td><code>source</code></td><td>String</td><td>ID du <code>&lt;dsfr-data-source&gt;</code> a ecouter (requis)</td></tr>
-            <tr><td><code>colonnes</code></td><td>String</td><td>Colonnes a afficher : <code>"key:Label, key2:Label2"</code></td></tr>
-            <tr><td><code>recherche</code></td><td>Boolean</td><td>Afficher le champ de recherche</td></tr>
-            <tr><td><code>filtres</code></td><td>String</td><td>Colonnes filtrables : <code>"col1,col2"</code></td></tr>
-            <tr><td><code>tri</code></td><td>String</td><td>Tri par défaut : <code>"col:asc"</code> ou <code>"col:desc"</code></td></tr>
+            <tr><td><code>columns</code></td><td>String</td><td>Colonnes a afficher : <code>"key:Label, key2:Label2"</code></td></tr>
+            <tr><td><code>search</code></td><td>Boolean</td><td>Afficher le champ de recherche</td></tr>
+            <tr><td><code>filters</code></td><td>String</td><td>Colonnes filtrables : <code>"col1,col2"</code></td></tr>
+            <tr><td><code>sort</code></td><td>String</td><td>Tri par défaut : <code>"col:asc"</code> ou <code>"col:desc"</code></td></tr>
             <tr><td><code>pagination</code></td><td>Number</td><td>Nombre d'elements par page (0 = pas de pagination)</td></tr>
             <tr><td><code>export</code></td><td>String</td><td>Formats d'export disponibles : <code>"csv"</code></td></tr>
-            <tr><td><code>server-tri</code></td><td>Boolean</td><td>Deleguer le tri des colonnes au serveur via <code>dsfr-data-source-command</code> (orderBy). Les en-tetes de colonnes envoient des commandes de tri a la source amont au lieu de trier localement.</td></tr>
+            <tr><td><code>url-sync</code></td><td>Boolean</td><td>Synchronise le numero de page dans l'URL (replaceState)</td></tr>
+            <tr><td><code>url-page-param</code></td><td>String</td><td>Nom du parametre URL pour la page (défaut : <code>page</code>)</td></tr>
+            <tr><td><code>server-sort</code></td><td>Boolean</td><td>Deleguer le tri des colonnes au serveur via <code>dsfr-data-source-command</code> (orderBy). Les en-tetes de colonnes envoient des commandes de tri a la source amont au lieu de trier localement.</td></tr>
           </tbody>
         </table>
+        <p class="fr-text--sm fr-text--light">Les anciens noms francais (<code>colonnes</code>, <code>recherche</code>, <code>filtres</code>, <code>tri</code>, <code>server-tri</code>) restent lus en alias deprecies (#300).</p>
 
         <!-- Variante 1: Tableau simple -->
         <h2 class="fr-mt-4w">Variantes</h2>
@@ -59,13 +62,13 @@
 
           <dsfr-data-list
             source="sites"
-            colonnes="nom:Nom du site, ministere:Ministere, score_rgaa:RGAA (%)">
+            columns="nom:Nom du site, ministere:Ministere, score_rgaa:RGAA (%)">
           </dsfr-data-list>
 
           <div class="code-block">
             <pre>&lt;dsfr-data-list
   source="sites"
-  colonnes="nom:Nom du site, ministere:Ministere, score_rgaa:RGAA (%)"&gt;
+  columns="nom:Nom du site, ministere:Ministere, score_rgaa:RGAA (%)"&gt;
 &lt;/dsfr-data-list&gt;</pre>
           </div>
         </section>
@@ -77,15 +80,15 @@
 
           <dsfr-data-list
             source="sites"
-            colonnes="nom:Nom du site, ministere:Ministere, score_rgaa:RGAA (%)"
-            recherche="true">
+            columns="nom:Nom du site, ministere:Ministere, score_rgaa:RGAA (%)"
+            search>
           </dsfr-data-list>
 
           <div class="code-block">
             <pre>&lt;dsfr-data-list
   source="sites"
-  colonnes="nom:Nom du site, ministere:Ministere, score_rgaa:RGAA (%)"
-  recherche="true"&gt;
+  columns="nom:Nom du site, ministere:Ministere, score_rgaa:RGAA (%)"
+  search&gt;
 &lt;/dsfr-data-list&gt;</pre>
           </div>
         </section>
@@ -97,15 +100,15 @@
 
           <dsfr-data-list
             source="sites"
-            colonnes="nom:Nom du site, ministere:Ministere, statut:Statut, score_rgaa:RGAA (%)"
-            filtres="ministere,statut">
+            columns="nom:Nom du site, ministere:Ministere, statut:Statut, score_rgaa:RGAA (%)"
+            filters="ministere,statut">
           </dsfr-data-list>
 
           <div class="code-block">
             <pre>&lt;dsfr-data-list
   source="sites"
-  colonnes="nom:Nom du site, ministere:Ministere, statut:Statut, score_rgaa:RGAA (%)"
-  filtres="ministere,statut"&gt;
+  columns="nom:Nom du site, ministere:Ministere, statut:Statut, score_rgaa:RGAA (%)"
+  filters="ministere,statut"&gt;
 &lt;/dsfr-data-list&gt;</pre>
           </div>
         </section>
@@ -117,15 +120,15 @@
 
           <dsfr-data-list
             source="sites"
-            colonnes="nom:Nom du site, ministere:Ministere, score_rgaa:RGAA (%)"
-            tri="score_rgaa:desc">
+            columns="nom:Nom du site, ministere:Ministere, score_rgaa:RGAA (%)"
+            sort="score_rgaa:desc">
           </dsfr-data-list>
 
           <div class="code-block">
             <pre>&lt;dsfr-data-list
   source="sites"
-  colonnes="nom:Nom du site, ministere:Ministere, score_rgaa:RGAA (%)"
-  tri="score_rgaa:desc"&gt;
+  columns="nom:Nom du site, ministere:Ministere, score_rgaa:RGAA (%)"
+  sort="score_rgaa:desc"&gt;
 &lt;/dsfr-data-list&gt;</pre>
           </div>
         </section>
@@ -137,14 +140,14 @@
 
           <dsfr-data-list
             source="sites"
-            colonnes="nom:Nom du site, ministere:Ministere, score_rgaa:RGAA (%)"
+            columns="nom:Nom du site, ministere:Ministere, score_rgaa:RGAA (%)"
             pagination="5">
           </dsfr-data-list>
 
           <div class="code-block">
             <pre>&lt;dsfr-data-list
   source="sites"
-  colonnes="nom:Nom du site, ministere:Ministere, score_rgaa:RGAA (%)"
+  columns="nom:Nom du site, ministere:Ministere, score_rgaa:RGAA (%)"
   pagination="5"&gt;
 &lt;/dsfr-data-list&gt;</pre>
           </div>
@@ -157,14 +160,14 @@
 
           <dsfr-data-list
             source="sites"
-            colonnes="nom:Nom du site, ministere:Ministere, score_rgaa:RGAA (%)"
+            columns="nom:Nom du site, ministere:Ministere, score_rgaa:RGAA (%)"
             export="csv">
           </dsfr-data-list>
 
           <div class="code-block">
             <pre>&lt;dsfr-data-list
   source="sites"
-  colonnes="nom:Nom du site, ministere:Ministere, score_rgaa:RGAA (%)"
+  columns="nom:Nom du site, ministere:Ministere, score_rgaa:RGAA (%)"
   export="csv"&gt;
 &lt;/dsfr-data-list&gt;</pre>
           </div>
@@ -177,10 +180,10 @@
 
           <dsfr-data-list
             source="sites"
-            colonnes="nom:Nom du site, ministere:Ministere, score_rgaa:RGAA (%), score_dsfr:DSFR (%), statut:Statut, certificat_valide:Certificat"
-            recherche="true"
-            filtres="ministere,statut"
-            tri="score_rgaa:desc"
+            columns="nom:Nom du site, ministere:Ministere, score_rgaa:RGAA (%), score_dsfr:DSFR (%), statut:Statut, certificat_valide:Certificat"
+            search
+            filters="ministere,statut"
+            sort="score_rgaa:desc"
             pagination="10"
             export="csv">
           </dsfr-data-list>
@@ -188,10 +191,10 @@
           <div class="code-block">
             <pre>&lt;dsfr-data-list
   source="sites"
-  colonnes="nom:Nom du site, ministere:Ministere, score_rgaa:RGAA (%), score_dsfr:DSFR (%), statut:Statut, certificat_valide:Certificat"
-  recherche="true"
-  filtres="ministere,statut"
-  tri="score_rgaa:desc"
+  columns="nom:Nom du site, ministere:Ministere, score_rgaa:RGAA (%), score_dsfr:DSFR (%), statut:Statut, certificat_valide:Certificat"
+  search
+  filters="ministere,statut"
+  sort="score_rgaa:desc"
   pagination="10"
   export="csv"&gt;
 &lt;/dsfr-data-list&gt;</pre>
@@ -217,9 +220,9 @@
 &lt;/dsfr-data-source&gt;
 
 &lt;dsfr-data-list source="rappels"
-  colonnes="modeles_ou_references:Produit, categorie_produit:Catégorie, marque_produit:Marque"
-  recherche="true"
-  tri="date_publication:desc"
+  columns="modeles_ou_references:Produit, categorie_produit:Catégorie, marque_produit:Marque"
+  search
+  sort="date_publication:desc"
   pagination="20"&gt;
 &lt;/dsfr-data-list&gt;</pre>
           </div>

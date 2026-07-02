@@ -114,6 +114,9 @@
             <tr><td><code>cols</code></td><td>String</td><td><code>""</code></td><td>Colonnage DSFR des facettes. Global : <code>"6"</code> (2 par ligne), <code>"4"</code> (3 par ligne). Par facette : <code>"region:4 | type:6"</code> (défaut fr-col-6 pour les non-specifies).</td></tr>
             <tr><td><code>server-facets</code></td><td>Boolean</td><td><code>false</code></td><td>Deleguer le calcul des facettes au serveur via l'adapter (ODS, Grist). L'attribut <code>fields</code> est requis (pas d'auto-detection).</td></tr>
             <tr><td><code>static-values</code></td><td>String</td><td><code>""</code></td><td>Valeurs de facettes pre-calculees (JSON). Affiche les valeurs sans les calculer depuis les données, les selections envoient des commandes WHERE a la source. Ex : <code>'{"sexe":["F","M"]}'</code>. Les compteurs sont masques automatiquement.</td></tr>
+            <tr><td><code>url-params</code></td><td>Boolean</td><td><code>false</code></td><td>Lire les parametres d'URL comme pre-selections de facettes.</td></tr>
+            <tr><td><code>url-param-map</code></td><td>String</td><td><code>""</code></td><td>Mapping parametre URL vers champ facette : <code>"param:field | param2:field2"</code>. Vide = correspondance directe.</td></tr>
+            <tr><td><code>url-sync</code></td><td>Boolean</td><td><code>false</code></td><td>Synchroniser l'URL quand l'utilisateur change les facettes (replaceState).</td></tr>
           </tbody>
         </table>
 
@@ -162,8 +165,8 @@
         </dsfr-data-facets>
 
         <dsfr-data-list source="ct-filtered1"
-          colonnes="cct_commune, nom_departement, cat_vehicule_libelle, cat_energie_libelle, prix_visite"
-          server-tri
+          columns="cct_commune, nom_departement, cat_vehicule_libelle, cat_energie_libelle, prix_visite"
+          server-sort
           pagination="10">
         </dsfr-data-list>
 
@@ -185,8 +188,8 @@
 &lt;/dsfr-data-facets&gt;
 
 &lt;dsfr-data-list source="filtered"
-  colonnes="cct_commune, nom_departement, cat_vehicule_libelle, cat_energie_libelle, prix_visite"
-  server-tri
+  columns="cct_commune, nom_departement, cat_vehicule_libelle, cat_energie_libelle, prix_visite"
+  server-sort
   pagination="10"&gt;
 &lt;/dsfr-data-list&gt;</code></pre>
 
@@ -263,13 +266,13 @@
 
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin: 1.5rem 0;">
           <dsfr-data-kpi source="ct-filtered3"
-            valeur="count"
+            value="count"
             label="Centres"
             format="nombre">
           </dsfr-data-kpi>
 
           <dsfr-data-kpi source="ct-filtered3"
-            valeur="avg:prix_visite"
+            value="prix_visite:avg"
             label="Prix moyen"
             format="euros">
           </dsfr-data-kpi>
@@ -302,8 +305,8 @@
 &lt;/dsfr-data-facets&gt;
 
 &lt;!-- KPI sur les données filtrees --&gt;
-&lt;dsfr-data-kpi source="filtered" valeur="count" label="Centres" format="nombre"&gt;&lt;/dsfr-data-kpi&gt;
-&lt;dsfr-data-kpi source="filtered" valeur="avg:prix_visite" label="Prix moyen" format="euros"&gt;&lt;/dsfr-data-kpi&gt;
+&lt;dsfr-data-kpi source="filtered" value="count" label="Centres" format="nombre"&gt;&lt;/dsfr-data-kpi&gt;
+&lt;dsfr-data-kpi source="filtered" value="prix_visite:avg" label="Prix moyen" format="euros"&gt;&lt;/dsfr-data-kpi&gt;
 
 &lt;!-- Carte sur les données filtrees et agregees --&gt;
 &lt;dsfr-data-query id="stats" source="filtered"
@@ -336,8 +339,8 @@
         </dsfr-data-facets>
 
         <dsfr-data-list source="ct-display-demo"
-          colonnes="cct_commune, nom_departement, cat_vehicule_libelle, prix_visite"
-          recherche="true"
+          columns="cct_commune, nom_departement, cat_vehicule_libelle, prix_visite"
+          search
           pagination="5">
         </dsfr-data-list>
 
@@ -351,7 +354,7 @@
 &lt;/dsfr-data-facets&gt;
 
 &lt;dsfr-data-list source="filtered"
-  colonnes="cct_commune, nom_departement, cat_vehicule_libelle, prix_visite"
+  columns="cct_commune, nom_departement, cat_vehicule_libelle, prix_visite"
   pagination="5"&gt;
 &lt;/dsfr-data-list&gt;</code></pre>
 
@@ -372,8 +375,8 @@
         </dsfr-data-facets>
 
         <dsfr-data-list source="ct-hide-counts-demo"
-          colonnes="cct_commune, nom_departement, cat_vehicule_libelle, prix_visite"
-          recherche="true"
+          columns="cct_commune, nom_departement, cat_vehicule_libelle, prix_visite"
+          search
           pagination="5">
         </dsfr-data-list>
 
@@ -405,8 +408,8 @@
         </dsfr-data-facets>
 
         <dsfr-data-list source="ct-cols-demo"
-          colonnes="cct_commune, nom_departement, cat_vehicule_libelle, prix_visite"
-          recherche="true"
+          columns="cct_commune, nom_departement, cat_vehicule_libelle, prix_visite"
+          search
           pagination="5">
         </dsfr-data-list>
 

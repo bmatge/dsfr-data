@@ -48,7 +48,7 @@
             <tr><td><code>name</code></td><td>String</td><td>-</td><td>Titre affiche dans la legende</td></tr>
             <tr><td><code>selected-palette</code></td><td>String</td><td><code>sequentialAscending</code></td><td>Palette de couleurs DSFR (voir ci-dessous)</td></tr>
             <tr><td><code>unit-tooltip</code></td><td>String</td><td>-</td><td>Unite affichee dans les tooltips (ex: "Mds USD")</td></tr>
-            <tr><td><code>zoom</code></td><td>String</td><td><code>continent</code></td><td><code>continent</code> : zoom au clic | <code>none</code> : desactive</td></tr>
+            <tr><td><code>zoom-mode</code></td><td>String</td><td><code>continent</code></td><td><code>continent</code> : zoom au clic | <code>none</code> : desactive. L'ancien nom <code>zoom</code> reste lu en alias deprecie (#299)</td></tr>
           </tbody>
         </table>
 
@@ -182,7 +182,7 @@
           <div class="code-block"><pre>&lt;dsfr-data-world-map source="data"
   code-field="code"
   value-field="valeur"
-  zoom="none"&gt;
+  zoom-mode="none"&gt;
 &lt;/dsfr-data-world-map&gt;</pre></div>
         </section>
 

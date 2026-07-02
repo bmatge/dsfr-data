@@ -216,15 +216,16 @@
 &lt;/dsfr-data-source&gt;
 
 &lt;dsfr-data-query
+  id="stats"
   source="src"
   group-by="region"
-  select="region, sum(valeur) as valeur__sum"&gt;
+  aggregate="valeur:sum"&gt;
 &lt;/dsfr-data-query&gt;
 
 &lt;dsfr-data-chart
-  source="src"
+  source="stats"
   type="bar"
-  name-field="region"
+  label-field="region"
   value-field="valeur__sum"&gt;
 &lt;/dsfr-data-chart&gt;</code></pre>
 

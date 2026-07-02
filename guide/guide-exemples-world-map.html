@@ -173,7 +173,7 @@ dsfr-data-source "src-pays"                         --> dsfr-data-kpi (count pay
           </dsfr-data-kpi>
 
           <dsfr-data-kpi source="src-pays"
-            value="count:pays"
+            value="pays:count"
             label="Pays partenaires"
             format="nombre"
             icon="ri-global-line"
@@ -231,7 +231,7 @@ dsfr-data-source "src-pays"                         --> dsfr-data-kpi (count pay
             name="Exportations francaises"
             unit-tooltip="M"
             selected-palette="sequentialAscending"
-            zoom="continent">
+            zoom-mode="continent">
           </dsfr-data-world-map>
         </div>
 
@@ -277,7 +277,7 @@ dsfr-data-source "src-pays"                         --> dsfr-data-kpi (count pay
   icon="ri-money-euro-circle-line" color="bleu"&gt;
 &lt;/dsfr-data-kpi&gt;
 
-&lt;dsfr-data-kpi source="src-pays" value="count:pays"
+&lt;dsfr-data-kpi source="src-pays" value="pays:count"
   label="Pays partenaires" format="nombre"
   icon="ri-global-line" color="vert"&gt;
 &lt;/dsfr-data-kpi&gt;
@@ -310,7 +310,7 @@ dsfr-data-source "src-pays"                         --> dsfr-data-kpi (count pay
   name="Exportations francaises"
   unit-tooltip="M"
   selected-palette="sequentialAscending"
-  zoom="continent"&gt;
+  zoom-mode="continent"&gt;
 &lt;/dsfr-data-world-map&gt;</pre>
           </div>
         </section>
@@ -318,10 +318,10 @@ dsfr-data-source "src-pays"                         --> dsfr-data-kpi (count pay
         <!-- Points cles -->
         <h4 class="fr-mt-3w">Points cles de cet exemple</h4>
         <ul>
-          <li><strong>dsfr-data-world-map</strong> : carte choropleth mondiale. Attributs principaux : <code>code-field</code> (champ contenant le code pays), <code>value-field</code> (champ numerique), <code>code-format</code> (<code>iso-a2</code>, <code>iso-a3</code> ou <code>iso-num</code>), <code>zoom="continent"</code> (boutons de zoom par continent).</li>
+          <li><strong>dsfr-data-world-map</strong> : carte choropleth mondiale. Attributs principaux : <code>code-field</code> (champ contenant le code pays), <code>value-field</code> (champ numerique), <code>code-format</code> (<code>iso-a2</code>, <code>iso-a3</code> ou <code>iso-num</code>), <code>zoom-mode="continent"</code> (boutons de zoom par continent).</li>
           <li><strong>Agregation server-side</strong> : <code>dsfr-data-source</code> utilise <code>select</code> avec <code>sum()</code> et <code>count()</code>, <code>group-by</code> et <code>order-by</code> pour agreger directement cote serveur OpenDataSoft.</li>
           <li><strong>Pipeline de transformation</strong> : <code>dsfr-data-query</code> applique <code>limit</code> et <code>order-by</code> sur les donnees agregees pour alimenter les graphiques top 15 et top 8, tandis que la carte recoit toutes les donnees.</li>
-          <li><strong>KPI derives</strong> : <code>value="count:pays"</code> compte le nombre de valeurs distinctes du champ <code>pays</code> sans source supplementaire.</li>
+          <li><strong>KPI derives</strong> : <code>value="pays:count"</code> compte le nombre de valeurs du champ <code>pays</code> sans source supplementaire.</li>
           <li><strong>Accessibilite</strong> : <code>dsfr-data-a11y</code> sur chaque graphique pour le telechargement CSV.</li>
           <li><strong>0 ligne de JavaScript</strong> : tout le dashboard est 100% declaratif en HTML.</li>
         </ul>

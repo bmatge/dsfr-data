@@ -75,12 +75,9 @@
             <tr><td><code>aggregate</code></td><td>String</td><td><code>"champ:fn"</code> ou <code>"champ:fn:alias"</code></td><td>Agrégations. Fonctions : <code>count</code> <code>sum</code> <code>avg</code> <code>min</code> <code>max</code>. Modes <code>generic</code> / <code>tabular</code></td></tr>
             <tr><td><code>order-by</code></td><td>String</td><td><code>"champ:asc"</code> ou <code>"champ:desc"</code></td><td>Tri des resultats. Champs agrégés : <code>"champ__fn:desc"</code> ou <code>"alias:desc"</code></td></tr>
             <tr><td><code>limit</code></td><td>Number</td><td>Entier positif. <code>0</code> = illimite</td><td>Nombre maximum de resultats</td></tr>
-            <tr><td><code>transform</code></td><td>String</td><td><code>"results"</code>, <code>"data.items"</code></td><td>Chemin JSONPath pour extraire les données de la reponse API</td></tr>
-            <tr><td><code>server-side</code></td><td>Boolean</td><td>Presence = <code>true</code></td><td>Active le mode server-side pilotable (une page a la fois, ecoute les commandes des composants en aval)</td></tr>
-            <tr><td><code>page-size</code></td><td>Number</td><td>Entier positif. Défaut : <code>20</code></td><td>Taille de page en mode server-side</td></tr>
-            <tr><td><code>refresh</code></td><td>Number</td><td>Entier en secondes. <code>0</code> = off</td><td>Intervalle de rafraichissement automatique</td></tr>
           </tbody>
         </table>
+        <p class="fr-text--sm fr-text--light">Attributs retires (#277, #279) : <code>transform</code>, <code>page-size</code> et <code>refresh</code> se configurent sur <code>&lt;dsfr-data-source&gt;</code> ; <code>server-side</code> est sans objet (le relais de commandes vers la source est toujours actif).</p>
 
         <h3 class="fr-mt-3w">Syntaxe detaillee des attributs clés</h3>
 

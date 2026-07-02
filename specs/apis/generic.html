@@ -179,7 +179,7 @@
 &lt;dsfr-data-chart
   source="src"
   type="bar"
-  name-field="catégorie"
+  label-field="catégorie"
   value-field="valeur"&gt;
 &lt;/dsfr-data-chart&gt;</code></pre>
 
@@ -188,20 +188,21 @@
 &lt;dsfr-data-source
   id="src"
   url="https://mon-api.example.com/endpoint"
-  data-path="results.items"&gt;
+  transform="results.items"&gt;
 &lt;/dsfr-data-source&gt;
 
 &lt;dsfr-data-query
+  id="stats"
   source="src"
   group-by="type"
   aggregate="montant:sum"&gt;
 &lt;/dsfr-data-query&gt;
 
 &lt;dsfr-data-chart
-  source="src"
+  source="stats"
   type="pie"
-  name-field="type"
-  value-field="montant"&gt;
+  label-field="type"
+  value-field="montant__sum"&gt;
 &lt;/dsfr-data-chart&gt;</code></pre>
 
           <h3 class="fr-mt-2w">Avec normalize pour des données imbriquees</h3>
@@ -219,7 +220,7 @@
 &lt;dsfr-data-list
   source="flat"
   columns="nom,valeur,date"
-  page-size="20"&gt;
+  pagination="20"&gt;
 &lt;/dsfr-data-list&gt;</code></pre>
         </section>
     </div>

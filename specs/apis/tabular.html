@@ -107,7 +107,8 @@
           </div>
           <div class="fr-highlight fr-mt-2w">
             <p>
-              La pagination serveur est geree par <code>dsfr-data-source</code> avec l'attribut <code>auto-pagination</code>.
+              La pagination est geree automatiquement par l'adapter (suivi de <code>links.next</code>) ;
+              le mode page-a-page se pilote avec l'attribut <code>server-side</code> de <code>dsfr-data-source</code>.
               Les metadonnees serveur sont accessibles via <code>meta.page</code>, <code>meta.page_size</code>
               et <code>meta.total</code>.
             </p>
@@ -203,7 +204,7 @@
           </div>
           <p class="fr-mt-1w">
             Les facettes sont calculees sur les données deja recuperees cote client.
-            Si le jeu de données est volumineux, pensez a utiliser <code>auto-pagination</code>
+            Si le jeu de données est volumineux, pensez a relever <code>max-records</code>
             pour charger plus de données avant le calcul des facettes.
           </p>
         </section>
@@ -254,24 +255,25 @@
           <h2>Exemple d'utilisation</h2>
 
           <h3>Graphique avec agrégation</h3>
-          <pre><code>&lt;dsfr-data-source
+          <pre><code>&lt;!-- La pagination de l'API Tabular est geree automatiquement par l'adapter --&gt;
+&lt;dsfr-data-source
   id="src"
   api-type="tabular"
-  resource="2876a346-d50c-4911-934e-19ee07b0e503"
-  auto-pagination&gt;
+  resource="2876a346-d50c-4911-934e-19ee07b0e503"&gt;
 &lt;/dsfr-data-source&gt;
 
 &lt;dsfr-data-query
+  id="stats"
   source="src"
   group-by="region"
   aggregate="population:sum"&gt;
 &lt;/dsfr-data-query&gt;
 
 &lt;dsfr-data-chart
-  source="src"
+  source="stats"
   type="bar"
-  name-field="region"
-  value-field="population"&gt;
+  label-field="region"
+  value-field="population__sum"&gt;
 &lt;/dsfr-data-chart&gt;</code></pre>
 
           <h3 class="fr-mt-2w">Datalist avec pagination serveur</h3>
@@ -285,7 +287,7 @@
 &lt;dsfr-data-list
   source="src"
   columns="nom,prenom,commune"
-  page-size="20"&gt;
+  pagination="20"&gt;
 &lt;/dsfr-data-list&gt;</code></pre>
         </section>
     </div>
