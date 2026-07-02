@@ -298,14 +298,6 @@ export class AppHeader extends LitElement {
         </li>
         <li>
           <a
-            class="fr-btn fr-btn--tertiary-no-outline fr-icon-road-map-line"
-            href="${this._base}specs/roadmap.html"
-          >
-            Feuille de route
-          </a>
-        </li>
-        <li>
-          <a
             class="fr-btn fr-btn--tertiary-no-outline fr-icon-star-fill"
             href="${this._base}apps/favorites/index.html"
           >
