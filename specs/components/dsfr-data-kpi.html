@@ -38,19 +38,21 @@
           <thead><tr><th>Attribut</th><th>Type</th><th>Description</th></tr></thead>
           <tbody>
             <tr><td><code>source</code></td><td>String</td><td>ID du <code>&lt;dsfr-data-source&gt;</code> (requis)</td></tr>
-            <tr><td><code>valeur</code></td><td>String</td><td>Expression de calcul : <code>"champ"</code>, <code>"avg:champ"</code>, <code>"count:champ:valeur"</code></td></tr>
+            <tr><td><code>value</code></td><td>String</td><td>Expression de calcul : <code>"champ"</code>, <code>"champ:avg"</code>, <code>"count:champ:valeur"</code></td></tr>
             <tr><td><code>heading</code></td><td>String</td><td>Titre affiche AU-DESSUS de la valeur (surtitre, majuscules grises)</td></tr>
             <tr><td><code>label</code></td><td>String</td><td>Libelle affiche sous la valeur (et sous les <code>lines</code>)</td></tr>
+            <tr><td><code>description</code></td><td>String</td><td>Description détaillée pour l'accessibilité</td></tr>
             <tr><td><code>trend</code></td><td>String</td><td>Raccourci herite : expression <code>champ:fn</code> (ex. <code>evolution:avg</code>) rendue avec une fleche en %. Preferez <code>lines</code></td></tr>
             <tr><td><code>lines</code></td><td>String (JSON)</td><td>Lignes secondaires entre la valeur et le label. Items : <code>value</code> (expression) ou <code>text</code> (statique), + <code>sign</code>, <code>suffix</code>, <code>color</code> (<code>auto</code> / token DSFR / couleur CSS), <code>na</code></td></tr>
             <tr><td><code>format</code></td><td>String</td><td>Format d'affichage (défaut : <code>nombre</code>)</td></tr>
-            <tr><td><code>icone</code></td><td>String</td><td>Classe d'icone Remix Icon (ex: <code>ri-global-line</code>)</td></tr>
-            <tr><td><code>couleur</code></td><td>String</td><td>Couleur forcee : <code>vert</code>, <code>orange</code>, <code>rouge</code>, <code>bleu</code></td></tr>
-            <tr><td><code>seuil-vert</code></td><td>Number</td><td>Seuil au-dessus duquel la couleur est verte</td></tr>
-            <tr><td><code>seuil-orange</code></td><td>Number</td><td>Seuil au-dessus duquel la couleur est orange</td></tr>
+            <tr><td><code>icon</code></td><td>String</td><td>Classe d'icone Remix Icon (ex: <code>ri-global-line</code>)</td></tr>
+            <tr><td><code>color</code></td><td>String</td><td>Couleur forcee : <code>vert</code>, <code>orange</code>, <code>rouge</code>, <code>bleu</code></td></tr>
+            <tr><td><code>threshold-green</code></td><td>Number</td><td>Seuil au-dessus duquel la couleur est verte</td></tr>
+            <tr><td><code>threshold-orange</code></td><td>Number</td><td>Seuil au-dessus duquel la couleur est orange</td></tr>
             <tr><td><code>col</code></td><td>Number</td><td>Largeur en colonnes (1-12), actif uniquement dans un <code>&lt;dsfr-data-kpi-group&gt;</code></td></tr>
           </tbody>
         </table>
+        <p class="fr-text--sm fr-text--light">Les anciens noms francais (<code>valeur</code>, <code>icone</code>, <code>couleur</code>, <code>seuil-vert</code>, <code>seuil-orange</code>, <code>tendance</code>) restent lus en alias deprecies (#300).</p>
 
         <h2 class="fr-mt-4w">dsfr-data-kpi-group - Attributs</h2>
         <table class="attr-table">
@@ -65,11 +67,13 @@
         <h2 class="fr-mt-4w">Expressions de calcul</h2>
         <ul>
           <li><code>champ</code> : Valeur directe d'un champ (pour objet unique)</li>
-          <li><code>avg:champ</code> : Moyenne des valeurs du champ</li>
-          <li><code>sum:champ</code> : Somme des valeurs</li>
-          <li><code>min:champ</code> / <code>max:champ</code> : Min/max</li>
-          <li><code>count:champ:valeur</code> : Compte les occurrences ou valeur = valeur</li>
+          <li><code>champ:avg</code> : Moyenne des valeurs du champ</li>
+          <li><code>champ:sum</code> : Somme des valeurs</li>
+          <li><code>champ:min</code> / <code>champ:max</code> : Min/max</li>
+          <li><code>count</code> : Compte tous les enregistrements</li>
+          <li><code>count:champ:valeur</code> : Compte les occurrences ou champ = valeur</li>
         </ul>
+        <p class="fr-text--sm fr-text--light">Grammaire commune du pipeline <code>champ:fn</code> (#303) — l'ancienne forme inversee <code>fn:champ</code> reste lue mais est depreciee.</p>
 
         <h2 class="fr-mt-4w">Formats d'affichage</h2>
         <table class="attr-table">
@@ -88,13 +92,13 @@
         <section class="demo-section">
           <h3>1. KPI simple avec valeur directe</h3>
           <div class="kpi-grid">
-            <dsfr-data-kpi source="meta" valeur="total" label="Sites suivis" icone="ri-global-line" format="nombre"></dsfr-data-kpi>
+            <dsfr-data-kpi source="meta" value="total" label="Sites suivis" icon="ri-global-line" format="nombre"></dsfr-data-kpi>
           </div>
           <div class="code-block"><pre>&lt;dsfr-data-kpi
   source="meta"
-  valeur="total"
+  value="total"
   label="Sites suivis"
-  icone="ri-global-line"
+  icon="ri-global-line"
   format="nombre"&gt;
 &lt;/dsfr-data-kpi&gt;</pre></div>
         </section>
@@ -102,43 +106,43 @@
         <section class="demo-section">
           <h3>2. KPI avec moyenne et seuils</h3>
           <div class="kpi-grid">
-            <dsfr-data-kpi source="sites" valeur="avg:score_rgaa" label="Score RGAA moyen" format="pourcentage" seuil-vert="80" seuil-orange="50"></dsfr-data-kpi>
-            <dsfr-data-kpi source="sites" valeur="avg:score_dsfr" label="Score DSFR moyen" format="pourcentage" seuil-vert="80" seuil-orange="50"></dsfr-data-kpi>
+            <dsfr-data-kpi source="sites" value="score_rgaa:avg" label="Score RGAA moyen" format="pourcentage" threshold-green="80" threshold-orange="50"></dsfr-data-kpi>
+            <dsfr-data-kpi source="sites" value="score_dsfr:avg" label="Score DSFR moyen" format="pourcentage" threshold-green="80" threshold-orange="50"></dsfr-data-kpi>
           </div>
           <div class="code-block"><pre>&lt;dsfr-data-kpi
   source="sites"
-  valeur="avg:score_rgaa"
+  value="score_rgaa:avg"
   label="Score RGAA moyen"
   format="pourcentage"
-  seuil-vert="80"
-  seuil-orange="50"&gt;
+  threshold-green="80"
+  threshold-orange="50"&gt;
 &lt;/dsfr-data-kpi&gt;</pre></div>
         </section>
 
         <section class="demo-section">
           <h3>3. KPI avec comptage conditionnel</h3>
           <div class="kpi-grid">
-            <dsfr-data-kpi source="sites" valeur="count:statut:actif" label="Sites actifs" icone="ri-checkbox-circle-line" couleur="vert"></dsfr-data-kpi>
-            <dsfr-data-kpi source="sites" valeur="count:statut:inactif" label="Sites inactifs" icone="ri-close-circle-line" couleur="orange"></dsfr-data-kpi>
-            <dsfr-data-kpi source="sites" valeur="count:certificat_valide:false" label="Certificats expires" icone="ri-shield-cross-line" couleur="rouge"></dsfr-data-kpi>
+            <dsfr-data-kpi source="sites" value="count:statut:actif" label="Sites actifs" icon="ri-checkbox-circle-line" color="vert"></dsfr-data-kpi>
+            <dsfr-data-kpi source="sites" value="count:statut:inactif" label="Sites inactifs" icon="ri-close-circle-line" color="orange"></dsfr-data-kpi>
+            <dsfr-data-kpi source="sites" value="count:certificat_valide:false" label="Certificats expires" icon="ri-shield-cross-line" color="rouge"></dsfr-data-kpi>
           </div>
           <div class="code-block"><pre>&lt;dsfr-data-kpi
   source="sites"
-  valeur="count:statut:actif"
+  value="count:statut:actif"
   label="Sites actifs"
-  icone="ri-checkbox-circle-line"
-  couleur="vert"&gt;
+  icon="ri-checkbox-circle-line"
+  color="vert"&gt;
 &lt;/dsfr-data-kpi&gt;</pre></div>
         </section>
 
         <section class="demo-section">
           <h3>4. KPI avec min/max</h3>
           <div class="kpi-grid">
-            <dsfr-data-kpi source="sites" valeur="max:score_rgaa" label="Meilleur score RGAA" format="pourcentage" couleur="vert"></dsfr-data-kpi>
-            <dsfr-data-kpi source="sites" valeur="min:score_rgaa" label="Plus bas score RGAA" format="pourcentage" couleur="rouge"></dsfr-data-kpi>
+            <dsfr-data-kpi source="sites" value="score_rgaa:max" label="Meilleur score RGAA" format="pourcentage" color="vert"></dsfr-data-kpi>
+            <dsfr-data-kpi source="sites" value="score_rgaa:min" label="Plus bas score RGAA" format="pourcentage" color="rouge"></dsfr-data-kpi>
           </div>
-          <div class="code-block"><pre>&lt;dsfr-data-kpi source="sites" valeur="max:score_rgaa" label="Meilleur score" format="pourcentage" couleur="vert"&gt;&lt;/dsfr-data-kpi&gt;
-&lt;dsfr-data-kpi source="sites" valeur="min:score_rgaa" label="Plus bas score" format="pourcentage" couleur="rouge"&gt;&lt;/dsfr-data-kpi&gt;</pre></div>
+          <div class="code-block"><pre>&lt;dsfr-data-kpi source="sites" value="score_rgaa:max" label="Meilleur score" format="pourcentage" color="vert"&gt;&lt;/dsfr-data-kpi&gt;
+&lt;dsfr-data-kpi source="sites" value="score_rgaa:min" label="Plus bas score" format="pourcentage" color="rouge"&gt;&lt;/dsfr-data-kpi&gt;</pre></div>
         </section>
 
         <section class="demo-section">
@@ -168,10 +172,10 @@
         <section class="demo-section">
           <h3>6. Tableau de bord complet (CSS manuel)</h3>
           <div class="kpi-grid">
-            <dsfr-data-kpi source="meta" valeur="total" label="Sites suivis" icone="ri-global-line" format="nombre"></dsfr-data-kpi>
-            <dsfr-data-kpi source="sites" valeur="avg:score_rgaa" label="RGAA moyen" format="pourcentage" seuil-vert="80" seuil-orange="50"></dsfr-data-kpi>
-            <dsfr-data-kpi source="sites" valeur="avg:score_dsfr" label="DSFR moyen" format="pourcentage" seuil-vert="80" seuil-orange="50"></dsfr-data-kpi>
-            <dsfr-data-kpi source="sites" valeur="count:certificat_valide:false" label="Certificats expires" icone="ri-shield-cross-line" couleur="rouge"></dsfr-data-kpi>
+            <dsfr-data-kpi source="meta" value="total" label="Sites suivis" icon="ri-global-line" format="nombre"></dsfr-data-kpi>
+            <dsfr-data-kpi source="sites" value="score_rgaa:avg" label="RGAA moyen" format="pourcentage" threshold-green="80" threshold-orange="50"></dsfr-data-kpi>
+            <dsfr-data-kpi source="sites" value="score_dsfr:avg" label="DSFR moyen" format="pourcentage" threshold-green="80" threshold-orange="50"></dsfr-data-kpi>
+            <dsfr-data-kpi source="sites" value="count:certificat_valide:false" label="Certificats expires" icon="ri-shield-cross-line" color="rouge"></dsfr-data-kpi>
           </div>
         </section>
 
@@ -180,42 +184,42 @@
         <section class="demo-section">
           <h3>7. Colonnes egales (cols="4")</h3>
           <dsfr-data-kpi-group cols="4">
-            <dsfr-data-kpi source="meta" valeur="total" label="Sites suivis" icone="ri-global-line" format="nombre"></dsfr-data-kpi>
-            <dsfr-data-kpi source="sites" valeur="avg:score_rgaa" label="RGAA moyen" format="pourcentage" seuil-vert="80" seuil-orange="50"></dsfr-data-kpi>
-            <dsfr-data-kpi source="sites" valeur="avg:score_dsfr" label="DSFR moyen" format="pourcentage" seuil-vert="80" seuil-orange="50"></dsfr-data-kpi>
-            <dsfr-data-kpi source="sites" valeur="count:certificat_valide:false" label="Certificats expires" icone="ri-shield-cross-line" couleur="rouge"></dsfr-data-kpi>
+            <dsfr-data-kpi source="meta" value="total" label="Sites suivis" icon="ri-global-line" format="nombre"></dsfr-data-kpi>
+            <dsfr-data-kpi source="sites" value="score_rgaa:avg" label="RGAA moyen" format="pourcentage" threshold-green="80" threshold-orange="50"></dsfr-data-kpi>
+            <dsfr-data-kpi source="sites" value="score_dsfr:avg" label="DSFR moyen" format="pourcentage" threshold-green="80" threshold-orange="50"></dsfr-data-kpi>
+            <dsfr-data-kpi source="sites" value="count:certificat_valide:false" label="Certificats expires" icon="ri-shield-cross-line" color="rouge"></dsfr-data-kpi>
           </dsfr-data-kpi-group>
           <div class="code-block"><pre>&lt;dsfr-data-kpi-group cols="4"&gt;
-  &lt;dsfr-data-kpi source="meta" valeur="total" label="Sites suivis"&gt;&lt;/dsfr-data-kpi&gt;
-  &lt;dsfr-data-kpi source="sites" valeur="avg:score_rgaa" label="RGAA moyen"&gt;&lt;/dsfr-data-kpi&gt;
-  &lt;dsfr-data-kpi source="sites" valeur="avg:score_dsfr" label="DSFR moyen"&gt;&lt;/dsfr-data-kpi&gt;
-  &lt;dsfr-data-kpi source="sites" valeur="count:certificat_valide:false" label="Expires"&gt;&lt;/dsfr-data-kpi&gt;
+  &lt;dsfr-data-kpi source="meta" value="total" label="Sites suivis"&gt;&lt;/dsfr-data-kpi&gt;
+  &lt;dsfr-data-kpi source="sites" value="score_rgaa:avg" label="RGAA moyen"&gt;&lt;/dsfr-data-kpi&gt;
+  &lt;dsfr-data-kpi source="sites" value="score_dsfr:avg" label="DSFR moyen"&gt;&lt;/dsfr-data-kpi&gt;
+  &lt;dsfr-data-kpi source="sites" value="count:certificat_valide:false" label="Expires"&gt;&lt;/dsfr-data-kpi&gt;
 &lt;/dsfr-data-kpi-group&gt;</pre></div>
         </section>
 
         <section class="demo-section">
           <h3>8. Largeurs personnalisees (col)</h3>
           <dsfr-data-kpi-group>
-            <dsfr-data-kpi source="meta" valeur="total" label="Sites suivis" icone="ri-global-line" format="nombre" col="6"></dsfr-data-kpi>
-            <dsfr-data-kpi source="sites" valeur="avg:score_rgaa" label="RGAA moyen" format="pourcentage" seuil-vert="80" seuil-orange="50" col="3"></dsfr-data-kpi>
-            <dsfr-data-kpi source="sites" valeur="max:score_rgaa" label="Meilleur RGAA" format="pourcentage" couleur="vert" col="3"></dsfr-data-kpi>
+            <dsfr-data-kpi source="meta" value="total" label="Sites suivis" icon="ri-global-line" format="nombre" col="6"></dsfr-data-kpi>
+            <dsfr-data-kpi source="sites" value="score_rgaa:avg" label="RGAA moyen" format="pourcentage" threshold-green="80" threshold-orange="50" col="3"></dsfr-data-kpi>
+            <dsfr-data-kpi source="sites" value="score_rgaa:max" label="Meilleur RGAA" format="pourcentage" color="vert" col="3"></dsfr-data-kpi>
           </dsfr-data-kpi-group>
           <div class="code-block"><pre>&lt;dsfr-data-kpi-group&gt;
-  &lt;dsfr-data-kpi source="meta" valeur="total" label="Sites suivis" col="6"&gt;&lt;/dsfr-data-kpi&gt;
-  &lt;dsfr-data-kpi source="sites" valeur="avg:score_rgaa" label="RGAA moyen" col="3"&gt;&lt;/dsfr-data-kpi&gt;
-  &lt;dsfr-data-kpi source="sites" valeur="max:score_rgaa" label="Meilleur RGAA" col="3"&gt;&lt;/dsfr-data-kpi&gt;
+  &lt;dsfr-data-kpi source="meta" value="total" label="Sites suivis" col="6"&gt;&lt;/dsfr-data-kpi&gt;
+  &lt;dsfr-data-kpi source="sites" value="score_rgaa:avg" label="RGAA moyen" col="3"&gt;&lt;/dsfr-data-kpi&gt;
+  &lt;dsfr-data-kpi source="sites" value="score_rgaa:max" label="Meilleur RGAA" col="3"&gt;&lt;/dsfr-data-kpi&gt;
 &lt;/dsfr-data-kpi-group&gt;</pre></div>
         </section>
 
         <section class="demo-section">
           <h3>9. Espacement large (gap="lg")</h3>
           <dsfr-data-kpi-group cols="2" gap="lg">
-            <dsfr-data-kpi source="sites" valeur="min:score_rgaa" label="Plus bas RGAA" format="pourcentage" couleur="rouge"></dsfr-data-kpi>
-            <dsfr-data-kpi source="sites" valeur="max:score_rgaa" label="Meilleur RGAA" format="pourcentage" couleur="vert"></dsfr-data-kpi>
+            <dsfr-data-kpi source="sites" value="score_rgaa:min" label="Plus bas RGAA" format="pourcentage" color="rouge"></dsfr-data-kpi>
+            <dsfr-data-kpi source="sites" value="score_rgaa:max" label="Meilleur RGAA" format="pourcentage" color="vert"></dsfr-data-kpi>
           </dsfr-data-kpi-group>
           <div class="code-block"><pre>&lt;dsfr-data-kpi-group cols="2" gap="lg"&gt;
-  &lt;dsfr-data-kpi source="sites" valeur="min:score_rgaa" label="Plus bas RGAA" couleur="rouge"&gt;&lt;/dsfr-data-kpi&gt;
-  &lt;dsfr-data-kpi source="sites" valeur="max:score_rgaa" label="Meilleur RGAA" couleur="vert"&gt;&lt;/dsfr-data-kpi&gt;
+  &lt;dsfr-data-kpi source="sites" value="score_rgaa:min" label="Plus bas RGAA" color="rouge"&gt;&lt;/dsfr-data-kpi&gt;
+  &lt;dsfr-data-kpi source="sites" value="score_rgaa:max" label="Meilleur RGAA" color="vert"&gt;&lt;/dsfr-data-kpi&gt;
 &lt;/dsfr-data-kpi-group&gt;</pre></div>
         </section>
     </div>

@@ -137,8 +137,8 @@
         </dsfr-data-search>
 
         <dsfr-data-list source="elus-searched"
-          colonnes="Produit, Categorie, Marque, Date"
-          tri="Date:desc"
+          columns="Produit, Categorie, Marque, Date"
+          sort="Date:desc"
           pagination="10">
         </dsfr-data-list>
 
@@ -152,8 +152,8 @@
 &lt;/dsfr-data-search&gt;
 
 &lt;dsfr-data-list source="searched"
-  colonnes="Produit, Catégorie, Marque, Date"
-  tri="Date:desc"
+  columns="Produit, Catégorie, Marque, Date"
+  sort="Date:desc"
   pagination="10"&gt;
 &lt;/dsfr-data-list&gt;</code></pre>
 
@@ -239,19 +239,19 @@
 
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin: 1.5rem 0;">
           <dsfr-data-kpi source="industrie-searched"
-            valeur="count"
+            value="count"
             label="Projets"
-            couleur="bleu">
+            color="bleu">
           </dsfr-data-kpi>
 
           <dsfr-data-kpi source="industrie-searched"
-            valeur="sum:montant_investissement"
+            value="montant_investissement:sum"
             label="Investissement total"
             format="euro">
           </dsfr-data-kpi>
 
           <dsfr-data-kpi source="industrie-searched"
-            valeur="sum:nombre_beneficiaires"
+            value="nombre_beneficiaires:sum"
             label="Beneficiaires"
             format="nombre">
           </dsfr-data-kpi>
@@ -279,8 +279,8 @@
   count&gt;
 &lt;/dsfr-data-search&gt;
 
-&lt;dsfr-data-kpi source="searched" valeur="count" label="Projets" couleur="bleu"&gt;&lt;/dsfr-data-kpi&gt;
-&lt;dsfr-data-kpi source="searched" valeur="sum:montant_investissement" label="Investissement" format="euro"&gt;&lt;/dsfr-data-kpi&gt;
+&lt;dsfr-data-kpi source="searched" value="count" label="Projets" color="bleu"&gt;&lt;/dsfr-data-kpi&gt;
+&lt;dsfr-data-kpi source="searched" value="montant_investissement:sum" label="Investissement" format="euro"&gt;&lt;/dsfr-data-kpi&gt;
 
 &lt;dsfr-data-query id="stats" source="searched"
   group-by="Region"

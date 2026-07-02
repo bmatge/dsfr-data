@@ -268,7 +268,7 @@
 
 &lt;dsfr-data-kpi
   source="src"
-  valeur="OBS_VALUE"
+  value="OBS_VALUE"
   label="Population municipale 2023"
   format="nombre"&gt;
 &lt;/dsfr-data-kpi&gt;</code></pre>
@@ -284,15 +284,16 @@
 &lt;/dsfr-data-source&gt;
 
 &lt;dsfr-data-query
+  id="deps"
   source="src"
   filter="GEO:contains:DEP"
   order-by="OBS_VALUE:desc"&gt;
 &lt;/dsfr-data-query&gt;
 
 &lt;dsfr-data-chart
-  source="src"
+  source="deps"
   type="bar"
-  name-field="GEO"
+  label-field="GEO"
   value-field="OBS_VALUE"&gt;
 &lt;/dsfr-data-chart&gt;</code></pre>
 
@@ -320,7 +321,7 @@
 &lt;dsfr-data-chart
   source="decoded"
   type="bar"
-  name-field="AGE"
+  label-field="AGE"
   value-field="OBS_VALUE"&gt;
 &lt;/dsfr-data-chart&gt;</code></pre>
 
@@ -338,7 +339,7 @@
 &lt;dsfr-data-list
   source="src"
   columns="GEO,OBS_VALUE"
-  page-size="50"&gt;
+  pagination="50"&gt;
 &lt;/dsfr-data-list&gt;</code></pre>
         </section>
     </div>

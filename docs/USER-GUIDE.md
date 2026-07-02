@@ -422,13 +422,13 @@ Les donnees de la source sont transmises directement au composant de visualisati
   base-url="https://data.economie.gouv.fr"></dsfr-data-source>
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">
-  <dsfr-data-kpi source="data" valeur="sum:nombre_beneficiaires"
+  <dsfr-data-kpi source="data" value="nombre_beneficiaires:sum"
     label="Total beneficiaires" format="nombre"></dsfr-data-kpi>
-  <dsfr-data-kpi source="data" valeur="avg:nombre_beneficiaires"
+  <dsfr-data-kpi source="data" value="nombre_beneficiaires:avg"
     label="Moyenne" format="decimal"></dsfr-data-kpi>
-  <dsfr-data-kpi source="data" valeur="max:montant_investissement"
-    label="Investissement max" format="euro" couleur="vert"></dsfr-data-kpi>
-  <dsfr-data-kpi source="data" valeur="count"
+  <dsfr-data-kpi source="data" value="montant_investissement:max"
+    label="Investissement max" format="euro" color="vert"></dsfr-data-kpi>
+  <dsfr-data-kpi source="data" value="count"
     label="Enregistrements" format="nombre"></dsfr-data-kpi>
 </div>
 ```
@@ -441,9 +441,9 @@ Les donnees de la source sont transmises directement au composant de visualisati
   resource="2876a346-d50c-4911-934e-19ee07b0e503"></dsfr-data-query>
 
 <dsfr-data-list source="data"
-  colonnes="Nom de l'élu:Nom, Prénom de l'élu:Prenom, Libellé du département:Departement, Libellé de la commune:Commune"
-  recherche="true" filtres="Libellé du département"
-  tri="Nom de l'élu:asc" pagination="10" export="csv">
+  columns="Nom de l'élu:Nom, Prénom de l'élu:Prenom, Libellé du département:Departement, Libellé de la commune:Commune"
+  search filters="Libellé du département"
+  sort="Nom de l'élu:asc" pagination="10" export="csv">
 </dsfr-data-list>
 ```
 
@@ -491,8 +491,8 @@ Les donnees passent par `dsfr-data-normalize` qui nettoie les valeurs (conversio
 </dsfr-data-normalize>
 
 <dsfr-data-list source="clean"
-  colonnes="Nom, Prenom, Commune, Departement, Sexe"
-  recherche pagination="10" export="csv">
+  columns="Nom, Prenom, Commune, Departement, Sexe"
+  search pagination="10" export="csv">
 </dsfr-data-list>
 ```
 
@@ -516,8 +516,7 @@ Les sources Grist renvoient des enregistrements imbriques `{id, fields: {col1, c
 </dsfr-data-query>
 
 <dsfr-data-chart source="stats" type="bar"
-  label-field="Pays" value-field="PIB__avg"
-  titre="PIB moyen par pays">
+  label-field="Pays" value-field="PIB__avg">
 </dsfr-data-chart>
 ```
 
@@ -615,10 +614,10 @@ Les donnees passent par `dsfr-data-query` qui les filtre, regroupe et/ou agrege 
 </dsfr-data-query>
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
-  <dsfr-data-kpi source="data" valeur="count"
+  <dsfr-data-kpi source="data" value="count"
     label="Total des maires" format="nombre"></dsfr-data-kpi>
-  <dsfr-data-kpi source="q-femmes" valeur="count"
-    label="Dont femmes" format="nombre" couleur="bleu"></dsfr-data-kpi>
+  <dsfr-data-kpi source="q-femmes" value="count"
+    label="Dont femmes" format="nombre" color="bleu"></dsfr-data-kpi>
 </div>
 ```
 
@@ -634,8 +633,8 @@ Les donnees passent par `dsfr-data-query` qui les filtre, regroupe et/ou agrege 
 </dsfr-data-query>
 
 <dsfr-data-list source="q"
-  colonnes="Nom de l'élu:Nom, Prénom de l'élu:Prenom, Libellé de la commune:Commune, Libellé du département:Departement"
-  recherche="true" tri="Nom de l'élu:asc" pagination="10" export="csv">
+  columns="Nom de l'élu:Nom, Prénom de l'élu:Prenom, Libellé de la commune:Commune, Libellé du département:Departement"
+  search sort="Nom de l'élu:asc" pagination="10" export="csv">
 </dsfr-data-list>
 ```
 

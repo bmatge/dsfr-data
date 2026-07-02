@@ -89,7 +89,7 @@ Immatriculations VE   | Vehicule Particulier | 2023-02 | 19965</pre></div>
             les valeurs, et on trace une courbe — sans une ligne de JavaScript.
           </p>
           <div class="code-block"><pre>&lt;dsfr-data-source id="grist_wide" api-type="grist"
-  base-url="https://grist.numérique.gouv.fr" doc-id="..." table="Plan_Elec"&gt;
+  base-url="https://grist.numerique.gouv.fr/api/docs/DOC_ID/tables/Plan_Elec/records"&gt;
 &lt;/dsfr-data-source&gt;
 
 &lt;dsfr-data-unpivot id="tidy" source="grist_wide"
@@ -102,7 +102,7 @@ Immatriculations VE   | Vehicule Particulier | 2023-02 | 19965</pre></div>
 &lt;dsfr-data-normalize id="prep" source="tidy" numeric-auto&gt;&lt;/dsfr-data-normalize&gt;
 
 &lt;dsfr-data-query id="ve" source="prep"
-  where="Indicateurs = 'Nombre immatriculations VE'" order-by="mois:asc"&gt;
+  where="Indicateurs:eq:Nombre immatriculations VE" order-by="mois:asc"&gt;
 &lt;/dsfr-data-query&gt;
 
 &lt;dsfr-data-chart source="ve" type="line"
@@ -127,7 +127,7 @@ Immatriculations VE   | Vehicule Particulier | 2023-02 | 19965</pre></div>
   label-field="mois" series-field="groupe" value-field="valeur"&gt;
 &lt;/dsfr-data-chart&gt;</pre></div>
           <p class="fr-text--sm fr-mt-1w">
-            Alternative pour une seule série : filtrer via <code>&lt;dsfr-data-query where="groupe = '...'"&gt;</code>.
+            Alternative pour une seule série : filtrer via <code>&lt;dsfr-data-query where="groupe:eq:..."&gt;</code>.
           </p>
         </section>
 
