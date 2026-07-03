@@ -95,8 +95,9 @@
         <div class="fr-callout fr-callout--blue-france fr-mt-2w">
           <p class="fr-callout__text">
             <strong>Provider generic :</strong> L'API Ghibli retourne directement un tableau JSON plat
-            (pas d'enveloppe, CORS natif). <code>dsfr-data-source</code> utilise une URL directe sans <code>api-type</code>
-            ni <code>transform</code>.
+            (pas d'enveloppe). <code>dsfr-data-source</code> utilise une URL directe sans <code>api-type</code>
+            ni <code>transform</code>. La CSP de cette page limite les hotes joignables directement :
+            on route donc via le proxy CORS generique (<code>use-proxy</code> + <code>proxy-url</code>, cf. #340).
             Les champs numeriques (<code>rt_score</code>, <code>running_time</code>,
             <code>release_date</code>) arrivent en string et sont convertis via <code>dsfr-data-normalize numeric</code>.
             Toutes les transformations (tri, filtre, group-by, agregation) sont effectuees client-side
@@ -126,9 +127,13 @@
         <!-- PIPELINE                                                        -->
         <!-- ============================================================= -->
 
-        <!-- 1. Fetch generique (URL directe, JSON plat, CORS natif) -->
+        <!-- 1. Fetch generique. La CSP de la page interdit ghibliapi.vercel.app en direct
+             (connect-src whitelist gouv.fr / opendatasoft.com uniquement) : use-proxy route
+             la requete via /cors-proxy sur le domaine indique par proxy-url. -->
         <dsfr-data-source id="raw-films"
-          url="https://ghibliapi.vercel.app/films">
+          url="https://ghibliapi.vercel.app/films"
+          use-proxy
+          proxy-url="https://chartsbuilder.miweb.run">
         </dsfr-data-source>
 
         <!-- 2. Normalisation : conversion numerique des champs string -->
@@ -355,9 +360,11 @@
         <section class="fr-accordion fr-mt-2w">
           <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-ghibli">Code source complet</button></h3>
           <div class="fr-collapse" id="code-ghibli">
-<pre class="example-code">&lt;!-- 1. Fetch generique (URL directe, CORS natif) --&gt;
+<pre class="example-code">&lt;!-- 1. Fetch generique via proxy CORS (use-proxy + proxy-url, cf. #340) --&gt;
 &lt;dsfr-data-source id="raw-films"
-  url="https://ghibliapi.vercel.app/films"&gt;
+  url="https://ghibliapi.vercel.app/films"
+  use-proxy
+  proxy-url="https://chartsbuilder.miweb.run"&gt;
 &lt;/dsfr-data-source&gt;
 
 &lt;!-- 2. Normalisation : conversion numerique des champs string --&gt;
@@ -475,7 +482,7 @@
         <!-- Points cles -->
         <h4 class="fr-mt-3w">Points cles de cet exemple</h4>
         <ul>
-          <li><strong>Provider generic</strong> : <code>dsfr-data-source</code> utilise une URL directe vers une API REST qui retourne un tableau JSON plat. Pas besoin d'<code>api-type</code> ni de <code>transform</code> — le cas d'usage le plus simple. L'API Ghibli supporte CORS nativement, donc pas besoin de <code>use-proxy</code>.</li>
+          <li><strong>Provider generic</strong> : <code>dsfr-data-source</code> utilise une URL directe vers une API REST qui retourne un tableau JSON plat. Pas besoin d'<code>api-type</code> ni de <code>transform</code> — le cas d'usage le plus simple. La CSP de cette page limite les hotes joignables directement (whitelist <code>gouv.fr</code> / <code>opendatasoft.com</code>), on route donc via <code>use-proxy</code> + <code>proxy-url</code>.</li>
           <li><strong>Normalisation des types</strong> : l'API retourne <code>rt_score</code>, <code>running_time</code> et <code>release_date</code> en string. <code>dsfr-data-normalize numeric</code> les convertit en nombres pour permettre le tri, les agregations et les filtres numeriques.</li>
           <li><strong>Queries multiples sur une seule source</strong> : 6 <code>dsfr-data-query</code> derivent chacun une vue differente des memes donnees (tri, group-by, aggregate, where) — tout en client-side.</li>
           <li><strong>KPI avec agregation inline</strong> : <code>dsfr-data-kpi value="rt_score:avg"</code> calcule la moyenne directement, sans query intermediaire.</li>

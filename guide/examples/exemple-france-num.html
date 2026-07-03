@@ -18,8 +18,8 @@
   -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
-    <!-- dsfr-data bundle complet (core + map) -->
-    <script src="https://cdn.jsdelivr.net/npm/dsfr-data@0.7.1/dist/dsfr-data.umd.js" integrity="sha384-I44SvA/CG9VMs3nDjvvORELkUJ0T0xUiZV7ippo+q5nNuv3Tib8c+X2hQ+7sJcAT" crossorigin="anonymous"></script>
+    <!-- dsfr-data : derniere version 0.x (@0, non figee) — evite le fallback proxy chartsbuilder.matge.com bake dans 0.7.1. Bundle complet (core + map) car la page utilise dsfr-data-map. Major flottant : pas de SRI (cf. check:sri). -->
+    <script src="https://cdn.jsdelivr.net/npm/dsfr-data@0/dist/dsfr-data.umd.js"></script>
   </head>
   <body>
     <!-- =============================================
@@ -314,13 +314,13 @@
             </a>
           </div>
           <div class="fr-footer__content">
-            <p class="fr-footer__content-desc"> Dashboard généré avec <a href="https://chartsbuilder.matge.com" class="fr-link" target="_blank" rel="noopener">ChartsBuilder / dsfr-data</a> et les composants officiels <a href="https://www.systeme-de-design.gouv.fr/" class="fr-link" target="_blank" rel="noopener">DSFR</a>. Données issues de <a href="https://data.economie.gouv.fr" class="fr-link" target="_blank" rel="noopener">data.economie.gouv.fr</a> sous <a href="https://github.com/etalab/licence-ouverte/blob/master/LO.md" class="fr-link" target="_blank" rel="noopener">Licence Ouverte 2.0</a>. </p>
+            <p class="fr-footer__content-desc"> Dashboard généré avec <a href="https://chartsbuilder.miweb.run" class="fr-link" target="_blank" rel="noopener">ChartsBuilder / dsfr-data</a> et les composants officiels <a href="https://www.systeme-de-design.gouv.fr/" class="fr-link" target="_blank" rel="noopener">DSFR</a>. Données issues de <a href="https://data.economie.gouv.fr" class="fr-link" target="_blank" rel="noopener">data.economie.gouv.fr</a> sous <a href="https://github.com/etalab/licence-ouverte/blob/master/LO.md" class="fr-link" target="_blank" rel="noopener">Licence Ouverte 2.0</a>. </p>
             <ul class="fr-footer__content-list">
               <li class="fr-footer__content-item">
                 <a class="fr-footer__content-link" href="https://data.economie.gouv.fr/explore/dataset/tpe-pme-beneficiaires-des-dispositifs-france-num/" target="_blank" rel="noopener"> Jeu de données open data </a>
               </li>
               <li class="fr-footer__content-item">
-                <a class="fr-footer__content-link" href="https://chartsbuilder.matge.com" target="_blank" rel="noopener"> ChartsBuilder </a>
+                <a class="fr-footer__content-link" href="https://chartsbuilder.miweb.run" target="_blank" rel="noopener"> ChartsBuilder </a>
               </li>
             </ul>
           </div>

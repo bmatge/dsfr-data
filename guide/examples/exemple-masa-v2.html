@@ -17,7 +17,8 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" integrity="sha384-9nhczxUqK87bcKHh20fSQcTGD4qq5GhayNYSYWqwBkINBhOfQLg/P5HG5lF1urn4" crossorigin="anonymous"></script>
   <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js" integrity="sha384-xYrR55uYb2Y55H6eELrLA9ARM8YsjB1ksG6QHJZrhL49lzax9l7rHuQPjsZGiTYk" crossorigin="anonymous"></script>
   <!-- dsfr-data core + map -->
-<script src="https://cdn.jsdelivr.net/npm/dsfr-data@0.7.1/dist/dsfr-data.umd.js" integrity="sha384-I44SvA/CG9VMs3nDjvvORELkUJ0T0xUiZV7ippo+q5nNuv3Tib8c+X2hQ+7sJcAT" crossorigin="anonymous"></script>
+<!-- dsfr-data : derniere version 0.x (@0, non figee) — evite le fallback proxy chartsbuilder.matge.com bake dans 0.7.1. Bundle complet (core + map). Major flottant : pas de SRI (cf. check:sri). -->
+<script src="https://cdn.jsdelivr.net/npm/dsfr-data@0/dist/dsfr-data.umd.js"></script>
 
   <!-- DSFR JS (fr-tabs) -->
   <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.module.min.js" integrity="sha384-gPgRd2+olihO/srZe/Bqw6iVLiiaL7meuri1d5YVMejwPXg7VehLSBeORYq9yh2F" crossorigin="anonymous"></script>
@@ -81,23 +82,30 @@
        cN-top10 (barres top 10 participations)
      ═══════════════════════════════════════════════════════════════ -->
 
-<!-- ── Sources Grist ── -->
+<!-- ── Sources Grist ──
+     base-url : URL Grist reelle (grist.numerique.gouv.fr).
+     proxy-url : proxy CORS declaratif par source (#340) — l'adapter Grist
+                 route automatiquement grist.numerique.gouv.fr via /grist-gouv-proxy/
+                 sur le domaine indique. -->
 <dsfr-data-source id="c1-raw" api-type="grist"
-  base-url="https://chartsbuilder.matge.com/grist-gouv-proxy/api/docs/pU5HXX7VJC6jdgU6oBJRxn/tables/Scrutin_c1/records">
+  base-url="https://grist.numerique.gouv.fr/api/docs/pU5HXX7VJC6jdgU6oBJRxn/tables/Scrutin_c1/records"
+  proxy-url="https://chartsbuilder.miweb.run">
 </dsfr-data-source>
 <dsfr-data-normalize id="c1" source="c1-raw" flatten="fields" trim
   numeric="liste_index,taux_participation,nb_inscrits,nb_sieges">
 </dsfr-data-normalize>
 
 <dsfr-data-source id="c2-raw" api-type="grist"
-  base-url="https://chartsbuilder.matge.com/grist-gouv-proxy/api/docs/pU5HXX7VJC6jdgU6oBJRxn/tables/Scrutin_c2/records">
+  base-url="https://grist.numerique.gouv.fr/api/docs/pU5HXX7VJC6jdgU6oBJRxn/tables/Scrutin_c2/records"
+  proxy-url="https://chartsbuilder.miweb.run">
 </dsfr-data-source>
 <dsfr-data-normalize id="c2" source="c2-raw" flatten="fields" trim
   numeric="liste_index,taux_participation,nb_inscrits,nb_sieges">
 </dsfr-data-normalize>
 
 <dsfr-data-source id="c3-raw" api-type="grist"
-  base-url="https://chartsbuilder.matge.com/grist-gouv-proxy/api/docs/pU5HXX7VJC6jdgU6oBJRxn/tables/Scrutin_c3/records">
+  base-url="https://grist.numerique.gouv.fr/api/docs/pU5HXX7VJC6jdgU6oBJRxn/tables/Scrutin_c3/records"
+  proxy-url="https://chartsbuilder.miweb.run">
 </dsfr-data-source>
 <dsfr-data-normalize id="c3" source="c3-raw" flatten="fields" trim
   numeric="liste_index,taux_participation,nb_inscrits,nb_sieges">
@@ -133,19 +141,22 @@
      à la couleur de la carte (FNSEA/JA → bleu France, etc.).
 -->
 <dsfr-data-source id="c1-pie" api-type="grist"
-  base-url="https://chartsbuilder.matge.com/grist-gouv-proxy/api/docs/pU5HXX7VJC6jdgU6oBJRxn/tables/Scrutin_c1/records"
+  base-url="https://grist.numerique.gouv.fr/api/docs/pU5HXX7VJC6jdgU6oBJRxn/tables/Scrutin_c1/records"
+  proxy-url="https://chartsbuilder.miweb.run"
   group-by="liste_gagnante"
   aggregate="liste_index:count,liste_index:min"
   order-by="liste_index__min:asc">
 </dsfr-data-source>
 <dsfr-data-source id="c2-pie" api-type="grist"
-  base-url="https://chartsbuilder.matge.com/grist-gouv-proxy/api/docs/pU5HXX7VJC6jdgU6oBJRxn/tables/Scrutin_c2/records"
+  base-url="https://grist.numerique.gouv.fr/api/docs/pU5HXX7VJC6jdgU6oBJRxn/tables/Scrutin_c2/records"
+  proxy-url="https://chartsbuilder.miweb.run"
   group-by="liste_gagnante"
   aggregate="liste_index:count,liste_index:min"
   order-by="liste_index__min:asc">
 </dsfr-data-source>
 <dsfr-data-source id="c3-pie" api-type="grist"
-  base-url="https://chartsbuilder.matge.com/grist-gouv-proxy/api/docs/pU5HXX7VJC6jdgU6oBJRxn/tables/Scrutin_c3/records"
+  base-url="https://grist.numerique.gouv.fr/api/docs/pU5HXX7VJC6jdgU6oBJRxn/tables/Scrutin_c3/records"
+  proxy-url="https://chartsbuilder.miweb.run"
   group-by="liste_gagnante"
   aggregate="liste_index:count,liste_index:min"
   order-by="liste_index__min:asc">

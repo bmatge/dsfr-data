@@ -38,7 +38,7 @@
         <h1>Démo complète — Studio Ghibli</h1>
         <p class="fr-text--lead">
           Tableau de bord filmographique du Studio Ghibli exploitant <strong>tous les composants dsfr-data</strong>
-          et <strong>tous les types de graphiques</strong>. Source principale : Ghibli API (générique, CORS natif).
+          et <strong>tous les types de graphiques</strong>. Source principale : Ghibli API (générique, route via proxy CORS).
           Cartes géographiques : données fictives à titre illustratif.
         </p>
 
@@ -46,9 +46,13 @@
         <!-- PIPELINE INVISIBLE — Sources, normalize, queries               -->
         <!-- ============================================================= -->
 
-        <!-- Source principale : fetch URL directe, JSON plat, CORS natif -->
+        <!-- Source principale : la CSP de la page interdit ghibliapi.vercel.app en direct
+             (whitelist gouv.fr / opendatasoft.com uniquement) : use-proxy route la requete
+             via /cors-proxy sur le domaine indique par proxy-url (#340). -->
         <dsfr-data-source id="raw-films"
-          url="https://ghibliapi.vercel.app/films">
+          url="https://ghibliapi.vercel.app/films"
+          use-proxy
+          proxy-url="https://chartsbuilder.miweb.run">
         </dsfr-data-source>
 
         <!-- Normalisation : conversion numerique des champs string -->
@@ -138,7 +142,7 @@
           <p class="fr-callout__text">
             Analyse des 22 longs-métrages du Studio Ghibli (1984–2023) : scores critiques, durées,
             réalisateurs, évolution dans le temps et diffusion mondiale.
-            Source : <strong>Ghibli API</strong> (générique, CORS natif, aucune clé requise).
+            Source : <strong>Ghibli API</strong> (générique, route via proxy CORS, aucune clé requise).
           </p>
         </div>
 
@@ -474,7 +478,7 @@
           <p>
             <strong>Source principale :</strong>
             <a href="https://ghibliapi.vercel.app" target="_blank" rel="noopener">Ghibli API (ghibliapi.vercel.app)</a>
-            — données publiques, CORS natif, aucune clé d'API requise.<br>
+            — données publiques, route via proxy CORS, aucune clé d'API requise.<br>
             <strong>Pipeline :</strong> dsfr-data-source (URL directe) → dsfr-data-normalize (numeric) →
             8× dsfr-data-query → dsfr-data-kpi-group (4 KPIs) + 13× dsfr-data-chart (tous types) +
             dsfr-data-world-map + dsfr-data-search + dsfr-data-facets + dsfr-data-display + dsfr-data-list + dsfr-data-a11y.<br>
