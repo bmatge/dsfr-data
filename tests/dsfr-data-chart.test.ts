@@ -643,4 +643,277 @@ describe('DsfrDataChart', () => {
       expect((chart as any)._getAriaLabel()).toContain('Lancement');
     });
   });
+
+  describe('targets (#377)', () => {
+    let el: DsfrDataChart;
+
+    afterEach(() => {
+      el?.remove();
+    });
+
+    async function mount(props: Partial<DsfrDataChart>): Promise<DsfrDataChart> {
+      el = new DsfrDataChart();
+      Object.assign(el, props);
+      document.body.appendChild(el);
+      await el.updateComplete;
+      return el;
+    }
+
+    const TARGETS = '[{"x":2030,"value":26,"label":"Cible 2030 : 26 %"}]';
+
+    it('type non supporté (bar) + targets → data-dsfr-config-error', async () => {
+      await mount({ type: 'bar', targets: TARGETS });
+      expect(el.getAttribute('data-dsfr-config-error')).toMatch(/line et bar-line uniquement/);
+    });
+
+    it('JSON invalide → data-dsfr-config-error', async () => {
+      await mount({ type: 'line', targets: '[{bad json}]' });
+      expect(el.getAttribute('data-dsfr-config-error')).toMatch(/JSON invalide/);
+    });
+
+    it('type supporté + JSON valide → pas d erreur de config', async () => {
+      await mount({ type: 'line', targets: TARGETS });
+      expect(el.hasAttribute('data-dsfr-config-error')).toBe(false);
+    });
+
+    it('retrait de targets efface l erreur', async () => {
+      await mount({ type: 'bar', targets: TARGETS });
+      expect(el.hasAttribute('data-dsfr-config-error')).toBe(true);
+      el.targets = '';
+      await el.updateComplete;
+      expect(el.hasAttribute('data-dsfr-config-error')).toBe(false);
+    });
+
+    it('erreurs reference-lines et targets combinées par « ; »', async () => {
+      await mount({
+        type: 'pie',
+        referenceLines: '[{"axis":"y","value":10}]',
+        targets: TARGETS,
+      });
+      const error = el.getAttribute('data-dsfr-config-error') ?? '';
+      expect(error).toMatch(/reference-lines/);
+      expect(error).toMatch(/targets/);
+      expect(error).toContain(' ; ');
+    });
+
+    it('aria-label inclut le libellé de la cible', () => {
+      (chart as any)._data = [{ m: '2025', v: 30 }];
+      chart.type = 'line';
+      chart.labelField = 'm';
+      chart.valueField = 'v';
+      chart.targets = TARGETS;
+      expect((chart as any)._getAriaLabel()).toContain('Cible 2030 : 26 %');
+    });
+
+    describe('extension d axe X (padding des séries)', () => {
+      beforeEach(() => {
+        (chart as any)._data = [
+          { annee: '2024', conso: 30, prod: 12 },
+          { annee: '2025', conso: 27, prod: 14 },
+        ];
+        chart.labelField = 'annee';
+        chart.valueField = 'conso';
+        chart.targets = TARGETS;
+      });
+
+      it('line : x se termine par l échéance, séries paddées par null', () => {
+        chart.type = 'line';
+        chart.valueFields = 'prod';
+        const { attrs } = (chart as any)._getTypeSpecificAttributes();
+        const labels = JSON.parse(attrs['x'])[0];
+        expect(String(labels[labels.length - 1])).toBe('2030');
+        const series = JSON.parse(attrs['y']);
+        expect(series).toHaveLength(2);
+        expect(series[0][series[0].length - 1]).toBeNull();
+        expect(series[1][series[1].length - 1]).toBeNull();
+      });
+
+      it('bar-line : x/y-bar/y-line paddés', () => {
+        chart.type = 'bar-line';
+        chart.valueField2 = 'prod';
+        const { attrs } = (chart as any)._getTypeSpecificAttributes();
+        const labels = JSON.parse(attrs['x']);
+        expect(String(labels[labels.length - 1])).toBe('2030');
+        const yBar = JSON.parse(attrs['y-bar']);
+        const yLine = JSON.parse(attrs['y-line']);
+        expect(yBar[yBar.length - 1]).toBeNull();
+        expect(yLine[yLine.length - 1]).toBeNull();
+        expect(yBar.slice(0, 2)).toEqual([30, 27]);
+        expect(yLine.slice(0, 2)).toEqual([12, 14]);
+      });
+
+      it('pas de padding si l échéance existe déjà dans les labels', () => {
+        chart.type = 'line';
+        (chart as any)._data = [
+          { annee: '2025', conso: 27 },
+          { annee: '2030', conso: 20 },
+        ];
+        const { attrs } = (chart as any)._getTypeSpecificAttributes();
+        expect(JSON.parse(attrs['x'])[0]).toEqual(['2025', '2030']);
+        expect(JSON.parse(attrs['y'])).toEqual([[27, 20]]);
+      });
+
+      it('type non supporté : pas de padding', () => {
+        chart.type = 'bar';
+        const { attrs } = (chart as any)._getTypeSpecificAttributes();
+        expect(JSON.parse(attrs['x'])[0]).toEqual(['2024', '2025']);
+      });
+    });
+
+    describe('bornes Y automatiques', () => {
+      beforeEach(() => {
+        (chart as any)._data = [
+          { annee: '2024', conso: 10 },
+          { annee: '2025', conso: 12 },
+        ];
+        chart.type = 'line';
+        chart.labelField = 'annee';
+        chart.valueField = 'conso';
+      });
+
+      it('y-max posé si la cible dépasse le max des données et yMax vide', () => {
+        chart.targets = '[{"x":2030,"value":26}]';
+        const { attrs } = (chart as any)._getTypeSpecificAttributes();
+        expect(attrs['y-max']).toBe('26');
+      });
+
+      it('y-max non posé si l utilisateur a fixé le sien', () => {
+        chart.targets = '[{"x":2030,"value":26}]';
+        chart.yMax = '40';
+        const { attrs } = (chart as any)._getTypeSpecificAttributes();
+        expect(attrs['y-max']).toBeUndefined();
+      });
+
+      it('y-min posé si la cible est sous le min des données', () => {
+        chart.targets = '[{"x":2030,"value":2}]';
+        const { attrs } = (chart as any)._getTypeSpecificAttributes();
+        expect(attrs['y-min']).toBe('2');
+      });
+
+      it('cible dans la plage : aucune borne posée', () => {
+        chart.targets = '[{"x":2030,"value":11}]';
+        const { attrs } = (chart as any)._getTypeSpecificAttributes();
+        expect(attrs['y-max']).toBeUndefined();
+        expect(attrs['y-min']).toBeUndefined();
+      });
+
+      it('bar-line : bornes par axe (y-bar-max / y-line-max)', () => {
+        chart.type = 'bar-line';
+        (chart as any)._data = [
+          { annee: '2024', conso: 10, prod: 20 },
+          { annee: '2025', conso: 12, prod: 24 },
+        ];
+        chart.valueField2 = 'prod';
+        chart.targets = '[{"x":2030,"value":18,"series":0},{"x":2030,"value":30,"series":1}]';
+        const { attrs } = (chart as any)._getTypeSpecificAttributes();
+        expect(attrs['y-bar-max']).toBe('18');
+        expect(attrs['y-line-max']).toBe('30');
+        expect(attrs['y-max']).toBeUndefined();
+      });
+    });
+
+    describe('_processData expose allSeries', () => {
+      it('mode wide : une entrée par value field', () => {
+        (chart as any)._data = [
+          { cat: 'A', v1: 1, v2: 3 },
+          { cat: 'B', v1: 2, v2: 4 },
+        ];
+        chart.labelField = 'cat';
+        chart.valueFields = 'v1,v2';
+        const { allSeries } = (chart as any)._processData();
+        expect(allSeries).toEqual([
+          [1, 2],
+          [3, 4],
+        ]);
+      });
+
+      it('mode tidy : une entrée par valeur distincte de series-field', () => {
+        (chart as any)._data = [
+          { mois: 'Jan', groupe: 'A', v: 1 },
+          { mois: 'Jan', groupe: 'B', v: 3 },
+          { mois: 'Fev', groupe: 'A', v: 2 },
+        ];
+        chart.labelField = 'mois';
+        chart.seriesField = 'groupe';
+        chart.valueField = 'v';
+        const { allSeries } = (chart as any)._processData();
+        expect(allSeries).toEqual([
+          [1, 2],
+          [3, 0],
+        ]);
+      });
+
+      it('mono-série : allSeries = [values]', () => {
+        (chart as any)._data = [{ cat: 'A', v: 5 }];
+        chart.labelField = 'cat';
+        chart.valueField = 'v';
+        const { allSeries, values } = (chart as any)._processData();
+        expect(allSeries).toEqual([values]);
+      });
+    });
+
+    describe('légende réalisé/projeté (étape C)', () => {
+      const layout = {
+        markers: [
+          {
+            x: 100,
+            y: 50,
+            fromX: 10,
+            fromY: 40,
+            color: '#000091',
+            labelX: 100,
+            labelY: 34,
+            targetX: 2030,
+            seriesName: 'S',
+            seriesIndex: 0,
+            value: 26,
+          },
+        ],
+        boundary: null,
+      };
+
+      async function mountWithWrapper(props: Partial<DsfrDataChart>): Promise<DsfrDataChart> {
+        await mount({ ...props, labelField: 'a', valueField: 'v' });
+        (el as any)._data = [{ a: '2025', v: 1 }];
+        await el.requestUpdate();
+        await el.updateComplete;
+        return el;
+      }
+
+      it('présente sous le wrapper quand des cibles existent', async () => {
+        await mountWithWrapper({ type: 'line', targets: TARGETS });
+        (el as any)._renderTargetsLegend(layout);
+        const legend = el.querySelector(
+          '.dsfr-data-chart__wrapper .dsfr-data-chart__targets-legend'
+        );
+        expect(legend).not.toBeNull();
+        expect(legend!.textContent).toContain('Données historiques');
+        expect(legend!.textContent).toContain('Trajectoire, cible extrapolée');
+      });
+
+      it('targets-legend="off" → absente', async () => {
+        await mountWithWrapper({ type: 'line', targets: TARGETS, targetsLegend: 'off' });
+        (el as any)._renderTargetsLegend(layout);
+        expect(el.querySelector('.dsfr-data-chart__targets-legend')).toBeNull();
+      });
+
+      it('libellés custom via un tableau JSON', async () => {
+        await mountWithWrapper({
+          type: 'line',
+          targets: TARGETS,
+          targetsLegend: '["Réalisé","À venir"]',
+        });
+        (el as any)._renderTargetsLegend(layout);
+        const legend = el.querySelector('.dsfr-data-chart__targets-legend');
+        expect(legend!.textContent).toContain('Réalisé');
+        expect(legend!.textContent).toContain('À venir');
+      });
+
+      it('aucun marker → pas de légende', async () => {
+        await mountWithWrapper({ type: 'line', targets: TARGETS });
+        (el as any)._renderTargetsLegend({ markers: [], boundary: null });
+        expect(el.querySelector('.dsfr-data-chart__targets-legend')).toBeNull();
+      });
+    });
+  });
 });

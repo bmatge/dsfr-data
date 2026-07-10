@@ -14,6 +14,22 @@ import {
   referenceLinesAriaSummary,
   type ReferenceLine,
 } from '../utils/chart-reference-lines.js';
+import {
+  parseTargets,
+  isTargetsChartType,
+  padSeriesForTargets,
+  computeTargetGeometries,
+  buildTargetsOverlaySvg,
+  buildTargetTooltip,
+  buildTargetsLegend,
+  parseTargetsLegend,
+  formatTargetValue,
+  targetsAriaSummary,
+  type ChartTarget,
+  type ChartWithDatasetsLike,
+  type TargetsLayout,
+  type TargetMarkerGeometry,
+} from '../utils/chart-targets.js';
 import { escapeHtml, toNumber, isValidDeptCode } from '@dsfr-data/shared/lib';
 
 type DSFRChartType =
@@ -207,18 +223,44 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'reference-lines' })
   referenceLines = '';
 
+  /**
+   * Cibles / objectifs futurs (overlay) au format JSON. Types `line` et
+   * `bar-line` uniquement. Chaque item : `{ x: string|number (échéance,
+   * requis), value: number (requis), series?: string|number (nom de dataset ou
+   * index, défaut 0), label?: string, color?: string }`. L'axe X est étendu
+   * automatiquement si l'échéance est au-delà des données (séries paddées avec
+   * null : trait plein jusqu'au dernier point réel, trajectoire pointillée vers
+   * le losange). Ex : `targets='[{"x":2030,"value":26,"label":"Cible 2030 : 26 %"}]'`.
+   */
+  @property({ type: String })
+  targets = '';
+
+  /** Zone future grisée + frontière pointillée réalisé/projeté. `"off"` désactive. */
+  @property({ type: String, attribute: 'targets-zone' })
+  targetsZone = 'on';
+
+  /**
+   * Légende réalisé/projeté sous le graphe : `""` = libellés par défaut
+   * (« Données historiques » / « Trajectoire, cible extrapolée »), `"off"` =
+   * masquée, `'["a","b"]'` = libellés personnalisés.
+   */
+  @property({ type: String, attribute: 'targets-legend' })
+  targetsLegend = '';
+
   @state()
   private _data: unknown[] = [];
 
   /** Timers differes en vol — annules au disconnect (#305) */
   private _pendingTimers = new Set<number>();
 
-  /** Lignes de reference : poll rAF en cours (annule au disconnect, #341) */
-  private _refOverlayRaf: number | null = null;
-  /** Lignes de reference : observer de resize du canvas (#341) */
-  private _refOverlayResize: ResizeObserver | null = null;
-  /** Lignes de reference : warn-once si l'instance Chart.js reste introuvable */
-  private _refOverlayWarned = false;
+  /** Overlays (reference-lines #341 + targets #377) : poll rAF en cours (annule au disconnect) */
+  private _overlayRaf: number | null = null;
+  /** Overlays : observer de resize du canvas */
+  private _overlayResize: ResizeObserver | null = null;
+  /** Overlays : warn-once si l'instance Chart.js reste introuvable */
+  private _overlayWarned = false;
+  /** Tooltip cible en cours d'affichage (#377) */
+  private _targetTooltipEl: HTMLDivElement | null = null;
 
   /** Attributs poses par la mise a jour incrementale (#305) */
   private _managedChartAttrs = new Set<string>();
@@ -229,15 +271,15 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     // onSourceData et survivaient au composant
     for (const t of this._pendingTimers) clearTimeout(t);
     this._pendingTimers.clear();
-    this._cleanupReferenceOverlay();
+    this._cleanupChartOverlays();
   }
 
   updated(changed: Map<string, unknown>) {
     super.updated(changed);
-    // Redessine l'overlay de lignes de reference apres chaque rendu (#341).
-    // Chart.js rend de maniere asynchrone → le draw poll en rAF jusqu'a ce que
-    // l'instance soit prete.
-    this._refreshReferenceOverlay();
+    // Redessine les overlays (lignes de reference #341, cibles #377) apres
+    // chaque rendu. Chart.js rend de maniere asynchrone → le draw poll en rAF
+    // jusqu'a ce que l'instance soit prete.
+    this._refreshChartOverlays();
   }
 
   // Light DOM pour les styles DSFR
@@ -318,6 +360,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     labels: string[];
     values: number[];
     values2: number[];
+    allSeries: number[][];
   } {
     const labels: string[] = [];
     const labelIndex = new Map<string, number>();
@@ -355,6 +398,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       labels,
       values,
       values2,
+      allSeries,
     };
   }
 
@@ -366,9 +410,10 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     labels: string[];
     values: number[];
     values2: number[];
+    allSeries: number[][];
   } {
     if (!this._data || this._data.length === 0) {
-      return { x: '[[]]', y: '[[]]', labels: [], values: [], values2: [] };
+      return { x: '[[]]', y: '[[]]', labels: [], values: [], values2: [], allSeries: [] };
     }
 
     // Tidy/long mode : a single series-key column drives the series dimension.
@@ -400,6 +445,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       labels,
       values,
       values2,
+      allSeries,
     };
   }
 
@@ -457,13 +503,66 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     return attrs;
   }
 
+  /** Cibles actives : attribut non vide, parse valide, type supporté. */
+  private _activeTargets(): ChartTarget[] {
+    if (!this.targets.trim() || !isTargetsChartType(this.type)) return [];
+    const { targets, error } = parseTargets(this.targets);
+    return error ? [] : targets;
+  }
+
+  /**
+   * Noms de séries à afficher, dans l'ordre des datasets : attribut `name`
+   * (JSON ou simple) prioritaire, sinon noms dérivés des données. Les datasets
+   * de `@gouvfr/dsfr-chart` n'exposent pas de `label`.
+   */
+  private _getDisplaySeriesNames(): string[] {
+    if (this.name) {
+      try {
+        const trimmed = this.name.trim();
+        const parsed: unknown = trimmed.startsWith('[') ? JSON.parse(trimmed) : [trimmed];
+        if (Array.isArray(parsed)) return parsed.map(String);
+      } catch {
+        /* repli sur les noms dérivés des données */
+      }
+    }
+    return this._getSeriesNames();
+  }
+
+  /** Index de dataset visé par une cible (nom de série ou index, défaut 0). */
+  private _targetSeriesIndex(target: ChartTarget): number {
+    if (typeof target.series === 'number') return target.series;
+    if (typeof target.series === 'string') {
+      let i = this._getDisplaySeriesNames().indexOf(target.series);
+      if (i < 0) i = this._getSeriesNames().indexOf(target.series);
+      return i >= 0 ? i : 0;
+    }
+    return 0;
+  }
+
   private _getTypeSpecificAttributes(): {
     attrs: Record<string, string>;
     deferred: Record<string, string>;
   } {
-    const { x, y, yMulti, labels, values, values2 } = this._processData();
+    const { x, y, yMulti, labels, values, allSeries } = this._processData();
     const attrs: Record<string, string> = {};
     const deferred: Record<string, string> = {};
+
+    // Extension de l'axe X pour les cibles au-delà des données (#377) : les
+    // échéances absentes sont ajoutées aux labels, chaque série est paddée
+    // avec null (Chart.js coupe la ligne ; c'est NOTRE segment pointillé qui
+    // rejoint le losange, pas de point parasite dans légende/tooltip natifs).
+    const activeTargets = this._activeTargets();
+    let paddedLabels: unknown[] = labels;
+    let paddedSeries: Array<Array<number | null>> = allSeries;
+    if (activeTargets.length && this._data.length > 0) {
+      const padded = padSeriesForTargets(
+        labels,
+        allSeries,
+        activeTargets.map((t) => t.x)
+      );
+      paddedLabels = padded.labels;
+      paddedSeries = padded.series;
+    }
 
     switch (this.type) {
       case 'gauge': {
@@ -487,9 +586,11 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       case 'bar-line': {
         // DSFR BarLineChart expects flat arrays (not double-wrapped [[values]])
         // unlike BarChart which uses xparse[0] to unwrap.
-        attrs['x'] = JSON.stringify(labels);
-        attrs['y-bar'] = JSON.stringify(values);
-        attrs['y-line'] = JSON.stringify(values2.length ? values2 : values);
+        attrs['x'] = JSON.stringify(paddedLabels);
+        attrs['y-bar'] = JSON.stringify(paddedSeries[0] ?? values);
+        attrs['y-line'] = JSON.stringify(
+          paddedSeries.length > 1 ? paddedSeries[1] : (paddedSeries[0] ?? values)
+        );
         // BarLineChart uses name-bar/name-line (not name)
         if (this.name) {
           try {
@@ -536,10 +637,64 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
         break;
       }
       default:
-        attrs['x'] = x;
-        // For bar/line/radar with a second séries, combine both into y
-        attrs['y'] = yMulti || y;
+        if (activeTargets.length && this._data.length > 0) {
+          // Re-sérialise depuis les tableaux paddés (mêmes valeurs sinon)
+          attrs['x'] = JSON.stringify([paddedLabels]);
+          attrs['y'] =
+            paddedSeries.length > 1
+              ? JSON.stringify(paddedSeries)
+              : JSON.stringify([paddedSeries[0] ?? []]);
+        } else {
+          attrs['x'] = x;
+          // For bar/line/radar with a second séries, combine both into y
+          attrs['y'] = yMulti || y;
+        }
         break;
+    }
+
+    // Bornes Y élargies automatiquement pour que le losange de cible reste
+    // dans la zone traçable — seulement si l'utilisateur n'a pas fixé les
+    // siennes (#377). Le bar-line a deux axes séparés (y-bar-* / y-line-*).
+    if (activeTargets.length && this._data.length > 0) {
+      const setBound = (
+        attr: string,
+        kind: 'max' | 'min',
+        data: number[],
+        targetVals: number[]
+      ) => {
+        const finite = data.filter((v) => Number.isFinite(v));
+        if (!finite.length || !targetVals.length) return;
+        if (kind === 'max') {
+          const t = Math.max(...targetVals);
+          if (t > Math.max(...finite)) attrs[attr] = String(t);
+        } else {
+          const t = Math.min(...targetVals);
+          if (t < Math.min(...finite)) attrs[attr] = String(t);
+        }
+      };
+      if (this.type === 'bar-line') {
+        const barVals = allSeries[0] ?? [];
+        const lineVals = allSeries.length > 1 ? allSeries[1] : (allSeries[0] ?? []);
+        const barTargets = activeTargets
+          .filter((t) => this._targetSeriesIndex(t) === 0)
+          .map((t) => t.value);
+        const lineTargets = activeTargets
+          .filter((t) => this._targetSeriesIndex(t) !== 0)
+          .map((t) => t.value);
+        if (!this.yMax) {
+          setBound('y-bar-max', 'max', barVals, barTargets);
+          setBound('y-line-max', 'max', lineVals, lineTargets);
+        }
+        if (!this.yMin) {
+          setBound('y-bar-min', 'min', barVals, barTargets);
+          setBound('y-line-min', 'min', lineVals, lineTargets);
+        }
+      } else {
+        const dataValues = allSeries.flat();
+        const targetValues = activeTargets.map((t) => t.value);
+        if (!this.yMax) setBound('y-max', 'max', dataValues, targetValues);
+        if (!this.yMin) setBound('y-min', 'min', dataValues, targetValues);
+      }
     }
 
     if (this.type === 'bar') {
@@ -580,67 +735,100 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       const { lines } = parseReferenceLines(this.referenceLines);
       if (lines.length) label += `. ${referenceLinesAriaSummary(lines)}`;
     }
+    // Cibles relayées a l'aria-label (overlay SVG aria-hidden, #377)
+    if (this.targets && isTargetsChartType(this.type)) {
+      const { targets } = parseTargets(this.targets);
+      if (targets.length) label += `. ${targetsAriaSummary(targets)}`;
+    }
     return label;
   }
 
-  // --- Lignes de reference (overlay SVG, #341) -------------------------------
+  // --- Overlays SVG : lignes de reference (#341) + cibles (#377) --------------
+  // Pipeline UNIQUE (un seul rAF-poll / ResizeObserver / cleanup) : chaque
+  // famille valide est peinte independamment, les erreurs de config des deux
+  // familles sont jointes par « ; ».
 
-  /** Valide la config et (re)programme le dessin de l'overlay. */
-  private _refreshReferenceOverlay() {
-    if (this._refOverlayRaf !== null) {
-      cancelAnimationFrame(this._refOverlayRaf);
-      this._refOverlayRaf = null;
+  /** Valide les configs et (re)programme le dessin des overlays. */
+  private _refreshChartOverlays() {
+    if (this._overlayRaf !== null) {
+      cancelAnimationFrame(this._overlayRaf);
+      this._overlayRaf = null;
     }
 
-    if (!this.referenceLines.trim()) {
-      this._cleanupReferenceOverlay();
+    const hasRefLines = !!this.referenceLines.trim();
+    const hasTargets = !!this.targets.trim();
+    if (!hasRefLines && !hasTargets) {
+      this._cleanupChartOverlays();
       clearConfigError(this);
       return;
     }
 
-    const { lines, error } = parseReferenceLines(this.referenceLines);
-    if (error) {
-      reportConfigError(this, 'dsfr-data-chart', error);
-      this._removeReferenceOverlay();
-      return;
-    }
-    if (!isCartesianChartType(this.type)) {
-      reportConfigError(
-        this,
-        'dsfr-data-chart',
-        `reference-lines : type "${this.type}" non supporté (cartésiens uniquement : line, bar, bar-line, scatter)`
-      );
-      this._removeReferenceOverlay();
-      return;
+    const errors: string[] = [];
+    let lines: ReferenceLine[] = [];
+    if (hasRefLines) {
+      const parsed = parseReferenceLines(this.referenceLines);
+      if (parsed.error) {
+        errors.push(parsed.error);
+      } else if (!isCartesianChartType(this.type)) {
+        errors.push(
+          `reference-lines : type "${this.type}" non supporté (cartésiens uniquement : line, bar, bar-line, scatter)`
+        );
+      } else {
+        lines = parsed.lines;
+      }
     }
 
-    clearConfigError(this);
-    this._scheduleReferenceDraw(lines, 120);
+    let targets: ChartTarget[] = [];
+    if (hasTargets) {
+      const parsed = parseTargets(this.targets);
+      if (parsed.error) {
+        errors.push(parsed.error);
+      } else if (!isTargetsChartType(this.type)) {
+        errors.push(`targets : type "${this.type}" non supporté (line et bar-line uniquement)`);
+      } else {
+        targets = parsed.targets;
+      }
+    }
+
+    if (errors.length) {
+      reportConfigError(this, 'dsfr-data-chart', errors.join(' ; '));
+    } else {
+      clearConfigError(this);
+    }
+
+    if (!lines.length && !targets.length) {
+      this._removeChartOverlays();
+      return;
+    }
+    this._scheduleOverlayDraw({ lines, targets }, 120);
   }
 
   /** Poll rAF jusqu'a ce que l'instance Chart.js soit prete (chartArea > 0). */
-  private _scheduleReferenceDraw(lines: ReferenceLine[], framesLeft: number) {
+  private _scheduleOverlayDraw(
+    overlays: { lines: ReferenceLine[]; targets: ChartTarget[] },
+    framesLeft: number
+  ) {
     if (typeof requestAnimationFrame === 'undefined') return;
-    this._refOverlayRaf = requestAnimationFrame(() => {
-      this._refOverlayRaf = null;
+    this._overlayRaf = requestAnimationFrame(() => {
+      this._overlayRaf = null;
       if (!this.isConnected) return;
-      if (this._paintReferenceOverlay(lines)) {
-        this._observeReferenceResize(lines);
+      if (this._paintChartOverlays(overlays)) {
+        this._observeOverlayResize(overlays);
         return;
       }
       if (framesLeft > 0) {
-        this._scheduleReferenceDraw(lines, framesLeft - 1);
-      } else if (!this._refOverlayWarned) {
-        this._refOverlayWarned = true;
+        this._scheduleOverlayDraw(overlays, framesLeft - 1);
+      } else if (!this._overlayWarned) {
+        this._overlayWarned = true;
         console.warn(
-          `dsfr-data-chart[${this.id}]: instance Chart.js introuvable, lignes de référence non dessinées`
+          `dsfr-data-chart[${this.id}]: instance Chart.js introuvable, overlays (repères / cibles) non dessinés`
         );
       }
     });
   }
 
   /** Localise le chart rendu + son canvas + le conteneur positionne. */
-  private _resolveOverlayTargets(): {
+  private _resolveOverlayHosts(): {
     container: HTMLElement;
     canvas: HTMLCanvasElement;
     chartEl: HTMLElement;
@@ -656,63 +844,173 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     return { container, canvas, chartEl };
   }
 
-  /** Dessine l'overlay. Retourne false si l'instance Chart.js n'est pas prete. */
-  private _paintReferenceOverlay(lines: ReferenceLine[]): boolean {
-    const targets = this._resolveOverlayTargets();
-    if (!targets) return false;
-    const { container, canvas, chartEl } = targets;
+  /** Dessine les overlays. Retourne false si l'instance Chart.js n'est pas prete. */
+  private _paintChartOverlays(overlays: {
+    lines: ReferenceLine[];
+    targets: ChartTarget[];
+  }): boolean {
+    const hosts = this._resolveOverlayHosts();
+    if (!hosts) return false;
+    const { container, canvas, chartEl } = hosts;
     const chart = resolveChartInstance(chartEl, canvas);
     if (!chart || !chart.chartArea || chart.chartArea.width <= 0) return false;
 
-    const geometries = computeReferenceGeometries(chart, lines);
-    this._removeReferenceOverlay();
+    this._removeChartOverlays();
 
     const w = canvas.clientWidth || canvas.width || 0;
     const h = canvas.clientHeight || canvas.height || 0;
-    const svg = buildReferenceOverlaySvg(geometries, w, h);
 
-    // Aligner l'overlay sur le canvas dans le conteneur positionne
+    // Aligner chaque overlay sur le canvas dans le conteneur positionne
     const cRect = canvas.getBoundingClientRect();
     const wRect = container.getBoundingClientRect();
-    svg.style.left = `${Math.round(cRect.left - wRect.left)}px`;
-    svg.style.top = `${Math.round(cRect.top - wRect.top)}px`;
     if (getComputedStyle(container).position === 'static') {
       container.style.position = 'relative';
     }
-    container.appendChild(svg);
+    const place = (svg: SVGSVGElement) => {
+      svg.style.left = `${Math.round(cRect.left - wRect.left)}px`;
+      svg.style.top = `${Math.round(cRect.top - wRect.top)}px`;
+      container.appendChild(svg);
+    };
+
+    if (overlays.lines.length) {
+      place(buildReferenceOverlaySvg(computeReferenceGeometries(chart, overlays.lines), w, h));
+    }
+    if (overlays.targets.length) {
+      const layout = computeTargetGeometries(
+        chart as ChartWithDatasetsLike,
+        overlays.targets,
+        this._getDisplaySeriesNames()
+      );
+      const svg = buildTargetsOverlaySvg(layout, w, h, { zone: this.targetsZone !== 'off' });
+      place(svg);
+      this._bindTargetMarkerEvents(svg, layout);
+      this._renderTargetsLegend(layout);
+    }
     return true;
   }
 
-  /** Observe le resize du canvas pour recalculer l'overlay (debounce rAF). */
-  private _observeReferenceResize(lines: ReferenceLine[]) {
+  /** Observe le resize du canvas pour recalculer les overlays (debounce rAF). */
+  private _observeOverlayResize(overlays: { lines: ReferenceLine[]; targets: ChartTarget[] }) {
     if (typeof ResizeObserver === 'undefined') return;
-    const targets = this._resolveOverlayTargets();
-    if (!targets) return;
-    this._refOverlayResize?.disconnect();
+    const hosts = this._resolveOverlayHosts();
+    if (!hosts) return;
+    this._overlayResize?.disconnect();
     let pending = false;
-    this._refOverlayResize = new ResizeObserver(() => {
+    this._overlayResize = new ResizeObserver(() => {
       if (pending) return;
       pending = true;
       requestAnimationFrame(() => {
         pending = false;
-        if (this.isConnected) this._paintReferenceOverlay(lines);
+        if (this.isConnected) this._paintChartOverlays(overlays);
       });
     });
-    this._refOverlayResize.observe(targets.canvas);
+    this._overlayResize.observe(hosts.canvas);
   }
 
-  private _removeReferenceOverlay() {
+  private _removeChartOverlays() {
     this.querySelector('.dsfr-data-chart__reflines')?.remove();
+    this.querySelector('.dsfr-data-chart__targets')?.remove();
+    this.querySelector('.dsfr-data-chart__targets-legend')?.remove();
+    this._hideTargetTooltip();
   }
 
-  private _cleanupReferenceOverlay() {
-    if (this._refOverlayRaf !== null) {
-      cancelAnimationFrame(this._refOverlayRaf);
-      this._refOverlayRaf = null;
+  private _cleanupChartOverlays() {
+    if (this._overlayRaf !== null) {
+      cancelAnimationFrame(this._overlayRaf);
+      this._overlayRaf = null;
     }
-    this._refOverlayResize?.disconnect();
-    this._refOverlayResize = null;
-    this._removeReferenceOverlay();
+    this._overlayResize?.disconnect();
+    this._overlayResize = null;
+    this._removeChartOverlays();
+  }
+
+  // --- Cibles : interactivite (tooltip groupe par echeance, legende, #377) ----
+
+  /** Branche le tooltip sur les losanges (seuls elements pointer-events:auto). */
+  private _bindTargetMarkerEvents(svg: SVGSVGElement, layout: TargetsLayout) {
+    const polygons = svg.querySelectorAll<SVGPolygonElement>('.dsfr-data-chart__target-marker');
+    // buildTargetsOverlaySvg appose un polygon par marker, dans l'ordre du layout
+    polygons.forEach((polygon, i) => {
+      const marker = layout.markers[i];
+      if (!marker) return;
+      polygon.addEventListener('mouseenter', () => this._showTargetTooltip(marker, layout));
+      polygon.addEventListener('mouseleave', () => this._hideTargetTooltip());
+    });
+  }
+
+  /** Unite du tooltip selon la serie : bar-line → index 0 = barres. */
+  private _targetUnitForSeries(seriesIndex: number): string {
+    if (this.type === 'bar-line') {
+      return seriesIndex === 0 ? this.unitTooltipBar : this.unitTooltip;
+    }
+    return this.unitTooltip;
+  }
+
+  /**
+   * Affiche le tooltip DSFR d'une echeance : toutes les cibles de meme `x`,
+   * une ligne par serie. Positionne a droite du losange, bascule a gauche si
+   * depassement, clampe dans le conteneur.
+   */
+  private _showTargetTooltip(marker: TargetMarkerGeometry, layout: TargetsLayout) {
+    this._hideTargetTooltip();
+    const hosts = this._resolveOverlayHosts();
+    if (!hosts) return;
+    const { container } = hosts;
+
+    const key = String(marker.targetX);
+    const group = layout.markers.filter((m) => String(m.targetX) === key);
+    if (!group.length) return;
+
+    const distinctLabels = [...new Set(group.map((m) => m.label).filter(Boolean))];
+    const title = distinctLabels.length === 1 ? (distinctLabels[0] as string) : `Cible ${key}`;
+    const lines = group.map((m) => ({
+      color: m.color,
+      name: m.seriesName,
+      value: formatTargetValue(m.value, this._targetUnitForSeries(m.seriesIndex)),
+    }));
+
+    const tooltip = buildTargetTooltip(title, lines);
+    container.appendChild(tooltip);
+    this._targetTooltipEl = tooltip;
+
+    // Ancre = losange survole, dans le repere du conteneur (offset du SVG)
+    const svg = this.querySelector('.dsfr-data-chart__targets') as SVGSVGElement | null;
+    const svgLeft = svg ? parseFloat(svg.style.left) || 0 : 0;
+    const svgTop = svg ? parseFloat(svg.style.top) || 0 : 0;
+    const anchorX = svgLeft + marker.x;
+    const anchorY = svgTop + marker.y;
+
+    const tw = tooltip.offsetWidth;
+    const th = tooltip.offsetHeight;
+    const cw = container.clientWidth;
+    const ch = container.clientHeight;
+    let left = anchorX + 14;
+    if (left + tw > cw) left = anchorX - tw - 14;
+    left = Math.max(0, Math.min(left, Math.max(0, cw - tw)));
+    let top = anchorY - th / 2;
+    top = Math.max(0, Math.min(top, Math.max(0, ch - th)));
+    tooltip.style.left = `${Math.round(left)}px`;
+    tooltip.style.top = `${Math.round(top)}px`;
+  }
+
+  private _hideTargetTooltip() {
+    this._targetTooltipEl?.remove();
+    this._targetTooltipEl = null;
+  }
+
+  /**
+   * (Re)construit la legende realise/projete sous le graphe. Reconstruite a
+   * chaque paint : survit au watcher Vue `$props` deep qui reconstruit le chart.
+   */
+  private _renderTargetsLegend(layout: TargetsLayout) {
+    this.querySelector('.dsfr-data-chart__targets-legend')?.remove();
+    if (!layout.markers.length) return;
+    const { show, labels } = parseTargetsLegend(this.targetsLegend);
+    if (!show) return;
+    const wrapper = (this.querySelector('.dsfr-data-chart__wrapper') ||
+      this.querySelector('.dsfr-data-chart__databox-wrapper')) as HTMLElement | null;
+    if (!wrapper) return;
+    wrapper.appendChild(buildTargetsLegend(labels));
   }
 
   private _createRawChartElement(
