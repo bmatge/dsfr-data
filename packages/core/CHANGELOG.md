@@ -1,5 +1,37 @@
 # dsfr-data
 
+## 0.11.0
+
+### Minor Changes
+
+- [#389](https://github.com/bmatge/dsfr-data/pull/389) [`726d660`](https://github.com/bmatge/dsfr-data/commit/726d660bff0990cff5616f76faf96cf39fed0f8f) Thanks [@bmatge](https://github.com/bmatge)! - `dsfr-data-chart` : cibles / objectifs futurs sur les courbes (`targets`, [#377](https://github.com/bmatge/dsfr-data/issues/377)).
+  Trois nouveaux attributs pour les types `line` et `bar-line` : `targets` (JSON —
+  échéance, valeur, série, libellé, couleur), `targets-zone` (bande future grisée +
+  frontière réalisé/projeté, `"off"` pour désactiver) et `targets-legend` (légende
+  « Données historiques / Trajectoire, cible extrapolée », masquable ou
+  personnalisable). L'axe X est étendu automatiquement quand l'échéance dépasse
+  les données (séries paddées à `null` : trait plein jusqu'au dernier point réel,
+  trajectoire pointillée vers un losange à l'échéance), les bornes Y s'élargissent
+  si nécessaire, un tooltip DSFR groupé par échéance s'affiche au survol des
+  losanges et les cibles sont annoncées dans l'aria-label. Le pipeline d'overlay
+  de `reference-lines` ([#341](https://github.com/bmatge/dsfr-data/issues/341)) est généralisé (un seul rAF/ResizeObserver/cleanup
+  pour les deux familles) sans modifier `chart-reference-lines.ts`.
+
+### Patch Changes
+
+- [#383](https://github.com/bmatge/dsfr-data/pull/383) [`34efcd1`](https://github.com/bmatge/dsfr-data/commit/34efcd10c6bed9cb8443c21bb70f13b2ae83245c) Thanks [@bmatge](https://github.com/bmatge)! - Sécurité (CodeQL) : corrige une regex à backtracking polynomial (ReDoS) dans la
+  détection des permaliens Tabular — le préfixe libre `[^?#]*` est remplacé par un
+  préfixe de locale optionnel `(?:[a-z]{2}/)?`. Au passage, les permaliens
+  data.gouv.fr modernes sans locale (`data.gouv.fr/datasets/r/{uuid}`) sont
+  désormais reconnus.
+
+- [#388](https://github.com/bmatge/dsfr-data/pull/388) [`7117f32`](https://github.com/bmatge/dsfr-data/commit/7117f32e81b132d676592ade29e8369f4485af03) Thanks [@bmatge](https://github.com/bmatge)! - `dsfr-data-kpi` : nouvel attribut canonique `color-token` (token sémantique DSFR
+  `vert|orange|rouge|bleu`), remplaçant `color` dont le nom évoquait l'attribut de
+  présentation HTML déprécié (faux positif d'audit RGAA 10.1.2). `color` reste
+  supporté comme alias déprécié (warning console, retrait prévu à la prochaine
+  version majeure) ; `color-token` prime quand les deux sont présents. Doc,
+  exemples et skill builder-IA migrés ([#367](https://github.com/bmatge/dsfr-data/issues/367)).
+
 ## 0.10.0
 
 ### Minor Changes
