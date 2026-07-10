@@ -697,10 +697,7 @@ function renderLayerConfig() {
 function bindLayerInputs(layer: LayerConfig) {
   const bind = (id: string, key: keyof LayerConfig, transform?: (v: string) => unknown) => {
     const el = document.getElementById(id) as
-      | HTMLInputElement
-      | HTMLSelectElement
-      | HTMLTextAreaElement
-      | null;
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null;
     if (!el) return;
     const eventType = el.tagName === 'TEXTAREA' ? 'input' : 'change';
     el.addEventListener(eventType, () => {

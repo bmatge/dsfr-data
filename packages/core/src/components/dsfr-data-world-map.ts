@@ -359,19 +359,21 @@ export class DsfrDataWorldMap extends SourceSubscriberMixin(LitElement) {
 
     return html`
       <div class="dsfr-data-world-map__container" style="position: relative;">
-        ${this._zoomedContinent
-          ? html`
-              <button
-                class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline"
-                style="position: absolute; top: 8px; left: 8px; z-index: 2;"
-                @click=${this._onBackClick}
-                aria-label="Revenir a la vue monde"
-              >
-                <span class="fr-icon-arrow-left-line" aria-hidden="true"></span>
-                ${CONTINENT_LABELS[this._zoomedContinent] || this._zoomedContinent}
-              </button>
-            `
-          : nothing}
+        ${
+          this._zoomedContinent
+            ? html`
+                <button
+                  class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline"
+                  style="position: absolute; top: 8px; left: 8px; z-index: 2;"
+                  @click=${this._onBackClick}
+                  aria-label="Revenir a la vue monde"
+                >
+                  <span class="fr-icon-arrow-left-line" aria-hidden="true"></span>
+                  ${CONTINENT_LABELS[this._zoomedContinent] || this._zoomedContinent}
+                </button>
+              `
+            : nothing
+        }
 
         <svg
           viewBox="0 0 ${WIDTH} ${HEIGHT}"
@@ -381,8 +383,9 @@ export class DsfrDataWorldMap extends SourceSubscriberMixin(LitElement) {
           style="width: 100%; height: auto; display: block;"
         >
           <g class="dsfr-data-world-map__countries">${countryPaths}</g>
-          ${borderPath
-            ? svg`<path
+          ${
+            borderPath
+              ? svg`<path
             class="dsfr-data-world-map__borders"
             d=${borderPath}
             fill="none"
@@ -391,7 +394,8 @@ export class DsfrDataWorldMap extends SourceSubscriberMixin(LitElement) {
             stroke-linejoin="round"
             pointer-events="none"
           />`
-            : nothing}
+              : nothing
+          }
         </svg>
 
         ${this._renderTooltip(valueMap)} ${this._renderLegend(allValues, colorScale)}
@@ -443,9 +447,11 @@ export class DsfrDataWorldMap extends SourceSubscriberMixin(LitElement) {
         style="display: flex; align-items: center; gap: 4px;
         margin-top: 8px; font-size: 0.75rem; color: var(--text-mention-grey, #666);"
       >
-        ${this.name
-          ? html`<span style="margin-right: 4px; font-weight: 500;">${this.name}</span>`
-          : nothing}
+        ${
+          this.name
+            ? html`<span style="margin-right: 4px; font-weight: 500;">${this.name}</span>`
+            : nothing
+        }
         <span>${min.toLocaleString('fr-FR')}</span>
         <div style="display: flex; height: 12px; border-radius: 2px; overflow: hidden;">
           ${palette.map((c) => html`<div style="width: 20px; background: ${c};"></div>`)}

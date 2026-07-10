@@ -380,10 +380,12 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     const missingHint = fv.missing
       ? html`<span class="fr-hint-text">(indisponible)</span>`
       : nothing;
-    return html`${fv.value}${missingHint}${this._effectiveHideCounts || fv.missing
-      ? nothing
-      : html`<span class="dsfr-data-facets__count" aria-hidden="true">${fv.count}</span
-          ><span class="fr-sr-only">, ${fv.count} resultat${fv.count > 1 ? 's' : ''}</span>`}`;
+    return html`${fv.value}${missingHint}${
+      this._effectiveHideCounts || fv.missing
+        ? nothing
+        : html`<span class="dsfr-data-facets__count" aria-hidden="true">${fv.count}</span
+            ><span class="fr-sr-only">, ${fv.count} resultat${fv.count > 1 ? 's' : ''}</span>`
+    }`;
   }
 
   /** Barre de recherche des panels multiselect/radio — etait copiee 2x */
@@ -1373,36 +1375,40 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
       <div class="dsfr-data-facets">
         <div aria-live="polite" class="fr-sr-only">${this._liveAnnouncement}</div>
         ${facetsErrorBanner}
-        ${hasActiveFilters
-          ? html`
-              <div class="dsfr-data-facets__header">
-                <button
-                  class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm fr-btn--icon-left fr-icon-close-circle-line"
-                  type="button"
-                  @click="${this._clearAll}"
-                >
-                  Réinitialiser les filtres
-                </button>
-              </div>
-            `
-          : nothing}
-        ${useDsfrGrid
-          ? html`
-              <div class="fr-grid-row fr-grid-row--gutters">
-                ${this._facetGroups.map(
-                  (group) => html`
-                    <div class="${this._getColClass(group.field)}">
-                      ${this._renderFacetGroup(group)}
-                    </div>
-                  `
-                )}
-              </div>
-            `
-          : html`
-              <div class="dsfr-data-facets__groups">
-                ${this._facetGroups.map((group) => this._renderFacetGroup(group))}
-              </div>
-            `}
+        ${
+          hasActiveFilters
+            ? html`
+                <div class="dsfr-data-facets__header">
+                  <button
+                    class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm fr-btn--icon-left fr-icon-close-circle-line"
+                    type="button"
+                    @click="${this._clearAll}"
+                  >
+                    Réinitialiser les filtres
+                  </button>
+                </div>
+              `
+            : nothing
+        }
+        ${
+          useDsfrGrid
+            ? html`
+                <div class="fr-grid-row fr-grid-row--gutters">
+                  ${this._facetGroups.map(
+                    (group) => html`
+                      <div class="${this._getColClass(group.field)}">
+                        ${this._renderFacetGroup(group)}
+                      </div>
+                    `
+                  )}
+                </div>
+              `
+            : html`
+                <div class="dsfr-data-facets__groups">
+                  ${this._facetGroups.map((group) => this._renderFacetGroup(group))}
+                </div>
+              `
+        }
       </div>
     `;
   }
@@ -1439,40 +1445,46 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     return html`
       <fieldset class="fr-fieldset dsfr-data-facets__group" aria-labelledby="${uid}-legend">
         <legend class="fr-fieldset__legend fr-text--bold" id="${uid}-legend">${group.label}</legend>
-        ${isSearchable
-          ? html`
-              <div class="fr-fieldset__element">
-                <div class="fr-input-group">
-                  <input
-                    class="fr-input fr-input--sm"
-                    type="search"
-                    placeholder="Rechercher..."
-                    .value="${this._searchQueries[group.field] ?? ''}"
-                    @input="${(e: Event) => this._handleSearch(group.field, e)}"
-                    aria-label="Rechercher dans ${group.label}"
-                  />
+        ${
+          isSearchable
+            ? html`
+                <div class="fr-fieldset__element">
+                  <div class="fr-input-group">
+                    <input
+                      class="fr-input fr-input--sm"
+                      type="search"
+                      placeholder="Rechercher..."
+                      .value="${this._searchQueries[group.field] ?? ''}"
+                      @input="${(e: Event) => this._handleSearch(group.field, e)}"
+                      aria-label="Rechercher dans ${group.label}"
+                    />
+                  </div>
                 </div>
-              </div>
-            `
-          : nothing}
+              `
+            : nothing
+        }
         ${visibleValues.map((fv, fvIndex) =>
           this._renderToggleItem(group, fv, `${uid}-${fvIndex}`, 'checkbox')
         )}
-        ${hasMore
-          ? html`
-              <div class="fr-fieldset__element">
-                <button
-                  class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm"
-                  type="button"
-                  @click="${() => this._toggleExpand(group.field)}"
-                >
-                  ${isExpanded
-                    ? 'Voir moins'
-                    : `Voir plus (${displayValues.length - this.maxValues})`}
-                </button>
-              </div>
-            `
-          : nothing}
+        ${
+          hasMore
+            ? html`
+                <div class="fr-fieldset__element">
+                  <button
+                    class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm"
+                    type="button"
+                    @click="${() => this._toggleExpand(group.field)}"
+                  >
+                    ${
+                      isExpanded
+                        ? 'Voir moins'
+                        : `Voir plus (${displayValues.length - this.maxValues})`
+                    }
+                  </button>
+                </div>
+              `
+            : nothing
+        }
       </fieldset>
     `;
   }
@@ -1494,9 +1506,11 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
           ${group.values.map(
             (fv) => html`
               <option value="${fv.value}" ?selected="${fv.value === selectedValue}">
-                ${this._effectiveHideCounts || fv.missing
-                  ? `${fv.value}${fv.missing ? ' (indisponible)' : ''}`
-                  : `${fv.value} (${fv.count})`}
+                ${
+                  this._effectiveHideCounts || fv.missing
+                    ? `${fv.value}${fv.missing ? ' (indisponible)' : ''}`
+                    : `${fv.value} (${fv.count})`
+                }
               </option>
             `
           )}
@@ -1533,9 +1547,11 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
         @focusout="${(e: FocusEvent) => this._handleMultiselectFocusout(group.field, e)}"
       >
         <label class="fr-label" id="${uid}-legend">${group.label}</label>
-        ${selectedDesc
-          ? html`<span class="fr-sr-only" id="${uid}-desc">${selectedDesc}</span>`
-          : nothing}
+        ${
+          selectedDesc
+            ? html`<span class="fr-sr-only" id="${uid}-desc">${selectedDesc}</span>`
+            : nothing
+        }
         <button
           class="fr-select dsfr-data-facets__multiselect-trigger"
           type="button"
@@ -1551,43 +1567,47 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
         >
           ${triggerLabel}
         </button>
-        ${isOpen
-          ? html`
-              <div
-                class="dsfr-data-facets__multiselect-panel"
-                id="${uid}-panel"
-                role="dialog"
-                aria-modal="true"
-                aria-label="${group.label}"
-                @click="${(e: Event) => e.stopPropagation()}"
-              >
-                <button
-                  class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-left ${selected.size > 0
-                    ? 'fr-icon-close-circle-line'
-                    : 'fr-icon-check-line'} dsfr-data-facets__multiselect-toggle"
-                  type="button"
-                  aria-label="${selected.size > 0
-                    ? `Tout deselectionner pour ${group.label}`
-                    : `Tout sélectionner pour ${group.label}`}"
-                  @click="${() =>
-                    selected.size > 0
-                      ? this._clearFieldSelections(group.field)
-                      : this._selectAllValues(group.field)}"
-                >
-                  ${selected.size > 0 ? 'Tout deselectionner' : 'Tout sélectionner'}
-                </button>
-                ${this._renderPanelSearchBar(group, uid)}
-                <fieldset
-                  class="fr-fieldset dsfr-data-facets__dropdown-fieldset"
+        ${
+          isOpen
+            ? html`
+                <div
+                  class="dsfr-data-facets__multiselect-panel"
+                  id="${uid}-panel"
+                  role="dialog"
+                  aria-modal="true"
                   aria-label="${group.label}"
+                  @click="${(e: Event) => e.stopPropagation()}"
                 >
-                  ${displayValues.map((fv, fvIndex) =>
-                    this._renderToggleItem(group, fv, `${uid}-${fvIndex}`, 'checkbox')
-                  )}
-                </fieldset>
-              </div>
-            `
-          : nothing}
+                  <button
+                    class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-left ${
+                      selected.size > 0 ? 'fr-icon-close-circle-line' : 'fr-icon-check-line'
+                    } dsfr-data-facets__multiselect-toggle"
+                    type="button"
+                    aria-label="${
+                      selected.size > 0
+                        ? `Tout deselectionner pour ${group.label}`
+                        : `Tout sélectionner pour ${group.label}`
+                    }"
+                    @click="${() =>
+                      selected.size > 0
+                        ? this._clearFieldSelections(group.field)
+                        : this._selectAllValues(group.field)}"
+                  >
+                    ${selected.size > 0 ? 'Tout deselectionner' : 'Tout sélectionner'}
+                  </button>
+                  ${this._renderPanelSearchBar(group, uid)}
+                  <fieldset
+                    class="fr-fieldset dsfr-data-facets__dropdown-fieldset"
+                    aria-label="${group.label}"
+                  >
+                    ${displayValues.map((fv, fvIndex) =>
+                      this._renderToggleItem(group, fv, `${uid}-${fvIndex}`, 'checkbox')
+                    )}
+                  </fieldset>
+                </div>
+              `
+            : nothing
+        }
       </div>
     `;
   }
@@ -1629,40 +1649,50 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
         >
           ${triggerLabel}
         </button>
-        ${isOpen
-          ? html`
-              <div
-                class="dsfr-data-facets__multiselect-panel"
-                id="${uid}-panel"
-                role="dialog"
-                aria-modal="true"
-                aria-label="${group.label}"
-                @click="${(e: Event) => e.stopPropagation()}"
-              >
-                ${selectedValue
-                  ? html`
-                      <button
-                        class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-left fr-icon-close-circle-line dsfr-data-facets__multiselect-toggle"
-                        type="button"
-                        aria-label="Réinitialiser ${group.label}"
-                        @click="${() => this._clearFieldSelections(group.field)}"
-                      >
-                        Réinitialiser
-                      </button>
-                    `
-                  : nothing}
-                ${this._renderPanelSearchBar(group, uid)}
-                <fieldset
-                  class="fr-fieldset dsfr-data-facets__dropdown-fieldset"
+        ${
+          isOpen
+            ? html`
+                <div
+                  class="dsfr-data-facets__multiselect-panel"
+                  id="${uid}-panel"
+                  role="dialog"
+                  aria-modal="true"
                   aria-label="${group.label}"
+                  @click="${(e: Event) => e.stopPropagation()}"
                 >
-                  ${displayValues.map((fv, fvIndex) =>
-                    this._renderToggleItem(group, fv, `${uid}-${fvIndex}`, 'radio', `${uid}-radio`)
-                  )}
-                </fieldset>
-              </div>
-            `
-          : nothing}
+                  ${
+                    selectedValue
+                      ? html`
+                          <button
+                            class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-left fr-icon-close-circle-line dsfr-data-facets__multiselect-toggle"
+                            type="button"
+                            aria-label="Réinitialiser ${group.label}"
+                            @click="${() => this._clearFieldSelections(group.field)}"
+                          >
+                            Réinitialiser
+                          </button>
+                        `
+                      : nothing
+                  }
+                  ${this._renderPanelSearchBar(group, uid)}
+                  <fieldset
+                    class="fr-fieldset dsfr-data-facets__dropdown-fieldset"
+                    aria-label="${group.label}"
+                  >
+                    ${displayValues.map((fv, fvIndex) =>
+                      this._renderToggleItem(
+                        group,
+                        fv,
+                        `${uid}-${fvIndex}`,
+                        'radio',
+                        `${uid}-radio`
+                      )
+                    )}
+                  </fieldset>
+                </div>
+              `
+            : nothing
+        }
       </div>
     `;
   }

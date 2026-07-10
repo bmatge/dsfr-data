@@ -188,9 +188,11 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
                 <div class="dsfr-data-podium__header">
                   <div class="dsfr-data-podium__label-group">
                     <span class="dsfr-data-podium__label">${item.label}</span>
-                    ${item.subtitle
-                      ? html`<span class="dsfr-data-podium__subtitle">${item.subtitle}</span>`
-                      : ''}
+                    ${
+                      item.subtitle
+                        ? html`<span class="dsfr-data-podium__subtitle">${item.subtitle}</span>`
+                        : ''
+                    }
                   </div>
                   <span class="dsfr-data-podium__value">${this._formatValue(item.value)}</span>
                 </div>

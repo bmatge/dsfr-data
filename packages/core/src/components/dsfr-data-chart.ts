@@ -17,15 +17,7 @@ import {
 import { escapeHtml, toNumber, isValidDeptCode } from '@dsfr-data/shared/lib';
 
 type DSFRChartType =
-  | 'line'
-  | 'bar'
-  | 'pie'
-  | 'radar'
-  | 'gauge'
-  | 'scatter'
-  | 'bar-line'
-  | 'map'
-  | 'map-reg';
+  'line' | 'bar' | 'pie' | 'radar' | 'gauge' | 'scatter' | 'bar-line' | 'map' | 'map-reg';
 
 let databoxAutoId = 0;
 

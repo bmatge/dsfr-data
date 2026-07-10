@@ -224,8 +224,7 @@ export async function saveFavorite(): Promise<void> {
  */
 export function switchTab(tabId: string): void {
   const previewPanel = document.querySelector('app-preview-panel') as
-    | (Element & { setActiveTab?: (id: string) => void })
-    | null;
+    (Element & { setActiveTab?: (id: string) => void }) | null;
   if (previewPanel?.setActiveTab) {
     previewPanel.setActiveTab(tabId);
   }

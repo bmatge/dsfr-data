@@ -327,50 +327,62 @@ export class SavedSourceControlElement extends LitElement {
       <div
         style="margin-top:4px;padding:4px 6px;background:#f5f5f5;border-radius:3px;font-size:0.7rem"
       >
-        ${this._gristError
-          ? html`<div style="color:#ce0500;margin-bottom:4px">${this._gristError}</div>`
-          : nothing}
-        ${this._gristLoading
-          ? html`<div style="color:#666;margin-bottom:4px">${this._gristLoading}</div>`
-          : nothing}
-        ${this._gristDocs.length > 0
-          ? html`
-              <label class="attr-label" style="font-size:0.7rem">Document</label>
-              <select
-                class="attr-input"
-                style="font-size:0.7rem;margin-bottom:4px"
-                .value=${this._selectedDoc}
-                @change=${this._onDocSelect}
-                @pointerdown=${this._stop}
-              >
-                <option value="">-- Choisir un document --</option>
-                ${this._gristDocs.map(
-                  (d) => html`
-                    <option value=${d.id} ?selected=${this._selectedDoc === d.id}>${d.name}</option>
-                  `
-                )}
-              </select>
-            `
-          : nothing}
-        ${this._gristTables.length > 0
-          ? html`
-              <label class="attr-label" style="font-size:0.7rem">Table</label>
-              <select
-                class="attr-input"
-                style="font-size:0.7rem"
-                .value=${this._selectedTable}
-                @change=${this._onTableSelect}
-                @pointerdown=${this._stop}
-              >
-                <option value="">-- Choisir une table --</option>
-                ${this._gristTables.map(
-                  (t) => html`
-                    <option value=${t.id} ?selected=${this._selectedTable === t.id}>${t.id}</option>
-                  `
-                )}
-              </select>
-            `
-          : nothing}
+        ${
+          this._gristError
+            ? html`<div style="color:#ce0500;margin-bottom:4px">${this._gristError}</div>`
+            : nothing
+        }
+        ${
+          this._gristLoading
+            ? html`<div style="color:#666;margin-bottom:4px">${this._gristLoading}</div>`
+            : nothing
+        }
+        ${
+          this._gristDocs.length > 0
+            ? html`
+                <label class="attr-label" style="font-size:0.7rem">Document</label>
+                <select
+                  class="attr-input"
+                  style="font-size:0.7rem;margin-bottom:4px"
+                  .value=${this._selectedDoc}
+                  @change=${this._onDocSelect}
+                  @pointerdown=${this._stop}
+                >
+                  <option value="">-- Choisir un document --</option>
+                  ${this._gristDocs.map(
+                    (d) => html`
+                      <option value=${d.id} ?selected=${this._selectedDoc === d.id}>
+                        ${d.name}
+                      </option>
+                    `
+                  )}
+                </select>
+              `
+            : nothing
+        }
+        ${
+          this._gristTables.length > 0
+            ? html`
+                <label class="attr-label" style="font-size:0.7rem">Table</label>
+                <select
+                  class="attr-input"
+                  style="font-size:0.7rem"
+                  .value=${this._selectedTable}
+                  @change=${this._onTableSelect}
+                  @pointerdown=${this._stop}
+                >
+                  <option value="">-- Choisir une table --</option>
+                  ${this._gristTables.map(
+                    (t) => html`
+                      <option value=${t.id} ?selected=${this._selectedTable === t.id}>
+                        ${t.id}
+                      </option>
+                    `
+                  )}
+                </select>
+              `
+            : nothing
+        }
       </div>
     `;
   }
@@ -403,47 +415,53 @@ export class SavedSourceControlElement extends LitElement {
           @pointerdown=${this._stop}
         >
           <option value="">-- Configuration manuelle --</option>
-          ${this._sources.length > 0
-            ? html`
-                <optgroup label="Sources enregistrees">
-                  ${this._sources.map(
-                    (s) => html`
-                      <option value=${s.id} ?selected=${this.ctrl.value === s.id}>
-                        ${s.name} (${s.provider || s.type})
-                      </option>
-                    `
-                  )}
-                </optgroup>
-              `
-            : nothing}
-          ${hasConnections
-            ? html`
-                <optgroup label="Connexions">
-                  ${this._connections.map(
-                    (c) => html`
-                      <option
-                        value=${'conn:' + c.id}
-                        ?selected=${this.ctrl.value === 'conn:' + c.id}
-                      >
-                        ${c.name} (${c.type === 'grist' ? 'Grist' : 'API'})
-                      </option>
-                    `
-                  )}
-                </optgroup>
-              `
-            : nothing}
+          ${
+            this._sources.length > 0
+              ? html`
+                  <optgroup label="Sources enregistrees">
+                    ${this._sources.map(
+                      (s) => html`
+                        <option value=${s.id} ?selected=${this.ctrl.value === s.id}>
+                          ${s.name} (${s.provider || s.type})
+                        </option>
+                      `
+                    )}
+                  </optgroup>
+                `
+              : nothing
+          }
+          ${
+            hasConnections
+              ? html`
+                  <optgroup label="Connexions">
+                    ${this._connections.map(
+                      (c) => html`
+                        <option
+                          value=${'conn:' + c.id}
+                          ?selected=${this.ctrl.value === 'conn:' + c.id}
+                        >
+                          ${c.name} (${c.type === 'grist' ? 'Grist' : 'API'})
+                        </option>
+                      `
+                    )}
+                  </optgroup>
+                `
+              : nothing
+          }
         </select>
       </div>
-      ${this.ctrl.value
-        ? html`
-            <div
-              style="font-size:0.7rem;color:#000091;margin:2px 0 4px;padding:2px 6px;background:#f0f0ff;border-radius:3px"
-            >
-              ${this.ctrl.value.startsWith('conn:') ? 'Connexion' : 'Source'} :
-              ${this._getSelectedLabel()}
-            </div>
-          `
-        : nothing}
+      ${
+        this.ctrl.value
+          ? html`
+              <div
+                style="font-size:0.7rem;color:#000091;margin:2px 0 4px;padding:2px 6px;background:#f0f0ff;border-radius:3px"
+              >
+                ${this.ctrl.value.startsWith('conn:') ? 'Connexion' : 'Source'} :
+                ${this._getSelectedLabel()}
+              </div>
+            `
+          : nothing
+      }
       ${this._renderGristExplorer()}
     `;
   }

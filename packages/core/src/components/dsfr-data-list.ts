@@ -503,50 +503,56 @@ ${bodyRows}
 
     return html`
       <div class="dsfr-data-list__toolbar">
-        ${recherche
-          ? html`
-              <div class="fr-search-bar" role="search">
-                <label class="fr-label fr-sr-only" for="${this._uid}-search">Rechercher</label>
-                <input
-                  class="fr-input"
-                  type="search"
-                  id="${this._uid}-search"
-                  placeholder="Rechercher..."
-                  .value="${this._searchQuery}"
-                  @input="${this._handleSearch}"
-                />
-                <button class="fr-btn" title="Rechercher" type="button">
-                  <span class="fr-icon-search-line" aria-hidden="true"></span>
-                </button>
-              </div>
-            `
-          : html`<div></div>`}
+        ${
+          recherche
+            ? html`
+                <div class="fr-search-bar" role="search">
+                  <label class="fr-label fr-sr-only" for="${this._uid}-search">Rechercher</label>
+                  <input
+                    class="fr-input"
+                    type="search"
+                    id="${this._uid}-search"
+                    placeholder="Rechercher..."
+                    .value="${this._searchQuery}"
+                    @input="${this._handleSearch}"
+                  />
+                  <button class="fr-btn" title="Rechercher" type="button">
+                    <span class="fr-icon-search-line" aria-hidden="true"></span>
+                  </button>
+                </div>
+              `
+            : html`<div></div>`
+        }
 
         <div class="dsfr-data-list__export-buttons">
-          ${this.export?.includes('csv')
-            ? html`
-                <button
-                  class="fr-btn fr-btn--secondary fr-btn--sm"
-                  @click="${this._exportCsv}"
-                  type="button"
-                >
-                  <span class="fr-icon-download-line fr-icon--sm" aria-hidden="true"></span>
-                  Exporter CSV
-                </button>
-              `
-            : ''}
-          ${this.export?.includes('html')
-            ? html`
-                <button
-                  class="fr-btn fr-btn--secondary fr-btn--sm"
-                  @click="${this._exportHtml}"
-                  type="button"
-                >
-                  <span class="fr-icon-code-s-slash-line fr-icon--sm" aria-hidden="true"></span>
-                  Exporter HTML
-                </button>
-              `
-            : ''}
+          ${
+            this.export?.includes('csv')
+              ? html`
+                  <button
+                    class="fr-btn fr-btn--secondary fr-btn--sm"
+                    @click="${this._exportCsv}"
+                    type="button"
+                  >
+                    <span class="fr-icon-download-line fr-icon--sm" aria-hidden="true"></span>
+                    Exporter CSV
+                  </button>
+                `
+              : ''
+          }
+          ${
+            this.export?.includes('html')
+              ? html`
+                  <button
+                    class="fr-btn fr-btn--secondary fr-btn--sm"
+                    @click="${this._exportHtml}"
+                    type="button"
+                  >
+                    <span class="fr-icon-code-s-slash-line fr-icon--sm" aria-hidden="true"></span>
+                    Exporter HTML
+                  </button>
+                `
+              : ''
+          }
         </div>
       </div>
     `;
@@ -578,9 +584,11 @@ ${bodyRows}
                       type="button"
                     >
                       ${col.label}
-                      ${isSorted
-                        ? html` <span aria-hidden="true">${sortDir === 'asc' ? '↑' : '↓'}</span> `
-                        : ''}
+                      ${
+                        isSorted
+                          ? html` <span aria-hidden="true">${sortDir === 'asc' ? '↑' : '↓'}</span> `
+                          : ''
+                      }
                     </button>
                   </th>
                 `;
@@ -588,23 +596,25 @@ ${bodyRows}
             </tr>
           </thead>
           <tbody>
-            ${paginatedData.length === 0
-              ? html`
-                  <tr>
-                    <td colspan="${columns.length}" class="dsfr-data-list__empty" role="status">
-                      Aucune donnée à afficher
-                    </td>
-                  </tr>
-                `
-              : paginatedData.map(
-                  (item) => html`
+            ${
+              paginatedData.length === 0
+                ? html`
                     <tr>
-                      ${columns.map(
-                        (col) => html` <td>${this.formatCellValue(item[col.key])}</td> `
-                      )}
+                      <td colspan="${columns.length}" class="dsfr-data-list__empty" role="status">
+                        Aucune donnée à afficher
+                      </td>
                     </tr>
                   `
-                )}
+                : paginatedData.map(
+                    (item) => html`
+                      <tr>
+                        ${columns.map(
+                          (col) => html` <td>${this.formatCellValue(item[col.key])}</td> `
+                        )}
+                      </tr>
+                    `
+                  )
+            }
           </tbody>
         </table>
       </div>
@@ -629,9 +639,11 @@ ${bodyRows}
     return html`
       <nav
         class="fr-pagination"
-        aria-label="${this.getAttribute('aria-label')
-          ? 'Pagination - ' + this.getAttribute('aria-label')
-          : 'Pagination'}"
+        aria-label="${
+          this.getAttribute('aria-label')
+            ? 'Pagination - ' + this.getAttribute('aria-label')
+            : 'Pagination'
+        }"
       >
         <ul class="fr-pagination__list">
           <li>
@@ -660,9 +672,9 @@ ${bodyRows}
             (page) => html`
               <li>
                 <button
-                  class="fr-pagination__link ${page === this._currentPage
-                    ? 'fr-pagination__link--active'
-                    : ''}"
+                  class="fr-pagination__link ${
+                    page === this._currentPage ? 'fr-pagination__link--active' : ''
+                  }"
                   @click="${() => this._handlePageChange(page)}"
                   aria-current="${page === this._currentPage ? 'page' : nothing}"
                   aria-label="Page ${page} sur ${totalPages}"
@@ -723,20 +735,24 @@ ${bodyRows}
         <div aria-live="polite" aria-atomic="true" class="fr-sr-only">
           ${this._liveAnnouncement}
         </div>
-        ${this._sourceLoading
-          ? renderSourceLoading('dsfr-data-list', 'Chargement des données...')
-          : this._sourceError && !(this._serverPagination && this._data.length > 0)
-            ? renderSourceError('dsfr-data-list', this._sourceError)
-            : html`
-                <p class="fr-text--sm" aria-live="polite" aria-atomic="true" role="status">
-                  ${totalFiltered} résultat${totalFiltered > 1 ? 's' : ''}
-                  ${!this._serverPagination &&
-                  (this._searchQuery || Object.values(this._activeFilters).some((v) => v))
-                    ? ' (filtré)'
-                    : ''}
-                </p>
-                ${this._renderTable(columns, paginatedData)} ${this._renderPagination(totalPages)}
-              `}
+        ${
+          this._sourceLoading
+            ? renderSourceLoading('dsfr-data-list', 'Chargement des données...')
+            : this._sourceError && !(this._serverPagination && this._data.length > 0)
+              ? renderSourceError('dsfr-data-list', this._sourceError)
+              : html`
+                  <p class="fr-text--sm" aria-live="polite" aria-atomic="true" role="status">
+                    ${totalFiltered} résultat${totalFiltered > 1 ? 's' : ''}
+                    ${
+                      !this._serverPagination &&
+                      (this._searchQuery || Object.values(this._activeFilters).some((v) => v))
+                        ? ' (filtré)'
+                        : ''
+                    }
+                  </p>
+                  ${this._renderTable(columns, paginatedData)} ${this._renderPagination(totalPages)}
+                `
+        }
       </div>
 
       <style>

@@ -884,9 +884,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     geo: unknown
   ): { minLat: number; minLon: number; maxLat: number; maxLon: number } | null {
     const g = geo as
-      | { type?: string; coordinates?: unknown; geometry?: unknown }
-      | null
-      | undefined;
+      { type?: string; coordinates?: unknown; geometry?: unknown } | null | undefined;
     if (!g || typeof g !== 'object') return null;
     if (g.type === 'Feature' && g.geometry) return this._geometryBbox(g.geometry);
     if (!g.coordinates) return null;
@@ -955,8 +953,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     // Auto-detect from known field names
     for (const candidate of ['geo_point_2d', 'geopoint', 'geo_point']) {
       const geo = record[candidate] as
-        | { type?: string; coordinates?: unknown[]; lat?: unknown; lon?: unknown }
-        | undefined;
+        { type?: string; coordinates?: unknown[]; lat?: unknown; lon?: unknown } | undefined;
       if (geo) {
         if (geo.type === 'Point' && Array.isArray(geo.coordinates) && geo.coordinates.length >= 2) {
           return { lat: Number(geo.coordinates[1]), lon: Number(geo.coordinates[0]) };

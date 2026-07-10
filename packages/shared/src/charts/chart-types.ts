@@ -20,12 +20,4 @@ export const DSFR_TAG_MAP: Record<string, string> = {
 
 /** Canonical chart types (without aliases) */
 export type DSFRChartType =
-  | 'bar'
-  | 'line'
-  | 'pie'
-  | 'radar'
-  | 'gauge'
-  | 'scatter'
-  | 'bar-line'
-  | 'map'
-  | 'map-reg';
+  'bar' | 'line' | 'pie' | 'radar' | 'gauge' | 'scatter' | 'bar-line' | 'map' | 'map-reg';

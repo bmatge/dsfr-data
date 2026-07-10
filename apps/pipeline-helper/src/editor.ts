@@ -99,8 +99,7 @@ export class PipelineEditor {
         const nodeId = evt.data?.id;
         if (nodeId && this.onNodeSelected) {
           const node = this.editor.getNodes().find((n) => n.id === nodeId) as
-            | PipelineNode
-            | undefined;
+            PipelineNode | undefined;
           if (node) this.onNodeSelected(node);
         }
       }

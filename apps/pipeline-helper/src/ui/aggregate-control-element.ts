@@ -80,35 +80,37 @@ export class AggregateControlElement extends LitElement {
         ${this.ctrl.rows.map(
           (row, i) => html`
             <div class="agg-row">
-              ${hasFields
-                ? html`
-                    <select
-                      class="agg-field"
-                      .value=${row.field}
-                      @change=${(e: Event) => this._onFieldChange(i, e)}
-                      @pointerdown=${this._stop}
-                    >
-                      <option value="">Champ...</option>
-                      ${fields.map(
-                        (f) => html`<option value=${f} ?selected=${row.field === f}>${f}</option>`
-                      )}
-                    </select>
-                  `
-                : html`
-                    <input
-                      class="agg-field"
-                      type="text"
-                      .value=${row.field}
-                      placeholder="champ"
-                      @input=${(e: Event) => {
-                        e.stopPropagation();
-                        row.field = (e.target as HTMLInputElement).value;
-                        this.ctrl.onChange?.();
-                      }}
-                      @pointerdown=${this._stop}
-                      @dblclick=${this._stop}
-                    />
-                  `}
+              ${
+                hasFields
+                  ? html`
+                      <select
+                        class="agg-field"
+                        .value=${row.field}
+                        @change=${(e: Event) => this._onFieldChange(i, e)}
+                        @pointerdown=${this._stop}
+                      >
+                        <option value="">Champ...</option>
+                        ${fields.map(
+                          (f) => html`<option value=${f} ?selected=${row.field === f}>${f}</option>`
+                        )}
+                      </select>
+                    `
+                  : html`
+                      <input
+                        class="agg-field"
+                        type="text"
+                        .value=${row.field}
+                        placeholder="champ"
+                        @input=${(e: Event) => {
+                          e.stopPropagation();
+                          row.field = (e.target as HTMLInputElement).value;
+                          this.ctrl.onChange?.();
+                        }}
+                        @pointerdown=${this._stop}
+                        @dblclick=${this._stop}
+                      />
+                    `
+              }
               <select
                 class="agg-fn"
                 .value=${row.fn}
@@ -131,18 +133,20 @@ export class AggregateControlElement extends LitElement {
                 @pointerdown=${this._stop}
                 @dblclick=${this._stop}
               />
-              ${this.ctrl.rows.length > 1
-                ? html`
-                    <button
-                      class="agg-remove"
-                      @click=${(e: Event) => this._removeRow(i, e)}
-                      @pointerdown=${this._stop}
-                      title="Supprimer"
-                    >
-                      &#10005;
-                    </button>
-                  `
-                : nothing}
+              ${
+                this.ctrl.rows.length > 1
+                  ? html`
+                      <button
+                        class="agg-remove"
+                        @click=${(e: Event) => this._removeRow(i, e)}
+                        @pointerdown=${this._stop}
+                        title="Supprimer"
+                      >
+                        &#10005;
+                      </button>
+                    `
+                  : nothing
+              }
             </div>
           `
         )}

@@ -39,12 +39,7 @@ function stripUnsafeKeys<T>(value: T): T {
 }
 
 type FieldType =
-  | 'string'
-  | 'string-or-null'
-  | 'boolean'
-  | 'number'
-  | 'object-array'
-  | 'string-record';
+  'string' | 'string-or-null' | 'boolean' | 'number' | 'object-array' | 'string-record';
 
 /** Retire les champs optionnels dont la valeur ne correspond pas au type attendu. */
 function dropMistypedFields(obj: Record<string, unknown>, spec: Record<string, FieldType>): void {

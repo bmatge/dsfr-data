@@ -359,15 +359,13 @@ export function loadFieldsFromLocalData(): void {
     const rawRecord = source.rawRecords[0];
     if (rawRecord && rawRecord.fields) {
       // Use flat field names — dsfr-data-normalize flatten="fields" will promote them
-      state.fields = Object.keys(rawRecord.fields).map(
-        (key): Field => ({
-          name: key,
-          fullPath: key,
-          displayName: key,
-          type: typeof rawRecord.fields[key],
-          sample: rawRecord.fields[key],
-        })
-      );
+      state.fields = Object.keys(rawRecord.fields).map((key): Field => ({
+        name: key,
+        fullPath: key,
+        displayName: key,
+        type: typeof rawRecord.fields[key],
+        sample: rawRecord.fields[key],
+      }));
       // Auto-enable normalize with flatten for Grist sources
       autoEnableNormalizeForGrist();
     }
@@ -484,13 +482,11 @@ export async function loadFields(): Promise<void> {
 
     // Extract fields from first record
     const record = json.results[0] as Record<string, unknown>;
-    state.fields = Object.keys(record).map(
-      (key): Field => ({
-        name: key,
-        type: typeof record[key],
-        sample: record[key],
-      })
-    );
+    state.fields = Object.keys(record).map((key): Field => ({
+      name: key,
+      type: typeof record[key],
+      sample: record[key],
+    }));
 
     // Populate dropdowns
     populateFieldSelects();

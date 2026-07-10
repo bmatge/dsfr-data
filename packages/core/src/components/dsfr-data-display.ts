@@ -326,9 +326,11 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
     return html`
       <nav
         class="fr-pagination fr-mt-2w"
-        aria-label="${this.getAttribute('aria-label')
-          ? 'Pagination - ' + this.getAttribute('aria-label')
-          : 'Pagination'}"
+        aria-label="${
+          this.getAttribute('aria-label')
+            ? 'Pagination - ' + this.getAttribute('aria-label')
+            : 'Pagination'
+        }"
       >
         <ul class="fr-pagination__list">
           <li>
@@ -357,9 +359,9 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
             (page) => html`
               <li>
                 <button
-                  class="fr-pagination__link ${page === this._currentPage
-                    ? 'fr-pagination__link--active'
-                    : ''}"
+                  class="fr-pagination__link ${
+                    page === this._currentPage ? 'fr-pagination__link--active' : ''
+                  }"
                   @click="${() => this._handlePageChange(page)}"
                   aria-current="${page === this._currentPage ? 'page' : nothing}"
                   aria-label="Page ${page} sur ${totalPages}"
@@ -418,27 +420,29 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
         <div aria-live="polite" aria-atomic="true" class="fr-sr-only">
           ${this._liveAnnouncement}
         </div>
-        ${this._sourceLoading
-          ? renderSourceLoading('dsfr-data-display')
-          : this._sourceError && !(this._serverPagination && this._data.length > 0)
-            ? renderSourceError('dsfr-data-display', this._sourceError)
-            : totalItems === 0
-              ? html`
-                  <div class="dsfr-data-display__empty" aria-live="polite" role="status">
-                    ${this.empty}
-                  </div>
-                `
-              : html`
-                  <p
-                    class="fr-text--sm fr-mb-1w"
-                    aria-live="polite"
-                    aria-atomic="true"
-                    role="status"
-                  >
-                    ${totalItems} resultat${totalItems > 1 ? 's' : ''}
-                  </p>
-                  ${this._renderGrid(paginatedData)} ${this._renderPagination(totalPages)}
-                `}
+        ${
+          this._sourceLoading
+            ? renderSourceLoading('dsfr-data-display')
+            : this._sourceError && !(this._serverPagination && this._data.length > 0)
+              ? renderSourceError('dsfr-data-display', this._sourceError)
+              : totalItems === 0
+                ? html`
+                    <div class="dsfr-data-display__empty" aria-live="polite" role="status">
+                      ${this.empty}
+                    </div>
+                  `
+                : html`
+                    <p
+                      class="fr-text--sm fr-mb-1w"
+                      aria-live="polite"
+                      aria-atomic="true"
+                      role="status"
+                    >
+                      ${totalItems} resultat${totalItems > 1 ? 's' : ''}
+                    </p>
+                    ${this._renderGrid(paginatedData)} ${this._renderPagination(totalPages)}
+                  `
+        }
       </div>
 
       <style>

@@ -289,58 +289,70 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
 
     return html`
       <div class="dsfr-data-kpi ${colorClass}" role="figure" aria-label="${this._getAriaLabel()}">
-        ${this._sourceLoading
-          ? renderSourceLoading('dsfr-data-kpi')
-          : this._sourceError
-            ? renderSourceError('dsfr-data-kpi', this._sourceError)
-            : html`
-                <div class="dsfr-data-kpi__content">
-                  ${this.heading
-                    ? html`<span class="dsfr-data-kpi__heading">${this.heading}</span>`
-                    : ''}
-                  ${this.icon || this.icone
-                    ? html`
+        ${
+          this._sourceLoading
+            ? renderSourceLoading('dsfr-data-kpi')
+            : this._sourceError
+              ? renderSourceError('dsfr-data-kpi', this._sourceError)
+              : html`
+                  <div class="dsfr-data-kpi__content">
+                    ${
+                      this.heading
+                        ? html`<span class="dsfr-data-kpi__heading">${this.heading}</span>`
+                        : ''
+                    }
+                    ${
+                      this.icon || this.icone
+                        ? html`
+                            <span
+                              class="dsfr-data-kpi__icon ${this.icon || this.icone}"
+                              aria-hidden="true"
+                            ></span>
+                          `
+                        : ''
+                    }
+                    <div class="dsfr-data-kpi__value-wrapper">
+                      <span class="dsfr-data-kpi__value">${formattedValue}</span>
+                      ${
+                        tendance
+                          ? html`
+                              <span
+                                class="dsfr-data-kpi__tendance dsfr-data-kpi__tendance--${tendance.direction}"
+                                role="img"
+                                aria-label="${
+                                  tendance.value > 0
+                                    ? `en hausse de ${formatPercentage(Math.abs(tendance.value))}`
+                                    : tendance.value < 0
+                                      ? `en baisse de ${formatPercentage(Math.abs(tendance.value))}`
+                                      : 'stable'
+                                }"
+                              >
+                                ${
+                                  tendance.direction === 'up'
+                                    ? '↑'
+                                    : tendance.direction === 'down'
+                                      ? '↓'
+                                      : '→'
+                                }
+                                ${formatPercentage(Math.abs(tendance.value))}
+                              </span>
+                            `
+                          : ''
+                      }
+                    </div>
+                    ${resolvedLines.map(
+                      (line) => html`
                         <span
-                          class="dsfr-data-kpi__icon ${this.icon || this.icone}"
-                          aria-hidden="true"
-                        ></span>
+                          class="dsfr-data-kpi__line"
+                          style=${line.color ? `color: ${line.color};` : ''}
+                          >${line.text}</span
+                        >
                       `
-                    : ''}
-                  <div class="dsfr-data-kpi__value-wrapper">
-                    <span class="dsfr-data-kpi__value">${formattedValue}</span>
-                    ${tendance
-                      ? html`
-                          <span
-                            class="dsfr-data-kpi__tendance dsfr-data-kpi__tendance--${tendance.direction}"
-                            role="img"
-                            aria-label="${tendance.value > 0
-                              ? `en hausse de ${formatPercentage(Math.abs(tendance.value))}`
-                              : tendance.value < 0
-                                ? `en baisse de ${formatPercentage(Math.abs(tendance.value))}`
-                                : 'stable'}"
-                          >
-                            ${tendance.direction === 'up'
-                              ? '↑'
-                              : tendance.direction === 'down'
-                                ? '↓'
-                                : '→'}
-                            ${formatPercentage(Math.abs(tendance.value))}
-                          </span>
-                        `
-                      : ''}
+                    )}
+                    <span class="dsfr-data-kpi__label">${this.label}</span>
                   </div>
-                  ${resolvedLines.map(
-                    (line) => html`
-                      <span
-                        class="dsfr-data-kpi__line"
-                        style=${line.color ? `color: ${line.color};` : ''}
-                        >${line.text}</span
-                      >
-                    `
-                  )}
-                  <span class="dsfr-data-kpi__label">${this.label}</span>
-                </div>
-              `}
+                `
+        }
       </div>
       <style>
         .dsfr-data-kpi {

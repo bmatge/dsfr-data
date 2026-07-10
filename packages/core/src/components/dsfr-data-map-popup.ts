@@ -311,8 +311,7 @@ export class DsfrDataMapPopup extends LitElement {
 
     // Announce
     const mapParent = this.closest('dsfr-data-map') as
-      | (Element & { announceToScreenReader?: (msg: string) => void })
-      | null;
+      (Element & { announceToScreenReader?: (msg: string) => void }) | null;
     mapParent?.announceToScreenReader?.(`Modale ouverte : ${title}`);
   }
 

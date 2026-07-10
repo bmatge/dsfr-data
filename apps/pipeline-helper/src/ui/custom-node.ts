@@ -246,50 +246,58 @@ export class PipelineNodeElement extends LitElement {
           <div class="description">${node.description}</div>
 
           ${controls.map(([name, ctrl]) => this._renderControl(name, ctrl))}
-          ${inputs.length > 0 || outputs.length > 0
-            ? html`
-                <div class="ports">
-                  <div class="port-group">
-                    ${inputs.map(
-                      ([key, input]) => html`
-                        <div class="port" data-testid="input-${key}">
-                          <span
-                            style="color:${(input as ClassicPreset.Input<ClassicPreset.Socket>)
-                              .socket === this._commandSocket
-                              ? '#009081'
-                              : '#000091'}"
-                            >&#9679;</span
-                          >
-                          <span
-                            >${(input as ClassicPreset.Input<ClassicPreset.Socket>).label ??
-                            key}</span
-                          >
-                        </div>
-                      `
-                    )}
+          ${
+            inputs.length > 0 || outputs.length > 0
+              ? html`
+                  <div class="ports">
+                    <div class="port-group">
+                      ${inputs.map(
+                        ([key, input]) => html`
+                          <div class="port" data-testid="input-${key}">
+                            <span
+                              style="color:${
+                                (input as ClassicPreset.Input<ClassicPreset.Socket>).socket ===
+                                this._commandSocket
+                                  ? '#009081'
+                                  : '#000091'
+                              }"
+                              >&#9679;</span
+                            >
+                            <span
+                              >${
+                                (input as ClassicPreset.Input<ClassicPreset.Socket>).label ?? key
+                              }</span
+                            >
+                          </div>
+                        `
+                      )}
+                    </div>
+                    <div class="port-group">
+                      ${outputs.map(
+                        ([key, output]) => html`
+                          <div class="port port--output" data-testid="output-${key}">
+                            <span
+                              style="color:${
+                                (output as ClassicPreset.Output<ClassicPreset.Socket>).socket ===
+                                this._commandSocket
+                                  ? '#009081'
+                                  : '#000091'
+                              }"
+                              >&#9679;</span
+                            >
+                            <span
+                              >${
+                                (output as ClassicPreset.Output<ClassicPreset.Socket>).label ?? key
+                              }</span
+                            >
+                          </div>
+                        `
+                      )}
+                    </div>
                   </div>
-                  <div class="port-group">
-                    ${outputs.map(
-                      ([key, output]) => html`
-                        <div class="port port--output" data-testid="output-${key}">
-                          <span
-                            style="color:${(output as ClassicPreset.Output<ClassicPreset.Socket>)
-                              .socket === this._commandSocket
-                              ? '#009081'
-                              : '#000091'}"
-                            >&#9679;</span
-                          >
-                          <span
-                            >${(output as ClassicPreset.Output<ClassicPreset.Socket>).label ??
-                            key}</span
-                          >
-                        </div>
-                      `
-                    )}
-                  </div>
-                </div>
-              `
-            : nothing}
+                `
+              : nothing
+          }
         </div>
       </div>
     `;
@@ -299,8 +307,7 @@ export class PipelineNodeElement extends LitElement {
   private get _commandSocket() {
     // Lazy import to avoid circular deps: check socket name
     const firstInput = Object.values(this.data.inputs)[0] as
-      | ClassicPreset.Input<ClassicPreset.Socket>
-      | undefined;
+      ClassicPreset.Input<ClassicPreset.Socket> | undefined;
     if (
       firstInput &&
       (firstInput.socket as ClassicPreset.Socket & { name?: string })?.name === 'command'

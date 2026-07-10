@@ -89,9 +89,7 @@ export function createOptionsPanel(
     const values: Record<string, unknown> = {};
     for (const def of definitions) {
       const el = container.querySelector(`[data-option-key="${def.key}"]`) as
-        | HTMLInputElement
-        | HTMLSelectElement
-        | null;
+        HTMLInputElement | HTMLSelectElement | null;
       if (!el) continue;
       if (def.type === 'checkbox') {
         values[def.key] = (el as HTMLInputElement).checked;

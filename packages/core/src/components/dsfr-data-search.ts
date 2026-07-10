@@ -585,22 +585,24 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
           Rechercher
         </button>
       </div>
-      ${this.count
-        ? html`
-            <p
-              class="fr-text--sm fr-mt-1v dsfr-data-search-count"
-              aria-live="polite"
-              aria-atomic="true"
-              role="status"
-            >
-              ${this._resultCount} resultat${this._resultCount !== 1 ? 's' : ''}
-            </p>
-          `
-        : html`
-            <p class="fr-sr-only" aria-live="polite" aria-atomic="true" role="status">
-              ${this._resultCount} resultat${this._resultCount !== 1 ? 's' : ''}
-            </p>
-          `}
+      ${
+        this.count
+          ? html`
+              <p
+                class="fr-text--sm fr-mt-1v dsfr-data-search-count"
+                aria-live="polite"
+                aria-atomic="true"
+                role="status"
+              >
+                ${this._resultCount} resultat${this._resultCount !== 1 ? 's' : ''}
+              </p>
+            `
+          : html`
+              <p class="fr-sr-only" aria-live="polite" aria-atomic="true" role="status">
+                ${this._resultCount} resultat${this._resultCount !== 1 ? 's' : ''}
+              </p>
+            `
+      }
     `;
   }
 }

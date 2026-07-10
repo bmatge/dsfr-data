@@ -950,8 +950,7 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     if (!this.source) return;
 
     const upstream = document.getElementById(this.source) as
-      | (HTMLElement & { reload?: () => void })
-      | null;
+      (HTMLElement & { reload?: () => void }) | null;
     if (upstream && typeof upstream.reload === 'function') {
       upstream.reload();
       return;
