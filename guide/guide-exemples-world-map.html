@@ -153,7 +153,7 @@ dsfr-data-source "src-pays"                         --> dsfr-data-kpi (count pay
             label="Valeur exportee (Mds)"
             format="decimal"
             icon="ri-money-euro-circle-line"
-            color="bleu">
+            color-token="bleu">
           </dsfr-data-kpi>
 
           <dsfr-data-kpi source="src-global"
@@ -161,7 +161,7 @@ dsfr-data-source "src-pays"                         --> dsfr-data-kpi (count pay
             label="Flux d'exportation (millions)"
             format="decimal"
             icon="ri-exchange-funds-line"
-            color="bleu">
+            color-token="bleu">
           </dsfr-data-kpi>
 
           <dsfr-data-kpi source="src-global"
@@ -169,7 +169,7 @@ dsfr-data-source "src-pays"                         --> dsfr-data-kpi (count pay
             label="Masse totale (Mt)"
             format="decimal"
             icon="ri-scales-3-line"
-            color="bleu">
+            color-token="bleu">
           </dsfr-data-kpi>
 
           <dsfr-data-kpi source="src-pays"
@@ -177,7 +177,7 @@ dsfr-data-source "src-pays"                         --> dsfr-data-kpi (count pay
             label="Pays partenaires"
             format="nombre"
             icon="ri-global-line"
-            color="vert">
+            color-token="vert">
           </dsfr-data-kpi>
         </div>
 
@@ -274,12 +274,12 @@ dsfr-data-source "src-pays"                         --> dsfr-data-kpi (count pay
 &lt;!-- KPIs --&gt;
 &lt;dsfr-data-kpi source="src-global" value="valeur_mds"
   label="Valeur exportee (Mds)" format="decimal"
-  icon="ri-money-euro-circle-line" color="bleu"&gt;
+  icon="ri-money-euro-circle-line" color-token="bleu"&gt;
 &lt;/dsfr-data-kpi&gt;
 
 &lt;dsfr-data-kpi source="src-pays" value="pays:count"
   label="Pays partenaires" format="nombre"
-  icon="ri-global-line" color="vert"&gt;
+  icon="ri-global-line" color-token="vert"&gt;
 &lt;/dsfr-data-kpi&gt;
 
 &lt;!-- Top 15 : bar chart --&gt;

@@ -121,11 +121,16 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
   @property({ type: Number, attribute: 'seuil-orange' })
   seuilOrange?: number;
 
-  /** Couleur forcée: vert, orange, rouge, bleu */
+  /** Couleur forcée (token sémantique DSFR) : vert, orange, rouge, bleu */
+  @property({ type: String, attribute: 'color-token' })
+  colorToken: KpiColor | '' = '';
+
+  /** @deprecated alias de `color-token` (#367) — le nom `color` évoque l'attribut
+   * de présentation HTML déprécié (faux positif d'audit RGAA 10.1.2) */
   @property({ type: String })
   color: KpiColor | '' = '';
 
-  /** @deprecated alias français de `color` (#300) */
+  /** @deprecated alias français de `color-token` (#300) */
   @property({ type: String })
   couleur: KpiColor | '' = '';
 
@@ -143,7 +148,7 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
     const aliases: Array<[string, string]> = [
       ['valeur', 'value'],
       ['icone', 'icon'],
-      ['couleur', 'color'],
+      ['couleur', 'color-token'],
       ['seuil-vert', 'threshold-green'],
       ['seuil-orange', 'threshold-orange'],
       ['tendance', 'trend'],
@@ -156,9 +161,19 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
     }
   }
 
+  /** Warn-once : `color` déprécié au profit de `color-token` (#367) */
+  private _warnDeprecatedColorAttr() {
+    if (this.hasAttribute('color')) {
+      console.warn(
+        `dsfr-data-kpi: attribut "color" déprécié — utilisez "color-token" (token sémantique DSFR). L'alias sera retiré à la prochaine version majeure (#367)`
+      );
+    }
+  }
+
   connectedCallback() {
     super.connectedCallback();
     this._warnDeprecatedFrenchAttrs();
+    this._warnDeprecatedColorAttr();
     sendWidgetBeacon('dsfr-data-kpi');
   }
 
@@ -171,7 +186,7 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
   }
 
   private _getColor(): KpiColor {
-    const explicitColor = this.color || this.couleur;
+    const explicitColor = this.colorToken || this.color || this.couleur;
     if (explicitColor) return explicitColor;
 
     const value = this._computeValue();

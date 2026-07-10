@@ -166,7 +166,7 @@ export const examples: Record<string, string> = {
       value="montant_investissement:max"
       label="Investissement max"
       format="euro"
-      color="vert">
+      color-token="vert">
     </dsfr-data-kpi>
 
     <dsfr-data-kpi source="data"
@@ -401,14 +401,14 @@ export const examples: Record<string, string> = {
       value="nombre_beneficiaires:sum"
       label="Total beneficiaires"
       format="nombre"
-      color="bleu">
+      color-token="bleu">
     </dsfr-data-kpi>
 
     <dsfr-data-kpi source="all"
       value="montant_investissement:sum"
       label="Investissement total"
       format="euro"
-      color="vert">
+      color-token="vert">
     </dsfr-data-kpi>
   </div>
 
@@ -1066,7 +1066,7 @@ export const examples: Record<string, string> = {
     <dsfr-data-kpi source="searched"
       value="count"
       label="Projets"
-      color="bleu">
+      color-token="bleu">
     </dsfr-data-kpi>
 
     <dsfr-data-kpi source="searched"

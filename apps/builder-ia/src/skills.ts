@@ -916,7 +916,7 @@ Attend un tableau d'objets. L'attribut \`valeur\` determine comment extraire/agr
 | format | String | \`"nombre"\` | non | Format : nombre, pourcentage, euro, decimal |
 | trend | String | \`""\` | non | RACCOURCI HERITE (preferez \`lines\`). Expression d'agregation \`"champ:fn"\` (\`"evolution:avg"\`) — PAS un litteral. Rendue avec une fleche en pourcentage fr-FR (\`↑ 5,2 %\`). Alias deprecie : \`tendance\` |
 | lines | String | \`""\` | non | Lignes secondaires declaratives (JSON), rendues ENTRE la valeur et le \`label\`. Chaque item : \`value\` (expression \`champ:fn\`) OU \`text\` (statique), + \`format\`, \`sign\`, \`prefix\`, \`suffix\`, \`color\` (\`"auto"\`=vert si >=0/rouge si <0, token DSFR, ou couleur CSS), \`na\` (repli si non fini). Ex. \`[{"value":"evol:avg","sign":true,"suffix":"vs mai 2025","color":"auto"}]\` |
-| color | String | \`""\` | non | Forcer la couleur : vert, orange, rouge, bleu. Alias deprecie : \`couleur\` |
+| color-token | String | \`""\` | non | Forcer la couleur (token semantique DSFR) : vert, orange, rouge, bleu. Alias deprecies : \`color\`, \`couleur\` |
 | threshold-green | Number | - | non | Seuil au-dessus duquel couleur = vert. Alias deprecie : \`seuil-vert\` |
 | threshold-orange | Number | - | non | Seuil au-dessus duquel couleur = orange (en-dessous = rouge). Alias deprecie : \`seuil-orange\` |
 | col | Number | - | non | Largeur en colonnes DSFR (1-12), actif uniquement dans un \`<dsfr-data-kpi-group>\` |
@@ -936,7 +936,7 @@ Utiliser \`<dsfr-data-kpi-group>\` pour disposer plusieurs KPIs en grille respon
 - Responsive automatique : empile en mobile
 
 ### Logique des couleurs
-1. Si \`couleur\` est défini : applique cette couleur directement
+1. Si \`color-token\` est défini : applique cette couleur directement
 2. Si \`seuil-vert\` et \`seuil-orange\` sont définis : couleur automatique selon la valeur
    - valeur >= seuil-vert -> vert (success)
    - valeur >= seuil-orange -> orange (warning)
@@ -977,7 +977,7 @@ Utiliser \`<dsfr-data-kpi-group>\` pour disposer plusieurs KPIs en grille respon
 <dsfr-data-kpi source="data"
   valeur="count:status:active"
   label="Sites actifs"
-  couleur="bleu"
+  color-token="bleu"
   trend="evolution:avg">
 </dsfr-data-kpi>
 

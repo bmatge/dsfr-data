@@ -427,7 +427,7 @@ Les donnees de la source sont transmises directement au composant de visualisati
   <dsfr-data-kpi source="data" value="nombre_beneficiaires:avg"
     label="Moyenne" format="decimal"></dsfr-data-kpi>
   <dsfr-data-kpi source="data" value="montant_investissement:max"
-    label="Investissement max" format="euro" color="vert"></dsfr-data-kpi>
+    label="Investissement max" format="euro" color-token="vert"></dsfr-data-kpi>
   <dsfr-data-kpi source="data" value="count"
     label="Enregistrements" format="nombre"></dsfr-data-kpi>
 </div>
@@ -617,7 +617,7 @@ Les donnees passent par `dsfr-data-query` qui les filtre, regroupe et/ou agrege 
   <dsfr-data-kpi source="data" value="count"
     label="Total des maires" format="nombre"></dsfr-data-kpi>
   <dsfr-data-kpi source="q-femmes" value="count"
-    label="Dont femmes" format="nombre" color="bleu"></dsfr-data-kpi>
+    label="Dont femmes" format="nombre" color-token="bleu"></dsfr-data-kpi>
 </div>
 ```
 

@@ -78,6 +78,34 @@ describe('DsfrDataKpi', () => {
   });
 
   describe('_getColor', () => {
+    it('returns forced color when color-token is set (#367)', () => {
+      kpi.colorToken = 'vert';
+      expect((kpi as any)._getColor()).toBe('vert');
+    });
+
+    it('returns forced color when legacy color alias is set (#367)', () => {
+      kpi.color = 'orange';
+      expect((kpi as any)._getColor()).toBe('orange');
+    });
+
+    it('color-token takes precedence over the color alias (#367)', () => {
+      kpi.colorToken = 'vert';
+      kpi.color = 'rouge';
+      expect((kpi as any)._getColor()).toBe('vert');
+    });
+
+    it('falls back to bleu when neither color-token nor color is set (#367)', () => {
+      expect((kpi as any)._getColor()).toBe('bleu');
+    });
+
+    it('warns once about the deprecated color attribute on connect (#367)', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      kpi.setAttribute('color', 'vert');
+      (kpi as any)._warnDeprecatedColorAttr();
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('color-token'));
+      warn.mockRestore();
+    });
+
     it('returns forced color when couleur is set', () => {
       kpi.couleur = 'rouge';
       expect((kpi as any)._getColor()).toBe('rouge');

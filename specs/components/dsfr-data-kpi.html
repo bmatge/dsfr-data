@@ -46,7 +46,7 @@
             <tr><td><code>lines</code></td><td>String (JSON)</td><td>Lignes secondaires entre la valeur et le label. Items : <code>value</code> (expression) ou <code>text</code> (statique), + <code>sign</code>, <code>suffix</code>, <code>color</code> (<code>auto</code> / token DSFR / couleur CSS), <code>na</code></td></tr>
             <tr><td><code>format</code></td><td>String</td><td>Format d'affichage (défaut : <code>nombre</code>)</td></tr>
             <tr><td><code>icon</code></td><td>String</td><td>Classe d'icone Remix Icon (ex: <code>ri-global-line</code>)</td></tr>
-            <tr><td><code>color</code></td><td>String</td><td>Couleur forcee : <code>vert</code>, <code>orange</code>, <code>rouge</code>, <code>bleu</code></td></tr>
+            <tr><td><code>color-token</code></td><td>String</td><td>Couleur forcee (token semantique DSFR) : <code>vert</code>, <code>orange</code>, <code>rouge</code>, <code>bleu</code>. Alias deprecie : <code>color</code></td></tr>
             <tr><td><code>threshold-green</code></td><td>Number</td><td>Seuil au-dessus duquel la couleur est verte</td></tr>
             <tr><td><code>threshold-orange</code></td><td>Number</td><td>Seuil au-dessus duquel la couleur est orange</td></tr>
             <tr><td><code>col</code></td><td>Number</td><td>Largeur en colonnes (1-12), actif uniquement dans un <code>&lt;dsfr-data-kpi-group&gt;</code></td></tr>
@@ -122,27 +122,27 @@
         <section class="demo-section">
           <h3>3. KPI avec comptage conditionnel</h3>
           <div class="kpi-grid">
-            <dsfr-data-kpi source="sites" value="count:statut:actif" label="Sites actifs" icon="ri-checkbox-circle-line" color="vert"></dsfr-data-kpi>
-            <dsfr-data-kpi source="sites" value="count:statut:inactif" label="Sites inactifs" icon="ri-close-circle-line" color="orange"></dsfr-data-kpi>
-            <dsfr-data-kpi source="sites" value="count:certificat_valide:false" label="Certificats expires" icon="ri-shield-cross-line" color="rouge"></dsfr-data-kpi>
+            <dsfr-data-kpi source="sites" value="count:statut:actif" label="Sites actifs" icon="ri-checkbox-circle-line" color-token="vert"></dsfr-data-kpi>
+            <dsfr-data-kpi source="sites" value="count:statut:inactif" label="Sites inactifs" icon="ri-close-circle-line" color-token="orange"></dsfr-data-kpi>
+            <dsfr-data-kpi source="sites" value="count:certificat_valide:false" label="Certificats expires" icon="ri-shield-cross-line" color-token="rouge"></dsfr-data-kpi>
           </div>
           <div class="code-block"><pre>&lt;dsfr-data-kpi
   source="sites"
   value="count:statut:actif"
   label="Sites actifs"
   icon="ri-checkbox-circle-line"
-  color="vert"&gt;
+  color-token="vert"&gt;
 &lt;/dsfr-data-kpi&gt;</pre></div>
         </section>
 
         <section class="demo-section">
           <h3>4. KPI avec min/max</h3>
           <div class="kpi-grid">
-            <dsfr-data-kpi source="sites" value="score_rgaa:max" label="Meilleur score RGAA" format="pourcentage" color="vert"></dsfr-data-kpi>
-            <dsfr-data-kpi source="sites" value="score_rgaa:min" label="Plus bas score RGAA" format="pourcentage" color="rouge"></dsfr-data-kpi>
+            <dsfr-data-kpi source="sites" value="score_rgaa:max" label="Meilleur score RGAA" format="pourcentage" color-token="vert"></dsfr-data-kpi>
+            <dsfr-data-kpi source="sites" value="score_rgaa:min" label="Plus bas score RGAA" format="pourcentage" color-token="rouge"></dsfr-data-kpi>
           </div>
-          <div class="code-block"><pre>&lt;dsfr-data-kpi source="sites" value="score_rgaa:max" label="Meilleur score" format="pourcentage" color="vert"&gt;&lt;/dsfr-data-kpi&gt;
-&lt;dsfr-data-kpi source="sites" value="score_rgaa:min" label="Plus bas score" format="pourcentage" color="rouge"&gt;&lt;/dsfr-data-kpi&gt;</pre></div>
+          <div class="code-block"><pre>&lt;dsfr-data-kpi source="sites" value="score_rgaa:max" label="Meilleur score" format="pourcentage" color-token="vert"&gt;&lt;/dsfr-data-kpi&gt;
+&lt;dsfr-data-kpi source="sites" value="score_rgaa:min" label="Plus bas score" format="pourcentage" color-token="rouge"&gt;&lt;/dsfr-data-kpi&gt;</pre></div>
         </section>
 
         <section class="demo-section">
@@ -175,7 +175,7 @@
             <dsfr-data-kpi source="meta" value="total" label="Sites suivis" icon="ri-global-line" format="nombre"></dsfr-data-kpi>
             <dsfr-data-kpi source="sites" value="score_rgaa:avg" label="RGAA moyen" format="pourcentage" threshold-green="80" threshold-orange="50"></dsfr-data-kpi>
             <dsfr-data-kpi source="sites" value="score_dsfr:avg" label="DSFR moyen" format="pourcentage" threshold-green="80" threshold-orange="50"></dsfr-data-kpi>
-            <dsfr-data-kpi source="sites" value="count:certificat_valide:false" label="Certificats expires" icon="ri-shield-cross-line" color="rouge"></dsfr-data-kpi>
+            <dsfr-data-kpi source="sites" value="count:certificat_valide:false" label="Certificats expires" icon="ri-shield-cross-line" color-token="rouge"></dsfr-data-kpi>
           </div>
         </section>
 
@@ -187,7 +187,7 @@
             <dsfr-data-kpi source="meta" value="total" label="Sites suivis" icon="ri-global-line" format="nombre"></dsfr-data-kpi>
             <dsfr-data-kpi source="sites" value="score_rgaa:avg" label="RGAA moyen" format="pourcentage" threshold-green="80" threshold-orange="50"></dsfr-data-kpi>
             <dsfr-data-kpi source="sites" value="score_dsfr:avg" label="DSFR moyen" format="pourcentage" threshold-green="80" threshold-orange="50"></dsfr-data-kpi>
-            <dsfr-data-kpi source="sites" value="count:certificat_valide:false" label="Certificats expires" icon="ri-shield-cross-line" color="rouge"></dsfr-data-kpi>
+            <dsfr-data-kpi source="sites" value="count:certificat_valide:false" label="Certificats expires" icon="ri-shield-cross-line" color-token="rouge"></dsfr-data-kpi>
           </dsfr-data-kpi-group>
           <div class="code-block"><pre>&lt;dsfr-data-kpi-group cols="4"&gt;
   &lt;dsfr-data-kpi source="meta" value="total" label="Sites suivis"&gt;&lt;/dsfr-data-kpi&gt;
@@ -202,7 +202,7 @@
           <dsfr-data-kpi-group>
             <dsfr-data-kpi source="meta" value="total" label="Sites suivis" icon="ri-global-line" format="nombre" col="6"></dsfr-data-kpi>
             <dsfr-data-kpi source="sites" value="score_rgaa:avg" label="RGAA moyen" format="pourcentage" threshold-green="80" threshold-orange="50" col="3"></dsfr-data-kpi>
-            <dsfr-data-kpi source="sites" value="score_rgaa:max" label="Meilleur RGAA" format="pourcentage" color="vert" col="3"></dsfr-data-kpi>
+            <dsfr-data-kpi source="sites" value="score_rgaa:max" label="Meilleur RGAA" format="pourcentage" color-token="vert" col="3"></dsfr-data-kpi>
           </dsfr-data-kpi-group>
           <div class="code-block"><pre>&lt;dsfr-data-kpi-group&gt;
   &lt;dsfr-data-kpi source="meta" value="total" label="Sites suivis" col="6"&gt;&lt;/dsfr-data-kpi&gt;
@@ -214,12 +214,12 @@
         <section class="demo-section">
           <h3>9. Espacement large (gap="lg")</h3>
           <dsfr-data-kpi-group cols="2" gap="lg">
-            <dsfr-data-kpi source="sites" value="score_rgaa:min" label="Plus bas RGAA" format="pourcentage" color="rouge"></dsfr-data-kpi>
-            <dsfr-data-kpi source="sites" value="score_rgaa:max" label="Meilleur RGAA" format="pourcentage" color="vert"></dsfr-data-kpi>
+            <dsfr-data-kpi source="sites" value="score_rgaa:min" label="Plus bas RGAA" format="pourcentage" color-token="rouge"></dsfr-data-kpi>
+            <dsfr-data-kpi source="sites" value="score_rgaa:max" label="Meilleur RGAA" format="pourcentage" color-token="vert"></dsfr-data-kpi>
           </dsfr-data-kpi-group>
           <div class="code-block"><pre>&lt;dsfr-data-kpi-group cols="2" gap="lg"&gt;
-  &lt;dsfr-data-kpi source="sites" value="score_rgaa:min" label="Plus bas RGAA" color="rouge"&gt;&lt;/dsfr-data-kpi&gt;
-  &lt;dsfr-data-kpi source="sites" value="score_rgaa:max" label="Meilleur RGAA" color="vert"&gt;&lt;/dsfr-data-kpi&gt;
+  &lt;dsfr-data-kpi source="sites" value="score_rgaa:min" label="Plus bas RGAA" color-token="rouge"&gt;&lt;/dsfr-data-kpi&gt;
+  &lt;dsfr-data-kpi source="sites" value="score_rgaa:max" label="Meilleur RGAA" color-token="vert"&gt;&lt;/dsfr-data-kpi&gt;
 &lt;/dsfr-data-kpi-group&gt;</pre></div>
         </section>
     </div>
