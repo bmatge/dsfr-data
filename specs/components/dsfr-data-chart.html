@@ -63,6 +63,14 @@
             Chaque item : <code>{ axis: "x"|"y", value, label?, color?, dash?, position? }</code>.
             <code>axis:"x"</code> = ligne verticale à une catégorie/date ; <code>axis:"y"</code> = ligne horizontale à un seuil.
             Ex : <code>reference-lines='[{"axis":"x","value":"2026-02","label":"Lancement","color":"#c9191e","dash":true},{"axis":"y","value":3000,"label":"Objectif"}]'</code>.</td></tr>
+          <tr><td><code>targets</code></td><td>String (JSON)</td><td>Cibles / objectifs futurs (overlay) — types <code>line</code> et <code>bar-line</code> uniquement.
+            Chaque item : <code>{ x (échéance, requis), value (requis), series?, label?, color? }</code>.
+            L'axe X est étendu automatiquement si l'échéance dépasse les données : trait plein jusqu'au dernier
+            point réel, trajectoire pointillée vers un losange à l'échéance, zone future grisée.
+            Ex : <code>targets='[{"x":2030,"value":26,"label":"Cible 2030 : 26 %"}]'</code>.</td></tr>
+          <tr><td><code>targets-zone</code></td><td>String</td><td>Bande grisée + frontière pointillée réalisé/projeté (défaut <code>"on"</code>). <code>"off"</code> désactive.</td></tr>
+          <tr><td><code>targets-legend</code></td><td>String</td><td>Légende sous le graphe : <code>""</code> = libellés par défaut
+            (« Données historiques » / « Trajectoire, cible extrapolée »), <code>"off"</code> = masquée, <code>'["a","b"]'</code> = personnalisés.</td></tr>
         </tbody>
       </table>
 
@@ -180,6 +188,42 @@
   label-field="nom"
   value-field="score_dsfr"
   reference-lines='[{"axis":"y","value":80,"label":"Objectif","color":"#c9191e"}]'&gt;
+&lt;/dsfr-data-chart&gt;</pre></div>
+      </section>
+
+      <section class="demo-section">
+        <h3>3c. Cibles / objectifs futurs (targets)</h3>
+        <p class="fr-text--sm">
+          L'attribut <code>targets</code> représente un objectif lointain : l'axe X est étendu jusqu'à
+          l'échéance, une trajectoire pointillée relie le dernier point réel à un losange, la zone future
+          est grisée et une légende « Données historiques / Trajectoire, cible extrapolée » est ajoutée.
+          Au survol du losange, un tooltip liste les cibles de toutes les séries à cette échéance.
+          Types <code>line</code> et <code>bar-line</code> uniquement — préférer des labels numériques
+          (axe linéaire : l'écart 2025&#8239;&#8594;&#8239;2030 est proportionnel).
+        </p>
+        <dsfr-data-source id="fossiles-spec" data='[
+          {"annee":"2021","part":35.1},
+          {"annee":"2022","part":34.8},
+          {"annee":"2023","part":33.9},
+          {"annee":"2024","part":32.4},
+          {"annee":"2025","part":31.6}
+        ]'></dsfr-data-source>
+        <dsfr-data-chart
+          source="fossiles-spec"
+          type="line"
+          label-field="annee"
+          value-field="part"
+          name='["Énergies fossiles"]'
+          unit-tooltip=" %"
+          targets='[{"x":"2030","value":26,"label":"Cible 2030 : 26 %"}]'>
+        </dsfr-data-chart>
+        <div class="code-block"><pre>&lt;dsfr-data-chart
+  source="fossiles"
+  type="line"
+  label-field="annee"
+  value-field="part"
+  unit-tooltip=" %"
+  targets='[{"x":"2030","value":26,"label":"Cible 2030 : 26 %"}]'&gt;
 &lt;/dsfr-data-chart&gt;</pre></div>
       </section>
 

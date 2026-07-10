@@ -142,6 +142,40 @@
           </div>
         </section>
 
+        <!-- Cibles / objectifs futurs -->
+        <h2>Cibles et objectifs futurs</h2>
+        <p>L'attribut <code>targets</code> représente un objectif au-delà des données
+          (types <code>line</code> et <code>bar-line</code>) : l'axe X est étendu jusqu'à
+          l'échéance, une trajectoire pointillée relie le dernier point réel à un losange,
+          la zone future est grisée et une légende « Données historiques / Trajectoire,
+          cible extrapolée » est ajoutée sous le graphe. Le survol du losange affiche un
+          tooltip listant les cibles de toutes les séries à cette échéance. Comme les
+          repères, les cibles sont annoncées dans l'<code>aria-label</code> du graphique
+          pour les lecteurs d'écran.</p>
+
+        <div class="example-container">
+          <dsfr-data-source id="fossiles-guide" data='[{"annee":"2019","part":36.2},{"annee":"2020","part":34.5},{"annee":"2021","part":35.1},{"annee":"2022","part":34.8},{"annee":"2023","part":33.9},{"annee":"2024","part":32.4},{"annee":"2025","part":31.6}]'></dsfr-data-source>
+          <dsfr-data-chart id="guide-targets" source="fossiles-guide" type="line"
+            label-field="annee" value-field="part"
+            name='["Énergies fossiles"]'
+            unit-tooltip=" %"
+            targets='[{"x":"2030","value":26,"label":"Cible 2030 : 26 %"}]'>
+          </dsfr-data-chart>
+        </div>
+
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-targets">Code source</button></h3>
+          <div class="fr-collapse" id="code-targets">
+<pre>&lt;dsfr-data-chart id="mon-graph" source="data" type="line"
+  label-field="annee" value-field="part"
+  unit-tooltip=" %"
+  targets='[
+    {"x":"2030","value":26,"label":"Cible 2030 : 26 %"}
+  ]'&gt;
+&lt;/dsfr-data-chart&gt;</pre>
+          </div>
+        </section>
+
         <!-- Avec description -->
         <h2>Avec description textuelle</h2>
         <p>Ajoutez <code>description</code> pour fournir une transcription du graphique :</p>

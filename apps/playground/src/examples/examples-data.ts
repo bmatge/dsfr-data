@@ -254,6 +254,42 @@ export const examples: Record<string, string> = {
   </dsfr-data-chart>
 </div>`,
 
+  'chart-targets': `<!--
+  Cibles / objectifs futurs — trajectoire pointillée vers un losange à l'échéance
+  Mode direct : dsfr-data-source (data inline) → dsfr-data-chart (type line)
+  Démontre l'attribut targets (#377) :
+    - l'axe X est étendu automatiquement jusqu'à 2030 (données → 2025)
+    - trait plein jusqu'au dernier point réel, trajectoire pointillée vers le losange
+    - zone future grisée + frontière pointillée (targets-zone="off" pour retirer)
+    - tooltip au survol du losange : toutes les cibles de l'échéance
+    - légende « Données historiques / Trajectoire, cible extrapolée » (targets-legend)
+  Les cibles sont aussi annoncées dans l'aria-label du graphique.
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>Part des énergies fossiles — cibles 2030</h2>
+
+  <dsfr-data-source id="fossiles" data='[
+    {"annee":"2019","petrole":36.2,"gaz":20.8},
+    {"annee":"2020","petrole":34.5,"gaz":20.1},
+    {"annee":"2021","petrole":35.1,"gaz":20.5},
+    {"annee":"2022","petrole":34.8,"gaz":19.2},
+    {"annee":"2023","petrole":33.9,"gaz":17.8},
+    {"annee":"2024","petrole":32.4,"gaz":16.9},
+    {"annee":"2025","petrole":31.6,"gaz":16.1}
+  ]'></dsfr-data-source>
+
+  <dsfr-data-chart source="fossiles" type="line"
+    label-field="annee" value-fields="petrole,gaz"
+    name='["Pétrole","Gaz naturel"]'
+    unit-tooltip=" %"
+    targets='[
+      {"x":"2030","value":26,"series":0,"label":"Cible 2030 : 26 %"},
+      {"x":"2030","value":12,"series":1}
+    ]'>
+  </dsfr-data-chart>
+</div>`,
+
   'direct-datalist': `<!--
   Tableau — Maires de France (pagination serveur)
   Mode : dsfr-data-source (api-type="tabular", server-side) → dsfr-data-list

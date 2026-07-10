@@ -1134,6 +1134,9 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 | code-field | String | \`""\` | type map/map-reg | Champ contenant le code departement ou region (prioritaire sur label-field) |
 | map-highlight | String | \`""\` | non | Departements/regions a surligner |
 | reference-lines | String | \`""\` | non | Lignes de reference (overlay) en JSON. Cartesiens uniquement (line, bar, bar-line, scatter). Chaque item : \`{ axis: "x" ou "y", value (string ou number), label?, color?, dash?, position? }\`. \`axis:"x"\` → ligne verticale a une categorie/date ; \`axis:"y"\` → ligne horizontale a un seuil. Ex : \`reference-lines='[{"axis":"x","value":"2026-02","label":"Lancement","color":"#c9191e","dash":true},{"axis":"y","value":3000,"label":"Objectif"}]'\`. |
+| targets | String | \`""\` | non | Cibles / objectifs futurs (overlay) en JSON. Types line et bar-line uniquement. Chaque item : \`{ x (echeance, string ou number, requis), value (number, requis), series? (nom de dataset ou index, defaut 0), label?, color? }\`. L'axe X est etendu automatiquement si l'echeance depasse les donnees : trait plein jusqu'au dernier point reel, trajectoire pointillee vers un losange a l'echeance, zone future grisee. Ex : \`targets='[{"x":2030,"value":26,"label":"Cible 2030 : 26 %"}]'\`. |
+| targets-zone | String | \`"on"\` | non | Bande grisee + frontiere pointillee realise/projete. \`"off"\` desactive. |
+| targets-legend | String | \`""\` | non | Legende sous le graphe : \`""\` = libelles par defaut (« Donnees historiques » / « Trajectoire, cible extrapolee »), \`"off"\` = masquee, \`'["a","b"]'\` = libelles personnalises. |
 
 ### Attributs par type de graphique
 | Type | Attributs essentiels | Attributs optionnels |

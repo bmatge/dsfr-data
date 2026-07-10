@@ -9,6 +9,7 @@ describe('playground examples', () => {
     'direct-kpi',
     'kpi-barometre',
     'chart-reference-lines',
+    'chart-targets',
     'direct-datalist',
     'direct-worldmap',
   ];
@@ -58,8 +59,8 @@ describe('playground examples', () => {
     }
   });
 
-  it('should have 34 examples', () => {
-    expect(Object.keys(examples)).toHaveLength(34);
+  it('should have 35 examples', () => {
+    expect(Object.keys(examples)).toHaveLength(35);
   });
 
   it('should have non-empty code for all examples', () => {
