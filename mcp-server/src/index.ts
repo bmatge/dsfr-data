@@ -310,7 +310,11 @@ async function startHttp() {
       // perdu ses sessions en mémoire). 404 — et non 400 — pour que le client MCP
       // ré-initialise automatiquement une session fraîche (spec StreamableHTTP).
       // Sinon le connecteur reste bloqué et tous les appels d'outils échouent.
-      console.error(`[dsfr-data-mcp] Unknown session ${sessionId} → 404 (client should re-initialize)`);
+      // sessionId vient d'un header client : filtré avant log (injection de log)
+      const safeSessionId = String(sessionId).replace(/[^\w-]/g, '');
+      console.error(
+        `[dsfr-data-mcp] Unknown session ${safeSessionId} → 404 (client should re-initialize)`,
+      );
       res.writeHead(404, { 'Content-Type': 'application/json' });
       res.end(
         JSON.stringify({

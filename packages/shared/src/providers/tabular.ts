@@ -11,7 +11,7 @@ const TABULAR_API_RE = /tabular-api\.data\.gouv\.fr\/api\/resources\/([^/?#]+)/;
  * dataset holds N resources, so picking one requires a network lookup (Phase 1).
  */
 const TABULAR_PERMALINK_RE =
-  /data\.gouv\.fr\/[^?#]*\/datasets\/r\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i;
+  /data\.gouv\.fr\/(?:[a-z]{2}\/)?datasets\/r\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i;
 
 export const TABULAR_CONFIG: ProviderConfig = {
   id: 'tabular',

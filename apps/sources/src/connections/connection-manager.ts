@@ -941,7 +941,7 @@ export async function runUrlDetection(): Promise<void> {
   } catch {
     // pas une URL absolue — on laissera l'utilisateur compléter en mode manuel
   }
-  const isGrist = /grist/i.test(host) || host.endsWith('getgrist.com');
+  const isGrist = /grist/i.test(host) || host === 'getgrist.com' || host.endsWith('.getgrist.com');
 
   const resolved = resolveSourceUrl(raw);
 
