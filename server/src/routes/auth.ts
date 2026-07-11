@@ -32,6 +32,8 @@ import {
   OIDC_STATE_COOKIE,
   OIDC_STATE_MAX_AGE_MS,
   OIDC_COOKIE_PATH,
+  OIDC_NO_SESSION_ERRORS,
+  sanitizeReturnTo,
   type OidcStatePayload,
 } from '../utils/oidc.js';
 
@@ -61,6 +63,11 @@ router.get('/providers', (_req, res) => {
  * Kick off the OIDC authorization-code flow with PKCE.
  * Generates state + nonce + code_verifier, stores them in a single signed
  * cookie scoped to /api/auth/oidc, and 302-redirects to the IdP /authorize.
+ *
+ * SSO silencieux (#365) : `?silent=1` ajoute `prompt=none` — l'IdP répond
+ * sans interaction (code si session active, `error=login_required` sinon).
+ * `?return_to=/chemin` (chemin relatif validé) est porté par le cookie
+ * d'état pour revenir sur la page d'origine après le callback.
  */
 router.get('/oidc/login', authLimiter, async (req, res) => {
   if (!isOidcEnabled()) {
@@ -74,8 +81,10 @@ router.get('/oidc/login', authLimiter, async (req, res) => {
     const nonce = oidc.randomNonce();
     const codeVerifier = oidc.randomPKCECodeVerifier();
     const codeChallenge = await oidc.calculatePKCECodeChallenge(codeVerifier);
+    const silent = req.query.silent === '1';
+    const returnTo = sanitizeReturnTo(req.query.return_to);
 
-    const payload: OidcStatePayload = { state, nonce, codeVerifier };
+    const payload: OidcStatePayload = { state, nonce, codeVerifier, returnTo };
     res.cookie(OIDC_STATE_COOKIE, JSON.stringify(payload), {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -91,6 +100,7 @@ router.get('/oidc/login', authLimiter, async (req, res) => {
       nonce,
       code_challenge: codeChallenge,
       code_challenge_method: 'S256',
+      ...(silent ? { prompt: 'none' } : {}),
     });
 
     res.redirect(authUrl.toString());
@@ -123,6 +133,24 @@ router.get('/oidc/callback', authLimiter, async (req, res) => {
 
   const rawCookie = req.cookies?.[OIDC_STATE_COOKIE];
   res.clearCookie(OIDC_STATE_COOKIE, { path: OIDC_COOKIE_PATH });
+
+  // SSO silencieux (#365) : « pas de session IdP » n'est pas une erreur.
+  // L'IdP redirige avec error=login_required & co lors d'un prompt=none sans
+  // session active → retour à l'app sans rien afficher (le front garde son
+  // flag sessionStorage, pas de boucle). Testé AVANT la validation du cookie :
+  // même un cookie absent/expiré ne doit pas transformer ce cas en 400.
+  const idpError = typeof req.query.error === 'string' ? req.query.error : '';
+  if (idpError && OIDC_NO_SESSION_ERRORS.has(idpError)) {
+    await logAudit(req, 'oidc.silent.no_session', undefined, undefined, { error: idpError });
+    let returnTo = '/';
+    try {
+      returnTo = sanitizeReturnTo((JSON.parse(rawCookie ?? '{}') as OidcStatePayload).returnTo);
+    } catch {
+      /* cookie absent ou illisible → '/' */
+    }
+    res.redirect(returnTo);
+    return;
+  }
 
   if (!rawCookie) {
     res.status(400).json({ error: 'Missing OIDC state cookie (expired or third-party blocked)' });
@@ -265,7 +293,8 @@ router.get('/oidc/callback', authLimiter, async (req, res) => {
     await createSession(user.id, token, 'oidc', req);
     await logAudit(req, 'oidc.login.success', 'user', user.id, { issuer });
 
-    res.redirect('/');
+    // Retour sur la page d'origine (SSO silencieux #365) — '/' sinon
+    res.redirect(sanitizeReturnTo(stored.returnTo));
   } catch (err) {
     console.error('[oidc] /callback failed:', err);
     await logAudit(req, 'oidc.callback.error', undefined, undefined, {

@@ -7,7 +7,7 @@
  * so all existing sync writes also sync to the server in background.
  */
 
-import { checkAuth } from './auth-service.js';
+import { checkAuth, attemptSilentSso } from './auth-service.js';
 import { setSaveHook, STORAGE_KEYS } from '../storage/local-storage.js';
 import { ApiStorageAdapter } from '../storage/api-storage-adapter.js';
 import { setStorageAdapter, loadData } from '../storage/storage-provider.js';
@@ -27,10 +27,18 @@ export function getApiAdapter(): ApiStorageAdapter | null {
  * - Hooks saveToStorage for background API sync
  * - Prefetches data from server to update localStorage cache
  */
-export async function initAuth(): Promise<void> {
+export async function initAuth(options: { silentSso?: boolean } = {}): Promise<void> {
   const authState = await checkAuth();
 
-  if (!authState.isAuthenticated) return;
+  if (!authState.isAuthenticated) {
+    // SSO silencieux (#365) : si un provider OIDC est configuré et que la
+    // session IdP est active, loggue sans clic (une tentative max par
+    // session navigateur). Désactivable via initAuth({ silentSso: false }).
+    if (options.silentSso !== false) {
+      await attemptSilentSso();
+    }
+    return;
+  }
 
   _apiAdapter = new ApiStorageAdapter();
   setStorageAdapter(_apiAdapter);

@@ -82,4 +82,29 @@ export interface OidcStatePayload {
   state: string;
   nonce: string;
   codeVerifier: string;
+  /** Chemin relatif où revenir après le callback (SSO silencieux #365). Défaut '/'. */
+  returnTo?: string;
 }
+
+/**
+ * Valide le `return_to` fourni par le front (SSO silencieux #365) : chemin
+ * relatif same-origin uniquement — tout ce qui pourrait produire un open
+ * redirect (URL absolue, protocol-relative `//`, backslash) retombe sur '/'.
+ */
+export function sanitizeReturnTo(value: unknown): string {
+  if (typeof value !== 'string' || !value.startsWith('/')) return '/';
+  if (value.startsWith('//') || value.includes('\\')) return '/';
+  return value;
+}
+
+/**
+ * Erreurs OIDC renvoyées par l'IdP qui signifient « pas de session SSO
+ * active » lors d'une tentative `prompt=none` — à traiter comme un non-login
+ * silencieux, pas comme une erreur (#365).
+ */
+export const OIDC_NO_SESSION_ERRORS = new Set([
+  'login_required',
+  'interaction_required',
+  'consent_required',
+  'account_selection_required',
+]);

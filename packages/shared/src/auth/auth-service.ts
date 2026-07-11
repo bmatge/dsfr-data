@@ -505,3 +505,41 @@ export async function fetchAuthProviders(): Promise<AuthProvidersResponse> {
     return EMPTY_PROVIDERS;
   }
 }
+
+/** Garde anti-boucle du SSO silencieux : une tentative par session navigateur (#365). */
+const SILENT_SSO_ATTEMPTED_KEY = 'dsfr-data-silent-sso-attempted';
+
+/**
+ * SSO silencieux OIDC (#365) : si un provider OIDC est configuré et que
+ * l'utilisateur n'est pas loggué localement, tente le flux `prompt=none`
+ * via une redirection pleine page.
+ * - Session IdP active → callback → loggué, zéro clic.
+ * - Pas de session → l'IdP renvoie `login_required`, le callback redirige
+ *   vers la page d'origine sans erreur visible.
+ * Garde-fou : UNE tentative par session navigateur (sessionStorage, posé
+ * AVANT la redirection pour couper toute boucle login_required → retry).
+ *
+ * Retourne true si une redirection a été déclenchée (l'appelant peut
+ * s'arrêter là : la page va se décharger).
+ */
+export async function attemptSilentSso(): Promise<boolean> {
+  try {
+    if (sessionStorage.getItem(SILENT_SSO_ATTEMPTED_KEY)) return false;
+  } catch {
+    return false; // sessionStorage indisponible → pas de tentative (aucune garde possible)
+  }
+
+  const { providers } = await fetchAuthProviders();
+  const oidcProvider = providers.find((p) => p.id === 'oidc');
+  if (!oidcProvider) return false;
+
+  try {
+    sessionStorage.setItem(SILENT_SSO_ATTEMPTED_KEY, '1');
+  } catch {
+    return false;
+  }
+
+  const returnTo = window.location.pathname + window.location.search;
+  window.location.href = `${oidcProvider.loginUrl}?silent=1&return_to=${encodeURIComponent(returnTo)}`;
+  return true;
+}

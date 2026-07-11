@@ -132,6 +132,7 @@ export {
   getUser,
   isAuthenticated,
   fetchAuthProviders,
+  attemptSilentSso,
   type AuthProvider,
   type AuthProvidersResponse,
 } from './auth/auth-service.js';

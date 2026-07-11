@@ -10,6 +10,7 @@ import {
   isAuthenticated,
   getAuthState,
   onAuthChange,
+  attemptSilentSso,
 } from '../../packages/shared/src/auth/auth-service';
 
 describe('AuthService', () => {
@@ -326,6 +327,47 @@ describe('AuthService', () => {
       expect(state.isLoading).toBe(true);
       expect(state.user).toBeNull();
       expect(state.isAuthenticated).toBe(false);
+    });
+  });
+
+  describe('attemptSilentSso (#365)', () => {
+    const OIDC_PROVIDERS = {
+      ok: true,
+      json: async () => ({
+        providers: [{ id: 'oidc', label: 'SSO', loginUrl: '/api/auth/oidc/login' }],
+        oidcOnly: false,
+      }),
+    };
+
+    beforeEach(() => {
+      sessionStorage.clear();
+    });
+
+    it('aucun provider OIDC → false, pas de flag posé', async () => {
+      globalThis.fetch = vi
+        .fn()
+        .mockResolvedValue({ ok: true, json: async () => ({ providers: [], oidcOnly: false }) });
+      expect(await attemptSilentSso()).toBe(false);
+      expect(sessionStorage.getItem('dsfr-data-silent-sso-attempted')).toBeNull();
+    });
+
+    it('provider OIDC présent → pose le flag AVANT la redirection et retourne true', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue(OIDC_PROVIDERS);
+      expect(await attemptSilentSso()).toBe(true);
+      expect(sessionStorage.getItem('dsfr-data-silent-sso-attempted')).toBe('1');
+    });
+
+    it('garde anti-boucle : une seule tentative par session navigateur', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue(OIDC_PROVIDERS);
+      expect(await attemptSilentSso()).toBe(true);
+      expect(await attemptSilentSso()).toBe(false);
+      // le second appel ne refait même pas l'appel réseau
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('backend injoignable → false, silencieux', async () => {
+      globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
+      expect(await attemptSilentSso()).toBe(false);
     });
   });
 });

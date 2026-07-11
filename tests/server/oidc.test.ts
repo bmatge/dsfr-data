@@ -114,6 +114,52 @@ describe('GET /api/auth/oidc/login', () => {
     const res = await request(app).get('/api/auth/oidc/login');
     expect(res.status).toBe(500);
   });
+
+  // --- SSO silencieux (#365) -------------------------------------------------
+
+  it('?silent=1 ajoute prompt=none à l URL /authorize', async () => {
+    enableOidc();
+    const res = await request(app).get('/api/auth/oidc/login?silent=1');
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toContain('prompt=none');
+  });
+
+  it('sans silent, pas de prompt dans l URL /authorize', async () => {
+    enableOidc();
+    const res = await request(app).get('/api/auth/oidc/login');
+    expect(res.status).toBe(302);
+    expect(res.headers.location).not.toContain('prompt=');
+  });
+
+  it('?return_to relatif est porté par le cookie d état', async () => {
+    enableOidc();
+    const res = await request(app).get(
+      '/api/auth/oidc/login?return_to=%2Fapps%2Fdashboard%2F%3Ftab%3D2'
+    );
+    const setCookie = res.headers['set-cookie'];
+    const cookies = Array.isArray(setCookie) ? setCookie : [setCookie];
+    const stateCookie = cookies.find((c) => c && c.startsWith(OIDC_STATE_COOKIE)) ?? '';
+    const payload = JSON.parse(
+      decodeURIComponent(stateCookie.split(';')[0].slice(OIDC_STATE_COOKIE.length + 1))
+    );
+    expect(payload.returnTo).toBe('/apps/dashboard/?tab=2');
+  });
+
+  it('return_to non relatif (open redirect) retombe sur /', async () => {
+    enableOidc();
+    for (const evil of ['https://evil.example', '//evil.example', '/valid\\..\\evil']) {
+      const res = await request(app).get(
+        `/api/auth/oidc/login?return_to=${encodeURIComponent(evil)}`
+      );
+      const setCookie = res.headers['set-cookie'];
+      const cookies = Array.isArray(setCookie) ? setCookie : [setCookie];
+      const stateCookie = cookies.find((c) => c && c.startsWith(OIDC_STATE_COOKIE)) ?? '';
+      const payload = JSON.parse(
+        decodeURIComponent(stateCookie.split(';')[0].slice(OIDC_STATE_COOKIE.length + 1))
+      );
+      expect(payload.returnTo).toBe('/');
+    }
+  });
 });
 
 describe('GET /api/auth/oidc/callback', () => {
@@ -129,6 +175,68 @@ describe('GET /api/auth/oidc/callback', () => {
   it('returns 404 when OIDC is not enabled', async () => {
     const res = await request(app).get('/api/auth/oidc/callback?code=x&state=y');
     expect(res.status).toBe(404);
+  });
+
+  // --- SSO silencieux (#365) : erreurs « pas de session IdP » ----------------
+
+  it.each([
+    'login_required',
+    'interaction_required',
+    'consent_required',
+    'account_selection_required',
+  ])('error=%s → redirect / silencieux (pas de 400), même sans cookie', async (idpError) => {
+    enableOidc();
+    const res = await request(app).get(`/api/auth/oidc/callback?error=${idpError}`);
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe('/');
+  });
+
+  it('error=login_required avec cookie → redirect vers le returnTo stocké', async () => {
+    enableOidc();
+    const cookie = `${OIDC_STATE_COOKIE}=${encodeURIComponent(
+      JSON.stringify({
+        state: 'test-state-xxxxxxxxxxxxxxxx',
+        nonce: 'test-nonce-yyyyyyyyyyyyyyyy',
+        codeVerifier: 'test-pkce-verifier-zzzzzzzzzz',
+        returnTo: '/apps/dashboard/',
+      })
+    )}`;
+    const res = await request(app)
+      .get('/api/auth/oidc/callback?error=login_required')
+      .set('Cookie', cookie);
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe('/apps/dashboard/');
+  });
+
+  it('une vraie erreur OAuth (access_denied) reste une erreur', async () => {
+    enableOidc();
+    const res = await request(app)
+      .get('/api/auth/oidc/callback?error=access_denied')
+      .set('Cookie', VALID_STATE_COOKIE);
+    expect(res.status).toBe(400);
+  });
+
+  it('login réussi → redirect vers le returnTo stocké dans le cookie', async () => {
+    enableOidc();
+    idTokenClaims.mockReturnValue({
+      sub: 'idp-sub-returnto',
+      email: 'return.to@example.com',
+      email_verified: true,
+      name: 'Return To',
+    });
+    const cookie = `${OIDC_STATE_COOKIE}=${encodeURIComponent(
+      JSON.stringify({
+        state: 'test-state-xxxxxxxxxxxxxxxx',
+        nonce: 'test-nonce-yyyyyyyyyyyyyyyy',
+        codeVerifier: 'test-pkce-verifier-zzzzzzzzzz',
+        returnTo: '/apps/sources/',
+      })
+    )}`;
+    const res = await request(app)
+      .get('/api/auth/oidc/callback?code=x&state=test-state-xxxxxxxxxxxxxxxx')
+      .set('Cookie', cookie);
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe('/apps/sources/');
   });
 
   it('returns 400 when the state cookie is missing', async () => {
@@ -266,8 +374,10 @@ describe('GET /api/auth/oidc/callback', () => {
     );
     expect(user?.auth_provider).toBe('local');
 
+    // logAudit range le requérant (non authentifié → NULL) dans user_id et la
+    // cible dans target_id — c'est donc target_id qu'il faut interroger.
     const audit = await queryOne<{ action: string }>(
-      'SELECT action FROM audit_log WHERE user_id = ? ORDER BY id DESC LIMIT 1',
+      'SELECT action FROM audit_log WHERE target_id = ? ORDER BY id DESC LIMIT 1',
       ['user-existing-2']
     );
     expect(audit?.action).toBe('oidc.callback.denied_unverified_email');
