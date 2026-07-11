@@ -1,7 +1,9 @@
 import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
-  testDir: './e2e',
+  // testDir est résolu relativement à CE fichier (qui vit déjà dans e2e/) :
+  // './e2e' pointait sur e2e/e2e/ (inexistant) → 0 test découvert (#352)
+  testDir: '.',
   timeout: 30_000,
   retries: 0,
   use: {
