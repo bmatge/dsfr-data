@@ -120,7 +120,7 @@ git tag "v$(node -p \"require('./package.json').version\")"
 git push && git push --tags
 ```
 
-**Automatiquement** sur le tag `v*` : `npm-publish.yml` (npm) · `release.yml` (Tauri macOS/Linux/Windows + GitHub Release) · `publish-repos.yml` (sous-repos grist/proxy/mcp).
+**Automatiquement** sur le tag `v*` : `npm-publish.yml` (npm) · `release.yml` (Tauri macOS/Linux/Windows + GitHub Release). NB : le tag poussé par la PR changesets (GITHUB_TOKEN) ne déclenche PAS `release.yml` → `gh workflow run release.yml -f version=vX.Y.Z`. Les sous-repos de distribution (`dsfr-data-grist/proxy/mcp`) sont **archivés depuis 2026-04** — plus de publication séparée ; seul le miroir `mef-snum-miweb/dsfr-data` est synchronisé.
 
 **CI** : un warning est emis sur les PRs si `packages/core/src/` ou `packages/shared/` sont modifies sans changeset.
 
