@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-scheme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Où en est l'électrification de la France ? — Tableau de bord annuel</title>
+
+<!-- ============ Dépendances (6, ordre imposé) ============ -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.1.1/dist/DSFRChart/DSFRChart.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.1.1/dist/DSFRChart/DSFRChart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dsfr-data@0/dist/dsfr-data.core.umd.js"></script>
+
+<style>
+  /* Habillage éditorial uniquement — aucun JS complémentaire */
+  .tdb-hero{padding:3rem 0 2.5rem}
+  .tdb-hero .tdb-surtitre{letter-spacing:.08em;text-transform:uppercase;font-size:.75rem;font-weight:700;opacity:.85}
+  .tdb-hero h1{max-width:36rem}
+  .tdb-hero .tdb-chapo{max-width:44rem;opacity:.95}
+  .tdb-hero-card{border-radius:.5rem;padding:1rem;height:100%}
+  .tdb-card{border:1px solid var(--border-default-grey,#ddd);border-radius:.5rem;padding:1.25rem;height:100%;display:flex;flex-direction:column;gap:.75rem}
+  .tdb-card h3{font-size:1rem;margin:0}
+  .tdb-source{color:var(--text-mention-grey)}
+  .tdb-num{display:inline-flex;align-items:center;justify-content:center;width:2rem;height:2rem;border-radius:.25rem;font-weight:700;margin-right:.5rem}
+  .tdb-section{padding:2rem 0;scroll-margin-top:1rem}
+  .tdb-section+.tdb-section{border-top:1px solid var(--border-default-grey,#ddd)}
+  .tdb-callout-cap{border-left:4px solid #fff;background:rgba(255,255,255,.12);padding:1rem 1.25rem;border-radius:.25rem}
+</style>
+</head>
+<body>
+
+<!-- =====================================================================
+     SOURCES — les deux tables Grist du Baromètre (accès public, CORS OK).
+     Si le WAF de grist.numerique.gouv.fr bloque le fetch navigateur,
+     décommenter proxy-url (réécriture auto vers /grist-gouv-proxy).
+     ===================================================================== -->
+
+<!-- Séries annuelles (wide : c2017…c2025 + Cible_2030) -->
+<dsfr-data-source id="src-series" api-type="grist"
+  base-url="https://grist.numerique.gouv.fr/api/docs/jGd2ge4dy2ZM/tables/Plan_elec_annuelle_issu_rte_enedis/records">
+  <!-- proxy-url="https://chartsbuilder.miweb.run" -->
+</dsfr-data-source>
+
+<!-- Valeurs ponctuelles (Indicateur / Valeur / Unite / Periode) -->
+<dsfr-data-source id="src-points" api-type="grist"
+  base-url="https://grist.numerique.gouv.fr/api/docs/jGd2ge4dy2ZM/tables/Plan_elec_annuelle_issu_barometre/records">
+  <!-- proxy-url="https://chartsbuilder.miweb.run" -->
+</dsfr-data-source>
+
+<!-- =====================================================================
+     PIPELINE A — branche KPI (table wide telle quelle)
+     - renommage des indicateurs (courts) ;
+       /!\ PATCH : les lignes « gaz naturel » et « charbon » sont inversées
+       dans Grist (valeurs et cibles). Le renommage croisé ci-dessous corrige
+       l'affichage. À retirer une fois la table corrigée.
+     - arrondis 2 décimales, puis deltas annuels d2023/d2024/d2025.
+     ===================================================================== -->
+<dsfr-data-normalize id="series-kpi" source="src-series"
+  replace-fields="Indicateur:Part du pétrole dans la consommation finale d'énergie:Pétrole | Indicateur:Part du gaz naturel dans la consommation finale d'énergie:Charbon | Indicateur:Part du charbon dans la consommation finale d'énergie:Gaz naturel | Indicateur:Part des résidences principales chauffées au gaz:Gaz | Indicateur:Part des résidences principales chauffées au fioul:Fioul"
+  round="c2022:2, c2023:2, c2024:2, c2025:2"
+  compute="d2025 = c2025 - c2024; d2024 = c2024 - c2023; d2023 = c2023 - c2022">
+</dsfr-data-normalize>
+<dsfr-data-normalize id="series-kpi-r" source="series-kpi"
+  round="d2025:1, d2024:1, d2023:1">
+</dsfr-data-normalize>
+
+<!-- =====================================================================
+     PIPELINE B — branche graphiques : wide → tidy via dsfr-data-unpivot.
+     Une nouvelle colonne c2026 apparaîtra automatiquement (pattern c{YYYY}),
+     drop-empty ignore les cellules vides.
+     /!\ PAS de order-by="annee" sur les queries en aval : l'order-by est
+     relayé jusqu'à la source Grist (mode Records → ?sort=annee), or `annee`
+     n'existe qu'APRÈS l'unpivot → 500 "unknown key annee". L'ordre croissant
+     des années est garanti par l'ordre des colonnes c2017…c2026 de la table.
+     Seuls les tris sur colonnes Grist réelles (ex. Valeur) sont autorisés.
+     ===================================================================== -->
+<dsfr-data-unpivot id="series-tidy-raw" source="src-series"
+  id-cols="Section, Indicateur"
+  value-cols-pattern="c{YYYY}"
+  var-name="annee" var-format="{YYYY}"
+  value-name="valeur"
+  drop-empty>
+</dsfr-data-unpivot>
+<dsfr-data-normalize id="series-tidy" source="series-tidy-raw"
+  replace-fields="Indicateur:Part du pétrole dans la consommation finale d'énergie:Pétrole | Indicateur:Part du gaz naturel dans la consommation finale d'énergie:Charbon | Indicateur:Part du charbon dans la consommation finale d'énergie:Gaz naturel | Indicateur:Part des résidences principales chauffées au gaz:Gaz | Indicateur:Part des résidences principales chauffées au fioul:Fioul"
+  round="valeur:2">
+</dsfr-data-normalize>
+
+<!-- =====================================================================
+     PIPELINE C — valeurs ponctuelles pour graphiques (libellés courts)
+     ===================================================================== -->
+<dsfr-data-normalize id="points-chart" source="src-points"
+  replace-fields="Indicateur:Taux d'électrification (usages énergétiques):France | Indicateur:Taux d'électrification — Transport:Transport | Indicateur:Taux d'électrification — Résidentiel:Résidentiel | Indicateur:Taux d'électrification — Industrie:Industrie | Indicateur:Taux d'électrification — Tertiaire:Tertiaire | Indicateur:Taux d'électrification — Agriculture-pêche:Agriculture-pêche | Indicateur:Taux d'électrification — Union européenne:Union européenne | Indicateur:Taux d'électrification — Norvège:Norvège | Indicateur:Taux d'électrification — Suède:Suède | Indicateur:Taux d'électrification — Allemagne:Allemagne | Indicateur:Taux d'électrification — Roumanie:Roumanie">
+</dsfr-data-normalize>
+
+<!-- ================================ HERO ================================ -->
+<header class="tdb-hero">
+  <div class="fr-container">
+    <p class="tdb-surtitre fr-mb-1w">Tableau de bord · Données annuelles</p>
+    <h1 class="fr-h1">Où en est l'électrification de la France&nbsp;?</h1>
+    <p class="tdb-chapo fr-text--lg">
+      Remplacer le pétrole, le gaz et le charbon par une électricité décarbonée
+      produite en France&nbsp;: c'est le levier n°1 pour le climat et pour notre
+      souveraineté énergétique. Voici, en chiffres, le chemin parcouru — et celui
+      qui reste à faire d'ici 2030.
+    </p>
+
+    <div class="fr-grid-row fr-grid-row--gutters fr-mt-3w">
+      <!-- 27 % de l'énergie consommée est de l'électricité -->
+      <dsfr-data-query id="q-hero-elec" source="src-points"
+        where="Indicateur:eq:Taux d'électrification (usages énergétiques)">
+      </dsfr-data-query>
+      <div class="fr-col-12 fr-col-md-3"><div class="tdb-hero-card">
+        <dsfr-data-kpi source="q-hero-elec" value="Valeur" format="pourcentage"
+          lines='[{"text":"cap : 34 % en 2030"}]'
+          label="de l&#39;énergie consommée est de l&#39;électricité (2025) — SDES">
+        </dsfr-data-kpi>
+      </div></div>
+
+      <!-- 20 % des voitures neuves sont électriques -->
+      <dsfr-data-query id="q-hero-ve" source="series-kpi-r"
+        where="Indicateur:eq:Proportion de voitures particulières électriques dans les immatriculations neuves">
+      </dsfr-data-query>
+      <dsfr-data-normalize id="q-hero-ve-r" source="q-hero-ve" round="c2025:0"></dsfr-data-normalize>
+      <div class="fr-col-12 fr-col-md-3"><div class="tdb-hero-card">
+        <dsfr-data-kpi source="q-hero-ve-r" value="c2025" format="pourcentage"
+          lines='[{"text":"×10 depuis 2019"}]'
+          label="des voitures neuves vendues en 2025 sont électriques — PFA/AAA Data">
+        </dsfr-data-kpi>
+      </div></div>
+
+      <!-- 185 501 points de recharge -->
+      <dsfr-data-query id="q-hero-irve" source="series-kpi-r"
+        where="Indicateur:eq:Points de recharge électriques ouverts au public">
+      </dsfr-data-query>
+      <div class="fr-col-12 fr-col-md-3"><div class="tdb-hero-card">
+        <dsfr-data-kpi source="q-hero-irve" value="c2025" format="nombre"
+          lines='[{"value":"Cible_2030:avg","prefix":"objectif","suffix":"en 2030"}]'
+          label="points de recharge ouverts au public fin 2025 — Avere-France">
+        </dsfr-data-kpi>
+      </div></div>
+
+      <!-- 44,6 % des logements chauffés au gaz ou au fioul -->
+      <dsfr-data-query id="q-hero-chauffe" source="series-kpi-r"
+        where="Indicateur:in:Gaz|Fioul">
+      </dsfr-data-query>
+      <div class="fr-col-12 fr-col-md-3"><div class="tdb-hero-card">
+        <dsfr-data-kpi source="q-hero-chauffe" value="c2023:sum" format="pourcentage"
+          lines='[{"text":"autant de chaudières fossiles à remplacer"}]'
+          label="des logements encore chauffés au gaz ou au fioul (2023) — SDES">
+        </dsfr-data-kpi>
+      </div></div>
+    </div>
+
+    <div class="tdb-callout-cap fr-mt-3w">
+      <p class="fr-mb-0"><strong>Le cap&nbsp;:</strong> porter la part de l'électricité de
+        ~27&nbsp;% aujourd'hui à <strong>34&nbsp;% de l'énergie consommée en 2030</strong>,
+        sur la voie des plus de 50&nbsp;% visés en 2050 — en sortant des énergies fossiles.</p>
+    </div>
+  </div>
+</header>
+
+<!-- Sommaire -->
+<div class="fr-container fr-mt-2w">
+  <nav class="fr-summary" role="navigation" aria-labelledby="tdb-sommaire">
+    <p class="fr-summary__title" id="tdb-sommaire">Sommaire</p>
+    <ol class="fr-summary__list">
+      <li><a class="fr-summary__link" href="#cap">Le cap &amp; la consommation</a></li>
+      <li><a class="fr-summary__link" href="#deplacer">Se déplacer</a></li>
+      <li><a class="fr-summary__link" href="#chauffer">Se chauffer</a></li>
+      <li><a class="fr-summary__link" href="#produire">Produire</a></li>
+    </ol>
+  </nav>
+</div>
+
+<!-- ====================== SECTION 1 — LE CAP ====================== -->
+<section class="tdb-section" id="cap">
+  <div class="fr-container">
+    <h2><span class="tdb-num">1</span>Le cap&nbsp;: sortir des énergies fossiles</h2>
+
+    <!-- Les deux chiffres de l'intro, pilotés par la donnée -->
+    <dsfr-data-query id="q-fossiles-part" source="src-points"
+      where="Indicateur:eq:Part des énergies fossiles dans la consommation finale">
+    </dsfr-data-query>
+    <dsfr-data-query id="q-fossiles-cout" source="src-points"
+      where="Indicateur:eq:Coût des importations d'énergies fossiles">
+    </dsfr-data-query>
+    <dsfr-data-kpi-group cols="4">
+      <dsfr-data-kpi source="q-fossiles-part" value="Valeur" format="pourcentage"
+        label="de l&#39;énergie consommée en France reste fossile (2024)"></dsfr-data-kpi>
+      <dsfr-data-kpi source="q-fossiles-cout" value="Valeur" format="nombre"
+        lines='[{"text":"milliards d&#39;euros"}]'
+        label="d&#39;importations fossiles en 2024 — chaque point d&#39;électrification gagné est un point de moins de dépendance et d&#39;émissions"></dsfr-data-kpi>
+    </dsfr-data-kpi-group>
+
+    <div class="fr-grid-row fr-grid-row--gutters fr-mt-2w">
+
+      <!-- 1.1 Part des énergies fossiles dans la consommation finale -->
+      <div class="fr-col-12 fr-col-lg-6"><div class="tdb-card">
+        <h3>Part des énergies fossiles dans la consommation finale d'énergie</h3>
+        <dsfr-data-query id="q-petrole" source="series-kpi-r" where="Indicateur:eq:Pétrole"></dsfr-data-query>
+        <dsfr-data-query id="q-gaznat" source="series-kpi-r" where="Indicateur:eq:Gaz naturel"></dsfr-data-query>
+        <dsfr-data-query id="q-charbon" source="series-kpi-r" where="Indicateur:eq:Charbon"></dsfr-data-query>
+        <dsfr-data-kpi-group cols="3" gap="sm">
+          <dsfr-data-kpi source="q-petrole" heading="Pétrole (2025)" value="c2025" format="pourcentage"
+            lines='[{"value":"Cible_2030:avg","prefix":"objectif 2030 :"}]'></dsfr-data-kpi>
+          <dsfr-data-kpi source="q-gaznat" heading="Gaz naturel (2025)" value="c2025" format="pourcentage"
+            lines='[{"value":"Cible_2030:avg","prefix":"objectif 2030 :"}]'></dsfr-data-kpi>
+          <dsfr-data-kpi source="q-charbon" heading="Charbon (2025)" value="c2025" format="pourcentage"
+            lines='[{"value":"Cible_2030:avg","prefix":"objectif 2030 :"}]'></dsfr-data-kpi>
+        </dsfr-data-kpi-group>
+        <dsfr-data-query id="q-chart-fossiles" source="series-tidy"
+          where="Indicateur:in:Pétrole|Gaz naturel|Charbon">
+        </dsfr-data-query>
+        <dsfr-data-chart id="chart-fossiles" source="q-chart-fossiles" type="line"
+          label-field="annee" value-field="valeur" series-field="Indicateur"
+          unit-tooltip="%"
+          targets='[{"x":"2030","value":25.6,"series":"Pétrole","label":"Cible 2030 : 26 %"},{"x":"2030","value":15.2,"series":"Gaz naturel","label":"Cible 2030 : 15 %"},{"x":"2030","value":0,"series":"Charbon","label":"Cible 2030 : 0 %"}]'>
+        </dsfr-data-chart>
+        <dsfr-data-a11y for="chart-fossiles" source="q-chart-fossiles" table download
+          description="Le pétrole reste stable autour de 38 %, le gaz naturel recule lentement vers 18 %, le charbon est marginal."></dsfr-data-a11y>
+        <p class="fr-text--xs tdb-source fr-mb-0">Source : SDES, séries longues · objectifs : 3e stratégie nationale bas-carbone (provisoire)</p>
+      </div></div>
+
+      <!-- 1.2 Taux d'électrification par secteur -->
+      <div class="fr-col-12 fr-col-lg-6"><div class="tdb-card">
+        <h3>Taux d'électrification par secteur <span class="fr-badge fr-badge--info fr-badge--sm fr-badge--no-icon">Données 2025</span></h3>
+        <p class="fr-text--sm fr-mb-0">Part de l'électricité dans la consommation d'énergie finale du secteur. Le transport est le grand chantier.</p>
+        <dsfr-data-query id="q-secteurs" source="points-chart"
+          where="Indicateur:in:Tertiaire|Industrie|Résidentiel|Agriculture-pêche|Transport"
+          order-by="Valeur:desc">
+        </dsfr-data-query>
+        <dsfr-data-chart id="chart-secteurs" source="q-secteurs" type="bar" horizontal
+          label-field="Indicateur" value-field="Valeur" name='["Taux d&#39;électrification (%)"]' unit-tooltip="%"
+          selected-palette="default">
+        </dsfr-data-chart>
+        <dsfr-data-a11y for="chart-secteurs" source="q-secteurs" table download
+          description="Le tertiaire est le secteur le plus électrifié (58 %), le transport le moins (3 %)."></dsfr-data-a11y>
+        <p class="fr-text--xs tdb-source fr-mb-0">Source : SDES, Bilan énergétique de la France</p>
+      </div></div>
+
+      <!-- 1.3 Électricité produite en France -->
+      <div class="fr-col-12 fr-col-lg-6"><div class="tdb-card">
+        <dsfr-data-query id="q-kpi-prod" source="series-kpi-r"
+          where="Indicateur:eq:Électricité produite totale"></dsfr-data-query>
+        <dsfr-data-kpi source="q-kpi-prod" heading="Électricité produite en France" value="c2025"
+          lines='[{"value":"d2025:avg","sign":true,"suffix":"TWh vs 2024","color":"auto"},{"value":"Cible_2030:avg","prefix":"TWh en 2025 · objectif 2030 :","suffix":"TWh (PPE 2026-2035)"}]'>
+        </dsfr-data-kpi>
+        <dsfr-data-query id="q-chart-prod" source="series-tidy"
+          where="Indicateur:eq:Électricité produite totale"></dsfr-data-query>
+        <dsfr-data-chart id="chart-prod" source="q-chart-prod" type="line"
+          label-field="annee" value-field="valeur" name='["Électricité produite (TWh)"]' unit-tooltip="TWh"
+          targets='[{"x":"2030","value":610,"label":"Cible 2030 : 610 TWh"}]'>
+        </dsfr-data-chart>
+        <dsfr-data-a11y for="chart-prod" source="q-chart-prod" table download
+          description="Après le creux de 2022, la production remonte et dépasse son niveau de 2018."></dsfr-data-a11y>
+        <p class="fr-text--xs tdb-source fr-mb-0">Source : SDES, Bilan énergétique</p>
+      </div></div>
+
+      <!-- 1.4 Consommation d'électricité corrigée du climat -->
+      <div class="fr-col-12 fr-col-lg-6"><div class="tdb-card">
+        <dsfr-data-query id="q-kpi-conso" source="series-kpi-r"
+          where="Indicateur:eq:Consommation d'électricité corrigée du climat"></dsfr-data-query>
+        <dsfr-data-kpi source="q-kpi-conso" heading="Consommation d'électricité (corrigée du climat)" value="c2025"
+          lines='[{"value":"d2025:avg","sign":true,"suffix":"TWh vs 2024","color":"auto"},{"text":"TWh en 2025"}]'>
+        </dsfr-data-kpi>
+        <dsfr-data-query id="q-chart-conso" source="series-tidy"
+          where="Indicateur:eq:Consommation d'électricité corrigée du climat"></dsfr-data-query>
+        <dsfr-data-chart id="chart-conso" source="q-chart-conso" type="line"
+          label-field="annee" value-field="valeur" name='["Consommation corrigée du climat (TWh)"]' unit-tooltip="TWh" y-min="0">
+        </dsfr-data-chart>
+        <dsfr-data-a11y for="chart-conso" source="q-chart-conso" table download
+          description="Consommation globalement stable, en légère reprise depuis 2023."></dsfr-data-a11y>
+        <p class="fr-text--xs tdb-source fr-mb-0">Source : SDES, séries longues</p>
+      </div></div>
+
+      <!-- 1.5 La France parmi les pays les plus électrifiés d'Europe -->
+      <div class="fr-col-12 fr-col-lg-6"><div class="tdb-card">
+        <h3>La France parmi les pays les plus électrifiés d'Europe <span class="fr-badge fr-badge--info fr-badge--sm fr-badge--no-icon">Données 2024</span></h3>
+        <p class="fr-text--sm fr-mb-0">Part de l'électricité dans la consommation finale à usage énergétique.</p>
+        <dsfr-data-query id="q-pays" source="points-chart"
+          where="Indicateur:in:Norvège|Suède|France|Union européenne|Allemagne|Roumanie"
+          order-by="Valeur:desc">
+        </dsfr-data-query>
+        <dsfr-data-chart id="chart-pays" source="q-pays" type="bar" horizontal
+          label-field="Indicateur" value-field="Valeur" name='["Taux d&#39;électrification (%)"]' unit-tooltip="%"
+          selected-palette="neutral" highlight-index="[2]">
+        </dsfr-data-chart>
+        <dsfr-data-a11y for="chart-pays" source="q-pays" table download
+          description="La France (27 %) devance la moyenne européenne (23,4 %) et l&#39;Allemagne, derrière la Norvège et la Suède."></dsfr-data-a11y>
+        <p class="fr-text--xs tdb-source fr-mb-0">Source : RTE &amp; Enedis, Tableau de bord de l'électrification, 22 mai 2026 — Eurostat (2026)</p>
+      </div></div>
+
+      <!-- 1.6 Exportations nettes d'électricité -->
+      <div class="fr-col-12 fr-col-lg-6"><div class="tdb-card">
+        <dsfr-data-query id="q-kpi-expo" source="series-kpi-r"
+          where="Indicateur:eq:Exportations nettes d'électricité"></dsfr-data-query>
+        <dsfr-data-kpi source="q-kpi-expo" heading="Exportations nettes d'électricité" value="c2025"
+          lines='[{"value":"d2025:avg","sign":true,"suffix":"TWh vs 2024","color":"auto"},{"text":"TWh en 2025"}]'>
+        </dsfr-data-kpi>
+        <dsfr-data-query id="q-chart-expo" source="series-tidy"
+          where="Indicateur:eq:Exportations nettes d'électricité"></dsfr-data-query>
+        <dsfr-data-chart id="chart-expo" source="q-chart-expo" type="line"
+          label-field="annee" value-field="valeur" name='["Exportations nettes (TWh)"]' unit-tooltip="TWh">
+        </dsfr-data-chart>
+        <dsfr-data-a11y for="chart-expo" source="q-chart-expo" table download
+          description="Après l&#39;année importatrice de 2022, les exportations nettes atteignent un record en 2025."></dsfr-data-a11y>
+        <p class="fr-text--xs tdb-source fr-mb-0">Source : SDES, Bilan énergétique</p>
+      </div></div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ====================== SECTION 2 — SE DÉPLACER ====================== -->
+<section class="tdb-section" id="deplacer">
+  <div class="fr-container">
+    <h2><span class="tdb-num">2</span>Se déplacer électrique</h2>
+    <p>Le transport est le secteur le moins électrifié (3&nbsp;% en 2025) mais celui où la
+      dynamique est la plus forte&nbsp;: en 2025, une voiture neuve sur cinq était déjà
+      électrique, et le réseau de recharge double quasiment tous les deux ans.</p>
+
+    <h3 class="fr-h5">① Dans les ventes de véhicules neufs <span class="fr-text--regular fr-text--sm">— part de l'électrique dans les immatriculations de l'année</span></h3>
+    <div class="fr-grid-row fr-grid-row--gutters">
+
+      <!-- 2.1 Voitures particulières -->
+      <div class="fr-col-12 fr-col-lg-6"><div class="tdb-card">
+        <dsfr-data-query id="q-kpi-vp" source="series-kpi-r"
+          where="Indicateur:eq:Proportion de voitures particulières électriques dans les immatriculations neuves"></dsfr-data-query>
+        <dsfr-data-kpi source="q-kpi-vp" heading="Voitures électriques dans les immatriculations neuves"
+          value="c2025" format="pourcentage"
+          lines='[{"value":"d2025:avg","sign":true,"format":"nombre","suffix":"pt vs 2024","color":"auto"},{"value":"Cible_2030:avg","prefix":"en 2025 · objectif 2030 :","suffix":"(SNBC3, provisoire)"}]'>
+        </dsfr-data-kpi>
+        <dsfr-data-query id="q-chart-vp" source="series-tidy"
+          where="Indicateur:eq:Proportion de voitures particulières électriques dans les immatriculations neuves"
+         ></dsfr-data-query>
+        <dsfr-data-chart id="chart-vp" source="q-chart-vp" type="line"
+          label-field="annee" value-field="valeur" name='["Voitures électriques (% des immatriculations)"]' unit-tooltip="%"
+          targets='[{"x":"2030","value":66,"label":"Cible 2030 : 66 %"}]'>
+        </dsfr-data-chart>
+        <dsfr-data-a11y for="chart-vp" source="q-chart-vp" table download
+          description="De 1 % en 2017 à 20 % en 2025, croissance continue."></dsfr-data-a11y>
+        <p class="fr-text--xs tdb-source fr-mb-0">Source : PFA, AAA Data</p>
+      </div></div>
+
+      <!-- 2.2 Utilitaires légers -->
+      <div class="fr-col-12 fr-col-lg-6"><div class="tdb-card">
+        <dsfr-data-query id="q-kpi-vul" source="series-kpi-r"
+          where="Indicateur:eq:Proportion de VUL électriques dans les immatriculations neuves"></dsfr-data-query>
+        <dsfr-data-kpi source="q-kpi-vul" heading="Utilitaires légers électriques dans les ventes"
+          value="c2025" format="pourcentage"
+          lines='[{"value":"d2025:avg","sign":true,"format":"nombre","suffix":"pt vs 2024","color":"auto"},{"value":"Cible_2030:avg","prefix":"en 2025 · objectif 2030 :","suffix":"(SNBC3, provisoire)"}]'>
+        </dsfr-data-kpi>
+        <dsfr-data-query id="q-chart-vul" source="series-tidy"
+          where="Indicateur:eq:Proportion de VUL électriques dans les immatriculations neuves"
+         ></dsfr-data-query>
+        <dsfr-data-chart id="chart-vul" source="q-chart-vul" type="line"
+          label-field="annee" value-field="valeur" name='["VUL électriques (% des immatriculations)"]' unit-tooltip="%"
+          targets='[{"x":"2030","value":51,"label":"Cible 2030 : 51 %"}]'>
+        </dsfr-data-chart>
+        <dsfr-data-a11y for="chart-vul" source="q-chart-vul" table download
+          description="10 % des utilitaires légers neufs sont électriques en 2025."></dsfr-data-a11y>
+        <p class="fr-text--xs tdb-source fr-mb-0">Source : SDES, Données sur le parc automobile français au 1er janvier 2025</p>
+      </div></div>
+
+      <!-- 2.3 Poids lourds -->
+      <div class="fr-col-12 fr-col-lg-6"><div class="tdb-card">
+        <dsfr-data-query id="q-kpi-pl" source="series-kpi-r"
+          where="Indicateur:eq:Proportion de poids lourds électriques dans les immatriculations neuves"></dsfr-data-query>
+        <dsfr-data-kpi source="q-kpi-pl" heading="Poids lourds électriques dans les ventes"
+          value="c2025" format="pourcentage"
+          lines='[{"value":"d2025:avg","sign":true,"format":"nombre","suffix":"pt vs 2024","color":"auto"},{"value":"Cible_2030:avg","prefix":"en 2025 · objectif 2030 :","suffix":"(SNBC3, provisoire)"}]'>
+        </dsfr-data-kpi>
+        <dsfr-data-query id="q-chart-pl" source="series-tidy"
+          where="Indicateur:eq:Proportion de poids lourds électriques dans les immatriculations neuves"
+         ></dsfr-data-query>
+        <dsfr-data-chart id="chart-pl" source="q-chart-pl" type="line"
+          label-field="annee" value-field="valeur" name='["Poids lourds électriques (% des immatriculations)"]' unit-tooltip="%"
+          targets='[{"x":"2030","value":50,"label":"Cible 2030 : 50 %"}]'>
+        </dsfr-data-chart>
+        <dsfr-data-a11y for="chart-pl" source="q-chart-pl" table download
+          description="Le décollage des poids lourds électriques commence à peine : 2 % en 2025."></dsfr-data-a11y>
+        <p class="fr-text--xs tdb-source fr-mb-0">Source : SDES, RSVERO — données sur les immatriculations des véhicules</p>
+      </div></div>
+
+      <!-- 2.4 Autobus -->
+      <div class="fr-col-12 fr-col-lg-6"><div class="tdb-card">
+        <dsfr-data-query id="q-kpi-bus" source="series-kpi-r"
+          where="Indicateur:eq:Proportion d'autobus électriques dans les immatriculations neuves"></dsfr-data-query>
+        <dsfr-data-kpi source="q-kpi-bus" heading="Autobus électriques dans les ventes"
+          value="c2025" format="pourcentage"
+          lines='[{"value":"d2025:avg","sign":true,"format":"nombre","suffix":"pt vs 2024","color":"auto"},{"value":"Cible_2030:avg","prefix":"en 2025 · objectif 2030 :","suffix":"(SNBC3, provisoire)"}]'>
+        </dsfr-data-kpi>
+        <dsfr-data-query id="q-chart-bus" source="series-tidy"
+          where="Indicateur:eq:Proportion d'autobus électriques dans les immatriculations neuves"
+         ></dsfr-data-query>
+        <dsfr-data-chart id="chart-bus" source="q-chart-bus" type="line"
+          label-field="annee" value-field="valeur" name='["Autobus électriques (% des immatriculations)"]' unit-tooltip="%"
+          targets='[{"x":"2030","value":89,"label":"Cible 2030 : 89 %"}]'>
+        </dsfr-data-chart>
+        <dsfr-data-a11y for="chart-bus" source="q-chart-bus" table download
+          description="44 % des autobus neufs sont électriques en 2025, en forte hausse."></dsfr-data-a11y>
+        <p class="fr-text--xs tdb-source fr-mb-0">Source : SDES, données sur les immatriculations des véhicules</p>
+      </div></div>
+    </div>
+
+    <!-- KPIs complémentaires ventes -->
+    <dsfr-data-query id="q-kpi-quadri" source="series-kpi-r"
+      where="Indicateur:eq:Proportion de quadricycles électriques dans les immatriculations neuves"></dsfr-data-query>
+    <dsfr-data-query id="q-kpi-cars" source="series-kpi-r"
+      where="Indicateur:eq:Proportion d'autocars électriques dans les immatriculations neuves"></dsfr-data-query>
+    <dsfr-data-query id="q-kpi-admin" source="series-kpi-r"
+      where="Indicateur:eq:Taux d'acquisition de véhicules électriques dans l'administration"></dsfr-data-query>
+    <div class="fr-mt-2w">
+      <dsfr-data-kpi-group cols="3">
+        <dsfr-data-kpi source="q-kpi-quadri" value="c2025" format="pourcentage"
+          label="des quadricycles neufs sont électriques (2025) — SDES"></dsfr-data-kpi>
+        <dsfr-data-kpi source="q-kpi-cars" value="c2025" format="pourcentage"
+          lines='[{"value":"Cible_2030:avg","prefix":"cible 2030 :"}]'
+          label="des autocars neufs sont électriques (2025) — SDES"></dsfr-data-kpi>
+        <dsfr-data-kpi source="q-kpi-admin" value="c2025" format="pourcentage"
+          lines='[{"text":"cible 2026 : 37,4 %"}]'
+          label="de véhicules électriques dans les achats de l&#39;administration (2025) — SDES"></dsfr-data-kpi>
+      </dsfr-data-kpi-group>
+    </div>
+
+    <h3 class="fr-h5 fr-mt-4w">② Dans le parc en circulation <span class="fr-text--regular fr-text--sm">— part de l'électrique parmi les véhicules effectivement sur la route</span></h3>
+    <div class="fr-grid-row fr-grid-row--gutters">
+      <!-- 2.5 VP dans le parc roulant — graphique seul (KPI déporté colonne droite) -->
+      <div class="fr-col-12 fr-col-lg-6"><div class="tdb-card">
+        <h3>Voitures électriques dans le parc roulant</h3>
+        <dsfr-data-query id="q-kpi-vp-parc" source="series-kpi-r"
+          where="Indicateur:eq:Proportion de voitures particulières électriques dans le parc roulant"></dsfr-data-query>
+        <dsfr-data-query id="q-chart-vp-parc" source="series-tidy"
+          where="Indicateur:eq:Proportion de voitures particulières électriques dans le parc roulant"
+         ></dsfr-data-query>
+        <dsfr-data-chart id="chart-vp-parc" source="q-chart-vp-parc" type="line"
+          label-field="annee" value-field="valeur" name='["Voitures électriques (% du parc roulant)"]' unit-tooltip="%"
+          targets='[{"x":"2030","value":15,"label":"Cible 2030 : 15 %"}]'>
+        </dsfr-data-chart>
+        <dsfr-data-a11y for="chart-vp-parc" source="q-chart-vp-parc" table download
+          description="2,85 % du parc roulant est électrique en 2025 ; l&#39;inertie du parc explique l&#39;écart avec les ventes."></dsfr-data-a11y>
+        <p class="fr-text--xs tdb-source fr-mb-0">Source : SDES, Données sur le parc automobile français au 1er janvier 2025</p>
+      </div></div>
+
+      <!-- 2.6 KPIs parc -->
+      <div class="fr-col-12 fr-col-lg-6">
+        <!-- /!\ Ligne Grist « Proportion de véhicules utilitaires électriques… » :
+             doublon de la ligne VUL immatriculations (mêmes valeurs, même ID_SGPE),
+             utilisé dans la maquette comme « parc roulant » — à corriger dans Grist. -->
+        <dsfr-data-query id="q-kpi-vul-parc" source="series-kpi-r"
+          where="Indicateur:eq:Proportion de véhicules utilitaires électriques dans les immatriculations neuves"></dsfr-data-query>
+        <dsfr-data-query id="q-kpi-pl-parc" source="series-kpi-r"
+          where="Indicateur:eq:Proportion de poids lourds électriques dans le parc roulant"></dsfr-data-query>
+        <dsfr-data-query id="q-kpi-bus-parc" source="series-kpi-r"
+          where="Indicateur:eq:Proportion d'autobus électriques dans le parc roulant"></dsfr-data-query>
+        <dsfr-data-query id="q-kpi-cars-parc" source="series-kpi-r"
+          where="Indicateur:eq:Proportion d'autocars électriques dans le parc roulant"></dsfr-data-query>
+        <dsfr-data-kpi-group cols="2">
+          <dsfr-data-kpi source="q-kpi-vp-parc" heading="Voitures électriques dans le parc roulant"
+            value="c2025" format="pourcentage" col="12"
+            lines='[{"value":"d2025:avg","sign":true,"format":"nombre","suffix":"pt vs 2024","color":"auto"},{"value":"Cible_2030:avg","prefix":"en 2025 · objectif 2030 :","suffix":"(SNBC3, provisoire)"}]'>
+          </dsfr-data-kpi>
+          <dsfr-data-kpi source="q-kpi-vul-parc" value="c2025" format="pourcentage"
+            lines='[{"value":"Cible_2030:avg","prefix":"cible 2030 :"}]'
+            label="des utilitaires légers du parc roulant sont électriques (2025)"></dsfr-data-kpi>
+          <dsfr-data-kpi source="q-kpi-pl-parc" value="c2025" format="pourcentage"
+            lines='[{"value":"Cible_2030:avg","prefix":"cible 2030 :"}]'
+            label="des poids lourds du parc roulant sont électriques (2025)"></dsfr-data-kpi>
+          <dsfr-data-kpi source="q-kpi-bus-parc" value="c2025" format="pourcentage"
+            lines='[{"value":"Cible_2030:avg","prefix":"cible 2030 :"}]'
+            label="des autobus du parc roulant sont électriques (2025)"></dsfr-data-kpi>
+          <dsfr-data-kpi source="q-kpi-cars-parc" value="c2025" format="pourcentage"
+            lines='[{"value":"Cible_2030:avg","prefix":"cible 2030 :"}]'
+            label="des autocars du parc roulant sont électriques (2025)"></dsfr-data-kpi>
+        </dsfr-data-kpi-group>
+        <p class="fr-text--xs tdb-source">Source : SDES, Données sur le parc automobile français au 1er janvier 2025</p>
+      </div>
+    </div>
+
+    <h3 class="fr-h5 fr-mt-4w">③ Se recharger <span class="fr-text--regular fr-text--sm">— l'infrastructure publique de recharge</span></h3>
+    <div class="fr-grid-row fr-grid-row--gutters">
+      <!-- 2.7 Points de recharge — graphique seul (KPI déporté colonne droite) -->
+      <div class="fr-col-12 fr-col-lg-6"><div class="tdb-card">
+        <h3>Points de recharge ouverts au public</h3>
+        <dsfr-data-query id="q-chart-irve" source="series-tidy"
+          where="Indicateur:eq:Points de recharge électriques ouverts au public"
+         ></dsfr-data-query>
+        <dsfr-data-chart id="chart-irve" source="q-chart-irve" type="line"
+          label-field="annee" value-field="valeur" name='["Points de recharge ouverts au public"]'
+          targets='[{"x":"2030","value":400000,"label":"Cible 2030 : 400 000"}]'>
+        </dsfr-data-chart>
+        <dsfr-data-a11y for="chart-irve" source="q-chart-irve" table download
+          description="Le réseau public de recharge est passé de 20 000 points en 2017 à 185 501 fin 2025."></dsfr-data-a11y>
+        <p class="fr-text--xs tdb-source fr-mb-0">Source : AVERE France, Baromètre national des infrastructures de recharge ouvertes au public</p>
+      </div></div>
+
+      <!-- 2.8 KPIs recharge -->
+      <div class="fr-col-12 fr-col-lg-6">
+        <dsfr-data-query id="q-kpi-rapide" source="series-kpi-r"
+          where="Indicateur:eq:Points de recharge — dont charge rapide"></dsfr-data-query>
+        <dsfr-data-query id="q-kpi-puissance" source="src-points"
+          where="Indicateur:eq:Puissance installée pour la recharge des VE"></dsfr-data-query>
+        <dsfr-data-kpi-group cols="1">
+          <dsfr-data-kpi source="q-hero-irve" heading="Points de recharge ouverts au public"
+            value="c2025" format="nombre"
+            lines='[{"value":"d2025:avg","sign":true,"suffix":"vs 2024","color":"auto"},{"value":"Cible_2030:avg","prefix":"en 2025 · objectif 2030 :","suffix":"(Objectifs des politiques prioritaires du Gouvernement)"}]'>
+          </dsfr-data-kpi>
+          <dsfr-data-kpi source="q-kpi-rapide" value="c2025" format="nombre"
+            lines='[{"value":"Cible_2030:avg","prefix":"cible 2030 :"}]'
+            label="points de recharge rapide publics (2025) — AVERE France"></dsfr-data-kpi>
+          <dsfr-data-kpi source="q-kpi-puissance" value="Valeur" format="decimal"
+            lines='[{"text":"GW · +24 % sur un an"}]'
+            label="de puissance de recharge installée fin 2025 — RTE &amp; Enedis, Tableau de bord de l&#39;électrification, 22 mai 2026"></dsfr-data-kpi>
+        </dsfr-data-kpi-group>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== SECTION 3 — SE CHAUFFER ====================== -->
+<section class="tdb-section" id="chauffer">
+  <div class="fr-container">
+    <h2><span class="tdb-num">3</span>Se chauffer électrique</h2>
+    <p>Un tiers des résidences principales se chauffe encore au gaz, près d'une sur dix au
+      fioul. Le remplacement des chaudières fossiles par des pompes à chaleur est le principal
+      moteur de l'électrification des bâtiments.</p>
+
+    <div class="fr-grid-row fr-grid-row--gutters">
+      <!-- 3.1 Résidences principales gaz + fioul -->
+      <div class="fr-col-12 fr-col-lg-6"><div class="tdb-card">
+        <h3>Résidences principales chauffées au gaz et au fioul</h3>
+        <dsfr-data-query id="q-kpi-gaz" source="series-kpi-r" where="Indicateur:eq:Gaz"></dsfr-data-query>
+        <dsfr-data-query id="q-kpi-fioul" source="series-kpi-r" where="Indicateur:eq:Fioul"></dsfr-data-query>
+        <dsfr-data-kpi-group cols="2" gap="sm">
+          <dsfr-data-kpi source="q-kpi-gaz" heading="Gaz (2023)" value="c2023" format="pourcentage"
+            lines='[{"value":"Cible_2030:avg","prefix":"objectif 2030 :"}]'></dsfr-data-kpi>
+          <dsfr-data-kpi source="q-kpi-fioul" heading="Fioul (2023)" value="c2023" format="pourcentage"
+            lines='[{"value":"Cible_2030:avg","prefix":"objectif 2030 :"}]'></dsfr-data-kpi>
+        </dsfr-data-kpi-group>
+        <dsfr-data-query id="q-chart-chauffage" source="series-tidy"
+          where="Indicateur:in:Gaz|Fioul"></dsfr-data-query>
+        <dsfr-data-chart id="chart-chauffage" source="q-chart-chauffage" type="line"
+          label-field="annee" value-field="valeur" series-field="Indicateur" unit-tooltip="%"
+          targets='[{"x":"2030","value":29,"series":"Gaz","label":"Cible 2030 : 29 %"},{"x":"2030","value":4,"series":"Fioul","label":"Cible 2030 : 4 %"}]'>
+        </dsfr-data-chart>
+        <dsfr-data-a11y for="chart-chauffage" source="q-chart-chauffage" table download
+          description="La part du gaz stagne autour de 36 %, celle du fioul recule régulièrement vers 8,8 %."></dsfr-data-a11y>
+        <p class="fr-text--xs tdb-source fr-mb-0">Source : SDES, Consommation d'énergie par usage du résidentiel</p>
+      </div></div>
+
+      <!-- 3.2 PAC air-eau -->
+      <div class="fr-col-12 fr-col-lg-6"><div class="tdb-card">
+        <dsfr-data-query id="q-kpi-pac" source="series-kpi-r"
+          where="Indicateur:eq:Pompes à chaleur air-eau installées par an"></dsfr-data-query>
+        <dsfr-data-kpi source="q-kpi-pac" heading="Pompes à chaleur air-eau installées par an"
+          value="c2024" format="nombre"
+          lines='[{"value":"d2024:avg","sign":true,"suffix":"vs 2023","color":"auto"},{"value":"Cible_2030:avg","prefix":"en 2024 · objectif 2030 :","suffix":"(SNBC3, provisoire)"}]'>
+        </dsfr-data-kpi>
+        <dsfr-data-query id="q-chart-pac" source="series-tidy"
+          where="Indicateur:eq:Pompes à chaleur air-eau installées par an"
+         ></dsfr-data-query>
+        <dsfr-data-chart id="chart-pac" source="q-chart-pac" type="line"
+          label-field="annee" value-field="valeur" name='["PAC air-eau installées par an"]'
+          targets='[{"x":"2030","value":425000,"label":"Cible 2030 : 425 000"}]'>
+        </dsfr-data-chart>
+        <dsfr-data-a11y for="chart-pac" source="q-chart-pac" table download
+          description="Après le pic de 2022, le marché des PAC air-eau recule fortement en 2024, loin de la cible 2030."></dsfr-data-a11y>
+        <p class="fr-text--xs tdb-source fr-mb-0">Source : Observ'ER, Suivi du marché 2023 des pompes à chaleur individuelles</p>
+      </div></div>
+
+      <!-- 3.3 PAC géothermiques -->
+      <div class="fr-col-12 fr-col-lg-6"><div class="tdb-card">
+        <dsfr-data-query id="q-kpi-geo" source="series-kpi-r"
+          where="Indicateur:eq:Pompes à chaleur géothermiques installées par an"></dsfr-data-query>
+        <dsfr-data-kpi source="q-kpi-geo" heading="Pompes à chaleur géothermiques installées par an"
+          value="c2024" format="nombre"
+          lines='[{"value":"d2024:avg","sign":true,"suffix":"vs 2023","color":"auto"},{"value":"Cible_2030:avg","prefix":"en 2024 · objectif 2030 :","suffix":"(PPE 2026-2035)"}]'>
+        </dsfr-data-kpi>
+        <dsfr-data-query id="q-chart-geo" source="series-tidy"
+          where="Indicateur:eq:Pompes à chaleur géothermiques installées par an"
+         ></dsfr-data-query>
+        <dsfr-data-chart id="chart-geo" source="q-chart-geo" type="line"
+          label-field="annee" value-field="valeur" name='["PAC géothermiques installées par an"]'
+          targets='[{"x":"2030","value":84000,"label":"Cible 2030 : 84 000"}]'>
+        </dsfr-data-chart>
+        <dsfr-data-a11y for="chart-geo" source="q-chart-geo" table download
+          description="Environ 3 000 PAC géothermiques par an, un ordre de grandeur sous la cible de 84 000."></dsfr-data-a11y>
+        <p class="fr-text--xs tdb-source fr-mb-0">Source : AFPG, La géothermie en France, Étude de filière 2023</p>
+      </div></div>
+
+      <!-- 3.4 Chaudières fioul de l'État -->
+      <div class="fr-col-12 fr-col-lg-6"><div class="tdb-card">
+        <dsfr-data-query id="q-kpi-etat" source="series-kpi-r"
+          where="Indicateur:eq:Chaudières au fioul du parc immobilier de l'État remplacées"></dsfr-data-query>
+        <dsfr-data-kpi source="q-kpi-etat" heading="Chaudières au fioul remplacées dans l'immobilier de l'État"
+          value="c2023" format="pourcentage"
+          lines='[{"value":"d2023:avg","sign":true,"format":"nombre","suffix":"pt vs 2022","color":"auto"},{"value":"Cible_2030:avg","prefix":"en 2023 · objectif 2030 :","suffix":"(Objectifs des politiques prioritaires du Gouvernement)"}]'>
+        </dsfr-data-kpi>
+        <dsfr-data-query id="q-chart-etat" source="series-tidy"
+          where="Indicateur:eq:Chaudières au fioul du parc immobilier de l'État remplacées"
+         ></dsfr-data-query>
+        <dsfr-data-chart id="chart-etat" source="q-chart-etat" type="line"
+          label-field="annee" value-field="valeur" name='["Chaudières fioul de l&#39;État remplacées (%)"]' unit-tooltip="%" y-min="0" y-max="100"
+          targets='[{"x":"2030","value":100,"label":"Cible 2030 : 100 %"}]'>
+        </dsfr-data-chart>
+        <dsfr-data-a11y for="chart-etat" source="q-chart-etat" table download
+          description="40 % des chaudières fioul de l&#39;État remplacées en 2023, contre 16 % en 2022."></dsfr-data-a11y>
+        <p class="fr-text--xs tdb-source fr-mb-0">Source : CGDD, Le plan de transformation écologique de l'État pour des services publics écoresponsables (SPE)</p>
+      </div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== SECTION 4 — PRODUIRE ====================== -->
+<section class="tdb-section" id="produire">
+  <div class="fr-container">
+    <h2><span class="tdb-num">4</span>Produire en France&nbsp;: industrie, hydrogène, numérique</h2>
+    <p>Électrifier l'industrie, produire de l'hydrogène par électrolyse, accueillir les centres
+      de données&nbsp;: ces nouveaux usages se lisent d'abord dans les demandes de raccordement au
+      réseau électrique — un indicateur avancé de la réindustrialisation.</p>
+
+    <div class="fr-grid-row fr-grid-row--gutters">
+      <!-- 4.1 Part de l'électricité dans l'industrie -->
+      <div class="fr-col-12 fr-col-lg-6"><div class="tdb-card">
+        <dsfr-data-query id="q-kpi-indus" source="series-kpi-r"
+          where="Indicateur:eq:Part de l'électricité dans le mix énergétique de l'industrie"></dsfr-data-query>
+        <dsfr-data-kpi source="q-kpi-indus" heading="Part de l'électricité dans le mix énergétique de l'industrie"
+          value="c2025" format="pourcentage"
+          lines='[{"value":"d2025:avg","sign":true,"format":"nombre","suffix":"pt vs 2024","color":"auto"},{"value":"Cible_2030:avg","prefix":"en 2025 · objectif 2030 :","suffix":"(SNBC3, provisoire)"}]'>
+        </dsfr-data-kpi>
+        <dsfr-data-query id="q-chart-indus" source="series-tidy"
+          where="Indicateur:eq:Part de l'électricité dans le mix énergétique de l'industrie"
+         ></dsfr-data-query>
+        <dsfr-data-chart id="chart-indus" source="q-chart-indus" type="line"
+          label-field="annee" value-field="valeur" name='["Part de l&#39;électricité dans l&#39;industrie (%)"]' unit-tooltip="%" y-min="0"
+          targets='[{"x":"2030","value":47,"label":"Cible 2030 : 47 %"}]'>
+        </dsfr-data-chart>
+        <dsfr-data-a11y for="chart-indus" source="q-chart-indus" table download
+          description="Longtemps stable autour de 35 %, la part de l&#39;électricité dans l&#39;industrie frémit en 2025 (36,6 %)."></dsfr-data-a11y>
+        <p class="fr-text--xs tdb-source fr-mb-0">Source : SDES, Bilan énergétique de la France en 2024 — Synthèse</p>
+      </div></div>
+
+      <!-- 4.2 Hydrogène électrolytique -->
+      <div class="fr-col-12 fr-col-lg-6"><div class="tdb-card">
+        <dsfr-data-query id="q-kpi-h2" source="series-kpi-r"
+          where="Indicateur:eq:Quantité d'hydrogène électrolytique produite"></dsfr-data-query>
+        <dsfr-data-kpi source="q-kpi-h2" heading="Hydrogène électrolytique produit"
+          value="c2024" format="decimal"
+          lines='[{"value":"d2024:avg","sign":true,"suffix":"milliers de tonnes vs 2023","color":"auto"},{"value":"Cible_2030:avg","prefix":"en 2024 · objectif 2030 :","suffix":"milliers de tonnes (Stratégie nationale de l&#39;hydrogène décarboné 2025)"}]'>
+        </dsfr-data-kpi>
+        <dsfr-data-query id="q-chart-h2" source="series-tidy"
+          where="Indicateur:eq:Quantité d'hydrogène électrolytique produite"
+         ></dsfr-data-query>
+        <dsfr-data-chart id="chart-h2" source="q-chart-h2" type="line"
+          label-field="annee" value-field="valeur" name='["Hydrogène électrolytique (kt)"]'
+          targets='[{"x":"2030","value":520,"label":"Cible 2030 : 520 kt"}]'>
+        </dsfr-data-chart>
+        <dsfr-data-a11y for="chart-h2" source="q-chart-h2" table download
+          description="25,6 milliers de tonnes produites en 2024, pour une cible 2030 de 520."></dsfr-data-a11y>
+        <p class="fr-text--xs tdb-source fr-mb-0">Source : SDES, L'hydrogène pur : évaluation des ressources et des usages en France en 2024 · indicateur en cours de consolidation au baromètre</p>
+      </div></div>
+    </div>
+
+    <!-- Raccordements au réseau -->
+    <h3 class="fr-h5 fr-mt-3w">Dans les tuyaux&nbsp;: les demandes de raccordement au réseau
+      <span class="fr-badge fr-badge--new fr-badge--sm fr-badge--no-icon">RTE — RPT, situation au 15 nov. 2025</span></h3>
+    <dsfr-data-query id="q-kpi-rpt" source="src-points"
+      where="Indicateur:eq:Projets de consommation ayant sécurisé leur accès au RPT"></dsfr-data-query>
+    <!-- Astuce déclarative : les 2 lignes datacenters (contractualisé 14 GW / en
+         fonctionnement 0,9 GW) dans une même query ; max = contractualisé, min = en service -->
+    <dsfr-data-query id="q-kpi-dc" source="src-points"
+      where="Indicateur:in:Datacenters — puissance contractualisée au RPT|Datacenters — puissance en fonctionnement (RPD Enedis)"></dsfr-data-query>
+    <dsfr-data-query id="q-kpi-indusrpt" source="src-points"
+      where="Indicateur:eq:Industrie hors H2 — puissance contractualisée au RPT"></dsfr-data-query>
+    <dsfr-data-query id="q-kpi-electrolyse" source="src-points"
+      where="Indicateur:eq:Électrolyseurs — puissance contractualisée au RPT"></dsfr-data-query>
+    <dsfr-data-kpi-group cols="4">
+      <dsfr-data-kpi source="q-kpi-rpt" value="Valeur" format="decimal"
+        lines='[{"text":"GW — soit ~⅓ de la pointe de consommation française (102 GW)"}]'
+        label="de projets de consommation ayant sécurisé leur accès au réseau de transport (RPT) fin 2025"></dsfr-data-kpi>
+      <dsfr-data-kpi source="q-kpi-dc" value="Valeur:max" format="decimal"
+        lines='[{"value":"Valeur:min","prefix":"GW — dont","suffix":"GW en fonctionnement sur le réseau Enedis"}]'
+        label="contractualisés pour des centres de données fin 2025"></dsfr-data-kpi>
+      <dsfr-data-kpi source="q-kpi-indusrpt" value="Valeur" format="decimal"
+        lines='[{"text":"GW"}]'
+        label="contractualisés pour l&#39;industrie manufacturière (hors hydrogène) fin 2025"></dsfr-data-kpi>
+      <dsfr-data-kpi source="q-kpi-electrolyse" value="Valeur" format="decimal"
+        lines='[{"text":"GW — 37 MW en fonctionnement (RPD Enedis)"}]'
+        label="contractualisés pour des électrolyseurs fin 2025"></dsfr-data-kpi>
+    </dsfr-data-kpi-group>
+    <p class="fr-text--xs tdb-source">Source : RTE &amp; Enedis, Tableau de bord de l'électrification, 22 mai 2026</p>
+  </div>
+</section>
+
+<!-- ====================== PIED DE PAGE ====================== -->
+<footer class="fr-container fr-py-3w">
+  <p class="fr-text--xs tdb-source fr-mb-0">
+    Données : Baromètre de la planification écologique (SGPE) &amp; RTE / Enedis, Tableau de bord de
+    l'électrification (22 mai 2026), servies en direct depuis
+    <a href="https://grist.numerique.gouv.fr/o/planification-ecologique/jGd2ge4dy2ZM/Barometre" target="_blank" rel="noopener">Grist</a>
+    (tables <code>Plan_elec_annuelle_issu_rte_enedis</code> et <code>Plan_elec_annuelle_issu_barometre</code>).
+    Rendu 100&nbsp;% déclaratif — <a href="https://github.com/bmatge/dsfr-data" target="_blank" rel="noopener">dsfr-data (ChartsBuilder)</a>.
+  </p>
+</footer>
+
+</body>
+</html>
