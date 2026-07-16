@@ -45,8 +45,8 @@
 
 ```html
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css">
-<script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.1.1/dist/DSFRChart/DSFRChart.css">
+<script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.1.1/dist/DSFRChart/DSFRChart.js"></script>
 <script src="https://unpkg.com/dsfr-data/dist/dsfr-data.core.umd.js"></script>
 ```
 
@@ -103,6 +103,12 @@ Pour le detail du monorepo, des conventions, du workflow de release Changesets e
 - [Contribuer](docs/CONTRIBUTING.md) — monorepo, conventions, release Changesets
 - [Fiche produit](docs/DATASHEET.md) — positionnement, comparatif, cibles
 - [Politique de securite](docs/SECURITY.md) + [baseline](docs/security-baseline.md) — signalement, pipeline CI/CD, defenses
+
+## Credits
+
+- Les graphiques et cartes sont rendus par **[DSFR Chart](https://github.com/GouvernementFR/dsfr-chart)** (`@gouvfr/dsfr-chart`), la bibliotheque officielle de datavisualisation de l'Etat — merci a ses mainteneurs. `dsfr-data` se concentre sur la couche **donnees** (sources, requetes, transformations) et delegue le rendu graphique a DSFR Chart, dont il suit les evolutions (API cartes unifiee `level` depuis la 2.1).
+- Le design et les composants d'interface suivent le **[Systeme de design de l'Etat (DSFR)](https://www.systeme-de-design.gouv.fr/)**.
+- Dependances tierces detaillees : [THIRD-PARTY-LICENSES](docs/THIRD-PARTY-LICENSES.md).
 
 ## Licence
 

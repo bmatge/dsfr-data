@@ -27,6 +27,8 @@ describe('builder-ia action-schema', () => {
         'map',
         'bar-line',
         'map-reg',
+        'map-aca',
+        'map-monde',
         'datalist',
         'podium',
       ];

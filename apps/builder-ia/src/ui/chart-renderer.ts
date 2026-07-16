@@ -2,7 +2,13 @@
  * Chart rendering - applies chart configuration to generate visual output
  */
 
-import { escapeHtml, DSFR_COLORS, PALETTE_COLORS, isValidDeptCode } from '@dsfr-data/shared';
+import {
+  escapeHtml,
+  DSFR_COLORS,
+  PALETTE_COLORS,
+  isValidDeptCode,
+  MAP_LEVEL_MAP,
+} from '@dsfr-data/shared';
 import { state } from '../state.js';
 import type { ChartConfig, AggregatedResult } from '../state.js';
 import { addMessage } from '../chat/chat.js';
@@ -197,7 +203,7 @@ export function applyChartConfig(config: ChartConfig): void {
 
   // Aggregate data for charts
   const aggregated: Record<string, { values: number[]; count: number; code: string | null }> = {};
-  const isMap = config.type === 'map' || config.type === 'map-reg';
+  const isMap = config.type in MAP_LEVEL_MAP;
   const codeField = config.codeField || config.labelField;
 
   workingData.forEach((record) => {
@@ -333,8 +339,8 @@ function renderChart(config: ChartConfig, data: AggregatedResult[]): void {
     return;
   }
 
-  // Handle map type (uses DSFR map-chart / map-chart-reg)
-  if (config.type === 'map' || config.type === 'map-reg') {
+  // Handle map types (uses DSFR <map-chart level="…">, API unifiee 2.1.0)
+  if (config.type in MAP_LEVEL_MAP) {
     canvas.style.display = 'none';
     emptyState.style.display = 'none';
 
@@ -342,24 +348,28 @@ function renderChart(config: ChartConfig, data: AggregatedResult[]): void {
     const mapData: Record<string, number> = {};
     data.forEach((d) => {
       let code = String(d.code || d.label || '').trim();
-      if (/^\d+$/.test(code) && code.length < 3) {
+      if (config.type === 'map-aca' || config.type === 'map-monde') {
+        // aca : noms d'academie majuscules ; monde : ISO alpha-2
+        // (la conversion a3/num est faite par dsfr-data-chart, pas ici)
+        code = code.toUpperCase();
+      } else if (/^\d+$/.test(code) && code.length < 3) {
         code = code.padStart(2, '0');
       }
       const value = d.value || 0;
-      if (isValidDeptCode(code)) {
+      if (config.type === 'map' ? isValidDeptCode(code) : code !== '') {
         mapData[code] = Math.round(value * 100) / 100;
       }
     });
 
-    const mapTag = config.type === 'map-reg' ? 'map-chart-reg' : 'map-chart';
     const mapCard = document.createElement('div');
     mapCard.className = 'map-card';
     mapCard.innerHTML = `
-      <${mapTag}
+      <map-chart
+        level="${MAP_LEVEL_MAP[config.type]}"
         data='${JSON.stringify(mapData)}'
         name="${escapeHtml(config.title || 'Carte')}"
         selected-palette="${config.palette || 'sequentialAscending'}"
-      ></${mapTag}>
+      ></map-chart>
     `;
     chartWrapper.appendChild(mapCard);
     return;

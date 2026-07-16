@@ -65,7 +65,7 @@ Elle est distincte du code embarquable HTML (voir skills composants dsfr-data).
 | labelField | String | selon type | Champ pour les labels / axe X |
 | valueField | String | oui | Champ pour les valeurs / axe Y |
 | valueField2 | String | non | 2e série (bar-line, comparaisons) |
-| codeField | String | non | Champ code departement/region (map, map-reg) |
+| codeField | String | non | Champ code : departement/region (map, map-reg), nom d'academie (map-aca), code pays ISO (map-monde) |
 | aggregation | String | non | Fonction : sum, avg, count, min, max |
 | where | String | non | Filtre pre-agrégation (voir syntaxe ci-dessous) |
 | limit | Number | non | Nombre max de resultats |
@@ -94,13 +94,15 @@ Elle est distincte du code embarquable HTML (voir skills composants dsfr-data).
 | kpi | non | oui | Indicateur chiffre clé unique |
 | map | non (codeField) | oui | Données par departement francais |
 | map-reg | non (codeField) | oui | Données par region francaise |
+| map-aca | non (codeField) | oui | Données par academie (noms en majuscules : PARIS, LYON...) |
+| map-monde | non (codeField) | oui | Données par pays (ISO 3166-1 : FR, US... — a3/num convertis) |
 | datalist | non | non (colonnes) | Tableau de données filtrable |
 
 IMPORTANT :
 - \`doughnut\` = \`pie\` (le composant pie est un anneau par défaut)
 - \`horizontalBar\` = \`bar\` (le renderer le convertit automatiquement)
 - Pour KPI et gauge : PAS de labelField
-- Pour map/map-reg : utiliser codeField (pas labelField)
+- Pour map/map-reg/map-aca/map-monde : utiliser codeField (pas labelField)
 
 ### Syntaxe du filtre (config.where)
 Format : \`"champ:operateur:valeur"\`
@@ -1069,6 +1071,9 @@ Conteneur qui dispose plusieurs \`<dsfr-data-kpi>\` dans une grille CSS 12 colon
       'gauge',
       'departement',
       'region',
+      'academie',
+      'monde',
+      'pays',
       'databox',
       'habillage',
       'encadrer',
@@ -1105,8 +1110,10 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 | scatter | scatter-chart | Nuage de points |
 | gauge | gauge-chart | Jauge circulaire 0-100% |
 | bar-line | bar-chart + line-chart | Combine barres et ligne (2 séries) |
-| map | map-chart | Carte par departement francais |
-| map-reg | map-chart-reg | Carte par region francaise |
+| map | map-chart (level="dep") | Carte par departement francais |
+| map-reg | map-chart (level="reg") | Carte par region francaise |
+| map-aca | map-chart (level="aca") | Carte par academie |
+| map-monde | map-chart (level="monde") | Carte mondiale par pays |
 
 ### Attributs
 | Attribut | Type | Défaut | Requis | Description |
@@ -1131,7 +1138,7 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 | y-min | String | \`""\` | non | Limite min axe Y |
 | y-max | String | \`""\` | non | Limite max axe Y |
 | gauge-value | Number | \`null\` | type gauge | Valeur de la jauge (0-100) |
-| code-field | String | \`""\` | type map/map-reg | Champ contenant le code departement ou region (prioritaire sur label-field) |
+| code-field | String | \`""\` | types map* | Champ contenant le code : departement/region (map, map-reg), nom d'academie en majuscules (map-aca), code pays ISO 3166-1 alpha-2/alpha-3/numerique (map-monde, converti en alpha-2) — prioritaire sur label-field |
 | map-highlight | String | \`""\` | non | Departements/regions a surligner |
 | reference-lines | String | \`""\` | non | Lignes de reference (overlay) en JSON. Cartesiens uniquement (line, bar, bar-line, scatter). Chaque item : \`{ axis: "x" ou "y", value (string ou number), label?, color?, dash?, position? }\`. \`axis:"x"\` → ligne verticale a une categorie/date ; \`axis:"y"\` → ligne horizontale a un seuil. Ex : \`reference-lines='[{"axis":"x","value":"2026-02","label":"Lancement","color":"#c9191e","dash":true},{"axis":"y","value":3000,"label":"Objectif"}]'\`. |
 | targets | String | \`""\` | non | Cibles / objectifs futurs (overlay) en JSON. Types line et bar-line uniquement. Chaque item : \`{ x (echeance, string ou number, requis), value (number, requis), series? (nom de dataset ou index, defaut 0), label?, color? }\`. L'axe X est etendu automatiquement si l'echeance depasse les donnees : trait plein jusqu'au dernier point reel, trajectoire pointillee vers un losange a l'echeance, zone future grisee. Ex : \`targets='[{"x":2030,"value":26,"label":"Cible 2030 : 26 %"}]'\`. |
@@ -1150,6 +1157,8 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 | bar-line | source, type, label-field, value-field, value-field-2 | name, unit-tooltip, unit-tooltip-bar |
 | map | source, type, code-field, value-field | selected-palette, map-highlight |
 | map-reg | source, type, code-field, value-field | selected-palette, map-highlight |
+| map-aca | source, type, code-field, value-field | selected-palette, map-highlight |
+| map-monde | source, type, code-field, value-field | selected-palette, map-highlight |
 
 ### Exemples
 \`\`\`html
@@ -1192,6 +1201,17 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 <!-- Carte par region -->
 <dsfr-data-chart source="reg-data" type="map-reg"
   code-field="code_reg" value-field="valeur">
+</dsfr-data-chart>
+
+<!-- Carte par academie (noms en majuscules : PARIS, LYON...) -->
+<dsfr-data-chart source="aca-data" type="map-aca"
+  code-field="academie" value-field="valeur">
+</dsfr-data-chart>
+
+<!-- Carte mondiale (codes pays ISO : FR, US ou FRA, USA ou 250, 840) -->
+<dsfr-data-chart source="pays-data" type="map-monde"
+  code-field="code_pays" value-field="valeur"
+  selected-palette="sequentialAscending">
 </dsfr-data-chart>
 
 <!-- Jauge -->
@@ -1502,15 +1522,20 @@ name='["Série A","Série B"]'
 ### <radar-chart>
 - Multi-séries pour comparer des profils
 
-### <map-chart> (carte par departement)
-- data='{"75": 95, "69": 78, "2A": 60}' : JSON code_dept -> valeur
-- Codes departements valides : 01-95, 2A, 2B, 971-976
+### <map-chart> (cartes choroplethes — API unifiee DSFR Chart 2.1)
+- level : decoupage — "dep" (défaut), "reg", "aca", "monde"
+- data : JSON code -> valeur, selon le level :
+  - level="dep" : data='{"75": 95, "69": 78, "2A": 60}' (codes 01-95, 2A, 2B, 971-976)
+  - level="reg" : data='{"11": 95, "84": 78}' (codes region INSEE)
+  - level="aca" : data='{"PARIS": 95, "LYON": 78}' (noms d'academie majuscules)
+  - level="monde" : data='{"FR": 95, "US": 78}' (ISO 3166-1 alpha-2)
 - name : nom de l'indicateur
 - value-nat : valeur nationale de reference
 - selected-palette : palette de couleurs
 
-### <map-chart-reg> (carte par region)
-- Même format que map-chart avec codes region
+### <map-chart-reg region="..."> (zoom sur UNE region)
+- Zoome sur une region donnee, data par departement de cette region
+- Ex : region="11" data='{"75": 95, "92": 78}'
 
 ### Attributs communs
 - selected-palette : categorical, sequentialAscending, sequentialDescending, divergentAscending, divergentDescending, neutral, default
@@ -1929,6 +1954,15 @@ Guide pour choisir le type de visualisation adapte aux données.
 - **Quand** : données geographiques par region francaise
 - **Champs** : code-field (code region), value-field
 
+### Carte academies (map-aca)
+- **Quand** : données education par academie
+- **Champs** : code-field (nom d'academie en majuscules : PARIS, LYON, STRASBOURG...), value-field
+
+### Carte mondiale (map-monde)
+- **Quand** : données internationales par pays
+- **Champs** : code-field (code pays ISO 3166-1 : alpha-2 "FR", alpha-3 "FRA" ou numerique "250" — convertis automatiquement en alpha-2), value-field
+- **Palette recommandee** : sequentialAscending
+
 ### Séries multiples (bar, line, bar-line, radar)
 Utiliser \`value-field-2\` pour une seconde série, ou \`value-fields\` pour plusieurs séries supplementaires (separees par virgules).
 Definir les noms avec \`name='["Série 1","Série 2","Série 3"]'\`.
@@ -1964,7 +1998,7 @@ Exemple multi-séries : \`value-field="ca" value-fields="budget,objectif" name='
 
 ### Bonnes pratiques
 - Utiliser \`categorical\` pour pie, radar et comparaisons multi-catégories
-- Utiliser \`sequentialAscending\` pour les cartes (map, map-reg)
+- Utiliser \`sequentialAscending\` pour les cartes (map, map-reg, map-aca, map-monde)
 - Utiliser \`neutral\` + \`highlight-index\` pour mettre en avant une valeur
 - Assurer un contraste suffisant (conformite RGAA)
 - Eviter le rouge/vert seuls (daltonisme) - les palettes DSFR sont concues pour ca`,
@@ -2262,7 +2296,12 @@ rendu : switch chart/tableau integre, CSV natif). Conserver uniquement :
       'planisphere',
       'carte pays',
     ],
-    content: `## dsfr-data-world-map — Carte choroplèthe mondiale
+    content: `## dsfr-data-world-map — Carte choroplèthe mondiale (DEPRECIE)
+
+⚠️ DEPRECIE : preferer \`<dsfr-data-chart type="map-monde">\` (carte mondiale
+DSFR Chart native, aucun bundle supplementaire). Ce composant sera retire
+dans une prochaine version majeure. Il reste pertinent uniquement si le zoom
+continent interactif est requis.
 
 Composant qui affiche une carte du monde SVG (projection Natural Earth)
 où chaque pays est colorié selon une valeur numérique.

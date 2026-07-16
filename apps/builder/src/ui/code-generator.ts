@@ -114,9 +114,10 @@ function a11yDep(): string {
 function wrapWithDatabox(chartHtml: string, chartId: string): string {
   if (!state.databoxEnabled) return chartHtml;
   const dbId = `databox-${chartId}`;
-  // DataBox attributes — title, source, date are required
+  // DataBox attributes — name, source, date are required
+  // (DSFR Chart 2.1.0 renamed `title` to `name`)
   const dbAttrs: string[] = [`id="${dbId}"`];
-  dbAttrs.push(`title="${escapeHtml(state.databoxTitle || ' ')}"`);
+  dbAttrs.push(`name="${escapeHtml(state.databoxTitle || ' ')}"`);
   dbAttrs.push(`source="${escapeHtml(state.databoxSource || ' ')}"`);
   dbAttrs.push(`date="${escapeHtml(state.databoxDate || new Date().toISOString().split('T')[0])}"`);
   if (state.databoxDownload) dbAttrs.push('download');

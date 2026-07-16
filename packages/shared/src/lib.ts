@@ -57,7 +57,7 @@ export {
 export type { PaletteType } from './constants/dsfr-palettes.js';
 
 // Charts
-export { DSFR_TAG_MAP } from './charts/chart-types.js';
+export { DSFR_TAG_MAP, MAP_LEVEL_MAP } from './charts/chart-types.js';
 export type { DSFRChartType } from './charts/chart-types.js';
 
 // API / Proxy (config runtime injectable, cf. #319)
