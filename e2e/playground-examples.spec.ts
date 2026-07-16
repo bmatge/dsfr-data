@@ -21,6 +21,15 @@ test.beforeAll(() => {
   mkdirSync(SCREENSHOT_DIR, { recursive: true });
 });
 
+// Le tour guide (product-tour) demarre automatiquement sur un profil vierge et
+// son overlay intercepte les clics (#run-btn) → on le desactive globalement
+// avant le chargement de chaque page.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem('dsfr-data-tours', JSON.stringify({ disabled: true, tours: {} }));
+  });
+});
+
 // ===================================================================
 // Structural tests
 // ===================================================================
@@ -52,49 +61,53 @@ test.describe('Playground — structure', () => {
 /** Map of example keys to their expected main visual widget tag */
 const EXAMPLES: Record<string, { widget: string; usesApi: boolean }> = {
   // Direct
-  'direct-bar':                { widget: 'dsfr-data-chart', usesApi: true },
-  'direct-kpi':                { widget: 'dsfr-data-kpi',        usesApi: true },
-  'direct-datalist':           { widget: 'dsfr-data-list',   usesApi: true },
+  'direct-bar': { widget: 'dsfr-data-chart', usesApi: true },
+  'direct-kpi': { widget: 'dsfr-data-kpi', usesApi: true },
+  'direct-datalist': { widget: 'dsfr-data-list', usesApi: true },
   // Pagination serveur
-  'server-paginate-datalist':  { widget: 'dsfr-data-list',   usesApi: true },
-  'server-paginate-display':   { widget: 'dsfr-data-display',    usesApi: true },
-  'paginate-kpi-global':       { widget: 'dsfr-data-list',   usesApi: true },
+  'server-paginate-datalist': { widget: 'dsfr-data-list', usesApi: true },
+  'server-paginate-display': { widget: 'dsfr-data-display', usesApi: true },
+  'paginate-kpi-global': { widget: 'dsfr-data-list', usesApi: true },
   // Query
-  'query-bar':                 { widget: 'dsfr-data-chart', usesApi: true },
-  'query-pie':                 { widget: 'dsfr-data-chart', usesApi: true },
-  'query-map':                 { widget: 'dsfr-data-chart', usesApi: true },
+  'query-bar': { widget: 'dsfr-data-chart', usesApi: true },
+  'query-pie': { widget: 'dsfr-data-chart', usesApi: true },
+  'query-map': { widget: 'dsfr-data-chart', usesApi: true },
   // Normalize
-  'normalize-bar':             { widget: 'dsfr-data-chart', usesApi: true },
-  'normalize-pie':             { widget: 'dsfr-data-chart', usesApi: true },
-  'normalize-datalist':        { widget: 'dsfr-data-list',   usesApi: true },
+  'normalize-bar': { widget: 'dsfr-data-chart', usesApi: true },
+  'normalize-pie': { widget: 'dsfr-data-chart', usesApi: true },
+  'normalize-datalist': { widget: 'dsfr-data-list', usesApi: true },
   // Display
-  'direct-display':            { widget: 'dsfr-data-display',    usesApi: true },
-  'query-display':             { widget: 'dsfr-data-display',    usesApi: true },
-  'normalize-display':         { widget: 'dsfr-data-display',    usesApi: true },
+  'direct-display': { widget: 'dsfr-data-display', usesApi: true },
+  'query-display': { widget: 'dsfr-data-display', usesApi: true },
+  'normalize-display': { widget: 'dsfr-data-display', usesApi: true },
   // Search
-  'search-datalist':           { widget: 'dsfr-data-list',   usesApi: true },
-  'search-display':            { widget: 'dsfr-data-display',    usesApi: true },
-  'search-kpi-chart':          { widget: 'dsfr-data-chart', usesApi: true },
+  'search-datalist': { widget: 'dsfr-data-list', usesApi: true },
+  'search-display': { widget: 'dsfr-data-display', usesApi: true },
+  'search-kpi-chart': { widget: 'dsfr-data-chart', usesApi: true },
   // Facets
-  'facets-datalist':           { widget: 'dsfr-data-list',   usesApi: true },
-  'facets-bar':                { widget: 'dsfr-data-chart', usesApi: true },
-  'facets-map':                { widget: 'dsfr-data-chart', usesApi: true },
+  'facets-datalist': { widget: 'dsfr-data-list', usesApi: true },
+  'facets-bar': { widget: 'dsfr-data-chart', usesApi: true },
+  'facets-map': { widget: 'dsfr-data-chart', usesApi: true },
   // Server-side
-  'server-side-ods':           { widget: 'dsfr-data-display',    usesApi: true },
-  'server-side-tabular-tri':   { widget: 'dsfr-data-list',   usesApi: true },
-  'server-facets-display':     { widget: 'dsfr-data-display',    usesApi: true },
+  'server-side-ods': { widget: 'dsfr-data-display', usesApi: true },
+  'server-side-tabular-tri': { widget: 'dsfr-data-list', usesApi: true },
+  'server-facets-display': { widget: 'dsfr-data-display', usesApi: true },
   // Databox
-  'direct-bar-databox':        { widget: 'dsfr-data-chart', usesApi: true },
-  'direct-line-databox':       { widget: 'dsfr-data-chart', usesApi: true },
+  'direct-bar-databox': { widget: 'dsfr-data-chart', usesApi: true },
+  'direct-line-databox': { widget: 'dsfr-data-chart', usesApi: true },
   // Join
-  'join-basic':                { widget: 'dsfr-data-chart', usesApi: false },
-  'join-query':                { widget: 'dsfr-data-chart', usesApi: false },
+  'join-basic': { widget: 'dsfr-data-chart', usesApi: false },
+  'join-query': { widget: 'dsfr-data-chart', usesApi: false },
   // World map (inline data)
-  'direct-worldmap':           { widget: 'dsfr-data-world-map',  usesApi: false },
+  'direct-map-reg': { widget: 'dsfr-data-chart', usesApi: false },
+  'direct-map-aca': { widget: 'dsfr-data-chart', usesApi: false },
+  'direct-map-monde': { widget: 'dsfr-data-chart', usesApi: false },
+  'unpivot-series-line': { widget: 'dsfr-data-chart', usesApi: false },
+  'direct-worldmap': { widget: 'dsfr-data-world-map', usesApi: false },
   // Map (Leaflet)
-  'map-markers-cluster':       { widget: 'dsfr-data-map',  usesApi: false },
-  'map-circles-proportional':  { widget: 'dsfr-data-map',  usesApi: false },
-  'map-multi-layer':           { widget: 'dsfr-data-map',  usesApi: false },
+  'map-markers-cluster': { widget: 'dsfr-data-map', usesApi: false },
+  'map-circles-proportional': { widget: 'dsfr-data-map', usesApi: false },
+  'map-multi-layer': { widget: 'dsfr-data-map', usesApi: false },
 };
 
 test.describe('Playground — examples', () => {
@@ -132,7 +145,9 @@ test.describe('Playground — examples', () => {
       if (usesApi) {
         // Soft-fail for API-dependent examples (network may be slow/unavailable)
         if (sourceCount === 0) {
-          console.warn(`[WARN] ${key}: dsfr-data-source not found in iframe (API may be unavailable)`);
+          console.warn(
+            `[WARN] ${key}: dsfr-data-source not found in iframe (API may be unavailable)`
+          );
         }
         if (widgetCount === 0) {
           console.warn(`[WARN] ${key}: ${widget} not found in iframe (API may be unavailable)`);

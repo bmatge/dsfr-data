@@ -290,6 +290,52 @@ export const examples: Record<string, string> = {
   </dsfr-data-chart>
 </div>`,
 
+  'unpivot-series-line': `<!--
+  Unpivot + series-field — donnees "wide" → tidy → multi-séries
+  Pipeline : dsfr-data-source (colonnes par annee) → dsfr-data-unpivot → dsfr-data-chart
+  Chaque valeur distincte de series-field devient une série du graphique
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>Production annuelle par filiere (TWh)</h2>
+  <p class="fr-text--sm fr-text--light">
+    Données illustratives au format "wide" (une colonne par annee), depliees en format long
+  </p>
+
+  <dsfr-data-source id="wide"
+    data='[
+      {"filiere":"Nucleaire","a2022":279,"a2023":320,"a2024":361},
+      {"filiere":"Hydraulique","a2022":49,"a2023":58,"a2024":74},
+      {"filiere":"Eolien","a2022":38,"a2023":50,"a2024":45},
+      {"filiere":"Solaire","a2022":18,"a2023":21,"a2024":24}
+    ]'>
+  </dsfr-data-source>
+
+  <dsfr-data-unpivot id="tidy" source="wide"
+    id-cols="filiere"
+    value-cols-pattern="a{YYYY}"
+    var-name="annee" var-format="{YYYY}"
+    value-name="twh">
+  </dsfr-data-unpivot>
+
+  <dsfr-data-chart source="tidy"
+    type="line"
+    label-field="annee"
+    value-field="twh"
+    series-field="filiere"
+    unit-tooltip=" TWh"
+    selected-palette="categorical">
+  </dsfr-data-chart>
+
+  <div class="fr-callout fr-mt-4w">
+    <p class="fr-callout__text">
+      <strong>dsfr-data-unpivot</strong> deplie les colonnes <code>a2022..a2024</code> en lignes
+      <code>{filiere, annee, twh}</code> ; <strong>series-field="filiere"</strong> transforme chaque
+      filiere en série. Une nouvelle colonne d'annee est prise en compte sans changer la config.
+    </p>
+  </div>
+</div>`,
+
   'direct-datalist': `<!--
   Tableau — Maires de France (pagination serveur)
   Mode : dsfr-data-source (api-type="tabular", server-side) → dsfr-data-list
@@ -1363,6 +1409,140 @@ export const examples: Record<string, string> = {
   // CARTE DU MONDE — dsfr-data-source → dsfr-data-world-map
   // =====================================================================
 
+  // =====================================================================
+  // CARTES DSFR CHART 2.1 — dsfr-data-chart type="map-reg|map-aca|map-monde"
+  // API cartes unifiee <map-chart level> (DSFR Chart >= 2.1) — #402
+  // =====================================================================
+
+  'direct-map-reg': `<!--
+  Carte regionale nationale — dsfr-data-chart type="map-reg"
+  Mode direct : dsfr-data-source (données inline) → dsfr-data-chart
+  Cles = codes region INSEE (level="reg", DSFR Chart 2.1)
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>Population par region (millions)</h2>
+  <p class="fr-text--sm fr-text--light">
+    Données embarquees — Source : INSEE, estimations 2024 (arrondies)
+  </p>
+
+  <dsfr-data-source id="data"
+    data='[
+      {"code":"11","pop":12.4},{"code":"84","pop":8.2},{"code":"93","pop":5.2},
+      {"code":"75","pop":6.1},{"code":"76","pop":6.1},{"code":"32","pop":6.0},
+      {"code":"44","pop":5.6},{"code":"52","pop":3.9},{"code":"53","pop":3.4},
+      {"code":"28","pop":3.3},{"code":"27","pop":2.8},{"code":"24","pop":2.6},
+      {"code":"94","pop":0.35}
+    ]'>
+  </dsfr-data-source>
+
+  <dsfr-data-chart source="data"
+    type="map-reg"
+    code-field="code"
+    value-field="pop"
+    name="Population (M)"
+    unit-tooltip=" M hab."
+    selected-palette="sequentialAscending">
+  </dsfr-data-chart>
+
+  <div class="fr-callout fr-mt-4w">
+    <p class="fr-callout__text">
+      <strong>type="map-reg"</strong> : carte nationale des regions via
+      <code>&lt;map-chart level="reg"&gt;</code> (DSFR Chart 2.1). Les cles de données
+      sont les codes region INSEE (<code>11</code>, <code>84</code>...).
+    </p>
+  </div>
+</div>`,
+
+  'direct-map-aca': `<!--
+  Carte des academies — dsfr-data-chart type="map-aca"
+  Mode direct : dsfr-data-source (données inline) → dsfr-data-chart
+  Cles = noms d'academie en MAJUSCULES (level="aca", DSFR Chart 2.1)
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>Effectifs eleves par academie (milliers)</h2>
+  <p class="fr-text--sm fr-text--light">
+    Données illustratives — ordres de grandeur MENJ
+  </p>
+
+  <dsfr-data-source id="data"
+    data='[
+      {"aca":"VERSAILLES","n":1120},{"aca":"CRETEIL","n":980},{"aca":"LILLE","n":810},
+      {"aca":"LYON","n":640},{"aca":"NANTES","n":600},{"aca":"TOULOUSE","n":520},
+      {"aca":"BORDEAUX","n":560},{"aca":"RENNES","n":540},{"aca":"MONTPELLIER","n":480},
+      {"aca":"AIX-MARSEILLE","n":500},{"aca":"STRASBOURG","n":320},{"aca":"PARIS","n":300},
+      {"aca":"NICE","n":330},{"aca":"NANCY-METZ","n":370},{"aca":"ORLEANS-TOURS","n":410}
+    ]'>
+  </dsfr-data-source>
+
+  <dsfr-data-chart source="data"
+    type="map-aca"
+    code-field="aca"
+    value-field="n"
+    name="Eleves (k)"
+    unit-tooltip=" k eleves"
+    selected-palette="sequentialAscending">
+  </dsfr-data-chart>
+
+  <div class="fr-callout fr-mt-4w">
+    <p class="fr-callout__text">
+      <strong>type="map-aca"</strong> : carte des academies via
+      <code>&lt;map-chart level="aca"&gt;</code> (DSFR Chart 2.1). Les cles de données
+      sont les noms d'academie en majuscules (<code>PARIS</code>, <code>LYON</code>...).
+    </p>
+  </div>
+</div>`,
+
+  'direct-map-monde': `<!--
+  Carte mondiale — dsfr-data-chart type="map-monde"
+  Mode direct : dsfr-data-source (données inline) → dsfr-data-chart
+  Cles = codes pays ISO 3166-1 : alpha-2, alpha-3 OU numeriques
+  (convertis automatiquement en alpha-2 — level="monde", DSFR Chart 2.1)
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>PIB par pays (milliards USD)</h2>
+  <p class="fr-text--sm fr-text--light">
+    Données embarquees — Source : Banque mondiale (extrait).
+    Les codes melangent volontairement alpha-3 (USA), alpha-2 (CN) et numerique (250)
+    pour illustrer la conversion automatique.
+  </p>
+
+  <dsfr-data-source id="data"
+    data='[
+      {"code":"USA","pib":25462},{"code":"CN","pib":17963},{"code":"JPN","pib":4231},
+      {"code":"276","pib":4072},{"code":"GB","pib":3070},{"code":"IND","pib":3385},
+      {"code":"250","pib":2783},{"code":"IT","pib":2010},{"code":"CAN","pib":2139},
+      {"code":"KR","pib":1665},{"code":"BRA","pib":1920},{"code":"AU","pib":1675},
+      {"code":"MX","pib":1293},{"code":"ESP","pib":1397},{"code":"ID","pib":1319},
+      {"code":"SAU","pib":1108},{"code":"NL","pib":991},{"code":"TR","pib":906},
+      {"code":"CHE","pib":818},{"code":"PL","pib":688},{"code":"SE","pib":586},
+      {"code":"BEL","pib":578},{"code":"NO","pib":579},{"code":"AR","pib":632},
+      {"code":"NGA","pib":477},{"code":"AT","pib":471},{"code":"ZA","pib":405},
+      {"code":"THA","pib":495},{"code":"EG","pib":476},{"code":"DK","pib":395}
+    ]'>
+  </dsfr-data-source>
+
+  <dsfr-data-chart source="data"
+    type="map-monde"
+    code-field="code"
+    value-field="pib"
+    name="PIB"
+    unit-tooltip=" Mds USD"
+    selected-palette="sequentialAscending">
+  </dsfr-data-chart>
+
+  <div class="fr-callout fr-mt-4w">
+    <p class="fr-callout__text">
+      <strong>type="map-monde"</strong> : carte mondiale native via
+      <code>&lt;map-chart level="monde"&gt;</code> (DSFR Chart 2.1) — remplace
+      <code>dsfr-data-world-map</code> (deprecie). Les codes alpha-3 et numeriques
+      sont convertis automatiquement en alpha-2.
+    </p>
+  </div>
+</div>`,
+
   'direct-worldmap': `<!--
   Carte du monde — PIB par pays (données embarquees)
   Mode direct : dsfr-data-source (données inline) → dsfr-data-world-map
@@ -1408,8 +1588,9 @@ export const examples: Record<string, string> = {
 
   <div class="fr-callout fr-mt-4w">
     <p class="fr-callout__text">
-      <strong>dsfr-data-world-map</strong> : carte du monde choropleth avec zoom interactif par continent.
-      Cliquer sur un pays pour zoomer sur son continent, cliquer a nouveau pour revenir a la vue monde.
+      <strong>dsfr-data-world-map</strong> (deprecie) : carte du monde choropleth avec zoom interactif
+      par continent. Preferer <code>dsfr-data-chart type="map-monde"</code> (DSFR Chart 2.1) sauf besoin
+      du zoom continent — retrait prevu a la prochaine version majeure.
     </p>
   </div>
 </div>`,

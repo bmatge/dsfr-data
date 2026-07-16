@@ -59,8 +59,8 @@ describe('playground examples', () => {
     }
   });
 
-  it('should have 35 examples', () => {
-    expect(Object.keys(examples)).toHaveLength(35);
+  it('should have 39 examples', () => {
+    expect(Object.keys(examples)).toHaveLength(39);
   });
 
   it('should have non-empty code for all examples', () => {
