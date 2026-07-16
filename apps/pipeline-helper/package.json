@@ -11,7 +11,7 @@
   "dependencies": {
     "@dsfr-data/shared": "*",
     "rete": "^2.0.6",
-    "rete-area-plugin": "^2.1.5",
+    "rete-area-plugin": "^2.3.2",
     "rete-connection-plugin": "^2.0.5",
     "rete-render-utils": "^2.0.3",
     "@retejs/lit-plugin": "^2.0.8",
