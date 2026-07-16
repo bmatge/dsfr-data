@@ -738,6 +738,10 @@ function repairAction(parsed: Record<string, unknown>): Record<string, unknown> 
     map: 'map',
     carte: 'map',
     'map-reg': 'map-reg',
+    'map-aca': 'map-aca',
+    'map-monde': 'map-monde',
+    monde: 'map-monde',
+    world: 'map-monde',
     'bar-line': 'bar-line',
     barline: 'bar-line',
   };

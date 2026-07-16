@@ -300,8 +300,14 @@ export function diagnoseConfig(config: Partial<ChartConfig>, data: Row[]): Diagn
   if (type === 'datalist' && !config.colonnes) {
     warnings.push('datalist sans "colonnes" : toutes les colonnes seront affichees.');
   }
-  if ((type === 'map' || type === 'map-reg') && !config.codeField && !config.labelField) {
-    errors.push('Carte sans codeField : un champ code INSEE (departement/region) est requis.');
+  if (
+    (type === 'map' || type === 'map-reg' || type === 'map-aca' || type === 'map-monde') &&
+    !config.codeField &&
+    !config.labelField
+  ) {
+    errors.push(
+      'Carte sans codeField : un champ code est requis (INSEE departement/region, nom d academie ou code pays ISO).'
+    );
   }
 
   // 3) Filtre WHERE.

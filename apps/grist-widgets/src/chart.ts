@@ -13,7 +13,7 @@
 import './styles/grist-widgets.css';
 import { initGristBridge, onGristOptions, getGristApiInfo } from './shared/grist-bridge.js';
 import { createOptionsPanel, type OptionDef } from './shared/grist-options-panel.js';
-import { PROXY_BASE_URL } from '@dsfr-data/shared';
+import { PROXY_BASE_URL, CDN_URLS } from '@dsfr-data/shared';
 
 const ALL_OPTIONS: OptionDef[] = [
   {
@@ -31,6 +31,8 @@ const ALL_OPTIONS: OptionDef[] = [
       { value: 'bar-line', label: 'Barres + Lignes' },
       { value: 'map', label: 'Carte departements' },
       { value: 'map-reg', label: 'Carte regions' },
+      { value: 'map-aca', label: 'Carte academies' },
+      { value: 'map-monde', label: 'Carte monde' },
       { value: 'kpi', label: 'KPI' },
     ],
   },
@@ -149,7 +151,7 @@ function renderWidget(type: string) {
     chart.setAttribute('type', type);
     chart.setAttribute('label-field', 'Label');
     chart.setAttribute('value-field', 'Value');
-    if (type === 'map' || type === 'map-reg') {
+    if (type.startsWith('map')) {
       chart.setAttribute('code-field', 'Code');
     }
     container.appendChild(chart);
@@ -246,12 +248,8 @@ function generateFixedHtml(): string {
   }
 
   // Chart types: bar, line, pie, radar, scatter, gauge, bar-line, map, map-reg
-  deps.push(
-    '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css">'
-  );
-  deps.push(
-    '<script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"></script>'
-  );
+  deps.push(`<link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">`);
+  deps.push(`<script type="module" src="${CDN_URLS.dsfrChartJs}"></script>`);
   deps.push(
     '<script src="https://cdn.jsdelivr.net/gh/bmatge/dsfr-data@main/dist/dsfr-data.umd.js"></script>'
   );
@@ -260,7 +258,7 @@ function generateFixedHtml(): string {
   const horizontal = opts.horizontal === true ? ' horizontal' : '';
   const stacked = opts.stacked === true ? ' stacked' : '';
   const unitTooltip = opts.unitTooltip ? ` unit-tooltip="${opts.unitTooltip}"` : '';
-  const codeField = type === 'map' || type === 'map-reg' ? ' code-field="Code"' : '';
+  const codeField = type.startsWith('map') ? ' code-field="Code"' : '';
   const hasValue2 = data.length > 0 && 'Value2' in data[0];
   const valueField2 = hasValue2 ? ' value-field-2="Value2"' : '';
 
@@ -325,12 +323,8 @@ function generateDynamicHtml(): string {
 <dsfr-data-kpi source="grist-data" value="fields.${valueCol}:${agg}" format="${format}" label="${label}"${icone}${couleur}></dsfr-data-kpi>`;
   }
 
-  deps.push(
-    '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css">'
-  );
-  deps.push(
-    '<script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js"></script>'
-  );
+  deps.push(`<link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">`);
+  deps.push(`<script type="module" src="${CDN_URLS.dsfrChartJs}"></script>`);
   deps.push(
     '<script src="https://cdn.jsdelivr.net/gh/bmatge/dsfr-data@main/dist/dsfr-data.umd.js"></script>'
   );
@@ -339,8 +333,7 @@ function generateDynamicHtml(): string {
   const horizontal = opts.horizontal === true ? ' horizontal' : '';
   const stacked = opts.stacked === true ? ' stacked' : '';
   const unitTooltip = opts.unitTooltip ? ` unit-tooltip="${opts.unitTooltip}"` : '';
-  const codeFieldAttr =
-    (type === 'map' || type === 'map-reg') && codeCol ? ` code-field="fields.${codeCol}"` : '';
+  const codeFieldAttr = type.startsWith('map') && codeCol ? ` code-field="fields.${codeCol}"` : '';
   const valueField2 = value2Col ? ` value-field-2="fields.${value2Col}"` : '';
 
   return `${deps.join('\n')}

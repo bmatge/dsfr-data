@@ -92,6 +92,9 @@ const CONTINENT_LABELS: Record<string, string> = {
  * Composant Lit natif (pas DSFR Chart) pour afficher une carte du monde
  * coloree par valeur, avec zoom interactif par continent.
  *
+ * @deprecated Depuis DSFR Chart 2.1, utiliser <dsfr-data-chart type="map-monde">
+ * (carte mondiale native, sans bundle world-map). Retrait prevu au prochain major (#402).
+ *
  * @example
  * <dsfr-data-world-map
  *   source="data"
@@ -148,6 +151,11 @@ export class DsfrDataWorldMap extends SourceSubscriberMixin(LitElement) {
   connectedCallback() {
     super.connectedCallback();
     sendWidgetBeacon('dsfr-data-world-map');
+    // Deprecie (#402, cycle en 2 releases) : la carte mondiale est desormais
+    // fournie par DSFR Chart 2.1 — retrait prevu a la prochaine version majeure
+    console.warn(
+      'dsfr-data-world-map est déprécié et sera retiré dans une prochaine version majeure — utilisez <dsfr-data-chart type="map-monde"> (carte mondiale DSFR Chart native)'
+    );
     // Alias deprecie (#299) : zoom="continent|none" -> zoom-mode
     if (this.hasAttribute('zoom') && !this.hasAttribute('zoom-mode')) {
       const legacy = this.getAttribute('zoom');

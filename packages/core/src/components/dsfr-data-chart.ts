@@ -31,11 +31,35 @@ import {
   type TargetMarkerGeometry,
 } from '../utils/chart-targets.js';
 import { escapeHtml, toNumber, isValidDeptCode } from '@dsfr-data/shared/lib';
+import { toIsoA2 } from '../data/continent-lookup.js';
 
 type DSFRChartType =
-  'line' | 'bar' | 'pie' | 'radar' | 'gauge' | 'scatter' | 'bar-line' | 'map' | 'map-reg';
+  | 'line'
+  | 'bar'
+  | 'pie'
+  | 'radar'
+  | 'gauge'
+  | 'scatter'
+  | 'bar-line'
+  | 'map'
+  | 'map-reg'
+  | 'map-aca'
+  | 'map-monde';
 
 let databoxAutoId = 0;
+
+/**
+ * Map chart types -> attribut `level` de <map-chart> (API cartes unifiée
+ * DSFR Chart >= 2.1.0). `map-chart-reg` upstream subsiste mais zoome sur UNE
+ * région (clés départementales) : la carte nationale des régions passe par
+ * level="reg".
+ */
+const MAP_LEVEL: Record<string, string> = {
+  map: 'dep',
+  'map-reg': 'reg',
+  'map-aca': 'aca',
+  'map-monde': 'monde',
+};
 
 /** Maps chart type -> DSFR custom element tag name */
 const CHART_TAG_MAP: Record<string, string> = {
@@ -47,7 +71,9 @@ const CHART_TAG_MAP: Record<string, string> = {
   gauge: 'gauge-chart',
   'bar-line': 'bar-line-chart',
   map: 'map-chart',
-  'map-reg': 'map-chart-reg',
+  'map-reg': 'map-chart',
+  'map-aca': 'map-chart',
+  'map-monde': 'map-chart',
 };
 
 /**
@@ -79,7 +105,10 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'label-field' })
   labelField = '';
 
-  /** Chemin vers le champ code departement/region (map/map-reg, prioritaire sur label-field) */
+  /**
+   * Chemin vers le champ code (prioritaire sur label-field) : departement/region
+   * (map/map-reg), nom d'academie (map-aca), code pays ISO a2/a3/num (map-monde)
+   */
   @property({ type: String, attribute: 'code-field' })
   codeField = '';
 
@@ -456,14 +485,24 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     const mapData: Record<string, number> = {};
     for (const record of this._data) {
       let code = String(getByPath(record, field) ?? '').trim();
-      // Pad numeric codes to 2 digits (e.g. "1" -> "01")
-      if (/^\d+$/.test(code) && code.length < 3) {
-        code = code.padStart(2, '0');
+      if (this.type === 'map-monde') {
+        // <map-chart level="monde"> n'accepte que l'alpha-2 : convertit
+        // iso-a3 / iso-num a la volee, ignore les codes inconnus
+        code = toIsoA2(code);
+        if (!code) continue;
+      } else if (this.type === 'map-aca') {
+        // Cles = nom d'academie en majuscules ("PARIS", "LYON"...)
+        code = code.toUpperCase();
+        if (!code) continue;
+      } else {
+        // Pad numeric codes to 2 digits (e.g. "1" -> "01")
+        if (/^\d+$/.test(code) && code.length < 3) {
+          code = code.padStart(2, '0');
+        }
+        if (this.type === 'map' ? !isValidDeptCode(code) : code === '') continue;
       }
       const value = toNumber(getByPath(record, this.valueField));
-      if (this.type === 'map' ? isValidDeptCode(code) : code !== '') {
-        mapData[code] = Math.round(value * 100) / 100;
-      }
+      mapData[code] = Math.round(value * 100) / 100;
     }
     return JSON.stringify(mapData);
   }
@@ -484,14 +523,14 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       // DSFR Chart attend un tableau JSON pour name (ex: '["Série 1"]')
       // Si l'utilisateur passe une string simple, on l'enveloppe automatiquement
       const trimmed = this.name.trim();
-      const isMap = this.type === 'map' || this.type === 'map-reg';
+      const isMap = this.type in MAP_LEVEL;
       attrs['name'] = isMap
         ? trimmed
         : trimmed.startsWith('[')
           ? trimmed
           : JSON.stringify([trimmed]);
     } else if (this.valueField) {
-      const isMap = this.type === 'map' || this.type === 'map-reg';
+      const isMap = this.type in MAP_LEVEL;
       if (isMap) {
         attrs['name'] = this.valueField;
       } else {
@@ -608,7 +647,12 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
         break;
       }
       case 'map':
-      case 'map-reg': {
+      case 'map-reg':
+      case 'map-aca':
+      case 'map-monde': {
+        // Le decoupage est choisi par l'attribut level (API unifiee 2.1.0) —
+        // statique : Vue le lit au montage et ne l'ecrase pas
+        attrs['level'] = MAP_LEVEL[this.type];
         // All map attributes go in `deferred` because the DSFR Chart Vue component
         // overwrites props set before mount with their default values.
         // Deferred attrs are applied via setTimeout(500ms) after Vue has mounted,
@@ -705,7 +749,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     if (this.type === 'pie' && this.fill) {
       attrs['fill'] = 'true';
     }
-    if ((this.type === 'map' || this.type === 'map-reg') && this.mapHighlight) {
+    if (this.type in MAP_LEVEL && this.mapHighlight) {
       attrs['highlight'] = this.mapHighlight;
     }
 
@@ -726,6 +770,8 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       'bar-line': 'barres et lignes',
       map: 'carte departements',
       'map-reg': 'carte regions',
+      'map-aca': 'carte academies',
+      'map-monde': 'carte monde',
     };
     const typeName = typeLabels[this.type] || this.type;
     const count = this._data.length;
@@ -1117,7 +1163,10 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     // creates the Teleport target containers when segmented-control is set.
     // Without it, the chart's Vue <Teleport> has no target and renders outside.
     databoxEl.setAttribute('segmented-control', '');
-    // title, source, date are REQUIRED props for DataBox — always set them.
+    // name, source, date are REQUIRED props for DataBox — always set them.
+    // DSFR Chart 2.1.0 renamed `title` to `name` (conflict with the native
+    // HTML title attribute); keep setting `title` too for 2.0.x hosts.
+    databoxEl.setAttribute('name', this.databoxTitle || ' ');
     databoxEl.setAttribute('title', this.databoxTitle || ' ');
     databoxEl.setAttribute('source', this.databoxSource || ' ');
     databoxEl.setAttribute('date', this.databoxDate || new Date().toISOString().split('T')[0]);

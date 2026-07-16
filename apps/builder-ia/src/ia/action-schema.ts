@@ -33,6 +33,8 @@ export const CHART_TYPES = [
   'map',
   'bar-line',
   'map-reg',
+  'map-aca',
+  'map-monde',
   'datalist',
   'podium',
 ] as const;

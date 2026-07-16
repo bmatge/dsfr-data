@@ -7,10 +7,10 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css" integrity="sha384-atVZ+aK6VI0nWyTEhKgze5InDJ+SWRRqa0BCZ2MTNyoOcBiHj1c3dGPdi6ML65B3" crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css" integrity="sha384-5P5DFFqorcEBpfnK9WHu/Ralfr7ZxyCZh0ryaJbgucSvc71+qRYdGvNEcyMqQwa/" crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css" integrity="sha384-987+TUcyVaQAI/PaEqYIGNqku/bHSkNVAqOfNxyS1eE9SxeeH2Ue4FQZ3kKtnWfM" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.1.1/dist/DSFRChart/DSFRChart.css" integrity="sha384-5m9vgfA+uOR3qcY14HhRzWDK17cwEVXO75RSwv2KJXignSdIrOvz1xNaaDpWXCeu" crossorigin="anonymous">
   <script type="module" src="/dist/dsfr-data.esm.js"></script>
   <script type="module" src="/dist/app-ui.esm.js"></script>
-  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js" integrity="sha384-xYrR55uYb2Y55H6eELrLA9ARM8YsjB1ksG6QHJZrhL49lzax9l7rHuQPjsZGiTYk" crossorigin="anonymous"></script>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.1.1/dist/DSFRChart/DSFRChart.js" integrity="sha384-OJTIJmv0zL1Ym2Bd6hA0oHB25gTqveSogoyVtnN3cEJcm4qE28qzTEp56vJeeKIS" crossorigin="anonymous"></script>
   <style>
     body { min-height: 100vh; display: flex; flex-direction: column; }
   </style>
@@ -20,11 +20,11 @@
 
   <app-layout-demo title="Carte de France" icon="ri-map-line" active-path="charts/map-chart" base-path="../">
     <div slot="content">
-      <p class="fr-text--lead">Les composants <code>&lt;map-chart&gt;</code> et <code>&lt;map-chart-reg&gt;</code> visualisent des données geographiques.</p>
+      <p class="fr-text--lead">Le composant <code>&lt;map-chart&gt;</code> visualise des données geographiques : departements, regions, academies ou monde selon l'attribut <code>level</code> (API cartes unifiee de <a href="https://github.com/GouvernementFR/dsfr-chart" target="_blank" rel="noopener">DSFR Chart</a> 2.1).</p>
 
       <section class="demo-section">
-        <h3>Carte departementale</h3>
-        <p>Le composant <code>&lt;map-chart&gt;</code> affiche une carte de France avec données par departement.</p>
+        <h3>Carte departementale (level="dep", défaut)</h3>
+        <p>Sans attribut <code>level</code> (ou avec <code>level="dep"</code>), <code>&lt;map-chart&gt;</code> affiche une carte de France avec données par departement.</p>
         <map-chart
           data='{"75": 95, "13": 82, "69": 78, "33": 71, "31": 68, "59": 88, "67": 75, "44": 80, "34": 72, "06": 91}'
           date="2024-01-15"
@@ -42,15 +42,65 @@
       </section>
 
       <section class="demo-section">
-        <h3>Carte regionale</h3>
-        <div class="fr-callout fr-callout--brown-caramel fr-my-2w">
-          <p class="fr-callout__text">
-            <strong>Limitation connue :</strong> Le composant <code>&lt;map-chart-reg&gt;</code>
-            presente des bugs dans DSFR Chart v2.0.4 (affiche un decoupage departemental au lieu de regional).
-            Consultez la <a href="https://github.com/GouvernementFR/dsfr-chart/issues" target="_blank">page des issues GitHub</a> pour suivre les corrections.
-          </p>
-        </div>
-        <p>Syntaxe attendue pour <code>&lt;map-chart-reg&gt;</code> :</p>
+        <h3>Carte regionale nationale (level="reg")</h3>
+        <p>Avec <code>level="reg"</code>, la carte affiche le decoupage regional national. Les clés de <code>data</code> sont les codes region INSEE.</p>
+        <map-chart
+          level="reg"
+          data='{"11": 95, "84": 82, "76": 78, "75": 71, "44": 68, "32": 88}'
+          date="2024-01-15"
+          name="Score RGAA"
+          selected-palette="sequentialAscending">
+        </map-chart>
+        <div class="code-block"><pre>&lt;map-chart
+  level="reg"
+  data='{"11": 95, "84": 82, "76": 78, "75": 71}'
+  date="2024-01-15"
+  name="Score RGAA"
+  selected-palette="sequentialAscending"&gt;
+&lt;/map-chart&gt;</pre></div>
+      </section>
+
+      <section class="demo-section">
+        <h3>Carte des academies (level="aca")</h3>
+        <p>Avec <code>level="aca"</code>, les clés de <code>data</code> sont les noms d'academie en majuscules.</p>
+        <map-chart
+          level="aca"
+          data='{"PARIS": 95, "LYON": 82, "STRASBOURG": 78, "BORDEAUX": 71, "LILLE": 88}'
+          date="2024-01-15"
+          name="Score RGAA"
+          selected-palette="sequentialAscending">
+        </map-chart>
+        <div class="code-block"><pre>&lt;map-chart
+  level="aca"
+  data='{"PARIS": 95, "LYON": 82, "STRASBOURG": 78}'
+  date="2024-01-15"
+  name="Score RGAA"
+  selected-palette="sequentialAscending"&gt;
+&lt;/map-chart&gt;</pre></div>
+      </section>
+
+      <section class="demo-section">
+        <h3>Carte mondiale (level="monde")</h3>
+        <p>Avec <code>level="monde"</code>, les clés de <code>data</code> sont les codes pays ISO 3166-1 alpha-2. Via <code>&lt;dsfr-data-chart type="map-monde"&gt;</code>, les codes alpha-3 et numériques sont convertis automatiquement.</p>
+        <map-chart
+          level="monde"
+          data='{"FR": 95, "DE": 82, "IT": 78, "ES": 71, "US": 60, "JP": 55}'
+          date="2024-01-15"
+          name="Indicateur"
+          selected-palette="sequentialAscending">
+        </map-chart>
+        <div class="code-block"><pre>&lt;map-chart
+  level="monde"
+  data='{"FR": 95, "DE": 82, "US": 60}'
+  date="2024-01-15"
+  name="Indicateur"
+  selected-palette="sequentialAscending"&gt;
+&lt;/map-chart&gt;</pre></div>
+      </section>
+
+      <section class="demo-section">
+        <h3>Zoom sur une region (&lt;map-chart-reg&gt;)</h3>
+        <p>Le composant <code>&lt;map-chart-reg region="…"&gt;</code> zoome sur <strong>une</strong> region donnee : les clés de <code>data</code> sont alors les departements de cette region. Pour la carte nationale des regions, utiliser <code>level="reg"</code> ci-dessus.</p>
         <div class="code-block"><pre>&lt;map-chart-reg
   data='{"75": 95, "77": 82, "78": 85, "91": 78, "92": 90}'
   date="2024-01-15"
@@ -71,9 +121,14 @@
         </thead>
         <tbody>
           <tr>
+            <td><code>level</code></td>
+            <td>String</td>
+            <td>Decoupage : <code>dep</code> (défaut), <code>reg</code>, <code>aca</code>, <code>monde</code> — DSFR Chart &ge; 2.1</td>
+          </tr>
+          <tr>
             <td><code>data</code></td>
             <td>String (JSON)</td>
-            <td>Dictionnaire JSON avec codes departement/region comme clés et valeurs numériques</td>
+            <td>Dictionnaire JSON : clés selon le <code>level</code> (code departement, code region, nom d'academie en majuscules, code pays ISO alpha-2), valeurs numériques</td>
           </tr>
           <tr>
             <td><code>date</code></td>

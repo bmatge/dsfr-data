@@ -7,10 +7,10 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css" integrity="sha384-atVZ+aK6VI0nWyTEhKgze5InDJ+SWRRqa0BCZ2MTNyoOcBiHj1c3dGPdi6ML65B3" crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css" integrity="sha384-5P5DFFqorcEBpfnK9WHu/Ralfr7ZxyCZh0ryaJbgucSvc71+qRYdGvNEcyMqQwa/" crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.css" integrity="sha384-987+TUcyVaQAI/PaEqYIGNqku/bHSkNVAqOfNxyS1eE9SxeeH2Ue4FQZ3kKtnWfM" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.1.1/dist/DSFRChart/DSFRChart.css" integrity="sha384-5m9vgfA+uOR3qcY14HhRzWDK17cwEVXO75RSwv2KJXignSdIrOvz1xNaaDpWXCeu" crossorigin="anonymous">
   <script type="module" src="/dist/dsfr-data.esm.js"></script>
   <script type="module" src="/dist/app-ui.esm.js"></script>
-  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.0.4/dist/DSFRChart/DSFRChart.js" integrity="sha384-xYrR55uYb2Y55H6eELrLA9ARM8YsjB1ksG6QHJZrhL49lzax9l7rHuQPjsZGiTYk" crossorigin="anonymous"></script>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.1.1/dist/DSFRChart/DSFRChart.js" integrity="sha384-OJTIJmv0zL1Ym2Bd6hA0oHB25gTqveSogoyVtnN3cEJcm4qE28qzTEp56vJeeKIS" crossorigin="anonymous"></script>
   <style>
     body { min-height: 100vh; display: flex; flex-direction: column; }
   </style>
@@ -40,7 +40,7 @@
         <thead><tr><th>Attribut</th><th>Type</th><th>Description</th></tr></thead>
         <tbody>
           <tr><td><code>source</code></td><td>String</td><td>ID du <code>&lt;dsfr-data-source&gt;</code> (requis)</td></tr>
-          <tr><td><code>type</code></td><td>String</td><td>Type de chart : <code>bar</code>, <code>line</code>, <code>pie</code>, <code>radar</code>, <code>gauge</code>, <code>scatter</code></td></tr>
+          <tr><td><code>type</code></td><td>String</td><td>Type de chart : <code>bar</code>, <code>line</code>, <code>pie</code>, <code>radar</code>, <code>gauge</code>, <code>scatter</code>, <code>bar-line</code>, <code>map</code>, <code>map-reg</code>, <code>map-aca</code>, <code>map-monde</code></td></tr>
           <tr><td><code>label-field</code></td><td>String</td><td>Chemin vers le champ label dans les données</td></tr>
           <tr><td><code>value-field</code></td><td>String</td><td>Chemin vers le champ valeur dans les données</td></tr>
           <tr><td><code>selected-palette</code></td><td>String</td><td>Palette : <code>default</code>, <code>categorical</code>, <code>sequential*</code>, <code>divergent*</code></td></tr>
@@ -48,7 +48,7 @@
           <tr><td><code>horizontal</code></td><td>Boolean</td><td>Barres horizontales (bar chart)</td></tr>
           <tr><td><code>stacked</code></td><td>Boolean</td><td>Barres empilees (bar chart)</td></tr>
           <tr><td><code>fill</code></td><td>Boolean</td><td>Remplissage plein (pie chart)</td></tr>
-          <tr><td><code>code-field</code></td><td>String</td><td>Champ code departement/region (map, map-reg)</td></tr>
+          <tr><td><code>code-field</code></td><td>String</td><td>Champ code : departement/region (map, map-reg), nom d'academie (map-aca), code pays ISO a2/a3/num (map-monde)</td></tr>
           <tr><td><code>map-highlight</code></td><td>String</td><td>Departements/regions a surligner</td></tr>
           <tr><td><code>gauge-value</code></td><td>Number</td><td>Valeur de la jauge 0-100 (type gauge)</td></tr>
           <tr><td><code>value-field-2</code></td><td>String</td><td>2e série de valeurs (bar-line)</td></tr>

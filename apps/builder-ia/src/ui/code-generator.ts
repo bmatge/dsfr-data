@@ -12,6 +12,7 @@ import {
   extractResourceIds,
   filterToOdsql,
   formatKPIValue,
+  MAP_LEVEL_MAP,
 } from '@dsfr-data/shared';
 import { state } from '../state.js';
 import type { ChartConfig, AggregatedResult } from '../state.js';
@@ -99,8 +100,8 @@ export function generateCode(config: ChartConfig, data: AggregatedResult[]): voi
     return;
   }
 
-  // Handle map type (department or region)
-  if (config.type === 'map' || config.type === 'map-reg') {
+  // Handle map types (departments, regions, academies, world)
+  if (config.type in MAP_LEVEL_MAP) {
     codeEl.textContent = generateMapCode(config, data);
     return;
   }
@@ -322,11 +323,15 @@ function generateMapCode(config: ChartConfig, data: AggregatedResult[]): string 
   const mapData: Record<string, number> = {};
   data.forEach((d) => {
     let code = String(d.code || d.label || '').trim();
-    if (/^\d+$/.test(code) && code.length < 3) {
+    if (config.type === 'map-aca' || config.type === 'map-monde') {
+      // aca : noms d'academie majuscules ; monde : ISO alpha-2
+      // (la conversion a3/num est faite par dsfr-data-chart, pas ici)
+      code = code.toUpperCase();
+    } else if (/^\d+$/.test(code) && code.length < 3) {
       code = code.padStart(2, '0');
     }
     const value = d.value || 0;
-    if (isValidDeptCode(code)) {
+    if (config.type === 'map' ? isValidDeptCode(code) : code !== '') {
       mapData[code] = Math.round(value * 100) / 100;
     }
   });
@@ -479,7 +484,6 @@ function generateMapCode(config: ChartConfig, data: AggregatedResult[]): string 
   }
 
   // Embedded-data variant
-  const mapTagEmbed = config.type === 'map-reg' ? 'map-chart-reg' : 'map-chart';
   return `<!-- Carte generee avec dsfr-data Builder IA -->
 <!-- Source : ${state.source?.name || 'Données locales'} -->
 
@@ -492,11 +496,12 @@ function generateMapCode(config: ChartConfig, data: AggregatedResult[]): string 
 <div class="fr-container fr-my-4w">
   <h2>${escapeHtml(config.title || 'Carte de France')}</h2>
   ${config.subtitle ? `<p class="fr-text--sm fr-text--light">${escapeHtml(config.subtitle)}</p>` : ''}
-  <${mapTagEmbed}
+  <map-chart
+    level="${MAP_LEVEL_MAP[config.type]}"
     data='${JSON.stringify(mapData)}'
     name="${escapeHtml(config.title || 'Carte')}"
     selected-palette="${config.palette || 'sequentialAscending'}"
-  ></${mapTagEmbed}>
+  ></map-chart>
 </div>`;
 }
 

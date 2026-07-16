@@ -65,22 +65,26 @@ export class AppFooter extends LitElement {
                 Charts builder est un projet open-source permettant de créer des visualisations de
                 données conformes au Design System de l'État (DSFR).
               </p>
-              ${this._version
-                ? html`<p class="fr-footer__content-desc fr-text--xs" style="opacity: 0.7;">
-                    Composants dsfr-data
-                    v${this._version}${this._commit
-                      ? html` ·
-                          <a
-                            class="fr-footer__content-link"
-                            href="https://github.com/bmatge/dsfr-data/commit/${this._commit}"
-                            target="_blank"
-                            rel="noopener"
-                            title="Voir le commit sur GitHub"
-                            >commit ${this._commit}</a
-                          >`
-                      : ''}
-                  </p>`
-                : ''}
+              ${
+                this._version
+                  ? html`<p class="fr-footer__content-desc fr-text--xs" style="opacity: 0.7;">
+                      Composants dsfr-data
+                      v${this._version}${
+                      this._commit
+                        ? html` ·
+                            <a
+                              class="fr-footer__content-link"
+                              href="https://github.com/bmatge/dsfr-data/commit/${this._commit}"
+                              target="_blank"
+                              rel="noopener"
+                              title="Voir le commit sur GitHub"
+                              >commit ${this._commit}</a
+                            >`
+                        : ''
+                    }
+                    </p>`
+                  : ''
+              }
               <ul class="fr-footer__content-list">
                 <li class="fr-footer__content-item">
                   <a
@@ -90,6 +94,16 @@ export class AppFooter extends LitElement {
                     href="https://www.systeme-de-design.gouv.fr/"
                   >
                     systeme-de-design.gouv.fr
+                  </a>
+                </li>
+                <li class="fr-footer__content-item">
+                  <a
+                    class="fr-footer__content-link"
+                    target="_blank"
+                    rel="noopener"
+                    href="https://github.com/GouvernementFR/dsfr-chart"
+                  >
+                    DSFR Chart
                   </a>
                 </li>
                 <li class="fr-footer__content-item">

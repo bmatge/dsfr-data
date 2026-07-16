@@ -565,6 +565,35 @@ export function toIsoNumeric(code: string, format: 'iso-a2' | 'iso-a3' | 'iso-nu
   }
 }
 
+let NUM_TO_ISO_A2: Record<string, string> | null = null;
+
+/**
+ * Normalize any ISO code format (alpha-2, alpha-3 or numeric) to alpha-2,
+ * auto-detecting the input format. Returns '' when the code is unknown.
+ * Needed by <map-chart level="monde"> (DSFR Chart >= 2.1.0), which only
+ * accepts alpha-2 keys.
+ */
+export function toIsoA2(code: string): string {
+  const upper = code.trim().toUpperCase();
+  if (/^[A-Z]{2}$/.test(upper)) {
+    return ISO_A2_TO_NUM[upper] ? upper : '';
+  }
+  let num = '';
+  if (/^[A-Z]{3}$/.test(upper)) {
+    num = ISO_A3_TO_NUM[upper] || '';
+  } else if (/^\d{1,3}$/.test(upper)) {
+    num = upper.padStart(3, '0');
+  }
+  if (!num) return '';
+  if (!NUM_TO_ISO_A2) {
+    NUM_TO_ISO_A2 = {};
+    for (const [a2, n] of Object.entries(ISO_A2_TO_NUM)) {
+      NUM_TO_ISO_A2[n] = a2;
+    }
+  }
+  return NUM_TO_ISO_A2[num] || '';
+}
+
 /** All continent names used in the lookup */
 export const CONTINENTS = [
   'Africa',

@@ -9,7 +9,7 @@ Le projet `dsfr-data` lui-même est distribué sous licence **MIT** (voir [`LICE
 | Paquet | Version | Licence | Usage |
 |---|---|---|---|
 | [`lit`](https://lit.dev/) | ^3.1.0 | BSD-3-Clause | Framework des Web Components |
-| [`@gouvfr/dsfr-chart`](https://www.npmjs.com/package/@gouvfr/dsfr-chart) | ^2.0.4 | MIT | Composants Vue DSFR (bar/line/pie chart, map-chart) |
+| [`@gouvfr/dsfr-chart`](https://github.com/GouvernementFR/dsfr-chart) | ^2.1.1 | MIT | Composants Vue DSFR (bar/line/pie chart, map-chart avec API cartes unifiee `level`) |
 | [`leaflet`](https://leafletjs.com/) | ^1.9.4 | BSD-2-Clause | Moteur de carte (chargé dynamiquement) |
 | [`leaflet.markercluster`](https://github.com/Leaflet/Leaflet.markercluster) | ^1.5.3 | MIT | Plugin clustering de markers (chargé dynamiquement) |
 | [`leaflet.heat`](https://github.com/Leaflet/Leaflet.heat) | ^0.2.0 | BSD-2-Clause | Plugin heatmap (chargé dynamiquement) |
