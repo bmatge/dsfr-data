@@ -413,6 +413,15 @@ Les donnees de la source sont transmises directement au composant de visualisati
 </dsfr-data-chart>
 ```
 
+Quatre decoupages de carte sont disponibles (API cartes unifiee [DSFR Chart](https://github.com/GouvernementFR/dsfr-chart) 2.1) :
+
+| `type` | Decoupage | Cles attendues (`code-field`) |
+|--------|-----------|-------------------------------|
+| `map` | Departements | Code INSEE (`01`-`95`, `2A`, `2B`, `971`-`976`) |
+| `map-reg` | Regions | Code region INSEE (`11`, `84`...) |
+| `map-aca` | Academies | Nom en majuscules (`PARIS`, `LYON`...) |
+| `map-monde` | Monde | Code pays ISO 3166-1 (alpha-2 `FR`, alpha-3 `FRA` ou numerique `250` — convertis automatiquement) |
+
 #### KPI — Indicateurs Industrie du futur
 
 ```html
