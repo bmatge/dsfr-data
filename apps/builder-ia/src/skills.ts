@@ -1135,8 +1135,8 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 | highlight-index | String | \`""\` | non | Indices a mettre en avant : \`"[0, 2]"\` |
 | x-min | String | \`""\` | non | Limite min axe X |
 | x-max | String | \`""\` | non | Limite max axe X |
-| y-min | String | \`""\` | non | Limite min axe Y |
-| y-max | String | \`""\` | non | Limite max axe Y |
+| y-min | String | \`""\` | non | Limite min axe Y. Pour type radar : borne min de l'echelle radiale (le centre du radar est fixe a y-min au lieu du minimum des donnees) |
+| y-max | String | \`""\` | non | Limite max axe Y. Pour type radar : borne max de l'echelle radiale ; si y-min et y-max sont entiers avec une amplitude de 1 a 10, anneaux de grille entiers (stepSize 1) |
 | gauge-value | Number | \`null\` | type gauge | Valeur de la jauge (0-100) |
 | code-field | String | \`""\` | types map* | Champ contenant le code : departement/region (map, map-reg), nom d'academie en majuscules (map-aca), code pays ISO 3166-1 alpha-2/alpha-3/numerique (map-monde, converti en alpha-2) — prioritaire sur label-field |
 | map-highlight | String | \`""\` | non | Departements/regions a surligner |
@@ -1151,7 +1151,7 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 | bar | source, type, label-field, value-field | horizontal, stacked, highlight-index, selected-palette |
 | line | source, type, label-field, value-field | x-min, x-max, y-min, y-max, value-field-2 |
 | pie | source, type, label-field, value-field | fill (false=anneau, true=camembert plein) |
-| radar | source, type, label-field, value-field | value-field-2, name |
+| radar | source, type, label-field, value-field | value-field-2, name, y-min, y-max |
 | scatter | source, type, label-field, value-field | x-min, x-max, y-min, y-max |
 | gauge | source, type, gauge-value | - |
 | bar-line | source, type, label-field, value-field, value-field-2 | name, unit-tooltip, unit-tooltip-bar |
@@ -1521,6 +1521,7 @@ name='["Série A","Série B"]'
 
 ### <radar-chart>
 - Multi-séries pour comparer des profils
+- scale-min, scale-max : bornes de l'echelle radiale (via y-min/y-max de dsfr-data-chart)
 
 ### <map-chart> (cartes choroplethes — API unifiee DSFR Chart 2.1)
 - level : decoupage — "dep" (défaut), "reg", "aca", "monde"
@@ -1930,7 +1931,7 @@ Guide pour choisir le type de visualisation adapte aux données.
 ### Radar
 - **Quand** : profils multicriteres, comparaison de dimensions
 - **Champs** : label-field (criteres), value-field (scores)
-- **Supporte** : value-field-2 ou value-fields pour comparer plusieurs profils
+- **Supporte** : value-field-2 ou value-fields pour comparer plusieurs profils, y-min/y-max pour fixer l'echelle radiale (recommande : sans bornes, le centre du radar = minimum des donnees, ce qui est trompeur)
 
 ### Nuage de points (scatter)
 - **Quand** : correlation entre deux variables numériques

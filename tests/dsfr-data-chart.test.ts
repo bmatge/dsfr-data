@@ -240,6 +240,32 @@ describe('DsfrDataChart', () => {
     });
   });
 
+  describe('_refreshRadialScaleBounds', () => {
+    it('schedules a rAF poll for radar with bounds', () => {
+      chart.type = 'radar';
+      chart.yMin = '0';
+      chart.yMax = '4';
+      (chart as any)._refreshRadialScaleBounds();
+      expect((chart as any)._radialBoundsRaf).not.toBeNull();
+      (chart as any)._cancelRadialBoundsRaf();
+      expect((chart as any)._radialBoundsRaf).toBeNull();
+    });
+
+    it('does nothing for radar without bounds', () => {
+      chart.type = 'radar';
+      (chart as any)._refreshRadialScaleBounds();
+      expect((chart as any)._radialBoundsRaf).toBeNull();
+    });
+
+    it('does nothing for non-radar types even with bounds', () => {
+      chart.type = 'line';
+      chart.yMin = '0';
+      chart.yMax = '4';
+      (chart as any)._refreshRadialScaleBounds();
+      expect((chart as any)._radialBoundsRaf).toBeNull();
+    });
+  });
+
   describe('_getTypeSpecificAttributes', () => {
     beforeEach(() => {
       (chart as any)._data = [
@@ -282,6 +308,39 @@ describe('DsfrDataChart', () => {
       expect(attrs['x']).toBeDefined();
       expect(attrs['y']).toBeDefined();
       expect(JSON.parse(attrs['name'])).toEqual(['A', 'B']);
+    });
+
+    it('radar maps y-min/y-max to upstream scale-min/scale-max', () => {
+      chart.type = 'radar';
+      chart.yMin = '0';
+      chart.yMax = '4';
+      const { attrs } = (chart as any)._getTypeSpecificAttributes();
+      expect(attrs['scale-min']).toBe('0');
+      expect(attrs['scale-max']).toBe('4');
+    });
+
+    it('radar without y-min/y-max sets no scale bounds (unchanged behavior)', () => {
+      chart.type = 'radar';
+      const { attrs } = (chart as any)._getTypeSpecificAttributes();
+      expect(attrs['scale-min']).toBeUndefined();
+      expect(attrs['scale-max']).toBeUndefined();
+    });
+
+    it('radar with a single bound sets only that bound', () => {
+      chart.type = 'radar';
+      chart.yMax = '4';
+      const { attrs } = (chart as any)._getTypeSpecificAttributes();
+      expect(attrs['scale-min']).toBeUndefined();
+      expect(attrs['scale-max']).toBe('4');
+    });
+
+    it('non-radar types do not get scale-min/scale-max', () => {
+      chart.type = 'line';
+      chart.yMin = '0';
+      chart.yMax = '4';
+      const { attrs } = (chart as any)._getTypeSpecificAttributes();
+      expect(attrs['scale-min']).toBeUndefined();
+      expect(attrs['scale-max']).toBeUndefined();
     });
 
     it('returns bar-line specific attributes', () => {

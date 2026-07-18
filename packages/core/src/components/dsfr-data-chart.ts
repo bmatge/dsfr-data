@@ -30,6 +30,13 @@ import {
   type TargetsLayout,
   type TargetMarkerGeometry,
 } from '../utils/chart-targets.js';
+import {
+  computeRadialScaleBounds,
+  applyRadialScaleBounds,
+  isRadialChartType,
+  type RadialScaleBounds,
+  type RadialChartLike,
+} from '../utils/chart-radial-scale.js';
 import { escapeHtml, toNumber, isValidDeptCode } from '@dsfr-data/shared/lib';
 import { toIsoA2 } from '../data/continent-lookup.js';
 
@@ -291,6 +298,9 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   /** Tooltip cible en cours d'affichage (#377) */
   private _targetTooltipEl: HTMLDivElement | null = null;
 
+  /** Bornes radar (y-min/y-max → scales.r) : poll rAF en cours */
+  private _radialBoundsRaf: number | null = null;
+
   /** Attributs poses par la mise a jour incrementale (#305) */
   private _managedChartAttrs = new Set<string>();
 
@@ -301,6 +311,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     for (const t of this._pendingTimers) clearTimeout(t);
     this._pendingTimers.clear();
     this._cleanupChartOverlays();
+    this._cancelRadialBoundsRaf();
   }
 
   updated(changed: Map<string, unknown>) {
@@ -309,6 +320,9 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     // chaque rendu. Chart.js rend de maniere asynchrone → le draw poll en rAF
     // jusqu'a ce que l'instance soit prete.
     this._refreshChartOverlays();
+    // Bornes dures de l'echelle radiale (radar + y-min/y-max) : meme principe,
+    // ré-appliquées après chaque rendu (le watcher Vue $props recrée le chart).
+    this._refreshRadialScaleBounds();
   }
 
   // Light DOM pour les styles DSFR
@@ -741,6 +755,15 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       }
     }
 
+    if (this.type === 'radar') {
+      // Échelle radiale (issue maturity-model#9) : relaie y-min/y-max vers
+      // l'API upstream scale-min/scale-max de <radar-chart> (suggestedMin/Max)
+      // — baseline déclarative qui survit aux recréations du chart par le
+      // watcher Vue $props. Les bornes DURES scales.r.min/max + stepSize sont
+      // affinées post-montage par _refreshRadialScaleBounds().
+      if (this.yMin) attrs['scale-min'] = this.yMin;
+      if (this.yMax) attrs['scale-max'] = this.yMax;
+    }
     if (this.type === 'bar') {
       if (this.horizontal) attrs['horizontal'] = 'true';
       if (this.stacked) attrs['stacked'] = 'true';
@@ -968,6 +991,50 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     this._overlayResize?.disconnect();
     this._overlayResize = null;
     this._removeChartOverlays();
+  }
+
+  // --- Bornes de l'echelle radiale (radar + y-min/y-max, maturity-model#9) ----
+  // Sans borne, scales.r s'auto-ajuste au min/max des donnees (le minimum se
+  // retrouve au CENTRE du radar). L'upstream n'expose que suggestedMin/Max
+  // (bornes molles) : on pose les bornes DURES min/max + stepSize directement
+  // sur l'instance Chart.js, avec le meme rAF-poll que les overlays.
+
+  private _cancelRadialBoundsRaf() {
+    if (this._radialBoundsRaf !== null) {
+      cancelAnimationFrame(this._radialBoundsRaf);
+      this._radialBoundsRaf = null;
+    }
+  }
+
+  /** (Re)programme l'application des bornes radiales apres chaque rendu. */
+  private _refreshRadialScaleBounds() {
+    this._cancelRadialBoundsRaf();
+    if (!isRadialChartType(this.type)) return;
+    const bounds = computeRadialScaleBounds(this.yMin, this.yMax);
+    if (!bounds) return;
+    this._scheduleRadialBoundsApply(bounds, 120);
+  }
+
+  /** Poll rAF jusqu'a ce que l'instance Chart.js radar soit prete. */
+  private _scheduleRadialBoundsApply(bounds: RadialScaleBounds, framesLeft: number) {
+    if (typeof requestAnimationFrame === 'undefined') return;
+    this._radialBoundsRaf = requestAnimationFrame(() => {
+      this._radialBoundsRaf = null;
+      if (!this.isConnected) return;
+      if (this._applyRadialScaleBounds(bounds)) return;
+      if (framesLeft > 0) this._scheduleRadialBoundsApply(bounds, framesLeft - 1);
+      // Degradation gracieuse sans warn : la baseline declarative
+      // scale-min/scale-max reste appliquee par l'upstream.
+    });
+  }
+
+  /** Applique les bornes sur l'instance. Retourne false si pas prete. */
+  private _applyRadialScaleBounds(bounds: RadialScaleBounds): boolean {
+    const hosts = this._resolveOverlayHosts();
+    if (!hosts) return false;
+    const chart = resolveChartInstance(hosts.chartEl, hosts.canvas);
+    if (!chart || !chart.chartArea || chart.chartArea.width <= 0) return false;
+    return applyRadialScaleBounds(chart as RadialChartLike, bounds);
   }
 
   // --- Cibles : interactivite (tooltip groupe par echeance, legende, #377) ----
