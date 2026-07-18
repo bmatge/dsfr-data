@@ -327,7 +327,15 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     const adapter = sourceEl?.getAdapter?.();
     const caps: AdapterCapabilities | undefined = adapter?.capabilities;
 
-    if (sourceEl && adapter && caps) {
+    // #394 : si un transformateur entre cette query et la source qui fetch
+    // crée/renomme des colonnes (unpivot, normalize rename/compute…), les
+    // opérations de la query s'expriment dans le schéma POST-transformation.
+    // Les déléguer au serveur enverrait des noms de colonnes inconnus de
+    // l'API (Grist Records : 500 "unknown key annee") — et l'erreur de la
+    // source ferait tomber TOUS ses abonnés. Tout reste alors client-side.
+    const upstreamTransformsSchema = sourceEl?.transformsSchema?.() === true;
+
+    if (sourceEl && adapter && caps && !upstreamTransformsSchema) {
       // Don't override if dsfr-data-source already has its own groupBy/aggregate
       // (user explicitly configured them on the source — respect that)
       const sourceGroupBy = sourceEl.groupBy || '';

@@ -132,6 +132,16 @@ export class DsfrDataUnpivot extends TransformerMixin(LitElement) {
     return null;
   }
 
+  /**
+   * L'unpivot crée toujours des colonnes (var-name/value-name) et supprime
+   * les colonnes dépliées : le schéma aval ne correspond jamais au schéma
+   * de la source qui fetch (#394). Une query en aval ne doit donc jamais
+   * déléguer ses opérations (order-by…) au serveur à travers ce composant.
+   */
+  public transformsSchema(): boolean {
+    return true;
+  }
+
   getData(): Row[] {
     return this._data;
   }

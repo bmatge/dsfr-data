@@ -129,6 +129,24 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
     return null;
   }
 
+  /**
+   * True si la normalisation crée/renomme des colonnes (#394) : rename,
+   * compute, flatten et lowercase-keys changent les clés — les opérations
+   * serveur d'une query aval porteraient sur des noms inconnus de l'API.
+   * Sinon (transformations de valeurs uniquement : numeric, trim…), le
+   * statut est délégué à l'amont — un unpivot peut précéder ce normalize.
+   */
+  public transformsSchema(): boolean {
+    if (this.rename || this.compute || this.flatten || this.lowercaseKeys) return true;
+    if (this.source) {
+      const sourceEl = document.getElementById(this.source);
+      if (sourceEl && 'transformsSchema' in sourceEl) {
+        return (sourceEl as unknown as SourceElement).transformsSchema?.() === true;
+      }
+    }
+    return false;
+  }
+
   createRenderRoot() {
     return this;
   }

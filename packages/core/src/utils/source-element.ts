@@ -35,4 +35,15 @@ export interface SourceElement extends HTMLElement {
    * délèguent vers leur amont (join : vers la source gauche).
    */
   getAdapterParams?(): AdapterParams | null;
+
+  /**
+   * True si ce composant (ou un transformateur en amont de lui) crée,
+   * renomme ou supprime des colonnes par rapport au schéma de la source qui
+   * fetch (#394) : unpivot (toujours), normalize avec rename/compute/
+   * flatten/lowercase-keys. dsfr-data-query s'en sert pour NE PAS déléguer
+   * ses opérations (order-by, group-by, where) au serveur : elles
+   * s'expriment dans le schéma POST-transformation, inconnu de l'API
+   * (Grist Records : 500 "unknown key"). Absent = schéma préservé.
+   */
+  transformsSchema?(): boolean;
 }
