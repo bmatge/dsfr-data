@@ -1,5 +1,17 @@
 # dsfr-data
 
+## 0.12.0
+
+### Minor Changes
+
+- [#404](https://github.com/bmatge/dsfr-data/pull/404) [`74aeed9`](https://github.com/bmatge/dsfr-data/commit/74aeed911e6ceb32df8e52c344cb7a06a5913d8d) Thanks [@bmatge](https://github.com/bmatge)! - Nouveaux types de cartes `map-aca` (académies, clés = noms en majuscules) et `map-monde` (mondiale, clés ISO 3166-1 — les codes alpha-3 et numériques sont convertis automatiquement en alpha-2 via `toIsoA2`) sur `dsfr-data-chart`, apportés par l'API cartes unifiée `<map-chart level>` de DSFR Chart 2.1. `dsfr-data-world-map` est déprécié au profit de `type="map-monde"` (warn console ; retrait prévu à la prochaine version majeure, [#402](https://github.com/bmatge/dsfr-data/issues/402)).
+
+- [#408](https://github.com/bmatge/dsfr-data/pull/408) [`b1e7891`](https://github.com/bmatge/dsfr-data/commit/b1e7891e873c82562e2871da4b313efef1325616) Thanks [@bmatge](https://github.com/bmatge)! - `<dsfr-data-chart type="radar">` : support des attributs `y-min` / `y-max` pour borner l'échelle radiale (issue maturity-model#9). Sans borne, `scales.r` de Chart.js s'auto-ajuste au min/max des données — le minimum se retrouve au centre du radar, ce qui est trompeur. Les bornes sont relayées à l'API upstream `scale-min`/`scale-max` de `<radar-chart>` (suggestedMin/Max, baseline déclarative), puis affinées post-montage sur l'instance Chart.js : bornes dures `scales.r.min`/`max`, et `ticks.stepSize: 1` (anneaux de grille entiers) quand les deux bornes sont entières avec une amplitude de 1 à 10. Comportement inchangé sans `y-min`/`y-max` et pour les autres types.
+
+### Patch Changes
+
+- [#404](https://github.com/bmatge/dsfr-data/pull/404) [`74aeed9`](https://github.com/bmatge/dsfr-data/commit/74aeed911e6ceb32df8e52c344cb7a06a5913d8d) Thanks [@bmatge](https://github.com/bmatge)! - Alignement DSFR Chart 2.1.x (correctifs) : la DataBox pose désormais `name` (renommage upstream de `title` en 2.1.0 — les titres de DataBox étaient invisibles en preview/prod) tout en conservant `title` pour les hôtes 2.0.x ; les types `map` et `map-reg` routent vers `<map-chart level="dep|reg">` (API cartes unifiée), ce qui corrige la limitation connue de la carte régionale nationale (`<map-chart-reg>` sans `region`).
+
 ## 0.11.1
 
 ### Patch Changes
