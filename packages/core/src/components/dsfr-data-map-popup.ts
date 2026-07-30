@@ -192,6 +192,12 @@ export class DsfrDataMapPopup extends LitElement {
       this._panelEl.setAttribute('aria-label', "Details de l'element sélectionné");
       this._panelEl.setAttribute('aria-live', 'polite');
       const anchor = mapParent.querySelector(':scope > .dsfr-data-map__container') ?? mapParent;
+      // Le panel vit dans le conteneur Leaflet (#431) : isoler ses evenements
+      // pour que la molette scrolle le volet (et non le zoom de la carte) et
+      // que la selection de texte ne declenche pas un pan.
+      for (const type of ['wheel', 'dblclick', 'mousedown', 'touchstart', 'pointerdown']) {
+        this._panelEl.addEventListener(type, (e) => e.stopPropagation());
+      }
       anchor.appendChild(this._panelEl);
       // Trigger slide-in animation
       requestAnimationFrame(() => {
