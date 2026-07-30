@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-scheme="system">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Carte des territoires d'électrification</title>
+  <!-- DSFR -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css" integrity="sha384-atVZ+aK6VI0nWyTEhKgze5InDJ+SWRRqa0BCZ2MTNyoOcBiHj1c3dGPdi6ML65B3" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css" integrity="sha384-5P5DFFqorcEBpfnK9WHu/Ralfr7ZxyCZh0ryaJbgucSvc71+qRYdGvNEcyMqQwa/" crossorigin="anonymous">
+  <!-- Leaflet : charge dynamiquement par dsfr-data.umd.js - NE PAS inclure manuellement -->
+  <!-- dsfr-data : derniere version 0.x (@0, non figee). Bundle complet (core + map).
+       Requiert >= 0.13.0 : geo-field accepte les GeoJSON serialises en chaine (colonne Text
+       Grist) et les templates de map-popup supportent {{champ:number}} (#426).
+       Major flottant : pas de SRI (cf. check:sri). -->
+  <script src="https://cdn.jsdelivr.net/npm/dsfr-data@0/dist/dsfr-data.umd.js"></script>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.module.min.js" integrity="sha384-gPgRd2+olihO/srZe/Bqw6iVLiiaL7meuri1d5YVMejwPXg7VehLSBeORYq9yh2F" crossorigin="anonymous"></script>
+
+  <style>
+    /* Habillage à la marge : légende de la carte + volet d'information */
+    .map-legend { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; align-items: center; }
+    .map-legend .dot { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; margin-right: .4rem; vertical-align: -.1rem; }
+    .dot--epci { background: #000091; }
+    .dot--groupement { background: #00A95F; }
+    .dot--commune { background: #E4794A; }
+
+    .tp .sect { font-size: .75rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+      color: #666; margin: 1.25rem 0 .5rem; border-bottom: 1px solid #ddd; padding-bottom: .25rem; }
+    .tp .sect:first-of-type { margin-top: .75rem; }
+    .tp .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem .75rem; }
+    .tp .cell .v { display: block; font-size: 1.375rem; font-weight: 700; color: #000091; line-height: 1.2; }
+    .tp .cell .k { display: block; font-size: .75rem; color: #3a3a3a; }
+    .tp .bar-row { display: flex; justify-content: space-between; font-size: .8125rem; margin: .5rem 0 .2rem; }
+    .tp .bar-row .bv { font-weight: 700; }
+    .tp .bar { height: .375rem; background: #eee; border-radius: .375rem; overflow: hidden; }
+    .tp .bar .fill { height: 100%; border-radius: .375rem; background: #000091; }
+    .tp .bar .fill--warm { background: #B34000; }
+    .tp .bar .fill--green { background: #00A95F; }
+    .tp .mention { font-size: .75rem; color: #666; margin-top: 1rem; }
+    .badge-EPCI { background: #ececfe; color: #000091; }
+    .badge-Groupement { background: #c3fad5; color: #297254; }
+    .badge-Commune { background: #fee9dd; color: #855d48; }
+  </style>
+</head>
+<body>
+  <main class="fr-container fr-py-3w">
+
+    <h1 class="fr-h3 fr-mb-1v">Territoires d'électrification</h1>
+    <p class="fr-text--lead fr-mb-2w">Collectivités engagées dans le plan <b>Électrifions&nbsp;la&nbsp;France</b></p>
+
+    <!-- ====================================================================
+         CARTE DES TERRITOIRES — snippet 100 % déclaratif dsfr-data (>= 0.13.0)
+         Données : table Territoires du Baromètre (Grist DINUM), via le proxy CORS
+         ChartsBuilder. L'adapter Grist aplatit records[].fields automatiquement.
+         Les contours sont dans une colonne Text `geojson` (chaîne) : geo-field
+         les parse nativement depuis la 0.13.0. Le formatage fr-FR du volet
+         utilise {{champ:number}} (même syntaxe que dsfr-data-display).
+         Pipeline : source(grist) -> normalize(compute irve_total) -> carte + volet + liste
+         ==================================================================== -->
+    <dsfr-data-source id="territoires-src" api-type="grist"
+      base-url="https://chartsbuilder.miweb.run/grist-gouv-proxy/api/docs/jGd2ge4dy2ZM/tables/Territoires/records">
+    </dsfr-data-source>
+
+    <!-- Enrichissement déclaratif : total IRVE -->
+    <dsfr-data-normalize id="territoires" source="territoires-src"
+      compute="irve_total = irve_normales + irve_rapides">
+    </dsfr-data-normalize>
+
+    <!-- Chiffres clés -->
+    <dsfr-data-kpi-group cols="4">
+      <dsfr-data-kpi source="territoires" value="count" label="Territoires engagés"></dsfr-data-kpi>
+      <dsfr-data-kpi source="territoires" value="nb_communes:sum" label="Communes couvertes"></dsfr-data-kpi>
+      <dsfr-data-kpi source="territoires" value="population:sum" label="Habitants couverts"></dsfr-data-kpi>
+      <dsfr-data-kpi source="territoires" value="nb_engagements:sum" label="Engagements recensés"></dsfr-data-kpi>
+    </dsfr-data-kpi-group>
+
+    <!-- Légende -->
+    <div class="map-legend fr-text--sm fr-mt-3w fr-mb-1w">
+      <span><span class="dot dot--epci"></span>EPCI</span>
+      <span><span class="dot dot--groupement"></span>Groupements</span>
+      <span><span class="dot dot--commune"></span>Communes</span>
+      <span class="fr-text--xs fr-text-mention--grey">Survolez un territoire pour son nom, cliquez pour le détail.</span>
+    </div>
+
+    <!-- Carte : les contours GeoJSON (colonne Text Grist) sont lus tels quels par geo-field -->
+    <dsfr-data-map id="carte" center="46.5,2.6" zoom="6" min-zoom="3" height="620px" tiles="ign-plan"
+      name="Carte des territoires d'électrification">
+      <dsfr-data-map-layer source="territoires" type="geoshape"
+        geo-field="geojson"
+        color-field="type"
+        color-map="EPCI:#000091,Groupement:#00A95F,Commune:#E4794A"
+        fill-opacity="0.55"
+        tooltip-field="nom"></dsfr-data-map-layer>
+
+      <!-- Volet d'information : formatage fr-FR via {{champ:number}} -->
+      <dsfr-data-map-popup mode="panel-right" title-field="nom" width="400px">
+        <template>
+          <div class="tp">
+            <p class="fr-mb-1v">
+              <span class="fr-badge fr-badge--sm badge-{{type}}">{{type}}</span>
+              <span class="fr-badge fr-badge--sm">{{region}}</span>
+            </p>
+            <p class="fr-text--sm fr-mb-0">{{departements_tous}}</p>
+
+            <p class="sect">Territoire</p>
+            <div class="grid2">
+              <div class="cell"><span class="v">{{nb_communes}}</span><span class="k">communes</span></div>
+              <div class="cell"><span class="v">{{population:number}}</span><span class="k">habitants</span></div>
+            </div>
+            <div class="bar-row"><span class="bl">Communes rurales · {{nb_communes_rurales}}</span><span class="bv">{{part_rurale_pct:number}}&nbsp;%</span></div>
+            <div class="bar"><div class="fill fill--green" style="width:{{part_rurale_pct}}%"></div></div>
+
+            <p class="sect">Chauffage des logements</p>
+            <div class="bar-row"><span class="bl">Rés. principales au fioul · {{rp_fioul_nb:number}}</span><span class="bv">{{rp_fioul_pct:number}}&nbsp;%</span></div>
+            <div class="bar"><div class="fill fill--warm" style="width:{{rp_fioul_pct}}%"></div></div>
+            <div class="bar-row"><span class="bl">Rés. principales au gaz · {{rp_gaz_nb:number}}</span><span class="bv">{{rp_gaz_pct:number}}&nbsp;%</span></div>
+            <div class="bar"><div class="fill" style="width:{{rp_gaz_pct}}%"></div></div>
+            <p class="fr-text--xs fr-mt-1w fr-mb-0">Consommation électrique résidentielle : <b>{{conso_residentiel_mwh:number}}</b> MWh/an</p>
+
+            <p class="sect">Mobilité électrique</p>
+            <div class="grid2">
+              <div class="cell"><span class="v">{{vp_elec_pct:number}}&nbsp;%</span><span class="k">du parc en électrique ({{vp_elec_nb:number}} véhicules)</span></div>
+              <div class="cell"><span class="v">{{irve_total:number}}</span><span class="k">points de charge, dont {{irve_rapides}} rapides</span></div>
+            </div>
+
+            <p class="sect">Engagements dans le plan</p>
+            <div class="grid2">
+              <div class="cell"><span class="v">{{nb_engagements}}</span><span class="k">engagement(s) recensé(s)</span></div>
+            </div>
+
+            <p class="mention">SIREN {{id2}} · Source : Baromètre du Plan Électrification (Grist)</p>
+          </div>
+        </template>
+      </dsfr-data-map-popup>
+    </dsfr-data-map>
+
+    <!-- Tableau de données -->
+    <h2 class="fr-h5 fr-mt-4w fr-mb-1w">Liste des territoires</h2>
+    <dsfr-data-list source="territoires"
+      columns="nom:Territoire, type:Type, region:Région, departements_tous:Département(s), nb_communes:Communes, population:Population, vp_elec_pct:% VE, irve_total:IRVE, nb_engagements:Engagements"
+      search
+      filters="type,region"
+      sort="nom:asc"
+      pagination="10"
+      export="csv"></dsfr-data-list>
+
+    <p class="fr-text--xs fr-text-mention--grey fr-mt-3w">
+      Source : <a href="https://grist.numerique.gouv.fr/o/planification-ecologique/jGd2ge4dy2ZM/Barometre/p/33" target="_blank" rel="noopener">Baromètre du Plan Électrification — table Territoires (Grist · DINUM)</a>
+      · Carte réalisée avec <a href="https://chartsbuilder.miweb.run" target="_blank" rel="noopener">dsfr-data</a> · Fond de carte IGN.
+      Territoires d'outre-mer : déplacez la carte (Antilles, Guyane, La&nbsp;Réunion).
+    </p>
+  </main>
+</body>
+</html>
