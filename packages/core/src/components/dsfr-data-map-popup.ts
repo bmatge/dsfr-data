@@ -4,18 +4,24 @@
  * Definit un template HTML pour l'infobulle/panneau/modale et le mode d'affichage.
  * Se place comme enfant de dsfr-data-map.
  *
+ * Placeholders (memes expressions que dsfr-data-display, toujours echappees) :
+ * - {{champ}} / {{champ.sous.clé}} : valeur (imbriquee)
+ * - {{champ:number}}               : formatage fr-FR (separateur de milliers)
+ * - {{champ|défaut}}               : fallback si null/undefined
+ *
  * @example
  * <dsfr-data-map-popup mode="panel-right" title-field="nom">
  *   <template>
  *     <h4>{{nom}}</h4>
  *     <p>{{adresse}}</p>
- *     <p class="fr-text--bold">{{prix}} EUR</p>
+ *     <p class="fr-text--bold">{{prix:number}} EUR</p>
  *   </template>
  * </dsfr-data-map-popup>
  */
 import { LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { getByPath } from '../utils/json-path.js';
+import { resolveTemplateExpression } from '../utils/template-expression.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { escapeHtml } from '@dsfr-data/shared/lib';
 
@@ -136,10 +142,11 @@ export class DsfrDataMapPopup extends LitElement {
       return this._buildAutoTable(record);
     }
 
+    // Meme resolveur que <dsfr-data-display> (#426) : champ:number, champ|défaut,
+    // chemins imbriques. Toujours echappe (pas de {{{raw}}} dans les popups).
     const templateHtml = tpl.innerHTML;
-    return templateHtml.replace(/\{\{([^}]+)\}\}/g, (_match, field: string) => {
-      const value = getByPath(record, field.trim());
-      return value !== undefined ? escapeHtml(String(value)) : '';
+    return templateHtml.replace(/\{\{([^}]+)\}\}/g, (_match, expr: string) => {
+      return escapeHtml(resolveTemplateExpression(record, expr.trim()));
     });
   }
 

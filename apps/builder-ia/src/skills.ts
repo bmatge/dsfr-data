@@ -2439,7 +2439,7 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | type | String | \`"marker"\` | \`marker\`, \`geoshape\`, \`circle\`, \`heatmap\` |
 | lat-field | String | \`""\` | Chemin vers latitude |
 | lon-field | String | \`""\` | Chemin vers longitude |
-| geo-field | String | \`""\` | Chemin vers GeoJSON (Point, Polygon) |
+| geo-field | String | \`""\` | Chemin vers GeoJSON (Point, Polygon) — objet ou chaine JSON serialisee (colonnes Text Grist/CSV) |
 | popup-template | String | \`""\` | Template : \`"{nom} — {val} kW"\` |
 | popup-fields | String | \`""\` | Champs pour tableau auto : \`"nom,adresse"\` |
 | tooltip-field | String | \`""\` | Champ affiche au survol |
@@ -2558,14 +2558,16 @@ Composant compagnon optionnel qui definit un template et un mode d'affichage pou
 | width | String | \`"350px"\` | Largeur du panneau lateral |
 | for | String | \`""\` | ID du layer cible (vide = tous) |
 
-Template avec \`<template>\` et interpolation \`{{champ}}\`. Sans template, tableau auto.
+Template avec \`<template>\` et interpolation \`{{champ}}\` (memes expressions que dsfr-data-display,
+toujours echappees) : \`{{champ.sous.clé}}\`, \`{{champ:number}}\` (format fr-FR), \`{{champ|défaut}}\`.
+Sans template, tableau auto.
 
 \`\`\`html
 <dsfr-data-map-popup mode="panel-right" title-field="nom" width="380px">
   <template>
     <h4>{{nom}}</h4>
     <p>{{adresse}}, {{code_postal}} {{commune}}</p>
-    <p class="fr-text--bold">{{prix}} EUR</p>
+    <p class="fr-text--bold">{{prix:number}} EUR</p>
   </template>
 </dsfr-data-map-popup>
 \`\`\`

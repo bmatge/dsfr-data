@@ -2,6 +2,7 @@ import { LitElement, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { getByPath } from '../utils/json-path.js';
+import { resolveTemplateExpression, formatTemplateValue } from '../utils/template-expression.js';
 import { escapeHtml } from '@dsfr-data/shared/lib';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { renderSourceLoading, renderSourceError } from '../utils/status-templates.js';
@@ -194,47 +195,15 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
 
   /** Resout une expression : champ, champ:format, champ|défaut, champ:format|défaut, $index, $uid */
   private _resolveExpression(item: Record<string, unknown>, expr: string, index: number): string {
-    // Variable speciale : $index
-    if (expr === '$index') return String(index);
-
-    // Variable speciale : $uid
-    if (expr === '$uid') return this._getItemUid(item, index);
-
-    // Gestion du fallback : champ|valeur_defaut
-    let fieldPath = expr;
-    let defaultValue = '';
-    const pipeIndex = expr.indexOf('|');
-    if (pipeIndex !== -1) {
-      fieldPath = expr.substring(0, pipeIndex).trim();
-      defaultValue = expr.substring(pipeIndex + 1).trim();
-    }
-
-    // Gestion du format : champ:format
-    let format = '';
-    const colonIndex = fieldPath.indexOf(':');
-    if (colonIndex !== -1) {
-      format = fieldPath.substring(colonIndex + 1).trim();
-      fieldPath = fieldPath.substring(0, colonIndex).trim();
-    }
-
-    const value = getByPath(item, fieldPath);
-    if (value === null || value === undefined) return defaultValue;
-
-    if (format) {
-      return this._formatValue(value, format);
-    }
-    return String(value);
+    return resolveTemplateExpression(item, expr, {
+      $index: () => String(index),
+      $uid: () => this._getItemUid(item, index),
+    });
   }
 
   /** Applique un format a une valeur. Formats supportes : number */
-  private _formatValue(value: unknown, format: string): string {
-    if (format === 'number') {
-      const num = typeof value === 'number' ? value : parseFloat(String(value));
-      if (!isNaN(num)) {
-        return num.toLocaleString('fr-FR');
-      }
-    }
-    return String(value);
+  _formatValue(value: unknown, format: string): string {
+    return formatTemplateValue(value, format);
   }
 
   // --- Pagination ---
