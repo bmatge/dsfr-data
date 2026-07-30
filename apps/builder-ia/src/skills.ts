@@ -2427,6 +2427,8 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | tiles | String | \`"ign-plan"\` | Fond de carte : \`ign-plan\`, \`ign-ortho\`, \`ign-cadastre\`, \`osm-fr\` (alias : \`osm\`), \`osm-standard\`, \`carto-positron\`, \`carto-dark\`, \`opentopomap\`, ou URL template. \`ign-topo\` est deprecie (redirige vers \`ign-plan\` avec warning) |
 | sovereign-only | Boolean | \`false\` | Restreint \`tiles\` aux presets IGN souverains. Tout autre preset (\`osm-fr\`, \`carto-*\`, \`opentopomap\`...) ou URL custom est refuse avec \`console.warn\` et remplace par \`ign-plan\`. |
 | no-controls | Boolean | \`false\` | Masque les controles de zoom |
+| locked | Boolean | \`false\` | Carte verrouillee : aucune interaction (pan/zoom/clavier) — encarts, vignettes |
+| insets | String | \`""\` | Raccourci encarts territoriaux : groupe et/ou territoires nommes (\`"drom"\`, \`"drom,corse"\`) |
 | fit-bounds | Boolean | \`false\` | Ajuste le viewport aux données |
 | max-bounds | String | \`""\` | Limites \`"latSW,lonSW,latNE,lonNE"\` |
 | name | String | \`""\` | Titre (aria-label) |
@@ -2591,6 +2593,31 @@ Sans template, tableau auto.
     min-zoom="10" bbox>
   </dsfr-data-map-layer>
 </dsfr-data-map>
+\`\`\`
+
+### dsfr-data-map-inset — Encarts territoriaux (DROM, Corse...)
+
+Composant compagnon place comme enfant de \`dsfr-data-map\`. Rend une mini-carte verrouillee centree
+sur un territoire, qui reutilise automatiquement les couches ET le popup de la carte hote : un clic
+sur un element de l'encart ouvre le volet/la modale de la carte principale (un seul template).
+
+| Attribut | Type | Défaut | Description |
+|----------|------|--------|-------------|
+| territory | String | \`""\` | Territoire predefini : \`guadeloupe\`, \`martinique\`, \`guyane\`, \`la-reunion\`, \`mayotte\`, \`saint-pierre-et-miquelon\`, \`saint-martin\`, \`saint-barthelemy\`, \`nouvelle-caledonie\`, \`polynesie-francaise\`, \`wallis-et-futuna\`, \`corse\` |
+| center | String | \`""\` | Centre \`"lat,lon"\` (requis sans territory ; prioritaire sur le preset) |
+| zoom | Number | \`8\` | Zoom fixe (prioritaire sur le preset) |
+| label | String | \`""\` | Libelle affiche au-dessus (et nom accessible) |
+| height | String | \`"160px"\` | Hauteur de la mini-carte |
+
+\`\`\`html
+<dsfr-data-map center="46.5,2.6" zoom="6" tiles="ign-plan">
+  <dsfr-data-map-layer source="territoires" type="geoshape" geo-field="geojson"></dsfr-data-map-layer>
+  <dsfr-data-map-popup mode="panel-right" title-field="nom"><template>...</template></dsfr-data-map-popup>
+  <dsfr-data-map-inset territory="guadeloupe"></dsfr-data-map-inset>
+  <dsfr-data-map-inset territory="nouvelle-caledonie"></dsfr-data-map-inset>
+  <dsfr-data-map-inset center="4.63,-52.45" zoom="8" label="CA du Centre Littoral"></dsfr-data-map-inset>
+</dsfr-data-map>
+<!-- Raccourci equivalent pour les 5 DROM : <dsfr-data-map insets="drom"> -->
 \`\`\`
 
 ### dsfr-data-map-timeline — Animation temporelle
