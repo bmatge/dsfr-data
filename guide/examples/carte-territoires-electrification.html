@@ -94,8 +94,8 @@
          les parse nativement depuis la 0.13.0. Le formatage fr-FR du volet
          utilise {{champ:number}} (même syntaxe que dsfr-data-display).
          Pipeline : source(grist) -> normalize(compute irve_total) -> facets(type, region)
-                    -> carte (+ encarts) + liste. Les KPI restent sur le flux non filtre
-                    (totaux du plan).
+                    -> query(type neq/eq Commune) -> carte contours + carte POI communes
+                    (+ encarts) ; liste sur le flux facette. KPI sur le flux non filtre.
          ==================================================================== -->
     <dsfr-data-source id="territoires-src" api-type="grist"
       base-url="https://chartsbuilder.miweb.run/grist-gouv-proxy/api/docs/jGd2ge4dy2ZM/tables/Territoires/records">
@@ -125,6 +125,13 @@
       </dsfr-data-facets>
     </div>
 
+    <!-- Scission du flux filtre : les communes (etendue trop faible pour etre visible
+         en trace) sont rendues en POI, le reste en contours -->
+    <dsfr-data-query id="territoires-polys" source="territoires-filtres"
+      where="type:neq:Commune"></dsfr-data-query>
+    <dsfr-data-query id="territoires-communes" source="territoires-filtres"
+      where="type:eq:Commune"></dsfr-data-query>
+
     <!-- Légende -->
     <div class="map-legend fr-text--sm fr-mt-3w fr-mb-1w">
       <span><span class="dot dot--epci"></span>EPCI</span>
@@ -136,11 +143,17 @@
     <!-- Carte : les contours GeoJSON (colonne Text Grist) sont lus tels quels par geo-field -->
     <dsfr-data-map id="carte" center="46.5,2.6" zoom="6" min-zoom="3" height="620px" tiles="ign-plan"
       name="Carte des territoires d'électrification">
-      <dsfr-data-map-layer source="territoires-filtres" type="geoshape"
+      <dsfr-data-map-layer source="territoires-polys" type="geoshape"
         geo-field="geojson"
         color-field="type"
-        color-map="EPCI:#000091,Groupement:#00A95F,Commune:#E4794A"
+        color-map="EPCI:#000091,Groupement:#00A95F"
         fill-opacity="0.55"
+        tooltip-field="nom"></dsfr-data-map-layer>
+
+      <!-- Communes : POI (pastille) sur lat/lon, leur trace est invisible a l'echelle nationale -->
+      <dsfr-data-map-layer source="territoires-communes" type="circle"
+        lat-field="lat" lon-field="lon"
+        radius="8" color="#E4794A" fill-opacity="0.8"
         tooltip-field="nom"></dsfr-data-map-layer>
 
       <!-- Volet d'information : formatage fr-FR via {{champ:number}} -->
