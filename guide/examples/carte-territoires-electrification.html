@@ -9,8 +9,9 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css" integrity="sha384-5P5DFFqorcEBpfnK9WHu/Ralfr7ZxyCZh0ryaJbgucSvc71+qRYdGvNEcyMqQwa/" crossorigin="anonymous">
   <!-- Leaflet : charge dynamiquement par dsfr-data.umd.js - NE PAS inclure manuellement -->
   <!-- dsfr-data : derniere version 0.x (@0, non figee). Bundle complet (core + map).
-       Requiert >= 0.13.0 : geo-field accepte les GeoJSON serialises en chaine (colonne Text
-       Grist) et les templates de map-popup supportent {{champ:number}} (#426).
+       Requiert >= 0.14.0 : geo-field accepte les GeoJSON serialises en chaine (#426),
+       {{champ:number}} dans les templates de map-popup (#426), et encarts DROM
+       dsfr-data-map-inset (#431).
        Major flottant : pas de SRI (cf. check:sri). -->
   <script src="https://cdn.jsdelivr.net/npm/dsfr-data@0/dist/dsfr-data.umd.js"></script>
   <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.module.min.js" integrity="sha384-gPgRd2+olihO/srZe/Bqw6iVLiiaL7meuri1d5YVMejwPXg7VehLSBeORYq9yh2F" crossorigin="anonymous"></script>
@@ -39,6 +40,25 @@
     .badge-EPCI { background: #ececfe; color: #000091; }
     .badge-Groupement { background: #c3fad5; color: #297254; }
     .badge-Commune { background: #fee9dd; color: #855d48; }
+
+    /* Encarts DROM (dsfr-data-map-inset) */
+    #carte { display: flow-root; }
+    dsfr-data-map-inset { float: left; width: calc(20% - .6rem); margin: .75rem .75rem 0 0; }
+    dsfr-data-map-inset:last-of-type { margin-right: 0; }
+    dsfr-data-map-inset > dsfr-data-map { display: block; border: 1px solid #ddd; border-radius: .25rem; overflow: hidden; }
+    /* DROM sans territoire engagé : grisés, non cliquables */
+    .inset--empty { filter: grayscale(1); opacity: .45; pointer-events: none; }
+
+    /* Filtres + recherche de la liste sur une seule ligne, libelle au-dessus du champ */
+    dsfr-data-list .dsfr-data-list__filters { float: left; display: flex; gap: 1rem; margin-right: 1rem; }
+    dsfr-data-list .dsfr-data-list__toolbar { display: flex; align-items: flex-end; justify-content: space-between; }
+    dsfr-data-list .fr-search-bar { flex-wrap: wrap; max-width: 320px; }
+    dsfr-data-list .fr-search-bar .fr-label {
+      position: static; width: 100%; height: auto; margin: 0 0 .5rem; padding: 0;
+      clip: auto; clip-path: none; overflow: visible; white-space: normal;
+    }
+    dsfr-data-list .fr-search-bar .fr-input { flex: 1 1 0; width: auto; min-width: 0; }
+    dsfr-data-list p.fr-text--sm { clear: left; }
   </style>
 </head>
 <body>
@@ -46,6 +66,25 @@
 
     <h1 class="fr-h3 fr-mb-1v">Territoires d'électrification</h1>
     <p class="fr-text--lead fr-mb-2w">Collectivités engagées dans le plan <b>Électrifions&nbsp;la&nbsp;France</b></p>
+
+    <h2 class="fr-h4 fr-mb-1w">100 Territoires d'électrification</h2>
+    <p class="fr-text--lead fr-mb-2w">Au terme d'un processus conduit par les préfets et le Secrétariat général
+      pour la planification écologique, le Gouvernement annonce la sélection de 108 territoires qui s'engagent
+      à accélérer l'électrification des usages et bénéficieront jusqu'en 2030 d'un accompagnement renforcé.</p>
+
+    <div class="fr-highlight fr-mb-3w">
+      <p class="fr-text--sm">Parmi les 196 candidatures examinées par les préfets et le Secrétariat général pour
+        la planification écologique, 108 territoires d'électrification ont été retenus afin de permettre un
+        accompagnement de qualité des projets ambitieux sur lesquels ils s'engagent. Portés par des exécutifs
+        locaux dynamiques, ces projets peuvent concerner, selon les cas, l'électrification des transports, le
+        développement de bornes de recharges pour véhicules électriques, la sortie du chauffage au fioul ou au
+        gaz dans les bâtiments publics ou les logements, le décommissionnement planifié du réseau public de gaz
+        ou encore le soutien à l'électrification d'artisans ou d'industriels. L'accompagnement proposé, coordonné
+        localement par l'ADEME sous le pilotage des préfets, sera adapté à chaque situation pour mobiliser
+        efficacement tous les acteurs pertinents, industriels, financeurs, bailleurs sociaux ou encore
+        gestionnaires de réseaux. Le soutien mobilisera notamment les réseaux France&nbsp;Service,
+        France&nbsp;Rénov' ou La&nbsp;Poste.</p>
+    </div>
 
     <!-- ====================================================================
          CARTE DES TERRITOIRES — snippet 100 % déclaratif dsfr-data (>= 0.13.0)
@@ -131,6 +170,15 @@
           </div>
         </template>
       </dsfr-data-map-popup>
+
+      <!-- Encarts DROM : couches et volet herites de la carte
+           hote, presets territoriaux (surcharge du cadrage Guyane sur la CA du Centre Littoral).
+           Equivalent raccourci : <dsfr-data-map insets="drom"> -->
+      <dsfr-data-map-inset territory="guadeloupe" class="inset--empty"></dsfr-data-map-inset>
+      <dsfr-data-map-inset territory="martinique"></dsfr-data-map-inset>
+      <dsfr-data-map-inset territory="guyane" center="4.63,-52.45" zoom="8"></dsfr-data-map-inset>
+      <dsfr-data-map-inset territory="la-reunion"></dsfr-data-map-inset>
+      <dsfr-data-map-inset territory="mayotte" class="inset--empty"></dsfr-data-map-inset>
     </dsfr-data-map>
 
     <!-- Tableau de données -->
@@ -146,7 +194,6 @@
     <p class="fr-text--xs fr-text-mention--grey fr-mt-3w">
       Source : <a href="https://grist.numerique.gouv.fr/o/planification-ecologique/jGd2ge4dy2ZM/Barometre/p/33" target="_blank" rel="noopener">Baromètre du Plan Électrification — table Territoires (Grist · DINUM)</a>
       · Carte réalisée avec <a href="https://chartsbuilder.miweb.run" target="_blank" rel="noopener">dsfr-data</a> · Fond de carte IGN.
-      Territoires d'outre-mer : déplacez la carte (Antilles, Guyane, La&nbsp;Réunion).
     </p>
   </main>
 </body>
