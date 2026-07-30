@@ -1,5 +1,26 @@
 # dsfr-data
 
+## 0.13.0
+
+### Minor Changes
+
+- [#427](https://github.com/bmatge/dsfr-data/pull/427) [`36ded24`](https://github.com/bmatge/dsfr-data/commit/36ded24cc1d0d5e98817daf94d1f5551f39ac7ba) Thanks [@bmatge](https://github.com/bmatge)! - `dsfr-data-map-layer` : `geo-field` accepte désormais les géométries GeoJSON sérialisées en chaîne (colonnes Text Grist, CSV/Tabular) — parse JSON mémoïsé appliqué à la résolution de géométrie (geoshape, coordonnées Point, filtrage bbox client et auto-détection `geo_shape`/`geometry`) ([#426](https://github.com/bmatge/dsfr-data/issues/426)).
+
+  `dsfr-data-map-popup` : les templates supportent les mêmes expressions que `dsfr-data-display` — `{{champ:number}}` (format fr-FR), `{{champ|défaut}}`, chemins imbriqués — via un résolveur partagé ; les valeurs restent systématiquement échappées.
+
+### Patch Changes
+
+- [#410](https://github.com/bmatge/dsfr-data/pull/410) [`344e929`](https://github.com/bmatge/dsfr-data/commit/344e929db0a4793055c75cd155673b80069b934f) Thanks [@bmatge](https://github.com/bmatge)! - `dsfr-data-query` : l'`order-by` (et le group-by/where) n'est plus délégué en
+  tri serveur quand la chaîne entre la query et la source qui fetch contient un
+  transformateur qui crée ou renomme des colonnes — `dsfr-data-unpivot`
+  (toujours) ou `dsfr-data-normalize` avec `rename`/`compute`/`flatten`/
+  `lowercase-keys`. Les opérations de la query s'expriment dans le schéma
+  POST-transformation : les pousser au serveur envoyait des noms de colonnes
+  inconnus de l'API (Grist Records : `?sort=annee` → 500 `unknown key`) et
+  mettait la source partagée en erreur pour tous ses abonnés. Le tri s'exécute
+  désormais côté client, sur les données transformées ([#394](https://github.com/bmatge/dsfr-data/issues/394)). Nouveau hook
+  optionnel `transformsSchema()` sur le contrat `SourceElement`.
+
 ## 0.12.0
 
 ### Minor Changes
