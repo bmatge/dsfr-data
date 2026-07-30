@@ -2424,8 +2424,8 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | min-zoom | Number | \`2\` | Zoom minimum |
 | max-zoom | Number | \`18\` | Zoom maximum |
 | height | String | \`"500px"\` | Hauteur CSS (px, vh, rem). Un \`%\` est un ratio de la largeur (ex: \`"60%"\` = 60% de la largeur) |
-| tiles | String | \`"ign-plan"\` | Fond de carte : \`ign-plan\`, \`ign-ortho\`, \`ign-topo\`, \`ign-cadastre\`, \`osm-fr\` (alias : \`osm\`), ou URL template |
-| sovereign-only | Boolean | \`false\` | Restreint \`tiles\` aux presets IGN souverains. Tout autre preset (\`osm-fr\`) ou URL custom est refuse avec \`console.warn\` et remplace par \`ign-plan\`. |
+| tiles | String | \`"ign-plan"\` | Fond de carte : \`ign-plan\`, \`ign-ortho\`, \`ign-cadastre\`, \`osm-fr\` (alias : \`osm\`), \`osm-standard\`, \`carto-positron\`, \`carto-dark\`, \`opentopomap\`, ou URL template. \`ign-topo\` est deprecie (redirige vers \`ign-plan\` avec warning) |
+| sovereign-only | Boolean | \`false\` | Restreint \`tiles\` aux presets IGN souverains. Tout autre preset (\`osm-fr\`, \`carto-*\`, \`opentopomap\`...) ou URL custom est refuse avec \`console.warn\` et remplace par \`ign-plan\`. |
 | no-controls | Boolean | \`false\` | Masque les controles de zoom |
 | fit-bounds | Boolean | \`false\` | Ajuste le viewport aux données |
 | max-bounds | String | \`""\` | Limites \`"latSW,lonSW,latNE,lonNE"\` |
@@ -2478,11 +2478,15 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 
 ### Fonds de carte predefinis (sans clé API)
 
-- \`ign-plan\` : Plan IGN (Geoplateforme)
+- \`ign-plan\` : Plan IGN (Geoplateforme) — defaut
 - \`ign-ortho\` : Vue aerienne IGN
-- \`ign-topo\` : Carte topographique IGN (SCAN 25/100)
 - \`ign-cadastre\` : Parcelles cadastrales IGN
-- \`osm\` : OpenStreetMap France
+- \`osm\` / \`osm-fr\` : OpenStreetMap France
+- \`osm-standard\` : OpenStreetMap (tuiles osm.org)
+- \`carto-positron\` : CARTO Positron (fond clair sobre, ideal dataviz)
+- \`carto-dark\` : CARTO Dark Matter (fond sombre)
+- \`opentopomap\` : OpenTopoMap (carte topographique communautaire)
+- \`ign-topo\` : deprecie — redirige vers \`ign-plan\` (couche BDUNI quasi vide, couches SCAN topo soumises a clé API)
 
 ### Exemple : POI avec clustering
 

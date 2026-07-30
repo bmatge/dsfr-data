@@ -90,8 +90,17 @@ describe('DsfrDataMap', () => {
 });
 
 describe('resolveTilePreset', () => {
-  it('resout les 5 presets canoniques sans warning', () => {
-    for (const preset of ['ign-plan', 'ign-ortho', 'ign-topo', 'ign-cadastre', 'osm-fr']) {
+  it('resout les 8 presets canoniques sans warning', () => {
+    for (const preset of [
+      'ign-plan',
+      'ign-ortho',
+      'ign-cadastre',
+      'osm-fr',
+      'osm-standard',
+      'carto-positron',
+      'carto-dark',
+      'opentopomap',
+    ]) {
       const { key, warning } = resolveTilePreset(preset, false);
       expect(key).toBe(preset);
       expect(warning).toBeUndefined();
@@ -104,6 +113,14 @@ describe('resolveTilePreset', () => {
     expect(warning).toBeUndefined();
   });
 
+  it('deprecie "ign-topo" vers "ign-plan" avec warning (#429)', () => {
+    const { key, warning } = resolveTilePreset('ign-topo', false);
+    expect(key).toBe('ign-plan');
+    expect(warning).toMatch(/ign-topo/);
+    expect(warning).toMatch(/deprecie/);
+    expect(warning).toMatch(/ign-plan/);
+  });
+
   it('retourne null sur une URL custom (pas de warning)', () => {
     const custom = 'https://tiles.example.com/{z}/{x}/{y}.png';
     const { key, warning } = resolveTilePreset(custom, false);
@@ -112,12 +129,18 @@ describe('resolveTilePreset', () => {
   });
 
   describe('sovereign-only', () => {
-    it('accepte les 4 presets IGN', () => {
-      for (const preset of ['ign-plan', 'ign-ortho', 'ign-topo', 'ign-cadastre']) {
+    it('accepte les 3 presets IGN actifs', () => {
+      for (const preset of ['ign-plan', 'ign-ortho', 'ign-cadastre']) {
         const { key, warning } = resolveTilePreset(preset, true);
         expect(key).toBe(preset);
         expect(warning).toBeUndefined();
       }
+    });
+
+    it('resout ign-topo deprecie vers ign-plan (souverain) avec warning de depreciation', () => {
+      const { key, warning } = resolveTilePreset('ign-topo', true);
+      expect(key).toBe('ign-plan');
+      expect(warning).toMatch(/deprecie/);
     });
 
     it('refuse osm-fr et force ign-plan avec warning', () => {
@@ -125,6 +148,14 @@ describe('resolveTilePreset', () => {
       expect(key).toBe('ign-plan');
       expect(warning).toMatch(/osm-fr/);
       expect(warning).toMatch(/sovereign-only/);
+    });
+
+    it('refuse les nouveaux presets non souverains et force ign-plan avec warning', () => {
+      for (const preset of ['osm-standard', 'carto-positron', 'carto-dark', 'opentopomap']) {
+        const { key, warning } = resolveTilePreset(preset, true);
+        expect(key).toBe('ign-plan');
+        expect(warning).toMatch(/sovereign-only/);
+      }
     });
 
     it("refuse l'alias osm et force ign-plan avec warning", () => {
@@ -142,9 +173,20 @@ describe('resolveTilePreset', () => {
 });
 
 describe('TILE_PRESETS', () => {
-  it('contient les 5 presets documentes (4 IGN + osm-fr)', () => {
+  it('contient les 8 presets documentes (3 IGN + OSM + CARTO + OpenTopoMap)', () => {
     const keys = Object.keys(__tilePresetsForTests.presets).sort();
-    expect(keys).toEqual(['ign-cadastre', 'ign-ortho', 'ign-plan', 'ign-topo', 'osm-fr'].sort());
+    expect(keys).toEqual(
+      [
+        'ign-cadastre',
+        'ign-ortho',
+        'ign-plan',
+        'osm-fr',
+        'osm-standard',
+        'carto-positron',
+        'carto-dark',
+        'opentopomap',
+      ].sort()
+    );
   });
 
   it('expose 4 presets souverains (tuiles IGN)', () => {
@@ -156,14 +198,33 @@ describe('TILE_PRESETS', () => {
     expect(__tilePresetsForTests.aliases).toEqual({ osm: 'osm-fr' });
   });
 
-  it('toutes les URLs pointent vers data.geopf.fr ou openstreetmap.fr (sans clé API)', () => {
+  it('expose ign-topo comme preset deprecie vers ign-plan (#429)', () => {
+    expect(Object.keys(__tilePresetsForTests.deprecated)).toEqual(['ign-topo']);
+    expect(__tilePresetsForTests.deprecated['ign-topo'].replacement).toBe('ign-plan');
+  });
+
+  it('toutes les URLs pointent vers un hote autorise (sans clé API)', () => {
+    const allowedHosts = [
+      'data.geopf.fr',
+      'openstreetmap.fr',
+      'openstreetmap.org',
+      'basemaps.cartocdn.com',
+      'opentopomap.org',
+    ];
     for (const [key, preset] of Object.entries(__tilePresetsForTests.presets)) {
-      const allowedHosts = ['data.geopf.fr', 'openstreetmap.fr'];
       expect(
         allowedHosts.some((host) => preset.url.includes(host)),
         `preset ${key} doit pointer vers ${allowedHosts.join(' ou ')}`
       ).toBe(true);
       expect(preset.url).not.toMatch(/[?&](key|api_key|apikey)=/);
+    }
+  });
+
+  it('chaque preset declare une attribution non vide', () => {
+    for (const [key, preset] of Object.entries(__tilePresetsForTests.presets)) {
+      expect(preset.attribution.length, `preset ${key} doit avoir une attribution`).toBeGreaterThan(
+        0
+      );
     }
   });
 });
