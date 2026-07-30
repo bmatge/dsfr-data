@@ -10,6 +10,7 @@ import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { dispatchSourceCommand } from '../utils/data-bridge.js';
 import { getByPath } from '../utils/json-path.js';
+import { parseGeoValue } from '../utils/geo-value.js';
 import { CHOROPLETH_SCALES, quantileBreaks, getColorForValue } from '@dsfr-data/shared/lib';
 import { escapeHtml } from '@dsfr-data/shared/lib';
 import type { DsfrDataMap } from './dsfr-data-map.js';
@@ -97,6 +98,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'lon-field' })
   lonField = '';
 
+  /** Champ geometrie : objet GeoJSON, {lat, lon}, [lat, lon] ou chaine JSON serialisee (#426) */
   @property({ type: String, attribute: 'geo-field' })
   geoField = '';
 
@@ -708,7 +710,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     breaks: number[],
     palette: readonly string[]
   ) {
-    const geoData = this.geoField ? getByPath(record, this.geoField) : null;
+    const geoData = this.geoField ? parseGeoValue(getByPath(record, this.geoField)) : null;
     if (!geoData || typeof geoData !== 'object') return;
 
     const recordColor = this._resolveColor(record);
@@ -860,9 +862,11 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
       return bounds.contains([coords.lat, coords.lon]);
     }
 
-    const geoValue = this.geoField
-      ? getByPath(record, this.geoField)
-      : (record['geo_shape'] ?? record['geometry'] ?? record['geom']);
+    const geoValue = parseGeoValue(
+      this.geoField
+        ? getByPath(record, this.geoField)
+        : (record['geo_shape'] ?? record['geometry'] ?? record['geom'])
+    );
     const bbox = this._geometryBbox(geoValue);
     if (!bbox) return true;
 
@@ -923,7 +927,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
 
     // Mode 2: geo-field (GeoJSON Point or {lat, lon} object)
     if (this.geoField) {
-      const geo = getByPath(record, this.geoField) as
+      const geo = parseGeoValue(getByPath(record, this.geoField)) as
         | { type?: string; coordinates?: unknown[]; lat?: unknown; lon?: unknown }
         | unknown[]
         | null
