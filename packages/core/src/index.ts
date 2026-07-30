@@ -25,6 +25,7 @@ export { DsfrDataWorldMap } from './components/dsfr-data-world-map.js';
 export { DsfrDataMap } from './components/dsfr-data-map.js';
 export { DsfrDataMapLayer } from './components/dsfr-data-map-layer.js';
 export { DsfrDataMapPopup } from './components/dsfr-data-map-popup.js';
+export { DsfrDataMapInset } from './components/dsfr-data-map-inset.js';
 export { DsfrDataMapTimeline } from './components/dsfr-data-map-timeline.js';
 export { DsfrDataA11y } from './components/dsfr-data-a11y.js';
 export { DsfrDataBeacon } from './components/dsfr-data-beacon.js';

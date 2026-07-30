@@ -991,6 +991,17 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
       // carte, sans for) ne fonctionnait pas car le layer exigeait un for
       if (popup.matchesLayer?.(layerId)) return popup;
     }
+
+    // 3. Carte d'encart (dsfr-data-map-inset) : deleguer aux popups de la
+    //    carte hote — le volet/la modale s'ouvre sur la carte principale
+    const inset = this._mapParent.closest('dsfr-data-map-inset');
+    const hostMap = inset?.closest('dsfr-data-map');
+    if (hostMap) {
+      for (const p of hostMap.querySelectorAll(':scope > dsfr-data-map-popup')) {
+        const popup = p as import('./dsfr-data-map-popup.js').DsfrDataMapPopup;
+        if (popup.matchesLayer?.(layerId)) return popup;
+      }
+    }
     return null;
   }
 

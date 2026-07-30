@@ -185,11 +185,14 @@ export class DsfrDataMapPopup extends LitElement {
     if (!this._panelEl) {
       this._panelEl = document.createElement('div');
       this._panelEl.className = `dsfr-data-map-popup__panel dsfr-data-map-popup__panel--${side}`;
+      // Ancrer sur la zone carte (conteneur Leaflet) : le panel ne recouvre
+      // pas les compagnons hors-carte (encarts DROM...) du host
       this._panelEl.style.width = this.width;
       this._panelEl.setAttribute('role', 'complementary');
       this._panelEl.setAttribute('aria-label', "Details de l'element sélectionné");
       this._panelEl.setAttribute('aria-live', 'polite');
-      mapParent.appendChild(this._panelEl);
+      const anchor = mapParent.querySelector(':scope > .dsfr-data-map__container') ?? mapParent;
+      anchor.appendChild(this._panelEl);
       // Trigger slide-in animation
       requestAnimationFrame(() => {
         this._panelEl?.classList.add('dsfr-data-map-popup__panel--open');

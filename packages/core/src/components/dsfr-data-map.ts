@@ -7,6 +7,7 @@
 import { LitElement, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
+import { TERRITORY_GROUPS } from '../utils/territories.js';
 // @ts-expect-error — Vite ?inline import returns CSS as string
 import leafletCss from 'leaflet/dist/leaflet.css?inline';
 
@@ -133,6 +134,15 @@ export class DsfrDataMap extends LitElement {
   @property({ type: Boolean, attribute: 'no-controls' })
   noControls = false;
 
+  /** Carte verrouillee : aucune interaction (pan/zoom/clavier) — encarts, vignettes */
+  @property({ type: Boolean })
+  locked = false;
+
+  /** Raccourci encarts territoriaux : groupe ("drom") et/ou territoires nommes
+   *  separes par des virgules ("drom,corse", "guadeloupe,saint-pierre-et-miquelon") */
+  @property({ type: String })
+  insets = '';
+
   @property({ type: Boolean, attribute: 'fit-bounds' })
   fitBounds = false;
 
@@ -171,7 +181,31 @@ export class DsfrDataMap extends LitElement {
     // variante fonctionnelle (convention beacon.ts). Les types de couches
     // sont remontes par chaque dsfr-data-map-layer.
     sendWidgetBeacon('dsfr-data-map');
+    this._expandInsets();
     this._deferInitUntilVisible();
+  }
+
+  /**
+   * Raccourci `insets` : genere les enfants dsfr-data-map-inset a partir de
+   * groupes ("drom") et/ou de territoires nommes ("guadeloupe,corse").
+   * Les encarts poses explicitement en HTML priment (pas de doublon).
+   */
+  private _insetsExpanded = false;
+
+  private _expandInsets() {
+    if (this._insetsExpanded || !this.insets) return;
+    this._insetsExpanded = true;
+    const names = this.insets
+      .split(',')
+      .map((t) => t.trim().toLowerCase())
+      .filter(Boolean)
+      .flatMap((t) => TERRITORY_GROUPS[t] ?? [t]);
+    for (const name of names) {
+      if (this.querySelector(`:scope > dsfr-data-map-inset[territory="${name}"]`)) continue;
+      const inset = document.createElement('dsfr-data-map-inset');
+      inset.setAttribute('territory', name);
+      this.appendChild(inset);
+    }
   }
 
   /**
@@ -243,14 +277,21 @@ export class DsfrDataMap extends LitElement {
    */
   private _applyHeight() {
     // Linear: \d and literal '.' / '%' don't overlap → no catastrophic backtracking.
-    // eslint-disable-next-line security/detect-unsafe-regex
+     
+    // La hauteur s'applique au conteneur Leaflet, pas au host : le host reste
+    // en flux auto pour laisser leur place aux compagnons hors-carte
+    // (dsfr-data-map-inset). Visuellement identique sans encart.
+    const setHeight = (px: string) => {
+      if (this._container) this._container.style.height = px;
+      this.style.height = '';
+    };
     const pctMatch = this.height.match(/^(\d+(?:\.\d+)?)%$/);
     if (pctMatch) {
       const ratio = parseFloat(pctMatch[1]) / 100;
       const applyRatio = () => {
         const w = this.clientWidth;
         if (w > 0) {
-          this.style.height = `${Math.round(w * ratio)}px`;
+          setHeight(`${Math.round(w * ratio)}px`);
         }
       };
       applyRatio();
@@ -265,10 +306,7 @@ export class DsfrDataMap extends LitElement {
       // Absolute unit — stop observing
       this._resizeObserver?.disconnect();
       this._resizeObserver = null;
-      this.style.height = this.height;
-    }
-    if (this._container) {
-      this._container.style.height = '100%';
+      setHeight(this.height);
     }
   }
 
@@ -424,7 +462,17 @@ export class DsfrDataMap extends LitElement {
       zoom: this.zoom,
       minZoom: this.minZoom,
       maxZoom: this.maxZoom,
-      zoomControl: !this.noControls,
+      zoomControl: !this.noControls && !this.locked,
+      ...(this.locked
+        ? {
+            dragging: false,
+            scrollWheelZoom: false,
+            doubleClickZoom: false,
+            boxZoom: false,
+            keyboard: false,
+            touchZoom: false,
+          }
+        : {}),
     });
 
     // Max bounds
