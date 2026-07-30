@@ -15,7 +15,7 @@ type LeafletMap = import('leaflet').Map;
 type LeafletTileLayer = import('leaflet').TileLayer;
 type LatLngBoundsExpression = import('leaflet').LatLngBoundsExpression;
 
-/** Tile presets — souverains (IGN) ou europeens (OSM France), sans clé API */
+/** Tile presets — souverains (IGN), europeens (OSM) ou dataviz (CARTO), sans clé API */
 const TILE_PRESETS: Record<
   string,
   { url: string; attribution: string; options?: Record<string, unknown> }
@@ -28,10 +28,6 @@ const TILE_PRESETS: Record<
     url: 'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&FORMAT=image/jpeg&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',
     attribution: '&copy; <a href="https://www.ign.fr/">IGN</a>',
   },
-  'ign-topo': {
-    url: 'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.MAPS.BDUNI.J1&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',
-    attribution: '&copy; <a href="https://www.ign.fr/">IGN</a>',
-  },
   'ign-cadastre': {
     url: 'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=CADASTRALPARCELS.PARCELLAIRE_EXPRESS&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',
     attribution: '&copy; <a href="https://www.ign.fr/">IGN</a>',
@@ -41,11 +37,50 @@ const TILE_PRESETS: Record<
     attribution:
       '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> — serveurs <a href="https://www.openstreetmap.fr/">OSM France</a>',
   },
+  'osm-standard': {
+    url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    options: { maxZoom: 19 },
+  },
+  'carto-positron': {
+    url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    options: { subdomains: 'abcd', maxZoom: 20 },
+  },
+  'carto-dark': {
+    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    options: { subdomains: 'abcd', maxZoom: 20 },
+  },
+  opentopomap: {
+    url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+    attribution:
+      'Données : &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, SRTM — Rendu : &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)',
+    options: { maxZoom: 17 },
+  },
 };
 
 /** Alias de presets pour retrocompatibilite. */
 const TILE_ALIASES: Record<string, string> = {
   osm: 'osm-fr',
+};
+
+/**
+ * Presets deprecies — resolus vers un preset de remplacement, avec warning (#429).
+ * `ign-topo` pointait sur la couche Geoplateforme GEOGRAPHICALGRIDSYSTEMS.MAPS.BDUNI.J1
+ * (couche de travail BD Uni, rendu quasi vide) ; les vraies couches topographiques SCAN
+ * (GEOGRAPHICALGRIDSYSTEMS.MAPS*) ne sont pas servies par l'endpoint libre data.geopf.fr
+ * (clé API requise). On redirige vers `ign-plan` pour ne pas casser les pages existantes.
+ */
+const DEPRECATED_PRESETS: Record<string, { replacement: string; reason: string }> = {
+  'ign-topo': {
+    replacement: 'ign-plan',
+    reason:
+      'la couche IGN BDUNI.J1 rend un fond quasi vide et les couches topographiques SCAN exigent une clé API',
+  },
 };
 
 /** Presets consideres comme souverains (tuiles IGN Geoplateforme, hebergees en France). */
@@ -62,7 +97,18 @@ export function resolveTilePreset(
   requested: string,
   sovereignOnly = false
 ): { key: string | null; warning?: string } {
-  const canonical = TILE_ALIASES[requested] ?? requested;
+  let name = requested;
+  let deprecationWarning: string | undefined;
+
+  const deprecated = DEPRECATED_PRESETS[name];
+  if (deprecated) {
+    deprecationWarning =
+      `tiles="${name}" est deprecie : ${deprecated.reason}. ` +
+      `Fallback sur "${deprecated.replacement}".`;
+    name = deprecated.replacement;
+  }
+
+  const canonical = TILE_ALIASES[name] ?? name;
   const isKnownPreset = canonical in TILE_PRESETS;
 
   if (sovereignOnly && (!isKnownPreset || !SOVEREIGN_PRESETS.has(canonical))) {
@@ -74,13 +120,14 @@ export function resolveTilePreset(
     };
   }
 
-  return { key: isKnownPreset ? canonical : null };
+  return { key: isKnownPreset ? canonical : null, warning: deprecationWarning };
 }
 
 /** Expose pour les tests (valeurs read-only). */
 export const __tilePresetsForTests = {
   presets: TILE_PRESETS,
   aliases: TILE_ALIASES,
+  deprecated: DEPRECATED_PRESETS,
   sovereign: SOVEREIGN_PRESETS,
 } as const;
 

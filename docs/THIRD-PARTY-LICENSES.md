@@ -25,8 +25,12 @@ Les presets de tuiles fournis par `dsfr-data-map` ne redistribuent aucun contenu
 
 | Preset | Service | Souverainete | Conditions d'usage |
 |---|---|---|---|
-| `ign-plan`, `ign-ortho`, `ign-topo`, `ign-cadastre` | [Géoplateforme nationale IGN](https://geoservices.ign.fr/services-geoplateforme) | Oui (IGN, hébergée en France) | Accès sans clé API, mention de la source IGN requise (gérée automatiquement par l'attribution Leaflet) |
+| `ign-plan`, `ign-ortho`, `ign-cadastre` | [Géoplateforme nationale IGN](https://geoservices.ign.fr/services-geoplateforme) | Oui (IGN, hébergée en France) | Accès sans clé API, mention de la source IGN requise (gérée automatiquement par l'attribution Leaflet) |
+| `ign-topo` (déprécié) | — | — | Redirigé vers `ign-plan` avec avertissement console : la couche BDUNI.J1 rendait un fond quasi vide et les couches topographiques SCAN de la Géoplateforme exigent une clé API |
 | `osm-fr` (alias : `osm`) | [OpenStreetMap France](https://www.openstreetmap.fr/) (association) | Non (associatif hors État) | Accès sans clé API, respect de la [Tile Usage Policy OSM France](https://www.openstreetmap.fr/). Distinct de l'OpenStreetMap Foundation. |
+| `osm-standard` | [OpenStreetMap Foundation](https://www.openstreetmap.org/) | Non | Accès sans clé API, respect de la [Tile Usage Policy OSMF](https://operations.osmfoundation.org/policies/tiles/). Données © contributeurs OpenStreetMap (ODbL). |
+| `carto-positron`, `carto-dark` | [CARTO basemaps](https://carto.com/basemaps) | Non (CDN CARTO) | Gratuit pour usage non commercial avec [attribution CARTO](https://carto.com/attributions) + OpenStreetMap. |
+| `opentopomap` | [OpenTopoMap](https://opentopomap.org/) (communautaire) | Non | Accès sans clé API, rendu sous licence CC-BY-SA, données © contributeurs OpenStreetMap + SRTM. |
 
 L'attribut `sovereign-only` du composant `<dsfr-data-map>` restreint les presets acceptés aux seules tuiles IGN.
 

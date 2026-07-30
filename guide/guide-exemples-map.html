@@ -265,16 +265,21 @@
         <!-- ============================================================ -->
         <h2>Fonds de carte</h2>
         <p>
-          Quatre presets souverains sont disponibles. Vous pouvez aussi passer une URL template personnalisee.
+          Huit presets sont disponibles sans clé API (trois souverains IGN, utilisables avec
+          <code>sovereign-only</code>). Vous pouvez aussi passer une URL template personnalisée.
         </p>
         <table class="fr-table fr-table--sm fr-mt-1w">
           <thead><tr><th>Preset</th><th>Source</th><th>Usage</th></tr></thead>
           <tbody>
-            <tr><td><code>ign-plan</code></td><td>IGN Geoplateforme</td><td>Plan de base (defaut)</td></tr>
-            <tr><td><code>ign-ortho</code></td><td>IGN Geoplateforme</td><td>Vue aerienne</td></tr>
-            <tr><td><code>ign-topo</code></td><td>IGN Geoplateforme</td><td>Carte topographique (SCAN 25/100)</td></tr>
-            <tr><td><code>ign-cadastre</code></td><td>IGN Geoplateforme</td><td>Parcelles cadastrales</td></tr>
-            <tr><td><code>osm</code></td><td>OpenStreetMap France</td><td>Carte communautaire</td></tr>
+            <tr><td><code>ign-plan</code></td><td>IGN Geoplateforme</td><td>Plan de base (défaut, souverain)</td></tr>
+            <tr><td><code>ign-ortho</code></td><td>IGN Geoplateforme</td><td>Vue aérienne (souverain)</td></tr>
+            <tr><td><code>ign-cadastre</code></td><td>IGN Geoplateforme</td><td>Parcelles cadastrales (souverain)</td></tr>
+            <tr><td><code>osm</code> / <code>osm-fr</code></td><td>OpenStreetMap France</td><td>Carte communautaire</td></tr>
+            <tr><td><code>osm-standard</code></td><td>OpenStreetMap</td><td>Carte communautaire (tuiles osm.org)</td></tr>
+            <tr><td><code>carto-positron</code></td><td>CARTO</td><td>Fond clair sobre, idéal dataviz</td></tr>
+            <tr><td><code>carto-dark</code></td><td>CARTO</td><td>Fond sombre</td></tr>
+            <tr><td><code>opentopomap</code></td><td>OpenTopoMap</td><td>Carte topographique communautaire</td></tr>
+            <tr><td><code>ign-topo</code></td><td>—</td><td>Déprécié : redirige vers <code>ign-plan</code> avec un avertissement console</td></tr>
           </tbody>
         </table>
 
