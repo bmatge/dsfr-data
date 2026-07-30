@@ -224,7 +224,9 @@
         <p>
           Le composant <code>dsfr-data-map-popup</code> definit un template HTML et un mode d'affichage.
           En mode <code>panel-right</code>, un panneau lateral s'ouvre au clic sur un POI et se met a jour
-          a chaque nouveau clic. Le template utilise la syntaxe <code>{{champ}}</code>.
+          a chaque nouveau clic. Le template utilise les memes expressions que <code>dsfr-data-display</code> :
+          <code>{{champ}}</code>, <code>{{champ:number}}</code> (format fr-FR), <code>{{champ|défaut}}</code>,
+          chemins imbriques.
         </p>
 
         <h4>Panneau lateral avec template personnalise</h4>
@@ -258,6 +260,35 @@
       &lt;/table&gt;
     &lt;/template&gt;
   &lt;/dsfr-data-map-popup&gt;
+&lt;/dsfr-data-map&gt;</pre>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <h2>Encarts DROM (dsfr-data-map-inset)</h2>
+        <p>
+          Le composant compagnon <code>dsfr-data-map-inset</code> ajoute des mini-cartes territoriales
+          verrouillees sous la carte principale (DROM, COM, Corse). Les encarts reutilisent les couches
+          et le popup de la carte hote : un clic dans un encart ouvre le volet de la carte principale.
+          12 territoires predefinis via <code>territory</code>, ou raccourci <code>insets</code> sur la carte.
+          Exemple complet : <a href="examples/carte-territoires-electrification.html">carte des territoires
+          d'electrification</a>.
+        </p>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-insets">Code source</button></h3>
+          <div class="fr-collapse" id="code-insets">
+<pre class="example-code">&lt;!-- Raccourci : les 5 DROM + la Corse --&gt;
+&lt;dsfr-data-map center="46.5,2.6" zoom="6" tiles="ign-plan" insets="drom,corse"&gt;
+  &lt;dsfr-data-map-layer source="territoires" type="geoshape" geo-field="geojson"&gt;&lt;/dsfr-data-map-layer&gt;
+  &lt;dsfr-data-map-popup mode="panel-right" title-field="nom"&gt;&lt;template&gt;...&lt;/template&gt;&lt;/dsfr-data-map-popup&gt;
+&lt;/dsfr-data-map&gt;
+
+&lt;!-- Ou en explicite, avec surcharge du cadrage --&gt;
+&lt;dsfr-data-map center="46.5,2.6" zoom="6"&gt;
+  &lt;dsfr-data-map-layer source="territoires" type="geoshape" geo-field="geojson"&gt;&lt;/dsfr-data-map-layer&gt;
+  &lt;dsfr-data-map-inset territory="guadeloupe"&gt;&lt;/dsfr-data-map-inset&gt;
+  &lt;dsfr-data-map-inset territory="guyane" center="4.63,-52.45" zoom="8"&gt;&lt;/dsfr-data-map-inset&gt;
+  &lt;dsfr-data-map-inset territory="nouvelle-caledonie"&gt;&lt;/dsfr-data-map-inset&gt;
 &lt;/dsfr-data-map&gt;</pre>
           </div>
         </section>

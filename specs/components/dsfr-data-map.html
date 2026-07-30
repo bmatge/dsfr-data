@@ -53,6 +53,8 @@
             <tr><td><code>tiles</code></td><td>String</td><td><code>"ign-plan"</code></td><td>Fond de carte predefini ou URL template custom</td></tr>
             <tr><td><code>sovereign-only</code></td><td>Boolean</td><td><code>false</code></td><td>Restreint <code>tiles</code> aux presets IGN souverains. Tout autre preset (ex. <code>osm-fr</code>) ou URL custom est refuse avec un <code>console.warn</code> et remplace par <code>ign-plan</code>.</td></tr>
             <tr><td><code>no-controls</code></td><td>Boolean</td><td><code>false</code></td><td>Masque les controles de zoom Leaflet</td></tr>
+            <tr><td><code>locked</code></td><td>Boolean</td><td><code>false</code></td><td>Carte verrouillee : aucune interaction (pan, zoom, molette, clavier). Utilise par les encarts et vignettes.</td></tr>
+            <tr><td><code>insets</code></td><td>String</td><td><code>""</code></td><td>Raccourci encarts territoriaux : groupe et/ou territoires nommes separes par des virgules (<code>"drom"</code>, <code>"drom,corse"</code>). Produit les <code>dsfr-data-map-inset</code> correspondants.</td></tr>
             <tr><td><code>fit-bounds</code></td><td>Boolean</td><td><code>false</code></td><td>Ajuste automatiquement le viewport aux données</td></tr>
             <tr><td><code>max-bounds</code></td><td>String</td><td><code>""</code></td><td>Limites <code>"latSW,lonSW,latNE,lonNE"</code></td></tr>
             <tr><td><code>name</code></td><td>String</td><td><code>""</code></td><td>Titre de la carte (aria-label et beacon)</td></tr>
@@ -66,13 +68,17 @@
           <tbody>
             <tr><td><code>ign-plan</code></td><td>Geoplateforme IGN — Plan IGN</td><td>Oui</td><td><code>data.geopf.fr/wmts</code> (layer <code>GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2</code>)</td></tr>
             <tr><td><code>ign-ortho</code></td><td>Geoplateforme IGN — Orthophoto</td><td>Oui</td><td><code>data.geopf.fr/wmts</code> (layer <code>ORTHOIMAGERY.ORTHOPHOTOS</code>)</td></tr>
-            <tr><td><code>ign-topo</code></td><td>Geoplateforme IGN — Carte topographique (SCAN 25/100)</td><td>Oui</td><td><code>data.geopf.fr/wmts</code> (layer <code>GEOGRAPHICALGRIDSYSTEMS.MAPS.BDUNI.J1</code>)</td></tr>
+            <tr><td><code>ign-topo</code></td><td><em>Deprecie</em> — redirige vers <code>ign-plan</code> avec un <code>console.warn</code> (couche BDUNI quasi vide ; couches SCAN topo soumises a clé API)</td><td>Oui (via <code>ign-plan</code>)</td><td>—</td></tr>
             <tr><td><code>ign-cadastre</code></td><td>Geoplateforme IGN — Cadastre</td><td>Oui</td><td><code>data.geopf.fr/wmts</code> (layer <code>CADASTRALPARCELS.PARCELLAIRE_EXPRESS</code>)</td></tr>
             <tr><td><code>osm-fr</code></td><td>OpenStreetMap France (association)</td><td>Non (associatif hors État)</td><td><code>{s}.tile.openstreetmap.fr/osmfr</code></td></tr>
+            <tr><td><code>osm-standard</code></td><td>OpenStreetMap (OSM Foundation)</td><td>Non</td><td><code>tile.openstreetmap.org</code></td></tr>
+            <tr><td><code>carto-positron</code></td><td>CARTO — fond clair sobre (dataviz)</td><td>Non</td><td><code>{s}.basemaps.cartocdn.com/light_all</code></td></tr>
+            <tr><td><code>carto-dark</code></td><td>CARTO — fond sombre</td><td>Non</td><td><code>{s}.basemaps.cartocdn.com/dark_all</code></td></tr>
+            <tr><td><code>opentopomap</code></td><td>OpenTopoMap (CC-BY-SA)</td><td>Non</td><td><code>{s}.tile.opentopomap.org</code></td></tr>
           </tbody>
         </table>
-        <p class="fr-mt-2w"><strong>Mode <code>sovereign-only</code></strong> : pour les DSI qui imposent une politique "zero tiers externe non souverain", ajouter l'attribut booleen <code>sovereign-only</code> sur <code>&lt;dsfr-data-map&gt;</code> restreint les presets disponibles aux seules tuiles IGN (<code>ign-plan</code>, <code>ign-ortho</code>, <code>ign-topo</code>, <code>ign-cadastre</code>). Tout autre preset ou URL custom est refuse avec un avertissement console et remplace par <code>ign-plan</code>.</p>
-        <p><strong>Alias de retrocompatibilite</strong> : <code>tiles="osm"</code> reste accepte et pointe vers le preset <code>osm-fr</code>.</p>
+        <p class="fr-mt-2w"><strong>Mode <code>sovereign-only</code></strong> : pour les DSI qui imposent une politique "zero tiers externe non souverain", ajouter l'attribut booleen <code>sovereign-only</code> sur <code>&lt;dsfr-data-map&gt;</code> restreint les presets disponibles aux seules tuiles IGN (<code>ign-plan</code>, <code>ign-ortho</code>, <code>ign-cadastre</code> — <code>ign-topo</code>, deprecie, y resout vers <code>ign-plan</code>). Tout autre preset ou URL custom est refuse avec un avertissement console et remplace par <code>ign-plan</code>.</p>
+        <p><strong>Alias de retrocompatibilite</strong> : <code>tiles="osm"</code> reste accepte et pointe vers le preset <code>osm-fr</code> ; <code>tiles="ign-topo"</code> (deprecie) pointe vers <code>ign-plan</code>.</p>
 
         <!-- ============================================================ -->
         <!-- dsfr-data-map-layer -->
@@ -88,7 +94,7 @@
             <tr><td><code>type</code></td><td>String</td><td><code>"marker"</code></td><td>Type de couche : <code>marker</code>, <code>geoshape</code>, <code>circle</code>, <code>heatmap</code></td></tr>
             <tr><td><code>lat-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers la latitude</td></tr>
             <tr><td><code>lon-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers la longitude</td></tr>
-            <tr><td><code>geo-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers un GeoJSON (Point, Polygon, MultiPolygon)</td></tr>
+            <tr><td><code>geo-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers un GeoJSON (Point, Polygon, MultiPolygon) — objet ou <strong>chaine JSON serialisee</strong> (colonnes Text Grist, CSV), parsee automatiquement (memoise)</td></tr>
           </tbody>
         </table>
 
@@ -204,6 +210,46 @@
         </ul>
 
         <!-- ============================================================ -->
+        <!-- dsfr-data-map-inset -->
+        <!-- ============================================================ -->
+
+        <h2 class="fr-mt-4w">dsfr-data-map-inset — Encarts territoriaux</h2>
+        <p>
+          Composant compagnon place comme enfant de <code>dsfr-data-map</code>. Rend une mini-carte
+          verrouillee (zoom fixe, aucune interaction) centree sur un territoire — le pattern
+          « France metropolitaine + vignettes DROM » des cartes nationales. L'encart reutilise
+          automatiquement les couches (<code>dsfr-data-map-layer</code>) <strong>et le popup</strong>
+          de la carte hote : un clic sur un element de l'encart ouvre le volet ou la modale de la
+          carte principale (template unique, pas de duplication).
+        </p>
+
+        <table class="attr-table">
+          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>territory</code></td><td>String</td><td><code>""</code></td><td>Territoire predefini : <code>guadeloupe</code>, <code>martinique</code>, <code>guyane</code>, <code>la-reunion</code>, <code>mayotte</code>, <code>saint-pierre-et-miquelon</code>, <code>saint-martin</code>, <code>saint-barthelemy</code>, <code>nouvelle-caledonie</code>, <code>polynesie-francaise</code>, <code>wallis-et-futuna</code>, <code>corse</code>. Fournit centre, zoom et libelle.</td></tr>
+            <tr><td><code>center</code></td><td>String</td><td><code>""</code></td><td>Centre <code>"lat,lon"</code> (requis sans <code>territory</code> ; prioritaire sur le preset)</td></tr>
+            <tr><td><code>zoom</code></td><td>Number</td><td><code>8</code></td><td>Zoom fixe de l'encart (prioritaire sur le preset)</td></tr>
+            <tr><td><code>label</code></td><td>String</td><td><code>""</code></td><td>Libelle affiche au-dessus de l'encart (et nom accessible de la mini-carte)</td></tr>
+            <tr><td><code>height</code></td><td>String</td><td><code>"160px"</code></td><td>Hauteur de la mini-carte</td></tr>
+          </tbody>
+        </table>
+
+        <p class="fr-mt-2w">
+          <strong>Raccourci</strong> : l'attribut <code>insets</code> de <code>dsfr-data-map</code>
+          genere les encarts automatiquement — <code>insets="drom"</code> (les 5 DROM) ou une liste
+          <code>insets="drom,corse"</code>. Un encart pose explicitement en HTML pour le meme
+          territoire prime (pas de doublon).
+        </p>
+
+<pre class="code-block">&lt;dsfr-data-map center="46.5,2.6" zoom="6" tiles="ign-plan" insets="drom"&gt;
+  &lt;dsfr-data-map-layer source="territoires" type="geoshape" geo-field="geojson"&gt;&lt;/dsfr-data-map-layer&gt;
+  &lt;dsfr-data-map-popup mode="panel-right" title-field="nom"&gt;&lt;template&gt;...&lt;/template&gt;&lt;/dsfr-data-map-popup&gt;
+&lt;/dsfr-data-map&gt;
+
+&lt;!-- ou en explicite, avec surcharge de cadrage : --&gt;
+&lt;dsfr-data-map-inset territory="guyane" center="4.63,-52.45" zoom="8"&gt;&lt;/dsfr-data-map-inset&gt;</pre>
+
+        <!-- ============================================================ -->
         <!-- dsfr-data-map-popup -->
         <!-- ============================================================ -->
 
@@ -226,8 +272,12 @@
 
         <h3>Template</h3>
         <p>
-          Le contenu est défini via un element <code>&lt;template&gt;</code> enfant avec interpolation
-          <code>{{champ}}</code>. Sans template, un tableau clé/valeur est genere automatiquement.
+          Le contenu est défini via un element <code>&lt;template&gt;</code> enfant avec les memes
+          expressions d'interpolation que <code>dsfr-data-display</code> (toujours echappees) :
+          <code>{{champ}}</code>, <code>{{champ.sous.clé}}</code> (chemins imbriques),
+          <code>{{champ:number}}</code> (formatage fr-FR avec separateur de milliers),
+          <code>{{champ|défaut}}</code> (repli si null/undefined).
+          Sans template, un tableau clé/valeur est genere automatiquement.
         </p>
 
         <h3>Modes</h3>
