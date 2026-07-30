@@ -19,7 +19,17 @@ export type LayerType = 'marker' | 'geoshape' | 'circle' | 'heatmap';
 
 export type PopupMode = 'none' | 'tooltip' | 'popup' | 'panel-right' | 'panel-left';
 
-export type TilePreset = 'ign-plan' | 'ign-ortho' | 'ign-topo' | 'ign-cadastre' | 'osm';
+export type TilePreset =
+  | 'ign-plan'
+  | 'ign-ortho'
+  | 'ign-cadastre'
+  | 'osm'
+  | 'osm-standard'
+  | 'carto-positron'
+  | 'carto-dark'
+  | 'opentopomap'
+  // Deprecie (redirige vers ign-plan) — conserve pour les etats sauvegardes
+  | 'ign-topo';
 
 export interface LayerConfig {
   id: string;

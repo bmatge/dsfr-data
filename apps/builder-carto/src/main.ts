@@ -223,11 +223,14 @@ function renderMapConfig() {
         <div class="carto-field">
           <label for="map-tiles">Fond de carte</label>
           <select id="map-tiles" class="fr-select fr-select--sm">
-            <option value="ign-plan" ${m.tiles === 'ign-plan' ? 'selected' : ''}>IGN Plan</option>
+            <option value="ign-plan" ${m.tiles === 'ign-plan' || m.tiles === 'ign-topo' ? 'selected' : ''}>IGN Plan</option>
             <option value="ign-ortho" ${m.tiles === 'ign-ortho' ? 'selected' : ''}>IGN Ortho</option>
-            <option value="ign-topo" ${m.tiles === 'ign-topo' ? 'selected' : ''}>IGN Topographique</option>
             <option value="ign-cadastre" ${m.tiles === 'ign-cadastre' ? 'selected' : ''}>IGN Cadastre</option>
-            <option value="osm" ${m.tiles === 'osm' ? 'selected' : ''}>OpenStreetMap</option>
+            <option value="osm" ${m.tiles === 'osm' ? 'selected' : ''}>OpenStreetMap France</option>
+            <option value="osm-standard" ${m.tiles === 'osm-standard' ? 'selected' : ''}>OpenStreetMap</option>
+            <option value="carto-positron" ${m.tiles === 'carto-positron' ? 'selected' : ''}>CARTO clair (dataviz)</option>
+            <option value="carto-dark" ${m.tiles === 'carto-dark' ? 'selected' : ''}>CARTO sombre</option>
+            <option value="opentopomap" ${m.tiles === 'opentopomap' ? 'selected' : ''}>OpenTopoMap</option>
           </select>
         </div>
         <div class="carto-inline">
