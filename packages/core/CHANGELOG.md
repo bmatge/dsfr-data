@@ -1,5 +1,19 @@
 # dsfr-data
 
+## 0.14.0
+
+### Minor Changes
+
+- [#431](https://github.com/bmatge/dsfr-data/pull/431) [`d468e32`](https://github.com/bmatge/dsfr-data/commit/d468e32daae2a2a588f0be21c1372e9872deb280) Thanks [@bmatge](https://github.com/bmatge)! - Nouveau composant `dsfr-data-map-inset` : encarts territoriaux (DROM, COM, Corse...) pour `dsfr-data-map`. Chaque encart rend une mini-carte verrouillée qui réutilise automatiquement les couches ET le popup de la carte hôte — un clic dans l'encart ouvre le volet/la modale de la carte principale (template unique). 12 territoires prédéfinis (`territory="guadeloupe"`, `"nouvelle-caledonie"`...) surchargeables par `center`/`zoom`/`label`, et raccourci `insets="drom"` / `insets="drom,corse"` sur `dsfr-data-map` qui génère les encarts.
+
+  `dsfr-data-map` : nouvel attribut `locked` (carte sans aucune interaction — encarts, vignettes). La hauteur fixe s'applique désormais au conteneur Leaflet plutôt qu'au host (le host s'étend pour accueillir les compagnons hors-carte) et le panel de `dsfr-data-map-popup` s'ancre sur ce conteneur — rendu identique pour les pages existantes.
+
+- [#430](https://github.com/bmatge/dsfr-data/pull/430) [`79f20d4`](https://github.com/bmatge/dsfr-data/commit/79f20d4fa689455ab0bda85e6d6fa88982d81cf9) Thanks [@bmatge](https://github.com/bmatge)! - dsfr-data-map : nouveaux fonds de carte et correction d'ign-topo ([#429](https://github.com/bmatge/dsfr-data/issues/429))
+
+  - Nouveaux presets `tiles` sans clé API : `carto-positron` et `carto-dark` (CARTO, fonds sobres idéaux pour la dataviz), `opentopomap` (carte topographique communautaire) et `osm-standard` (tuiles OpenStreetMap.org), chacun avec l'attribution requise.
+  - `ign-topo` est déprécié : la couche Géoplateforme `GEOGRAPHICALGRIDSYSTEMS.MAPS.BDUNI.J1` rendait un fond quasi vide et les couches topographiques SCAN exigent une clé API. Le preset redirige désormais vers `ign-plan` avec un `console.warn` explicite — les pages existantes ne cassent pas.
+  - La frontière `sovereign-only` reste inchangée (presets IGN uniquement, fallback `ign-plan`) ; les nouveaux presets y sont refusés avec avertissement.
+
 ## 0.13.0
 
 ### Minor Changes
