@@ -277,7 +277,7 @@ export class DsfrDataMap extends LitElement {
    */
   private _applyHeight() {
     // Linear: \d and literal '.' / '%' don't overlap → no catastrophic backtracking.
-     
+
     // La hauteur s'applique au conteneur Leaflet, pas au host : le host reste
     // en flux auto pour laisser leur place aux compagnons hors-carte
     // (dsfr-data-map-inset). Visuellement identique sans encart.
