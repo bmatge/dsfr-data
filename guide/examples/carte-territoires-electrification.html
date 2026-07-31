@@ -8,14 +8,14 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css" integrity="sha384-atVZ+aK6VI0nWyTEhKgze5InDJ+SWRRqa0BCZ2MTNyoOcBiHj1c3dGPdi6ML65B3" crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css" integrity="sha384-5P5DFFqorcEBpfnK9WHu/Ralfr7ZxyCZh0ryaJbgucSvc71+qRYdGvNEcyMqQwa/" crossorigin="anonymous">
   <!-- Leaflet : charge dynamiquement par dsfr-data.umd.js - NE PAS inclure manuellement -->
-  <!-- dsfr-data : epingle en exact @0.14.1 + SRI (les encarts exigent >= 0.14.0 et l'URL
+  <!-- dsfr-data : epingle en exact @0.14.2 + SRI (les encarts exigent >= 0.14.0 et l'URL
        flottante @0 est cachee 7 jours par les navigateurs — un visiteur du jour verrait
        l'ancien bundle sans les encarts). Bundle complet (core + map).
        Requiert >= 0.14.0 : geo-field accepte les GeoJSON serialises en chaine (#426),
        {{champ:number}} dans les templates de map-popup (#426), et encarts DROM
        dsfr-data-map-inset (#431).
        Major flottant : pas de SRI (cf. check:sri). -->
-  <script src="https://cdn.jsdelivr.net/npm/dsfr-data@0.14.1/dist/dsfr-data.umd.js" integrity="sha384-ALUgPrDviRrtKpK/jNJklM71cOkCsw3BJRQv9YEUgIF4f2WyXkoZCYjd1a4hwMHX" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dsfr-data@0.14.2/dist/dsfr-data.umd.js" integrity="sha384-ihXlpDu238SmAcDZu54qSo2BU03IN91vmtTa7f2yMJGG0LYe45ECPq9pMk0fZ0Rp" crossorigin="anonymous"></script>
   <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.module.min.js" integrity="sha384-gPgRd2+olihO/srZe/Bqw6iVLiiaL7meuri1d5YVMejwPXg7VehLSBeORYq9yh2F" crossorigin="anonymous"></script>
 
   <style>
@@ -142,6 +142,7 @@
 
     <!-- Carte : les contours GeoJSON (colonne Text Grist) sont lus tels quels par geo-field -->
     <dsfr-data-map id="carte" center="46.5,2.6" zoom="6" min-zoom="3" height="620px" tiles="ign-plan"
+      fit-bounds max-bounds="38.5,-13,54,15"
       name="Carte des territoires d'électrification">
       <dsfr-data-map-layer source="territoires-polys" type="geoshape"
         geo-field="geojson"
