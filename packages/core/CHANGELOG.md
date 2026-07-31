@@ -1,5 +1,11 @@
 # dsfr-data
 
+## 0.16.2
+
+### Patch Changes
+
+- [#462](https://github.com/bmatge/dsfr-data/pull/462) [`4d20709`](https://github.com/bmatge/dsfr-data/commit/4d207091a4eee8c4d41f8a5a4517174b73fefc16) Thanks [@bmatge](https://github.com/bmatge)! - `@dsfr-data/shared` : export de `saveToStorageQuiet` dans le barrel applicatif (persistance d'état du builder carto, sans déclencher le hook de synchronisation API). Aucun impact sur les composants `dsfr-data-*`.
+
 ## 0.16.1
 
 ### Patch Changes
