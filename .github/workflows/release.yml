@@ -21,28 +21,40 @@ jobs:
       release_id: ${{ steps.create.outputs.id }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: Determine version
         id: version
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "tag=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+            TAG="${{ github.event.inputs.version }}"
           else
-            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+            TAG="${{ github.ref_name }}"
           fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          # Tag v* precedent (ordre semver) : sans previous_tag_name explicite,
+          # l'auto-generation GitHub choisit une mauvaise base (les tags
+          # dsfr-data@* de changesets s'intercalent) et les notes cumulent
+          # tout l'historique depuis v0.5.x.
+          PREV=$(git tag --sort=-v:refname | grep '^v' | sed -n "/^${TAG}\$/,\$p" | sed -n 2p)
+          echo "prev=$PREV" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
         id: create
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          RELEASE_ID=$(gh api repos/${{ github.repository }}/releases \
-            -f tag_name="${{ steps.version.outputs.tag }}" \
+          ARGS=(-f tag_name="${{ steps.version.outputs.tag }}" \
             -f name="${{ steps.version.outputs.tag }}" \
             -f target_commitish="${{ github.sha }}" \
             -F draft=true \
-            -F generate_release_notes=true \
-            --jq '.id')
+            -F generate_release_notes=true)
+          if [ -n "${{ steps.version.outputs.prev }}" ]; then
+            ARGS+=(-f previous_tag_name="${{ steps.version.outputs.prev }}")
+          fi
+          RELEASE_ID=$(gh api repos/${{ github.repository }}/releases "${ARGS[@]}" --jq '.id')
           echo "id=$RELEASE_ID" >> "$GITHUB_OUTPUT"
 
   build-tauri:
