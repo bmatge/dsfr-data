@@ -460,6 +460,46 @@
           <li><strong>0 ligne de JavaScript</strong> : tout le dashboard est 100% declaratif en HTML.</li>
         </ul>
 
+        <!-- Adapter INSEE -->
+        <div class="fr-callout fr-callout--blue-ecume fr-mt-3w">
+          <h4 class="fr-callout__title">Aussi possible avec l'adapter INSEE (<code>api-type="insee"</code>)</h4>
+          <p class="fr-callout__text">
+            Cette page appelle l'API Melodi en URL brute (<code>url</code> + <code>transform="observations"</code>)
+            puis aplatit la réponse avec trois <code>dsfr-data-normalize</code>. L'adapter dédié fait ce travail
+            pour vous : il suffit de déclarer le <code>dataset-id</code>. L'adapter aplatit automatiquement
+            <code>dimensions</code>, <code>measures</code> et <code>attributes</code>
+            (<code>OBS_VALUE_NIVEAU</code> devient <code>OBS_VALUE</code>), pagine par 1 000 observations
+            (plafond par défaut : 100 000, relevable via <code>max-records</code>) et pousse les filtres
+            d'égalité (<code>eq</code>, <code>in</code>) côté serveur en paramètres de dimension.
+          </p>
+        </div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-erfs-adapter">Équivalent avec l'adapter INSEE</button></h3>
+          <div class="fr-collapse" id="code-erfs-adapter">
+<pre class="example-code">&lt;!-- 1. Adapter INSEE Melodi : fetch + aplatissement automatiques --&gt;
+&lt;dsfr-data-source id="raw" api-type="insee"
+  dataset-id="DS_ERFS_MENAGE_SL"
+  where="TIME_PERIOD:eq:2023"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;!-- 2. Plus besoin des flatten dimensions/measures : il ne reste que
+     le typage et le decodage des codes INSEE --&gt;
+&lt;dsfr-data-normalize id="data" source="raw"
+  numeric="OBS_VALUE" trim
+  replace-fields="ERFS_MEASURE:MEAN_DI_CONST:Revenu moyen
+    | ERFS_MEASURE:MED_DI_CONST:Revenu median"&gt;
+&lt;/dsfr-data-normalize&gt;
+
+&lt;!-- 3. La suite du pipeline est identique (champ valeur : OBS_VALUE) --&gt;
+&lt;dsfr-data-query id="q-kpi-mean" source="data"
+  where="ERFS_MEASURE:eq:Revenu moyen, PCS:eq:_T, AGE:eq:_T"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;dsfr-data-kpi source="q-kpi-mean" value="OBS_VALUE"
+  label="Revenu disponible moyen (2023)" format="euro"&gt;&lt;/dsfr-data-kpi&gt;</pre>
+          </div>
+        </section>
+
       </div>
     </div>
   </main>

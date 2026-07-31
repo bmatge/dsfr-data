@@ -127,7 +127,7 @@
 &lt;dsfr-data-normalize id="clean" source="data" flatten="fields" trim numeric-auto&gt;&lt;/dsfr-data-normalize&gt;
 &lt;dsfr-data-query id="query-result" source="clean" group-by="Pays" aggregate="PIB:avg" order-by="value:desc"&gt;&lt;/dsfr-data-query&gt;
 &lt;dsfr-data-chart source="query-result" type="bar" label-field="Pays" value-field="PIB"
-                 title="PIB par pays"&gt;&lt;/dsfr-data-chart&gt;</pre>
+                 databox databox-title="PIB par pays"&gt;&lt;/dsfr-data-chart&gt;</pre>
         </section>
 
         <!-- Parcours C -->
