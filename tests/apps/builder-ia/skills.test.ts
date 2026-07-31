@@ -23,6 +23,8 @@ import { DsfrDataUnpivot } from '@/components/dsfr-data-unpivot.js';
 import { DsfrDataMap } from '@/components/dsfr-data-map.js';
 import { DsfrDataMapLayer } from '@/components/dsfr-data-map-layer.js';
 import { DsfrDataMapPopup } from '@/components/dsfr-data-map-popup.js';
+import { DsfrDataMapInset } from '@/components/dsfr-data-map-inset.js';
+import { DsfrDataMapTimeline } from '@/components/dsfr-data-map-timeline.js';
 import { DsfrDataPodium } from '@/components/dsfr-data-podium.js';
 import { DsfrDataBeacon } from '@/components/dsfr-data-beacon.js';
 
@@ -39,8 +41,7 @@ function getHtmlAttributes(ComponentClass: typeof DsfrDataSource): Set<string> {
   const attrs = new Set<string>();
 
   const props = (ComponentClass as any).elementProperties as
-    | Map<string, { attribute?: string | false }>
-    | undefined;
+    Map<string, { attribute?: string | false }> | undefined;
   if (!props) return attrs;
 
   for (const [propName, options] of props) {
@@ -381,6 +382,22 @@ describe('builder-ia skills', () => {
         );
       });
 
+      it('dsfrDataMap skill covers all <dsfr-data-map-inset> attributes', () => {
+        assertAttributesCovered(
+          DsfrDataMapInset as unknown as typeof DsfrDataSource,
+          'dsfrDataMap',
+          'dsfr-data-map-inset'
+        );
+      });
+
+      it('dsfrDataMap skill covers all <dsfr-data-map-timeline> attributes', () => {
+        assertAttributesCovered(
+          DsfrDataMapTimeline as unknown as typeof DsfrDataSource,
+          'dsfrDataMap',
+          'dsfr-data-map-timeline'
+        );
+      });
+
       it('dsfrDataPodium skill covers all <dsfr-data-podium> attributes', () => {
         assertAttributesCovered(
           DsfrDataPodium as unknown as typeof DsfrDataSource,
@@ -410,6 +427,8 @@ describe('builder-ia skills', () => {
         'bar-line',
         'map',
         'map-reg',
+        'map-aca',
+        'map-monde',
       ];
 
       it('dsfrDataChart skill mentions all supported chart types', () => {
@@ -491,10 +510,19 @@ describe('builder-ia skills', () => {
         DsfrDataChart: 'dsfrDataChart',
         DsfrDataWorldMap: 'dsfrDataWorldMap',
         DsfrDataMap: 'dsfrDataMap',
+        // Compagnons carto : documentes dans le skill unique dsfrDataMap
+        DsfrDataMapLayer: 'dsfrDataMap',
+        DsfrDataMapPopup: 'dsfrDataMap',
+        DsfrDataMapInset: 'dsfrDataMap',
+        DsfrDataMapTimeline: 'dsfrDataMap',
         DsfrDataA11y: 'dsfrDataA11y',
         DsfrDataJoin: 'dsfrDataJoin',
         DsfrDataUnpivot: 'dsfrDataUnpivot',
         DsfrDataPodium: 'dsfrDataPodium',
+        DsfrDataContext: 'dsfrDataContext',
+        DsfrDataContextFilter: 'dsfrDataContextFilter',
+        DsfrDataContextTags: 'dsfrDataContextTags',
+        DsfrDataBeacon: 'dsfrDataBeacon',
       };
 
       it('every data component has a corresponding skill', () => {

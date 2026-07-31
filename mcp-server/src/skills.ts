@@ -66,7 +66,12 @@ export function getWidgetSkillIds(chartType?: string): string[] {
     if (lower === 'podium' || lower === 'classement' || lower === 'ranking')
       ids.push('dsfrDataPodium');
     if (lower === 'datalist' || lower === 'tableau') ids.push('dsfrDataList');
-    if (lower === 'map' || lower === 'map-reg') ids.push('dsfrColors');
+    // Cartes DSFR Chart (choroplèthes dep/reg/aca/monde via dsfr-data-chart)
+    if (lower === 'map' || lower === 'map-reg' || lower === 'map-aca' || lower === 'map-monde')
+      ids.push('dsfrColors', 'chartTypes');
+    // Cartes Leaflet (dsfr-data-map + compagnons) — distinctes des map* DSFR Chart
+    if (lower === 'carte' || lower === 'leaflet' || lower === 'map-layer')
+      ids.push('dsfrDataMap', 'dsfrColors');
     if (lower.includes('bar') || lower.includes('pie') || lower.includes('line'))
       ids.push('chartTypes');
   } else {

@@ -10,16 +10,16 @@ import { sendWidgetBeacon } from '../utils/beacon.js';
  *
  * @example
  * <dsfr-data-kpi-group cols="3">
- *   <dsfr-data-kpi source="src" valeur="sum:population" label="Population"></dsfr-data-kpi>
- *   <dsfr-data-kpi source="src" valeur="avg:score" label="Score moyen"></dsfr-data-kpi>
- *   <dsfr-data-kpi source="src" valeur="count" label="Nombre"></dsfr-data-kpi>
+ *   <dsfr-data-kpi source="src" value="population:sum" label="Population"></dsfr-data-kpi>
+ *   <dsfr-data-kpi source="src" value="score:avg" label="Score moyen"></dsfr-data-kpi>
+ *   <dsfr-data-kpi source="src" value="count" label="Nombre"></dsfr-data-kpi>
  * </dsfr-data-kpi-group>
  *
  * @example
  * <dsfr-data-kpi-group>
- *   <dsfr-data-kpi source="src" valeur="sum:ca" label="CA total" col="6"></dsfr-data-kpi>
- *   <dsfr-data-kpi source="src" valeur="avg:marge" label="Marge" col="3"></dsfr-data-kpi>
- *   <dsfr-data-kpi source="src" valeur="count" label="Transactions" col="3"></dsfr-data-kpi>
+ *   <dsfr-data-kpi source="src" value="ca:sum" label="CA total" col="6"></dsfr-data-kpi>
+ *   <dsfr-data-kpi source="src" value="marge:avg" label="Marge" col="3"></dsfr-data-kpi>
+ *   <dsfr-data-kpi source="src" value="count" label="Transactions" col="3"></dsfr-data-kpi>
  * </dsfr-data-kpi-group>
  */
 @customElement('dsfr-data-kpi-group')

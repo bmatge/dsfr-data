@@ -73,7 +73,8 @@ export class DsfrDataContextFilter extends LitElement {
   @property({ type: String })
   ui = '';
 
-  /** Opérateur : eq, in, lt, gte, between */
+  /** Opérateur : eq, in, lt, gte, between — et dates (#230, clauses en plages
+   *  [debut, fin)) : month-of, year-of, lt-day-after, last-n-days, current-year */
   @property({ type: String })
   operator: ContextOperator = 'eq';
 
