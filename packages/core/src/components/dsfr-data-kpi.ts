@@ -275,7 +275,9 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
     if (this.description) return this.description;
 
     const value = this._computeValue();
-    const formattedValue = formatValue(value as number, this.format);
+    // Litteral chaine (value="=87 %") : affiche tel quel, sans formatage numerique
+    const formattedValue =
+      typeof value === 'string' ? value : formatValue(value as number, this.format);
     let label = this.heading
       ? `${this.heading} — ${this.label}: ${formattedValue}`
       : `${this.label}: ${formattedValue}`;
@@ -306,7 +308,9 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
 
   render() {
     const value = this._computeValue();
-    const formattedValue = formatValue(value as number, this.format);
+    // Litteral chaine (value="=87 %") : affiche tel quel, sans formatage numerique
+    const formattedValue =
+      typeof value === 'string' ? value : formatValue(value as number, this.format);
     const colorClass = COLOR_CLASSES[this._getColor()] || COLOR_CLASSES.bleu;
     const tendance = this._getTendanceInfo();
     const resolvedLines = this._resolveLines();
