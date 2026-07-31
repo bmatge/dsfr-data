@@ -1,5 +1,15 @@
 # dsfr-data
 
+## 0.16.1
+
+### Patch Changes
+
+- [#452](https://github.com/bmatge/dsfr-data/pull/452) [`49fde53`](https://github.com/bmatge/dsfr-data/commit/49fde531c36ecd172df7d88f23854b41f2b3353e) Thanks [@bmatge](https://github.com/bmatge)! - Documentation : ajout du README npm du package (la page npmjs était vide) et correction de docstrings — exemples de `dsfr-data-kpi-group` migrés vers la grammaire `value="champ:fn"`, opérateurs de date documentés sur `operator` de `dsfr-data-context-filter`.
+
+- [#452](https://github.com/bmatge/dsfr-data/pull/452) [`49fde53`](https://github.com/bmatge/dsfr-data/commit/49fde531c36ecd172df7d88f23854b41f2b3353e) Thanks [@bmatge](https://github.com/bmatge)! - Licence : ajout du fichier LICENSE (MIT) manquant — il est désormais publié avec le package npm. La licence déclarée reste MIT, comme le DSFR et DSFR Chart.
+
+- [#455](https://github.com/bmatge/dsfr-data/pull/455) [`b9addab`](https://github.com/bmatge/dsfr-data/commit/b9addab9c7a2bcadcc5f8df657b5f9c4949970db) Thanks [@bmatge](https://github.com/bmatge)! - Retrait de la cible desktop Tauri (ADR-070, [#403](https://github.com/bmatge/dsfr-data/issues/403)) : suppression de `src-tauri/`, du workflow « Release Tauri » et de l'export interne `isTauriMode()` de `@dsfr-data/shared` (le proxy ne distingue plus que dev/production). Aucun composant `dsfr-data-*` n'est affecté ; les binaires desktop historiques restent sur les releases GitHub jusqu'à v0.16.0.
+
 ## 0.16.0
 
 ### Minor Changes
