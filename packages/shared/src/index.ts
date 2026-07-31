@@ -70,6 +70,7 @@ export { buildGristHeaders } from './api/grist.js';
 export {
   loadFromStorage,
   saveToStorage,
+  saveToStorageQuiet,
   removeFromStorage,
   STORAGE_KEYS,
 } from './storage/local-storage.js';
