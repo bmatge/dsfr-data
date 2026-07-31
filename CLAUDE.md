@@ -2,7 +2,7 @@
 
 > 📐 **Le détail d'architecture vit dans [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)** (carte de navigation, conventions ADR-053).
 > Ce fichier ne garde que l'opérationnel : stack, commandes, conventions, remotes, release, do/don't.
-> Pour tout ce qui touche au pipeline de composants, au proxy, aux bundles, au beacon, à Tauri, aux pièges
+> Pour tout ce qui touche au pipeline de composants, au proxy, aux bundles, au beacon, aux pièges
 > de build et aux **couplages non-évidents**, lire `docs/ARCHITECTURE.md` AVANT de toucher au code.
 
 ## Contexte du projet
@@ -18,10 +18,9 @@ La bibliotheque npm publiee `dsfr-data` se trouve dans `packages/core/`.
 - **Build** : Vite (lib mode + apps), esbuild ; scripts dans `scripts/`.
 - **Tests** : Vitest (unit, jsdom) + Playwright (E2E).
 - **Charts** : `@gouvfr/dsfr-chart`. Carte : Leaflet (lazy). World-map : d3-geo + topojson.
-- **Desktop** : Tauri v2 (Rust + WebView).
 - **Serveur** : Express + MariaDB 11 (`mysql2/promise`).
 - **Versioning** : Changesets.
-- **Mono** : 7 apps dans `apps/`, lib dans `packages/core/`, partagé dans `packages/shared/`, chrome applicatif dans `packages/app-ui/`.
+- **Mono** : 11 apps dans `apps/`, lib dans `packages/core/`, partagé dans `packages/shared/`, chrome applicatif dans `packages/app-ui/`.
 
 ## Commandes essentielles
 
@@ -36,7 +35,7 @@ npm run build         # Build bibliotheque (delegue a packages/core)
 npm run build:shared  # Build du package shared
 npm run build:apps    # Build de toutes les apps
 npm run build:all     # Build complet (shared + lib + apps)
-npm run build:app     # Assembler app-dist/ pour Tauri
+npm run build:app     # Assembler app-dist/ (racine servie par nginx en deploiement)
 npm run preview       # Preview du build
 
 # Tests
@@ -50,13 +49,9 @@ npx playwright test --config tests/builder-e2e/playwright.config.ts  # Tests exh
 # Lint / garde-fous
 npm run check:accents # Verifie les accents francais dans le HTML (scripts/check-french-accents.sh)
 
-# Tauri
-npm run tauri:dev     # Dev Tauri (app desktop)
-npm run tauri:build   # Build Tauri prod (build:all + build:app + tauri build)
-
 # Release (voir section Versioning)
 npx changeset             # Creer un changeset
-npm run version-packages  # Bumper package.json + CHANGELOG + sync Tauri
+npm run version-packages  # Bumper package.json + CHANGELOG + sync version.ts
 
 # Deploy (plateforme VibeLab — skill vps-spawn)
 ssh vps "spawn up chartsbuilder git@github.com:bmatge/dsfr-data.git --dns api --mail real --keep"
@@ -113,14 +108,14 @@ Le projet utilise [Changesets](https://github.com/changesets/changesets) pour le
 
 **A la release** :
 ```bash
-npm run version-packages    # Bumpe package.json + CHANGELOG.md + sync Tauri (sync-versions:
-                            #   src-tauri/tauri.conf.json + Cargo.toml)
+npm run version-packages    # Bumpe package.json + CHANGELOG.md + sync-versions
+                            #   (packages/core/src/version.ts)
 git add . && git commit -m "chore: release v$(node -p \"require('./package.json').version\")"
 git tag "v$(node -p \"require('./package.json').version\")"
 git push && git push --tags
 ```
 
-**Automatiquement** sur le tag `v*` : `npm-publish.yml` (npm) · `release.yml` (Tauri macOS/Linux/Windows + GitHub Release). NB : le tag poussé par la PR changesets (GITHUB_TOKEN) ne déclenche PAS `release.yml` → `gh workflow run release.yml -f version=vX.Y.Z`. Les sous-repos de distribution (`dsfr-data-grist/proxy/mcp`) sont **archivés depuis 2026-04** — plus de publication séparée ; seul le miroir `mef-snum-miweb/dsfr-data` est synchronisé.
+**Publication npm** : au merge de la PR changesets (`changeset-release.yml`, `release-publish`), qui pousse aussi le tag `v*` (historique/pins ; ne déclenche plus rien — cible desktop Tauri retirée, ADR-070/ADR-095, #403). Les sous-repos de distribution (`dsfr-data-grist/proxy/mcp`) sont **archivés depuis 2026-04** — plus de publication séparée ; seul le miroir `mef-snum-miweb/dsfr-data` est synchronisé.
 
 **CI** : un warning est emis sur les PRs si `packages/core/src/` ou `packages/shared/` sont modifies sans changeset.
 
@@ -152,4 +147,4 @@ git push && git push --tags
 - APIs externes : Grist (docs.getgrist.com, grist.numerique.gouv.fr), Albert IA (albert.api.etalab.gouv.fr), OpenDataSoft (`*.opendatasoft.com`), Tabular (tabular-api.data.gouv.fr), INSEE Melodi (api.insee.fr/melodi).
 - Self-hosting et chemins de proxying : `docs/DEPLOYMENT.md` §"Configuration self-hosted".
 - Docker : `docker compose up -d --build` (volume `beacon-logs` pour persister le monitoring).
-- Detail complet (composants, proxy 3 dimensions, bundles, beacon, Tauri, MariaDB, mcp-server, deploiement) : **`docs/ARCHITECTURE.md`**.
+- Detail complet (composants, proxy, bundles, beacon, MariaDB, mcp-server, deploiement) : **`docs/ARCHITECTURE.md`**.

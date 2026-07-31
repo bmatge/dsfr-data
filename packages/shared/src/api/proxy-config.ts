@@ -1,6 +1,6 @@
 /**
  * Proxy configuration for CORS handling of external APIs
- * Supports dev (Vite proxy), production (external proxy), and Tauri modes
+ * Supports dev (Vite proxy) and production (external proxy) modes
  */
 
 export type ProxyMode = 'dev-relative' | 'remote' | 'direct';
@@ -156,11 +156,6 @@ export function isViteDevMode(): boolean {
   );
 }
 
-/** Detect if running inside Tauri desktop app */
-export function isTauriMode(): boolean {
-  return typeof window !== 'undefined' && '__TAURI__' in window;
-}
-
 function readRuntimeProxy(): string | false | RuntimeProxyConfig | undefined {
   if (typeof window === 'undefined') return undefined;
   return (window as Window & { DSFR_DATA_PROXY?: string | false | RuntimeProxyConfig })
@@ -187,7 +182,7 @@ function stripTrailingSlash(url: string): string {
  * 2. `window.DSFR_DATA_PROXY` (string ou objet) → proxy du site déployeur.
  * 3. Dev Vite de CE repo → chemins relatifs (routes de vite.config.ts).
  * 4. `VITE_PROXY_URL_EMBED`/`VITE_PROXY_URL` injectées au build (déploiement
- *    self-hosted de l'app, Tauri) → proxy distant.
+ *    self-hosted de l'app) → proxy distant.
  * 5. Défaut (consommateur npm/CDN sans configuration) → mode `direct` :
  *    les URLs externes sont fetchées telles quelles, aucun trafic ne
  *    transite par un domaine tiers.
@@ -240,7 +235,7 @@ export function getProxyConfig(override?: string | RuntimeProxyConfig): ProxyCon
     return { baseUrl: '', endpoints, mode: 'dev-relative' };
   }
 
-  // 4. Config injectée au build (app self-hosted, Tauri).
+  // 4. Config injectée au build (app self-hosted).
   //    @deprecated Résolution build-time conservée en fallback temporaire (#340) :
   //    préférer l'attribut `proxy-url` par source ou `window.DSFR_DATA_PROXY`.
   if (PROXY_BASE_URL_EMBED) {

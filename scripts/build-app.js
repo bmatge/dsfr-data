@@ -1,5 +1,5 @@
 /**
- * Script de build pour l'application Tauri
+ * Assemble app-dist/, racine statique du deploiement web (copiee dans nginx)
  * Copie les fichiers HTML, apps et assets dans le dossier app-dist
  *
  * Structure de sortie :

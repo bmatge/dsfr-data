@@ -106,7 +106,7 @@ export interface SourcesState {
 // Constants
 // ============================================================
 
-/** External proxy URL for production / Tauri builds */
+/** External proxy URL for production builds */
 export { PROXY_BASE_URL as EXTERNAL_PROXY } from '@dsfr-data/shared';
 
 // ============================================================

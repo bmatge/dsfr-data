@@ -21,7 +21,7 @@ Le fichier genere sera commite avec le code.
 
 ```bash
 npx changeset version   # Bumpe les versions + genere le CHANGELOG
-npm run sync-versions   # Synchronise Tauri et Cargo.toml
+npm run sync-versions   # Synchronise packages/core/src/version.ts
 git add . && git commit -m "chore: release vX.Y.Z"
 git tag vX.Y.Z
 git push && git push --tags

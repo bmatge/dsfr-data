@@ -265,15 +265,11 @@ Lors de la release, les changesets sont consommes automatiquement pour mettre a 
 Le flux de release s'appuie sur Changesets (voir la section precedente) et comporte une etape manuelle :
 
 1. **Pendant le developpement** : chaque modification notable de `packages/core/` ou `packages/shared/` est accompagnee d'un fichier `.changeset/*.md` commite avec le code.
-2. **Preparation** : `npm run version-packages` consomme les changesets — bump des `package.json`, generation du `CHANGELOG.md`, synchronisation des versions Tauri (`src-tauri/tauri.conf.json` + `Cargo.toml`). Alternativement, le bot Changesets maintient une PR de release qui fait la meme chose.
+2. **Preparation** : `npm run version-packages` consomme les changesets — bump des `package.json`, generation du `CHANGELOG.md`, synchronisation de `packages/core/src/version.ts`. Alternativement, le bot Changesets maintient une PR de release qui fait la meme chose.
 3. **Publication npm** : le merge de la PR de release (workflow `changeset-release.yml`) publie le package `dsfr-data` sur npm et pousse le tag `vX.Y.Z`.
-4. **Release Tauri — dispatch manuel** : le tag pousse par le bot (via `GITHUB_TOKEN`) **ne declenche pas** `release.yml`. Il faut le lancer a la main :
+4. **Synchronisation du miroir** : apres un merge cote interface GitHub, resynchroniser `mef-snum-miweb/dsfr-data` (`git fetch origin` puis push de `refs/remotes/origin/main` vers `refs/heads/main` du miroir) et propager les tags (`git push origin --tags`).
 
-   ```bash
-   gh workflow run release.yml -f version=vX.Y.Z
-   ```
-
-   Le workflow build les binaires desktop sur macOS (ARM + x86), Linux (deb + AppImage) et Windows (NSIS + MSI) et cree la GitHub Release.
+   La release GitHub `dsfr-data@X.Y.Z` (notes changesets) est creee automatiquement au merge de la PR de release. La cible desktop Tauri et sa release `vX.Y.Z` ont ete retirees (ADR-070, #403) — le tag `v*` reste pousse pour l'historique mais ne declenche plus de workflow.
 5. **Synchronisation du miroir** : les merges effectues cote GitHub (PR de release incluse) ne se propagent pas automatiquement au miroir `mef-snum-miweb/dsfr-data`. Apres la release :
 
    ```bash
