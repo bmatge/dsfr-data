@@ -231,7 +231,7 @@ cp .env.example .env
 
 | Variable | Description | Defaut |
 |----------|-------------|--------|
-| `APP_DOMAIN` | Domaine de production (Traefik). A remplacer par votre domaine — l'instance publique actuelle est `chartsbuilder.miweb.run` ; l'ancien defaut `chartsbuilder.matge.com` present dans `.env.example` est **decommissionne** (#353). | votre domaine |
+| `APP_DOMAIN` | Domaine de production (Traefik). A remplacer par votre domaine — l'instance publique de reference est `chartsbuilder.miweb.run`. | votre domaine |
 | `VITE_PROXY_URL` | URL du proxy CORS injectee dans les bundles a la compilation. Generee automatiquement par les scripts `deploy.sh` / `deploy-server.sh` depuis `APP_DOMAIN`. **[REQUISE au build]** — pas de valeur par defaut dans la lib. | aucune |
 | `VITE_LIB_URL` | URL du JS de la lib dans le code genere : `jsdelivr`, `unpkg`, `self`, ou URL custom | `jsdelivr` |
 | `JWT_SECRET` | Cle JWT (mode serveur) | Auto-genere |

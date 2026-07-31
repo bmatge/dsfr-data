@@ -1314,7 +1314,7 @@ Le proxy doit supporter le endpoint SQL en plus de /records :
 // → Aucun changement necessaire si le proxy est configure en wildcard /grist-gouv-proxy/**
 ```
 
-Verifier que le proxy nginx en production (`chartsbuilder.matge.com`) route aussi
+Verifier que le proxy nginx en production (`chartsbuilder.miweb.run`) route aussi
 `/grist-gouv-proxy/api/docs/*/sql` et `/grist-gouv-proxy/api/docs/*/tables/*/columns`.
 
 ### 4.2 Mettre a jour la config provider pour le proxy

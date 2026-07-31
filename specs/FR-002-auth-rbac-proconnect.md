@@ -28,7 +28,7 @@ Le serveur Express dispose deja d'une authentification basique :
 
 **Objectif a terme** : integrer **ProConnect** (DINUM), le SSO de l'Etat base sur **OpenID Connect**, pour permettre aux agents publics de se connecter avec leur identite professionnelle.
 
-**Infrastructure mail** : le VPS dispose d'un serveur SMTP (`docker-mailserver`) sur le reseau Docker `ecosystem-network`, avec DKIM configure pour le domaine `ecosysteme.matge.com`. Pas d'authentification requise depuis le reseau interne.
+**Infrastructure mail** : le VPS dispose d'un serveur SMTP (`docker-mailserver`) sur le reseau Docker `ecosystem-network`, avec DKIM configure pour le domaine `miweb.run`. Pas d'authentification requise depuis le reseau interne.
 
 ## 2. ProConnect : vue d'ensemble
 
@@ -256,7 +256,7 @@ SESSION_INACTIVITY=24h     # Nouveau : deconnexion apres inactivite
 
 Le conteneur `chartsbuilder` est connecte au reseau Docker `ecosystem-network` qui heberge un serveur `docker-mailserver` (conteneur `mailserver`). Ce serveur SMTP :
 - Ecoute sur le port 25 (pas d'auth depuis le reseau interne Docker)
-- Envoie avec DKIM signe pour le domaine `ecosysteme.matge.com`
+- Envoie avec DKIM signe pour le domaine `miweb.run`
 - N'est utilise qu'en envoi (SMTP_ONLY=1)
 
 #### 5.5.2 Module mailer
@@ -273,8 +273,8 @@ const transporter = nodemailer.createTransport({
   tls: { rejectUnauthorized: false },
 });
 
-const FROM = process.env.SMTP_FROM || 'noreply@ecosysteme.matge.com';
-const APP_URL = process.env.APP_URL || 'https://chartsbuilder.matge.com';
+const FROM = process.env.SMTP_FROM || 'noreply@miweb.run';
+const APP_URL = process.env.APP_URL || 'https://chartsbuilder.miweb.run';
 
 export async function sendVerificationEmail(email: string, token: string): Promise<void> {
   const verifyUrl = `${APP_URL}/api/auth/verify-email?token=${token}`;
@@ -455,8 +455,8 @@ PROCONNECT_ENABLED=false                    # Feature flag
 PROCONNECT_CLIENT_ID=...
 PROCONNECT_CLIENT_SECRET=...
 PROCONNECT_ISSUER=https://auth.proconnect.gouv.fr/api/v2
-PROCONNECT_REDIRECT_URI=https://chartsbuilder.matge.com/api/auth/proconnect/callback
-PROCONNECT_POST_LOGOUT_URI=https://chartsbuilder.matge.com/
+PROCONNECT_REDIRECT_URI=https://chartsbuilder.miweb.run/api/auth/proconnect/callback
+PROCONNECT_POST_LOGOUT_URI=https://chartsbuilder.miweb.run/
 PROCONNECT_SCOPES=openid given_name usual_name email uid siret
 ```
 
@@ -892,16 +892,16 @@ JWT_EXPIRY=7d
 # Phase A - SMTP (envoi d'emails via docker-mailserver sur ecosystem-network)
 SMTP_HOST=mailserver
 SMTP_PORT=25
-SMTP_FROM=noreply@ecosysteme.matge.com
-APP_URL=https://chartsbuilder.matge.com
+SMTP_FROM=noreply@miweb.run
+APP_URL=https://chartsbuilder.miweb.run
 
 # Phase C (ProConnect)
 PROCONNECT_ENABLED=false
 PROCONNECT_CLIENT_ID=
 PROCONNECT_CLIENT_SECRET=
 PROCONNECT_ISSUER=https://auth.proconnect.gouv.fr/api/v2
-PROCONNECT_REDIRECT_URI=https://chartsbuilder.matge.com/api/auth/proconnect/callback
-PROCONNECT_POST_LOGOUT_URI=https://chartsbuilder.matge.com/
+PROCONNECT_REDIRECT_URI=https://chartsbuilder.miweb.run/api/auth/proconnect/callback
+PROCONNECT_POST_LOGOUT_URI=https://chartsbuilder.miweb.run/
 PROCONNECT_SCOPES=openid given_name usual_name email uid siret
 ```
 
@@ -915,7 +915,7 @@ PROCONNECT_SCOPES=openid given_name usual_name email uid siret
 | Processus DataPass long | Moyen | L'auth locale couvre 100% des besoins en attendant |
 | Rate limiting trop agressif | Faible | Seuils configurables, whitelist IP admin |
 | SMTP indisponible (mailserver down) | Moyen | L'inscription echoue gracieusement (500 + message). L'admin est exempt (pas de verification). Retry possible via resend-verification |
-| Email en spam | Faible | DKIM configure sur `ecosysteme.matge.com`. Domaine deja utilise par g3 |
+| Email en spam | Faible | DKIM configure sur `miweb.run`. Domaine deja utilise par g3 |
 
 ## 14. Criteres d'acceptation
 

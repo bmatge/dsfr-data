@@ -693,7 +693,7 @@ divergences réelles. Le fix du double-init n'existe que dans join.
 ### H5. Proxy par défaut baké + partition officielle lib/app de shared
 - **Gravité** : sécurité/souveraineté + architecture (P0/P1), vérifié.
 - **Constats** :
-  - `PROXY_BASE_URL` retombe sur `https://chartsbuilder.matge.com`
+  - `PROXY_BASE_URL` retombe sur l'URL d'une ancienne instance
     (`proxy-config.ts:45-46`), présent 2× dans les bundles publiés : sans
     `VITE_*` au build, tout le trafic Tabular/Grist/INSEE/Albert d'un site
     tiers transite par ce domaine personnel (URL cible en `X-Target-URL`).
@@ -856,7 +856,7 @@ ci-dessus (A7, E5, G7, H4, H5, epic J). Synthèse :
    de connexion, `/api/cache`, `/api/monitoring`, toasts. Causes : exports
    `layout/` + import `isAuthenticated` dans `dsfr-data-source` + barrel unique
    de shared sans champ `sideEffects`. → renforce **H1/H2**
-3. **`chartsbuilder.matge.com` baké en défaut dans les bundles** (2 occurrences
+3. **URL d'ancienne instance bakée en défaut dans les bundles** (2 occurrences
    vérifiées) : sans variables `VITE_*` au build, `getProxiedUrl()` réécrit tout
    le trafic Tabular/Grist/INSEE/Albert vers ce domaine personnel, avec l'URL
    cible en header `X-Target-URL`. Et `isViteDevMode()` traite tout

@@ -65,8 +65,8 @@ services:
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - SMTP_HOST=${SMTP_HOST:-mailserver}
       - SMTP_PORT=${SMTP_PORT:-25}
-      - SMTP_FROM=${SMTP_FROM:-noreply@ecosysteme.matge.com}
-      - APP_URL=${APP_URL:-https://chartsbuilder.matge.com}
+      - SMTP_FROM=${SMTP_FROM:-noreply@miweb.run}
+      - APP_URL=${APP_URL:-https://chartsbuilder.miweb.run}
       # Déploiement derrière un reverse proxy externe. Vides par défaut →
       # comportement inchangé (trust proxy 'loopback', vérification email ON).
       - TRUST_PROXY=${TRUST_PROXY:-}

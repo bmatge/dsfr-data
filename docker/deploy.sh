@@ -21,8 +21,8 @@ echo ""
 if [ ! -f .env ]; then
   : > .env
 fi
-DEFAULT_DOMAIN=$(grep -E "^APP_DOMAIN=" .env | cut -d= -f2- || echo "chartsbuilder.matge.com")
-DEFAULT_DOMAIN=${DEFAULT_DOMAIN:-chartsbuilder.matge.com}
+DEFAULT_DOMAIN=$(grep -E "^APP_DOMAIN=" .env | cut -d= -f2- || echo "chartsbuilder.miweb.run")
+DEFAULT_DOMAIN=${DEFAULT_DOMAIN:-chartsbuilder.miweb.run}
 if ! grep -q "^VITE_PROXY_URL=" .env; then
   echo "VITE_PROXY_URL=https://${DEFAULT_DOMAIN}" >> .env
   echo -e "${GREEN}VITE_PROXY_URL=https://${DEFAULT_DOMAIN} ajoute${NC}"
@@ -46,4 +46,4 @@ echo ""
 echo "Status:"
 docker compose --env-file .env -f docker/docker-compose.yml ps
 echo ""
-echo "URL: https://${APP_DOMAIN:-chartsbuilder.matge.com}"
+echo "URL: https://${APP_DOMAIN:-chartsbuilder.miweb.run}"

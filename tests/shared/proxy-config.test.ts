@@ -104,7 +104,7 @@ describe('proxy-config', () => {
     });
 
     it('should return false on production hostname', () => {
-      withLocation({ hostname: 'chartsbuilder.matge.com', port: '' }, () => {
+      withLocation({ hostname: 'chartsbuilder.miweb.run', port: '' }, () => {
         expect(isViteDevMode()).toBe(false);
       });
     });

@@ -116,4 +116,4 @@ La référence exhaustive de chaque composant (attributs, valeurs, défauts, exe
 
 ## Licence
 
-MIT.
+[Licence Ouverte / Open Licence 2.0](https://www.etalab.gouv.fr/licence-ouverte-open-licence) (Etalab) — réutilisation libre, y compris commerciale, sous réserve de mention de la paternité. Texte complet dans [LICENSE](LICENSE).

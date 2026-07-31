@@ -703,7 +703,7 @@ Le repo s'appelle `dsfr-data` mais le projet Docker historique s'appelle `dataso
 > **Le cœur de cette carte** ([ADR-053]). Ce qu'on oublie en touchant le code et qui casse à distance.
 > Liens `chemin:ligne` sans code copié — vérifier la source si un numéro a glissé.
 
-- **Piège `import.meta.env` (substitution statique Vite)** — `packages/shared/src/api/proxy-config.ts:74` (et `:84`, `:94`, `:107`, `:149`). Vite substitue `import.meta.env.VITE_*` par **string-matching** à la compilation. Toute indirection (`const m = import.meta as any; m.env.VITE_PROXY_URL`) **casse le match silencieusement** → le bundle embarque l'ancienne valeur en dur (`chartsbuilder.matge.com` a fui pendant des mois ; corrigé par PR #172, epic #168). **Toujours** accès direct `import.meta.env.VITE_*`. Cf. ADR-026.
+- **Piège `import.meta.env` (substitution statique Vite)** — `packages/shared/src/api/proxy-config.ts:74` (et `:84`, `:94`, `:107`, `:149`). Vite substitue `import.meta.env.VITE_*` par **string-matching** à la compilation. Toute indirection (`const m = import.meta as any; m.env.VITE_PROXY_URL`) **casse le match silencieusement** → le bundle embarque l'ancienne valeur en dur (l'URL d'une ancienne instance a fui pendant des mois ; corrigé par PR #172, epic #168). **Toujours** accès direct `import.meta.env.VITE_*`. Cf. ADR-026.
 
 - **Cascade proxy 3 dimensions** — `proxy-config.ts:74-94`. `BEACON_BASE_URL = VITE_BEACON_URL || (PROXY_BASE_URL_EMBED = VITE_PROXY_URL_EMBED || (PROXY_BASE_URL = VITE_PROXY_URL))`. Aucune régression sans changement `.env` explicite (#180). Si tu modifies une variable, vérifie l'effet en cascade sur les deux dimensions en aval.
 
@@ -717,7 +717,7 @@ Le repo s'appelle `dsfr-data` mais le projet Docker historique s'appelle `dataso
 
 - **`check:accents` matchait dans le CHANGELOG généré** — `scripts/check-french-accents.sh` (pré-filtre `git grep`, exclusions ligne 109 ex. `grist.numerique.gouv.fr`). Garde-fou CI : le script peut produire des faux positifs sur du contenu généré (CHANGELOG, sous-repos). Si un nouveau fichier généré contient des mots ciblés, ajouter une exclusion plutôt que de désactiver le check.
 
-- **Validation empirique post-build (anti-fuite d'URL)** — après **tout** changement touchant proxy/URL/dimensions/beacon : `grep` les bundles produits dans `packages/core/dist/` pour vérifier qu'**aucune URL ne fuit dans la mauvaise dimension** (ex. une URL embed dans le bundle runtime, ou l'inverse). C'est le seul moyen fiable d'attraper une régression de substitution Vite (cf. premier point). Décommission `chartsbuilder.matge.com` (#353) : vérifier qu'aucun bundle/`.env` ne le référence avant de couper.
+- **Validation empirique post-build (anti-fuite d'URL)** — après **tout** changement touchant proxy/URL/dimensions/beacon : `grep` les bundles produits dans `packages/core/dist/` pour vérifier qu'**aucune URL ne fuit dans la mauvaise dimension** (ex. une URL embed dans le bundle runtime, ou l'inverse). C'est le seul moyen fiable d'attraper une régression de substitution Vite (cf. premier point). Décommission d'un ancien domaine (#353) : vérifier qu'aucun bundle/`.env` ne le référence avant de couper.
 
 ---
 

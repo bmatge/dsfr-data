@@ -8,7 +8,7 @@ import type { Transporter } from 'nodemailer';
 
 let transporter: Transporter | null = null;
 
-const FROM = () => process.env.SMTP_FROM || 'noreply@ecosysteme.matge.com';
+const FROM = () => process.env.SMTP_FROM || 'noreply@miweb.run';
 
 /**
  * Base URL utilisée dans les liens des emails (verification, reset password,

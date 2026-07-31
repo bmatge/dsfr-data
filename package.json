@@ -55,7 +55,7 @@
     "lit"
   ],
   "author": "",
-  "license": "MIT",
+  "license": "etalab-2.0",
   "overrides": {
     "qs": "6.15.2",
     "esbuild": "^0.28.1",

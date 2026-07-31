@@ -718,7 +718,7 @@ Remplace les 20+ URLs hardcodees dans :
 
 ### 2.9 Critere de validation
 
-- `grep -r 'chartsbuilder.matge.com'` ne retourne que `proxy-config.ts` + Vite configs (necessaire pour dev)
+- `grep -r 'chartsbuilder.miweb.run'` ne retourne que `proxy-config.ts` + Vite configs (necessaire pour dev)
 - `grep -r 'cdn.jsdelivr.net'` ne retourne que `cdn-versions.ts` (1 source de verite)
 - `npm run test:run` passe sans regression
 - `npm run build:all` reussit

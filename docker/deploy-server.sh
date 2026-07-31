@@ -63,8 +63,8 @@ fi
 # Variables requises au build front (cf. issue #168 PR-3). Generees a partir
 # de APP_DOMAIN pour preserver le deploiement de reference. Un opérateur tiers
 # qui veut un domaine arbitraire les fixe lui-meme avant de lancer ce script.
-DEFAULT_DOMAIN=$(grep -E "^APP_DOMAIN=" .env | cut -d= -f2- || echo "chartsbuilder.matge.com")
-DEFAULT_DOMAIN=${DEFAULT_DOMAIN:-chartsbuilder.matge.com}
+DEFAULT_DOMAIN=$(grep -E "^APP_DOMAIN=" .env | cut -d= -f2- || echo "chartsbuilder.miweb.run")
+DEFAULT_DOMAIN=${DEFAULT_DOMAIN:-chartsbuilder.miweb.run}
 if ! grep -q "^VITE_PROXY_URL=" .env; then
   echo "VITE_PROXY_URL=https://${DEFAULT_DOMAIN}" >> .env
   echo -e "${GREEN}VITE_PROXY_URL=https://${DEFAULT_DOMAIN} ajoute${NC}"
@@ -111,7 +111,7 @@ echo ""
 echo "Status:"
 $COMPOSE ps
 echo ""
-echo "URL: https://${APP_DOMAIN:-chartsbuilder.matge.com}"
+echo "URL: https://${APP_DOMAIN:-chartsbuilder.miweb.run}"
 echo ""
 echo "Le premier utilisateur enregistre recevra le role admin."
 echo "Inscription: cliquer sur 'Connexion' dans le header de l'app."
