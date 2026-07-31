@@ -650,12 +650,17 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     // Report bounds for fit-bounds — par cle de layer, remplacement a
     // chaque rendu (#294)
     if (this._mapParent?.fitBounds) {
-      const layerBounds = (this._clusterGroup || this._layerGroup).getBounds?.();
+      // Une couche decorative (no-interactive : contours administratifs,
+      // habillage) ne pilote pas le viewport — son emprise (France entiere)
+      // empecherait le fit de suivre les donnees filtrees.
+      const layerBounds = this.noInteractive
+        ? null
+        : (this._clusterGroup || this._layerGroup).getBounds?.();
       if (layerBounds?.isValid?.()) {
         this._mapParent.registerLayerBounds(this._boundsKey, layerBounds);
       } else {
-        // Couche devenue vide (filtrage amont) : liberer ses bounds, sinon
-        // l'ancienne emprise fausse le fit des rendus suivants
+        // Couche devenue vide (filtrage amont) ou decorative : liberer ses
+        // bounds, sinon l'ancienne emprise fausse le fit des rendus suivants
         this._mapParent.unregisterLayerBounds(this._boundsKey);
       }
     }
