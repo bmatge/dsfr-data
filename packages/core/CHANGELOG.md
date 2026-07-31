@@ -1,5 +1,11 @@
 # dsfr-data
 
+## 0.16.0
+
+### Minor Changes
+
+- [#449](https://github.com/bmatge/dsfr-data/pull/449) [`588b4d6`](https://github.com/bmatge/dsfr-data/commit/588b4d6157239fc993651db49c7b3a01b5056fa3) Thanks [@bmatge](https://github.com/bmatge)! - `dsfr-data-kpi` (et la famille `formatValue` partagée) : nouveau format `compact` — notation compacte fr-FR (`14 785 684` → « 14,8 M », `6 676` → « 6,7 k ») pour les grands chiffres des tuiles KPI.
+
 ## 0.15.1
 
 ### Patch Changes
