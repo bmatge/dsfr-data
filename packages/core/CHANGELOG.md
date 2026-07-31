@@ -1,5 +1,11 @@
 # dsfr-data
 
+## 0.14.3
+
+### Patch Changes
+
+- [#441](https://github.com/bmatge/dsfr-data/pull/441) [`bdf1bf8`](https://github.com/bmatge/dsfr-data/commit/bdf1bf8a44f32e2950b2ae1bd00ef8cbc1085417) Thanks [@bmatge](https://github.com/bmatge)! - `dsfr-data-map` : le `fit-bounds` s'applique sans animation — le zoom animé de Leaflet était régulièrement annulé (re-rendu des couches, compagnons hors-carte) et laissait la vue inchangée après un filtrage multiselect.
+
 ## 0.14.2
 
 ### Patch Changes
