@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-scheme="system">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Carte des territoires d'électrification (v2)</title>
+  <!-- DSFR -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css" integrity="sha384-atVZ+aK6VI0nWyTEhKgze5InDJ+SWRRqa0BCZ2MTNyoOcBiHj1c3dGPdi6ML65B3" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css" integrity="sha384-5P5DFFqorcEBpfnK9WHu/Ralfr7ZxyCZh0ryaJbgucSvc71+qRYdGvNEcyMqQwa/" crossorigin="anonymous">
+  <!-- Leaflet : charge dynamiquement par dsfr-data.umd.js - NE PAS inclure manuellement -->
+  <!-- dsfr-data : epingle en exact @0.15.0 + SRI (les encarts exigent >= 0.14.0 et l'URL
+       flottante @0 est cachee 7 jours par les navigateurs — un visiteur du jour verrait
+       l'ancien bundle sans les encarts). Bundle complet (core + map).
+       Requiert >= 0.15.0 : encarts DROM (#431), fit-bounds clippe (#439),
+       couches decoratives shape-class/no-interactive et KPI litteral (#443).
+       Major flottant : pas de SRI (cf. check:sri). -->
+  <script src="https://cdn.jsdelivr.net/npm/dsfr-data@0.15.0/dist/dsfr-data.umd.js" integrity="sha384-BBythqgFOo9hhs8K7Oh7gc6V6ydiCYq8/kSh7D2cputmlOayaPlBTkgQKwqWVWhE" crossorigin="anonymous"></script>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.module.min.js" integrity="sha384-gPgRd2+olihO/srZe/Bqw6iVLiiaL7meuri1d5YVMejwPXg7VehLSBeORYq9yh2F" crossorigin="anonymous"></script>
+
+  <style>
+    /* Habillage à la marge : légende de la carte + volet d'information */
+    .map-legend { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; align-items: center; }
+    .map-legend .dot { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; margin-right: .4rem; vertical-align: -.1rem; }
+    .dot--epci { background: #000091; }
+    .dot--groupement { background: #00A95F; }
+    .dot--commune { background: #E4794A; }
+
+    .tp .sect { font-size: .75rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+      color: var(--text-mention-grey); margin: 1.25rem 0 .5rem;
+      border-bottom: 1px solid var(--border-default-grey); padding-bottom: .25rem; }
+    .tp .sect:first-of-type { margin-top: .75rem; }
+    .tp .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem .75rem; }
+    .tp .cell .v { display: block; font-size: 1.375rem; font-weight: 700; color: var(--text-title-blue-france); line-height: 1.2; }
+    .tp .cell .k { display: block; font-size: .75rem; color: var(--text-default-grey); }
+    .tp .bar-row { display: flex; justify-content: space-between; font-size: .8125rem; margin: .5rem 0 .2rem; }
+    .tp .bar-row .bv { font-weight: 700; }
+    .tp .bar { height: .375rem; background: var(--background-contrast-grey); border-radius: .375rem; overflow: hidden; }
+    .tp .bar .fill { height: 100%; border-radius: .375rem; background: var(--background-action-high-blue-france); }
+    .tp .bar .fill--warm { background: var(--orange-terre-battue-main-645, #B34000); }
+    .tp .bar .fill--green { background: var(--green-emeraude-main-632, #00A95F); }
+    .tp .mention { font-size: .75rem; color: var(--text-mention-grey); margin-top: 1rem; }
+    .tp .cell .src { display: block; font-size: .6875rem; color: var(--text-mention-grey); margin-top: .15rem; }
+    /* Tokens des badges accent DSFR (adaptes automatiquement au mode sombre) */
+    .badge-EPCI { background: var(--background-contrast-blue-cumulus); color: var(--text-label-blue-cumulus); }
+    .badge-Groupement { background: var(--background-contrast-green-emeraude); color: var(--text-label-green-emeraude); }
+    .badge-Commune { background: var(--background-contrast-orange-terre-battue); color: var(--text-label-orange-terre-battue); }
+
+    /* KPIs alignes par le haut (les chiffres restent sur la meme ligne,
+       quel que soit le nombre de lignes du libelle) */
+    dsfr-data-kpi .dsfr-data-kpi { justify-content: flex-start !important; align-items: flex-start !important; }
+    dsfr-data-kpi .dsfr-data-kpi__content { margin: 0 !important; }
+
+    /* Hachures des candidats a ciblage ulterieur (reduire_taille=1) */
+    .territoire-hachure { fill: url(#motif-hachures); }
+    .legend-hachure-swatch { display: inline-block; width: 1.1rem; height: .85rem; border: 1px solid var(--green-emeraude-main-632, #00A95F); border-radius: .15rem; vertical-align: -.15rem; margin-right: .4rem;
+      background: repeating-linear-gradient(45deg, transparent 0 3px, var(--green-emeraude-main-632, #00A95F) 3px 5px); }
+
+    /* Encarts DROM (dsfr-data-map-inset) */
+    #carte { display: flow-root; }
+    dsfr-data-map-inset { float: left; width: calc(20% - .6rem); margin: .75rem .75rem 0 0; }
+    dsfr-data-map-inset:last-of-type { margin-right: 0; }
+    dsfr-data-map-inset > dsfr-data-map { display: block; border: 1px solid var(--border-default-grey); border-radius: .25rem; overflow: hidden; }
+    /* DROM sans territoire engagé : grisés, non cliquables */
+    .inset--empty { filter: grayscale(1); opacity: .45; pointer-events: none; }
+
+    /* Recherche de la liste : libelle visible au-dessus du champ, export a droite */
+    dsfr-data-list .dsfr-data-list__toolbar { display: flex; align-items: flex-end; justify-content: space-between; }
+    dsfr-data-list .fr-search-bar { flex-wrap: wrap; max-width: 320px; }
+    dsfr-data-list .fr-search-bar .fr-label {
+      position: static; width: 100%; height: auto; margin: 0 0 .5rem; padding: 0;
+      clip: auto; clip-path: none; overflow: visible; white-space: normal;
+    }
+    dsfr-data-list .fr-search-bar .fr-input { flex: 1 1 0; width: auto; min-width: 0; }
+  </style>
+</head>
+<body>
+  <main class="fr-container fr-py-3w">
+
+    <!-- Page destinee a etre incorporee : pas de h1 propre, on demarre au h2 -->
+    <h2 class="fr-h4 fr-mb-1w">100 Territoires d'électrification</h2>
+    <p class="fr-text--lead fr-mb-2w">Au terme d'un processus conduit par les préfets et le Secrétariat général
+      pour la planification écologique, 108 territoires qui s'engagent à accélérer
+      l'électrification des usages ont été désignés et bénéficieront jusqu'en 2030 d'un accompagnement renforcé.</p>
+
+    <div class="fr-callout fr-mb-3w">
+      <p class="fr-callout__text fr-text--sm">Parmi les 196 candidatures examinées par les préfets et le Secrétariat général pour
+        la planification écologique, 108 territoires d'électrification ont été retenus afin de permettre un
+        accompagnement de qualité des projets ambitieux sur lesquels ils s'engagent. Portés par des exécutifs
+        locaux dynamiques, ces projets peuvent concerner, selon les cas, l'électrification des transports, le
+        développement de bornes de recharges pour véhicules électriques, la sortie du chauffage au fioul ou au
+        gaz dans les bâtiments publics ou les logements, la planification du décommissionnement du réseau public de gaz
+        ou encore le soutien à l'électrification d'artisans ou d'industriels.
+        Des feuilles de route pour chacun de ces territoires seront formalisées d'ici le mois d'octobre,
+        afin de préciser et d'opérationnaliser ces engagements. L'accompagnement proposé pour mettre en
+        œuvre ces feuilles de route sera coordonné localement par les préfets avec l'appui de l'ADEME,
+        et sera adapté à chaque situation pour mobiliser efficacement tous les acteurs et dispositifs
+        pertinents.</p>
+    </div>
+
+    <!-- ====================================================================
+         CARTE DES TERRITOIRES — snippet 100 % déclaratif dsfr-data (>= 0.13.0)
+         Données : table Territoires du Baromètre (Grist DINUM), via le proxy CORS
+         ChartsBuilder. L'adapter Grist aplatit records[].fields automatiquement.
+         Les contours sont dans une colonne Text `geojson` (chaîne) : geo-field
+         les parse nativement depuis la 0.13.0. Le formatage fr-FR du volet
+         utilise {{champ:number}} (même syntaxe que dsfr-data-display).
+         Pipeline : source(grist) -> normalize(compute irve_total) -> facets(type, region)
+                    -> query(type neq/eq Commune) -> carte contours + carte POI communes
+                    (+ encarts) ; liste sur le flux facette. KPI sur le flux non filtre.
+         ==================================================================== -->
+    <dsfr-data-source id="territoires-src" api-type="grist"
+      base-url="https://chartsbuilder.miweb.run/grist-gouv-proxy/api/docs/jGd2ge4dy2ZM/tables/Territoires/records">
+    </dsfr-data-source>
+
+    <!-- Enrichissement déclaratif : total IRVE -->
+    <dsfr-data-normalize id="territoires" source="territoires-src"
+      compute="irve_total = irve_normales + irve_rapides">
+    </dsfr-data-normalize>
+
+    <!-- Chiffres clés -->
+    <dsfr-data-kpi-group cols="4">
+      <dsfr-data-kpi source="territoires" value="nb_communes:sum" label="Communes couvertes"></dsfr-data-kpi>
+      <dsfr-data-kpi value="=87 %" label="des communes couvertes sont rurales"></dsfr-data-kpi>
+      <dsfr-data-kpi source="territoires" value="population:sum" label="Habitants couverts"></dsfr-data-kpi>
+      <dsfr-data-kpi value="=667" label="Engagements prévisionnels recensés"></dsfr-data-kpi>
+    </dsfr-data-kpi-group>
+
+    <!-- Filtres a facettes : agissent sur la carte, les encarts et la liste (aval du pipeline) -->
+    <div class="fr-mt-3w">
+      <dsfr-data-facets id="territoires-filtres" source="territoires"
+        fields="region"
+        labels="region:Région"
+        display="region:multiselect"
+        cols="region:4"
+        sort="alpha">
+      </dsfr-data-facets>
+    </div>
+
+    <!-- Contours des regions (fichier statique du repo, simplifie — habillage decoratif) -->
+    <dsfr-data-source id="contours-regions" url="/guide/examples/data/regions-simplifiees.geojson"
+      transform="features"></dsfr-data-source>
+
+    <!-- Scission du flux filtre : les communes (etendue trop faible pour etre visible
+         en trace) sont rendues en POI, le reste en contours -->
+    <dsfr-data-query id="territoires-polys" source="territoires-filtres"
+      where="type:neq:Commune"></dsfr-data-query>
+    <!-- Candidats a ciblage EPCI ulterieur : rendus hachures -->
+    <dsfr-data-query id="territoires-polys-pleins" source="territoires-polys"
+      where="reduire_taille:neq:1"></dsfr-data-query>
+    <dsfr-data-query id="territoires-polys-hachures" source="territoires-polys"
+      where="reduire_taille:eq:1"></dsfr-data-query>
+    <dsfr-data-query id="territoires-communes" source="territoires-filtres"
+      where="type:eq:Commune"></dsfr-data-query>
+
+    <!-- Légende -->
+    <div class="map-legend fr-text--sm fr-mt-3w fr-mb-1w">
+      <span><span class="dot dot--epci"></span>EPCI</span>
+      <span><span class="dot dot--groupement"></span>Groupements</span>
+      <span><span class="dot dot--commune"></span>Communes</span>
+      <span class="fr-text--xs fr-text-mention--grey">Survolez un territoire pour son nom, cliquez pour le détail.</span>
+    </div>
+    <p class="fr-text--xs fr-text-mention--grey fr-mb-1w"><span class="legend-hachure-swatch" aria-hidden="true"></span>En
+      hachuré, les candidats pour lesquels un ciblage à l'échelle de quelques EPCI aura lieu lors des phases ultérieures.</p>
+
+    <!-- Carte : les contours GeoJSON (colonne Text Grist) sont lus tels quels par geo-field -->
+    <dsfr-data-map id="carte" center="46.5,2.6" zoom="6" min-zoom="3" height="620px" tiles="carto-positron"
+      fit-bounds max-bounds="38.5,-13,54,15"
+      name="Carte des territoires d'électrification">
+      <!-- Habillage : contours des regions (decoratif, sous les donnees) -->
+      <dsfr-data-map-layer source="contours-regions" type="geoshape"
+        geo-field="geometry" no-interactive
+        color="#7b7b7b" fill-opacity="0"></dsfr-data-map-layer>
+
+      <dsfr-data-map-layer source="territoires-polys-pleins" type="geoshape"
+        geo-field="geojson"
+        color-field="type"
+        color-map="EPCI:#000091,Groupement:#00A95F"
+        fill-opacity="0.55"
+        tooltip-field="nom"></dsfr-data-map-layer>
+
+      <!-- Candidats a ciblage EPCI ulterieur : hachures (motif SVG en fin de page) -->
+      <dsfr-data-map-layer source="territoires-polys-hachures" type="geoshape"
+        geo-field="geojson"
+        color-field="type"
+        color-map="EPCI:#000091,Groupement:#00A95F"
+        fill-opacity="0.55" shape-class="territoire-hachure"
+        tooltip-field="nom"></dsfr-data-map-layer>
+
+      <!-- Communes : POI (pastille) sur lat/lon, leur trace est invisible a l'echelle nationale -->
+      <dsfr-data-map-layer source="territoires-communes" type="circle"
+        lat-field="lat" lon-field="lon"
+        radius="8" color="#E4794A" fill-opacity="0.8"
+        tooltip-field="nom"></dsfr-data-map-layer>
+
+      <!-- Volet d'information : formatage fr-FR via {{champ:number}} -->
+      <dsfr-data-map-popup mode="panel-right" title-field="nom" width="400px">
+        <template>
+          <div class="tp">
+            <p class="fr-mb-1v">
+              <span class="fr-badge fr-badge--sm badge-{{type}}">{{type}}</span>
+              <span class="fr-badge fr-badge--sm">{{region}}</span>
+            </p>
+            <p class="fr-text--sm fr-mb-0">{{departements_tous}}</p>
+
+            <p class="sect">Territoire</p>
+            <div class="grid2">
+              <div class="cell"><span class="v">{{nb_communes}}</span><span class="k">communes</span></div>
+              <div class="cell"><span class="v">{{population:number}}</span><span class="k">habitants</span></div>
+            </div>
+            <p class="sect">Chauffage des logements (INSEE&nbsp;2022)</p>
+            <div class="bar-row"><span class="bl">Rés. principales au fioul · {{rp_fioul_nb:number}}</span><span class="bv">{{rp_fioul_pct:number}}&nbsp;%</span></div>
+            <div class="bar"><div class="fill fill--warm" style="width:{{rp_fioul_pct}}%"></div></div>
+            <div class="bar-row"><span class="bl">Rés. principales au gaz · {{rp_gaz_nb:number}}</span><span class="bv">{{rp_gaz_pct:number}}&nbsp;%</span></div>
+            <div class="bar"><div class="fill" style="width:{{rp_gaz_pct}}%"></div></div>
+
+            <p class="sect">Mobilité électrique</p>
+            <div class="grid2">
+              <div class="cell"><span class="v">{{vp_elec_pct:number}}&nbsp;%</span><span class="k">du parc en électrique ({{vp_elec_nb:number}} véhicules)</span><span class="src">SDES, fin&nbsp;2025</span></div>
+              <div class="cell"><span class="v">{{irve_total:number}}</span><span class="k">points de charge, dont {{irve_rapides}} rapides</span><span class="src">Avere, avril&nbsp;2026</span></div>
+            </div>
+
+          </div>
+        </template>
+      </dsfr-data-map-popup>
+
+      <!-- Encarts DROM : couches et volet herites de la carte
+           hote, presets territoriaux (surcharge du cadrage Guyane sur la CA du Centre Littoral).
+           Equivalent raccourci : <dsfr-data-map insets="drom"> -->
+      <dsfr-data-map-inset territory="guadeloupe" zoom="8"></dsfr-data-map-inset>
+      <dsfr-data-map-inset territory="martinique" zoom="8"></dsfr-data-map-inset>
+      <dsfr-data-map-inset territory="guyane"></dsfr-data-map-inset>
+      <dsfr-data-map-inset territory="la-reunion" zoom="8"></dsfr-data-map-inset>
+      <dsfr-data-map-inset territory="mayotte" zoom="9"></dsfr-data-map-inset>
+    </dsfr-data-map>
+
+    <!-- Tableau de données -->
+    <h2 class="fr-h5 fr-mt-4w fr-mb-1w">Liste des territoires</h2>
+    <dsfr-data-list source="territoires-filtres"
+      columns="nom:Territoire, type:Type, region:Région, departements_tous:Département(s), nb_communes:Communes, population:Population"
+      search
+      sort="nom:asc"
+      pagination="10"
+      export="csv"></dsfr-data-list>
+
+    <div class="fr-text--xs fr-text-mention--grey fr-mt-3w">
+      <p class="fr-mb-1v"><b>Sources</b> :
+        niveau de ruralité des communes&nbsp;: INSEE, Grille de densité 2025 ·
+        part des résidences principales chauffées au fioul et au gaz&nbsp;: INSEE, recensement 2022 ·
+        parc de véhicules électriques&nbsp;: SDES ·
+        nombre de points de recharge&nbsp;: Baromètre Avere.</p>
+    </div>
+
+    <!-- Motif SVG des hachures (reference par .territoire-hachure) -->
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+      <defs>
+        <pattern id="motif-hachures" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">
+          <rect width="6" height="6" fill="#00A95F" fill-opacity="0.18"></rect>
+          <line x1="0" y1="0" x2="0" y2="6" stroke="#00A95F" stroke-width="2.5"></line>
+        </pattern>
+      </defs>
+    </svg>
+  </main>
+</body>
+</html>
