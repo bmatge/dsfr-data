@@ -1,5 +1,11 @@
 # dsfr-data
 
+## 0.15.1
+
+### Patch Changes
+
+- [#446](https://github.com/bmatge/dsfr-data/pull/446) [`ca85ca2`](https://github.com/bmatge/dsfr-data/commit/ca85ca2040032a761e7021c06c8396cbeb35f5d3) Thanks [@bmatge](https://github.com/bmatge)! - `dsfr-data-map-layer` : une couche décorative (`no-interactive`) n'enregistre plus son emprise dans le `fit-bounds` de la carte — un fond de contours administratifs (France entière) empêchait le zoom automatique de suivre les données filtrées.
+
 ## 0.15.0
 
 ### Minor Changes
