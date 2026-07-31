@@ -11,7 +11,7 @@ vi.mock('@dsfr-data/shared', () => ({
   navigateTo: vi.fn(),
   confirmDialog: vi.fn(),
   getApiAdapter: vi.fn(() => null),
-  PROXY_BASE_URL: 'https://chartsbuilder.matge.com',
+  PROXY_BASE_URL: 'https://chartsbuilder.miweb.run',
   LIB_URL: 'https://cdn.jsdelivr.net/npm/dsfr-data@0/dist',
   CDN_URLS: {
     dsfrCss: 'https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css',

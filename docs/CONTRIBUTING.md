@@ -20,13 +20,17 @@ Le projet est organise en workspaces npm :
 ```
 packages/core/       Bibliotheque de Web Components, publiee sur npm sous le nom `dsfr-data`
 packages/shared/     Utilitaires partages (`@dsfr-data/shared`)
-apps/                Applications web (builder, dashboard, playground, etc.)
+packages/app-ui/     Chrome applicatif (`@dsfr-data/app-ui` : header, footer, layouts) — builde en premier par `build:apps`
+apps/                Les 11 applications web (admin, builder, builder-carto, builder-ia,
+                     dashboard, favorites, grist-widgets, monitoring, pipeline-helper,
+                     playground, sources)
 server/              Backend Express (API, auth, MariaDB)
 mcp-server/          Serveur MCP (hors workspace, installation separee)
 ```
 
 - **`packages/core/`** contient les composants Lit (`dsfr-data-source`, `dsfr-data-chart`, etc.) et les adapters API. C'est le code publie sur npm.
-- **`packages/shared/`** contient les utilitaires communs (proxy, palettes, formatage, storage, navigation).
+- **`packages/shared/`** contient les utilitaires communs (proxy, palettes, formatage, storage, navigation). Depuis core, seule l'entree lib-safe `@dsfr-data/shared/lib` est autorisee (#319).
+- **`packages/app-ui/`** contient les composants `app-*` du chrome applicatif, partages par les apps et exclus de la lib npm.
 - **`apps/`** contient les applications front-end, chacune avec son propre `package.json` et `vite.config.ts`.
 - **`server/`** contient le backend Express avec MariaDB, l'authentification et les API.
 - **`mcp-server/`** est un package independant (pas dans `workspaces` du `package.json` racine). Il a son propre `package-lock.json` et `node_modules`.
@@ -49,12 +53,16 @@ Chaque app peut etre developpee independamment :
 
 ```bash
 npm run dev --workspace=@dsfr-data/app-builder
+npm run dev --workspace=@dsfr-data/app-builder-carto
 npm run dev --workspace=@dsfr-data/app-builder-ia
 npm run dev --workspace=@dsfr-data/app-dashboard
 npm run dev --workspace=@dsfr-data/app-sources
 npm run dev --workspace=@dsfr-data/app-playground
 npm run dev --workspace=@dsfr-data/app-favorites
 npm run dev --workspace=@dsfr-data/app-monitoring
+npm run dev --workspace=@dsfr-data/app-pipeline-helper
+npm run dev --workspace=@dsfr-data/app-grist-widgets
+npm run dev --workspace=@dsfr-data/app-admin
 ```
 
 ### Travailler sur le MCP server
@@ -223,7 +231,7 @@ cp .env.example .env
 
 | Variable | Description | Defaut |
 |----------|-------------|--------|
-| `APP_DOMAIN` | Domaine de production (Traefik) | `chartsbuilder.matge.com` |
+| `APP_DOMAIN` | Domaine de production (Traefik). A remplacer par votre domaine — l'instance publique de reference est `chartsbuilder.miweb.run`. | votre domaine |
 | `VITE_PROXY_URL` | URL du proxy CORS injectee dans les bundles a la compilation. Generee automatiquement par les scripts `deploy.sh` / `deploy-server.sh` depuis `APP_DOMAIN`. **[REQUISE au build]** — pas de valeur par defaut dans la lib. | aucune |
 | `VITE_LIB_URL` | URL du JS de la lib dans le code genere : `jsdelivr`, `unpkg`, `self`, ou URL custom | `jsdelivr` |
 | `JWT_SECRET` | Cle JWT (mode serveur) | Auto-genere |
@@ -254,11 +262,23 @@ Lors de la release, les changesets sont consommes automatiquement pour mettre a 
 
 ## Release
 
-La release est declenchee par un tag git :
+Le flux de release s'appuie sur Changesets (voir la section precedente) et comporte une etape manuelle :
 
-```bash
-git tag v0.2.0
-git push origin v0.2.0
-```
+1. **Pendant le developpement** : chaque modification notable de `packages/core/` ou `packages/shared/` est accompagnee d'un fichier `.changeset/*.md` commite avec le code.
+2. **Preparation** : `npm run version-packages` consomme les changesets — bump des `package.json`, generation du `CHANGELOG.md`, synchronisation des versions Tauri (`src-tauri/tauri.conf.json` + `Cargo.toml`). Alternativement, le bot Changesets maintient une PR de release qui fait la meme chose.
+3. **Publication npm** : le merge de la PR de release (workflow `changeset-release.yml`) publie le package `dsfr-data` sur npm et pousse le tag `vX.Y.Z`.
+4. **Release Tauri — dispatch manuel** : le tag pousse par le bot (via `GITHUB_TOKEN`) **ne declenche pas** `release.yml`. Il faut le lancer a la main :
 
-Le workflow `.github/workflows/release.yml` build automatiquement sur macOS (ARM + x86), Linux (deb + AppImage) et Windows (NSIS + MSI).
+   ```bash
+   gh workflow run release.yml -f version=vX.Y.Z
+   ```
+
+   Le workflow build les binaires desktop sur macOS (ARM + x86), Linux (deb + AppImage) et Windows (NSIS + MSI) et cree la GitHub Release.
+5. **Synchronisation du miroir** : les merges effectues cote GitHub (PR de release incluse) ne se propagent pas automatiquement au miroir `mef-snum-miweb/dsfr-data`. Apres la release :
+
+   ```bash
+   git fetch origin && git push origin refs/remotes/origin/main:refs/heads/main
+   git push origin --tags
+   ```
+
+Le detail (multi-push URLs, limites du miroir) est documente dans le `CLAUDE.md` racine, section Versioning.

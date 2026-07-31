@@ -447,6 +447,65 @@
           </div>
         </section>
 
+        <!-- Variation: bornes numeriques, valeurs manquantes, agregat min -->
+        <h4 id="variation-bornes">Variation : bornes numériques (<code>lt</code>/<code>lte</code>), valeurs manquantes (<code>isnull</code>/<code>isnotnull</code>) et agrégat <code>min</code></h4>
+        <p>
+          Les opérateurs de comparaison <code>lt</code> (strictement inférieur) et <code>lte</code> (inférieur ou égal)
+          complètent <code>gt</code>/<code>gte</code>. Les opérateurs <code>isnull</code> et <code>isnotnull</code>
+          s'écrivent sans valeur et permettent d'isoler (ou d'exclure) les enregistrements dont un champ est vide.
+          Côté agrégation, <code>min</code> vient compléter <code>count</code>, <code>sum</code>, <code>avg</code>
+          et <code>max</code> — sans <code>group-by</code>, l'agrégat est global (une seule ligne).
+          Données fictives en ligne pour un résultat déterministe.
+        </p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-v-bornes">Code source</button></h3>
+          <div class="fr-collapse" id="code-v-bornes">
+<pre class="example-code">&lt;dsfr-data-source id="communes" data='[
+  {"commune":"Aubagne","population":47100,"taux":16.2},
+  {"commune":"Cavaillon","population":26400,"taux":21.5},
+  {"commune":"Digne-les-Bains","population":16500,"taux":19.8},
+  {"commune":"Gap","population":40200,"taux":12.4},
+  {"commune":"Manosque","population":22800,"taux":18.9},
+  {"commune":"Orange","population":28900,"taux":20.1},
+  {"commune":"Apt","population":11500,"taux":null},
+  {"commune":"Sisteron","population":7400,"taux":14.2},
+  {"commune":"Briancon","population":12300,"taux":null},
+  {"commune":"Avignon","population":91000,"taux":23.6},
+  {"commune":"Aix-en-Provence","population":145000,"taux":17.3},
+  {"commune":"Marseille","population":870000,"taux":26.2}
+]'&gt;&lt;/dsfr-data-source&gt;
+
+&lt;!-- lt + isnotnull : moins de 50 000 habitants ET taux renseigne --&gt;
+&lt;dsfr-data-query id="q-bornes" source="communes"
+  filter="population:lt:50000, taux:isnotnull"
+  order-by="population:desc"&gt;
+&lt;/dsfr-data-query&gt;
+
+&lt;dsfr-data-list source="q-bornes"
+  columns="commune:Commune, population:Population, taux:Taux (%)"&gt;
+&lt;/dsfr-data-list&gt;
+
+&lt;!-- isnull : compter les communes sans donnee --&gt;
+&lt;dsfr-data-query id="q-null" source="communes" filter="taux:isnull"&gt;&lt;/dsfr-data-query&gt;
+
+&lt;!-- lte : compter les communes de 20 000 habitants ou moins --&gt;
+&lt;dsfr-data-query id="q-lte" source="communes" filter="population:lte:20000"&gt;&lt;/dsfr-data-query&gt;
+
+&lt;!-- min global (pas de group-by = une seule ligne) --&gt;
+&lt;dsfr-data-query id="q-min" source="communes" aggregate="taux:min:taux_min"&gt;&lt;/dsfr-data-query&gt;
+
+&lt;div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;"&gt;
+  &lt;dsfr-data-kpi source="q-null" value="count"
+    label="Communes sans taux renseigné" format="nombre" color-token="orange"&gt;&lt;/dsfr-data-kpi&gt;
+  &lt;dsfr-data-kpi source="q-lte" value="count"
+    label="Communes de 20 000 hab. ou moins" format="nombre"&gt;&lt;/dsfr-data-kpi&gt;
+  &lt;dsfr-data-kpi source="q-min" value="taux_min"
+    label="Taux minimum observé" format="pourcentage" color-token="vert"&gt;&lt;/dsfr-data-kpi&gt;
+&lt;/div&gt;</pre>
+          </div>
+        </section>
+
         <!-- Multi-page ODS -->
         <h2 id="multi-page" class="fr-mt-6w">Multi-page ODS</h2>
         <p>

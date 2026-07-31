@@ -451,6 +451,10 @@
         <div class="code-block"><pre>Zoom 1-9  : regions (13 features, chargees une fois)
 Zoom 10+  : communes dans le viewport (bbox re-fetch)
 Zoom 13+  : POI dans le viewport (bbox re-fetch + cluster)</pre></div>
+        <p>
+          Démo exécutable sur la page <a href="guide-exemples-map-avancee.html">Cartes : avancé</a>
+          (section « Plages de zoom par couche »).
+        </p>
 
         <!-- ============================================================ -->
         <h2>Viewport-driven fetch (bbox)</h2>
@@ -463,6 +467,11 @@ Zoom 13+  : POI dans le viewport (bbox re-fetch + cluster)</pre></div>
           <li><strong>ODS</strong> : filtre server-side <code>in_bbox(field, lat1, lon1, lat2, lon2)</code></li>
           <li><strong>Tabular, Grist, Generic</strong> : fallback client-side (filtre en memoire)</li>
         </ul>
+        <p>
+          Démo exécutable sur la page <a href="guide-exemples-map-avancee.html">Cartes : avancé</a>
+          (section « Fetch piloté par le viewport »), avec choroplèthe, heatmap pondérée, timeline
+          cumulative, cartes verrouillées et garde-fous <code>max-items</code>.
+        </p>
 
       </div>
     </div>

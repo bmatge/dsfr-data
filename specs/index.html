@@ -247,6 +247,25 @@
                 <div class="fr-tile__body">
                   <div class="fr-tile__content">
                     <h3 class="fr-tile__title">
+                      <a href="components/dsfr-data-context.html">dsfr-data-context</a>
+                    </h3>
+                    <p class="fr-tile__detail">Filtres transverses</p>
+                    <p class="fr-tile__desc">Diffuse des filtres communs a plusieurs sources depuis des controles d'UI natifs (fan-out declaratif).</p>
+                  </div>
+                </div>
+                <div class="fr-tile__header">
+                  <div class="fr-tile__pictogram">
+                    <span class="ri-filter-3-line ri-3x" aria-hidden="true" style="color: var(--text-action-high-blue-france);"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="fr-col-12 fr-col-md-6 fr-col-lg-4">
+              <div class="fr-tile fr-enlarge-link">
+                <div class="fr-tile__body">
+                  <div class="fr-tile__content">
+                    <h3 class="fr-tile__title">
                       <a href="components/dsfr-data-list.html">dsfr-data-list</a>
                     </h3>
                     <p class="fr-tile__detail">Tableau de données</p>
@@ -344,32 +363,13 @@
                     <h3 class="fr-tile__title">
                       <a href="components/dsfr-data-world-map.html">dsfr-data-world-map</a>
                     </h3>
-                    <p class="fr-tile__detail">Carte du monde</p>
-                    <p class="fr-tile__desc">Carte choropleth avec zoom interactif par continent et tooltips.</p>
+                    <p class="fr-tile__detail"><span class="fr-badge fr-badge--warning fr-badge--sm fr-mr-1w">Déprécié</span>Carte du monde</p>
+                    <p class="fr-tile__desc">Carte choropleth avec zoom par continent. Déprécié : préférer <code>dsfr-data-chart type="map-monde"</code>.</p>
                   </div>
                 </div>
                 <div class="fr-tile__header">
                   <div class="fr-tile__pictogram">
                     <span class="ri-earth-line ri-3x" aria-hidden="true" style="color: var(--text-action-high-blue-france);"></span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="fr-col-12 fr-col-md-6 fr-col-lg-4">
-              <div class="fr-tile fr-enlarge-link">
-                <div class="fr-tile__body">
-                  <div class="fr-tile__content">
-                    <h3 class="fr-tile__title">
-                      <a href="components/dsfr-data-map.html">dsfr-data-map</a>
-                    </h3>
-                    <p class="fr-tile__detail">Carte interactive</p>
-                    <p class="fr-tile__desc">Carte Leaflet multi-couches avec POI, geoshape, cercles, clustering et chargement par viewport.</p>
-                  </div>
-                </div>
-                <div class="fr-tile__header">
-                  <div class="fr-tile__pictogram">
-                    <span class="ri-map-pin-line ri-3x" aria-hidden="true" style="color: var(--text-action-high-blue-france);"></span>
                   </div>
                 </div>
               </div>
@@ -415,6 +415,116 @@
           </div>
         </section>
 
+        <!-- Section: Cartographie -->
+        <section class="fr-mt-6w">
+          <h2>
+            <span class="ri-map-pin-line fr-mr-1w" aria-hidden="true"></span>
+            Cartographie
+          </h2>
+          <p class="fr-mb-3w">
+            Famille de 5 composants pour les cartes interactives Leaflet : un conteneur, des couches
+            de données multi-sources, l'affichage au clic, les encarts territoriaux (DROM, Corse) et
+            l'animation temporelle. Bundle dédié <code>dsfr-data.map.esm.js</code>, Leaflet chargé a la demande.
+          </p>
+
+          <div class="fr-grid-row fr-grid-row--gutters">
+            <div class="fr-col-12 fr-col-md-6 fr-col-lg-4">
+              <div class="fr-tile fr-enlarge-link">
+                <div class="fr-tile__body">
+                  <div class="fr-tile__content">
+                    <h3 class="fr-tile__title">
+                      <a href="components/dsfr-data-map.html">dsfr-data-map</a>
+                    </h3>
+                    <p class="fr-tile__detail">Conteneur carte</p>
+                    <p class="fr-tile__desc">Carte Leaflet : fonds souverains IGN, viewport, encarts, fit clippé, accessibilité intégrée.</p>
+                  </div>
+                </div>
+                <div class="fr-tile__header">
+                  <div class="fr-tile__pictogram">
+                    <span class="ri-map-pin-line ri-3x" aria-hidden="true" style="color: var(--text-action-high-blue-france);"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="fr-col-12 fr-col-md-6 fr-col-lg-4">
+              <div class="fr-tile fr-enlarge-link">
+                <div class="fr-tile__body">
+                  <div class="fr-tile__content">
+                    <h3 class="fr-tile__title">
+                      <a href="components/dsfr-data-map-layer.html">dsfr-data-map-layer</a>
+                    </h3>
+                    <p class="fr-tile__detail">Couche de données</p>
+                    <p class="fr-tile__desc">Markers, geoshape, cercles proportionnels, heatmap ; clustering, bbox et découpage temporel.</p>
+                  </div>
+                </div>
+                <div class="fr-tile__header">
+                  <div class="fr-tile__pictogram">
+                    <span class="ri-stack-line ri-3x" aria-hidden="true" style="color: var(--text-action-high-blue-france);"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="fr-col-12 fr-col-md-6 fr-col-lg-4">
+              <div class="fr-tile fr-enlarge-link">
+                <div class="fr-tile__body">
+                  <div class="fr-tile__content">
+                    <h3 class="fr-tile__title">
+                      <a href="components/dsfr-data-map-popup.html">dsfr-data-map-popup</a>
+                    </h3>
+                    <p class="fr-tile__detail">Affichage au clic</p>
+                    <p class="fr-tile__desc">Popup, modale ou volet latéral avec template déclaratif, partagé entre carte et encarts.</p>
+                  </div>
+                </div>
+                <div class="fr-tile__header">
+                  <div class="fr-tile__pictogram">
+                    <span class="ri-chat-3-line ri-3x" aria-hidden="true" style="color: var(--text-action-high-blue-france);"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="fr-col-12 fr-col-md-6 fr-col-lg-4">
+              <div class="fr-tile fr-enlarge-link">
+                <div class="fr-tile__body">
+                  <div class="fr-tile__content">
+                    <h3 class="fr-tile__title">
+                      <a href="components/dsfr-data-map-inset.html">dsfr-data-map-inset</a>
+                    </h3>
+                    <p class="fr-tile__detail">Encarts territoriaux</p>
+                    <p class="fr-tile__desc">Vignettes DROM, Corse ou zoom local ; couches clonées et clics délégués a la carte principale.</p>
+                  </div>
+                </div>
+                <div class="fr-tile__header">
+                  <div class="fr-tile__pictogram">
+                    <span class="ri-layout-grid-line ri-3x" aria-hidden="true" style="color: var(--text-action-high-blue-france);"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="fr-col-12 fr-col-md-6 fr-col-lg-4">
+              <div class="fr-tile fr-enlarge-link">
+                <div class="fr-tile__body">
+                  <div class="fr-tile__content">
+                    <h3 class="fr-tile__title">
+                      <a href="components/dsfr-data-map-timeline.html">dsfr-data-map-timeline</a>
+                    </h3>
+                    <p class="fr-tile__detail">Animation temporelle</p>
+                    <p class="fr-tile__desc">Contrôles de lecture accessibles (pas d'auto-play, clavier, reduced-motion) des couches datées.</p>
+                  </div>
+                </div>
+                <div class="fr-tile__header">
+                  <div class="fr-tile__pictogram">
+                    <span class="ri-play-circle-line ri-3x" aria-hidden="true" style="color: var(--text-action-high-blue-france);"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <!-- Section: Graphiques DSFR Chart -->
         <section class="fr-mt-6w">
           <h2>
@@ -423,6 +533,7 @@
           </h2>
           <p class="fr-mb-3w">
             Graphiques officiels conformes au DSFR. Utilisez-les directement ou via <code>dsfr-data-chart</code> pour des données dynamiques.
+            Une <a href="charts/index.html">vue d'ensemble avec démos</a> présente les six types côte a côte.
           </p>
 
           <div class="fr-grid-row fr-grid-row--gutters">

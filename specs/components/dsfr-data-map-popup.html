@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-scheme="system">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dsfr-data-map-popup - Composants - dsfr-data</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css" integrity="sha384-atVZ+aK6VI0nWyTEhKgze5InDJ+SWRRqa0BCZ2MTNyoOcBiHj1c3dGPdi6ML65B3" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css" integrity="sha384-5P5DFFqorcEBpfnK9WHu/Ralfr7ZxyCZh0ryaJbgucSvc71+qRYdGvNEcyMqQwa/" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script type="module" src="/dist/app-ui.esm.js"></script>
+  <style>
+    body { min-height: 100vh; display: flex; flex-direction: column; }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <app-header current-page="composants" base-path="../../"></app-header>
+
+  <!-- Layout documentation avec sidemenu -->
+  <app-layout-demo
+    title="dsfr-data-map-popup"
+    icon="ri-chat-3-line"
+    active-path="components/dsfr-data-map-popup"
+    base-path="../">
+    <div slot="content">
+        <p class="fr-text--lead">
+          Compagnon d'affichage au clic pour la carte : définit un template HTML et un mode de
+          présentation (popup Leaflet, modale DSFR ou volet latéral) pour les éléments cliqués
+          d'une couche. Remplace les attributs legacy <code>popup-template</code> /
+          <code>popup-fields</code> du layer par un composant déclaratif.
+        </p>
+
+        <h2 id="attributs">Attributs</h2>
+        <table class="attr-table">
+          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>mode</code></td><td>String</td><td><code>"popup"</code></td><td><code>popup</code> (infobulle Leaflet), <code>modal</code> (modale avec overlay), <code>panel-right</code> / <code>panel-left</code> (volet latéral ancré au conteneur de la carte)</td></tr>
+            <tr><td><code>title-field</code></td><td>String</td><td><code>""</code></td><td>Champ utilisé comme titre du panneau ou de la modale</td></tr>
+            <tr><td><code>width</code></td><td>String</td><td><code>"350px"</code></td><td>Largeur du panneau latéral (toute valeur CSS)</td></tr>
+            <tr><td><code>for</code></td><td>String</td><td><code>""</code></td><td>Ciblage de la couche : <code>id</code> <strong>ou</strong> valeur de l'attribut <code>source</code> d'un layer. Vide = matche toutes les couches de la carte.</td></tr>
+          </tbody>
+        </table>
+
+        <h2 id="modes" class="fr-mt-4w">Modes</h2>
+        <ul>
+          <li><strong><code>popup</code></strong> : infobulle Leaflet classique au-dessus de l'élément cliqué</li>
+          <li><strong><code>modal</code></strong> : modale centrée avec overlay — focus trap, fermeture par Escape ou clic extérieur, restitution du focus à l'élément d'origine (#296)</li>
+          <li><strong><code>panel-right</code></strong> / <strong><code>panel-left</code></strong> : volet latéral glissant ancré au conteneur Leaflet, mis à jour à chaque clic ; la molette et la sélection y sont isolées de la carte (#431)</li>
+        </ul>
+
+        <h2 id="template" class="fr-mt-4w">Template</h2>
+        <p>
+          Le contenu est défini par un élément <code>&lt;template&gt;</code> enfant (lookup différé —
+          compatible avec un script chargé dans le <code>&lt;head&gt;</code> sans <code>defer</code>).
+          Les expressions sont celles de <code>dsfr-data-display</code> (#426) :
+        </p>
+        <table class="attr-table">
+          <thead><tr><th>Syntaxe</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>{{champ}}</code></td><td>Valeur échappée (HTML-safe)</td></tr>
+            <tr><td><code>{{champ.sous.clé}}</code></td><td>Accès aux propriétés imbriquées</td></tr>
+            <tr><td><code>{{champ:number}}</code></td><td>Formatage fr-FR avec séparateurs de milliers</td></tr>
+            <tr><td><code>{{champ|défaut}}</code></td><td>Repli si null/undefined</td></tr>
+          </tbody>
+        </table>
+        <div class="fr-callout fr-callout--brown-caramel fr-mt-2w">
+          <p class="fr-callout__text">
+            <strong>Asymétrie volontaire avec display :</strong> contrairement à
+            <code>dsfr-data-display</code>, il n'y a <strong>pas</strong> de syntaxe
+            <code>{{{champ}}}</code> (valeur brute) ici — les expressions d'un popup de carte sont
+            <strong>toujours échappées</strong>. Le contenu vient souvent de données open data non
+            maîtrisées et s'affiche dans un overlay au clic : pas d'injection HTML possible.
+          </p>
+        </div>
+        <p>
+          <strong>Sans template</strong>, un tableau clé/valeur est généré automatiquement
+          (les champs géométriques — <code>geo*</code>, latitude, longitude — et les objets sont exclus).
+        </p>
+
+        <h2 id="resolution" class="fr-mt-4w">Résolution du compagnon</h2>
+        <p>Quand un élément d'une couche est cliqué, le popup applicable est cherché dans cet ordre :</p>
+        <ol>
+          <li><strong>Popup enfant du layer</strong> — un <code>&lt;dsfr-data-map-popup&gt;</code> placé directement dans le <code>&lt;dsfr-data-map-layer&gt;</code> ;</li>
+          <li><strong>Popup au niveau carte avec <code>for</code> qui matche</strong> — <code>for</code> comparé à l'<code>id</code> puis au <code>source</code> du layer ; un popup sans <code>for</code> matche toutes les couches (#296) ;</li>
+          <li><strong>Popups de la carte hôte</strong> — pour les encarts (<code>dsfr-data-map-inset</code>) : les clics dans une vignette délèguent aux popups de la carte principale (template unique, pas de duplication).</li>
+        </ol>
+
+        <h2 id="api-js" class="fr-mt-4w">API JavaScript</h2>
+        <table class="attr-table">
+          <thead><tr><th>Méthode</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>matchesLayer(layerId)</code></td><td>Teste si ce popup s'applique à une couche</td></tr>
+            <tr><td><code>showForRecord(record)</code></td><td>Ouvre le panneau/la modale pour un enregistrement</td></tr>
+            <tr><td><code>getPopupHtml(record)</code></td><td>Rend le HTML du template (ou du tableau auto) pour un enregistrement</td></tr>
+            <tr><td><code>hasTemplate()</code></td><td>Indique si un <code>&lt;template&gt;</code> est défini</td></tr>
+            <tr><td><code>close()</code></td><td>Ferme le panneau/la modale</td></tr>
+          </tbody>
+        </table>
+        <p class="fr-text--sm fr-text--light">Le composant n'émet aucun événement custom.</p>
+
+        <h2 class="fr-mt-4w">Exemples</h2>
+
+        <section class="demo-section">
+          <h3>1. Volet latéral avec template</h3>
+          <div class="code-block"><pre>&lt;dsfr-data-map center="46.5,2.6" zoom="6" tiles="ign-plan"&gt;
+  &lt;dsfr-data-map-layer source="territoires" type="geoshape"
+    geo-field="geojson" tooltip-field="nom"&gt;
+  &lt;/dsfr-data-map-layer&gt;
+
+  &lt;dsfr-data-map-popup mode="panel-right" title-field="nom" width="400px"&gt;
+    &lt;template&gt;
+      &lt;p class="fr-badge fr-badge--info"&gt;{{statut|En cours}}&lt;/p&gt;
+      &lt;p&gt;&lt;strong&gt;{{habitants:number}}&lt;/strong&gt; habitants&lt;/p&gt;
+      &lt;p&gt;Contact : {{contact.email|non renseigné}}&lt;/p&gt;
+    &lt;/template&gt;
+  &lt;/dsfr-data-map-popup&gt;
+&lt;/dsfr-data-map&gt;</pre></div>
+        </section>
+
+        <section class="demo-section fr-mt-4w">
+          <h3>2. Modale sans template (tableau auto)</h3>
+          <div class="code-block"><pre>&lt;dsfr-data-map center="46.6,2.3" zoom="6"&gt;
+  &lt;dsfr-data-map-layer source="bornes" type="marker"
+    geo-field="geo_point_2d" tooltip-field="nom_station" cluster&gt;
+  &lt;/dsfr-data-map-layer&gt;
+
+  &lt;!-- Sans template : tableau clé/valeur généré automatiquement --&gt;
+  &lt;dsfr-data-map-popup mode="modal" title-field="nom_station"&gt;&lt;/dsfr-data-map-popup&gt;
+&lt;/dsfr-data-map&gt;</pre></div>
+        </section>
+
+        <section class="demo-section fr-mt-4w">
+          <h3>3. Un popup par couche avec <code>for</code></h3>
+          <div class="code-block"><pre>&lt;dsfr-data-map center="46.6,2.3" zoom="6"&gt;
+  &lt;dsfr-data-map-layer id="couche-regions" source="regions" type="geoshape"
+    geo-field="geo_shape"&gt;&lt;/dsfr-data-map-layer&gt;
+  &lt;dsfr-data-map-layer source="prefectures" type="marker"
+    geo-field="geo_point_2d"&gt;&lt;/dsfr-data-map-layer&gt;
+
+  &lt;!-- Cible le layer par id --&gt;
+  &lt;dsfr-data-map-popup for="couche-regions" mode="panel-right" title-field="reg_name"&gt;
+    &lt;template&gt;&lt;p&gt;{{population:number}} habitants&lt;/p&gt;&lt;/template&gt;
+  &lt;/dsfr-data-map-popup&gt;
+
+  &lt;!-- Cible le layer par source --&gt;
+  &lt;dsfr-data-map-popup for="prefectures" mode="popup"&gt;
+    &lt;template&gt;&lt;strong&gt;{{nom}}&lt;/strong&gt; — préfecture&lt;/template&gt;
+  &lt;/dsfr-data-map-popup&gt;
+&lt;/dsfr-data-map&gt;</pre></div>
+        </section>
+
+        <h2 class="fr-mt-4w">Voir aussi</h2>
+        <ul>
+          <li><a href="dsfr-data-map.html"><code>dsfr-data-map</code></a> — le conteneur et la vue d'ensemble de la famille</li>
+          <li><a href="dsfr-data-map-layer.html"><code>dsfr-data-map-layer</code></a> — les couches (et le mode popup legacy)</li>
+          <li><a href="dsfr-data-map-inset.html"><code>dsfr-data-map-inset</code></a> — la délégation des clics des encarts</li>
+          <li><a href="dsfr-data-display.html"><code>dsfr-data-display</code></a> — la même syntaxe de template hors carte (avec <code>{{{raw}}}</code> en plus)</li>
+        </ul>
+    </div>
+  </app-layout-demo>
+
+  <!-- Footer -->
+  <app-footer base-path="../../"></app-footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.module.min.js" integrity="sha384-gPgRd2+olihO/srZe/Bqw6iVLiiaL7meuri1d5YVMejwPXg7VehLSBeORYq9yh2F" crossorigin="anonymous"></script>
+</body>
+</html>

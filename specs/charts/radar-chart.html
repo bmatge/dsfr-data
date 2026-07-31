@@ -22,6 +22,22 @@
     <div slot="content">
       <p class="fr-text--lead">Le composant <code>&lt;radar-chart&gt;</code> permet de comparer plusieurs variables simultanement.</p>
 
+      <h2>Attributs</h2>
+      <table class="attr-table">
+        <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>x</code></td><td>String (JSON)</td><td>—</td><td><strong>Requis.</strong> Axes du radar, tableau imbriqué : <code>'[["RGAA", "DSFR", ...]]'</code> (un sous-tableau par série)</td></tr>
+          <tr><td><code>y</code></td><td>String (JSON)</td><td>—</td><td><strong>Requis.</strong> Valeurs, tableau imbriqué : <code>"[[85, 90, ...]]"</code></td></tr>
+          <tr><td><code>scale-min</code> / <code>scale-max</code></td><td>Number</td><td>—</td><td>Bornes suggérées de l'échelle radiale</td></tr>
+          <tr><td><code>name</code></td><td>String (JSON)</td><td><code>""</code></td><td>Noms des séries : <code>'["Série 1", "Série 2"]'</code></td></tr>
+          <tr><td><code>selected-palette</code></td><td>String</td><td><code>""</code></td><td>Palette DSFR Chart : <code>default</code>, <code>categorical</code>, <code>sequentialAscending</code>, <code>sequentialDescending</code>, <code>divergentAscending</code>, <code>divergentDescending</code>, <code>neutral</code></td></tr>
+          <tr><td><code>unit-tooltip</code></td><td>String</td><td><code>""</code></td><td>Unité affichée dans les tooltips</td></tr>
+          <tr><td><code>date</code></td><td>String</td><td><code>""</code></td><td>Date de la donnée (mention sous le graphique)</td></tr>
+          <tr><td><code>aspect-ratio</code></td><td>Number</td><td><code>2</code></td><td>Ratio largeur/hauteur du canvas</td></tr>
+        </tbody>
+      </table>
+      <p class="fr-text--sm fr-text--light">Les attributs <code>databox-id</code>, <code>databox-type</code> et <code>databox-source</code> servent à l'intégration DataBox — via <code>dsfr-data-chart type="radar" databox</code>, ils sont posés automatiquement.</p>
+
       <section class="demo-section">
         <h3>Radar simple</h3>
         <radar-chart

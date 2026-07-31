@@ -38,7 +38,12 @@ function getWidgetSkillIds(chartType?: string): string[] {
     if (lower === 'podium' || lower === 'classement' || lower === 'ranking')
       ids.push('dsfrDataPodium');
     if (lower === 'datalist' || lower === 'tableau') ids.push('dsfrDataList');
-    if (lower === 'map' || lower === 'map-reg') ids.push('dsfrColors');
+    // Cartes DSFR Chart (choroplèthes dep/reg/aca/monde via dsfr-data-chart)
+    if (lower === 'map' || lower === 'map-reg' || lower === 'map-aca' || lower === 'map-monde')
+      ids.push('dsfrColors', 'chartTypes');
+    // Cartes Leaflet (dsfr-data-map + compagnons) — distinctes des map* DSFR Chart
+    if (lower === 'carte' || lower === 'leaflet' || lower === 'map-layer')
+      ids.push('dsfrDataMap', 'dsfrColors');
     if (lower.includes('bar') || lower.includes('pie') || lower.includes('line'))
       ids.push('chartTypes');
   } else {
@@ -211,6 +216,35 @@ describe('getWidgetSkillIds', () => {
   it('adds colors for map type', () => {
     const ids = getWidgetSkillIds('map');
     expect(ids).toContain('dsfrColors');
+  });
+
+  it('routes every DSFR Chart map type (map, map-reg, map-aca, map-monde) to colors + chartTypes', () => {
+    for (const type of ['map', 'map-reg', 'map-aca', 'map-monde']) {
+      const ids = getWidgetSkillIds(type);
+      expect(ids, `type=${type}`).toContain('dsfrColors');
+      expect(ids, `type=${type}`).toContain('chartTypes');
+      // Ce sont les cartes DSFR Chart : pas de skill Leaflet ici
+      expect(ids, `type=${type}`).not.toContain('dsfrDataMap');
+    }
+  });
+
+  it('routes Leaflet map types (carte, leaflet, map-layer) to dsfrDataMap + colors', () => {
+    for (const type of ['carte', 'leaflet', 'map-layer']) {
+      const ids = getWidgetSkillIds(type);
+      expect(ids, `type=${type}`).toContain('dsfrDataMap');
+      expect(ids, `type=${type}`).toContain('dsfrColors');
+    }
+  });
+
+  it('keeps unknown chart types on the base set only', () => {
+    const base = getWidgetSkillIds('inconnu');
+    expect(base).not.toContain('dsfrDataKpi');
+    expect(base).not.toContain('dsfrDataPodium');
+    expect(base).not.toContain('dsfrDataList');
+    expect(base).not.toContain('dsfrDataMap');
+    expect(base).not.toContain('dsfrColors');
+    expect(base).not.toContain('chartTypes');
+    expect(base).toContain('dsfrDataQuery');
   });
 
   it('adds chartTypes for bar chart', () => {

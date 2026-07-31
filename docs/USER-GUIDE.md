@@ -17,10 +17,15 @@ L'application est accessible depuis la page d'accueil qui regroupe tous les outi
 Les outils disponibles sont :
 - **Sources** : connecter et gerer les sources de donnees (Grist, API, manuelles)
 - **Builder** : generateur visuel de graphiques pas-a-pas
+- **Builder carto** : generateur visuel de cartes interactives Leaflet
 - **Builder IA** : generateur de graphiques par conversation avec l'IA Albert
 - **Playground** : editeur de code interactif avec apercu temps reel
 - **Dashboard** : editeur visuel de tableaux de bord multi-widgets
+- **Favoris** : sauvegarde et reutilisation des creations
+- **Pipeline helper** : editeur visuel de pipelines dsfr-data
+- **Grist widgets** : widgets embarquables dans des documents Grist
 - **Monitoring** : suivi des deployements de widgets en production
+- **Admin** : administration des comptes et contenus (mode serveur)
 
 ---
 
@@ -54,7 +59,7 @@ Naviguez vers le **Builder**. Dans la section "Source de donnees", selectionnez 
 
 ### Etape 4 — Choisir le type de graphique
 
-La section "Type de graphique" propose une grille de 11 types de graphiques : barres, lignes, camembert, radar, carte, KPI, tableau, etc. Cliquez sur le type souhaite (ici **Barres**).
+La section "Type de graphique" propose une grille de types de graphiques : barres, lignes, camembert, radar, carte, jauge, nuage de points, KPI, tableau, etc. Cliquez sur le type souhaite (ici **Barres**).
 
 ### Etape 5 — Configurer et generer
 
@@ -121,9 +126,9 @@ Apres avoir configure et genere le graphique, le code genere contient les Web Co
 <dsfr-data-source id="data" url="https://grist.numerique.gouv.fr/api/docs/xxx/tables/yyy/records"
              transform="records"></dsfr-data-source>
 <dsfr-data-normalize id="clean" source="data" flatten="fields" trim numeric-auto></dsfr-data-normalize>
-<dsfr-data-query id="query-result" source="clean" group-by="Pays" aggregate="PIB:avg" order-by="value:desc"></dsfr-data-query>
-<dsfr-data-chart source="query-result" type="bar" label-field="Pays" value-field="PIB"
-                 title="PIB par pays"></dsfr-data-chart>
+<dsfr-data-query id="query-result" source="clean" group-by="Pays" aggregate="PIB:avg" order-by="PIB__avg:desc"></dsfr-data-query>
+<dsfr-data-chart source="query-result" type="bar" label-field="Pays" value-field="PIB__avg"
+                 databox databox-title="PIB par pays"></dsfr-data-chart>
 ```
 
 ---
@@ -445,9 +450,9 @@ Quatre decoupages de carte sont disponibles (API cartes unifiee [DSFR Chart](htt
 #### Tableau — Maires de France
 
 ```html
-<dsfr-data-query id="data"
+<dsfr-data-source id="data"
   api-type="tabular"
-  resource="2876a346-d50c-4911-934e-19ee07b0e503"></dsfr-data-query>
+  resource="2876a346-d50c-4911-934e-19ee07b0e503"></dsfr-data-source>
 
 <dsfr-data-list source="data"
   columns="Nom de l'élu:Nom, Prénom de l'élu:Prenom, Libellé du département:Departement, Libellé de la commune:Commune"
@@ -490,9 +495,9 @@ Les donnees passent par `dsfr-data-normalize` qui nettoie les valeurs (conversio
 #### Tableau — Renommage de champs accentes
 
 ```html
-<dsfr-data-query id="data"
+<dsfr-data-source id="data"
   api-type="tabular"
-  resource="2876a346-d50c-4911-934e-19ee07b0e503"></dsfr-data-query>
+  resource="2876a346-d50c-4911-934e-19ee07b0e503"></dsfr-data-source>
 
 <dsfr-data-normalize id="clean" source="data"
   trim
@@ -578,9 +583,11 @@ Les donnees passent par `dsfr-data-query` qui les filtre, regroupe et/ou agrege 
 #### Camembert — Maires par categorie socio-pro
 
 ```html
-<dsfr-data-query id="q"
+<dsfr-data-source id="data"
   api-type="tabular"
-  resource="2876a346-d50c-4911-934e-19ee07b0e503"
+  resource="2876a346-d50c-4911-934e-19ee07b0e503"></dsfr-data-source>
+
+<dsfr-data-query id="q" source="data"
   group-by="Libellé de la catégorie socio-professionnelle"
   aggregate="Code sexe:count:nombre"
   order-by="nombre:desc" limit="8">
@@ -614,9 +621,9 @@ Les donnees passent par `dsfr-data-query` qui les filtre, regroupe et/ou agrege 
 #### KPI — Statistiques des maires avec filtre
 
 ```html
-<dsfr-data-query id="data"
+<dsfr-data-source id="data"
   api-type="tabular"
-  resource="2876a346-d50c-4911-934e-19ee07b0e503"></dsfr-data-query>
+  resource="2876a346-d50c-4911-934e-19ee07b0e503"></dsfr-data-source>
 
 <dsfr-data-query id="q-femmes" source="data"
   filter="Code sexe:eq:F">
@@ -633,9 +640,9 @@ Les donnees passent par `dsfr-data-query` qui les filtre, regroupe et/ou agrege 
 #### Tableau — Maires filtres par departement
 
 ```html
-<dsfr-data-query id="data"
+<dsfr-data-source id="data"
   api-type="tabular"
-  resource="2876a346-d50c-4911-934e-19ee07b0e503"></dsfr-data-query>
+  resource="2876a346-d50c-4911-934e-19ee07b0e503"></dsfr-data-source>
 
 <dsfr-data-query id="q" source="data"
   filter="Libellé du département:contains:Ain">
@@ -646,6 +653,71 @@ Les donnees passent par `dsfr-data-query` qui les filtre, regroupe et/ou agrege 
   search sort="Nom de l'élu:asc" pagination="10" export="csv">
 </dsfr-data-list>
 ```
+
+### Cartes interactives Leaflet — la famille dsfr-data-map
+
+Au-dela des cartes choroplethes de `dsfr-data-chart` (type `map`/`map-reg`/`map-aca`/`map-monde`), la famille `dsfr-data-map` (bundle `map`) rend des **cartes interactives Leaflet** multi-couches : marqueurs, formes GeoJSON, cercles proportionnels, heatmap. Cinq composants se combinent :
+
+- `<dsfr-data-map>` : le conteneur (fond de carte, zoom, encarts, accessibilite integree) ;
+- `<dsfr-data-map-layer>` : une couche de donnees (une source par couche → multi-source naturel) ;
+- `<dsfr-data-map-popup>` : l'affichage au clic (popup, modale ou panneau lateral, template `{{champ}}`) ;
+- `<dsfr-data-map-inset>` : un encart territorial (DROM, Corse, zoom local) ;
+- `<dsfr-data-map-timeline>` : les controles de lecture temporelle des couches datees (`time-field`).
+
+```html
+<dsfr-data-source id="communes" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr" dataset-id="mon-dataset-geo"></dsfr-data-source>
+
+<dsfr-data-map center="46.6,2.9" zoom="6" tiles="ign-plan" name="Carte des communes"
+  insets="drom,corse" fit-bounds max-bounds="41,-5.5,51.5,10">
+  <!-- Couche decorative (contours) : aucune interaction, exclue du fit-bounds -->
+  <dsfr-data-map-layer source="contours" type="geoshape" geo-field="geo_shape"
+    no-interactive color="#666"></dsfr-data-map-layer>
+  <!-- Couche de donnees -->
+  <dsfr-data-map-layer id="couche-communes" source="communes" type="geoshape"
+    geo-field="geo_shape" fill-field="population" tooltip-field="nom"></dsfr-data-map-layer>
+  <!-- Panneau lateral au clic, avec formatage numerique -->
+  <dsfr-data-map-popup mode="panel-right" for="couche-communes" title-field="nom">
+    <template>
+      <p>Population : {{population:number}} habitants</p>
+      <p>Departement : {{departement|Non renseigne}}</p>
+    </template>
+  </dsfr-data-map-popup>
+</dsfr-data-map>
+```
+
+Points cles :
+
+- **Fonds de carte** : presets `ign-plan` (defaut), `ign-ortho`, `ign-cadastre`, `osm-fr`, `osm-standard`, `carto-positron`, `carto-dark`, `opentopomap`, ou une URL de tuiles custom `{z}/{x}/{y}`. L'attribut `sovereign-only` restreint aux presets souverains IGN.
+- **`geo-field`** accepte du GeoJSON (Point, Polygon, Feature…), des objets `{lat, lon}`, des tableaux `[lat, lon]` **ou des chaines JSON serialisees** (colonnes texte Grist/CSV) ; a defaut, `lat-field`/`lon-field` pour des colonnes separees.
+- **Couches decoratives** : `no-interactive` desactive clic/tooltip/popup et **exclut la couche du fit-bounds** (contours administratifs, habillage).
+- **Cadrage** : `fit-bounds` ajuste la vue aux donnees ; `max-bounds="latSW,lonSW,latNE,lonNE"` limite le deplacement ET clippe le fit (les DROM lointains ne dezooment plus la vue metropolitaine — d'ou l'interet des encarts `insets="drom"`).
+- **Popup** : placeholders `{{champ}}` (echappe), `{{champ:number}}` (format fr-FR), `{{champ|defaut}}`, `{{champ.sous.cle}}` ; modes `popup`, `modal`, `panel-right`, `panel-left`.
+- **Timeline** : sur une couche, `time-field` (+ `time-bucket`, `time-mode="snapshot|cumulative"`) decoupe les donnees en etapes ; `<dsfr-data-map-timeline>` ajoute lecture/pause et navigation clavier.
+
+Exemples executables : [guide des cartes](https://chartsbuilder.miweb.run/guide/) (section Cartographie) et [specifications dsfr-data-map](https://chartsbuilder.miweb.run/specs/).
+
+### KPIs : groupes, formats et litteraux
+
+`<dsfr-data-kpi-group>` remplace les grilles CSS manuelles pour aligner plusieurs KPIs (grille DSFR responsive, empilement mobile automatique) :
+
+```html
+<dsfr-data-source id="data" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr" dataset-id="industrie-du-futur"></dsfr-data-source>
+
+<dsfr-data-kpi-group cols="3" gap="md">
+  <dsfr-data-kpi source="data" value="nombre_beneficiaires:sum"
+    label="Total beneficiaires" format="compact"></dsfr-data-kpi>
+  <dsfr-data-kpi source="data" value="montant_investissement:avg"
+    label="Investissement moyen" format="euro"></dsfr-data-kpi>
+  <dsfr-data-kpi value="=87 %" label="Objectif de couverture"></dsfr-data-kpi>
+</dsfr-data-kpi-group>
+```
+
+- **Expressions de valeur** : `champ:fn` (fn parmi `sum`, `avg`, `count`, `min`, `max`, `first`, `last`), `champ` seul (premier enregistrement), `count`, `count:champ:valeur` (occurrences).
+- **Format `compact`** : notation compacte fr-FR (`14,8 M`, `6,7 k`) — pratique pour les grands volumes. Autres formats : `nombre`, `pourcentage`, `euro`, `decimal`.
+- **Litteral `value="=…"`** : affiche la valeur telle quelle, sans source de donnees (`value="=667"`, `value="=87 %"`).
+- Chaque KPI enfant peut porter `col="1..12"` pour moduler sa largeur dans la grille.
 
 ---
 

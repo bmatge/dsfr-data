@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-scheme="system">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dsfr-data-unpivot — Exemples - Guide - dsfr-data</title>
+  <style>@view-transition{navigation:auto}app-header:not(:defined){display:block;min-height:56px}app-footer:not(:defined){display:block;min-height:48px}</style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css" integrity="sha384-atVZ+aK6VI0nWyTEhKgze5InDJ+SWRRqa0BCZ2MTNyoOcBiHj1c3dGPdi6ML65B3" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css" integrity="sha384-5P5DFFqorcEBpfnK9WHu/Ralfr7ZxyCZh0ryaJbgucSvc71+qRYdGvNEcyMqQwa/" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.1.1/dist/DSFRChart/DSFRChart.css" integrity="sha384-5m9vgfA+uOR3qcY14HhRzWDK17cwEVXO75RSwv2KJXignSdIrOvz1xNaaDpWXCeu" crossorigin="anonymous">
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.1.1/dist/DSFRChart/DSFRChart.js" integrity="sha384-OJTIJmv0zL1Ym2Bd6hA0oHB25gTqveSogoyVtnN3cEJcm4qE28qzTEp56vJeeKIS" crossorigin="anonymous"></script>
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script type="module" src="/dist/app-ui.esm.js"></script>
+  <script src="guide-menu.js"></script>
+  <style>
+    .guide-layout { display: flex; gap: 2rem; }
+    .guide-content { flex: 1; min-width: 0; }
+    @media (max-width: 992px) {
+      .guide-layout { flex-direction: column; }
+    }
+    .guide-content h2 { padding-top: 2rem; border-top: 1px solid var(--border-default-grey); margin-top: 3rem; }
+    .guide-content h2:first-of-type { border-top: none; margin-top: 0; padding-top: 0; }
+    .guide-content h3 { margin-top: 2rem; }
+    .guide-content h4 { margin-top: 1.5rem; }
+    .guide-content pre { background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 4px; font-family: monospace; font-size: 0.85rem; overflow-x: auto; white-space: pre-wrap; margin: 0; }
+    .guide-content ol, .guide-content ul { margin: 0.5rem 0 1rem 1.5rem; }
+    .guide-content li { margin-bottom: 0.25rem; }
+    .example-container { border: 1px solid var(--border-default-grey); border-radius: 4px; padding: 1rem; background: white; min-height: 100px; }
+    .example-loading { padding: 2rem; text-align: center; color: var(--text-mention-grey); border: 1px solid var(--border-default-grey); border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <app-header current-page="guide" base-path="../"></app-header>
+
+  <main class="fr-container fr-py-4w" id="main-content">
+    <div class="guide-layout">
+
+      <app-sidemenu section="guide"></app-sidemenu>
+
+      <div class="guide-content">
+
+        <h1><i class="ri-table-alt-line fr-mr-1w"></i>dsfr-data-unpivot</h1>
+        <p class="fr-text--lead">
+          Transforme un tableau « large » (une colonne par période ou par catégorie) en tableau
+          « long/tidy » (une ligne par observation) — l'opération <em>melt</em> des outils de data
+          science, en déclaratif. Indispensable quand la donnée arrive d'un tableur ou de Grist
+          avec les années en colonnes.
+        </p>
+
+        <div class="fr-callout fr-callout--blue-ecume fr-mb-3w">
+          <p class="fr-callout__text">
+            Pourquoi dépivoter ? Les composants de visualisation attendent des données
+            <strong>longues</strong> : <code>series-field</code> d'un graphique, <code>time-field</code>
+            d'une carte, <code>group-by</code> d'une query travaillent tous sur « une ligne = une
+            observation ». <code>dsfr-data-unpivot</code> fait le pont entre le format tableur
+            et le pipeline.
+          </p>
+        </div>
+
+        <!-- ============================================================ -->
+        <h2>Colonnes datées : value-cols-pattern + var-format</h2>
+        <p>
+          Le motif <code>value-cols-pattern</code> sélectionne les colonnes à déplier grâce à des
+          jetons de date à largeur fixe (<code>{YYYY}</code>, <code>{MM}</code>, <code>{DD}</code>,
+          <code>{Q}</code>...). <code>var-format</code> reformate la clé dépliée : ici
+          <code>c2024_01</code> devient <code>2024-01</code> dans la colonne <code>mois</code>.
+          <code>drop-empty</code> ignore les cellules vides (la Corse n'a pas de valeur en avril :
+          aucune ligne n'est émise).
+        </p>
+
+        <h4>Consommation mensuelle : colonnes c2024_01…c2024_04 → série temporelle</h4>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-unpivot-pattern">Code source</button></h3>
+          <div class="fr-collapse" id="code-unpivot-pattern">
+<pre class="example-code">&lt;!-- Format "large" typique d'un tableur : une colonne par mois --&gt;
+&lt;dsfr-data-source id="conso-wide" data='[
+  {"region":"Bretagne","c2024_01":312,"c2024_02":298,"c2024_03":275,"c2024_04":241},
+  {"region":"Normandie","c2024_01":287,"c2024_02":270,"c2024_03":255,"c2024_04":228},
+  {"region":"Corse","c2024_01":41,"c2024_02":38,"c2024_03":35,"c2024_04":null}
+]'&gt;&lt;/dsfr-data-source&gt;
+
+&lt;!-- Depivotage : c{YYYY}_{MM} matche c2024_01, c2024_02, ... --&gt;
+&lt;dsfr-data-unpivot id="conso-long" source="conso-wide"
+  id-cols="region"
+  value-cols-pattern="c{YYYY}_{MM}"
+  var-format="{YYYY}-{MM}"
+  var-name="mois" value-name="conso"
+  drop-empty&gt;
+&lt;/dsfr-data-unpivot&gt;
+
+&lt;!-- Le format long alimente directement series-field --&gt;
+&lt;dsfr-data-chart source="conso-long" type="line"
+  series-field="region" label-field="mois" value-field="conso"
+  unit-tooltip=" GWh"&gt;
+&lt;/dsfr-data-chart&gt;
+
+&lt;!-- ... et le tableau montre le resultat "une ligne = une observation" --&gt;
+&lt;dsfr-data-list source="conso-long"
+  columns="region:Région, mois:Mois, conso:Consommation (GWh)"
+  sort="mois:asc" pagination="6"&gt;
+&lt;/dsfr-data-list&gt;</pre>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <h2>Liste explicite : value-cols</h2>
+        <p>
+          Quand les colonnes à déplier ne suivent pas un motif de date, <code>value-cols</code>
+          les énumère explicitement (exclusif avec <code>value-cols-pattern</code>). Ici, les
+          colonnes <code>femmes</code>/<code>hommes</code> deviennent une dimension <code>sexe</code>,
+          exploitable en séries de barres.
+        </p>
+
+        <h4>Effectifs par service : colonnes femmes/hommes → dimension « sexe »</h4>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-unpivot-cols">Code source</button></h3>
+          <div class="fr-collapse" id="code-unpivot-cols">
+<pre class="example-code">&lt;dsfr-data-source id="effectifs-wide" data='[
+  {"service":"Accueil","femmes":34,"hommes":28},
+  {"service":"Instruction","femmes":51,"hommes":47},
+  {"service":"Contrôle","femmes":22,"hommes":31},
+  {"service":"Support","femmes":18,"hommes":16}
+]'&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-unpivot id="effectifs-long" source="effectifs-wide"
+  id-cols="service"
+  value-cols="femmes,hommes"
+  var-name="sexe" value-name="effectif"&gt;
+&lt;/dsfr-data-unpivot&gt;
+
+&lt;dsfr-data-chart source="effectifs-long" type="bar"
+  series-field="sexe" label-field="service" value-field="effectif"
+  selected-palette="categorical"&gt;
+&lt;/dsfr-data-chart&gt;</pre>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <h2>Points d'attention</h2>
+        <ul>
+          <li><strong>Typage</strong> : la valeur dépliée est laissée brute. Si la source fournit des chaînes (« 1 234,5 »), chaînez un <code>dsfr-data-normalize numeric-auto</code> après l'unpivot.</li>
+          <li><strong>Délégation serveur</strong> : l'unpivot transforme le schéma — les <code>dsfr-data-query</code> placés en aval travaillent donc toujours côté client (aucune clause n'est poussée à l'API à travers un unpivot).</li>
+          <li><strong>Jetons du motif</strong> : <code>{YYYY}</code> (4 chiffres), <code>{YY}</code>/<code>{MM}</code>/<code>{DD}</code>/<code>{HH}</code> (2), <code>{Q}</code> (1) ; tout autre <code>{nom}</code> est un segment générique.</li>
+          <li><strong>Noms par défaut</strong> : sans <code>var-name</code>/<code>value-name</code>, les colonnes produites s'appellent <code>variable</code> et <code>value</code>.</li>
+        </ul>
+
+        <h2>Exemples en production</h2>
+        <p>
+          Le composant est au cœur des tableaux de bord « Électrifions la France », où les données
+          Grist arrivent avec une colonne par mois (<code>c2023_01</code>...) ou par année
+          (<code>c2024</code>, <code>c2025</code>...) :
+        </p>
+        <ul>
+          <li><a href="examples/exemple-electrifions.html">Baromètre du Plan d'électrification</a> — <code>value-cols-pattern="c{YYYY}_{MM}"</code> + <code>var-format="{YYYY}-{MM}"</code> ;</li>
+          <li><a href="examples/exemple-electrifions-complet.html">Tableau de bord annuel complet</a> — <code>value-cols-pattern="c{YYYY}"</code> + <code>var-format="{YYYY}"</code>.</li>
+        </ul>
+
+      </div>
+    </div>
+  </main>
+
+  <app-footer base-path="../"></app-footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.module.min.js" integrity="sha384-gPgRd2+olihO/srZe/Bqw6iVLiiaL7meuri1d5YVMejwPXg7VehLSBeORYq9yh2F" crossorigin="anonymous"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      let exampleIndex = 0;
+      function getCodeForExample(placeholder) {
+        const accordion = placeholder.nextElementSibling;
+        if (!accordion) return null;
+        const pre = accordion.querySelector('.example-code');
+        return pre ? pre.textContent : null;
+      }
+      function makeIdsUnique(html, prefix) {
+        const idRegex = / id="([^"]+)"/g;
+        const ids = new Set();
+        let match;
+        while ((match = idRegex.exec(html)) !== null) ids.add(match[1]);
+        let result = html;
+        for (const id of ids) {
+          result = result.replaceAll(' id="' + id + '"', ' id="' + prefix + '-' + id + '"');
+          result = result.replaceAll('source="' + id + '"', 'source="' + prefix + '-' + id + '"');
+        }
+        return result;
+      }
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (!entry.isIntersecting) return;
+          const placeholder = entry.target;
+          observer.unobserve(placeholder);
+          const code = getCodeForExample(placeholder);
+          if (!code) return;
+          const prefix = 'ex' + (exampleIndex++);
+          const uniqueCode = makeIdsUnique(code, prefix);
+          const container = document.createElement('div');
+          container.className = 'example-container';
+          container.innerHTML = uniqueCode;
+          placeholder.replaceWith(container);
+        });
+      }, { rootMargin: '200px 0px' });
+      document.querySelectorAll('[data-example]').forEach(el => observer.observe(el));
+    });
+  </script>
+</body>
+</html>

@@ -120,6 +120,13 @@
           </tbody>
         </table>
 
+        <p class="fr-text--sm fr-text--light">
+          <strong>Événements :</strong> le composant n'émet pas d'événement custom propre ; il participe
+          au data-bridge — ré-émission des données filtrées sous son <code>id</code>
+          (<code>dsfr-data-loaded</code> / <code>-loading</code> / <code>-error</code>) en mode client,
+          et commandes <code>{ where, whereKey }</code> vers la source en mode serveur/statique.
+        </p>
+
         <div class="fr-callout fr-mt-3w">
           <p class="fr-callout__text">
             <strong>Logique de filtrage :</strong> au sein d'une facette, les selections sont en <strong>OU</strong>
@@ -274,7 +281,7 @@
           <dsfr-data-kpi source="ct-filtered3"
             value="prix_visite:avg"
             label="Prix moyen"
-            format="euros">
+            format="euro">
           </dsfr-data-kpi>
         </div>
 
@@ -306,7 +313,7 @@
 
 &lt;!-- KPI sur les données filtrees --&gt;
 &lt;dsfr-data-kpi source="filtered" value="count" label="Centres" format="nombre"&gt;&lt;/dsfr-data-kpi&gt;
-&lt;dsfr-data-kpi source="filtered" value="prix_visite:avg" label="Prix moyen" format="euros"&gt;&lt;/dsfr-data-kpi&gt;
+&lt;dsfr-data-kpi source="filtered" value="prix_visite:avg" label="Prix moyen" format="euro"&gt;&lt;/dsfr-data-kpi&gt;
 
 &lt;!-- Carte sur les données filtrees et agregees --&gt;
 &lt;dsfr-data-query id="stats" source="filtered"

@@ -23,6 +23,21 @@
     <div slot="content">
       <p class="fr-text--lead">Le composant <code>&lt;gauge-chart&gt;</code> affiche une progression vers un objectif.</p>
 
+      <h2>Attributs</h2>
+      <table class="attr-table">
+        <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>init</code></td><td>Number</td><td>—</td><td><strong>Requis.</strong> Valeur de départ de la jauge</td></tr>
+          <tr><td><code>target</code></td><td>Number</td><td>—</td><td><strong>Requis.</strong> Valeur cible (100 % de la jauge)</td></tr>
+          <tr><td><code>percent</code></td><td>Number</td><td><code>null</code></td><td>Pourcentage de progression affiché directement (0-100). S'il est absent, il est calculé depuis <code>value</code>, <code>init</code> et <code>target</code></td></tr>
+          <tr><td><code>value</code></td><td>Number</td><td><code>0</code></td><td>Valeur courante — utilisée pour calculer le pourcentage quand <code>percent</code> n'est pas fourni</td></tr>
+          <tr><td><code>init-date</code> / <code>target-date</code></td><td>String</td><td><code>""</code></td><td>Dates associées aux bornes (affichées dans la légende)</td></tr>
+          <tr><td><code>height</code></td><td>String</td><td><code>"2rem"</code></td><td>Hauteur de la barre de jauge</td></tr>
+          <tr><td><code>legend</code></td><td>Boolean</td><td><code>true</code></td><td>Affiche la légende (bornes et progression)</td></tr>
+        </tbody>
+      </table>
+      <p class="fr-text--sm fr-text--light">Via <code>dsfr-data-chart type="gauge"</code>, l'attribut <code>gauge-value</code> (ou le premier enregistrement de la source) est converti en <code>percent</code>, avec <code>init="0"</code> et <code>target="100"</code>.</p>
+
       <section class="demo-section">
         <h3>Exemples de jauges</h3>
         <div class="gauge-grid">

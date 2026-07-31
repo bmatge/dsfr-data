@@ -34,6 +34,11 @@
           },
           { id: 'exemples-query', label: 'dsfr-data-query', href: 'guide-exemples-query.html' },
           { id: 'exemples-join', label: 'dsfr-data-join', href: 'guide-exemples-join.html' },
+          {
+            id: 'exemples-unpivot',
+            label: 'dsfr-data-unpivot',
+            href: 'guide-exemples-unpivot.html',
+          },
           { id: 'exemples-search', label: 'dsfr-data-search', href: 'guide-exemples-search.html' },
           { id: 'exemples-facets', label: 'dsfr-data-facets', href: 'guide-exemples-facets.html' },
           {
@@ -52,7 +57,18 @@
             label: 'dsfr-data-a11y',
             href: 'guide-exemples-chart-a11y.html',
           },
-          { id: 'exemples-map', label: 'dsfr-data-map', href: 'guide-exemples-map.html' },
+        ],
+      },
+      {
+        id: 'cartographie',
+        label: 'Cartographie',
+        children: [
+          { id: 'exemples-map', label: 'Cartes : bases', href: 'guide-exemples-map.html' },
+          {
+            id: 'exemples-map-avancee',
+            label: 'Cartes : avancé',
+            href: 'guide-exemples-map-avancee.html',
+          },
         ],
       },
       {

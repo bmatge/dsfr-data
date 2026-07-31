@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-scheme="system">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cartographie avancée — Exemples - Guide - dsfr-data</title>
+  <style>@view-transition{navigation:auto}app-header:not(:defined){display:block;min-height:56px}app-footer:not(:defined){display:block;min-height:48px}</style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css" integrity="sha384-atVZ+aK6VI0nWyTEhKgze5InDJ+SWRRqa0BCZ2MTNyoOcBiHj1c3dGPdi6ML65B3" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css" integrity="sha384-5P5DFFqorcEBpfnK9WHu/Ralfr7ZxyCZh0ryaJbgucSvc71+qRYdGvNEcyMqQwa/" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script type="module" src="/dist/app-ui.esm.js"></script>
+  <script src="guide-menu.js"></script>
+  <style>
+    .guide-layout { display: flex; gap: 2rem; }
+    .guide-content { flex: 1; min-width: 0; }
+    @media (max-width: 992px) {
+      .guide-layout { flex-direction: column; }
+    }
+    .guide-content h2 { padding-top: 2rem; border-top: 1px solid var(--border-default-grey); margin-top: 3rem; }
+    .guide-content h2:first-of-type { border-top: none; margin-top: 0; padding-top: 0; }
+    .guide-content h3 { margin-top: 2rem; }
+    .guide-content h4 { margin-top: 1.5rem; }
+    .guide-content pre { background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 4px; font-family: monospace; font-size: 0.85rem; overflow-x: auto; white-space: pre-wrap; margin: 0; }
+    .guide-content ol, .guide-content ul { margin: 0.5rem 0 1rem 1.5rem; }
+    .guide-content li { margin-bottom: 0.25rem; }
+    .example-container { border: 1px solid var(--border-default-grey); border-radius: 4px; padding: 1rem; background: white; min-height: 100px; }
+    .example-loading { padding: 2rem; text-align: center; color: var(--text-mention-grey); border: 1px solid var(--border-default-grey); border-radius: 4px; }
+    .map-legend { display: flex; align-items: center; gap: 0.25rem; margin-top: 0.75rem; font-size: 0.85rem; }
+    .map-legend .swatch { width: 2rem; height: 1rem; display: inline-block; border: 1px solid var(--border-default-grey); }
+  </style>
+</head>
+<body>
+  <app-header current-page="guide" base-path="../"></app-header>
+
+  <main class="fr-container fr-py-4w" id="main-content">
+    <div class="guide-layout">
+
+      <app-sidemenu section="guide"></app-sidemenu>
+
+      <div class="guide-content">
+
+        <h1><i class="ri-map-2-line fr-mr-1w"></i>Cartographie avancée</h1>
+        <p class="fr-text--lead">
+          Choroplèthes, cercles en mètres réels, heatmap pondérée, chargement par viewport,
+          plages de zoom, timeline cumulative, cartes verrouillées et garde-fous : les attributs
+          de la famille <code>dsfr-data-map</code> qui vont au-delà des bases.
+        </p>
+        <p>
+          Pour les fondamentaux (markers, clustering, fonds de carte, encarts DROM, panneau latéral),
+          voir la page <a href="guide-exemples-map.html">Cartes : bases</a>.
+        </p>
+
+        <!-- ============================================================ -->
+        <h2>Choroplèthe départementale (fill-field)</h2>
+        <p>
+          Sur une couche <code>geoshape</code>, l'attribut <code>fill-field</code> colore chaque polygone
+          selon une valeur numérique : les valeurs sont réparties en classes par
+          <strong>quantiles</strong>, puis projetées sur la palette choisie via
+          <code>selected-palette</code> (par défaut <code>sequentialAscending</code>).
+          Le pipeline classique : données agrégées par département (ODS <code>group-by</code>)
+          + référentiel géographique <code>georef-france-departement</code>, réunis par
+          <code>dsfr-data-join</code>.
+        </p>
+
+        <h4>Bénéficiaires FranceNum par département</h4>
+        <div class="example-loading" data-example>Chargement...</div>
+        <div class="map-legend" aria-hidden="true">
+          <span>Moins</span>
+          <span class="swatch" style="background:#F5F5FE"></span>
+          <span class="swatch" style="background:#C1C1FB"></span>
+          <span class="swatch" style="background:#8585F6"></span>
+          <span class="swatch" style="background:#4747E5"></span>
+          <span class="swatch" style="background:#000091"></span>
+          <span>Plus</span>
+          <span class="fr-ml-2w fr-text--xs">(classes par quantiles, palette <code>sequentialAscending</code>)</span>
+        </div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-choro">Code source</button></h3>
+          <div class="fr-collapse" id="code-choro">
+<pre class="example-code">&lt;!-- 1. Valeurs : agregation ODS par departement --&gt;
+&lt;dsfr-data-source id="fn-dept" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr"
+  dataset-id="tpe-pme-beneficiaires-des-dispositifs-france-num"
+  select="count(*) as nb, dep2, departement"
+  group-by="dep2,departement"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;!-- 2. Geometries : referentiel georef (dep_code reste une chaine : pas de numeric-auto) --&gt;
+&lt;dsfr-data-source id="geo-raw" api-type="opendatasoft"
+  base-url="https://public.opendatasoft.com"
+  dataset-id="georef-france-departement"
+  select="dep_code,dep_name,geo_shape" limit="110"&gt;
+&lt;/dsfr-data-source&gt;
+&lt;dsfr-data-normalize id="geo-dept" source="geo-raw" rename="dep_code:dep2" trim&gt;&lt;/dsfr-data-normalize&gt;
+
+&lt;!-- 3. Jointure valeurs + geometries sur le code departement --&gt;
+&lt;dsfr-data-join id="dept-geo" left="fn-dept" right="geo-dept" on="dep2" type="inner"&gt;&lt;/dsfr-data-join&gt;
+
+&lt;!-- 4. Choroplethe --&gt;
+&lt;dsfr-data-map center="46.6,2.3" zoom="6" height="550px" tiles="carto-positron"
+  name="Beneficiaires FranceNum par departement"&gt;
+  &lt;dsfr-data-map-layer source="dept-geo" type="geoshape"
+    geo-field="geo_shape"
+    fill-field="nb" selected-palette="sequentialAscending" fill-opacity="0.75"
+    tooltip-field="dep_name"
+    popup-template="{dep_name} — {nb} beneficiaires"&gt;
+  &lt;/dsfr-data-map-layer&gt;
+&lt;/dsfr-data-map&gt;</pre>
+          </div>
+        </section>
+        <p class="fr-mt-1w">
+          La légende n'est pas générée automatiquement : ajoutez-la en HTML (comme ci-dessus)
+          ou associez un <code>dsfr-data-a11y</code> pour offrir le tableau des valeurs.
+          Exemple complet en production : <a href="examples/exemple-france-num.html">Observatoire FranceNum</a>.
+        </p>
+
+        <!-- ============================================================ -->
+        <h2>Cercles en mètres réels (radius-unit="m")</h2>
+        <p>
+          Par défaut (<code>radius-unit="px"</code>), un cercle a une taille <strong>à l'écran</strong> :
+          <code>radius-field</code> projette les valeurs sur l'échelle linéaire
+          <code>radius-min</code>..<code>radius-max</code> (en pixels), et le cercle garde la même taille
+          quel que soit le zoom. Avec <code>radius-unit="m"</code>, la valeur du champ est un rayon en
+          <strong>mètres réels</strong> : le cercle couvre une surface géographique fixe et grossit
+          quand on zoome (utile pour des rayons de couverture, des zones d'impact...).
+        </p>
+
+        <h4>Pixels : population des métropoles (échelle radius-min/radius-max)</h4>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-radius-px">Code source</button></h3>
+          <div class="fr-collapse" id="code-radius-px">
+<pre class="example-code">&lt;dsfr-data-source id="metropoles" data='[
+  {"nom":"Paris","lat":48.8566,"lon":2.3522,"pop":2133111},
+  {"nom":"Marseille","lat":43.2965,"lon":5.3698,"pop":873076},
+  {"nom":"Lyon","lat":45.7578,"lon":4.8320,"pop":522969},
+  {"nom":"Toulouse","lat":43.6047,"lon":1.4442,"pop":504078},
+  {"nom":"Nice","lat":43.7102,"lon":7.2620,"pop":348085},
+  {"nom":"Nantes","lat":47.2184,"lon":-1.5536,"pop":323204},
+  {"nom":"Strasbourg","lat":48.5734,"lon":7.7521,"pop":291313},
+  {"nom":"Bordeaux","lat":44.8378,"lon":-0.5792,"pop":261804},
+  {"nom":"Lille","lat":50.6292,"lon":3.0573,"pop":236234}
+]'&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-map center="46.6,2.3" zoom="6" tiles="carto-positron" height="450px"&gt;
+  &lt;dsfr-data-map-layer source="metropoles" type="circle"
+    lat-field="lat" lon-field="lon"
+    radius-field="pop" radius-unit="px" radius-min="6" radius-max="30"
+    color="#000091" fill-opacity="0.4"
+    popup-template="{nom} — {pop} habitants"
+    tooltip-field="nom"&gt;
+  &lt;/dsfr-data-map-layer&gt;
+&lt;/dsfr-data-map&gt;</pre>
+          </div>
+        </section>
+
+        <h4>Mètres : rayon de couverture de 20 km autour de chaque site (zoomez !)</h4>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-radius-m">Code source</button></h3>
+          <div class="fr-collapse" id="code-radius-m">
+<pre class="example-code">&lt;dsfr-data-source id="sites-couverture" data='[
+  {"nom":"Site de Tours","lat":47.3941,"lon":0.6848,"rayon_m":20000},
+  {"nom":"Site de Blois","lat":47.5861,"lon":1.3359,"rayon_m":15000},
+  {"nom":"Site d’Orléans","lat":47.9029,"lon":1.9093,"rayon_m":25000},
+  {"nom":"Site de Bourges","lat":47.0810,"lon":2.3988,"rayon_m":18000},
+  {"nom":"Site de Chateauroux","lat":46.8103,"lon":1.6911,"rayon_m":12000}
+]'&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-map center="47.3,1.7" zoom="8" tiles="ign-plan" height="450px"&gt;
+  &lt;!-- radius-unit="m" : la valeur du champ EST le rayon en metres
+       (radius-min/radius-max ne s'appliquent pas dans ce mode) --&gt;
+  &lt;dsfr-data-map-layer source="sites-couverture" type="circle"
+    lat-field="lat" lon-field="lon"
+    radius-field="rayon_m" radius-unit="m"
+    color="#00A95F" fill-opacity="0.25"
+    popup-template="{nom} — couverture {rayon_m} m"
+    tooltip-field="nom"&gt;
+  &lt;/dsfr-data-map-layer&gt;
+&lt;/dsfr-data-map&gt;</pre>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <h2>Heatmap pondérée (heat-field)</h2>
+        <p>
+          Sans <code>heat-field</code>, chaque point compte pour 1 : la heatmap montre la
+          <strong>densité</strong>. Avec <code>heat-field</code>, chaque point est pondéré par une valeur
+          numérique : la heatmap montre alors une <strong>intensité</strong>. Le plugin
+          <code>leaflet.heat</code> attend des poids de l'ordre de 0 à 1 — ici la clause
+          <code>select</code> d'ODS normalise le prix (<code>prix_visite/100</code>) directement
+          côté serveur. <code>heat-radius</code> et <code>heat-blur</code> ajustent le rendu.
+        </p>
+
+        <h4>Intensité des prix du contrôle technique en Île-de-France</h4>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-heat-field">Code source</button></h3>
+          <div class="fr-collapse" id="code-heat-field">
+<pre class="example-code">&lt;dsfr-data-source id="ct-prix" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr"
+  dataset-id="prix-controle-technique"
+  where="cat_vehicule_id=1 AND cat_energie_id=1 AND code_region=11"
+  select="latitude,longitude,prix_visite/100 as poids"
+  limit="800"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-map center="48.86,2.35" zoom="10" tiles="carto-positron" height="500px"
+  name="Intensite des prix du controle technique en Ile-de-France"&gt;
+  &lt;dsfr-data-map-layer source="ct-prix" type="heatmap"
+    lat-field="latitude" lon-field="longitude"
+    heat-field="poids" heat-radius="22" heat-blur="18"&gt;
+  &lt;/dsfr-data-map-layer&gt;
+&lt;/dsfr-data-map&gt;</pre>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <h2>Fetch piloté par le viewport (bbox)</h2>
+        <p>
+          L'attribut <code>bbox</code> sur une couche déclenche un rechargement des données à chaque
+          déplacement de la carte (debounce réglable via <code>bbox-debounce</code>, 300 ms par défaut).
+          La couche envoie une commande <code>dsfr-data-source-command</code> portant la clé
+          <code>whereKey: "map-bbox"</code> — elle se combine donc proprement avec les autres filtres
+          (facettes, recherche, contexte) et est libérée quand la couche disparaît du DOM.
+        </p>
+        <ul>
+          <li><strong>Adapter avec géo serveur (ODS)</strong> : clause <code>in_bbox(champ, lat1, lon1, lat2, lon2)</code> poussée dans la requête ;</li>
+          <li><strong>Tabular, Grist, Generic</strong> : repli client — les points et géométries déjà chargés sont filtrés en mémoire ;</li>
+          <li><code>bbox-field</code> précise le champ géographique de la clause (défaut : <code>geo-field</code> ou auto-détection).</li>
+        </ul>
+
+        <h4>Bornes de recharge électrique (IRVE) — déplacez la carte pour recharger la zone</h4>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-bbox">Code source</button></h3>
+          <div class="fr-collapse" id="code-bbox">
+<pre class="example-code">&lt;dsfr-data-source id="irve" api-type="opendatasoft"
+  base-url="https://odre.opendatasoft.com"
+  dataset-id="bornes-irve"
+  select="geo_point_2d,nom_station,puissance_nominale,adresse"
+  limit="600"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-map center="45.76,4.84" zoom="12" tiles="ign-plan" height="500px"
+  name="Bornes de recharge dans le viewport"&gt;
+  &lt;dsfr-data-map-layer source="irve" type="marker"
+    geo-field="geo_point_2d"
+    bbox bbox-debounce="400" bbox-field="geo_point_2d"
+    popup-fields="nom_station,puissance_nominale,adresse"
+    tooltip-field="nom_station"
+    cluster cluster-radius="60"&gt;
+  &lt;/dsfr-data-map-layer&gt;
+&lt;/dsfr-data-map&gt;</pre>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <h2>Plages de zoom par couche (min-zoom / max-zoom)</h2>
+        <p>
+          Les attributs <code>min-zoom</code> / <code>max-zoom</code> d'une couche définissent sa plage
+          de visibilité : c'est la brique de la <strong>multi-résolution administrative</strong>
+          (vue nationale agrégée, puis détail à mesure que l'on zoome). Combinez avec <code>bbox</code>
+          pour ne charger le détail que sur la zone visible.
+        </p>
+        <div class="code-block"><pre>Zoom 2-7   : régions (13 cercles agrégés)
+Zoom 8-10  : départements d'Île-de-France
+Zoom 11+   : centres de contrôle technique parisiens (ODS)</pre></div>
+
+        <h4>Régions → départements → points : zoomez sur Paris pour changer d'échelle</h4>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-zoomranges">Code source</button></h3>
+          <div class="fr-collapse" id="code-zoomranges">
+<pre class="example-code">&lt;dsfr-data-source id="regions-agg" data='[
+  {"region":"Ile-de-France","lat":48.85,"lon":2.35,"nb":420},
+  {"region":"Auvergne-Rhone-Alpes","lat":45.51,"lon":4.53,"nb":310},
+  {"region":"Provence-Alpes-Cote Azur","lat":43.94,"lon":6.07,"nb":205},
+  {"region":"Occitanie","lat":43.70,"lon":2.14,"nb":190},
+  {"region":"Nouvelle-Aquitaine","lat":45.19,"lon":0.20,"nb":220},
+  {"region":"Hauts-de-France","lat":49.97,"lon":2.77,"nb":180},
+  {"region":"Grand Est","lat":48.69,"lon":5.62,"nb":175},
+  {"region":"Pays de la Loire","lat":47.47,"lon":-0.83,"nb":140},
+  {"region":"Bretagne","lat":48.18,"lon":-2.92,"nb":120},
+  {"region":"Normandie","lat":49.12,"lon":0.10,"nb":110},
+  {"region":"Bourgogne-Franche-Comte","lat":47.09,"lon":4.81,"nb":95},
+  {"region":"Centre-Val de Loire","lat":47.48,"lon":1.68,"nb":90},
+  {"region":"Corse","lat":42.15,"lon":9.10,"nb":25}
+]'&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-source id="depts-idf" data='[
+  {"dept":"Paris (75)","lat":48.8566,"lon":2.3522,"nb":95},
+  {"dept":"Seine-et-Marne (77)","lat":48.60,"lon":2.95,"nb":58},
+  {"dept":"Yvelines (78)","lat":48.80,"lon":1.98,"nb":52},
+  {"dept":"Essonne (91)","lat":48.52,"lon":2.24,"nb":47},
+  {"dept":"Hauts-de-Seine (92)","lat":48.83,"lon":2.24,"nb":49},
+  {"dept":"Seine-Saint-Denis (93)","lat":48.90,"lon":2.48,"nb":45},
+  {"dept":"Val-de-Marne (94)","lat":48.78,"lon":2.45,"nb":41},
+  {"dept":"Val-d’Oise (95)","lat":49.08,"lon":2.17,"nb":33}
+]'&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-source id="ct-paris" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr"
+  dataset-id="prix-controle-technique"
+  where="cat_vehicule_id=1 AND cat_energie_id=1 AND code_departement='75'"
+  select="cct_denomination,latitude,longitude,prix_visite"
+  limit="60"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-map center="48.86,2.35" zoom="9" tiles="carto-positron" height="550px"
+  name="Multi-resolution : regions, departements, points"&gt;
+  &lt;!-- Visible du zoom 2 au zoom 7 --&gt;
+  &lt;dsfr-data-map-layer source="regions-agg" type="circle"
+    lat-field="lat" lon-field="lon"
+    radius-field="nb" radius-min="8" radius-max="30"
+    color="#000091" fill-opacity="0.4"
+    max-zoom="7"
+    popup-template="{region} — {nb} centres" tooltip-field="region"&gt;
+  &lt;/dsfr-data-map-layer&gt;
+  &lt;!-- Visible du zoom 8 au zoom 10 --&gt;
+  &lt;dsfr-data-map-layer source="depts-idf" type="circle"
+    lat-field="lat" lon-field="lon"
+    radius-field="nb" radius-min="8" radius-max="26"
+    color="#00A95F" fill-opacity="0.4"
+    min-zoom="8" max-zoom="10"
+    popup-template="{dept} — {nb} centres" tooltip-field="dept"&gt;
+  &lt;/dsfr-data-map-layer&gt;
+  &lt;!-- Visible a partir du zoom 11 --&gt;
+  &lt;dsfr-data-map-layer source="ct-paris" type="marker"
+    lat-field="latitude" lon-field="longitude"
+    min-zoom="11"
+    popup-fields="cct_denomination,prix_visite" tooltip-field="cct_denomination"&gt;
+  &lt;/dsfr-data-map-layer&gt;
+&lt;/dsfr-data-map&gt;</pre>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <h2>Timeline cumulative et bucketing (time-mode, time-bucket)</h2>
+        <p>
+          La page <a href="guide-exemples-map.html">Cartes : bases</a> montre le mode
+          <code>snapshot</code> (chaque étape remplace la précédente). Deux attributs vont plus loin :
+        </p>
+        <ul>
+          <li><code>time-mode="cumulative"</code> : chaque étape <strong>cumule</strong> les données jusqu'à la date courante — idéal pour raconter un déploiement, une propagation, une montée en charge ;</li>
+          <li><code>time-bucket</code> (<code>hour</code>, <code>day</code>, <code>month</code>, <code>year</code>) : regroupe des dates brutes en étapes homogènes (ici, des dates quotidiennes regroupées par mois) ;</li>
+          <li><code>for</code> sur <code>dsfr-data-map-timeline</code> : cible une ou plusieurs couches précises par <code>id</code> (sans <code>for</code>, la timeline pilote toutes les couches à <code>time-field</code>).</li>
+        </ul>
+
+        <h4>Ouvertures de guichets — cumul mois par mois</h4>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-cumulative">Code source</button></h3>
+          <div class="fr-collapse" id="code-cumulative">
+<pre class="example-code">&lt;dsfr-data-source id="ouvertures" data='[
+  {"ville":"Lille","lat":50.63,"lon":3.06,"date":"2025-01-08"},
+  {"ville":"Lyon","lat":45.76,"lon":4.83,"date":"2025-01-21"},
+  {"ville":"Bordeaux","lat":44.84,"lon":-0.58,"date":"2025-02-04"},
+  {"ville":"Nantes","lat":47.22,"lon":-1.55,"date":"2025-02-17"},
+  {"ville":"Strasbourg","lat":48.57,"lon":7.75,"date":"2025-02-26"},
+  {"ville":"Marseille","lat":43.30,"lon":5.37,"date":"2025-03-05"},
+  {"ville":"Toulouse","lat":43.60,"lon":1.44,"date":"2025-03-12"},
+  {"ville":"Rennes","lat":48.12,"lon":-1.68,"date":"2025-03-24"},
+  {"ville":"Dijon","lat":47.32,"lon":5.04,"date":"2025-04-02"},
+  {"ville":"Montpellier","lat":43.61,"lon":3.88,"date":"2025-04-15"},
+  {"ville":"Rouen","lat":49.44,"lon":1.10,"date":"2025-04-23"},
+  {"ville":"Clermont-Ferrand","lat":45.78,"lon":3.08,"date":"2025-04-29"}
+]'&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-map center="46.6,2.3" zoom="6" tiles="ign-plan" height="500px"
+  name="Ouvertures de guichets, cumul mensuel"&gt;
+  &lt;dsfr-data-map-layer id="layer-ouvertures" source="ouvertures" type="circle"
+    lat-field="lat" lon-field="lon"
+    radius="10" color="#000091" fill-opacity="0.6"
+    popup-template="{ville} — ouvert le {date}" tooltip-field="ville"
+    time-field="date" time-bucket="month" time-mode="cumulative"&gt;
+  &lt;/dsfr-data-map-layer&gt;
+  &lt;!-- for : ne pilote que la couche layer-ouvertures --&gt;
+  &lt;dsfr-data-map-timeline for="layer-ouvertures" interval="1500" speed="1"&gt;
+  &lt;/dsfr-data-map-timeline&gt;
+&lt;/dsfr-data-map&gt;</pre>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <h2>Cartes verrouillées et habillage</h2>
+        <p>
+          Trois attributs du conteneur transforment une carte interactive en illustration maîtrisée :
+        </p>
+        <ul>
+          <li><code>locked</code> : aucune interaction (ni pan, ni zoom, ni clavier, ni molette) — pour des vignettes ou des encarts éditoriaux ;</li>
+          <li><code>no-controls</code> : masque le contrôle de zoom (la carte reste manipulable si <code>locked</code> est absent) ;</li>
+          <li><code>sovereign-only</code> : restreint les fonds aux presets souverains IGN — tout autre preset retombe sur <code>ign-plan</code> avec un avertissement console.</li>
+        </ul>
+        <p>
+          Les encarts <code>dsfr-data-map-inset</code> acceptent en plus un libellé (<code>label</code>,
+          affiché au-dessus de la mini-carte et repris dans le nom accessible) et une hauteur
+          personnalisée (<code>height</code>, 160&nbsp;px par défaut).
+        </p>
+
+        <h4>Vignette verrouillée avec encart personnalisé</h4>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-locked">Code source</button></h3>
+          <div class="fr-collapse" id="code-locked">
+<pre class="example-code">&lt;dsfr-data-source id="sites-vignette" data='[
+  {"nom":"Site de Paris","lat":48.8566,"lon":2.3522},
+  {"nom":"Site de Lyon","lat":45.7578,"lon":4.8320},
+  {"nom":"Site de Bordeaux","lat":44.8378,"lon":-0.5792},
+  {"nom":"Site de Basse-Terre","lat":15.9985,"lon":-61.7255}
+]'&gt;&lt;/dsfr-data-source&gt;
+
+&lt;!-- locked + no-controls + sovereign-only : illustration non interactive, fond garanti IGN --&gt;
+&lt;dsfr-data-map center="46.6,2.3" zoom="5" tiles="ign-plan" height="350px"
+  locked no-controls sovereign-only
+  name="Implantations (vignette non interactive)"&gt;
+  &lt;dsfr-data-map-layer source="sites-vignette" type="circle"
+    lat-field="lat" lon-field="lon"
+    radius="8" color="#000091" fill-opacity="0.7" tooltip-field="nom"&gt;
+  &lt;/dsfr-data-map-layer&gt;
+  &lt;!-- Encart avec libelle et hauteur personnalises --&gt;
+  &lt;dsfr-data-map-inset territory="guadeloupe"
+    label="Guadeloupe — zoom local" height="220px"&gt;
+  &lt;/dsfr-data-map-inset&gt;
+&lt;/dsfr-data-map&gt;</pre>
+          </div>
+        </section>
+
+        <h3>Modes d'affichage au clic (dsfr-data-map-popup)</h3>
+        <p>
+          <code>dsfr-data-map-popup</code> propose quatre modes : <code>popup</code> (bulle Leaflet,
+          <strong>mode par défaut</strong>), <code>modal</code> (superposition avec piège de focus,
+          fermeture par Échap, restitution du focus), <code>panel-right</code> et <code>panel-left</code>
+          (volet latéral ancré à la carte). Le template utilise les expressions
+          <code>{{champ}}</code>, <code>{{champ:number}}</code>, <code>{{champ|défaut}}</code> —
+          toujours échappées (pas de <code>{{{brut}}}</code> sur les cartes).
+        </p>
+
+        <h4>Mode modal — cliquez sur un centre</h4>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-modal">Code source</button></h3>
+          <div class="fr-collapse" id="code-modal">
+<pre class="example-code">&lt;dsfr-data-source id="ct-modal" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr"
+  dataset-id="prix-controle-technique"
+  where="cat_vehicule_id=1 AND cat_energie_id=1 AND code_departement='69'"
+  select="cct_denomination,cct_adresse,cct_commune,latitude,longitude,prix_visite"
+  limit="40"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-map center="45.76,4.84" zoom="11" tiles="ign-plan" height="450px"
+  name="Controle technique dans le Rhone"&gt;
+  &lt;dsfr-data-map-layer source="ct-modal" type="marker"
+    lat-field="latitude" lon-field="longitude"
+    tooltip-field="cct_denomination"&gt;
+  &lt;/dsfr-data-map-layer&gt;
+
+  &lt;dsfr-data-map-popup mode="modal" title-field="cct_denomination"&gt;
+    &lt;template&gt;
+      &lt;p&gt;{{cct_adresse}}, {{cct_commune}}&lt;/p&gt;
+      &lt;p&gt;&lt;strong&gt;Prix de la visite :&lt;/strong&gt; {{prix_visite}} EUR&lt;/p&gt;
+    &lt;/template&gt;
+  &lt;/dsfr-data-map-popup&gt;
+
+  &lt;!-- Variante : mode="popup" (defaut) pour une bulle Leaflet classique,
+       mode="panel-left" / "panel-right" pour un volet lateral --&gt;
+&lt;/dsfr-data-map&gt;</pre>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <h2>Garde-fous (max-items)</h2>
+        <p>
+          Une couche plafonne le nombre d'éléments rendus à <code>max-items</code>
+          (5&nbsp;000 par défaut). Au-delà, les données sont tronquées et une
+          <strong>bannière</strong> « N affichés sur M » apparaît sous la carte (bannières empilées
+          si plusieurs couches tronquent). Abaissez la limite pour garantir la fluidité sur les
+          postes modestes, ou relevez-la en connaissance de cause — le clustering et
+          <code>bbox</code> restent les vrais remèdes aux gros volumes.
+        </p>
+
+        <h4>Troncature volontaire : 400 centres affichés sur 1 500 chargés</h4>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-maxitems">Code source</button></h3>
+          <div class="fr-collapse" id="code-maxitems">
+<pre class="example-code">&lt;dsfr-data-source id="ct-volume" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr"
+  dataset-id="prix-controle-technique"
+  where="cat_vehicule_id=1 AND cat_energie_id=1"
+  select="cct_denomination,latitude,longitude,prix_visite"
+  limit="1500"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-map center="46.6,2.3" zoom="6" tiles="carto-positron" height="450px"
+  name="Troncature max-items"&gt;
+  &lt;!-- max-items : troncature + banniere "400 affiches sur 1500" --&gt;
+  &lt;dsfr-data-map-layer source="ct-volume" type="marker"
+    lat-field="latitude" lon-field="longitude"
+    max-items="400"
+    tooltip-field="cct_denomination" cluster cluster-radius="60"&gt;
+  &lt;/dsfr-data-map-layer&gt;
+&lt;/dsfr-data-map&gt;</pre>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </main>
+
+  <app-footer base-path="../"></app-footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.module.min.js" integrity="sha384-gPgRd2+olihO/srZe/Bqw6iVLiiaL7meuri1d5YVMejwPXg7VehLSBeORYq9yh2F" crossorigin="anonymous"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      let exampleIndex = 0;
+      function getCodeForExample(placeholder) {
+        // Le placeholder peut etre suivi d'une legende avant l'accordeon : on
+        // cherche le premier .example-code parmi les siblings suivants.
+        let el = placeholder.nextElementSibling;
+        while (el) {
+          const pre = el.querySelector ? el.querySelector('.example-code') : null;
+          if (pre) return pre.textContent;
+          el = el.nextElementSibling;
+        }
+        return null;
+      }
+      function makeIdsUnique(html, prefix) {
+        const idRegex = / id="([^"]+)"/g;
+        const ids = new Set();
+        let match;
+        while ((match = idRegex.exec(html)) !== null) ids.add(match[1]);
+        let result = html;
+        for (const id of ids) {
+          result = result.replaceAll(' id="' + id + '"', ' id="' + prefix + '-' + id + '"');
+          result = result.replaceAll('source="' + id + '"', 'source="' + prefix + '-' + id + '"');
+          // Les compagnons referencent les couches/sources par for/left/right
+          result = result.replaceAll('for="' + id + '"', 'for="' + prefix + '-' + id + '"');
+          result = result.replaceAll('left="' + id + '"', 'left="' + prefix + '-' + id + '"');
+          result = result.replaceAll('right="' + id + '"', 'right="' + prefix + '-' + id + '"');
+        }
+        return result;
+      }
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (!entry.isIntersecting) return;
+          const placeholder = entry.target;
+          observer.unobserve(placeholder);
+          const code = getCodeForExample(placeholder);
+          if (!code) return;
+          const prefix = 'ex' + (exampleIndex++);
+          const uniqueCode = makeIdsUnique(code, prefix);
+          const container = document.createElement('div');
+          container.className = 'example-container';
+          container.innerHTML = uniqueCode;
+          placeholder.replaceWith(container);
+        });
+      }, { rootMargin: '200px 0px' });
+      document.querySelectorAll('[data-example]').forEach(el => observer.observe(el));
+    });
+  </script>
+</body>
+</html>

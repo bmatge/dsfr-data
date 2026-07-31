@@ -63,7 +63,7 @@ if (
  * sans config). Cf. issue #168 (PR-3) — exception assumée au fail-fast
  * car le MCP server est un tool public où ce default a une valeur pédagogique.
  */
-const DEFAULT_PUBLIC_INSTANCE = 'https://chartsbuilder.matge.com';
+const DEFAULT_PUBLIC_INSTANCE = 'https://chartsbuilder.miweb.run';
 const DEFAULT_PORT = 3001;
 
 const baseUrl = (

@@ -170,6 +170,8 @@
         <!-- direct-barline -->
         <h4>Barres + ligne — Investissements</h4>
         <p>Combine barres (investissement) et ligne (participation Etat) via <code>value-field-2</code>.
+          Sur ce type mixte, <code>unit-tooltip</code> s'applique à la série ligne et
+          <code>unit-tooltip-bar</code> à la série barres — utile quand les deux séries n'ont pas la même unité.
           <a href="../apps/playground/index.html?example=direct-barline" class="fr-link fr-link--sm">Tester dans le Playground</a>
         </p>
         <div class="example-loading" data-example>Chargement...</div>
@@ -185,6 +187,7 @@
   label-field="nom_departement"
   value-field="montant_investissement"
   value-field-2="montant_participation_etat"
+  unit-tooltip=" € (État)" unit-tooltip-bar=" € (invest.)"
   name='["Investissement", "Participation Etat"]'&gt;
 &lt;/dsfr-data-chart&gt;</pre>
           </div>
@@ -206,6 +209,64 @@
 &lt;dsfr-data-chart source="data" type="map"
   code-field="code_departement" value-field="nombre_beneficiaires"
   selected-palette="sequentialAscending"&gt;
+&lt;/dsfr-data-chart&gt;</pre>
+          </div>
+        </section>
+
+        <!-- direct-map-aca (snippet) -->
+        <h4>Carte académique — <code>type="map-aca"</code></h4>
+        <p>
+          En plus des cartes départementales (<code>map</code>), régionales (<code>map-reg</code>)
+          et mondiale (<code>map-monde</code>), DSFR Chart propose une carte des académies.
+          Le <code>code-field</code> attend alors le <strong>nom de l'académie</strong>
+          (la casse est normalisée automatiquement).
+        </p>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-d-map-aca">Code source</button></h3>
+          <div class="fr-collapse" id="code-d-map-aca">
+<pre class="example-code">&lt;dsfr-data-source id="acad" data='[
+  {"academie":"Paris","effectifs":142000},
+  {"academie":"Creteil","effectifs":198000},
+  {"academie":"Versailles","effectifs":231000},
+  {"academie":"Lyon","effectifs":126000},
+  {"academie":"Lille","effectifs":158000},
+  {"academie":"Toulouse","effectifs":98000},
+  {"academie":"Rennes","effectifs":87000}
+]'&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-chart source="acad" type="map-aca"
+  code-field="academie" value-field="effectifs"
+  selected-palette="sequentialAscending" unit-tooltip="élèves"&gt;
+&lt;/dsfr-data-chart&gt;</pre>
+          </div>
+        </section>
+
+        <!-- direct-scatter-bornes -->
+        <h4>Nuage de points — bornes d'axes <code>x-min</code>/<code>x-max</code></h4>
+        <p>
+          Les attributs <code>x-min</code>/<code>x-max</code> (et leurs pendants <code>y-min</code>/<code>y-max</code>)
+          fixent les bornes des axes, utile pour stabiliser le cadrage d'un nuage de points
+          quel que soit le jeu de données. Données fictives en ligne : score d'audit vs taux de conformité.
+        </p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-d-scatter-bornes">Code source</button></h3>
+          <div class="fr-collapse" id="code-d-scatter-bornes">
+<pre class="example-code">&lt;dsfr-data-source id="audits" data='[
+  {"score":22,"conformite":31},
+  {"score":38,"conformite":45},
+  {"score":47,"conformite":52},
+  {"score":55,"conformite":58},
+  {"score":63,"conformite":71},
+  {"score":72,"conformite":69},
+  {"score":81,"conformite":86},
+  {"score":90,"conformite":92}
+]'&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-chart source="audits" type="scatter"
+  label-field="score" value-field="conformite"
+  x-min="0" x-max="100" y-min="0" y-max="100"
+  name="Conformité (%)"&gt;
 &lt;/dsfr-data-chart&gt;</pre>
           </div>
         </section>

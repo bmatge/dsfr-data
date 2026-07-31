@@ -53,12 +53,12 @@ services:
       - "traefik.enable=true"
 
       # Router HTTP (redirige vers HTTPS)
-      - "traefik.http.routers.chartsbuilder-http.rule=Host(`${APP_DOMAIN:-chartsbuilder.matge.com}`)"
+      - "traefik.http.routers.chartsbuilder-http.rule=Host(`${APP_DOMAIN:-chartsbuilder.miweb.run}`)"
       - "traefik.http.routers.chartsbuilder-http.entrypoints=web"
       - "traefik.http.routers.chartsbuilder-http.middlewares=redirect-to-https"
 
       # Router HTTPS
-      - "traefik.http.routers.chartsbuilder-https.rule=Host(`${APP_DOMAIN:-chartsbuilder.matge.com}`)"
+      - "traefik.http.routers.chartsbuilder-https.rule=Host(`${APP_DOMAIN:-chartsbuilder.miweb.run}`)"
       - "traefik.http.routers.chartsbuilder-https.middlewares=chartsbuilder-headers@file"
       - "traefik.http.routers.chartsbuilder-https.entrypoints=websecure"
       - "traefik.http.routers.chartsbuilder-https.tls=true"

@@ -2631,6 +2631,7 @@ Composant compagnon place comme enfant de \`dsfr-data-map\`. Decouvre automatiqu
 | for | String | \`""\` | IDs des layers cibles (virgules). Vide = tous les layers avec time-field |
 | speed | Number | \`1\` | Multiplicateur vitesse (0.5, 1, 2, 4) |
 | interval | Number | \`1000\` | Intervalle de base entre frames (ms) |
+| label | String | \`"auto"\` | Format du libelle du pas courant (\`auto\` = valeur brute du pas) |
 
 Controles : play/pause, stop, pas-a-pas, slider, vitesse.
 Clavier : Espace (play/pause), fleches (pas-a-pas), Home/End (debut/fin).

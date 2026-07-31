@@ -58,7 +58,7 @@ describe('sendWidgetBeacon', () => {
     });
   }
 
-  async function loadBeacon(beaconUrl = 'https://chartsbuilder.matge.com') {
+  async function loadBeacon(beaconUrl = 'https://chartsbuilder.miweb.run') {
     // BEACON_BASE_URL est une constante module-level lue depuis import.meta.env
     // au chargement : on fixe l'env AVANT l'import frais pour que les tests ne
     // dependent pas du .env local (vide en CI → beacon desactive par defaut).
@@ -120,13 +120,13 @@ describe('sendWidgetBeacon', () => {
     expect(imageSrcs).toHaveLength(0);
   });
 
-  it('skips on chartsbuilder.matge.com even when enabled', async () => {
+  it('skips on chartsbuilder.miweb.run even when enabled', async () => {
     (window as any).DSFR_DATA_BEACON = true;
     vi.stubGlobal('location', {
-      hostname: 'chartsbuilder.matge.com',
+      hostname: 'chartsbuilder.miweb.run',
       protocol: 'https:',
-      origin: 'https://chartsbuilder.matge.com',
-      href: 'https://chartsbuilder.matge.com/',
+      origin: 'https://chartsbuilder.miweb.run',
+      href: 'https://chartsbuilder.miweb.run/',
     });
 
     const sendWidgetBeacon = await loadBeacon();
@@ -235,7 +235,7 @@ describe('sendWidgetBeacon', () => {
 
     // Pixel was sent synchronously
     expect(imageSrcs).toHaveLength(1);
-    expect(imageSrcs[0]).toContain('chartsbuilder.matge.com/beacon');
+    expect(imageSrcs[0]).toContain('chartsbuilder.miweb.run/beacon');
   });
 
   it('un transport enregistré qui retourne true remplace le pixel (#308)', async () => {
@@ -294,7 +294,7 @@ describe('sendWidgetBeacon', () => {
 
     // Without DB mode, pixel is created synchronously
     expect(imageSrcs).toHaveLength(1);
-    expect(imageSrcs[0]).toContain('chartsbuilder.matge.com/beacon');
+    expect(imageSrcs[0]).toContain('chartsbuilder.miweb.run/beacon');
   });
 
   // --- Override runtime de l'URL de collecte (#340) ---
@@ -309,7 +309,7 @@ describe('sendWidgetBeacon', () => {
       href: 'https://example.gouv.fr/',
     });
 
-    const sendWidgetBeacon = await loadBeacon('https://chartsbuilder.matge.com');
+    const sendWidgetBeacon = await loadBeacon('https://chartsbuilder.miweb.run');
     sendWidgetBeacon('dsfr-data-kpi');
 
     expect(imageSrcs).toHaveLength(1);
@@ -345,7 +345,7 @@ describe('sendWidgetBeacon', () => {
       href: 'https://collecte.ministere.fr/',
     });
 
-    const sendWidgetBeacon = await loadBeacon('https://chartsbuilder.matge.com');
+    const sendWidgetBeacon = await loadBeacon('https://chartsbuilder.miweb.run');
     sendWidgetBeacon('dsfr-data-kpi');
 
     expect(imageSrcs).toHaveLength(0);
@@ -371,7 +371,7 @@ describe('sendWidgetBeacon', () => {
     (window as any).DSFR_DATA_BEACON_URL = 'https://override.window.fr';
     addBeaconElement('https://collecte.element.fr/');
 
-    const sendWidgetBeacon = await loadBeacon('https://chartsbuilder.matge.com');
+    const sendWidgetBeacon = await loadBeacon('https://chartsbuilder.miweb.run');
     sendWidgetBeacon('dsfr-data-kpi');
 
     expect(imageSrcs).toHaveLength(1);

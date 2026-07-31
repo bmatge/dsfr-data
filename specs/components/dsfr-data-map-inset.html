@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-scheme="system">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dsfr-data-map-inset - Composants - dsfr-data</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css" integrity="sha384-atVZ+aK6VI0nWyTEhKgze5InDJ+SWRRqa0BCZ2MTNyoOcBiHj1c3dGPdi6ML65B3" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css" integrity="sha384-5P5DFFqorcEBpfnK9WHu/Ralfr7ZxyCZh0ryaJbgucSvc71+qRYdGvNEcyMqQwa/" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script type="module" src="/dist/app-ui.esm.js"></script>
+  <style>
+    body { min-height: 100vh; display: flex; flex-direction: column; }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <app-header current-page="composants" base-path="../../"></app-header>
+
+  <!-- Layout documentation avec sidemenu -->
+  <app-layout-demo
+    title="dsfr-data-map-inset"
+    icon="ri-layout-grid-line"
+    active-path="components/dsfr-data-map-inset"
+    base-path="../">
+    <div slot="content">
+        <p class="fr-text--lead">
+          Encart territorial d'une carte <a href="dsfr-data-map.html"><code>dsfr-data-map</code></a> :
+          une mini-carte verrouillée centrée sur un territoire — le pattern « France métropolitaine
+          + vignettes DROM » des cartes nationales.
+        </p>
+
+        <div class="fr-callout fr-callout--blue-ecume fr-mb-4w">
+          <p class="fr-callout__text">
+            <strong>Enfant de <code>dsfr-data-map</code></strong> : l'encart rend une mini
+            <code>dsfr-data-map</code> verrouillée (<code>locked</code>, <code>no-controls</code>,
+            zoom fixe, mêmes tuiles que l'hôte) qui <strong>clone les couches directes de la carte
+            hôte</strong> (clone superficiel, sans <code>id</code>) — aucune duplication de
+            configuration. Les clics dans l'encart <strong>délèguent aux popups de la carte
+            principale</strong> : un seul template, un seul volet.
+          </p>
+        </div>
+
+        <h2 id="attributs">Attributs</h2>
+        <table class="attr-table">
+          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>territory</code></td><td>String</td><td><code>""</code></td><td>Territoire prédéfini (fournit centre, zoom et libellé) — 12 presets : <code>guadeloupe</code>, <code>martinique</code>, <code>guyane</code>, <code>la-reunion</code>, <code>mayotte</code>, <code>saint-pierre-et-miquelon</code>, <code>saint-martin</code>, <code>saint-barthelemy</code>, <code>nouvelle-caledonie</code>, <code>polynesie-francaise</code>, <code>wallis-et-futuna</code>, <code>corse</code>. Valeur inconnue : warn console + pas de rendu.</td></tr>
+            <tr><td><code>center</code></td><td>String</td><td><code>""</code></td><td>Centre <code>"lat,lon"</code> — requis sans <code>territory</code> ; prioritaire sur le preset (surcharge de cadrage)</td></tr>
+            <tr><td><code>zoom</code></td><td>Number</td><td><code>0</code> (&rarr; preset, sinon 8)</td><td>Zoom fixe de l'encart (= min-zoom = max-zoom de la mini-carte)</td></tr>
+            <tr><td><code>label</code></td><td>String</td><td><code>""</code></td><td>Libellé affiché au-dessus de l'encart et nom accessible de la mini-carte (« Encart — X »). Défaut : le libellé du preset.</td></tr>
+            <tr><td><code>height</code></td><td>String</td><td><code>"160px"</code></td><td>Hauteur de la mini-carte</td></tr>
+          </tbody>
+        </table>
+        <p class="fr-text--sm fr-text--light">Aucun événement, aucun slot, aucune méthode publique.</p>
+
+        <h2 id="raccourci" class="fr-mt-4w">Raccourci <code>insets</code> côté carte</h2>
+        <p>
+          L'attribut <code>insets</code> de <code>dsfr-data-map</code> génère les encarts
+          automatiquement : une liste de territoires et/ou de groupes séparés par des virgules.
+          Le groupe <code>drom</code> développe les 5 DROM : guadeloupe, martinique, guyane,
+          la-reunion, mayotte.
+        </p>
+        <div class="code-block"><pre>&lt;dsfr-data-map insets="drom"&gt;...&lt;/dsfr-data-map&gt;          &lt;!-- les 5 DROM --&gt;
+&lt;dsfr-data-map insets="drom,corse"&gt;...&lt;/dsfr-data-map&gt;    &lt;!-- DROM + Corse --&gt;
+&lt;dsfr-data-map insets="guyane,mayotte"&gt;...&lt;/dsfr-data-map&gt; &lt;!-- à la carte --&gt;</pre></div>
+        <p>
+          Un encart posé <strong>explicitement en HTML</strong> pour le même territoire prime sur
+          celui du raccourci (pas de doublon) — pratique pour surcharger le zoom ou le cadrage d'un
+          seul territoire.
+        </p>
+
+        <h2 id="fonctionnement" class="fr-mt-4w">Fonctionnement</h2>
+        <ul>
+          <li><strong>Clonage superficiel des couches</strong> : les <code>dsfr-data-map-layer</code>
+            directs de la carte hôte sont clonés dans la mini-carte (mêmes attributs, sans
+            <code>id</code>). Les données arrivent par le data-bridge : une seule source alimente
+            la carte principale et tous ses encarts.</li>
+          <li><strong>Délégation des clics</strong> : un clic sur un élément de l'encart ouvre le
+            popup/volet/modale de la <strong>carte principale</strong> (cf.
+            <a href="dsfr-data-map-popup.html#resolution">résolution du compagnon</a>).</li>
+          <li><strong>Verrouillage</strong> : ni pan, ni zoom, ni clavier dans l'encart — c'est une
+            vignette de situation, pas une carte de navigation.</li>
+        </ul>
+
+        <h2 id="adr-094" class="fr-mt-4w">Pattern ADR-094 : carte nationale + encarts DROM + volet délégué</h2>
+        <p>
+          Le pattern complet combine <code>fit-bounds</code> clippé par <code>max-bounds</code>
+          (la métropole cadre bien même si les données contiennent les DROM), les encarts DROM et
+          un volet unique délégué. C'est le montage de la carte
+          « Territoires d'électrification » (ELF v2) du guide :
+        </p>
+        <div class="code-block"><pre>&lt;dsfr-data-map id="carte" center="46.5,2.6" zoom="6" min-zoom="3" height="620px"
+  tiles="carto-positron" fit-bounds max-bounds="38.5,-13,54,15"
+  name="Territoires engagés dans l'électrification"&gt;
+
+  &lt;!-- Couches (clonées dans chaque encart) --&gt;
+  &lt;dsfr-data-map-layer source="contours-regions" type="geoshape"
+    geo-field="geojson" no-interactive color="#7b7b7b" fill-opacity="0"&gt;
+  &lt;/dsfr-data-map-layer&gt;
+  &lt;dsfr-data-map-layer source="territoires" type="geoshape"
+    geo-field="geojson" fill-field="habitants"
+    selected-palette="sequentialAscending" tooltip-field="nom"&gt;
+  &lt;/dsfr-data-map-layer&gt;
+
+  &lt;!-- Volet unique : sert la carte principale ET les encarts --&gt;
+  &lt;dsfr-data-map-popup mode="panel-right" title-field="nom" width="400px"&gt;
+    &lt;template&gt;&lt;p&gt;{{habitants:number}} habitants&lt;/p&gt;&lt;/template&gt;
+  &lt;/dsfr-data-map-popup&gt;
+
+  &lt;!-- Encarts DROM explicites (équivalent raccourci : insets="drom") --&gt;
+  &lt;dsfr-data-map-inset territory="guadeloupe" zoom="8"&gt;&lt;/dsfr-data-map-inset&gt;
+  &lt;dsfr-data-map-inset territory="martinique" zoom="8"&gt;&lt;/dsfr-data-map-inset&gt;
+  &lt;dsfr-data-map-inset territory="guyane"&gt;&lt;/dsfr-data-map-inset&gt;
+  &lt;dsfr-data-map-inset territory="la-reunion" zoom="8"&gt;&lt;/dsfr-data-map-inset&gt;
+  &lt;dsfr-data-map-inset territory="mayotte" zoom="9"&gt;&lt;/dsfr-data-map-inset&gt;
+&lt;/dsfr-data-map&gt;</pre></div>
+        <p class="fr-text--sm fr-text--light">
+          La mise en page des encarts (bandeau sous la carte, grille...) est laissée au CSS de la
+          page hôte — cf. l'exemple complet
+          <a href="../../guide/examples/carte-territoires-electrification-v2.html">carte-territoires-electrification-v2</a>
+          du guide.
+        </p>
+
+        <h2 class="fr-mt-4w">Exemples</h2>
+
+        <section class="demo-section">
+          <h3>1. Encart sur mesure (sans preset)</h3>
+          <div class="code-block"><pre>&lt;dsfr-data-map center="48.85,2.35" zoom="9"&gt;
+  &lt;dsfr-data-map-layer source="sites" type="marker" geo-field="geo_point_2d"&gt;
+  &lt;/dsfr-data-map-layer&gt;
+
+  &lt;!-- Zoom local sur la petite couronne --&gt;
+  &lt;dsfr-data-map-inset center="48.86,2.35" zoom="11"
+    label="Paris et petite couronne" height="200px"&gt;
+  &lt;/dsfr-data-map-inset&gt;
+&lt;/dsfr-data-map&gt;</pre></div>
+        </section>
+
+        <section class="demo-section fr-mt-4w">
+          <h3>2. Surcharge d'un territoire du groupe</h3>
+          <div class="code-block"><pre>&lt;!-- insets="drom" génère les 5 DROM, mais l'encart explicite guyane prime :
+     cadrage resserré sur l'île de Cayenne --&gt;
+&lt;dsfr-data-map center="46.5,2.6" zoom="6" insets="drom"&gt;
+  &lt;dsfr-data-map-layer source="stations" type="marker" geo-field="geo_point_2d"&gt;
+  &lt;/dsfr-data-map-layer&gt;
+  &lt;dsfr-data-map-inset territory="guyane" center="4.93,-52.33" zoom="10"&gt;
+  &lt;/dsfr-data-map-inset&gt;
+&lt;/dsfr-data-map&gt;</pre></div>
+        </section>
+
+        <h2 class="fr-mt-4w">Voir aussi</h2>
+        <ul>
+          <li><a href="dsfr-data-map.html"><code>dsfr-data-map</code></a> — le conteneur, le raccourci <code>insets</code> et le clip <code>max-bounds</code></li>
+          <li><a href="dsfr-data-map-popup.html"><code>dsfr-data-map-popup</code></a> — la délégation des clics vers le volet de la carte principale</li>
+        </ul>
+    </div>
+  </app-layout-demo>
+
+  <!-- Footer -->
+  <app-footer base-path="../../"></app-footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.module.min.js" integrity="sha384-gPgRd2+olihO/srZe/Bqw6iVLiiaL7meuri1d5YVMejwPXg7VehLSBeORYq9yh2F" crossorigin="anonymous"></script>
+</body>
+</html>

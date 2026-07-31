@@ -3,7 +3,7 @@
 [![npm version](https://img.shields.io/npm/v/dsfr-data)](https://www.npmjs.com/package/dsfr-data)
 [![CI](https://github.com/bmatge/dsfr-data/actions/workflows/ci.yml/badge.svg)](https://github.com/bmatge/dsfr-data/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/bmatge/dsfr-data/actions/workflows/codeql.yml/badge.svg)](https://github.com/bmatge/dsfr-data/actions/workflows/codeql.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Security Policy](https://img.shields.io/badge/security-policy-red.svg)](./docs/SECURITY.md)
 
 > **Web Components de dataviz** (Lit) pour sites gouvernementaux francais, conformes au [Systeme de design de l'Etat (DSFR)](https://www.systeme-de-design.gouv.fr/). Connectez vos sources (Huwise/ODS, Tabular, Grist, INSEE Melodi…), composez votre pipeline en balises `<dsfr-data-*>`, et exportez du HTML pret a integrer.
@@ -18,7 +18,8 @@
 </dsfr-data-query>
 
 <dsfr-data-chart source="q" type="bar"
-  label-field="nom_region" value-field="total" titre="Beneficiaires par region">
+  label-field="nom_region" value-field="total"
+  databox databox-title="Beneficiaires par region">
 </dsfr-data-chart>
 ```
 
@@ -62,18 +63,20 @@ import 'dsfr-data';
 
 ### Bundles disponibles
 
-| Bundle | Contenu | gzip |
-|---|---|---|
-| `dsfr-data.core.{esm,umd}.js` | Tous les composants sauf cartes (inclut `dsfr-data-join`) | ~61 Ko |
-| `dsfr-data.world-map.{esm,umd}.js` | `dsfr-data-world-map` (d3-geo, topojson) | ~31 Ko |
-| `dsfr-data.map.{esm,umd}.js` | `dsfr-data-map` + `dsfr-data-map-layer` (Leaflet lazy) | ~33 Ko |
-| `dsfr-data.{esm,umd}.js` | Tout-en-un | ~97 Ko |
+| Bundle | Contenu | gzip (ESM) | gzip (UMD) |
+|---|---|---|---|
+| `dsfr-data.core.{esm,umd}.js` | Tous les composants sauf cartes (inclut `dsfr-data-join`) | ~70 Ko | ~63 Ko |
+| `dsfr-data.map.{esm,umd}.js` | `dsfr-data-map` + `map-layer` + `map-popup` + `map-inset` + `map-timeline` (Leaflet charge dynamiquement : chunks separes en ESM, inclus en UMD) | ~35 Ko | ~85 Ko |
+| `dsfr-data.world-map.{esm,umd}.js` | `dsfr-data-world-map` (d3-geo, topojson) — **deprecie**, remplace par `<dsfr-data-chart type="map-monde">` | ~30 Ko | ~27 Ko |
+| `dsfr-data.{esm,umd}.js` | Tout-en-un | ~107 Ko | ~150 Ko |
+
+> `dsfr-data-world-map` est **deprecie** depuis la v0.13 (epic [#402](https://github.com/bmatge/dsfr-data/issues/402)) au profit de `<dsfr-data-chart type="map-monde">` (API cartes unifiee DSFR Chart 2.1). Retrait prevu au prochain major.
 
 La specification exhaustive de chaque composant (attributs, valeurs, exemples interactifs) est sur [bmatge.github.io/dsfr-data/specs](https://bmatge.github.io/dsfr-data/specs/) — c'est la source de verite.
 
 ## Heberger votre instance
 
-Le repo embarque une webapp d'edition (Builder, Builder IA, Sources, Playground, Dashboard, Monitoring…) deployable via Docker en deux modes :
+Le repo embarque une webapp d'edition (Builder, Builder carto, Builder IA, Sources, Playground, Dashboard, Favoris, Pipeline helper, Grist widgets, Monitoring, Admin) deployable via Docker en deux modes :
 
 - **Statique** (nginx + localStorage) — usage individuel.
 - **Serveur** (nginx + Express + MariaDB) — multi-utilisateurs, auth JWT, partages, audit.
@@ -112,4 +115,4 @@ Pour le detail du monorepo, des conventions, du workflow de release Changesets e
 
 ## Licence
 
-MIT.
+[Licence MIT](LICENSE) — comme le [DSFR](https://github.com/GouvernementFR/dsfr) et [DSFR Chart](https://github.com/GouvernementFR/dsfr-chart).

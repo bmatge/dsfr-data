@@ -25,6 +25,7 @@
     .guide-content h3 { margin-top: 2rem; }
     .guide-content ol, .guide-content ul { margin: 0.5rem 0 1rem 1.5rem; }
     .guide-content li { margin-bottom: 0.25rem; }
+    .guide-content pre { background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 4px; font-family: monospace; font-size: 0.85rem; overflow-x: auto; white-space: pre-wrap; margin: 0; }
   </style>
 </head>
 <body>
@@ -156,6 +157,22 @@
               </div>
             </div>
           </div>
+
+          <!-- Telemetrie opt-in -->
+          <div class="fr-callout fr-callout--blue-ecume fr-mt-4w">
+            <h3 class="fr-callout__title">Télémétrie opt-in (<code>dsfr-data-beacon</code>)</h3>
+            <p class="fr-callout__text">
+              La bibliothèque n'envoie <strong>aucune</strong> télémétrie par défaut. Pour alimenter le
+              tableau de bord de monitoring d'une instance auto-hébergée, déposez un
+              <code>&lt;dsfr-data-beacon&gt;</code> dans la page : la présence d'une <code>url</code>
+              vaut opt-in, et un simple réglage global sert de coupe-circuit.
+            </p>
+          </div>
+<pre><code>&lt;!-- Opt-in : déclare la cible de collecte de CETTE page --&gt;
+&lt;dsfr-data-beacon url="https://mon-instance.example.fr/api/beacon"&gt;&lt;/dsfr-data-beacon&gt;
+
+&lt;!-- Coupe-circuit global : désactive toute télémétrie, même si un beacon est présent --&gt;
+&lt;script&gt;window.DSFR_DATA_BEACON = false;&lt;/script&gt;</code></pre>
         </section>
 
       </div><!-- /guide-content -->

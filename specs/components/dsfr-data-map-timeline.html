@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-scheme="system">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dsfr-data-map-timeline - Composants - dsfr-data</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css" integrity="sha384-atVZ+aK6VI0nWyTEhKgze5InDJ+SWRRqa0BCZ2MTNyoOcBiHj1c3dGPdi6ML65B3" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css" integrity="sha384-5P5DFFqorcEBpfnK9WHu/Ralfr7ZxyCZh0ryaJbgucSvc71+qRYdGvNEcyMqQwa/" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script type="module" src="/dist/app-ui.esm.js"></script>
+  <style>
+    body { min-height: 100vh; display: flex; flex-direction: column; }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <app-header current-page="composants" base-path="../../"></app-header>
+
+  <!-- Layout documentation avec sidemenu -->
+  <app-layout-demo
+    title="dsfr-data-map-timeline"
+    icon="ri-play-circle-line"
+    active-path="components/dsfr-data-map-timeline"
+    base-path="../">
+    <div slot="content">
+        <p class="fr-text--lead">
+          Contrôles de lecture temporelle pour la carte : découvre les couches ayant un
+          <code>time-field</code> et pilote leur affichage pas de temps par pas de temps
+          (lecture, pause, pas à pas, vitesse).
+        </p>
+
+        <div class="fr-callout fr-callout--blue-ecume fr-mb-4w">
+          <p class="fr-callout__text">
+            <strong>Enfant de <code>dsfr-data-map</code></strong> : le composant écoute l'événement
+            <a href="dsfr-data-map-layer.html#evenements"><code>dsfr-data-map-layer-time-ready</code></a>
+            des couches ciblées, construit l'<strong>union de leurs pas de temps</strong> (tri
+            chronologique) et appelle leur méthode <code>setTimelineFrame(index)</code> à chaque frame.
+          </p>
+        </div>
+
+        <h2 id="attributs">Attributs</h2>
+        <table class="attr-table">
+          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>for</code></td><td>String</td><td><code>""</code></td><td>IDs des layers cibles, séparés par des virgules. Vide = tous les layers de la carte ayant un <code>time-field</code>.</td></tr>
+            <tr><td><code>speed</code></td><td>Number</td><td><code>1</code></td><td>Multiplicateur de vitesse initial — le sélecteur de l'UI propose 0.5, 1, 2 et 4</td></tr>
+            <tr><td><code>interval</code></td><td>Number</td><td><code>1000</code></td><td>Intervalle de base entre deux frames en ms (divisé par <code>speed</code> ; minimum effectif 50&nbsp;ms)</td></tr>
+          </tbody>
+        </table>
+
+        <h2 id="controles" class="fr-mt-4w">Contrôles</h2>
+        <ul>
+          <li>Boutons : lecture/pause, stop (retour au début), pas précédent/suivant</li>
+          <li>Slider : navigation directe vers un pas de temps</li>
+          <li>Sélecteur de vitesse : 0.5x, 1x, 2x, 4x</li>
+          <li>Libellé du pas courant avec région <code>aria-live</code></li>
+        </ul>
+
+        <h2 id="accessibilite" class="fr-mt-4w">Accessibilité</h2>
+        <ul>
+          <li><strong>Pas d'auto-play</strong> — l'animation démarre uniquement sur action utilisateur</li>
+          <li><strong>Clavier</strong> : Espace (lecture/pause), flèches &larr;/&rarr; (pas à pas), Home/End (début/fin)</li>
+          <li><strong>ARIA</strong> : labels sur tous les contrôles, <code>aria-live</code> sur le libellé courant, <code>aria-valuetext</code> sur le slider</li>
+          <li><strong><code>prefers-reduced-motion</code></strong> : la lecture automatique est désactivée (navigation manuelle uniquement)</li>
+        </ul>
+        <p class="fr-text--sm fr-text--light">Le composant n'émet aucun événement custom et n'a pas de slot.</p>
+
+        <h2 class="fr-mt-4w">Exemples</h2>
+
+        <section class="demo-section">
+          <h3>1. Timeline sur toutes les couches temporelles</h3>
+          <div class="code-block"><pre>&lt;dsfr-data-source id="mesures" data='[
+  {"ville":"Paris","lat":48.85,"lon":2.35,"valeur":120,"date":"2025-01"},
+  {"ville":"Lyon","lat":45.76,"lon":4.83,"valeur":85,"date":"2025-01"},
+  {"ville":"Paris","lat":48.85,"lon":2.35,"valeur":250,"date":"2025-02"},
+  {"ville":"Lyon","lat":45.76,"lon":4.83,"valeur":160,"date":"2025-02"}
+]'&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-map center="46.6,2.3" zoom="6" height="550px"&gt;
+  &lt;dsfr-data-map-layer source="mesures" type="circle"
+    lat-field="lat" lon-field="lon"
+    radius-field="valeur" tooltip-field="ville"
+    time-field="date" time-mode="snapshot"&gt;
+  &lt;/dsfr-data-map-layer&gt;
+
+  &lt;!-- Sans "for" : pilote tous les layers à time-field --&gt;
+  &lt;dsfr-data-map-timeline speed="1" interval="1500"&gt;&lt;/dsfr-data-map-timeline&gt;
+&lt;/dsfr-data-map&gt;</pre></div>
+        </section>
+
+        <section class="demo-section fr-mt-4w">
+          <h3>2. Ciblage explicite + mode cumulatif</h3>
+          <p>
+            Le déploiement s'accumule au fil des ans (<code>time-mode="cumulative"</code>), avec des
+            dates regroupées par année (<code>time-bucket="year"</code>). La couche de contours,
+            sans <code>time-field</code>, reste affichée en permanence.
+          </p>
+          <div class="code-block"><pre>&lt;dsfr-data-map center="46.6,2.3" zoom="6"&gt;
+  &lt;dsfr-data-map-layer source="regions" type="geoshape"
+    geo-field="geo_shape" no-interactive color="#7b7b7b" fill-opacity="0"&gt;
+  &lt;/dsfr-data-map-layer&gt;
+
+  &lt;dsfr-data-map-layer id="deploiement" source="installations" type="marker"
+    geo-field="geo_point_2d" tooltip-field="nom"
+    time-field="date_mise_en_service" time-bucket="year" time-mode="cumulative"&gt;
+  &lt;/dsfr-data-map-layer&gt;
+
+  &lt;dsfr-data-map-timeline for="deploiement" interval="800" speed="2"&gt;
+  &lt;/dsfr-data-map-timeline&gt;
+&lt;/dsfr-data-map&gt;</pre></div>
+        </section>
+
+        <h2 class="fr-mt-4w">Voir aussi</h2>
+        <ul>
+          <li><a href="dsfr-data-map-layer.html"><code>dsfr-data-map-layer</code></a> — <code>time-field</code>, <code>time-bucket</code>, <code>time-mode</code> et l'API <code>setTimelineFrame()</code> / <code>resetTimeline()</code> / <code>getTimeSteps()</code></li>
+          <li><a href="dsfr-data-map.html"><code>dsfr-data-map</code></a> — le conteneur et la vue d'ensemble de la famille</li>
+        </ul>
+    </div>
+  </app-layout-demo>
+
+  <!-- Footer -->
+  <app-footer base-path="../../"></app-footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.module.min.js" integrity="sha384-gPgRd2+olihO/srZe/Bqw6iVLiiaL7meuri1d5YVMejwPXg7VehLSBeORYq9yh2F" crossorigin="anonymous"></script>
+</body>
+</html>

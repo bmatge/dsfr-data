@@ -1,6 +1,8 @@
 # Deploiement en production
 
-Ce guide couvre le deploiement de la **webapp dsfr-data** (apps Builder, Builder IA, Sources, Playground, Favoris, Dashboard, Monitoring, Pipeline Helper, Admin) sur un serveur Docker. Pour une integration cote consommateur (utilisation des Web Components dans une page tierce), voir le [README](../README.md#installation).
+Ce guide couvre le deploiement de la **webapp dsfr-data** (apps Builder, Builder carto, Builder IA, Sources, Playground, Favoris, Dashboard, Grist widgets, Monitoring, Pipeline Helper, Admin) sur un serveur Docker. Pour une integration cote consommateur (utilisation des Web Components dans une page tierce), voir le [README](../README.md#installation).
+
+> **Mode de deploiement canonique** : la production de reference (VibeLab, `chartsbuilder.miweb.run`) utilise le `compose.yml` et le `deploy.sh` situes a la **racine** du repo, pilotes par `spawn up chartsbuilder ...` (cf. [ARCHITECTURE §10.6](ARCHITECTURE.md#106-déploiement-vibelab-production-miwebrun)). Les scripts `docker/deploy.sh` / `docker/deploy-server.sh` decrits dans la suite de ce guide sont le flux **legacy**, conserve pour le self-hosting sur infrastructure arbitraire.
 
 ## Sommaire
 
@@ -67,7 +69,7 @@ Le fichier [`.env.example`](../.env.example) liste toutes les variables. Les pri
 
 | Variable | Mode | Description | Defaut |
 |---|---|---|---|
-| `APP_DOMAIN` | les 2 | Domaine public sur lequel l'app sera accessible | `chartsbuilder.matge.com` |
+| `APP_DOMAIN` | les 2 | Domaine public sur lequel l'app sera accessible. A remplacer par le votre — l'instance publique de reference est `chartsbuilder.miweb.run`. | votre domaine |
 | `COMPOSE_PROJECT_NAME` | les 2 | Prefix Docker (volumes, conteneurs) | nom du dossier git |
 | `VITE_PROXY_URL` | les 2 **[REQUISE au build]** | URL du proxy CORS injectee dans les bundles a la compilation. Generee automatiquement par `deploy.sh` / `deploy-server.sh` depuis `APP_DOMAIN`. Contourner avec `DSFR_DATA_DEV_BUILD=1` (la build n'echoue pas si absent). | aucune |
 | `VITE_LIB_URL` | les 2 | Source du JS de la lib dans le code genere : `jsdelivr`, `unpkg`, `self`, ou URL custom | `jsdelivr` |
@@ -279,7 +281,7 @@ VITE_BEACON_URL=https://analytics.example.com      # optionnelle, fallback sur V
 
 Resolution :
 
-- `PROXY_BASE_URL = VITE_PROXY_URL || 'https://chartsbuilder.matge.com'`
+- `PROXY_BASE_URL = VITE_PROXY_URL` — **[REQUISE au build]**, aucune valeur par defaut dans la lib (le fallback en dur a ete supprime, #172/#180)
 - `PROXY_BASE_URL_EMBED = VITE_PROXY_URL_EMBED || PROXY_BASE_URL`
 - `BEACON_BASE_URL = VITE_BEACON_URL || PROXY_BASE_URL_EMBED`
 
@@ -592,11 +594,11 @@ curl -sf "https://${APP_DOMAIN}/api/health" | grep -q '"status":"ok"' && echo OK
 
 ### 3. Aucune URL ne fuit vers le domaine de reference
 
-Verifier qu'aucun bundle servi n'embarque `chartsbuilder.matge.com` en dur (sauf si c'est legitimement votre domaine). Adapter le pattern de match a votre domaine de reference si besoin :
+Verifier qu'aucun bundle servi n'embarque en dur l'URL d'une ancienne instance (adapter le pattern de match au domaine que vous decommissionnez) :
 
 ```bash
 # Bundle de la lib (servi sur /dist/)
-curl -sf "https://${APP_DOMAIN}/dist/dsfr-data.core.esm.js" | grep -c "chartsbuilder.matge.com" || echo "(0 fuites)"
+curl -sf "https://${APP_DOMAIN}/dist/dsfr-data.core.esm.js" | grep -c "<ancien-domaine>" || echo "(0 fuites)"
 
 # Bundles des apps de creation
 for app in builder builder-ia builder-carto dashboard playground; do
@@ -605,7 +607,7 @@ for app in builder builder-ia builder-carto dashboard playground; do
     | grep -oE 'src="/[^"]+\.js"' | head -1 \
     | sed -E "s@src=\"(/[^\"]+)\"@https://${APP_DOMAIN}\1@" \
     | xargs curl -sf \
-    | grep -c "chartsbuilder.matge.com" || echo "(0 fuites)"
+    | grep -c "<ancien-domaine>" || echo "(0 fuites)"
 done
 ```
 
@@ -652,7 +654,7 @@ docker compose --env-file .env -f docker/docker-compose.yml ${COMPOSE_DB:+-f doc
 
 ### 8. Bundles a jour (cache)
 
-Apres une mise a jour, vider le cache du navigateur (`Ctrl+Shift+R`) et verifier que les bundles sont reservis. Sinon, les bundles `/dist/*.js` (non hashes) doivent passer en revalidation systematique (cf. [ADR-008](https://github.com/bmatge/dsfr-data/blob/main/docs/ADR/ADR-008-politique-de-cache-http-pour-bundles-non-hashes.md)) :
+Apres une mise a jour, vider le cache du navigateur (`Ctrl+Shift+R`) et verifier que les bundles sont reservis. Sinon, les bundles `/dist/*.js` (non hashes) doivent passer en revalidation systematique (decision d'architecture ADR-008 « politique de cache HTTP pour bundles non hashes » — les ADR sont conservees hors repo) :
 
 ```bash
 curl -sI "https://${APP_DOMAIN}/dist/dsfr-data.core.esm.js" | grep -i "cache-control"
@@ -668,7 +670,7 @@ Ouvrir `https://${APP_DOMAIN}/playground/` dans un navigateur et charger un exem
 | Etape | Probleme | Piste |
 |---|---|---|
 | 1-2 | Conteneur ne demarre pas | `docker compose ... logs --tail=200 chartsbuilder` |
-| 3 | URL `chartsbuilder.matge.com` baked dans le bundle | Verifier `VITE_PROXY_URL` dans `.env` ET rebuild avec `--no-cache` |
+| 3 | URL d'une ancienne instance bakee dans le bundle | Verifier `VITE_PROXY_URL` dans `.env` ET rebuild avec `--no-cache` |
 | 4 | OPTIONS retourne 404 | Bloc nginx commente sans reverse externe configure (cf. [Scenario C](#scenario-c--reverse-externe-gerant-les-routes-de-proxying)) |
 | 5 | `available: false` | `IA_DEFAULT_TOKEN` non defini ou conteneur non redemarre apres ajout |
 | 6 | Headers manquants | Snippet `security-headers.conf` non charge ou Traefik qui les ecrase |
@@ -854,4 +856,4 @@ docker compose ... exec -T mariadb sh -c 'mariadb -uroot -p"$MARIADB_ROOT_PASSWO
 
 ### Bundles `/dist/*` non-hashes : politique de cache
 
-Les bundles servis sur `https://${APP_DOMAIN}/dist/*.js` (lib `dsfr-data` self-hostee) ont des **noms stables** entre versions. Sans cache-busting, un correctif live n'etait pas servi aux visiteurs deja venus. La conf nginx les sert avec `Cache-Control: no-cache, must-revalidate` (revalidation systematique via ETag, pas de re-telechargement si inchange). Voir [`packages/core/CHANGELOG.md` v0.7.0](../packages/core/CHANGELOG.md) et [ADR-008](https://github.com/bmatge/dsfr-data/blob/main/docs/ADR/ADR-008-politique-de-cache-http-pour-bundles-non-hashes.md).
+Les bundles servis sur `https://${APP_DOMAIN}/dist/*.js` (lib `dsfr-data` self-hostee) ont des **noms stables** entre versions. Sans cache-busting, un correctif live n'etait pas servi aux visiteurs deja venus. La conf nginx les sert avec `Cache-Control: no-cache, must-revalidate` (revalidation systematique via ETag, pas de re-telechargement si inchange). Voir [`packages/core/CHANGELOG.md` v0.7.0](../packages/core/CHANGELOG.md) ; la decision est actee dans l'ADR-008 « politique de cache HTTP pour bundles non hashes » (ADR conservees hors repo).

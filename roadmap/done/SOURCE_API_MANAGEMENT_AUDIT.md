@@ -23,7 +23,7 @@ isPublic	oui	oui	manquant
 rawRecords	GristRecord[]	{fields: ...}[] (type different)	manquant
 recordCount	requis	optionnel	optionnel
 3. Proxy : URL de base dupliquee 7+ fois
-https://chartsbuilder.matge.com est defini independamment dans :
+https://chartsbuilder.miweb.run est defini independamment dans :
 
 packages/shared/src/api/proxy-config.ts (canonical)
 packages/shared/src/api/proxy.ts (doublon)

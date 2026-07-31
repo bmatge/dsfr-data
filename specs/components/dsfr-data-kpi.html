@@ -38,13 +38,13 @@
           <thead><tr><th>Attribut</th><th>Type</th><th>Description</th></tr></thead>
           <tbody>
             <tr><td><code>source</code></td><td>String</td><td>ID du <code>&lt;dsfr-data-source&gt;</code> (requis)</td></tr>
-            <tr><td><code>value</code></td><td>String</td><td>Expression de calcul : <code>"champ"</code>, <code>"champ:avg"</code>, <code>"count:champ:valeur"</code></td></tr>
+            <tr><td><code>value</code></td><td>String</td><td>Expression de calcul : <code>"champ"</code>, <code>"champ:avg"</code>, <code>"count:champ:valeur"</code> — ou littéral préfixé <code>=</code> : <code>value="=667"</code>, <code>value="=87 %"</code> (affiché tel quel, sans source)</td></tr>
             <tr><td><code>heading</code></td><td>String</td><td>Titre affiche AU-DESSUS de la valeur (surtitre, majuscules grises)</td></tr>
             <tr><td><code>label</code></td><td>String</td><td>Libelle affiche sous la valeur (et sous les <code>lines</code>)</td></tr>
             <tr><td><code>description</code></td><td>String</td><td>Description détaillée pour l'accessibilité</td></tr>
             <tr><td><code>trend</code></td><td>String</td><td>Raccourci herite : expression <code>champ:fn</code> (ex. <code>evolution:avg</code>) rendue avec une fleche en %. Preferez <code>lines</code></td></tr>
-            <tr><td><code>lines</code></td><td>String (JSON)</td><td>Lignes secondaires entre la valeur et le label. Items : <code>value</code> (expression) ou <code>text</code> (statique), + <code>sign</code>, <code>suffix</code>, <code>color</code> (<code>auto</code> / token DSFR / couleur CSS), <code>na</code></td></tr>
-            <tr><td><code>format</code></td><td>String</td><td>Format d'affichage (défaut : <code>nombre</code>)</td></tr>
+            <tr><td><code>lines</code></td><td>String (JSON)</td><td>Lignes secondaires entre la valeur et le label. Items : <code>value</code> (expression) ou <code>text</code> (statique), + <code>format</code> (défaut <code>pourcentage</code>), <code>sign</code>, <code>prefix</code>, <code>suffix</code>, <code>color</code>, <code>na</code> (repli si la valeur ne résout pas). Tokens couleur : <code>success</code>/<code>vert</code>, <code>error</code>/<code>rouge</code>, <code>warning</code>/<code>orange</code>, <code>info</code>/<code>bleu</code>, <code>grey</code>/<code>gris</code>, <code>auto</code> (vert si &ge; 0, rouge si &lt; 0), ou toute couleur CSS brute</td></tr>
+            <tr><td><code>format</code></td><td>String</td><td>Format d'affichage : <code>nombre</code> (défaut), <code>euro</code>, <code>pourcentage</code>, <code>decimal</code>, <code>compact</code></td></tr>
             <tr><td><code>icon</code></td><td>String</td><td>Classe d'icone Remix Icon (ex: <code>ri-global-line</code>)</td></tr>
             <tr><td><code>color-token</code></td><td>String</td><td>Couleur forcee (token semantique DSFR) : <code>vert</code>, <code>orange</code>, <code>rouge</code>, <code>bleu</code>. Alias deprecie : <code>color</code></td></tr>
             <tr><td><code>threshold-green</code></td><td>Number</td><td>Seuil au-dessus duquel la couleur est verte</td></tr>
@@ -72,6 +72,7 @@
           <li><code>champ:min</code> / <code>champ:max</code> : Min/max</li>
           <li><code>count</code> : Compte tous les enregistrements</li>
           <li><code>count:champ:valeur</code> : Compte les occurrences ou champ = valeur</li>
+          <li><code>=littéral</code> : Valeur littérale affichée telle quelle, sans source ni calcul. Un littéral numérique (<code>value="=667"</code>, virgule décimale française acceptée) passe par le <code>format</code> ; une chaîne (<code>value="=87 %"</code>) est affichée sans formatage.</li>
         </ul>
         <p class="fr-text--sm fr-text--light">Grammaire commune du pipeline <code>champ:fn</code> (#303) — l'ancienne forme inversee <code>fn:champ</code> reste lue mais est depreciee.</p>
 
@@ -83,6 +84,7 @@
             <tr><td><code>euro</code></td><td>32 073 248 &euro;</td><td>Montant en euros avec separateurs de milliers</td></tr>
             <tr><td><code>pourcentage</code></td><td>75,5 %</td><td>Pourcentage (divise par 100, 1 decimale max)</td></tr>
             <tr><td><code>decimal</code></td><td>32 073 247,50</td><td>Nombre decimal (1 a 2 decimales)</td></tr>
+            <tr><td><code>compact</code></td><td>32,1 M</td><td>Notation compacte fr-FR (v0.16.0) : <code>14 800 000</code> &rarr; « 14,8 M », <code>6 700</code> &rarr; « 6,7 k » (Intl compact, 1 décimale max)</td></tr>
           </tbody>
         </table>
         <p class="fr-text--sm fr-text--light">Tous les formats utilisent la locale francaise (separateur de milliers = espace, decimales = virgule).</p>

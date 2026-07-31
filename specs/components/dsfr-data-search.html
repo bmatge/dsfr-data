@@ -295,6 +295,29 @@
   selected-palette="categorical"&gt;
 &lt;/dsfr-data-chart&gt;</code></pre>
 
+        <h2 id="evenements" class="fr-mt-6w">Événements</h2>
+        <p>
+          En plus de la ré-émission des données filtrées sur le data-bridge sous son propre
+          <code>id</code> (<code>dsfr-data-loaded</code> / <code>-loading</code> / <code>-error</code>),
+          le composant émet un événement custom à chaque recherche effective :
+        </p>
+        <table class="attr-table">
+          <thead><tr><th>Événement</th><th><code>detail</code></th><th>Description</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>dsfr-data-search-change</code></td>
+              <td><code>{ sourceId, term, count }</code></td>
+              <td>Émis sur <code>document</code> (bubbles, composed) après application d'un terme :
+                <code>sourceId</code> = id du composant, <code>term</code> = terme recherché,
+                <code>count</code> = nombre de résultats.</td>
+            </tr>
+          </tbody>
+        </table>
+        <pre><code>document.addEventListener('dsfr-data-search-change', (e) =&gt; {
+  const { sourceId, term, count } = e.detail;
+  console.log(`${count} résultats pour « ${term} » (${sourceId})`);
+});</code></pre>
+
     </div>
   </app-layout-demo>
 
