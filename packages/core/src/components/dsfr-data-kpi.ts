@@ -181,7 +181,16 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
 
   private _computeValue(): number | string | null {
     const expr = this.value || this.valeur;
-    if (!this._sourceData || !expr) return null;
+    if (!expr) return null;
+    // Valeur litterale : value="=667" ou value="=87 %" — affichee telle
+    // quelle (nombre si numerique), sans dependre d'une source de donnees.
+    // Pour les chiffres valides a la main ou non calculables depuis le flux.
+    if (expr.startsWith('=')) {
+      const literal = expr.slice(1).trim();
+      const num = Number(literal.replace(',', '.'));
+      return literal !== '' && !Number.isNaN(num) ? num : literal;
+    }
+    if (!this._sourceData) return null;
     return computeAggregation(this._sourceData, expr);
   }
 
@@ -266,7 +275,9 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
     if (this.description) return this.description;
 
     const value = this._computeValue();
-    const formattedValue = formatValue(value as number, this.format);
+    // Litteral chaine (value="=87 %") : affiche tel quel, sans formatage numerique
+    const formattedValue =
+      typeof value === 'string' ? value : formatValue(value as number, this.format);
     let label = this.heading
       ? `${this.heading} — ${this.label}: ${formattedValue}`
       : `${this.label}: ${formattedValue}`;
@@ -297,7 +308,9 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
 
   render() {
     const value = this._computeValue();
-    const formattedValue = formatValue(value as number, this.format);
+    // Litteral chaine (value="=87 %") : affiche tel quel, sans formatage numerique
+    const formattedValue =
+      typeof value === 'string' ? value : formatValue(value as number, this.format);
     const colorClass = COLOR_CLASSES[this._getColor()] || COLOR_CLASSES.bleu;
     const tendance = this._getTendanceInfo();
     const resolvedLines = this._resolveLines();
