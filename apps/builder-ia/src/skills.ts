@@ -915,7 +915,7 @@ Attend un tableau d'objets. L'attribut \`valeur\` determine comment extraire/agr
 | label | String | \`""\` | non | Libelle sous la valeur (et sous les \`lines\`) |
 | description | String | \`""\` | non | Description pour accessibilité (sr-only) |
 | icon | String | \`""\` | non | Classe Remix Icon : \`ri-global-line\`, \`ri-money-euro-circle-line\`, etc. Alias deprecie : \`icone\` |
-| format | String | \`"nombre"\` | non | Format : nombre, pourcentage, euro, decimal |
+| format | String | \`"nombre"\` | non | Format : nombre, pourcentage, euro, decimal, compact (14,8 M) |
 | trend | String | \`""\` | non | RACCOURCI HERITE (preferez \`lines\`). Expression d'agregation \`"champ:fn"\` (\`"evolution:avg"\`) — PAS un litteral. Rendue avec une fleche en pourcentage fr-FR (\`↑ 5,2 %\`). Alias deprecie : \`tendance\` |
 | lines | String | \`""\` | non | Lignes secondaires declaratives (JSON), rendues ENTRE la valeur et le \`label\`. Chaque item : \`value\` (expression \`champ:fn\`) OU \`text\` (statique), + \`format\`, \`sign\`, \`prefix\`, \`suffix\`, \`color\` (\`"auto"\`=vert si >=0/rouge si <0, token DSFR, ou couleur CSS), \`na\` (repli si non fini). Ex. \`[{"value":"evol:avg","sign":true,"suffix":"vs mai 2025","color":"auto"}]\` |
 | color-token | String | \`""\` | non | Forcer la couleur (token semantique DSFR) : vert, orange, rouge, bleu. Alias deprecies : \`color\`, \`couleur\` |
