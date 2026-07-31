@@ -24,6 +24,7 @@
         <div class="carto-col-actions">
           <button id="btn-add-layer" class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-add-line" title="Ajouter une couche">Ajouter</button>
           <button id="btn-remove-layer" class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-btn--icon-left fr-icon-delete-line" title="Supprimer la couche active">Supprimer</button>
+          <button id="btn-reset" class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-btn--icon-left fr-icon-refresh-line" title="Repartir de zéro">Réinitialiser</button>
         </div>
 
         <ul id="layers-list" class="carto-layers__list"></ul>
@@ -55,6 +56,7 @@
               Cliquez sur "Executer" pour afficher l'aperçu de la carte.
             </p>
           </div>
+          <div id="preview-status" class="carto-preview-status" role="status" aria-live="polite"></div>
         </div>
 
         <div slot="code">
