@@ -140,7 +140,7 @@ dsfr-data ne reinvente pas les graphiques. Il resout le **dernier kilometre** : 
 | **DSFR Chart** | Bibliotheque officielle de graphiques du Design System de l'Etat — conformite garantie, pas de reimplementation |
 | **Declaratif (HTML uniquement)** | Un communicant qui sait copier-coller du HTML peut integrer un graphique — aucune competence JavaScript requise |
 | **Architecture pipeline** | Les composants se chainent comme des briques — chaque composant fait une seule chose bien, on compose selon le besoin |
-| **Open source (Licence Ouverte 2.0 / Etalab)** | Reutilisable, auditable, mutualisable entre administrations |
+| **Open source (MIT)** | Reutilisable, auditable, mutualisable entre administrations |
 | **TypeScript strict** | Code type, maintenable, avec tests unitaires et E2E |
 
 ### Exemple minimal d'integration
@@ -207,7 +207,7 @@ dsfr-data ne reinvente pas les graphiques. Il resout le **dernier kilometre** : 
 
 | Poste | Cout |
 |---|---|
-| **Bibliotheque** | Gratuit, open source (Licence Ouverte 2.0) |
+| **Bibliotheque** | Gratuit, open source (MIT) |
 | **Integration (CDN)** | Zero infrastructure cote deployeur |
 | **Auto-hebergement** | Un conteneur Docker |
 | **Maintenance** | Mutualisable entre administrations contributrices |

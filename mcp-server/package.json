@@ -21,7 +21,7 @@
     "dataviz",
     "web-components"
   ],
-  "license": "etalab-2.0",
+  "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "undici": "^7.25.0"

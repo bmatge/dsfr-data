@@ -116,4 +116,4 @@ La référence exhaustive de chaque composant (attributs, valeurs, défauts, exe
 
 ## Licence
 
-[Licence Ouverte / Open Licence 2.0](https://www.etalab.gouv.fr/licence-ouverte-open-licence) (Etalab) — réutilisation libre, y compris commerciale, sous réserve de mention de la paternité. Texte complet dans [LICENSE](LICENSE).
+[Licence MIT](LICENSE) — comme le [DSFR](https://github.com/GouvernementFR/dsfr) et [DSFR Chart](https://github.com/GouvernementFR/dsfr-chart).

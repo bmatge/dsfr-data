@@ -3,7 +3,7 @@
 [![npm version](https://img.shields.io/npm/v/dsfr-data)](https://www.npmjs.com/package/dsfr-data)
 [![CI](https://github.com/bmatge/dsfr-data/actions/workflows/ci.yml/badge.svg)](https://github.com/bmatge/dsfr-data/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/bmatge/dsfr-data/actions/workflows/codeql.yml/badge.svg)](https://github.com/bmatge/dsfr-data/actions/workflows/codeql.yml)
-[![Licence: etalab-2.0](https://img.shields.io/badge/Licence-Etalab--2.0-blue.svg)](https://www.etalab.gouv.fr/licence-ouverte-open-licence)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Security Policy](https://img.shields.io/badge/security-policy-red.svg)](./docs/SECURITY.md)
 
 > **Web Components de dataviz** (Lit) pour sites gouvernementaux francais, conformes au [Systeme de design de l'Etat (DSFR)](https://www.systeme-de-design.gouv.fr/). Connectez vos sources (Huwise/ODS, Tabular, Grist, INSEE Melodi…), composez votre pipeline en balises `<dsfr-data-*>`, et exportez du HTML pret a integrer.
@@ -115,4 +115,4 @@ Pour le detail du monorepo, des conventions, du workflow de release Changesets e
 
 ## Licence
 
-[Licence Ouverte / Open Licence 2.0](https://www.etalab.gouv.fr/licence-ouverte-open-licence) (Etalab) — réutilisation libre, y compris commerciale, sous réserve de mention de la paternité. Texte complet dans [LICENSE](LICENSE).
+[Licence MIT](LICENSE) — comme le [DSFR](https://github.com/GouvernementFR/dsfr) et [DSFR Chart](https://github.com/GouvernementFR/dsfr-chart).
