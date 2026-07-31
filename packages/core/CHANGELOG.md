@@ -1,5 +1,11 @@
 # dsfr-data
 
+## 0.14.2
+
+### Patch Changes
+
+- [#439](https://github.com/bmatge/dsfr-data/pull/439) [`1973b0a`](https://github.com/bmatge/dsfr-data/commit/1973b0a1032064e51a99d32f9348af4e7af7a18b) Thanks [@bmatge](https://github.com/bmatge)! - `dsfr-data-map` : combiné à `max-bounds`, `fit-bounds` clippe désormais l'emprise des données à la zone d'intérêt avant d'ajuster la vue — un jeu incluant des territoires lointains (DROM) ne dézoome plus la carte au monde entier, et des données filtrées entièrement hors zone laissent la vue en place (les encarts s'en chargent). `dsfr-data-map-layer` libère ses bounds quand un filtre amont le vide (l'ancienne emprise ne fausse plus les ajustements suivants). Résultat : `fit-bounds max-bounds="…"` + `dsfr-data-facets` = zoom automatique sur la région sélectionnée.
+
 ## 0.14.1
 
 ### Patch Changes
