@@ -8,13 +8,13 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css" integrity="sha384-atVZ+aK6VI0nWyTEhKgze5InDJ+SWRRqa0BCZ2MTNyoOcBiHj1c3dGPdi6ML65B3" crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css" integrity="sha384-5P5DFFqorcEBpfnK9WHu/Ralfr7ZxyCZh0ryaJbgucSvc71+qRYdGvNEcyMqQwa/" crossorigin="anonymous">
   <!-- Leaflet : charge dynamiquement par dsfr-data.umd.js - NE PAS inclure manuellement -->
-  <!-- dsfr-data : epingle en exact @0.15.1 + SRI (les encarts exigent >= 0.14.0 et l'URL
+  <!-- dsfr-data : epingle en exact @0.16.0 + SRI (les encarts exigent >= 0.14.0 et l'URL
        flottante @0 est cachee 7 jours par les navigateurs — un visiteur du jour verrait
        l'ancien bundle sans les encarts). Bundle complet (core + map).
        Requiert >= 0.15.0 : encarts DROM (#431), fit-bounds clippe (#439),
        couches decoratives shape-class/no-interactive et KPI litteral (#443).
        Major flottant : pas de SRI (cf. check:sri). -->
-  <script src="https://cdn.jsdelivr.net/npm/dsfr-data@0.15.1/dist/dsfr-data.umd.js" integrity="sha384-SlRXMKY/piVeIXOPkZfpbzwxkhKiIL3yX3TGb07cUVB9Kza1bq2F+YH31Ji/zf/O" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dsfr-data@0.16.0/dist/dsfr-data.umd.js" integrity="sha384-+RCFFr7FQXu3msIvQnzT3LpnEX4ivmVtIVVKxCgrVsVkGh24Lc7lvwZU/0zceVph" crossorigin="anonymous"></script>
   <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.module.min.js" integrity="sha384-gPgRd2+olihO/srZe/Bqw6iVLiiaL7meuri1d5YVMejwPXg7VehLSBeORYq9yh2F" crossorigin="anonymous"></script>
 
   <style>
@@ -60,8 +60,9 @@
     dsfr-data-map-inset { float: left; width: calc(20% - .6rem); margin: .75rem .75rem 0 0; }
     dsfr-data-map-inset:last-of-type { margin-right: 0; }
     dsfr-data-map-inset > dsfr-data-map { display: block; border: 1px solid var(--border-default-grey); border-radius: .25rem; overflow: hidden; }
-    /* DROM sans territoire engagé : grisés, non cliquables */
-    .inset--empty { filter: grayscale(1); opacity: .45; pointer-events: none; }
+    /* Attribution Leaflet/OSM/CARTO masquée sur les encarts uniquement — elle
+       reste affichée sur la carte principale (exigence de licence, une fois par page) */
+    dsfr-data-map-inset .leaflet-control-attribution { display: none; }
 
     /* Recherche de la liste : libelle visible au-dessus du champ, export a droite */
     dsfr-data-list .dsfr-data-list__toolbar { display: flex; align-items: flex-end; justify-content: space-between; }
@@ -121,7 +122,7 @@
     <dsfr-data-kpi-group cols="4">
       <dsfr-data-kpi source="territoires" value="nb_communes:sum" label="Communes couvertes"></dsfr-data-kpi>
       <dsfr-data-kpi value="=87 %" label="des communes couvertes sont rurales"></dsfr-data-kpi>
-      <dsfr-data-kpi source="territoires" value="population:sum" label="Habitants couverts"></dsfr-data-kpi>
+      <dsfr-data-kpi source="territoires" value="population:sum" format="compact" label="Habitants couverts"></dsfr-data-kpi>
       <dsfr-data-kpi value="=667" label="Engagements prévisionnels recensés"></dsfr-data-kpi>
     </dsfr-data-kpi-group>
 
