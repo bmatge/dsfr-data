@@ -80,7 +80,7 @@
             <tbody>
               <tr><td><code>field</code></td><td>String</td><td>requis</td><td>Colonne filtree</td></tr>
               <tr><td><code>ui</code></td><td>String</td><td>requis</td><td>Id de l'element d'UI ecoute — DEUX ids (min puis max) pour <code>between</code></td></tr>
-              <tr><td><code>operator</code></td><td>String</td><td><code>eq</code></td><td>Voir le tableau des operateurs</td></tr>
+              <tr><td><code>operator</code></td><td>String</td><td><code>eq</code> (défaut), <code>in</code>, <code>lt</code>, <code>gte</code>, <code>between</code>, <code>month-of</code>, <code>year-of</code>, <code>lt-day-after</code>, <code>last-n-days</code>, <code>current-year</code></td><td>Opérateur de la clause générée — 5 opérateurs de base + 5 opérateurs de date (#230). Voir le tableau des operateurs</td></tr>
               <tr><td><code>apply-to</code></td><td>String</td><td><code>*</code></td><td><code>*</code> = toutes les sources du contexte, ou liste d'ids cibles</td></tr>
               <tr><td><code>label</code></td><td>String</td><td>défaut : field</td><td>Libelle naturel pour l'affichage (tags)</td></tr>
             </tbody>
@@ -106,6 +106,11 @@
             </tbody>
           </table>
         </div>
+        <p class="fr-text--sm fr-text--light">
+          Une checkbox cochée transmet la valeur <code>'on'</code> — c'est ce qui active les
+          opérateurs sans valeur comme <code>current-year</code>. Une valeur vide (champ effacé,
+          checkbox décochée) retire le filtre. Les valeurs sont percent-encodées dans la clause colon.
+        </p>
 
         <div class="fr-callout fr-callout--green-emeraude">
           <p class="fr-callout__text">
@@ -128,6 +133,22 @@
             </tbody>
           </table>
         </div>
+
+        <h2 class="fr-h4">Événements</h2>
+        <div class="fr-table fr-table--sm">
+          <table>
+            <thead>
+              <tr><th>Événement</th><th><code>detail</code></th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>dsfr-data-context-change</code></td><td>—</td><td>Émis sur l'élément <code>&lt;dsfr-data-context&gt;</code> à chaque application ou retrait d'un filtre. C'est cet événement qu'écoute <code>dsfr-data-context-tags</code> pour se rafraîchir.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="fr-text--sm fr-text--light">
+          <code>dsfr-data-context-filter</code> et <code>dsfr-data-context-tags</code> n'émettent
+          aucun événement custom propre : tout passe par le contexte et les commandes du data-bridge.
+        </p>
 
         <h2 class="fr-h4">Voir aussi</h2>
         <ul>

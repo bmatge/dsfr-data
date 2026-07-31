@@ -66,7 +66,7 @@
               <td><strong>Adapter</strong></td>
               <td>Active via <code>api-type</code> (sans <code>url</code>). L'adapter gere la construction d'URL,
                 la pagination automatique, les filtres et le parsing spécifiques au provider
-                (OpenDataSoft, Tabular, Grist).</td>
+                (OpenDataSoft, Tabular, Grist, INSEE Melodi).</td>
             </tr>
             <tr>
               <td><strong>Inline data</strong></td>
@@ -96,10 +96,17 @@
             </tr>
             <tr>
               <td><code>grist</code></td>
-              <td>Grist (numérique.gouv.fr, getgrist.com)</td>
+              <td>Grist (grist.numerique.gouv.fr, getgrist.com)</td>
               <td><code>base-url</code></td>
               <td>offset, 100/page, illimitee</td>
               <td>Illimite</td>
+            </tr>
+            <tr>
+              <td><code>insee</code></td>
+              <td>INSEE Melodi (api.insee.fr/melodi)</td>
+              <td><code>dataset-id</code></td>
+              <td>page, 1 000/page, max 100 pages</td>
+              <td>100 000</td>
             </tr>
           </tbody>
         </table>
@@ -146,7 +153,7 @@
         <table class="attr-table">
           <thead><tr><th>Attribut</th><th>Type</th><th>Format / Valeurs</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><code>api-type</code></td><td>String</td><td><code>opendatasoft</code> | <code>tabular</code> | <code>grist</code></td><td>Type de provider. Active le mode adapter (ne pas combiner avec <code>url</code>).</td></tr>
+            <tr><td><code>api-type</code></td><td>String</td><td><code>opendatasoft</code> | <code>tabular</code> | <code>grist</code> | <code>insee</code></td><td>Type de provider. Active le mode adapter (ne pas combiner avec <code>url</code>).</td></tr>
             <tr><td><code>base-url</code></td><td>String</td><td><code>"https://data.iledefrance.fr"</code></td><td>URL de base de l'API. Requis pour Grist, optionnel pour ODS/Tabular (defauts fournis).</td></tr>
             <tr><td><code>dataset-id</code></td><td>String</td><td><code>"mon-dataset-2024"</code></td><td>Identifiant (slug) du dataset. Mode <code>opendatasoft</code> uniquement.</td></tr>
             <tr><td><code>resource</code></td><td>String</td><td><code>"2876a346-d50c-..."</code> (UUID)</td><td>Identifiant de la ressource. Mode <code>tabular</code> uniquement.</td></tr>
@@ -354,27 +361,27 @@ where="email:isnull"</pre></div>
         <section class="demo-section">
           <h3>Mode adapter : Grist</h3>
           <p>
-            L'adapter Grist se connecte aux instances Grist (numérique.gouv.fr ou getgrist.com).
+            L'adapter Grist se connecte aux instances Grist (grist.numerique.gouv.fr ou getgrist.com).
             Il détecté automatiquement si la requête necessite le mode SQL (groupement, agrégation,
             operateurs avances) ou le mode Records standard.
           </p>
           <div class="code-block"><pre>&lt;dsfr-data-source
   id="grist-data"
   api-type="grist"
-  base-url="https://grist.numérique.gouv.fr/api/docs/DOC_ID/tables/TABLE_ID/records"
+  base-url="https://grist.numerique.gouv.fr/api/docs/DOC_ID/tables/TABLE_ID/records"
   headers='{"Authorization": "Bearer TOKEN"}'
 &gt;&lt;/dsfr-data-source&gt;
 
-&lt;dsfr-data-normalize id="clean" source="grist-data" flatten&gt;
-&lt;/dsfr-data-normalize&gt;
-
-&lt;dsfr-data-chart source="clean" type="bar"
+&lt;dsfr-data-chart source="grist-data" type="bar"
   label-field="nom" value-field="valeur"&gt;
 &lt;/dsfr-data-chart&gt;</pre></div>
           <div class="fr-callout fr-callout--blue-ecume fr-mt-2w">
             <p class="fr-callout__text">
-              <strong>Flatten requis :</strong> Grist retourne les champs imbriques dans un objet <code>fields</code>.
-              Utilisez <code>&lt;dsfr-data-normalize flatten&gt;</code> pour aplatir les données avant de les exploiter.
+              <strong>Aplatissement automatique :</strong> l'adapter Grist aplatit lui-même la structure
+              <code>records[].fields</code> de la réponse — aucun <code>dsfr-data-normalize</code> n'est
+              nécessaire en mode adapter. Le <code>flatten</code> de normalize ne sert que si vous appelez
+              l'API Grist en <strong>mode URL brute</strong> (attribut <code>url</code> sans <code>api-type</code>),
+              où la réponse arrive telle quelle.
             </p>
           </div>
         </section>

@@ -22,6 +22,24 @@
     <div slot="content">
       <p class="fr-text--lead">Le composant <code>&lt;scatter-chart&gt;</code> visualise des correlations entre deux variables.</p>
 
+      <h2>Attributs</h2>
+      <table class="attr-table">
+        <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>x</code></td><td>String (JSON)</td><td>—</td><td><strong>Requis.</strong> Abscisses, tableau imbriqué : <code>"[[10, 20, ...]]"</code> (un sous-tableau par série)</td></tr>
+          <tr><td><code>y</code></td><td>String (JSON)</td><td>—</td><td><strong>Requis.</strong> Ordonnées, tableau imbriqué : <code>"[[25, 35, ...]]"</code></td></tr>
+          <tr><td><code>x-min</code> / <code>x-max</code> / <code>y-min</code> / <code>y-max</code></td><td>Number</td><td><code>""</code></td><td>Bornes des axes</td></tr>
+          <tr><td><code>name</code></td><td>String (JSON)</td><td><code>""</code></td><td>Noms des séries : <code>'["Série 1"]'</code></td></tr>
+          <tr><td><code>selected-palette</code></td><td>String</td><td><code>""</code></td><td>Palette DSFR Chart : <code>default</code>, <code>categorical</code>, <code>sequentialAscending</code>, <code>sequentialDescending</code>, <code>divergentAscending</code>, <code>divergentDescending</code>, <code>neutral</code></td></tr>
+          <tr><td><code>unit-tooltip</code></td><td>String</td><td><code>""</code></td><td>Unité affichée dans les tooltips</td></tr>
+          <tr><td><code>show-line</code></td><td>Boolean</td><td><code>false</code></td><td>Relie les points par une ligne</td></tr>
+          <tr><td><code>vline</code> / <code>vlinecolor</code> / <code>vlinename</code></td><td>String</td><td><code>""</code></td><td>Repère vertical (valeur, couleur, libellé)</td></tr>
+          <tr><td><code>hline</code> / <code>hlinecolor</code> / <code>hlinename</code></td><td>String</td><td><code>""</code></td><td>Repère horizontal (valeur, couleur, libellé)</td></tr>
+          <tr><td><code>date</code></td><td>String</td><td><code>""</code></td><td>Date de la donnée (mention sous le graphique)</td></tr>
+          <tr><td><code>aspect-ratio</code></td><td>Number</td><td><code>2</code></td><td>Ratio largeur/hauteur du canvas</td></tr>
+        </tbody>
+      </table>
+
       <section class="demo-section">
         <h3>Nuage simple</h3>
         <scatter-chart

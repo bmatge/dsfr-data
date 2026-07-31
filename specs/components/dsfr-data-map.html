@@ -25,51 +25,100 @@
     base-path="../">
     <div slot="content">
         <p class="fr-text--lead">
-          Carte interactive multi-couches basee sur Leaflet avec fonds de carte souverains (IGN Geoplateforme).
-          Affiche des POI (markers), zones geographiques (geoshape), cercles proportionnels et heatmaps.
+          Conteneur de carte interactive basé sur Leaflet, avec fonds de carte souverains
+          (IGN Géoplateforme). Il gère l'initialisation, le fond de tuiles, le viewport et
+          l'accessibilité — les données sont projetées par des composants compagnons.
         </p>
 
         <div class="fr-callout fr-callout--blue-ecume fr-mb-4w">
           <p class="fr-callout__text">
-            <strong>Architecture 2 composants</strong> : <code>dsfr-data-map</code> est le conteneur carte (init Leaflet, tuiles, viewport).
-            Les données sont projetees par des <code>dsfr-data-map-layer</code> enfants, chacun connecte a sa propre source.
-            Cela permet naturellement le <strong>multi-source</strong> (ex: departements choropleth + POI pharmacies).
+            <strong>Famille de 5 composants</strong> : <code>dsfr-data-map</code> est le conteneur.
+            Les données sont projetées par des <a href="dsfr-data-map-layer.html"><code>dsfr-data-map-layer</code></a>
+            enfants (une couche = une source), l'affichage au clic est défini par
+            <a href="dsfr-data-map-popup.html"><code>dsfr-data-map-popup</code></a>, les vignettes
+            territoriales (DROM, Corse) par <a href="dsfr-data-map-inset.html"><code>dsfr-data-map-inset</code></a>
+            et l'animation temporelle par <a href="dsfr-data-map-timeline.html"><code>dsfr-data-map-timeline</code></a>.
           </p>
         </div>
 
         <!-- ============================================================ -->
-        <!-- dsfr-data-map -->
+        <!-- Vue d'ensemble de la famille -->
         <!-- ============================================================ -->
 
-        <h2>dsfr-data-map — Conteneur carte</h2>
+        <h2 id="famille">Vue d'ensemble de la famille cartographique</h2>
+
+        <h3>Pipeline</h3>
+        <div class="code-block"><pre>dsfr-data-source (A) ──┐
+                       ├──&gt; dsfr-data-map                      (conteneur : Leaflet, tuiles, viewport, a11y)
+dsfr-data-source (B) ──┘     ├── dsfr-data-map-layer source="A"  (geoshape choroplèthe)
+                             ├── dsfr-data-map-layer source="B"  (markers, cercles, heatmap...)
+                             ├── dsfr-data-map-popup             (popup / modale / volet au clic)
+                             ├── dsfr-data-map-inset             (encarts DROM, Corse...)
+                             └── dsfr-data-map-timeline          (lecture temporelle des couches à time-field)</pre></div>
+        <p>
+          Chaque couche est connectée à sa propre source : le multi-source est naturel
+          (ex. contours de régions + POI pharmacies sur la même carte). Les couches participent
+          au data-bridge comme n'importe quel composant d'affichage (abonnement par
+          <code>source</code>, commandes <code>dsfr-data-source-command</code> pour le bbox).
+        </p>
+
+        <h3>Bundle et chargement</h3>
+        <ul>
+          <li>La famille complète est packagée dans le bundle dédié <code>dsfr-data.map.esm.js</code>
+            (également incluse dans le bundle complet <code>dsfr-data.esm.js</code>).</li>
+          <li><strong>Leaflet n'est pas inclus</strong> : il est chargé dynamiquement via
+            <code>import()</code> au moment où la carte s'initialise, et exposé sur <code>window.L</code>.
+            Les plugins (leaflet.markercluster, leaflet.heat) suivent le même chemin, à la demande.</li>
+          <li><strong>Initialisation différée à la visibilité</strong> : la carte ne s'initialise
+            que lorsqu'elle approche du viewport (IntersectionObserver, marge 200&nbsp;px). Une page
+            avec dix cartes sous la ligne de flottaison ne charge rien tant qu'on ne défile pas.</li>
+        </ul>
+
+        <h3>Accessibilité intégrée</h3>
+        <ul>
+          <li><strong>Skip link</strong> « Passer la carte » avec ancre après la carte ;</li>
+          <li><strong>Description sr-only</strong> du contenu (mise à jour par les couches via <code>updateDescription()</code>) ;</li>
+          <li><code>role="application"</code> + <code>tabindex</code> sur le conteneur Leaflet (navigation clavier) ;</li>
+          <li><strong>Live region</strong> assertive pour les annonces (<code>announceToScreenReader()</code>) ;</li>
+          <li>L'attribut <code>name</code> fournit le nom accessible (aria-label) de la carte.</li>
+        </ul>
+        <p>
+          Le compagnon <a href="dsfr-data-a11y.html"><code>dsfr-data-a11y</code></a> détecte les cartes
+          et adapte ses libellés (« Données de la carte »).
+        </p>
+
+        <!-- ============================================================ -->
+        <!-- Attributs -->
+        <!-- ============================================================ -->
+
+        <h2 id="attributs" class="fr-mt-4w">Attributs</h2>
         <table class="attr-table">
           <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><code>center</code></td><td>String</td><td><code>"46.603,2.888"</code></td><td>Centre initial <code>"lat,lon"</code> (France metro par défaut)</td></tr>
+            <tr><td><code>center</code></td><td>String</td><td><code>"46.603,2.888"</code></td><td>Centre initial <code>"lat,lon"</code> (France métropolitaine par défaut)</td></tr>
             <tr><td><code>zoom</code></td><td>Number</td><td><code>6</code></td><td>Niveau de zoom initial (1-18)</td></tr>
-            <tr><td><code>min-zoom</code></td><td>Number</td><td><code>2</code></td><td>Zoom minimum autorise</td></tr>
-            <tr><td><code>max-zoom</code></td><td>Number</td><td><code>18</code></td><td>Zoom maximum autorise</td></tr>
-            <tr><td><code>height</code></td><td>String</td><td><code>"500px"</code></td><td>Hauteur du conteneur. Accepte toute unite CSS (<code>px</code>, <code>vh</code>, <code>rem</code>). Un pourcentage (ex: <code>"60%"</code>) est interprete comme un ratio de la largeur (aspect-ratio responsive).</td></tr>
-            <tr><td><code>tiles</code></td><td>String</td><td><code>"ign-plan"</code></td><td>Fond de carte predefini ou URL template custom</td></tr>
-            <tr><td><code>sovereign-only</code></td><td>Boolean</td><td><code>false</code></td><td>Restreint <code>tiles</code> aux presets IGN souverains. Tout autre preset (ex. <code>osm-fr</code>) ou URL custom est refuse avec un <code>console.warn</code> et remplace par <code>ign-plan</code>.</td></tr>
-            <tr><td><code>no-controls</code></td><td>Boolean</td><td><code>false</code></td><td>Masque les controles de zoom Leaflet</td></tr>
-            <tr><td><code>locked</code></td><td>Boolean</td><td><code>false</code></td><td>Carte verrouillee : aucune interaction (pan, zoom, molette, clavier). Utilise par les encarts et vignettes.</td></tr>
-            <tr><td><code>insets</code></td><td>String</td><td><code>""</code></td><td>Raccourci encarts territoriaux : groupe et/ou territoires nommes separes par des virgules (<code>"drom"</code>, <code>"drom,corse"</code>). Produit les <code>dsfr-data-map-inset</code> correspondants.</td></tr>
-            <tr><td><code>fit-bounds</code></td><td>Boolean</td><td><code>false</code></td><td>Ajuste automatiquement le viewport aux données</td></tr>
-            <tr><td><code>max-bounds</code></td><td>String</td><td><code>""</code></td><td>Limites <code>"latSW,lonSW,latNE,lonNE"</code></td></tr>
-            <tr><td><code>name</code></td><td>String</td><td><code>""</code></td><td>Titre de la carte (aria-label et beacon)</td></tr>
+            <tr><td><code>min-zoom</code></td><td>Number</td><td><code>2</code></td><td>Zoom minimum autorisé</td></tr>
+            <tr><td><code>max-zoom</code></td><td>Number</td><td><code>18</code></td><td>Zoom maximum autorisé</td></tr>
+            <tr><td><code>height</code></td><td>String</td><td><code>"500px"</code></td><td>Hauteur du conteneur Leaflet (pas de l'hôte : les encarts gardent leur place). Accepte toute unité CSS (<code>px</code>, <code>vh</code>, <code>rem</code>). Un pourcentage <code>"NN%"</code> est interprété comme un <strong>ratio de la largeur</strong> (aspect-ratio responsive, recalculé par ResizeObserver) : <code>height="60%"</code> = hauteur à 60&nbsp;% de la largeur courante.</td></tr>
+            <tr><td><code>tiles</code></td><td>String</td><td><code>"ign-plan"</code></td><td>Fond de carte : un des 8 presets (voir tableau ci-dessous), l'alias <code>osm</code> (&rarr; <code>osm-fr</code>), le preset déprécié <code>ign-topo</code> (&rarr; <code>ign-plan</code> + warn, #429), ou une URL template custom <code>{z}/{x}/{y}</code> (attribution vide dans ce cas)</td></tr>
+            <tr><td><code>sovereign-only</code></td><td>Boolean</td><td><code>false</code></td><td>Restreint <code>tiles</code> aux presets IGN souverains (<code>ign-plan</code>, <code>ign-ortho</code>, <code>ign-topo</code>, <code>ign-cadastre</code>). Tout autre preset ou URL custom est refusé avec un <code>console.warn</code> et remplacé par <code>ign-plan</code>.</td></tr>
+            <tr><td><code>no-controls</code></td><td>Boolean</td><td><code>false</code></td><td>Masque le contrôle de zoom Leaflet</td></tr>
+            <tr><td><code>locked</code></td><td>Boolean</td><td><code>false</code></td><td>Carte verrouillée : aucune interaction (pan, zoom, molette, clavier). Utilisé par les encarts et les vignettes.</td></tr>
+            <tr><td><code>insets</code></td><td>String</td><td><code>""</code></td><td>Raccourci encarts territoriaux : groupe et/ou territoires nommés séparés par des virgules (<code>"drom"</code>, <code>"drom,corse"</code>). Le groupe <code>drom</code> = guadeloupe, martinique, guyane, la-reunion, mayotte. Produit les <code>&lt;dsfr-data-map-inset&gt;</code> correspondants ; un encart posé explicitement en HTML pour le même territoire prime.</td></tr>
+            <tr><td><code>fit-bounds</code></td><td>Boolean</td><td><code>false</code></td><td>Ajuste automatiquement le viewport aux bounds des couches (padding 20, sans animation ; bounds recalculés à chaque rendu de couche). Les couches <code>no-interactive</code> sont exclues du calcul.</td></tr>
+            <tr><td><code>max-bounds</code></td><td>String</td><td><code>""</code></td><td>Limites de pan Leaflet <code>"latSW,lonSW,latNE,lonNE"</code> — <strong>ET clip du fit</strong> (ADR-094) : le rectangle du <code>fit-bounds</code> est intersecté avec cette zone, si bien que des données lointaines (DROM) ne dézooment plus la vue métropole. Intersection vide = vue inchangée.</td></tr>
+            <tr><td><code>name</code></td><td>String</td><td><code>""</code></td><td>Nom accessible de la carte (aria-label + description + télémétrie beacon)</td></tr>
           </tbody>
         </table>
 
-        <h3>Fonds de carte predefinis</h3>
-        <p>Tuiles accessibles <strong>sans clé API</strong>. Les presets <code>ign-*</code> sont servis par la <a href="https://geoservices.ign.fr/services-geoplateforme">Geoplateforme nationale IGN</a> (infrastructure cartographique de l'État, hebergee en France). Le preset <code>osm-fr</code> est servi par l'<a href="https://www.openstreetmap.fr/">association OpenStreetMap France</a> (association loi 1901, infra hebergee en France, distincte de l'OSM Foundation).</p>
+        <h3>Fonds de carte prédéfinis</h3>
+        <p>Tuiles accessibles <strong>sans clé API</strong>. Les presets <code>ign-*</code> sont servis par la <a href="https://geoservices.ign.fr/services-geoplateforme">Géoplateforme nationale IGN</a> (infrastructure cartographique de l'État, hébergée en France). Le preset <code>osm-fr</code> est servi par l'<a href="https://www.openstreetmap.fr/">association OpenStreetMap France</a> (association loi 1901, infra hébergée en France, distincte de l'OSM Foundation).</p>
         <table class="attr-table">
           <thead><tr><th>Preset</th><th>Source</th><th>Souverain</th><th>Endpoint</th></tr></thead>
           <tbody>
-            <tr><td><code>ign-plan</code></td><td>Geoplateforme IGN — Plan IGN</td><td>Oui</td><td><code>data.geopf.fr/wmts</code> (layer <code>GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2</code>)</td></tr>
-            <tr><td><code>ign-ortho</code></td><td>Geoplateforme IGN — Orthophoto</td><td>Oui</td><td><code>data.geopf.fr/wmts</code> (layer <code>ORTHOIMAGERY.ORTHOPHOTOS</code>)</td></tr>
-            <tr><td><code>ign-topo</code></td><td><em>Deprecie</em> — redirige vers <code>ign-plan</code> avec un <code>console.warn</code> (couche BDUNI quasi vide ; couches SCAN topo soumises a clé API)</td><td>Oui (via <code>ign-plan</code>)</td><td>—</td></tr>
-            <tr><td><code>ign-cadastre</code></td><td>Geoplateforme IGN — Cadastre</td><td>Oui</td><td><code>data.geopf.fr/wmts</code> (layer <code>CADASTRALPARCELS.PARCELLAIRE_EXPRESS</code>)</td></tr>
+            <tr><td><code>ign-plan</code></td><td>Géoplateforme IGN — Plan IGN</td><td>Oui</td><td><code>data.geopf.fr/wmts</code> (layer <code>GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2</code>)</td></tr>
+            <tr><td><code>ign-ortho</code></td><td>Géoplateforme IGN — Orthophoto</td><td>Oui</td><td><code>data.geopf.fr/wmts</code> (layer <code>ORTHOIMAGERY.ORTHOPHOTOS</code>)</td></tr>
+            <tr><td><code>ign-cadastre</code></td><td>Géoplateforme IGN — Cadastre</td><td>Oui</td><td><code>data.geopf.fr/wmts</code> (layer <code>CADASTRALPARCELS.PARCELLAIRE_EXPRESS</code>)</td></tr>
             <tr><td><code>osm-fr</code></td><td>OpenStreetMap France (association)</td><td>Non (associatif hors État)</td><td><code>{s}.tile.openstreetmap.fr/osmfr</code></td></tr>
             <tr><td><code>osm-standard</code></td><td>OpenStreetMap (OSM Foundation)</td><td>Non</td><td><code>tile.openstreetmap.org</code></td></tr>
             <tr><td><code>carto-positron</code></td><td>CARTO — fond clair sobre (dataviz)</td><td>Non</td><td><code>{s}.basemaps.cartocdn.com/light_all</code></td></tr>
@@ -77,228 +126,39 @@
             <tr><td><code>opentopomap</code></td><td>OpenTopoMap (CC-BY-SA)</td><td>Non</td><td><code>{s}.tile.opentopomap.org</code></td></tr>
           </tbody>
         </table>
-        <p class="fr-mt-2w"><strong>Mode <code>sovereign-only</code></strong> : pour les DSI qui imposent une politique "zero tiers externe non souverain", ajouter l'attribut booleen <code>sovereign-only</code> sur <code>&lt;dsfr-data-map&gt;</code> restreint les presets disponibles aux seules tuiles IGN (<code>ign-plan</code>, <code>ign-ortho</code>, <code>ign-cadastre</code> — <code>ign-topo</code>, deprecie, y resout vers <code>ign-plan</code>). Tout autre preset ou URL custom est refuse avec un avertissement console et remplace par <code>ign-plan</code>.</p>
-        <p><strong>Alias de retrocompatibilite</strong> : <code>tiles="osm"</code> reste accepte et pointe vers le preset <code>osm-fr</code> ; <code>tiles="ign-topo"</code> (deprecie) pointe vers <code>ign-plan</code>.</p>
-
-        <!-- ============================================================ -->
-        <!-- dsfr-data-map-layer -->
-        <!-- ============================================================ -->
-
-        <h2 class="fr-mt-4w">dsfr-data-map-layer — Couche de données</h2>
-
-        <h3>Source et geolocalisation</h3>
-        <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>source</code></td><td>String</td><td><code>""</code></td><td>ID de la source de données (requis)</td></tr>
-            <tr><td><code>type</code></td><td>String</td><td><code>"marker"</code></td><td>Type de couche : <code>marker</code>, <code>geoshape</code>, <code>circle</code>, <code>heatmap</code></td></tr>
-            <tr><td><code>lat-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers la latitude</td></tr>
-            <tr><td><code>lon-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers la longitude</td></tr>
-            <tr><td><code>geo-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers un GeoJSON (Point, Polygon, MultiPolygon) — objet ou <strong>chaine JSON serialisee</strong> (colonnes Text Grist, CSV), parsee automatiquement (memoise)</td></tr>
-          </tbody>
-        </table>
-
-        <h3>Affichage</h3>
-        <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>popup-template</code></td><td>String</td><td><code>""</code></td><td>Template HTML avec interpolation : <code>"{nom} — {puissance} kW"</code></td></tr>
-            <tr><td><code>popup-fields</code></td><td>String</td><td><code>""</code></td><td>Champs separes par virgule pour un tableau auto</td></tr>
-            <tr><td><code>tooltip-field</code></td><td>String</td><td><code>""</code></td><td>Champ affiche au survol</td></tr>
-            <tr><td><code>color</code></td><td>String</td><td><code>"#000091"</code></td><td>Couleur contours/markers (DSFR blue-france). Sert de fallback si <code>color-map</code> ne matche pas.</td></tr>
-            <tr><td><code>color-field</code></td><td>String</td><td><code>""</code></td><td>Champ dont la valeur determine la couleur (mapping catégoriel)</td></tr>
-            <tr><td><code>color-map</code></td><td>String</td><td><code>""</code></td><td>Paires <code>valeur:#couleur</code> separees par virgule. Ex: <code>"1:#00A95F,2:#FF9940,3:#E1000F"</code></td></tr>
-            <tr><td><code>fill-field</code></td><td>String</td><td><code>""</code></td><td>Champ numérique pour choropleth geoshape</td></tr>
-            <tr><td><code>fill-opacity</code></td><td>Number</td><td><code>0.6</code></td><td>Opacite du remplissage</td></tr>
-            <tr><td><code>selected-palette</code></td><td>String</td><td><code>""</code></td><td>Palette choropleth (mêmes noms que world-map)</td></tr>
-            <tr><td><code>radius</code></td><td>Number</td><td><code>8</code></td><td>Rayon fixe (circle)</td></tr>
-            <tr><td><code>radius-field</code></td><td>String</td><td><code>""</code></td><td>Champ pour rayon variable (cercles proportionnels)</td></tr>
-            <tr><td><code>radius-unit</code></td><td>String</td><td><code>"px"</code></td><td><code>px</code> (pixels) ou <code>m</code> (metres)</td></tr>
-            <tr><td><code>radius-min</code></td><td>Number</td><td><code>4</code></td><td>Rayon minimum pour l'auto-scaling (px)</td></tr>
-            <tr><td><code>radius-max</code></td><td>Number</td><td><code>30</code></td><td>Rayon maximum pour l'auto-scaling (px)</td></tr>
-          </tbody>
-        </table>
-
-        <h3>Heatmap</h3>
-        <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>heat-radius</code></td><td>Number</td><td><code>25</code></td><td>Rayon de la heatmap en pixels</td></tr>
-            <tr><td><code>heat-blur</code></td><td>Number</td><td><code>15</code></td><td>Flou de la heatmap en pixels</td></tr>
-            <tr><td><code>heat-field</code></td><td>String</td><td><code>""</code></td><td>Champ numérique pour ponderer l'intensite</td></tr>
-          </tbody>
-        </table>
-
-        <h3>Clustering</h3>
-        <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>cluster</code></td><td>Boolean</td><td><code>false</code></td><td>Active le clustering (leaflet.markercluster)</td></tr>
-            <tr><td><code>cluster-radius</code></td><td>Number</td><td><code>80</code></td><td>Rayon de clustering en pixels</td></tr>
-          </tbody>
-        </table>
-
-        <h3>Zoom et viewport</h3>
-        <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>min-zoom</code></td><td>Number</td><td><code>0</code></td><td>Zoom minimum pour afficher cette couche</td></tr>
-            <tr><td><code>max-zoom</code></td><td>Number</td><td><code>18</code></td><td>Zoom maximum pour afficher cette couche</td></tr>
-            <tr><td><code>bbox</code></td><td>Boolean</td><td><code>false</code></td><td>Active le filtrage par bounding box du viewport</td></tr>
-            <tr><td><code>bbox-debounce</code></td><td>Number</td><td><code>300</code></td><td>Delai ms avant re-fetch apres pan/zoom</td></tr>
-            <tr><td><code>bbox-field</code></td><td>String</td><td><code>""</code></td><td>Champ geo pour la clause bbox (auto-détecté si vide)</td></tr>
-          </tbody>
-        </table>
-
-        <h3>Performance</h3>
-        <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>max-items</code></td><td>Number</td><td><code>5000</code></td><td>Nombre max d'elements rendus (0 = illimite)</td></tr>
-            <tr><td><code>filter</code></td><td>String</td><td><code>""</code></td><td>Filtre client-side</td></tr>
-          </tbody>
-        </table>
-
-        <h3>Animation temporelle</h3>
-        <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>time-field</code></td><td>String</td><td><code>""</code></td><td>Champ date/heure pour le decoupage temporel</td></tr>
-            <tr><td><code>time-bucket</code></td><td>String</td><td><code>"none"</code></td><td>Granularite : <code>none</code> (valeurs brutes), <code>hour</code>, <code>day</code>, <code>month</code>, <code>year</code></td></tr>
-            <tr><td><code>time-mode</code></td><td>String</td><td><code>"snapshot"</code></td><td><code>snapshot</code> (affiche le pas courant) ou <code>cumulative</code> (tout jusqu'au pas courant)</td></tr>
-          </tbody>
-        </table>
-        <p>
-          Quand <code>time-field</code> est défini, les données sont pre-indexees par pas de temps.
-          Le composant compagnon <code>dsfr-data-map-timeline</code> pilote la lecture frame par frame.
-        </p>
-
-        <!-- ============================================================ -->
-        <!-- dsfr-data-map-timeline -->
-        <!-- ============================================================ -->
-
-        <h2 class="fr-mt-4w">dsfr-data-map-timeline — Animation temporelle</h2>
-        <p>
-          Composant compagnon place comme enfant de <code>dsfr-data-map</code>.
-          Decouvre automatiquement les layers ayant <code>time-field</code> et pilote
-          leur affichage frame par frame avec des controles de lecture.
-        </p>
-
-        <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>for</code></td><td>String</td><td><code>""</code></td><td>IDs des layers cibles (virgules). Vide = tous les layers avec <code>time-field</code></td></tr>
-            <tr><td><code>speed</code></td><td>Number</td><td><code>1</code></td><td>Multiplicateur de vitesse (0.5, 1, 2, 4)</td></tr>
-            <tr><td><code>interval</code></td><td>Number</td><td><code>1000</code></td><td>Intervalle de base entre frames en ms</td></tr>
-          </tbody>
-        </table>
-
-        <h3>Controles</h3>
-        <ul>
-          <li>Boutons : lecture/pause, stop (retour au debut), pas precedent/suivant</li>
-          <li>Slider : navigation directe vers un pas de temps</li>
-          <li>Selecteur de vitesse : 0.5x, 1x, 2x, 4x</li>
-          <li>Label du pas courant avec region aria-live</li>
-        </ul>
-
-        <h3>Accessibilité</h3>
-        <ul>
-          <li><strong>Pas d'auto-play</strong> — l'animation demarre uniquement sur action utilisateur</li>
-          <li><strong>Clavier</strong> : Espace (play/pause), fleches (pas-a-pas), Home/End (debut/fin)</li>
-          <li><strong>ARIA</strong> : labels sur tous les controles, <code>aria-live</code> sur le label courant, <code>aria-valuetext</code> sur le slider</li>
-          <li><strong><code>prefers-reduced-motion</code></strong> : desactive le bouton play (navigation manuelle uniquement)</li>
-        </ul>
-
-        <!-- ============================================================ -->
-        <!-- dsfr-data-map-inset -->
-        <!-- ============================================================ -->
-
-        <h2 class="fr-mt-4w">dsfr-data-map-inset — Encarts territoriaux</h2>
-        <p>
-          Composant compagnon place comme enfant de <code>dsfr-data-map</code>. Rend une mini-carte
-          verrouillee (zoom fixe, aucune interaction) centree sur un territoire — le pattern
-          « France metropolitaine + vignettes DROM » des cartes nationales. L'encart reutilise
-          automatiquement les couches (<code>dsfr-data-map-layer</code>) <strong>et le popup</strong>
-          de la carte hote : un clic sur un element de l'encart ouvre le volet ou la modale de la
-          carte principale (template unique, pas de duplication).
-        </p>
-
-        <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>territory</code></td><td>String</td><td><code>""</code></td><td>Territoire predefini : <code>guadeloupe</code>, <code>martinique</code>, <code>guyane</code>, <code>la-reunion</code>, <code>mayotte</code>, <code>saint-pierre-et-miquelon</code>, <code>saint-martin</code>, <code>saint-barthelemy</code>, <code>nouvelle-caledonie</code>, <code>polynesie-francaise</code>, <code>wallis-et-futuna</code>, <code>corse</code>. Fournit centre, zoom et libelle.</td></tr>
-            <tr><td><code>center</code></td><td>String</td><td><code>""</code></td><td>Centre <code>"lat,lon"</code> (requis sans <code>territory</code> ; prioritaire sur le preset)</td></tr>
-            <tr><td><code>zoom</code></td><td>Number</td><td><code>8</code></td><td>Zoom fixe de l'encart (prioritaire sur le preset)</td></tr>
-            <tr><td><code>label</code></td><td>String</td><td><code>""</code></td><td>Libelle affiche au-dessus de l'encart (et nom accessible de la mini-carte)</td></tr>
-            <tr><td><code>height</code></td><td>String</td><td><code>"160px"</code></td><td>Hauteur de la mini-carte</td></tr>
-          </tbody>
-        </table>
-
         <p class="fr-mt-2w">
-          <strong>Raccourci</strong> : l'attribut <code>insets</code> de <code>dsfr-data-map</code>
-          genere les encarts automatiquement — <code>insets="drom"</code> (les 5 DROM) ou une liste
-          <code>insets="drom,corse"</code>. Un encart pose explicitement en HTML pour le meme
-          territoire prime (pas de doublon).
+          <strong>Alias et dépréciation</strong> : <code>tiles="osm"</code> reste accepté et pointe
+          vers le preset <code>osm-fr</code> ; <code>tiles="ign-topo"</code> est <strong>déprécié</strong> (#429)
+          et résout vers <code>ign-plan</code> avec un <code>console.warn</code> (couche BDUNI quasi vide,
+          couches SCAN topo soumises à clé API). Toute autre valeur est traitée comme une
+          <strong>URL template custom</strong> <code>{z}/{x}/{y}</code> (attribution vide).
         </p>
-
-<pre class="code-block">&lt;dsfr-data-map center="46.5,2.6" zoom="6" tiles="ign-plan" insets="drom"&gt;
-  &lt;dsfr-data-map-layer source="territoires" type="geoshape" geo-field="geojson"&gt;&lt;/dsfr-data-map-layer&gt;
-  &lt;dsfr-data-map-popup mode="panel-right" title-field="nom"&gt;&lt;template&gt;...&lt;/template&gt;&lt;/dsfr-data-map-popup&gt;
-&lt;/dsfr-data-map&gt;
-
-&lt;!-- ou en explicite, avec surcharge de cadrage : --&gt;
-&lt;dsfr-data-map-inset territory="guyane" center="4.63,-52.45" zoom="8"&gt;&lt;/dsfr-data-map-inset&gt;</pre>
+        <p><strong>Mode <code>sovereign-only</code></strong> : pour les DSI qui imposent une politique « zéro tiers externe non souverain », l'attribut booléen <code>sovereign-only</code> restreint les presets disponibles aux seules tuiles IGN. Tout autre preset ou URL custom est refusé avec un avertissement console et remplacé par <code>ign-plan</code>.</p>
 
         <!-- ============================================================ -->
-        <!-- dsfr-data-map-popup -->
+        <!-- Événements / API -->
         <!-- ============================================================ -->
 
-        <h2 class="fr-mt-4w">dsfr-data-map-popup — Affichage au clic</h2>
+        <h2 id="evenements" class="fr-mt-4w">Événements</h2>
         <p>
-          Composant compagnon qui definit un template HTML et un mode d'affichage
-          pour le clic sur un element de carte. Remplace les attributs <code>popup-template</code>
-          et <code>popup-fields</code> du layer par un composant declaratif.
+          Le conteneur n'émet pas d'événement custom. Les couches enfantes participent au data-bridge
+          (abonnement à leur source, commandes bbox) et <code>dsfr-data-map-layer</code> émet
+          <a href="dsfr-data-map-layer.html#evenements"><code>dsfr-data-map-layer-time-ready</code></a>
+          quand un découpage temporel est prêt.
         </p>
 
+        <h2 id="api-js" class="fr-mt-4w">API JavaScript</h2>
         <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+          <thead><tr><th>Méthode</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><code>mode</code></td><td>String</td><td><code>"popup"</code></td><td><code>popup</code> (infobulle Leaflet), <code>modal</code> (modale DSFR), <code>panel-right</code>, <code>panel-left</code></td></tr>
-            <tr><td><code>title-field</code></td><td>String</td><td><code>""</code></td><td>Champ pour le titre du panneau/modale</td></tr>
-            <tr><td><code>width</code></td><td>String</td><td><code>"350px"</code></td><td>Largeur du panneau lateral</td></tr>
-            <tr><td><code>for</code></td><td>String</td><td><code>""</code></td><td>ID du layer cible (vide = tous les layers)</td></tr>
+            <tr><td><code>getLeafletMap()</code></td><td>Retourne l'instance <code>L.Map</code> (ou <code>null</code> avant init)</td></tr>
+            <tr><td><code>getLeafletLib()</code></td><td>Retourne le module Leaflet chargé dynamiquement</td></tr>
+            <tr><td><code>registerLayerBounds(key, bounds)</code></td><td>Déclare les bounds d'une couche pour le <code>fit-bounds</code> (les bounds d'une clé sont remplacés à chaque rendu)</td></tr>
+            <tr><td><code>unregisterLayerBounds(key)</code></td><td>Retire une couche du calcul de fit</td></tr>
+            <tr><td><code>announceToScreenReader(msg)</code></td><td>Annonce un message dans la live region assertive</td></tr>
+            <tr><td><code>updateDescription(summaries)</code></td><td>Met à jour la description sr-only de la carte (appelé par les couches)</td></tr>
           </tbody>
         </table>
-
-        <h3>Template</h3>
-        <p>
-          Le contenu est défini via un element <code>&lt;template&gt;</code> enfant avec les memes
-          expressions d'interpolation que <code>dsfr-data-display</code> (toujours echappees) :
-          <code>{{champ}}</code>, <code>{{champ.sous.clé}}</code> (chemins imbriques),
-          <code>{{champ:number}}</code> (formatage fr-FR avec separateur de milliers),
-          <code>{{champ|défaut}}</code> (repli si null/undefined).
-          Sans template, un tableau clé/valeur est genere automatiquement.
-        </p>
-
-        <h3>Modes</h3>
-        <ul>
-          <li><strong><code>popup</code></strong> : infobulle Leaflet classique au-dessus du marker</li>
-          <li><strong><code>modal</code></strong> : modale centree avec overlay, fermable par Escape ou clic exterieur</li>
-          <li><strong><code>panel-right</code></strong> / <strong><code>panel-left</code></strong> : panneau lateral glissant, mis a jour a chaque clic</li>
-        </ul>
-
-        <!-- ============================================================ -->
-        <!-- Resolution des coordonnees -->
-        <!-- ============================================================ -->
-
-        <h2 class="fr-mt-4w">Resolution des coordonnees</h2>
-        <p>Le layer resout les coordonnees dans cet ordre de priorite :</p>
-        <ol>
-          <li><strong><code>lat-field</code> + <code>lon-field</code></strong> — Coordonnees separees (CSV, API)</li>
-          <li><strong><code>geo-field</code> vers GeoJSON Point</strong> — Extrait lat/lon du <code>Point</code></li>
-          <li><strong><code>geo-field</code> vers Polygon/MultiPolygon</strong> — Rendu via <code>L.geoJSON()</code></li>
-          <li><strong>Auto-detection</strong> — Cherche <code>geo_point_2d</code>, <code>geo_shape</code>, <code>geometry</code></li>
-        </ol>
 
         <!-- ============================================================ -->
         <!-- Exemples -->
@@ -307,146 +167,64 @@
         <h2 class="fr-mt-4w">Exemples</h2>
 
         <section class="demo-section">
-          <h3>1. POI simples avec clustering</h3>
+          <h3>1. Carte simple avec une couche de POI</h3>
           <div class="code-block"><pre>&lt;dsfr-data-source id="bornes" api-type="opendatasoft"
   base-url="https://odre.opendatasoft.com" dataset-id="bornes-irve"
   select="geo_point_2d,nom_station,puissance_nominale,adresse"
   limit="5000"&gt;
 &lt;/dsfr-data-source&gt;
 
-&lt;dsfr-data-map center="46.6,2.3" zoom="6" tiles="ign-plan" fit-bounds&gt;
+&lt;dsfr-data-map name="Bornes de recharge en France" center="46.6,2.3" zoom="6" tiles="ign-plan" fit-bounds&gt;
   &lt;dsfr-data-map-layer source="bornes" type="marker"
     geo-field="geo_point_2d"
-    popup-fields="nom_station,puissance_nominale,adresse"
     tooltip-field="nom_station"
-    cluster cluster-radius="60"&gt;
+    cluster&gt;
   &lt;/dsfr-data-map-layer&gt;
 &lt;/dsfr-data-map&gt;</pre></div>
         </section>
 
         <section class="demo-section fr-mt-4w">
-          <h3>2. Multi-resolution (zoom ranges)</h3>
-          <div class="code-block"><pre>&lt;dsfr-data-source id="regions" api-type="opendatasoft"
-  base-url="https://public.opendatasoft.com" dataset-id="georef-france-region"
-  select="geo_shape,reg_name,population" limit="20"&gt;
-&lt;/dsfr-data-source&gt;
-
-&lt;dsfr-data-source id="communes" api-type="opendatasoft"
-  base-url="https://public.opendatasoft.com" dataset-id="georef-france-commune"
-  select="geo_shape,com_name,population" limit="500" server-side page-size="500"&gt;
-&lt;/dsfr-data-source&gt;
-
-&lt;dsfr-data-map center="46.6,2.3" zoom="6" tiles="ign-plan" height="600px"&gt;
-
-  &lt;!-- Zoom 1-9 : regions --&gt;
-  &lt;dsfr-data-map-layer source="regions" type="geoshape"
-    geo-field="geo_shape" fill-field="population"
-    selected-palette="sequentialAscending"
-    popup-template="&lt;b&gt;{reg_name}&lt;/b&gt;&lt;br&gt;{population} hab."
-    min-zoom="1" max-zoom="9"&gt;
-  &lt;/dsfr-data-map-layer&gt;
-
-  &lt;!-- Zoom 10+ : communes dans le viewport --&gt;
-  &lt;dsfr-data-map-layer source="communes" type="geoshape"
-    geo-field="geo_shape" fill-field="population"
-    selected-palette="sequentialAscending"
-    popup-template="&lt;b&gt;{com_name}&lt;/b&gt;&lt;br&gt;{population} hab."
-    min-zoom="10" bbox bbox-debounce="500"&gt;
-  &lt;/dsfr-data-map-layer&gt;
-
-&lt;/dsfr-data-map&gt;</pre></div>
-        </section>
-
-        <section class="demo-section fr-mt-4w">
-          <h3>3. Cercles proportionnels</h3>
-          <div class="code-block"><pre>&lt;dsfr-data-map center="46.6,2.3" zoom="6"&gt;
-  &lt;dsfr-data-map-layer source="villes" type="circle"
-    lat-field="latitude" lon-field="longitude"
-    radius-field="population" radius-unit="px"
-    color="#000091" fill-opacity="0.4"
-    popup-fields="nom,population"
-    tooltip-field="nom"&gt;
+          <h3>2. Hauteur en ratio + carte verrouillée (vignette)</h3>
+          <div class="code-block"><pre>&lt;!-- height="60%" = hauteur à 60 % de la largeur courante (aspect-ratio responsive) --&gt;
+&lt;dsfr-data-map center="48.85,2.35" zoom="11" height="60%"
+  locked no-controls tiles="carto-positron" name="Vignette Paris"&gt;
+  &lt;dsfr-data-map-layer source="arrondissements" type="geoshape"
+    geo-field="geo_shape" no-interactive color="#000091" fill-opacity="0.1"&gt;
   &lt;/dsfr-data-map-layer&gt;
 &lt;/dsfr-data-map&gt;</pre></div>
         </section>
 
         <section class="demo-section fr-mt-4w">
-          <h3>4. Animation temporelle</h3>
-          <div class="code-block"><pre>&lt;dsfr-data-source id="bornes-trim" data='[
-  {"region":"Paris","lat":48.85,"lon":2.35,"bornes":120,"date":"2025-T1"},
-  {"region":"Lyon","lat":45.76,"lon":4.83,"bornes":85,"date":"2025-T1"},
-  {"region":"Marseille","lat":43.30,"lon":5.37,"bornes":60,"date":"2025-T1"},
-  {"region":"Paris","lat":48.85,"lon":2.35,"bornes":250,"date":"2025-T2"},
-  {"region":"Lyon","lat":45.76,"lon":4.83,"bornes":160,"date":"2025-T2"},
-  {"region":"Marseille","lat":43.30,"lon":5.37,"bornes":130,"date":"2025-T2"}
-]'&gt;&lt;/dsfr-data-source&gt;
-
-&lt;dsfr-data-map center="46.6,2.3" zoom="6" height="550px"&gt;
-  &lt;dsfr-data-map-layer source="bornes-trim" type="circle"
-    lat-field="lat" lon-field="lon"
-    radius-field="bornes" radius-min="6" radius-max="35"
-    color="#000091" fill-opacity="0.5"
-    tooltip-field="region"
-    time-field="date" time-mode="snapshot"&gt;
+          <h3>3. Fit clippé (métropole + DROM, ADR-094)</h3>
+          <p>
+            <code>fit-bounds</code> ajuste la vue aux données, mais les territoires d'outre-mer
+            feraient dézoomer sur l'Atlantique. <code>max-bounds</code> clippe le fit sur la
+            métropole ; les DROM restent visibles dans les encarts.
+          </p>
+          <div class="code-block"><pre>&lt;dsfr-data-map center="46.5,2.6" zoom="6" min-zoom="3" height="620px"
+  tiles="carto-positron" fit-bounds max-bounds="38.5,-13,54,15"
+  insets="drom" name="Territoires engagés"&gt;
+  &lt;dsfr-data-map-layer source="territoires" type="geoshape"
+    geo-field="geojson" fill-field="habitants"
+    selected-palette="sequentialAscending" tooltip-field="nom"&gt;
   &lt;/dsfr-data-map-layer&gt;
-  &lt;dsfr-data-map-timeline speed="1" interval="1500"&gt;
-  &lt;/dsfr-data-map-timeline&gt;
-&lt;/dsfr-data-map&gt;</pre></div>
-        </section>
-
-        <section class="demo-section fr-mt-4w">
-          <h3>5. Geoshape + POI superposes</h3>
-          <div class="code-block"><pre>&lt;dsfr-data-map center="46.6,2.3" zoom="6" tiles="ign-plan"&gt;
-  &lt;dsfr-data-map-layer source="departements" type="geoshape"
-    geo-field="geo_shape" fill-field="population"
-    selected-palette="sequentialAscending" fill-opacity="0.5"
-    popup-template="&lt;b&gt;{nom}&lt;/b&gt;&lt;br&gt;Population : {population}"&gt;
-  &lt;/dsfr-data-map-layer&gt;
-  &lt;dsfr-data-map-layer source="prefectures" type="marker"
-    geo-field="geo_point_2d"
-    tooltip-field="nom" color="#C9191E"&gt;
-  &lt;/dsfr-data-map-layer&gt;
+  &lt;dsfr-data-map-popup mode="panel-right" title-field="nom"&gt;
+    &lt;template&gt;&lt;p&gt;{{habitants:number}} habitants&lt;/p&gt;&lt;/template&gt;
+  &lt;/dsfr-data-map-popup&gt;
 &lt;/dsfr-data-map&gt;</pre></div>
         </section>
 
         <!-- ============================================================ -->
-        <!-- Fonctionnement -->
+        <!-- Voir aussi -->
         <!-- ============================================================ -->
 
-        <h2 class="fr-mt-4w">Fonctionnement</h2>
-
-        <h3>Viewport-driven fetch (bbox)</h3>
-        <p>
-          Quand <code>bbox</code> est actif sur un layer, chaque deplacement de carte declenche une commande
-          <code>dsfr-data-source-command</code> avec un filtre <code>in_bbox()</code> (ODS) ou un filtrage
-          client-side pour les autres adapters. Le <code>whereKey: "map-bbox"</code> permet le merge propre
-          avec d'autres filtres (facettes, recherche).
-        </p>
-
-        <h3>Zoom ranges</h3>
-        <p>
-          Les attributs <code>min-zoom</code> / <code>max-zoom</code> sur les layers permettent d'afficher
-          differentes couches selon le niveau de zoom. Par exemple : regions a zoom 1-9, communes a zoom 10+.
-        </p>
-
-        <h3>Clustering</h3>
-        <p>
-          Le clustering est charge conditionnellement via import dynamique de <code>leaflet.markercluster</code>.
-          Les styles des clusters suivent les tokens DSFR.
-        </p>
-
-        <h3>Pipeline de données</h3>
-        <div class="code-block"><pre>dsfr-data-source (A) ──┐
-                       ├──► dsfr-data-map
-dsfr-data-source (B) ──┘     ├── dsfr-data-map-layer (source="A", type="geoshape")
-                              └── dsfr-data-map-layer (source="B", type="marker")</pre></div>
-
-        <h3>Bundle</h3>
-        <p>
-          Le composant est disponible dans un bundle separe <code>dsfr-data.map.esm.js</code> (ou inclus
-          dans le bundle complet <code>dsfr-data.esm.js</code>). Leaflet est charge dynamiquement via
-          <code>import()</code> et n'est pas inclus dans le bundle.
-        </p>
+        <h2 class="fr-mt-4w">Composants compagnons</h2>
+        <ul>
+          <li><a href="dsfr-data-map-layer.html"><code>dsfr-data-map-layer</code></a> — couche de données : markers, geoshape, cercles proportionnels, heatmap, clustering, bbox, animation temporelle</li>
+          <li><a href="dsfr-data-map-popup.html"><code>dsfr-data-map-popup</code></a> — affichage au clic : popup, modale ou volet latéral avec template</li>
+          <li><a href="dsfr-data-map-inset.html"><code>dsfr-data-map-inset</code></a> — encarts territoriaux (DROM, Corse, zoom local)</li>
+          <li><a href="dsfr-data-map-timeline.html"><code>dsfr-data-map-timeline</code></a> — contrôles de lecture temporelle</li>
+        </ul>
     </div>
   </app-layout-demo>
 

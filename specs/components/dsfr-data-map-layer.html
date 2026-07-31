@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-scheme="system">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dsfr-data-map-layer - Composants - dsfr-data</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css" integrity="sha384-atVZ+aK6VI0nWyTEhKgze5InDJ+SWRRqa0BCZ2MTNyoOcBiHj1c3dGPdi6ML65B3" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css" integrity="sha384-5P5DFFqorcEBpfnK9WHu/Ralfr7ZxyCZh0ryaJbgucSvc71+qRYdGvNEcyMqQwa/" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script type="module" src="/dist/app-ui.esm.js"></script>
+  <style>
+    body { min-height: 100vh; display: flex; flex-direction: column; }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <app-header current-page="composants" base-path="../../"></app-header>
+
+  <!-- Layout documentation avec sidemenu -->
+  <app-layout-demo
+    title="dsfr-data-map-layer"
+    icon="ri-stack-line"
+    active-path="components/dsfr-data-map-layer"
+    base-path="../">
+    <div slot="content">
+        <p class="fr-text--lead">
+          Couche de données d'une carte <a href="dsfr-data-map.html"><code>dsfr-data-map</code></a> :
+          markers, zones géographiques (geoshape), cercles proportionnels ou heatmap.
+          Chaque couche est connectée à sa propre source — le multi-source est naturel.
+        </p>
+
+        <div class="fr-callout fr-callout--blue-ecume fr-mb-4w">
+          <p class="fr-callout__text">
+            <strong>Enfant de <code>dsfr-data-map</code></strong> : le composant est invisible,
+            il projette les enregistrements de sa <code>source</code> sur la carte hôte.
+            L'affichage au clic passe de préférence par le compagnon
+            <a href="dsfr-data-map-popup.html"><code>dsfr-data-map-popup</code></a>
+            (les attributs <code>popup-template</code>/<code>popup-fields</code> sont le mode legacy).
+          </p>
+        </div>
+
+        <h2 id="attributs">Attributs</h2>
+
+        <h3>Source et géolocalisation</h3>
+        <table class="attr-table">
+          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>source</code></td><td>String</td><td><code>""</code></td><td>ID de la source de données (requis)</td></tr>
+            <tr><td><code>type</code></td><td>String</td><td><code>"marker"</code></td><td>Type de couche : <code>marker</code>, <code>geoshape</code>, <code>circle</code>, <code>heatmap</code></td></tr>
+            <tr><td><code>lat-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers la latitude (mode coordonnées séparées, avec <code>lon-field</code>)</td></tr>
+            <tr><td><code>lon-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers la longitude</td></tr>
+            <tr><td><code>geo-field</code></td><td>String</td><td><code>""</code></td><td>Champ géométrie. Formats acceptés : objet GeoJSON (<code>Point</code>, <code>Polygon</code>, <code>MultiPolygon</code>, <code>Feature</code>...), objet <code>{lat, lon}</code>, tableau <code>[lat, lon]</code>, <strong>ou chaîne JSON sérialisée</strong> de l'un de ces formats (#426 — colonnes Text Grist, CSV ; parse mémoïsé, cache 1&nbsp;000 entrées)</td></tr>
+            <tr><td><code>shape-class</code></td><td>String</td><td><code>""</code></td><td>Classe CSS appliquée aux tracés SVG (geoshape/circle) — permet des styles page ou motifs SVG <code>&lt;pattern&gt;</code> (hachures...)</td></tr>
+            <tr><td><code>no-interactive</code></td><td>Boolean</td><td><code>false</code></td><td>Couche <strong>décorative</strong> : aucun clic, aucun tooltip, aucun popup — et <strong>exclue du <code>fit-bounds</code></strong>. Pour les contours administratifs et l'habillage.</td></tr>
+          </tbody>
+        </table>
+        <p class="fr-text--sm fr-text--light">
+          Sans <code>lat-field</code>/<code>geo-field</code>, la couche auto-détecte les champs
+          <code>geo_point_2d</code>, <code>geopoint</code>, <code>geo_point</code> (points) puis
+          <code>geo_shape</code>, <code>geometry</code>, <code>geom</code> (formes).
+        </p>
+
+        <h3>Affichage</h3>
+        <table class="attr-table">
+          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>popup-template</code></td><td>String</td><td><code>""</code></td><td><em>Legacy</em> — template avec interpolation simple accolade (échappée) : <code>"{nom} — {puissance} kW"</code>. Le compagnon <code>dsfr-data-map-popup</code> prime s'il est présent.</td></tr>
+            <tr><td><code>popup-fields</code></td><td>String</td><td><code>""</code></td><td><em>Legacy</em> — champs séparés par virgule pour un tableau auto au clic</td></tr>
+            <tr><td><code>tooltip-field</code></td><td>String</td><td><code>""</code></td><td>Champ affiché au survol (et texte alternatif des markers)</td></tr>
+            <tr><td><code>color</code></td><td>String</td><td><code>"#000091"</code></td><td>Couleur contours/markers (DSFR blue-france). Sert de repli si <code>color-map</code> ne matche pas.</td></tr>
+            <tr><td><code>color-field</code></td><td>String</td><td><code>""</code></td><td>Champ catégoriel dont la valeur détermine la couleur (avec <code>color-map</code>)</td></tr>
+            <tr><td><code>color-map</code></td><td>String</td><td><code>""</code></td><td>Paires <code>valeur:#couleur</code> séparées par virgule. Ex : <code>"1:#00A95F,2:#FF9940,3:#E1000F"</code></td></tr>
+            <tr><td><code>fill-field</code></td><td>String</td><td><code>""</code></td><td>Champ numérique pour une <strong>choroplèthe</strong> (geoshape) : classification par quantiles + palette</td></tr>
+            <tr><td><code>fill-opacity</code></td><td>Number</td><td><code>0.6</code></td><td>Opacité du remplissage (0-1)</td></tr>
+            <tr><td><code>selected-palette</code></td><td>String</td><td><code>""</code></td><td>Palette choroplèthe : <code>sequentialAscending</code> (défaut avec <code>fill-field</code>), <code>sequentialDescending</code>, <code>divergentAscending</code>, <code>divergentDescending</code>, <code>neutral</code>, <code>categorical</code></td></tr>
+            <tr><td><code>radius</code></td><td>Number</td><td><code>8</code></td><td>Rayon fixe en pixels (circle)</td></tr>
+            <tr><td><code>radius-field</code></td><td>String</td><td><code>""</code></td><td>Champ pour un rayon variable (cercles proportionnels) : échelle linéaire entre <code>radius-min</code> et <code>radius-max</code> en px, ou valeur brute en mètres si <code>radius-unit="m"</code></td></tr>
+            <tr><td><code>radius-unit</code></td><td>String</td><td><code>"px"</code></td><td><code>px</code> (pixels écran, <code>L.circleMarker</code>) ou <code>m</code> (mètres réels sur le terrain, <code>L.circle</code>)</td></tr>
+            <tr><td><code>radius-min</code></td><td>Number</td><td><code>4</code></td><td>Rayon minimum de l'échelle px</td></tr>
+            <tr><td><code>radius-max</code></td><td>Number</td><td><code>30</code></td><td>Rayon maximum de l'échelle px</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Heatmap</h3>
+        <table class="attr-table">
+          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>heat-radius</code></td><td>Number</td><td><code>25</code></td><td>Rayon de la heatmap en pixels</td></tr>
+            <tr><td><code>heat-blur</code></td><td>Number</td><td><code>15</code></td><td>Flou de la heatmap en pixels</td></tr>
+            <tr><td><code>heat-field</code></td><td>String</td><td><code>""</code></td><td>Champ numérique pour pondérer l'intensité (défaut : 1 par point). Repli en cercles translucides si le plugin leaflet.heat est indisponible.</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Clustering</h3>
+        <table class="attr-table">
+          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>cluster</code></td><td>Boolean</td><td><code>false</code></td><td>Active le clustering (leaflet.markercluster, chargé dynamiquement ; styles DSFR small/medium/large)</td></tr>
+            <tr><td><code>cluster-radius</code></td><td>Number</td><td><code>80</code></td><td>Rayon de clustering en pixels</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Zoom et viewport</h3>
+        <table class="attr-table">
+          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>min-zoom</code></td><td>Number</td><td><code>0</code></td><td>Zoom minimum de visibilité de la couche</td></tr>
+            <tr><td><code>max-zoom</code></td><td>Number</td><td><code>18</code></td><td>Zoom maximum de visibilité de la couche</td></tr>
+            <tr><td><code>bbox</code></td><td>Boolean</td><td><code>false</code></td><td>Fetch piloté par le viewport : si l'adapter amont supporte la géo serveur (<code>serverGeo</code>, cas d'OpenDataSoft), chaque déplacement envoie une clause <code>in_bbox(champ, ...)</code> à la source ; sinon filtrage <strong>client</strong> des points et géométries (#297). La commande utilise <code>whereKey: "map-bbox"</code> (merge propre avec facettes et recherche), libérée au disconnect.</td></tr>
+            <tr><td><code>bbox-debounce</code></td><td>Number</td><td><code>300</code></td><td>Délai en ms après un pan/zoom avant re-fetch</td></tr>
+            <tr><td><code>bbox-field</code></td><td>String</td><td><code>""</code></td><td>Champ géo de la clause bbox (défaut : <code>geo-field</code> ou auto-détection)</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Animation temporelle</h3>
+        <table class="attr-table">
+          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>time-field</code></td><td>String</td><td><code>""</code></td><td>Champ date/heure : active le découpage en pas de temps (frames), piloté par <a href="dsfr-data-map-timeline.html"><code>dsfr-data-map-timeline</code></a></td></tr>
+            <tr><td><code>time-bucket</code></td><td>String</td><td><code>"none"</code></td><td>Granularité de regroupement des dates : <code>none</code> (valeurs brutes), <code>hour</code>, <code>day</code>, <code>month</code>, <code>year</code></td></tr>
+            <tr><td><code>time-mode</code></td><td>String</td><td><code>"snapshot"</code></td><td><code>snapshot</code> (le pas courant seul) ou <code>cumulative</code> (tout jusqu'au pas courant)</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Performance</h3>
+        <table class="attr-table">
+          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>max-items</code></td><td>Number</td><td><code>5000</code></td><td>Garde-fou : nombre maximum d'éléments rendus (0 = illimité). Au-delà, la couche tronque et affiche une <strong>bannière</strong> « N affichés sur M » (bannières empilées si plusieurs couches tronquent).</td></tr>
+          </tbody>
+        </table>
+        <p class="fr-text--sm fr-text--light">
+          <strong>Attribut retiré</strong> : <code>filter</code> (retiré en #297, warn console s'il est
+          présent) — filtrer en amont avec <code>dsfr-data-query</code> ou l'attribut <code>where</code>
+          de la source.
+        </p>
+
+        <h2 id="resolution" class="fr-mt-4w">Résolution des coordonnées</h2>
+        <p>La couche résout les coordonnées dans cet ordre de priorité :</p>
+        <ol>
+          <li><strong><code>lat-field</code> + <code>lon-field</code></strong> — coordonnées séparées (CSV, API)</li>
+          <li><strong><code>geo-field</code> vers un Point</strong> — GeoJSON <code>Point</code>, objet <code>{lat, lon}</code> ou tableau <code>[lat, lon]</code></li>
+          <li><strong><code>geo-field</code> vers Polygon/MultiPolygon</strong> — rendu via <code>L.geoJSON()</code></li>
+          <li><strong>Auto-détection</strong> — <code>geo_point_2d</code>, <code>geopoint</code>, <code>geo_point</code>, puis <code>geo_shape</code>, <code>geometry</code>, <code>geom</code></li>
+        </ol>
+        <p>
+          À chaque étape, une <strong>chaîne JSON sérialisée</strong> est acceptée et parsée
+          automatiquement (#426) — le cas des colonnes Text de Grist ou d'un CSV embarquant du GeoJSON.
+        </p>
+
+        <h2 id="evenements" class="fr-mt-4w">Événements</h2>
+        <table class="attr-table">
+          <thead><tr><th>Événement</th><th><code>detail</code></th><th>Description</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>dsfr-data-map-layer-time-ready</code></td>
+              <td><code>{ steps: string[] }</code></td>
+              <td>Émis (CustomEvent, bubbles) quand le découpage temporel est prêt : <code>steps</code> = pas de temps triés chronologiquement. Écouté par <code>dsfr-data-map-timeline</code>.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2 id="api-js" class="fr-mt-4w">API JavaScript</h2>
+        <table class="attr-table">
+          <thead><tr><th>Méthode</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>setTimelineFrame(index)</code></td><td>Affiche le pas de temps d'index donné</td></tr>
+            <tr><td><code>resetTimeline()</code></td><td>Revient à l'affichage complet (hors animation)</td></tr>
+            <tr><td><code>getTimeSteps()</code></td><td>Retourne la liste des pas de temps découverts</td></tr>
+          </tbody>
+        </table>
+
+        <h2 class="fr-mt-4w">Exemples</h2>
+
+        <section class="demo-section">
+          <h3>1. Markers clusterisés (bornes IRVE)</h3>
+          <div class="code-block"><pre>&lt;dsfr-data-source id="bornes" api-type="opendatasoft"
+  base-url="https://odre.opendatasoft.com" dataset-id="bornes-irve"
+  select="geo_point_2d,nom_station,puissance_nominale,adresse"
+  limit="5000"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-map center="46.6,2.3" zoom="6" tiles="ign-plan" fit-bounds&gt;
+  &lt;dsfr-data-map-layer source="bornes" type="marker"
+    geo-field="geo_point_2d"
+    tooltip-field="nom_station"
+    cluster cluster-radius="60"&gt;
+  &lt;/dsfr-data-map-layer&gt;
+&lt;/dsfr-data-map&gt;</pre></div>
+        </section>
+
+        <section class="demo-section fr-mt-4w">
+          <h3>2. Choroplèthe + contours décoratifs + multi-résolution bbox</h3>
+          <p>
+            Régions en choroplèthe au zoom national, communes chargées <strong>par viewport</strong>
+            (<code>bbox</code>) au zoom local. Le contour de référence est une couche
+            <code>no-interactive</code> : ni clic, ni tooltip, ni influence sur le fit.
+          </p>
+          <div class="code-block"><pre>&lt;dsfr-data-source id="regions" api-type="opendatasoft"
+  base-url="https://public.opendatasoft.com" dataset-id="georef-france-region"
+  select="geo_shape,reg_name,population" limit="20"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-source id="communes" api-type="opendatasoft"
+  base-url="https://public.opendatasoft.com" dataset-id="georef-france-commune"
+  select="geo_shape,com_name,population" limit="500" server-side page-size="500"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-map center="46.6,2.3" zoom="6" tiles="ign-plan" height="600px"&gt;
+
+  &lt;!-- Contours de référence, purement décoratifs --&gt;
+  &lt;dsfr-data-map-layer source="regions" type="geoshape"
+    geo-field="geo_shape" no-interactive
+    color="#7b7b7b" fill-opacity="0"&gt;
+  &lt;/dsfr-data-map-layer&gt;
+
+  &lt;!-- Zoom 1-9 : régions --&gt;
+  &lt;dsfr-data-map-layer source="regions" type="geoshape"
+    geo-field="geo_shape" fill-field="population"
+    selected-palette="sequentialAscending"
+    tooltip-field="reg_name"
+    min-zoom="1" max-zoom="9"&gt;
+  &lt;/dsfr-data-map-layer&gt;
+
+  &lt;!-- Zoom 10+ : communes dans le viewport (in_bbox côté ODS) --&gt;
+  &lt;dsfr-data-map-layer source="communes" type="geoshape"
+    geo-field="geo_shape" fill-field="population"
+    selected-palette="sequentialAscending"
+    tooltip-field="com_name"
+    min-zoom="10" bbox bbox-debounce="500"&gt;
+  &lt;/dsfr-data-map-layer&gt;
+
+&lt;/dsfr-data-map&gt;</pre></div>
+        </section>
+
+        <section class="demo-section fr-mt-4w">
+          <h3>3. Cercles proportionnels (px) et zones réelles (m)</h3>
+          <div class="code-block"><pre>&lt;!-- Rayon écran : échelle linéaire radius-min..radius-max en pixels --&gt;
+&lt;dsfr-data-map-layer source="villes" type="circle"
+  lat-field="latitude" lon-field="longitude"
+  radius-field="population" radius-unit="px" radius-min="6" radius-max="35"
+  color="#000091" fill-opacity="0.4"
+  tooltip-field="nom"&gt;
+&lt;/dsfr-data-map-layer&gt;
+
+&lt;!-- Rayon terrain : la valeur du champ est un rayon en mètres (L.circle) --&gt;
+&lt;dsfr-data-map-layer source="antennes" type="circle"
+  lat-field="lat" lon-field="lon"
+  radius-field="portee_m" radius-unit="m"
+  color="#C9191E" fill-opacity="0.15"&gt;
+&lt;/dsfr-data-map-layer&gt;</pre></div>
+        </section>
+
+        <section class="demo-section fr-mt-4w">
+          <h3>4. Animation temporelle</h3>
+          <div class="code-block"><pre>&lt;dsfr-data-source id="bornes-trim" data='[
+  {"region":"Paris","lat":48.85,"lon":2.35,"bornes":120,"date":"2025-T1"},
+  {"region":"Lyon","lat":45.76,"lon":4.83,"bornes":85,"date":"2025-T1"},
+  {"region":"Paris","lat":48.85,"lon":2.35,"bornes":250,"date":"2025-T2"},
+  {"region":"Lyon","lat":45.76,"lon":4.83,"bornes":160,"date":"2025-T2"}
+]'&gt;&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-map center="46.6,2.3" zoom="6" height="550px"&gt;
+  &lt;dsfr-data-map-layer source="bornes-trim" type="circle"
+    lat-field="lat" lon-field="lon"
+    radius-field="bornes" radius-min="6" radius-max="35"
+    color="#000091" fill-opacity="0.5"
+    tooltip-field="region"
+    time-field="date" time-mode="snapshot"&gt;
+  &lt;/dsfr-data-map-layer&gt;
+  &lt;dsfr-data-map-timeline speed="1" interval="1500"&gt;&lt;/dsfr-data-map-timeline&gt;
+&lt;/dsfr-data-map&gt;</pre></div>
+        </section>
+
+        <h2 class="fr-mt-4w">Voir aussi</h2>
+        <ul>
+          <li><a href="dsfr-data-map.html"><code>dsfr-data-map</code></a> — le conteneur et la vue d'ensemble de la famille</li>
+          <li><a href="dsfr-data-map-popup.html"><code>dsfr-data-map-popup</code></a> — l'affichage au clic déclaratif</li>
+          <li><a href="dsfr-data-map-timeline.html"><code>dsfr-data-map-timeline</code></a> — les contrôles de lecture temporelle</li>
+        </ul>
+    </div>
+  </app-layout-demo>
+
+  <!-- Footer -->
+  <app-footer base-path="../../"></app-footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.module.min.js" integrity="sha384-gPgRd2+olihO/srZe/Bqw6iVLiiaL7meuri1d5YVMejwPXg7VehLSBeORYq9yh2F" crossorigin="anonymous"></script>
+</body>
+</html>

@@ -181,11 +181,6 @@ export class AppLayoutDemo extends LitElement {
             href: 'components/dsfr-data-world-map.html',
           },
           {
-            id: 'components/dsfr-data-map',
-            label: 'dsfr-data-map',
-            href: 'components/dsfr-data-map.html',
-          },
-          {
             id: 'components/dsfr-data-a11y',
             label: 'dsfr-data-a11y',
             href: 'components/dsfr-data-a11y.html',
@@ -203,10 +198,43 @@ export class AppLayoutDemo extends LitElement {
         ],
       },
       {
+        id: 'carto',
+        label: 'Cartographie',
+        href: '#',
+        children: [
+          {
+            id: 'components/dsfr-data-map',
+            label: 'dsfr-data-map',
+            href: 'components/dsfr-data-map.html',
+          },
+          {
+            id: 'components/dsfr-data-map-layer',
+            label: 'dsfr-data-map-layer',
+            href: 'components/dsfr-data-map-layer.html',
+          },
+          {
+            id: 'components/dsfr-data-map-popup',
+            label: 'dsfr-data-map-popup',
+            href: 'components/dsfr-data-map-popup.html',
+          },
+          {
+            id: 'components/dsfr-data-map-inset',
+            label: 'dsfr-data-map-inset',
+            href: 'components/dsfr-data-map-inset.html',
+          },
+          {
+            id: 'components/dsfr-data-map-timeline',
+            label: 'dsfr-data-map-timeline',
+            href: 'components/dsfr-data-map-timeline.html',
+          },
+        ],
+      },
+      {
         id: 'charts',
         label: 'Composants dsfr-charts',
         href: '#',
         children: [
+          { id: 'charts/index', label: "Vue d'ensemble des graphiques", href: 'charts/index.html' },
           { id: 'charts/line-chart', label: 'line-chart', href: 'charts/line-chart.html' },
           { id: 'charts/bar-chart', label: 'bar-chart', href: 'charts/bar-chart.html' },
           { id: 'charts/pie-chart', label: 'pie-chart', href: 'charts/pie-chart.html' },
@@ -216,6 +244,7 @@ export class AppLayoutDemo extends LitElement {
           { id: 'charts/scatter-chart', label: 'scatter-chart', href: 'charts/scatter-chart.html' },
         ],
       },
+      { id: 'roadmap', label: 'Feuille de route', href: 'roadmap.html' },
     ];
   }
 
@@ -296,9 +325,11 @@ export class AppLayoutDemo extends LitElement {
             ${breadcrumbItems.map(
               (item, index) => html`
                 <li>
-                  ${index === breadcrumbItems.length - 1
-                    ? html`<a class="fr-breadcrumb__link" aria-current="page">${item.label}</a>`
-                    : html`<a class="fr-breadcrumb__link" href="${item.href}">${item.label}</a>`}
+                  ${
+                    index === breadcrumbItems.length - 1
+                      ? html`<a class="fr-breadcrumb__link" aria-current="page">${item.label}</a>`
+                      : html`<a class="fr-breadcrumb__link" href="${item.href}">${item.label}</a>`
+                  }
                 </li>
               `
             )}
@@ -337,16 +368,20 @@ export class AppLayoutDemo extends LitElement {
           <!-- Contenu principal -->
           <div class="demo-content">
             ${this._renderBreadcrumb()}
-            ${this.title
-              ? html`
-                  <h1>
-                    ${this.icon
-                      ? html`<span class="${this.icon} fr-mr-1w" aria-hidden="true"></span>`
-                      : ''}
-                    ${this.title}
-                  </h1>
-                `
-              : ''}
+            ${
+              this.title
+                ? html`
+                    <h1>
+                      ${
+                      this.icon
+                        ? html`<span class="${this.icon} fr-mr-1w" aria-hidden="true"></span>`
+                        : ''
+                    }
+                      ${this.title}
+                    </h1>
+                  `
+                : ''
+            }
 
             <!-- Contenu slot="content" sera déplacé ici -->
             <div class="demo-content-slot"></div>
