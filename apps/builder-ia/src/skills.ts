@@ -2429,7 +2429,7 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | no-controls | Boolean | \`false\` | Masque les controles de zoom |
 | locked | Boolean | \`false\` | Carte verrouillee : aucune interaction (pan/zoom/clavier) — encarts, vignettes |
 | insets | String | \`""\` | Raccourci encarts territoriaux : groupe et/ou territoires nommes (\`"drom"\`, \`"drom,corse"\`) |
-| fit-bounds | Boolean | \`false\` | Ajuste le viewport aux données |
+| fit-bounds | Boolean | \`false\` | Ajuste le viewport aux données a chaque mise a jour (combine a max-bounds : emprise clippee a la zone — les DROM ne dezooment pas la vue, un filtre regional zoome dessus) |
 | max-bounds | String | \`""\` | Limites \`"latSW,lonSW,latNE,lonNE"\` |
 | name | String | \`""\` | Titre (aria-label) |
 

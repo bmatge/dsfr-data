@@ -643,6 +643,10 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
       const layerBounds = (this._clusterGroup || this._layerGroup).getBounds?.();
       if (layerBounds?.isValid?.()) {
         this._mapParent.registerLayerBounds(this._boundsKey, layerBounds);
+      } else {
+        // Couche devenue vide (filtrage amont) : liberer ses bounds, sinon
+        // l'ancienne emprise fausse le fit des rendus suivants
+        this._mapParent.unregisterLayerBounds(this._boundsKey);
       }
     }
 
