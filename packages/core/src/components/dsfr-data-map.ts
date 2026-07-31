@@ -636,7 +636,11 @@ export class DsfrDataMap extends LitElement {
     // zone, la vue ne bouge pas (les encarts s'en chargent).
     const clipped = clipBoundsForFit(combined, this.maxBounds, L);
     if (!clipped) return;
-    this._leafletMap.fitBounds(clipped, { padding: [20, 20] });
+    // Sans animation : le zoom anime de Leaflet est regulierement annule
+    // (re-rendu des couches sur moveend, compagnons hors-carte) — constate
+    // empiriquement : le fit anime laissait la vue inchangee apres un
+    // filtrage multiselect, le fit direct fonctionne toujours.
+    this._leafletMap.fitBounds(clipped, { padding: [20, 20], animate: false });
   }
 
   /**
