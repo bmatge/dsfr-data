@@ -181,7 +181,16 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
 
   private _computeValue(): number | string | null {
     const expr = this.value || this.valeur;
-    if (!this._sourceData || !expr) return null;
+    if (!expr) return null;
+    // Valeur litterale : value="=667" ou value="=87 %" — affichee telle
+    // quelle (nombre si numerique), sans dependre d'une source de donnees.
+    // Pour les chiffres valides a la main ou non calculables depuis le flux.
+    if (expr.startsWith('=')) {
+      const literal = expr.slice(1).trim();
+      const num = Number(literal.replace(',', '.'));
+      return literal !== '' && !Number.isNaN(num) ? num : literal;
+    }
+    if (!this._sourceData) return null;
     return computeAggregation(this._sourceData, expr);
   }
 

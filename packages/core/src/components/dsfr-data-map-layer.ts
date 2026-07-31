@@ -102,6 +102,16 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'geo-field' })
   geoField = '';
 
+  /** Classe CSS appliquee aux traces SVG de la couche (geoshape/circle) —
+   *  permet un style page (motif hachure, pointilles...) via CSS/SVG <pattern> */
+  @property({ type: String, attribute: 'shape-class' })
+  shapeClass = '';
+
+  /** Couche decorative : aucune interaction (pas de clic, tooltip ni popup) —
+   *  contours administratifs, habillage */
+  @property({ type: Boolean, attribute: 'no-interactive' })
+  noInteractive = false;
+
   // --- Display ---
 
   @property({ type: String, attribute: 'popup-template' })
@@ -731,16 +741,20 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     if (!geoJson) return;
 
     const layer = Leaf.geoJSON(geoJson as import('geojson').GeoJsonObject, {
+      interactive: !this.noInteractive,
       style: {
         color: recordColor,
         weight: 1,
         fillColor,
         fillOpacity: this.fillOpacity,
+        ...(this.shapeClass ? { className: this.shapeClass } : {}),
       },
     });
 
-    this._bindPopup(layer, record);
-    this._bindTooltip(layer, record);
+    if (!this.noInteractive) {
+      this._bindPopup(layer, record);
+      this._bindTooltip(layer, record);
+    }
     group.addLayer(layer);
   }
 
@@ -761,27 +775,26 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     }
 
     const circleColor = this._resolveColor(record);
+    const circleOptions = {
+      radius: r,
+      color: circleColor,
+      fillColor: circleColor,
+      fillOpacity: this.fillOpacity,
+      weight: 1,
+      interactive: !this.noInteractive,
+      ...(this.shapeClass ? { className: this.shapeClass } : {}),
+    };
     let circle: import('leaflet').Layer;
     if (this.radiusUnit === 'm') {
-      circle = Leaf.circle([coords.lat, coords.lon], {
-        radius: r,
-        color: circleColor,
-        fillColor: circleColor,
-        fillOpacity: this.fillOpacity,
-        weight: 1,
-      });
+      circle = Leaf.circle([coords.lat, coords.lon], circleOptions);
     } else {
-      circle = Leaf.circleMarker([coords.lat, coords.lon], {
-        radius: r,
-        color: circleColor,
-        fillColor: circleColor,
-        fillOpacity: this.fillOpacity,
-        weight: 1,
-      });
+      circle = Leaf.circleMarker([coords.lat, coords.lon], circleOptions);
     }
 
-    this._bindPopup(circle, record);
-    this._bindTooltip(circle, record);
+    if (!this.noInteractive) {
+      this._bindPopup(circle, record);
+      this._bindTooltip(circle, record);
+    }
     group.addLayer(circle);
   }
 

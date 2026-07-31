@@ -910,7 +910,7 @@ Attend un tableau d'objets. L'attribut \`valeur\` determine comment extraire/agr
 | Attribut | Type | Défaut | Requis | Description |
 |----------|------|--------|--------|-------------|
 | source | String | \`""\` | oui | ID de la dsfr-data-source ou dsfr-data-query |
-| value | String | \`""\` | oui | Expression : \`"champ"\`, \`"champ:avg"\`, \`"champ:sum"\`, \`"champ:min"\`, \`"champ:max"\`, \`"count:champ:valeur"\` (grammaire commune champ:fn, #303). Alias deprecie : \`valeur\` |
+| value | String | \`""\` | oui | Expression : \`"champ"\`, \`"champ:avg"\`, \`"champ:sum"\`, \`"champ:min"\`, \`"champ:max"\`, \`"count:champ:valeur"\` (grammaire commune champ:fn, #303). Alias deprecie : \`valeur\` · litteral avec \`=\` : \`value="=667"\`, \`value="=87 %"\` (sans source) |
 | heading | String | \`""\` | non | Titre affiche AU-DESSUS de la valeur (surtitre, majuscules grises). Nomme \`heading\` (pas \`title\`, qui collisionne avec la propriete DOM native) |
 | label | String | \`""\` | non | Libelle sous la valeur (et sous les \`lines\`) |
 | description | String | \`""\` | non | Description pour accessibilité (sr-only) |
@@ -2442,6 +2442,8 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | lat-field | String | \`""\` | Chemin vers latitude |
 | lon-field | String | \`""\` | Chemin vers longitude |
 | geo-field | String | \`""\` | Chemin vers GeoJSON (Point, Polygon) — objet ou chaine JSON serialisee (colonnes Text Grist/CSV) |
+| shape-class | String | \`""\` | Classe CSS appliquee aux traces SVG (geoshape/circle) — motifs hachures via <pattern> defini par la page |
+| no-interactive | Boolean | \`false\` | Couche decorative : aucun clic/tooltip/popup (contours administratifs, habillage) |
 | popup-template | String | \`""\` | Template : \`"{nom} — {val} kW"\` |
 | popup-fields | String | \`""\` | Champs pour tableau auto : \`"nom,adresse"\` |
 | tooltip-field | String | \`""\` | Champ affiche au survol |
