@@ -15,21 +15,36 @@ Source de donnees → Nettoyage → Requetage → Visualisation
 | Composant | Role |
 |---|---|
 | `<dsfr-data-source>` | Connecter n'importe quelle API REST, charger les donnees |
-| `<dsfr-data-normalize>` | Nettoyer : conversion numerique, renommage, trim |
 | `<dsfr-data-query>` | Filtrer, trier, regrouper, agreger les donnees |
+| `<dsfr-data-join>` | Joindre deux sources sur une cle pivot (inner, left, right, full) |
+| `<dsfr-data-unpivot>` | Basculer un tableau "wide" en "long/tidy" (melt) |
+| `<dsfr-data-normalize>` | Nettoyer : conversion numerique, renommage, trim, colonnes calculees |
+| `<dsfr-data-context>` | Orchestrer des filtres transverses multi-sources (dashboards) |
+| `<dsfr-data-context-filter>` | Relier un filtre du contexte a un controle d'UI natif |
+| `<dsfr-data-context-tags>` | Recapituler les filtres actifs en tags supprimables |
 | `<dsfr-data-facets>` | Ajouter des filtres interactifs (checkbox, select, radio) |
 | `<dsfr-data-search>` | Ajouter une recherche plein texte |
-| `<dsfr-data-chart>` | Rendre un graphique DSFR (barres, courbes, camembert, carte, radar, jauge...) |
+| `<dsfr-data-chart>` | Rendre un graphique DSFR (barres, courbes, camembert, radar, jauge, nuage, cartes departements/regions/academies/monde) |
 | `<dsfr-data-kpi>` | Afficher un indicateur chiffre avec seuils de couleur |
+| `<dsfr-data-kpi-group>` | Aligner plusieurs KPIs dans une grille responsive |
 | `<dsfr-data-list>` | Afficher un tableau avec tri, pagination, export CSV |
 | `<dsfr-data-display>` | Template HTML libre pour cartes, fiches, grilles |
+| `<dsfr-data-podium>` | Afficher un classement top N a barres proportionnelles |
+| `<dsfr-data-a11y>` | Compagnon d'accessibilite : tableau de donnees, CSV, transcription |
+| `<dsfr-data-beacon>` | Cible de telemetrie declarative (opt-in) |
+| `<dsfr-data-map>` | Carte interactive Leaflet (fonds IGN/OSM, encarts, accessibilite) |
+| `<dsfr-data-map-layer>` | Couche de donnees : marqueurs, formes GeoJSON, cercles, heatmap |
+| `<dsfr-data-map-popup>` | Affichage au clic : popup, modale ou panneau lateral |
+| `<dsfr-data-map-inset>` | Encart territorial (DROM, Corse, zoom local) |
+| `<dsfr-data-map-timeline>` | Lecture temporelle des couches datees |
+| `<dsfr-data-world-map>` | Carte du monde SVG — **deprecie** (→ `<dsfr-data-chart type="map-monde">`) |
 
 **Caracteristiques cles :**
 
 - **Zero JavaScript a ecrire** — tout se configure via des attributs HTML
 - **Agnostique** — fonctionne dans Drupal, WordPress, page statique, React, Vue, Angular, n'importe quel environnement HTML
-- **Un seul fichier a charger** — ~50 Ko gzippe
-- **Connecteurs integres** — OpenDataSoft, Tabular API (data.gouv.fr), Grist, toute API REST
+- **Un seul fichier a charger** — de ~63 Ko (bundle core) a ~150 Ko (tout-en-un, cartes incluses) gzippe
+- **Connecteurs integres** — OpenDataSoft, Tabular API (data.gouv.fr), Grist, INSEE Melodi, toute API REST
 - **DSFR-natif** — utilise les graphiques officiels du Design System de l'Etat, pas une imitation
 - **Accessible par defaut** — conforme RGAA/WCAG 2 AA (teste automatiquement via Axe)
 - **Responsive par defaut** — herite du comportement DSFR
@@ -42,11 +57,15 @@ Une suite d'outils web qui permettent de **generer le code HTML du volet 1 sans 
 |---|---|---|
 | **Sources** | Tous | Connecter une source de donnees : coller un CSV, saisir un tableau, connecter une API Grist ou REST |
 | **Builder** | Communicants | Creer un graphique pas a pas : choisir le type, les champs, les couleurs, voir le resultat en live, copier le code HTML |
+| **Builder carto** | Communicants | Creer une carte interactive Leaflet (couches, popups, encarts) sans coder |
 | **Builder IA** | Communicants | Decrire en francais ce qu'on veut ("montre-moi les beneficiaires par region en barres") et obtenir le graphique + le code |
 | **Playground** | Integrateurs | Editeur de code interactif avec previsualisation temps reel pour ajuster le HTML |
 | **Dashboard** | Communicants | Composer un tableau de bord multi-widgets par glisser-deposer |
 | **Favoris** | Tous | Sauvegarder et reutiliser ses creations |
+| **Pipeline helper** | Integrateurs | Construire visuellement un pipeline de composants dsfr-data |
+| **Grist widgets** | Producteurs | Embarquer des visualisations directement dans un document Grist |
 | **Monitoring** | Producteurs | Suivre les widgets deployes sur les sites gouvernementaux |
+| **Admin** | Operateurs | Administrer comptes et contenus (mode serveur) |
 
 **Le workflow type d'un communicant :**
 
@@ -82,7 +101,7 @@ Ces outils repondent a un **besoin different** :
 | **Source de donnees** | Base interne connectee a la plateforme | N'importe quelle API REST publique, directement depuis le navigateur |
 | **Conformite DSFR** | Non — design propre a la plateforme | Oui — utilise les composants officiels DSFR |
 | **Accessibilite** | Variable, depend de l'outil | RGAA/WCAG 2 AA par construction |
-| **Poids** | Application complete embarquee dans l'iframe | ~50 Ko |
+| **Poids** | Application complete embarquee dans l'iframe | ~63 a ~150 Ko gzippe selon le bundle |
 
 **En resume :** Metabase/Superset sont des **plateformes de dataviz**. dsfr-data est une **boite a outils d'integration**. Ce ne sont pas des concurrents, ce sont des outils **complementaires** qui interviennent a des moments differents de la chaine de valeur des donnees publiques.
 
@@ -143,7 +162,7 @@ dsfr-data ne reinvente pas les graphiques. Il resout le **dernier kilometre** : 
 <!-- Graphique en barres -->
 <dsfr-data-chart source="q" type="bar"
   label-field="nom_region" value-field="beneficiaires"
-  titre="Beneficiaires par region">
+  databox databox-title="Beneficiaires par region">
 </dsfr-data-chart>
 ```
 
@@ -171,13 +190,14 @@ dsfr-data ne reinvente pas les graphiques. Il resout le **dernier kilometre** : 
 | **OpenDataSoft** | data.economie.gouv.fr | Server-side (filtres, agregations, pagination deleguees) |
 | **Tabular API** | tabular-api.data.gouv.fr | Server-side (pagination automatique) |
 | **Grist** | grist.numerique.gouv.fr | Temps reel (mise a jour quand la donnee Grist change) |
+| **INSEE Melodi** | api.insee.fr/melodi | Server-side (pagination automatique, filtres par dimension) |
 | **Donnees manuelles** | CSV, JSON, saisie tableau | Local (localStorage) |
 
 ---
 
 ## QUAND ? (Maturite et calendrier)
 
-- **Etat actuel** : v0.2.x — fonctionnel, en production sur plusieurs sites pilotes, en developpement actif
+- **Etat actuel** : v0.16.0 (juillet 2026) — fonctionnel, en production sur plusieurs sites pilotes, en developpement actif
 - **Cible** : passage en v1.0 avec stabilisation des APIs composants et gouvernance partagee
 - **Modele de contribution** : ouverture aux developpeurs de l'ecosysteme gouvernemental pour maintenance et evolution mutualisees
 

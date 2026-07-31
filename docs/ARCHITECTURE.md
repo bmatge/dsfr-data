@@ -16,7 +16,7 @@
 ```
 dsfr-data-source  ──[fetch via adapter]──[paginate]──[cache]──► donnees brutes
      │                                                         │
-     │ adapters (ODS, Tabular, Grist, Generic)                 ▼
+     │ adapters (ODS, Tabular, Grist, INSEE, Generic)          ▼
      │                                               dsfr-data-unpivot (optionnel, sources "wide")
      │                                                         │
      │                                                         ▼
@@ -33,7 +33,8 @@ dsfr-data-source  ──[fetch via adapter]──[paginate]──[cache]──�
      │◄── commandes (page, where, orderBy)┘                    │
      │◄── commandes (where) ───────────────────────────────────┘
      ▼
-  dsfr-data-chart / dsfr-data-list / dsfr-data-kpi / dsfr-data-display
+  dsfr-data-chart / dsfr-data-list / dsfr-data-kpi / dsfr-data-kpi-group /
+  dsfr-data-display / dsfr-data-podium
          │
          └──► dsfr-data-a11y (companion accessibilite : tableau, CSV, description)
 
@@ -58,12 +59,18 @@ dsfr-data-source  ──[fetch via adapter]──[paginate]──[cache]──�
   dsfr-data-source (A) ──► dsfr-data-map-layer (type="geoshape") ──┐
   dsfr-data-source (B) ──► dsfr-data-map-layer (type="marker")  ──┼──► dsfr-data-map
   dsfr-data-source (C) ──► dsfr-data-map-layer (type="heatmap") ──┘     │
+                                                                         ├──► dsfr-data-map-popup (affichage au clic :
+                                                                         │      popup / modale / panneau lateral)
+                                                                         ├──► dsfr-data-map-inset (encarts DROM/Corse,
+                                                                         │      clonage des couches de l'hote)
+                                                                         ├──► dsfr-data-map-timeline (lecture temporelle
+                                                                         │      des couches [time-field])
                                                                          └──► dsfr-data-a11y
 ```
 
 ### Règles
 
-- **dsfr-data-source** est le seul composant qui fait du fetch HTTP. Il supporte `api-type` pour ODS, Tabular, Grist et Generic.
+- **dsfr-data-source** est le seul composant qui fait du fetch HTTP. Il supporte `api-type` pour ODS, Tabular, Grist, INSEE Melodi et Generic.
 - **dsfr-data-query** est un pur transformateur (filter, group-by, aggregate, sort). Jamais de requete HTTP.
 - **dsfr-data-join** est un pur transformateur multi-sources : il joint deux sources sur une cle pivot (inner, left, right, full). Aucun fetch HTTP.
 - **dsfr-data-unpivot** est un pur transformateur. Il bascule un tableau "wide" (temps dans les noms de colonnes, ex. `c2023_01`) en "long/tidy" (une observation par ligne) via `id-cols` + `value-cols`/`value-cols-pattern` + `var-name`/`var-format`/`value-name`. Inverse exact d'un pivot, aucun fetch HTTP. La valeur reste brute (typage delegue a `numeric-auto`).
@@ -78,6 +85,8 @@ dsfr-data-source  ──[fetch via adapter]──[paginate]──[cache]──�
 - **dsfr-data-map** est le conteneur carte Leaflet. Il ne consomme pas de donnees ; ce sont les **dsfr-data-map-layer** enfants qui utilisent `SourceSubscriberMixin`.
 - **dsfr-data-map-layer** projete les donnees sur la carte (marker, geoshape, circle, heatmap). Chaque layer a sa propre source → multi-source naturel.
 - Le viewport-driven fetch (`bbox`) envoie des commandes `dsfr-data-source-command` avec `whereKey: "map-bbox"` pour le merge avec les autres filtres.
+- **dsfr-data-map-popup** (popup/modale/panneau lateral au clic, template `{{champ}}` toujours echappe), **dsfr-data-map-inset** (encarts territoriaux DROM/Corse — clone les couches directes de la carte hote, ADR-094) et **dsfr-data-map-timeline** (controles de lecture des couches `time-field`) completent la famille carto — tous enfants de `dsfr-data-map`, bundle `map`.
+- **dsfr-data-world-map** est **deprecie** (epic #402, warn au connect) au profit de `<dsfr-data-chart type="map-monde">` (API cartes unifiee DSFR Chart 2.1.x : `level="dep|reg|aca|monde"`, comme `map-reg`/`map-aca`). Retrait prevu au prochain major.
 
 ### Pattern HTML
 
@@ -99,7 +108,7 @@ Pour les cas sans transformation (datalist, display), `dsfr-data-query` peut etr
 
 ### Adapters et ProviderConfig
 
-- **Adapters** (`packages/core/src/adapters/`) : construisent les URLs, parsent les reponses, gerent la pagination. Un adapter par API (ODS, Tabular, Grist, Generic).
+- **Adapters** (`packages/core/src/adapters/`) : construisent les URLs, parsent les reponses, gerent la pagination. Un adapter par API (ODS, Tabular, Grist, INSEE, Generic).
 - **ProviderConfig** (`packages/shared/src/providers/`) : configuration declarative par provider (pagination, response parsing, query syntax, code generation).
 - **Registre** (`packages/core/src/adapters/adapter-registry.ts`) : `getAdapter(apiType)` retourne l'adapter pour un type donne.
 - Ajouter un nouveau provider (CKAN...) = 1 ProviderConfig + 1 Adapter, zero modification dans les composants.
@@ -154,13 +163,14 @@ Le builder-IA (`apps/builder-ia/`) injecte des blocs de connaissances ("skills")
 
 ## 1. Vue d'ensemble
 
-dsfr-data est un monorepo TypeScript gere par npm workspaces. Il fournit une bibliotheque de Web Components de dataviz conformes au DSFR (Design System de l'Etat) ainsi que sept applications web autonomes pour la creation, la gestion et la visualisation de graphiques.
+dsfr-data est un monorepo TypeScript gere par npm workspaces. Il fournit une bibliotheque de Web Components de dataviz conformes au DSFR (Design System de l'Etat) ainsi que onze applications web autonomes pour la creation, la gestion et la visualisation de graphiques.
 
-Le monorepo se decompose en trois niveaux :
+Le monorepo se decompose en quatre niveaux :
 
-- **Bibliotheque principale** (`src/`) -- Web Components Lit enregistres globalement
-- **Package partage** (`packages/shared/`) -- Utilitaires communs a toutes les apps
-- **Applications** (`apps/*/`) -- Sept apps TypeScript independantes buildees avec Vite
+- **Bibliotheque principale** (`packages/core/`) -- Web Components Lit enregistres globalement, publiee sur npm sous le nom `dsfr-data`
+- **Package partage** (`packages/shared/`) -- Utilitaires communs a la lib et aux apps (entree lib-safe `@dsfr-data/shared/lib`)
+- **Chrome applicatif** (`packages/app-ui/`) -- Composants `app-*` (header, footer, layouts) partages par les apps, hors lib npm
+- **Applications** (`apps/*/`) -- Onze apps TypeScript independantes buildees avec Vite
 
 Toutes les dependances internes sont resolues via les workspaces npm declares dans le `package.json` racine :
 
@@ -176,67 +186,64 @@ Toutes les dependances internes sont resolues via les workspaces npm declares da
 
 ```
 /
-  src/                          Bibliotheque de Web Components (point d'entree: src/index.ts)
-    components/
-      dsfr-data-source.ts            Chargement de donnees (Grist, ODS, tabular-api)
-      dsfr-data-normalize.ts         Normalisation des donnees (numerique, renommage, trim)
-      dsfr-data-query.ts             Filtrage et aggregation de donnees
-      dsfr-data-facets.ts            Filtres a facettes interactifs
-      dsfr-data-kpi.ts               Indicateur chiffre cle
-      dsfr-data-list.ts          Liste de donnees
-      dsfr-data-chart.ts        Graphique DSFR (@gouvfr/dsfr-chart)
-      layout/
-        app-header.ts           En-tete DSFR
-        app-footer.ts           Pied de page DSFR
-        app-layout-builder.ts   Mise en page pour les builders
-        app-layout-demo.ts      Mise en page pour les demos
-        app-preview-panel.ts    Panneau de previsualisation
-    utils/
-      data-bridge.ts            Bus d'evenements entre composants (CustomEvent)
-      source-subscriber.ts      Mixin Lit pour l'abonnement aux sources
-      chart-data.ts             Traitement des donnees pour les graphiques
-      aggregations.ts           Fonctions d'aggregation (sum, avg, count, etc.)
-      formatters.ts             Formatage des valeurs (nombres, dates, etc.)
-      json-path.ts              Acces par chemin dans les objets JSON
-      beacon.ts                 Beacon de tracking des widgets deployes
-  dist/                         Build output (ESM + UMD)
-
   packages/
-    shared/                     @dsfr-data/shared
+    core/                       Bibliotheque `dsfr-data` (publiee sur npm)
       src/
-        utils/
-          escape-html.ts        Echappement HTML securise
-          formatters.ts         formatKPIValue, formatDateShort
-          number-parser.ts      toNumber, looksLikeNumber
-          dept-codes.ts         Validation des codes departement
-        constants/
-          dsfr-palettes.ts      Palettes de couleurs DSFR (DSFR_COLORS, PALETTE_COLORS)
-        api/
-          proxy-config.ts       Configuration proxy selon l'environnement (dev/prod/Tauri)
-          proxy.ts              getProxyUrl, getProxiedUrl, getExternalProxyUrl
-        storage/
-          local-storage.ts      loadFromStorage, saveToStorage, STORAGE_KEYS
-        ui/
-          modal.ts              openModal, closeModal, setupModalOverlayClose
+        index.ts                Entree tout-en-un ; index-core.ts / index-map.ts /
+                                index-world-map.ts pour les bundles partiels
+        components/             Les 24 Web Components dsfr-data-* (source, query, join,
+                                unpivot, normalize, context/-filter/-tags, facets, search,
+                                chart, kpi, kpi-group, list, display, podium, a11y, beacon,
+                                map, map-layer, map-popup, map-inset, map-timeline,
+                                world-map [deprecie])
+        adapters/               Adapters api-type (generic, opendatasoft, tabular, grist,
+                                insee) + adapter-registry
+        utils/                  data-bridge, mixins (transformer, source-subscriber),
+                                where, aggregations/aggregates, formatters, json-path,
+                                geo-value, territories, kpi-lines, beacon, etc.
+      dist/                     Build output de la lib (ESM + UMD + skills.json)
 
-  apps/
+    shared/                     @dsfr-data/shared -- utilitaires communs
+      src/
+        lib.ts                  Barrel lib-safe (seule entree autorisee depuis core, #319)
+        index.ts                Barrel complet (ajoute auth/, storage/, ui/, tour/ -- apps)
+        api/                    proxy-config (3 dimensions d'URL), proxy
+        constants/              Palettes DSFR (PALETTE_COLORS, CHOROPLETH_SCALES)
+        providers/              ProviderConfig declaratifs par API
+        utils/                  escapeHtml, buildCsv, formatters, number-parser...
+
+    app-ui/                     @dsfr-data/app-ui -- chrome applicatif (#306)
+      src/                      app-header, app-footer, app-sidemenu, layouts,
+                                auth-modal... (composants app-*, hors lib npm)
+
+  apps/                         Onze applications web (workspaces npm)
+    admin/                      @dsfr-data/app-admin -- Administration (mode serveur)
+    builder/                    @dsfr-data/app-builder -- Generateur visuel de graphiques
+    builder-carto/              @dsfr-data/app-builder-carto -- Generateur de cartes Leaflet
+    builder-ia/                 @dsfr-data/app-builder-ia -- Generateur IA (Albert)
+    dashboard/                  @dsfr-data/app-dashboard -- Editeur de tableaux de bord
     favorites/                  @dsfr-data/app-favorites -- Gestion des favoris
+    grist-widgets/              @dsfr-data/app-grist-widgets -- Widgets embarquables Grist
+    monitoring/                 @dsfr-data/app-monitoring -- Suivi des widgets deployes
+    pipeline-helper/            @dsfr-data/app-pipeline-helper -- Editeur visuel de pipelines
     playground/                 @dsfr-data/app-playground -- Editeur de code interactif
     sources/                    @dsfr-data/app-sources -- Gestionnaire de sources de donnees
-    builder-ia/                 @dsfr-data/app-builder-ia -- Generateur IA (Albert)
-    builder/                    @dsfr-data/app-builder -- Generateur visuel de graphiques
-    dashboard/                  @dsfr-data/app-dashboard -- Editeur visuel de tableaux de bord
-    monitoring/                 @dsfr-data/app-monitoring -- Suivi des widgets deployes
 
-  tests/                        Tests Vitest
+  server/                       Backend Express (API, auth JWT, MariaDB) -- mode serveur
+  mcp-server/                   Serveur MCP (hors workspace npm, cf. §10.5)
+  tests/                        Tests Vitest (+ tests/builder-e2e Playwright)
+  e2e/                          Tests E2E Playwright
   scripts/                      Scripts de build et monitoring
+    build-lib.ts                Build des 4 bundles de la lib
     build-app.js                Assemblage de app-dist/ pour Tauri/Docker
     parse-beacon-logs.sh        Parsing des beacon logs nginx -> JSON
     docker-entrypoint.sh        Entrypoint Docker (parse periodique + nginx)
   src-tauri/                    Application desktop Tauri
-  specs/                        Specifications des composants
+  specs/                        Specifications des composants (HTML interactif)
   guide/                        Guide utilisateur et exemples
-  app-dist/                     Sortie assemblee pour Tauri
+  docker/                       Dockerfiles, nginx.conf, scripts legacy deploy*.sh
+  compose.yml + deploy.sh       Deploiement canonique VibeLab (cf. §10.6)
+  app-dist/                     Sortie assemblee pour Tauri/Docker
 ```
 
 Chaque application dans `apps/` est un workspace npm independant avec sa propre configuration Vite et TypeScript. Toutes dependent de `@dsfr-data/shared` pour les utilitaires communs :
@@ -253,7 +260,7 @@ Chaque application dans `apps/` est un workspace npm independant avec sa propre 
 
 ## 3. Flux de donnees
 
-Les applications communiquent entre elles via le stockage navigateur (`localStorage` et `sessionStorage`). Il n'y a pas de backend partage : les donnees persistent entierement cote client.
+En **mode statique**, les applications communiquent entre elles via le stockage navigateur (`localStorage` et `sessionStorage`) : il n'y a pas de backend partage, les donnees persistent entierement cote client. En **mode serveur** (opt-in, cf. §10), un backend Express + MariaDB persiste sources, connexions, favoris, dashboards et comptes utilisateurs — les flux ci-dessous decrivent le mode statique.
 
 ### 3.1 Sources et connexions
 
@@ -414,7 +421,7 @@ BEACON_BASE_URL       = VITE_BEACON_URL || PROXY_BASE_URL_EMBED     // télémé
 |-----------------------|--------------------------------------------------------|
 | `npm run build`       | Compile TypeScript + Vite lib mode (ESM + UMD)         |
 | `npm run build:shared`| Compile `packages/shared/` via `tsc`                   |
-| `npm run build:apps`  | Build les 7 apps sequentiellement via workspaces npm   |
+| `npm run build:apps`  | Build app-ui puis les 11 apps sequentiellement via workspaces npm |
 | `npm run build:all`   | Enchaine shared, bibliotheque, puis apps               |
 | `npm run build:app`   | Assemble `app-dist/` pour Tauri (voir 5.3)             |
 
@@ -422,12 +429,12 @@ BEACON_BASE_URL       = VITE_BEACON_URL || PROXY_BASE_URL_EMBED     // télémé
 
 Le script `scripts/build-lib.ts` produit quatre bundles via Vite en mode `lib` :
 
-| Bundle | Contenu | Taille (gzip) |
-|--------|---------|---------------|
-| `dsfr-data.core.{esm,umd}.js` | Tous les composants sauf `dsfr-data-world-map` et `dsfr-data-map*` (inclut `dsfr-data-join`) | ~61 Ko |
-| `dsfr-data.world-map.{esm,umd}.js` | `dsfr-data-world-map` (d3-geo, topojson) | ~31 Ko |
-| `dsfr-data.map.{esm,umd}.js` | `dsfr-data-map` + `dsfr-data-map-layer` (Leaflet charge dynamiquement en chunks separes) | ~33 Ko |
-| `dsfr-data.{esm,umd}.js` | Tout-en-un | ~97 Ko |
+| Bundle | Contenu | gzip (ESM) | gzip (UMD) |
+|--------|---------|---|---|
+| `dsfr-data.core.{esm,umd}.js` | Tous les composants sauf `dsfr-data-world-map` et `dsfr-data-map*` (inclut `dsfr-data-join`) | ~70 Ko | ~63 Ko |
+| `dsfr-data.map.{esm,umd}.js` | `dsfr-data-map` + `map-layer` + `map-popup` + `map-inset` + `map-timeline` (Leaflet charge dynamiquement : chunks separes en ESM, inline en UMD) | ~35 Ko | ~85 Ko |
+| `dsfr-data.world-map.{esm,umd}.js` | `dsfr-data-world-map` (d3-geo, topojson) — **deprecie** (#402), remplace par `<dsfr-data-chart type="map-monde">` | ~30 Ko | ~27 Ko |
+| `dsfr-data.{esm,umd}.js` | Tout-en-un | ~107 Ko | ~150 Ko |
 
 Le TopoJSON (`dist/data/world-countries-110m.json`) est charge par `fetch` a l'execution au lieu d'etre inline en base64.
 
@@ -441,7 +448,7 @@ La source du JS dans le code genere est configurable via `VITE_LIB_URL` :
 
 Chaque application dans `apps/` possede son propre `vite.config.ts`. Le build produit un dossier `apps/{app}/dist/` contenant du HTML/JS/CSS statique.
 
-L'ordre de build dans `build:apps` est : favorites, playground, sources, builder-ia, builder, dashboard, monitoring.
+L'ordre de build dans `build:apps` est : app-ui (chrome applicatif, en premier), puis favorites, playground, sources, builder-ia, builder, builder-carto, dashboard, monitoring, admin, pipeline-helper, grist-widgets.
 
 ### 5.4 Assemblage pour Tauri (`scripts/build-app.js`)
 
@@ -450,22 +457,21 @@ Le script `build-app.js` assemble le dossier `app-dist/` qui sert de frontendDis
 ```
 app-dist/
   index.html              Page d'accueil (hub)
-  dist/                   Bibliotheque dsfr-data (ESM + UMD)
+  favicon.ico + favicon/  Favicons DSFR Marianne
+  dist/                   Bibliotheque dsfr-data (ESM + UMD, depuis packages/core/dist/)
+    app-ui.esm.js         Chrome applicatif (depuis packages/app-ui/dist/, hors lib npm)
   specs/                  Specifications des composants
   guide/                  Guide utilisateur et exemples
-  apps/
-    favorites/            Build de l'app favorites
-    playground/           Build de l'app playground
-    sources/              Build de l'app sources
-    builder-ia/           Build de l'app builder-ia
-    builder/              Build de l'app builder
-    dashboard/            Build de l'app dashboard
-    monitoring/           Build de l'app monitoring
+  apps/                   Builds des apps : favorites, playground, sources, builder-ia,
+                          builder, builder-carto, dashboard, monitoring, admin,
+                          pipeline-helper (grist-widgets n'est pas copie dans app-dist/)
   favoris.html            Redirection -> apps/favorites/index.html
   builder.html            Redirection -> apps/builder/index.html
   builderIA.html          Redirection -> apps/builder-ia/index.html
   playground.html         Redirection -> apps/playground/index.html
   sources.html            Redirection -> apps/sources/index.html
+  dashboard.html          Redirection -> apps/dashboard/index.html
+  monitoring.html         Redirection -> apps/monitoring/index.html
 ```
 
 Les fichiers de redirection (`favoris.html`, `builder.html`, etc.) assurent la retrocompatibilite avec les anciennes URLs.
