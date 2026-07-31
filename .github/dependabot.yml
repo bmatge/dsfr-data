@@ -30,16 +30,3 @@ updates:
     labels:
       - security
 
-  - package-ecosystem: cargo
-    directory: /src-tauri
-    schedule:
-      interval: weekly
-      day: monday
-    open-pull-requests-limit: 5
-    labels:
-      - security
-    groups:
-      cargo-minor-patch:
-        update-types:
-          - minor
-          - patch

@@ -14,7 +14,6 @@ export default tseslint.config(
       '**/node_modules/**',
       '**/*.js',
       '**/*.d.ts',
-      'src-tauri/**',
       'mcp-server/**',
     ],
   },

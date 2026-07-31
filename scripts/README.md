@@ -6,7 +6,7 @@ Scripts utilitaires pour le build, le deploiement et la maintenance.
 
 | Script | Description |
 |--------|-------------|
-| `build-app.js` | Assemble le dossier `app-dist/` pour Tauri a partir des builds individuels |
+| `build-app.js` | Assemble le dossier `app-dist/` (racine servie par nginx en deploiement web) a partir des builds individuels |
 | `build-skills-json.ts` | Genere `skills.json` par introspection des composants |
 | `parse-beacon-logs.sh` | Agrege les logs de beacon nginx en `monitoring-data.json` (shell) |
 | `parse-beacon-logs.js` | Idem en JavaScript (Node.js) |

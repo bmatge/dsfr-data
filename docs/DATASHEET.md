@@ -180,7 +180,6 @@ dsfr-data ne reinvente pas les graphiques. Il resout le **dernier kilometre** : 
 
 - En ligne (application web hebergee)
 - En auto-heberge (Docker)
-- En mode desktop hors-ligne (application Tauri, optionnelle)
 
 ### Sources de donnees supportees
 

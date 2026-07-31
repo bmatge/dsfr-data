@@ -113,6 +113,10 @@ Pour le detail du monorepo, des conventions, du workflow de release Changesets e
 - Le design et les composants d'interface suivent le **[Systeme de design de l'Etat (DSFR)](https://www.systeme-de-design.gouv.fr/)**.
 - Dependances tierces detaillees : [THIRD-PARTY-LICENSES](docs/THIRD-PARTY-LICENSES.md).
 
+## Application desktop (retirée)
+
+La cible desktop Tauri est retirée depuis la v0.17 (ADR-070, issue #403) : le produit est web-first (npm + CDN + instance `chartsbuilder.miweb.run`). Les binaires historiques (macOS/Linux/Windows) restent téléchargeables sur les releases GitHub jusqu'à [`v0.16.0`](https://github.com/bmatge/dsfr-data/releases/tag/v0.16.0).
+
 ## Licence
 
 [Licence MIT](LICENSE) — comme le [DSFR](https://github.com/GouvernementFR/dsfr) et [DSFR Chart](https://github.com/GouvernementFR/dsfr-chart).

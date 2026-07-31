@@ -235,15 +235,14 @@ Toutes les dependances internes sont resolues via les workspaces npm declares da
   e2e/                          Tests E2E Playwright
   scripts/                      Scripts de build et monitoring
     build-lib.ts                Build des 4 bundles de la lib
-    build-app.js                Assemblage de app-dist/ pour Tauri/Docker
+    build-app.js                Assemblage de app-dist/ (racine web servie par nginx)
     parse-beacon-logs.sh        Parsing des beacon logs nginx -> JSON
     docker-entrypoint.sh        Entrypoint Docker (parse periodique + nginx)
-  src-tauri/                    Application desktop Tauri
   specs/                        Specifications des composants (HTML interactif)
   guide/                        Guide utilisateur et exemples
   docker/                       Dockerfiles, nginx.conf, scripts legacy deploy*.sh
   compose.yml + deploy.sh       Deploiement canonique VibeLab (cf. §10.6)
-  app-dist/                     Sortie assemblee pour Tauri/Docker
+  app-dist/                     Sortie assemblee servie par nginx (Docker)
 ```
 
 Chaque application dans `apps/` est un workspace npm independant avec sa propre configuration Vite et TypeScript. Toutes dependent de `@dsfr-data/shared` pour les utilitaires communs :
@@ -348,10 +347,10 @@ A l'interieur d'une meme page, les Web Components communiquent par un bus d'even
 
 ## 4. Architecture proxy
 
-Les APIs externes (Grist, Albert, tabular-api) n'autorisent pas les requetes cross-origin depuis le navigateur. Un proxy est necessaire. Le systeme supporte trois modes de **détection runtime** (dev / prod / Tauri), determines automatiquement par `getProxyConfig()` dans `packages/shared/src/api/proxy-config.ts`.
+Les APIs externes (Grist, Albert, tabular-api) n'autorisent pas les requetes cross-origin depuis le navigateur. Un proxy est necessaire. Le systeme supporte deux modes de **détection runtime** (dev / prod), determines automatiquement par `getProxyConfig()` dans `packages/shared/src/api/proxy-config.ts`.
 
 > ⚠️ Ne pas confondre les **3 modes runtime** (ci-dessous) avec les **3 dimensions d'URL** au build
-> (app / embed / beacon), décrites en §4.4 et §12. Feature vault transverse :
+> (app / embed / beacon), décrites en §4.3 et §12. Feature vault transverse :
 > `~/Documents/Obsidian/30-Knowledge/Features/proxy-cors-3-dimensions.md` (ADR-026, ADR-036, ADR-030).
 
 ### 4.1 Mode developpement (Vite proxy)
@@ -376,22 +375,7 @@ En production, les requetes sont dirigees vers le proxy nginx dont l'URL est con
 
 > **Contrainte technique** : l'acces a `import.meta.env.VITE_*` doit rester **direct** dans le code source (pas d'indirection type `const _meta = import.meta as any`). Vite effectue une substitution statique des variables `import.meta.env.*` a la compilation — toute indirection empeche cette substitution et laisse la variable non resolue en production. Ce comportement a ete a l'origine d'un bug latent corrige par la PR #172 (epic #168).
 
-### 4.3 Mode Tauri (application desktop)
-
-Detecte par la presence de `window.__TAURI__`. Le mode Tauri utilise toujours le proxy externe (valeur de `PROXY_BASE_URL`) car l'application desktop n'a pas de serveur local.
-
-### Recapitulatif
-
-```
-                    Dev (Vite)              Production               Tauri
-Grist           /grist-proxy/...      <proxy>/grist-proxy/...             idem prod
-Albert          /albert-proxy/...     <proxy>/albert-proxy/...            idem prod
-Tabular         /tabular-proxy/...    <proxy>/tabular-proxy/...           idem prod
-Detection       localhost:5173        (defaut)                            window.__TAURI__
-baseUrl         '' (relatif)          VITE_PROXY_URL [REQUISE]            PROXY_BASE_URL
-```
-
-### 4.4 Les 3 dimensions d'URL (app · embed · beacon)
+### 4.3 Les 3 dimensions d'URL (app · embed · beacon)
 
 Au-delà des 3 modes runtime, l'URL de proxy existe en **3 dimensions distinctes au build**, parce que le même code de lib tourne dans 3 contextes : l'app, un widget embarqué sur un site tiers, et la télémétrie. Cascade de fallback (aucune régression sans changement `.env` explicite, #180) — `packages/shared/src/api/proxy-config.ts:74-94` :
 
@@ -423,7 +407,7 @@ BEACON_BASE_URL       = VITE_BEACON_URL || PROXY_BASE_URL_EMBED     // télémé
 | `npm run build:shared`| Compile `packages/shared/` via `tsc`                   |
 | `npm run build:apps`  | Build app-ui puis les 11 apps sequentiellement via workspaces npm |
 | `npm run build:all`   | Enchaine shared, bibliotheque, puis apps               |
-| `npm run build:app`   | Assemble `app-dist/` pour Tauri (voir 5.3)             |
+| `npm run build:app`   | Assemble `app-dist/` (racine web, voir 5.3)            |
 
 ### 5.2 Build de la bibliotheque
 
@@ -450,9 +434,9 @@ Chaque application dans `apps/` possede son propre `vite.config.ts`. Le build pr
 
 L'ordre de build dans `build:apps` est : app-ui (chrome applicatif, en premier), puis favorites, playground, sources, builder-ia, builder, builder-carto, dashboard, monitoring, admin, pipeline-helper, grist-widgets.
 
-### 5.4 Assemblage pour Tauri (`scripts/build-app.js`)
+### 5.4 Assemblage de app-dist/ (`scripts/build-app.js`)
 
-Le script `build-app.js` assemble le dossier `app-dist/` qui sert de frontendDist a Tauri :
+Le script `build-app.js` assemble le dossier `app-dist/`, racine statique copiee dans l'image nginx (Docker) :
 
 ```
 app-dist/
@@ -478,49 +462,13 @@ Les fichiers de redirection (`favoris.html`, `builder.html`, etc.) assurent la r
 
 ---
 
-## 6. Tauri -- Application desktop
+## 6. Cible desktop (retiree)
 
-L'application desktop est construite avec Tauri v2 (Rust + WebView).
-
-### Configuration (`src-tauri/tauri.conf.json`)
-
-| Parametre           | Valeur                        |
-|---------------------|-------------------------------|
-| productName         | Charts Builder DSFR           |
-| identifier          | fr.gouv.charts-builder        |
-| frontendDist        | `../app-dist`                 |
-| devUrl              | `http://localhost:5173`       |
-| Taille fenetre      | 1400x900 (min 1024x700)      |
-| Cibles de bundle    | dmg, app, nsis, msi           |
-
-### Flux de build
-
-```
-npm run tauri:build
-    |
-    +--> npm run build:app       Assemble app-dist/
-    +--> tauri build             Compile le binaire natif
-```
-
-En developpement (`npm run tauri:dev`), Tauri pointe vers le serveur Vite local (`localhost:5173`).
-
-### Detection runtime
-
-Le code frontend detecte l'environnement Tauri via :
-
-```typescript
-export function isTauriMode(): boolean {
-  return typeof window !== 'undefined' && '__TAURI__' in window;
-}
-```
-
-Cela permet de basculer automatiquement vers le proxy externe pour les appels API.
-
-### Zoom par défaut
-
-L'app desktop applique un zoom de 80% au démarrage via `window.set_zoom(0.8)` dans `src-tauri/src/lib.rs` (hook `setup`, côté Rust). Cela affiche plus de contenu sans modifier le CSS des composants.
-
----
+La cible desktop Tauri a ete retiree le 2026-07-31 (issue #403, ADR-070). Le savoir-faire
+complet (configuration, workflow de release, pieges, procedure de restauration) est capsule
+dans l'ADR-095 du vault ; le dernier etat fonctionnel du code est au tag `v0.16.0`
+(`src-tauri/`, `.github/workflows/release.yml`). Les binaires historiques restent sur les
+releases GitHub `v0.4.1` a `v0.16.0`.
 
 ## 7. Tests
 

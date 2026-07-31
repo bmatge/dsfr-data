@@ -50,7 +50,6 @@ export { filterToOdsql, applyLocalFilter } from './query/filter-translator.js';
 export {
   getProxyConfig,
   isViteDevMode,
-  isTauriMode,
   DEFAULT_PROXY_CONFIG,
   PROXY_BASE_URL,
   PROXY_BASE_URL_EMBED,

@@ -2,7 +2,6 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   DEFAULT_PROXY_CONFIG,
   isViteDevMode,
-  isTauriMode,
   getProxyConfig,
 } from '../../packages/shared/src/api/proxy-config';
 import { getProxiedUrl } from '../../packages/shared/src/api/proxy';
@@ -113,18 +112,6 @@ describe('proxy-config', () => {
       withLocation({ hostname: 'localhost', port: '443' }, () => {
         expect(isViteDevMode()).toBe(false);
       });
-    });
-  });
-
-  describe('isTauriMode', () => {
-    it('should return false when __TAURI__ is not defined', () => {
-      expect(isTauriMode()).toBe(false);
-    });
-
-    it('should return true when __TAURI__ is defined', () => {
-      (window as Record<string, unknown>).__TAURI__ = {};
-      expect(isTauriMode()).toBe(true);
-      delete (window as Record<string, unknown>).__TAURI__;
     });
   });
 

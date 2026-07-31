@@ -27,9 +27,3 @@ Ou via CDN :
 
 Aucune migration necessaire depuis la version precedente.
 
-### App desktop (Tauri)
-
-Les binaires sont disponibles ci-dessous :
-- **macOS** : `.dmg` (Apple Silicon + Intel)
-- **Linux** : `.deb` + `.AppImage`
-- **Windows** : `.msi` + `.exe` (NSIS)
