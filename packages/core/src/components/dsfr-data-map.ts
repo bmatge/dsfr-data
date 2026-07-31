@@ -124,6 +124,29 @@ export function resolveTilePreset(
   return { key: isKnownPreset ? canonical : null, warning: deprecationWarning };
 }
 
+/**
+ * Clippe des bounds de donnees par un attribut max-bounds "latSW,lonSW,latNE,lonNE"
+ * avant un fitBounds. Retourne null si l'intersection est vide (la vue ne doit
+ * pas bouger) ; les bounds inchangees si max-bounds est absent ou invalide.
+ *
+ * Expose pour les tests.
+ */
+export function clipBoundsForFit(
+  combined: import('leaflet').LatLngBounds,
+  maxBounds: string,
+  leaflet: typeof import('leaflet')
+): import('leaflet').LatLngBounds | null {
+  if (!maxBounds) return combined;
+  const parts = maxBounds.split(',').map(Number);
+  if (parts.length !== 4 || parts.some((n) => Number.isNaN(n))) return combined;
+  const south = Math.max(combined.getSouth(), parts[0]);
+  const west = Math.max(combined.getWest(), parts[1]);
+  const north = Math.min(combined.getNorth(), parts[2]);
+  const east = Math.min(combined.getEast(), parts[3]);
+  if (south >= north || west >= east) return null;
+  return leaflet.latLngBounds([south, west], [north, east]);
+}
+
 /** Expose pour les tests (valeurs read-only). */
 export const __tilePresetsForTests = {
   presets: TILE_PRESETS,
@@ -606,9 +629,14 @@ export class DsfrDataMap extends LitElement {
   private _applyFitBounds() {
     if (!this._leafletMap || !L || this._layerBounds.size === 0) return;
     const combined = this._combineBounds([...this._layerBounds.values()], L);
-    if (combined) {
-      this._leafletMap.fitBounds(combined, { padding: [20, 20] });
-    }
+    if (!combined) return;
+    // fit-bounds + max-bounds : le fit est clippe a la zone d'interet de la
+    // carte. Un jeu incluant des territoires lointains (DROM) ne dezoome plus
+    // la vue au monde entier ; si les donnees filtrees sont entierement hors
+    // zone, la vue ne bouge pas (les encarts s'en chargent).
+    const clipped = clipBoundsForFit(combined, this.maxBounds, L);
+    if (!clipped) return;
+    this._leafletMap.fitBounds(clipped, { padding: [20, 20] });
   }
 
   /**
