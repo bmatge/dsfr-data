@@ -1,5 +1,11 @@
 # dsfr-data
 
+## 0.15.0
+
+### Minor Changes
+
+- [#443](https://github.com/bmatge/dsfr-data/pull/443) [`0f3a0be`](https://github.com/bmatge/dsfr-data/commit/0f3a0bed6b34002a30568988a73d2d09e1cbc24d) Thanks [@bmatge](https://github.com/bmatge)! - `dsfr-data-map-layer` : nouveaux attributs `shape-class` (classe CSS sur les tracés SVG — permet des motifs hachurés via un `<pattern>` défini par la page) et `no-interactive` (couche décorative sans clic/tooltip/popup — contours administratifs, habillage). `dsfr-data-kpi` : valeur littérale avec le préfixe `=` (`value="=667"`, `value="=87 %"`) affichée telle quelle, sans dépendre d'une source — pour les chiffres validés à la main.
+
 ## 0.14.3
 
 ### Patch Changes
