@@ -8,7 +8,7 @@
  * contrat du composant dsfr-data-kpi (`format="pourcentage"`).
  */
 
-export type FormatType = 'nombre' | 'pourcentage' | 'euro' | 'decimal';
+export type FormatType = 'nombre' | 'pourcentage' | 'euro' | 'decimal' | 'compact';
 
 import { toNumber } from './number-parser.js';
 
@@ -40,12 +40,22 @@ export function formatValue(
       return formatCurrency(num);
     case 'decimal':
       return formatDecimal(num);
+    case 'compact':
+      return formatCompact(num);
     default:
       return formatNumber(num);
   }
 }
 
 /** Nombre entier avec separateurs de milliers (format francais) */
+/** Notation compacte fr-FR : 14 785 684 → "14,8 M", 6 676 → "6,7 k" */
+function formatCompact(value: number): string {
+  return new Intl.NumberFormat('fr-FR', {
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
 export function formatNumber(value: number): string {
   return new Intl.NumberFormat('fr-FR', {
     maximumFractionDigits: 0,

@@ -173,3 +173,15 @@ describe('formatters', () => {
     });
   });
 });
+
+describe('formatValue — compact (fr-FR)', () => {
+  it('millions : 14 785 684 → "14,8 M"', () => {
+    expect(formatValue(14785684, 'compact')).toBe('14,8\u00a0M');
+  });
+  it('milliers : 6 676 → "6,7 k"', () => {
+    expect(formatValue(6676, 'compact')).toBe('6,7\u00a0k');
+  });
+  it('petits nombres : 42 → "42"', () => {
+    expect(formatValue(42, 'compact')).toBe('42');
+  });
+});
