@@ -111,7 +111,7 @@
       <dsfr-data-kpi source="territoires" value="count" label="Territoires engagés"></dsfr-data-kpi>
       <dsfr-data-kpi source="territoires" value="nb_communes:sum" label="Communes couvertes"></dsfr-data-kpi>
       <dsfr-data-kpi source="territoires" value="population:sum" label="Habitants couverts"></dsfr-data-kpi>
-      <dsfr-data-kpi source="territoires" value="nb_engagements:sum" label="Engagements recensés"></dsfr-data-kpi>
+      <dsfr-data-kpi source="territoires" value="irve_total:sum" label="Points de charge (IRVE)"></dsfr-data-kpi>
     </dsfr-data-kpi-group>
 
     <!-- Filtres a facettes : agissent sur la carte, les encarts et la liste (aval du pipeline) -->
@@ -179,7 +179,6 @@
             <div class="bar"><div class="fill fill--warm" style="width:{{rp_fioul_pct}}%"></div></div>
             <div class="bar-row"><span class="bl">Rés. principales au gaz · {{rp_gaz_nb:number}}</span><span class="bv">{{rp_gaz_pct:number}}&nbsp;%</span></div>
             <div class="bar"><div class="fill" style="width:{{rp_gaz_pct}}%"></div></div>
-            <p class="fr-text--xs fr-mt-1w fr-mb-0">Consommation électrique résidentielle : <b>{{conso_residentiel_mwh:number}}</b> MWh/an</p>
 
             <p class="sect">Mobilité électrique</p>
             <div class="grid2">
@@ -187,12 +186,7 @@
               <div class="cell"><span class="v">{{irve_total:number}}</span><span class="k">points de charge, dont {{irve_rapides}} rapides</span></div>
             </div>
 
-            <p class="sect">Engagements dans le plan</p>
-            <div class="grid2">
-              <div class="cell"><span class="v">{{nb_engagements}}</span><span class="k">engagement(s) recensé(s)</span></div>
-            </div>
-
-            <p class="mention">SIREN {{id2}} · Source : Baromètre du Plan Électrification (Grist)</p>
+            <p class="mention">Identifiant {{id2}} · Source : Baromètre du Plan Électrification (Grist)</p>
           </div>
         </template>
       </dsfr-data-map-popup>
@@ -210,7 +204,7 @@
     <!-- Tableau de données -->
     <h2 class="fr-h5 fr-mt-4w fr-mb-1w">Liste des territoires</h2>
     <dsfr-data-list source="territoires-filtres"
-      columns="nom:Territoire, type:Type, region:Région, departements_tous:Département(s), nb_communes:Communes, population:Population, vp_elec_pct:% VE, irve_total:IRVE, nb_engagements:Engagements"
+      columns="nom:Territoire, type:Type, region:Région, departements_tous:Département(s), nb_communes:Communes, population:Population, vp_elec_pct:% VE, irve_total:IRVE"
       search
       sort="nom:asc"
       pagination="10"
