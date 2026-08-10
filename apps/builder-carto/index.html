@@ -3,76 +3,104 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Generateur de cartes - dsfr-data</title>
-  <style>@view-transition{navigation:auto}app-header:not(:defined){display:block;min-height:56px}app-footer:not(:defined){display:block;min-height:48px}</style>
+  <title>Générateur de cartes - dsfr-data</title>
+  <style>@view-transition{navigation:auto}</style>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css" integrity="sha384-atVZ+aK6VI0nWyTEhKgze5InDJ+SWRRqa0BCZ2MTNyoOcBiHj1c3dGPdi6ML65B3" crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css" integrity="sha384-5P5DFFqorcEBpfnK9WHu/Ralfr7ZxyCZh0ryaJbgucSvc71+qRYdGvNEcyMqQwa/" crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
   <script type="module" src="../../packages/core/dist/dsfr-data.esm.js"></script>
-  <script type="module" src="../../packages/app-ui/dist/app-ui.esm.js"></script>
   <script type="module" src="src/main.ts"></script>
 </head>
-<body>
-  <app-header current-page="builder-carto" base-path="../../"></app-header>
+<body class="carto-app">
+  <main id="main-content" class="carto-workspace">
 
-  <main class="fr-container--fluid fr-py-2w" id="main-content">
-    <div class="carto-layout">
+    <!-- Canevas : la carte generee est l'apercu permanent -->
+    <div id="map-canvas" class="carto-canvas">
+      <p class="carto-canvas__hint" id="canvas-hint">
+        <i class="ri-map-2-line" aria-hidden="true"></i><br>
+        Choisissez vos données, la carte s'affiche ici.
+      </p>
+    </div>
 
-      <!-- Col 1: Layers list + Map config -->
-      <div class="carto-col-layers">
-        <h2 class="fr-text--lg fr-mb-1w"><i class="ri-stack-line fr-mr-1w"></i>Couches</h2>
-        <div class="carto-col-actions">
-          <button id="btn-add-layer" class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-add-line" title="Ajouter une couche">Ajouter</button>
-          <button id="btn-remove-layer" class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-btn--icon-left fr-icon-delete-line" title="Supprimer la couche active">Supprimer</button>
-          <button id="btn-reset" class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-btn--icon-left fr-icon-refresh-line" title="Repartir de zéro">Réinitialiser</button>
-        </div>
-
-        <ul id="layers-list" class="carto-layers__list"></ul>
-
-        <hr class="fr-mt-2w fr-mb-2w">
-
-        <!-- Map global config -->
-        <div id="map-config"></div>
+    <!-- Barre du haut -->
+    <header class="carto-topbar">
+      <a class="carto-topbar__brand" href="../../index.html" title="Retour à l'accueil Charts builder">
+        <p class="fr-logo carto-topbar__logo">République<br>Française</p>
+      </a>
+      <h1 class="carto-topbar__title">
+        <span class="carto-topbar__app">Charts builder</span>
+        <span class="carto-topbar__page">· Créer une carte</span>
+      </h1>
+      <div class="carto-topbar__actions">
+        <a class="carto-topbar__guide" href="../../guide/index.html">Guide</a>
+        <button id="btn-favorite" class="carto-btn carto-btn--ghost" type="button" title="Sauvegarder en favori">
+          <i class="ri-star-line" aria-hidden="true"></i>Favoris
+        </button>
+        <button id="btn-export" class="carto-btn carto-btn--secondary" type="button">
+          <i class="ri-code-s-slash-line" aria-hidden="true"></i>Obtenir le code
+        </button>
+        <button id="btn-execute" class="carto-btn carto-btn--primary" type="button">
+          <i class="ri-play-line" aria-hidden="true"></i>Exécuter
+        </button>
       </div>
+    </header>
 
-      <!-- Col 2: Active layer config (accordions) -->
-      <div class="carto-col-config">
-        <div id="layer-config"></div>
-      </div>
+    <!-- Colonne de panneaux flottants -->
+    <div class="carto-panels">
 
-      <!-- Col 3: Preview panel -->
-      <app-preview-panel
-        show-save-button
-        show-playground-button
-        tab-labels="Aperçu,Code généré">
+      <section class="carto-panel carto-panel--collapsed" id="panel-carte" aria-label="Réglages de la carte">
+        <button class="carto-panel__header" type="button" data-panel-toggle="panel-carte"
+                aria-expanded="false" aria-controls="map-config">
+          <span class="carto-panel__title"><i class="ri-map-2-line" aria-hidden="true"></i>Carte</span>
+          <i class="ri-arrow-down-s-line carto-panel__arrow" aria-hidden="true"></i>
+        </button>
+        <div class="carto-panel__body" id="map-config"></div>
+      </section>
 
-        <div slot="preview">
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem 0;">
-            <span></span>
-            <button id="btn-execute" class="fr-btn fr-btn--sm fr-btn--icon-left fr-icon-play-line">Executer</button>
-          </div>
-          <div class="carto-preview__map" id="map-preview">
-            <p class="fr-text--sm" style="text-align:center;padding:2rem;color:var(--text-mention-grey)">
-              Cliquez sur "Executer" pour afficher l'aperçu de la carte.
-            </p>
-          </div>
-          <div id="preview-status" class="carto-preview-status" role="status" aria-live="polite"></div>
-        </div>
-
-        <div slot="code">
-          <p class="fr-text--sm fr-mb-1w">Copiez ce code pour l'integrer dans votre page :</p>
-          <button class="fr-btn fr-btn--sm fr-btn--secondary fr-mb-1w" id="btn-copy">
-            <i class="ri-file-copy-line"></i> Copier le code
+      <section class="carto-panel" id="panel-couches" aria-label="Couches de données">
+        <div class="carto-panel__header carto-panel__header--split">
+          <button class="carto-panel__header-toggle" type="button" data-panel-toggle="panel-couches"
+                  aria-expanded="true" aria-controls="couches-body">
+            <span class="carto-panel__title"><i class="ri-stack-line" aria-hidden="true"></i>Couches</span>
           </button>
-          <pre class="carto-code" id="code-output"></pre>
+          <div class="carto-panel__header-actions">
+            <button id="btn-add-layer" class="carto-link-btn" type="button" title="Ajouter une couche">
+              <i class="ri-add-line" aria-hidden="true"></i>Ajouter
+            </button>
+            <button id="btn-reset" class="carto-icon-btn" type="button" title="Repartir de zéro" aria-label="Repartir de zéro">
+              <i class="ri-refresh-line" aria-hidden="true"></i>
+            </button>
+            <button class="carto-icon-btn carto-panel__header-arrow" type="button" data-panel-toggle="panel-couches"
+                    aria-expanded="true" aria-controls="couches-body" aria-label="Replier le panneau Couches">
+              <i class="ri-arrow-down-s-line carto-panel__arrow" aria-hidden="true"></i>
+            </button>
+          </div>
         </div>
+        <div class="carto-panel__body" id="couches-body">
+          <ul id="layers-list" class="carto-layers__list"></ul>
+          <div id="layer-data-config"></div>
+        </div>
+      </section>
 
-      </app-preview-panel>
+      <section class="carto-panel" id="panel-elements" aria-label="Éléments de la couche">
+        <button class="carto-panel__header" type="button" data-panel-toggle="panel-elements"
+                aria-expanded="true" aria-controls="layer-config">
+          <span class="carto-panel__title"><i class="ri-paint-brush-line" aria-hidden="true"></i>Éléments</span>
+          <i class="ri-arrow-down-s-line carto-panel__arrow" aria-hidden="true"></i>
+        </button>
+        <div class="carto-panel__body" id="layer-config"></div>
+      </section>
 
     </div>
-  </main>
 
-  <app-footer base-path="../../"></app-footer>
+    <!-- Diagnostic d'apercu -->
+    <div id="preview-status" class="carto-status" role="status" aria-live="polite" hidden></div>
+
+    <!-- Modales (rendues par main.ts) -->
+    <div id="onboard-modal"></div>
+    <div id="export-modal"></div>
+
+  </main>
   <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.module.min.js" integrity="sha384-gPgRd2+olihO/srZe/Bqw6iVLiiaL7meuri1d5YVMejwPXg7VehLSBeORYq9yh2F" crossorigin="anonymous"></script>
 </body>
 </html>

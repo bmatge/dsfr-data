@@ -76,35 +76,42 @@ export const BUILDER_IA_TOUR: TourConfig = {
 export const BUILDER_CARTO_TOUR: TourConfig = {
   id: 'builder-carto',
   label: 'Builder Carto',
-  version: 1,
+  version: 2,
   steps: [
     {
-      selector: '#btn-add-layer',
-      title: 'Ajouter une couche',
+      selector: '#panel-couches',
+      title: 'Vos couches de données',
       description:
-        'Cliquez ici pour ajouter une couche de données sur la carte : marqueurs, zones colorees, cercles proportionnels ou carte de chaleur.',
-      position: 'bottom',
+        'Chaque couche a sa source de données et sa localisation. Ajoutez-en pour superposer plusieurs jeux de données sur la même carte.',
+      position: 'right',
     },
     {
-      selector: '.carto-col-config',
-      title: 'Configurer la couche',
+      selector: '#panel-elements',
+      title: 'La représentation',
       description:
-        "Choisissez la source de données, le type de couche, le champ geographique et les options d'affichage (popup, couleur, clustering...).",
+        'Marqueurs, zones colorees, cercles proportionnels ou carte de chaleur — puis couleurs, contenu du clic et options avancees.',
+      position: 'right',
+    },
+    {
+      selector: '#panel-carte',
+      title: 'La carte elle-même',
+      description:
+        "Fond de carte, encarts DROM et Corse, tableau d'accessibilite et reglages avances.",
       position: 'right',
     },
     {
       selector: '#btn-execute',
-      title: 'Prévisualiser',
+      title: 'La carte est l’aperçu',
       description:
-        'Cliquez sur "Executer" pour voir la carte en direct. Modifiez et re-executez autant de fois que necessaire.',
+        'La carte occupe tout l’écran : déplacez et zoomez, le cadrage exporté suit. "Executer" recharge l’aperçu et recadre sur les données.',
       position: 'bottom',
     },
     {
-      selector: 'app-preview-panel',
-      title: 'Carte et code',
+      selector: '#btn-export',
+      title: 'Obtenir le code',
       description:
-        'La carte s\'affiche ici. L\'onglet "Code" contient le HTML pret a copier-coller dans votre site.',
-      position: 'left',
+        'Le HTML pret a copier-coller dans votre site, en mode composants seuls ou page autonome.',
+      position: 'bottom',
     },
   ],
 };
