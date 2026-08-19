@@ -1,5 +1,11 @@
 # dsfr-data
 
+## 0.16.3
+
+### Patch Changes
+
+- [#472](https://github.com/bmatge/dsfr-data/pull/472) [`2b50471`](https://github.com/bmatge/dsfr-data/commit/2b50471d6208fa9216686b8fb0d40684609e23f1) Thanks [@bmatge](https://github.com/bmatge)! - Builder carto : refonte « carte plein écran » — la carte générée devient l'aperçu permanent (cadrage exporté synchronisé sur la navigation), édition dans trois panneaux flottants (Carte / Couches / Éléments), modale d'onboarding pour le choix des données, modale d'export dédiée, vignettes d'encarts territoriaux visibles dans l'aperçu. Tour guidé partagé réaligné sur la nouvelle interface (v2).
+
 ## 0.16.2
 
 ### Patch Changes
