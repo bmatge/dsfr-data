@@ -2,15 +2,26 @@
 
 /* ---- Page ---- */
 body.carto-app {
+  /* --carto-header-h est mesurée au runtime (main.ts) pour compenser la
+     hauteur réelle du <app-header> commun, qui varie selon breakpoint. */
+  --carto-header-h: 96px;
   margin: 0;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+body.carto-app > app-header {
+  flex: 0 0 auto;
 }
 
 .carto-workspace {
   position: relative;
   width: 100vw;
-  height: 100vh;
-  height: 100dvh;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: hidden;
   background: var(--background-alt-grey, #f6f6f6);
 }
@@ -191,6 +202,9 @@ body.carto-app {
 }
 
 /* ---- Colonne de panneaux flottants ---- */
+/* Note : .carto-panels est positionnée par rapport à .carto-workspace
+   (l'<app-header> est en dehors du workspace, pas besoin de le
+   compenser ici — seule la topbar carto locale à 56px l'est). */
 .carto-panels {
   position: absolute;
   top: 72px;

@@ -907,7 +907,10 @@ function renderElementsPanel() {
 function bindElementsInputs(layer: LayerConfig) {
   const bind = (id: string, key: keyof LayerConfig, transform?: (v: string) => unknown) => {
     const el = document.getElementById(id) as
-      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null;
+      | HTMLInputElement
+      | HTMLSelectElement
+      | HTMLTextAreaElement
+      | null;
     if (!el) return;
     const eventType = el.tagName === 'TEXTAREA' ? 'input' : 'change';
     el.addEventListener(eventType, () => {
@@ -1546,7 +1549,7 @@ function sendToPlayground() {
   window.location.href = '../../apps/playground/index.html?from=builder-carto';
 }
 
-function saveFavorite(feedbackBtnId = 'btn-favorite') {
+function saveFavorite(feedbackBtnId = 'btn-export-favorite') {
   if (!state.layers.some((l) => l.visible && l.source)) {
     toastWarning(
       'Choisissez d’abord les données d’une couche, puis vous pourrez sauvegarder la carte en favori.'
@@ -1729,9 +1732,11 @@ function executePreview(fit = false) {
   state.generationMode = 'embedded';
   state.map.a11y = false;
   // Avec des encarts, une bande basse leur est réservée (vignettes).
+  // --carto-header-h : hauteur du <app-header> commun (mesurée au runtime,
+  // cf. bindStaticUi ci-dessous), + 56px pour la topbar carto locale.
   state.map.height = state.map.insets.length
-    ? 'calc(100dvh - 56px - 208px)'
-    : 'calc(100dvh - 56px)';
+    ? 'calc(100dvh - var(--carto-header-h, 96px) - 56px - 208px)'
+    : 'calc(100dvh - var(--carto-header-h, 96px) - 56px)';
   if (fit) state.map.fitBounds = true;
   const code = generateCode();
   state.generationMode = saved.mode;
@@ -1750,6 +1755,27 @@ function executePreview(fit = false) {
 // Init
 // ---------------------------------------------------------------------------
 
+/**
+ * Le <app-header> commun a une hauteur qui varie selon le breakpoint (menu
+ * mobile hors modale, tools stackés, tagline sur 2 lignes en desktop…).
+ * On mesure au runtime et on expose via --carto-header-h — utilisée à la
+ * fois par le CSS des panneaux et par le calc() de state.map.height.
+ */
+function observeHeaderHeight() {
+  const header = document.querySelector('app-header');
+  if (!header) return;
+  const apply = () => {
+    const h = Math.round(header.getBoundingClientRect().height);
+    if (h > 0) document.body.style.setProperty('--carto-header-h', `${h}px`);
+  };
+  apply();
+  if (typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(apply).observe(header);
+  } else {
+    window.addEventListener('resize', apply);
+  }
+}
+
 function bindStaticUi() {
   // Pliage / dépliage des panneaux
   document.querySelectorAll('[data-panel-toggle]').forEach((btn) => {
@@ -1766,7 +1792,6 @@ function bindStaticUi() {
   document.getElementById('btn-add-layer')?.addEventListener('click', addLayer);
   document.getElementById('btn-reset')?.addEventListener('click', resetBuilder);
   document.getElementById('btn-execute')?.addEventListener('click', () => executePreview(true));
-  document.getElementById('btn-favorite')?.addEventListener('click', () => saveFavorite());
   document.getElementById('btn-export')?.addEventListener('click', () => {
     ui.exportOpen = true;
     renderExport();
@@ -1792,6 +1817,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const restored = restoreState();
 
   bindStaticUi();
+  observeHeaderHeight();
   renderAll();
   persistState();
 
