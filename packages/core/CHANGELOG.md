@@ -1,5 +1,42 @@
 # dsfr-data
 
+## 0.17.0
+
+### Minor Changes
+
+- [#489](https://github.com/bmatge/dsfr-data/pull/489) [`bb4dffe`](https://github.com/bmatge/dsfr-data/commit/bb4dffea6124fbc9b650d25d8ea8ca626cc89f65) Thanks [@bmatge](https://github.com/bmatge)! - `dsfr-data-facets` : support des champs multi-valeurs (tableaux / ChoiceList
+  Grist) en filtrage client ([#421](https://github.com/bmatge/dsfr-data/issues/421)). Une cellule tableau est désormais traitée
+  par intersection avec la sélection (au lieu d'être stringifiée « a,b » et de
+  ne jamais matcher), chaque élément compte dans son groupe de facettes (y
+  compris les comptes croisés), et l'auto-détection retient les champs tableaux
+  de chaînes.
+
+### Patch Changes
+
+- [#472](https://github.com/bmatge/dsfr-data/pull/472) [`2b50471`](https://github.com/bmatge/dsfr-data/commit/2b50471d6208fa9216686b8fb0d40684609e23f1) Thanks [@bmatge](https://github.com/bmatge)! - Builder carto : refonte « carte plein écran » — la carte générée devient l'aperçu permanent (cadrage exporté synchronisé sur la navigation), édition dans trois panneaux flottants (Carte / Couches / Éléments), modale d'onboarding pour le choix des données, modale d'export dédiée, vignettes d'encarts territoriaux visibles dans l'aperçu. Tour guidé partagé réaligné sur la nouvelle interface (v2).
+
+- [#487](https://github.com/bmatge/dsfr-data/pull/487) [`170132b`](https://github.com/bmatge/dsfr-data/commit/170132b6d3a932f2b5c1316753442f0bf951be38) Thanks [@bmatge](https://github.com/bmatge)! - Fixes recette carto [#482](https://github.com/bmatge/dsfr-data/issues/482) (côté lib) :
+  
+  - `dsfr-data-source` (mode URL) : l'enveloppe Grist `{ id, fields }` est
+    désormais aplatie comme en mode adapter — les colonnes réelles redeviennent
+    visibles pour l'aval (cartes, datalists, compagnons) [bug 1].
+  - `dsfr-data-map-layer` : une géométrie invalide n'interrompt plus le rendu de
+    la couche (« Invalid GeoJSON object ») — ligne ignorée, comptée et résumée en
+    console [bug 3].
+  - `dsfr-data-map-layer` (heatmap) : intensité normalisée (`max` = intensité
+    maximale réelle, `maxZoom` = zoom courant) — la couche Chaleur était rendue
+    quasi invisible (alpha ≈ 5 %) [bug 4].
+  - `dsfr-data-map-layer` : le groupe de clusters est retiré de la carte quand le
+    clustering est désactivé (plus de bulles résiduelles après un changement de
+    représentation), et les changements d'attributs visuels (type, couleur,
+    rayon…) redessinent la couche en place [bug 6].
+  - `dsfr-data-map-layer` : nouvelle méthode `getRenderedCount()` — compte réel
+    d'éléments dessinés (clusters et heatmap compris) pour les diagnostics
+    [bug 7].
+  - `dsfr-data-map` : la carte observe désormais toute variation de taille de son
+    conteneur et recale Leaflet (`invalidateSize`) — plus de bande de tuiles non
+    chargées après un redimensionnement [bug 14].
+
 ## 0.16.2
 
 ### Patch Changes
