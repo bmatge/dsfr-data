@@ -9,162 +9,302 @@ body {
   flex-direction: column;
 }
 
-.favorites-layout {
-  display: flex;
+/* ============================================================
+   Refonte « Favoris v2 » (Claude Design) — grille de vignettes
+   + panneau latéral d'aperçu.
+   ============================================================ */
+
+body {
+  background: var(--background-alt-grey, #f6f6f6);
+}
+
+.favs-page {
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
   flex: 1;
-  min-height: 0;
 }
 
-/* Sidebar */
-.favorites-sidebar {
-  width: 300px;
-  flex-shrink: 0;
-  background: var(--background-alt-grey);
-  border-right: 1px solid var(--border-default-grey);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.sidebar-header {
-  padding: 1rem;
-  border-bottom: 1px solid var(--border-default-grey);
-}
-
-.sidebar-header h2 {
-  margin: 0;
-  font-size: 1.1rem;
+.favs-page__head {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.favs-page__head h1 {
+  margin: 0;
+  font-size: 2rem;
+  line-height: 2.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
 }
 
 .favorites-count {
   background: var(--background-action-high-blue-france);
   color: white;
-  padding: 0.125rem 0.5rem;
-  border-radius: 10px;
-  font-size: 0.75rem;
-  font-weight: 600;
+  padding: 0.125rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  font-weight: 700;
 }
 
-.favorites-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0.5rem;
-}
-
-.favorite-item {
-  padding: 0.75rem;
-  margin-bottom: 0.5rem;
-  background: var(--background-default-grey);
-  border-radius: 4px;
-  cursor: pointer;
-  border: 2px solid transparent;
-  transition: all 0.15s;
-}
-
-.favorite-item:hover {
-  border-color: var(--border-action-high-blue-france);
-}
-
-.favorite-item.active {
-  border-color: var(--border-action-high-blue-france);
-  background: var(--background-contrast-info);
-}
-
-.favorite-item-name {
-  font-weight: 600;
-  font-size: 0.9rem;
-  margin-bottom: 0.25rem;
-}
-
-.favorite-item-meta {
-  font-size: 0.75rem;
-  color: var(--text-mention-grey);
+.favs-page__actions {
+  margin-left: auto;
   display: flex;
   gap: 0.5rem;
   align-items: center;
-}
-
-.favorite-item-type {
-  background: var(--background-contrast-grey);
-  padding: 0.125rem 0.375rem;
-  border-radius: 2px;
-}
-
-.empty-sidebar {
-  padding: 2rem 1rem;
-  text-align: center;
-  color: var(--text-mention-grey);
-}
-
-.empty-sidebar i {
-  font-size: 2.5rem;
-  opacity: 0.5;
-  margin-bottom: 1rem;
-}
-
-/* Main content */
-.favorites-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.content-header {
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid var(--border-default-grey);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   flex-wrap: wrap;
+}
+
+.favs-search {
+  border: 1px solid var(--border-plain-grey, #161616);
+  border-radius: 0.25rem 0.25rem 0 0;
+  box-shadow: inset 0 -2px 0 0 var(--border-plain-grey, #161616);
+  background: var(--background-contrast-grey, #eee);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  width: 220px;
+  font-family: inherit;
+}
+
+.favs-sort {
+  width: auto;
+}
+
+.favs-page__intro {
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
+  color: var(--text-mention-grey);
+  max-width: 45rem;
+}
+
+/* ---- Grille de vignettes ---- */
+.favs-grid {
+  margin-top: 1.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(272px, 1fr));
   gap: 1rem;
 }
 
-.content-header h1 {
-  margin: 0;
-  font-size: 1.25rem;
-}
-
-.content-actions {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.content-body {
-  flex: 1;
+.fav-card {
+  background: var(--background-default-grey, #fff);
+  border: 1px solid var(--border-default-grey);
+  box-shadow: inset 0 -2px 0 var(--border-default-grey);
+  cursor: pointer;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  text-align: left;
 }
 
-.preview-section {
-  flex: 1;
-  padding: 1.5rem;
-  overflow: auto;
-  background: var(--background-default-grey);
+.fav-card:hover,
+.fav-card:focus-visible {
+  box-shadow: inset 0 -2px 0 var(--border-action-high-blue-france);
+  border-color: var(--border-action-high-blue-france);
 }
 
-.preview-frame {
+.fav-card--active {
+  border-color: var(--border-action-high-blue-france);
+  box-shadow: inset 0 -2px 0 var(--border-action-high-blue-france);
+}
+
+.fav-card__thumb {
+  height: 130px;
+  background: var(--background-alt-blue-france, #f5f5fe);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--background-alt-grey, #eee);
+}
+
+.fav-card__thumb svg {
   width: 100%;
-  min-height: 400px;
+  height: 100%;
+}
+
+.fav-card__body {
+  padding: 0.75rem 0.875rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.fav-card__name {
+  font-weight: 700;
+  font-size: 0.9375rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fav-card__meta {
+  display: flex;
+  gap: 0.375rem;
+  align-items: center;
+}
+
+.fav-card__tag {
+  background: var(--background-contrast-grey, #eee);
+  color: var(--text-default-grey, #3a3a3a);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  padding: 0.125rem 0.5rem;
+  border-radius: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 9rem;
+}
+
+.fav-card__date {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: var(--text-mention-grey);
+  white-space: nowrap;
+}
+
+.favs-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: var(--text-mention-grey);
+  padding: 3rem 1rem;
+  background: var(--background-default-grey, #fff);
   border: 1px solid var(--border-default-grey);
-  border-radius: 8px;
+}
+
+.favs-empty i {
+  font-size: 2.5rem;
+  opacity: 0.5;
+  display: block;
+  margin-bottom: 0.75rem;
+}
+
+.favs-empty-search {
+  margin-top: 1.5rem;
+  font-size: 0.875rem;
+  color: var(--text-mention-grey);
+}
+
+/* ---- Panneau latéral ---- */
+.fav-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(680px, 92vw);
+  background: var(--background-default-grey, #fff);
+  border-left: 1px solid var(--border-default-grey);
+  box-shadow: 0 2px 6px rgba(0, 0, 18, 0.16);
+  /* Sous les modales (1000) et le confirm partagé (10000) */
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+}
+
+.fav-panel[hidden] {
+  display: none;
+}
+
+.fav-panel__header {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.875rem 1.25rem;
+  border-bottom: 1px solid var(--border-default-grey);
+  flex-shrink: 0;
+}
+
+.fav-panel__star {
+  color: var(--text-action-high-blue-france);
+  font-size: 1.125rem;
+  flex-shrink: 0;
+}
+
+.fav-panel__name {
+  font-weight: 700;
+  font-size: 1.125rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+#fav-panel-tags {
+  display: inline-flex;
+  gap: 0.375rem;
+  flex-shrink: 0;
+}
+
+.fav-panel__rename {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  display: inline-flex;
+  color: var(--text-mention-grey);
+  font-size: 0.875rem;
+  flex-shrink: 0;
+}
+
+.fav-panel__rename:hover {
+  color: var(--text-action-high-blue-france);
+  background: var(--background-contrast-blue-france, #e3e3fd);
+}
+
+.fav-panel__close {
+  margin-left: auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.375rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--text-action-high-blue-france);
+  font-size: 0.875rem;
+  font-family: inherit;
+  flex-shrink: 0;
+}
+
+.fav-panel__close:hover {
+  background: var(--background-contrast-blue-france, #e3e3fd);
+}
+
+.fav-panel__body {
+  padding: 1.25rem;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.fav-panel__frame {
+  width: 100%;
+  min-height: 340px;
+  border: 1px solid var(--border-default-grey);
   background: white;
 }
 
-.code-section {
-  max-height: 300px;
-  overflow: auto;
-  border-top: 1px solid var(--border-default-grey);
+.fav-panel__meta {
+  margin: 0.75rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--text-mention-grey);
 }
 
-.code-section pre {
-  margin: 0;
+.fav-panel__code {
+  margin-top: 1rem;
+}
+
+.fav-panel__code summary {
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: var(--text-action-high-blue-france);
+}
+
+.fav-panel__code pre {
+  margin: 0.5rem 0 0;
   padding: 1rem;
   background: #1e1e1e;
   color: #d4d4d4;
@@ -172,56 +312,40 @@ body {
   font-size: 0.8rem;
   white-space: pre-wrap;
   word-break: break-word;
+  max-height: 300px;
+  overflow: auto;
 }
 
-.code-header {
+.fav-panel__footer {
   display: flex;
-  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.875rem 1.25rem;
+  border-top: 1px solid var(--border-default-grey);
+  flex-shrink: 0;
+  background: var(--background-default-grey, #fff);
+  flex-wrap: wrap;
   align-items: center;
-  padding: 0.5rem 1rem;
-  background: #2d2d2d;
-  color: #d4d4d4;
-  font-size: 0.8rem;
 }
 
-.empty-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-mention-grey);
-  text-align: center;
-  padding: 2rem;
+.fav-panel__delete {
+  margin-left: auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.375rem;
+  display: inline-flex;
+  color: var(--text-default-error, #ce0500);
+  font-size: 1rem;
 }
 
-.empty-content i {
-  font-size: 4rem;
-  opacity: 0.3;
-  margin-bottom: 1.5rem;
+.fav-panel__delete:hover {
+  background: var(--background-contrast-error, #fddede);
 }
 
-.empty-content h2 {
-  margin: 0 0 0.5rem;
-  color: var(--text-title-grey);
-}
-
-.empty-content p {
-  margin: 0 0 1.5rem;
-  max-width: 400px;
-}
-
-/* Responsive */
 @media (max-width: 768px) {
-  .favorites-layout {
-    flex-direction: column;
-  }
-
-  .favorites-sidebar {
-    width: 100%;
-    max-height: 40vh;
-    border-right: none;
-    border-bottom: 1px solid var(--border-default-grey);
+  .fav-panel {
+    width: 100vw;
+    border-left: none;
   }
 }
 
