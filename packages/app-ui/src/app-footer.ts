@@ -67,21 +67,24 @@ export class AppFooter extends LitElement {
               </p>
               ${
                 this._version
-                  ? html`<p class="fr-footer__content-desc fr-text--xs" style="opacity: 0.7;">
+                  ? html`<p
+                      class="fr-footer__content-desc fr-text--xs"
+                      style="color: var(--text-mention-grey, #666666);"
+                    >
                       Composants dsfr-data
                       v${this._version}${
-                      this._commit
-                        ? html` ·
-                            <a
-                              class="fr-footer__content-link"
-                              href="https://github.com/bmatge/dsfr-data/commit/${this._commit}"
-                              target="_blank"
-                              rel="noopener"
-                              title="Voir le commit sur GitHub"
-                              >commit ${this._commit}</a
-                            >`
-                        : ''
-                    }
+                        this._commit
+                          ? html` ·
+                              <a
+                                class="fr-footer__content-link"
+                                href="https://github.com/bmatge/dsfr-data/commit/${this._commit}"
+                                target="_blank"
+                                rel="noopener"
+                                title="Voir le commit sur GitHub"
+                                >commit ${this._commit}</a
+                              >`
+                          : ''
+                      }
                     </p>`
                   : ''
               }

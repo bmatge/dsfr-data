@@ -176,6 +176,7 @@ export class PipelineNodeElement extends LitElement {
         <div class="field">
           <label>${def.label}</label>
           <select
+            aria-label=${def.label}
             .value=${ctrl.value}
             @change=${(e: Event) => this._onFieldChange(name, e)}
             @pointerdown=${this._stopPropagation}
@@ -198,6 +199,7 @@ export class PipelineNodeElement extends LitElement {
         <div class="field" style="display:flex;align-items:center;gap:0.3rem">
           <input
             type="checkbox"
+            aria-label=${def.label}
             ?checked=${ctrl.value === 'true'}
             @change=${(e: Event) => this._onFieldChange(name, e)}
             @pointerdown=${this._stopPropagation}
@@ -212,6 +214,7 @@ export class PipelineNodeElement extends LitElement {
         <label>${def.label}</label>
         <input
           type=${def.type === 'number' ? 'number' : 'text'}
+          aria-label=${def.label}
           .value=${ctrl.value}
           placeholder=${def.placeholder ?? ''}
           @input=${(e: Event) => this._onFieldChange(name, e)}

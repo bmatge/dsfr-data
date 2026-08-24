@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { disableProductTour } from './helpers';
 import AxeBuilder from '@axe-core/playwright';
 
 const pages = [
@@ -16,14 +17,17 @@ const pages = [
 ];
 
 test.describe('Accessibility tests', () => {
+  // Tour guide desactive avant chaque chargement (helper partage, #407)
+  test.beforeEach(async ({ page }) => {
+    await disableProductTour(page);
+  });
+
   for (const { name, path } of pages) {
     test(`${name} page is accessible`, async ({ page }) => {
       await page.goto(path);
       await page.waitForLoadState('networkidle');
 
-      const results = await new AxeBuilder({ page })
-        .withTags(['wcag2a', 'wcag2aa'])
-        .analyze();
+      const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
 
       expect(results.violations).toEqual([]);
     });

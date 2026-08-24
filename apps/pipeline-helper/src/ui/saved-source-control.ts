@@ -343,6 +343,7 @@ export class SavedSourceControlElement extends LitElement {
                 <label class="attr-label" style="font-size:0.7rem">Document</label>
                 <select
                   class="attr-input"
+                  aria-label="Document Grist"
                   style="font-size:0.7rem;margin-bottom:4px"
                   .value=${this._selectedDoc}
                   @change=${this._onDocSelect}
@@ -366,6 +367,7 @@ export class SavedSourceControlElement extends LitElement {
                 <label class="attr-label" style="font-size:0.7rem">Table</label>
                 <select
                   class="attr-input"
+                  aria-label="Table Grist"
                   style="font-size:0.7rem"
                   .value=${this._selectedTable}
                   @change=${this._onTableSelect}
@@ -409,6 +411,7 @@ export class SavedSourceControlElement extends LitElement {
         <label class="attr-label" style="color:#000091;font-weight:700">Source / Connexion</label>
         <select
           class="attr-input"
+          aria-label="Source ou connexion"
           style="border-color:#000091"
           .value=${this.ctrl.value}
           @change=${this._onSelect}

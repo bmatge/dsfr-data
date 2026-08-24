@@ -752,10 +752,8 @@ h3 .help-btn i {
   font-style: normal;
 }
 
-/* Collapsed sections: slightly dim the summary so the header chrome wins. */
-.builder-config-panel .config-section.collapsed .section-summary {
-  opacity: 0.85;
-}
+/* Pas d'attenuation du resume replie : opacity 0.85 diluait le
+   mention-grey sous le seuil RGAA 4.5:1 (#7c7c7c sur #f6f6f6, #407). */
 
 /* Generate-controls — ready variant + contextual sub-text. */
 #generate-btn.fr-btn--ready {

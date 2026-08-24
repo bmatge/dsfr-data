@@ -85,6 +85,7 @@ export class AggregateControlElement extends LitElement {
                   ? html`
                       <select
                         class="agg-field"
+                        aria-label="Champ agrégé"
                         .value=${row.field}
                         @change=${(e: Event) => this._onFieldChange(i, e)}
                         @pointerdown=${this._stop}
@@ -99,6 +100,7 @@ export class AggregateControlElement extends LitElement {
                       <input
                         class="agg-field"
                         type="text"
+                        aria-label="Champ agrégé"
                         .value=${row.field}
                         placeholder="champ"
                         @input=${(e: Event) => {
@@ -113,6 +115,7 @@ export class AggregateControlElement extends LitElement {
               }
               <select
                 class="agg-fn"
+                aria-label="Fonction d'agrégation"
                 .value=${row.fn}
                 @change=${(e: Event) => this._onFnChange(i, e)}
                 @pointerdown=${this._stop}
@@ -127,6 +130,7 @@ export class AggregateControlElement extends LitElement {
               <input
                 class="agg-alias"
                 type="text"
+                aria-label="Alias de l'agrégat"
                 .value=${row.alias}
                 placeholder="alias"
                 @input=${(e: Event) => this._onAliasChange(i, e)}

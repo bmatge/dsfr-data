@@ -125,7 +125,7 @@
     document.getElementById('btn-inject').addEventListener('click', () => {
       DsfrData.dispatchDataLoaded('grist', TEST_DATA);
       DsfrData.dispatchDataLoaded('grist-map', MAP_DATA);
-      status.textContent = 'Données injectees (10 regions + 10 departements)';
+      status.textContent = 'Données injectées (10 régions + 10 départements)';
     });
 
     document.getElementById('btn-update').addEventListener('click', () => {
@@ -134,13 +134,13 @@
         Value: Math.round(d.Value * (0.8 + Math.random() * 0.4)),
       }));
       DsfrData.dispatchDataLoaded('grist', updated);
-      status.textContent = 'Données mises a jour (valeurs aleatoires)';
+      status.textContent = 'Données mises à jour (valeurs aléatoires)';
     });
 
     document.getElementById('btn-error').addEventListener('click', () => {
       DsfrData.dispatchDataError('grist', new Error('Erreur simulee : colonnes non mappees'));
       DsfrData.dispatchDataError('grist-map', new Error('Erreur simulee : colonnes non mappees'));
-      status.textContent = 'Erreur envoyee (grist + grist-map)';
+      status.textContent = 'Erreur envoyée (grist + grist-map)';
     });
 
     // Auto-inject au chargement

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { disableProductTour } from './helpers';
 
 const apps = [
   { name: 'Hub', path: '/', selector: 'body', title: /Charts builder|dsfr-data/i },
@@ -15,6 +16,11 @@ const apps = [
 ];
 
 test.describe('Smoke tests', () => {
+  // Tour guide desactive avant chaque chargement (helper partage, #407)
+  test.beforeEach(async ({ page }) => {
+    await disableProductTour(page);
+  });
+
   for (const { name, path, selector, title } of apps) {
     test(`${name} app loads`, async ({ page }) => {
       await page.goto(path);

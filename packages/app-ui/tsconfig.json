@@ -1,0 +1,18 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // Decorateurs Lit legacy : sans ce tsconfig, la transform dev de Vite
+    // (oxc) servait les decorateurs non transpiles (`export @customElement
+    // class …`) — parse error Chromium, app-header/app-layout-demo jamais
+    // definis sur les pages qui chargent /dist/app-ui.esm.js redirige vers
+    // les sources (#407). Aligne sur packages/core/tsconfig.json.
+    "experimentalDecorators": true,
+    "useDefineForClassFields": false,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "noEmit": true
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
+}

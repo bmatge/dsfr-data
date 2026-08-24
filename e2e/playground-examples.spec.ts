@@ -10,6 +10,7 @@
  * Examples using external APIs soft-fail with warning.
  */
 import { test, expect } from '@playwright/test';
+import { disableProductTour } from './helpers';
 import { join, dirname } from 'path';
 import { mkdirSync } from 'fs';
 import { fileURLToPath } from 'url';
@@ -21,13 +22,9 @@ test.beforeAll(() => {
   mkdirSync(SCREENSHOT_DIR, { recursive: true });
 });
 
-// Le tour guide (product-tour) demarre automatiquement sur un profil vierge et
-// son overlay intercepte les clics (#run-btn) → on le desactive globalement
-// avant le chargement de chaque page.
+// Tour guide desactive avant chaque chargement (helper partage, #407)
 test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => {
-    window.localStorage.setItem('dsfr-data-tours', JSON.stringify({ disabled: true, tours: {} }));
-  });
+  await disableProductTour(page);
 });
 
 // ===================================================================
