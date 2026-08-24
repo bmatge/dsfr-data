@@ -11,7 +11,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
  * _sourceData/_sourceError quand `source` changeait vers une source sans
  * cache (affichage périmé sans indicateur).
  *
- * AC : même UX d'erreur sur les 6 composants d'affichage ; changer `source`
+ * AC : même UX d'erreur sur les composants d'affichage ; changer `source`
  * vers une source vide n'affiche pas les anciennes données.
  */
 
@@ -23,7 +23,6 @@ import { DsfrDataChart } from '@/components/dsfr-data-chart.js';
 import { DsfrDataDisplay } from '@/components/dsfr-data-display.js';
 import { DsfrDataKpi } from '@/components/dsfr-data-kpi.js';
 import { DsfrDataPodium } from '@/components/dsfr-data-podium.js';
-import { DsfrDataWorldMap } from '@/components/dsfr-data-world-map.js';
 import {
   clearDataCache,
   clearDataMeta,
@@ -42,10 +41,9 @@ const DISPLAY_COMPONENTS: Array<[string, () => HTMLElement]> = [
   ['dsfr-data-display', () => new DsfrDataDisplay()],
   ['dsfr-data-kpi', () => new DsfrDataKpi()],
   ['dsfr-data-podium', () => new DsfrDataPodium()],
-  ['dsfr-data-world-map', () => new DsfrDataWorldMap()],
 ];
 
-describe('#284 — AC : même UX d’erreur sur les 6 composants d’affichage', () => {
+describe('#284 — AC : même UX d’erreur sur les composants d’affichage', () => {
   beforeEach(() => {
     clearDataCache(SRC);
     clearDataMeta(SRC);

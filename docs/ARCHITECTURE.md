@@ -86,7 +86,7 @@ dsfr-data-source  ──[fetch via adapter]──[paginate]──[cache]──�
 - **dsfr-data-map-layer** projete les donnees sur la carte (marker, geoshape, circle, heatmap). Chaque layer a sa propre source → multi-source naturel.
 - Le viewport-driven fetch (`bbox`) envoie des commandes `dsfr-data-source-command` avec `whereKey: "map-bbox"` pour le merge avec les autres filtres.
 - **dsfr-data-map-popup** (popup/modale/panneau lateral au clic, template `{{champ}}` toujours echappe), **dsfr-data-map-inset** (encarts territoriaux DROM/Corse — clone les couches directes de la carte hote, ADR-094) et **dsfr-data-map-timeline** (controles de lecture des couches `time-field`) completent la famille carto — tous enfants de `dsfr-data-map`, bundle `map`.
-- **dsfr-data-world-map** est **deprecie** (epic #402, warn au connect) au profit de `<dsfr-data-chart type="map-monde">` (API cartes unifiee DSFR Chart 2.1.x : `level="dep|reg|aca|monde"`, comme `map-reg`/`map-aca`). Retrait prevu au prochain major.
+- **dsfr-data-world-map** a ete **retire** (epic #402, deprecie v0.13 → retrait v0.18) au profit de `<dsfr-data-chart type="map-monde">` (API cartes unifiee DSFR Chart 2.1.x : `level="dep|reg|aca|monde"`, comme `map-reg`/`map-aca`).
 
 ### Pattern HTML
 
@@ -189,13 +189,12 @@ Toutes les dependances internes sont resolues via les workspaces npm declares da
   packages/
     core/                       Bibliotheque `dsfr-data` (publiee sur npm)
       src/
-        index.ts                Entree tout-en-un ; index-core.ts / index-map.ts /
-                                index-world-map.ts pour les bundles partiels
-        components/             Les 24 Web Components dsfr-data-* (source, query, join,
+        index.ts                Entree tout-en-un ; index-core.ts / index-map.ts
+                                pour les bundles partiels
+        components/             Les 23 Web Components dsfr-data-* (source, query, join,
                                 unpivot, normalize, context/-filter/-tags, facets, search,
                                 chart, kpi, kpi-group, list, display, podium, a11y, beacon,
-                                map, map-layer, map-popup, map-inset, map-timeline,
-                                world-map [deprecie])
+                                map, map-layer, map-popup, map-inset, map-timeline)
         adapters/               Adapters api-type (generic, opendatasoft, tabular, grist,
                                 insee) + adapter-registry
         utils/                  data-bridge, mixins (transformer, source-subscriber),
@@ -411,16 +410,13 @@ BEACON_BASE_URL       = VITE_BEACON_URL || PROXY_BASE_URL_EMBED     // télémé
 
 ### 5.2 Build de la bibliotheque
 
-Le script `scripts/build-lib.ts` produit quatre bundles via Vite en mode `lib` :
+Le script `scripts/build-lib.ts` produit trois bundles via Vite en mode `lib` :
 
 | Bundle | Contenu | gzip (ESM) | gzip (UMD) |
 |--------|---------|---|---|
-| `dsfr-data.core.{esm,umd}.js` | Tous les composants sauf `dsfr-data-world-map` et `dsfr-data-map*` (inclut `dsfr-data-join`) | ~70 Ko | ~63 Ko |
+| `dsfr-data.core.{esm,umd}.js` | Tous les composants sauf `dsfr-data-map*` (inclut `dsfr-data-join`) | ~70 Ko | ~63 Ko |
 | `dsfr-data.map.{esm,umd}.js` | `dsfr-data-map` + `map-layer` + `map-popup` + `map-inset` + `map-timeline` (Leaflet charge dynamiquement : chunks separes en ESM, inline en UMD) | ~35 Ko | ~85 Ko |
-| `dsfr-data.world-map.{esm,umd}.js` | `dsfr-data-world-map` (d3-geo, topojson) — **deprecie** (#402), remplace par `<dsfr-data-chart type="map-monde">` | ~30 Ko | ~27 Ko |
 | `dsfr-data.{esm,umd}.js` | Tout-en-un | ~107 Ko | ~150 Ko |
-
-Le TopoJSON (`dist/data/world-countries-110m.json`) est charge par `fetch` a l'execution au lieu d'etre inline en base64.
 
 La source du JS dans le code genere est configurable via `VITE_LIB_URL` :
 - Non defini / `"jsdelivr"` → `https://cdn.jsdelivr.net/npm/dsfr-data@0/dist` (defaut)

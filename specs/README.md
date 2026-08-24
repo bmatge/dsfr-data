@@ -18,7 +18,6 @@ de chaque composant.
     `dsfr-data-map` (conteneur + vue d'ensemble), `dsfr-data-map-layer`, `dsfr-data-map-popup`,
     `dsfr-data-map-inset`, `dsfr-data-map-timeline`
   - **Transverses** : `dsfr-data-a11y`, `dsfr-data-beacon`
-  - **Déprécié** : `dsfr-data-world-map` (remplacé par `dsfr-data-chart type="map-monde"`)
 - `charts/` — 8 pages sur les composants DSFR Chart natifs : `index.html` (vue d'ensemble
   avec démos), `bar`, `line`, `pie`, `radar`, `gauge`, `scatter`, `map`.
 - `apis/` — 5 pages sur les providers du mode adapter (`api-type`) : `opendatasoft`,

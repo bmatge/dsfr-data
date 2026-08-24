@@ -14,7 +14,6 @@ import { DsfrDataDisplay } from '@/components/dsfr-data-display.js';
 import { DsfrDataSearch } from '@/components/dsfr-data-search.js';
 import { DsfrDataA11y } from '@/components/dsfr-data-a11y.js';
 import { DsfrDataKpiGroup } from '@/components/dsfr-data-kpi-group.js';
-import { DsfrDataWorldMap } from '@/components/dsfr-data-world-map.js';
 import { DsfrDataJoin } from '@/components/dsfr-data-join.js';
 import { DsfrDataContext } from '@/components/dsfr-data-context.js';
 import { DsfrDataContextFilter } from '@/components/dsfr-data-context-filter.js';
@@ -54,8 +53,8 @@ function getHtmlAttributes(ComponentClass: typeof DsfrDataSource): Set<string> {
 }
 
 describe('builder-ia skills', () => {
-  it('should have 30 skill definitions', () => {
-    expect(Object.keys(SKILLS)).toHaveLength(30);
+  it('should have 29 skill definitions', () => {
+    expect(Object.keys(SKILLS)).toHaveLength(29);
   });
 
   it('should have expected skill IDs', () => {
@@ -79,7 +78,6 @@ describe('builder-ia skills', () => {
     expect(SKILLS).toHaveProperty('dsfrColors');
     expect(SKILLS).toHaveProperty('apiProviders');
     expect(SKILLS).toHaveProperty('dsfrDataA11y');
-    expect(SKILLS).toHaveProperty('dsfrDataWorldMap');
     expect(SKILLS).toHaveProperty('dsfrDataMap');
     expect(SKILLS).toHaveProperty('troubleshooting');
     expect(SKILLS).toHaveProperty('dsfrDataJoin');
@@ -310,14 +308,6 @@ describe('builder-ia skills', () => {
         );
       });
 
-      it('dsfrDataWorldMap skill covers all <dsfr-data-world-map> attributes', () => {
-        assertAttributesCovered(
-          DsfrDataWorldMap as unknown as typeof DsfrDataSource,
-          'dsfrDataWorldMap',
-          'dsfr-data-world-map'
-        );
-      });
-
       it('dsfrDataContext skill covers all <dsfr-data-context> attributes', () => {
         assertAttributesCovered(
           DsfrDataContext as unknown as typeof DsfrDataSource,
@@ -508,7 +498,6 @@ describe('builder-ia skills', () => {
         DsfrDataList: 'dsfrDataList',
         DsfrDataDisplay: 'dsfrDataDisplay',
         DsfrDataChart: 'dsfrDataChart',
-        DsfrDataWorldMap: 'dsfrDataWorldMap',
         DsfrDataMap: 'dsfrDataMap',
         // Compagnons carto : documentes dans le skill unique dsfrDataMap
         DsfrDataMapLayer: 'dsfrDataMap',

@@ -176,32 +176,6 @@ test.describe('Specs — external API widgets', () => {
 });
 
 // ===================================================================
-// World map (ODS + topojson) — 120s timeout
-// ===================================================================
-test.describe('Specs — world map', () => {
-  test.setTimeout(120_000);
-
-  test('dsfr-data-world-map.html — map with SVG rendered', async ({ page }) => {
-    const errors = collectConsoleErrors(page);
-    await page.goto('/specs/components/dsfr-data-world-map.html');
-    await page.waitForTimeout(15_000);
-
-    const worldMapCount = await page.locator('dsfr-data-world-map').count();
-    expect(worldMapCount).toBeGreaterThanOrEqual(1);
-
-    // Verify SVG is rendered inside the world-map component
-    const svgCount = await page.locator('dsfr-data-world-map svg').count();
-    expect(svgCount).toBeGreaterThanOrEqual(1);
-
-    await page.screenshot({
-      path: join(SCREENSHOT_DIR, 'dsfr-data-world-map.png'),
-      fullPage: true,
-    });
-    expect(errors).toEqual([]);
-  });
-});
-
-// ===================================================================
 // Doc-only pages (no live widgets)
 // ===================================================================
 test.describe('Specs — doc-only pages', () => {

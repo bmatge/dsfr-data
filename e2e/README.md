@@ -54,7 +54,6 @@ Verifie que chaque page de specification affiche les bons composants :
 | `dsfr-data-a11y.html` | Donnees locales | >=2 `dsfr-data-a11y`, >=1 `dsfr-data-chart` |
 | `dsfr-data-facets.html` | API ODS | >=4 `dsfr-data-facets`, >=3 `dsfr-data-list`, >=1 `dsfr-data-chart`, >=2 `dsfr-data-kpi` |
 | `dsfr-data-search.html` | API ODS | >=3 `dsfr-data-search`, >=1 `dsfr-data-list` |
-| `dsfr-data-world-map.html` | API + topojson | >=1 `dsfr-data-world-map`, SVG rendu |
 | `dsfr-data-source.html` | Doc-only | Page charge, layout present, pas d'erreurs console |
 | `dsfr-data-query.html` | Doc-only | Idem |
 | `dsfr-data-normalize.html` | Doc-only | Idem |
@@ -84,7 +83,6 @@ puis verification que les `.example-container` ont ete crees avec un `dsfr-data-
 | `guide-exemples-chart-a11y.html` | `dsfr-data-a11y`, `dsfr-data-chart` |
 | `guide-exemples-ghibli.html` | `dsfr-data-kpi`, `dsfr-data-chart` |
 | `guide-exemples-maires.html` | `dsfr-data-kpi`, `dsfr-data-chart` |
-| `guide-exemples-world-map.html` | `dsfr-data-world-map`, `dsfr-data-chart` |
 | `guide-exemples-insee-erfs.html` | `dsfr-data-chart`, `dsfr-data-kpi` |
 
 Timeout : 120s. Screenshots dans `screenshots/guide/`.
@@ -103,7 +101,7 @@ Timeout : 120s. Screenshots dans `screenshots/guide/`.
 5. Verifie que le widget visuel principal est present
 6. Screenshot viewport
 
-Les exemples API soft-fail avec warning (reseau), l'exemple inline (`direct-worldmap`) hard-fail.
+Les exemples API soft-fail avec warning (reseau), les exemples inline hard-fail.
 
 Timeout : 120s. Screenshots dans `screenshots/playground/`.
 

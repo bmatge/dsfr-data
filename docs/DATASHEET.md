@@ -37,7 +37,6 @@ Source de donnees → Nettoyage → Requetage → Visualisation
 | `<dsfr-data-map-popup>` | Affichage au clic : popup, modale ou panneau lateral |
 | `<dsfr-data-map-inset>` | Encart territorial (DROM, Corse, zoom local) |
 | `<dsfr-data-map-timeline>` | Lecture temporelle des couches datees |
-| `<dsfr-data-world-map>` | Carte du monde SVG — **deprecie** (→ `<dsfr-data-chart type="map-monde">`) |
 
 **Caracteristiques cles :**
 

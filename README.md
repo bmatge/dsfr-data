@@ -67,10 +67,9 @@ import 'dsfr-data';
 |---|---|---|---|
 | `dsfr-data.core.{esm,umd}.js` | Tous les composants sauf cartes (inclut `dsfr-data-join`) | ~70 Ko | ~63 Ko |
 | `dsfr-data.map.{esm,umd}.js` | `dsfr-data-map` + `map-layer` + `map-popup` + `map-inset` + `map-timeline` (Leaflet charge dynamiquement : chunks separes en ESM, inclus en UMD) | ~35 Ko | ~85 Ko |
-| `dsfr-data.world-map.{esm,umd}.js` | `dsfr-data-world-map` (d3-geo, topojson) — **deprecie**, remplace par `<dsfr-data-chart type="map-monde">` | ~30 Ko | ~27 Ko |
 | `dsfr-data.{esm,umd}.js` | Tout-en-un | ~107 Ko | ~150 Ko |
 
-> `dsfr-data-world-map` est **deprecie** depuis la v0.13 (epic [#402](https://github.com/bmatge/dsfr-data/issues/402)) au profit de `<dsfr-data-chart type="map-monde">` (API cartes unifiee DSFR Chart 2.1). Retrait prevu au prochain major.
+> `dsfr-data-world-map` (deprecie depuis la v0.13, epic [#402](https://github.com/bmatge/dsfr-data/issues/402)) est **retire** : utiliser `<dsfr-data-chart type="map-monde">` (API cartes unifiee DSFR Chart 2.1).
 
 La specification exhaustive de chaque composant (attributs, valeurs, exemples interactifs) est sur [bmatge.github.io/dsfr-data/specs](https://bmatge.github.io/dsfr-data/specs/) — c'est la source de verite.
 

@@ -9,8 +9,7 @@ src/
   index.ts              # Point d'entree tout-en-un (tous les composants + exports utilitaires)
   index-core.ts         # Entree du bundle core (tout sauf cartes)
   index-map.ts          # Entree du bundle map (famille carto Leaflet)
-  index-world-map.ts    # Entree du bundle world-map (deprecie)
-  components/           # Les 24 Web Components
+  components/           # Les 23 Web Components
   adapters/             # Adaptateurs de sources de donnees (api-type)
   utils/                # Utilitaires de traitement de donnees
 ```
@@ -42,7 +41,6 @@ src/
 | `dsfr-data-map-popup` | Compagnon d'affichage au clic (popup, modale, panneau) |
 | `dsfr-data-map-inset` | Encart territorial (DROM, Corse, zoom local) |
 | `dsfr-data-map-timeline` | Controles de lecture temporelle |
-| `dsfr-data-world-map` | Carte du monde choroplethe SVG — **deprecie** (→ `dsfr-data-chart type="map-monde"`) |
 
 ## Adaptateurs (`adapters/`)
 
@@ -86,5 +84,5 @@ src/
 
 ```bash
 npm run build    # Genere dist/dsfr-data.{esm,umd}.js (tout-en-un)
-                 #   + dist/dsfr-data.{core,map,world-map}.{esm,umd}.js
+                 #   + dist/dsfr-data.{core,map}.{esm,umd}.js
 ```

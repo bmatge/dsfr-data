@@ -70,8 +70,9 @@ export const PALETTE_DISPLAY_NAMES: Record<string, string> = {
 export type PaletteType = keyof typeof PALETTE_COLORS;
 
 /**
- * Echelles choroplethes 9 pas (#302) — SOURCE UNIQUE pour dsfr-data-podium,
- * dsfr-data-map-layer et dsfr-data-world-map. Les trois composants
+ * Echelles choroplethes 9 pas (#302) — SOURCE UNIQUE pour dsfr-data-podium
+ * et dsfr-data-map-layer (historiquement aussi dsfr-data-world-map, retire
+ * en #402). Les composants
  * embarquaient chacun leur copie avec des divergences reelles : categorical
  * absente de map-layer, categorical du podium differente de PALETTE_COLORS
  * (meme attribut selected-palette, couleurs differentes que chart), et

@@ -11,7 +11,6 @@
  * Mode facettes     : dsfr-data-source → dsfr-data-normalize → dsfr-data-facets → composant
  * Pagination serveur : dsfr-data-source paginate → composant
  * Server-side       : dsfr-data-source server-side → composant
- * Carte du monde    : dsfr-data-source → dsfr-data-world-map
  *
  * Sources de données :
  *  - OpenDataSoft : Fiscalite locale, Industrie du futur, RappelConso (data.economie.gouv.fr)
@@ -1406,10 +1405,6 @@ export const examples: Record<string, string> = {
 </div>`,
 
   // =====================================================================
-  // CARTE DU MONDE — dsfr-data-source → dsfr-data-world-map
-  // =====================================================================
-
-  // =====================================================================
   // CARTES DSFR CHART 2.1 — dsfr-data-chart type="map-reg|map-aca|map-monde"
   // API cartes unifiee <map-chart level> (DSFR Chart >= 2.1) — #402
   // =====================================================================
@@ -1536,61 +1531,8 @@ export const examples: Record<string, string> = {
   <div class="fr-callout fr-mt-4w">
     <p class="fr-callout__text">
       <strong>type="map-monde"</strong> : carte mondiale native via
-      <code>&lt;map-chart level="monde"&gt;</code> (DSFR Chart 2.1) — remplace
-      <code>dsfr-data-world-map</code> (deprecie). Les codes alpha-3 et numeriques
-      sont convertis automatiquement en alpha-2.
-    </p>
-  </div>
-</div>`,
-
-  'direct-worldmap': `<!--
-  Carte du monde — PIB par pays (données embarquees)
-  Mode direct : dsfr-data-source (données inline) → dsfr-data-world-map
-  Cliquer sur un pays pour zoomer sur son continent
--->
-
-<div class="fr-container fr-my-4w">
-  <h2>PIB par pays (milliards USD)</h2>
-  <p class="fr-text--sm fr-text--light">
-    Données embarquees — Source : Banque mondiale (extrait)
-  </p>
-
-  <dsfr-data-source id="data"
-    data='[
-      {"code":"US","pib":25462},{"code":"CN","pib":17963},{"code":"JP","pib":4231},
-      {"code":"DE","pib":4072},{"code":"GB","pib":3070},{"code":"IN","pib":3385},
-      {"code":"FR","pib":2783},{"code":"IT","pib":2010},{"code":"CA","pib":2139},
-      {"code":"KR","pib":1665},{"code":"BR","pib":1920},{"code":"AU","pib":1675},
-      {"code":"RU","pib":2240},{"code":"MX","pib":1293},{"code":"ES","pib":1397},
-      {"code":"ID","pib":1319},{"code":"SA","pib":1108},{"code":"NL","pib":991},
-      {"code":"TR","pib":906},{"code":"CH","pib":818},{"code":"PL","pib":688},
-      {"code":"SE","pib":586},{"code":"BE","pib":578},{"code":"NO","pib":579},
-      {"code":"AR","pib":632},{"code":"NG","pib":477},{"code":"AT","pib":471},
-      {"code":"ZA","pib":405},{"code":"TH","pib":495},{"code":"EG","pib":476},
-      {"code":"DK","pib":395},{"code":"PH","pib":404},{"code":"PK","pib":376},
-      {"code":"CL","pib":301},{"code":"CO","pib":343},{"code":"FI","pib":281},
-      {"code":"CZ","pib":290},{"code":"PT","pib":253},{"code":"NZ","pib":247},
-      {"code":"RO","pib":301},{"code":"PE","pib":242},{"code":"GR","pib":219},
-      {"code":"IQ","pib":264},{"code":"KZ","pib":220},{"code":"DZ","pib":187},
-      {"code":"HU","pib":188},{"code":"MA","pib":134},{"code":"KE","pib":113},
-      {"code":"ET","pib":126},{"code":"GH","pib":77}
-    ]'>
-  </dsfr-data-source>
-
-  <dsfr-data-world-map source="data"
-    code-field="code"
-    value-field="pib"
-    code-format="iso-a2"
-    name="PIB"
-    unit-tooltip="Mds USD"
-    selected-palette="sequentialAscending">
-  </dsfr-data-world-map>
-
-  <div class="fr-callout fr-mt-4w">
-    <p class="fr-callout__text">
-      <strong>dsfr-data-world-map</strong> (deprecie) : carte du monde choropleth avec zoom interactif
-      par continent. Preferer <code>dsfr-data-chart type="map-monde"</code> (DSFR Chart 2.1) sauf besoin
-      du zoom continent — retrait prevu a la prochaine version majeure.
+      <code>&lt;map-chart level="monde"&gt;</code> (DSFR Chart 2.1). Les codes
+      alpha-3 et numeriques sont convertis automatiquement en alpha-2.
     </p>
   </div>
 </div>`,

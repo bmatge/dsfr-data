@@ -95,19 +95,12 @@ Un graphique en barres agrégé depuis une API OpenDataSoft, en trois balises :
 | `<dsfr-data-map-inset>` | Encart territorial (DROM, Corse, zoom local) |
 | `<dsfr-data-map-timeline>` | Contrôles de lecture temporelle des couches |
 
-### Déprécié
-
-| Composant | Rôle |
-|---|---|
-| `<dsfr-data-world-map>` | Carte du monde choroplèthe SVG — **déprécié**, remplacé par `<dsfr-data-chart type="map-monde">` ; retrait prévu au prochain major |
-
 ## Bundles
 
-Quatre bundles sont publiés dans `dist/`, chacun en ESM et UMD :
+Trois bundles sont publiés dans `dist/`, chacun en ESM et UMD :
 
 - `dsfr-data.core.{esm,umd}.js` — tous les composants sauf les cartes ;
 - `dsfr-data.map.{esm,umd}.js` — la famille carto Leaflet (Leaflet chargé dynamiquement) ;
-- `dsfr-data.world-map.{esm,umd}.js` — le composant déprécié `dsfr-data-world-map` ;
 - `dsfr-data.{esm,umd}.js` — tout-en-un.
 
 ## Documentation

@@ -22,7 +22,6 @@ import {
   getColorForValue,
 } from '@dsfr-data/shared/lib';
 import { DsfrDataPodium } from '@/components/dsfr-data-podium.js';
-import { DsfrDataWorldMap } from '@/components/dsfr-data-world-map.js';
 
 describe('#302 — AC : même selected-palette = mêmes couleurs partout', () => {
   it('la categorical du podium est celle de PALETTE_COLORS (comme chart)', () => {
@@ -42,12 +41,6 @@ describe('#302 — AC : même selected-palette = mêmes couleurs partout', () =>
     });
   });
 
-  it('la world-map résout ses palettes depuis CHOROPLETH_SCALES', () => {
-    const wm = new DsfrDataWorldMap();
-    wm.selectedPalette = 'divergentAscending';
-    expect((wm as any)._getChoroplethPalette()).toBe(CHOROPLETH_SCALES.divergentAscending);
-  });
-
   it('les échelles partagées sont les 9 pas historiques de core (975 → main-525)', () => {
     expect(CHOROPLETH_SCALES.sequentialAscending).toHaveLength(9);
     expect(CHOROPLETH_SCALES.sequentialAscending[0]).toBe('#F5F5FE');
@@ -64,20 +57,6 @@ describe('#302 — AC : même valeur sur un break = même bucket (convention uni
     expect(getColorForValue(10.1, breaks, palette)).toBe('b');
     expect(getColorForValue(20, breaks, palette)).toBe('b');
     expect(getColorForValue(25, breaks, palette)).toBe('c');
-  });
-
-  it('la world-map utilise désormais la même convention que map-layer', () => {
-    const wm = new DsfrDataWorldMap();
-    wm.selectedPalette = 'sequentialAscending';
-    const values = [1, 2, 3, 4, 5, 6, 7, 8, 9];
-    const scale = (wm as any)._getColorScale(values);
-
-    const breaks = quantileBreaks(values, 9);
-    // Une valeur posée exactement sur le premier break :
-    const onBreak = breaks[0];
-    expect(scale(onBreak)).toBe(
-      getColorForValue(onBreak, breaks, CHOROPLETH_SCALES.sequentialAscending)
-    );
   });
 
   it('quantileBreaks : steps - 1 bornes, croissantes', () => {
