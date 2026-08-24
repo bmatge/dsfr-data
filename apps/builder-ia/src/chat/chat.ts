@@ -106,7 +106,8 @@ export function addThinkingMessage(): HTMLElement {
   const messageEl = document.createElement('div');
   messageEl.className = 'chat-message assistant thinking';
   messageEl.id = 'thinking-message';
-  messageEl.innerHTML = '<i class="ri-loader-4-line"></i> Reflexion en cours...';
+  messageEl.innerHTML =
+    '<div class="chat-step"><span class="chat-spinner" aria-hidden="true"></span> Réflexion en cours…</div>';
   container.appendChild(messageEl);
   container.scrollTop = container.scrollHeight;
   return messageEl;
@@ -120,14 +121,19 @@ export function renderThinkingSteps(steps: string[]): void {
   const el = document.getElementById('thinking-message');
   if (!el) return;
   if (steps.length === 0) {
-    el.innerHTML = '<i class="ri-loader-4-line"></i> Reflexion en cours...';
+    el.innerHTML =
+      '<div class="chat-step"><span class="chat-spinner" aria-hidden="true"></span> Réflexion en cours…</div>';
     return;
   }
+  // Etapes terminees : coche verte ; etape en cours : anneau anime (design
+  // Claude Design — progression lisible du raisonnement agentique).
   el.innerHTML = steps
     .map((s, i) => {
       const last = i === steps.length - 1;
-      const icon = last ? 'ri-loader-4-line' : 'ri-check-line';
-      return `<div class="chat-step"><i class="${icon}"></i> ${escapeHtml(s)}</div>`;
+      const icon = last
+        ? '<span class="chat-spinner" aria-hidden="true"></span>'
+        : '<i class="ri-check-line chat-step__check" aria-hidden="true"></i>';
+      return `<div class="chat-step">${icon} ${escapeHtml(s)}</div>`;
     })
     .join('');
   const container = document.getElementById('chat-messages');

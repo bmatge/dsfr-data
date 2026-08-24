@@ -4,16 +4,50 @@
   box-sizing: border-box;
 }
 
-body {
+/* Refonte « chat borné » (Claude Design) : l'application occupe le viewport,
+   le volet de gauche est une colonne flex bornée — la conversation scrolle en
+   interne et la saisie reste épinglée en bas. Plus de page-scroll ni de
+   footer (pattern builder-carto plein écran). */
+body.builder-ia-app {
   margin: 0;
-  /* Page-scroll : le layout partagé gère la zone de travail (panneau droit
-     sticky ~pleine page) ; la page défile pour faire sortir le header et
-     révéler le footer en bas. */
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   background: var(--background-alt-grey);
+}
+
+body.builder-ia-app > app-header {
+  flex: 0 0 auto;
+}
+
+/* Le layout partagé (app-layout-builder) passe en hauteur contrainte :
+   les deux colonnes remplissent l'espace restant et scrollent en interne.
+   Surcharges app-locales — le composant partagé reste inchangé. */
+body.builder-ia-app app-layout-builder {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+body.builder-ia-app .builder-layout-container {
+  flex: 1 1 auto;
+  min-height: 0;
+  align-items: stretch;
+}
+
+body.builder-ia-app .builder-layout-left {
+  min-height: 0;
+  overflow: hidden;
+}
+
+body.builder-ia-app .builder-layout-right {
+  position: static;
+  align-self: stretch;
+  min-height: 0;
+  max-height: none;
 }
 
 .builder-header {
@@ -34,13 +68,19 @@ body {
 /* PANNEAU GAUCHE : CONFIG + CHAT */
 /* ============================================ */
 .builder-config-panel {
-  /* Remplit la hauteur dispo, mais laisse le contenu déborder vers le scroll de
-     page (plus de clipping) : sur petit écran la colonne grandit et la page défile. */
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: visible;
+  overflow: hidden;
   min-height: 0;
+}
+
+/* Zone config (source + IA) : hauteur naturelle tant qu'elle tient, scroll
+   interne sinon — le chat garde toujours au moins sa hauteur minimale. */
+.config-zone {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .config-section {
@@ -140,22 +180,49 @@ body {
 /* ZONE CHAT */
 /* ============================================ */
 .chat-container {
-  flex: 1;
+  flex: 1 1 0;
   display: flex;
   flex-direction: column;
-  overflow: visible;
-  min-height: 0;
+  overflow: hidden;
+  min-height: 240px;
+  background: var(--background-default-grey);
 }
 
 .chat-header {
-  padding: 0.75rem 1rem;
-  background: var(--background-contrast-info);
+  padding: 0.625rem 1rem;
+  background: var(--background-alt-blue-france, #f5f5fe);
   border-bottom: 1px solid var(--border-default-grey);
-  font-size: 0.85rem;
-  font-weight: 600;
+  font-size: 0.875rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.chat-header__title {
+  font-weight: 700;
+  color: var(--text-action-high-blue-france);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.chat-header__clear {
+  margin-left: auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--text-action-high-blue-france);
+  font-size: 0.75rem;
+  font-family: inherit;
+}
+
+.chat-header__clear:hover {
+  background: var(--background-alt-blue-france-hover, #ececfe);
 }
 
 .chat-messages {
@@ -181,20 +248,24 @@ body {
 
 .chat-message.user {
   align-self: flex-end;
+  max-width: 85%;
   background: var(--background-action-high-blue-france);
-  color: white;
-  border-bottom-right-radius: 4px;
+  color: var(--text-inverted-blue-france, #f5f5fe);
+  border-radius: 12px 12px 2px 12px;
 }
 
 .chat-message.assistant {
   align-self: flex-start;
-  background: var(--background-contrast-grey);
-  border-bottom-left-radius: 4px;
+  max-width: 88%;
+  background: var(--background-alt-grey, #f6f6f6);
+  border-radius: 12px 12px 12px 2px;
 }
 
+/* Indicateur de reflexion : liste d'etapes (spinner → coche), plus d'italique */
 .chat-message.assistant.thinking {
-  opacity: 0.7;
-  font-style: italic;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
 }
 
 .chat-message pre {
@@ -261,10 +332,33 @@ body {
 .chat-step {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.5rem;
   font-size: 0.8rem;
   color: var(--text-mention-grey);
   padding: 0.1rem 0;
+}
+
+.chat-step__check {
+  color: var(--text-default-success, #18753c);
+  flex-shrink: 0;
+}
+
+/* Anneau de chargement (etape en cours / reflexion) */
+.chat-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--background-contrast-blue-france, #cacafb);
+  border-top-color: var(--border-action-high-blue-france, #000091);
+  border-radius: 50%;
+  animation: chat-spin 0.8s linear infinite;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+@keyframes chat-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Raisonnement agentique persistant, replie sous la reponse finale */
@@ -304,46 +398,57 @@ body {
   align-items: flex-end;
 }
 
+/* Champ de saisie au look DSFR (fond contraste + soulignement bleu) */
 .chat-input {
   flex: 1;
-  border: 1px solid var(--border-default-grey);
-  border-radius: 12px;
-  padding: 0.75rem 1rem;
-  font-size: 0.9rem;
+  border: none;
+  border-radius: 0.25rem 0.25rem 0 0;
+  background: var(--background-contrast-grey, #eee);
+  box-shadow: inset 0 -2px 0 0 var(--border-action-high-blue-france, #000091);
+  padding: 0.625rem 0.75rem;
+  font-size: 0.875rem;
   resize: none;
-  min-height: 60px;
-  max-height: 150px;
+  min-height: 40px;
+  max-height: 140px;
   font-family: inherit;
   line-height: 1.4;
+  color: var(--text-default-grey);
 }
 
 .chat-input:focus {
-  outline: none;
-  border-color: var(--border-action-high-blue-france);
+  outline: 2px solid var(--border-active-blue-france, #0a76f6);
+  outline-offset: 2px;
 }
 
 .chat-send-btn {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  border-radius: 0;
   background: var(--background-action-high-blue-france);
-  color: white;
+  color: var(--text-inverted-blue-france, #f5f5fe);
   border: none;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   flex-shrink: 0;
 }
 
 .chat-send-btn:hover {
-  opacity: 0.9;
+  background: var(--background-action-high-blue-france-hover, #1212ff);
 }
 
 .chat-send-btn:disabled {
-  opacity: 0.5;
+  background: var(--background-disabled-grey, #e5e5e5);
+  color: var(--text-disabled-grey, #929292);
   cursor: not-allowed;
+}
+
+.chat-input-hint {
+  margin: 0.375rem 0 0;
+  font-size: 0.6875rem;
+  color: var(--text-mention-grey);
 }
 
 /* ============================================ */
@@ -351,6 +456,41 @@ body {
 /* ============================================ */
 
 /* Styles spécifiques - les styles communs sont dans app-preview-panel */
+
+/* Etat vide de l'aperçu : mini-graphique en barres bleu France */
+.empty-state__bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 56px;
+  justify-content: center;
+  margin-bottom: 0.75rem;
+}
+
+.empty-state__bars span {
+  width: 14px;
+  display: block;
+}
+
+.empty-state__bars span:nth-child(1) {
+  height: 24px;
+  background: var(--background-contrast-blue-france, #cacafb);
+}
+
+.empty-state__bars span:nth-child(2) {
+  height: 44px;
+  background: #6a6af4;
+}
+
+.empty-state__bars span:nth-child(3) {
+  height: 32px;
+  background: var(--background-action-high-blue-france, #000091);
+}
+
+.empty-state__bars span:nth-child(4) {
+  height: 52px;
+  background: #a1a1f8;
+}
 
 .field-tag.numeric {
   background: var(--background-contrast-success);
@@ -443,7 +583,28 @@ body {
   background: #9333ea;
   color: white;
 }
-/* Le resizer et responsive sont geres par app-layout-builder */
+/* Le resizer et responsive sont geres par app-layout-builder.
+   En empile (<900px), le plein-ecran borne n'a pas de sens : on rend le
+   scroll a la page et on borne seulement la conversation. */
+@media (max-width: 900px) {
+  body.builder-ia-app {
+    height: auto;
+    min-height: 100dvh;
+    overflow: auto;
+  }
+
+  body.builder-ia-app .builder-layout-left {
+    overflow: visible;
+  }
+
+  .builder-config-panel {
+    overflow: visible;
+  }
+
+  .chat-messages {
+    max-height: 60dvh;
+  }
+}
 
 /* Sections collapsibles */
 .config-section-header {
