@@ -3,8 +3,7 @@
  *
  *   dsfr-data.esm.js / .umd.js       — full bundle (all components)
  *   dsfr-data.core.esm.js / .umd.js   — core bundle (no Leaflet)
- *
- * Also copies the TopoJSON asset to dist/data/.
+ *   dsfr-data.map.esm.js / .umd.js    — map add-on (Leaflet family)
  */
 import { build } from 'vite';
 import { resolve, dirname } from 'path';

@@ -23,13 +23,13 @@ export default defineConfig({
       fileName: (format) => `dsfr-data.${format === 'es' ? 'esm' : format}.js`,
       formats: ['es', 'umd'],
     },
-    // Prevent Vite from inlining the TopoJSON as base64 (105 KB)
+    // Ne jamais inliner les assets en base64
     assetsInlineLimit: 0,
     rollupOptions: {
       external: [],
       output: {
         globals: {},
-        // Keep the TopoJSON asset with a predictable name
+        // Nom d'asset previsible (sans hash)
         assetFileNames: 'assets/[name][extname]',
       },
     },
