@@ -33,6 +33,13 @@ import { initHelpTooltips, updatePreviewSteps } from './ui/help-tooltips.js';
 import { applyAggregationDefault, updateAggregationBadge } from './ui/aggregation-smart.js';
 import { startTourIfFirstVisit, injectTourStyles, resetTour, startTour } from '@dsfr-data/shared';
 import { BUILDER_TOUR } from './ui/tour.js';
+import { initFilterBuilder, refreshFilterBuilder } from './ui/filter-builder.js';
+import {
+  initSmartGuards,
+  markGenerated,
+  updateCardinalityGuard,
+  updateDirtyStatus,
+} from './ui/smart-guard.js';
 
 // Expose functions called from inline onclick in HTML
 (window as Window & { toggleSection?: typeof toggleSection }).toggleSection = toggleSection;
@@ -120,11 +127,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       // in most paths but may be async for server-side aggregations.
       updatePreviewSteps();
       syncFavoriteIcon();
+      // Statut « Graphique à jour » (refonte v2)
+      markGenerated();
     });
   }
 
   const copyCodeBtn = document.getElementById('copy-code-btn');
   if (copyCodeBtn) copyCodeBtn.addEventListener('click', copyCode);
+  document.getElementById('footer-copy-btn')?.addEventListener('click', copyCode);
 
   // Label field label input
   const labelFieldLabelInput = document.getElementById(
@@ -275,23 +285,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // Advanced mode toggle
-  const advancedToggle = document.getElementById('advanced-mode-toggle') as HTMLInputElement | null;
-  if (advancedToggle) {
-    advancedToggle.addEventListener('change', (e) => {
-      state.advancedMode = (e.target as HTMLInputElement).checked;
-      const queryOptions = document.getElementById('advanced-query-options') as HTMLElement | null;
-      if (queryOptions) {
-        queryOptions.style.display = (e.target as HTMLInputElement).checked ? 'block' : 'none';
-      }
-    });
-  }
-
-  // Advanced query inputs
+  // Refonte v2 : plus de toggle « mode avancé » — advancedMode est déduit du
+  // contenu (filtres / group-by / agrégats) par le builder de filtres.
   const queryFilterInput = document.getElementById('query-filter') as HTMLInputElement | null;
   if (queryFilterInput) {
     queryFilterInput.addEventListener('input', (e) => {
       state.queryFilter = (e.target as HTMLInputElement).value;
+      state.advancedMode = !!(state.queryFilter || state.queryGroupBy || state.queryAggregate);
     });
   }
 
@@ -299,6 +299,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (queryGroupByInput) {
     queryGroupByInput.addEventListener('input', (e) => {
       state.queryGroupBy = (e.target as HTMLInputElement).value;
+      state.advancedMode = !!(state.queryFilter || state.queryGroupBy || state.queryAggregate);
     });
   }
 
@@ -306,6 +307,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (queryAggregateInput) {
     queryAggregateInput.addEventListener('input', (e) => {
       state.queryAggregate = (e.target as HTMLInputElement).value;
+      state.advancedMode = !!(state.queryFilter || state.queryGroupBy || state.queryAggregate);
     });
   }
 
@@ -335,8 +337,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     previewPanel.addEventListener('open-playground', openInPlayground);
   }
 
+  // Builder de filtres visuel + garde-fous (refonte v2)
+  initFilterBuilder();
+  initSmartGuards();
+
   // Load a favorite if coming from the favorites page
   loadFavoriteState();
+
+  // La restauration d'un favori remplit #query-filter et l'état : resynchroniser
+  // le builder visuel et les indicateurs (léger différé : loadFavoriteState
+  // peuple certains champs dans un setTimeout).
+  setTimeout(() => {
+    refreshFilterBuilder();
+    updateCardinalityGuard();
+    updateDirtyStatus();
+  }, 250);
 
   // Initialize help tooltips
   initHelpTooltips();

@@ -5,6 +5,21 @@
 
 import { state } from './state.js';
 import { updateMapCodeFieldWarning } from './ui/ui-helpers.js';
+import { fieldCardinality } from './ui/smart-guard.js';
+
+/**
+ * Libellé enrichi d'un champ : « nom (type · N valeurs) » (refonte v2).
+ * La cardinalité est calculée sur l'échantillon chargé ; on ne l'affiche que
+ * pour les champs texte (c'est là qu'elle guide le choix de l'axe X).
+ */
+function fieldDisplayText(field: { name: string; displayName?: string; type: string }): string {
+  const base = field.displayName || field.name;
+  if (field.type === 'string') {
+    const n = fieldCardinality(field.name);
+    if (n > 0) return `${base} (texte · ${n.toLocaleString('fr-FR')} valeur${n > 1 ? 's' : ''})`;
+  }
+  return `${base} (${field.type})`;
+}
 
 /**
  * Populate label/value/code field dropdowns from state.fields.
@@ -24,9 +39,7 @@ export function populateFieldSelects(): void {
   if (sortFieldSelect) sortFieldSelect.innerHTML = '<option value="">Auto (valeur)</option>';
 
   state.fields.forEach((field) => {
-    const displayText = field.displayName
-      ? `${field.displayName} (${field.type})`
-      : `${field.name} (${field.type})`;
+    const displayText = fieldDisplayText(field);
 
     const optionLabel = document.createElement('option');
     optionLabel.value = field.name;
@@ -110,6 +123,15 @@ export function populateFieldSelects(): void {
 
   // Re-evaluate the "no INSEE codes" warning now that the field list changed.
   updateMapCodeFieldWarning();
+
+  // Refonte v2 : une source vient d'être chargée — déplier les étapes
+  // suivantes (Type + Données) pour enchaîner sans clic supplémentaire.
+  document.getElementById('section-type')?.classList.remove('collapsed');
+  document.getElementById('section-data')?.classList.remove('collapsed');
+
+  // Refonte v2 : les consommateurs de la liste de champs (builder de filtres…)
+  // se resynchronisent sur cet évènement.
+  document.dispatchEvent(new CustomEvent('builder:fields-updated'));
 }
 
 /**
@@ -118,10 +140,7 @@ export function populateFieldSelects(): void {
 export function buildSeriesFieldOptions(): string {
   let html = '<option value="">\u2014 S\u00e9lectionner \u2014</option>';
   state.fields.forEach((field) => {
-    const displayText = field.displayName
-      ? `${field.displayName} (${field.type})`
-      : `${field.name} (${field.type})`;
-    html += `<option value="${field.name}">${displayText}</option>`;
+    html += `<option value="${field.name}">${fieldDisplayText(field)}</option>`;
   });
   return html;
 }

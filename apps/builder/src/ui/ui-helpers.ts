@@ -237,7 +237,13 @@ export function copyCode(): void {
   const codeEl = document.getElementById('generated-code');
   const code = codeEl?.textContent || '';
 
-  navigator.clipboard.writeText(code).then(() => {
+  const copied = navigator.clipboard.writeText(code);
+  copied.catch(() => {
+    toastSuccess(
+      'Copie refusée par le navigateur — sélectionnez le code dans l’onglet « Code généré ».'
+    );
+  });
+  copied.then(() => {
     toastSuccess('Code copie dans le presse-papiers');
     const btn = document.getElementById('copy-code-btn');
     if (btn) {
