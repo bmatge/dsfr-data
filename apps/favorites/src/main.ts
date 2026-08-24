@@ -87,50 +87,79 @@ function importFavorites(): void {
   input.click();
 }
 
-function renderSidebar(): void {
+/**
+ * Vignette SVG par type de graphique (refonte v2 — Claude Design).
+ * Illustration légère : le rendu réel (iframe) vit dans le panneau d'aperçu.
+ */
+function thumbSvg(chartType: string | undefined): string {
+  const t = (chartType || 'bar').toLowerCase();
+  if (t.includes('line') || t === 'courbe') {
+    return `<svg viewBox="0 0 200 110" aria-hidden="true"><polyline points="12,85 45,60 78,70 111,38 144,48 177,20" fill="none" stroke="#000091" stroke-width="2.5"></polyline><polyline points="12,95 45,88 78,80 111,72 144,78 177,58" fill="none" stroke="#e1000f" stroke-width="2"></polyline><line x1="10" y1="100" x2="195" y2="100" stroke="#ccc"></line></svg>`;
+  }
+  if (t.includes('pie') || t.includes('donut') || t.includes('doughnut') || t.includes('gauge')) {
+    return `<svg viewBox="0 0 200 110" aria-hidden="true"><circle cx="100" cy="55" r="38" fill="none" stroke="#e3e3fd" stroke-width="16"></circle><circle cx="100" cy="55" r="38" fill="none" stroke="#000091" stroke-width="16" stroke-dasharray="120 240" transform="rotate(-90 100 55)"></circle><circle cx="100" cy="55" r="38" fill="none" stroke="#e1000f" stroke-width="16" stroke-dasharray="50 310" stroke-dashoffset="-120" transform="rotate(-90 100 55)"></circle></svg>`;
+  }
+  if (t.includes('map') || t.includes('carte')) {
+    return `<svg viewBox="0 0 200 110" aria-hidden="true"><g><rect x="55" y="8" width="22" height="22" fill="#cacafb"></rect><rect x="79" y="8" width="22" height="22" fill="#8585f6"></rect><rect x="103" y="8" width="22" height="22" fill="#cacafb"></rect><rect x="43" y="32" width="22" height="22" fill="#8585f6"></rect><rect x="67" y="32" width="22" height="22" fill="#000091"></rect><rect x="91" y="32" width="22" height="22" fill="#cacafb"></rect><rect x="115" y="32" width="22" height="22" fill="#6a6af4"></rect><rect x="55" y="56" width="22" height="22" fill="#6a6af4"></rect><rect x="79" y="56" width="22" height="22" fill="#cacafb"></rect><rect x="103" y="56" width="22" height="22" fill="#8585f6"></rect><rect x="67" y="80" width="22" height="22" fill="#cacafb"></rect><rect x="91" y="80" width="22" height="22" fill="#000091"></rect><rect x="140" y="80" width="14" height="14" fill="#8585f6"></rect></g></svg>`;
+  }
+  if (t.includes('datalist') || t.includes('table') || t.includes('list')) {
+    return `<svg viewBox="0 0 200 110" aria-hidden="true"><rect x="20" y="14" width="160" height="16" fill="#e3e3fd"></rect><rect x="20" y="36" width="160" height="12" fill="#f6f6f6" stroke="#ddd"></rect><rect x="20" y="52" width="160" height="12" fill="#fff" stroke="#ddd"></rect><rect x="20" y="68" width="160" height="12" fill="#f6f6f6" stroke="#ddd"></rect><rect x="20" y="84" width="160" height="12" fill="#fff" stroke="#ddd"></rect></svg>`;
+  }
+  if (t.includes('kpi')) {
+    return `<svg viewBox="0 0 200 110" aria-hidden="true"><rect x="30" y="20" width="6" height="70" fill="#0063cb"></rect><text x="48" y="62" font-size="34" font-weight="700" fill="#161616" font-family="Marianne, sans-serif">42 %</text><text x="48" y="82" font-size="11" fill="#666" font-family="Marianne, sans-serif">indicateur clé</text></svg>`;
+  }
+  return `<svg viewBox="0 0 200 110" aria-hidden="true"><rect x="18" y="55" width="20" height="45" fill="#000091"></rect><rect x="48" y="30" width="20" height="70" fill="#6a6af4"></rect><rect x="78" y="62" width="20" height="38" fill="#000091"></rect><rect x="108" y="18" width="20" height="82" fill="#6a6af4"></rect><rect x="138" y="44" width="20" height="56" fill="#000091"></rect><rect x="168" y="70" width="20" height="30" fill="#6a6af4"></rect><line x1="10" y1="100" x2="195" y2="100" stroke="#ccc"></line></svg>`;
+}
+
+/** Grille de vignettes (remplace la sidebar v1). */
+function renderGrid(): void {
   const listEl = document.getElementById('favorites-list');
   const countEl = document.getElementById('favorites-count');
+  const emptySearchEl = document.getElementById('fav-empty-search');
   if (!listEl || !countEl) return;
 
   countEl.textContent = String(favorites.length);
 
   if (favorites.length === 0) {
     listEl.innerHTML = `
-      <div class="empty-sidebar">
-        <i class="ri-star-line"></i>
-        <p>Aucun favori enregistre</p>
-        <p class="fr-text--sm">Creez un graphique dans le Builder ou Playground, puis sauvegardez-le en favori.</p>
-        <a href="${appHref('builder')}" class="fr-btn fr-btn--sm fr-btn--secondary fr-mt-1w"><i class="ri-bar-chart-box-line"></i> Ouvrir le Builder</a>
+      <div class="favs-empty">
+        <i class="ri-star-line" aria-hidden="true"></i>
+        <p><strong>Aucun favori enregistré</strong></p>
+        <p class="fr-text--sm">Créez un graphique dans le Builder ou le Playground, puis sauvegardez-le en favori.</p>
+        <a href="${appHref('builder')}" class="fr-btn fr-btn--sm fr-btn--secondary fr-mt-1w"><i class="ri-bar-chart-box-line" aria-hidden="true"></i> Ouvrir le Builder</a>
       </div>
     `;
+    if (emptySearchEl) emptySearchEl.style.display = 'none';
     return;
   }
 
   const sorted = sortFavorites(favorites, currentSort);
-
   const searchTerm =
     (document.getElementById('fav-search') as HTMLInputElement | null)?.value?.toLowerCase() || '';
   const filtered = searchTerm
     ? sorted.filter((fav) => fav.name.toLowerCase().includes(searchTerm))
     : sorted;
 
+  if (emptySearchEl) {
+    emptySearchEl.style.display = filtered.length === 0 ? '' : 'none';
+    emptySearchEl.textContent = `Aucun favori ne correspond à « ${searchTerm} ».`;
+  }
+
   listEl.innerHTML = filtered
     .map(
       (fav) => `
-    <div class="favorite-item ${selectedId === fav.id ? 'active' : ''}"
-         data-id="${fav.id}"
-         onclick="selectFavorite('${fav.id}')">
-      <div class="favorite-item-name" style="display: flex; align-items: center; gap: 0.25rem;">
-        <span id="fav-name-${fav.id}" style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(fav.name)}</span>
-        <button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline" style="padding: 0; min-height: 0; width: 1.5rem; height: 1.5rem; flex-shrink: 0;"
-                onclick="event.stopPropagation(); renameFavorite('${fav.id}')" title="Renommer">
-          <i class="ri-pencil-line" aria-hidden="true" style="font-size: 0.875rem;"></i>
-        </button>
-      </div>
-      <div class="favorite-item-meta">
-        <span class="favorite-item-type">${fav.chartType || 'chart'}</span>
-        <span>${formatDateShort(fav.createdAt)}</span>
-        <span>${fav.sourceApp || fav.source || 'builder'}</span>
+    <div class="fav-card ${selectedId === fav.id ? 'fav-card--active' : ''}"
+         data-id="${fav.id}" role="button" tabindex="0"
+         onclick="selectFavorite('${fav.id}')"
+         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectFavorite('${fav.id}')}">
+      <div class="fav-card__thumb">${thumbSvg(fav.chartType)}</div>
+      <div class="fav-card__body">
+        <span class="fav-card__name">${escapeHtml(fav.name)}</span>
+        <div class="fav-card__meta">
+          <span class="fav-card__tag">${escapeHtml(fav.chartType || 'chart')}</span>
+          <span class="fav-card__tag">${escapeHtml(fav.sourceApp || fav.source || 'builder')}</span>
+          <span class="fav-card__date">${formatDateShort(fav.createdAt)}</span>
+        </div>
       </div>
     </div>
   `
@@ -138,82 +167,44 @@ function renderSidebar(): void {
     .join('');
 }
 
-function renderContent(): void {
-  const contentEl = document.getElementById('main-content');
-  if (!contentEl) return;
+/** Panneau latéral d'aperçu (remplace la zone de contenu v1). */
+function renderPanel(): void {
+  const panel = document.getElementById('fav-panel');
+  if (!panel) return;
 
   if (!selectedId) {
-    contentEl.innerHTML = `
-      <div class="empty-content">
-        <i class="ri-bar-chart-box-line"></i>
-        <h2>Sélectionnez un favori</h2>
-        <p>Choisissez un favori dans la liste de gauche pour voir son aperçu et son code.</p>
-        ${
-          favorites.length === 0
-            ? `
-          <a href="${appHref('builder')}" class="fr-btn fr-btn--icon-left fr-icon-add-line">
-            Créer un graphique
-          </a>
-        `
-            : ''
-        }
-      </div>
-    `;
+    panel.setAttribute('hidden', '');
     return;
   }
 
   const fav = findFavorite(favorites, selectedId);
   if (!fav) {
     selectedId = null;
-    renderContent();
+    panel.setAttribute('hidden', '');
     return;
   }
 
-  contentEl.innerHTML = `
-    <div class="content-header">
-      <h1>
-        <i class="ri-star-fill" style="color: var(--text-action-high-blue-france);" aria-hidden="true"></i>
-        ${escapeHtml(fav.name)}
-      </h1>
-      <div class="content-actions">
-        <button class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-code-s-slash-line"
-                onclick="openInPlayground('${fav.id}')">
-          Playground
-        </button>
-        <button class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-tools-line"
-                onclick="openInBuilder('${fav.id}')">
-          Builder
-        </button>
-        <button class="fr-btn fr-btn--sm fr-btn--icon-left fr-icon-clipboard-line"
-                onclick="copyCode('${fav.id}')">
-          Copier le code
-        </button>
-        <button class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-share-line"
-                onclick="shareFavorite('${fav.id}')"
-                title="Partager publiquement (lien anonyme)">
-          Partager
-        </button>
-        <button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-icon-delete-line"
-                onclick="showDeleteModal('${fav.id}')"
-                title="Supprimer">
-        </button>
-      </div>
-    </div>
-    <div class="content-body">
-      <div class="preview-section">
-        <iframe id="preview-frame" class="preview-frame" sandbox="allow-scripts allow-same-origin"></iframe>
-      </div>
-      <div class="code-section">
-        <div class="code-header">
-          <span>Code HTML/JS</span>
-          <span class="fr-text--sm">${fav.sourceApp || fav.source || 'builder'} - ${formatDateShort(fav.createdAt)}</span>
-        </div>
-        <pre id="code-display">${escapeHtml(fav.code)}</pre>
-      </div>
-    </div>
-  `;
+  panel.removeAttribute('hidden');
 
-  // Load preview in iframe
+  const nameEl = document.getElementById('fav-panel-name');
+  if (nameEl) {
+    nameEl.textContent = fav.name;
+    nameEl.id = 'fav-panel-name';
+  }
+  const tagsEl = document.getElementById('fav-panel-tags');
+  if (tagsEl) {
+    tagsEl.innerHTML = `
+      <span class="fav-card__tag">${escapeHtml(fav.chartType || 'chart')}</span>
+      <span class="fav-card__tag">${escapeHtml(fav.sourceApp || fav.source || 'builder')}</span>`;
+  }
+  const metaEl = document.getElementById('fav-panel-meta');
+  if (metaEl) {
+    metaEl.textContent = `${fav.sourceApp || fav.source || 'builder'} · Enregistré le ${formatDateShort(fav.createdAt)}`;
+  }
+  const codeEl = document.getElementById('code-display');
+  if (codeEl) codeEl.textContent = fav.code;
+
+  // Rendu réel du favori dans l'iframe (conservé de la v1).
   setTimeout(() => {
     const iframe = document.getElementById('preview-frame') as HTMLIFrameElement | null;
     if (iframe) {
@@ -222,10 +213,16 @@ function renderContent(): void {
   }, 50);
 }
 
+function closePanel(): void {
+  selectedId = null;
+  renderGrid();
+  renderPanel();
+}
+
 function selectFavorite(id: string): void {
   selectedId = id;
-  renderSidebar();
-  renderContent();
+  renderGrid();
+  renderPanel();
 }
 
 function openInPlayground(id: string): void {
@@ -255,10 +252,10 @@ function copyCode(id: string): void {
   const fav = findFavorite(favorites, id);
   if (fav) {
     navigator.clipboard.writeText(fav.code).then(() => {
-      const btn = document.querySelector(`[onclick="copyCode('${id}')"]`);
+      const btn = document.getElementById('fav-panel-copy-btn');
       if (btn) {
         const originalText = btn.innerHTML;
-        btn.innerHTML = '<i class="ri-check-line" aria-hidden="true"></i> Copie !';
+        btn.innerHTML = '<i class="ri-check-line" aria-hidden="true"></i> Copié !';
         setTimeout(() => {
           btn.innerHTML = originalText;
         }, 2000);
@@ -271,7 +268,8 @@ function renameFavorite(id: string): void {
   const fav = findFavorite(favorites, id);
   if (!fav) return;
 
-  const nameSpan = document.getElementById(`fav-name-${id}`);
+  // v2 : le renommage se fait depuis l'en-tête du panneau d'aperçu.
+  const nameSpan = document.getElementById('fav-panel-name');
   if (!nameSpan) return;
 
   const input = document.createElement('input');
@@ -280,17 +278,21 @@ function renameFavorite(id: string): void {
   input.value = fav.name;
   input.style.cssText = 'padding: 0.125rem 0.25rem; height: 1.5rem; font-size: 0.875rem;';
 
+  // renderPanel() ne reconstruit pas le DOM du panneau : il faut restaurer
+  // le span (avec son id) avant de re-rendre, sinon le nom disparaît.
+  const restoreSpan = () => {
+    input.replaceWith(nameSpan);
+  };
+
   const commitRename = () => {
     const newName = input.value.trim();
     if (newName && newName !== fav.name) {
       fav.name = newName;
       saveFavorites(favorites);
-      renderSidebar();
-      renderContent();
-    } else {
-      // Revert: just re-render
-      renderSidebar();
     }
+    restoreSpan();
+    renderGrid();
+    renderPanel();
   };
 
   input.addEventListener('blur', commitRename);
@@ -300,7 +302,8 @@ function renameFavorite(id: string): void {
       input.blur();
     } else if (e.key === 'Escape') {
       input.removeEventListener('blur', commitRename);
-      renderSidebar();
+      restoreSpan();
+      renderPanel();
     }
   });
 
@@ -337,13 +340,14 @@ function confirmDelete(): void {
     saveFavorites(favorites);
     getApiAdapter()?.deleteItemFromServer(STORAGE_KEYS.FAVORITES, deleteTargetId);
 
+    // v2 : la suppression du favori affiché ferme le panneau.
     if (selectedId === deleteTargetId) {
-      selectedId = favorites.length > 0 ? favorites[0].id : null;
+      selectedId = null;
     }
 
     handleCloseDeleteModal();
-    renderSidebar();
-    renderContent();
+    renderGrid();
+    renderPanel();
   }
 }
 
@@ -353,22 +357,45 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Reload favorites from (now-updated) localStorage
   favorites = loadFavorites();
 
-  if (favorites.length > 0) {
-    selectedId = favorites[0].id;
-  }
-
-  renderSidebar();
-  renderContent();
+  renderGrid();
+  renderPanel();
 
   const deleteBtn = document.getElementById('confirm-delete-btn');
   if (deleteBtn) deleteBtn.addEventListener('click', confirmDelete);
+
+  // Panneau d'aperçu : actions et fermeture
+  document.getElementById('fav-panel-close-btn')?.addEventListener('click', closePanel);
+  document.getElementById('fav-panel-copy-btn')?.addEventListener('click', () => {
+    if (selectedId) copyCode(selectedId);
+  });
+  document.getElementById('fav-panel-builder-btn')?.addEventListener('click', () => {
+    if (selectedId) openInBuilder(selectedId);
+  });
+  document.getElementById('fav-panel-playground-btn')?.addEventListener('click', () => {
+    if (selectedId) openInPlayground(selectedId);
+  });
+  document.getElementById('fav-panel-share-btn')?.addEventListener('click', () => {
+    if (selectedId) shareFavorite(selectedId);
+  });
+  document.getElementById('fav-panel-delete-btn')?.addEventListener('click', () => {
+    if (selectedId) showDeleteModal(selectedId);
+  });
+  document.getElementById('fav-panel-rename-btn')?.addEventListener('click', () => {
+    if (selectedId) renameFavorite(selectedId);
+  });
+  document.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.key === 'Escape' && selectedId) {
+      const modalOpen = document.querySelector('.modal-overlay.active');
+      if (!modalOpen) closePanel();
+    }
+  });
 
   // Sort dropdown
   const sortSelect = document.getElementById('fav-sort') as HTMLSelectElement | null;
   if (sortSelect) {
     sortSelect.addEventListener('change', () => {
       currentSort = sortSelect.value;
-      renderSidebar();
+      renderGrid();
     });
   }
 
@@ -376,7 +403,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const searchInput = document.getElementById('fav-search') as HTMLInputElement | null;
   if (searchInput) {
     searchInput.addEventListener('input', () => {
-      renderSidebar();
+      renderGrid();
     });
   }
 

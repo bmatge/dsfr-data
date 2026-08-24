@@ -29,41 +29,66 @@
   <!-- Header -->
   <app-header current-page="favoris" base-path="../.."></app-header>
 
-  <div class="favorites-layout">
-    <!-- Sidebar avec liste des favoris -->
-    <aside class="favorites-sidebar">
-      <div class="sidebar-header">
-        <h2>
-          <i class="ri-star-fill" aria-hidden="true"></i>
-          Mes favoris
-          <span class="favorites-count" id="favorites-count">0</span>
-        </h2>
-      </div>
-      <div class="sidebar-controls fr-px-1w fr-mb-1w">
-        <select id="fav-sort" class="fr-select fr-select--sm fr-mb-1w" aria-label="Trier les favoris">
-          <option value="date-desc">Plus recents</option>
+  <!-- Refonte « Favoris v2 » (Claude Design) : grille de vignettes + panneau
+       latéral d'aperçu. Les ids historiques (#favorites-count, #fav-sort,
+       #fav-search, #export-btn, #import-btn, #favorites-list, #preview-frame,
+       #code-display) sont conservés pour la logique existante. -->
+  <main id="main-content" class="favs-page">
+    <div class="favs-page__head">
+      <h1>Mes favoris <span class="favorites-count" id="favorites-count">0</span></h1>
+      <div class="favs-page__actions">
+        <input type="text" class="favs-search" placeholder="Rechercher…" id="fav-search" aria-label="Rechercher un favori">
+        <select id="fav-sort" class="fr-select fr-select--sm favs-sort" aria-label="Trier les favoris">
+          <option value="date-desc">Plus récents</option>
           <option value="date-asc">Plus anciens</option>
-          <option value="name-asc">Nom (A-Z)</option>
+          <option value="name-asc">A → Z</option>
           <option value="type">Par type</option>
         </select>
-        <div class="fr-btns-group fr-btns-group--sm fr-btns-group--inline">
-          <button class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-download-line" id="export-btn">Exporter</button>
-          <button class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-upload-line" id="import-btn">Importer</button>
-        </div>
+        <button class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-download-line" id="export-btn">Exporter</button>
+        <button class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-upload-line" id="import-btn">Importer</button>
       </div>
-      <div class="fr-px-1w fr-mb-1w">
-        <input type="text" class="fr-input fr-input--sm" placeholder="Rechercher..." id="fav-search">
-      </div>
-      <div class="favorites-list" id="favorites-list">
-        <!-- Dynamic list -->
-      </div>
-    </aside>
+    </div>
+    <p class="favs-page__intro">
+      Vos visualisations enregistrées. Cliquez sur une vignette pour l'aperçu détaillé
+      et les actions (Builder, Playground, code d'intégration, partage).
+    </p>
+    <div class="favs-grid" id="favorites-list">
+      <!-- Vignettes chargées dynamiquement -->
+    </div>
+    <p class="favs-empty-search" id="fav-empty-search" style="display:none;"></p>
+  </main>
 
-    <!-- Main content -->
-    <main class="favorites-content" id="main-content">
-      <!-- Dynamic content -->
-    </main>
-  </div>
+  <!-- Panneau latéral : aperçu détaillé d'un favori -->
+  <aside class="fav-panel" id="fav-panel" hidden aria-label="Aperçu du favori" role="dialog" aria-modal="false">
+    <div class="fav-panel__header">
+      <i class="ri-star-fill fav-panel__star" aria-hidden="true"></i>
+      <span class="fav-panel__name" id="fav-panel-name"></span>
+      <span id="fav-panel-tags"></span>
+      <button class="fav-panel__rename" id="fav-panel-rename-btn" type="button" title="Renommer">
+        <i class="ri-pencil-line" aria-hidden="true"></i>
+      </button>
+      <button class="fav-panel__close" id="fav-panel-close-btn" type="button" title="Fermer l'aperçu">
+        Fermer <i class="ri-close-line" aria-hidden="true"></i>
+      </button>
+    </div>
+    <div class="fav-panel__body">
+      <iframe id="preview-frame" class="fav-panel__frame" sandbox="allow-scripts allow-same-origin" title="Aperçu du favori"></iframe>
+      <p class="fav-panel__meta" id="fav-panel-meta"></p>
+      <details class="fav-panel__code">
+        <summary>Code HTML/JS</summary>
+        <pre id="code-display"></pre>
+      </details>
+    </div>
+    <div class="fav-panel__footer">
+      <button class="fr-btn fr-btn--sm fr-btn--icon-left fr-icon-clipboard-line" id="fav-panel-copy-btn">Copier le code</button>
+      <button class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-tools-line" id="fav-panel-builder-btn">Builder</button>
+      <button class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-code-s-slash-line" id="fav-panel-playground-btn">Playground</button>
+      <button class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-share-line" id="fav-panel-share-btn" title="Partager publiquement (lien anonyme)">Partager</button>
+      <button class="fav-panel__delete" id="fav-panel-delete-btn" type="button" title="Supprimer ce favori">
+        <i class="ri-delete-bin-line" aria-hidden="true"></i>
+      </button>
+    </div>
+  </aside>
 
   <!-- Share public link modal -->
   <div class="modal-overlay" id="share-modal">
