@@ -22,7 +22,7 @@
   <script type="module" src="../../packages/core/dist/dsfr-data.esm.js"></script>
   <script type="module" src="../../packages/app-ui/dist/app-ui.esm.js"></script>
 </head>
-<body>
+<body class="builder-ia-app">
   <!-- Header -->
   <app-header current-page="builder-ia" base-path="../../"></app-header>
 
@@ -32,7 +32,9 @@
     <!-- ============================================ -->
     <aside slot="left" class="builder-config-panel">
 
-      <!-- Source de données + Config IA -->
+      <!-- Zone config (scrolle en interne, le chat garde sa place) -->
+      <div class="config-zone">
+
       <div class="config-section" id="section-source">
         <div class="config-section-header" onclick="toggleSection('section-source')">
           <h3><i class="ri-database-2-line"></i> Source de données <span id="source-summary" class="config-section-summary"></span></h3>
@@ -187,12 +189,14 @@ Sois concis. Reponds en francais.</textarea>
         </div>
       </div>
 
+      </div><!-- /.config-zone -->
+
       <!-- Zone Chat -->
       <div class="chat-container">
         <div class="chat-header">
-          <span><i class="ri-chat-3-line"></i> Assistant graphiques</span>
-          <button id="clear-chat" class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline" title="Effacer la conversation" style="margin-left:auto;padding:0.25rem 0.5rem;">
-            <i class="ri-delete-bin-line"></i>
+          <span class="chat-header__title"><i class="ri-chat-3-line"></i> Assistant graphiques</span>
+          <button id="clear-chat" class="chat-header__clear" type="button" title="Effacer la conversation">
+            <i class="ri-delete-bin-line" aria-hidden="true"></i> Effacer
           </button>
         </div>
 
@@ -209,6 +213,7 @@ Sois concis. Reponds en francais.</textarea>
               <i class="ri-send-plane-fill"></i>
             </button>
           </div>
+          <p class="chat-input-hint">Entrée pour envoyer · Maj + Entrée pour un saut de ligne</p>
         </div>
       </div>
 
@@ -230,7 +235,9 @@ Sois concis. Reponds en francais.</textarea>
           <p class="preview-subtitle" id="preview-subtitle"></p>
           <div class="chart-wrapper">
             <div class="empty-state" id="empty-state">
-              <i class="ri-bar-chart-box-line"></i>
+              <div class="empty-state__bars" aria-hidden="true">
+                <span></span><span></span><span></span><span></span>
+              </div>
               <p>Discutez avec l'assistant pour créer votre graphique</p>
             </div>
             <canvas id="preview-canvas" style="display: none;"></canvas>
@@ -274,9 +281,6 @@ Sois concis. Reponds en francais.</textarea>
       </div>
     </div>
   </div>
-
-  <!-- Footer -->
-  <app-footer base-path="../../"></app-footer>
 
   <script type="module" src="src/main.ts"></script>
   <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.module.min.js" integrity="sha384-gPgRd2+olihO/srZe/Bqw6iVLiiaL7meuri1d5YVMejwPXg7VehLSBeORYq9yh2F" crossorigin="anonymous"></script>
