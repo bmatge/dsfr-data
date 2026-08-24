@@ -102,10 +102,26 @@ function inferChartType(fav: Favorite): string {
   // pas masquer la nature « carte » du favori.
   if (/dsfr-data-map|<map-chart|map-reg|map-aca|map-monde|dsfr-data-world-map/.test(code))
     return 'map';
-  const typeAttr = code.match(/type="([a-z-]+)"/)?.[1];
-  if (typeAttr && !['bar-line'].includes(typeAttr)) {
-    if (typeAttr.startsWith('map')) return 'map';
-    return typeAttr;
+  // type= lu UNIQUEMENT sur la balise dsfr-data-chart (attributs multilignes) :
+  // un type= générique attrapait <script type="module"> ou databox-type="chart"
+  // et rabattait tous les favoris sur la vignette barres.
+  const KNOWN_TYPES = new Set([
+    'bar',
+    'line',
+    'pie',
+    'doughnut',
+    'radar',
+    'scatter',
+    'gauge',
+    'kpi',
+    'datalist',
+  ]);
+  const chartTag = code.match(/<dsfr-data-chart[^>]*?type="([a-z-]+)"/)?.[1];
+  if (chartTag) {
+    if (chartTag.startsWith('map')) return 'map';
+    if (chartTag === 'bar-line') return 'line';
+    if (chartTag === 'doughnut') return 'pie';
+    if (KNOWN_TYPES.has(chartTag)) return chartTag;
   }
   if (/<line-chart|bar-line-chart/.test(code)) return 'line';
   if (/<pie-chart|doughnut|donut/.test(code)) return 'pie';
@@ -127,7 +143,10 @@ function thumbSvg(chartType: string | undefined): string {
   if (t.includes('line') || t === 'courbe') {
     return `<svg viewBox="0 0 200 110" aria-hidden="true"><polyline points="12,85 45,60 78,70 111,38 144,48 177,20" fill="none" stroke="#000091" stroke-width="2.5"></polyline><polyline points="12,95 45,88 78,80 111,72 144,78 177,58" fill="none" stroke="#e1000f" stroke-width="2"></polyline><line x1="10" y1="100" x2="195" y2="100" stroke="#ccc"></line></svg>`;
   }
-  if (t.includes('pie') || t.includes('donut') || t.includes('doughnut') || t.includes('gauge')) {
+  if (t.includes('gauge') || t.includes('jauge')) {
+    return `<svg viewBox="0 0 200 110" aria-hidden="true"><path d="M 40 95 A 60 60 0 0 1 160 95" fill="none" stroke="#e3e3fd" stroke-width="16" stroke-linecap="round"></path><path d="M 40 95 A 60 60 0 0 1 122 41" fill="none" stroke="#000091" stroke-width="16" stroke-linecap="round"></path><text x="100" y="92" text-anchor="middle" font-size="20" font-weight="700" fill="#161616" font-family="Marianne, sans-serif">68 %</text></svg>`;
+  }
+  if (t.includes('pie') || t.includes('donut') || t.includes('doughnut')) {
     return `<svg viewBox="0 0 200 110" aria-hidden="true"><circle cx="100" cy="55" r="38" fill="none" stroke="#e3e3fd" stroke-width="16"></circle><circle cx="100" cy="55" r="38" fill="none" stroke="#000091" stroke-width="16" stroke-dasharray="120 240" transform="rotate(-90 100 55)"></circle><circle cx="100" cy="55" r="38" fill="none" stroke="#e1000f" stroke-width="16" stroke-dasharray="50 310" stroke-dashoffset="-120" transform="rotate(-90 100 55)"></circle></svg>`;
   }
   if (t.includes('map') || t.includes('carte')) {
