@@ -420,8 +420,8 @@ function renderLayerDataConfig() {
           : `<p class="carto-msg carto-msg--warn"><i class="ri-alert-line" aria-hidden="true"></i> Requis : sans localisation, rien ne s'affiche sur la carte</p>`
       }
       <div class="carto-inline">
-        ${fieldInput({ id: 'layer-lat', label: 'Latitude', value: layer.latField, fields, numericOnly: true, placeholder: 'latitude' })}
-        ${fieldInput({ id: 'layer-lon', label: 'Longitude', value: layer.lonField, fields, numericOnly: true, placeholder: 'longitude' })}
+        ${fieldInput({ id: 'layer-lat', label: 'Latitude', value: layer.latField, fields, numericOnly: true, placeholder: 'ex : latitude' })}
+        ${fieldInput({ id: 'layer-lon', label: 'Longitude', value: layer.lonField, fields, numericOnly: true, placeholder: 'ex : longitude' })}
       </div>
       <details class="carto-advanced" ${layer.geoField ? 'open' : ''}>
         <summary>…ou un champ géographique unique</summary>
@@ -431,7 +431,7 @@ function renderLayerDataConfig() {
           value: layer.geoField,
           fields,
           hint: 'Colonne contenant la géométrie (GeoJSON, point, texte JSON)',
-          placeholder: 'geo_point_2d, geo_shape…',
+          placeholder: 'ex : geo_point_2d, geo_shape…',
         })}
       </details>
     </div>`
@@ -657,22 +657,20 @@ function renderElementsPanel() {
           hint: 'Chaque zone prend une teinte selon sa valeur',
           placeholder: 'population',
         })}
-        <div class="carto-inline">
-          <div class="carto-field">
-            <label for="layer-palette">Palette</label>
-            <select id="layer-palette">
-              <option value="" ${!layer.selectedPalette ? 'selected' : ''}>Séquentielle (clair → foncé) — défaut</option>
-              <option value="sequentialDescending" ${layer.selectedPalette === 'sequentialDescending' ? 'selected' : ''}>Séquentielle (foncé → clair)</option>
-              <option value="divergentAscending" ${layer.selectedPalette === 'divergentAscending' ? 'selected' : ''}>Divergente (négatif ↔ positif)</option>
-              <option value="divergentDescending" ${layer.selectedPalette === 'divergentDescending' ? 'selected' : ''}>Divergente inversée</option>
-              <option value="neutral" ${layer.selectedPalette === 'neutral' ? 'selected' : ''}>Neutre (gris)</option>
-              <option value="categorical" ${layer.selectedPalette === 'categorical' ? 'selected' : ''}>Catégorielle</option>
-            </select>
-          </div>
-          <div class="carto-field" style="flex:0 0 90px">
-            <label for="layer-fill-opacity">Opacité</label>
-            <input type="number" id="layer-fill-opacity" value="${layer.fillOpacity}" min="0" max="1" step="0.1">
-          </div>
+        <div class="carto-field">
+          <label for="layer-palette">Palette</label>
+          <select id="layer-palette">
+            <option value="" ${!layer.selectedPalette ? 'selected' : ''}>Séquentielle (clair → foncé) — défaut</option>
+            <option value="sequentialDescending" ${layer.selectedPalette === 'sequentialDescending' ? 'selected' : ''}>Séquentielle (foncé → clair)</option>
+            <option value="divergentAscending" ${layer.selectedPalette === 'divergentAscending' ? 'selected' : ''}>Divergente (négatif ↔ positif)</option>
+            <option value="divergentDescending" ${layer.selectedPalette === 'divergentDescending' ? 'selected' : ''}>Divergente inversée</option>
+            <option value="neutral" ${layer.selectedPalette === 'neutral' ? 'selected' : ''}>Neutre (gris)</option>
+            <option value="categorical" ${layer.selectedPalette === 'categorical' ? 'selected' : ''}>Catégorielle</option>
+          </select>
+        </div>
+        <div class="carto-field" style="max-width:120px">
+          <label for="layer-fill-opacity">Opacité</label>
+          <input type="number" id="layer-fill-opacity" value="${layer.fillOpacity}" min="0" max="1" step="0.1">
         </div>
       </div>`
           : ''
@@ -1080,10 +1078,13 @@ function renderMapPanel() {
       <details class="carto-advanced" ${otherInsets.length ? 'open' : ''}>
         <summary>Territoire par territoire</summary>
         ${INSET_TERRITORIES.map(
+          // Prefixe inset-terr- : « corse » a deja sa case dediee plus haut
+          // (id="inset-corse") — l'id duplique cassait le label de la seconde
+          // case et invalidait le DOM (#482 bug 12)
           (t) => `
         <div class="carto-checkbox">
-          <input type="checkbox" id="inset-${t.id}" data-inset="${t.id}" ${m.insets.includes(t.id) ? 'checked' : ''}>
-          <label for="inset-${t.id}">${t.label}</label>
+          <input type="checkbox" id="inset-terr-${t.id}" data-inset="${t.id}" ${m.insets.includes(t.id) ? 'checked' : ''}>
+          <label for="inset-terr-${t.id}">${t.label}</label>
         </div>`
         ).join('')}
       </details>
@@ -1215,6 +1216,13 @@ function closeOnboard() {
 function setLayerSource(layer: LayerConfig, src: AnySource) {
   layer.source = src;
   layer.fields = [];
+  // Changer de donnees invalide le mapping geographique precedent : des noms
+  // de colonnes herites d'une autre source (ou d'un etat persiste pollue)
+  // rendaient la carte vide en silence (#482 bugs 2/11). La detection
+  // automatique de scanAndSuggest re-remplit derriere.
+  layer.latField = '';
+  layer.lonField = '';
+  layer.geoField = '';
   ui.forceChooser = false;
   ui.urlMode = false;
   ui.savedOpen = false;
@@ -1308,6 +1316,10 @@ function renderOnboard() {
   `;
 
   document.getElementById('onboard-sample')?.addEventListener('click', () => {
+    // Le jeu d'exemple n'a que lat/lon (pas de geometrie) : les
+    // representations a geometrie (Zones) donnaient une carte vide au
+    // premier contact (#482 bug 5) — on force une representation compatible.
+    if (layer.type === 'geoshape') layer.type = 'marker';
     setLayerSource(layer, {
       id: `sample-${layer.id}`,
       name: "Jeu d'exemple — chefs-lieux",
@@ -1458,6 +1470,21 @@ async function scanAndSuggest(layer: LayerConfig, opts: { fit?: boolean } = {}) 
   try {
     const result = await scanLayerFields(layer);
     layer.fields = result.fields;
+
+    // Purge des champs geographiques fantomes (#482 bugs 2/11) : un etat
+    // persiste par une ancienne version pouvait contenir des litteraux type
+    // « latitude »/« longitude »/« fields » — colonnes inexistantes,
+    // indistinguables du placeholder. Si le scan a produit des champs et que
+    // la valeur configuree n'en fait pas partie, on la vide (la suggestion
+    // automatique ci-dessous re-remplit). Les chemins pointes (a.b) saisis a
+    // la main sont conserves : le scan ne voit que les cles de 1er niveau.
+    if (result.fields.length) {
+      const known = new Set(result.fields.map((f) => f.name));
+      for (const key of ['latField', 'lonField', 'geoField'] as const) {
+        const value = layer[key];
+        if (value && !value.includes('.') && !known.has(value)) layer[key] = '';
+      }
+    }
 
     // Suggestions automatiques si rien n'est encore configuré
     const s = result.suggestions;
@@ -1625,12 +1652,21 @@ function updatePreviewStatus() {
     // Les vignettes territoriales clonent les couches : on ne compte que la
     // carte principale, sinon N est multiplié par le nombre d'encarts.
     const notInInset = (el: Element) => !el.closest('dsfr-data-map-inset');
+
+    // Compte réel via les couches (#482 bug 7) : le comptage DOM voyait les
+    // bulles de cluster comme des éléments et « 1 » pour une heatmap de N
+    // points. Repli DOM si la lib chargée n'expose pas getRenderedCount.
+    const layerEls = [...preview.querySelectorAll('dsfr-data-map-layer')].filter(
+      notInInset
+    ) as (Element & { getRenderedCount?: () => number })[];
     const drawn =
-      [...preview.querySelectorAll('.leaflet-marker-icon')].filter(notInInset).length +
-      [...preview.querySelectorAll('.leaflet-overlay-pane path')].filter(notInInset).length +
-      [...preview.querySelectorAll('.leaflet-heatmap-layer, .leaflet-overlay-pane canvas')].filter(
-        notInInset
-      ).length;
+      layerEls.length && layerEls.every((el) => typeof el.getRenderedCount === 'function')
+        ? layerEls.reduce((acc, el) => acc + el.getRenderedCount!(), 0)
+        : [...preview.querySelectorAll('.leaflet-marker-icon')].filter(notInInset).length +
+          [...preview.querySelectorAll('.leaflet-overlay-pane path')].filter(notInInset).length +
+          [
+            ...preview.querySelectorAll('.leaflet-heatmap-layer, .leaflet-overlay-pane canvas'),
+          ].filter(notInInset).length;
 
     if (errors.length) {
       setPreviewStatus(
@@ -1641,9 +1677,21 @@ function updatePreviewStatus() {
     }
     if (loading && attempt < 4) return; // on laisse les timers suivants re-vérifier
 
+    const n = (count: number, mot: string) =>
+      `${count.toLocaleString('fr-FR')} ${mot}${count > 1 ? 's' : ''}`;
+
     if (records > 0 && drawn === 0 && attempt >= 2) {
+      // Diagnostic cible (#482 bug 8) : en mode Zones sans champ géométrie,
+      // c'est la représentation qui bloque, pas la localisation — envoyer
+      // l'utilisateur au bon endroit.
+      const zonesSansGeo = state.layers.some(
+        (l) => l.visible && l.source && l.type === 'geoshape' && !l.geoField
+      );
+      const conseil = zonesSansGeo
+        ? 'la représentation « Zones » nécessite un champ géographique (géométrie) — choisissez « Marqueurs » ou « Cercles » (panneau Éléments), ou renseignez le champ géographique (panneau Couches).'
+        : 'vérifiez la localisation (panneau Couches) et la représentation (panneau Éléments).';
       setPreviewStatus(
-        `<i class="ri-alert-line" aria-hidden="true"></i> ${records} enregistrements chargés mais aucun élément dessiné — vérifiez la localisation (panneau Couches).`,
+        `<i class="ri-alert-line" aria-hidden="true"></i> ${n(records, 'enregistrement')} chargé${records > 1 ? 's' : ''} mais aucun élément dessiné — ${conseil}`,
         'warn'
       );
     } else if (records === 0 && sources.length && attempt >= 4) {
@@ -1653,7 +1701,7 @@ function updatePreviewStatus() {
       );
     } else if (drawn > 0) {
       setPreviewStatus(
-        `<i class="ri-check-line" aria-hidden="true"></i> ${drawn.toLocaleString('fr-FR')} éléments affichés (${records.toLocaleString('fr-FR')} enregistrements)`,
+        `<i class="ri-check-line" aria-hidden="true"></i> ${n(drawn, 'élément')} affiché${drawn > 1 ? 's' : ''} (${n(records, 'enregistrement')})`,
         'ok'
       );
     }

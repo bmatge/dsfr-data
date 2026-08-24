@@ -74,7 +74,11 @@ function layerAttrs(layer: LayerConfig): string {
     if (layer.heatField) attrs.push(`heat-field="${esc(layer.heatField)}"`);
   }
 
-  if (layer.cluster) {
+  // Le clustering n'a de sens (et n'est propose dans l'UI) qu'en mode
+  // marqueurs — l'emettre pour les autres representations clusterisait les
+  // cercles : bulles residuelles par-dessus les elements (#482 bug 6). L'etat
+  // layer.cluster est conserve : revenir aux marqueurs le retrouve.
+  if (layer.type === 'marker' && layer.cluster) {
     attrs.push('cluster');
     if (layer.clusterRadius !== 80) attrs.push(`cluster-radius="${esc(layer.clusterRadius)}"`);
   }
