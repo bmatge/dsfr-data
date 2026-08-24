@@ -39,7 +39,8 @@ import {
   refreshCurrentView,
   renderSources,
   saveAsFavorite,
-  switchExplorerTab,
+  closePreviewPanel,
+  isPreviewPanelOpen,
   switchSourceMode,
   openExportGristModal,
   loadExportDocuments,
@@ -59,14 +60,7 @@ import {
   addCurrentAsLocal,
 } from './connections/connection-manager.js';
 
-import {
-  createGristTable,
-  addColumnRow,
-  selectDocument,
-  selectTable,
-} from './connections/grist-explorer.js';
-
-import { selectDataGouvResource } from './connections/datagouv-explorer.js';
+import { createGristTable, addColumnRow } from './connections/grist-explorer.js';
 
 import { parseJsonInput } from './parsers/json-parser.js';
 import { handleCsvFile, parseCsvText } from './parsers/csv-parser.js';
@@ -212,9 +206,6 @@ function openInBuilder(): void {
 (window as any).closeManualSourceModal = closeManualSourceModal;
 (window as any).switchSourceMode = switchSourceMode;
 (window as any).closeModal = closeModal;
-(window as any).selectDocument = selectDocument;
-(window as any).selectTable = selectTable;
-(window as any).selectDataGouvResource = selectDataGouvResource;
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 // ============================================================
@@ -261,9 +252,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('add-online-btn')?.addEventListener('click', addCurrentAsOnline);
   document.getElementById('add-local-btn')?.addEventListener('click', addCurrentAsLocal);
   document.getElementById('save-source-btn')?.addEventListener('click', saveManualSource);
-  document
-    .getElementById('create-table-btn')
-    ?.addEventListener('click', () => openModal('create-table-modal'));
   document.getElementById('add-column-btn')?.addEventListener('click', addColumnRow);
   document.getElementById('create-table-confirm-btn')?.addEventListener('click', createGristTable);
   document.getElementById('refresh-btn')?.addEventListener('click', refreshCurrentView);
@@ -290,14 +278,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('join-type')?.addEventListener('change', previewJoinResult);
   document.getElementById('join-prefix-right')?.addEventListener('input', previewJoinResult);
 
-  // ---- Explorer tab switching ----
-  document
-    .querySelectorAll('.explorer-tabs:not(#source-mode-tabs) .explorer-tab')
-    .forEach((tab) => {
-      tab.addEventListener('click', () => {
-        switchExplorerTab((tab as HTMLElement).dataset.tab ?? '');
-      });
-    });
+  // ---- Panneau d'aperçu (v2) : fermeture par bouton et par Échap ----
+  document.getElementById('preview-close-btn')?.addEventListener('click', closePreviewPanel);
+  document.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.key === 'Escape' && isPreviewPanelOpen()) closePreviewPanel();
+  });
 
   // ---- Grist : bascule clé API ↔ document public ----
   const connPublic = document.getElementById('conn-public') as HTMLInputElement | null;

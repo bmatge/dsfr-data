@@ -25,14 +25,17 @@ import {
   parseDataGouvDataset,
   dataGouvDatasetApiUrl,
   looksLikeNumber,
+  navigateTo,
 } from '@dsfr-data/shared';
 import type { JoinType, Source } from '@dsfr-data/shared';
 
 import { state, EXTERNAL_PROXY } from '../state.js';
 import type { StoredConnection } from '../state.js';
-import { loadDocuments } from './grist-explorer.js';
+import { fetchGristDocs, fetchGristTables, selectTable } from './grist-explorer.js';
+import type { GristDocOption } from './grist-explorer.js';
 import { loadApiData } from './api-explorer.js';
-import { loadDataGouvResources } from './datagouv-explorer.js';
+import { fetchDataGouvResources, selectDataGouvResource } from './datagouv-explorer.js';
+import type { DataGouvResource } from '@dsfr-data/shared';
 import { loadTableData } from '../editors/table-editor.js';
 
 // ============================================================
@@ -81,82 +84,546 @@ export function parseGristDocRef(input: string): { baseUrl: string; docId: strin
 }
 
 // ============================================================
-// Render
+// Render — accordéon des connexions (refonte « Sources v2 »)
 // ============================================================
+
+/** Connexions dépliées dans l'accordéon. */
+const expandedConns = new Set<string>();
+/** Document Grist choisi par connexion (connexions à clé, multi-docs). */
+const connDocChoice = new Map<string, string>();
+/** Filtre de tables saisi par connexion. */
+const connTableFilter = new Map<string, string>();
+/** Caches de contenu (invalidés par « Rafraîchir » et les créations). */
+const connDocsCache = new Map<string, GristDocOption[]>();
+const connTablesCache = new Map<string, { id: string }[]>();
+const connResourcesCache = new Map<string, DataGouvResource[]>();
+
+/** Dernière action d'aperçu (relancée par « Rafraîchir »). */
+let lastPreviewAction: (() => void | Promise<void>) | null = null;
+
+/** Jeux en ligne rattachés à une connexion (connectionId ou id legacy). */
+function onlineSourcesForConn(connId: string) {
+  return state.sources.filter(
+    (src) =>
+      (src.type === 'api' || src.type === 'grist') &&
+      (src.connectionId === connId || String(src.id).startsWith(`api_${connId}`))
+  );
+}
+
+/** Jeux en ligne dont la connexion n'existe plus (toujours consultables). */
+function orphanOnlineSources() {
+  const connIds = new Set(state.connections.map((c) => c.id));
+  return state.sources.filter(
+    (src) =>
+      (src.type === 'api' || src.type === 'grist') &&
+      !(src.connectionId && connIds.has(String(src.connectionId))) &&
+      !state.connections.some((c) => String(src.id).startsWith(`api_${c.id}`))
+  );
+}
+
+function typeBadgeHtml(type: string): string {
+  if (type === 'api') return '<span class="badge-source-type badge-api">API</span>';
+  if (type === 'datagouv')
+    return '<span class="badge-source-type" style="background:#3a3a68;color:#fff;">data.gouv</span>';
+  return '<span class="badge-source-type badge-grist">Grist</span>';
+}
+
+/** « Utiliser dans le Builder » : sélectionne la source et ouvre le Builder. */
+function useSourceInBuilder(source: (typeof state.sources)[number]): void {
+  localStorage.setItem(STORAGE_KEYS.SELECTED_SOURCE, JSON.stringify(source));
+  navigateTo('builder');
+}
 
 export function renderConnections(): void {
   const container = document.getElementById('connections-list');
   if (!container) return;
   container.innerHTML = '';
 
+  const countEl = document.getElementById('connections-count');
+  if (countEl) {
+    const n = state.connections.length;
+    countEl.textContent = n ? `${n} connexion${n > 1 ? 's' : ''}` : '';
+  }
+
   if (state.connections.length === 0) {
     container.innerHTML =
-      '<p class="fr-text--sm" style="color: var(--text-mention-grey); text-align: center; padding: 0.5rem 0;"><i class="ri-link" style="display:block;font-size:1.25rem;opacity:0.4;margin-bottom:0.25rem;"></i>Aucune connexion.<br>Ajoutez une connexion Grist ou API.</p>';
+      '<p class="source-row__empty"><i class="ri-link" style="display:block;font-size:1.25rem;opacity:0.4;margin-bottom:0.25rem;"></i>Aucune connexion.<br>Ajoutez une connexion Grist, API ou data.gouv.</p>';
+    renderOrphanOnline();
     return;
   }
 
   state.connections.forEach((conn) => {
-    const card = document.createElement('div');
-    card.className = `connection-card ${state.selectedConnectionId === conn.id ? 'selected' : ''}`;
-
-    const typeBadge =
-      conn.type === 'api'
-        ? '<span class="badge-source-type badge-api">API</span>'
-        : conn.type === 'datagouv'
-          ? '<span class="badge-source-type badge-api">data.gouv</span>'
-          : '<span class="badge-source-type badge-grist">Grist</span>';
+    const item = document.createElement('div');
+    const expanded = expandedConns.has(conn.id);
+    item.className = `conn-item ${expanded ? 'conn-item--expanded' : ''}`;
 
     const isPublic = (conn as Record<string, unknown>).isPublic;
     const publicBadge = isPublic
-      ? '<span class="badge-source-type" style="background: #f59e0b; color: white; margin-left: 0.25rem;">Public</span>'
+      ? '<span class="badge-source-type" style="background:#b34000;color:#fff;">Public</span>'
       : '';
+    const nOnline = onlineSourcesForConn(conn.id).length;
+    const dsLabel = nOnline
+      ? `${nOnline} jeu${nOnline > 1 ? 'x' : ''} créé${nOnline > 1 ? 's' : ''}`
+      : '';
+    const statusClass =
+      conn.status === 'error' ? 'conn-item__status conn-item__status--error' : 'conn-item__status';
 
-    card.innerHTML = `
-      <div class="name" style="display: flex; align-items: center; gap: 0.5rem;">
-        ${typeBadge}${publicBadge}
-        <span style="flex: 1;">${escapeHtml(conn.name)}</span>
-        <button class="edit-conn-btn" title="Modifier cette connexion" style="background: none; border: none; cursor: pointer; color: var(--text-mention-grey); padding: 0.25rem; font-size: 0.875rem; line-height: 1; border-radius: 3px;">
-          <i class="ri-pencil-line"></i>
-        </button>
-        <button class="delete-conn-btn" title="Supprimer cette connexion" style="background: none; border: none; cursor: pointer; color: var(--text-mention-grey); padding: 0.25rem; font-size: 0.875rem; line-height: 1; border-radius: 3px;">
-          <i class="ri-delete-bin-line"></i>
-        </button>
-      </div>
-      <div class="status ${conn.status || ''}">${conn.statusText || 'Non teste'}</div>
+    const header = document.createElement('div');
+    header.className = 'conn-item__header';
+    header.innerHTML = `
+      <i class="ri-arrow-right-s-line conn-item__chevron" aria-hidden="true"></i>
+      ${typeBadgeHtml(conn.type)}${publicBadge}
+      <span class="conn-item__name">${escapeHtml(conn.name)}</span>
+      <span class="${statusClass}">${escapeHtml(conn.statusText || 'Non testé')}</span>
+      <span class="conn-item__ds-label">${escapeHtml(dsLabel)}</span>
+      <button class="row-icon-btn edit-conn-btn" title="Modifier cette connexion" type="button"><i class="ri-pencil-line" aria-hidden="true"></i></button>
+      <button class="row-icon-btn delete-conn-btn" title="Supprimer cette connexion" type="button"><i class="ri-delete-bin-line" aria-hidden="true"></i></button>
     `;
 
-    // Click on card to select
-    card.addEventListener('click', (e: Event) => {
+    header.addEventListener('click', (e: Event) => {
       const target = e.target as HTMLElement;
-      if (!target.closest('.delete-conn-btn') && !target.closest('.edit-conn-btn')) {
-        selectConnection(conn.id);
-      }
+      if (target.closest('.delete-conn-btn') || target.closest('.edit-conn-btn')) return;
+      if (expandedConns.has(conn.id)) expandedConns.delete(conn.id);
+      else expandedConns.add(conn.id);
+      renderConnections();
     });
-
-    // Edit button
-    card.querySelector('.edit-conn-btn')?.addEventListener('click', (e: Event) => {
+    header.querySelector('.edit-conn-btn')?.addEventListener('click', (e: Event) => {
       e.stopPropagation();
       editConnection(conn.id);
     });
-
-    // Delete button
-    card.querySelector('.delete-conn-btn')?.addEventListener('click', async (e: Event) => {
+    header.querySelector('.delete-conn-btn')?.addEventListener('click', async (e: Event) => {
       e.stopPropagation();
       if (await confirmDialog(`Supprimer la connexion "${conn.name}" ?`)) {
         deleteConnection(conn.id);
       }
     });
-
-    // Context menu (right-click to delete)
-    card.addEventListener('contextmenu', async (e: Event) => {
+    header.addEventListener('contextmenu', async (e: Event) => {
       e.preventDefault();
       if (await confirmDialog(`Supprimer la connexion "${conn.name}" ?`)) {
         deleteConnection(conn.id);
       }
     });
 
-    container.appendChild(card);
+    item.appendChild(header);
+
+    if (expanded) {
+      const body = document.createElement('div');
+      body.className = 'conn-item__body';
+      body.id = `conn-body-${conn.id}`;
+      item.appendChild(body);
+      void renderConnBody(conn, body);
+    }
+
+    container.appendChild(item);
   });
+
+  renderOrphanOnline();
+}
+
+/** Section « Jeux en ligne sans connexion » (fallback anti-perte). */
+function renderOrphanOnline(): void {
+  const section = document.getElementById('orphan-online-section');
+  const list = document.getElementById('orphan-online-list');
+  if (!section || !list) return;
+  const orphans = orphanOnlineSources();
+  section.style.display = orphans.length ? '' : 'none';
+  list.innerHTML = '';
+  orphans.forEach((src) => {
+    const count = src.recordCount || src.data?.length || 0;
+    const row = document.createElement('div');
+    row.className = 'source-row';
+    row.innerHTML = `
+      ${typeBadgeHtml(src.type)}
+      <span class="source-row__name source-row__name--strong">${escapeHtml(src.name)}</span>
+      <span class="source-row__meta">${count} ligne${count > 1 ? 's' : ''}</span>
+      <div class="source-row__actions">
+        <button class="row-action-btn act-preview" type="button">Aperçu</button>
+        <button class="row-action-btn row-action-btn--primary act-use" type="button">Utiliser dans le Builder</button>
+        <button class="row-icon-btn act-delete" title="Supprimer" type="button"><i class="ri-delete-bin-line" aria-hidden="true"></i></button>
+      </div>`;
+    row.querySelector('.act-preview')?.addEventListener('click', () => previewSource(src.id));
+    row.querySelector('.act-use')?.addEventListener('click', () => useSourceInBuilder(src));
+    row.querySelector('.act-delete')?.addEventListener('click', async () => {
+      if (await confirmDialog(`Supprimer la source "${src.name}" ?`)) deleteSource(src.id);
+    });
+    list.appendChild(row);
+  });
+}
+
+// ------------------------------------------------------------
+// Contenu déplié d'une connexion
+// ------------------------------------------------------------
+
+async function renderConnBody(conn: StoredConnection, body: HTMLElement): Promise<void> {
+  body.innerHTML = '<p class="source-row__empty">Chargement…</p>';
+  try {
+    if (conn.type === 'grist') await renderGristBody(conn, body);
+    else if (conn.type === 'datagouv') await renderDataGouvBody(conn, body);
+    else renderApiBody(conn, body);
+  } catch (error) {
+    body.innerHTML = `<p class="error-message" style="font-size:0.8125rem;">Erreur : ${escapeHtml((error as Error).message)}</p>`;
+  }
+}
+
+async function renderGristBody(conn: StoredConnection, body: HTMLElement): Promise<void> {
+  let docs = connDocsCache.get(conn.id);
+  if (!docs) {
+    docs = await fetchGristDocs(conn);
+    connDocsCache.set(conn.id, docs);
+  }
+  if (docs.length === 0) {
+    body.innerHTML =
+      '<p class="source-row__empty">Aucun document accessible sur cette connexion.</p>';
+    return;
+  }
+
+  const chosenDocId = connDocChoice.get(conn.id) ?? docs[0].id;
+  const chosenDoc = docs.find((d) => d.id === chosenDocId) ?? docs[0];
+
+  // Rend state.documents cohérent pour buildGristSource (nom du doc dans la source).
+  state.documents = docs.map((d) => ({ id: d.id, name: d.name, orgId: 0, workspaceId: 0 }));
+
+  const tablesKey = `${conn.id}::${chosenDoc.id}`;
+  let tables = connTablesCache.get(tablesKey);
+  if (!tables) {
+    tables = await fetchGristTables(conn, chosenDoc.id);
+    connTablesCache.set(tablesKey, tables);
+  }
+
+  const filter = (connTableFilter.get(conn.id) ?? '').toLowerCase();
+  const visible = tables.filter((t) => !filter || t.id.toLowerCase().includes(filter));
+
+  body.innerHTML = '';
+
+  // Sélecteur de document (uniquement si plusieurs docs — connexions à clé API).
+  if (docs.length > 1) {
+    const docWrap = document.createElement('div');
+    docWrap.className = 'conn-item__toolbar';
+    const select = document.createElement('select');
+    select.className = 'fr-select fr-select--sm conn-item__doc-select';
+    select.setAttribute('aria-label', 'Document Grist');
+    docs.forEach((d) => {
+      const opt = document.createElement('option');
+      opt.value = d.id;
+      opt.textContent = d.org || d.workspace ? `[${d.org} / ${d.workspace}] ${d.name}` : d.name;
+      opt.selected = d.id === chosenDoc.id;
+      select.appendChild(opt);
+    });
+    select.addEventListener('change', () => {
+      connDocChoice.set(conn.id, select.value);
+      void renderConnBody(conn, body);
+    });
+    docWrap.appendChild(select);
+    body.appendChild(docWrap);
+  }
+
+  // Barre : filtre + compteur + créer une table.
+  const toolbar = document.createElement('div');
+  toolbar.className = 'conn-item__toolbar';
+  toolbar.innerHTML = `
+    <input class="conn-item__filter" type="text" placeholder="Filtrer les tables…" value="${escapeHtml(connTableFilter.get(conn.id) ?? '')}" aria-label="Filtrer les tables">
+    <span class="conn-item__toolbar-meta">${visible.length} table${visible.length > 1 ? 's' : ''}</span>
+    <button class="sources-link-btn conn-create-table" type="button"><i class="ri-add-line" aria-hidden="true"></i> Créer une table dans Grist</button>
+  `;
+  const filterInput = toolbar.querySelector('input') as HTMLInputElement;
+  filterInput.addEventListener('input', () => {
+    connTableFilter.set(conn.id, filterInput.value);
+    // Ne re-rend que la liste des lignes (le champ garde le focus).
+    renderGristRows(conn, chosenDoc, tables!, body);
+    const meta = toolbar.querySelector('.conn-item__toolbar-meta');
+    if (meta) {
+      const f = filterInput.value.toLowerCase();
+      const n = tables!.filter((t) => !f || t.id.toLowerCase().includes(f)).length;
+      meta.textContent = `${n} table${n > 1 ? 's' : ''}`;
+    }
+  });
+  toolbar.querySelector('.conn-create-table')?.addEventListener('click', () => {
+    state.selectedConnectionId = conn.id;
+    state.selectedDocument = chosenDoc.id;
+    openModal('create-table-modal');
+  });
+  body.appendChild(toolbar);
+
+  const rowsHost = document.createElement('div');
+  rowsHost.className = 'sources-rows';
+  rowsHost.dataset.rowsHost = '1';
+  body.appendChild(rowsHost);
+  renderGristRows(conn, chosenDoc, tables, body);
+}
+
+function renderGristRows(
+  conn: StoredConnection,
+  doc: GristDocOption,
+  tables: { id: string }[],
+  body: HTMLElement
+): void {
+  const host = body.querySelector('[data-rows-host]') as HTMLElement | null;
+  if (!host) return;
+  host.innerHTML = '';
+
+  const filter = (connTableFilter.get(conn.id) ?? '').toLowerCase();
+  const visible = tables.filter((t) => !filter || t.id.toLowerCase().includes(filter));
+  if (visible.length === 0) {
+    host.innerHTML = '<p class="source-row__empty">Aucune table ne correspond.</p>';
+    return;
+  }
+
+  visible.forEach((table) => {
+    const created = state.sources.find(
+      (src) =>
+        src.type === 'grist' &&
+        ((src.connectionId === conn.id && src.documentId === doc.id && src.tableId === table.id) ||
+          src.id === `grist_${doc.id}_${table.id}`)
+    );
+
+    const row = document.createElement('div');
+    row.className = 'source-row';
+    row.innerHTML = `
+      <i class="ri-table-line source-row__icon" aria-hidden="true"></i>
+      <span class="source-row__name">${escapeHtml(table.id)}</span>
+      ${
+        created
+          ? `<span class="badge-online-created" title="Requêté en direct — exploitable dans les builders pour un graphique dynamique">JEU EN LIGNE · ${escapeHtml(created.name)}</span>`
+          : ''
+      }
+      <div class="source-row__actions">
+        <button class="row-action-btn act-preview" type="button">Aperçu</button>
+        ${
+          created
+            ? `<button class="row-action-btn row-action-btn--primary act-use" type="button">Utiliser dans le Builder</button>
+               <button class="row-icon-btn act-delete" title="Retirer le jeu en ligne (la table Grist n'est pas supprimée)" type="button"><i class="ri-delete-bin-line" aria-hidden="true"></i></button>`
+            : `<button class="row-action-btn row-action-btn--outline act-create" title="Requêté en direct — pour un graphique dynamique" type="button"><i class="ri-add-line" aria-hidden="true"></i> Jeu en ligne</button>`
+        }
+      </div>`;
+
+    row.querySelector('.act-preview')?.addEventListener('click', () => {
+      void previewGristTable(conn, doc, table.id);
+    });
+    row.querySelector('.act-create')?.addEventListener('click', async () => {
+      await previewGristTable(conn, doc, table.id);
+      addCurrentAsOnline();
+      renderConnections();
+    });
+    if (created) {
+      row.querySelector('.act-use')?.addEventListener('click', () => useSourceInBuilder(created));
+      row.querySelector('.act-delete')?.addEventListener('click', async () => {
+        if (
+          await confirmDialog(
+            `Retirer le jeu en ligne "${created.name}" ? (La table Grist n'est pas supprimée.)`
+          )
+        ) {
+          deleteSource(created.id);
+          renderConnections();
+        }
+      });
+    }
+    host.appendChild(row);
+  });
+}
+
+async function renderDataGouvBody(conn: StoredConnection, body: HTMLElement): Promise<void> {
+  let resources = connResourcesCache.get(conn.id);
+  if (!resources) {
+    resources = await fetchDataGouvResources(conn);
+    connResourcesCache.set(conn.id, resources);
+  }
+  body.innerHTML = '';
+  if (resources.length === 0) {
+    body.innerHTML =
+      "<p class='source-row__empty'>Aucune ressource interrogeable via l'API Tabular dans ce jeu de données.</p>";
+    return;
+  }
+
+  const host = document.createElement('div');
+  host.className = 'sources-rows';
+  body.appendChild(host);
+
+  resources.forEach((resource) => {
+    const created = state.sources.find(
+      (src) =>
+        src.id === `api_${conn.id}_${resource.id}` ||
+        (src.connectionId === conn.id && src.name === resource.title)
+    );
+    const sizeTxt =
+      resource.size && resource.size >= 1024 * 1024
+        ? `${(resource.size / (1024 * 1024)).toFixed(1)} Mo`
+        : resource.size && resource.size >= 1024
+          ? `${Math.round(resource.size / 1024)} Ko`
+          : resource.size
+            ? `${resource.size} o`
+            : null;
+    const meta = [resource.format || 'csv', sizeTxt].filter(Boolean).join(' · ');
+
+    const row = document.createElement('div');
+    row.className = 'source-row';
+    row.innerHTML = `
+      <i class="ri-table-line source-row__icon" aria-hidden="true"></i>
+      <span class="source-row__name">${escapeHtml(resource.title)}</span>
+      <span class="source-row__meta">${escapeHtml(meta)}</span>
+      ${
+        created
+          ? `<span class="badge-online-created" title="Requêté en direct — exploitable dans les builders">JEU EN LIGNE · ${escapeHtml(created.name)}</span>`
+          : ''
+      }
+      <div class="source-row__actions">
+        <button class="row-action-btn act-preview" type="button">Aperçu</button>
+        ${
+          created
+            ? `<button class="row-action-btn row-action-btn--primary act-use" type="button">Utiliser dans le Builder</button>
+               <button class="row-icon-btn act-delete" title="Retirer le jeu en ligne" type="button"><i class="ri-delete-bin-line" aria-hidden="true"></i></button>`
+            : `<button class="row-action-btn row-action-btn--outline act-create" title="Requêté en direct — pour un graphique dynamique" type="button"><i class="ri-add-line" aria-hidden="true"></i> Jeu en ligne</button>`
+        }
+      </div>`;
+
+    row.querySelector('.act-preview')?.addEventListener('click', () => {
+      void previewDataGouvResource(conn, resource);
+    });
+    row.querySelector('.act-create')?.addEventListener('click', async () => {
+      await previewDataGouvResource(conn, resource);
+      addCurrentAsOnline();
+      renderConnections();
+    });
+    if (created) {
+      row.querySelector('.act-use')?.addEventListener('click', () => useSourceInBuilder(created));
+      row.querySelector('.act-delete')?.addEventListener('click', async () => {
+        if (await confirmDialog(`Retirer le jeu en ligne "${created.name}" ?`)) {
+          deleteSource(created.id);
+          renderConnections();
+        }
+      });
+    }
+    host.appendChild(row);
+  });
+}
+
+function renderApiBody(conn: StoredConnection, body: HTMLElement): void {
+  body.innerHTML = '';
+  const host = document.createElement('div');
+  host.className = 'sources-rows';
+  body.appendChild(host);
+
+  const created = state.sources.find(
+    (src) => src.id === `api_${conn.id}` || (src.type === 'api' && src.connectionId === conn.id)
+  );
+
+  const row = document.createElement('div');
+  row.className = 'source-row';
+  row.innerHTML = `
+    <i class="ri-cloud-line source-row__icon" aria-hidden="true"></i>
+    <span class="source-row__name">Flux de la connexion</span>
+    <span class="source-row__meta">${escapeHtml(conn.statusText || '')}</span>
+    ${
+      created
+        ? `<span class="badge-online-created" title="Requêté en direct — exploitable dans les builders">JEU EN LIGNE · ${escapeHtml(created.name)}</span>`
+        : ''
+    }
+    <div class="source-row__actions">
+      <button class="row-action-btn act-preview" type="button">Aperçu</button>
+      ${
+        created
+          ? `<button class="row-action-btn row-action-btn--primary act-use" type="button">Utiliser dans le Builder</button>
+             <button class="row-icon-btn act-delete" title="Retirer le jeu en ligne" type="button"><i class="ri-delete-bin-line" aria-hidden="true"></i></button>`
+          : ''
+      }
+    </div>`;
+
+  // L'aperçu du flux crée/actualise automatiquement le jeu en ligne
+  // (comportement historique de loadApiData → saveApiAsSource).
+  row.querySelector('.act-preview')?.addEventListener('click', () => {
+    void openApiPreview(conn);
+  });
+  if (created) {
+    row.querySelector('.act-use')?.addEventListener('click', () => useSourceInBuilder(created));
+    row.querySelector('.act-delete')?.addEventListener('click', async () => {
+      if (await confirmDialog(`Retirer le jeu en ligne "${created.name}" ?`)) {
+        deleteSource(created.id);
+        renderConnections();
+      }
+    });
+  }
+  host.appendChild(row);
+}
+
+// ------------------------------------------------------------
+// Aperçus (panneau latéral)
+// ------------------------------------------------------------
+
+async function previewGristTable(
+  conn: StoredConnection,
+  doc: GristDocOption,
+  tableId: string
+): Promise<void> {
+  state.selectedConnectionId = conn.id;
+  state.selectedDocument = doc.id;
+  state.previewedSource = null;
+  setPreviewHeader('grist', `${doc.name} / ${tableId}`);
+  openPreviewPanel();
+  lastPreviewAction = () => previewGristTable(conn, doc, tableId);
+  await selectTable(tableId);
+}
+
+async function openApiPreview(conn: StoredConnection): Promise<void> {
+  state.selectedConnectionId = conn.id;
+  state.previewedSource = null;
+  setPreviewHeader('api', conn.name);
+  openPreviewPanel();
+  lastPreviewAction = () => openApiPreview(conn);
+  await loadApiData();
+  // Le jeu en ligne vient d'être upserté par saveApiAsSource : rafraîchir badges.
+  renderConnections();
+}
+
+async function previewDataGouvResource(
+  conn: StoredConnection,
+  resource: DataGouvResource
+): Promise<void> {
+  state.selectedConnectionId = conn.id;
+  state.previewedSource = null;
+  setPreviewHeader('datagouv', resource.title);
+  openPreviewPanel();
+  lastPreviewAction = () => previewDataGouvResource(conn, resource);
+  await selectDataGouvResource(resource);
+}
+
+// ------------------------------------------------------------
+// Panneau d'aperçu : ouverture / fermeture / en-tête
+// ------------------------------------------------------------
+
+export function openPreviewPanel(): void {
+  document.getElementById('preview-panel')?.removeAttribute('hidden');
+}
+
+export function closePreviewPanel(): void {
+  document.getElementById('preview-panel')?.setAttribute('hidden', '');
+  state.previewedSource = null;
+  setDatasetCandidate(null);
+}
+
+export function isPreviewPanelOpen(): boolean {
+  const el = document.getElementById('preview-panel');
+  return !!el && !el.hasAttribute('hidden');
+}
+
+/** Badge + titre du panneau d'aperçu. */
+export function setPreviewHeader(
+  kind: 'grist' | 'api' | 'datagouv' | 'online' | 'local',
+  title: string
+): void {
+  const badgeEl = document.getElementById('preview-panel-badge');
+  const titleEl = document.getElementById('explorer-title');
+  if (badgeEl) {
+    badgeEl.innerHTML =
+      kind === 'grist'
+        ? '<span class="badge-source-type badge-grist">Grist</span>'
+        : kind === 'datagouv'
+          ? '<span class="badge-source-type" style="background:#3a3a68;color:#fff;">data.gouv</span>'
+          : kind === 'api'
+            ? '<span class="badge-source-type badge-api">API</span>'
+            : kind === 'online'
+              ? '<span class="badge-source-type badge-grist">Jeu en ligne</span>'
+              : '<span class="badge-source-type badge-manual">Jeu local</span>';
+  }
+  if (titleEl) titleEl.textContent = title;
 }
 
 // ============================================================
@@ -520,69 +987,25 @@ export function deleteConnection(id: string): void {
   renderConnections();
 }
 
+/**
+ * Sélectionne une connexion : la déplie dans l'accordéon (et la fait défiler
+ * en vue). Pour une connexion API, ouvre directement l'aperçu du flux
+ * (comportement historique : les données se chargent tout de suite).
+ */
 export async function selectConnection(id: string): Promise<void> {
   state.selectedConnectionId = id;
   state.selectedDocument = null;
   state.selectedTable = null;
   state.previewedSource = null;
+  expandedConns.add(id);
   renderConnections();
 
   const conn = state.connections.find((c) => c.id === id);
   if (!conn) return;
-  const titleEl = document.getElementById('explorer-title');
-  const emptyEl = document.getElementById('explorer-empty');
-  const contentEl = document.getElementById('explorer-content');
-
-  if (titleEl) titleEl.textContent = conn.name;
-  if (emptyEl) emptyEl.style.display = 'none';
-  if (contentEl) contentEl.style.display = 'block';
-
-  // Hide export button (only for local sources)
-  const exportBtn = document.getElementById('export-grist-btn');
-  if (exportBtn) exportBtn.style.display = 'none';
-
-  // Show "Rafraîchir" — connections always have remote data.
-  const refreshBtn = document.getElementById('refresh-btn');
-  if (refreshBtn) refreshBtn.style.display = '';
-
-  // Show explorer tabs
-  const tabsEl = document.getElementById('explorer-tabs');
-  if (tabsEl) tabsEl.style.display = '';
-
-  const docTab = document.querySelector('[data-tab="documents"]') as HTMLElement | null;
-  const tablesTab = document.querySelector('[data-tab="tables"]') as HTMLElement | null;
-  const createTableBtn = document.getElementById('create-table-btn');
-
-  // Pas de jeu candidat tant qu'on n'a pas prévisualisé (boutons en ligne/local masqués).
-  setDatasetCandidate(null);
-  renderPreviewMeta(null);
+  document.getElementById(`conn-body-${id}`)?.scrollIntoView({ block: 'nearest' });
 
   if (conn.type === 'api') {
-    if (docTab) docTab.style.display = 'none';
-    if (tablesTab) tablesTab.style.display = 'none';
-    if (createTableBtn) createTableBtn.style.display = 'none';
-    switchExplorerTab('preview');
-    await loadApiData();
-  } else if (conn.type === 'datagouv') {
-    // data.gouv : la connexion = un jeu de données (N ressources). On réutilise
-    // l'onglet « Tables » comme liste de ressources.
-    if (docTab) docTab.style.display = 'none';
-    if (tablesTab) {
-      tablesTab.style.display = '';
-      tablesTab.textContent = 'Ressources';
-    }
-    if (createTableBtn) createTableBtn.style.display = 'none';
-    switchExplorerTab('tables');
-    await loadDataGouvResources();
-  } else {
-    if (docTab) docTab.style.display = '';
-    if (tablesTab) {
-      tablesTab.style.display = '';
-      tablesTab.textContent = 'Tables';
-    }
-    if (createTableBtn) createTableBtn.style.display = '';
-    switchExplorerTab('documents');
-    await loadDocuments();
+    await openApiPreview(conn);
   }
 }
 
@@ -654,37 +1077,44 @@ export function resetConnectionForm(): void {
 // UI Helpers (used by selectConnection and main)
 // ============================================================
 
+/**
+ * Compat v1 : les explorateurs demandaient l'onglet « preview » — dans la
+ * refonte v2 cela ouvre le panneau latéral d'aperçu. Les autres onglets
+ * (documents / tables) n'existent plus (accordéon).
+ */
 export function switchExplorerTab(tabId: string): void {
-  if (!tabId) return;
-
-  // Only affect explorer tabs, not modal tabs
-  document.querySelectorAll('.explorer-tabs:not(#source-mode-tabs) .explorer-tab').forEach((t) => {
-    t.classList.remove('active');
-  });
-  document.querySelectorAll('.tab-panel').forEach((p) => {
-    (p as HTMLElement).style.display = 'none';
-  });
-
-  const tabBtn = document.querySelector(
-    `.explorer-tabs:not(#source-mode-tabs) [data-tab="${tabId}"]`
-  );
-  const tabPanel = document.getElementById(`tab-${tabId}`);
-
-  if (tabBtn) tabBtn.classList.add('active');
-  if (tabPanel) tabPanel.style.display = 'block';
+  if (tabId === 'preview') openPreviewPanel();
 }
 
+/** Compat v1 : « explorateur vide » = panneau d'aperçu fermé. */
 export function showExplorerEmpty(): void {
-  const emptyEl = document.getElementById('explorer-empty');
-  const contentEl = document.getElementById('explorer-content');
-  if (emptyEl) emptyEl.style.display = 'block';
-  if (contentEl) contentEl.style.display = 'none';
+  closePreviewPanel();
 }
 
+/**
+ * « Rafraîchir » (panneau d'aperçu) : invalide les caches de la connexion
+ * courante et relance le dernier aperçu.
+ */
 export function refreshCurrentView(): void {
-  if (state.selectedConnectionId !== null) {
-    loadDocuments();
+  const connId = state.selectedConnectionId;
+  if (connId) {
+    connDocsCache.delete(connId);
+    connResourcesCache.delete(connId);
+    for (const key of [...connTablesCache.keys()]) {
+      if (key.startsWith(`${connId}::`)) connTablesCache.delete(key);
+    }
+    renderConnections();
   }
+  if (lastPreviewAction) void lastPreviewAction();
+}
+
+/**
+ * Invalide le cache des tables d'un doc Grist et re-rend l'accordéon —
+ * appelé après « Créer une table dans Grist » et « Exporter vers Grist ».
+ */
+export function invalidateGristTables(connId: string, docId: string): void {
+  connTablesCache.delete(`${connId}::${docId}`);
+  renderConnections();
 }
 
 // ============================================================
@@ -1301,99 +1731,74 @@ export function switchSourceMode(mode: string): void {
 }
 
 // ============================================================
-// Render sources list (sidebar)
+// Render sources — jeux locaux (v2) + badges de l'accordéon
 // ============================================================
 
-/** Construit la carte d'un jeu de données pour la sidebar (même style que les connexions). */
-function buildSourceCard(source: (typeof state.sources)[number]): HTMLElement {
-  const card = document.createElement('div');
-  card.className = 'connection-card';
-
-  const typeBadge =
-    source.type === 'api'
-      ? '<span class="badge-source-type badge-api">API</span>'
-      : source.type === 'grist'
-        ? '<span class="badge-source-type badge-grist">Grist</span>'
-        : source.type === 'join'
-          ? '<span class="badge-source-type badge-join">Jointure</span>'
-          : '<span class="badge-source-type badge-manual">Manuel</span>';
-
-  // Edit button: only available on manual sources (API/Grist/join sources
-  // are derived from external state, not editable here).
-  const editBtn =
-    source.type === 'manual'
-      ? `<button class="edit-source-btn" title="Modifier" style="background: none; border: none; cursor: pointer; color: var(--text-mention-grey); padding: 0.25rem; font-size: 0.875rem; line-height: 1; border-radius: 3px;">
-          <i class="ri-pencil-line"></i>
-        </button>`
-      : '';
-
-  const count = source.recordCount || source.data?.length || 0;
-
-  card.innerHTML = `
-    <div class="name" style="display: flex; align-items: center; gap: 0.5rem;">
-      ${typeBadge}
-      <span style="flex: 1;">${escapeHtml(source.name)}</span>
-      ${editBtn}
-      <button class="delete-source-btn" title="Supprimer" style="background: none; border: none; cursor: pointer; color: var(--text-mention-grey); padding: 0.25rem; font-size: 0.875rem; line-height: 1; border-radius: 3px;">
-        <i class="ri-delete-bin-line"></i>
-      </button>
-    </div>
-    <div class="status">${count} ligne${count > 1 ? 's' : ''}</div>`;
-
-  card.addEventListener('click', (e: Event) => {
-    const target = e.target as HTMLElement;
-    if (!target.closest('.delete-source-btn') && !target.closest('.edit-source-btn')) {
-      previewSource(source.id);
-    }
-  });
-
-  card.querySelector('.edit-source-btn')?.addEventListener('click', (e: Event) => {
-    e.stopPropagation();
-    editSource(source.id);
-  });
-
-  card.querySelector('.delete-source-btn')?.addEventListener('click', async (e: Event) => {
-    e.stopPropagation();
-    if (await confirmDialog(`Supprimer la source "${source.name}" ?`)) {
-      deleteSource(source.id);
-    }
-  });
-
-  card.addEventListener('contextmenu', async (e: Event) => {
-    e.preventDefault();
-    if (await confirmDialog(`Supprimer la source "${source.name}" ?`)) {
-      deleteSource(source.id);
-    }
-  });
-
-  return card;
+function localBadgeHtml(type: string): string {
+  return type === 'join'
+    ? '<span class="badge-source-type badge-join">Jointure</span>'
+    : '<span class="badge-source-type badge-manual">Manuel</span>';
 }
 
-const EMPTY_ONLINE =
-  '<p class="fr-text--sm" style="color: var(--text-mention-grey); text-align: center; padding: 0.5rem 0;"><i class="ri-cloud-line" style="display:block;font-size:1.25rem;opacity:0.4;margin-bottom:0.25rem;"></i>Aucun jeu en ligne.<br>Ajoutez une connexion ci-dessus.</p>';
-const EMPTY_LOCAL =
-  '<p class="fr-text--sm" style="color: var(--text-mention-grey); text-align: center; padding: 0.5rem 0;"><i class="ri-file-list-3-line" style="display:block;font-size:1.25rem;opacity:0.4;margin-bottom:0.25rem;"></i>Aucun jeu local.<br>Creez une source manuelle (CSV, JSON).</p>';
-
 /**
- * Affiche les sources réparties en deux zones (cf. ADR-035) :
- *  - « Jeux de données en ligne » : sources issues d'une connexion (api / grist) ;
- *  - « Jeux de données locaux » : données saisies / importées / jointures.
+ * Affiche les jeux de données locaux (manuels / jointures) en lignes, et
+ * re-rend l'accordéon des connexions (badges « JEU EN LIGNE » et compteurs
+ * dépendent de state.sources). Les jeux en ligne orphelins sont gérés par
+ * renderOrphanOnline() via renderConnections().
  */
 export function renderSources(): void {
-  const onlineContainer = document.getElementById('online-sources-list');
   const localContainer = document.getElementById('local-sources-list');
-  if (!onlineContainer || !localContainer) return;
-  onlineContainer.innerHTML = '';
-  localContainer.innerHTML = '';
+  if (localContainer) {
+    localContainer.innerHTML = '';
+    const local = state.sources.filter((s) => s.type === 'manual' || s.type === 'join');
 
-  const online = state.sources.filter((s) => s.type === 'api' || s.type === 'grist');
-  const local = state.sources.filter((s) => s.type === 'manual' || s.type === 'join');
+    if (local.length === 0) {
+      localContainer.innerHTML =
+        '<p class="source-row__empty"><i class="ri-file-list-3-line" style="display:block;font-size:1.25rem;opacity:0.4;margin-bottom:0.25rem;"></i>Aucun jeu local.<br>Créez une source manuelle (tableau, JSON, CSV) ou une jointure.</p>';
+    } else {
+      local.forEach((source) => {
+        const count = source.recordCount || source.data?.length || 0;
+        const row = document.createElement('div');
+        row.className = 'source-row';
+        row.innerHTML = `
+          ${localBadgeHtml(source.type)}
+          <span class="source-row__name source-row__name--strong">${escapeHtml(source.name)}</span>
+          <span class="source-row__meta">${count} ligne${count > 1 ? 's' : ''}</span>
+          <div class="source-row__actions">
+            <button class="row-action-btn act-preview" type="button">Aperçu</button>
+            <button class="row-action-btn row-action-btn--primary act-use" type="button">Utiliser dans le Builder</button>
+            ${
+              source.type === 'manual'
+                ? '<button class="row-icon-btn act-edit" title="Modifier" type="button"><i class="ri-pencil-line" aria-hidden="true"></i></button>'
+                : ''
+            }
+            <button class="row-icon-btn act-delete" title="Supprimer" type="button"><i class="ri-delete-bin-line" aria-hidden="true"></i></button>
+          </div>`;
 
-  if (online.length === 0) onlineContainer.innerHTML = EMPTY_ONLINE;
-  else online.forEach((s) => onlineContainer.appendChild(buildSourceCard(s)));
+        row
+          .querySelector('.act-preview')
+          ?.addEventListener('click', () => previewSource(source.id));
+        row.querySelector('.act-use')?.addEventListener('click', () => useSourceInBuilder(source));
+        row.querySelector('.act-edit')?.addEventListener('click', () => editSource(source.id));
+        row.querySelector('.act-delete')?.addEventListener('click', async () => {
+          if (await confirmDialog(`Supprimer la source "${source.name}" ?`)) {
+            deleteSource(source.id);
+          }
+        });
+        row.addEventListener('contextmenu', async (e: Event) => {
+          e.preventDefault();
+          if (await confirmDialog(`Supprimer la source "${source.name}" ?`)) {
+            deleteSource(source.id);
+          }
+        });
+        localContainer.appendChild(row);
+      });
+    }
+  }
 
-  if (local.length === 0) localContainer.innerHTML = EMPTY_LOCAL;
-  else local.forEach((s) => localContainer.appendChild(buildSourceCard(s)));
+  // Les badges « JEU EN LIGNE », compteurs « N jeux créés » et la section des
+  // orphelins vivent dans l'accordéon.
+  renderConnections();
 }
 
 // ============================================================
@@ -1446,25 +1851,11 @@ export function previewSource(id: string): void {
   // Jeu déjà enregistré → pas de boutons « en faire un jeu en ligne/local ».
   setDatasetCandidate(null);
 
-  // Show in explorer
-  const emptyEl = document.getElementById('explorer-empty');
-  const contentEl = document.getElementById('explorer-content');
-  if (emptyEl) emptyEl.style.display = 'none';
-  if (contentEl) contentEl.style.display = 'block';
-
-  const titleEl = document.getElementById('explorer-title');
-  if (titleEl) titleEl.textContent = source.name;
-
-  // Hide tabs
-  const tabsEl = document.getElementById('explorer-tabs');
-  if (tabsEl) tabsEl.style.display = 'none';
-
-  // Show preview tab directly
-  document.querySelectorAll('.tab-panel').forEach((p) => {
-    (p as HTMLElement).style.display = 'none';
-  });
-  const previewPanel = document.getElementById('tab-preview');
-  if (previewPanel) previewPanel.style.display = 'block';
+  // Panneau d'aperçu (v2) : badge selon la nature du jeu + titre.
+  const isOnline = source.type === 'api' || source.type === 'grist';
+  setPreviewHeader(isOnline ? 'online' : 'local', source.name);
+  openPreviewPanel();
+  lastPreviewAction = () => previewSource(id);
 
   // Show export button for manual and join sources (local data)
   const exportBtn = document.getElementById('export-grist-btn');
@@ -1485,10 +1876,9 @@ export function previewSource(id: string): void {
   info.textContent = `${data.length} enregistrements`;
 
   // Bandeau métadonnées : jeu en ligne (api/grist) vs jeu local (manual/join).
-  const online = source.type === 'api' || source.type === 'grist';
   renderPreviewMeta({
-    kind: online ? 'online' : 'local',
-    url: online ? source.apiUrl : null,
+    kind: isOnline ? 'online' : 'local',
+    url: isOnline ? source.apiUrl : null,
     rows: data as Record<string, unknown>[],
     totalCount: source.recordCount,
   });
