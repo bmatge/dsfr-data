@@ -492,8 +492,8 @@ export interface TargetTooltipLine {
 }
 
 /**
- * Construit le tooltip DSFR d'une échéance (style décalqué de
- * dsfr-data-world-map). `aria-hidden` : l'info est déjà dans l'aria-label.
+ * Construit le tooltip DSFR d'une échéance. `aria-hidden` : l'info est
+ * déjà dans l'aria-label.
  * Le positionnement est fait par l'appelant (composant).
  */
 export function buildTargetTooltip(title: string, lines: TargetTooltipLine[]): HTMLDivElement {

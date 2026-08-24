@@ -17,6 +17,10 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css" integrity="sha384-5P5DFFqorcEBpfnK9WHu/Ralfr7ZxyCZh0ryaJbgucSvc71+qRYdGvNEcyMqQwa/" crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
 
+  <!-- DSFR Chart (map-chart pour la scène « Carte du monde » du carrousel) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.1.1/dist/DSFRChart/DSFRChart.css" integrity="sha384-5m9vgfA+uOR3qcY14HhRzWDK17cwEVXO75RSwv2KJXignSdIrOvz1xNaaDpWXCeu" crossorigin="anonymous">
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.1.1/dist/DSFRChart/DSFRChart.js" integrity="sha384-OJTIJmv0zL1Ym2Bd6hA0oHB25gTqveSogoyVtnN3cEJcm4qE28qzTEp56vJeeKIS" crossorigin="anonymous"></script>
+
   <!-- Composants dsfr-data -->
   <script type="module" src="dist/dsfr-data.esm.js"></script>
   <script type="module" src="dist/app-ui.esm.js"></script>
@@ -445,15 +449,15 @@
                 ></dsfr-data-source>
 
                 <div class="chart-slot chart-slot--world" data-slot="world" data-active="false" role="img" aria-label="Carte monde">
-                  <dsfr-data-world-map
+                  <dsfr-data-chart
                     source="src-home-world"
+                    type="map-monde"
                     code-field="code"
                     value-field="visits"
-                    code-format="iso-a2"
-                    name-field="country"
+                    name="Visites"
+                    unit-tooltip=" M visites"
                     selected-palette="sequentialAscending"
-                    unit-tooltip="M visites"
-                  ></dsfr-data-world-map>
+                  ></dsfr-data-chart>
                 </div>
               </div>
             </div>
@@ -553,7 +557,7 @@
         { id: 'kpi', typeLabel: 'Indicateurs clés', component: 'dsfr-data-kpi' },
         { id: 'podium', typeLabel: 'Podium', component: 'dsfr-data-podium' },
         { id: 'list', typeLabel: 'Liste filtrable', component: 'dsfr-data-list' },
-        { id: 'world', typeLabel: 'Carte du monde', component: 'dsfr-data-world-map' },
+        { id: 'world', typeLabel: 'Carte du monde', component: 'dsfr-data-chart' },
       ];
 
       const reduceMotion = window.matchMedia

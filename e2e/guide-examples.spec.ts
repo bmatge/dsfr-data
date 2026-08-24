@@ -173,24 +173,6 @@ test.describe('Guide — direct widget pages', () => {
     expect(errors).toEqual([]);
   });
 
-  test('guide-exemples-world-map.html — world-map + chart widgets', async ({ page }) => {
-    const errors = collectConsoleErrors(page);
-    await page.goto('/guide/guide-exemples-world-map.html');
-    await page.waitForTimeout(15_000);
-
-    const worldMapCount = await page.locator('dsfr-data-world-map').count();
-    expect(worldMapCount).toBeGreaterThanOrEqual(1);
-
-    const chartCount = await page.locator('dsfr-data-chart').count();
-    expect(chartCount).toBeGreaterThanOrEqual(1);
-
-    await page.screenshot({
-      path: join(SCREENSHOT_DIR, 'guide-exemples-world-map.png'),
-      fullPage: true,
-    });
-    expect(errors).toEqual([]);
-  });
-
   test('guide-exemples-insee-erfs.html — chart + kpi widgets', async ({ page }) => {
     const errors = collectConsoleErrors(page);
     await page.goto('/guide/guide-exemples-insee-erfs.html');

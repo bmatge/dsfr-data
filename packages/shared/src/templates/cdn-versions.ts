@@ -75,7 +75,7 @@ export function getPreviewHTML(code: string): string {
      * never overflows horizontally / vertically.
      */
     dsfr-data-chart, dsfr-data-list, dsfr-data-kpi, dsfr-data-display,
-    dsfr-data-map, dsfr-data-world-map,
+    dsfr-data-map,
     bar-chart, line-chart, pie-chart, doughnut-chart, radar-chart,
     scatter-chart, horizontal-bar-chart, gauge-chart, map-chart, map-chart-reg,
     kpi-indicator {

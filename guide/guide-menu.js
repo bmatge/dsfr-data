@@ -75,7 +75,6 @@
         id: 'exemples-avances',
         label: 'Exemples avances',
         children: [
-          { id: 'world-map', label: 'Dashboard Huwise', href: 'guide-exemples-world-map.html' },
           { id: 'exemple-ods', label: 'Recherche Huwise', href: 'guide-exemple-ODS.html' },
           { id: 'insee-erfs', label: 'Dashboard INSEE', href: 'guide-exemples-insee-erfs.html' },
           {

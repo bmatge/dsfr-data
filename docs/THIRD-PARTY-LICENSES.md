@@ -13,9 +13,6 @@ Le projet `dsfr-data` lui-même est distribué sous licence **MIT** (voir [`LICE
 | [`leaflet`](https://leafletjs.com/) | ^1.9.4 | BSD-2-Clause | Moteur de carte (chargé dynamiquement) |
 | [`leaflet.markercluster`](https://github.com/Leaflet/Leaflet.markercluster) | ^1.5.3 | MIT | Plugin clustering de markers (chargé dynamiquement) |
 | [`leaflet.heat`](https://github.com/Leaflet/Leaflet.heat) | ^0.2.0 | BSD-2-Clause | Plugin heatmap (chargé dynamiquement) |
-| [`d3-geo`](https://github.com/d3/d3-geo) | ^3.1.1 | ISC | Projection géographique pour `dsfr-data-world-map` |
-| [`topojson-client`](https://github.com/topojson/topojson-client) | ^3.1.0 | ISC | Décodage TopoJSON pour `dsfr-data-world-map` |
-| [`world-atlas`](https://github.com/topojson/world-atlas) | ^2.0.2 | ISC | Contours monde TopoJSON |
 
 Les plugins Leaflet (`leaflet.markercluster`, `leaflet.heat`) sont chargés **dynamiquement via `import()`** uniquement quand un composant `dsfr-data-map-layer` les active (attributs `cluster` ou `type="heatmap"`). Ils ne sont donc pas inclus dans le bundle `dsfr-data` distribué sur npm — leur redistribution dans vos applications dépend de votre outil de build.
 

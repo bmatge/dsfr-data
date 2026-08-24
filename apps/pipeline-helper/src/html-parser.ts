@@ -19,7 +19,6 @@ const TAG_TO_TYPE: Record<string, string> = {
   'dsfr-data-display': 'output',
   'dsfr-data-podium': 'output',
   'dsfr-data-a11y': 'output',
-  'dsfr-data-world-map': 'output',
 };
 
 interface ParsedComponent {

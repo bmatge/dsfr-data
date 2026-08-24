@@ -1,8 +1,8 @@
 /**
- * dsfr-data/core - Composants de dataviz sans la carte du monde
+ * dsfr-data/core - Composants de dataviz sans les cartes Leaflet
  *
- * Bundle allege sans d3-geo ni topojson (~50% plus leger).
- * Pour ajouter dsfr-data-world-map, charger aussi dsfr-data.world-map.esm.js
+ * Bundle allege sans Leaflet. Pour ajouter dsfr-data-map, charger
+ * aussi dsfr-data.map.esm.js
  */
 
 // Composants de données

@@ -2,15 +2,14 @@
  * Build script that produces 3 library bundles:
  *
  *   dsfr-data.esm.js / .umd.js       — full bundle (all components)
- *   dsfr-data.core.esm.js / .umd.js   — core bundle (no world-map, no d3-geo)
- *   dsfr-data.world-map.esm.js         — world-map add-on (ESM only)
+ *   dsfr-data.core.esm.js / .umd.js   — core bundle (no Leaflet)
  *
  * Also copies the TopoJSON asset to dist/data/.
  */
 import { build } from 'vite';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { cpSync, mkdirSync, readFileSync } from 'fs';
+import { mkdirSync, readFileSync } from 'fs';
 import { execSync } from 'child_process';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -85,7 +84,7 @@ await buildBundle(
   ['es', 'umd']
 );
 
-// 2. Core bundle (no world-map / d3-geo / topojson)
+// 2. Core bundle (no Leaflet)
 await buildBundle(
   resolve(coreDir, 'src/index-core.ts'),
   'DsfrData',
@@ -93,27 +92,12 @@ await buildBundle(
   ['es', 'umd']
 );
 
-// 3. World-map add-on (ESM only — loaded as module complement)
-await buildBundle(
-  resolve(coreDir, 'src/index-world-map.ts'),
-  'DsfrDataWorldMap',
-  (fmt) => `dsfr-data.world-map.${fmt === 'es' ? 'esm' : fmt}.js`,
-  ['es', 'umd']
-);
-
-// 4. Map add-on (Leaflet carte interactive — loaded as module complement)
+// 3. Map add-on (Leaflet carte interactive — loaded as module complement)
 await buildBundle(
   resolve(coreDir, 'src/index-map.ts'),
   'DsfrDataMap',
   (fmt) => `dsfr-data.map.${fmt === 'es' ? 'esm' : fmt}.js`,
   ['es', 'umd']
-);
-
-// 5. Copy TopoJSON to dist/data/ for runtime fetch
-mkdirSync(resolve(coreDir, 'dist/data'), { recursive: true });
-cpSync(
-  resolve(coreDir, 'src/data/world-countries-110m.json'),
-  resolve(coreDir, 'dist/data/world-countries-110m.json')
 );
 
 console.log('\nBuild complete. Bundles in packages/core/dist/:');

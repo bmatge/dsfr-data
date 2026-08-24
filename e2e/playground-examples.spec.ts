@@ -6,7 +6,7 @@
  * 2. Per-example: for each of 25 examples, load via ?example=<key>,
  *    verify CodeMirror has code, iframe has dsfr-data-source and main widget.
  *
- * Examples using inline data (direct-worldmap) hard-fail.
+ * Examples using inline data hard-fail.
  * Examples using external APIs soft-fail with warning.
  */
 import { test, expect } from '@playwright/test';
@@ -95,12 +95,11 @@ const EXAMPLES: Record<string, { widget: string; usesApi: boolean }> = {
   // Join
   'join-basic': { widget: 'dsfr-data-chart', usesApi: false },
   'join-query': { widget: 'dsfr-data-chart', usesApi: false },
-  // World map (inline data)
+  // Cartes DSFR Chart (inline data)
   'direct-map-reg': { widget: 'dsfr-data-chart', usesApi: false },
   'direct-map-aca': { widget: 'dsfr-data-chart', usesApi: false },
   'direct-map-monde': { widget: 'dsfr-data-chart', usesApi: false },
   'unpivot-series-line': { widget: 'dsfr-data-chart', usesApi: false },
-  'direct-worldmap': { widget: 'dsfr-data-world-map', usesApi: false },
   // Map (Leaflet)
   'map-markers-cluster': { widget: 'dsfr-data-map', usesApi: false },
   'map-circles-proportional': { widget: 'dsfr-data-map', usesApi: false },

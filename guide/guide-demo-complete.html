@@ -399,18 +399,17 @@
           </p>
         </div>
 
-        <dsfr-data-world-map id="chart-world-map"
+        <dsfr-data-chart id="chart-world-map"
           source="world-data"
+          type="map-monde"
           code-field="code"
           value-field="n"
-          code-format="iso-a2"
           name="Entrées simulées (milliers)"
           unit-tooltip=" k"
-          selected-palette="sequentialAscending"
-          zoom-mode="continent">
-        </dsfr-data-world-map>
+          selected-palette="sequentialAscending">
+        </dsfr-data-chart>
 
-        <!-- Tableau accessible pour la carte mondiale (dsfr-data-a11y ne supporte pas dsfr-data-world-map) -->
+        <!-- Tableau accessible pour la carte mondiale -->
         <dsfr-data-list id="list-world"
           source="world-data"
           columns="code:Pays,n:Entrées (k)"
@@ -482,8 +481,8 @@
             <a href="https://ghibliapi.vercel.app" target="_blank" rel="noopener">Ghibli API (ghibliapi.vercel.app)</a>
             — données publiques, route via proxy CORS, aucune clé d'API requise.<br>
             <strong>Pipeline :</strong> dsfr-data-source (URL directe) → dsfr-data-normalize (numeric) →
-            8× dsfr-data-query → dsfr-data-kpi-group (4 KPIs) + 13× dsfr-data-chart (tous types) +
-            dsfr-data-world-map + dsfr-data-search + dsfr-data-facets + dsfr-data-display + dsfr-data-list + dsfr-data-a11y.<br>
+            8× dsfr-data-query → dsfr-data-kpi-group (4 KPIs) + 14× dsfr-data-chart (tous types, dont la carte monde) +
+            dsfr-data-search + dsfr-data-facets + dsfr-data-display + dsfr-data-list + dsfr-data-a11y.<br>
             <strong>Cartes :</strong> données fictives — illustration uniquement.
           </p>
         </div>

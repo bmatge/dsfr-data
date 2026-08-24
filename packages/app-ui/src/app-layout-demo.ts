@@ -176,11 +176,6 @@ export class AppLayoutDemo extends LitElement {
             href: 'components/dsfr-data-podium.html',
           },
           {
-            id: 'components/dsfr-data-world-map',
-            label: 'dsfr-data-world-map',
-            href: 'components/dsfr-data-world-map.html',
-          },
-          {
             id: 'components/dsfr-data-a11y',
             label: 'dsfr-data-a11y',
             href: 'components/dsfr-data-a11y.html',
@@ -373,10 +368,10 @@ export class AppLayoutDemo extends LitElement {
                 ? html`
                     <h1>
                       ${
-                      this.icon
-                        ? html`<span class="${this.icon} fr-mr-1w" aria-hidden="true"></span>`
-                        : ''
-                    }
+                        this.icon
+                          ? html`<span class="${this.icon} fr-mr-1w" aria-hidden="true"></span>`
+                          : ''
+                      }
                       ${this.title}
                     </h1>
                   `

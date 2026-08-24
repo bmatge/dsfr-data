@@ -11,7 +11,6 @@ describe('playground examples', () => {
     'chart-reference-lines',
     'chart-targets',
     'direct-datalist',
-    'direct-worldmap',
   ];
 
   const serverPaginateKeys = [
@@ -59,8 +58,8 @@ describe('playground examples', () => {
     }
   });
 
-  it('should have 39 examples', () => {
-    expect(Object.keys(examples)).toHaveLength(39);
+  it('should have 38 examples', () => {
+    expect(Object.keys(examples)).toHaveLength(38);
   });
 
   it('should have non-empty code for all examples', () => {
@@ -79,15 +78,7 @@ describe('playground examples', () => {
     for (const key of directKeys) {
       const hasSource = examples[key].includes('dsfr-data-source');
       expect(hasSource, `${key} should use dsfr-data-source`).toBe(true);
-      if (
-        ![
-          'direct-kpi',
-          'kpi-barometre',
-          'direct-datalist',
-          'direct-display',
-          'direct-worldmap',
-        ].includes(key)
-      ) {
+      if (!['direct-kpi', 'kpi-barometre', 'direct-datalist', 'direct-display'].includes(key)) {
         expect(examples[key], `${key} should use dsfr-data-chart`).toContain('dsfr-data-chart');
       }
     }

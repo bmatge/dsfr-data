@@ -17,7 +17,7 @@ La bibliotheque npm publiee `dsfr-data` se trouve dans `packages/core/`.
 - **Composants** : Lit (LitElement, html, css) dans `packages/core/src/`.
 - **Build** : Vite (lib mode + apps), esbuild ; scripts dans `scripts/`.
 - **Tests** : Vitest (unit, jsdom) + Playwright (E2E).
-- **Charts** : `@gouvfr/dsfr-chart`. Carte : Leaflet (lazy). World-map : d3-geo + topojson.
+- **Charts** : `@gouvfr/dsfr-chart`. Carte : Leaflet (lazy).
 - **Serveur** : Express + MariaDB 11 (`mysql2/promise`).
 - **Versioning** : Changesets.
 - **Mono** : 11 apps dans `apps/`, lib dans `packages/core/`, partagé dans `packages/shared/`, chrome applicatif dans `packages/app-ui/`.
