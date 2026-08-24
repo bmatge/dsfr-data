@@ -223,11 +223,12 @@ test.describe('Favoris v2', () => {
     await page.waitForTimeout(1200);
   });
 
-  test('grille : vignettes typées déduites du code (line, map)', async ({ page }) => {
+  test('grille : vignettes typées déduites du code (line, carte à couches)', async ({ page }) => {
     await expect(page.locator('.fav-card')).toHaveCount(2);
     const tags = await page.locator('.fav-card .fav-card__tag:first-child').allInnerTexts();
     expect(tags).toContain('line');
-    expect(tags).toContain('map');
+    // <dsfr-data-map> (Géoplateforme + couches) est distinguée de la choroplèthe DSFR (« map »)
+    expect(tags).toContain('map · couches');
   });
 
   test('panneau : rendu iframe, actions, renommage, Échap', async ({ page }) => {

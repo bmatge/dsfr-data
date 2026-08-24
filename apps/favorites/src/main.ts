@@ -95,13 +95,17 @@ function importFavorites(): void {
  */
 function inferChartType(fav: Favorite): string {
   const stored = (fav.chartType || '').toLowerCase();
+  const code = (fav.code || '').toLowerCase();
+  // Deux familles de cartes stockées sous le même chartType « map » :
+  // <dsfr-data-map> (fond Géoplateforme + couches, builder-carto) est
+  // distinguée AVANT de retourner le type stocké. `[\s>]` évite de matcher
+  // les balises enfants <dsfr-data-map-layer>.
+  if (/<dsfr-data-map[\s>]/.test(code)) return 'carto';
   if (stored && !['chart', 'playground', 'builder'].includes(stored)) return stored;
 
-  const code = (fav.code || '').toLowerCase();
-  // Cartes d'abord : le type= des couches Leaflet (marker, geoshape…) ne doit
-  // pas masquer la nature « carte » du favori.
-  if (/dsfr-data-map|<map-chart|map-reg|map-aca|map-monde|dsfr-data-world-map/.test(code))
-    return 'map';
+  // Cartes DSFR Charts (choroplèthes) : le type= des couches Leaflet (marker,
+  // geoshape…) ne doit pas masquer la nature « carte » du favori.
+  if (/<map-chart|map-reg|map-aca|map-monde|dsfr-data-world-map/.test(code)) return 'map';
   // type= lu UNIQUEMENT sur la balise dsfr-data-chart (attributs multilignes) :
   // un type= générique attrapait <script type="module"> ou databox-type="chart"
   // et rabattait tous les favoris sur la vignette barres.
@@ -134,6 +138,12 @@ function inferChartType(fav: Favorite): string {
   return stored || 'chart';
 }
 
+/** Libellé du tag de type affiché sur la vignette et le panneau. */
+function chartTypeLabel(t: string): string {
+  if (t === 'carto') return 'map · couches';
+  return t;
+}
+
 /**
  * Vignette SVG par type de graphique (refonte v2 — Claude Design).
  * Illustration légère : le rendu réel (iframe) vit dans le panneau d'aperçu.
@@ -149,8 +159,15 @@ function thumbSvg(chartType: string | undefined): string {
   if (t.includes('pie') || t.includes('donut') || t.includes('doughnut')) {
     return `<svg viewBox="0 0 200 110" aria-hidden="true"><circle cx="100" cy="55" r="38" fill="none" stroke="#e3e3fd" stroke-width="16"></circle><circle cx="100" cy="55" r="38" fill="none" stroke="#000091" stroke-width="16" stroke-dasharray="120 240" transform="rotate(-90 100 55)"></circle><circle cx="100" cy="55" r="38" fill="none" stroke="#e1000f" stroke-width="16" stroke-dasharray="50 310" stroke-dashoffset="-120" transform="rotate(-90 100 55)"></circle></svg>`;
   }
+  if (t === 'carto' || t.includes('couche') || t.includes('geoportail')) {
+    // Carte Géoplateforme à couches (builder-carto) : carte pliée + marqueur + pile de couches.
+    return `<svg viewBox="0 0 200 110" aria-hidden="true"><path d="M 25 30 L 66 20 L 112 30 L 153 20 L 153 84 L 112 94 L 66 84 L 25 94 Z" fill="#f5f5fe" stroke="#6a6af4" stroke-width="2" stroke-linejoin="round"></path><line x1="66" y1="20" x2="66" y2="84" stroke="#cacafb" stroke-width="2"></line><line x1="112" y1="30" x2="112" y2="94" stroke="#cacafb" stroke-width="2"></line><path d="M 34 74 C 58 60 78 78 104 60 S 136 48 146 42" fill="none" stroke="#cacafb" stroke-width="2.5"></path><path d="M 89 32 c -9 0 -15 6.5 -15 15 c 0 10 15 25 15 25 s 15 -15 15 -25 c 0 -8.5 -6 -15 -15 -15 Z" fill="#e1000f"></path><circle cx="89" cy="47" r="5.5" fill="#fff"></circle><g transform="translate(160,48)"><polygon points="15,0 30,8 15,16 0,8" fill="#000091"></polygon><polygon points="15,10 30,18 15,26 0,18" fill="#6a6af4" opacity="0.85"></polygon><polygon points="15,20 30,28 15,36 0,28" fill="#cacafb"></polygon></g></svg>`;
+  }
   if (t.includes('map') || t.includes('carte')) {
-    return `<svg viewBox="0 0 200 110" aria-hidden="true"><g><rect x="55" y="8" width="22" height="22" fill="#cacafb"></rect><rect x="79" y="8" width="22" height="22" fill="#8585f6"></rect><rect x="103" y="8" width="22" height="22" fill="#cacafb"></rect><rect x="43" y="32" width="22" height="22" fill="#8585f6"></rect><rect x="67" y="32" width="22" height="22" fill="#000091"></rect><rect x="91" y="32" width="22" height="22" fill="#cacafb"></rect><rect x="115" y="32" width="22" height="22" fill="#6a6af4"></rect><rect x="55" y="56" width="22" height="22" fill="#6a6af4"></rect><rect x="79" y="56" width="22" height="22" fill="#cacafb"></rect><rect x="103" y="56" width="22" height="22" fill="#8585f6"></rect><rect x="67" y="80" width="22" height="22" fill="#cacafb"></rect><rect x="91" y="80" width="22" height="22" fill="#000091"></rect><rect x="140" y="80" width="14" height="14" fill="#8585f6"></rect></g></svg>`;
+    // Choroplèthe DSFR Charts : hexagone (la France) découpé en régions
+    // irrégulières (pas de symétrie centrale : trois quadrilatères réguliers
+    // se lisent comme un cube isométrique) + mini-légende.
+    return `<svg viewBox="0 0 200 110" aria-hidden="true"><g stroke="#fff" stroke-width="2" stroke-linejoin="round"><polygon points="95,8 135,31 118,44 78,48 55,31" fill="#cacafb"></polygon><polygon points="135,31 135,77 128,70 118,44" fill="#6a6af4"></polygon><polygon points="55,31 78,48 72,74 55,77" fill="#8585f6"></polygon><polygon points="78,48 118,44 128,70 95,78 72,74" fill="#000091"></polygon><polygon points="55,77 72,74 95,78 128,70 135,77 95,100" fill="#e3e3fd"></polygon></g><polygon points="95,8 135,31 135,77 95,100 55,77 55,31" fill="none" stroke="#000091" stroke-width="2" stroke-linejoin="round"></polygon><rect x="156" y="38" width="11" height="9" fill="#cacafb"></rect><rect x="156" y="51" width="11" height="9" fill="#6a6af4"></rect><rect x="156" y="64" width="11" height="9" fill="#000091"></rect></svg>`;
   }
   if (t.includes('datalist') || t.includes('table') || t.includes('list')) {
     return `<svg viewBox="0 0 200 110" aria-hidden="true"><rect x="20" y="14" width="160" height="16" fill="#e3e3fd"></rect><rect x="20" y="36" width="160" height="12" fill="#f6f6f6" stroke="#ddd"></rect><rect x="20" y="52" width="160" height="12" fill="#fff" stroke="#ddd"></rect><rect x="20" y="68" width="160" height="12" fill="#f6f6f6" stroke="#ddd"></rect><rect x="20" y="84" width="160" height="12" fill="#fff" stroke="#ddd"></rect></svg>`;
@@ -212,7 +229,7 @@ function renderGrid(): void {
       <div class="fav-card__body">
         <span class="fav-card__name">${escapeHtml(fav.name)}</span>
         <div class="fav-card__meta">
-          <span class="fav-card__tag">${escapeHtml(inferChartType(fav))}</span>
+          <span class="fav-card__tag">${escapeHtml(chartTypeLabel(inferChartType(fav)))}</span>
           <span class="fav-card__tag">${escapeHtml(fav.sourceApp || fav.source || 'builder')}</span>
           <span class="fav-card__date">${formatDateShort(fav.createdAt)}</span>
         </div>
@@ -250,7 +267,7 @@ function renderPanel(): void {
   const tagsEl = document.getElementById('fav-panel-tags');
   if (tagsEl) {
     tagsEl.innerHTML = `
-      <span class="fav-card__tag">${escapeHtml(inferChartType(fav))}</span>
+      <span class="fav-card__tag">${escapeHtml(chartTypeLabel(inferChartType(fav)))}</span>
       <span class="fav-card__tag">${escapeHtml(fav.sourceApp || fav.source || 'builder')}</span>`;
   }
   const metaEl = document.getElementById('fav-panel-meta');
