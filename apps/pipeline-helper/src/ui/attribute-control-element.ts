@@ -50,6 +50,7 @@ export class AttributeControlElement extends LitElement {
           <label class="attr-label">${def.label}</label>
           <select
             class="attr-input"
+            aria-label=${def.label}
             .value=${this.ctrl.value}
             @change=${this._onChange}
             @pointerdown=${this._stop}
@@ -72,6 +73,7 @@ export class AttributeControlElement extends LitElement {
         <div class="attr-field attr-field--check">
           <input
             type="checkbox"
+            aria-label=${def.label}
             ?checked=${this.ctrl.value === 'true'}
             @change=${this._onChange}
             @pointerdown=${this._stop}
@@ -87,6 +89,7 @@ export class AttributeControlElement extends LitElement {
         <input
           class="attr-input"
           type=${def.type === 'number' ? 'number' : 'text'}
+          aria-label=${def.label}
           .value=${this.ctrl.value}
           placeholder=${def.placeholder ?? ''}
           @input=${this._onChange}

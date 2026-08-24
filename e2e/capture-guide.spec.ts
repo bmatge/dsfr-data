@@ -5,6 +5,7 @@
  * Generates annotated, cropped screenshots for each user journey (parcours A-G).
  */
 import { test, type Page } from '@playwright/test';
+import { disableProductTour } from './helpers';
 import { join, dirname } from 'path';
 import { mkdirSync } from 'fs';
 import { fileURLToPath } from 'url';
@@ -28,7 +29,7 @@ const MANUAL_SOURCE = {
     { region: 'Occitanie', PIB: 177, population: 5.9, score_DSFR: 88 },
     { region: 'Hauts-de-France', PIB: 161, population: 6.0, score_DSFR: 72 },
     { region: 'Grand Est', PIB: 157, population: 5.6, score_DSFR: 81 },
-    { region: 'Provence-Alpes-Cote d\'Azur', PIB: 168, population: 5.1, score_DSFR: 90 },
+    { region: "Provence-Alpes-Cote d'Azur", PIB: 168, population: 5.1, score_DSFR: 90 },
     { region: 'Pays de la Loire', PIB: 120, population: 3.8, score_DSFR: 76 },
     { region: 'Bretagne', PIB: 103, population: 3.4, score_DSFR: 83 },
     { region: 'Normandie', PIB: 96, population: 3.3, score_DSFR: 69 },
@@ -79,7 +80,8 @@ const API_ODS_CONNECTION = {
   id: 'conn-api-ods',
   type: 'api',
   name: 'API data.economie.gouv.fr',
-  apiUrl: 'https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/industrie-du-futur/records',
+  apiUrl:
+    'https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/industrie-du-futur/records',
   method: 'GET',
   headers: null,
   dataPath: 'results',
@@ -92,21 +94,92 @@ const API_ODS_SOURCE = {
   name: 'Industrie du futur (ODS)',
   type: 'api',
   connectionId: 'conn-api-ods',
-  apiUrl: 'https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/industrie-du-futur/records',
+  apiUrl:
+    'https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/industrie-du-futur/records',
   method: 'GET',
   dataPath: 'results',
   recordCount: 101,
   data: [
-    { nom_region: 'NORMANDIE', nom_departement: 'ORNE', code_departement: 61, nombre_beneficiaires: 78, montant_investissement: 32073247, montant_participation_etat: 8525121 },
-    { nom_region: 'AUVERGNE-RHONE-ALPES', nom_departement: 'AIN', code_departement: 1, nombre_beneficiaires: 251, montant_investissement: 101685903, montant_participation_etat: 30927091 },
-    { nom_region: 'ILE-DE-FRANCE', nom_departement: 'PARIS', code_departement: 75, nombre_beneficiaires: 142, montant_investissement: 65432100, montant_participation_etat: 18765000 },
-    { nom_region: 'OCCITANIE', nom_departement: 'HAUTE-GARONNE', code_departement: 31, nombre_beneficiaires: 189, montant_investissement: 78654321, montant_participation_etat: 22345678 },
-    { nom_region: 'NOUVELLE-AQUITAINE', nom_departement: 'GIRONDE', code_departement: 33, nombre_beneficiaires: 156, montant_investissement: 56789012, montant_participation_etat: 16234567 },
-    { nom_region: 'HAUTS-DE-FRANCE', nom_departement: 'NORD', code_departement: 59, nombre_beneficiaires: 312, montant_investissement: 134567890, montant_participation_etat: 38901234 },
-    { nom_region: 'GRAND EST', nom_departement: 'BAS-RHIN', code_departement: 67, nombre_beneficiaires: 134, montant_investissement: 48765432, montant_participation_etat: 13567890 },
-    { nom_region: 'BRETAGNE', nom_departement: 'FINISTERE', code_departement: 29, nombre_beneficiaires: 98, montant_investissement: 36543210, montant_participation_etat: 10234567 },
-    { nom_region: 'PAYS DE LA LOIRE', nom_departement: 'LOIRE-ATLANTIQUE', code_departement: 44, nombre_beneficiaires: 178, montant_investissement: 72345678, montant_participation_etat: 20123456 },
-    { nom_region: 'PROVENCE-ALPES-COTE D\'AZUR', nom_departement: 'BOUCHES-DU-RHONE', code_departement: 13, nombre_beneficiaires: 205, montant_investissement: 89012345, montant_participation_etat: 25678901 },
+    {
+      nom_region: 'NORMANDIE',
+      nom_departement: 'ORNE',
+      code_departement: 61,
+      nombre_beneficiaires: 78,
+      montant_investissement: 32073247,
+      montant_participation_etat: 8525121,
+    },
+    {
+      nom_region: 'AUVERGNE-RHONE-ALPES',
+      nom_departement: 'AIN',
+      code_departement: 1,
+      nombre_beneficiaires: 251,
+      montant_investissement: 101685903,
+      montant_participation_etat: 30927091,
+    },
+    {
+      nom_region: 'ILE-DE-FRANCE',
+      nom_departement: 'PARIS',
+      code_departement: 75,
+      nombre_beneficiaires: 142,
+      montant_investissement: 65432100,
+      montant_participation_etat: 18765000,
+    },
+    {
+      nom_region: 'OCCITANIE',
+      nom_departement: 'HAUTE-GARONNE',
+      code_departement: 31,
+      nombre_beneficiaires: 189,
+      montant_investissement: 78654321,
+      montant_participation_etat: 22345678,
+    },
+    {
+      nom_region: 'NOUVELLE-AQUITAINE',
+      nom_departement: 'GIRONDE',
+      code_departement: 33,
+      nombre_beneficiaires: 156,
+      montant_investissement: 56789012,
+      montant_participation_etat: 16234567,
+    },
+    {
+      nom_region: 'HAUTS-DE-FRANCE',
+      nom_departement: 'NORD',
+      code_departement: 59,
+      nombre_beneficiaires: 312,
+      montant_investissement: 134567890,
+      montant_participation_etat: 38901234,
+    },
+    {
+      nom_region: 'GRAND EST',
+      nom_departement: 'BAS-RHIN',
+      code_departement: 67,
+      nombre_beneficiaires: 134,
+      montant_investissement: 48765432,
+      montant_participation_etat: 13567890,
+    },
+    {
+      nom_region: 'BRETAGNE',
+      nom_departement: 'FINISTERE',
+      code_departement: 29,
+      nombre_beneficiaires: 98,
+      montant_investissement: 36543210,
+      montant_participation_etat: 10234567,
+    },
+    {
+      nom_region: 'PAYS DE LA LOIRE',
+      nom_departement: 'LOIRE-ATLANTIQUE',
+      code_departement: 44,
+      nombre_beneficiaires: 178,
+      montant_investissement: 72345678,
+      montant_participation_etat: 20123456,
+    },
+    {
+      nom_region: "PROVENCE-ALPES-COTE D'AZUR",
+      nom_departement: 'BOUCHES-DU-RHONE',
+      code_departement: 13,
+      nombre_beneficiaires: 205,
+      montant_investissement: 89012345,
+      montant_participation_etat: 25678901,
+    },
   ],
 };
 
@@ -114,7 +187,8 @@ const API_DATAGOUV_CONNECTION = {
   id: 'conn-api-datagouv',
   type: 'api',
   name: 'API tabular data.gouv.fr',
-  apiUrl: 'https://tabular-api.data.gouv.fr/api/resources/58075a79-8b16-4004-9640-6413c1dc2d60/data/',
+  apiUrl:
+    'https://tabular-api.data.gouv.fr/api/resources/58075a79-8b16-4004-9640-6413c1dc2d60/data/',
   method: 'GET',
   headers: null,
   dataPath: 'data',
@@ -151,17 +225,67 @@ const TEST_FAVORITES = [
 
 const TEST_DASHBOARD = {
   id: 'dashboard-guide',
-  name: 'Industrie du futur - Vue d\'ensemble',
-  description: 'Tableau de bord des aides a l\'industrie du futur par region',
+  name: "Industrie du futur - Vue d'ensemble",
+  description: "Tableau de bord des aides a l'industrie du futur par region",
   createdAt: '2025-02-01T10:00:00Z',
   updatedAt: '2025-02-08T14:00:00Z',
   layout: { columns: 2, gap: 'fr-grid-row--gutters', rowColumns: { 0: 3 } },
   widgets: [
-    { id: 'w-kpi-1', type: 'kpi', title: 'Beneficiaires', position: { row: 0, col: 0 }, config: { valeur: '1743', format: 'nombre', label: 'Beneficiaires totaux', icone: 'ri-team-fill', variant: 'info' } },
-    { id: 'w-kpi-2', type: 'kpi', title: 'Investissement', position: { row: 0, col: 1 }, config: { valeur: '715 M', format: 'texte', label: 'Investissement total', icone: 'ri-money-euro-circle-fill', variant: 'success' } },
-    { id: 'w-kpi-3', type: 'kpi', title: 'Participation Etat', position: { row: 0, col: 2 }, config: { valeur: '205 M', format: 'texte', label: 'Aide de l\'Etat', icone: 'ri-government-fill', variant: '' } },
-    { id: 'w-chart-1', type: 'chart', title: 'Top 5 regions', position: { row: 1, col: 0 }, config: { chartType: 'bar', labelField: 'nom_region', valueField: 'nombre_beneficiaires' }, favoriteId: 'fav-bar-industrie' },
-    { id: 'w-chart-2', type: 'chart', title: 'Repartition PIB', position: { row: 1, col: 1 }, config: { chartType: 'pie', labelField: 'region', valueField: 'PIB' }, favoriteId: 'fav-pie-regions' },
+    {
+      id: 'w-kpi-1',
+      type: 'kpi',
+      title: 'Beneficiaires',
+      position: { row: 0, col: 0 },
+      config: {
+        valeur: '1743',
+        format: 'nombre',
+        label: 'Beneficiaires totaux',
+        icone: 'ri-team-fill',
+        variant: 'info',
+      },
+    },
+    {
+      id: 'w-kpi-2',
+      type: 'kpi',
+      title: 'Investissement',
+      position: { row: 0, col: 1 },
+      config: {
+        valeur: '715 M',
+        format: 'texte',
+        label: 'Investissement total',
+        icone: 'ri-money-euro-circle-fill',
+        variant: 'success',
+      },
+    },
+    {
+      id: 'w-kpi-3',
+      type: 'kpi',
+      title: 'Participation Etat',
+      position: { row: 0, col: 2 },
+      config: {
+        valeur: '205 M',
+        format: 'texte',
+        label: "Aide de l'Etat",
+        icone: 'ri-government-fill',
+        variant: '',
+      },
+    },
+    {
+      id: 'w-chart-1',
+      type: 'chart',
+      title: 'Top 5 regions',
+      position: { row: 1, col: 0 },
+      config: { chartType: 'bar', labelField: 'nom_region', valueField: 'nombre_beneficiaires' },
+      favoriteId: 'fav-bar-industrie',
+    },
+    {
+      id: 'w-chart-2',
+      type: 'chart',
+      title: 'Repartition PIB',
+      position: { row: 1, col: 1 },
+      config: { chartType: 'pie', labelField: 'region', valueField: 'PIB' },
+      favoriteId: 'fav-pie-regions',
+    },
   ],
   sources: [],
 };
@@ -176,42 +300,54 @@ test.beforeAll(() => {
 
 /** Inject all test data into localStorage before page navigation */
 async function setupStorage(page: Page) {
-  await page.addInitScript((data) => {
-    localStorage.setItem('dsfr-data-connections', JSON.stringify(data.connections));
-    localStorage.setItem('dsfr-data-sources', JSON.stringify(data.sources));
-    localStorage.setItem('dsfr-data-favorites', JSON.stringify(data.favorites));
-    localStorage.setItem('dsfr-data-dashboards', JSON.stringify(data.dashboards));
-  }, {
-    connections: [GRIST_CONNECTION, API_ODS_CONNECTION, API_DATAGOUV_CONNECTION],
-    sources: [MANUAL_SOURCE, GRIST_SOURCE, API_ODS_SOURCE],
-    favorites: TEST_FAVORITES,
-    dashboards: [TEST_DASHBOARD],
-  });
+  // Tour guide desactive avant chaque chargement (helper partage, #407) :
+  // l'overlay polluerait les captures et intercepte les clics
+  await disableProductTour(page);
+  await page.addInitScript(
+    (data) => {
+      localStorage.setItem('dsfr-data-connections', JSON.stringify(data.connections));
+      localStorage.setItem('dsfr-data-sources', JSON.stringify(data.sources));
+      localStorage.setItem('dsfr-data-favorites', JSON.stringify(data.favorites));
+      localStorage.setItem('dsfr-data-dashboards', JSON.stringify(data.dashboards));
+    },
+    {
+      connections: [GRIST_CONNECTION, API_ODS_CONNECTION, API_DATAGOUV_CONNECTION],
+      sources: [MANUAL_SOURCE, GRIST_SOURCE, API_ODS_SOURCE],
+      favorites: TEST_FAVORITES,
+      dashboards: [TEST_DASHBOARD],
+    }
+  );
 }
 
 /** Add a numbered annotation badge on an element */
 async function annotate(page: Page, selector: string, number: number, color = '#E1000F') {
-  await page.evaluate(({ sel, num, col }) => {
-    const el = document.querySelector(sel) as HTMLElement;
-    if (!el) return;
-    el.style.outline = `3px solid ${col}`;
-    el.style.outlineOffset = '3px';
-    el.style.position = el.style.position || 'relative';
-    const badge = document.createElement('div');
-    badge.textContent = String(num);
-    badge.style.cssText = `position:absolute;top:-14px;left:-14px;width:28px;height:28px;background:${col};color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;z-index:9999;box-shadow:0 2px 4px rgba(0,0,0,0.3);`;
-    el.appendChild(badge);
-  }, { sel: selector, num: number, col: color });
+  await page.evaluate(
+    ({ sel, num, col }) => {
+      const el = document.querySelector(sel) as HTMLElement;
+      if (!el) return;
+      el.style.outline = `3px solid ${col}`;
+      el.style.outlineOffset = '3px';
+      el.style.position = el.style.position || 'relative';
+      const badge = document.createElement('div');
+      badge.textContent = String(num);
+      badge.style.cssText = `position:absolute;top:-14px;left:-14px;width:28px;height:28px;background:${col};color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;z-index:9999;box-shadow:0 2px 4px rgba(0,0,0,0.3);`;
+      el.appendChild(badge);
+    },
+    { sel: selector, num: number, col: color }
+  );
 }
 
 /** Add outline annotation without number */
 async function outline(page: Page, selector: string, color = '#E1000F') {
-  await page.evaluate(({ sel, col }) => {
-    const el = document.querySelector(sel) as HTMLElement;
-    if (!el) return;
-    el.style.outline = `3px solid ${col}`;
-    el.style.outlineOffset = '3px';
-  }, { sel: selector, col: color });
+  await page.evaluate(
+    ({ sel, col }) => {
+      const el = document.querySelector(sel) as HTMLElement;
+      if (!el) return;
+      el.style.outline = `3px solid ${col}`;
+      el.style.outlineOffset = '3px';
+    },
+    { sel: selector, col: color }
+  );
 }
 
 /** Clear all annotations */
@@ -278,7 +414,7 @@ test.describe('User Guide Screenshots', () => {
     await page.fill('#source-name', 'Statistiques regions');
     // Fill table headers
     const headers = page.locator('.table-editor thead input[type="text"]');
-    if (await headers.count() >= 2) {
+    if ((await headers.count()) >= 2) {
       await headers.nth(0).fill('region');
       await headers.nth(1).fill('PIB');
     }
@@ -292,7 +428,12 @@ test.describe('User Guide Screenshots', () => {
     await annotate(page, '#source-name', 1, '#000091');
     await annotate(page, '.table-editor', 2, '#000091');
     await annotate(page, '#save-source-btn', 3, '#E1000F');
-    await cropScreenshot(page, '#manual-source-modal .modal', 'guide-A2-sources-manual-modal.png', 8);
+    await cropScreenshot(
+      page,
+      '#manual-source-modal .modal',
+      'guide-A2-sources-manual-modal.png',
+      8
+    );
     await clearAnnotations(page);
 
     // Close modal
@@ -343,12 +484,12 @@ test.describe('User Guide Screenshots', () => {
     const labelField = page.locator('#label-field');
     const valueField = page.locator('#value-field');
     const labelOptions = await labelField.locator('option').allTextContents();
-    if (labelOptions.some(o => o.includes('region'))) {
-      await labelField.selectOption({ label: labelOptions.find(o => o.includes('region'))! });
+    if (labelOptions.some((o) => o.includes('region'))) {
+      await labelField.selectOption({ label: labelOptions.find((o) => o.includes('region'))! });
     }
     const valueOptions = await valueField.locator('option').allTextContents();
-    if (valueOptions.some(o => o.includes('PIB'))) {
-      await valueField.selectOption({ label: valueOptions.find(o => o.includes('PIB'))! });
+    if (valueOptions.some((o) => o.includes('PIB'))) {
+      await valueField.selectOption({ label: valueOptions.find((o) => o.includes('PIB'))! });
     }
 
     // Set title
@@ -374,7 +515,9 @@ test.describe('User Guide Screenshots', () => {
     // --- A7: Builder - code tab ---
     // Click code tab
     await page.evaluate(() => {
-      const tabs = document.querySelectorAll('app-preview-panel .tab-btn, app-preview-panel [data-tab="code"]');
+      const tabs = document.querySelectorAll(
+        'app-preview-panel .tab-btn, app-preview-panel [data-tab="code"]'
+      );
       tabs.forEach((t: any) => {
         if (t.textContent?.includes('Code') || t.dataset?.tab === 'code') t.click();
       });
@@ -453,7 +596,9 @@ test.describe('User Guide Screenshots', () => {
     // --- B4: Full builder with Grist in dynamic mode ---
     // Expand sections and configure
     await page.evaluate(() => {
-      document.querySelectorAll('.config-section').forEach((s: any) => s.classList.remove('collapsed'));
+      document
+        .querySelectorAll('.config-section')
+        .forEach((s: any) => s.classList.remove('collapsed'));
     });
     await page.waitForTimeout(300);
     await page.click('.chart-type-btn[data-type="bar"]');
@@ -462,12 +607,16 @@ test.describe('User Guide Screenshots', () => {
     const gristLabelField = page.locator('#label-field');
     const gristValueField = page.locator('#value-field');
     const gristLabelOptions = await gristLabelField.locator('option').allTextContents();
-    if (gristLabelOptions.some(o => o.includes('Pays'))) {
-      await gristLabelField.selectOption({ label: gristLabelOptions.find(o => o.includes('Pays'))! });
+    if (gristLabelOptions.some((o) => o.includes('Pays'))) {
+      await gristLabelField.selectOption({
+        label: gristLabelOptions.find((o) => o.includes('Pays'))!,
+      });
     }
     const gristValueOptions = await gristValueField.locator('option').allTextContents();
-    if (gristValueOptions.some(o => o.includes('PIB'))) {
-      await gristValueField.selectOption({ label: gristValueOptions.find(o => o.includes('PIB'))! });
+    if (gristValueOptions.some((o) => o.includes('PIB'))) {
+      await gristValueField.selectOption({
+        label: gristValueOptions.find((o) => o.includes('PIB'))!,
+      });
     }
 
     await page.fill('#chart-title', 'PIB par pays (Grist)');
@@ -477,7 +626,9 @@ test.describe('User Guide Screenshots', () => {
 
     // Switch to code tab to show dynamic code
     await page.evaluate(() => {
-      const tabs = document.querySelectorAll('app-preview-panel .tab-btn, app-preview-panel [data-tab="code"]');
+      const tabs = document.querySelectorAll(
+        'app-preview-panel .tab-btn, app-preview-panel [data-tab="code"]'
+      );
       tabs.forEach((t: any) => {
         if (t.textContent?.includes('Code') || t.dataset?.tab === 'code') t.click();
       });
@@ -546,7 +697,7 @@ test.describe('User Guide Screenshots', () => {
       // Suggestions
       const suggestions = document.createElement('div');
       suggestions.className = 'chat-suggestions';
-      ['Ajoute un sous-titre', 'Passe en camembert', 'Filtre sur IDF'].forEach(text => {
+      ['Ajoute un sous-titre', 'Passe en camembert', 'Filtre sur IDF'].forEach((text) => {
         const btn = document.createElement('button');
         btn.className = 'chat-suggestion';
         btn.textContent = text;
@@ -628,7 +779,10 @@ test.describe('User Guide Screenshots', () => {
 
     // --- E2: Load saved dashboard ---
     // Try clicking open button if available
-    const openBtn = page.locator('button').filter({ hasText: /Ouvrir|Charger/ }).first();
+    const openBtn = page
+      .locator('button')
+      .filter({ hasText: /Ouvrir|Charger/ })
+      .first();
     if (await openBtn.isVisible().catch(() => false)) {
       await openBtn.click();
       await page.waitForTimeout(1000);
@@ -669,7 +823,10 @@ test.describe('User Guide Screenshots', () => {
     await page.locator('label[for="conn-type-api"]').click();
     await page.waitForTimeout(300);
     await page.fill('#conn-name', 'Industrie du futur (ODS)');
-    await page.fill('#api-url', 'https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/industrie-du-futur/records');
+    await page.fill(
+      '#api-url',
+      'https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/industrie-du-futur/records'
+    );
     await page.fill('#api-data-path', 'results');
     await page.waitForTimeout(300);
     await annotate(page, 'input[name="conn-type"][value="api"]', 1, '#000091');
@@ -693,7 +850,9 @@ test.describe('User Guide Screenshots', () => {
 
     // Expand all sections
     await page.evaluate(() => {
-      document.querySelectorAll('.config-section').forEach((s: any) => s.classList.remove('collapsed'));
+      document
+        .querySelectorAll('.config-section')
+        .forEach((s: any) => s.classList.remove('collapsed'));
     });
     await page.waitForTimeout(300);
 
@@ -705,12 +864,16 @@ test.describe('User Guide Screenshots', () => {
     const apiLabelField = page.locator('#label-field');
     const apiValueField = page.locator('#value-field');
     const apiLabelOptions = await apiLabelField.locator('option').allTextContents();
-    if (apiLabelOptions.some(o => o.includes('nom_region'))) {
-      await apiLabelField.selectOption({ label: apiLabelOptions.find(o => o.includes('nom_region'))! });
+    if (apiLabelOptions.some((o) => o.includes('nom_region'))) {
+      await apiLabelField.selectOption({
+        label: apiLabelOptions.find((o) => o.includes('nom_region'))!,
+      });
     }
     const apiValueOptions = await apiValueField.locator('option').allTextContents();
-    if (apiValueOptions.some(o => o.includes('nombre_beneficiaires'))) {
-      await apiValueField.selectOption({ label: apiValueOptions.find(o => o.includes('nombre_beneficiaires'))! });
+    if (apiValueOptions.some((o) => o.includes('nombre_beneficiaires'))) {
+      await apiValueField.selectOption({
+        label: apiValueOptions.find((o) => o.includes('nombre_beneficiaires'))!,
+      });
     }
 
     await page.fill('#chart-title', 'Beneficiaires Industrie du futur');
@@ -723,7 +886,9 @@ test.describe('User Guide Screenshots', () => {
 
     // --- F3: Code tab ---
     await page.evaluate(() => {
-      const tabs = document.querySelectorAll('app-preview-panel .tab-btn, app-preview-panel [data-tab="code"]');
+      const tabs = document.querySelectorAll(
+        'app-preview-panel .tab-btn, app-preview-panel [data-tab="code"]'
+      );
       tabs.forEach((t: any) => {
         if (t.textContent?.includes('Code') || t.dataset?.tab === 'code') t.click();
       });

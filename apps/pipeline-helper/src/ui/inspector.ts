@@ -13,7 +13,7 @@ export function showInspector(node: PipelineNode): void {
   // Build status HTML
   let statusHtml = '';
   if (result.status === 'idle') {
-    statusHtml = '<span style="color:#888">Non execute</span>';
+    statusHtml = '<span style="color:#666">Non execute</span>';
   } else if (result.status === 'loading') {
     statusHtml = '<span style="color:#000091">&#8987; Chargement...</span>';
   } else if (result.status === 'success') {
@@ -88,7 +88,7 @@ export function showInspector(node: PipelineNode): void {
   ) {
     dataHtml = `
       <div class="inspector__data">
-        <p style="color:#888;font-size:0.85rem">Aucune donnee a afficher.</p>
+        <p style="color:#666;font-size:0.85rem">Aucune donnee a afficher.</p>
       </div>
     `;
   }

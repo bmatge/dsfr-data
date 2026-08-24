@@ -9,6 +9,7 @@
  * All pages use external APIs (ODS/Tabular) — 120s timeout.
  */
 import { test, expect, type Page } from '@playwright/test';
+import { disableProductTour } from './helpers';
 import { join, dirname } from 'path';
 import { mkdirSync } from 'fs';
 import { fileURLToPath } from 'url';
@@ -20,13 +21,24 @@ test.beforeAll(() => {
   mkdirSync(SCREENSHOT_DIR, { recursive: true });
 });
 
+// Tour guide desactive avant chaque chargement (helper partage, #407)
+test.beforeEach(async ({ page }) => {
+  await disableProductTour(page);
+});
+
 /** Collect console errors (ignore network/CDN failures) */
 function collectConsoleErrors(page: Page): string[] {
   const errors: string[] = [];
   page.on('console', (msg) => {
     if (msg.type() === 'error') {
       const text = msg.text();
-      if (!text.includes('net::ERR_') && !text.includes('Failed to load resource') && !text.includes('cdn.jsdelivr.net') && !text.includes('Erreur de chargement') && !text.includes('HTTP 4')) {
+      if (
+        !text.includes('net::ERR_') &&
+        !text.includes('Failed to load resource') &&
+        !text.includes('cdn.jsdelivr.net') &&
+        !text.includes('Erreur de chargement') &&
+        !text.includes('HTTP 4')
+      ) {
         errors.push(text);
       }
     }
@@ -118,7 +130,10 @@ test.describe('Guide — direct widget pages', () => {
     const chartCount = await page.locator('dsfr-data-chart').count();
     expect(chartCount).toBeGreaterThanOrEqual(1);
 
-    await page.screenshot({ path: join(SCREENSHOT_DIR, 'guide-exemples-chart-a11y.png'), fullPage: true });
+    await page.screenshot({
+      path: join(SCREENSHOT_DIR, 'guide-exemples-chart-a11y.png'),
+      fullPage: true,
+    });
     expect(errors).toEqual([]);
   });
 
@@ -133,7 +148,10 @@ test.describe('Guide — direct widget pages', () => {
     const chartCount = await page.locator('dsfr-data-chart').count();
     expect(chartCount).toBeGreaterThanOrEqual(1);
 
-    await page.screenshot({ path: join(SCREENSHOT_DIR, 'guide-exemples-ghibli.png'), fullPage: true });
+    await page.screenshot({
+      path: join(SCREENSHOT_DIR, 'guide-exemples-ghibli.png'),
+      fullPage: true,
+    });
     expect(errors).toEqual([]);
   });
 
@@ -148,7 +166,10 @@ test.describe('Guide — direct widget pages', () => {
     const chartCount = await page.locator('dsfr-data-chart').count();
     expect(chartCount).toBeGreaterThanOrEqual(1);
 
-    await page.screenshot({ path: join(SCREENSHOT_DIR, 'guide-exemples-maires.png'), fullPage: true });
+    await page.screenshot({
+      path: join(SCREENSHOT_DIR, 'guide-exemples-maires.png'),
+      fullPage: true,
+    });
     expect(errors).toEqual([]);
   });
 
@@ -163,7 +184,10 @@ test.describe('Guide — direct widget pages', () => {
     const chartCount = await page.locator('dsfr-data-chart').count();
     expect(chartCount).toBeGreaterThanOrEqual(1);
 
-    await page.screenshot({ path: join(SCREENSHOT_DIR, 'guide-exemples-world-map.png'), fullPage: true });
+    await page.screenshot({
+      path: join(SCREENSHOT_DIR, 'guide-exemples-world-map.png'),
+      fullPage: true,
+    });
     expect(errors).toEqual([]);
   });
 
@@ -178,7 +202,10 @@ test.describe('Guide — direct widget pages', () => {
     const kpiCount = await page.locator('dsfr-data-kpi').count();
     expect(kpiCount).toBeGreaterThanOrEqual(1);
 
-    await page.screenshot({ path: join(SCREENSHOT_DIR, 'guide-exemples-insee-erfs.png'), fullPage: true });
+    await page.screenshot({
+      path: join(SCREENSHOT_DIR, 'guide-exemples-insee-erfs.png'),
+      fullPage: true,
+    });
     expect(errors).toEqual([]);
   });
 
@@ -193,7 +220,10 @@ test.describe('Guide — direct widget pages', () => {
     const chartCount = await page.locator('dsfr-data-chart').count();
     expect(chartCount).toBeGreaterThanOrEqual(1);
 
-    await page.screenshot({ path: join(SCREENSHOT_DIR, 'guide-exemples-join.png'), fullPage: true });
+    await page.screenshot({
+      path: join(SCREENSHOT_DIR, 'guide-exemples-join.png'),
+      fullPage: true,
+    });
     expect(errors).toEqual([]);
   });
 
@@ -205,7 +235,10 @@ test.describe('Guide — direct widget pages', () => {
     const podiumCount = await page.locator('dsfr-data-podium').count();
     expect(podiumCount).toBeGreaterThanOrEqual(1);
 
-    await page.screenshot({ path: join(SCREENSHOT_DIR, 'guide-exemples-podium.png'), fullPage: true });
+    await page.screenshot({
+      path: join(SCREENSHOT_DIR, 'guide-exemples-podium.png'),
+      fullPage: true,
+    });
     expect(errors).toEqual([]);
   });
 
@@ -220,7 +253,10 @@ test.describe('Guide — direct widget pages', () => {
     const chartCount = await page.locator('dsfr-data-chart').count();
     expect(chartCount).toBeGreaterThanOrEqual(1);
 
-    await page.screenshot({ path: join(SCREENSHOT_DIR, 'guide-demo-complete.png'), fullPage: true });
+    await page.screenshot({
+      path: join(SCREENSHOT_DIR, 'guide-demo-complete.png'),
+      fullPage: true,
+    });
     expect(errors).toEqual([]);
   });
 

@@ -20,7 +20,12 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { browserName: 'chromium' },
-      testIgnore: /.*\.db\.spec\.ts$/,
+      // capture-guide est un OUTIL de génération de captures pour
+      // USER-GUIDE.md (parcours UI détaillés, à re-synchroniser à la main
+      // après chaque évolution des apps), pas un test de régression — il est
+      // exclu du run par défaut (#407). Lancement explicite :
+      //   npx playwright test --config e2e/playwright.config.ts e2e/capture-guide.spec.ts
+      testIgnore: [/.*\.db\.spec\.ts$/, /capture-guide\.spec\.ts$/],
     },
     {
       name: 'chromium-db',

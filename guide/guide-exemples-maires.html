@@ -310,7 +310,7 @@ dsfr-data-source "s-browse" (tabular, server-side, 15/p) --> dsfr-data-normalize
         </p>
 
         <!-- Recherche server-side (filtre par nom via __contains) -->
-        <dsfr-data-search source="s-browse" server-search
+        <dsfr-data-search id="recherche-maires" source="s-browse" server-search
           search-template="Nom de l'élu:contains:{q}"
           placeholder="Rechercher un maire par nom..."
           count>
@@ -406,7 +406,7 @@ dsfr-data-source "s-browse" (tabular, server-side, 15/p) --> dsfr-data-normalize
 &lt;/dsfr-data-normalize&gt;
 
 &lt;!-- Recherche par nom (server-side WHERE) --&gt;
-&lt;dsfr-data-search source="s-browse" server-search
+&lt;dsfr-data-search id="recherche-maires" source="s-browse" server-search
   search-template="Nom de l'elu:contains:{q}"
   placeholder="Rechercher un maire par nom..." count&gt;
 &lt;/dsfr-data-search&gt;

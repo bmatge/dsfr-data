@@ -1,7 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { disableProductTour } from './helpers';
 
 test.describe('Grist widgets - test local', () => {
   test.beforeEach(async ({ page }) => {
+    // Tour guide desactive avant chaque chargement (helper partage, #407)
+    await disableProductTour(page);
     await page.goto('/apps/grist-widgets/test-local.html');
     // test-local.html auto-injects data after 500ms
     await page.waitForTimeout(1000);
@@ -40,24 +43,24 @@ test.describe('Grist widgets - test local', () => {
   test('inject button dispatches data correctly', async ({ page }) => {
     const status = page.locator('#status');
     await page.click('#btn-inject');
-    await expect(status).toContainText('Donnees injectees');
+    await expect(status).toContainText('Données injectées');
   });
 
   test('update button changes data', async ({ page }) => {
     await page.click('#btn-update');
     const status = page.locator('#status');
-    await expect(status).toContainText('Donnees mises a jour');
+    await expect(status).toContainText('Données mises à jour');
   });
 
   test('error button triggers error state', async ({ page }) => {
     await page.click('#btn-error');
     const status = page.locator('#status');
-    await expect(status).toContainText('Erreur envoyee');
+    await expect(status).toContainText('Erreur envoyée');
   });
 
   test('no console errors on load', async ({ page }) => {
     const errors: string[] = [];
-    page.on('console', msg => {
+    page.on('console', (msg) => {
       if (msg.type() === 'error') errors.push(msg.text());
     });
 
@@ -66,7 +69,8 @@ test.describe('Grist widgets - test local', () => {
 
     // Filter out expected CDN/network errors and DSFR Chart internal errors
     const realErrors = errors.filter(
-      e => !e.includes('Failed to load resource') && !e.includes('net::') && !e.includes('DSFRChart')
+      (e) =>
+        !e.includes('Failed to load resource') && !e.includes('net::') && !e.includes('DSFRChart')
     );
     expect(realErrors).toHaveLength(0);
   });
