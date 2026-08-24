@@ -226,8 +226,18 @@ body.carto-app > app-header {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  min-height: 0;
+  /* Un panneau peut retrecir (les corps scrollent), mais jamais en dessous
+     de son en-tete : la colonne saturee rognait l'en-tete du premier panneau
+     sous le suivant (#482 bug 9). */
+  min-height: 46px;
   flex: 0 1 auto;
+}
+
+/* Panneau replie = en-tete seul : hauteur naturelle, jamais compressee par
+   la repartition flex de la colonne (#482 bug 9). */
+.carto-panel--collapsed {
+  flex: 0 0 auto;
+  min-height: 0;
 }
 
 .carto-panel__header {
@@ -602,6 +612,14 @@ body.carto-app > app-header {
 .carto-field textarea {
   font-family: monospace;
   resize: vertical;
+}
+
+/* La fleche native des inputs a datalist (Chrome) n'ouvre pas de liste
+   fiable au clic (rien quand la valeur courante ne matche aucune option) :
+   on retire cette fausse affordance — les suggestions s'ouvrent toujours a
+   la saisie / au focus (#482 bug 10). */
+.carto-field input[list]::-webkit-calendar-picker-indicator {
+  display: none !important;
 }
 
 .carto-inline {

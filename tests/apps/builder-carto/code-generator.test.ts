@@ -107,6 +107,24 @@ describe('generateCode — couche', () => {
     expect(code).toContain('{{population}}');
   });
 
+  it('émet cluster (et son rayon) en mode marqueurs (#482)', () => {
+    const layer = withManualSource();
+    layer.type = 'marker';
+    layer.cluster = true;
+    layer.clusterRadius = 120;
+    const code = generateCode();
+    expect(code).toMatch(/<dsfr-data-map-layer[^>]*[\s\n]cluster[\s\n>]/);
+    expect(code).toContain('cluster-radius="120"');
+  });
+
+  it("n'émet pas cluster hors mode marqueurs (#482 bug 6 : cercles clusterisés)", () => {
+    const layer = withManualSource();
+    layer.type = 'circle';
+    layer.cluster = true; // état conservé pour un retour aux marqueurs
+    const code = generateCode();
+    expect(code).not.toMatch(/[\s\n]cluster[\s\n>=]/);
+  });
+
   it('le template explicite prime sur les champs affichés', () => {
     const layer = withManualSource();
     layer.popupMode = 'popup';
