@@ -25,7 +25,7 @@
   <!-- App entry point -->
   <script type="module" src="src/main.ts"></script>
 </head>
-<body>
+<body class="builder-v2">
   <!-- Header -->
   <app-header current-page="builder" base-path="../../"></app-header>
 
@@ -34,6 +34,8 @@
     <!-- PANNEAU DE CONFIGURATION -->
     <!-- ============================================ -->
     <aside slot="left" class="builder-config-panel">
+
+      <div class="builder-scroll">
 
       <div class="builder-tour-trigger">
         <button type="button" class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline" id="restart-tour-btn" title="Revoir la visite guidee">
@@ -44,7 +46,7 @@
       <!-- ETAPE 1 : Source de données -->
       <div class="config-section" id="section-source">
         <div class="config-section-header" onclick="toggleSection('section-source')">
-          <h3><i class="ri-database-2-line"></i> Source de données</h3>
+          <h3><span class="step-badge" aria-hidden="true">1</span><i class="ri-database-2-line"></i> Source de données</h3>
           <i class="ri-arrow-down-s-line collapse-icon"></i>
         </div>
         <div class="config-section-content">
@@ -75,48 +77,10 @@
         </div>
       </div>
 
-      <!-- ETAPE 1.5 : Mode de generation (visible si source Grist) -->
-      <div class="config-section collapsed" id="section-generation-mode" style="display: none;">
-        <div class="config-section-header" onclick="toggleSection('section-generation-mode')">
-          <h3><i class="ri-code-s-slash-line"></i> Mode de generation <button type="button" class="help-btn" aria-label="Aide" aria-describedby="help-generation-mode" data-help="generation-mode"><i class="ri-question-line" aria-hidden="true"></i></button></h3>
-          <i class="ri-arrow-down-s-line collapse-icon"></i>
-        </div>
-        <div class="config-section-content">
-          <div class="fr-radio-group">
-            <input type="radio" id="mode-embedded" name="generation-mode" value="embedded" checked>
-            <label class="fr-label" for="mode-embedded">
-              Données integrees
-              <span class="fr-hint-text">Les données sont copiees dans le code HTML (simple, mais ne se met pas a jour)</span>
-            </label>
-          </div>
-          <div class="fr-radio-group fr-mt-1w">
-            <input type="radio" id="mode-dynamic" name="generation-mode" value="dynamic">
-            <label class="fr-label" for="mode-dynamic">
-              Chargement dynamique
-              <span class="fr-hint-text">Les données sont chargees depuis l'API a chaque affichage (toujours a jour)</span>
-            </label>
-          </div>
-
-          <div id="dynamic-options" class="fr-mt-2w" style="display: none;">
-            <div class="fr-input-group fr-input-group--sm">
-              <label class="fr-label" for="refresh-interval">
-                Rafraichissement automatique
-                <span class="fr-hint-text">En secondes (0 = pas de rafraichissement)</span>
-              </label>
-              <input class="fr-input" type="number" id="refresh-interval" value="0" min="0" max="3600">
-            </div>
-          </div>
-
-          <div id="dynamic-warning" class="fr-alert fr-alert--warning fr-alert--sm fr-mt-2w" style="display: none;">
-            <p>Ce document Grist n'est pas public. Le code généré ne fonctionnera que si le document est rendu public dans Grist.</p>
-          </div>
-        </div>
-      </div>
-
       <!-- ETAPE 2 : Type de graphique -->
       <div class="config-section collapsed" id="section-type">
         <div class="config-section-header" onclick="toggleSection('section-type')">
-          <h3><i class="ri-bar-chart-box-line"></i> Type de graphique</h3>
+          <h3><span class="step-badge" aria-hidden="true">2</span><i class="ri-bar-chart-box-line"></i> Type de graphique</h3>
           <i class="ri-arrow-down-s-line collapse-icon"></i>
         </div>
         <div class="config-section-content">
@@ -173,7 +137,7 @@
       <!-- ETAPE 3 : Mapping des données -->
       <div class="config-section collapsed" id="section-data">
         <div class="config-section-header" onclick="toggleSection('section-data')">
-          <h3><i class="ri-equalizer-line"></i> Configuration des données</h3>
+          <h3><span class="step-badge" aria-hidden="true">3</span><i class="ri-equalizer-line"></i> Configuration des données</h3>
           <i class="ri-arrow-down-s-line collapse-icon"></i>
         </div>
         <div class="config-section-content">
@@ -246,6 +210,26 @@
           </div>
         </div>
 
+        <!-- Options spécifiques KPI -->
+        <div class="kpi-config" id="kpi-config">
+          <div class="config-grid-2col fr-mt-1w">
+            <div class="fr-select-group fr-select-group--sm">
+              <label class="fr-label" for="kpi-variant">Style KPI</label>
+              <select class="fr-select" id="kpi-variant">
+                <option value="">Par défaut</option>
+                <option value="info">Info (bleu)</option>
+                <option value="success">Succes (vert)</option>
+                <option value="warning">Attention (orange)</option>
+                <option value="error">Alerte (rouge)</option>
+              </select>
+            </div>
+            <div class="fr-input-group fr-input-group--sm">
+              <label class="fr-label" for="kpi-unit">Unite</label>
+              <input class="fr-input" type="text" id="kpi-unit" placeholder="EUR, %, ...">
+            </div>
+          </div>
+        </div>
+
         <!-- Tri -->
         <div class="config-grid-2col fr-mt-1w">
           <div class="fr-select-group fr-select-group--sm">
@@ -289,64 +273,60 @@
           </select>
         </div>
 
-        <!-- Toggle Mode Avance -->
-        <div class="fr-toggle fr-mt-2w">
-          <input type="checkbox" class="fr-toggle__input" id="advanced-mode-toggle" aria-describedby="advanced-mode-hint">
-          <label class="fr-toggle__label" for="advanced-mode-toggle" data-fr-checked-label="Active" data-fr-unchecked-label="Desactive">
-            Mode avance (filtres & requêtes)
-            <button type="button" class="help-btn" aria-label="Aide" aria-describedby="help-advanced-mode" data-help="advanced-mode"><i class="ri-question-line" aria-hidden="true"></i></button>
-          </label>
-          <p class="fr-hint-text" id="advanced-mode-hint">Filtrer, regrouper ou transformer les données avant affichage</p>
-        </div>
-
-        <!-- Options avancees (masquees par défaut) -->
-        <div id="advanced-query-options" class="fr-mt-2w" style="display: none;">
-          <div class="fr-alert fr-alert--info fr-alert--sm fr-mb-2w">
-            <p>Le mode avance utilise <code>&lt;dsfr-data-query&gt;</code> pour filtrer, regrouper et agréger les données cote client avant de les afficher.</p>
-          </div>
-
-          <!-- Filtres -->
-          <div class="fr-input-group fr-input-group--sm">
-            <label class="fr-label" for="query-filter">
-              Filtres
+        <!-- Filtres (builder visuel v2, toujours visibles — synchro #query-filter) -->
+        <div class="filters-zone fr-mt-2w">
+          <div class="filters-zone__head">
+            <label class="fr-label">Filtres
               <button type="button" class="help-btn" aria-label="Aide" aria-describedby="help-query-filter" data-help="query-filter"><i class="ri-question-line" aria-hidden="true"></i></button>
-              <span class="fr-hint-text">Format : champ:operateur:valeur (separes par virgule)</span>
             </label>
-            <input class="fr-input" type="text" id="query-filter" placeholder="Ex: region:eq:Bretagne, population:gte:10000">
+            <span class="filters-zone__count" id="filters-count">aucun</span>
+            <button type="button" class="filters-zone__mode" id="filters-mode-toggle">Mode texte (expert)</button>
           </div>
-          <details class="fr-accordion fr-accordion--sm fr-mt-1w">
-            <summary class="fr-accordion__btn">Operateurs disponibles</summary>
-            <div class="fr-accordion__body">
-              <ul class="fr-text--xs fr-m-0">
-                <li><code>eq</code> = egal</li>
-                <li><code>neq</code> = different</li>
-                <li><code>gt</code> / <code>gte</code> = superieur (strict / ou egal)</li>
-                <li><code>lt</code> / <code>lte</code> = inferieur (strict / ou egal)</li>
-                <li><code>contains</code> = contient (texte)</li>
-                <li><code>in</code> = dans la liste (val1|val2|val3)</li>
-                <li><code>isnull</code> / <code>isnotnull</code> = null ou non</li>
-              </ul>
+          <div id="filters-visual"></div>
+          <button type="button" class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left" id="add-filter-btn">
+            <i class="ri-add-line"></i> Ajouter un filtre
+          </button>
+          <div id="filters-text" hidden>
+            <div class="fr-input-group fr-input-group--sm fr-mb-0">
+              <input class="fr-input" type="text" id="query-filter" placeholder="Ex: region:eq:Bretagne, population:gte:10000">
+              <p class="fr-hint-text">Format : champ:opérateur:valeur (séparés par virgule) — synchronisé avec le mode visuel</p>
             </div>
-          </details>
-
-          <!-- Group By personnalise -->
-          <div class="fr-input-group fr-input-group--sm fr-mt-2w">
-            <label class="fr-label" for="query-group-by">
-              Regroupement personnalise
-              <span class="fr-hint-text">Champs de regroupement (si different de l'axe X)</span>
-            </label>
-            <input class="fr-input" type="text" id="query-group-by" placeholder="Ex: region, annee">
-          </div>
-
-          <!-- Agrégations multiples -->
-          <div class="fr-input-group fr-input-group--sm fr-mt-1w">
-            <label class="fr-label" for="query-aggregate">
-              Agrégations multiples
-              <span class="fr-hint-text">Format : champ:fonction (separees par virgule)</span>
-            </label>
-            <input class="fr-input" type="text" id="query-aggregate" placeholder="Ex: population:sum, surface:avg, count:count">
+            <details class="fr-accordion fr-accordion--sm fr-mt-1w">
+              <summary class="fr-accordion__btn">Opérateurs disponibles</summary>
+              <div class="fr-accordion__body">
+                <ul class="fr-text--xs fr-m-0">
+                  <li><code>eq</code> = égal · <code>neq</code> = différent</li>
+                  <li><code>gt</code> / <code>gte</code> = supérieur (strict / ou égal)</li>
+                  <li><code>lt</code> / <code>lte</code> = inférieur (strict / ou égal)</li>
+                  <li><code>contains</code> = contient (texte)</li>
+                  <li><code>in</code> = dans la liste (val1|val2|val3)</li>
+                  <li><code>isnull</code> / <code>isnotnull</code> = null ou non</li>
+                </ul>
+              </div>
+            </details>
           </div>
         </div>
+
+        <!-- Requête avancée : regroupement personnalisé + agrégats multiples -->
+        <details class="query-advanced fr-mt-2w" id="query-advanced-details">
+          <summary>Requête avancée (group-by, agrégats multiples)</summary>
+          <div class="fr-mt-1w">
+            <div class="fr-input-group fr-input-group--sm">
+              <label class="fr-label" for="query-group-by">
+                Regroupement personnalisé
+                <span class="fr-hint-text">Champs de regroupement, si différent de l'axe X (séparés par virgule)</span>
+              </label>
+              <input class="fr-input" type="text" id="query-group-by" placeholder="Ex: region, annee">
+            </div>
+            <div class="fr-input-group fr-input-group--sm fr-mt-1w">
+              <label class="fr-label" for="query-aggregate">
+                Agrégations multiples
+                <span class="fr-hint-text">Format : champ:fonction (séparées par virgule)</span>
+              </label>
+              <input class="fr-input" type="text" id="query-aggregate" placeholder="Ex: population:sum, surface:avg">
+            </div>
+          </div>
+        </details>
 
         <!-- Options spécifiques Tableau -->
         <div class="datalist-config" id="datalist-config">
@@ -388,7 +368,7 @@
       <!-- ETAPE 4 : Apparence -->
       <div class="config-section collapsed" id="section-appearance">
         <div class="config-section-header" onclick="toggleSection('section-appearance')">
-          <h3><i class="ri-palette-line"></i> Apparence</h3>
+          <h3><span class="step-badge" aria-hidden="true">4</span><i class="ri-palette-line"></i> Apparence</h3>
           <i class="ri-arrow-down-s-line collapse-icon"></i>
         </div>
         <div class="config-section-content">
@@ -424,30 +404,51 @@
           <div id="palette-swatches" class="palette-swatches" role="img" aria-label="Aperçu des couleurs de la palette"></div>
         </div>
 
-        <!-- Options spécifiques KPI -->
-        <div class="kpi-config" id="kpi-config">
-          <div class="config-grid-2col fr-mt-1w">
-            <div class="fr-select-group fr-select-group--sm">
-              <label class="fr-label" for="kpi-variant">Style KPI</label>
-              <select class="fr-select" id="kpi-variant">
-                <option value="">Par défaut</option>
-                <option value="info">Info (bleu)</option>
-                <option value="success">Succes (vert)</option>
-                <option value="warning">Attention (orange)</option>
-                <option value="error">Alerte (rouge)</option>
-              </select>
-            </div>
-            <div class="fr-input-group fr-input-group--sm">
-              <label class="fr-label" for="kpi-unit">Unite</label>
-              <input class="fr-input" type="text" id="kpi-unit" placeholder="EUR, %, ...">
-            </div>
-          </div>
-        </div>
 
         </div>
       </div>
 
-      <!-- Nettoyage des données (mode dynamique uniquement) -->
+      <!-- Groupe « Réglages avancés » (v2) : génération, nettoyage, cadre DSFR,
+           facettes, accessibilité — sections existantes, ids inchangés. -->
+      <div class="advanced-group-label">Réglages avancés</div>
+
+      <div class="config-section collapsed" id="section-generation-mode" style="display: none;">
+        <div class="config-section-header" onclick="toggleSection('section-generation-mode')">
+          <h3><i class="ri-code-s-slash-line"></i> Mode de generation <button type="button" class="help-btn" aria-label="Aide" aria-describedby="help-generation-mode" data-help="generation-mode"><i class="ri-question-line" aria-hidden="true"></i></button></h3>
+          <i class="ri-arrow-down-s-line collapse-icon"></i>
+        </div>
+        <div class="config-section-content">
+          <div class="fr-radio-group">
+            <input type="radio" id="mode-embedded" name="generation-mode" value="embedded" checked>
+            <label class="fr-label" for="mode-embedded">
+              Données integrees
+              <span class="fr-hint-text">Les données sont copiees dans le code HTML (simple, mais ne se met pas a jour)</span>
+            </label>
+          </div>
+          <div class="fr-radio-group fr-mt-1w">
+            <input type="radio" id="mode-dynamic" name="generation-mode" value="dynamic">
+            <label class="fr-label" for="mode-dynamic">
+              Chargement dynamique
+              <span class="fr-hint-text">Les données sont chargees depuis l'API a chaque affichage (toujours a jour)</span>
+            </label>
+          </div>
+
+          <div id="dynamic-options" class="fr-mt-2w" style="display: none;">
+            <div class="fr-input-group fr-input-group--sm">
+              <label class="fr-label" for="refresh-interval">
+                Rafraichissement automatique
+                <span class="fr-hint-text">En secondes (0 = pas de rafraichissement)</span>
+              </label>
+              <input class="fr-input" type="number" id="refresh-interval" value="0" min="0" max="3600">
+            </div>
+          </div>
+
+          <div id="dynamic-warning" class="fr-alert fr-alert--warning fr-alert--sm fr-mt-2w" style="display: none;">
+            <p>Ce document Grist n'est pas public. Le code généré ne fonctionnera que si le document est rendu public dans Grist.</p>
+          </div>
+        </div>
+      </div>
+
       <div class="config-section collapsed" id="section-normalize" style="display: none;">
         <div class="config-section-header" onclick="toggleSection('section-normalize')">
           <h3><i class="ri-eraser-line"></i> Nettoyage des données <button type="button" class="help-btn" aria-label="Aide" aria-describedby="help-normalize" data-help="normalize"><i class="ri-question-line" aria-hidden="true"></i></button></h3>
@@ -522,7 +523,55 @@
         </div>
       </div>
 
-      <!-- Filtres a facettes (mode dynamique uniquement) -->
+      <div class="config-section collapsed" id="section-databox">
+        <div class="config-section-header" onclick="toggleSection('section-databox')">
+          <h3><i class="ri-layout-4-line"></i> Cadre officiel DSFR <button type="button" class="help-btn" aria-label="Aide" aria-describedby="help-databox" data-help="databox"><i class="ri-question-line" aria-hidden="true"></i></button></h3>
+          <i class="ri-arrow-down-s-line collapse-icon"></i>
+        </div>
+        <div class="config-section-content">
+          <div class="fr-checkbox-group fr-checkbox-group--sm">
+            <input type="checkbox" id="databox-toggle">
+            <label class="fr-label" for="databox-toggle">
+              Encadrer le graphique (titre, source, téléchargement)
+            </label>
+          </div>
+          <div id="databox-options" style="display: none; margin-left: 1.5rem; margin-top: 0.5rem;">
+            <div class="fr-input-group fr-input-group--sm fr-mb-1w">
+              <label class="fr-label" for="databox-title">Titre</label>
+              <input class="fr-input fr-input--sm" type="text" id="databox-title"
+                placeholder="Ex : Population par region">
+            </div>
+            <div class="fr-input-group fr-input-group--sm fr-mb-1w">
+              <label class="fr-label" for="databox-source">Source</label>
+              <input class="fr-input fr-input--sm" type="text" id="databox-source"
+                placeholder="Ex : INSEE, RP 2021">
+            </div>
+            <div class="fr-input-group fr-input-group--sm fr-mb-1w">
+              <label class="fr-label" for="databox-date">Date</label>
+              <input class="fr-input fr-input--sm" type="text" id="databox-date"
+                placeholder="Ex : Mars 2024">
+            </div>
+            <div class="fr-input-group fr-input-group--sm fr-mb-1w">
+              <label class="fr-label" for="databox-trend">Tendance</label>
+              <input class="fr-input fr-input--sm" type="text" id="databox-trend"
+                placeholder="Ex : +5.2 ou -3.1">
+            </div>
+            <div class="fr-checkbox-group fr-checkbox-group--sm fr-mb-1w">
+              <input type="checkbox" id="databox-download" checked>
+              <label class="fr-label" for="databox-download">Téléchargement CSV</label>
+            </div>
+            <div class="fr-checkbox-group fr-checkbox-group--sm fr-mb-1w">
+              <input type="checkbox" id="databox-screenshot">
+              <label class="fr-label" for="databox-screenshot">Screenshot PNG</label>
+            </div>
+            <div class="fr-checkbox-group fr-checkbox-group--sm">
+              <input type="checkbox" id="databox-fullscreen">
+              <label class="fr-label" for="databox-fullscreen">Plein écran</label>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="config-section collapsed" id="section-facets" style="display: none;">
         <div class="config-section-header" onclick="toggleSection('section-facets')">
           <h3><i class="ri-filter-3-line"></i> Filtres a facettes <button type="button" class="help-btn" aria-label="Aide" aria-describedby="help-facets" data-help="facets"><i class="ri-question-line" aria-hidden="true"></i></button></h3>
@@ -573,57 +622,6 @@
         </div>
       </div>
 
-      <!-- Cadre officiel DSFR (anciennement « Habillage DataBox ») -->
-      <div class="config-section collapsed" id="section-databox">
-        <div class="config-section-header" onclick="toggleSection('section-databox')">
-          <h3><i class="ri-layout-4-line"></i> Cadre officiel DSFR <button type="button" class="help-btn" aria-label="Aide" aria-describedby="help-databox" data-help="databox"><i class="ri-question-line" aria-hidden="true"></i></button></h3>
-          <i class="ri-arrow-down-s-line collapse-icon"></i>
-        </div>
-        <div class="config-section-content">
-          <div class="fr-checkbox-group fr-checkbox-group--sm">
-            <input type="checkbox" id="databox-toggle">
-            <label class="fr-label" for="databox-toggle">
-              Encadrer le graphique (titre, source, téléchargement)
-            </label>
-          </div>
-          <div id="databox-options" style="display: none; margin-left: 1.5rem; margin-top: 0.5rem;">
-            <div class="fr-input-group fr-input-group--sm fr-mb-1w">
-              <label class="fr-label" for="databox-title">Titre</label>
-              <input class="fr-input fr-input--sm" type="text" id="databox-title"
-                placeholder="Ex : Population par region">
-            </div>
-            <div class="fr-input-group fr-input-group--sm fr-mb-1w">
-              <label class="fr-label" for="databox-source">Source</label>
-              <input class="fr-input fr-input--sm" type="text" id="databox-source"
-                placeholder="Ex : INSEE, RP 2021">
-            </div>
-            <div class="fr-input-group fr-input-group--sm fr-mb-1w">
-              <label class="fr-label" for="databox-date">Date</label>
-              <input class="fr-input fr-input--sm" type="text" id="databox-date"
-                placeholder="Ex : Mars 2024">
-            </div>
-            <div class="fr-input-group fr-input-group--sm fr-mb-1w">
-              <label class="fr-label" for="databox-trend">Tendance</label>
-              <input class="fr-input fr-input--sm" type="text" id="databox-trend"
-                placeholder="Ex : +5.2 ou -3.1">
-            </div>
-            <div class="fr-checkbox-group fr-checkbox-group--sm fr-mb-1w">
-              <input type="checkbox" id="databox-download" checked>
-              <label class="fr-label" for="databox-download">Téléchargement CSV</label>
-            </div>
-            <div class="fr-checkbox-group fr-checkbox-group--sm fr-mb-1w">
-              <input type="checkbox" id="databox-screenshot">
-              <label class="fr-label" for="databox-screenshot">Screenshot PNG</label>
-            </div>
-            <div class="fr-checkbox-group fr-checkbox-group--sm">
-              <input type="checkbox" id="databox-fullscreen">
-              <label class="fr-label" for="databox-fullscreen">Plein écran</label>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Option accessibilité -->
       <div class="config-section collapsed" id="section-a11y">
         <div class="config-section-header" onclick="toggleSection('section-a11y')">
           <h3><i class="ri-accessibility-line"></i> Accessibilité <button type="button" class="help-btn" aria-label="Aide" aria-describedby="help-a11y" data-help="a11y"><i class="ri-question-line" aria-hidden="true"></i></button></h3>
@@ -654,11 +652,22 @@
         </div>
       </div>
 
-      <!-- BOUTON GENERER -->
-      <div class="config-section generate-controls">
-        <button class="fr-btn fr-btn--icon-left" id="generate-btn" style="width: 100%;">
-          <i class="ri-play-fill"></i> Générer le graphique
-        </button>
+      </div><!-- /.builder-scroll -->
+
+      <!-- Barre d'action épinglée (v2) : générer + statut + copier -->
+      <div class="builder-footerbar">
+        <p class="builder-dirty-status" id="builder-dirty-status" role="status" aria-live="polite" hidden>
+          <span class="builder-dirty-status__dot" aria-hidden="true"></span>
+          <span id="builder-dirty-status-text"></span>
+        </p>
+        <div class="builder-footerbar__row">
+          <button class="fr-btn fr-btn--icon-left builder-footerbar__generate" id="generate-btn">
+            <i class="ri-play-fill"></i> Générer le graphique
+          </button>
+          <button class="fr-btn fr-btn--secondary fr-btn--icon-left" id="footer-copy-btn" title="Copier le code généré">
+            <i class="ri-file-copy-line"></i> Copier
+          </button>
+        </div>
         <p class="generate-missing" id="generate-missing" role="status" aria-live="polite" hidden></p>
       </div>
 
@@ -675,17 +684,27 @@
 
       <!-- Onglet Aperçu -->
       <div slot="preview">
+        <!-- Garde-fou lisibilité (v2) : trop de catégories sur l'axe X -->
+        <div class="cardinality-guard" id="cardinality-guard" hidden>
+          <span class="cardinality-guard__badge" aria-hidden="true">!</span>
+          <div class="cardinality-guard__body">
+            <p class="cardinality-guard__text" id="cardinality-guard-text"></p>
+            <div class="cardinality-guard__actions" id="cardinality-guard-actions"></div>
+          </div>
+        </div>
         <div class="preview-chart">
           <div class="chart-container">
             <div class="empty-state" id="empty-state">
-              <i class="ri-bar-chart-box-line"></i>
-              <p class="empty-state-title">Votre graphique apparaitra ici</p>
-              <ol class="empty-state-steps">
-                <li data-step="source">Charger une source de données</li>
+              <div class="empty-state__bars" aria-hidden="true">
+                <span></span><span></span><span></span><span></span>
+              </div>
+              <p class="empty-state-title">Votre graphique apparaîtra ici</p>
+              <ul class="empty-state-steps">
+                <li data-step="source">Choisir une source de données</li>
                 <li data-step="type">Choisir un type de graphique</li>
-                <li data-step="config">Configurer les champs (axes X et Y)</li>
-                <li data-step="generate">Cliquer sur "Générer le graphique"</li>
-              </ol>
+                <li data-step="config">Configurer les champs</li>
+                <li data-step="generate">Cliquer sur « Générer le graphique »</li>
+              </ul>
             </div>
             <iframe id="preview-iframe"
               sandbox="allow-scripts allow-same-origin"
@@ -765,9 +784,6 @@
   <div class="help-popover" id="help-popover" role="tooltip" style="display: none;">
     <div class="help-popover-content" id="help-popover-content"></div>
   </div>
-
-  <!-- Footer -->
-  <app-footer base-path="../../"></app-footer>
 
   <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.module.min.js" integrity="sha384-gPgRd2+olihO/srZe/Bqw6iVLiiaL7meuri1d5YVMejwPXg7VehLSBeORYq9yh2F" crossorigin="anonymous"></script>
 </body>

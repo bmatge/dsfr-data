@@ -473,49 +473,6 @@ h3 .help-btn i {
   margin-bottom: 0.75rem;
   color: var(--text-title-grey);
 }
-.empty-state-steps {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  text-align: left;
-  display: inline-block;
-}
-.empty-state-steps li {
-  position: relative;
-  padding: 0.35rem 0 0.35rem 2rem;
-  font-size: 0.9rem;
-  color: var(--text-mention-grey);
-}
-.empty-state-steps li::before {
-  content: '';
-  position: absolute;
-  left: 0.5rem;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 1rem;
-  height: 1rem;
-  border: 2px solid var(--border-default-grey);
-  border-radius: 50%;
-}
-.empty-state-steps li.done {
-  color: var(--text-default-grey);
-}
-.empty-state-steps li.done::before {
-  border-color: var(--background-action-high-success);
-  background: var(--background-action-high-success);
-}
-.empty-state-steps li.done::after {
-  content: '';
-  position: absolute;
-  left: 0.72rem;
-  top: 50%;
-  transform: translateY(-60%) rotate(45deg);
-  width: 0.3rem;
-  height: 0.55rem;
-  border: solid white;
-  border-width: 0 2px 2px 0;
-}
-
 .source-badge {
   display: inline-flex;
   align-items: center;
@@ -772,46 +729,6 @@ h3 .help-btn i {
   display: none;
 }
 
-/* Empty-state checklist — visual checkboxes that tick as user progresses. */
-.empty-state-steps li {
-  position: relative;
-  padding-left: 1.5rem;
-}
-.empty-state-steps li::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0.2em;
-  width: 0.95rem;
-  height: 0.95rem;
-  border: 2px solid var(--border-default-grey, #dddddd);
-  border-radius: 3px;
-  background: #ffffff;
-  transition:
-    background 120ms ease,
-    border-color 120ms ease;
-}
-.empty-state-steps li.done::before {
-  background: var(--background-action-high-success, #18753c);
-  border-color: var(--background-action-high-success, #18753c);
-}
-.empty-state-steps li.done::after {
-  content: '';
-  position: absolute;
-  left: 0.22rem;
-  top: 0.44em;
-  width: 0.3rem;
-  height: 0.6rem;
-  border-right: 2px solid #ffffff;
-  border-bottom: 2px solid #ffffff;
-  transform: rotate(45deg);
-}
-.empty-state-steps li.done {
-  color: var(--text-default-grey, #3a3a3a);
-  text-decoration: line-through;
-  text-decoration-color: rgba(0, 0, 0, 0.15);
-}
-
 /* Palette swatches — aperçu visuel des couleurs de la palette sélectionnée.
    Affichés juste sous le select #chart-palette pour donner un feedback
    visuel immédiat sur le rendu (audit UX 2026-05-26 §T-5). */
@@ -842,4 +759,345 @@ h3 .help-btn i {
 }
 .field-warning[hidden] {
   display: none;
+}
+
+/* ============================================================
+   Refonte « Builder v2 » (Claude Design) — plein écran, étapes
+   numérotées, builder de filtres, garde-fous, barre d'action.
+   ============================================================ */
+
+/* Application plein écran (pattern builder-ia/carto) : le panneau de config
+   scrolle en interne, la barre d'action reste épinglée en bas. */
+body.builder-v2 {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+body.builder-v2 > app-header {
+  flex: 0 0 auto;
+}
+
+body.builder-v2 app-layout-builder {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+body.builder-v2 .builder-layout-container {
+  flex: 1 1 auto;
+  min-height: 0;
+  align-items: stretch;
+}
+
+body.builder-v2 .builder-layout-left {
+  min-height: 0;
+  overflow: hidden;
+}
+
+body.builder-v2 .builder-layout-right {
+  position: static;
+  align-self: stretch;
+  min-height: 0;
+  max-height: none;
+}
+
+body.builder-v2 .builder-config-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.builder-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* ---- Étapes numérotées ---- */
+.step-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--background-action-high-blue-france);
+  color: var(--text-inverted-blue-france, #f5f5fe);
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-right: 0.5rem;
+  flex-shrink: 0;
+}
+
+.advanced-group-label {
+  padding: 0.875rem 1rem 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-mention-grey);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ---- Builder de filtres visuel ---- */
+.filters-zone__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.filters-zone__head .fr-label {
+  margin: 0;
+}
+
+.filters-zone__count {
+  font-size: 0.75rem;
+  color: var(--text-mention-grey);
+}
+
+.filters-zone__mode {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--text-action-high-blue-france);
+  font-size: 0.75rem;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-family: inherit;
+  padding: 0.125rem 0.25rem;
+}
+
+.filter-row {
+  display: flex;
+  gap: 0.375rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.filter-row__field {
+  flex: 1.4;
+  min-width: 0;
+}
+
+.filter-row__op {
+  flex: 0 0 108px;
+}
+
+.filter-row__value {
+  flex: 1;
+  min-width: 0;
+}
+
+.filter-row__remove {
+  background: none;
+  border: none;
+  color: var(--text-default-error, #ce0500);
+  cursor: pointer;
+  padding: 0.25rem;
+  display: inline-flex;
+  flex-shrink: 0;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.filter-row__remove:hover {
+  background: var(--background-contrast-error, #fddede);
+}
+
+.query-advanced > summary {
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: var(--text-action-high-blue-france);
+}
+
+/* ---- Barre d'action épinglée ---- */
+.builder-footerbar {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border-default-grey);
+  background: var(--background-default-grey);
+  padding: 0.75rem 1rem;
+}
+
+.builder-footerbar__row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.builder-footerbar__generate {
+  flex: 1;
+  justify-content: center;
+}
+
+.builder-dirty-status {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--text-default-success, #18753c);
+}
+
+.builder-dirty-status__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--background-flat-success, #18753c);
+  flex-shrink: 0;
+}
+
+.builder-dirty-status--dirty {
+  color: var(--text-default-warning, #b34000);
+}
+
+.builder-dirty-status--dirty .builder-dirty-status__dot {
+  background: var(--background-flat-warning, #b34000);
+}
+
+.builder-footerbar .generate-missing {
+  margin: 0.5rem 0 0;
+}
+
+/* ---- Garde-fou de cardinalité (zone d'aperçu) ---- */
+.cardinality-guard {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  background: var(--background-default-grey, #fff);
+  border: 1px solid var(--border-plain-warning, #b34000);
+  border-left: 4px solid var(--border-plain-warning, #b34000);
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.cardinality-guard[hidden] {
+  display: none;
+}
+
+.cardinality-guard__badge {
+  background: var(--background-flat-warning, #b34000);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.0625rem 0.4375rem;
+  flex-shrink: 0;
+}
+
+.cardinality-guard__text {
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+}
+
+.cardinality-guard__actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* En plein écran, l'ancien pattern page-scroll ne s'applique plus */
+@media (max-width: 900px) {
+  body.builder-v2 {
+    height: auto;
+    min-height: 100dvh;
+    overflow: auto;
+  }
+
+  body.builder-v2 .builder-layout-left {
+    overflow: visible;
+  }
+
+  body.builder-v2 .builder-config-panel {
+    overflow: visible;
+  }
+}
+
+/* ---- État vide de l'aperçu (v2) : illustration + étapes numérotées ---- */
+.empty-state__bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 56px;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.empty-state__bars span {
+  width: 14px;
+  display: block;
+}
+
+.empty-state__bars span:nth-child(1) {
+  height: 24px;
+  background: var(--background-contrast-blue-france, #cacafb);
+}
+
+.empty-state__bars span:nth-child(2) {
+  height: 44px;
+  background: #6a6af4;
+}
+
+.empty-state__bars span:nth-child(3) {
+  height: 32px;
+  background: var(--background-action-high-blue-france, #000091);
+}
+
+.empty-state__bars span:nth-child(4) {
+  height: 52px;
+  background: #a1a1f8;
+}
+
+.empty-state-steps {
+  list-style: none;
+  counter-reset: builder-step;
+  padding: 0;
+  margin: 0 auto;
+  text-align: left;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.empty-state-steps li {
+  counter-increment: builder-step;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-size: 0.9rem;
+  color: var(--text-mention-grey);
+}
+
+.empty-state-steps li::before {
+  content: counter(builder-step);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--border-default-grey);
+  background: var(--background-default-grey, #fff);
+  color: var(--text-mention-grey);
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease;
+}
+
+.empty-state-steps li.done {
+  color: var(--text-default-grey);
+}
+
+.empty-state-steps li.done::before {
+  content: '✓';
+  background: var(--background-action-high-success, #18753c);
+  border-color: var(--background-action-high-success, #18753c);
+  color: #fff;
 }
