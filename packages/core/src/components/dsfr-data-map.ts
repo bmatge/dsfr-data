@@ -365,19 +365,33 @@ export class DsfrDataMap extends LitElement {
         }
       };
       applyRatio();
-      // Watch for width changes
-      this._resizeObserver?.disconnect();
-      this._resizeObserver = new ResizeObserver(() => {
-        applyRatio();
-        this._leafletMap?.invalidateSize();
-      });
-      this._resizeObserver.observe(this);
+      this._observeResize(applyRatio);
     } else {
-      // Absolute unit — stop observing
-      this._resizeObserver?.disconnect();
-      this._resizeObserver = null;
+      // Unite absolue : pas de ratio a recalculer, mais on observe quand
+      // meme — une hauteur calc()/vh qui varie apres l'init (variable CSS
+      // mesuree au runtime, panneau replie…) laissait une bande de tuiles
+      // non chargees faute d'invalidateSize (#482 bug 14)
+      this._observeResize();
       setHeight(this.height);
     }
+  }
+
+  /**
+   * (Re)pose l'observation de taille du host : recale Leaflet sur toute
+   * variation de dimensions du conteneur (#482 bug 14), et recalcule la
+   * hauteur-ratio quand elle est exprimee en % de la largeur.
+   */
+  private _observeResize(onResize?: () => void) {
+    this._resizeObserver?.disconnect();
+    if (typeof ResizeObserver === 'undefined') {
+      this._resizeObserver = null;
+      return;
+    }
+    this._resizeObserver = new ResizeObserver(() => {
+      onResize?.();
+      this._leafletMap?.invalidateSize();
+    });
+    this._resizeObserver.observe(this);
   }
 
   // --- Public API ---

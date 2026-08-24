@@ -227,6 +227,12 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   private _heatLayerFactory: HeatLayerFactory | null = null;
   private _radiusScale: ((val: number) => number) | null = null;
 
+  /** Elements effectivement dessines au dernier rendu (#482) */
+  private _renderedCount = 0;
+
+  /** Records ecartes du rendu geoshape faute de geometrie valide (#482) */
+  private _skippedGeoCount = 0;
+
   /** Compagnon popup resolu une fois par rendu (#297) */
   private _popupCompanion: import('./dsfr-data-map-popup.js').DsfrDataMapPopup | null = null;
   private _colorMapParsed: Map<string, string> | null = null;
@@ -263,6 +269,76 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     if (!this.colorField || !this._colorMapParsed?.size) return this.color;
     const val = String(getByPath(record, this.colorField) ?? '');
     return this._colorMapParsed.get(val) ?? this.color;
+  }
+
+  /**
+   * Nombre d'elements effectivement dessines au dernier rendu (marqueurs,
+   * formes, cercles ou points de chaleur). Contrairement au comptage DOM,
+   * ce compte n'inclut pas les bulles de cluster et couvre la heatmap
+   * (un seul canvas pour N points) — expose pour les diagnostics (#482).
+   */
+  getRenderedCount(): number {
+    return this._renderedCount;
+  }
+
+  /**
+   * Proprietes dont le changement doit redessiner la couche (#482 bug 6) :
+   * sans ce hook, modifier un attribut en place (type, cluster, couleur…)
+   * ne produisait aucun effet avant la prochaine emission de la source.
+   */
+  private static readonly RENDER_PROPS = new Set<string>([
+    'type',
+    'latField',
+    'lonField',
+    'geoField',
+    'shapeClass',
+    'noInteractive',
+    'popupTemplate',
+    'popupFields',
+    'tooltipField',
+    'color',
+    'colorField',
+    'colorMap',
+    'fillField',
+    'fillOpacity',
+    'selectedPalette',
+    'radius',
+    'radiusField',
+    'radiusUnit',
+    'radiusMin',
+    'radiusMax',
+    'heatRadius',
+    'heatBlur',
+    'heatField',
+    'cluster',
+    'clusterRadius',
+    'maxItems',
+    'timeField',
+    'timeBucket',
+    'timeMode',
+  ]);
+
+  updated(changedProperties: Map<string, unknown>) {
+    super.updated(changedProperties);
+    // Avant _onMapReady (cycle de montage inclus), rien a redessiner
+    if (!this._leafletMap || !this._layerGroup) return;
+    let needsRender = false;
+    for (const key of changedProperties.keys()) {
+      if (DsfrDataMapLayer.RENDER_PROPS.has(key as string)) {
+        needsRender = true;
+        break;
+      }
+    }
+    if (!needsRender) return;
+    if (
+      changedProperties.has('timeField') ||
+      changedProperties.has('timeBucket') ||
+      changedProperties.has('timeMode')
+    ) {
+      this._currentFrameIndex = -1;
+      if (this.timeField) this._buildTimeFrames();
+    }
+    void this._renderLayer();
   }
 
   // --- SourceSubscriberMixin hook ---
@@ -521,6 +597,15 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     this._layerGroup.clearLayers();
     if (this._clusterGroup) {
       this._clusterGroup.clearLayers();
+      // Clustering desactive (attribut retire, changement de representation) :
+      // l'ancien groupe restait sur la carte et capturait les rendus suivants
+      // — residus de bulles par-dessus les cercles (#482 bug 6)
+      if (!this.cluster) {
+        if (this._leafletMap.hasLayer(this._clusterGroup)) {
+          this._clusterGroup.removeFrom(this._leafletMap);
+        }
+        this._clusterGroup = null;
+      }
     }
 
     let items = itemsOverride ?? this._data;
@@ -618,6 +703,8 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     const targetGroup = this._clusterGroup || this._layerGroup;
 
     // Render each item
+    this._skippedGeoCount = 0;
+    this._renderedCount = 0;
     for (const record of items) {
       switch (this.type) {
         case 'marker':
@@ -637,7 +724,16 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
 
     // Heatmap: render all points at once via L.heatLayer
     if (this.type === 'heatmap') {
-      this._renderHeatmap(items, Leaf);
+      this._renderedCount = this._renderHeatmap(items, Leaf);
+    }
+
+    // Geometries inexploitables : signaler au lieu d'echouer en silence (#482
+    // bug 3) — le try/catch de _addGeoshape ignore la ligne, on resume ici
+    if (this.type === 'geoshape' && this._skippedGeoCount > 0) {
+      console.warn(
+        `dsfr-data-map-layer[${this.id || this.source}]: la colonne "${this.geoField || '(geo-field non renseigné)'}" ` +
+          `ne contient pas de géométrie valide pour ${this._skippedGeoCount} enregistrement(s) sur ${items.length} — lignes ignorées`
+      );
     }
 
     // Add to map if visible
@@ -718,6 +814,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     this._bindPopup(marker, record);
     this._bindTooltip(marker, record);
     group.addLayer(marker);
+    this._renderedCount++;
   }
 
   // --- Geoshape ---
@@ -730,7 +827,10 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     palette: readonly string[]
   ) {
     const geoData = this.geoField ? parseGeoValue(getByPath(record, this.geoField)) : null;
-    if (!geoData || typeof geoData !== 'object') return;
+    if (!geoData || typeof geoData !== 'object') {
+      this._skippedGeoCount++;
+      return;
+    }
 
     const recordColor = this._resolveColor(record);
     let fillColor = recordColor;
@@ -743,24 +843,39 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
 
     const geoJson =
       geoData && typeof geoData === 'object' && 'type' in (geoData as object) ? geoData : null;
-    if (!geoJson) return;
+    if (!geoJson) {
+      this._skippedGeoCount++;
+      return;
+    }
 
-    const layer = Leaf.geoJSON(geoJson as import('geojson').GeoJsonObject, {
-      interactive: !this.noInteractive,
-      style: {
-        color: recordColor,
-        weight: 1,
-        fillColor,
-        fillOpacity: this.fillOpacity,
-        ...(this.shapeClass ? { className: this.shapeClass } : {}),
-      },
-    });
+    // Un objet avec `type` peut quand meme etre du GeoJSON invalide :
+    // Leaflet jette alors « Invalid GeoJSON object » — exception non
+    // interceptee qui coupait tout le rendu de la couche (#482 bug 3).
+    // La ligne fautive est ignoree et comptee, le resume est logge en fin
+    // de rendu par _renderLayer.
+    let layer: LeafletLayer;
+    try {
+      layer = Leaf.geoJSON(geoJson as import('geojson').GeoJsonObject, {
+        interactive: !this.noInteractive,
+        style: {
+          color: recordColor,
+          weight: 1,
+          fillColor,
+          fillOpacity: this.fillOpacity,
+          ...(this.shapeClass ? { className: this.shapeClass } : {}),
+        },
+      });
+    } catch {
+      this._skippedGeoCount++;
+      return;
+    }
 
     if (!this.noInteractive) {
       this._bindPopup(layer, record);
       this._bindTooltip(layer, record);
     }
     group.addLayer(layer);
+    this._renderedCount++;
   }
 
   // --- Circle ---
@@ -801,12 +916,14 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
       this._bindTooltip(circle, record);
     }
     group.addLayer(circle);
+    this._renderedCount++;
   }
 
   // --- Heatmap ---
 
-  private _renderHeatmap(items: Record<string, unknown>[], _Leaf: LeafletModule) {
-    if (!this._leafletMap) return;
+  /** Retourne le nombre de points effectivement projetes (#482). */
+  private _renderHeatmap(items: Record<string, unknown>[], _Leaf: LeafletModule): number {
+    if (!this._leafletMap) return 0;
 
     // Remove previous heat layer
     if (this._heatLayer) {
@@ -815,6 +932,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     }
 
     const points: [number, number, number][] = [];
+    let maxIntensity = 1;
     for (const record of items) {
       const coords = this._extractCoords(record);
       if (!coords) continue;
@@ -823,16 +941,25 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
         const val = Number(getByPath(record, this.heatField));
         if (!isNaN(val)) intensity = val;
       }
+      if (intensity > maxIntensity) maxIntensity = intensity;
       points.push([coords.lat, coords.lon, intensity]);
     }
 
-    if (points.length === 0) return;
+    if (points.length === 0) return 0;
 
     if (this._heatLoaded && this._heatLayerFactory) {
       this._heatLayer = this._heatLayerFactory(points, {
         radius: this.heatRadius,
         blur: this.heatBlur,
-        maxZoom: this.maxZoom,
+        // `max` : leaflet.heat rapporte l'alpha de chaque cellule a cette
+        // valeur — sans normalisation, un heat-field en grandes valeurs
+        // ou l'ancien maxZoom=max-zoom d'affichage (l'intensite y est
+        // divisee par 2^(maxZoom - zoom), soit /4096 a zoom 6) rendait la
+        // couche invisible (#482 bug 4). On cale `max` sur l'intensite
+        // maximale reelle et `maxZoom` sur le zoom courant : pleine
+        // intensite au zoom d'affichage, attenuation progressive au dezoom.
+        max: maxIntensity,
+        maxZoom: this._leafletMap.getZoom(),
       });
       if (this._visible && this._leafletMap) {
         this._heatLayer.addTo(this._leafletMap);
@@ -850,6 +977,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
         this._layerGroup!.addLayer(circle);
       }
     }
+    return points.length;
   }
 
   private async _loadHeatLayer() {

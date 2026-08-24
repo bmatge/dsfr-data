@@ -1,6 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { getByPath } from '../utils/json-path.js';
+import { flattenGristEnvelope } from '../utils/grist-envelope.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { getProxiedUrl, buildCorsProxyRequest } from '@dsfr-data/shared/lib';
@@ -567,6 +568,10 @@ export class DsfrDataSource extends LitElement {
       } else {
         this._data = json;
       }
+
+      // Enveloppe Grist en mode URL (#482) : [{id, fields:{…}}] → [{…fields}],
+      // pour livrer les mêmes lignes plates que le mode adapter api-type="grist"
+      this._data = flattenGristEnvelope(this._data);
 
       dispatchDataLoaded(this.id, this._data);
 
