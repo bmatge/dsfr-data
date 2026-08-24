@@ -83,18 +83,33 @@ function commit(): void {
   }
 }
 
-function fieldOptionsHtml(selected: string): string {
-  let html = '<option value="">— champ —</option>';
+/**
+ * Remplit un select de champs sans innerHTML (les noms de champs viennent des
+ * données : createElement + textContent, jamais d'interpolation HTML — CodeQL
+ * js/html-constructed-from-input, cf. précédent #484).
+ */
+function populateFieldSelect(select: HTMLSelectElement, selected: string): void {
+  select.innerHTML = '';
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = '— champ —';
+  select.appendChild(placeholder);
+
   state.fields.forEach((f) => {
-    const name = f.name;
-    const sel = name === selected ? ' selected' : '';
-    html += `<option value="${name}"${sel}>${f.displayName || name}</option>`;
+    const opt = document.createElement('option');
+    opt.value = f.name;
+    opt.textContent = f.displayName || f.name;
+    opt.selected = f.name === selected;
+    select.appendChild(opt);
   });
   // Champ configuré mais absent de la source courante : on le garde visible.
   if (selected && !state.fields.some((f) => f.name === selected)) {
-    html += `<option value="${selected}" selected>${selected}</option>`;
+    const opt = document.createElement('option');
+    opt.value = selected;
+    opt.textContent = selected;
+    opt.selected = true;
+    select.appendChild(opt);
   }
-  return html;
 }
 
 function renderRows(): void {
@@ -109,7 +124,7 @@ function renderRows(): void {
     const fieldSel = document.createElement('select');
     fieldSel.className = 'fr-select fr-select--sm filter-row__field';
     fieldSel.setAttribute('aria-label', 'Champ du filtre');
-    fieldSel.innerHTML = fieldOptionsHtml(row.field);
+    populateFieldSelect(fieldSel, row.field);
     fieldSel.addEventListener('change', () => {
       rows[i].field = fieldSel.value;
       commit();

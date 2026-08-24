@@ -34,7 +34,7 @@ function rowsOfCurrentSource(): Record<string, unknown>[] {
 /** Nombre de valeurs distinctes d'un champ sur l'échantillon (mémoïsé). */
 export function fieldCardinality(fieldName: string): number {
   const rows = rowsOfCurrentSource();
-  const key = `${(state.source as { id?: string } | null)?.id ?? ''}:${rows.length}`;
+  const key = `${state.savedSource?.id ?? ''}:${rows.length}`;
   if (!cardinalityCache || cacheSourceKey !== key) {
     cardinalityCache = new Map();
     cacheSourceKey = key;
@@ -87,7 +87,8 @@ export function updateCardinalityGuard(): void {
     return;
   }
 
-  const total = state.source?.recordCount && state.source.recordCount > rows.length ? '+' : '';
+  const total =
+    state.savedSource?.recordCount && state.savedSource.recordCount > rows.length ? '+' : '';
   textEl.innerHTML = `<strong>${n.toLocaleString('fr-FR')}${total} catégories détectées</strong> sur « ${state.labelField} » — l'axe sera illisible. Suggestions :`;
 
   actionsEl.innerHTML = '';
@@ -179,7 +180,7 @@ function configSnapshot(): string {
   ];
   const subset: Record<string, unknown> = {};
   for (const k of keys) subset[k] = s[k];
-  subset.__sourceId = state.source?.id ?? null;
+  subset.__sourceId = state.savedSource?.id ?? null;
   // Variante/unité KPI : lues du DOM par chart-renderer/code-generator (pas
   // dans le state) — on les intègre au snapshot depuis le DOM aussi.
   subset.__kpiVariant =
