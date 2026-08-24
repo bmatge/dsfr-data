@@ -19,144 +19,113 @@
   <!-- Header -->
   <app-header current-page="sources" base-path="../../"></app-header>
 
-  <div class="fr-container fr-py-4w fr-sr-only">
-    <h1><i class="ri-database-2-line"></i> Sources de données</h1>
-    <p class="fr-text--lead">Connectez vos sources Grist, API ou créez des jeux de données manuels</p>
-  </div>
-
-  <!-- CONTENU PRINCIPAL -->
-  <app-layout-builder left-ratio="30">
-
-      <!-- SIDEBAR : Liste des connexions -->
-      <aside slot="left" class="sidebar">
-        <h2><i class="ri-link"></i> Connexions</h2>
-        <p class="fr-text--sm" style="color: var(--text-mention-grey); margin: 0 0 0.5rem;">
-          Points d'accès (Grist, API, data.gouv…). Une connexion donne accès à un ou plusieurs jeux de données.
-        </p>
-
-        <div id="connections-list">
-          <!-- Connexions chargées dynamiquement -->
-        </div>
-
-        <button class="fr-btn fr-btn--sm fr-btn--secondary add-btn" id="add-connection-btn">
-          <i class="ri-add-line"></i> Nouvelle connexion
+  <!-- CONTENU PRINCIPAL — refonte « Sources v2 » (Claude Design) :
+       page unique avec accordéon de connexions (chaque connexion se déplie sur
+       ses tables / ressources / flux, les jeux en ligne créés y sont badgés),
+       section des jeux locaux, et aperçu en panneau latéral. -->
+  <main id="main-content" class="sources-page">
+    <div class="sources-page__head">
+      <h1>Sources</h1>
+      <div class="sources-page__actions">
+        <button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline" id="export-data-btn" title="Exporter toutes les données">
+          <i class="ri-download-line" aria-hidden="true"></i> Exporter
         </button>
-
-        <hr class="fr-mt-2w fr-mb-2w">
-
-        <h2><i class="ri-cloud-line"></i> Jeux de données en ligne</h2>
-        <p class="fr-text--sm" style="color: var(--text-mention-grey); margin: 0 0 0.5rem;">
-          Jeux issus de vos connexions (table Grist, ressource data.gouv, dataset OpenDataSoft…).
-        </p>
-
-        <div id="online-sources-list">
-          <!-- Jeux de données en ligne (sources issues d'une connexion) -->
-        </div>
-
-        <hr class="fr-mt-2w fr-mb-2w">
-
-        <h2><i class="ri-folder-chart-line"></i> Jeux de données locaux</h2>
-        <p class="fr-text--sm" style="color: var(--text-mention-grey); margin: 0 0 0.5rem;">
-          Données saisies, importées (CSV, JSON) ou issues d'une jointure.
-        </p>
-
-        <div id="local-sources-list">
-          <!-- Jeux de données locaux (manuels / jointures) -->
-        </div>
-
-        <button class="fr-btn fr-btn--sm fr-btn--secondary add-btn" id="add-source-btn">
-          <i class="ri-add-line"></i> Créer une source manuelle
+        <label class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline" id="import-data-btn" title="Importer des données" style="cursor:pointer;">
+          <i class="ri-upload-line" aria-hidden="true"></i> Importer
+          <input type="file" id="import-data-file" accept=".json" style="display:none;">
+        </label>
+        <button class="fr-btn fr-btn--sm" id="add-connection-btn">
+          <i class="ri-add-line" aria-hidden="true"></i> Nouvelle connexion
         </button>
-        <button class="fr-btn fr-btn--sm fr-btn--secondary add-btn" id="add-join-btn" style="margin-top: 0.5rem;">
-          <i class="ri-link-unlink"></i> Joindre deux sources
+      </div>
+    </div>
+    <p class="sources-page__intro">
+      Une <strong>connexion</strong> (Grist, API, data.gouv…) donne accès à un ou plusieurs
+      <strong>jeux de données en ligne</strong> — requêtés en direct, exploitables par les
+      builders (IA, graphique, carte, tableau) pour des graphiques dynamiques.
+      Les <strong>jeux locaux</strong> sont des données figées dans le projet : saisies,
+      importées ou issues d'une jointure.
+    </p>
+
+    <div class="sources-section-head">
+      <h2>Connexions</h2>
+      <span class="sources-section-head__meta" id="connections-count"></span>
+    </div>
+    <div id="connections-list" class="sources-accordion">
+      <!-- Connexions chargées dynamiquement (accordéon) -->
+    </div>
+
+    <!-- Jeux en ligne dont la connexion a été supprimée : toujours listés pour
+         rester consultables / supprimables (aucune perte au passage v2). -->
+    <div id="orphan-online-section" style="display:none;">
+      <div class="sources-section-head">
+        <h2>Jeux en ligne sans connexion</h2>
+        <span class="sources-section-head__meta">Leur connexion d'origine a été supprimée — toujours utilisables tels quels</span>
+      </div>
+      <div id="orphan-online-list" class="sources-rows"></div>
+    </div>
+
+    <div class="sources-section-head">
+      <h2>Jeux de données locaux</h2>
+      <span class="sources-section-head__meta">Données figées dans le projet — saisies, importées (CSV, JSON) ou issues d'une jointure</span>
+    </div>
+    <div class="sources-locals">
+      <div id="local-sources-list" class="sources-rows"></div>
+      <div class="sources-locals__footer">
+        <button class="sources-link-btn" id="add-source-btn" type="button">
+          <i class="ri-add-line" aria-hidden="true"></i> Créer une source manuelle
         </button>
+        <button class="sources-link-btn" id="add-join-btn" type="button">
+          <i class="ri-link-unlink" aria-hidden="true"></i> Joindre deux sources
+        </button>
+      </div>
+    </div>
+  </main>
 
-        <hr class="fr-mt-2w fr-mb-2w">
-
-        <div style="display: flex; gap: 0.5rem;">
-          <button class="fr-btn fr-btn--sm fr-btn--tertiary" id="export-data-btn" title="Exporter toutes les données">
-            <i class="ri-download-line"></i> Exporter
-          </button>
-          <label class="fr-btn fr-btn--sm fr-btn--tertiary" id="import-data-btn" title="Importer des données" style="cursor:pointer;">
-            <i class="ri-upload-line"></i> Importer
-            <input type="file" id="import-data-file" accept=".json" style="display:none;">
-          </label>
-        </div>
-      </aside>
-
-      <!-- MAIN : Explorateur -->
-      <main slot="right" class="main-content" id="main-content">
-        <div id="explorer-empty" class="empty-state">
-          <i class="ri-database-2-line"></i>
-          <p style="font-weight: 600; margin-bottom: 0.5rem;">3 facons de commencer</p>
-          <p style="font-size: 0.9rem; line-height: 1.6;">
-            <strong>Données manuelles</strong> : collez du JSON, CSV ou saisissez un tableau<br>
-            <strong>API publique</strong> : connectez data.gouv.fr, OpenDataSoft...<br>
-            <strong>Grist</strong> : explorez un tableur collaboratif
-          </p>
-          <p style="font-size: 0.85rem; color: var(--text-mention-grey); margin-top: 0.75rem;">Utilisez les boutons dans la barre laterale pour commencer.</p>
-        </div>
-
-        <div id="explorer-content" style="display: none;">
-          <div class="action-bar">
-            <h2 id="explorer-title" style="margin: 0; flex: 1;">Explorer</h2>
-            <button class="fr-btn fr-btn--sm" id="add-online-btn" style="display: none;">
-              <i class="ri-cloud-line"></i> En faire un jeu en ligne
-            </button>
-            <button class="fr-btn fr-btn--sm fr-btn--secondary" id="add-local-btn" style="display: none;">
-              <i class="ri-download-line"></i> En faire un jeu local
-            </button>
-            <button class="fr-btn fr-btn--sm" id="use-in-builder-btn">
-              <i class="ri-bar-chart-box-line"></i> Utiliser dans le Builder
-            </button>
-            <button class="fr-btn fr-btn--sm fr-btn--secondary" id="save-favorite-btn" style="display: none;">
-              <i class="ri-star-line"></i> Garder en favori
-            </button>
-            <button class="fr-btn fr-btn--sm fr-btn--secondary" id="export-grist-btn" style="display: none;">
-              <i class="ri-upload-cloud-line"></i> Exporter vers Grist
-            </button>
-            <button class="fr-btn fr-btn--sm fr-btn--secondary" id="refresh-btn">
-              <i class="ri-refresh-line"></i> Rafraîchir
-            </button>
-          </div>
-
-          <div id="explorer-tabs" class="explorer-tabs">
-            <button class="explorer-tab active" data-tab="documents">Documents</button>
-            <button class="explorer-tab" data-tab="tables">Tables</button>
-            <button class="explorer-tab" data-tab="preview">Aperçu</button>
-          </div>
-
-          <div id="tab-documents" class="tab-panel">
-            <div id="documents-tree" class="tree-view">
-              <!-- Documents Grist -->
-            </div>
-          </div>
-
-          <div id="tab-tables" class="tab-panel" style="display: none;">
-            <div class="action-bar">
-              <button class="fr-btn fr-btn--sm fr-btn--secondary" id="create-table-btn">
-                <i class="ri-add-line"></i> Créer une table dans Grist
-              </button>
-            </div>
-            <div id="tables-tree" class="tree-view">
-              <!-- Tables -->
-            </div>
-          </div>
-
-          <div id="tab-preview" class="tab-panel" style="display: none;">
-            <div id="preview-meta" style="display: none; margin-bottom: 0.75rem;"></div>
-            <p class="fr-text--sm" id="preview-info">Sélectionnez une table pour voir un aperçu des données.</p>
-            <div class="table-preview">
-              <table class="fr-table" id="preview-table">
-                <thead><tr></tr></thead>
-                <tbody></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </main>
-
-  </app-layout-builder>
+  <!-- PANNEAU LATÉRAL : aperçu des données. Les ids historiques de
+       l'explorateur (#explorer-title, #preview-meta, #preview-info,
+       #preview-table, boutons d'action) sont conservés : toute la logique de
+       chargement existante (pagination API, candidats de jeux, favoris,
+       export Grist) écrit dedans sans modification. -->
+  <aside class="preview-panel" id="preview-panel" hidden aria-label="Aperçu des données" role="dialog" aria-modal="false">
+    <div class="preview-panel__header">
+      <span id="preview-panel-badge"></span>
+      <h2 id="explorer-title" class="preview-panel__title">Aperçu</h2>
+      <button class="preview-panel__close" id="preview-close-btn" type="button" title="Fermer l'aperçu">
+        Fermer <i class="ri-close-line" aria-hidden="true"></i>
+      </button>
+    </div>
+    <div class="preview-panel__body">
+      <div id="preview-meta" style="display: none; margin-bottom: 0.75rem;"></div>
+      <p class="fr-text--sm" id="preview-info">Sélectionnez une table pour voir un aperçu des données.</p>
+      <div class="table-preview">
+        <table class="fr-table" id="preview-table">
+          <thead><tr></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="preview-panel__footer">
+      <button class="fr-btn fr-btn--sm" id="use-in-builder-btn">
+        <i class="ri-bar-chart-box-line" aria-hidden="true"></i> Utiliser dans le Builder
+      </button>
+      <button class="fr-btn fr-btn--sm fr-btn--secondary" id="add-online-btn" style="display: none;" title="Requêté en direct — pour un graphique dynamique">
+        <i class="ri-cloud-line" aria-hidden="true"></i> En faire un jeu en ligne
+      </button>
+      <button class="fr-btn fr-btn--sm fr-btn--secondary" id="add-local-btn" style="display: none;" title="Copie figée dans le projet">
+        <i class="ri-download-line" aria-hidden="true"></i> En faire un jeu local
+      </button>
+      <button class="fr-btn fr-btn--sm fr-btn--secondary" id="save-favorite-btn" style="display: none;">
+        <i class="ri-star-line" aria-hidden="true"></i> Garder en favori
+      </button>
+      <button class="fr-btn fr-btn--sm fr-btn--secondary" id="export-grist-btn" style="display: none;">
+        <i class="ri-upload-cloud-line" aria-hidden="true"></i> Exporter vers Grist
+      </button>
+      <button class="fr-btn fr-btn--sm fr-btn--secondary preview-panel__refresh" id="refresh-btn">
+        <i class="ri-refresh-line" aria-hidden="true"></i> Rafraîchir
+      </button>
+    </div>
+  </aside>
 
   <!-- MODAL : Ajouter une connexion -->
   <div class="modal-overlay" id="connection-modal">

@@ -21,62 +21,26 @@ import type { DataGouvResource, Source } from '@dsfr-data/shared';
 import { state } from '../state.js';
 import { switchExplorerTab, setDatasetCandidate, renderPreviewMeta } from './connection-manager.js';
 
-/** Ressources interrogeables du jeu data.gouv courant. */
-let resources: DataGouvResource[] = [];
-
-function formatBytes(bytes: number): string {
-  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
-  if (bytes >= 1024) return `${Math.round(bytes / 1024)} Ko`;
-  return `${bytes} o`;
-}
-
-/** Liste les ressources interrogeables de la connexion data.gouv sélectionnée. */
-export async function loadDataGouvResources(): Promise<void> {
-  const tree = document.getElementById('tables-tree');
-  if (!tree) return;
-
-  const conn = state.connections.find((c) => c.id === state.selectedConnectionId);
-  const slug = conn ? (conn as Record<string, unknown>).datasetSlug : null;
+/**
+ * Liste les ressources interrogeables (API Tabular) d'une connexion data.gouv.
+ * Utilisé par l'accordéon v2 (cache géré par l'appelant).
+ */
+export async function fetchDataGouvResources(
+  conn: Record<string, unknown>
+): Promise<DataGouvResource[]> {
+  const slug = conn.datasetSlug;
   if (typeof slug !== 'string') {
-    tree.innerHTML = '<p>Connexion data.gouv invalide.</p>';
-    return;
+    throw new Error('Connexion data.gouv invalide (slug manquant).');
   }
-
-  tree.innerHTML = '<p>Chargement des ressources…</p>';
-  try {
-    const resp = await fetch(dataGouvDatasetApiUrl(slug));
-    if (!resp.ok) throw new Error(httpErrorMessage(resp.status));
-    const json: unknown = await resp.json();
-    resources = extractDataGouvResources(json).filter((r) => r.tabularApiUrl);
-
-    if (resources.length === 0) {
-      tree.innerHTML =
-        '<p class="fr-text--sm">Aucune ressource interrogeable via l\'API Tabular dans ce jeu de données.</p>';
-      return;
-    }
-
-    tree.innerHTML = resources
-      .map((r, i) => {
-        const meta = [r.format || 'csv', r.size ? formatBytes(r.size) : null]
-          .filter(Boolean)
-          .join(' · ');
-        return `<div class="tree-item" data-dg-idx="${i}" onclick="selectDataGouvResource(${i})">
-          <i class="ri-table-line"></i> ${escapeHtml(r.title)} <span class="count">${escapeHtml(meta)}</span>
-        </div>`;
-      })
-      .join('');
-  } catch (error) {
-    tree.innerHTML = `<p class="error-message">Erreur : ${(error as Error).message}</p>`;
-  }
+  const resp = await fetch(dataGouvDatasetApiUrl(slug));
+  if (!resp.ok) throw new Error(httpErrorMessage(resp.status));
+  const json: unknown = await resp.json();
+  return extractDataGouvResources(json).filter((r) => r.tabularApiUrl);
 }
 
 /** Prévisualise une ressource data.gouv (via Tabular) et arme les boutons d'ajout. */
-export async function selectDataGouvResource(index: number): Promise<void> {
-  const resource = resources[index];
+export async function selectDataGouvResource(resource: DataGouvResource): Promise<void> {
   if (!resource?.tabularApiUrl) return;
-
-  document.querySelectorAll('[data-dg-idx]').forEach((el) => el.classList.remove('selected'));
-  document.querySelector(`[data-dg-idx="${index}"]`)?.classList.add('selected');
 
   switchExplorerTab('preview');
   const info = document.getElementById('preview-info');

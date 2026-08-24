@@ -12,28 +12,29 @@ import {
 } from '@dsfr-data/shared';
 
 import { state } from '../state.js';
-import type { GristDocument, GristRecord, Source } from '../state.js';
-import { switchExplorerTab, setDatasetCandidate, renderPreviewMeta } from './connection-manager.js';
+import type { GristRecord, Source } from '../state.js';
+import {
+  switchExplorerTab,
+  setDatasetCandidate,
+  renderPreviewMeta,
+  invalidateGristTables,
+} from './connection-manager.js';
 
 // ============================================================
 // Grist Fetch helper
 // ============================================================
 
-export async function gristFetch(endpoint: string): Promise<unknown> {
-  if (state.selectedConnectionId === null) {
-    throw new Error('Aucune connexion sélectionnée');
-  }
-
-  const conn = state.connections.find((c) => c.id === state.selectedConnectionId);
-  const connUrl = (conn as Record<string, unknown>).url as string | undefined;
+/** Fetch Grist proxifié pour une connexion donnée. */
+export async function gristFetchFor(
+  conn: Record<string, unknown>,
+  endpoint: string
+): Promise<unknown> {
+  const connUrl = conn.url as string | undefined;
   if (!connUrl) {
     throw new Error('URL du serveur Grist manquante dans la connexion');
   }
   const proxyUrl = getProxyUrl(connUrl, endpoint);
-
-  const apiKey = (conn as Record<string, unknown>).isPublic
-    ? null
-    : ((conn as Record<string, unknown>).apiKey as string | null);
+  const apiKey = conn.isPublic ? null : (conn.apiKey as string | null);
   const response = await fetch(proxyUrl, { headers: buildGristHeaders(apiKey) });
 
   if (!response.ok) {
@@ -43,140 +44,82 @@ export async function gristFetch(endpoint: string): Promise<unknown> {
   return response.json();
 }
 
-// ============================================================
-// Documents
-// ============================================================
-
-export async function loadDocuments(): Promise<void> {
-  const tree = document.getElementById('documents-tree');
-  if (!tree) return;
-  tree.innerHTML = '<p>Chargement...</p>';
-
-  // Doc public ciblé par URL : on saute l'énumération des orgs (vide en anonyme)
-  // et on charge directement le document, puis ses tables.
+/** Fetch Grist sur la connexion sélectionnée (compat flux d'aperçu). */
+export async function gristFetch(endpoint: string): Promise<unknown> {
+  if (state.selectedConnectionId === null) {
+    throw new Error('Aucune connexion sélectionnée');
+  }
   const conn = state.connections.find((c) => c.id === state.selectedConnectionId);
-  const publicDocId =
-    conn && ((conn as Record<string, unknown>).publicDocId as string | null | undefined);
+  if (!conn) {
+    throw new Error('Connexion introuvable');
+  }
+  return gristFetchFor(conn as unknown as Record<string, unknown>, endpoint);
+}
+
+// ============================================================
+// Documents & tables — fetchers v2 (accordéon)
+// ============================================================
+
+/** Option de document pour le sélecteur de l'accordéon. */
+export interface GristDocOption {
+  id: string;
+  name: string;
+  org: string;
+  workspace: string;
+}
+
+/**
+ * Liste les documents accessibles d'une connexion Grist.
+ * - Doc public ciblé (publicDocId) : un seul document, nommé via /docs/{id}.
+ * - Connexion à clé : orgs → workspaces → docs, aplatis.
+ */
+export async function fetchGristDocs(conn: Record<string, unknown>): Promise<GristDocOption[]> {
+  const publicDocId = conn.publicDocId as string | null | undefined;
   if (publicDocId) {
     let docName = publicDocId;
     try {
-      const meta = (await gristFetch(`/docs/${publicDocId}`)) as { name?: string };
+      const meta = (await gristFetchFor(conn, `/docs/${publicDocId}`)) as { name?: string };
       if (meta?.name) docName = meta.name;
     } catch {
       // métadonnées indisponibles → on garde le docId comme libellé
     }
-    state.documents = [{ id: publicDocId, name: docName, orgId: 0, workspaceId: 0 }];
-    tree.innerHTML = `<div class="tree-item" data-doc-id="${escapeHtml(publicDocId)}" onclick="selectDocument('${escapeHtml(publicDocId)}')">
-      <i class="ri-file-text-line"></i> ${escapeHtml(docName)}
-    </div>`;
-    await selectDocument(publicDocId);
-    return;
+    return [{ id: publicDocId, name: docName, org: '', workspace: '' }];
   }
 
-  try {
-    const orgs = (await gristFetch('/orgs')) as Array<{ id: number; name: string }>;
-    state.documents = [];
-
-    let html = '';
-
-    for (const org of orgs) {
-      const workspaces = (await gristFetch(`/orgs/${org.id}/workspaces`)) as Array<{
-        id: number;
-        name: string;
-        docs?: Array<{ id: string; name: string; [key: string]: unknown }>;
-      }>;
-
-      html += `<div class="tree-item" style="font-weight: 600; background: var(--background-contrast-grey);">
-        <i class="ri-building-line"></i> ${escapeHtml(org.name)}
-      </div>`;
-
-      for (const ws of workspaces) {
-        html += `<div class="tree-children">
-          <div class="tree-item" style="background: var(--background-default-grey);">
-            <i class="ri-folder-line"></i> ${escapeHtml(ws.name)}
-            <span class="count">${ws.docs?.length || 0} docs</span>
-          </div>`;
-
-        if (ws.docs) {
-          for (const doc of ws.docs) {
-            state.documents.push({
-              ...doc,
-              orgId: org.id,
-              workspaceId: ws.id,
-            } as GristDocument);
-            html += `<div class="tree-children">
-              <div class="tree-item" data-doc-id="${doc.id}" onclick="selectDocument('${doc.id}')">
-                <i class="ri-file-text-line"></i> ${escapeHtml(doc.name)}
-              </div>
-            </div>`;
-          }
-        }
-
-        html += '</div>';
+  const docs: GristDocOption[] = [];
+  const orgs = (await gristFetchFor(conn, '/orgs')) as Array<{ id: number; name: string }>;
+  for (const org of orgs) {
+    const workspaces = (await gristFetchFor(conn, `/orgs/${org.id}/workspaces`)) as Array<{
+      id: number;
+      name: string;
+      docs?: Array<{ id: string; name: string }>;
+    }>;
+    for (const ws of workspaces) {
+      for (const doc of ws.docs ?? []) {
+        docs.push({ id: doc.id, name: doc.name, org: org.name, workspace: ws.name });
       }
     }
-
-    tree.innerHTML = html || '<p>Aucun document trouve</p>';
-  } catch (error) {
-    tree.innerHTML = `<p class="error-message">Erreur : ${(error as Error).message}</p>`;
   }
+  return docs;
 }
 
-export async function selectDocument(docId: string): Promise<void> {
-  state.selectedDocument = docId;
-  state.selectedTable = null;
-
-  // Highlight selected
-  document.querySelectorAll('[data-doc-id]').forEach((el) => el.classList.remove('selected'));
-  document.querySelector(`[data-doc-id="${docId}"]`)?.classList.add('selected');
-
-  // Switch to tables tab and load
-  switchExplorerTab('tables');
-  await loadTables();
-}
-
-// ============================================================
-// Tables
-// ============================================================
-
-export async function loadTables(): Promise<void> {
-  if (!state.selectedDocument) {
-    const tree = document.getElementById('tables-tree');
-    if (tree) tree.innerHTML = "<p>Sélectionnez d'abord un document</p>";
-    return;
-  }
-
-  const tree = document.getElementById('tables-tree');
-  if (!tree) return;
-  tree.innerHTML = '<p>Chargement des tables...</p>';
-
-  try {
-    const result = (await gristFetch(`/docs/${state.selectedDocument}/tables`)) as {
-      tables?: Array<{ id: string; [key: string]: unknown }>;
-    };
-    state.tables = result.tables || [];
-
-    let html = '';
-    for (const table of state.tables) {
-      html += `<div class="tree-item" data-table-id="${table.id}" onclick="selectTable('${table.id}')">
-        <i class="ri-table-line"></i> ${escapeHtml(table.id)}
-      </div>`;
-    }
-
-    tree.innerHTML = html || '<p>Aucune table</p>';
-  } catch (error) {
-    tree.innerHTML = `<p class="error-message">Erreur : ${(error as Error).message}</p>`;
-  }
+/** Liste les tables d'un document (utilisée par l'accordéon, avec cache amont). */
+export async function fetchGristTables(
+  conn: Record<string, unknown>,
+  docId: string
+): Promise<{ id: string }[]> {
+  const result = (await gristFetchFor(conn, `/docs/${docId}/tables`)) as {
+    tables?: Array<{ id: string; [key: string]: unknown }>;
+  };
+  const tables = result.tables ?? [];
+  // state.tables reste alimenté pour les consommateurs historiques.
+  state.tables = tables;
+  return tables.map((t) => ({ id: t.id }));
 }
 
 export async function selectTable(tableId: string): Promise<void> {
   state.selectedTable = tableId;
-
-  // Highlight
-  document.querySelectorAll('[data-table-id]').forEach((el) => el.classList.remove('selected'));
-  document.querySelector(`[data-table-id="${tableId}"]`)?.classList.add('selected');
-
-  // Load preview
+  // Ouvre le panneau d'aperçu (compat v1 : « onglet preview ») et charge.
   switchExplorerTab('preview');
   await loadTablePreview();
 }
@@ -323,8 +266,8 @@ export async function createGristTable(): Promise<void> {
     const { closeModal } = await import('@dsfr-data/shared');
     closeModal('create-table-modal');
 
-    // Refresh tables list
-    await loadTables();
+    // Refresh : invalide le cache des tables de l'accordéon (v2)
+    invalidateGristTables(state.selectedConnectionId, state.selectedDocument);
   } catch (error) {
     toastError(`Erreur : ${(error as Error).message}`);
   }
@@ -614,10 +557,8 @@ export async function exportToGrist(): Promise<void> {
     const { closeModal } = await import('@dsfr-data/shared');
     closeModal('export-grist-modal');
 
-    // If we are viewing this connection, refresh
-    if (state.selectedConnectionId === connId && state.selectedDocument === docId) {
-      await loadTables();
-    }
+    // Refresh : invalide le cache des tables de l'accordéon (v2)
+    invalidateGristTables(connId, docId);
   } catch (error) {
     toastError(`Erreur : ${(error as Error).message}`);
     console.error('Erreur export Grist:', error);
