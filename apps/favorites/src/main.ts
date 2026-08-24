@@ -88,6 +88,37 @@ function importFavorites(): void {
 }
 
 /**
+ * Type de visualisation d'un favori. Les builders historiques stockent
+ * souvent un chartType générique (« chart », « playground ») : on déduit
+ * alors le type réel du code sauvegardé (balises bar-chart, pie-chart,
+ * dsfr-data-map, type=\"…\"…) pour une vignette représentative.
+ */
+function inferChartType(fav: Favorite): string {
+  const stored = (fav.chartType || '').toLowerCase();
+  if (stored && !['chart', 'playground', 'builder'].includes(stored)) return stored;
+
+  const code = (fav.code || '').toLowerCase();
+  // Cartes d'abord : le type= des couches Leaflet (marker, geoshape…) ne doit
+  // pas masquer la nature « carte » du favori.
+  if (/dsfr-data-map|<map-chart|map-reg|map-aca|map-monde|dsfr-data-world-map/.test(code))
+    return 'map';
+  const typeAttr = code.match(/type="([a-z-]+)"/)?.[1];
+  if (typeAttr && !['bar-line'].includes(typeAttr)) {
+    if (typeAttr.startsWith('map')) return 'map';
+    return typeAttr;
+  }
+  if (/<line-chart|bar-line-chart/.test(code)) return 'line';
+  if (/<pie-chart|doughnut|donut/.test(code)) return 'pie';
+  if (/<gauge-chart|gauge/.test(code)) return 'gauge';
+  if (/dsfr-data-kpi/.test(code)) return 'kpi';
+  if (/dsfr-data-list|<table-chart/.test(code)) return 'datalist';
+  if (/<radar-chart/.test(code)) return 'radar';
+  if (/<scatter-chart/.test(code)) return 'scatter';
+  if (/<bar-chart/.test(code)) return 'bar';
+  return stored || 'chart';
+}
+
+/**
  * Vignette SVG par type de graphique (refonte v2 — Claude Design).
  * Illustration légère : le rendu réel (iframe) vit dans le panneau d'aperçu.
  */
@@ -104,6 +135,12 @@ function thumbSvg(chartType: string | undefined): string {
   }
   if (t.includes('datalist') || t.includes('table') || t.includes('list')) {
     return `<svg viewBox="0 0 200 110" aria-hidden="true"><rect x="20" y="14" width="160" height="16" fill="#e3e3fd"></rect><rect x="20" y="36" width="160" height="12" fill="#f6f6f6" stroke="#ddd"></rect><rect x="20" y="52" width="160" height="12" fill="#fff" stroke="#ddd"></rect><rect x="20" y="68" width="160" height="12" fill="#f6f6f6" stroke="#ddd"></rect><rect x="20" y="84" width="160" height="12" fill="#fff" stroke="#ddd"></rect></svg>`;
+  }
+  if (t.includes('radar')) {
+    return `<svg viewBox="0 0 200 110" aria-hidden="true"><polygon points="100,12 145,40 128,95 72,95 55,40" fill="none" stroke="#ddd"></polygon><polygon points="100,30 130,46 120,82 80,82 70,46" fill="#6a6af433" stroke="#000091" stroke-width="2"></polygon></svg>`;
+  }
+  if (t.includes('scatter') || t.includes('nuage')) {
+    return `<svg viewBox="0 0 200 110" aria-hidden="true"><line x1="15" y1="100" x2="190" y2="100" stroke="#ccc"></line><line x1="15" y1="8" x2="15" y2="100" stroke="#ccc"></line><circle cx="45" cy="75" r="5" fill="#000091"></circle><circle cx="70" cy="55" r="5" fill="#6a6af4"></circle><circle cx="95" cy="62" r="5" fill="#000091"></circle><circle cx="120" cy="35" r="5" fill="#6a6af4"></circle><circle cx="150" cy="42" r="5" fill="#000091"></circle><circle cx="170" cy="22" r="5" fill="#6a6af4"></circle></svg>`;
   }
   if (t.includes('kpi')) {
     return `<svg viewBox="0 0 200 110" aria-hidden="true"><rect x="30" y="20" width="6" height="70" fill="#0063cb"></rect><text x="48" y="62" font-size="34" font-weight="700" fill="#161616" font-family="Marianne, sans-serif">42 %</text><text x="48" y="82" font-size="11" fill="#666" font-family="Marianne, sans-serif">indicateur clé</text></svg>`;
@@ -152,11 +189,11 @@ function renderGrid(): void {
          data-id="${fav.id}" role="button" tabindex="0"
          onclick="selectFavorite('${fav.id}')"
          onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectFavorite('${fav.id}')}">
-      <div class="fav-card__thumb">${thumbSvg(fav.chartType)}</div>
+      <div class="fav-card__thumb">${thumbSvg(inferChartType(fav))}</div>
       <div class="fav-card__body">
         <span class="fav-card__name">${escapeHtml(fav.name)}</span>
         <div class="fav-card__meta">
-          <span class="fav-card__tag">${escapeHtml(fav.chartType || 'chart')}</span>
+          <span class="fav-card__tag">${escapeHtml(inferChartType(fav))}</span>
           <span class="fav-card__tag">${escapeHtml(fav.sourceApp || fav.source || 'builder')}</span>
           <span class="fav-card__date">${formatDateShort(fav.createdAt)}</span>
         </div>
@@ -194,7 +231,7 @@ function renderPanel(): void {
   const tagsEl = document.getElementById('fav-panel-tags');
   if (tagsEl) {
     tagsEl.innerHTML = `
-      <span class="fav-card__tag">${escapeHtml(fav.chartType || 'chart')}</span>
+      <span class="fav-card__tag">${escapeHtml(inferChartType(fav))}</span>
       <span class="fav-card__tag">${escapeHtml(fav.sourceApp || fav.source || 'builder')}</span>`;
   }
   const metaEl = document.getElementById('fav-panel-meta');

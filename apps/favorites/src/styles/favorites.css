@@ -194,7 +194,7 @@ body {
   top: 0;
   right: 0;
   bottom: 0;
-  width: min(680px, 92vw);
+  width: min(880px, 94vw);
   background: var(--background-default-grey, #fff);
   border-left: 1px solid var(--border-default-grey);
   box-shadow: 0 2px 6px rgba(0, 0, 18, 0.16);
@@ -278,13 +278,23 @@ body {
   overflow-y: auto;
   flex: 1;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
+/* L'iframe remplit la hauteur disponible du panneau : l'aperçu se voit en
+   entier sans scroller (le corps ne scrolle que si le code est déplié). */
 .fav-panel__frame {
   width: 100%;
-  min-height: 340px;
+  flex: 1 1 auto;
+  min-height: 420px;
   border: 1px solid var(--border-default-grey);
   background: white;
+}
+
+.fav-panel__meta,
+.fav-panel__code {
+  flex-shrink: 0;
 }
 
 .fav-panel__meta {
