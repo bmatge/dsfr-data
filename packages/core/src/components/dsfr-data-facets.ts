@@ -541,6 +541,26 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     return current;
   }
 
+  /**
+   * Valeurs de facette d'une cellule (#421) : une cellule tableau (champ
+   * multi-valeurs, ex. ChoiceList Grist) fournit chaque element ; une cellule
+   * scalaire fournit sa valeur. Les elements vides sont ignores. L'ancien
+   * `String(val)` stringifiait le tableau (« a,b ») : la valeur ne matchait
+   * jamais une selection et polluait les groupes de facettes.
+   */
+  private _facetValuesOf(val: unknown): string[] {
+    if (val === null || val === undefined || val === '') return [];
+    if (Array.isArray(val)) {
+      return val.filter((v) => v !== null && v !== undefined && v !== '').map((v) => String(v));
+    }
+    return [String(val)];
+  }
+
+  /** La cellule matche-t-elle la selection ? Intersection pour les tableaux (#421). */
+  private _matchesSelection(val: unknown, selected: Set<string>): boolean {
+    return this._facetValuesOf(val).some((v) => selected.has(v));
+  }
+
   /** Get fields to use as facets — explicit or auto-detected */
   private _getFields(): string[] {
     if (this.fields) {
@@ -563,11 +583,14 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
       for (const row of this._rawData) {
         const val = row[key];
         if (val === null || val === undefined || val === '') continue;
-        if (typeof val !== 'string') {
+        // Champ multi-valeurs (tableau de chaines, ex. ChoiceList Grist) :
+        // chaque element est une valeur de facette candidate (#421)
+        const cellValues = Array.isArray(val) ? val : [val];
+        if (cellValues.some((v) => typeof v !== 'string')) {
           allStrings = false;
           break;
         }
-        uniqueValues.add(val);
+        for (const v of cellValues) uniqueValues.add(v as string);
         if (uniqueValues.size > 50) break;
       }
 
@@ -589,10 +612,10 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
 
     const counts = new Map<string, number>();
     for (const row of dataForCounting) {
-      const val = this._resolveValue(row, field);
-      if (val === null || val === undefined || val === '') continue;
-      const strVal = String(val);
-      counts.set(strVal, (counts.get(strVal) ?? 0) + 1);
+      // Cellule tableau : chaque element compte dans son groupe (#421)
+      for (const strVal of this._facetValuesOf(this._resolveValue(row, field))) {
+        counts.set(strVal, (counts.get(strVal) ?? 0) + 1);
+      }
     }
 
     const values: FacetValue[] = [];
@@ -614,9 +637,8 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     return this._rawData.filter((row) => {
       return activeFields.every((field) => {
         const selected = this._activeSelections[field];
-        const val = this._resolveValue(row, field);
-        if (val === null || val === undefined) return false;
-        return selected.has(String(val));
+        // Intersection pour les cellules tableau (#421)
+        return this._matchesSelection(this._resolveValue(row, field), selected);
       });
     });
   }
@@ -811,9 +833,8 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
       filtered = this._rawData.filter((row) => {
         return activeFields.every((field) => {
           const selected = this._activeSelections[field];
-          const val = this._resolveValue(row, field);
-          if (val === null || val === undefined) return false;
-          return selected.has(String(val));
+          // Intersection pour les cellules tableau (#421)
+          return this._matchesSelection(this._resolveValue(row, field), selected);
         });
       });
     }
