@@ -19,10 +19,10 @@
     "express-rate-limit": "^8.6.2",
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.2",
-    "mysql2": "^3.23.3",
+    "mysql2": "^3.23.4",
     "nodemailer": "^9.0.5",
-    "openid-client": "^6.8.5",
-    "uuid": "^14.0.1"
+    "openid-client": "^6.8.7",
+    "uuid": "^14.0.2"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
