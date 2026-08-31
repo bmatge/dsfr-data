@@ -62,8 +62,7 @@
     },
     "jsdom": {
       "undici": "^7.29.0"
-    },
-    "nodemailer": "9.0.3"
+    }
   },
   "prettier": {
     "singleQuote": true,
