@@ -29,7 +29,11 @@ import {
   COMPONENT_REFERENCES,
   reference,
 } from '../../../apps/builder-ia/src/skills-reference.generated';
-import { buildReferences, type CemManifest } from '../../../scripts/lib/cem-reference';
+import {
+  buildReferences,
+  renderReference,
+  type CemManifest,
+} from '../../../scripts/lib/cem-reference';
 
 import { DsfrDataSource } from '@/components/dsfr-data-source.js';
 import { DsfrDataQuery } from '@/components/dsfr-data-query.js';
@@ -239,6 +243,43 @@ describe('reference generee des skills (#512)', () => {
 
     it('signale les attributs deprecies plutot que de les presenter comme normaux', () => {
       expect(SKILLS.dsfrDataKpi.content).toContain('**DEPRECIE**');
+    });
+  });
+
+  describe('rendu des cellules de tableau', () => {
+    const render = (attr: Record<string, unknown>) =>
+      renderReference({
+        kind: 'class',
+        name: 'X',
+        tagName: 'dsfr-data-x',
+        attributes: [{ name: 'a', type: { text: 'string' }, ...attr }],
+      } as never);
+
+    it('echappe le backslash AVANT le pipe', () => {
+      // Echapper le pipe seul est incomplet : `a\|b` produirait `a\|b`, ou le
+      // backslash d'origine passe pour l'echappement et la cellule se scinde.
+      const md = render({ description: 'a\\|b' });
+      expect(md).toContain('a\\\\\\|b');
+      // Une seule barre non echappee = une colonne de plus dans la ligne.
+      const row = md.split('\n').find((l) => l.startsWith('| `a`')) as string;
+      expect(row.split(/(?<!\\)\|/).length).toBe(6);
+    });
+
+    it('echappe les pipes des types union sans casser la ligne', () => {
+      const md = render({ type: { text: 'number | undefined' } });
+      const row = md.split('\n').find((l) => l.startsWith('| `a`')) as string;
+      expect(row).toContain('number \\| undefined');
+      expect(row.split(/(?<!\\)\|/).length).toBe(6);
+    });
+
+    it('decode les echappements de source des valeurs par defaut', () => {
+      // Le manifeste porte le TEXTE SOURCE de l'initialiseur.
+      expect(render({ default: "'Rechercher\\u2026'" })).toContain("`'Rechercher…'`");
+    });
+
+    it('replie les descriptions multi-lignes sur une seule cellule', () => {
+      const md = render({ description: 'ligne un\n   ligne deux' });
+      expect(md).toContain('ligne un ligne deux');
     });
   });
 
