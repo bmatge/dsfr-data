@@ -45,9 +45,23 @@ export interface RerankOptions {
   timeoutMs?: number;
 }
 
-/** Reponse attendue d'Albert : un score par entree, avec son index d'origine. */
+/**
+ * Reponse du gateway : un score par entree, avec son index d'origine.
+ * Forme REELLE d'OpenGateLLM (verifiee contre le gateway le 2026-09-01, #526) :
+ * `results[].relevance_score` (standard Jina/Cohere). L'ancienne forme
+ * `data[].score` (docs albert-api historiques) est gardee en repli tolerant.
+ */
 interface RerankResponse {
+  results?: Array<{ index?: number; relevance_score?: number }>;
   data?: Array<{ index?: number; score?: number }>;
+}
+
+/** Normalise les deux formes de reponse en lignes { index, score }. */
+function rerankRows(body: RerankResponse): Array<{ index?: number; score?: number }> {
+  if (Array.isArray(body.results)) {
+    return body.results.map((r) => ({ index: r.index, score: r.relevance_score }));
+  }
+  return body.data ?? [];
 }
 
 /** `/v1/rerank` deduit de l'URL de chat configuree. */
@@ -81,7 +95,7 @@ export async function rerankSkills<T extends MatchableSkill>(
   // Ce qu'on soumet au rerank : nom + description, pas le contenu integral.
   // Une fiche fait jusqu'a 24 Ko — envoyer 10 fiches couterait plus cher que
   // le gain de classement.
-  const input = subset.map((m) => `${m.skill.name} — ${m.skill.description}`);
+  const documents = subset.map((m) => `${m.skill.name} — ${m.skill.description}`);
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? RERANK_TIMEOUT_MS);
@@ -90,13 +104,14 @@ export async function rerankSkills<T extends MatchableSkill>(
     const res = await doFetch(url, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model, prompt: message, input }),
+      // Forme requise par OpenGateLLM (422 sur l'ancienne prompt/input, #526).
+      body: JSON.stringify({ model, query: message, documents }),
       signal: controller.signal,
     });
     if (!res.ok) return candidates;
 
     const body = (await res.json()) as RerankResponse;
-    const rows = body.data ?? [];
+    const rows = rerankRows(body);
 
     // Reponse inexploitable : index hors bornes, scores manquants, ou
     // couverture partielle. On n'essaie pas de rattraper — on garde le local.

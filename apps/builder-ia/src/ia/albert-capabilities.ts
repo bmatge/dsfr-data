@@ -69,6 +69,10 @@ export function getCapabilities(): AlbertCapabilities | null {
       model: typeof parsed.model === 'string' ? parsed.model : '',
       jsonSchema: parsed.jsonSchema === true,
       toolCalling: parsed.toolCalling === true,
+      // #526 : ces deux champs etaient PERDUS a la relecture — le rerank ne
+      // pouvait donc jamais s'activer, meme ecrit a la main en localStorage.
+      rerank: parsed.rerank === true,
+      rerankModel: typeof parsed.rerankModel === 'string' ? parsed.rerankModel : '',
       probedAt: typeof parsed.probedAt === 'number' ? parsed.probedAt : 0,
     };
     return cached;

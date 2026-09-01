@@ -26,6 +26,7 @@ import {
   resetIAConfig,
   onModelSelectChange,
 } from './ia/ia-config.js';
+import { probeCapabilitiesUI } from './ia/capability-probe-ui.js';
 import { addMessage, sendMessage } from './chat/chat.js';
 import {
   switchTab,
@@ -43,6 +44,7 @@ import { state } from './state.js';
   updateIAModeBadge();
 };
 (window as unknown as Record<string, unknown>).resetIAConfig = resetIAConfig;
+(window as unknown as Record<string, unknown>).probeCapabilities = () => void probeCapabilitiesUI();
 (window as unknown as Record<string, unknown>).addExtraParam = addExtraParam;
 (window as unknown as Record<string, unknown>).onModelSelectChange = onModelSelectChange;
 (window as unknown as Record<string, unknown>).loadSavedSourceData = loadSavedSourceData;

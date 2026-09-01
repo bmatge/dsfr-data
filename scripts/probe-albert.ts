@@ -208,22 +208,34 @@ async function main() {
           : /rerank/i.test(m.id) || m.type === 'text-classification'
       )
       .map((m) => m.id);
-    rerankModel = candidates[0] ?? 'albert-large-rerank';
+    rerankModel = candidates[0] ?? 'bge-reranker-v2-m3';
 
     const start = Date.now();
+    // Forme OpenGateLLM reelle (verifiee le 2026-09-01, #526) : query/documents.
+    // L'ancienne forme prompt/input des docs albert-api historiques repond 422.
     const res = await fetch(`${ORIGIN}/v1/rerank`, {
       method: 'POST',
       headers: AUTH,
       body: JSON.stringify({
         model: rerankModel,
-        prompt: 'carte interactive avec des points',
-        input: ['Composant de carte Leaflet', 'Composant de connexion aux donnees', 'Palette DSFR'],
+        query: 'carte interactive avec des points',
+        documents: [
+          'Composant de carte Leaflet',
+          'Composant de connexion aux donnees',
+          'Palette DSFR',
+        ],
       }),
     });
     const ms = Date.now() - start;
     if (res.ok) {
-      const body = (await res.json()) as { data?: { score?: number; index?: number }[] };
-      const rows = body.data ?? [];
+      const body = (await res.json()) as {
+        results?: { relevance_score?: number; index?: number }[];
+        data?: { score?: number; index?: number }[];
+      };
+      // Reponse standard : results[].relevance_score ; repli tolere : data[].score.
+      const rows = Array.isArray(body.results)
+        ? body.results.map((r) => ({ score: r.relevance_score, index: r.index }))
+        : (body.data ?? []);
       // Exploitable = au moins un score numerique par entree.
       rerank = rows.length > 0 && rows.every((r) => typeof r.score === 'number');
       console.log(

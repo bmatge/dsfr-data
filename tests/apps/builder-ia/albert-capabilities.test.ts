@@ -27,13 +27,38 @@ describe('builder-ia albert-capabilities', () => {
   });
 
   it('setCapabilities persiste et est relu', () => {
-    setCapabilities({ model: 'openweight-large', jsonSchema: true, toolCalling: true, probedAt: 123 });
+    setCapabilities({
+      model: 'openweight-large',
+      jsonSchema: true,
+      toolCalling: true,
+      probedAt: 123,
+    });
     const caps = getCapabilities();
     expect(caps?.jsonSchema).toBe(true);
     expect(caps?.toolCalling).toBe(true);
     expect(caps?.model).toBe('openweight-large');
     // Persiste en localStorage.
     expect(localStorage.getItem('dsfr-data-ia-capabilities')).toContain('openweight-large');
+  });
+
+  it('relit rerank et rerankModel depuis localStorage (#526 — champs perdus avant)', () => {
+    // Cache memoire vide + localStorage ecrit par une session precedente :
+    // c'est le chemin d'un rechargement de page apres une sonde reussie.
+    resetCapabilities();
+    localStorage.setItem(
+      'dsfr-data-ia-capabilities',
+      JSON.stringify({
+        model: 'openweight-large',
+        jsonSchema: true,
+        toolCalling: true,
+        rerank: true,
+        rerankModel: 'bge-reranker-v2-m3',
+        probedAt: 456,
+      })
+    );
+    const caps = getCapabilities();
+    expect(caps?.rerank).toBe(true);
+    expect(caps?.rerankModel).toBe('bge-reranker-v2-m3');
   });
 
   it('resetCapabilities efface tout', () => {
