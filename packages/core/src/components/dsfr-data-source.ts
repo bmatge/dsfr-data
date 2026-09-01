@@ -39,35 +39,49 @@ import {
  *   base-url="https://data.iledefrance.fr" dataset-id="elus-regionaux"
  *   select="count(*) as total, region" group-by="region">
  * </dsfr-data-source>
+ *
+ * @fires dsfr-data-loaded - `{ sourceId, data }` sur `document` — donnees chargees et publiees sous l'`id` de cette source. C'est l'evenement que tout l'aval ecoute.
+ * @fires dsfr-data-loading - `{ sourceId }` sur `document` — un chargement demarre.
+ * @fires dsfr-data-error - `{ sourceId, error }` sur `document` — le fetch ou le parsing a echoue.
+ * @fires cache-fallback - `{ sourceId }` sur l'element — les donnees servies viennent du cache externe apres un echec reseau (#307).
  */
 @customElement('dsfr-data-source')
 export class DsfrDataSource extends LitElement {
   // --- Mode URL brute (existant) ---
 
+  /** URL de l'API a interroger (mode URL brute). Vide en mode adapter ou en mode `data` inline. */
   @property({ type: String })
   url = '';
 
+  /** Methode HTTP : `GET` (defaut) ou `POST`. */
   @property({ type: String })
   method: 'GET' | 'POST' = 'GET';
 
+  /** En-tetes HTTP en JSON. Ex: `'{"Authorization": "Bearer xxx"}'` */
   @property({ type: String })
   headers = '';
 
+  /** Parametres de requete en JSON : query string en GET, corps en POST. */
   @property({ type: String })
   params = '';
 
+  /** Rafraichissement automatique en secondes (0 = desactive). */
   @property({ type: Number })
   refresh = 0;
 
+  /** Chemin JSONPath vers le tableau de donnees dans la reponse. Ex: `"results"`, `"data.items"`. */
   @property({ type: String })
   transform = '';
 
+  /** Active la pagination serveur en mode URL : injecte page/page_size dans l'URL et publie la meta. */
   @property({ type: Boolean })
   paginate = false;
 
+  /** Taille de page pour la pagination serveur (nombre de records par page). */
   @property({ type: Number, attribute: 'page-size' })
   pageSize = 20;
 
+  /** TTL du cache externe en secondes (0 = desactive). Actif uniquement si la page hote enregistre `window.DSFR_DATA_CACHE_PROVIDER` (#307) — no-op en embed anonyme. */
   @property({ type: Number, attribute: 'cache-ttl' })
   cacheTtl = 3600;
 

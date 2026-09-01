@@ -42,7 +42,10 @@
     "generate-sri": "vite-node scripts/generate-sri.ts",
     "check:sri": "vite-node scripts/generate-sri.ts -- --check",
     "check:accents": "bash scripts/check-french-accents.sh",
-    "release-publish": "npm run build:shared && npm run build && changeset publish"
+    "release-publish": "npm run build:shared && npm run build && changeset publish",
+    "build:cem": "cem analyze",
+    "build:skills-ref": "vite-node scripts/build-skills-reference.ts",
+    "build:skills": "npm run build:cem && npm run build:skills-ref && vite-node scripts/build-skills-json.ts"
   },
   "keywords": [
     "web-components",
@@ -88,6 +91,7 @@
     "@axe-core/playwright": "^4.13.0",
     "@changesets/changelog-github": "^1.0.0",
     "@changesets/cli": "^3.0.1",
+    "@custom-elements-manifest/analyzer": "^0.11.0",
     "@eslint/js": "^10.0.1",
     "@open-wc/testing": "^5.0.0",
     "@playwright/test": "^1.62.1",
@@ -108,5 +112,6 @@
     "vite": "^8.2.2",
     "vite-node": "^6.0.0",
     "vitest": "^4.1.10"
-  }
+  },
+  "customElements": "packages/core/custom-elements.json"
 }

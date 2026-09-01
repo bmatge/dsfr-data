@@ -36,8 +36,10 @@
   },
   "files": [
     "dist/*.js",
-    "dist/data/"
+    "dist/data/",
+    "custom-elements.json"
   ],
+  "customElements": "custom-elements.json",
   "sideEffects": [
     "./src/**/*.ts",
     "./dist/*.js"

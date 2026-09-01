@@ -31,33 +31,43 @@ const MAX_TABLE_ROWS = 100;
  */
 @customElement('dsfr-data-a11y')
 export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
+  /** Id de la source (ou du transformateur) dont ce complement accessible consomme les donnees. */
   @property({ type: String })
   source = '';
 
+  /** Id de l'element cible (graphique, carte) pour la liaison ARIA et le lien d'evitement. */
   @property({ type: String, attribute: 'for' })
   for = '';
 
+  /** Affiche le tableau de donnees equivalent au graphique. */
   @property({ type: Boolean })
   table = false;
 
+  /** Affiche le bouton de telechargement CSV. */
   @property({ type: Boolean })
   download = false;
 
+  /** Nom du fichier CSV telecharge. */
   @property({ type: String })
   filename = 'données.csv';
 
+  /** Description textuelle du graphique, lue par les lecteurs d'ecran. */
   @property({ type: String })
   description = '';
 
+  /** Colonne utilisee pour les labels du tableau. */
   @property({ type: String, attribute: 'label-field' })
   labelField = '';
 
+  /** Colonne(s) utilisee(s) pour les valeurs du tableau (separees par des virgules). */
   @property({ type: String, attribute: 'value-field' })
   valueField = '';
 
+  /** Libelle personnalise de la section accessible. */
   @property({ type: String })
   label = '';
 
+  /** Desactive la pose automatique des attributs ARIA et du lien d'evitement. */
   @property({ type: Boolean, attribute: 'no-auto-aria' })
   noAutoAria = false;
 

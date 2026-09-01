@@ -157,7 +157,37 @@ Utilitaires partages : `escapeHtml()` · `buildCsv()`/`CSV_BOM` (quoting RFC 418
 
 Le builder-IA (`apps/builder-ia/`) injecte des blocs de connaissances ("skills") dans le prompt de l'IA selon le contexte. Les skills sont definis dans `apps/builder-ia/src/skills.ts`.
 
-**Règle** : quand on ajoute/modifie un attribut, un type de graphique, un operateur de filtre ou une fonction d'agregation dans un composant `dsfr-data-*`, il faut mettre a jour le skill correspondant dans `skills.ts`. Les tests d'alignement `tests/apps/builder-ia/skills.test.ts` verifient automatiquement (introspection Lit `elementProperties`) que chaque attribut HTML est documente, que tous les types/operateurs/agregations sont couverts, et que chaque composant data a un skill. **Un attribut ajoute sans maj du skill fait echouer le test** (voir §12).
+Chaque skill de composant est en **deux moities** depuis #512 :
+
+- une **reference GENEREE** (attributs, types, defauts, methodes publiques, evenements, slots, variables CSS) — exhaustive par construction, jamais editee a la main ;
+- un **guide redige a la main** (pedagogie, exemples, pieges, patterns de composition) — la valeur ajoutee humaine.
+
+**Chaine de generation** :
+
+```
+packages/core/src/components/*.ts   (JSDoc : description, @fires, @slot, @cssprop)
+        |  npm run build:cem            (@custom-elements-manifest/analyzer)
+        v
+packages/core/custom-elements.json  (commite ; publie aussi dans le package npm
+        |                             via le champ `customElements` -> autocompletion editeur)
+        |  npm run build:skills-ref
+        v
+apps/builder-ia/src/skills-reference.generated.ts   (commite, NE PAS EDITER)
+        |  concatene par skills.ts (`+ reference('dsfr-data-x')`)
+        v
+SKILLS -> prompt builder-IA + dist/skills.json -> serveur MCP
+```
+
+`npm run build:skills` enchaine les trois etapes. Les deux artefacts generes sont **commites** : le build de la lib et de la release ne rejoue pas l'analyse CEM (pas de nouveau maillon fragile dans le chemin de publication).
+
+**Point non evident** : les evenements du pipeline ne sont ecrits nulle part a la main. Ils sont deduits du **mixin** porte par le composant (`TransformerMixin` -> emet sous son propre `id` et relaie les commandes ; `SourceSubscriberMixin` -> ecoute seulement), information que le manifeste enregistre. Un composant qui change de mixin voit sa reference suivre toute seule.
+
+**Règle** : apres avoir ajoute/modifie un attribut, un evenement, un slot ou une variable CSS d'un composant `dsfr-data-*`, ecrire le JSDoc puis lancer **`npm run build:skills`**. Pour un type de graphique, un operateur de filtre ou une fonction d'agregation, c'est le guide redige a la main de `skills.ts` qu'il faut mettre a jour.
+
+Deux garde-fous complementaires (voir §12) :
+
+- `tests/apps/builder-ia/skills-reference.test.ts` controle la chaine **maillon par maillon** : le manifeste decrit exactement les attributs qui existent au runtime (introspection Lit `elementProperties`), le module genere commite est le rendu exact du manifeste, et chaque skill embarque sa section generee tout en gardant un guide. **Un attribut ajoute sans `npm run build:skills` fait echouer le test.**
+- `tests/apps/builder-ia/skills.test.ts` ne garde plus que les alignements portant sur le texte redige a la main (types de graphiques, operateurs, agregations, palettes).
 
 ---
 
@@ -200,6 +230,7 @@ Toutes les dependances internes sont resolues via les workspaces npm declares da
         utils/                  data-bridge, mixins (transformer, source-subscriber),
                                 where, aggregations/aggregates, formatters, json-path,
                                 geo-value, territories, kpi-lines, beacon, etc.
+      custom-elements.json      Manifeste des composants (genere, commite, publie sur npm)
       dist/                     Build output de la lib (ESM + UMD + skills.json)
 
     shared/                     @dsfr-data/shared -- utilitaires communs
@@ -653,7 +684,7 @@ Le repo s'appelle `dsfr-data` mais le projet Docker historique s'appelle `dataso
 
 - **`getProxyConfig()` repositionné sur la dimension EMBED** — `proxy-config.ts:133` et `:246` utilisent `PROXY_BASE_URL_EMBED`, **pas** `PROXY_BASE_URL` runtime. Raison : les adapters de `packages/core` tournent dans le bundle lib, chargé **indifféremment** dans l'app OU sur un site tiers → côté lib c'est l'embed qui fait foi. Modifier ça sans comprendre fait pointer les widgets tiers vers le mauvais proxy.
 
-- **Skills builder-IA validés par introspection Lit** — `apps/builder-ia/src/skills.ts` ⇒ couvert par `tests/apps/builder-ia/skills.test.ts`. Le test introspecte les `elementProperties` Lit de chaque composant `dsfr-data-*` : **tout attribut HTML ajouté à un composant DOIT être documenté dans son skill**, sinon le test casse. Idem pour tout nouveau type de graphique, opérateur de filtre ou fonction d'agrégation.
+- **Skills builder-IA validés par introspection Lit** — `apps/builder-ia/src/skills.ts` ⇒ couvert par `tests/apps/builder-ia/skills-reference.test.ts` (partie générée) et `tests/apps/builder-ia/skills.test.ts` (partie rédigée). Depuis #512 la référence des composants est **générée** depuis le custom-elements manifest : le test introspecte les `elementProperties` Lit de chaque composant `dsfr-data-*` et vérifie que la référence générée les couvre exactement, puis que le fichier commité est bien le rendu du manifeste. **Tout attribut ajouté sans `npm run build:skills` fait casser le test.** Les types de graphiques, opérateurs de filtre, fonctions d'agrégation et palettes restent vérifiés sur le texte rédigé à la main.
 
 - **`@customElement` enregistre les tags par side-effect (issue #177)** — l'import d'un fichier décoré `@customElement('app-…')` (chrome interne, `packages/app-ui/src/*.ts`) enregistre le tag dès l'évaluation du module. Conséquence : les `app-*` peuvent embarquer dans le bundle npm public **même sans export** si la chaîne d'imports les atteint. Surveiller l'arbre d'imports du point d'entrée lib (`packages/core/src/index.ts`) et la frontière lib/app (#319) ; valider en grepant les bundles produits.
 

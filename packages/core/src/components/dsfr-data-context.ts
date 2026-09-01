@@ -34,6 +34,9 @@ let contextSeq = 0;
  *   </dsfr-data-context-filter>
  * </dsfr-data-context>
  * ```
+ *
+ * @fires dsfr-data-context-change - sur l'element — l'etat des filtres du contexte a change (utile pour <dsfr-data-context-tags> et la synchro d'URL).
+ * @fires dsfr-data-source-command - `{ sourceId, where, whereKey }` sur `document` — clause `where` diffusee vers chaque source de `sources`, avec un whereKey stable par filtre (merge en AND cote source, ADR-031).
  */
 @customElement('dsfr-data-context')
 export class DsfrDataContext extends LitElement {

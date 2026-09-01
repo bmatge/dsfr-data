@@ -29,15 +29,19 @@ export type PopupMode = 'popup' | 'modal' | 'panel-right' | 'panel-left';
 
 @customElement('dsfr-data-map-popup')
 export class DsfrDataMapPopup extends LitElement {
+  /** Mode d'affichage : `popup` (bulle sur la carte), `modal`, `panel-right`, `panel-left`. */
   @property({ type: String })
   mode: PopupMode = 'popup';
 
+  /** Champ utilise comme titre du panneau ou de la modale. */
   @property({ type: String, attribute: 'title-field' })
   titleField = '';
 
+  /** Largeur du panneau lateral (modes `panel-*`). */
   @property({ type: String })
   width = '350px';
 
+  /** Id du layer cible. Vide = tous les layers de la carte. */
   @property({ type: String, attribute: 'for' })
   for = '';
 

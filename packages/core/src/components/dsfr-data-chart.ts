@@ -101,6 +101,7 @@ const CHART_TAG_MAP: Record<string, string> = {
  */
 @customElement('dsfr-data-chart')
 export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
+  /** Id de la `<dsfr-data-source>` (ou d'un transformateur) dont ce graphique consomme les donnees. */
   @property({ type: String })
   source = '';
 
@@ -172,15 +173,19 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'highlight-index' })
   highlightIndex = '';
 
+  /** Limite min de l'axe X (types cartesiens : line, scatter, bar-line). */
   @property({ type: String, attribute: 'x-min' })
   xMin = '';
 
+  /** Limite max de l'axe X (types cartesiens : line, scatter, bar-line). */
   @property({ type: String, attribute: 'x-max' })
   xMax = '';
 
+  /** Limite min de l'axe Y. Pour `type="radar"` : borne min de l'echelle radiale (le centre du radar est fixe a `y-min` au lieu du minimum des donnees). */
   @property({ type: String, attribute: 'y-min' })
   yMin = '';
 
+  /** Limite max de l'axe Y. Pour `type="radar"` : borne max de l'echelle radiale ; si `y-min` et `y-max` sont entiers avec une amplitude de 1 a 10, la grille utilise des anneaux entiers (stepSize 1). */
   @property({ type: String, attribute: 'y-max' })
   yMax = '';
 
