@@ -178,14 +178,18 @@ Tu générés du HTML avec les composants dsfr-data. Le code doit etre un snippe
 
 Sois concis. Reponds en francais.</textarea>
           </div>
-          <div style="display:flex;gap:0.5rem;">
+          <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
             <button class="fr-btn fr-btn--sm fr-btn--secondary" onclick="saveIAConfig()">
               <i class="ri-save-line"></i> Sauvegarder config
             </button>
             <button class="fr-btn fr-btn--sm fr-btn--tertiary" onclick="resetIAConfig()" title="Revenir a la configuration serveur par défaut">
               <i class="ri-refresh-line"></i> Reinitialiser
             </button>
+            <button class="fr-btn fr-btn--sm fr-btn--tertiary" id="probe-capabilities-btn" onclick="probeCapabilities()" title="Vérifie json_schema, tools et /v1/rerank contre le gateway, puis mémorise le résultat">
+              <i class="ri-pulse-line"></i> Sonder les capacités
+            </button>
           </div>
+          <div id="probe-capabilities-result" aria-live="polite"></div>
         </div>
       </div>
 

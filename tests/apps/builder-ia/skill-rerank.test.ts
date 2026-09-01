@@ -32,7 +32,10 @@ const OPTS = {
   model: 'albert-rerank',
 };
 
-/** Reponse Albert bien formee qui inverse l'ordre. */
+/**
+ * Reponse bien formee qui inverse l'ordre — ANCIENNE forme `data[].score`
+ * (docs albert-api historiques), gardee en repli tolerant par le client.
+ */
 const reversingFetch = () =>
   vi.fn().mockResolvedValue({
     ok: true,
@@ -45,19 +48,54 @@ const reversingFetch = () =>
     }),
   });
 
+/** Forme REELLE d'OpenGateLLM (#526) : results[].relevance_score. */
+const reversingFetchOpenGate = () =>
+  vi.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({
+      results: [
+        { index: 0, relevance_score: 0.1 },
+        { index: 1, relevance_score: 0.5 },
+        { index: 2, relevance_score: 0.9 },
+      ],
+    }),
+  });
+
 describe('rerankSkills (#514)', () => {
   it('derive /v1/rerank depuis l’URL de chat configuree', () => {
     expect(rerankUrlFrom(OPTS.apiUrl)).toBe('https://albert.api.etalab.gouv.fr/v1/rerank');
     expect(rerankUrlFrom('pas-une-url')).toBe('');
   });
 
-  it('reordonne selon les scores renvoyes', async () => {
+  it('reordonne selon les scores renvoyes (forme historique data[].score)', async () => {
     const fetchImpl = reversingFetch();
     const out = await rerankSkills('carte', candidates, {
       ...OPTS,
       fetchImpl: fetchImpl as unknown as typeof fetch,
     });
     expect(ids(out)).toEqual(['c', 'b', 'a']);
+  });
+
+  it('reordonne selon la forme reelle OpenGateLLM (results[].relevance_score, #526)', async () => {
+    const fetchImpl = reversingFetchOpenGate();
+    const out = await rerankSkills('carte', candidates, {
+      ...OPTS,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+    expect(ids(out)).toEqual(['c', 'b', 'a']);
+  });
+
+  it('envoie la forme de requete OpenGateLLM : model + query + documents (#526)', async () => {
+    const fetchImpl = reversingFetchOpenGate();
+    await rerankSkills('carte', candidates, {
+      ...OPTS,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+    const body = JSON.parse(fetchImpl.mock.calls[0][1].body as string);
+    expect(body.query).toBe('carte');
+    expect(Array.isArray(body.documents)).toBe(true);
+    expect(body.prompt).toBeUndefined();
+    expect(body.input).toBeUndefined();
   });
 
   it('n’envoie que nom et description, jamais le contenu des fiches', async () => {
@@ -68,7 +106,7 @@ describe('rerankSkills (#514)', () => {
     }));
     await rerankSkills('carte', gros, { ...OPTS, fetchImpl: fetchImpl as unknown as typeof fetch });
     const body = JSON.parse(fetchImpl.mock.calls[0][1].body as string);
-    expect(body.input).toEqual([
+    expect(body.documents).toEqual([
       'a — description de a',
       'b — description de b',
       'c — description de c',
@@ -212,7 +250,7 @@ describe('rerankSkills (#514)', () => {
       fetchImpl: fetchImpl as unknown as typeof fetch,
     });
     const body = JSON.parse(fetchImpl.mock.calls[0][1].body as string);
-    expect(body.input).toHaveLength(10);
+    expect(body.documents).toHaveLength(10);
     expect(out).toHaveLength(14);
     expect(ids(out).slice(10)).toEqual(['s10', 's11', 's12', 's13']);
   });
