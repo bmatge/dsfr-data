@@ -3,6 +3,7 @@
  */
 
 import {
+  createEmptyDashboard,
   loadFromStorage,
   normalizeDashboard,
   saveToStorage,
@@ -129,6 +130,25 @@ function saveDashboard(): void {
   toastSuccess(`« ${state.document.name} » enregistré — visible dans l'app Dashboard.`);
 }
 
+/**
+ * « Effacer » remet le studio a zero : conversation ET document (donc apercu).
+ * Le document vit en sessionStorage pour survivre a un refresh en cours de
+ * travail — sans ce reset explicite, l'apercu resterait affiche a jamais.
+ * La source chargee est conservee (elle reste liee au document vierge).
+ */
+function resetStudio(): void {
+  clearChat();
+  const fresh = createEmptyDashboard();
+  if (state.document.sources.length > 0) fresh.sources = state.document.sources;
+  state.document = fresh;
+  renderPreview();
+  persistSession();
+  addMessage(
+    'assistant',
+    'Conversation et document réinitialisés. Décrivez le tableau de bord que vous voulez composer.'
+  );
+}
+
 function copyCode(): void {
   const code = document.getElementById('generated-code')?.textContent ?? '';
   void navigator.clipboard.writeText(code).then(() => toastSuccess('Code copié !'));
@@ -173,10 +193,7 @@ function init(): void {
       void sendMessage();
     }
   });
-  document.getElementById('clear-chat')?.addEventListener('click', () => {
-    clearChat();
-    persistSession();
-  });
+  document.getElementById('clear-chat')?.addEventListener('click', resetStudio);
   document.getElementById('save-dashboard-btn')?.addEventListener('click', saveDashboard);
   document.getElementById('copy-code-btn')?.addEventListener('click', copyCode);
 

@@ -157,6 +157,18 @@ test.describe('Studio IA', () => {
     expect(saved).toHaveLength(1);
     expect(saved[0].name).toBe('Effectifs scolaires');
     expect(saved[0].widgets).toHaveLength(4);
+
+    // « Effacer » remet conversation ET document a zero : l'apercu disparait…
+    await page.click('#clear-chat');
+    await expect(page.locator('#empty-state')).toBeVisible();
+    await expect(page.locator('#preview-frame')).toBeHidden();
+    await expect(page.locator('#generated-code')).not.toContainText('Effectifs scolaires');
+
+    // …et le reset survit a un refresh (le document sessionStorage est vide).
+    await page.reload();
+    await page.waitForTimeout(500);
+    await expect(page.locator('#empty-state')).toBeVisible();
+    await expect(page.locator('#preview-frame')).toBeHidden();
   });
 
   test('sans configuration IA, le chat explique quoi faire au lieu d’échouer', async ({ page }) => {
