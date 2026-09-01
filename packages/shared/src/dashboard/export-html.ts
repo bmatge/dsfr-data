@@ -23,6 +23,8 @@ import type {
   Widget,
   BuilderChartWidgetConfig,
   FiltersWidgetConfig,
+  MapLayerSpec,
+  MapWidgetConfig,
 } from './model.js';
 import { getRowColumns, isFavoriteChart, isBuilderChart } from './model.js';
 
@@ -246,6 +248,59 @@ function generateBuilderChartHTML(
   }
 }
 
+/** Attributs d'une couche selon son type (vocabulaire dsfr-data-map-layer). */
+function mapLayerAttrs(layer: MapLayerSpec): string[] {
+  const attrs = [`source="${escapeHtml(layer.sourceId)}"`, `type="${layer.type}"`];
+  if (layer.type === 'geoshape') {
+    if (layer.geoField) attrs.push(`geo-field="${escapeHtml(layer.geoField)}"`);
+    if (layer.valueField) attrs.push(`fill-field="${escapeHtml(layer.valueField)}"`);
+  } else {
+    if (layer.latField) attrs.push(`lat-field="${escapeHtml(layer.latField)}"`);
+    if (layer.lonField) attrs.push(`lon-field="${escapeHtml(layer.lonField)}"`);
+    if (layer.type === 'circle' && layer.valueField) {
+      attrs.push(`radius-field="${escapeHtml(layer.valueField)}"`);
+    }
+    if (layer.type === 'heatmap' && layer.valueField) {
+      attrs.push(`heat-field="${escapeHtml(layer.valueField)}"`);
+    }
+  }
+  if (layer.colorField) attrs.push(`color-field="${escapeHtml(layer.colorField)}"`);
+  if (layer.selectedPalette) attrs.push(`selected-palette="${escapeHtml(layer.selectedPalette)}"`);
+  if (layer.popupFields) attrs.push(`popup-fields="${escapeHtml(layer.popupFields)}"`);
+  if (layer.tooltipField) attrs.push(`tooltip-field="${escapeHtml(layer.tooltipField)}"`);
+  return attrs;
+}
+
+/** Bloc carte Leaflet multi-couches (#531) : dsfr-data-map + une balise par couche. */
+function generateMapHTML(
+  widget: Widget & { type: 'map' },
+  config: MapWidgetConfig,
+  indent: string
+): string {
+  if (config.layers.length === 0) {
+    return `${indent}<!-- Carte « ${escapeHtml(widget.title)} » : aucune couche configuree -->\n`;
+  }
+  const attrs = [
+    `id="map-${escapeHtml(widget.id)}"`,
+    `height="${escapeHtml(config.height ?? '500px')}"`,
+  ];
+  // fit-bounds par defaut : la carte cadre les donnees sans configuration.
+  if (config.fitBounds !== false) attrs.push('fit-bounds');
+  if (config.insets) attrs.push(`insets="${escapeHtml(config.insets)}"`);
+  if (config.center) attrs.push(`center="${escapeHtml(config.center)}"`);
+  if (config.zoom !== undefined) attrs.push(`zoom="${config.zoom}"`);
+
+  const layers = config.layers
+    .map((l) => {
+      const label = l.label ? `${indent}  <!-- ${escapeHtml(l.label)} -->\n` : '';
+      return `${label}${indent}  <dsfr-data-map-layer ${mapLayerAttrs(l).join(' ')}></dsfr-data-map-layer>`;
+    })
+    .join('\n');
+
+  const title = widget.title ? `${indent}<h3 class="fr-h6">${escapeHtml(widget.title)}</h3>\n` : '';
+  return `${title}${indent}<dsfr-data-map ${attrs.join(' ')}>\n${layers}\n${indent}</dsfr-data-map>\n`;
+}
+
 export function generateWidgetHTML(widget: Widget, dashboard: DashboardData): string {
   const indent = '        ';
 
@@ -312,6 +367,9 @@ ${indent}</div>\n`;
 
     case 'filters':
       return generateFiltersHTML(widget, dashboard, indent);
+
+    case 'map':
+      return generateMapHTML(widget, widget.config, indent);
   }
 }
 
@@ -378,6 +436,10 @@ function collectUsedSourceIds(dashboard: DashboardData): Set<string> {
       continue;
     }
     if (w.type === 'text') continue;
+    if (w.type === 'map') {
+      for (const layer of w.config.layers) ids.add(layer.sourceId);
+      continue;
+    }
     if (w.type === 'chart') {
       const cfg = w.config;
       if (isFavoriteChart(cfg)) continue;
@@ -398,9 +460,10 @@ function collectUsedSourceIds(dashboard: DashboardData): Set<string> {
 function requiresMapBundle(dashboard: DashboardData): boolean {
   return dashboard.widgets.some(
     (w) =>
-      w.type === 'chart' &&
-      isBuilderChart(w.config) &&
-      ['map', 'map-reg', 'map-aca', 'map-monde'].includes(w.config.chart.type)
+      w.type === 'map' ||
+      (w.type === 'chart' &&
+        isBuilderChart(w.config) &&
+        ['map', 'map-reg', 'map-aca', 'map-monde'].includes(w.config.chart.type))
   );
 }
 

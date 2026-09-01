@@ -12,10 +12,10 @@ import { test, expect, type Page } from '@playwright/test';
 import { disableProductTour } from './helpers';
 
 const ROWS = [
-  { region: 'Bretagne', annee: 2023, effectif: 1200 },
-  { region: 'PACA', annee: 2023, effectif: 800 },
-  { region: 'Bretagne', annee: 2024, effectif: 1350 },
-  { region: 'PACA', annee: 2024, effectif: 900 },
+  { region: 'Bretagne', annee: 2023, effectif: 1200, lat: 48.11, lon: -1.68 },
+  { region: 'PACA', annee: 2023, effectif: 800, lat: 43.3, lon: 5.37 },
+  { region: 'Bretagne', annee: 2024, effectif: 1350, lat: 48.39, lon: -4.49 },
+  { region: 'PACA', annee: 2024, effectif: 900, lat: 43.7, lon: 7.26 },
 ];
 
 function toolCallResponse(calls: { name: string; args: Record<string, unknown> }[]) {
@@ -89,6 +89,19 @@ test.describe('Studio IA', () => {
                   aggregation: 'sum',
                 },
               },
+              {
+                kind: 'map',
+                title: 'Implantations',
+                layers: [
+                  {
+                    type: 'circle',
+                    latField: 'lat',
+                    lonField: 'lon',
+                    valueField: 'effectif',
+                    tooltipField: 'region',
+                  },
+                ],
+              },
             ],
           },
         },
@@ -131,6 +144,13 @@ test.describe('Studio IA', () => {
     expect(code).toContain('type="pie"');
     expect(code).toContain('<dsfr-data-context');
     expect(code).toContain('<dsfr-data-context-tags');
+    // Bloc carte Leaflet (#531) : couche traduite au vocabulaire map-layer,
+    // et bundle complet (Leaflet) selectionne.
+    expect(code).toContain('<dsfr-data-map id="map-b5"');
+    expect(code).toContain(
+      '<dsfr-data-map-layer source="src-e2e" type="circle" lat-field="lat" lon-field="lon" radius-field="effectif" tooltip-field="region">'
+    );
+    expect(code).toContain('/dsfr-data.esm.js');
     // Options des filtres remplies depuis les donnees, pas par le LLM.
     expect(code).toContain('<option value="Bretagne">');
 
@@ -156,7 +176,7 @@ test.describe('Studio IA', () => {
     );
     expect(saved).toHaveLength(1);
     expect(saved[0].name).toBe('Effectifs scolaires');
-    expect(saved[0].widgets).toHaveLength(4);
+    expect(saved[0].widgets).toHaveLength(5);
 
     // « Effacer » remet conversation ET document a zero : l'apercu disparait…
     await page.click('#clear-chat');

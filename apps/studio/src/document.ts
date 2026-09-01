@@ -12,12 +12,18 @@
  *     distinctes des donnees), jamais par le LLM.
  */
 
-import { CHART_CONFIG_SCHEMA, CHART_CONFIG_TYPES, diagnoseConfig } from '@dsfr-data/shared';
+import {
+  CHART_CONFIG_SCHEMA,
+  CHART_CONFIG_TYPES,
+  MAP_LAYER_TYPES,
+  diagnoseConfig,
+} from '@dsfr-data/shared';
 import type {
   ChartConfig,
   DashboardData,
   DashboardFilterSpec,
   Field,
+  MapLayerSpec,
   Row,
   TextStyle,
   Widget,
@@ -27,7 +33,7 @@ import type {
 // Vocabulaire
 // ---------------------------------------------------------------------------
 
-export const BLOCK_KINDS = ['text', 'chart', 'filters'] as const;
+export const BLOCK_KINDS = ['text', 'chart', 'filters', 'map'] as const;
 export type BlockKind = (typeof BLOCK_KINDS)[number];
 
 export const BLOCK_WIDTHS = ['full', 'half', 'third'] as const;
@@ -47,6 +53,8 @@ export interface BlockSpec {
   config?: Partial<ChartConfig>;
   /** kind=filters : champs a proposer en filtres partages. */
   fields?: string[];
+  /** kind=map : couches de la carte Leaflet (#531). */
+  layers?: Array<Partial<MapLayerSpec>>;
 }
 
 /** Contexte d'application des actions (donnees chargees, pour validation/options). */
@@ -69,7 +77,7 @@ export interface ActionOutcome {
 
 /** Largeur par defaut d'un bloc selon sa nature. */
 export function defaultWidth(spec: BlockSpec): BlockWidth {
-  if (spec.kind === 'text' || spec.kind === 'filters') return 'full';
+  if (spec.kind === 'text' || spec.kind === 'filters' || spec.kind === 'map') return 'full';
   if (spec.config?.type === 'kpi') return 'third';
   if (spec.config?.type === 'datalist') return 'full';
   return 'half';
@@ -213,6 +221,102 @@ function buildFiltersWidget(
   };
 }
 
+/**
+ * Valide une couche de carte contre les donnees connues (#531) — meme doctrine
+ * observe→corrige que diagnoseConfig : une couche cassee est REFUSEE avec un
+ * message actionnable, jamais appliquee. Les champs d'une source autre que
+ * celle chargee dans le studio ne sont pas verifiables : on exige seulement la
+ * structure (type + champs requis presents).
+ */
+function validateMapLayer(
+  raw: Partial<MapLayerSpec>,
+  ctx: DocumentContext
+): { layer?: MapLayerSpec; error?: string } {
+  const type = raw.type;
+  if (!type || !(MAP_LAYER_TYPES as readonly string[]).includes(type)) {
+    return { error: `Couche sans type valide (${MAP_LAYER_TYPES.join(' | ')}).` };
+  }
+  const sourceId = raw.sourceId || ctx.sourceId;
+  if (!sourceId) {
+    return { error: 'Couche sans source : charge une source ou fournis sourceId.' };
+  }
+
+  if (type === 'geoshape') {
+    if (!raw.geoField) return { error: `Couche geoshape sans geoField (champ GeoJSON).` };
+  } else if (!raw.latField || !raw.lonField) {
+    return { error: `Couche ${type} sans latField/lonField.` };
+  }
+
+  // Verification des champs uniquement contre la source chargee ici.
+  if (sourceId === ctx.sourceId && ctx.fields.length > 0) {
+    const known = new Map(ctx.fields.map((f) => [f.name, f.type]));
+    const missing = [
+      raw.latField,
+      raw.lonField,
+      raw.geoField,
+      raw.valueField,
+      raw.colorField,
+      raw.tooltipField,
+    ]
+      .filter((f): f is string => typeof f === 'string' && f !== '')
+      .filter((f) => !known.has(f));
+    if (missing.length > 0) {
+      return {
+        error: `Champ(s) inexistant(s) dans la source : ${missing.join(', ')}. Champs : ${[...known.keys()].join(', ')}.`,
+      };
+    }
+    for (const coord of [raw.latField, raw.lonField]) {
+      if (coord && known.get(coord) !== 'numérique') {
+        return {
+          error: `Le champ de coordonnee "${coord}" n'est pas numerique (vois inspect_data).`,
+        };
+      }
+    }
+  }
+
+  return {
+    layer: {
+      sourceId,
+      type,
+      label: raw.label,
+      latField: raw.latField,
+      lonField: raw.lonField,
+      geoField: raw.geoField,
+      valueField: raw.valueField,
+      colorField: raw.colorField,
+      popupFields: raw.popupFields,
+      tooltipField: raw.tooltipField,
+      selectedPalette: raw.selectedPalette,
+    },
+  };
+}
+
+function buildMapWidget(
+  id: string,
+  spec: BlockSpec,
+  ctx: DocumentContext
+): { widget?: Widget; error?: string } {
+  const rawLayers = spec.layers ?? [];
+  if (rawLayers.length === 0) {
+    return { error: 'Bloc map invalide : "layers" doit contenir au moins une couche.' };
+  }
+  const layers: MapLayerSpec[] = [];
+  for (const raw of rawLayers) {
+    const { layer, error } = validateMapLayer(raw ?? {}, ctx);
+    if (error) return { error };
+    if (layer) layers.push(layer);
+  }
+  return {
+    widget: {
+      id,
+      type: 'map',
+      title: spec.title ?? 'Carte',
+      position: { row: 0, col: 0 },
+      config: { layers, fitBounds: true, insets: 'drom' },
+    },
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Actions
 // ---------------------------------------------------------------------------
@@ -241,8 +345,11 @@ export function addBlocks(
       case 'filters':
         built = buildFiltersWidget(id, spec, ctx);
         break;
+      case 'map':
+        built = buildMapWidget(id, spec, ctx);
+        break;
       default:
-        built = { error: `kind "${String(spec.kind)}" inconnu (text | chart | filters).` };
+        built = { error: `kind "${String(spec.kind)}" inconnu (text | chart | filters | map).` };
     }
     if (built.widget) {
       placeWidget(doc, built.widget, spec.width ?? defaultWidth(spec));
@@ -296,6 +403,14 @@ export function updateBlock(
         const built = buildFiltersWidget(widget.id, { kind: 'filters', fields: patch.fields }, ctx);
         if (!built.widget) return { ok: false, summary: `✗ update refusé : ${built.error}` };
         widget.config = built.widget.type === 'filters' ? built.widget.config : widget.config;
+      }
+      break;
+    }
+    case 'map': {
+      if (patch.layers) {
+        const built = buildMapWidget(widget.id, { kind: 'map', layers: patch.layers }, ctx);
+        if (!built.widget) return { ok: false, summary: `✗ update refusé : ${built.error}` };
+        widget.config = built.widget.type === 'map' ? built.widget.config : widget.config;
       }
       break;
     }
@@ -395,6 +510,39 @@ export function describeDocument(doc: DashboardData): string {
 // Schemas des outils (function-calling) — forme plate, pas de oneOf
 // ---------------------------------------------------------------------------
 
+const MAP_LAYER_SCHEMA = {
+  type: 'object',
+  properties: {
+    type: {
+      type: 'string',
+      enum: [...MAP_LAYER_TYPES],
+      description:
+        'marker (points), circle (cercles proportionnels via valueField), heatmap (densité via valueField), geoshape (contours GeoJSON via geoField, choroplèthe via valueField)',
+    },
+    sourceId: {
+      type: 'string',
+      description: 'Id de la source de la couche — défaut : la source chargée',
+    },
+    label: { type: 'string' },
+    latField: { type: 'string', description: 'Champ latitude (marker/circle/heatmap)' },
+    lonField: { type: 'string', description: 'Champ longitude (marker/circle/heatmap)' },
+    geoField: { type: 'string', description: 'Champ GeoJSON (geoshape)' },
+    valueField: {
+      type: 'string',
+      description: 'Champ de valeur (rayon / intensité / remplissage)',
+    },
+    colorField: { type: 'string', description: 'Champ de couleur catégorielle' },
+    popupFields: {
+      type: 'string',
+      description: 'Champs de la popup au clic, séparés par des virgules',
+    },
+    tooltipField: { type: 'string', description: 'Champ affiché au survol' },
+    selectedPalette: { type: 'string' },
+  },
+  required: ['type'],
+  additionalProperties: false,
+} as const;
+
 const BLOCK_SPEC_SCHEMA = {
   type: 'object',
   properties: {
@@ -402,7 +550,7 @@ const BLOCK_SPEC_SCHEMA = {
       type: 'string',
       enum: [...BLOCK_KINDS],
       description:
-        'Nature du bloc : text (éditorial), chart (dataviz, y compris kpi/datalist/podium via config.type), filters (filtres partagés)',
+        'Nature du bloc : text (éditorial), chart (dataviz, y compris kpi/datalist/podium via config.type), filters (filtres partagés), map (carte Leaflet multi-couches via layers)',
     },
     title: { type: 'string', description: 'Titre du bloc' },
     width: {
@@ -422,6 +570,11 @@ const BLOCK_SPEC_SCHEMA = {
       items: { type: 'string' },
       description:
         'kind=filters : champs à proposer en filtres (les valeurs sont remplies automatiquement)',
+    },
+    layers: {
+      type: 'array',
+      items: MAP_LAYER_SCHEMA,
+      description: 'kind=map : couches de la carte Leaflet (multi-sources possible)',
     },
   },
   required: ['kind'],

@@ -45,6 +45,10 @@ KPIs (config.type:"kpi", width:"third") → graphiques (width:"half") → tablea
 (config.type:"datalist") si utile.
 - Pour modifier UN bloc existant, utilise son id (ex : « ce graphique, passe-le \
 en barres » → update_block sur le bloc concerné, config:{type:"bar"}).
+- Carte : kind:"map" avec layers (marker/circle/heatmap : latField+lonField ; \
+geoshape : geoField ; valueField = rayon/intensité/remplissage). Vérifie les \
+champs de coordonnées via inspect_data AVANT. Les choroplèthes France par code \
+INSEE restent des blocs chart (config.type:"map"/"map-reg").
 - reset_document UNIQUEMENT sur demande explicite de repartir de zéro.
 
 ## Documentation
