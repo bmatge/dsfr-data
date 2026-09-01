@@ -15,6 +15,10 @@ export default tseslint.config(
       '**/*.js',
       '**/*.d.ts',
       'mcp-server/**',
+      // Artefact genere (npm run build:skills) : eslint --fix y retirait le
+      // /* eslint-disable */ de tete, faisant diverger le fichier commite du
+      // rendu du generateur.
+      'apps/builder-ia/src/skills-reference.generated.ts',
     ],
   },
 

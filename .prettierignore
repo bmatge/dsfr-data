@@ -3,5 +3,10 @@ app-dist/
 coverage/
 node_modules/
 mcp-server/
+
+# Artefacts generes (npm run build:skills) — formates par leur generateur,
+# pas par prettier : sinon le fichier oscille a chaque regeneration.
+apps/builder-ia/src/skills-reference.generated.ts
+packages/core/custom-elements.json
 **/*.html
 **/*.md
