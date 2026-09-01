@@ -66,13 +66,15 @@ ${entries}
  * guide redige a la main d'une skill.
  */
 export function reference(...tags: string[]): string {
-  return tags
-    .map((tag) => {
-      const md = COMPONENT_REFERENCES[tag];
-      if (!md) throw new Error(\`Reference generee absente pour <\${tag}> — relancer npm run build:skills\`);
-      return md;
-    })
-    .join('\\n');
+  const blocks = tags.map((tag) => {
+    const md = COMPONENT_REFERENCES[tag];
+    if (!md) throw new Error(\`Reference generee absente pour <\${tag}> — relancer npm run build:skills\`);
+    return md;
+  });
+  // Ligne vide en tete : le guide redige a la main se termine souvent par une
+  // cloture de code sans saut de ligne final, et le titre de la reference se
+  // retrouverait colle a la ligne \\\`\\\`\\\` (markdown casse, titre avale).
+  return '\\n\\n' + blocks.join('\\n\\n');
 }
 `;
 

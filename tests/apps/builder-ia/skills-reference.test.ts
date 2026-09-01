@@ -222,6 +222,21 @@ describe('reference generee des skills (#512)', () => {
       expect(SKILLS.dsfrDataKpiGroup.content).toContain('--dsfr-data-kpi-group-gap');
     });
 
+    it.each(Object.entries(SKILL_TAGS))(
+      '%s : le titre de la reference demarre bien en debut de ligne',
+      (id) => {
+        // Plusieurs guides se terminent par une cloture de code SANS saut de
+        // ligne final : sans separateur, le titre se retrouvait colle a la
+        // ligne ``` et le markdown etait casse (titre avale par le bloc code).
+        for (const line of SKILLS[id].content.split('\n')) {
+          if (!line.includes('### Reference `<')) continue;
+          expect(line.startsWith('### Reference `<'), `ligne collee : ${line.slice(0, 60)}`).toBe(
+            true
+          );
+        }
+      }
+    );
+
     it('signale les attributs deprecies plutot que de les presenter comme normaux', () => {
       expect(SKILLS.dsfrDataKpi.content).toContain('**DEPRECIE**');
     });
