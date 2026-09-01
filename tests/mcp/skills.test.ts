@@ -1,92 +1,25 @@
 /**
- * Tests for MCP server skills matching and widget skill selection.
+ * Tests du serveur MCP : matching des skills, selection des skills widget,
+ * routage HTTP, parsing CLI et adressage par section (#513).
+ *
+ * Les fonctions sont importees DIRECTEMENT depuis `mcp-server/src/` : elles y
+ * sont pures et sans dependance au SDK MCP. Elles etaient auparavant recopiees
+ * dans ce fichier, ce qui testait la copie et non le code livre — une divergence
+ * silencieuse etait possible (et c'est exactement le probleme que l'epic #511
+ * cherche a supprimer).
  */
 import { describe, it, expect } from 'vitest';
-
-// Import source files directly (mcp-server is outside workspace)
-// We re-implement the pure functions here to test the logic
-// without needing the MCP SDK dependency.
-
-interface Skill {
-  id: string;
-  name: string;
-  description: string;
-  trigger: string[];
-  content: string;
-}
-
-function matchSkills(skills: Skill[], message: string): Skill[] {
-  const lower = message.toLowerCase();
-  return skills.filter((s) => s.trigger.some((t) => lower.includes(t.toLowerCase())));
-}
-
-function getWidgetSkillIds(chartType?: string): string[] {
-  const ids = [
-    'compositionPatterns',
-    'dsfrDataSource',
-    // Préparation des données : nettoyage/typage et bascule des tableurs "wide".
-    'dsfrDataNormalize',
-    'dsfrDataUnpivot',
-    'dsfrDataChart',
-    'apiProviders',
-    'troubleshooting',
-  ];
-
-  if (chartType) {
-    const lower = chartType.toLowerCase();
-    if (lower === 'kpi') ids.push('dsfrDataKpi');
-    if (lower === 'podium' || lower === 'classement' || lower === 'ranking')
-      ids.push('dsfrDataPodium');
-    if (lower === 'datalist' || lower === 'tableau') ids.push('dsfrDataList');
-    // Cartes DSFR Chart (choroplèthes dep/reg/aca/monde via dsfr-data-chart)
-    if (lower === 'map' || lower === 'map-reg' || lower === 'map-aca' || lower === 'map-monde')
-      ids.push('dsfrColors', 'chartTypes');
-    // Cartes Leaflet (dsfr-data-map + compagnons) — distinctes des map* DSFR Chart
-    if (lower === 'carte' || lower === 'leaflet' || lower === 'map-layer')
-      ids.push('dsfrDataMap', 'dsfrColors');
-    if (lower.includes('bar') || lower.includes('pie') || lower.includes('line'))
-      ids.push('chartTypes');
-  } else {
-    ids.push(
-      'dsfrDataKpi',
-      'dsfrDataPodium',
-      'dsfrDataList',
-      'dsfrDataQuery',
-      'chartTypes',
-      'dsfrColors'
-    );
-  }
-
-  if (!ids.includes('dsfrDataQuery')) ids.push('dsfrDataQuery');
-
-  return [...new Set(ids)];
-}
-
-type McpRequestRoute = 'existing' | 'init' | 'not-found' | 'bad-request';
-
-function routeMcpRequest(opts: {
-  sessionId?: string;
-  hasSession: boolean;
-  method?: string;
-}): McpRequestRoute {
-  const { sessionId, hasSession, method } = opts;
-  if (sessionId && hasSession) return 'existing';
-  if (!sessionId && method === 'POST') return 'init';
-  if (sessionId && !hasSession) return 'not-found';
-  return 'bad-request';
-}
-
-function getArg(argv: string[], flag: string): string | undefined {
-  const idx = argv.indexOf(flag);
-  if (idx !== -1 && argv[idx + 1] && !argv[idx + 1].startsWith('--')) {
-    return argv[idx + 1];
-  }
-  return undefined;
-}
-
-function hasFlag(argv: string[], flag: string): boolean {
-  return argv.includes(flag);
-}
+import {
+  matchSkills,
+  getWidgetSkillIds,
+  routeMcpRequest,
+  selectSection,
+  sectionsOf,
+  SKILL_SECTION_IDS,
+} from '../../mcp-server/src/skills';
+import type { Skill } from '../../mcp-server/src/skills';
+import { getArg, hasFlag } from '../../mcp-server/src/cli';
+import { SKILL_SECTION_IDS as BUILDER_SECTION_IDS } from '../../apps/builder-ia/src/skills-sections';
 
 // ---------------------------------------------------------------------------
 // Test data
@@ -351,5 +284,92 @@ describe('hasFlag', () => {
 
   it('returns false for empty argv', () => {
     expect(hasFlag([], '--http')).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests: adressage par section (#513)
+// ---------------------------------------------------------------------------
+
+/** Skill telle que la publie une instance a jour : `sections` renseignees. */
+const SECTIONED_SKILL: Skill = {
+  id: 'dsfrDataChart',
+  name: 'dsfr-data-chart',
+  description: 'Chart component',
+  trigger: ['chart'],
+  content:
+    '## Guide\nRole du composant.\n\n### Exemples\nsnippet\n\n### Reference `<dsfr-data-chart>`\nattributs',
+  sections: {
+    guide: '## Guide\nRole du composant.',
+    reference: '### Reference `<dsfr-data-chart>`\nattributs',
+    exemples: '### Exemples\nsnippet',
+    pieges: '',
+  },
+  availableSections: ['guide', 'reference', 'exemples'],
+};
+
+/** Skill servie par une instance anterieure a #513 : pas de `sections`. */
+const LEGACY_SKILL: Skill = {
+  id: 'dsfrDataKpi',
+  name: 'dsfr-data-kpi',
+  description: 'KPI component',
+  trigger: ['kpi'],
+  content: '## dsfr-data-kpi\nDisplay KPIs.',
+};
+
+describe('sectionsOf', () => {
+  it('renvoie les sections annoncees par skills.json', () => {
+    expect(sectionsOf(SECTIONED_SKILL)).toEqual(['guide', 'reference', 'exemples']);
+  });
+
+  it('deduit les sections non vides quand availableSections manque', () => {
+    const { availableSections: _omit, ...withoutList } = SECTIONED_SKILL;
+    expect(sectionsOf(withoutList as Skill)).toEqual(['guide', 'reference', 'exemples']);
+  });
+
+  it('renvoie une liste vide pour une skill sans sections', () => {
+    expect(sectionsOf(LEGACY_SKILL)).toEqual([]);
+  });
+});
+
+describe('selectSection', () => {
+  it('renvoie le contenu integral sans section (retrocompatible)', () => {
+    expect(selectSection(SECTIONED_SKILL)).toBe(SECTIONED_SKILL.content);
+  });
+
+  it('renvoie le contenu integral pour "tout"', () => {
+    expect(selectSection(SECTIONED_SKILL, 'tout')).toBe(SECTIONED_SKILL.content);
+  });
+
+  it('renvoie la section demandee, bien plus courte que la fiche', () => {
+    const ref = selectSection(SECTIONED_SKILL, 'reference');
+    expect(ref).toBe('### Reference `<dsfr-data-chart>`\nattributs');
+    expect(ref.length).toBeLessThan(SECTIONED_SKILL.content.length);
+  });
+
+  it('explique quand la section est vide pour cette skill', () => {
+    const out = selectSection(SECTIONED_SKILL, 'pieges');
+    expect(out).toContain("n'a pas de section");
+    expect(out).toContain('guide, reference, exemples');
+  });
+
+  it('explique quand la section est inconnue', () => {
+    expect(selectSection(SECTIONED_SKILL, 'nawak')).toContain('inconnue');
+  });
+
+  it('retombe sur la fiche entiere face a une instance sans sections', () => {
+    // Le MCP est distribue separement de l'instance dont il telecharge
+    // skills.json : les deux versions coexistent en production. Une section
+    // demandee a une ancienne instance doit degrader, pas echouer.
+    const out = selectSection(LEGACY_SKILL, 'reference');
+    expect(out).toContain('ne publie pas encore de sections');
+    expect(out).toContain(LEGACY_SKILL.content);
+  });
+
+  it('expose exactement le meme vocabulaire de sections que le builder-IA', () => {
+    // Miroir strict MCP <-> builder-IA : memes noms, memes semantiques. Une
+    // divergence ferait qu'un meme `section` ne designe pas la meme chose des
+    // deux cotes.
+    expect([...SKILL_SECTION_IDS]).toEqual([...BUILDER_SECTION_IDS]);
   });
 });

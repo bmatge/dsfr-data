@@ -26,7 +26,14 @@ import { createServer } from 'node:http';
 import { EnvHttpProxyAgent, setGlobalDispatcher } from 'undici';
 import { z } from 'zod';
 import { getArg, hasFlag } from './cli.js';
-import { matchSkills, getWidgetSkillIds, routeMcpRequest } from './skills.js';
+import {
+  searchSkills,
+  getWidgetSkillIds,
+  routeMcpRequest,
+  selectSection,
+  sectionsOf,
+  SKILL_SECTION_IDS,
+} from './skills.js';
 import type { Skill } from './skills.js';
 
 // ---------------------------------------------------------------------------
@@ -121,14 +128,23 @@ function createMcpServer(): McpServer {
 
   server.tool(
     'list_skills',
-    'List all available dsfr-data skills (id, name, description)',
+    'List all available dsfr-data skills (id, name, description, addressable sections)',
     async () => {
       const skills = await loadSkills();
-      const list = skills.map(s => `- **${s.name}** (${s.id}): ${s.description}`).join('\n');
+      const list = skills.map(s => {
+        // Annoncer les sections evite un get_skill "tout" par defaut : l'agent
+        // voit d'emblee qu'il peut demander `reference` seule (#513).
+        const sections = sectionsOf(s);
+        const suffix = sections.length > 0 ? ` — sections: ${sections.join(', ')}` : '';
+        return `- **${s.name}** (${s.id}): ${s.description}${suffix}`;
+      }).join('\n');
       return {
         content: [{
           type: 'text' as const,
-          text: `## dsfr-data skills (${skills.length})\n\n${list}`,
+          text:
+            `## dsfr-data skills (${skills.length})\n\n${list}\n\n` +
+            `Utiliser \`get_skill(skill_id, section)\` pour ne recevoir qu'une section ` +
+            `plutot que la fiche entiere.`,
         }],
       };
     },
@@ -138,9 +154,17 @@ function createMcpServer(): McpServer {
 
   server.tool(
     'get_skill',
-    'Get the full content of a specific skill by ID',
-    { skill_id: z.string().describe('Skill ID (e.g. dsfrDataSource, dsfrDataChart, createChartAction)') },
-    async ({ skill_id }) => {
+    'Get a skill by ID. Pass `section` to retrieve only the relevant part: a full skill can be 16 KB, a section is 2 to 4 times smaller.',
+    {
+      skill_id: z.string().describe('Skill ID (e.g. dsfrDataSource, dsfrDataChart, createChartAction)'),
+      section: z
+        .enum([...SKILL_SECTION_IDS, 'tout'])
+        .optional()
+        .describe(
+          'guide = role, pipeline position, data format · reference = attributes, types, defaults, events, slots, CSS variables (generated from the source code) · exemples = code snippets and composition patterns · pieges = mandatory rules and common mistakes · tout = whole skill (default)',
+        ),
+    },
+    async ({ skill_id, section }) => {
       const skills = await loadSkills();
       const skill = skills.find(s => s.id === skill_id);
       if (!skill) {
@@ -156,7 +180,7 @@ function createMcpServer(): McpServer {
       return {
         content: [{
           type: 'text' as const,
-          text: skill.content,
+          text: selectSection(skill, section),
         }],
       };
     },
@@ -164,13 +188,24 @@ function createMcpServer(): McpServer {
 
   // -- Tool: get_relevant_skills --------------------------------------------
 
+  const RELEVANT_SKILLS_LIMIT = 6;
+
   server.tool(
     'get_relevant_skills',
-    'Get skills relevant to a user message (keyword matching). Returns full content of matched skills.',
-    { message: z.string().describe('User message to match against skill triggers (e.g. "graphique barres par region")') },
-    async ({ message }) => {
+    'Get skills relevant to a user message (weighted scoring on triggers, description and section titles — same engine as the dsfr-data builder). Returns the full content of the best matches, ranked.',
+    {
+      message: z.string().describe('User message to match (e.g. "graphique barres par region")'),
+      section: z
+        .enum([...SKILL_SECTION_IDS, 'tout'])
+        .optional()
+        .describe('Restrict each matched skill to one section (see get_skill). Default: whole skill.'),
+    },
+    async ({ message, section }) => {
       const skills = await loadSkills();
-      const matched = matchSkills(skills, message);
+      // Borne le nombre de fiches : le scoring remonte desormais aussi des
+      // correspondances faibles, et un `get_relevant_skills` large pourrait
+      // sinon renvoyer un contexte enorme.
+      const matched = searchSkills(skills, message, { limit: RELEVANT_SKILLS_LIMIT });
       if (matched.length === 0) {
         return {
           content: [{
@@ -179,7 +214,9 @@ function createMcpServer(): McpServer {
           }],
         };
       }
-      const text = matched.map(s => s.content).join('\n\n---\n\n');
+      const text = matched
+        .map(m => `<!-- ${m.skill.id} (score ${m.score}: ${m.reasons.join(' | ')}) -->\n${selectSection(m.skill, section)}`)
+        .join('\n\n---\n\n');
       return {
         content: [{
           type: 'text' as const,

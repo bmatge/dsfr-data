@@ -23,7 +23,8 @@
  */
 
 import type { Source, Field } from '../state.js';
-import { SKILLS, getRelevantSkills, buildSkillsContext } from '../skills.js';
+import { SKILLS, getRelevantSkills, buildSkillsContext, type Skill } from '../skills.js';
+import { selectSkillSection } from '../skills-sections.js';
 import {
   DATA_INSPECTION_TOOLS,
   PREVIEW_TOOL,
@@ -77,6 +78,12 @@ export interface AgentLoopOptions {
   seed?: number;
   /** Parametres extra (max_completion_tokens, etc.) fusionnes dans le body. */
   extra?: Record<string, unknown>;
+  /**
+   * Reclassement optionnel des skills candidates (#514). Injecte par
+   * l'appelant, qui seul connait l'URL et le jeton du gateway : la boucle reste
+   * agnostique du provider. Absent = ordre du scoring local, qui est le defaut.
+   */
+  rerankSkills?: (message: string, skills: Skill[]) => Promise<Skill[]>;
 }
 
 export interface AgentLoopResult {
@@ -103,6 +110,9 @@ function humanizeStep(name: string, args: Record<string, unknown>): string {
       return 'Je cherche les bons réglages…';
     case 'get_skill': {
       const id = typeof args.skill_id === 'string' ? args.skill_id : '';
+      const section =
+        typeof args.section === 'string' && args.section !== 'tout' ? args.section : '';
+      if (id && section) return `Je consulte « ${section} » dans la fiche « ${id} »…`;
       return id ? `Je consulte la fiche « ${id} »…` : 'Je consulte la documentation du composant…';
     }
     default:
@@ -126,13 +136,18 @@ interface ToolContext {
   source: Source | null;
   data: Row[];
   fields: Field[];
+  rerankSkills?: (message: string, skills: Skill[]) => Promise<Skill[]>;
 }
 
 /**
  * Dispatch d'un outil non terminal (introspection / skill / preview). Renvoie le
  * texte a remettre au modele.
  */
-function dispatchTool(name: string, args: Record<string, unknown>, ctx: ToolContext): string {
+async function dispatchTool(
+  name: string,
+  args: Record<string, unknown>,
+  ctx: ToolContext
+): Promise<string> {
   switch (name) {
     case 'inspect_data':
       return inspectData(ctx.data, ctx.fields);
@@ -150,7 +165,10 @@ function dispatchTool(name: string, args: Record<string, unknown>, ctx: ToolCont
       if (matched.length === 0) {
         return 'Aucune skill ne correspond. Essaie des mots-clés plus larges ou get_skill par id.';
       }
-      return buildSkillsContext(matched);
+      // Le rerank ne fait que REORDONNER des candidates deja retenues par le
+      // scoring local, et rend l'ordre local a la moindre anomalie.
+      const ordered = ctx.rerankSkills ? await ctx.rerankSkills(message, matched) : matched;
+      return buildSkillsContext(ordered);
     }
     case 'get_skill': {
       const id = typeof args.skill_id === 'string' ? args.skill_id : '';
@@ -159,7 +177,9 @@ function dispatchTool(name: string, args: Record<string, unknown>, ctx: ToolCont
         const ids = Object.keys(SKILLS).join(', ');
         return `Skill "${id}" introuvable. Ids disponibles : ${ids}`;
       }
-      return skill.content;
+      // `section` absente ou "tout" -> contenu integral (comportement historique).
+      const section = typeof args.section === 'string' ? args.section : undefined;
+      return selectSkillSection(skill.content, section);
     }
     default:
       return `Outil inconnu : ${name}`;
@@ -187,6 +207,7 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<AgentLoopRes
     source,
     data: opts.data ?? [],
     fields: opts.fields ?? [],
+    rerankSkills: opts.rerankSkills,
   };
 
   const messages: ChatMessage[] = [
@@ -277,7 +298,7 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<AgentLoopRes
         content = "Déjà fourni ci-dessus. Génère maintenant l'action finale.";
       } else {
         lookupCalls.add(key);
-        content = dispatchTool(name, args, ctx);
+        content = await dispatchTool(name, args, ctx);
       }
       messages.push({ role: 'tool', tool_call_id: call.id, content });
     }

@@ -63,6 +63,11 @@ Methode a suivre a chaque demande de visualisation :
    JAMAIS un nom de champ ni une valeur : prends-les dans la donnee observee.
 3. SE DOCUMENTER. Si tu as besoin du detail d'un composant, d'un type de graphique
    ou d'une syntaxe, appelle get_relevant_skills (mots-clés) ou get_skill (par id).
+   Sur get_skill, precise "section" pour ne charger que l'utile : "reference" pour
+   les attributs / evenements / slots / variables CSS, "exemples" pour du code,
+   "guide" pour le role et le pipeline, "pieges" pour les regles a respecter.
+   Sans "section", tu recois la fiche entiere — parfois 16 Ko pour une question
+   qui tient en une section.
    Le potentiel va bien au-dela du bar chart : KPI, carte, tableau (datalist),
    podium, filtres… choisis le type le PLUS pertinent pour l'intention.
    MULTI-SERIES : pour tracer plusieurs colonnes numeriques sur le meme graphique

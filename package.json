@@ -45,7 +45,8 @@
     "release-publish": "npm run build:shared && npm run build && changeset publish",
     "build:cem": "cem analyze",
     "build:skills-ref": "vite-node scripts/build-skills-reference.ts",
-    "build:skills": "npm run build:cem && npm run build:skills-ref && vite-node scripts/build-skills-json.ts"
+    "build:skills": "npm run build:cem && npm run build:skills-ref && npm run build:skill-matching && vite-node scripts/build-skills-json.ts",
+    "build:skill-matching": "vite-node scripts/build-skill-matching.ts"
   },
   "keywords": [
     "web-components",
