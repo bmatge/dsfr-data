@@ -114,22 +114,40 @@ const ROLE_LABEL: Record<PipelineRole, string> = {
 // Rendu markdown
 // ---------------------------------------------------------------------------
 
-/** Neutralise les pipes pour ne pas casser les tableaux markdown. */
+/**
+ * Echappe une valeur destinee a une cellule de tableau markdown.
+ *
+ * Le backslash est echappe AVANT le pipe : sinon un texte contenant deja `\`
+ * produit une sequence ambigue — `a\|b` deviendrait `a\|b`, ou le backslash
+ * d'origine passe pour l'echappement du pipe, et la cellule se scinde en deux.
+ * Un seul passage `.replace(/\|/g, '\\|')` est un echappement INCOMPLET
+ * (CodeQL js/incomplete-sanitization).
+ */
+function escapeCell(text: string): string {
+  return text.replace(/\\/g, '\\\\').replace(/\|/g, '\\|');
+}
+
+/** Neutralise les pipes et sauts de ligne pour ne pas casser les tableaux. */
 function cell(text: string | undefined, fallback = '—'): string {
   if (!text) return fallback;
-  return (
-    text
-      .replace(/\s*\n\s*/g, ' ')
-      .replace(/\|/g, '\\|')
-      .trim() || fallback
-  );
+  return escapeCell(text.replace(/\s*\n\s*/g, ' ')).trim() || fallback;
+}
+
+/**
+ * Les valeurs par defaut viennent du TEXTE SOURCE de l'initialiseur : un
+ * `placeholder = 'Rechercher\u2026'` arrive ici avec son echappement litteral.
+ * On le decode pour documenter le caractere reel — plus fidele pour qui lit la
+ * reference, et cela evite d'avoir a re-echapper le backslash ensuite.
+ */
+function decodeSourceEscapes(text: string): string {
+  return text.replace(/\\u([0-9a-fA-F]{4})/g, (_m, hex) => String.fromCharCode(parseInt(hex, 16)));
 }
 
 function fmtDefault(raw: string | undefined): string {
   if (raw === undefined) return '—';
-  const v = raw.trim();
+  const v = decodeSourceEscapes(raw.trim());
   if (v === "''" || v === '""' || v === '``') return '`""` (vide)';
-  return '`' + v.replace(/\|/g, '\\|') + '`';
+  return '`' + escapeCell(v) + '`';
 }
 
 /**
