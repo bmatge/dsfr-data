@@ -137,16 +137,15 @@ export function normalize(text: string): string {
     .replace(/[\u0300-\u036f]/g, '');
 }
 
-/** Neutralise les metacaracteres regex d'un trigger (`v2.1`, `data.gouv`). */
-function escapeRegExp(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
 /**
- * Cache des motifs compiles. Un match complet parcourt 287 triggers sur 29
- * skills : recompiler a chaque appel serait du gaspillage pur.
+ * Caracteres consideres comme « dans un mot » : lettres ASCII, chiffres, et la
+ * plage latine etendue (le `normalize()` retire les diacritiques combinants,
+ * mais pas les caracteres precomposes indivisibles comme « oe »).
+ *
+ * Regex LITTERALE et testee sur UN seul caractere : aucune construction de
+ * motif depuis une donnee, donc pas de surface ReDoS a justifier.
  */
-const TRIGGER_PATTERNS = new Map<string, RegExp>();
+const WORD_CHAR = /[a-z0-9\u00c0-\u024f]/;
 
 /**
  * Un trigger doit demarrer sur une FRONTIERE DE MOT ; son suffixe reste libre.
@@ -154,24 +153,31 @@ const TRIGGER_PATTERNS = new Map<string, RegExp>();
  * L'ancien test etait un `includes` nu, qui matchait au milieu des mots : le
  * trigger `ign` (les tuiles IGN) se declenchait sur « l·ign·es », et
  * `dsfr-data-map` passait devant `dsfr-data-unpivot` sur une question qui
- * parlait de deplier des colonnes. Idem `top` dans « stop ».
+ * parlait de deplier des colonnes. Idem `top` dans « s·top ».
  *
  * Le suffixe reste libre a dessein : `carte` doit continuer de matcher
- * « cartes », et `graphique` « graphiques ». Ancrer aussi la fin (`\bx\b`)
- * casserait tous les pluriels et les formes flechies — inacceptable en
- * francais. Mesure sur un banc de 12 prompts : 5 matches supprimes, tous des
- * faux positifs ; 30 matches legitimes conserves.
+ * « cartes », et `graphique` « graphiques ». Ancrer aussi la fin casserait
+ * tous les pluriels et les formes flechies — inacceptable en francais.
+ * Mesure sur un banc de 12 prompts : 5 matches supprimes, tous des faux
+ * positifs ; 30 matches legitimes conserves.
+ *
+ * Implemente par balayage d'`indexOf` plutot que par une regex construite
+ * depuis le trigger : plusieurs triggers contiennent des metacaracteres
+ * (`v2.1`, `records.fields`, `data.gouv`), et batir un motif a partir d'une
+ * donnee ouvrirait une surface ReDoS pour rien.
  */
 function triggerMatches(normalizedMessage: string, trigger: string): boolean {
-  const normalized = normalize(trigger);
-  if (!normalized) return false;
-  let pattern = TRIGGER_PATTERNS.get(normalized);
-  if (!pattern) {
-    // eslint-disable-next-line security/detect-non-literal-regexp -- motif construit depuis un trigger echappe, pas depuis une entree utilisateur
-    pattern = new RegExp(`\\b${escapeRegExp(normalized)}`);
-    TRIGGER_PATTERNS.set(normalized, pattern);
+  const needle = normalize(trigger);
+  if (!needle) return false;
+
+  let from = 0;
+  for (;;) {
+    const at = normalizedMessage.indexOf(needle, from);
+    if (at === -1) return false;
+    // Debut de chaine, ou precede par un caractere hors-mot => frontiere.
+    if (at === 0 || !WORD_CHAR.test(normalizedMessage[at - 1])) return true;
+    from = at + 1;
   }
-  return pattern.test(normalizedMessage);
 }
 
 /** Tokens signifiants d'un texte : >= 4 caracteres, hors mots vides. */
