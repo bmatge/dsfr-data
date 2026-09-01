@@ -59,6 +59,17 @@ export class AppPreviewPanel extends LitElement {
   showPlaygroundButton = false;
 
   /**
+   * Afficher le bouton Exporter en image (menu PNG / JPG). Emet `export-image`
+   * avec { format: 'png' | 'jpg' } — la capture reste du ressort de l'app,
+   * qui seule sait ou vit son apercu (canvas direct ou iframe).
+   */
+  @property({ type: Boolean, attribute: 'show-image-button' })
+  showImageButton = false;
+
+  @state()
+  private _imageMenuOpen = false;
+
+  /**
    * Labels personnalisés pour les onglets (séparés par des virgules)
    */
   @property({ type: String, attribute: 'tab-labels' })
@@ -181,6 +192,17 @@ export class AppPreviewPanel extends LitElement {
     );
   }
 
+  private _handleImageExport(format: 'png' | 'jpg') {
+    this._imageMenuOpen = false;
+    this.dispatchEvent(
+      new CustomEvent('export-image', {
+        detail: { format },
+        bubbles: true,
+        composed: true,
+      })
+    );
+  }
+
   render() {
     const labels = this._getTabLabels();
     const [previewLabel, codeLabel, dataLabel] = labels;
@@ -203,41 +225,89 @@ export class AppPreviewPanel extends LitElement {
           >
             ${codeLabel || 'Code'}
           </button>
-          ${this.showDataTab
-            ? html`
-                <button
-                  class="preview-panel-tab ${this._activeTab === 'data' ? 'active' : ''}"
-                  data-tab="data"
-                  @click="${() => this._handleTabClick('data')}"
-                >
-                  ${dataLabel || 'Données'}
-                </button>
-              `
-            : nothing}
-          ${this.showPlaygroundButton
-            ? html`
-                <button
-                  class="preview-panel-action-btn"
-                  @click="${this._handlePlaygroundClick}"
-                  title="Ouvrir dans le Playground"
-                >
-                  <i class="ri-play-circle-line" aria-hidden="true"></i>
-                  <span>Playground</span>
-                </button>
-              `
-            : nothing}
-          ${this.showSaveButton
-            ? html`
-                <button
-                  class="preview-panel-action-btn preview-panel-save-btn"
-                  @click="${this._handleSaveClick}"
-                  title="Sauvegarder en favoris"
-                >
-                  <i class="ri-star-line" aria-hidden="true"></i>
-                  <span>Favoris</span>
-                </button>
-              `
-            : nothing}
+          ${
+            this.showDataTab
+              ? html`
+                  <button
+                    class="preview-panel-tab ${this._activeTab === 'data' ? 'active' : ''}"
+                    data-tab="data"
+                    @click="${() => this._handleTabClick('data')}"
+                  >
+                    ${dataLabel || 'Données'}
+                  </button>
+                `
+              : nothing
+          }
+          ${
+            this.showImageButton
+              ? html`
+                  <div style="position:relative;display:inline-flex;">
+                    <button
+                      class="preview-panel-action-btn"
+                      @click="${() => {
+                        this._imageMenuOpen = !this._imageMenuOpen;
+                      }}"
+                      title="Exporter l'aperçu en image"
+                      aria-haspopup="true"
+                      aria-expanded="${this._imageMenuOpen}"
+                    >
+                      <i class="ri-image-line" aria-hidden="true"></i>
+                      <span>Image</span>
+                    </button>
+                    ${
+                      this._imageMenuOpen
+                        ? html`
+                            <div
+                              style="position:absolute;top:100%;right:0;z-index:100;background:var(--background-default-grey,#fff);border:1px solid var(--border-default-grey,#ddd);border-radius:4px;box-shadow:0 2px 6px rgba(0,0,18,0.16);display:flex;flex-direction:column;min-width:6rem;"
+                            >
+                              <button
+                                class="preview-panel-action-btn"
+                                @click="${() => this._handleImageExport('png')}"
+                              >
+                                PNG
+                              </button>
+                              <button
+                                class="preview-panel-action-btn"
+                                @click="${() => this._handleImageExport('jpg')}"
+                              >
+                                JPG
+                              </button>
+                            </div>
+                          `
+                        : nothing
+                    }
+                  </div>
+                `
+              : nothing
+          }
+          ${
+            this.showPlaygroundButton
+              ? html`
+                  <button
+                    class="preview-panel-action-btn"
+                    @click="${this._handlePlaygroundClick}"
+                    title="Ouvrir dans le Playground"
+                  >
+                    <i class="ri-play-circle-line" aria-hidden="true"></i>
+                    <span>Playground</span>
+                  </button>
+                `
+              : nothing
+          }
+          ${
+            this.showSaveButton
+              ? html`
+                  <button
+                    class="preview-panel-action-btn preview-panel-save-btn"
+                    @click="${this._handleSaveClick}"
+                    title="Sauvegarder en favoris"
+                  >
+                    <i class="ri-star-line" aria-hidden="true"></i>
+                    <span>Favoris</span>
+                  </button>
+                `
+              : nothing
+          }
         </div>
 
         <!-- Contenu des onglets -->

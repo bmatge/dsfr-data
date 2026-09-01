@@ -4,7 +4,13 @@
  */
 
 import './styles/builder.css';
-import { initAuth } from '@dsfr-data/shared';
+import {
+  initAuth,
+  exportPreviewImage,
+  ImageExportError,
+  IMAGE_EXPORT_MESSAGES,
+  toastError,
+} from '@dsfr-data/shared';
 import { state } from './state.js';
 import {
   loadSavedSources,
@@ -333,6 +339,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Listen for save-favorite and open-playground events from preview panel
   const previewPanel = document.querySelector('app-preview-panel');
   if (previewPanel) {
+    previewPanel.addEventListener('export-image', (e) => {
+      const format = (e as CustomEvent<{ format?: 'png' | 'jpg' }>).detail?.format ?? 'png';
+      try {
+        // L'apercu du builder vit dans une iframe same-origin (srcdoc).
+        const frame = document.getElementById('preview-iframe') as HTMLIFrameElement | null;
+        if (!frame) throw new ImageExportError('iframe-inaccessible');
+        exportPreviewImage(frame, format, 'graphique');
+      } catch (err) {
+        if (err instanceof ImageExportError) toastError(IMAGE_EXPORT_MESSAGES[err.reason]);
+        else throw err;
+      }
+    });
     previewPanel.addEventListener('save-favorite', saveFavorite);
     previewPanel.addEventListener('open-playground', openInPlayground);
   }
