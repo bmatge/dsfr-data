@@ -28,8 +28,8 @@
  * copie possible, et c'est verifie par le test de garde.
  *
  * Choix de conception :
- *  - le trigger reste le signal fort (10 points) : le comportement historique
- *    est preserve, aucune skill anciennement remontee ne disparait ;
+ *  - le trigger reste le signal fort (10 points), teste sur une frontiere de
+ *    mot : un `includes` nu declenchait `ign` au milieu de « lignes » ;
  *  - la description et les titres de sections apportent un signal FAIBLE qui
  *    ne peut faire remonter une skill que par accumulation. C'est ce qui donne
  *    au MCP le rappel qui lui manquait, sans noyer le builder-IA ;
@@ -137,6 +137,43 @@ export function normalize(text: string): string {
     .replace(/[\u0300-\u036f]/g, '');
 }
 
+/** Neutralise les metacaracteres regex d'un trigger (`v2.1`, `data.gouv`). */
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Cache des motifs compiles. Un match complet parcourt 287 triggers sur 29
+ * skills : recompiler a chaque appel serait du gaspillage pur.
+ */
+const TRIGGER_PATTERNS = new Map<string, RegExp>();
+
+/**
+ * Un trigger doit demarrer sur une FRONTIERE DE MOT ; son suffixe reste libre.
+ *
+ * L'ancien test etait un `includes` nu, qui matchait au milieu des mots : le
+ * trigger `ign` (les tuiles IGN) se declenchait sur « l·ign·es », et
+ * `dsfr-data-map` passait devant `dsfr-data-unpivot` sur une question qui
+ * parlait de deplier des colonnes. Idem `top` dans « stop ».
+ *
+ * Le suffixe reste libre a dessein : `carte` doit continuer de matcher
+ * « cartes », et `graphique` « graphiques ». Ancrer aussi la fin (`\bx\b`)
+ * casserait tous les pluriels et les formes flechies — inacceptable en
+ * francais. Mesure sur un banc de 12 prompts : 5 matches supprimes, tous des
+ * faux positifs ; 30 matches legitimes conserves.
+ */
+function triggerMatches(normalizedMessage: string, trigger: string): boolean {
+  const normalized = normalize(trigger);
+  if (!normalized) return false;
+  let pattern = TRIGGER_PATTERNS.get(normalized);
+  if (!pattern) {
+    // eslint-disable-next-line security/detect-non-literal-regexp -- motif construit depuis un trigger echappe, pas depuis une entree utilisateur
+    pattern = new RegExp(`\\b${escapeRegExp(normalized)}`);
+    TRIGGER_PATTERNS.set(normalized, pattern);
+  }
+  return pattern.test(normalizedMessage);
+}
+
 /** Tokens signifiants d'un texte : >= 4 caracteres, hors mots vides. */
 export function tokenize(text: string): string[] {
   return normalize(text)
@@ -164,8 +201,8 @@ export function scoreSkill(skill: MatchableSkill, message: string): SkillMatch {
   const reasons: string[] = [];
   let score = 0;
 
-  // Signal fort : un trigger present tel quel (comportement historique preserve).
-  const hits = skill.trigger.filter((t) => t && normalizedMessage.includes(normalize(t)));
+  // Signal fort : trigger present, ancre sur un debut de mot.
+  const hits = skill.trigger.filter((t) => t && triggerMatches(normalizedMessage, t));
   if (hits.length > 0) {
     score += WEIGHT_TRIGGER * hits.length;
     reasons.push(`trigger: ${hits.join(', ')}`);

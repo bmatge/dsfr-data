@@ -205,7 +205,7 @@ Il n'y a plus qu'UN moteur de selection des skills : `apps/builder-ia/src/skill-
 
 | Signal | Poids | Role |
 |---|---|---|
-| trigger present tel quel | 10 | signal fort — comportement historique preserve |
+| trigger present, **ancre sur un debut de mot** | 10 | signal fort. L'ancrage est necessaire : un `includes` nu declenchait `ign` (tuiles IGN) au milieu de « l**ign**es », et `top` dans « s**top** ». Le suffixe reste libre — `carte` doit matcher « cartes » |
 | trigger multi-mots **disperse** (« colonnes en lignes » dans « colonnes ANNUELLES en lignes ») | 6 | corrige le silence principal de l'ancien `includes`, qui exigeait la contiguite |
 | nom du composant cite | 8 | demande explicite |
 | recouvrement avec la description | 2/token, plafond 4 | classe |

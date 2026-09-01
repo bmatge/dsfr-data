@@ -145,10 +145,48 @@ describe('moteur de matching partage (#514)', () => {
       'depliage des colonnes annuelles en lignes',
     ];
 
-    it.each(PROMPTS)('« %s » : aucune skill de l’ancien moteur n’est perdue', (prompt) => {
+    /**
+     * Pertes INTENTIONNELLES par rapport a l'ancien moteur : des faux positifs
+     * de sous-chaine, que l'ancrage sur frontiere de mot elimine. Toute autre
+     * perte est une regression et fait echouer le test.
+     */
+    const EXPECTED_LOSSES: Record<string, string[]> = {
+      // `ign` (tuiles IGN) se declenchait au milieu de « l·ign·es ».
+      'depliage des colonnes annuelles en lignes': ['dsfrDataMap'],
+    };
+
+    it.each(PROMPTS)('« %s » : ne perd que les faux positifs identifies', (prompt) => {
       const before = legacyMatch(prompt);
       const after = matchSkills(ALL, prompt).map((s) => s.id);
-      expect(before.filter((id) => !after.includes(id))).toEqual([]);
+      const lost = before.filter((id) => !after.includes(id));
+      expect(lost).toEqual(EXPECTED_LOSSES[prompt] ?? []);
+    });
+
+    it.each([
+      // trigger, message ou il ne doit PLUS matcher, raison
+      ['ign', 'depliage des colonnes en lignes', 'ign au milieu de « lignes »'],
+      ['ign', 'aligner les elements', 'ign au milieu de « aligner »'],
+      ['top', 'stop, annule tout', 'top au milieu de « stop »'],
+    ])('le trigger "%s" ne se declenche plus au milieu d’un mot (%s)', (trigger, message) => {
+      const s = skill({ trigger: [trigger] });
+      expect(scoreSkill(s, message).score).toBe(0);
+    });
+
+    it.each([
+      ['carte', 'je veux des cartes par region'],
+      ['graphique', 'fais-moi deux graphiques'],
+      ['colonne', 'renomme les colonnes'],
+    ])('le trigger "%s" matche toujours ses formes flechies', (trigger, message) => {
+      // Ancrer AUSSI la fin casserait tous les pluriels : le suffixe reste libre.
+      expect(scoreSkill(skill({ trigger: [trigger] }), message).score).toBeGreaterThan(0);
+    });
+
+    it('remonte dsfrDataUnpivot au-dessus du bruit sur sa requete canonique', () => {
+      // Avant l'ancrage : dsfrDataMap (trigger `ign` dans « lignes ») passait
+      // devant la skill effectivement pertinente.
+      const ids = matchSkills(ALL, 'depliage des colonnes annuelles en lignes').map((s) => s.id);
+      expect(ids).not.toContain('dsfrDataMap');
+      expect(ids).toContain('dsfrDataUnpivot');
     });
 
     it('retrouve dsfrDataUnpivot la ou l’ancien moteur restait muet', () => {
