@@ -1,5 +1,31 @@
 # dsfr-data
 
+## 0.18.0
+
+### Minor Changes
+
+- [#516](https://github.com/bmatge/dsfr-data/pull/516) [`97de25d`](https://github.com/bmatge/dsfr-data/commit/97de25d4f1683899f7d0374c5de36dbc47bda963) Thanks [@bmatge](https://github.com/bmatge)! - Référence des composants générée depuis le code ([#512](https://github.com/bmatge/dsfr-data/issues/512))
+  
+  Le package publie désormais un **custom-elements manifest** (`custom-elements.json`,
+  champ `customElements` du `package.json`) : les éditeurs qui le lisent (VS Code,
+  JetBrains) offrent l'autocomplétion et la documentation des attributs sur les balises
+  `dsfr-data-*` dans le HTML.
+  
+  Le manifeste est produit par `@custom-elements-manifest/analyzer` à partir du JSDoc des
+  composants, complété pour l'occasion : les **264 attributs** des 23 composants ont
+  maintenant une description, les aliases dépréciés sont signalés comme tels, et les
+  événements (`@fires`), slots (`@slot`) et variables CSS (`@cssprop`) sont documentés.
+  
+  Côté connaissance IA (builder-IA et serveur MCP), la section « référence » de chaque
+  skill de composant est générée depuis ce manifeste — donc exhaustive par construction —
+  au lieu d'être rédigée à la main. Les événements du pipeline sont déduits du mixin porté
+  par le composant, ce qui comble le manque principal : la connaissance ne décrivait aucun
+  événement, aucun slot et aucune variable CSS.
+  
+  Aucun changement de comportement des composants.
+
+- [#501](https://github.com/bmatge/dsfr-data/pull/501) [`7528946`](https://github.com/bmatge/dsfr-data/commit/7528946c7d28d552cf50d2c55be3854f3b012679) Thanks [@bmatge](https://github.com/bmatge)! - Retrait de `dsfr-data-world-map` (déprécié depuis la v0.13, epic [#402](https://github.com/bmatge/dsfr-data/issues/402)) : utiliser `<dsfr-data-chart type="map-monde">` (API cartes unifiée DSFR Chart 2.1). L'export `dsfr-data/world-map` et les bundles `dsfr-data.world-map.{esm,umd}.js` disparaissent, ainsi que les dépendances d3-geo / topojson-client / world-atlas et l'asset `dist/data/world-countries-110m.json`. La conversion ISO a3/num → a2 (`toIsoA2`) et les échelles `CHOROPLETH_SCALES` sont conservées. Changement cassant assumé en phase 0.x (pré-1.0), publié en minor.
+
 ## 0.17.0
 
 ### Minor Changes
