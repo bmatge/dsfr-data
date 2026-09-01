@@ -9,14 +9,25 @@
 import { test, expect } from '@playwright/test';
 import { disableProductTour } from './helpers';
 
-/** Code d'apercu autonome : un canvas peint (pas de dependance reseau). */
+/**
+ * Code d'apercu autonome : titre + canvas peint + legende + source (pas de
+ * dependance reseau). La v2 capture le BLOC complet, pas le canvas nu.
+ */
 const CANVAS_SNIPPET = `
+<h2>Répartition par département</h2>
 <canvas id="c" width="300" height="150"></canvas>
+<ul><li>Paris</li><li>Nord</li><li>Gironde</li></ul>
+<p>Source : LOVAC, 2025</p>
 <script>
   const ctx = document.getElementById('c').getContext('2d');
   ctx.fillStyle = '#000091';
   ctx.fillRect(10, 10, 200, 100);
 </script>`;
+
+/** Dimensions d'un PNG (IHDR : largeur/hauteur big-endian aux octets 16-24). */
+function pngSize(buf: Buffer): { width: number; height: number } {
+  return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
+}
 
 test.beforeEach(async ({ page }) => {
   await disableProductTour(page);
@@ -41,7 +52,15 @@ test.describe('Export image', () => {
 
     const pngDownload = page.waitForEvent('download');
     await page.click('#export-png-btn');
-    expect((await pngDownload).suggestedFilename()).toBe('apercu-playground.png');
+    const download = await pngDownload;
+    expect(download.suggestedFilename()).toBe('apercu-playground.png');
+
+    // Preuve de la capture du BLOC (v2) : le PNG 2x depasse largement le
+    // canvas nu (300×150) — titre, legende et source sont dans l'image.
+    const { readFileSync } = await import('node:fs');
+    const size = pngSize(readFileSync(await download.path()));
+    expect(size.width).toBeGreaterThan(600);
+    expect(size.height).toBeGreaterThan(300 + 150);
 
     const jpgDownload = page.waitForEvent('download');
     await page.click('#export-jpg-btn');

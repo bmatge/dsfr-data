@@ -453,19 +453,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('fav-panel-share-btn')?.addEventListener('click', () => {
     if (selectedId) shareFavorite(selectedId);
   });
-  const exportImage = (format: 'png' | 'jpg') => {
+  const exportImage = async (format: 'png' | 'jpg') => {
     try {
       const frame = document.getElementById('preview-frame') as HTMLIFrameElement | null;
       if (!frame) throw new ImageExportError('iframe-inaccessible');
       const name = favorites.find((f) => f.id === selectedId)?.name || 'favori';
-      exportPreviewImage(frame, format, name);
+      await exportPreviewImage(frame, format, name);
     } catch (err) {
       if (err instanceof ImageExportError) toastError(IMAGE_EXPORT_MESSAGES[err.reason]);
       else throw err;
     }
   };
-  document.getElementById('fav-panel-png-btn')?.addEventListener('click', () => exportImage('png'));
-  document.getElementById('fav-panel-jpg-btn')?.addEventListener('click', () => exportImage('jpg'));
+  document
+    .getElementById('fav-panel-png-btn')
+    ?.addEventListener('click', () => void exportImage('png'));
+  document
+    .getElementById('fav-panel-jpg-btn')
+    ?.addEventListener('click', () => void exportImage('jpg'));
   document.getElementById('fav-panel-delete-btn')?.addEventListener('click', () => {
     if (selectedId) showDeleteModal(selectedId);
   });

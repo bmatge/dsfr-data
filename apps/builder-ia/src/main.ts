@@ -131,14 +131,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     previewPanel.addEventListener('open-playground', openInPlayground);
     previewPanel.addEventListener('export-image', (e) => {
       const format = (e as CustomEvent<{ format?: 'png' | 'jpg' }>).detail?.format ?? 'png';
-      try {
-        // L'apercu du builder-IA vit en light DOM dans le panneau (#tab-preview).
-        const root = (document.getElementById('tab-preview') ?? document.body) as HTMLElement;
-        exportPreviewImage(root, format, state.chartConfig?.title || 'graphique');
-      } catch (err) {
-        if (err instanceof ImageExportError) toastError(IMAGE_EXPORT_MESSAGES[err.reason]);
-        else throw err;
-      }
+      void (async () => {
+        try {
+          if (!state.chartConfig) throw new ImageExportError('empty');
+          // Bloc complet titre + sous-titre + graphique (light DOM du panneau).
+          const root = (document.querySelector('.preview-chart') ??
+            document.getElementById('tab-preview') ??
+            document.body) as HTMLElement;
+          await exportPreviewImage(root, format, state.chartConfig.title || 'graphique');
+        } catch (err) {
+          if (err instanceof ImageExportError) toastError(IMAGE_EXPORT_MESSAGES[err.reason]);
+          else throw err;
+        }
+      })();
     });
   }
 

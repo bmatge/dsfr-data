@@ -1,104 +1,125 @@
 /**
- * Export d'image PNG/JPG depuis un apercu.
+ * Export d'image PNG/JPG depuis un apercu — v2 : capture DOM fidele via
+ * html-to-image (titre + legende + source inclus).
  *
- * jsdom n'implemente pas le contexte 2d : la composition est testee via un
- * canvas MOCKE injecte (createCanvas). Ce qui compte : la selection du bon
- * canvas, le fond blanc, le mapping format→MIME, les erreurs typees, le nom
- * de fichier.
+ * jsdom ne sait pas rasteriser : les rendus toPng/toJpeg sont INJECTES
+ * (ImageRenderers). Ce qui compte : la resolution du noeud a capturer,
+ * le mapping format→rendu et ses options (fond blanc, 2x, qualite JPEG),
+ * les erreurs typees, le nom de fichier.
  */
 import { describe, it, expect, vi } from 'vitest';
 import {
-  pickExportCanvas,
+  resolveCaptureNode,
   imageFilename,
-  canvasToDataUrl,
+  exportPreviewImage,
   ImageExportError,
   IMAGE_EXPORT_MESSAGES,
+  type ImageRenderers,
 } from '../../packages/shared/src/ui/image-export';
 
-/** Canvas dessinable mocke (jsdom rend getContext null). */
-function mockCanvas(behavior?: { taint?: boolean }) {
-  const ctx = {
-    fillStyle: '',
-    fillRect: vi.fn(),
-    drawImage: vi.fn(() => {
-      if (behavior?.taint) throw new DOMException('tainted', 'SecurityError');
-    }),
+function renderers(result = 'data:image/png;base64,xxx') {
+  return {
+    toPng: vi.fn(async () => result),
+    toJpeg: vi.fn(async () => result.replace('png', 'jpeg')),
+  } as unknown as ImageRenderers & {
+    toPng: ReturnType<typeof vi.fn>;
+    toJpeg: ReturnType<typeof vi.fn>;
   };
-  const canvas = {
-    width: 0,
-    height: 0,
-    getContext: vi.fn(() => ctx),
-    toDataURL: vi.fn((mime: string) => `data:${mime};base64,xxx`),
-  };
-  return { canvas: canvas as unknown as HTMLCanvasElement, ctx };
 }
 
-function domCanvas(width: number, height: number, hidden = false): HTMLCanvasElement {
-  const el = document.createElement('canvas');
-  el.width = width;
-  el.height = height;
-  // jsdom : offsetParent est null partout — on le simule.
-  Object.defineProperty(el, 'offsetParent', { value: hidden ? null : document.body });
-  return el;
-}
-
-describe('pickExportCanvas', () => {
-  it('choisit le plus grand canvas visible', () => {
-    const root = document.createElement('div');
-    const small = domCanvas(100, 50);
-    const big = domCanvas(800, 400);
-    const invisible = domCanvas(2000, 2000, true);
-    root.append(small, big, invisible);
-    expect(pickExportCanvas(root)).toBe(big);
-  });
-
-  it("jette no-canvas quand l'apercu n'a pas de canvas (KPI, tableau…)", () => {
-    const root = document.createElement('div');
-    root.innerHTML = '<div class="kpi-card">42</div>';
-    try {
-      pickExportCanvas(root);
-      throw new Error('aurait du jeter');
-    } catch (err) {
-      expect(err).toBeInstanceOf(ImageExportError);
-      expect((err as ImageExportError).reason).toBe('no-canvas');
-      expect(IMAGE_EXPORT_MESSAGES[(err as ImageExportError).reason]).toContain('graphiques');
-    }
-  });
-
-  it('jette iframe-inaccessible sur une iframe sans document', () => {
-    const iframe = document.createElement('iframe');
+function iframeWith(body: string | null): HTMLIFrameElement {
+  const iframe = document.createElement('iframe');
+  if (body === null) {
     Object.defineProperty(iframe, 'contentDocument', { value: null });
-    try {
-      pickExportCanvas(iframe);
-      throw new Error('aurait du jeter');
-    } catch (err) {
-      expect((err as ImageExportError).reason).toBe('iframe-inaccessible');
-    }
+  } else {
+    const doc = document.implementation.createHTMLDocument('apercu');
+    doc.body.innerHTML = body;
+    Object.defineProperty(iframe, 'contentDocument', { value: doc });
+  }
+  return iframe;
+}
+
+describe('resolveCaptureNode', () => {
+  it('un element direct est capture tel quel', () => {
+    const el = document.createElement('div');
+    expect(resolveCaptureNode(el)).toBe(el);
+  });
+
+  it('une iframe same-origin est capturee par son body', () => {
+    const iframe = iframeWith('<h2>Titre</h2><canvas></canvas><ul>légende</ul>');
+    const node = resolveCaptureNode(iframe);
+    expect(node.tagName).toBe('BODY');
+    expect(node.querySelector('h2')?.textContent).toBe('Titre');
+  });
+
+  it('iframe sans document → iframe-inaccessible ; body vide → empty', () => {
+    expect(() => resolveCaptureNode(iframeWith(null))).toThrowError(
+      expect.objectContaining({ reason: 'iframe-inaccessible' })
+    );
+    expect(() => resolveCaptureNode(iframeWith(''))).toThrowError(
+      expect.objectContaining({ reason: 'empty' })
+    );
   });
 });
 
-describe('canvasToDataUrl', () => {
-  it('compose sur fond blanc et mappe png/jpg vers le bon MIME', () => {
-    const source = domCanvas(300, 200);
-    const png = mockCanvas();
-    expect(canvasToDataUrl(source, 'png', () => png.canvas)).toBe('data:image/png;base64,xxx');
-    expect(png.ctx.fillStyle).toBe('#ffffff');
-    expect(png.ctx.fillRect).toHaveBeenCalledWith(0, 0, 300, 200);
-    expect((png.canvas as unknown as { width: number }).width).toBe(300);
-
-    const jpg = mockCanvas();
-    expect(canvasToDataUrl(source, 'jpg', () => jpg.canvas)).toBe('data:image/jpeg;base64,xxx');
+describe('exportPreviewImage', () => {
+  it('png : toPng avec fond blanc et pixelRatio 2, telechargement nomme', async () => {
+    const r = renderers();
+    const el = document.createElement('div');
+    const clicks: string[] = [];
+    const origClick = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function () {
+      clicks.push((this as HTMLAnchorElement).download);
+    };
+    try {
+      await exportPreviewImage(el, 'png', 'Évolution 2024', r);
+    } finally {
+      HTMLAnchorElement.prototype.click = origClick;
+    }
+    expect(r.toPng).toHaveBeenCalledWith(
+      el,
+      expect.objectContaining({ backgroundColor: '#ffffff', pixelRatio: 2 })
+    );
+    expect(r.toJpeg).not.toHaveBeenCalled();
+    expect(clicks).toEqual(['evolution-2024.png']);
   });
 
-  it('traduit un SecurityError (canvas taint) en erreur typee tainted', () => {
-    const source = domCanvas(10, 10);
-    const out = mockCanvas({ taint: true });
+  it('jpg : toJpeg avec qualite 0.92', async () => {
+    const r = renderers();
+    const origClick = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = () => {};
     try {
-      canvasToDataUrl(source, 'png', () => out.canvas);
-      throw new Error('aurait du jeter');
-    } catch (err) {
-      expect((err as ImageExportError).reason).toBe('tainted');
+      await exportPreviewImage(document.createElement('div'), 'jpg', 'x', r);
+    } finally {
+      HTMLAnchorElement.prototype.click = origClick;
     }
+    expect(r.toJpeg).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ quality: 0.92, backgroundColor: '#ffffff' })
+    );
+  });
+
+  it('un echec de rendu devient capture-failed (message utilisateur dispo)', async () => {
+    const r = {
+      toPng: vi.fn(async () => {
+        throw new Error('CORS tile');
+      }),
+      toJpeg: vi.fn(),
+    } as unknown as ImageRenderers;
+    await expect(
+      exportPreviewImage(document.createElement('div'), 'png', 'x', r)
+    ).rejects.toMatchObject({ reason: 'capture-failed' });
+    expect(IMAGE_EXPORT_MESSAGES['capture-failed']).toContain('capturer');
+  });
+
+  it('une data URL vide devient capture-failed aussi', async () => {
+    const r = {
+      toPng: vi.fn(async () => 'data:,'),
+      toJpeg: vi.fn(),
+    } as unknown as ImageRenderers;
+    await expect(
+      exportPreviewImage(document.createElement('div'), 'png', 'x', r)
+    ).rejects.toBeInstanceOf(ImageExportError);
   });
 });
 

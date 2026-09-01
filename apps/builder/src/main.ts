@@ -341,15 +341,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (previewPanel) {
     previewPanel.addEventListener('export-image', (e) => {
       const format = (e as CustomEvent<{ format?: 'png' | 'jpg' }>).detail?.format ?? 'png';
-      try {
-        // L'apercu du builder vit dans une iframe same-origin (srcdoc).
-        const frame = document.getElementById('preview-iframe') as HTMLIFrameElement | null;
-        if (!frame) throw new ImageExportError('iframe-inaccessible');
-        exportPreviewImage(frame, format, 'graphique');
-      } catch (err) {
-        if (err instanceof ImageExportError) toastError(IMAGE_EXPORT_MESSAGES[err.reason]);
-        else throw err;
-      }
+      void (async () => {
+        try {
+          // L'apercu du builder vit dans une iframe same-origin (srcdoc).
+          const frame = document.getElementById('preview-iframe') as HTMLIFrameElement | null;
+          if (!frame) throw new ImageExportError('iframe-inaccessible');
+          await exportPreviewImage(frame, format, state.title || 'graphique');
+        } catch (err) {
+          if (err instanceof ImageExportError) toastError(IMAGE_EXPORT_MESSAGES[err.reason]);
+          else throw err;
+        }
+      })();
     });
     previewPanel.addEventListener('save-favorite', saveFavorite);
     previewPanel.addEventListener('open-playground', openInPlayground);

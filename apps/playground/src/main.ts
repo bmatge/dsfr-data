@@ -282,18 +282,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('deps-btn')?.addEventListener('click', toggleDeps);
 
   // Export image de l'apercu (iframe same-origin)
-  const exportImage = (format: 'png' | 'jpg') => {
+  const exportImage = async (format: 'png' | 'jpg') => {
     try {
       const frame = document.getElementById('preview-frame') as HTMLIFrameElement | null;
       if (!frame) throw new ImageExportError('iframe-inaccessible');
-      exportPreviewImage(frame, format, 'apercu-playground');
+      await exportPreviewImage(frame, format, 'apercu-playground');
     } catch (err) {
       if (err instanceof ImageExportError) toastError(IMAGE_EXPORT_MESSAGES[err.reason]);
       else throw err;
     }
   };
-  document.getElementById('export-png-btn')?.addEventListener('click', () => exportImage('png'));
-  document.getElementById('export-jpg-btn')?.addEventListener('click', () => exportImage('jpg'));
+  document
+    .getElementById('export-png-btn')
+    ?.addEventListener('click', () => void exportImage('png'));
+  document
+    .getElementById('export-jpg-btn')
+    ?.addEventListener('click', () => void exportImage('jpg'));
 
   // Copy code button
   document.getElementById('copy-btn')?.addEventListener('click', copyCode);
