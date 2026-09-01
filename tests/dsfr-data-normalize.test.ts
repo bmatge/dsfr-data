@@ -908,8 +908,8 @@ describe('DsfrDataNormalize', () => {
       normalize.source = 'mock-source';
       const adapter = normalize.getAdapter();
       expect(adapter).not.toBeNull();
-      expect(adapter.type).toBe('opendatasoft');
-      expect(adapter.capabilities.serverFacets).toBe(true);
+      expect(adapter?.type).toBe('opendatasoft');
+      expect(adapter?.capabilities.serverFacets).toBe(true);
 
       mockSource.remove();
     });

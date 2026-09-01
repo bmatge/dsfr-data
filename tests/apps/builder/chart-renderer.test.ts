@@ -3,7 +3,29 @@ import { state } from '../../../apps/builder/src/state';
 
 // Mock Chart.js constructor and instance
 const mockChartInstance = { destroy: vi.fn() };
-const MockChart = vi.fn(function MockChart(this: unknown) {
+
+/**
+ * Forme de la config Chart.js telle que ces tests l'inspectent. Volontairement
+ * permissive en profondeur (`Record<string, any>`) : le test verifie CE QUE le
+ * renderer produit, il n'a pas a redecrire tout le schema de Chart.js.
+ *
+ * Les parametres doivent etre declares : sans eux, `MockChart.mock.calls[0]`
+ * est un tuple VIDE, et le destructurer `const [canvas, config] = ...` ne
+ * compile pas (TS2493) — ce que vitest ne signalait pas, faute de typecheck.
+ */
+interface MockChartConfig {
+  type: string;
+   
+  data: { labels: unknown[]; datasets: Array<Record<string, any>> };
+   
+  options: Record<string, any>;
+}
+
+const MockChart = vi.fn(function MockChart(
+  this: unknown,
+  _canvas: HTMLCanvasElement,
+  _config: MockChartConfig
+) {
   return mockChartInstance;
 });
 

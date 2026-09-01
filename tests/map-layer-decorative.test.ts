@@ -49,14 +49,9 @@ describe('shape-class / no-interactive — geoshape', () => {
       '_bindPopup' as never
     );
 
-    (layer as unknown as Record<string, CallableFunction>)._addGeoshape.call(
-      layer,
-      { geom: POLY },
-      fakeLeaf,
-      group,
-      [],
-      []
-    );
+    (
+      layer as unknown as Record<string, (this: unknown, ...a: unknown[]) => unknown>
+    )._addGeoshape.call(layer, { geom: POLY }, fakeLeaf, group, [], []);
 
     expect(captured[0].interactive).toBe(false);
     expect((captured[0].style as Record<string, unknown>).className).toBe('hachures');
@@ -75,14 +70,9 @@ describe('shape-class / no-interactive — geoshape', () => {
         return makeFakeLayer();
       },
     };
-    (layer as unknown as Record<string, CallableFunction>)._addGeoshape.call(
-      layer,
-      { geom: POLY },
-      fakeLeaf,
-      { addLayer: vi.fn() },
-      [],
-      []
-    );
+    (
+      layer as unknown as Record<string, (this: unknown, ...a: unknown[]) => unknown>
+    )._addGeoshape.call(layer, { geom: POLY }, fakeLeaf, { addLayer: vi.fn() }, [], []);
 
     expect(captured[0].interactive).toBe(true);
     expect('className' in (captured[0].style as object)).toBe(false);
@@ -104,12 +94,9 @@ describe('shape-class / no-interactive — circle', () => {
         return makeFakeLayer();
       },
     };
-    (layer as unknown as Record<string, CallableFunction>)._addCircle.call(
-      layer,
-      { lat: 46, lon: 2 },
-      fakeLeaf,
-      { addLayer: vi.fn() }
-    );
+    (
+      layer as unknown as Record<string, (this: unknown, ...a: unknown[]) => unknown>
+    )._addCircle.call(layer, { lat: 46, lon: 2 }, fakeLeaf, { addLayer: vi.fn() });
 
     expect(captured[0].interactive).toBe(false);
     expect(captured[0].className).toBe('poi-special');

@@ -12,12 +12,12 @@ describe('DsfrDataSource adapter mode detection', () => {
     // When apiType is 'opendatasoft', the source should use adapter mode
     // Tested indirectly: getAdapter() should return a valid adapter
     const adapter = getAdapter('opendatasoft');
-    expect(adapter.type).toBe('opendatasoft');
+    expect(adapter?.type).toBe('opendatasoft');
   });
 
   it('apiType = generic with url uses URL mode', () => {
     const adapter = getAdapter('generic');
-    expect(adapter.capabilities.serverFetch).toBe(false);
+    expect(adapter?.capabilities.serverFetch).toBe(false);
   });
 });
 
@@ -215,7 +215,7 @@ describe('DsfrDataSource adapter validation', () => {
   it('ODS adapter validates dataset-id', () => {
     const adapter = getAdapter('opendatasoft');
     expect(
-      adapter.validate({
+      adapter?.validate({
         baseUrl: 'https://data.example.com',
         datasetId: '',
         resource: '',
@@ -235,7 +235,7 @@ describe('DsfrDataSource adapter validation', () => {
   it('Tabular adapter validates resource', () => {
     const adapter = getAdapter('tabular');
     expect(
-      adapter.validate({
+      adapter?.validate({
         baseUrl: '',
         datasetId: '',
         resource: '',
@@ -255,7 +255,7 @@ describe('DsfrDataSource adapter validation', () => {
   it('Grist adapter validates base-url', () => {
     const adapter = getAdapter('grist');
     expect(
-      adapter.validate({
+      adapter?.validate({
         baseUrl: '',
         datasetId: '',
         resource: '',

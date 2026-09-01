@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { DsfrDataKpi } from '@/components/dsfr-data-kpi.js';
 import { DsfrDataKpiGroup } from '@/components/dsfr-data-kpi-group.js';
 import {

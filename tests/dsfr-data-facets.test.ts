@@ -10,6 +10,29 @@ import {
   clearDataMeta,
 } from '@/utils/data-bridge.js';
 
+/**
+ * Vue interne du composant, limitee aux SEULS membres prives que ces tests
+ * inspectent (les autres `_xxx` du composant sont publics et accessibles
+ * directement).
+ *
+ * Le composant n'est pas relache pour les besoins du test : c'est le test qui
+ * assume de regarder l'etat interne, et le declare une fois plutot que de le
+ * contourner par un `as any` a chaque acces.
+ */
+interface FacetsInternals {
+  _facetGroups: Array<{
+    field: string;
+    label: string;
+    values: Array<{ value: string; count: number; missing?: boolean }>;
+  }>;
+  _activeSelections: Record<string, Set<string>>;
+  _expandedFacets: Set<string>;
+  _searchQueries: Record<string, string>;
+  _openMultiselectField: string | null;
+  _toggleValue(field: string, value: string): void;
+  _clearFieldSelections(field: string): void;
+}
+
 const SAMPLE_DATA = [
   { nom: 'Paris', region: 'Ile-de-France', type: 'Commune', population: 2200000 },
   { nom: 'Lyon', region: 'Auvergne-Rhone-Alpes', type: 'Commune', population: 500000 },
@@ -30,6 +53,8 @@ function setUrlParams(search: string) {
 
 describe('DsfrDataFacets', () => {
   let facets: DsfrDataFacets;
+  /** Meme instance que `facets`, vue par ses membres prives. */
+  let internals: FacetsInternals;
 
   beforeEach(() => {
     clearDataCache('test-facets');
@@ -37,6 +62,7 @@ describe('DsfrDataFacets', () => {
     clearDataMeta('test-facets');
     clearDataMeta('test-source');
     facets = new DsfrDataFacets();
+    internals = facets as unknown as FacetsInternals;
     // Reset URL to clean state
     setUrlParams('');
   });
@@ -252,7 +278,7 @@ describe('DsfrDataFacets', () => {
 
     it('filters data by single facet selection', () => {
       // Simulate selecting "Prefecture" in the type facet
-      facets._activeSelections = { type: new Set(['Prefecture']) };
+      internals._activeSelections = { type: new Set(['Prefecture']) };
       facets._applyFilters();
 
       const result = getDataCache('test-facets') as Record<string, unknown>[];
@@ -261,7 +287,7 @@ describe('DsfrDataFacets', () => {
     });
 
     it('applies OR logic within a single facet (multi-select)', () => {
-      facets._activeSelections = { region: new Set(['PACA', 'Bretagne']) };
+      internals._activeSelections = { region: new Set(['PACA', 'Bretagne']) };
       facets._applyFilters();
 
       const result = getDataCache('test-facets') as Record<string, unknown>[];
@@ -270,7 +296,7 @@ describe('DsfrDataFacets', () => {
     });
 
     it('applies AND logic between different facets', () => {
-      facets._activeSelections = {
+      internals._activeSelections = {
         type: new Set(['Commune']),
         region: new Set(['PACA']),
       };
@@ -282,12 +308,12 @@ describe('DsfrDataFacets', () => {
     });
 
     it('returns all data when selections are cleared', () => {
-      facets._activeSelections = { type: new Set(['Prefecture']) };
+      internals._activeSelections = { type: new Set(['Prefecture']) };
       facets._applyFilters();
       let result = getDataCache('test-facets') as Record<string, unknown>[];
       expect(result).toHaveLength(4);
 
-      facets._activeSelections = {};
+      internals._activeSelections = {};
       facets._applyFilters();
       result = getDataCache('test-facets') as Record<string, unknown>[];
       expect(result).toHaveLength(SAMPLE_DATA.length);
@@ -307,10 +333,10 @@ describe('DsfrDataFacets', () => {
 
     it('recalculates counts when another facet is selected', () => {
       // Select "Prefecture" -> region counts should reflect only prefectures
-      facets._activeSelections = { type: new Set(['Prefecture']) };
+      internals._activeSelections = { type: new Set(['Prefecture']) };
       facets._buildFacetGroups();
 
-      const regionGroup = facets._facetGroups.find((g) => g.field === 'region');
+      const regionGroup = internals._facetGroups.find((g) => g.field === 'region');
       // Only regions with prefectures should appear
       const regionValues = regionGroup?.values ?? [];
       const totalCount = regionValues.reduce((sum, v) => sum + v.count, 0);
@@ -319,10 +345,10 @@ describe('DsfrDataFacets', () => {
 
     it('does not filter own facet values by own selection', () => {
       // Select "Prefecture" -> type facet should still show both Commune and Prefecture
-      facets._activeSelections = { type: new Set(['Prefecture']) };
+      internals._activeSelections = { type: new Set(['Prefecture']) };
       facets._buildFacetGroups();
 
-      const typeGroup = facets._facetGroups.find((g) => g.field === 'type');
+      const typeGroup = internals._facetGroups.find((g) => g.field === 'type');
       const typeValues = typeGroup?.values.map((v) => v.value) ?? [];
       expect(typeValues).toContain('Commune');
       expect(typeValues).toContain('Prefecture');
@@ -396,9 +422,9 @@ describe('DsfrDataFacets', () => {
       facets.connectedCallback();
       dispatchDataLoaded('test-source', SAMPLE_DATA);
 
-      const typeGroup = facets._facetGroups.find((g) => g.field === 'type');
+      const typeGroup = internals._facetGroups.find((g) => g.field === 'type');
       expect(typeGroup?.label).toBe('Type de commune');
-      const regionGroup = facets._facetGroups.find((g) => g.field === 'region');
+      const regionGroup = internals._facetGroups.find((g) => g.field === 'region');
       expect(regionGroup?.label).toBe('Region administrative');
     });
 
@@ -410,7 +436,7 @@ describe('DsfrDataFacets', () => {
       facets.connectedCallback();
       dispatchDataLoaded('test-source', SAMPLE_DATA);
 
-      const typeGroup = facets._facetGroups.find((g) => g.field === 'type');
+      const typeGroup = internals._facetGroups.find((g) => g.field === 'type');
       expect(typeGroup?.label).toBe('type');
     });
 
@@ -423,9 +449,9 @@ describe('DsfrDataFacets', () => {
       facets.connectedCallback();
       dispatchDataLoaded('test-source', dataWithSingleType);
 
-      const statutGroup = facets._facetGroups.find((g) => g.field === 'statut');
+      const statutGroup = internals._facetGroups.find((g) => g.field === 'statut');
       expect(statutGroup).toBeUndefined(); // Only 1 unique value -> hidden
-      const typeGroup = facets._facetGroups.find((g) => g.field === 'type');
+      const typeGroup = internals._facetGroups.find((g) => g.field === 'type');
       expect(typeGroup).toBeDefined(); // 2 unique values -> shown
     });
   });
@@ -486,18 +512,18 @@ describe('DsfrDataFacets', () => {
 
       it('select mode enforces single exclusive selection', () => {
         // Select one value via _toggleValue
-        facets._toggleValue('type', 'Commune');
-        expect(facets._activeSelections['type']?.size).toBe(1);
-        expect(facets._activeSelections['type']?.has('Commune')).toBe(true);
+        internals._toggleValue('type', 'Commune');
+        expect(internals._activeSelections['type']?.size).toBe(1);
+        expect(internals._activeSelections['type']?.has('Commune')).toBe(true);
 
         // Select another - should replace, not add
-        facets._toggleValue('type', 'Prefecture');
-        expect(facets._activeSelections['type']?.size).toBe(1);
-        expect(facets._activeSelections['type']?.has('Prefecture')).toBe(true);
+        internals._toggleValue('type', 'Prefecture');
+        expect(internals._activeSelections['type']?.size).toBe(1);
+        expect(internals._activeSelections['type']?.has('Prefecture')).toBe(true);
       });
 
       it('select mode filters data correctly', () => {
-        facets._activeSelections = { type: new Set(['Prefecture']) };
+        internals._activeSelections = { type: new Set(['Prefecture']) };
         facets._applyFilters();
 
         const result = getDataCache('test-facets') as Record<string, unknown>[];
@@ -506,10 +532,10 @@ describe('DsfrDataFacets', () => {
       });
 
       it('cross-facet counts work with select mode', () => {
-        facets._activeSelections = { type: new Set(['Prefecture']) };
+        internals._activeSelections = { type: new Set(['Prefecture']) };
         facets._buildFacetGroups();
 
-        const regionGroup = facets._facetGroups.find((g) => g.field === 'region');
+        const regionGroup = internals._facetGroups.find((g) => g.field === 'region');
         const totalCount = regionGroup?.values.reduce((sum, v) => sum + v.count, 0) ?? 0;
         expect(totalCount).toBe(4);
       });
@@ -527,15 +553,15 @@ describe('DsfrDataFacets', () => {
 
       it('multiselect mode is automatically disjunctive', () => {
         // Select two values - both should be in the Set (OR logic)
-        facets._toggleValue('region', 'PACA');
-        facets._toggleValue('region', 'Bretagne');
-        expect(facets._activeSelections['region']?.size).toBe(2);
-        expect(facets._activeSelections['region']?.has('PACA')).toBe(true);
-        expect(facets._activeSelections['region']?.has('Bretagne')).toBe(true);
+        internals._toggleValue('region', 'PACA');
+        internals._toggleValue('region', 'Bretagne');
+        expect(internals._activeSelections['region']?.size).toBe(2);
+        expect(internals._activeSelections['region']?.has('PACA')).toBe(true);
+        expect(internals._activeSelections['region']?.has('Bretagne')).toBe(true);
       });
 
       it('multiselect filters with OR logic', () => {
-        facets._activeSelections = { region: new Set(['PACA', 'Bretagne']) };
+        internals._activeSelections = { region: new Set(['PACA', 'Bretagne']) };
         facets._applyFilters();
 
         const result = getDataCache('test-facets') as Record<string, unknown>[];
@@ -543,14 +569,14 @@ describe('DsfrDataFacets', () => {
       });
 
       it('clear field selections removes all for that field', () => {
-        facets._activeSelections = {
+        internals._activeSelections = {
           region: new Set(['PACA', 'Bretagne']),
           type: new Set(['Commune']),
         };
-        facets._clearFieldSelections('region');
+        internals._clearFieldSelections('region');
 
-        expect(facets._activeSelections['region']).toBeUndefined();
-        expect(facets._activeSelections['type']?.has('Commune')).toBe(true);
+        expect(internals._activeSelections['region']).toBeUndefined();
+        expect(internals._activeSelections['type']?.has('Commune')).toBe(true);
       });
     });
 
@@ -571,9 +597,9 @@ describe('DsfrDataFacets', () => {
         dispatchDataLoaded('test-source', SAMPLE_DATA);
 
         // Should allow multi-select via disjunctive
-        facets._toggleValue('region', 'PACA');
-        facets._toggleValue('region', 'Bretagne');
-        expect(facets._activeSelections['region']?.size).toBe(2);
+        internals._toggleValue('region', 'PACA');
+        internals._toggleValue('region', 'Bretagne');
+        expect(internals._activeSelections['region']?.size).toBe(2);
       });
 
       it('existing checkbox behavior unchanged without display attribute', () => {
@@ -584,10 +610,10 @@ describe('DsfrDataFacets', () => {
         dispatchDataLoaded('test-source', SAMPLE_DATA);
 
         // Without disjunctive, checkbox is exclusive
-        facets._toggleValue('type', 'Commune');
-        facets._toggleValue('type', 'Prefecture');
-        expect(facets._activeSelections['type']?.size).toBe(1);
-        expect(facets._activeSelections['type']?.has('Prefecture')).toBe(true);
+        internals._toggleValue('type', 'Commune');
+        internals._toggleValue('type', 'Prefecture');
+        expect(internals._activeSelections['type']?.size).toBe(1);
+        expect(internals._activeSelections['type']?.has('Prefecture')).toBe(true);
       });
     });
   });
@@ -627,7 +653,7 @@ describe('DsfrDataFacets', () => {
         facets.urlParams = true;
         facets._applyUrlParams();
 
-        expect(facets._activeSelections['type']?.has('Commune')).toBe(true);
+        expect(internals._activeSelections['type']?.has('Commune')).toBe(true);
       });
 
       it('supports multiple values via repeated params', () => {
@@ -635,8 +661,8 @@ describe('DsfrDataFacets', () => {
         facets.urlParams = true;
         facets._applyUrlParams();
 
-        expect(facets._activeSelections['region']?.has('PACA')).toBe(true);
-        expect(facets._activeSelections['region']?.has('Bretagne')).toBe(true);
+        expect(internals._activeSelections['region']?.has('PACA')).toBe(true);
+        expect(internals._activeSelections['region']?.has('Bretagne')).toBe(true);
       });
 
       it('supports comma-separated values in a single param', () => {
@@ -644,9 +670,9 @@ describe('DsfrDataFacets', () => {
         facets.urlParams = true;
         facets._applyUrlParams();
 
-        expect(facets._activeSelections['region']?.size).toBe(2);
-        expect(facets._activeSelections['region']?.has('PACA')).toBe(true);
-        expect(facets._activeSelections['region']?.has('Bretagne')).toBe(true);
+        expect(internals._activeSelections['region']?.size).toBe(2);
+        expect(internals._activeSelections['region']?.has('PACA')).toBe(true);
+        expect(internals._activeSelections['region']?.has('Bretagne')).toBe(true);
       });
 
       it('un param inconnu (ex: utm_source) ne devient PAS une selection (#312)', () => {
@@ -654,8 +680,8 @@ describe('DsfrDataFacets', () => {
         facets.urlParams = true;
         facets._applyUrlParams();
 
-        expect(facets._activeSelections['foo']).toBeUndefined();
-        expect(facets._activeSelections['utm_source']).toBeUndefined();
+        expect(internals._activeSelections['foo']).toBeUndefined();
+        expect(internals._activeSelections['utm_source']).toBeUndefined();
       });
 
       it('does nothing when URL has no params', () => {
@@ -663,7 +689,7 @@ describe('DsfrDataFacets', () => {
         facets.urlParams = true;
         facets._applyUrlParams();
 
-        expect(Object.keys(facets._activeSelections)).toHaveLength(0);
+        expect(Object.keys(internals._activeSelections)).toHaveLength(0);
       });
     });
 
@@ -674,8 +700,8 @@ describe('DsfrDataFacets', () => {
         facets.urlParamMap = 'r:region | t:type';
         facets._applyUrlParams();
 
-        expect(facets._activeSelections['region']?.has('PACA')).toBe(true);
-        expect(facets._activeSelections['type']?.has('Commune')).toBe(true);
+        expect(internals._activeSelections['region']?.has('PACA')).toBe(true);
+        expect(internals._activeSelections['type']?.has('Commune')).toBe(true);
       });
 
       it('ignores URL params not in the map', () => {
@@ -684,8 +710,8 @@ describe('DsfrDataFacets', () => {
         facets.urlParamMap = 'r:region';
         facets._applyUrlParams();
 
-        expect(facets._activeSelections['region']?.has('PACA')).toBe(true);
-        expect(facets._activeSelections['unknown']).toBeUndefined();
+        expect(internals._activeSelections['region']?.has('PACA')).toBe(true);
+        expect(internals._activeSelections['unknown']).toBeUndefined();
       });
     });
 
@@ -716,7 +742,7 @@ describe('DsfrDataFacets', () => {
         dispatchDataLoaded('test-source', SAMPLE_DATA);
 
         // User clears the filter
-        facets._activeSelections = {};
+        internals._activeSelections = {};
         facets._applyFilters();
         let result = getDataCache('test-facets') as Record<string, unknown>[];
         expect(result).toHaveLength(SAMPLE_DATA.length);
@@ -755,17 +781,17 @@ describe('DsfrDataFacets', () => {
 
     describe('_buildFacetWhere (adapter delegation)', () => {
       it('fallback: builds colon syntax for single value', () => {
-        facets._activeSelections = { region: new Set(['IDF']) };
+        internals._activeSelections = { region: new Set(['IDF']) };
         expect(facets._buildFacetWhere()).toBe('region:eq:IDF');
       });
 
       it('fallback: builds colon syntax for multi value', () => {
-        facets._activeSelections = { region: new Set(['IDF', 'PACA']) };
+        internals._activeSelections = { region: new Set(['IDF', 'PACA']) };
         expect(facets._buildFacetWhere()).toBe('region:in:IDF|PACA');
       });
 
       it('fallback: excludes specified field', () => {
-        facets._activeSelections = {
+        internals._activeSelections = {
           region: new Set(['IDF']),
           type: new Set(['Commune']),
         };
@@ -773,7 +799,7 @@ describe('DsfrDataFacets', () => {
       });
 
       it('fallback: combines multiple fields', () => {
-        facets._activeSelections = {
+        internals._activeSelections = {
           region: new Set(['IDF']),
           type: new Set(['Commune']),
         };
@@ -781,12 +807,12 @@ describe('DsfrDataFacets', () => {
       });
 
       it('fallback: returns empty string when no selections', () => {
-        facets._activeSelections = {};
+        internals._activeSelections = {};
         expect(facets._buildFacetWhere()).toBe('');
       });
 
       it('fallback: skips fields with empty sets', () => {
-        facets._activeSelections = { region: new Set(), type: new Set(['Commune']) };
+        internals._activeSelections = { region: new Set(), type: new Set(['Commune']) };
         expect(facets._buildFacetWhere()).toBe('type:eq:Commune');
       });
 
@@ -811,7 +837,7 @@ describe('DsfrDataFacets', () => {
         document.body.appendChild(mockSource);
 
         facets.source = 'test-source';
-        facets._activeSelections = {
+        internals._activeSelections = {
           region: new Set(['IDF']),
           type: new Set(['Commune', 'Prefecture']),
         };
@@ -938,14 +964,14 @@ describe('DsfrDataFacets', () => {
 
       dispatchDataLoaded('test-source', []);
 
-      expect(facets._facetGroups.length).toBe(2);
-      expect(facets._facetGroups[0].field).toBe('region');
-      expect(facets._facetGroups[0].values.map((v) => v.value)).toEqual([
+      expect(internals._facetGroups.length).toBe(2);
+      expect(internals._facetGroups[0].field).toBe('region');
+      expect(internals._facetGroups[0].values.map((v) => v.value)).toEqual([
         'Bretagne',
         'IDF',
         'PACA',
       ]);
-      expect(facets._facetGroups[0].values[0].count).toBe(0);
+      expect(internals._facetGroups[0].values[0].count).toBe(0);
     });
 
     it('hides counts automatically in static-values mode', () => {
@@ -1095,14 +1121,14 @@ describe('DsfrDataFacets', () => {
   describe('_toggleExpand', () => {
     it('expands a facet field', () => {
       (facets as any)._toggleExpand('region');
-      expect(facets._expandedFacets.has('region')).toBe(true);
+      expect(internals._expandedFacets.has('region')).toBe(true);
     });
 
     it('collapses an already expanded field', () => {
       (facets as any)._toggleExpand('region');
-      expect(facets._expandedFacets.has('region')).toBe(true);
+      expect(internals._expandedFacets.has('region')).toBe(true);
       (facets as any)._toggleExpand('region');
-      expect(facets._expandedFacets.has('region')).toBe(false);
+      expect(internals._expandedFacets.has('region')).toBe(false);
     });
   });
 
@@ -1110,13 +1136,13 @@ describe('DsfrDataFacets', () => {
     it('stores search query for a field', () => {
       const mockEvent = { target: { value: 'Par' } } as unknown as Event;
       (facets as any)._handleSearch('region', mockEvent);
-      expect(facets._searchQueries['region']).toBe('Par');
+      expect(internals._searchQueries['region']).toBe('Par');
     });
 
     it('overwrites previous search query', () => {
       (facets as any)._handleSearch('region', { target: { value: 'Par' } } as unknown as Event);
       (facets as any)._handleSearch('region', { target: { value: 'Lyon' } } as unknown as Event);
-      expect(facets._searchQueries['region']).toBe('Lyon');
+      expect(internals._searchQueries['region']).toBe('Lyon');
     });
   });
 
@@ -1128,13 +1154,13 @@ describe('DsfrDataFacets', () => {
       facets.connectedCallback();
       dispatchDataLoaded('test-source', SAMPLE_DATA);
 
-      facets._activeSelections = { type: new Set(['Commune']), region: new Set(['PACA']) };
-      facets._searchQueries = { type: 'Com' };
+      internals._activeSelections = { type: new Set(['Commune']), region: new Set(['PACA']) };
+      internals._searchQueries = { type: 'Com' };
 
       (facets as any)._clearAll();
 
-      expect(Object.keys(facets._activeSelections)).toHaveLength(0);
-      expect(Object.keys(facets._searchQueries)).toHaveLength(0);
+      expect(Object.keys(internals._activeSelections)).toHaveLength(0);
+      expect(Object.keys(internals._searchQueries)).toHaveLength(0);
     });
   });
 
@@ -1148,8 +1174,8 @@ describe('DsfrDataFacets', () => {
 
       (facets as any)._selectAllValues('type');
 
-      expect(facets._activeSelections['type']?.has('Commune')).toBe(true);
-      expect(facets._activeSelections['type']?.has('Prefecture')).toBe(true);
+      expect(internals._activeSelections['type']?.has('Commune')).toBe(true);
+      expect(internals._activeSelections['type']?.has('Prefecture')).toBe(true);
     });
 
     it('does nothing for unknown field', () => {
@@ -1160,7 +1186,7 @@ describe('DsfrDataFacets', () => {
       dispatchDataLoaded('test-source', SAMPLE_DATA);
 
       (facets as any)._selectAllValues('unknown');
-      expect(facets._activeSelections['unknown']).toBeUndefined();
+      expect(internals._activeSelections['unknown']).toBeUndefined();
     });
   });
 
@@ -1168,20 +1194,20 @@ describe('DsfrDataFacets', () => {
     it('sets selection from select element value', () => {
       const mockEvent = { target: { value: 'Commune' } } as unknown as Event;
       (facets as any)._handleSelectChange('type', mockEvent);
-      expect(facets._activeSelections['type']?.has('Commune')).toBe(true);
+      expect(internals._activeSelections['type']?.has('Commune')).toBe(true);
     });
 
     it('clears selection when value is empty', () => {
-      facets._activeSelections = { type: new Set(['Commune']) };
+      internals._activeSelections = { type: new Set(['Commune']) };
       const mockEvent = { target: { value: '' } } as unknown as Event;
       (facets as any)._handleSelectChange('type', mockEvent);
-      expect(facets._activeSelections['type']).toBeUndefined();
+      expect(internals._activeSelections['type']).toBeUndefined();
     });
   });
 
   describe('_syncUrl', () => {
     it('writes selections to URL', () => {
-      facets._activeSelections = { type: new Set(['Commune']), region: new Set(['PACA']) };
+      internals._activeSelections = { type: new Set(['Commune']), region: new Set(['PACA']) };
       (facets as any)._syncUrl();
 
       const params = new URLSearchParams(window.location.search);
@@ -1191,7 +1217,7 @@ describe('DsfrDataFacets', () => {
 
     it('uses url-param-map reverse mapping', () => {
       facets.urlParamMap = 'r:region | t:type';
-      facets._activeSelections = { region: new Set(['PACA']), type: new Set(['Commune']) };
+      internals._activeSelections = { region: new Set(['PACA']), type: new Set(['Commune']) };
       (facets as any)._syncUrl();
 
       const params = new URLSearchParams(window.location.search);
@@ -1202,7 +1228,7 @@ describe('DsfrDataFacets', () => {
     it('retire SES params sans selection — ceux des voisins survivent (#312)', () => {
       setUrlParams('type=Commune&q=velo');
       (facets as any)._facetGroups = [{ field: 'type', label: 'type', values: [] }];
-      facets._activeSelections = {};
+      internals._activeSelections = {};
       (facets as any)._syncUrl();
 
       const params = new URLSearchParams(window.location.search);
@@ -1212,7 +1238,7 @@ describe('DsfrDataFacets', () => {
     });
 
     it('joins multiple values with comma', () => {
-      facets._activeSelections = { region: new Set(['PACA', 'IDF']) };
+      internals._activeSelections = { region: new Set(['PACA', 'IDF']) };
       (facets as any)._syncUrl();
 
       const params = new URLSearchParams(window.location.search);
@@ -1224,13 +1250,13 @@ describe('DsfrDataFacets', () => {
   describe('_toggleMultiselectDropdown', () => {
     it('opens the dropdown', () => {
       (facets as any)._toggleMultiselectDropdown('region');
-      expect(facets._openMultiselectField).toBe('region');
+      expect(internals._openMultiselectField).toBe('region');
     });
 
     it('closes the dropdown when already open', () => {
       (facets as any)._openMultiselectField = 'region';
       (facets as any)._toggleMultiselectDropdown('region');
-      expect(facets._openMultiselectField).toBeNull();
+      expect(internals._openMultiselectField).toBeNull();
     });
   });
 
@@ -1241,7 +1267,7 @@ describe('DsfrDataFacets', () => {
         'region',
         new KeyboardEvent('keydown', { key: 'Escape' })
       );
-      expect(facets._openMultiselectField).toBeNull();
+      expect(internals._openMultiselectField).toBeNull();
     });
 
     it('does nothing on other keys', () => {
@@ -1250,7 +1276,7 @@ describe('DsfrDataFacets', () => {
         'region',
         new KeyboardEvent('keydown', { key: 'Enter' })
       );
-      expect(facets._openMultiselectField).toBe('region');
+      expect(internals._openMultiselectField).toBe('region');
     });
   });
 
@@ -1258,7 +1284,7 @@ describe('DsfrDataFacets', () => {
     it('does nothing when no dropdown is open', () => {
       (facets as any)._openMultiselectField = null;
       (facets as any)._onClickOutsideMultiselect(new MouseEvent('click'));
-      expect(facets._openMultiselectField).toBeNull();
+      expect(internals._openMultiselectField).toBeNull();
     });
   });
 
@@ -1301,7 +1327,7 @@ describe('DsfrDataFacets', () => {
       facets.connectedCallback();
       dispatchDataLoaded('test-source', SAMPLE_DATA);
 
-      facets._activeSelections = { type: new Set(['Commune']) };
+      internals._activeSelections = { type: new Set(['Commune']) };
       const result = facets.render();
       expect(result).not.toBe(nothing);
     });
@@ -1329,28 +1355,28 @@ describe('DsfrDataFacets', () => {
     });
 
     it('routes to checkbox by default', () => {
-      const group = facets._facetGroups[0];
+      const group = internals._facetGroups[0];
       const result = (facets as any)._renderFacetGroup(group);
       expect(result).toBeTruthy();
     });
 
     it('routes to select mode', () => {
       facets.display = 'type:select';
-      const group = facets._facetGroups[0];
+      const group = internals._facetGroups[0];
       const result = (facets as any)._renderFacetGroup(group);
       expect(result).toBeTruthy();
     });
 
     it('routes to multiselect mode', () => {
       facets.display = 'type:multiselect';
-      const group = facets._facetGroups[0];
+      const group = internals._facetGroups[0];
       const result = (facets as any)._renderFacetGroup(group);
       expect(result).toBeTruthy();
     });
 
     it('routes to radio mode', () => {
       facets.display = 'type:radio';
-      const group = facets._facetGroups[0];
+      const group = internals._facetGroups[0];
       const result = (facets as any)._renderFacetGroup(group);
       expect(result).toBeTruthy();
     });
@@ -1366,31 +1392,31 @@ describe('DsfrDataFacets', () => {
     });
 
     it('renders checkbox group template', () => {
-      const group = facets._facetGroups.find((g) => g.field === 'type')!;
+      const group = internals._facetGroups.find((g) => g.field === 'type')!;
       const result = (facets as any)._renderCheckboxGroup(group);
       expect(result).toBeTruthy();
     });
 
     it('renders with search bar when searchable', () => {
       facets.searchable = 'type';
-      const group = facets._facetGroups.find((g) => g.field === 'type')!;
+      const group = internals._facetGroups.find((g) => g.field === 'type')!;
       const result = (facets as any)._renderCheckboxGroup(group);
       expect(result).toBeTruthy();
     });
 
     it('filters values by search query', () => {
       facets.searchable = 'region';
-      facets._searchQueries = { region: 'PA' };
+      internals._searchQueries = { region: 'PA' };
       // Rebuild groups to reflect current state
       facets._buildFacetGroups();
-      const group = facets._facetGroups.find((g) => g.field === 'region')!;
+      const group = internals._facetGroups.find((g) => g.field === 'region')!;
       const result = (facets as any)._renderCheckboxGroup(group);
       expect(result).toBeTruthy();
     });
 
     it('shows "Voir plus" when values exceed maxValues', () => {
       facets.maxValues = 2;
-      const group = facets._facetGroups.find((g) => g.field === 'region')!;
+      const group = internals._facetGroups.find((g) => g.field === 'region')!;
       // region has 9 values, maxValues=2 -> should have "Voir plus"
       const result = (facets as any)._renderCheckboxGroup(group);
       expect(result).toBeTruthy();
@@ -1398,8 +1424,8 @@ describe('DsfrDataFacets', () => {
 
     it('shows all when expanded', () => {
       facets.maxValues = 2;
-      facets._expandedFacets = new Set(['region']);
-      const group = facets._facetGroups.find((g) => g.field === 'region')!;
+      internals._expandedFacets = new Set(['region']);
+      const group = internals._facetGroups.find((g) => g.field === 'region')!;
       const result = (facets as any)._renderCheckboxGroup(group);
       expect(result).toBeTruthy();
     });
@@ -1414,7 +1440,7 @@ describe('DsfrDataFacets', () => {
       facets.connectedCallback();
       dispatchDataLoaded('test-source', SAMPLE_DATA);
 
-      const group = facets._facetGroups.find((g) => g.field === 'type')!;
+      const group = internals._facetGroups.find((g) => g.field === 'type')!;
       const result = (facets as any)._renderSelectGroup(group);
       expect(result).toBeTruthy();
     });
@@ -1426,9 +1452,9 @@ describe('DsfrDataFacets', () => {
       facets.display = 'type:select';
       facets.connectedCallback();
       dispatchDataLoaded('test-source', SAMPLE_DATA);
-      facets._activeSelections = { type: new Set(['Commune']) };
+      internals._activeSelections = { type: new Set(['Commune']) };
 
-      const group = facets._facetGroups.find((g) => g.field === 'type')!;
+      const group = internals._facetGroups.find((g) => g.field === 'type')!;
       const result = (facets as any)._renderSelectGroup(group);
       expect(result).toBeTruthy();
     });
@@ -1443,7 +1469,7 @@ describe('DsfrDataFacets', () => {
       facets.connectedCallback();
       dispatchDataLoaded('test-source', SAMPLE_DATA);
 
-      const group = facets._facetGroups.find((g) => g.field === 'type')!;
+      const group = internals._facetGroups.find((g) => g.field === 'type')!;
       const result = (facets as any)._renderMultiselectGroup(group);
       expect(result).toBeTruthy();
     });
@@ -1457,7 +1483,7 @@ describe('DsfrDataFacets', () => {
       dispatchDataLoaded('test-source', SAMPLE_DATA);
       (facets as any)._openMultiselectField = 'type';
 
-      const group = facets._facetGroups.find((g) => g.field === 'type')!;
+      const group = internals._facetGroups.find((g) => g.field === 'type')!;
       const result = (facets as any)._renderMultiselectGroup(group);
       expect(result).toBeTruthy();
     });
@@ -1469,9 +1495,9 @@ describe('DsfrDataFacets', () => {
       facets.display = 'type:multiselect';
       facets.connectedCallback();
       dispatchDataLoaded('test-source', SAMPLE_DATA);
-      facets._activeSelections = { type: new Set(['Commune', 'Prefecture']) };
+      internals._activeSelections = { type: new Set(['Commune', 'Prefecture']) };
 
-      const group = facets._facetGroups.find((g) => g.field === 'type')!;
+      const group = internals._facetGroups.find((g) => g.field === 'type')!;
       const result = (facets as any)._renderMultiselectGroup(group);
       expect(result).toBeTruthy();
     });
@@ -1486,7 +1512,7 @@ describe('DsfrDataFacets', () => {
       facets.connectedCallback();
       dispatchDataLoaded('test-source', SAMPLE_DATA);
 
-      const group = facets._facetGroups.find((g) => g.field === 'type')!;
+      const group = internals._facetGroups.find((g) => g.field === 'type')!;
       const result = (facets as any)._renderRadioGroup(group);
       expect(result).toBeTruthy();
     });
@@ -1499,9 +1525,9 @@ describe('DsfrDataFacets', () => {
       facets.connectedCallback();
       dispatchDataLoaded('test-source', SAMPLE_DATA);
       (facets as any)._openMultiselectField = 'type';
-      facets._activeSelections = { type: new Set(['Commune']) };
+      internals._activeSelections = { type: new Set(['Commune']) };
 
-      const group = facets._facetGroups.find((g) => g.field === 'type')!;
+      const group = internals._facetGroups.find((g) => g.field === 'type')!;
       const result = (facets as any)._renderRadioGroup(group);
       expect(result).toBeTruthy();
     });
@@ -1515,7 +1541,7 @@ describe('DsfrDataFacets', () => {
       dispatchDataLoaded('test-source', SAMPLE_DATA);
       (facets as any)._openMultiselectField = 'type';
 
-      const group = facets._facetGroups.find((g) => g.field === 'type')!;
+      const group = internals._facetGroups.find((g) => g.field === 'type')!;
       const result = (facets as any)._renderRadioGroup(group);
       expect(result).toBeTruthy();
     });
@@ -1534,16 +1560,16 @@ describe('DsfrDataFacets', () => {
       facets.fields = 'type';
       facets.staticValues = JSON.stringify({ type: ['A', 'B'], region: ['X', 'Y'] });
       facets._buildStaticFacetGroups();
-      expect(facets._facetGroups).toHaveLength(1);
-      expect(facets._facetGroups[0].field).toBe('type');
+      expect(internals._facetGroups).toHaveLength(1);
+      expect(internals._facetGroups[0].field).toBe('type');
     });
 
     it('hides single-value groups when hide-empty', () => {
       facets.hideEmpty = true;
       facets.staticValues = JSON.stringify({ type: ['A'], region: ['X', 'Y'] });
       facets._buildStaticFacetGroups();
-      expect(facets._facetGroups).toHaveLength(1);
-      expect(facets._facetGroups[0].field).toBe('region');
+      expect(internals._facetGroups).toHaveLength(1);
+      expect(internals._facetGroups[0].field).toBe('region');
     });
   });
 
@@ -1558,7 +1584,7 @@ describe('DsfrDataFacets', () => {
       (facets as any)._fetchServerFacets = () => {};
       dispatchDataLoaded('test-source', SAMPLE_DATA);
 
-      facets._activeSelections = { type: new Set(['Commune']) };
+      internals._activeSelections = { type: new Set(['Commune']) };
       (facets as any)._afterSelectionChange();
       // Should not throw — dispatches command
     });
@@ -1571,7 +1597,7 @@ describe('DsfrDataFacets', () => {
       facets.connectedCallback();
       dispatchDataLoaded('test-source', SAMPLE_DATA);
 
-      facets._activeSelections = { type: new Set(['Commune']) };
+      internals._activeSelections = { type: new Set(['Commune']) };
       (facets as any)._afterSelectionChange();
 
       const params = new URLSearchParams(window.location.search);
@@ -1581,17 +1607,17 @@ describe('DsfrDataFacets', () => {
 
   describe('_hasActiveSelections', () => {
     it('returns false when no selections', () => {
-      facets._activeSelections = {};
+      internals._activeSelections = {};
       expect((facets as any)._hasActiveSelections()).toBe(false);
     });
 
     it('returns false when all sets are empty', () => {
-      facets._activeSelections = { type: new Set() };
+      internals._activeSelections = { type: new Set() };
       expect((facets as any)._hasActiveSelections()).toBe(false);
     });
 
     it('returns true when selections exist', () => {
-      facets._activeSelections = { type: new Set(['Commune']) };
+      internals._activeSelections = { type: new Set(['Commune']) };
       expect((facets as any)._hasActiveSelections()).toBe(true);
     });
   });
@@ -1659,7 +1685,7 @@ describe('DsfrDataFacets', () => {
       dispatchDataLoaded('test-source', SAMPLE_DATA);
       (facets as any)._openMultiselectField = 'type';
 
-      const group = facets._facetGroups.find((g) => g.field === 'type')!;
+      const group = internals._facetGroups.find((g) => g.field === 'type')!;
       const result = (facets as any)._renderMultiselectGroup(group);
       // Template should contain aria-modal="true" on the dialog
       const rendered = JSON.stringify(result);
@@ -1675,7 +1701,7 @@ describe('DsfrDataFacets', () => {
       dispatchDataLoaded('test-source', SAMPLE_DATA);
       (facets as any)._openMultiselectField = 'type';
 
-      const group = facets._facetGroups.find((g) => g.field === 'type')!;
+      const group = internals._facetGroups.find((g) => g.field === 'type')!;
       const result = (facets as any)._renderRadioGroup(group);
       const rendered = JSON.stringify(result);
       expect(rendered).toContain('aria-modal');
@@ -1739,7 +1765,7 @@ describe('DsfrDataFacets', () => {
         'type',
         new KeyboardEvent('keydown', { key: 'Escape' })
       );
-      expect(facets._openMultiselectField).toBeNull();
+      expect(internals._openMultiselectField).toBeNull();
       expect(sibling.hasAttribute('inert')).toBe(false);
 
       document.body.removeChild(sibling);
@@ -1777,8 +1803,8 @@ describe('DsfrDataFacets', () => {
       facets.source = 'mock-adapter-src';
       const adapter = facets.getAdapter();
       expect(adapter).not.toBeNull();
-      expect(adapter.type).toBe('opendatasoft');
-      expect(adapter.capabilities.serverFacets).toBe(true);
+      expect(adapter?.type).toBe('opendatasoft');
+      expect(adapter?.capabilities.serverFacets).toBe(true);
 
       mockSource.remove();
     });
@@ -1802,7 +1828,7 @@ describe('DsfrDataFacets', () => {
       facets.source = 'chain-norm';
       const adapter = facets.getAdapter();
       expect(adapter).not.toBeNull();
-      expect(adapter.type).toBe('opendatasoft');
+      expect(adapter?.type).toBe('opendatasoft');
 
       mockSource.remove();
       mockNormalize.remove();

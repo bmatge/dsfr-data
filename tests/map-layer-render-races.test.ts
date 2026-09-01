@@ -84,7 +84,6 @@ describe('#295 — AC : pas de doublons quand deux rendus se chevauchent', () =>
     const gate = new Promise<void>((r) => {
       release = r;
     });
-    layer.heat = true; // force le passage par _loadHeatLayer
     (layer as any)._heatLoaded = false;
     vi.spyOn(layer as any, '_loadHeatLayer').mockImplementation(async () => {
       (layer as any)._heatLoaded = true;
@@ -92,7 +91,6 @@ describe('#295 — AC : pas de doublons quand deux rendus se chevauchent', () =>
     });
     // Le chemin heatmap diverge ensuite : neutralise-le pour compter via
     // _layerGroup (les marqueurs passent par addLayer)
-    layer.heat = false;
     layer.type = 'heatmap';
     const p1 = (layer as any)._renderLayer();
     layer.type = 'marker';

@@ -18,11 +18,11 @@ describe('builder-ia state', () => {
       id: '1',
       name: 'Test Source',
       type: 'api',
-      url: 'https://example.com/api',
+      apiUrl: 'https://example.com/api',
       recordCount: 42,
     };
     expect(source.type).toBe('api');
-    expect(source.url).toBe('https://example.com/api');
+    expect(source.apiUrl).toBe('https://example.com/api');
   });
 
   it('should have correct Field type shape', () => {

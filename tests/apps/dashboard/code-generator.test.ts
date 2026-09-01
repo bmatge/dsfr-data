@@ -7,9 +7,12 @@ function makeWidget(overrides: Partial<Widget> & { type: Widget['type'] }): Widg
     id: 'w-test',
     title: 'Test Widget',
     position: { row: 0, col: 0 },
-    config: {},
+    config: { value: '', label: '', format: 'nombre', icon: '' },
     ...overrides,
-  };
+    // Le spread compose type et config independamment : TypeScript ne peut pas
+    // prouver la coherence de l'union. C'est voulu — ces tests eprouvent aussi
+    // des combinaisons que l'app ne produirait pas.
+  } as unknown as Widget;
 }
 
 describe('dashboard/code-generator', () => {
@@ -51,7 +54,7 @@ describe('dashboard/code-generator', () => {
           type: 'line',
           labelField: 'date',
           valueField: 'count',
-          palette: 'sequential',
+          palette: 'sequentialAscending',
         },
       });
       const html = generateWidgetHTML(widget);
@@ -59,14 +62,18 @@ describe('dashboard/code-generator', () => {
       expect(html).toContain('type="line"');
       expect(html).toContain('label-field="date"');
       expect(html).toContain('value-field="count"');
-      expect(html).toContain('selected-palette="sequential"');
+      expect(html).toContain('selected-palette="sequentialAscending"');
     });
 
     it('should generate chart HTML from favorite with code', () => {
       const widget = makeWidget({
         type: 'chart',
         title: 'Fav Chart',
-        config: { fromFavorite: true, code: '<dsfr-data-chart type="bar"></dsfr-data-chart>' },
+        config: {
+          fromFavorite: true,
+          favoriteId: 'fav',
+          code: '<dsfr-data-chart type="bar"></dsfr-data-chart>',
+        },
       });
       const html = generateWidgetHTML(widget);
       expect(html).toContain('<!-- Graphique: Fav Chart -->');

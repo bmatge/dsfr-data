@@ -22,8 +22,15 @@ const MULTI_DATA = [
   { nom: 'Echo', besoins: ['conseil'], region: 'Bretagne' },
 ];
 
+/** Vue interne : ces tests posent directement les selections actives. */
+interface FacetsInternals {
+  _activeSelections: Record<string, Set<string>>;
+}
+
 describe('#421 — facets multi-valeurs (ChoiceList Grist)', () => {
   let facets: DsfrDataFacets;
+  /** Meme instance que `facets`, vue par ses membres prives. */
+  let internals: FacetsInternals;
 
   beforeEach(() => {
     clearDataCache('mv-facets');
@@ -31,6 +38,7 @@ describe('#421 — facets multi-valeurs (ChoiceList Grist)', () => {
     clearDataMeta('mv-facets');
     clearDataMeta('mv-source');
     facets = new DsfrDataFacets();
+    internals = facets as unknown as FacetsInternals;
     facets.id = 'mv-facets';
     facets.source = 'mv-source';
     facets.fields = 'besoins,region';
@@ -58,7 +66,7 @@ describe('#421 — facets multi-valeurs (ChoiceList Grist)', () => {
       emitted = data;
     };
 
-    facets._activeSelections['besoins'] = new Set(['audit']);
+    internals._activeSelections['besoins'] = new Set(['audit']);
     facets._applyFilters();
     expect(emitted.map((r) => r.nom)).toEqual(['Alpha', 'Bravo']);
   });
@@ -69,7 +77,7 @@ describe('#421 — facets multi-valeurs (ChoiceList Grist)', () => {
       emitted = data;
     };
 
-    facets._activeSelections['besoins'] = new Set(['audit', 'conseil']);
+    internals._activeSelections['besoins'] = new Set(['audit', 'conseil']);
     facets._applyFilters();
     expect(emitted.map((r) => r.nom)).toEqual(['Alpha', 'Bravo', 'Charlie', 'Echo']);
   });
@@ -80,14 +88,14 @@ describe('#421 — facets multi-valeurs (ChoiceList Grist)', () => {
       emitted = data;
     };
 
-    facets._activeSelections['besoins'] = new Set(['formation']);
-    facets._activeSelections['region'] = new Set(['Bretagne']);
+    internals._activeSelections['besoins'] = new Set(['formation']);
+    internals._activeSelections['region'] = new Set(['Bretagne']);
     facets._applyFilters();
     expect(emitted.map((r) => r.nom)).toEqual(['Alpha', 'Charlie']);
   });
 
   it('les comptes croisés excluent la facette courante mais filtrent par les autres', () => {
-    facets._activeSelections['region'] = new Set(['Bretagne']);
+    internals._activeSelections['region'] = new Set(['Bretagne']);
     const values = facets._computeFacetValues('besoins');
     const byValue = Object.fromEntries(values.map((v) => [v.value, v.count]));
     // Alpha (audit, formation), Charlie (formation, conseil), Echo (conseil)
@@ -100,7 +108,7 @@ describe('#421 — facets multi-valeurs (ChoiceList Grist)', () => {
       emitted = data;
     };
 
-    facets._activeSelections['besoins'] = new Set(['audit', 'formation', 'conseil']);
+    internals._activeSelections['besoins'] = new Set(['audit', 'formation', 'conseil']);
     facets._applyFilters();
     expect(emitted.map((r) => r.nom)).not.toContain('Delta');
 
@@ -131,7 +139,7 @@ describe('#421 — facets multi-valeurs (ChoiceList Grist)', () => {
       emitted = data;
     };
 
-    facets._activeSelections['region'] = new Set(['PACA']);
+    internals._activeSelections['region'] = new Set(['PACA']);
     facets._applyFilters();
     expect(emitted.map((r) => r.nom)).toEqual(['Bravo', 'Delta']);
 

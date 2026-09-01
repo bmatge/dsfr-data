@@ -143,8 +143,8 @@ describe('builder-ia agent-loop', () => {
 
     const second = post.mock.calls[1][0] as { messages: { role: string; content: string }[] };
     const toolMsg = second.messages.find((m) => m.role === 'tool')?.content ?? '';
-    const first = skills[0] as { name: string };
-    const last = skills[skills.length - 1] as { name: string };
+    const first = skills[0] as unknown as { name: string };
+    const last = skills[skills.length - 1] as unknown as { name: string };
     // L'ordre inverse doit se lire dans le contexte remis au modele.
     expect(toolMsg.indexOf(last.name)).toBeLessThan(toolMsg.indexOf(first.name));
   });

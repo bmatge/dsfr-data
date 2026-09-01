@@ -81,7 +81,12 @@ describe('builder-ia skills', () => {
     });
 
     it('should auto-include odsql skills for API sources', () => {
-      const apiSource: Source = { id: '1', name: 'test', type: 'api', url: 'https://example.com' };
+      const apiSource: Source = {
+        id: '1',
+        name: 'test',
+        type: 'api',
+        apiUrl: 'https://example.com',
+      };
       const result = getRelevantSkills('bonjour', apiSource);
       const ids = result.map((s) => s.id);
       expect(ids).toContain('odsql');
@@ -89,7 +94,12 @@ describe('builder-ia skills', () => {
     });
 
     it('should not duplicate odsql for API source when already triggered', () => {
-      const apiSource: Source = { id: '1', name: 'test', type: 'api', url: 'https://example.com' };
+      const apiSource: Source = {
+        id: '1',
+        name: 'test',
+        type: 'api',
+        apiUrl: 'https://example.com',
+      };
       const result = getRelevantSkills('fais une requête api', apiSource);
       const odsqlCount = result.filter((s) => s.id === 'odsql').length;
       expect(odsqlCount).toBe(1);

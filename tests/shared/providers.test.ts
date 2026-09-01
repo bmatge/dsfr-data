@@ -766,11 +766,11 @@ describe('migrateSource', () => {
     expect(migrated.provider).toBe('opendatasoft');
     expect(migrated.data).toEqual([{ col1: 'a' }, { col1: 'b' }]);
     // Server-only fields should be cleaned up
-    expect((migrated as Record<string, unknown>).record_count).toBeUndefined();
-    expect((migrated as Record<string, unknown>).config_json).toBeUndefined();
-    expect((migrated as Record<string, unknown>).data_json).toBeUndefined();
-    expect((migrated as Record<string, unknown>).owner_id).toBeUndefined();
-    expect((migrated as Record<string, unknown>)._owned).toBeUndefined();
+    expect((migrated as unknown as Record<string, unknown>).record_count).toBeUndefined();
+    expect((migrated as unknown as Record<string, unknown>).config_json).toBeUndefined();
+    expect((migrated as unknown as Record<string, unknown>).data_json).toBeUndefined();
+    expect((migrated as unknown as Record<string, unknown>).owner_id).toBeUndefined();
+    expect((migrated as unknown as Record<string, unknown>)._owned).toBeUndefined();
   });
 });
 

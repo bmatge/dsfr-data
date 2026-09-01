@@ -65,10 +65,9 @@ describe('#426 — templates de dsfr-data-map-popup', () => {
   };
 
   const render = (popup: DsfrDataMapPopup, record: Record<string, unknown>): string =>
-    (popup as unknown as Record<string, CallableFunction>)._renderTemplate.call(
-      popup,
-      record
-    ) as string;
+    (
+      popup as unknown as Record<string, (this: unknown, ...a: unknown[]) => unknown>
+    )._renderTemplate.call(popup, record) as string;
 
   it('{{champ:number}} rend le nombre formate fr-FR', () => {
     const popup = makePopup('<p>{{population:number}} hab</p>');

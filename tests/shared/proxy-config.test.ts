@@ -40,7 +40,7 @@ function withLocation(overrides: Partial<Location>, fn: () => void) {
 
 /** Helper: set window.DSFR_DATA_PROXY for the duration of a callback */
 function withRuntimeProxy(value: unknown, fn: () => void) {
-  const w = window as Record<string, unknown>;
+  const w = window as unknown as Record<string, unknown>;
   w.DSFR_DATA_PROXY = value;
   try {
     fn();
