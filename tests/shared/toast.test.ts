@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { showToast, toastSuccess, toastError, toastWarning, toastInfo } from '../../packages/shared/src/ui/toast';
+import {
+  showToast,
+  toastSuccess,
+  toastError,
+  toastWarning,
+  toastInfo,
+} from '../../packages/shared/src/ui/toast';
 
 describe('toast', () => {
   beforeEach(() => {
@@ -86,6 +92,13 @@ describe('toast', () => {
     toastSuccess('Done!');
     const toast = document.querySelector('.fr-alert--success');
     expect(toast).not.toBeNull();
+  });
+
+  it('a un fond opaque et une ombre (les fr-alert DSFR sont transparentes, #toasts flottants)', () => {
+    showToast('Message', 'success');
+    const toast = document.querySelector('.fr-alert') as HTMLElement;
+    expect(toast.style.backgroundColor).toContain('var(--background-default-grey');
+    expect(toast.style.boxShadow).not.toBe('');
   });
 
   it('toastError should use error type', () => {
