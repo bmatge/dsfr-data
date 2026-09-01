@@ -130,8 +130,7 @@ export class AppHeader extends LitElement {
           // Wait for next render then open modal
           await this.updateComplete;
           const modal = this.querySelector('auth-modal') as
-            | (Element & { open?: (mode: string, token?: string) => void })
-            | null;
+            (Element & { open?: (mode: string, token?: string) => void }) | null;
           modal?.open?.('reset', resetToken);
         }
       }
@@ -142,16 +141,14 @@ export class AppHeader extends LitElement {
 
   private _openAuthModal(): void {
     const modal = this.querySelector('auth-modal') as
-      | (Element & { open?: (mode: string) => void })
-      | null;
+      (Element & { open?: (mode: string) => void }) | null;
     modal?.open?.('login');
   }
 
   private _openPasswordChangeModal(): void {
     this._userMenuOpen = false;
     const modal = this.querySelector('password-change-modal') as
-      | (Element & { open?: () => void })
-      | null;
+      (Element & { open?: () => void }) | null;
     modal?.open?.();
   }
 
@@ -179,6 +176,7 @@ export class AppHeader extends LitElement {
       { id: 'accueil', label: 'Accueil', href: 'index.html' },
       { id: 'sources', label: 'Sources', href: 'apps/sources/index.html' },
       { id: 'builder-ia', label: 'Assistant IA', href: 'apps/builder-ia/index.html' },
+      { id: 'studio', label: 'Studio IA', href: 'apps/studio/index.html' },
       { id: 'builder', label: 'Créer un graphique', href: 'apps/builder/index.html' },
       { id: 'builder-carto', label: 'Créer une carte', href: 'apps/builder-carto/index.html' },
       { id: 'dashboard', label: 'Créer un tableau', href: 'apps/dashboard/index.html' },
@@ -242,9 +240,11 @@ export class AppHeader extends LitElement {
           <div class="app-header-user-menu__dropdown" ?data-open=${this._userMenuOpen}>
             <div class="app-header-user-menu__info">
               <p class="app-header-user-menu__info-name">${displayLabel}</p>
-              ${this._user.displayName && this._user.email
-                ? html`<p class="app-header-user-menu__info-email">${this._user.email}</p>`
-                : nothing}
+              ${
+                this._user.displayName && this._user.email
+                  ? html`<p class="app-header-user-menu__info-email">${this._user.email}</p>`
+                  : nothing
+              }
             </div>
             <ul class="app-header-user-menu__list" role="menu">
               <li role="menuitem">
@@ -301,9 +301,11 @@ export class AppHeader extends LitElement {
             class="fr-btn fr-btn--tertiary-no-outline fr-icon-star-fill"
             href="${this._base}apps/favorites/index.html"
           >
-            Favoris${this._favCount > 0
-              ? html` <span class="fr-badge fr-badge--sm fr-badge--info">${this._favCount}</span>`
-              : nothing}
+            Favoris${
+              this._favCount > 0
+                ? html` <span class="fr-badge fr-badge--sm fr-badge--info">${this._favCount}</span>`
+                : nothing
+            }
           </a>
         </li>
         ${this._renderSyncStatus()} ${this._renderAuthButton()}
@@ -399,9 +401,11 @@ export class AppHeader extends LitElement {
           </div>
         </div>
       </header>
-      ${this._dbMode
-        ? html`<auth-modal></auth-modal><password-change-modal></password-change-modal>`
-        : nothing}
+      ${
+        this._dbMode
+          ? html`<auth-modal></auth-modal><password-change-modal></password-change-modal>`
+          : nothing
+      }
     `;
   }
 }

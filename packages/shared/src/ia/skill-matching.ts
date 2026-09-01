@@ -1,15 +1,3 @@
-/* eslint-disable */
-/**
- * FICHIER GENERE — NE PAS EDITER A LA MAIN.
- *
- * Copie conforme de packages/shared/src/ia/skill-matching.ts.
- * Regenerer : npm run build:skill-matching
- *
- * Le serveur MCP est hors workspace npm et publie separement : il ne peut pas
- * importer le module d'origine. Toute correction se fait dans la source, jamais
- * ici — tests/mcp/skill-matching.test.ts echoue si les deux divergent.
- */
-
 /**
  * Moteur de matching des skills — SOURCE UNIQUE partagee (#514).
  *

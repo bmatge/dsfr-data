@@ -100,6 +100,7 @@ const apps = [
   'playground',
   'sources',
   'builder-ia',
+  'studio',
   'builder',
   'builder-carto',
   'dashboard',

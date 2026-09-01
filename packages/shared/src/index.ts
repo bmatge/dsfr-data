@@ -259,3 +259,38 @@ export {
   generateWidgetHTML,
   generateSourceHTML,
 } from './dashboard/export-html.js';
+
+// --- Outils d'introspection de donnees IA (promus du builder-IA, #515) ---
+// App-side uniquement (frontiere lib/app #319).
+export type { Row, Aggregation, Field, Diagnosis } from './ia/data-tools.js';
+export {
+  analyzeDataFields,
+  aggregateBy,
+  buildMultiSeries,
+  applyWhereFilter,
+  inspectData,
+  distinctValues,
+  countWhere,
+  diagnoseConfig,
+} from './ia/data-tools.js';
+
+// --- Vocabulaire et schema JSON de la ChartConfig (promus du builder-IA, #515) ---
+export {
+  CHART_CONFIG_TYPES,
+  AGGREGATIONS,
+  SORT_ORDERS,
+  VARIANTS,
+  CHART_CONFIG_SCHEMA,
+} from './ia/chart-schema.js';
+
+// --- Moteur de matching des skills (#514, promu du builder-IA en #515) ---
+// Source unique : ZERO import dans skill-matching.ts (copie verbatim vers le MCP).
+export type { MatchableSkill, SkillMatch, SearchOptions } from './ia/skill-matching.js';
+export {
+  normalize,
+  tokenize,
+  headingsOf,
+  scoreSkill,
+  searchSkills,
+  matchSkills,
+} from './ia/skill-matching.js';

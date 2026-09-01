@@ -14,7 +14,7 @@ export const GENERATED_HEADER = `/* eslint-disable */
 /**
  * FICHIER GENERE — NE PAS EDITER A LA MAIN.
  *
- * Copie conforme de apps/builder-ia/src/skill-matching.ts.
+ * Copie conforme de packages/shared/src/ia/skill-matching.ts.
  * Regenerer : npm run build:skill-matching
  *
  * Le serveur MCP est hors workspace npm et publie separement : il ne peut pas
