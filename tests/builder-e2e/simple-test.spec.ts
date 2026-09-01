@@ -7,7 +7,7 @@
  * npm run dev
  */
 
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 
 test.describe('Builder - Tests simples', () => {
   test.beforeEach(async ({ page }) => {
@@ -35,7 +35,7 @@ test.describe('Builder - Tests simples', () => {
     await expect(valueField).toBeEnabled();
   });
 
-  test('3. Fonctions d\'agrégation disponibles', async ({ page }) => {
+  test("3. Fonctions d'agrégation disponibles", async ({ page }) => {
     const aggSelect = page.locator('#aggregation');
 
     // Vérifier que toutes les agrégations sont présentes
@@ -51,8 +51,17 @@ test.describe('Builder - Tests simples', () => {
   test('4. Types de graphiques disponibles', async ({ page }) => {
     // Vérifier que tous les boutons de type sont présents
     const chartTypes = [
-      'bar', 'horizontalBar', 'line', 'pie', 'doughnut',
-      'radar', 'scatter', 'gauge', 'kpi', 'map', 'datalist'
+      'bar',
+      'horizontalBar',
+      'line',
+      'pie',
+      'doughnut',
+      'radar',
+      'scatter',
+      'gauge',
+      'kpi',
+      'map',
+      'datalist',
     ];
 
     for (const type of chartTypes) {
@@ -66,7 +75,7 @@ test.describe('Builder - Tests simples', () => {
     const options = await paletteSelect.locator('option').allTextContents();
 
     expect(options.length).toBeGreaterThan(0);
-    expect(options.some(opt => opt.includes('Bleu'))).toBeTruthy();
+    expect(options.some((opt) => opt.includes('Bleu'))).toBeTruthy();
   });
 
   test('6. Bouton générer est cliquable', async ({ page }) => {

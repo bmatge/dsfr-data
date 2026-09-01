@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { getAdapter } from '@/adapters/api-adapter.js';
+import { requireAdapter } from '../helpers/adapters.js';
 
 describe('buildFacetWhere — ODS (ODSQL syntax)', () => {
-  const adapter = getAdapter('opendatasoft');
+  const adapter = requireAdapter('opendatasoft');
 
   it('single field, single value', () => {
     const selections = { region: new Set(['IDF']) };
@@ -49,7 +49,7 @@ describe('buildFacetWhere — ODS (ODSQL syntax)', () => {
 });
 
 describe('buildFacetWhere — Tabular (colon syntax)', () => {
-  const adapter = getAdapter('tabular');
+  const adapter = requireAdapter('tabular');
 
   it('single field, single value', () => {
     const selections = { region: new Set(['IDF']) };
@@ -83,7 +83,7 @@ describe('buildFacetWhere — Tabular (colon syntax)', () => {
 });
 
 describe('buildFacetWhere — Grist (colon syntax)', () => {
-  const adapter = getAdapter('grist');
+  const adapter = requireAdapter('grist');
 
   it('single field, single value', () => {
     const selections = { pays: new Set(['France']) };
@@ -97,7 +97,7 @@ describe('buildFacetWhere — Grist (colon syntax)', () => {
 });
 
 describe('buildFacetWhere — Generic (colon syntax fallback)', () => {
-  const adapter = getAdapter('generic');
+  const adapter = requireAdapter('generic');
 
   it('uses colon syntax', () => {
     const selections = { field: new Set(['value']) };

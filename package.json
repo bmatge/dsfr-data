@@ -46,7 +46,8 @@
     "build:cem": "cem analyze",
     "build:skills-ref": "vite-node scripts/build-skills-reference.ts",
     "build:skills": "npm run build:cem && npm run build:skills-ref && npm run build:skill-matching && vite-node scripts/build-skills-json.ts",
-    "build:skill-matching": "vite-node scripts/build-skill-matching.ts"
+    "build:skill-matching": "vite-node scripts/build-skill-matching.ts",
+    "typecheck:tests": "tsc -p tsconfig.tests.json"
   },
   "keywords": [
     "web-components",

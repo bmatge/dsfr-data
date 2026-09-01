@@ -43,6 +43,7 @@ npm run test          # Vitest watch
 npm run test:run      # Vitest une fois
 npm run test:coverage # Couverture
 npm run test:e2e      # Playwright E2E
+npm run typecheck:tests  # Typage de la suite de tests (tsconfig.tests.json)
 npx playwright test --config tests/builder-e2e/playwright.config.ts  # Tests exhaustifs Builder
                       #   (requiert `npm run dev` actif en parallele — voir ARCHITECTURE.md §Tests)
 
@@ -68,7 +69,11 @@ ssh vps "spawn up chartsbuilder git@github.com:bmatge/dsfr-data.git --dns api --
 - TypeScript strict mode, type hints systematiques.
 - Composants Lit dans `packages/core/src/`.
 - Nommage : `dsfr-data-*` pour les composants publics, `app-*` pour le chrome applicatif (`packages/app-ui/`).
-- Tests : fichiers `*.test.ts` dans `/tests/`.
+- Tests : fichiers `*.test.ts` dans `/tests/`. **`tests/` est typecheck** via
+  `tsconfig.tests.json` (`npm run typecheck:tests`, etape CI) : vitest ne typecheck pas,
+  donc sans ce garde-fou un test peut passer au vert sur du code qui ne compile pas.
+  Pour inspecter un membre prive d'un composant, declarer une interface « vue interne »
+  et un alias sur l'instance — pas de `as any` disperse.
 - Pas d'emoji dans le code sauf demande explicite.
 - Imports partages via `@dsfr-data/shared` — **frontiere lib/app (#319)** : `packages/core/src` ne doit importer
   que l'entree lib-safe `@dsfr-data/shared/lib` (ESLint `no-restricted-imports`). Tout nouvel export lib-safe

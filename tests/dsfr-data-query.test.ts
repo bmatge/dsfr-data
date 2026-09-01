@@ -26,6 +26,16 @@ import {
   subscribeToSourceCommands,
 } from '@/utils/data-bridge.js';
 
+/**
+ * Vue interne : `createRenderRoot` et `willUpdate` sont proteges (cycle de vie
+ * Lit). Ces tests les appellent pour piloter le cycle a la main.
+ */
+interface QueryLifecycle {
+  createRenderRoot(): unknown;
+  willUpdate(changed: Map<string, unknown>): void;
+}
+const lifecycle = (el: object) => el as unknown as QueryLifecycle;
+
 describe('DsfrDataQuery', () => {
   let query: DsfrDataQuery;
 
@@ -488,8 +498,8 @@ describe('DsfrDataQuery', () => {
       query.source = 'mock-source';
 
       const adapter = query.getAdapter();
-      expect(adapter.type).toBe('opendatasoft');
-      expect(adapter.capabilities.serverGroupBy).toBe(true);
+      expect(adapter?.type).toBe('opendatasoft');
+      expect(adapter?.capabilities.serverGroupBy).toBe(true);
 
       mockSource.remove();
     });
@@ -591,7 +601,7 @@ describe('DsfrDataQuery', () => {
 
   describe('createRenderRoot and render', () => {
     it('createRenderRoot returns this (no shadow DOM)', () => {
-      expect(query.createRenderRoot()).toBe(query);
+      expect(lifecycle(query).createRenderRoot()).toBe(query);
     });
 
     it('render returns empty template', () => {
@@ -638,7 +648,7 @@ describe('DsfrDataQuery', () => {
 
       const initSpy = vi.spyOn(query as any, 'reinitTransformer');
       (query as any)._transformerMountCycleDone = true; // cycle de montage consomme
-      query.willUpdate(new Map([['source', 'old-source']]));
+      lifecycle(query).willUpdate(new Map([['source', 'old-source']]));
       expect(initSpy).toHaveBeenCalled();
       initSpy.mockRestore();
     });
@@ -650,7 +660,7 @@ describe('DsfrDataQuery', () => {
 
       const initSpy = vi.spyOn(query as any, 'reinitTransformer');
       (query as any)._transformerMountCycleDone = true;
-      query.willUpdate(new Map([['groupBy', '']]));
+      lifecycle(query).willUpdate(new Map([['groupBy', '']]));
       expect(initSpy).toHaveBeenCalled();
       initSpy.mockRestore();
     });

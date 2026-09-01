@@ -22,13 +22,13 @@ describe('SourceElement.getAdapterParams (#274)', () => {
   }
 
   beforeEach(() => {
-    (window as Record<string, unknown>).DSFR_DATA_KEYS = {
+    (window as unknown as Record<string, unknown>).DSFR_DATA_KEYS = {
       'ma-cle': 'Bearer SECRET-TOKEN',
     };
   });
 
   afterEach(() => {
-    delete (window as Record<string, unknown>).DSFR_DATA_KEYS;
+    delete (window as unknown as Record<string, unknown>).DSFR_DATA_KEYS;
     elements.splice(0).forEach((el) => el.remove());
   });
 

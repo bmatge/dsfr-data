@@ -68,20 +68,18 @@ describe('#426 — _extractCoords accepte un Point GeoJSON en chaine', () => {
   it('resout lat/lon depuis une colonne Text Grist', () => {
     const layer = new DsfrDataMapLayer();
     layer.geoField = 'geojson';
-    const coords = (layer as unknown as Record<string, CallableFunction>)._extractCoords.call(
-      layer,
-      { geojson: '{"type":"Point","coordinates":[2.6,46.5]}' }
-    );
+    const coords = (
+      layer as unknown as Record<string, (this: unknown, ...a: unknown[]) => unknown>
+    )._extractCoords.call(layer, { geojson: '{"type":"Point","coordinates":[2.6,46.5]}' });
     expect(coords).toEqual({ lat: 46.5, lon: 2.6 });
   });
 
   it('retourne null si la chaine est invalide', () => {
     const layer = new DsfrDataMapLayer();
     layer.geoField = 'geojson';
-    const coords = (layer as unknown as Record<string, CallableFunction>)._extractCoords.call(
-      layer,
-      { geojson: '{"type":"Point"' }
-    );
+    const coords = (
+      layer as unknown as Record<string, (this: unknown, ...a: unknown[]) => unknown>
+    )._extractCoords.call(layer, { geojson: '{"type":"Point"' });
     expect(coords).toBe(null);
   });
 });
@@ -95,11 +93,9 @@ describe('#426 — _recordIntersectsBounds accepte un Polygon en chaine', () => 
     }) as unknown;
 
   const callIntersects = (layer: DsfrDataMapLayer, record: unknown, bounds: unknown): boolean =>
-    (layer as unknown as Record<string, CallableFunction>)._recordIntersectsBounds.call(
-      layer,
-      record,
-      bounds
-    ) as boolean;
+    (
+      layer as unknown as Record<string, (this: unknown, ...a: unknown[]) => unknown>
+    )._recordIntersectsBounds.call(layer, record, bounds) as boolean;
 
   it('filtre par bbox un contour serialise (geo-field explicite)', () => {
     const layer = new DsfrDataMapLayer();

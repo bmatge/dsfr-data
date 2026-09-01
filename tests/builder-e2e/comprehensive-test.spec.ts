@@ -17,15 +17,6 @@ const TEST_DATA = [
   { region: 'Normandie', population: 3300, budget: 180, code: '14' },
 ];
 
-// Valeurs attendues pour chaque fonction d'agrégation
-const EXPECTED_VALUES = {
-  sum: { population: 23300, budget: 1030 },
-  avg: { population: 5825, budget: 257.5 },
-  count: 4,
-  min: { population: 3000, budget: 150 },
-  max: { population: 12000, budget: 500 },
-};
-
 /**
  * Charge des données locales dans le builder
  */
@@ -68,7 +59,7 @@ async function checkGeneratedCode(page: Page, expectedPattern: string | RegExp):
   return expectedPattern.test(code);
 }
 
-test.describe('Builder - Tests exhaustifs des fonctions d\'agrégation', () => {
+test.describe("Builder - Tests exhaustifs des fonctions d'agrégation", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('http://localhost:5173/apps/builder/');
     await page.waitForSelector('#generate-btn');
@@ -87,7 +78,6 @@ test.describe('Builder - Tests exhaustifs des fonctions d\'agrégation', () => {
 
     // Vérifier les valeurs dans le preview
     const values = await extractChartValues(page);
-    const totalSum = values.reduce((a, b) => a + b, 0);
 
     // Pour un group-by region, on attend 4 valeurs (une par région)
     expect(values.length).toBe(4);
@@ -109,7 +99,7 @@ test.describe('Builder - Tests exhaustifs des fonctions d\'agrégation', () => {
 
     // Chaque région a une seule entrée, donc avg = value
     // Pour Ile-de-France: avg(12000) = 12000
-    const ileValue = values.find(v => v === 12000);
+    const ileValue = values.find((v) => v === 12000);
     expect(ileValue).toBeDefined();
 
     const hasAvg = await checkGeneratedCode(page, /avg\(population\)/i);
@@ -164,7 +154,7 @@ test.describe('Builder - Tests exhaustifs des fonctions d\'agrégation', () => {
 
     // Pour COUNT, chaque région devrait avoir count=1 (une entrée par région)
     expect(values.length).toBe(4);
-    values.forEach(v => {
+    values.forEach((v) => {
       expect(v).toBe(1);
     });
 
@@ -277,7 +267,7 @@ test.describe('Builder - Tests du tri', () => {
     await page.selectOption('#aggregation', 'sum');
   });
 
-  test('Tri décroissant - valeurs dans l\'ordre', async ({ page }) => {
+  test("Tri décroissant - valeurs dans l'ordre", async ({ page }) => {
     await page.selectOption('#sort-order', 'desc');
     await page.click('#generate-btn');
     await page.waitForTimeout(500);
@@ -290,7 +280,7 @@ test.describe('Builder - Tests du tri', () => {
     }
   });
 
-  test('Tri croissant - valeurs dans l\'ordre', async ({ page }) => {
+  test("Tri croissant - valeurs dans l'ordre", async ({ page }) => {
     await page.selectOption('#sort-order', 'asc');
     await page.click('#generate-btn');
     await page.waitForTimeout(500);

@@ -38,7 +38,7 @@ function makeParams(where: string): AdapterParams {
     pageSize: 20,
     limit: 0,
     headers: {},
-  } as AdapterParams;
+  } as unknown as AdapterParams;
 }
 
 describe('échappement colon des valeurs WHERE (#271)', () => {

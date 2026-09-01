@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { state, createEmptyDashboard } from '../../../apps/dashboard/src/state';
+import type { DashboardData } from '../../../apps/dashboard/src/state';
 
 // Mock @dsfr-data/shared
 vi.mock('@dsfr-data/shared', () => ({
@@ -186,11 +187,11 @@ describe('dashboard/dashboards', () => {
             type: 'kpi' as const,
             title: 'KPI',
             position: { row: 0, col: 0 },
-            config: {},
+            config: { value: '', label: '', format: 'nombre', icon: '' },
           },
         ],
       };
-      state.savedDashboards = [saved];
+      state.savedDashboards = [saved as unknown as DashboardData];
 
       document.body.innerHTML += '<div id="dashboards-modal" class="active"></div>';
 

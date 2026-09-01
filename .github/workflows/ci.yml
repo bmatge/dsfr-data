@@ -71,6 +71,13 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      # `npm run typecheck` ne couvre que packages/core, et chaque app ne
+      # couvre que son propre src : la suite de tests n'etait verifiee par
+      # aucun tsconfig, et vitest ne typecheck pas. Un test pouvait donc
+      # passer au vert sur du code qui ne compilait pas.
+      - name: Typecheck tests
+        run: npm run typecheck:tests
+
       - name: Lint
         run: npm run lint
 

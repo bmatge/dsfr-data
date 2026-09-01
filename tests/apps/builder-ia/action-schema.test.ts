@@ -111,7 +111,7 @@ describe('builder-ia action-schema', () => {
       // (le modele choisit de facon fiable dans une petite liste) et `tout` en
       // valeur retrocompatible.
       const getSkill = SKILL_LOOKUP_TOOLS.find((t) => t.function.name === 'get_skill');
-      const params = getSkill?.function.parameters as {
+      const params = getSkill?.function.parameters as unknown as {
         properties: { section?: { enum?: string[] } };
         required: string[];
       };

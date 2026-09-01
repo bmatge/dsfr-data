@@ -439,7 +439,7 @@ router.get('/audit', async (req, res) => {
  * GET /api/admin/stats
  * Global statistics.
  */
-router.get('/stats', async (req, res) => {
+router.get('/stats', async (_req, res) => {
   try {
     const [byRole, byProvider, total, active] = await Promise.all([
       query<{ role: string; count: number }>(

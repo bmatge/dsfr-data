@@ -32,8 +32,24 @@ const RIGHT_DATA = [
   { code: '35', budget: 150, status: 'A' },
 ];
 
+/**
+ * Vue interne du composant : `willUpdate` est protege (cycle de vie Lit) et le
+ * mixin transformateur garde son etat en prive. Ces tests pilotent le cycle a
+ * la main pour verifier la re-initialisation — ils declarent donc ce qu'ils
+ * touchent, plutot que de semer des `as any`.
+ */
+interface JoinInternals {
+  willUpdate(changed: Map<string, unknown>): void;
+  reinitTransformer(): void;
+  _transformerMountCycleDone: boolean;
+  _transformerUnsubs: Array<() => void>;
+  _cleanup(): void;
+}
+
 describe('DsfrDataJoin', () => {
   let join: DsfrDataJoin;
+  /** Meme instance que `join`, vue par ses membres proteges et prives. */
+  let internals: JoinInternals;
 
   beforeEach(() => {
     clearDataCache('test-join');
@@ -45,11 +61,12 @@ describe('DsfrDataJoin', () => {
     clearDataCache('cached-right');
     mockFetch.mockReset();
     join = new DsfrDataJoin();
+    internals = join as unknown as JoinInternals;
     join.id = 'test-join';
   });
 
   afterEach(() => {
-    (join as any)._cleanup?.();
+    internals._cleanup?.();
     if (join.isConnected) {
       join.disconnectedCallback();
     }
@@ -461,23 +478,23 @@ describe('DsfrDataJoin', () => {
       join.reinitTransformer();
 
       // Vérifier que les unsubscribe existent
-      expect((join as any)._transformerUnsubs.length).toBe(2);
+      expect(internals._transformerUnsubs.length).toBe(2);
 
-      (join as any)._cleanup();
-      expect((join as any)._transformerUnsubs.length).toBe(0);
+      internals._cleanup();
+      expect(internals._transformerUnsubs.length).toBe(0);
     });
 
     it('re-initializes when source properties change', () => {
-      const initSpy = vi.spyOn(join as any, 'reinitTransformer');
-      (join as any)._transformerMountCycleDone = true; // cycle de montage consomme
-      join.willUpdate(new Map([['left', '']]));
+      const initSpy = vi.spyOn(internals, 'reinitTransformer');
+      internals._transformerMountCycleDone = true; // cycle de montage consomme
+      internals.willUpdate(new Map([['left', '']]));
       expect(initSpy).toHaveBeenCalled();
     });
 
     it('re-initializes when on property changes', () => {
-      const initSpy = vi.spyOn(join as any, 'reinitTransformer');
-      (join as any)._transformerMountCycleDone = true;
-      join.willUpdate(new Map([['on', '']]));
+      const initSpy = vi.spyOn(internals, 'reinitTransformer');
+      internals._transformerMountCycleDone = true;
+      internals.willUpdate(new Map([['on', '']]));
       expect(initSpy).toHaveBeenCalled();
     });
 
@@ -495,28 +512,28 @@ describe('DsfrDataJoin', () => {
       expect(join.getData()).toHaveLength(3); // inner: 3 matches
 
       // Change type to left → should re-compute without full re-init
-      const initSpy = vi.spyOn(join as any, 'reinitTransformer');
+      const initSpy = vi.spyOn(internals, 'reinitTransformer');
       join.type = 'left';
-      (join as any)._transformerMountCycleDone = true;
-      join.willUpdate(new Map([['type', 'inner']]));
+      internals._transformerMountCycleDone = true;
+      internals.willUpdate(new Map([['type', 'inner']]));
       expect(initSpy).not.toHaveBeenCalled(); // NOT re-initialized
       expect(join.getData()).toHaveLength(4); // left: all 4 rows
     });
 
     it('does not re-init when only non-join properties change', () => {
-      const initSpy = vi.spyOn(join as any, 'reinitTransformer');
-      (join as any)._transformerMountCycleDone = true;
-      join.willUpdate(new Map([['_loading', true]]));
+      const initSpy = vi.spyOn(internals, 'reinitTransformer');
+      internals._transformerMountCycleDone = true;
+      internals.willUpdate(new Map([['_loading', true]]));
       expect(initSpy).not.toHaveBeenCalled();
     });
 
     it('connectedCallback initialise UNE fois, le premier willUpdate ne re-init pas (#281)', () => {
-      const initSpy = vi.spyOn(join as any, 'reinitTransformer');
+      const initSpy = vi.spyOn(internals, 'reinitTransformer');
       join.connectedCallback();
       expect(initSpy).toHaveBeenCalledTimes(1);
       // Cycle de montage Lit : toutes les props posees figurent dans
       // changedProperties — sans le flag, double init
-      join.willUpdate(new Map([['left', undefined]]));
+      internals.willUpdate(new Map([['left', undefined]]));
       expect(initSpy).toHaveBeenCalledTimes(1);
     });
 
@@ -535,7 +552,7 @@ describe('DsfrDataJoin', () => {
       expect(join.getData()).toHaveLength(0);
 
       // Step 2: first updated() — properties changed from defaults
-      join.willUpdate(
+      internals.willUpdate(
         new Map([
           ['left', ''],
           ['right', ''],
@@ -563,7 +580,7 @@ describe('DsfrDataJoin', () => {
 
       // Simulate Lit lifecycle
       join.connectedCallback();
-      join.willUpdate(
+      internals.willUpdate(
         new Map([
           ['left', ''],
           ['right', ''],

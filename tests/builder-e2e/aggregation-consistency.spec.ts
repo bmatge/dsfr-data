@@ -7,12 +7,10 @@
 
 import { test, expect } from '@playwright/test';
 import {
-  calculateExpectedValues,
   verifyConsistency,
   formatConsistencyReport,
   loadDatasetIntoBuilder,
   PRESET_DATASETS,
-  EXPECTED_RESULTS,
   type TestDataset,
 } from './data-consistency-checker';
 
@@ -346,11 +344,11 @@ test.describe('Builder - Rapport de cohérence', () => {
       const status = item.passed ? '✅' : '❌';
       console.log(`${status} ${item.aggregation.toUpperCase()}`);
       if (!item.passed) {
-        item.errors.forEach(err => console.log(`   - ${err}`));
+        item.errors.forEach((err) => console.log(`   - ${err}`));
       }
     }
 
-    const allPassed = report.every(item => item.passed);
+    const allPassed = report.every((item) => item.passed);
     expect(allPassed).toBeTruthy();
   });
 });

@@ -1,25 +1,26 @@
 import { describe, it, expect } from 'vitest';
 import { getAdapter, registerAdapter } from '@/adapters/api-adapter.js';
 import type { ApiAdapter, AdapterParams, ServerSideOverlay } from '@/adapters/api-adapter.js';
+import { requireAdapter } from '../helpers/adapters.js';
 
 describe('API Adapter Factory', () => {
   it('returns opendatasoft adapter', () => {
-    const adapter = getAdapter('opendatasoft');
+    const adapter = requireAdapter('opendatasoft');
     expect(adapter.type).toBe('opendatasoft');
   });
 
   it('returns tabular adapter', () => {
-    const adapter = getAdapter('tabular');
+    const adapter = requireAdapter('tabular');
     expect(adapter.type).toBe('tabular');
   });
 
   it('returns grist adapter', () => {
-    const adapter = getAdapter('grist');
+    const adapter = requireAdapter('grist');
     expect(adapter.type).toBe('grist');
   });
 
   it('returns generic adapter', () => {
-    const adapter = getAdapter('generic');
+    const adapter = requireAdapter('generic');
     expect(adapter.type).toBe('generic');
   });
 
@@ -36,6 +37,7 @@ describe('API Adapter Factory', () => {
         serverSearch: false,
         serverGroupBy: false,
         serverOrderBy: false,
+        serverGeo: false,
         whereFormat: 'colon',
       },
       validate: () => null,
@@ -46,13 +48,13 @@ describe('API Adapter Factory', () => {
     };
 
     registerAdapter(customAdapter);
-    expect(getAdapter('custom').type).toBe('custom');
+    expect(requireAdapter('custom').type).toBe('custom');
   });
 });
 
 describe('Adapter Capabilities', () => {
   it('opendatasoft has full server capabilities', () => {
-    const caps = getAdapter('opendatasoft').capabilities;
+    const caps = requireAdapter('opendatasoft').capabilities;
     expect(caps.serverFetch).toBe(true);
     expect(caps.serverFacets).toBe(true);
     expect(caps.serverSearch).toBe(true);
@@ -62,7 +64,7 @@ describe('Adapter Capabilities', () => {
   });
 
   it('tabular has server groupBy/aggregation and ordering', () => {
-    const caps = getAdapter('tabular').capabilities;
+    const caps = requireAdapter('tabular').capabilities;
     expect(caps.serverFetch).toBe(true);
     expect(caps.serverFacets).toBe(false);
     expect(caps.serverSearch).toBe(false);
@@ -72,7 +74,7 @@ describe('Adapter Capabilities', () => {
   });
 
   it('grist has server capabilities (Records + SQL)', () => {
-    const caps = getAdapter('grist').capabilities;
+    const caps = requireAdapter('grist').capabilities;
     expect(caps.serverFetch).toBe(true);
     expect(caps.serverFacets).toBe(true);
     expect(caps.serverSearch).toBe(false);
@@ -82,7 +84,7 @@ describe('Adapter Capabilities', () => {
   });
 
   it('generic has no server capabilities', () => {
-    const caps = getAdapter('generic').capabilities;
+    const caps = requireAdapter('generic').capabilities;
     expect(caps.serverFetch).toBe(false);
     expect(caps.serverFacets).toBe(false);
     expect(caps.serverSearch).toBe(false);
@@ -94,7 +96,7 @@ describe('Adapter Capabilities', () => {
 });
 
 describe('GenericAdapter', () => {
-  const adapter = getAdapter('generic');
+  const adapter = requireAdapter('generic');
 
   it('validate signale le piege generic + base-url (#288)', () => {
     expect(adapter.validate({} as AdapterParams)).toMatch(/api-type|url/);
@@ -122,7 +124,7 @@ describe('GenericAdapter', () => {
 });
 
 describe('GristAdapter', () => {
-  const adapter = getAdapter('grist');
+  const adapter = requireAdapter('grist');
 
   it('validate requires base-url', () => {
     expect(adapter.validate({ baseUrl: '' } as AdapterParams)).toBe(
@@ -195,35 +197,35 @@ describe('GristAdapter', () => {
 
 describe('getDefaultSearchTemplate', () => {
   it('ODS returns search template', () => {
-    expect(getAdapter('opendatasoft').getDefaultSearchTemplate!()).toBe('search("{q}")');
+    expect(requireAdapter('opendatasoft').getDefaultSearchTemplate!()).toBe('search("{q}")');
   });
 
   it('Tabular returns null', () => {
-    expect(getAdapter('tabular').getDefaultSearchTemplate!()).toBeNull();
+    expect(requireAdapter('tabular').getDefaultSearchTemplate!()).toBeNull();
   });
 
   it('Grist returns null', () => {
-    expect(getAdapter('grist').getDefaultSearchTemplate!()).toBeNull();
+    expect(requireAdapter('grist').getDefaultSearchTemplate!()).toBeNull();
   });
 
   it('Generic returns null', () => {
-    expect(getAdapter('generic').getDefaultSearchTemplate!()).toBeNull();
+    expect(requireAdapter('generic').getDefaultSearchTemplate!()).toBeNull();
   });
 });
 
 describe('getProviderConfig', () => {
   it('each adapter returns its ProviderConfig', () => {
-    expect(getAdapter('opendatasoft').getProviderConfig!().id).toBe('opendatasoft');
-    expect(getAdapter('tabular').getProviderConfig!().id).toBe('tabular');
-    expect(getAdapter('grist').getProviderConfig!().id).toBe('grist');
-    expect(getAdapter('generic').getProviderConfig!().id).toBe('generic');
+    expect(requireAdapter('opendatasoft').getProviderConfig!().id).toBe('opendatasoft');
+    expect(requireAdapter('tabular').getProviderConfig!().id).toBe('tabular');
+    expect(requireAdapter('grist').getProviderConfig!().id).toBe('grist');
+    expect(requireAdapter('generic').getProviderConfig!().id).toBe('generic');
   });
 });
 
 describe('buildFacetWhere is implemented on all adapters', () => {
   for (const type of ['opendatasoft', 'tabular', 'grist', 'generic']) {
     it(`${type} adapter has buildFacetWhere`, () => {
-      const adapter = getAdapter(type);
+      const adapter = requireAdapter(type);
       expect(typeof adapter.buildFacetWhere).toBe('function');
     });
   }
@@ -232,14 +234,14 @@ describe('buildFacetWhere is implemented on all adapters', () => {
 describe('ProviderConfig.id', () => {
   for (const type of ['opendatasoft', 'tabular', 'grist', 'generic'] as const) {
     it(`${type} config id matches provider (codeGen supprime, #285)`, () => {
-      const config = getAdapter(type)!.getProviderConfig!();
+      const config = requireAdapter(type)!.getProviderConfig!();
       expect(config.id).toBe(type);
     });
   }
 });
 
 describe('GenericAdapter — buildFacetWhere', () => {
-  const adapter = getAdapter('generic');
+  const adapter = requireAdapter('generic');
 
   it('builds colon syntax for single value', () => {
     expect(adapter.buildFacetWhere!({ region: new Set(['IDF']) })).toBe('region:eq:IDF');

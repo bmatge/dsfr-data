@@ -106,7 +106,7 @@ describe('isCartesianChartType', () => {
 
 describe('resolveChartInstance', () => {
   afterEach(() => {
-    delete (window as Record<string, unknown>).Chart;
+    delete (window as unknown as Record<string, unknown>).Chart;
     vi.restoreAllMocks();
   });
 
@@ -151,7 +151,7 @@ describe('resolveChartInstance', () => {
   it('utilise window.Chart.getChart si présent et valide', () => {
     const canvas = document.createElement('canvas');
     const chart = mockChart(canvas);
-    (window as Record<string, unknown>).Chart = { getChart: () => chart };
+    (window as unknown as Record<string, unknown>).Chart = { getChart: () => chart };
     expect(resolveChartInstance(fakeEl({}), canvas)).toBe(chart);
   });
 

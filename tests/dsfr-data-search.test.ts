@@ -25,8 +25,21 @@ function setUrlParams(search: string) {
   window.history.replaceState({}, '', search ? `?${search}` : window.location.pathname);
 }
 
+/**
+ * Vue interne du composant, limitee aux membres prives que ces tests
+ * inspectent : le terme saisi, le compteur de resultats et le minuteur
+ * d'anti-rebond.
+ */
+interface SearchInternals {
+  _term: string;
+  _resultCount: number;
+  _debounceTimer: ReturnType<typeof setTimeout> | null;
+}
+
 describe('DsfrDataSearch', () => {
   let search: DsfrDataSearch;
+  /** Meme instance que `search`, vue par ses membres prives. */
+  let internals: SearchInternals;
 
   beforeEach(() => {
     clearDataCache('test-search');
@@ -34,14 +47,15 @@ describe('DsfrDataSearch', () => {
     clearDataMeta('test-search');
     clearDataMeta('test-source');
     search = new DsfrDataSearch();
+    internals = search as unknown as SearchInternals;
     setUrlParams('');
   });
 
   afterEach(() => {
     // Always clean up subscription (even if not connected to DOM)
     (search as any)._cleanup?.();
-    if (search._debounceTimer !== null) {
-      clearTimeout(search._debounceTimer);
+    if (internals._debounceTimer !== null) {
+      clearTimeout(internals._debounceTimer);
       (search as any)._debounceTimer = null;
     }
     if (search.id) clearDataCache(search.id);
@@ -105,7 +119,7 @@ describe('DsfrDataSearch', () => {
       search.connectedCallback();
       dispatchDataLoaded('test-source', SAMPLE_DATA);
 
-      search._term = 'net';
+      internals._term = 'net';
       search._applyFilter();
 
       const result = getDataCache('test-search') as Record<string, unknown>[];
@@ -122,7 +136,7 @@ describe('DsfrDataSearch', () => {
       search.connectedCallback();
       dispatchDataLoaded('test-source', [{ Nom: 'NETCOMMERCE' }, { Nom: 'campus' }]);
 
-      search._term = 'Campus';
+      internals._term = 'Campus';
       search._applyFilter();
 
       const result = getDataCache('test-search') as Record<string, unknown>[];
@@ -137,7 +151,7 @@ describe('DsfrDataSearch', () => {
       search.connectedCallback();
       dispatchDataLoaded('test-source', [{ Nom: '\u00c9picerie Fine' }, { Nom: 'Boulangerie' }]);
 
-      search._term = 'epicerie';
+      internals._term = 'epicerie';
       search._applyFilter();
 
       const result = getDataCache('test-search') as Record<string, unknown>[];
@@ -157,7 +171,7 @@ describe('DsfrDataSearch', () => {
       search.connectedCallback();
       dispatchDataLoaded('test-source', SAMPLE_DATA);
 
-      search._term = 'net';
+      internals._term = 'net';
       search._applyFilter();
 
       const result = getDataCache('test-search') as Record<string, unknown>[];
@@ -178,7 +192,7 @@ describe('DsfrDataSearch', () => {
       search.connectedCallback();
       dispatchDataLoaded('test-source', SAMPLE_DATA);
 
-      search._term = 'commerce paca';
+      internals._term = 'commerce paca';
       search._applyFilter();
 
       const result = getDataCache('test-search') as Record<string, unknown>[];
@@ -195,7 +209,7 @@ describe('DsfrDataSearch', () => {
       search.connectedCallback();
       dispatchDataLoaded('test-source', SAMPLE_DATA);
 
-      search._term = 'net idf';
+      internals._term = 'net idf';
       search._applyFilter();
 
       const result = getDataCache('test-search') as Record<string, unknown>[];
@@ -216,7 +230,7 @@ describe('DsfrDataSearch', () => {
     it('empty term returns all data', () => {
       dispatchDataLoaded('test-source', SAMPLE_DATA);
 
-      search._term = '';
+      internals._term = '';
       search._applyFilter();
 
       const result = getDataCache('test-search') as Record<string, unknown>[];
@@ -227,7 +241,7 @@ describe('DsfrDataSearch', () => {
       search.minLength = 3;
       dispatchDataLoaded('test-source', SAMPLE_DATA);
 
-      search._term = 'ne';
+      internals._term = 'ne';
       search._applyFilter();
 
       const result = getDataCache('test-search') as Record<string, unknown>[];
@@ -238,7 +252,7 @@ describe('DsfrDataSearch', () => {
       search.fields = '';
       dispatchDataLoaded('test-source', [{ Nom: 'A', Region: 'PACA', Code: '13' }]);
 
-      search._term = 'paca';
+      internals._term = 'paca';
       search._applyFilter();
 
       const result = getDataCache('test-search') as Record<string, unknown>[];
@@ -248,7 +262,7 @@ describe('DsfrDataSearch', () => {
     it('numeric values match as strings', () => {
       dispatchDataLoaded('test-source', [{ SIRET: 12345678901234, Nom: 'Test' }]);
 
-      search._term = '1234';
+      internals._term = '1234';
       search._applyFilter();
 
       const result = getDataCache('test-search') as Record<string, unknown>[];
@@ -258,7 +272,7 @@ describe('DsfrDataSearch', () => {
     it('null and undefined values are handled gracefully', () => {
       dispatchDataLoaded('test-source', [{ Nom: null, Region: undefined, Code: 'ABC' }]);
 
-      search._term = 'abc';
+      internals._term = 'abc';
       search._applyFilter();
 
       const result = getDataCache('test-search') as Record<string, unknown>[];
@@ -268,7 +282,7 @@ describe('DsfrDataSearch', () => {
     it('special regex characters are escaped', () => {
       dispatchDataLoaded('test-source', [{ Nom: 'Test (2024)' }, { Nom: 'Other' }]);
 
-      search._term = '(2024)';
+      internals._term = '(2024)';
       search._applyFilter();
 
       const result = getDataCache('test-search') as Record<string, unknown>[];
@@ -280,7 +294,7 @@ describe('DsfrDataSearch', () => {
       search.fields = 'NonExistent, Nom';
       dispatchDataLoaded('test-source', SAMPLE_DATA);
 
-      search._term = 'net';
+      internals._term = 'net';
       search._applyFilter();
 
       const result = getDataCache('test-search') as Record<string, unknown>[];
@@ -293,7 +307,7 @@ describe('DsfrDataSearch', () => {
         { Nom: 'Other', _internal: 'visible' },
       ]);
 
-      search._term = 'secret';
+      internals._term = 'secret';
       search._applyFilter();
 
       const result = getDataCache('test-search') as Record<string, unknown>[];
@@ -312,7 +326,7 @@ describe('DsfrDataSearch', () => {
       search.connectedCallback();
       dispatchDataLoaded('test-source', [{ Nom: 'NetCommerce', Desc: 'Vente en ligne' }]);
 
-      search._term = 'Net';
+      internals._term = 'Net';
       search._applyFilter();
 
       const result = getDataCache('test-search') as Record<string, unknown>[];
@@ -328,7 +342,7 @@ describe('DsfrDataSearch', () => {
       search.connectedCallback();
       dispatchDataLoaded('test-source', [{ Nom: 'NetCommerce' }]);
 
-      search._term = 'Net';
+      internals._term = 'Net';
       search._applyFilter();
 
       const result = getDataCache('test-search') as Record<string, unknown>[];
@@ -342,7 +356,7 @@ describe('DsfrDataSearch', () => {
       search.connectedCallback();
       dispatchDataLoaded('test-source', [{ Nom: 'NetCommerce' }]);
 
-      search._term = '';
+      internals._term = '';
       search._applyFilter();
 
       const result = getDataCache('test-search') as Record<string, unknown>[];
@@ -357,7 +371,7 @@ describe('DsfrDataSearch', () => {
       search.connectedCallback();
       dispatchDataLoaded('test-source', [{ Nom: 'Net<img src=x onerror=alert(1)>Commerce' }]);
 
-      search._term = 'Net';
+      internals._term = 'Net';
       search._applyFilter();
 
       const result = getDataCache('test-search') as Record<string, unknown>[];
@@ -375,7 +389,7 @@ describe('DsfrDataSearch', () => {
       search.connectedCallback();
       dispatchDataLoaded('test-source', [{ Nom: '<script>alert(1)</script>' }]);
 
-      search._term = '<script>';
+      internals._term = '<script>';
       search._applyFilter();
 
       const result = getDataCache('test-search') as Record<string, unknown>[];
@@ -392,7 +406,7 @@ describe('DsfrDataSearch', () => {
       search.connectedCallback();
       dispatchDataLoaded('test-source', [{ Nom: 'NetCommerce', Region: 'PACA' }]);
 
-      search._term = 'Net';
+      internals._term = 'Net';
       search._applyFilter();
 
       const result = getDataCache('test-search') as Record<string, unknown>[];
@@ -409,7 +423,7 @@ describe('DsfrDataSearch', () => {
       search.connectedCallback();
       dispatchDataLoaded('test-source', [{ Nom: 'Test 42', Count: 42 }]);
 
-      search._term = '42';
+      internals._term = '42';
       search._applyFilter();
 
       const result = getDataCache('test-search') as Record<string, unknown>[];
@@ -462,7 +476,7 @@ describe('DsfrDataSearch', () => {
 
       dispatchDataLoaded('test-source', SAMPLE_DATA);
 
-      search._term = 'net';
+      internals._term = 'net';
       search._applyFilter();
       let result = getDataCache('test-search') as Record<string, unknown>[];
       expect(result).toHaveLength(3);
@@ -490,7 +504,7 @@ describe('DsfrDataSearch', () => {
       };
       document.addEventListener('dsfr-data-search-change', handler);
 
-      search._term = 'net';
+      internals._term = 'net';
       search._applyFilter();
 
       document.removeEventListener('dsfr-data-search-change', handler);
@@ -514,7 +528,7 @@ describe('DsfrDataSearch', () => {
     });
 
     it('clear() restores all data', () => {
-      search._term = 'net';
+      internals._term = 'net';
       search._applyFilter();
       let result = getDataCache('test-search') as Record<string, unknown>[];
       expect(result).toHaveLength(3);
@@ -561,7 +575,7 @@ describe('DsfrDataSearch', () => {
       dispatchDataLoaded('test-source', data);
 
       const start = performance.now();
-      search._term = 'entreprise 42';
+      internals._term = 'entreprise 42';
       search._applyFilter();
       const elapsed = performance.now() - start;
 
@@ -655,14 +669,14 @@ describe('DsfrDataSearch', () => {
       setUrlParams('q=hello');
       search.urlSearchParam = 'q';
       search._applyUrlSearchParam();
-      expect(search._term).toBe('hello');
+      expect(internals._term).toBe('hello');
     });
 
     it('_applyUrlSearchParam does nothing without urlSearchParam', () => {
       setUrlParams('q=hello');
       search.urlSearchParam = '';
       search._applyUrlSearchParam();
-      expect(search._term).toBe('');
+      expect(internals._term).toBe('');
     });
   });
 
@@ -700,7 +714,7 @@ describe('DsfrDataSearch', () => {
       search.connectedCallback();
       dispatchDataLoaded('test-source', SAMPLE_DATA);
 
-      search._term = 'hello';
+      internals._term = 'hello';
       search._applyFilter();
 
       expect(receivedCmd).not.toBeNull();
@@ -718,7 +732,7 @@ describe('DsfrDataSearch', () => {
       search.connectedCallback();
       dispatchDataLoaded('test-source', SAMPLE_DATA);
 
-      search._term = '';
+      internals._term = '';
       search._applyFilter();
 
       expect(receivedCmd).not.toBeNull();
@@ -737,7 +751,7 @@ describe('DsfrDataSearch', () => {
       search.connectedCallback();
       dispatchDataLoaded('test-source', SAMPLE_DATA);
 
-      search._term = 'hello';
+      internals._term = 'hello';
       search._applyFilter();
 
       expect(receivedCmd.where).toBe('hello IN nom');
@@ -754,7 +768,7 @@ describe('DsfrDataSearch', () => {
       search.connectedCallback();
       dispatchDataLoaded('test-source', SAMPLE_DATA);
 
-      search._term = 'test "quoted"';
+      internals._term = 'test "quoted"';
       search._applyFilter();
 
       expect(receivedCmd.where).toBe('search("test \\"quoted\\"")');
@@ -780,7 +794,7 @@ describe('DsfrDataSearch', () => {
       setDataMeta('test-source', { page: 1, pageSize: 20, total: 500 });
       dispatchDataLoaded('test-source', SAMPLE_DATA);
 
-      expect(search._resultCount).toBe(500);
+      expect(internals._resultCount).toBe(500);
     });
 
     it('falls back to data length when no meta', () => {
@@ -788,7 +802,7 @@ describe('DsfrDataSearch', () => {
       search.connectedCallback();
       dispatchDataLoaded('test-source', SAMPLE_DATA);
 
-      expect(search._resultCount).toBe(SAMPLE_DATA.length);
+      expect(internals._resultCount).toBe(SAMPLE_DATA.length);
     });
 
     it('re-emits data under its own ID in server-search mode', () => {
@@ -871,7 +885,7 @@ describe('DsfrDataSearch', () => {
 
       (search as any)._onData(SAMPLE_DATA);
 
-      expect(search._term).toBe('hello');
+      expect(internals._term).toBe('hello');
       expect(receivedCmd).not.toBeNull();
       expect(receivedCmd.where).toBe('search("hello")');
 
@@ -891,7 +905,7 @@ describe('DsfrDataSearch', () => {
       search.connectedCallback();
       dispatchDataLoaded('test-source', SAMPLE_DATA);
 
-      search._term = 'test-sync';
+      internals._term = 'test-sync';
       search._applyFilter();
 
       // URL should be synced
@@ -912,7 +926,7 @@ describe('DsfrDataSearch', () => {
       search.connectedCallback();
       dispatchDataLoaded('test-source', SAMPLE_DATA);
 
-      search._term = 'test-event';
+      internals._term = 'test-event';
       search._applyFilter();
 
       document.removeEventListener('dsfr-data-search-change', handler);
@@ -999,7 +1013,7 @@ describe('DsfrDataSearch', () => {
     });
 
     it('applies filter even without pending debounce', () => {
-      search._term = 'campus';
+      internals._term = 'campus';
       (search as any)._onSubmit();
 
       const result = getDataCache('test-search') as Record<string, unknown>[];
@@ -1022,7 +1036,7 @@ describe('DsfrDataSearch', () => {
     });
 
     it('writes search term to URL on filter', () => {
-      search._term = 'net';
+      internals._term = 'net';
       search._applyFilter();
 
       const params = new URLSearchParams(window.location.search);
@@ -1031,19 +1045,19 @@ describe('DsfrDataSearch', () => {
 
     it('removes param from URL when term is empty', () => {
       // First set a term
-      search._term = 'net';
+      internals._term = 'net';
       search._applyFilter();
       expect(new URLSearchParams(window.location.search).get('q')).toBe('net');
 
       // Clear
-      search._term = '';
+      internals._term = '';
       search._applyFilter();
       expect(new URLSearchParams(window.location.search).has('q')).toBe(false);
     });
 
     it('preserves existing URL params', () => {
       setUrlParams('page=3&tab=results');
-      search._term = 'net';
+      internals._term = 'net';
       search._applyFilter();
 
       const params = new URLSearchParams(window.location.search);
@@ -1054,7 +1068,7 @@ describe('DsfrDataSearch', () => {
 
     it('does not sync when urlSync is false', () => {
       search.urlSync = false;
-      search._term = 'net';
+      internals._term = 'net';
       search._applyFilter();
 
       expect(new URLSearchParams(window.location.search).has('q')).toBe(false);
@@ -1062,7 +1076,7 @@ describe('DsfrDataSearch', () => {
 
     it('does not sync when urlSearchParam is empty', () => {
       search.urlSearchParam = '';
-      search._term = 'net';
+      internals._term = 'net';
       search._applyFilter();
 
       expect(window.location.search).toBe('');
@@ -1194,7 +1208,7 @@ describe('DsfrDataSearch', () => {
       search.urlSearchParam = 'q';
       search.connectedCallback();
 
-      expect(search._term).toBe('preloaded');
+      expect(internals._term).toBe('preloaded');
       expect(receivedCmd).not.toBeNull();
       expect(receivedCmd.where).toBe('search("preloaded")');
 
@@ -1251,7 +1265,7 @@ describe('DsfrDataSearch', () => {
       search.source = 'mock-adapter-source';
       const adapter = search.getAdapter();
       expect(adapter).not.toBeNull();
-      expect(adapter.type).toBe('opendatasoft');
+      expect(adapter?.type).toBe('opendatasoft');
 
       mockSource.remove();
     });

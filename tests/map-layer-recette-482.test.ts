@@ -107,7 +107,12 @@ describe('#482 bug 4 — heatmap : intensité normalisée et visible', () => {
     layer.lonField = 'lon';
     layer.heatField = 'poids';
 
-    const factory = vi.fn(() => ({ addTo: vi.fn(), remove: vi.fn() }));
+    // Signature declaree : sans elle, `factory.mock.calls[0][1]` ne compile
+    // pas (tuple vide) — ce que vitest ne signalait pas, faute de typecheck.
+    const factory = vi.fn((_points: unknown, _opts: Record<string, unknown>) => ({
+      addTo: vi.fn(),
+      remove: vi.fn(),
+    }));
     (layer as any)._heatLoaded = true;
     (layer as any)._heatLayerFactory = factory;
     (layer as any)._visible = false; // évite addTo sur la fausse carte
@@ -121,7 +126,7 @@ describe('#482 bug 4 — heatmap : intensité normalisée et visible', () => {
     );
 
     expect(count).toBe(2);
-    const opts = factory.mock.calls[0][1] as Record<string, unknown>;
+    const opts = factory.mock.calls[0][1] as unknown as Record<string, unknown>;
     expect(opts.max).toBe(250);
     expect(opts.maxZoom).toBe(6); // zoom courant, PAS le max-zoom d'affichage (18)
   });
@@ -132,14 +137,19 @@ describe('#482 bug 4 — heatmap : intensité normalisée et visible', () => {
     layer.latField = 'lat';
     layer.lonField = 'lon';
 
-    const factory = vi.fn(() => ({ addTo: vi.fn(), remove: vi.fn() }));
+    // Signature declaree : sans elle, `factory.mock.calls[0][1]` ne compile
+    // pas (tuple vide) — ce que vitest ne signalait pas, faute de typecheck.
+    const factory = vi.fn((_points: unknown, _opts: Record<string, unknown>) => ({
+      addTo: vi.fn(),
+      remove: vi.fn(),
+    }));
     (layer as any)._heatLoaded = true;
     (layer as any)._heatLayerFactory = factory;
     (layer as any)._visible = false;
 
     (layer as any)._renderHeatmap([{ lat: 48.8, lon: 2.35 }], L);
 
-    const opts = factory.mock.calls[0][1] as Record<string, unknown>;
+    const opts = factory.mock.calls[0][1] as unknown as Record<string, unknown>;
     expect(opts.max).toBe(1);
   });
 });

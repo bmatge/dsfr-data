@@ -1,5 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { toggleIAConfig, loadIAConfig, saveIAConfig, getIAConfig } from '../../../apps/builder-ia/src/ia/ia-config';
+import {
+  toggleIAConfig,
+  loadIAConfig,
+  saveIAConfig,
+  getIAConfig,
+} from '../../../apps/builder-ia/src/ia/ia-config';
 import type { IAConfig } from '../../../apps/builder-ia/src/ia/ia-config';
 import * as toast from '../../../packages/shared/src/ui/toast';
 
@@ -23,6 +28,7 @@ describe('builder-ia ia-config', () => {
         model: 'albert-small',
         token: 'tok-123',
         systemPrompt: 'You are helpful',
+        extraParams: {},
       };
       expect(config.apiUrl).toBe('https://example.com');
       expect(config.model).toBe('albert-small');
@@ -71,14 +77,19 @@ describe('builder-ia ia-config', () => {
         model: 'albert-small',
         token: 'my-token-123',
         systemPrompt: 'Custom prompt',
+        extraParams: {},
       };
       localStorage.setItem('dsfr-data-ia-config', JSON.stringify(saved));
 
       loadIAConfig();
 
-      expect((document.getElementById('ia-api-url') as HTMLInputElement).value).toBe('https://custom.api.com');
+      expect((document.getElementById('ia-api-url') as HTMLInputElement).value).toBe(
+        'https://custom.api.com'
+      );
       expect((document.getElementById('ia-token') as HTMLInputElement).value).toBe('my-token-123');
-      expect((document.getElementById('ia-system-prompt') as HTMLTextAreaElement).value).toBe('Custom prompt');
+      expect((document.getElementById('ia-system-prompt') as HTMLTextAreaElement).value).toBe(
+        'Custom prompt'
+      );
     });
 
     it('should handle partial config gracefully', () => {

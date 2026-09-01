@@ -289,7 +289,12 @@ describe('DsfrDataList logic', () => {
       const headerCells = columns.map((c) => `<th>${c.label}</th>`).join('');
       const bodyRows = data
         .map(
-          (item) => '<tr>' + columns.map((c) => `<td>${item[c.key] ?? ''}</td>`).join('') + '</tr>'
+          (item) =>
+            '<tr>' +
+            columns
+              .map((c) => `<td>${(item as Record<string, unknown>)[c.key] ?? ''}</td>`)
+              .join('') +
+            '</tr>'
         )
         .join('');
 

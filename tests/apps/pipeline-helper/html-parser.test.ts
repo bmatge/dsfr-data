@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 // Mock @dsfr-data/shared
 vi.mock('@dsfr-data/shared', () => ({
@@ -12,7 +12,16 @@ import { NODE_FACTORIES } from '../../../apps/pipeline-helper/src/nodes/pipeline
 
 describe('pipeline-helper: node configs', () => {
   it('should define all expected node types', () => {
-    const expectedTypes = ['source', 'normalize', 'query', 'join', 'search', 'facets', 'output', 'a11y'];
+    const expectedTypes = [
+      'source',
+      'normalize',
+      'query',
+      'join',
+      'search',
+      'facets',
+      'output',
+      'a11y',
+    ];
     for (const type of expectedTypes) {
       expect(NODE_CONFIGS[type]).toBeDefined();
       expect(NODE_CONFIGS[type].component).toBeTruthy();
@@ -34,14 +43,14 @@ describe('pipeline-helper: node configs', () => {
   });
 
   it('source config should have api-type, base-url, dataset-id attributes', () => {
-    const attrs = NODE_CONFIGS.source.attributes.map(a => a.name);
+    const attrs = NODE_CONFIGS.source.attributes.map((a) => a.name);
     expect(attrs).toContain('api-type');
     expect(attrs).toContain('base-url');
     expect(attrs).toContain('dataset-id');
   });
 
   it('query config should have group-by, order-by, filter (aggregate is a special control)', () => {
-    const attrs = NODE_CONFIGS.query.attributes.map(a => a.name);
+    const attrs = NODE_CONFIGS.query.attributes.map((a) => a.name);
     expect(attrs).toContain('group-by');
     expect(attrs).toContain('order-by');
     expect(attrs).toContain('filter');
@@ -50,11 +59,11 @@ describe('pipeline-helper: node configs', () => {
   it('query node should have an AggregateControl', () => {
     const node = NODE_FACTORIES.query();
     expect(node.controls['aggregate']).toBeDefined();
-    expect(node.controls['aggregate'].constructor.name).toBe('AggregateControl');
+    expect(node.controls['aggregate']?.constructor.name).toBe('AggregateControl');
   });
 
   it('normalize config should have numeric, rename, flatten, trim attributes', () => {
-    const attrs = NODE_CONFIGS.normalize.attributes.map(a => a.name);
+    const attrs = NODE_CONFIGS.normalize.attributes.map((a) => a.name);
     expect(attrs).toContain('numeric');
     expect(attrs).toContain('rename');
     expect(attrs).toContain('flatten');
@@ -62,7 +71,7 @@ describe('pipeline-helper: node configs', () => {
   });
 
   it('join config should have on, type, prefix-left, prefix-right', () => {
-    const attrs = NODE_CONFIGS.join.attributes.map(a => a.name);
+    const attrs = NODE_CONFIGS.join.attributes.map((a) => a.name);
     expect(attrs).toContain('on');
     expect(attrs).toContain('type');
     expect(attrs).toContain('prefix-left');

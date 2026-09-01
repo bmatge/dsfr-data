@@ -1,0 +1,41 @@
+{
+  // Typage de la suite de tests.
+  //
+  // `tsconfig.json` ne couvre que `packages/core/src`, et chaque app ne couvre
+  // que son propre `src`. `tests/` n'etait donc verifie par AUCUN tsconfig — et
+  // vitest ne typecheck pas : un test pouvait passer au vert sur du code qui ne
+  // compilait pas (cas reel : `config: { valeur: '42' }` survivant a un
+  // renommage, cf. #521).
+  //
+  // Lance par `npm run typecheck:tests`, inclus dans le job `quality` de la CI.
+  //
+  // `noEmit` : on ne produit rien, on verifie. Les alias reprennent ceux de
+  // `vitest.config.ts` — les deux doivent rester alignes, sinon un import
+  // resolu a l'execution echouerait ici (ou l'inverse).
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "types": ["node"],
+    // Alignes sur packages/core/tsconfig.json : les tests importent les
+    // composants Lit, qui utilisent les decorateurs historiques. Sans ces deux
+    // options, TypeScript applique les decorateurs standard ES et rejette
+    // chaque `@property` (601 erreurs de pure config).
+    "experimentalDecorators": true,
+    "useDefineForClassFields": false,
+    // La lib de production cible ES2021 (compatibilite navigateur). Les tests,
+    // eux, tournent sous Node 24 : ils peuvent utiliser `Array.prototype.at`
+    // et consorts sans engager la cible du bundle livre.
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["packages/core/src/*"],
+      "@dsfr-data/shared": ["packages/shared/src/index.ts"],
+      "@dsfr-data/shared/*": ["packages/shared/src/*"]
+    }
+  },
+  "include": ["tests/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

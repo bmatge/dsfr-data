@@ -1982,7 +1982,6 @@ describe('DsfrDataMapTimeline', () => {
       (timeline as any)._steps = ['a', 'b', 'c'];
       (timeline as any)._prefersReducedMotion = false;
       (timeline as any)._play();
-      const _oldTimer = (timeline as any)._timer;
       const event = { target: { value: '4' } } as any;
       (timeline as any)._onSpeedChange(event);
       expect(timeline.speed).toBe(4);
