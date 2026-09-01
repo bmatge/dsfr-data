@@ -176,7 +176,10 @@ export class AppHeader extends LitElement {
       { id: 'accueil', label: 'Accueil', href: 'index.html' },
       { id: 'sources', label: 'Sources', href: 'apps/sources/index.html' },
       { id: 'builder-ia', label: 'Assistant IA', href: 'apps/builder-ia/index.html' },
-      { id: 'studio', label: 'Studio IA', href: 'apps/studio/index.html' },
+      // Studio IA (#515) volontairement HORS nav le temps de la periode d'essai
+      // en parallele du builder-IA : l'app reste accessible par URL directe et
+      // par la carte du hub. Re-exposition prevue avec la refonte nav (#538).
+      // { id: 'studio', label: 'Studio IA', href: 'apps/studio/index.html' },
       { id: 'builder', label: 'Créer un graphique', href: 'apps/builder/index.html' },
       { id: 'builder-carto', label: 'Créer une carte', href: 'apps/builder-carto/index.html' },
       { id: 'dashboard', label: 'Créer un tableau', href: 'apps/dashboard/index.html' },
