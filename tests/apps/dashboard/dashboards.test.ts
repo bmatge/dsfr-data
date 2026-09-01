@@ -2,8 +2,10 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { state, createEmptyDashboard } from '../../../apps/dashboard/src/state';
 import type { DashboardData } from '../../../apps/dashboard/src/state';
 
-// Mock @dsfr-data/shared
-vi.mock('@dsfr-data/shared', () => ({
+// Mock @dsfr-data/shared — partiel depuis #515 : state.ts importe aussi le
+// modele partage (createEmptyDashboard, normalizeWidget…) qu'on garde reel.
+vi.mock('@dsfr-data/shared', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@dsfr-data/shared')>()),
   escapeHtml: (s: string) => s.replace(/</g, '&lt;').replace(/>/g, '&gt;'),
   saveToStorage: vi.fn(),
   STORAGE_KEYS: { DASHBOARDS: 'dsfr-data-dashboards' },

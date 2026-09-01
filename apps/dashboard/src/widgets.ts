@@ -3,7 +3,7 @@
  */
 
 import { navigateTo, confirmDialog } from '@dsfr-data/shared';
-import { state, createWidget, isFavoriteChart } from './state.js';
+import { state, createWidget, isFavoriteChart, isBuilderChart } from './state.js';
 import { openConfigModal } from './widget-config.js';
 import { updateGeneratedCode } from './code-generator.js';
 import type { Widget, WidgetType, DashboardFavorite } from './state.js';
@@ -125,7 +125,22 @@ function appendWidgetContent(parent: HTMLElement, widget: Widget): void {
       text.className = 'widget-preview-text';
       text.textContent = widget.config.fromFavorite
         ? 'Graphique depuis favoris'
-        : 'Configurez le graphique';
+        : isBuilderChart(widget.config)
+          ? "Graphique de l'assistant"
+          : 'Configurez le graphique';
+      wrap.append(icon, text);
+      parent.append(wrap);
+      return;
+    }
+    case 'filters': {
+      const wrap = document.createElement('div');
+      wrap.className = 'widget-preview-center widget-preview-muted';
+      const icon = document.createElement('i');
+      icon.className = 'ri-filter-3-line widget-preview-icon';
+      const text = document.createElement('p');
+      text.className = 'widget-preview-text';
+      const fields = widget.config.filters.map((f) => f.label || f.field);
+      text.textContent = fields.length ? `Filtres : ${fields.join(', ')}` : 'Filtres partagés';
       wrap.append(icon, text);
       parent.append(wrap);
       return;
@@ -166,6 +181,7 @@ export function getWidgetIcon(type: WidgetType): string {
     chart: 'ri-bar-chart-box-line',
     table: 'ri-table-line',
     text: 'ri-text',
+    filters: 'ri-filter-3-line',
   };
   return icons[type] || 'ri-question-line';
 }

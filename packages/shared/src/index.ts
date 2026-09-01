@@ -208,3 +208,54 @@ export {
   DASHBOARD_TOUR,
   TOURS_REGISTRY,
 } from './tour/tour-configs.js';
+
+// --- Modele de document multi-blocs partage dashboard/studio (#515) ---
+// App-side uniquement : ne PAS exporter depuis lib.ts (frontiere lib/app #319).
+export type { ChartConfig, AggregatedResult } from './dashboard/chart-config.js';
+export type {
+  WidgetType,
+  WidgetConfig,
+  Widget,
+  KpiWidgetConfig,
+  KpiFormat,
+  ChartWidgetType,
+  ChartPalette,
+  ManualChartWidgetConfig,
+  FavoriteChartWidgetConfig,
+  BuilderChartWidgetConfig,
+  ChartWidgetConfig,
+  TableWidgetConfig,
+  TextStyle,
+  TextWidgetConfig,
+  FilterOperator,
+  DashboardFilterSpec,
+  FiltersWidgetConfig,
+  DashboardSource,
+  DashboardFavorite,
+  DashboardData,
+} from './dashboard/model.js';
+export {
+  isFavoriteChart,
+  isBuilderChart,
+  createEmptyDashboard,
+  getRowColumns,
+  setRowColumns,
+  removeRowFromLayout,
+  normalizeWidget,
+  normalizeDashboard,
+  oneOf,
+  getDefaultTitle,
+  getDefaultConfig,
+  createWidget,
+  KPI_FORMATS,
+  CHART_TYPES,
+  CHART_PALETTES,
+  TEXT_STYLES,
+  FILTER_OPERATORS,
+} from './dashboard/model.js';
+export {
+  generateDashboardHTML,
+  generateDashboardBodyHTML,
+  generateWidgetHTML,
+  generateSourceHTML,
+} from './dashboard/export-html.js';
