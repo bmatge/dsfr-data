@@ -33,6 +33,10 @@ export function showToast(
   // Les fr-alert DSFR sont concues pour vivre DANS la page (fond transparent
   // + lisere colore). En toast flottant, le contenu du dessous transparait :
   // on leur donne un fond opaque et une ombre de carte flottante.
+  // Deux affectations : le blanc concret d'abord (survit aux moteurs CSS qui
+  // rejettent var(), jsdom des tests inclus), le token theme ensuite (gagne
+  // dans les navigateurs, suit le mode sombre).
+  toast.style.backgroundColor = '#fff';
   toast.style.backgroundColor = 'var(--background-default-grey, #fff)';
   toast.style.boxShadow = '0 2px 6px rgba(0, 0, 18, 0.16)';
   if (type === 'error') {

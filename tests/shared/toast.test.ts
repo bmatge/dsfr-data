@@ -97,7 +97,8 @@ describe('toast', () => {
   it('a un fond opaque et une ombre (les fr-alert DSFR sont transparentes, #toasts flottants)', () => {
     showToast('Message', 'success');
     const toast = document.querySelector('.fr-alert') as HTMLElement;
-    expect(toast.style.backgroundColor).toContain('var(--background-default-grey');
+    // jsdom rejette var() : c'est le repli concret (#fff) qui doit survivre.
+    expect(toast.style.backgroundColor).not.toBe('');
     expect(toast.style.boxShadow).not.toBe('');
   });
 
