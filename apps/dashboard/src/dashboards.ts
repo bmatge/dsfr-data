@@ -11,7 +11,8 @@ import {
   confirmDialog,
   getApiAdapter,
 } from '@dsfr-data/shared';
-import { state, createEmptyDashboard } from './state.js';
+import { state, createEmptyDashboard, normalizeDashboard } from './state.js';
+import type { DashboardData } from './state.js';
 import { resetGrid, rebuildGrid } from './grid.js';
 import { updateGeneratedCode, generateHTMLCode } from './code-generator.js';
 
@@ -186,7 +187,10 @@ export function loadDashboard(id: string): void {
   const dashboard = state.savedDashboards.find((d) => d.id === id);
   if (!dashboard) return;
 
-  state.dashboard = JSON.parse(JSON.stringify(dashboard));
+  // Defense en profondeur : `savedDashboards` est normalise au chargement, mais
+  // il peut aussi etre remplace par une synchro serveur. Normaliser ici garantit
+  // que le dashboard ACTIF est toujours a la forme courante.
+  state.dashboard = normalizeDashboard(JSON.parse(JSON.stringify(dashboard)) as DashboardData);
   const titleInput = document.getElementById('dashboard-title') as HTMLInputElement | null;
   const columnsSelect = document.getElementById('grid-columns') as HTMLSelectElement | null;
   if (titleInput) titleInput.value = state.dashboard.name;

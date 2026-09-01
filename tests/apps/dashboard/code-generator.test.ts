@@ -17,7 +17,7 @@ describe('dashboard/code-generator', () => {
     it('should generate KPI HTML with dsfr-data-kpi tag', () => {
       const widget = makeWidget({
         type: 'kpi',
-        config: { valeur: '1234', label: 'Total', format: 'nombre', icone: '' },
+        config: { value: '1234', label: 'Total', format: 'nombre', icon: '' },
       });
       const html = generateWidgetHTML(widget);
       expect(html).toContain('<dsfr-data-kpi');
@@ -26,29 +26,29 @@ describe('dashboard/code-generator', () => {
       expect(html).toContain('format="nombre"');
     });
 
-    it('should include icone attribute when set', () => {
+    it('should include icon attribute when set', () => {
       const widget = makeWidget({
         type: 'kpi',
-        config: { valeur: '42', label: 'Count', format: 'nombre', icone: 'ri-user-line' },
+        config: { value: '42', label: 'Count', format: 'nombre', icon: 'ri-user-line' },
       });
       const html = generateWidgetHTML(widget);
       expect(html).toContain('icon="ri-user-line"');
     });
 
-    it('should not include icone attribute when empty', () => {
+    it('should not include icon attribute when empty', () => {
       const widget = makeWidget({
         type: 'kpi',
-        config: { valeur: '42', label: 'Count', format: 'nombre', icone: '' },
+        config: { value: '42', label: 'Count', format: 'nombre', icon: '' },
       });
       const html = generateWidgetHTML(widget);
-      expect(html).not.toContain('icone=');
+      expect(html).not.toContain('icon=');
     });
 
     it('should generate chart HTML with dsfr-data-chart tag', () => {
       const widget = makeWidget({
         type: 'chart',
         config: {
-          chartType: 'line',
+          type: 'line',
           labelField: 'date',
           valueField: 'count',
           palette: 'sequential',
@@ -123,23 +123,18 @@ describe('dashboard/code-generator', () => {
       expect(html).toContain('<h2>Section Title</h2>');
     });
 
-    it('should generate comment for unknown type', () => {
-      const widget = makeWidget({
-        type: 'unknown' as any,
-        title: 'Mystery',
-      });
-      const html = generateWidgetHTML(widget);
-      expect(html).toContain('<!-- Widget: Mystery -->');
-    });
+    // Le repli « <!-- Widget: … --> » a disparu avec l'union discriminee (#521) :
+    // `generateWidgetHTML` couvre desormais les quatre types de facon exhaustive,
+    // et un type hors union est ecarte plus tot, par `normalizeWidget`.
 
     it('should escape HTML in titles and values', () => {
       const widget = makeWidget({
         type: 'kpi',
         config: {
-          valeur: '<script>alert("xss")</script>',
+          value: '<script>alert("xss")</script>',
           label: 'Safe',
           format: 'nombre',
-          icone: '',
+          icon: '',
         },
       });
       const html = generateWidgetHTML(widget);

@@ -3,7 +3,7 @@
  */
 
 import { escapeHtml } from '@dsfr-data/shared';
-import { state } from './state.js';
+import { state, oneOf, KPI_FORMATS, CHART_TYPES, CHART_PALETTES, TEXT_STYLES } from './state.js';
 import { renderWidget } from './widgets.js';
 import { updateGeneratedCode } from './code-generator.js';
 import type { Widget } from './state.js';
@@ -41,7 +41,7 @@ function getConfigForm(widget: Widget): string {
           <label>Valeur
             <span class="fr-hint-text">Un nombre ou un calcul : sum:population, avg:budget, count:*</span>
           </label>
-          <input type="text" id="config-valeur" value="${escapeHtml(widget.config.valeur || '')}">
+          <input type="text" id="config-value" value="${escapeHtml(widget.config.value || '')}">
         </div>
         <div class="config-group">
           <label>Label
@@ -62,7 +62,7 @@ function getConfigForm(widget: Widget): string {
           <label>Icone
             <span class="fr-hint-text">Nom Remix Icon (ex : ri-money-euro-circle-line). <a href="https://remixicon.com/" target="_blank" rel="noopener">Catalogue</a></span>
           </label>
-          <input type="text" id="config-icone" value="${escapeHtml(widget.config.icone || '')}">
+          <input type="text" id="config-icon" value="${escapeHtml(widget.config.icon || '')}">
         </div>
       `
       );
@@ -85,11 +85,11 @@ function getConfigForm(widget: Widget): string {
         `
         <div class="config-group">
           <label>Type de graphique</label>
-          <select id="config-chartType">
-            <option value="bar" ${widget.config.chartType === 'bar' ? 'selected' : ''}>Barres</option>
-            <option value="line" ${widget.config.chartType === 'line' ? 'selected' : ''}>Ligne</option>
-            <option value="pie" ${widget.config.chartType === 'pie' ? 'selected' : ''}>Camembert</option>
-            <option value="radar" ${widget.config.chartType === 'radar' ? 'selected' : ''}>Radar</option>
+          <select id="config-type">
+            <option value="bar" ${widget.config.type === 'bar' ? 'selected' : ''}>Barres</option>
+            <option value="line" ${widget.config.type === 'line' ? 'selected' : ''}>Ligne</option>
+            <option value="pie" ${widget.config.type === 'pie' ? 'selected' : ''}>Camembert</option>
+            <option value="radar" ${widget.config.type === 'radar' ? 'selected' : ''}>Radar</option>
           </select>
         </div>
         <div class="config-group">
@@ -174,26 +174,37 @@ export function applyConfig(): void {
 
   switch (widget.type) {
     case 'kpi':
-      widget.config.valeur =
-        (document.getElementById('config-valeur') as HTMLInputElement)?.value || '';
+      widget.config.value =
+        (document.getElementById('config-value') as HTMLInputElement)?.value || '';
       widget.config.label =
         (document.getElementById('config-label') as HTMLInputElement)?.value || '';
-      widget.config.format =
-        (document.getElementById('config-format') as HTMLSelectElement)?.value || 'nombre';
-      widget.config.icone =
-        (document.getElementById('config-icone') as HTMLInputElement)?.value || '';
+      // Un <select> rend une `string` : on la ramene a l'union, meme helper
+      // que la normalisation du stockage.
+      widget.config.format = oneOf(
+        (document.getElementById('config-format') as HTMLSelectElement)?.value,
+        KPI_FORMATS,
+        'nombre'
+      );
+      widget.config.icon =
+        (document.getElementById('config-icon') as HTMLInputElement)?.value || '';
       break;
 
     case 'chart':
       if (!widget.config.fromFavorite) {
-        widget.config.chartType =
-          (document.getElementById('config-chartType') as HTMLSelectElement)?.value || 'bar';
+        widget.config.type = oneOf(
+          (document.getElementById('config-type') as HTMLSelectElement)?.value,
+          CHART_TYPES,
+          'bar'
+        );
         widget.config.labelField =
           (document.getElementById('config-labelField') as HTMLInputElement)?.value || '';
         widget.config.valueField =
           (document.getElementById('config-valueField') as HTMLInputElement)?.value || '';
-        widget.config.palette =
-          (document.getElementById('config-palette') as HTMLSelectElement)?.value || 'categorical';
+        widget.config.palette = oneOf(
+          (document.getElementById('config-palette') as HTMLSelectElement)?.value,
+          CHART_PALETTES,
+          'categorical'
+        );
       }
       break;
 
@@ -214,8 +225,11 @@ export function applyConfig(): void {
     case 'text':
       widget.config.content =
         (document.getElementById('config-content') as HTMLTextAreaElement)?.value || '';
-      widget.config.style =
-        (document.getElementById('config-style') as HTMLSelectElement)?.value || 'paragraph';
+      widget.config.style = oneOf(
+        (document.getElementById('config-style') as HTMLSelectElement)?.value,
+        TEXT_STYLES,
+        'paragraph'
+      );
       break;
   }
 

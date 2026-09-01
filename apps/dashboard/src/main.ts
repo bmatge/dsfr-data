@@ -12,8 +12,7 @@ import {
   startTourIfFirstVisit,
   DASHBOARD_TOUR,
 } from '@dsfr-data/shared';
-import { state } from './state.js';
-import { createEmptyDashboard } from './state.js';
+import { state, createEmptyDashboard, normalizeDashboard } from './state.js';
 import type { DashboardData, DashboardSource, DashboardFavorite } from './state.js';
 import { initDragAndDrop, handleFavoriteDragStart } from './drag-drop.js';
 import { editWidget, deleteWidget, openInBuilder, duplicateWidget } from './widgets.js';
@@ -46,7 +45,12 @@ function loadFavorites(): void {
 }
 
 function loadSavedDashboards(): void {
-  state.savedDashboards = loadFromStorage<DashboardData[]>(STORAGE_KEYS.DASHBOARDS, []);
+  // Point d'entree unique des dashboards persistes (localStorage, alimente
+  // aussi par la synchro serveur). C'est ICI qu'on ramene les enregistrements
+  // anterieurs a #521 (`valeur`/`icone`/`chartType`) a la forme courante.
+  state.savedDashboards = loadFromStorage<DashboardData[]>(STORAGE_KEYS.DASHBOARDS, []).map((d) =>
+    normalizeDashboard(d)
+  );
 }
 
 function loadSources(): void {
@@ -128,28 +132,28 @@ async function loadTemplate(name: string): Promise<void> {
           type: 'kpi',
           title: 'Indicateur 1',
           position: { row: 0, col: 0 },
-          config: { valeur: '', format: 'nombre', icone: '', label: 'KPI 1' },
+          config: { value: '', format: 'nombre', icon: '', label: 'KPI 1' },
         },
         {
           id: crypto.randomUUID(),
           type: 'kpi',
           title: 'Indicateur 2',
           position: { row: 0, col: 1 },
-          config: { valeur: '', format: 'nombre', icone: '', label: 'KPI 2' },
+          config: { value: '', format: 'nombre', icon: '', label: 'KPI 2' },
         },
         {
           id: crypto.randomUUID(),
           type: 'kpi',
           title: 'Indicateur 3',
           position: { row: 0, col: 2 },
-          config: { valeur: '', format: 'nombre', icone: '', label: 'KPI 3' },
+          config: { value: '', format: 'nombre', icon: '', label: 'KPI 3' },
         },
         {
           id: crypto.randomUUID(),
           type: 'chart',
           title: 'Graphique',
           position: { row: 1, col: 0 },
-          config: { chartType: 'bar', labelField: '', valueField: '', palette: 'categorical' },
+          config: { type: 'bar', labelField: '', valueField: '', palette: 'categorical' },
         },
       ];
       break;
@@ -163,14 +167,14 @@ async function loadTemplate(name: string): Promise<void> {
           type: 'chart',
           title: 'Graphique 1',
           position: { row: 0, col: 0 },
-          config: { chartType: 'bar', labelField: '', valueField: '', palette: 'categorical' },
+          config: { type: 'bar', labelField: '', valueField: '', palette: 'categorical' },
         },
         {
           id: crypto.randomUUID(),
           type: 'chart',
           title: 'Graphique 2',
           position: { row: 0, col: 1 },
-          config: { chartType: 'line', labelField: '', valueField: '', palette: 'categorical' },
+          config: { type: 'line', labelField: '', valueField: '', palette: 'categorical' },
         },
       ];
       break;
@@ -184,7 +188,7 @@ async function loadTemplate(name: string): Promise<void> {
           type: 'kpi',
           title: 'Indicateur',
           position: { row: 0, col: 0 },
-          config: { valeur: '', format: 'nombre', icone: '', label: 'Mon KPI' },
+          config: { value: '', format: 'nombre', icon: '', label: 'Mon KPI' },
         },
         {
           id: crypto.randomUUID(),
@@ -198,7 +202,7 @@ async function loadTemplate(name: string): Promise<void> {
           type: 'chart',
           title: 'Graphique',
           position: { row: 1, col: 0 },
-          config: { chartType: 'bar', labelField: '', valueField: '', palette: 'categorical' },
+          config: { type: 'bar', labelField: '', valueField: '', palette: 'categorical' },
         },
         {
           id: crypto.randomUUID(),
