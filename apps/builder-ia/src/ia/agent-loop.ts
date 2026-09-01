@@ -24,6 +24,7 @@
 
 import type { Source, Field } from '../state.js';
 import { SKILLS, getRelevantSkills, buildSkillsContext } from '../skills.js';
+import { selectSkillSection } from '../skills-sections.js';
 import {
   DATA_INSPECTION_TOOLS,
   PREVIEW_TOOL,
@@ -103,6 +104,9 @@ function humanizeStep(name: string, args: Record<string, unknown>): string {
       return 'Je cherche les bons réglages…';
     case 'get_skill': {
       const id = typeof args.skill_id === 'string' ? args.skill_id : '';
+      const section =
+        typeof args.section === 'string' && args.section !== 'tout' ? args.section : '';
+      if (id && section) return `Je consulte « ${section} » dans la fiche « ${id} »…`;
       return id ? `Je consulte la fiche « ${id} »…` : 'Je consulte la documentation du composant…';
     }
     default:
@@ -159,7 +163,9 @@ function dispatchTool(name: string, args: Record<string, unknown>, ctx: ToolCont
         const ids = Object.keys(SKILLS).join(', ');
         return `Skill "${id}" introuvable. Ids disponibles : ${ids}`;
       }
-      return skill.content;
+      // `section` absente ou "tout" -> contenu integral (comportement historique).
+      const section = typeof args.section === 'string' ? args.section : undefined;
+      return selectSkillSection(skill.content, section);
     }
     default:
       return `Outil inconnu : ${name}`;

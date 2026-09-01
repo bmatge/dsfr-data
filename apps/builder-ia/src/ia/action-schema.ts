@@ -213,10 +213,19 @@ export const SKILL_LOOKUP_TOOLS = [
     type: 'function' as const,
     function: {
       name: 'get_skill',
-      description: "Recupere le contenu complet d'une fiche (skill) par son id.",
+      description:
+        'Recupere une fiche (skill) par son id. Preciser `section` pour ne recevoir que la partie utile : une fiche entiere peut faire 16 Ko, une section en fait 2 a 4 fois moins.',
       parameters: {
         type: 'object',
-        properties: { skill_id: { type: 'string', description: 'Id de la skill' } },
+        properties: {
+          skill_id: { type: 'string', description: 'Id de la skill' },
+          section: {
+            type: 'string',
+            enum: ['guide', 'reference', 'exemples', 'pieges', 'tout'],
+            description:
+              'guide = role, pipeline, format des données · reference = attributs, types, defauts, evenements, slots, variables CSS · exemples = snippets et patterns · pieges = regles imperatives et erreurs frequentes · tout = fiche entiere (defaut)',
+          },
+        },
         required: ['skill_id'],
         additionalProperties: false,
       },

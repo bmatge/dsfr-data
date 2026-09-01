@@ -67,6 +67,56 @@ describe('builder-ia agent-loop', () => {
     expect(secondBody.messages.some((m) => m.role === 'assistant')).toBe(true);
   });
 
+  it('get_skill(section) ne renvoie que la section demandee (#513)', async () => {
+    const post = vi
+      .fn()
+      .mockResolvedValueOnce(
+        toolCallMsg('get_skill', { skill_id: 'dsfrDataChart', section: 'reference' })
+      )
+      .mockResolvedValueOnce(
+        toolCallMsg('create_chart', {
+          message: 'ok',
+          config: { type: 'bar', valueField: 'v', labelField: 'l' },
+        })
+      );
+    let progress: string[] = [];
+
+    await runAgentLoop({
+      ...baseOpts,
+      post,
+      onProgress: (steps) => {
+        progress = steps;
+      },
+    });
+
+    const secondBody = post.mock.calls[1][0] as { messages: { role: string; content: string }[] };
+    const toolMsg = secondBody.messages.find((m) => m.role === 'tool');
+    expect(toolMsg?.content).toContain('### Reference `<dsfr-data-chart>`');
+    // La partie redigee a la main ne doit PAS etre embarquee : c'est tout
+    // l'interet de l'adressage par section.
+    expect(toolMsg?.content).not.toContain('### Exemples');
+    expect(progress).toContain('Je consulte « reference » dans la fiche « dsfrDataChart »…');
+  });
+
+  it('get_skill sans section reste retrocompatible (fiche entiere)', async () => {
+    const post = vi
+      .fn()
+      .mockResolvedValueOnce(toolCallMsg('get_skill', { skill_id: 'dsfrDataChart' }))
+      .mockResolvedValueOnce(
+        toolCallMsg('create_chart', {
+          message: 'ok',
+          config: { type: 'bar', valueField: 'v', labelField: 'l' },
+        })
+      );
+
+    await runAgentLoop({ ...baseOpts, post });
+
+    const secondBody = post.mock.calls[1][0] as { messages: { role: string; content: string }[] };
+    const toolMsg = secondBody.messages.find((m) => m.role === 'tool');
+    expect(toolMsg?.content).toContain('### Reference `<dsfr-data-chart>`');
+    expect(toolMsg?.content).toContain('### Exemples');
+  });
+
   it('respecte MAX_ROUNDS si le modele boucle sur les lookups', async () => {
     // Renvoie toujours un lookup different (sinon le garde anti-repetition coupe avant).
     let n = 0;

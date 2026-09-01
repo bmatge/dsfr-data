@@ -182,6 +182,21 @@ SKILLS -> prompt builder-IA + dist/skills.json -> serveur MCP
 
 **Point non evident** : les evenements du pipeline ne sont ecrits nulle part a la main. Ils sont deduits du **mixin** porte par le composant (`TransformerMixin` -> emet sous son propre `id` et relaie les commandes ; `SourceSubscriberMixin` -> ecoute seulement), information que le manifeste enregistre. Un composant qui change de mixin voit sa reference suivre toute seule.
 
+#### Adressage par section (#513)
+
+Chaque skill est partitionnee en quatre sections adressables — `guide`, `reference`, `exemples`, `pieges` — plus `tout` (contenu integral, valeur par defaut retrocompatible). Le decoupage vit dans `apps/builder-ia/src/skills-sections.ts` : il isole la partie generee sur son marqueur, puis classe les blocs `##`/`###` restants sur leur titre (les titres situes dans une cloture de code sont ignores).
+
+Le vocabulaire est **volontairement ferme et petit** : une enumeration de cinq valeurs se choisit de facon fiable par un modele, la ou une section libre par titre de markdown (133 titres distincts sur l'ensemble des skills) rendrait la selection hasardeuse.
+
+**Invariant teste** : le decoupage est une PARTITION. Pour les 29 skills reelles, chaque ligne du contenu se retrouve dans exactement une section, avec le meme nombre d'occurrences — passer aux sections ne perd et n'invente aucune connaissance.
+
+Les deux consommateurs partagent le vocabulaire mais pas le meme chemin :
+
+- **builder-IA** : `get_skill(skill_id, section)` dans `SKILL_LOOKUP_TOOLS`, decoupage calcule a la volee dans `agent-loop.ts` ;
+- **serveur MCP** : le decoupage est transporte par `dist/skills.json` (champ `sections`, `content` conserve pour compat), le serveur ne le rejoue pas. Comme le MCP est distribue separement de l'instance dont il telecharge `skills.json`, `selectSection()` retombe sur la fiche entiere — en le disant — face a une instance anterieure a #513.
+
+Un test croise verifie que `SKILL_SECTION_IDS` est identique des deux cotes.
+
 **Règle** : apres avoir ajoute/modifie un attribut, un evenement, un slot ou une variable CSS d'un composant `dsfr-data-*`, ecrire le JSDoc puis lancer **`npm run build:skills`**. Pour un type de graphique, un operateur de filtre ou une fonction d'agregation, c'est le guide redige a la main de `skills.ts` qu'il faut mettre a jour.
 
 Deux garde-fous complementaires (voir §12) :
