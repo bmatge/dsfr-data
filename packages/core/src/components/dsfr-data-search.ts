@@ -27,6 +27,8 @@ type SearchOperator = 'contains' | 'starts' | 'words';
  *   placeholder="Rechercher une entreprise..."
  *   operator="words" count>
  * </dsfr-data-search>
+ *
+ * @fires dsfr-data-search-change - `{ query, count }` sur l'element — la saisie de recherche a change (pour synchroniser une UI de page).
  */
 @customElement('dsfr-data-search')
 export class DsfrDataSearch extends TransformerMixin(LitElement) {

@@ -49,6 +49,7 @@ let displayInstanceSeq = 0;
 export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
   /** Prefixe d'ids DOM unique par instance (#304 — item-N duplique entre displays) */
   private readonly _uid = `dsfr-display-${++displayInstanceSeq}`;
+  /** Id de la source (ou du transformateur) dont ce composant consomme les donnees. */
   @property({ type: String })
   source = '';
 

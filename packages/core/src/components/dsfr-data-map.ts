@@ -180,27 +180,35 @@ type MapChildElement = Element & {
 export class DsfrDataMap extends LitElement {
   // --- Attributs publics ---
 
+  /** Centre initial de la carte, au format `"lat,lon"`. */
   @property({ type: String })
   center = '46.603,2.888';
 
+  /** Niveau de zoom initial (1-18). */
   @property({ type: Number })
   zoom = 6;
 
+  /** Zoom minimum autorise. */
   @property({ type: Number, attribute: 'min-zoom' })
   minZoom = 2;
 
+  /** Zoom maximum autorise. */
   @property({ type: Number, attribute: 'max-zoom' })
   maxZoom = 18;
 
+  /** Hauteur CSS (px, vh, rem). Un `%` est un ratio de la LARGEUR (ex: `"60%"` = 60 % de la largeur). */
   @property({ type: String })
   height = '500px';
 
+  /** Fond de carte : `ign-plan`, `ign-ortho`, `ign-cadastre`, `osm-fr` (alias `osm`), `osm-standard`, `carto-positron`, `carto-dark`, `opentopomap`, ou une URL template. `ign-topo` est deprecie (redirige vers `ign-plan` avec un warning). */
   @property({ type: String })
   tiles = 'ign-plan';
 
+  /** Restreint `tiles` aux presets IGN souverains : tout autre preset ou URL custom est refuse (console.warn) et remplace par `ign-plan`. */
   @property({ type: Boolean, attribute: 'sovereign-only' })
   sovereignOnly = false;
 
+  /** Masque les controles de zoom. */
   @property({ type: Boolean, attribute: 'no-controls' })
   noControls = false;
 
@@ -213,12 +221,15 @@ export class DsfrDataMap extends LitElement {
   @property({ type: String })
   insets = '';
 
+  /** Ajuste le viewport aux donnees a chaque mise a jour. Combine a `max-bounds`, l'emprise est clippee a la zone : les DROM ne dezooment pas la vue, un filtre regional zoome dessus. */
   @property({ type: Boolean, attribute: 'fit-bounds' })
   fitBounds = false;
 
+  /** Limites du deplacement, au format `"latSW,lonSW,latNE,lonNE"`. */
   @property({ type: String, attribute: 'max-bounds' })
   maxBounds = '';
 
+  /** Titre de la carte, utilise comme nom accessible (aria-label). */
   @property({ type: String })
   name = '';
 

@@ -49,6 +49,11 @@ npx playwright test --config tests/builder-e2e/playwright.config.ts  # Tests exh
 # Lint / garde-fous
 npm run check:accents # Verifie les accents francais dans le HTML (scripts/check-french-accents.sh)
 
+# Skills (connaissance IA : builder-IA + serveur MCP)
+npm run build:skills  # Chaine complete : analyse CEM -> reference generee -> dist/skills.json
+npm run build:cem     # Etape 1 seule : packages/core/custom-elements.json
+npm run build:skills-ref  # Etape 2 seule : apps/builder-ia/src/skills-reference.generated.ts
+
 # Release (voir section Versioning)
 npx changeset             # Creer un changeset
 npm run version-packages  # Bumper package.json + CHANGELOG + sync version.ts
@@ -125,8 +130,13 @@ git push && git push --tags
 
 - Lire `docs/ARCHITECTURE.md` (et sa section **Couplages non-évidents ⚠️**) avant de toucher au pipeline de composants, au proxy, aux bundles, au beacon ou au build.
 - Acceder a `import.meta.env.VITE_*` **en direct**, sans indirection.
-- Apres modif d'un attribut / type de graphique / operateur / agregation d'un composant `dsfr-data-*` :
-  mettre a jour le skill correspondant dans `apps/builder-ia/src/skills.ts` (sinon `tests/apps/builder-ia/skills.test.ts` casse).
+- Apres modif d'un **attribut / evenement / slot / variable CSS** d'un composant `dsfr-data-*` :
+  ecrire le JSDoc sur le composant (`@fires`, `@slot`, `@cssprop`) puis lancer **`npm run build:skills`** —
+  la partie « reference » des skills est GENEREE depuis le custom-elements manifest (#512), ne jamais
+  editer `apps/builder-ia/src/skills-reference.generated.ts` a la main
+  (sinon `tests/apps/builder-ia/skills-reference.test.ts` casse).
+- Apres modif d'un **type de graphique / operateur / agregation** : mettre a jour le guide redige a la main
+  dans `apps/builder-ia/src/skills.ts` (sinon `tests/apps/builder-ia/skills.test.ts` casse).
 - Ajouter un export lib-safe dans **les deux** barrels (`packages/shared/src/lib.ts` ET `src/index.ts`).
 - Lancer `npm run build` apres modification des composants.
 - Creer un changeset si `packages/core/src/` ou `packages/shared/` sont modifies.
@@ -137,6 +147,8 @@ git push && git push --tags
 - **Jamais** de commit/push direct sur `main`/`master` sans autorisation explicite ; jamais de `git push --force` sans accord.
 - **Jamais** d'indirection sur `import.meta.env` (`const m = import.meta as any`) — casse la substitution Vite, fait fuiter l'ancienne URL en dur.
 - **Jamais** modifier les `.js` dans `packages/core/src/` (artefacts de build).
+- **Jamais** editer a la main `apps/builder-ia/src/skills-reference.generated.ts` ni
+  `packages/core/custom-elements.json` — ce sont des artefacts generes (`npm run build:skills`).
 - **Jamais** importer des modules app-side (`auth/`, `storage/`, `ui/`, `tour/`) depuis `packages/core/src` (frontiere lib/app #319).
 - **Jamais** de `subscribeToSource` manuel dans un composant (utiliser `TransformerMixin` / `SourceSubscriberMixin` — test-garde statique).
 - **Jamais** regenerer en place les secrets de prod (`ENCRYPTION_KEY`, `JWT_SECRET`, `DB_*`) dans `/opt/apps/<app>/.env` sur le VPS.

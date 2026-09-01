@@ -39,6 +39,7 @@ interface PodiumItem {
  */
 @customElement('dsfr-data-podium')
 export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
+  /** Id de la source (ou du transformateur) dont ce composant consomme les donnees. */
   @property({ type: String })
   source = '';
 

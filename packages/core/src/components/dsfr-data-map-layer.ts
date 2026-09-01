@@ -54,6 +54,8 @@ type ClusterFactory = (opts: Record<string, unknown>) => FeatureGroup;
  * `window.L` (namespace exposé par loadLeaflet) ou seulement sur l'export
  * `default` du module Leaflet bundlé — on consulte les deux. Plus aucun
  * fallback CDN runtime (#292) : incompatible CSP strict et sovereign-only.
+ *
+ * @fires dsfr-data-map-layer-time-ready - `{ steps }` sur `document` — les pas de temps de la couche sont calcules ; <dsfr-data-map-timeline> s'en sert pour construire son curseur.
  */
 async function resolveLeafletPluginSymbol<T>(name: string): Promise<T | undefined> {
   const winL = (window as WindowWithLeaflet).L as Record<string, unknown> | undefined;
@@ -86,15 +88,19 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
 
   // --- Source & geo ---
 
+  /** Id de la source (ou du transformateur) dont cette couche consomme les donnees. */
   @property({ type: String })
   source = '';
 
+  /** Rendu de la couche : `marker` (epingles), `geoshape` (polygones/lignes GeoJSON), `circle` (cercles proportionnels), `heatmap` (carte de chaleur). */
   @property({ type: String })
   type: 'marker' | 'geoshape' | 'circle' | 'heatmap' = 'marker';
 
+  /** Chemin vers le champ latitude (mode coordonnees separees). */
   @property({ type: String, attribute: 'lat-field' })
   latField = '';
 
+  /** Chemin vers le champ longitude (mode coordonnees separees). */
   @property({ type: String, attribute: 'lon-field' })
   lonField = '';
 
@@ -114,97 +120,125 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
 
   // --- Display ---
 
+  /** Template du contenu de la popup, avec substitution de champs. Ex: `"{nom} — {val} kW"`. */
   @property({ type: String, attribute: 'popup-template' })
   popupTemplate = '';
 
+  /** Champs a presenter en tableau automatique dans la popup. Ex: `"nom,adresse"`. */
   @property({ type: String, attribute: 'popup-fields' })
   popupFields = '';
 
+  /** Champ affiche au survol de l'element. */
   @property({ type: String, attribute: 'tooltip-field' })
   tooltipField = '';
 
+  /** Couleur de la couche (defaut : blue-france DSFR). Sert aussi de repli quand `color-map` ne matche pas. */
   @property({ type: String })
   color = '#000091';
 
+  /** Champ dont la valeur determine la couleur (mapping categoriel via `color-map`). */
   @property({ type: String, attribute: 'color-field' })
   colorField = '';
 
+  /** Paires `valeur:#couleur` separees par des virgules. Ex: `"1:#00A95F,2:#FF9940,3:#E1000F"`. */
   @property({ type: String, attribute: 'color-map' })
   colorMap = '';
 
+  /** Champ numerique utilise pour le remplissage en choroplethe. */
   @property({ type: String, attribute: 'fill-field' })
   fillField = '';
 
+  /** Opacite du remplissage (0-1). */
   @property({ type: Number, attribute: 'fill-opacity' })
   fillOpacity = 0.6;
 
+  /** Palette DSFR utilisee pour le degrade choroplethe (`fill-field`). */
   @property({ type: String, attribute: 'selected-palette' })
   selectedPalette = '';
 
+  /** Rayon fixe des cercles (`type="circle"`). */
   @property({ type: Number })
   radius = 8;
 
+  /** Champ numerique pilotant un rayon variable (auto-scaling entre `radius-min` et `radius-max`). */
   @property({ type: String, attribute: 'radius-field' })
   radiusField = '';
 
+  /** Unite du rayon : `px` (constant a l'ecran) ou `m` (metres, suit le zoom). */
   @property({ type: String, attribute: 'radius-unit' })
   radiusUnit: 'px' | 'm' = 'px';
 
+  /** Rayon minimum de l'auto-scaling, en pixels. */
   @property({ type: Number, attribute: 'radius-min' })
   radiusMin = 4;
 
+  /** Rayon maximum de l'auto-scaling, en pixels. */
   @property({ type: Number, attribute: 'radius-max' })
   radiusMax = 30;
 
   // --- Heatmap ---
 
+  /** Rayon d'influence de chaque point de la heatmap, en pixels. */
   @property({ type: Number, attribute: 'heat-radius' })
   heatRadius = 25;
 
+  /** Flou applique a la heatmap, en pixels. */
   @property({ type: Number, attribute: 'heat-blur' })
   heatBlur = 15;
 
+  /** Champ de ponderation des points de la heatmap. */
   @property({ type: String, attribute: 'heat-field' })
   heatField = '';
 
   // --- Clustering ---
 
+  /** Regroupe les marqueurs proches en clusters. */
   @property({ type: Boolean })
   cluster = false;
 
+  /** Rayon de regroupement des clusters, en pixels. */
   @property({ type: Number, attribute: 'cluster-radius' })
   clusterRadius = 80;
 
   // --- Zoom & viewport ---
 
+  /** Niveau de zoom en deca duquel la couche est masquee. */
   @property({ type: Number, attribute: 'min-zoom' })
   minZoom = 0;
 
+  /** Niveau de zoom au-dela duquel la couche est masquee. */
   @property({ type: Number, attribute: 'max-zoom' })
   maxZoom = 18;
 
+  /** Chargement par viewport : re-interroge la source a chaque deplacement de la carte. */
   @property({ type: Boolean })
   bbox = false;
 
+  /** Delai d'anti-rebond avant le re-fetch bbox, en millisecondes. */
   @property({ type: Number, attribute: 'bbox-debounce' })
   bboxDebounce = 300;
 
+  /** Champ geographique utilise pour la requete bbox (auto-detecte si vide). */
   @property({ type: String, attribute: 'bbox-field' })
   bboxField = '';
 
   // --- Timeline ---
 
+  /** Champ date/heure activant l'animation temporelle (pilotee par `<dsfr-data-map-timeline>`). */
   @property({ type: String, attribute: 'time-field' })
   timeField = '';
 
+  /** Granularite des pas de temps : `none`, `hour`, `day`, `month`, `year`. */
   @property({ type: String, attribute: 'time-bucket' })
   timeBucket: 'none' | 'hour' | 'day' | 'month' | 'year' = 'none';
 
+  /** Rendu temporel : `snapshot` (seulement le pas courant) ou `cumulative` (tout jusqu'au pas courant). */
   @property({ type: String, attribute: 'time-mode' })
   timeMode: 'snapshot' | 'cumulative' = 'snapshot';
 
   // --- Performance ---
 
+  /** Plafond du nombre d'elements rendus sur la carte. */
   @property({ type: Number, attribute: 'max-items' })
   maxItems = 5000;
 

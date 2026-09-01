@@ -12,6 +12,7 @@
 
 import { CDN_URLS, PROXY_BASE_URL_EMBED, LIB_URL } from '@dsfr-data/shared';
 import type { Source } from './state.js';
+import { reference } from './skills-reference.generated.js';
 
 /** A single skill definition */
 export interface Skill {
@@ -189,7 +190,8 @@ avec la syntaxe \`config.where\` de createChart qui utilise le format "champ:ope
     name: 'dsfr-data-source',
     description: 'Composant de connexion aux données (API REST)',
     trigger: ['source', 'charger', 'connecter', 'rafraichir', 'url', 'api', 'données'],
-    content: `## <dsfr-data-source> - Connexion aux données
+    content:
+      `## <dsfr-data-source> - Connexion aux données
 
 Composant invisible qui récupéré des données depuis une API REST et les distribue
 aux autres composants via un systeme de bus evenementiel (data-bridge).
@@ -305,7 +307,7 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
   base-url="https://proxy.example.com/grist-proxy/api/docs/x/tables/y/records"
   headers='{"Authorization": "Bearer TOKEN"}'>
 </dsfr-data-source>
-\\\`\\\`\\\``,
+\\\`\\\`\\\`` + reference('dsfr-data-source'),
   },
 
   dsfrDataQuery: {
@@ -334,7 +336,8 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
       'dans le',
       'pour le',
     ],
-    content: `## <dsfr-data-query> - Transformation de données
+    content:
+      `## <dsfr-data-query> - Transformation de données
 
 Composant invisible qui transforme les données recues d'une source (dsfr-data-source
 ou dsfr-data-normalize). Filtre, groupe, agrégé et trie de facon declarative.
@@ -486,7 +489,7 @@ Nommage automatique sans alias : \`champ__fonction\` (ex: \`population__sum\`)
 <dsfr-data-display source="q" pagination="20">
   <template><p>{{nom}}</p></template>
 </dsfr-data-display>
-\`\`\``,
+\`\`\`` + reference('dsfr-data-query'),
   },
 
   dsfrDataNormalize: {
@@ -516,7 +519,8 @@ Nommage automatique sans alias : \`champ__fonction\` (ex: \`population__sum\`)
       'round',
       'decimales',
     ],
-    content: `## <dsfr-data-normalize> - Normalisation de données
+    content:
+      `## <dsfr-data-normalize> - Normalisation de données
 
 Composant invisible intermediaire qui nettoie et normalise les données avant traitement.
 Se place entre <dsfr-data-source> et <dsfr-data-query> (ou directement avant une visualisation).
@@ -644,7 +648,7 @@ rendant les données compatibles avec tous les composants (facettes, datalist, g
   replace-fields="AGE:Y30T39:30-39 ans | AGE:Y_LT30:Moins de 30 ans | PCS:3:Cadres | PCS:5:Employes"
   replace="N/A:">
 </dsfr-data-normalize>
-\`\`\``,
+\`\`\`` + reference('dsfr-data-normalize'),
   },
 
   dsfrDataFacets: {
@@ -660,7 +664,8 @@ rendant les données compatibles avec tous les composants (facettes, datalist, g
       'exploration',
       'filtrer par',
     ],
-    content: `## <dsfr-data-facets> - Filtres a facettes
+    content:
+      `## <dsfr-data-facets> - Filtres a facettes
 
 Composant visuel intermediaire qui affiche des filtres interactifs (checkboxes) bases sur les valeurs
 categoriques des données. Se place entre une source/normalize/query et les composants de visualisation.
@@ -775,7 +780,7 @@ champs de type string avec 2 a 50 valeurs uniques (exclut les champs ID-like).
 <dsfr-data-display source="filtered" cols="3" pagination="20">
   <template>...</template>
 </dsfr-data-display>
-\`\`\``,
+\`\`\`` + reference('dsfr-data-facets'),
   },
 
   dsfrDataSearch: {
@@ -790,7 +795,8 @@ champs de type string avec 2 a 50 valeurs uniques (exclut les champs ID-like).
       'barre de recherche',
       'full-text',
     ],
-    content: `## <dsfr-data-search> - Recherche textuelle
+    content:
+      `## <dsfr-data-search> - Recherche textuelle
 
 Composant visuel intermediaire qui affiche un champ de recherche DSFR et filtre
 les données avant de les redistribuer aux composants en aval. Se place entre
@@ -876,7 +882,7 @@ la fonction ODSQL \`search()\` pour une recherche full-text. Personnalisable via
 <dsfr-data-search id="s" source="q" server-search
   url-search-param="q" url-sync count>
 </dsfr-data-search>
-\`\`\``,
+\`\`\`` + reference('dsfr-data-search'),
   },
 
   dsfrDataKpi: {
@@ -896,7 +902,8 @@ la fonction ODSQL \`search()\` pour une recherche full-text. Personnalisable via
       'grouper',
       'grille',
     ],
-    content: `## <dsfr-data-kpi> - Indicateur chiffre clé
+    content:
+      `## <dsfr-data-kpi> - Indicateur chiffre clé
 
 Affiche une valeur numérique mise en avant avec formatage, couleur conditionnelle, icone et tendance.
 Se connecte a une dsfr-data-source ou dsfr-data-query via l'attribut \`source\`.
@@ -991,7 +998,7 @@ Utiliser \`<dsfr-data-kpi-group>\` pour disposer plusieurs KPIs en grille respon
   lines='[{"value":"evol:avg","sign":true,"suffix":"vs mai 2025","color":"auto"}]'
   label="Donnee mai 2026">
 </dsfr-data-kpi>
-\`\`\``,
+\`\`\`` + reference('dsfr-data-kpi'),
   },
 
   dsfrDataKpiGroup: {
@@ -1007,7 +1014,8 @@ Utiliser \`<dsfr-data-kpi-group>\` pour disposer plusieurs KPIs en grille respon
       'dashboard kpi',
       'colonnes kpi',
     ],
-    content: `## <dsfr-data-kpi-group> - Groupe de KPIs en grille
+    content:
+      `## <dsfr-data-kpi-group> - Groupe de KPIs en grille
 
 Conteneur qui dispose plusieurs \`<dsfr-data-kpi>\` dans une grille CSS 12 colonnes responsive.
 
@@ -1048,7 +1056,7 @@ Conteneur qui dispose plusieurs \`<dsfr-data-kpi>\` dans une grille CSS 12 colon
   <dsfr-data-kpi source="data" valeur="min:prix" label="Prix min" format="euro"></dsfr-data-kpi>
   <dsfr-data-kpi source="data" valeur="max:prix" label="Prix max" format="euro"></dsfr-data-kpi>
 </dsfr-data-kpi-group>
-\`\`\``,
+\`\`\`` + reference('dsfr-data-kpi-group'),
   },
 
   dsfrDataChart: {
@@ -1086,7 +1094,8 @@ Conteneur qui dispose plusieurs \`<dsfr-data-kpi>\` dans une grille CSS 12 colon
       'tendance',
       'trend',
     ],
-    content: `## <dsfr-data-chart> - Graphiques DSFR
+    content:
+      `## <dsfr-data-chart> - Graphiques DSFR
 
 Wrapper connectant les composants DSFR Chart officiels au systeme dsfr-data-source/dsfr-data-query.
 Se connecte a une source via l'attribut \`source\`. Généré automatiquement le format
@@ -1257,7 +1266,7 @@ Quand \`databox\` est active, dsfr-data-a11y ne doit PAS inclure \`table\` ni \`
 <dsfr-data-a11y for="chart" source="data"
   description="L'Ile-de-France concentre la majorite de la population.">
 </dsfr-data-a11y>
-\`\`\``,
+\`\`\`` + reference('dsfr-data-chart'),
   },
 
   dsfrDataList: {
@@ -1276,7 +1285,8 @@ Quand \`databox\` est active, dsfr-data-a11y ne doit PAS inclure \`table\` ni \`
       'recherche',
       'datalist',
     ],
-    content: `## <dsfr-data-list> - Tableau de données
+    content:
+      `## <dsfr-data-list> - Tableau de données
 
 Affiche un tableau DSFR filtrable, triable, paginable avec export CSV et/ou HTML.
 Se connecte a une dsfr-data-source ou dsfr-data-query via l'attribut \`source\`.
@@ -1333,7 +1343,7 @@ Fonctionne avec la pagination client et serveur. Compatible avec les autres para
   pagination="20"
   export="csv,html">
 </dsfr-data-list>
-\`\`\``,
+\`\`\`` + reference('dsfr-data-list'),
   },
 
   dsfrDataDisplay: {
@@ -1353,7 +1363,8 @@ Fonctionne avec la pagination client et serveur. Compatible avec les autres para
       'liste de resultats',
       'motif repetitif',
     ],
-    content: `## <dsfr-data-display> - Affichage dynamique via template
+    content:
+      `## <dsfr-data-display> - Affichage dynamique via template
 
 Généré des elements HTML repetitifs (cartes DSFR, tuiles, callouts, etc.) a partir
 d'un template et d'une source de données. Chaque element du tableau de données produit
@@ -1459,7 +1470,7 @@ Quand la page est 1, le parametre est supprime de l'URL. Compatible avec les aut
     </div>
   </template>
 </dsfr-data-display>
-\`\`\``,
+\`\`\`` + reference('dsfr-data-display'),
   },
 
   // ---------------------------------------------------------------------------
@@ -2188,7 +2199,8 @@ APIs avec CORS natif (pas de proxy necessaire) :
       'description graphique',
       'chart-a11y',
     ],
-    content: `## dsfr-data-a11y — Companion d'accessibilité unifie
+    content:
+      `## dsfr-data-a11y — Companion d'accessibilité unifie
 
 Composant companion qui ameliore l'accessibilité d'une visualisation en offrant
 trois alternatives activables independamment :
@@ -2275,7 +2287,8 @@ rendu : switch chart/tableau integre, CSV natif). Conserver uniquement :
 - Le contenu est dans un accordeon DSFR (replie par défaut)
 - Le CSV utilise le separateur \`;\` (standard francais)
 - Le tableau est limite a 100 lignes ; le CSV contient toutes les données
-- Compatible avec tous les composants de rendu (chart, datalist, display, kpi)`,
+- Compatible avec tous les composants de rendu (chart, datalist, display, kpi)` +
+      reference('dsfr-data-a11y'),
   },
 
   // ---------------------------------------------------------------------------
@@ -2319,7 +2332,8 @@ rendu : switch chart/tableau integre, CSV natif). Conserver uniquement :
       'sovereign-only',
       'osm-fr',
     ],
-    content: `## dsfr-data-map + dsfr-data-map-layer — Carte interactive multi-couches
+    content:
+      `## dsfr-data-map + dsfr-data-map-layer — Carte interactive multi-couches
 
 Deux composants complementaires :
 - \`dsfr-data-map\` : conteneur carte (init Leaflet, tuiles, viewport). **Ne consomme pas de données.**
@@ -2578,7 +2592,14 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
   </dsfr-data-map-timeline>
 </dsfr-data-map>
 \`\`\`
-`,
+` +
+      reference(
+        'dsfr-data-map',
+        'dsfr-data-map-layer',
+        'dsfr-data-map-popup',
+        'dsfr-data-map-inset',
+        'dsfr-data-map-timeline'
+      ),
   },
 
   // ---------------------------------------------------------------------------
@@ -2672,7 +2693,8 @@ clés de premier niveau.
       'fan-out',
       'orchestration',
     ],
-    content: `## <dsfr-data-context> - Filtres transverses multi-sources
+    content:
+      `## <dsfr-data-context> - Filtres transverses multi-sources
 
 Chef d'orchestre OPT-IN (#229, ADR-031) : tient les filtres communs d'un dashboard
 multi-vues et les diffuse a N sources nommees. Ne fait aucun fetch HTTP, ne transforme
@@ -2702,7 +2724,7 @@ Sans contexte, chaque source reste autonome (defaut inchange).
 Les enfants <dsfr-data-context-filter> declarent chacun UN filtre. La clause est
 construite en colon (dialecte pivot) puis traduite au whereFormat de chaque adapter
 (ODSQL pour OpenDataSoft). Le disconnect du contexte libere tous ses filtres.
-`,
+` + reference('dsfr-data-context'),
   },
 
   dsfrDataContextFilter: {
@@ -2710,7 +2732,8 @@ construite en colon (dialecte pivot) puis traduite au whereFormat de chaque adap
     name: 'dsfr-data-context-filter',
     description: "Un filtre d'un dsfr-data-context (ecoute un element d'UI)",
     trigger: ['context-filter', 'filtre contexte', 'filtre ui', 'apply-to'],
-    content: `## <dsfr-data-context-filter> - Un filtre du contexte
+    content:
+      `## <dsfr-data-context-filter> - Un filtre du contexte
 
 Enfant de <dsfr-data-context>. Ecoute les change/input de l'element d'UI reference
 par \`ui\` (select, input, select multiple) et confie sa clause au contexte parent.
@@ -2734,7 +2757,7 @@ La valeur vide RETIRE le filtre. Les valeurs sont percent-encodees (#271).
   \`lt-day-after\` (inclusif jusqu'au jour choisi), \`last-n-days\` (N derniers jours, borne
   dynamique), \`current-year\` (checkbox -> annee en cours). Plages [debut, fin) en ISO,
   recalculees a chaque diffusion — l'URL serialise l'intention (« 30 »), pas les dates resolues.
-`,
+` + reference('dsfr-data-context-filter'),
   },
 
   dsfrDataContextTags: {
@@ -2742,7 +2765,8 @@ La valeur vide RETIRE le filtre. Les valeurs sont percent-encodees (#271).
     name: 'dsfr-data-context-tags',
     description: "Tags DSFR recapitulant les filtres actifs d'un contexte (supprimables)",
     trigger: ['context-tags', 'tags filtres', 'filtres actifs', 'recap filtres', 'retirer filtre'],
-    content: `## <dsfr-data-context-tags> - Recap des filtres actifs
+    content:
+      `## <dsfr-data-context-tags> - Recap des filtres actifs
 
 Affiche des tags DSFR supprimables : un tag par filtre actif du contexte observe
 (libelle naturel + valeur). La croix reinitialise le filtre en VIDANT son UI —
@@ -2764,7 +2788,7 @@ mettent a jour ensemble.
 </dsfr-data-context>
 <dsfr-data-context-tags for="ctx"></dsfr-data-context-tags>
 \`\`\`
-`,
+` + reference('dsfr-data-context-tags'),
   },
 
   dsfrDataJoin: {
@@ -2783,7 +2807,8 @@ mettent a jour ensemble.
       'multi-source',
       'combiner',
     ],
-    content: `## <dsfr-data-join> - Jointure multi-sources
+    content:
+      `## <dsfr-data-join> - Jointure multi-sources
 
 Composant invisible qui joint deux sources de données sur une ou plusieurs clés pivot.
 Ne fait aucun fetch HTTP — c'est un pur transformateur de données.
@@ -2869,7 +2894,8 @@ Si un champ existe dans les deux sources avec le même nom :
 - Le join est recalcule automatiquement quand l'une des sources emet de nouvelles données
 - Relations 1-N : si plusieurs enregistrements droite matchent une clé gauche, autant de lignes sont generees
 - Le composant emet \`dsfr-data-loading\` tant qu'une source n'a pas encore repondu
-- Le composant emet \`dsfr-data-error\` si l'une des sources est en erreur`,
+- Le composant emet \`dsfr-data-error\` si l'une des sources est en erreur` +
+      reference('dsfr-data-join'),
   },
 
   dsfrDataUnpivot: {
@@ -2887,7 +2913,8 @@ Si un champ existe dans les deux sources avec le même nom :
       'format large',
       'une colonne par mois',
     ],
-    content: `## <dsfr-data-unpivot> - Bascule "wide" → "tidy"
+    content:
+      `## <dsfr-data-unpivot> - Bascule "wide" → "tidy"
 
 Composant invisible, pur transformateur (aucun fetch HTTP), frère de dsfr-data-query / dsfr-data-join.
 
@@ -2939,7 +2966,8 @@ Tout autre \`{nom}\` matche un segment générique. Le motif est ancré (début 
 ### Notes
 - Un nouveau mois (nouvelle colonne \`c2026_05\`) est déplié automatiquement, sans changer la config.
 - Plusieurs id-cols sont portées sur chaque ligne émise.
-- Recalcule automatiquement quand la source amont émet de nouvelles données.`,
+- Recalcule automatiquement quand la source amont émet de nouvelles données.` +
+      reference('dsfr-data-unpivot'),
   },
 
   dsfrDataPodium: {
@@ -2956,7 +2984,8 @@ Tout autre \`{nom}\` matche un segment générique. Le motif est ancré (début 
       'top 10',
       'leaderboard',
     ],
-    content: `## <dsfr-data-podium> - Classement visuel
+    content:
+      `## <dsfr-data-podium> - Classement visuel
 
 Affiche un podium (top N) avec rang numerote, label, sous-titre, barre de progression proportionnelle et valeur formatee.
 Se connecte au pipeline dsfr-data-source / dsfr-data-query via l'attribut \`source\`.
@@ -3026,7 +3055,7 @@ Se connecte au pipeline dsfr-data-source / dsfr-data-query via l'attribut \`sour
   bar-max="100"
   no-sort>
 </dsfr-data-podium>
-\`\`\``,
+\`\`\`` + reference('dsfr-data-podium'),
   },
 
   dsfrDataBeacon: {
@@ -3042,7 +3071,8 @@ Se connecte au pipeline dsfr-data-source / dsfr-data-query via l'attribut \`sour
       'collecte',
       'suivi usage',
     ],
-    content: `## <dsfr-data-beacon> - Cible telemetrie declarative (#345)
+    content:
+      `## <dsfr-data-beacon> - Cible telemetrie declarative (#345)
 
 Pendant declaratif de \`proxy-url\` cote telemetrie. Par defaut le beacon d'usage
 est **desactive**. Cet element rend la collecte VISIBLE et RETIRABLE dans le HTML
@@ -3074,7 +3104,7 @@ compte pas (peut etre place apres les composants).
 <dsfr-data-chart ...></dsfr-data-chart>
 <dsfr-data-kpi ...></dsfr-data-kpi>
 \`\`\`
-`,
+` + reference('dsfr-data-beacon'),
   },
 };
 

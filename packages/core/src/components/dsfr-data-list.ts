@@ -38,6 +38,7 @@ let listInstanceSeq = 0;
 export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
   /** Prefixe d'ids DOM unique par instance (#304 — ids dupliques entre listes) */
   private readonly _uid = `dsfr-list-${++listInstanceSeq}`;
+  /** Id de la source (ou du transformateur) dont ce tableau consomme les donnees. */
   @property({ type: String })
   source = '';
 

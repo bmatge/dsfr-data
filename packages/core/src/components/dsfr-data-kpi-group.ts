@@ -21,6 +21,9 @@ import { sendWidgetBeacon } from '../utils/beacon.js';
  *   <dsfr-data-kpi source="src" value="marge:avg" label="Marge" col="3"></dsfr-data-kpi>
  *   <dsfr-data-kpi source="src" value="count" label="Transactions" col="3"></dsfr-data-kpi>
  * </dsfr-data-kpi-group>
+ *
+ * @slot - Les `<dsfr-data-kpi>` a disposer dans la grille DSFR 12 colonnes.
+ * @cssprop [--dsfr-data-kpi-group-gap=1rem] - Gouttiere entre les KPI. Pilotee par l'attribut `gap` (sm/md/lg), surchargeable par la page.
  */
 @customElement('dsfr-data-kpi-group')
 export class DsfrDataKpiGroup extends LitElement {

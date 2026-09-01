@@ -35,10 +35,10 @@ const COLOR_CLASSES: Record<KpiColor, string> = {
  */
 @customElement('dsfr-data-kpi')
 export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
+  /** Id de la source (ou du transformateur) dont ce KPI consomme les donnees. Facultatif si `value` est un litteral (`value="=667"`). */
   @property({ type: String })
   source = '';
 
-  /** Expression pour la valeur à afficher (ex: "total", "avg:score_rgaa") */
   /**
    * Expression de valeur — convention cible anglaise (#300).
    * Grammaire commune "champ:fn" (#303), ex. value="population:sum".
