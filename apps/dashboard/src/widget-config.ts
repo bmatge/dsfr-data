@@ -3,7 +3,15 @@
  */
 
 import { escapeHtml } from '@dsfr-data/shared';
-import { state, oneOf, KPI_FORMATS, CHART_TYPES, CHART_PALETTES, TEXT_STYLES } from './state.js';
+import {
+  state,
+  oneOf,
+  isBuilderChart,
+  KPI_FORMATS,
+  CHART_TYPES,
+  CHART_PALETTES,
+  TEXT_STYLES,
+} from './state.js';
 import { renderWidget } from './widgets.js';
 import { updateGeneratedCode } from './code-generator.js';
 import type { Widget } from './state.js';
@@ -67,7 +75,7 @@ function getConfigForm(widget: Widget): string {
       `
       );
 
-    case 'chart':
+    case 'chart': {
       if (widget.config.fromFavorite) {
         return (
           commonFields +
@@ -75,6 +83,19 @@ function getConfigForm(widget: Widget): string {
           <div class="fr-callout fr-callout--green-emeraude">
             <p class="fr-callout__text">
               Ce graphique provient de vos favoris et utilise sa configuration d'origine.
+            </p>
+          </div>
+        `
+        );
+      }
+      if (isBuilderChart(widget.config)) {
+        return (
+          commonFields +
+          `
+          <div class="fr-callout">
+            <p class="fr-callout__text">
+              Ce graphique a été produit par l'assistant : sa configuration complète
+              s'édite dans le Studio IA.
             </p>
           </div>
         `
@@ -114,6 +135,7 @@ function getConfigForm(widget: Widget): string {
         </div>
       `
       );
+    }
 
     case 'table':
       return (
@@ -190,7 +212,7 @@ export function applyConfig(): void {
       break;
 
     case 'chart':
-      if (!widget.config.fromFavorite) {
+      if (!widget.config.fromFavorite && !isBuilderChart(widget.config)) {
         widget.config.type = oneOf(
           (document.getElementById('config-type') as HTMLSelectElement)?.value,
           CHART_TYPES,
