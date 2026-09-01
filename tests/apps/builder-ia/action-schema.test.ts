@@ -106,6 +106,23 @@ describe('builder-ia action-schema', () => {
       expect(finalNames).toEqual(['create_chart', 'reload_data', 'reset_chart']);
       const lookupNames = SKILL_LOOKUP_TOOLS.map((t) => t.function.name);
       expect(lookupNames).toEqual(['get_relevant_skills', 'get_skill']);
+
+      // #513 : get_skill est adressable par section, avec une enumeration fermee
+      // (le modele choisit de facon fiable dans une petite liste) et `tout` en
+      // valeur retrocompatible.
+      const getSkill = SKILL_LOOKUP_TOOLS.find((t) => t.function.name === 'get_skill');
+      const params = getSkill?.function.parameters as {
+        properties: { section?: { enum?: string[] } };
+        required: string[];
+      };
+      expect(params.properties.section?.enum).toEqual([
+        'guide',
+        'reference',
+        'exemples',
+        'pieges',
+        'tout',
+      ]);
+      expect(params.required).toEqual(['skill_id']);
     });
 
     it('FINAL_TOOL_NAMES contient les tools terminaux', () => {

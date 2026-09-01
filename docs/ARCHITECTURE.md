@@ -182,6 +182,43 @@ SKILLS -> prompt builder-IA + dist/skills.json -> serveur MCP
 
 **Point non evident** : les evenements du pipeline ne sont ecrits nulle part a la main. Ils sont deduits du **mixin** porte par le composant (`TransformerMixin` -> emet sous son propre `id` et relaie les commandes ; `SourceSubscriberMixin` -> ecoute seulement), information que le manifeste enregistre. Un composant qui change de mixin voit sa reference suivre toute seule.
 
+#### Adressage par section (#513)
+
+Chaque skill est partitionnee en quatre sections adressables — `guide`, `reference`, `exemples`, `pieges` — plus `tout` (contenu integral, valeur par defaut retrocompatible). Le decoupage vit dans `apps/builder-ia/src/skills-sections.ts` : il isole la partie generee sur son marqueur, puis classe les blocs `##`/`###` restants sur leur titre (les titres situes dans une cloture de code sont ignores).
+
+Le vocabulaire est **volontairement ferme et petit** : une enumeration de cinq valeurs se choisit de facon fiable par un modele, la ou une section libre par titre de markdown (133 titres distincts sur l'ensemble des skills) rendrait la selection hasardeuse.
+
+**Invariant teste** : le decoupage est une PARTITION. Pour les 29 skills reelles, chaque ligne du contenu se retrouve dans exactement une section, avec le meme nombre d'occurrences — passer aux sections ne perd et n'invente aucune connaissance.
+
+Les deux consommateurs partagent le vocabulaire mais pas le meme chemin :
+
+- **builder-IA** : `get_skill(skill_id, section)` dans `SKILL_LOOKUP_TOOLS`, decoupage calcule a la volee dans `agent-loop.ts` ;
+- **serveur MCP** : le decoupage est transporte par `dist/skills.json` (champ `sections`, `content` conserve pour compat), le serveur ne le rejoue pas. Comme le MCP est distribue separement de l'instance dont il telecharge `skills.json`, `selectSection()` retombe sur la fiche entiere — en le disant — face a une instance anterieure a #513.
+
+Un test croise verifie que `SKILL_SECTION_IDS` est identique des deux cotes.
+
+#### Moteur de matching unifie (#514)
+
+Il n'y a plus qu'UN moteur de selection des skills : `apps/builder-ia/src/skill-matching.ts`. Il etait auparavant ecrit deux fois — un `includes` sur les triggers cote MCP, une boucle equivalente plus des enrichissements contextuels cote builder-IA — donc toute amelioration devait etre faite deux fois, et le MCP restait structurellement moins pertinent.
+
+**Scoring pondere**, avec les raisons exposees (`reasons`) pour rester debuggable :
+
+| Signal | Poids | Role |
+|---|---|---|
+| trigger present tel quel | 10 | signal fort — comportement historique preserve |
+| trigger multi-mots **disperse** (« colonnes en lignes » dans « colonnes ANNUELLES en lignes ») | 6 | corrige le silence principal de l'ancien `includes`, qui exigeait la contiguite |
+| nom du composant cite | 8 | demande explicite |
+| recouvrement avec la description | 2/token, plafond 4 | classe |
+| recouvrement avec les titres de sections | 1/token, plafond 3 | classe |
+
+Le seuil de retenue est 6 : un trigger, exact ou disperse, le franchit seul. La somme des plafonds faibles (7) reste **strictement inferieure** au poids d'un trigger (10) — une skill riche en mots-cles ne peut jamais passer devant une skill reellement declenchee. Normalisation NFD obligatoire : « données » et « donnees » doivent matcher le meme trigger.
+
+**Partage avec le MCP** : `mcp-server/` est hors workspace npm et publie separement (`dsfr-data-mcp`), il ne peut pas importer le module. Le moteur est donc **copie** dans `mcp-server/src/skill-matching.generated.ts` par `npm run build:skill-matching`, et `tests/mcp/skill-matching.test.ts` echoue si la copie diverge. C'est ce qui rend structurelle la contrainte « **aucun import dans `skill-matching.ts`** » : un import rendrait la copie non resoluble cote MCP. Le generateur et le test la verifient tous les deux.
+
+Le builder-IA garde **par-dessus** ses enrichissements contextuels (type de source ODS/Grist, intentions metier) : il connait la source chargee, le MCP non.
+
+**Option souveraine — rerank Albert** (`apps/builder-ia/src/ia/skill-rerank.ts`) : reclasse les candidates via `/v1/rerank`. Il ne fait que REORDONNER ce que le moteur local a deja retenu, jamais produire des candidates. Trois garde-fous : capacite **desactivee par defaut** tant que `scripts/probe-albert.ts` ne l'a pas confirmee (meme doctrine que `jsonSchema`/`toolCalling`, mais sans activation par defaut — un echec y couterait un aller-retour reseau a chaque recherche) ; repli sur l'ordre local a la moindre anomalie (HTTP, JSON, index hors bornes, score manquant, timeout) ; et charge utile bornee a 10 candidates, nom + description seulement. Le serveur MCP ne l'embarque pas : il doit rester fonctionnel hors-ligne avec `--skills-file`.
+
 **Règle** : apres avoir ajoute/modifie un attribut, un evenement, un slot ou une variable CSS d'un composant `dsfr-data-*`, ecrire le JSDoc puis lancer **`npm run build:skills`**. Pour un type de graphique, un operateur de filtre ou une fonction d'agregation, c'est le guide redige a la main de `skills.ts` qu'il faut mettre a jour.
 
 Deux garde-fous complementaires (voir §12) :

@@ -13,6 +13,7 @@
 import { CDN_URLS, PROXY_BASE_URL_EMBED, LIB_URL } from '@dsfr-data/shared';
 import type { Source } from './state.js';
 import { reference } from './skills-reference.generated.js';
+import { matchSkills } from './skill-matching.js';
 
 /** A single skill definition */
 export interface Skill {
@@ -3112,15 +3113,14 @@ compte pas (peut etre place apres les composants).
  * Get skills relevant to the current user message and source context
  */
 export function getRelevantSkills(message: string, currentSource: Source | null): Skill[] {
-  const relevant: Skill[] = [];
+  // Couche 1 — moteur de matching partage avec le serveur MCP (#514).
+  // Meme scoring des deux cotes : une amelioration profite aux deux.
+  const relevant: Skill[] = matchSkills(Object.values(SKILLS), message);
   const lowerMsg = message.toLowerCase();
 
-  for (const [, skill] of Object.entries(SKILLS)) {
-    const triggered = skill.trigger.some((t) => lowerMsg.includes(t.toLowerCase()));
-    if (triggered) {
-      relevant.push(skill);
-    }
-  }
+  // Couche 2 — enrichissements contextuels PROPRES au builder-IA : il connait
+  // la source chargee (ODS, Grist) et l'intention de l'utilisateur, ce que le
+  // MCP n'a pas. Ces regles restent donc ici, au-dessus du moteur commun.
 
   // Always include composition patterns for dashboard/integration requests
   if (

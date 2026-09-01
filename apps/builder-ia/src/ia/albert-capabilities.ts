@@ -20,6 +20,18 @@ export interface AlbertCapabilities {
   jsonSchema: boolean;
   /** tools / tool_choice fonctionne (boucle agentique possible) */
   toolCalling: boolean;
+  /**
+   * /v1/rerank repond un classement exploitable (#514). Sert a reclasser les
+   * skills candidates par un modele souverain plutot que par le seul scoring
+   * lexical local. Faux tant que la sonde ne l'a pas confirme.
+   *
+   * OPTIONNEL a dessein : les capacites sont persistees en localStorage, donc
+   * un objet memorise avant #514 n'a pas ce champ. `undefined` est falsy — le
+   * rerank reste desactive, sans migration ni invalidation du cache.
+   */
+  rerank?: boolean;
+  /** Modele de rerank retenu par la sonde (vide si rerank indisponible). */
+  rerankModel?: string;
   /** Timestamp (ms) de la derniere sonde ; 0 si jamais sondee */
   probedAt: number;
 }
@@ -32,6 +44,8 @@ export const DEFAULT_CAPABILITIES: AlbertCapabilities = {
   model: '',
   jsonSchema: false,
   toolCalling: false,
+  rerank: false,
+  rerankModel: '',
   probedAt: 0,
 };
 
@@ -94,6 +108,13 @@ export const ALBERT_DEFAULT_CAPABILITIES: AlbertCapabilities = {
   model: '',
   jsonSchema: true,
   toolCalling: true,
+  // Le rerank NE PEUT PAS suivre la meme regle : contrairement a tools, qui
+  // retombe sur le chemin legacy en cas de refus, un rerank actif par defaut
+  // ajouterait un aller-retour reseau a chaque recherche de skills, y compris
+  // quand l'endpoint n'existe pas. Il reste donc a false tant que la sonde
+  // (scripts/probe-albert.ts) ne l'a pas confirme.
+  rerank: false,
+  rerankModel: '',
   probedAt: 0,
 };
 

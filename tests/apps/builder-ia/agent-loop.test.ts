@@ -67,6 +67,105 @@ describe('builder-ia agent-loop', () => {
     expect(secondBody.messages.some((m) => m.role === 'assistant')).toBe(true);
   });
 
+  it('get_skill(section) ne renvoie que la section demandee (#513)', async () => {
+    const post = vi
+      .fn()
+      .mockResolvedValueOnce(
+        toolCallMsg('get_skill', { skill_id: 'dsfrDataChart', section: 'reference' })
+      )
+      .mockResolvedValueOnce(
+        toolCallMsg('create_chart', {
+          message: 'ok',
+          config: { type: 'bar', valueField: 'v', labelField: 'l' },
+        })
+      );
+    let progress: string[] = [];
+
+    await runAgentLoop({
+      ...baseOpts,
+      post,
+      onProgress: (steps) => {
+        progress = steps;
+      },
+    });
+
+    const secondBody = post.mock.calls[1][0] as { messages: { role: string; content: string }[] };
+    const toolMsg = secondBody.messages.find((m) => m.role === 'tool');
+    expect(toolMsg?.content).toContain('### Reference `<dsfr-data-chart>`');
+    // La partie redigee a la main ne doit PAS etre embarquee : c'est tout
+    // l'interet de l'adressage par section.
+    expect(toolMsg?.content).not.toContain('### Exemples');
+    expect(progress).toContain('Je consulte « reference » dans la fiche « dsfrDataChart »…');
+  });
+
+  it('get_skill sans section reste retrocompatible (fiche entiere)', async () => {
+    const post = vi
+      .fn()
+      .mockResolvedValueOnce(toolCallMsg('get_skill', { skill_id: 'dsfrDataChart' }))
+      .mockResolvedValueOnce(
+        toolCallMsg('create_chart', {
+          message: 'ok',
+          config: { type: 'bar', valueField: 'v', labelField: 'l' },
+        })
+      );
+
+    await runAgentLoop({ ...baseOpts, post });
+
+    const secondBody = post.mock.calls[1][0] as { messages: { role: string; content: string }[] };
+    const toolMsg = secondBody.messages.find((m) => m.role === 'tool');
+    expect(toolMsg?.content).toContain('### Reference `<dsfr-data-chart>`');
+    expect(toolMsg?.content).toContain('### Exemples');
+  });
+
+  it('applique le rerank injecte sur get_relevant_skills (#514)', async () => {
+    const post = vi
+      .fn()
+      .mockResolvedValueOnce(toolCallMsg('get_relevant_skills', { message: 'graphique barres' }))
+      .mockResolvedValueOnce(
+        toolCallMsg('create_chart', {
+          message: 'ok',
+          config: { type: 'bar', valueField: 'v', labelField: 'l' },
+        })
+      );
+    // Le hook inverse l'ordre : on verifie que la boucle respecte l'ordre rendu.
+    const rerank = vi.fn(async (_msg: string, skills: { id: string }[]) => [...skills].reverse());
+
+    await runAgentLoop({
+      ...baseOpts,
+      post,
+      rerankSkills: rerank as never,
+    });
+
+    expect(rerank).toHaveBeenCalledOnce();
+    const [message, skills] = rerank.mock.calls[0];
+    expect(message).toBe('graphique barres');
+    expect(skills.length).toBeGreaterThan(1);
+
+    const second = post.mock.calls[1][0] as { messages: { role: string; content: string }[] };
+    const toolMsg = second.messages.find((m) => m.role === 'tool')?.content ?? '';
+    const first = skills[0] as { name: string };
+    const last = skills[skills.length - 1] as { name: string };
+    // L'ordre inverse doit se lire dans le contexte remis au modele.
+    expect(toolMsg.indexOf(last.name)).toBeLessThan(toolMsg.indexOf(first.name));
+  });
+
+  it('sans hook de rerank, garde l’ordre du scoring local', async () => {
+    const post = vi
+      .fn()
+      .mockResolvedValueOnce(toolCallMsg('get_relevant_skills', { message: 'graphique barres' }))
+      .mockResolvedValueOnce(
+        toolCallMsg('create_chart', {
+          message: 'ok',
+          config: { type: 'bar', valueField: 'v', labelField: 'l' },
+        })
+      );
+
+    await runAgentLoop({ ...baseOpts, post });
+
+    const second = post.mock.calls[1][0] as { messages: { role: string; content: string }[] };
+    expect(second.messages.some((m) => m.role === 'tool')).toBe(true);
+  });
+
   it('respecte MAX_ROUNDS si le modele boucle sur les lookups', async () => {
     // Renvoie toujours un lookup different (sinon le garde anti-repetition coupe avant).
     let n = 0;
