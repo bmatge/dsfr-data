@@ -8,5 +8,6 @@ mcp-server/
 # pas par prettier : sinon le fichier oscille a chaque regeneration.
 apps/builder-ia/src/skills-reference.generated.ts
 packages/core/custom-elements.json
+mcp-server/src/skill-matching.generated.ts
 **/*.html
 **/*.md

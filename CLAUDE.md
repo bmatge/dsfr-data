@@ -53,6 +53,7 @@ npm run check:accents # Verifie les accents francais dans le HTML (scripts/check
 npm run build:skills  # Chaine complete : analyse CEM -> reference generee -> dist/skills.json
 npm run build:cem     # Etape 1 seule : packages/core/custom-elements.json
 npm run build:skills-ref  # Etape 2 seule : apps/builder-ia/src/skills-reference.generated.ts
+npm run build:skill-matching  # Copie du moteur de matching vers mcp-server/
 
 # Release (voir section Versioning)
 npx changeset             # Creer un changeset
@@ -147,8 +148,12 @@ git push && git push --tags
 - **Jamais** de commit/push direct sur `main`/`master` sans autorisation explicite ; jamais de `git push --force` sans accord.
 - **Jamais** d'indirection sur `import.meta.env` (`const m = import.meta as any`) — casse la substitution Vite, fait fuiter l'ancienne URL en dur.
 - **Jamais** modifier les `.js` dans `packages/core/src/` (artefacts de build).
-- **Jamais** editer a la main `apps/builder-ia/src/skills-reference.generated.ts` ni
-  `packages/core/custom-elements.json` — ce sont des artefacts generes (`npm run build:skills`).
+- **Jamais** editer a la main `apps/builder-ia/src/skills-reference.generated.ts`,
+  `packages/core/custom-elements.json` ni `mcp-server/src/skill-matching.generated.ts` —
+  ce sont des artefacts generes (`npm run build:skills`).
+- **Jamais** ajouter d'`import` dans `apps/builder-ia/src/skill-matching.ts` : ce fichier est
+  copie tel quel dans le serveur MCP, qui est hors workspace npm (test-garde + garde-fou
+  a la generation).
 - **Jamais** importer des modules app-side (`auth/`, `storage/`, `ui/`, `tour/`) depuis `packages/core/src` (frontiere lib/app #319).
 - **Jamais** de `subscribeToSource` manuel dans un composant (utiliser `TransformerMixin` / `SourceSubscriberMixin` — test-garde statique).
 - **Jamais** regenerer en place les secrets de prod (`ENCRYPTION_KEY`, `JWT_SECRET`, `DB_*`) dans `/opt/apps/<app>/.env` sur le VPS.

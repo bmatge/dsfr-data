@@ -2,6 +2,15 @@
  * Skills loading and matching — extracted for testability.
  */
 
+import {
+  matchSkills as sharedMatchSkills,
+  searchSkills,
+  scoreSkill,
+  MIN_SCORE,
+  type SkillMatch,
+  type SearchOptions,
+} from './skill-matching.generated.js';
+
 /**
  * Sections adressables d'une skill (#513). Definies cote builder-IA dans
  * `apps/builder-ia/src/skills-sections.ts` et transportees telles quelles par
@@ -88,12 +97,20 @@ export function routeMcpRequest(opts: {
 }
 
 /**
- * Match skills whose triggers appear in the given message (case-insensitive).
+ * Matching des skills — delegue au moteur PARTAGE avec le builder-IA (#514).
+ *
+ * C'etait auparavant un `includes` sur les triggers, structurellement moins
+ * pertinent que le cote builder-IA, et toute amelioration devait etre faite
+ * deux fois. Le moteur vit maintenant dans
+ * `apps/builder-ia/src/skill-matching.ts` et est copie ici par
+ * `npm run build:skill-matching`.
  */
-export function matchSkills(skills: Skill[], message: string): Skill[] {
-  const lower = message.toLowerCase();
-  return skills.filter((s) => s.trigger.some((t) => lower.includes(t.toLowerCase())));
+export function matchSkills(skills: Skill[], message: string, options?: SearchOptions): Skill[] {
+  return sharedMatchSkills(skills, message, options);
 }
+
+export { searchSkills, scoreSkill, MIN_SCORE };
+export type { SkillMatch, SearchOptions };
 
 /**
  * Pick skill IDs relevant to a given chart type for generate_widget_code.

@@ -27,7 +27,7 @@ import { EnvHttpProxyAgent, setGlobalDispatcher } from 'undici';
 import { z } from 'zod';
 import { getArg, hasFlag } from './cli.js';
 import {
-  matchSkills,
+  searchSkills,
   getWidgetSkillIds,
   routeMcpRequest,
   selectSection,
@@ -188,13 +188,24 @@ function createMcpServer(): McpServer {
 
   // -- Tool: get_relevant_skills --------------------------------------------
 
+  const RELEVANT_SKILLS_LIMIT = 6;
+
   server.tool(
     'get_relevant_skills',
-    'Get skills relevant to a user message (keyword matching). Returns full content of matched skills.',
-    { message: z.string().describe('User message to match against skill triggers (e.g. "graphique barres par region")') },
-    async ({ message }) => {
+    'Get skills relevant to a user message (weighted scoring on triggers, description and section titles — same engine as the dsfr-data builder). Returns the full content of the best matches, ranked.',
+    {
+      message: z.string().describe('User message to match (e.g. "graphique barres par region")'),
+      section: z
+        .enum([...SKILL_SECTION_IDS, 'tout'])
+        .optional()
+        .describe('Restrict each matched skill to one section (see get_skill). Default: whole skill.'),
+    },
+    async ({ message, section }) => {
       const skills = await loadSkills();
-      const matched = matchSkills(skills, message);
+      // Borne le nombre de fiches : le scoring remonte desormais aussi des
+      // correspondances faibles, et un `get_relevant_skills` large pourrait
+      // sinon renvoyer un contexte enorme.
+      const matched = searchSkills(skills, message, { limit: RELEVANT_SKILLS_LIMIT });
       if (matched.length === 0) {
         return {
           content: [{
@@ -203,7 +214,9 @@ function createMcpServer(): McpServer {
           }],
         };
       }
-      const text = matched.map(s => s.content).join('\n\n---\n\n');
+      const text = matched
+        .map(m => `<!-- ${m.skill.id} (score ${m.score}: ${m.reasons.join(' | ')}) -->\n${selectSection(m.skill, section)}`)
+        .join('\n\n---\n\n');
       return {
         content: [{
           type: 'text' as const,

@@ -1,6 +1,9 @@
 /**
  * Sonde empirique des capacites du gateway Albert (OpenGateLLM).
  *
+ * Couvre : catalogue de modeles, completion simple, response_format
+ * (json_schema / json_object), tool-calling, et /v1/rerank (#514).
+ *
  * Un parametre present dans l'OpenAPI d'Albert (tools, response_format
  * json_schema...) ne garantit pas qu'il fonctionne de bout en bout sur leur
  * deploiement vLLM. Ce script verifie, avec un vrai token, ce qui marche
@@ -20,8 +23,7 @@ function getArg(name: string): string | undefined {
 }
 
 const TOKEN = getArg('--token') ?? process.env.IA_DEFAULT_TOKEN ?? '';
-const CHAT_URL =
-  getArg('--url') ?? 'https://albert.api.etalab.gouv.fr/v1/chat/completions';
+const CHAT_URL = getArg('--url') ?? 'https://albert.api.etalab.gouv.fr/v1/chat/completions';
 const MODEL = getArg('--model') ?? 'openweight-large';
 
 if (!TOKEN) {
@@ -133,7 +135,9 @@ async function main() {
       /* sortie non conforme */
     }
   }
-  console.log(`3. response_format json_schema : ${jsonSchema ? 'OK' : 'ECHEC'} (HTTP ${js.status})`);
+  console.log(
+    `3. response_format json_schema : ${jsonSchema ? 'OK' : 'ECHEC'} (HTTP ${js.status})`
+  );
 
   // 3b) response_format json_object (echelon de repli)
   const jo = await chat({
@@ -151,7 +155,9 @@ async function main() {
       /* */
     }
   }
-  console.log(`   (repli) response_format json_object : ${jsonObject ? 'OK' : 'ECHEC'} (HTTP ${jo.status})`);
+  console.log(
+    `   (repli) response_format json_object : ${jsonObject ? 'OK' : 'ECHEC'} (HTTP ${jo.status})`
+  );
 
   // 4) Tool calling (auto puis force)
   const tool = {
@@ -182,13 +188,76 @@ async function main() {
     `4. Tool calling : auto=${autoOk ? 'OK' : 'ECHEC'} (HTTP ${auto.status}), force=${forcedOk ? 'OK' : 'ECHEC'} (HTTP ${forced.status})`
   );
 
+  // 5) Rerank (/v1/rerank) — option souveraine de classement des skills (#514).
+  //    Presence dans l'OpenAPI ne vaut pas preuve : on envoie une vraie requete
+  //    et on verifie qu'un classement exploitable revient.
+  let rerank = false;
+  let rerankModel = '';
+  try {
+    // Le modele de rerank est distinct des modeles de chat : on le cherche dans
+    // le catalogue, sinon on tente le nom usuel du gateway.
+    const models = await fetch(`${ORIGIN}/v1/models`, { headers: AUTH })
+      .then((r) =>
+        r.ok ? (r.json() as Promise<{ data?: { id: string; type?: string }[] }>) : null
+      )
+      .catch(() => null);
+    const candidates = (models?.data ?? [])
+      .filter((m) =>
+        m.type === 'text-generation'
+          ? false
+          : /rerank/i.test(m.id) || m.type === 'text-classification'
+      )
+      .map((m) => m.id);
+    rerankModel = candidates[0] ?? 'albert-large-rerank';
+
+    const start = Date.now();
+    const res = await fetch(`${ORIGIN}/v1/rerank`, {
+      method: 'POST',
+      headers: AUTH,
+      body: JSON.stringify({
+        model: rerankModel,
+        prompt: 'carte interactive avec des points',
+        input: ['Composant de carte Leaflet', 'Composant de connexion aux donnees', 'Palette DSFR'],
+      }),
+    });
+    const ms = Date.now() - start;
+    if (res.ok) {
+      const body = (await res.json()) as { data?: { score?: number; index?: number }[] };
+      const rows = body.data ?? [];
+      // Exploitable = au moins un score numerique par entree.
+      rerank = rows.length > 0 && rows.every((r) => typeof r.score === 'number');
+      console.log(
+        `5. Rerank /v1/rerank : ${rerank ? 'OK' : 'REPONSE INEXPLOITABLE'} (HTTP ${res.status}, ${ms} ms, modele ${rerankModel})`
+      );
+      if (rerank) {
+        const best = [...rows].sort((a, b) => (b.score ?? 0) - (a.score ?? 0))[0];
+        console.log(`   meilleur candidat : index ${best?.index} (score ${best?.score})`);
+      }
+    } else {
+      console.log(`5. Rerank /v1/rerank : ECHEC (HTTP ${res.status}, modele ${rerankModel})`);
+    }
+  } catch (err) {
+    console.log(`5. Rerank /v1/rerank : erreur ${err}`);
+  }
+
   // Synthese : ligne AlbertCapabilities copiable
   const toolCalling = autoOk || forcedOk;
   console.log(`\n--- Synthese ---`);
   console.log(`Modele resolu : ${resolved}`);
   console.log(`A coller dans setCapabilities(...) ou pour decider du defaut serveur :`);
   console.log(
-    JSON.stringify({ model: resolved, jsonSchema, toolCalling, probedAt: 0 }, null, 0)
+    JSON.stringify(
+      {
+        model: resolved,
+        jsonSchema,
+        toolCalling,
+        rerank,
+        rerankModel: rerank ? rerankModel : '',
+        probedAt: 0,
+      },
+      null,
+      0
+    )
   );
   console.log(
     `\nRecommandation : ${

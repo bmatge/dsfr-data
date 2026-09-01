@@ -197,6 +197,28 @@ Les deux consommateurs partagent le vocabulaire mais pas le meme chemin :
 
 Un test croise verifie que `SKILL_SECTION_IDS` est identique des deux cotes.
 
+#### Moteur de matching unifie (#514)
+
+Il n'y a plus qu'UN moteur de selection des skills : `apps/builder-ia/src/skill-matching.ts`. Il etait auparavant ecrit deux fois — un `includes` sur les triggers cote MCP, une boucle equivalente plus des enrichissements contextuels cote builder-IA — donc toute amelioration devait etre faite deux fois, et le MCP restait structurellement moins pertinent.
+
+**Scoring pondere**, avec les raisons exposees (`reasons`) pour rester debuggable :
+
+| Signal | Poids | Role |
+|---|---|---|
+| trigger present tel quel | 10 | signal fort — comportement historique preserve |
+| trigger multi-mots **disperse** (« colonnes en lignes » dans « colonnes ANNUELLES en lignes ») | 6 | corrige le silence principal de l'ancien `includes`, qui exigeait la contiguite |
+| nom du composant cite | 8 | demande explicite |
+| recouvrement avec la description | 2/token, plafond 4 | classe |
+| recouvrement avec les titres de sections | 1/token, plafond 3 | classe |
+
+Le seuil de retenue est 6 : un trigger, exact ou disperse, le franchit seul. La somme des plafonds faibles (7) reste **strictement inferieure** au poids d'un trigger (10) — une skill riche en mots-cles ne peut jamais passer devant une skill reellement declenchee. Normalisation NFD obligatoire : « données » et « donnees » doivent matcher le meme trigger.
+
+**Partage avec le MCP** : `mcp-server/` est hors workspace npm et publie separement (`dsfr-data-mcp`), il ne peut pas importer le module. Le moteur est donc **copie** dans `mcp-server/src/skill-matching.generated.ts` par `npm run build:skill-matching`, et `tests/mcp/skill-matching.test.ts` echoue si la copie diverge. C'est ce qui rend structurelle la contrainte « **aucun import dans `skill-matching.ts`** » : un import rendrait la copie non resoluble cote MCP. Le generateur et le test la verifient tous les deux.
+
+Le builder-IA garde **par-dessus** ses enrichissements contextuels (type de source ODS/Grist, intentions metier) : il connait la source chargee, le MCP non.
+
+**Option souveraine — rerank Albert** (`apps/builder-ia/src/ia/skill-rerank.ts`) : reclasse les candidates via `/v1/rerank`. Il ne fait que REORDONNER ce que le moteur local a deja retenu, jamais produire des candidates. Trois garde-fous : capacite **desactivee par defaut** tant que `scripts/probe-albert.ts` ne l'a pas confirmee (meme doctrine que `jsonSchema`/`toolCalling`, mais sans activation par defaut — un echec y couterait un aller-retour reseau a chaque recherche) ; repli sur l'ordre local a la moindre anomalie (HTTP, JSON, index hors bornes, score manquant, timeout) ; et charge utile bornee a 10 candidates, nom + description seulement. Le serveur MCP ne l'embarque pas : il doit rester fonctionnel hors-ligne avec `--skills-file`.
+
 **Règle** : apres avoir ajoute/modifie un attribut, un evenement, un slot ou une variable CSS d'un composant `dsfr-data-*`, ecrire le JSDoc puis lancer **`npm run build:skills`**. Pour un type de graphique, un operateur de filtre ou une fonction d'agregation, c'est le guide redige a la main de `skills.ts` qu'il faut mettre a jour.
 
 Deux garde-fous complementaires (voir §12) :

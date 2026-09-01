@@ -13,6 +13,7 @@ import { fetchWithTimeout, httpErrorMessage, detectProvider, escapeHtml } from '
 import { effectiveCapabilities } from '../ia/albert-capabilities.js';
 import { buildSystemPrompt, buildFewShot } from '../ia/system-prompt.js';
 import { runAgentLoop } from '../ia/agent-loop.js';
+import { rerankSkills } from '../ia/skill-rerank.js';
 import type { PostChat, OpenAIResponse } from '../ia/agent-loop.js';
 import { renderMarkdown } from './markdown.js';
 import { ACTION_JSON_SCHEMA, validateAction } from '../ia/action-schema.js';
@@ -608,6 +609,24 @@ async function callAlbertAPI(userMessage: string, config: IAConfig): Promise<AIC
         temperature: temperature ?? STRUCTURED_DEFAULT_TEMPERATURE,
         seed,
         extra,
+        // Rerank souverain (#514) : uniquement si la sonde l'a confirme et si
+        // le jeton est cote client. En mode token serveur, la cle n'est jamais
+        // exposee au navigateur — on s'en tient au scoring local.
+        rerankSkills:
+          caps.rerank && caps.rerankModel && config.token
+            ? async (message, skills) => {
+                const ordered = await rerankSkills(
+                  message,
+                  skills.map((skill) => ({ skill, score: 0, reasons: [] })),
+                  {
+                    apiUrl: config.apiUrl,
+                    token: config.token,
+                    model: caps.rerankModel as string,
+                  }
+                );
+                return ordered.map((m) => m.skill);
+              }
+            : undefined,
       });
       // Resultat exploitable = une action OU du texte (ex. clarification).
       // Sinon on laisse filer vers structured/legacy.
