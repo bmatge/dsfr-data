@@ -13,7 +13,7 @@
 
 import type { ChartConfig } from './chart-config.js';
 
-export type WidgetType = 'kpi' | 'chart' | 'table' | 'text' | 'filters';
+export type WidgetType = 'kpi' | 'chart' | 'table' | 'text' | 'filters' | 'map';
 
 /**
  * Configuration d'un widget — UNION DISCRIMINEE sur `Widget.type` (#521).
@@ -131,8 +131,61 @@ export interface FiltersWidgetConfig {
   sourceIds?: string[];
 }
 
+/** Types de couches d'une carte Leaflet (aligne sur dsfr-data-map-layer). */
+export type MapLayerType = 'marker' | 'circle' | 'heatmap' | 'geoshape';
+
+/**
+ * Une couche de carte (#531). Multi-sources par nature : chaque couche
+ * reference sa propre source du dashboard.
+ */
+export interface MapLayerSpec {
+  sourceId: string;
+  type: MapLayerType;
+  /** Libelle de la couche (legende / lisibilite du document). */
+  label?: string;
+  /** marker / circle / heatmap : champs de coordonnees. */
+  latField?: string;
+  lonField?: string;
+  /** geoshape : champ GeoJSON. */
+  geoField?: string;
+  /**
+   * Champ de valeur : rayon (circle), intensite (heatmap), remplissage
+   * choroplethe (geoshape). Ignore pour marker.
+   */
+  valueField?: string;
+  /** Champ de couleur categorielle (marker/circle/geoshape). */
+  colorField?: string;
+  /** Champs affiches dans la popup au clic (separes par des virgules). */
+  popupFields?: string;
+  /** Champ affiche au survol. */
+  tooltipField?: string;
+  selectedPalette?: string;
+}
+
+/**
+ * Bloc carte Leaflet multi-couches (#531) : rendu en <dsfr-data-map> +
+ * <dsfr-data-map-layer> a l'export. Premier bloc multi-sources du modele.
+ */
+export interface MapWidgetConfig {
+  layers: MapLayerSpec[];
+  /** Hauteur CSS de la carte — defaut 500px. */
+  height?: string;
+  /** Ajuste le viewport aux donnees (defaut true a l'export). */
+  fitBounds?: boolean;
+  /** Encarts territoriaux : "drom" ou territoires nommes ("guadeloupe,corse"). */
+  insets?: string;
+  /** Centre "lat,lon" (si fitBounds est coupe). */
+  center?: string;
+  zoom?: number;
+}
+
 export type WidgetConfig =
-  KpiWidgetConfig | ChartWidgetConfig | TableWidgetConfig | TextWidgetConfig | FiltersWidgetConfig;
+  | KpiWidgetConfig
+  | ChartWidgetConfig
+  | TableWidgetConfig
+  | TextWidgetConfig
+  | FiltersWidgetConfig
+  | MapWidgetConfig;
 
 interface WidgetBase {
   id: string;
@@ -149,7 +202,8 @@ export type Widget =
   | (WidgetBase & { type: 'chart'; config: ChartWidgetConfig })
   | (WidgetBase & { type: 'table'; config: TableWidgetConfig })
   | (WidgetBase & { type: 'text'; config: TextWidgetConfig })
-  | (WidgetBase & { type: 'filters'; config: FiltersWidgetConfig });
+  | (WidgetBase & { type: 'filters'; config: FiltersWidgetConfig })
+  | (WidgetBase & { type: 'map'; config: MapWidgetConfig });
 
 /** Un graphique issu d'un favori porte son HTML et n'est pas reconfigurable. */
 export function isFavoriteChart(config: ChartWidgetConfig): config is FavoriteChartWidgetConfig {
@@ -258,7 +312,8 @@ export function normalizeWidget(raw: unknown): Widget | null {
     type !== 'chart' &&
     type !== 'table' &&
     type !== 'text' &&
-    type !== 'filters'
+    type !== 'filters' &&
+    type !== 'map'
   ) {
     return null;
   }
@@ -375,7 +430,48 @@ export function normalizeWidget(raw: unknown): Widget | null {
             : undefined,
         },
       };
+
+    case 'map':
+      return {
+        ...base,
+        type,
+        config: {
+          layers: Array.isArray(cfg.layers)
+            ? cfg.layers
+                .map((l) => normalizeMapLayer(l))
+                .filter((l): l is MapLayerSpec => l !== null)
+            : [],
+          height: typeof cfg.height === 'string' && cfg.height !== '' ? cfg.height : undefined,
+          fitBounds: typeof cfg.fitBounds === 'boolean' ? cfg.fitBounds : undefined,
+          insets: typeof cfg.insets === 'string' && cfg.insets !== '' ? cfg.insets : undefined,
+          center: typeof cfg.center === 'string' && cfg.center !== '' ? cfg.center : undefined,
+          zoom: typeof cfg.zoom === 'number' ? cfg.zoom : undefined,
+        },
+      };
   }
+}
+
+export const MAP_LAYER_TYPES: readonly MapLayerType[] = ['marker', 'circle', 'heatmap', 'geoshape'];
+
+function normalizeMapLayer(raw: unknown): MapLayerSpec | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const l = raw as Record<string, unknown>;
+  if (typeof l.sourceId !== 'string' || l.sourceId === '') return null;
+  const opt = (key: string): string | undefined =>
+    typeof l[key] === 'string' && l[key] !== '' ? (l[key] as string) : undefined;
+  return {
+    sourceId: l.sourceId,
+    type: oneOf(l.type, MAP_LAYER_TYPES, 'marker'),
+    label: opt('label'),
+    latField: opt('latField'),
+    lonField: opt('lonField'),
+    geoField: opt('geoField'),
+    valueField: opt('valueField'),
+    colorField: opt('colorField'),
+    popupFields: opt('popupFields'),
+    tooltipField: opt('tooltipField'),
+    selectedPalette: opt('selectedPalette'),
+  };
 }
 
 function normalizeFilterSpec(raw: unknown): DashboardFilterSpec | null {
@@ -430,6 +526,7 @@ export function getDefaultTitle(type: WidgetType): string {
     table: 'Tableau de données',
     text: 'Texte',
     filters: 'Filtres',
+    map: 'Carte',
   };
   return titles[type];
 }
@@ -444,6 +541,7 @@ export function getDefaultConfig(type: 'chart'): ManualChartWidgetConfig;
 export function getDefaultConfig(type: 'table'): TableWidgetConfig;
 export function getDefaultConfig(type: 'text'): TextWidgetConfig;
 export function getDefaultConfig(type: 'filters'): FiltersWidgetConfig;
+export function getDefaultConfig(type: 'map'): MapWidgetConfig;
 export function getDefaultConfig(type: WidgetType): WidgetConfig;
 export function getDefaultConfig(type: WidgetType): WidgetConfig {
   switch (type) {
@@ -457,6 +555,8 @@ export function getDefaultConfig(type: WidgetType): WidgetConfig {
       return { content: '<p>Votre texte ici...</p>', style: 'paragraph' };
     case 'filters':
       return { filters: [] };
+    case 'map':
+      return { layers: [] };
   }
 }
 
@@ -484,6 +584,8 @@ export function createWidget(type: WidgetType, row: number, col: number): Widget
       return { ...base, type, config: getDefaultConfig('text') };
     case 'filters':
       return { ...base, type, config: getDefaultConfig('filters') };
+    case 'map':
+      return { ...base, type, config: getDefaultConfig('map') };
   }
 }
 

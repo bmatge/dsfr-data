@@ -132,6 +132,19 @@ function appendWidgetContent(parent: HTMLElement, widget: Widget): void {
       parent.append(wrap);
       return;
     }
+    case 'map': {
+      const wrap = document.createElement('div');
+      wrap.className = 'widget-preview-center widget-preview-muted';
+      const icon = document.createElement('i');
+      icon.className = 'ri-map-2-line widget-preview-icon';
+      const text = document.createElement('p');
+      text.className = 'widget-preview-text';
+      const n = widget.config.layers.length;
+      text.textContent = n ? `Carte (${n} couche${n > 1 ? 's' : ''})` : 'Carte Leaflet';
+      wrap.append(icon, text);
+      parent.append(wrap);
+      return;
+    }
     case 'filters': {
       const wrap = document.createElement('div');
       wrap.className = 'widget-preview-center widget-preview-muted';
@@ -182,6 +195,7 @@ export function getWidgetIcon(type: WidgetType): string {
     table: 'ri-table-line',
     text: 'ri-text',
     filters: 'ri-filter-3-line',
+    map: 'ri-map-2-line',
   };
   return icons[type] || 'ri-question-line';
 }

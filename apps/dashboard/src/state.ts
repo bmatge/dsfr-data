@@ -29,6 +29,9 @@ export type {
   FilterOperator,
   DashboardFilterSpec,
   FiltersWidgetConfig,
+  MapLayerType,
+  MapLayerSpec,
+  MapWidgetConfig,
   DashboardSource,
   DashboardFavorite,
   DashboardData,
@@ -52,6 +55,7 @@ export {
   CHART_PALETTES,
   TEXT_STYLES,
   FILTER_OPERATORS,
+  MAP_LAYER_TYPES,
 } from '@dsfr-data/shared';
 
 export interface AppState {
