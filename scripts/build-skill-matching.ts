@@ -1,7 +1,7 @@
 /**
  * Copie le moteur de matching des skills vers le serveur MCP (#514).
  *
- *   apps/builder-ia/src/skill-matching.ts       (SOURCE UNIQUE)
+ *   packages/shared/src/ia/skill-matching.ts    (SOURCE UNIQUE)
  *        |  npm run build:skill-matching
  *        v
  *   mcp-server/src/skill-matching.generated.ts  (commite, NE PAS EDITER)
@@ -25,7 +25,7 @@ import { buildCopy } from './lib/skill-matching-copy.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
-const sourcePath = resolve(root, 'apps/builder-ia/src/skill-matching.ts');
+const sourcePath = resolve(root, 'packages/shared/src/ia/skill-matching.ts');
 const outPath = resolve(root, 'mcp-server/src/skill-matching.generated.ts');
 
 const source = readFileSync(sourcePath, 'utf-8');

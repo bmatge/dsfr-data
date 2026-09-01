@@ -199,7 +199,7 @@ Un test croise verifie que `SKILL_SECTION_IDS` est identique des deux cotes.
 
 #### Moteur de matching unifie (#514)
 
-Il n'y a plus qu'UN moteur de selection des skills : `apps/builder-ia/src/skill-matching.ts`. Il etait auparavant ecrit deux fois — un `includes` sur les triggers cote MCP, une boucle equivalente plus des enrichissements contextuels cote builder-IA — donc toute amelioration devait etre faite deux fois, et le MCP restait structurellement moins pertinent.
+Il n'y a plus qu'UN moteur de selection des skills : `packages/shared/src/ia/skill-matching.ts` (promu depuis le builder-IA en #515, re-exporte par `apps/builder-ia/src/skill-matching.ts`). Il etait auparavant ecrit deux fois — un `includes` sur les triggers cote MCP, une boucle equivalente plus des enrichissements contextuels cote builder-IA — donc toute amelioration devait etre faite deux fois, et le MCP restait structurellement moins pertinent.
 
 **Scoring pondere**, avec les raisons exposees (`reasons`) pour rester debuggable :
 
@@ -283,11 +283,13 @@ Toutes les dependances internes sont resolues via les workspaces npm declares da
       src/                      app-header, app-footer, app-sidemenu, layouts,
                                 auth-modal... (composants app-*, hors lib npm)
 
-  apps/                         Onze applications web (workspaces npm)
+  apps/                         Douze applications web (workspaces npm)
     admin/                      @dsfr-data/app-admin -- Administration (mode serveur)
     builder/                    @dsfr-data/app-builder -- Generateur visuel de graphiques
     builder-carto/              @dsfr-data/app-builder-carto -- Generateur de cartes Leaflet
     builder-ia/                 @dsfr-data/app-builder-ia -- Generateur IA (Albert)
+    studio/                     @dsfr-data/app-studio -- Studio IA : dashboard multi-blocs
+                                par actions incrementales (#515) ; apercu = export (iframe srcdoc)
     dashboard/                  @dsfr-data/app-dashboard -- Editeur de tableaux de bord
     favorites/                  @dsfr-data/app-favorites -- Gestion des favoris
     grist-widgets/              @dsfr-data/app-grist-widgets -- Widgets embarquables Grist
@@ -472,7 +474,7 @@ BEACON_BASE_URL       = VITE_BEACON_URL || PROXY_BASE_URL_EMBED     // télémé
 |-----------------------|--------------------------------------------------------|
 | `npm run build`       | Compile TypeScript + Vite lib mode (ESM + UMD)         |
 | `npm run build:shared`| Compile `packages/shared/` via `tsc`                   |
-| `npm run build:apps`  | Build app-ui puis les 11 apps sequentiellement via workspaces npm |
+| `npm run build:apps`  | Build app-ui puis les 12 apps sequentiellement via workspaces npm |
 | `npm run build:all`   | Enchaine shared, bibliotheque, puis apps               |
 | `npm run build:app`   | Assemble `app-dist/` (racine web, voir 5.3)            |
 

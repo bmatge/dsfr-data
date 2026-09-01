@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-scheme="system">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dsfr-data — Studio IA</title>
+  <style>@view-transition{navigation:auto}app-header:not(:defined){display:block;min-height:56px}app-footer:not(:defined){display:block;min-height:48px}</style>
+
+  <!-- DSFR -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css" integrity="sha384-atVZ+aK6VI0nWyTEhKgze5InDJ+SWRRqa0BCZ2MTNyoOcBiHj1c3dGPdi6ML65B3" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css" integrity="sha384-5P5DFFqorcEBpfnK9WHu/Ralfr7ZxyCZh0ryaJbgucSvc71+qRYdGvNEcyMqQwa/" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
+
+  <!-- Chrome applicatif -->
+  <script type="module" src="../../packages/core/dist/dsfr-data.esm.js"></script>
+  <script type="module" src="../../packages/app-ui/dist/app-ui.esm.js"></script>
+</head>
+<body class="studio-app">
+  <app-header current-page="studio" base-path="../../"></app-header>
+
+  <app-layout-builder left-ratio="40">
+    <!-- PANNEAU GAUCHE : source + chat -->
+    <aside slot="left" class="builder-config-panel">
+
+      <div class="config-zone">
+        <div class="config-section" id="section-source">
+          <div class="config-section-header">
+            <h3><i class="ri-database-2-line"></i> Source de données <span id="source-summary" class="config-section-summary"></span></h3>
+          </div>
+          <div class="config-section-content">
+            <div class="source-grid">
+              <div class="fr-select-group fr-select-group--sm">
+                <label class="fr-label" for="saved-source">Source</label>
+                <select class="fr-select" id="saved-source">
+                  <option value="">-- Choisir --</option>
+                </select>
+              </div>
+              <div class="source-status" id="source-status"></div>
+              <a href="../sources/index.html" class="fr-link fr-link--sm">
+                <i class="ri-add-line"></i> Nouvelle
+              </a>
+            </div>
+            <div id="saved-source-info" class="source-info"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chat -->
+      <div class="chat-container">
+        <div class="chat-header">
+          <span class="chat-header__title"><i class="ri-chat-3-line"></i> Assistant dashboard <span id="ia-mode-badge" class="fr-badge fr-badge--sm"></span></span>
+          <button id="clear-chat" class="chat-header__clear" type="button" title="Effacer la conversation">
+            <i class="ri-delete-bin-line" aria-hidden="true"></i> Effacer
+          </button>
+        </div>
+
+        <div class="chat-messages" id="chat-messages"></div>
+
+        <div class="chat-input-container">
+          <div class="chat-input-wrapper">
+            <textarea class="chat-input" id="chat-input"
+                      placeholder="Décrivez le tableau de bord souhaité (collez votre texte éditorial si vous en avez)…"
+                      rows="1"></textarea>
+            <button class="chat-send-btn" id="chat-send-btn" aria-label="Envoyer">
+              <i class="ri-send-plane-fill"></i>
+            </button>
+          </div>
+          <p class="chat-input-hint">Entrée pour envoyer · Maj + Entrée pour un saut de ligne</p>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- PANNEAU DROIT : artefact vivant -->
+    <app-preview-panel slot="right" show-data-tab tab-labels="Aperçu,Code,JSON">
+
+      <div slot="preview" class="studio-preview">
+        <div class="studio-toolbar">
+          <button class="fr-btn fr-btn--sm fr-btn--secondary" id="save-dashboard-btn">
+            <i class="ri-save-line"></i> Enregistrer
+          </button>
+          <a class="fr-btn fr-btn--sm fr-btn--tertiary" id="open-dashboard-link" href="../dashboard/index.html">
+            <i class="ri-layout-masonry-line"></i> Ouvrir dans Dashboard
+          </a>
+        </div>
+        <div class="empty-state" id="empty-state">
+          <div class="empty-state__bars" aria-hidden="true">
+            <span></span><span></span><span></span><span></span>
+          </div>
+          <p>Discutez avec l'assistant pour composer votre tableau de bord</p>
+        </div>
+        <iframe id="preview-frame" class="studio-preview-frame" title="Aperçu du tableau de bord"
+                sandbox="allow-scripts allow-same-origin" hidden></iframe>
+      </div>
+
+      <div slot="code">
+        <button class="fr-btn fr-btn--sm fr-btn--secondary copy-btn" id="copy-code-btn">
+          <i class="ri-file-copy-line"></i> Copier le code
+        </button>
+        <pre id="generated-code">&lt;!-- La page complète sera générée ici --&gt;</pre>
+      </div>
+
+      <div slot="data">
+        <pre id="generated-json">// Le document (DashboardData) sera affiché ici</pre>
+      </div>
+
+    </app-preview-panel>
+  </app-layout-builder>
+
+  <script type="module" src="src/main.ts"></script>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.module.min.js" integrity="sha384-gPgRd2+olihO/srZe/Bqw6iVLiiaL7meuri1d5YVMejwPXg7VehLSBeORYq9yh2F" crossorigin="anonymous"></script>
+</body>
+</html>

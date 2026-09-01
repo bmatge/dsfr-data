@@ -102,7 +102,7 @@ export function routeMcpRequest(opts: {
  * C'etait auparavant un `includes` sur les triggers, structurellement moins
  * pertinent que le cote builder-IA, et toute amelioration devait etre faite
  * deux fois. Le moteur vit maintenant dans
- * `apps/builder-ia/src/skill-matching.ts` et est copie ici par
+ * `packages/shared/src/ia/skill-matching.ts` et est copie ici par
  * `npm run build:skill-matching`.
  */
 export function matchSkills(skills: Skill[], message: string, options?: SearchOptions): Skill[] {

@@ -22,7 +22,7 @@ import {
   headingsOf,
   MIN_SCORE,
   type MatchableSkill,
-} from '../../apps/builder-ia/src/skill-matching';
+} from '../../packages/shared/src/ia/skill-matching';
 import { buildCopy } from '../../scripts/lib/skill-matching-copy';
 
 const ALL = Object.values(SKILLS);
@@ -215,7 +215,7 @@ describe('moteur de matching partage (#514)', () => {
 
   describe('copie vers le serveur MCP', () => {
     const root = resolve(__dirname, '../..');
-    const source = readFileSync(resolve(root, 'apps/builder-ia/src/skill-matching.ts'), 'utf-8');
+    const source = readFileSync(resolve(root, 'packages/shared/src/ia/skill-matching.ts'), 'utf-8');
     const copy = readFileSync(resolve(root, 'mcp-server/src/skill-matching.generated.ts'), 'utf-8');
 
     it('la copie MCP est identique a la source, a l’en-tete pres', () => {

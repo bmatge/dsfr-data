@@ -20,7 +20,7 @@ La bibliotheque npm publiee `dsfr-data` se trouve dans `packages/core/`.
 - **Charts** : `@gouvfr/dsfr-chart`. Carte : Leaflet (lazy).
 - **Serveur** : Express + MariaDB 11 (`mysql2/promise`).
 - **Versioning** : Changesets.
-- **Mono** : 11 apps dans `apps/`, lib dans `packages/core/`, partagé dans `packages/shared/`, chrome applicatif dans `packages/app-ui/`.
+- **Mono** : 12 apps dans `apps/`, lib dans `packages/core/`, partagé dans `packages/shared/`, chrome applicatif dans `packages/app-ui/`.
 
 ## Commandes essentielles
 
@@ -156,7 +156,7 @@ git push && git push --tags
 - **Jamais** editer a la main `apps/builder-ia/src/skills-reference.generated.ts`,
   `packages/core/custom-elements.json` ni `mcp-server/src/skill-matching.generated.ts` —
   ce sont des artefacts generes (`npm run build:skills`).
-- **Jamais** ajouter d'`import` dans `apps/builder-ia/src/skill-matching.ts` : ce fichier est
+- **Jamais** ajouter d'`import` dans `packages/shared/src/ia/skill-matching.ts` : ce fichier est
   copie tel quel dans le serveur MCP, qui est hors workspace npm (test-garde + garde-fou
   a la generation).
 - **Jamais** importer des modules app-side (`auth/`, `storage/`, `ui/`, `tour/`) depuis `packages/core/src` (frontiere lib/app #319).
