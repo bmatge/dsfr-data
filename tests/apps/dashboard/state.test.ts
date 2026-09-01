@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { createEmptyDashboard, state, getRowColumns, setRowColumns, removeRowFromLayout } from '../../../apps/dashboard/src/state';
-import type { WidgetType, Widget, DashboardData, AppState } from '../../../apps/dashboard/src/state';
+import {
+  createEmptyDashboard,
+  state,
+  getRowColumns,
+  setRowColumns,
+  removeRowFromLayout,
+} from '../../../apps/dashboard/src/state';
+import type { WidgetType, Widget } from '../../../apps/dashboard/src/state';
 
 describe('dashboard/state', () => {
   describe('createEmptyDashboard', () => {
@@ -48,10 +54,24 @@ describe('dashboard/state', () => {
         type: 'kpi',
         title: 'Test KPI',
         position: { row: 0, col: 0 },
-        config: { valeur: '42' },
+        config: { value: '42', label: '', format: 'nombre', icon: '' },
       };
       expect(widget.id).toBe('w-1');
       expect(widget.type).toBe('kpi');
+    });
+
+    it('narrows config to the right shape via the discriminant (#521)', () => {
+      // Interet principal de l'union : plus besoin de cast dans un switch.
+      const widget: Widget = {
+        id: 'w-2',
+        type: 'text',
+        title: 'Chapô',
+        position: { row: 0, col: 0 },
+        config: { content: '<p>Bonjour</p>', style: 'paragraph' },
+      };
+      if (widget.type === 'text') {
+        expect(widget.config.content).toBe('<p>Bonjour</p>');
+      }
     });
   });
 

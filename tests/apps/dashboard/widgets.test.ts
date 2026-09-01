@@ -24,23 +24,23 @@ describe('dashboard/widgets', () => {
       expect(getDefaultTitle('text')).toBe('Texte');
     });
 
-    it('should return "Widget" for unknown type', () => {
-      expect(getDefaultTitle('unknown' as WidgetType)).toBe('Widget');
-    });
+    // Le repli « Widget » n'a plus lieu d'etre : `WidgetType` est une union
+    // fermee, et un type inconnu venu du stockage est ecarte par
+    // `normalizeWidget` (cf. state.test.ts) plutot que titre par defaut.
   });
 
   describe('getDefaultConfig', () => {
     it('should return KPI config for kpi type', () => {
       const config = getDefaultConfig('kpi');
-      expect(config.valeur).toBe('');
+      expect(config.value).toBe('');
       expect(config.format).toBe('nombre');
-      expect(config.icone).toBe('');
+      expect(config.icon).toBe('');
       expect(config.label).toBe('Mon KPI');
     });
 
     it('should return chart config for chart type', () => {
       const config = getDefaultConfig('chart');
-      expect(config.chartType).toBe('bar');
+      expect(config.type).toBe('bar');
       expect(config.labelField).toBe('');
       expect(config.valueField).toBe('');
       expect(config.palette).toBe('categorical');
@@ -59,9 +59,8 @@ describe('dashboard/widgets', () => {
       expect(config.style).toBe('paragraph');
     });
 
-    it('should return empty object for unknown type', () => {
-      expect(getDefaultConfig('unknown' as WidgetType)).toEqual({});
-    });
+    // Idem : `getDefaultConfig` ne peut plus etre appelee avec un type hors
+    // union — c'est desormais une erreur de compilation, pas un cas d'execution.
   });
 
   describe('getWidgetIcon', () => {

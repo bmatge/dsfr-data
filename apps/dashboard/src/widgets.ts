@@ -3,19 +3,13 @@
  */
 
 import { navigateTo, confirmDialog } from '@dsfr-data/shared';
-import { state } from './state.js';
+import { state, createWidget, isFavoriteChart } from './state.js';
 import { openConfigModal } from './widget-config.js';
 import { updateGeneratedCode } from './code-generator.js';
 import type { Widget, WidgetType, DashboardFavorite } from './state.js';
 
 export function addWidget(type: WidgetType, row: number, col: number, cell: HTMLElement): void {
-  const widget: Widget = {
-    id: crypto.randomUUID(),
-    type,
-    title: getDefaultTitle(type),
-    position: { row, col },
-    config: getDefaultConfig(type),
-  };
+  const widget = createWidget(type, row, col);
 
   state.dashboard.widgets.push(widget);
   renderWidget(widget, cell);
@@ -37,8 +31,10 @@ export function addWidgetFromFavorite(
     config: {
       fromFavorite: true,
       favoriteId: favorite.id,
-      code: favorite.code,
-      // Legacy entries used `builderState` ; new entries use `builderStateJson`.
+      // `DashboardFavorite` a une signature d'index : ses champs arrivent en
+      // `unknown` et doivent etre valides, pas castes.
+      code: typeof favorite.code === 'string' ? favorite.code : '',
+      // Entrees anciennes : `builderState` ; recentes : `builderStateJson`.
       builderState: favorite.builderStateJson ?? favorite.builderState,
     },
   };
@@ -48,31 +44,10 @@ export function addWidgetFromFavorite(
   updateGeneratedCode();
 }
 
-export function getDefaultTitle(type: WidgetType): string {
-  const titles: Record<WidgetType, string> = {
-    kpi: 'Indicateur',
-    chart: 'Graphique',
-    table: 'Tableau de données',
-    text: 'Texte',
-  };
-  return titles[type] || 'Widget';
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- alimente Widget.config (cf. state.ts pour le rationale)
-export function getDefaultConfig(type: WidgetType): Record<string, any> {
-  switch (type) {
-    case 'kpi':
-      return { valeur: '', format: 'nombre', icone: '', label: 'Mon KPI' };
-    case 'chart':
-      return { chartType: 'bar', labelField: '', valueField: '', palette: 'categorical' };
-    case 'table':
-      return { columns: [], searchable: true, sortable: true };
-    case 'text':
-      return { content: '<p>Votre texte ici...</p>', style: 'paragraph' };
-    default:
-      return {};
-  }
-}
+// `getDefaultTitle` et `getDefaultConfig` vivent desormais dans state.ts, aux
+// cotes des types qu'ils instancient. Re-exportes ici : c'est le point d'entree
+// historique des consommateurs et des tests.
+export { getDefaultTitle, getDefaultConfig } from './state.js';
 
 function makeActionBtn(iconClass: string, title: string, handler: () => void): HTMLButtonElement {
   const btn = document.createElement('button');
@@ -105,7 +80,8 @@ export function renderWidget(widget: Widget, cell: HTMLElement): void {
   const actions = document.createElement('div');
   actions.className = 'widget-actions';
   actions.append(makeActionBtn('ri-file-copy-line', 'Dupliquer', () => duplicateWidget(widget.id)));
-  if (widget.config.fromFavorite) {
+  // Seul un graphique issu d'un favori garde un etat de builder a rouvrir.
+  if (widget.type === 'chart' && isFavoriteChart(widget.config)) {
     actions.append(
       makeActionBtn('ri-edit-line', 'Editer dans le Builder', () => openInBuilder(widget.id))
     );
@@ -132,10 +108,10 @@ function appendWidgetContent(parent: HTMLElement, widget: Widget): void {
       wrap.className = 'widget-preview-center';
       const valueEl = document.createElement('div');
       valueEl.className = 'widget-kpi-value';
-      valueEl.textContent = String(widget.config.valeur || '\u2014');
+      valueEl.textContent = widget.config.value || '\u2014';
       const labelEl = document.createElement('div');
       labelEl.className = 'widget-kpi-label';
-      labelEl.textContent = String(widget.config.label || '');
+      labelEl.textContent = widget.config.label;
       wrap.append(valueEl, labelEl);
       parent.append(wrap);
       return;
@@ -228,8 +204,10 @@ export async function deleteWidget(widgetId: string): Promise<void> {
 
 export function openInBuilder(widgetId: string): void {
   const widget = state.dashboard.widgets.find((w) => w.id === widgetId);
-  if (!widget?.config.builderState) return;
-  sessionStorage.setItem('builder-state', JSON.stringify(widget.config.builderState));
+  if (!widget || widget.type !== 'chart') return;
+  const config = widget.config;
+  if (!isFavoriteChart(config) || !config.builderState) return;
+  sessionStorage.setItem('builder-state', JSON.stringify(config.builderState));
   navigateTo('builder', { from: 'dashboard' });
 }
 

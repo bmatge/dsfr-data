@@ -3,7 +3,7 @@
  */
 
 import { escapeHtml, CDN_URLS, LIB_URL } from '@dsfr-data/shared';
-import { state, getRowColumns } from './state.js';
+import { state, getRowColumns, isFavoriteChart } from './state.js';
 import type { Widget } from './state.js';
 
 export function updateGeneratedCode(): void {
@@ -84,27 +84,33 @@ export function generateWidgetHTML(widget: Widget): string {
 
   switch (widget.type) {
     case 'kpi': {
-      const iconeAttr = widget.config.icone ? ` icon="${widget.config.icone}"` : '';
+      const cfg = widget.config;
+      const iconAttr = cfg.icon ? ` icon="${escapeHtml(cfg.icon)}"` : '';
       return `${indent}<dsfr-data-kpi
-${indent}  value="${escapeHtml(widget.config.valeur || '')}"
-${indent}  label="${escapeHtml(widget.config.label || widget.title)}"
-${indent}  format="${widget.config.format || 'nombre'}"${iconeAttr}>
+${indent}  value="${escapeHtml(cfg.value)}"
+${indent}  label="${escapeHtml(cfg.label || widget.title)}"
+${indent}  format="${cfg.format}"${iconAttr}>
 ${indent}</dsfr-data-kpi>\n`;
     }
 
-    case 'chart':
-      if (widget.config.fromFavorite && widget.config.code) {
-        return `${indent}<!-- Graphique: ${escapeHtml(widget.title)} -->\n${indent}${widget.config.code.split('\n').join('\n' + indent)}\n`;
+    case 'chart': {
+      const cfg = widget.config;
+      // Un favori porte le HTML deja genere par le builder : on le recopie tel
+      // quel plutot que de reconstruire une balise a partir de rien.
+      if (isFavoriteChart(cfg)) {
+        if (!cfg.code) return '';
+        return `${indent}<!-- Graphique: ${escapeHtml(widget.title)} -->\n${indent}${cfg.code.split('\n').join('\n' + indent)}\n`;
       }
       return `${indent}<dsfr-data-chart
-${indent}  type="${widget.config.chartType || 'bar'}"
-${indent}  label-field="${escapeHtml(widget.config.labelField || '')}"
-${indent}  value-field="${escapeHtml(widget.config.valueField || '')}"
-${indent}  selected-palette="${widget.config.palette || 'categorical'}">
+${indent}  type="${cfg.type}"
+${indent}  label-field="${escapeHtml(cfg.labelField)}"
+${indent}  value-field="${escapeHtml(cfg.valueField)}"
+${indent}  selected-palette="${cfg.palette}">
 ${indent}</dsfr-data-chart>\n`;
+    }
 
     case 'table': {
-      const cols = widget.config.columns?.length
+      const cols = widget.config.columns.length
         ? ` columns='${JSON.stringify(widget.config.columns)}'`
         : '';
       const searchable = widget.config.searchable ? ' searchable' : '';
@@ -122,8 +128,5 @@ ${indent}</div>\n`;
         return `${indent}<h2>${widget.config.content}</h2>\n`;
       }
       return `${indent}<p>${widget.config.content}</p>\n`;
-
-    default:
-      return `${indent}<!-- Widget: ${escapeHtml(widget.title)} -->\n`;
   }
 }
