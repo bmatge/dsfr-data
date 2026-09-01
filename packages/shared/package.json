@@ -48,5 +48,8 @@
   },
   "devDependencies": {
     "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "html-to-image": "^1.11.13"
   }
 }

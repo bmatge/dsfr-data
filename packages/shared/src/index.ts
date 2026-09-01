@@ -300,13 +300,17 @@ export {
 } from './ia/skill-matching.js';
 
 // --- Export d'image PNG/JPG depuis un apercu (app-side) ---
-export type { ImageExportFormat, ImageExportFailure, ExportRoot } from './ui/image-export.js';
+export type {
+  ImageExportFormat,
+  ImageExportFailure,
+  ExportRoot,
+  ImageRenderers,
+} from './ui/image-export.js';
 export {
   ImageExportError,
   IMAGE_EXPORT_MESSAGES,
-  pickExportCanvas,
+  resolveCaptureNode,
   imageFilename,
-  canvasToDataUrl,
   downloadDataUrl,
   exportPreviewImage,
 } from './ui/image-export.js';
