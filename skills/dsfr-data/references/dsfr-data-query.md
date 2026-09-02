@@ -130,7 +130,7 @@ Nommage automatique sans alias : `champ__fonction` (ex: `population__sum`)
 
 <!-- Grist : source + normalize + query -->
 <dsfr-data-source id="src" api-type="grist"
-  base-url="https://chartsbuilder.matge.com/grist-gouv-proxy/api/docs/DOC_ID/tables/TABLE/records"
+  base-url="/grist-gouv-proxy/api/docs/DOC_ID/tables/TABLE/records"
   headers='{"Authorization":"Bearer API_KEY"}'>
 </dsfr-data-source>
 <dsfr-data-normalize id="flat" source="src" flatten="fields"></dsfr-data-normalize>

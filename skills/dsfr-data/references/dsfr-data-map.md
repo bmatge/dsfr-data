@@ -15,7 +15,7 @@ Cela permet le **multi-source** naturellement : chaque layer a sa propre source.
 ### Chargement du bundle
 
 ```html
-<script src="${'https://cdn.jsdelivr.net/npm/dsfr-data@0/dist'}/dsfr-data.map.umd.js"></script>
+<script src="${'https://VOTRE_INSTANCE/dist'}/dsfr-data.map.umd.js"></script>
 ```
 
 Ou via le bundle complet `dsfr-data.esm.js` / `dsfr-data.umd.js`.

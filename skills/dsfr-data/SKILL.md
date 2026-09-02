@@ -24,6 +24,9 @@ Bibliothèque de Web Components de dataviz conformes au DSFR (Design System de l
 - Les alias d'agrégation suivent la convention `champ__fonction` (`population__sum`).
 - Chargement : `<script type="module" src=".../dsfr-data.esm.js">` + CSS DSFR et DSFR Chart
   (voir la référence `compositionPatterns`).
+- Dans les exemples, `https://VOTRE_INSTANCE/dist` désigne l'URL de la bibliothèque (CDN
+  `https://cdn.jsdelivr.net/npm/dsfr-data@0/dist` ou `/dist` de votre instance) et les chemins
+  `/…-proxy/` sont relatifs à votre instance Charts builder.
 
 ## Méthode
 

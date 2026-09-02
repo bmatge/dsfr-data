@@ -12,6 +12,7 @@ import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { SKILLS } from '../apps/builder-ia/src/skills.js';
 import { CLAUDE_SKILL_DIR, renderClaudeSkill } from './lib/claude-skill.js';
+import { PROXY_BASE_URL_EMBED, LIB_URL } from '@dsfr-data/shared';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
@@ -22,7 +23,10 @@ const version = (
   }
 ).version;
 
-const files = renderClaudeSkill(Object.values(SKILLS), version);
+const files = renderClaudeSkill(Object.values(SKILLS), version, {
+  proxyBase: PROXY_BASE_URL_EMBED,
+  libUrl: LIB_URL,
+});
 
 // Répertoire des références nettoyé pour ne pas laisser de skill retirée.
 rmSync(resolve(outDir, 'references'), { recursive: true, force: true });

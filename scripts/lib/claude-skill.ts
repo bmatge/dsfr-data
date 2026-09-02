@@ -23,6 +23,28 @@ export interface SkillLike {
 
 export const CLAUDE_SKILL_DIR = 'skills/dsfr-data';
 
+/**
+ * Valeurs dépendantes de l'environnement de build (VITE_PROXY_URL,
+ * VITE_LIB_URL) présentes dans les exemples des skills. L'export commité doit
+ * être identique quel que soit le poste : on les remplace par des repères
+ * neutres (docs/AI-SKILLS.md).
+ */
+export interface SkillEnv {
+  /** PROXY_BASE_URL_EMBED de packages/shared (vide en CI, instance locale sinon). */
+  proxyBase: string;
+  /** LIB_URL de packages/shared (CDN jsdelivr par défaut). */
+  libUrl: string;
+}
+
+export const LIB_URL_PLACEHOLDER = 'https://VOTRE_INSTANCE/dist';
+
+function neutralize(text: string, env: SkillEnv): string {
+  let out = text;
+  if (env.proxyBase) out = out.split(env.proxyBase + '/').join('/');
+  if (env.libUrl) out = out.split(env.libUrl).join(LIB_URL_PLACEHOLDER);
+  return out;
+}
+
 /** Ordre de présentation dans l'index : composants du pipeline d'abord. */
 const GROUPS: Array<[string, string[]]> = [
   [
@@ -121,6 +143,9 @@ ${version}. Cette skill est **générée** par \`npm run build:skills\` depuis l
 - Les alias d'agrégation suivent la convention \`champ__fonction\` (\`population__sum\`).
 - Chargement : \`<script type="module" src=".../dsfr-data.esm.js">\` + CSS DSFR et DSFR Chart
   (voir la référence \`compositionPatterns\`).
+- Dans les exemples, \`${LIB_URL_PLACEHOLDER}\` désigne l'URL de la bibliothèque (CDN
+  \`https://cdn.jsdelivr.net/npm/dsfr-data@0/dist\` ou \`/dist\` de votre instance) et les chemins
+  \`/…-proxy/\` sont relatifs à votre instance Charts builder.
 
 ## Méthode
 
@@ -143,21 +168,25 @@ ${renderIndexTable(skills)}
 `;
 }
 
-export function renderReference(skill: SkillLike): string {
+export function renderReference(skill: SkillLike, env: SkillEnv): string {
   return `# ${skill.name}
 
 > ${skill.description}
 >
 > Déclencheurs : ${skill.trigger.join(', ')}
 
-${skill.content.trim()}
+${neutralize(skill.content.trim(), env)}
 `;
 }
 
 /** Table chemin relatif (à CLAUDE_SKILL_DIR) → contenu. */
-export function renderClaudeSkill(skills: SkillLike[], version: string): Map<string, string> {
+export function renderClaudeSkill(
+  skills: SkillLike[],
+  version: string,
+  env: SkillEnv
+): Map<string, string> {
   const files = new Map<string, string>();
   files.set('SKILL.md', renderSkillMd(skills, version));
-  for (const s of skills) files.set(`references/${fileName(s.id)}`, renderReference(s));
+  for (const s of skills) files.set(`references/${fileName(s.id)}`, renderReference(s, env));
   return files;
 }
