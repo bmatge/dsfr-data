@@ -176,10 +176,10 @@ export const DASHBOARD_TOUR: TourConfig = {
       position: 'left',
     },
     {
-      selector: '.vde-toolbar',
-      title: "Barre d'outils",
+      selector: 'app-action-bar',
+      title: "Barre d'actions",
       description:
-        'Sauvegardez, chargez ou exportez votre tableau de bord. Utilisez "Templates" pour partir d\'un modele pre-construit.',
+        'Enregistrez, ouvrez ou exportez votre tableau de bord. Le menu "Templates" du canevas permet de partir d\'un modèle pré-construit.',
       position: 'bottom',
     },
   ],

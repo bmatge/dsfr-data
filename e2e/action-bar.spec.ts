@@ -18,8 +18,10 @@ interface EditorSpec {
   primary: string;
   /** libellé de la primaire */
   primaryLabel: string;
-  /** ids attendus dans le menu « Ouvrir dans ▾ » */
+  /** ids attendus dans le menu « Ouvrir dans ▾ » ([] : pas de menu, ex. Dashboard) */
   openIn: string[];
+  /** ids d'autres actions attendues dans Plus ▾ en mobile */
+  folded?: string[];
   /** Préparation après chargement (ex. : fermer la modale d'arrivée). */
   prepare?: (page: import('@playwright/test').Page) => Promise<void>;
 }
@@ -51,6 +53,14 @@ const editors: EditorSpec[] = [
       const choice = page.locator('.carto-choice').first();
       if (await choice.isVisible({ timeout: 3000 }).catch(() => false)) await choice.click();
     },
+  },
+  {
+    name: 'Dashboard',
+    path: '/apps/dashboard/index.html',
+    primary: 'btn-save',
+    primaryLabel: 'Enregistrer',
+    openIn: [],
+    folded: ['btn-load', 'btn-export', 'btn-new', 'btn-preview'],
   },
 ];
 
@@ -92,14 +102,16 @@ test.describe('AppActionBar (#539)', () => {
 
       // Ouvrir dans ▾ : menu ARIA, entrées attendues.
       const openIn = page.locator('app-action-bar app-menu', { hasText: 'Ouvrir dans' });
-      await expect(openIn).toHaveCount(1);
-      await openIn.locator('.app-menu__trigger').click();
-      await expect(openIn.locator('[role="menu"]')).toBeVisible();
-      for (const id of ed.openIn) {
-        await expect(openIn.locator(`#${id}[role="menuitem"]`)).toBeVisible();
+      await expect(openIn).toHaveCount(ed.openIn.length ? 1 : 0);
+      if (ed.openIn.length) {
+        await openIn.locator('.app-menu__trigger').click();
+        await expect(openIn.locator('[role="menu"]')).toBeVisible();
+        for (const id of ed.openIn) {
+          await expect(openIn.locator(`#${id}[role="menuitem"]`)).toBeVisible();
+        }
+        await page.keyboard.press('Escape');
+        await expect(openIn.locator('[role="menu"]')).toBeHidden();
       }
-      await page.keyboard.press('Escape');
-      await expect(openIn.locator('[role="menu"]')).toBeHidden();
 
       // Collée sous le header : après défilement (quand la page défile — les
       // apps plein écran comme Carto ne défilent pas), la barre reste juste
@@ -142,7 +154,7 @@ test.describe('AppActionBar (#539)', () => {
       await expect(more).toBeVisible();
       await more.locator('.app-menu__trigger').click();
       await expect(more.locator('[role="menu"]')).toBeVisible();
-      for (const id of ed.openIn) {
+      for (const id of [...ed.openIn, ...(ed.folded ?? [])]) {
         await expect(more.locator(`#${id}[role="menuitem"]`)).toBeVisible();
       }
       const menuBox = (await more.locator('[role="menu"]').boundingBox())!;
