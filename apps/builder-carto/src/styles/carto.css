@@ -18,9 +18,66 @@ body.carto-app > app-action-bar {
   flex: 0 0 auto;
 }
 
+/* ---- Onglets Aperçu · Code (fr-tabs DSFR, lot UX 4) ----
+   Hauteur libre (le DSFR fige --tabs-height), filler ::before retiré ; les
+   panneaux se superposent en absolu et le non-sélectionné reste en page
+   (visibility) pour que Leaflet garde sa taille. */
+.carto-tabs {
+  --carto-tabs-h: 48px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto !important;
+  overflow: hidden;
+  transition: none;
+  box-shadow: none;
+  border-bottom: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.carto-tabs::before {
+  display: none;
+}
+
+.carto-tabs > .fr-tabs__list {
+  flex-shrink: 0;
+  margin: 0;
+  box-shadow: inset 0 -1px 0 0 var(--border-default-grey);
+  background: var(--background-default-grey, #fff);
+}
+
+.carto-tabs > .fr-tabs__panel {
+  position: absolute;
+  top: var(--carto-tabs-h, 48px);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: auto;
+  margin: 0;
+  padding: 0;
+  transform: none;
+  transition: none;
+  visibility: hidden;
+  overflow: hidden;
+}
+
+.carto-tabs > .fr-tabs__panel--selected {
+  visibility: visible;
+}
+
+.carto-tabs > #carto-tab-code {
+  overflow: auto;
+  background: var(--background-alt-grey, #f6f6f6);
+}
+
 .carto-workspace {
   position: relative;
   width: 100vw;
+  height: 100%;
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
@@ -880,19 +937,6 @@ body.carto-app > app-action-bar {
 }
 
 /* Modale export */
-.carto-export__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1.25rem 1.5rem 0;
-}
-
-.carto-export__head h2 {
-  margin: 0;
-  font-size: 1.25rem;
-  color: var(--text-title-grey);
-}
-
 .carto-export__body {
   padding: 0.75rem 1.5rem 1.5rem;
   overflow-y: auto;
@@ -923,7 +967,6 @@ body.carto-app > app-action-bar {
   white-space: pre-wrap;
   word-break: break-word;
   overflow: auto;
-  max-height: 45vh;
   margin: 0;
 }
 
