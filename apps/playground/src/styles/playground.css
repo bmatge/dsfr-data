@@ -18,9 +18,10 @@ body {
 /* Éditeur (gauche) : sticky, pleine hauteur ; CodeMirror défile en interne. */
 .builder-layout-left {
   position: sticky !important;
-  top: 0 !important;
-  height: 100vh !important;
-  height: 100dvh !important;
+  /* Sous le header commun collant (--app-header-h publiée par <app-header>). */
+  top: var(--app-header-h, 0px) !important;
+  height: calc(100vh - var(--app-header-h, 0px)) !important;
+  height: calc(100dvh - var(--app-header-h, 0px)) !important;
   overflow: hidden !important;
 }
 
@@ -85,7 +86,12 @@ body {
   border-bottom: 1px solid var(--border-default-grey);
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+.example-selector label {
+  white-space: nowrap;
 }
 
 .example-selector label {

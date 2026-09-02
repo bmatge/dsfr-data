@@ -56,6 +56,7 @@ export class AppHeader extends LitElement {
 
   private _unsubAuth?: () => void;
   private _unsubSync?: () => void;
+  private _headerResizeObserver?: ResizeObserver;
   private _outsideClickHandler = (e: MouseEvent) => {
     const menus = this.querySelectorAll('.app-header-user-menu');
     const target = e.target as Node;
@@ -90,7 +91,20 @@ export class AppHeader extends LitElement {
     if (!document.getElementById('app-header-active-style')) {
       const style = document.createElement('style');
       style.id = 'app-header-active-style';
-      style.textContent = `.fr-nav__link[aria-current="page"]{font-weight:700;border-bottom:2px solid var(--border-action-high-blue-france);color:var(--text-action-high-blue-france)}@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}.app-header-user-menu{position:relative}.app-header-user-menu__dropdown{display:none;position:absolute;right:0;top:100%;z-index:1000;min-width:240px;background:var(--background-default-grey);box-shadow:0 8px 16px rgba(0,0,0,.16);padding:0}.app-header-user-menu__dropdown[data-open]{display:block}.app-header-user-menu__info{padding:1rem 1.5rem;border-bottom:1px solid var(--border-default-grey)}.app-header-user-menu__info-name{font-weight:700;color:var(--text-title-grey);margin:0;font-size:.875rem}.app-header-user-menu__info-email{color:var(--text-mention-grey);margin:0;font-size:.75rem}.app-header-user-menu__list{list-style:none;padding:0;margin:0}.app-header-user-menu__list li{border-bottom:1px solid var(--border-default-grey)}.app-header-user-menu__list li:last-child{border-bottom:none}.app-header-user-menu__list button{display:flex;align-items:center;gap:.5rem;width:100%;padding:.75rem 1.5rem;border:none;background:none;cursor:pointer;font-size:.875rem;color:var(--text-action-high-blue-france);font-family:inherit}.app-header-user-menu__list button:hover{background:var(--background-alt-blue-france-hover)}.app-header-user-menu__list button::before{font-family:'remixicon';font-size:1rem}`;
+      // Header collant (audit UX 2026-09, A2) : sous les modales DSFR (1750)
+      // et les panneaux/overlays des apps (>= 900). Le sticky est porté par
+      // l'élément <app-header> lui-même, pas par .fr-header : dans les pages
+      // dont le body est en flex-column, <app-header> est le bloc conteneur
+      // de .fr-header et un sticky interne n'aurait aucune marge de collage.
+      // Sous 768px le header DSFR (logo + service + baseline) occupe ~1/4 de
+      // l'écran : il reste défilant ; l'action primaire mobile sera portée
+      // par la barre collante en bas d'écran (lot 8, #545).
+      // La hauteur réelle est publiée dans --app-header-h (voir
+      // _observeHeaderHeight) pour que les panneaux sticky/plein écran des
+      // éditeurs se calent sous le header.
+      // .app-page-head : titre de zone de travail (h1) des éditeurs — sera
+      // absorbé par <app-action-bar> au lot 2 (#539).
+      style.textContent = `app-header{display:block}@media (min-width:48em){app-header{position:sticky;top:0;z-index:750}}.fr-nav__link[aria-current="page"]{font-weight:700;border-bottom:2px solid var(--border-action-high-blue-france);color:var(--text-action-high-blue-france)}.fr-header__tools-links .fr-btn[aria-current="page"]{font-weight:700;color:var(--text-action-high-blue-france)}.app-page-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex:0 0 auto;padding:.5rem 1rem;background:var(--background-default-grey);border-bottom:1px solid var(--border-default-grey)}.app-page-head__title{font-size:1.125rem;line-height:1.5rem;font-weight:700;margin:0;color:var(--text-title-grey)}@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}.app-header-user-menu{position:relative}.app-header-user-menu__dropdown{display:none;position:absolute;right:0;top:100%;z-index:1000;min-width:240px;background:var(--background-default-grey);box-shadow:0 8px 16px rgba(0,0,0,.16);padding:0}.app-header-user-menu__dropdown[data-open]{display:block}.app-header-user-menu__info{padding:1rem 1.5rem;border-bottom:1px solid var(--border-default-grey)}.app-header-user-menu__info-name{font-weight:700;color:var(--text-title-grey);margin:0;font-size:.875rem}.app-header-user-menu__info-email{color:var(--text-mention-grey);margin:0;font-size:.75rem}.app-header-user-menu__list{list-style:none;padding:0;margin:0}.app-header-user-menu__list li{border-bottom:1px solid var(--border-default-grey)}.app-header-user-menu__list li:last-child{border-bottom:none}.app-header-user-menu__list button{display:flex;align-items:center;gap:.5rem;width:100%;padding:.75rem 1.5rem;border:none;background:none;cursor:pointer;font-size:.875rem;color:var(--text-action-high-blue-france);font-family:inherit}.app-header-user-menu__list button:hover{background:var(--background-alt-blue-france-hover)}.app-header-user-menu__list button::before{font-family:'remixicon';font-size:1rem}`;
       document.head.appendChild(style);
     }
     // Check auth state
@@ -102,11 +116,38 @@ export class AppHeader extends LitElement {
     });
   }
 
+  firstUpdated() {
+    this._observeHeaderHeight();
+  }
+
   disconnectedCallback() {
     super.disconnectedCallback();
     this._unsubAuth?.();
     this._unsubSync?.();
+    this._headerResizeObserver?.disconnect();
     document.removeEventListener('click', this._outsideClickHandler);
+  }
+
+  /**
+   * Publie la hauteur réelle du header (variable selon breakpoint et
+   * bandeau de version) dans `--app-header-h` sur <html>. Les layouts qui
+   * calent un panneau sticky ou plein écran sous le header (app-layout-builder,
+   * playground, pipeline) consomment cette variable.
+   */
+  private _observeHeaderHeight(): void {
+    const header = this.querySelector<HTMLElement>('.fr-header');
+    if (!header) return;
+    const publish = () => {
+      document.documentElement.style.setProperty(
+        '--app-header-h',
+        `${Math.round(header.getBoundingClientRect().height)}px`
+      );
+    };
+    publish();
+    if (typeof ResizeObserver !== 'undefined') {
+      this._headerResizeObserver = new ResizeObserver(publish);
+      this._headerResizeObserver.observe(header);
+    }
   }
 
   private async _initAuth(): Promise<void> {
@@ -182,7 +223,7 @@ export class AppHeader extends LitElement {
       // { id: 'studio', label: 'Studio IA', href: 'apps/studio/index.html' },
       { id: 'builder', label: 'Créer un graphique', href: 'apps/builder/index.html' },
       { id: 'builder-carto', label: 'Créer une carte', href: 'apps/builder-carto/index.html' },
-      { id: 'dashboard', label: 'Créer un tableau', href: 'apps/dashboard/index.html' },
+      { id: 'dashboard', label: 'Créer un tableau de bord', href: 'apps/dashboard/index.html' },
       { id: 'playground', label: 'Playground', href: 'apps/playground/index.html' },
       { id: 'pipeline-helper', label: 'Pipeline', href: 'apps/pipeline-helper/index.html' },
       { id: 'monitoring', label: 'Suivi', href: 'apps/monitoring/index.html' },
@@ -287,6 +328,7 @@ export class AppHeader extends LitElement {
           <a
             class="fr-btn fr-btn--tertiary-no-outline fr-icon-book-2-line"
             href="${this._base}guide/guide.html"
+            aria-current=${this.currentPage === 'guide' ? 'page' : nothing}
           >
             Guide
           </a>
@@ -295,6 +337,7 @@ export class AppHeader extends LitElement {
           <a
             class="fr-btn fr-btn--tertiary-no-outline fr-icon-file-text-line"
             href="${this._base}specs/index.html"
+            aria-current=${this.currentPage === 'composants' ? 'page' : nothing}
           >
             Specs
           </a>
@@ -303,6 +346,7 @@ export class AppHeader extends LitElement {
           <a
             class="fr-btn fr-btn--tertiary-no-outline fr-icon-star-fill"
             href="${this._base}apps/favorites/index.html"
+            aria-current=${this.currentPage === 'favoris' ? 'page' : nothing}
           >
             Favoris${
               this._favCount > 0
@@ -392,7 +436,7 @@ export class AppHeader extends LitElement {
                       <a
                         class="fr-nav__link"
                         href="${this._base}${item.href}"
-                        ${this.currentPage === item.id ? html`aria-current="page"` : ''}
+                        aria-current=${this.currentPage === item.id ? 'page' : nothing}
                       >
                         ${item.label}
                       </a>

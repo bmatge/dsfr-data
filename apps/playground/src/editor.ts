@@ -13,6 +13,7 @@ export interface CodeMirrorEditor {
   on(event: string, handler: (cm: CodeMirrorEditor, event: KeyboardEvent) => void): void;
   setSize(width: number | string | null, height: number | string | null): void;
   getWrapperElement(): HTMLElement;
+  getScrollerElement(): HTMLElement;
   refresh(): void;
 }
 
@@ -34,6 +35,14 @@ export function initEditor(textareaId: string): CodeMirrorEditor {
   // CodeMirror creates a hidden textarea for input; label it for accessibility
   const cmTextarea = document.querySelector('.CodeMirror textarea');
   if (cmTextarea) cmTextarea.setAttribute('aria-label', 'Editeur de code HTML');
+
+  // La zone de défilement de CodeMirror 5 (tabindex=-1) ne contient aucun
+  // élément focusable (le textarea est un frère) : dès que le code dépasse la
+  // hauteur de l'éditeur, axe la signale (scrollable-region-focusable,
+  // WCAG 2.1.1). On la rend atteignable au clavier.
+  const scroller = editor.getScrollerElement();
+  scroller.setAttribute('tabindex', '0');
+  scroller.setAttribute('aria-label', 'Défilement du code');
 
   return editor;
 }

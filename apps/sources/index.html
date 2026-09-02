@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>dsfr-data — Gestion des sources de données</title>
+  <title>Charts builder — Sources</title>
   <style>@view-transition{navigation:auto}app-header:not(:defined){display:block;min-height:56px}app-footer:not(:defined){display:block;min-height:48px}.modal-overlay{display:none}</style>
 
   <!-- DSFR -->
@@ -24,6 +24,15 @@
        ses tables / ressources / flux, les jeux en ligne créés y sont badgés),
        section des jeux locaux, et aperçu en panneau latéral. -->
   <main id="main-content" class="sources-page">
+    <nav role="navigation" class="fr-breadcrumb" aria-label="vous êtes ici :">
+      <button class="fr-breadcrumb__button" aria-expanded="false" aria-controls="page-breadcrumb">Voir le fil d'Ariane</button>
+      <div class="fr-collapse" id="page-breadcrumb">
+        <ol class="fr-breadcrumb__list">
+          <li><a class="fr-breadcrumb__link" href="../../index.html">Accueil</a></li>
+          <li><a class="fr-breadcrumb__link" aria-current="page">Sources</a></li>
+        </ol>
+      </div>
+    </nav>
     <div class="sources-page__head">
       <h1>Sources</h1>
       <div class="sources-page__actions">

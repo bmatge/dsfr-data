@@ -4,7 +4,8 @@
 .pipeline-page {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 56px); /* minus header */
+  /* Hauteur réelle du header commun, publiée par <app-header> (#538). */
+  height: calc(100vh - var(--app-header-h, 56px));
   overflow: hidden;
 }
 
