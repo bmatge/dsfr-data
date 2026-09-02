@@ -724,7 +724,7 @@ test.describe('User Guide Screenshots', () => {
 
     // --- D1: Playground overview with default example ---
     await annotate(page, '.example-selector', 1, '#000091');
-    await annotate(page, '.editor-toolbar', 2, '#000091');
+    await annotate(page, 'app-action-bar', 2, '#000091');
     await fullScreenshot(page, 'guide-D1-playground-overview.png');
     await clearAnnotations(page);
 

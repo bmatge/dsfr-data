@@ -18,10 +18,11 @@ body {
 /* Éditeur (gauche) : sticky, pleine hauteur ; CodeMirror défile en interne. */
 .builder-layout-left {
   position: sticky !important;
-  /* Sous le header commun collant (--app-header-h publiée par <app-header>). */
-  top: var(--app-header-h, 0px) !important;
-  height: calc(100vh - var(--app-header-h, 0px)) !important;
-  height: calc(100dvh - var(--app-header-h, 0px)) !important;
+  /* Sous le header commun et la barre d'actions, tous deux collants
+     (--app-header-h / --app-action-bar-h publiées par les composants). */
+  top: calc(var(--app-header-h, 0px) + var(--app-action-bar-h, 0px)) !important;
+  height: calc(100vh - var(--app-header-h, 0px) - var(--app-action-bar-h, 0px)) !important;
+  height: calc(100dvh - var(--app-header-h, 0px) - var(--app-action-bar-h, 0px)) !important;
   overflow: hidden !important;
 }
 
@@ -43,22 +44,6 @@ body {
   flex: 1;
   min-height: 0;
   overflow: hidden;
-}
-
-.editor-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  padding: 0.5rem;
-  background: var(--background-contrast-grey);
-  border-bottom: 1px solid var(--border-default-grey);
-}
-
-/* Libellés du lexique (docs/ux/actions.md) : un bouton ne se coupe pas sur
-   deux lignes, la barre passe à la ligne — transitoire jusqu'à l'AppActionBar
-   (lot UX 2, #539) et son menu « Plus ». */
-.editor-toolbar .fr-btn {
-  white-space: nowrap;
 }
 
 .CodeMirror {

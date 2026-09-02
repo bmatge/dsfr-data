@@ -51,6 +51,7 @@ test.describe('Export image', () => {
     await page.waitForTimeout(500);
 
     const pngDownload = page.waitForEvent('download');
+    await page.click('app-menu:has(#export-png-btn) .app-menu__trigger');
     await page.click('#export-png-btn');
     const download = await pngDownload;
     expect(download.suggestedFilename()).toBe('apercu-playground.png');
@@ -63,6 +64,7 @@ test.describe('Export image', () => {
     expect(size.height).toBeGreaterThan(300 + 150);
 
     const jpgDownload = page.waitForEvent('download');
+    await page.click('app-menu:has(#export-jpg-btn) .app-menu__trigger');
     await page.click('#export-jpg-btn');
     expect((await jpgDownload).suggestedFilename()).toBe('apercu-playground.jpg');
   });
