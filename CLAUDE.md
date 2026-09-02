@@ -111,6 +111,18 @@ git remote set-url --add --push origin https://github.com/mef-snum-miweb/dsfr-da
   ```
 - Les workflows GitHub Actions tournent **aussi cote miweb** sur chaque push ; les jobs dependant de secrets non configures la-bas vont failer (a desactiver dans `Settings → Actions` du repo miweb si besoin).
 - Tags : `git push origin --tags` apres une release pour les propager.
+- **Branches** : `gh pr merge --delete-branch` ne supprime la branche que sur bmatge. Apres chaque merge,
+  la supprimer aussi sur le miroir, sinon il accumule une branche par PR (74 branches mortes le 2026-09-02) :
+  ```bash
+  git push https://github.com/mef-snum-miweb/dsfr-data.git --delete <branche>
+  ```
+- **GitHub Releases** : une Release n'est pas un objet git, elle ne suit pas les tags. Le workflow changesets
+  la cree sur bmatge seulement (il echoue sur le miroir, secrets absents). Apres chaque release, la recreer
+  sur le miroir a partir des notes de bmatge (memes tags `dsfr-data@X.Y.Z`, deja pousses) :
+  ```bash
+  gh release view dsfr-data@X.Y.Z -R bmatge/dsfr-data --json body -q .body > /tmp/notes.md
+  gh release create dsfr-data@X.Y.Z -R mef-snum-miweb/dsfr-data --title dsfr-data@X.Y.Z --notes-file /tmp/notes.md --latest
+  ```
 
 ## Versioning et Releases (résumé)
 
@@ -132,6 +144,9 @@ git push && git push --tags
 **Publication npm** : au merge de la PR changesets (`changeset-release.yml`, `release-publish`), qui pousse aussi le tag `v*` (historique/pins ; ne déclenche plus rien — cible desktop Tauri retirée, ADR-070/ADR-095, #403). Les sous-repos de distribution (`dsfr-data-grist/proxy/mcp`) sont **archivés depuis 2026-04** — plus de publication séparée ; seul le miroir `mef-snum-miweb/dsfr-data` est synchronisé.
 
 **CI** : un warning est emis sur les PRs si `packages/core/src/` ou `packages/shared/` sont modifies sans changeset.
+
+**Apres merge d'une PR** : resync du miroir (`git push origin refs/remotes/origin/main:refs/heads/main`) **et**
+suppression de la branche sur le miroir (voir Remotes Git). **Apres une release** : tags + Release recreee sur le miroir.
 
 **Fin de session Claude Code** : `git diff --stat` → `npx changeset` si `core/src` ou `shared` touches → commit (Conventional) → proposer une release a l'utilisateur (ne pas releaser sans accord).
 
