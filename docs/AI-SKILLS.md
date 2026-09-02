@@ -17,6 +17,9 @@ charger que l'utile.
 
 ## 1. Skill Claude Code (`skills/dsfr-data/`)
 
+Installation par outil (Claude Code, Codex, Cursor, Gemini CLI, Copilot…) : voir
+[`skills/dsfr-data/README.md`](../skills/dsfr-data/README.md).
+
 Format standard « Agent Skills » : un `SKILL.md` (index : principe du pipeline, table des 29
 références avec leurs déclencheurs, règles transverses) et `references/<composant>.md` (contenu
 complet de chaque skill, chargé à la demande). Claude Code lit le `SKILL.md` quand la demande
