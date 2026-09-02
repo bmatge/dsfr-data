@@ -89,6 +89,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.error('Pipeline execution error:', err);
     }
 
+    refreshCode();
+
     // Re-enable button after a short delay (events are async)
     setTimeout(() => {
       btn.disabled = false;
@@ -112,54 +114,36 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // Generate code → open modal
-  const codeModal = document.getElementById('code-modal');
-
-  document.getElementById('btn-generate')?.addEventListener('click', () => {
-    if (!editor || !codeModal) return;
+  /** Onglet « Code » : reflète le pipeline courant. */
+  const refreshCode = () => {
+    if (!editor) return '';
     const code = generateCode(editor.getNodes(), editor.getConnections());
     const codeOutput = document.getElementById('code-output');
     if (codeOutput) codeOutput.textContent = code;
-    codeModal.style.display = 'flex';
-  });
+    return code;
+  };
+  document.getElementById('pipeline-tab-code-btn')?.addEventListener('click', refreshCode);
 
-  // Close modal
-  document.getElementById('btn-close-modal')?.addEventListener('click', () => {
-    if (codeModal) codeModal.style.display = 'none';
-  });
-
-  // Close modal on overlay click
-  codeModal?.addEventListener('click', (e) => {
-    if (e.target === codeModal) codeModal.style.display = 'none';
-  });
-
-  // Close modal on Escape
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && codeModal?.style.display === 'flex') {
-      codeModal.style.display = 'none';
-    }
-  });
-
-  // Copy code button
-  document.getElementById('btn-copy-code')?.addEventListener('click', () => {
-    const codeOutput = document.getElementById('code-output');
-    if (codeOutput?.textContent) {
-      navigator.clipboard.writeText(codeOutput.textContent);
-      const btn = document.getElementById('btn-copy-code');
-      if (btn) {
-        const original = btn.textContent;
-        btn.textContent = ' Copie !';
-        setTimeout(() => {
-          btn.textContent = original;
-        }, 1500);
-      }
+  // « Copier le code » (barre d'actions) : copie directe + onglet Code à jour
+  document.getElementById('btn-generate')?.addEventListener('click', () => {
+    const code = refreshCode();
+    if (!code) return;
+    navigator.clipboard.writeText(code).catch(() => {});
+    const btn = document.getElementById('btn-generate');
+    if (btn) {
+      const original = btn.textContent;
+      btn.textContent = 'Copié !';
+      setTimeout(() => {
+        btn.textContent = original;
+      }, 1500);
     }
   });
 
   // Open in playground (modale « code » et menu « Ouvrir dans ▾ » de la barre)
   const openInPlayground = () => {
-    const codeOutput = document.getElementById('code-output');
-    if (codeOutput?.textContent) {
-      sessionStorage.setItem('playground-code', codeOutput.textContent);
+    const code = refreshCode();
+    if (code) {
+      sessionStorage.setItem('playground-code', code);
       window.location.href = '../../apps/playground/?from=pipeline-helper';
     }
   };

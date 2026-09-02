@@ -28,6 +28,19 @@
     <button slot="primary" id="btn-execute" class="fr-icon-play-line fr-btn--icon-left">Générer</button>
   </app-action-bar>
 
+  <!-- Onglets DSFR natifs Aperçu · Code (lot UX 4 #541) : la carte reste en
+       page (visibility, pas display:none — Leaflet garde sa taille), le code
+       remplace la modale « Intégrer la carte ». -->
+  <div class="fr-tabs carto-tabs">
+    <ul class="fr-tabs__list" role="tablist" aria-label="Carte">
+      <li role="presentation">
+        <button type="button" id="carto-tab-preview-btn" class="fr-tabs__tab" tabindex="0" role="tab" aria-selected="true" aria-controls="carto-tab-preview">Aperçu</button>
+      </li>
+      <li role="presentation">
+        <button type="button" id="carto-tab-code-btn" class="fr-tabs__tab" tabindex="-1" role="tab" aria-selected="false" aria-controls="carto-tab-code">Code</button>
+      </li>
+    </ul>
+    <div id="carto-tab-preview" class="fr-tabs__panel fr-tabs__panel--selected carto-tabs__panel" role="tabpanel" aria-labelledby="carto-tab-preview-btn" tabindex="0">
   <main id="main-content" class="carto-workspace">
 
     <!-- Canevas : la carte générée est l'apercu permanent -->
@@ -86,11 +99,25 @@
     <!-- Diagnostic d'apercu -->
     <div id="preview-status" class="carto-status" role="status" aria-live="polite" hidden></div>
 
-    <!-- Modales (rendues par main.ts) -->
+    <!-- Modale d'arrivée (rendue par main.ts) -->
     <div id="onboard-modal"></div>
-    <div id="export-modal"></div>
 
   </main>
+    </div>
+    <div id="carto-tab-code" class="fr-tabs__panel carto-tabs__panel" role="tabpanel" aria-labelledby="carto-tab-code-btn" tabindex="0">
+      <div class="carto-export__body">
+        <p class="carto-msg carto-msg--muted">Copiez ce code et collez-le dans votre CMS ou votre page HTML — « Copier le code » dans la barre d'actions copie le mode sélectionné.</p>
+        <div class="carto-export__toolbar">
+          <label for="gen-mode" class="fr-label">Mode de génération</label>
+          <select id="gen-mode" class="fr-select">
+            <option value="embedded">Ma page charge déjà dsfr-data (composants seuls)</option>
+            <option value="dynamic">Page autonome (avec scripts et CSS)</option>
+          </select>
+        </div>
+        <pre class="carto-code" id="code-output"></pre>
+      </div>
+    </div>
+  </div><!-- /.carto-tabs -->
   <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.module.min.js" integrity="sha384-gPgRd2+olihO/srZe/Bqw6iVLiiaL7meuri1d5YVMejwPXg7VehLSBeORYq9yh2F" crossorigin="anonymous"></script>
 </body>
 </html>

@@ -24,6 +24,8 @@ const pages: TabsSpec[] = [
   },
   { name: 'Studio IA', path: '/apps/studio/index.html', labels: ['Aperçu', 'Code', 'JSON'] },
   { name: 'Dashboard', path: '/apps/dashboard/index.html', labels: ['Aperçu', 'Code', 'JSON'] },
+  { name: 'Carto', path: '/apps/builder-carto/index.html', labels: ['Aperçu', 'Code'] },
+  { name: 'Pipeline', path: '/apps/pipeline-helper/index.html', labels: ['Inspecteur', 'Code'] },
 ];
 
 test.describe('Onglets d’aperçu fr-tabs (#541)', () => {
@@ -34,9 +36,7 @@ test.describe('Onglets d’aperçu fr-tabs (#541)', () => {
   for (const spec of pages) {
     test(`${spec.name} : tablist ARIA, libellés canoniques, flèches`, async ({ page }) => {
       await page.goto(spec.path);
-      const tablist = page
-        .locator('main [role="tablist"], app-preview-panel [role="tablist"]')
-        .first();
+      const tablist = page.locator('.fr-tabs > [role="tablist"]').first();
       await expect(tablist).toBeVisible();
       await expect(tablist).toHaveAttribute('aria-label', /.+/);
 
@@ -65,11 +65,11 @@ test.describe('Onglets d’aperçu fr-tabs (#541)', () => {
       await expect(panel2).toBeVisible();
       await expect(panel).toBeHidden();
 
-      // Clavier : flèche droite depuis l'onglet actif → onglet suivant sélectionné.
+      // Clavier : flèche gauche depuis l'onglet actif → onglet précédent sélectionné.
       await tabs.nth(1).focus();
-      await page.keyboard.press('ArrowRight');
-      await expect(tabs.nth(2)).toHaveAttribute('aria-selected', 'true');
       await page.keyboard.press('ArrowLeft');
+      await expect(tabs.nth(0)).toHaveAttribute('aria-selected', 'true');
+      await page.keyboard.press('ArrowRight');
       await expect(tabs.nth(1)).toHaveAttribute('aria-selected', 'true');
     });
   }

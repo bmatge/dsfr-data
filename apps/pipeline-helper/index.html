@@ -94,32 +94,33 @@
         <div id="rete-container"></div>
       </div>
       <div class="pipeline-layout__inspector" id="inspector-panel">
-        <div class="inspector" id="inspector">
-          <div class="inspector__empty">
-            <div class="inspector__empty-icon">&#8592;</div>
-            <p>Cliquez sur un noeud du pipeline pour inspecter ses données.</p>
-            <p class="inspector__hint">Executez d'abord le pipeline pour voir les données circuler.</p>
+        <!-- Onglets DSFR natifs Inspecteur · Code (lot UX 4 #541) : le code
+             remplace la modale « Code HTML généré ». -->
+        <div class="fr-tabs pipeline-tabs">
+          <ul class="fr-tabs__list" role="tablist" aria-label="Panneau latéral">
+            <li role="presentation">
+              <button type="button" id="pipeline-tab-inspector-btn" class="fr-tabs__tab" tabindex="0" role="tab" aria-selected="true" aria-controls="pipeline-tab-inspector">Inspecteur</button>
+            </li>
+            <li role="presentation">
+              <button type="button" id="pipeline-tab-code-btn" class="fr-tabs__tab" tabindex="-1" role="tab" aria-selected="false" aria-controls="pipeline-tab-code">Code</button>
+            </li>
+          </ul>
+          <div id="pipeline-tab-inspector" class="fr-tabs__panel fr-tabs__panel--selected pipeline-tabs__panel" role="tabpanel" aria-labelledby="pipeline-tab-inspector-btn" tabindex="0">
+            <div class="inspector" id="inspector">
+              <div class="inspector__empty">
+                <div class="inspector__empty-icon">&#8592;</div>
+                <p>Cliquez sur un nœud du pipeline pour inspecter ses données.</p>
+                <p class="inspector__hint">Exécutez d'abord le pipeline pour voir les données circuler.</p>
+              </div>
+            </div>
+          </div>
+          <div id="pipeline-tab-code" class="fr-tabs__panel pipeline-tabs__panel" role="tabpanel" aria-labelledby="pipeline-tab-code-btn" tabindex="0">
+            <pre class="pipeline-code" id="code-output"></pre>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Code modal -->
-    <div class="code-modal-overlay" id="code-modal" style="display:none">
-      <div class="code-modal">
-        <div class="code-modal__header">
-          <h3>Code HTML généré</h3>
-          <button class="fr-btn fr-btn--sm fr-btn--tertiary fr-icon-close-line" id="btn-close-modal" title="Fermer"></button>
-        </div>
-        <pre class="code-modal__code" id="code-output"></pre>
-        <div class="code-modal__actions">
-          <button class="fr-btn fr-btn--sm fr-btn--secondary fr-icon-clipboard-line fr-btn--icon-left" id="btn-copy-code">
-            Copier
-          </button>
-          <button class="fr-btn fr-btn--sm fr-btn--secondary fr-icon-external-link-line fr-btn--icon-left" id="btn-playground">
-            Ouvrir dans le Playground
-          </button>
-        </div>
       </div>
     </div>
   </div>

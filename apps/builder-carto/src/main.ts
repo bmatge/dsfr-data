@@ -136,7 +136,6 @@ const ui = {
   /** Liste des sources enregistrées dépliée dans la modale */
   savedOpen: false,
   /** Modale « Obtenir le code » ouverte */
-  exportOpen: false,
   /** Une carte a déjà été exécutée : re-exécution auto sur modification */
   executed: false,
 };
@@ -1378,90 +1377,31 @@ function renderOnboard() {
 // Modale « Obtenir le code »
 // ---------------------------------------------------------------------------
 
-function closeExport() {
-  ui.exportOpen = false;
-  renderExport();
+/** Onglet « Code » : reflète le mode de génération courant. */
+function refreshCodeOutput() {
+  const codeEl = document.getElementById('code-output');
+  if (!codeEl) return;
+  const genEl = document.getElementById('gen-mode') as HTMLSelectElement | null;
+  if (genEl && genEl.value !== state.generationMode) genEl.value = state.generationMode;
+  codeEl.textContent = state.layers.some((l) => l.visible && l.source) ? generateCode() : '';
 }
 
-function renderExport() {
-  const host = document.getElementById('export-modal')!;
-  if (!ui.exportOpen) {
-    host.innerHTML = '';
+/** « Copier le code » (barre d'actions) : copie directe du mode sélectionné. */
+function copyCodeToClipboard() {
+  if (!state.layers.some((l) => l.visible && l.source)) {
+    toastWarning('Choisissez d’abord les données d’une couche, puis vous pourrez copier le code.');
     return;
   }
-
-  host.innerHTML = `
-    <div class="carto-modal-overlay carto-modal-overlay--dark" id="export-overlay">
-      <div class="carto-modal carto-modal--wide" role="dialog" aria-modal="true" aria-labelledby="export-title">
-        <div class="carto-export__head">
-          <h2 id="export-title">Intégrer la carte dans votre page</h2>
-          <button class="carto-modal__close" id="export-close" type="button">
-            Fermer <i class="ri-close-line" aria-hidden="true"></i>
-          </button>
-        </div>
-        <div class="carto-export__body">
-          <p class="carto-msg carto-msg--muted">Copiez ce code et collez-le dans votre CMS ou votre page HTML.</p>
-          <div class="carto-export__toolbar">
-            <label for="gen-mode" class="fr-sr-only">Mode de génération</label>
-            <select id="gen-mode">
-              <option value="embedded" ${state.generationMode === 'embedded' ? 'selected' : ''}>Ma page charge déjà dsfr-data (composants seuls)</option>
-              <option value="dynamic" ${state.generationMode === 'dynamic' ? 'selected' : ''}>Page autonome (avec scripts et CSS)</option>
-            </select>
-            <button id="btn-copy" class="carto-btn carto-btn--secondary" type="button">
-              <i class="ri-file-copy-line" aria-hidden="true"></i>Copier le code
-            </button>
-            <button id="btn-export-favorite" class="carto-btn carto-btn--ghost" type="button">
-              <i class="ri-star-line" aria-hidden="true"></i>Ajouter aux favoris
-            </button>
-            <button id="btn-playground" class="carto-btn carto-btn--ghost" type="button">
-              <i class="ri-flask-line" aria-hidden="true"></i>Ouvrir dans le playground
-            </button>
-          </div>
-          <pre class="carto-code" id="code-output"></pre>
-        </div>
-      </div>
-    </div>
-  `;
-
-  const codeEl = document.getElementById('code-output')!;
-  codeEl.textContent = generateCode();
-
-  document.getElementById('export-close')?.addEventListener('click', closeExport);
-  document.getElementById('export-overlay')?.addEventListener('click', (e) => {
-    if ((e.target as HTMLElement).id === 'export-overlay') closeExport();
-  });
-
-  const genEl = document.getElementById('gen-mode') as HTMLSelectElement | null;
-  genEl?.addEventListener('change', () => {
-    state.generationMode = genEl.value as 'embedded' | 'dynamic';
-    codeEl.textContent = generateCode();
-    persistState();
-  });
-
-  document.getElementById('btn-copy')?.addEventListener('click', () => {
-    navigator.clipboard.writeText(generateCode()).catch(() => {});
-    const btn = document.getElementById('btn-copy');
-    if (btn) {
-      btn.innerHTML = '<i class="ri-check-line" aria-hidden="true"></i>Copié !';
-      setTimeout(() => {
-        btn.innerHTML = '<i class="ri-file-copy-line" aria-hidden="true"></i>Copier le code';
-      }, 1500);
-    }
-  });
-
-  document
-    .getElementById('btn-export-favorite')
-    ?.addEventListener('click', () => saveFavorite('btn-export-favorite'));
-  document.getElementById('btn-playground')?.addEventListener('click', sendToPlayground);
-
-  // Actions de la barre commune (<app-action-bar>, lot UX 2 #539)
-  document
-    .getElementById('save-favorite-btn')
-    ?.addEventListener('click', () => saveFavorite('save-favorite-btn'));
-  document.getElementById('open-playground-btn')?.addEventListener('click', sendToPlayground);
-  document
-    .getElementById('tour-btn')
-    ?.addEventListener('click', () => startTour(BUILDER_CARTO_TOUR));
+  navigator.clipboard.writeText(generateCode()).catch(() => {});
+  refreshCodeOutput();
+  const btn = document.getElementById('btn-export');
+  if (btn) {
+    const original = btn.textContent;
+    btn.textContent = 'Copié !';
+    setTimeout(() => {
+      btn.textContent = original;
+    }, 1500);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1583,7 +1523,7 @@ function sendToPlayground() {
   window.location.href = '../../apps/playground/index.html?from=builder-carto';
 }
 
-function saveFavorite(feedbackBtnId = 'btn-export-favorite') {
+function saveFavorite(feedbackBtnId = 'save-favorite-btn') {
   if (!state.layers.some((l) => l.visible && l.source)) {
     toastWarning(
       'Choisissez d’abord les données d’une couche, puis vous pourrez sauvegarder la carte en favori.'
@@ -1613,7 +1553,7 @@ function saveFavorite(feedbackBtnId = 'btn-export-favorite') {
   const btn = document.getElementById(feedbackBtnId);
   if (btn) {
     const originalHTML = btn.innerHTML;
-    btn.innerHTML = '<i class="ri-check-line" aria-hidden="true"></i>Sauvegardé !';
+    btn.textContent = 'Ajouté aux favoris';
     setTimeout(() => {
       btn.innerHTML = originalHTML;
     }, 2000);
@@ -1791,8 +1731,8 @@ function executePreview(fit = false) {
   // cf. observeHeaderHeight), --app-action-bar-h : celle de la barre
   // d'actions commune (publiée par <app-action-bar>).
   state.map.height = state.map.insets.length
-    ? 'calc(100dvh - var(--carto-header-h, 96px) - var(--app-action-bar-h, 56px) - 208px)'
-    : 'calc(100dvh - var(--carto-header-h, 96px) - var(--app-action-bar-h, 56px))';
+    ? 'calc(100dvh - var(--carto-header-h, 96px) - var(--app-action-bar-h, 56px) - var(--carto-tabs-h, 48px) - 208px)'
+    : 'calc(100dvh - var(--carto-header-h, 96px) - var(--app-action-bar-h, 56px) - var(--carto-tabs-h, 48px))';
   if (fit) state.map.fitBounds = true;
   const code = generateCode();
   state.generationMode = saved.mode;
@@ -1805,6 +1745,7 @@ function executePreview(fit = false) {
   setPreviewStatus('<i class="ri-loader-4-line carto-spin" aria-hidden="true"></i> Chargement…');
   updatePreviewStatus();
   watchViewport();
+  refreshCodeOutput();
 }
 
 // ---------------------------------------------------------------------------
@@ -1817,6 +1758,18 @@ function executePreview(fit = false) {
  * On mesure au runtime et on expose via --carto-header-h — utilisée à la
  * fois par le CSS des panneaux et par le calc() de state.map.height.
  */
+/** Hauteur de la liste d'onglets Aperçu · Code → --carto-tabs-h (CSS + calc de la carte). */
+function observeTabsHeight() {
+  const list = document.querySelector('.carto-tabs > .fr-tabs__list');
+  if (!list) return;
+  const apply = () => {
+    const h = Math.round(list.getBoundingClientRect().height);
+    if (h > 0) document.body.style.setProperty('--carto-tabs-h', `${h}px`);
+  };
+  apply();
+  if (typeof ResizeObserver !== 'undefined') new ResizeObserver(apply).observe(list);
+}
+
 function observeHeaderHeight() {
   const header = document.querySelector('app-header');
   if (!header) return;
@@ -1848,17 +1801,30 @@ function bindStaticUi() {
   document.getElementById('btn-add-layer')?.addEventListener('click', addLayer);
   document.getElementById('btn-reset')?.addEventListener('click', resetBuilder);
   document.getElementById('btn-execute')?.addEventListener('click', () => executePreview(true));
-  document.getElementById('btn-export')?.addEventListener('click', () => {
-    ui.exportOpen = true;
-    renderExport();
-  });
+  document.getElementById('btn-export')?.addEventListener('click', copyCodeToClipboard);
+  // Actions de la barre commune (<app-action-bar>) — liées ici, hors de tout rendu conditionnel
+  document
+    .getElementById('save-favorite-btn')
+    ?.addEventListener('click', () => saveFavorite('save-favorite-btn'));
+  document.getElementById('open-playground-btn')?.addEventListener('click', sendToPlayground);
+  document
+    .getElementById('tour-btn')
+    ?.addEventListener('click', () => startTour(BUILDER_CARTO_TOUR));
 
-  // Échap ferme la modale du dessus
+  // Onglet « Code » : mode de génération + rafraîchissement à l'ouverture
+  const genEl = document.getElementById('gen-mode') as HTMLSelectElement | null;
+  genEl?.addEventListener('change', () => {
+    state.generationMode = genEl.value as 'embedded' | 'dynamic';
+    refreshCodeOutput();
+    persistState();
+  });
+  document.getElementById('carto-tab-code-btn')?.addEventListener('click', refreshCodeOutput);
+  observeTabsHeight();
+
+  // Échap ferme la modale d'arrivée
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
-    if (ui.exportOpen) {
-      closeExport();
-    } else if (ui.forceChooser && state.layers.some((l) => l.source)) {
+    if (ui.forceChooser && state.layers.some((l) => l.source)) {
       closeOnboard();
     }
   });
