@@ -30,6 +30,13 @@ const editors: EditorSpec[] = [
     primaryLabel: 'Exécuter',
     openIn: ['pipeline-btn'],
   },
+  {
+    name: 'Builder',
+    path: '/apps/builder/index.html',
+    primary: 'generate-btn',
+    primaryLabel: 'Générer',
+    openIn: ['open-playground-btn', 'open-pipeline-btn'],
+  },
 ];
 
 const PRIMARY_SELECTOR =

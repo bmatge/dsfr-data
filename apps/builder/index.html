@@ -29,9 +29,23 @@
   <!-- Header -->
   <app-header current-page="builder" base-path="../../"></app-header>
 
-  <div class="app-page-head">
-    <h1 class="app-page-head__title">Créer un graphique</h1>
-  </div>
+  <!-- Barre d'actions unique (docs/ux/actions.md §5, lot UX 2 #539). Ids
+       historiques conservés (#generate-btn, #footer-copy-btn, #restart-tour-btn) ;
+       les actions du tablist d'aperçu (Playground / Favoris / Image) la rejoignent. -->
+  <app-action-bar heading="Créer un graphique">
+    <button slot="tertiary" id="restart-tour-btn" data-variant="no-outline" class="fr-icon-question-line fr-btn--icon-left" title="Revoir la visite guidée">Visite guidée</button>
+    <app-menu slot="tertiary" label="Exporter">
+      <button id="export-png-btn" class="fr-icon-image-line" title="Exporter l'aperçu en PNG">Image PNG</button>
+      <button id="export-jpg-btn" class="fr-icon-image-line" title="Exporter l'aperçu en JPG">Image JPG</button>
+    </app-menu>
+    <button slot="secondary" id="footer-copy-btn" class="fr-icon-clipboard-line fr-btn--icon-left" title="Copier le code généré">Copier le code</button>
+    <button slot="secondary" id="save-favorite-btn" class="preview-panel-save-btn fr-icon-star-line fr-btn--icon-left">Ajouter aux favoris</button>
+    <app-menu slot="secondary" label="Ouvrir dans">
+      <button id="open-playground-btn" title="Ouvrir le code généré dans le Playground">Playground</button>
+      <button id="open-pipeline-btn" title="Visualiser le pipeline de composants">Pipeline</button>
+    </app-menu>
+    <button slot="primary" id="generate-btn" class="fr-icon-play-line fr-btn--icon-left">Générer</button>
+  </app-action-bar>
 
   <app-layout-builder left-ratio="38" min-right-width="480">
     <!-- ============================================ -->
@@ -41,11 +55,6 @@
 
       <div class="builder-scroll">
 
-      <div class="builder-tour-trigger">
-        <button type="button" class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline" id="restart-tour-btn" title="Revoir la visite guidée">
-          <i class="ri-question-line"></i> Visite guidée
-        </button>
-      </div>
 
       <!-- ETAPE 1 : Source de données -->
       <div class="config-section" id="section-source">
@@ -658,21 +667,14 @@
 
       </div><!-- /.builder-scroll -->
 
-      <!-- Barre d'action épinglée (v2) : générer + statut + copier -->
+      <!-- Statut « graphique à jour / modifié » (v2) ; les actions vivent dans
+           <app-action-bar> en haut de page, la raison de désactivation de
+           « Générer » y est affichée (disabled-reason). -->
       <div class="builder-footerbar">
         <p class="builder-dirty-status" id="builder-dirty-status" role="status" aria-live="polite" hidden>
           <span class="builder-dirty-status__dot" aria-hidden="true"></span>
           <span id="builder-dirty-status-text"></span>
         </p>
-        <div class="builder-footerbar__row">
-          <button class="fr-btn fr-btn--icon-left builder-footerbar__generate" id="generate-btn">
-            <i class="ri-play-fill"></i> Générer
-          </button>
-          <button class="fr-btn fr-btn--secondary fr-btn--icon-left" id="footer-copy-btn" title="Copier le code généré">
-            <i class="ri-file-copy-line"></i> Copier le code
-          </button>
-        </div>
-        <p class="generate-missing" id="generate-missing" role="status" aria-live="polite" hidden></p>
       </div>
 
     </aside>
@@ -682,9 +684,6 @@
     <!-- ============================================ -->
     <app-preview-panel slot="right"
       show-data-tab
-      show-save-button
-      show-playground-button
-      show-image-button
       tab-labels="Aperçu,Code généré,Données brutes">
 
       <!-- Onglet Aperçu -->

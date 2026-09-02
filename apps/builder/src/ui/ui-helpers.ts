@@ -16,6 +16,7 @@ import {
   isValidDeptCode,
 } from '@dsfr-data/shared';
 import type { Favorite } from '../state.js';
+import { getLastGeneratedCode } from './code-generator.js';
 
 /**
  * Build a serializable snapshot of the current builder state.
@@ -66,7 +67,7 @@ export function openInPlayground(): void {
 
   if (!code || code === '// Le code sera g\u00e9n\u00e9r\u00e9 ici...' || code.startsWith('//')) {
     toastWarning(
-      'Cliquez d\'abord sur "G\u00e9n\u00e9rer le graphique" pour voir le r\u00e9sultat, puis vous pourrez l\'ouvrir dans le Playground.'
+      "Cliquez d'abord sur « Générer » pour voir le résultat, puis vous pourrez l'ouvrir dans le Playground."
     );
     return;
   }
@@ -82,6 +83,28 @@ export function openInPlayground(): void {
   sessionStorage.setItem('playground-code', code);
   // Redirect to the playground
   navigateTo('playground', { from: 'builder' });
+}
+
+/**
+ * Ouvre le code généré dans le Pipeline (même canal que le Playground :
+ * sessionStorage `pipeline-helper-code`, lu à l'arrivée avec `?from=`).
+ */
+export function openInPipeline(): void {
+  // Source hors DOM : le Pipeline réinterprète ce code en HTML (DOMParser).
+  const code = getLastGeneratedCode();
+  if (!code || code.startsWith('//')) {
+    toastWarning(
+      "Cliquez d'abord sur « Générer » pour voir le résultat, puis vous pourrez l'ouvrir dans le Pipeline."
+    );
+    return;
+  }
+  try {
+    sessionStorage.setItem('builder-state', JSON.stringify(getBuilderStateToSave()));
+  } catch {
+    // QuotaExceededError — proceed without state backup
+  }
+  sessionStorage.setItem('pipeline-helper-code', code);
+  navigateTo('pipeline-helper', { from: 'builder' });
 }
 
 /**
@@ -159,6 +182,15 @@ export function updateMapCodeFieldWarning(): void {
 export function syncFavoriteIcon(): void {
   const btn = document.querySelector('.preview-panel-save-btn');
   const icon = btn?.querySelector('i');
+  // Bouton de l'AppActionBar : icône DSFR portée par le bouton lui-même.
+  if (btn && !icon) {
+    const code = document.getElementById('generated-code')?.textContent || '';
+    const favorites = loadFromStorage<Favorite[]>(FAVORITES_KEY, []);
+    const isFavorite = !!code && favorites.some((f) => f.code === code);
+    btn.classList.toggle('fr-icon-star-fill', isFavorite);
+    btn.classList.toggle('fr-icon-star-line', !isFavorite);
+    return;
+  }
   if (!icon) return;
 
   const code = document.getElementById('generated-code')?.textContent || '';
@@ -178,7 +210,7 @@ export async function saveFavorite(): Promise<void> {
 
   if (!code || code === '// Le code sera g\u00e9n\u00e9r\u00e9 ici...' || code.startsWith('//')) {
     toastWarning(
-      'Cliquez d\'abord sur "G\u00e9n\u00e9rer le graphique" pour voir le r\u00e9sultat, puis vous pourrez le sauvegarder en favori.'
+      "Cliquez d'abord sur « Générer » pour voir le résultat, puis vous pourrez l'ajouter aux favoris."
     );
     return;
   }
