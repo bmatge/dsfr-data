@@ -87,10 +87,12 @@ test.describe('ConfirmDialog et fermetures (#543)', () => {
 
   test('Pipeline : un nœud vierge se supprime sans confirmation', async ({ page }) => {
     await page.goto('/apps/pipeline-helper/index.html');
-    await page.waitForSelector('#btn-delete');
+    await page.waitForSelector('#btn-delete', { state: 'attached' });
     let dialogs = 0;
     page.on('dialog', () => dialogs++);
     // Aucun nœud sélectionné : rien ne se passe, et surtout aucune boîte.
+    // « Supprimer » vit dans Plus d'actions ▾ (barre v2).
+    await page.click('app-action-bar .app-action-bar__more .app-menu__trigger');
     await page.click('#btn-delete');
     await expect(page.locator('.confirm-dialog-overlay')).toHaveCount(0);
     expect(dialogs).toBe(0);

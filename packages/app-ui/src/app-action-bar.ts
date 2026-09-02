@@ -6,30 +6,30 @@ import { AppMenu, injectAppMenuStyles } from './app-menu.js';
  * <app-action-bar> - Barre d'actions unique des éditeurs (docs/ux/actions.md §5)
  *
  * Une seule barre par app, en haut de la zone de travail : le titre de page
- * (`<h1>`) à gauche, les actions à droite dans un `role="toolbar"` navigable
- * aux flèches. Ordre imposé : tertiaires, secondaires (3 max, le reste dans
- * `Plus ▾`), puis LA primaire à l'extrême droite.
+ * (`<h1>`) à gauche, et à droite, dans un `role="toolbar"` navigable aux
+ * flèches : `?` (aide / visite guidée, icône seule) · `Plus d'actions ▾` ·
+ * la secondaire visible · **la** primaire. Tout le reste (autres secondaires,
+ * tertiaires, entrées des menus slottés) vit dans « Plus d'actions », par
+ * groupes séparés — pattern « primaire + bouton dépliant » (2026-09-02).
  *
  * Les boutons sont fournis en Light DOM avec un attribut `slot` qui donne leur
- * rang (`primary` | `secondary` | `tertiary`) : ids et écouteurs sont conservés
- * (ADR-096), le composant les déplace, normalise leurs classes DSFR
- * (`fr-btn fr-btn--sm` + variante du rang) et gère le débordement. Un
- * `<app-menu slot="secondary">` est une action comme une autre.
+ * rang (`primary` | `secondary` | `tertiary` | `help`) : ids et écouteurs sont
+ * conservés (ADR-096), le composant les déplace, normalise leurs classes DSFR
+ * et remplit le menu. Un `<app-menu slot="secondary">` est une action comme
+ * une autre (visible s'il est la secondaire retenue, aplati dans « Plus
+ * d'actions » sinon).
  *
- * La barre est collante sous le header (`--app-header-h`) et publie sa hauteur
- * dans `--app-action-bar-h` (panneaux sticky des layouts). Sous 768 px, les
- * actions deviennent une barre collante en bas d'écran avec la primaire +
- * `Plus ▾` (tout le reste y est replié) ; leur hauteur est publiée dans
- * `--app-action-bar-fixed-h` (compensation du bas de page).
+ * Sous 768 px, les actions deviennent une barre collante en bas d'écran, avec
+ * les mêmes contrôles : `Plus d'actions` en icône seule, la secondaire en bouton
+ * icône (libellé sr-only), la primaire pleine largeur. Hauteurs publiées dans
+ * `--app-action-bar-h` (en flux) et `--app-action-bar-fixed-h` (barre fixe).
  *
  * @example
  * <app-action-bar heading="Playground" disabled-reason="">
- *   <button slot="tertiary" id="tour-btn" data-variant="no-outline" class="fr-icon-question-line fr-btn--icon-left">Visite guidée</button>
- *   <button slot="tertiary" id="reset-btn" class="fr-icon-refresh-line fr-btn--icon-left">Réinitialiser</button>
+ *   <button slot="help" id="tour-btn" class="fr-icon-question-line">Visite guidée</button>
  *   <button slot="secondary" id="copy-btn" class="fr-icon-clipboard-line fr-btn--icon-left">Copier le code</button>
- *   <app-menu slot="secondary" label="Ouvrir dans">
- *     <button id="pipeline-btn">Pipeline</button>
- *   </app-menu>
+ *   <button slot="secondary" id="save-btn" class="fr-icon-star-line">Ajouter aux favoris</button>
+ *   <button slot="tertiary" id="reset-btn" class="fr-icon-refresh-line">Réinitialiser</button>
  *   <button slot="primary" id="run-btn" class="fr-icon-play-line fr-btn--icon-left">Exécuter</button>
  * </app-action-bar>
  *
@@ -38,12 +38,17 @@ import { AppMenu, injectAppMenuStyles } from './app-menu.js';
  *   (`disabled` + `aria-disabled`) et la raison est affichée sous la barre,
  *   reliée par `aria-describedby`.
  * @attr busy - Traitement en cours : la primaire passe `aria-busy`, son icône tourne.
- * @attr max-secondary - Nombre de secondaires visibles avant `Plus ▾` (3).
+ * @attr max-secondary - Nombre de secondaires visibles hors menu (1).
+ *
+ * Un enfant `slot="context"` (label + select, champ de recherche…) est placé après
+ * le titre, hors du `role="toolbar"` : ce n'est pas une action.
  */
 
-export type ActionRank = 'primary' | 'secondary' | 'tertiary';
+export type ActionRank = 'primary' | 'secondary' | 'tertiary' | 'help';
 
-const RANKS: ActionRank[] = ['primary', 'secondary', 'tertiary'];
+const RANKS: ActionRank[] = ['primary', 'secondary', 'tertiary', 'help'];
+/** Contrôles de contexte (sélecteur d'exemple, filtre…) : après le titre, hors du toolbar. */
+const CONTEXT_SLOT = 'context';
 const VARIANT_CLASSES = ['fr-btn--secondary', 'fr-btn--tertiary', 'fr-btn--tertiary-no-outline'];
 const SIZE_CLASSES = ['fr-btn--sm', 'fr-btn--lg'];
 const MOBILE_QUERY = '(max-width: 47.99em)';
@@ -62,11 +67,15 @@ export function injectAppActionBarStyles(): void {
   style.textContent = `
 app-action-bar{display:block;position:sticky;top:var(--app-header-h,0px);z-index:700}
 .app-action-bar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem 1rem;padding:.5rem 1rem;background:var(--background-default-grey);border-bottom:1px solid var(--border-default-grey)}
-.app-action-bar__title{flex:1 1 auto;min-width:0;margin:0;font-size:1.125rem;line-height:1.5rem;font-weight:700;color:var(--text-title-grey);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.app-action-bar__title{flex:0 1 auto;min-width:0;margin:0;font-size:1.125rem;line-height:1.5rem;font-weight:700;color:var(--text-title-grey);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.app-action-bar__context{display:flex;align-items:center;flex:1 1 auto;min-width:0;gap:.5rem}
+.app-action-bar__context:empty{display:none}
+.app-action-bar__context label{white-space:nowrap;margin:0}
+.app-action-bar__context .fr-select{width:auto;max-width:100%;flex:1 1 12rem;min-width:0}
 .app-action-bar__actions{display:flex;align-items:center;flex-wrap:wrap;gap:.5rem;margin-left:auto}
 .app-action-bar__group{display:flex;align-items:center;flex-wrap:wrap;gap:.5rem}
 .app-action-bar__group:empty{display:none}
-.app-action-bar__group--tertiary{margin-right:.25rem}
+.app-action-bar__group--help{margin-right:.25rem}
 .app-action-bar__actions .fr-btn{white-space:nowrap}
 .app-action-bar__reason{flex:0 0 100%;margin:0;text-align:right}
 .app-action-bar__reason[hidden]{display:none}
@@ -97,7 +106,7 @@ export class AppActionBar extends LitElement {
   busy = false;
 
   @property({ type: Number, attribute: 'max-secondary' })
-  maxSecondary = 3;
+  maxSecondary = 1;
 
   private _items: ActionItem[] = [];
   private _reasonId = `app-action-bar-reason-${++barSeq}`;
@@ -167,6 +176,10 @@ export class AppActionBar extends LitElement {
 
   /** Enfants `slot="primary|secondary|tertiary"` encore dans le Light DOM. */
   private _collect(): void {
+    const ctx = this.querySelector<HTMLElement>('.app-action-bar__context');
+    for (const el of Array.from(this.children) as HTMLElement[]) {
+      if (el.getAttribute('slot') === CONTEXT_SLOT && ctx) ctx.appendChild(el);
+    }
     const fresh = (Array.from(this.children) as HTMLElement[]).filter((el) =>
       RANKS.includes(el.getAttribute('slot') as ActionRank)
     );
@@ -272,7 +285,12 @@ export class AppActionBar extends LitElement {
   private _normalize(item: ActionItem): void {
     const el = item.el;
     if (el instanceof AppMenu) {
-      el.variant = item.rank === 'primary' ? 'primary' : item.rank;
+      el.variant =
+        item.rank === 'primary'
+          ? 'primary'
+          : item.rank === 'help'
+            ? 'tertiary-no-outline'
+            : item.rank;
       el.size = 'sm';
       return;
     }
@@ -280,6 +298,7 @@ export class AppActionBar extends LitElement {
     el.classList.remove(...SIZE_CLASSES, ...VARIANT_CLASSES);
     el.classList.add('fr-btn--sm');
     if (item.rank === 'secondary') el.classList.add('fr-btn--secondary');
+    if (item.rank === 'help') el.classList.add('fr-btn--tertiary-no-outline');
     if (item.rank === 'tertiary') {
       el.classList.add(
         el.dataset.variant === 'no-outline' ? 'fr-btn--tertiary-no-outline' : 'fr-btn--tertiary'
@@ -293,9 +312,9 @@ export class AppActionBar extends LitElement {
     const groups = {
       primary: this._group('primary'),
       secondary: this._group('secondary'),
-      tertiary: this._group('tertiary'),
+      help: this._group('help'),
     };
-    if (!more || !groups.primary || !groups.secondary || !groups.tertiary) return;
+    if (!more || !groups.primary || !groups.secondary || !groups.help) return;
 
     // 1. Tout reprendre (menu Plus compris) pour repartir d'une base propre,
     //    et rendre aux menus repliés les entrées qu'on leur avait prises.
@@ -318,41 +337,41 @@ export class AppActionBar extends LitElement {
       primarySeen = true;
     }
 
-    // 3. Répartition.
+    // 3. Répartition : help (icône seule) · Plus d'actions · secondaire visible · primaire.
+    const helps = this._items.filter((it) => it.rank === 'help');
     const tertiaries = this._items.filter((it) => it.rank === 'tertiary');
     const secondaries = this._items.filter((it) => it.rank === 'secondary');
     const primary = this._items.find((it) => it.rank === 'primary');
-    // Mobile : les secondaires qui ont une icône DSFR restent visibles en
-    // boutons icône (libellé en sr-only) — un « ⋯ » seul ne dit pas ce qu'il
-    // cache. Les menus, les tertiaires et les secondaires sans icône se replient.
-    const visibleSecondaries = this._mobile
-      ? secondaries.filter((it) => this._hasDsfrIcon(it.el)).slice(0, this.maxSecondary)
-      : secondaries.slice(0, this.maxSecondary);
-    const overflow = [
-      ...(this._mobile ? tertiaries : []),
-      ...secondaries.filter((it) => !visibleSecondaries.includes(it)),
-    ];
-    const visibleTertiaries = this._mobile ? [] : tertiaries;
+    const visibleSecondaries = secondaries.slice(0, Math.max(0, this.maxSecondary));
+    const foldedSecondaries = secondaries.filter((it) => !visibleSecondaries.includes(it));
 
-    for (const it of [...visibleTertiaries, ...visibleSecondaries, ...(primary ? [primary] : [])]) {
+    for (const it of [...helps, ...visibleSecondaries, ...(primary ? [primary] : [])]) {
       this._normalize(it);
-      this._iconify(it.el, this._mobile && it.rank === 'secondary');
+      // Aide : toujours icône seule ; secondaire : icône seule en mobile.
+      this._iconify(it.el, it.rank === 'help' || (this._mobile && it.rank === 'secondary'));
     }
-    groups.tertiary.replaceChildren(...visibleTertiaries.map((it) => it.el));
+    groups.help.replaceChildren(...helps.map((it) => it.el));
     groups.secondary.replaceChildren(...visibleSecondaries.map((it) => it.el));
     groups.primary.replaceChildren(...(primary ? [primary.el] : []));
 
-    for (const it of overflow) {
-      if (it.el instanceof AppMenu) {
-        // Un menu ne s'imbrique pas : ses entrées rejoignent Plus ▾ telles quelles.
-        const subs = it.el.takeItems();
-        this._flattened.set(it.el, subs);
-        subs.forEach((sub) => more.addItem(sub));
-        it.el.remove();
-      } else {
-        more.addItem(it.el);
+    // Menu « Plus d'actions » : secondaires repliées, puis tertiaires, groupes séparés.
+    const fold = (items: ActionItem[]) => {
+      for (const it of items) {
+        if (it.el instanceof AppMenu) {
+          // Un menu ne s'imbrique pas : ses entrées rejoignent le menu telles quelles.
+          const subs = it.el.takeItems();
+          this._flattened.set(it.el, subs);
+          subs.forEach((sub) => more.addItem(sub));
+          it.el.remove();
+        } else {
+          more.addItem(it.el);
+        }
       }
-    }
+    };
+    fold(foldedSecondaries);
+    if (foldedSecondaries.length && tertiaries.length) more.addSeparator();
+    fold(tertiaries);
+    more.iconOnly = this._mobile;
     more.hidden = more.isEmpty;
 
     this._applyPrimaryState();
@@ -460,6 +479,7 @@ export class AppActionBar extends LitElement {
     return html`
       <div class="app-action-bar">
         ${this.heading ? html`<h1 class="app-action-bar__title">${this.heading}</h1>` : nothing}
+        <div class="app-action-bar__context"></div>
         <div
           class="app-action-bar__actions"
           role="toolbar"
@@ -467,16 +487,15 @@ export class AppActionBar extends LitElement {
           @keydown=${this._onToolbarKeydown}
           @focusin=${this._onToolbarFocusIn}
         >
-          <div class="app-action-bar__group app-action-bar__group--tertiary"></div>
-          <div class="app-action-bar__group app-action-bar__group--secondary"></div>
+          <div class="app-action-bar__group app-action-bar__group--help"></div>
           <app-menu
             class="app-action-bar__more"
-            icon-only
             icon="fr-icon-more-line"
             label="Plus d'actions"
             variant="tertiary"
             hidden
           ></app-menu>
+          <div class="app-action-bar__group app-action-bar__group--secondary"></div>
           <div class="app-action-bar__group app-action-bar__group--primary"></div>
         </div>
         <p class="fr-hint-text app-action-bar__reason" id=${this._reasonId} hidden></p>

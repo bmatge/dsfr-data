@@ -44,9 +44,11 @@ test.describe('Playground — structure', () => {
     await page.waitForTimeout(2_000);
 
     await expect(page.locator('#run-btn')).toBeVisible();
+    await expect(page.locator('#copy-btn')).toBeVisible();
+    // Barre v2 : le reste vit dans Plus d'actions ▾.
+    await page.click('app-action-bar .app-action-bar__more .app-menu__trigger');
     await expect(page.locator('#reset-btn')).toBeVisible();
     await expect(page.locator('#deps-btn')).toBeVisible();
-    await expect(page.locator('#copy-btn')).toBeVisible();
     await expect(page.locator('#save-btn')).toBeVisible();
   });
 });

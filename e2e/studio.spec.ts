@@ -178,7 +178,9 @@ test.describe('Studio IA', () => {
     expect(saved[0].name).toBe('Effectifs scolaires');
     expect(saved[0].widgets).toHaveLength(5);
 
-    // « Effacer » remet conversation ET document a zero : l'apercu disparait…
+    // « Effacer » (dans Plus d'actions ▾, barre v2) remet conversation ET
+    // document a zero : l'apercu disparait…
+    await page.click('app-action-bar .app-action-bar__more .app-menu__trigger');
     await page.click('#clear-chat');
     await expect(page.locator('#empty-state')).toBeVisible();
     await expect(page.locator('#preview-frame')).toBeHidden();

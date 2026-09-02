@@ -30,17 +30,13 @@
        actée : le geste primaire reste l'ENVOI du chat — la barre ne porte que
        les actions sur l'artefact, sans primaire. Ids conservés (#clear-chat). -->
   <app-action-bar heading="Assistant IA">
-    <button slot="tertiary" id="tour-btn" data-variant="no-outline" class="fr-icon-question-line fr-btn--icon-left">Visite guidée</button>
-    <button slot="tertiary" id="clear-chat" class="fr-icon-delete-line fr-btn--icon-left" title="Effacer la conversation">Effacer la conversation</button>
-    <app-menu slot="tertiary" label="Exporter">
-      <button id="export-png-btn" class="fr-icon-image-line" title="Exporter l'aperçu en PNG">Image PNG</button>
-      <button id="export-jpg-btn" class="fr-icon-image-line" title="Exporter l'aperçu en JPG">Image JPG</button>
-    </app-menu>
+    <button slot="help" id="tour-btn" class="fr-icon-question-line">Visite guidée</button>
     <button slot="secondary" id="copy-code-btn" class="fr-icon-clipboard-line fr-btn--icon-left">Copier le code</button>
-    <button slot="secondary" id="save-favorite-btn" class="preview-panel-save-btn fr-icon-star-line fr-btn--icon-left">Ajouter aux favoris</button>
-    <app-menu slot="secondary" label="Ouvrir dans">
-      <button id="open-playground-btn" title="Ouvrir le code généré dans le Playground">Playground</button>
-    </app-menu>
+    <button slot="tertiary" id="save-favorite-btn" class="preview-panel-save-btn fr-icon-star-line">Ajouter aux favoris</button>
+    <button slot="tertiary" id="open-playground-btn" class="fr-icon-code-s-slash-line" title="Ouvrir le code généré dans le Playground">Ouvrir dans le Playground</button>
+    <button slot="tertiary" id="export-png-btn" class="fr-icon-image-line" title="Exporter l'aperçu en PNG">Exporter en PNG</button>
+    <button slot="tertiary" id="export-jpg-btn" class="fr-icon-image-line" title="Exporter l'aperçu en JPG">Exporter en JPG</button>
+    <button slot="primary" id="clear-chat" class="fr-icon-delete-line fr-btn--icon-left" title="Effacer la conversation et repartir de zéro">Effacer la conversation</button>
   </app-action-bar>
 
   <app-layout-builder left-ratio="50">

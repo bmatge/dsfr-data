@@ -2,26 +2,29 @@ import { test, expect } from '@playwright/test';
 import { disableProductTour } from './helpers';
 
 /**
- * Recette du lot 2 de l'epic UX #546 (issue #539) — audit §8 « Actions » :
+ * Recette de la barre d'actions v2 (docs/ux/actions.md §5) — patron
+ * « ? · Plus d'actions ▾ · secondaire · PRIMAIRE » :
  *  - un seul `[role=toolbar]` par éditeur, collé sous le header ;
  *  - exactement une action primaire, à l'extrême droite ;
- *  - `Ouvrir dans ▾` présent, entrées atteignables ;
- *  - mobile (375px) : la primaire est atteignable sans défilement, la barre
- *    ne déborde pas de l'écran.
- * Une entrée par app migrée ; les ids historiques restent la clé d'accès.
+ *  - une seule secondaire visible ; le reste dans `Plus d'actions ▾` ;
+ *  - `Visite guidée` en tête, icône seule avec libellé sr-only ;
+ *  - mobile (375px) : mêmes contrôles, primaire atteignable sans défilement,
+ *    rien hors écran.
+ * Les ids historiques restent la clé d'accès (ADR-096).
  */
 
 interface EditorSpec {
   name: string;
   path: string;
-  /** id du bouton primaire attendu (absent : app conversationnelle, réserve actée) */
-  primary?: string;
-  /** libellé de la primaire */
-  primaryLabel?: string;
-  /** ids attendus dans le menu « Ouvrir dans ▾ » ([] : pas de menu, ex. Dashboard) */
-  openIn: string[];
-  /** ids d'autres actions attendues dans Plus ▾ en mobile */
-  folded?: string[];
+  /** id du bouton primaire attendu */
+  primary: string;
+  primaryLabel: string;
+  /** id de la secondaire visible (bouton ou app-menu) */
+  secondary: string;
+  /** ids attendus dans Plus d'actions ▾, dans l'ordre */
+  more: string[];
+  /** id du bouton « Visite guidée » */
+  help: string;
   /** Préparation après chargement (ex. : fermer la modale d'arrivée). */
   prepare?: (page: import('@playwright/test').Page) => Promise<void>;
 }
@@ -32,21 +35,33 @@ const editors: EditorSpec[] = [
     path: '/apps/playground/index.html',
     primary: 'run-btn',
     primaryLabel: 'Exécuter',
-    openIn: ['pipeline-btn'],
+    secondary: 'copy-btn',
+    more: ['save-btn', 'pipeline-btn', 'export-png-btn', 'export-jpg-btn', 'deps-btn', 'reset-btn'],
+    help: 'tour-btn',
   },
   {
     name: 'Builder',
     path: '/apps/builder/index.html',
     primary: 'generate-btn',
     primaryLabel: 'Générer',
-    openIn: ['open-playground-btn', 'open-pipeline-btn'],
+    secondary: 'footer-copy-btn',
+    more: [
+      'save-favorite-btn',
+      'open-playground-btn',
+      'open-pipeline-btn',
+      'export-png-btn',
+      'export-jpg-btn',
+    ],
+    help: 'restart-tour-btn',
   },
   {
     name: 'Carto',
     path: '/apps/builder-carto/index.html',
     primary: 'btn-execute',
     primaryLabel: 'Générer',
-    openIn: ['open-playground-btn'],
+    secondary: 'btn-export',
+    more: ['save-favorite-btn', 'open-playground-btn', 'btn-reset'],
+    help: 'tour-btn',
     // Modale d'arrivée « D'où viennent vos données ? » (D2, lot 7) : on prend
     // le jeu d'exemple pour libérer l'interface.
     prepare: async (page) => {
@@ -59,43 +74,49 @@ const editors: EditorSpec[] = [
     path: '/apps/dashboard/index.html',
     primary: 'btn-save',
     primaryLabel: 'Enregistrer',
-    openIn: [],
-    folded: ['btn-load', 'btn-export', 'btn-new', 'btn-preview'],
+    secondary: 'btn-load',
+    more: ['btn-export', 'btn-preview', 'btn-new'],
+    help: 'tour-btn',
   },
   {
     name: 'Pipeline',
     path: '/apps/pipeline-helper/index.html',
     primary: 'btn-execute',
     primaryLabel: 'Exécuter',
-    openIn: ['open-playground-btn'],
-    folded: ['btn-generate', 'btn-add-source', 'btn-arrange', 'btn-toggle-help'],
+    secondary: 'btn-add-source', // entrée du menu « Ajouter une étape ▾ »
+    more: ['btn-generate', 'open-playground-btn', 'btn-delete', 'btn-arrange', 'btn-fit'],
+    help: 'btn-toggle-help',
   },
   {
     name: 'Assistant IA',
     path: '/apps/builder-ia/index.html',
-    openIn: ['open-playground-btn'],
-    folded: ['copy-code-btn', 'save-favorite-btn', 'clear-chat', 'export-png-btn'],
+    primary: 'clear-chat',
+    primaryLabel: 'Effacer la conversation',
+    secondary: 'copy-code-btn',
+    more: ['save-favorite-btn', 'open-playground-btn', 'export-png-btn', 'export-jpg-btn'],
+    help: 'tour-btn',
   },
   {
     name: 'Studio IA',
     path: '/apps/studio/index.html',
     primary: 'save-dashboard-btn',
     primaryLabel: 'Enregistrer',
-    openIn: ['open-dashboard-link'],
-    folded: ['copy-code-btn', 'clear-chat', 'tour-btn'],
+    secondary: 'copy-code-btn',
+    more: ['open-dashboard-link', 'clear-chat'],
+    help: 'tour-btn',
   },
 ];
 
 const PRIMARY_SELECTOR =
   '[role="toolbar"] .fr-btn:not(.fr-btn--secondary):not(.fr-btn--tertiary):not(.fr-btn--tertiary-no-outline):not(.app-menu__trigger)';
 
-test.describe('AppActionBar (#539)', () => {
+test.describe('AppActionBar v2 (docs/ux/actions.md §5)', () => {
   test.beforeEach(async ({ page }) => {
     await disableProductTour(page);
   });
 
   for (const ed of editors) {
-    test(`${ed.name} : une barre, une primaire à droite, Ouvrir dans ▾`, async ({ page }) => {
+    test(`${ed.name} : ? · Plus d'actions ▾ · secondaire · primaire`, async ({ page }) => {
       await page.goto(ed.path);
       await page.waitForSelector('app-action-bar [role="toolbar"]');
       await ed.prepare?.(page);
@@ -104,55 +125,63 @@ test.describe('AppActionBar (#539)', () => {
       const toolbar = page.locator('app-action-bar [role="toolbar"]');
       await expect(toolbar).toHaveAttribute('aria-label', 'Actions de la page');
 
+      // Une seule primaire, dernier bouton visible de la barre.
       const primaries = page.locator(PRIMARY_SELECTOR);
-      if (ed.primary) {
-        await expect(primaries).toHaveCount(1);
-        await expect(primaries).toHaveId(ed.primary);
-        await expect(primaries).toHaveText(new RegExp(ed.primaryLabel ?? ''));
+      await expect(primaries).toHaveCount(1);
+      await expect(primaries).toHaveId(ed.primary);
+      await expect(primaries).toHaveText(new RegExp(ed.primaryLabel));
+      const visibleIds = await toolbar.evaluate((tb) =>
+        Array.from(tb.querySelectorAll<HTMLElement>('button, a'))
+          .filter((b) => !b.closest('.app-menu__list') && b.offsetParent !== null)
+          .map((b) => b.id || b.className)
+      );
+      expect(visibleIds[visibleIds.length - 1]).toBe(ed.primary);
+      // Visite guidée en tête, icône seule, nom accessible conservé.
+      expect(visibleIds[0]).toBe(ed.help);
+      const help = page.locator(`#${ed.help}`);
+      await expect(help).toHaveClass(/fr-btn--tertiary-no-outline/);
+      await expect(help.locator('.fr-sr-only')).toHaveText('Visite guidée');
+      await expect(help).toHaveAttribute('title', /visite guidée/i);
 
-        // La primaire est le dernier bouton visible de la barre.
-        const lastVisible = await toolbar.evaluate((tb) => {
-          const btns = Array.from(tb.querySelectorAll<HTMLElement>('button')).filter(
-            (b) => !b.closest('.app-menu__list') && b.offsetParent !== null
-          );
-          return btns[btns.length - 1]?.id;
-        });
-        expect(lastVisible).toBe(ed.primary);
-      } else {
-        // Apps conversationnelles : aucune primaire dans la barre (l'envoi du chat l'est).
-        await expect(primaries).toHaveCount(0);
-        await expect(page.locator('#chat-send-btn')).toBeVisible();
-      }
-
-      // « Plus ▾ » n'apparaît que s'il a quelque chose à replier.
-      const more = page.locator('app-action-bar .app-action-bar__more');
-      if ((await more.locator('.app-menu__item').count()) === 0) {
-        await expect(more).toBeHidden();
-      }
+      // Ordre : ? · Plus d'actions · secondaire · primaire (4 contrôles visibles).
+      expect(visibleIds).toHaveLength(4);
+      expect(visibleIds[1]).toMatch(/app-menu__trigger/);
 
       // Le titre de la zone de travail est le h1 de la page.
       await expect(page.locator('h1:visible')).toHaveCount(1);
       await expect(page.locator('app-action-bar h1')).toBeVisible();
 
-      // Ouvrir dans ▾ : menu ARIA, entrées attendues.
-      const openIn = page.locator('app-action-bar app-menu', { hasText: 'Ouvrir dans' });
-      await expect(openIn).toHaveCount(ed.openIn.length ? 1 : 0);
-      if (ed.openIn.length) {
-        await openIn.locator('.app-menu__trigger').click();
-        await expect(openIn.locator('[role="menu"]')).toBeVisible();
-        for (const id of ed.openIn) {
-          await expect(openIn.locator(`#${id}[role="menuitem"]`)).toBeVisible();
-        }
+      // La secondaire visible est un bouton secondaire (ou l'entrée d'un menu secondaire).
+      const secondary = page.locator(`#${ed.secondary}`);
+      const secondaryMenu = page.locator('app-action-bar app-menu:not(.app-action-bar__more)', {
+        has: secondary,
+      });
+      if ((await secondaryMenu.count()) > 0) {
+        await expect(secondaryMenu.locator('.app-menu__trigger')).toHaveClass(/fr-btn--secondary/);
+        await secondaryMenu.locator('.app-menu__trigger').click();
+        await expect(secondary).toBeVisible();
         await page.keyboard.press('Escape');
-        await expect(openIn.locator('[role="menu"]')).toBeHidden();
+      } else {
+        await expect(secondary).toBeVisible();
+        await expect(secondary).toHaveClass(/fr-btn--secondary/);
       }
 
-      // Collée sous le header : après défilement (quand la page défile — les
-      // apps plein écran comme Carto ne défilent pas), la barre reste juste
-      // sous lui.
+      // Plus d'actions ▾ : libellé texte en desktop, entrées attendues dans l'ordre.
+      const more = page.locator('app-action-bar .app-action-bar__more');
+      await expect(more).toBeVisible();
+      await expect(more.locator('.app-menu__trigger')).toHaveText("Plus d'actions");
+      await more.locator('.app-menu__trigger').click();
+      await expect(more.locator('[role="menu"]')).toBeVisible();
+      const ids = await more
+        .locator('[role="menuitem"]')
+        .evaluateAll((els) => els.map((e) => e.id));
+      expect(ids).toEqual(ed.more);
+      await page.keyboard.press('Escape');
+      await expect(more.locator('[role="menu"]')).toBeHidden();
+
+      // Collée sous le header : après défilement (quand la page défile), la barre
+      // reste juste sous lui.
       const gap = await page.evaluate(async () => {
-        // Seules les pages qui défilent naturellement sont défilées : les
-        // éditeurs plein écran (Carto, Pipeline, Builder) ont une hauteur fixe.
         const scrollable = document.documentElement.scrollHeight > window.innerHeight + 50;
         if (scrollable) {
           window.scrollTo(0, document.documentElement.scrollHeight);
@@ -160,12 +189,12 @@ test.describe('AppActionBar (#539)', () => {
         }
         const barTop = document.querySelector('app-action-bar')!.getBoundingClientRect().top;
         const headerBottom = document.querySelector('app-header')!.getBoundingClientRect().bottom;
-        return { gap: Math.abs(barTop - headerBottom), scrolled: window.scrollY };
+        return Math.abs(barTop - headerBottom);
       });
-      expect(gap.gap).toBeLessThanOrEqual(1);
+      expect(gap).toBeLessThanOrEqual(1);
     });
 
-    test(`${ed.name} @375px : primaire atteignable sans défilement, rien hors écran`, async ({
+    test(`${ed.name} @375px : mêmes contrôles, primaire atteignable, rien hors écran`, async ({
       page,
     }) => {
       await page.setViewportSize({ width: 375, height: 812 });
@@ -173,36 +202,38 @@ test.describe('AppActionBar (#539)', () => {
       await page.waitForSelector('app-action-bar [role="toolbar"]');
       await ed.prepare?.(page);
 
-      if (ed.primary) {
-        const primary = page.locator(`#${ed.primary}`);
-        await expect(primary).toBeVisible();
-        const box = (await primary.boundingBox())!;
-        expect(box.y + box.height).toBeLessThanOrEqual(812);
-        expect(box.x).toBeGreaterThanOrEqual(0);
-        expect(box.x + box.width).toBeLessThanOrEqual(375);
-      }
+      const primary = page.locator(`#${ed.primary}`);
+      await expect(primary).toBeVisible();
+      await expect(primary).toHaveText(new RegExp(ed.primaryLabel));
+      const box = (await primary.boundingBox())!;
+      expect(box.y + box.height).toBeLessThanOrEqual(812);
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(375);
 
-      // Les secondaires à icône restent visibles en boutons icône (libellé
-      // sr-only) ; menus, tertiaires et autres sont repliés dans Plus ▾.
+      // Plus d'actions en bouton icône, nom accessible conservé, mêmes entrées.
       const more = page.locator('app-action-bar .app-action-bar__more');
       await expect(more).toBeVisible();
+      await expect(more.locator('.app-menu__trigger .fr-sr-only')).toHaveText("Plus d'actions");
       await more.locator('.app-menu__trigger').click();
       await expect(more.locator('[role="menu"]')).toBeVisible();
-      for (const id of ed.openIn) {
-        await expect(more.locator(`#${id}[role="menuitem"]`)).toBeVisible();
-      }
-      for (const id of ed.folded ?? []) {
-        const el = page.locator(`#${id}`);
-        await expect(el).toBeVisible();
-        const inMenu = (await el.getAttribute('role')) === 'menuitem';
-        if (!inMenu) {
-          // Bouton icône dans la barre fixe : nom accessible conservé.
-          await expect(el.locator('.fr-sr-only')).toHaveText(/.+/);
-        }
-      }
+      const ids = await more
+        .locator('[role="menuitem"]')
+        .evaluateAll((els) => els.map((e) => e.id));
+      expect(ids).toEqual(ed.more);
       const menuBox = (await more.locator('[role="menu"]').boundingBox())!;
       expect(menuBox.x).toBeGreaterThanOrEqual(0);
       expect(menuBox.x + menuBox.width).toBeLessThanOrEqual(375);
+      await page.keyboard.press('Escape');
+
+      // Aucun contrôle de la barre ne dépasse de l'écran.
+      const overflow = await page.locator('app-action-bar [role="toolbar"]').evaluate(
+        (tb) =>
+          Array.from(tb.querySelectorAll<HTMLElement>('button, a'))
+            .filter((b) => !b.closest('.app-menu__list') && b.offsetParent !== null)
+            .map((b) => b.getBoundingClientRect())
+            .filter((r) => r.left < 0 || r.right > 375).length
+      );
+      expect(overflow).toBe(0);
     });
   }
 });

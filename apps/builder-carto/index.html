@@ -18,13 +18,11 @@
        historiques conservés (#btn-execute, #btn-export, #btn-reset) ; la
        modale « code » reste jusqu'au PreviewPanel du lot 4 (#541). -->
   <app-action-bar heading="Créer une carte">
-    <button slot="tertiary" id="tour-btn" data-variant="no-outline" class="fr-icon-question-line fr-btn--icon-left">Visite guidée</button>
-    <button slot="tertiary" id="btn-reset" class="fr-icon-add-line fr-btn--icon-left" title="Repartir d'une carte vierge">Nouveau</button>
+    <button slot="help" id="tour-btn" class="fr-icon-question-line">Visite guidée</button>
     <button slot="secondary" id="btn-export" class="fr-icon-clipboard-line fr-btn--icon-left">Copier le code</button>
-    <button slot="secondary" id="save-favorite-btn" class="fr-icon-star-line fr-btn--icon-left">Ajouter aux favoris</button>
-    <app-menu slot="secondary" label="Ouvrir dans">
-      <button id="open-playground-btn" title="Ouvrir le code de la carte dans le Playground">Playground</button>
-    </app-menu>
+    <button slot="tertiary" id="save-favorite-btn" class="fr-icon-star-line">Ajouter aux favoris</button>
+    <button slot="tertiary" id="open-playground-btn" class="fr-icon-code-s-slash-line" title="Ouvrir le code de la carte dans le Playground">Ouvrir dans le Playground</button>
+    <button slot="tertiary" id="btn-reset" class="fr-icon-add-line" title="Repartir d'une carte vierge">Nouveau</button>
     <button slot="primary" id="btn-execute" class="fr-icon-play-line fr-btn--icon-left">Générer</button>
   </app-action-bar>
 

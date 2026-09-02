@@ -25,9 +25,9 @@ function stubMatchMedia(matches: boolean): void {
 }
 
 const SIX = `
-  <button slot="tertiary" id="tour" data-variant="no-outline" class="fr-icon-question-line">Visite guidée</button>
+  <button slot="help" id="tour" class="fr-icon-question-line">Visite guidée</button>
   <button slot="tertiary" id="reset">Réinitialiser</button>
-  <button slot="secondary" id="copy" class="fr-btn fr-btn--tertiary fr-btn--lg">Copier le code</button>
+  <button slot="secondary" id="copy" class="fr-btn fr-btn--tertiary fr-btn--lg fr-icon-clipboard-line fr-btn--icon-left">Copier le code</button>
   <button slot="secondary" id="fav">Ajouter aux favoris</button>
   <button slot="secondary" id="share">Partager</button>
   <button slot="primary" id="run" class="fr-btn--secondary">Exécuter</button>
@@ -57,30 +57,46 @@ describe('<app-action-bar>', () => {
     expect(customElements.get('app-action-bar')).toBe(AppActionBar);
   });
 
-  it('rend le h1, un role=toolbar nommé, et la primaire en dernier', async () => {
+  it('rend le h1, un role=toolbar nommé : ? · Plus d’actions · secondaire · primaire', async () => {
     const bar = await mount(SIX);
     expect(bar.querySelector('h1')?.textContent).toBe('Playground');
     const toolbar = bar.toolbar!;
     expect(toolbar.getAttribute('role')).toBe('toolbar');
     expect(toolbar.getAttribute('aria-label')).toBe('Actions de la page');
-    expect(toolbarIds(bar)).toEqual(['tour', 'reset', 'copy', 'fav', 'share', 'run']);
+    expect(toolbarIds(bar)).toEqual(['tour', 'copy', 'run']);
     expect(bar.primary).toBe(byId('run'));
     // Aucun enfant slotté ne reste hors de la barre.
     expect(Array.from(bar.children).filter((c) => c.hasAttribute('slot')).length).toBe(0);
+    // Plus d'actions : secondaires repliées puis tertiaires, séparées.
+    const more = bar.moreMenu!;
+    expect(more.hidden).toBe(false);
+    expect(more.items.map((i) => i.id)).toEqual(['fav', 'share', 'reset']);
+    expect(more.querySelectorAll('[role="separator"]').length).toBe(1);
+    // Le déclencheur du menu est un bouton texte en desktop.
+    expect(more.trigger!.textContent?.trim()).toBe("Plus d'actions");
+    expect(more.iconOnly).toBe(false);
   });
 
   it('normalise les classes DSFR selon le rang (docs/ux/actions.md §4)', async () => {
     await mount(SIX);
     const cls = (id: string) => Array.from(byId(id).classList).sort();
     expect(cls('run')).toEqual(['fr-btn', 'fr-btn--sm']);
-    expect(cls('copy')).toEqual(['fr-btn', 'fr-btn--secondary', 'fr-btn--sm']);
-    expect(cls('reset')).toEqual(['fr-btn', 'fr-btn--sm', 'fr-btn--tertiary']);
+    expect(cls('copy')).toEqual([
+      'fr-btn',
+      'fr-btn--icon-left',
+      'fr-btn--secondary',
+      'fr-btn--sm',
+      'fr-icon-clipboard-line',
+    ]);
+    // Aide : tertiaire sans contour, icône seule avec libellé sr-only.
     expect(cls('tour')).toEqual([
       'fr-btn',
       'fr-btn--sm',
       'fr-btn--tertiary-no-outline',
       'fr-icon-question-line',
     ]);
+    expect(byId('tour').querySelector('.fr-sr-only')?.textContent).toBe('Visite guidée');
+    expect(byId('tour').getAttribute('title')).toBe('Visite guidée');
     expect(byId('run').getAttribute('type')).toBe('button');
   });
 
@@ -95,23 +111,18 @@ describe('<app-action-bar>', () => {
     expect(byId('go').closest('.app-action-bar__group--primary')).not.toBeNull();
   });
 
-  it('au-delà de max-secondary (3), les secondaires passent dans Plus ▾', async () => {
-    const bar = await mount(SIX + '<button slot="secondary" id="extra">Extra</button>');
-    const more = bar.moreMenu!;
-    expect(more.hidden).toBe(false);
-    expect(toolbarIds(bar)).toEqual(['tour', 'reset', 'copy', 'fav', 'share', 'run']);
-    expect(more.items.map((i) => i.id)).toEqual(['extra']);
-    expect(byId('extra').getAttribute('role')).toBe('menuitem');
-
-    // Sans débordement, Plus ▾ est masqué (attribut hidden, que le style
-    // display:inline-block du composant ne doit pas écraser).
-    const bar2 = await mount(SIX);
-    expect(bar2.moreMenu!.hidden).toBe(true);
-    expect(bar2.moreMenu!.hasAttribute('hidden')).toBe(true);
-    expect(bar2.moreMenu!.isEmpty).toBe(true);
+  it('max-secondary (1 par défaut) : une seule secondaire visible, Plus d’actions masqué si vide', async () => {
+    const bar = await mount(
+      '<button slot="secondary" id="a">A</button><button slot="secondary" id="b">B</button><button slot="primary" id="p">P</button>',
+      'heading="X" max-secondary="2"'
+    );
+    expect(toolbarIds(bar)).toEqual(['a', 'b', 'p']);
+    expect(bar.moreMenu!.hidden).toBe(true);
+    expect(bar.moreMenu!.hasAttribute('hidden')).toBe(true);
+    expect(bar.moreMenu!.isEmpty).toBe(true);
   });
 
-  it('une seule primaire : la seconde est rétrogradée avec un avertissement', async () => {
+  it('une seule primaire : la seconde est rétrogradée en secondaire avec un avertissement', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const bar = await mount(
       '<button slot="primary" id="p1">Un</button><button slot="primary" id="p2">Deux</button>'
@@ -156,21 +167,17 @@ describe('<app-action-bar>', () => {
   it('roving tabindex : la primaire est le tab stop, les flèches déplacent le focus', async () => {
     await mount(SIX);
     expect(byId('run').tabIndex).toBe(0);
-    expect(['tour', 'reset', 'copy', 'fav', 'share'].every((id) => byId(id).tabIndex === -1)).toBe(
-      true
-    );
+    expect(['tour', 'copy'].every((id) => byId(id).tabIndex === -1)).toBe(true);
     byId('run').focus();
     const press = (el: HTMLElement, key: string) =>
       el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
     press(byId('run'), 'ArrowLeft');
-    expect(document.activeElement).toBe(byId('share'));
-    expect(byId('share').tabIndex).toBe(0);
+    expect(document.activeElement).toBe(byId('copy'));
+    expect(byId('copy').tabIndex).toBe(0);
     expect(byId('run').tabIndex).toBe(-1);
-    press(byId('share'), 'Home');
+    press(byId('copy'), 'Home');
     expect(document.activeElement).toBe(byId('tour'));
     press(byId('tour'), 'ArrowLeft'); // cycle
-    expect(document.activeElement).toBe(byId('run'));
-    press(byId('run'), 'End');
     expect(document.activeElement).toBe(byId('run'));
     press(byId('run'), 'ArrowRight'); // cycle
     expect(document.activeElement).toBe(byId('tour'));
@@ -185,28 +192,30 @@ describe('<app-action-bar>', () => {
     expect(document.activeElement).toBe(byId('a'));
   });
 
-  it('mobile : tout sauf la primaire est replié dans Plus ▾, et revient au retour desktop', async () => {
+  it('mobile : mêmes contrôles — Plus d’actions en icône, secondaire en bouton icône, retour desktop', async () => {
     stubMatchMedia(true);
     const bar = await mount(SIX);
     expect(bar.isMobile).toBe(true);
-    // Aucun secondaire n'a d'icône DSFR dans SIX : tous repliés.
-    expect(toolbarIds(bar)).toEqual(['run']);
-    expect(bar.moreMenu!.items.map((i) => i.id)).toEqual(['tour', 'reset', 'copy', 'fav', 'share']);
+    expect(toolbarIds(bar)).toEqual(['tour', 'copy', 'run']);
+    expect(bar.moreMenu!.iconOnly).toBe(true);
+    expect(byId('copy').querySelector('.fr-sr-only')?.textContent).toBe('Copier le code');
+    expect(byId('copy').classList.contains('fr-btn--icon-left')).toBe(false);
+    expect(bar.moreMenu!.items.map((i) => i.id)).toEqual(['fav', 'share', 'reset']);
 
     mql.listeners.forEach((fn) => fn({ matches: false }));
     await bar.updateComplete;
     expect(bar.isMobile).toBe(false);
-    expect(toolbarIds(bar)).toEqual(['tour', 'reset', 'copy', 'fav', 'share', 'run']);
-    expect(bar.moreMenu!.hidden).toBe(true);
-    expect(byId('copy').classList.contains('fr-btn--secondary')).toBe(true);
+    expect(bar.moreMenu!.iconOnly).toBe(false);
+    expect(byId('copy').querySelector('.fr-sr-only')).toBeNull();
+    expect(byId('copy').textContent?.trim()).toBe('Copier le code');
+    expect(byId('copy').classList.contains('fr-btn--icon-left')).toBe(true);
   });
 
-  it('un <app-menu> slotté est une action ; replié, ses entrées rejoignent Plus ▾ puis lui reviennent', async () => {
+  it('un <app-menu> slotté : visible s’il est la secondaire retenue, aplati dans Plus d’actions sinon', async () => {
     const bar = await mount(
       `<button slot="secondary" id="s1">S1</button>
        <app-menu slot="secondary" id="open" label="Ouvrir dans"><button id="o1">Playground</button><button id="o2">Pipeline</button></app-menu>
-       <button slot="primary" id="p">P</button>`,
-      'heading="X" max-secondary="1"'
+       <button slot="primary" id="p">P</button>`
     );
     const more = bar.moreMenu!;
     expect(more.items.map((i) => i.id)).toEqual(['o1', 'o2']);
@@ -222,29 +231,11 @@ describe('<app-action-bar>', () => {
     expect(more.hidden).toBe(true);
   });
 
-  it('mobile : les secondaires à icône restent visibles en boutons icône (libellé sr-only)', async () => {
+  it('la primaire garde son libellé en mobile', async () => {
     stubMatchMedia(true);
-    const bar = await mount(
-      `<button slot="secondary" id="copy" class="fr-icon-clipboard-line fr-btn--icon-left">Copier le code</button>
-       <button slot="secondary" id="share">Partager</button>
-       <button slot="tertiary" id="tour" class="fr-icon-question-line">Visite guidée</button>
-       <button slot="primary" id="run" class="fr-icon-play-line fr-btn--icon-left">Exécuter</button>`
-    );
-    expect(toolbarIds(bar)).toEqual(['copy', 'run']);
-    const copy = byId('copy');
-    expect(copy.querySelector('.fr-sr-only')?.textContent).toBe('Copier le code');
-    expect(copy.classList.contains('fr-btn--icon-left')).toBe(false);
-    expect(copy.getAttribute('title')).toBe('Copier le code');
-    // La primaire garde son libellé visible.
+    await mount(SIX);
     expect(byId('run').querySelector('.fr-sr-only')).toBeNull();
-    expect(bar.moreMenu!.items.map((i) => i.id)).toEqual(['tour', 'share']);
-
-    // Retour desktop : libellé et icône à gauche restaurés.
-    mql.listeners.forEach((fn) => fn({ matches: false }));
-    await bar.updateComplete;
-    expect(copy.querySelector('.fr-sr-only')).toBeNull();
-    expect(copy.textContent?.trim()).toBe('Copier le code');
-    expect(copy.classList.contains('fr-btn--icon-left')).toBe(true);
+    expect(byId('run').textContent?.trim()).toBe('Exécuter');
   });
 
   it('addAction / removeAction après coup', async () => {
@@ -252,12 +243,23 @@ describe('<app-action-bar>', () => {
     const late = document.createElement('button');
     late.id = 'late';
     late.textContent = 'Tard';
-    bar.addAction(late, 'tertiary');
+    bar.addAction(late, 'secondary');
     expect(toolbarIds(bar)).toEqual(['late', 'p']);
-    expect(late.classList.contains('fr-btn--tertiary')).toBe(true);
+    expect(late.classList.contains('fr-btn--secondary')).toBe(true);
     bar.removeAction(late);
     expect(toolbarIds(bar)).toEqual(['p']);
     expect(document.getElementById('late')).toBeNull();
+  });
+
+  it('slot="context" : placé après le titre, hors du toolbar', async () => {
+    const bar = await mount(
+      `<div slot="context"><label for="ex">Exemple</label><select id="ex" class="fr-select"></select></div>
+       <button slot="primary" id="p">P</button>`
+    );
+    const ctx = bar.querySelector('.app-action-bar__context')!;
+    expect(ctx.querySelector('#ex')).not.toBeNull();
+    expect(bar.toolbar!.querySelector('#ex')).toBeNull();
+    expect(ctx.previousElementSibling?.tagName).toBe('H1');
   });
 
   it('sans heading, pas de h1', async () => {
