@@ -62,6 +62,14 @@ const editors: EditorSpec[] = [
     openIn: [],
     folded: ['btn-load', 'btn-export', 'btn-new', 'btn-preview'],
   },
+  {
+    name: 'Pipeline',
+    path: '/apps/pipeline-helper/index.html',
+    primary: 'btn-execute',
+    primaryLabel: 'Exécuter',
+    openIn: ['open-playground-btn'],
+    folded: ['btn-generate', 'btn-add-source', 'btn-arrange', 'btn-toggle-help'],
+  },
 ];
 
 const PRIMARY_SELECTOR =
@@ -117,14 +125,11 @@ test.describe('AppActionBar (#539)', () => {
       // apps plein écran comme Carto ne défilent pas), la barre reste juste
       // sous lui.
       const gap = await page.evaluate(async () => {
-        const scrollable =
-          getComputedStyle(document.body).overflow !== 'hidden' &&
-          getComputedStyle(document.documentElement).overflow !== 'hidden';
+        // Seules les pages qui défilent naturellement sont défilées : les
+        // éditeurs plein écran (Carto, Pipeline, Builder) ont une hauteur fixe.
+        const scrollable = document.documentElement.scrollHeight > window.innerHeight + 50;
         if (scrollable) {
-          const spacer = document.createElement('div');
-          spacer.style.height = '5000px';
-          document.body.appendChild(spacer);
-          window.scrollTo(0, 1500);
+          window.scrollTo(0, document.documentElement.scrollHeight);
           await new Promise((r) => requestAnimationFrame(() => r(null)));
         }
         const barTop = document.querySelector('app-action-bar')!.getBoundingClientRect().top;

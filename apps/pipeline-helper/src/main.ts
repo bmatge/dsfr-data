@@ -155,21 +155,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Open in playground button
-  document.getElementById('btn-playground')?.addEventListener('click', () => {
+  // Open in playground (modale « code » et menu « Ouvrir dans ▾ » de la barre)
+  const openInPlayground = () => {
     const codeOutput = document.getElementById('code-output');
     if (codeOutput?.textContent) {
       sessionStorage.setItem('playground-code', codeOutput.textContent);
       window.location.href = '../../apps/playground/?from=pipeline-helper';
     }
-  });
+  };
+  document.getElementById('btn-playground')?.addEventListener('click', openInPlayground);
+  document.getElementById('open-playground-btn')?.addEventListener('click', openInPlayground);
 
-  // Help toggle button
+  // « Visite guidée » : bascule le bandeau d'aide (tour réel au lot UX 7, #544)
   document.getElementById('btn-toggle-help')?.addEventListener('click', () => {
     const el = document.getElementById('onboarding');
+    const btn = document.getElementById('btn-toggle-help');
     if (el) {
       const visible = el.style.display !== 'none';
       el.style.display = visible ? 'none' : 'block';
+      btn?.setAttribute('aria-expanded', visible ? 'false' : 'true');
     }
   });
 
