@@ -1,34 +1,27 @@
-# roadmap/
+# roadmap/ — archives de planification
 
-Plans d'evolution, audits techniques et feature requests du projet dsfr-data.
+Le **backlog vivant est sur GitHub** (issues et epics du repo, cf. ADR-051 du vault) : ce
+dossier ne contient plus que des documents **clos**, conservés pour l'historique des décisions.
 
-## Epics (plans de refactoring)
+## `done/` — epics, feature requests et bugs traités
 
-| Fichier | Description | Statut |
-|---------|-------------|--------|
-| `EPIC_PROVIDER_CONFIG.md` | Centraliser la configuration des providers API (ProviderConfig) | En cours |
-| `EPIC_SEPARATION_OF_CONCERNS.md` | Clarifier les responsabilites dsfr-data-source vs dsfr-data-query | En cours |
-| `EPIC_GRIST_API_FULL.md` | Exploiter pleinement l'API Grist (SQL, group-by, aggregation) | En cours |
-| `EPIC-decommission-shadow-source.md` | Supprimer la retrocompatibilite shadow source dans dsfr-data-query | En cours |
+| Fichier | Description | Clôture |
+|---|---|---|
+| `EPIC_PROVIDER_CONFIG.md` | Centraliser la configuration des providers API (ProviderConfig) | fait |
+| `EPIC_SEPARATION_OF_CONCERNS.md` | Clarifier les responsabilités dsfr-data-source vs dsfr-data-query | fait |
+| `EPIC_GRIST_API_FULL.md` | Exploiter pleinement l'API Grist (SQL, group-by, agrégation) | fait |
+| `EPIC-decommission-shadow-source.md` | Supprimer la rétrocompatibilité shadow source dans dsfr-data-query | fait |
+| `ISSUE-rename-gouv-to-dsfr-data.md` | Renommer gouv-* en dsfr-data-* (alignement DSFR) | fait |
+| `ISSUE-dsfr-data-join.md` | Composant dsfr-data-join (jointure de sources) | fait |
+| `BUG-REPORT-spec-pages.md` | Exemples cassés dans les specs/guide après décommission shadow source | fait |
+| `SOURCE_API_MANAGEMENT_AUDIT.md` | Audit de la gestion des APIs dispersée dans le code | traité |
+| `AUDIT-STORAGE.md` | Audit du système de stockage (localStorage + SQLite) | traité |
 
-## Feature requests
-
-| Fichier | Description | Statut |
-|---------|-------------|--------|
-| `ISSUE-rename-gouv-to-dsfr-data.md` | Renommer gouv-* en dsfr-data-* (alignement DSFR) | Fait |
-| `ISSUE-dsfr-data-join.md` | Nouveau composant dsfr-data-join (jointure de sources) | A faire |
-
-## Audits techniques
-
-| Fichier | Description |
-|---------|-------------|
-| `SOURCE_API_MANAGEMENT_AUDIT.md` | Audit de la gestion des APIs dispersee dans le code |
-| `AUDIT-STORAGE.md` | Audit du systeme de stockage (localStorage + SQLite) |
-| `AUDIT-CODE-QUALITY.md` | Audit qualite code complet (composants, apps, server, MCP, CI/CD) |
-| [`DATASHEET.md`](../DATASHEET.md) | Fiche produit : positionnement, comparatif, composants (racine du repo) |
-
-## Bug reports
+## Audits conservés à la racine du dossier
 
 | Fichier | Description |
-|---------|-------------|
-| `BUG-REPORT-spec-pages.md` | Exemples casses dans les specs/guide apres decommission shadow source |
+|---|---|
+| `AUDIT-CODE-QUALITY.md` | Audit qualité code complet du 2026-04-04 (composants, apps, server, MCP, CI/CD) |
+| [`DATASHEET.md`](../docs/DATASHEET.md) | Fiche produit : positionnement, comparatif, composants |
+
+Les audits UX (2026-05, 2026-09) vivent dans `docs/ux/` et dans le vault Obsidian (`30-Knowledge/UX-Audits/`).
