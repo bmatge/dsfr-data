@@ -210,7 +210,37 @@ au-dessus du contenu. Composant `app-action-bar` dans `packages/app-ui` (lot 2, 
 
 *(Plus ▾)* : entrées reléguées dans le menu `Plus ▾` quand la barre dépasse 3 secondaires.
 
-### 5.3 Ce que la barre remplace (à supprimer au lot 2)
+### 5.3 Usage (`packages/app-ui`)
+
+Les boutons restent en Light DOM avec leurs ids et leurs écouteurs (ADR-096) ; l'attribut
+`slot` donne le rang, le composant déplace, normalise les classes (`fr-btn fr-btn--sm` +
+variante du rang) et gère le débordement vers `Plus ▾` et le mode mobile.
+
+```html
+<app-action-bar heading="Playground" disabled-reason="">
+  <button slot="tertiary" id="tour-btn" data-variant="no-outline" class="fr-icon-question-line fr-btn--icon-left">Visite guidée</button>
+  <button slot="tertiary" id="reset-btn" class="fr-icon-refresh-line fr-btn--icon-left">Réinitialiser</button>
+  <app-menu slot="tertiary" label="Exporter">
+    <button id="export-png-btn">Image PNG</button>
+    <button id="export-jpg-btn">Image JPG</button>
+  </app-menu>
+  <button slot="secondary" id="copy-btn" class="fr-icon-clipboard-line fr-btn--icon-left">Copier le code</button>
+  <button slot="secondary" id="save-btn" class="fr-icon-star-line fr-btn--icon-left">Ajouter aux favoris</button>
+  <app-menu slot="secondary" label="Ouvrir dans">
+    <button id="pipeline-btn">Pipeline</button>
+  </app-menu>
+  <button slot="primary" id="run-btn" class="fr-icon-play-line fr-btn--icon-left">Exécuter</button>
+</app-action-bar>
+```
+
+- `heading` → `<h1>` de la zone de travail (remplace le bandeau `.app-page-head` du lot 1).
+- `disabled-reason="…"` → primaire `disabled` + `aria-disabled` + raison affichée et reliée par
+  `aria-describedby` ; `busy` → `aria-busy` et icône qui tourne ; `max-secondary` (3).
+- `bar.addAction(el, rank)` / `bar.removeAction(el)` / `bar.refresh()` pour les boutons créés
+  par script ; `menu.addItem(el)` / `menu.takeItems()` côté `<app-menu>`.
+- Un `<app-menu>` replié dans `Plus ▾` y verse ses entrées telles quelles (pas de sous-menu).
+
+### 5.4 Ce que la barre remplace (à supprimer au lot 2)
 
 `builder-footerbar`, `carto-topbar__actions`, `vde-toolbar-right`, `editor-toolbar` (Playground),
 `studio-toolbar`, la partie « sortie » de `pipeline-toolbar`, les boutons `preview-panel-action-btn`
