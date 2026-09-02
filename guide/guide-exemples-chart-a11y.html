@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>dsfr-data-a11y — Exemples - Guide - dsfr-data</title>
+  <title>Charts builder — Guide · dsfr-data-a11y</title>
   <style>@view-transition{navigation:auto}app-header:not(:defined){display:block;min-height:56px}app-footer:not(:defined){display:block;min-height:48px}</style>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css" integrity="sha384-atVZ+aK6VI0nWyTEhKgze5InDJ+SWRRqa0BCZ2MTNyoOcBiHj1c3dGPdi6ML65B3" crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css" integrity="sha384-5P5DFFqorcEBpfnK9WHu/Ralfr7ZxyCZh0ryaJbgucSvc71+qRYdGvNEcyMqQwa/" crossorigin="anonymous">
@@ -39,6 +39,16 @@
   </dsfr-data-query>
 
   <main class="fr-container fr-py-4w" id="main-content">
+    <nav role="navigation" class="fr-breadcrumb" aria-label="vous êtes ici :">
+      <button class="fr-breadcrumb__button" aria-expanded="false" aria-controls="page-breadcrumb">Voir le fil d'Ariane</button>
+      <div class="fr-collapse" id="page-breadcrumb">
+        <ol class="fr-breadcrumb__list">
+          <li><a class="fr-breadcrumb__link" href="../index.html">Accueil</a></li>
+          <li><a class="fr-breadcrumb__link" href="../guide/guide.html">Guide</a></li>
+          <li><a class="fr-breadcrumb__link" aria-current="page">dsfr-data-a11y</a></li>
+        </ol>
+      </div>
+    </nav>
     <div class="guide-layout">
 
       <app-sidemenu section="guide"></app-sidemenu>

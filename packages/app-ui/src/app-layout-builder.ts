@@ -225,14 +225,17 @@ export class AppLayoutBuilder extends LitElement {
         .builder-layout-right {
           flex: 1;
           position: sticky;
-          top: 0;
+          /* Le header commun est collant (lot UX #538) : le panneau se cale
+             sous sa hauteur réelle, publiée par <app-header> dans
+             --app-header-h. */
+          top: var(--app-header-h, 0px);
           align-self: flex-start;
           /* Hauteur utile ~pleine page (header/footer non comptés) avec une
              petite marge ; défile en interne si l'aperçu est plus grand. */
-          min-height: calc(100vh - 1.5rem);
-          min-height: calc(100dvh - 1.5rem);
-          max-height: 100vh;
-          max-height: 100dvh;
+          min-height: calc(100vh - var(--app-header-h, 0px) - 1.5rem);
+          min-height: calc(100dvh - var(--app-header-h, 0px) - 1.5rem);
+          max-height: calc(100vh - var(--app-header-h, 0px));
+          max-height: calc(100dvh - var(--app-header-h, 0px));
           overflow: auto;
           background: var(--background-default-grey);
           display: flex;

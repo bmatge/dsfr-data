@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>dsfr-data — Mes favoris</title>
+  <title>Charts builder — Favoris</title>
   <style>@view-transition{navigation:auto}app-header:not(:defined){display:block;min-height:56px}app-footer:not(:defined){display:block;min-height:48px}.modal-overlay{display:none}</style>
 
   <!-- DSFR -->
@@ -34,6 +34,15 @@
        #fav-search, #export-btn, #import-btn, #favorites-list, #preview-frame,
        #code-display) sont conservés pour la logique existante. -->
   <main id="main-content" class="favs-page">
+    <nav role="navigation" class="fr-breadcrumb" aria-label="vous êtes ici :">
+      <button class="fr-breadcrumb__button" aria-expanded="false" aria-controls="page-breadcrumb">Voir le fil d'Ariane</button>
+      <div class="fr-collapse" id="page-breadcrumb">
+        <ol class="fr-breadcrumb__list">
+          <li><a class="fr-breadcrumb__link" href="../../index.html">Accueil</a></li>
+          <li><a class="fr-breadcrumb__link" aria-current="page">Favoris</a></li>
+        </ol>
+      </div>
+    </nav>
     <div class="favs-page__head">
       <h1>Mes favoris <span class="favorites-count" id="favorites-count">0</span></h1>
       <div class="favs-page__actions">
