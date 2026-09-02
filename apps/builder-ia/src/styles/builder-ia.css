@@ -679,13 +679,6 @@ body.builder-ia-app .builder-layout-right {
 .modal-header h3 {
   margin: 0;
 }
-.modal-close {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: var(--text-default-grey);
-}
 .modal-body {
   padding: 1.5rem;
   overflow-y: auto;

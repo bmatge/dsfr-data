@@ -4,6 +4,7 @@ import { generateCode } from './code-generator.js';
 import { PipelineExecutor } from './pipeline-executor.js';
 import { importFromHtml } from './html-parser.js';
 import { showInspector } from './ui/inspector.js';
+import { confirmDialog } from '@dsfr-data/shared';
 
 let editor: PipelineEditor | null = null;
 let executor: PipelineExecutor | null = null;
@@ -99,9 +100,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // Delete button
-  document.getElementById('btn-delete')?.addEventListener('click', () => {
-    editor?.removeSelected();
-  });
+  // Suppression : confirmation seulement si le nœud a du contenu (lot UX 6, #543)
+  const deleteSelected = async () => {
+    if (!editor) return;
+    if (
+      editor.selectedHaveContent() &&
+      !(await confirmDialog('Supprimer le(s) nœud(s) sélectionné(s) et leurs connexions ?'))
+    )
+      return;
+    void editor.removeSelected();
+  };
+  document.getElementById('btn-delete')?.addEventListener('click', () => void deleteSelected());
 
   // Arrange button
   document.getElementById('btn-arrange')?.addEventListener('click', () => {
@@ -179,7 +188,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       ) {
         return;
       }
-      editor?.removeSelected();
+      void deleteSelected();
     }
   });
 });

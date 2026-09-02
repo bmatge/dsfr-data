@@ -5,7 +5,6 @@
 import {
   escapeHtml,
   formatDateShort,
-  openModal,
   closeModal,
   setupModalOverlayClose,
   toastInfo,
@@ -21,6 +20,7 @@ import {
   navigateTo,
   initAuth,
   getApiAdapter,
+  confirmDialog,
 } from '@dsfr-data/shared';
 import { loadFavorites, saveFavorites, deleteFavorite, findFavorite } from './favorites-manager.js';
 import type { Favorite } from './favorites-manager.js';
@@ -395,14 +395,19 @@ function shareFavorite(id: string): void {
   void openShareModal(id);
 }
 
-function showDeleteModal(id: string): void {
+async function showDeleteModal(id: string): Promise<void> {
   const fav = findFavorite(favorites, id);
-  if (fav) {
-    deleteTargetId = id;
-    const nameEl = document.getElementById('delete-name');
-    if (nameEl) nameEl.textContent = fav.name;
-    openModal('delete-modal');
-  }
+  if (!fav) return;
+  // ConfirmDialog commun (lot UX 6, #543) : confirmation en primaire danger,
+  // focus initial sur Annuler — la modale maison inversait la hiérarchie (B7).
+  const ok = await confirmDialog(`Le favori « ${fav.name} » sera définitivement supprimé.`, {
+    title: 'Supprimer ce favori ?',
+    confirmLabel: 'Supprimer',
+    danger: true,
+  });
+  if (!ok) return;
+  deleteTargetId = id;
+  confirmDelete();
 }
 
 function handleCloseDeleteModal(): void {
@@ -435,9 +440,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   renderGrid();
   renderPanel();
-
-  const deleteBtn = document.getElementById('confirm-delete-btn');
-  if (deleteBtn) deleteBtn.addEventListener('click', confirmDelete);
 
   // Panneau d'aperçu : actions et fermeture
   document.getElementById('fav-panel-close-btn')?.addEventListener('click', closePanel);
@@ -504,7 +506,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('export-btn')?.addEventListener('click', exportFavorites);
   document.getElementById('import-btn')?.addEventListener('click', importFavorites);
 
-  setupModalOverlayClose('delete-modal');
   setupModalOverlayClose('share-modal');
 });
 

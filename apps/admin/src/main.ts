@@ -3,7 +3,7 @@
  */
 
 import './styles/admin.css';
-import { escapeHtml } from '@dsfr-data/shared';
+import { escapeHtml, confirmDialog } from '@dsfr-data/shared';
 import {
   fetchUsers,
   fetchUserDetail,
@@ -223,7 +223,7 @@ function renderUserDetail(user: UserDetail, resources: Record<string, number>): 
   };
 
   document.getElementById('btn-revoke-sessions')!.onclick = async () => {
-    if (!confirm(`Révoquer toutes les sessions de ${user.email} ?`)) return;
+    if (!(await confirmDialog(`Révoquer toutes les sessions de ${user.email} ?`))) return;
     try {
       await revokeSessions(user.id);
       alert('Sessions revoquees.');
@@ -233,7 +233,8 @@ function renderUserDetail(user: UserDetail, resources: Record<string, number>): 
   };
 
   document.getElementById('btn-delete-user')!.onclick = async () => {
-    if (!confirm(`Supprimer definitivement ${user.email} et toutes ses ressources ?`)) return;
+    if (!(await confirmDialog(`Supprimer définitivement ${user.email} et toutes ses ressources ?`)))
+      return;
     try {
       await deleteUser(user.id);
       (document.getElementById('user-detail-modal') as HTMLDialogElement).close();

@@ -37,6 +37,7 @@ export function setupModalOverlayClose(id: string): void {
 }
 
 let confirmStyleInjected = false;
+let confirmSeq = 0;
 
 function injectConfirmStyles(): void {
   if (confirmStyleInjected) return;
@@ -82,46 +83,139 @@ function injectConfirmStyles(): void {
       gap: 0.5rem;
       justify-content: flex-end;
     }
+    .confirm-dialog-title {
+      margin: 0 0 0.75rem;
+      font-size: 1.25rem;
+      line-height: 1.75rem;
+      color: var(--text-title-grey, #161616);
+    }
+    /* Primaire « danger » (le DSFR n'a pas de variante) : tokens error. */
+    .fr-btn.confirm-dialog-danger {
+      background-color: var(--background-flat-error, #ce0500);
+      color: var(--text-inverted-error, #fff);
+    }
+    .fr-btn.confirm-dialog-danger:hover {
+      background-color: var(--background-flat-error-hover, #a00000);
+    }
+    .fr-btn.confirm-dialog-danger:active {
+      background-color: var(--background-flat-error-active, #7a0000);
+    }
   `;
   document.head.appendChild(style);
 }
 
+export interface ConfirmDialogOptions {
+  /** Titre de la boîte (h2). Par défaut : le message seul. */
+  title?: string;
+  /** Libellé du bouton de confirmation. Par défaut : « Supprimer » si `danger`, sinon « Confirmer ». */
+  confirmLabel?: string;
+  /** Libellé du bouton d'annulation. Par défaut « Annuler ». */
+  cancelLabel?: string;
+  /**
+   * Action destructive : confirmation en primaire **danger**, focus initial sur
+   * Annuler (docs/ux/actions.md §8, audit B7). Déduit du message quand il
+   * commence par Supprimer / Retirer / Révoquer / Effacer.
+   */
+  danger?: boolean;
+}
+
+const DESTRUCTIVE_VERB = /^(supprimer|retirer|révoquer|revoquer|effacer|purger)\b/i;
+
 /**
- * DSFR-styled replacement for native confirm().
- * Returns a Promise that resolves to true (confirm) or false (cancel).
+ * ConfirmDialog — remplaçant DSFR de confirm() (lot UX 6, #543).
+ *
+ * `role="alertdialog"`, `aria-modal`, titre relié par `aria-labelledby`,
+ * message par `aria-describedby`. Le bouton de confirmation porte le verbe de
+ * l'action ; pour une action destructive il est en primaire danger et le
+ * **focus initial va sur Annuler**. Échap et le clic hors de la boîte annulent ;
+ * le focus revient à l'élément déclencheur.
+ *
+ * Resolves to true (confirm) or false (cancel).
  */
-export function confirmDialog(message: string): Promise<boolean> {
+export function confirmDialog(
+  message: string,
+  options: ConfirmDialogOptions = {}
+): Promise<boolean> {
   injectConfirmStyles();
+  const danger = options.danger ?? DESTRUCTIVE_VERB.test(message.trim());
+  const verb = message.trim().match(DESTRUCTIVE_VERB)?.[0];
+  const confirmLabel =
+    options.confirmLabel ??
+    (danger && verb ? verb.charAt(0).toUpperCase() + verb.slice(1).toLowerCase() : 'Confirmer');
+  const seq = ++confirmSeq;
+  const previouslyFocused = document.activeElement as HTMLElement | null;
 
   return new Promise((resolve) => {
     const overlay = document.createElement('div');
     overlay.className = 'confirm-dialog-overlay';
     const content = document.createElement('div');
     content.className = 'confirm-dialog-content';
+    content.setAttribute('role', 'alertdialog');
+    content.setAttribute('aria-modal', 'true');
+    content.tabIndex = -1;
+
+    if (options.title) {
+      const titleEl = document.createElement('h2');
+      titleEl.className = 'confirm-dialog-title';
+      titleEl.id = `confirm-dialog-title-${seq}`;
+      titleEl.textContent = options.title;
+      content.append(titleEl);
+      content.setAttribute('aria-labelledby', titleEl.id);
+    }
     const messageEl = document.createElement('p');
+    messageEl.id = `confirm-dialog-message-${seq}`;
     messageEl.textContent = message;
+    content.setAttribute(options.title ? 'aria-describedby' : 'aria-labelledby', messageEl.id);
+
     const actions = document.createElement('div');
     actions.className = 'confirm-dialog-actions';
     const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
     cancelBtn.className = 'fr-btn fr-btn--secondary';
     cancelBtn.dataset.action = 'cancel';
-    cancelBtn.textContent = 'Annuler';
+    cancelBtn.textContent = options.cancelLabel ?? 'Annuler';
     const confirmBtn = document.createElement('button');
-    confirmBtn.className = 'fr-btn';
+    confirmBtn.type = 'button';
+    confirmBtn.className = danger ? 'fr-btn confirm-dialog-danger' : 'fr-btn';
     confirmBtn.dataset.action = 'confirm';
-    confirmBtn.textContent = 'Confirmer';
+    confirmBtn.textContent = confirmLabel;
     actions.append(cancelBtn, confirmBtn);
     content.append(messageEl, actions);
     overlay.append(content);
 
     const cleanup = (result: boolean) => {
-      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('keydown', onKey, true);
       overlay.remove();
+      // Retour du focus au déclencheur — ou à son remplaçant de même id si
+      // l'app a re-rendu son panneau entre-temps.
+      const target =
+        previouslyFocused && previouslyFocused.isConnected
+          ? previouslyFocused
+          : previouslyFocused?.id
+            ? document.getElementById(previouslyFocused.id)
+            : null;
+      target?.focus?.();
       resolve(result);
     };
 
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') cleanup(false);
+      if (e.key === 'Escape') {
+        // Capturé avant les écouteurs de l'app (fermeture de panneau, etc.).
+        e.preventDefault();
+        e.stopPropagation();
+        cleanup(false);
+        return;
+      }
+      // Focus piégé dans la boîte (deux boutons).
+      if (e.key === 'Tab') {
+        const focusables = [cancelBtn, confirmBtn];
+        const idx = focusables.indexOf(document.activeElement as HTMLButtonElement);
+        const next = e.shiftKey
+          ? focusables[(idx - 1 + focusables.length) % focusables.length]
+          : focusables[(idx + 1) % focusables.length];
+        e.preventDefault();
+        next.focus();
+      }
     };
 
     overlay.addEventListener('click', (e: Event) => {
@@ -135,11 +229,11 @@ export function confirmDialog(message: string): Promise<boolean> {
       else if (action === 'cancel') cleanup(false);
     });
 
-    document.addEventListener('keydown', onKey);
+    document.addEventListener('keydown', onKey, true);
     document.body.appendChild(overlay);
 
-    // Focus the confirm button for keyboard accessibility
-    confirmBtn.focus();
+    // Destructif : le focus initial va sur Annuler ; sinon sur la confirmation.
+    (danger ? cancelBtn : confirmBtn).focus();
   });
 }
 

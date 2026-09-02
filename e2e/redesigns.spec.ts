@@ -251,8 +251,11 @@ test.describe('Favoris v2', () => {
     await page.locator('.fav-card').first().click();
     await page.waitForTimeout(400);
     await page.locator('#fav-panel-delete-btn').click();
-    await expect(page.locator('#delete-modal')).toBeVisible();
-    await page.locator('#confirm-delete-btn').click();
+    // ConfirmDialog commun (lot UX 6) : alertdialog, confirmation danger, focus sur Annuler
+    const dialog = page.locator('.confirm-dialog-content[role="alertdialog"]');
+    await expect(dialog).toBeVisible();
+    await expect(dialog.locator('[data-action="cancel"]')).toBeFocused();
+    await dialog.locator('[data-action="confirm"].confirm-dialog-danger').click();
     await page.waitForTimeout(400);
     await expect(page.locator('.fav-card')).toHaveCount(1);
     await expect(page.locator('#fav-panel')).toBeHidden();

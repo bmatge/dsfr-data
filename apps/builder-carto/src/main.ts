@@ -33,6 +33,7 @@ import {
   initAuth,
   toastWarning,
   type Source,
+  confirmDialog,
 } from '@dsfr-data/shared';
 
 const FAVORITES_KEY = 'dsfr-data-favorites';
@@ -1501,8 +1502,14 @@ function addLayer() {
   updateCodePreview();
 }
 
-function resetBuilder() {
-  if (!confirm('Nouveau : la configuration actuelle sera perdue. Continuer ?')) return;
+async function resetBuilder() {
+  if (
+    !(await confirmDialog('La configuration actuelle sera perdue.', {
+      title: 'Repartir d’une carte vierge ?',
+      confirmLabel: 'Nouveau',
+    }))
+  )
+    return;
   resetState();
   ui.executed = false;
   ui.forceChooser = false;
@@ -1799,7 +1806,7 @@ function bindStaticUi() {
   });
 
   document.getElementById('btn-add-layer')?.addEventListener('click', addLayer);
-  document.getElementById('btn-reset')?.addEventListener('click', resetBuilder);
+  document.getElementById('btn-reset')?.addEventListener('click', () => void resetBuilder());
   document.getElementById('btn-execute')?.addEventListener('click', () => executePreview(true));
   document.getElementById('btn-export')?.addEventListener('click', copyCodeToClipboard);
   // Actions de la barre commune (<app-action-bar>) — liées ici, hors de tout rendu conditionnel
