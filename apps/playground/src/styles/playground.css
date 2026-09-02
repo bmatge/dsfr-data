@@ -47,10 +47,18 @@ body {
 
 .editor-toolbar {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
   padding: 0.5rem;
   background: var(--background-contrast-grey);
   border-bottom: 1px solid var(--border-default-grey);
+}
+
+/* Libellés du lexique (docs/ux/actions.md) : un bouton ne se coupe pas sur
+   deux lignes, la barre passe à la ligne — transitoire jusqu'à l'AppActionBar
+   (lot UX 2, #539) et son menu « Plus ». */
+.editor-toolbar .fr-btn {
+  white-space: nowrap;
 }
 
 .CodeMirror {

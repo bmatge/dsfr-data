@@ -72,7 +72,7 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
   @property({ type: Boolean })
   count = false;
 
-  /** Nom du parametre d'URL a lire comme terme de recherche initial. Vide = desactive */
+  /** Nom du paramètre d'URL à lire comme terme de recherche initial. Vide = désactivé */
   @property({ type: String, attribute: 'url-search-param' })
   urlSearchParam = '';
 
@@ -147,7 +147,7 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
   }
 
   /**
-   * Retourne les parametres adapter resolus de la source amont
+   * Retourne les paramètres adapter résolus de la source amont
    * (delegation transparente, headers api-key-ref inclus — #274).
    */
   public getAdapterParams(): import('../adapters/api-adapter.js').AdapterParams | null {

@@ -1410,7 +1410,7 @@ function renderExport() {
               <i class="ri-file-copy-line" aria-hidden="true"></i>Copier le code
             </button>
             <button id="btn-export-favorite" class="carto-btn carto-btn--ghost" type="button">
-              <i class="ri-star-line" aria-hidden="true"></i>Sauvegarder en favori
+              <i class="ri-star-line" aria-hidden="true"></i>Ajouter aux favoris
             </button>
             <button id="btn-playground" class="carto-btn carto-btn--ghost" type="button">
               <i class="ri-flask-line" aria-hidden="true"></i>Ouvrir dans le playground
@@ -1552,7 +1552,7 @@ function addLayer() {
 }
 
 function resetBuilder() {
-  if (!confirm('Repartir de zéro ? La configuration actuelle sera perdue.')) return;
+  if (!confirm('Nouveau : la configuration actuelle sera perdue. Continuer ?')) return;
   resetState();
   ui.executed = false;
   ui.forceChooser = false;

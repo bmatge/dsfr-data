@@ -158,7 +158,7 @@ function resetManualSourceModal(): void {
   }
   const saveBtnEl = document.getElementById('save-source-btn');
   if (saveBtnEl) {
-    saveBtnEl.textContent = 'Sauvegarder';
+    saveBtnEl.textContent = 'Enregistrer';
   }
 
   const nameEl = document.getElementById('source-name') as HTMLInputElement | null;

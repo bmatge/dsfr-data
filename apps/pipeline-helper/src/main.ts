@@ -92,7 +92,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Re-enable button after a short delay (events are async)
     setTimeout(() => {
       btn.disabled = false;
-      btn.textContent = 'Executer';
+      btn.textContent = 'Exécuter';
     }, 1000);
   });
 

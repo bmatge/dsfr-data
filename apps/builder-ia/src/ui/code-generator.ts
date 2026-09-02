@@ -246,7 +246,7 @@ loadKPI();
 function generateGaugeCode(config: ChartConfig, data: AggregatedResult[]): string {
   const gaugeValue = Math.round(data[0]?.value || 0);
 
-  return `<!-- Jauge generee avec dsfr-data Builder IA -->
+  return `<!-- Jauge générée avec dsfr-data Builder IA -->
 <!-- Source : ${state.source?.name || 'Données locales'} -->
 
 <!-- Dependances (DSFR Chart) -->
@@ -353,7 +353,7 @@ function generateMapCode(config: ChartConfig, data: AggregatedResult[]): string 
       );
       const whereAttr = config.where ? `\n    where="${filterToOdsql(config.where)}"` : '';
 
-      return `<!-- Carte generee avec dsfr-data Builder IA -->
+      return `<!-- Carte générée avec dsfr-data Builder IA -->
 <!-- Source API dynamique avec pagination automatique -->
 
 <!-- Dependances CSS (DSFR) -->
@@ -404,7 +404,7 @@ function generateMapCode(config: ChartConfig, data: AggregatedResult[]): string 
           : `${config.valueField}__${config.aggregation || 'sum'}`;
       const filterAttr = config.where ? `\n    filter="${config.where}"` : '';
 
-      return `<!-- Carte generee avec dsfr-data Builder IA -->
+      return `<!-- Carte générée avec dsfr-data Builder IA -->
 <!-- Source API Tabular avec pagination automatique -->
 
 <!-- Dependances CSS (DSFR) -->
@@ -451,7 +451,7 @@ function generateMapCode(config: ChartConfig, data: AggregatedResult[]): string 
       sourceUrl = url.toString();
     }
 
-    return `<!-- Carte generee avec dsfr-data Builder IA -->
+    return `<!-- Carte générée avec dsfr-data Builder IA -->
 <!-- Source API dynamique -->
 
 <!-- Dependances CSS (DSFR) -->
@@ -484,7 +484,7 @@ function generateMapCode(config: ChartConfig, data: AggregatedResult[]): string 
   }
 
   // Embedded-data variant
-  return `<!-- Carte generee avec dsfr-data Builder IA -->
+  return `<!-- Carte générée avec dsfr-data Builder IA -->
 <!-- Source : ${state.source?.name || 'Données locales'} -->
 
 <!-- Dependances CSS (DSFR) -->

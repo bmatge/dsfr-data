@@ -121,7 +121,7 @@
             <tr><td><code>refresh</code></td><td>Number</td><td>Entier en secondes. <code>0</code> = off</td><td>Intervalle de rafraichissement automatique</td></tr>
             <tr><td><code>transform</code></td><td>String</td><td><code>"results"</code>, <code>"data.items"</code></td><td>Chemin JSON pour extraire les données de la reponse API</td></tr>
             <tr><td><code>headers</code></td><td>String</td><td><code>'{"apikey":"abc123"}'</code></td><td>Headers HTTP en JSON (API key, Bearer token, etc.)</td></tr>
-            <tr><td><code>api-key-ref</code></td><td>String</td><td><code>"tmdb"</code></td><td>Reference vers une clé API declaree dans <code>window.DSFR_DATA_KEYS</code>.
+            <tr><td><code>api-key-ref</code></td><td>String</td><td><code>"tmdb"</code></td><td>Référence vers une clé API declaree dans <code>window.DSFR_DATA_KEYS</code>.
               La valeur est injectee comme header <code>Authorization</code>. Prioritaire sur un header Authorization explicite.</td></tr>
             <tr><td><code>cache-ttl</code></td><td>Number</td><td>Entier en secondes. Défaut : <code>3600</code></td><td>Duree de cache serveur en mode DB (0 = pas de cache)</td></tr>
           </tbody>
@@ -265,7 +265,7 @@ where="email:isnull"</pre></div>
           <h3>Mode URL brute : pagination manuelle</h3>
           <p>
             Avec <code>paginate</code>, chaque changement de page dans un <code>dsfr-data-list</code>
-            en aval declenche un nouvel appel API avec les parametres de pagination.
+            en aval declenche un nouvel appel API avec les paramètres de pagination.
           </p>
           <div class="code-block"><pre>&lt;dsfr-data-source
   id="browse"
@@ -486,7 +486,7 @@ where="email:isnull"</pre></div>
           <li><code>cache-fallback</code> : Les données proviennent du cache serveur suite a une erreur API (mode DB uniquement)</li>
         </ul>
 
-        <h2 id="methodes" class="fr-mt-4w">Methodes publiques</h2>
+        <h2 id="methodes" class="fr-mt-4w">Méthodes publiques</h2>
         <table class="attr-table">
           <thead><tr><th>Méthode</th><th>Retour</th><th>Description</th></tr></thead>
           <tbody>
@@ -496,7 +496,7 @@ where="email:isnull"</pre></div>
             <tr><td><code>getError()</code></td><td>Error | null</td><td>Retourne l'erreur eventuelle</td></tr>
             <tr><td><code>getAdapter()</code></td><td>ApiAdapter | null</td><td>Retourne l'adapter actif (mode adapter uniquement, <code>null</code> en mode URL brute)</td></tr>
             <tr><td><code>getEffectiveWhere(excludeKey?)</code></td><td>String</td><td>Retourne la clause WHERE fusionnee (statique + tous les overlays dynamiques).
-              Le parametre <code>excludeKey</code> permet d'exclure un overlay spécifique (utilise par les facettes).</td></tr>
+              Le paramètre <code>excludeKey</code> permet d'exclure un overlay spécifique (utilise par les facettes).</td></tr>
           </tbody>
         </table>
 
