@@ -93,12 +93,12 @@ const expandedConns = new Set<string>();
 const connDocChoice = new Map<string, string>();
 /** Filtre de tables saisi par connexion. */
 const connTableFilter = new Map<string, string>();
-/** Caches de contenu (invalidés par « Rafraîchir » et les créations). */
+/** Caches de contenu (invalidés par « Actualiser » et les créations). */
 const connDocsCache = new Map<string, GristDocOption[]>();
 const connTablesCache = new Map<string, { id: string }[]>();
 const connResourcesCache = new Map<string, DataGouvResource[]>();
 
-/** Dernière action d'aperçu (relancée par « Rafraîchir »). */
+/** Dernière action d'aperçu (relancée par « Actualiser »). */
 let lastPreviewAction: (() => void | Promise<void>) | null = null;
 
 /** Jeux en ligne rattachés à une connexion (connectionId ou id legacy). */
@@ -1092,7 +1092,7 @@ export function showExplorerEmpty(): void {
 }
 
 /**
- * « Rafraîchir » (panneau d'aperçu) : invalide les caches de la connexion
+ * « Actualiser » (panneau d'aperçu) : invalide les caches de la connexion
  * courante et relance le dernier aperçu.
  */
 export function refreshCurrentView(): void {
@@ -1862,7 +1862,7 @@ export function previewSource(id: string): void {
   if (exportBtn)
     exportBtn.style.display = source.type === 'manual' || source.type === 'join' ? '' : 'none';
 
-  // Hide "Rafraîchir" for manual/join sources — they have no remote data to refresh.
+  // Hide "Actualiser" for manual/join sources — they have no remote data to refresh.
   const refreshBtn = document.getElementById('refresh-btn');
   if (refreshBtn)
     refreshBtn.style.display = source.type === 'manual' || source.type === 'join' ? 'none' : '';

@@ -35,7 +35,7 @@
           <p class="fr-callout__text">
             L'API Melodi utilise un modele <strong>dimensionnel</strong> : chaque observation est decrite par
             des dimensions (GEO, TIME_PERIOD, FREQ...), une mesure (OBS_VALUE) et des attributs optionnels.
-            Le filtrage se fait par <strong>egalite sur les dimensions</strong> via des parametres de requête.
+            Le filtrage se fait par <strong>egalite sur les dimensions</strong> via des paramètres de requête.
             L'adapter aplatit automatiquement les observations en objets plats exploitables par les composants dsfr-data.
           </p>
         </div>
@@ -57,7 +57,7 @@
                 <tr>
                   <th>Capacite</th>
                   <th>Support</th>
-                  <th>Detail</th>
+                  <th>Détail</th>
                 </tr>
               </thead>
               <tbody>
@@ -102,14 +102,14 @@
           <div class="fr-table">
             <table>
               <thead>
-                <tr><th>Parametre</th><th>Valeur</th></tr>
+                <tr><th>Paramètre</th><th>Valeur</th></tr>
               </thead>
               <tbody>
                 <tr><td>Type</td><td><code>page</code> (par numero de page, 1-based)</td></tr>
                 <tr><td>Taille de page</td><td>1 000 enregistrements</td></tr>
                 <tr><td>Pages max</td><td>100</td></tr>
                 <tr><td>Enregistrements max</td><td>100 000</td></tr>
-                <tr><td>Parametres URL</td><td><code>page</code>, <code>maxResult</code></td></tr>
+                <tr><td>Paramètres URL</td><td><code>page</code>, <code>maxResult</code></td></tr>
                 <tr><td>Total disponible</td><td><code>paging.count</code> (via <code>totalCount=TRUE</code>)</td></tr>
                 <tr><td>Page suivante</td><td><code>paging.next</code> dans la reponse</td></tr>
               </tbody>
@@ -121,19 +121,19 @@
         <section class="fr-mt-4w">
           <h2>Filtrage par dimensions</h2>
           <p>
-            L'API Melodi filtre par <strong>egalite sur les dimensions</strong> via des parametres de requête.
+            L'API Melodi filtre par <strong>egalite sur les dimensions</strong> via des paramètres de requête.
             Chaque jeu de données a ses propres dimensions (GEO, TIME_PERIOD, FREQ, etc.).
           </p>
 
           <h3 class="fr-mt-2w">Syntaxe API native</h3>
           <pre><code>?TIME_PERIOD=2023&amp;GEO=FRANCE-F&amp;POPREF_MEASURE=PMUN</code></pre>
           <p class="fr-mt-1w">
-            Multi-valeurs : repeter le parametre (<code>?POPREF_MEASURE=PMUN&amp;POPREF_MEASURE=PTOT</code>).
+            Multi-valeurs : repeter le paramètre (<code>?POPREF_MEASURE=PMUN&amp;POPREF_MEASURE=PTOT</code>).
           </p>
 
           <h3 class="fr-mt-2w">Syntaxe colon (dsfr-data-source)</h3>
           <p>
-            L'adapter convertit la syntaxe colon standard en parametres INSEE :
+            L'adapter convertit la syntaxe colon standard en paramètres INSEE :
           </p>
           <div class="fr-table">
             <table>
@@ -166,7 +166,7 @@
           <div class="fr-table">
             <table>
               <thead>
-                <tr><th>Parametre</th><th>Valeur</th></tr>
+                <tr><th>Paramètre</th><th>Valeur</th></tr>
               </thead>
               <tbody>
                 <tr><td>Chemin des données</td><td><code>observations</code></td></tr>

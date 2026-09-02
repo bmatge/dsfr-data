@@ -298,10 +298,10 @@ const SECTIONED_SKILL: Skill = {
   description: 'Chart component',
   trigger: ['chart'],
   content:
-    '## Guide\nRole du composant.\n\n### Exemples\nsnippet\n\n### Reference `<dsfr-data-chart>`\nattributs',
+    '## Guide\nRôle du composant.\n\n### Exemples\nsnippet\n\n### Référence `<dsfr-data-chart>`\nattributs',
   sections: {
-    guide: '## Guide\nRole du composant.',
-    reference: '### Reference `<dsfr-data-chart>`\nattributs',
+    guide: '## Guide\nRôle du composant.',
+    reference: '### Référence `<dsfr-data-chart>`\nattributs',
     exemples: '### Exemples\nsnippet',
     pieges: '',
   },
@@ -343,7 +343,7 @@ describe('selectSection', () => {
 
   it('renvoie la section demandee, bien plus courte que la fiche', () => {
     const ref = selectSection(SECTIONED_SKILL, 'reference');
-    expect(ref).toBe('### Reference `<dsfr-data-chart>`\nattributs');
+    expect(ref).toBe('### Référence `<dsfr-data-chart>`\nattributs');
     expect(ref.length).toBeLessThan(SECTIONED_SKILL.content.length);
   });
 

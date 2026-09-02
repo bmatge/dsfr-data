@@ -88,7 +88,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
 
   // --- Source & geo ---
 
-  /** Id de la source (ou du transformateur) dont cette couche consomme les donnees. */
+  /** Id de la source (ou du transformateur) dont cette couche consomme les données. */
   @property({ type: String })
   source = '';
 
@@ -132,11 +132,11 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'tooltip-field' })
   tooltipField = '';
 
-  /** Couleur de la couche (defaut : blue-france DSFR). Sert aussi de repli quand `color-map` ne matche pas. */
+  /** Couleur de la couche (défaut : blue-france DSFR). Sert aussi de repli quand `color-map` ne matche pas. */
   @property({ type: String })
   color = '#000091';
 
-  /** Champ dont la valeur determine la couleur (mapping categoriel via `color-map`). */
+  /** Champ dont la valeur détermine la couleur (mapping catégoriel via `color-map`). */
   @property({ type: String, attribute: 'color-field' })
   colorField = '';
 
@@ -144,7 +144,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'color-map' })
   colorMap = '';
 
-  /** Champ numerique utilise pour le remplissage en choroplethe. */
+  /** Champ numérique utilisé pour le remplissage en choroplèthe. */
   @property({ type: String, attribute: 'fill-field' })
   fillField = '';
 
@@ -152,7 +152,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   @property({ type: Number, attribute: 'fill-opacity' })
   fillOpacity = 0.6;
 
-  /** Palette DSFR utilisee pour le degrade choroplethe (`fill-field`). */
+  /** Palette DSFR utilisée pour le dégradé choroplèthe (`fill-field`). */
   @property({ type: String, attribute: 'selected-palette' })
   selectedPalette = '';
 
@@ -160,11 +160,11 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   @property({ type: Number })
   radius = 8;
 
-  /** Champ numerique pilotant un rayon variable (auto-scaling entre `radius-min` et `radius-max`). */
+  /** Champ numérique pilotant un rayon variable (auto-scaling entre `radius-min` et `radius-max`). */
   @property({ type: String, attribute: 'radius-field' })
   radiusField = '';
 
-  /** Unite du rayon : `px` (constant a l'ecran) ou `m` (metres, suit le zoom). */
+  /** Unité du rayon : `px` (constant à l'écran) ou `m` (mètres, suit le zoom). */
   @property({ type: String, attribute: 'radius-unit' })
   radiusUnit: 'px' | 'm' = 'px';
 
@@ -218,7 +218,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   @property({ type: Number, attribute: 'bbox-debounce' })
   bboxDebounce = 300;
 
-  /** Champ geographique utilise pour la requete bbox (auto-detecte si vide). */
+  /** Champ géographique utilisé pour la requête bbox (auto-détecté si vide). */
   @property({ type: String, attribute: 'bbox-field' })
   bboxField = '';
 

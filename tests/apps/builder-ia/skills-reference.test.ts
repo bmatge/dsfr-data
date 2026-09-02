@@ -114,7 +114,7 @@ function runtimeAttributes(ComponentClass: typeof DsfrDataSource): Set<string> {
 function documentedAttributes(markdown: string): Set<string> {
   const section = markdown.slice(
     markdown.indexOf('**Attributs**'),
-    markdown.indexOf('**Evenements**') === -1 ? undefined : markdown.indexOf('**Evenements**')
+    markdown.indexOf('**Événements**') === -1 ? undefined : markdown.indexOf('**Événements**')
   );
   const found = new Set<string>();
   for (const line of section.split('\n')) {
@@ -201,7 +201,7 @@ describe('reference generee des skills (#512)', () => {
         const content = SKILLS[id].content;
         for (const tag of tags) {
           expect(content, `${id} devrait embarquer la reference de <${tag}>`).toContain(
-            `### Reference \`<${tag}>\` (generee depuis le code)`
+            `### Référence \`<${tag}>\` (générée depuis le code)`
           );
         }
       }
@@ -209,7 +209,7 @@ describe('reference generee des skills (#512)', () => {
 
     it.each(Object.entries(SKILL_TAGS))('%s garde un guide redige a la main', (id, tags) => {
       const content = SKILLS[id].content;
-      const guide = content.slice(0, content.indexOf('### Reference `<'));
+      const guide = content.slice(0, content.indexOf('### Référence `<'));
       // La generation ne remplace pas la pedagogie : exemples, pieges, patterns.
       expect(guide.length, `${id} ne doit pas se reduire a sa reference generee`).toBeGreaterThan(
         500
@@ -233,8 +233,8 @@ describe('reference generee des skills (#512)', () => {
         // ligne final : sans separateur, le titre se retrouvait colle a la
         // ligne ``` et le markdown etait casse (titre avale par le bloc code).
         for (const line of SKILLS[id].content.split('\n')) {
-          if (!line.includes('### Reference `<')) continue;
-          expect(line.startsWith('### Reference `<'), `ligne collee : ${line.slice(0, 60)}`).toBe(
+          if (!line.includes('### Référence `<')) continue;
+          expect(line.startsWith('### Référence `<'), `ligne collee : ${line.slice(0, 60)}`).toBe(
             true
           );
         }

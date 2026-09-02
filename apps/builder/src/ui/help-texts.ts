@@ -55,9 +55,9 @@ export const VALIDATION = {
   'missing-value':
     'Il manque le champ numérique a mesurer. Sélectionnez un champ dans "Axe Y / Valeurs" (ex\u00a0: population, budget).',
   'generate-first-playground':
-    'Cliquez d\'abord sur "Générer le graphique" pour voir le resultat, puis vous pourrez l\'ouvrir dans le Playground.',
+    'Cliquez d\'abord sur "Générer" pour voir le resultat, puis vous pourrez l\'ouvrir dans le Playground.',
   'generate-first-favorite':
-    'Cliquez d\'abord sur "Générer le graphique" pour voir le resultat, puis vous pourrez le sauvegarder en favori.',
+    'Cliquez d\'abord sur "Générer" pour voir le resultat, puis vous pourrez le sauvegarder en favori.',
 } as const;
 
 // ─── Empty state messages ─────────────────────────────────────────────

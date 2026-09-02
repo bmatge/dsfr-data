@@ -47,7 +47,7 @@ export class AppPreviewPanel extends LitElement {
   showDataTab = false;
 
   /**
-   * Afficher le bouton Sauvegarder en favoris
+   * Afficher le bouton Ajouter aux favoris
    */
   @property({ type: Boolean, attribute: 'show-save-button' })
   showSaveButton = false;
@@ -300,34 +300,41 @@ export class AppPreviewPanel extends LitElement {
                   <button
                     class="preview-panel-action-btn preview-panel-save-btn"
                     @click="${this._handleSaveClick}"
-                    title="Sauvegarder en favoris"
+                    title="Ajouter aux favoris"
                   >
                     <i class="ri-star-line" aria-hidden="true"></i>
-                    <span>Favoris</span>
+                    <span>Ajouter aux favoris</span>
                   </button>
                 `
               : nothing
           }
         </div>
 
-        <!-- Contenu des onglets -->
+        <!-- Contenu des onglets. tabindex=0 : panneau atteignable au clavier quand son
+
+             contenu défile (axe scrollable-region-focusable, patron ARIA tabpanel) —
+
+             normalisé en fr-tabs au lot UX 4 (#541). -->
         <div class="preview-panel-content">
           <!-- Onglet Aperçu - contenu slot="preview" sera déplacé ici -->
           <div
             class="preview-panel-tab-content ${this._activeTab === 'preview' ? 'active' : ''}"
             id="tab-preview"
+            tabindex="0"
           ></div>
 
           <!-- Onglet Code - contenu slot="code" sera déplacé ici -->
           <div
             class="preview-panel-tab-content ${this._activeTab === 'code' ? 'active' : ''}"
             id="tab-code"
+            tabindex="0"
           ></div>
 
           <!-- Onglet Données - contenu slot="data" sera déplacé ici -->
           <div
             class="preview-panel-tab-content ${this._activeTab === 'data' ? 'active' : ''}"
             id="tab-data"
+            tabindex="0"
           ></div>
         </div>
       </div>

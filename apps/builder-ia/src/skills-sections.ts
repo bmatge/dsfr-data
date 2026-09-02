@@ -25,8 +25,8 @@ export type SkillSectionId = (typeof SKILL_SECTION_IDS)[number];
 export type SkillSectionArg = SkillSectionId | 'tout';
 
 export const SKILL_SECTION_LABELS: Record<SkillSectionId, string> = {
-  guide: "Role du composant, position dans le pipeline, format des donnees, modes d'emploi",
-  reference: 'Reference generee depuis le code : attributs, types, defauts, evenements, slots, CSS',
+  guide: "Rôle du composant, position dans le pipeline, format des données, modes d'emploi",
+  reference: 'Référence générée depuis le code : attributs, types, défauts, événements, slots, CSS',
   exemples: 'Exemples de code, snippets et patterns de composition',
   pieges: 'Regles imperatives, pieges connus et erreurs frequentes',
 };
@@ -35,7 +35,7 @@ export const SKILL_SECTION_LABELS: Record<SkillSectionId, string> = {
  * Debut de la partie generee (#512). Marqueur stable : il est produit par
  * `scripts/lib/cem-reference.ts`, pas ecrit a la main.
  */
-const REFERENCE_MARKER = '### Reference `<';
+const REFERENCE_MARKER = '### Référence `<';
 
 /** Titre de bloc -> section. L'ordre compte : `exemples` avant `pieges`. */
 const CLASSIFIERS: Array<[SkillSectionId, RegExp]> = [

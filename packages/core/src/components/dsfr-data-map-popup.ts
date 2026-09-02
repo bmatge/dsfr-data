@@ -227,7 +227,7 @@ export class DsfrDataMapPopup extends LitElement {
     // Announce to screen reader via map's live region
     const mapEl = mapParent as Element & { announceToScreenReader?: (msg: string) => void };
     if (title) {
-      mapEl.announceToScreenReader?.(`Detail : ${title}`);
+      mapEl.announceToScreenReader?.(`Détail : ${title}`);
     }
   }
 

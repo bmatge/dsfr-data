@@ -38,7 +38,7 @@ let listInstanceSeq = 0;
 export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
   /** Prefixe d'ids DOM unique par instance (#304 — ids dupliques entre listes) */
   private readonly _uid = `dsfr-list-${++listInstanceSeq}`;
-  /** Id de la source (ou du transformateur) dont ce tableau consomme les donnees. */
+  /** Id de la source (ou du transformateur) dont ce tableau consomme les données. */
   @property({ type: String })
   source = '';
 
@@ -86,7 +86,7 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
   @property({ type: Boolean, attribute: 'url-sync' })
   urlSync = false;
 
-  /** Nom du parametre URL pour la page (défaut: "page") */
+  /** Nom du paramètre URL pour la page (défaut: "page") */
   @property({ type: String, attribute: 'url-page-param' })
   urlPageParam = 'page';
 

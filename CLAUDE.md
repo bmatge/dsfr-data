@@ -48,7 +48,8 @@ npx playwright test --config tests/builder-e2e/playwright.config.ts  # Tests exh
                       #   (requiert `npm run dev` actif en parallele — voir ARCHITECTURE.md §Tests)
 
 # Lint / garde-fous
-npm run check:accents # Verifie les accents francais dans le HTML (scripts/check-french-accents.sh)
+npm run check:accents # Lint BLOQUANT des libelles UI : accents + formes hors lexique
+                      #   (scripts/check-french-accents.sh, lexique : docs/ux/actions.md)
 
 # Skills (connaissance IA : builder-IA + serveur MCP)
 npm run build:skills  # Chaine complete : analyse CEM -> reference generee -> dist/skills.json

@@ -112,7 +112,7 @@
             <input class="fr-input" type="password" id="ia-token" placeholder="Votre clé API">
           </div>
           <div class="fr-input-group">
-            <label class="fr-label">Parametres de l'IA
+            <label class="fr-label">Paramètres de l'IA
               <span class="fr-hint-text">Réglages avances : temperature (creativite), max_tokens (longueur de reponse)...</span>
             </label>
             <div id="ia-extra-params">
@@ -128,14 +128,14 @@
               </div>
             </div>
             <button class="fr-btn fr-btn--sm fr-btn--tertiary" type="button" onclick="addExtraParam()">
-              <i class="ri-add-line"></i> Ajouter un parametre
+              <i class="ri-add-line"></i> Ajouter un paramètre
             </button>
           </div>
           <div class="fr-input-group">
             <label class="fr-label" for="ia-system-prompt">Instructions pour l'IA (system prompt)
               <span class="fr-hint-text">Optionnel : personnalise le comportement de l'assistant</span>
             </label>
-            <textarea class="fr-input" id="ia-system-prompt" rows="4" style="font-size: 0.75rem;">Tu es un assistant specialise dans la creation de graphiques et tableaux de bord pour les sites gouvernementaux francais. Tu utilises la bibliotheque dsfr-data (web components DSFR).
+            <textarea class="fr-input" id="ia-system-prompt" rows="4" style="font-size: 0.75rem;">Tu es un assistant specialise dans la creation de graphiques et tableaux de bord pour les sites gouvernementaux francais. Tu utilises la bibliothèque dsfr-data (web components DSFR).
 
 ## Architecture des données (pipeline)
 
@@ -178,16 +178,16 @@ Tu générés du HTML avec les composants dsfr-data. Le code doit etre un snippe
 7. Si la demande est ambigue, pose UNE question courte puis propose un graphique par défaut.
 8. Quand les données contiennent des valeurs textuelles representant des nombres (ex: "1 234"), suggere d'utiliser dsfr-data-normalize avec numeric ou numeric-auto.
 9. Quand les données ont des champs categoriques (ex: region, type, statut), suggere dsfr-data-facets si l'utilisateur veut explorer/filtrer interactivement.
-10. Si l'utilisateur veut recommencer, reinitialiser, effacer ou repartir de zero : {"action":"resetChart"}
+10. Si l'utilisateur veut recommencer, réinitialiser, effacer ou repartir de zero : {"action":"resetChart"}
 
 Sois concis. Reponds en francais.</textarea>
           </div>
           <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
             <button class="fr-btn fr-btn--sm fr-btn--secondary" onclick="saveIAConfig()">
-              <i class="ri-save-line"></i> Sauvegarder config
+              <i class="ri-save-line"></i> Enregistrer
             </button>
             <button class="fr-btn fr-btn--sm fr-btn--tertiary" onclick="resetIAConfig()" title="Revenir a la configuration serveur par défaut">
-              <i class="ri-refresh-line"></i> Reinitialiser
+              <i class="ri-refresh-line"></i> Réinitialiser
             </button>
             <button class="fr-btn fr-btn--sm fr-btn--tertiary" id="probe-capabilities-btn" onclick="probeCapabilities()" title="Vérifie json_schema, tools et /v1/rerank contre le gateway, puis mémorise le résultat">
               <i class="ri-pulse-line"></i> Sonder les capacités
