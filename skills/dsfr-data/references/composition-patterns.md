@@ -90,7 +90,7 @@ L'adapter choisit entre mode Records (filter/sort/pagination) et mode SQL (group
 
 ```html
 <dsfr-data-source id="src" api-type="grist"
-  base-url="https://chartsbuilder.matge.com/grist-gouv-proxy/api/docs/DOC_ID/tables/TABLE/records"
+  base-url="/grist-gouv-proxy/api/docs/DOC_ID/tables/TABLE/records"
   headers='{"Authorization":"Bearer API_KEY"}'>
 </dsfr-data-source>
 <dsfr-data-query id="data" source="src"
@@ -109,7 +109,7 @@ L'adapter choisit entre mode Records (filter/sort/pagination) et mode SQL (group
 ### Pipeline Grist avec facettes :
 ```html
 <dsfr-data-source id="src" api-type="grist"
-  base-url="https://chartsbuilder.matge.com/grist-gouv-proxy/api/docs/DOC_ID/tables/TABLE/records"
+  base-url="/grist-gouv-proxy/api/docs/DOC_ID/tables/TABLE/records"
   headers='{"Authorization":"Bearer API_KEY"}'>
 </dsfr-data-source>
 
@@ -188,7 +188,7 @@ Toujours inclure ces 6 dependances dans cet ordre exact :
 <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.1.1/dist/DSFRChart/DSFRChart.js"></script>
 
 <!-- dsfr-data (obligatoire) -->
-<script src="https://cdn.jsdelivr.net/npm/dsfr-data@0/dist/dsfr-data.core.umd.js"></script>
+<script src="https://VOTRE_INSTANCE/dist/dsfr-data.core.umd.js"></script>
 ```
 
 ### Exemple de snippet complet
@@ -198,7 +198,7 @@ Toujours inclure ces 6 dependances dans cet ordre exact :
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.1.1/dist/DSFRChart/DSFRChart.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.1.1/dist/DSFRChart/DSFRChart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/dsfr-data@0/dist/dsfr-data.core.umd.js"></script>
+<script src="https://VOTRE_INSTANCE/dist/dsfr-data.core.umd.js"></script>
 
 <dsfr-data-source id="data" url="VOTRE_URL_API" transform="results"></dsfr-data-source>
 <dsfr-data-chart source="data" type="bar" label-field="CHAMP_LABEL" value-field="CHAMP_VALEUR"></dsfr-data-chart>

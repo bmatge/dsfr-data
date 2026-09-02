@@ -52,6 +52,13 @@ Le dossier est du markdown pur : copiez `skills/dsfr-data/` dans l'espace de con
 votre outil (projet Claude.ai, `.cursor/rules`, dossier de contexte…). Le `SKILL.md` seul suffit
 comme index ; les références se lisent ensuite au besoin.
 
+### Repères neutres dans les exemples
+
+Les skills du builder-IA citent l'instance qui les sert (proxy, URL de la bibliothèque). L'export
+est **indépendant du poste** : `https://VOTRE_INSTANCE/dist` désigne l'URL de la bibliothèque
+(CDN `https://cdn.jsdelivr.net/npm/dsfr-data@0/dist`, ou `/dist` de votre instance) et les chemins
+`/…-proxy/` sont relatifs à votre instance Charts builder.
+
 ## 2. Serveur MCP (`mcp-server/`)
 
 Le serveur expose `list_skills`, `get_relevant_skills(question)`, `get_skill(id, section)` et

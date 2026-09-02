@@ -3,6 +3,7 @@ import { existsSync, readFileSync, readdirSync } from 'fs';
 import { resolve } from 'path';
 import { SKILLS } from '../apps/builder-ia/src/skills.js';
 import { CLAUDE_SKILL_DIR, renderClaudeSkill } from '../scripts/lib/claude-skill.js';
+import { PROXY_BASE_URL_EMBED, LIB_URL } from '@dsfr-data/shared';
 
 /**
  * Export « skill Claude Code » (skills/dsfr-data/, docs/AI-SKILLS.md) : les
@@ -19,7 +20,10 @@ const version = (
 ).version;
 
 describe('export skill Claude Code (skills/dsfr-data)', () => {
-  const expected = renderClaudeSkill(Object.values(SKILLS), version);
+  const expected = renderClaudeSkill(Object.values(SKILLS), version, {
+    proxyBase: PROXY_BASE_URL_EMBED,
+    libUrl: LIB_URL,
+  });
 
   it('SKILL.md a un frontmatter name/description et un index de toutes les skills', () => {
     const md = expected.get('SKILL.md')!;
