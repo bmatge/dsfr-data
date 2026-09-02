@@ -15,6 +15,7 @@ import {
   LIB_URL,
   injectTourStyles,
   startTourIfFirstVisit,
+  startTour,
   PLAYGROUND_TOUR,
   exportPreviewImage,
   ImageExportError,
@@ -68,12 +69,10 @@ function updateDepsButton(hasDepsState: boolean): void {
   const btn = document.getElementById('deps-btn');
   if (!btn) return;
   if (hasDepsState) {
-    btn.innerHTML =
-      '<i class="ri-code-s-slash-line" aria-hidden="true"></i> Retirer les dépendances';
+    btn.textContent = 'Retirer les dépendances';
     btn.title = 'Retirer les dépendances CDN';
   } else {
-    btn.innerHTML =
-      '<i class="ri-code-s-slash-line" aria-hidden="true"></i> Ajouter des dépendances';
+    btn.textContent = 'Ajouter des dépendances';
     btn.title = 'Ajouter les dépendances CDN pour usage externe';
   }
 }
@@ -188,11 +187,11 @@ function saveFavorite(): void {
   // Visual feedback
   const btn = document.getElementById('save-btn');
   if (btn) {
-    const originalHTML = btn.innerHTML;
-    btn.innerHTML = '<i class="ri-check-line" aria-hidden="true"></i> Ajouté aux favoris';
+    const originalText = btn.textContent;
+    btn.textContent = 'Ajouté aux favoris';
     btn.style.background = 'var(--background-contrast-success)';
     setTimeout(() => {
-      btn.innerHTML = originalHTML;
+      btn.textContent = originalText;
       btn.style.background = '';
     }, 2000);
   }
@@ -334,7 +333,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // Product tour
+  // Product tour : auto au premier passage, sinon « Visite guidée » de la barre
   injectTourStyles();
   startTourIfFirstVisit(PLAYGROUND_TOUR);
+  document.getElementById('tour-btn')?.addEventListener('click', () => startTour(PLAYGROUND_TOUR));
 });

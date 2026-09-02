@@ -38,8 +38,26 @@
   <!-- Header -->
   <app-header current-page="playground" base-path="../.."></app-header>
 
+  <!-- Barre d'actions unique (docs/ux/actions.md §5, lot UX 2 #539) : les ids
+       historiques (#run-btn, #reset-btn, #deps-btn, #export-*-btn, #copy-btn,
+       #save-btn, #pipeline-btn) sont conservés, main.ts ne change pas de câblage. -->
+  <app-action-bar heading="Playground">
+    <button slot="tertiary" id="tour-btn" data-variant="no-outline" class="fr-icon-question-line fr-btn--icon-left">Visite guidée</button>
+    <button slot="tertiary" id="reset-btn" class="fr-icon-refresh-line fr-btn--icon-left" title="Recharger l'exemple sélectionné">Réinitialiser</button>
+    <button slot="tertiary" id="deps-btn" class="fr-icon-code-s-slash-line fr-btn--icon-left" title="Ajouter les CSS/JS nécessaires pour intégrer le code dans une page externe">Ajouter des dépendances</button>
+    <app-menu slot="tertiary" label="Exporter">
+      <button id="export-png-btn" class="fr-icon-image-line" title="Exporter l'aperçu en PNG">Image PNG</button>
+      <button id="export-jpg-btn" class="fr-icon-image-line" title="Exporter l'aperçu en JPG">Image JPG</button>
+    </app-menu>
+    <button slot="secondary" id="copy-btn" class="fr-icon-clipboard-line fr-btn--icon-left">Copier le code</button>
+    <button slot="secondary" id="save-btn" class="fr-icon-star-line fr-btn--icon-left">Ajouter aux favoris</button>
+    <app-menu slot="secondary" label="Ouvrir dans">
+      <button id="pipeline-btn" title="Visualiser le pipeline de composants dans le Pipeline Helper">Pipeline</button>
+    </app-menu>
+    <button slot="primary" id="run-btn" class="fr-icon-play-line fr-btn--icon-left">Exécuter</button>
+  </app-action-bar>
+
   <div class="example-selector">
-    <h1 class="app-page-head__title fr-mr-2w">Playground</h1>
     <label for="example-select">Charger un exemple :</label>
     <select id="example-select" class="fr-select fr-select--sm" style="width: auto; display: inline-block;">
       <optgroup label="Mode direct (dsfr-data-source)">
@@ -110,33 +128,6 @@
 
   <app-layout-builder left-ratio="50">
     <div slot="left" class="playground-editor">
-      <div class="editor-toolbar">
-        <button id="run-btn" class="fr-btn fr-btn--sm fr-btn--icon-left fr-icon-play-line">
-          Exécuter
-        </button>
-        <button id="reset-btn" class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-refresh-line">
-          Réinitialiser
-        </button>
-        <span style="flex: 1;"></span>
-        <button id="deps-btn" class="fr-btn fr-btn--sm fr-btn--secondary" title="Ajouter les CSS/JS nécessaires pour intégrer le code dans une page externe">
-          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
-          Ajouter des dépendances
-        </button>
-        <button id="export-png-btn" class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-image-line" title="Exporter l'aperçu en PNG">PNG</button>
-        <button id="export-jpg-btn" class="fr-btn fr-btn--sm fr-btn--secondary" title="Exporter l'aperçu en JPG">JPG</button>
-        <button id="copy-btn" class="fr-btn fr-btn--sm fr-btn--secondary">
-          <i class="ri-file-copy-line" aria-hidden="true"></i>
-          Copier le code
-        </button>
-        <button id="save-btn" class="fr-btn fr-btn--sm fr-btn--secondary">
-          <i class="ri-star-line" aria-hidden="true"></i>
-          Ajouter aux favoris
-        </button>
-        <button id="pipeline-btn" class="fr-btn fr-btn--sm fr-btn--secondary" title="Visualiser le pipeline de composants dans le Pipeline Helper">
-          <i class="ri-flow-chart" aria-hidden="true"></i>
-          Pipeline
-        </button>
-      </div>
       <textarea id="code-editor"></textarea>
     </div>
     <div slot="right" class="playground-preview">

@@ -106,13 +106,20 @@ test.describe('Header collant (A2)', () => {
     });
   }
 
-  test('Playground : le panneau sticky se cale sous le header', async ({ page }) => {
+  test('Playground : le panneau sticky se cale sous le header et la barre d’actions', async ({
+    page,
+  }) => {
     await page.goto('/apps/playground/index.html');
     await page.waitForSelector('.builder-layout-left');
-    const { top, headerH } = await page.evaluate(() => ({
-      top: getComputedStyle(document.querySelector('.builder-layout-left')!).top,
-      headerH: getComputedStyle(document.documentElement).getPropertyValue('--app-header-h').trim(),
-    }));
-    expect(top).toBe(headerH);
+    const { top, headerH, barH } = await page.evaluate(() => {
+      const root = getComputedStyle(document.documentElement);
+      return {
+        top: parseFloat(getComputedStyle(document.querySelector('.builder-layout-left')!).top),
+        headerH: parseFloat(root.getPropertyValue('--app-header-h')),
+        barH: parseFloat(root.getPropertyValue('--app-action-bar-h') || '0'),
+      };
+    });
+    expect(headerH).toBeGreaterThan(0);
+    expect(top).toBe(headerH + barH);
   });
 });
