@@ -14,10 +14,10 @@ import { disableProductTour } from './helpers';
 interface EditorSpec {
   name: string;
   path: string;
-  /** id du bouton primaire attendu */
-  primary: string;
+  /** id du bouton primaire attendu (absent : app conversationnelle, réserve actée) */
+  primary?: string;
   /** libellé de la primaire */
-  primaryLabel: string;
+  primaryLabel?: string;
   /** ids attendus dans le menu « Ouvrir dans ▾ » ([] : pas de menu, ex. Dashboard) */
   openIn: string[];
   /** ids d'autres actions attendues dans Plus ▾ en mobile */
@@ -70,6 +70,20 @@ const editors: EditorSpec[] = [
     openIn: ['open-playground-btn'],
     folded: ['btn-generate', 'btn-add-source', 'btn-arrange', 'btn-toggle-help'],
   },
+  {
+    name: 'Assistant IA',
+    path: '/apps/builder-ia/index.html',
+    openIn: ['open-playground-btn'],
+    folded: ['copy-code-btn', 'save-favorite-btn', 'clear-chat', 'export-png-btn'],
+  },
+  {
+    name: 'Studio IA',
+    path: '/apps/studio/index.html',
+    primary: 'save-dashboard-btn',
+    primaryLabel: 'Enregistrer',
+    openIn: ['open-dashboard-link'],
+    folded: ['copy-code-btn', 'clear-chat'],
+  },
 ];
 
 const PRIMARY_SELECTOR =
@@ -91,18 +105,24 @@ test.describe('AppActionBar (#539)', () => {
       await expect(toolbar).toHaveAttribute('aria-label', 'Actions de la page');
 
       const primaries = page.locator(PRIMARY_SELECTOR);
-      await expect(primaries).toHaveCount(1);
-      await expect(primaries).toHaveId(ed.primary);
-      await expect(primaries).toHaveText(new RegExp(ed.primaryLabel));
+      if (ed.primary) {
+        await expect(primaries).toHaveCount(1);
+        await expect(primaries).toHaveId(ed.primary);
+        await expect(primaries).toHaveText(new RegExp(ed.primaryLabel ?? ''));
 
-      // La primaire est le dernier bouton visible de la barre.
-      const lastVisible = await toolbar.evaluate((tb) => {
-        const btns = Array.from(tb.querySelectorAll<HTMLElement>('button')).filter(
-          (b) => !b.closest('.app-menu__list') && b.offsetParent !== null
-        );
-        return btns[btns.length - 1]?.id;
-      });
-      expect(lastVisible).toBe(ed.primary);
+        // La primaire est le dernier bouton visible de la barre.
+        const lastVisible = await toolbar.evaluate((tb) => {
+          const btns = Array.from(tb.querySelectorAll<HTMLElement>('button')).filter(
+            (b) => !b.closest('.app-menu__list') && b.offsetParent !== null
+          );
+          return btns[btns.length - 1]?.id;
+        });
+        expect(lastVisible).toBe(ed.primary);
+      } else {
+        // Apps conversationnelles : aucune primaire dans la barre (l'envoi du chat l'est).
+        await expect(primaries).toHaveCount(0);
+        await expect(page.locator('#chat-send-btn')).toBeVisible();
+      }
 
       // Le titre de la zone de travail est le h1 de la page.
       await expect(page.locator('h1:visible')).toHaveCount(1);
@@ -147,12 +167,14 @@ test.describe('AppActionBar (#539)', () => {
       await page.waitForSelector('app-action-bar [role="toolbar"]');
       await ed.prepare?.(page);
 
-      const primary = page.locator(`#${ed.primary}`);
-      await expect(primary).toBeVisible();
-      const box = (await primary.boundingBox())!;
-      expect(box.y + box.height).toBeLessThanOrEqual(812);
-      expect(box.x).toBeGreaterThanOrEqual(0);
-      expect(box.x + box.width).toBeLessThanOrEqual(375);
+      if (ed.primary) {
+        const primary = page.locator(`#${ed.primary}`);
+        await expect(primary).toBeVisible();
+        const box = (await primary.boundingBox())!;
+        expect(box.y + box.height).toBeLessThanOrEqual(812);
+        expect(box.x).toBeGreaterThanOrEqual(0);
+        expect(box.x + box.width).toBeLessThanOrEqual(375);
+      }
 
       // Tout le reste est replié dans Plus ▾.
       const more = page.locator('app-action-bar .app-action-bar__more');

@@ -76,7 +76,7 @@ app-action-bar{display:block;position:sticky;top:var(--app-header-h,0px);z-index
   .app-action-bar__actions{position:fixed;left:0;right:0;bottom:0;z-index:800;margin:0;padding:.5rem 1rem;justify-content:flex-end;background:var(--background-default-grey);border-top:1px solid var(--border-default-grey);box-shadow:0 -4px 12px rgba(0,0,0,.08)}
   .app-action-bar__actions .app-action-bar__group--primary{flex:1 1 auto}
   .app-action-bar__actions .app-action-bar__group--primary .fr-btn{width:100%;justify-content:center}
-  .app-action-bar__actions .app-menu__list{top:auto;bottom:calc(100% + .25rem);left:0;right:auto;max-height:60vh;overflow:auto}
+  .app-action-bar__actions .app-menu__list{position:fixed;top:auto;left:.5rem;right:.5rem;bottom:calc(var(--app-action-bar-fixed-h,3.5rem) + .25rem);max-height:60vh;overflow:auto}
   .app-action-bar__reason{position:fixed;left:0;right:0;bottom:var(--app-action-bar-fixed-h,3.5rem);z-index:800;padding:.25rem 1rem;background:var(--background-default-grey)}
   body:has(app-action-bar){padding-bottom:var(--app-action-bar-fixed-h,3.5rem)}
 }

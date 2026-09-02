@@ -292,6 +292,9 @@ test.describe('Assistant IA v2', () => {
     expect(await userBubble.evaluate((el) => getComputedStyle(el).borderRadius)).toContain('2px');
     await expect(page.locator('.chat-suggestion').first()).toBeVisible();
     await expect(page.locator('.chat-input-hint')).toBeVisible();
-    await expect(page.locator('.chat-header__clear')).toContainText('Effacer');
+    // « Effacer la conversation » vit dans l'AppActionBar depuis le lot UX 2 (#539).
+    await expect(page.locator('app-action-bar #clear-chat')).toContainText(
+      'Effacer la conversation'
+    );
   });
 });

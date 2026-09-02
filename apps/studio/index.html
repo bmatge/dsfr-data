@@ -18,9 +18,18 @@
 <body class="studio-app">
   <app-header current-page="studio" base-path="../../"></app-header>
 
-  <div class="app-page-head">
-    <h1 class="app-page-head__title">Studio IA</h1>
-  </div>
+  <!-- Barre d'actions unique (docs/ux/actions.md §5, lot UX 2 #539). Réserve
+       actée : l'envoi du chat reste le geste primaire de l'app ; la barre
+       porte les actions sur l'artefact, Enregistrer en primaire. Ids conservés
+       (#save-dashboard-btn, #open-dashboard-link, #copy-code-btn, #clear-chat). -->
+  <app-action-bar heading="Studio IA">
+    <button slot="tertiary" id="clear-chat" class="fr-icon-delete-line fr-btn--icon-left" title="Effacer la conversation et repartir de zéro">Effacer la conversation</button>
+    <button slot="secondary" id="copy-code-btn" class="fr-icon-clipboard-line fr-btn--icon-left">Copier le code</button>
+    <app-menu slot="secondary" label="Ouvrir dans">
+      <a id="open-dashboard-link" href="../dashboard/index.html" title="Ouvrir ce tableau de bord dans l'éditeur">Tableau de bord</a>
+    </app-menu>
+    <button slot="primary" id="save-dashboard-btn" class="fr-icon-save-line fr-btn--icon-left">Enregistrer</button>
+  </app-action-bar>
 
   <app-layout-builder left-ratio="40">
     <!-- PANNEAU GAUCHE : source + chat -->
@@ -53,9 +62,6 @@
       <div class="chat-container">
         <div class="chat-header">
           <span class="chat-header__title"><i class="ri-chat-3-line"></i> Assistant dashboard <span id="ia-mode-badge" class="fr-badge fr-badge--sm"></span></span>
-          <button id="clear-chat" class="chat-header__clear" type="button" title="Effacer la conversation">
-            <i class="ri-delete-bin-line" aria-hidden="true"></i> Effacer
-          </button>
         </div>
 
         <div class="chat-messages" id="chat-messages"></div>
@@ -79,14 +85,6 @@
     <app-preview-panel slot="right" show-data-tab tab-labels="Aperçu,Code,JSON">
 
       <div slot="preview" class="studio-preview">
-        <div class="studio-toolbar">
-          <button class="fr-btn fr-btn--sm fr-btn--secondary" id="save-dashboard-btn">
-            <i class="ri-save-line"></i> Enregistrer
-          </button>
-          <a class="fr-btn fr-btn--sm fr-btn--tertiary" id="open-dashboard-link" href="../dashboard/index.html">
-            <i class="ri-layout-masonry-line"></i> Ouvrir dans Dashboard
-          </a>
-        </div>
         <div class="empty-state" id="empty-state">
           <div class="empty-state__bars" aria-hidden="true">
             <span></span><span></span><span></span><span></span>
@@ -98,9 +96,6 @@
       </div>
 
       <div slot="code">
-        <button class="fr-btn fr-btn--sm fr-btn--secondary copy-btn" id="copy-code-btn">
-          <i class="ri-file-copy-line"></i> Copier le code
-        </button>
         <pre id="generated-code">&lt;!-- La page complète sera générée ici --&gt;</pre>
       </div>
 
