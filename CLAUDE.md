@@ -56,6 +56,8 @@ npm run build:skills  # Chaine complete : analyse CEM -> reference generee -> di
 npm run build:cem     # Etape 1 seule : packages/core/custom-elements.json
 npm run build:skills-ref  # Etape 2 seule : apps/builder-ia/src/skills-reference.generated.ts
 npm run build:skill-matching  # Copie du moteur de matching vers mcp-server/
+npm run build:skills-claude   # Etape 4 seule : export skill Claude Code skills/dsfr-data/
+npm run skills:install        # Lie skills/dsfr-data dans .claude/skills (--global : ~/.claude) — docs/AI-SKILLS.md
 
 # Release (voir section Versioning)
 npx changeset             # Creer un changeset
@@ -155,7 +157,7 @@ git push && git push --tags
 - **Jamais** d'indirection sur `import.meta.env` (`const m = import.meta as any`) — casse la substitution Vite, fait fuiter l'ancienne URL en dur.
 - **Jamais** modifier les `.js` dans `packages/core/src/` (artefacts de build).
 - **Jamais** editer a la main `apps/builder-ia/src/skills-reference.generated.ts`,
-  `packages/core/custom-elements.json` ni `mcp-server/src/skill-matching.generated.ts` —
+  `packages/core/custom-elements.json`, `mcp-server/src/skill-matching.generated.ts` ni `skills/dsfr-data/` —
   ce sont des artefacts generes (`npm run build:skills`).
 - **Jamais** ajouter d'`import` dans `packages/shared/src/ia/skill-matching.ts` : ce fichier est
   copie tel quel dans le serveur MCP, qui est hors workspace npm (test-garde + garde-fou

@@ -103,6 +103,7 @@ Pour le detail du monorepo, des conventions, du workflow de release Changesets e
 - [Architecture](docs/ARCHITECTURE.md) — pipeline, adapters, bundles, build
 - [Guide de deploiement](docs/DEPLOYMENT.md) — Docker, 4 scenarios self-hosted, validation
 - [Contribuer](docs/CONTRIBUTING.md) — monorepo, conventions, release Changesets
+- [Skills IA pour les développeurs](docs/AI-SKILLS.md) — skill Claude Code (`npm run skills:install`), serveur MCP, `skills.json`
 - [Fiche produit](docs/DATASHEET.md) — positionnement, comparatif, cibles
 - [Politique de securite](docs/SECURITY.md) + [baseline](docs/security-baseline.md) — signalement, pipeline CI/CD, defenses
 

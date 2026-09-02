@@ -11,3 +11,6 @@ packages/core/custom-elements.json
 mcp-server/src/skill-matching.generated.ts
 **/*.html
 **/*.md
+
+# Export skill Claude Code (généré par build:skills, comparé octet à octet par tests/skills-export.test.ts)
+skills/dsfr-data/
