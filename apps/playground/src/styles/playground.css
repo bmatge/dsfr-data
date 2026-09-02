@@ -87,6 +87,16 @@ body {
   white-space: nowrap;
 }
 
+/* Le sélecteur d'exemple prend la place disponible sans jamais déborder
+   (lot UX 8 : 495 px de large à 375 px avant). */
+.example-selector .fr-select {
+  display: inline-block;
+  width: auto;
+  flex: 1 1 12rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
 .example-selector label {
   font-weight: 500;
 }
