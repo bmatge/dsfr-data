@@ -16,6 +16,7 @@ import {
   isValidDeptCode,
 } from '@dsfr-data/shared';
 import type { Favorite } from '../state.js';
+import { getLastGeneratedCode } from './code-generator.js';
 
 /**
  * Build a serializable snapshot of the current builder state.
@@ -89,7 +90,8 @@ export function openInPlayground(): void {
  * sessionStorage `pipeline-helper-code`, lu à l'arrivée avec `?from=`).
  */
 export function openInPipeline(): void {
-  const code = document.getElementById('generated-code')?.textContent || '';
+  // Source hors DOM : le Pipeline réinterprète ce code en HTML (DOMParser).
+  const code = getLastGeneratedCode();
   if (!code || code.startsWith('//')) {
     toastWarning(
       "Cliquez d'abord sur « Générer » pour voir le résultat, puis vous pourrez l'ouvrir dans le Pipeline."

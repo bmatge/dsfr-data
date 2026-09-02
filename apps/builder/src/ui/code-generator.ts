@@ -23,12 +23,25 @@ import { state, type DataRecord, PROXY_BASE_URL_EMBED, LIB_URL } from '../state.
 import { renderPreview } from './preview.js';
 import { updateAccessibleTable } from './accessible-table.js';
 
+/** Dernier code généré, tel qu'affiché dans le panneau « Code ». */
+let lastGeneratedCode = '';
+
+/**
+ * Dernier code généré (source de vérité hors DOM). À préférer à la lecture
+ * de `#generated-code` quand le code est transmis à une autre app qui le
+ * réinterprète en HTML (Pipeline) — CodeQL js/xss-through-dom.
+ */
+export function getLastGeneratedCode(): string {
+  return lastGeneratedCode;
+}
+
 /** Write the generated code to the code panel AND render it in the preview iframe. */
 function displayGeneratedCode(code: string): void {
   // Prepend sample data comment if using example data
   const finalCode = state.isSampleData
     ? `<!-- Données d'exemple \u2014 remplacez par votre source de données -->\n${code}`
     : code;
+  lastGeneratedCode = finalCode;
   const codeEl = document.getElementById('generated-code');
   if (codeEl) codeEl.textContent = finalCode;
   renderPreview(code);
