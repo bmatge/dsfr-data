@@ -81,11 +81,8 @@
     <div class="sources-locals">
       <div id="local-sources-list" class="sources-rows"></div>
       <div class="sources-locals__footer">
-        <button class="sources-link-btn" id="add-source-btn" type="button">
-          <i class="ri-add-line" aria-hidden="true"></i> Créer une source manuelle
-        </button>
-        <button class="sources-link-btn" id="add-join-btn" type="button">
-          <i class="ri-link-unlink" aria-hidden="true"></i> Joindre deux sources
+        <button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-icon-add-line fr-btn--icon-left" id="add-source-btn" type="button">Créer une source manuelle</button>
+        <button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-icon-links-line fr-btn--icon-left" id="add-join-btn" type="button">Joindre deux sources
         </button>
       </div>
     </div>
@@ -503,13 +500,13 @@
 
         <!-- Tabs pour les 3 modes -->
         <div class="explorer-tabs fr-mt-2w" id="source-mode-tabs">
-          <button class="explorer-tab active" data-source-mode="table">
+          <button type="button" class="fr-btn fr-btn--sm fr-btn--tertiary explorer-tab active" aria-pressed="true" data-source-mode="table">
             <i class="ri-table-line"></i> Tableau
           </button>
-          <button class="explorer-tab" data-source-mode="json">
+          <button type="button" class="fr-btn fr-btn--sm fr-btn--tertiary explorer-tab" aria-pressed="false" data-source-mode="json">
             <i class="ri-code-s-slash-line"></i> Coller JSON
           </button>
-          <button class="explorer-tab" data-source-mode="csv">
+          <button type="button" class="fr-btn fr-btn--sm fr-btn--tertiary explorer-tab" aria-pressed="false" data-source-mode="csv">
             <i class="ri-file-text-line"></i> Importer CSV
           </button>
         </div>
@@ -528,13 +525,13 @@
                   <th>
                     <div class="col-header">
                       <input type="text" value="label" placeholder="Colonne">
-                      <button class="col-remove-btn" title="Supprimer la colonne" onclick="removeTableColumn(this)"><i class="ri-close-line"></i></button>
+                      <button type="button" class="col-remove-btn app-btn--icon app-btn--icon--sm app-btn--icon--muted" title="Supprimer la colonne" onclick="removeTableColumn(this)"><i class="ri-close-line" aria-hidden="true"></i></button>
                     </div>
                   </th>
                   <th>
                     <div class="col-header">
                       <input type="text" value="valeur" placeholder="Colonne">
-                      <button class="col-remove-btn" title="Supprimer la colonne" onclick="removeTableColumn(this)"><i class="ri-close-line"></i></button>
+                      <button type="button" class="col-remove-btn app-btn--icon app-btn--icon--sm app-btn--icon--muted" title="Supprimer la colonne" onclick="removeTableColumn(this)"><i class="ri-close-line" aria-hidden="true"></i></button>
                     </div>
                   </th>
                   <th class="row-actions"></th>

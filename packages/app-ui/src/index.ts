@@ -30,3 +30,4 @@ export { AppSidemenu } from './app-sidemenu.js';
 export { AppPreviewPanel } from './app-preview-panel.js';
 export { AppActionBar } from './app-action-bar.js';
 export { AppMenu } from './app-menu.js';
+export { injectAppPrimitives } from './app-primitives.js';

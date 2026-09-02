@@ -51,11 +51,12 @@ export { getDefaultTitle, getDefaultConfig } from './state.js';
 
 function makeActionBtn(iconClass: string, title: string, handler: () => void): HTMLButtonElement {
   const btn = document.createElement('button');
-  btn.className = 'widget-action-btn';
+  btn.className = 'widget-action-btn app-btn--icon app-btn--icon--muted';
   btn.title = title;
   btn.type = 'button';
   const i = document.createElement('i');
   i.className = iconClass;
+  i.setAttribute('aria-hidden', 'true');
   btn.append(i);
   btn.addEventListener('click', handler);
   return btn;

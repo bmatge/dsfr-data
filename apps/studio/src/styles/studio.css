@@ -77,14 +77,6 @@
   gap: 0.4rem;
 }
 
-.chat-header__clear {
-  background: none;
-  border: none;
-  color: var(--text-mention-grey);
-  font-size: 0.75rem;
-  cursor: pointer;
-}
-
 .chat-messages {
   flex: 1 1 auto;
   overflow-y: auto;
@@ -179,16 +171,6 @@
   font-family: inherit;
   background: var(--background-default-grey);
   color: inherit;
-}
-
-.chat-send-btn {
-  background: var(--background-action-high-blue-france);
-  color: var(--text-inverted-blue-france);
-  border: none;
-  border-radius: 6px;
-  width: 2.2rem;
-  height: 2.2rem;
-  cursor: pointer;
 }
 
 .chat-input-hint {

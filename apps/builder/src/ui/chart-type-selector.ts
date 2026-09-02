@@ -11,9 +11,15 @@ import { renderPaletteSwatches, updateMapCodeFieldWarning } from './ui-helpers.j
  * Select a chart type and update the UI accordingly.
  */
 export function selectChartType(type: ChartType): void {
-  document.querySelectorAll('.chart-type-btn').forEach((b) => b.classList.remove('selected'));
+  document.querySelectorAll('.chart-type-btn').forEach((b) => {
+    b.classList.remove('selected');
+    b.setAttribute('aria-pressed', 'false');
+  });
   const selectedBtn = document.querySelector(`[data-type="${type}"]`);
-  if (selectedBtn) selectedBtn.classList.add('selected');
+  if (selectedBtn) {
+    selectedBtn.classList.add('selected');
+    selectedBtn.setAttribute('aria-pressed', 'true');
+  }
   state.chartType = type;
 
   // Type catégories

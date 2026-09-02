@@ -176,8 +176,8 @@ export function renderConnections(): void {
       <span class="conn-item__name">${escapeHtml(conn.name)}</span>
       <span class="${statusClass}">${escapeHtml(conn.statusText || 'Non testé')}</span>
       <span class="conn-item__ds-label">${escapeHtml(dsLabel)}</span>
-      <button class="row-icon-btn edit-conn-btn" title="Modifier cette connexion" type="button"><i class="ri-pencil-line" aria-hidden="true"></i></button>
-      <button class="row-icon-btn delete-conn-btn" title="Supprimer cette connexion" type="button"><i class="ri-delete-bin-line" aria-hidden="true"></i></button>
+      <button class="row-icon-btn app-btn--icon app-btn--icon--sm edit-conn-btn" title="Modifier cette connexion" type="button"><i class="ri-pencil-line" aria-hidden="true"></i></button>
+      <button class="row-icon-btn app-btn--icon app-btn--icon--sm delete-conn-btn" title="Supprimer cette connexion" type="button"><i class="ri-delete-bin-line" aria-hidden="true"></i></button>
     `;
 
     header.addEventListener('click', (e: Event) => {
@@ -237,9 +237,9 @@ function renderOrphanOnline(): void {
       <span class="source-row__name source-row__name--strong">${escapeHtml(src.name)}</span>
       <span class="source-row__meta">${count} ligne${count > 1 ? 's' : ''}</span>
       <div class="source-row__actions">
-        <button class="row-action-btn act-preview" type="button">Aperçu</button>
-        <button class="row-action-btn row-action-btn--primary act-use" type="button">Utiliser dans le Builder</button>
-        <button class="row-icon-btn act-delete" title="Supprimer" type="button"><i class="ri-delete-bin-line" aria-hidden="true"></i></button>
+        <button class="fr-btn fr-btn--sm fr-btn--tertiary row-action-btn act-preview" type="button">Aperçu</button>
+        <button class="fr-btn fr-btn--sm row-action-btn act-use" type="button">Utiliser dans le Builder</button>
+        <button class="row-icon-btn app-btn--icon app-btn--icon--sm app-btn--icon app-btn--icon--sm act-delete" title="Supprimer" type="button"><i class="ri-delete-bin-line" aria-hidden="true"></i></button>
       </div>`;
     row.querySelector('.act-preview')?.addEventListener('click', () => previewSource(src.id));
     row.querySelector('.act-use')?.addEventListener('click', () => useSourceInBuilder(src));
@@ -323,7 +323,7 @@ async function renderGristBody(conn: StoredConnection, body: HTMLElement): Promi
   toolbar.innerHTML = `
     <input class="conn-item__filter" type="text" placeholder="Filtrer les tables…" value="${escapeHtml(connTableFilter.get(conn.id) ?? '')}" aria-label="Filtrer les tables">
     <span class="conn-item__toolbar-meta">${visible.length} table${visible.length > 1 ? 's' : ''}</span>
-    <button class="sources-link-btn conn-create-table" type="button"><i class="ri-add-line" aria-hidden="true"></i> Créer une table dans Grist</button>
+    <button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-icon-add-line fr-btn--icon-left conn-create-table" type="button">Créer une table dans Grist</button>
   `;
   const filterInput = toolbar.querySelector('input') as HTMLInputElement;
   filterInput.addEventListener('input', () => {
@@ -387,12 +387,12 @@ function renderGristRows(
           : ''
       }
       <div class="source-row__actions">
-        <button class="row-action-btn act-preview" type="button">Aperçu</button>
+        <button class="fr-btn fr-btn--sm fr-btn--tertiary row-action-btn act-preview" type="button">Aperçu</button>
         ${
           created
-            ? `<button class="row-action-btn row-action-btn--primary act-use" type="button">Utiliser dans le Builder</button>
-               <button class="row-icon-btn act-delete" title="Retirer le jeu en ligne (la table Grist n'est pas supprimée)" type="button"><i class="ri-delete-bin-line" aria-hidden="true"></i></button>`
-            : `<button class="row-action-btn row-action-btn--outline act-create" title="Requêté en direct — pour un graphique dynamique" type="button"><i class="ri-add-line" aria-hidden="true"></i> Jeu en ligne</button>`
+            ? `<button class="fr-btn fr-btn--sm row-action-btn act-use" type="button">Utiliser dans le Builder</button>
+               <button class="row-icon-btn app-btn--icon app-btn--icon--sm act-delete" title="Retirer le jeu en ligne (la table Grist n'est pas supprimée)" type="button"><i class="ri-delete-bin-line" aria-hidden="true"></i></button>`
+            : `<button class="fr-btn fr-btn--sm fr-btn--secondary row-action-btn act-create" title="Requêté en direct — pour un graphique dynamique" type="button"><i class="ri-add-line" aria-hidden="true"></i> Jeu en ligne</button>`
         }
       </div>`;
 
@@ -466,12 +466,12 @@ async function renderDataGouvBody(conn: StoredConnection, body: HTMLElement): Pr
           : ''
       }
       <div class="source-row__actions">
-        <button class="row-action-btn act-preview" type="button">Aperçu</button>
+        <button class="fr-btn fr-btn--sm fr-btn--tertiary row-action-btn act-preview" type="button">Aperçu</button>
         ${
           created
-            ? `<button class="row-action-btn row-action-btn--primary act-use" type="button">Utiliser dans le Builder</button>
-               <button class="row-icon-btn act-delete" title="Retirer le jeu en ligne" type="button"><i class="ri-delete-bin-line" aria-hidden="true"></i></button>`
-            : `<button class="row-action-btn row-action-btn--outline act-create" title="Requêté en direct — pour un graphique dynamique" type="button"><i class="ri-add-line" aria-hidden="true"></i> Jeu en ligne</button>`
+            ? `<button class="fr-btn fr-btn--sm row-action-btn act-use" type="button">Utiliser dans le Builder</button>
+               <button class="row-icon-btn app-btn--icon app-btn--icon--sm act-delete" title="Retirer le jeu en ligne" type="button"><i class="ri-delete-bin-line" aria-hidden="true"></i></button>`
+            : `<button class="fr-btn fr-btn--sm fr-btn--secondary row-action-btn act-create" title="Requêté en direct — pour un graphique dynamique" type="button"><i class="ri-add-line" aria-hidden="true"></i> Jeu en ligne</button>`
         }
       </div>`;
 
@@ -518,11 +518,11 @@ function renderApiBody(conn: StoredConnection, body: HTMLElement): void {
         : ''
     }
     <div class="source-row__actions">
-      <button class="row-action-btn act-preview" type="button">Aperçu</button>
+      <button class="fr-btn fr-btn--sm fr-btn--tertiary row-action-btn act-preview" type="button">Aperçu</button>
       ${
         created
-          ? `<button class="row-action-btn row-action-btn--primary act-use" type="button">Utiliser dans le Builder</button>
-             <button class="row-icon-btn act-delete" title="Retirer le jeu en ligne" type="button"><i class="ri-delete-bin-line" aria-hidden="true"></i></button>`
+          ? `<button class="fr-btn fr-btn--sm row-action-btn act-use" type="button">Utiliser dans le Builder</button>
+             <button class="row-icon-btn app-btn--icon app-btn--icon--sm act-delete" title="Retirer le jeu en ligne" type="button"><i class="ri-delete-bin-line" aria-hidden="true"></i></button>`
           : ''
       }
     </div>`;
@@ -1765,14 +1765,14 @@ export function renderSources(): void {
           <span class="source-row__name source-row__name--strong">${escapeHtml(source.name)}</span>
           <span class="source-row__meta">${count} ligne${count > 1 ? 's' : ''}</span>
           <div class="source-row__actions">
-            <button class="row-action-btn act-preview" type="button">Aperçu</button>
-            <button class="row-action-btn row-action-btn--primary act-use" type="button">Utiliser dans le Builder</button>
+            <button class="fr-btn fr-btn--sm fr-btn--tertiary row-action-btn act-preview" type="button">Aperçu</button>
+            <button class="fr-btn fr-btn--sm row-action-btn act-use" type="button">Utiliser dans le Builder</button>
             ${
               source.type === 'manual'
-                ? '<button class="row-icon-btn act-edit" title="Modifier" type="button"><i class="ri-pencil-line" aria-hidden="true"></i></button>'
+                ? '<button class="row-icon-btn app-btn--icon app-btn--icon--sm act-edit" title="Modifier" type="button"><i class="ri-pencil-line" aria-hidden="true"></i></button>'
                 : ''
             }
-            <button class="row-icon-btn act-delete" title="Supprimer" type="button"><i class="ri-delete-bin-line" aria-hidden="true"></i></button>
+            <button class="row-icon-btn app-btn--icon app-btn--icon--sm app-btn--icon app-btn--icon--sm act-delete" title="Supprimer" type="button"><i class="ri-delete-bin-line" aria-hidden="true"></i></button>
           </div>`;
 
         row

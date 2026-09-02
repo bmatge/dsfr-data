@@ -60,7 +60,7 @@
           <span class="carto-panel__title"><i class="ri-map-2-line" aria-hidden="true"></i>Carte</span>
           <i class="ri-arrow-down-s-line carto-panel__arrow" aria-hidden="true"></i>
         </button>
-        <div class="carto-panel__body" id="map-config"></div>
+        <div class="carto-panel__body" id="map-config" tabindex="0"></div>
       </section>
 
       <section class="carto-panel" id="panel-couches" aria-label="Couches de données">
@@ -70,16 +70,14 @@
             <span class="carto-panel__title"><i class="ri-stack-line" aria-hidden="true"></i>Couches</span>
           </button>
           <div class="carto-panel__header-actions">
-            <button id="btn-add-layer" class="carto-link-btn" type="button" title="Ajouter une couche">
-              <i class="ri-add-line" aria-hidden="true"></i>Ajouter
-            </button>
-            <button class="carto-icon-btn carto-panel__header-arrow" type="button" data-panel-toggle="panel-couches"
+            <button id="btn-add-layer" class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-icon-add-line fr-btn--icon-left" type="button" title="Ajouter une couche">Ajouter</button>
+            <button class="carto-icon-btn app-btn--icon app-btn--icon--sm app-btn--icon--muted carto-panel__header-arrow" type="button" data-panel-toggle="panel-couches"
                     aria-expanded="true" aria-controls="couches-body" aria-label="Replier le panneau Couches">
               <i class="ri-arrow-down-s-line carto-panel__arrow" aria-hidden="true"></i>
             </button>
           </div>
         </div>
-        <div class="carto-panel__body" id="couches-body">
+        <div class="carto-panel__body" id="couches-body" tabindex="0">
           <ul id="layers-list" class="carto-layers__list"></ul>
           <div id="layer-data-config"></div>
         </div>
@@ -91,7 +89,7 @@
           <span class="carto-panel__title"><i class="ri-paint-brush-line" aria-hidden="true"></i>Éléments</span>
           <i class="ri-arrow-down-s-line carto-panel__arrow" aria-hidden="true"></i>
         </button>
-        <div class="carto-panel__body" id="layer-config"></div>
+        <div class="carto-panel__body" id="layer-config" tabindex="0"></div>
       </section>
 
     </div>

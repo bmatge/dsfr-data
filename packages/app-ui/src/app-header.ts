@@ -2,6 +2,7 @@ import { LitElement, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { checkAuth, logout, onAuthChange, isDbMode, onSyncStatusChange } from '@dsfr-data/shared';
 import type { User, SyncStatus } from '@dsfr-data/shared';
+import { injectAppPrimitives } from './app-primitives.js';
 // Version injectee au build par define (#306) — plus d'import vers core
 declare const __DSFR_DATA_VERSION__: string;
 const PACKAGE_VERSION = typeof __DSFR_DATA_VERSION__ !== 'undefined' ? __DSFR_DATA_VERSION__ : '';
@@ -87,6 +88,7 @@ export class AppHeader extends LitElement {
     } catch {
       /* ignore */
     }
+    injectAppPrimitives();
     // Inject active page style once
     if (!document.getElementById('app-header-active-style')) {
       const style = document.createElement('style');

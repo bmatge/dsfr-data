@@ -219,16 +219,6 @@ rete-node {
   color: #000091;
 }
 
-.onboarding__dismiss {
-  margin-top: 0.3rem;
-  font-size: 0.75rem;
-  color: #666;
-  cursor: pointer;
-  background: none;
-  border: none;
-  text-decoration: underline;
-}
-
 /* ---- Inspector panel (right 1/3) ---- */
 .inspector {
   padding: 0;

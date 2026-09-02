@@ -145,49 +145,6 @@ body.carto-app > app-action-bar {
 
 /* ---- Barre du haut ---- */
 /* ---- Boutons de la barre ---- */
-.carto-btn {
-  height: 36px;
-  padding: 0 0.75rem;
-  border: none;
-  background: none;
-  cursor: pointer;
-  font-size: 0.875rem;
-  font-family: inherit;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  white-space: nowrap;
-}
-
-.carto-btn--ghost {
-  color: var(--text-action-high-blue-france);
-}
-
-.carto-btn--ghost:hover {
-  background: var(--background-alt-grey);
-}
-
-.carto-btn--secondary {
-  border: 1px solid var(--border-action-high-blue-france);
-  background: var(--background-default-grey);
-  color: var(--text-action-high-blue-france);
-  font-weight: 500;
-}
-
-.carto-btn--secondary:hover {
-  background: var(--background-alt-grey);
-}
-
-.carto-btn--primary {
-  padding: 0 1rem;
-  background: var(--background-action-high-blue-france);
-  color: var(--text-inverted-blue-france, #f5f5fe);
-  font-weight: 500;
-}
-
-.carto-btn--primary:hover {
-  background: var(--background-action-high-blue-france-hover, #1212ff);
-}
 
 /* ---- Colonne de panneaux flottants ---- */
 /* Note : .carto-panels est positionnée par rapport à .carto-workspace
@@ -399,36 +356,6 @@ body.carto-app > app-action-bar {
   color: var(--text-default-warning);
 }
 
-.carto-icon-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 2px 4px;
-  font-size: 0.875rem;
-  color: var(--text-mention-grey);
-}
-
-.carto-icon-btn:hover {
-  color: var(--text-action-high-blue-france);
-}
-
-.carto-link-btn {
-  border: none;
-  background: none;
-  color: var(--text-action-high-blue-france);
-  cursor: pointer;
-  font-size: 0.8125rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  font-family: inherit;
-  padding: 0.25rem 0.5rem;
-}
-
-.carto-link-btn:hover {
-  background: var(--background-contrast-grey, #ececec);
-}
-
 .carto-text-link {
   border: none;
   background: none;
@@ -473,23 +400,6 @@ body.carto-app > app-action-bar {
 .carto-source-ok__detail {
   font-size: 0.75rem;
   color: var(--text-default-success, #18753c);
-}
-
-.carto-source-choose {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 0.625rem;
-  border: 1px dashed var(--border-default-grey);
-  background: none;
-  color: var(--text-action-high-blue-france);
-  cursor: pointer;
-  font-size: 0.8125rem;
-  font-family: inherit;
-  text-align: center;
-}
-
-.carto-source-choose:hover {
-  background: var(--background-alt-grey);
 }
 
 /* ---- Tuiles de representation ---- */
@@ -821,32 +731,10 @@ body.carto-app > app-action-bar {
 }
 
 /* Options de l'onboarding */
+
 .carto-choice {
-  width: 100%;
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  gap: 0.875rem;
-  padding: 0.875rem 1rem;
   margin-bottom: 0.5rem;
-  border: 1px solid var(--border-default-grey);
-  background: var(--background-default-grey);
-  cursor: pointer;
-  font-family: inherit;
-  text-align: left;
-}
-
-.carto-choice:hover {
-  background: var(--background-alt-grey);
-}
-
-.carto-choice--featured {
-  border-color: var(--border-action-high-blue-france);
-  background: var(--background-alt-blue-france, #f5f5fe);
-}
-
-.carto-choice--featured:hover {
-  background: var(--background-alt-blue-france-hover, #ececfe);
+  gap: 0.875rem;
 }
 
 .carto-choice > i:first-child {
