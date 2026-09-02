@@ -306,6 +306,33 @@
   <!-- Header -->
   <app-header current-page="accueil" base-path=""></app-header>
 
+  <!-- Bandeau d'information importante (#578) : communauté d'entraide sur Tchap.
+       Fermeture mémorisée en localStorage (clé dsfr-data-notice-tchap). -->
+  <div class="fr-notice fr-notice--info" id="tchap-notice" hidden>
+    <div class="fr-container">
+      <div class="fr-notice__body">
+        <p class="fr-notice__title">
+          Une question ? Besoin d'aide ? Rejoignez la
+          <a class="fr-notice__link" href="https://www.tchap.gouv.fr/#/room/!JAuMZRFICoBBYcSFJv:agent.finances.tchap.gouv.fr?via=agent.finances.tchap.gouv.fr" target="_blank" rel="noopener external" title="communauté sur Tchap - nouvelle fenêtre">communauté sur Tchap</a>.
+        </p>
+        <button type="button" class="fr-btn--close fr-btn" id="tchap-notice-close" title="Masquer le message">Masquer le message</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      var KEY = 'dsfr-data-notice-tchap';
+      var notice = document.getElementById('tchap-notice');
+      var dismissed = false;
+      try { dismissed = localStorage.getItem(KEY) === 'dismissed'; } catch (e) { /* stockage indisponible */ }
+      if (!dismissed) notice.hidden = false;
+      document.getElementById('tchap-notice-close').addEventListener('click', function () {
+        notice.hidden = true;
+        try { localStorage.setItem(KEY, 'dismissed'); } catch (e) { /* stockage indisponible */ }
+      });
+    })();
+  </script>
+
   <main id="main-content">
 
     <!-- Hero -->
