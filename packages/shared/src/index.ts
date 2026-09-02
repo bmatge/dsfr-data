@@ -206,6 +206,8 @@ export {
   BUILDER_CARTO_TOUR,
   PLAYGROUND_TOUR,
   DASHBOARD_TOUR,
+  PIPELINE_TOUR,
+  STUDIO_TOUR,
   TOURS_REGISTRY,
 } from './tour/tour-configs.js';
 

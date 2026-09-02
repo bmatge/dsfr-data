@@ -160,7 +160,6 @@
           <div class="fr-select-group fr-select-group--sm" style="flex: 1; margin-bottom: 0;">
             <label class="fr-label" for="label-field">
               Étiquettes (axe horizontal)
-              <button type="button" class="help-btn app-btn--icon app-btn--icon--sm" aria-label="Aide" aria-describedby="help-label-field" data-help="label-field"><i class="ri-question-line" aria-hidden="true"></i></button>
               <span class="fr-hint-text">Le champ pour les etiquettes (ex&nbsp;: region, annee)</span>
             </label>
             <select class="fr-select" id="label-field">
@@ -181,7 +180,6 @@
           <div class="fr-select-group fr-select-group--sm" style="flex: 1; margin-bottom: 0;">
             <label class="fr-label" for="value-field">
               Valeur à mesurer (Série 1)
-              <button type="button" class="help-btn app-btn--icon app-btn--icon--sm" aria-label="Aide" aria-describedby="help-value-field" data-help="value-field"><i class="ri-question-line" aria-hidden="true"></i></button>
               <span class="fr-hint-text">Le champ numérique a mesurer (ex&nbsp;: population, budget)</span>
             </label>
             <select class="fr-select" id="value-field">
@@ -427,9 +425,10 @@
 
       <div class="config-section collapsed" id="section-generation-mode" style="display: none;">
         <div class="config-section-header" onclick="toggleSection('section-generation-mode')">
-          <h3><i class="ri-code-s-slash-line"></i> Mode de generation <button type="button" class="help-btn app-btn--icon app-btn--icon--sm" aria-label="Aide" aria-describedby="help-generation-mode" data-help="generation-mode"><i class="ri-question-line" aria-hidden="true"></i></button></h3>
+          <h3><i class="ri-code-s-slash-line"></i> Mode de generation</h3>
           <i class="ri-arrow-down-s-line collapse-icon"></i>
         </div>
+        <p class="fr-hint-text config-section-hint">Embarqué : les données sont copiées dans le code (simple, mais figé). Dynamique : elles sont rechargées depuis l’API à chaque affichage.</p>
         <div class="config-section-content">
           <div class="fr-radio-group">
             <input type="radio" id="mode-embedded" name="generation-mode" value="embedded" checked>
@@ -464,9 +463,10 @@
 
       <div class="config-section collapsed" id="section-normalize" style="display: none;">
         <div class="config-section-header" onclick="toggleSection('section-normalize')">
-          <h3><i class="ri-eraser-line"></i> Nettoyage des données <button type="button" class="help-btn app-btn--icon app-btn--icon--sm" aria-label="Aide" aria-describedby="help-normalize" data-help="normalize"><i class="ri-question-line" aria-hidden="true"></i></button></h3>
+          <h3><i class="ri-eraser-line"></i> Nettoyage des données</h3>
           <i class="ri-arrow-down-s-line collapse-icon"></i>
         </div>
+        <p class="fr-hint-text config-section-hint">Prépare les données brutes avant traitement : espaces, textes « 123 » en nombres, renommage de colonnes.</p>
         <div class="config-section-content">
           <div class="fr-toggle">
             <input type="checkbox" class="fr-toggle__input" id="normalize-enabled" aria-describedby="normalize-hint">
@@ -538,9 +538,10 @@
 
       <div class="config-section collapsed" id="section-databox">
         <div class="config-section-header" onclick="toggleSection('section-databox')">
-          <h3><i class="ri-layout-4-line"></i> Cadre officiel DSFR <button type="button" class="help-btn app-btn--icon app-btn--icon--sm" aria-label="Aide" aria-describedby="help-databox" data-help="databox"><i class="ri-question-line" aria-hidden="true"></i></button></h3>
+          <h3><i class="ri-layout-4-line"></i> Cadre officiel DSFR</h3>
           <i class="ri-arrow-down-s-line collapse-icon"></i>
         </div>
+        <p class="fr-hint-text config-section-hint">Encadre le graphique dans le bloc officiel DSFR : titre, source, date, téléchargement, plein écran.</p>
         <div class="config-section-content">
           <div class="fr-checkbox-group fr-checkbox-group--sm">
             <input type="checkbox" id="databox-toggle">
@@ -587,9 +588,10 @@
 
       <div class="config-section collapsed" id="section-facets" style="display: none;">
         <div class="config-section-header" onclick="toggleSection('section-facets')">
-          <h3><i class="ri-filter-3-line"></i> Filtres a facettes <button type="button" class="help-btn app-btn--icon app-btn--icon--sm" aria-label="Aide" aria-describedby="help-facets" data-help="facets"><i class="ri-question-line" aria-hidden="true"></i></button></h3>
+          <h3><i class="ri-filter-3-line"></i> Filtres a facettes</h3>
           <i class="ri-arrow-down-s-line collapse-icon"></i>
         </div>
+        <p class="fr-hint-text config-section-hint">Ajoute des filtres interactifs sous le graphique (mode dynamique uniquement).</p>
         <div class="config-section-content">
           <div class="fr-toggle">
             <input type="checkbox" class="fr-toggle__input" id="facets-enabled" aria-describedby="facets-hint">
@@ -637,9 +639,10 @@
 
       <div class="config-section collapsed" id="section-a11y">
         <div class="config-section-header" onclick="toggleSection('section-a11y')">
-          <h3><i class="ri-accessibility-line"></i> Accessibilité <button type="button" class="help-btn app-btn--icon app-btn--icon--sm" aria-label="Aide" aria-describedby="help-a11y" data-help="a11y"><i class="ri-question-line" aria-hidden="true"></i></button></h3>
+          <h3><i class="ri-accessibility-line"></i> Accessibilité</h3>
           <i class="ri-arrow-down-s-line collapse-icon"></i>
         </div>
+        <p class="fr-hint-text config-section-hint">Ajoute un tableau de données et un export CSV sous le graphique, pour les lecteurs d’écran et l’open data (RGAA).</p>
         <div class="config-section-content">
           <div class="fr-checkbox-group fr-checkbox-group--sm">
             <input type="checkbox" id="a11y-toggle" checked>

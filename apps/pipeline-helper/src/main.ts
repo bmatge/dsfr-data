@@ -4,7 +4,13 @@ import { generateCode } from './code-generator.js';
 import { PipelineExecutor } from './pipeline-executor.js';
 import { importFromHtml } from './html-parser.js';
 import { showInspector } from './ui/inspector.js';
-import { confirmDialog } from '@dsfr-data/shared';
+import {
+  confirmDialog,
+  injectTourStyles,
+  startTour,
+  startTourIfFirstVisit,
+  PIPELINE_TOUR,
+} from '@dsfr-data/shared';
 
 let editor: PipelineEditor | null = null;
 let executor: PipelineExecutor | null = null;
@@ -159,23 +165,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('btn-playground')?.addEventListener('click', openInPlayground);
   document.getElementById('open-playground-btn')?.addEventListener('click', openInPlayground);
 
-  // « Visite guidée » : bascule le bandeau d'aide (tour réel au lot UX 7, #544)
-  document.getElementById('btn-toggle-help')?.addEventListener('click', () => {
-    const el = document.getElementById('onboarding');
-    const btn = document.getElementById('btn-toggle-help');
-    if (el) {
-      const visible = el.style.display !== 'none';
-      el.style.display = visible ? 'none' : 'block';
-      btn?.setAttribute('aria-expanded', visible ? 'false' : 'true');
-    }
-  });
-
-  // Dismiss onboarding
-  document.getElementById('btn-dismiss-onboarding')?.addEventListener('click', () => {
-    const el = document.getElementById('onboarding');
-    if (el) el.style.display = 'none';
-    localStorage.setItem('pipeline-helper-onboarding-dismissed', '1');
-  });
+  // « Visite guidée » (lot UX 7, #544) : tour partagé, auto au premier passage
+  injectTourStyles();
+  document
+    .getElementById('btn-toggle-help')
+    ?.addEventListener('click', () => startTour(PIPELINE_TOUR));
+  startTourIfFirstVisit(PIPELINE_TOUR);
 
   // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {
