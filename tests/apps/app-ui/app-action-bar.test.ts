@@ -251,6 +251,28 @@ describe('<app-action-bar>', () => {
     expect(document.getElementById('late')).toBeNull();
   });
 
+  it('reason-host : la raison est déplacée dans l’hôte, aria-describedby conservé', async () => {
+    document.body.innerHTML = '<div id="aside"></div>';
+    const bar = document.createElement('app-action-bar') as AppActionBar;
+    bar.setAttribute('heading', 'X');
+    bar.setAttribute('reason-host', '#aside');
+    bar.setAttribute('disabled-reason', 'Il manque : une source de données.');
+    bar.innerHTML = '<button slot="primary" id="p">P</button>';
+    document.body.appendChild(bar);
+    await bar.updateComplete;
+    await bar.updateComplete;
+    const reason = document.querySelector('#aside .app-action-bar__reason') as HTMLElement;
+    expect(reason).not.toBeNull();
+    expect(reason.textContent).toBe('Il manque : une source de données.');
+    expect(bar.querySelector('.app-action-bar__reason')).toBeNull();
+    expect(byId('p').getAttribute('aria-describedby')).toBe(reason.id);
+    expect(byId('p').hasAttribute('disabled')).toBe(true);
+    bar.removeAttribute('disabled-reason');
+    await bar.updateComplete;
+    expect(reason.hidden).toBe(true);
+    expect(byId('p').hasAttribute('disabled')).toBe(false);
+  });
+
   it('slot="context" : placé après le titre, hors du toolbar', async () => {
     const bar = await mount(
       `<div slot="context"><label for="ex">Exemple</label><select id="ex" class="fr-select"></select></div>

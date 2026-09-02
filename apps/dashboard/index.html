@@ -116,16 +116,6 @@
         <div class="vde-toolbar-left">
           <input type="text" class="dashboard-title-input" id="dashboard-title" value="Mon tableau de bord" placeholder="Titre du dashboard">
         </div>
-        <div class="vde-toolbar-right">
-          <div class="fr-select-group fr-select-group--sm" style="display:inline-block;min-width:auto;">
-            <select id="template-select" class="fr-select fr-select--sm" style="padding:0.25rem 2rem 0.25rem 0.5rem;" aria-label="Templates">
-              <option value="">Templates...</option>
-              <option value="kpi-chart">3 KPIs + Graphique</option>
-              <option value="two-charts">2 Graphiques</option>
-              <option value="full">Dashboard complet</option>
-            </select>
-          </div>
-        </div>
       </div>
 
       <!-- Onglets DSFR natifs (docs/ux/actions.md §2.4, lot UX 4 #541) : le
@@ -142,6 +132,15 @@
             <button type="button" id="tab-json-btn" class="fr-tabs__tab" tabindex="-1" role="tab" aria-selected="false" aria-controls="tab-json">JSON</button>
           </li>
         </ul>
+        <!-- À droite sur la ligne des onglets : modèles de tableau de bord -->
+        <div class="vde-tabs-aside">
+          <select id="template-select" class="fr-select fr-select--sm" aria-label="Modèles de tableau de bord">
+            <option value="">Modèles…</option>
+            <option value="kpi-chart">3 KPIs + Graphique</option>
+            <option value="two-charts">2 Graphiques</option>
+            <option value="full">Tableau de bord complet</option>
+          </select>
+        </div>
 
       <!-- Aperçu (grille) -->
       <div class="fr-tabs__panel fr-tabs__panel--selected vde-tab-panel" id="tab-design" role="tabpanel" aria-labelledby="tab-design-btn" tabindex="0">

@@ -110,6 +110,48 @@ const editors: EditorSpec[] = [
 const PRIMARY_SELECTOR =
   '[role="toolbar"] .fr-btn:not(.fr-btn--secondary):not(.fr-btn--tertiary):not(.fr-btn--tertiary-no-outline):not(.app-menu__trigger)';
 
+test.describe('Ligne des onglets : raison et contrôles de contexte', () => {
+  test.beforeEach(async ({ page }) => {
+    await disableProductTour(page);
+  });
+
+  test('Builder : la raison de désactivation de « Générer » est sur la ligne des onglets', async ({
+    page,
+  }) => {
+    await page.goto('/apps/builder/index.html');
+    await page.waitForSelector('app-action-bar [role="toolbar"]');
+    const reason = page.locator('app-preview-panel .preview-panel-aside .app-action-bar__reason');
+    await expect(reason).toBeVisible();
+    await expect(reason).toContainText('Il manque');
+    await expect(page.locator('app-action-bar .app-action-bar__reason')).toHaveCount(0);
+    const primary = page.locator('#generate-btn');
+    await expect(primary).toBeDisabled();
+    expect(await primary.getAttribute('aria-describedby')).toBe(await reason.getAttribute('id'));
+    // Même ligne que les onglets.
+    const [tabBox, reasonBox] = await Promise.all([
+      page.locator('#tab-preview-btn').boundingBox(),
+      reason.boundingBox(),
+    ]);
+    expect(
+      Math.abs(tabBox!.y + tabBox!.height / 2 - (reasonBox!.y + reasonBox!.height / 2))
+    ).toBeLessThan(12);
+  });
+
+  test('Dashboard : le sélecteur de modèles est sur la ligne des onglets', async ({ page }) => {
+    await page.goto('/apps/dashboard/index.html');
+    await page.waitForSelector('app-action-bar [role="toolbar"]');
+    const select = page.locator('.vde-tabs-aside #template-select');
+    await expect(select).toBeVisible();
+    const [tabBox, selBox] = await Promise.all([
+      page.locator('#tab-design-btn').boundingBox(),
+      select.boundingBox(),
+    ]);
+    expect(
+      Math.abs(tabBox!.y + tabBox!.height / 2 - (selBox!.y + selBox!.height / 2))
+    ).toBeLessThan(12);
+  });
+});
+
 test.describe('AppActionBar v2 (docs/ux/actions.md §5)', () => {
   test.beforeEach(async ({ page }) => {
     await disableProductTour(page);

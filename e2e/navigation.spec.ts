@@ -34,8 +34,9 @@ const pages: PageSpec[] = [
   },
   { name: 'Playground', path: '/apps/playground/index.html', title: 'Playground' },
   { name: 'Pipeline', path: '/apps/pipeline-helper/index.html', title: 'Pipeline' },
-  { name: 'Suivi', path: '/apps/monitoring/index.html', title: 'Suivi' },
-  { name: 'Admin', path: '/apps/admin/index.html', title: 'Admin' },
+  // Réservées aux admins connectés (#575) : hors nav pour le visiteur anonyme des e2e.
+  { name: 'Suivi', path: '/apps/monitoring/index.html', title: 'Suivi', inNav: false },
+  { name: 'Admin', path: '/apps/admin/index.html', title: 'Admin', inNav: false },
   { name: 'Favoris', path: '/apps/favorites/index.html', title: 'Favoris' },
   { name: 'Guide', path: '/guide/guide.html', title: 'Guide' },
   { name: 'Composants', path: '/specs/index.html', title: 'Composants' },

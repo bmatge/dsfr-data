@@ -19,6 +19,7 @@ import { customElement, property } from 'lit/decorators.js';
  *
  * @example
  * <app-preview-panel show-data-tab tab-labels="Aperçu,Code,JSON">
+ *   <div slot="aside">…</div>   <!-- à droite, sur la ligne des onglets (raison, sélecteur…) -->
  *   <div slot="preview">…</div>
  *   <div slot="code"><pre id="generated-code"></pre></div>
  *   <div slot="data"><pre id="raw-data"></pre></div>
@@ -69,6 +70,7 @@ export class AppPreviewPanel extends LitElement {
   private _previewContent: Element[] = [];
   private _codeContent: Element[] = [];
   private _dataContent: Element[] = [];
+  private _asideContent: Element[] = [];
   private _contentMoved = false;
   /** Suit la classe `fr-tabs__panel--selected` posée par le JS du DSFR. */
   private _selectionObserver?: MutationObserver;
@@ -89,6 +91,7 @@ export class AppPreviewPanel extends LitElement {
     this._previewContent = Array.from(this.querySelectorAll('[slot="preview"]'));
     this._codeContent = Array.from(this.querySelectorAll('[slot="code"]'));
     this._dataContent = Array.from(this.querySelectorAll('[slot="data"]'));
+    this._asideContent = Array.from(this.querySelectorAll('[slot="aside"]'));
   }
 
   firstUpdated() {
@@ -129,6 +132,8 @@ export class AppPreviewPanel extends LitElement {
     if (previewContainer) this._previewContent.forEach((el) => previewContainer.appendChild(el));
     if (codeContainer) this._codeContent.forEach((el) => codeContainer.appendChild(el));
     if (dataContainer) this._dataContent.forEach((el) => dataContainer.appendChild(el));
+    const aside = this.querySelector('.preview-panel-aside');
+    if (aside) this._asideContent.forEach((el) => aside.appendChild(el));
     this._contentMoved = true;
   }
 
@@ -221,6 +226,7 @@ export class AppPreviewPanel extends LitElement {
                   </li>`
             )}
           </ul>
+          <div class="preview-panel-aside"></div>
           ${tabs.map((tab) =>
             tab === initial
               ? html`<div
@@ -265,6 +271,7 @@ export class AppPreviewPanel extends LitElement {
            qui grandit après coup (graphique rendu en différé, iframe). On
            laisse la hauteur libre et on masque les panneaux non sélectionnés. */
         .preview-panel > .fr-tabs {
+          position: relative;
           height: auto !important;
           flex: 1;
           flex-direction: column;
@@ -286,6 +293,27 @@ export class AppPreviewPanel extends LitElement {
         .preview-panel > .fr-tabs > .fr-tabs__list {
           flex-shrink: 0;
           box-shadow: inset 0 -1px 0 0 var(--border-default-grey);
+        }
+
+        /* Zone « à côté » des onglets : contenu slot="aside" (raison de
+           désactivation de la primaire, sélecteur de modèle…), aligné à droite
+           sur la ligne des onglets, hors du tablist. */
+        .preview-panel-aside {
+          position: absolute;
+          top: 0;
+          right: 0;
+          height: 3rem;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0 0.75rem;
+          max-width: 60%;
+        }
+        .preview-panel-aside:empty {
+          display: none;
+        }
+        .preview-panel-aside .fr-hint-text {
+          margin: 0;
         }
 
         .preview-panel > .fr-tabs > .fr-tabs__panel {

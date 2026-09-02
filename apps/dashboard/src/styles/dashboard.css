@@ -165,11 +165,26 @@ body {
   gap: 1rem;
 }
 
-/* Templates seuls : les actions sont dans <app-action-bar> (lot UX 2, #539). */
-.vde-toolbar-right {
+/* Modèles : à droite sur la ligne des onglets (les actions sont dans
+   <app-action-bar>, lot UX 2 #539). */
+.vde-tabs {
+  position: relative;
+}
+
+.vde-tabs-aside {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 3rem;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  padding: 0 0.75rem;
+}
+
+.vde-tabs-aside .fr-select {
+  width: auto;
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
 }
 
 .dashboard-title-input {

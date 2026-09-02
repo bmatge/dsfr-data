@@ -175,16 +175,18 @@ export class AppSidemenu extends LitElement {
           <div class="fr-collapse" id="app-sidemenu-wrapper">
             ${menu.map(
               (section, i) => html`
-                ${section.title
-                  ? html`
-                      <div
-                        class="fr-sidemenu__title ${i > 0 ? 'fr-mt-1w' : ''}"
-                        id="${i === 0 ? 'app-sidemenu-title' : `app-sidemenu-title-${i}`}"
-                      >
-                        ${section.title}
-                      </div>
-                    `
-                  : nothing}
+                ${
+                  section.title
+                    ? html`
+                        <div
+                          class="fr-sidemenu__title ${i > 0 ? 'fr-mt-1w' : ''}"
+                          id="${i === 0 ? 'app-sidemenu-title' : `app-sidemenu-title-${i}`}"
+                        >
+                          ${section.title}
+                        </div>
+                      `
+                    : nothing
+                }
                 <ul class="fr-sidemenu__list">
                   ${section.items.map((item) => this._renderItem(item, activePath))}
                 </ul>

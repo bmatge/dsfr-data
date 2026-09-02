@@ -32,7 +32,7 @@
   <!-- Barre d'actions unique (docs/ux/actions.md §5, lot UX 2 #539). Ids
        historiques conservés (#generate-btn, #footer-copy-btn, #restart-tour-btn) ;
        les actions du tablist d'aperçu (Playground / Favoris / Image) la rejoignent. -->
-  <app-action-bar heading="Créer un graphique">
+  <app-action-bar heading="Créer un graphique" reason-host="#preview-aside">
     <button slot="help" id="restart-tour-btn" class="fr-icon-question-line" title="Revoir la visite guidée">Visite guidée</button>
     <button slot="secondary" id="footer-copy-btn" class="fr-icon-clipboard-line fr-btn--icon-left" title="Copier le code généré">Copier le code</button>
     <button slot="tertiary" id="save-favorite-btn" class="preview-panel-save-btn fr-icon-star-line">Ajouter aux favoris</button>
@@ -684,6 +684,9 @@
     <app-preview-panel slot="right"
       show-data-tab
       tab-labels="Aperçu,Code,Données">
+
+      <!-- Ligne des onglets, à droite : raison de désactivation de « Générer » -->
+      <div slot="aside" id="preview-aside"></div>
 
       <!-- Onglet Aperçu -->
       <div slot="preview">
