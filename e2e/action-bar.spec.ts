@@ -20,6 +20,8 @@ interface EditorSpec {
   primaryLabel: string;
   /** ids attendus dans le menu « Ouvrir dans ▾ » */
   openIn: string[];
+  /** Préparation après chargement (ex. : fermer la modale d'arrivée). */
+  prepare?: (page: import('@playwright/test').Page) => Promise<void>;
 }
 
 const editors: EditorSpec[] = [
@@ -37,6 +39,19 @@ const editors: EditorSpec[] = [
     primaryLabel: 'Générer',
     openIn: ['open-playground-btn', 'open-pipeline-btn'],
   },
+  {
+    name: 'Carto',
+    path: '/apps/builder-carto/index.html',
+    primary: 'btn-execute',
+    primaryLabel: 'Générer',
+    openIn: ['open-playground-btn'],
+    // Modale d'arrivée « D'où viennent vos données ? » (D2, lot 7) : on prend
+    // le jeu d'exemple pour libérer l'interface.
+    prepare: async (page) => {
+      const choice = page.locator('.carto-choice').first();
+      if (await choice.isVisible({ timeout: 3000 }).catch(() => false)) await choice.click();
+    },
+  },
 ];
 
 const PRIMARY_SELECTOR =
@@ -51,6 +66,7 @@ test.describe('AppActionBar (#539)', () => {
     test(`${ed.name} : une barre, une primaire à droite, Ouvrir dans ▾`, async ({ page }) => {
       await page.goto(ed.path);
       await page.waitForSelector('app-action-bar [role="toolbar"]');
+      await ed.prepare?.(page);
 
       await expect(page.locator('[role="toolbar"]')).toHaveCount(1);
       const toolbar = page.locator('app-action-bar [role="toolbar"]');
@@ -85,17 +101,25 @@ test.describe('AppActionBar (#539)', () => {
       await page.keyboard.press('Escape');
       await expect(openIn.locator('[role="menu"]')).toBeHidden();
 
-      // Collée sous le header : après défilement, la barre reste juste sous lui.
-      await page.evaluate(() => {
-        document.body.style.minHeight = '5000px';
-        window.scrollTo(0, 1500);
+      // Collée sous le header : après défilement (quand la page défile — les
+      // apps plein écran comme Carto ne défilent pas), la barre reste juste
+      // sous lui.
+      const gap = await page.evaluate(async () => {
+        const scrollable =
+          getComputedStyle(document.body).overflow !== 'hidden' &&
+          getComputedStyle(document.documentElement).overflow !== 'hidden';
+        if (scrollable) {
+          const spacer = document.createElement('div');
+          spacer.style.height = '5000px';
+          document.body.appendChild(spacer);
+          window.scrollTo(0, 1500);
+          await new Promise((r) => requestAnimationFrame(() => r(null)));
+        }
+        const barTop = document.querySelector('app-action-bar')!.getBoundingClientRect().top;
+        const headerBottom = document.querySelector('app-header')!.getBoundingClientRect().bottom;
+        return { gap: Math.abs(barTop - headerBottom), scrolled: window.scrollY };
       });
-      await page.waitForFunction(() => window.scrollY >= 1000);
-      const { barTop, headerBottom } = await page.evaluate(() => ({
-        barTop: document.querySelector('app-action-bar')!.getBoundingClientRect().top,
-        headerBottom: document.querySelector('app-header')!.getBoundingClientRect().bottom,
-      }));
-      expect(Math.abs(barTop - headerBottom)).toBeLessThanOrEqual(1);
+      expect(gap.gap).toBeLessThanOrEqual(1);
     });
 
     test(`${ed.name} @375px : primaire atteignable sans défilement, rien hors écran`, async ({
@@ -104,6 +128,7 @@ test.describe('AppActionBar (#539)', () => {
       await page.setViewportSize({ width: 375, height: 812 });
       await page.goto(ed.path);
       await page.waitForSelector('app-action-bar [role="toolbar"]');
+      await ed.prepare?.(page);
 
       const primary = page.locator(`#${ed.primary}`);
       await expect(primary).toBeVisible();

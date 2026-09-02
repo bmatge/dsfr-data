@@ -13,7 +13,8 @@ body.carto-app {
   min-height: 100dvh;
 }
 
-body.carto-app > app-header {
+body.carto-app > app-header,
+body.carto-app > app-action-bar {
   flex: 0 0 auto;
 }
 
@@ -29,7 +30,7 @@ body.carto-app > app-header {
 /* ---- Canevas carte ---- */
 .carto-canvas {
   position: absolute;
-  top: 56px;
+  top: 0;
   left: 0;
   right: 0;
   bottom: 0;
@@ -86,76 +87,6 @@ body.carto-app > app-header {
 }
 
 /* ---- Barre du haut ---- */
-.carto-topbar {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 56px;
-  z-index: 1100;
-  background: var(--background-default-grey, #fff);
-  border-bottom: 1px solid var(--border-default-grey);
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 0 1rem;
-  box-sizing: border-box;
-}
-
-.carto-topbar__brand {
-  display: flex;
-  align-items: center;
-  background-image: none;
-}
-
-.carto-topbar__logo.fr-logo {
-  font-size: 0.4688rem;
-  margin: 0;
-}
-
-.carto-topbar__logo.fr-logo::after {
-  display: none !important;
-  content: none !important;
-}
-
-.carto-topbar__title {
-  display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
-  min-width: 0;
-  margin: 0;
-  font-size: 1rem;
-  line-height: 1.5;
-}
-
-.carto-topbar__app {
-  font-weight: 700;
-  color: var(--text-title-grey);
-  white-space: nowrap;
-}
-
-.carto-topbar__page {
-  font-size: 0.875rem;
-  font-weight: 400;
-  color: var(--text-mention-grey);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.carto-topbar__actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-left: auto;
-}
-
-.carto-topbar__guide {
-  font-size: 0.875rem;
-  color: var(--text-action-high-blue-france);
-  white-space: nowrap;
-}
-
 /* ---- Boutons de la barre ---- */
 .carto-btn {
   height: 36px;
@@ -203,11 +134,11 @@ body.carto-app > app-header {
 
 /* ---- Colonne de panneaux flottants ---- */
 /* Note : .carto-panels est positionnée par rapport à .carto-workspace
-   (l'<app-header> est en dehors du workspace, pas besoin de le
-   compenser ici — seule la topbar carto locale à 56px l'est). */
+   (l'<app-header> et l'<app-action-bar> sont en dehors du workspace, pas
+   besoin de les compenser ici). */
 .carto-panels {
   position: absolute;
-  top: 72px;
+  top: 16px;
   left: 16px;
   bottom: 16px;
   width: 344px;

@@ -28,6 +28,7 @@ import {
   migrateSource,
   injectTourStyles,
   startTourIfFirstVisit,
+  startTour,
   BUILDER_CARTO_TOUR,
   initAuth,
   toastWarning,
@@ -1452,6 +1453,15 @@ function renderExport() {
     .getElementById('btn-export-favorite')
     ?.addEventListener('click', () => saveFavorite('btn-export-favorite'));
   document.getElementById('btn-playground')?.addEventListener('click', sendToPlayground);
+
+  // Actions de la barre commune (<app-action-bar>, lot UX 2 #539)
+  document
+    .getElementById('save-favorite-btn')
+    ?.addEventListener('click', () => saveFavorite('save-favorite-btn'));
+  document.getElementById('open-playground-btn')?.addEventListener('click', sendToPlayground);
+  document
+    .getElementById('tour-btn')
+    ?.addEventListener('click', () => startTour(BUILDER_CARTO_TOUR));
 }
 
 // ---------------------------------------------------------------------------
@@ -1778,10 +1788,11 @@ function executePreview(fit = false) {
   state.map.a11y = false;
   // Avec des encarts, une bande basse leur est réservée (vignettes).
   // --carto-header-h : hauteur du <app-header> commun (mesurée au runtime,
-  // cf. bindStaticUi ci-dessous), + 56px pour la topbar carto locale.
+  // cf. observeHeaderHeight), --app-action-bar-h : celle de la barre
+  // d'actions commune (publiée par <app-action-bar>).
   state.map.height = state.map.insets.length
-    ? 'calc(100dvh - var(--carto-header-h, 96px) - 56px - 208px)'
-    : 'calc(100dvh - var(--carto-header-h, 96px) - 56px)';
+    ? 'calc(100dvh - var(--carto-header-h, 96px) - var(--app-action-bar-h, 56px) - 208px)'
+    : 'calc(100dvh - var(--carto-header-h, 96px) - var(--app-action-bar-h, 56px))';
   if (fit) state.map.fitBounds = true;
   const code = generateCode();
   state.generationMode = saved.mode;
