@@ -124,6 +124,12 @@ test.describe('AppActionBar (#539)', () => {
         await expect(page.locator('#chat-send-btn')).toBeVisible();
       }
 
+      // « Plus ▾ » n'apparaît que s'il a quelque chose à replier.
+      const more = page.locator('app-action-bar .app-action-bar__more');
+      if ((await more.locator('.app-menu__item').count()) === 0) {
+        await expect(more).toBeHidden();
+      }
+
       // Le titre de la zone de travail est le h1 de la page.
       await expect(page.locator('h1:visible')).toHaveCount(1);
       await expect(page.locator('app-action-bar h1')).toBeVisible();
