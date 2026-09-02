@@ -8,6 +8,7 @@ import {
   initAuth,
   injectTourStyles,
   startTourIfFirstVisit,
+  startTour,
   BUILDER_IA_TOUR,
   exportPreviewImage,
   ImageExportError,
@@ -124,28 +125,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     addMessage('assistant', 'Conversation effacee. Comment puis-je vous aider ?');
   });
 
-  // Listen for save-favorite and open-playground events from preview panel
-  const previewPanel = document.querySelector('app-preview-panel');
-  if (previewPanel) {
-    previewPanel.addEventListener('save-favorite', saveFavorite);
-    previewPanel.addEventListener('open-playground', openInPlayground);
-    previewPanel.addEventListener('export-image', (e) => {
-      const format = (e as CustomEvent<{ format?: 'png' | 'jpg' }>).detail?.format ?? 'png';
-      void (async () => {
-        try {
-          if (!state.chartConfig) throw new ImageExportError('empty');
-          // Bloc complet titre + sous-titre + graphique (light DOM du panneau).
-          const root = (document.querySelector('.preview-chart') ??
-            document.getElementById('tab-preview') ??
-            document.body) as HTMLElement;
-          await exportPreviewImage(root, format, state.chartConfig.title || 'graphique');
-        } catch (err) {
-          if (err instanceof ImageExportError) toastError(IMAGE_EXPORT_MESSAGES[err.reason]);
-          else throw err;
-        }
-      })();
-    });
-  }
+  // Actions sur l'artefact, portées par <app-action-bar> (lot UX 2, #539)
+  const exportImage = (format: 'png' | 'jpg') =>
+    void (async () => {
+      try {
+        if (!state.chartConfig) throw new ImageExportError('empty');
+        // Bloc complet titre + sous-titre + graphique (light DOM du panneau).
+        const root = (document.querySelector('.preview-chart') ??
+          document.getElementById('tab-preview') ??
+          document.body) as HTMLElement;
+        await exportPreviewImage(root, format, state.chartConfig.title || 'graphique');
+      } catch (err) {
+        if (err instanceof ImageExportError) toastError(IMAGE_EXPORT_MESSAGES[err.reason]);
+        else throw err;
+      }
+    })();
+  document.getElementById('export-png-btn')?.addEventListener('click', () => exportImage('png'));
+  document.getElementById('export-jpg-btn')?.addEventListener('click', () => exportImage('jpg'));
+  document.getElementById('save-favorite-btn')?.addEventListener('click', saveFavorite);
+  document.getElementById('open-playground-btn')?.addEventListener('click', openInPlayground);
+  document.getElementById('copy-code-btn')?.addEventListener('click', copyCode);
+  document.getElementById('tour-btn')?.addEventListener('click', () => startTour(BUILDER_IA_TOUR));
 
   // Product tour
   injectTourStyles();

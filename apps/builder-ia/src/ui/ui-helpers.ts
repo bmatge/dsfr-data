@@ -116,11 +116,11 @@ export function saveFavorite(): void {
   // Visual feedback
   const btn = document.querySelector('.preview-panel-save-btn') as HTMLElement | null;
   if (btn) {
-    const originalHTML = btn.innerHTML;
-    btn.innerHTML = '<i class="ri-check-line" aria-hidden="true"></i> Sauvegarde !';
+    const originalText = btn.textContent;
+    btn.textContent = 'Ajouté aux favoris';
     btn.style.background = 'var(--background-contrast-success)';
     setTimeout(() => {
-      btn.innerHTML = originalHTML;
+      btn.textContent = originalText;
       btn.style.background = '';
     }, 2000);
   }
