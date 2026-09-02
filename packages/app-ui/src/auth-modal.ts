@@ -227,8 +227,8 @@ export class AuthModal extends LitElement {
                   id="auth-name"
                   .value=${this._displayName}
                   @input=${(e: Event) => {
-                  this._displayName = (e.target as HTMLInputElement).value;
-                }}
+                    this._displayName = (e.target as HTMLInputElement).value;
+                  }}
                   required
                 />
               </div>
@@ -281,9 +281,9 @@ export class AuthModal extends LitElement {
                 <a
                   href="#"
                   @click=${(e: Event) => {
-                  e.preventDefault();
-                  this._switchTab('forgot');
-                }}
+                    e.preventDefault();
+                    this._switchTab('forgot');
+                  }}
                   style="font-size:0.875rem"
                   >Mot de passe oublie ?</a
                 >
@@ -365,8 +365,8 @@ export class AuthModal extends LitElement {
                               <li role="presentation">
                                 <button
                                   class="fr-tabs__tab ${
-                                  this._tab === 'login' ? 'fr-tabs__tab--selected' : ''
-                                }"
+                                    this._tab === 'login' ? 'fr-tabs__tab--selected' : ''
+                                  }"
                                   role="tab"
                                   aria-selected="${this._tab === 'login'}"
                                   @click=${() => this._switchTab('login')}
@@ -377,8 +377,8 @@ export class AuthModal extends LitElement {
                               <li role="presentation">
                                 <button
                                   class="fr-tabs__tab ${
-                                  this._tab === 'register' ? 'fr-tabs__tab--selected' : ''
-                                }"
+                                    this._tab === 'register' ? 'fr-tabs__tab--selected' : ''
+                                  }"
                                   role="tab"
                                   aria-selected="${this._tab === 'register'}"
                                   @click=${() => this._switchTab('register')}
@@ -394,9 +394,9 @@ export class AuthModal extends LitElement {
                             <a
                               href="#"
                               @click=${(e: Event) => {
-                              e.preventDefault();
-                              this._switchTab('login');
-                            }}
+                                e.preventDefault();
+                                this._switchTab('login');
+                              }}
                               style="font-size:0.875rem"
                               >&larr; Retour a la connexion</a
                             >

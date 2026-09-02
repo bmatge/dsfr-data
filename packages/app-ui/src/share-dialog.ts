@@ -189,16 +189,18 @@ export class ShareDialog extends LitElement {
                 <div class="fr-modal__content">
                   <h1 id="share-dialog-title" class="fr-modal__title">Partager</h1>
 
-                  ${this._error
-                    ? html`
-                        <div
-                          class="fr-alert fr-alert--error fr-alert--sm"
-                          style="margin-bottom:1rem"
-                        >
-                          <p>${this._error}</p>
-                        </div>
-                      `
-                    : nothing}
+                  ${
+                    this._error
+                      ? html`
+                          <div
+                            class="fr-alert fr-alert--error fr-alert--sm"
+                            style="margin-bottom:1rem"
+                          >
+                            <p>${this._error}</p>
+                          </div>
+                        `
+                      : nothing
+                  }
 
                   <!-- Add share form -->
                   <div style="margin-bottom:1.5rem">
@@ -209,9 +211,7 @@ export class ShareDialog extends LitElement {
                         id="share-target-type"
                         @change=${(e: Event) => {
                           this._targetType = (e.target as HTMLSelectElement).value as
-                            | 'user'
-                            | 'group'
-                            | 'global';
+                            'user' | 'group' | 'global';
                         }}
                       >
                         <option value="user" ?selected=${this._targetType === 'user'}>
@@ -223,52 +223,56 @@ export class ShareDialog extends LitElement {
                       </select>
                     </div>
 
-                    ${this._targetType === 'user'
-                      ? html`
-                          <div
-                            class="fr-input-group"
-                            style="margin-bottom:0.5rem; position:relative"
-                          >
-                            <label class="fr-label" for="share-user-search"
-                              >Rechercher un utilisateur</label
+                    ${
+                      this._targetType === 'user'
+                        ? html`
+                            <div
+                              class="fr-input-group"
+                              style="margin-bottom:0.5rem; position:relative"
                             >
-                            <input
-                              class="fr-input"
-                              type="text"
-                              id="share-user-search"
-                              .value=${this._searchQuery}
-                              @input=${(e: Event) => {
-                                this._searchQuery = (e.target as HTMLInputElement).value;
-                                this._searchUsers();
-                              }}
-                              placeholder="Email ou nom..."
-                            />
-                            ${this._searchResults.length > 0
-                              ? html`
-                                  <ul
-                                    style="position:absolute;z-index:10;background:var(--background-default-grey);border:1px solid var(--border-default-grey);
+                              <label class="fr-label" for="share-user-search"
+                                >Rechercher un utilisateur</label
+                              >
+                              <input
+                                class="fr-input"
+                                type="text"
+                                id="share-user-search"
+                                .value=${this._searchQuery}
+                                @input=${(e: Event) => {
+                                  this._searchQuery = (e.target as HTMLInputElement).value;
+                                  this._searchUsers();
+                                }}
+                                placeholder="Email ou nom..."
+                              />
+                              ${
+                                this._searchResults.length > 0
+                                  ? html`
+                                      <ul
+                                        style="position:absolute;z-index:10;background:var(--background-default-grey);border:1px solid var(--border-default-grey);
                                      list-style:none;padding:0;margin:0;width:100%;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.1)"
-                                  >
-                                    ${this._searchResults.map(
-                                      (user) => html`
-                                        <li
-                                          style="padding:0.5rem 0.75rem;cursor:pointer;border-bottom:1px solid var(--border-default-grey)"
-                                          @click=${() => this._selectUser(user)}
-                                        >
-                                          <strong>${escapeHtml(user.displayName)}</strong>
-                                          <span
-                                            style="color:var(--text-mention-grey);margin-left:0.5rem"
-                                            >${escapeHtml(user.email)}</span
+                                      >
+                                        ${this._searchResults.map(
+                                        (user) => html`
+                                          <li
+                                            style="padding:0.5rem 0.75rem;cursor:pointer;border-bottom:1px solid var(--border-default-grey)"
+                                            @click=${() => this._selectUser(user)}
                                           >
-                                        </li>
-                                      `
-                                    )}
-                                  </ul>
-                                `
-                              : nothing}
-                          </div>
-                        `
-                      : nothing}
+                                            <strong>${escapeHtml(user.displayName)}</strong>
+                                            <span
+                                              style="color:var(--text-mention-grey);margin-left:0.5rem"
+                                              >${escapeHtml(user.email)}</span
+                                            >
+                                          </li>
+                                        `
+                                      )}
+                                      </ul>
+                                    `
+                                  : nothing
+                              }
+                            </div>
+                          `
+                        : nothing
+                    }
 
                     <div class="fr-select-group" style="margin-bottom:0.5rem">
                       <label class="fr-label" for="share-permission">Permission</label>
@@ -277,8 +281,7 @@ export class ShareDialog extends LitElement {
                         id="share-permission"
                         @change=${(e: Event) => {
                           this._permission = (e.target as HTMLSelectElement).value as
-                            | 'read'
-                            | 'write';
+                            'read' | 'write';
                         }}
                       >
                         <option value="read" ?selected=${this._permission === 'read'}>
@@ -301,13 +304,15 @@ export class ShareDialog extends LitElement {
                   <!-- Existing shares -->
                   <h2 class="fr-text--lg" style="margin-bottom:0.5rem">Partages actuels</h2>
                   ${this._loading ? html`<p>Chargement...</p>` : nothing}
-                  ${!this._loading && this._shares.length === 0
-                    ? html`
-                        <p class="fr-text--sm" style="color:var(--text-mention-grey)">
-                          Aucun partage pour cette ressource.
-                        </p>
-                      `
-                    : nothing}
+                  ${
+                    !this._loading && this._shares.length === 0
+                      ? html`
+                          <p class="fr-text--sm" style="color:var(--text-mention-grey)">
+                            Aucun partage pour cette ressource.
+                          </p>
+                        `
+                      : nothing
+                  }
                   ${this._shares.map(
                     (share) => html`
                       <div
@@ -315,15 +320,17 @@ export class ShareDialog extends LitElement {
                       >
                         <div>
                           <strong>${escapeHtml(share.target_name)}</strong>
-                          ${share.target_email
-                            ? html`<span style="color:var(--text-mention-grey);margin-left:0.5rem"
-                                >${escapeHtml(share.target_email)}</span
-                              >`
-                            : nothing}
+                          ${
+                            share.target_email
+                              ? html`<span style="color:var(--text-mention-grey);margin-left:0.5rem"
+                                  >${escapeHtml(share.target_email)}</span
+                                >`
+                              : nothing
+                          }
                           <span
-                            class="fr-badge fr-badge--sm ${share.permission === 'write'
-                              ? 'fr-badge--warning'
-                              : 'fr-badge--info'}"
+                            class="fr-badge fr-badge--sm ${
+                              share.permission === 'write' ? 'fr-badge--warning' : 'fr-badge--info'
+                            }"
                             style="margin-left:0.5rem"
                           >
                             ${share.permission === 'write' ? 'Ecriture' : 'Lecture'}

@@ -39,6 +39,10 @@ import { AppMenu, injectAppMenuStyles } from './app-menu.js';
  *   reliée par `aria-describedby`.
  * @attr busy - Traitement en cours : la primaire passe `aria-busy`, son icône tourne.
  * @attr max-secondary - Nombre de secondaires visibles hors menu (1).
+ * @attr reason-host - Sélecteur CSS d'un élément qui accueille le texte de
+ *   `disabled-reason` (ex. la zone `slot="aside"` du panneau d'aperçu) ; sans
+ *   lui, la raison s'affiche sous la barre. Le lien `aria-describedby` est
+ *   conservé où que le texte soit.
  *
  * Un enfant `slot="context"` (label + select, champ de recherche…) est placé après
  * le titre, hors du `role="toolbar"` : ce n'est pas une action.
@@ -77,7 +81,7 @@ app-action-bar{display:block;position:sticky;top:var(--app-header-h,0px);z-index
 .app-action-bar__group:empty{display:none}
 .app-action-bar__group--help{margin-right:.25rem}
 .app-action-bar__actions .fr-btn{white-space:nowrap}
-.app-action-bar__reason{flex:0 0 100%;margin:0;text-align:right}
+.app-action-bar>.app-action-bar__reason{flex:0 0 100%;margin:0;text-align:right}
 .app-action-bar__reason[hidden]{display:none}
 .app-action-bar__actions .fr-btn[aria-busy="true"]::before{animation:app-action-bar-spin 1s linear infinite}
 @keyframes app-action-bar-spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
@@ -101,6 +105,9 @@ export class AppActionBar extends LitElement {
 
   @property({ type: String, attribute: 'disabled-reason' })
   disabledReason = '';
+
+  @property({ type: String, attribute: 'reason-host' })
+  reasonHost = '';
 
   @property({ type: Boolean, reflect: true })
   busy = false;
@@ -171,7 +178,16 @@ export class AppActionBar extends LitElement {
   }
 
   updated(changed: Map<string, unknown>) {
+    this._hostReason();
     if (changed.has('disabledReason') || changed.has('busy')) this._applyPrimaryState();
+  }
+
+  /** Déplace le texte de raison dans `reason-host` s'il existe (id conservé). */
+  private _hostReason(): void {
+    if (!this.reasonHost) return;
+    const reason = document.getElementById(this._reasonId);
+    const host = document.querySelector(this.reasonHost);
+    if (reason && host && reason.parentElement !== host) host.appendChild(reason);
   }
 
   /** Enfants `slot="primary|secondary|tertiary"` encore dans le Light DOM. */
@@ -380,7 +396,7 @@ export class AppActionBar extends LitElement {
 
   private _applyPrimaryState(): void {
     const primary = this.primary;
-    const reason = this.querySelector<HTMLElement>('.app-action-bar__reason');
+    const reason = document.getElementById(this._reasonId);
     if (!primary || !reason) return;
     const target = primary instanceof AppMenu ? primary.trigger : primary;
     if (!target) return;

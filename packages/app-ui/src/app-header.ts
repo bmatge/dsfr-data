@@ -22,6 +22,32 @@ import './password-change-modal.js';
  * <app-header current-page="builder" base-path=""></app-header>
  * <app-header current-page="composants" base-path="../"></app-header>
  */
+/**
+ * Entrées de la navigation principale pour un utilisateur donné (#575).
+ * « Suivi » et « Admin » ne sont proposées qu'aux administrateurs connectés :
+ * c'est de l'ergonomie, pas une protection — les apps et les routes serveur
+ * gardent leurs contrôles d'accès.
+ */
+export function navItemsFor(user: User | null): Array<{ id: string; label: string; href: string }> {
+  const admin = user?.role === 'admin';
+  return [
+    { id: 'accueil', label: 'Accueil', href: 'index.html' },
+    { id: 'sources', label: 'Sources', href: 'apps/sources/index.html' },
+    { id: 'builder-ia', label: 'Assistant IA', href: 'apps/builder-ia/index.html' },
+    // Studio IA (#515) volontairement HORS nav le temps de la periode d'essai
+    // en parallele du builder-IA : l'app reste accessible par URL directe et
+    // par la carte du hub. Re-exposition prevue avec la refonte nav (#538).
+    // { id: 'studio', label: 'Studio IA', href: 'apps/studio/index.html' },
+    { id: 'builder', label: 'Créer un graphique', href: 'apps/builder/index.html' },
+    { id: 'builder-carto', label: 'Créer une carte', href: 'apps/builder-carto/index.html' },
+    { id: 'dashboard', label: 'Créer un tableau de bord', href: 'apps/dashboard/index.html' },
+    { id: 'playground', label: 'Playground', href: 'apps/playground/index.html' },
+    { id: 'pipeline-helper', label: 'Pipeline', href: 'apps/pipeline-helper/index.html' },
+    { id: 'monitoring', label: 'Suivi', href: 'apps/monitoring/index.html' },
+    { id: 'admin', label: 'Admin', href: 'apps/admin/index.html' },
+  ].filter((item) => admin || (item.id !== 'monitoring' && item.id !== 'admin'));
+}
+
 @customElement('app-header')
 export class AppHeader extends LitElement {
   /**
@@ -213,22 +239,7 @@ export class AppHeader extends LitElement {
   }
 
   private _getNavItems() {
-    return [
-      { id: 'accueil', label: 'Accueil', href: 'index.html' },
-      { id: 'sources', label: 'Sources', href: 'apps/sources/index.html' },
-      { id: 'builder-ia', label: 'Assistant IA', href: 'apps/builder-ia/index.html' },
-      // Studio IA (#515) volontairement HORS nav le temps de la periode d'essai
-      // en parallele du builder-IA : l'app reste accessible par URL directe et
-      // par la carte du hub. Re-exposition prevue avec la refonte nav (#538).
-      // { id: 'studio', label: 'Studio IA', href: 'apps/studio/index.html' },
-      { id: 'builder', label: 'Créer un graphique', href: 'apps/builder/index.html' },
-      { id: 'builder-carto', label: 'Créer une carte', href: 'apps/builder-carto/index.html' },
-      { id: 'dashboard', label: 'Créer un tableau de bord', href: 'apps/dashboard/index.html' },
-      { id: 'playground', label: 'Playground', href: 'apps/playground/index.html' },
-      { id: 'pipeline-helper', label: 'Pipeline', href: 'apps/pipeline-helper/index.html' },
-      { id: 'monitoring', label: 'Suivi', href: 'apps/monitoring/index.html' },
-      { id: 'admin', label: 'Admin', href: 'apps/admin/index.html' },
-    ];
+    return navItemsFor(this._user);
   }
 
   private _renderSyncStatus() {

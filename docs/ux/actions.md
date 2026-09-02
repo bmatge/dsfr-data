@@ -257,6 +257,10 @@ variante du rang) et gère le débordement vers `Plus ▾` et le mode mobile.
 - Un `<app-menu>` replié dans `Plus d'actions ▾` y verse ses entrées telles quelles (pas de
   sous-menu) ; `menu.addSeparator()` insère un `role="separator"`.
 - `slot="context"` : contrôle de contexte (label + select…) placé après le titre, hors toolbar.
+- `reason-host="#sel"` : le texte de `disabled-reason` est déplacé dans cet élément (Builder :
+  la zone `slot="aside"` du panneau d'aperçu, à droite sur la ligne des onglets) ; le lien
+  `aria-describedby` est conservé. Même emplacement pour les contrôles de contexte du panneau
+  (Dashboard : sélecteur de modèles dans `.vde-tabs-aside`).
 
 ### 5.4 Primitives de boutons (`packages/app-ui/src/app-primitives.ts`, lot 5)
 
@@ -292,6 +296,9 @@ du tablist (Playground · Favoris · Image).
 - Noms de page canoniques : Accueil · Sources · Assistant IA · Studio IA · Créer un graphique ·
   Créer une carte · Créer un tableau de bord · Playground · Pipeline · Suivi · Admin · Favoris ·
   Guide · Composants · Feuille de route.
+- **Nav réservée** (#575) : « Suivi » et « Admin » ne sont proposées qu'aux administrateurs
+  connectés (`navItemsFor(user)` dans `app-header`), sans rechargement à la connexion. C'est de
+  l'ergonomie : les apps et les routes serveur gardent leurs contrôles d'accès.
 
 ## 7. Nœuds Pipeline
 
