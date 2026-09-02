@@ -2,7 +2,7 @@
  * Monitoring app - tracks where dsfr-data are deployed.
  */
 
-import { escapeHtml, checkAuth } from '@dsfr-data/shared';
+import { escapeHtml, checkAuth, confirmDialog } from '@dsfr-data/shared';
 import type { User } from '@dsfr-data/shared';
 import {
   fetchMonitoringData,
@@ -394,7 +394,11 @@ function renderAdminControls(): void {
 }
 
 async function purgeAll(): Promise<void> {
-  if (!confirm('Supprimer toutes les données de monitoring ? Cette action est irreversible.'))
+  if (
+    !(await confirmDialog(
+      'Supprimer toutes les données de monitoring ? Cette action est irréversible.'
+    ))
+  )
     return;
 
   try {
@@ -413,7 +417,7 @@ async function purgeAll(): Promise<void> {
 async function deleteByReferer(referer: string): Promise<void> {
   const domain = extractDomain(referer);
   const path = extractPath(referer);
-  if (!confirm(`Supprimer les données de monitoring pour ${domain}${path} ?`)) return;
+  if (!(await confirmDialog(`Supprimer les données de monitoring pour ${domain}${path} ?`))) return;
 
   try {
     const res = await fetch('/api/monitoring/entries', {

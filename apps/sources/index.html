@@ -141,7 +141,7 @@
     <div class="modal">
       <div class="modal-header">
         <h3><i class="ri-link"></i> Nouvelle connexion</h3>
-        <button class="modal-close" onclick="closeModal('connection-modal')">&times;</button>
+        <button class="fr-btn fr-btn--close" title="Fermer" onclick="closeModal('connection-modal')">Fermer</button>
       </div>
       <div class="modal-body">
         <!-- Étape 1 : saisie d'une URL, détection automatique -->
@@ -295,7 +295,7 @@
     <div class="modal">
       <div class="modal-header">
         <h3><i class="ri-table-line"></i> Créer une table dans Grist</h3>
-        <button class="modal-close" onclick="closeModal('create-table-modal')">&times;</button>
+        <button class="fr-btn fr-btn--close" title="Fermer" onclick="closeModal('create-table-modal')">Fermer</button>
       </div>
       <div class="modal-body">
         <div class="fr-input-group">
@@ -314,7 +314,7 @@
                 <option value="Date">Date</option>
                 <option value="Bool">Booléen</option>
               </select>
-              <button class="fr-btn fr-btn--sm fr-btn--tertiary" onclick="this.parentElement.remove()">
+              <button class="fr-btn fr-btn--sm fr-btn--tertiary" onclick="this.parentElement.remove()" title="Supprimer cette ligne">
                 <i class="ri-delete-bin-line"></i>
               </button>
             </div>
@@ -326,7 +326,7 @@
                 <option value="Date">Date</option>
                 <option value="Bool">Booléen</option>
               </select>
-              <button class="fr-btn fr-btn--sm fr-btn--tertiary" onclick="this.parentElement.remove()">
+              <button class="fr-btn fr-btn--sm fr-btn--tertiary" onclick="this.parentElement.remove()" title="Supprimer cette ligne">
                 <i class="ri-delete-bin-line"></i>
               </button>
             </div>
@@ -348,7 +348,7 @@
     <div class="modal">
       <div class="modal-header">
         <h3><i class="ri-upload-cloud-line"></i> Exporter vers Grist</h3>
-        <button class="modal-close" onclick="closeModal('export-grist-modal')">&times;</button>
+        <button class="fr-btn fr-btn--close" title="Fermer" onclick="closeModal('export-grist-modal')">Fermer</button>
       </div>
       <div class="modal-body">
         <div class="fr-alert fr-alert--info fr-alert--sm fr-mb-2w">
@@ -402,7 +402,7 @@
     <div class="modal">
       <div class="modal-header">
         <h3><i class="ri-link-unlink"></i> Joindre deux sources</h3>
-        <button class="modal-close" onclick="closeModal('join-source-modal')">&times;</button>
+        <button class="fr-btn fr-btn--close" title="Fermer" onclick="closeModal('join-source-modal')">Fermer</button>
       </div>
       <div class="modal-body">
         <div class="fr-input-group">
@@ -493,7 +493,7 @@
     <div class="modal modal--wide">
       <div class="modal-header">
         <h3><i class="ri-edit-line"></i> Nouvelle source manuelle</h3>
-        <button class="modal-close" onclick="closeManualSourceModal()">&times;</button>
+        <button class="fr-btn fr-btn--close" title="Fermer" onclick="closeManualSourceModal()">Fermer</button>
       </div>
       <div class="modal-body">
         <div class="fr-input-group">

@@ -130,6 +130,25 @@ export class PipelineEditor {
     return node;
   }
 
+  /**
+   * Les nœuds sélectionnés ont-ils du contenu (attribut renseigné hors valeur
+   * par défaut, ou connexion) ? Sert à ne confirmer la suppression que dans
+   * ce cas (lot UX 6, #543).
+   */
+  selectedHaveContent(): boolean {
+    const connections = this.editor.getConnections();
+    return this.editor.getNodes().some((node) => {
+      if (!(node as { selected?: boolean }).selected) return false;
+      if (connections.some((c) => c.source === node.id || c.target === node.id)) return true;
+      return Object.values(node.controls).some(
+        (ctrl) =>
+          ctrl instanceof AttributeControl &&
+          ctrl.value !== '' &&
+          ctrl.value !== (ctrl.def.default ?? '')
+      );
+    });
+  }
+
   /** Remove selected nodes */
   async removeSelected(): Promise<void> {
     const nodes = this.editor.getNodes();
