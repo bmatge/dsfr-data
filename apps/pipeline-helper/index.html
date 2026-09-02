@@ -32,7 +32,7 @@
 
   <app-action-bar heading="Pipeline">
 
-    <button slot="tertiary" id="btn-toggle-help" data-variant="no-outline" class="fr-icon-question-line fr-btn--icon-left" aria-controls="onboarding" aria-expanded="false">Visite guidée</button>
+    <button slot="tertiary" id="btn-toggle-help" data-variant="no-outline" class="fr-icon-question-line fr-btn--icon-left">Visite guidée</button>
 
     <button slot="tertiary" id="btn-delete" class="fr-icon-delete-line fr-btn--icon-left" title="Supprimer le(s) nœud(s) sélectionné(s) (ou touche Suppr)">Supprimer</button>
 
@@ -72,22 +72,6 @@
 
 
   <div class="pipeline-page">
-    <!-- Onboarding (collapsible) -->
-    <div class="onboarding" id="onboarding" style="display:none">
-      <div class="onboarding__title">Comment utiliser le Pipeline</div>
-      <ol class="onboarding__steps">
-        <li><strong>Ajouter des composants</strong> avec le menu « Ajouter une étape » de la barre d'actions.</li>
-        <li><strong>Connecter :</strong> glissez d'un <strong>cercle</strong> de sortie (droite) vers un cercle d'entree (gauche).</li>
-        <li><strong>Configurer :</strong> remplissez les champs dans chaque noeud.</li>
-        <li><strong>Exécuter :</strong> cliquez "Exécuter" pour voir les données traverser le pipeline.</li>
-        <li><strong>Inspecter :</strong> cliquez sur un noeud pour voir ses données dans le panneau de droite.</li>
-      </ol>
-      <div style="margin-top:0.4rem;font-size:0.8rem;color:#666">
-        Pipeline type : <strong>Source</strong> (fetch) &rarr; <strong>Requêter</strong> (transforme) &rarr; <strong>Sortie</strong> (affiche).
-      </div>
-      <button type="button" class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline onboarding__dismiss" id="btn-dismiss-onboarding">Masquer</button>
-    </div>
-
     <!-- Main content: 2/3 editor + 1/3 inspector -->
     <div class="pipeline-layout">
       <div class="pipeline-layout__editor">

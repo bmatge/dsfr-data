@@ -402,6 +402,13 @@ function renderLayerDataConfig() {
           : `
       <button id="btn-choose-source" class="carto-source-choose app-card-choice app-card-choice--dashed" type="button">
         <i class="ri-database-2-line" aria-hidden="true"></i> Choisir les données de cette couche
+      </button>
+      <button id="btn-sample-source" class="app-card-choice fr-mt-1w" type="button">
+        <i class="ri-lightbulb-line" aria-hidden="true"></i>
+        <span class="carto-choice__body">
+          <span class="carto-choice__title">Essayer avec un jeu d'exemple</span>
+          <span class="carto-choice__desc">Les chefs-lieux des régions françaises</span>
+        </span>
       </button>`
       }
       <div id="source-scan-status" class="carto-scan-status" aria-live="polite"></div>
@@ -448,6 +455,9 @@ function renderLayerDataConfig() {
     ui.forceChooser = true;
     renderOnboard();
   });
+  document
+    .getElementById('btn-sample-source')
+    ?.addEventListener('click', () => applySampleData(layer));
 
   const nameEl = document.getElementById('layer-name') as HTMLInputElement | null;
   nameEl?.addEventListener('change', () => {
@@ -1234,15 +1244,34 @@ function setLayerSource(layer: LayerConfig, src: AnySource) {
   startTourIfFirstVisit(BUILDER_CARTO_TOUR);
 }
 
+/** Jeu d'exemple (chefs-lieux) sur une couche — modale d'onboarding et état vide du panneau. */
+function applySampleData(layer: LayerConfig) {
+  // Le jeu d'exemple n'a que lat/lon (pas de geometrie) : les
+  // representations a geometrie (Zones) donnaient une carte vide au
+  // premier contact (#482 bug 5) — on force une representation compatible.
+  if (layer.type === 'geoshape') layer.type = 'marker';
+  setLayerSource(layer, {
+    id: `sample-${layer.id}`,
+    name: "Jeu d'exemple — chefs-lieux",
+    type: 'manual',
+    data: SAMPLE_DATA,
+    adHoc: true,
+  });
+}
+
 function renderOnboard() {
   const host = document.getElementById('onboard-modal')!;
-  const show = ui.forceChooser || state.layers.every((l) => !l.source);
+  // Lot UX 7 (#544, D2) : plus de modale bloquante à l'arrivée — le choix des
+  // données se fait depuis l'état vide du panneau Couches ; la modale ne
+  // s'ouvre qu'à la demande (Choisir / Changer les données).
+  const show = ui.forceChooser;
   if (!show) {
     host.innerHTML = '';
     return;
   }
   const layer = getActiveLayer() ?? state.layers[0];
-  const canClose = state.layers.some((l) => l.source);
+  // Ouverte à la demande depuis le panneau : toujours refermable (lot UX 7).
+  const canClose = true;
   const savedSources = ui.savedOpen ? loadSavedSources() : [];
 
   host.innerHTML = `
@@ -1316,19 +1345,9 @@ function renderOnboard() {
     </div>
   `;
 
-  document.getElementById('onboard-sample')?.addEventListener('click', () => {
-    // Le jeu d'exemple n'a que lat/lon (pas de geometrie) : les
-    // representations a geometrie (Zones) donnaient une carte vide au
-    // premier contact (#482 bug 5) — on force une representation compatible.
-    if (layer.type === 'geoshape') layer.type = 'marker';
-    setLayerSource(layer, {
-      id: `sample-${layer.id}`,
-      name: "Jeu d'exemple — chefs-lieux",
-      type: 'manual',
-      data: SAMPLE_DATA,
-      adHoc: true,
-    });
-  });
+  document
+    .getElementById('onboard-sample')
+    ?.addEventListener('click', () => applySampleData(layer));
 
   document.getElementById('onboard-url')?.addEventListener('click', () => {
     ui.urlMode = !ui.urlMode;
@@ -1831,9 +1850,7 @@ function bindStaticUi() {
   // Échap ferme la modale d'arrivée
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
-    if (ui.forceChooser && state.layers.some((l) => l.source)) {
-      closeOnboard();
-    }
+    if (ui.forceChooser) closeOnboard();
   });
 }
 

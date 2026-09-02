@@ -82,7 +82,7 @@ const editors: EditorSpec[] = [
     primary: 'save-dashboard-btn',
     primaryLabel: 'Enregistrer',
     openIn: ['open-dashboard-link'],
-    folded: ['copy-code-btn', 'clear-chat'],
+    folded: ['copy-code-btn', 'clear-chat', 'tour-btn'],
   },
 ];
 

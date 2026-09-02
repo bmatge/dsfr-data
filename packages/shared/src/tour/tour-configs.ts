@@ -185,6 +185,82 @@ export const DASHBOARD_TOUR: TourConfig = {
   ],
 };
 
+// ─── Pipeline ──────────────────────────────────────────────────────────
+
+export const PIPELINE_TOUR: TourConfig = {
+  id: 'pipeline-helper',
+  label: 'Pipeline',
+  version: 1,
+  steps: [
+    {
+      selector: 'app-action-bar',
+      title: 'Composer le flux',
+      description:
+        'Ajoutez des étapes avec le menu « Ajouter une étape » (source, normalisation, requête, jointure, recherche, facettes, sortie), puis Exécuter fait circuler les données.',
+      position: 'bottom',
+    },
+    {
+      selector: '#rete-container',
+      title: 'Connecter les nœuds',
+      description:
+        'Glissez d’un cercle de sortie (à droite d’un nœud) vers un cercle d’entrée (à gauche du suivant). Chaque nœud se configure dans ses champs.',
+      position: 'right',
+    },
+    {
+      selector: '#pipeline-tab-inspector-btn',
+      title: 'Inspecter',
+      description:
+        'Après Exécuter, cliquez sur un nœud pour voir les données qui le traversent dans l’inspecteur.',
+      position: 'left',
+    },
+    {
+      selector: '#pipeline-tab-code-btn',
+      title: 'Récupérer le code',
+      description:
+        'L’onglet Code montre le HTML équivalent, prêt à intégrer ; « Copier le code » dans la barre le copie directement.',
+      position: 'left',
+    },
+  ],
+};
+
+// ─── Studio IA ─────────────────────────────────────────────────────────
+
+export const STUDIO_TOUR: TourConfig = {
+  id: 'studio',
+  label: 'Studio IA',
+  version: 1,
+  steps: [
+    {
+      selector: '#saved-source',
+      title: 'Choisir une source',
+      description:
+        'Sélectionnez la source de données que l’assistant utilisera pour composer le tableau de bord.',
+      position: 'right',
+    },
+    {
+      selector: '#chat-input',
+      title: 'Décrire le tableau de bord',
+      description:
+        'Décrivez ce que vous voulez (titre, texte éditorial, indicateurs, graphiques, filtres) ; l’assistant le compose bloc par bloc.',
+      position: 'right',
+    },
+    {
+      selector: 'app-preview-panel',
+      title: 'L’aperçu est l’export',
+      description:
+        'Le tableau de bord se construit sous vos yeux ; les onglets Code et JSON montrent exactement ce qui sera enregistré.',
+      position: 'left',
+    },
+    {
+      selector: 'app-action-bar',
+      title: 'Enregistrer et ouvrir',
+      description:
+        'Enregistrez le tableau de bord, copiez le code ou ouvrez-le dans l’éditeur de tableaux de bord.',
+      position: 'bottom',
+    },
+  ],
+};
+
 // ─── Tour registry ─────────────────────────────────────────────────────
 
 /**
@@ -213,4 +289,6 @@ export const TOURS_REGISTRY: TourRegistryEntry[] = [
   { id: 'sources', label: 'Sources', version: 1, appPath: '/apps/sources/' },
   { id: 'playground', label: 'Playground', version: 1, appPath: '/apps/playground/' },
   { id: 'dashboard', label: 'Dashboard', version: 1, appPath: '/apps/dashboard/' },
+  { id: 'pipeline-helper', label: 'Pipeline', version: 1, appPath: '/apps/pipeline-helper/' },
+  { id: 'studio', label: 'Studio IA', version: 1, appPath: '/apps/studio/' },
 ];

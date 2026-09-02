@@ -90,6 +90,10 @@ body {
   margin-left: 0.25rem;
 }
 
+.config-section-hint {
+  margin: 0.25rem 1rem 0.5rem;
+}
+
 .chart-type-btn i {
   font-size: 1.25rem;
   display: block;

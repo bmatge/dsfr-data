@@ -10,6 +10,10 @@ import {
   STORAGE_KEYS,
   toastSuccess,
   toastWarning,
+  injectTourStyles,
+  startTour,
+  startTourIfFirstVisit,
+  STUDIO_TOUR,
 } from '@dsfr-data/shared';
 import type { DashboardData } from '@dsfr-data/shared';
 import './styles/studio.css';
@@ -195,6 +199,10 @@ function init(): void {
   });
   document.getElementById('clear-chat')?.addEventListener('click', resetStudio);
   document.getElementById('save-dashboard-btn')?.addEventListener('click', saveDashboard);
+  // Visite guidée (lot UX 7, #544)
+  injectTourStyles();
+  document.getElementById('tour-btn')?.addEventListener('click', () => startTour(STUDIO_TOUR));
+  startTourIfFirstVisit(STUDIO_TOUR);
   document.getElementById('copy-code-btn')?.addEventListener('click', copyCode);
 
   if (state.messages.length === 0) {
