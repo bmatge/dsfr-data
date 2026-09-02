@@ -261,8 +261,16 @@ Le menu `Ajouter une étape ▾` liste ces libellés dans cet ordre.
 `npm run check:accents` (`scripts/check-french-accents.sh`) devient **bloquant** et vérifie,
 sur le contenu des balises HTML (fichiers `.html` et templates embarqués dans les `.ts`) :
 
-1. les mots français sans accent (liste existante, étendue avec §3 ligne F1) ;
-2. les formes proscrites de §3 (comparaison mot entier).
+1. les mots français sans accent (liste existante, étendue avec §3 ligne F1), dans le contenu
+   des balises ;
+2. les formes proscrites de §3, dans le contenu des balises **et** dans les valeurs entre
+   guillemets (attributs `title`/`aria-label`, littéraux JS) — un libellé posé par script est
+   aussi une chaîne d'interface.
+
+Formes proscrites **reportées** tant que l'AppActionBar n'existe pas (lots 2/4), parce qu'elles
+deviennent des entrées de menu : `Export CSV`, `Exporter HTML`, `Exporter vers Grist`,
+`Ouvrir dans Dashboard`, `Utiliser dans le Builder`. Elles entrent dans le lint avec le lot qui
+les remplace.
 
 Les artefacts générés (`skills-reference.generated.ts`, `custom-elements.json`) sont corrigés à
 la source (JSDoc, générateur), jamais exclus du lint.
