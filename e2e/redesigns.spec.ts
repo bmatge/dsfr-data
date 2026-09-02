@@ -39,7 +39,7 @@ test.describe('Builder v2', () => {
   }) => {
     await expect(page.locator('.step-badge')).toHaveCount(4);
     await expect(page.locator('.advanced-group-label')).toBeVisible();
-    await expect(page.locator('.builder-footerbar #generate-btn')).toBeVisible();
+    await expect(page.locator('app-action-bar #generate-btn')).toBeVisible();
     await expect(page.locator('.empty-state__bars span')).toHaveCount(4);
     // Ancres du tour et des specs historiques
     for (const sel of ['#section-source', '.chart-type-grid', '#section-data', '#generate-btn']) {

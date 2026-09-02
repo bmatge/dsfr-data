@@ -190,6 +190,15 @@ function renderGenerateButton(c: Completeness): void {
     btn.classList.toggle('fr-btn--ready', ready);
   }
 
+  // <app-action-bar> (lot UX 2) : la primaire est désactivée avec la raison
+  // affichée sous la barre (docs/ux/actions.md §4.10). L'attribut suffit,
+  // même avant la définition du custom element.
+  const bar = btn?.closest('app-action-bar');
+  if (bar) {
+    if (ready) bar.removeAttribute('disabled-reason');
+    else bar.setAttribute('disabled-reason', `Il manque : ${c.missing.join(', ')}.`);
+  }
+
   if (missingEl) {
     if (ready) {
       missingEl.textContent = '';
