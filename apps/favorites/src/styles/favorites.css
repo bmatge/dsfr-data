@@ -238,41 +238,6 @@ body {
   flex-shrink: 0;
 }
 
-.fav-panel__rename {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0.25rem;
-  display: inline-flex;
-  color: var(--text-mention-grey);
-  font-size: 0.875rem;
-  flex-shrink: 0;
-}
-
-.fav-panel__rename:hover {
-  color: var(--text-action-high-blue-france);
-  background: var(--background-contrast-blue-france, #e3e3fd);
-}
-
-.fav-panel__close {
-  margin-left: auto;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0.375rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  color: var(--text-action-high-blue-france);
-  font-size: 0.875rem;
-  font-family: inherit;
-  flex-shrink: 0;
-}
-
-.fav-panel__close:hover {
-  background: var(--background-contrast-blue-france, #e3e3fd);
-}
-
 .fav-panel__body {
   padding: 1.25rem;
   overflow-y: auto;
@@ -337,21 +302,6 @@ body {
   align-items: center;
 }
 
-.fav-panel__delete {
-  margin-left: auto;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0.375rem;
-  display: inline-flex;
-  color: var(--text-default-error, #ce0500);
-  font-size: 1rem;
-}
-
-.fav-panel__delete:hover {
-  background: var(--background-contrast-error, #fddede);
-}
-
 @media (max-width: 768px) {
   .fav-panel {
     width: 100vw;
@@ -404,4 +354,11 @@ body {
 }
 .share-url-row .fr-input {
   flex: 1;
+}
+
+/* Primitives (lot UX 5) : seuls les placements restent locaux. */
+.fav-panel__close,
+.fav-panel__delete {
+  margin-left: auto;
+  flex-shrink: 0;
 }

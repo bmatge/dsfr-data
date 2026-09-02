@@ -188,6 +188,13 @@ body {
   outline: none;
 }
 
+.add-row-btn {
+  margin-top: 1rem;
+  border-width: 2px;
+  border-radius: 8px;
+  color: var(--text-mention-grey);
+}
+
 /* Zone de prévisualisation */
 .vde-preview {
   flex: 1;
@@ -308,46 +315,11 @@ body {
   gap: 0.25rem;
 }
 
-.widget-action-btn {
-  padding: 0.25rem;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text-mention-grey);
-  border-radius: 4px;
-}
-
-.widget-action-btn:hover {
-  background: var(--background-alt-grey);
-  color: var(--text-action-high-blue-france);
-}
-
 .widget-content {
   min-height: 60px;
 }
 
 /* Bouton ajouter ligne */
-.add-row-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  width: 100%;
-  padding: 0.75rem;
-  margin-top: 1rem;
-  background: transparent;
-  border: 2px dashed var(--border-default-grey);
-  border-radius: 8px;
-  color: var(--text-mention-grey);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.add-row-btn:hover {
-  border-color: var(--border-action-high-blue-france);
-  color: var(--text-action-high-blue-france);
-  background: var(--background-alt-blue-france);
-}
 
 /* Modal de configuration */
 .config-modal {
@@ -526,36 +498,6 @@ body {
   font-weight: 700;
   font-size: 0.8125rem;
   color: var(--text-action-high-blue-france);
-}
-
-.row-control-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  padding: 0;
-  background: var(--background-default-grey);
-  border: 1px solid var(--border-default-grey);
-  border-radius: 4px;
-  cursor: pointer;
-  color: var(--text-mention-grey);
-  transition: all 0.15s ease;
-}
-
-.row-control-btn:hover:not(:disabled) {
-  border-color: var(--border-action-high-blue-france);
-  color: var(--text-action-high-blue-france);
-}
-
-.row-control-btn:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
-
-.row-control-btn--danger:hover:not(:disabled) {
-  border-color: var(--border-plain-error);
-  color: var(--text-default-error);
 }
 
 /* Widget content preview classes */

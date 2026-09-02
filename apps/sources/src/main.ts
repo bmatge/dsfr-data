@@ -300,6 +300,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.querySelectorAll('[data-source-mode]').forEach((tab) => {
     tab.addEventListener('click', () => {
       switchSourceMode((tab as HTMLElement).dataset.sourceMode ?? 'table');
+      // Boutons bascule DSFR : l'état est porté par aria-pressed (lot UX 5).
+      document
+        .querySelectorAll('[data-source-mode]')
+        .forEach((t) => t.setAttribute('aria-pressed', t === tab ? 'true' : 'false'));
     });
   });
 

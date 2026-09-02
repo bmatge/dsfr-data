@@ -52,7 +52,8 @@ export function addMessage(
     suggestionsEl.className = 'chat-suggestions';
     suggestions.forEach((s) => {
       const btn = document.createElement('button');
-      btn.className = 'chat-suggestion';
+      btn.type = 'button';
+      btn.className = 'fr-tag fr-tag--sm chat-suggestion';
       btn.textContent = s;
       btn.onclick = () => {
         (document.getElementById('chat-input') as HTMLTextAreaElement).value = s;

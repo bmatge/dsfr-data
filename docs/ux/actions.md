@@ -240,7 +240,23 @@ variante du rang) et gère le débordement vers `Plus ▾` et le mode mobile.
   par script ; `menu.addItem(el)` / `menu.takeItems()` côté `<app-menu>`.
 - Un `<app-menu>` replié dans `Plus ▾` y verse ses entrées telles quelles (pas de sous-menu).
 
-### 5.4 Ce que la barre remplace (à supprimer au lot 2)
+### 5.4 Primitives de boutons (`packages/app-ui/src/app-primitives.ts`, lot 5)
+
+Tout bouton texte est un `fr-btn*` DSFR (fermetures : `fr-btn--close`, onglets : `fr-tabs`,
+puces cliquables : `fr-tag`). Deux besoins n'ont pas d'équivalent DSFR et sont normalisés sur
+les tokens du DSFR, avec `:hover`, `:focus-visible` et `:disabled` garantis :
+
+| Primitive | Usage | Variantes |
+|---|---|---|
+| `app-btn--icon` | bouton icône seule, cible ≥ 32×32 px (`--sm` : 24×24, minimum WCAG 2.5.8). Nom accessible par `title` ou `aria-label`, icône `aria-hidden`. | `--sm`, `--muted` (gris jusqu'au survol), `--danger` |
+| `app-card-choice` | carte cliquable : tuile de type de graphique, jeu d'exemple, choix d'onboarding, zone d'ajout. Sélection via `aria-pressed="true"` (ou `.selected`). | `--compact` (colonne centrée), `--dashed` (zone d'ajout), `--featured` |
+
+Les anciennes classes maison (`chart-type-btn`, `sample-dataset-card`, `carto-choice`,
+`row-control-btn`…) ne portent plus de style de boîte ; elles restent comme ancres de tests et de
+logique. Recette : `e2e/buttons.spec.ts` (aucun bouton hors DSFR/primitives, aucune cible < 24 px,
+focus visible au clavier) sur les 14 pages.
+
+### 5.5 Ce que la barre remplace (à supprimer au lot 2)
 
 `builder-footerbar`, `carto-topbar__actions`, `vde-toolbar-right`, `editor-toolbar` (Playground),
 `studio-toolbar`, la partie « sortie » de `pipeline-toolbar`, les boutons `preview-panel-action-btn`

@@ -356,10 +356,10 @@ function positionStep(step: TourStep, index: number): void {
     counter.className = 'tour-popover-counter';
     counter.textContent = `${index + 1}/${total}`;
     const closeBtn = document.createElement('button');
-    closeBtn.className = 'tour-popover-close';
+    closeBtn.className = 'fr-btn fr-btn--close fr-btn--sm tour-popover-close';
     closeBtn.type = 'button';
-    closeBtn.setAttribute('aria-label', 'Fermer');
-    closeBtn.textContent = '\u00D7';
+    closeBtn.title = 'Fermer la visite';
+    closeBtn.textContent = 'Fermer';
     header.append(counter, closeBtn);
 
     const title = document.createElement('h4');
@@ -375,11 +375,11 @@ function positionStep(step: TourStep, index: number): void {
     const secondary = document.createElement('div');
     secondary.className = 'tour-popover-secondary';
     const skipBtn = document.createElement('button');
-    skipBtn.className = 'tour-popover-skip';
+    skipBtn.className = 'fr-btn fr-btn--sm fr-btn--tertiary-no-outline tour-popover-skip';
     skipBtn.type = 'button';
     skipBtn.textContent = 'Passer';
     const disableBtn = document.createElement('button');
-    disableBtn.className = 'tour-popover-disable';
+    disableBtn.className = 'fr-btn fr-btn--sm fr-btn--tertiary-no-outline tour-popover-disable';
     disableBtn.type = 'button';
     disableBtn.textContent = 'Ne plus afficher les visites';
     disableBtn.title =
@@ -390,13 +390,13 @@ function positionStep(step: TourStep, index: number): void {
     nav.className = 'tour-popover-nav';
     if (!isFirst) {
       const prevBtn = document.createElement('button');
-      prevBtn.className = 'tour-popover-prev';
+      prevBtn.className = 'fr-btn fr-btn--sm fr-btn--secondary tour-popover-prev';
       prevBtn.type = 'button';
-      prevBtn.textContent = 'Precedent';
+      prevBtn.textContent = 'Précédent';
       nav.append(prevBtn);
     }
     const nextBtn = document.createElement('button');
-    nextBtn.className = 'tour-popover-next';
+    nextBtn.className = 'fr-btn fr-btn--sm tour-popover-next';
     nextBtn.type = 'button';
     nextBtn.textContent = isLast ? 'Terminer' : 'Suivant';
     nav.append(nextBtn);
@@ -551,16 +551,6 @@ export function injectTourStyles(): void {
       padding: 0.15rem 0.5rem;
       border-radius: 10px;
     }
-    .tour-popover-close {
-      background: none;
-      border: none;
-      font-size: 1.25rem;
-      cursor: pointer;
-      color: var(--text-mention-grey, #666);
-      padding: 0 0.25rem;
-      line-height: 1;
-    }
-    .tour-popover-close:hover { color: var(--text-default-grey, #333); }
     .tour-popover-title {
       margin: 0 0 0.5rem;
       font-size: 1rem;
@@ -588,57 +578,6 @@ export function injectTourStyles(): void {
     .tour-popover-nav {
       display: flex;
       gap: 0.5rem;
-    }
-    .tour-popover-skip,
-    .tour-popover-disable {
-      background: none;
-      border: none;
-      font-size: 0.75rem;
-      color: var(--text-mention-grey, #666);
-      cursor: pointer;
-      padding: 0.15rem 0;
-      text-decoration: underline;
-      text-align: left;
-    }
-    .tour-popover-skip { font-size: 0.8rem; }
-    .tour-popover-skip:hover,
-    .tour-popover-disable:hover { color: var(--text-default-grey, #333); }
-    .tour-popover-prev {
-      padding: 0.35rem 0.75rem;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      background-color: #fff !important;
-      background-image: none !important;
-      color: #3a3a3a !important;
-      cursor: pointer;
-      font-size: 0.8rem;
-    }
-    .tour-popover-prev:hover,
-    .tour-popover-prev:focus {
-      background-color: #fff !important;
-      background-image: none !important;
-      color: #3a3a3a !important;
-      outline: 2px solid #ddd;
-      outline-offset: 2px;
-    }
-    .tour-popover-next {
-      padding: 0.35rem 0.75rem;
-      border: none;
-      border-radius: 4px;
-      background-color: #000091 !important;
-      background-image: none !important;
-      color: #fff !important;
-      cursor: pointer;
-      font-size: 0.8rem;
-      font-weight: 600;
-    }
-    .tour-popover-next:hover,
-    .tour-popover-next:focus {
-      background-color: #000091 !important;
-      background-image: none !important;
-      color: #fff !important;
-      outline: 2px solid #000091;
-      outline-offset: 2px;
     }
   `;
   document.head.appendChild(style);

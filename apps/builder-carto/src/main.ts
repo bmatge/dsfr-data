@@ -308,14 +308,14 @@ function renderLayersPanel() {
             : 'Aucune source'
         }</span>
       </div>
-      <button class="carto-icon-btn" data-eye-id="${layer.id}" type="button"
+      <button class="carto-icon-btn app-btn--icon app-btn--icon--sm app-btn--icon--muted" data-eye-id="${layer.id}" type="button"
               title="${layer.visible ? 'Masquer la couche' : 'Afficher la couche'}"
               aria-label="${layer.visible ? 'Masquer la couche' : 'Afficher la couche'} ${escapeAttr(layer.name)}">
         <i class="${layer.visible ? 'ri-eye-line' : 'ri-eye-off-line'}" aria-hidden="true"></i>
       </button>
       ${
         removable
-          ? `<button class="carto-icon-btn" data-del-id="${layer.id}" type="button"
+          ? `<button class="carto-icon-btn app-btn--icon app-btn--icon--sm app-btn--icon--muted" data-del-id="${layer.id}" type="button"
               title="Supprimer la couche" aria-label="Supprimer la couche ${escapeAttr(layer.name)}">
               <i class="ri-delete-bin-line" aria-hidden="true"></i>
             </button>`
@@ -400,7 +400,7 @@ function renderLayerDataConfig() {
         </div>
       </div>`
           : `
-      <button id="btn-choose-source" class="carto-source-choose" type="button">
+      <button id="btn-choose-source" class="carto-source-choose app-card-choice app-card-choice--dashed" type="button">
         <i class="ri-database-2-line" aria-hidden="true"></i> Choisir les données de cette couche
       </button>`
       }
@@ -1261,7 +1261,7 @@ function renderOnboard() {
               : ''
           }
         </div>
-        <button class="carto-choice carto-choice--featured" id="onboard-sample" type="button">
+        <button class="carto-choice carto-choice--featured app-card-choice app-card-choice--featured" id="onboard-sample" type="button">
           <i class="ri-lightbulb-line" aria-hidden="true"></i>
           <span class="carto-choice__body">
             <span class="carto-choice__title">Essayer avec un jeu d'exemple</span>
@@ -1269,7 +1269,7 @@ function renderOnboard() {
           </span>
           <i class="ri-arrow-right-line carto-choice__arrow" aria-hidden="true"></i>
         </button>
-        <button class="carto-choice" id="onboard-url" type="button" aria-expanded="${ui.urlMode}">
+        <button class="carto-choice app-card-choice" id="onboard-url" type="button" aria-expanded="${ui.urlMode}">
           <i class="ri-link" aria-hidden="true"></i>
           <span class="carto-choice__body">
             <span class="carto-choice__title">Coller un lien de données</span>
@@ -1287,7 +1287,7 @@ function renderOnboard() {
         </div>`
             : ''
         }
-        <button class="carto-choice" id="onboard-saved" type="button" aria-expanded="${ui.savedOpen}">
+        <button class="carto-choice app-card-choice" id="onboard-saved" type="button" aria-expanded="${ui.savedOpen}">
           <i class="ri-database-2-line" aria-hidden="true"></i>
           <span class="carto-choice__body">
             <span class="carto-choice__title">Une source enregistrée</span>

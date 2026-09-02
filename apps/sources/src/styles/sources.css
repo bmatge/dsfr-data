@@ -98,21 +98,6 @@ body {
   padding-bottom: 0.5rem;
 }
 
-.explorer-tab {
-  padding: 0.5rem 1rem;
-  border: none;
-  background: none;
-  cursor: pointer;
-  font-weight: 500;
-  color: var(--text-mention-grey);
-  border-radius: 4px 4px 0 0;
-}
-
-.explorer-tab.active {
-  background: var(--background-contrast-info);
-  color: var(--text-action-high-blue-france);
-}
-
 .tree-view {
   font-size: 0.875rem;
 }
@@ -328,23 +313,6 @@ body {
   border-color: var(--border-action-high-blue-france);
   outline: none;
   background: var(--background-default-grey);
-}
-
-.table-editor th .col-remove-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text-mention-grey);
-  padding: 0.125rem;
-  font-size: 0.75rem;
-  line-height: 1;
-  border-radius: 3px;
-  flex-shrink: 0;
-}
-
-.table-editor th .col-remove-btn:hover {
-  color: var(--text-default-error);
-  background: var(--background-alt-grey);
 }
 
 .table-editor td input {
@@ -667,72 +635,6 @@ body {
 }
 
 /* ---- Boutons légers ---- */
-.sources-link-btn {
-  background: none;
-  border: none;
-  color: var(--text-action-high-blue-france);
-  font-size: 0.875rem;
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  padding: 0.25rem 0;
-  font-family: inherit;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.sources-link-btn:hover {
-  color: #1212ff;
-}
-
-.row-action-btn {
-  background: none;
-  border: none;
-  color: var(--text-action-high-blue-france);
-  padding: 0.3125rem 0.625rem;
-  font-size: 0.8125rem;
-  cursor: pointer;
-  font-family: inherit;
-  white-space: nowrap;
-}
-
-.row-action-btn:hover {
-  background: var(--background-contrast-blue-france, #e3e3fd);
-}
-
-.row-action-btn--outline {
-  border: 1px solid var(--border-action-high-blue-france);
-  padding: 0.25rem 0.625rem;
-}
-
-.row-action-btn--outline:hover {
-  background: var(--background-alt-grey);
-}
-
-.row-action-btn--primary {
-  background: var(--background-action-high-blue-france);
-  color: var(--text-inverted-blue-france, #f5f5fe);
-}
-
-.row-action-btn--primary:hover {
-  background: var(--background-action-high-blue-france-hover, #1212ff);
-}
-
-.row-icon-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0.375rem;
-  display: inline-flex;
-  color: var(--text-action-high-blue-france);
-  font-size: 0.875rem;
-  line-height: 1;
-}
-
-.row-icon-btn:hover {
-  background: var(--background-contrast-blue-france, #e3e3fd);
-}
 
 .sources-locals {
   margin-top: 0.75rem;
