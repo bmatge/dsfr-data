@@ -130,21 +130,23 @@
         </div>
       </div>
 
-      <!-- Onglets -->
-      <div class="vde-tabs">
-        <button class="vde-tab active" data-tab="design">
-          <i class="ri-layout-masonry-line"></i> Design
-        </button>
-        <button class="vde-tab" data-tab="code">
-          <i class="ri-code-line"></i> Code généré
-        </button>
-        <button class="vde-tab" data-tab="json">
-          <i class="ri-braces-line"></i> JSON
-        </button>
-      </div>
+      <!-- Onglets DSFR natifs (docs/ux/actions.md §2.4, lot UX 4 #541) : le
+           canevas est l'onglet « Aperçu » (C2), ids des panneaux conservés. -->
+      <div class="fr-tabs vde-tabs">
+        <ul class="fr-tabs__list" role="tablist" aria-label="Tableau de bord">
+          <li role="presentation">
+            <button type="button" id="tab-design-btn" class="fr-tabs__tab" tabindex="0" role="tab" aria-selected="true" aria-controls="tab-design">Aperçu</button>
+          </li>
+          <li role="presentation">
+            <button type="button" id="tab-code-btn" class="fr-tabs__tab" tabindex="-1" role="tab" aria-selected="false" aria-controls="tab-code">Code</button>
+          </li>
+          <li role="presentation">
+            <button type="button" id="tab-json-btn" class="fr-tabs__tab" tabindex="-1" role="tab" aria-selected="false" aria-controls="tab-json">JSON</button>
+          </li>
+        </ul>
 
-      <!-- Design (grille) -->
-      <div class="vde-tab-panel active" id="tab-design">
+      <!-- Aperçu (grille) -->
+      <div class="fr-tabs__panel fr-tabs__panel--selected vde-tab-panel" id="tab-design" role="tabpanel" aria-labelledby="tab-design-btn" tabindex="0">
         <div class="vde-preview">
           <div class="vde-canvas">
             <div class="dashboard-grid" id="dashboard-grid">
@@ -176,15 +178,16 @@
         </div>
       </div>
 
-      <!-- Code généré -->
-      <div class="vde-tab-panel" id="tab-code">
+      <!-- Code -->
+      <div class="fr-tabs__panel vde-tab-panel" id="tab-code" role="tabpanel" aria-labelledby="tab-code-btn" tabindex="0">
         <pre class="code-preview" id="generated-code"><!-- Le code sera généré ici --></pre>
       </div>
 
       <!-- JSON -->
-      <div class="vde-tab-panel" id="tab-json">
+      <div class="fr-tabs__panel vde-tab-panel" id="tab-json" role="tabpanel" aria-labelledby="tab-json-btn" tabindex="0">
         <pre class="code-preview" id="generated-json">{}</pre>
       </div>
+      </div><!-- /.fr-tabs -->
     </main>
   </div>
 

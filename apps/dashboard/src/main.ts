@@ -252,17 +252,7 @@ function initEventListeners(): void {
     }
   });
 
-  document.querySelectorAll('.vde-tab').forEach((tab) => {
-    tab.addEventListener('click', () => {
-      const tabName = (tab as HTMLElement).dataset.tab;
-
-      document.querySelectorAll('.vde-tab').forEach((t) => t.classList.remove('active'));
-      document.querySelectorAll('.vde-tab-panel').forEach((p) => p.classList.remove('active'));
-
-      tab.classList.add('active');
-      document.getElementById(`tab-${tabName}`)?.classList.add('active');
-    });
-  });
+  // Onglets : fr-tabs DSFR natifs, la sélection est gérée par le JS du DSFR.
 
   document.getElementById('grid-columns')?.addEventListener('change', (e) => {
     state.dashboard.layout.columns = parseInt((e.target as HTMLSelectElement).value);

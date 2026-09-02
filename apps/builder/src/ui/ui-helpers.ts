@@ -271,9 +271,7 @@ export function copyCode(): void {
 
   const copied = navigator.clipboard.writeText(code);
   copied.catch(() => {
-    toastSuccess(
-      'Copie refusée par le navigateur — sélectionnez le code dans l’onglet « Code généré ».'
-    );
+    toastSuccess('Copie refusée par le navigateur — sélectionnez le code dans l’onglet « Code ».');
   });
   copied.then(() => {
     toastSuccess('Code copie dans le presse-papiers');
