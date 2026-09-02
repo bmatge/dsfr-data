@@ -10,6 +10,7 @@ import {
   initAuth,
   injectTourStyles,
   startTourIfFirstVisit,
+  startTour,
   DASHBOARD_TOUR,
 } from '@dsfr-data/shared';
 import { state, createEmptyDashboard, normalizeDashboard } from './state.js';
@@ -229,6 +230,7 @@ function initEventListeners(): void {
   document.getElementById('btn-save')?.addEventListener('click', openSaveModal);
   document.getElementById('btn-export')?.addEventListener('click', exportHTML);
   document.getElementById('btn-preview')?.addEventListener('click', openPreviewModal);
+  document.getElementById('tour-btn')?.addEventListener('click', () => startTour(DASHBOARD_TOUR));
   document.getElementById('add-row-btn')?.addEventListener('click', addRow);
   document.getElementById('close-modal')?.addEventListener('click', closeConfigModal);
   document.getElementById('cancel-config')?.addEventListener('click', closeConfigModal);

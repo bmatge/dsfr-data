@@ -26,9 +26,20 @@
   <!-- Header -->
   <app-header current-page="dashboard" base-path="../.."></app-header>
 
-  <div class="app-page-head">
-    <h1 class="app-page-head__title">Créer un tableau de bord</h1>
-  </div>
+  <!-- Barre d'actions unique (docs/ux/actions.md §5, lot UX 2 #539). Ids
+       historiques conservés (#btn-new, #btn-load, #btn-save, #btn-export,
+       #btn-preview) ; le titre éditable et les templates restent dans la
+       barre d'outils du canevas (.vde-toolbar). -->
+  <app-action-bar heading="Créer un tableau de bord">
+    <button slot="tertiary" id="tour-btn" data-variant="no-outline" class="fr-icon-question-line fr-btn--icon-left">Visite guidée</button>
+    <button slot="tertiary" id="btn-new" class="fr-icon-add-line fr-btn--icon-left" title="Repartir d'un tableau de bord vierge">Nouveau</button>
+    <button slot="tertiary" id="btn-preview" class="fr-icon-fullscreen-line fr-btn--icon-left" title="Afficher l'aperçu en plein écran">Plein écran</button>
+    <button slot="secondary" id="btn-load" class="fr-icon-folder-2-line fr-btn--icon-left" title="Ouvrir un tableau de bord enregistré">Ouvrir</button>
+    <app-menu slot="secondary" label="Exporter">
+      <button id="btn-export" class="fr-icon-download-line" title="Télécharger le tableau de bord en page HTML autonome">Page HTML</button>
+    </app-menu>
+    <button slot="primary" id="btn-save" class="fr-icon-save-line fr-btn--icon-left">Enregistrer</button>
+  </app-action-bar>
 
   <div class="vde-container">
     <!-- Sidebar gauche -->
@@ -108,21 +119,6 @@
           <input type="text" class="dashboard-title-input" id="dashboard-title" value="Mon tableau de bord" placeholder="Titre du dashboard">
         </div>
         <div class="vde-toolbar-right">
-          <button class="fr-btn fr-btn--sm fr-btn--secondary" id="btn-new">
-            <i class="ri-file-add-line"></i> Nouveau
-          </button>
-          <button class="fr-btn fr-btn--sm fr-btn--secondary" id="btn-load">
-            <i class="ri-folder-open-line"></i> Ouvrir
-          </button>
-          <button class="fr-btn fr-btn--sm" id="btn-save">
-            <i class="ri-save-line"></i> Enregistrer
-          </button>
-          <button class="fr-btn fr-btn--sm fr-btn--tertiary" id="btn-export">
-            <i class="ri-download-line"></i> Exporter HTML
-          </button>
-          <button class="fr-btn fr-btn--sm fr-btn--secondary" id="btn-preview">
-            <i class="ri-fullscreen-line"></i> Plein écran
-          </button>
           <div class="fr-select-group fr-select-group--sm" style="display:inline-block;min-width:auto;">
             <select id="template-select" class="fr-select fr-select--sm" style="padding:0.25rem 2rem 0.25rem 0.5rem;" aria-label="Templates">
               <option value="">Templates...</option>
