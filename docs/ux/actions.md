@@ -93,7 +93,12 @@ Toute nouvelle extension s'ajoute à ce tableau **dans la PR qui l'introduit**.
 
 ### 2.3 Entrées des menus par app
 
-| App | Ouvrir dans ▾ | Exporter ▾ |
+Depuis la v2 de la barre (sept. 2026), les entrées « Ouvrir dans » et « Exporter » sont **aplaties dans
+`Plus d'actions ▾`** avec un libellé complet (`Ouvrir dans le Playground`, `Exporter en PNG`,
+`Exporter la page HTML`) : un seul menu par barre, pas de sous-menu. La table ci-dessous reste la
+référence des destinations et formats par app.
+
+| App | Ouvrir dans… | Exporter… |
 |---|---|---|
 | Builder (Créer un graphique) | Playground · Pipeline · Tableau de bord | Image PNG · Image JPG |
 | Carto (Créer une carte) | Playground · Pipeline | Image PNG · Image JPG |
@@ -152,7 +157,8 @@ Règles non lintables, vérifiées en revue :
    jamais pour une action d'écriture ni pour une confirmation destructive.
 4. **Une même action porte la même variante partout** (`Exporter ▾` : secondaire sur Sources,
    Favoris, Suivi, Dashboard).
-5. **Trois secondaires visibles au maximum** ; au-delà, menu `Plus ▾`
+5. **Une seule secondaire visible** (Copier le code, ou `Ajouter une étape ▾` sur Pipeline,
+   `Ouvrir` sur Dashboard) ; tout le reste est replié dans `Plus d'actions ▾`
    (`fr-btn--tertiary` + `fr-icon-more-line`).
 6. Plusieurs familles d'actions dans une même barre → un `role="group"` + `aria-label` par
    famille, séparés visuellement (Pipeline : ajout d'étapes / canevas / sortie).
@@ -173,42 +179,53 @@ au-dessus du contenu. Composant `app-action-bar` dans `packages/app-ui` (lot 2, 
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│  <h1 de la zone de travail>          [tertiaires] [secondaires] [PRIMAIRE]    │
+│  <h1>  [contexte]      (?)  [Plus d'actions ▾]  [secondaire]  [PRIMAIRE]     │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
+
+Patron v2 (sept. 2026) : **l'action principale + un bouton dépliant pour le reste**, avec une
+variante à une secondaire visible. De gauche à droite : `?` (Visite guidée, icône seule),
+`Plus d'actions ▾` (secondaires repliées, séparateur, tertiaires), la secondaire visible, la
+primaire. La zone `[contexte]` (facultative) reçoit un contrôle de contexte, hors toolbar
+(Playground : le sélecteur d'exemple).
 
 ### 5.1 Contrat
 
 - `role="toolbar"` + `aria-label="Actions de la page"` ; navigation aux flèches gauche/droite,
   `Home`/`End`, un seul élément tabbable (roving tabindex).
 - **Une seule action primaire**, toujours à l'extrême droite.
-- Ordre de gauche à droite : tertiaires (Visite guidée, Réinitialiser, Nouveau, Plein écran…),
-  puis secondaires (3 max), puis `Plus ▾` si débordement, puis la primaire.
+- Ordre de gauche à droite : `slot="help"` (Visite guidée, `fr-btn--tertiary-no-outline`
+  icône seule, libellé en `fr-sr-only` + `title`), `Plus d'actions ▾` (masqué s'il est vide),
+  la secondaire visible (`max-secondary`, 1 par défaut), la primaire.
+- `Plus d'actions ▾` liste d'abord les secondaires repliées, puis un séparateur
+  (`role="separator"`), puis les tertiaires ; un `<app-menu>` replié y verse ses entrées.
 - Taille `fr-btn--sm` pour tous les boutons.
-- Les menus (`Ouvrir dans ▾`, `Exporter ▾`, `Plus ▾`) suivent le patron DSFR
-  `fr-translate`/`fr-menu` ou un `role="menu"` complet (flèches, Échap, focus restitué).
-- `flex-wrap` autorisé ; **sous 768 px** la barre devient collante en bas d'écran
-  (`position: sticky; bottom: 0`) avec la primaire + `Plus ▾` regroupant tout le reste.
+- Les menus (`Ajouter une étape ▾`, `Plus d'actions ▾`) sont des `role="menu"` complets
+  (flèches, Échap, focus restitué).
+- **Sous 768 px** la barre est fixée en bas d'écran avec les **mêmes** contrôles :
+  `Plus d'actions` et la secondaire passent en boutons icône (libellé `fr-sr-only`), la
+  primaire garde son libellé. Le titre (et la zone contexte) restent en haut, dans le flux.
 - La barre expose `disabled-reason` pour la primaire (§4.10) et `busy` pour l'état chargement.
-- Apps conversationnelles : la barre n'a pas de primaire « Générer » ; l'envoi du chat reste le
-  geste primaire dans sa zone. Studio IA garde `Enregistrer` comme primaire de la barre.
+- Apps conversationnelles : l'envoi du chat reste le geste primaire dans sa zone ; la barre de
+  l'Assistant IA a `Effacer la conversation` pour primaire, Studio IA garde `Enregistrer`.
 
 ### 5.2 Répartition cible par app
 
-| App | Primaire | Secondaires (≤ 3) | Tertiaires |
+| App | Primaire | Secondaire visible | Plus d'actions ▾ (secondaires repliées · **|** · tertiaires) |
 |---|---|---|---|
-| Créer un graphique | Générer | Copier le code · Ajouter aux favoris · Ouvrir dans ▾ | Visite guidée · Réinitialiser · Exporter ▾ *(Plus ▾)* |
-| Créer une carte | Générer | Copier le code · Ajouter aux favoris · Ouvrir dans ▾ | Visite guidée · Nouveau · Exporter ▾ *(Plus ▾)* |
-| Créer un tableau de bord | Enregistrer | Ouvrir · Exporter ▾ · Ajouter aux favoris | Visite guidée · Nouveau · Plein écran |
-| Assistant IA | *(envoi du chat)* | Copier le code · Ajouter aux favoris · Ouvrir dans ▾ | Visite guidée · Effacer la conversation · Exporter ▾ *(Plus ▾)* |
-| Studio IA | Enregistrer | Copier le code · Ouvrir dans ▾ · Exporter ▾ | Visite guidée · Effacer la conversation |
-| Playground | Exécuter | Copier le code · Ajouter aux favoris · Ouvrir dans ▾ | Visite guidée · Réinitialiser · Ajouter des dépendances · Exporter ▾ *(Plus ▾)* |
-| Pipeline | Exécuter | Copier le code · Ouvrir dans ▾ · Ajouter une étape ▾ | Visite guidée · Réorganiser · Recentrer |
+| Créer un graphique | Générer | Copier le code | Ajouter aux favoris · Ouvrir dans le Playground · Ouvrir dans le Pipeline · Exporter en PNG · Exporter en JPG |
+| Créer une carte | Générer | Copier le code | Ajouter aux favoris · Ouvrir dans le Playground · Nouveau |
+| Créer un tableau de bord | Enregistrer | Ouvrir | Exporter la page HTML · Plein écran · Nouveau |
+| Assistant IA | Effacer la conversation | Copier le code | Ajouter aux favoris · Ouvrir dans le Playground · Exporter en PNG · Exporter en JPG |
+| Studio IA | Enregistrer | Copier le code | Ouvrir dans le tableau de bord · Effacer la conversation |
+| Playground | Exécuter | Copier le code | Ajouter aux favoris · Ouvrir dans le Pipeline · Exporter en PNG · Exporter en JPG · Ajouter des dépendances · Réinitialiser |
+| Pipeline | Exécuter | Ajouter une étape ▾ | Copier le code · Ouvrir dans le Playground · Supprimer · Réorganiser · Recentrer |
 | Sources | Nouvelle connexion | Importer · Exporter ▾ | Visite guidée |
 | Favoris | — | Importer · Exporter ▾ | — |
 | Suivi | — | Exporter ▾ | Actualiser |
 
-*(Plus ▾)* : entrées reléguées dans le menu `Plus ▾` quand la barre dépasse 3 secondaires.
+`Visite guidée` est partout le `?` en tête de barre. Sources, Favoris et Suivi gardent leur barre
+de liste (hors `AppActionBar`).
 
 ### 5.3 Usage (`packages/app-ui`)
 
@@ -218,27 +235,28 @@ variante du rang) et gère le débordement vers `Plus ▾` et le mode mobile.
 
 ```html
 <app-action-bar heading="Playground" disabled-reason="">
-  <button slot="tertiary" id="tour-btn" data-variant="no-outline" class="fr-icon-question-line fr-btn--icon-left">Visite guidée</button>
-  <button slot="tertiary" id="reset-btn" class="fr-icon-refresh-line fr-btn--icon-left">Réinitialiser</button>
-  <app-menu slot="tertiary" label="Exporter">
-    <button id="export-png-btn">Image PNG</button>
-    <button id="export-jpg-btn">Image JPG</button>
-  </app-menu>
+  <button slot="help" id="tour-btn" class="fr-icon-question-line">Visite guidée</button>
+  <div slot="context" class="example-selector">
+    <label class="fr-label" for="example-select">Exemple</label>
+    <select id="example-select" class="fr-select fr-select--sm">…</select>
+  </div>
   <button slot="secondary" id="copy-btn" class="fr-icon-clipboard-line fr-btn--icon-left">Copier le code</button>
-  <button slot="secondary" id="save-btn" class="fr-icon-star-line fr-btn--icon-left">Ajouter aux favoris</button>
-  <app-menu slot="secondary" label="Ouvrir dans">
-    <button id="pipeline-btn">Pipeline</button>
-  </app-menu>
+  <button slot="tertiary" id="save-btn" class="fr-icon-star-line">Ajouter aux favoris</button>
+  <button slot="tertiary" id="pipeline-btn" class="fr-icon-git-branch-line">Ouvrir dans le Pipeline</button>
+  <button slot="tertiary" id="export-png-btn" class="fr-icon-image-line">Exporter en PNG</button>
+  <button slot="tertiary" id="reset-btn" class="fr-icon-refresh-line">Réinitialiser</button>
   <button slot="primary" id="run-btn" class="fr-icon-play-line fr-btn--icon-left">Exécuter</button>
 </app-action-bar>
 ```
 
 - `heading` → `<h1>` de la zone de travail (remplace le bandeau `.app-page-head` du lot 1).
 - `disabled-reason="…"` → primaire `disabled` + `aria-disabled` + raison affichée et reliée par
-  `aria-describedby` ; `busy` → `aria-busy` et icône qui tourne ; `max-secondary` (3).
+  `aria-describedby` ; `busy` → `aria-busy` et icône qui tourne ; `max-secondary` (1).
 - `bar.addAction(el, rank)` / `bar.removeAction(el)` / `bar.refresh()` pour les boutons créés
   par script ; `menu.addItem(el)` / `menu.takeItems()` côté `<app-menu>`.
-- Un `<app-menu>` replié dans `Plus ▾` y verse ses entrées telles quelles (pas de sous-menu).
+- Un `<app-menu>` replié dans `Plus d'actions ▾` y verse ses entrées telles quelles (pas de
+  sous-menu) ; `menu.addSeparator()` insère un `role="separator"`.
+- `slot="context"` : contrôle de contexte (label + select…) placé après le titre, hors toolbar.
 
 ### 5.4 Primitives de boutons (`packages/app-ui/src/app-primitives.ts`, lot 5)
 

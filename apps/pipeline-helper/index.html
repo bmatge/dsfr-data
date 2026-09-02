@@ -31,43 +31,22 @@
        « code » reste jusqu'au PreviewPanel du lot 4 (#541). -->
 
   <app-action-bar heading="Pipeline">
-
-    <button slot="tertiary" id="btn-toggle-help" data-variant="no-outline" class="fr-icon-question-line fr-btn--icon-left">Visite guidée</button>
-
-    <button slot="tertiary" id="btn-delete" class="fr-icon-delete-line fr-btn--icon-left" title="Supprimer le(s) nœud(s) sélectionné(s) (ou touche Suppr)">Supprimer</button>
-
-    <button slot="tertiary" id="btn-arrange" class="fr-icon-layout-grid-line fr-btn--icon-left" title="Réorganiser automatiquement les nœuds">Réorganiser</button>
-
-    <button slot="tertiary" id="btn-fit" class="fr-icon-zoom-in-line fr-btn--icon-left" title="Recentrer la vue sur tous les nœuds">Recentrer</button>
-
-    <app-menu slot="secondary" label="Ajouter une étape">
-
+    <button slot="help" id="btn-toggle-help" class="fr-icon-question-line">Visite guidée</button>
+    <app-menu slot="secondary" label="Ajouter une étape" icon="fr-icon-add-line">
       <button id="btn-add-source" class="fr-icon-database-line" title="Ajouter une source de données (fetch HTTP)">Source</button>
-
       <button id="btn-add-normalize" class="fr-icon-edit-line" title="Normaliser les données (types, renommage, trim, aplatir)">Normaliser</button>
-
       <button id="btn-add-query" class="fr-icon-filter-line" title="Transformer les données (filtre, groupe, tri, agrégation)">Requêter</button>
-
       <button id="btn-add-join" class="fr-icon-git-merge-line" title="Joindre deux sources sur une clé pivot">Joindre</button>
-
       <button id="btn-add-search" class="fr-icon-search-line" title="Ajouter une barre de recherche textuelle">Rechercher</button>
-
       <button id="btn-add-facets" class="fr-icon-list-unordered" title="Ajouter des filtres à facettes interactifs">Facettes</button>
-
       <button id="btn-add-output" class="fr-icon-check-line" title="Données reçues en bout de chaîne">Sortie</button>
-
     </app-menu>
-
-    <button slot="secondary" id="btn-generate" class="fr-icon-clipboard-line fr-btn--icon-left" title="Voir et copier le code HTML correspondant au pipeline">Copier le code</button>
-
-    <app-menu slot="secondary" label="Ouvrir dans">
-
-      <button id="open-playground-btn" title="Ouvrir le code du pipeline dans le Playground">Playground</button>
-
-    </app-menu>
-
+    <button slot="tertiary" id="btn-generate" class="fr-icon-clipboard-line" title="Voir et copier le code HTML correspondant au pipeline">Copier le code</button>
+    <button slot="tertiary" id="open-playground-btn" class="fr-icon-code-s-slash-line" title="Ouvrir le code du pipeline dans le Playground">Ouvrir dans le Playground</button>
+    <button slot="tertiary" id="btn-delete" class="fr-icon-delete-line" title="Supprimer le(s) nœud(s) sélectionné(s) (ou touche Suppr)">Supprimer</button>
+    <button slot="tertiary" id="btn-arrange" class="fr-icon-layout-grid-line" title="Réorganiser automatiquement les nœuds">Réorganiser</button>
+    <button slot="tertiary" id="btn-fit" class="fr-icon-zoom-in-line" title="Recentrer la vue sur tous les nœuds">Recentrer</button>
     <button slot="primary" id="btn-execute" class="fr-icon-play-line fr-btn--icon-left" title="Exécuter le pipeline : fetch, transformations et rendu">Exécuter</button>
-
   </app-action-bar>
 
 

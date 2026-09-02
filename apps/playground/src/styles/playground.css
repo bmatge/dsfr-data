@@ -71,20 +71,19 @@ body {
   display: block;
 }
 
-/* --- Example selector ---------------------------------------------------- */
+/* --- Example selector (dans la zone contexte de la barre d'actions) ------ */
 
 .example-selector {
-  padding: 0.5rem 1rem;
-  background: var(--background-alt-grey);
-  border-bottom: 1px solid var(--border-default-grey);
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
   gap: 0.5rem;
+  min-width: 0;
 }
 
 .example-selector label {
   white-space: nowrap;
+  font-weight: 500;
+  margin: 0;
 }
 
 /* Le sélecteur d'exemple prend la place disponible sans jamais déborder
@@ -95,10 +94,6 @@ body {
   flex: 1 1 12rem;
   min-width: 0;
   max-width: 100%;
-}
-
-.example-selector label {
-  font-weight: 500;
 }
 
 /* --- Responsive: stack on mobile ---------------------------------------- */

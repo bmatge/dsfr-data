@@ -33,17 +33,13 @@
        historiques conservés (#generate-btn, #footer-copy-btn, #restart-tour-btn) ;
        les actions du tablist d'aperçu (Playground / Favoris / Image) la rejoignent. -->
   <app-action-bar heading="Créer un graphique">
-    <button slot="tertiary" id="restart-tour-btn" data-variant="no-outline" class="fr-icon-question-line fr-btn--icon-left" title="Revoir la visite guidée">Visite guidée</button>
-    <app-menu slot="tertiary" label="Exporter">
-      <button id="export-png-btn" class="fr-icon-image-line" title="Exporter l'aperçu en PNG">Image PNG</button>
-      <button id="export-jpg-btn" class="fr-icon-image-line" title="Exporter l'aperçu en JPG">Image JPG</button>
-    </app-menu>
+    <button slot="help" id="restart-tour-btn" class="fr-icon-question-line" title="Revoir la visite guidée">Visite guidée</button>
     <button slot="secondary" id="footer-copy-btn" class="fr-icon-clipboard-line fr-btn--icon-left" title="Copier le code généré">Copier le code</button>
-    <button slot="secondary" id="save-favorite-btn" class="preview-panel-save-btn fr-icon-star-line fr-btn--icon-left">Ajouter aux favoris</button>
-    <app-menu slot="secondary" label="Ouvrir dans">
-      <button id="open-playground-btn" title="Ouvrir le code généré dans le Playground">Playground</button>
-      <button id="open-pipeline-btn" title="Visualiser le pipeline de composants">Pipeline</button>
-    </app-menu>
+    <button slot="tertiary" id="save-favorite-btn" class="preview-panel-save-btn fr-icon-star-line">Ajouter aux favoris</button>
+    <button slot="tertiary" id="open-playground-btn" class="fr-icon-code-s-slash-line" title="Ouvrir le code généré dans le Playground">Ouvrir dans le Playground</button>
+    <button slot="tertiary" id="open-pipeline-btn" class="fr-icon-git-branch-line" title="Visualiser le pipeline de composants">Ouvrir dans le Pipeline</button>
+    <button slot="tertiary" id="export-png-btn" class="fr-icon-image-line" title="Exporter l'aperçu en PNG">Exporter en PNG</button>
+    <button slot="tertiary" id="export-jpg-btn" class="fr-icon-image-line" title="Exporter l'aperçu en JPG">Exporter en JPG</button>
     <button slot="primary" id="generate-btn" class="fr-icon-play-line fr-btn--icon-left">Générer</button>
   </app-action-bar>
 

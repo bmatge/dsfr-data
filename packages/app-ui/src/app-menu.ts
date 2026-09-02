@@ -40,6 +40,7 @@ app-menu[hidden]{display:none}
 .app-menu__list{position:absolute;right:0;top:calc(100% + .25rem);z-index:900;min-width:12rem;margin:0;padding:.25rem 0;list-style:none;background:var(--background-default-grey);box-shadow:0 6px 18px rgba(0,0,0,.16);border:1px solid var(--border-default-grey)}
 .app-menu__list[hidden]{display:none}
 .app-menu__list li{margin:0}
+.app-menu__separator{height:0;margin:.25rem 0;border-top:1px solid var(--border-default-grey)}
 .app-menu__item{display:flex;align-items:center;gap:.5rem;width:100%;box-sizing:border-box;min-height:2.5rem;padding:.5rem 1rem;margin:0;border:0;border-radius:0;background:none;box-shadow:none;color:var(--text-action-high-blue-france);font:inherit;font-size:.875rem;line-height:1.5rem;text-align:left;text-decoration:none;cursor:pointer;white-space:nowrap}
 .app-menu__item:hover,.app-menu__item:focus-visible{background:var(--background-alt-blue-france-hover)}
 .app-menu__item:focus-visible{outline:2px solid var(--border-active-blue-france);outline-offset:-2px}
@@ -75,7 +76,7 @@ export class AppMenu extends LitElement {
   open = false;
 
   private _menuId = `app-menu-${++menuSeq}`;
-  private _pending: Element[] = [];
+  private _pending: Array<Element | 'separator'> = [];
   private _outsideHandler = (e: MouseEvent) => {
     if (!this.contains(e.target as Node)) this.close();
   };
@@ -110,7 +111,10 @@ export class AppMenu extends LitElement {
     );
     const pending = [...this._pending, ...late];
     this._pending = [];
-    for (const el of pending) this.addItem(el);
+    for (const el of pending) {
+      if (el === 'separator') this.addSeparator();
+      else this.addItem(el);
+    }
   }
 
   updated(changed: Map<string, unknown>) {
@@ -163,6 +167,23 @@ export class AppMenu extends LitElement {
     this.requestUpdate();
   }
 
+  /** Séparateur de groupe (role=separator) — ignoré par la navigation clavier. */
+  addSeparator(): void {
+    const list = this._list();
+    if (!list) {
+      if (this._pending.length && this._pending[this._pending.length - 1] !== 'separator') {
+        this._pending.push('separator');
+      }
+      return;
+    }
+    if (list.children.length === 0) return;
+    if (list.lastElementChild?.getAttribute('role') === 'separator') return;
+    const li = document.createElement('li');
+    li.setAttribute('role', 'separator');
+    li.className = 'app-menu__separator';
+    list.appendChild(li);
+  }
+
   /** Retire une entrée et lui rend ses classes d'origine. */
   removeItem(el: Element): Element {
     const item = el as HTMLElement;
@@ -190,14 +211,18 @@ export class AppMenu extends LitElement {
         !c.classList.contains('app-menu__item') &&
         !this._pending.includes(c)
     );
-    const pending = [...this._pending, ...late];
+    const pending = [...this._pending.filter((p): p is Element => p !== 'separator'), ...late];
     this._pending = [];
     pending.forEach((el) => el.remove());
-    return [...this.items.map((it) => this.removeItem(it)), ...pending];
+    const items = [...this.items.map((it) => this.removeItem(it)), ...pending];
+    this._list()
+      ?.querySelectorAll('.app-menu__separator')
+      .forEach((sep) => sep.remove());
+    return items;
   }
 
   get isEmpty(): boolean {
-    return this.items.length === 0 && this._pending.length === 0;
+    return this.items.length === 0 && !this._pending.some((p) => p !== 'separator');
   }
 
   openMenu(focus: 'first' | 'last' | 'none' = 'first'): void {

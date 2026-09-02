@@ -747,7 +747,7 @@ test.describe('User Guide Screenshots', () => {
     await page.waitForTimeout(4000);
 
     await annotate(page, '#run-btn', 1, '#E1000F');
-    await annotate(page, '#save-btn', 2, '#000091');
+    await annotate(page, 'app-action-bar .app-action-bar__more .app-menu__trigger', 2, '#000091');
     await fullScreenshot(page, 'guide-D3-playground-dashboard.png');
     await clearAnnotations(page);
 

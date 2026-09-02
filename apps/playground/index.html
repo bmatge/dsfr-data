@@ -42,24 +42,10 @@
        historiques (#run-btn, #reset-btn, #deps-btn, #export-*-btn, #copy-btn,
        #save-btn, #pipeline-btn) sont conservés, main.ts ne change pas de câblage. -->
   <app-action-bar heading="Playground">
-    <button slot="tertiary" id="tour-btn" data-variant="no-outline" class="fr-icon-question-line fr-btn--icon-left">Visite guidée</button>
-    <button slot="tertiary" id="reset-btn" class="fr-icon-refresh-line fr-btn--icon-left" title="Recharger l'exemple sélectionné">Réinitialiser</button>
-    <button slot="tertiary" id="deps-btn" class="fr-icon-code-s-slash-line fr-btn--icon-left" title="Ajouter les CSS/JS nécessaires pour intégrer le code dans une page externe">Ajouter des dépendances</button>
-    <app-menu slot="tertiary" label="Exporter">
-      <button id="export-png-btn" class="fr-icon-image-line" title="Exporter l'aperçu en PNG">Image PNG</button>
-      <button id="export-jpg-btn" class="fr-icon-image-line" title="Exporter l'aperçu en JPG">Image JPG</button>
-    </app-menu>
-    <button slot="secondary" id="copy-btn" class="fr-icon-clipboard-line fr-btn--icon-left">Copier le code</button>
-    <button slot="secondary" id="save-btn" class="fr-icon-star-line fr-btn--icon-left">Ajouter aux favoris</button>
-    <app-menu slot="secondary" label="Ouvrir dans">
-      <button id="pipeline-btn" title="Visualiser le pipeline de composants dans le Pipeline Helper">Pipeline</button>
-    </app-menu>
-    <button slot="primary" id="run-btn" class="fr-icon-play-line fr-btn--icon-left">Exécuter</button>
-  </app-action-bar>
-
-  <div class="example-selector">
-    <label for="example-select">Charger un exemple :</label>
-    <select id="example-select" class="fr-select fr-select--sm">
+    <button slot="help" id="tour-btn" class="fr-icon-question-line">Visite guidée</button>
+    <div slot="context" class="example-selector">
+      <label class="fr-label" for="example-select">Exemple</label>
+      <select id="example-select" class="fr-select fr-select--sm">
       <optgroup label="Mode direct (dsfr-data-source)">
         <option value="direct-bar">Barres — Fiscalite locale</option>
         <option value="direct-bar-databox">Barres + DataBox complete — Fiscalite locale</option>
@@ -121,10 +107,17 @@
         <option value="map-multi-layer">Carte — Multi-couches heatmap + marqueurs</option>
       </optgroup>
     </select>
-    <a href="../../guide/guide.html#exemples" class="fr-link fr-link--sm fr-ml-2w" style="white-space: nowrap;">
-      <i class="ri-book-open-line fr-mr-1v" aria-hidden="true"></i>Guide et exemples
-    </a>
-  </div>
+    </div>
+    <button slot="secondary" id="copy-btn" class="fr-icon-clipboard-line fr-btn--icon-left">Copier le code</button>
+    <button slot="tertiary" id="save-btn" class="fr-icon-star-line" title="Enregistrer ce code dans vos favoris">Ajouter aux favoris</button>
+    <button slot="tertiary" id="pipeline-btn" class="fr-icon-git-branch-line" title="Visualiser le pipeline de composants dans le Pipeline Helper">Ouvrir dans le Pipeline</button>
+    <button slot="tertiary" id="export-png-btn" class="fr-icon-image-line" title="Exporter l'aperçu en PNG">Exporter en PNG</button>
+    <button slot="tertiary" id="export-jpg-btn" class="fr-icon-image-line" title="Exporter l'aperçu en JPG">Exporter en JPG</button>
+    <button slot="tertiary" id="deps-btn" class="fr-icon-code-s-slash-line" title="Ajouter les CSS/JS nécessaires pour intégrer le code dans une page externe">Ajouter des dépendances</button>
+    <button slot="tertiary" id="reset-btn" class="fr-icon-refresh-line" title="Recharger l'exemple sélectionné">Réinitialiser</button>
+    <button slot="primary" id="run-btn" class="fr-icon-play-line fr-btn--icon-left">Exécuter</button>
+  </app-action-bar>
+
 
   <app-layout-builder left-ratio="50">
     <div slot="left" class="playground-editor">
