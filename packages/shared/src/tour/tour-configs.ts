@@ -103,12 +103,12 @@ export const BUILDER_CARTO_TOUR: TourConfig = {
       selector: '#btn-execute',
       title: 'La carte est l’aperçu',
       description:
-        'La carte occupe tout l’écran : déplacez et zoomez, le cadrage exporté suit. "Executer" recharge l’aperçu et recadre sur les données.',
+        'La carte occupe tout l’écran : déplacez et zoomez, le cadrage exporté suit. "Générer" recharge l’aperçu et recadre sur les données.',
       position: 'bottom',
     },
     {
       selector: '#btn-export',
-      title: 'Obtenir le code',
+      title: 'Copier le code',
       description:
         'Le HTML pret a copier-coller dans votre site, en mode composants seuls ou page autonome.',
       position: 'bottom',
@@ -139,7 +139,7 @@ export const PLAYGROUND_TOUR: TourConfig = {
     },
     {
       selector: '#run-btn',
-      title: 'Executer',
+      title: 'Exécuter',
       description:
         'Cliquez pour voir le rendu en direct dans le panneau de droite. Le resultat se met a jour a chaque execution.',
       position: 'bottom',
@@ -148,7 +148,7 @@ export const PLAYGROUND_TOUR: TourConfig = {
       selector: '#preview-frame',
       title: 'Aperçu en direct',
       description:
-        'Le rendu de votre code s\'affiche ici. Utilisez les boutons "Copier" ou "+ Deps" pour obtenir un code autonome.',
+        'Le rendu de votre code s\'affiche ici. Utilisez les boutons "Copier le code" ou "Ajouter des dépendances" pour obtenir un code autonome.',
       position: 'left',
     },
   ],
@@ -163,7 +163,7 @@ export const DASHBOARD_TOUR: TourConfig = {
   steps: [
     {
       selector: '#widget-library',
-      title: 'Bibliotheque de widgets',
+      title: 'Bibliothèque de widgets',
       description:
         'Glissez un widget (KPI, graphique, tableau ou texte) sur la grille pour commencer a construire votre tableau de bord.',
       position: 'right',

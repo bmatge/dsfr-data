@@ -91,7 +91,7 @@ describe('builder-ia agent-loop', () => {
 
     const secondBody = post.mock.calls[1][0] as { messages: { role: string; content: string }[] };
     const toolMsg = secondBody.messages.find((m) => m.role === 'tool');
-    expect(toolMsg?.content).toContain('### Reference `<dsfr-data-chart>`');
+    expect(toolMsg?.content).toContain('### Référence `<dsfr-data-chart>`');
     // La partie redigee a la main ne doit PAS etre embarquee : c'est tout
     // l'interet de l'adressage par section.
     expect(toolMsg?.content).not.toContain('### Exemples');
@@ -113,7 +113,7 @@ describe('builder-ia agent-loop', () => {
 
     const secondBody = post.mock.calls[1][0] as { messages: { role: string; content: string }[] };
     const toolMsg = secondBody.messages.find((m) => m.role === 'tool');
-    expect(toolMsg?.content).toContain('### Reference `<dsfr-data-chart>`');
+    expect(toolMsg?.content).toContain('### Référence `<dsfr-data-chart>`');
     expect(toolMsg?.content).toContain('### Exemples');
   });
 

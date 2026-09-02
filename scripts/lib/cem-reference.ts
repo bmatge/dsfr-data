@@ -85,15 +85,15 @@ function roleOf(decl: CemDeclaration): PipelineRole {
  */
 function pipelineEvents(role: PipelineRole): string[] {
   const listen = [
-    '| `dsfr-data-loaded` | `{ sourceId, data }` | ecoute | Nouvelles donnees publiees par la source designee par `source`. |',
-    '| `dsfr-data-error` | `{ sourceId, error }` | ecoute | Erreur amont. |',
-    '| `dsfr-data-loading` | `{ sourceId }` | ecoute | Chargement amont demarre. |',
+    '| `dsfr-data-loaded` | `{ sourceId, data }` | écoute | Nouvelles données publiées par la source désignée par `source`. |',
+    '| `dsfr-data-error` | `{ sourceId, error }` | écoute | Erreur amont. |',
+    '| `dsfr-data-loading` | `{ sourceId }` | écoute | Chargement amont démarré. |',
   ];
   const emitTransformed = [
-    '| `dsfr-data-loaded` | `{ sourceId, data }` | emis | Donnees transformees, re-emises sous l’`id` de CE composant (c’est cet `id` que l’aval met dans son `source`). |',
-    '| `dsfr-data-error` | `{ sourceId, error }` | emis | Erreur amont ou de transformation, sous l’`id` de ce composant. |',
-    '| `dsfr-data-loading` | `{ sourceId }` | emis | Chargement amont relaye vers l’aval. |',
-    '| `dsfr-data-source-command` | `{ sourceId, page?, where?, whereKey?, orderBy?, groupBy?, aggregate? }` | emis | Commande de pagination / filtre / tri envoyee a la source AMONT — soit originee par ce composant, soit relayee depuis l’aval. |',
+    '| `dsfr-data-loaded` | `{ sourceId, data }` | émis | Données transformées, ré-émises sous l’`id` de CE composant (c’est cet `id` que l’aval met dans son `source`). |',
+    '| `dsfr-data-error` | `{ sourceId, error }` | émis | Erreur amont ou de transformation, sous l’`id` de ce composant. |',
+    '| `dsfr-data-loading` | `{ sourceId }` | émis | Chargement amont relayé vers l’aval. |',
+    '| `dsfr-data-source-command` | `{ sourceId, page?, where?, whereKey?, orderBy?, groupBy?, aggregate? }` | émis | Commande de pagination / filtre / tri envoyée à la source AMONT — soit originée par ce composant, soit relayée depuis l’aval. |',
   ];
 
   if (role === 'transformer') return [...listen, ...emitTransformed];
@@ -103,11 +103,11 @@ function pipelineEvents(role: PipelineRole): string[] {
 
 const ROLE_LABEL: Record<PipelineRole, string> = {
   transformer:
-    'transformateur (`TransformerMixin`) — consomme `source`, re-emet sous son propre `id`, relaie les commandes vers l’amont',
+    'transformateur (`TransformerMixin`) — consomme `source`, ré-émet sous son propre `id`, relaie les commandes vers l’amont',
   display:
-    'affichage (`SourceSubscriberMixin`) — feuille du pipeline : consomme `source`, n’emet pas de donnees',
+    'affichage (`SourceSubscriberMixin`) — feuille du pipeline : consomme `source`, n’émet pas de données',
   standalone:
-    'autonome — n’utilise pas les mixins d’abonnement du pipeline (voir les evenements ci-dessous)',
+    'autonome — n’utilise pas les mixins d’abonnement du pipeline (voir les événements ci-dessous)',
 };
 
 // ---------------------------------------------------------------------------
@@ -174,7 +174,7 @@ function renderAttributes(decl: CemDeclaration): string {
         `| \`${a.name}\` | \`${cell(a.type?.text, 'string')}\` | ${fmtDefault(a.default)} | ${describe(a)} |`
     );
   return (
-    ['| Attribut | Type | Defaut | Description |', '|---|---|---|---|', ...rows].join('\n') + '\n'
+    ['| Attribut | Type | Défaut | Description |', '|---|---|---|---|', ...rows].join('\n') + '\n'
   );
 }
 
@@ -213,8 +213,8 @@ function renderMethods(decl: CemDeclaration): string {
       return `| \`${m.name}(${params})\` | \`${cell(ret, 'void')}\` | ${describe(m)} |`;
     });
   return (
-    '\n**Methodes publiques**\n\n' +
-    ['| Methode | Retour | Description |', '|---|---|---|', ...rows].join('\n') +
+    '\n**Méthodes publiques**\n\n' +
+    ['| Méthode | Retour | Description |', '|---|---|---|', ...rows].join('\n') +
     '\n'
   );
 }
@@ -227,13 +227,13 @@ function renderEvents(decl: CemDeclaration): string {
     // dans le texte du tag.
     const payload =
       e.type?.text && e.type.text !== 'CustomEvent' ? `\`${cell(e.type.text)}\`` : '—';
-    return `| \`${e.name}\` | ${payload} | emis | ${cell(e.description)} |`;
+    return `| \`${e.name}\` | ${payload} | émis | ${cell(e.description)} |`;
   });
   const rows = [...pipelineEvents(role), ...own];
-  if (rows.length === 0) return '\n**Evenements** — aucun.\n';
+  if (rows.length === 0) return '\n**Événements** — aucun.\n';
   return (
-    '\n**Evenements** (emis sur `document` : ecouter via `document.addEventListener`, filtrer sur `detail.sourceId`)\n\n' +
-    ['| Evenement | Payload | Direction | Quand |', '|---|---|---|---|', ...rows].join('\n') +
+    '\n**Événements** (émis sur `document` : ecouter via `document.addEventListener`, filtrer sur `detail.sourceId`)\n\n' +
+    ['| Événement | Payload | Direction | Quand |', '|---|---|---|---|', ...rows].join('\n') +
     '\n'
   );
 }
@@ -249,7 +249,7 @@ function renderSlotsAndCss(decl: CemDeclaration): string {
           [
             '| Slot | Description |',
             '|---|---|',
-            ...slots.map((s) => `| \`${s.name || '(defaut)'}\` | ${cell(s.description)} |`),
+            ...slots.map((s) => `| \`${s.name || '(défaut)'}\` | ${cell(s.description)} |`),
           ].join('\n') +
           '\n'
   );
@@ -258,7 +258,7 @@ function renderSlotsAndCss(decl: CemDeclaration): string {
       ? '\n**Variables CSS publiques** — aucune (styler via les variables du DSFR sur le conteneur parent).\n'
       : '\n**Variables CSS publiques**\n\n' +
           [
-            '| Variable | Defaut | Description |',
+            '| Variable | Défaut | Description |',
             '|---|---|---|',
             ...css.map(
               (c) => `| \`${c.name}\` | ${fmtDefault(c.default)} | ${cell(c.description)} |`
@@ -273,9 +273,9 @@ export function renderReference(decl: CemDeclaration): string {
   const tag = decl.tagName as string;
   const role = roleOf(decl);
   return [
-    `### Reference \`<${tag}>\` (generee depuis le code)`,
+    `### Référence \`<${tag}>\` (générée depuis le code)`,
     '',
-    `**Role pipeline** : ${ROLE_LABEL[role]}.`,
+    `**Rôle pipeline** : ${ROLE_LABEL[role]}.`,
     '',
     '**Attributs**',
     '',

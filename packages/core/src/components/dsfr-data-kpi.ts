@@ -35,7 +35,7 @@ const COLOR_CLASSES: Record<KpiColor, string> = {
  */
 @customElement('dsfr-data-kpi')
 export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
-  /** Id de la source (ou du transformateur) dont ce KPI consomme les donnees. Facultatif si `value` est un litteral (`value="=667"`). */
+  /** Id de la source (ou du transformateur) dont ce KPI consomme les données. Facultatif si `value` est un littéral (`value="=667"`). */
   @property({ type: String })
   source = '';
 
@@ -82,7 +82,7 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
    * RACCOURCI HERITE — pour une ligne d'evolution riche (signe, suffixe,
    * couleur, repli n.d.), preferez `lines`. Conserve pour compatibilite.
    *
-   * Expression d'agregation pour la tendance, evaluee sur les donnees de la
+   * Expression d'agrégation pour la tendance, évaluée sur les données de la
    * source (grammaire commune "champ:fn", ex. "evolution:avg") — PAS un
    * litteral : l'ancienne doc ("+3.2") laissait croire qu'on passait une
    * valeur, la chaine etait interpretee comme nom de champ (#303).

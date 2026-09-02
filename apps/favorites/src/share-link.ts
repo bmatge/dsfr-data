@@ -172,7 +172,7 @@ export async function openShareModal(favoriteId: string): Promise<void> {
         closeModal('share-modal');
         toastSuccess('Lien public revoque');
       } catch {
-        setError('Impossible de revoquer le lien.');
+        setError('Impossible de révoquer le lien.');
       }
     });
   }

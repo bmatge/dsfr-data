@@ -124,7 +124,7 @@ function renderUsersTable(): void {
           <tr>
             <th>Nom</th>
             <th>Email</th>
-            <th>Role</th>
+            <th>Rôle</th>
             <th>Statut</th>
             <th>Derniere connexion</th>
             <th>Inscription</th>
@@ -171,7 +171,7 @@ function renderUserDetail(user: UserDetail, resources: Record<string, number>): 
     <dl class="detail-grid">
       <dt>Email</dt><dd>${escapeHtml(user.email)}</dd>
       <dt>Nom</dt><dd>${escapeHtml(user.displayName)}</dd>
-      <dt>Role</dt><dd><span class="badge badge--${user.role}">${user.role}</span></dd>
+      <dt>Rôle</dt><dd><span class="badge badge--${user.role}">${user.role}</span></dd>
       <dt>Provider</dt><dd><span class="badge badge--${user.authProvider}">${user.authProvider}</span></dd>
       <dt>Statut</dt><dd><span class="badge badge--${user.isActive ? 'active' : 'inactive'}">${user.isActive ? 'Actif' : 'Inactif'}</span></dd>
       <dt>Email vérifié</dt><dd>${user.emailVerified ? 'Oui' : 'Non'}</dd>
@@ -184,7 +184,7 @@ function renderUserDetail(user: UserDetail, resources: Record<string, number>): 
 
     <div class="detail-actions">
       <div class="fr-select-group" style="min-width:150px">
-        <label class="fr-label" for="detail-role">Role</label>
+        <label class="fr-label" for="detail-role">Rôle</label>
         <select class="fr-select" id="detail-role">
           <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>admin</option>
           <option value="editor" ${user.role === 'editor' ? 'selected' : ''}>editor</option>
@@ -195,7 +195,7 @@ function renderUserDetail(user: UserDetail, resources: Record<string, number>): 
       <button class="fr-btn fr-btn--sm fr-btn--secondary" id="btn-toggle-status">
         ${user.isActive ? 'Desactiver' : 'Activer'}
       </button>
-      <button class="fr-btn fr-btn--sm fr-btn--secondary" id="btn-revoke-sessions">Revoquer les sessions</button>
+      <button class="fr-btn fr-btn--sm fr-btn--secondary" id="btn-revoke-sessions">Révoquer les sessions</button>
       <button class="fr-btn fr-btn--sm fr-btn--tertiary" id="btn-delete-user" style="color:var(--text-default-error)">Supprimer</button>
     </div>
   `;
@@ -223,7 +223,7 @@ function renderUserDetail(user: UserDetail, resources: Record<string, number>): 
   };
 
   document.getElementById('btn-revoke-sessions')!.onclick = async () => {
-    if (!confirm(`Revoquer toutes les sessions de ${user.email} ?`)) return;
+    if (!confirm(`Révoquer toutes les sessions de ${user.email} ?`)) return;
     try {
       await revokeSessions(user.id);
       alert('Sessions revoquees.');

@@ -54,7 +54,7 @@ export const SOURCE_CONFIG: PipelineNodeConfig = {
 };
 
 export const QUERY_CONFIG: PipelineNodeConfig = {
-  label: 'Query',
+  label: 'Requêter',
   component: 'dsfr-data-query',
   category: 'transform',
   icon: 'ri-filter-3-line',
@@ -83,7 +83,7 @@ export const QUERY_CONFIG: PipelineNodeConfig = {
 };
 
 export const SEARCH_CONFIG: PipelineNodeConfig = {
-  label: 'Search',
+  label: 'Rechercher',
   component: 'dsfr-data-search',
   category: 'interact',
   icon: 'ri-search-line',
@@ -105,7 +105,7 @@ export const SEARCH_CONFIG: PipelineNodeConfig = {
 };
 
 export const FACETS_CONFIG: PipelineNodeConfig = {
-  label: 'Facets',
+  label: 'Facettes',
   component: 'dsfr-data-facets',
   category: 'interact',
   icon: 'ri-list-check-2',
@@ -141,7 +141,7 @@ export const OUTPUT_CONFIG: PipelineNodeConfig = {
 };
 
 export const A11Y_CONFIG: PipelineNodeConfig = {
-  label: 'A11y',
+  label: 'Accessibilité',
   component: 'dsfr-data-a11y',
   category: 'a11y',
   icon: 'ri-accessibility-line',
@@ -163,7 +163,7 @@ export const A11Y_CONFIG: PipelineNodeConfig = {
 };
 
 export const NORMALIZE_CONFIG: PipelineNodeConfig = {
-  label: 'Normalize',
+  label: 'Normaliser',
   component: 'dsfr-data-normalize',
   category: 'transform',
   icon: 'ri-edit-2-line',
@@ -217,7 +217,7 @@ export const NORMALIZE_CONFIG: PipelineNodeConfig = {
 };
 
 export const JOIN_CONFIG: PipelineNodeConfig = {
-  label: 'Join',
+  label: 'Joindre',
   component: 'dsfr-data-join',
   category: 'transform',
   icon: 'ri-git-merge-line',

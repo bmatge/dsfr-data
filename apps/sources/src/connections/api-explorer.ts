@@ -417,7 +417,7 @@ export async function loadMoreApiPages(maxAdditionalPages: number): Promise<void
     // current state: we need a fresh AbortController and re-derive nextUrl
     // is impossible without persisting it. So: instruct user to reload.
     toastError(
-      'Le contexte de chargement a été perdu. Cliquez sur « Rafraîchir » pour recommencer.'
+      'Le contexte de chargement a été perdu. Cliquez sur « Actualiser » pour recommencer.'
     );
     return;
   }

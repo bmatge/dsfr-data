@@ -117,7 +117,9 @@ export class PipelineEditor {
 
     const node = factory();
     this.nodeCounter++;
-    node.label = `${node.component} #${this.nodeCounter}`;
+    // Libellé français + numéro ; le nom du composant est affiché à part en
+    // <code> dans la carte et l'inspecteur (docs/ux/actions.md §7, B6).
+    node.label = `${node.config.label} #${this.nodeCounter}`;
 
     await this.editor.addNode(node);
     await this.area.translate(node.id, {

@@ -101,7 +101,7 @@ const CHART_TAG_MAP: Record<string, string> = {
  */
 @customElement('dsfr-data-chart')
 export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
-  /** Id de la `<dsfr-data-source>` (ou d'un transformateur) dont ce graphique consomme les donnees. */
+  /** Id de la `<dsfr-data-source>` (ou d'un transformateur) dont ce graphique consomme les données. */
   @property({ type: String })
   source = '';
 
@@ -181,7 +181,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'x-max' })
   xMax = '';
 
-  /** Limite min de l'axe Y. Pour `type="radar"` : borne min de l'echelle radiale (le centre du radar est fixe a `y-min` au lieu du minimum des donnees). */
+  /** Limite min de l'axe Y. Pour `type="radar"` : borne min de l'échelle radiale (le centre du radar est fixé à `y-min` au lieu du minimum des données). */
   @property({ type: String, attribute: 'y-min' })
   yMin = '';
 
@@ -257,7 +257,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
    * Lignes de reference (overlay) au format JSON. Graphiques cartesiens
    * uniquement (line, bar, bar-line, scatter). Chaque item :
    * `{ axis: "x"|"y", value: string|number, label?, color?, dash?, position? }`.
-   * `axis:"x"` → ligne verticale a une categorie/date ; `axis:"y"` → ligne
+   * `axis:"x"` → ligne verticale à une catégorie/date ; `axis:"y"` → ligne
    * horizontale a un seuil. Ex : `reference-lines='[{"axis":"x","value":"2026-02",
    * "label":"Lancement","color":"#c9191e","dash":true}]'`.
    */

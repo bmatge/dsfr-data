@@ -195,10 +195,10 @@ export async function saveFavorite(): Promise<void> {
     return;
   }
 
-  const name = await promptDialog('Sauvegarder en favoris', state.title || 'Mon graphique', {
+  const name = await promptDialog('Ajouter aux favoris', state.title || 'Mon graphique', {
     label: 'Nom du favori',
     placeholder: 'Ex : Population par r\u00e9gion 2024',
-    confirmLabel: 'Sauvegarder',
+    confirmLabel: 'Enregistrer',
   });
   if (!name) return;
 

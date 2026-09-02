@@ -74,9 +74,9 @@ describe('sections de skills (#513)', () => {
   describe('classement des blocs', () => {
     it('isole la reference generee (#512) dans la section reference', () => {
       const parts = splitSkillContent(SKILLS.dsfrDataChart.content);
-      expect(parts.reference).toContain('### Reference `<dsfr-data-chart>`');
-      expect(parts.guide).not.toContain('### Reference `<dsfr-data-chart>`');
-      expect(parts.exemples).not.toContain('### Reference `<dsfr-data-chart>`');
+      expect(parts.reference).toContain('### Référence `<dsfr-data-chart>`');
+      expect(parts.guide).not.toContain('### Référence `<dsfr-data-chart>`');
+      expect(parts.exemples).not.toContain('### Référence `<dsfr-data-chart>`');
     });
 
     it('regroupe les 5 composants carto dans la reference du skill dsfrDataMap', () => {
@@ -88,7 +88,7 @@ describe('sections de skills (#513)', () => {
         'dsfr-data-map-inset',
         'dsfr-data-map-timeline',
       ]) {
-        expect(parts.reference).toContain(`### Reference \`<${tag}>\``);
+        expect(parts.reference).toContain(`### Référence \`<${tag}>\``);
       }
     });
 
@@ -156,7 +156,7 @@ describe('sections de skills (#513)', () => {
 
     it('renvoie la section demandee', () => {
       const ref = selectSkillSection(content, 'reference');
-      expect(ref).toContain('### Reference `<dsfr-data-chart>`');
+      expect(ref).toContain('### Référence `<dsfr-data-chart>`');
       expect(ref.length).toBeLessThan(content.length);
     });
 
