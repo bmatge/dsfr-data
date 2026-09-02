@@ -209,7 +209,7 @@ Le scenario par defaut. Aucune configuration particuliere requise au-dela de `AP
 
 1. `cp .env.example .env`
 2. Editer `APP_DOMAIN=mon-domaine.example.com`
-3. `./docker/deploy.sh` (ou `deploy-server.sh` en mode serveur)
+3. `./docker/deploy.sh` (ou `./docker/deploy-server.sh` en mode serveur)
 
 Les scripts generent `VITE_PROXY_URL=https://${APP_DOMAIN}` et (mode serveur) `APP_URL=https://${APP_DOMAIN}`. Tous les chemins de proxying nginx (`/grist-proxy/`, `/tabular-proxy/`, `/albert-proxy/`, etc.) sont actifs cote conteneur. Le `docker-compose.yml` fournit des labels Traefik en exemple — adapter ou retirer selon le reverse proxy choisi (Caddy, nginx frontal, ALB…).
 
