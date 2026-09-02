@@ -189,6 +189,7 @@ describe('<app-action-bar>', () => {
     stubMatchMedia(true);
     const bar = await mount(SIX);
     expect(bar.isMobile).toBe(true);
+    // Aucun secondaire n'a d'icône DSFR dans SIX : tous repliés.
     expect(toolbarIds(bar)).toEqual(['run']);
     expect(bar.moreMenu!.items.map((i) => i.id)).toEqual(['tour', 'reset', 'copy', 'fav', 'share']);
 
@@ -219,6 +220,31 @@ describe('<app-action-bar>', () => {
     expect(open.variant).toBe('secondary');
     expect(open.items.map((i) => i.id)).toEqual(['o1', 'o2']);
     expect(more.hidden).toBe(true);
+  });
+
+  it('mobile : les secondaires à icône restent visibles en boutons icône (libellé sr-only)', async () => {
+    stubMatchMedia(true);
+    const bar = await mount(
+      `<button slot="secondary" id="copy" class="fr-icon-clipboard-line fr-btn--icon-left">Copier le code</button>
+       <button slot="secondary" id="share">Partager</button>
+       <button slot="tertiary" id="tour" class="fr-icon-question-line">Visite guidée</button>
+       <button slot="primary" id="run" class="fr-icon-play-line fr-btn--icon-left">Exécuter</button>`
+    );
+    expect(toolbarIds(bar)).toEqual(['copy', 'run']);
+    const copy = byId('copy');
+    expect(copy.querySelector('.fr-sr-only')?.textContent).toBe('Copier le code');
+    expect(copy.classList.contains('fr-btn--icon-left')).toBe(false);
+    expect(copy.getAttribute('title')).toBe('Copier le code');
+    // La primaire garde son libellé visible.
+    expect(byId('run').querySelector('.fr-sr-only')).toBeNull();
+    expect(bar.moreMenu!.items.map((i) => i.id)).toEqual(['tour', 'share']);
+
+    // Retour desktop : libellé et icône à gauche restaurés.
+    mql.listeners.forEach((fn) => fn({ matches: false }));
+    await bar.updateComplete;
+    expect(copy.querySelector('.fr-sr-only')).toBeNull();
+    expect(copy.textContent?.trim()).toBe('Copier le code');
+    expect(copy.classList.contains('fr-btn--icon-left')).toBe(true);
   });
 
   it('addAction / removeAction après coup', async () => {

@@ -75,6 +75,7 @@ app-action-bar{display:block;position:sticky;top:var(--app-header-h,0px);z-index
 @media (max-width:47.99em){
   .app-action-bar__actions{position:fixed;left:0;right:0;bottom:0;z-index:800;margin:0;padding:.5rem 1rem;justify-content:flex-end;background:var(--background-default-grey);border-top:1px solid var(--border-default-grey);box-shadow:0 -4px 12px rgba(0,0,0,.08)}
   .app-action-bar__actions .app-action-bar__group--primary{flex:1 1 auto}
+  .app-action-bar__actions .app-action-bar__group--secondary{flex-wrap:nowrap}
   .app-action-bar__actions .app-action-bar__group--primary .fr-btn{width:100%;justify-content:center}
   .app-action-bar__actions .app-menu__list{position:fixed;top:auto;left:.5rem;right:.5rem;bottom:calc(var(--app-action-bar-fixed-h,3.5rem) + .25rem);max-height:60vh;overflow:auto}
   .app-action-bar__reason{position:fixed;left:0;right:0;bottom:var(--app-action-bar-fixed-h,3.5rem);z-index:800;padding:.25rem 1rem;background:var(--background-default-grey)}
@@ -226,6 +227,48 @@ export class AppActionBar extends LitElement {
     return this.querySelector<HTMLElement>(`.app-action-bar__group--${rank}`);
   }
 
+  private _hasDsfrIcon(el: HTMLElement): boolean {
+    return (
+      !(el instanceof AppMenu) && Array.from(el.classList).some((c) => c.startsWith('fr-icon-'))
+    );
+  }
+
+  /**
+   * Bouton icône seule (mobile) : le libellé passe en `fr-sr-only` et la
+   * classe `fr-btn--icon-left` est retirée ; l'inverse restaure le bouton.
+   * Idempotent, ne touche ni aux ids ni aux écouteurs.
+   */
+  private _iconify(el: HTMLElement, on: boolean): void {
+    if (el instanceof AppMenu || !this._hasDsfrIcon(el)) return;
+    const wrapped = el.querySelector<HTMLElement>(':scope > [data-ab-label]');
+    if (on && !wrapped) {
+      const texts = Array.from(el.childNodes).filter(
+        (n) => n.nodeType === Node.TEXT_NODE && (n.textContent ?? '').trim() !== ''
+      );
+      if (texts.length === 0) return;
+      const span = document.createElement('span');
+      span.className = 'fr-sr-only';
+      span.dataset.abLabel = '';
+      span.textContent = texts
+        .map((t) => t.textContent)
+        .join('')
+        .trim();
+      if (!el.title) el.title = span.textContent;
+      texts.forEach((t) => t.remove());
+      el.appendChild(span);
+      if (el.classList.contains('fr-btn--icon-left')) {
+        el.dataset.abIconLeft = '';
+        el.classList.remove('fr-btn--icon-left');
+      }
+    } else if (!on && wrapped) {
+      el.replaceChild(document.createTextNode(wrapped.textContent ?? ''), wrapped);
+      if (el.dataset.abIconLeft !== undefined) {
+        el.classList.add('fr-btn--icon-left');
+        delete el.dataset.abIconLeft;
+      }
+    }
+  }
+
   private _normalize(item: ActionItem): void {
     const el = item.el;
     if (el instanceof AppMenu) {
@@ -279,7 +322,12 @@ export class AppActionBar extends LitElement {
     const tertiaries = this._items.filter((it) => it.rank === 'tertiary');
     const secondaries = this._items.filter((it) => it.rank === 'secondary');
     const primary = this._items.find((it) => it.rank === 'primary');
-    const visibleSecondaries = this._mobile ? [] : secondaries.slice(0, this.maxSecondary);
+    // Mobile : les secondaires qui ont une icône DSFR restent visibles en
+    // boutons icône (libellé en sr-only) — un « ⋯ » seul ne dit pas ce qu'il
+    // cache. Les menus, les tertiaires et les secondaires sans icône se replient.
+    const visibleSecondaries = this._mobile
+      ? secondaries.filter((it) => this._hasDsfrIcon(it.el)).slice(0, this.maxSecondary)
+      : secondaries.slice(0, this.maxSecondary);
     const overflow = [
       ...(this._mobile ? tertiaries : []),
       ...secondaries.filter((it) => !visibleSecondaries.includes(it)),
@@ -288,6 +336,7 @@ export class AppActionBar extends LitElement {
 
     for (const it of [...visibleTertiaries, ...visibleSecondaries, ...(primary ? [primary] : [])]) {
       this._normalize(it);
+      this._iconify(it.el, this._mobile && it.rank === 'secondary');
     }
     groups.tertiary.replaceChildren(...visibleTertiaries.map((it) => it.el));
     groups.secondary.replaceChildren(...visibleSecondaries.map((it) => it.el));

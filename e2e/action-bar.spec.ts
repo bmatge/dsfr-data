@@ -182,13 +182,23 @@ test.describe('AppActionBar (#539)', () => {
         expect(box.x + box.width).toBeLessThanOrEqual(375);
       }
 
-      // Tout le reste est replié dans Plus ▾.
+      // Les secondaires à icône restent visibles en boutons icône (libellé
+      // sr-only) ; menus, tertiaires et autres sont repliés dans Plus ▾.
       const more = page.locator('app-action-bar .app-action-bar__more');
       await expect(more).toBeVisible();
       await more.locator('.app-menu__trigger').click();
       await expect(more.locator('[role="menu"]')).toBeVisible();
-      for (const id of [...ed.openIn, ...(ed.folded ?? [])]) {
+      for (const id of ed.openIn) {
         await expect(more.locator(`#${id}[role="menuitem"]`)).toBeVisible();
+      }
+      for (const id of ed.folded ?? []) {
+        const el = page.locator(`#${id}`);
+        await expect(el).toBeVisible();
+        const inMenu = (await el.getAttribute('role')) === 'menuitem';
+        if (!inMenu) {
+          // Bouton icône dans la barre fixe : nom accessible conservé.
+          await expect(el.locator('.fr-sr-only')).toHaveText(/.+/);
+        }
       }
       const menuBox = (await more.locator('[role="menu"]').boundingBox())!;
       expect(menuBox.x).toBeGreaterThanOrEqual(0);
