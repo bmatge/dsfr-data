@@ -103,9 +103,11 @@ describe('<app-action-bar>', () => {
     expect(more.items.map((i) => i.id)).toEqual(['extra']);
     expect(byId('extra').getAttribute('role')).toBe('menuitem');
 
-    // Sans débordement, Plus ▾ est masqué.
+    // Sans débordement, Plus ▾ est masqué (attribut hidden, que le style
+    // display:inline-block du composant ne doit pas écraser).
     const bar2 = await mount(SIX);
     expect(bar2.moreMenu!.hidden).toBe(true);
+    expect(bar2.moreMenu!.hasAttribute('hidden')).toBe(true);
     expect(bar2.moreMenu!.isEmpty).toBe(true);
   });
 

@@ -36,6 +36,7 @@ export function injectAppMenuStyles(): void {
   style.id = 'app-menu-style';
   style.textContent = `
 app-menu{display:inline-block;position:relative}
+app-menu[hidden]{display:none}
 .app-menu__list{position:absolute;right:0;top:calc(100% + .25rem);z-index:900;min-width:12rem;margin:0;padding:.25rem 0;list-style:none;background:var(--background-default-grey);box-shadow:0 6px 18px rgba(0,0,0,.16);border:1px solid var(--border-default-grey)}
 .app-menu__list[hidden]{display:none}
 .app-menu__list li{margin:0}
