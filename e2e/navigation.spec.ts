@@ -124,3 +124,27 @@ test.describe('Header collant (A2)', () => {
     expect(top).toBe(headerH + barH);
   });
 });
+
+test.describe('Accueil — bandeau Tchap (#578)', () => {
+  test('visible sur l’accueil seulement, lien vers la salle Tchap, fermeture mémorisée', async ({
+    page,
+  }) => {
+    await page.goto('/index.html');
+    const notice = page.locator('#tchap-notice');
+    await expect(notice).toBeVisible();
+    await expect(notice).toContainText('Une question ? Besoin d’aide ?'.replace('’', "'"));
+    const link = notice.locator('a.fr-notice__link');
+    await expect(link).toHaveText('communauté sur Tchap');
+    expect(await link.getAttribute('href')).toContain('tchap.gouv.fr/#/room/');
+    await expect(link).toHaveAttribute('target', '_blank');
+    expect(await link.getAttribute('rel')).toContain('noopener');
+
+    await notice.locator('#tchap-notice-close').click();
+    await expect(notice).toBeHidden();
+    await page.reload();
+    await expect(page.locator('#tchap-notice')).toBeHidden();
+
+    await page.goto('/apps/builder/index.html');
+    await expect(page.locator('#tchap-notice')).toHaveCount(0);
+  });
+});
