@@ -52,7 +52,7 @@ export const BUILDER_TOUR: TourConfig = {
       selector: 'app-preview-panel',
       title: 'Aperçu et code',
       description:
-        'Le graphique s\'affiche ici. Basculez sur l\'onglet "Code généré" pour copier le HTML pret a integrer dans votre site.',
+        'Le graphique s\'affiche ici. Basculez sur l\'onglet "Code" pour copier le HTML pret a integrer dans votre site.',
       position: 'left',
     },
   ],

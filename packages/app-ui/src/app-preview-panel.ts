@@ -1,96 +1,79 @@
 import { LitElement, html, nothing } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { customElement, property } from 'lit/decorators.js';
 
 /**
- * <app-preview-panel> - Panneau de prévisualisation avec onglets
+ * <app-preview-panel> - Panneau de prévisualisation à onglets DSFR (fr-tabs)
  *
- * Composant réutilisable pour afficher un aperçu, du code et des données.
- * Utilisé par builder.html, builderIA.html et playground.html.
+ * Onglets normalisés `Aperçu · Code · Données` (docs/ux/actions.md §2.4, lot UX 4
+ * #541) rendus en **fr-tabs natifs** : le JS du DSFR (chargé par chaque page)
+ * gère la sélection, `aria-selected`, le roving tabindex et les flèches. Le
+ * composant ne bind jamais ces attributs (il les pose une fois) pour ne pas
+ * écraser l'état géré par le DSFR à un rendu suivant.
  *
- * Note: Utilise Light DOM pour hériter des styles DSFR.
- * Les éléments avec slot="preview", slot="code" et slot="data" sont déplacés
- * manuellement dans les conteneurs d'onglets après le rendu.
+ * **Aucune action dans le tablist** (audit C3) : les actions sur l'artefact
+ * vivent dans <app-action-bar>.
+ *
+ * Note : Light DOM pour hériter des styles DSFR. Les éléments avec
+ * slot="preview", slot="code" et slot="data" sont déplacés dans les panneaux
+ * `#tab-preview`, `#tab-code`, `#tab-data` (ids historiques conservés).
  *
  * @example
- * <app-preview-panel
- *   show-data-tab
- *   tab-labels="Aperçu,Code généré,Données brutes">
- *
- *   <!-- Slot preview : contenu de l'onglet aperçu -->
- *   <div slot="preview">
- *     <h2 id="preview-title">Mon graphique</h2>
- *     <p id="preview-subtitle">Source</p>
- *     <div class="chart-container">
- *       <canvas id="preview-canvas"></canvas>
- *     </div>
- *   </div>
- *
- *   <!-- Slot code : contenu de l'onglet code -->
- *   <div slot="code">
- *     <button id="copy-btn">Copier</button>
- *     <pre id="generated-code"></pre>
- *   </div>
- *
- *   <!-- Slot data : contenu de l'onglet données -->
- *   <div slot="data">
- *     <pre id="raw-data"></pre>
- *   </div>
- *
+ * <app-preview-panel show-data-tab tab-labels="Aperçu,Code,JSON">
+ *   <div slot="preview">…</div>
+ *   <div slot="code"><pre id="generated-code"></pre></div>
+ *   <div slot="data"><pre id="raw-data"></pre></div>
  * </app-preview-panel>
+ *
+ * @fires tab-change - { tab: 'preview' | 'code' | 'data' } à chaque changement d'onglet.
  */
+
+export type PreviewTab = 'preview' | 'code' | 'data';
+
+const TABS: PreviewTab[] = ['preview', 'code', 'data'];
+const DEFAULT_LABELS: Record<PreviewTab, string> = {
+  preview: 'Aperçu',
+  code: 'Code',
+  data: 'Données',
+};
+
+/** API DSFR (globale, injectée par dsfr.module.js) — optionnelle en test. */
+interface DsfrTabPanelApi {
+  tabPanel?: { disclose: () => void };
+}
+declare global {
+  interface Window {
+    dsfr?: (el: Element) => DsfrTabPanelApi;
+  }
+}
+
 @customElement('app-preview-panel')
 export class AppPreviewPanel extends LitElement {
-  /**
-   * Afficher l'onglet Données
-   */
+  /** Afficher l'onglet Données (ou JSON). */
   @property({ type: Boolean, attribute: 'show-data-tab' })
   showDataTab = false;
 
   /**
-   * Afficher le bouton Ajouter aux favoris
-   */
-  @property({ type: Boolean, attribute: 'show-save-button' })
-  showSaveButton = false;
-
-  /**
-   * Afficher le bouton Ouvrir dans le Playground
-   */
-  @property({ type: Boolean, attribute: 'show-playground-button' })
-  showPlaygroundButton = false;
-
-  /**
-   * Afficher le bouton Exporter en image (menu PNG / JPG). Emet `export-image`
-   * avec { format: 'png' | 'jpg' } — la capture reste du ressort de l'app,
-   * qui seule sait ou vit son apercu (canvas direct ou iframe).
-   */
-  @property({ type: Boolean, attribute: 'show-image-button' })
-  showImageButton = false;
-
-  @state()
-  private _imageMenuOpen = false;
-
-  /**
-   * Labels personnalisés pour les onglets (séparés par des virgules)
+   * Libellés des onglets, séparés par des virgules. Seules les formes du
+   * lexique sont attendues : `Aperçu`, `Code`, `Données` ou `JSON`.
    */
   @property({ type: String, attribute: 'tab-labels' })
   tabLabels = 'Aperçu,Code,Données';
 
-  /**
-   * Onglet actif initial
-   */
+  /** Onglet actif initial. */
   @property({ type: String, attribute: 'active-tab' })
-  activeTab = 'preview';
+  activeTab: PreviewTab = 'preview';
 
-  @state()
-  private _activeTab = 'preview';
+  /** Onglet courant — champ simple, pas d'état Lit : le DSFR pilote le DOM. */
+  private _activeTab: PreviewTab = 'preview';
 
-  // Éléments enfants à projeter (sauvegardés avant le rendu)
   private _previewContent: Element[] = [];
   private _codeContent: Element[] = [];
   private _dataContent: Element[] = [];
   private _contentMoved = false;
+  /** Suit la classe `fr-tabs__panel--selected` posée par le JS du DSFR. */
+  private _selectionObserver?: MutationObserver;
 
-  // Light DOM pour hériter des styles DSFR et permettre l'accès aux IDs
+  // Light DOM pour hériter des styles DSFR et permettre l'accès aux ids
   createRenderRoot() {
     return this;
   }
@@ -98,244 +81,166 @@ export class AppPreviewPanel extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     this._activeTab = this.activeTab;
-    // Sauvegarder les éléments enfants avant le premier rendu
     this._saveSlotContent();
   }
 
-  /**
-   * Sauvegarde les éléments enfants avec slot="preview", slot="code", slot="data"
-   * pour les déplacer après le rendu (Light DOM n'a pas de slots natifs)
-   */
+  /** Sauvegarde les enfants slot="…" pour les projeter après le rendu. */
   private _saveSlotContent() {
     this._previewContent = Array.from(this.querySelectorAll('[slot="preview"]'));
     this._codeContent = Array.from(this.querySelectorAll('[slot="code"]'));
     this._dataContent = Array.from(this.querySelectorAll('[slot="data"]'));
   }
 
-  /**
-   * Déplace le contenu sauvegardé dans les conteneurs d'onglets après le rendu
-   */
   firstUpdated() {
     this._moveContent();
+    // Le JS du DSFR bascule `fr-tabs__panel--selected` : on l'observe plutôt
+    // que de dépendre du nom de ses événements.
+    if (typeof MutationObserver !== 'undefined') {
+      this._selectionObserver = new MutationObserver(() => {
+        const selected = this._panels().find((p) =>
+          p.classList.contains('fr-tabs__panel--selected')
+        );
+        const tab = selected?.dataset.tab as PreviewTab | undefined;
+        if (tab && tab !== this._activeTab) this._emitChange(tab);
+      });
+      for (const panel of this._panels()) {
+        this._selectionObserver.observe(panel, { attributes: true, attributeFilter: ['class'] });
+      }
+    }
   }
 
   updated() {
-    // S'assurer que le contenu est toujours dans les bons conteneurs
-    if (!this._contentMoved) {
-      this._moveContent();
-    }
+    if (!this._contentMoved) this._moveContent();
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this._selectionObserver?.disconnect();
+  }
+
+  private _panels(): HTMLElement[] {
+    return Array.from(this.querySelectorAll<HTMLElement>('.fr-tabs__panel[data-tab]'));
   }
 
   private _moveContent() {
     const previewContainer = this.querySelector('#tab-preview');
     const codeContainer = this.querySelector('#tab-code');
     const dataContainer = this.querySelector('#tab-data');
-
-    if (previewContainer) {
-      this._previewContent.forEach((el) => previewContainer.appendChild(el));
-    }
-    if (codeContainer) {
-      this._codeContent.forEach((el) => codeContainer.appendChild(el));
-    }
-    if (dataContainer) {
-      this._dataContent.forEach((el) => dataContainer.appendChild(el));
-    }
+    if (previewContainer) this._previewContent.forEach((el) => previewContainer.appendChild(el));
+    if (codeContainer) this._codeContent.forEach((el) => codeContainer.appendChild(el));
+    if (dataContainer) this._dataContent.forEach((el) => dataContainer.appendChild(el));
     this._contentMoved = true;
   }
 
-  /**
-   * Changer l'onglet actif programmatiquement
-   */
-  setActiveTab(tab: 'preview' | 'code' | 'data') {
-    this._activeTab = tab;
-    this.requestUpdate();
+  /** Changer l'onglet actif programmatiquement (via l'API DSFR si présente). */
+  setActiveTab(tab: PreviewTab) {
+    const panel = this.querySelector<HTMLElement>(`#tab-${tab}`);
+    if (!panel) return;
+    const api = typeof window.dsfr === 'function' ? window.dsfr(panel) : undefined;
+    if (api?.tabPanel) {
+      api.tabPanel.disclose();
+    } else {
+      // Repli sans JS DSFR (tests) : bascule manuelle des classes/attributs.
+      for (const p of this._panels()) {
+        const selected = p === panel;
+        p.classList.toggle('fr-tabs__panel--selected', selected);
+        const btn = this.querySelector<HTMLElement>(`#${p.getAttribute('aria-labelledby')}`);
+        btn?.setAttribute('aria-selected', selected ? 'true' : 'false');
+        btn?.setAttribute('tabindex', selected ? '0' : '-1');
+      }
+      if (tab !== this._activeTab) this._emitChange(tab);
+    }
   }
 
-  /**
-   * Obtenir l'onglet actif
-   */
+  /** Onglet actif. */
   getActiveTab(): string {
     return this._activeTab;
   }
 
-  private _handleTabClick(tab: string) {
+  private _emitChange(tab: PreviewTab) {
     this._activeTab = tab;
     this.dispatchEvent(
-      new CustomEvent('tab-change', {
-        detail: { tab },
-        bubbles: true,
-        composed: true,
-      })
-    );
-    this.requestUpdate();
-  }
-
-  private _getTabLabels(): string[] {
-    return this.tabLabels.split(',').map((l) => l.trim());
-  }
-
-  private _handleSaveClick() {
-    this.dispatchEvent(
-      new CustomEvent('save-favorite', {
-        bubbles: true,
-        composed: true,
-      })
+      new CustomEvent('tab-change', { detail: { tab }, bubbles: true, composed: true })
     );
   }
 
-  private _handlePlaygroundClick() {
-    this.dispatchEvent(
-      new CustomEvent('open-playground', {
-        bubbles: true,
-        composed: true,
-      })
-    );
+  /** Clic sur un onglet (repli si le JS DSFR n'a pas instancié les tabs). */
+  private _onTabClick(tab: PreviewTab) {
+    if (typeof window.dsfr !== 'function') this.setActiveTab(tab);
   }
 
-  private _handleImageExport(format: 'png' | 'jpg') {
-    this._imageMenuOpen = false;
-    this.dispatchEvent(
-      new CustomEvent('export-image', {
-        detail: { format },
-        bubbles: true,
-        composed: true,
-      })
-    );
+  private _labels(): Record<PreviewTab, string> {
+    const parts = this.tabLabels.split(',').map((l) => l.trim());
+    return {
+      preview: parts[0] || DEFAULT_LABELS.preview,
+      code: parts[1] || DEFAULT_LABELS.code,
+      data: parts[2] || DEFAULT_LABELS.data,
+    };
   }
 
   render() {
-    const labels = this._getTabLabels();
-    const [previewLabel, codeLabel, dataLabel] = labels;
+    const labels = this._labels();
+    const tabs = TABS.filter((t) => t !== 'data' || this.showDataTab);
+    const initial = tabs.includes(this.activeTab) ? this.activeTab : 'preview';
 
+    // Attributs d'état posés une fois (pas d'expression Lit) : le DSFR les
+    // fait évoluer ensuite sans être écrasé par un re-rendu.
     return html`
       <div class="preview-panel">
-        <!-- Onglets -->
-        <div class="preview-panel-tabs">
-          <button
-            class="preview-panel-tab ${this._activeTab === 'preview' ? 'active' : ''}"
-            data-tab="preview"
-            @click="${() => this._handleTabClick('preview')}"
-          >
-            ${previewLabel || 'Aperçu'}
-          </button>
-          <button
-            class="preview-panel-tab ${this._activeTab === 'code' ? 'active' : ''}"
-            data-tab="code"
-            @click="${() => this._handleTabClick('code')}"
-          >
-            ${codeLabel || 'Code'}
-          </button>
-          ${
-            this.showDataTab
-              ? html`
-                  <button
-                    class="preview-panel-tab ${this._activeTab === 'data' ? 'active' : ''}"
-                    data-tab="data"
-                    @click="${() => this._handleTabClick('data')}"
-                  >
-                    ${dataLabel || 'Données'}
-                  </button>
-                `
-              : nothing
-          }
-          ${
-            this.showImageButton
-              ? html`
-                  <div style="position:relative;display:inline-flex;">
+        <div class="fr-tabs preview-panel-tabs">
+          <ul class="fr-tabs__list" role="tablist" aria-label="Panneau d'aperçu">
+            ${tabs.map((tab) =>
+              tab === initial
+                ? html`<li role="presentation">
                     <button
-                      class="preview-panel-action-btn"
-                      @click="${() => {
-                        this._imageMenuOpen = !this._imageMenuOpen;
-                      }}"
-                      title="Exporter l'aperçu en image"
-                      aria-haspopup="true"
-                      aria-expanded="${this._imageMenuOpen}"
+                      type="button"
+                      id="tab-${tab}-btn"
+                      class="fr-tabs__tab"
+                      tabindex="0"
+                      role="tab"
+                      aria-selected="true"
+                      aria-controls="tab-${tab}"
+                      @click=${() => this._onTabClick(tab)}
                     >
-                      <i class="ri-image-line" aria-hidden="true"></i>
-                      <span>Image</span>
+                      ${labels[tab]}
                     </button>
-                    ${
-                      this._imageMenuOpen
-                        ? html`
-                            <div
-                              style="position:absolute;top:100%;right:0;z-index:100;background:var(--background-default-grey,#fff);border:1px solid var(--border-default-grey,#ddd);border-radius:4px;box-shadow:0 2px 6px rgba(0,0,18,0.16);display:flex;flex-direction:column;min-width:6rem;"
-                            >
-                              <button
-                                class="preview-panel-action-btn"
-                                @click="${() => this._handleImageExport('png')}"
-                              >
-                                PNG
-                              </button>
-                              <button
-                                class="preview-panel-action-btn"
-                                @click="${() => this._handleImageExport('jpg')}"
-                              >
-                                JPG
-                              </button>
-                            </div>
-                          `
-                        : nothing
-                    }
-                  </div>
-                `
-              : nothing
-          }
-          ${
-            this.showPlaygroundButton
-              ? html`
-                  <button
-                    class="preview-panel-action-btn"
-                    @click="${this._handlePlaygroundClick}"
-                    title="Ouvrir dans le Playground"
-                  >
-                    <i class="ri-play-circle-line" aria-hidden="true"></i>
-                    <span>Playground</span>
-                  </button>
-                `
-              : nothing
-          }
-          ${
-            this.showSaveButton
-              ? html`
-                  <button
-                    class="preview-panel-action-btn preview-panel-save-btn"
-                    @click="${this._handleSaveClick}"
-                    title="Ajouter aux favoris"
-                  >
-                    <i class="ri-star-line" aria-hidden="true"></i>
-                    <span>Ajouter aux favoris</span>
-                  </button>
-                `
-              : nothing
-          }
-        </div>
-
-        <!-- Contenu des onglets. tabindex=0 : panneau atteignable au clavier quand son
-
-             contenu défile (axe scrollable-region-focusable, patron ARIA tabpanel) —
-
-             normalisé en fr-tabs au lot UX 4 (#541). -->
-        <div class="preview-panel-content">
-          <!-- Onglet Aperçu - contenu slot="preview" sera déplacé ici -->
-          <div
-            class="preview-panel-tab-content ${this._activeTab === 'preview' ? 'active' : ''}"
-            id="tab-preview"
-            tabindex="0"
-          ></div>
-
-          <!-- Onglet Code - contenu slot="code" sera déplacé ici -->
-          <div
-            class="preview-panel-tab-content ${this._activeTab === 'code' ? 'active' : ''}"
-            id="tab-code"
-            tabindex="0"
-          ></div>
-
-          <!-- Onglet Données - contenu slot="data" sera déplacé ici -->
-          <div
-            class="preview-panel-tab-content ${this._activeTab === 'data' ? 'active' : ''}"
-            id="tab-data"
-            tabindex="0"
-          ></div>
+                  </li>`
+                : html`<li role="presentation">
+                    <button
+                      type="button"
+                      id="tab-${tab}-btn"
+                      class="fr-tabs__tab"
+                      tabindex="-1"
+                      role="tab"
+                      aria-selected="false"
+                      aria-controls="tab-${tab}"
+                      @click=${() => this._onTabClick(tab)}
+                    >
+                      ${labels[tab]}
+                    </button>
+                  </li>`
+            )}
+          </ul>
+          ${tabs.map((tab) =>
+            tab === initial
+              ? html`<div
+                  id="tab-${tab}"
+                  class="fr-tabs__panel fr-tabs__panel--selected preview-panel-tab-content"
+                  role="tabpanel"
+                  aria-labelledby="tab-${tab}-btn"
+                  tabindex="0"
+                  data-tab="${tab}"
+                ></div>`
+              : html`<div
+                  id="tab-${tab}"
+                  class="fr-tabs__panel preview-panel-tab-content"
+                  role="tabpanel"
+                  aria-labelledby="tab-${tab}-btn"
+                  tabindex="0"
+                  data-tab="${tab}"
+                ></div>`
+          )}
+          ${nothing}
         </div>
       </div>
 
@@ -355,87 +260,53 @@ export class AppPreviewPanel extends LitElement {
           min-height: 0;
         }
 
-        /* Onglets */
-        .preview-panel-tabs {
-          display: flex;
-          background: var(--background-default-grey);
-          border-bottom: 1px solid var(--border-default-grey);
-          flex-shrink: 0;
-        }
-
-        .preview-panel-tab {
-          padding: 0.75rem 1.5rem;
-          border: none;
-          background: none;
-          cursor: pointer;
-          font-size: 0.85rem;
-          border-bottom: 2px solid transparent;
-          color: var(--text-mention-grey);
-          transition:
-            color 0.15s,
-            border-color 0.15s;
-        }
-
-        .preview-panel-tab:hover {
-          color: var(--text-action-high-blue-france);
-        }
-
-        .preview-panel-tab.active {
-          color: var(--text-action-high-blue-france);
-          border-bottom-color: var(--border-action-high-blue-france);
-          font-weight: 600;
-        }
-
-        /* Boutons d'action (Playground, Favoris) */
-        .preview-panel-action-btn {
-          padding: 0.5rem 1rem;
-          border: none;
-          background: var(--background-action-low-blue-france);
-          color: var(--text-action-high-blue-france);
-          cursor: pointer;
-          font-size: 0.8rem;
-          border-radius: 4px;
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          margin-right: 0.5rem;
-          margin-top: 0.25rem;
-          margin-bottom: 0.25rem;
-          transition: background 0.15s;
-        }
-
-        .preview-panel-action-btn:first-of-type {
-          margin-left: auto;
-        }
-
-        .preview-panel-action-btn:hover {
-          background: var(--background-action-low-blue-france-hover);
-        }
-
-        .preview-panel-action-btn i {
-          font-size: 1rem;
-        }
-
-        /* Contenu des onglets */
-        .preview-panel-content {
+        /* fr-tabs : le DSFR fige la hauteur du bloc sur celle du panneau au
+           moment de l'ouverture (--tabs-height) — incompatible avec un aperçu
+           qui grandit après coup (graphique rendu en différé, iframe). On
+           laisse la hauteur libre et on masque les panneaux non sélectionnés. */
+        .preview-panel > .fr-tabs {
+          height: auto !important;
           flex: 1;
-          overflow: auto;
-          display: flex;
           flex-direction: column;
+          flex-wrap: nowrap;
           min-height: 0;
+          overflow: visible;
+          transition: none;
+          box-shadow: none;
+          border-bottom: 0;
+          background: var(--background-default-grey);
         }
 
-        .preview-panel-tab-content {
+        /* Le filler ::before du DSFR (trait de fond en ligne) devient un
+           item flex vide en colonne : on le retire. */
+        .preview-panel > .fr-tabs::before {
           display: none;
+        }
+
+        .preview-panel > .fr-tabs > .fr-tabs__list {
+          flex-shrink: 0;
+          box-shadow: inset 0 -1px 0 0 var(--border-default-grey);
+        }
+
+        .preview-panel > .fr-tabs > .fr-tabs__panel {
+          left: 0;
+          margin-right: 0;
+          transform: none;
+          transition: none;
+          background: var(--background-alt-grey);
+        }
+
+        .preview-panel > .fr-tabs > .fr-tabs__panel:not(.fr-tabs__panel--selected) {
+          display: none;
+        }
+
+        .preview-panel-tab-content.fr-tabs__panel--selected {
+          display: flex;
           flex-direction: column;
           flex: 1;
           padding: 1.5rem;
           min-height: 0;
           overflow: auto;
-        }
-
-        .preview-panel-tab-content.active {
-          display: flex;
         }
 
         /* Styles communs pour le contenu des slots */
@@ -509,13 +380,6 @@ export class AppPreviewPanel extends LitElement {
           min-height: 200px;
         }
 
-        /* Copy button */
-        .preview-panel-tab-content .copy-btn,
-        .preview-panel-tab-content #copy-code-btn {
-          align-self: flex-end;
-          margin-bottom: 0.5rem;
-        }
-
         /* Canvas and iframe in preview */
         .preview-panel-tab-content canvas {
           width: 100% !important;
@@ -559,12 +423,7 @@ export class AppPreviewPanel extends LitElement {
 
         /* Responsive */
         @media (max-width: 600px) {
-          .preview-panel-tab {
-            padding: 0.5rem 1rem;
-            font-size: 0.8rem;
-          }
-
-          .preview-panel-tab-content {
+          .preview-panel-tab-content.fr-tabs__panel--selected {
             padding: 1rem;
           }
         }
