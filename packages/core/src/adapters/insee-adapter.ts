@@ -16,7 +16,7 @@ import type {
   ServerSideOverlay,
 } from './api-adapter.js';
 import type { ProviderConfig } from '@dsfr-data/shared/lib';
-import { INSEE_CONFIG, getProxiedUrl } from '@dsfr-data/shared/lib';
+import { INSEE_CONFIG, getProxiedUrl, flattenInseeObservation } from '@dsfr-data/shared/lib';
 import { buildColonFacetWhere, unescapeColonValue } from '../utils/where.js';
 
 /** Default base URL for the Melodi API */
@@ -230,43 +230,14 @@ export class InseeAdapter implements ApiAdapter {
    *
    * Input:  { dimensions: {GEO: "...", FREQ: "A"}, measures: {OBS_VALUE_NIVEAU: {value: 123}}, attributes: {OBS_STATUS: "A"} }
    * Output: { GEO: "...", FREQ: "A", OBS_VALUE: 123, OBS_STATUS: "A" }
+   *
+   * Delegue a `flattenInseeObservation` (`@dsfr-data/shared/lib`) : le chemin
+   * connexion API applique exactement la meme fonction via
+   * `INSEE_CONFIG.response.flattenRecord`, ce qui garantit des noms de colonnes
+   * identiques quel que soit le chemin d'import (#586).
    */
   private _flattenObservations(observations: unknown[]): Record<string, unknown>[] {
-    return observations.map((obs: unknown) => {
-      const o = obs as Record<string, unknown>;
-      const flat: Record<string, unknown> = {};
-
-      // Flatten dimensions
-      const dims = o.dimensions as Record<string, unknown> | undefined;
-      if (dims) {
-        for (const [key, value] of Object.entries(dims)) {
-          flat[key] = value;
-        }
-      }
-
-      // Flatten measures: extract OBS_VALUE_NIVEAU.value as OBS_VALUE
-      const measures = o.measures as Record<string, unknown> | undefined;
-      if (measures) {
-        for (const [measureKey, measureObj] of Object.entries(measures)) {
-          const mObj = measureObj as Record<string, unknown> | null;
-          if (mObj && 'value' in mObj) {
-            // OBS_VALUE_NIVEAU → OBS_VALUE (strip _NIVEAU suffix)
-            const flatKey = measureKey.replace(/_NIVEAU$/, '');
-            flat[flatKey] = mObj.value;
-          }
-        }
-      }
-
-      // Flatten attributes (optional, present on some datasets)
-      const attrs = o.attributes as Record<string, unknown> | undefined;
-      if (attrs) {
-        for (const [key, value] of Object.entries(attrs)) {
-          flat[key] = value;
-        }
-      }
-
-      return flat;
-    });
+    return observations.map(flattenInseeObservation);
   }
 
   /**

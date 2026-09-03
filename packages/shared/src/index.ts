@@ -146,6 +146,7 @@ export type {
   ProviderId,
   ResolvedSourceUrl,
   DataGouvResource,
+  FlatRecord,
 } from './providers/index.js';
 export {
   ODS_CONFIG,
@@ -162,6 +163,9 @@ export {
   parseDataGouvDataset,
   dataGouvDatasetApiUrl,
   extractDataGouvResources,
+  flattenInseeObservation,
+  flattenNestedKey,
+  flattenProviderRecords,
 } from './providers/index.js';
 
 // Types

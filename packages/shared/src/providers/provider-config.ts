@@ -41,6 +41,16 @@ export interface ProviderConfig {
     nestedDataKey: string | null;
     /** Does this provider need dsfr-data-normalize flatten automatically? */
     requiresFlatten: boolean;
+    /**
+     * Aplatit un enregistrement de ce provider (#586). Renseigne uniquement
+     * quand `requiresFlatten` est vrai et que `nestedDataKey` ne suffit pas :
+     * une observation INSEE eclate en `attributes`/`dimensions`/`measures` ne
+     * se reduit pas a une cle d'enveloppe.
+     *
+     * Quand ce champ est absent mais que `nestedDataKey` est renseigne, les
+     * consommateurs appliquent `flattenNestedKey`. Voir `providers/flatten.ts`.
+     */
+    flattenRecord?: (record: unknown) => Record<string, unknown>;
   };
 
   // --- Pagination ---

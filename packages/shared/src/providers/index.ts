@@ -6,6 +6,8 @@
  */
 
 export type { ProviderConfig, ProviderId } from './provider-config.js';
+export type { FlatRecord } from './flatten.js';
+export { flattenInseeObservation, flattenNestedKey, flattenProviderRecords } from './flatten.js';
 export { ODS_CONFIG } from './opendatasoft.js';
 export { TABULAR_CONFIG } from './tabular.js';
 export { GRIST_CONFIG } from './grist.js';

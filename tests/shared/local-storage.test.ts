@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   loadFromStorage,
   saveToStorage,
+  saveToStorageQuiet,
   removeFromStorage,
   STORAGE_KEYS,
 } from '../../packages/shared/src/storage/local-storage';
@@ -71,5 +72,64 @@ describe('localStorage helpers', () => {
       expect(STORAGE_KEYS.SOURCES).toBe('dsfr-data-sources');
       expect(STORAGE_KEYS.SELECTED_SOURCE).toBe('dsfr-data-selected-source');
     });
+  });
+});
+
+describe('depassement de quota (#322, #586)', () => {
+  const QUOTA = new DOMException('quota', 'QuotaExceededError');
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  /**
+   * On remplace le global `localStorage` plutot que d'espionner
+   * `Storage.prototype` : happy-dom expose `setItem` en propriete propre de
+   * l'instance, un espion pose sur le prototype n'est jamais consulte.
+   */
+  function failWith(error: unknown) {
+    vi.stubGlobal('localStorage', {
+      setItem: () => {
+        throw error;
+      },
+      getItem: () => null,
+      removeItem: () => {},
+      clear: () => {},
+    });
+  }
+
+  function captureQuotaEvent(write: () => boolean) {
+    const events: CustomEvent[] = [];
+    const listener = (e: Event) => events.push(e as CustomEvent);
+    window.addEventListener('dsfr-data:storage-quota', listener);
+    const result = write();
+    window.removeEventListener('dsfr-data:storage-quota', listener);
+    return { result, events };
+  }
+
+  it("saveToStorage emet l'evenement avec la cle et la taille refusee", () => {
+    failWith(QUOTA);
+    const { result, events } = captureQuotaEvent(() => saveToStorage('k', { a: 'x'.repeat(50) }));
+    expect(result).toBe(false);
+    expect(events).toHaveLength(1);
+    expect(events[0].detail.key).toBe('k');
+    expect(events[0].detail.bytes).toBeGreaterThan(50);
+  });
+
+  it('saveToStorageQuiet signale aussi le quota (avant #586 : echec silencieux)', () => {
+    failWith(QUOTA);
+    const { result, events } = captureQuotaEvent(() =>
+      saveToStorageQuiet(STORAGE_KEYS.SELECTED_SOURCE, { data: [1, 2, 3] })
+    );
+    expect(result).toBe(false);
+    expect(events).toHaveLength(1);
+    expect(events[0].detail.key).toBe(STORAGE_KEYS.SELECTED_SOURCE);
+  });
+
+  it("une erreur non liee au quota n'emet pas l'evenement", () => {
+    failWith(new Error('autre chose'));
+    const { result, events } = captureQuotaEvent(() => saveToStorage('k', { a: 1 }));
+    expect(result).toBe(false);
+    expect(events).toHaveLength(0);
   });
 });
