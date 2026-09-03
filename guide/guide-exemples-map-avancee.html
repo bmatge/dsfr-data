@@ -108,7 +108,7 @@
 &lt;dsfr-data-join id="dept-geo" left="fn-dept" right="geo-dept" on="dep2" type="inner"&gt;&lt;/dsfr-data-join&gt;
 
 &lt;!-- 4. Choroplethe --&gt;
-&lt;dsfr-data-map center="46.6,2.3" zoom="6" height="550px" tiles="carto-positron"
+&lt;dsfr-data-map center="46.6,2.3" zoom="6" height="550px" tiles="ign-plan"
   name="Beneficiaires FranceNum par departement"&gt;
   &lt;dsfr-data-map-layer source="dept-geo" type="geoshape"
     geo-field="geo_shape"
@@ -153,7 +153,7 @@
   {"nom":"Lille","lat":50.6292,"lon":3.0573,"pop":236234}
 ]'&gt;&lt;/dsfr-data-source&gt;
 
-&lt;dsfr-data-map center="46.6,2.3" zoom="6" tiles="carto-positron" height="450px"&gt;
+&lt;dsfr-data-map center="46.6,2.3" zoom="6" tiles="ign-plan" height="450px"&gt;
   &lt;dsfr-data-map-layer source="metropoles" type="circle"
     lat-field="lat" lon-field="lon"
     radius-field="pop" radius-unit="px" radius-min="6" radius-max="30"
@@ -216,7 +216,7 @@
   limit="800"&gt;
 &lt;/dsfr-data-source&gt;
 
-&lt;dsfr-data-map center="48.86,2.35" zoom="10" tiles="carto-positron" height="500px"
+&lt;dsfr-data-map center="48.86,2.35" zoom="10" tiles="ign-plan" height="500px"
   name="Intensite des prix du controle technique en Ile-de-France"&gt;
   &lt;dsfr-data-map-layer source="ct-prix" type="heatmap"
     lat-field="latitude" lon-field="longitude"
@@ -318,7 +318,7 @@ Zoom 11+   : centres de contrôle technique parisiens (ODS)</pre></div>
   limit="60"&gt;
 &lt;/dsfr-data-source&gt;
 
-&lt;dsfr-data-map center="48.86,2.35" zoom="9" tiles="carto-positron" height="550px"
+&lt;dsfr-data-map center="48.86,2.35" zoom="9" tiles="ign-plan" height="550px"
   name="Multi-resolution : regions, departements, points"&gt;
   &lt;!-- Visible du zoom 2 au zoom 7 --&gt;
   &lt;dsfr-data-map-layer source="regions-agg" type="circle"
@@ -504,7 +504,7 @@ Zoom 11+   : centres de contrôle technique parisiens (ODS)</pre></div>
   limit="1500"&gt;
 &lt;/dsfr-data-source&gt;
 
-&lt;dsfr-data-map center="46.6,2.3" zoom="6" tiles="carto-positron" height="450px"
+&lt;dsfr-data-map center="46.6,2.3" zoom="6" tiles="ign-plan" height="450px"
   name="Troncature max-items"&gt;
   &lt;!-- max-items : troncature + banniere "400 affiches sur 1500" --&gt;
   &lt;dsfr-data-map-layer source="ct-volume" type="marker"

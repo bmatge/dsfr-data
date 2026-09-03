@@ -8558,6 +8558,32 @@
         },
         {
           "kind": "function",
+          "name": "buildTileLayerConfig",
+          "return": {
+            "type": {
+              "text": "{ url: string; options: Record<string, unknown>; warnings: string[] }"
+            }
+          },
+          "parameters": [
+            {
+              "name": "tiles",
+              "type": {
+                "text": "string"
+              }
+            },
+            {
+              "name": "tilesAttribution",
+              "default": "''"
+            },
+            {
+              "name": "sovereignOnly",
+              "default": "false"
+            }
+          ],
+          "description": "Construit l'URL et les options de la `TileLayer` a partir des attributs du composant.\nFonction pure, extraite de `_updateTiles()` pour etre testable sans Leaflet (#576).\n\nLes warnings sont retournes plutot que loggues, a charge de l'appelant.\n\nExpose pour les tests."
+        },
+        {
+          "kind": "function",
           "name": "clipBoundsForFit",
           "return": {
             "type": {
@@ -8657,8 +8683,18 @@
                 "text": "string"
               },
               "default": "'ign-plan'",
-              "description": "Fond de carte : `ign-plan`, `ign-ortho`, `ign-cadastre`, `osm-fr` (alias `osm`), `osm-standard`, `carto-positron`, `carto-dark`, `opentopomap`, ou une URL template. `ign-topo` est deprecie (redirige vers `ign-plan` avec un warning).",
+              "description": "Fond de carte : `ign-plan`, `ign-ortho`, `ign-cadastre`, `osm-fr` (alias `osm`), `osm-standard`, `opentopomap`, ou une URL template. Presets deprecies (redirigent vers `ign-plan` avec un warning) : `ign-topo`, `carto-positron`, `carto-dark`.",
               "attribute": "tiles"
+            },
+            {
+              "kind": "field",
+              "name": "tilesAttribution",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Mention d'attribution affichee sur la carte quand `tiles` est une URL custom (obligatoire pour respecter l'ODbL et les CGU du fournisseur). Ignore sur un preset connu, qui porte deja son attribution. Accepte du HTML (liens).",
+              "attribute": "tiles-attribution"
             },
             {
               "kind": "field",
@@ -9094,8 +9130,17 @@
                 "text": "string"
               },
               "default": "'ign-plan'",
-              "description": "Fond de carte : `ign-plan`, `ign-ortho`, `ign-cadastre`, `osm-fr` (alias `osm`), `osm-standard`, `carto-positron`, `carto-dark`, `opentopomap`, ou une URL template. `ign-topo` est deprecie (redirige vers `ign-plan` avec un warning).",
+              "description": "Fond de carte : `ign-plan`, `ign-ortho`, `ign-cadastre`, `osm-fr` (alias `osm`), `osm-standard`, `opentopomap`, ou une URL template. Presets deprecies (redirigent vers `ign-plan` avec un warning) : `ign-topo`, `carto-positron`, `carto-dark`.",
               "fieldName": "tiles"
+            },
+            {
+              "name": "tiles-attribution",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Mention d'attribution affichee sur la carte quand `tiles` est une URL custom (obligatoire pour respecter l'ODbL et les CGU du fournisseur). Ignore sur un preset connu, qui porte deja son attribution. Accepte du HTML (liens).",
+              "fieldName": "tilesAttribution"
             },
             {
               "name": "sovereign-only",
@@ -9175,6 +9220,14 @@
           "name": "resolveTilePreset",
           "declaration": {
             "name": "resolveTilePreset",
+            "module": "packages/core/src/components/dsfr-data-map.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "buildTileLayerConfig",
+          "declaration": {
+            "name": "buildTileLayerConfig",
             "module": "packages/core/src/components/dsfr-data-map.ts"
           }
         },

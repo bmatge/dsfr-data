@@ -38,6 +38,13 @@ import {
 
 const FAVORITES_KEY = 'dsfr-data-favorites';
 
+/**
+ * Presets de fond de carte deprecies cote lib : ils resolvent vers `ign-plan` au runtime
+ * (#429 pour ign-topo, #576 pour CARTO). Le `<select>` ne les propose plus mais doit
+ * rester coherent pour les cartes deja enregistrees, qui les portent encore.
+ */
+const DEPRECATED_TILES: readonly string[] = ['ign-topo', 'carto-positron', 'carto-dark'];
+
 interface Favorite {
   id: string;
   name: string;
@@ -1059,15 +1066,13 @@ function renderMapPanel() {
         <label for="map-tiles">Fond de carte</label>
         <select id="map-tiles">
           <optgroup label="IGN (souverain)">
-            <option value="ign-plan" ${m.tiles === 'ign-plan' || m.tiles === 'ign-topo' ? 'selected' : ''}>IGN Plan</option>
+            <option value="ign-plan" ${DEPRECATED_TILES.includes(m.tiles) || m.tiles === 'ign-plan' ? 'selected' : ''}>IGN Plan</option>
             <option value="ign-ortho" ${m.tiles === 'ign-ortho' ? 'selected' : ''}>IGN Ortho (satellite)</option>
             <option value="ign-cadastre" ${m.tiles === 'ign-cadastre' ? 'selected' : ''}>IGN Cadastre</option>
           </optgroup>
-          <optgroup label="Autres">
-            <option value="osm" ${m.tiles === 'osm' ? 'selected' : ''}>OpenStreetMap France</option>
+          <optgroup label="Communautaires (best effort, sans garantie)">
+            <option value="osm" ${m.tiles === 'osm' ? 'selected' : ''}>OpenStreetMap France — site public sans login</option>
             <option value="osm-standard" ${m.tiles === 'osm-standard' ? 'selected' : ''}>OpenStreetMap</option>
-            <option value="carto-positron" ${m.tiles === 'carto-positron' ? 'selected' : ''}>CARTO clair (dataviz)</option>
-            <option value="carto-dark" ${m.tiles === 'carto-dark' ? 'selected' : ''}>CARTO sombre</option>
             <option value="opentopomap" ${m.tiles === 'opentopomap' ? 'selected' : ''}>OpenTopoMap (relief)</option>
           </optgroup>
         </select>
