@@ -24,12 +24,46 @@ Les presets de tuiles fournis par `dsfr-data-map` ne redistribuent aucun contenu
 |---|---|---|---|
 | `ign-plan`, `ign-ortho`, `ign-cadastre` | [Géoplateforme nationale IGN](https://geoservices.ign.fr/services-geoplateforme) | Oui (IGN, hébergée en France) | Accès sans clé API, mention de la source IGN requise (gérée automatiquement par l'attribution Leaflet) |
 | `ign-topo` (déprécié) | — | — | Redirigé vers `ign-plan` avec avertissement console : la couche BDUNI.J1 rendait un fond quasi vide et les couches topographiques SCAN de la Géoplateforme exigent une clé API |
-| `osm-fr` (alias : `osm`) | [OpenStreetMap France](https://www.openstreetmap.fr/) (association) | Non (associatif hors État) | Accès sans clé API, respect de la [Tile Usage Policy OSM France](https://www.openstreetmap.fr/). Distinct de l'OpenStreetMap Foundation. |
-| `osm-standard` | [OpenStreetMap Foundation](https://www.openstreetmap.org/) | Non | Accès sans clé API, respect de la [Tile Usage Policy OSMF](https://operations.osmfoundation.org/policies/tiles/). Données © contributeurs OpenStreetMap (ODbL). |
-| `carto-positron`, `carto-dark` | [CARTO basemaps](https://carto.com/basemaps) | Non (CDN CARTO) | Gratuit pour usage non commercial avec [attribution CARTO](https://carto.com/attributions) + OpenStreetMap. |
+| `osm-fr` (alias : `osm`) | [OpenStreetMap France](https://www.openstreetmap.fr/) (association) | Non (associatif hors État) | Accès sans clé API, conditions **cumulatives** de la [politique d'usage OSM France](https://www.openstreetmap.fr/usage/) : attribution visible, **site public sans login ni intranet**, site sans but lucratif, trafic modéré. Aucune garantie de disponibilité, suspension possible sans préavis. Distinct de l'OpenStreetMap Foundation. |
+| `osm-standard` | [OpenStreetMap Foundation](https://www.openstreetmap.org/) | Non | Accès sans clé API, respect de la [Tile Usage Policy OSMF](https://operations.osmfoundation.org/policies/tiles/) : attribution visible, `Referer` non supprimé (le composant fixe la `referrerPolicy`), pas de pré-chargement ni d'usage hors ligne. Disponibilité best effort, sans SLA. Données © contributeurs OpenStreetMap (ODbL). |
+| `carto-positron`, `carto-dark` (dépréciés) | — | — | Redirigés vers `ign-plan` avec avertissement console (#576) : [CARTO exige désormais une clé API](https://carto.com/basemaps/apikey) et filigrane les tuiles anonymes. La clé est nominative (« do not share it ») et le service raster est en cours de retrait — voir « Utiliser un fond de carte à clé » ci-dessous. |
 | `opentopomap` | [OpenTopoMap](https://opentopomap.org/) (communautaire) | Non | Accès sans clé API, rendu sous licence CC-BY-SA, données © contributeurs OpenStreetMap + SRTM. |
 
 L'attribut `sovereign-only` du composant `<dsfr-data-map>` restreint les presets acceptés aux seules tuiles IGN.
+
+### Utiliser un fond de carte à clé
+
+Aucun preset n'exige de clé, et la bibliothèque n'en portera pas : une clé de tuiles transite
+forcément en clair dans le navigateur du visiteur, et les fournisseurs la rattachent à un
+domaine et à un quota nominatifs. **C'est le déployeur qui porte le quota et la responsabilité
+d'usage**, pas `dsfr-data`.
+
+Pour utiliser un fond à clé, passer l'URL complète et sa mention d'attribution :
+
+```html
+<dsfr-data-map
+  tiles="https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=VOTRE_CLE"
+  tiles-attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, &copy; <a href="https://carto.com/attributions">CARTO</a>'>
+</dsfr-data-map>
+```
+
+`tiles-attribution` est **obligatoire** sur une URL custom : sans elle la carte s'affiche sans
+mention, ce qui n'est conforme ni à l'ODbL ni aux CGU des fournisseurs. Le composant émet un
+`console.warn` si l'attribut manque.
+
+Quatre façons de protéger la clé, de la plus simple à la plus engageante :
+
+1. **Restriction par domaine** chez le fournisseur, quand il la propose — l'exposition de la clé
+   dans le HTML devient alors le fonctionnement prévu, pas une faille.
+2. **Proxy local**, hébergé par l'intégrateur pour son seul site — léger à cette échelle. Pour
+   les tuiles OSM, ne pas supprimer le `Referer` ni masquer le `User-Agent` : la policy OSMF
+   l'interdit.
+3. **Jeton éphémère**, si le fournisseur le supporte.
+4. **Fond sans clé** — les presets IGN, qui ne demandent rien.
+
+Limites du souverain, énoncées franchement : la Géoplateforme ne propose **pas de fond sombre**
+et couvre la **France seulement**. Un preset tiers qui comblerait ce manque fait illusion jusqu'au
+jour où il casse — c'est exactement ce qui vient d'arriver à CARTO.
 
 ## Serveur (`server/`)
 

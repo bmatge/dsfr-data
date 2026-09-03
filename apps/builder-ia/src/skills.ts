@@ -2332,6 +2332,9 @@ rendu : switch chart/tableau integre, CSV natif). Conserver uniquement :
       'souverainete',
       'sovereign-only',
       'osm-fr',
+      'tiles-attribution',
+      'fond de carte',
+      'clé api tuiles',
     ],
     content:
       `## dsfr-data-map + dsfr-data-map-layer — Carte interactive multi-couches
@@ -2360,8 +2363,9 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | min-zoom | Number | \`2\` | Zoom minimum |
 | max-zoom | Number | \`18\` | Zoom maximum |
 | height | String | \`"500px"\` | Hauteur CSS (px, vh, rem). Un \`%\` est un ratio de la largeur (ex: \`"60%"\` = 60% de la largeur) |
-| tiles | String | \`"ign-plan"\` | Fond de carte : \`ign-plan\`, \`ign-ortho\`, \`ign-cadastre\`, \`osm-fr\` (alias : \`osm\`), \`osm-standard\`, \`carto-positron\`, \`carto-dark\`, \`opentopomap\`, ou URL template. \`ign-topo\` est deprecie (redirige vers \`ign-plan\` avec warning) |
-| sovereign-only | Boolean | \`false\` | Restreint \`tiles\` aux presets IGN souverains. Tout autre preset (\`osm-fr\`, \`carto-*\`, \`opentopomap\`...) ou URL custom est refuse avec \`console.warn\` et remplace par \`ign-plan\`. |
+| tiles | String | \`"ign-plan"\` | Fond de carte : \`ign-plan\`, \`ign-ortho\`, \`ign-cadastre\`, \`osm-fr\` (alias : \`osm\`), \`osm-standard\`, \`opentopomap\`, ou URL template. Deprecies (redirigent vers \`ign-plan\` avec warning) : \`ign-topo\`, \`carto-positron\`, \`carto-dark\` |
+| tiles-attribution | String | \`""\` | Mention d'attribution quand \`tiles\` est une URL custom. Obligatoire (ODbL + CGU du fournisseur) ; ignore sur un preset connu |
+| sovereign-only | Boolean | \`false\` | Restreint \`tiles\` aux presets IGN souverains. Tout autre preset (\`osm-fr\`, \`osm-standard\`, \`opentopomap\`...) ou URL custom est refuse avec \`console.warn\` et remplace par \`ign-plan\`. |
 | no-controls | Boolean | \`false\` | Masque les controles de zoom |
 | locked | Boolean | \`false\` | Carte verrouillee : aucune interaction (pan/zoom/clavier) — encarts, vignettes |
 | insets | String | \`""\` | Raccourci encarts territoriaux : groupe et/ou territoires nommes (\`"drom"\`, \`"drom,corse"\`) |
@@ -2421,12 +2425,31 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 - \`ign-plan\` : Plan IGN (Geoplateforme) — defaut
 - \`ign-ortho\` : Vue aerienne IGN
 - \`ign-cadastre\` : Parcelles cadastrales IGN
-- \`osm\` / \`osm-fr\` : OpenStreetMap France
-- \`osm-standard\` : OpenStreetMap (tuiles osm.org)
-- \`carto-positron\` : CARTO Positron (fond clair sobre, ideal dataviz)
-- \`carto-dark\` : CARTO Dark Matter (fond sombre)
-- \`opentopomap\` : OpenTopoMap (carte topographique communautaire)
-- \`ign-topo\` : deprecie — redirige vers \`ign-plan\` (couche BDUNI quasi vide, couches SCAN topo soumises a clé API)
+- \`osm\` / \`osm-fr\` : OpenStreetMap France — best effort ; la politique d'usage OSM France exige un site public sans login ni intranet, sans but lucratif et a trafic modere
+- \`osm-standard\` : OpenStreetMap (tuiles osm.org) — best effort, sans SLA
+- \`opentopomap\` : OpenTopoMap (carte topographique communautaire) — best effort
+
+Presets deprecies (resolvent vers \`ign-plan\` avec un \`console.warn\`) :
+
+- \`ign-topo\` : couche BDUNI quasi vide, couches SCAN topo soumises a clé API
+- \`carto-positron\`, \`carto-dark\` : CARTO exige desormais une clé API et filigrane les tuiles anonymes ("API KEY REQUIRED") en HTTP 200
+
+**Il n'y a pas de fond sombre souverain.** Ne pas proposer \`carto-dark\` : il ne fonctionne plus.
+
+### Fond de carte custom (URL + clé API)
+
+Toute valeur de \`tiles\` qui n'est pas un preset est traitee comme une URL template \`{z}/{x}/{y}\`.
+Dans ce cas \`tiles-attribution\` est **obligatoire** (sans elle la carte s'affiche sans mention,
+ce qui n'est conforme ni a l'ODbL ni aux CGU du fournisseur) :
+
+\`\`\`html
+<dsfr-data-map
+  tiles="https://exemple.tld/tiles/{z}/{x}/{y}.png?key=VOTRE_CLE"
+  tiles-attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, &copy; Fournisseur'>
+</dsfr-data-map>
+\`\`\`
+
+La clé appartient a l'integrateur (domaine et quota nominatifs) : la bibliotheque n'en porte aucune.
 
 ### Exemple : POI avec clustering
 

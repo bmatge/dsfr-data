@@ -113,7 +113,7 @@
   limit="5000"&gt;
 &lt;/dsfr-data-source&gt;
 
-&lt;dsfr-data-map center="46.6,2.3" zoom="6" tiles="osm" height="500px"&gt;
+&lt;dsfr-data-map center="46.6,2.3" zoom="6" tiles="ign-plan" height="500px"&gt;
   &lt;dsfr-data-map-layer source="ct-cluster" type="marker"
     lat-field="latitude" lon-field="longitude"
     popup-template="{cct_denomination}&lt;br&gt;{cct_commune} — {prix_visite} EUR"
@@ -214,7 +214,7 @@
   limit="50"&gt;
 &lt;/dsfr-data-source&gt;
 
-&lt;dsfr-data-map id="map-a11y" center="48.86,2.35" zoom="12" tiles="osm" height="400px"&gt;
+&lt;dsfr-data-map id="map-a11y" center="48.86,2.35" zoom="12" tiles="ign-plan" height="400px"&gt;
   &lt;dsfr-data-map-layer source="ct-a11y" type="marker"
     lat-field="latitude" lon-field="longitude"
     popup-fields="cct_denomination,prix_visite"
@@ -317,10 +317,9 @@
             <tr><td><code>ign-cadastre</code></td><td>IGN Geoplateforme</td><td>Parcelles cadastrales (souverain)</td></tr>
             <tr><td><code>osm</code> / <code>osm-fr</code></td><td>OpenStreetMap France</td><td>Carte communautaire</td></tr>
             <tr><td><code>osm-standard</code></td><td>OpenStreetMap</td><td>Carte communautaire (tuiles osm.org)</td></tr>
-            <tr><td><code>carto-positron</code></td><td>CARTO</td><td>Fond clair sobre, idéal dataviz</td></tr>
-            <tr><td><code>carto-dark</code></td><td>CARTO</td><td>Fond sombre</td></tr>
             <tr><td><code>opentopomap</code></td><td>OpenTopoMap</td><td>Carte topographique communautaire</td></tr>
             <tr><td><code>ign-topo</code></td><td>—</td><td>Déprécié : redirige vers <code>ign-plan</code> avec un avertissement console</td></tr>
+            <tr><td><code>carto-positron</code>, <code>carto-dark</code></td><td>—</td><td>Dépréciés : CARTO exige désormais une clé API et filigrane les tuiles anonymes. Redirigent vers <code>ign-plan</code> avec un avertissement console</td></tr>
           </tbody>
         </table>
 

@@ -100,7 +100,8 @@ dsfr-data-source (B) ──┘     ├── dsfr-data-map-layer source="A"  (ge
             <tr><td><code>min-zoom</code></td><td>Number</td><td><code>2</code></td><td>Zoom minimum autorisé</td></tr>
             <tr><td><code>max-zoom</code></td><td>Number</td><td><code>18</code></td><td>Zoom maximum autorisé</td></tr>
             <tr><td><code>height</code></td><td>String</td><td><code>"500px"</code></td><td>Hauteur du conteneur Leaflet (pas de l'hôte : les encarts gardent leur place). Accepte toute unité CSS (<code>px</code>, <code>vh</code>, <code>rem</code>). Un pourcentage <code>"NN%"</code> est interprété comme un <strong>ratio de la largeur</strong> (aspect-ratio responsive, recalculé par ResizeObserver) : <code>height="60%"</code> = hauteur à 60&nbsp;% de la largeur courante.</td></tr>
-            <tr><td><code>tiles</code></td><td>String</td><td><code>"ign-plan"</code></td><td>Fond de carte : un des 8 presets (voir tableau ci-dessous), l'alias <code>osm</code> (&rarr; <code>osm-fr</code>), le preset déprécié <code>ign-topo</code> (&rarr; <code>ign-plan</code> + warn, #429), ou une URL template custom <code>{z}/{x}/{y}</code> (attribution vide dans ce cas)</td></tr>
+            <tr><td><code>tiles</code></td><td>String</td><td><code>"ign-plan"</code></td><td>Fond de carte : un des 6 presets (voir tableau ci-dessous), l'alias <code>osm</code> (&rarr; <code>osm-fr</code>), un preset déprécié (&rarr; <code>ign-plan</code> + warn : <code>ign-topo</code> #429, <code>carto-positron</code> et <code>carto-dark</code> #576), ou une URL template custom <code>{z}/{x}/{y}</code> &mdash; dans ce dernier cas <code>tiles-attribution</code> est obligatoire</td></tr>
+            <tr><td><code>tiles-attribution</code></td><td>String</td><td><code>""</code></td><td>Mention d'attribution affichée sur la carte quand <code>tiles</code> est une URL custom. Obligatoire pour respecter l'ODbL et les CGU du fournisseur (un <code>console.warn</code> signale son absence). Ignoré sur un preset connu, qui porte déjà son attribution.</td></tr>
             <tr><td><code>sovereign-only</code></td><td>Boolean</td><td><code>false</code></td><td>Restreint <code>tiles</code> aux presets IGN souverains (<code>ign-plan</code>, <code>ign-ortho</code>, <code>ign-topo</code>, <code>ign-cadastre</code>). Tout autre preset ou URL custom est refusé avec un <code>console.warn</code> et remplacé par <code>ign-plan</code>.</td></tr>
             <tr><td><code>no-controls</code></td><td>Boolean</td><td><code>false</code></td><td>Masque le contrôle de zoom Leaflet</td></tr>
             <tr><td><code>locked</code></td><td>Boolean</td><td><code>false</code></td><td>Carte verrouillée : aucune interaction (pan, zoom, molette, clavier). Utilisé par les encarts et les vignettes.</td></tr>
@@ -113,6 +114,7 @@ dsfr-data-source (B) ──┘     ├── dsfr-data-map-layer source="A"  (ge
 
         <h3>Fonds de carte prédéfinis</h3>
         <p>Tuiles accessibles <strong>sans clé API</strong>. Les presets <code>ign-*</code> sont servis par la <a href="https://geoservices.ign.fr/services-geoplateforme">Géoplateforme nationale IGN</a> (infrastructure cartographique de l'État, hébergée en France). Le preset <code>osm-fr</code> est servi par l'<a href="https://www.openstreetmap.fr/">association OpenStreetMap France</a> (association loi 1901, infra hébergée en France, distincte de l'OSM Foundation).</p>
+        <p>Les fonds non-IGN sont fournis en <strong>best effort</strong> par des associations : aucune garantie de disponibilité, et des conditions d'usage propres à chaque fournisseur. En particulier, la <a href="https://www.openstreetmap.fr/usage/">politique d'usage d'OSM France</a> exige un site <strong>public, sans login ni intranet</strong>, sans but lucratif et à trafic modéré &mdash; ce qui exclut <code>osm-fr</code> d'un déploiement derrière authentification. Détail dans <code>docs/THIRD-PARTY-LICENSES.md</code>.</p>
         <table class="attr-table">
           <thead><tr><th>Preset</th><th>Source</th><th>Souverain</th><th>Endpoint</th></tr></thead>
           <tbody>
@@ -121,17 +123,19 @@ dsfr-data-source (B) ──┘     ├── dsfr-data-map-layer source="A"  (ge
             <tr><td><code>ign-cadastre</code></td><td>Géoplateforme IGN — Cadastre</td><td>Oui</td><td><code>data.geopf.fr/wmts</code> (layer <code>CADASTRALPARCELS.PARCELLAIRE_EXPRESS</code>)</td></tr>
             <tr><td><code>osm-fr</code></td><td>OpenStreetMap France (association)</td><td>Non (associatif hors État)</td><td><code>{s}.tile.openstreetmap.fr/osmfr</code></td></tr>
             <tr><td><code>osm-standard</code></td><td>OpenStreetMap (OSM Foundation)</td><td>Non</td><td><code>tile.openstreetmap.org</code></td></tr>
-            <tr><td><code>carto-positron</code></td><td>CARTO — fond clair sobre (dataviz)</td><td>Non</td><td><code>{s}.basemaps.cartocdn.com/light_all</code></td></tr>
-            <tr><td><code>carto-dark</code></td><td>CARTO — fond sombre</td><td>Non</td><td><code>{s}.basemaps.cartocdn.com/dark_all</code></td></tr>
             <tr><td><code>opentopomap</code></td><td>OpenTopoMap (CC-BY-SA)</td><td>Non</td><td><code>{s}.tile.opentopomap.org</code></td></tr>
           </tbody>
         </table>
         <p class="fr-mt-2w">
           <strong>Alias et dépréciation</strong> : <code>tiles="osm"</code> reste accepté et pointe
-          vers le preset <code>osm-fr</code> ; <code>tiles="ign-topo"</code> est <strong>déprécié</strong> (#429)
-          et résout vers <code>ign-plan</code> avec un <code>console.warn</code> (couche BDUNI quasi vide,
-          couches SCAN topo soumises à clé API). Toute autre valeur est traitée comme une
-          <strong>URL template custom</strong> <code>{z}/{x}/{y}</code> (attribution vide).
+          vers le preset <code>osm-fr</code>. Trois presets sont <strong>dépréciés</strong> et résolvent vers
+          <code>ign-plan</code> avec un <code>console.warn</code> : <code>ign-topo</code> (#429 &mdash; couche BDUNI
+          quasi vide, couches SCAN topo soumises à clé API), <code>carto-positron</code> et <code>carto-dark</code>
+          (#576 &mdash; <a href="https://carto.com/basemaps/apikey">CARTO exige désormais une clé API</a> et
+          filigrane les tuiles anonymes, en HTTP 200 donc sans erreur détectable ; la clé est nominative et
+          le service raster est en cours de retrait). Toute autre valeur est traitée comme une
+          <strong>URL template custom</strong> <code>{z}/{x}/{y}</code>, qui exige alors
+          <code>tiles-attribution</code>.
         </p>
         <p><strong>Mode <code>sovereign-only</code></strong> : pour les DSI qui imposent une politique « zéro tiers externe non souverain », l'attribut booléen <code>sovereign-only</code> restreint les presets disponibles aux seules tuiles IGN. Tout autre preset ou URL custom est refusé avec un avertissement console et remplacé par <code>ign-plan</code>.</p>
 
@@ -187,7 +191,7 @@ dsfr-data-source (B) ──┘     ├── dsfr-data-map-layer source="A"  (ge
           <h3>2. Hauteur en ratio + carte verrouillée (vignette)</h3>
           <div class="code-block"><pre>&lt;!-- height="60%" = hauteur à 60 % de la largeur courante (aspect-ratio responsive) --&gt;
 &lt;dsfr-data-map center="48.85,2.35" zoom="11" height="60%"
-  locked no-controls tiles="carto-positron" name="Vignette Paris"&gt;
+  locked no-controls tiles="ign-plan" name="Vignette Paris"&gt;
   &lt;dsfr-data-map-layer source="arrondissements" type="geoshape"
     geo-field="geo_shape" no-interactive color="#000091" fill-opacity="0.1"&gt;
   &lt;/dsfr-data-map-layer&gt;
@@ -202,7 +206,7 @@ dsfr-data-source (B) ──┘     ├── dsfr-data-map-layer source="A"  (ge
             métropole ; les DROM restent visibles dans les encarts.
           </p>
           <div class="code-block"><pre>&lt;dsfr-data-map center="46.5,2.6" zoom="6" min-zoom="3" height="620px"
-  tiles="carto-positron" fit-bounds max-bounds="38.5,-13,54,15"
+  tiles="ign-plan" fit-bounds max-bounds="38.5,-13,54,15"
   insets="drom" name="Territoires engagés"&gt;
   &lt;dsfr-data-map-layer source="territoires" type="geoshape"
     geo-field="geojson" fill-field="habitants"

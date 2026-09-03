@@ -16,7 +16,11 @@ type LeafletMap = import('leaflet').Map;
 type LeafletTileLayer = import('leaflet').TileLayer;
 type LatLngBoundsExpression = import('leaflet').LatLngBoundsExpression;
 
-/** Tile presets — souverains (IGN), europeens (OSM) ou dataviz (CARTO), sans clé API */
+/**
+ * Tile presets — souverains (IGN) ou communautaires (OSM, OpenTopoMap), tous sans clé API.
+ * Les fonds non-IGN sont fournis en best effort par des associations : aucune garantie de
+ * disponibilite, conditions d'usage propres a chaque fournisseur (cf. docs/THIRD-PARTY-LICENSES.md).
+ */
 const TILE_PRESETS: Record<
   string,
   { url: string; attribution: string; options?: Record<string, unknown> }
@@ -44,18 +48,6 @@ const TILE_PRESETS: Record<
       '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     options: { maxZoom: 19 },
   },
-  'carto-positron': {
-    url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-    options: { subdomains: 'abcd', maxZoom: 20 },
-  },
-  'carto-dark': {
-    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-    options: { subdomains: 'abcd', maxZoom: 20 },
-  },
   opentopomap: {
     url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
     attribution:
@@ -70,11 +62,19 @@ const TILE_ALIASES: Record<string, string> = {
 };
 
 /**
- * Presets deprecies — resolus vers un preset de remplacement, avec warning (#429).
+ * Presets deprecies — resolus vers un preset de remplacement, avec warning (#429, #576).
+ *
  * `ign-topo` pointait sur la couche Geoplateforme GEOGRAPHICALGRIDSYSTEMS.MAPS.BDUNI.J1
  * (couche de travail BD Uni, rendu quasi vide) ; les vraies couches topographiques SCAN
  * (GEOGRAPHICALGRIDSYSTEMS.MAPS*) ne sont pas servies par l'endpoint libre data.geopf.fr
  * (clé API requise). On redirige vers `ign-plan` pour ne pas casser les pages existantes.
+ *
+ * `carto-positron` / `carto-dark` : depuis 2026, CARTO exige une clé API sur ses basemaps
+ * et incruste un filigrane « API KEY REQUIRED » dans les tuiles servies sans clé — en
+ * HTTP 200, donc indetectable au runtime (ni onerror, ni fallback possible). La clé est
+ * nominative (« do not share it ») et le service raster est en cours de retrait chez
+ * CARTO : aucun mecanisme de clé cote lib n'aurait de sens. Un integrateur qui tient a
+ * CARTO passe sa propre URL avec sa clé via `tiles` + `tiles-attribution`. #576
  */
 const DEPRECATED_PRESETS: Record<string, { replacement: string; reason: string }> = {
   'ign-topo': {
@@ -82,7 +82,30 @@ const DEPRECATED_PRESETS: Record<string, { replacement: string; reason: string }
     reason:
       'la couche IGN BDUNI.J1 rend un fond quasi vide et les couches topographiques SCAN exigent une clé API',
   },
+  'carto-positron': {
+    replacement: 'ign-plan',
+    reason:
+      'CARTO exige desormais une clé API et filigrane les tuiles anonymes (« API KEY REQUIRED »)',
+  },
+  'carto-dark': {
+    replacement: 'ign-plan',
+    reason:
+      'CARTO exige desormais une clé API et filigrane les tuiles anonymes (« API KEY REQUIRED »)',
+  },
 };
+
+/**
+ * Politique de referrer posee explicitement sur les tuiles (#576).
+ *
+ * Leaflet ne pose aucun attribut `referrerPolicy` par defaut (option a `false`), c'est donc
+ * la politique du *document hote* qui s'applique. Une page servie en `Referrer-Policy:
+ * no-referrer` supprime alors l'en-tete `Referer` — ce que la Tile Usage Policy de l'OSMF
+ * interdit nommement (« Do not set a restrictive Referrer-Policy that prevents the Referer
+ * header being sent »), et ce que les fournisseurs a quota utilisent pour identifier le
+ * domaine appelant. L'attribut porte par l'element prime sur la politique du document :
+ * le fixer ici rend l'embed conforme quelle que soit la page qui l'accueille.
+ */
+const TILE_REFERRER_POLICY = 'strict-origin-when-cross-origin';
 
 /** Presets consideres comme souverains (tuiles IGN Geoplateforme, hebergees en France). */
 const SOVEREIGN_PRESETS = new Set<string>(['ign-plan', 'ign-ortho', 'ign-topo', 'ign-cadastre']);
@@ -122,6 +145,51 @@ export function resolveTilePreset(
   }
 
   return { key: isKnownPreset ? canonical : null, warning: deprecationWarning };
+}
+
+/**
+ * Construit l'URL et les options de la `TileLayer` a partir des attributs du composant.
+ * Fonction pure, extraite de `_updateTiles()` pour etre testable sans Leaflet (#576).
+ *
+ * Les warnings sont retournes plutot que loggues, a charge de l'appelant.
+ *
+ * Expose pour les tests.
+ */
+export function buildTileLayerConfig(
+  tiles: string,
+  tilesAttribution = '',
+  sovereignOnly = false
+): { url: string; options: Record<string, unknown>; warnings: string[] } {
+  const { key, warning } = resolveTilePreset(tiles, sovereignOnly);
+  const warnings: string[] = warning ? [warning] : [];
+
+  if (key !== null) {
+    const preset = TILE_PRESETS[key];
+    return {
+      url: preset.url,
+      options: {
+        attribution: preset.attribution,
+        referrerPolicy: TILE_REFERRER_POLICY,
+        ...preset.options,
+      },
+      warnings,
+    };
+  }
+
+  // URL custom : l'attribution ne peut venir que de l'integrateur (#576)
+  if (!tilesAttribution) {
+    warnings.push(
+      `tiles="${tiles}" est une URL custom sans tiles-attribution. Les fonds de carte ` +
+        `OpenStreetMap et derives exigent une mention visible : ajouter ` +
+        `tiles-attribution="..." pour etre conforme.`
+    );
+  }
+
+  return {
+    url: tiles,
+    options: { attribution: tilesAttribution, referrerPolicy: TILE_REFERRER_POLICY },
+    warnings,
+  };
 }
 
 /**
@@ -200,9 +268,13 @@ export class DsfrDataMap extends LitElement {
   @property({ type: String })
   height = '500px';
 
-  /** Fond de carte : `ign-plan`, `ign-ortho`, `ign-cadastre`, `osm-fr` (alias `osm`), `osm-standard`, `carto-positron`, `carto-dark`, `opentopomap`, ou une URL template. `ign-topo` est deprecie (redirige vers `ign-plan` avec un warning). */
+  /** Fond de carte : `ign-plan`, `ign-ortho`, `ign-cadastre`, `osm-fr` (alias `osm`), `osm-standard`, `opentopomap`, ou une URL template. Presets deprecies (redirigent vers `ign-plan` avec un warning) : `ign-topo`, `carto-positron`, `carto-dark`. */
   @property({ type: String })
   tiles = 'ign-plan';
+
+  /** Mention d'attribution affichee sur la carte quand `tiles` est une URL custom (obligatoire pour respecter l'ODbL et les CGU du fournisseur). Ignore sur un preset connu, qui porte deja son attribution. Accepte du HTML (liens). */
+  @property({ type: String, attribute: 'tiles-attribution' })
+  tilesAttribution = '';
 
   /** Restreint `tiles` aux presets IGN souverains : tout autre preset ou URL custom est refuse (console.warn) et remplace par `ign-plan`. */
   @property({ type: Boolean, attribute: 'sovereign-only' })
@@ -616,21 +688,14 @@ export class DsfrDataMap extends LitElement {
       this._tileLayer.remove();
     }
 
-    const { key, warning } = resolveTilePreset(this.tiles, this.sovereignOnly);
-    if (warning) console.warn(`[dsfr-data-map] ${warning}`);
+    const { url, options, warnings } = buildTileLayerConfig(
+      this.tiles,
+      this.tilesAttribution,
+      this.sovereignOnly
+    );
+    for (const warning of warnings) console.warn(`[dsfr-data-map] ${warning}`);
 
-    if (key !== null) {
-      const preset = TILE_PRESETS[key];
-      this._tileLayer = L.tileLayer(preset.url, {
-        attribution: preset.attribution,
-        ...preset.options,
-      }).addTo(this._leafletMap);
-    } else {
-      // Custom URL template
-      this._tileLayer = L.tileLayer(this.tiles, {
-        attribution: '',
-      }).addTo(this._leafletMap);
-    }
+    this._tileLayer = L.tileLayer(url, options).addTo(this._leafletMap);
   }
 
   private _notifyLayers() {

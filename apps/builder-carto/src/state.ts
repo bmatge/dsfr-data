@@ -29,11 +29,11 @@ export type TilePreset =
   | 'ign-cadastre'
   | 'osm'
   | 'osm-standard'
-  | 'carto-positron'
-  | 'carto-dark'
   | 'opentopomap'
-  // Deprecie (redirige vers ign-plan) — conserve pour les etats sauvegardes
-  | 'ign-topo';
+  // Deprecies (redirigent vers ign-plan) — conserves pour les etats sauvegardes
+  | 'ign-topo'
+  | 'carto-positron'
+  | 'carto-dark';
 
 /**
  * Les 12 territoires d'encart supportes par <dsfr-data-map-inset>
