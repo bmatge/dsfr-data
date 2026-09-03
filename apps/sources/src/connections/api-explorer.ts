@@ -15,7 +15,10 @@ import {
   isUnsafeKey,
   saveToStorage,
   STORAGE_KEYS,
+  saveToStorageQuiet,
   toastError,
+  detectProvider,
+  flattenProviderRecords,
 } from '@dsfr-data/shared';
 
 import { state } from '../state.js';
@@ -265,10 +268,17 @@ async function runFetchLoop(ctx: LoadContext, maxAdditionalPages: number): Promi
 
     const dataPath = (ctx.conn.dataPath as string | null) ?? null;
     const pageData = extractDataFromPage(jsonResponse, dataPath);
+    // Certains providers renvoient des enregistrements imbriques (observations
+    // INSEE en attributes/dimensions/measures, champs Grist sous `fields`).
+    // Sans cet aplatissement, les sous-objets arrivent tels quels dans la table
+    // et s'affichent `[object Object]`, inexploitables par les builders (#586).
+    const { response: providerResponse } = detectProvider((ctx.conn.apiUrl as string) ?? '');
     if (Array.isArray(pageData)) {
-      ctx.allData = ctx.allData.concat(pageData as Record<string, unknown>[]);
+      const flat = flattenProviderRecords(pageData, providerResponse);
+      ctx.allData = ctx.allData.concat(flat as Record<string, unknown>[]);
     } else if (pageData) {
-      ctx.allData.push(pageData as Record<string, unknown>);
+      const [flat] = flattenProviderRecords([pageData], providerResponse);
+      ctx.allData.push(flat as Record<string, unknown>);
     }
 
     ctx.pageCount++;
@@ -472,7 +482,7 @@ export function saveApiAsSource(): void {
     recordCount: state.apiTotalCount > 0 ? state.apiTotalCount : state.tableData.length,
   };
 
-  localStorage.setItem(STORAGE_KEYS.SELECTED_SOURCE, JSON.stringify(source));
+  saveToStorageQuiet(STORAGE_KEYS.SELECTED_SOURCE, source);
 
   // Auto-save to sources list (upsert)
   const idx = state.sources.findIndex((s) => s.id === source.id);

@@ -6,6 +6,7 @@ import {
   escapeHtml,
   saveToStorage,
   STORAGE_KEYS,
+  saveToStorageQuiet,
   openModal,
   closeModal,
   buildProxiedRequest,
@@ -130,7 +131,7 @@ function typeBadgeHtml(type: string): string {
 
 /** « Utiliser dans le Builder » : sélectionne la source et ouvre le Builder. */
 function useSourceInBuilder(source: (typeof state.sources)[number]): void {
-  localStorage.setItem(STORAGE_KEYS.SELECTED_SOURCE, JSON.stringify(source));
+  saveToStorageQuiet(STORAGE_KEYS.SELECTED_SOURCE, source);
   navigateTo('builder');
 }
 
@@ -1669,7 +1670,7 @@ function upsertSource(source: Source): void {
   if (idx >= 0) state.sources[idx] = source;
   else state.sources.push(source);
   saveToStorage(STORAGE_KEYS.SOURCES, state.sources);
-  localStorage.setItem(STORAGE_KEYS.SELECTED_SOURCE, JSON.stringify(source));
+  saveToStorageQuiet(STORAGE_KEYS.SELECTED_SOURCE, source);
   renderSources();
 }
 
@@ -1906,7 +1907,7 @@ export function previewSource(id: string): void {
   }
 
   // Save as selected source for builder
-  localStorage.setItem(STORAGE_KEYS.SELECTED_SOURCE, JSON.stringify(source));
+  saveToStorageQuiet(STORAGE_KEYS.SELECTED_SOURCE, source);
 }
 
 export function saveAsFavorite(): void {

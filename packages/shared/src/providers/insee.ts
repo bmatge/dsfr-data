@@ -11,6 +11,7 @@
  */
 
 import type { ProviderConfig } from './provider-config.js';
+import { flattenInseeObservation } from './flatten.js';
 
 const INSEE_RE = /melodi\/data\/([^?/]+)/;
 
@@ -26,8 +27,9 @@ export const INSEE_CONFIG: ProviderConfig = {
   response: {
     dataPath: 'observations', // { observations: [...] }
     totalCountPath: 'paging.count',
-    nestedDataKey: null, // adapter handles flattening internally
+    nestedDataKey: null, // pas une simple cle d'enveloppe : voir flattenRecord
     requiresFlatten: true, // observations have nested dimensions/measures/attributes
+    flattenRecord: flattenInseeObservation,
   },
 
   pagination: {

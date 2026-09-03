@@ -16,9 +16,18 @@ registerDbBeaconTransport();
 
 // La couche persistance n'affiche plus d'UI (#322) : c'est le chrome qui
 // transforme le depassement de quota en toast DSFR.
-window.addEventListener('dsfr-data:storage-quota', () => {
+window.addEventListener('dsfr-data:storage-quota', (e) => {
+  // Le detail porte la taille refusee (#586) : sans elle le message n'indique
+  // pas quoi supprimer, alors qu'un seul gros jeu de donnees suffit a saturer
+  // le quota (~5 Mo). On nomme le volume pour rendre l'action evidente.
+  const detail = (e as CustomEvent).detail as { key?: string; bytes?: number } | undefined;
+  const mo = detail?.bytes ? (detail.bytes / 1048576).toFixed(1) : null;
   import('@dsfr-data/shared').then(({ toastError }) => {
-    toastError('Espace de stockage plein. Supprimez des elements pour continuer.');
+    toastError(
+      mo
+        ? `Espace de stockage plein : l'enregistrement de ${mo} Mo a ete refuse. Supprimez un jeu de donnees volumineux pour continuer.`
+        : 'Espace de stockage plein. Supprimez des elements pour continuer.'
+    );
   });
 });
 
