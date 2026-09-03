@@ -32,7 +32,10 @@ npm run dev --workspace=@dsfr-data/app-builder   # Dev d'une app (idem: builder-
 
 # Build
 npm run build         # Build bibliotheque (delegue a packages/core)
-npm run build:shared  # Build du package shared
+npm run build:shared  # Build du package shared — A RELANCER apres un git pull ou une modif
+                      #   de packages/shared/src : tsc lit packages/shared/dist (pas src, que
+                      #   Vite aliase), un dist perime donne des erreurs de type fantomes.
+                      #   Idem build:app-ui. Detail dans ARCHITECTURE.md §12.
 npm run build:apps    # Build de toutes les apps
 npm run build:all     # Build complet (shared + lib + apps)
 npm run build:app     # Assembler app-dist/ (racine servie par nginx en deploiement)
