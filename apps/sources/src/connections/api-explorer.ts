@@ -16,6 +16,7 @@ import {
   saveToStorage,
   STORAGE_KEYS,
   saveToStorageQuiet,
+  toSourcePointer,
   toastError,
   detectProvider,
   flattenProviderRecords,
@@ -482,7 +483,8 @@ export function saveApiAsSource(): void {
     recordCount: state.apiTotalCount > 0 ? state.apiTotalCount : state.tableData.length,
   };
 
-  saveToStorageQuiet(STORAGE_KEYS.SELECTED_SOURCE, source);
+  // Pointeur seul : les lignes sont ecrites juste apres dans SOURCES (#592).
+  saveToStorageQuiet(STORAGE_KEYS.SELECTED_SOURCE, toSourcePointer(source));
 
   // Auto-save to sources list (upsert)
   const idx = state.sources.findIndex((s) => s.id === source.id);

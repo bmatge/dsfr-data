@@ -185,3 +185,47 @@ export function serializeSourceForServer(source: Source): Record<string, unknown
     recordCount: source.recordCount || 0,
   };
 }
+
+/**
+ * Passage de bras entre l'app Sources et les builders (#592).
+ *
+ * `SELECTED_SOURCE` designe la source que l'utilisateur vient d'ouvrir ; les
+ * lignes, elles, vivent deja dans `SOURCES` sous le meme id. Les ecrire une
+ * seconde fois faisait consommer ~5,4 Mo de quota localStorage pour 2,7 Mo de
+ * donnees, et l'ecriture etait refusee au-dela (#586, toast « Espace de
+ * stockage plein »).
+ *
+ * On ne persiste donc que le **pointeur** : tout le descripteur sauf les
+ * lignes. `resolveSelectedSource()` les rebranche depuis `SOURCES` a la
+ * lecture.
+ */
+export function toSourcePointer(source: Source): Source {
+  const { data: _data, rawRecords: _rawRecords, ...pointer } = source;
+  return {
+    ...pointer,
+    // Le compteur survit au retrait des lignes : les libelles d'option
+    // (« Nom · N lignes ») et les gardes « la source a-t-elle des donnees »
+    // s'appuient dessus, pas sur `data.length`.
+    recordCount: source.recordCount ?? source.data?.length ?? 0,
+  };
+}
+
+/**
+ * Rebranche les lignes d'un pointeur `SELECTED_SOURCE` depuis la liste `SOURCES`.
+ *
+ * Retourne `null` si aucune source n'est designee. Si le pointeur porte encore
+ * ses lignes (entree ecrite avant #592, ou source absente de `SOURCES`), on les
+ * garde : la lecture reste compatible avec l'ancien format.
+ */
+export function resolveSelectedSource(
+  pointer: Source | null | undefined,
+  sources: Source[]
+): Source | null {
+  if (!pointer) return null;
+  if (pointer.data && pointer.data.length > 0) return pointer;
+
+  const stored = sources.find((s) => s.id === pointer.id);
+  if (!stored) return pointer;
+
+  return { ...pointer, data: stored.data, rawRecords: stored.rawRecords };
+}

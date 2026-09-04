@@ -170,7 +170,12 @@ export {
 
 // Types
 export type { Source } from './types/source.js';
-export { migrateSource, serializeSourceForServer } from './types/source.js';
+export {
+  migrateSource,
+  serializeSourceForServer,
+  toSourcePointer,
+  resolveSelectedSource,
+} from './types/source.js';
 
 // UI
 export {
