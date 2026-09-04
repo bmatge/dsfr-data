@@ -16,6 +16,11 @@ import {
   saveToStorage,
   STORAGE_KEYS,
   saveToStorageQuiet,
+  toSourcePointer,
+  fetchInseeLabelIndex,
+  applyInseeLabels,
+  extractResourceIds,
+  getProxiedUrl,
   toastError,
   detectProvider,
   flattenProviderRecords,
@@ -228,6 +233,37 @@ function renderPaginationBanner(opts: {
 // Core fetch loop
 // ============================================================
 
+/**
+ * Traduit les codes SDMX d'un jeu INSEE en libelles (#592).
+ *
+ * Melodi ne renvoie que des codes (`AGE: "Y65T74"`, `GEO: "2025-DEP-01"`) ; les
+ * libelles vivent sur `/range/{datasetId}`. On applique ici exactement le meme
+ * index que l'adapter du chemin composant, pour que les deux routes d'import
+ * produisent les memes colonnes (#586) : le pipeline est identique des deux
+ * cotes, aplatissement puis traduction.
+ *
+ * Non-INSEE, ou identifiant de jeu introuvable dans l'URL : rien a faire, les
+ * enregistrements repartent tels quels.
+ */
+async function labelizeIfInsee(
+  records: Record<string, unknown>[],
+  provider: ReturnType<typeof detectProvider>,
+  ctx: LoadContext
+): Promise<Record<string, unknown>[]> {
+  if (provider.id !== 'insee' || records.length === 0) return records;
+
+  const apiUrl = (ctx.conn.apiUrl as string) ?? '';
+  const datasetId = extractResourceIds(apiUrl, provider)?.datasetId;
+  if (!datasetId) return records;
+
+  const index = await fetchInseeLabelIndex(datasetId, {
+    baseUrl: provider.defaultBaseUrl,
+    toProxiedUrl: (url) => getProxiedUrl(url),
+  });
+
+  return applyInseeLabels(records, index);
+}
+
 async function fetchOnePage(ctx: LoadContext, rawUrl: string): Promise<Response> {
   const method = (ctx.conn.method as string) || 'GET';
   // `rawUrl` est l'URL cible brute (non proxifiée). On la route au moment du
@@ -272,13 +308,17 @@ async function runFetchLoop(ctx: LoadContext, maxAdditionalPages: number): Promi
     // INSEE en attributes/dimensions/measures, champs Grist sous `fields`).
     // Sans cet aplatissement, les sous-objets arrivent tels quels dans la table
     // et s'affichent `[object Object]`, inexploitables par les builders (#586).
-    const { response: providerResponse } = detectProvider((ctx.conn.apiUrl as string) ?? '');
+    const provider = detectProvider((ctx.conn.apiUrl as string) ?? '');
+    const { response: providerResponse } = provider;
     if (Array.isArray(pageData)) {
       const flat = flattenProviderRecords(pageData, providerResponse);
-      ctx.allData = ctx.allData.concat(flat as Record<string, unknown>[]);
+      ctx.allData = ctx.allData.concat(
+        await labelizeIfInsee(flat as Record<string, unknown>[], provider, ctx)
+      );
     } else if (pageData) {
       const [flat] = flattenProviderRecords([pageData], providerResponse);
-      ctx.allData.push(flat as Record<string, unknown>);
+      const [labeled] = await labelizeIfInsee([flat as Record<string, unknown>], provider, ctx);
+      ctx.allData.push(labeled);
     }
 
     ctx.pageCount++;
@@ -482,7 +522,8 @@ export function saveApiAsSource(): void {
     recordCount: state.apiTotalCount > 0 ? state.apiTotalCount : state.tableData.length,
   };
 
-  saveToStorageQuiet(STORAGE_KEYS.SELECTED_SOURCE, source);
+  // Pointeur seul : les lignes sont ecrites juste apres dans SOURCES (#592).
+  saveToStorageQuiet(STORAGE_KEYS.SELECTED_SOURCE, toSourcePointer(source));
 
   // Auto-save to sources list (upsert)
   const idx = state.sources.findIndex((s) => s.id === source.id);

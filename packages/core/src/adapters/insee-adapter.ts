@@ -16,7 +16,13 @@ import type {
   ServerSideOverlay,
 } from './api-adapter.js';
 import type { ProviderConfig } from '@dsfr-data/shared/lib';
-import { INSEE_CONFIG, getProxiedUrl, flattenInseeObservation } from '@dsfr-data/shared/lib';
+import {
+  INSEE_CONFIG,
+  getProxiedUrl,
+  flattenInseeObservation,
+  fetchInseeLabelIndex,
+  applyInseeLabels,
+} from '@dsfr-data/shared/lib';
 import { buildColonFacetWhere, unescapeColonValue } from '../utils/where.js';
 
 /** Default base URL for the Melodi API */
@@ -120,7 +126,7 @@ export class InseeAdapter implements ApiAdapter {
     }
 
     return {
-      data: allResults,
+      data: await this._withLabels(allResults, params, signal),
       totalCount: totalCount >= 0 ? totalCount : allResults.length,
       needsClientProcessing: true, // all processing is client-side
     };
@@ -143,7 +149,7 @@ export class InseeAdapter implements ApiAdapter {
 
     const json = await response.json();
     const observations = json.observations || [];
-    const data = this._flattenObservations(observations);
+    const data = await this._withLabels(this._flattenObservations(observations), params, signal);
     const totalCount = json.paging?.count ?? 0;
 
     return {
@@ -238,6 +244,35 @@ export class InseeAdapter implements ApiAdapter {
    */
   private _flattenObservations(observations: unknown[]): Record<string, unknown>[] {
     return observations.map(flattenInseeObservation);
+  }
+
+  /**
+   * Traduit les codes SDMX en libelles (#592).
+   *
+   * Melodi ne renvoie que des codes (`AGE: "Y65T74"`) ; les libelles vivent sur
+   * `/range/{datasetId}`, charge une fois par jeu puis mis en cache. L'appel
+   * est fait ici, apres l'aplatissement et une seule fois par requete, pas par
+   * page : le cache memoire de `fetchInseeLabelIndex` mutualise les pages d'un
+   * meme `fetchAll`.
+   *
+   * Comme le chemin connexion applique exactement le meme index, les deux
+   * routes d'import produisent les memes colonnes (#586).
+   */
+  private async _withLabels(
+    records: unknown[],
+    params: AdapterParams,
+    signal?: AbortSignal
+  ): Promise<Record<string, unknown>[]> {
+    const rows = records as Record<string, unknown>[];
+    if (!params.datasetId || rows.length === 0) return rows;
+
+    const index = await fetchInseeLabelIndex(params.datasetId, {
+      baseUrl: params.baseUrl || INSEE_BASE_URL,
+      toProxiedUrl: (url) => getProxiedUrl(url, params.proxyUrl),
+      signal,
+    });
+
+    return applyInseeLabels(rows, index);
   }
 
   /**

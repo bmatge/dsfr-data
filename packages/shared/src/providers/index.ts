@@ -8,6 +8,14 @@
 export type { ProviderConfig, ProviderId } from './provider-config.js';
 export type { FlatRecord } from './flatten.js';
 export { flattenInseeObservation, flattenNestedKey, flattenProviderRecords } from './flatten.js';
+export type { InseeLabelIndex, InseeRange, FetchInseeLabelsOptions } from './insee-labels.js';
+export {
+  buildInseeLabelIndex,
+  applyInseeLabels,
+  fetchInseeLabelIndex,
+  clearInseeLabelCache,
+  INSEE_CODE_SUFFIX,
+} from './insee-labels.js';
 export { ODS_CONFIG } from './opendatasoft.js';
 export { TABULAR_CONFIG } from './tabular.js';
 export { GRIST_CONFIG } from './grist.js';

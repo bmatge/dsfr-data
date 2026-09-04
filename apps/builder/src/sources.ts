@@ -18,6 +18,7 @@ import {
   SAMPLE_DATASETS,
   isDemoDatasetsDisabled,
   isUnsafeKey,
+  resolveSelectedSource,
 } from '@dsfr-data/shared';
 import { state, type ChartType, type Source, type Field } from './state.js';
 import { selectChartType } from './ui/chart-type-selector.js';
@@ -42,7 +43,9 @@ export function loadSavedSources(): void {
   const sources = loadFromStorage<Source[]>(STORAGE_KEYS.SOURCES, []).map(migrateSource);
   const selectedSource = (() => {
     const s = loadFromStorage<Source | null>(STORAGE_KEYS.SELECTED_SOURCE, null);
-    return s ? migrateSource(s) : null;
+    // `SELECTED_SOURCE` ne porte qu'un pointeur depuis #592 : les lignes sont
+    // rebranchees depuis SOURCES.
+    return resolveSelectedSource(s ? migrateSource(s) : null, sources);
   })();
 
   // Check if there are any sources
@@ -175,7 +178,11 @@ function sourceOptionLabel(name: string, count?: number): string {
  */
 export function checkSelectedSource(): void {
   const rawSelected = loadFromStorage<Source | null>(STORAGE_KEYS.SELECTED_SOURCE, null);
-  const selectedSource = rawSelected ? migrateSource(rawSelected) : null;
+  const sources = loadFromStorage<Source[]>(STORAGE_KEYS.SOURCES, []).map(migrateSource);
+  const selectedSource = resolveSelectedSource(
+    rawSelected ? migrateSource(rawSelected) : null,
+    sources
+  );
 
   if (selectedSource && selectedSource.data && selectedSource.data.length > 0) {
     // Select the source

@@ -12,6 +12,7 @@ import {
   migrateSource,
   SAMPLE_DATASETS,
   isDemoDatasetsDisabled,
+  resolveSelectedSource,
 } from '@dsfr-data/shared';
 import { state } from './state.js';
 import type { Source, Field } from './state.js';
@@ -28,7 +29,9 @@ export function loadSavedSources(): void {
   const sources = loadFromStorage<Source[]>(STORAGE_KEYS.SOURCES, []).map(migrateSource);
   const selectedSource = (() => {
     const s = loadFromStorage<Source | null>(STORAGE_KEYS.SELECTED_SOURCE, null);
-    return s ? migrateSource(s) : null;
+    // `SELECTED_SOURCE` ne porte qu'un pointeur depuis #592 : les lignes sont
+    // rebranchees depuis SOURCES.
+    return resolveSelectedSource(s ? migrateSource(s) : null, sources);
   })();
 
   // 1. Pr\u00e9enregistr\u00e9 (jeux de donn\u00e9es d'exemple) \u2014 masquable depuis /guide.
@@ -87,7 +90,7 @@ export function loadSavedSources(): void {
   );
 
   // Si une source \u00e9tait pr\u00e9-s\u00e9lectionn\u00e9e, la s\u00e9lectionner puis charger directement.
-  if (selectedSource && selectedSource.data) {
+  if (selectedSource && selectedSource.data && selectedSource.data.length > 0) {
     select.value = selectedSource.id;
     handleSourceChange();
   }

@@ -7,6 +7,7 @@ import {
   saveToStorage,
   STORAGE_KEYS,
   saveToStorageQuiet,
+  toSourcePointer,
   openModal,
   closeModal,
   buildProxiedRequest,
@@ -131,7 +132,8 @@ function typeBadgeHtml(type: string): string {
 
 /** « Utiliser dans le Builder » : sélectionne la source et ouvre le Builder. */
 function useSourceInBuilder(source: (typeof state.sources)[number]): void {
-  saveToStorageQuiet(STORAGE_KEYS.SELECTED_SOURCE, source);
+  // La source vient de state.sources : seul le pointeur est persiste (#592).
+  saveToStorageQuiet(STORAGE_KEYS.SELECTED_SOURCE, toSourcePointer(source));
   navigateTo('builder');
 }
 
@@ -1670,7 +1672,7 @@ function upsertSource(source: Source): void {
   if (idx >= 0) state.sources[idx] = source;
   else state.sources.push(source);
   saveToStorage(STORAGE_KEYS.SOURCES, state.sources);
-  saveToStorageQuiet(STORAGE_KEYS.SELECTED_SOURCE, source);
+  saveToStorageQuiet(STORAGE_KEYS.SELECTED_SOURCE, toSourcePointer(source));
   renderSources();
 }
 
@@ -1906,23 +1908,17 @@ export function previewSource(id: string): void {
       .join('');
   }
 
-  // Save as selected source for builder
-  saveToStorageQuiet(STORAGE_KEYS.SELECTED_SOURCE, source);
+  // Save as selected source for builder — pointeur seul, la source est deja
+  // dans SOURCES (elle vient de state.sources ci-dessus) (#592).
+  saveToStorageQuiet(STORAGE_KEYS.SELECTED_SOURCE, toSourcePointer(source));
 }
 
 export function saveAsFavorite(): void {
-  if (!state.previewedSource && state.selectedConnectionId === null) return;
-
-  const selectedSourceStr = localStorage.getItem(STORAGE_KEYS.SELECTED_SOURCE);
-  if (!selectedSourceStr) return;
-
-  let source: Record<string, unknown>;
-  try {
-    source = JSON.parse(selectedSourceStr);
-  } catch {
-    toastWarning('Erreur de lecture de la source sélectionnée.');
-    return;
-  }
+  // Lit l'etat memoire, pas localStorage : depuis #592 `SELECTED_SOURCE` ne
+  // porte qu'un pointeur sans les lignes, et `previewedSource` est de toute
+  // facon la source complete que l'apercu vient d'afficher.
+  const source = state.previewedSource;
+  if (!source) return;
 
   // Check if already exists
   const exists = state.sources.some((s) => s.id === source.id);
@@ -1931,7 +1927,7 @@ export function saveAsFavorite(): void {
     return;
   }
 
-  state.sources.push(source as unknown as (typeof state.sources)[0]);
+  state.sources.push(source);
   saveToStorage(STORAGE_KEYS.SOURCES, state.sources);
   renderSources();
   toastSuccess('Source enregistree !');
