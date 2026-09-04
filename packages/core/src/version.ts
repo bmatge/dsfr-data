@@ -4,4 +4,4 @@
  *
  * Ne pas editer a la main — regenere a chaque `npm run version-packages`.
  */
-export const VERSION = '0.18.0';
+export const VERSION = '0.19.0';
