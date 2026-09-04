@@ -3,6 +3,12 @@
  * - packages/core/src/version.ts (source TS de la version, importee par
  *   <app-header> pour afficher "Beta {version}" sans sortir du rootDir)
  *
+ * ATTENTION : ce script n'est PAS le seul consommateur de la version. La skill
+ * Claude Code (skills/dsfr-data/SKILL.md) l'estampille aussi, et son test-garde
+ * tests/skills-export.test.ts compare le fichier commite a une generation
+ * fraiche. C'est pourquoi `version-packages` enchaine `build:skills-claude`
+ * apres ce script : sans lui, toute PR de release echoue sur ce test.
+ *
  * Usage : npx vite-node scripts/sync-versions.ts
  */
 import { readFileSync, writeFileSync } from 'fs';

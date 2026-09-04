@@ -37,7 +37,7 @@
     "typecheck": "npm run typecheck --workspace=dsfr-data",
     "prepare": "husky",
     "changeset": "changeset",
-    "version-packages": "changeset version && vite-node scripts/sync-versions.ts",
+    "version-packages": "changeset version && vite-node scripts/sync-versions.ts && npm run build:skills-claude",
     "sync-versions": "vite-node scripts/sync-versions.ts",
     "generate-sri": "vite-node scripts/generate-sri.ts",
     "check:sri": "vite-node scripts/generate-sri.ts -- --check",
