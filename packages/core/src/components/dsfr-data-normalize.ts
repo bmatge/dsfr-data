@@ -67,6 +67,18 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
   @property({ type: String })
   flatten = '';
 
+  /**
+   * Decoupe des champs multivalues (chaine avec separateur) en vrais tableaux,
+   * comme une ChoiceList Grist. Format : "champ:sep, champ2:sep2" ; separateur
+   * par defaut : la virgule ("champ" seul). Ex : "Axes:|, Cibles:;".
+   * Chaque element est trime, les elements vides sont ecartes, une chaine vide
+   * donne un tableau vide. Les valeurs non-string (tableau deja forme, null,
+   * nombre) sont laissees telles quelles. Les composants aval traitent ces
+   * tableaux comme des champs multi-valeurs (facettes : une valeur par element).
+   */
+  @property({ type: String })
+  split = '';
+
   /** Arrondit les champs numériques a l'entier (ou a N decimales). Format: "champ1, champ2" ou "champ1:2, champ2:0" */
   @property({ type: String })
   round = '';
@@ -170,6 +182,7 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
   protected transformerReprocessProps(): string[] {
     return [
       'flatten',
+      'split',
       'numeric',
       'numericAuto',
       'round',
@@ -215,6 +228,7 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
       const renameMap = this._parsePipeMap(this.rename);
       const replaceMap = this._parsePipeMap(this.replace);
       const replaceFieldsMap = this._parseReplaceFields(this.replaceFields);
+      const splitFields = this._parseSplitFields();
       // Compile once per batch (not per row). Compute runs LAST, on already-typed
       // values, so `valeur * 100` sees a number and `a + ' / ' + b` concatenates.
       const compiledCompute: CompiledCompute = compileCompute(this.compute);
@@ -229,7 +243,8 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
           roundFields,
           renameMap,
           replaceMap,
-          replaceFieldsMap
+          replaceFieldsMap,
+          splitFields
         );
         return compiledCompute.length > 0 ? applyCompute(normalized, compiledCompute) : normalized;
       });
@@ -250,7 +265,8 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
     roundFields: Map<string, number>,
     renameMap: Map<string, string>,
     replaceMap: Map<string, string>,
-    replaceFieldsMap: Map<string, Map<string, string>>
+    replaceFieldsMap: Map<string, Map<string, string>>,
+    splitFields: Map<string, string> = new Map()
   ): Record<string, unknown> {
     const result: Record<string, unknown> = {};
 
@@ -295,6 +311,13 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
             break;
           }
         }
+      }
+
+      // 3c. Split multi-valued string into an array (uses trimmed key). Runs
+      // after replace so a placeholder ("N/A" -> "") yields an empty array,
+      // and before numeric/compute which never target a split field.
+      if (splitFields.size > 0 && typeof normalizedValue === 'string' && splitFields.has(key)) {
+        normalizedValue = this._splitValue(normalizedValue, splitFields.get(key)!);
       }
 
       // 4. Numeric conversion (uses trimmed key for field matching)
@@ -369,6 +392,38 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
     const parts = path.split('.');
     // Always delete the top-level key to remove the entire nested path
     delete obj[parts[0]];
+  }
+
+  /** Decoupe une cellule multivaluee : elements trimes, vides ecartes */
+  private _splitValue(value: string, separator: string): string[] {
+    if (value === '') return [];
+    return value
+      .split(separator)
+      .map((v) => v.trim())
+      .filter(Boolean);
+  }
+
+  /**
+   * Parse l'attribut split en Map<champ, separateur>. Format : "champ:sep, champ2:sep2".
+   * Entrees separees par virgule ; le premier `:` separe le champ du separateur.
+   * Separateur absent ou vide = virgule (ainsi "Tags" et "Tags:," sont equivalents).
+   */
+  _parseSplitFields(): Map<string, string> {
+    const map = new Map<string, string>();
+    if (!this.split) return map;
+    for (const entry of this.split.split(',')) {
+      const trimmed = entry.trim();
+      if (!trimmed) continue;
+      const colonIdx = trimmed.indexOf(':');
+      if (colonIdx === -1) {
+        map.set(trimmed, ',');
+        continue;
+      }
+      const field = trimmed.substring(0, colonIdx).trim();
+      const separator = trimmed.substring(colonIdx + 1).trim();
+      if (field) map.set(field, separator || ',');
+    }
+    return map;
   }
 
   /** Parse l'attribut numeric en Set de noms de champs */

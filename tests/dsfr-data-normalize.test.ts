@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { DsfrDataNormalize } from '@/components/dsfr-data-normalize.js';
+import { DsfrDataFacets } from '@/components/dsfr-data-facets.js';
 import {
   clearDataCache,
   dispatchDataLoaded,
@@ -778,6 +779,184 @@ describe('DsfrDataNormalize', () => {
       expect(result[0]).toEqual({ id: 0, name: 'Item 0', value: 0 });
       expect(result[999]).toEqual({ id: 999, name: 'Item 999', value: 9990 });
       expect(duration).toBeLessThan(200);
+    });
+  });
+
+  describe('Split (champs multivalues -> tableaux)', () => {
+    it('parses "champ:sep" entries separated by commas', () => {
+      normalize.split = 'Axes:|, Cibles:;';
+      const map = normalize._parseSplitFields();
+      expect(map.get('Axes')).toBe('|');
+      expect(map.get('Cibles')).toBe(';');
+      expect(map.size).toBe(2);
+    });
+
+    it('defaults to comma when the separator is absent or empty', () => {
+      normalize.split = 'Tags, Themes:';
+      const map = normalize._parseSplitFields();
+      expect(map.get('Tags')).toBe(',');
+      expect(map.get('Themes')).toBe(',');
+    });
+
+    it('keeps a multi-character separator and tolerates spaces around entries', () => {
+      normalize.split = ' Axes : || , Cibles:| ';
+      const map = normalize._parseSplitFields();
+      expect(map.get('Axes')).toBe('||');
+      expect(map.get('Cibles')).toBe('|');
+    });
+
+    it('returns empty map for empty split attribute', () => {
+      normalize.split = '';
+      expect(normalize._parseSplitFields().size).toBe(0);
+    });
+
+    it('splits a pipe-separated cell (group_concat SQL) into a trimmed array', () => {
+      normalize.id = 'test-normalize';
+      normalize.source = 'test-source';
+      normalize.split = 'Axes:|, Operateurs:|';
+
+      normalize.connectedCallback();
+      dispatchDataLoaded('test-source', [
+        {
+          Nom: 'A',
+          Axes: 'Sortie du fioul|Planification de la sortie du gaz',
+          Operateurs: ' ADEME | Bpifrance ',
+          Typologies: 'x|y',
+        },
+      ]);
+
+      const result = getDataCache('test-normalize') as Record<string, unknown>[];
+      expect(result[0].Axes).toEqual(['Sortie du fioul', 'Planification de la sortie du gaz']);
+      expect(result[0].Operateurs).toEqual(['ADEME', 'Bpifrance']);
+      // Champ non liste : intact
+      expect(result[0].Typologies).toBe('x|y');
+      expect(result[0].Nom).toBe('A');
+    });
+
+    it('turns an empty string into an empty array and drops empty elements', () => {
+      normalize.id = 'test-normalize';
+      normalize.source = 'test-source';
+      normalize.split = 'Axes:|';
+
+      normalize.connectedCallback();
+      dispatchDataLoaded('test-source', [{ Axes: '' }, { Axes: 'a||b|' }, { Axes: ' | ' }]);
+
+      const result = getDataCache('test-normalize') as Record<string, unknown>[];
+      expect(result[0].Axes).toEqual([]);
+      expect(result[1].Axes).toEqual(['a', 'b']);
+      expect(result[2].Axes).toEqual([]);
+    });
+
+    it('leaves non-string values untouched (already an array, null, number)', () => {
+      normalize.id = 'test-normalize';
+      normalize.source = 'test-source';
+      normalize.split = 'Axes:|';
+
+      normalize.connectedCallback();
+      dispatchDataLoaded('test-source', [
+        { Axes: ['deja', 'tableau'] },
+        { Axes: null },
+        { Axes: 42 },
+      ]);
+
+      const result = getDataCache('test-normalize') as Record<string, unknown>[];
+      expect(result[0].Axes).toEqual(['deja', 'tableau']);
+      expect(result[1].Axes).toBeNull();
+      expect(result[2].Axes).toBe(42);
+    });
+
+    it('runs after replace (placeholder becomes an empty array) and before rename', () => {
+      normalize.id = 'test-normalize';
+      normalize.source = 'test-source';
+      normalize.replace = 'N/A:';
+      normalize.split = 'axes:|';
+      normalize.rename = 'axes:Axes';
+
+      normalize.connectedCallback();
+      dispatchDataLoaded('test-source', [{ axes: 'N/A' }, { axes: 'a|b' }]);
+
+      const result = getDataCache('test-normalize') as Record<string, unknown>[];
+      expect(result[0].Axes).toEqual([]);
+      expect(result[1].Axes).toEqual(['a', 'b']);
+      expect('axes' in result[0]).toBe(false);
+    });
+
+    it('uses the trimmed key for field lookup when trim is set', () => {
+      normalize.id = 'test-normalize';
+      normalize.source = 'test-source';
+      normalize.trim = true;
+      normalize.split = 'Axes:|';
+
+      normalize.connectedCallback();
+      dispatchDataLoaded('test-source', [{ ' Axes ': 'a | b' }]);
+
+      const result = getDataCache('test-normalize') as Record<string, unknown>[];
+      expect(result[0].Axes).toEqual(['a', 'b']);
+    });
+
+    it('reprocesses cached data when split changes (#281)', () => {
+      /** Vue interne : cycle de montage du mixin et hook Lit. */
+      interface ReprocessView {
+        _transformerMountCycleDone: boolean;
+        willUpdate(changed: Map<string, unknown>): void;
+      }
+      normalize.id = 'test-normalize';
+      normalize.source = 'test-source';
+      normalize.connectedCallback();
+      dispatchDataLoaded('test-source', [{ Axes: 'a|b' }]);
+      expect((getDataCache('test-normalize') as Record<string, unknown>[])[0].Axes).toBe('a|b');
+
+      const view = normalize as unknown as ReprocessView;
+      view._transformerMountCycleDone = true; // cycle de montage consomme
+      normalize.split = 'Axes:|';
+      view.willUpdate(new Map([['split', '']]));
+      expect((getDataCache('test-normalize') as Record<string, unknown>[])[0].Axes).toEqual([
+        'a',
+        'b',
+      ]);
+    });
+
+    it('chained with dsfr-data-facets: one facet value per element, filtering by intersection', () => {
+      const facets = new DsfrDataFacets();
+      const internals = facets as unknown as { _activeSelections: Record<string, Set<string>> };
+      clearDataCache('test-facets');
+      clearDataMeta('test-facets');
+      window.history.replaceState({}, '', window.location.pathname);
+      try {
+        normalize.id = 'test-normalize';
+        normalize.source = 'test-source';
+        normalize.split = 'Axes:|';
+        normalize.connectedCallback();
+
+        facets.id = 'test-facets';
+        facets.source = 'test-normalize';
+        facets.fields = 'Axes';
+        facets.connectedCallback();
+
+        dispatchDataLoaded('test-source', [
+          { Nom: 'Alpha', Axes: 'Sortie du fioul|Planification de la sortie du gaz' },
+          { Nom: 'Bravo', Axes: 'Sortie du fioul' },
+          { Nom: 'Charlie', Axes: '' },
+        ]);
+
+        const values = facets._computeFacetValues('Axes');
+        const byValue = Object.fromEntries(values.map((v) => [v.value, v.count]));
+        expect(byValue).toEqual({ 'Sortie du fioul': 2, 'Planification de la sortie du gaz': 1 });
+        // Surtout pas le bouton combine « a|b »
+        expect(values.some((v) => v.value.includes('|'))).toBe(false);
+
+        let emitted: Record<string, unknown>[] = [];
+        facets.emitTransformedData = (data: Record<string, unknown>[]) => {
+          emitted = data;
+        };
+        internals._activeSelections['Axes'] = new Set(['Planification de la sortie du gaz']);
+        facets._applyFilters();
+        expect(emitted.map((r) => r.Nom)).toEqual(['Alpha']);
+      } finally {
+        if (facets.isConnected) facets.disconnectedCallback();
+        clearDataCache('test-facets');
+        clearDataMeta('test-facets');
+      }
     });
   });
 

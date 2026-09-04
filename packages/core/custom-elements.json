@@ -9366,6 +9366,16 @@
             },
             {
               "kind": "field",
+              "name": "split",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Decoupe des champs multivalues (chaine avec separateur) en vrais tableaux,\ncomme une ChoiceList Grist. Format : \"champ:sep, champ2:sep2\" ; separateur\npar defaut : la virgule (\"champ\" seul). Ex : \"Axes:|, Cibles:;\".\nChaque element est trime, les elements vides sont ecartes, une chaine vide\ndonne un tableau vide. Les valeurs non-string (tableau deja forme, null,\nnombre) sont laissees telles quelles. Les composants aval traitent ces\ntableaux comme des champs multi-valeurs (facettes : une valeur par element).",
+              "attribute": "split"
+            },
+            {
+              "kind": "field",
               "name": "round",
               "type": {
                 "text": "string"
@@ -9554,6 +9564,13 @@
                   "type": {
                     "text": "Map<string, Map<string, string>>"
                   }
+                },
+                {
+                  "name": "splitFields",
+                  "default": "new Map()",
+                  "type": {
+                    "text": "Map<string, string>"
+                  }
                 }
               ]
             },
@@ -9631,6 +9648,41 @@
                 }
               ],
               "description": "Supprime une clé par chemin dot notation (supprime aussi la racine du chemin)"
+            },
+            {
+              "kind": "method",
+              "name": "_splitValue",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string[]"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "value",
+                  "type": {
+                    "text": "string"
+                  }
+                },
+                {
+                  "name": "separator",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Decoupe une cellule multivaluee : elements trimes, vides ecartes"
+            },
+            {
+              "kind": "method",
+              "name": "_parseSplitFields",
+              "return": {
+                "type": {
+                  "text": "Map<string, string>"
+                }
+              },
+              "description": "Parse l'attribut split en Map<champ, separateur>. Format : \"champ:sep, champ2:sep2\".\nEntrees separees par virgule ; le premier `:` separe le champ du separateur.\nSeparateur absent ou vide = virgule (ainsi \"Tags\" et \"Tags:,\" sont equivalents)."
             },
             {
               "kind": "method",
@@ -9770,6 +9822,15 @@
               "default": "''",
               "description": "Clé du sous-objet a aplatir au premier niveau. Supporte la dot notation (ex: \"data.attributes\").",
               "fieldName": "flatten"
+            },
+            {
+              "name": "split",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Decoupe des champs multivalues (chaine avec separateur) en vrais tableaux,\ncomme une ChoiceList Grist. Format : \"champ:sep, champ2:sep2\" ; separateur\npar defaut : la virgule (\"champ\" seul). Ex : \"Axes:|, Cibles:;\".\nChaque element est trime, les elements vides sont ecartes, une chaine vide\ndonne un tableau vide. Les valeurs non-string (tableau deja forme, null,\nnombre) sont laissees telles quelles. Les composants aval traitent ces\ntableaux comme des champs multi-valeurs (facettes : une valeur par element).",
+              "fieldName": "split"
             },
             {
               "name": "round",
