@@ -166,6 +166,11 @@ export {
   flattenInseeObservation,
   flattenNestedKey,
   flattenProviderRecords,
+  buildInseeLabelIndex,
+  applyInseeLabels,
+  fetchInseeLabelIndex,
+  clearInseeLabelCache,
+  INSEE_CODE_SUFFIX,
 } from './providers/index.js';
 
 // Types

@@ -1,10 +1,34 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mock getProxiedUrl to return the URL as-is (avoid proxy rewriting in tests)
-vi.mock('@dsfr-data/shared', async (importOriginal) => {
-  const actual = await importOriginal<Record<string, unknown>>();
-  return { ...actual, getProxiedUrl: (url: string) => url };
-});
+/**
+ * Index de libelles neutre par defaut (#592).
+ *
+ * L'adapter charge les libelles sur `/range/{datasetId}` en plus des pages de
+ * donnees. Laisser cet appel passer par le `mockFetch` global lui ferait
+ * consommer les reponses mises en file par `mockResolvedValueOnce` et
+ * decalerait toutes les assertions de pagination. On neutralise donc la
+ * resolution ici — elle a sa propre couverture dans
+ * tests/shared/insee-labels.test.ts — et le test dedie plus bas la reactive.
+ */
+const mockLabelIndex = vi.hoisted(() => vi.fn(async () => new Map<string, Map<string, string>>()));
+
+// Mock getProxiedUrl to return the URL as-is (avoid proxy rewriting in tests).
+// L'adapter importe depuis `@dsfr-data/shared/lib`, que l'alias Vite resout
+// vers packages/shared/src/lib.ts — un module DISTINCT de src/index.ts. Mocker
+// `@dsfr-data/shared` seul ne l'intercepte donc pas.
+const sharedMock = vi.hoisted(
+  () => async (importOriginal: () => Promise<Record<string, unknown>>) => {
+    const actual = await importOriginal();
+    return {
+      ...actual,
+      getProxiedUrl: (url: string) => url,
+      fetchInseeLabelIndex: mockLabelIndex,
+    };
+  }
+);
+
+vi.mock('@dsfr-data/shared', sharedMock);
+vi.mock('@dsfr-data/shared/lib', sharedMock);
 
 // Mock fetch globally
 const mockFetch = vi.fn();
@@ -623,6 +647,94 @@ describe('InseeAdapter — fetchAll pagine par pages de 1000 (#286)', () => {
 // =============================================================================
 // fetchPage
 // =============================================================================
+
+describe('InseeAdapter — libelles INSEE (#592)', () => {
+  const adapter = new InseeAdapter();
+
+  beforeEach(() => {
+    mockFetch.mockReset();
+    mockLabelIndex.mockClear();
+  });
+
+  /** Index minimal, comme celui construit depuis /range/{datasetId}. */
+  function index() {
+    return new Map([
+      ['SEX', new Map([['M', 'Homme']])],
+      ['GEO', new Map([['2025-DEP-01', 'Ain']])],
+    ]);
+  }
+
+  it('traduit les codes et conserve le code d origine', async () => {
+    mockLabelIndex.mockResolvedValueOnce(index());
+    mockFetch.mockResolvedValue(
+      inseeResponse([obs({ GEO: '2025-DEP-01', SEX: 'M' }, { OBS_VALUE_NIVEAU: { value: 5 } })], {
+        count: 1,
+        isLast: true,
+      })
+    );
+
+    const result = await adapter.fetchAll(makeParams(), { aborted: false } as AbortSignal);
+
+    expect(result.data[0]).toMatchObject({
+      GEO: 'Ain',
+      GEO_CODE: '2025-DEP-01',
+      SEX: 'Homme',
+      SEX_CODE: 'M',
+      OBS_VALUE: 5,
+    });
+  });
+
+  it('ne charge les libelles qu une fois pour toutes les pages', async () => {
+    let served = 0;
+    mockLabelIndex.mockResolvedValue(index());
+    mockFetch.mockImplementation(() => {
+      served += 1000;
+      return Promise.resolve(
+        inseeResponse(
+          Array.from({ length: 1000 }, () => obs({ SEX: 'M' }, { OBS_VALUE_NIVEAU: { value: 1 } })),
+          { count: 3000, isLast: served >= 3000 }
+        )
+      );
+    });
+
+    await adapter.fetchAll(makeParams(), { aborted: false } as AbortSignal);
+
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+    expect(mockLabelIndex).toHaveBeenCalledTimes(1);
+  });
+
+  it('laisse les codes en place quand les libelles sont indisponibles', async () => {
+    // fetchInseeLabelIndex ne rejette jamais : il rend un index vide. Une
+    // source ne doit pas devenir inutilisable faute de libelles.
+    mockLabelIndex.mockResolvedValueOnce(new Map());
+    mockFetch.mockResolvedValue(
+      inseeResponse([obs({ SEX: 'M' }, { OBS_VALUE_NIVEAU: { value: 5 } })], {
+        count: 1,
+        isLast: true,
+      })
+    );
+
+    const result = await adapter.fetchAll(makeParams(), { aborted: false } as AbortSignal);
+
+    expect(result.data[0]).toMatchObject({ SEX: 'M', OBS_VALUE: 5 });
+    expect(result.data[0]).not.toHaveProperty('SEX_CODE');
+  });
+
+  it('traduit aussi en pagination serveur (fetchPage)', async () => {
+    mockLabelIndex.mockResolvedValueOnce(index());
+    mockFetch.mockResolvedValue(
+      inseeResponse([obs({ SEX: 'M' }, { OBS_VALUE_NIVEAU: { value: 7 } })], { count: 1 })
+    );
+
+    const result = await adapter.fetchPage(
+      makeParams(),
+      { offset: 0, limit: 20 } as unknown as ServerSideOverlay,
+      { aborted: false } as AbortSignal
+    );
+
+    expect(result.data[0]).toMatchObject({ SEX: 'Homme', SEX_CODE: 'M' });
+  });
+});
 
 describe('InseeAdapter — fetchPage', () => {
   const adapter = new InseeAdapter();
