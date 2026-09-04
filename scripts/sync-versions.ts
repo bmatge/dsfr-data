@@ -8,6 +8,8 @@
  * tests/skills-export.test.ts compare le fichier commite a une generation
  * fraiche. C'est pourquoi `version-packages` enchaine `build:skills-claude`
  * apres ce script : sans lui, toute PR de release echoue sur ce test.
+ * Et comme `build:skills-claude` traverse `@dsfr-data/shared`, la chaine
+ * lance aussi `build:shared` — le workflow Release ne fait que `npm ci`.
  *
  * Usage : npx vite-node scripts/sync-versions.ts
  */
