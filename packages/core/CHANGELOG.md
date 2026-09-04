@@ -1,5 +1,32 @@
 # dsfr-data
 
+## 0.20.0
+
+### Minor Changes
+
+- [#593](https://github.com/bmatge/dsfr-data/pull/593) [`8aa3cf2`](https://github.com/bmatge/dsfr-data/commit/8aa3cf21d186931823ef2aa91e1265a2f4e0e53d) Thanks [@bmatge](https://github.com/bmatge)! - Libelles INSEE Melodi resolus automatiquement ([#592](https://github.com/bmatge/dsfr-data/issues/592), volet B) : les jeux Melodi
+  arrivaient en codes SDMX bruts (`AGE: "Y65T74"`, `GEO: "2025-DEP-01"`, `SEX: "M"`),
+  inexploitables comme etiquettes d'axe. Les libelles officiels sont desormais charges
+  depuis `/melodi/range/{idDataset}` et appliques aux valeurs — « De 65 a 74 ans »,
+  « Ain », « Homme » — par les **deux** chemins d'import (composant et connexion API),
+  qui produisent donc les memes colonnes. Le code d'origine est conserve dans une colonne
+  `<DIMENSION>_CODE` pour les filtres, jointures et URL partagees, qui veulent une valeur
+  stable. Les noms de colonnes restent les codes de dimension : ce sont des identifiants
+  references par les configurations de graphiques enregistrees. Un appel par jeu, mis en
+  cache en memoire ; libelles indisponibles = codes conserves, jamais d'erreur bloquante.
+
+### Patch Changes
+
+- [#593](https://github.com/bmatge/dsfr-data/pull/593) [`8aa3cf2`](https://github.com/bmatge/dsfr-data/commit/8aa3cf21d186931823ef2aa91e1265a2f4e0e53d) Thanks [@bmatge](https://github.com/bmatge)! - Deduplication du stockage local des sources ([#592](https://github.com/bmatge/dsfr-data/issues/592), volet A) : `SELECTED_SOURCE` ne
+  persiste plus que le **pointeur** vers la source (descripteur sans les lignes), au lieu
+  d'une seconde copie integrale des donnees deja presentes dans `SOURCES`. Un jeu de 2,7 Mo
+  consommait ainsi ~5,4 Mo d'un quota localStorage d'environ 5 Mo, et l'ecriture etait
+  refusee au-dela (toast « Espace de stockage plein », rendu visible par [#586](https://github.com/bmatge/dsfr-data/issues/586)). Nouveaux
+  helpers partages `toSourcePointer()` / `resolveSelectedSource()` : les lignes sont
+  rebranchees depuis `SOURCES` a la lecture, avec repli sur l'ancien format pour les
+  entrees deja ecrites. `saveAsFavorite()` lit desormais l'etat memoire plutot que
+  localStorage.
+
 ## 0.19.0
 
 ### Minor Changes
