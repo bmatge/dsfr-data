@@ -519,6 +519,11 @@ Nommage automatique sans alias : \`champ__fonction\` (ex: \`population__sum\`)
       'arrondir',
       'round',
       'decimales',
+      'split',
+      'multivalue',
+      'multi-valeurs',
+      'decouper',
+      'group_concat',
     ],
     content:
       `## <dsfr-data-normalize> - Normalisation de données
@@ -550,6 +555,7 @@ Sortie : même tableau avec valeurs nettoyees/renommees.
 | strip-html | Boolean | \`false\` | non | Supprime les balises HTML des valeurs string |
 | replace | String | \`""\` | non | Remplace des valeurs globalement : \`"N/A: | n.d.: | -:0"\` (pipe-separe) |
 | replace-fields | String | \`""\` | non | Remplacement cible par champ : \`"CHAMP:ancien:nouveau | CHAMP2:a:n"\` (pipe-separe). Ne remplace que dans le champ specifie. |
+| split | String | \`""\` | non | Decoupe des champs multivalues (chaine avec separateur) en vrais tableaux : \`"Axes:\|, Cibles:;"\` (entrees separees par virgule, \`champ:sep\`, separateur par defaut = virgule). Elements trimes, vides ecartes, chaine vide = tableau vide. Les facettes affichent alors une valeur par element au lieu d'un bouton combine « a\|b ». |
 | round | String | \`""\` | non | Arrondit des champs numériques : \`"montant, prix"\` (0 decimales) ou \`"taux:2, score:1"\` (decimales explicites) |
 | lowercase-keys | Boolean | \`false\` | non | Met toutes les clés en minuscules |
 | compute | String | \`""\` | non | Colonnes calculees (ligne a ligne). Format \`"cible = expression; cible2 = expr2"\`. Supporte l'arithmetique \`+ - * /\`, la concatenation texte (\`+\` avec litteraux 'entre quotes') et les parentheses. Ex: \`"pct = valeur * 100; groupe = Indicateurs + ' / ' + Sous_theme"\`. Hors perimetre : conditions, fonctions, calculs sur valeurs agregees. |
@@ -560,6 +566,7 @@ Sortie : même tableau avec valeurs nettoyees/renommees.
 3. strip-html — supprime le HTML
 4a. **replace-fields** — remplace les valeurs dans les champs specifies
 4b. replace — remplace les valeurs globalement (tous les champs)
+4c. **split** — decoupe les champs multivalues en tableaux (apres replace : un placeholder remplace par vide donne un tableau vide)
 5. numeric / numeric-auto — conversion en nombres
 6. **round** — arrondit les valeurs numériques
 7. rename — renomme les clés
@@ -571,6 +578,7 @@ Sortie : même tableau avec valeurs nettoyees/renommees.
 - \`rename\` et \`replace\` : paires separees par \`|\`, clé et valeur separees par \`:\`
   Le \`:\` separe le pattern de sa valeur de remplacement (valeur vide = suppression).
 - \`replace-fields\` : paires separees par \`|\`, format \`CHAMP:pattern:remplacement\` (les 2 premiers \`:\` sont des delimiteurs, le remplacement peut contenir des \`:\`).
+- \`split\` : entrees separees par virgule, format \`champ:separateur\` (le separateur peut etre \`|\`, \`;\`, \` / \`… ; absent = virgule). Ne pas utiliser \`|\` entre les entrees : c'est le separateur le plus courant a decouper.
 
 ### Aplatir des données imbriquees (Grist, ODS v1, Airtable)
 
@@ -640,6 +648,10 @@ rendant les données compatibles avec tous les composants (facettes, datalist, g
 
 <!-- Normalisation des clés en minuscules -->
 <dsfr-data-normalize id="lower" source="raw" lowercase-keys></dsfr-data-normalize>
+
+<!-- Champs multivalues (group_concat SQL, CSV « a|b|c ») -> tableaux pour les facettes -->
+<dsfr-data-normalize id="data" source="flat" split="Axes:|, Operateurs:|, Cibles:|"></dsfr-data-normalize>
+<dsfr-data-facets id="filtres" source="data" fields="Axes, Operateurs" disjunctive="Axes"></dsfr-data-facets>
 
 <!-- INSEE Melodi : decoder les dimensions codees par champ -->
 <dsfr-data-source id="raw" api-type="insee" base-url="https://api.insee.fr/melodi"

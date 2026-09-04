@@ -89,6 +89,7 @@
             <tr><td><code>replace</code></td><td>String</td><td><code>""</code></td><td>Remplacement global de valeurs : <code>"N/A: | n.d.: | -:0"</code></td></tr>
             <tr><td><code>replace-fields</code></td><td>String</td><td><code>""</code></td><td>Remplacement cible par champ : <code>"CHAMP:ancien:nouveau | CHAMP2:a:n"</code>. Ne remplace que dans le champ specifie. Combinable avec <code>replace</code>.</td></tr>
             <tr><td><code>flatten</code></td><td>String</td><td><code>""</code></td><td>Clé du sous-objet a aplatir au premier niveau. Supporte la dot notation (<code>"data.attributes"</code>).</td></tr>
+            <tr><td><code>split</code></td><td>String</td><td><code>""</code></td><td>Découpe des champs multivalués (chaîne avec séparateur) en vrais tableaux : <code>"Axes:|, Cibles:;"</code> (entrées séparées par virgule, <code>champ:sep</code>, séparateur par défaut = virgule). Éléments trimés, vides écartés, chaîne vide = tableau vide. Les facettes affichent alors une valeur par élément.</td></tr>
             <tr><td><code>round</code></td><td>String</td><td><code>""</code></td><td>Arrondit les champs numériques. Format : <code>"champ1, champ2"</code> (0 decimales) ou <code>"champ1:2, champ2:0"</code> (N decimales).</td></tr>
             <tr><td><code>lowercase-keys</code></td><td>Boolean</td><td><code>false</code></td><td>Met toutes les clés en minuscules.</td></tr>
             <tr><td><code>compute</code></td><td>String</td><td><code>""</code></td><td>Colonnes calculees (ligne a ligne, en dernier). Format : <code>"cible = expression; cible2 = expr2"</code>. Supporte l'arithmetique <code>+ - * /</code>, la concatenation texte (<code>+</code> avec litteraux <code>'entre quotes'</code>) et les parentheses. Ex : <code>"pct = valeur * 100; série = Indicateurs + ' / ' + Sous_theme"</code>. Hors perimetre : conditions, fonctions, calculs sur valeurs agregees.</td></tr>
@@ -101,6 +102,7 @@
             pour separer les paires, et <code>:</code> pour separer la clé de la valeur.
             <code>replace-fields</code> utilise le format <code>CHAMP:pattern:remplacement</code> (les 2 premiers <code>:</code> sont des delimiteurs).
             <code>numeric</code> utilise la virgule.
+            <code>split</code> utilise la virgule entre entrées et <code>champ:séparateur</code> pour chacune (le séparateur à découper est souvent <code>|</code>).
           </p>
         </div>
 
