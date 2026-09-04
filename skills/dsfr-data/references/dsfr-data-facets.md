@@ -25,20 +25,20 @@ Sortie : même tableau, filtre selon les selections de l'utilisateur.
 | id | String | - | oui | Identifiant unique. Sans cet attribut, dsfr-data-facets affiche une alerte DSFR `fr-alert--warning` au lieu des facettes (et pose `data-dsfr-config-error` pour le debug). |
 | source | String | `""` | oui | ID de la source a ecouter |
 | fields | String | `""` | non | Champs a exposer comme facettes (virgule-separes). Vide = auto-detection |
-| labels | String | `""` | non | Labels custom : `"field:Label | field2:Label 2"` (pipe-separe) |
+| labels | String | `""` | non | Labels custom : `"field:Label \| field2:Label 2"` (pipe-separe) |
 | max-values | Number | `6` | non | Nb de valeurs visibles par facette avant "Voir plus" |
 | disjunctive | String | `""` | non | Champs en mode multi-selection OU (virgule-separes) |
 | sort | String | `"count"` | non | Tri des valeurs : count, -count, alpha, -alpha |
 | searchable | String | `""` | non | Champs avec barre de recherche (virgule-separes) |
 | hide-empty | Boolean | `false` | non | Masquer les facettes avec une seule valeur |
-| display | String | `""` | non | Mode d'affichage par facette : `"field:select | field2:multiselect"`. Modes : checkbox (défaut), select, multiselect, radio |
+| display | String | `""` | non | Mode d'affichage par facette : `"field:select \| field2:multiselect"`. Modes : checkbox (défaut), select, multiselect, radio |
 | hide-counts | Boolean | `false` | non | Masquer les compteurs (N) a cote de chaque valeur de facette |
 | url-params | Boolean | `false` | non | Active la lecture des parametres d'URL comme pre-selections de facettes |
-| url-param-map | String | `""` | non | Mapping URL param -> champ : `"r:region | t:type"`. Si vide, correspondance directe |
+| url-param-map | String | `""` | non | Mapping URL param -> champ : `"r:region \| t:type"`. Si vide, correspondance directe |
 | url-sync | Boolean | `false` | non | Synchronise l'URL quand l'utilisateur change les facettes (replaceState) |
 | server-facets | Boolean | `false` | non | Active le mode facettes serveur ODS. Fetch les valeurs depuis l'API ODS /facets. Requiert une source dsfr-data-source api-type="opendatasoft" server-side (directement ou via un dsfr-data-query, qui relaie automatiquement). En mode server-facets, fields est obligatoire |
 | static-values | String | `""` | non | Valeurs de facettes pre-calculees en JSON : `'{"region":["IDF","PACA"],"type":["Commune"]}')`. Les selections envoient des commandes WHERE en colon syntax au dsfr-data-query. Compteurs masques automatiquement. Utile pour Tabular/Grist/generique qui n'ont pas d'API facettes serveur |
-| cols | String | `""` | non | Colonnage DSFR : `"6"` (global, 2/ligne), `"4"` (3/ligne), ou par facette `"region:4 | type:6"` (défaut fr-col-6 pour non-specifies) |
+| cols | String | `""` | non | Colonnage DSFR : `"6"` (global, 2/ligne), `"4"` (3/ligne), ou par facette `"region:4 \| type:6"` (défaut fr-col-6 pour non-specifies) |
 
 ### Modes d'affichage
 - **checkbox** (défaut) : fieldset DSFR avec checkboxes, compteurs, "Voir plus/moins", recherche optionnelle

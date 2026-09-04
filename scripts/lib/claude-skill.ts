@@ -88,7 +88,10 @@ function fileName(id: string): string {
 }
 
 function cell(s: string): string {
-  return s.replace(/\|/g, '\\|').replace(/\s+/g, ' ').trim();
+  // L'antislash d'abord : sans lui, un `\|` deja present en entree ressortait en
+  // `\\|`, ou l'antislash echappe l'antislash et laisse le pipe casser la cellule
+  // (alerte CodeQL js/incomplete-sanitization).
+  return s.replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\s+/g, ' ').trim();
 }
 
 function renderIndexTable(skills: SkillLike[]): string {
