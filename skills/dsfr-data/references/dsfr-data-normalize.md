@@ -131,14 +131,21 @@ rendant les données compatibles avec tous les composants (facettes, datalist, g
 <dsfr-data-normalize id="data" source="flat" split="Axes:|, Operateurs:|, Cibles:|"></dsfr-data-normalize>
 <dsfr-data-facets id="filtres" source="data" fields="Axes, Operateurs" disjunctive="Axes"></dsfr-data-facets>
 
-<!-- INSEE Melodi : decoder les dimensions codees par champ -->
+<!-- INSEE Melodi : les libelles sont resolus automatiquement (#592).
+     Les observations n'arrivent plus en codes SDMX : AGE vaut « De 25 a 49 ans »
+     et non « Y25T49 », GEO vaut « Ain » et non « 2025-DEP-01 ». Le code d'origine
+     reste disponible dans une colonne <DIMENSION>_CODE (AGE_CODE, GEO_CODE),
+     a utiliser pour les filtres, les jointures et la synchronisation d'URL, qui
+     veulent une valeur stable. Inutile donc de decoder a la main. -->
 <dsfr-data-source id="raw" api-type="insee" base-url="https://api.insee.fr/melodi"
   dataset-id="DS_POPULATIONS_REFERENCE"
   where="POPREF_MEASURE:eq:PMUN, TIME_PERIOD:eq:2023"></dsfr-data-source>
-<dsfr-data-normalize id="decoded" source="raw"
-  replace-fields="AGE:Y30T39:30-39 ans | AGE:Y_LT30:Moins de 30 ans | PCS:3:Cadres | PCS:5:Employes"
-  replace="N/A:">
-</dsfr-data-normalize>
+<dsfr-data-chart source="raw" type="bar" x-field="AGE" y-field="OBS_VALUE"></dsfr-data-chart>
+
+<!-- replace-fields ne sert plus qu'a un renommage sur mesure, par-dessus les
+     libelles officiels (raccourcir un intitule pour un axe, par exemple) -->
+<dsfr-data-normalize id="court" source="raw"
+  replace-fields="AGE:De 25 a 49 ans:25-49"></dsfr-data-normalize>
 ```
 
 ### Référence `<dsfr-data-normalize>` (générée depuis le code)
