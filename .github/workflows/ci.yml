@@ -57,7 +57,7 @@ jobs:
       - run: npm ci
 
       - name: Security audit
-        run: npm audit --audit-level=high
+        run: ./scripts/npm-audit-ci.sh high
 
       - name: Check SRI hashes on CDN refs
         run: npm run check:sri
@@ -108,7 +108,7 @@ jobs:
 
       - name: npm audit — mcp-server
         working-directory: mcp-server
-        run: npm audit --audit-level=high
+        run: ../scripts/npm-audit-ci.sh high
 
       - name: Trivy — filesystem (vulnerabilities)
         uses: aquasecurity/trivy-action@v0.36.0

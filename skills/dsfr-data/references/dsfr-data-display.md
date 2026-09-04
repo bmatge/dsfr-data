@@ -18,9 +18,9 @@ Les placeholders sont remplaces pour chaque element de données :
 |---------|-------------|
 | `{{champ}}` | Valeur echappee (HTML-safe) |
 | `{{{champ}}}` | Valeur brute (non echappee — utiliser avec precaution) |
-| `{{champ|défaut}}` | Valeur avec fallback si null/undefined |
+| `{{champ\|défaut}}` | Valeur avec fallback si null/undefined |
 | `{{champ:number}}` | Valeur avec separateur de milliers (ex: 32073247 → 32 073 247) |
-| `{{champ:number|0}}` | Format number + fallback si null |
+| `{{champ:number\|0}}` | Format number + fallback si null |
 | `{{champ.sous.clé}}` | Acces aux proprietes imbriquees (dot notation) |
 | `{{$index}}` | Index de l'element dans le tableau (0-based) |
 | `{{$uid}}` | Identifiant unique de l'element (base sur uid-field ou index) |

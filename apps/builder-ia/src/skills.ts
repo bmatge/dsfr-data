@@ -550,12 +550,12 @@ Sortie : même tableau avec valeurs nettoyees/renommees.
 | flatten | String | \`""\` | non | Clé du sous-objet a extraire au premier niveau. Utilise pour les APIs Grist, ODS v1, Airtable qui wrappent les données sous \`fields\`. Supporte la dot notation (\`data.attributes\`). |
 | numeric | String | \`""\` | non | Champs a forcer en nombre (virgule-separes) : \`"population, surface"\` |
 | numeric-auto | Boolean | \`false\` | non | Detection et conversion auto des champs numériques |
-| rename | String | \`""\` | non | Renommage : \`"ancien:nouveau | ancien2:nouveau2"\` (pipe-separe) |
+| rename | String | \`""\` | non | Renommage : \`"ancien:nouveau \\| ancien2:nouveau2"\` (pipe-separe) |
 | trim | Boolean | \`false\` | non | Supprime les espaces en debut/fin des clés ET valeurs string |
 | strip-html | Boolean | \`false\` | non | Supprime les balises HTML des valeurs string |
-| replace | String | \`""\` | non | Remplace des valeurs globalement : \`"N/A: | n.d.: | -:0"\` (pipe-separe) |
-| replace-fields | String | \`""\` | non | Remplacement cible par champ : \`"CHAMP:ancien:nouveau | CHAMP2:a:n"\` (pipe-separe). Ne remplace que dans le champ specifie. |
-| split | String | \`""\` | non | Decoupe des champs multivalues (chaine avec separateur) en vrais tableaux : \`"Axes:\|, Cibles:;"\` (entrees separees par virgule, \`champ:sep\`, separateur par defaut = virgule). Elements trimes, vides ecartes, chaine vide = tableau vide. Les facettes affichent alors une valeur par element au lieu d'un bouton combine « a\|b ». |
+| replace | String | \`""\` | non | Remplace des valeurs globalement : \`"N/A: \\| n.d.: \\| -:0"\` (pipe-separe) |
+| replace-fields | String | \`""\` | non | Remplacement cible par champ : \`"CHAMP:ancien:nouveau \\| CHAMP2:a:n"\` (pipe-separe). Ne remplace que dans le champ specifie. |
+| split | String | \`""\` | non | Decoupe des champs multivalues (chaine avec separateur) en vrais tableaux : \`"Axes:\\|, Cibles:;"\` (entrees separees par virgule, \`champ:sep\`, separateur par defaut = virgule). Elements trimes, vides ecartes, chaine vide = tableau vide. Les facettes affichent alors une valeur par element au lieu d'un bouton combine « a\\|b ». |
 | round | String | \`""\` | non | Arrondit des champs numériques : \`"montant, prix"\` (0 decimales) ou \`"taux:2, score:1"\` (decimales explicites) |
 | lowercase-keys | Boolean | \`false\` | non | Met toutes les clés en minuscules |
 | compute | String | \`""\` | non | Colonnes calculees (ligne a ligne). Format \`"cible = expression; cible2 = expr2"\`. Supporte l'arithmetique \`+ - * /\`, la concatenation texte (\`+\` avec litteraux 'entre quotes') et les parentheses. Ex: \`"pct = valeur * 100; groupe = Indicateurs + ' / ' + Sous_theme"\`. Hors perimetre : conditions, fonctions, calculs sur valeurs agregees. |
@@ -699,20 +699,20 @@ Sortie : même tableau, filtre selon les selections de l'utilisateur.
 | id | String | - | oui | Identifiant unique. Sans cet attribut, dsfr-data-facets affiche une alerte DSFR \`fr-alert--warning\` au lieu des facettes (et pose \`data-dsfr-config-error\` pour le debug). |
 | source | String | \`""\` | oui | ID de la source a ecouter |
 | fields | String | \`""\` | non | Champs a exposer comme facettes (virgule-separes). Vide = auto-detection |
-| labels | String | \`""\` | non | Labels custom : \`"field:Label | field2:Label 2"\` (pipe-separe) |
+| labels | String | \`""\` | non | Labels custom : \`"field:Label \\| field2:Label 2"\` (pipe-separe) |
 | max-values | Number | \`6\` | non | Nb de valeurs visibles par facette avant "Voir plus" |
 | disjunctive | String | \`""\` | non | Champs en mode multi-selection OU (virgule-separes) |
 | sort | String | \`"count"\` | non | Tri des valeurs : count, -count, alpha, -alpha |
 | searchable | String | \`""\` | non | Champs avec barre de recherche (virgule-separes) |
 | hide-empty | Boolean | \`false\` | non | Masquer les facettes avec une seule valeur |
-| display | String | \`""\` | non | Mode d'affichage par facette : \`"field:select | field2:multiselect"\`. Modes : checkbox (défaut), select, multiselect, radio |
+| display | String | \`""\` | non | Mode d'affichage par facette : \`"field:select \\| field2:multiselect"\`. Modes : checkbox (défaut), select, multiselect, radio |
 | hide-counts | Boolean | \`false\` | non | Masquer les compteurs (N) a cote de chaque valeur de facette |
 | url-params | Boolean | \`false\` | non | Active la lecture des parametres d'URL comme pre-selections de facettes |
-| url-param-map | String | \`""\` | non | Mapping URL param -> champ : \`"r:region | t:type"\`. Si vide, correspondance directe |
+| url-param-map | String | \`""\` | non | Mapping URL param -> champ : \`"r:region \\| t:type"\`. Si vide, correspondance directe |
 | url-sync | Boolean | \`false\` | non | Synchronise l'URL quand l'utilisateur change les facettes (replaceState) |
 | server-facets | Boolean | \`false\` | non | Active le mode facettes serveur ODS. Fetch les valeurs depuis l'API ODS /facets. Requiert une source dsfr-data-source api-type="opendatasoft" server-side (directement ou via un dsfr-data-query, qui relaie automatiquement). En mode server-facets, fields est obligatoire |
 | static-values | String | \`""\` | non | Valeurs de facettes pre-calculees en JSON : \`'{"region":["IDF","PACA"],"type":["Commune"]}')\`. Les selections envoient des commandes WHERE en colon syntax au dsfr-data-query. Compteurs masques automatiquement. Utile pour Tabular/Grist/generique qui n'ont pas d'API facettes serveur |
-| cols | String | \`""\` | non | Colonnage DSFR : \`"6"\` (global, 2/ligne), \`"4"\` (3/ligne), ou par facette \`"region:4 | type:6"\` (défaut fr-col-6 pour non-specifies) |
+| cols | String | \`""\` | non | Colonnage DSFR : \`"6"\` (global, 2/ligne), \`"4"\` (3/ligne), ou par facette \`"region:4 \\| type:6"\` (défaut fr-col-6 pour non-specifies) |
 
 ### Modes d'affichage
 - **checkbox** (défaut) : fieldset DSFR avec checkboxes, compteurs, "Voir plus/moins", recherche optionnelle
@@ -1391,9 +1391,9 @@ Les placeholders sont remplaces pour chaque element de données :
 |---------|-------------|
 | \`{{champ}}\` | Valeur echappee (HTML-safe) |
 | \`{{{champ}}}\` | Valeur brute (non echappee — utiliser avec precaution) |
-| \`{{champ|défaut}}\` | Valeur avec fallback si null/undefined |
+| \`{{champ\\|défaut}}\` | Valeur avec fallback si null/undefined |
 | \`{{champ:number}}\` | Valeur avec separateur de milliers (ex: 32073247 → 32 073 247) |
-| \`{{champ:number|0}}\` | Format number + fallback si null |
+| \`{{champ:number\\|0}}\` | Format number + fallback si null |
 | \`{{champ.sous.clé}}\` | Acces aux proprietes imbriquees (dot notation) |
 | \`{{$index}}\` | Index de l'element dans le tableau (0-based) |
 | \`{{$uid}}\` | Identifiant unique de l'element (base sur uid-field ou index) |
@@ -2744,7 +2744,7 @@ Sans contexte, chaque source reste autonome (defaut inchange).
 |----------|------|--------|--------|-------------|
 | sources | String | \`""\` | oui | Ids des sources cibles, separes par des espaces |
 | url-sync | Boolean | \`false\` | non | Serialisation URL des filtres (#231, opt-in) : lecture au chargement (pre-remplit les UI), ecriture replaceState, parametres voisins preserves |
-| url-param-map | String | \`""\` | non | Renommage des parametres URL : \`"param:field \| param2:field2"\` |
+| url-param-map | String | \`""\` | non | Renommage des parametres URL : \`"param:field \\| param2:field2"\` |
 
 ### Pattern
 

@@ -28,12 +28,12 @@ Sortie : même tableau avec valeurs nettoyees/renommees.
 | flatten | String | `""` | non | Clé du sous-objet a extraire au premier niveau. Utilise pour les APIs Grist, ODS v1, Airtable qui wrappent les données sous `fields`. Supporte la dot notation (`data.attributes`). |
 | numeric | String | `""` | non | Champs a forcer en nombre (virgule-separes) : `"population, surface"` |
 | numeric-auto | Boolean | `false` | non | Detection et conversion auto des champs numériques |
-| rename | String | `""` | non | Renommage : `"ancien:nouveau | ancien2:nouveau2"` (pipe-separe) |
+| rename | String | `""` | non | Renommage : `"ancien:nouveau \| ancien2:nouveau2"` (pipe-separe) |
 | trim | Boolean | `false` | non | Supprime les espaces en debut/fin des clés ET valeurs string |
 | strip-html | Boolean | `false` | non | Supprime les balises HTML des valeurs string |
-| replace | String | `""` | non | Remplace des valeurs globalement : `"N/A: | n.d.: | -:0"` (pipe-separe) |
-| replace-fields | String | `""` | non | Remplacement cible par champ : `"CHAMP:ancien:nouveau | CHAMP2:a:n"` (pipe-separe). Ne remplace que dans le champ specifie. |
-| split | String | `""` | non | Decoupe des champs multivalues (chaine avec separateur) en vrais tableaux : `"Axes:|, Cibles:;"` (entrees separees par virgule, `champ:sep`, separateur par defaut = virgule). Elements trimes, vides ecartes, chaine vide = tableau vide. Les facettes affichent alors une valeur par element au lieu d'un bouton combine « a|b ». |
+| replace | String | `""` | non | Remplace des valeurs globalement : `"N/A: \| n.d.: \| -:0"` (pipe-separe) |
+| replace-fields | String | `""` | non | Remplacement cible par champ : `"CHAMP:ancien:nouveau \| CHAMP2:a:n"` (pipe-separe). Ne remplace que dans le champ specifie. |
+| split | String | `""` | non | Decoupe des champs multivalues (chaine avec separateur) en vrais tableaux : `"Axes:\|, Cibles:;"` (entrees separees par virgule, `champ:sep`, separateur par defaut = virgule). Elements trimes, vides ecartes, chaine vide = tableau vide. Les facettes affichent alors une valeur par element au lieu d'un bouton combine « a\|b ». |
 | round | String | `""` | non | Arrondit des champs numériques : `"montant, prix"` (0 decimales) ou `"taux:2, score:1"` (decimales explicites) |
 | lowercase-keys | Boolean | `false` | non | Met toutes les clés en minuscules |
 | compute | String | `""` | non | Colonnes calculees (ligne a ligne). Format `"cible = expression; cible2 = expr2"`. Supporte l'arithmetique `+ - * /`, la concatenation texte (`+` avec litteraux 'entre quotes') et les parentheses. Ex: `"pct = valeur * 100; groupe = Indicateurs + ' / ' + Sous_theme"`. Hors perimetre : conditions, fonctions, calculs sur valeurs agregees. |
