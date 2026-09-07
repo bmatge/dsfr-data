@@ -130,8 +130,22 @@ export function lireBalises(html: string): BaliseLue[] {
   let i = 0;
 
   while (i < html.length) {
-    const debut = html.toLowerCase().indexOf(prefixe, i);
+    // On cherche `<` dans la chaine D'ORIGINE puis on compare le prefixe en
+    // minuscules sur une TRANCHE. Deux bugs evites d'un coup :
+    //   - `html.toLowerCase()` n'a pas la meme longueur que `html` des qu'un
+    //     caractere change de taille en minuscule (le turc « I » avec point,
+    //     par exemple) : les index se decalent et on tronque des balises,
+    //     produisant de faux « Balise inconnue » sur du code valide ;
+    //   - recalculer `toLowerCase()` de tout le document a chaque tour rend
+    //     le parcours quadratique — 8000 balises passaient de quelques ms a
+    //     plus de deux secondes, alors que ce module tourne cote serveur MCP
+    //     sur du HTML recu de l'exterieur.
+    const debut = html.indexOf('<', i);
     if (debut === -1) break;
+    if (html.slice(debut, debut + prefixe.length).toLowerCase() !== prefixe) {
+      i = debut + 1;
+      continue;
+    }
 
     // Nom de la balise : jusqu'a un espace, un `/` ou le `>` fermant.
     let j = debut + 1;

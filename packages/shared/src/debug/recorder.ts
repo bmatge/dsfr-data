@@ -210,19 +210,39 @@ export class DataflowRecorder {
    * Sert au bundle autonome (#608) : il ecoute des le premier octet, mais ne
    * peut monter son incrustation qu'une fois `document.body` disponible.
    * Sans cette reprise, il observerait tout et n'en montrerait rien.
+   *
+   * Trois invariants, chacun paye d'un bug :
+   *
+   * 1. **Fusion CHRONOLOGIQUE.** Les evenements adoptes sont ANTERIEURS :
+   *    les empiler a la fin donnerait un journal a l'envers, et ferait
+   *    reculer `lastEventAt`.
+   * 2. **Ecretage par les plus ANCIENS.** Le plafond doit sacrifier le
+   *    passe, jamais le present — sinon un journal plein jette les
+   *    evenements qu'on vient d'observer.
+   * 3. **L'observation directe prime.** Un etat deja connu de CE collecteur
+   *    vient d'une observation directe ; celui du collecteur precoce ne le
+   *    remplace pas. C'est l'appelant qui garantit l'ordre : adopter AVANT
+   *    tout remplissage depuis le cache, sinon un instantane muet ecraserait
+   *    une erreur observee.
    */
   adoptFrom(precoce: DataflowRecorder): void {
-    for (const event of precoce.events) {
-      this.seq += 1;
-      this.events.push({ ...event, seq: this.seq } as TraceEvent);
-      this.lastEventAt = event.t;
-    }
-    for (const [id, state] of precoce.states) {
-      if (!this.states.has(id)) this.states.set(id, state);
-    }
+    if (precoce === this) return;
+
+    const fusion = [...precoce.events, ...this.events].sort((a, b) => a.t - b.t);
+    // Renumerote APRES tri : `seq` doit s'accorder avec `t`, sinon un
+    // consommateur qui ordonne par seq lit une chronologie fausse.
+    this.events = fusion.map((event, i) => ({ ...event, seq: i + 1 }) as TraceEvent);
     if (this.events.length > this.opts.maxEvents) {
       this.events.splice(0, this.events.length - this.opts.maxEvents);
     }
+    this.seq = this.events.length;
+
+    for (const [id, state] of precoce.states) {
+      if (!this.states.has(id)) this.states.set(id, state);
+    }
+
+    const dernier = this.events[this.events.length - 1];
+    if (dernier) this.lastEventAt = Math.max(this.lastEventAt ?? dernier.t, dernier.t);
     this.notify();
   }
 

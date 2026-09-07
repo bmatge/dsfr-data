@@ -213,3 +213,55 @@ describe('les valeurs d’attribut contenant « > » — syntaxe ODSQL officiell
     expect(balises[0].attrs['group-by']).toBe('region');
   });
 });
+
+describe('robustesse du scan de balises (N1, N2)', () => {
+  it('survit à un caractère dont la minuscule change de longueur', () => {
+    // `html.toLowerCase()` n'a pas la meme longueur que `html` quand un
+    // caractere change de taille en minuscule (İ -> i̇, deux points de code).
+    // Chercher dans la version minuscule puis decouper l'ORIGINALE decalait
+    // les index et tronquait les balises : « Balise inconnue » sur du code
+    // parfaitement valide.
+    const html = `<p title="İ"></p>
+      <dsfr-data-source id="s" url="/x"></dsfr-data-source>
+      <dsfr-data-query id="q" source="s"></dsfr-data-query>`;
+
+    const balises = lireBalises(html);
+
+    expect(balises.map((b) => b.tag)).toEqual(['dsfr-data-source', 'dsfr-data-query']);
+    expect(lintMarkup(html, CONTRAT)).toEqual([]);
+  });
+
+  it('reconnaît les balises quelle que soit la casse', () => {
+    expect(lireBalises('<DSFR-DATA-SOURCE id="s"></DSFR-DATA-SOURCE>')[0].tag).toBe(
+      'dsfr-data-source'
+    );
+  });
+
+  it('reste linéaire — un gros document ne doit pas exploser', () => {
+    // Le parcours etait quadratique : `toLowerCase()` du document entier a
+    // chaque tour. Ce module tourne cote serveur MCP sur du HTML recu de
+    // l'exterieur, le cout doit rester borne.
+    const balise = '<dsfr-data-source id="s" url="/x"></dsfr-data-source>\n';
+    const mesurer = (n: number) => {
+      const html = balise.repeat(n);
+      const t0 = performance.now();
+      lireBalises(html);
+      return performance.now() - t0;
+    };
+
+    mesurer(500); // chauffe
+    const petit = Math.max(mesurer(1000), 0.5);
+    const grand = mesurer(4000);
+
+    // Quadratique : x4 d'entree -> x16 de temps. Lineaire : ~x4. On laisse
+    // une marge large pour ne pas rendre le test instable en CI.
+    expect(grand / petit).toBeLessThan(10);
+  });
+
+  it('n’est pas troublé par un « < » dans une valeur', () => {
+    const balises = lireBalises(`<dsfr-data-query id="q" filter="a < 5"></dsfr-data-query>`);
+
+    expect(balises).toHaveLength(1);
+    expect(balises[0].attrs.filter).toBe('a < 5');
+  });
+});

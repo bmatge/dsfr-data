@@ -35,8 +35,6 @@ import { DataflowRecorder, formatTrace, summarizeTrace, type Trace } from '@dsfr
 interface DebugApi {
   /** Trace courante. */
   trace(): Trace;
-  /** Reprend les evenements d'un collecteur demarre avant l'incrustation. */
-  adopt(precoce: DataflowRecorder): void;
   /** Le diagnostic en texte français — celui du volet et de l'assistant. */
   text(options?: { redactValues?: boolean }): string;
   /** Ouvre/ferme l'incrustation. */
@@ -93,12 +91,20 @@ function button(label: string, onClick: () => void): HTMLButtonElement {
   return b;
 }
 
-function install(): DebugApi {
+function install(precoce?: DataflowRecorder): DebugApi {
   const recorder = new DataflowRecorder({ root: document.body });
   recorder.start();
-  // Sur une page tierce, tout a deja emis : le cache est la seule trace
-  // encore disponible du passage precedent.
-  const reconstitue = recorder.backfillFromCache(window) > 0;
+
+  // L'ORDRE compte, et c'est le meme invariant que `frame.ts` : on adopte
+  // d'abord ce qui a ete OBSERVE, on complete ensuite depuis le cache.
+  // L'inverse ecraserait une erreur reellement vue par un instantane muet —
+  // le cache ne garde aucune trace d'un echec.
+  if (precoce) recorder.adoptFrom(precoce);
+  const complete = recorder.backfillFromCache(window);
+  // « Reconstitue » ne vaut que si RIEN n'a ete observe en direct : un
+  // collecteur precoce qui a tout vu rend la trace complete, meme si le
+  // cache a par ailleurs comble une etape.
+  const reconstitue = complete > 0 && recorder.snapshot().events.length === 0;
 
   const overlay = document.createElement('div');
   overlay.id = OVERLAY_ID;
@@ -154,27 +160,33 @@ function install(): DebugApi {
   document.body.appendChild(overlay);
 
   let pending = false;
+  let settleTimer: ReturnType<typeof setTimeout> | null = null;
+  const publier = () => {
+    render();
+    refreshSummary();
+  };
+  // MEME cloture qu'en mode iframe et qu'en mode meme-document : un rendu
+  // pris en pleine rafale porte `quiescent: false`, et sans republication
+  // apres le silence l'incrustation afficherait « le pipeline tourne
+  // encore » a jamais — un avertissement permanent, donc invisible.
+  const settle = () => {
+    if (settleTimer) clearTimeout(settleTimer);
+    settleTimer = setTimeout(publier, 350);
+  };
   recorder.onChange(() => {
+    settle();
     if (pending) return;
     pending = true;
     queueMicrotask(() => {
       pending = false;
-      render();
-      refreshSummary();
+      publier();
     });
   });
-  render();
-  refreshSummary();
+  publier();
+  settle();
 
   return {
     trace: () => recorder.snapshot(),
-    adopt: (precoce) => {
-      // Le collecteur precoce a observe le chargement ; celui-ci prend la
-      // suite. On transfere son journal plutot que de le perdre.
-      recorder.adoptFrom(precoce);
-      render();
-      refreshSummary();
-    },
     text: (options) =>
       formatTrace(recorder.snapshot(), {
         redactValues: options?.redactValues ?? redact,
@@ -187,6 +199,7 @@ function install(): DebugApi {
       if (!next && shown) overlay.remove();
     },
     stop: () => {
+      if (settleTimer) clearTimeout(settleTimer);
       recorder.stop();
       overlay.remove();
       delete window.dsfrDataDebug;
@@ -209,12 +222,12 @@ function install(): DebugApi {
  * faire. `addEventListener` sur `document` n'exige pas de `body` : on ecoute
  * tout de suite, on affiche quand on peut.
  */
-function boot(): void {
+function boot(precoce?: DataflowRecorder): void {
   if (window.dsfrDataDebug) {
     window.dsfrDataDebug.toggle(true);
     return;
   }
-  window.dsfrDataDebug = install();
+  window.dsfrDataDebug = install(precoce);
 }
 
 if (typeof document !== 'undefined') {
@@ -224,12 +237,10 @@ if (typeof document !== 'undefined') {
 
   const monter = () => {
     collecteurPrecoce.stop();
-    boot();
-    // Rejouer ce que le collecteur precoce a vu avant que l'incrustation
-    // n'existe : sans ca, un script en tete de page observerait tout... et
-    // n'en montrerait rien.
-    const api = window.dsfrDataDebug;
-    if (api) api.adopt(collecteurPrecoce);
+    // Le collecteur precoce est passe A la construction : `install` peut
+    // ainsi adopter AVANT de completer depuis le cache, ordre sans lequel un
+    // instantane muet ecraserait une erreur observee.
+    boot(collecteurPrecoce);
   };
 
   if (document.body) {

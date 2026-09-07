@@ -31,6 +31,7 @@
  * pas, `backfillFromCache` reconstitue au moins l'état de chaque étape.
  */
 
+import { hasEarlyBuffer } from './early-buffer.js';
 import { DataflowRecorder, type RecorderOptions, type Trace } from './recorder.js';
 
 export interface FrameAttachment {
@@ -41,10 +42,11 @@ export interface FrameAttachment {
   /** Recorder courant — null entre deux chargements. */
   current(): DataflowRecorder | null;
   /**
-   * True si le tampon précoce a livré des événements au dernier branchement.
+   * True si la page observée PORTE le tampon précoce.
    *
-   * False signale une page d'aperçu generee sans `debug: true` : la trace est
-   * alors reconstituee depuis le cache, sans chronologie ni erreurs.
+   * False signale un aperçu généré sans `debug: true` : la trace est alors
+   * reconstituée depuis le cache, sans chronologie ni erreurs. Un tampon
+   * présent mais vide reste `true` — c'est le cas nominal, pas un manque.
    */
   sawEarlyBuffer(): boolean;
   detach(): void;
@@ -100,9 +102,14 @@ export function attachRecorderToFrame(
     // L'ORDRE compte : on rejoue d'abord ce qui s'est passé avant nous, puis
     // on complète les étapes encore inconnues depuis le cache. L'inverse
     // ferait écraser une chronologie exacte par un instantané muet.
-    const replayed = recorder.ingestEarlyBuffer(doc.defaultView);
+    // La PRESENCE du tampon fait foi, pas le nombre d'evenements rejoues :
+    // un tampon vide veut dire « rien ne s'est passe avant moi », le
+    // meilleur des cas. Compter les rejeux ferait crier a la trace
+    // reconstituee quand tout va bien, de facon intermittente en plus —
+    // `_scheduleFetch` differe le premier `loading` dans un setTimeout.
+    observedEarly = hasEarlyBuffer(doc.defaultView);
+    recorder.ingestEarlyBuffer(doc.defaultView);
     recorder.backfillFromCache(doc.defaultView);
-    observedEarly = replayed > 0;
 
     if (onChange) {
       const active = recorder;

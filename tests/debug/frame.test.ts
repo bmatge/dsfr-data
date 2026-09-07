@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import {
   attachRecorderToFrame,
+  DataflowRecorder,
   drainEarlyBuffer,
   earlyBufferScript,
   formatTrace,
@@ -8,6 +9,7 @@ import {
   readCacheSnapshot,
   type FrameAttachment,
 } from '@dsfr-data/shared';
+import { dispatchDataLoaded } from '@/utils/data-bridge.js';
 
 /**
  * Observation d'un pipeline qui tourne dans une iframe d'apercu (#605).
@@ -350,5 +352,143 @@ describe('drainEarlyBuffer / readCacheSnapshot — robustesse', () => {
 
     expect(drainEarlyBuffer(win)).toHaveLength(1);
     expect(drainEarlyBuffer(win)).toHaveLength(0);
+  });
+});
+
+describe('sawEarlyBuffer mesure la PRÉSENCE, pas le contenu', () => {
+  let attachment: FrameAttachment | undefined;
+  let frame: HTMLIFrameElement | undefined;
+
+  afterEach(() => {
+    attachment?.detach();
+    attachment = undefined;
+    frame?.remove();
+    frame = undefined;
+  });
+
+  it('un tampon présent mais VIDE reste une trace complète', () => {
+    // LE cas nominal, et la regression a eviter : `dsfr-data-source` differe
+    // son premier `loading` dans un setTimeout, donc le tampon est souvent
+    // vide au drainage alors que le collecteur voit tout en direct. Mesurer
+    // `replayed > 0` faisait crier a la trace reconstituee quand tout allait
+    // bien — de facon intermittente, en plus.
+    const made = makeFrame();
+    frame = made.frame;
+    (made.win as Window & { __dsfrDataTrace?: unknown[] }).__dsfrDataTrace = [];
+
+    attachment = attachRecorderToFrame(frame);
+
+    expect(attachment.sawEarlyBuffer()).toBe(true);
+  });
+
+  it('un tampon absent signale bien une trace reconstituée', () => {
+    const made = makeFrame();
+    frame = made.frame;
+
+    attachment = attachRecorderToFrame(frame);
+
+    expect(attachment.sawEarlyBuffer()).toBe(false);
+  });
+
+  it('les événements arrivés APRÈS le branchement ne changent rien au signal', () => {
+    const made = makeFrame();
+    frame = made.frame;
+    (made.win as Window & { __dsfrDataTrace?: unknown[] }).__dsfrDataTrace = [];
+    attachment = attachRecorderToFrame(frame);
+
+    made.doc.dispatchEvent(
+      new CustomEvent('dsfr-data-loaded', { detail: { sourceId: 'src', data: [{ a: 1 }] } })
+    );
+
+    expect(attachment.sawEarlyBuffer()).toBe(true);
+    expect(attachment.snapshot()!.states.src.rows).toBe(1);
+  });
+});
+
+describe('adoptFrom — fusion chronologique', () => {
+  it('range les événements adoptés AVANT les directs, et renumérote', () => {
+    // Les evenements adoptes sont ANTERIEURS : les empiler a la fin donnait
+    // un journal a l'envers et faisait reculer `lastEventAt`.
+    let horloge = 1000;
+    const precoce = new DataflowRecorder({ root: document.body, now: () => horloge });
+    precoce.start();
+    dispatchDataLoaded('adopt-a', [{ a: 1 }]);
+    horloge = 1010;
+    dispatchDataLoaded('adopt-b', [{ a: 1 }]);
+    precoce.stop();
+
+    horloge = 2000;
+    const courant = new DataflowRecorder({ root: document.body, now: () => horloge });
+    courant.start();
+    dispatchDataLoaded('adopt-c', [{ a: 1 }]);
+    courant.adoptFrom(precoce);
+    const trace = courant.snapshot();
+    courant.stop();
+
+    expect(trace.events.map((e) => e.node)).toEqual(['adopt-a', 'adopt-b', 'adopt-c']);
+    expect(trace.events.map((e) => e.seq)).toEqual([1, 2, 3]);
+    // `seq` doit s'accorder avec `t` : un consommateur qui ordonne par seq
+    // lirait sinon une chronologie fausse.
+    expect(trace.events.map((e) => e.t)).toEqual([1000, 1010, 2000]);
+  });
+
+  it('ne fait jamais reculer l’horodatage du dernier événement', () => {
+    let horloge = 1000;
+    const precoce = new DataflowRecorder({ root: document.body, now: () => horloge });
+    precoce.start();
+    dispatchDataLoaded('adopt-old', [{ a: 1 }]);
+    precoce.stop();
+
+    horloge = 5000;
+    const courant = new DataflowRecorder({ root: document.body, now: () => horloge });
+    courant.start();
+    dispatchDataLoaded('adopt-new', [{ a: 1 }]);
+    courant.adoptFrom(precoce);
+    const trace = courant.snapshot();
+    courant.stop();
+
+    expect(trace.lastEventAt).toBe(5000);
+  });
+
+  it('écrête les plus ANCIENS, jamais ce qu’on vient d’observer', () => {
+    // Le plafond doit sacrifier le passe : un journal plein ne doit pas
+    // jeter les evenements du present.
+    let horloge = 1000;
+    const precoce = new DataflowRecorder({ root: document.body, now: () => horloge });
+    precoce.start();
+    for (let i = 0; i < 3; i++) {
+      horloge += 1;
+      dispatchDataLoaded(`vieux-${i}`, [{ a: i }]);
+    }
+    precoce.stop();
+
+    horloge = 9000;
+    const courant = new DataflowRecorder({
+      root: document.body,
+      maxEvents: 3,
+      now: () => horloge,
+    });
+    courant.start();
+    for (let i = 0; i < 3; i++) {
+      horloge += 1;
+      dispatchDataLoaded(`recent-${i}`, [{ a: i }]);
+    }
+    courant.adoptFrom(precoce);
+    const trace = courant.snapshot();
+    courant.stop();
+
+    expect(trace.events).toHaveLength(3);
+    expect(trace.events.every((e) => e.node.startsWith('recent-'))).toBe(true);
+  });
+
+  it('adopter soi-même ne duplique rien', () => {
+    const r = new DataflowRecorder({ root: document.body });
+    r.start();
+    dispatchDataLoaded('self', [{ a: 1 }]);
+    r.adoptFrom(r);
+    const n = r.snapshot().events.length;
+    r.stop();
+
+    expect(n).toBe(1);
   });
 });

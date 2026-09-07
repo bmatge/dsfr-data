@@ -57,6 +57,21 @@ export function earlyBufferScript(): string {
 }
 
 /**
+ * Le tampon est-il PRESENT dans la page observée ?
+ *
+ * A ne pas confondre avec « le tampon a livré des événements ». Un tampon
+ * VIDE est le meilleur des cas : il signifie « rien ne s'est produit avant
+ * que j'arrive ». Mesurer la présence par le nombre d'événements rejoués
+ * ferait crier à la trace reconstituée précisément quand tout va bien — et
+ * `dsfr-data-source` diffère son premier `loading` dans un `setTimeout`,
+ * donc la course avec le `load` de l'iframe rend ce faux signal
+ * intermittent. C'est la présence de la variable qui fait foi.
+ */
+export function hasEarlyBuffer(win: Window | null | undefined): boolean {
+  return Array.isArray((win as WindowWithBuffer | null | undefined)?.__dsfrDataTrace);
+}
+
+/**
  * Vide le tampon d'une fenêtre observée et rend les événements empilés.
  *
  * Vider plutôt que copier : au second branchement (iframe rechargée), le
