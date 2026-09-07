@@ -39,7 +39,7 @@ export {
 } from './utils/formatters.js';
 export type { FormatType } from './utils/formatters.js';
 export { toNumber, looksLikeNumber } from './utils/number-parser.js';
-export { isValidDeptCode } from './utils/dept-codes.js';
+export { isValidDeptCode, normalizeDeptCode } from './utils/dept-codes.js';
 export type { JoinType, JoinKey, JoinOptions } from './utils/join.js';
 export { parseJoinKeys, performJoin } from './utils/join.js';
 export type { UnpivotOptions } from './utils/unpivot.js';

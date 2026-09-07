@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { SAMPLE_DATASETS, isValidDeptCode } from '@dsfr-data/shared';
+import { SAMPLE_DATASETS, isValidDeptCode, normalizeDeptCode } from '@dsfr-data/shared';
 
 /**
  * Detection du champ de code departement dans le Builder (#610).
@@ -25,7 +25,10 @@ function trouverChampCode(
   data: Record<string, unknown>[],
   fields: { name: string; type: string }[]
 ): string | null {
-  const candidates = fields.filter((f) => f.type === 'string' || f.type === 'number');
+  const LOOKS_REGIONAL = /(^|[_-])(reg|region)([_-]|$)|region/i;
+  const candidates = fields.filter(
+    (f) => (f.type === 'string' || f.type === 'number') && !LOOKS_REGIONAL.test(f.name)
+  );
   if (candidates.length === 0) return null;
   const sample = data.slice(0, 50);
   for (const field of candidates) {
@@ -35,7 +38,7 @@ function trouverChampCode(
       const raw = row[field.name];
       if (raw == null || raw === '') continue;
       nonEmpty++;
-      if (isValidDeptCode(String(raw))) valid++;
+      if (isValidDeptCode(normalizeDeptCode(String(raw)))) valid++;
     }
     if (nonEmpty > 0 && valid / nonEmpty >= 0.8) return field.name;
   }
@@ -105,18 +108,69 @@ describe('la détection inspecte les lignes SOURCE, pas le résultat agrégé', 
     expect(trouverChampCode(agrege, fields)).toBeNull();
   });
 
-  it('un jeu régional n’a légitimement aucun code département', () => {
-    // Apres correction du jeu d'exemple : l'avertissement devient JUSTE.
+  it('écarte un champ manifestement RÉGIONAL, même à valeurs valides', () => {
+    // Les 13 codes region INSEE (11, 84, 75, 76, 32, 93, 44, 52, 53, 28, 27,
+    // 24, 94) sont TOUS des codes departement valides. Sans filtre sur le
+    // NOM du champ, un jeu regional passait pour departemental : la carte
+    // coloriait 13 departements epars, et l'avertissement qui oriente vers la
+    // carte des regions ne se declenchait JAMAIS — le message existait pour
+    // un scenario qu'il ne voyait pas.
     const regional = [
       { region: 'Ile-de-France', code_region: '11' },
       { region: 'Corse', code_region: '94' },
     ];
 
-    // '11' et '94' sont des codes departement valides par ailleurs — mais ce
-    // sont ici des codes REGION. La detection ne peut pas faire la
-    // difference : c'est le libelle du champ et la carte choisie qui portent
-    // le sens, d'ou l'avertissement qui oriente vers la carte des regions.
-    expect(trouverChampCode(regional, champsDe(regional))).toBe('code_region');
+    expect(trouverChampCode(regional, champsDe(regional))).toBeNull();
+  });
+
+  it('le jeu d’exemple « Régions de France » déclenche donc l’avertissement', () => {
+    // Verification de bout en bout sur les vraies donnees livrees.
+    const regions = SAMPLE_DATASETS.find((d) => d.id === 'regions-france')!;
+    const rows = regions.rows as Record<string, unknown>[];
+
+    expect(trouverChampCode(rows, champsDe(rows))).toBeNull();
+  });
+
+  it('n’écarte pas un champ départemental au nom voisin', () => {
+    // Le filtre doit rester chirurgical : « code_dept » ne contient pas
+    // « region », il ne doit pas etre emporte.
+    const dept = [
+      { libelle: 'Paris', code_dept: '75' },
+      { libelle: 'Rhone', code_dept: '69' },
+    ];
+
+    expect(trouverChampCode(dept, champsDe(dept))).toBe('code_dept');
+  });
+});
+
+describe('les codes non padés ne déclenchent plus de faux avertissement', () => {
+  it('une source aux codes 1..13 est reconnue', () => {
+    // LE point de la DoD de l'issue, initialement non livre : la carte se
+    // rendait parfaitement (le composant padde) pendant que la detection
+    // criait « Aucun code departement detecte ».
+    const rows = Array.from({ length: 13 }, (_, i) => ({
+      libelle: `D${i + 1}`,
+      code: String(i + 1),
+    }));
+
+    expect(trouverChampCode(rows, champsDe(rows))).toBe('code');
+  });
+
+  it('normalizeDeptCode est la source unique du padding', () => {
+    expect(normalizeDeptCode('1')).toBe('01');
+    expect(normalizeDeptCode(' 9 ')).toBe('09');
+    expect(normalizeDeptCode(13)).toBe('13');
+    // Ne touche ni a la Corse ni a l'outre-mer.
+    expect(normalizeDeptCode('2A')).toBe('2A');
+    expect(normalizeDeptCode('971')).toBe('971');
+    expect(normalizeDeptCode(null)).toBe('');
+  });
+
+  it('la règle de rendu reste stricte — on normalise, on n’assouplit pas', () => {
+    // DSFR Chart attend le format INSEE zero-pade : assouplir isValidDeptCode
+    // laisserait passer des codes invalides jusqu'au rendu.
+    expect(isValidDeptCode('1')).toBe(false);
+    expect(isValidDeptCode(normalizeDeptCode('1'))).toBe(true);
   });
 });
 

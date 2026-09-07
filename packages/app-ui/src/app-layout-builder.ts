@@ -20,9 +20,6 @@ import { customElement, property, state } from 'lit/decorators.js';
 @customElement('app-layout-builder')
 export class AppLayoutBuilder extends LitElement {
   /**
-   * Ratio initial du panneau gauche en pourcentage (ex: 40 pour 40%)
-   */
-  /**
    * Modèle de hauteur et de défilement (#613).
    *
    * @cssprop [--app-layout-left-stacked-height=auto] - Hauteur de la colonne
@@ -41,10 +38,18 @@ export class AppLayoutBuilder extends LitElement {
    *   `overflow: hidden`.
    * - `sticky-left` : l'inverse de `page-scroll` — la colonne GAUCHE est
    *   épinglée pleine hauteur et la DROITE défile avec la page.
+   *
+   * `reflect: true` plutôt qu'un `setAttribute` dans `render()` : muter
+   * l'élément pendant le rendu déclenche une nouvelle demande de mise à jour
+   * et Lit finit par abandonner — le composant restait alors sans contenu,
+   * ses colonnes jamais construites.
    */
-  @property({ type: String })
+  @property({ type: String, reflect: true })
   mode: 'page-scroll' | 'fullscreen' | 'sticky-left' = 'page-scroll';
 
+  /**
+   * Ratio initial du panneau gauche en pourcentage (ex: 40 pour 40%)
+   */
   @property({ type: Number, attribute: 'left-ratio' })
   leftRatio = 40;
 
@@ -188,9 +193,6 @@ export class AppLayoutBuilder extends LitElement {
   }
 
   render() {
-    // Reflété sur l'hôte : les règles de mode se sélectionnent en CSS plutôt
-    // qu'en JavaScript, et restent inspectables dans le navigateur.
-    this.setAttribute('data-mode', this.mode);
     return html`
       <div class="builder-layout-container">
         <aside class="builder-layout-left" style="flex: 0 0 ${this._currentLeftRatio}%">
@@ -212,6 +214,9 @@ export class AppLayoutBuilder extends LitElement {
            le panneau DROIT est sticky et garde une hauteur ~pleine page, donc
            en scrollant on cadre la zone de travail plein écran (header parti,
            footer encore dessous). La colonne GAUCHE défile avec la page. */
+        /* Ce composant rend en LIGHT DOM (createRenderRoot renvoie this) :
+           :host() n'y matche rien. Les regles de mode ci-dessous doivent
+           donc cibler la balise, comme cette regle de base. */
         app-layout-builder {
           display: block;
         }
@@ -278,25 +283,25 @@ export class AppLayoutBuilder extends LitElement {
            n'est pas atteignable — c'est le compromis assumé d'un éditeur
            plein écran. Prérequis côté app : un body de hauteur fixe en
            overflow: hidden. */
-        :host([data-mode='fullscreen']) {
+        app-layout-builder[mode='fullscreen'] {
           flex: 1 1 auto;
           min-height: 0;
           display: flex;
           flex-direction: column;
         }
 
-        :host([data-mode='fullscreen']) .builder-layout-container {
+        app-layout-builder[mode='fullscreen'] .builder-layout-container {
           flex: 1 1 auto;
           min-height: 0;
           align-items: stretch;
         }
 
-        :host([data-mode='fullscreen']) .builder-layout-left {
+        app-layout-builder[mode='fullscreen'] .builder-layout-left {
           min-height: 0;
           overflow-y: auto;
         }
 
-        :host([data-mode='fullscreen']) .builder-layout-right {
+        app-layout-builder[mode='fullscreen'] .builder-layout-right {
           position: static;
           min-height: 0;
           max-height: none;
@@ -307,7 +312,7 @@ export class AppLayoutBuilder extends LitElement {
            La colonne GAUCHE est épinglée pleine hauteur et défile chez elle ;
            la DROITE grandit et défile avec la page. Absorbe les !important
            du Playground, qui inversait le sticky à la main. */
-        :host([data-mode='sticky-left']) .builder-layout-left {
+        app-layout-builder[mode='sticky-left'] .builder-layout-left {
           position: sticky;
           top: calc(var(--app-header-h, 0px) + var(--app-action-bar-h, 0px));
           height: calc(100vh - var(--app-header-h, 0px) - var(--app-action-bar-h, 0px));
@@ -316,7 +321,7 @@ export class AppLayoutBuilder extends LitElement {
           overflow: hidden;
         }
 
-        :host([data-mode='sticky-left']) .builder-layout-right {
+        app-layout-builder[mode='sticky-left'] .builder-layout-right {
           position: static;
           min-height: 100vh;
           min-height: 100dvh;
@@ -338,7 +343,13 @@ export class AppLayoutBuilder extends LitElement {
             /* Hauteur de la colonne gauche en pile verticale. Propriete
                PUBLIQUE : une app qui veut un demi-ecran d'editeur la pose sur
                l'hote, au lieu de surcharger cette classe interne. */
+            /* flex 0 0 auto !important est indispensable : render() pose un
+               style INLINE flex: 0 0 <ratio>% sur cette colonne, qui l'emporte
+               sur toute feuille. En pile verticale ce pourcentage se resout en
+               taille de contenu et height reste sans effet. */
+            flex: 0 0 auto !important;
             height: var(--app-layout-left-stacked-height, auto);
+            overflow: auto;
           }
 
           .builder-layout-resizer {
@@ -353,18 +364,22 @@ export class AppLayoutBuilder extends LitElement {
 
           /* En pile verticale, aucun mode ne conserve son épinglage : les
              deux colonnes défilent avec la page. */
-          :host([data-mode='sticky-left']) .builder-layout-left {
+          app-layout-builder[mode='sticky-left'] .builder-layout-left {
+            /* La regle de BASE de ce mode pose une hauteur plein ecran avec
+               une specificite superieure a la classe seule : elle gagnerait
+               ici meme dans la media query, et la propriete publique
+               resterait sans effet. On la neutralise au meme niveau. */
             position: static;
-            height: auto;
-            overflow: visible;
+            height: var(--app-layout-left-stacked-height, auto);
+            overflow: auto;
           }
 
-          :host([data-mode='sticky-left']) .builder-layout-right {
+          app-layout-builder[mode='sticky-left'] .builder-layout-right {
             min-height: 0;
           }
 
-          :host([data-mode='fullscreen']) .builder-layout-left,
-          :host([data-mode='fullscreen']) .builder-layout-right {
+          app-layout-builder[mode='fullscreen'] .builder-layout-left,
+          app-layout-builder[mode='fullscreen'] .builder-layout-right {
             overflow: visible;
           }
         }

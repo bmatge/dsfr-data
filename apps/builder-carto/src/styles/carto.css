@@ -170,15 +170,17 @@ body.carto-app > app-action-bar {
  * modales — elles sont dans le workspace (`#onboard-modal`) — et les ferait
  * passer sous le tiroir ouvert.
  *
- * `bottom` reserve la hauteur du rail replie, publiee par le volet dans
- * `--app-diagnostic-h` : sans ca, le rail recouvrirait la pastille de
- * statut, qui vit exactement a la meme hauteur.
+ * Le rail du volet n'a PAS a etre reserve ici : `app-diagnostic-panel` pose
+ * deja `body:has(app-diagnostic-panel){padding-bottom:var(--app-diagnostic-h)}`,
+ * et le workspace s'arrete donc pile au sommet du rail. Le compter une
+ * seconde fois faisait flotter la pastille de statut 37 px trop haut et
+ * amputait d'autant la colonne de panneaux.
  */
 .carto-panels {
   position: absolute;
   top: 16px;
   left: 16px;
-  bottom: calc(16px + var(--app-diagnostic-h, 0px));
+  bottom: 16px;
   width: 344px;
   z-index: 600;
   display: flex;
@@ -652,9 +654,7 @@ body.carto-app > app-action-bar {
 .carto-status {
   position: absolute;
   left: 376px;
-  /* Meme reserve que .carto-panels : le rail du volet Diagnostic occupe le
-     bas de l'ecran et recouvrirait sinon cette pastille (#612). */
-  bottom: calc(16px + var(--app-diagnostic-h, 0px));
+  bottom: 16px;
   z-index: 600;
   background: var(--background-default-grey, #fff);
   border: 1px solid var(--border-default-grey);

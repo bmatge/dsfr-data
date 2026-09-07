@@ -9,6 +9,7 @@ import {
   formatKPIValue,
   toNumber,
   isValidDeptCode,
+  normalizeDeptCode,
   toastWarning,
   toastError,
   CDN_URLS,
@@ -938,9 +939,7 @@ datalist.onSourceData(data);
     state.data.forEach((d) => {
       const rawCode = (d[state.codeField] ?? d.code ?? '') as string | number;
       let code = String(rawCode).trim();
-      if (/^\d+$/.test(code) && code.length < 3) {
-        code = code.padStart(2, '0');
-      }
+      code = normalizeDeptCode(code);
       const value = (d.value as number) || 0;
       if (isValidDeptCode(code) && !isNaN(value)) {
         mapData[code] = Math.round(value * 100) / 100;
@@ -2097,6 +2096,8 @@ async function loadMap() {
   const mapData = {};
   records.forEach(d => {
     let code = String(d['${state.codeField}'] || '').trim();
+    // Copie deliberee de normalizeDeptCode : ce bloc s'execute dans la page
+    // de l'utilisateur, il ne peut rien importer du monorepo (#610).
     if (/^\\d+$/.test(code) && code.length < 3) {
       code = code.padStart(2, '0');
     }

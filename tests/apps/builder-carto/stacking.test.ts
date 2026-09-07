@@ -91,14 +91,16 @@ describe('empilement Carto / volet Diagnostic (#612)', () => {
     expect(bloc![1]).toMatch(/z-index:\s*\d/);
   });
 
-  it('le mobilier bas réserve la hauteur du rail', () => {
-    // La pastille de statut vit a `bottom: 16px`, exactement ou le rail
-    // replie se pose : sans reserve, le rail la recouvrirait.
+  it('le mobilier bas ne réserve PAS le rail une seconde fois', () => {
+    // `app-diagnostic-panel` pose deja
+    // `body:has(app-diagnostic-panel){padding-bottom:var(--app-diagnostic-h)}` :
+    // le workspace s'arrete pile au sommet du rail. Ajouter la meme reserve
+    // ici la comptait DEUX fois — la pastille de statut flottait 37 px trop
+    // haut et la colonne de panneaux etait amputee d'autant.
     for (const selecteur of ['.carto-panels', '.carto-status']) {
       const bloc = new RegExp(`\\n${selecteur.replace('.', '\\.')}\\s*\\{([^}]*)\\}`).exec(css);
-      expect(bloc![1], `${selecteur} doit réserver --app-diagnostic-h`).toContain(
-        'var(--app-diagnostic-h'
-      );
+      expect(bloc![1], `${selecteur} compte le rail deux fois`).not.toContain('--app-diagnostic-h');
+      expect(bloc![1]).toMatch(/bottom:\s*16px/);
     }
   });
 
