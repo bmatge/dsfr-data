@@ -192,6 +192,28 @@ export default defineConfig({
           return resolve(__dirname, 'packages/app-ui/src/index.ts');
         }
       },
+      // `resolveId` ne couvre que les imports du graphe de modules. Les
+      // apercus demandent le bundle par une URL ABSOLUE
+      // (`getPreviewHTML` : `${origin}/dist/dsfr-data.esm.js`), servie par le
+      // middleware statique de Vite AVANT tout plugin. Un `dist/` a la racine
+      // — vestige d'avant le passage de la lib dans `packages/core/` — la
+      // captait donc et servait un bundle fige : les composants apparus
+      // depuis n'existaient tout simplement pas dans l'apercu, sans le
+      // moindre message. Reecrire l'URL en amont rend la redirection
+      // non-masquable (#615).
+      configureServer(server) {
+        const REDIRECTIONS: Record<string, string> = {
+          '/dist/dsfr-data.esm.js': '/packages/core/src/index.ts',
+          '/dist/app-ui.esm.js': '/packages/app-ui/src/index.ts',
+        };
+        server.middlewares.use((req, _res, next) => {
+          if (!req.url) return next();
+          const [chemin, requete] = req.url.split('?');
+          const cible = REDIRECTIONS[chemin];
+          if (cible) req.url = requete ? `${cible}?${requete}` : cible;
+          next();
+        });
+      },
     },
     {
       name: 'api-proxy-silent',

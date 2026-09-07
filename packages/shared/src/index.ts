@@ -1,5 +1,5 @@
 // Utils
-export { escapeHtml } from './utils/escape-html.js';
+export { escapeHtml, jsonAttr } from './utils/escape-html.js';
 export {
   formatKPIValue,
   formatDateShort,

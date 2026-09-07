@@ -124,10 +124,20 @@ export function applyChartConfig(config: ChartConfig): void {
     }
   }
 
-  // Types dont le generateur n'a pas besoin de series agregees : il emet un
-  // composant qui consomme la source telle quelle.
-  if (config.type === 'datalist' || config.type === 'podium') {
+  // La datalist consomme les lignes SOURCE telles quelles : le generateur
+  // les lit dans `state.localData`, il n'a pas d'agregat a recevoir.
+  if (config.type === 'datalist') {
     generateCode(config, []);
+    renderPreview();
+    return;
+  }
+
+  // Le podium, lui, classe des valeurs AGREGEES. Ses variantes API delegent
+  // l'agregation au serveur et ignorent cet argument, mais la variante
+  // embarquee en fabrique l'attribut `data` — lui passer un tableau vide
+  // produisait un podium vide (defaut trouve par la recette #615).
+  if (config.type === 'podium') {
+    generateCode(config, aggregate(config, workingData));
     renderPreview();
     return;
   }

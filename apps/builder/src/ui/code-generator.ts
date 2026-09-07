@@ -6,6 +6,7 @@
 
 import {
   escapeHtml,
+  jsonAttr,
   formatKPIValue,
   toNumber,
   isValidDeptCode,
@@ -106,7 +107,7 @@ function generateA11yElement(sourceId: string, chartId: string): string {
 /** Generate a11y block for embedded code (inline data via dsfr-data-source) */
 function generateEmbeddedA11y(chartId: string): string {
   if (!state.a11yEnabled) return '';
-  const dataJson = JSON.stringify(state.data).replace(/'/g, '&#39;');
+  const dataJson = jsonAttr(state.data);
   const attrs: string[] = [`for="${chartId}"`, `source="a11y-data"`];
   if (state.a11yTable) attrs.push('table');
   if (state.a11yDownload) attrs.push('download');
@@ -966,7 +967,7 @@ datalist.onSourceData(data);
   ${state.subtitle ? `<p class="fr-text--sm fr-text--light">${escapeHtml(state.subtitle)}</p>` : ''}
   ${wrapWithDatabox(
     `<map-chart id="chart"
-    data='${JSON.stringify(mapData)}'
+    data='${jsonAttr(mapData)}'
     name="${escapeHtml(state.title || 'Donn\u00e9es')}"
     date="${today}"
     value="${avgValue}"

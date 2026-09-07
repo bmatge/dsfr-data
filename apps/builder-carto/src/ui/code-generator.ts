@@ -5,6 +5,7 @@ import { state, DROM_IDS, INSET_TERRITORIES } from '../state.js';
 import type { LayerConfig } from '../state.js';
 import { LIB_URL } from '../state.js';
 import {
+  jsonAttr,
   detectProvider,
   extractResourceIds,
   getProvider,
@@ -193,7 +194,7 @@ export function buildSourceTag(
     // Attribut simple-quoté : JSON.stringify échappe les `"` internes, on
     // remplace les `'` (délimiteurs) par leur entité, et on escape les `<`
     // pour empêcher qu'une donnée `</script>` ne casse le HTML ambiant.
-    attrs.push(`data='${JSON.stringify(s.data).replace(/'/g, '&#39;').replace(/</g, '\\u003c')}'`);
+    attrs.push(`data='${jsonAttr(s.data)}'`);
   } else {
     return '';
   }

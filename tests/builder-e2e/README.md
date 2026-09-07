@@ -10,6 +10,10 @@ Ce dossier contient une suite complète de tests E2E Playwright pour vérifier q
 - **`inspect-builder.spec.ts`** : Outil de diagnostic de la structure du builder
 - **`comprehensive-test.spec.ts`** : Tests exhaustifs de toutes les combinaisons (~100 tests)
 - **`aggregation-consistency.spec.ts`** : Tests de cohérence des données (source vs rendu)
+- **`builder-ia-recette.spec.ts`** : Recette des 16 types de l'Assistant IA (#615) — le code
+  généré est produit **et rend**. Depuis #609 l'aperçu EST l'export : ce spec est donc la seule
+  vérification qu'un type ne rend pas dans le vide. Sa moitié hors ligne (forme du code, 273
+  assertions) tourne en CI dans `tests/apps/builder-ia/code-generator-recette.test.ts`.
 
 ### Utilitaires
 - **`data-consistency-checker.ts`** : Fonctions de calcul et vérification de cohérence

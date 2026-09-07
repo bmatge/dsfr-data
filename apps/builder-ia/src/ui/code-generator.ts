@@ -4,6 +4,7 @@
 
 import {
   escapeHtml,
+  jsonAttr,
   DSFR_COLORS,
   isValidDeptCode,
   LIB_URL,
@@ -498,7 +499,7 @@ function generateMapCode(config: ChartConfig, data: AggregatedResult[]): string 
   ${config.subtitle ? `<p class="fr-text--sm fr-text--light">${escapeHtml(config.subtitle)}</p>` : ''}
   <map-chart
     level="${MAP_LEVEL_MAP[config.type]}"
-    data='${JSON.stringify(mapData)}'
+    data='${jsonAttr(mapData)}'
     name="${escapeHtml(config.title || 'Carte')}"
     selected-palette="${config.palette || 'sequentialAscending'}"
   ></map-chart>
@@ -669,22 +670,19 @@ function generateDatalistCode(config: ChartConfig): string {
   ${config.title ? `<h2>${escapeHtml(config.title)}</h2>` : ''}
   ${config.subtitle ? `<p class="fr-text--sm fr-text--light">${escapeHtml(config.subtitle)}</p>` : ''}
 
+  <dsfr-data-source
+    id="table-data"
+    data='${jsonAttr(rawData.slice(0, 500))}'>
+  </dsfr-data-source>
+
   <dsfr-data-list
-    id="my-table"
+    source="table-data"
     colonnes="${colonnes}"
     recherche${triAttr}
     pagination="${pagination}"
     export="csv">
   </dsfr-data-list>
-</div>
-
-<script>
-// Données integrees
-const data = ${JSON.stringify(rawData.slice(0, 500), null, 2)};
-
-// Injecter les données dans le composant
-document.getElementById('my-table').onSourceData(data);
-</script>`;
+</div>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -1132,7 +1130,7 @@ function generatePodiumCode(config: ChartConfig, data: AggregatedResult[]): stri
 
   <dsfr-data-source
     id="podium-src"
-    data='${JSON.stringify(data.map((d) => ({ [config.labelField!]: d.label, [config.valueField]: d.value })))}'>
+    data='${jsonAttr(data.map((d) => ({ [config.labelField!]: d.label, [config.valueField]: d.value })))}'>
   </dsfr-data-source>
 
   <dsfr-data-podium

@@ -13,7 +13,7 @@
  * studio : l'apercu EST l'export.
  */
 
-import { escapeHtml } from '../utils/escape-html.js';
+import { escapeHtml, jsonAttr } from '../utils/escape-html.js';
 import { CDN_URLS } from '../templates/cdn-versions.js';
 import { LIB_URL } from '../api/proxy-config.js';
 import type {
@@ -34,11 +34,6 @@ function aggregatedAlias(field: string, fn: string): string {
   return `${field}__${fn}`;
 }
 
-/** Valeur d'attribut HTML entre guillemets simples (JSON inline). */
-function singleQuoteAttr(value: string): string {
-  return value.replace(/&/g, '&amp;').replace(/'/g, '&#039;').replace(/</g, '&lt;');
-}
-
 /**
  * Emet la balise `<dsfr-data-source>` d'une source du dashboard.
  *
@@ -50,7 +45,7 @@ export function generateSourceHTML(source: DashboardSource, indent = '    '): st
   const id = escapeHtml(source.id);
   const data = source.data;
   if (Array.isArray(data) && data.length > 0) {
-    return `${indent}<dsfr-data-source id="${id}" data='${singleQuoteAttr(JSON.stringify(data))}'></dsfr-data-source>\n`;
+    return `${indent}<dsfr-data-source id="${id}" data='${jsonAttr(data)}'></dsfr-data-source>\n`;
   }
 
   const apiUrl = typeof source.apiUrl === 'string' ? source.apiUrl : '';
@@ -349,7 +344,7 @@ ${indent}</dsfr-data-chart>\n`;
 ${indent}</dsfr-data-list>\n`;
       }
       // Forme historique (sans source) conservee pour les dashboards existants.
-      const cols = cfg.columns.length ? ` columns='${JSON.stringify(cfg.columns)}'` : '';
+      const cols = cfg.columns.length ? ` columns='${jsonAttr(cfg.columns)}'` : '';
       const searchable = cfg.searchable ? ' searchable' : '';
       const sortable = cfg.sortable ? ' sortable' : '';
       return `${indent}<dsfr-data-list${cols}${searchable}${sortable}>
