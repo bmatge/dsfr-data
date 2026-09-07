@@ -330,3 +330,29 @@ export {
   downloadDataUrl,
   exportPreviewImage,
 } from './ui/image-export.js';
+
+// --- Diagnostic du pipeline (#604) : collecteur de trace, app-side ---
+export { BUS_EVENTS } from './debug/events.js';
+export type {
+  BusPaginationMeta,
+  BusSourceCommand,
+  BusLoadedDetail,
+  BusErrorDetail,
+  BusLoadingDetail,
+  BusCommandDetail,
+} from './debug/events.js';
+export { STAGE_ROLES, snapshotGraph, downstreamOf, topoOrder } from './debug/graph.js';
+export type { StageRole, StageNode, DataflowGraph } from './debug/graph.js';
+export { extractRows, summarizeStage, diffFields, fieldMatrix } from './debug/summarize.js';
+export type { StageSummary, FieldDiff } from './debug/summarize.js';
+export { DataflowRecorder } from './debug/recorder.js';
+export type {
+  TraceEvent,
+  StageStatus,
+  StageState,
+  Trace,
+  DelegationState,
+  RecorderOptions,
+} from './debug/recorder.js';
+export { formatTrace, summarizeTrace } from './debug/format.js';
+export type { FormatOptions } from './debug/format.js';
