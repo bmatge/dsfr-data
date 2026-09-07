@@ -670,3 +670,80 @@ describe('TabularAdapter', () => {
     });
   });
 });
+
+/**
+ * #597 — l'adapter Tabular arbitrait le proxy dans `_getBaseUrl`, qui rendait
+ * `params.baseUrl` en priorite et court-circuitait toute reecriture. Comme le
+ * Builder emet TOUJOURS `base-url="https://tabular-api.data.gouv.fr"`, les
+ * attributs `use-proxy` / `proxy-url` etaient inertes sur ce provider.
+ *
+ * Tous les autres adapters (grist, insee, ODS) construisent l'URL cible puis
+ * la passent a `getProxiedUrl` au moment du fetch : ces tests figent cet
+ * alignement, y compris les cas ou le proxy ne doit PAS s'appliquer.
+ */
+describe('#597 — Tabular : le proxy s’applique meme avec un base-url explicite', () => {
+  const adapter = new TabularAdapter();
+  const PROXY = 'https://proxy.example.org';
+  const TARGET = 'https://tabular-api.data.gouv.fr';
+
+  beforeEach(() => {
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ data: [], meta: { total: 0 } }),
+    });
+  });
+
+  /** URL reellement passee a fetch lors du dernier appel. */
+  function fetchedUrl(): string {
+    return mockFetch.mock.calls[0][0] as string;
+  }
+
+  it('base-url data.gouv + proxy-url : le fetch passe par /tabular-proxy', async () => {
+    await adapter.fetchAll(
+      makeParams({ baseUrl: TARGET, proxyUrl: PROXY }),
+      new AbortController().signal
+    );
+    expect(fetchedUrl()).toBe(
+      `${PROXY}/tabular-proxy/api/resources/resource-456/data/?page_size=50&page=1`
+    );
+  });
+
+  it('base-url data.gouv sans proxy : appel direct, inchange', async () => {
+    await adapter.fetchAll(makeParams({ baseUrl: TARGET }), new AbortController().signal);
+    expect(fetchedUrl()).toBe(`${TARGET}/api/resources/resource-456/data/?page_size=50&page=1`);
+  });
+
+  it('sans base-url, avec proxy : comportement actuel preserve', async () => {
+    await adapter.fetchAll(
+      makeParams({ baseUrl: '', proxyUrl: PROXY }),
+      new AbortController().signal
+    );
+    expect(fetchedUrl()).toBe(
+      `${PROXY}/tabular-proxy/api/resources/resource-456/data/?page_size=50&page=1`
+    );
+  });
+
+  it('base-url self-hosted + proxy : reste direct (hote inconnu du proxy)', async () => {
+    // rewriteKnownHost ne matche que l'hote exact tabular-api.data.gouv.fr :
+    // une instance tierce ne doit pas etre reroutee a l'insu du deployeur.
+    await adapter.fetchAll(
+      makeParams({ baseUrl: 'https://tabular.mon-ministere.gouv.fr', proxyUrl: PROXY }),
+      new AbortController().signal
+    );
+    expect(fetchedUrl()).toBe(
+      'https://tabular.mon-ministere.gouv.fr/api/resources/resource-456/data/?page_size=50&page=1'
+    );
+  });
+
+  it('mode server-side : fetchPage applique le proxy de la meme facon', async () => {
+    await adapter.fetchPage(
+      makeParams({ baseUrl: TARGET, proxyUrl: PROXY, pageSize: 20 }),
+      { page: 2, effectiveWhere: '', orderBy: '' },
+      new AbortController().signal
+    );
+    expect(fetchedUrl()).toBe(
+      `${PROXY}/tabular-proxy/api/resources/resource-456/data/?page_size=20&page=2`
+    );
+  });
+});

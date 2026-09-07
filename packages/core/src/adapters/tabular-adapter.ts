@@ -13,7 +13,7 @@ import type {
   ServerSideOverlay,
 } from './api-adapter.js';
 import type { ProviderConfig } from '@dsfr-data/shared/lib';
-import { getProxyConfig, TABULAR_CONFIG } from '@dsfr-data/shared/lib';
+import { getProxiedUrl, TABULAR_CONFIG } from '@dsfr-data/shared/lib';
 import { parseAggregates } from '../utils/aggregates.js';
 import { buildColonFacetWhere, unescapeColonValue, parseOrderBy } from '../utils/where.js';
 
@@ -138,7 +138,10 @@ export class TabularAdapter implements ApiAdapter {
       if (remaining <= 0) break;
 
       // Derniere page bornee a remaining : plus d'over-fetch de 50 (#289)
-      const url = this.buildUrl(params, Math.min(TABULAR_PAGE_SIZE, remaining), currentPage);
+      const url = getProxiedUrl(
+        this.buildUrl(params, Math.min(TABULAR_PAGE_SIZE, remaining), currentPage),
+        params.proxyUrl
+      );
 
       const response = await fetch(url, buildFetchOptions(params, signal));
       if (!response.ok) {
@@ -209,7 +212,7 @@ export class TabularAdapter implements ApiAdapter {
     overlay: ServerSideOverlay,
     signal: AbortSignal
   ): Promise<FetchResult> {
-    const url = this.buildServerSideUrl(params, overlay);
+    const url = getProxiedUrl(this.buildServerSideUrl(params, overlay), params.proxyUrl);
 
     const response = await fetch(url, buildFetchOptions(params, signal));
     if (!response.ok) {
@@ -377,17 +380,15 @@ export class TabularAdapter implements ApiAdapter {
   }
 
   /**
-   * Determine le base URL, avec fallback sur le proxy CORS.
+   * Base URL de l'API CIBLE — jamais celle du proxy.
+   *
+   * Le proxy est applique au moment du fetch par `getProxiedUrl`, comme dans
+   * les adapters grist / insee / ODS. Arbitrer le proxy ici rendait
+   * `params.baseUrl` en priorite et court-circuitait toute reecriture : le
+   * Builder emettant TOUJOURS `base-url`, les attributs `use-proxy` et
+   * `proxy-url` etaient inertes sur ce provider (#597).
    */
   private _getBaseUrl(params: AdapterParams): string {
-    if (params.baseUrl) {
-      return params.baseUrl;
-    }
-    const config = getProxyConfig(params.proxyUrl);
-    // Aucun proxy configuré : appel direct de l'API Tabular (CORS ouvert)
-    if (config.mode === 'direct') {
-      return TABULAR_CONFIG.defaultBaseUrl || 'https://tabular-api.data.gouv.fr';
-    }
-    return `${config.baseUrl}${config.endpoints.tabular}`;
+    return params.baseUrl || TABULAR_CONFIG.defaultBaseUrl || 'https://tabular-api.data.gouv.fr';
   }
 }
