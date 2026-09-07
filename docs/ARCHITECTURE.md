@@ -436,7 +436,7 @@ A l'interieur d'une meme page, les Web Components communiquent par un bus d'even
 - **Une etape en echec invalide ses donnees.** Sans ca, l'aval rapporterait le compte du dernier succes et un afficheur se dirait « alimente » sous une source tombee — le faux calme, applique a l'erreur.
 - **`Trace.order` porte l'ordre topologique.** `states` est un objet nu : JavaScript y range les cles entieres AVANT les autres, donc des ids numeriques inverseraient la lecture.
 - **`formatTrace()` est la fonction pivot.** Une seule implementation, consommee a l'identique par « Copier le diagnostic », « Envoyer a l'assistant » et l'outil `trace_pipeline` de la boucle agentique. Ce que l'utilisateur voit et ce que l'assistant recoit sont le **meme objet**.
-- **Le module est app-side.** Exporte depuis `packages/shared/src/index.ts` uniquement, jamais depuis `src/lib.ts` : `packages/core` ne l'importe pas, il n'entre dans aucun bundle publie (verifie par grep sur `packages/core/dist/`).
+- **Le module est lib-safe mais hors des bundles publies.** Exporte depuis les DEUX barrels de `shared` (`index.ts` ET `lib.ts`), parce que l'entree autonome `packages/core/src/index-debug.ts` en depend et que la frontiere #319 interdit a `core` le barrel racine. Aucun COMPOSANT ne l'importe : il n'entre donc dans aucun des six bundles publies. Verrouille par `tests/debug/standalone-bundle.test.ts`, qui grepe les bundles **et** verifie qu'aucun fichier de `components/` ne reference le collecteur — la seconde moitie attrape la regression avant meme le build.
 
 #### Ce que le bus publie pour le diagnostic (#603)
 
@@ -469,8 +469,8 @@ javascript:(function(){var s=document.createElement('script');s.src='https://VOT
 
 Sur une page tierce il n'y a pas de tampon precoce : le collecteur arrive
 apres le pipeline et reconstitue l'etat depuis `__dsfrDataCache`. On perd la
-chronologie et les erreurs deja passees — d'ou le bouton « Recharger et
-tracer » de l'incrustation, qui rend la trace complete.
+chronologie et les erreurs deja passees — d'ou le bouton « Recharger » de l'incrustation, et l'avertissement
+qu'elle affiche quand la trace a du etre reconstituee.
 
 **Outil MCP `diagnose_widget_code`.** Analyse STATIQUE, sans execution :
 attribut inconnu ou deprecie, balise inexistante, id manquant sur un

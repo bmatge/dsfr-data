@@ -80,6 +80,7 @@ app-diagnostic-panel[hidden]{display:none}
 .app-diag__tab[aria-selected="true"]{color:var(--text-active-blue-france);border-bottom-color:var(--border-active-blue-france);font-weight:500}
 .app-diag__tab:focus-visible{outline:2px solid var(--border-active-blue-france);outline-offset:-2px}
 .app-diag__empty{padding:1.5rem 0;color:var(--text-mention-grey)}
+.app-diag__partial{margin:.5rem 0 0;padding:.5rem .75rem;background:var(--background-contrast-warning);color:var(--text-default-warning);font-size:.8125rem}
 .app-diag__chain{display:flex;flex-wrap:wrap;gap:.5rem;align-items:stretch}
 .app-diag__stage{flex:1 1 12rem;min-width:11rem;border:1px solid var(--border-default-grey);padding:.6rem .7rem;background:var(--background-alt-grey)}
 .app-diag__stage[data-status="error"]{border-left:3px solid var(--border-plain-error)}
@@ -136,6 +137,17 @@ export class AppDiagnosticPanel extends LitElement {
   /** Explique l'absence de trace quand l'app sait pourquoi. */
   @property({ type: String, attribute: 'empty-hint' })
   emptyHint = '';
+
+  /**
+   * La trace a ete RECONSTITUEE depuis le cache, faute de tampon precoce.
+   *
+   * Il manque alors la chronologie et — surtout — les erreurs, qui ne
+   * laissent aucune trace en cache. Un echec rapide y devient invisible. Le
+   * volet doit le dire : une trace partielle presentee comme complete est
+   * exactement le faux calme que ce module existe pour empecher.
+   */
+  @property({ type: Boolean, attribute: 'partial-trace' })
+  partialTrace = false;
 
   @state() private _open = false;
   /**
@@ -604,6 +616,14 @@ export class AppDiagnosticPanel extends LitElement {
           aria-label="Diagnostic du pipeline"
           ?hidden=${!this._open}
         >
+          ${
+            this.partialTrace && !this._isBlank
+              ? html`<p class="app-diag__partial">
+                  ⚠ Trace reconstituée depuis le cache : le collecteur n’a pas pu observer le
+                  chargement. La chronologie et les erreurs déjà survenues manquent.
+                </p>`
+              : nothing
+          }
           <div class="app-diag__toolbar">
             <div
               class="app-diag__tabs"

@@ -1,5 +1,5 @@
 ---
-'dsfr-data': patch
+'dsfr-data': minor
 ---
 
 Collecteur de trace du pipeline (#604) — socle du volet Diagnostic.

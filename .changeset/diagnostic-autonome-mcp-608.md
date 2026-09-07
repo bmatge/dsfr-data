@@ -1,5 +1,5 @@
 ---
-'dsfr-data': patch
+'dsfr-data': minor
 ---
 
 Diagnostic hors des apps : bundle autonome et outil MCP (#608).

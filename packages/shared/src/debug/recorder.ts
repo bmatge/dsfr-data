@@ -94,8 +94,16 @@ export interface Trace {
    * inverseraient silencieusement la lecture. Cette liste porte l'ordre.
    */
   order: string[];
-  /** Ms écoulées depuis le dernier événement, au moment du snapshot. */
+  /** Ms écoulées depuis le dernier événement, AU MOMENT DU SNAPSHOT. */
   sinceLastEventMs: number | null;
+  /**
+   * Horodatage absolu du dernier événement.
+   *
+   * `sinceLastEventMs` est fige a la prise de l'instantane : un diagnostic
+   * copie dix minutes plus tard annoncerait encore « a l'instant ». Le rendu
+   * texte recalcule donc l'ecart depuis cette valeur absolue.
+   */
+  lastEventAt: number | null;
   quiescent: boolean;
   /** Délégation serveur relevée sur les dsfr-data-query (#603). */
   delegation: Record<string, DelegationState>;
@@ -194,6 +202,28 @@ export class DataflowRecorder {
       filled += 1;
     }
     return filled;
+  }
+
+  /**
+   * Reprend le journal et l'etat d'un collecteur demarre plus tot.
+   *
+   * Sert au bundle autonome (#608) : il ecoute des le premier octet, mais ne
+   * peut monter son incrustation qu'une fois `document.body` disponible.
+   * Sans cette reprise, il observerait tout et n'en montrerait rien.
+   */
+  adoptFrom(precoce: DataflowRecorder): void {
+    for (const event of precoce.events) {
+      this.seq += 1;
+      this.events.push({ ...event, seq: this.seq } as TraceEvent);
+      this.lastEventAt = event.t;
+    }
+    for (const [id, state] of precoce.states) {
+      if (!this.states.has(id)) this.states.set(id, state);
+    }
+    if (this.events.length > this.opts.maxEvents) {
+      this.events.splice(0, this.events.length - this.opts.maxEvents);
+    }
+    this.notify();
   }
 
   /** Traite un événement du bus, qu'il vienne du direct ou du tampon. */
@@ -430,6 +460,7 @@ export class DataflowRecorder {
       states,
       order,
       sinceLastEventMs: this.lastEventAt === null ? null : this.opts.now() - this.lastEventAt,
+      lastEventAt: this.lastEventAt,
       quiescent: this.isQuiescent(),
       delegation: this.readDelegation(),
     };

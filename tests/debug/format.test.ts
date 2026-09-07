@@ -323,3 +323,40 @@ describe('les afficheurs, qui ne réémettent jamais', () => {
     expect(formatTrace(recorder.snapshot())).toContain('aucune donnée reçue');
   });
 });
+
+describe('la fraîcheur du diagnostic ne ment pas', () => {
+  let unmount: (() => void) | undefined;
+  let recorder: DataflowRecorder | undefined;
+
+  afterEach(() => {
+    recorder?.stop();
+    recorder = undefined;
+    unmount?.();
+    unmount = undefined;
+    clearDataCache('src');
+  });
+
+  it('recalcule l’écart au rendu, pas à la prise de l’instantané', () => {
+    // `sinceLastEventMs` est fige dans la trace. Un diagnostic copie dix
+    // minutes plus tard annoncerait « a l'instant » — dans un module dont
+    // toute la doctrine est de ne pas presenter un etat perime comme frais.
+    unmount = mount(`<dsfr-data-source id="src"></dsfr-data-source>`);
+    const horloge = 1_000_000;
+    recorder = new DataflowRecorder({ root: document.body, now: () => horloge });
+    recorder.start();
+    dispatchDataLoaded('src', [{ a: 1 }]);
+    const trace = recorder.snapshot();
+
+    expect(formatTrace(trace, { now: () => horloge })).toContain("à l'instant");
+    // Dix minutes plus tard, la MEME trace doit se dater honnetement.
+    expect(formatTrace(trace, { now: () => horloge + 600_000 })).toContain('il y a 10 min');
+  });
+
+  it('reste correct sur une trace sans horodatage absolu', () => {
+    unmount = mount(`<dsfr-data-source id="src"></dsfr-data-source>`);
+    recorder = new DataflowRecorder({ root: document.body });
+    recorder.start();
+
+    expect(formatTrace(recorder.snapshot())).toContain('aucune exécution observée');
+  });
+});

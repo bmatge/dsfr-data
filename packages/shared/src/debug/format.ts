@@ -31,6 +31,8 @@ export interface FormatOptions {
   redactValues?: boolean;
   /** Lignes d'échantillon rendues par étape (0 = aucune). */
   sampleRows?: number;
+  /** Horloge injectable — les tests figent le temps. */
+  now?: () => number;
 }
 
 /** Accord en nombre — « 1 ligne » et non « 1 lignes ». */
@@ -206,7 +208,15 @@ export function formatTrace(trace: Trace, options: FormatOptions = {}): string {
     return 'Aucun composant dsfr-data trouvé dans la page — rien à diagnostiquer.';
   }
 
-  const header = `Flux — ${plural(stageCount, 'étape')}, dernier passage ${humanizeDelay(trace.sinceLastEventMs)}.`;
+  // On recalcule l'ecart DEPUIS l'horodatage absolu plutot que de reprendre
+  // `sinceLastEventMs`, fige a la prise de l'instantane : un diagnostic copie
+  // dix minutes plus tard annoncerait sinon « a l'instant ».
+  const maintenant = (opts.now ?? (() => Date.now()))();
+  const ecoule =
+    trace.lastEventAt !== null && trace.lastEventAt !== undefined
+      ? maintenant - trace.lastEventAt
+      : trace.sinceLastEventMs;
+  const header = `Flux — ${plural(stageCount, 'étape')}, dernier passage ${humanizeDelay(ecoule)}.`;
   out.push(header);
   if (!trace.quiescent) {
     out.push('… Le pipeline tourne encore : cet instantané peut être incomplet.');

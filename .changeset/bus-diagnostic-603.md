@@ -1,5 +1,5 @@
 ---
-'dsfr-data': patch
+'dsfr-data': minor
 ---
 
 Le bus publie de quoi diagnostiquer une chaine sans ouvrir les DevTools (#603).

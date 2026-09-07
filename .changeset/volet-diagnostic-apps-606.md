@@ -1,5 +1,5 @@
 ---
-'dsfr-data': patch
+'dsfr-data': minor
 ---
 
 Volet Diagnostic dans les sept apps dotees d'un apercu (#606).

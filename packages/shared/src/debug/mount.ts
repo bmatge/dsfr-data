@@ -36,6 +36,8 @@ export interface DiagnosticPanelElement extends HTMLElement {
   readonly isOpen: boolean;
   /** Les valeurs sont-elles masquées dans le diagnostic sortant ? */
   readonly redactValues: boolean;
+  /** La trace a ete reconstituee faute de tampon precoce. */
+  partialTrace: boolean;
   readonly diagnosticText: string;
   toggle(open?: boolean): void;
 }
@@ -134,11 +136,17 @@ export function mountDiagnosticPanel(options: MountDiagnosticOptions = {}): Moun
   let attachment: FrameAttachment | null = null;
   let recorder: DataflowRecorder | null = null;
   let offRecorder: (() => void) | null = null;
+  let settleTimer: ReturnType<typeof setTimeout> | null = null;
 
   if (options.frame) {
     attachment = attachRecorderToFrame(options.frame, {
       onChange: (trace) => {
         panel.trace = trace;
+        // Avouer une trace RECONSTITUEE plutot que de la presenter comme
+        // complete : sans tampon precoce, la chronologie et les erreurs deja
+        // passees manquent. Se taire ici reproduirait le faux calme que tout
+        // ce module existe pour empecher.
+        panel.partialTrace = attachment ? !attachment.sawEarlyBuffer() : false;
       },
       onReset: () => {
         // Une iframe rechargée repart de zéro : garder l'ancienne trace
@@ -154,15 +162,29 @@ export function mountDiagnosticPanel(options: MountDiagnosticOptions = {}): Moun
     recorder.start();
     const active = recorder;
     let pending = false;
+    const publish = () => {
+      panel.trace = active.snapshot();
+    };
+    // MEME cloture de quiescence que le mode iframe (`frame.ts`), et pour la
+    // meme raison : un instantane pris en pleine rafale porte
+    // `quiescent: false`. Sans republication apres le silence, le volet
+    // afficherait « le pipeline tourne encore » a jamais — un avertissement
+    // permanent, donc invisible. L'oubli ici touchait la Carto et le Pipeline.
+    const settle = () => {
+      if (settleTimer) clearTimeout(settleTimer);
+      settleTimer = setTimeout(publish, 350);
+    };
     offRecorder = active.onChange(() => {
+      settle();
       if (pending) return;
       pending = true;
       queueMicrotask(() => {
         pending = false;
-        panel.trace = active.snapshot();
+        publish();
       });
     });
-    panel.trace = active.snapshot();
+    publish();
+    settle();
   }
 
   return {
@@ -175,6 +197,7 @@ export function mountDiagnosticPanel(options: MountDiagnosticOptions = {}): Moun
     text: () => panel.diagnosticText,
     destroy: () => {
       attachment?.detach();
+      if (settleTimer) clearTimeout(settleTimer);
       offRecorder?.();
       recorder?.stop();
       toggle?.removeEventListener('click', onToggleClick);

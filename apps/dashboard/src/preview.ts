@@ -2,7 +2,7 @@
  * Dashboard app - Preview modal
  */
 
-import { generateHTMLCode } from './code-generator.js';
+import { generatePreviewHTMLCode } from './code-generator.js';
 
 export function openPreviewModal(): void {
   const modal = document.getElementById('preview-modal');
@@ -10,7 +10,7 @@ export function openPreviewModal(): void {
 
   if (!modal || !iframe) return;
 
-  iframe.srcdoc = generateHTMLCode();
+  iframe.srcdoc = generatePreviewHTMLCode();
   modal.classList.add('active');
   document.body.style.overflow = 'hidden';
 }

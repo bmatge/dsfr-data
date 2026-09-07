@@ -35,6 +35,8 @@ import { DataflowRecorder, formatTrace, summarizeTrace, type Trace } from '@dsfr
 interface DebugApi {
   /** Trace courante. */
   trace(): Trace;
+  /** Reprend les evenements d'un collecteur demarre avant l'incrustation. */
+  adopt(precoce: DataflowRecorder): void;
   /** Le diagnostic en texte français — celui du volet et de l'assistant. */
   text(options?: { redactValues?: boolean }): string;
   /** Ouvre/ferme l'incrustation. */
@@ -166,6 +168,13 @@ function install(): DebugApi {
 
   return {
     trace: () => recorder.snapshot(),
+    adopt: (precoce) => {
+      // Le collecteur precoce a observe le chargement ; celui-ci prend la
+      // suite. On transfere son journal plutot que de le perdre.
+      recorder.adoptFrom(precoce);
+      render();
+      refreshSummary();
+    },
     text: (options) =>
       formatTrace(recorder.snapshot(), {
         redactValues: options?.redactValues ?? redact,
@@ -186,10 +195,19 @@ function install(): DebugApi {
 }
 
 /**
- * S'installe au chargement du script, ou dès que le body existe.
+ * S'installe au chargement du script.
  *
  * Idempotent : recharger le marque-page sur une page déjà instrumentée ne
  * doit pas empiler deux collecteurs.
+ *
+ * **Le collecteur démarre AVANT le montage de l'incrustation**, et cette
+ * separation est tout l'interet du fichier. Ce script conseille d'etre place
+ * en tete de page, AVANT la bibliotheque — mais a ce moment `document.body`
+ * n'existe pas encore. Tout differer a `DOMContentLoaded` reviendrait a rater
+ * precisement les evenements qu'on est venu observer, et a afficher ensuite
+ * « chargez ce script avant la bibliotheque » a quelqu'un qui vient de le
+ * faire. `addEventListener` sur `document` n'exige pas de `body` : on ecoute
+ * tout de suite, on affiche quand on peut.
  */
 function boot(): void {
   if (window.dsfrDataDebug) {
@@ -200,10 +218,24 @@ function boot(): void {
 }
 
 if (typeof document !== 'undefined') {
-  if (document.body) {
+  // 1. Ecouter TOUT DE SUITE — c'est ce qui ne peut pas attendre.
+  const collecteurPrecoce = new DataflowRecorder({ root: document });
+  collecteurPrecoce.start();
+
+  const monter = () => {
+    collecteurPrecoce.stop();
     boot();
+    // Rejouer ce que le collecteur precoce a vu avant que l'incrustation
+    // n'existe : sans ca, un script en tete de page observerait tout... et
+    // n'en montrerait rien.
+    const api = window.dsfrDataDebug;
+    if (api) api.adopt(collecteurPrecoce);
+  };
+
+  if (document.body) {
+    monter();
   } else {
-    document.addEventListener('DOMContentLoaded', boot, { once: true });
+    document.addEventListener('DOMContentLoaded', monter, { once: true });
   }
 }
 

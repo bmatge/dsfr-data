@@ -1,5 +1,5 @@
 ---
-'dsfr-data': patch
+'dsfr-data': minor
 ---
 
 Outils de diagnostic pour l'assistant du Studio (#607).

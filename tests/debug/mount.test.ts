@@ -136,6 +136,7 @@ describe('mountDiagnosticPanel — les trois modes', () => {
         states: {},
         order: [],
         sinceLastEventMs: null,
+        lastEventAt: null,
         quiescent: true,
         delegation: {},
       };
@@ -253,5 +254,67 @@ describe('envoi vers l’assistant', () => {
     );
 
     expect(recu).toHaveBeenCalledWith(mounted.text());
+  });
+});
+
+describe('clôture de quiescence en mode « même document » (B3)', () => {
+  let mounted: MountedDiagnostic | undefined;
+  let host: HTMLElement | undefined;
+
+  afterEach(() => {
+    mounted?.destroy();
+    mounted = undefined;
+    host?.remove();
+    host = undefined;
+    vi.useRealTimers();
+    document.querySelectorAll('app-diagnostic-panel').forEach((el) => el.remove());
+    localStorage.removeItem(STORAGE_KEY);
+  });
+
+  it('republie après le silence — sinon « le pipeline tourne encore » à jamais', async () => {
+    // Le mode iframe avait recu cette cloture ; le mode meme-document l'avait
+    // perdue. Consequence sur la Carto et le Pipeline : un avertissement
+    // permanent, donc invisible — exactement le defaut corrige pour l'iframe.
+    vi.useFakeTimers();
+    const canvas = document.createElement('div');
+    canvas.innerHTML = `<dsfr-data-source id="carto-src"></dsfr-data-source>`;
+    document.body.appendChild(canvas);
+    host = canvas;
+    mounted = mountDiagnosticPanel({ liveRoot: canvas });
+
+    document.dispatchEvent(
+      new CustomEvent('dsfr-data-loaded', { detail: { sourceId: 'carto-src', data: [{ a: 1 }] } })
+    );
+    await Promise.resolve();
+    expect(mounted.panel.trace?.quiescent).toBe(false);
+
+    vi.advanceTimersByTime(600);
+    await Promise.resolve();
+
+    expect(mounted.panel.trace?.quiescent).toBe(true);
+  });
+
+  it('publie un état stabilisé même sans le moindre événement', () => {
+    vi.useFakeTimers();
+    const canvas = document.createElement('div');
+    document.body.appendChild(canvas);
+    host = canvas;
+    mounted = mountDiagnosticPanel({ liveRoot: canvas });
+
+    vi.advanceTimersByTime(600);
+
+    expect(mounted.panel.trace?.quiescent).toBe(true);
+  });
+
+  it('destroy() annule la clôture en attente', () => {
+    vi.useFakeTimers();
+    const canvas = document.createElement('div');
+    document.body.appendChild(canvas);
+    host = canvas;
+    const local = mountDiagnosticPanel({ liveRoot: canvas });
+    local.destroy();
+
+    // Ne doit pas toucher un volet demonte.
+    expect(() => vi.advanceTimersByTime(600)).not.toThrow();
   });
 });

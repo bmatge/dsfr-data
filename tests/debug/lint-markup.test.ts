@@ -166,3 +166,50 @@ describe('formatLintFindings', () => {
     expect(texte).toContain('volet Diagnostic');
   });
 });
+
+describe('les valeurs d’attribut contenant « > » — syntaxe ODSQL officielle', () => {
+  it('ne tronque pas une balise sur un « > » entre guillemets', () => {
+    // `where="population > 5000"` est documente tel quel dans
+    // skills/dsfr-data/references/dsfr-data-query.md. Un motif [^>]* s'y
+    // arreterait, perdrait les attributs suivants, et le linter signalerait
+    // un id manquant sur du code parfaitement valide.
+    const balises = lireBalises(
+      `<dsfr-data-source where="population > 5000" id="src" api-type="tabular"></dsfr-data-source>`
+    );
+
+    expect(balises).toHaveLength(1);
+    expect(balises[0].attrs.where).toBe('population > 5000');
+    expect(balises[0].attrs.id).toBe('src');
+    expect(balises[0].attrs['api-type']).toBe('tabular');
+  });
+
+  it('ne produit AUCUN faux diagnostic sur ce balisage', () => {
+    // Le docstring du module promet « au pire une balise n'est pas analysee,
+    // jamais un faux diagnostic ». Ce test le verrouille.
+    const findings = lintMarkup(
+      `<dsfr-data-source where="population > 5000" id="src"></dsfr-data-source>
+       <dsfr-data-chart id="c" source="src" type="bar"></dsfr-data-chart>`,
+      CONTRAT
+    );
+
+    expect(findings).toEqual([]);
+  });
+
+  it('gère plusieurs « > » et des guillemets simples', () => {
+    const balises = lireBalises(
+      `<dsfr-data-query id="q" source="src" filter='a > 1, b > 2'></dsfr-data-query>`
+    );
+
+    expect(balises[0].attrs.filter).toBe('a > 1, b > 2');
+    expect(balises[0].attrs.id).toBe('q');
+  });
+
+  it('n’avale plus les attributs qui suivent', () => {
+    // Avant : `group-by` etait perdu en silence sur l'extrait officiel.
+    const balises = lireBalises(
+      `<dsfr-data-query id="q" where="pop > 10" group-by="region"></dsfr-data-query>`
+    );
+
+    expect(balises[0].attrs['group-by']).toBe('region');
+  });
+});

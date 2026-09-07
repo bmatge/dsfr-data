@@ -19,10 +19,19 @@ export function schedulePreviewRender(): void {
 
 export function renderPreview(): void {
   renderTimer = null;
-  const html = generateDashboardHTML(state.document);
+
+  // DEUX generations depuis le MEME document, et c'est deliberé :
+  //   - `exportHtml` part dans l'onglet Code et dans le presse-papier —
+  //     l'utilisateur ne doit jamais copier une sonde de diagnostic ;
+  //   - `previewHtml` porte le tampon d'evenements du volet (#605), sans
+  //     lequel le collecteur arrive apres que tout a emis et perd les erreurs.
+  // La doctrine « l'apercu EST l'export » tient : meme generateur, meme
+  // document, seule une sonde d'observation s'ajoute au rendu.
+  const exportHtml = generateDashboardHTML(state.document);
+  const previewHtml = generateDashboardHTML(state.document, { debug: true });
 
   const codeEl = document.getElementById('generated-code');
-  if (codeEl) codeEl.textContent = html;
+  if (codeEl) codeEl.textContent = exportHtml;
   const jsonEl = document.getElementById('generated-json');
   if (jsonEl) jsonEl.textContent = JSON.stringify(state.document, null, 2);
 
@@ -32,6 +41,6 @@ export function renderPreview(): void {
   if (empty) empty.hidden = hasContent;
   if (frame) {
     frame.hidden = !hasContent;
-    if (hasContent) frame.srcdoc = html;
+    if (hasContent) frame.srcdoc = previewHtml;
   }
 }

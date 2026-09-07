@@ -110,20 +110,52 @@ function lireAttributs(source: string): Record<string, string> {
 /**
  * Releve les balises `dsfr-data-*` d'un fragment HTML.
  *
- * Analyse par expression reguliere plutot que par DOM : ce module tourne
- * aussi cote serveur MCP, ou il n'y a pas de `DOMParser`. Le balisage vise
- * est du HTML d'integration, pas un document arbitraire — un attribut
- * contenant un `>` entre guillemets sort du perimetre, et au pire une balise
- * n'est pas analysee, jamais un faux diagnostic.
+ * Parcours caractere par caractere plutot qu'expression reguliere, pour deux
+ * raisons cumulees :
+ *
+ * 1. Ce module tourne aussi cote serveur MCP, ou il n'y a pas de `DOMParser`.
+ * 2. Un motif `[^>]*` s'arreterait au premier `>`, **y compris entre
+ *    guillemets** — or `where="population > 5000"` est la syntaxe OFFICIELLE
+ *    (`skills/dsfr-data/references/dsfr-data-query.md`). La balise serait
+ *    tronquee, ses attributs suivants perdus, et le linter signalerait un
+ *    `id` manquant sur du code parfaitement valide. Un faux diagnostic est
+ *    pire que pas de diagnostic : il envoie chercher une panne inexistante.
+ *
+ * Le parcours est LINEAIRE par construction — chaque caractere est lu une
+ * fois — donc sans risque de retour arriere exponentiel.
  */
 export function lireBalises(html: string): BaliseLue[] {
   const out: BaliseLue[] = [];
-  // Motif LINEAIRE (`[^>]`) : pas de quantificateur imbrique, donc pas de
-  // retour arriere exponentiel.
-  const baliseRe = /<(dsfr-data-[a-z-]+)([^>]*)>/gi;
-  let m: RegExpExecArray | null;
-  while ((m = baliseRe.exec(html)) !== null) {
-    out.push({ tag: m[1].toLowerCase(), attrs: lireAttributs(m[2] ?? '') });
+  const prefixe = '<dsfr-data-';
+  let i = 0;
+
+  while (i < html.length) {
+    const debut = html.toLowerCase().indexOf(prefixe, i);
+    if (debut === -1) break;
+
+    // Nom de la balise : jusqu'a un espace, un `/` ou le `>` fermant.
+    let j = debut + 1;
+    while (j < html.length && !/[\s/>]/.test(html[j])) j++;
+    const tag = html.slice(debut + 1, j).toLowerCase();
+
+    // Corps de la balise : on avance jusqu'au `>` fermant en IGNORANT ceux
+    // qui sont entre guillemets.
+    let k = j;
+    let guillemet: string | null = null;
+    while (k < html.length) {
+      const c = html[k];
+      if (guillemet) {
+        if (c === guillemet) guillemet = null;
+      } else if (c === '"' || c === "'") {
+        guillemet = c;
+      } else if (c === '>') {
+        break;
+      }
+      k++;
+    }
+
+    out.push({ tag, attrs: lireAttributs(html.slice(j, k)) });
+    i = k + 1;
   }
   return out;
 }
