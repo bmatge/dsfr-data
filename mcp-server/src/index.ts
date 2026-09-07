@@ -23,6 +23,12 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { createServer } from 'node:http';
+import {
+  lintMarkup,
+  formatLintFindings,
+  type ComponentContract,
+} from './lint-markup.generated.js';
+import { COMPONENT_CONTRACT } from './component-contract.generated.js';
 import { EnvHttpProxyAgent, setGlobalDispatcher } from 'undici';
 import { z } from 'zod';
 import { getArg, hasFlag } from './cli.js';
@@ -248,6 +254,24 @@ function createMcpServer(): McpServer {
           type: 'text' as const,
           text: contents.join('\n\n---\n\n'),
         }],
+      };
+    },
+  );
+
+  // -- Tool: diagnose_widget_code -------------------------------------------
+
+  server.tool(
+    'diagnose_widget_code',
+    "Analyse statique d'un balisage dsfr-data SANS l'executer : attribut inconnu ou deprecie, balise inexistante, id manquant sur un composant qui reemet, amont declare mais absent, id duplique. A utiliser quand un widget ne s'affiche pas comme prevu, AVANT de proposer une correction.",
+    {
+      html: z.string().describe('Le code HTML dsfr-data a analyser'),
+    },
+    async ({ html }) => {
+      // Contrat GENERE depuis custom-elements.json : la liste des attributs
+      // vient du code, elle ne peut pas deriver du reel.
+      const findings = lintMarkup(html, COMPONENT_CONTRACT as unknown as ComponentContract);
+      return {
+        content: [{ type: 'text' as const, text: formatLintFindings(findings) }],
       };
     },
   );

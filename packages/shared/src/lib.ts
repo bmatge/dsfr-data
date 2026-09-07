@@ -17,6 +17,14 @@
  * ré-exporte aussi cette frontière.
  */
 
+// Diagnostic du pipeline (#604) — pur / DOM seulement, aucun module app-side.
+// Lib-safe a dessein : l'entree autonome `index-debug.ts` de packages/core en
+// depend (#608), et la frontiere #319 interdit a core le barrel racine. Le
+// module n'entre dans AUCUN bundle publie — verifie par test-garde
+// (`tests/debug/standalone-bundle.test.ts`), puisque rien dans core ne
+// l'importe hors de cette entree separee.
+export * from './debug/index.js';
+
 // Utils (purs, sans DOM ni réseau)
 export { escapeHtml } from './utils/escape-html.js';
 export {

@@ -446,7 +446,51 @@ Trois champs **optionnels**, purement diagnostiques, ajoutes sans toucher au mes
 - `origin` sur `dsfr-data-source-command` — le bus etant plat, une trace ne pourrait sinon pas dire *qui* demande une delegation. Renseigne par `TransformerMixin` (relais aval → amont), `dsfr-data-query`, `-search`, `-facets`, `-context`, `-map-layer` et `PaginationController`.
 - `dsfr-data-query.getDelegation()` — quelles operations tournent cote serveur. Un `group-by` non delegue s'execute sur les seules lignes rapatriees : des totaux justes en apparence, faux en realite.
 
-### 3.7 Le volet Diagnostic (app-ui)
+### 3.7 Diagnostic hors des apps : bundle autonome et MCP (#608)
+
+Deux surfaces supplementaires, pour atteindre le code **la ou il vit**.
+
+**`dsfr-data.debug.js` — 15 Ko, opt-in.** Le collecteur n'a besoin de rien de
+la bibliotheque (bus sur `document`, cache sur `window`) : une balise
+`<script>` suffit donc a diagnostiquer n'importe quelle page utilisant
+dsfr-data, **y compris en production, sans rebuild ni modification de la
+page**. Entree de build SEPAREE (`packages/core/src/index-debug.ts`, format
+UMD pour qu'un marque-page puisse la charger), jamais fusionnee aux trois
+bundles publies — un outil d'atelier n'a rien a faire dans le poids d'une
+page gouvernementale. Verrouille par `tests/debug/standalone-bundle.test.ts`,
+qui grepe les bundles publies ET verifie qu'aucun composant du coeur
+n'importe le collecteur.
+
+Marque-page :
+
+```js
+javascript:(function(){var s=document.createElement('script');s.src='https://VOTRE-DOMAINE/dist/dsfr-data.debug.js';document.body.appendChild(s)})()
+```
+
+Sur une page tierce il n'y a pas de tampon precoce : le collecteur arrive
+apres le pipeline et reconstitue l'etat depuis `__dsfrDataCache`. On perd la
+chronologie et les erreurs deja passees — d'ou le bouton « Recharger et
+tracer » de l'incrustation, qui rend la trace complete.
+
+**Outil MCP `diagnose_widget_code`.** Analyse STATIQUE, sans execution :
+attribut inconnu ou deprecie, balise inexistante, id manquant sur un
+composant qui reemet, amont declare mais absent, id duplique. Moins riche que
+le collecteur — elle ne verra jamais qu'une source renvoie zero ligne — mais
+elle s'utilise dans l'editeur.
+
+L'autorite est `custom-elements.json`, **genere depuis le code** : une liste
+d'attributs ecrite a la main deriverait et le linter finirait par signaler
+des attributs valides.
+
+⚠️ **`mcp-server/` est hors des workspaces npm** et publie separement : il ne
+peut importer aucun module du monorepo. `lint-markup.ts` ne doit donc
+contenir AUCUN import — le contrat des composants lui est passe en
+PARAMETRE — et il est copie par le build
+(`build:lint-markup`, `build:component-contract`, integres a `build:skills`).
+Meme mecanisme et meme contrainte que `ia/skill-matching.ts`, avec les memes
+tests-gardes (`tests/mcp/lint-markup.test.ts`).
+
+### 3.8 Le volet Diagnostic (app-ui)
 
 `app-diagnostic-panel` est un **tiroir bas**, present a l'identique dans toutes les apps. Le choix du tiroir plutot que d'un onglet n'est pas cosmetique : `app-preview-panel` n'existe que dans 3 apps quand `app-action-bar` en couvre 7, et `docs/ux/actions.md` §1 pose qu'« un onglet n'est pas une action ».
 
