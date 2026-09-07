@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { getPreviewHTML, generateDashboardHTML, createEmptyDashboard } from '@dsfr-data/shared';
 
@@ -110,13 +110,27 @@ describe('les apps sans iframe observent une racine locale', () => {
     });
   }
 
-  it('l’Assistant IA est en mode rapporté, sans racine à observer', () => {
-    // Constat, pas repli : son apercu ne passe par aucun composant dsfr-data
-    // (#609). Le declarer live afficherait un volet vide a jamais.
+  it('l’Assistant IA est passé en mode live (#609)', () => {
+    // Ce test affirmait l'inverse jusqu'a #609 : l'app dessinait son apercu
+    // avec @gouvfr/dsfr-chart en direct, sans aucun composant dsfr-data, donc
+    // sans rien a observer sur le bus. Depuis que l'apercu rend le code
+    // genere dans une iframe, elle emet comme les autres.
     const src = lire('apps/builder-ia/src/main.ts');
 
     expect(src).toContain('mountDiagnosticPanel({');
+    expect(src).toContain('frame:');
     expect(src).not.toContain('liveRoot:');
-    expect(src).not.toContain('frame:');
+  });
+
+  it('son aperçu demande le tampon précoce', () => {
+    const src = lire('apps/builder-ia/src/ui/preview.ts');
+
+    expect(src).toContain('getPreviewHTML(code, { debug: true })');
+  });
+
+  it('le rendu parallèle a disparu, pas seulement été débranché', () => {
+    // Le laisser en place aurait garanti sa reapparition : deux chemins de
+    // rendu qui divergent, c'est le defaut que #609 supprime.
+    expect(existsSync(join(ROOT, 'apps/builder-ia/src/ui/chart-renderer.ts'))).toBe(false);
   });
 });

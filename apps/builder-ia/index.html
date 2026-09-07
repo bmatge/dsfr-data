@@ -40,7 +40,7 @@
     <button slot="primary" id="clear-chat" class="fr-icon-delete-line fr-btn--icon-left" title="Effacer la conversation et repartir de zéro">Effacer la conversation</button>
   </app-action-bar>
 
-  <app-layout-builder left-ratio="50">
+  <app-layout-builder mode="fullscreen" left-ratio="50">
     <!-- ============================================ -->
     <!-- PANNEAU GAUCHE : CONFIG + CHAT -->
     <!-- ============================================ -->
@@ -240,19 +240,21 @@ Sois concis. Reponds en francais.</textarea>
       tab-labels="Aperçu,Code,Données">
 
       <!-- Tab Aperçu -->
+      <!-- L'apercu EST l'export (#609) : l'iframe rend le code REELLEMENT
+           genere, plus un dessin parallele. Le titre vient donc du code
+           lui-meme (le generateur emet son propre <h2>) — l'afficher aussi
+           ici le doublonnerait. `allow-same-origin` est requis a la fois par
+           l'export d'image et par le collecteur du volet Diagnostic. -->
       <div slot="preview">
         <div class="preview-chart">
-          <h2 class="preview-title" id="preview-title">Mon graphique</h2>
-          <p class="preview-subtitle" id="preview-subtitle"></p>
-          <div class="chart-wrapper">
-            <div class="empty-state" id="empty-state">
-              <div class="empty-state__bars" aria-hidden="true">
-                <span></span><span></span><span></span><span></span>
-              </div>
-              <p>Discutez avec l'assistant pour créer votre graphique</p>
+          <div class="empty-state" id="empty-state">
+            <div class="empty-state__bars" aria-hidden="true">
+              <span></span><span></span><span></span><span></span>
             </div>
-            <canvas id="preview-canvas" style="display: none;"></canvas>
+            <p>Discutez avec l'assistant pour créer votre graphique</p>
           </div>
+          <iframe id="preview-frame" class="preview-frame" title="Aperçu du graphique"
+                  sandbox="allow-scripts allow-same-origin" hidden></iframe>
         </div>
       </div>
 

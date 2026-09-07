@@ -89,19 +89,20 @@ function recupererDiagnosticTransmis(): void {
 document.addEventListener('DOMContentLoaded', async () => {
   await initAuth();
 
-  // Volet Diagnostic (#606) en mode RAPPORTÉ, et c'est un constat, pas un
-  // repli : l'aperçu de cette app passe par chart-renderer.ts, qui dessine
-  // avec @gouvfr/dsfr-chart en direct — aucun composant dsfr-data, donc
-  // aucun trafic sur le bus à observer. L'app peut en revanche LIRE un
-  // diagnostic produit ailleurs et le passer à l'assistant. #609 propose
-  // d'aligner l'aperçu sur le code généré, ce qui ferait passer ce volet en
-  // mode live et supprimerait le rendu parallèle.
+  // Volet Diagnostic en mode LIVE (#609) : depuis que l'apercu rend le code
+  // genere dans une iframe, cette app emet enfin sur le bus comme les
+  // autres. `getPreviewHTML(..., { debug: true })` y injecte le tampon
+  // precoce — sans lui le collecteur arriverait apres que tout a emis et
+  // perdrait les erreurs.
+  //
+  // La reception d'un diagnostic transmis par une autre app est CONSERVEE :
+  // le chat reste le bon endroit pour poser une trace venue d'ailleurs.
   mountDiagnosticPanel({
+    frame: document.getElementById('preview-frame') as HTMLIFrameElement | null,
     toggleButtonId: 'diagnostic-btn',
     canSend: true,
     onSend: injecterDiagnostic,
-    emptyHint:
-      'Cette app rend son aperçu sans composant dsfr-data : collez ici un diagnostic produit par le Playground, le Builder ou le Studio.',
+    emptyHint: 'Demandez un graphique pour observer ce qui transite entre les composants.',
   });
   recupererDiagnosticTransmis();
 
@@ -175,11 +176,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     void (async () => {
       try {
         if (!state.chartConfig) throw new ImageExportError('empty');
-        // Bloc complet titre + sous-titre + graphique (light DOM du panneau).
-        const root = (document.querySelector('.preview-chart') ??
-          document.getElementById('tab-preview') ??
-          document.body) as HTMLElement;
-        await exportPreviewImage(root, format, state.chartConfig.title || 'graphique');
+        // L'apercu est desormais une iframe (#609) : on capture LA, comme le
+        // Playground et le Builder. Capturer le bloc de panneau ne rendrait
+        // plus qu'un cadre vide, le contenu vivant dans le document de
+        // l'iframe.
+        const frame = document.getElementById('preview-frame') as HTMLIFrameElement | null;
+        if (!frame) throw new ImageExportError('iframe-inaccessible');
+        await exportPreviewImage(frame, format, state.chartConfig.title || 'graphique');
       } catch (err) {
         if (err instanceof ImageExportError) toastError(IMAGE_EXPORT_MESSAGES[err.reason]);
         else throw err;

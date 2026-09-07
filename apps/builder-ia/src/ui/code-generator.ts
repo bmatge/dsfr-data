@@ -316,7 +316,7 @@ new Chart(document.getElementById('myChart'), {
 // ---------------------------------------------------------------------------
 
 function generateMapCode(config: ChartConfig, data: AggregatedResult[]): string {
-  // Fallback: use labelField if codeField is missing (same as chart-renderer)
+  // Fallback: use labelField if codeField is missing
   const codeField = config.codeField || config.labelField || autoDetectCodeField();
 
   // Transform data to DSFR format: {"code": value, ...}

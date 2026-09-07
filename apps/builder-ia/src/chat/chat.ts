@@ -7,7 +7,7 @@ import type { Message, ChartConfig } from '../state.js';
 import { getIAConfig, isServerMode } from '../ia/ia-config.js';
 import type { IAConfig } from '../ia/ia-config.js';
 import { SKILLS, getRelevantSkills, buildSkillsContext } from '../skills.js';
-import { applyChartConfig, resetChartPreview } from '../ui/chart-renderer.js';
+import { applyChartConfig, resetChartPreview } from '../ui/preview.js';
 import { analyzeFields, updateFieldsList, updateRawData } from '../sources.js';
 import { fetchWithTimeout, httpErrorMessage, detectProvider, escapeHtml } from '@dsfr-data/shared';
 import { effectiveCapabilities } from '../ia/albert-capabilities.js';
