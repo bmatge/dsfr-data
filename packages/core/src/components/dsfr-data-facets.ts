@@ -7,6 +7,7 @@ import type { ApiAdapter } from '../adapters/api-adapter.js';
 import type { SourceElement } from '../utils/source-element.js';
 import { isUnsafeKey } from '@dsfr-data/shared/lib';
 import { joinWhere } from '../utils/where.js';
+import { logFetchWarning } from '../utils/fetch-diagnostics.js';
 
 type FacetDisplayMode = 'checkbox' | 'select' | 'multiselect' | 'radio';
 
@@ -794,7 +795,9 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
         if ((e as Error).name === 'AbortError') return;
         // Erreur visible (plus avalee en silence, #309)
         fetchError = (e as Error).message || 'Erreur de chargement des facettes';
-        console.warn(`dsfr-data-facets[${this.id}]: fetch des facettes en échec`, e);
+        // `fetchFacets` construit son URL en interne : le diagnostic CORS
+        // (#598) est joint sans URL, le reste du conseil reste valable.
+        logFetchWarning(`dsfr-data-facets[${this.id}]: fetch des facettes en échec`, e);
       }
     }
 
