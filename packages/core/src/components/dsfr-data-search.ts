@@ -29,6 +29,7 @@ type SearchOperator = 'contains' | 'starts' | 'words';
  * </dsfr-data-search>
  *
  * @fires dsfr-data-search-change - `{ query, count }` sur l'element — la saisie de recherche a change (pour synchroniser une UI de page).
+ * @fires dsfr-data-source-command - `{ sourceId, where, whereKey, origin }` sur `document` — recherche relayee en filtre serveur vers la source amont. `origin` porte l'id de ce composant (#603).
  */
 @customElement('dsfr-data-search')
 export class DsfrDataSearch extends TransformerMixin(LitElement) {
@@ -376,7 +377,7 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
     }
 
     // Dispatch command to upstream source (dsfr-data-query server-side)
-    dispatchSourceCommand(this.source, { where, whereKey: this.id });
+    dispatchSourceCommand(this.source, { where, whereKey: this.id, origin: this.id });
 
     // Sync URL if enabled
     if (this.urlSync && this.urlSearchParam) {

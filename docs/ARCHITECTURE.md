@@ -412,6 +412,50 @@ A l'interieur d'une meme page, les Web Components communiquent par un bus d'even
 <dsfr-data-list source="...">     Ecoute via SourceSubscriberMixin
 ```
 
+### 3.6 Diagnostic du pipeline — le collecteur de trace (#602)
+
+**La propriete qui rend ce chantier possible** : le bus de §3.5 est **plat, global et public**. Chaque etape emet sous son propre `id` via `dispatchDataLoaded`, et `window.__dsfrDataCache` tient une `Map<sourceId, data>` — la sortie de *chaque* etape, en permanence. **Un seul `document.addEventListener` voit donc passer l'integralite du pipeline d'une page, sans modifier un seul composant.**
+
+`packages/shared/src/debug/` exploite cette propriete :
+
+| Module | Role |
+|---|---|
+| `events.ts` | Les 4 noms du bus, **dupliques** depuis `DATA_EVENTS` |
+| `graph.ts` | Topologie depuis le DOM (`id` / `source`, `left`+`right` pour join) |
+| `summarize.ts` | Resume borne : compte, champs, 5 lignes d'echantillon |
+| `recorder.ts` | Journal ordonne + etat par etape + quiescence |
+| `format.ts` | `formatTrace()` — le rendu texte francais |
+| `frame.ts` | Rattachement a une iframe d'apercu |
+| `mount.ts` | Montage du volet en un appel |
+
+#### Couplages non-evidents
+
+- **La duplication des noms d'evenements est deliberee.** Le collecteur doit tourner **sans** `packages/core` (script autonome injecte sur une page tierce, #608) ; importer core ferait entrer tout un bundle dans un outil de diagnostic, et inverser la dependance creerait un cycle. Garde-fou : `tests/debug/alignment.test.ts` casse si un nom derive **ou** si un nouveau composant utilise `TransformerMixin` / `SourceSubscriberMixin` sans etre declare dans `STAGE_ROLES`. Le scan lit le decorateur `@customElement`, pas le nom de fichier.
+- **Le collecteur garde SA copie des donnees.** `TransformerMixin.disconnectedCallback` appelle `clearDataCache(this.id)` : une etape retiree du DOM perd son entree de cache. S'appuyer sur `__dsfrDataCache` ferait disparaitre la trace au moment precis ou on en a besoin.
+- **La quiescence exige silence ET aucune etape en chargement.** Il n'existe aucun evenement « le pipeline a fini », et une commande remontante peut relancer la chaine bien apres le dernier evenement. `waitForQuiescence()` rend `false` au plafond plutot qu'un faux calme.
+- **Une etape en echec invalide ses donnees.** Sans ca, l'aval rapporterait le compte du dernier succes et un afficheur se dirait « alimente » sous une source tombee — le faux calme, applique a l'erreur.
+- **`Trace.order` porte l'ordre topologique.** `states` est un objet nu : JavaScript y range les cles entieres AVANT les autres, donc des ids numeriques inverseraient la lecture.
+- **`formatTrace()` est la fonction pivot.** Une seule implementation, consommee a l'identique par « Copier le diagnostic », « Envoyer a l'assistant » et l'outil `trace_pipeline` de la boucle agentique. Ce que l'utilisateur voit et ce que l'assistant recoit sont le **meme objet**.
+- **Le module est app-side.** Exporte depuis `packages/shared/src/index.ts` uniquement, jamais depuis `src/lib.ts` : `packages/core` ne l'importe pas, il n'entre dans aucun bundle publie (verifie par grep sur `packages/core/dist/`).
+
+#### Ce que le bus publie pour le diagnostic (#603)
+
+Trois champs **optionnels**, purement diagnostiques, ajoutes sans toucher au message des `Error` :
+
+- `attemptedUrl` sur `dsfr-data-error` — l'URL reellement appelee, proxy applique. Le diagnostic de #598 (`fetch-diagnostics.ts`) est volontairement **console-only** pour ne pas deverser un paragraphe dans l'UI ; ce champ le rend exploitable par une interface.
+- `origin` sur `dsfr-data-source-command` — le bus etant plat, une trace ne pourrait sinon pas dire *qui* demande une delegation. Renseigne par `TransformerMixin` (relais aval → amont), `dsfr-data-query`, `-search`, `-facets`, `-context`, `-map-layer` et `PaginationController`.
+- `dsfr-data-query.getDelegation()` — quelles operations tournent cote serveur. Un `group-by` non delegue s'execute sur les seules lignes rapatriees : des totaux justes en apparence, faux en realite.
+
+### 3.7 Le volet Diagnostic (app-ui)
+
+`app-diagnostic-panel` est un **tiroir bas**, present a l'identique dans toutes les apps. Le choix du tiroir plutot que d'un onglet n'est pas cosmetique : `app-preview-panel` n'existe que dans 3 apps quand `app-action-bar` en couvre 7, et `docs/ux/actions.md` §1 pose qu'« un onglet n'est pas une action ».
+
+- **Le rail replie porte le resume** (`3 etapes · 100 → 8 lignes · 1 alerte`). Un etat ferme qui n'informe pas ne serait jamais ouvert.
+- **Trois onglets** : Flux (delta par arete), Champs (matrice champ × etape), Journal (chronologie, commandes remontantes, URL effective).
+- **Deux modes** : `live` (observe une iframe) et `rapporte` (affiche une trace transmise). Le second existe parce que **builder-IA ne produit aucun trafic sur le bus** — `chart-renderer.ts` dessine avec `@gouvfr/dsfr-chart` en direct, sans composant dsfr-data.
+- **Piege de superposition** : sous 768 px, `app-action-bar` passe en `position:fixed; bottom:0; z-index:800`. Le volet s'ancre a `bottom: var(--app-action-bar-fixed-h)` et reste en `z-index:780`. Il publie sa hauteur dans `--app-diagnostic-h`, et sa regle de `padding-bottom` sur `body` utilise une double `:has` pour depasser en specificite celle de la barre d'actions — sinon le gagnant dependrait de l'ordre d'injection des feuilles.
+- **`mountDiagnosticPanel()` vit dans `shared`, pas dans `app-ui`.** Les apps chargent le chrome par une balise `<script>`, jamais par un `import` : importer `@dsfr-data/app-ui` depuis une app embarquerait une seconde copie du bundle et enregistrerait les composants deux fois. Le helper cree donc l'element par son nom de balise.
+
 ---
 
 ## 4. Architecture proxy

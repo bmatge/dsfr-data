@@ -141,6 +141,7 @@ la fonction ODSQL `search()` pour une recherche full-text. Personnalisable via `
 | `dsfr-data-loading` | `{ sourceId }` | émis | Chargement amont relayé vers l’aval. |
 | `dsfr-data-source-command` | `{ sourceId, page?, where?, whereKey?, orderBy?, groupBy?, aggregate? }` | émis | Commande de pagination / filtre / tri envoyée à la source AMONT — soit originée par ce composant, soit relayée depuis l’aval. |
 | `dsfr-data-search-change` | — | émis | `{ query, count }` sur l'element — la saisie de recherche a change (pour synchroniser une UI de page). |
+| `dsfr-data-source-command` | — | émis | `{ sourceId, where, whereKey, origin }` sur `document` — recherche relayee en filtre serveur vers la source amont. `origin` porte l'id de ce composant (#603). |
 
 
 **Slots** — aucun (le composant rend son propre contenu).

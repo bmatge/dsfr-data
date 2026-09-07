@@ -100,6 +100,7 @@ export interface QuerySort {
  *   order-by="population__sum:desc"
  *   limit="10">
  * </dsfr-data-query>
+ * @fires dsfr-data-source-command - `{ sourceId, groupBy?, aggregate?, orderBy?, where?, whereKey?, origin }` sur `document` — delegation server-side negociee avec la source amont, et liberation des overlays quand elle retombe cote client. `origin` porte l'id de ce composant (#603).
  */
 @customElement('dsfr-data-query')
 export class DsfrDataQuery extends TransformerMixin(LitElement) {

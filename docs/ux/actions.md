@@ -11,7 +11,7 @@
 
 | # | Point | Décision |
 |---|---|---|
-| 1 | Périmètre du lexique | **Cœur de 14 actions + extensions par app** (§2). Pas de lexique fermé : les libellés de formulaires, d'onglets ou de navigation ne sont pas des « actions ». |
+| 1 | Périmètre du lexique | **Cœur de 15 actions + extensions par app** (§2). Pas de lexique fermé : les libellés de formulaires, d'onglets ou de navigation ne sont pas des « actions ». |
 | 2 | Lint | Le lint (extension de `npm run check:accents`) est **bloquant** sur les accents manquants et sur une **liste de formes proscrites** (§3). Pas de liste blanche. |
 | 3 | Navigation | **Pas de regroupement des entrées de niveau 1** ni de refonte des tools du header (§6.5 / A3 / A4 / A5 de l'audit hors périmètre). |
 | 4 | Apps conversationnelles | Dans Assistant IA et Studio IA, **le geste primaire reste l'envoi du chat**. L'AppActionBar porte les actions sur l'artefact ; pas de « Générer » primaire. |
@@ -33,7 +33,7 @@
 
 ## 2. Lexique canonique
 
-### 2.1 Cœur (14 actions, communes à toutes les apps)
+### 2.1 Cœur (15 actions, communes à toutes les apps)
 
 | Geste | Libellé unique | Variante | Icône DSFR | Remplace |
 |---|---|---|---|---|
@@ -51,12 +51,18 @@
 | Détruire | **Supprimer** | primaire *danger* (dans la confirmation) · icône seule dans les listes | `fr-icon-delete-bin-line` | `Retirer`, `Effacer` (objet) |
 | Voir en grand | **Plein écran** | tertiaire | `fr-icon-fullscreen-line` | `Aperçu` (bouton Dashboard) |
 | Lancer la visite | **Visite guidée** | tertiaire sans contour | `fr-icon-question-line` | `Visite guidee`, `?` |
+| Ouvrir le volet de diagnostic du pipeline | **Diagnostic** | tertiaire | `fr-icon-tools-line` | — (nouvelle action, #605) |
 
 Notes :
 
 - **Générer** vs **Exécuter** : *Générer* quand l'utilisateur a rempli une configuration (formulaire,
   panneaux) et que l'app produit le rendu ; *Exécuter* quand l'utilisateur a écrit lui-même le
   code (Playground) ou assemblé un flux (Pipeline). Les deux partagent l'icône « play ».
+- **Diagnostic** ouvre le volet `app-diagnostic-panel` (#605) : ce qui transite entre les
+  composants du pipeline — lignes par étape, champs apparus et disparus, journal. Le libellé est
+  français à dessein : « Debug » est un anglicisme, et le volet sert autant l'intégrateur que
+  l'agent qui lit le même diagnostic. Bascule d'interface traitée comme une action, au même titre
+  que « Visite guidée » ; le rail du volet reste l'affordance permanente.
 - **Nouveau** vs **Réinitialiser** : *Nouveau* crée un objet vierge (Carto, Dashboard) ;
   *Réinitialiser* ramène l'objet en cours à son état de départ (Playground : recharger l'exemple ;
   Assistant IA : vider le formulaire de configuration).

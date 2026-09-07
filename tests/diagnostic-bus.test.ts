@@ -35,6 +35,25 @@ import {
   type SourceCommandEvent,
 } from '@/utils/data-bridge.js';
 
+/**
+ * Vues internes des composants (CLAUDE.md : pas de casts disperses).
+ * Declarer le contrat qu'on inspecte, une fois, plutot que le re-affirmer
+ * a chaque appel.
+ */
+interface SourceInternals {
+  _fetchData(): Promise<void>;
+}
+interface QueryInternals {
+  _sendDelegationClears(
+    targetId: string,
+    delegated: { groupBy: boolean; aggregate: boolean; orderBy: boolean; where: boolean }
+  ): void;
+  _serverDelegated: { groupBy: boolean; aggregate: boolean; orderBy: boolean; where: boolean };
+}
+
+const asSource = (el: DsfrDataSource): SourceInternals => el as unknown as SourceInternals;
+const asQuery = (el: DsfrDataQuery): QueryInternals => el as unknown as QueryInternals;
+
 /** Le rejet generique d'un fetch bloque par CORS (cf. #598). */
 function corsFailure(): TypeError {
   return new TypeError('NetworkError when attempting to fetch resource.');
@@ -110,7 +129,7 @@ describe('bus de diagnostic (#603)', () => {
       mockFetch.mockRejectedValueOnce(corsFailure());
       source.url = 'https://api.example.com/data';
 
-      await (source as unknown as { _fetchData(): Promise<void> })._fetchData();
+      await asSource(source)._fetchData();
 
       expect(cap.last()?.attemptedUrl).toBe('https://api.example.com/data');
       cap.stop();
@@ -125,7 +144,7 @@ describe('bus de diagnostic (#603)', () => {
       source.resource = 'resource-456';
       source.groupBy = 'region';
 
-      await (source as unknown as { _fetchData(): Promise<void> })._fetchData();
+      await asSource(source)._fetchData();
 
       const url = cap.last()?.attemptedUrl ?? '';
       expect(url).toContain('/api/resources/resource-456/data/');
@@ -138,7 +157,7 @@ describe('bus de diagnostic (#603)', () => {
       mockFetch.mockRejectedValueOnce(corsFailure());
       source.url = 'https://api.example.com/data';
 
-      await (source as unknown as { _fetchData(): Promise<void> })._fetchData();
+      await asSource(source)._fetchData();
 
       // Le diagnostic console (3e argument de logFetchError) doit citer
       // exactement l'URL publiee : deux sources de verite divergentes
@@ -153,7 +172,7 @@ describe('bus de diagnostic (#603)', () => {
       mockFetch.mockResolvedValueOnce({ ok: false, status: 400, statusText: 'Bad Request' });
       source.url = 'https://api.example.com/data';
 
-      await (source as unknown as { _fetchData(): Promise<void> })._fetchData();
+      await asSource(source)._fetchData();
 
       expect(cap.last()?.error.message).toBe('HTTP 400: Bad Request');
       expect(cap.last()?.attemptedUrl).toBe('https://api.example.com/data');
@@ -177,9 +196,7 @@ describe('bus de diagnostic (#603)', () => {
       query.id = 'q1';
       query.source = 'src';
 
-      (
-        query as unknown as { _sendDelegationClears(id: string, d: Record<string, boolean>): void }
-      )._sendDelegationClears('src', {
+      asQuery(query)._sendDelegationClears('src', {
         groupBy: true,
         aggregate: false,
         orderBy: false,

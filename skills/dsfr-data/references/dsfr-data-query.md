@@ -182,6 +182,7 @@ Nommage automatique sans alias : `champ__fonction` (ex: `population__sum`)
 | `getAdapter()` | `import('../adapters/api-adapter.js').ApiAdapter \| null` | Retourne l'adapter courant (delegue a la source amont) |
 | `getAdapterParams()` | `import('../adapters/api-adapter.js').AdapterParams \| null` | Retourne les parametres adapter resolus de la source amont (delegation transparente, headers api-key-ref inclus — #274). |
 | `getData()` | `unknown[]` | Retourne les données actuelles (isLoading() et getError() sont fournis par TransformerMixin, #280) |
+| `getDelegation()` | `{ groupBy: boolean; aggregate: boolean; orderBy: boolean; where: boolean; }` | Quelles opérations ont été effectivement déléguées au serveur, et lesquelles tournent côté client (#603). C'est l'information de diagnostic la plus coûteuse à deviner de l'extérieur : un `group-by` non délégué s'exécute sur les seules lignes rapatriées, ce qui produit des totaux justes en apparence et faux en réalité. Elle était déjà calculée par `_negotiateServerSide()` mais restait privée. Copie défensive : l'appelant ne doit pas pouvoir muter l'état interne. |
 | `getEffectiveWhere(excludeKey?: string)` | `string` | Retourne le where effectif complet (statique + dynamique). Delegue a la source amont si disponible. |
 | `reload()` | `void` | Force le rechargement des données. Semantique de pur transformateur (#279) : delegue le refetch a la source amont — meme contrat que dsfr-data-source.reload(). L'emission qui suit redescend naturellement le pipeline jusqu'ici (une chaine query → query → source propage le reload jusqu'a la source). Repli : si l'amont n'expose pas reload() (normalize/unpivot/join avant EPIC C #262), retraite le cache courant (ancien comportement). |
 
@@ -197,6 +198,7 @@ Nommage automatique sans alias : `champ__fonction` (ex: `population__sum`)
 | `dsfr-data-error` | `{ sourceId, error }` | émis | Erreur amont ou de transformation, sous l’`id` de ce composant. |
 | `dsfr-data-loading` | `{ sourceId }` | émis | Chargement amont relayé vers l’aval. |
 | `dsfr-data-source-command` | `{ sourceId, page?, where?, whereKey?, orderBy?, groupBy?, aggregate? }` | émis | Commande de pagination / filtre / tri envoyée à la source AMONT — soit originée par ce composant, soit relayée depuis l’aval. |
+| `dsfr-data-source-command` | — | émis | `{ sourceId, groupBy?, aggregate?, orderBy?, where?, whereKey?, origin }` sur `document` — delegation server-side negociee avec la source amont, et liberation des overlays quand elle retombe cote client. `origin` porte l'id de ce composant (#603). |
 
 
 **Slots** — aucun (le composant rend son propre contenu).

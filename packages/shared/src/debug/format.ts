@@ -83,30 +83,55 @@ function formatMeta(state: StageState): string[] {
   return lines;
 }
 
-function formatDelegation(delegation: DelegationState | undefined, rows?: number): string[] {
+/**
+ * Où les opérations d'un `dsfr-data-query` se sont réellement exécutées.
+ *
+ * L'avertissement « traitement client » n'a de sens que si l'étape DEMANDE un
+ * regroupement ou une agrégation : un query qui ne fait que filtrer ou trier
+ * n'a rien à déléguer, et lui coller l'alerte apprendrait au lecteur — humain
+ * comme modèle — à ignorer la ligne la plus importante du diagnostic.
+ */
+function formatDelegation(
+  node: StageNode,
+  delegation: DelegationState | undefined,
+  rows?: number
+): string[] {
   if (!delegation) return [];
   const flags = (['groupBy', 'aggregate', 'orderBy', 'where'] as const)
     .map((k) => `${k}=${delegation[k] ? 'oui' : 'non'}`)
     .join('  ');
   const lines = [`     délégation serveur : ${flags}`];
-  const anyClientSide = !delegation.groupBy && !delegation.aggregate;
-  if (anyClientSide && rows !== undefined) {
+
+  const wantsAggregation = !!(node.attrs['group-by'] || node.attrs.aggregate);
+  const ranOnClient = !delegation.groupBy && !delegation.aggregate;
+  if (wantsAggregation && ranOnClient && rows !== undefined) {
     lines.push(
-      `     → traitement CLIENT, sur les ${rows} lignes reçues — un total calculé ici ne`,
-      '       porte que sur cet échantillon si la source en détient davantage.'
+      `     → agrégation exécutée CÔTÉ CLIENT, sur ${plural(rows, 'ligne')} reçue${rows > 1 ? 's' : ''} —`,
+      '       le total ne porte que sur cet échantillon si la source en détient davantage.'
     );
   }
   return lines;
 }
 
-/** Ce que l'étape reçoit, et de qui. */
+/**
+ * Ce que l'étape reçoit, et de qui.
+ *
+ * Un amont EN ÉCHEC n'alimente personne, même s'il détient encore le compte
+ * de son dernier succès. Le taire produirait exactement le « faux calme » que
+ * ce module existe pour empêcher : une source en erreur et un graphique
+ * déclaré alimenté juste en dessous.
+ */
 function formatInputs(node: StageNode, states: Record<string, StageState>): string[] {
   if (node.upstream.length === 0) return [];
   return node.upstream.map((up) => {
     const upstream = states[up];
-    return upstream?.rows === undefined
-      ? `     reçoit — ← ${up} (aucune donnée observée en amont)`
-      : `     reçoit ${plural(upstream.rows, 'ligne')} ← ${up}`;
+    if (upstream?.status === 'error') {
+      return `     reçoit — ← ${up} (en échec : plus rien ne descend)`;
+    }
+    if (!upstream || upstream.rows === undefined) {
+      return `     reçoit — ← ${up} (aucune donnée observée en amont)`;
+    }
+    return `     reçoit ${plural(upstream.rows, 'ligne')} ← ${up}`;
   });
 }
 
@@ -184,7 +209,7 @@ export function formatTrace(trace: Trace, options: FormatOptions = {}): string {
   const header = `Flux — ${plural(stageCount, 'étape')}, dernier passage ${humanizeDelay(trace.sinceLastEventMs)}.`;
   out.push(header);
   if (!trace.quiescent) {
-    out.push('⏳ Le pipeline tourne encore : cet instantané peut être incomplet.');
+    out.push('… Le pipeline tourne encore : cet instantané peut être incomplet.');
   }
   out.push('');
 
@@ -198,7 +223,12 @@ export function formatTrace(trace: Trace, options: FormatOptions = {}): string {
     }
 
     out.push(...formatInputs(node, trace.states));
-    const upstreamHasData = node.upstream.some((up) => (trace.states[up]?.rows ?? 0) > 0);
+    // Un amont en échec ne compte pas comme alimentant : sinon un afficheur
+    // se dirait « alimenté » sous une source qui vient de tomber.
+    const upstreamHasData = node.upstream.some((up) => {
+      const upstream = trace.states[up];
+      return !!upstream && upstream.status !== 'error' && (upstream.rows ?? 0) > 0;
+    });
     out.push(statusLine(node, state, upstreamHasData));
 
     if (state.status === 'loaded') {
@@ -222,7 +252,7 @@ export function formatTrace(trace: Trace, options: FormatOptions = {}): string {
     }
 
     if (node.tag === 'dsfr-data-query') {
-      out.push(...formatDelegation(trace.delegation[node.id], state.rows));
+      out.push(...formatDelegation(node, trace.delegation[node.id], state.rows));
     }
 
     if (state.emissions > 3) {
@@ -273,9 +303,11 @@ export function summarizeTrace(trace: Trace): {
   alerts: number;
 } {
   const ordered = topoOrder(trace.graph);
+  // Une etape en echec garde le compte de son dernier succes : l'inclure
+  // afficherait « 100 -> 8 lignes » sur un pipeline qui vient de tomber.
   const withRows = ordered
     .map((n) => trace.states[n.id])
-    .filter((s): s is StageState => !!s && s.rows !== undefined);
+    .filter((s): s is StageState => !!s && s.status !== 'error' && s.rows !== undefined);
 
   let alerts = trace.graph.dangling.length;
   for (const node of ordered) {
@@ -287,7 +319,10 @@ export function summarizeTrace(trace: Trace): {
     if (
       node.role === 'display' &&
       state.status === 'idle' &&
-      !node.upstream.some((up) => (trace.states[up]?.rows ?? 0) > 0)
+      !node.upstream.some((up) => {
+        const upstream = trace.states[up];
+        return !!upstream && upstream.status !== 'error' && (upstream.rows ?? 0) > 0;
+      })
     ) {
       alerts += 1;
     }

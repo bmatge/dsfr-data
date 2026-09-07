@@ -33,5 +33,9 @@ export type {
   RecorderOptions,
 } from './recorder.js';
 
+export { mountDiagnosticPanel } from './mount.js';
+export type { MountDiagnosticOptions, MountedDiagnostic, DiagnosticPanelElement } from './mount.js';
+export { attachRecorderToFrame } from './frame.js';
+export type { FrameAttachment, FrameAttachOptions } from './frame.js';
 export { formatTrace, summarizeTrace } from './format.js';
 export type { FormatOptions } from './format.js';

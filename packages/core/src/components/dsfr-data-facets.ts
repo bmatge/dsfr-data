@@ -39,6 +39,7 @@ interface FacetGroup {
  * <dsfr-data-normalize id="clean" source="raw" trim numeric-auto></dsfr-data-normalize>
  * <dsfr-data-facets id="filtered" source="clean" fields="region, type"></dsfr-data-facets>
  * <dsfr-data-chart source="filtered" type="bar" label-field="region" value-field="population"></dsfr-data-chart>
+ * @fires dsfr-data-source-command - `{ sourceId, where, whereKey, origin }` sur `document` — selection de facettes relayee en filtre serveur. `origin` porte l'id de ce composant (#603).
  */
 let facetsInstanceSeq = 0;
 
@@ -819,7 +820,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   /** Dispatch facet where command to upstream dsfr-data-query */
   private _dispatchFacetCommand() {
     const facetWhere = this._buildFacetWhere();
-    dispatchSourceCommand(this.source, { where: facetWhere, whereKey: this.id });
+    dispatchSourceCommand(this.source, { where: facetWhere, whereKey: this.id, origin: this.id });
   }
 
   // --- Filtering ---

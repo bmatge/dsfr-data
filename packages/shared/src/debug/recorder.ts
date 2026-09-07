@@ -85,6 +85,14 @@ export interface Trace {
   graph: DataflowGraph;
   events: TraceEvent[];
   states: Record<string, StageState>;
+  /**
+   * Ids en ordre topologique (amont → aval).
+   *
+   * `states` est un objet nu : JavaScript y range les cles entieres AVANT
+   * les autres, donc des ids numeriques (`id="2"` en amont de `id="1"`)
+   * inverseraient silencieusement la lecture. Cette liste porte l'ordre.
+   */
+  order: string[];
   /** Ms écoulées depuis le dernier événement, au moment du snapshot. */
   sinceLastEventMs: number | null;
   quiescent: boolean;
@@ -210,9 +218,18 @@ export class DataflowRecorder {
         message,
         ...(d.attemptedUrl ? { attemptedUrl: d.attemptedUrl } : {}),
       } as const);
+      // Les donnees du dernier succes sont PERIMEES : les garder ferait
+      // rapporter a l'aval un compte de lignes que plus rien ne produit, et
+      // un afficheur se declarerait alimente sous une source tombee. C'est le
+      // pendant, cote erreur, du faux calme que la quiescence evite.
       this.patch(d.sourceId, {
         status: 'error',
         message,
+        rows: undefined,
+        fields: undefined,
+        sample: undefined,
+        shape: undefined,
+        meta: undefined,
         ...(d.attemptedUrl ? { attemptedUrl: d.attemptedUrl } : {}),
       });
     });
@@ -330,22 +347,28 @@ export class DataflowRecorder {
   snapshot(): Trace {
     const graph = snapshotGraph(this.root);
     const states: Record<string, StageState> = {};
+    const order: string[] = [];
 
     // L'ordre topologique donne au volet et au texte la lecture amont → aval
     // que l'utilisateur attend, quel que soit l'ordre du document.
     for (const node of topoOrder(graph)) {
       states[node.id] = this.states.get(node.id) ?? { status: 'idle', emissions: 0 };
+      order.push(node.id);
     }
     // Une étape qui a émis puis a été retirée du DOM reste dans le journal :
     // c'est souvent elle qu'on cherche.
     for (const [id, state] of this.states) {
-      if (!states[id]) states[id] = state;
+      if (!states[id]) {
+        states[id] = state;
+        order.push(id);
+      }
     }
 
     return {
       graph,
       events: [...this.events],
       states,
+      order,
       sinceLastEventMs: this.lastEventAt === null ? null : this.opts.now() - this.lastEventAt,
       quiescent: this.isQuiescent(),
       delegation: this.readDelegation(),

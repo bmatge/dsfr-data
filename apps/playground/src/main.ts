@@ -21,6 +21,7 @@ import {
   ImageExportError,
   IMAGE_EXPORT_MESSAGES,
   toastError,
+  mountDiagnosticPanel,
 } from '@dsfr-data/shared';
 import { initEditor } from './editor.js';
 import type { CodeMirrorEditor } from './editor.js';
@@ -332,6 +333,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       sessionStorage.removeItem('playground-code');
     }
   }
+
+  // Volet Diagnostic (#605) : observe le pipeline qui tourne dans l'aperçu.
+  // L'aperçu est une iframe srcdoc rechargée à chaque exécution — le
+  // rattachement suit les rechargements, sinon le volet resterait sourd
+  // après le premier « Exécuter ».
+  mountDiagnosticPanel({
+    frame: document.getElementById('preview-frame') as HTMLIFrameElement | null,
+    toggleButtonId: 'diagnostic-btn',
+    emptyHint: 'Exécutez le code pour observer ce qui transite entre les composants.',
+  });
 
   // Product tour : auto au premier passage, sinon « Visite guidée » de la barre
   injectTourStyles();

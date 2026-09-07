@@ -39,11 +39,24 @@ describe('alignement du collecteur avec le coeur (#604)', () => {
   describe('STAGE_ROLES reflète l’usage des mixins', () => {
     const files = readdirSync(COMPONENTS_DIR).filter((f) => f.endsWith('.ts'));
 
+    /**
+     * Le tag vient du decorateur `@customElement('...')`, PAS du nom de
+     * fichier : les deux coincident aujourd'hui, mais un fichier renomme
+     * ferait passer le garde-fou en verifiant le mauvais tag — un garde-fou
+     * qui se trompe de cible est pire qu'aucun garde-fou.
+     */
+    function tagOf(src: string, file: string): string {
+      const match = /@customElement\(\s*['"]([^'"]+)['"]\s*\)/.exec(src);
+      return match ? match[1] : file.replace(/\.ts$/, '');
+    }
+
     const transformers: string[] = [];
     const subscribers: string[] = [];
+    const declaredTags: string[] = [];
     for (const file of files) {
       const src = readFileSync(join(COMPONENTS_DIR, file), 'utf-8');
-      const tag = file.replace(/\.ts$/, '');
+      const tag = tagOf(src, file);
+      declaredTags.push(tag);
       if (src.includes('TransformerMixin(')) transformers.push(tag);
       if (src.includes('SourceSubscriberMixin(')) subscribers.push(tag);
     }
@@ -73,10 +86,18 @@ describe('alignement du collecteur avec le coeur (#604)', () => {
     });
 
     it('aucune balise déclarée n’a disparu du coeur', () => {
-      const known = new Set(files.map((f) => f.replace(/\.ts$/, '')));
+      const known = new Set(declaredTags);
       for (const tag of Object.keys(STAGE_ROLES)) {
         expect(known.has(tag), `${tag} n'existe plus dans packages/core`).toBe(true);
       }
+    });
+
+    it('le scan lit bien le décorateur et non le nom de fichier', () => {
+      // Meta-test du garde-fou : si la regex cassait, `tagOf` retomberait
+      // silencieusement sur le nom de fichier et tous les tests ci-dessus
+      // passeraient au vert sans rien verifier.
+      expect(declaredTags).toContain('dsfr-data-source');
+      expect(declaredTags.every((t) => t.startsWith('dsfr-data-'))).toBe(true);
     });
   });
 });

@@ -8,7 +8,7 @@
  * (shared → core) créerait un cycle, et importer core ferait entrer tout un
  * bundle dans un outil de diagnostic.
  *
- * Le garde-fou est un test d'alignement (`tests/debug/event-names.test.ts`),
+ * Le garde-fou est un test d'alignement (`tests/debug/alignment.test.ts`),
  * dans l'esprit de `provider-config-alignment` et `attribute-convention` :
  * si un nom change côté core, le test casse ici.
  */

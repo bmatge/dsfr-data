@@ -31,7 +31,7 @@ export type StageRole = 'source' | 'transform' | 'display';
  * Les balises absentes de cette table (contexte, carte conteneur, popup,
  * beacon…) ne portent pas de données et ne sont pas des étapes.
  *
- * Aligné sur l'usage réel des mixins par `tests/debug/roles-alignment.test.ts`.
+ * Aligné sur l'usage réel des mixins par `tests/debug/alignment.test.ts`.
  */
 export const STAGE_ROLES: Record<string, StageRole> = {
   'dsfr-data-source': 'source',
@@ -95,8 +95,20 @@ export interface StageNode {
   id: string;
   tag: string;
   role: StageRole;
-  /** True quand l'id a été fabriqué : ce nœud n'émet rien sur le bus. */
+  /**
+   * True quand l'id a été fabriqué faute d'attribut `id` : ce nœud **n'émet
+   * rien** sur le bus, aucun événement n'est à attendre sous cette clé.
+   */
   synthetic: boolean;
+  /**
+   * True quand plusieurs composants déclarent le MÊME `id`.
+   *
+   * Distinct de `synthetic` : ces nœuds-là émettent bel et bien, mais sous
+   * une clé partagée — ils écrasent mutuellement leur cache. Les confondre
+   * ferait conclure à tort « ce nœud ne parle pas » à un consommateur qui
+   * lit `synthetic`.
+   */
+  ambiguous: boolean;
   /** Ids des étapes amont (join : [left, right]). */
   upstream: string[];
   /** Attributs de forme, dans l'ordre déclaré par SHAPE_ATTRS. */
@@ -152,6 +164,7 @@ export function snapshotGraph(root: ParentNode): DataflowGraph {
     const declaredId = el.id;
     let id = declaredId;
     let synthetic = false;
+    let ambiguous = false;
 
     if (!id) {
       // Une feuille sans id ne parle pas sur le bus : on lui fabrique une clé
@@ -166,7 +179,7 @@ export function snapshotGraph(root: ParentNode): DataflowGraph {
     if (seenIds.has(id)) {
       syntheticSeq += 1;
       id = `${id}#${syntheticSeq}`;
-      synthetic = true;
+      ambiguous = true;
     }
     seenIds.add(id);
 
@@ -177,13 +190,14 @@ export function snapshotGraph(root: ParentNode): DataflowGraph {
       tag,
       role,
       synthetic,
+      ambiguous,
       upstream: readUpstream(el, tag),
       attrs: readShapeAttrs(el, tag),
       ...(configError ? { configError } : {}),
     });
   }
 
-  const known = new Set(nodes.filter((n) => !n.synthetic).map((n) => n.id));
+  const known = new Set(nodes.filter((n) => !n.synthetic && !n.ambiguous).map((n) => n.id));
   const dangling: Array<{ node: string; missing: string }> = [];
   for (const node of nodes) {
     for (const up of node.upstream) {
