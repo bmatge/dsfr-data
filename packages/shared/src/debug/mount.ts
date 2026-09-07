@@ -34,6 +34,8 @@ export interface DiagnosticPanelElement extends HTMLElement {
   canSend: boolean;
   emptyHint: string;
   readonly isOpen: boolean;
+  /** Les valeurs sont-elles masquées dans le diagnostic sortant ? */
+  readonly redactValues: boolean;
   readonly diagnosticText: string;
   toggle(open?: boolean): void;
 }

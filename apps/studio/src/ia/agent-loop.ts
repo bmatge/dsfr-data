@@ -28,6 +28,14 @@ import {
   type DocumentContext,
 } from '../document.js';
 import { loadSkills, relevantSkillsText, skillText } from './skills-client.js';
+import {
+  DIAGNOSTIC_TOOLS,
+  DIAGNOSTIC_TOOL_NAMES,
+  REPEATABLE_TOOLS,
+  humanizeDiagnosticStep,
+  runDiagnosticTool,
+  type DiagnosticContext,
+} from './diagnostic-tools.js';
 import type { PostChat } from './transport.js';
 import { createEmptyDashboard } from '@dsfr-data/shared';
 import type { DashboardData, Field } from '../state.js';
@@ -124,6 +132,16 @@ const SKILL_LOOKUP_TOOLS = [
 // finish) ; 8 laisse la place a une consultation de skill et une retouche.
 const MAX_ROUNDS = 8;
 
+/**
+ * Budget distinct quand les outils de diagnostic sont disponibles (#607).
+ *
+ * Une boucle de debogage fait au MINIMUM observer -> hypothese -> correctif
+ * -> reobserver -> confirmer : cinq tours, avant toute consultation de skill.
+ * Garder 8 revenait a couper le modele juste avant sa verification — le pire
+ * moment, puisqu'il conclurait sur un correctif non valide.
+ */
+const MAX_ROUNDS_DEBUG = 12;
+
 const ALL_TOOLS = [...DATA_INSPECTION_TOOLS, ...SKILL_LOOKUP_TOOLS, ...DOCUMENT_TOOLS, FINISH_TOOL];
 
 export interface StudioLoopOptions {
@@ -140,6 +158,11 @@ export interface StudioLoopOptions {
   onProgress?: (steps: string[]) => void;
   /** Appele apres chaque action de document appliquee (apercu vivant). */
   onDocumentChange?: () => void;
+  /**
+   * Acces au flux rendu (#607). Absent = pas d'outils de diagnostic, la
+   * boucle garde son budget de composition.
+   */
+  diagnostic?: DiagnosticContext;
   extra?: Record<string, unknown>;
 }
 
@@ -179,7 +202,7 @@ function humanizeStep(name: string, args: Record<string, unknown>): string {
     case 'finish':
       return 'Je finalise…';
     default:
-      return `Outil : ${name}`;
+      return humanizeDiagnosticStep(name, args) ?? `Outil : ${name}`;
   }
 }
 
@@ -195,6 +218,10 @@ function parseArgs(raw: string): Record<string, unknown> {
 export async function runStudioLoop(opts: StudioLoopOptions): Promise<StudioLoopResult> {
   const { document: doc, post, model, onProgress, onDocumentChange } = opts;
   const ctx: DocumentContext = { data: opts.data, fields: opts.fields, sourceId: opts.sourceId };
+
+  const diagnostic = opts.diagnostic;
+  const tools = diagnostic ? [...ALL_TOOLS, ...DIAGNOSTIC_TOOLS] : ALL_TOOLS;
+  const maxRounds = diagnostic ? MAX_ROUNDS_DEBUG : MAX_ROUNDS;
 
   const messages: ChatMessage[] = [
     { role: 'system', content: opts.systemPrompt },
@@ -284,11 +311,11 @@ export async function runStudioLoop(opts: StudioLoopOptions): Promise<StudioLoop
     'reset_document',
   ]);
 
-  for (let round = 0; round < MAX_ROUNDS; round++) {
+  for (let round = 0; round < maxRounds; round++) {
     const body: Record<string, unknown> = {
       model,
       messages,
-      tools: ALL_TOOLS,
+      tools,
       tool_choice: 'auto',
       temperature: 0.1,
       ...(opts.extra ?? {}),
@@ -324,6 +351,16 @@ export async function runStudioLoop(opts: StudioLoopOptions): Promise<StudioLoop
       let content: string;
       if (DOCUMENT_TOOL_NAMES.has(name)) {
         content = applyDocumentTool(name, args);
+      } else if (REPEATABLE_TOOLS.has(name)) {
+        // Anti-boucle DÉLIBÉRÉMENT contournée : ces outils observent un état
+        // mutable. Rejouer la même observation après un correctif, c'est
+        // tout leur intérêt — la dédupliquer refuserait au modèle sa
+        // vérification au moment précis où il en a besoin.
+        content = DIAGNOSTIC_TOOL_NAMES.has(name)
+          ? diagnostic
+            ? await runDiagnosticTool(name, args, diagnostic)
+            : "Le diagnostic n'est pas disponible ici."
+          : await dispatchLookup(name, args);
       } else {
         // Anti-boucle : ne pas re-payer le même lookup.
         const key = `${name}:${call.function.arguments}`;

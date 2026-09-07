@@ -40,6 +40,7 @@ import {
  */
 
 const STORAGE_KEY = 'dsfr-data-diagnostic-open';
+const REDACT_KEY = 'dsfr-data-diagnostic-redact';
 const TABS = ['flux', 'champs', 'journal'] as const;
 type DiagnosticTab = (typeof TABS)[number];
 
@@ -73,6 +74,8 @@ app-diagnostic-panel[hidden]{display:none}
 .app-diag__body{max-height:min(48vh,26rem);overflow:auto;border-top:1px solid var(--border-default-grey);padding:.5rem 1rem 1rem}
 .app-diag__toolbar{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;justify-content:flex-end;padding:.5rem 0}
 .app-diag__tabs{display:flex;gap:.25rem;flex:1 1 auto}
+.app-diag__redact{display:flex;align-items:center;gap:.35rem;font-size:.8125rem;color:var(--text-mention-grey)}
+.app-diag__redact label{cursor:pointer}
 .app-diag__tab{padding:.35rem .85rem;border:0;border-bottom:2px solid transparent;background:none;color:var(--text-mention-grey);font:inherit;font-size:.875rem;cursor:pointer}
 .app-diag__tab[aria-selected="true"]{color:var(--text-active-blue-france);border-bottom-color:var(--border-active-blue-france);font-weight:500}
 .app-diag__tab:focus-visible{outline:2px solid var(--border-active-blue-france);outline-offset:-2px}
@@ -135,6 +138,16 @@ export class AppDiagnosticPanel extends LitElement {
   emptyHint = '';
 
   @state() private _open = false;
+  /**
+   * Masque les VALEURS dans le diagnostic copié ou envoyé.
+   *
+   * Copier le diagnostic le sort du navigateur ; l'envoyer à l'assistant
+   * l'envoie à un service externe. Pour une source ministérielle, on veut le
+   * diagnostic sans les données — comptes et noms de champs suffisent à
+   * expliquer une chaîne cassée. Réglage unique : ce que voit l'utilisateur
+   * et ce que reçoit l'assistant restent le même texte.
+   */
+  @state() private _redact = false;
   @state() private _tab: DiagnosticTab = 'flux';
   @state() private _copied = false;
 
@@ -151,6 +164,7 @@ export class AppDiagnosticPanel extends LitElement {
     // Fermé au premier lancement : le volet ne doit pas s'imposer.
     try {
       this._open = localStorage.getItem(STORAGE_KEY) === '1';
+      this._redact = localStorage.getItem(REDACT_KEY) === '1';
     } catch {
       this._open = false;
     }
@@ -253,12 +267,26 @@ export class AppDiagnosticPanel extends LitElement {
     return this._open;
   }
 
+  /** Les valeurs sont-elles masquées dans le diagnostic sortant ? */
+  get redactValues(): boolean {
+    return this._redact;
+  }
+
+  private _toggleRedact(e: Event): void {
+    this._redact = (e.target as HTMLInputElement).checked;
+    try {
+      localStorage.setItem(REDACT_KEY, this._redact ? '1' : '0');
+    } catch {
+      // Stockage indisponible : le réglage reste en mémoire.
+    }
+  }
+
   /** Le texte que copient et envoient les deux boutons — un seul format. */
   get diagnosticText(): string {
     if (this._isBlank || !this.trace) {
       return 'Aucune trace : le pipeline n’a pas encore été exécuté.';
     }
-    return formatTrace(this.trace, { sampleRows: 2 });
+    return formatTrace(this.trace, { sampleRows: 2, redactValues: this._redact });
   }
 
   private _summaryText(): TemplateResult | string {
@@ -600,12 +628,30 @@ export class AppDiagnosticPanel extends LitElement {
                 `
               )}
             </div>
+            <div class="app-diag__redact">
+              <input
+                type="checkbox"
+                id=${`${this._uid}-redact`}
+                .checked=${this._redact}
+                @change=${this._toggleRedact}
+              />
+              <label
+                for=${`${this._uid}-redact`}
+                title="Ne sortir que les comptes et les noms de champs — utile pour une source sensible"
+                >Masquer les valeurs</label
+              >
+            </div>
             ${
               this.canSend
                 ? html`<button
                     type="button"
                     class="fr-btn fr-btn--sm fr-btn--tertiary fr-icon-send-plane-fill fr-btn--icon-left"
-                    ?disabled=${!this.trace}
+                    aria-disabled=${this._isBlank ? 'true' : 'false'}
+                    title=${
+                      this._isBlank
+                        ? 'Aucun diagnostic à envoyer : exécutez d’abord le pipeline'
+                        : ''
+                    }
                     @click=${this._send}
                   >
                     Envoyer à l’assistant
@@ -616,7 +662,9 @@ export class AppDiagnosticPanel extends LitElement {
               type="button"
               class="fr-btn fr-btn--sm fr-btn--secondary fr-icon-clipboard-line fr-btn--icon-left"
               aria-disabled=${this._isBlank ? 'true' : 'false'}
-              title=${this._isBlank ? 'Aucun diagnostic à copier : exécutez d’abord le pipeline' : ''}
+              title=${
+                this._isBlank ? 'Aucun diagnostic à copier : exécutez d’abord le pipeline' : ''
+              }
               @click=${this._copy}
             >
               ${this._copied ? 'Diagnostic copié' : 'Copier le diagnostic'}

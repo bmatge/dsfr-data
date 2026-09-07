@@ -572,3 +572,99 @@ describe('mountDiagnosticPanel', () => {
     expect(document.querySelector('app-diagnostic-panel')).toBeNull();
   });
 });
+
+describe('masquage des valeurs — ce qui sort du navigateur', () => {
+  let panel: AppDiagnosticPanel | undefined;
+  let cleanup: (() => void) | undefined;
+
+  afterEach(() => {
+    panel?.remove();
+    panel = undefined;
+    cleanup?.();
+    cleanup = undefined;
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem('dsfr-data-diagnostic-redact');
+    clearDataCache('src');
+  });
+
+  async function panneauAvecDonnees() {
+    const built = buildTrace(`<dsfr-data-source id="src"></dsfr-data-source>`, () =>
+      dispatchDataLoaded('src', [{ nom: 'Dupont', salaire: 42000 }])
+    );
+    cleanup = built.cleanup;
+    const p = await mountPanel();
+    p.trace = built.trace;
+    p.toggle(true);
+    await p.updateComplete;
+    return p;
+  }
+
+  it('offre le réglage dans l’interface, pas seulement en code', async () => {
+    // Le DoD l'exige : l'utilisateur decide ce qui sort du navigateur.
+    panel = await panneauAvecDonnees();
+
+    const checkbox = panel.querySelector('.app-diag__redact input') as HTMLInputElement;
+    expect(checkbox).not.toBeNull();
+    expect(panel.querySelector('.app-diag__redact label')?.textContent).toContain('Masquer');
+  });
+
+  it('rend les valeurs par défaut', async () => {
+    panel = await panneauAvecDonnees();
+
+    expect(panel.diagnosticText).toContain('Dupont');
+    expect(panel.redactValues).toBe(false);
+  });
+
+  it('les masque une fois coché, sans perdre champs ni comptes', async () => {
+    panel = await panneauAvecDonnees();
+    const checkbox = panel.querySelector('.app-diag__redact input') as HTMLInputElement;
+
+    checkbox.checked = true;
+    checkbox.dispatchEvent(new Event('change'));
+    await panel.updateComplete;
+
+    expect(panel.redactValues).toBe(true);
+    expect(panel.diagnosticText).not.toContain('Dupont');
+    expect(panel.diagnosticText).not.toContain('42000');
+    expect(panel.diagnosticText).toContain('nom');
+    expect(panel.diagnosticText).toContain('1 ligne');
+  });
+
+  it('le réglage survit à une nouvelle visite', async () => {
+    // Un choix de confidentialite qui se reinitialise a chaque ouverture
+    // serait un piege : l'utilisateur croirait ses valeurs masquees.
+    panel = await panneauAvecDonnees();
+    const checkbox = panel.querySelector('.app-diag__redact input') as HTMLInputElement;
+    checkbox.checked = true;
+    checkbox.dispatchEvent(new Event('change'));
+    panel.remove();
+
+    const second = await mountPanel();
+    expect(second.redactValues).toBe(true);
+    second.remove();
+  });
+
+  it('le texte envoyé à l’assistant est celui que l’utilisateur voit', async () => {
+    // UN seul reglage : ce qui est copie, envoye et lu par le modele est le
+    // meme texte. Deux chemins divergents rendraient la confidentialite
+    // invérifiable.
+    panel = await panneauAvecDonnees();
+    panel.canSend = true;
+    const checkbox = panel.querySelector('.app-diag__redact input') as HTMLInputElement;
+    checkbox.checked = true;
+    checkbox.dispatchEvent(new Event('change'));
+    await panel.updateComplete;
+
+    const envoye = vi.fn();
+    panel.addEventListener('diagnostic-send', (e) =>
+      envoye((e as CustomEvent<{ text: string }>).detail.text)
+    );
+    const btn = Array.from(panel.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('assistant')
+    ) as HTMLButtonElement;
+    btn.click();
+
+    expect(envoye).toHaveBeenCalledWith(panel.diagnosticText);
+    expect(envoye.mock.calls[0][0]).not.toContain('Dupont');
+  });
+});
