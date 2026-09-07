@@ -8,6 +8,7 @@ import { getProxiedUrl, buildCorsProxyRequest } from '@dsfr-data/shared/lib';
 import type { ApiAdapter, AdapterParams, ServerSideOverlay } from '../adapters/api-adapter.js';
 import { getAdapter } from '../adapters/adapter-registry.js';
 import { getCacheProvider, cacheKeyFor } from '../utils/cache-provider.js';
+import { logFetchError } from '../utils/fetch-diagnostics.js';
 import {
   dispatchDataLoaded,
   dispatchDataError,
@@ -529,6 +530,9 @@ export class DsfrDataSource extends LitElement {
     this._error = null;
     dispatchDataLoading(this.id);
 
+    // Hoistee : le catch en a besoin pour nommer l'URL reellement appelee (#598)
+    let attemptedUrl = '';
+
     try {
       const rawUrl = this._buildUrl();
       let url = getProxiedUrl(rawUrl, this.proxyUrl);
@@ -545,6 +549,8 @@ export class DsfrDataSource extends LitElement {
         url = proxy.url;
         options.headers = proxy.headers;
       }
+
+      attemptedUrl = url;
 
       const response = await fetch(url, {
         ...options,
@@ -611,7 +617,7 @@ export class DsfrDataSource extends LitElement {
 
       this._error = error as Error;
       dispatchDataError(this.id, this._error);
-      console.error(`dsfr-data-source[${this.id}]: Erreur de chargement`, error);
+      logFetchError(`dsfr-data-source[${this.id}]: Erreur de chargement`, error, attemptedUrl);
     } finally {
       // Un fetch remplace (abort concurrent) ne doit pas eteindre le
       // loading du fetch courant (#288)
@@ -664,12 +670,17 @@ export class DsfrDataSource extends LitElement {
     this._error = null;
     dispatchDataLoading(this.id);
 
+    // Declare hors du try : le catch reconstitue l'URL appelee a partir de
+    // l'overlay pour le diagnostic (#598). Reste assigne dans la branche
+    // server-side, pour ne pas appeler getEffectiveWhere() en mode fetchAll.
+    let overlay: ServerSideOverlay | undefined;
+
     try {
       let result;
 
       if (this.serverSide) {
         // Server-side pagination: fetch one page at a time
-        const overlay: ServerSideOverlay = {
+        overlay = {
           page: this._currentPage,
           effectiveWhere: this.getEffectiveWhere(),
           orderBy: this._orderByOverlay || this.orderBy,
@@ -726,11 +737,34 @@ export class DsfrDataSource extends LitElement {
 
       this._error = error as Error;
       dispatchDataError(this.id, this._error);
-      console.error(`dsfr-data-source[${this.id}]: Erreur de chargement`, error);
+      logFetchError(
+        `dsfr-data-source[${this.id}]: Erreur de chargement`,
+        error,
+        this._diagnosticUrl(adapter, params, overlay)
+      );
     } finally {
       if (generation === this._fetchGeneration) {
         this._loading = false;
       }
+    }
+  }
+
+  /**
+   * URL construite par l'adapter pour ce fetch, a seule fin de diagnostic
+   * (#598). En mode fetchAll l'adapter pagine ensuite lui-meme : l'URL rendue
+   * est celle de la premiere requete, sans les surcharges de page.
+   *
+   * Purement informative — ne doit jamais faire echouer le log d'erreur.
+   */
+  private _diagnosticUrl(
+    adapter: ApiAdapter,
+    params: AdapterParams,
+    overlay?: ServerSideOverlay
+  ): string | undefined {
+    try {
+      return overlay ? adapter.buildServerSideUrl(params, overlay) : adapter.buildUrl(params);
+    } catch {
+      return undefined;
     }
   }
 

@@ -1009,6 +1009,65 @@ describe('DsfrDataSource', () => {
     });
   });
 
+  /**
+   * #598 — une reponse d'erreur HTTP sans en-tete CORS rejette en `TypeError`
+   * generique : le statut et le corps sont masques. Le log doit alors nommer
+   * l'URL reellement appelee et expliquer le piege, sinon l'integrateur n'a
+   * aucune prise (cas d'origine : le 400 Tabular de #596).
+   */
+  describe('diagnostic des echecs de fetch opaques (#598)', () => {
+    /** Le rejet generique d'un fetch bloque par CORS. */
+    function corsFailure(): TypeError {
+      return new TypeError('NetworkError when attempting to fetch resource.');
+    }
+
+    it('mode URL : le log nomme l’URL réellement appelée', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      mockFetch.mockRejectedValueOnce(corsFailure());
+
+      source.url = 'https://api.example.com/data';
+      source.id = 'test-source';
+
+      await (source as any)._fetchData();
+
+      const [, , diagnostic] = errorSpy.mock.calls[0];
+      expect(String(diagnostic)).toContain('https://api.example.com/data');
+      expect(String(diagnostic)).toContain('Access-Control-Allow-Origin');
+      errorSpy.mockRestore();
+    });
+
+    it('mode adapter : le log nomme l’URL construite par l’adapter', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      mockFetch.mockRejectedValue(corsFailure());
+
+      source.id = 'test-source';
+      source.apiType = 'tabular';
+      source.baseUrl = 'https://tabular-api.data.gouv.fr';
+      source.resource = 'resource-456';
+      source.groupBy = 'region';
+
+      await (source as any)._fetchData();
+
+      const [, , diagnostic] = errorSpy.mock.calls[0];
+      expect(String(diagnostic)).toContain('/api/resources/resource-456/data/');
+      expect(String(diagnostic)).toContain('region__groupby');
+      errorSpy.mockRestore();
+    });
+
+    it('n’ajoute aucun diagnostic sur une erreur HTTP explicite', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      mockFetch.mockResolvedValueOnce({ ok: false, status: 500, statusText: 'Server Error' });
+
+      source.url = 'https://api.example.com/data';
+      source.id = 'test-source';
+
+      await (source as any)._fetchData();
+
+      expect(errorSpy.mock.calls[0]).toHaveLength(2);
+      errorSpy.mockRestore();
+    });
+  });
+
   describe('createRenderRoot', () => {
     it('returns this (no shadow DOM)', () => {
       expect(source.createRenderRoot()).toBe(source);
