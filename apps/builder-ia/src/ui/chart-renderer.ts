@@ -148,6 +148,17 @@ export function applyChartConfig(config: ChartConfig): void {
     }
   }
 
+  // Le podium n'avait AUCUN traitement (#617) : il tombait jusqu'a
+  // `new Chart(canvas, { type: 'podium' })`, que Chart.js ne connait pas.
+  // On le rend avec le vrai composant, deja embarque dans cette page — c'est
+  // aussi ce que `generateCode` emet, donc l'apercu cesse de diverger du
+  // code sur ce type.
+  if (config.type === 'podium') {
+    renderPodium(config, workingData);
+    generateCode(config, []);
+    return;
+  }
+
   // For datalist, skip aggregation - use raw data directly
   if (config.type === 'datalist') {
     renderDatalist(config, workingData);
@@ -250,11 +261,107 @@ export function applyChartConfig(config: ChartConfig): void {
     return config.sortOrder === 'asc' ? a.value - b.value : b.value - a.value;
   });
 
-  // Render chart
-  renderChart(config, results);
-
-  // Generate code
+  // Le code D'ABORD, l'apercu ensuite (#617).
+  //
+  // L'ordre inverse privait l'utilisateur des DEUX quand un rendu echouait :
+  // `renderChart` levait, `generateCode` n'etait jamais atteint. Le code ne
+  // depend pas du rendu — le produire en premier garantit qu'un defaut
+  // d'apercu ne coute que l'apercu.
   generateCode(config, results);
+  renderPreviewSafely(config, results);
+}
+
+/**
+ * Rend l'apercu sans jamais laisser une exception remonter au chat (#617).
+ *
+ * Le `catch` de `chat.ts` affiche ce qui remonte comme une erreur de
+ * l'assistant : un type de graphique non gere cote rendu se presentait donc a
+ * l'utilisateur comme une panne du modele, alors que le code etait
+ * parfaitement genere. On rend l'echec honnete et local.
+ */
+function renderPreviewSafely(config: ChartConfig, results: AggregatedResult[]): void {
+  try {
+    renderChart(config, results);
+  } catch (error) {
+    console.error('[builder-ia] rendu de l’aperçu impossible', error);
+    showPreviewNotice(
+      `L’aperçu de ce type de graphique n’est pas disponible ici, mais le code a bien été généré — copiez-le ou ouvrez-le dans le Playground pour le voir.`
+    );
+  }
+}
+
+/** Remplace l'apercu par un message, sans casser l'etat de la page. */
+function showPreviewNotice(message: string): void {
+  const canvas = document.getElementById('preview-canvas') as HTMLCanvasElement | null;
+  const emptyState = document.getElementById('empty-state') as HTMLElement | null;
+  const chartWrapper = document.querySelector('.chart-wrapper') as HTMLElement | null;
+  if (!chartWrapper) return;
+
+  chartWrapper.querySelector('.preview-notice')?.remove();
+  if (emptyState) emptyState.style.display = 'none';
+  if (canvas) canvas.style.display = 'none';
+
+  const notice = document.createElement('div');
+  notice.className = 'preview-notice fr-callout';
+  notice.innerHTML = `<p class="fr-callout__text">${escapeHtml(message)}</p>`;
+  chartWrapper.appendChild(notice);
+}
+
+/**
+ * Rend un podium avec le VRAI composant `dsfr-data-podium` (#617).
+ *
+ * Chart.js ne connait pas de controleur `podium` : sans cette branche, la
+ * configuration tombait jusqu'a `new Chart(canvas, { type: 'podium' })`, qui
+ * levait — et comme le rendu precedait la generation, l'utilisateur perdait
+ * l'apercu ET le code.
+ *
+ * On instancie ici le composant que `generateCode` emet deja
+ * (`code-generator.ts:1064`), avec les donnees en ligne : l'apercu de ce type
+ * cesse donc de diverger du code exporte. C'est, en petit, ce que #609
+ * generalisera a toute l'app.
+ */
+function renderPodium(config: ChartConfig, data: Record<string, unknown>[]): void {
+  const canvas = document.getElementById('preview-canvas') as HTMLCanvasElement | null;
+  const emptyState = document.getElementById('empty-state') as HTMLElement | null;
+  const chartWrapper = document.querySelector('.chart-wrapper') as HTMLElement | null;
+  if (!chartWrapper) return;
+
+  // Meme nettoyage que les autres rendus a part : un changement de type ne
+  // doit pas laisser la carte precedente en place.
+  for (const classe of [
+    '.kpi-card',
+    '.gauge-card',
+    '.map-card',
+    '.datalist-card',
+    '.podium-card',
+    '.preview-notice',
+  ]) {
+    chartWrapper.querySelector(classe)?.remove();
+  }
+  if (state.chart) {
+    (state.chart as { destroy(): void }).destroy();
+    state.chart = null;
+  }
+  if (emptyState) emptyState.style.display = 'none';
+  if (canvas) canvas.style.display = 'none';
+
+  const carte = document.createElement('div');
+  carte.className = 'podium-card';
+
+  const source = document.createElement('dsfr-data-source');
+  source.id = `podium-preview-${Date.now()}`;
+  source.setAttribute('data', JSON.stringify(data));
+
+  const podium = document.createElement('dsfr-data-podium');
+  podium.setAttribute('source', source.id);
+  // Les deux champs sont optionnels dans la config : un podium sans eux
+  // n'afficherait rien, mais mieux vaut un composant vide qu'une exception.
+  if (config.labelField) podium.setAttribute('label-field', config.labelField);
+  if (config.valueField) podium.setAttribute('value-field', config.valueField);
+  if (config.title) podium.setAttribute('title', config.title);
+
+  carte.append(source, podium);
+  chartWrapper.appendChild(carte);
 }
 
 /**
