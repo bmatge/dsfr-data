@@ -229,7 +229,9 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
       if (this.id && this.transformerCommandTarget()) {
         this._transformerUnsubCommands = subscribeToSourceCommands(this.id, (cmd) => {
           const target = this.transformerCommandTarget();
-          if (target) dispatchSourceCommand(target, cmd);
+          // `origin` est écrasé par l'id du relayeur : c'est bien ce nœud-ci
+          // qui adresse la commande à son amont (#603, purement diagnostique).
+          if (target) dispatchSourceCommand(target, { ...cmd, origin: this.id });
         });
       }
     }

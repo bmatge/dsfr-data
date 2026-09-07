@@ -616,7 +616,7 @@ export class DsfrDataSource extends LitElement {
       }
 
       this._error = error as Error;
-      dispatchDataError(this.id, this._error);
+      dispatchDataError(this.id, this._error, attemptedUrl || undefined);
       logFetchError(`dsfr-data-source[${this.id}]: Erreur de chargement`, error, attemptedUrl);
     } finally {
       // Un fetch remplace (abort concurrent) ne doit pas eteindre le
@@ -736,12 +736,9 @@ export class DsfrDataSource extends LitElement {
       }
 
       this._error = error as Error;
-      dispatchDataError(this.id, this._error);
-      logFetchError(
-        `dsfr-data-source[${this.id}]: Erreur de chargement`,
-        error,
-        this._diagnosticUrl(adapter, params, overlay)
-      );
+      const diagnosticUrl = this._diagnosticUrl(adapter, params, overlay);
+      dispatchDataError(this.id, this._error, diagnosticUrl);
+      logFetchError(`dsfr-data-source[${this.id}]: Erreur de chargement`, error, diagnosticUrl);
     } finally {
       if (generation === this._fetchGeneration) {
         this._loading = false;

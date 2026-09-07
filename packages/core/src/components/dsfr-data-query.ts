@@ -429,7 +429,7 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
 
     this._lastDelegation = { sourceId: this.source, cmdJson };
     this._sourceEmittedSinceCommand = false;
-    dispatchSourceCommand(this.source, cmd);
+    dispatchSourceCommand(this.source, { ...cmd, origin: this.id });
   }
 
   /**
@@ -449,7 +449,7 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
       cmd.whereKey = this._whereOverlayKey();
     }
     if (Object.keys(cmd).length > 0) {
-      dispatchSourceCommand(targetId, cmd);
+      dispatchSourceCommand(targetId, { ...cmd, origin: this.id });
     }
   }
 
@@ -977,6 +977,27 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    */
   public getData(): unknown[] {
     return this._data;
+  }
+
+  /**
+   * Quelles opérations ont été effectivement déléguées au serveur, et
+   * lesquelles tournent côté client (#603).
+   *
+   * C'est l'information de diagnostic la plus coûteuse à deviner de
+   * l'extérieur : un `group-by` non délégué s'exécute sur les seules lignes
+   * rapatriées, ce qui produit des totaux justes en apparence et faux en
+   * réalité. Elle était déjà calculée par `_negotiateServerSide()` mais
+   * restait privée.
+   *
+   * Copie défensive : l'appelant ne doit pas pouvoir muter l'état interne.
+   */
+  public getDelegation(): {
+    groupBy: boolean;
+    aggregate: boolean;
+    orderBy: boolean;
+    where: boolean;
+  } {
+    return { ...this._serverDelegated };
   }
 }
 

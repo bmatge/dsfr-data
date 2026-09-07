@@ -11,6 +11,19 @@ export interface DataLoadedEvent {
 export interface DataErrorEvent {
   sourceId: string;
   error: Error;
+  /**
+   * URL reellement appelee (proxy applique), a seule fin de diagnostic (#603).
+   *
+   * `fetch-diagnostics.ts` produit deja l'explication complete d'un echec
+   * opaque, mais uniquement dans la console : le message de l'`Error` reste
+   * volontairement court pour ne pas deverser un paragraphe dans l'UI. Ce
+   * champ rend l'URL disponible aux abonnes du bus (volet Diagnostic,
+   * assistant) sans rien changer a l'`Error` elle-meme.
+   *
+   * Absent quand l'URL n'a pas pu etre construite, ou pour les erreurs qui ne
+   * viennent pas d'un fetch (donnees inline invalides, config).
+   */
+  attemptedUrl?: string;
 }
 
 export interface DataLoadingEvent {
@@ -41,6 +54,14 @@ export interface PaginationMeta {
 
 export interface SourceCommandEvent {
   sourceId: string;
+  /**
+   * Id du composant qui emet la commande (#603) — purement informatif.
+   *
+   * Le bus est plat : sans lui, une trace ne peut dire que « quelqu'un a
+   * demande un group-by a src ». `TransformerMixin` le renseigne avec son
+   * propre id lors du relais aval → amont.
+   */
+  origin?: string;
   page?: number; // pagination
   where?: string; // recherche serveur (ODSQL pour ODS)
   whereKey?: string; // identifie la source du where (permet merge multi-sources)
@@ -127,13 +148,16 @@ export function dispatchDataLoaded(sourceId: string, data: unknown): void {
 }
 
 /**
- * Dispatch un événement d'erreur
+ * Dispatch un événement d'erreur.
+ *
+ * `attemptedUrl` est optionnelle et purement diagnostique (#603) : elle ne
+ * modifie ni le message de l'`Error`, ni le contrat des abonnés existants.
  */
-export function dispatchDataError(sourceId: string, error: Error): void {
+export function dispatchDataError(sourceId: string, error: Error, attemptedUrl?: string): void {
   const event = new CustomEvent<DataErrorEvent>(DATA_EVENTS.ERROR, {
     bubbles: true,
     composed: true,
-    detail: { sourceId, error },
+    detail: attemptedUrl ? { sourceId, error, attemptedUrl } : { sourceId, error },
   });
 
   document.dispatchEvent(event);
