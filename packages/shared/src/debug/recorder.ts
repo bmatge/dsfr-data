@@ -28,6 +28,7 @@ import {
   type BusPaginationMeta,
 } from './events.js';
 import { snapshotGraph, topoOrder, type DataflowGraph } from './graph.js';
+import { drainEarlyBuffer, readCacheSnapshot, type BufferedBusEvent } from './early-buffer.js';
 import { summarizeStage, type StageSummary } from './summarize.js';
 import type { Field, Row } from '../ia/data-tools.js';
 
@@ -165,6 +166,56 @@ export class DataflowRecorder {
     return this.running;
   }
 
+  /**
+   * Rejoue les événements empilés par le tampon précoce, puis prend le relais.
+   *
+   * À appeler APRÈS `start()` : le tampon couvre la fenêtre aveugle entre le
+   * premier octet du document observé et le moment où le collecteur a pu s'y
+   * brancher — fenêtre pendant laquelle tout le pipeline a généralement déjà
+   * émis.
+   */
+  ingestEarlyBuffer(win: Window | null | undefined): number {
+    const buffered = drainEarlyBuffer(win);
+    for (const event of buffered) this.ingest(event);
+    return buffered.length;
+  }
+
+  /**
+   * Filet de sécurité pour une page sans tampon : reconstitue l'état de
+   * chaque étape depuis le cache global. Ne rattrape ni les erreurs ni la
+   * chronologie — n'agit que sur les étapes encore inconnues, pour ne jamais
+   * écraser une observation directe par une valeur de cache plus ancienne.
+   */
+  backfillFromCache(win: Window | null | undefined): number {
+    let filled = 0;
+    for (const { sourceId, data } of readCacheSnapshot(win)) {
+      if (this.states.has(sourceId)) continue;
+      this.ingest({ name: BUS_EVENTS.LOADED, detail: { sourceId, data }, t: this.opts.now() });
+      filled += 1;
+    }
+    return filled;
+  }
+
+  /** Traite un événement du bus, qu'il vienne du direct ou du tampon. */
+  private ingest(event: BufferedBusEvent): void {
+    switch (event.name) {
+      case BUS_EVENTS.LOADING:
+        this.onLoading(event.detail as BusLoadingDetail);
+        break;
+      case BUS_EVENTS.LOADED:
+        this.onLoaded(event.detail as BusLoadedDetail);
+        break;
+      case BUS_EVENTS.ERROR:
+        this.onError(event.detail as BusErrorDetail);
+        break;
+      case BUS_EVENTS.SOURCE_COMMAND:
+        this.onCommand(event.detail as BusCommandDetail);
+        break;
+      default:
+        break;
+    }
+  }
+
   /** Branche les quatre écouteurs. Idempotent. */
   start(): void {
     if (this.running) return;
@@ -176,74 +227,83 @@ export class DataflowRecorder {
       this.listeners.push(() => this.doc.removeEventListener(name, fn));
     };
 
-    on<BusLoadingDetail>(BUS_EVENTS.LOADING, (d) => {
-      if (!d?.sourceId) return;
-      this.push({ kind: 'loading', node: d.sourceId } as const);
-      this.patch(d.sourceId, { status: 'loading' });
-    });
+    on<BusLoadingDetail>(BUS_EVENTS.LOADING, (d) => this.onLoading(d));
+    on<BusLoadedDetail>(BUS_EVENTS.LOADED, (d) => this.onLoaded(d));
+    on<BusErrorDetail>(BUS_EVENTS.ERROR, (d) => this.onError(d));
+    on<BusCommandDetail>(BUS_EVENTS.SOURCE_COMMAND, (d) => this.onCommand(d));
+  }
 
-    on<BusLoadedDetail>(BUS_EVENTS.LOADED, (d) => {
-      if (!d?.sourceId) return;
-      const summary = summarizeStage(d.data, this.opts.sampleRows);
-      const meta = this.readMeta(d.sourceId);
-      this.push({
-        kind: 'loaded',
-        node: d.sourceId,
-        rows: summary.rows,
-        fields: summary.fields,
-        sample: summary.sample,
-        shape: summary.shape,
-        ...(meta ? { meta } : {}),
-      } as const);
-      const previous = this.states.get(d.sourceId);
-      this.patch(d.sourceId, {
-        status: 'loaded',
-        rows: summary.rows,
-        fields: summary.fields,
-        sample: summary.sample,
-        shape: summary.shape,
-        ...(meta ? { meta } : {}),
-        message: undefined,
-        attemptedUrl: undefined,
-        emissions: (previous?.emissions ?? 0) + 1,
-      });
-    });
+  private onLoading(d: BusLoadingDetail): void {
+    if (!d?.sourceId) return;
+    this.push({ kind: 'loading', node: d.sourceId } as const);
+    this.patch(d.sourceId, { status: 'loading' });
+  }
 
-    on<BusErrorDetail>(BUS_EVENTS.ERROR, (d) => {
-      if (!d?.sourceId) return;
-      const message = d.error?.message ?? 'Erreur inconnue';
-      this.push({
-        kind: 'error',
-        node: d.sourceId,
-        message,
-        ...(d.attemptedUrl ? { attemptedUrl: d.attemptedUrl } : {}),
-      } as const);
-      // Les donnees du dernier succes sont PERIMEES : les garder ferait
-      // rapporter a l'aval un compte de lignes que plus rien ne produit, et
-      // un afficheur se declarerait alimente sous une source tombee. C'est le
-      // pendant, cote erreur, du faux calme que la quiescence evite.
-      this.patch(d.sourceId, {
-        status: 'error',
-        message,
-        rows: undefined,
-        fields: undefined,
-        sample: undefined,
-        shape: undefined,
-        meta: undefined,
-        ...(d.attemptedUrl ? { attemptedUrl: d.attemptedUrl } : {}),
-      });
+  private onLoaded(d: BusLoadedDetail): void {
+    if (!d?.sourceId) return;
+    const summary = summarizeStage(d.data, this.opts.sampleRows);
+    const meta = this.readMeta(d.sourceId);
+    this.push({
+      kind: 'loaded',
+      node: d.sourceId,
+      rows: summary.rows,
+      fields: summary.fields,
+      sample: summary.sample,
+      shape: summary.shape,
+      ...(meta ? { meta } : {}),
+    } as const);
+    const previous = this.states.get(d.sourceId);
+    this.patch(d.sourceId, {
+      status: 'loaded',
+      rows: summary.rows,
+      fields: summary.fields,
+      sample: summary.sample,
+      shape: summary.shape,
+      ...(meta ? { meta } : {}),
+      message: undefined,
+      attemptedUrl: undefined,
+      emissions: (previous?.emissions ?? 0) + 1,
     });
+  }
 
-    on<BusCommandDetail>(BUS_EVENTS.SOURCE_COMMAND, (d) => {
-      if (!d?.sourceId) return;
-      const { sourceId, origin, ...cmd } = d;
-      this.push({
-        kind: 'command',
-        node: sourceId,
-        ...(origin ? { from: origin } : {}),
-        cmd,
-      } as const);
+  private onError(d: BusErrorDetail): void {
+    if (!d?.sourceId) return;
+    // Le detail rejoue depuis le tampon a traverse une frontiere de realm :
+    // `error` peut y etre un objet nu plutot qu'une Error.
+    const message =
+      (d.error as { message?: string } | undefined)?.message ??
+      (typeof d.error === 'string' ? d.error : 'Erreur inconnue');
+    this.push({
+      kind: 'error',
+      node: d.sourceId,
+      message,
+      ...(d.attemptedUrl ? { attemptedUrl: d.attemptedUrl } : {}),
+    } as const);
+    // Les donnees du dernier succes sont PERIMEES : les garder ferait
+    // rapporter a l'aval un compte de lignes que plus rien ne produit, et
+    // un afficheur se declarerait alimente sous une source tombee. C'est le
+    // pendant, cote erreur, du faux calme que la quiescence evite.
+    this.patch(d.sourceId, {
+      status: 'error',
+      message,
+      rows: undefined,
+      fields: undefined,
+      sample: undefined,
+      shape: undefined,
+      meta: undefined,
+      ...(d.attemptedUrl ? { attemptedUrl: d.attemptedUrl } : {}),
     });
+  }
+
+  private onCommand(d: BusCommandDetail): void {
+    if (!d?.sourceId) return;
+    const { sourceId, origin, ...cmd } = d;
+    this.push({
+      kind: 'command',
+      node: sourceId,
+      ...(origin ? { from: origin } : {}),
+      cmd,
+    } as const);
   }
 
   stop(): void {

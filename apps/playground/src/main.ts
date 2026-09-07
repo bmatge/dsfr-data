@@ -95,7 +95,7 @@ function runCode(): void {
   const code = editor.getValue();
   const iframe = document.getElementById('preview-frame') as HTMLIFrameElement | null;
   if (iframe) {
-    iframe.srcdoc = getPreviewHTML(code);
+    iframe.srcdoc = getPreviewHTML(code, { debug: true });
     // Auto-resize iframe to fit its content once loaded
     iframe.onload = () => autoResizeIframe(iframe);
   }

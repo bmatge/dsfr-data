@@ -17,6 +17,13 @@ export type {
   BusCommandDetail,
 } from './events.js';
 
+export {
+  EARLY_BUFFER_KEY,
+  earlyBufferScript,
+  drainEarlyBuffer,
+  readCacheSnapshot,
+} from './early-buffer.js';
+export type { BufferedBusEvent } from './early-buffer.js';
 export { STAGE_ROLES, snapshotGraph, downstreamOf, topoOrder } from './graph.js';
 export type { StageRole, StageNode, DataflowGraph } from './graph.js';
 
@@ -37,5 +44,5 @@ export { mountDiagnosticPanel } from './mount.js';
 export type { MountDiagnosticOptions, MountedDiagnostic, DiagnosticPanelElement } from './mount.js';
 export { attachRecorderToFrame } from './frame.js';
 export type { FrameAttachment, FrameAttachOptions } from './frame.js';
-export { formatTrace, summarizeTrace } from './format.js';
+export { formatTrace, summarizeTrace, plural } from './format.js';
 export type { FormatOptions } from './format.js';

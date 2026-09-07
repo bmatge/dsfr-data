@@ -1,3 +1,4 @@
+import { earlyBufferScript } from '../debug/early-buffer.js';
 /**
  * CDN dependency versions and URLs.
  * Single source of truth — all code generators import from here.
@@ -30,7 +31,18 @@ export const CDN_URLS = {
  * - Strips any remote dsfr-data `<script>` tags from the code
  * - Injects the local ESM build from the current origin instead
  */
-export function getPreviewHTML(code: string): string {
+export interface PreviewHTMLOptions {
+  /**
+   * Injecte le tampon d'evenements du volet Diagnostic (#605).
+   *
+   * Sans lui, un observateur exterieur arrive systematiquement trop tard :
+   * le pipeline emet pendant le parsing, bien avant le `load` de l'iframe.
+   * Le tampon est inerte tant que personne ne le vide.
+   */
+  debug?: boolean;
+}
+
+export function getPreviewHTML(code: string, options: PreviewHTMLOptions = {}): string {
   const origin = window.location.origin;
   // Strip any `<script ... dsfr-data ...></script>` tags the user copied in.
   // This runs in a preview iframe (srcdoc, sandbox) — the input is the user's
@@ -45,10 +57,14 @@ export function getPreviewHTML(code: string): string {
       /dsfr-data/i.test(match) ? '' : match
     );
   } while (cleanedCode !== previous);
+  // EN TETE du head, avant la moindre feuille ou le moindre module : le bus
+  // emet des le premier connectedCallback, tout ce qui arrive apres est
+  // deja en retard.
+  const earlyBuffer = options.debug ? `\n  ${earlyBufferScript()}` : '';
   return `<!DOCTYPE html>
 <html lang="fr" data-fr-theme>
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8">${earlyBuffer}
   <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
   <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css">

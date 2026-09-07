@@ -3,6 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import {
   fieldMatrix,
   formatTrace,
+  plural,
   summarizeTrace,
   topoOrder,
   type StageNode,
@@ -173,18 +174,67 @@ export class AppDiagnosticPanel extends LitElement {
    * reserve il masque la fin du contenu, et sur une page courte le dernier
    * bouton devient inatteignable.
    */
+  private _railHeight = 0;
+
   private _publishRailHeight(): void {
     const rail = this.querySelector('.app-diag__rail');
     if (!rail) return;
     const height = (rail as HTMLElement).offsetHeight;
     if (height > 0) {
+      this._railHeight = height;
       document.documentElement.style.setProperty('--app-diagnostic-h', `${height}px`);
     }
   }
 
   protected updated(): void {
-    this._publishRailHeight();
+    // `offsetHeight` force un reflow : inutile de le payer a chaque rendu,
+    // la hauteur du rail ne bouge qu'au premier ou sur changement de theme.
+    if (this._railHeight === 0) this._publishRailHeight();
   }
+
+  private _selectTab(tab: DiagnosticTab, focus = false): void {
+    this._tab = tab;
+    if (!focus) return;
+    // Roving tabindex : le focus SUIT la selection, sinon la navigation aux
+    // fleches laisse le focus sur l'onglet precedent et le lecteur d'ecran
+    // annonce le mauvais.
+    void this.updateComplete.then(() => {
+      this.querySelector<HTMLButtonElement>(`#${CSS.escape(`${this._uid}-tab-${tab}`)}`)?.focus();
+    });
+  }
+
+  /**
+   * Motif WAI-ARIA « Tabs » : fleches, Home et Fin.
+   *
+   * `app-preview-panel` s'appuie sur le JS du DSFR pour ce comportement ;
+   * ce volet n'utilise pas `fr-tabs` (il vit dans un tiroir, pas dans un
+   * panneau d'apercu), il doit donc l'implementer lui-meme — sans quoi le
+   * tablist n'en est un que de nom (RGAA 7.3).
+   */
+  private _onTabKeydown = (e: KeyboardEvent): void => {
+    const index = TABS.indexOf(this._tab);
+    let next: number;
+    switch (e.key) {
+      case 'ArrowRight':
+        next = (index + 1) % TABS.length;
+        break;
+      case 'ArrowLeft':
+        next = (index - 1 + TABS.length) % TABS.length;
+        break;
+      case 'Home':
+        next = 0;
+        break;
+      case 'End':
+        next = TABS.length - 1;
+        break;
+      default:
+        return;
+    }
+    e.preventDefault();
+    // Echap doit rester au tiroir : on ne l'intercepte pas ici.
+    e.stopPropagation();
+    this._selectTab(TABS[next], true);
+  };
 
   /** Ouvre, ferme, ou bascule. Point d'entrée public pour la barre d'actions. */
   toggle(open?: boolean): void {
@@ -205,12 +255,14 @@ export class AppDiagnosticPanel extends LitElement {
 
   /** Le texte que copient et envoient les deux boutons — un seul format. */
   get diagnosticText(): string {
-    if (!this.trace) return 'Aucune trace : le pipeline n’a pas encore été exécuté.';
+    if (this._isBlank || !this.trace) {
+      return 'Aucune trace : le pipeline n’a pas encore été exécuté.';
+    }
     return formatTrace(this.trace, { sampleRows: 2 });
   }
 
   private _summaryText(): TemplateResult | string {
-    if (!this.trace) return 'aucune exécution observée';
+    if (this._isBlank || !this.trace) return 'aucune exécution observée';
     const s = summarizeTrace(this.trace);
     if (s.stages === 0) return 'aucun composant dsfr-data';
 
@@ -218,7 +270,7 @@ export class AppDiagnosticPanel extends LitElement {
       s.firstRows === null
         ? 'aucune donnée'
         : s.firstRows === s.lastRows
-          ? `${s.firstRows} lignes`
+          ? plural(s.firstRows, 'ligne')
           : `${s.firstRows} → ${s.lastRows} lignes`;
 
     return html`${s.stages} étape${s.stages > 1 ? 's' : ''} · ${flow} ·
@@ -230,6 +282,9 @@ export class AppDiagnosticPanel extends LitElement {
   }
 
   private async _copy(): Promise<void> {
+    // `aria-disabled` garde le bouton focusable et annonce sa raison, mais
+    // n'empeche pas le clic : c'est au gestionnaire de se garder.
+    if (this._isBlank) return;
     try {
       await navigator.clipboard.writeText(this.diagnosticText);
       this._copied = true;
@@ -242,6 +297,7 @@ export class AppDiagnosticPanel extends LitElement {
   }
 
   private _send(): void {
+    if (this._isBlank) return;
     this.dispatchEvent(
       new CustomEvent('diagnostic-send', {
         detail: { text: this.diagnosticText },
@@ -281,7 +337,12 @@ export class AppDiagnosticPanel extends LitElement {
       .map((up) => trace.states[up]?.rows)
       .filter((n): n is number => n !== undefined);
     const delegation = trace.delegation[node.id];
-    const clientSide = delegation && !delegation.groupBy && !delegation.aggregate;
+    // MEME garde que `formatDelegation` : l'avertissement n'a de sens que si
+    // l'etape DEMANDE un regroupement. Le coller a un query qui ne fait que
+    // filtrer — le cas majoritaire — apprendrait a ignorer l'alerte.
+    const wantsAggregation = !!(node.attrs['group-by'] || node.attrs.aggregate);
+    const clientSide =
+      !!delegation && wantsAggregation && !delegation.groupBy && !delegation.aggregate;
     const warn =
       state.meta?.needsClientProcessing ||
       (state.status === 'loaded' && state.rows === 0) ||
@@ -295,14 +356,17 @@ export class AppDiagnosticPanel extends LitElement {
         ${
           upstreamRows.length > 0
             ? html`<div class="app-diag__stage-note">
-                reçoit ${upstreamRows.join(' + ')} lignes ← ${node.upstream.join(', ')}
+                reçoit
+                ${upstreamRows.length > 1 ? upstreamRows.join(' + ') + ' lignes' : plural(upstreamRows[0], 'ligne')}
+                ← ${node.upstream.join(', ')}
               </div>`
             : nothing
         }
         <div class="app-diag__stage-rows">
           ${
             state.status === 'loaded'
-              ? html`→ <strong>${state.rows}</strong> lignes, ${state.fields?.length ?? 0} champs`
+              ? html`→ <strong>${state.rows}</strong> ${(state.rows ?? 0) > 1 ? 'lignes' : 'ligne'},
+                  ${plural(state.fields?.length ?? 0, 'champ')}`
               : state.status === 'error'
                 ? html`<span class="app-diag__stage-note--error">✗ échec</span>`
                 : state.status === 'loading'
@@ -353,7 +417,7 @@ export class AppDiagnosticPanel extends LitElement {
         ${
           state.emissions > 3
             ? html`<div class="app-diag__stage-note app-diag__stage-note--warn">
-                ⚠ ${state.emissions} émissions — rechargements en boucle ?
+                ⚠ ${plural(state.emissions, 'émission')} — rechargements en boucle ?
               </div>`
             : nothing
         }
@@ -443,8 +507,20 @@ export class AppDiagnosticPanel extends LitElement {
     `;
   }
 
+  /**
+   * Vrai quand la trace existe mais ne decrit rien : aucune etape, aucun
+   * evenement. C'est le cas « pas encore execute », qu'il ne faut pas
+   * confondre avec « page sans composant dsfr-data » — le second est un
+   * diagnostic, le premier une invitation a lancer le pipeline.
+   */
+  private get _isBlank(): boolean {
+    const trace = this.trace;
+    if (!trace) return true;
+    return trace.graph.nodes.length === 0 && trace.events.length === 0;
+  }
+
   private _renderBody(): TemplateResult {
-    if (!this.trace) {
+    if (this._isBlank) {
       return html`<p class="app-diag__empty">
         ${
           this.emptyHint ||
@@ -454,13 +530,18 @@ export class AppDiagnosticPanel extends LitElement {
         }
       </p>`;
     }
+    // `_isBlank` couvre déjà `trace === null`, mais le compilateur ne peut pas
+    // le déduire d'un getter : on l'affirme ici plutôt que d'affaiblir les
+    // signatures des trois rendus.
+    const trace = this.trace;
+    if (!trace) return html`<p class="app-diag__empty">Aucune trace disponible.</p>`;
     switch (this._tab) {
       case 'champs':
-        return this._renderChamps(this.trace);
+        return this._renderChamps(trace);
       case 'journal':
-        return this._renderJournal(this.trace);
+        return this._renderJournal(trace);
       default:
-        return this._renderFlux(this.trace);
+        return this._renderFlux(trace);
     }
   }
 
@@ -496,15 +577,23 @@ export class AppDiagnosticPanel extends LitElement {
           ?hidden=${!this._open}
         >
           <div class="app-diag__toolbar">
-            <div class="app-diag__tabs" role="tablist" aria-label="Vues du diagnostic">
+            <div
+              class="app-diag__tabs"
+              role="tablist"
+              aria-label="Vues du diagnostic"
+              @keydown=${this._onTabKeydown}
+            >
               ${TABS.map(
                 (tab) => html`
                   <button
                     type="button"
                     role="tab"
+                    id=${`${this._uid}-tab-${tab}`}
                     class="app-diag__tab"
                     aria-selected=${this._tab === tab ? 'true' : 'false'}
-                    @click=${() => (this._tab = tab)}
+                    aria-controls=${`${this._uid}-panel`}
+                    tabindex=${this._tab === tab ? '0' : '-1'}
+                    @click=${() => this._selectTab(tab)}
                   >
                     ${TAB_LABELS[tab]}
                   </button>
@@ -526,13 +615,21 @@ export class AppDiagnosticPanel extends LitElement {
             <button
               type="button"
               class="fr-btn fr-btn--sm fr-btn--secondary fr-icon-clipboard-line fr-btn--icon-left"
-              ?disabled=${!this.trace}
+              aria-disabled=${this._isBlank ? 'true' : 'false'}
+              title=${this._isBlank ? 'Aucun diagnostic à copier : exécutez d’abord le pipeline' : ''}
               @click=${this._copy}
             >
               ${this._copied ? 'Diagnostic copié' : 'Copier le diagnostic'}
             </button>
           </div>
-          ${this._renderBody()}
+          <div
+            id=${`${this._uid}-panel`}
+            role="tabpanel"
+            tabindex="0"
+            aria-labelledby=${`${this._uid}-tab-${this._tab}`}
+          >
+            ${this._renderBody()}
+          </div>
         </div>
       </div>
     `;

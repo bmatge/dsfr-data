@@ -34,7 +34,7 @@ export interface FormatOptions {
 }
 
 /** Accord en nombre — « 1 ligne » et non « 1 lignes ». */
-function plural(n: number, word: string): string {
+export function plural(n: number, word: string): string {
   return `${n} ${word}${n > 1 ? 's' : ''}`;
 }
 

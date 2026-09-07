@@ -93,11 +93,17 @@ describe('alignement du collecteur avec le coeur (#604)', () => {
     });
 
     it('le scan lit bien le décorateur et non le nom de fichier', () => {
-      // Meta-test du garde-fou : si la regex cassait, `tagOf` retomberait
-      // silencieusement sur le nom de fichier et tous les tests ci-dessus
-      // passeraient au vert sans rien verifier.
-      expect(declaredTags).toContain('dsfr-data-source');
-      expect(declaredTags.every((t) => t.startsWith('dsfr-data-'))).toBe(true);
+      // Meta-test NON TAUTOLOGIQUE : les 23 fichiers s'appellent tous
+      // `dsfr-data-*.ts`, donc verifier que les tags commencent par
+      // `dsfr-data-` passerait a l'identique si la regex cassait et que
+      // `tagOf` retombait sur le nom de fichier. On lui donne donc une source
+      // ou les deux DIVERGENT : seul un scan qui lit vraiment le decorateur
+      // rend le bon tag.
+      const decoy = `@customElement('dsfr-data-tag-du-decorateur')\nexport class X {}`;
+
+      expect(tagOf(decoy, 'un-nom-de-fichier-sans-rapport.ts')).toBe('dsfr-data-tag-du-decorateur');
+      // Et le repli reste sain quand il n'y a pas de decorateur.
+      expect(tagOf('export class X {}', 'dsfr-data-truc.ts')).toBe('dsfr-data-truc');
     });
   });
 });

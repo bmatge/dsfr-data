@@ -17,6 +17,9 @@ import { dispatchDataLoaded, dispatchDataError, clearDataCache } from '@/utils/d
 
 const STORAGE_KEY = 'dsfr-data-diagnostic-open';
 
+/** Delegation entierement retombee cote client. */
+const DELEGATION_NONE = { groupBy: false, aggregate: false, orderBy: false, where: false };
+
 /** Construit une trace reelle en observant le vrai bus. */
 function buildTrace(html: string, emit: () => void): { trace: Trace; cleanup: () => void } {
   const host = document.createElement('div');
@@ -187,6 +190,98 @@ describe('app-diagnostic-panel', () => {
       expect(panel.querySelector('[role="tablist"]')?.getAttribute('aria-label')).toBeTruthy();
     });
 
+    it('chaque onglet pilote un tabpanel identifié', async () => {
+      // `aria-selected` seul ne fait pas un tablist : sans aria-controls ni
+      // tabpanel, le lecteur d'ecran n'a aucun moyen d'atteindre le contenu
+      // que l'onglet commande (RGAA 7.3).
+      panel = await mountPanel();
+      panel.toggle(true);
+      await panel.updateComplete;
+
+      const tabs = Array.from(panel.querySelectorAll('[role="tab"]'));
+      const tabpanel = panel.querySelector('[role="tabpanel"]');
+
+      expect(tabpanel).not.toBeNull();
+      for (const tab of tabs) {
+        expect(tab.getAttribute('aria-controls')).toBe(tabpanel!.id);
+      }
+      const selected = tabs.find((t) => t.getAttribute('aria-selected') === 'true')!;
+      expect(tabpanel!.getAttribute('aria-labelledby')).toBe(selected.id);
+    });
+
+    it('applique le roving tabindex — un seul onglet dans l’ordre de tabulation', async () => {
+      panel = await mountPanel();
+      panel.toggle(true);
+      await panel.updateComplete;
+
+      const tabs = Array.from(panel.querySelectorAll('[role="tab"]'));
+
+      expect(tabs.filter((t) => t.getAttribute('tabindex') === '0')).toHaveLength(1);
+      expect(tabs.filter((t) => t.getAttribute('tabindex') === '-1')).toHaveLength(2);
+      expect(tabs.find((t) => t.getAttribute('tabindex') === '0')).toBe(
+        tabs.find((t) => t.getAttribute('aria-selected') === 'true')
+      );
+    });
+
+    it('les flèches, Home et Fin naviguent entre onglets', async () => {
+      panel = await mountPanel();
+      panel.toggle(true);
+      await panel.updateComplete;
+      const tablist = panel.querySelector('[role="tablist"]') as HTMLElement;
+      const selected = () =>
+        panel!.querySelector('[role="tab"][aria-selected="true"]')?.textContent?.trim();
+
+      const press = async (key: string) => {
+        tablist.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+        await panel!.updateComplete;
+      };
+
+      expect(selected()).toBe('Flux');
+      await press('ArrowRight');
+      expect(selected()).toBe('Champs');
+      await press('ArrowRight');
+      expect(selected()).toBe('Journal');
+      // Boucle : le motif WAI-ARIA revient au premier.
+      await press('ArrowRight');
+      expect(selected()).toBe('Flux');
+      await press('ArrowLeft');
+      expect(selected()).toBe('Journal');
+      await press('Home');
+      expect(selected()).toBe('Flux');
+      await press('End');
+      expect(selected()).toBe('Journal');
+    });
+
+    it('une touche non gérée ne perturbe pas les onglets', async () => {
+      panel = await mountPanel();
+      panel.toggle(true);
+      await panel.updateComplete;
+      const tablist = panel.querySelector('[role="tablist"]') as HTMLElement;
+
+      tablist.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true }));
+      await panel.updateComplete;
+
+      expect(panel.querySelector('[role="tab"][aria-selected="true"]')?.textContent?.trim()).toBe(
+        'Flux'
+      );
+    });
+
+    it('les boutons sans diagnostic sont annoncés, pas juste éteints', async () => {
+      // `disabled` sort le bouton de l'ordre de tabulation ET le rend muet :
+      // l'utilisateur ne sait pas POURQUOI il ne peut pas copier.
+      panel = await mountPanel();
+      panel.toggle(true);
+      await panel.updateComplete;
+
+      const copy = Array.from(panel.querySelectorAll('button')).find((b) =>
+        b.textContent?.includes('Copier')
+      )!;
+
+      expect(copy.getAttribute('aria-disabled')).toBe('true');
+      expect(copy.getAttribute('title')).toContain('exécutez');
+      expect(copy.hasAttribute('disabled')).toBe(false);
+    });
+
     it('retire son écouteur clavier au démontage', async () => {
       panel = await mountPanel();
       panel.toggle(true);
@@ -319,6 +414,103 @@ describe('app-diagnostic-panel', () => {
         b.textContent?.includes('assistant')
       );
       expect(sendBtn).toBeUndefined();
+    });
+  });
+
+  describe('« pas encore exécuté » n’est pas « aucun composant »', () => {
+    it('affiche emptyHint sur une trace vide de bout en bout', async () => {
+      // Une trace existe des le branchement a l'iframe, mais elle ne decrit
+      // rien tant que rien n'a tourne. La confondre avec une page depourvue
+      // de composants envoyait chercher une panne inexistante.
+      const built = buildTrace('', () => {});
+      cleanup = built.cleanup;
+      panel = await mountPanel();
+      panel.emptyHint = 'Exécutez le code pour observer le flux.';
+      panel.trace = built.trace;
+      panel.toggle(true);
+      await panel.updateComplete;
+
+      expect(panel.textContent).toContain('Exécutez le code pour observer le flux.');
+      expect(panel.querySelector('.app-diag__rail-summary')?.textContent).toContain(
+        'aucune exécution'
+      );
+    });
+
+    it('distingue une page réellement dépourvue de composants', async () => {
+      const built = buildTrace(`<dsfr-data-source id="src"></dsfr-data-source>`, () =>
+        dispatchDataLoaded('src', [{ a: 1 }])
+      );
+      cleanup = built.cleanup;
+      panel = await mountPanel();
+      panel.emptyHint = 'Exécutez le code pour observer le flux.';
+      panel.trace = built.trace;
+      panel.toggle(true);
+      await panel.updateComplete;
+
+      expect(panel.textContent).not.toContain('Exécutez le code pour observer le flux.');
+    });
+  });
+
+  describe('l’alerte « côté client » ne crie pas au loup', () => {
+    it('ne s’affiche pas pour un query qui ne fait que filtrer', async () => {
+      // Meme garde que formatTrace : le volet est la surface la PLUS visible,
+      // un faux positif y apprend a ignorer l'alerte.
+      const built = buildTrace(
+        `<dsfr-data-source id="src"></dsfr-data-source>
+         <dsfr-data-query id="q1" source="src" filter="dept:eq:A"></dsfr-data-query>`,
+        () => {
+          dispatchDataLoaded('src', [{ dept: 'A' }]);
+          dispatchDataLoaded('q1', [{ dept: 'A' }]);
+        }
+      );
+      cleanup = built.cleanup;
+      panel = await mountPanel();
+      panel.trace = { ...built.trace, delegation: { q1: DELEGATION_NONE } };
+      panel.toggle(true);
+      await panel.updateComplete;
+
+      expect(panel.textContent).not.toContain('côté client');
+    });
+
+    it('s’affiche quand une agrégation est bien demandée', async () => {
+      const built = buildTrace(
+        `<dsfr-data-source id="src"></dsfr-data-source>
+         <dsfr-data-query id="q1" source="src" group-by="dept"></dsfr-data-query>`,
+        () => {
+          dispatchDataLoaded('src', [{ dept: 'A' }]);
+          dispatchDataLoaded('q1', [{ dept: 'A' }]);
+        }
+      );
+      cleanup = built.cleanup;
+      panel = await mountPanel();
+      panel.trace = { ...built.trace, delegation: { q1: DELEGATION_NONE } };
+      panel.toggle(true);
+      await panel.updateComplete;
+
+      expect(panel.textContent).toContain('côté client');
+    });
+  });
+
+  describe('accords en nombre', () => {
+    it('écrit « 1 ligne », jamais « 1 lignes »', async () => {
+      const built = buildTrace(
+        `<dsfr-data-source id="src"></dsfr-data-source>
+         <dsfr-data-query id="q1" source="src"></dsfr-data-query>`,
+        () => {
+          dispatchDataLoaded('src', [{ a: 1 }]);
+          dispatchDataLoaded('q1', [{ a: 1 }]);
+        }
+      );
+      cleanup = built.cleanup;
+      panel = await mountPanel();
+      panel.trace = built.trace;
+      panel.toggle(true);
+      await panel.updateComplete;
+
+      const text = panel.textContent!.replace(/\s+/g, ' ');
+      expect(text).not.toContain('1 lignes');
+      expect(text).not.toContain('1 champs');
+      expect(text).toContain('reçoit 1 ligne');
     });
   });
 

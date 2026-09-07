@@ -224,7 +224,7 @@ primaire. La zone `[contexte]` (facultative) reçoit un contrôle de contexte, h
 | Créer un tableau de bord | Enregistrer | Ouvrir | Exporter la page HTML · Plein écran · Nouveau |
 | Assistant IA | Effacer la conversation | Copier le code | Ajouter aux favoris · Ouvrir dans le Playground · Exporter en PNG · Exporter en JPG |
 | Studio IA | Enregistrer | Copier le code | Ouvrir dans le tableau de bord · Effacer la conversation |
-| Playground | Exécuter | Copier le code | Ajouter aux favoris · Ouvrir dans le Pipeline · Exporter en PNG · Exporter en JPG · Ajouter des dépendances · Réinitialiser |
+| Playground | Exécuter | Copier le code | Ajouter aux favoris · Ouvrir dans le Pipeline · Exporter en PNG · Exporter en JPG · Ajouter des dépendances · **Diagnostic** · Réinitialiser |
 | Pipeline | Exécuter | Ajouter une étape ▾ | Copier le code · Ouvrir dans le Playground · Supprimer · Réorganiser · Recentrer |
 | Sources | Nouvelle connexion | Importer · Exporter ▾ | Visite guidée |
 | Favoris | — | Importer · Exporter ▾ | — |
@@ -232,6 +232,10 @@ primaire. La zone `[contexte]` (facultative) reçoit un contrôle de contexte, h
 
 `Visite guidée` est partout le `?` en tête de barre. Sources, Favoris et Suivi gardent leur barre
 de liste (hors `AppActionBar`).
+
+`Diagnostic` (#605) rejoint « Plus d'actions » de chaque app dotée d'un aperçu : c'est une bascule
+d'interface, pas une action sur l'artefact — le rail du volet, toujours visible en bas de page,
+reste l'affordance principale. Cette ligne est mise à jour app par app au fil du lot #606.
 
 ### 5.3 Usage (`packages/app-ui`)
 
