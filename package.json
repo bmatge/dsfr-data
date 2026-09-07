@@ -89,7 +89,7 @@
     ]
   },
   "dependencies": {
-    "undici": "^8.10.0"
+    "undici": "^8.10.2"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
