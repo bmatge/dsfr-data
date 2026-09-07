@@ -135,7 +135,21 @@ export function renderPaletteSwatches(paletteKey: string = state.palette): void 
  * Returns the name of the best candidate column, or `null` if none qualifies.
  */
 export function findDeptCodeField(): string | null {
-  const data = (state.data ?? state.localData ?? []) as Record<string, unknown>[];
+  /*
+   * On inspecte les lignes SOURCE (`state.localData`), pas `state.data` (#610).
+   *
+   * `state.data` porte le resultat AGREGE apres une generation
+   * (`code-generator.ts` : `state.data = results`) : ses colonnes sont
+   * `label`/`value`, plus celles de la source. Or les champs testes viennent
+   * de `state.fields`, qui decrit la SOURCE — aucun ne s'y retrouvait, donc
+   * `nonEmpty` restait a 0 et la fonction rendait `null`. L'avertissement
+   * « Aucun code departement detecte » apparaissait alors sur une source qui
+   * en contenait parfaitement, des la premiere generation.
+   *
+   * `state.localData` est renseigne dans les trois cas (source manuelle,
+   * jeu d'exemple, fetch ODS) et tient toujours les lignes d'origine.
+   */
+  const data = (state.localData ?? state.data ?? []) as Record<string, unknown>[];
   if (!Array.isArray(data) || data.length === 0) return null;
 
   // Only consider string/number fields (codes can be "2A" or numeric)

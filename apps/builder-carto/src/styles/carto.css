@@ -150,13 +150,37 @@ body.carto-app > app-action-bar {
 /* Note : .carto-panels est positionnée par rapport à .carto-workspace
    (l'<app-header> et l'<app-action-bar> sont en dehors du workspace, pas
    besoin de les compenser ici). */
+/*
+ * Empilement de la Carto face au volet Diagnostic (#612).
+ *
+ * Le volet est un tiroir `position: fixed; bottom: 0; z-index: 780`, calibre
+ * sur l'echelle COMMUNE d'app-ui (ARCHITECTURE.md §3.8) et partage par les
+ * sept apps : le bouger ici casserait l'ordre ailleurs. C'est donc le
+ * mobilier flottant de la Carto qui descend sous lui.
+ *
+ * L'echelle locale devient :
+ *   1    canevas (`.carto-canvas`, contexte d'empilement — tout Leaflet,
+ *        y compris ses controles a z-index 1000, y est confine)
+ *   600  panneaux flottants et pastille de statut  <- sous le tiroir
+ *   780  volet Diagnostic (app-ui, hors de cette feuille)
+ *   1200 / 1300  modales                            <- AU-DESSUS du tiroir
+ *
+ * Une modale doit rester au-dessus de tout : c'est pourquoi on n'isole PAS
+ * `.carto-workspace` (`isolation: isolate`), qui confinerait aussi les
+ * modales — elles sont dans le workspace (`#onboard-modal`) — et les ferait
+ * passer sous le tiroir ouvert.
+ *
+ * `bottom` reserve la hauteur du rail replie, publiee par le volet dans
+ * `--app-diagnostic-h` : sans ca, le rail recouvrirait la pastille de
+ * statut, qui vit exactement a la meme hauteur.
+ */
 .carto-panels {
   position: absolute;
   top: 16px;
   left: 16px;
-  bottom: 16px;
+  bottom: calc(16px + var(--app-diagnostic-h, 0px));
   width: 344px;
-  z-index: 1000;
+  z-index: 600;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -628,8 +652,10 @@ body.carto-app > app-action-bar {
 .carto-status {
   position: absolute;
   left: 376px;
-  bottom: 16px;
-  z-index: 1000;
+  /* Meme reserve que .carto-panels : le rail du volet Diagnostic occupe le
+     bas de l'ecran et recouvrirait sinon cette pastille (#612). */
+  bottom: calc(16px + var(--app-diagnostic-h, 0px));
+  z-index: 600;
   background: var(--background-default-grey, #fff);
   border: 1px solid var(--border-default-grey);
   box-shadow: 0 2px 6px rgba(0, 0, 18, 0.16);

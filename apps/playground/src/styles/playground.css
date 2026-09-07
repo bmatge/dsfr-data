@@ -46,6 +46,30 @@ body {
   overflow: hidden;
 }
 
+/*
+ * CodeMirror 5 livre `height: 300px` dans son CSS CDN (#611). Sans regle
+ * ici, l'editeur restait donc a 300 px au fond d'une colonne haute de
+ * `calc(100vh - header - barre d'actions)` : il fallait defiler dans une
+ * lucarne pendant que le reste de la colonne etait vide.
+ *
+ * `height: auto` neutralise les 300 px ; `flex: 1 1 auto` fait remplir
+ * l'espace restant du conteneur, qui a une hauteur definie (colonne flex a
+ * `min-height: 0`). Marche aussi bien pour les 50vh du mode empile mobile —
+ * c'est le conteneur qui decide, pas une valeur en dur.
+ *
+ * `.CodeMirror-scroll` garde son `height: 100%` d'origine et defile a
+ * l'interieur ; `min-height: 0` l'empeche de refuser de retrecir.
+ */
+.playground-editor .CodeMirror {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+}
+
+.playground-editor .CodeMirror-scroll {
+  min-height: 0;
+}
+
 .CodeMirror {
   font-size: 13px;
 }
