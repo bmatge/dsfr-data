@@ -689,30 +689,12 @@ body.builder-v2 > app-header {
   flex: 0 0 auto;
 }
 
-body.builder-v2 app-layout-builder {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-body.builder-v2 .builder-layout-container {
-  flex: 1 1 auto;
-  min-height: 0;
-  align-items: stretch;
-}
-
-body.builder-v2 .builder-layout-left {
-  min-height: 0;
-  overflow: hidden;
-}
-
-body.builder-v2 .builder-layout-right {
-  position: static;
-  align-self: stretch;
-  min-height: 0;
-  max-height: none;
-}
+/* Le modele de hauteur vient desormais de <app-layout-builder mode="fullscreen">
+   (#613). Les surcharges qui stylaient ses classes INTERNES
+   (.builder-layout-container / -left / -right) ont ete retirees : c'etaient
+   des classes non contractuelles, dupliquees a l'identique dans l'Assistant
+   IA, et un changement du composant les cassait en silence.
+   Le body reste un prerequis du mode, cote app. */
 
 body.builder-v2 .builder-config-panel {
   flex: 1;
@@ -899,10 +881,9 @@ body.builder-v2 .builder-config-panel {
     overflow: auto;
   }
 
-  body.builder-v2 .builder-layout-left {
-    overflow: visible;
-  }
-
+  /* La remise a plat de la colonne gauche est faite par le mode
+     « fullscreen » du layout (#613) ; il ne reste ici que le panneau de
+     configuration, propre a cette app. */
   body.builder-v2 .builder-config-panel {
     overflow: visible;
   }

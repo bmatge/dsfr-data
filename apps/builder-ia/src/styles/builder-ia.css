@@ -24,7 +24,14 @@ body.builder-ia-app > app-header {
 
 /* Le layout partagé (app-layout-builder) passe en hauteur contrainte :
    les deux colonnes remplissent l'espace restant et scrollent en interne.
-   Surcharges app-locales — le composant partagé reste inchangé. */
+
+   NOTE (#613) : ces surcharges sont exactement celles que le Builder vient
+   d'abandonner au profit de `<app-layout-builder mode="fullscreen">`. Elles
+   sont CONSERVEES ici a dessein, pas par oubli : #609 remplace l'aperçu de
+   cette app (rendu direct, hauteur intrinsèque) par une iframe (hauteur
+   extrinsèque). Migrer le mode avant #609 reviendrait à calibrer sur un
+   contenu voué à disparaître. À basculer sur `mode="fullscreen"` dans la
+   foulée de #609. */
 body.builder-ia-app app-layout-builder {
   flex: 1 1 auto;
   min-height: 0;

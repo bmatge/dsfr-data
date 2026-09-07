@@ -412,6 +412,36 @@ A l'interieur d'une meme page, les Web Components communiquent par un bus d'even
 <dsfr-data-list source="...">     Ecoute via SourceSubscriberMixin
 ```
 
+### 3.5.1 Modeles de hauteur des editeurs deux-volets (#613)
+
+`<app-layout-builder>` expose un attribut `mode` plutot que de laisser les
+apps surcharger ses classes internes :
+
+| Mode | Comportement | Apps |
+|---|---|---|
+| `page-scroll` (defaut) | la page defile, colonne DROITE epinglee | Studio |
+| `fullscreen` | deux colonnes a defilement interne, page figee | Builder |
+| `sticky-left` | colonne GAUCHE epinglee, DROITE qui defile | Playground |
+
+**Pourquoi** : trois apps stylaient `.builder-layout-container/-left/-right`,
+des classes NON contractuelles. Le Playground avait du empiler des
+`!important` pour inverser le sticky ; Builder et Assistant IA maintenaient
+deux fois la meme surcharge. Un changement du composant les cassait en
+silence.
+
+- `fullscreen` exige cote app un `body` de hauteur fixe en `overflow: hidden`.
+- La hauteur de la colonne gauche en pile verticale se regle par la propriete
+  PUBLIQUE `--app-layout-left-stacked-height` (le Playground y met `50vh`).
+- **Assistant IA** garde ses surcharges a dessein : #609 remplace son apercu
+  (hauteur intrinseque) par une iframe (hauteur extrinseque), migrer avant
+  reviendrait a calibrer sur un contenu voue a disparaitre.
+- **Carto** et **Dashboard** n'utilisent pas ce layout : canevas plein ecran a
+  panneaux flottants pour l'une, editeur en grille pour l'autre. Exceptions
+  legitimes, non harmonisees.
+
+Verrouille par `tests/apps/app-ui/layout-modes.test.ts`, qui verifie que les
+apps ne stylent plus les entrailles du composant.
+
 ### 3.6 Diagnostic du pipeline — le collecteur de trace (#602)
 
 **La propriete qui rend ce chantier possible** : le bus de §3.5 est **plat, global et public**. Chaque etape emet sous son propre `id` via `dispatchDataLoaded`, et `window.__dsfrDataCache` tient une `Map<sourceId, data>` — la sortie de *chaque* etape, en permanence. **Un seul `document.addEventListener` voit donc passer l'integralite du pipeline d'une page, sans modifier un seul composant.**

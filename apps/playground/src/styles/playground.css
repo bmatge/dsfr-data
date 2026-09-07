@@ -15,26 +15,11 @@ body {
    scrolle la SORTIE (droite), au lieu de l'aperçu à droite dans builder/
    sources. On annule donc le sticky par défaut du composant sur la droite. */
 
-/* Éditeur (gauche) : sticky, pleine hauteur ; CodeMirror défile en interne. */
-.builder-layout-left {
-  position: sticky !important;
-  /* Sous le header commun et la barre d'actions, tous deux collants
-     (--app-header-h / --app-action-bar-h publiées par les composants). */
-  top: calc(var(--app-header-h, 0px) + var(--app-action-bar-h, 0px)) !important;
-  height: calc(100vh - var(--app-header-h, 0px) - var(--app-action-bar-h, 0px)) !important;
-  height: calc(100dvh - var(--app-header-h, 0px) - var(--app-action-bar-h, 0px)) !important;
-  overflow: hidden !important;
-}
-
-/* Sortie (droite) : annule le sticky du composant, grandit et défile avec la
-   page (le rendu peut être long). */
-.builder-layout-right {
-  position: static !important;
-  min-height: 100vh !important;
-  min-height: 100dvh !important;
-  max-height: none !important;
-  overflow: visible !important;
-}
+/* Le modèle « gauche épinglée, droite qui défile » vient désormais de
+   <app-layout-builder mode="sticky-left"> (#613). Les surcharges `!important`
+   qui inversaient le sticky à la main ont été retirées : elles stylaient des
+   classes internes non contractuelles du composant, et c'est précisément ce
+   couplage qui avait obligé à empiler des `!important`. */
 
 /* --- Editor panel -------------------------------------------------------- */
 
@@ -122,11 +107,10 @@ body {
 
 /* --- Responsive: stack on mobile ---------------------------------------- */
 @media (max-width: 900px) {
-  .builder-layout-left {
-    position: static !important;
-    height: 50vh !important;
-  }
-  .builder-layout-right {
-    min-height: 0 !important;
+  /* En pile verticale, l'editeur garde un demi-ecran. Propriete publique du
+     layout (#613) : plus de surcharge de ses classes internes — le composant
+     depile deja le sticky et remet la droite a plat de lui-meme. */
+  app-layout-builder {
+    --app-layout-left-stacked-height: 50vh;
   }
 }
