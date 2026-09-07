@@ -40,7 +40,12 @@ export type {
   RecorderOptions,
 } from './recorder.js';
 
-export { mountDiagnosticPanel } from './mount.js';
+export {
+  mountDiagnosticPanel,
+  transmettreDiagnostic,
+  recupererDiagnostic,
+  DIAGNOSTIC_HANDOFF_KEY,
+} from './mount.js';
 export type { MountDiagnosticOptions, MountedDiagnostic, DiagnosticPanelElement } from './mount.js';
 export { attachRecorderToFrame } from './frame.js';
 export type { FrameAttachment, FrameAttachOptions } from './frame.js';

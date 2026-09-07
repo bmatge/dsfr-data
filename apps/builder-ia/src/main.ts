@@ -14,6 +14,8 @@ import {
   ImageExportError,
   IMAGE_EXPORT_MESSAGES,
   toastError,
+  mountDiagnosticPanel,
+  recupererDiagnostic,
 } from '@dsfr-data/shared';
 
 import {
@@ -54,11 +56,54 @@ import { state } from './state.js';
 (window as unknown as Record<string, unknown>).onModelSelectChange = onModelSelectChange;
 (window as unknown as Record<string, unknown>).loadSavedSourceData = loadSavedSourceData;
 (window as unknown as Record<string, unknown>).sendMessage = sendMessage;
+
+/**
+ * Injecte un diagnostic dans le champ du chat plutôt que de l'envoyer
+ * directement : l'utilisateur relit ce qui part vers un service externe —
+ * la trace contient des échantillons de données réelles — et peut
+ * l'accompagner de sa question.
+ */
+function injecterDiagnostic(texte: string): void {
+  const input = document.getElementById('chat-input') as HTMLTextAreaElement | null;
+  if (!input) return;
+  const question = 'Voici le diagnostic du pipeline. Qu’est-ce qui ne va pas ?';
+  input.value = `${question}\n\n${texte}`;
+  input.focus();
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+/**
+ * Récupère un diagnostic transmis par une autre app et le pose dans le chat.
+ *
+ * Le mode rapporté n'a d'intérêt que si quelque chose peut y arriver : sans
+ * ce chemin, le volet resterait un écran vide avec une explication.
+ */
+function recupererDiagnosticTransmis(): void {
+  const texte = recupererDiagnostic();
+  if (texte) injecterDiagnostic(texte);
+}
+
 (window as unknown as Record<string, unknown>).copyCode = copyCode;
 (window as unknown as Record<string, unknown>).switchTab = switchTab;
 
 document.addEventListener('DOMContentLoaded', async () => {
   await initAuth();
+
+  // Volet Diagnostic (#606) en mode RAPPORTÉ, et c'est un constat, pas un
+  // repli : l'aperçu de cette app passe par chart-renderer.ts, qui dessine
+  // avec @gouvfr/dsfr-chart en direct — aucun composant dsfr-data, donc
+  // aucun trafic sur le bus à observer. L'app peut en revanche LIRE un
+  // diagnostic produit ailleurs et le passer à l'assistant. #609 propose
+  // d'aligner l'aperçu sur le code généré, ce qui ferait passer ce volet en
+  // mode live et supprimerait le rendu parallèle.
+  mountDiagnosticPanel({
+    toggleButtonId: 'diagnostic-btn',
+    canSend: true,
+    onSend: injecterDiagnostic,
+    emptyHint:
+      'Cette app rend son aperçu sans composant dsfr-data : collez ici un diagnostic produit par le Playground, le Builder ou le Studio.',
+  });
+  recupererDiagnosticTransmis();
 
   // Source selection
   const savedSourceEl = document.getElementById('saved-source');

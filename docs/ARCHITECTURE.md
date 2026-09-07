@@ -454,6 +454,28 @@ Trois champs **optionnels**, purement diagnostiques, ajoutes sans toucher au mes
 - **Trois onglets** : Flux (delta par arete), Champs (matrice champ × etape), Journal (chronologie, commandes remontantes, URL effective).
 - **Deux modes** : `live` (observe une iframe) et `rapporte` (affiche une trace transmise). Le second existe parce que **builder-IA ne produit aucun trafic sur le bus** — `chart-renderer.ts` dessine avec `@gouvfr/dsfr-chart` en direct, sans composant dsfr-data.
 - **Piege de superposition** : sous 768 px, `app-action-bar` passe en `position:fixed; bottom:0; z-index:800`. Le volet s'ancre a `bottom: var(--app-action-bar-fixed-h)` et reste en `z-index:780`. Il publie sa hauteur dans `--app-diagnostic-h`, et sa regle de `padding-bottom` sur `body` utilise une double `:has` pour depasser en specificite celle de la barre d'actions — sinon le gagnant dependrait de l'ordre d'injection des feuilles.
+#### Ou le volet est monte, et sous quel mode (#606)
+
+| App | Mode | Racine observee |
+|---|---|---|
+| Playground, Builder, Studio, Dashboard | live / iframe | `iframe srcdoc` |
+| Carto | live / meme document | `#map-canvas` |
+| Pipeline | live / meme document | conteneur d'execution (`document.body`) |
+| Assistant IA | **rapporte** | aucune — voir ci-dessous |
+| Sources, Favoris, Suivi | **non monte** | aucun pipeline dsfr-data |
+
+Deux ecarts assumes :
+
+- **Assistant IA** n'emet RIEN sur le bus : `apps/builder-ia/src/ui/chart-renderer.ts`
+  dessine avec `@gouvfr/dsfr-chart` en direct, sans aucun composant dsfr-data.
+  Le volet y est donc en mode rapporte — il LIT un diagnostic produit
+  ailleurs, transmis par `sessionStorage` (§10.1). **#609** propose d'aligner
+  cet apercu sur le code genere, ce qui ferait passer le volet en mode live et
+  supprimerait 580 lignes de rendu parallele.
+- **Sources** ne rend aucun pipeline (apercu en table HTML) : y monter un
+  volet live afficherait toujours « aucun composant », ce qui est pire que
+  rien. Il n'en a pas.
+
 - **`mountDiagnosticPanel()` vit dans `shared`, pas dans `app-ui`.** Les apps chargent le chrome par une balise `<script>`, jamais par un `import` : importer `@dsfr-data/app-ui` depuis une app embarquerait une seconde copie du bundle et enregistrerait les composants deux fois. Le helper cree donc l'element par son nom de balise.
 
 ---

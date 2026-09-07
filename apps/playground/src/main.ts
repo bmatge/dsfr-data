@@ -22,6 +22,7 @@ import {
   IMAGE_EXPORT_MESSAGES,
   toastError,
   mountDiagnosticPanel,
+  transmettreDiagnostic,
 } from '@dsfr-data/shared';
 import { initEditor } from './editor.js';
 import type { CodeMirrorEditor } from './editor.js';
@@ -199,6 +200,17 @@ function saveFavorite(): void {
 }
 
 // Initialization
+
+/**
+ * « Envoyer à l'assistant » depuis une app sans chat : on dépose le
+ * diagnostic et on ouvre l'Assistant IA, qui le posera dans son champ.
+ * Même mécanisme de passation que le code entre apps (ARCHITECTURE §10.1).
+ */
+function envoyerDiagnosticVersAssistant(texte: string): void {
+  transmettreDiagnostic(texte);
+  window.location.href = appHref('builder-ia', { from: 'playground' });
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   await initAuth();
 
@@ -341,6 +353,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   mountDiagnosticPanel({
     frame: document.getElementById('preview-frame') as HTMLIFrameElement | null,
     toggleButtonId: 'diagnostic-btn',
+    canSend: true,
+    onSend: envoyerDiagnosticVersAssistant,
     emptyHint: 'Exécutez le code pour observer ce qui transite entre les composants.',
   });
 

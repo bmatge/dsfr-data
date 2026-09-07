@@ -219,13 +219,13 @@ primaire. La zone `[contexte]` (facultative) reçoit un contrôle de contexte, h
 
 | App | Primaire | Secondaire visible | Plus d'actions ▾ (secondaires repliées · **|** · tertiaires) |
 |---|---|---|---|
-| Créer un graphique | Générer | Copier le code | Ajouter aux favoris · Ouvrir dans le Playground · Ouvrir dans le Pipeline · Exporter en PNG · Exporter en JPG |
-| Créer une carte | Générer | Copier le code | Ajouter aux favoris · Ouvrir dans le Playground · Nouveau |
-| Créer un tableau de bord | Enregistrer | Ouvrir | Exporter la page HTML · Plein écran · Nouveau |
-| Assistant IA | Effacer la conversation | Copier le code | Ajouter aux favoris · Ouvrir dans le Playground · Exporter en PNG · Exporter en JPG |
-| Studio IA | Enregistrer | Copier le code | Ouvrir dans le tableau de bord · Effacer la conversation |
+| Créer un graphique | Générer | Copier le code | Ajouter aux favoris · Ouvrir dans le Playground · Ouvrir dans le Pipeline · Exporter en PNG · Exporter en JPG · **Diagnostic** |
+| Créer une carte | Générer | Copier le code | Ajouter aux favoris · Ouvrir dans le Playground · Nouveau · **Diagnostic** |
+| Créer un tableau de bord | Enregistrer | Ouvrir | Exporter la page HTML · Plein écran · Nouveau · **Diagnostic** |
+| Assistant IA | Effacer la conversation | Copier le code | Ajouter aux favoris · Ouvrir dans le Playground · Exporter en PNG · Exporter en JPG · **Diagnostic** |
+| Studio IA | Enregistrer | Copier le code | Ouvrir dans le tableau de bord · Effacer la conversation · **Diagnostic** |
 | Playground | Exécuter | Copier le code | Ajouter aux favoris · Ouvrir dans le Pipeline · Exporter en PNG · Exporter en JPG · Ajouter des dépendances · **Diagnostic** · Réinitialiser |
-| Pipeline | Exécuter | Ajouter une étape ▾ | Copier le code · Ouvrir dans le Playground · Supprimer · Réorganiser · Recentrer |
+| Pipeline | Exécuter | Ajouter une étape ▾ | Copier le code · Ouvrir dans le Playground · Supprimer · Réorganiser · Recentrer · **Diagnostic** |
 | Sources | Nouvelle connexion | Importer · Exporter ▾ | Visite guidée |
 | Favoris | — | Importer · Exporter ▾ | — |
 | Suivi | — | Exporter ▾ | Actualiser |
@@ -235,7 +235,7 @@ de liste (hors `AppActionBar`).
 
 `Diagnostic` (#605) rejoint « Plus d'actions » de chaque app dotée d'un aperçu : c'est une bascule
 d'interface, pas une action sur l'artefact — le rail du volet, toujours visible en bas de page,
-reste l'affordance principale. Cette ligne est mise à jour app par app au fil du lot #606.
+reste l'affordance principale. Présent dans les sept apps dotées d'un aperçu (#606). Absent de Sources, Favoris et Suivi, qui ne rendent aucun pipeline dsfr-data.
 
 ### 5.3 Usage (`packages/app-ui`)
 

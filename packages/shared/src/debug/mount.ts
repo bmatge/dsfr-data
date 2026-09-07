@@ -1,5 +1,5 @@
 import { attachRecorderToFrame, type FrameAttachment } from './frame.js';
-import type { Trace } from './recorder.js';
+import { DataflowRecorder, type Trace } from './recorder.js';
 
 /**
  * Montage du volet Diagnostic dans une app, en un appel (#605).
@@ -15,11 +15,16 @@ import type { Trace } from './recorder.js';
  * le câblage est rigoureusement le même partout, et le factoriser évite six
  * copies de la même boucle observer → rendre.
  *
- * Deux formes d'usage :
- *   - **live** : on passe la `frame`, le volet suit le pipeline qui y tourne ;
- *   - **rapporté** : pas de `frame`, l'app appelle `setTrace()` avec une trace
- *     reçue d'ailleurs. C'est le seul mode possible dans l'Assistant IA, dont
- *     l'aperçu ne passe par aucun composant dsfr-data.
+ * Trois formes d'usage, dictées par la façon dont chaque app rend son aperçu :
+ *
+ *   - **live / iframe** : on passe la `frame` — Playground, Builder, Studio,
+ *     Dashboard rendent tous dans une `<iframe srcdoc>` ;
+ *   - **live / même document** : on passe `liveRoot` — la Carto instancie de
+ *     vrais composants directement dans `#map-canvas`, et le Pipeline dans son
+ *     conteneur d'exécution. Il n'y a pas d'iframe à écouter, juste une racine ;
+ *   - **rapporté** : ni l'un ni l'autre, l'app appelle `setTrace()` avec une
+ *     trace reçue d'ailleurs. C'est le seul mode possible dans l'Assistant IA,
+ *     dont l'aperçu ne passe par aucun composant dsfr-data (voir #609).
  */
 
 /** Surface publique du composant, sans dépendre de sa classe. */
@@ -34,8 +39,13 @@ export interface DiagnosticPanelElement extends HTMLElement {
 }
 
 export interface MountDiagnosticOptions {
-  /** Iframe d'aperçu à observer. Absente = mode rapporté. */
+  /** Iframe d'aperçu à observer. */
   frame?: HTMLIFrameElement | null;
+  /**
+   * Racine à observer DANS le document courant, quand l'app ne rend pas dans
+   * une iframe (Carto, Pipeline). Ignorée si `frame` est fournie.
+   */
+  liveRoot?: ParentNode | null;
   /** Id d'un bouton de la barre d'actions qui ouvre/ferme le volet. */
   toggleButtonId?: string;
   /** Affiche « Envoyer à l'assistant » (apps conversationnelles). */
@@ -50,8 +60,10 @@ export interface MountDiagnosticOptions {
 
 export interface MountedDiagnostic {
   panel: DiagnosticPanelElement;
-  /** Rattachement à l'iframe, ou null en mode rapporté. */
+  /** Rattachement à l'iframe, ou null hors mode live/iframe. */
   attachment: FrameAttachment | null;
+  /** Collecteur du mode live/même document, ou null. */
+  recorder: DataflowRecorder | null;
   /** Alimente le volet en mode rapporté. */
   setTrace(trace: Trace | null): void;
   /** Le texte que copient et envoient les boutons. */
@@ -59,11 +71,40 @@ export interface MountedDiagnostic {
   destroy(): void;
 }
 
+/**
+ * Clé de passation d'un diagnostic entre apps (ARCHITECTURE.md §10.1).
+ *
+ * Le mode rapporté n'a d'intérêt que si quelque chose peut y arriver : une
+ * app sans pipeline observable doit pouvoir recevoir le diagnostic produit
+ * par une autre. Même mécanisme que `playground-code` / `pipeline-helper-code`.
+ */
+export const DIAGNOSTIC_HANDOFF_KEY = 'dsfr-data-diagnostic-handoff';
+
+/** Dépose un diagnostic à destination de l'app suivante. */
+export function transmettreDiagnostic(texte: string): void {
+  try {
+    sessionStorage.setItem(DIAGNOSTIC_HANDOFF_KEY, texte);
+  } catch {
+    // Stockage indisponible : l'utilisateur garde « Copier le diagnostic ».
+  }
+}
+
+/** Récupère et consomme un diagnostic transmis, ou null. */
+export function recupererDiagnostic(): string | null {
+  try {
+    const texte = sessionStorage.getItem(DIAGNOSTIC_HANDOFF_KEY);
+    if (texte) sessionStorage.removeItem(DIAGNOSTIC_HANDOFF_KEY);
+    return texte;
+  } catch {
+    return null;
+  }
+}
+
 export function mountDiagnosticPanel(options: MountDiagnosticOptions = {}): MountedDiagnostic {
   const host = options.host ?? document.body;
 
   const panel = document.createElement('app-diagnostic-panel') as DiagnosticPanelElement;
-  panel.mode = options.frame ? 'live' : 'rapporte';
+  panel.mode = options.frame || options.liveRoot ? 'live' : 'rapporte';
   panel.canSend = !!options.canSend;
   if (options.emptyHint) panel.emptyHint = options.emptyHint;
   host.appendChild(panel);
@@ -89,6 +130,9 @@ export function mountDiagnosticPanel(options: MountDiagnosticOptions = {}): Moun
   panel.addEventListener('diagnostic-toggle', onPanelToggle);
 
   let attachment: FrameAttachment | null = null;
+  let recorder: DataflowRecorder | null = null;
+  let offRecorder: (() => void) | null = null;
+
   if (options.frame) {
     attachment = attachRecorderToFrame(options.frame, {
       onChange: (trace) => {
@@ -100,17 +144,37 @@ export function mountDiagnosticPanel(options: MountDiagnosticOptions = {}): Moun
         panel.trace = null;
       },
     });
+  } else if (options.liveRoot) {
+    // Même document : pas de cycle de rechargement à suivre, mais la même
+    // règle de cadence — un instantané par événement de bus ferait deux
+    // parcours DOM complets pour rien.
+    recorder = new DataflowRecorder({ root: options.liveRoot });
+    recorder.start();
+    const active = recorder;
+    let pending = false;
+    offRecorder = active.onChange(() => {
+      if (pending) return;
+      pending = true;
+      queueMicrotask(() => {
+        pending = false;
+        panel.trace = active.snapshot();
+      });
+    });
+    panel.trace = active.snapshot();
   }
 
   return {
     panel,
     attachment,
+    recorder,
     setTrace: (trace) => {
       panel.trace = trace;
     },
     text: () => panel.diagnosticText,
     destroy: () => {
       attachment?.detach();
+      offRecorder?.();
+      recorder?.stop();
       toggle?.removeEventListener('click', onToggleClick);
       panel.removeEventListener('diagnostic-toggle', onPanelToggle);
       panel.remove();

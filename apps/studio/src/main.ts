@@ -14,6 +14,7 @@ import {
   startTour,
   startTourIfFirstVisit,
   STUDIO_TOUR,
+  mountDiagnosticPanel,
 } from '@dsfr-data/shared';
 import type { DashboardData } from '@dsfr-data/shared';
 import './styles/studio.css';
@@ -175,6 +176,18 @@ async function showIAModeBadge(): Promise<void> {
 }
 
 function init(): void {
+  // Volet Diagnostic (#606) — l'aperçu du Studio EST l'export : de vrais
+  // composants dans une iframe srcdoc, donc un pipeline pleinement observable.
+  // Seule app avec le Studio à porter un chat : le diagnostic peut partir
+  // directement vers l'assistant.
+  mountDiagnosticPanel({
+    frame: document.getElementById('preview-frame') as HTMLIFrameElement | null,
+    toggleButtonId: 'diagnostic-btn',
+    canSend: true,
+    onSend: injecterDiagnostic,
+    emptyHint: 'Décrivez un tableau de bord pour observer ce qui transite entre les composants.',
+  });
+
   loadSavedSources();
   restoreSession();
   renderPreview();
@@ -211,6 +224,21 @@ function init(): void {
       'Bienvenue dans le **Studio IA**. Choisissez une source de données, puis décrivez le tableau de bord complet que vous voulez : titre, texte éditorial (collez-le), indicateurs, graphiques, filtres. Je le compose bloc par bloc sous vos yeux.'
     );
   }
+}
+
+/**
+ * Injecte un diagnostic dans le champ du chat plutôt que de l'envoyer
+ * directement : l'utilisateur relit ce qui part vers un service externe —
+ * la trace contient des échantillons de données réelles — et peut
+ * l'accompagner de sa question.
+ */
+function injecterDiagnostic(texte: string): void {
+  const input = document.getElementById('chat-input') as HTMLTextAreaElement | null;
+  if (!input) return;
+  const question = 'Voici le diagnostic du pipeline. Qu’est-ce qui ne va pas ?';
+  input.value = `${question}\n\n${texte}`;
+  input.focus();
+  input.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
 document.addEventListener('DOMContentLoaded', init);
