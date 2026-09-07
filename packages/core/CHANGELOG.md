@@ -1,5 +1,66 @@
 # dsfr-data
 
+## 0.20.0
+
+### Minor Changes
+
+- [#593](https://github.com/bmatge/dsfr-data/pull/593) [`8aa3cf2`](https://github.com/bmatge/dsfr-data/commit/8aa3cf21d186931823ef2aa91e1265a2f4e0e53d) Thanks [@bmatge](https://github.com/bmatge)! - Libelles INSEE Melodi resolus automatiquement ([#592](https://github.com/bmatge/dsfr-data/issues/592), volet B) : les jeux Melodi
+  arrivaient en codes SDMX bruts (`AGE: "Y65T74"`, `GEO: "2025-DEP-01"`, `SEX: "M"`),
+  inexploitables comme etiquettes d'axe. Les libelles officiels sont desormais charges
+  depuis `/melodi/range/{idDataset}` et appliques aux valeurs — « De 65 a 74 ans »,
+  « Ain », « Homme » — par les **deux** chemins d'import (composant et connexion API),
+  qui produisent donc les memes colonnes. Le code d'origine est conserve dans une colonne
+  `<DIMENSION>_CODE` pour les filtres, jointures et URL partagees, qui veulent une valeur
+  stable. Les noms de colonnes restent les codes de dimension : ce sont des identifiants
+  references par les configurations de graphiques enregistrees. Un appel par jeu, mis en
+  cache en memoire ; libelles indisponibles = codes conserves, jamais d'erreur bloquante.
+
+### Patch Changes
+
+- [#593](https://github.com/bmatge/dsfr-data/pull/593) [`8aa3cf2`](https://github.com/bmatge/dsfr-data/commit/8aa3cf21d186931823ef2aa91e1265a2f4e0e53d) Thanks [@bmatge](https://github.com/bmatge)! - Deduplication du stockage local des sources ([#592](https://github.com/bmatge/dsfr-data/issues/592), volet A) : `SELECTED_SOURCE` ne
+  persiste plus que le **pointeur** vers la source (descripteur sans les lignes), au lieu
+  d'une seconde copie integrale des donnees deja presentes dans `SOURCES`. Un jeu de 2,7 Mo
+  consommait ainsi ~5,4 Mo d'un quota localStorage d'environ 5 Mo, et l'ecriture etait
+  refusee au-dela (toast « Espace de stockage plein », rendu visible par [#586](https://github.com/bmatge/dsfr-data/issues/586)). Nouveaux
+  helpers partages `toSourcePointer()` / `resolveSelectedSource()` : les lignes sont
+  rebranchees depuis `SOURCES` a la lecture, avec repli sur l'ancien format pour les
+  entrees deja ecrites. `saveAsFavorite()` lit desormais l'etat memoire plutot que
+  localStorage.
+
+- [#600](https://github.com/bmatge/dsfr-data/pull/600) [`740b920`](https://github.com/bmatge/dsfr-data/commit/740b920e81ab3fafa40a1de5f9be2e3863fe9dd5) Thanks [@bmatge](https://github.com/bmatge)! - Diagnostic des erreurs de chargement masquées par CORS.
+  
+  Quand une API répond une erreur HTTP sans en-tête `Access-Control-Allow-Origin`, le navigateur
+  interdit la lecture de la réponse et `fetch` rejette avec un `TypeError` générique : le statut et le
+  corps, qui portent le vrai diagnostic, sont perdus. `dsfr-data-source` ne remontait qu'un
+  « NetworkError » inexploitable.
+  
+  Le log console nomme désormais l'URL réellement appelée, distingue les deux causes possibles (erreur
+  HTTP masquée ou requête non aboutie), propose la commande `curl` correspondante et rappelle que
+  `use-proxy` / `proxy-url` rendent la réponse d'erreur lisible. L'objet `Error` remonté aux
+  consommateurs (événement `data-error`, template de statut) est inchangé.
+
+- [#599](https://github.com/bmatge/dsfr-data/pull/599) [`fbcbf04`](https://github.com/bmatge/dsfr-data/commit/fbcbf0417f50147e2ef02b09ff61417d0081fe45) Thanks [@bmatge](https://github.com/bmatge)! - Tabular : les group-by et agrégations délégués au serveur sont de nouveau acceptés par l'API data.gouv.
+  
+  L'API Tabular a durci son parser de query string : elle rejette désormais la forme valuée
+  `colonne__groupby=` avec un 400 « Malformed query » et n'accepte que le flag nu
+  `colonne__groupby`. L'adapter les sérialisait via `URLSearchParams`, qui ajoute toujours un `=`.
+  Comme l'API n'émet pas d'en-tête CORS sur ses réponses d'erreur, le navigateur masquait ce 400
+  derrière un `TypeError: NetworkError` — tout graphique Tabular avec agrégation restait vide.
+
+- [#601](https://github.com/bmatge/dsfr-data/pull/601) [`c521efc`](https://github.com/bmatge/dsfr-data/commit/c521efcec354e53107aa6ce2202ffb0fd7812a8d) Thanks [@bmatge](https://github.com/bmatge)! - Tabular : les attributs `use-proxy` et `proxy-url` sont de nouveau pris en compte.
+  
+  L'adapter arbitrait le proxy dans sa résolution de base URL, qui rendait `base-url` en priorité et
+  court-circuitait toute réécriture. Le Builder émettant toujours un `base-url`, le proxy était en
+  pratique systématiquement ignoré sur ce provider — sans le moindre avertissement.
+  
+  L'URL cible est désormais construite puis passée à `getProxiedUrl` au moment du fetch, comme dans les
+  adapters Grist, INSEE et OpenDataSoft.
+  
+  Changement de routage à connaître : un widget Tabular déployé avec un proxy configuré
+  (`proxy-url`, `window.DSFR_DATA_PROXY` ou `VITE_PROXY_URL`) passe maintenant réellement par ce proxy,
+  là où il appelait l'API en direct. Les instances self-hosted déclarées via `base-url` sur un autre
+  hôte que `tabular-api.data.gouv.fr` restent en appel direct, inchangées.
+
 ## 0.19.0
 
 ### Minor Changes
