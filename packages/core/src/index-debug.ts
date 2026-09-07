@@ -100,11 +100,17 @@ function install(precoce?: DataflowRecorder): DebugApi {
   // L'inverse ecraserait une erreur reellement vue par un instantane muet —
   // le cache ne garde aucune trace d'un echec.
   if (precoce) recorder.adoptFrom(precoce);
+  // Le compte est releve AVANT le remplissage : `backfillFromCache` pousse
+  // lui-meme un evenement par etape reconstituee, donc le mesurer apres
+  // rendrait la condition insatisfiable — et la banniere « trace
+  // reconstituee » ne s'afficherait JAMAIS, y compris dans le cas qu'elle
+  // vise (script injecte sur une page tierce deja chargee).
+  const observesAvant = recorder.snapshot().events.length;
   const complete = recorder.backfillFromCache(window);
-  // « Reconstitue » ne vaut que si RIEN n'a ete observe en direct : un
+  // « Reconstitue » ne vaut que si RIEN n'avait ete observe en direct : un
   // collecteur precoce qui a tout vu rend la trace complete, meme si le
   // cache a par ailleurs comble une etape.
-  const reconstitue = complete > 0 && recorder.snapshot().events.length === 0;
+  const reconstitue = complete > 0 && observesAvant === 0;
 
   const overlay = document.createElement('div');
   overlay.id = OVERLAY_ID;

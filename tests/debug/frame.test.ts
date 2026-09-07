@@ -492,3 +492,59 @@ describe('adoptFrom — fusion chronologique', () => {
     expect(n).toBe(1);
   });
 });
+
+describe('adoptFrom — la numérotation survit à l’écrêtage (D2)', () => {
+  it('le prochain événement direct ne recule pas dans la numérotation', () => {
+    // Apres ecretage, les seq conservés sont decales vers le haut. Repartir
+    // de `events.length` redistribuait des numeros DEJA utilises : le
+    // prochain evenement direct recevait un seq inferieur au precedent, et
+    // un consommateur qui ordonne par seq lisait une chronologie fausse.
+    let horloge = 1000;
+    const precoce = new DataflowRecorder({ root: document.body, now: () => horloge });
+    precoce.start();
+    for (let i = 0; i < 5; i++) {
+      horloge += 1;
+      dispatchDataLoaded(`seq-vieux-${i}`, [{ a: i }]);
+    }
+    precoce.stop();
+
+    const courant = new DataflowRecorder({
+      root: document.body,
+      maxEvents: 3,
+      now: () => horloge,
+    });
+    courant.start();
+    courant.adoptFrom(precoce);
+    horloge = 2000;
+    dispatchDataLoaded('seq-direct', [{ a: 1 }]);
+    const events = courant.snapshot().events;
+    courant.stop();
+
+    const seqs = events.map((e) => e.seq);
+    // Strictement croissants, et sans doublon.
+    expect(new Set(seqs).size).toBe(seqs.length);
+    expect([...seqs].sort((a, b) => a - b)).toEqual(seqs);
+    // Et `seq` reste d'accord avec `t`.
+    const parT = [...events].sort((a, b) => a.t - b.t).map((e) => e.seq);
+    expect(parT).toEqual(seqs);
+  });
+
+  it('sans écrêtage, la numérotation reste dense', () => {
+    let horloge = 1000;
+    const precoce = new DataflowRecorder({ root: document.body, now: () => horloge });
+    precoce.start();
+    dispatchDataLoaded('dense-a', [{ a: 1 }]);
+    precoce.stop();
+
+    horloge = 2000;
+    const courant = new DataflowRecorder({ root: document.body, now: () => horloge });
+    courant.start();
+    courant.adoptFrom(precoce);
+    horloge = 3000;
+    dispatchDataLoaded('dense-b', [{ a: 1 }]);
+    const seqs = courant.snapshot().events.map((e) => e.seq);
+    courant.stop();
+
+    expect(seqs).toEqual([1, 2]);
+  });
+});

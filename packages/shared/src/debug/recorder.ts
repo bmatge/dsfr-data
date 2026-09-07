@@ -235,7 +235,11 @@ export class DataflowRecorder {
     if (this.events.length > this.opts.maxEvents) {
       this.events.splice(0, this.events.length - this.opts.maxEvents);
     }
-    this.seq = this.events.length;
+    // Le compteur reprend au DERNIER seq conserve, pas au nombre d'evenements
+    // restants : apres ecretage les seq survivants sont decales vers le haut,
+    // et repartir de `length` redistribuerait des numeros deja utilises — le
+    // prochain evenement direct reculerait dans la numerotation.
+    this.seq = this.events[this.events.length - 1]?.seq ?? 0;
 
     for (const [id, state] of precoce.states) {
       if (!this.states.has(id)) this.states.set(id, state);
