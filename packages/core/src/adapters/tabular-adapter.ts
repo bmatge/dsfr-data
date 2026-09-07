@@ -42,6 +42,20 @@ function isTabularServerFieldSafe(field: string): boolean {
   return /^[\p{L}\p{N}_]+$/u.test(field);
 }
 
+/**
+ * Concatene des flags nus (sans `=`) a la query string d'une URL.
+ *
+ * L'API Tabular exige `colonne__groupby` / `colonne__sum` et rejette la forme
+ * valuee `colonne__groupby=` avec un 400 « Malformed query » (#596). Or
+ * `URLSearchParams` emet toujours le `=`, meme pour une valeur vide : les
+ * flags doivent donc etre assembles a la main, apres les parametres values.
+ */
+function appendBareFlags(url: URL, flags: string[]): string {
+  const serialized = url.toString();
+  if (flags.length === 0) return serialized;
+  return `${serialized}${url.search ? '&' : '?'}${flags.join('&')}`;
+}
+
 /** Nombre max de records par requête Tabular (API max = 50) */
 const TABULAR_PAGE_SIZE = 50;
 
@@ -231,6 +245,10 @@ export class TabularAdapter implements ApiAdapter {
       this._applyColonFilters(url, filterExpr);
     }
 
+    // Flags nus : emis hors de `url.searchParams`, qui ajouterait un `=` que
+    // l'API rejette (#596). L'ordre des parametres est indifferent cote API.
+    const bareFlags: string[] = [];
+
     // Group by + agregations : seulement si TOUS les champs sont surs (#289).
     // Le garde-fou isTabularServerFieldSafe n'etait consulte que par la
     // delegation query (#275) — un group-by pose directement sur la source
@@ -244,7 +262,7 @@ export class TabularAdapter implements ApiAdapter {
           .map((f) => f.trim())
           .filter(Boolean);
         for (const field of groupFields) {
-          url.searchParams.append(`${field}__groupby`, '');
+          bareFlags.push(`${encodeURIComponent(field)}__groupby`);
         }
       }
 
@@ -253,7 +271,7 @@ export class TabularAdapter implements ApiAdapter {
       // Les alias personnalises (3e segment) ne sont pas supportes server-side.
       if (params.aggregate) {
         for (const agg of parseAggregates(params.aggregate)) {
-          url.searchParams.append(`${agg.field}__${agg.function}`, '');
+          bareFlags.push(`${encodeURIComponent(agg.field)}__${encodeURIComponent(agg.function)}`);
         }
       }
     }
@@ -278,7 +296,7 @@ export class TabularAdapter implements ApiAdapter {
       url.searchParams.set('page', String(pageOverride));
     }
 
-    return url.toString();
+    return appendBareFlags(url, bareFlags);
   }
 
   /**

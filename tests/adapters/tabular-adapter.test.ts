@@ -25,6 +25,12 @@ function makeParams(overrides: Partial<AdapterParams> = {}): AdapterParams {
   };
 }
 
+/** Query string brute d'une URL construite (`?` inclus, '' si absente). */
+function query(url: string): string {
+  const i = url.indexOf('?');
+  return i === -1 ? '' : url.slice(i);
+}
+
 describe('TabularAdapter', () => {
   const adapter = new TabularAdapter();
 
@@ -95,16 +101,48 @@ describe('TabularAdapter', () => {
       expect(url).toContain('score__greater=80');
     });
 
-    it('adds groupby parameters', () => {
+    // #596 — assertions sur la query string ENTIERE, pas `toContain` : la forme
+    // valuee `region__groupby=` contient elle aussi `region__groupby`, si bien
+    // que l'ancien `toContain` restait vert sur l'URL qui declenchait un 400
+    // « Malformed query » cote API.
+    it('emet les group-by en flags nus, sans "="', () => {
       const url = adapter.buildUrl(makeParams({ groupBy: 'region, departement' }));
-      expect(url).toContain('region__groupby');
-      expect(url).toContain('departement__groupby');
+      expect(query(url)).toBe('?region__groupby&departement__groupby');
     });
 
-    it('adds aggregation parameters', () => {
+    it('emet les agregations en flags nus, sans "="', () => {
       const url = adapter.buildUrl(makeParams({ aggregate: 'population:sum, count:count' }));
-      expect(url).toContain('population__sum');
-      expect(url).toContain('count__count');
+      expect(query(url)).toBe('?population__sum&count__count');
+    });
+
+    it('combine group-by, agregations et parametres values sans "=" parasite', () => {
+      const url = adapter.buildUrl(
+        makeParams({
+          groupBy: 'region',
+          aggregate: 'population:sum',
+          filter: 'statut:eq:actif',
+          orderBy: 'population__sum:desc',
+        }),
+        50,
+        1
+      );
+      expect(query(url)).toBe(
+        '?statut__exact=actif&population__sum__sort=desc&page_size=50&page=1' +
+          '&region__groupby&population__sum'
+      );
+    });
+
+    it('ouvre la query avec "?" quand les flags nus sont les seuls parametres', () => {
+      const url = adapter.buildUrl(makeParams({ groupBy: 'region' }));
+      expect(url).toBe(
+        'https://tabular-api.data.gouv.fr/api/resources/resource-456/data/?region__groupby'
+      );
+    });
+
+    it("n'ajoute aucune query string quand il n'y a ni parametre ni flag", () => {
+      expect(adapter.buildUrl(makeParams())).toBe(
+        'https://tabular-api.data.gouv.fr/api/resources/resource-456/data/'
+      );
     });
 
     it('adds sort parameter', () => {
