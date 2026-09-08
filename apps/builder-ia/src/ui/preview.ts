@@ -33,12 +33,7 @@ import { state } from '../state.js';
 import type { ChartConfig, AggregatedResult } from '../state.js';
 import { addMessage } from '../chat/chat.js';
 import { generateCode } from './code-generator.js';
-import {
-  applyWhereFilter,
-  buildMultiSeries,
-  aggregateBy,
-  type Aggregation,
-} from '../ia/data-tools.js';
+import { applyWhereFilter, aggregateBy, type Aggregation } from '../ia/data-tools.js';
 
 const FRAME_ID = 'preview-frame';
 
@@ -158,11 +153,13 @@ export function applyChartConfig(config: ChartConfig): void {
     config.valueFields.length > 0 &&
     MULTI_SERIES_TYPES.includes(config.type)
   ) {
+    // Le generateur emet `value-fields` : il aligne les séries lui-meme cote
+    // composant et n'a besoin ici que de la série PRIMAIRE. Un appel a
+    // `buildMultiSeries` trainait ici, resultat jete, sous un commentaire qui
+    // lui pretait une validation — la fonction ne leve jamais (les valeurs
+    // manquantes valent 0, data-tools.ts:113-138). Code mort et commentaire
+    // faux, tous deux herites de #609.
     const agg = (config.aggregation ?? 'sum') as Aggregation;
-    const fields = [config.valueField, ...config.valueFields].filter(Boolean);
-    // `buildMultiSeries` valide l'alignement des séries ; le generateur emet
-    // `value-fields` et n'a besoin que de la série primaire.
-    buildMultiSeries(workingData, config.labelField, fields, agg);
     generateCode(config, aggregateBy(workingData, config.labelField, config.valueField, agg));
     renderPreview();
     return;

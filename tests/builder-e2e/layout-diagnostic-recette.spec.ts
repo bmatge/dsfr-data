@@ -189,7 +189,7 @@ for (const app of APPS) {
       test('le mobilier flottant se pose sur le rail, pas 40 px plus haut', async ({ page }) => {
         // Hors flux, le `padding-bottom` du corps ne le concerne pas : il
         // reserve le rail lui-meme. La Carto ajoutait `--app-diagnostic-h` a
-        // son `bottom` alors que le corps l'avait deja fait — 53 px mesures
+        // son `bottom` alors que le corps l'avait deja fait — 52 px mesures
         // la ou 16 etaient prevus, et une pastille de statut en apesanteur.
         const { basMobilier, hautRail } = await page.evaluate((selecteur) => {
           const mobilier = document.querySelector(selecteur)!;

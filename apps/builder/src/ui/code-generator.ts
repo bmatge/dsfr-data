@@ -6,7 +6,9 @@
 
 import {
   escapeHtml,
+  singleQuoteAttr,
   jsonAttr,
+  jsStringLiteral,
   formatKPIValue,
   toNumber,
   isValidDeptCode,
@@ -76,7 +78,10 @@ function buildDatalistTriAttr(): string {
   if (state.sortOrder === 'none') return '';
   const field = state.sortField || state.labelField;
   if (!field) return '';
-  return `\n    tri="${field}:${state.sortOrder}"`;
+  // `sort` et non `tri` : l'alias francais est @deprecated depuis #300
+  // (packages/core/src/components/dsfr-data-list.ts:73). Du code fraichement
+  // genere ne doit pas naitre deprecie.
+  return `\n    sort="${field}:${state.sortOrder}"`;
 }
 
 /** Generate DataBox attributes for dsfr-data-chart (dynamic mode) */
@@ -216,16 +221,6 @@ function dsfrChartAttrs(): string {
     /* no fill = donut */
   }
   return extra.map((a) => `\n    ${a}`).join('');
-}
-
-/**
- * Escape single quotes in a string for use inside single-quoted HTML attributes.
- * DSFR Chart x/y attributes contain JSON with French names that may include
- * apostrophes (e.g. "CÔTES-D'ARMOR", "VAL-D'OISE") which would prematurely
- * close the HTML attribute if unescaped.
- */
-function escapeSingleQuotes(value: string): string {
-  return value.replace(/'/g, '&#39;');
 }
 
 /**
@@ -912,9 +907,9 @@ datalist.onSourceData(data);
 
   ${wrapWithDatabox(
     `<scatter-chart id="chart"
-    x='${escapeSingleQuotes(JSON.stringify([xValues]))}'
-    y='${escapeSingleQuotes(JSON.stringify([yValues]))}'
-    name='${escapeSingleQuotes(JSON.stringify([`${state.labelField} vs ${state.valueField}`]))}'
+    x='${jsonAttr([xValues])}'
+    y='${jsonAttr([yValues])}'
+    name='${jsonAttr([`${state.labelField} vs ${state.valueField}`])}'
     selected-palette="${state.palette}">
   </scatter-chart>`,
     'chart'
@@ -1024,9 +1019,9 @@ datalist.onSourceData(data);
 
   ${wrapWithDatabox(
     `<${dsfrTag} id="chart"
-    x='${escapeSingleQuotes(x)}'
-    y='${escapeSingleQuotes(y)}'
-    name='${escapeSingleQuotes(seriesNames)}'
+    x='${singleQuoteAttr(x)}'
+    y='${singleQuoteAttr(y)}'
+    name='${singleQuoteAttr(seriesNames)}'
     selected-palette="${state.palette}"${extraStr}>
   </${dsfrTag}>`,
     'chart'
@@ -1477,7 +1472,7 @@ ${middlewareHtml}
       state.valueFieldLabel || state.valueField,
       ...state.extraSeries.filter((s) => s.field).map((s) => s.label || s.field),
     ];
-    nameAttr = `name='${escapeSingleQuotes(JSON.stringify(seriesNames))}'`;
+    nameAttr = `name='${jsonAttr(seriesNames)}'`;
   } else if (queryValueField2) {
     extraFieldsAttr = `\n    value-field-2="${queryValueField2}"`;
   }
@@ -1826,7 +1821,7 @@ ${middlewareHtml}
       state.valueFieldLabel || state.valueField,
       ...state.extraSeries.filter((s) => s.field).map((s) => s.label || s.field),
     ];
-    nameAttr = `name='${escapeSingleQuotes(JSON.stringify(seriesNames))}'`;
+    nameAttr = `name='${jsonAttr(seriesNames)}'`;
   } else if (queryValueField2) {
     extraFieldsAttr = `\n    value-field-2="${queryValueField2}"`;
   }
@@ -2188,7 +2183,7 @@ async function loadChart() {
   var el = document.createElement('${dsfrTag}');
   el.setAttribute('x', JSON.stringify([labels]));
   el.setAttribute('y', y);
-  el.setAttribute('name', '${escapeSingleQuotes(seriesNames)}');
+  el.setAttribute('name', ${jsStringLiteral(seriesNames)});
   el.setAttribute('selected-palette', '${state.palette}');${
     state.chartType === 'horizontalBar'
       ? `

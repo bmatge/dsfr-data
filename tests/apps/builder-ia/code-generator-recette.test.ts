@@ -18,6 +18,11 @@ import { state } from '../../../apps/builder-ia/src/state.js';
  * 16 types x les 4 facons dont une source l'alimente — 64 combinaisons dont
  * aucune n'etait couverte.
  *
+ * Ce fichier tient la FORME du code. Le RENDU est l'affaire de
+ * `tests/builder-e2e/builder-ia-recette.spec.ts` : les deux defauts les plus
+ * couteux (podium vide, datalist pilotee par script) produisaient un code
+ * parfaitement bien forme, et aucune assertion de chaine ne pouvait les voir.
+ *
  * Ces tests ne joignent aucun reseau : ils tiennent les invariants verifiables
  * hors ligne, et ce sont ceux qui attrapent les defauts reels — un attribut
  * casse par une apostrophe, un `${'$'}{…}` non substitue, un script invalide.
@@ -278,6 +283,73 @@ describe('inventaire d’observabilite — ce que le volet Diagnostic peut voir'
   });
 });
 
+describe('le code genere ne nait pas deprecie', () => {
+  // `dsfr-data-list` accepte encore les alias francais (`colonnes`,
+  // `recherche`, `tri`, `filtres`, `server-tri`), @deprecated depuis #300. Ils
+  // existent pour ne pas casser le code deja publie par les utilisateurs —
+  // pas pour etre emis par un generateur en 2026. Deux des quatre variantes
+  // datalist les emettaient encore.
+  const ALIAS_DEPRECIES = ['colonnes=', 'recherche', 'filtres=', 'tri=', 'server-tri'];
+
+  /** Le balisage seul : les commentaires expliquent, ils ne configurent pas. */
+  const baliseSeule = (code: string) => code.replace(/<!--[\s\S]*?-->/g, '');
+
+  for (const variante of Object.keys(VARIANTES) as (keyof typeof VARIANTES)[]) {
+    it(`datalist — aucun alias deprecie, source ${variante}`, () => {
+      state.source = VARIANTES[variante]();
+      const balises = baliseSeule(genererCode(configPour('datalist')));
+
+      for (const alias of ALIAS_DEPRECIES) {
+        expect(balises, `alias deprecie « ${alias} »`).not.toContain(alias);
+      }
+      expect(balises).toContain('columns=');
+    });
+  }
+
+  it('les quatre variantes parlent le MEME vocabulaire', () => {
+    // L'incoherence etait la vraie faute : ODS/Tabular disaient `columns`,
+    // l'API generique et l'embarquee `colonnes`. Meme composant, meme
+    // configuration, deux dialectes.
+    const vocabulaires = (Object.keys(VARIANTES) as (keyof typeof VARIANTES)[]).map((v) => {
+      state.source = VARIANTES[v]();
+      const code = genererCode(configPour('datalist'));
+      return ['columns', 'sort', 'pagination', 'export'].filter((attr) =>
+        code.includes(`${attr}=`)
+      );
+    });
+
+    for (const vocab of vocabulaires) {
+      expect(vocab).toEqual(vocabulaires[0]);
+    }
+  });
+
+  it('la recherche locale n’est pas promise la ou elle n’opere pas', () => {
+    // En pagination serveur, `search` n'agit que sur la page chargee : le
+    // composant la desactive et loggue un avertissement dans la page de
+    // l'utilisateur (#304). L'emettre, c'est promettre un controle absent et
+    // salir sa console.
+    for (const variante of ['API OpenDataSoft', 'API Tabular'] as const) {
+      state.source = VARIANTES[variante]();
+      const code = genererCode(configPour('datalist'));
+
+      expect(baliseSeule(code), `${variante} : search inoperant emis`).not.toMatch(
+        /^\s*search\s*$/m
+      );
+      expect(code, `${variante} : l'alternative n'est pas indiquee`).toContain(
+        'dsfr-data-search server-search'
+      );
+    }
+  });
+
+  it('mais elle l’est la ou elle opere', () => {
+    for (const variante of ['embarquee (donnees inline)', 'API generique'] as const) {
+      state.source = VARIANTES[variante]();
+
+      expect(genererCode(configPour('datalist')), variante).toMatch(/^\s*search\s*$/m);
+    }
+  });
+});
+
 describe('les deux defauts trouves par la recette E2E', () => {
   // Ces deux-la ne se voyaient qu'au rendu : le code produit etait bien
   // forme dans les deux cas. C'est la raison d'etre de la moitie Playwright
@@ -368,10 +440,26 @@ describe('le code genere reste coherent avec la configuration', () => {
     expect(code).not.toContain('type="horizontalBar"');
   });
 
-  it('un filtre where est traduit, jamais recopie tel quel', () => {
+  it('un filtre where est TRADUIT en ODSQL, pas recopie tel quel', () => {
+    // Premiere version de ce test : `where: 'population > 5000'` et
+    // `expect(code).toContain('where=')`. Deux fautes qui se masquaient
+    // l'une l'autre — la syntaxe attendue est celle du pipeline
+    // (`champ:op:valeur`), donc `filterToOdsql` rendait une chaine VIDE, et
+    // l'assertion se satisfaisait d'un `where=""`. Elle restait verte avec le
+    // traducteur remplace par l'identite.
     state.source = VARIANTES['API OpenDataSoft']();
-    const code = genererCode({ ...configPour('bar'), where: 'population > 5000' });
+    const code = genererCode({ ...configPour('bar'), where: 'population:gt:5000' });
 
-    expect(code).toContain('where=');
+    expect(code).toContain('where="population > 5000"');
+    expect(code, 'la syntaxe pipeline a fuite dans le code livre').not.toContain(':gt:');
+  });
+
+  it('un filtre where traverse aussi la variante Tabular, sans traduction', () => {
+    // Tabular consomme la syntaxe pipeline telle quelle : le traduire ici
+    // serait le defaut symetrique.
+    state.source = VARIANTES['API Tabular']();
+    const code = genererCode({ ...configPour('bar'), where: 'population:gt:5000' });
+
+    expect(code).toContain('filter="population:gt:5000"');
   });
 });

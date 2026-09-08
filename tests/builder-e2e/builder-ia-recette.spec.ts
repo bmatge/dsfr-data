@@ -10,6 +10,12 @@
  * code puis alimente `#preview-frame` via `getPreviewHTML`. Depuis #609 c'est
  * le SEUL chemin — il n'existe plus de rendu parallele a comparer.
  *
+ * PORTEE, a ne pas surestimer : les 16 types sont rendus sur une source
+ * LOCALE. Les trois variantes API demanderaient le reseau ; leur forme est
+ * verifiee hors ligne, leur rendu ne l'est pas. Les deux defauts que ce spec
+ * a trouves (podium vide, datalist pilotee par script) etaient bien du cote
+ * embarque, mais rien ne garantit que le cote API en soit exempt.
+ *
  * Requiert `npm run dev` actif (voir tests/builder-e2e/README.md) :
  *   npx playwright test --config tests/builder-e2e/playwright.config.ts \
  *     builder-ia-recette

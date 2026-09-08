@@ -591,7 +591,7 @@ describe('generateCodeForLocalData', () => {
     expect(code).toContain('onSourceData');
   });
 
-  it('should generate datalist code with tri attribute when sortOrder is set', () => {
+  it('should generate datalist code with sort attribute when sortOrder is set', () => {
     state.chartType = 'datalist';
     state.localData = [{ region: 'Bretagne', population: 3300000 }];
     state.fields = [
@@ -604,7 +604,11 @@ describe('generateCodeForLocalData', () => {
     generateCodeForLocalData();
 
     const code = document.getElementById('generated-code')!.textContent!;
-    expect(code).toContain('tri="region:desc"');
+    // `sort` et non `tri` : l'alias francais est @deprecated depuis #300. Ce
+    // test verrouillait la forme depreciee — du code fraichement genere ne
+    // doit pas naitre deprecie.
+    expect(code).toContain('sort="region:desc"');
+    expect(code).not.toContain('tri="');
   });
 
   it('should use custom datalist columns when configured', () => {
@@ -2553,7 +2557,10 @@ describe('generateCode (API fetch embedded)', () => {
     state.fields = [{ name: 'region', type: 'string', sample: 'Bretagne' }];
     generateCode('https://api.example.com?limit=200');
     const code = document.getElementById('generated-code')!.textContent!;
-    expect(code).toContain('tri="region:asc"');
+    // Le nom du test disait deja `sort` ; l'assertion etait restee sur
+    // l'alias deprecie `tri` (#300).
+    expect(code).toContain('sort="region:asc"');
+    expect(code).not.toContain('tri="');
   });
 
   it('should not generate sort attribute when sortOrder is none', () => {

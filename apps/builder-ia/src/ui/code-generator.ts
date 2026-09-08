@@ -519,9 +519,13 @@ function generateDatalistCode(config: ChartConfig): string {
     colonnes = state.fields.map((f) => `${f.name}:${f.name}`).join(', ');
   }
 
+  // Vocabulaire courant : `columns` / `search` / `sort`. Les alias francais
+  // (`colonnes`, `recherche`, `tri`) sont @deprecated depuis #300 et deux des
+  // quatre variantes les emettaient encore — du code fraichement genere qui
+  // naissait deprecie.
   const triAttr =
     config.sortOrder && config.labelField
-      ? `\n    tri="${config.labelField}:${config.sortOrder}"`
+      ? `\n    sort="${config.labelField}:${config.sortOrder}"`
       : '';
   const pagination = config.pagination || 10;
 
@@ -563,10 +567,13 @@ function generateDatalistCode(config: ChartConfig): string {
     source="table-src">
   </dsfr-data-query>
 
+  <!-- Pas d'attribut search ici : en pagination serveur, la recherche locale
+       n'opererait que sur la page chargee. Le composant la desactive avec un
+       avertissement (#304). Pour chercher sur TOUT le jeu, inserer un
+       dsfr-data-search server-search en amont de la liste. -->
   <dsfr-data-list
     source="table-data"
     columns="${colonnes}"
-    search
     server-sort${triAttr}
     pagination="${pagination}"
     export="csv">
@@ -605,10 +612,13 @@ function generateDatalistCode(config: ChartConfig): string {
     source="table-src">
   </dsfr-data-query>
 
+  <!-- Pas d'attribut search ici : en pagination serveur, la recherche locale
+       n'opererait que sur la page chargee. Le composant la desactive avec un
+       avertissement (#304). Pour chercher sur TOUT le jeu, inserer un
+       dsfr-data-search server-search en amont de la liste. -->
   <dsfr-data-list
     source="table-data"
     columns="${colonnes}"
-    search
     server-sort${triAttr}
     pagination="${pagination}"
     export="csv">
@@ -646,8 +656,8 @@ function generateDatalistCode(config: ChartConfig): string {
 
   <dsfr-data-list
     source="table-data"
-    colonnes="${colonnes}"
-    recherche${triAttr}
+    columns="${colonnes}"
+    search${triAttr}
     pagination="${pagination}"
     export="csv">
   </dsfr-data-list>
@@ -677,8 +687,8 @@ function generateDatalistCode(config: ChartConfig): string {
 
   <dsfr-data-list
     source="table-data"
-    colonnes="${colonnes}"
-    recherche${triAttr}
+    columns="${colonnes}"
+    search${triAttr}
     pagination="${pagination}"
     export="csv">
   </dsfr-data-list>

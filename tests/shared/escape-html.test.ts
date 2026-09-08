@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { escapeHtml, jsonAttr } from '../../packages/shared/src/utils/escape-html';
+import {
+  escapeHtml,
+  singleQuoteAttr,
+  jsonAttr,
+  jsStringLiteral,
+} from '../../packages/shared/src/utils/escape-html';
 
 describe('escapeHtml', () => {
   it('should escape ampersand', () => {
@@ -46,13 +51,18 @@ describe('escapeHtml', () => {
 });
 
 /**
- * `jsonAttr` — JSON destine a un attribut a guillemets SIMPLES (#615).
+ * Echappement des donnees embarquees dans un attribut (#615).
  *
  * La recette du generateur de l'Assistant IA a montre que
  * `data='${JSON.stringify(…)}'` casse sur une etiquette francaise ordinaire :
- * `JSON.stringify` echappe `"`, jamais `'`. Le meme patron etait ecrit a
- * quatre endroits, avec trois echappements differents (un complet, un partiel,
- * deux absents).
+ * `JSON.stringify` echappe `"`, jamais `'`. Le patron etait ecrit a SEPT
+ * endroits avec CINQ echappements differents — un complet, deux partiels sans
+ * esperluette, deux absents, et un helper local `escapeSingleQuotes` qui ne
+ * couvrait que l'apostrophe.
+ *
+ * Trois fonctions, trois contextes distincts, et c'est la distinction qui
+ * compte : melanger les deux derniers produit un defaut VISIBLE plutot qu'une
+ * balise cassee, donc plus difficile a rattacher a sa cause.
  */
 describe('jsonAttr', () => {
   /** Relit la valeur comme un navigateur le ferait. */
@@ -96,27 +106,116 @@ describe('jsonAttr', () => {
   });
 });
 
-describe('aucun generateur ne serialise a la main dans un attribut simple', () => {
-  it('tous les sites d’appel passent par jsonAttr', async () => {
-    // Le patron etait duplique SIX fois, avec quatre echappements
-    // differents : un complet (dashboard), un partiel sans esperluette
-    // (builder, carto), deux absents (builder-ia). Ce garde-fou a lui-meme
-    // debusque les deux derniers. Un site de plus ecrit a la main repasserait
-    // sous le defaut sans bruit.
+describe('singleQuoteAttr — la serialisation a deja eu lieu', () => {
+  const relire = (brut: string): unknown => {
+    const doc = new DOMParser().parseFromString(
+      `<dsfr-data-chart name='${singleQuoteAttr(brut)}'></dsfr-data-chart>`,
+      'text/html'
+    );
+    return JSON.parse(doc.querySelector('dsfr-data-chart')!.getAttribute('name')!);
+  };
+
+  it('traverse une serie francaise deja serialisee', () => {
+    // Le cas du Builder : `x`/`y`/`name` de DSFR Chart sont construits par
+    // `JSON.stringify` en amont, puis poses dans l'attribut. C'est la chaine
+    // qu'on echappe, pas la valeur.
+    const serie = JSON.stringify(["Val-d'Oise", "Cotes-d'Armor"]);
+
+    expect(relire(serie)).toEqual(["Val-d'Oise", "Cotes-d'Armor"]);
+  });
+
+  it('n’altere pas une chaine sans caractere sensible', () => {
+    expect(singleQuoteAttr('["Paris"]')).toBe('["Paris"]');
+  });
+
+  it('jsonAttr n’est que singleQuoteAttr applique a JSON.stringify', () => {
+    const valeur = [{ region: "Val-d'Oise & Oise", note: '<b>' }];
+
+    expect(jsonAttr(valeur)).toBe(singleQuoteAttr(JSON.stringify(valeur)));
+  });
+});
+
+describe('jsStringLiteral — contexte JavaScript, pas HTML', () => {
+  /** Evalue le litteral comme le ferait le navigateur dans le script genere. */
+  const evaluer = (brut: string): string =>
+    new Function(`return ${jsStringLiteral(brut)};`)() as string;
+
+  it('restitue l’apostrophe TELLE QUELLE, pas en entite', () => {
+    // Le defaut : `el.setAttribute('name', '&#039;')` pose les six caracteres
+    // `&#039;` — `setAttribute` ne decode pas les entites — et la legende
+    // affiche « Val-d&#039;Oise ». Une balise cassee se voit ; ceci se lit.
+    expect(evaluer(JSON.stringify(["Val-d'Oise"]))).toBe('["Val-d\'Oise"]');
+    expect(jsStringLiteral("Val-d'Oise")).not.toContain('&#0');
+  });
+
+  it('produit un litteral avec ses propres guillemets', () => {
+    // L'appelant n'en ajoute pas : `setAttribute('name', ${jsStringLiteral(x)})`.
+    expect(jsStringLiteral('abc').startsWith('"')).toBe(true);
+  });
+
+  it('neutralise une fermeture de script glissee dans la donnee', () => {
+    const litteral = jsStringLiteral('</script><script>alert(1)</script>');
+
+    expect(litteral).not.toContain('</script>');
+    expect(evaluer('</script>')).toBe('</script>');
+  });
+
+  it('survit au retour chariot et a l’antislash', () => {
+    expect(evaluer('a\nb\\c')).toBe('a\nb\\c');
+  });
+});
+
+describe('aucun generateur n’echappe a la main pour un attribut simple', () => {
+  const GENERATEURS = [
+    'apps/builder-ia/src/ui/code-generator.ts',
+    'apps/builder/src/ui/code-generator.ts',
+    'apps/builder-carto/src/ui/code-generator.ts',
+    'packages/shared/src/dashboard/export-html.ts',
+  ];
+
+  const lireGenerateurs = async (): Promise<[string, string][]> => {
     const { readFileSync } = await import('node:fs');
     const { join } = await import('node:path');
     const racine = join(__dirname, '../..');
+    return GENERATEURS.map((f) => [f, readFileSync(join(racine, f), 'utf-8')]);
+  };
 
-    for (const fichier of [
-      'apps/builder-ia/src/ui/code-generator.ts',
-      'apps/builder/src/ui/code-generator.ts',
-      'packages/shared/src/dashboard/export-html.ts',
-      'apps/builder-carto/src/ui/code-generator.ts',
-    ]) {
-      const src = readFileSync(join(racine, fichier), 'utf-8');
-      expect(src, `${fichier} : JSON.stringify dans un attribut simple`).not.toMatch(
-        /='\$\{JSON\.stringify/
-      );
-    }
+  it('personne ne pose JSON.stringify directement dans l’attribut', () => {
+    // La forme d'origine : `data='${JSON.stringify(…)}'`, aucun echappement.
+    return lireGenerateurs().then((fichiers) => {
+      for (const [nom, src] of fichiers) {
+        expect(src, `${nom} : JSON.stringify dans un attribut simple`).not.toMatch(
+          /='\$\{JSON\.stringify/
+        );
+      }
+    });
+  });
+
+  it('personne ne se recrit un echappement d’apostrophe', () => {
+    // La forme que la premiere passe avait LAISSEE PASSER : un helper local
+    // `escapeSingleQuotes` qui ne couvrait que `'`. Le garde-fou precedent ne
+    // cherchait que `JSON.stringify` et ne le voyait pas — un correctif
+    // applique chez un consommateur, declare « remplace partout ».
+    return lireGenerateurs().then((fichiers) => {
+      for (const [nom, src] of fichiers) {
+        expect(src, `${nom} : echappement d’apostrophe ecrit a la main`).not.toMatch(
+          /replace\(\/'\/g/
+        );
+      }
+    });
+  });
+
+  it('l’echappement partagé reste la seule definition', async () => {
+    // `escape-html.ts` est le seul endroit ou ces caracteres sont traites.
+    const { readFileSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const src = readFileSync(
+      join(__dirname, '../../packages/shared/src/utils/escape-html.ts'),
+      'utf-8'
+    );
+
+    expect(src).toContain('export function singleQuoteAttr');
+    expect(src).toContain('export function jsonAttr');
+    expect(src).toContain('export function jsStringLiteral');
   });
 });

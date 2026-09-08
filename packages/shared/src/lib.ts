@@ -26,7 +26,7 @@
 export * from './debug/index.js';
 
 // Utils (purs, sans DOM ni réseau)
-export { escapeHtml, jsonAttr } from './utils/escape-html.js';
+export { escapeHtml, singleQuoteAttr, jsonAttr, jsStringLiteral } from './utils/escape-html.js';
 export {
   formatKPIValue,
   formatDateShort,
