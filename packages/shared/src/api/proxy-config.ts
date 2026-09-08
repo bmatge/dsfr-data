@@ -171,6 +171,66 @@ function stripTrailingSlash(url: string): string {
   return url.slice(0, end);
 }
 
+/** N'avertir qu'une fois par page : la config est resolue a chaque appel. */
+let proxyCrossOriginSignale = false;
+
+/** Remet le garde-fou a zero — reserve aux tests. */
+export function _resetAvertissementProxy(): void {
+  proxyCrossOriginSignale = false;
+}
+
+/**
+ * Avertit quand le proxy bake au build n'est pas sur l'origine de la page.
+ *
+ * CE GARDE-FOU EXISTE PARCE QUE LE SYMPTOME DESIGNE LE MAUVAIS COUPABLE.
+ * Un `VITE_PROXY_URL` errone ne se manifeste pas comme une erreur de
+ * configuration : il produit un mur d'erreurs « Content-Security-Policy : …
+ * empeche le chargement d'une ressource (connect-src) », parce que la requete
+ * part vers une autre origine que celle de la page et sort donc de `'self'`.
+ * On accuse la CSP, qui fait exactement son travail.
+ *
+ * Cas reel : une instance servie depuis `https://x.lab.exemple.fr` avec
+ * `VITE_PROXY_URL=https://x.exemple.fr` — un sous-domaine oublie. Toutes les
+ * connexions de sources echouaient en `NetworkError`, et la piste suivie a
+ * ete celle des en-tetes de securite.
+ *
+ * Pourquoi seulement dans cette branche : les branches 0 et 2 (attribut
+ * `proxy-url`, `window.DSFR_DATA_PROXY`) servent justement au widget embarque
+ * sur un site tiers, ou le cross-origin est LA configuration voulue. La
+ * branche 4 n'est atteinte que par un build d'app self-hostee — les bundles
+ * npm/CDN n'ont aucune URL bakee depuis #319 — et la, l'URL doit etre celle
+ * de l'app : `docs/DEPLOYMENT.md` la fait deriver d'`APP_DOMAIN`, et le cas du
+ * domaine separe a sa propre variable, `VITE_PROXY_URL_EMBED`.
+ *
+ * Avertit, ne corrige pas : basculer d'autorite sur l'origine de la page
+ * masquerait une configuration fausse au lieu de la signaler, et casserait le
+ * deploiement ou l'operateur a effectivement separe les domaines.
+ */
+function avertirSiProxyCrossOrigin(baseUrl: string): void {
+  if (proxyCrossOriginSignale) return;
+  if (typeof window === 'undefined' || typeof window.location === 'undefined') return;
+  if (!baseUrl || !/^https?:\/\//i.test(baseUrl)) return;
+
+  let origineProxy: string;
+  try {
+    origineProxy = new URL(baseUrl).origin;
+  } catch {
+    return;
+  }
+  if (origineProxy === window.location.origin) return;
+
+  proxyCrossOriginSignale = true;
+  console.warn(
+    `dsfr-data: le proxy configuré au build (${origineProxy}) n'est pas sur ` +
+      `l'origine de cette page (${window.location.origin}). Les appels vers ` +
+      `${origineProxy} sortiront de « connect-src 'self' » et seront bloqués ` +
+      `par la CSP — les erreurs qui suivent désigneront la CSP, pas la cause. ` +
+      `Corriger VITE_PROXY_URL (dérivé d'APP_DOMAIN, cf. docs/DEPLOYMENT.md) ` +
+      `et reconstruire. Pour servir volontairement le proxy depuis un autre ` +
+      `domaine, utiliser VITE_PROXY_URL_EMBED.`
+  );
+}
+
 /**
  * Get the proxy configuration based on the current environment.
  *
@@ -239,6 +299,7 @@ export function getProxyConfig(override?: string | RuntimeProxyConfig): ProxyCon
   //    @deprecated Résolution build-time conservée en fallback temporaire (#340) :
   //    préférer l'attribut `proxy-url` par source ou `window.DSFR_DATA_PROXY`.
   if (PROXY_BASE_URL_EMBED) {
+    avertirSiProxyCrossOrigin(PROXY_BASE_URL_EMBED);
     return { baseUrl: PROXY_BASE_URL_EMBED, endpoints, mode: 'remote' };
   }
 
