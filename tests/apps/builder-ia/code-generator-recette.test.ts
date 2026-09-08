@@ -620,6 +620,26 @@ describe('le code genere reste coherent avec la configuration', () => {
     expect(code, 'la syntaxe pipeline a fuite dans le code livre').not.toContain(':gt:');
   });
 
+  it('une source deja parametree ne perd pas son agregation', () => {
+    // Le generateur concatenait `?` sans regarder : sur une source ODS deja
+    // parametree, le serveur lisait le dernier parametre existant comme
+    // valant tout le reste et ignorait le `select`/`group_by`. Donnees brutes
+    // non agregees, dans un graphique qui s'affichait normalement.
+    state.source = {
+      id: 's',
+      name: 'ODS',
+      type: 'api',
+      apiUrl: 'https://data.economie.gouv.fr/api/records?refine=annee:2024',
+      recordCount: 5000,
+    };
+    const code = genererCode(configPour('bar'));
+
+    const url = new URL(/const API_URL = "([^"]+)"/.exec(code)![1]);
+    expect(url.searchParams.get('refine')).toBe('annee:2024');
+    expect(url.searchParams.get('group_by')).toBe('region');
+    expect(code, 'seconde interrogation dans l’URL').not.toMatch(/\?[^"']*\?/);
+  });
+
   it('une URL a entite legacy traverse l’attribut entiere', () => {
     // Premiere version de ce test : `?a=1&copy=2`. Elle etait DECORATIVE —
     // verte avec l'echappement retire. Les entites nommees historiques sont

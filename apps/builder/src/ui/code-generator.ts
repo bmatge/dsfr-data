@@ -7,6 +7,7 @@
 import {
   escapeHtml,
   singleQuoteAttr,
+  appendQuery,
   jsonAttr,
   jsonLiteral,
   jsStringLiteral,
@@ -105,8 +106,7 @@ function generateA11yElement(sourceId: string, chartId: string): string {
   const attrs: string[] = [`for="${chartId}"`, `source="${sourceId}"`];
   if (state.a11yTable) attrs.push('table');
   if (state.a11yDownload) attrs.push('download');
-  if (state.a11yDescription)
-    attrs.push(`description="${state.a11yDescription.replace(/"/g, '&quot;')}"`);
+  if (state.a11yDescription) attrs.push(`description="${escapeHtml(state.a11yDescription)}"`);
   return `\n  <dsfr-data-a11y ${attrs.join(' ')}></dsfr-data-a11y>`;
 }
 
@@ -117,8 +117,7 @@ function generateEmbeddedA11y(chartId: string): string {
   const attrs: string[] = [`for="${chartId}"`, `source="a11y-data"`];
   if (state.a11yTable) attrs.push('table');
   if (state.a11yDownload) attrs.push('download');
-  if (state.a11yDescription)
-    attrs.push(`description="${state.a11yDescription.replace(/"/g, '&quot;')}"`);
+  if (state.a11yDescription) attrs.push(`description="${escapeHtml(state.a11yDescription)}"`);
   return (
     `\n  <dsfr-data-source id="a11y-data" data='${dataJson}'></dsfr-data-source>` +
     `\n  <dsfr-data-a11y ${attrs.join(' ')}></dsfr-data-a11y>`
@@ -550,7 +549,7 @@ export async function generateChart(): Promise<void> {
         const odsql = filterToOdsql(state.queryFilter);
         if (odsql) params.set('where', odsql);
       }
-      const apiUrl = `${state.apiUrl}?${params}`;
+      const apiUrl = appendQuery(state.apiUrl, String(params));
       try {
         state.data = await fetchOdsResults(apiUrl);
         state.localData = state.data as Record<string, unknown>[];
@@ -632,7 +631,7 @@ export async function generateChart(): Promise<void> {
     if (odsql) params.set('where', odsql);
   }
 
-  const apiUrl = `${state.apiUrl}?${params}`;
+  const apiUrl = appendQuery(state.apiUrl, String(params));
 
   try {
     state.data = await fetchOdsResults(apiUrl);

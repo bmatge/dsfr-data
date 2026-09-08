@@ -37,6 +37,7 @@ import {
   mountDiagnosticPanel,
   transmettreDiagnostic,
   appHref,
+  escapeHtml,
 } from '@dsfr-data/shared';
 
 const FAVORITES_KEY = 'dsfr-data-favorites';
@@ -159,8 +160,9 @@ function getActiveLayer(): LayerConfig | undefined {
   return state.layers.find((l) => l.id === state.activeLayerId);
 }
 
-function escapeAttr(val: string): string {
-  return val.replace(/"/g, '&quot;').replace(/</g, '&lt;');
+/** Alias local de `escapeHtml` — une seule definition de l'echappement (#615). */
+function escapeAttr(val: string | number | boolean | null | undefined): string {
+  return escapeHtml(val);
 }
 
 const LAYER_TYPE_LABELS: Record<LayerType, string> = {

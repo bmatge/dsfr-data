@@ -70,6 +70,7 @@ export {
   buildProxiedRequest,
 } from './api/proxy.js';
 export { fetchWithTimeout, httpErrorMessage } from './api/fetch-helpers.js';
+export { appendQuery } from './api/url.js';
 export { buildGristHeaders } from './api/grist.js';
 
 // Storage

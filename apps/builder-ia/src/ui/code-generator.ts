@@ -4,6 +4,7 @@
 
 import {
   escapeHtml,
+  appendQuery,
   jsonAttr,
   jsonLiteral,
   jsStringLiteral,
@@ -145,7 +146,7 @@ function generateKPICode(config: ChartConfig, data: AggregatedResult[]): string 
     if (config.where) {
       params.set('where', filterToOdsql(config.where));
     }
-    const apiUrl = `${state.source.apiUrl}?${params}`;
+    const apiUrl = appendQuery(state.source.apiUrl, String(params));
 
     return `<!-- KPI généré avec dsfr-data Builder IA -->
 <!-- Source API dynamique : les données se mettent a jour automatiquement -->
@@ -867,7 +868,7 @@ function generateStandardChartCodeAPI(
     params.set('where', filterToOdsql(config.where));
   }
 
-  const apiUrl = `${state.source!.apiUrl}?${params}`;
+  const apiUrl = appendQuery(state.source!.apiUrl!, String(params));
 
   return `<!-- Graphique généré avec dsfr-data Builder IA -->
 <!-- Source API dynamique : les données se mettent a jour automatiquement -->

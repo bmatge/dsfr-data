@@ -283,8 +283,25 @@ describe('aucun generateur n’echappe a la main pour un attribut simple', () =>
     const coupables: string[] = [];
     for (const racineSource of ['apps', 'packages', 'scripts']) {
       for (const chemin of parcourir(join(racine, racineSource))) {
-        // La signature d'un echappement HTML ecrit a la main.
-        if (/replace\(\/&\/g,\s*['"]&amp;['"]\)/.test(readFileSync(chemin, 'utf-8'))) {
+        // Trois signatures, et la premiere version n'en avait qu'une.
+        //
+        // Ne chercher que `&` -> `&amp;` revenait a ne detecter que les copies
+        // CONFORMES, en restant structurellement aveugle aux DEFICIENTES —
+        // celles qui n'echappent que `"`, ou `"` et `<`. Or ce sont
+        // exactement celles qui sont dangereuses : cinq d'entre elles
+        // vivaient dans les racines deja scannees (description a11y du
+        // Builder, un second escapeAttr de la Carto, l'editeur de tableau des
+        // Sources). Le garde ne peut pas ne chercher que ce qui est correct.
+        //
+        // Les usages legitimes voisins (echappement CSV `""`, antislash JS)
+        // ont d'autres chaines de remplacement : zero faux positif.
+        const src = readFileSync(chemin, 'utf-8');
+        const signatures = [
+          /replace\(\/&\/g,\s*['"]&amp;['"]\)/,
+          /replace\(\/"\/g,\s*['"]&quot;['"]\)/,
+          /replace\(\/<\/g,\s*['"]&lt;['"]\)/,
+        ];
+        if (signatures.some((re) => re.test(src))) {
           coupables.push(relative(racine, chemin));
         }
       }
