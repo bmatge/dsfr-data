@@ -11,7 +11,7 @@
 import './styles/grist-widgets.css';
 import { onGristOptions, detectGristApi, getGristApiInfo } from './shared/grist-bridge.js';
 import { createOptionsPanel, type OptionDef } from './shared/grist-options-panel.js';
-import { PROXY_BASE_URL } from '@dsfr-data/shared';
+import { PROXY_BASE_URL, jsonLiteral } from '@dsfr-data/shared';
 
 const GRIST_SOURCE_ID = 'grist';
 
@@ -101,7 +101,7 @@ function generateFixedHtml(): string {
 
   const recherche = hasRecherche ? ' search' : '';
   const exportPart = exportAttr ? ` export="${exportAttr}"` : '';
-  const jsonData = JSON.stringify(data);
+  const jsonData = jsonLiteral(data);
 
   const deps = [
     '<!-- Dependances dsfr-data (a ajouter dans le <head> si absentes) -->',

@@ -8,6 +8,7 @@ import {
   escapeHtml,
   singleQuoteAttr,
   jsonAttr,
+  jsonLiteral,
   jsStringLiteral,
   formatKPIValue,
   toNumber,
@@ -70,7 +71,7 @@ function resolveSortField(defaultValueField: string): string | null {
 }
 
 /**
- * Build the `tri="..."` attribute for dsfr-data-list.
+ * Build the `sort="..."` attribute for dsfr-data-list.
  * Defaults to labelField; user-chosen sortField overrides. Empty string when
  * sortOrder === 'none' (preserve source order).
  */
@@ -448,11 +449,18 @@ function buildColonnesAttr(): string {
 }
 
 /**
- * Build optional datalist attributes (recherche, filtres, export) from state.
+ * Attributs optionnels de la datalist (`search`, `filters`, `export`).
+ *
+ * `paginationServeur` n'est pas un detail : la recherche et les filtres de
+ * `dsfr-data-list` sont LOCAUX. En pagination serveur ils n'opereraient que
+ * sur la page chargee — compteurs faux, options de filtre partielles — donc
+ * le composant les desactive et journalise un avertissement dans la page de
+ * l'utilisateur (#304, `dsfr-data-list.ts:448` et `:502`). Les emettre, c'est
+ * promettre deux controles qui n'apparaitront pas et salir sa console.
  */
-function buildDatalistAttrs(): string {
+function buildDatalistAttrs(paginationServeur = false): string {
   let attrs = '';
-  if (state.datalistRecherche) attrs += '\n    search';
+  if (state.datalistRecherche && !paginationServeur) attrs += '\n    search';
   const exportFormats: string[] = [];
   if (state.datalistExportCsv) exportFormats.push('csv');
   if (state.datalistExportHtml) exportFormats.push('html');
@@ -461,10 +469,23 @@ function buildDatalistAttrs(): string {
   const filtrables = state.datalistColumns
     .filter((c) => c.visible && c.filtrable)
     .map((c) => c.field);
-  if (state.datalistFiltres && filtrables.length > 0) {
+  if (state.datalistFiltres && filtrables.length > 0 && !paginationServeur) {
     attrs += `\n    filters="${filtrables.join(',')}"`;
   }
   return attrs;
+}
+
+/**
+ * Rappel, dans le code livre, de ce qui remplace la recherche et les filtres
+ * locaux quand la pagination est serveur.
+ */
+function noteRechercheServeur(): string {
+  if (!state.datalistRecherche && !state.datalistFiltres) return '';
+  return `
+  <!-- Pagination serveur : la recherche et les filtres de dsfr-data-list sont
+       locaux, ils n'opereraient que sur la page chargee (#304). Pour porter
+       ces controles sur TOUT le jeu, inserer en amont de la liste un
+       dsfr-data-search server-search et/ou un dsfr-data-facets server-facets. -->`;
 }
 
 /**
@@ -880,7 +901,7 @@ export function generateCodeForLocalData(): void {
 
 <script>
 // Données integrees
-const data = ${JSON.stringify(state.localData?.slice(0, 500) || [], null, 2)};
+const data = ${jsonLiteral(state.localData?.slice(0, 500) || [])};
 
 // Injecter les données dans le composant
 const datalist = document.getElementById('my-table');
@@ -1640,11 +1661,11 @@ export function generateDynamicCodeForApi(): void {
     id="table-query"
     source="table-data">
   </dsfr-data-query>
-${facets.element}
+${facets.element}${noteRechercheServeur()}
   <dsfr-data-list
     id="my-datalist"
     source="${datalistSource}"
-    columns="${colonnes}"${buildDatalistAttrs()}${triAttr}
+    columns="${colonnes}"${buildDatalistAttrs(true)}${triAttr}
     server-sort
     pagination="20">
   </dsfr-data-list>${generateA11yElement(datalistSource, 'my-datalist')}
@@ -1692,11 +1713,11 @@ ${facets.element}
     id="table-query"
     source="table-data">
   </dsfr-data-query>
-${facets.element}
+${facets.element}${noteRechercheServeur()}
   <dsfr-data-list
     id="my-datalist"
     source="${datalistSource}"
-    columns="${colonnes}"${buildDatalistAttrs()}${triAttr}
+    columns="${colonnes}"${buildDatalistAttrs(true)}${triAttr}
     server-sort
     pagination="20">
   </dsfr-data-list>${generateA11yElement(datalistSource, 'my-datalist')}
@@ -2030,13 +2051,13 @@ ${ODS_FETCH_HELPER}
 async function loadChart() {
   const data = await fetchAllODS(API_URL);
 
-  const xValues = data.map(d => d['${state.labelField}'] || 0);
+  const xValues = data.map(d => d[${jsStringLiteral(state.labelField)}] || 0);
   const yValues = data.map(d => d.value || 0);
 
   var el = document.createElement('scatter-chart');
   el.setAttribute('x', JSON.stringify([xValues]));
   el.setAttribute('y', JSON.stringify([yValues]));
-  el.setAttribute('name', ${JSON.stringify(JSON.stringify([`${state.labelField} vs ${state.valueField}`]))});
+  el.setAttribute('name', ${jsStringLiteral(JSON.stringify([`${state.labelField} vs ${state.valueField}`]))});
   el.setAttribute('selected-palette', '${state.palette}');
   document.getElementById('scatter-container').appendChild(el);
 }
@@ -2091,7 +2112,7 @@ async function loadMap() {
   // Transformer les donn\u00e9es en format carte: {"code": valeur, ...}
   const mapData = {};
   records.forEach(d => {
-    let code = String(d['${state.codeField}'] || '').trim();
+    let code = String(d[${jsStringLiteral(state.codeField)}] || '').trim();
     // Copie deliberee de normalizeDeptCode : ce bloc s'execute dans la page
     // de l'utilisateur, il ne peut rien importer du monorepo (#610).
     if (/^\\d+$/.test(code) && code.length < 3) {
@@ -2175,7 +2196,7 @@ ${ODS_FETCH_HELPER}
 async function loadChart() {
   const data = await fetchAllODS(API_URL);
 
-  const labels = data.map(d => d['${state.labelField}'] || 'N/A');
+  const labels = data.map(d => d[${jsStringLiteral(state.labelField)}] || 'N/A');
   const values = data.map(d => Math.round((d.value || 0) * 100) / 100);${extraSeriesExtractCode}
 
   const y = ${allValuesArrayCode};

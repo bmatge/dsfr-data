@@ -5,6 +5,8 @@
 import {
   escapeHtml,
   jsonAttr,
+  jsonLiteral,
+  jsStringLiteral,
   DSFR_COLORS,
   isValidDeptCode,
   LIB_URL,
@@ -291,13 +293,13 @@ function generateScatterCode(config: ChartConfig, data: AggregatedResult[]): str
 
 <script>
 // Données embarquees
-const scatterData = ${JSON.stringify(scatterData, null, 2)};
+const scatterData = ${jsonLiteral(scatterData)};
 
 new Chart(document.getElementById('myChart'), {
   type: 'scatter',
   data: {
     datasets: [{
-      label: '${config.valueField}',
+      label: ${jsStringLiteral(config.valueField)},
       data: scatterData,
       backgroundColor: '${config.color || '#000091'}',
       borderColor: '${config.color || '#000091'}',
@@ -908,7 +910,7 @@ async function loadChart() {
     const json = await response.json();
     const data = json.results || [];
 
-    const labels = data.map(d => d['${config.labelField}'] || 'N/A');
+    const labels = data.map(d => d[${jsStringLiteral(config.labelField ?? '')}] || 'N/A');
     const values = data.map(d => Math.round((d.value || 0) * 100) / 100);
 
     new Chart(document.getElementById('myChart'), {
@@ -916,7 +918,7 @@ async function loadChart() {
       data: {
         labels: labels,
         datasets: [{
-          label: '${config.valueField}',
+          label: ${jsStringLiteral(config.valueField)},
           data: values,
           backgroundColor: ${isMultiColor ? 'DSFR_COLORS.slice(0, data.length)' : `'${config.color || '#000091'}'`},
           borderColor: '${config.color || '#000091'}',
@@ -934,7 +936,7 @@ async function loadChart() {
     const tbody = document.getElementById('table-body');
     data.forEach(d => {
       const tr = document.createElement('tr');
-      tr.innerHTML = '<td>' + (d['${config.labelField}'] || 'N/A') + '</td><td>' + (d.value?.toFixed(2) || '\u2014') + '</td>';
+      tr.innerHTML = '<td>' + (d[${jsStringLiteral(config.labelField ?? '')}] || 'N/A') + '</td><td>' + (d.value?.toFixed(2) || '\u2014') + '</td>';
       tbody.appendChild(tr);
     });
   } catch (error) {
@@ -960,7 +962,7 @@ function generateStandardChartCodeEmbedded(
 
   // Build datasets code
   let datasetsCode = `[{
-      label: '${config.valueField}',
+      label: ${jsStringLiteral(config.valueField)},
       data: values,
       backgroundColor: ${isMultiColor ? 'DSFR_COLORS.slice(0, data.length)' : `'${config.color || '#000091'}'`},
       borderColor: '${config.color || '#000091'}',
@@ -969,7 +971,7 @@ function generateStandardChartCodeEmbedded(
 
   if (hasSecondSeries) {
     datasetsCode += `, {
-      label: '${config.valueField2}',
+      label: ${jsStringLiteral(config.valueField2 ?? '')},
       data: values2,
       backgroundColor: '${isBarLine ? 'transparent' : config.color2 || '#E1000F'}',
       borderColor: '${config.color2 || '#E1000F'}',
@@ -1000,8 +1002,8 @@ ${hasSecondSeries ? '<!-- Note: Graphique multi-séries -->' : ''}
 
 <script>
 // Données embarquees (depuis ${sourceType})
-const data = ${JSON.stringify(data, null, 2)};
-${hasSecondSeries ? `const data2 = ${JSON.stringify(config.data2, null, 2)};` : ''}
+const data = ${jsonLiteral(data)};
+${hasSecondSeries ? `const data2 = ${jsonLiteral(config.data2)};` : ''}
 
 // Palette DSFR
 const DSFR_COLORS = ${colorsArray};

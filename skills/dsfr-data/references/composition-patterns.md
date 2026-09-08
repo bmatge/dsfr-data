@@ -72,7 +72,7 @@ L'attribut `for` injecte un skip link et pose `aria-describedby` + `aria-details
 <dsfr-data-chart source="sites" type="bar" label-field="ministere" value-field="score_rgaa" selected-palette="categorical"></dsfr-data-chart>
 
 <!-- Tableau -->
-<dsfr-data-list source="sites" colonnes="nom:Nom, ministere:Ministere, score_rgaa:Score" recherche filtres="ministere" tri="score_rgaa:desc" pagination="20" export="csv"></dsfr-data-list>
+<dsfr-data-list source="sites" columns="nom:Nom, ministere:Ministere, score_rgaa:Score" search filters="ministere" sort="score_rgaa:desc" pagination="20" export="csv"></dsfr-data-list>
 ```
 
 ### Chainabilite des queries

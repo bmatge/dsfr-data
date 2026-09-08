@@ -389,7 +389,7 @@ datasets avec une source \`server-side\`.
 Les composants en aval pointent sur le dsfr-data-query :
 - \`dsfr-data-list\` envoie \`{ page }\` pour la pagination
 - \`dsfr-data-search server-search\` envoie \`{ where }\` pour la recherche
-- \`dsfr-data-list server-tri\` envoie \`{ orderBy }\` pour le tri
+- \`dsfr-data-list server-sort\` envoie \`{ orderBy }\` pour le tri
 
 ### Operateurs de filtre
 Format : \`"champ:operateur:valeur"\`
@@ -1331,7 +1331,7 @@ les clés du premier objet sont utilisees comme colonnes.
 | server-sort | Boolean | \`false\` | non | Delegue le tri au serveur (retour page 1 automatique, #304). Alias deprecie : \`server-tri\` |
 
 ### Tri serveur
-Avec \`server-tri\`, le clic sur un en-tete de colonne envoie une commande \`{ orderBy }\`
+Avec \`server-sort\`, le clic sur un en-tete de colonne envoie une commande \`{ orderBy }\`
 au source upstream (relais automatique du dsfr-data-query) au lieu de trier localement. Les données
 reviennent déjà triees du serveur.
 
@@ -1351,15 +1351,15 @@ Fonctionne avec la pagination client et serveur. Compatible avec les autres para
 \`\`\`html
 <!-- Tableau simple -->
 <dsfr-data-list source="data"
-  colonnes="nom:Nom, email:Email, ville:Ville">
+  columns="nom:Nom, email:Email, ville:Ville">
 </dsfr-data-list>
 
 <!-- Tableau complet avec toutes les fonctionnalites -->
 <dsfr-data-list source="sites"
-  colonnes="nom:Nom du site, ministere:Ministere, score_rgaa:Score RGAA"
-  recherche
-  filtres="ministere"
-  tri="score_rgaa:desc"
+  columns="nom:Nom du site, ministere:Ministere, score_rgaa:Score RGAA"
+  search
+  filters="ministere"
+  sort="score_rgaa:desc"
   pagination="20"
   export="csv,html">
 </dsfr-data-list>
@@ -1664,7 +1664,7 @@ L'attribut \`for\` injecte un skip link et pose \`aria-describedby\` + \`aria-de
 <dsfr-data-chart source="sites" type="bar" label-field="ministere" value-field="score_rgaa" selected-palette="categorical"></dsfr-data-chart>
 
 <!-- Tableau -->
-<dsfr-data-list source="sites" colonnes="nom:Nom, ministere:Ministere, score_rgaa:Score" recherche filtres="ministere" tri="score_rgaa:desc" pagination="20" export="csv"></dsfr-data-list>
+<dsfr-data-list source="sites" columns="nom:Nom, ministere:Ministere, score_rgaa:Score" search filters="ministere" sort="score_rgaa:desc" pagination="20" export="csv"></dsfr-data-list>
 \`\`\`
 
 ### Chainabilite des queries

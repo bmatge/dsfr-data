@@ -55,7 +55,7 @@ datasets avec une source `server-side`.
 Les composants en aval pointent sur le dsfr-data-query :
 - `dsfr-data-list` envoie `{ page }` pour la pagination
 - `dsfr-data-search server-search` envoie `{ where }` pour la recherche
-- `dsfr-data-list server-tri` envoie `{ orderBy }` pour le tri
+- `dsfr-data-list server-sort` envoie `{ orderBy }` pour le tri
 
 ### Operateurs de filtre
 Format : `"champ:operateur:valeur"`

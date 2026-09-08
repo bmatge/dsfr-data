@@ -13,7 +13,7 @@
 import './styles/grist-widgets.css';
 import { initGristBridge, onGristOptions, getGristApiInfo } from './shared/grist-bridge.js';
 import { createOptionsPanel, type OptionDef } from './shared/grist-options-panel.js';
-import { PROXY_BASE_URL, CDN_URLS } from '@dsfr-data/shared';
+import { PROXY_BASE_URL, CDN_URLS, jsonLiteral } from '@dsfr-data/shared';
 
 const ALL_OPTIONS: OptionDef[] = [
   {
@@ -215,7 +215,7 @@ function generateFixedHtml(): string {
 
   const type = currentType;
   const opts = currentOptions;
-  const jsonData = JSON.stringify(data);
+  const jsonData = jsonLiteral(data);
 
   // Dependances CDN (a ajouter dans le <head> de la page hote)
   const deps = [

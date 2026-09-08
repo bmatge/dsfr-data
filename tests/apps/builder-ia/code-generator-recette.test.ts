@@ -178,6 +178,68 @@ describe('recette — les 16 types x les 4 variantes de source', () => {
   }
 });
 
+describe('un NOM DE CHAMP a apostrophe ne casse pas le script genere', () => {
+  // Le defaut que la premiere recette n'a pas vu, parce que ses noms de champs
+  // etaient ASCII et que seules ses VALEURS portaient des apostrophes. Les
+  // noms de champs sont interpoles dans des litteraux JS simple-quotes —
+  // `label: '${config.valueField}'`, `d['${config.labelField}']`. Un en-tete
+  // de colonne francais ordinaire suffit :
+  //
+  //   const labels = data.map(d => d['Nombre d'habitants'] || 'N/A');
+  //                                          ^ la chaine se ferme ici
+  //
+  // Le generateur ne leve rien ; le script meurt dans la page de
+  // l'utilisateur, sur un `SyntaxError` qu'il ne rattachera jamais a son
+  // choix de colonne.
+  const CHAMP_PIEGE = "Nombre d'habitants";
+
+  beforeEach(() => {
+    state.localData = [{ "Region d'origine": 'Bretagne', [CHAMP_PIEGE]: 3300000 }];
+    state.fields = [
+      { name: "Region d'origine", type: 'string', sample: 'Bretagne' },
+      { name: CHAMP_PIEGE, type: 'number', sample: 3300000 },
+    ];
+  });
+
+  const configPiegee = (type: ChartConfig['type']): ChartConfig => ({
+    ...configPour(type),
+    labelField: "Region d'origine",
+    valueField: CHAMP_PIEGE,
+    codeField: type.startsWith('map') ? "Region d'origine" : undefined,
+  });
+
+  for (const type of CHART_CONFIG_TYPES) {
+    for (const [nomVariante, source] of Object.entries(VARIANTES)) {
+      it(`${type} — script valide, source ${nomVariante}`, () => {
+        state.source = source();
+        const code = genererCode(configPiegee(type));
+
+        for (const script of scriptsInline(code)) {
+          expect(() => new Function(script), script.slice(0, 300)).not.toThrow();
+        }
+      });
+    }
+  }
+
+  it('le nom de champ traverse intact jusqu’a l’execution', () => {
+    // Au-dela de la validite syntaxique : la valeur lue doit etre le vrai nom
+    // de colonne, pas une entite HTML. `d[&#039;…&#039;]` serait syntaxiquement
+    // valide et fonctionnellement faux.
+    state.source = VARIANTES['API generique']();
+    const code = genererCode(configPiegee('bar'));
+
+    // `d[...]` porte le champ d'ETIQUETTE, `label:` celui de VALEUR.
+    expect(code).toContain(String.raw`d["Region d'origine"]`);
+    expect(code).toContain(String.raw`label: "Nombre d'habitants"`);
+    // Restreint aux SCRIPTS : en contexte HTML — l'en-tete du tableau
+    // accessible, par exemple — echapper l'apostrophe est correct et attendu.
+    // C'est bien la confusion des deux contextes qui produit le defaut.
+    for (const script of scriptsInline(code)) {
+      expect(script, 'entite HTML posee en contexte JS').not.toContain('&#0');
+    }
+  });
+});
+
 describe('les etiquettes francaises ne cassent pas le code genere', () => {
   // Provence-Alpes-Cote d'Azur, Val-d'Oise, Cote-d'Or : l'apostrophe est
   // ordinaire dans les libelles francais, et le generateur emettait les

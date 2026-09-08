@@ -48,8 +48,21 @@ export function jsonAttr(value: unknown): string {
 }
 
 /**
- * Rend une chaine sous forme de litteral JavaScript, guillemets COMPRIS,
- * pour injection dans un `<script>` genere.
+ * Rend une valeur sous forme de litteral JavaScript, pour injection dans un
+ * `<script>` genere — `const data = …;`.
+ *
+ * `JSON.stringify` produit deja un litteral valide ; le seul danger restant
+ * est `</script>` dans une chaine, qui ferme le bloc quel que soit le
+ * contexte JS. Le parseur HTML ne connait pas la syntaxe JavaScript : il
+ * cherche la sequence, point. `\u003c` est vu par JS comme un `<` et par le
+ * parseur HTML comme six caracteres anodins.
+ */
+export function jsonLiteral(value: unknown): string {
+  return JSON.stringify(value).replace(/</g, '\\u003c');
+}
+
+/**
+ * Rend une chaine sous forme de litteral JavaScript, guillemets COMPRIS.
  *
  * A ne pas confondre avec `singleQuoteAttr` : une entite HTML n'a aucun sens
  * en contexte JS. `el.setAttribute('name', '&#039;')` pose litteralement les
@@ -57,9 +70,15 @@ export function jsonAttr(value: unknown): string {
  * legende affiche « Val-d&#039;Oise ». C'est exactement le cas francais qui a
  * motive #615, deplace d'un contexte a l'autre.
  *
- * `JSON.stringify` produit un litteral correctement echappe ; reste `<`, pour
- * qu'un `</script>` dans la donnee ne ferme pas le bloc.
+ * L'autre usage, plus insidieux, est l'interpolation d'un NOM DE CHAMP :
+ * `label: '${config.valueField}'` ou `d['${config.labelField}']`. Un en-tete
+ * de colonne francais ordinaire — « Nombre d'habitants » — y ferme la chaine
+ * et rend le script entier invalide. Le code exporte ne leve rien a la
+ * generation : il meurt dans la page de l'utilisateur.
+ *
+ * Cette fonction pose ses PROPRES guillemets : ecrire `d[${jsStringLiteral(f)}]`
+ * et non `d['${jsStringLiteral(f)}']`.
  */
 export function jsStringLiteral(value: string): string {
-  return JSON.stringify(String(value)).replace(/</g, '\\u003c');
+  return jsonLiteral(String(value));
 }

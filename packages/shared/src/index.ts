@@ -1,5 +1,11 @@
 // Utils
-export { escapeHtml, singleQuoteAttr, jsonAttr, jsStringLiteral } from './utils/escape-html.js';
+export {
+  escapeHtml,
+  singleQuoteAttr,
+  jsonAttr,
+  jsonLiteral,
+  jsStringLiteral,
+} from './utils/escape-html.js';
 export {
   formatKPIValue,
   formatDateShort,

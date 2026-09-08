@@ -146,19 +146,34 @@ export function applyChartConfig(config: ChartConfig): void {
   }
 
   // Multi-séries (format LARGE) : une colonne numerique par série, alignees
-  // sur un meme axe d'etiquettes. Court-circuite l'agregation mono-série.
+  // sur un meme axe d'etiquettes.
+  //
+  // CE QUE CETTE BRANCHE NE FAIT PAS, et qu'il ne faut pas lui preter :
+  // `code-generator.ts` n'emet nulle part `value-fields` (zero occurrence).
+  // Les séries supplementaires sont donc PERDUES a la generation — seule la
+  // primaire survit. Le defaut date de #609 ; ce qui est neuf, c'est de le
+  // dire. Deux commentaires successifs ont pretendu ici que le generateur
+  // s'en chargeait : un appel mort a `buildMultiSeries` sous un commentaire
+  // de « validation » (la fonction ne leve jamais), puis une phrase sur un
+  // `value-fields` inexistant. Suivi dans #624.
+  //
+  // En attendant, on le dit a l'utilisateur plutot que de le lui cacher.
   const MULTI_SERIES_TYPES = ['bar', 'line', 'radar', 'horizontalBar', 'bar-line'];
   if (
     config.valueFields &&
     config.valueFields.length > 0 &&
     MULTI_SERIES_TYPES.includes(config.type)
   ) {
-    // Le generateur emet `value-fields` : il aligne les séries lui-meme cote
-    // composant et n'a besoin ici que de la série PRIMAIRE. Un appel a
-    // `buildMultiSeries` trainait ici, resultat jete, sous un commentaire qui
-    // lui pretait une validation — la fonction ne leve jamais (les valeurs
-    // manquantes valent 0, data-tools.ts:113-138). Code mort et commentaire
-    // faux, tous deux herites de #609.
+    const perdues = config.valueFields.filter((f) => f && f !== config.valueField);
+    if (perdues.length > 0) {
+      addMessage(
+        'assistant',
+        `Note : le code genere ne porte que la série « ${config.valueField} ». ` +
+          `Les séries supplementaires (${perdues.join(', ')}) ne sont pas encore ` +
+          `exportables depuis l'assistant — utilisez le Builder pour un graphique ` +
+          `multi-séries.`
+      );
+    }
     const agg = (config.aggregation ?? 'sum') as Aggregation;
     generateCode(config, aggregateBy(workingData, config.labelField, config.valueField, agg));
     renderPreview();
