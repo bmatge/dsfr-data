@@ -1,6 +1,7 @@
 import { LitElement, html, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { AppMenu, injectAppMenuStyles } from './app-menu.js';
+import { PINNED } from './chrome-breakpoints.js';
 
 /**
  * <app-action-bar> - Barre d'actions unique des éditeurs (docs/ux/actions.md §5)
@@ -69,7 +70,7 @@ export function injectAppActionBarStyles(): void {
   const style = document.createElement('style');
   style.id = 'app-action-bar-style';
   style.textContent = `
-app-action-bar{display:block;position:sticky;top:var(--app-header-h,0px);z-index:700}
+app-action-bar{display:block}
 .app-action-bar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem 1rem;padding:.5rem 1rem;background:var(--background-default-grey);border-bottom:1px solid var(--border-default-grey)}
 .app-action-bar__title{flex:0 1 auto;min-width:0;margin:0;font-size:1.125rem;line-height:1.5rem;font-weight:700;color:var(--text-title-grey);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .app-action-bar__context{display:flex;align-items:center;flex:1 1 auto;min-width:0;gap:.5rem}
@@ -85,6 +86,20 @@ app-action-bar{display:block;position:sticky;top:var(--app-header-h,0px);z-index
 .app-action-bar__reason[hidden]{display:none}
 .app-action-bar__actions .fr-btn[aria-busy="true"]::before{animation:app-action-bar-spin 1s linear infinite}
 @keyframes app-action-bar-spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+/* EPINGLAGE, et seulement la ou il a un REFERENT.
+   \`top: var(--app-header-h)\` est une valeur DERIVEE : elle n'a de sens que
+   la ou l'en-tete est lui-meme epingle, c'est-a-dire au-dessus du meme seuil.
+   Sans cette garde, la barre de titre restait clouee a 189 px du haut sur
+   telephone pendant que son referent sortait de l'ecran — 189 px de contenu
+   defilant AU-DESSUS d'elle. C'est le signalement « la barre de titre est
+   sticky », et docs/ux/actions.md exigeait deja l'inverse : « Le titre (et la
+   zone contexte) restent en haut, dans le flux. »
+   \`position\`, \`top\` et \`z-index\` partent ensemble : un z-index sur un
+   element static est inerte, le laisser entretiendrait l'illusion d'un
+   contexte d'empilement. */
+@media ${PINNED}{
+  app-action-bar{position:sticky;top:var(--app-header-h,0px);z-index:700}
+}
 @media (max-width:47.99em){
   .app-action-bar__actions{position:fixed;left:0;right:0;bottom:0;z-index:800;margin:0;padding:.5rem 1rem;justify-content:flex-end;background:var(--background-default-grey);border-top:1px solid var(--border-default-grey);box-shadow:0 -4px 12px rgba(0,0,0,.08)}
   .app-action-bar__actions .app-action-bar__group--primary{flex:1 1 auto}

@@ -422,6 +422,7 @@ apps surcharger ses classes internes :
 | `page-scroll` (defaut) | la page defile, colonne DROITE epinglee | Studio |
 | `fullscreen` | deux colonnes a defilement interne, page figee | Builder |
 | `sticky-left` | colonne GAUCHE epinglee, DROITE qui defile | Playground |
+| **empile (<= 900 px)** | colonnes a plat, la page defile, **rien n'est epingle en haut** | toutes |
 
 **Pourquoi** : trois apps stylaient `.builder-layout-container/-left/-right`,
 des classes NON contractuelles. Le Playground avait du empiler des
@@ -439,8 +440,32 @@ silence.
   panneaux flottants pour l'une, editeur en grille pour l'autre. Exceptions
   legitimes, non harmonisees.
 
-Verrouille par `tests/apps/app-ui/layout-modes.test.ts`, qui verifie que les
-apps ne stylent plus les entrailles du composant.
+**Invariant d'epinglage** — `--app-header-h` a DEUX usages de nature
+differente, et les confondre a coute un defaut visible :
+
+- en **hauteur** (dans un `calc`) il est inconditionnel et sans danger ;
+- en **decalage d'epinglage** (dans un `top:`) c'est une valeur DERIVEE, qui
+  n'a de sens que la ou l'en-tete est lui-meme epingle. Elle doit porter la
+  garde `PINNED` de `packages/app-ui/src/chrome-breakpoints.ts`.
+
+`app-action-bar` s'ancrait a `top: var(--app-header-h)` SANS media query : sur
+telephone la barre de titre restait clouee a 189 px du haut pendant que son
+referent sortait de l'ecran, avec 189 px de contenu defilant au-dessus d'elle.
+`docs/ux/actions.md` exigeait deja l'inverse — la specification etait juste,
+c'est le code qui s'en ecartait.
+
+**Deux seuils, deux natures** : `STACK_MAX_PX` = 900 px gouverne l'empilement
+des colonnes ET tout epinglage haut ; `47.99em` gouverne le chrome mobile
+(actions fixees en bas, rail du volet). Descendre les actions a portee de
+pouce est un choix de largeur de main, pas d'epinglage : les deux seuils ne
+doivent pas etre fusionnes. Entre 768 et 900 px l'en-tete etait epingle sur
+une page qui defilait — un telephone en PAYSAGE (844x390) tombe dans cette
+bande, et c'est le seul endroit du produit ou le defaut etait litteral.
+
+Verrouille par `tests/apps/app-ui/layout-modes.test.ts` (les apps ne stylent
+plus les entrailles du composant), `tests/apps/app-ui/chrome-mobile.test.ts`
+(les deux epinglages partagent le seuil) et `e2e/mobile-chrome.spec.ts` (rien
+n'est epingle en haut sur telephone, en portrait comme en paysage).
 
 ### 3.6 Diagnostic du pipeline — le collecteur de trace (#602)
 
@@ -527,7 +552,8 @@ tests-gardes (`tests/mcp/lint-markup.test.ts`).
 - **Le rail replie porte le resume** (`3 etapes · 100 → 8 lignes · 1 alerte`). Un etat ferme qui n'informe pas ne serait jamais ouvert.
 - **Trois onglets** : Flux (delta par arete), Champs (matrice champ × etape), Journal (chronologie, commandes remontantes, URL effective).
 - **Deux modes** : `live` (observe une iframe) et `rapporte` (affiche une trace transmise). Le second existe parce que **builder-IA ne produit aucun trafic sur le bus** — `chart-renderer.ts` dessine avec `@gouvfr/dsfr-chart` en direct, sans composant dsfr-data.
-- **Piege de superposition** : sous 768 px, `app-action-bar` passe en `position:fixed; bottom:0; z-index:800`. Le volet s'ancre a `bottom: var(--app-action-bar-fixed-h)` et reste en `z-index:780`. Il publie sa hauteur dans `--app-diagnostic-h`, et sa regle de `padding-bottom` sur `body` utilise une double `:has` pour depasser en specificite celle de la barre d'actions — sinon le gagnant dependrait de l'ordre d'injection des feuilles.
+- **Piege de superposition** : sous 768 px, c'est `.app-action-bar__actions` — et non l'hote `app-action-bar`, qui reste dans le flux — qui passe en `position:fixed; bottom:0; z-index:800`. La description inverse figurait ici depuis #539 et explique vraisemblablement pourquoi l'epinglage sans garde de l'hote a survecu si longtemps : on croyait la barre deja fixee en bas. Le volet s'ancre a `bottom: var(--app-action-bar-fixed-h)` et reste en `z-index:780`. Il publie sa hauteur dans `--app-diagnostic-h`, et sa regle de `padding-bottom` sur `body` utilise une double `:has` pour depasser en specificite celle de la barre d'actions — sinon le gagnant dependrait de l'ordre d'injection des feuilles.
+- **Empilement du mobilier bas** (du plus haut au plus bas) : raison de desactivation > rail du volet > barre d'actions fixe. Depuis que l'hote n'est plus un contexte d'empilement en mobile, `.app-action-bar__reason` (fixe, z-800, meme bande que le rail) le RECOUVRAIT et rendait son bouton inatteignable ; elle est reempilee au-dessus dans le bloc mobile de `app-diagnostic-panel`.
 #### Ou le volet est monte, et sous quel mode (#606)
 
 | App | Mode | Racine observee |

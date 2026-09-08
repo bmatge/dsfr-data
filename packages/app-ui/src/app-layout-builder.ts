@@ -330,6 +330,11 @@ export class AppLayoutBuilder extends LitElement {
         }
 
         /* Responsive: stack vertical on mobile (pas de sticky) */
+        /* Seuil partage avec le chrome (chrome-breakpoints.ts, STACK_MAX_PX) :
+           sous cette largeur les colonnes s'empilent ET rien n'est epingle en
+           haut — ni l'en-tete, ni la barre de titre. Litteral obligatoire :
+           Lit refuse les expressions dans un <style>. Verrouille sur la
+           constante par tests/apps/app-ui/chrome-mobile.test.ts. */
         @media (max-width: 900px) {
           .builder-layout-container {
             flex-direction: column;

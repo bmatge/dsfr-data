@@ -108,6 +108,17 @@ app-diagnostic-panel[hidden]{display:none}
 body:has(app-diagnostic-panel){padding-bottom:var(--app-diagnostic-h,2.25rem)}
 @media (max-width:47.99em){
   app-diagnostic-panel{bottom:var(--app-action-bar-fixed-h,0px)}
+  /* La raison de desactivation de l'action primaire est FIXE dans la meme
+     bande que le rail (bottom: --app-action-bar-fixed-h) et peint a 800.
+     Tant que app-action-bar etait un contexte d'empilement a 700, elle
+     restait enfermee SOUS le rail ; depuis qu'elle ne l'est plus en mobile
+     (l'epinglage a recu sa garde), elle le RECOUVRE et rend son bouton
+     inatteignable au pointeur comme au clavier (WCAG 2.2 SC 2.4.11). On
+     l'empile au-dessus du rail plutot que de la laisser le masquer.
+     Le Builder y echappait par reason-host ; les six autres apps a barre
+     d'actions, non. Meme double :has, meme raison, que le padding ci-dessous :
+     gagner quel que soit l'ordre d'injection des feuilles. */
+  body:has(app-diagnostic-panel) .app-action-bar__reason{bottom:calc(var(--app-action-bar-fixed-h,3.5rem) + var(--app-diagnostic-h,2.25rem))}
   .app-diag__body{max-height:60vh}
   .app-diag__rail-summary{display:none}
   body:has(app-diagnostic-panel):has(app-action-bar){padding-bottom:calc(var(--app-action-bar-fixed-h,3.5rem) + var(--app-diagnostic-h,2.25rem))}

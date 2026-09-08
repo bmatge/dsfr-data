@@ -3,6 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { checkAuth, logout, onAuthChange, isDbMode, onSyncStatusChange } from '@dsfr-data/shared';
 import type { User, SyncStatus } from '@dsfr-data/shared';
 import { injectAppPrimitives } from './app-primitives.js';
+import { PINNED } from './chrome-breakpoints.js';
 // Version injectee au build par define (#306) — plus d'import vers core
 declare const __DSFR_DATA_VERSION__: string;
 const PACKAGE_VERSION = typeof __DSFR_DATA_VERSION__ !== 'undefined' ? __DSFR_DATA_VERSION__ : '';
@@ -46,6 +47,43 @@ export function navItemsFor(user: User | null): Array<{ id: string; label: strin
     { id: 'monitoring', label: 'Suivi', href: 'apps/monitoring/index.html' },
     { id: 'admin', label: 'Admin', href: 'apps/admin/index.html' },
   ].filter((item) => admin || (item.id !== 'monitoring' && item.id !== 'admin'));
+}
+
+/**
+ * Feuille de style de l'en-tete, injectee une fois par document.
+ *
+ * Extraite de `connectedCallback` pour etre EPROUVABLE sans rendre l'element
+ * — le rendre declenche `_initAuth()` et un appel reseau. Aligne sur
+ * `injectAppActionBarStyles` / `injectAppMenuStyles`.
+ *
+ * EPINGLAGE. L'en-tete DSFR reste en variante empilee (logo + service +
+ * burger) jusqu'a 62em/992 px : sous 900 px il occupe un quart de l'ecran et
+ * reste DEFILANT, comme sur tout site de l'Etat. Il n'est epingle qu'au-dessus
+ * de `PINNED` — seuil partage avec l'empilement des colonnes (#613) et avec
+ * `app-action-bar`, parce qu'un element ne peut etre epingle a
+ * `--app-header-h` que la ou l'en-tete l'est lui-meme.
+ *
+ * La garde precedente etait a 48em, celle de la barre d'actions inexistante :
+ * entre 768 et 900 px l'en-tete etait donc clou en haut d'une page qui
+ * defilait, et sur telephone la barre de titre restait epinglee a 189 px du
+ * haut sans referent. Un telephone en paysage tombe pile dans cette bande.
+ *
+ * Le sticky est porte par `<app-header>` lui-meme et non par `.fr-header` :
+ * dans les pages dont le body est en flex-column, `<app-header>` est le bloc
+ * conteneur de `.fr-header` et un sticky interne n'aurait aucune marge de
+ * collage. Il passe sous les modales DSFR (1750) et sous les panneaux des
+ * apps (>= 900).
+ *
+ * La hauteur reelle est publiee dans `--app-header-h` (voir
+ * `_observeHeaderHeight`), INCONDITIONNELLEMENT : son usage en hauteur est
+ * legitime partout, seul son usage en decalage d'epinglage demande `PINNED`.
+ */
+export function injectAppHeaderStyles(): void {
+  if (document.getElementById('app-header-active-style')) return;
+  const style = document.createElement('style');
+  style.id = 'app-header-active-style';
+  style.textContent = `app-header{display:block}@media ${PINNED}{app-header{position:sticky;top:0;z-index:750}}.fr-nav__link[aria-current="page"]{font-weight:700;border-bottom:2px solid var(--border-action-high-blue-france);color:var(--text-action-high-blue-france)}.fr-header__tools-links .fr-btn[aria-current="page"]{font-weight:700;color:var(--text-action-high-blue-france)}@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}.app-header-user-menu{position:relative}.app-header-user-menu__dropdown{display:none;position:absolute;right:0;top:100%;z-index:1000;min-width:240px;background:var(--background-default-grey);box-shadow:0 8px 16px rgba(0,0,0,.16);padding:0}.app-header-user-menu__dropdown[data-open]{display:block}.app-header-user-menu__info{padding:1rem 1.5rem;border-bottom:1px solid var(--border-default-grey)}.app-header-user-menu__info-name{font-weight:700;color:var(--text-title-grey);margin:0;font-size:.875rem}.app-header-user-menu__info-email{color:var(--text-mention-grey);margin:0;font-size:.75rem}.app-header-user-menu__list{list-style:none;padding:0;margin:0}.app-header-user-menu__list li{border-bottom:1px solid var(--border-default-grey)}.app-header-user-menu__list li:last-child{border-bottom:none}.app-header-user-menu__list button{display:flex;align-items:center;gap:.5rem;width:100%;padding:.75rem 1.5rem;border:none;background:none;cursor:pointer;font-size:.875rem;color:var(--text-action-high-blue-france);font-family:inherit}.app-header-user-menu__list button:hover{background:var(--background-alt-blue-france-hover)}.app-header-user-menu__list button::before{font-family:'remixicon';font-size:1rem}`;
+  document.head.appendChild(style);
 }
 
 @customElement('app-header')
@@ -115,24 +153,7 @@ export class AppHeader extends LitElement {
       /* ignore */
     }
     injectAppPrimitives();
-    // Inject active page style once
-    if (!document.getElementById('app-header-active-style')) {
-      const style = document.createElement('style');
-      style.id = 'app-header-active-style';
-      // Header collant (audit UX 2026-09, A2) : sous les modales DSFR (1750)
-      // et les panneaux/overlays des apps (>= 900). Le sticky est porté par
-      // l'élément <app-header> lui-même, pas par .fr-header : dans les pages
-      // dont le body est en flex-column, <app-header> est le bloc conteneur
-      // de .fr-header et un sticky interne n'aurait aucune marge de collage.
-      // Sous 768px le header DSFR (logo + service + baseline) occupe ~1/4 de
-      // l'écran : il reste défilant ; l'action primaire mobile sera portée
-      // par la barre collante en bas d'écran (lot 8, #545).
-      // La hauteur réelle est publiée dans --app-header-h (voir
-      // _observeHeaderHeight) pour que les panneaux sticky/plein écran des
-      // éditeurs se calent sous le header.
-      style.textContent = `app-header{display:block}@media (min-width:48em){app-header{position:sticky;top:0;z-index:750}}.fr-nav__link[aria-current="page"]{font-weight:700;border-bottom:2px solid var(--border-action-high-blue-france);color:var(--text-action-high-blue-france)}.fr-header__tools-links .fr-btn[aria-current="page"]{font-weight:700;color:var(--text-action-high-blue-france)}@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}.app-header-user-menu{position:relative}.app-header-user-menu__dropdown{display:none;position:absolute;right:0;top:100%;z-index:1000;min-width:240px;background:var(--background-default-grey);box-shadow:0 8px 16px rgba(0,0,0,.16);padding:0}.app-header-user-menu__dropdown[data-open]{display:block}.app-header-user-menu__info{padding:1rem 1.5rem;border-bottom:1px solid var(--border-default-grey)}.app-header-user-menu__info-name{font-weight:700;color:var(--text-title-grey);margin:0;font-size:.875rem}.app-header-user-menu__info-email{color:var(--text-mention-grey);margin:0;font-size:.75rem}.app-header-user-menu__list{list-style:none;padding:0;margin:0}.app-header-user-menu__list li{border-bottom:1px solid var(--border-default-grey)}.app-header-user-menu__list li:last-child{border-bottom:none}.app-header-user-menu__list button{display:flex;align-items:center;gap:.5rem;width:100%;padding:.75rem 1.5rem;border:none;background:none;cursor:pointer;font-size:.875rem;color:var(--text-action-high-blue-france);font-family:inherit}.app-header-user-menu__list button:hover{background:var(--background-alt-blue-france-hover)}.app-header-user-menu__list button::before{font-family:'remixicon';font-size:1rem}`;
-      document.head.appendChild(style);
-    }
+    injectAppHeaderStyles();
     // Check auth state
     this._initAuth();
     // Subscribe to sync status
@@ -407,17 +428,34 @@ export class AppHeader extends LitElement {
                 </div>
                 <div class="fr-header__service">
                   <a href="${this._base}index.html" title="Accueil - Charts builder">
-                    <p class="fr-header__service-title">Charts builder</p>
+                    <!-- Le badge de statut vit dans le TITRE : c'est son
+                         emplacement DSFR officiel, et le seul pour lequel une
+                         regle de calage existe
+                         (.fr-header__service-title .fr-badge, a la racine).
+                         Il etait dans la tagline, hors patron, ce qui avait
+                         impose un display:flex inline — et rendait la tagline
+                         non masquable sans perdre le signal « outil en
+                         evolution ». Ici il est visible a TOUS les points de
+                         rupture, telephone compris.
+
+                         aria-hidden sur le numero : ce titre est DANS le
+                         <a>, donc son contenu devient le nom accessible du
+                         lien d'accueil, sur chaque page de chaque app. Sans
+                         cela un lecteur d'ecran annoncerait « Charts builder
+                         Apercu 0 point 20 point 0 ». Le numero reste visible
+                         pour les voyants. -->
+                    <p class="fr-header__service-title">
+                      Charts builder<span
+                        class="fr-badge fr-badge--sm fr-badge--info fr-badge--no-icon"
+                        >Aperçu <span aria-hidden="true">${PACKAGE_VERSION}</span></span
+                      >
+                    </p>
                   </a>
-                  <p
-                    class="fr-header__service-tagline"
-                    style="display:flex;align-items:center;gap:0.5rem;"
-                  >
-                    <span
-                      class="fr-badge fr-badge--sm fr-badge--info fr-badge--no-icon"
-                      title="Outil en évolution, vos exports restent stables"
-                      >Aperçu ${PACKAGE_VERSION}</span
-                    >
+                  <!-- Masquee sous 62em par les utilitaires DSFR, au point de
+                       rupture du composant lui-meme et non a un seuil maison :
+                       48 px rendus a l'utilisateur sur telephone, ou l'en-tete
+                       occupait 22 % de l'ecran. -->
+                  <p class="fr-header__service-tagline fr-hidden fr-unhidden-lg">
                     Création de visualisations dynamiques conformes DSFR
                   </p>
                 </div>
