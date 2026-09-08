@@ -24,9 +24,10 @@ interface SortState {
  *
  * Les alias francais (`colonnes`, `recherche`, `filtres`, `tri`, `server-tri`)
  * restent acceptes pour ne pas casser le code deja publie, mais sont
- * `@deprecated` depuis #300 : cet exemple montre les attributs COURANTS. Il
- * alimente la reference generee que consomme l'assistant IA — l'y laisser
- * deprecie, c'est enseigner au modele de produire du code deprecie (#615).
+ * `@deprecated` depuis #300 : cet exemple montre les attributs COURANTS, pour
+ * qui lit le composant. (Le custom-elements manifest ne capte pas les
+ * `@example` de classe : la reference servie a l'assistant IA vient de
+ * `apps/builder-ia/src/skills.ts`, corrige separement — #615.)
  *
  * @example
  * <dsfr-data-list

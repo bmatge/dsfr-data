@@ -3,6 +3,7 @@ import {
   escapeHtml,
   singleQuoteAttr,
   jsonAttr,
+  jsonLiteral,
   jsStringLiteral,
 } from '../../packages/shared/src/utils/escape-html';
 
@@ -132,6 +133,56 @@ describe('singleQuoteAttr — la serialisation a deja eu lieu', () => {
     const valeur = [{ region: "Val-d'Oise & Oise", note: '<b>' }];
 
     expect(jsonAttr(valeur)).toBe(singleQuoteAttr(JSON.stringify(valeur)));
+  });
+});
+
+describe('jsonLiteral — une valeur JSON dans un <script>', () => {
+  // Ces tests existent parce que `jsonLiteral` n'en avait AUCUN en propre :
+  // il n'etait couvert qu'indirectement, par la delegation de
+  // `jsStringLiteral`. Une mutation qui desarmait `jsonLiteral` ET rendait
+  // `jsStringLiteral` autonome laissait 371 tests au vert, alors que tous les
+  // blocs `const data = …` perdaient leur protection. Un garde qui tient a un
+  // refactor pres ne tient pas.
+
+  /** Evalue le bloc comme le ferait le navigateur. */
+  const evaluer = (valeur: unknown): unknown => new Function(`return ${jsonLiteral(valeur)};`)();
+
+  it('restitue la valeur a l’identique', () => {
+    const donnees = [
+      { region: "Val-d'Oise", pop: 1249674 },
+      { region: 'A & B', pop: 0 },
+    ];
+
+    expect(evaluer(donnees)).toEqual(donnees);
+  });
+
+  it('neutralise une fermeture de script glissee dans une donnee', () => {
+    // Le parseur HTML ne connait pas la syntaxe JavaScript : il cherche la
+    // sequence `</script>`, point. Une cellule qui la contient fermerait le
+    // bloc et deverserait le reste des donnees dans la page.
+    const donnees = [{ note: '</script><img src=x onerror=alert(1)>' }];
+    const bloc = jsonLiteral(donnees);
+
+    expect(bloc, 'le bloc referme le script').not.toContain('</script>');
+    expect(evaluer(donnees), 'la donnee doit rester intacte a l’execution').toEqual(donnees);
+  });
+
+  it('protege aussi la casse mixte, que le parseur ignore', () => {
+    expect(jsonLiteral([{ x: '</ScRiPt>' }])).not.toMatch(/<\/script/i);
+  });
+
+  it('n’echappe pas au-dela du necessaire', () => {
+    // `>` et `&` sont sans danger en contexte JS : les echapper produirait
+    // des donnees fausses a l'execution.
+    expect(evaluer({ a: 'x > y & z' })).toEqual({ a: 'x > y & z' });
+  });
+
+  it('jsStringLiteral en derive — la protection ne peut pas diverger', () => {
+    // C'est la mutation b3-ii qui a montre le besoin : les deux doivent
+    // rester la MEME implementation, pas deux copies qui s'alignent par
+    // hasard.
+    expect(jsStringLiteral("Val-d'Oise")).toBe(jsonLiteral("Val-d'Oise"));
+    expect(jsStringLiteral('</script>')).toBe(jsonLiteral('</script>'));
   });
 });
 

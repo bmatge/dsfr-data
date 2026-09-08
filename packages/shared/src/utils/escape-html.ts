@@ -1,9 +1,15 @@
 /**
- * Escape HTML special characters to prevent XSS
- * Uses string replacement approach (works in both browser and Node/test environments)
+ * Echappe une valeur destinee a un attribut HTML a guillemets DOUBLES, ou a
+ * du texte.
+ *
+ * Accepte les nombres et booleens : les generateurs posent des `pagination`,
+ * `max-items`, `zoom`… et un appelant contraint de faire `String(n)` d'abord
+ * finit par oublier d'echapper. Le test de vacuite porte sur `null`,
+ * `undefined` et la chaine vide, PAS sur la faussete — `escapeHtml(0)` doit
+ * rendre `"0"`, pas `""`.
  */
-export function escapeHtml(str: string | null | undefined): string {
-  if (!str) return '';
+export function escapeHtml(str: string | number | boolean | null | undefined): string {
+  if (str === null || str === undefined || str === '') return '';
   return String(str)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')

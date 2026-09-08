@@ -168,8 +168,8 @@ export function applyChartConfig(config: ChartConfig): void {
     if (perdues.length > 0) {
       addMessage(
         'assistant',
-        `Note : le code genere ne porte que la série « ${config.valueField} ». ` +
-          `Les séries supplementaires (${perdues.join(', ')}) ne sont pas encore ` +
+        `Note : le code généré ne porte que la série « ${config.valueField} ». ` +
+          `Les séries supplémentaires (${perdues.join(', ')}) ne sont pas encore ` +
           `exportables depuis l'assistant — utilisez le Builder pour un graphique ` +
           `multi-séries.`
       );

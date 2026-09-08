@@ -345,6 +345,100 @@ describe('inventaire d’observabilite — ce que le volet Diagnostic peut voir'
   });
 });
 
+describe('les séries perdues sont annoncees, pas escamotees', () => {
+  // `code-generator.ts` n'emet nulle part `value-fields` : une configuration
+  // multi-séries perd ses colonnes supplementaires a la generation (#624).
+  // Tant que ce n'est pas corrige, le taire serait le pire des deux — un
+  // graphique qui a l'air juste et qui ne l'est pas.
+  //
+  // Ce comportement etait le seul correctif de sa passe sans garde-fou.
+
+  /** Le DOM minimal dont `applyChartConfig` a besoin pour parler. */
+  function poserLeDom(): () => void {
+    const pre = document.createElement('pre');
+    pre.id = 'generated-code';
+    const chat = document.createElement('div');
+    chat.id = 'chat-messages';
+    document.body.append(pre, chat);
+    return () => {
+      pre.remove();
+      chat.remove();
+    };
+  }
+
+  async function appliquer(config: ChartConfig): Promise<string[]> {
+    const { applyChartConfig } = await import('../../../apps/builder-ia/src/ui/preview.js');
+    const avant = state.messages.length;
+    const nettoyer = poserLeDom();
+    try {
+      applyChartConfig(config);
+      return state.messages.slice(avant).map((m) => m.content);
+    } finally {
+      nettoyer();
+    }
+  }
+
+  beforeEach(() => {
+    state.messages = [];
+    state.localData = [{ region: 'A', population: 1, pop2025: 2, code_dept: '75' }];
+    state.fields = [
+      { name: 'region', type: 'string', sample: 'A' },
+      { name: 'population', type: 'number', sample: 1 },
+      { name: 'pop2025', type: 'number', sample: 2 },
+    ];
+    state.source = VARIANTES['embarquee (donnees inline)']();
+  });
+
+  it('nomme les séries qui ne survivront pas', async () => {
+    const messages = await appliquer({ ...configPour('bar'), valueFields: ['pop2025'] });
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toContain('pop2025');
+    expect(messages[0]).toContain('population');
+  });
+
+  it('n’en parle pas quand il n’y a rien a perdre', async () => {
+    // `valueFields` reduit au champ primaire est un cas legitime : rien n'est
+    // perdu, rien ne doit etre dit.
+    const messages = await appliquer({ ...configPour('bar'), valueFields: ['population'] });
+
+    expect(messages).toEqual([]);
+  });
+
+  it('n’en parle pas sans séries supplementaires', async () => {
+    expect(await appliquer(configPour('bar'))).toEqual([]);
+  });
+
+  it('ne parle qu’une fois par generation', async () => {
+    const config = { ...configPour('bar'), valueFields: ['pop2025'] };
+    await appliquer(config);
+    const seconds = await appliquer(config);
+
+    expect(seconds).toHaveLength(1);
+  });
+
+  it('se tait sur un type qui n’est pas multi-séries', async () => {
+    // Le pie n'a pas de series multiples : la branche ne s'applique pas, et
+    // il n'y a rien a annoncer.
+    const messages = await appliquer({ ...configPour('pie'), valueFields: ['pop2025'] });
+
+    expect(messages).toEqual([]);
+  });
+
+  it('genere quand meme le code', async () => {
+    // L'avertissement ne doit pas remplacer le livrable.
+    const nettoyer = poserLeDom();
+    try {
+      const { applyChartConfig } = await import('../../../apps/builder-ia/src/ui/preview.js');
+      applyChartConfig({ ...configPour('bar'), valueFields: ['pop2025'] });
+
+      expect(document.getElementById('generated-code')?.textContent?.trim()).not.toBe('');
+    } finally {
+      nettoyer();
+    }
+  });
+});
+
 describe('le code genere ne nait pas deprecie', () => {
   // `dsfr-data-list` accepte encore les alias francais (`colonnes`,
   // `recherche`, `tri`, `filtres`, `server-tri`), @deprecated depuis #300. Ils
@@ -502,18 +596,78 @@ describe('le code genere reste coherent avec la configuration', () => {
     expect(code).not.toContain('type="horizontalBar"');
   });
 
+  /** L'attribut TEL QUE LE COMPOSANT LE RECEVRA, apres parsage du HTML. */
+  function attributLu(code: string, selecteur: string, attribut: string): string | null {
+    const doc = new DOMParser().parseFromString(code, 'text/html');
+    return doc.querySelector(selecteur)?.getAttribute(attribut) ?? null;
+  }
+
   it('un filtre where est TRADUIT en ODSQL, pas recopie tel quel', () => {
-    // Premiere version de ce test : `where: 'population > 5000'` et
-    // `expect(code).toContain('where=')`. Deux fautes qui se masquaient
-    // l'une l'autre — la syntaxe attendue est celle du pipeline
-    // (`champ:op:valeur`), donc `filterToOdsql` rendait une chaine VIDE, et
-    // l'assertion se satisfaisait d'un `where=""`. Elle restait verte avec le
-    // traducteur remplace par l'identite.
+    // Ce test a eu deux vies fautives. D'abord `where: 'population > 5000'` +
+    // `toContain('where=')` : la syntaxe attendue etant celle du pipeline
+    // (`champ:op:valeur`), `filterToOdsql` rendait une chaine VIDE et
+    // l'assertion se satisfaisait d'un `where=""`. Puis, corrige en
+    // `population:gt:5000`, il assertait toujours sur le TEXTE BRUT — or
+    // `gt` est le seul operateur dont la valeur sort NUE. Une valeur chaine
+    // serait passee au vert avec l'attribut casse.
+    //
+    // On lit donc l'attribut apres parsage : c'est ce que le composant
+    // recevra, et c'est la seule mesure qui distingue les deux.
     state.source = VARIANTES['API OpenDataSoft']();
     const code = genererCode({ ...configPour('bar'), where: 'population:gt:5000' });
 
-    expect(code).toContain('where="population > 5000"');
+    expect(attributLu(code, 'dsfr-data-source', 'where')).toBe('population > 5000');
     expect(code, 'la syntaxe pipeline a fuite dans le code livre').not.toContain(':gt:');
+  });
+
+  it('une URL a parametres traverse l’attribut entiere', () => {
+    // L'echappement de `&` n'est pas un exces de zele : sans lui, une URL
+    // comme `…?a=1&copy=2` voit `&copy` decode en `©` par le parseur. Le
+    // composant appelait alors une autre URL que celle affichee.
+    state.source = {
+      id: 's',
+      name: 'API',
+      type: 'api',
+      apiUrl: 'https://exemple.gouv.fr/api?a=1&copy=2&lt=3',
+      recordCount: 5000,
+    };
+    const code = genererCode(configPour('map'));
+
+    expect(attributLu(code, 'dsfr-data-source', 'url')).toBe(
+      'https://exemple.gouv.fr/api?a=1&copy=2&lt=3'
+    );
+  });
+
+  it('un nom de colonne a chevron ne disloque pas l’attribut', () => {
+    state.source = VARIANTES['API OpenDataSoft']();
+    const code = genererCode({ ...configPour('datalist'), colonnes: 'a<b>c:Libelle' });
+
+    expect(attributLu(code, 'dsfr-data-list', 'columns')).toBe('a<b>c:Libelle');
+  });
+
+  it('une valeur CHAINE traverse l’attribut entiere', () => {
+    // Le defaut : `odsqlLiteral` entoure toute valeur non numerique de
+    // guillemets DOUBLES (`filter-translator.ts:34`), et l'attribut est
+    // lui-meme double-quote. Sans echappement :
+    //
+    //   where="region = "Bretagne""   →   lu : `region = `
+    //
+    // Requete tronquee, invalide, en silence. Et c'est la forme que la doc de
+    // l'assistant enseigne (`skills.ts` : « status:eq:active »).
+    state.source = VARIANTES['API OpenDataSoft']();
+    const code = genererCode({ ...configPour('bar'), where: 'region:eq:Bretagne' });
+
+    expect(attributLu(code, 'dsfr-data-source', 'where')).toBe('region = "Bretagne"');
+  });
+
+  it('un nombre passe par eq est quote lui aussi — meme piege', () => {
+    // `eq` quote meme les nombres (`preferNumeric` n'est vrai que pour les
+    // comparaisons d'ordre) : « code_departement:eq:48 », deuxieme exemple de
+    // la doc, cassait exactement pareil.
+    state.source = VARIANTES['API OpenDataSoft']();
+    const code = genererCode({ ...configPour('bar'), where: 'code_departement:eq:48' });
+
+    expect(attributLu(code, 'dsfr-data-source', 'where')).toBe('code_departement = "48"');
   });
 
   it('un filtre where traverse aussi la variante Tabular, sans traduction', () => {

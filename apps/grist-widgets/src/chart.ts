@@ -13,7 +13,7 @@
 import './styles/grist-widgets.css';
 import { initGristBridge, onGristOptions, getGristApiInfo } from './shared/grist-bridge.js';
 import { createOptionsPanel, type OptionDef } from './shared/grist-options-panel.js';
-import { PROXY_BASE_URL, CDN_URLS, jsonLiteral } from '@dsfr-data/shared';
+import { PROXY_BASE_URL, CDN_URLS, escapeHtml, jsonLiteral } from '@dsfr-data/shared';
 
 const ALL_OPTIONS: OptionDef[] = [
   {
@@ -229,8 +229,8 @@ function generateFixedHtml(): string {
     const agg = (opts.aggregation || 'avg') as string;
     const format = (opts.format || 'nombre') as string;
     const label = (opts.label || 'Indicateur') as string;
-    const icone = opts.icone ? ` icon="${opts.icone}"` : '';
-    const couleur = opts.couleur ? ` color="${opts.couleur}"` : '';
+    const icone = opts.icone ? ` icon="${escapeHtml(String(opts.icone))}"` : '';
+    const couleur = opts.couleur ? ` color="${escapeHtml(String(opts.couleur))}"` : '';
 
     deps.push(
       '<script src="https://cdn.jsdelivr.net/gh/bmatge/dsfr-data@main/dist/dsfr-data.umd.js"></script>'
@@ -239,7 +239,7 @@ function generateFixedHtml(): string {
     return `${deps.join('\n')}
 
 <!-- Widget KPI -->
-<dsfr-data-kpi source="export" value="Value:${agg}" format="${format}" label="${label}"${icone}${couleur}></dsfr-data-kpi>
+<dsfr-data-kpi source="export" value="Value:${agg}" format="${escapeHtml(format)}" label="${escapeHtml(label)}"${icone}${couleur}></dsfr-data-kpi>
 <script>
   customElements.whenDefined('dsfr-data-kpi').then(function() {
     DsfrData.dispatchDataLoaded('export', ${jsonData});
@@ -248,16 +248,18 @@ function generateFixedHtml(): string {
   }
 
   // Chart types: bar, line, pie, radar, scatter, gauge, bar-line, map, map-reg
-  deps.push(`<link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">`);
-  deps.push(`<script type="module" src="${CDN_URLS.dsfrChartJs}"></script>`);
+  deps.push(`<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrChartCss)}">`);
+  deps.push(`<script type="module" src="${escapeHtml(CDN_URLS.dsfrChartJs)}"></script>`);
   deps.push(
     '<script src="https://cdn.jsdelivr.net/gh/bmatge/dsfr-data@main/dist/dsfr-data.umd.js"></script>'
   );
 
-  const palette = opts.palette ? ` selected-palette="${opts.palette}"` : '';
+  const palette = opts.palette ? ` selected-palette="${escapeHtml(String(opts.palette))}"` : '';
   const horizontal = opts.horizontal === true ? ' horizontal' : '';
   const stacked = opts.stacked === true ? ' stacked' : '';
-  const unitTooltip = opts.unitTooltip ? ` unit-tooltip="${opts.unitTooltip}"` : '';
+  const unitTooltip = opts.unitTooltip
+    ? ` unit-tooltip="${escapeHtml(String(opts.unitTooltip))}"`
+    : '';
   const codeField = type.startsWith('map') ? ' code-field="Code"' : '';
   const hasValue2 = data.length > 0 && 'Value2' in data[0];
   const valueField2 = hasValue2 ? ' value-field-2="Value2"' : '';
@@ -265,7 +267,7 @@ function generateFixedHtml(): string {
   return `${deps.join('\n')}
 
 <!-- Widget graphique -->
-<dsfr-data-chart source="export" type="${type}" label-field="Label" value-field="Value"${codeField}${palette}${horizontal}${stacked}${unitTooltip}${valueField2}></dsfr-data-chart>
+<dsfr-data-chart source="export" type="${escapeHtml(type)}" label-field="Label" value-field="Value"${codeField}${palette}${horizontal}${stacked}${unitTooltip}${valueField2}></dsfr-data-chart>
 <script>
   customElements.whenDefined('dsfr-data-chart').then(function() {
     DsfrData.dispatchDataLoaded('export', ${jsonData});
@@ -303,8 +305,8 @@ function generateDynamicHtml(): string {
     const agg = (opts.aggregation || 'avg') as string;
     const format = (opts.format || 'nombre') as string;
     const label = (opts.label || 'Indicateur') as string;
-    const icone = opts.icone ? ` icon="${opts.icone}"` : '';
-    const couleur = opts.couleur ? ` color="${opts.couleur}"` : '';
+    const icone = opts.icone ? ` icon="${escapeHtml(String(opts.icone))}"` : '';
+    const couleur = opts.couleur ? ` color="${escapeHtml(String(opts.couleur))}"` : '';
 
     deps.push(
       '<script src="https://cdn.jsdelivr.net/gh/bmatge/dsfr-data@main/dist/dsfr-data.umd.js"></script>'
@@ -315,24 +317,26 @@ function generateDynamicHtml(): string {
 <!-- Source Grist (document public requis) -->
 <dsfr-data-source
   id="grist-data"
-  url="${proxyUrl}"
+  url="${escapeHtml(proxyUrl)}"
   transform="records">
 </dsfr-data-source>
 
 <!-- Widget KPI -->
-<dsfr-data-kpi source="grist-data" value="fields.${valueCol}:${agg}" format="${format}" label="${label}"${icone}${couleur}></dsfr-data-kpi>`;
+<dsfr-data-kpi source="grist-data" value="fields.${valueCol}:${agg}" format="${escapeHtml(format)}" label="${escapeHtml(label)}"${icone}${couleur}></dsfr-data-kpi>`;
   }
 
-  deps.push(`<link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">`);
-  deps.push(`<script type="module" src="${CDN_URLS.dsfrChartJs}"></script>`);
+  deps.push(`<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrChartCss)}">`);
+  deps.push(`<script type="module" src="${escapeHtml(CDN_URLS.dsfrChartJs)}"></script>`);
   deps.push(
     '<script src="https://cdn.jsdelivr.net/gh/bmatge/dsfr-data@main/dist/dsfr-data.umd.js"></script>'
   );
 
-  const palette = opts.palette ? ` selected-palette="${opts.palette}"` : '';
+  const palette = opts.palette ? ` selected-palette="${escapeHtml(String(opts.palette))}"` : '';
   const horizontal = opts.horizontal === true ? ' horizontal' : '';
   const stacked = opts.stacked === true ? ' stacked' : '';
-  const unitTooltip = opts.unitTooltip ? ` unit-tooltip="${opts.unitTooltip}"` : '';
+  const unitTooltip = opts.unitTooltip
+    ? ` unit-tooltip="${escapeHtml(String(opts.unitTooltip))}"`
+    : '';
   const codeFieldAttr = type.startsWith('map') && codeCol ? ` code-field="fields.${codeCol}"` : '';
   const valueField2 = value2Col ? ` value-field-2="fields.${value2Col}"` : '';
 
@@ -341,12 +345,12 @@ function generateDynamicHtml(): string {
 <!-- Source Grist (document public requis) -->
 <dsfr-data-source
   id="grist-data"
-  url="${proxyUrl}"
+  url="${escapeHtml(proxyUrl)}"
   transform="records">
 </dsfr-data-source>
 
 <!-- Widget graphique -->
-<dsfr-data-chart source="grist-data" type="${type}" label-field="fields.${labelCol}" value-field="fields.${valueCol}"${codeFieldAttr}${palette}${horizontal}${stacked}${unitTooltip}${valueField2}></dsfr-data-chart>`;
+<dsfr-data-chart source="grist-data" type="${escapeHtml(type)}" label-field="fields.${labelCol}" value-field="fields.${valueCol}"${codeFieldAttr}${palette}${horizontal}${stacked}${unitTooltip}${valueField2}></dsfr-data-chart>`;
 }
 
 let codeVisible = false;

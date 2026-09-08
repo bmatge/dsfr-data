@@ -11,7 +11,7 @@
 import './styles/grist-widgets.css';
 import { onGristOptions, detectGristApi, getGristApiInfo } from './shared/grist-bridge.js';
 import { createOptionsPanel, type OptionDef } from './shared/grist-options-panel.js';
-import { PROXY_BASE_URL, jsonLiteral } from '@dsfr-data/shared';
+import { PROXY_BASE_URL, escapeHtml, jsonLiteral } from '@dsfr-data/shared';
 
 const GRIST_SOURCE_ID = 'grist';
 
@@ -100,7 +100,7 @@ function generateFixedHtml(): string {
   const exportAttr = datalist?.getAttribute('export') || '';
 
   const recherche = hasRecherche ? ' search' : '';
-  const exportPart = exportAttr ? ` export="${exportAttr}"` : '';
+  const exportPart = exportAttr ? ` export="${escapeHtml(exportAttr)}"` : '';
   const jsonData = jsonLiteral(data);
 
   const deps = [
@@ -114,7 +114,7 @@ function generateFixedHtml(): string {
   return `${deps.join('\n')}
 
 <!-- Widget tableau -->
-<dsfr-data-list source="export" columns="${colonnes}" pagination="${pagination}"${recherche}${exportPart}></dsfr-data-list>
+<dsfr-data-list source="export" columns="${escapeHtml(colonnes)}" pagination="${escapeHtml(pagination)}"${recherche}${exportPart}></dsfr-data-list>
 <script>
   customElements.whenDefined('dsfr-data-list').then(function() {
     DsfrData.dispatchDataLoaded('export', ${jsonData});
@@ -139,7 +139,7 @@ function generateDynamicHtml(): string {
   const exportAttr = datalist?.getAttribute('export') || '';
 
   const recherche = hasRecherche ? ' search' : '';
-  const exportPart = exportAttr ? ` export="${exportAttr}"` : '';
+  const exportPart = exportAttr ? ` export="${escapeHtml(exportAttr)}"` : '';
 
   // Colonnes avec prefix fields. pour le format Grist API
   const colonnes = dataColumnKeys.map((k) => `fields.${k}:${k}`).join(' | ');
@@ -157,12 +157,12 @@ function generateDynamicHtml(): string {
 <!-- Source Grist (document public requis) -->
 <dsfr-data-source
   id="grist-data"
-  url="${proxyUrl}"
+  url="${escapeHtml(proxyUrl)}"
   transform="records">
 </dsfr-data-source>
 
 <!-- Widget tableau -->
-<dsfr-data-list source="grist-data" columns="${colonnes}" pagination="${pagination}"${recherche}${exportPart}></dsfr-data-list>`;
+<dsfr-data-list source="grist-data" columns="${escapeHtml(colonnes)}" pagination="${escapeHtml(pagination)}"${recherche}${exportPart}></dsfr-data-list>`;
 }
 
 function updateCodePanel() {

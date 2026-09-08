@@ -5,6 +5,7 @@ import { state, DROM_IDS, INSET_TERRITORIES } from '../state.js';
 import type { LayerConfig } from '../state.js';
 import { LIB_URL } from '../state.js';
 import {
+  escapeHtml,
   jsonAttr,
   detectProvider,
   extractResourceIds,
@@ -22,12 +23,14 @@ const MAP_A11Y_ID = 'carte';
  * `host.innerHTML = tag` + export utilisateur du code copié dans un site).
  * `&` doit être remplacé en premier pour ne pas double-escape les entités.
  */
-function esc(val: string | number | boolean): string {
-  return String(val)
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+/**
+ * Alias local de `escapeHtml` — conserve pour la lisibilite des gabarits, qui
+ * l'appellent sur chaque attribut. L'implementation etait dupliquee ici ; une
+ * seule definition de l'echappement, c'est ce que le garde-fou de
+ * `tests/shared/escape-html.test.ts` exige depuis #615.
+ */
+function esc(val: string | number | boolean | null | undefined): string {
+  return escapeHtml(val);
 }
 
 function layerAttrs(layer: LayerConfig): string {
