@@ -179,7 +179,7 @@ function generateKPICode(config: ChartConfig, data: AggregatedResult[]): string 
 
 <script>
 // URL de l'API avec agrégation ODSQL
-const API_URL = '${apiUrl}';
+const API_URL = ${jsStringLiteral(apiUrl)};
 
 function formatKPIValue(value, unit) {
   const num = Math.round(value * 100) / 100;
@@ -529,7 +529,7 @@ function generateDatalistCode(config: ChartConfig): string {
   // naissait deprecie.
   const triAttr =
     config.sortOrder && config.labelField
-      ? `\n    sort="${config.labelField}:${config.sortOrder}"`
+      ? `\n    sort="${escapeHtml(config.labelField)}:${escapeHtml(config.sortOrder)}"`
       : '';
   const pagination = config.pagination || 10;
 
@@ -742,7 +742,7 @@ function generateStandardChartCodeODS(
   const whereAttr = config.where ? `\n    where="${escapeHtml(filterToOdsql(config.where))}"` : '';
   const orderAttr =
     config.sortOrder && config.labelField
-      ? `\n    order-by="${resultField}:${config.sortOrder}"`
+      ? `\n    order-by="${escapeHtml(resultField)}:${escapeHtml(config.sortOrder)}"`
       : '';
   const chartType =
     config.type === 'horizontalBar' ? 'bar' : config.type === 'bar-line' ? 'bar' : config.type;
@@ -803,7 +803,7 @@ function generateStandardChartCodeTabular(
   const filterAttr = config.where ? `\n    filter="${escapeHtml(config.where)}"` : '';
   const orderAttr =
     config.sortOrder && config.labelField
-      ? `\n    order-by="${resultField}:${config.sortOrder}"`
+      ? `\n    order-by="${escapeHtml(resultField)}:${escapeHtml(config.sortOrder)}"`
       : '';
   const chartType =
     config.type === 'horizontalBar' ? 'bar' : config.type === 'bar-line' ? 'bar' : config.type;
@@ -901,7 +901,7 @@ function generateStandardChartCodeAPI(
 
 <script>
 // URL de l'API avec agrégation ODSQL
-const API_URL = '${apiUrl}';
+const API_URL = ${jsStringLiteral(apiUrl)};
 
 // Palette DSFR
 const DSFR_COLORS = ${colorsArray};

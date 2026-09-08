@@ -82,7 +82,7 @@ function buildDatalistTriAttr(): string {
   // `sort` et non `tri` : l'alias francais est @deprecated depuis #300
   // (packages/core/src/components/dsfr-data-list.ts:73). Du code fraichement
   // genere ne doit pas naitre deprecie.
-  return `\n    sort="${field}:${state.sortOrder}"`;
+  return `\n    sort="${escapeHtml(field)}:${escapeHtml(state.sortOrder)}"`;
 }
 
 /** Generate DataBox attributes for dsfr-data-chart (dynamic mode) */
@@ -1138,7 +1138,7 @@ export function generateOdsQueryCode(
   qAttrs.push('source="chart-src"');
   const odsSortField = resolveSortField(resultValueField);
   if (odsSortField) {
-    qAttrs.push(`order-by="${odsSortField}:${state.sortOrder}"`);
+    qAttrs.push(`order-by="${escapeHtml(odsSortField)}:${escapeHtml(state.sortOrder)}"`);
   }
 
   const queryElement = `
@@ -1232,7 +1232,7 @@ export function generateTabularQueryCode(
   // Order by
   const tabularSortField = resolveSortField(resultValueField);
   if (tabularSortField) {
-    qAttrs.push(`order-by="${tabularSortField}:${state.sortOrder}"`);
+    qAttrs.push(`order-by="${escapeHtml(tabularSortField)}:${escapeHtml(state.sortOrder)}"`);
   }
 
   const queryElement = `
@@ -1324,7 +1324,7 @@ export function generateDsfrDataQueryCode(
   // Sort
   const dynSortField = resolveSortField(sortField);
   if (dynSortField) {
-    attrs.push(`order-by="${dynSortField}:${state.sortOrder}"`);
+    attrs.push(`order-by="${escapeHtml(dynSortField)}:${escapeHtml(state.sortOrder)}"`);
   }
 
   const comment = state.advancedMode
@@ -1922,7 +1922,7 @@ export function generateCode(apiUrl: string): void {
 
 <script>
 // URL de l'API avec agr\u00e9gation
-const API_URL = '${apiUrl}';
+const API_URL = ${jsStringLiteral(apiUrl)};
 
 function formatKPIValue(value, unit) {
   const num = Math.round(value * 100) / 100;
@@ -1967,7 +1967,7 @@ loadKPI();
 </div>
 
 <script type="module">
-const API_URL = '${apiUrl}';
+const API_URL = ${jsStringLiteral(apiUrl)};
 
 async function loadGauge() {
   const response = await fetch(API_URL);
@@ -2011,7 +2011,7 @@ loadGauge();
 </div>
 
 <script>
-const API_URL = '${apiUrl}';
+const API_URL = ${jsStringLiteral(apiUrl)};
 
 ${ODS_FETCH_HELPER}
 
@@ -2044,7 +2044,7 @@ loadTable();
 </div>
 
 <script type="module">
-const API_URL = '${apiUrl}';
+const API_URL = ${jsStringLiteral(apiUrl)};
 
 ${ODS_FETCH_HELPER}
 
@@ -2092,7 +2092,7 @@ loadChart();
 </div>
 
 <script type="module">
-const API_URL = '${apiUrl}';
+const API_URL = ${jsStringLiteral(apiUrl)};
 
 ${ODS_FETCH_HELPER}
 
@@ -2189,7 +2189,7 @@ loadMap();
 
 <script type="module">
 // URL de l'API avec agrégation
-const API_URL = '${apiUrl}';
+const API_URL = ${jsStringLiteral(apiUrl)};
 
 ${ODS_FETCH_HELPER}
 

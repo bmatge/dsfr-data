@@ -322,7 +322,7 @@ function generateDynamicHtml(): string {
 </dsfr-data-source>
 
 <!-- Widget KPI -->
-<dsfr-data-kpi source="grist-data" value="fields.${valueCol}:${agg}" format="${escapeHtml(format)}" label="${escapeHtml(label)}"${icone}${couleur}></dsfr-data-kpi>`;
+<dsfr-data-kpi source="grist-data" value="fields.${escapeHtml(valueCol)}:${escapeHtml(agg)}" format="${escapeHtml(format)}" label="${escapeHtml(label)}"${icone}${couleur}></dsfr-data-kpi>`;
   }
 
   deps.push(`<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrChartCss)}">`);
@@ -338,7 +338,7 @@ function generateDynamicHtml(): string {
     ? ` unit-tooltip="${escapeHtml(String(opts.unitTooltip))}"`
     : '';
   const codeFieldAttr = type.startsWith('map') && codeCol ? ` code-field="fields.${codeCol}"` : '';
-  const valueField2 = value2Col ? ` value-field-2="fields.${value2Col}"` : '';
+  const valueField2 = value2Col ? ` value-field-2="fields.${escapeHtml(value2Col)}"` : '';
 
   return `${deps.join('\n')}
 

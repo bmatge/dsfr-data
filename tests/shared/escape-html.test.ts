@@ -256,8 +256,46 @@ describe('aucun generateur n’echappe a la main pour un attribut simple', () =>
     });
   });
 
-  it('l’echappement partagé reste la seule definition', async () => {
-    // `escape-html.ts` est le seul endroit ou ces caracteres sont traites.
+  it('l’echappement partagé reste la seule definition — dans TOUT le repo', async () => {
+    // Le garde precedent ne scannait que quatre generateurs. Il n'a donc pas
+    // vu les copies de `pipeline-helper`, ni celle de la Carto. Trois
+    // implementations divergentes de la meme fonction avaient produit trois
+    // defauts distincts (#615) : c'est la duplication elle-meme qu'il faut
+    // interdire, pas ses occurrences connues.
+    const { readFileSync, readdirSync } = await import('node:fs');
+    const { join, relative } = await import('node:path');
+    const racine = join(__dirname, '../..');
+
+    /** Tous les .ts du code source, artefacts generes exclus. */
+    function parcourir(dossier: string, acc: string[] = []): string[] {
+      for (const e of readdirSync(dossier, { withFileTypes: true })) {
+        const chemin = join(dossier, e.name);
+        if (e.isDirectory()) {
+          if (e.name === 'node_modules' || e.name === 'dist') continue;
+          parcourir(chemin, acc);
+        } else if (e.name.endsWith('.ts') && !e.name.includes('.generated.')) {
+          acc.push(chemin);
+        }
+      }
+      return acc;
+    }
+
+    const coupables: string[] = [];
+    for (const racineSource of ['apps', 'packages', 'scripts']) {
+      for (const chemin of parcourir(join(racine, racineSource))) {
+        // La signature d'un echappement HTML ecrit a la main.
+        if (/replace\(\/&\/g,\s*['"]&amp;['"]\)/.test(readFileSync(chemin, 'utf-8'))) {
+          coupables.push(relative(racine, chemin));
+        }
+      }
+    }
+
+    expect(coupables, 'echappement HTML reimplemente').toEqual([
+      'packages/shared/src/utils/escape-html.ts',
+    ]);
+  });
+
+  it('expose bien les quatre contextes', async () => {
     const { readFileSync } = await import('node:fs');
     const { join } = await import('node:path');
     const src = readFileSync(
@@ -265,8 +303,14 @@ describe('aucun generateur n’echappe a la main pour un attribut simple', () =>
       'utf-8'
     );
 
-    expect(src).toContain('export function singleQuoteAttr');
-    expect(src).toContain('export function jsonAttr');
-    expect(src).toContain('export function jsStringLiteral');
+    for (const fn of [
+      'escapeHtml',
+      'singleQuoteAttr',
+      'jsonAttr',
+      'jsonLiteral',
+      'jsStringLiteral',
+    ]) {
+      expect(src, fn).toContain(`export function ${fn}`);
+    }
   });
 });

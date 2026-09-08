@@ -620,29 +620,38 @@ describe('le code genere reste coherent avec la configuration', () => {
     expect(code, 'la syntaxe pipeline a fuite dans le code livre').not.toContain(':gt:');
   });
 
-  it('une URL a parametres traverse l’attribut entiere', () => {
-    // L'echappement de `&` n'est pas un exces de zele : sans lui, une URL
-    // comme `…?a=1&copy=2` voit `&copy` decode en `©` par le parseur. Le
-    // composant appelait alors une autre URL que celle affichee.
+  it('une URL a entite legacy traverse l’attribut entiere', () => {
+    // Premiere version de ce test : `?a=1&copy=2`. Elle etait DECORATIVE —
+    // verte avec l'echappement retire. Les entites nommees historiques sont
+    // tolerees sans `;` en valeur d'attribut, mais HTML5 exempte precisement
+    // le cas ou un `=` suit : `&copy=` n'est PAS decode. La fixture avait
+    // choisi la seule forme exemptee.
+    //
+    // `&copy&b=2` et `&copy` en fin de chaine, eux, sont bien decodes en `©`.
+    // Le composant appelait alors une autre URL que celle affichee.
     state.source = {
       id: 's',
       name: 'API',
       type: 'api',
-      apiUrl: 'https://exemple.gouv.fr/api?a=1&copy=2&lt=3',
+      apiUrl: 'https://exemple.gouv.fr/api?a=1&copy&b=2&reg',
       recordCount: 5000,
     };
     const code = genererCode(configPour('map'));
 
     expect(attributLu(code, 'dsfr-data-source', 'url')).toBe(
-      'https://exemple.gouv.fr/api?a=1&copy=2&lt=3'
+      'https://exemple.gouv.fr/api?a=1&copy&b=2&reg'
     );
   });
 
-  it('un nom de colonne a chevron ne disloque pas l’attribut', () => {
+  it('un guillemet double dans un nom de colonne ne disloque pas l’attribut', () => {
+    // La premiere version visait un CHEVRON. Egalement decorative : `<` est
+    // parfaitement legal dans une valeur d'attribut double-quotee, l'attribut
+    // se relit a l'identique echappe ou non. Le caractere qui disloque un
+    // attribut double-quote, c'est le guillemet double.
     state.source = VARIANTES['API OpenDataSoft']();
-    const code = genererCode({ ...configPour('datalist'), colonnes: 'a<b>c:Libelle' });
+    const code = genererCode({ ...configPour('datalist'), colonnes: 'a"b:Libelle' });
 
-    expect(attributLu(code, 'dsfr-data-list', 'columns')).toBe('a<b>c:Libelle');
+    expect(attributLu(code, 'dsfr-data-list', 'columns')).toBe('a"b:Libelle');
   });
 
   it('une valeur CHAINE traverse l’attribut entiere', () => {

@@ -19,8 +19,11 @@ concernée est celle que la documentation de l'assistant enseigne
 Le correctif est plus large que le symptôme : **toute** valeur d'attribut du
 générateur de l'Assistant IA et des widgets Grist est désormais échappée, comme le
 faisait déjà le générateur de la Carto sur chacun des siens. Cela corrige au passage
-une classe de défaut latente sur les URLs — sans échappement de `&`, une source
-`…?a=1&copy=2` était appelée avec un `©` à la place de `&copy`.
+une classe de défaut latente sur les URLs : les entités nommées historiques sont
+tolérées sans `;` dans une valeur d'attribut, si bien qu'une source
+`…?a=1&copy&b=2` était appelée avec un `©` à la place de `&copy`. (HTML5 exempte le
+cas où un `=` suit immédiatement, ce qui rend `&copy=2` inoffensif — la nuance
+importe pour tester la bonne forme.)
 
 `escapeHtml` accepte maintenant les nombres et les booléens : les gabarits posent des
 `pagination`, `max-items`, `zoom`, et forcer l'appelant à convertir d'abord, c'est
