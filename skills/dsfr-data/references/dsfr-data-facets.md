@@ -28,7 +28,7 @@ Sortie : même tableau, filtre selon les selections de l'utilisateur.
 | labels | String | `""` | non | Labels custom : `"field:Label \| field2:Label 2"` (pipe-separe) |
 | max-values | Number | `6` | non | Nb de valeurs visibles par facette avant "Voir plus" |
 | disjunctive | String | `""` | non | Champs en mode multi-selection OU (virgule-separes) |
-| sort | String | `"count"` | non | Tri des valeurs : count, -count, alpha, -alpha |
+| sort | String | `"count"` | non | Tri des valeurs, grammaire `critere:sens` (comme order-by) : `count:desc` (défaut, plus frequent d'abord), `count:asc`, `alpha:asc` (A-Z), `alpha:desc` (Z-A). Raccourcis : `count` = count:desc, `alpha` = alpha:asc. `-count` / `-alpha` deprecies (warn console) — ne plus les generer |
 | searchable | String | `""` | non | Champs avec barre de recherche (virgule-separes) |
 | hide-empty | Boolean | `false` | non | Masquer les facettes avec une seule valeur |
 | display | String | `""` | non | Mode d'affichage par facette : `"field:select \| field2:multiselect"`. Modes : checkbox (défaut), select, multiselect, radio |
@@ -139,7 +139,7 @@ champs de type string avec 2 a 50 valeurs uniques (exclut les champs ID-like).
 | `max-values` | `number` | `6` | Nb de valeurs visibles par facette avant "Voir plus" |
 | `searchable` | `string` | `""` (vide) | Champs avec barre de recherche (virgule-separes) |
 | `server-facets` | `boolean` | `false` | Active le mode facettes serveur ODS. Fetch les valeurs de facettes depuis l'API ODS /facets au lieu de les calculer localement. Requiert source pointant vers un dsfr-data-source avec api-type="opendatasoft" et server-side. En mode server-facets, l'attribut fields est obligatoire (pas d'auto-detection). |
-| `sort` | `string` | `'count'` | Tri des valeurs : count, -count, alpha, -alpha |
+| `sort` | `string` | `'count'` | Tri des valeurs de chaque facette, grammaire `critere:sens` alignee sur `order-by` de dsfr-data-query (#645) : - `count:desc` (defaut) : du plus frequent au plus rare - `count:asc` : du plus rare au plus frequent - `alpha:asc` : A -> Z (collation francaise) - `alpha:desc` : Z -> A Raccourcis : `count` = `count:desc`, `alpha` = `alpha:asc`. Formes `-count` / `-alpha` DEPRECIEES : conservees a l'identique (`-count` = rare d'abord, `-alpha` = Z -> A) mais un avertissement console invite a passer a la forme explicite ; retrait dans une version majeure. |
 | `source` | `string` | `""` (vide) | ID de la source de données a ecouter |
 | `static-values` | `string` | `""` (vide) | Valeurs de facettes pre-calculees (JSON). Format: {"field": ["val1", "val2"], "field2": ["a", "b"]} Quand cet attribut est défini, les facettes utilisent ces valeurs sans les calculer depuis les données. Les selections envoient des commandes WHERE en colon syntax (compatible Tabular / generique) au dsfr-data-query en amont. Attribut fields requis (pas d'auto-detection). |
 | `url-param-map` | `string` | `""` (vide) | Mapping URL param -> champ facette : "param:field \| param2:field2". Si vide, correspondance directe |

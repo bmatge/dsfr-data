@@ -28,6 +28,10 @@ La valeur vide RETIRE le filtre. Les valeurs sont percent-encodees (#271).
   `lt-day-after` (inclusif jusqu'au jour choisi), `last-n-days` (N derniers jours, borne
   dynamique), `current-year` (checkbox -> annee en cours). Plages [debut, fin) en ISO,
   recalculees a chaque diffusion — l'URL serialise l'intention (« 30 »), pas les dates resolues.
+- Troncature (#646) : `year-of` et `month-of` acceptent une date plus precise et la tronquent
+  ("2026-09-09" -> annee 2026 / mois 2026-09) : un input type=date peut nourrir les deux (il n'existe
+  pas de type=year). Une valeur qui reste inexploitable retire le filtre et l'annonce par un
+  console.warn (une fois par filtre).
 
 
 ### Référence `<dsfr-data-context-filter>` (générée depuis le code)
@@ -41,7 +45,7 @@ La valeur vide RETIRE le filtre. Les valeurs sont percent-encodees (#271).
 | `apply-to` | `string` | `'*'` | Cibles : "*" (défaut, toutes les sources du contexte) ou ids ciblés |
 | `field` | `string` | `""` (vide) | Colonne filtrée |
 | `label` | `string` | `""` (vide) | Libellé naturel pour l'affichage (tags #232) — défaut : field |
-| `operator` | `ContextOperator` | `'eq'` | Opérateur : eq, in, lt, gte, between — et dates (#230, clauses en plages [debut, fin)) : month-of, year-of, lt-day-after, last-n-days, current-year |
+| `operator` | `ContextOperator` | `'eq'` | Opérateur : eq, in, lt, gte, between — et dates (#230, clauses en plages [debut, fin)) : month-of, year-of, lt-day-after, last-n-days, current-year. `year-of` et `month-of` acceptent une date plus precise que l'operateur et la tronquent (#646) : "2026-09-09" -> annee 2026 / mois 2026-09, ce qui permet de les nourrir d'un <input type="date"> (il n'existe pas de type="year"). Une valeur qui reste inexploitable (ni date, ni mois, ni annee) retire le filtre et le signale par un avertissement console, emis une seule fois par filtre. |
 | `ui` | `string` | `""` (vide) | Id(s) de l'élément d'UI écouté — deux ids (min max) pour between |
 
 
