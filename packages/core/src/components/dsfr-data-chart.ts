@@ -219,7 +219,11 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'databox-source' })
   databoxSource = '';
 
-  /** Date de la donnée (ex: "Mars 2024") */
+  /**
+   * Date de la donnée (ex: "Mars 2024"), affichée dans le pied de la DataBox
+   * et sur les cartes. Aucune date n'est rendue si l'attribut est absent —
+   * plus de repli sur la date du jour, qui n'est pas celle des données (#650).
+   */
   @property({ type: String, attribute: 'databox-date' })
   databoxDate = '';
 
@@ -1253,13 +1257,17 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     // creates the Teleport target containers when segmented-control is set.
     // Without it, the chart's Vue <Teleport> has no target and renders outside.
     databoxEl.setAttribute('segmented-control', '');
-    // name, source, date are REQUIRED props for DataBox — always set them.
+    // name and source are REQUIRED props for DataBox — always set them.
     // DSFR Chart 2.1.0 renamed `title` to `name` (conflict with the native
     // HTML title attribute); keep setting `title` too for 2.0.x hosts.
     databoxEl.setAttribute('name', this.databoxTitle || ' ');
     databoxEl.setAttribute('title', this.databoxTitle || ' ');
     databoxEl.setAttribute('source', this.databoxSource || ' ');
-    databoxEl.setAttribute('date', this.databoxDate || new Date().toISOString().split('T')[0]);
+    // Pas de date par défaut (#650) : `new Date()` présentait la date de
+    // RENDU comme date des données sur toute page qui laissait le défaut.
+    // Sans `databox-date`, aucune date n'est rendue (Vue affiche '' pour
+    // une prop absente ; la validation `required` n'existe qu'en build dev).
+    if (this.databoxDate) databoxEl.setAttribute('date', this.databoxDate);
     if (this.databoxDownload) databoxEl.setAttribute('download', '');
     if (this.databoxScreenshot) databoxEl.setAttribute('screenshot', '');
     if (this.databoxFullscreen) databoxEl.setAttribute('fullscreen', '');

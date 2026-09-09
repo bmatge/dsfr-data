@@ -660,6 +660,27 @@ describe('DsfrDataChart', () => {
       expect(chartEl.getAttribute('databox-source')).toBe('default');
     });
 
+    // #650 : plus de date du jour par défaut sur la DataBox
+    it('renders no date on the DataBox when databox-date is absent (#650)', () => {
+      chart.databox = true;
+      chart.databoxTitle = 'Test';
+      chart.databoxSource = 'INSEE';
+
+      const wrapper = (chart as any)._createDataboxElement('bar-chart', { x: '[[]]', y: '[[]]' });
+      const databoxEl = wrapper.querySelector('data-box');
+      expect(databoxEl.hasAttribute('date')).toBe(false);
+      expect(databoxEl.getAttribute('source')).toBe('INSEE');
+    });
+
+    it('passes databox-date through to the DataBox when provided', () => {
+      chart.databox = true;
+      chart.databoxTitle = 'Test';
+      chart.databoxDate = 'Mars 2024';
+
+      const wrapper = (chart as any)._createDataboxElement('bar-chart', { x: '[[]]', y: '[[]]' });
+      expect(wrapper.querySelector('data-box').getAttribute('date')).toBe('Mars 2024');
+    });
+
     it('places data-box first in DOM order for Vue Teleport', () => {
       chart.databox = true;
       chart.databoxTitle = 'Mon titre';
