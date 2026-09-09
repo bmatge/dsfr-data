@@ -2168,11 +2168,15 @@ L'adapter INSEE aplatit automatiquement les observations (dimensions + measures 
 ### Authentification par provider
 | Provider | Méthode | Header/Param |
 |----------|---------|-------------|
-| OpenDataSoft | API Key | \`headers='{"apikey":"KEY"}'\` |
+| OpenDataSoft | API Key | \`api-key-ref="k"\` + \`window.DSFR_DATA_KEYS = { k: 'Apikey KEY' }\`, ou \`headers='{"Authorization":"Apikey KEY"}'\` |
 | Tabular | Aucune | Acces public uniquement |
 | Grist | Bearer token | \`headers='{"Authorization":"Bearer KEY"}'\` |
 | INSEE (Melodi) | Aucune | Acces anonyme (30 req/min) |
 | Generique | Variable | Via \`headers\` sur dsfr-data-source |
+
+ODS n'accepte la clé QUE dans \`Authorization: Apikey <clé>\` (seul en-tête autorisé en
+preflight CORS) : un en-tête \`apikey\` nu échoue. Le composant réécrit \`apikey\` / \`x-api-key\`
+en \`Authorization: Apikey\` (#655), mais écrire directement la forme \`Authorization\`.
 
 ### Proxy CORS
 Certaines APIs externes (Grist gouv/SaaS, Tabular) ne supportent pas le CORS

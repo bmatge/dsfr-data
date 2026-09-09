@@ -4,7 +4,11 @@ import { getByPath } from '../utils/json-path.js';
 import { flattenGristEnvelope } from '../utils/grist-envelope.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
-import { getProxiedUrl, buildCorsProxyRequest } from '@dsfr-data/shared/lib';
+import {
+  getProxiedUrl,
+  buildCorsProxyRequest,
+  normalizeProviderAuthHeaders,
+} from '@dsfr-data/shared/lib';
 import type { ApiAdapter, AdapterParams, ServerSideOverlay } from '../adapters/api-adapter.js';
 import { getAdapter } from '../adapters/adapter-registry.js';
 import { getCacheProvider, cacheKeyFor } from '../utils/cache-provider.js';
@@ -62,7 +66,11 @@ export class DsfrDataSource extends LitElement {
   @property({ type: String })
   method: 'GET' | 'POST' = 'GET';
 
-  /** En-tetes HTTP en JSON. Ex: `'{"Authorization": "Bearer xxx"}'` */
+  /**
+   * En-tetes HTTP en JSON. Ex: `'{"Authorization": "Bearer xxx"}'`.
+   * OpenDataSoft : la clé va dans `Authorization: Apikey <clé>` (seul en-tête
+   * autorisé en CORS) — un `apikey` nu est réécrit automatiquement (#655).
+   */
   @property({ type: String })
   headers = '';
 
@@ -877,6 +885,12 @@ export class DsfrDataSource extends LitElement {
     const keyHeaders = this._resolveApiKeyHeaders();
     if (keyHeaders) {
       headers = { ...headers, ...keyHeaders };
+    }
+
+    // Mode URL sur un hote ODS : `apikey` nu → `Authorization: Apikey K`
+    // (#655, provider detecte depuis l'URL ; no-op pour les autres)
+    if (this.url && Object.keys(headers).length > 0) {
+      headers = normalizeProviderAuthHeaders(this.url, headers).headers;
     }
 
     if (this.method === 'POST' && this.params) {

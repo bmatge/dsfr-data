@@ -17,7 +17,7 @@ import type { QueryAggregate } from '../components/dsfr-data-query.js';
 import { parseAggregates } from '../utils/aggregates.js';
 import { parseOrderBy } from '../utils/where.js';
 import type { ProviderConfig } from '@dsfr-data/shared/lib';
-import { ODS_CONFIG, getProxiedUrl } from '@dsfr-data/shared/lib';
+import { ODS_CONFIG, getProxiedUrl, normalizeProviderAuthHeaders } from '@dsfr-data/shared/lib';
 
 /**
  * Échappe une chaîne destinée à être interpolée dans une string ODSQL (`"…"`).
@@ -35,15 +35,22 @@ function toOdsOrderBy(orderBy: string): string {
     .join(', ');
 }
 
-/** Construit les options fetch avec headers optionnels */
+/**
+ * Construit les options fetch avec headers optionnels. Les en-têtes d'auth
+ * sont normalisés au format ODS (#655) : `apikey: K` (et variantes) devient
+ * `Authorization: Apikey K` — ODS n'autorise que `Authorization` en preflight
+ * CORS et ignore un en-tête `apikey` nu. `apiUrl` est l'URL ODS avant proxy,
+ * sur laquelle le provider est détecté.
+ */
 function buildFetchOptions(
   params: Pick<AdapterParams, 'headers'>,
+  apiUrl: string,
   signal?: AbortSignal
 ): RequestInit {
   const opts: RequestInit = {};
   if (signal) opts.signal = signal;
   if (params.headers && Object.keys(params.headers).length > 0) {
-    opts.headers = params.headers;
+    opts.headers = normalizeProviderAuthHeaders(apiUrl, params.headers).headers;
   }
   return opts;
 }
@@ -153,12 +160,10 @@ export class OpenDataSoftAdapter implements ApiAdapter {
       const remaining = requestedLimit - allResults.length;
       if (remaining <= 0) break;
 
-      const url = getProxiedUrl(
-        this.buildUrl(params, Math.min(pageSize, remaining), offset),
-        params.proxyUrl
-      );
+      const apiUrl = this.buildUrl(params, Math.min(pageSize, remaining), offset);
+      const url = getProxiedUrl(apiUrl, params.proxyUrl);
 
-      const response = await fetch(url, buildFetchOptions(params, signal));
+      const response = await fetch(url, buildFetchOptions(params, apiUrl, signal));
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
@@ -218,9 +223,10 @@ export class OpenDataSoftAdapter implements ApiAdapter {
     overlay: ServerSideOverlay,
     signal: AbortSignal
   ): Promise<FetchResult> {
-    const url = getProxiedUrl(this.buildServerSideUrl(params, overlay), params.proxyUrl);
+    const apiUrl = this.buildServerSideUrl(params, overlay);
+    const url = getProxiedUrl(apiUrl, params.proxyUrl);
 
-    const response = await fetch(url, buildFetchOptions(params, signal));
+    const response = await fetch(url, buildFetchOptions(params, apiUrl, signal));
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
@@ -342,7 +348,7 @@ export class OpenDataSoftAdapter implements ApiAdapter {
 
     const response = await fetch(
       getProxiedUrl(url.toString(), params.proxyUrl),
-      buildFetchOptions(params, signal)
+      buildFetchOptions(params, url.toString(), signal)
     );
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);

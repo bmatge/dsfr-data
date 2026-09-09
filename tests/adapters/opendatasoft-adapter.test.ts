@@ -637,12 +637,12 @@ describe('OpenDataSoftAdapter', () => {
       });
 
       await adapter.fetchAll(
-        makeParams({ headers: { apikey: 'secret123' } }),
+        makeParams({ headers: { 'X-Custom': 'secret123' } }),
         new AbortController().signal
       );
 
       const fetchOpts = mockFetch.mock.calls[0][1] as RequestInit;
-      expect(fetchOpts.headers).toEqual({ apikey: 'secret123' });
+      expect(fetchOpts.headers).toEqual({ 'X-Custom': 'secret123' });
     });
 
     it('passes headers to fetch in fetchPage', async () => {
@@ -668,13 +668,93 @@ describe('OpenDataSoftAdapter', () => {
       });
 
       await adapter.fetchFacets!(
-        { baseUrl: 'https://data.example.com', datasetId: 'test', headers: { apikey: 'key' } },
+        {
+          baseUrl: 'https://data.example.com',
+          datasetId: 'test',
+          headers: { Authorization: 'Apikey key' },
+        },
         ['field1'],
         ''
       );
 
       const fetchOpts = mockFetch.mock.calls[0][1] as RequestInit;
-      expect(fetchOpts.headers).toEqual({ apikey: 'key' });
+      expect(fetchOpts.headers).toEqual({ Authorization: 'Apikey key' });
+    });
+
+    describe('#655 — normalisation apikey → Authorization: Apikey', () => {
+      const okPage = () =>
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ results: [{ id: 1 }], total_count: 1, facets: [] }),
+        });
+
+      it('AC : fetchAll — `apikey: K` émet `Authorization: Apikey K` et aucun en-tête apikey', async () => {
+        okPage();
+
+        await adapter.fetchAll(
+          makeParams({ headers: { apikey: 'K' } }),
+          new AbortController().signal
+        );
+
+        const headers = (mockFetch.mock.calls[0][1] as RequestInit).headers as Record<
+          string,
+          string
+        >;
+        expect(headers).toEqual({ Authorization: 'Apikey K' });
+        expect(Object.keys(headers).map((k) => k.toLowerCase())).not.toContain('apikey');
+      });
+
+      it('fetchPage — variantes api-key / x-api-key normalisées, autres en-têtes conservés', async () => {
+        okPage();
+
+        await adapter.fetchPage(
+          makeParams({ headers: { 'x-api-key': 'K2', 'X-Custom': 'v' } }),
+          { page: 1, effectiveWhere: '', orderBy: '' },
+          new AbortController().signal
+        );
+
+        expect((mockFetch.mock.calls[0][1] as RequestInit).headers).toEqual({
+          'X-Custom': 'v',
+          Authorization: 'Apikey K2',
+        });
+      });
+
+      it('fetchFacets — normalisation aussi sur l’endpoint /facets', async () => {
+        okPage();
+
+        await adapter.fetchFacets!(
+          { baseUrl: 'https://data.example.com', datasetId: 'test', headers: { apikey: 'K3' } },
+          ['field1'],
+          ''
+        );
+
+        expect((mockFetch.mock.calls[0][1] as RequestInit).headers).toEqual({
+          Authorization: 'Apikey K3',
+        });
+      });
+
+      it('un Authorization explicite est conservé tel quel (idempotence)', async () => {
+        okPage();
+
+        await adapter.fetchAll(
+          makeParams({ headers: { Authorization: 'Apikey déjà', apikey: 'ignorée' } }),
+          new AbortController().signal
+        );
+
+        expect((mockFetch.mock.calls[0][1] as RequestInit).headers).toEqual({
+          Authorization: 'Apikey déjà',
+          apikey: 'ignorée',
+        });
+      });
+
+      it('les params passés à l’adapter ne sont pas mutés', async () => {
+        okPage();
+        const headers = { apikey: 'K' };
+
+        await adapter.fetchAll(makeParams({ headers }), new AbortController().signal);
+
+        expect(headers).toEqual({ apikey: 'K' });
+      });
     });
 
     it('does not set headers when empty', async () => {
