@@ -60,13 +60,50 @@ describe('DsfrDataChart', () => {
       expect(result.y2).toBeUndefined();
     });
 
-    it('uses "N/A" for missing labels', () => {
+    // #647 : libellé des catégories vides via `empty-label` (défaut « Non renseigné »)
+    it('uses empty-label default "Non renseigné" for missing labels', () => {
       (chart as any)._data = [{ val: 10 }];
       chart.labelField = 'label';
       chart.valueField = 'val';
 
       const result = (chart as any)._processData();
-      expect(JSON.parse(result.x)).toEqual([['N/A']]);
+      expect(JSON.parse(result.x)).toEqual([['Non renseigné']]);
+    });
+
+    it('applies empty-label to null, undefined and "" alike', () => {
+      (chart as any)._data = [
+        { label: null, val: 1 },
+        { val: 2 },
+        { label: '', val: 3 },
+        { label: 'A', val: 4 },
+      ];
+      chart.labelField = 'label';
+      chart.valueField = 'val';
+
+      const result = (chart as any)._processData();
+      expect(result.labels).toEqual(['Non renseigné', 'Non renseigné', 'Non renseigné', 'A']);
+    });
+
+    it('respects a custom empty-label', () => {
+      (chart as any)._data = [{ label: null, val: 1 }];
+      chart.labelField = 'label';
+      chart.valueField = 'val';
+      chart.emptyLabel = 'Sans objet';
+
+      const result = (chart as any)._processData();
+      expect(result.labels).toEqual(['Sans objet']);
+    });
+
+    it('does not treat 0 or false as empty', () => {
+      (chart as any)._data = [
+        { label: 0, val: 1 },
+        { label: false, val: 2 },
+      ];
+      chart.labelField = 'label';
+      chart.valueField = 'val';
+
+      const result = (chart as any)._processData();
+      expect(result.labels).toEqual(['0', 'false']);
     });
 
     it('uses 0 for non-numeric values', () => {
@@ -425,6 +462,21 @@ describe('DsfrDataChart', () => {
       expect(attrs['horizontal']).toBe('true');
       expect(attrs['stacked']).toBe('true');
       expect(attrs['highlight-index']).toBe('[0, 2]');
+    });
+
+    it('pie legend names an empty category with empty-label, never a falsy name (#647)', () => {
+      (chart as any)._data = [
+        { type: 'PME', n: 10 },
+        { type: null, n: 21 },
+      ];
+      chart.type = 'pie';
+      chart.labelField = 'type';
+      chart.valueField = 'n';
+
+      const { attrs } = (chart as any)._getTypeSpecificAttributes();
+      const names: string[] = JSON.parse(attrs['name']);
+      expect(names).toEqual(['PME', 'Non renseigné']);
+      expect(names.every((n) => n.length > 0)).toBe(true);
     });
 
     it('includes fill for pie type', () => {

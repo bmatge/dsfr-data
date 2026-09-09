@@ -249,6 +249,34 @@ describe('DsfrDataQuery', () => {
       expect(paca['population__sum']).toBe(800);
     });
 
+    // #647 : un groupe vide ressort en null (pas ""), regroupement stable
+    it('keeps null (not "") as the group value for empty keys', () => {
+      (query as any)._rawData = [
+        { region: 'IDF', population: 1000 },
+        { region: null, population: 10 },
+        { population: 20 },
+        { region: '', population: 30 },
+      ];
+
+      const result = (query as any)._applyGroupByAndAggregate((query as any)._rawData);
+      expect(result).toHaveLength(2);
+      const empty = result.find((r: any) => r.region === null);
+      expect(empty).toBeDefined();
+      expect(empty.region).toBeNull();
+      expect(empty['population__sum']).toBe(60);
+      expect(result.find((r: any) => r.region === '')).toBeUndefined();
+    });
+
+    it('a downstream isnull filter catches the empty group', () => {
+      (query as any)._rawData = [
+        { region: 'IDF', population: 1000 },
+        { region: null, population: 10 },
+      ];
+      const grouped = (query as any)._applyGroupByAndAggregate((query as any)._rawData);
+      const kept = (query as any)._applyFilters(grouped, 'region:isnotnull');
+      expect(kept.map((r: any) => r.region)).toEqual(['IDF']);
+    });
+
     it('handles multiple group by fields', () => {
       query.groupBy = 'region, year';
       (query as any)._rawData = [

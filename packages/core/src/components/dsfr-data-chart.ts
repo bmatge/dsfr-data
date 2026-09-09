@@ -114,6 +114,16 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   labelField = '';
 
   /**
+   * Libellé affiché pour une catégorie vide (`null`, `undefined` ou `""`
+   * dans `label-field`) : légende du pie, axe X des cartésiens (#647).
+   * Sans lui, DSFR Chart substituerait « Série N » à un nom vide.
+   * Pour EXCLURE ces lignes plutôt que les nommer, filtrer en amont :
+   * `where="champ:isnotnull"` (query) ou `where="champ is not null"` (source ODS).
+   */
+  @property({ type: String, attribute: 'empty-label' })
+  emptyLabel = 'Non renseigné';
+
+  /**
    * Chemin vers le champ code (prioritaire sur label-field) : departement/region
    * (map/map-reg), nom d'academie (map-aca), code pays ISO a2/a3/num (map-monde)
    */
@@ -397,6 +407,16 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   }
 
   /**
+   * Libellé d'une ligne : la valeur de `label-field`, ou `empty-label` si elle
+   * est vide (`null` / `undefined` / `""`) — même rendu quel que soit le chemin
+   * (group_by serveur → null, group-by client → null, saisie vide → "") (#647).
+   */
+  private _labelOf(record: unknown): string {
+    const v = getByPath(record, this.labelField);
+    return v === null || v === undefined || v === '' ? this.emptyLabel : String(v);
+  }
+
+  /**
    * Build the series matrix for tidy/long data : pivots {labelField, seriesField, valueField}
    * into one aligned value array per distinct series. Missing (label, series) cells are 0.
    */
@@ -413,7 +433,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     const labels: string[] = [];
     const labelIndex = new Map<string, number>();
     for (const record of this._data) {
-      const l = String(getByPath(record, this.labelField) ?? 'N/A');
+      const l = this._labelOf(record);
       if (!labelIndex.has(l)) {
         labelIndex.set(l, labels.length);
         labels.push(l);
@@ -425,7 +445,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     const allSeries: number[][] = seriesNames.map(() => new Array(labels.length).fill(0));
 
     for (const record of this._data) {
-      const l = String(getByPath(record, this.labelField) ?? 'N/A');
+      const l = this._labelOf(record);
       const s = String(getByPath(record, this.seriesField) ?? '');
       const li = labelIndex.get(l);
       const si = seriesIndex.get(s);
@@ -474,7 +494,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     const allSeries: number[][] = allFields.map(() => []);
 
     for (const record of this._data) {
-      labels.push(String(getByPath(record, this.labelField) ?? 'N/A'));
+      labels.push(this._labelOf(record));
       for (let i = 0; i < allFields.length; i++) {
         allSeries[i].push(toNumber(getByPath(record, allFields[i])));
       }

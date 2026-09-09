@@ -807,10 +807,13 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     for (const [key, items] of groups) {
       const row: Record<string, unknown> = {};
 
-      // Ajouter les champs de regroupement (structure imbriquee preservee)
+      // Ajouter les champs de regroupement (structure imbriquee preservee).
+      // Un groupe vide (null / undefined / "") ressort en null, pas en "" (#647) :
+      // meme forme que le group_by serveur, un `isnull` aval l'attrape et le
+      // chart le libelle via `empty-label` au lieu de « Série N ».
       const keyParts = key.split('|||');
       groupFields.forEach((field, i) => {
-        setByPath(row, field, keyParts[i]);
+        setByPath(row, field, keyParts[i] === '' ? null : keyParts[i]);
       });
 
       // Calculer les agrégations (structure imbriquee preservee)

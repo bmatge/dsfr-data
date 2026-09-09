@@ -411,6 +411,13 @@ Multiples filtres separes par virgule (logique ET) :
 | isnull | Est vide/null | \`"email:isnull"\` |
 | isnotnull | N'est pas vide | \`"telephone:isnotnull"\` |
 
+**Catégories vides et parité ods-chart** : un group-by sur un champ partiellement
+renseigné produit un groupe \`null\` (jamais \`""\`), que dsfr-data-chart libelle
+« Non renseigné » (attribut \`empty-label\`). Rien n'est masqué par défaut. Pour
+EXCLURE ces lignes comme le fait ods-chart, filtrer explicitement en amont :
+\`where="champ:isnotnull"\` sur dsfr-data-query, ou \`where="champ is not null"\`
+(ODSQL) sur dsfr-data-source.
+
 ### Fonctions d'agrégation
 Format : \`"champ:fonction"\` ou \`"champ:fonction:alias"\`
 Nommage automatique sans alias : \`champ__fonction\` (ex: \`population__sum\`)
@@ -1155,6 +1162,7 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 | value-fields | String | \`""\` | non | Séries supplementaires separees par virgules — format LARGE, une colonne par série (ex: \`"budget,score"\`) |
 | series-field | String | \`""\` | non | Champ clé de série pour données LONG/tidy : ses valeurs distinctes deviennent autant de séries. Ex: données \`{mois, groupe, valeur}\` avec \`series-field="groupe"\`. S'applique a bar/line/radar. Prioritaire sur value-fields. Consommateur naturel de \`dsfr-data-unpivot\`. |
 | name | String | \`""\` | non | Noms des séries en JSON : \`'["Série 1","Série 2"]'\` (auto-deduit des colonnes ou des valeurs de series-field si absent) |
+| empty-label | String | \`"Non renseigné"\` | non | Libellé d'une catégorie vide (\`null\`, \`undefined\` ou \`""\` dans label-field) : légende du pie, axe X. Évite le « Série N » de DSFR Chart sur un nom vide. Ex: \`empty-label="Sans objet"\` |
 | selected-palette | String | \`"categorical"\` | non | Palette : categorical, sequentialAscending, sequentialDescending, divergentAscending, divergentDescending, neutral, default |
 | unit-tooltip | String | \`""\` | non | Unite dans les info-bulles : %, EUR, etc. |
 | unit-tooltip-bar | String | \`""\` | non | Unite des barres dans un bar-line |
