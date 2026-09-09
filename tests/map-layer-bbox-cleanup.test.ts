@@ -165,6 +165,96 @@ describe('#297 — AC : retirer un layer libère le filtre bbox de la source', (
   });
 });
 
+describe('#652 — mode bbox : commande émise dès la carte prête', () => {
+  /** Vue interne de la couche : ce que _onMapReady touche. */
+  interface LayerInternals {
+    _onMapReady: () => void;
+    _bboxTimer: ReturnType<typeof setTimeout> | null;
+  }
+
+  /**
+   * Carte hôte factice : pas de DsfrDataMap enregistré dans ce fichier (le
+   * tag reste un HTMLElement nu), on lui greffe l'API lue par la couche.
+   */
+  async function mountBboxLayer(sourceId: string, opts: { serverGeo: boolean; bbox?: boolean }) {
+    const L = await import('leaflet');
+    const parent = document.createElement('dsfr-data-map') as HTMLElement & {
+      getLeafletMap: () => unknown;
+      getLeafletLib: () => unknown;
+    };
+    parent.getLeafletMap = () => ({
+      getZoom: () => 6,
+      getBounds: () => fakeBounds(41, -5, 51, 9),
+      hasLayer: () => false,
+      addLayer: () => {},
+      removeLayer: () => {},
+    });
+    parent.getLeafletLib = () => L;
+
+    const src = document.createElement('div');
+    src.id = sourceId;
+    (src as unknown as { getAdapter: () => unknown }).getAdapter = () => ({
+      capabilities: { serverGeo: opts.serverGeo },
+    });
+    document.body.appendChild(src);
+
+    const layer = new DsfrDataMapLayer();
+    layer.source = sourceId;
+    layer.bbox = opts.bbox ?? true;
+    layer.bboxDebounce = 50;
+    parent.appendChild(layer);
+    document.body.appendChild(parent);
+    return { layer, parent, src };
+  }
+
+  it('une commande where in_bbox part à _onMapReady, sans interaction', async () => {
+    vi.useFakeTimers();
+    clearDataCache('f5-src');
+    const commands: Array<Record<string, unknown>> = [];
+    const unsub = subscribeToSourceCommands('f5-src', (cmd) =>
+      commands.push(cmd as Record<string, unknown>)
+    );
+    const { layer, parent, src } = await mountBboxLayer('f5-src', { serverGeo: true });
+
+    (layer as unknown as LayerInternals)._onMapReady();
+    // Anti-rebond : rien avant le délai
+    expect(commands.filter((c) => c.whereKey === 'map-bbox')).toHaveLength(0);
+    vi.advanceTimersByTime(60);
+
+    const bbox = commands.find((c) => c.whereKey === 'map-bbox');
+    expect(bbox).toBeDefined();
+    expect(String(bbox!.where)).toMatch(/^in_bbox\(/);
+    expect(String(bbox!.where)).toContain('41');
+    expect(String(bbox!.where)).toContain('-5');
+
+    unsub();
+    parent.remove();
+    src.remove();
+    vi.useRealTimers();
+  });
+
+  it('sans bbox, _onMapReady ne programme aucune commande', async () => {
+    vi.useFakeTimers();
+    clearDataCache('f5-src2');
+    const commands: unknown[] = [];
+    const unsub = subscribeToSourceCommands('f5-src2', (cmd) => commands.push(cmd));
+    const { layer, parent, src } = await mountBboxLayer('f5-src2', {
+      serverGeo: true,
+      bbox: false,
+    });
+
+    (layer as unknown as LayerInternals)._onMapReady();
+    expect((layer as unknown as LayerInternals)._bboxTimer).toBeNull();
+    vi.advanceTimersByTime(100);
+    expect(commands).toHaveLength(0);
+
+    unsub();
+    parent.remove();
+    src.remove();
+    vi.useRealTimers();
+  });
+});
+
 describe('#297 — annexes', () => {
   it('le compagnon popup est résolu UNE fois par rendu (pas par record)', async () => {
     const layer = new DsfrDataMapLayer();

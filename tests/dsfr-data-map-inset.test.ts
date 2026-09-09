@@ -166,6 +166,103 @@ describe("construction de l'encart", () => {
   });
 });
 
+describe('largeur des encarts (#643)', () => {
+  /** Vue interne de la carte hote : injection de la feuille globale. */
+  interface MapInternals {
+    _injectStyles: () => void;
+  }
+
+  function injectedSheet(): string {
+    document.querySelector('style[data-dsfr-data-map]')?.remove();
+    const host = makeHost();
+    (host as unknown as MapInternals)._injectStyles();
+    return document.querySelector('style[data-dsfr-data-map]')?.textContent ?? '';
+  }
+
+  it('sans attribut : aucun style inline, la feuille injectee pose 10rem', async () => {
+    const host = makeHost();
+    const inset = document.createElement('dsfr-data-map-inset') as DsfrDataMapInset;
+    inset.setAttribute('territory', 'guadeloupe');
+    host.appendChild(inset);
+    document.body.appendChild(host);
+    await nextFrame();
+
+    expect(inset.querySelector('dsfr-data-map')).not.toBeNull();
+    // Plus de display/vertical-align/width en style inline : le CSS de page prime
+    expect(inset.style.width).toBe('');
+    expect(inset.style.display).toBe('');
+
+    const css = injectedSheet();
+    const rule = css.match(/:where\(dsfr-data-map-inset\)\s*\{([^}]*)\}/);
+    expect(rule, 'regle inset dans la feuille injectee').not.toBeNull();
+    expect(rule![1]).toMatch(/width:\s*10rem/);
+    expect(rule![1]).toMatch(/float:\s*left/);
+    expect(rule![1]).toMatch(/box-sizing:\s*border-box/);
+  });
+
+  it('la regle injectee est de specificite nulle (:where) — une regle de page gagne', () => {
+    const css = injectedSheet().replace(/\/\*[\s\S]*?\*\//g, '');
+    // Aucune regle nue `dsfr-data-map-inset {` : seule la forme :where() existe
+    expect(css).not.toMatch(/(^|[^(])dsfr-data-map-inset\s*\{/);
+    expect(css).toMatch(/:where\(dsfr-data-map-inset\)/);
+  });
+
+  it("l'hote dsfr-data-map n'est pas passe en flex", () => {
+    const css = injectedSheet();
+    const hostRule = css.match(/\n\s*dsfr-data-map\s*\{([^}]*)\}/);
+    expect(hostRule).not.toBeNull();
+    expect(hostRule![1]).toMatch(/display:\s*block/);
+    expect(hostRule![1]).not.toMatch(/flex/);
+  });
+
+  it('width="20%" est pose en style inline (repartit cinq encarts)', async () => {
+    const host = makeHost({ insets: 'drom' });
+    document.body.appendChild(host);
+    await nextFrame();
+    const insets = host.querySelectorAll<DsfrDataMapInset>(':scope > dsfr-data-map-inset');
+    expect(insets.length).toBe(5);
+    for (const inset of insets) {
+      inset.setAttribute('width', '20%');
+      await inset.updateComplete;
+      expect(inset.style.width).toBe('20%');
+    }
+  });
+
+  it('width pose avant construction est applique au build', async () => {
+    const host = makeHost();
+    const inset = document.createElement('dsfr-data-map-inset') as DsfrDataMapInset;
+    inset.setAttribute('territory', 'corse');
+    inset.setAttribute('width', '12rem');
+    host.appendChild(inset);
+    document.body.appendChild(host);
+    await nextFrame();
+    expect(inset.style.width).toBe('12rem');
+  });
+
+  it('un style="width" ecrit par l\'integrateur n\'est pas ecrase sans attribut', async () => {
+    const host = makeHost();
+    const inset = document.createElement('dsfr-data-map-inset') as DsfrDataMapInset;
+    inset.setAttribute('territory', 'mayotte');
+    inset.style.width = '30%';
+    host.appendChild(inset);
+    document.body.appendChild(host);
+    await nextFrame();
+    expect(inset.style.width).toBe('30%');
+  });
+
+  it('height modifie apres construction est repercute sur la mini-carte', async () => {
+    const host = makeHost();
+    const inset = document.createElement('dsfr-data-map-inset') as DsfrDataMapInset;
+    inset.setAttribute('territory', 'guyane');
+    host.appendChild(inset);
+    document.body.appendChild(host);
+    await nextFrame();
+    inset.setAttribute('height', '12rem');
+    await inset.updateComplete;
+    expect(inset.querySelector('dsfr-data-map')!.getAttribute('height')).toBe('12rem');
+  });
+});
+
 describe('raccourci insets sur dsfr-data-map', () => {
   it('insets="drom" genere les 5 encarts', async () => {
     const host = makeHost({ insets: 'drom' });

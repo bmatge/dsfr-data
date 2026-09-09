@@ -497,7 +497,26 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     };
   }
 
+  /**
+   * Lignes ecartees des cartes `map*` faute de code geographique exploitable
+   * (#648) : compte du dernier `_processMapData`, journalise une fois par jeu
+   * de donnees et remonte dans la trace du volet Diagnostic (#604).
+   */
+  private _skippedGeoCount = 0;
+
+  /** Jeu de donnees pour lequel le warn a deja ete emis (un warn par cycle) */
+  private _skippedWarnedData: unknown[] | null = null;
+
+  /**
+   * Nombre de lignes ignorees par la derniere carte rendue (`type="map*"`) :
+   * code geographique absent, vide ou invalide pour le decoupage. 0 hors carte.
+   */
+  getSkippedCount(): number {
+    return this._skippedGeoCount;
+  }
+
   private _processMapData(): string {
+    this._skippedGeoCount = 0;
     if (!this._data || this._data.length === 0) return '{}';
 
     const field = this.codeField || this.labelField;
@@ -508,18 +527,37 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
         // <map-chart level="monde"> n'accepte que l'alpha-2 : convertit
         // iso-a3 / iso-num a la volee, ignore les codes inconnus
         code = toIsoA2(code);
-        if (!code) continue;
+        if (!code) {
+          this._skippedGeoCount++;
+          continue;
+        }
       } else if (this.type === 'map-aca') {
         // Cles = nom d'academie en majuscules ("PARIS", "LYON"...)
         code = code.toUpperCase();
-        if (!code) continue;
+        if (!code) {
+          this._skippedGeoCount++;
+          continue;
+        }
       } else {
         // Normalisation partagee (#610) : source unique du padding.
         code = normalizeDeptCode(code);
-        if (this.type === 'map' ? !isValidDeptCode(code) : code === '') continue;
+        if (this.type === 'map' ? !isValidDeptCode(code) : code === '') {
+          this._skippedGeoCount++;
+          continue;
+        }
       }
       const value = toNumber(getByPath(record, this.valueField));
       mapData[code] = Math.round(value * 100) / 100;
+    }
+
+    // Un warn par jeu de donnees (#648) : _processMapData est rappele a
+    // chaque rendu (attributs, refresh), pas seulement a chaque emission
+    if (this._skippedGeoCount > 0 && this._skippedWarnedData !== this._data) {
+      this._skippedWarnedData = this._data;
+      console.warn(
+        `dsfr-data-chart[${this.id}]: ${this._skippedGeoCount} ligne(s) sur ${this._data.length} ` +
+          `ignorée(s) — code géographique absent ou invalide dans "${field}" pour ${this.type}`
+      );
     }
     return JSON.stringify(mapData);
   }
