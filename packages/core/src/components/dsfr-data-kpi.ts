@@ -374,20 +374,20 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
                                   class="dsfr-data-kpi__tendance dsfr-data-kpi__tendance--${tendance.direction}"
                                   role="img"
                                   aria-label="${
-                                  tendance.value > 0
-                                    ? `en hausse de ${formatPercentage(Math.abs(tendance.value))}`
-                                    : tendance.value < 0
-                                      ? `en baisse de ${formatPercentage(Math.abs(tendance.value))}`
-                                      : 'stable'
-                                }"
+                                    tendance.value > 0
+                                      ? `en hausse de ${formatPercentage(Math.abs(tendance.value))}`
+                                      : tendance.value < 0
+                                        ? `en baisse de ${formatPercentage(Math.abs(tendance.value))}`
+                                        : 'stable'
+                                  }"
                                 >
                                   ${
-                                  tendance.direction === 'up'
-                                    ? '↑'
-                                    : tendance.direction === 'down'
-                                      ? '↓'
-                                      : '→'
-                                }
+                                    tendance.direction === 'up'
+                                      ? '↑'
+                                      : tendance.direction === 'down'
+                                        ? '↓'
+                                        : '→'
+                                  }
                                   ${formatPercentage(Math.abs(tendance.value))}
                                 </span>
                               `
