@@ -842,7 +842,7 @@ Les compteurs de facettes se recalculent dynamiquement.
 | highlight | Boolean | false | non | Ajoute _highlight avec <mark> pour dsfr-data-display |
 | operator | String | "contains" | non | Mode : contains, starts, words |
 | sr-label | Boolean | false | non | Label en sr-only (masque visuellement) |
-| count | Boolean | false | non | Affiche compteur de resultats |
+| count | Boolean | false | non | Affiche un compteur de résultats visible sous le champ (compte serveur en \`server-search\`). Voir Accessibilité : il n'est une région live que sans afficheur aval |
 | url-search-param | String | "" | non | Nom du parametre d'URL a lire comme terme de recherche initial |
 | url-sync | Boolean | false | non | Synchronise l'URL quand l'utilisateur tape (replaceState) |
 | server-search | Boolean | false | non | Delegue la recherche au serveur (le dsfr-data-query amont relaie automatiquement vers la source server-side) |
@@ -852,6 +852,16 @@ Les compteurs de facettes se recalculent dynamiquement.
 Avec \`server-search\`, au lieu de filtrer localement, dsfr-data-search envoie une commande
 \`{ where }\` au source upstream (relais automatique du dsfr-data-query). Le template par défaut utilise
 la fonction ODSQL \`search()\` pour une recherche full-text. Personnalisable via \`search-template\`.
+
+### Accessibilité : une seule région live par chaîne
+Le compte de résultats n'est annoncé au lecteur d'écran (\`aria-live\`) qu'une fois par chaîne,
+par le composant terminal. Quand un afficheur aval (\`dsfr-data-list\`, \`dsfr-data-display\`)
+consomme la sortie de search — en direct ou via \`dsfr-data-facets\` — search ne rend aucune
+région live : le compteur \`count\` reste visible mais silencieux, l'afficheur annonce seul
+le compte final (après les facettes). Sans afficheur aval (search → chart, kpi...), search
+annonce lui-même son compte. Ne pas ajouter de région live supplémentaire dans la page
+(un \`<p role="status">\` maison) : deux annonces pour un même geste donnent deux nombres
+contradictoires (#654).
 
 ### Modes de recherche
 - **contains** (défaut) : sous-chaine insensible a la casse et aux accents
@@ -1645,6 +1655,11 @@ Pour ameliorer l'accessibilité, ajoutez \`dsfr-data-a11y\` apres chaque visuali
 <dsfr-data-a11y for="mon-graph" source="top10" table download></dsfr-data-a11y>
 \`\`\`
 L'attribut \`for\` injecte un skip link et pose \`aria-describedby\` + \`aria-details\` sur le graphique cible.
+
+**Une seule région live par chaîne** : le compte de résultats est annoncé (\`aria-live\`) par le
+seul composant terminal (\`dsfr-data-list\`, \`dsfr-data-display\`). \`dsfr-data-search\` se tait
+quand l'un d'eux est en aval (même via facets) et n'annonce que s'il est seul. Ne jamais
+empiler une région live de page par-dessus (#654).
 
 ### Pipeline simplifie : Source -> Visualisation (sans transformation)
 \`\`\`html
