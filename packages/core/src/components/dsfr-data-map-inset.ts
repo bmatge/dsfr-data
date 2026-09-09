@@ -44,9 +44,18 @@ export class DsfrDataMapInset extends LitElement {
   @property({ type: String })
   label = '';
 
-  /** Hauteur de la mini-carte */
+  /** Hauteur de la mini-carte (px, rem, vh). Un `%` est un ratio de la LARGEUR de l'encart, comme sur `dsfr-data-map`. */
   @property({ type: String })
   height = '160px';
+
+  /**
+   * Largeur de l'encart (px, rem, %). Un `%` est relatif a la largeur de la
+   * carte hote : `width="20%"` repartit cinq encarts sur une ligne. Sans
+   * attribut, la feuille injectee par la carte pose `10rem` — une regle de
+   * page `dsfr-data-map-inset { width: … }` prime toujours dessus (#643).
+   */
+  @property({ type: String })
+  width = '';
 
   private _built = false;
   private _innerMap: HTMLElement | null = null;
@@ -68,6 +77,23 @@ export class DsfrDataMapInset extends LitElement {
     this._innerMap?.remove();
     this._innerMap = null;
     this._built = false;
+  }
+
+  updated(changedProperties: Map<string, unknown>) {
+    super.updated(changedProperties);
+    if (changedProperties.has('width')) {
+      // Attribut retire : on n'efface que ce qu'on avait pose, jamais un
+      // style="width:…" ecrit par l'integrateur
+      if (this.width || changedProperties.get('width')) this._applyWidth();
+    }
+    if (changedProperties.has('height') && this._innerMap) {
+      this._innerMap.setAttribute('height', this.height);
+    }
+  }
+
+  /** Attribut `width` explicite → style inline ; vide → la feuille injectee decide. */
+  private _applyWidth() {
+    this.style.width = this.width;
   }
 
   private _build() {
@@ -97,8 +123,10 @@ export class DsfrDataMapInset extends LitElement {
     const layers = host.querySelectorAll(':scope > dsfr-data-map-layer');
     if (layers.length === 0) return;
 
-    this.style.display = 'inline-block';
-    this.style.verticalAlign = 'top';
+    // Le placement (flottant, largeur par defaut, gouttiere) vient de la
+    // feuille injectee par dsfr-data-map (#643) : rien en style inline, pour
+    // que le CSS de page garde la main. Seul l'attribut explicite se pose ici.
+    if (this.width) this._applyWidth();
 
     if (this.label) {
       const labelEl = document.createElement('span');

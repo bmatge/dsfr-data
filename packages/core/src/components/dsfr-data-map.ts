@@ -776,6 +776,22 @@ export class DsfrDataMap extends LitElement {
         position: relative;
         overflow: hidden;
       }
+      /* Encarts territoriaux (#643) : largeur par defaut et gouttiere. Selecteur
+         :where() = specificite nulle, pour qu'une regle de page
+         "dsfr-data-map-inset { width: ... }" gagne quel que soit l'ordre des
+         feuilles. Flottant plutot qu'inline-block : les blancs du balisage
+         entre deux encarts ne creent pas d'espace, cinq encarts a 20 %
+         tiennent sur une ligne. La gouttiere est un padding dans la boite
+         (border-box) pour la meme raison. L'hote dsfr-data-map reste en
+         flux normal (pas de flex : skip-link, live region et bandeaux
+         absolus en dependent) ; son overflow:hidden contient les flottants. */
+      :where(dsfr-data-map-inset) {
+        display: block;
+        float: left;
+        box-sizing: border-box;
+        width: 10rem;
+        padding: 0.5rem 0.5rem 0 0;
+      }
       .dsfr-data-map__container {
         z-index: 0;
         overflow: hidden;
