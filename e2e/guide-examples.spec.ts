@@ -40,7 +40,7 @@ async function sourcesState(
   page: Page
 ): Promise<{ id: string; rows: number; error: string | null }[]> {
   return page.evaluate(() =>
-    [...document.querySelectorAll('dsfr-data-source')].map((el) => {
+    Array.from(document.querySelectorAll('dsfr-data-source')).map((el) => {
       const s = el as HTMLElement & { getData?: () => unknown; getError?: () => Error | null };
       const d = s.getData?.();
       return {
