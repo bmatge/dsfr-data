@@ -67,6 +67,98 @@ describe('clipBoundsForFit', () => {
     const martinique = bounds(14.3, -61.3, 14.9, -60.8);
     expect(clipBoundsForFit(martinique, METRO, fakeLeaflet)).toBe(null);
   });
+
+  // #642 — emprises degenerees : un marqueur unique (sud = nord, ouest = est)
+  // ou un segment. L'ancienne condition `>=` les prenait pour une
+  // intersection vide et le fit ne bougeait pas.
+  it('un point dans la zone (sud = nord, ouest = est) : bounds d aire nulle, pas null', () => {
+    const paris = bounds(48.8566, 2.3522, 48.8566, 2.3522);
+    const clipped = clipBoundsForFit(paris, METRO, fakeLeaflet);
+    expect(clipped).not.toBeNull();
+    expect(clipped!.getSouth()).toBe(48.8566);
+    expect(clipped!.getNorth()).toBe(48.8566);
+    expect(clipped!.getWest()).toBe(2.3522);
+    expect(clipped!.getEast()).toBe(2.3522);
+  });
+
+  it('un segment nord-sud dans la zone (ouest = est) : conserve', () => {
+    const meridien = bounds(43.0, 2.35, 49.0, 2.35);
+    const clipped = clipBoundsForFit(meridien, METRO, fakeLeaflet);
+    expect(clipped).not.toBeNull();
+    expect(clipped!.getWest()).toBe(2.35);
+    expect(clipped!.getEast()).toBe(2.35);
+    expect(clipped!.getSouth()).toBe(43.0);
+    expect(clipped!.getNorth()).toBe(49.0);
+  });
+
+  it('un segment est-ouest partiellement hors zone : clippe a la zone', () => {
+    const parallele = bounds(45.0, -10.0, 45.0, 3.0);
+    const clipped = clipBoundsForFit(parallele, METRO, fakeLeaflet)!;
+    expect(clipped.getSouth()).toBe(45.0);
+    expect(clipped.getNorth()).toBe(45.0);
+    expect(clipped.getWest()).toBe(-6.5);
+    expect(clipped.getEast()).toBe(3.0);
+  });
+
+  it('un point hors zone (Fort-de-France) : null, la vue ne bouge pas', () => {
+    const fdf = bounds(14.6, -61.07, 14.6, -61.07);
+    expect(clipBoundsForFit(fdf, METRO, fakeLeaflet)).toBe(null);
+  });
+
+  it('un point exactement sur la frontiere de la zone : conserve', () => {
+    const coin = bounds(40.5, -6.5, 40.5, -6.5);
+    expect(clipBoundsForFit(coin, METRO, fakeLeaflet)).not.toBeNull();
+  });
+});
+
+describe('fit-max-zoom (#642) — plafond du zoom de fit', () => {
+  /** Vue interne de la carte : ce que _applyFitBounds touche. */
+  interface MapInternals {
+    _leafletMap: { fitBounds: ReturnType<typeof vi.fn> } | null;
+    _initMap: () => Promise<void>;
+  }
+
+  /**
+   * Charge le module Leaflet interne (cache de module) sans creer de carte :
+   * _initMap sur un element DECONNECTE s'abandonne juste apres loadLeaflet
+   * (init posthume, #298). On pose ensuite une fausse carte qui espionne
+   * fitBounds.
+   */
+  async function fitSpyMap(attrs: { fitMaxZoom?: number } = {}) {
+    const map = new DsfrDataMap();
+    await (map as unknown as MapInternals)._initMap();
+    const leaflet = map.getLeafletLib()!;
+    map.fitBounds = true;
+    map.maxBounds = METRO;
+    if (attrs.fitMaxZoom !== undefined) map.fitMaxZoom = attrs.fitMaxZoom;
+    const fitBounds = vi.fn();
+    (map as unknown as MapInternals)._leafletMap = { fitBounds };
+    // Bounds Leaflet reelles : _combineBounds les copie via getSouthWest()
+    const point = (lat: number, lon: number) => leaflet.latLngBounds([lat, lon], [lat, lon]);
+    return { map, fitBounds, point };
+  }
+
+  it('un point dans la zone declenche bien un fit (plus de null)', async () => {
+    const { map, fitBounds, point } = await fitSpyMap();
+    map.registerLayerBounds('commune', point(48.85, 2.35));
+    expect(fitBounds).toHaveBeenCalledTimes(1);
+    const opts = fitBounds.mock.calls[0][1] as Record<string, unknown>;
+    expect(opts.maxZoom).toBeUndefined();
+  });
+
+  it('fit-max-zoom="12" est transmis a fitBounds comme maxZoom', async () => {
+    const { map, fitBounds, point } = await fitSpyMap({ fitMaxZoom: 12 });
+    map.registerLayerBounds('commune', point(48.85, 2.35));
+    expect(fitBounds).toHaveBeenCalledTimes(1);
+    const opts = fitBounds.mock.calls[0][1] as Record<string, unknown>;
+    expect(opts.maxZoom).toBe(12);
+  });
+
+  it('un point hors zone ne fitte pas (la vue ne bouge pas)', async () => {
+    const { map, fitBounds, point } = await fitSpyMap({ fitMaxZoom: 12 });
+    map.registerLayerBounds('fdf', point(14.6, -61.07));
+    expect(fitBounds).not.toHaveBeenCalled();
+  });
 });
 
 describe('bounds liberees par une couche videe (filtrage amont)', () => {

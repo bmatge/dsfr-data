@@ -197,6 +197,12 @@ export function buildTileLayerConfig(
  * avant un fitBounds. Retourne null si l'intersection est vide (la vue ne doit
  * pas bouger) ; les bounds inchangees si max-bounds est absent ou invalide.
  *
+ * Une emprise degeneree (un seul marqueur, plusieurs au meme endroit, segment
+ * nord-sud ou est-ouest) est VALIDE (#642) : `sud === nord` ou `ouest === est`
+ * dans la zone donne des bounds d'aire nulle que `fitBounds` cale au zoom
+ * maximal sur le point. L'ancienne condition `>=` renvoyait null et laissait
+ * la vue sur la France entiere pour une recherche par commune.
+ *
  * Expose pour les tests.
  */
 export function clipBoundsForFit(
@@ -211,7 +217,7 @@ export function clipBoundsForFit(
   const west = Math.max(combined.getWest(), parts[1]);
   const north = Math.min(combined.getNorth(), parts[2]);
   const east = Math.min(combined.getEast(), parts[3]);
-  if (south >= north || west >= east) return null;
+  if (south > north || west > east) return null;
   return leaflet.latLngBounds([south, west], [north, east]);
 }
 
@@ -300,6 +306,10 @@ export class DsfrDataMap extends LitElement {
   /** Limites du deplacement, au format `"latSW,lonSW,latNE,lonNE"`. */
   @property({ type: String, attribute: 'max-bounds' })
   maxBounds = '';
+
+  /** Zoom maximal atteint par `fit-bounds` (ex. `12`) : evite le zoom 18 sur un point isole quand les donnees se reduisent a un marqueur. `0` (defaut) = pas de plafond, `max-zoom` s'applique. */
+  @property({ type: Number, attribute: 'fit-max-zoom' })
+  fitMaxZoom = 0;
 
   /** Titre de la carte, utilise comme nom accessible (aria-label). */
   @property({ type: String })
@@ -730,7 +740,13 @@ export class DsfrDataMap extends LitElement {
     // (re-rendu des couches sur moveend, compagnons hors-carte) — constate
     // empiriquement : le fit anime laissait la vue inchangee apres un
     // filtrage multiselect, le fit direct fonctionne toujours.
-    this._leafletMap.fitBounds(clipped, { padding: [20, 20], animate: false });
+    this._leafletMap.fitBounds(clipped, {
+      padding: [20, 20],
+      animate: false,
+      // Emprise reduite a un point (#642) : sans plafond, Leaflet cale au
+      // max-zoom de la carte (18) — fit-max-zoom borne le zoom du fit
+      ...(this.fitMaxZoom > 0 ? { maxZoom: this.fitMaxZoom } : {}),
+    });
   }
 
   /**
