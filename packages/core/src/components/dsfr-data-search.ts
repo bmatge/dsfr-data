@@ -1,4 +1,4 @@
-import { LitElement, html } from 'lit';
+import { LitElement, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { escapeHtml } from '@dsfr-data/shared/lib';
 import { sendWidgetBeacon } from '../utils/beacon.js';
@@ -8,6 +8,17 @@ import { TransformerMixin } from '../utils/transformer-mixin.js';
 import type { SourceElement } from '../utils/source-element.js';
 
 type SearchOperator = 'contains' | 'starts' | 'words';
+
+/**
+ * Afficheurs aval qui portent leur propre region live de compte de resultats.
+ * Quand l'un d'eux consomme la sortie de ce composant (en direct ou via des
+ * intermediaires chaines par `source`), search ne rend AUCUNE region live :
+ * une seule region live par chaine, portee par le composant terminal (#654).
+ */
+const DOWNSTREAM_LIVE_COUNT_TAGS: ReadonlySet<string> = new Set([
+  'dsfr-data-list',
+  'dsfr-data-display',
+]);
 
 /**
  * <dsfr-data-search> - Recherche textuelle
@@ -69,7 +80,11 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
   @property({ type: Boolean, attribute: 'sr-label' })
   srLabel = false;
 
-  /** Affiche un compteur de resultats sous le champ */
+  /**
+   * Affiche un compteur de resultats sous le champ (compte serveur `meta.total`
+   * en `server-search`). Ce compteur reste visible en toutes circonstances ;
+   * seule sa nature de region live depend de la chaine aval (#654).
+   */
   @property({ type: Boolean })
   count = false;
 
@@ -530,6 +545,33 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
     window.history.replaceState(null, '', newUrl);
   }
 
+  /**
+   * Vrai si un afficheur aval (list, display) consomme ce composant, en direct
+   * ou a travers des intermediaires (`source="<id>"` chaines, ex. facets).
+   * Il porte alors seul la region live de la chaine : deux regions `polite`
+   * pour un meme geste donnaient deux nombres contradictoires (#654).
+   * Evalue a chaque rendu (requete d'attribut, cout negligeable) pour suivre
+   * un DOM aval encore en cours d'analyse au premier rendu. La chaine est
+   * suivie par l'ATTRIBUT `source` (usage declaratif) : un consommateur cree
+   * en JS avec la seule propriete n'est pas vu, search garde alors sa region.
+   */
+  private _hasDownstreamLiveRegion(): boolean {
+    if (!this.id) return false;
+    const visited = new Set<string>();
+    const queue: string[] = [this.id];
+    while (queue.length > 0) {
+      const id = queue.shift() as string;
+      if (visited.has(id)) continue;
+      visited.add(id);
+      const consumers = document.querySelectorAll(`[source="${id.replace(/"/g, '\\"')}"]`);
+      for (const el of Array.from(consumers)) {
+        if (DOWNSTREAM_LIVE_COUNT_TAGS.has(el.tagName.toLowerCase())) return true;
+        if (el.id) queue.push(el.id);
+      }
+    }
+    return false;
+  }
+
   render() {
     if (this._configError) {
       return html`
@@ -588,25 +630,40 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
           Rechercher
         </button>
       </div>
-      ${
-        this.count
-          ? html`
-              <p
-                class="fr-text--sm fr-mt-1v dsfr-data-search-count"
-                aria-live="polite"
-                aria-atomic="true"
-                role="status"
-              >
-                ${this._resultCount} resultat${this._resultCount !== 1 ? 's' : ''}
-              </p>
-            `
-          : html`
-              <p class="fr-sr-only" aria-live="polite" aria-atomic="true" role="status">
-                ${this._resultCount} resultat${this._resultCount !== 1 ? 's' : ''}
-              </p>
-            `
-      }
+      ${this._renderCount()}
     `;
+  }
+
+  /**
+   * Compteur de resultats. Une seule region live par chaine (#654) : si un
+   * afficheur aval (list, display) annonce deja son compte, ce composant
+   * n'annonce rien — le compteur visible de `count` est conserve, mais
+   * sans `aria-live`, et le compteur sr-only n'est pas rendu.
+   */
+  private _renderCount() {
+    const label = `${this._resultCount} résultat${this._resultCount !== 1 ? 's' : ''}`;
+    const deferToDownstream = this._hasDownstreamLiveRegion();
+
+    if (this.count) {
+      return deferToDownstream
+        ? html`<p class="fr-text--sm fr-mt-1v dsfr-data-search-count">${label}</p>`
+        : html`
+            <p
+              class="fr-text--sm fr-mt-1v dsfr-data-search-count"
+              aria-live="polite"
+              aria-atomic="true"
+              role="status"
+            >
+              ${label}
+            </p>
+          `;
+    }
+
+    return deferToDownstream
+      ? nothing
+      : html`
+          <p class="fr-sr-only" aria-live="polite" aria-atomic="true" role="status">${label}</p>
+        `;
   }
 }
 
