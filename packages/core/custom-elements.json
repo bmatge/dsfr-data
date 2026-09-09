@@ -6823,7 +6823,7 @@
                 "text": "number"
               },
               "default": "5000",
-              "description": "Plafond du nombre d'elements rendus sur la carte (defaut 5000). Il protege\nles marqueurs DOM (`divIcon`), le fit et les popups ; au-dela, un bandeau\nindique combien d'elements sont affiches sur le total. Avec `cluster`,\n`max-items=\"20000\"` est sans risque : les marqueurs regroupes ne pesent\npas sur le DOM. En mode `bbox`, zoomer recharge la zone visible ; hors\n`bbox`, seul un `max-items` plus haut (ou un filtre amont) affiche le reste.",
+              "description": "Plafond du nombre d'elements rendus sur la carte (défaut 5000). Il protege\nles marqueurs DOM (`divIcon`), le fit et les popups ; au-dela, un bandeau\nindique combien d'elements sont affiches sur le total. Avec `cluster`,\n`max-items=\"20000\"` est sans risque : les marqueurs regroupes ne pesent\npas sur le DOM. En mode `bbox`, zoomer recharge la zone visible ; hors\n`bbox`, seul un `max-items` plus haut (ou un filtre amont) affiche le reste.",
               "attribute": "max-items"
             },
             {
@@ -7986,7 +7986,7 @@
                 "text": "number"
               },
               "default": "5000",
-              "description": "Plafond du nombre d'elements rendus sur la carte (defaut 5000). Il protege\nles marqueurs DOM (`divIcon`), le fit et les popups ; au-dela, un bandeau\nindique combien d'elements sont affiches sur le total. Avec `cluster`,\n`max-items=\"20000\"` est sans risque : les marqueurs regroupes ne pesent\npas sur le DOM. En mode `bbox`, zoomer recharge la zone visible ; hors\n`bbox`, seul un `max-items` plus haut (ou un filtre amont) affiche le reste.",
+              "description": "Plafond du nombre d'elements rendus sur la carte (défaut 5000). Il protege\nles marqueurs DOM (`divIcon`), le fit et les popups ; au-dela, un bandeau\nindique combien d'elements sont affiches sur le total. Avec `cluster`,\n`max-items=\"20000\"` est sans risque : les marqueurs regroupes ne pesent\npas sur le DOM. En mode `bbox`, zoomer recharge la zone visible ; hors\n`bbox`, seul un `max-items` plus haut (ou un filtre amont) affiche le reste.",
               "fieldName": "maxItems"
             }
           ],
@@ -12016,7 +12016,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "En-tetes HTTP en JSON. Ex: `'{\"Authorization\": \"Bearer xxx\"}'`.\nOpenDataSoft : la clé va dans `Authorization: Apikey <clé>` (seul en-tête\nautorisé en CORS) — un `apikey` nu est réécrit automatiquement (#655).",
+              "description": "En-tetes HTTP en JSON. Ex: `'{\"Authorization\": \"Bearer xxx\"}'`.\nOpenDataSoft : la clé va dans `Authorization: Apikey CLE` (seul en-tête\nautorisé en CORS) — un `apikey` nu est réécrit automatiquement (#655).",
               "attribute": "headers"
             },
             {
@@ -12671,7 +12671,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "En-tetes HTTP en JSON. Ex: `'{\"Authorization\": \"Bearer xxx\"}'`.\nOpenDataSoft : la clé va dans `Authorization: Apikey <clé>` (seul en-tête\nautorisé en CORS) — un `apikey` nu est réécrit automatiquement (#655).",
+              "description": "En-tetes HTTP en JSON. Ex: `'{\"Authorization\": \"Bearer xxx\"}'`.\nOpenDataSoft : la clé va dans `Authorization: Apikey CLE` (seul en-tête\nautorisé en CORS) — un `apikey` nu est réécrit automatiquement (#655).",
               "fieldName": "headers"
             },
             {

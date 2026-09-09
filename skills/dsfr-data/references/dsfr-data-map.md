@@ -354,7 +354,7 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `heat-radius` | `number` | `25` | Rayon d'influence de chaque point de la heatmap, en pixels. |
 | `lat-field` | `string` | `""` (vide) | Chemin vers le champ latitude (mode coordonnees separees). |
 | `lon-field` | `string` | `""` (vide) | Chemin vers le champ longitude (mode coordonnees separees). |
-| `max-items` | `number` | `5000` | Plafond du nombre d'elements rendus sur la carte (defaut 5000). Il protege les marqueurs DOM (`divIcon`), le fit et les popups ; au-dela, un bandeau indique combien d'elements sont affiches sur le total. Avec `cluster`, `max-items="20000"` est sans risque : les marqueurs regroupes ne pesent pas sur le DOM. En mode `bbox`, zoomer recharge la zone visible ; hors `bbox`, seul un `max-items` plus haut (ou un filtre amont) affiche le reste. |
+| `max-items` | `number` | `5000` | Plafond du nombre d'elements rendus sur la carte (défaut 5000). Il protege les marqueurs DOM (`divIcon`), le fit et les popups ; au-dela, un bandeau indique combien d'elements sont affiches sur le total. Avec `cluster`, `max-items="20000"` est sans risque : les marqueurs regroupes ne pesent pas sur le DOM. En mode `bbox`, zoomer recharge la zone visible ; hors `bbox`, seul un `max-items` plus haut (ou un filtre amont) affiche le reste. |
 | `max-zoom` | `number` | `18` | Niveau de zoom au-dela duquel la couche est masquee. |
 | `min-zoom` | `number` | `0` | Niveau de zoom en deca duquel la couche est masquee. |
 | `no-interactive` | `boolean` | `false` | Couche decorative : aucune interaction (pas de clic, tooltip ni popup) — contours administratifs, habillage |

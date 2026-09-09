@@ -68,7 +68,7 @@ export class DsfrDataSource extends LitElement {
 
   /**
    * En-tetes HTTP en JSON. Ex: `'{"Authorization": "Bearer xxx"}'`.
-   * OpenDataSoft : la clé va dans `Authorization: Apikey <clé>` (seul en-tête
+   * OpenDataSoft : la clé va dans `Authorization: Apikey CLE` (seul en-tête
    * autorisé en CORS) — un `apikey` nu est réécrit automatiquement (#655).
    */
   @property({ type: String })

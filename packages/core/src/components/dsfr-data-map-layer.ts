@@ -245,7 +245,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   // --- Performance ---
 
   /**
-   * Plafond du nombre d'elements rendus sur la carte (defaut 5000). Il protege
+   * Plafond du nombre d'elements rendus sur la carte (défaut 5000). Il protege
    * les marqueurs DOM (`divIcon`), le fit et les popups ; au-dela, un bandeau
    * indique combien d'elements sont affiches sur le total. Avec `cluster`,
    * `max-items="20000"` est sans risque : les marqueurs regroupes ne pesent

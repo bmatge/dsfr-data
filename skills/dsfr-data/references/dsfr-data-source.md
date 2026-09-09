@@ -138,7 +138,7 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 | `data` | `string` | `""` (vide) | Données JSON inline (pas de fetch) |
 | `dataset-id` | `string` | `""` (vide) | ID du dataset (pour ODS) |
 | `group-by` | `string` | `""` (vide) | Group-by (pour les APIs qui le supportent server-side). ODS : un element peut etre une expression aliasee (`year(date) as annee`), transmise telle quelle — l'alias `as` est obligatoire cote ODS (#641). |
-| `headers` | `string` | `""` (vide) | En-tetes HTTP en JSON. Ex: `'{"Authorization": "Bearer xxx"}'`. OpenDataSoft : la clé va dans `Authorization: Apikey <clé>` (seul en-tête autorisé en CORS) — un `apikey` nu est réécrit automatiquement (#655). |
+| `headers` | `string` | `""` (vide) | En-tetes HTTP en JSON. Ex: `'{"Authorization": "Bearer xxx"}'`. OpenDataSoft : la clé va dans `Authorization: Apikey CLE` (seul en-tête autorisé en CORS) — un `apikey` nu est réécrit automatiquement (#655). |
 | `limit` | `number` | `0` | Limite du nombre de resultats |
 | `max-records` | `number` | `0` | Plafond de records du fetchAll en mode adapter (#233). 0 = plafond par defaut de l'adapter (ODS : 1000). A relever explicitement pour les dashboards « un fetch, N agregations client » — attention au nombre de requetes en boucle et au poids memoire. |
 | `method` | `'GET' \| 'POST'` | `'GET'` | Methode HTTP : `GET` (defaut) ou `POST`. |
