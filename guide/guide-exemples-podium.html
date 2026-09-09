@@ -220,14 +220,14 @@
         <h2>Source API dynamique (OpenDataSoft)</h2>
         <!-- ============================================================= -->
 
-        <p>Pour des donnees qui se mettent a jour automatiquement, utilisez une source API. Le pipeline <code>dsfr-data-source</code> + <code>dsfr-data-query</code> gere la pagination et l'agregation cote serveur.</p>
+        <p>Pour des donnees qui se mettent a jour automatiquement, utilisez une source API. <code>dsfr-data-source</code> interroge l'API, applique le tri cote serveur et gere la pagination ; le podium n'a plus qu'a consommer le resultat.</p>
 
         <dsfr-data-source id="ods-regions"
           api-type="opendatasoft"
-          base-url="https://data.economie.gouv.fr"
-          dataset-id="population-francaise-communes"
-          select="sum(population_totale) as population, nom_region"
-          group-by="nom_region"
+          base-url="https://public.opendatasoft.com"
+          dataset-id="demographyref-france-pop-legale-region"
+          select="reg_name, reg_pop_tot"
+          order-by="reg_pop_tot:desc"
           limit="20">
         </dsfr-data-source>
 
@@ -235,8 +235,8 @@
         <div class="example-container">
           <dsfr-data-podium
             source="ods-regions"
-            label-field="nom_region"
-            value-field="population"
+            label-field="reg_name"
+            value-field="reg_pop_tot"
             subtitle="Region"
             value-unit="hab."
             selected-palette="sequentialDescending"
@@ -245,17 +245,17 @@
         </div>
         <pre>&lt;dsfr-data-source id="ods-regions"
   api-type="opendatasoft"
-  base-url="https://data.economie.gouv.fr"
-  dataset-id="population-francaise-communes"
-  select="sum(population_totale) as population, nom_region"
-  group-by="nom_region"
+  base-url="https://public.opendatasoft.com"
+  dataset-id="demographyref-france-pop-legale-region"
+  select="reg_name, reg_pop_tot"
+  order-by="reg_pop_tot:desc"
   limit="20"&gt;
 &lt;/dsfr-data-source&gt;
 
 &lt;dsfr-data-podium
   source="ods-regions"
-  label-field="nom_region"
-  value-field="population"
+  label-field="reg_name"
+  value-field="reg_pop_tot"
   subtitle="Region"
   value-unit="hab."
   selected-palette="sequentialDescending"

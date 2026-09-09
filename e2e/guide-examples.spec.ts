@@ -27,6 +27,48 @@ test.beforeEach(async ({ page }) => {
 });
 
 /** Collect console errors (ignore network/CDN failures) */
+/**
+ * Etat reel des sources de la page : une panne de donnee ne se voit PAS dans
+ * le comptage d'elements (`dsfr-data-chart` existe dans le HTML que la source
+ * ait abouti ou non) et `collectConsoleErrors` filtre volontairement
+ * « Erreur de chargement » et « HTTP 4xx » pour rester tolerant au bruit
+ * reseau. Sans cette sonde, la suite passait au vert sur un guide casse :
+ * l'exemple ERFS (#630, jeu INSEE renomme) et le podium (#631, jeu ODS
+ * supprime) etaient verts alors que les deux pages n'affichaient rien.
+ */
+async function sourcesState(
+  page: Page
+): Promise<{ id: string; rows: number; error: string | null }[]> {
+  return page.evaluate(() =>
+    Array.from(document.querySelectorAll('dsfr-data-source')).map((el) => {
+      const s = el as HTMLElement & { getData?: () => unknown; getError?: () => Error | null };
+      const d = s.getData?.();
+      return {
+        id: el.id || '(sans id)',
+        rows: Array.isArray(d) ? d.length : d ? 1 : 0,
+        error: s.getError?.()?.message ?? null,
+      };
+    })
+  );
+}
+
+/**
+ * Aucune source en erreur, et au moins une qui a ramene des lignes.
+ *
+ * Volontairement pas « toutes les sources ont des lignes » : plusieurs pages
+ * chargent leurs exemples a la demande via IntersectionObserver, les sources
+ * hors ecran n'ont donc legitimement rien.
+ */
+async function expectSourcesLoaded(page: Page): Promise<void> {
+  const etats = await sourcesState(page);
+  const enErreur = etats.filter((e) => e.error);
+  expect(enErreur, `sources en erreur : ${JSON.stringify(enErreur)}`).toEqual([]);
+  expect(
+    etats.some((e) => e.rows > 0),
+    `aucune source n'a ramene de donnees : ${JSON.stringify(etats)}`
+  ).toBe(true);
+}
+
 function collectConsoleErrors(page: Page): string[] {
   const errors: string[] = [];
   page.on('console', (msg) => {
@@ -152,6 +194,7 @@ test.describe('Guide — direct widget pages', () => {
       path: join(SCREENSHOT_DIR, 'guide-exemples-ghibli.png'),
       fullPage: true,
     });
+    await expectSourcesLoaded(page);
     expect(errors).toEqual([]);
   });
 
@@ -170,6 +213,7 @@ test.describe('Guide — direct widget pages', () => {
       path: join(SCREENSHOT_DIR, 'guide-exemples-maires.png'),
       fullPage: true,
     });
+    await expectSourcesLoaded(page);
     expect(errors).toEqual([]);
   });
 
@@ -188,6 +232,7 @@ test.describe('Guide — direct widget pages', () => {
       path: join(SCREENSHOT_DIR, 'guide-exemples-insee-erfs.png'),
       fullPage: true,
     });
+    await expectSourcesLoaded(page);
     expect(errors).toEqual([]);
   });
 
@@ -221,6 +266,7 @@ test.describe('Guide — direct widget pages', () => {
       path: join(SCREENSHOT_DIR, 'guide-exemples-podium.png'),
       fullPage: true,
     });
+    await expectSourcesLoaded(page);
     expect(errors).toEqual([]);
   });
 
@@ -239,6 +285,7 @@ test.describe('Guide — direct widget pages', () => {
       path: join(SCREENSHOT_DIR, 'guide-demo-complete.png'),
       fullPage: true,
     });
+    await expectSourcesLoaded(page);
     expect(errors).toEqual([]);
   });
 
@@ -251,6 +298,7 @@ test.describe('Guide — direct widget pages', () => {
     expect(sourceCount).toBeGreaterThanOrEqual(1);
 
     await page.screenshot({ path: join(SCREENSHOT_DIR, 'guide-exemple-ODS.png'), fullPage: true });
+    await expectSourcesLoaded(page);
     expect(errors).toEqual([]);
   });
 });
