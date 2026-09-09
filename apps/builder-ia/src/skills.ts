@@ -2800,6 +2800,10 @@ La valeur vide RETIRE le filtre. Les valeurs sont percent-encodees (#271).
   \`lt-day-after\` (inclusif jusqu'au jour choisi), \`last-n-days\` (N derniers jours, borne
   dynamique), \`current-year\` (checkbox -> annee en cours). Plages [debut, fin) en ISO,
   recalculees a chaque diffusion — l'URL serialise l'intention (« 30 »), pas les dates resolues.
+- Troncature (#646) : \`year-of\` et \`month-of\` acceptent une date plus precise et la tronquent
+  ("2026-09-09" -> annee 2026 / mois 2026-09) : un input type=date peut nourrir les deux (il n'existe
+  pas de type=year). Une valeur qui reste inexploitable retire le filtre et l'annonce par un
+  console.warn (une fois par filtre).
 ` + reference('dsfr-data-context-filter'),
   },
 
