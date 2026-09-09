@@ -1168,7 +1168,7 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 | value-field-2 | String | \`""\` | non | 2e série de valeurs (bar-line) |
 | value-fields | String | \`""\` | non | Séries supplementaires separees par virgules — format LARGE, une colonne par série (ex: \`"budget,score"\`) |
 | series-field | String | \`""\` | non | Champ clé de série pour données LONG/tidy : ses valeurs distinctes deviennent autant de séries. Ex: données \`{mois, groupe, valeur}\` avec \`series-field="groupe"\`. S'applique a bar/line/radar. Prioritaire sur value-fields. Consommateur naturel de \`dsfr-data-unpivot\`. |
-| name | String | \`""\` | non | Noms des séries en JSON : \`'["Série 1","Série 2"]'\` (auto-deduit des colonnes ou des valeurs de series-field si absent) |
+| name | String | \`""\` | non | Nom(s) de série. Chaîne simple recommandée : \`name="Taux"\` (enveloppée automatiquement). JSON pour le multi-séries : \`'["Réalisé","Objectif"]'\`. Sur les cartes, un seul nom (le premier d'un JSON est retenu). Auto-deduit des colonnes ou des valeurs de series-field si absent |
 | empty-label | String | \`"Non renseigné"\` | non | Libellé d'une catégorie vide (\`null\`, \`undefined\` ou \`""\` dans label-field) : légende du pie, axe X. Évite le « Série N » de DSFR Chart sur un nom vide. Ex: \`empty-label="Sans objet"\` |
 | selected-palette | String | \`"categorical"\` | non | Palette : categorical, sequentialAscending, sequentialDescending, divergentAscending, divergentDescending, neutral, default |
 | unit-tooltip | String | \`""\` | non | Unite dans les info-bulles : %, EUR, etc. |

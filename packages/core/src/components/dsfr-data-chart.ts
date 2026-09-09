@@ -151,7 +151,12 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'series-field' })
   seriesField = '';
 
-  /** Noms des séries (ex: '["Série 1", "Série 2"]') */
+  /**
+   * Nom(s) de série. Chaîne simple recommandée (`name="Taux"`), enveloppée
+   * automatiquement pour DSFR Chart ; tableau JSON pour le multi-séries
+   * (`name='["Réalisé","Objectif"]'`). Sur les cartes (`map*`), un seul nom :
+   * le premier élément d'un JSON est retenu (#653).
+   */
   @property({ type: String })
   name = '';
 
@@ -566,7 +571,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       const trimmed = this.name.trim();
       const isMap = this.type in MAP_LEVEL;
       attrs['name'] = isMap
-        ? trimmed
+        ? this._mapSeriesName(trimmed)
         : trimmed.startsWith('[')
           ? trimmed
           : JSON.stringify([trimmed]);
@@ -581,6 +586,23 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     }
 
     return attrs;
+  }
+
+  /**
+   * Nom de série d'une carte : `<map-chart>` attend une chaîne simple. Un
+   * tableau JSON (forme documentée pour les cartésiens) est déplié sur son
+   * premier élément au lieu d'être affiché littéralement (#653) ; JSON
+   * invalide → chaîne telle quelle.
+   */
+  private _mapSeriesName(trimmed: string): string {
+    if (!trimmed.startsWith('[')) return trimmed;
+    try {
+      const parsed: unknown = JSON.parse(trimmed);
+      if (Array.isArray(parsed) && parsed.length > 0) return String(parsed[0]);
+    } catch {
+      /* JSON invalide : affichage tel quel */
+    }
+    return trimmed;
   }
 
   /** Cibles actives : attribut non vide, parse valide, type supporté. */

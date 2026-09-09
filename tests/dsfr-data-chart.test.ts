@@ -261,6 +261,30 @@ describe('DsfrDataChart', () => {
       expect(attrs['name']).toBe('["Série 1", "Série 2"]');
     });
 
+    // #653 : sur les cartes, `name` est une chaine simple — un JSON est deplie sur [0]
+    it('map: keeps a plain string name as-is', () => {
+      chart.type = 'map';
+      chart.name = 'Taux';
+      const attrs = (chart as any)._getCommonAttributes();
+      expect(attrs['name']).toBe('Taux');
+    });
+
+    it('map: unfolds a JSON array name to its first element (#653)', () => {
+      chart.type = 'map';
+      chart.name = '["Taux"]';
+      expect((chart as any)._getCommonAttributes()['name']).toBe('Taux');
+
+      chart.type = 'map-monde';
+      chart.name = ' ["Taux", "Autre"] ';
+      expect((chart as any)._getCommonAttributes()['name']).toBe('Taux');
+    });
+
+    it('map: leaves an invalid JSON name untouched', () => {
+      chart.type = 'map-reg';
+      chart.name = '[Taux';
+      expect((chart as any)._getCommonAttributes()['name']).toBe('[Taux');
+    });
+
     it('auto-generates name from valueField when name is empty', () => {
       chart.name = '';
       chart.valueField = 'population';
