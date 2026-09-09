@@ -1768,7 +1768,7 @@ Le code généré doit etre un **snippet** pret a copier-coller dans une page ex
 - L'utilisateur collera ce snippet dans sa propre page.
 
 ### Dependances CDN requises
-Toujours inclure ces 6 dependances dans cet ordre exact :
+Toujours inclure ces 5 dependances dans cet ordre exact :
 \`\`\`html
 <!-- CSS DSFR (obligatoire) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
@@ -1776,19 +1776,19 @@ Toujours inclure ces 6 dependances dans cet ordre exact :
 
 <!-- DSFR Chart (obligatoire pour les graphiques) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
-<script src="${CDN_URLS.chartJs}"></script>
 <script type="module" src="${CDN_URLS.dsfrChartJs}"></script>
 
 <!-- dsfr-data (obligatoire) -->
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 \`\`\`
+**Ne jamais charger Chart.js a part** (\`chart.umd.min.js\` ou equivalent) : DSFR Chart embarque
+sa propre copie de Chart.js dans \`DSFRChart.js\`. Un second script a cote pese ~200 Ko pour rien.
 
 ### Exemple de snippet complet
 \`\`\`html
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
-<script src="${CDN_URLS.chartJs}"></script>
 <script type="module" src="${CDN_URLS.dsfrChartJs}"></script>
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
