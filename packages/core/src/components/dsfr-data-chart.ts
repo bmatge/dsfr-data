@@ -694,11 +694,18 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
         // Le decoupage est choisi par l'attribut level (API unifiee 2.1.0) —
         // statique : Vue le lit au montage et ne l'ecrase pas
         attrs['level'] = MAP_LEVEL[this.type];
-        // All map attributes go in `deferred` because the DSFR Chart Vue component
-        // overwrites props set before mount with their default values.
-        // Deferred attrs are applied via setTimeout(500ms) after Vue has mounted,
-        // triggering the $props watcher which calls createChart() with correct data.
-        deferred['data'] = this._processMapData();
+        // `value` et `date` vont dans `deferred` : le composant Vue de DSFR
+        // Chart ecrase au montage les props qui ont un defaut (`value: ""`,
+        // `date: ""`). Les differes sont re-poses via setTimeout(500ms) apres
+        // le montage, ce qui declenche le watcher $props -> createChart().
+        // `data` est `required` SANS defaut (MapChart.js) : rien ne l'ecrase.
+        // Elle est donc posee immediatement — sinon `mounted()` fait
+        // `JSON.parse(undefined)` et logge « Erreur lors du parsing des
+        // données data » a chaque montage de carte (#651) — ET conservee
+        // dans `deferred` (double pose) pour garder le cycle de re-pose.
+        const mapData = this._processMapData();
+        attrs['data'] = mapData;
+        deferred['data'] = mapData;
         if (this._data.length > 0) {
           let total = 0;
           let count = 0;

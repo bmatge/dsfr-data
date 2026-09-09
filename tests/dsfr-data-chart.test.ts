@@ -443,8 +443,14 @@ describe('DsfrDataChart', () => {
       chart.type = 'map';
       chart.codeField = 'dept';
 
-      const { deferred } = (chart as any)._getTypeSpecificAttributes();
+      const { attrs, deferred } = (chart as any)._getTypeSpecificAttributes();
       expect(deferred['data']).toBeDefined();
+      // #651 : `data` est aussi posee immediatement (prop Vue required sans
+      // defaut, rien ne l'ecrase) — sinon console.error au montage de la carte
+      expect(attrs['data']).toBe(deferred['data']);
+      expect(JSON.parse(attrs['data'])).toEqual({ '75': 100, '13': 200 });
+      // value/date restent differes seuls (defauts Vue qui les ecraseraient)
+      expect(attrs['value']).toBeUndefined();
       expect(deferred['value']).toBeDefined();
       expect(Number(deferred['value'])).toBe(150); // avg of 100 and 200
       // #305 : plus de new Date() — la date du JOUR etait presentee comme
