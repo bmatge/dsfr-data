@@ -210,7 +210,13 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   @property({ type: Number, attribute: 'max-zoom' })
   maxZoom = 18;
 
-  /** Chargement par viewport : re-interroge la source a chaque deplacement de la carte. */
+  /**
+   * Chargement par viewport : re-interroge la source a chaque deplacement de
+   * la carte, et une premiere fois des que la carte est prete (#652). Le tout
+   * premier fetch de la source reste NON filtre (elle charge des sa connexion,
+   * avant que la carte — differee a la visibilite — ait un viewport) : sur un
+   * gros jeu, poser un `limit` ou un `where` initial sur la source.
+   */
   @property({ type: Boolean })
   bbox = false;
 
@@ -499,6 +505,12 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     if (this._data.length > 0) {
       this._renderLayer();
     }
+
+    // Mode bbox (#652) : emettre la commande du viewport initial. Leaflet
+    // emet `moveend` pendant L.map(), AVANT que la carte pose son listener
+    // — sans cet appel, rien ne partait tant que l'utilisateur ne bougeait
+    // pas la carte, et le premier rendu ignorait l'emprise.
+    this._scheduleBboxCommand();
   }
 
   /** Called by dsfr-data-map on moveend/zoomend */
@@ -509,10 +521,14 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     this._updateVisibility();
 
     // Viewport-driven fetch (bbox)
-    if (this.bbox && this._visible) {
-      if (this._bboxTimer) clearTimeout(this._bboxTimer);
-      this._bboxTimer = setTimeout(() => this._sendBboxCommand(), this.bboxDebounce);
-    }
+    this._scheduleBboxCommand();
+  }
+
+  /** Programme _sendBboxCommand avec anti-rebond (bbox actif et couche visible). */
+  private _scheduleBboxCommand(): void {
+    if (!this.bbox || !this._visible) return;
+    if (this._bboxTimer) clearTimeout(this._bboxTimer);
+    this._bboxTimer = setTimeout(() => this._sendBboxCommand(), this.bboxDebounce);
   }
 
   connectedCallback() {
