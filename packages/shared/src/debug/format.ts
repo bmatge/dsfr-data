@@ -192,6 +192,25 @@ function statusLine(node: StageNode, state: StageState, upstreamHasData: boolean
 }
 
 /**
+ * Lignes reçues mais écartées du rendu par un afficheur cartographique (#648).
+ *
+ * C'est la panne que « ✓ alimenté » masque le mieux : l'amont livre bien
+ * N lignes, le graphique en dessine N − k, et le total ne colle plus au KPI
+ * voisin. La cause dépend du composant : code de département/région/pays
+ * pour les cartes DSFR Chart, coordonnées ou géométrie pour une couche
+ * Leaflet.
+ */
+function formatSkippedRows(node: StageNode): string[] {
+  const n = node.skippedRows;
+  if (!n) return [];
+  const cause =
+    node.tag === 'dsfr-data-map-layer'
+      ? 'coordonnées ou géométrie absentes ou invalides'
+      : 'code géographique absent ou invalide';
+  return [`     ⚠ ${plural(n, 'ligne')} ignorée${n > 1 ? 's' : ''} (${cause})`];
+}
+
+/**
  * Rend la trace en texte français.
  *
  * Structure : un bloc par étape en ordre topologique, puis les commandes
@@ -240,6 +259,7 @@ export function formatTrace(trace: Trace, options: FormatOptions = {}): string {
       return !!upstream && upstream.status !== 'error' && (upstream.rows ?? 0) > 0;
     });
     out.push(statusLine(node, state, upstreamHasData));
+    out.push(...formatSkippedRows(node));
 
     if (state.status === 'loaded') {
       out.push(`     champs : ${formatFieldList(state.fields ?? [])}`);
@@ -323,6 +343,7 @@ export function summarizeTrace(trace: Trace): {
   for (const node of ordered) {
     const state = trace.states[node.id];
     if (node.configError) alerts += 1;
+    if (node.skippedRows) alerts += 1;
     if (!state) continue;
     if (state.status === 'error') alerts += 1;
     if (state.status === 'loaded' && state.rows === 0) alerts += 1;

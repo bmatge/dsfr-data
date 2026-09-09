@@ -277,8 +277,15 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   /** Elements effectivement dessines au dernier rendu (#482) */
   private _renderedCount = 0;
 
-  /** Records ecartes du rendu geoshape faute de geometrie valide (#482) */
+  /**
+   * Records ecartes du dernier rendu faute de position exploitable : geometrie
+   * invalide (geoshape, #482), coordonnees absentes ou non numeriques (marker,
+   * circle, heatmap — #648). Un seul compteur pour tous les types.
+   */
   private _skippedGeoCount = 0;
+
+  /** Dernier compte journalise — evite de repeter le warn a chaque re-rendu (pan en bbox client) */
+  private _skippedWarned = -1;
 
   /** Compagnon popup resolu une fois par rendu (#297) */
   private _popupCompanion: import('./dsfr-data-map-popup.js').DsfrDataMapPopup | null = null;
@@ -326,6 +333,15 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
    */
   getRenderedCount(): number {
     return this._renderedCount;
+  }
+
+  /**
+   * Nombre de lignes ignorees au dernier rendu faute de position exploitable
+   * (coordonnees ou geometrie absentes ou invalides). Journalise une fois par
+   * rendu et remonte dans la trace du volet Diagnostic (#648, #604).
+   */
+  getSkippedCount(): number {
+    return this._skippedGeoCount;
   }
 
   /**
@@ -785,13 +801,22 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
       this._renderedCount = this._renderHeatmap(items, Leaf);
     }
 
-    // Geometries inexploitables : signaler au lieu d'echouer en silence (#482
-    // bug 3) — le try/catch de _addGeoshape ignore la ligne, on resume ici
-    if (this.type === 'geoshape' && this._skippedGeoCount > 0) {
-      console.warn(
-        `dsfr-data-map-layer[${this.id || this.source}]: la colonne "${this.geoField || '(geo-field non renseigné)'}" ` +
-          `ne contient pas de géométrie valide pour ${this._skippedGeoCount} enregistrement(s) sur ${items.length} — lignes ignorées`
-      );
+    // Lignes sans position exploitable : signaler au lieu d'echouer en
+    // silence (#482 bug 3, generalise a tous les types #648). Un seul warn
+    // par rendu, et pas de repetition tant que le compte ne change pas
+    // (chaque pan en bbox client re-rend la couche).
+    if (this._skippedGeoCount !== this._skippedWarned) {
+      this._skippedWarned = this._skippedGeoCount;
+      if (this._skippedGeoCount > 0) {
+        const who = `dsfr-data-map-layer[${this.id || this.source}]`;
+        console.warn(
+          this.type === 'geoshape'
+            ? `${who}: la colonne "${this.geoField || '(geo-field non renseigné)'}" ` +
+                `ne contient pas de géométrie valide pour ${this._skippedGeoCount} enregistrement(s) sur ${items.length} — lignes ignorées`
+            : `${who}: ${this._skippedGeoCount} ligne(s) sur ${items.length} sans coordonnées exploitables ` +
+                `(${this._describeCoordFields()}) — lignes ignorées`
+        );
+      }
     }
 
     // Add to map if visible
@@ -847,11 +872,22 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     }
   }
 
+  /** Champs de position tels que configures, pour les messages de diagnostic. */
+  private _describeCoordFields(): string {
+    if (this.latField && this.lonField)
+      return `lat-field="${this.latField}", lon-field="${this.lonField}"`;
+    if (this.geoField) return `geo-field="${this.geoField}"`;
+    return 'auto-détection geo_point_2d / geopoint / geo_point';
+  }
+
   // --- Marker ---
 
   private _addMarker(record: Record<string, unknown>, Leaf: LeafletModule, group: LayerGroup) {
     const coords = this._extractCoords(record);
-    if (!coords) return;
+    if (!coords) {
+      this._skippedGeoCount++;
+      return;
+    }
 
     const markerColor = this._resolveColor(record);
     const icon = Leaf.divIcon({
@@ -940,7 +976,10 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
 
   private _addCircle(record: Record<string, unknown>, Leaf: LeafletModule, group: LayerGroup) {
     const coords = this._extractCoords(record);
-    if (!coords) return;
+    if (!coords) {
+      this._skippedGeoCount++;
+      return;
+    }
 
     let r = this.radius;
     if (this.radiusField) {
@@ -993,7 +1032,10 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     let maxIntensity = 1;
     for (const record of items) {
       const coords = this._extractCoords(record);
-      if (!coords) continue;
+      if (!coords) {
+        this._skippedGeoCount++;
+        continue;
+      }
       let intensity = 1;
       if (this.heatField) {
         const val = Number(getByPath(record, this.heatField));
@@ -1127,8 +1169,13 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   private _extractCoords(record: Record<string, unknown>): { lat: number; lon: number } | null {
     // Mode 1: lat-field + lon-field
     if (this.latField && this.lonField) {
-      const lat = Number(getByPath(record, this.latField));
-      const lon = Number(getByPath(record, this.lonField));
+      const rawLat = getByPath(record, this.latField);
+      const rawLon = getByPath(record, this.lonField);
+      // null / undefined / '' : Number() les vaut 0 — la ligne se dessinait
+      // en (0, 0) dans le golfe de Guinee au lieu d'etre ignoree et comptee (#648)
+      if (rawLat == null || rawLat === '' || rawLon == null || rawLon === '') return null;
+      const lat = Number(rawLat);
+      const lon = Number(rawLon);
       if (!isNaN(lat) && !isNaN(lon)) return { lat, lon };
       return null;
     }

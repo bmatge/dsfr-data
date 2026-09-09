@@ -138,6 +138,11 @@ function describeStage(trace: Trace, nodeId: string, redact: boolean): string {
   }
   if (node.upstream.length > 0) lines.push(`Amont : ${node.upstream.join(', ')}`);
   if (node.configError) lines.push(`ERREUR DE CONFIGURATION : ${node.configError}`);
+  if (node.skippedRows) {
+    lines.push(
+      `LIGNES IGNORÉES : ${node.skippedRows} (code ou coordonnées géographiques absents ou invalides)`
+    );
+  }
 
   switch (state.status) {
     case 'loaded':
