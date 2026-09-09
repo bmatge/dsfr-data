@@ -9,9 +9,50 @@ function isoDate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** Plage [1er du mois, 1er du mois suivant) depuis "YYYY-MM" */
+/**
+ * Tronque une date complete a la precision de l'operateur (#646) :
+ * `year-of` accepte "YYYY", "YYYY-MM" et "YYYY-MM-DD" (-> "YYYY") ;
+ * `month-of` accepte "YYYY-MM" et "YYYY-MM-DD" (-> "YYYY-MM"). Un
+ * <input type="date"> peut ainsi nourrir les deux operateurs (il n'existe
+ * pas de type="year"). Toute autre valeur est rendue telle quelle.
+ */
+function truncateToOperator(value: string, operator: 'year-of' | 'month-of'): string {
+  const parts = dateParts(value);
+  if (!parts) return value;
+  return operator === 'year-of' ? parts[0] : parts.slice(0, 2).join('-');
+}
+
+/** Decompose "YYYY", "YYYY-MM" ou "YYYY-MM-DD" en segments — null pour toute autre forme */
+function dateParts(value: string): string[] | null {
+  const parts = value.split('-');
+  if (parts.length > 3 || !/^\d{4}$/.test(parts[0])) return null;
+  if (parts.slice(1).some((p) => !/^\d{2}$/.test(p))) return null;
+  return parts;
+}
+
+/**
+ * Adapte une valeur d'URL a la precision du controle qui la recoit (#646) :
+ * un <input type="date"> refuse "2026" (valeur assainie a vide), un
+ * type="month" refuse "2026-09-09". On complete ou tronque pour que le
+ * controle accepte la valeur — buildColonWhere() retronque ensuite a la
+ * precision de l'operateur.
+ */
+function fitDateToInput(
+  value: string,
+  inputType: string,
+  operator: 'year-of' | 'month-of'
+): string {
+  const parts = dateParts(value);
+  if (!parts) return value;
+  const [year, month = '01', day = '01'] = parts;
+  if (inputType === 'date') return `${year}-${month}-${day}`;
+  if (inputType === 'month') return `${year}-${month}`;
+  return truncateToOperator(value, operator);
+}
+
+/** Plage [1er du mois, 1er du mois suivant) depuis "YYYY-MM" (ou une date complete, #646) */
 function monthRange(value: string): [string, string] | null {
-  const m = /^(\d{4})-(\d{2})$/.exec(value);
+  const m = /^(\d{4})-(\d{2})$/.exec(truncateToOperator(value, 'month-of'));
   if (!m) return null;
   const year = Number(m[1]);
   const month = Number(m[2]);
@@ -20,11 +61,12 @@ function monthRange(value: string): [string, string] | null {
   return [`${m[1]}-${m[2]}-01`, `${next}-01`];
 }
 
-/** Plage [1er janvier, 1er janvier suivant) depuis "YYYY" */
+/** Plage [1er janvier, 1er janvier suivant) depuis "YYYY" (ou une date complete, #646) */
 function yearRange(value: string): [string, string] | null {
-  if (!/^\d{4}$/.test(value)) return null;
-  const year = Number(value);
-  return [`${value}-01-01`, `${year + 1}-01-01`];
+  const y = truncateToOperator(value, 'year-of');
+  if (!/^\d{4}$/.test(y)) return null;
+  const year = Number(y);
+  return [`${y}-01-01`, `${year + 1}-01-01`];
 }
 
 /** Lendemain ISO de "YYYY-MM-DD" (borne haute exclusive = inclusif jusqu'au jour choisi) */
@@ -73,8 +115,17 @@ export class DsfrDataContextFilter extends LitElement {
   @property({ type: String })
   ui = '';
 
-  /** Opérateur : eq, in, lt, gte, between — et dates (#230, clauses en plages
-   *  [debut, fin)) : month-of, year-of, lt-day-after, last-n-days, current-year */
+  /**
+   * Opérateur : eq, in, lt, gte, between — et dates (#230, clauses en plages
+   * [debut, fin)) : month-of, year-of, lt-day-after, last-n-days, current-year.
+   *
+   * `year-of` et `month-of` acceptent une date plus precise que l'operateur
+   * et la tronquent (#646) : "2026-09-09" -> annee 2026 / mois 2026-09, ce
+   * qui permet de les nourrir d'un <input type="date"> (il n'existe pas de
+   * type="year"). Une valeur qui reste inexploitable (ni date, ni mois, ni
+   * annee) retire le filtre et le signale par un avertissement console,
+   * emis une seule fois par filtre.
+   */
   @property({ type: String })
   operator: ContextOperator = 'eq';
 
@@ -91,6 +142,9 @@ export class DsfrDataContextFilter extends LitElement {
   private _uiEls: HTMLElement[] = [];
 
   private _onUiChange = () => this._emit();
+
+  /** Valeur de date inexploitable deja signalee (#646) — un warn par filtre, pas par frappe */
+  private _unusableDateWarned = false;
 
   createRenderRoot() {
     return this;
@@ -213,7 +267,12 @@ export class DsfrDataContextFilter extends LitElement {
       }
       return;
     }
-    (el as HTMLInputElement | HTMLSelectElement).value = values.join(',');
+    let value = values.join(',');
+    if (this.operator === 'year-of' || this.operator === 'month-of') {
+      // Une date complete dans l'URL doit tenir dans le controle (#646)
+      value = fitDateToInput(value, el instanceof HTMLInputElement ? el.type : '', this.operator);
+    }
+    (el as HTMLInputElement | HTMLSelectElement).value = value;
   }
 
   /** Libellé d'affichage (tags #232) */
@@ -231,6 +290,10 @@ export class DsfrDataContextFilter extends LitElement {
     const raw = values[0] ?? '';
     if (this.operator === 'current-year') return 'année en cours';
     if (this.operator === 'last-n-days') return `${raw} derniers jours`;
+    if (this.operator === 'year-of' || this.operator === 'month-of') {
+      // Le tag montre la precision reellement filtree (#646)
+      return truncateToOperator(raw, this.operator);
+    }
     return raw.split(/[|,]/).filter(Boolean).join(', ');
   }
 
@@ -327,12 +390,17 @@ export class DsfrDataContextFilter extends LitElement {
     // diffusion — jamais de date figee ; l'URL serialise l'intention (#231)
     if (this.operator === 'month-of') {
       const range = monthRange(raw);
-      if (!range) return '';
+      if (!range) return this._unusableDate(raw, 'un mois "AAAA-MM" ou une date "AAAA-MM-JJ"');
       return `${this.field}:gte:${range[0]}, ${this.field}:lt:${range[1]}`;
     }
     if (this.operator === 'year-of') {
       const range = yearRange(raw);
-      if (!range) return '';
+      if (!range) {
+        return this._unusableDate(
+          raw,
+          'une annee "AAAA", un mois "AAAA-MM" ou une date "AAAA-MM-JJ"'
+        );
+      }
       return `${this.field}:gte:${range[0]}, ${this.field}:lt:${range[1]}`;
     }
     if (this.operator === 'lt-day-after') {
@@ -363,6 +431,22 @@ export class DsfrDataContextFilter extends LitElement {
     }
 
     return `${this.field}:${this.operator}:${escapeColonValue(raw)}`;
+  }
+
+  /**
+   * Valeur de date inexploitable (#646) : le filtre est retire (clause vide)
+   * mais on le DIT — une fois par filtre. Pas reportConfigError : c'est une
+   * valeur de runtime, un input texte en emet une a chaque frappe.
+   */
+  private _unusableDate(raw: string, expected: string): '' {
+    if (!this._unusableDateWarned) {
+      this._unusableDateWarned = true;
+      console.warn(
+        `dsfr-data-context-filter (${this.field}, operator="${this.operator}") : ` +
+          `valeur "${raw}" inexploitable, attendu ${expected} — filtre retire.`
+      );
+    }
+    return '';
   }
 
   render() {

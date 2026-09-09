@@ -709,7 +709,7 @@ Sortie : même tableau, filtre selon les selections de l'utilisateur.
 | labels | String | \`""\` | non | Labels custom : \`"field:Label \\| field2:Label 2"\` (pipe-separe) |
 | max-values | Number | \`6\` | non | Nb de valeurs visibles par facette avant "Voir plus" |
 | disjunctive | String | \`""\` | non | Champs en mode multi-selection OU (virgule-separes) |
-| sort | String | \`"count"\` | non | Tri des valeurs : count, -count, alpha, -alpha |
+| sort | String | \`"count"\` | non | Tri des valeurs, grammaire \`critere:sens\` (comme order-by) : \`count:desc\` (défaut, plus frequent d'abord), \`count:asc\`, \`alpha:asc\` (A-Z), \`alpha:desc\` (Z-A). Raccourcis : \`count\` = count:desc, \`alpha\` = alpha:asc. \`-count\` / \`-alpha\` deprecies (warn console) — ne plus les generer |
 | searchable | String | \`""\` | non | Champs avec barre de recherche (virgule-separes) |
 | hide-empty | Boolean | \`false\` | non | Masquer les facettes avec une seule valeur |
 | display | String | \`""\` | non | Mode d'affichage par facette : \`"field:select \\| field2:multiselect"\`. Modes : checkbox (défaut), select, multiselect, radio |
@@ -2824,6 +2824,10 @@ La valeur vide RETIRE le filtre. Les valeurs sont percent-encodees (#271).
   \`lt-day-after\` (inclusif jusqu'au jour choisi), \`last-n-days\` (N derniers jours, borne
   dynamique), \`current-year\` (checkbox -> annee en cours). Plages [debut, fin) en ISO,
   recalculees a chaque diffusion — l'URL serialise l'intention (« 30 »), pas les dates resolues.
+- Troncature (#646) : \`year-of\` et \`month-of\` acceptent une date plus precise et la tronquent
+  ("2026-09-09" -> annee 2026 / mois 2026-09) : un input type=date peut nourrir les deux (il n'existe
+  pas de type=year). Une valeur qui reste inexploitable retire le filtre et l'annonce par un
+  console.warn (une fois par filtre).
 ` + reference('dsfr-data-context-filter'),
   },
 

@@ -65,7 +65,18 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   @property({ type: String })
   disjunctive = '';
 
-  /** Tri des valeurs : count, -count, alpha, -alpha */
+  /**
+   * Tri des valeurs de chaque facette, grammaire `critere:sens` alignee sur
+   * `order-by` de dsfr-data-query (#645) :
+   * - `count:desc` (defaut) : du plus frequent au plus rare
+   * - `count:asc` : du plus rare au plus frequent
+   * - `alpha:asc` : A -> Z (collation francaise)
+   * - `alpha:desc` : Z -> A
+   * Raccourcis : `count` = `count:desc`, `alpha` = `alpha:asc`.
+   * Formes `-count` / `-alpha` DEPRECIEES : conservees a l'identique
+   * (`-count` = rare d'abord, `-alpha` = Z -> A) mais un avertissement console
+   * invite a passer a la forme explicite ; retrait dans une version majeure.
+   */
   @property({ type: String })
   sort = 'count';
 
@@ -645,23 +656,46 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     });
   }
 
+  /** Formes de `sort` deja signalees comme depreciees (un warn par forme et par instance, #645) */
+  private _deprecatedSortWarned = new Set<string>();
+
+  /**
+   * Resout l'attribut `sort` en (critere, sens) — grammaire `critere:sens`
+   * de `order-by` (#645). Les formes `-count` / `-alpha` restent acceptees
+   * avec leur sens historique mais sont signalees : le tiret y voulait dire
+   * « inverse du defaut » (croissant pour count, decroissant pour alpha),
+   * une convention ambigue qu'aucune forme explicite ne partage.
+   */
+  private _resolveSort(): { by: 'count' | 'alpha'; dir: 'asc' | 'desc' } {
+    const raw = (this.sort || '').trim();
+    if (raw === '-count' || raw === '-alpha') {
+      const by = raw === '-count' ? 'count' : 'alpha';
+      const dir = by === 'count' ? 'asc' : 'desc';
+      if (!this._deprecatedSortWarned.has(raw)) {
+        this._deprecatedSortWarned.add(raw);
+        console.warn(
+          `dsfr-data-facets: sort="${raw}" est deprecie — le tiret signifie « inverse du defaut » ` +
+            `(${by === 'count' ? 'du plus rare au plus frequent' : 'Z vers A'}), une convention ambigue. ` +
+            `Utiliser sort="${by}:${dir}" (grammaire de order-by : count:desc, count:asc, alpha:asc, alpha:desc).`
+        );
+      }
+      return { by, dir };
+    }
+    const [byPart, dirPart] = raw.split(':');
+    const by = byPart === 'alpha' ? 'alpha' : 'count';
+    const defaultDir = by === 'count' ? 'desc' : 'asc';
+    const dir = dirPart === 'asc' || dirPart === 'desc' ? dirPart : defaultDir;
+    return { by, dir };
+  }
+
   _sortValues(values: FacetValue[]): FacetValue[] {
+    const { by, dir } = this._resolveSort();
+    const sign = dir === 'asc' ? 1 : -1;
     const sorted = [...values];
-    switch (this.sort) {
-      case 'count':
-        sorted.sort((a, b) => b.count - a.count);
-        break;
-      case '-count':
-        sorted.sort((a, b) => a.count - b.count);
-        break;
-      case 'alpha':
-        sorted.sort((a, b) => a.value.localeCompare(b.value, 'fr'));
-        break;
-      case '-alpha':
-        sorted.sort((a, b) => b.value.localeCompare(a.value, 'fr'));
-        break;
-      default:
-        sorted.sort((a, b) => b.count - a.count);
+    if (by === 'alpha') {
+      sorted.sort((a, b) => sign * a.value.localeCompare(b.value, 'fr'));
+    } else {
+      sorted.sort((a, b) => sign * (a.count - b.count));
     }
     return sorted;
   }
