@@ -74,7 +74,7 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
   @property({ type: String })
   icone = '';
 
-  /** Format d'affichage: nombre, pourcentage, euro, decimal */
+  /** Format d'affichage: nombre, pourcentage, euro, decimal, compact (14 785 684 → « 14,8 M ») */
   @property({ type: String })
   format: FormatType = 'nombre';
 

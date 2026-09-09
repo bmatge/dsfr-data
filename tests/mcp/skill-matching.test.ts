@@ -2,7 +2,7 @@
  * Moteur de matching partage builder-IA <-> serveur MCP (#514).
  *
  * Deux choses sont verifiees ici :
- *  1. le COMPORTEMENT du moteur, sur les 29 skills reelles — un banc de prompts
+ *  1. le COMPORTEMENT du moteur, sur les 30 skills reelles — un banc de prompts
  *     qui exige qu'aucune skill anciennement remontee ne disparaisse ;
  *  2. la COPIE : `mcp-server/src/skill-matching.generated.ts` doit etre le
  *     fichier source, a l'en-tete pres. C'est ce qui remplace « faire la
@@ -133,7 +133,7 @@ describe('moteur de matching partage (#514)', () => {
     });
   });
 
-  describe('banc de prompts sur les 29 skills reelles', () => {
+  describe('banc de prompts sur les 30 skills reelles', () => {
     const PROMPTS = [
       'je veux un graphique',
       'quel evenement ecouter quand la source change',
