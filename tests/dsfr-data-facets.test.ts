@@ -204,7 +204,7 @@ describe('DsfrDataFacets', () => {
     });
 
     it('sorts by count ascending', () => {
-      facets.sort = '-count';
+      facets.sort = 'count:asc';
       const values = facets._computeFacetValues('type');
       expect(values[0].value).toBe('Prefecture');
       expect(values[1].value).toBe('Commune');
@@ -241,8 +241,8 @@ describe('DsfrDataFacets', () => {
       expect(sorted.map((v) => v.value)).toEqual(['Abricot', 'Banane', 'Cerise']);
     });
 
-    it('sorts by count ascending', () => {
-      facets.sort = '-count';
+    it('sorts by count ascending (count:asc)', () => {
+      facets.sort = 'count:asc';
       const sorted = facets._sortValues(testValues);
       expect(sorted.map((v) => v.value)).toEqual(['Cerise', 'Banane', 'Abricot']);
     });
@@ -253,10 +253,98 @@ describe('DsfrDataFacets', () => {
       expect(sorted.map((v) => v.value)).toEqual(['Abricot', 'Banane', 'Cerise']);
     });
 
-    it('sorts reverse alphabetically', () => {
-      facets.sort = '-alpha';
+    it('sorts reverse alphabetically (alpha:desc)', () => {
+      facets.sort = 'alpha:desc';
       const sorted = facets._sortValues(testValues);
       expect(sorted.map((v) => v.value)).toEqual(['Cerise', 'Banane', 'Abricot']);
+    });
+
+    // Grammaire critere:sens alignee sur order-by (#645)
+    describe('grammaire critere:sens (#645)', () => {
+      let warnSpy: ReturnType<typeof vi.spyOn>;
+
+      beforeEach(() => {
+        warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      });
+
+      afterEach(() => {
+        warnSpy.mockRestore();
+      });
+
+      it('count:desc trie du plus frequent au plus rare (= defaut)', () => {
+        facets.sort = 'count:desc';
+        const sorted = facets._sortValues(testValues);
+        expect(sorted.map((v) => v.value)).toEqual(['Abricot', 'Banane', 'Cerise']);
+        expect(warnSpy).not.toHaveBeenCalled();
+      });
+
+      it('alpha:asc trie A -> Z', () => {
+        facets.sort = 'alpha:asc';
+        const sorted = facets._sortValues(testValues);
+        expect(sorted.map((v) => v.value)).toEqual(['Abricot', 'Banane', 'Cerise']);
+        expect(warnSpy).not.toHaveBeenCalled();
+      });
+
+      it("les raccourcis count / alpha n'emettent aucun avertissement", () => {
+        facets.sort = 'count';
+        facets._sortValues(testValues);
+        facets.sort = 'alpha';
+        facets._sortValues(testValues);
+        expect(warnSpy).not.toHaveBeenCalled();
+      });
+
+      it('un sens inconnu retombe sur le sens par defaut du critere', () => {
+        facets.sort = 'count:sideways';
+        expect(facets._sortValues(testValues).map((v) => v.value)).toEqual([
+          'Abricot',
+          'Banane',
+          'Cerise',
+        ]);
+        facets.sort = 'alpha:sideways';
+        expect(facets._sortValues(testValues).map((v) => v.value)).toEqual([
+          'Abricot',
+          'Banane',
+          'Cerise',
+        ]);
+      });
+
+      it('une valeur inconnue retombe sur count:desc', () => {
+        facets.sort = 'bidule';
+        const sorted = facets._sortValues(testValues);
+        expect(sorted.map((v) => v.value)).toEqual(['Abricot', 'Banane', 'Cerise']);
+      });
+
+      it("-count (deprecie) conserve son sens historique (rare d'abord) et avertit une seule fois", () => {
+        facets.sort = '-count';
+        const sorted = facets._sortValues(testValues);
+        expect(sorted.map((v) => v.value)).toEqual(['Cerise', 'Banane', 'Abricot']);
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+        const message = String(warnSpy.mock.calls[0][0]);
+        expect(message).toContain('sort="-count"');
+        expect(message).toContain('deprecie');
+        expect(message).toContain('sort="count:asc"');
+
+        // Deuxieme tri sur la meme instance : pas de second avertissement
+        facets._sortValues(testValues);
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+      });
+
+      it('-alpha (deprecie) conserve son sens historique (Z -> A) et nomme alpha:desc', () => {
+        facets.sort = '-alpha';
+        const sorted = facets._sortValues(testValues);
+        expect(sorted.map((v) => v.value)).toEqual(['Cerise', 'Banane', 'Abricot']);
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+        expect(String(warnSpy.mock.calls[0][0])).toContain('sort="alpha:desc"');
+      });
+
+      it("l'avertissement est par instance : une autre instance avertit a son tour", () => {
+        facets.sort = '-count';
+        facets._sortValues(testValues);
+        const other = new DsfrDataFacets();
+        other.sort = '-count';
+        other._sortValues(testValues);
+        expect(warnSpy).toHaveBeenCalledTimes(2);
+      });
     });
   });
 
