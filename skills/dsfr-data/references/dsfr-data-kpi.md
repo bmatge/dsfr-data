@@ -31,6 +31,10 @@ Attend un tableau d'objets. L'attribut `valeur` determine comment extraire/agré
 | threshold-orange | Number | - | non | Seuil au-dessus duquel couleur = orange (en-dessous = rouge). Alias deprecie : `seuil-orange` |
 | col | Number | - | non | Largeur en colonnes DSFR (1-12), actif uniquement dans un `<dsfr-data-kpi-group>` |
 
+Fonctions acceptées dans `value`, `trend` et `lines` : avg, sum, count, min, max, first, last.
+Toute autre fonction (ex. `"x:somme"`) affiche une erreur de configuration à la place du KPI
+(console + `data-dsfr-config-error`) — jamais une valeur vide.
+
 ### Grouper des KPIs : `<dsfr-data-kpi-group>`
 Utiliser `<dsfr-data-kpi-group>` pour disposer plusieurs KPIs en grille responsive :
 ```html
@@ -114,7 +118,7 @@ Utiliser `<dsfr-data-kpi-group>` pour disposer plusieurs KPIs en grille responsi
 | `color-token` | `KpiColor \| ''` | `""` (vide) | Couleur forcée (token sémantique DSFR) : vert, orange, rouge, bleu |
 | `couleur` | `KpiColor \| ''` | `""` (vide) | **DEPRECIE** — ne pas utiliser dans du code neuf. alias français de `color-token` (#300) |
 | `description` | `string` | `""` (vide) | Description détaillée pour l'accessibilité |
-| `format` | `FormatType` | `'nombre'` | Format d'affichage: nombre, pourcentage, euro, decimal |
+| `format` | `FormatType` | `'nombre'` | Format d'affichage: nombre, pourcentage, euro, decimal, compact (14 785 684 → « 14,8 M ») |
 | `heading` | `string` | `""` (vide) | Titre affiché AU-DESSUS de la valeur (surtitre, style majuscules grises). Nommé `heading` et non `title` : ce dernier entrerait en collision avec la propriété DOM native HTMLElement.title (infobulle). |
 | `icon` | `string` | `""` (vide) | Classe d'icône (ex: ri-global-line) |
 | `icone` | `string` | `""` (vide) | **DEPRECIE** — ne pas utiliser dans du code neuf. alias français de `icon` (#300) |

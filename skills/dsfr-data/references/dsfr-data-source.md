@@ -33,7 +33,7 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 | resource | String | `""` | non | ID de la ressource (Tabular). |
 | where | String | `""` | non | Clause WHERE statique (ODSQL ou colon syntax). |
 | select | String | `""` | non | Clause SELECT serveur (ODS). Ex: `"count(*) as total, region"` |
-| group-by | String | `""` | non | Group-by serveur (si supporte par le provider). |
+| group-by | String | `""` | non | Group-by serveur (si supporte par le provider). ODS : accepte une expression aliasee, ex. `"year(date) as annee"` |
 | aggregate | String | `""` | non | Agrégation serveur. Ex: `"population:sum"` |
 | order-by | String | `""` | non | Tri serveur. Ex: `"population:desc"` |
 | server-side | Boolean | `false` | non | Active la pagination serveur page par page (datalist, tableaux). |
@@ -137,8 +137,8 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 | `cache-ttl` | `number` | `3600` | TTL du cache externe en secondes (0 = desactive). Actif uniquement si la page hote enregistre `window.DSFR_DATA_CACHE_PROVIDER` (#307) — no-op en embed anonyme. |
 | `data` | `string` | `""` (vide) | Données JSON inline (pas de fetch) |
 | `dataset-id` | `string` | `""` (vide) | ID du dataset (pour ODS) |
-| `group-by` | `string` | `""` (vide) | Group-by (pour les APIs qui le supportent server-side) |
-| `headers` | `string` | `""` (vide) | En-tetes HTTP en JSON. Ex: `'{"Authorization": "Bearer xxx"}'` |
+| `group-by` | `string` | `""` (vide) | Group-by (pour les APIs qui le supportent server-side). ODS : un element peut etre une expression aliasee (`year(date) as annee`), transmise telle quelle — l'alias `as` est obligatoire cote ODS (#641). |
+| `headers` | `string` | `""` (vide) | En-tetes HTTP en JSON. Ex: `'{"Authorization": "Bearer xxx"}'`. OpenDataSoft : la clé va dans `Authorization: Apikey CLE` (seul en-tête autorisé en CORS) — un `apikey` nu est réécrit automatiquement (#655). |
 | `limit` | `number` | `0` | Limite du nombre de resultats |
 | `max-records` | `number` | `0` | Plafond de records du fetchAll en mode adapter (#233). 0 = plafond par defaut de l'adapter (ODS : 1000). A relever explicitement pour les dashboards « un fetch, N agregations client » — attention au nombre de requetes en boucle et au poids memoire. |
 | `method` | `'GET' \| 'POST'` | `'GET'` | Methode HTTP : `GET` (defaut) ou `POST`. |

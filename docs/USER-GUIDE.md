@@ -540,7 +540,7 @@ Les sources Grist renvoient des enregistrements imbriques `{id, fields: {col1, c
 
 Les donnees passent par `dsfr-data-query` qui les filtre, regroupe et/ou agrege avant de les transmettre au composant de visualisation.
 
-> **Datasets prives** : en mode `opendatasoft` ou `tabular`, l'attribut `headers` permet de passer des headers HTTP (API key, token) pour acceder a des datasets prives. Syntaxe : `headers='{"apikey":"ma-cle"}'`
+> **Datasets prives** : en mode `opendatasoft` ou `tabular`, l'attribut `headers` permet de passer des headers HTTP (API key, token) pour acceder a des datasets prives. OpenDataSoft n'accepte la clé que dans l'en-tête `Authorization` (seul en-tête autorisé par sa politique CORS) : `headers='{"Authorization":"Apikey ma-cle"}'`, ou, pour ne pas ecrire la clé dans le HTML, `api-key-ref="k"` avec `<script>window.DSFR_DATA_KEYS = { k: 'Apikey ma-cle' };</script>`. Un en-tête `apikey` nu est reecrit automatiquement en `Authorization: Apikey …` (#655).
 
 #### Barres — Beneficiaires agreges par region
 

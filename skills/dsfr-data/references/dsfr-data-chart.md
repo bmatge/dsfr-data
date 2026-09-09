@@ -43,7 +43,8 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 | value-field-2 | String | `""` | non | 2e série de valeurs (bar-line) |
 | value-fields | String | `""` | non | Séries supplementaires separees par virgules — format LARGE, une colonne par série (ex: `"budget,score"`) |
 | series-field | String | `""` | non | Champ clé de série pour données LONG/tidy : ses valeurs distinctes deviennent autant de séries. Ex: données `{mois, groupe, valeur}` avec `series-field="groupe"`. S'applique a bar/line/radar. Prioritaire sur value-fields. Consommateur naturel de `dsfr-data-unpivot`. |
-| name | String | `""` | non | Noms des séries en JSON : `'["Série 1","Série 2"]'` (auto-deduit des colonnes ou des valeurs de series-field si absent) |
+| name | String | `""` | non | Nom(s) de série. Chaîne simple recommandée : `name="Taux"` (enveloppée automatiquement). JSON pour le multi-séries : `'["Réalisé","Objectif"]'`. Sur les cartes, un seul nom (le premier d'un JSON est retenu). Auto-deduit des colonnes ou des valeurs de series-field si absent |
+| empty-label | String | `"Non renseigné"` | non | Libellé d'une catégorie vide (`null`, `undefined` ou `""` dans label-field) : légende du pie, axe X. Évite le « Série N » de DSFR Chart sur un nom vide. Ex: `empty-label="Sans objet"` |
 | selected-palette | String | `"categorical"` | non | Palette : categorical, sequentialAscending, sequentialDescending, divergentAscending, divergentDescending, neutral, default |
 | unit-tooltip | String | `""` | non | Unite dans les info-bulles : %, EUR, etc. |
 | unit-tooltip-bar | String | `""` | non | Unite des barres dans un bar-line |
@@ -188,7 +189,7 @@ Quand `databox` est active, dsfr-data-a11y ne doit PAS inclure `table` ni `downl
 | `code-field` | `string` | `""` (vide) | Chemin vers le champ code (prioritaire sur label-field) : departement/region (map/map-reg), nom d'academie (map-aca), code pays ISO a2/a3/num (map-monde) |
 | `databox` | `boolean` | `false` | Envelopper le chart dans une DataBox DSFR native |
 | `databox-actions` | `string` | `""` (vide) | Actions personnalisees DataBox (JSON array, ex: '["Source officielle","Pole emploi"]') |
-| `databox-date` | `string` | `""` (vide) | Date de la donnée (ex: "Mars 2024") |
+| `databox-date` | `string` | `""` (vide) | Date de la donnée (ex: "Mars 2024"), affichée dans le pied de la DataBox et sur les cartes. Aucune date n'est rendue si l'attribut est absent — plus de repli sur la date du jour, qui n'est pas celle des données (#650). |
 | `databox-default-source` | `string` | `""` (vide) | Source par défaut dans le selecteur multi-source DataBox |
 | `databox-download` | `boolean` | `false` | Bouton téléchargement CSV dans DataBox |
 | `databox-fullscreen` | `boolean` | `false` | Bouton plein écran |
@@ -200,13 +201,14 @@ Quand `databox` est active, dsfr-data-a11y ne doit PAS inclure `table` ni `downl
 | `databox-tooltip-content` | `string` | `""` (vide) | Contenu du tooltip info DataBox |
 | `databox-tooltip-title` | `string` | `""` (vide) | Titre du tooltip info DataBox |
 | `databox-trend` | `string` | `""` (vide) | Badge tendance (ex: "+5.2", "-3.1") |
+| `empty-label` | `string` | `'Non renseigné'` | Libellé affiché pour une catégorie vide (`null`, `undefined` ou `""` dans `label-field`) : légende du pie, axe X des cartésiens (#647). Sans lui, DSFR Chart substituerait « Série N » à un nom vide. Pour EXCLURE ces lignes plutôt que les nommer, filtrer en amont : `where="champ:isnotnull"` (query) ou `where="champ is not null"` (source ODS). |
 | `fill` | `boolean` | `false` | Remplir le graphique (pie chart: true = plein, false = donut) |
 | `gauge-value` | `number \| null` | `null` | Valeur pour la jauge (gauge chart uniquement) |
 | `highlight-index` | `string` | `""` (vide) | Index des éléments à mettre en avant (ex: "[0, 2]") |
 | `horizontal` | `boolean` | `false` | Affichage horizontal (bar chart uniquement) |
 | `label-field` | `string` | `""` (vide) | Chemin vers le champ label |
 | `map-highlight` | `string` | `""` (vide) | ID du département/région à mettre en avant (map chart) |
-| `name` | `string` | `""` (vide) | Noms des séries (ex: '["Série 1", "Série 2"]') |
+| `name` | `string` | `""` (vide) | Nom(s) de série. Chaîne simple recommandée (`name="Taux"`), enveloppée automatiquement pour DSFR Chart ; tableau JSON pour le multi-séries (`name='["Réalisé","Objectif"]'`). Sur les cartes (`map*`), un seul nom : le premier élément d'un JSON est retenu (#653). |
 | `reference-lines` | `string` | `""` (vide) | Lignes de reference (overlay) au format JSON. Graphiques cartesiens uniquement (line, bar, bar-line, scatter). Chaque item : `{ axis: "x"\|"y", value: string\|number, label?, color?, dash?, position? }`. `axis:"x"` → ligne verticale à une catégorie/date ; `axis:"y"` → ligne horizontale a un seuil. Ex : `reference-lines='[{"axis":"x","value":"2026-02", "label":"Lancement","color":"#c9191e","dash":true}]'`. |
 | `selected-palette` | `string` | `'categorical'` | Palette de couleurs |
 | `series-field` | `string` | `""` (vide) | Champ "clé de série" pour des données au format long/tidy : ses valeurs distinctes deviennent autant de series (mode multi-series sans colonnes multiples). Ex: données {mois, groupe, valeur} avec series-field="groupe" → une série par groupe. S'applique aux types multi-series (bar, line, radar). Prioritaire sur value-fields. |
@@ -226,6 +228,12 @@ Quand `databox` est active, dsfr-data-a11y ne doit PAS inclure `table` ni `downl
 | `y-max` | `string` | `""` (vide) | Limite max de l'axe Y. Pour `type="radar"` : borne max de l'echelle radiale ; si `y-min` et `y-max` sont entiers avec une amplitude de 1 a 10, la grille utilise des anneaux entiers (stepSize 1). |
 | `y-min` | `string` | `""` (vide) | Limite min de l'axe Y. Pour `type="radar"` : borne min de l'échelle radiale (le centre du radar est fixé à `y-min` au lieu du minimum des données). |
 
+
+**Méthodes publiques**
+
+| Méthode | Retour | Description |
+|---|---|---|
+| `getSkippedCount()` | `number` | Nombre de lignes ignorees par la derniere carte rendue (`type="map*"`) : code geographique absent, vide ou invalide pour le decoupage. 0 hors carte. |
 
 
 **Événements** (émis sur `document` : ecouter via `document.addEventListener`, filtrer sur `detail.sourceId`)

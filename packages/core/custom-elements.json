@@ -514,6 +514,16 @@
             },
             {
               "kind": "field",
+              "name": "emptyLabel",
+              "type": {
+                "text": "string"
+              },
+              "default": "'Non renseigné'",
+              "description": "Libellé affiché pour une catégorie vide (`null`, `undefined` ou `\"\"`\ndans `label-field`) : légende du pie, axe X des cartésiens (#647).\nSans lui, DSFR Chart substituerait « Série N » à un nom vide.\nPour EXCLURE ces lignes plutôt que les nommer, filtrer en amont :\n`where=\"champ:isnotnull\"` (query) ou `where=\"champ is not null\"` (source ODS).",
+              "attribute": "empty-label"
+            },
+            {
+              "kind": "field",
               "name": "codeField",
               "type": {
                 "text": "string"
@@ -569,7 +579,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Noms des séries (ex: '[\"Série 1\", \"Série 2\"]')",
+              "description": "Nom(s) de série. Chaîne simple recommandée (`name=\"Taux\"`), enveloppée\nautomatiquement pour DSFR Chart ; tableau JSON pour le multi-séries\n(`name='[\"Réalisé\",\"Objectif\"]'`). Sur les cartes (`map*`), un seul nom :\nle premier élément d'un JSON est retenu (#653).",
               "attribute": "name"
             },
             {
@@ -739,7 +749,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Date de la donnée (ex: \"Mars 2024\")",
+              "description": "Date de la donnée (ex: \"Mars 2024\"), affichée dans le pied de la DataBox\net sur les cartes. Aucune date n'est rendue si l'attribut est absent —\nplus de repli sur la date du jour, qui n'est pas celle des données (#650).",
               "attribute": "databox-date"
             },
             {
@@ -1005,6 +1015,25 @@
             },
             {
               "kind": "method",
+              "name": "_labelOf",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "record",
+                  "type": {
+                    "text": "unknown"
+                  }
+                }
+              ],
+              "description": "Libellé d'une ligne : la valeur de `label-field`, ou `empty-label` si elle\nest vide (`null` / `undefined` / `\"\"`) — même rendu quel que soit le chemin\n(group_by serveur → null, group-by client → null, saisie vide → \"\") (#647)."
+            },
+            {
+              "kind": "method",
               "name": "_processTidyData",
               "privacy": "private",
               "return": {
@@ -1025,6 +1054,36 @@
               }
             },
             {
+              "kind": "field",
+              "name": "_skippedGeoCount",
+              "type": {
+                "text": "number"
+              },
+              "privacy": "private",
+              "default": "0",
+              "description": "Lignes ecartees des cartes `map*` faute de code geographique exploitable\n(#648) : compte du dernier `_processMapData`, journalise une fois par jeu\nde donnees et remonte dans la trace du volet Diagnostic (#604)."
+            },
+            {
+              "kind": "field",
+              "name": "_skippedWarnedData",
+              "type": {
+                "text": "unknown[] | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Jeu de donnees pour lequel le warn a deja ete emis (un warn par cycle)"
+            },
+            {
+              "kind": "method",
+              "name": "getSkippedCount",
+              "return": {
+                "type": {
+                  "text": "number"
+                }
+              },
+              "description": "Nombre de lignes ignorees par la derniere carte rendue (`type=\"map*\"`) :\ncode geographique absent, vide ou invalide pour le decoupage. 0 hors carte."
+            },
+            {
               "kind": "method",
               "name": "_processMapData",
               "privacy": "private",
@@ -1043,6 +1102,25 @@
                   "text": "Record<string, string>"
                 }
               }
+            },
+            {
+              "kind": "method",
+              "name": "_mapSeriesName",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "trimmed",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Nom de série d'une carte : `<map-chart>` attend une chaîne simple. Un\ntableau JSON (forme documentée pour les cartésiens) est déplié sur son\npremier élément au lieu d'être affiché littéralement (#653) ; JSON\ninvalide → chaîne telle quelle."
             },
             {
               "kind": "method",
@@ -1480,6 +1558,15 @@
               "fieldName": "labelField"
             },
             {
+              "name": "empty-label",
+              "type": {
+                "text": "string"
+              },
+              "default": "'Non renseigné'",
+              "description": "Libellé affiché pour une catégorie vide (`null`, `undefined` ou `\"\"`\ndans `label-field`) : légende du pie, axe X des cartésiens (#647).\nSans lui, DSFR Chart substituerait « Série N » à un nom vide.\nPour EXCLURE ces lignes plutôt que les nommer, filtrer en amont :\n`where=\"champ:isnotnull\"` (query) ou `where=\"champ is not null\"` (source ODS).",
+              "fieldName": "emptyLabel"
+            },
+            {
               "name": "code-field",
               "type": {
                 "text": "string"
@@ -1530,7 +1617,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Noms des séries (ex: '[\"Série 1\", \"Série 2\"]')",
+              "description": "Nom(s) de série. Chaîne simple recommandée (`name=\"Taux\"`), enveloppée\nautomatiquement pour DSFR Chart ; tableau JSON pour le multi-séries\n(`name='[\"Réalisé\",\"Objectif\"]'`). Sur les cartes (`map*`), un seul nom :\nle premier élément d'un JSON est retenu (#653).",
               "fieldName": "name"
             },
             {
@@ -1683,7 +1770,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Date de la donnée (ex: \"Mars 2024\")",
+              "description": "Date de la donnée (ex: \"Mars 2024\"), affichée dans le pied de la DataBox\net sur les cartes. Aucune date n'est rendue si l'attribut est absent —\nplus de repli sur la date du jour, qui n'est pas celle des données (#650).",
               "fieldName": "databoxDate"
             },
             {
@@ -1882,7 +1969,7 @@
                 "text": "ContextOperator"
               },
               "default": "'eq'",
-              "description": "Opérateur : eq, in, lt, gte, between — et dates (#230, clauses en plages\n[debut, fin)) : month-of, year-of, lt-day-after, last-n-days, current-year",
+              "description": "Opérateur : eq, in, lt, gte, between — et dates (#230, clauses en plages\n[debut, fin)) : month-of, year-of, lt-day-after, last-n-days, current-year.\n\n`year-of` et `month-of` acceptent une date plus precise que l'operateur\net la tronquent (#646) : \"2026-09-09\" -> annee 2026 / mois 2026-09, ce\nqui permet de les nourrir d'un <input type=\"date\"> (il n'existe pas de\ntype=\"year\"). Une valeur qui reste inexploitable (ni date, ni mois, ni\nannee) retire le filtre et le signale par un avertissement console,\nemis une seule fois par filtre.",
               "attribute": "operator"
             },
             {
@@ -1927,6 +2014,16 @@
               "kind": "field",
               "name": "_onUiChange",
               "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "_unusableDateWarned",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false",
+              "description": "Valeur de date inexploitable deja signalee (#646) — un warn par filtre, pas par frappe"
             },
             {
               "kind": "method",
@@ -2039,6 +2136,31 @@
                 }
               },
               "description": "Clause colon du filtre — chaîne vide si l'UI est vide (= retrait).\nLes valeurs sont percent-encodées (#271) : une virgule ou un pipe dans\nune valeur ne casse pas la grammaire."
+            },
+            {
+              "kind": "method",
+              "name": "_unusableDate",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "''"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "raw",
+                  "type": {
+                    "text": "string"
+                  }
+                },
+                {
+                  "name": "expected",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Valeur de date inexploitable (#646) : le filtre est retire (clause vide)\nmais on le DIT — une fois par filtre. Pas reportConfigError : c'est une\nvaleur de runtime, un input texte en emet une a chaque frappe."
             }
           ],
           "attributes": [
@@ -2066,7 +2188,7 @@
                 "text": "ContextOperator"
               },
               "default": "'eq'",
-              "description": "Opérateur : eq, in, lt, gte, between — et dates (#230, clauses en plages\n[debut, fin)) : month-of, year-of, lt-day-after, last-n-days, current-year",
+              "description": "Opérateur : eq, in, lt, gte, between — et dates (#230, clauses en plages\n[debut, fin)) : month-of, year-of, lt-day-after, last-n-days, current-year.\n\n`year-of` et `month-of` acceptent une date plus precise que l'operateur\net la tronquent (#646) : \"2026-09-09\" -> annee 2026 / mois 2026-09, ce\nqui permet de les nourrir d'un <input type=\"date\"> (il n'existe pas de\ntype=\"year\"). Une valeur qui reste inexploitable (ni date, ni mois, ni\nannee) retire le filtre et le signale par un avertissement console,\nemis une seule fois par filtre.",
               "fieldName": "operator"
             },
             {
@@ -3128,7 +3250,7 @@
                 "text": "string"
               },
               "default": "'count'",
-              "description": "Tri des valeurs : count, -count, alpha, -alpha",
+              "description": "Tri des valeurs de chaque facette, grammaire `critere:sens` alignee sur\n`order-by` de dsfr-data-query (#645) :\n- `count:desc` (defaut) : du plus frequent au plus rare\n- `count:asc` : du plus rare au plus frequent\n- `alpha:asc` : A -> Z (collation francaise)\n- `alpha:desc` : Z -> A\nRaccourcis : `count` = `count:desc`, `alpha` = `alpha:asc`.\nFormes `-count` / `-alpha` DEPRECIEES : conservees a l'identique\n(`-count` = rare d'abord, `-alpha` = Z -> A) mais un avertissement console\ninvite a passer a la forme explicite ; retrait dans une version majeure.",
               "attribute": "sort"
             },
             {
@@ -3734,6 +3856,24 @@
               "description": "Filter data by all active selections EXCEPT the given field"
             },
             {
+              "kind": "field",
+              "name": "_deprecatedSortWarned",
+              "privacy": "private",
+              "default": "new Set<string>()",
+              "description": "Formes de `sort` deja signalees comme depreciees (un warn par forme et par instance, #645)"
+            },
+            {
+              "kind": "method",
+              "name": "_resolveSort",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "{ by: 'count' | 'alpha'; dir: 'asc' | 'desc' }"
+                }
+              },
+              "description": "Resout l'attribut `sort` en (critere, sens) — grammaire `critere:sens`\nde `order-by` (#645). Les formes `-count` / `-alpha` restent acceptees\navec leur sens historique mais sont signalees : le tiret y voulait dire\n« inverse du defaut » (croissant pour count, decroissant pour alpha),\nune convention ambigue qu'aucune forme explicite ne partage."
+            },
+            {
               "kind": "method",
               "name": "_sortValues",
               "return": {
@@ -4229,7 +4369,7 @@
                 "text": "string"
               },
               "default": "'count'",
-              "description": "Tri des valeurs : count, -count, alpha, -alpha",
+              "description": "Tri des valeurs de chaque facette, grammaire `critere:sens` alignee sur\n`order-by` de dsfr-data-query (#645) :\n- `count:desc` (defaut) : du plus frequent au plus rare\n- `count:asc` : du plus rare au plus frequent\n- `alpha:asc` : A -> Z (collation francaise)\n- `alpha:desc` : Z -> A\nRaccourcis : `count` = `count:desc`, `alpha` = `alpha:asc`.\nFormes `-count` / `-alpha` DEPRECIEES : conservees a l'identique\n(`-count` = rare d'abord, `-alpha` = Z -> A) mais un avertissement console\ninvite a passer a la forme explicite ; retrait dans une version majeure.",
               "fieldName": "sort"
             },
             {
@@ -4969,7 +5109,7 @@
                 "text": "FormatType"
               },
               "default": "'nombre'",
-              "description": "Format d'affichage: nombre, pourcentage, euro, decimal",
+              "description": "Format d'affichage: nombre, pourcentage, euro, decimal, compact (14 785 684 → « 14,8 M »)",
               "attribute": "format"
             },
             {
@@ -5142,10 +5282,20 @@
               "description": "Dernier message d'erreur de config posé (anti-spam console)."
             },
             {
+              "kind": "field",
+              "name": "_blockingConfigError",
+              "type": {
+                "text": "string | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Erreur de configuration BLOQUANTE (#649) : fonction d'agrégat inconnue\ndans `value` — rendue dans la page à la place d'un KPI vide."
+            },
+            {
               "kind": "method",
               "name": "_validateConfig",
               "privacy": "private",
-              "description": "Diagnostic de configuration (hors render pour garder render() pur) :\n`lines` JSON invalide, ou raccourci hérité `trend` qui ne résout pas en\nnombre. Reporté une seule fois par état (au lieu de disparaître en\nsilence — #338)."
+              "description": "Diagnostic de configuration (hors render pour garder render() pur) :\nfonction d'agrégat inconnue dans `value`/`trend` (#649), `lines` JSON\ninvalide, ou raccourci hérité `trend` qui ne résout pas en nombre.\nReporté une seule fois par état (au lieu de disparaître en silence — #338)."
             },
             {
               "kind": "method",
@@ -5237,7 +5387,7 @@
                 "text": "FormatType"
               },
               "default": "'nombre'",
-              "description": "Format d'affichage: nombre, pourcentage, euro, decimal",
+              "description": "Format d'affichage: nombre, pourcentage, euro, decimal, compact (14 785 684 → « 14,8 M »)",
               "fieldName": "format"
             },
             {
@@ -6157,8 +6307,18 @@
                 "text": "string"
               },
               "default": "'160px'",
-              "description": "Hauteur de la mini-carte",
+              "description": "Hauteur de la mini-carte (px, rem, vh). Un `%` est un ratio de la LARGEUR de l'encart, comme sur `dsfr-data-map`.",
               "attribute": "height"
+            },
+            {
+              "kind": "field",
+              "name": "width",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Largeur de l'encart (px, rem, %). Un `%` est relatif a la largeur de la\ncarte hote : `width=\"20%\"` repartit cinq encarts sur une ligne. Sans\nattribut, la feuille injectee par la carte pose `10rem` — une regle de\npage `dsfr-data-map-inset { width: … }` prime toujours dessus (#643).",
+              "attribute": "width"
             },
             {
               "kind": "field",
@@ -6177,6 +6337,12 @@
               },
               "privacy": "private",
               "default": "null"
+            },
+            {
+              "kind": "method",
+              "name": "_applyWidth",
+              "privacy": "private",
+              "description": "Attribut `width` explicite → style inline ; vide → la feuille injectee decide."
             },
             {
               "kind": "method",
@@ -6227,8 +6393,17 @@
                 "text": "string"
               },
               "default": "'160px'",
-              "description": "Hauteur de la mini-carte",
+              "description": "Hauteur de la mini-carte (px, rem, vh). Un `%` est un ratio de la LARGEUR de l'encart, comme sur `dsfr-data-map`.",
               "fieldName": "height"
+            },
+            {
+              "name": "width",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Largeur de l'encart (px, rem, %). Un `%` est relatif a la largeur de la\ncarte hote : `width=\"20%\"` repartit cinq encarts sur une ligne. Sans\nattribut, la feuille injectee par la carte pose `10rem` — une regle de\npage `dsfr-data-map-inset { width: … }` prime toujours dessus (#643).",
+              "fieldName": "width"
             }
           ],
           "superclass": {
@@ -6588,7 +6763,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Chargement par viewport : re-interroge la source a chaque deplacement de la carte.",
+              "description": "Chargement par viewport : re-interroge la source a chaque deplacement de\nla carte, et une premiere fois des que la carte est prete (#652). Le tout\npremier fetch de la source reste NON filtre (elle charge des sa connexion,\navant que la carte — differee a la visibilite — ait un viewport) : sur un\ngros jeu, poser un `limit` ou un `where` initial sur la source.",
               "attribute": "bbox"
             },
             {
@@ -6648,7 +6823,7 @@
                 "text": "number"
               },
               "default": "5000",
-              "description": "Plafond du nombre d'elements rendus sur la carte.",
+              "description": "Plafond du nombre d'elements rendus sur la carte (défaut 5000). Il protege\nles marqueurs DOM (`divIcon`), le fit et les popups ; au-dela, un bandeau\nindique combien d'elements sont affiches sur le total. Avec `cluster`,\n`max-items=\"20000\"` est sans risque : les marqueurs regroupes ne pesent\npas sur le DOM. En mode `bbox`, zoomer recharge la zone visible ; hors\n`bbox`, seul un `max-items` plus haut (ou un filtre amont) affiche le reste.",
               "attribute": "max-items"
             },
             {
@@ -6813,7 +6988,17 @@
               },
               "privacy": "private",
               "default": "0",
-              "description": "Records ecartes du rendu geoshape faute de geometrie valide (#482)"
+              "description": "Records ecartes du dernier rendu faute de position exploitable : geometrie\ninvalide (geoshape, #482), coordonnees absentes ou non numeriques (marker,\ncircle, heatmap — #648). Un seul compteur pour tous les types."
+            },
+            {
+              "kind": "field",
+              "name": "_skippedWarned",
+              "type": {
+                "text": "number"
+              },
+              "privacy": "private",
+              "default": "-1",
+              "description": "Dernier compte journalise — evite de repeter le warn a chaque re-rendu (pan en bbox client)"
             },
             {
               "kind": "field",
@@ -6900,6 +7085,16 @@
                 }
               },
               "description": "Nombre d'elements effectivement dessines au dernier rendu (marqueurs,\nformes, cercles ou points de chaleur). Contrairement au comptage DOM,\nce compte n'inclut pas les bulles de cluster et couvre la heatmap\n(un seul canvas pour N points) — expose pour les diagnostics (#482)."
+            },
+            {
+              "kind": "method",
+              "name": "getSkippedCount",
+              "return": {
+                "type": {
+                  "text": "number"
+                }
+              },
+              "description": "Nombre de lignes ignorees au dernier rendu faute de position exploitable\n(coordonnees ou geometrie absentes ou invalides). Journalise une fois par\nrendu et remonte dans la trace du volet Diagnostic (#648, #604)."
             },
             {
               "kind": "field",
@@ -7036,6 +7231,17 @@
             },
             {
               "kind": "method",
+              "name": "_scheduleBboxCommand",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "Programme _sendBboxCommand avec anti-rebond (bbox actif et couche visible)."
+            },
+            {
+              "kind": "method",
               "name": "_updateVisibility",
               "privacy": "private"
             },
@@ -7074,6 +7280,17 @@
                   }
                 }
               ]
+            },
+            {
+              "kind": "method",
+              "name": "_describeCoordFields",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "description": "Champs de position tels que configures, pour les messages de diagnostic."
             },
             {
               "kind": "method",
@@ -7425,6 +7642,25 @@
             },
             {
               "kind": "method",
+              "name": "_bannerText",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "displayedCount",
+                  "type": {
+                    "text": "number"
+                  }
+                }
+              ],
+              "description": "Libelle du bandeau max-items (#644). « Zoomez » n'a de sens qu'en mode\n`bbox` (la zone visible est rechargee au zoom) ; hors bbox rien n'est\nrecharge, le seul remede est de relever `max-items` — le dire."
+            },
+            {
+              "kind": "method",
               "name": "_removeBanner",
               "privacy": "private"
             }
@@ -7696,7 +7932,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Chargement par viewport : re-interroge la source a chaque deplacement de la carte.",
+              "description": "Chargement par viewport : re-interroge la source a chaque deplacement de\nla carte, et une premiere fois des que la carte est prete (#652). Le tout\npremier fetch de la source reste NON filtre (elle charge des sa connexion,\navant que la carte — differee a la visibilite — ait un viewport) : sur un\ngros jeu, poser un `limit` ou un `where` initial sur la source.",
               "fieldName": "bbox"
             },
             {
@@ -7750,7 +7986,7 @@
                 "text": "number"
               },
               "default": "5000",
-              "description": "Plafond du nombre d'elements rendus sur la carte.",
+              "description": "Plafond du nombre d'elements rendus sur la carte (défaut 5000). Il protege\nles marqueurs DOM (`divIcon`), le fit et les popups ; au-dela, un bandeau\nindique combien d'elements sont affiches sur le total. Avec `cluster`,\n`max-items=\"20000\"` est sans risque : les marqueurs regroupes ne pesent\npas sur le DOM. En mode `bbox`, zoomer recharge la zone visible ; hors\n`bbox`, seul un `max-items` plus haut (ou un filtre amont) affiche le reste.",
               "fieldName": "maxItems"
             }
           ],
@@ -8610,7 +8846,7 @@
               }
             }
           ],
-          "description": "Clippe des bounds de donnees par un attribut max-bounds \"latSW,lonSW,latNE,lonNE\"\navant un fitBounds. Retourne null si l'intersection est vide (la vue ne doit\npas bouger) ; les bounds inchangees si max-bounds est absent ou invalide.\n\nExpose pour les tests."
+          "description": "Clippe des bounds de donnees par un attribut max-bounds \"latSW,lonSW,latNE,lonNE\"\navant un fitBounds. Retourne null si l'intersection est vide (la vue ne doit\npas bouger) ; les bounds inchangees si max-bounds est absent ou invalide.\n\nUne emprise degeneree (un seul marqueur, plusieurs au meme endroit, segment\nnord-sud ou est-ouest) est VALIDE (#642) : `sud === nord` ou `ouest === est`\ndans la zone donne des bounds d'aire nulle que `fitBounds` cale au zoom\nmaximal sur le point. L'ancienne condition `>=` renvoyait null et laissait\nla vue sur la France entiere pour une recherche par commune.\n\nExpose pour les tests."
         },
         {
           "kind": "variable",
@@ -8755,6 +8991,16 @@
               "default": "''",
               "description": "Limites du deplacement, au format `\"latSW,lonSW,latNE,lonNE\"`.",
               "attribute": "max-bounds"
+            },
+            {
+              "kind": "field",
+              "name": "fitMaxZoom",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "description": "Zoom maximal atteint par `fit-bounds` (ex. `12`) : evite le zoom 18 sur un point isole quand les donnees se reduisent a un marqueur. `0` (defaut) = pas de plafond, `max-zoom` s'applique.",
+              "attribute": "fit-max-zoom"
             },
             {
               "kind": "field",
@@ -9195,6 +9441,15 @@
               "default": "''",
               "description": "Limites du deplacement, au format `\"latSW,lonSW,latNE,lonNE\"`.",
               "fieldName": "maxBounds"
+            },
+            {
+              "name": "fit-max-zoom",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "description": "Zoom maximal atteint par `fit-bounds` (ex. `12`) : evite le zoom 18 sur un point isole quand les donnees se reduisent a un marqueur. `0` (defaut) = pas de plafond, `max-zoom` s'applique.",
+              "fieldName": "fitMaxZoom"
             },
             {
               "name": "name",
@@ -10332,6 +10587,16 @@
             },
             {
               "kind": "field",
+              "name": "_aggregateError",
+              "type": {
+                "text": "string | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Message d'erreur de configuration de `aggregate` (fonction hors liste\nblanche, #649), posé à la (re)négociation ; null si l'expression est valide."
+            },
+            {
+              "kind": "field",
               "name": "_lastDelegation",
               "type": {
                 "text": "{ sourceId: string; cmdJson: string } | null"
@@ -11107,7 +11372,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Affiche un compteur de resultats sous le champ",
+              "description": "Affiche un compteur de resultats sous le champ (compte serveur `meta.total`\nen `server-search`). Ce compteur reste visible en toutes circonstances ;\nseule sa nature de region live depend de la chaine aval (#654).",
               "attribute": "count"
             },
             {
@@ -11525,6 +11790,23 @@
               "name": "_syncUrl",
               "privacy": "private",
               "description": "Sync current search term back to URL (replaceState)"
+            },
+            {
+              "kind": "method",
+              "name": "_hasDownstreamLiveRegion",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "description": "Vrai si un afficheur aval (list, display) consomme ce composant, en direct\nou a travers des intermediaires (`source=\"<id>\"` chaines, ex. facets).\nIl porte alors seul la region live de la chaine : deux regions `polite`\npour un meme geste donnaient deux nombres contradictoires (#654).\nEvalue a chaque rendu (requete d'attribut, cout negligeable) pour suivre\nun DOM aval encore en cours d'analyse au premier rendu. La chaine est\nsuivie par l'ATTRIBUT `source` (usage declaratif) : un consommateur cree\nen JS avec la seule propriete n'est pas vu, search garde alors sa region."
+            },
+            {
+              "kind": "method",
+              "name": "_renderCount",
+              "privacy": "private",
+              "description": "Compteur de resultats. Une seule region live par chaine (#654) : si un\nafficheur aval (list, display) annonce deja son compte, ce composant\nn'annonce rien — le compteur visible de `count` est conserve, mais\nsans `aria-live`, et le compteur sr-only n'est pas rendu."
             }
           ],
           "events": [
@@ -11625,7 +11907,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Affiche un compteur de resultats sous le champ",
+              "description": "Affiche un compteur de resultats sous le champ (compte serveur `meta.total`\nen `server-search`). Ce compteur reste visible en toutes circonstances ;\nseule sa nature de region live depend de la chaine aval (#654).",
               "fieldName": "count"
             },
             {
@@ -11734,7 +12016,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "En-tetes HTTP en JSON. Ex: `'{\"Authorization\": \"Bearer xxx\"}'`",
+              "description": "En-tetes HTTP en JSON. Ex: `'{\"Authorization\": \"Bearer xxx\"}'`.\nOpenDataSoft : la clé va dans `Authorization: Apikey CLE` (seul en-tête\nautorisé en CORS) — un `apikey` nu est réécrit automatiquement (#655).",
               "attribute": "headers"
             },
             {
@@ -11904,7 +12186,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Group-by (pour les APIs qui le supportent server-side)",
+              "description": "Group-by (pour les APIs qui le supportent server-side). ODS : un element\npeut etre une expression aliasee (`year(date) as annee`), transmise telle\nquelle — l'alias `as` est obligatoire cote ODS (#641).",
               "attribute": "group-by"
             },
             {
@@ -12389,7 +12671,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "En-tetes HTTP en JSON. Ex: `'{\"Authorization\": \"Bearer xxx\"}'`",
+              "description": "En-tetes HTTP en JSON. Ex: `'{\"Authorization\": \"Bearer xxx\"}'`.\nOpenDataSoft : la clé va dans `Authorization: Apikey CLE` (seul en-tête\nautorisé en CORS) — un `apikey` nu est réécrit automatiquement (#655).",
               "fieldName": "headers"
             },
             {
@@ -12542,7 +12824,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Group-by (pour les APIs qui le supportent server-side)",
+              "description": "Group-by (pour les APIs qui le supportent server-side). ODS : un element\npeut etre une expression aliasee (`year(date) as annee`), transmise telle\nquelle — l'alias `as` est obligatoire cote ODS (#641).",
               "fieldName": "groupBy"
             },
             {

@@ -210,7 +210,13 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   @property({ type: Number, attribute: 'max-zoom' })
   maxZoom = 18;
 
-  /** Chargement par viewport : re-interroge la source a chaque deplacement de la carte. */
+  /**
+   * Chargement par viewport : re-interroge la source a chaque deplacement de
+   * la carte, et une premiere fois des que la carte est prete (#652). Le tout
+   * premier fetch de la source reste NON filtre (elle charge des sa connexion,
+   * avant que la carte — differee a la visibilite — ait un viewport) : sur un
+   * gros jeu, poser un `limit` ou un `where` initial sur la source.
+   */
   @property({ type: Boolean })
   bbox = false;
 
@@ -238,7 +244,14 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
 
   // --- Performance ---
 
-  /** Plafond du nombre d'elements rendus sur la carte. */
+  /**
+   * Plafond du nombre d'elements rendus sur la carte (défaut 5000). Il protege
+   * les marqueurs DOM (`divIcon`), le fit et les popups ; au-dela, un bandeau
+   * indique combien d'elements sont affiches sur le total. Avec `cluster`,
+   * `max-items="20000"` est sans risque : les marqueurs regroupes ne pesent
+   * pas sur le DOM. En mode `bbox`, zoomer recharge la zone visible ; hors
+   * `bbox`, seul un `max-items` plus haut (ou un filtre amont) affiche le reste.
+   */
   @property({ type: Number, attribute: 'max-items' })
   maxItems = 5000;
 
@@ -264,8 +277,15 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   /** Elements effectivement dessines au dernier rendu (#482) */
   private _renderedCount = 0;
 
-  /** Records ecartes du rendu geoshape faute de geometrie valide (#482) */
+  /**
+   * Records ecartes du dernier rendu faute de position exploitable : geometrie
+   * invalide (geoshape, #482), coordonnees absentes ou non numeriques (marker,
+   * circle, heatmap — #648). Un seul compteur pour tous les types.
+   */
   private _skippedGeoCount = 0;
+
+  /** Dernier compte journalise — evite de repeter le warn a chaque re-rendu (pan en bbox client) */
+  private _skippedWarned = -1;
 
   /** Compagnon popup resolu une fois par rendu (#297) */
   private _popupCompanion: import('./dsfr-data-map-popup.js').DsfrDataMapPopup | null = null;
@@ -313,6 +333,15 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
    */
   getRenderedCount(): number {
     return this._renderedCount;
+  }
+
+  /**
+   * Nombre de lignes ignorees au dernier rendu faute de position exploitable
+   * (coordonnees ou geometrie absentes ou invalides). Journalise une fois par
+   * rendu et remonte dans la trace du volet Diagnostic (#648, #604).
+   */
+  getSkippedCount(): number {
+    return this._skippedGeoCount;
   }
 
   /**
@@ -492,6 +521,12 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     if (this._data.length > 0) {
       this._renderLayer();
     }
+
+    // Mode bbox (#652) : emettre la commande du viewport initial. Leaflet
+    // emet `moveend` pendant L.map(), AVANT que la carte pose son listener
+    // — sans cet appel, rien ne partait tant que l'utilisateur ne bougeait
+    // pas la carte, et le premier rendu ignorait l'emprise.
+    this._scheduleBboxCommand();
   }
 
   /** Called by dsfr-data-map on moveend/zoomend */
@@ -502,10 +537,14 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     this._updateVisibility();
 
     // Viewport-driven fetch (bbox)
-    if (this.bbox && this._visible) {
-      if (this._bboxTimer) clearTimeout(this._bboxTimer);
-      this._bboxTimer = setTimeout(() => this._sendBboxCommand(), this.bboxDebounce);
-    }
+    this._scheduleBboxCommand();
+  }
+
+  /** Programme _sendBboxCommand avec anti-rebond (bbox actif et couche visible). */
+  private _scheduleBboxCommand(): void {
+    if (!this.bbox || !this._visible) return;
+    if (this._bboxTimer) clearTimeout(this._bboxTimer);
+    this._bboxTimer = setTimeout(() => this._sendBboxCommand(), this.bboxDebounce);
   }
 
   connectedCallback() {
@@ -762,13 +801,22 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
       this._renderedCount = this._renderHeatmap(items, Leaf);
     }
 
-    // Geometries inexploitables : signaler au lieu d'echouer en silence (#482
-    // bug 3) — le try/catch de _addGeoshape ignore la ligne, on resume ici
-    if (this.type === 'geoshape' && this._skippedGeoCount > 0) {
-      console.warn(
-        `dsfr-data-map-layer[${this.id || this.source}]: la colonne "${this.geoField || '(geo-field non renseigné)'}" ` +
-          `ne contient pas de géométrie valide pour ${this._skippedGeoCount} enregistrement(s) sur ${items.length} — lignes ignorées`
-      );
+    // Lignes sans position exploitable : signaler au lieu d'echouer en
+    // silence (#482 bug 3, generalise a tous les types #648). Un seul warn
+    // par rendu, et pas de repetition tant que le compte ne change pas
+    // (chaque pan en bbox client re-rend la couche).
+    if (this._skippedGeoCount !== this._skippedWarned) {
+      this._skippedWarned = this._skippedGeoCount;
+      if (this._skippedGeoCount > 0) {
+        const who = `dsfr-data-map-layer[${this.id || this.source}]`;
+        console.warn(
+          this.type === 'geoshape'
+            ? `${who}: la colonne "${this.geoField || '(geo-field non renseigné)'}" ` +
+                `ne contient pas de géométrie valide pour ${this._skippedGeoCount} enregistrement(s) sur ${items.length} — lignes ignorées`
+            : `${who}: ${this._skippedGeoCount} ligne(s) sur ${items.length} sans coordonnées exploitables ` +
+                `(${this._describeCoordFields()}) — lignes ignorées`
+        );
+      }
     }
 
     // Add to map if visible
@@ -824,11 +872,22 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     }
   }
 
+  /** Champs de position tels que configures, pour les messages de diagnostic. */
+  private _describeCoordFields(): string {
+    if (this.latField && this.lonField)
+      return `lat-field="${this.latField}", lon-field="${this.lonField}"`;
+    if (this.geoField) return `geo-field="${this.geoField}"`;
+    return 'auto-détection geo_point_2d / geopoint / geo_point';
+  }
+
   // --- Marker ---
 
   private _addMarker(record: Record<string, unknown>, Leaf: LeafletModule, group: LayerGroup) {
     const coords = this._extractCoords(record);
-    if (!coords) return;
+    if (!coords) {
+      this._skippedGeoCount++;
+      return;
+    }
 
     const markerColor = this._resolveColor(record);
     const icon = Leaf.divIcon({
@@ -917,7 +976,10 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
 
   private _addCircle(record: Record<string, unknown>, Leaf: LeafletModule, group: LayerGroup) {
     const coords = this._extractCoords(record);
-    if (!coords) return;
+    if (!coords) {
+      this._skippedGeoCount++;
+      return;
+    }
 
     let r = this.radius;
     if (this.radiusField) {
@@ -970,7 +1032,10 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     let maxIntensity = 1;
     for (const record of items) {
       const coords = this._extractCoords(record);
-      if (!coords) continue;
+      if (!coords) {
+        this._skippedGeoCount++;
+        continue;
+      }
       let intensity = 1;
       if (this.heatField) {
         const val = Number(getByPath(record, this.heatField));
@@ -1104,8 +1169,13 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   private _extractCoords(record: Record<string, unknown>): { lat: number; lon: number } | null {
     // Mode 1: lat-field + lon-field
     if (this.latField && this.lonField) {
-      const lat = Number(getByPath(record, this.latField));
-      const lon = Number(getByPath(record, this.lonField));
+      const rawLat = getByPath(record, this.latField);
+      const rawLon = getByPath(record, this.lonField);
+      // null / undefined / '' : Number() les vaut 0 — la ligne se dessinait
+      // en (0, 0) dans le golfe de Guinee au lieu d'etre ignoree et comptee (#648)
+      if (rawLat == null || rawLat === '' || rawLon == null || rawLon === '') return null;
+      const lat = Number(rawLat);
+      const lon = Number(rawLon);
       if (!isNaN(lat) && !isNaN(lon)) return { lat, lon };
       return null;
     }
@@ -1374,10 +1444,14 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   private _updateBanner(truncated: boolean, displayedCount: number) {
     this._removeBanner();
     if (!truncated) return;
+    // Carte verrouillee (encart territorial, vignette) : pas de bandeau —
+    // 160 px de haut, il recouvrait les libelles et se repetait dans chaque
+    // encart (#644). La carte principale porte deja l'information.
+    if (this._mapParent?.locked) return;
 
     this._banner = document.createElement('div');
     this._banner.className = 'dsfr-data-map__max-items-banner';
-    this._banner.textContent = `${displayedCount.toLocaleString('fr-FR')} elements affiches sur ${this._totalCount.toLocaleString('fr-FR')} disponibles. Zoomez pour voir plus de detail.`;
+    this._banner.textContent = this._bannerText(displayedCount);
     // Plusieurs layers tronques : empiler les banners au lieu de les
     // superposer (#297)
     const existing =
@@ -1386,6 +1460,20 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
       this._banner.style.bottom = `${10 + existing * 36}px`;
     }
     this._mapParent?.appendChild(this._banner);
+  }
+
+  /**
+   * Libelle du bandeau max-items (#644). « Zoomez » n'a de sens qu'en mode
+   * `bbox` (la zone visible est rechargee au zoom) ; hors bbox rien n'est
+   * recharge, le seul remede est de relever `max-items` — le dire.
+   */
+  private _bannerText(displayedCount: number): string {
+    const shown = displayedCount.toLocaleString('fr-FR');
+    const total = this._totalCount.toLocaleString('fr-FR');
+    if (this.bbox) {
+      return `${shown} éléments affichés sur ${total} disponibles. Zoomez pour voir plus de détail.`;
+    }
+    return `${shown} affichés sur ${total} — relevez max-items pour voir le reste.`;
   }
 
   private _removeBanner() {

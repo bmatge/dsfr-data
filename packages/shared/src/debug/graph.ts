@@ -115,6 +115,13 @@ export interface StageNode {
   attrs: Record<string, string>;
   /** Message posé par `reportConfigError` (attribut requis manquant…). */
   configError?: string;
+  /**
+   * Lignes reçues mais écartées du rendu par un afficheur cartographique —
+   * code ou coordonnées géographiques absents ou invalides (#648). Lu sur
+   * `getSkippedCount()` du composant rehaussé ; absent quand rien n'est
+   * ignoré ou quand le composant ne l'expose pas.
+   */
+  skippedRows?: number;
 }
 
 export interface DataflowGraph {
@@ -132,6 +139,31 @@ function readUpstream(el: Element, tag: string): string[] {
   }
   const source = el.getAttribute('source');
   return source ? [source] : [];
+}
+
+/** Composant qui sait dire combien de lignes il a écartées (#648). */
+interface SkipCountingElement extends Element {
+  getSkippedCount?: () => number;
+}
+
+/**
+ * Lignes écartées par un afficheur, si le composant est rehaussé et l'expose.
+ *
+ * Même doctrine que la délégation des `dsfr-data-query` : on lit une méthode
+ * publique du composant plutôt qu'un événement du bus — un afficheur ne
+ * réémet rien, c'est le seul endroit où cette information existe. Un
+ * composant non rehaussé (bundle absent, tag inconnu) rend `undefined`.
+ */
+function readSkippedRows(el: Element): number | undefined {
+  const counting = el as SkipCountingElement;
+  if (typeof counting.getSkippedCount !== 'function') return undefined;
+  try {
+    const n = counting.getSkippedCount();
+    return typeof n === 'number' && n > 0 ? n : undefined;
+  } catch {
+    // Un composant à moitié initialisé ne doit jamais casser la trace.
+    return undefined;
+  }
 }
 
 function readShapeAttrs(el: Element, tag: string): Record<string, string> {
@@ -184,6 +216,7 @@ export function snapshotGraph(root: ParentNode): DataflowGraph {
     seenIds.add(id);
 
     const configError = el.getAttribute('data-dsfr-config-error');
+    const skippedRows = role === 'display' ? readSkippedRows(el) : undefined;
 
     nodes.push({
       id,
@@ -194,6 +227,7 @@ export function snapshotGraph(root: ParentNode): DataflowGraph {
       upstream: readUpstream(el, tag),
       attrs: readShapeAttrs(el, tag),
       ...(configError ? { configError } : {}),
+      ...(skippedRows !== undefined ? { skippedRows } : {}),
     });
   }
 

@@ -114,6 +114,16 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   labelField = '';
 
   /**
+   * Libellé affiché pour une catégorie vide (`null`, `undefined` ou `""`
+   * dans `label-field`) : légende du pie, axe X des cartésiens (#647).
+   * Sans lui, DSFR Chart substituerait « Série N » à un nom vide.
+   * Pour EXCLURE ces lignes plutôt que les nommer, filtrer en amont :
+   * `where="champ:isnotnull"` (query) ou `where="champ is not null"` (source ODS).
+   */
+  @property({ type: String, attribute: 'empty-label' })
+  emptyLabel = 'Non renseigné';
+
+  /**
    * Chemin vers le champ code (prioritaire sur label-field) : departement/region
    * (map/map-reg), nom d'academie (map-aca), code pays ISO a2/a3/num (map-monde)
    */
@@ -141,7 +151,12 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'series-field' })
   seriesField = '';
 
-  /** Noms des séries (ex: '["Série 1", "Série 2"]') */
+  /**
+   * Nom(s) de série. Chaîne simple recommandée (`name="Taux"`), enveloppée
+   * automatiquement pour DSFR Chart ; tableau JSON pour le multi-séries
+   * (`name='["Réalisé","Objectif"]'`). Sur les cartes (`map*`), un seul nom :
+   * le premier élément d'un JSON est retenu (#653).
+   */
   @property({ type: String })
   name = '';
 
@@ -209,7 +224,11 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'databox-source' })
   databoxSource = '';
 
-  /** Date de la donnée (ex: "Mars 2024") */
+  /**
+   * Date de la donnée (ex: "Mars 2024"), affichée dans le pied de la DataBox
+   * et sur les cartes. Aucune date n'est rendue si l'attribut est absent —
+   * plus de repli sur la date du jour, qui n'est pas celle des données (#650).
+   */
   @property({ type: String, attribute: 'databox-date' })
   databoxDate = '';
 
@@ -397,6 +416,16 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   }
 
   /**
+   * Libellé d'une ligne : la valeur de `label-field`, ou `empty-label` si elle
+   * est vide (`null` / `undefined` / `""`) — même rendu quel que soit le chemin
+   * (group_by serveur → null, group-by client → null, saisie vide → "") (#647).
+   */
+  private _labelOf(record: unknown): string {
+    const v = getByPath(record, this.labelField);
+    return v === null || v === undefined || v === '' ? this.emptyLabel : String(v);
+  }
+
+  /**
    * Build the series matrix for tidy/long data : pivots {labelField, seriesField, valueField}
    * into one aligned value array per distinct series. Missing (label, series) cells are 0.
    */
@@ -413,7 +442,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     const labels: string[] = [];
     const labelIndex = new Map<string, number>();
     for (const record of this._data) {
-      const l = String(getByPath(record, this.labelField) ?? 'N/A');
+      const l = this._labelOf(record);
       if (!labelIndex.has(l)) {
         labelIndex.set(l, labels.length);
         labels.push(l);
@@ -425,7 +454,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     const allSeries: number[][] = seriesNames.map(() => new Array(labels.length).fill(0));
 
     for (const record of this._data) {
-      const l = String(getByPath(record, this.labelField) ?? 'N/A');
+      const l = this._labelOf(record);
       const s = String(getByPath(record, this.seriesField) ?? '');
       const li = labelIndex.get(l);
       const si = seriesIndex.get(s);
@@ -474,7 +503,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     const allSeries: number[][] = allFields.map(() => []);
 
     for (const record of this._data) {
-      labels.push(String(getByPath(record, this.labelField) ?? 'N/A'));
+      labels.push(this._labelOf(record));
       for (let i = 0; i < allFields.length; i++) {
         allSeries[i].push(toNumber(getByPath(record, allFields[i])));
       }
@@ -497,7 +526,26 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     };
   }
 
+  /**
+   * Lignes ecartees des cartes `map*` faute de code geographique exploitable
+   * (#648) : compte du dernier `_processMapData`, journalise une fois par jeu
+   * de donnees et remonte dans la trace du volet Diagnostic (#604).
+   */
+  private _skippedGeoCount = 0;
+
+  /** Jeu de donnees pour lequel le warn a deja ete emis (un warn par cycle) */
+  private _skippedWarnedData: unknown[] | null = null;
+
+  /**
+   * Nombre de lignes ignorees par la derniere carte rendue (`type="map*"`) :
+   * code geographique absent, vide ou invalide pour le decoupage. 0 hors carte.
+   */
+  getSkippedCount(): number {
+    return this._skippedGeoCount;
+  }
+
   private _processMapData(): string {
+    this._skippedGeoCount = 0;
     if (!this._data || this._data.length === 0) return '{}';
 
     const field = this.codeField || this.labelField;
@@ -508,18 +556,37 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
         // <map-chart level="monde"> n'accepte que l'alpha-2 : convertit
         // iso-a3 / iso-num a la volee, ignore les codes inconnus
         code = toIsoA2(code);
-        if (!code) continue;
+        if (!code) {
+          this._skippedGeoCount++;
+          continue;
+        }
       } else if (this.type === 'map-aca') {
         // Cles = nom d'academie en majuscules ("PARIS", "LYON"...)
         code = code.toUpperCase();
-        if (!code) continue;
+        if (!code) {
+          this._skippedGeoCount++;
+          continue;
+        }
       } else {
         // Normalisation partagee (#610) : source unique du padding.
         code = normalizeDeptCode(code);
-        if (this.type === 'map' ? !isValidDeptCode(code) : code === '') continue;
+        if (this.type === 'map' ? !isValidDeptCode(code) : code === '') {
+          this._skippedGeoCount++;
+          continue;
+        }
       }
       const value = toNumber(getByPath(record, this.valueField));
       mapData[code] = Math.round(value * 100) / 100;
+    }
+
+    // Un warn par jeu de donnees (#648) : _processMapData est rappele a
+    // chaque rendu (attributs, refresh), pas seulement a chaque emission
+    if (this._skippedGeoCount > 0 && this._skippedWarnedData !== this._data) {
+      this._skippedWarnedData = this._data;
+      console.warn(
+        `dsfr-data-chart[${this.id}]: ${this._skippedGeoCount} ligne(s) sur ${this._data.length} ` +
+          `ignorée(s) — code géographique absent ou invalide dans "${field}" pour ${this.type}`
+      );
     }
     return JSON.stringify(mapData);
   }
@@ -542,7 +609,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       const trimmed = this.name.trim();
       const isMap = this.type in MAP_LEVEL;
       attrs['name'] = isMap
-        ? trimmed
+        ? this._mapSeriesName(trimmed)
         : trimmed.startsWith('[')
           ? trimmed
           : JSON.stringify([trimmed]);
@@ -557,6 +624,23 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     }
 
     return attrs;
+  }
+
+  /**
+   * Nom de série d'une carte : `<map-chart>` attend une chaîne simple. Un
+   * tableau JSON (forme documentée pour les cartésiens) est déplié sur son
+   * premier élément au lieu d'être affiché littéralement (#653) ; JSON
+   * invalide → chaîne telle quelle.
+   */
+  private _mapSeriesName(trimmed: string): string {
+    if (!trimmed.startsWith('[')) return trimmed;
+    try {
+      const parsed: unknown = JSON.parse(trimmed);
+      if (Array.isArray(parsed) && parsed.length > 0) return String(parsed[0]);
+    } catch {
+      /* JSON invalide : affichage tel quel */
+    }
+    return trimmed;
   }
 
   /** Cibles actives : attribut non vide, parse valide, type supporté. */
@@ -670,11 +754,18 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
         // Le decoupage est choisi par l'attribut level (API unifiee 2.1.0) —
         // statique : Vue le lit au montage et ne l'ecrase pas
         attrs['level'] = MAP_LEVEL[this.type];
-        // All map attributes go in `deferred` because the DSFR Chart Vue component
-        // overwrites props set before mount with their default values.
-        // Deferred attrs are applied via setTimeout(500ms) after Vue has mounted,
-        // triggering the $props watcher which calls createChart() with correct data.
-        deferred['data'] = this._processMapData();
+        // `value` et `date` vont dans `deferred` : le composant Vue de DSFR
+        // Chart ecrase au montage les props qui ont un defaut (`value: ""`,
+        // `date: ""`). Les differes sont re-poses via setTimeout(500ms) apres
+        // le montage, ce qui declenche le watcher $props -> createChart().
+        // `data` est `required` SANS defaut (MapChart.js) : rien ne l'ecrase.
+        // Elle est donc posee immediatement — sinon `mounted()` fait
+        // `JSON.parse(undefined)` et logge « Erreur lors du parsing des
+        // données data » a chaque montage de carte (#651) — ET conservee
+        // dans `deferred` (double pose) pour garder le cycle de re-pose.
+        const mapData = this._processMapData();
+        attrs['data'] = mapData;
+        deferred['data'] = mapData;
         if (this._data.length > 0) {
           let total = 0;
           let count = 0;
@@ -1233,13 +1324,17 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     // creates the Teleport target containers when segmented-control is set.
     // Without it, the chart's Vue <Teleport> has no target and renders outside.
     databoxEl.setAttribute('segmented-control', '');
-    // name, source, date are REQUIRED props for DataBox — always set them.
+    // name and source are REQUIRED props for DataBox — always set them.
     // DSFR Chart 2.1.0 renamed `title` to `name` (conflict with the native
     // HTML title attribute); keep setting `title` too for 2.0.x hosts.
     databoxEl.setAttribute('name', this.databoxTitle || ' ');
     databoxEl.setAttribute('title', this.databoxTitle || ' ');
     databoxEl.setAttribute('source', this.databoxSource || ' ');
-    databoxEl.setAttribute('date', this.databoxDate || new Date().toISOString().split('T')[0]);
+    // Pas de date par défaut (#650) : `new Date()` présentait la date de
+    // RENDU comme date des données sur toute page qui laissait le défaut.
+    // Sans `databox-date`, aucune date n'est rendue (Vue affiche '' pour
+    // une prop absente ; la validation `required` n'existe qu'en build dev).
+    if (this.databoxDate) databoxEl.setAttribute('date', this.databoxDate);
     if (this.databoxDownload) databoxEl.setAttribute('download', '');
     if (this.databoxScreenshot) databoxEl.setAttribute('screenshot', '');
     if (this.databoxFullscreen) databoxEl.setAttribute('fullscreen', '');

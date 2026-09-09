@@ -339,6 +339,154 @@ describe('OpenDataSoftAdapter', () => {
     });
   });
 
+  describe('#641 — group_by : total_count = taille de page, expressions dans group-by', () => {
+    /** Faux serveur ODS : `total_count` vaut la taille de page (bug ODS sur group_by) */
+    function mockGroupedPage(length: number) {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            results: Array.from({ length }, (_, i) => ({ source: `s${i}`, count: i })),
+            total_count: 100,
+          }),
+      });
+    }
+
+    it('AC : total_count = 100 sur 3 pages → les 3 pages sont lues (235 groupes)', async () => {
+      mockGroupedPage(100);
+      mockGroupedPage(100);
+      mockGroupedPage(35);
+
+      const result = await adapter.fetchAll(
+        makeParams({ select: 'count(*)', groupBy: 'source,nature,procedure', limit: 0 }),
+        new AbortController().signal
+      );
+
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+      expect(result.data).toHaveLength(235);
+      expect(mockFetch.mock.calls[1][0] as string).toContain('offset=100');
+      expect(mockFetch.mock.calls[2][0] as string).toContain('offset=200');
+    });
+
+    it('AC : totalCount reste inconnu (undefined) sur une requête group-by', async () => {
+      mockGroupedPage(100);
+      mockGroupedPage(20);
+
+      const result = await adapter.fetchAll(
+        makeParams({ groupBy: 'source', limit: 0 }),
+        new AbortController().signal
+      );
+
+      expect(result.data).toHaveLength(120);
+      expect(result.totalCount).toBeUndefined();
+    });
+
+    it('ne fait pas de warn de troncature sur une page incomplète (total_count ignoré)', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      mockGroupedPage(35);
+
+      await adapter.fetchAll(
+        makeParams({ groupBy: 'source', limit: 0 }),
+        new AbortController().signal
+      );
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(warnSpy).not.toHaveBeenCalled();
+      warnSpy.mockRestore();
+    });
+
+    it('avertit quand le plafond max-records est atteint sur une page pleine (groupes manquants probables)', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      mockGroupedPage(100);
+      mockGroupedPage(100);
+
+      const result = await adapter.fetchAll(
+        makeParams({ groupBy: 'source', limit: 0, maxRecords: 200 }),
+        new AbortController().signal
+      );
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(result.data).toHaveLength(200);
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('group-by'));
+      warnSpy.mockRestore();
+    });
+
+    it('fetchPage : totalCount inconnu sur une requête group-by', async () => {
+      mockGroupedPage(20);
+
+      const result = await adapter.fetchPage(
+        makeParams({ groupBy: 'source' }),
+        { page: 1, effectiveWhere: '', orderBy: '' },
+        new AbortController().signal
+      );
+
+      expect(result.data).toHaveLength(20);
+      expect(result.totalCount).toBeUndefined();
+    });
+
+    it('fetchPage : total_count toujours honoré sans group-by (non-régression)', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ results: [{ id: 1 }], total_count: 4242 }),
+      });
+
+      const result = await adapter.fetchPage(
+        makeParams(),
+        { page: 1, effectiveWhere: '', orderBy: '' },
+        new AbortController().signal
+      );
+
+      expect(result.totalCount).toBe(4242);
+    });
+
+    it('AC : group-by="year(datenotification) as annee" → group_by sans backquotes', () => {
+      const url = new URL(
+        adapter.buildUrl(makeParams({ groupBy: 'year(datenotification) as annee' }))
+      );
+      expect(url.searchParams.get('group_by')).toBe('year(datenotification) as annee');
+      expect(url.toString()).not.toContain('%60');
+    });
+
+    it('expression + agrégat : select reprend l’expression telle quelle', () => {
+      const url = new URL(
+        adapter.buildUrl(
+          makeParams({ groupBy: 'year(datenotification) as annee', aggregate: 'montant:sum' })
+        )
+      );
+      expect(url.searchParams.get('select')).toBe(
+        'sum(montant) as montant__sum, year(datenotification) as annee'
+      );
+    });
+
+    it('mixte : expression brute, champ à espaces toujours échappé (#289)', () => {
+      const url = new URL(
+        adapter.buildServerSideUrl(
+          makeParams({ groupBy: 'year(d) as annee, Date - Journée gazière, region' }),
+          { page: 1, effectiveWhere: '', orderBy: '' }
+        )
+      );
+      expect(url.searchParams.get('group_by')).toBe(
+        'year(d) as annee,`Date - Journée gazière`,region'
+      );
+    });
+
+    /**
+     * Cas de bascule documenté : un NOM DE CHAMP contenant une parenthèse
+     * ("Date (jour)") est indiscernable syntaxiquement d'une expression. Le
+     * choix retenu est de le traiter comme une expression (pas de backquotes).
+     * Acceptable parce que les identifiants techniques ODS sont normalisés en
+     * `[a-z0-9_]` : "Date (jour)" est un libellé (label) affiché, jamais le
+     * `field.name` utilisable dans une clause ODSQL — le cas ne peut donc pas
+     * se présenter avec un vrai champ, alors que `year(d) as annee` est un
+     * besoin réel (#641). Si ODS acceptait un jour des parenthèses dans un
+     * nom de champ, l'utilisateur pourrait le backquoter lui-même.
+     */
+    it('cas de bascule : un nom à parenthèses est traité comme une expression (non échappé)', () => {
+      const url = new URL(adapter.buildUrl(makeParams({ groupBy: 'Date (jour)' })));
+      expect(url.searchParams.get('group_by')).toBe('Date (jour)');
+    });
+  });
+
   describe('Server-side fetch (fetchPage)', () => {
     it('fetches one page and returns data with totalCount', async () => {
       mockFetch.mockResolvedValueOnce({
@@ -489,12 +637,12 @@ describe('OpenDataSoftAdapter', () => {
       });
 
       await adapter.fetchAll(
-        makeParams({ headers: { apikey: 'secret123' } }),
+        makeParams({ headers: { 'X-Custom': 'secret123' } }),
         new AbortController().signal
       );
 
       const fetchOpts = mockFetch.mock.calls[0][1] as RequestInit;
-      expect(fetchOpts.headers).toEqual({ apikey: 'secret123' });
+      expect(fetchOpts.headers).toEqual({ 'X-Custom': 'secret123' });
     });
 
     it('passes headers to fetch in fetchPage', async () => {
@@ -520,13 +668,93 @@ describe('OpenDataSoftAdapter', () => {
       });
 
       await adapter.fetchFacets!(
-        { baseUrl: 'https://data.example.com', datasetId: 'test', headers: { apikey: 'key' } },
+        {
+          baseUrl: 'https://data.example.com',
+          datasetId: 'test',
+          headers: { Authorization: 'Apikey key' },
+        },
         ['field1'],
         ''
       );
 
       const fetchOpts = mockFetch.mock.calls[0][1] as RequestInit;
-      expect(fetchOpts.headers).toEqual({ apikey: 'key' });
+      expect(fetchOpts.headers).toEqual({ Authorization: 'Apikey key' });
+    });
+
+    describe('#655 — normalisation apikey → Authorization: Apikey', () => {
+      const okPage = () =>
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ results: [{ id: 1 }], total_count: 1, facets: [] }),
+        });
+
+      it('AC : fetchAll — `apikey: K` émet `Authorization: Apikey K` et aucun en-tête apikey', async () => {
+        okPage();
+
+        await adapter.fetchAll(
+          makeParams({ headers: { apikey: 'K' } }),
+          new AbortController().signal
+        );
+
+        const headers = (mockFetch.mock.calls[0][1] as RequestInit).headers as Record<
+          string,
+          string
+        >;
+        expect(headers).toEqual({ Authorization: 'Apikey K' });
+        expect(Object.keys(headers).map((k) => k.toLowerCase())).not.toContain('apikey');
+      });
+
+      it('fetchPage — variantes api-key / x-api-key normalisées, autres en-têtes conservés', async () => {
+        okPage();
+
+        await adapter.fetchPage(
+          makeParams({ headers: { 'x-api-key': 'K2', 'X-Custom': 'v' } }),
+          { page: 1, effectiveWhere: '', orderBy: '' },
+          new AbortController().signal
+        );
+
+        expect((mockFetch.mock.calls[0][1] as RequestInit).headers).toEqual({
+          'X-Custom': 'v',
+          Authorization: 'Apikey K2',
+        });
+      });
+
+      it('fetchFacets — normalisation aussi sur l’endpoint /facets', async () => {
+        okPage();
+
+        await adapter.fetchFacets!(
+          { baseUrl: 'https://data.example.com', datasetId: 'test', headers: { apikey: 'K3' } },
+          ['field1'],
+          ''
+        );
+
+        expect((mockFetch.mock.calls[0][1] as RequestInit).headers).toEqual({
+          Authorization: 'Apikey K3',
+        });
+      });
+
+      it('un Authorization explicite est conservé tel quel (idempotence)', async () => {
+        okPage();
+
+        await adapter.fetchAll(
+          makeParams({ headers: { Authorization: 'Apikey déjà', apikey: 'ignorée' } }),
+          new AbortController().signal
+        );
+
+        expect((mockFetch.mock.calls[0][1] as RequestInit).headers).toEqual({
+          Authorization: 'Apikey déjà',
+          apikey: 'ignorée',
+        });
+      });
+
+      it('les params passés à l’adapter ne sont pas mutés', async () => {
+        okPage();
+        const headers = { apikey: 'K' };
+
+        await adapter.fetchAll(makeParams({ headers }), new AbortController().signal);
+
+        expect(headers).toEqual({ apikey: 'K' });
+      });
     });
 
     it('does not set headers when empty', async () => {

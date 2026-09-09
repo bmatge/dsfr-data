@@ -60,13 +60,50 @@ describe('DsfrDataChart', () => {
       expect(result.y2).toBeUndefined();
     });
 
-    it('uses "N/A" for missing labels', () => {
+    // #647 : libellé des catégories vides via `empty-label` (défaut « Non renseigné »)
+    it('uses empty-label default "Non renseigné" for missing labels', () => {
       (chart as any)._data = [{ val: 10 }];
       chart.labelField = 'label';
       chart.valueField = 'val';
 
       const result = (chart as any)._processData();
-      expect(JSON.parse(result.x)).toEqual([['N/A']]);
+      expect(JSON.parse(result.x)).toEqual([['Non renseigné']]);
+    });
+
+    it('applies empty-label to null, undefined and "" alike', () => {
+      (chart as any)._data = [
+        { label: null, val: 1 },
+        { val: 2 },
+        { label: '', val: 3 },
+        { label: 'A', val: 4 },
+      ];
+      chart.labelField = 'label';
+      chart.valueField = 'val';
+
+      const result = (chart as any)._processData();
+      expect(result.labels).toEqual(['Non renseigné', 'Non renseigné', 'Non renseigné', 'A']);
+    });
+
+    it('respects a custom empty-label', () => {
+      (chart as any)._data = [{ label: null, val: 1 }];
+      chart.labelField = 'label';
+      chart.valueField = 'val';
+      chart.emptyLabel = 'Sans objet';
+
+      const result = (chart as any)._processData();
+      expect(result.labels).toEqual(['Sans objet']);
+    });
+
+    it('does not treat 0 or false as empty', () => {
+      (chart as any)._data = [
+        { label: 0, val: 1 },
+        { label: false, val: 2 },
+      ];
+      chart.labelField = 'label';
+      chart.valueField = 'val';
+
+      const result = (chart as any)._processData();
+      expect(result.labels).toEqual(['0', 'false']);
     });
 
     it('uses 0 for non-numeric values', () => {
@@ -222,6 +259,30 @@ describe('DsfrDataChart', () => {
       chart.name = '["Série 1", "Série 2"]';
       const attrs = (chart as any)._getCommonAttributes();
       expect(attrs['name']).toBe('["Série 1", "Série 2"]');
+    });
+
+    // #653 : sur les cartes, `name` est une chaine simple — un JSON est deplie sur [0]
+    it('map: keeps a plain string name as-is', () => {
+      chart.type = 'map';
+      chart.name = 'Taux';
+      const attrs = (chart as any)._getCommonAttributes();
+      expect(attrs['name']).toBe('Taux');
+    });
+
+    it('map: unfolds a JSON array name to its first element (#653)', () => {
+      chart.type = 'map';
+      chart.name = '["Taux"]';
+      expect((chart as any)._getCommonAttributes()['name']).toBe('Taux');
+
+      chart.type = 'map-monde';
+      chart.name = ' ["Taux", "Autre"] ';
+      expect((chart as any)._getCommonAttributes()['name']).toBe('Taux');
+    });
+
+    it('map: leaves an invalid JSON name untouched', () => {
+      chart.type = 'map-reg';
+      chart.name = '[Taux';
+      expect((chart as any)._getCommonAttributes()['name']).toBe('[Taux');
     });
 
     it('auto-generates name from valueField when name is empty', () => {
@@ -406,8 +467,14 @@ describe('DsfrDataChart', () => {
       chart.type = 'map';
       chart.codeField = 'dept';
 
-      const { deferred } = (chart as any)._getTypeSpecificAttributes();
+      const { attrs, deferred } = (chart as any)._getTypeSpecificAttributes();
       expect(deferred['data']).toBeDefined();
+      // #651 : `data` est aussi posee immediatement (prop Vue required sans
+      // defaut, rien ne l'ecrase) — sinon console.error au montage de la carte
+      expect(attrs['data']).toBe(deferred['data']);
+      expect(JSON.parse(attrs['data'])).toEqual({ '75': 100, '13': 200 });
+      // value/date restent differes seuls (defauts Vue qui les ecraseraient)
+      expect(attrs['value']).toBeUndefined();
       expect(deferred['value']).toBeDefined();
       expect(Number(deferred['value'])).toBe(150); // avg of 100 and 200
       // #305 : plus de new Date() — la date du JOUR etait presentee comme
@@ -425,6 +492,21 @@ describe('DsfrDataChart', () => {
       expect(attrs['horizontal']).toBe('true');
       expect(attrs['stacked']).toBe('true');
       expect(attrs['highlight-index']).toBe('[0, 2]');
+    });
+
+    it('pie legend names an empty category with empty-label, never a falsy name (#647)', () => {
+      (chart as any)._data = [
+        { type: 'PME', n: 10 },
+        { type: null, n: 21 },
+      ];
+      chart.type = 'pie';
+      chart.labelField = 'type';
+      chart.valueField = 'n';
+
+      const { attrs } = (chart as any)._getTypeSpecificAttributes();
+      const names: string[] = JSON.parse(attrs['name']);
+      expect(names).toEqual(['PME', 'Non renseigné']);
+      expect(names.every((n) => n.length > 0)).toBe(true);
     });
 
     it('includes fill for pie type', () => {
@@ -606,6 +688,27 @@ describe('DsfrDataChart', () => {
       expect(chartEl.getAttribute('databox-id')).toBe('databox-test-chart');
       expect(chartEl.getAttribute('databox-type')).toBe('chart');
       expect(chartEl.getAttribute('databox-source')).toBe('default');
+    });
+
+    // #650 : plus de date du jour par défaut sur la DataBox
+    it('renders no date on the DataBox when databox-date is absent (#650)', () => {
+      chart.databox = true;
+      chart.databoxTitle = 'Test';
+      chart.databoxSource = 'INSEE';
+
+      const wrapper = (chart as any)._createDataboxElement('bar-chart', { x: '[[]]', y: '[[]]' });
+      const databoxEl = wrapper.querySelector('data-box');
+      expect(databoxEl.hasAttribute('date')).toBe(false);
+      expect(databoxEl.getAttribute('source')).toBe('INSEE');
+    });
+
+    it('passes databox-date through to the DataBox when provided', () => {
+      chart.databox = true;
+      chart.databoxTitle = 'Test';
+      chart.databoxDate = 'Mars 2024';
+
+      const wrapper = (chart as any)._createDataboxElement('bar-chart', { x: '[[]]', y: '[[]]' });
+      expect(wrapper.querySelector('data-box').getAttribute('date')).toBe('Mars 2024');
     });
 
     it('places data-box first in DOM order for Vue Teleport', () => {

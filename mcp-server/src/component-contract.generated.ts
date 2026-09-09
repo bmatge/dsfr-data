@@ -4,7 +4,7 @@
  * Source : packages/core/custom-elements.json (lui-meme genere depuis le code).
  * Regeneration : npm run build:component-contract
  *
- * 23 balises, 254 attributs.
+ * 23 balises, 257 attributs.
  */
 
 export const COMPONENT_CONTRACT = {
@@ -44,6 +44,7 @@ export const COMPONENT_CONTRACT = {
       "databox-tooltip-content",
       "databox-tooltip-title",
       "databox-trend",
+      "empty-label",
       "fill",
       "gauge-value",
       "highlight-index",
@@ -191,6 +192,7 @@ export const COMPONENT_CONTRACT = {
     "attributes": [
       "center",
       "fit-bounds",
+      "fit-max-zoom",
       "height",
       "insets",
       "locked",
@@ -211,6 +213,7 @@ export const COMPONENT_CONTRACT = {
       "height",
       "label",
       "territory",
+      "width",
       "zoom"
     ]
   },

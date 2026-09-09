@@ -295,6 +295,7 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 |---|---|---|---|
 | `center` | `string` | `'46.603,2.888'` | Centre initial de la carte, au format `"lat,lon"`. |
 | `fit-bounds` | `boolean` | `false` | Ajuste le viewport aux donnees a chaque mise a jour. Combine a `max-bounds`, l'emprise est clippee a la zone : les DROM ne dezooment pas la vue, un filtre regional zoome dessus. |
+| `fit-max-zoom` | `number` | `0` | Zoom maximal atteint par `fit-bounds` (ex. `12`) : evite le zoom 18 sur un point isole quand les donnees se reduisent a un marqueur. `0` (defaut) = pas de plafond, `max-zoom` s'applique. |
 | `height` | `string` | `'500px'` | Hauteur CSS (px, vh, rem). Un `%` est un ratio de la LARGEUR (ex: `"60%"` = 60 % de la largeur). |
 | `insets` | `string` | `""` (vide) | Raccourci encarts territoriaux : groupe ("drom") et/ou territoires nommes separes par des virgules ("drom,corse", "guadeloupe,saint-pierre-et-miquelon") |
 | `locked` | `boolean` | `false` | Carte verrouillee : aucune interaction (pan/zoom/clavier) — encarts, vignettes |
@@ -337,7 +338,7 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 
 | Attribut | Type | Défaut | Description |
 |---|---|---|---|
-| `bbox` | `boolean` | `false` | Chargement par viewport : re-interroge la source a chaque deplacement de la carte. |
+| `bbox` | `boolean` | `false` | Chargement par viewport : re-interroge la source a chaque deplacement de la carte, et une premiere fois des que la carte est prete (#652). Le tout premier fetch de la source reste NON filtre (elle charge des sa connexion, avant que la carte — differee a la visibilite — ait un viewport) : sur un gros jeu, poser un `limit` ou un `where` initial sur la source. |
 | `bbox-debounce` | `number` | `300` | Delai d'anti-rebond avant le re-fetch bbox, en millisecondes. |
 | `bbox-field` | `string` | `""` (vide) | Champ géographique utilisé pour la requête bbox (auto-détecté si vide). |
 | `cluster` | `boolean` | `false` | Regroupe les marqueurs proches en clusters. |
@@ -353,7 +354,7 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `heat-radius` | `number` | `25` | Rayon d'influence de chaque point de la heatmap, en pixels. |
 | `lat-field` | `string` | `""` (vide) | Chemin vers le champ latitude (mode coordonnees separees). |
 | `lon-field` | `string` | `""` (vide) | Chemin vers le champ longitude (mode coordonnees separees). |
-| `max-items` | `number` | `5000` | Plafond du nombre d'elements rendus sur la carte. |
+| `max-items` | `number` | `5000` | Plafond du nombre d'elements rendus sur la carte (défaut 5000). Il protege les marqueurs DOM (`divIcon`), le fit et les popups ; au-dela, un bandeau indique combien d'elements sont affiches sur le total. Avec `cluster`, `max-items="20000"` est sans risque : les marqueurs regroupes ne pesent pas sur le DOM. En mode `bbox`, zoomer recharge la zone visible ; hors `bbox`, seul un `max-items` plus haut (ou un filtre amont) affiche le reste. |
 | `max-zoom` | `number` | `18` | Niveau de zoom au-dela duquel la couche est masquee. |
 | `min-zoom` | `number` | `0` | Niveau de zoom en deca duquel la couche est masquee. |
 | `no-interactive` | `boolean` | `false` | Couche decorative : aucune interaction (pas de clic, tooltip ni popup) — contours administratifs, habillage |
@@ -379,6 +380,7 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | Méthode | Retour | Description |
 |---|---|---|
 | `getRenderedCount()` | `number` | Nombre d'elements effectivement dessines au dernier rendu (marqueurs, formes, cercles ou points de chaleur). Contrairement au comptage DOM, ce compte n'inclut pas les bulles de cluster et couvre la heatmap (un seul canvas pour N points) — expose pour les diagnostics (#482). |
+| `getSkippedCount()` | `number` | Nombre de lignes ignorees au dernier rendu faute de position exploitable (coordonnees ou geometrie absentes ou invalides). Journalise une fois par rendu et remonte dans la trace du volet Diagnostic (#648, #604). |
 | `getTimeSteps()` | `string[]` | Returns sorted time step labels |
 | `resetTimeline()` | `void` | Called by dsfr-data-map-timeline to reset (show all data) |
 | `setTimelineFrame(index: number)` | `void` | Called by dsfr-data-map-timeline to set current frame |
@@ -441,9 +443,10 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | Attribut | Type | Défaut | Description |
 |---|---|---|---|
 | `center` | `string` | `""` (vide) | Centre "lat,lon" de l'encart (requis sans territory ; prioritaire sur le preset) |
-| `height` | `string` | `'160px'` | Hauteur de la mini-carte |
+| `height` | `string` | `'160px'` | Hauteur de la mini-carte (px, rem, vh). Un `%` est un ratio de la LARGEUR de l'encart, comme sur `dsfr-data-map`. |
 | `label` | `string` | `""` (vide) | Libelle affiche au-dessus de l'encart (et nom accessible de la mini-carte) |
 | `territory` | `string` | `""` (vide) | Territoire predefini (guadeloupe, martinique, guyane, la-reunion, mayotte, saint-pierre-et-miquelon, saint-martin, saint-barthelemy, nouvelle-caledonie, polynesie-francaise, wallis-et-futuna, corse) — fournit center/zoom/label |
+| `width` | `string` | `""` (vide) | Largeur de l'encart (px, rem, %). Un `%` est relatif a la largeur de la carte hote : `width="20%"` repartit cinq encarts sur une ligne. Sans attribut, la feuille injectee par la carte pose `10rem` — une regle de page `dsfr-data-map-inset { width: … }` prime toujours dessus (#643). |
 | `zoom` | `number` | `0` | Zoom fixe de l'encart (prioritaire sur le preset) |
 
 

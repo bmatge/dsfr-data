@@ -14,7 +14,7 @@ et par l'action `reloadData` du builder-IA.
 |-----------|-------------|---------|
 | select | Champs a retourner (avec aliases) | `select=nom,population` ou `select=avg(prix) as prix_moyen` |
 | where | Condition de filtrage | `where=population>10000` ou `where=nom like "Paris%"` |
-| group_by | Champ de groupement | `group_by=region` |
+| group_by | Champ de groupement, ou expression **avec alias obligatoire** (`as`) | `group_by=region` ou `group_by=year(date) as annee` |
 | order_by | Tri | `order_by=population DESC` |
 | limit | Max resultats (défaut: 10, max: 100 par requête) | `limit=100` |
 | offset | Pagination | `offset=100` |
@@ -40,6 +40,11 @@ dsfr-data-query gere automatiquement la pagination via offset quand la limite de
 ### Fonctions sur les dates
 - year(date), month(date), day(date)
 - date_format(date, "YYYY-MM")
+
+Grouper par une expression de date : `group-by="year(date) as annee"` — l'alias `as` est
+OBLIGATOIRE cote ODS pour une expression (sans alias : HTTP 400). L'expression est transmise
+telle quelle (pas de backquotes), seuls les noms de champs a espaces sont echappes.
+NE PAS contourner avec "champ brut dans group-by, fonction dans select" : cela ne groupe pas par annee.
 
 ### Exemple complet
 `?select=region,avg(prix) as prix_moyen&where=annee>=2020&group_by=region&order_by=prix_moyen DESC&limit=10`

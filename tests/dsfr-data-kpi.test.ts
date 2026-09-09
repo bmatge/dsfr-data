@@ -425,6 +425,61 @@ describe('DsfrDataKpi', () => {
       kpi.remove();
     });
 
+    // #649 : fonction d'agrégat inconnue → erreur de configuration visible, pas de KPI vide
+    it('renders a visible config error on an unknown aggregate function (#649)', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      clearDataCache('kpi-bad-fn');
+      kpi.source = 'kpi-bad-fn';
+      kpi.value = 'x:somme';
+      kpi.label = 'Total';
+      document.body.appendChild(kpi);
+      kpi.connectedCallback();
+      dispatchDataLoaded('kpi-bad-fn', [{ x: 1 }, { x: 2 }]);
+      await kpi.updateComplete;
+
+      const marker = kpi.getAttribute('data-dsfr-config-error') || '';
+      expect(marker).toContain('value="x:somme"');
+      expect(marker).toContain('"somme"');
+      expect(marker).toContain('avg, sum, count, min, max, first, last');
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('dsfr-data-kpi: value="x:somme"')
+      );
+
+      // Statut rendu dans la page, pas de valeur vide
+      const status = kpi.querySelector('.dsfr-data-status--config-error');
+      expect(status).not.toBeNull();
+      expect(status!.getAttribute('role')).toBe('alert');
+      expect(status!.textContent).toContain('Erreur de configuration');
+      expect(kpi.querySelector('.dsfr-data-kpi__value')).toBeNull();
+
+      // Corriger l'expression efface l'erreur et rend la valeur
+      kpi.value = 'x:sum';
+      await kpi.updateComplete;
+      expect(kpi.hasAttribute('data-dsfr-config-error')).toBe(false);
+      expect(kpi.querySelector('.dsfr-data-status--config-error')).toBeNull();
+      expect(kpi.querySelector('.dsfr-data-kpi__value')!.textContent!.trim()).toBe('3');
+
+      errorSpy.mockRestore();
+      kpi.remove();
+    });
+
+    it('reports an unknown aggregate function in trend (#649)', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      clearDataCache('kpi-bad-trend-fn');
+      kpi.source = 'kpi-bad-trend-fn';
+      kpi.value = 'v:sum';
+      kpi.trend = 'evol:moyenne';
+      document.body.appendChild(kpi);
+      kpi.connectedCallback();
+      dispatchDataLoaded('kpi-bad-trend-fn', [{ v: 1, evol: 2 }]);
+      await kpi.updateComplete;
+      expect(kpi.getAttribute('data-dsfr-config-error') || '').toContain('"moyenne"');
+      // Le KPI reste rendu : seule la tendance est en cause
+      expect(kpi.querySelector('.dsfr-data-kpi__value')).not.toBeNull();
+      errorSpy.mockRestore();
+      kpi.remove();
+    });
+
     it('reports a config error when legacy trend is a literal (#338)', async () => {
       clearDataCache('kpi-bad-trend');
       kpi.source = 'kpi-bad-trend';

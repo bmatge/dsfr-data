@@ -6,8 +6,8 @@ import type { Source } from '../../../apps/builder-ia/src/state';
 import type { FilterOperator, AggregateFunction } from '@/components/dsfr-data-query.js';
 
 describe('builder-ia skills', () => {
-  it('should have 29 skill definitions', () => {
-    expect(Object.keys(SKILLS)).toHaveLength(29);
+  it('should have 30 skill definitions', () => {
+    expect(Object.keys(SKILLS)).toHaveLength(30);
   });
 
   it('should have expected skill IDs', () => {
@@ -36,6 +36,7 @@ describe('builder-ia skills', () => {
     expect(SKILLS).toHaveProperty('dsfrDataJoin');
     expect(SKILLS).toHaveProperty('dsfrDataPodium');
     expect(SKILLS).toHaveProperty('dsfrDataBeacon');
+    expect(SKILLS).toHaveProperty('attributeGrammars');
   });
 
   it('each skill should have required properties', () => {
@@ -135,6 +136,27 @@ describe('builder-ia skills', () => {
       const result = getRelevantSkills('filtre par departement', null);
       const ids = result.map((s) => s.id);
       expect(ids).toContain('dsfrDataQuery');
+    });
+
+    // #657 — chaque voie native ratee par le banc d'essai doit remonter la
+    // fiche « grammaires d'attributs » sur sa question naturelle.
+    it.each([
+      'comment découper une colonne sur |',
+      'arrondir un taux à 2 décimales',
+      'afficher 14,8 M au lieu du nombre complet, format abrégé',
+      'afficher le nombre de résultats total côté serveur',
+      'facette en choix unique avec des boutons radio',
+      'facettes en cascade : la région filtre les départements',
+      'filtrer sur l’année en cours sans script',
+      'la jointure ne matche pas à cause du zéro initial',
+      'exclure les valeurs nulles du graphique (is not null)',
+      'fond de carte neutre en niveaux de gris',
+      'afficher les contours des départements en fond administratif',
+      'changer le nom de la série du graphique',
+      'faire un treemap',
+    ])('« %s » remonte attributeGrammars', (question) => {
+      const ids = getRelevantSkills(question, null).map((s) => s.id);
+      expect(ids).toContain('attributeGrammars');
     });
   });
 

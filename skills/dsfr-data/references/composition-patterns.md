@@ -54,6 +54,11 @@ Pour ameliorer l'accessibilité, ajoutez `dsfr-data-a11y` apres chaque visualisa
 ```
 L'attribut `for` injecte un skip link et pose `aria-describedby` + `aria-details` sur le graphique cible.
 
+**Une seule région live par chaîne** : le compte de résultats est annoncé (`aria-live`) par le
+seul composant terminal (`dsfr-data-list`, `dsfr-data-display`). `dsfr-data-search` se tait
+quand l'un d'eux est en aval (même via facets) et n'annonce que s'il est seul. Ne jamais
+empiler une région live de page par-dessus (#654).
+
 ### Pipeline simplifie : Source -> Visualisation (sans transformation)
 ```html
 <dsfr-data-source id="data" url="https://api.fr/records" transform="results"></dsfr-data-source>
@@ -176,7 +181,7 @@ Le code généré doit etre un **snippet** pret a copier-coller dans une page ex
 - L'utilisateur collera ce snippet dans sa propre page.
 
 ### Dependances CDN requises
-Toujours inclure ces 6 dependances dans cet ordre exact :
+Toujours inclure ces 5 dependances dans cet ordre exact :
 ```html
 <!-- CSS DSFR (obligatoire) -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css">
@@ -184,19 +189,19 @@ Toujours inclure ces 6 dependances dans cet ordre exact :
 
 <!-- DSFR Chart (obligatoire pour les graphiques) -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.1.1/dist/DSFRChart/DSFRChart.css">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.1.1/dist/DSFRChart/DSFRChart.js"></script>
 
 <!-- dsfr-data (obligatoire) -->
 <script src="https://VOTRE_INSTANCE/dist/dsfr-data.core.umd.js"></script>
 ```
+**Ne jamais charger Chart.js a part** (`chart.umd.min.js` ou equivalent) : DSFR Chart embarque
+sa propre copie de Chart.js dans `DSFRChart.js`. Un second script a cote pese ~200 Ko pour rien.
 
 ### Exemple de snippet complet
 ```html
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.1.1/dist/DSFRChart/DSFRChart.css">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.1.1/dist/DSFRChart/DSFRChart.js"></script>
 <script src="https://VOTRE_INSTANCE/dist/dsfr-data.core.umd.js"></script>
 

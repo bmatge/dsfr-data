@@ -2,7 +2,7 @@
  * Decoupage des skills en sections adressables (#513).
  *
  * L'exigence forte est l'invariant de PARTITION : passer aux sections ne doit
- * faire disparaitre aucune connaissance. Les tests verifient donc, pour les 29
+ * faire disparaitre aucune connaissance. Les tests verifient donc, pour les 30
  * skills reelles, que chaque bloc du contenu se retrouve dans exactement une
  * section — pas seulement que le decoupage « marche » sur un exemple jouet.
  */

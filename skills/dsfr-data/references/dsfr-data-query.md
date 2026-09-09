@@ -77,6 +77,13 @@ Multiples filtres separes par virgule (logique ET) :
 | isnull | Est vide/null | `"email:isnull"` |
 | isnotnull | N'est pas vide | `"telephone:isnotnull"` |
 
+**Catégories vides et parité ods-chart** : un group-by sur un champ partiellement
+renseigné produit un groupe `null` (jamais `""`), que dsfr-data-chart libelle
+« Non renseigné » (attribut `empty-label`). Rien n'est masqué par défaut. Pour
+EXCLURE ces lignes comme le fait ods-chart, filtrer explicitement en amont :
+`where="champ:isnotnull"` sur dsfr-data-query, ou `where="champ is not null"`
+(ODSQL) sur dsfr-data-source.
+
 ### Fonctions d'agrégation
 Format : `"champ:fonction"` ou `"champ:fonction:alias"`
 Nommage automatique sans alias : `champ__fonction` (ex: `population__sum`)
@@ -88,6 +95,9 @@ Nommage automatique sans alias : `champ__fonction` (ex: `population__sum`)
 | avg | Moyenne | `"prix:avg"` |
 | min | Minimum | `"temperature:min"` |
 | max | Maximum | `"score:max"` |
+
+Toute autre fonction (`somme`, `moyenne`, `median`…) est une **erreur de configuration**
+visible (console + `data-dsfr-config-error`, composants aval en erreur) — jamais un 0 silencieux.
 
 ### Exemples
 ```html
