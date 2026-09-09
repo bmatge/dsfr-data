@@ -563,7 +563,7 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
       const id = queue.shift() as string;
       if (visited.has(id)) continue;
       visited.add(id);
-      const consumers = document.querySelectorAll(`[source="${id.replace(/"/g, '\\"')}"]`);
+      const consumers = document.querySelectorAll(`[source="${id.replace(/["\\]/g, '\\$&')}"]`);
       for (const el of Array.from(consumers)) {
         if (DOWNSTREAM_LIVE_COUNT_TAGS.has(el.tagName.toLowerCase())) return true;
         if (el.id) queue.push(el.id);
