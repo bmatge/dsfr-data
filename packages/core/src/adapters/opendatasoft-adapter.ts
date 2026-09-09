@@ -66,14 +66,39 @@ function escapeOdsqlIdentifier(field: string): string {
   return '`' + field.replace(/`/g, '') + '`';
 }
 
-/** Echappe chaque champ d'une liste group-by "a, b" → "a,`b c`" */
-function escapeOdsqlGroupBy(groupBy: string): string {
+/**
+ * Un element de group-by est soit un nom de champ, soit une expression ODSQL
+ * (`year(d) as annee`, #641). Une expression contient une parenthese ouvrante
+ * et passe telle quelle : la backquoter en ferait un nom de champ inconnu
+ * (HTTP 400 "Unknown field"). Un nom de champ a espaces (#289) reste echappe.
+ *
+ * Cas de bascule assume : un nom de champ contenant lui-meme une parenthese
+ * ("Date (jour)") est traite comme une expression et n'est plus echappe. ODS
+ * impose des noms techniques de champ en `[a-z0-9_]` (les libelles a espaces
+ * ou parentheses sont des labels, pas des identifiants ODSQL) — un tel cas
+ * ne se rencontre pas en pratique, et une expression avec `(` est le cas
+ * reel a servir.
+ */
+function isOdsqlExpression(field: string): boolean {
+  return field.includes('(');
+}
+
+/** Echappe un element de group-by : identifiant echappe, expression brute */
+function escapeOdsqlGroupField(field: string): string {
+  return isOdsqlExpression(field) ? field : escapeOdsqlIdentifier(field);
+}
+
+/** Decoupe une liste group-by "a, b" en elements non vides */
+function splitGroupBy(groupBy: string): string[] {
   return groupBy
     .split(',')
     .map((f) => f.trim())
-    .filter(Boolean)
-    .map(escapeOdsqlIdentifier)
-    .join(',');
+    .filter(Boolean);
+}
+
+/** Echappe chaque champ d'une liste group-by "a, b" → "a,`b c`" */
+function escapeOdsqlGroupBy(groupBy: string): string {
+  return splitGroupBy(groupBy).map(escapeOdsqlGroupField).join(',');
 }
 
 export class OpenDataSoftAdapter implements ApiAdapter {
@@ -102,9 +127,14 @@ export class OpenDataSoftAdapter implements ApiAdapter {
    *
    * - limit > 0 : fetch exactement ce nombre de records
    * - limit = 0 : fetch TOUS les records disponibles (via total_count)
+   *
+   * Sur une requete avec `group_by`, ODS renvoie `total_count` = taille de
+   * page, pas le nombre de groupes (#641) : la valeur est ignoree, on boucle
+   * jusqu'a une page incomplete et `totalCount` reste inconnu.
    */
   async fetchAll(params: AdapterParams, signal: AbortSignal): Promise<FetchResult> {
     const fetchAllRecords = params.limit <= 0;
+    const isGrouped = Boolean(params.groupBy);
     // max-records (#233) : plafond configurable — le 1000 historique n'est
     // PAS une limite de l'API ODS, defaut conserve en garde-fou
     const maxRecords =
@@ -117,6 +147,7 @@ export class OpenDataSoftAdapter implements ApiAdapter {
     let allResults: unknown[] = [];
     let offset = 0;
     let totalCount = -1;
+    let lastPageFull = false;
 
     for (let page = 0; page < maxPages; page++) {
       const remaining = requestedLimit - allResults.length;
@@ -135,8 +166,9 @@ export class OpenDataSoftAdapter implements ApiAdapter {
       const json = await response.json();
       const pageResults = json.results || [];
       allResults = allResults.concat(pageResults);
+      lastPageFull = pageResults.length >= pageSize;
 
-      if (typeof json.total_count === 'number') {
+      if (!isGrouped && typeof json.total_count === 'number') {
         totalCount = json.total_count;
       }
 
@@ -161,17 +193,25 @@ export class OpenDataSoftAdapter implements ApiAdapter {
         `[dsfr-data] opendatasoft: pagination incomplete - ${allResults.length}/${totalCount} resultats recuperes ` +
           `(plafond max-records: ${maxRecords} — relevable via l'attribut max-records, #233)`
       );
+    } else if (isGrouped && fetchAllRecords && lastPageFull && allResults.length >= maxRecords) {
+      // Groupes : total inconnu, mais un plafond atteint sur une page pleine
+      // laisse probablement des groupes derriere (#641)
+      console.warn(
+        `[dsfr-data] opendatasoft: plafond max-records (${maxRecords}) atteint sur une requete group-by, ` +
+          `des groupes peuvent manquer (total inconnu — relevable via l'attribut max-records, #233)`
+      );
     }
 
     return {
       data: allResults,
-      totalCount: totalCount >= 0 ? totalCount : allResults.length,
+      totalCount: isGrouped ? undefined : totalCount >= 0 ? totalCount : allResults.length,
       needsClientProcessing: false,
     };
   }
 
   /**
-   * Fetch une seule page en mode server-side.
+   * Fetch une seule page en mode server-side. Avec `group_by`, `total_count`
+   * n'est pas fiable (taille de page, #641) : `totalCount` reste inconnu.
    */
   async fetchPage(
     params: AdapterParams,
@@ -187,7 +227,11 @@ export class OpenDataSoftAdapter implements ApiAdapter {
 
     const json = await response.json();
     const data = json.results || [];
-    const totalCount = typeof json.total_count === 'number' ? json.total_count : 0;
+    const totalCount = params.groupBy
+      ? undefined
+      : typeof json.total_count === 'number'
+        ? json.total_count
+        : 0;
 
     return {
       data,
@@ -367,12 +411,10 @@ export class OpenDataSoftAdapter implements ApiAdapter {
       selectParts.push(`${odsFunc} as ${escapeOdsqlIdentifier(alias)}`);
     }
 
-    const groupFields = params.groupBy
-      .split(',')
-      .map((f) => f.trim())
-      .filter(Boolean);
-    for (const gf of groupFields) {
-      selectParts.push(escapeOdsqlIdentifier(gf));
+    // Une expression (`year(d) as annee`) est reprise telle quelle dans le
+    // select : ODS accepte l'expression aliasee des deux cotes (#641)
+    for (const gf of splitGroupBy(params.groupBy)) {
+      selectParts.push(escapeOdsqlGroupField(gf));
     }
 
     return selectParts.join(', ');

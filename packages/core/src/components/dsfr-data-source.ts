@@ -140,7 +140,11 @@ export class DsfrDataSource extends LitElement {
   @property({ type: String })
   select = '';
 
-  /** Group-by (pour les APIs qui le supportent server-side) */
+  /**
+   * Group-by (pour les APIs qui le supportent server-side). ODS : un element
+   * peut etre une expression aliasee (`year(date) as annee`), transmise telle
+   * quelle — l'alias `as` est obligatoire cote ODS (#641).
+   */
   @property({ type: String, attribute: 'group-by' })
   groupBy = '';
 
