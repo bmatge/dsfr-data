@@ -1,0 +1,78 @@
+name: Guide examples
+
+# Verifie que les exemples du guide chargent encore leurs donnees.
+#
+# Les pages de `guide/` sont branchees sur des API tierces (INSEE Melodi,
+# OpenDataSoft, Tabular data.gouv.fr, Ghibli). Quand un producteur renomme ou
+# retire un jeu, la page casse sans qu'aucun commit n'ait bouge : la panne
+# arrive de l'exterieur du depot.
+#
+# Deux cas reels ont ete decouverts par signalement utilisateur alors que
+# `e2e/guide-examples.spec.ts` les detectait deja (il asserte l'absence
+# d'erreur console sur chaque page), faute d'etre lance nulle part :
+#   - #596/#630 : l'INSEE a renomme DS_ERFS_MENAGE_SL -> DS_ERFS_NON_RETROPOLE
+#                 et sa nomenclature de mesures ;
+#   - #631      : le jeu ODS population-francaise-communes a ete supprime.
+#
+# DECLENCHEMENT PLANIFIE, PAS SUR PR (#632) : ces tests dependent de la
+# disponibilite de services externes. Les cabler sur chaque pull request
+# ferait echouer des PR sans aucun rapport des qu'une API tierce est lente ou
+# en maintenance. Le risque couvert est temporel, le declenchement l'est aussi.
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Quotidien, 06:00 UTC — un exemple casse est visible par les lecteurs du
+    # guide, une detection hebdomadaire laisserait passer jusqu'a 7 jours.
+    - cron: '0 6 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  guide-examples:
+    name: Exemples du guide — sources externes
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # Le serveur de dev (lance par la config Playwright) sert les apps via
+      # l'alias Vite vers packages/shared/src, mais tsc lit packages/shared/dist
+      # — un dist absent ou perime casse le demarrage (ARCHITECTURE.md §12).
+      - name: Build shared
+        run: npm run build:shared
+
+      - name: Build lib
+        run: npm run build
+
+      - name: Install Playwright (chromium)
+        run: npx playwright install --with-deps chromium
+
+      # Playwright demarre `npm run dev` lui-meme (webServer dans
+      # e2e/playwright.config.ts) et attend le port 5173.
+      # --retries=2 : la config e2e est a `retries: 0`, adapte a des tests
+      # deterministes. Ici chaque test tape sur une API tierce et un alea reseau
+      # suffit a faire echouer une source (observe en validation : un
+      # « Failed to fetch » transitoire sur OpenDataSoft, suivi d'un 200 au
+      # passage suivant). Une vraie disparition de jeu reste deterministe — 400
+      # ou 404 a chaque tentative — donc elle echoue les trois fois.
+      - name: Guide examples
+        run: npx playwright test --config e2e/playwright.config.ts e2e/guide-examples.spec.ts --project=chromium --retries=2
+
+      - name: Upload captures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: guide-screenshots
+          path: e2e/screenshots/guide/
+          if-no-files-found: ignore
+          retention-days: 14
