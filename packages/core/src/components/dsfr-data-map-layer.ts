@@ -238,7 +238,14 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
 
   // --- Performance ---
 
-  /** Plafond du nombre d'elements rendus sur la carte. */
+  /**
+   * Plafond du nombre d'elements rendus sur la carte (defaut 5000). Il protege
+   * les marqueurs DOM (`divIcon`), le fit et les popups ; au-dela, un bandeau
+   * indique combien d'elements sont affiches sur le total. Avec `cluster`,
+   * `max-items="20000"` est sans risque : les marqueurs regroupes ne pesent
+   * pas sur le DOM. En mode `bbox`, zoomer recharge la zone visible ; hors
+   * `bbox`, seul un `max-items` plus haut (ou un filtre amont) affiche le reste.
+   */
   @property({ type: Number, attribute: 'max-items' })
   maxItems = 5000;
 
@@ -1374,10 +1381,14 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   private _updateBanner(truncated: boolean, displayedCount: number) {
     this._removeBanner();
     if (!truncated) return;
+    // Carte verrouillee (encart territorial, vignette) : pas de bandeau —
+    // 160 px de haut, il recouvrait les libelles et se repetait dans chaque
+    // encart (#644). La carte principale porte deja l'information.
+    if (this._mapParent?.locked) return;
 
     this._banner = document.createElement('div');
     this._banner.className = 'dsfr-data-map__max-items-banner';
-    this._banner.textContent = `${displayedCount.toLocaleString('fr-FR')} elements affiches sur ${this._totalCount.toLocaleString('fr-FR')} disponibles. Zoomez pour voir plus de detail.`;
+    this._banner.textContent = this._bannerText(displayedCount);
     // Plusieurs layers tronques : empiler les banners au lieu de les
     // superposer (#297)
     const existing =
@@ -1386,6 +1397,20 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
       this._banner.style.bottom = `${10 + existing * 36}px`;
     }
     this._mapParent?.appendChild(this._banner);
+  }
+
+  /**
+   * Libelle du bandeau max-items (#644). « Zoomez » n'a de sens qu'en mode
+   * `bbox` (la zone visible est rechargee au zoom) ; hors bbox rien n'est
+   * recharge, le seul remede est de relever `max-items` — le dire.
+   */
+  private _bannerText(displayedCount: number): string {
+    const shown = displayedCount.toLocaleString('fr-FR');
+    const total = this._totalCount.toLocaleString('fr-FR');
+    if (this.bbox) {
+      return `${shown} éléments affichés sur ${total} disponibles. Zoomez pour voir plus de détail.`;
+    }
+    return `${shown} affichés sur ${total} — relevez max-items pour voir le reste.`;
   }
 
   private _removeBanner() {

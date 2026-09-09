@@ -2730,6 +2730,69 @@ describe('DsfrDataMapLayer banner management', () => {
     document.body.removeChild(parent);
   });
 
+  // #644 — libelle differencie selon le mode, aucun bandeau sur une carte
+  // verrouillee (encarts territoriaux)
+  function truncatedSetup(attrs: { bbox?: boolean; locked?: boolean } = {}) {
+    layer.type = 'marker';
+    layer.latField = 'lat';
+    layer.lonField = 'lon';
+    layer.maxItems = 2;
+    if (attrs.bbox) layer.bbox = true;
+
+    const parent = document.createElement('dsfr-data-map');
+    if (attrs.locked) parent.setAttribute('locked', '');
+    parent.appendChild(layer);
+    document.body.appendChild(parent);
+    (layer as any)._mapParent = parent;
+    (layer as any)._data = [
+      { lat: 48.86, lon: 2.35 },
+      { lat: 43.3, lon: 5.37 },
+      { lat: 44.0, lon: 3.0 },
+    ];
+    return parent;
+  }
+
+  function teardown(parent: Element) {
+    // happy-dom has a bug disconnecting Lit elements that contain rendered children
+    try {
+      document.body.removeChild(parent);
+    } catch {
+      // ignore
+    }
+  }
+
+  it('#644 hors bbox : le bandeau nomme max-items, pas « zoomez »', async () => {
+    const parent = truncatedSetup();
+    await (layer as any)._renderLayer();
+
+    const banner = parent.querySelector('.dsfr-data-map__max-items-banner');
+    expect(banner?.textContent).toContain('max-items');
+    expect(banner?.textContent).toContain('2 affichés sur 3');
+    expect(banner?.textContent?.toLowerCase()).not.toContain('zoomez');
+    teardown(parent);
+  });
+
+  it('#644 en bbox : le bandeau invite a zoomer (la zone visible est rechargee)', async () => {
+    const parent = truncatedSetup({ bbox: true });
+    await (layer as any)._renderLayer();
+
+    const banner = parent.querySelector('.dsfr-data-map__max-items-banner');
+    expect(banner?.textContent).toContain('Zoomez');
+    expect(banner?.textContent).not.toContain('max-items');
+    teardown(parent);
+  });
+
+  it('#644 carte verrouillee (encart) : jamais de bandeau', async () => {
+    const parent = truncatedSetup({ locked: true }) as DsfrDataMap;
+    expect(parent.locked).toBe(true);
+    await (layer as any)._renderLayer();
+
+    expect(parent.querySelector('.dsfr-data-map__max-items-banner')).toBeNull();
+    // Le rendu a bien ete tronque : c'est le bandeau seul qui est omis
+    expect(layer.getRenderedCount()).toBe(2);
+    teardown(parent);
+  });
+
   it('removes previous banner on re-render', async () => {
     layer.type = 'marker';
     layer.latField = 'lat';
