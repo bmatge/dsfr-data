@@ -430,6 +430,9 @@ Nommage automatique sans alias : \`champ__fonction\` (ex: \`population__sum\`)
 | min | Minimum | \`"temperature:min"\` |
 | max | Maximum | \`"score:max"\` |
 
+Toute autre fonction (\`somme\`, \`moyenne\`, \`median\`…) est une **erreur de configuration**
+visible (console + \`data-dsfr-config-error\`, composants aval en erreur) — jamais un 0 silencieux.
+
 ### Exemples
 \`\`\`html
 <!-- Filtrer et trier -->
@@ -956,6 +959,10 @@ Attend un tableau d'objets. L'attribut \`valeur\` determine comment extraire/agr
 | threshold-green | Number | - | non | Seuil au-dessus duquel couleur = vert. Alias deprecie : \`seuil-vert\` |
 | threshold-orange | Number | - | non | Seuil au-dessus duquel couleur = orange (en-dessous = rouge). Alias deprecie : \`seuil-orange\` |
 | col | Number | - | non | Largeur en colonnes DSFR (1-12), actif uniquement dans un \`<dsfr-data-kpi-group>\` |
+
+Fonctions acceptées dans \`value\`, \`trend\` et \`lines\` : avg, sum, count, min, max, first, last.
+Toute autre fonction (ex. \`"x:somme"\`) affiche une erreur de configuration à la place du KPI
+(console + \`data-dsfr-config-error\`) — jamais une valeur vide.
 
 ### Grouper des KPIs : \`<dsfr-data-kpi-group>\`
 Utiliser \`<dsfr-data-kpi-group>\` pour disposer plusieurs KPIs en grille responsive :

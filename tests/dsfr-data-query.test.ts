@@ -23,6 +23,7 @@ import {
   getDataCache,
   getDataMeta,
   setDataMeta,
+  subscribeToSource,
   subscribeToSourceCommands,
 } from '@/utils/data-bridge.js';
 
@@ -760,6 +761,105 @@ describe('DsfrDataQuery', () => {
     });
   });
 
+  // #649 : fonction d'agrégat inconnue → erreur de configuration + erreur aval, jamais un 0
+  describe('unknown aggregate function (#649)', () => {
+    it('reports a config error naming component, attribute, function and accepted list', () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      query.id = 'q-bad-fn';
+      query.source = 'test-source';
+      query.groupBy = 'region';
+      query.aggregate = 'x:somme';
+
+      (query as any)._initialize();
+
+      const marker = query.getAttribute('data-dsfr-config-error') || '';
+      expect(marker).toContain('aggregate="x:somme"');
+      expect(marker).toContain('"somme"');
+      expect(marker).toContain('count, sum, avg, min, max');
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('dsfr-data-query[q-bad-fn]'));
+      errorSpy.mockRestore();
+    });
+
+    it('emits an error downstream instead of a 0 result', () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      query.id = 'q-bad-fn-2';
+      query.source = 'test-source';
+      query.groupBy = 'region';
+      query.aggregate = 'x:somme';
+      (query as any)._initialize();
+
+      const downstreamErrors: Error[] = [];
+      const unsub = subscribeToSource('q-bad-fn-2', {
+        onError: (e) => downstreamErrors.push(e),
+      });
+      dispatchDataLoaded('test-source', [
+        { region: 'A', x: 10 },
+        { region: 'A', x: 20 },
+      ]);
+
+      expect(query.getError()).not.toBeNull();
+      expect(query.getError()!.message).toContain('"somme"');
+      expect(downstreamErrors).toHaveLength(1);
+      expect(getDataCache('q-bad-fn-2')).toBeUndefined();
+      unsub();
+      errorSpy.mockRestore();
+    });
+
+    it('clears the error once the expression is fixed', () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      query.id = 'q-bad-fn-3';
+      query.source = 'test-source';
+      query.groupBy = 'region';
+      query.aggregate = 'x:somme';
+      (query as any)._initialize();
+      expect(query.hasAttribute('data-dsfr-config-error')).toBe(true);
+
+      query.aggregate = 'x:sum';
+      (query as any)._initialize();
+      expect(query.hasAttribute('data-dsfr-config-error')).toBe(false);
+      dispatchDataLoaded('test-source', [
+        { region: 'A', x: 10 },
+        { region: 'A', x: 20 },
+      ]);
+      expect(query.getError()).toBeNull();
+      expect((query.getData() as any[])[0]['x__sum']).toBe(30);
+      errorSpy.mockRestore();
+    });
+
+    it('does not delegate an invalid aggregate server-side', () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const mockSource = document.createElement('div');
+      mockSource.id = 'neg-bad-fn';
+      (mockSource as any).getAdapter = () => ({
+        type: 'tabular',
+        capabilities: { serverGroupBy: true, serverOrderBy: true, whereFormat: 'colon' },
+      });
+      document.body.appendChild(mockSource);
+      const commands: Array<Record<string, unknown>> = [];
+      const unsub = subscribeToSourceCommands('neg-bad-fn', (cmd) => commands.push(cmd));
+
+      query.id = 'q-bad-fn-4';
+      query.source = 'neg-bad-fn';
+      query.groupBy = 'region';
+      query.aggregate = 'x:somme';
+      (query as any)._initialize();
+
+      expect((query as any)._serverDelegated.groupBy).toBe(false);
+      expect((query as any)._serverDelegated.aggregate).toBe(false);
+      expect(commands.some((c) => c.aggregate === 'x:somme')).toBe(false);
+
+      unsub();
+      mockSource.remove();
+      errorSpy.mockRestore();
+    });
+
+    it('_computeAggregate throws (never returns 0) on an unknown function', () => {
+      expect(() =>
+        (query as any)._computeAggregate([{ x: 1 }], { field: 'x', function: 'somme' })
+      ).toThrow(/somme/);
+    });
+  });
+
   describe('_handleSourceData error handling', () => {
     it('catches errors in processing and dispatches error event', () => {
       query.id = 'test-query';
@@ -900,9 +1000,9 @@ describe('DsfrDataQuery', () => {
       expect((query as any)._computeAggregate([], agg)).toBe(0);
     });
 
-    it('returns 0 for unknown function', () => {
+    it('throws on an unknown function instead of returning 0 (#649)', () => {
       const agg = { field: 'val', function: 'median' };
-      expect((query as any)._computeAggregate([{ val: 10 }], agg)).toBe(0);
+      expect(() => (query as any)._computeAggregate([{ val: 10 }], agg)).toThrow(/median/);
     });
 
     it('returns empty for empty aggregate expression', () => {

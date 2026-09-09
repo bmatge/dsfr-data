@@ -9,13 +9,16 @@ import { getByPath } from './json-path.js';
 export type AggregationType = 'avg' | 'sum' | 'count' | 'min' | 'max' | 'first' | 'last';
 
 export interface ParsedExpression {
-  type: AggregationType | 'direct';
+  /** `invalid` : fonction hors liste blanche (#649), `error` porte le message. */
+  type: AggregationType | 'direct' | 'invalid';
   field: string;
   filterField?: string;
   filterValue?: string | boolean | number;
+  error?: string;
 }
 
-const AGG_TYPES: ReadonlySet<string> = new Set([
+/** Fonctions d'agrégat acceptées par dsfr-data-kpi (grammaire "champ:fn"). */
+export const KPI_AGGREGATION_TYPES: readonly AggregationType[] = [
   'avg',
   'sum',
   'count',
@@ -23,7 +26,9 @@ const AGG_TYPES: ReadonlySet<string> = new Set([
   'max',
   'first',
   'last',
-]);
+];
+
+const AGG_TYPES: ReadonlySet<string> = new Set(KPI_AGGREGATION_TYPES);
 
 let legacyGrammarWarned = false;
 
@@ -41,6 +46,11 @@ let legacyGrammarWarned = false;
  * - "fn:field"         -> ancienne grammaire kpi (dépréciée)
  * - "count"            -> compte tous les enregistrements
  * - "count:field:value"-> compte les occurrences où field == value (lâche)
+ *
+ * Une expression à 2+ segments dont AUCUN segment de fonction n'est dans la
+ * liste blanche (ex. `x:somme`) est renvoyée en `type: 'invalid'` avec un
+ * message nommant la fonction reçue et les fonctions acceptées (#649) — elle
+ * était lue comme fn="x" et produisait un KPI vide en silence.
  */
 export function parseExpression(expression: string): ParsedExpression {
   const parts = expression.split(':');
@@ -59,7 +69,21 @@ export function parseExpression(expression: string): ParsedExpression {
     return { type: parts[1] as AggregationType, field: parts[0] };
   }
 
-  if (AGG_TYPES.has(parts[0]) && !legacyGrammarWarned) {
+  // Ni grammaire commune ("champ:fn") ni grammaire historique ("fn:champ",
+  // "count:champ:valeur") : la fonction reçue est inconnue (#649).
+  if (!AGG_TYPES.has(parts[0])) {
+    const received = parts.length === 2 ? parts[1] : parts[0];
+    return {
+      type: 'invalid',
+      field: parts.length === 2 ? parts[0] : parts[1],
+      error:
+        `fonction d'agrégat "${received}" inconnue dans "${expression}" — ` +
+        `attendu "champ:fn" (ex. "population:sum") ; ` +
+        `fonctions acceptées : ${KPI_AGGREGATION_TYPES.join(', ')}`,
+    };
+  }
+
+  if (!legacyGrammarWarned) {
     legacyGrammarWarned = true;
     console.warn(
       `dsfr-data-kpi: la grammaire "${parts[0]}:${parts[1]}" (fn:champ) est dépréciée — ` +
@@ -157,7 +181,10 @@ export function computeAggregation(data: unknown, expression: string): number | 
       return values.length > 0 ? Math.max(...values) : null;
     }
 
+    case 'invalid':
     default:
+      // Fonction inconnue : null ici, l'erreur de configuration est
+      // reportée par le composant (dsfr-data-kpi) via parseExpression (#649).
       return null;
   }
 }

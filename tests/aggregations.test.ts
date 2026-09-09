@@ -41,6 +41,31 @@ describe('aggregations', () => {
         filterValue: false,
       });
     });
+
+    // #649 : fonction hors liste blanche → type 'invalid' nommant la fonction reçue
+    it('signale une fonction inconnue en grammaire commune ("x:somme")', () => {
+      const parsed = parseExpression('x:somme');
+      expect(parsed.type).toBe('invalid');
+      expect(parsed.field).toBe('x');
+      expect(parsed.error).toContain('"somme"');
+      expect(parsed.error).toContain('avg, sum, count, min, max, first, last');
+    });
+
+    it('signale une fonction inconnue en grammaire historique à 3 segments', () => {
+      const parsed = parseExpression('compte:status:active');
+      expect(parsed.type).toBe('invalid');
+      expect(parsed.error).toContain('"compte"');
+    });
+
+    it('ne casse pas le parsing legacy count:field:value ni fn:champ', () => {
+      expect(parseExpression('count:status:active').type).toBe('count');
+      expect(parseExpression('sum:amount')).toEqual({ type: 'sum', field: 'amount' });
+      expect(parseExpression('sum:count')).toEqual({ type: 'sum', field: 'count' });
+    });
+
+    it('computeAggregation retourne null (jamais 0) sur une fonction inconnue', () => {
+      expect(computeAggregation([{ x: 1 }, { x: 2 }], 'x:somme')).toBeNull();
+    });
   });
 
   describe('computeAggregation', () => {
