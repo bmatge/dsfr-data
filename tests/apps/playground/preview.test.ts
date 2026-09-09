@@ -13,9 +13,9 @@ describe('playground preview', () => {
     expect(result).toContain('dsfr.min.css');
   });
 
-  it('should include Chart.js', () => {
+  it('ne charge pas Chart.js a part — DSFR Chart l’embarque (#656)', () => {
     const result = getPreviewHTML('');
-    expect(result).toContain('chart.js');
+    expect(result).not.toMatch(/chart\.js@|chart\.umd/);
   });
 
   it('should include DSFR Chart', () => {

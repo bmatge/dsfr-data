@@ -36,13 +36,16 @@ const DEPS_BLOCK = `<!-- Dependances (DSFR + DSFR Chart + dsfr-data) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
-<script src="${CDN_URLS.chartJs}"></script>
 <script type="module" src="${CDN_URLS.dsfrChartJs}"></script>
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 `;
 
-/** Regex to detect dependency lines (CDN links for dsfr, chart.js, dsfr-data) */
+/**
+ * Regex to detect dependency lines (CDN links for dsfr, DSFRChart, dsfr-data).
+ * `chart\.js` reste dans le motif pour nettoyer les snippets anterieurs a #656
+ * (DSFR Chart embarque Chart.js, on ne l'injecte plus) — jamais pour l'ajouter.
+ */
 const DEPS_LINE_RE =
   /^[ \t]*(<link[^>]*(dsfr|DSFRChart)[^>]*>|<script[^>]*(dsfr|chart\.js|DSFRChart|dsfr-data)[^>]*><\/script>)[ \t]*\n?/gm;
 const DEPS_COMMENT_RE = /^[ \t]*<!--\s*Dependances[^>]*-->\s*\n?/gm;

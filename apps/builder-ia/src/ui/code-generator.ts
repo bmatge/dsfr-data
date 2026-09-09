@@ -22,6 +22,18 @@ import { state } from '../state.js';
 import type { ChartConfig, AggregatedResult } from '../state.js';
 
 /**
+ * Chart.js autonome, pour les SEULES variantes qui emettent un `new Chart()`
+ * brut sur un `<canvas>` (nuage de points, API dynamique sans composant,
+ * series inline — constat #616, pas objectif). `DSFRChart.js` embarque sa
+ * propre copie de Chart.js sans exposer de global `Chart`, donc ces variantes
+ * ne peuvent pas s'en servir ; a l'inverse, tout snippet qui charge DSFR Chart
+ * ou dsfr-data ne doit PAS charger ce script (#656 — `CDN_URLS` ne l'expose
+ * plus). Le jour ou ces variantes passent par `<dsfr-data-chart>`, supprimer
+ * cette constante.
+ */
+const CHARTJS_STANDALONE_URL = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js';
+
+/**
  * Build ODSQL select expression from aggregation config + group-by field.
  * Example: aggregation="sum", valueField="montant", groupBy="dept"
  * => "sum(montant) as montant__sum, dept"
@@ -281,7 +293,7 @@ function generateScatterCode(config: ChartConfig, data: AggregatedResult[]): str
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 
 <!-- Dependances JS -->
-<script src="${escapeHtml(CDN_URLS.chartJs)}"></script>
+<script src="${escapeHtml(CHARTJS_STANDALONE_URL)}"></script>
 
 <div class="fr-container fr-my-4w">
   <h2>${escapeHtml(config.title || 'Nuage de points')}</h2>
@@ -366,7 +378,6 @@ function generateMapCode(config: ChartConfig, data: AggregatedResult[]): string 
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrChartCss)}">
-<script src="${escapeHtml(CDN_URLS.chartJs)}"></script>
 <script type="module" src="${escapeHtml(CDN_URLS.dsfrChartJs)}"></script>
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
@@ -417,7 +428,6 @@ function generateMapCode(config: ChartConfig, data: AggregatedResult[]): string 
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrChartCss)}">
-<script src="${escapeHtml(CDN_URLS.chartJs)}"></script>
 <script type="module" src="${escapeHtml(CDN_URLS.dsfrChartJs)}"></script>
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
@@ -464,7 +474,6 @@ function generateMapCode(config: ChartConfig, data: AggregatedResult[]): string 
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrChartCss)}">
-<script src="${escapeHtml(CDN_URLS.chartJs)}"></script>
 <script type="module" src="${escapeHtml(CDN_URLS.dsfrChartJs)}"></script>
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
@@ -756,7 +765,6 @@ function generateStandardChartCodeODS(
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrChartCss)}">
-<script src="${escapeHtml(CDN_URLS.chartJs)}"></script>
 <script type="module" src="${escapeHtml(CDN_URLS.dsfrChartJs)}"></script>
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
@@ -817,7 +825,6 @@ function generateStandardChartCodeTabular(
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrChartCss)}">
-<script src="${escapeHtml(CDN_URLS.chartJs)}"></script>
 <script type="module" src="${escapeHtml(CDN_URLS.dsfrChartJs)}"></script>
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
@@ -878,7 +885,7 @@ function generateStandardChartCodeAPI(
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 
 <!-- Dependances JS -->
-<script src="${escapeHtml(CDN_URLS.chartJs)}"></script>
+<script src="${escapeHtml(CHARTJS_STANDALONE_URL)}"></script>
 
 <div class="fr-container fr-my-4w">
   <h2>${escapeHtml(config.title || 'Mon graphique')}</h2>
@@ -992,7 +999,7 @@ ${hasSecondSeries ? '<!-- Note: Graphique multi-séries -->' : ''}
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 
 <!-- Dependances JS -->
-<script src="${escapeHtml(CDN_URLS.chartJs)}"></script>
+<script src="${escapeHtml(CHARTJS_STANDALONE_URL)}"></script>
 
 <div class="fr-container fr-my-4w">
   <h2>${escapeHtml(config.title || 'Mon graphique')}</h2>
