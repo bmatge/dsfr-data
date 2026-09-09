@@ -12,6 +12,25 @@ updates:
     labels:
       - security
     groups:
+      # Declare AVANT dev-dependencies : un paquet rejoint le premier groupe qui
+      # le matche, donc ce groupe doit capter les paquets vitest avant que le
+      # groupe generique ne le fasse.
+      #
+      # `major` est inclus ici alors que les autres groupes s'arretent a `minor` :
+      # les fournisseurs de couverture epinglent vitest a l'EXACT
+      # (`@vitest/coverage-v8@5.0.0` -> peerDependencies `{ vitest: "5.0.0" }`),
+      # ils ne peuvent donc pas bouger separement. Sans ce groupe, une majeure
+      # arrive en PR distinctes, chacune insatisfiable et rouge (cas vecu :
+      # #622 et #623, fermees). Groupees, elles forment une seule PR coherente.
+      vitest:
+        patterns:
+          - 'vitest'
+          - '@vitest/*'
+        update-types:
+          - major
+          - minor
+          - patch
+
       dev-dependencies:
         dependency-type: development
         update-types:
@@ -29,4 +48,3 @@ updates:
     open-pull-requests-limit: 3
     labels:
       - security
-
