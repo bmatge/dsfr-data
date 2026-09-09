@@ -46,3 +46,21 @@ export function renderSourceError(componentClass: string, error: Error | null): 
     </div>
   `;
 }
+
+/**
+ * Bloc d'erreur de CONFIGURATION (#649) : attribut invalide (fonction
+ * d'agrégat inconnue…) — visible dans la page, pas seulement en console,
+ * pour qu'une faute de frappe ne se traduise jamais par un rendu vide.
+ */
+export function renderConfigError(componentClass: string, message: string): TemplateResult {
+  return html`
+    <div
+      class="${componentClass}__error dsfr-data-status--error dsfr-data-status--config-error"
+      role="alert"
+      aria-live="assertive"
+    >
+      <span class="fr-icon-error-line" aria-hidden="true"></span>
+      Erreur de configuration : ${message}
+    </div>
+  `;
+}

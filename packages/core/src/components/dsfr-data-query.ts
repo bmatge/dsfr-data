@@ -7,7 +7,12 @@ import { dispatchSourceCommand, getDataCache, getDataMeta } from '../utils/data-
 import { TransformerMixin } from '../utils/transformer-mixin.js';
 import type { AdapterCapabilities } from '../adapters/api-adapter.js';
 import type { SourceElement } from '../utils/source-element.js';
-import { parseAggregates, type ParsedAggregate } from '../utils/aggregates.js';
+import {
+  AGGREGATE_FUNCTIONS,
+  parseAggregates,
+  validateAggregateFunctions,
+  type ParsedAggregate,
+} from '../utils/aggregates.js';
 import { unescapeColonValue, filterToOdsql, parseOrderBy } from '../utils/where.js';
 import { reportConfigError } from '../utils/config-error.js';
 
@@ -34,7 +39,7 @@ export type FilterOperator = (typeof FILTER_OPERATORS)[number];
 /**
  * Fonctions d'agrégation supportees
  */
-export type AggregateFunction = 'count' | 'sum' | 'avg' | 'min' | 'max';
+export type AggregateFunction = (typeof AGGREGATE_FUNCTIONS)[number];
 
 /**
  * Structure d'un filtre
@@ -179,6 +184,12 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
   private _delegatedSourceId: string | null = null;
 
   /**
+   * Message d'erreur de configuration de `aggregate` (fonction hors liste
+   * blanche, #649), posé à la (re)négociation ; null si l'expression est valide.
+   */
+  private _aggregateError: string | null = null;
+
+  /**
    * Derniere commande de delegation dispatchee (cible + contenu) : une
    * re-negociation identique ne redispatche pas — la source est deja dans
    * cet etat, son cache est valide (#276).
@@ -278,6 +289,16 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
       }
     }
 
+    // Fonction d'agrégat hors liste blanche (#649) : signalée ici (console +
+    // data-dsfr-config-error) et rendue en erreur aval au traitement — un
+    // `sum` → `somme` produisait un 0 plausible en silence. Pas de délégation
+    // serveur non plus : l'API rejetterait la fonction pour tous les abonnés.
+    const aggError = this.aggregate ? validateAggregateFunctions(this.aggregate) : null;
+    this._aggregateError = aggError ? `aggregate="${this.aggregate}" : ${aggError}` : null;
+    if (this._aggregateError) {
+      reportConfigError(this, `dsfr-data-query[${this.id}]`, this._aggregateError);
+    }
+
     // Negotiate server-side delegation BEFORE subscribing to data.
     // This sends commands to dsfr-data-source so it re-fetches with the right params.
     this._negotiateServerSide();
@@ -352,7 +373,13 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
 
       // Delegate group-by + aggregate together (they're coupled).
       // Don't override if source already has its own groupBy or aggregate.
-      if (this.groupBy && caps.serverGroupBy && !sourceGroupBy && !sourceAggregate) {
+      if (
+        this.groupBy &&
+        caps.serverGroupBy &&
+        !sourceGroupBy &&
+        !sourceAggregate &&
+        !this._aggregateError
+      ) {
         // Le where conditionne la délégation du group-by (#275) : un filtre
         // intraduisible doit s'appliquer client-side sur les lignes BRUTES,
         // donc avant un group-by qui reste alors client-side lui aussi.
@@ -556,6 +583,12 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * Handle data received from upstream source (via onTransformerData).
    */
   private _handleSourceData() {
+    // Erreur de configuration sur `aggregate` (#649) : état d'erreur aval,
+    // jamais un résultat à 0 — le message est déjà en console (reportConfigError).
+    if (this._aggregateError) {
+      this.emitTransformerError(new Error(this._aggregateError));
+      return;
+    }
     try {
       this.emitTransformerLoading();
       this._processClientSide();
@@ -807,10 +840,13 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     for (const [key, items] of groups) {
       const row: Record<string, unknown> = {};
 
-      // Ajouter les champs de regroupement (structure imbriquee preservee)
+      // Ajouter les champs de regroupement (structure imbriquee preservee).
+      // Un groupe vide (null / undefined / "") ressort en null, pas en "" (#647) :
+      // meme forme que le group_by serveur, un `isnull` aval l'attrape et le
+      // chart le libelle via `empty-label` au lieu de « Série N ».
       const keyParts = key.split('|||');
       groupFields.forEach((field, i) => {
-        setByPath(row, field, keyParts[i]);
+        setByPath(row, field, keyParts[i] === '' ? null : keyParts[i]);
       });
 
       // Calculer les agrégations (structure imbriquee preservee)
@@ -859,7 +895,12 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
       case 'max':
         return values.length > 0 ? Math.max(...values) : 0;
       default:
-        return 0;
+        // Garde-fou (#649) : normalement intercepté avant le traitement par
+        // validateAggregateFunctions ; jamais un 0 plausible en silence.
+        throw new Error(
+          `fonction d'agrégat "${String(agg.function)}" inconnue — ` +
+            `fonctions acceptées : ${AGGREGATE_FUNCTIONS.join(', ')}`
+        );
     }
   }
 
