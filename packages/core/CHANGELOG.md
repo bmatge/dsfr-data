@@ -1,5 +1,276 @@
 # dsfr-data
 
+## 0.21.0
+
+### Minor Changes
+
+- [#636](https://github.com/bmatge/dsfr-data/pull/636) [`690d3c7`](https://github.com/bmatge/dsfr-data/commit/690d3c7e7e53cfe72569aad3dd74c54dd02ef06a) Thanks [@bmatge](https://github.com/bmatge)! - Le bus publie de quoi diagnostiquer une chaine sans ouvrir les DevTools ([#603](https://github.com/bmatge/dsfr-data/issues/603)).
+  
+  Trois ajouts optionnels, non cassants — le message des `Error` et le contrat
+  des abonnes existants sont strictement inchanges :
+  
+  - `attemptedUrl` sur l'evenement `dsfr-data-error` : l'URL reellement appelee,
+    proxy applique. Le diagnostic de [#598](https://github.com/bmatge/dsfr-data/issues/598) existait deja mais uniquement en
+    console ; il devient exploitable par une interface.
+  - `origin` sur `dsfr-data-source-command` : le bus etant plat, une trace ne
+    pouvait pas dire quel composant demandait une delegation a la source.
+  - `dsfr-data-query.getDelegation()` : quelles operations tournent cote serveur
+    et lesquelles sont retombees cote client — un `group-by` non delegue
+    s'execute sur les seules lignes rapatriees.
+
+- [#636](https://github.com/bmatge/dsfr-data/pull/636) [`690d3c7`](https://github.com/bmatge/dsfr-data/commit/690d3c7e7e53cfe72569aad3dd74c54dd02ef06a) Thanks [@bmatge](https://github.com/bmatge)! - Collecteur de trace du pipeline ([#604](https://github.com/bmatge/dsfr-data/issues/604)) — socle du volet Diagnostic.
+  
+  Nouveau module `@dsfr-data/shared` `debug/` : un seul ecouteur sur le bus
+  global suffit a observer l'integralite d'un pipeline, sans modifier aucun
+  composant.
+  
+  - `snapshotGraph()` reconstruit la topologie depuis le DOM (`id` / `source`,
+    `left`/`right` pour join), donne une cle synthetique aux afficheurs sans id
+    et signale les amonts declares mais absents de la page.
+  - `DataflowRecorder` tient un journal borne et l'etat par etape, avec sa
+    propre copie des donnees : une etape retiree du DOM voit son cache global
+    efface, sa trace doit survivre.
+  - `formatTrace()` rend le tout en texte francais — la meme chaine servira au
+    volet, au chat et a l'outil de l'assistant.
+  - Detection de quiescence explicite : le silence seul ne suffit pas, une
+    source en cours de chargement n'emet rien.
+  
+  Aucun impact sur les bundles publies : le module est app-side.
+
+- [#636](https://github.com/bmatge/dsfr-data/pull/636) [`690d3c7`](https://github.com/bmatge/dsfr-data/commit/690d3c7e7e53cfe72569aad3dd74c54dd02ef06a) Thanks [@bmatge](https://github.com/bmatge)! - Diagnostic hors des apps : bundle autonome et outil MCP ([#608](https://github.com/bmatge/dsfr-data/issues/608)).
+  
+  - `dsfr-data.debug.js` (15 Ko) — une balise `<script>` ou un marque-page
+    suffit a diagnostiquer n'importe quelle page utilisant dsfr-data, y compris
+    en production, sans rebuild. Entree de build SEPAREE, jamais fusionnee aux
+    bundles publies : un test-garde grepe les six bundles et verifie qu'aucun
+    composant du coeur n'importe le collecteur.
+  - Outil MCP `diagnose_widget_code` — analyse statique du balisage sans
+    execution : attribut inconnu ou deprecie, balise inexistante, id manquant
+    sur un composant qui reemet, amont declare mais absent, id duplique.
+    L'autorite est `custom-elements.json`, genere depuis le code.
+  
+  Les bundles publies sont inchanges (memes tailles).
+
+- [#636](https://github.com/bmatge/dsfr-data/pull/636) [`690d3c7`](https://github.com/bmatge/dsfr-data/commit/690d3c7e7e53cfe72569aad3dd74c54dd02ef06a) Thanks [@bmatge](https://github.com/bmatge)! - Outils de diagnostic pour l'assistant du Studio ([#607](https://github.com/bmatge/dsfr-data/issues/607)).
+  
+  L'assistant peut desormais OBSERVER l'apercu, pas seulement le composer :
+  `run_and_trace` relance le rendu et rend le flux complet, `trace_pipeline`
+  le relit sans relancer, `inspect_stage` creuse une etape.
+  
+  Il lit exactement le meme texte que l'utilisateur — `formatTrace()` est la
+  fonction pivot des deux cotes — et le meme reglage de masquage des valeurs
+  gouverne la copie, l'envoi et ce que recoit le modele.
+  
+  Deux reglages qui comptent :
+  
+  - budget de tours porte a 12 en mode diagnostic : une boucle de debogage fait
+    au minimum observer -> hypothese -> correctif -> reobserver -> confirmer,
+    et 8 coupait juste avant la verification ;
+  - `run_and_trace` est explicitement exclu de l'anti-boucle : verifier qu'un
+    correctif a fonctionne, c'est relancer la MEME observation.
+  
+  Le volet gagne une case « Masquer les valeurs », persistee : la trace part
+  vers un service externe, l'utilisateur decide ce qui sort du navigateur.
+
+- [#636](https://github.com/bmatge/dsfr-data/pull/636) [`690d3c7`](https://github.com/bmatge/dsfr-data/commit/690d3c7e7e53cfe72569aad3dd74c54dd02ef06a) Thanks [@bmatge](https://github.com/bmatge)! - Volet **Diagnostic** ([#605](https://github.com/bmatge/dsfr-data/issues/605)) et durcissement du bus de trace.
+  
+  - `app-diagnostic-panel` : tiroir bas present a l'identique dans toutes les
+    apps, monte d'abord sur le Playground. Rail informatif (`3 etapes ·
+    100 -> 8 lignes · 1 alerte`), trois onglets Flux / Champs / Journal,
+    « Copier le diagnostic ».
+  - `origin` est desormais renseigne par TOUS les emetteurs de commandes
+    (search, facets, context, map-layer, pagination), plus seulement query.
+  - Une etape en echec invalide ses donnees : l'aval ne rapporte plus le compte
+    du dernier succes, et un afficheur ne se declare plus alimente sous une
+    source tombee.
+  - L'avertissement « agregation cote client » ne se declenche plus que si
+    l'etape demande reellement un group-by ou une agregation.
+  - `Trace.order` porte l'ordre topologique : des ids numeriques inversaient la
+    lecture de `states` (les cles entieres passent en premier en JavaScript).
+  - `StageNode.ambiguous` distingue l'id fabrique (le noeud n'emet pas) de l'id
+    duplique (il emet, sous une cle partagee).
+  - JSDoc `@fires` mis a jour et skills regenerees : l'assistant connait
+    desormais `attemptedUrl` et `origin`.
+
+- [#636](https://github.com/bmatge/dsfr-data/pull/636) [`690d3c7`](https://github.com/bmatge/dsfr-data/commit/690d3c7e7e53cfe72569aad3dd74c54dd02ef06a) Thanks [@bmatge](https://github.com/bmatge)! - Volet Diagnostic dans les sept apps dotees d'un apercu ([#606](https://github.com/bmatge/dsfr-data/issues/606)).
+  
+  Le montage est le meme partout, seul le mode change selon la facon dont
+  chaque app rend :
+  
+  - **live / iframe** — Playground, Builder, Studio, Dashboard ;
+  - **live / meme document** — Carto (`#map-canvas`) et Pipeline, qui
+    instancient de vrais composants sans passer par une iframe ;
+  - **rapporte** — Assistant IA, dont l'apercu ne passe par aucun composant
+    dsfr-data et n'emet donc rien sur le bus ([#609](https://github.com/bmatge/dsfr-data/issues/609)).
+  
+  « Envoyer a l'assistant » depose le diagnostic en `sessionStorage` et ouvre
+  l'Assistant IA, qui le pose dans son champ de chat — meme mecanisme de
+  passation que le code entre apps. Dans le Studio, qui porte deja un chat,
+  l'injection est directe.
+  
+  Sources, Favoris et Suivi ne recoivent pas le volet : ils ne rendent aucun
+  pipeline dsfr-data.
+
+### Patch Changes
+
+- [#636](https://github.com/bmatge/dsfr-data/pull/636) [`690d3c7`](https://github.com/bmatge/dsfr-data/commit/690d3c7e7e53cfe72569aad3dd74c54dd02ef06a) Thanks [@bmatge](https://github.com/bmatge)! - Un filtre `where` à valeur textuelle produisait une requête tronquée, en silence.
+  
+  `filterToOdsql` entoure de guillemets **doubles** toute valeur non numérique — et
+  les valeurs numériques aussi, pour `eq`, `neq`, `contains` et `in`. L'attribut étant
+  lui-même à guillemets doubles, il n'était pas échappé :
+  
+  ```html
+  where="region = "Bretagne""
+  ```
+  
+  Le composant recevait `region = `. Requête invalide, aucun message. La forme
+  concernée est celle que la documentation de l'assistant enseigne
+  (« status:eq:active », « code_departement:eq:48 »).
+  
+  Le correctif est plus large que le symptôme : **toute** valeur d'attribut du
+  générateur de l'Assistant IA et des widgets Grist est désormais échappée, comme le
+  faisait déjà le générateur de la Carto sur chacun des siens. Cela corrige au passage
+  une classe de défaut latente sur les URLs : les entités nommées historiques sont
+  tolérées sans `;` dans une valeur d'attribut, si bien qu'une source
+  `…?a=1&copy&b=2` était appelée avec un `©` à la place de `&copy`. (HTML5 exempte le
+  cas où un `=` suit immédiatement, ce qui rend `&copy=2` inoffensif — la nuance
+  importe pour tester la bonne forme.)
+  
+  `escapeHtml` accepte maintenant les nombres et les booléens : les gabarits posent des
+  `pagination`, `max-items`, `zoom`, et forcer l'appelant à convertir d'abord, c'est
+  l'inviter à oublier d'échapper. Son test de vacuité porte désormais sur `null`,
+  `undefined` et la chaîne vide, plus sur la fausseté — `escapeHtml(0)` rendait `""`.
+
+- [#636](https://github.com/bmatge/dsfr-data/pull/636) [`690d3c7`](https://github.com/bmatge/dsfr-data/commit/690d3c7e7e53cfe72569aad3dd74c54dd02ef06a) Thanks [@bmatge](https://github.com/bmatge)! - Le code généré par les Builders n'émet plus d'attributs dépréciés.
+  
+  `dsfr-data-list` accepte encore les alias français `colonnes`, `recherche`, `tri`,
+  `filtres` et `server-tri`, `@deprecated` depuis [#300](https://github.com/bmatge/dsfr-data/issues/300). Ils existent pour ne pas casser
+  le code déjà publié par les utilisateurs — pas pour être émis par un générateur.
+  
+  Deux des quatre variantes datalist de l'Assistant IA les émettaient encore, si bien
+  qu'une même configuration produisait deux dialectes selon la source. Les Builders
+  émettent désormais `columns` / `search` / `sort` partout.
+  
+  Au passage : `search` et `filters` ne sont plus émis sur les variantes à pagination
+  serveur, **dans les deux Builders**. Ces deux contrôles sont locaux : ils n'opèrent
+  que sur la page chargée, si bien que le composant les désactivait en journalisant un
+  avertissement dans la page de l'utilisateur ([#304](https://github.com/bmatge/dsfr-data/issues/304)). Les émettre revenait à promettre
+  deux contrôles qui n'apparaissaient pas. Le code généré indique désormais
+  l'alternative — `dsfr-data-search server-search` et `dsfr-data-facets server-facets`
+  en amont de la liste.
+  
+  L'exemple JSDoc de `dsfr-data-list` passe lui aussi aux attributs courants : il
+  alimente la référence générée que consomme l'assistant IA, et l'y laisser déprécié
+  revenait à enseigner au modèle de produire du code déprécié.
+
+- [#636](https://github.com/bmatge/dsfr-data/pull/636) [`690d3c7`](https://github.com/bmatge/dsfr-data/commit/690d3c7e7e53cfe72569aad3dd74c54dd02ef06a) Thanks [@bmatge](https://github.com/bmatge)! - Un nom de colonne à apostrophe ne casse plus le script exporté.
+  
+  Les noms de champs étaient interpolés dans des littéraux JavaScript à guillemets
+  simples des scripts générés — `label: '${valueField}'`, `d['${labelField}']`. Un
+  en-tête de colonne français ordinaire suffisait :
+  
+  ```js
+  const labels = data.map(d => d['Nombre d'habitants'] || 'N/A');
+  //                                        ^ la chaîne se ferme ici
+  ```
+  
+  Le générateur ne levait rien : le script mourait dans la page de l'utilisateur, sur
+  une `SyntaxError` qu'il ne pouvait rattacher à son choix de colonne. Une dizaine de
+  sites concernés dans les deux Builders.
+  
+  `escape-html.ts` couvre désormais les quatre contextes, et la distinction entre eux
+  est le fond du sujet — une entité HTML posée en contexte JS produit un défaut
+  *visible* plutôt qu'une balise cassée :
+  
+  | Contexte | Fonction |
+  |---|---|
+  | Attribut à guillemets simples, chaîne déjà sérialisée | `singleQuoteAttr` |
+  | Attribut à guillemets simples, depuis la valeur | `jsonAttr` |
+  | Valeur JSON dans un `<script>` | `jsonLiteral` |
+  | Littéral chaîne dans un `<script>` | `jsStringLiteral` |
+  
+  `jsonLiteral` neutralise aussi `</script>` dans les données embarquées : le parseur
+  HTML cherche la séquence sans connaître la syntaxe JavaScript, et une cellule
+  contenant cette chaîne fermait le bloc. Corrigé également dans les widgets Grist.
+
+- [#636](https://github.com/bmatge/dsfr-data/pull/636) [`690d3c7`](https://github.com/bmatge/dsfr-data/commit/690d3c7e7e53cfe72569aad3dd74c54dd02ef06a) Thanks [@bmatge](https://github.com/bmatge)! - `<app-layout-builder>` expose un attribut `mode` — `page-scroll` (defaut),
+  `fullscreen`, `sticky-left` ([#613](https://github.com/bmatge/dsfr-data/issues/613)).
+  
+  Trois apps surchargeaient ses classes internes depuis leur propre CSS : le
+  Playground avec des `!important` pour inverser le sticky, Builder et Assistant
+  IA avec la meme surcharge dupliquee. Ces classes ne sont pas contractuelles —
+  un changement du composant les cassait en silence.
+  
+  La hauteur de la colonne gauche en pile verticale devient une propriete CSS
+  publique, `--app-layout-left-stacked-height`.
+
+- [#636](https://github.com/bmatge/dsfr-data/pull/636) [`690d3c7`](https://github.com/bmatge/dsfr-data/commit/690d3c7e7e53cfe72569aad3dd74c54dd02ef06a) Thanks [@bmatge](https://github.com/bmatge)! - Un proxy mal configuré se signale, au lieu de se déguiser en problème de CSP.
+  
+  Quand `VITE_PROXY_URL` ne pointe pas sur l'origine qui sert la page, chaque appel
+  sort de `connect-src 'self'` et se fait bloquer. La console n'affiche alors que des
+  erreurs *Content-Security-Policy*, si bien qu'on soupçonne la CSP — qui fait pourtant
+  exactement son travail.
+  
+  Cas réel : une instance servie depuis `x.lab.exemple.fr` avec
+  `VITE_PROXY_URL=https://x.exemple.fr`, un sous-domaine oublié. Toutes les connexions
+  de sources échouaient en `NetworkError`, et la piste suivie a été celle des en-têtes
+  de sécurité.
+  
+  `getProxyConfig` avertit désormais une fois par page, en nommant les deux origines et
+  la variable à corriger. Uniquement sur la branche build-time : les widgets embarqués
+  sur un site tiers configurent leur proxy par attribut `proxy-url` ou
+  `window.DSFR_DATA_PROXY`, et le cross-origin y est la configuration voulue.
+  
+  Il avertit, il ne corrige pas — basculer d'autorité sur l'origine de la page
+  masquerait une configuration fausse et casserait les déploiements où les domaines sont
+  séparés à dessein (`VITE_PROXY_URL_EMBED`).
+
+- [#636](https://github.com/bmatge/dsfr-data/pull/636) [`690d3c7`](https://github.com/bmatge/dsfr-data/commit/690d3c7e7e53cfe72569aad3dd74c54dd02ef06a) Thanks [@bmatge](https://github.com/bmatge)! - Les données embarquées dans un attribut survivent aux apostrophes françaises.
+  
+  `JSON.stringify` échappe les guillemets doubles, jamais les simples : une étiquette
+  ordinaire (« Provence-Alpes-Côte d'Azur », « Val-d'Oise », « Côte-d'Or ») fermait
+  l'attribut à la première apostrophe. Le composant ne recevait qu'un fragment tronqué
+  et n'affichait rien, sans message.
+  
+  Le motif était écrit à sept endroits avec cinq échappements différents. Trois
+  fonctions partagées les remplacent, une par contexte :
+  
+  - `singleQuoteAttr` — chaîne déjà sérialisée dans un attribut à guillemets simples ;
+  - `jsonAttr` — la même, à partir de la valeur ;
+  - `jsStringLiteral` — littéral JavaScript pour un `<script>` généré.
+  
+  La distinction n'est pas cosmétique : poser une entité HTML en contexte JS produit
+  un défaut *visible* plutôt qu'une balise cassée. `el.setAttribute('name', '&#039;')`
+  affichait littéralement « Val-d&#039;Oise » dans la légende, `setAttribute` ne
+  décodant pas les entités.
+  
+  Les deux échappements les plus répandus omettaient aussi l'esperluette : un `&amp;`
+  présent dans la donnée était redécodé en `&` à la lecture de l'attribut.
+
+- [#636](https://github.com/bmatge/dsfr-data/pull/636) [`690d3c7`](https://github.com/bmatge/dsfr-data/commit/690d3c7e7e53cfe72569aad3dd74c54dd02ef06a) Thanks [@bmatge](https://github.com/bmatge)! - Le jeu d'exemple « Regions de France » porte desormais des codes REGION
+  INSEE (`code_region`) au lieu du departement chef-lieu de chaque region
+  ([#610](https://github.com/bmatge/dsfr-data/issues/610)). Un jeu regional decrit par des codes departementaux etait incoherent,
+  et une carte departementale n'en aurait colorie que 13 departements isoles.
+
+- [#636](https://github.com/bmatge/dsfr-data/pull/636) [`690d3c7`](https://github.com/bmatge/dsfr-data/commit/690d3c7e7e53cfe72569aad3dd74c54dd02ef06a) Thanks [@bmatge](https://github.com/bmatge)! - Une source déjà paramétrée ne perd plus son agrégation.
+  
+  Les générateurs ajoutaient la chaîne de requête en concaténant `?` sans regarder si
+  l'URL en avait déjà une. Sur une source OpenDataSoft paramétrée — et elles le sont
+  couramment — cela produisait une seconde interrogation :
+  
+  ```
+  …/records?refine=annee:2024?select=sum(pop) as value&group_by=region
+  ```
+  
+  Le serveur lisait alors `refine` comme valant `annee:2024?select=…` et ignorait
+  purement et simplement le `select` et le `group_by`. L'utilisateur recevait des
+  données **brutes non agrégées**, dans un graphique qui s'affichait normalement.
+  
+  C'est le seul défaut de cette série à produire un résultat faux plutôt qu'un rendu
+  vide ou un script mort — donc le seul qu'un coup d'œil ne rattrape pas. Quatre sites,
+  deux Builders. Un helper `appendQuery` remplace la concaténation ; il préserve le
+  fragment (`#…`) en queue.
+
 ## 0.20.0
 
 ### Minor Changes
