@@ -591,7 +591,7 @@ describe('generateCodeForLocalData', () => {
     expect(code).toContain('onSourceData');
   });
 
-  it('should generate datalist code with tri attribute when sortOrder is set', () => {
+  it('should generate datalist code with sort attribute when sortOrder is set', () => {
     state.chartType = 'datalist';
     state.localData = [{ region: 'Bretagne', population: 3300000 }];
     state.fields = [
@@ -604,7 +604,11 @@ describe('generateCodeForLocalData', () => {
     generateCodeForLocalData();
 
     const code = document.getElementById('generated-code')!.textContent!;
-    expect(code).toContain('tri="region:desc"');
+    // `sort` et non `tri` : l'alias francais est @deprecated depuis #300. Ce
+    // test verrouillait la forme depreciee — du code fraichement genere ne
+    // doit pas naitre deprecie.
+    expect(code).toContain('sort="region:desc"');
+    expect(code).not.toContain('tri="');
   });
 
   it('should use custom datalist columns when configured', () => {
@@ -1777,6 +1781,65 @@ describe('generateDynamicCodeForApi', () => {
     expect(code).toContain('pagination="20"');
   });
 
+  it('n’émet pas de recherche ni de filtres locaux en pagination serveur', () => {
+    // La recherche et les filtres de `dsfr-data-list` sont LOCAUX : en
+    // pagination serveur ils n'operent que sur la page chargee — compteurs
+    // faux, options de filtre partielles — donc le composant les desactive et
+    // journalise un avertissement dans la page de l'utilisateur (#304,
+    // dsfr-data-list.ts:448 et :502). Les emettre, c'est promettre deux
+    // controles qui n'apparaitront pas.
+    //
+    // L'Assistant IA avait ete corrige sans que le Builder classique le soit —
+    // troisieme occurrence, dans cette session, du meme mode d'echec :
+    // corriger un mecanisme chez un consommateur et le declarer corrige
+    // partout.
+    for (const apiUrl of [
+      'https://data.iledefrance.fr/api/explore/v2.1/catalog/datasets/elus/records',
+      'https://tabular-api.data.gouv.fr/api/resources/abc-123/data/',
+    ]) {
+      state.savedSource = { id: '1', name: 'S', type: 'api', apiUrl };
+      state.chartType = 'datalist';
+      state.labelField = 'region';
+      state.fields = [{ name: 'region', type: 'string', sample: 'Bretagne' }];
+      state.datalistRecherche = true;
+      state.datalistFiltres = true;
+      state.datalistColumns = [
+        { field: 'region', label: 'Region', visible: true, filtrable: true },
+      ] as typeof state.datalistColumns;
+
+      generateDynamicCodeForApi();
+      const code = document.getElementById('generated-code')!.textContent!;
+      const balises = code.replace(/<!--[\s\S]*?-->/g, '');
+
+      expect(balises, `${apiUrl} : recherche locale inoperante emise`).not.toMatch(
+        /^\s*search\s*$/m
+      );
+      expect(balises, `${apiUrl} : filtres locaux inoperants emis`).not.toContain('filters=');
+      // Mais l'export, lui, reste pertinent.
+      expect(balises).toContain('server-sort');
+      // Et le code livre indique ce qui remplace les deux controles.
+      expect(code).toContain('dsfr-data-search server-search');
+    }
+  });
+
+  it('les émet en revanche quand la pagination est locale', () => {
+    state.savedSource = { id: '1', name: 'API', type: 'api', apiUrl: 'https://example.com/api' };
+    state.chartType = 'datalist';
+    state.labelField = 'region';
+    state.fields = [{ name: 'region', type: 'string', sample: 'Bretagne' }];
+    state.datalistRecherche = true;
+    state.datalistFiltres = true;
+    state.datalistColumns = [
+      { field: 'region', label: 'Region', visible: true, filtrable: true },
+    ] as typeof state.datalistColumns;
+
+    generateDynamicCodeForApi();
+    const code = document.getElementById('generated-code')!.textContent!;
+
+    expect(code).toMatch(/^\s*search\s*$/m);
+    expect(code).toContain('filters="region"');
+  });
+
   it('should generate datalist for generic API source without server-side', () => {
     state.savedSource = {
       id: '1',
@@ -2553,7 +2616,10 @@ describe('generateCode (API fetch embedded)', () => {
     state.fields = [{ name: 'region', type: 'string', sample: 'Bretagne' }];
     generateCode('https://api.example.com?limit=200');
     const code = document.getElementById('generated-code')!.textContent!;
-    expect(code).toContain('tri="region:asc"');
+    // Le nom du test disait deja `sort` ; l'assertion etait restee sur
+    // l'alias deprecie `tri` (#300).
+    expect(code).toContain('sort="region:asc"');
+    expect(code).not.toContain('tri="');
   });
 
   it('should not generate sort attribute when sortOrder is none', () => {
@@ -2598,7 +2664,11 @@ describe('generateCode (API fetch embedded)', () => {
     expect(code).toContain('async function loadMap');
     expect(code).toContain('isValidDeptCode');
     expect(code).toContain('mapData');
-    expect(code).toContain("d['code_dept']");
+    // Guillemets DOUBLES : le nom de champ passe par `jsStringLiteral`. Un
+    // en-tete de colonne francais ordinaire — « Nombre d'habitants » — fermait
+    // la chaine simple-quotee et rendait le script entier invalide, dans le
+    // code exporte, sans que rien ne le signale a la generation (#615).
+    expect(code).toContain('d["code_dept"]');
     expect(code).toContain('selected-palette');
     expect(code).toContain('sequentialAscending');
     expect(code).toContain('padStart(2');

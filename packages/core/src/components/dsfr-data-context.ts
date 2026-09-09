@@ -36,7 +36,7 @@ let contextSeq = 0;
  * ```
  *
  * @fires dsfr-data-context-change - sur l'element — l'etat des filtres du contexte a change (utile pour <dsfr-data-context-tags> et la synchro d'URL).
- * @fires dsfr-data-source-command - `{ sourceId, where, whereKey }` sur `document` — clause `where` diffusee vers chaque source de `sources`, avec un whereKey stable par filtre (merge en AND cote source, ADR-031).
+ * @fires dsfr-data-source-command - `{ sourceId, where, whereKey, origin? }` sur `document` — clause `where` diffusee vers chaque source de `sources`, avec un whereKey stable par filtre (merge en AND cote source, ADR-031). `origin` (#603) nomme le composant emetteur : le bus etant plat, une trace ne pourrait sinon pas dire qui demande quoi.
  */
 @customElement('dsfr-data-context')
 export class DsfrDataContext extends LitElement {
@@ -150,7 +150,7 @@ export class DsfrDataContext extends LitElement {
     const whereKey = this._registerFilter(filter);
     for (const sourceId of this._targetsFor(filter)) {
       const where = colonWhere ? this._translateFor(sourceId, colonWhere) : '';
-      dispatchSourceCommand(sourceId, { where, whereKey });
+      dispatchSourceCommand(sourceId, { where, whereKey, origin: this.id });
     }
     if (this.urlSync && this.isConnected) {
       this._syncUrl();

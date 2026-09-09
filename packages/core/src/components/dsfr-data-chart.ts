@@ -37,7 +37,7 @@ import {
   type RadialScaleBounds,
   type RadialChartLike,
 } from '../utils/chart-radial-scale.js';
-import { escapeHtml, toNumber, isValidDeptCode } from '@dsfr-data/shared/lib';
+import { escapeHtml, toNumber, isValidDeptCode, normalizeDeptCode } from '@dsfr-data/shared/lib';
 import { toIsoA2 } from '../data/continent-lookup.js';
 
 type DSFRChartType =
@@ -514,10 +514,8 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
         code = code.toUpperCase();
         if (!code) continue;
       } else {
-        // Pad numeric codes to 2 digits (e.g. "1" -> "01")
-        if (/^\d+$/.test(code) && code.length < 3) {
-          code = code.padStart(2, '0');
-        }
+        // Normalisation partagee (#610) : source unique du padding.
+        code = normalizeDeptCode(code);
         if (this.type === 'map' ? !isValidDeptCode(code) : code === '') continue;
       }
       const value = toNumber(getByPath(record, this.valueField));

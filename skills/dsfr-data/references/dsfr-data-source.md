@@ -177,7 +177,7 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 | `cache-fallback` | — | émis | `{ sourceId }` sur l'element — les donnees servies viennent du cache externe apres un echec reseau (#307). |
 | `dsfr-data-loaded` | — | émis | `{ sourceId, data }` sur `document` — donnees chargees et publiees sous l'`id` de cette source. C'est l'evenement que tout l'aval ecoute. |
 | `dsfr-data-loading` | — | émis | `{ sourceId }` sur `document` — un chargement demarre. |
-| `dsfr-data-error` | — | émis | `{ sourceId, error }` sur `document` — le fetch ou le parsing a echoue. |
+| `dsfr-data-error` | — | émis | `{ sourceId, error, attemptedUrl? }` sur `document` — le fetch ou le parsing a echoue. `attemptedUrl` (#603) porte l'URL REELLEMENT appelee, proxy applique : elle diverge souvent du `base-url` ecrit dans le HTML, et le message de l'`Error` reste volontairement court. La cle est absente quand l'URL n'a pas pu etre construite, ou pour une erreur qui ne vient pas d'un fetch (donnees inline invalides, configuration). |
 
 
 **Slots** — aucun (le composant rend son propre contenu).

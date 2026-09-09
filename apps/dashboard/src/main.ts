@@ -12,6 +12,9 @@ import {
   startTourIfFirstVisit,
   startTour,
   DASHBOARD_TOUR,
+  mountDiagnosticPanel,
+  transmettreDiagnostic,
+  appHref,
 } from '@dsfr-data/shared';
 import { state, createEmptyDashboard, normalizeDashboard } from './state.js';
 import type { DashboardData, DashboardSource, DashboardFavorite } from './state.js';
@@ -291,7 +294,27 @@ function initEventListeners(): void {
 }
 
 // Initialization
+
+/**
+ * « Envoyer à l'assistant » depuis une app sans chat : on dépose le
+ * diagnostic et on ouvre l'Assistant IA, qui le posera dans son champ.
+ * Même mécanisme de passation que le code entre apps (ARCHITECTURE §10.1).
+ */
+function envoyerDiagnosticVersAssistant(texte: string): void {
+  transmettreDiagnostic(texte);
+  window.location.href = appHref('builder-ia', { from: 'dashboard' });
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
+  // Volet Diagnostic (#606) — un tableau de bord porte plusieurs chaînes,
+  // une par widget ; le collecteur les voit toutes sur le même bus.
+  mountDiagnosticPanel({
+    frame: document.getElementById('preview-iframe') as HTMLIFrameElement | null,
+    toggleButtonId: 'diagnostic-btn',
+    canSend: true,
+    onSend: envoyerDiagnosticVersAssistant,
+    emptyHint: 'Ajoutez un widget pour observer ce qui transite entre les composants.',
+  });
   await initAuth();
 
   loadFavorites();

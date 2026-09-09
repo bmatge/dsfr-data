@@ -22,32 +22,20 @@ body.builder-ia-app > app-header {
   flex: 0 0 auto;
 }
 
-/* Le layout partagé (app-layout-builder) passe en hauteur contrainte :
-   les deux colonnes remplissent l'espace restant et scrollent en interne.
-   Surcharges app-locales — le composant partagé reste inchangé. */
-body.builder-ia-app app-layout-builder {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
+/* Le modele de hauteur vient de <app-layout-builder mode="fullscreen">
+   (#613). Les surcharges qui stylaient ses classes internes ont ete retirees
+   avec #609 : l'exception qui les justifiait — un apercu a hauteur
+   intrinseque, voue a devenir une iframe — n'existe plus. Le body reste un
+   prerequis du mode, cote app. */
 
-body.builder-ia-app .builder-layout-container {
-  flex: 1 1 auto;
-  min-height: 0;
-  align-items: stretch;
-}
-
-body.builder-ia-app .builder-layout-left {
-  min-height: 0;
-  overflow: hidden;
-}
-
-body.builder-ia-app .builder-layout-right {
-  position: static;
-  align-self: stretch;
-  min-height: 0;
-  max-height: none;
+/* L'apercu est une iframe (#609) : elle remplit le panneau, le contenu
+   defile a l'interieur du document rendu. */
+.preview-frame {
+  width: 100%;
+  height: 100%;
+  min-height: 420px;
+  border: 0;
+  display: block;
 }
 
 .builder-header {
@@ -540,10 +528,9 @@ body.builder-ia-app .builder-layout-right {
     overflow: auto;
   }
 
-  body.builder-ia-app .builder-layout-left {
-    overflow: visible;
-  }
-
+  /* La remise a plat de la colonne gauche est faite par le mode
+     « fullscreen » du layout (#613) ; il ne reste ici que le panneau de
+     configuration, propre a cette app. */
   .builder-config-panel {
     overflow: visible;
   }

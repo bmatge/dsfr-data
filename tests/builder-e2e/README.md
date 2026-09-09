@@ -10,6 +10,17 @@ Ce dossier contient une suite complète de tests E2E Playwright pour vérifier q
 - **`inspect-builder.spec.ts`** : Outil de diagnostic de la structure du builder
 - **`comprehensive-test.spec.ts`** : Tests exhaustifs de toutes les combinaisons (~100 tests)
 - **`aggregation-consistency.spec.ts`** : Tests de cohérence des données (source vs rendu)
+- **`builder-ia-recette.spec.ts`** : Recette des 16 types de l'Assistant IA (#615) — le code
+  généré est produit **et rend**, sur source locale (variante embarquée). Depuis #609 l'aperçu
+  EST l'export : ce spec est donc la seule vérification qu'un type ne rend pas dans le vide.
+  **Portée** : les trois variantes API (ODS/Tabular paginées, API générique) ne sont pas
+  *rendues* ici — elles demanderaient le réseau ; seule leur forme est vérifiée hors ligne.
+  Cette moitié-là (281 tests) tourne en CI dans
+  `tests/apps/builder-ia/code-generator-recette.test.ts`.
+- **`layout-diagnostic-recette.spec.ts`** : Recette de clôture de l'epic #614 — sur les 5 apps
+  (Builder, Assistant IA, Playground, Studio, Carto) : pas de défilement horizontal, mode de
+  hauteur déclaré, fin de document bordant le rail, et volet Diagnostic qui **reçoit réellement
+  le clic** (balayage sur toute la largeur — une sonde centrale passait à côté de #612).
 
 ### Utilitaires
 - **`data-consistency-checker.ts`** : Fonctions de calcul et vérification de cohérence

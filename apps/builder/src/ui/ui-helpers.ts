@@ -14,6 +14,7 @@ import {
   promptDialog,
   PALETTE_COLORS,
   isValidDeptCode,
+  normalizeDeptCode,
 } from '@dsfr-data/shared';
 import type { Favorite } from '../state.js';
 import { getLastGeneratedCode } from './code-generator.js';
@@ -134,12 +135,39 @@ export function renderPaletteSwatches(paletteKey: string = state.palette): void 
  *
  * Returns the name of the best candidate column, or `null` if none qualifies.
  */
+/** Noms de champs qui designent une REGION, pas un departement (#610). */
+const LOOKS_REGIONAL = /(^|[_-])(reg|region)([_-]|$)|region/i;
+
 export function findDeptCodeField(): string | null {
-  const data = (state.data ?? state.localData ?? []) as Record<string, unknown>[];
+  /*
+   * On inspecte les lignes SOURCE (`state.localData`), pas `state.data` (#610).
+   *
+   * `state.data` porte le resultat AGREGE apres une generation
+   * (`code-generator.ts` : `state.data = results`) : ses colonnes sont
+   * `label`/`value`, plus celles de la source. Or les champs testes viennent
+   * de `state.fields`, qui decrit la SOURCE — aucun ne s'y retrouvait, donc
+   * `nonEmpty` restait a 0 et la fonction rendait `null`. L'avertissement
+   * « Aucun code departement detecte » apparaissait alors sur une source qui
+   * en contenait parfaitement, des la premiere generation.
+   *
+   * `state.localData` est renseigne dans les trois cas (source manuelle,
+   * jeu d'exemple, fetch ODS) et tient toujours les lignes d'origine.
+   */
+  const data = (state.localData ?? state.data ?? []) as Record<string, unknown>[];
   if (!Array.isArray(data) || data.length === 0) return null;
 
   // Only consider string/number fields (codes can be "2A" or numeric)
-  const candidates = state.fields.filter((f) => f.type === 'string' || f.type === 'number');
+  //
+  // Un champ manifestement REGIONAL est ecarte, meme si ses valeurs sont des
+  // codes departement valides (#610) : les 13 codes region INSEE (11, 84,
+  // 75, 76, 32, 93, 44, 52, 53, 28, 27, 24, 94) sont TOUS dans 01-95. Sans
+  // ce filtre, un jeu regional passait pour departemental, la carte coloriait
+  // 13 departements epars, et l'avertissement qui oriente vers la carte des
+  // regions ne se declenchait jamais. Aucune valeur ne permet de trancher :
+  // c'est le nom du champ qui porte le sens.
+  const candidates = state.fields.filter(
+    (f) => (f.type === 'string' || f.type === 'number') && !LOOKS_REGIONAL.test(f.name)
+  );
   if (candidates.length === 0) return null;
 
   const sample = data.slice(0, 50);
@@ -150,7 +178,7 @@ export function findDeptCodeField(): string | null {
       const raw = row[field.name];
       if (raw == null || raw === '') continue;
       nonEmpty++;
-      if (isValidDeptCode(String(raw))) valid++;
+      if (isValidDeptCode(normalizeDeptCode(String(raw)))) valid++;
     }
     // Accept the field if at least 80% of its non-empty sample values are valid codes
     if (nonEmpty > 0 && valid / nonEmpty >= 0.8) return field.name;

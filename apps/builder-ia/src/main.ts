@@ -14,6 +14,8 @@ import {
   ImageExportError,
   IMAGE_EXPORT_MESSAGES,
   toastError,
+  mountDiagnosticPanel,
+  recupererDiagnostic,
 } from '@dsfr-data/shared';
 
 import {
@@ -54,11 +56,55 @@ import { state } from './state.js';
 (window as unknown as Record<string, unknown>).onModelSelectChange = onModelSelectChange;
 (window as unknown as Record<string, unknown>).loadSavedSourceData = loadSavedSourceData;
 (window as unknown as Record<string, unknown>).sendMessage = sendMessage;
+
+/**
+ * Injecte un diagnostic dans le champ du chat plutôt que de l'envoyer
+ * directement : l'utilisateur relit ce qui part vers un service externe —
+ * la trace contient des échantillons de données réelles — et peut
+ * l'accompagner de sa question.
+ */
+function injecterDiagnostic(texte: string): void {
+  const input = document.getElementById('chat-input') as HTMLTextAreaElement | null;
+  if (!input) return;
+  const question = 'Voici le diagnostic du pipeline. Qu’est-ce qui ne va pas ?';
+  input.value = `${question}\n\n${texte}`;
+  input.focus();
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+/**
+ * Récupère un diagnostic transmis par une autre app et le pose dans le chat.
+ *
+ * Le mode rapporté n'a d'intérêt que si quelque chose peut y arriver : sans
+ * ce chemin, le volet resterait un écran vide avec une explication.
+ */
+function recupererDiagnosticTransmis(): void {
+  const texte = recupererDiagnostic();
+  if (texte) injecterDiagnostic(texte);
+}
+
 (window as unknown as Record<string, unknown>).copyCode = copyCode;
 (window as unknown as Record<string, unknown>).switchTab = switchTab;
 
 document.addEventListener('DOMContentLoaded', async () => {
   await initAuth();
+
+  // Volet Diagnostic en mode LIVE (#609) : depuis que l'apercu rend le code
+  // genere dans une iframe, cette app emet enfin sur le bus comme les
+  // autres. `getPreviewHTML(..., { debug: true })` y injecte le tampon
+  // precoce — sans lui le collecteur arriverait apres que tout a emis et
+  // perdrait les erreurs.
+  //
+  // La reception d'un diagnostic transmis par une autre app est CONSERVEE :
+  // le chat reste le bon endroit pour poser une trace venue d'ailleurs.
+  mountDiagnosticPanel({
+    frame: document.getElementById('preview-frame') as HTMLIFrameElement | null,
+    toggleButtonId: 'diagnostic-btn',
+    canSend: true,
+    onSend: injecterDiagnostic,
+    emptyHint: 'Demandez un graphique pour observer ce qui transite entre les composants.',
+  });
+  recupererDiagnosticTransmis();
 
   // Source selection
   const savedSourceEl = document.getElementById('saved-source');
@@ -130,11 +176,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     void (async () => {
       try {
         if (!state.chartConfig) throw new ImageExportError('empty');
-        // Bloc complet titre + sous-titre + graphique (light DOM du panneau).
-        const root = (document.querySelector('.preview-chart') ??
-          document.getElementById('tab-preview') ??
-          document.body) as HTMLElement;
-        await exportPreviewImage(root, format, state.chartConfig.title || 'graphique');
+        // L'apercu est desormais une iframe (#609) : on capture LA, comme le
+        // Playground et le Builder. Capturer le bloc de panneau ne rendrait
+        // plus qu'un cadre vide, le contenu vivant dans le document de
+        // l'iframe.
+        const frame = document.getElementById('preview-frame') as HTMLIFrameElement | null;
+        if (!frame) throw new ImageExportError('iframe-inaccessible');
+        await exportPreviewImage(frame, format, state.chartConfig.title || 'graphique');
       } catch (err) {
         if (err instanceof ImageExportError) toastError(IMAGE_EXPORT_MESSAGES[err.reason]);
         else throw err;

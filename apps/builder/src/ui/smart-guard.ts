@@ -181,7 +181,7 @@ function configSnapshot(): string {
   const subset: Record<string, unknown> = {};
   for (const k of keys) subset[k] = s[k];
   subset.__sourceId = state.savedSource?.id ?? null;
-  // Variante/unité KPI : lues du DOM par chart-renderer/code-generator (pas
+  // Variante/unité KPI : lues du DOM par code-generator (pas
   // dans le state) — on les intègre au snapshot depuis le DOM aussi.
   subset.__kpiVariant =
     (document.getElementById('kpi-variant') as HTMLSelectElement | null)?.value ?? '';

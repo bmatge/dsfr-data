@@ -13,7 +13,7 @@
  * studio : l'apercu EST l'export.
  */
 
-import { escapeHtml } from '../utils/escape-html.js';
+import { escapeHtml, jsonAttr } from '../utils/escape-html.js';
 import { CDN_URLS } from '../templates/cdn-versions.js';
 import { LIB_URL } from '../api/proxy-config.js';
 import type {
@@ -27,15 +27,11 @@ import type {
   MapWidgetConfig,
 } from './model.js';
 import { getRowColumns, isFavoriteChart, isBuilderChart } from './model.js';
+import { earlyBufferScript } from '../debug/early-buffer.js';
 
 /** Alias d'une colonne agregee par dsfr-data-query (convention pipeline #269). */
 function aggregatedAlias(field: string, fn: string): string {
   return `${field}__${fn}`;
-}
-
-/** Valeur d'attribut HTML entre guillemets simples (JSON inline). */
-function singleQuoteAttr(value: string): string {
-  return value.replace(/&/g, '&amp;').replace(/'/g, '&#039;').replace(/</g, '&lt;');
 }
 
 /**
@@ -49,7 +45,7 @@ export function generateSourceHTML(source: DashboardSource, indent = '    '): st
   const id = escapeHtml(source.id);
   const data = source.data;
   if (Array.isArray(data) && data.length > 0) {
-    return `${indent}<dsfr-data-source id="${id}" data='${singleQuoteAttr(JSON.stringify(data))}'></dsfr-data-source>\n`;
+    return `${indent}<dsfr-data-source id="${id}" data='${jsonAttr(data)}'></dsfr-data-source>\n`;
   }
 
   const apiUrl = typeof source.apiUrl === 'string' ? source.apiUrl : '';
@@ -348,7 +344,7 @@ ${indent}</dsfr-data-chart>\n`;
 ${indent}</dsfr-data-list>\n`;
       }
       // Forme historique (sans source) conservee pour les dashboards existants.
-      const cols = cfg.columns.length ? ` columns='${JSON.stringify(cfg.columns)}'` : '';
+      const cols = cfg.columns.length ? ` columns='${jsonAttr(cfg.columns)}'` : '';
       const searchable = cfg.searchable ? ' searchable' : '';
       const sortable = cfg.sortable ? ' sortable' : '';
       return `${indent}<dsfr-data-list${cols}${searchable}${sortable}>
@@ -468,12 +464,33 @@ function requiresMapBundle(dashboard: DashboardData): boolean {
 }
 
 /** Page DSFR complete et autonome. */
-export function generateDashboardHTML(dashboard: DashboardData): string {
+export interface DashboardHTMLOptions {
+  /**
+   * Injecte le tampon d'evenements du volet Diagnostic (#605).
+   *
+   * Sans lui, un observateur exterieur arrive systematiquement trop tard : le
+   * bus emet pendant le parsing, bien avant le `load` de l'iframe. La trace
+   * est alors reconstituee depuis le cache — sans chronologie, et SANS LES
+   * ERREURS, qui ne laissent aucune trace en cache. Un echec rapide (404,
+   * CORS, configuration) redevient invisible.
+   *
+   * Le tampon est inerte tant que personne ne le vide : l'aperçu exporte par
+   * l'utilisateur ne le porte jamais.
+   */
+  debug?: boolean;
+}
+
+export function generateDashboardHTML(
+  dashboard: DashboardData,
+  options: DashboardHTMLOptions = {}
+): string {
   const bundle = requiresMapBundle(dashboard) ? 'dsfr-data.esm.js' : 'dsfr-data.core.esm.js';
+  // EN TETE du head, avant la moindre feuille ou le moindre module.
+  const earlyBuffer = options.debug ? `\n  ${earlyBufferScript()}` : '';
   return `<!DOCTYPE html>
 <html lang="fr" data-fr-theme>
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8">${earlyBuffer}
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${escapeHtml(dashboard.name)} - dsfr-data</title>
 

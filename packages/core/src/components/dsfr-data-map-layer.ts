@@ -528,7 +528,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     // retire laissait la source filtree sur le dernier viewport pour tous
     // ses autres consommateurs
     if (this.bbox && this.source) {
-      dispatchSourceCommand(this.source, { where: '', whereKey: 'map-bbox' });
+      dispatchSourceCommand(this.source, { where: '', whereKey: 'map-bbox', origin: this.id });
     }
     if (this._bboxTimer) clearTimeout(this._bboxTimer);
     if (this._layerGroup && this._leafletMap) {
@@ -594,6 +594,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
       dispatchSourceCommand(this.source, {
         where,
         whereKey: 'map-bbox',
+        origin: this.id,
       });
     } else {
       // Client-side fallback — filter cached data by bounds

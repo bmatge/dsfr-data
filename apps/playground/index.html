@@ -114,12 +114,13 @@
     <button slot="tertiary" id="export-png-btn" class="fr-icon-image-line" title="Exporter l'aperçu en PNG">Exporter en PNG</button>
     <button slot="tertiary" id="export-jpg-btn" class="fr-icon-image-line" title="Exporter l'aperçu en JPG">Exporter en JPG</button>
     <button slot="tertiary" id="deps-btn" class="fr-icon-code-s-slash-line" title="Ajouter les CSS/JS nécessaires pour intégrer le code dans une page externe">Ajouter des dépendances</button>
+    <button slot="tertiary" id="diagnostic-btn" class="fr-icon-tools-line" title="Ouvrir le volet Diagnostic : ce qui transite entre les composants du pipeline">Diagnostic</button>
     <button slot="tertiary" id="reset-btn" class="fr-icon-refresh-line" title="Recharger l'exemple sélectionné">Réinitialiser</button>
     <button slot="primary" id="run-btn" class="fr-icon-play-line fr-btn--icon-left">Exécuter</button>
   </app-action-bar>
 
 
-  <app-layout-builder left-ratio="50">
+  <app-layout-builder mode="sticky-left" left-ratio="50">
     <div slot="left" class="playground-editor">
       <textarea id="code-editor"></textarea>
     </div>

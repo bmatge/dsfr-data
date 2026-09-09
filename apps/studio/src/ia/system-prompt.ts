@@ -11,8 +11,33 @@ export function buildSystemPrompt(opts: {
   fields: Field[];
   sampleRecord: Record<string, unknown> | null;
   document: DashboardData;
+  /** Les outils de diagnostic sont disponibles (#607). */
+  diagnostic?: boolean;
 }): string {
   const { source, fields, sampleRecord, document } = opts;
+
+  /**
+   * Volet diagnostic — trois lignes, pas la trace.
+   *
+   * La trace est non bornee et change a chaque tour : la pousser ici la
+   * ferait payer a chaque appel pour une information le plus souvent hors
+   * sujet. Meme partage qu'entre le contexte de donnees et `inspect_data`.
+   */
+  const diagnosticSection = opts.diagnostic
+    ? `
+
+## Quand le rendu ne correspond pas a l'attendu
+Tu peux OBSERVER l'apercu, pas seulement le composer. run_and_trace relance le \
+rendu et te donne le flux : lignes a chaque etape, champs apparus et disparus, \
+erreurs avec l'URL reellement appelee. inspect_stage creuse une etape.
+- Un affichage vide se diagnostique PAR L'OBSERVATION, jamais par supposition : \
+appelle run_and_trace AVANT de proposer une cause.
+- Apres un correctif, rappelle run_and_trace pour verifier. C'est explicitement \
+autorise, meme deux fois de suite.
+- Les causes les plus frequentes : un champ absent en amont (le nom a change a la \
+source), un filtre qui ne matche aucune valeur, une agregation retombee cote \
+client sur un echantillon.`
+    : '';
 
   const dataContext = source
     ? `## Données chargées
@@ -53,7 +78,7 @@ INSEE restent des blocs chart (config.type:"map"/"map-reg").
 
 ## Documentation
 get_relevant_skills / get_skill donnent la référence des composants (attributs, \
-pièges) — consulte-les pour les configurations avancées (cartes, multi-séries, unités).
+pièges) — consulte-les pour les configurations avancées (cartes, multi-séries, unités).${diagnosticSection}
 
 ${dataContext}
 

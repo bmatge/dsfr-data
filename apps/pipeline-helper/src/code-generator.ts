@@ -1,4 +1,5 @@
 import { ClassicPreset } from 'rete';
+import { escapeHtml } from '@dsfr-data/shared';
 import { PipelineNode, AttributeControl } from './nodes/base-node.js';
 
 interface GraphNode {
@@ -146,10 +147,11 @@ function isBooleanAttr(node: PipelineNode, key: string): boolean {
   return false;
 }
 
-function escapeAttr(val: string): string {
-  return val
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+/**
+ * Alias local de `escapeHtml` — l'implementation etait dupliquee ici. Une
+ * seule definition de l'echappement (#615) : trois copies divergentes de la
+ * meme fonction avaient produit trois defauts distincts dans les generateurs.
+ */
+function escapeAttr(val: string | number | boolean | null | undefined): string {
+  return escapeHtml(val);
 }

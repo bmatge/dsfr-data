@@ -4,6 +4,8 @@
  *   dsfr-data.esm.js / .umd.js       — full bundle (all components)
  *   dsfr-data.core.esm.js / .umd.js   — core bundle (no Leaflet)
  *   dsfr-data.map.esm.js / .umd.js    — map add-on (Leaflet family)
+ *   dsfr-data.debug.js                — collecteur de diagnostic autonome
+ *                                       (#608, opt-in, hors bundles publies)
  */
 import { build } from 'vite';
 import { resolve, dirname } from 'path';
@@ -97,6 +99,17 @@ await buildBundle(
   'DsfrDataMap',
   (fmt) => `dsfr-data.map.${fmt === 'es' ? 'esm' : fmt}.js`,
   ['es', 'umd']
+);
+
+// 4. Bundle autonome de diagnostic (#608) — ENTREE SEPAREE, jamais fusionnee
+//    aux trois bundles publies : un outil d'atelier n'a rien a faire dans le
+//    poids d'une page gouvernementale. Format IIFE : une balise <script> ou un
+//    marque-page doit suffire, sans module ni import map.
+await buildBundle(
+  resolve(coreDir, 'src/index-debug.ts'),
+  'DsfrDataDebug',
+  () => `dsfr-data.debug.js`,
+  ['umd']
 );
 
 console.log('\nBuild complete. Bundles in packages/core/dist/:');

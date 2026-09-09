@@ -43,7 +43,11 @@ import {
  *
  * @fires dsfr-data-loaded - `{ sourceId, data }` sur `document` — donnees chargees et publiees sous l'`id` de cette source. C'est l'evenement que tout l'aval ecoute.
  * @fires dsfr-data-loading - `{ sourceId }` sur `document` — un chargement demarre.
- * @fires dsfr-data-error - `{ sourceId, error }` sur `document` — le fetch ou le parsing a echoue.
+ * @fires dsfr-data-error - `{ sourceId, error, attemptedUrl? }` sur `document` — le fetch ou le
+ *   parsing a echoue. `attemptedUrl` (#603) porte l'URL REELLEMENT appelee, proxy applique :
+ *   elle diverge souvent du `base-url` ecrit dans le HTML, et le message de l'`Error` reste
+ *   volontairement court. La cle est absente quand l'URL n'a pas pu etre construite, ou pour
+ *   une erreur qui ne vient pas d'un fetch (donnees inline invalides, configuration).
  * @fires cache-fallback - `{ sourceId }` sur l'element — les donnees servies viennent du cache externe apres un echec reseau (#307).
  */
 @customElement('dsfr-data-source')
@@ -616,7 +620,7 @@ export class DsfrDataSource extends LitElement {
       }
 
       this._error = error as Error;
-      dispatchDataError(this.id, this._error);
+      dispatchDataError(this.id, this._error, attemptedUrl || undefined);
       logFetchError(`dsfr-data-source[${this.id}]: Erreur de chargement`, error, attemptedUrl);
     } finally {
       // Un fetch remplace (abort concurrent) ne doit pas eteindre le
@@ -736,12 +740,9 @@ export class DsfrDataSource extends LitElement {
       }
 
       this._error = error as Error;
-      dispatchDataError(this.id, this._error);
-      logFetchError(
-        `dsfr-data-source[${this.id}]: Erreur de chargement`,
-        error,
-        this._diagnosticUrl(adapter, params, overlay)
-      );
+      const diagnosticUrl = this._diagnosticUrl(adapter, params, overlay);
+      dispatchDataError(this.id, this._error, diagnosticUrl);
+      logFetchError(`dsfr-data-source[${this.id}]: Erreur de chargement`, error, diagnosticUrl);
     } finally {
       if (generation === this._fetchGeneration) {
         this._loading = false;

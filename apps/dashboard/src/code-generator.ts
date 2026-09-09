@@ -24,6 +24,19 @@ export function generateHTMLCode(): string {
   return sharedGenerateDashboardHTML(state.dashboard);
 }
 
+/**
+ * Variante APERCU : identique, plus le tampon d'evenements du volet
+ * Diagnostic (#605).
+ *
+ * Volontairement distincte de `generateHTMLCode()` : ce que l'utilisateur
+ * copie ou exporte ne doit jamais contenir de sonde de diagnostic. Sans le
+ * tampon, le collecteur arrive apres que tout a emis et perd les erreurs —
+ * qui ne laissent aucune trace en cache.
+ */
+export function generatePreviewHTMLCode(): string {
+  return sharedGenerateDashboardHTML(state.dashboard, { debug: true });
+}
+
 export function generateWidgetHTML(widget: Widget): string {
   return sharedGenerateWidgetHTML(widget, state.dashboard);
 }

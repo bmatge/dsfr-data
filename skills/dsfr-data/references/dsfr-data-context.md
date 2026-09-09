@@ -61,7 +61,7 @@ construite en colon (dialecte pivot) puis traduite au whereFormat de chaque adap
 | Événement | Payload | Direction | Quand |
 |---|---|---|---|
 | `dsfr-data-context-change` | — | émis | sur l'element — l'etat des filtres du contexte a change (utile pour <dsfr-data-context-tags> et la synchro d'URL). |
-| `dsfr-data-source-command` | — | émis | `{ sourceId, where, whereKey }` sur `document` — clause `where` diffusee vers chaque source de `sources`, avec un whereKey stable par filtre (merge en AND cote source, ADR-031). |
+| `dsfr-data-source-command` | — | émis | `{ sourceId, where, whereKey, origin? }` sur `document` — clause `where` diffusee vers chaque source de `sources`, avec un whereKey stable par filtre (merge en AND cote source, ADR-031). `origin` (#603) nomme le composant emetteur : le bus etant plat, une trace ne pourrait sinon pas dire qui demande quoi. |
 
 
 **Slots** — aucun (le composant rend son propre contenu).

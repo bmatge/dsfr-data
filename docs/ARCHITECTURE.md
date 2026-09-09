@@ -412,6 +412,172 @@ A l'interieur d'une meme page, les Web Components communiquent par un bus d'even
 <dsfr-data-list source="...">     Ecoute via SourceSubscriberMixin
 ```
 
+### 3.5.1 Modeles de hauteur des editeurs deux-volets (#613)
+
+`<app-layout-builder>` expose un attribut `mode` plutot que de laisser les
+apps surcharger ses classes internes :
+
+| Mode | Comportement | Apps |
+|---|---|---|
+| `page-scroll` (defaut) | la page defile, colonne DROITE epinglee | Studio |
+| `fullscreen` | deux colonnes a defilement interne, page figee | Builder |
+| `sticky-left` | colonne GAUCHE epinglee, DROITE qui defile | Playground |
+| **empile (<= 900 px)** | colonnes a plat, la page defile, **rien n'est epingle en haut** | toutes |
+
+**Pourquoi** : trois apps stylaient `.builder-layout-container/-left/-right`,
+des classes NON contractuelles. Le Playground avait du empiler des
+`!important` pour inverser le sticky ; Builder et Assistant IA maintenaient
+deux fois la meme surcharge. Un changement du composant les cassait en
+silence.
+
+- `fullscreen` exige cote app un `body` de hauteur fixe en `overflow: hidden`.
+- La hauteur de la colonne gauche en pile verticale se regle par la propriete
+  PUBLIQUE `--app-layout-left-stacked-height` (le Playground y met `50vh`).
+- **Assistant IA** garde ses surcharges a dessein : #609 remplace son apercu
+  (hauteur intrinseque) par une iframe (hauteur extrinseque), migrer avant
+  reviendrait a calibrer sur un contenu voue a disparaitre.
+- **Carto** et **Dashboard** n'utilisent pas ce layout : canevas plein ecran a
+  panneaux flottants pour l'une, editeur en grille pour l'autre. Exceptions
+  legitimes, non harmonisees.
+
+**Invariant d'epinglage** — `--app-header-h` a DEUX usages de nature
+differente, et les confondre a coute un defaut visible :
+
+- en **hauteur** (dans un `calc`) il est inconditionnel et sans danger ;
+- en **decalage d'epinglage** (dans un `top:`) c'est une valeur DERIVEE, qui
+  n'a de sens que la ou l'en-tete est lui-meme epingle. Elle doit porter la
+  garde `PINNED` de `packages/app-ui/src/chrome-breakpoints.ts`.
+
+`app-action-bar` s'ancrait a `top: var(--app-header-h)` SANS media query : sur
+telephone la barre de titre restait clouee a 189 px du haut pendant que son
+referent sortait de l'ecran, avec 189 px de contenu defilant au-dessus d'elle.
+`docs/ux/actions.md` exigeait deja l'inverse — la specification etait juste,
+c'est le code qui s'en ecartait.
+
+**Deux seuils, deux natures** : `STACK_MAX_PX` = 900 px gouverne l'empilement
+des colonnes ET tout epinglage haut ; `47.99em` gouverne le chrome mobile
+(actions fixees en bas, rail du volet). Descendre les actions a portee de
+pouce est un choix de largeur de main, pas d'epinglage : les deux seuils ne
+doivent pas etre fusionnes. Entre 768 et 900 px l'en-tete etait epingle sur
+une page qui defilait — un telephone en PAYSAGE (844x390) tombe dans cette
+bande, et c'est le seul endroit du produit ou le defaut etait litteral.
+
+Verrouille par `tests/apps/app-ui/layout-modes.test.ts` (les apps ne stylent
+plus les entrailles du composant), `tests/apps/app-ui/chrome-mobile.test.ts`
+(les deux epinglages partagent le seuil) et `e2e/mobile-chrome.spec.ts` (rien
+n'est epingle en haut sur telephone, en portrait comme en paysage).
+
+### 3.6 Diagnostic du pipeline — le collecteur de trace (#602)
+
+**La propriete qui rend ce chantier possible** : le bus de §3.5 est **plat, global et public**. Chaque etape emet sous son propre `id` via `dispatchDataLoaded`, et `window.__dsfrDataCache` tient une `Map<sourceId, data>` — la sortie de *chaque* etape, en permanence. **Un seul `document.addEventListener` voit donc passer l'integralite du pipeline d'une page, sans modifier un seul composant.**
+
+`packages/shared/src/debug/` exploite cette propriete :
+
+| Module | Role |
+|---|---|
+| `events.ts` | Les 4 noms du bus, **dupliques** depuis `DATA_EVENTS` |
+| `graph.ts` | Topologie depuis le DOM (`id` / `source`, `left`+`right` pour join) |
+| `summarize.ts` | Resume borne : compte, champs, 5 lignes d'echantillon |
+| `recorder.ts` | Journal ordonne + etat par etape + quiescence |
+| `format.ts` | `formatTrace()` — le rendu texte francais |
+| `frame.ts` | Rattachement a une iframe d'apercu |
+| `mount.ts` | Montage du volet en un appel |
+
+#### Couplages non-evidents
+
+- **La duplication des noms d'evenements est deliberee.** Le collecteur doit tourner **sans** `packages/core` (script autonome injecte sur une page tierce, #608) ; importer core ferait entrer tout un bundle dans un outil de diagnostic, et inverser la dependance creerait un cycle. Garde-fou : `tests/debug/alignment.test.ts` casse si un nom derive **ou** si un nouveau composant utilise `TransformerMixin` / `SourceSubscriberMixin` sans etre declare dans `STAGE_ROLES`. Le scan lit le decorateur `@customElement`, pas le nom de fichier.
+- **Le collecteur garde SA copie des donnees.** `TransformerMixin.disconnectedCallback` appelle `clearDataCache(this.id)` : une etape retiree du DOM perd son entree de cache. S'appuyer sur `__dsfrDataCache` ferait disparaitre la trace au moment precis ou on en a besoin.
+- **La quiescence exige silence ET aucune etape en chargement.** Il n'existe aucun evenement « le pipeline a fini », et une commande remontante peut relancer la chaine bien apres le dernier evenement. `waitForQuiescence()` rend `false` au plafond plutot qu'un faux calme.
+- **Une etape en echec invalide ses donnees.** Sans ca, l'aval rapporterait le compte du dernier succes et un afficheur se dirait « alimente » sous une source tombee — le faux calme, applique a l'erreur.
+- **`Trace.order` porte l'ordre topologique.** `states` est un objet nu : JavaScript y range les cles entieres AVANT les autres, donc des ids numeriques inverseraient la lecture.
+- **`formatTrace()` est la fonction pivot.** Une seule implementation, consommee a l'identique par « Copier le diagnostic », « Envoyer a l'assistant » et l'outil `trace_pipeline` de la boucle agentique. Ce que l'utilisateur voit et ce que l'assistant recoit sont le **meme objet**.
+- **Le module est lib-safe mais hors des bundles publies.** Exporte depuis les DEUX barrels de `shared` (`index.ts` ET `lib.ts`), parce que l'entree autonome `packages/core/src/index-debug.ts` en depend et que la frontiere #319 interdit a `core` le barrel racine. Aucun COMPOSANT ne l'importe : il n'entre donc dans aucun des six bundles publies. Verrouille par `tests/debug/standalone-bundle.test.ts`, qui grepe les bundles **et** verifie qu'aucun fichier de `components/` ne reference le collecteur — la seconde moitie attrape la regression avant meme le build.
+
+#### Ce que le bus publie pour le diagnostic (#603)
+
+Trois champs **optionnels**, purement diagnostiques, ajoutes sans toucher au message des `Error` :
+
+- `attemptedUrl` sur `dsfr-data-error` — l'URL reellement appelee, proxy applique. Le diagnostic de #598 (`fetch-diagnostics.ts`) est volontairement **console-only** pour ne pas deverser un paragraphe dans l'UI ; ce champ le rend exploitable par une interface.
+- `origin` sur `dsfr-data-source-command` — le bus etant plat, une trace ne pourrait sinon pas dire *qui* demande une delegation. Renseigne par `TransformerMixin` (relais aval → amont), `dsfr-data-query`, `-search`, `-facets`, `-context`, `-map-layer` et `PaginationController`.
+- `dsfr-data-query.getDelegation()` — quelles operations tournent cote serveur. Un `group-by` non delegue s'execute sur les seules lignes rapatriees : des totaux justes en apparence, faux en realite.
+
+### 3.7 Diagnostic hors des apps : bundle autonome et MCP (#608)
+
+Deux surfaces supplementaires, pour atteindre le code **la ou il vit**.
+
+**`dsfr-data.debug.js` — 15 Ko, opt-in.** Le collecteur n'a besoin de rien de
+la bibliotheque (bus sur `document`, cache sur `window`) : une balise
+`<script>` suffit donc a diagnostiquer n'importe quelle page utilisant
+dsfr-data, **y compris en production, sans rebuild ni modification de la
+page**. Entree de build SEPAREE (`packages/core/src/index-debug.ts`, format
+UMD pour qu'un marque-page puisse la charger), jamais fusionnee aux trois
+bundles publies — un outil d'atelier n'a rien a faire dans le poids d'une
+page gouvernementale. Verrouille par `tests/debug/standalone-bundle.test.ts`,
+qui grepe les bundles publies ET verifie qu'aucun composant du coeur
+n'importe le collecteur.
+
+Marque-page :
+
+```js
+javascript:(function(){var s=document.createElement('script');s.src='https://VOTRE-DOMAINE/dist/dsfr-data.debug.js';document.body.appendChild(s)})()
+```
+
+Sur une page tierce il n'y a pas de tampon precoce : le collecteur arrive
+apres le pipeline et reconstitue l'etat depuis `__dsfrDataCache`. On perd la
+chronologie et les erreurs deja passees — d'ou le bouton « Recharger » de l'incrustation, et l'avertissement
+qu'elle affiche quand la trace a du etre reconstituee.
+
+**Outil MCP `diagnose_widget_code`.** Analyse STATIQUE, sans execution :
+attribut inconnu ou deprecie, balise inexistante, id manquant sur un
+composant qui reemet, amont declare mais absent, id duplique. Moins riche que
+le collecteur — elle ne verra jamais qu'une source renvoie zero ligne — mais
+elle s'utilise dans l'editeur.
+
+L'autorite est `custom-elements.json`, **genere depuis le code** : une liste
+d'attributs ecrite a la main deriverait et le linter finirait par signaler
+des attributs valides.
+
+⚠️ **`mcp-server/` est hors des workspaces npm** et publie separement : il ne
+peut importer aucun module du monorepo. `lint-markup.ts` ne doit donc
+contenir AUCUN import — le contrat des composants lui est passe en
+PARAMETRE — et il est copie par le build
+(`build:lint-markup`, `build:component-contract`, integres a `build:skills`).
+Meme mecanisme et meme contrainte que `ia/skill-matching.ts`, avec les memes
+tests-gardes (`tests/mcp/lint-markup.test.ts`).
+
+### 3.8 Le volet Diagnostic (app-ui)
+
+`app-diagnostic-panel` est un **tiroir bas**, present a l'identique dans toutes les apps. Le choix du tiroir plutot que d'un onglet n'est pas cosmetique : `app-preview-panel` n'existe que dans 3 apps quand `app-action-bar` en couvre 7, et `docs/ux/actions.md` §1 pose qu'« un onglet n'est pas une action ».
+
+- **Le rail replie porte le resume** (`3 etapes · 100 → 8 lignes · 1 alerte`). Un etat ferme qui n'informe pas ne serait jamais ouvert.
+- **Trois onglets** : Flux (delta par arete), Champs (matrice champ × etape), Journal (chronologie, commandes remontantes, URL effective).
+- **Deux modes** : `live` (observe une iframe) et `rapporte` (affiche une trace transmise). Le second existe parce que **builder-IA ne produit aucun trafic sur le bus** — `chart-renderer.ts` dessine avec `@gouvfr/dsfr-chart` en direct, sans composant dsfr-data.
+- **Piege de superposition** : sous 768 px, c'est `.app-action-bar__actions` — et non l'hote `app-action-bar`, qui reste dans le flux — qui passe en `position:fixed; bottom:0; z-index:800`. La description inverse figurait ici depuis #539 et explique vraisemblablement pourquoi l'epinglage sans garde de l'hote a survecu si longtemps : on croyait la barre deja fixee en bas. Le volet s'ancre a `bottom: var(--app-action-bar-fixed-h)` et reste en `z-index:780`. Il publie sa hauteur dans `--app-diagnostic-h`, et sa regle de `padding-bottom` sur `body` utilise une double `:has` pour depasser en specificite celle de la barre d'actions — sinon le gagnant dependrait de l'ordre d'injection des feuilles.
+- **Empilement du mobilier bas** (du plus haut au plus bas) : raison de desactivation > rail du volet > barre d'actions fixe. Depuis que l'hote n'est plus un contexte d'empilement en mobile, `.app-action-bar__reason` (fixe, z-800, meme bande que le rail) le RECOUVRAIT et rendait son bouton inatteignable ; elle est reempilee au-dessus dans le bloc mobile de `app-diagnostic-panel`.
+#### Ou le volet est monte, et sous quel mode (#606)
+
+| App | Mode | Racine observee |
+|---|---|---|
+| Playground, Builder, Studio, Dashboard | live / iframe | `iframe srcdoc` |
+| Carto | live / meme document | `#map-canvas` |
+| Pipeline | live / meme document | conteneur d'execution (`document.body`) |
+| Assistant IA | **rapporte** | aucune — voir ci-dessous |
+| Sources, Favoris, Suivi | **non monte** | aucun pipeline dsfr-data |
+
+Deux ecarts assumes :
+
+- **Assistant IA** n'emet RIEN sur le bus : `apps/builder-ia/src/ui/chart-renderer.ts`
+  dessine avec `@gouvfr/dsfr-chart` en direct, sans aucun composant dsfr-data.
+  Le volet y est donc en mode rapporte — il LIT un diagnostic produit
+  ailleurs, transmis par `sessionStorage` (§10.1). **#609** propose d'aligner
+  cet apercu sur le code genere, ce qui ferait passer le volet en mode live et
+  supprimerait 580 lignes de rendu parallele.
+- **Sources** ne rend aucun pipeline (apercu en table HTML) : y monter un
+  volet live afficherait toujours « aucun composant », ce qui est pire que
+  rien. Il n'en a pas.
+
+- **`mountDiagnosticPanel()` vit dans `shared`, pas dans `app-ui`.** Les apps chargent le chrome par une balise `<script>`, jamais par un `import` : importer `@dsfr-data/app-ui` depuis une app embarquerait une seconde copie du bundle et enregistrerait les composants deux fois. Le helper cree donc l'element par son nom de balise.
+
 ---
 
 ## 4. Architecture proxy

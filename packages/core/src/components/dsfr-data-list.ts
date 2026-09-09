@@ -22,13 +22,20 @@ interface SortState {
  *
  * Affiche un tableau de données avec recherche, filtres et pagination.
  *
+ * Les alias francais (`colonnes`, `recherche`, `filtres`, `tri`, `server-tri`)
+ * restent acceptes pour ne pas casser le code deja publie, mais sont
+ * `@deprecated` depuis #300 : cet exemple montre les attributs COURANTS, pour
+ * qui lit le composant. (Le custom-elements manifest ne capte pas les
+ * `@example` de classe : la reference servie a l'assistant IA vient de
+ * `apps/builder-ia/src/skills.ts`, corrige separement — #615.)
+ *
  * @example
  * <dsfr-data-list
  *   source="sites"
- *   colonnes="nom:Nom du site, ministere:Ministère, score_rgaa:RGAA"
- *   recherche="true"
- *   filtres="ministere,statut"
- *   tri="score_rgaa:desc"
+ *   columns="nom:Nom du site, ministere:Ministère, score_rgaa:RGAA"
+ *   search
+ *   filters="ministere,statut"
+ *   sort="score_rgaa:desc"
  *   pagination="10">
  * </dsfr-data-list>
  */

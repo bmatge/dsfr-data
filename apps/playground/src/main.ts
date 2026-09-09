@@ -21,6 +21,8 @@ import {
   ImageExportError,
   IMAGE_EXPORT_MESSAGES,
   toastError,
+  mountDiagnosticPanel,
+  transmettreDiagnostic,
 } from '@dsfr-data/shared';
 import { initEditor } from './editor.js';
 import type { CodeMirrorEditor } from './editor.js';
@@ -94,7 +96,7 @@ function runCode(): void {
   const code = editor.getValue();
   const iframe = document.getElementById('preview-frame') as HTMLIFrameElement | null;
   if (iframe) {
-    iframe.srcdoc = getPreviewHTML(code);
+    iframe.srcdoc = getPreviewHTML(code, { debug: true });
     // Auto-resize iframe to fit its content once loaded
     iframe.onload = () => autoResizeIframe(iframe);
   }
@@ -198,6 +200,17 @@ function saveFavorite(): void {
 }
 
 // Initialization
+
+/**
+ * « Envoyer à l'assistant » depuis une app sans chat : on dépose le
+ * diagnostic et on ouvre l'Assistant IA, qui le posera dans son champ.
+ * Même mécanisme de passation que le code entre apps (ARCHITECTURE §10.1).
+ */
+function envoyerDiagnosticVersAssistant(texte: string): void {
+  transmettreDiagnostic(texte);
+  window.location.href = appHref('builder-ia', { from: 'playground' });
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   await initAuth();
 
@@ -332,6 +345,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       sessionStorage.removeItem('playground-code');
     }
   }
+
+  // Volet Diagnostic (#605) : observe le pipeline qui tourne dans l'aperçu.
+  // L'aperçu est une iframe srcdoc rechargée à chaque exécution — le
+  // rattachement suit les rechargements, sinon le volet resterait sourd
+  // après le premier « Exécuter ».
+  mountDiagnosticPanel({
+    frame: document.getElementById('preview-frame') as HTMLIFrameElement | null,
+    toggleButtonId: 'diagnostic-btn',
+    canSend: true,
+    onSend: envoyerDiagnosticVersAssistant,
+    emptyHint: 'Exécutez le code pour observer ce qui transite entre les composants.',
+  });
 
   // Product tour : auto au premier passage, sinon « Visite guidée » de la barre
   injectTourStyles();

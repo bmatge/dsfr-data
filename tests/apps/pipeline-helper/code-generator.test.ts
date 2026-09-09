@@ -1,6 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('@dsfr-data/shared', () => ({
+// Mock PARTIEL : seul le stockage est simule. `escapeHtml` doit rester le
+// vrai — c'est lui qui echappe les attributs generes, et le remplacer par un
+// bouchon ferait passer ces tests sur un echappement qui n'existe pas (#615).
+vi.mock('@dsfr-data/shared', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@dsfr-data/shared')>()),
   loadFromStorage: vi.fn(() => []),
   STORAGE_KEYS: { SOURCES: 'dsfr-data-sources' },
 }));

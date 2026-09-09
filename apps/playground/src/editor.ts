@@ -44,5 +44,38 @@ export function initEditor(textareaId: string): CodeMirrorEditor {
   scroller.setAttribute('tabindex', '0');
   scroller.setAttribute('aria-label', 'Défilement du code');
 
+  observeEditorSize(editor);
+
   return editor;
+}
+
+/**
+ * Rafraichit CodeMirror quand son conteneur change de taille (#611).
+ *
+ * CM5 calcule sa fenetre d'affichage a l'initialisation. Depuis que
+ * l'editeur est dimensionne par le flex de sa colonne et non par une hauteur
+ * en dur, cette taille change APRES l'init — au premier calcul de layout, au
+ * glissement du separateur d'`app-layout-builder`, au passage en mode
+ * empile. Sans `refresh()`, CM garde son ancienne fenetre : lignes non
+ * rendues en bas, gouttiere desalignee.
+ *
+ * `ResizeObserver` plutot qu'un `resize` de fenetre : le separateur
+ * redimensionne la colonne sans que la fenetre bouge. Le rendu est reporte a
+ * l'image suivante pour ne pas relancer un calcul de layout dans le callback
+ * de l'observateur (boucle « ResizeObserver loop » signalee par le
+ * navigateur).
+ */
+function observeEditorSize(editor: CodeMirrorEditor): void {
+  if (typeof ResizeObserver === 'undefined') return;
+  const wrapper = editor.getWrapperElement();
+  let pending = false;
+  const observer = new ResizeObserver(() => {
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(() => {
+      pending = false;
+      editor.refresh();
+    });
+  });
+  observer.observe(wrapper);
 }

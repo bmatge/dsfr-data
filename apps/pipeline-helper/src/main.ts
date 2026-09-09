@@ -10,12 +10,22 @@ import {
   startTour,
   startTourIfFirstVisit,
   PIPELINE_TOUR,
+  mountDiagnosticPanel,
 } from '@dsfr-data/shared';
 
 let editor: PipelineEditor | null = null;
 let executor: PipelineExecutor | null = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // Volet Diagnostic (#606) — l'exécuteur instancie de vrais composants dans
+  // un conteneur caché du document courant : même mode que la Carto. Le
+  // Pipeline garde sa vue par nœud, plus riche ; le volet lui apporte le
+  // diagnostic textuel partagé (« Copier le diagnostic »).
+  mountDiagnosticPanel({
+    liveRoot: document.body,
+    toggleButtonId: 'diagnostic-btn',
+    emptyHint: 'Exécutez le pipeline pour observer ce qui transite entre les étapes.',
+  });
   const container = document.getElementById('rete-container');
   if (!container) return;
 

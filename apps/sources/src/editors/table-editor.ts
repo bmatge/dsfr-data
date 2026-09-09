@@ -2,7 +2,7 @@
  * Manual table editor - DOM operations for the inline table in the manual source modal.
  */
 
-import { looksLikeNumber, toNumber, toastWarning } from '@dsfr-data/shared';
+import { looksLikeNumber, toNumber, toastWarning, escapeHtml } from '@dsfr-data/shared';
 
 // ============================================================
 // Helpers
@@ -235,7 +235,10 @@ export function loadTableData(data: Record<string, unknown>[]): void {
   if (headerRow) {
     let html = '<th style="width: 30px;">#</th>';
     for (const col of columns) {
-      const escaped = col.replace(/"/g, '&quot;');
+      // `escapeHtml` et non un remplacement partiel : sans echapper `&`, un
+      // `&amp;` saisi dans un en-tete est redecode a la lecture de l'input,
+      // puis REENREGISTRE corrompu au prochain tour d'edition (#615).
+      const escaped = escapeHtml(col);
       html += `<th style="position: relative;">
         <input type="text" value="${escaped}" class="fr-input fr-input--sm" style="min-width: 80px;">
         <button class="remove-col-btn" onclick="(window as any).removeTableColumn(this)" title="Supprimer la colonne"
@@ -256,7 +259,7 @@ export function loadTableData(data: Record<string, unknown>[]): void {
       let html = `<td class="row-number" style="text-align: center; color: var(--text-mention-grey); font-size: 0.75rem;">${idx + 1}</td>`;
       for (const col of columns) {
         const val = row[col];
-        const escaped = String(val ?? '').replace(/"/g, '&quot;');
+        const escaped = escapeHtml(String(val ?? ''));
         html += `<td><input type="text" class="fr-input fr-input--sm" value="${escaped}"></td>`;
       }
       html += `<td>

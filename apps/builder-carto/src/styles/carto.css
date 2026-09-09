@@ -150,13 +150,39 @@ body.carto-app > app-action-bar {
 /* Note : .carto-panels est positionnée par rapport à .carto-workspace
    (l'<app-header> et l'<app-action-bar> sont en dehors du workspace, pas
    besoin de les compenser ici). */
+/*
+ * Empilement de la Carto face au volet Diagnostic (#612).
+ *
+ * Le volet est un tiroir `position: fixed; bottom: 0; z-index: 780`, calibre
+ * sur l'echelle COMMUNE d'app-ui (ARCHITECTURE.md §3.8) et partage par les
+ * sept apps : le bouger ici casserait l'ordre ailleurs. C'est donc le
+ * mobilier flottant de la Carto qui descend sous lui.
+ *
+ * L'echelle locale devient :
+ *   1    canevas (`.carto-canvas`, contexte d'empilement — tout Leaflet,
+ *        y compris ses controles a z-index 1000, y est confine)
+ *   600  panneaux flottants et pastille de statut  <- sous le tiroir
+ *   780  volet Diagnostic (app-ui, hors de cette feuille)
+ *   1200 / 1300  modales                            <- AU-DESSUS du tiroir
+ *
+ * Une modale doit rester au-dessus de tout : c'est pourquoi on n'isole PAS
+ * `.carto-workspace` (`isolation: isolate`), qui confinerait aussi les
+ * modales — elles sont dans le workspace (`#onboard-modal`) — et les ferait
+ * passer sous le tiroir ouvert.
+ *
+ * Le rail du volet n'a PAS a etre reserve ici : `app-diagnostic-panel` pose
+ * deja `body:has(app-diagnostic-panel){padding-bottom:var(--app-diagnostic-h)}`,
+ * et le workspace s'arrete donc pile au sommet du rail. Le compter une
+ * seconde fois faisait flotter la pastille de statut 37 px trop haut et
+ * amputait d'autant la colonne de panneaux.
+ */
 .carto-panels {
   position: absolute;
   top: 16px;
   left: 16px;
   bottom: 16px;
   width: 344px;
-  z-index: 1000;
+  z-index: 600;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -629,7 +655,7 @@ body.carto-app > app-action-bar {
   position: absolute;
   left: 376px;
   bottom: 16px;
-  z-index: 1000;
+  z-index: 600;
   background: var(--background-default-grey, #fff);
   border: 1px solid var(--border-default-grey);
   box-shadow: 0 2px 6px rgba(0, 0, 18, 0.16);

@@ -2470,7 +2470,7 @@
               "description": "sur l'element — l'etat des filtres du contexte a change (utile pour <dsfr-data-context-tags> et la synchro d'URL)."
             },
             {
-              "description": "`{ sourceId, where, whereKey }` sur `document` — clause `where` diffusee vers chaque source de `sources`, avec un whereKey stable par filtre (merge en AND cote source, ADR-031).",
+              "description": "`{ sourceId, where, whereKey, origin? }` sur `document` — clause `where` diffusee vers chaque source de `sources`, avec un whereKey stable par filtre (merge en AND cote source, ADR-031). `origin` (#603) nomme le composant emetteur : le bus etant plat, une trace ne pourrait sinon pas dire qui demande quoi.",
               "name": "dsfr-data-source-command"
             }
           ],
@@ -10876,6 +10876,23 @@
                 }
               },
               "description": "Retourne les données actuelles\n(isLoading() et getError() sont fournis par TransformerMixin, #280)"
+            },
+            {
+              "kind": "method",
+              "name": "getDelegation",
+              "privacy": "public",
+              "return": {
+                "type": {
+                  "text": "{\n    groupBy: boolean;\n    aggregate: boolean;\n    orderBy: boolean;\n    where: boolean;\n  }"
+                }
+              },
+              "description": "Quelles opérations ont été effectivement déléguées au serveur, et\nlesquelles tournent côté client (#603).\n\nC'est l'information de diagnostic la plus coûteuse à deviner de\nl'extérieur : un `group-by` non délégué s'exécute sur les seules lignes\nrapatriées, ce qui produit des totaux justes en apparence et faux en\nréalité. Elle était déjà calculée par `_negotiateServerSide()` mais\nrestait privée.\n\nCopie défensive : l'appelant ne doit pas pouvoir muter l'état interne."
+            }
+          ],
+          "events": [
+            {
+              "description": "`{ sourceId, groupBy?, aggregate?, orderBy?, where?, whereKey?, origin }` sur `document` — delegation server-side negociee avec la source amont, et liberation des overlays quand elle retombe cote client. `origin` porte l'id de ce composant (#603).",
+              "name": "dsfr-data-source-command"
             }
           ],
           "attributes": [
@@ -11514,6 +11531,10 @@
             {
               "description": "`{ query, count }` sur l'element — la saisie de recherche a change (pour synchroniser une UI de page).",
               "name": "dsfr-data-search-change"
+            },
+            {
+              "description": "`{ sourceId, where, whereKey, origin }` sur `document` — recherche relayee en filtre serveur vers la source amont. `origin` porte l'id de ce composant (#603).",
+              "name": "dsfr-data-source-command"
             }
           ],
           "attributes": [
@@ -12209,6 +12230,38 @@
             },
             {
               "kind": "method",
+              "name": "_diagnosticUrl",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string | undefined"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "adapter",
+                  "type": {
+                    "text": "ApiAdapter"
+                  }
+                },
+                {
+                  "name": "params",
+                  "type": {
+                    "text": "AdapterParams"
+                  }
+                },
+                {
+                  "name": "overlay",
+                  "optional": true,
+                  "type": {
+                    "text": "ServerSideOverlay"
+                  }
+                }
+              ],
+              "description": "URL construite par l'adapter pour ce fetch, a seule fin de diagnostic\n(#598). En mode fetchAll l'adapter pagine ensuite lui-meme : l'URL rendue\nest celle de la premiere requete, sans les surcharges de page.\n\nPurement informative — ne doit jamais faire echouer le log d'erreur."
+            },
+            {
+              "kind": "method",
               "name": "getAdapterParams",
               "privacy": "public",
               "return": {
@@ -12307,7 +12360,7 @@
               "name": "dsfr-data-loading"
             },
             {
-              "description": "`{ sourceId, error }` sur `document` — le fetch ou le parsing a echoue.",
+              "description": "`{ sourceId, error, attemptedUrl? }` sur `document` — le fetch ou le parsing a echoue. `attemptedUrl` (#603) porte l'URL REELLEMENT appelee, proxy applique : elle diverge souvent du `base-url` ecrit dans le HTML, et le message de l'`Error` reste volontairement court. La cle est absente quand l'URL n'a pas pu etre construite, ou pour une erreur qui ne vient pas d'un fetch (donnees inline invalides, configuration).",
               "name": "dsfr-data-error"
             }
           ],

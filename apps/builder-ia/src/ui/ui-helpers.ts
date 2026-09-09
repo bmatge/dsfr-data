@@ -94,8 +94,9 @@ export function saveFavorite(): void {
     return;
   }
 
-  const title =
-    (document.getElementById('preview-title') as HTMLElement).textContent || 'Mon graphique';
+  // Le titre vient de la CONFIG, plus du DOM (#609) : l'apercu est desormais
+  // une iframe qui rend le code genere, lequel porte son propre titre.
+  const title = state.chartConfig?.title || 'Mon graphique';
   const name = prompt('Nom du favori :', title);
   if (!name) return;
 

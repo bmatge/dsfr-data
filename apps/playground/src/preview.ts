@@ -10,6 +10,6 @@ export function runPreview(editor: { getValue(): string }, iframeId: string): vo
   const code = editor.getValue();
   const iframe = document.getElementById(iframeId) as HTMLIFrameElement | null;
   if (iframe) {
-    iframe.srcdoc = getPreviewHTML(code);
+    iframe.srcdoc = getPreviewHTML(code, { debug: true });
   }
 }

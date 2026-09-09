@@ -4,6 +4,10 @@
 
 import {
   escapeHtml,
+  appendQuery,
+  jsonAttr,
+  jsonLiteral,
+  jsStringLiteral,
   DSFR_COLORS,
   isValidDeptCode,
   LIB_URL,
@@ -142,14 +146,14 @@ function generateKPICode(config: ChartConfig, data: AggregatedResult[]): string 
     if (config.where) {
       params.set('where', filterToOdsql(config.where));
     }
-    const apiUrl = `${state.source.apiUrl}?${params}`;
+    const apiUrl = appendQuery(state.source.apiUrl, String(params));
 
     return `<!-- KPI généré avec dsfr-data Builder IA -->
 <!-- Source API dynamique : les données se mettent a jour automatiquement -->
 
 <!-- Dependances CSS (DSFR) -->
-<link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
-<link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 
 <style>
 .kpi-card {
@@ -176,7 +180,7 @@ function generateKPICode(config: ChartConfig, data: AggregatedResult[]): string 
 
 <script>
 // URL de l'API avec agrégation ODSQL
-const API_URL = '${apiUrl}';
+const API_URL = ${jsStringLiteral(apiUrl)};
 
 function formatKPIValue(value, unit) {
   const num = Math.round(value * 100) / 100;
@@ -212,8 +216,8 @@ loadKPI();
 <!-- Source : ${state.source?.name || 'Données locales'} - valeur embarquee -->
 
 <!-- Dependances CSS (DSFR) -->
-<link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
-<link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 
 <style>
 .kpi-card {
@@ -250,15 +254,15 @@ function generateGaugeCode(config: ChartConfig, data: AggregatedResult[]): strin
 <!-- Source : ${state.source?.name || 'Données locales'} -->
 
 <!-- Dependances (DSFR Chart) -->
-<link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
-<link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
-<link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
-<script type="module" src="${CDN_URLS.dsfrChartJs}"></script>
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrChartCss)}">
+<script type="module" src="${escapeHtml(CDN_URLS.dsfrChartJs)}"></script>
 
 <div class="fr-container fr-my-4w">
   <h2>${escapeHtml(config.title || 'Jauge')}</h2>
   ${config.subtitle ? `<p class="fr-text--sm fr-text--light">${escapeHtml(config.subtitle)}</p>` : ''}
-  <gauge-chart percent="${gaugeValue}" init="0" target="100"></gauge-chart>
+  <gauge-chart percent="${escapeHtml(gaugeValue)}" init="0" target="100"></gauge-chart>
 </div>`;
 }
 
@@ -273,11 +277,11 @@ function generateScatterCode(config: ChartConfig, data: AggregatedResult[]): str
 <!-- Source : ${state.source?.name || 'Données locales'} -->
 
 <!-- Dependances CSS (DSFR) -->
-<link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
-<link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 
 <!-- Dependances JS -->
-<script src="${CDN_URLS.chartJs}"></script>
+<script src="${escapeHtml(CDN_URLS.chartJs)}"></script>
 
 <div class="fr-container fr-my-4w">
   <h2>${escapeHtml(config.title || 'Nuage de points')}</h2>
@@ -290,13 +294,13 @@ function generateScatterCode(config: ChartConfig, data: AggregatedResult[]): str
 
 <script>
 // Données embarquees
-const scatterData = ${JSON.stringify(scatterData, null, 2)};
+const scatterData = ${jsonLiteral(scatterData)};
 
 new Chart(document.getElementById('myChart'), {
   type: 'scatter',
   data: {
     datasets: [{
-      label: '${config.valueField}',
+      label: ${jsStringLiteral(config.valueField)},
       data: scatterData,
       backgroundColor: '${config.color || '#000091'}',
       borderColor: '${config.color || '#000091'}',
@@ -316,7 +320,7 @@ new Chart(document.getElementById('myChart'), {
 // ---------------------------------------------------------------------------
 
 function generateMapCode(config: ChartConfig, data: AggregatedResult[]): string {
-  // Fallback: use labelField if codeField is missing (same as chart-renderer)
+  // Fallback: use labelField if codeField is missing
   const codeField = config.codeField || config.labelField || autoDetectCodeField();
 
   // Transform data to DSFR format: {"code": value, ...}
@@ -351,17 +355,19 @@ function generateMapCode(config: ChartConfig, data: AggregatedResult[]): string 
         config.valueField,
         codeField!
       );
-      const whereAttr = config.where ? `\n    where="${filterToOdsql(config.where)}"` : '';
+      const whereAttr = config.where
+        ? `\n    where="${escapeHtml(filterToOdsql(config.where))}"`
+        : '';
 
       return `<!-- Carte générée avec dsfr-data Builder IA -->
 <!-- Source API dynamique avec pagination automatique -->
 
 <!-- Dependances CSS (DSFR) -->
-<link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
-<link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
-<link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
-<script src="${CDN_URLS.chartJs}"></script>
-<script type="module" src="${CDN_URLS.dsfrChartJs}"></script>
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrChartCss)}">
+<script src="${escapeHtml(CDN_URLS.chartJs)}"></script>
+<script type="module" src="${escapeHtml(CDN_URLS.dsfrChartJs)}"></script>
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
@@ -371,10 +377,10 @@ function generateMapCode(config: ChartConfig, data: AggregatedResult[]): string 
   <dsfr-data-source
     id="map-src"
     api-type="opendatasoft"
-    base-url="${baseUrl}"
-    dataset-id="${datasetId}"
-    select="${selectExpr}"
-    group-by="${codeField}"${whereAttr}>
+    base-url="${escapeHtml(baseUrl)}"
+    dataset-id="${escapeHtml(datasetId)}"
+    select="${escapeHtml(selectExpr)}"
+    group-by="${escapeHtml(codeField)}"${whereAttr}>
   </dsfr-data-source>
   <dsfr-data-query
     id="map-data"
@@ -383,11 +389,11 @@ function generateMapCode(config: ChartConfig, data: AggregatedResult[]): string 
 
   <dsfr-data-chart
     source="map-data"
-    type="${config.type}"
-    code-field="${codeField}"
-    value-field="${resultField}"
+    type="${escapeHtml(config.type)}"
+    code-field="${escapeHtml(codeField)}"
+    value-field="${escapeHtml(resultField)}"
     name="${escapeHtml(config.title || 'Carte')}"
-    selected-palette="${config.palette || 'sequentialAscending'}">
+    selected-palette="${escapeHtml(config.palette || 'sequentialAscending')}">
   </dsfr-data-chart>
 </div>`;
     }
@@ -402,17 +408,17 @@ function generateMapCode(config: ChartConfig, data: AggregatedResult[]): string 
         config.aggregation === 'count'
           ? `${codeField}__count`
           : `${config.valueField}__${config.aggregation || 'sum'}`;
-      const filterAttr = config.where ? `\n    filter="${config.where}"` : '';
+      const filterAttr = config.where ? `\n    filter="${escapeHtml(config.where)}"` : '';
 
       return `<!-- Carte générée avec dsfr-data Builder IA -->
 <!-- Source API Tabular avec pagination automatique -->
 
 <!-- Dependances CSS (DSFR) -->
-<link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
-<link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
-<link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
-<script src="${CDN_URLS.chartJs}"></script>
-<script type="module" src="${CDN_URLS.dsfrChartJs}"></script>
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrChartCss)}">
+<script src="${escapeHtml(CDN_URLS.chartJs)}"></script>
+<script type="module" src="${escapeHtml(CDN_URLS.dsfrChartJs)}"></script>
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
@@ -422,23 +428,23 @@ function generateMapCode(config: ChartConfig, data: AggregatedResult[]): string 
   <dsfr-data-source
     id="map-src"
     api-type="tabular"
-    base-url="${apiBaseUrl}"
-    resource="${resourceIds.resourceId}">
+    base-url="${escapeHtml(apiBaseUrl)}"
+    resource="${escapeHtml(resourceIds.resourceId)}">
   </dsfr-data-source>
   <dsfr-data-query
     id="map-data"
     source="map-src"
-    group-by="${codeField}"
-    aggregate="${aggregateExpr}"${filterAttr}>
+    group-by="${escapeHtml(codeField)}"
+    aggregate="${escapeHtml(aggregateExpr)}"${filterAttr}>
   </dsfr-data-query>
 
   <dsfr-data-chart
     source="map-data"
-    type="${config.type}"
-    code-field="${codeField}"
-    value-field="${resultField}"
+    type="${escapeHtml(config.type)}"
+    code-field="${escapeHtml(codeField)}"
+    value-field="${escapeHtml(resultField)}"
     name="${escapeHtml(config.title || 'Carte')}"
-    selected-palette="${config.palette || 'sequentialAscending'}">
+    selected-palette="${escapeHtml(config.palette || 'sequentialAscending')}">
   </dsfr-data-chart>
 </div>`;
     }
@@ -455,11 +461,11 @@ function generateMapCode(config: ChartConfig, data: AggregatedResult[]): string 
 <!-- Source API dynamique -->
 
 <!-- Dependances CSS (DSFR) -->
-<link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
-<link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
-<link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
-<script src="${CDN_URLS.chartJs}"></script>
-<script type="module" src="${CDN_URLS.dsfrChartJs}"></script>
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrChartCss)}">
+<script src="${escapeHtml(CDN_URLS.chartJs)}"></script>
+<script type="module" src="${escapeHtml(CDN_URLS.dsfrChartJs)}"></script>
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
@@ -468,17 +474,17 @@ function generateMapCode(config: ChartConfig, data: AggregatedResult[]): string 
 
   <dsfr-data-source
     id="map-data"
-    url="${sourceUrl}"
+    url="${escapeHtml(sourceUrl)}"
     transform="results">
   </dsfr-data-source>
 
   <dsfr-data-chart
     source="map-data"
-    type="${config.type}"
-    code-field="${codeField}"
-    value-field="${config.valueField}"
+    type="${escapeHtml(config.type)}"
+    code-field="${escapeHtml(codeField)}"
+    value-field="${escapeHtml(config.valueField)}"
     name="${escapeHtml(config.title || 'Carte')}"
-    selected-palette="${config.palette || 'sequentialAscending'}">
+    selected-palette="${escapeHtml(config.palette || 'sequentialAscending')}">
   </dsfr-data-chart>
 </div>`;
   }
@@ -488,19 +494,19 @@ function generateMapCode(config: ChartConfig, data: AggregatedResult[]): string 
 <!-- Source : ${state.source?.name || 'Données locales'} -->
 
 <!-- Dependances CSS (DSFR) -->
-<link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
-<link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
-<link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
-<script type="module" src="${CDN_URLS.dsfrChartJs}"></script>
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrChartCss)}">
+<script type="module" src="${escapeHtml(CDN_URLS.dsfrChartJs)}"></script>
 
 <div class="fr-container fr-my-4w">
   <h2>${escapeHtml(config.title || 'Carte de France')}</h2>
   ${config.subtitle ? `<p class="fr-text--sm fr-text--light">${escapeHtml(config.subtitle)}</p>` : ''}
   <map-chart
-    level="${MAP_LEVEL_MAP[config.type]}"
-    data='${JSON.stringify(mapData)}'
+    level="${escapeHtml(MAP_LEVEL_MAP[config.type])}"
+    data='${jsonAttr(mapData)}'
     name="${escapeHtml(config.title || 'Carte')}"
-    selected-palette="${config.palette || 'sequentialAscending'}"
+    selected-palette="${escapeHtml(config.palette || 'sequentialAscending')}"
   ></map-chart>
 </div>`;
 }
@@ -518,9 +524,13 @@ function generateDatalistCode(config: ChartConfig): string {
     colonnes = state.fields.map((f) => `${f.name}:${f.name}`).join(', ');
   }
 
+  // Vocabulaire courant : `columns` / `search` / `sort`. Les alias francais
+  // (`colonnes`, `recherche`, `tri`) sont @deprecated depuis #300 et deux des
+  // quatre variantes les emettaient encore — du code fraichement genere qui
+  // naissait deprecie.
   const triAttr =
     config.sortOrder && config.labelField
-      ? `\n    tri="${config.labelField}:${config.sortOrder}"`
+      ? `\n    sort="${escapeHtml(config.labelField)}:${escapeHtml(config.sortOrder)}"`
       : '';
   const pagination = config.pagination || 10;
 
@@ -533,14 +543,14 @@ function generateDatalistCode(config: ChartConfig): string {
 
     // ODS with pagination: use dsfr-data-source + dsfr-data-query for server-side pagination
     if (provider.id === 'opendatasoft' && resourceIds?.datasetId && needsPagination()) {
-      const whereAttr = whereOds ? `\n    where="${whereOds}"` : '';
+      const whereAttr = whereOds ? `\n    where="${escapeHtml(whereOds)}"` : '';
 
       return `<!-- Tableau dynamique généré avec dsfr-data Builder IA -->
 <!-- Source API dynamique avec pagination serveur -->
 
 <!-- Dependances CSS (DSFR) -->
-<link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
-<link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 
 <!-- Dependances JS -->
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
@@ -552,22 +562,25 @@ function generateDatalistCode(config: ChartConfig): string {
   <dsfr-data-source
     id="table-src"
     api-type="opendatasoft"
-    base-url="${apiBaseUrl}"
-    dataset-id="${resourceIds.datasetId}"${whereAttr}
+    base-url="${escapeHtml(apiBaseUrl)}"
+    dataset-id="${escapeHtml(resourceIds.datasetId)}"${whereAttr}
     server-side
-    page-size="${pagination}">
+    page-size="${escapeHtml(pagination)}">
   </dsfr-data-source>
   <dsfr-data-query
     id="table-data"
     source="table-src">
   </dsfr-data-query>
 
+  <!-- Pas d'attribut search ici : en pagination serveur, la recherche locale
+       n'opererait que sur la page chargee. Le composant la desactive avec un
+       avertissement (#304). Pour chercher sur TOUT le jeu, inserer un
+       dsfr-data-search server-search en amont de la liste. -->
   <dsfr-data-list
     source="table-data"
-    columns="${colonnes}"
-    search
+    columns="${escapeHtml(colonnes)}"
     server-sort${triAttr}
-    pagination="${pagination}"
+    pagination="${escapeHtml(pagination)}"
     export="csv">
   </dsfr-data-list>
 </div>`;
@@ -575,14 +588,14 @@ function generateDatalistCode(config: ChartConfig): string {
 
     // Tabular with pagination: use dsfr-data-source + dsfr-data-query for server-side pagination
     if (provider.id === 'tabular' && resourceIds?.resourceId && needsPagination()) {
-      const whereAttr = config.where ? `\n    where="${config.where}"` : '';
+      const whereAttr = config.where ? `\n    where="${escapeHtml(config.where)}"` : '';
 
       return `<!-- Tableau dynamique généré avec dsfr-data Builder IA -->
 <!-- Source API Tabular avec pagination serveur -->
 
 <!-- Dependances CSS (DSFR) -->
-<link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
-<link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 
 <!-- Dependances JS -->
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
@@ -594,22 +607,25 @@ function generateDatalistCode(config: ChartConfig): string {
   <dsfr-data-source
     id="table-src"
     api-type="tabular"
-    base-url="${apiBaseUrl}"
-    resource="${resourceIds.resourceId}"${whereAttr}
+    base-url="${escapeHtml(apiBaseUrl)}"
+    resource="${escapeHtml(resourceIds.resourceId)}"${whereAttr}
     server-side
-    page-size="${pagination}">
+    page-size="${escapeHtml(pagination)}">
   </dsfr-data-source>
   <dsfr-data-query
     id="table-data"
     source="table-src">
   </dsfr-data-query>
 
+  <!-- Pas d'attribut search ici : en pagination serveur, la recherche locale
+       n'opererait que sur la page chargee. Le composant la desactive avec un
+       avertissement (#304). Pour chercher sur TOUT le jeu, inserer un
+       dsfr-data-search server-search en amont de la liste. -->
   <dsfr-data-list
     source="table-data"
-    columns="${colonnes}"
-    search
+    columns="${escapeHtml(colonnes)}"
     server-sort${triAttr}
-    pagination="${pagination}"
+    pagination="${escapeHtml(pagination)}"
     export="csv">
   </dsfr-data-list>
 </div>`;
@@ -627,8 +643,8 @@ function generateDatalistCode(config: ChartConfig): string {
 <!-- Source API dynamique : les données se mettent a jour automatiquement -->
 
 <!-- Dependances CSS (DSFR) -->
-<link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
-<link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 
 <!-- Dependances JS -->
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
@@ -639,15 +655,15 @@ function generateDatalistCode(config: ChartConfig): string {
 
   <dsfr-data-source
     id="table-data"
-    url="${sourceUrl}"
+    url="${escapeHtml(sourceUrl)}"
     transform="records">
   </dsfr-data-source>
 
   <dsfr-data-list
     source="table-data"
-    colonnes="${colonnes}"
-    recherche${triAttr}
-    pagination="${pagination}"
+    columns="${escapeHtml(colonnes)}"
+    search${triAttr}
+    pagination="${escapeHtml(pagination)}"
     export="csv">
   </dsfr-data-list>
 </div>`;
@@ -659,8 +675,8 @@ function generateDatalistCode(config: ChartConfig): string {
 <!-- Source : ${state.source?.name || 'Données locales'} - données embarquees -->
 
 <!-- Dependances CSS (DSFR) -->
-<link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
-<link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 
 <!-- Dependances JS -->
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
@@ -669,22 +685,19 @@ function generateDatalistCode(config: ChartConfig): string {
   ${config.title ? `<h2>${escapeHtml(config.title)}</h2>` : ''}
   ${config.subtitle ? `<p class="fr-text--sm fr-text--light">${escapeHtml(config.subtitle)}</p>` : ''}
 
+  <dsfr-data-source
+    id="table-data"
+    data='${jsonAttr(rawData.slice(0, 500))}'>
+  </dsfr-data-source>
+
   <dsfr-data-list
-    id="my-table"
-    colonnes="${colonnes}"
-    recherche${triAttr}
-    pagination="${pagination}"
+    source="table-data"
+    columns="${escapeHtml(colonnes)}"
+    search${triAttr}
+    pagination="${escapeHtml(pagination)}"
     export="csv">
   </dsfr-data-list>
-</div>
-
-<script>
-// Données integrees
-const data = ${JSON.stringify(rawData.slice(0, 500), null, 2)};
-
-// Injecter les données dans le composant
-document.getElementById('my-table').onSourceData(data);
-</script>`;
+</div>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -727,10 +740,10 @@ function generateStandardChartCodeODS(
     config.valueField,
     config.labelField!
   );
-  const whereAttr = config.where ? `\n    where="${filterToOdsql(config.where)}"` : '';
+  const whereAttr = config.where ? `\n    where="${escapeHtml(filterToOdsql(config.where))}"` : '';
   const orderAttr =
     config.sortOrder && config.labelField
-      ? `\n    order-by="${resultField}:${config.sortOrder}"`
+      ? `\n    order-by="${escapeHtml(resultField)}:${escapeHtml(config.sortOrder)}"`
       : '';
   const chartType =
     config.type === 'horizontalBar' ? 'bar' : config.type === 'bar-line' ? 'bar' : config.type;
@@ -740,11 +753,11 @@ function generateStandardChartCodeODS(
 <!-- Source API dynamique avec pagination automatique -->
 
 <!-- Dependances CSS (DSFR) -->
-<link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
-<link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
-<link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
-<script src="${CDN_URLS.chartJs}"></script>
-<script type="module" src="${CDN_URLS.dsfrChartJs}"></script>
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrChartCss)}">
+<script src="${escapeHtml(CDN_URLS.chartJs)}"></script>
+<script type="module" src="${escapeHtml(CDN_URLS.dsfrChartJs)}"></script>
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
@@ -754,10 +767,10 @@ function generateStandardChartCodeODS(
   <dsfr-data-source
     id="chart-src"
     api-type="opendatasoft"
-    base-url="${baseUrl}"
-    dataset-id="${datasetId}"
-    select="${selectExpr}"
-    group-by="${config.labelField}"${whereAttr}>
+    base-url="${escapeHtml(baseUrl)}"
+    dataset-id="${escapeHtml(datasetId)}"
+    select="${escapeHtml(selectExpr)}"
+    group-by="${escapeHtml(config.labelField)}"${whereAttr}>
   </dsfr-data-source>
   <dsfr-data-query
     id="chart-data"
@@ -766,11 +779,11 @@ function generateStandardChartCodeODS(
 
   <dsfr-data-chart
     source="chart-data"
-    type="${chartType}"
-    label-field="${config.labelField}"
-    value-field="${resultField}"
+    type="${escapeHtml(chartType)}"
+    label-field="${escapeHtml(config.labelField)}"
+    value-field="${escapeHtml(resultField)}"
     name="${escapeHtml(config.title || 'Mon graphique')}"${horizontalAttr}
-    selected-palette="${config.palette || 'categorical'}">
+    selected-palette="${escapeHtml(config.palette || 'categorical')}">
   </dsfr-data-chart>
 </div>`;
 }
@@ -788,10 +801,10 @@ function generateStandardChartCodeTabular(
     config.aggregation === 'count'
       ? `${config.labelField}__count`
       : `${config.valueField}__${config.aggregation || 'sum'}`;
-  const filterAttr = config.where ? `\n    filter="${config.where}"` : '';
+  const filterAttr = config.where ? `\n    filter="${escapeHtml(config.where)}"` : '';
   const orderAttr =
     config.sortOrder && config.labelField
-      ? `\n    order-by="${resultField}:${config.sortOrder}"`
+      ? `\n    order-by="${escapeHtml(resultField)}:${escapeHtml(config.sortOrder)}"`
       : '';
   const chartType =
     config.type === 'horizontalBar' ? 'bar' : config.type === 'bar-line' ? 'bar' : config.type;
@@ -801,11 +814,11 @@ function generateStandardChartCodeTabular(
 <!-- Source API Tabular avec pagination automatique -->
 
 <!-- Dependances CSS (DSFR) -->
-<link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
-<link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
-<link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
-<script src="${CDN_URLS.chartJs}"></script>
-<script type="module" src="${CDN_URLS.dsfrChartJs}"></script>
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrChartCss)}">
+<script src="${escapeHtml(CDN_URLS.chartJs)}"></script>
+<script type="module" src="${escapeHtml(CDN_URLS.dsfrChartJs)}"></script>
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
@@ -815,23 +828,23 @@ function generateStandardChartCodeTabular(
   <dsfr-data-source
     id="chart-src"
     api-type="tabular"
-    base-url="${baseUrl}"
-    resource="${resourceId}">
+    base-url="${escapeHtml(baseUrl)}"
+    resource="${escapeHtml(resourceId)}">
   </dsfr-data-source>
   <dsfr-data-query
     id="chart-data"
     source="chart-src"
-    group-by="${config.labelField}"
-    aggregate="${aggregateExpr}"${filterAttr}${orderAttr}>
+    group-by="${escapeHtml(config.labelField)}"
+    aggregate="${escapeHtml(aggregateExpr)}"${filterAttr}${orderAttr}>
   </dsfr-data-query>
 
   <dsfr-data-chart
     source="chart-data"
-    type="${chartType}"
-    label-field="${config.labelField}"
-    value-field="${resultField}"
+    type="${escapeHtml(chartType)}"
+    label-field="${escapeHtml(config.labelField)}"
+    value-field="${escapeHtml(resultField)}"
     name="${escapeHtml(config.title || 'Mon graphique')}"${horizontalAttr}
-    selected-palette="${config.palette || 'categorical'}">
+    selected-palette="${escapeHtml(config.palette || 'categorical')}">
   </dsfr-data-chart>
 </div>`;
 }
@@ -855,17 +868,17 @@ function generateStandardChartCodeAPI(
     params.set('where', filterToOdsql(config.where));
   }
 
-  const apiUrl = `${state.source!.apiUrl}?${params}`;
+  const apiUrl = appendQuery(state.source!.apiUrl!, String(params));
 
   return `<!-- Graphique généré avec dsfr-data Builder IA -->
 <!-- Source API dynamique : les données se mettent a jour automatiquement -->
 
 <!-- Dependances CSS (DSFR) -->
-<link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
-<link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 
 <!-- Dependances JS -->
-<script src="${CDN_URLS.chartJs}"></script>
+<script src="${escapeHtml(CDN_URLS.chartJs)}"></script>
 
 <div class="fr-container fr-my-4w">
   <h2>${escapeHtml(config.title || 'Mon graphique')}</h2>
@@ -889,7 +902,7 @@ function generateStandardChartCodeAPI(
 
 <script>
 // URL de l'API avec agrégation ODSQL
-const API_URL = '${apiUrl}';
+const API_URL = ${jsStringLiteral(apiUrl)};
 
 // Palette DSFR
 const DSFR_COLORS = ${colorsArray};
@@ -900,7 +913,7 @@ async function loadChart() {
     const json = await response.json();
     const data = json.results || [];
 
-    const labels = data.map(d => d['${config.labelField}'] || 'N/A');
+    const labels = data.map(d => d[${jsStringLiteral(config.labelField ?? '')}] || 'N/A');
     const values = data.map(d => Math.round((d.value || 0) * 100) / 100);
 
     new Chart(document.getElementById('myChart'), {
@@ -908,7 +921,7 @@ async function loadChart() {
       data: {
         labels: labels,
         datasets: [{
-          label: '${config.valueField}',
+          label: ${jsStringLiteral(config.valueField)},
           data: values,
           backgroundColor: ${isMultiColor ? 'DSFR_COLORS.slice(0, data.length)' : `'${config.color || '#000091'}'`},
           borderColor: '${config.color || '#000091'}',
@@ -926,7 +939,7 @@ async function loadChart() {
     const tbody = document.getElementById('table-body');
     data.forEach(d => {
       const tr = document.createElement('tr');
-      tr.innerHTML = '<td>' + (d['${config.labelField}'] || 'N/A') + '</td><td>' + (d.value?.toFixed(2) || '\u2014') + '</td>';
+      tr.innerHTML = '<td>' + (d[${jsStringLiteral(config.labelField ?? '')}] || 'N/A') + '</td><td>' + (d.value?.toFixed(2) || '\u2014') + '</td>';
       tbody.appendChild(tr);
     });
   } catch (error) {
@@ -952,7 +965,7 @@ function generateStandardChartCodeEmbedded(
 
   // Build datasets code
   let datasetsCode = `[{
-      label: '${config.valueField}',
+      label: ${jsStringLiteral(config.valueField)},
       data: values,
       backgroundColor: ${isMultiColor ? 'DSFR_COLORS.slice(0, data.length)' : `'${config.color || '#000091'}'`},
       borderColor: '${config.color || '#000091'}',
@@ -961,7 +974,7 @@ function generateStandardChartCodeEmbedded(
 
   if (hasSecondSeries) {
     datasetsCode += `, {
-      label: '${config.valueField2}',
+      label: ${jsStringLiteral(config.valueField2 ?? '')},
       data: values2,
       backgroundColor: '${isBarLine ? 'transparent' : config.color2 || '#E1000F'}',
       borderColor: '${config.color2 || '#E1000F'}',
@@ -975,11 +988,11 @@ function generateStandardChartCodeEmbedded(
 ${hasSecondSeries ? '<!-- Note: Graphique multi-séries -->' : ''}
 
 <!-- Dependances CSS (DSFR) -->
-<link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
-<link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 
 <!-- Dependances JS -->
-<script src="${CDN_URLS.chartJs}"></script>
+<script src="${escapeHtml(CDN_URLS.chartJs)}"></script>
 
 <div class="fr-container fr-my-4w">
   <h2>${escapeHtml(config.title || 'Mon graphique')}</h2>
@@ -992,8 +1005,8 @@ ${hasSecondSeries ? '<!-- Note: Graphique multi-séries -->' : ''}
 
 <script>
 // Données embarquees (depuis ${sourceType})
-const data = ${JSON.stringify(data, null, 2)};
-${hasSecondSeries ? `const data2 = ${JSON.stringify(config.data2, null, 2)};` : ''}
+const data = ${jsonLiteral(data)};
+${hasSecondSeries ? `const data2 = ${jsonLiteral(config.data2)};` : ''}
 
 // Palette DSFR
 const DSFR_COLORS = ${colorsArray};
@@ -1039,14 +1052,16 @@ function generatePodiumCode(config: ChartConfig, data: AggregatedResult[]): stri
         config.valueField,
         config.labelField!
       );
-      const whereAttr = config.where ? `\n    where="${filterToOdsql(config.where)}"` : '';
+      const whereAttr = config.where
+        ? `\n    where="${escapeHtml(filterToOdsql(config.where))}"`
+        : '';
 
       return `<!-- Podium généré avec dsfr-data Builder IA -->
 <!-- Source API dynamique -->
 
 <!-- Dependances CSS (DSFR) -->
-<link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
-<link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
@@ -1055,18 +1070,18 @@ function generatePodiumCode(config: ChartConfig, data: AggregatedResult[]): stri
   <dsfr-data-source
     id="podium-src"
     api-type="opendatasoft"
-    base-url="${apiBaseUrl}"
-    dataset-id="${resourceIds.datasetId}"
-    select="${selectExpr}"
-    group-by="${config.labelField}"${whereAttr}>
+    base-url="${escapeHtml(apiBaseUrl)}"
+    dataset-id="${escapeHtml(resourceIds.datasetId)}"
+    select="${escapeHtml(selectExpr)}"
+    group-by="${escapeHtml(config.labelField)}"${whereAttr}>
   </dsfr-data-source>
 
   <dsfr-data-podium
     source="podium-src"
-    label-field="${config.labelField}"
-    value-field="${resultField}"${subtitleAttr}${unitAttr}
-    selected-palette="${palette}"
-    max-items="${maxItems}">
+    label-field="${escapeHtml(config.labelField)}"
+    value-field="${escapeHtml(resultField)}"${subtitleAttr}${unitAttr}
+    selected-palette="${escapeHtml(palette)}"
+    max-items="${escapeHtml(maxItems)}">
   </dsfr-data-podium>
 </div>`;
     }
@@ -1076,14 +1091,14 @@ function generatePodiumCode(config: ChartConfig, data: AggregatedResult[]): stri
         config.aggregation === 'count'
           ? `${config.labelField}:count:total`
           : `${config.valueField}:${config.aggregation || 'sum'}:total`;
-      const whereAttr = config.where ? `\n    where="${config.where}"` : '';
+      const whereAttr = config.where ? `\n    where="${escapeHtml(config.where)}"` : '';
 
       return `<!-- Podium généré avec dsfr-data Builder IA -->
 <!-- Source API Tabular dynamique -->
 
 <!-- Dependances CSS (DSFR) -->
-<link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
-<link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
@@ -1092,24 +1107,24 @@ function generatePodiumCode(config: ChartConfig, data: AggregatedResult[]): stri
   <dsfr-data-source
     id="podium-src"
     api-type="tabular"
-    base-url="${apiBaseUrl}"
-    resource="${resourceIds.resourceId}"
+    base-url="${escapeHtml(apiBaseUrl)}"
+    resource="${escapeHtml(resourceIds.resourceId)}"
     server-side${whereAttr}>
   </dsfr-data-source>
   <dsfr-data-query
     id="podium-data"
     source="podium-src"
-    group-by="${config.labelField}"
-    aggregate="${aggregateExpr}"
+    group-by="${escapeHtml(config.labelField)}"
+    aggregate="${escapeHtml(aggregateExpr)}"
     order-by="total:desc">
   </dsfr-data-query>
 
   <dsfr-data-podium
     source="podium-data"
-    label-field="${config.labelField}"
+    label-field="${escapeHtml(config.labelField)}"
     value-field="total"${subtitleAttr}${unitAttr}
-    selected-palette="${palette}"
-    max-items="${maxItems}">
+    selected-palette="${escapeHtml(palette)}"
+    max-items="${escapeHtml(maxItems)}">
   </dsfr-data-podium>
 </div>`;
     }
@@ -1123,8 +1138,8 @@ function generatePodiumCode(config: ChartConfig, data: AggregatedResult[]): stri
 <!-- Source : ${sourceName} (${sourceType}) - données embarquees -->
 
 <!-- Dependances CSS (DSFR) -->
-<link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
-<link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
+<link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
@@ -1132,15 +1147,15 @@ function generatePodiumCode(config: ChartConfig, data: AggregatedResult[]): stri
 
   <dsfr-data-source
     id="podium-src"
-    data='${JSON.stringify(data.map((d) => ({ [config.labelField!]: d.label, [config.valueField]: d.value })))}'>
+    data='${jsonAttr(data.map((d) => ({ [config.labelField!]: d.label, [config.valueField]: d.value })))}'>
   </dsfr-data-source>
 
   <dsfr-data-podium
     source="podium-src"
-    label-field="${config.labelField}"
-    value-field="${config.valueField}"${subtitleAttr}${unitAttr}
-    selected-palette="${palette}"
-    max-items="${maxItems}">
+    label-field="${escapeHtml(config.labelField)}"
+    value-field="${escapeHtml(config.valueField)}"${subtitleAttr}${unitAttr}
+    selected-palette="${escapeHtml(palette)}"
+    max-items="${escapeHtml(maxItems)}">
   </dsfr-data-podium>
 </div>`;
 }

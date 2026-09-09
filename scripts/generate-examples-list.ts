@@ -26,7 +26,9 @@ for (const f of readdirSync(examplesDir)) {
     const content = readFileSync(resolve(examplesDir, f), 'utf-8');
     const m = content.match(/<title>([^<]+)<\/title>/i);
     if (m) title = m[1].trim();
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   files.push({ file: f, title });
 }
 

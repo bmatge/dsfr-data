@@ -4,9 +4,14 @@ import type { DashboardData } from '../../../apps/dashboard/src/state';
 
 // Mock @dsfr-data/shared — partiel depuis #515 : state.ts importe aussi le
 // modele partage (createEmptyDashboard, normalizeWidget…) qu'on garde reel.
+//
+// `escapeHtml` etait bouchonne ici par une version AFFAIBLIE (ni `&`, ni `"`,
+// ni `'`). Aucune assertion ne s'y adossait — les 13 tests passent avec le
+// vrai, verifie — mais un bouchon d'echappement plus faible que la production
+// est une bombe a retardement : la premiere assertion qui s'y appuierait
+// validerait un echappement inexistant (#615).
 vi.mock('@dsfr-data/shared', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@dsfr-data/shared')>()),
-  escapeHtml: (s: string) => s.replace(/</g, '&lt;').replace(/>/g, '&gt;'),
   saveToStorage: vi.fn(),
   STORAGE_KEYS: { DASHBOARDS: 'dsfr-data-dashboards' },
   toastWarning: vi.fn(),

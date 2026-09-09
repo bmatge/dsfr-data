@@ -10,6 +10,9 @@ import {
   ImageExportError,
   IMAGE_EXPORT_MESSAGES,
   toastError,
+  mountDiagnosticPanel,
+  transmettreDiagnostic,
+  appHref,
 } from '@dsfr-data/shared';
 import { state } from './state.js';
 import {
@@ -54,7 +57,26 @@ import {
 // Expose state for E2E tests
 (window as Window & { __BUILDER_STATE__?: typeof state }).__BUILDER_STATE__ = state;
 
+/**
+ * « Envoyer à l'assistant » depuis une app sans chat : on dépose le
+ * diagnostic et on ouvre l'Assistant IA, qui le posera dans son champ.
+ * Même mécanisme de passation que le code entre apps (ARCHITECTURE §10.1).
+ */
+function envoyerDiagnosticVersAssistant(texte: string): void {
+  transmettreDiagnostic(texte);
+  window.location.href = appHref('builder-ia', { from: 'builder' });
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
+  // Volet Diagnostic (#606) — l'aperçu est une iframe srcdoc rechargée à
+  // chaque génération : le rattachement suit les rechargements.
+  mountDiagnosticPanel({
+    frame: document.getElementById('preview-iframe') as HTMLIFrameElement | null,
+    toggleButtonId: 'diagnostic-btn',
+    canSend: true,
+    onSend: envoyerDiagnosticVersAssistant,
+    emptyHint: 'Générez le graphique pour observer ce qui transite entre les composants.',
+  });
   await initAuth();
 
   // Tabs

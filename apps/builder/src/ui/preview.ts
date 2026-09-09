@@ -16,5 +16,7 @@ export function renderPreview(code: string): void {
   if (!iframe) return;
   if (emptyState) emptyState.style.display = 'none';
   iframe.style.display = 'block';
-  iframe.srcdoc = getPreviewHTML(code);
+  // `debug: true` : sans le tampon, le collecteur du volet Diagnostic arrive
+  // apres que tout a emis et ne reconstitue qu'un etat, sans les erreurs.
+  iframe.srcdoc = getPreviewHTML(code, { debug: true });
 }

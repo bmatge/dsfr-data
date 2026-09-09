@@ -1,3 +1,4 @@
+import { escapeHtml } from '@dsfr-data/shared';
 import { PipelineNode } from '../nodes/base-node.js';
 
 /**
@@ -106,12 +107,4 @@ export function showInspector(node: PipelineNode): void {
 
   // Subscribe to future updates so inspector stays in sync
   node.statusControl.onChange = () => showInspector(node);
-}
-
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }

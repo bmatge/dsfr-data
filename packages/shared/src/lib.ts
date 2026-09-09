@@ -17,8 +17,22 @@
  * ré-exporte aussi cette frontière.
  */
 
+// Diagnostic du pipeline (#604) — pur / DOM seulement, aucun module app-side.
+// Lib-safe a dessein : l'entree autonome `index-debug.ts` de packages/core en
+// depend (#608), et la frontiere #319 interdit a core le barrel racine. Le
+// module n'entre dans AUCUN bundle publie — verifie par test-garde
+// (`tests/debug/standalone-bundle.test.ts`), puisque rien dans core ne
+// l'importe hors de cette entree separee.
+export * from './debug/index.js';
+
 // Utils (purs, sans DOM ni réseau)
-export { escapeHtml } from './utils/escape-html.js';
+export {
+  escapeHtml,
+  singleQuoteAttr,
+  jsonAttr,
+  jsonLiteral,
+  jsStringLiteral,
+} from './utils/escape-html.js';
 export {
   formatKPIValue,
   formatDateShort,
@@ -31,7 +45,7 @@ export {
 } from './utils/formatters.js';
 export type { FormatType } from './utils/formatters.js';
 export { toNumber, looksLikeNumber } from './utils/number-parser.js';
-export { isValidDeptCode } from './utils/dept-codes.js';
+export { isValidDeptCode, normalizeDeptCode } from './utils/dept-codes.js';
 export type { JoinType, JoinKey, JoinOptions } from './utils/join.js';
 export { parseJoinKeys, performJoin } from './utils/join.js';
 export type { UnpivotOptions } from './utils/unpivot.js';
@@ -78,6 +92,7 @@ export {
   buildProxiedRequest,
 } from './api/proxy.js';
 export { fetchWithTimeout, httpErrorMessage } from './api/fetch-helpers.js';
+export { appendQuery } from './api/url.js';
 export { buildGristHeaders } from './api/grist.js';
 
 // Providers

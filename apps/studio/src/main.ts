@@ -14,6 +14,8 @@ import {
   startTour,
   startTourIfFirstVisit,
   STUDIO_TOUR,
+  mountDiagnosticPanel,
+  type MountedDiagnostic,
 } from '@dsfr-data/shared';
 import type { DashboardData } from '@dsfr-data/shared';
 import './styles/studio.css';
@@ -32,6 +34,12 @@ import { buildSystemPrompt } from './ia/system-prompt.js';
 import { resolveTransport } from './ia/transport.js';
 
 const SESSION_KEY = 'studio-messages';
+/**
+ * Volet Diagnostic monte au demarrage — l'assistant s'y branche pour
+ * observer l'apercu (#607).
+ */
+let diagnosticMonte: MountedDiagnostic | undefined;
+
 const SESSION_DOC_KEY = 'studio-document';
 
 async function sendMessage(): Promise<void> {
@@ -62,6 +70,7 @@ async function sendMessage(): Promise<void> {
         fields: state.fields,
         sampleRecord: state.localData?.[0] ?? null,
         document: state.document,
+        diagnostic: !!diagnosticMonte?.attachment,
       }),
       document: state.document,
       data: state.localData ?? [],
@@ -74,6 +83,18 @@ async function sendMessage(): Promise<void> {
         schedulePreviewRender();
         persistSession();
       },
+      // L'assistant observe le MEME apercu que l'utilisateur, via le meme
+      // collecteur : ce qu'il lit et ce qui s'affiche ne peuvent pas diverger.
+      diagnostic: diagnosticMonte?.attachment
+        ? {
+            attachment: () => diagnosticMonte?.attachment ?? null,
+            rerender: () => renderPreview(),
+            // LE reglage du volet, pas une copie : l'utilisateur decide une
+            // fois ce qui sort du navigateur, et ce que l'assistant recoit
+            // est exactement ce qu'il voit.
+            redactValues: () => diagnosticMonte?.panel.redactValues ?? false,
+          }
+        : undefined,
       extra: { max_completion_tokens: 4096 },
     });
 
@@ -175,6 +196,18 @@ async function showIAModeBadge(): Promise<void> {
 }
 
 function init(): void {
+  // Volet Diagnostic (#606) — l'aperçu du Studio EST l'export : de vrais
+  // composants dans une iframe srcdoc, donc un pipeline pleinement observable.
+  // Seule app avec le Studio à porter un chat : le diagnostic peut partir
+  // directement vers l'assistant.
+  diagnosticMonte = mountDiagnosticPanel({
+    frame: document.getElementById('preview-frame') as HTMLIFrameElement | null,
+    toggleButtonId: 'diagnostic-btn',
+    canSend: true,
+    onSend: injecterDiagnostic,
+    emptyHint: 'Décrivez un tableau de bord pour observer ce qui transite entre les composants.',
+  });
+
   loadSavedSources();
   restoreSession();
   renderPreview();
@@ -211,6 +244,21 @@ function init(): void {
       'Bienvenue dans le **Studio IA**. Choisissez une source de données, puis décrivez le tableau de bord complet que vous voulez : titre, texte éditorial (collez-le), indicateurs, graphiques, filtres. Je le compose bloc par bloc sous vos yeux.'
     );
   }
+}
+
+/**
+ * Injecte un diagnostic dans le champ du chat plutôt que de l'envoyer
+ * directement : l'utilisateur relit ce qui part vers un service externe —
+ * la trace contient des échantillons de données réelles — et peut
+ * l'accompagner de sa question.
+ */
+function injecterDiagnostic(texte: string): void {
+  const input = document.getElementById('chat-input') as HTMLTextAreaElement | null;
+  if (!input) return;
+  const question = 'Voici le diagnostic du pipeline. Qu’est-ce qui ne va pas ?';
+  input.value = `${question}\n\n${texte}`;
+  input.focus();
+  input.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
 document.addEventListener('DOMContentLoaded', init);

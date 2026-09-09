@@ -6,9 +6,15 @@
 
 import {
   escapeHtml,
+  singleQuoteAttr,
+  appendQuery,
+  jsonAttr,
+  jsonLiteral,
+  jsStringLiteral,
   formatKPIValue,
   toNumber,
   isValidDeptCode,
+  normalizeDeptCode,
   toastWarning,
   toastError,
   CDN_URLS,
@@ -66,7 +72,7 @@ function resolveSortField(defaultValueField: string): string | null {
 }
 
 /**
- * Build the `tri="..."` attribute for dsfr-data-list.
+ * Build the `sort="..."` attribute for dsfr-data-list.
  * Defaults to labelField; user-chosen sortField overrides. Empty string when
  * sortOrder === 'none' (preserve source order).
  */
@@ -74,7 +80,10 @@ function buildDatalistTriAttr(): string {
   if (state.sortOrder === 'none') return '';
   const field = state.sortField || state.labelField;
   if (!field) return '';
-  return `\n    tri="${field}:${state.sortOrder}"`;
+  // `sort` et non `tri` : l'alias francais est @deprecated depuis #300
+  // (packages/core/src/components/dsfr-data-list.ts:73). Du code fraichement
+  // genere ne doit pas naitre deprecie.
+  return `\n    sort="${escapeHtml(field)}:${escapeHtml(state.sortOrder)}"`;
 }
 
 /** Generate DataBox attributes for dsfr-data-chart (dynamic mode) */
@@ -97,20 +106,18 @@ function generateA11yElement(sourceId: string, chartId: string): string {
   const attrs: string[] = [`for="${chartId}"`, `source="${sourceId}"`];
   if (state.a11yTable) attrs.push('table');
   if (state.a11yDownload) attrs.push('download');
-  if (state.a11yDescription)
-    attrs.push(`description="${state.a11yDescription.replace(/"/g, '&quot;')}"`);
+  if (state.a11yDescription) attrs.push(`description="${escapeHtml(state.a11yDescription)}"`);
   return `\n  <dsfr-data-a11y ${attrs.join(' ')}></dsfr-data-a11y>`;
 }
 
 /** Generate a11y block for embedded code (inline data via dsfr-data-source) */
 function generateEmbeddedA11y(chartId: string): string {
   if (!state.a11yEnabled) return '';
-  const dataJson = JSON.stringify(state.data).replace(/'/g, '&#39;');
+  const dataJson = jsonAttr(state.data);
   const attrs: string[] = [`for="${chartId}"`, `source="a11y-data"`];
   if (state.a11yTable) attrs.push('table');
   if (state.a11yDownload) attrs.push('download');
-  if (state.a11yDescription)
-    attrs.push(`description="${state.a11yDescription.replace(/"/g, '&quot;')}"`);
+  if (state.a11yDescription) attrs.push(`description="${escapeHtml(state.a11yDescription)}"`);
   return (
     `\n  <dsfr-data-source id="a11y-data" data='${dataJson}'></dsfr-data-source>` +
     `\n  <dsfr-data-a11y ${attrs.join(' ')}></dsfr-data-a11y>`
@@ -214,16 +221,6 @@ function dsfrChartAttrs(): string {
     /* no fill = donut */
   }
   return extra.map((a) => `\n    ${a}`).join('');
-}
-
-/**
- * Escape single quotes in a string for use inside single-quoted HTML attributes.
- * DSFR Chart x/y attributes contain JSON with French names that may include
- * apostrophes (e.g. "CÔTES-D'ARMOR", "VAL-D'OISE") which would prematurely
- * close the HTML attribute if unescaped.
- */
-function escapeSingleQuotes(value: string): string {
-  return value.replace(/'/g, '&#39;');
 }
 
 /**
@@ -451,11 +448,18 @@ function buildColonnesAttr(): string {
 }
 
 /**
- * Build optional datalist attributes (recherche, filtres, export) from state.
+ * Attributs optionnels de la datalist (`search`, `filters`, `export`).
+ *
+ * `paginationServeur` n'est pas un detail : la recherche et les filtres de
+ * `dsfr-data-list` sont LOCAUX. En pagination serveur ils n'opereraient que
+ * sur la page chargee — compteurs faux, options de filtre partielles — donc
+ * le composant les desactive et journalise un avertissement dans la page de
+ * l'utilisateur (#304, `dsfr-data-list.ts:448` et `:502`). Les emettre, c'est
+ * promettre deux controles qui n'apparaitront pas et salir sa console.
  */
-function buildDatalistAttrs(): string {
+function buildDatalistAttrs(paginationServeur = false): string {
   let attrs = '';
-  if (state.datalistRecherche) attrs += '\n    search';
+  if (state.datalistRecherche && !paginationServeur) attrs += '\n    search';
   const exportFormats: string[] = [];
   if (state.datalistExportCsv) exportFormats.push('csv');
   if (state.datalistExportHtml) exportFormats.push('html');
@@ -464,10 +468,23 @@ function buildDatalistAttrs(): string {
   const filtrables = state.datalistColumns
     .filter((c) => c.visible && c.filtrable)
     .map((c) => c.field);
-  if (state.datalistFiltres && filtrables.length > 0) {
+  if (state.datalistFiltres && filtrables.length > 0 && !paginationServeur) {
     attrs += `\n    filters="${filtrables.join(',')}"`;
   }
   return attrs;
+}
+
+/**
+ * Rappel, dans le code livre, de ce qui remplace la recherche et les filtres
+ * locaux quand la pagination est serveur.
+ */
+function noteRechercheServeur(): string {
+  if (!state.datalistRecherche && !state.datalistFiltres) return '';
+  return `
+  <!-- Pagination serveur : la recherche et les filtres de dsfr-data-list sont
+       locaux, ils n'opereraient que sur la page chargee (#304). Pour porter
+       ces controles sur TOUT le jeu, inserer en amont de la liste un
+       dsfr-data-search server-search et/ou un dsfr-data-facets server-facets. -->`;
 }
 
 /**
@@ -532,7 +549,7 @@ export async function generateChart(): Promise<void> {
         const odsql = filterToOdsql(state.queryFilter);
         if (odsql) params.set('where', odsql);
       }
-      const apiUrl = `${state.apiUrl}?${params}`;
+      const apiUrl = appendQuery(state.apiUrl, String(params));
       try {
         state.data = await fetchOdsResults(apiUrl);
         state.localData = state.data as Record<string, unknown>[];
@@ -614,7 +631,7 @@ export async function generateChart(): Promise<void> {
     if (odsql) params.set('where', odsql);
   }
 
-  const apiUrl = `${state.apiUrl}?${params}`;
+  const apiUrl = appendQuery(state.apiUrl, String(params));
 
   try {
     state.data = await fetchOdsResults(apiUrl);
@@ -883,7 +900,7 @@ export function generateCodeForLocalData(): void {
 
 <script>
 // Données integrees
-const data = ${JSON.stringify(state.localData?.slice(0, 500) || [], null, 2)};
+const data = ${jsonLiteral(state.localData?.slice(0, 500) || [])};
 
 // Injecter les données dans le composant
 const datalist = document.getElementById('my-table');
@@ -910,9 +927,9 @@ datalist.onSourceData(data);
 
   ${wrapWithDatabox(
     `<scatter-chart id="chart"
-    x='${escapeSingleQuotes(JSON.stringify([xValues]))}'
-    y='${escapeSingleQuotes(JSON.stringify([yValues]))}'
-    name='${escapeSingleQuotes(JSON.stringify([`${state.labelField} vs ${state.valueField}`]))}'
+    x='${jsonAttr([xValues])}'
+    y='${jsonAttr([yValues])}'
+    name='${jsonAttr([`${state.labelField} vs ${state.valueField}`])}'
     selected-palette="${state.palette}">
   </scatter-chart>`,
     'chart'
@@ -938,9 +955,7 @@ datalist.onSourceData(data);
     state.data.forEach((d) => {
       const rawCode = (d[state.codeField] ?? d.code ?? '') as string | number;
       let code = String(rawCode).trim();
-      if (/^\d+$/.test(code) && code.length < 3) {
-        code = code.padStart(2, '0');
-      }
+      code = normalizeDeptCode(code);
       const value = (d.value as number) || 0;
       if (isValidDeptCode(code) && !isNaN(value)) {
         mapData[code] = Math.round(value * 100) / 100;
@@ -967,7 +982,7 @@ datalist.onSourceData(data);
   ${state.subtitle ? `<p class="fr-text--sm fr-text--light">${escapeHtml(state.subtitle)}</p>` : ''}
   ${wrapWithDatabox(
     `<map-chart id="chart"
-    data='${JSON.stringify(mapData)}'
+    data='${jsonAttr(mapData)}'
     name="${escapeHtml(state.title || 'Donn\u00e9es')}"
     date="${today}"
     value="${avgValue}"
@@ -1024,9 +1039,9 @@ datalist.onSourceData(data);
 
   ${wrapWithDatabox(
     `<${dsfrTag} id="chart"
-    x='${escapeSingleQuotes(x)}'
-    y='${escapeSingleQuotes(y)}'
-    name='${escapeSingleQuotes(seriesNames)}'
+    x='${singleQuoteAttr(x)}'
+    y='${singleQuoteAttr(y)}'
+    name='${singleQuoteAttr(seriesNames)}'
     selected-palette="${state.palette}"${extraStr}>
   </${dsfrTag}>`,
     'chart'
@@ -1122,7 +1137,7 @@ export function generateOdsQueryCode(
   qAttrs.push('source="chart-src"');
   const odsSortField = resolveSortField(resultValueField);
   if (odsSortField) {
-    qAttrs.push(`order-by="${odsSortField}:${state.sortOrder}"`);
+    qAttrs.push(`order-by="${escapeHtml(odsSortField)}:${escapeHtml(state.sortOrder)}"`);
   }
 
   const queryElement = `
@@ -1216,7 +1231,7 @@ export function generateTabularQueryCode(
   // Order by
   const tabularSortField = resolveSortField(resultValueField);
   if (tabularSortField) {
-    qAttrs.push(`order-by="${tabularSortField}:${state.sortOrder}"`);
+    qAttrs.push(`order-by="${escapeHtml(tabularSortField)}:${escapeHtml(state.sortOrder)}"`);
   }
 
   const queryElement = `
@@ -1308,7 +1323,7 @@ export function generateDsfrDataQueryCode(
   // Sort
   const dynSortField = resolveSortField(sortField);
   if (dynSortField) {
-    attrs.push(`order-by="${dynSortField}:${state.sortOrder}"`);
+    attrs.push(`order-by="${escapeHtml(dynSortField)}:${escapeHtml(state.sortOrder)}"`);
   }
 
   const comment = state.advancedMode
@@ -1477,7 +1492,7 @@ ${middlewareHtml}
       state.valueFieldLabel || state.valueField,
       ...state.extraSeries.filter((s) => s.field).map((s) => s.label || s.field),
     ];
-    nameAttr = `name='${escapeSingleQuotes(JSON.stringify(seriesNames))}'`;
+    nameAttr = `name='${jsonAttr(seriesNames)}'`;
   } else if (queryValueField2) {
     extraFieldsAttr = `\n    value-field-2="${queryValueField2}"`;
   }
@@ -1645,11 +1660,11 @@ export function generateDynamicCodeForApi(): void {
     id="table-query"
     source="table-data">
   </dsfr-data-query>
-${facets.element}
+${facets.element}${noteRechercheServeur()}
   <dsfr-data-list
     id="my-datalist"
     source="${datalistSource}"
-    columns="${colonnes}"${buildDatalistAttrs()}${triAttr}
+    columns="${colonnes}"${buildDatalistAttrs(true)}${triAttr}
     server-sort
     pagination="20">
   </dsfr-data-list>${generateA11yElement(datalistSource, 'my-datalist')}
@@ -1697,11 +1712,11 @@ ${facets.element}
     id="table-query"
     source="table-data">
   </dsfr-data-query>
-${facets.element}
+${facets.element}${noteRechercheServeur()}
   <dsfr-data-list
     id="my-datalist"
     source="${datalistSource}"
-    columns="${colonnes}"${buildDatalistAttrs()}${triAttr}
+    columns="${colonnes}"${buildDatalistAttrs(true)}${triAttr}
     server-sort
     pagination="20">
   </dsfr-data-list>${generateA11yElement(datalistSource, 'my-datalist')}
@@ -1826,7 +1841,7 @@ ${middlewareHtml}
       state.valueFieldLabel || state.valueField,
       ...state.extraSeries.filter((s) => s.field).map((s) => s.label || s.field),
     ];
-    nameAttr = `name='${escapeSingleQuotes(JSON.stringify(seriesNames))}'`;
+    nameAttr = `name='${jsonAttr(seriesNames)}'`;
   } else if (queryValueField2) {
     extraFieldsAttr = `\n    value-field-2="${queryValueField2}"`;
   }
@@ -1906,7 +1921,7 @@ export function generateCode(apiUrl: string): void {
 
 <script>
 // URL de l'API avec agr\u00e9gation
-const API_URL = '${apiUrl}';
+const API_URL = ${jsStringLiteral(apiUrl)};
 
 function formatKPIValue(value, unit) {
   const num = Math.round(value * 100) / 100;
@@ -1951,7 +1966,7 @@ loadKPI();
 </div>
 
 <script type="module">
-const API_URL = '${apiUrl}';
+const API_URL = ${jsStringLiteral(apiUrl)};
 
 async function loadGauge() {
   const response = await fetch(API_URL);
@@ -1995,7 +2010,7 @@ loadGauge();
 </div>
 
 <script>
-const API_URL = '${apiUrl}';
+const API_URL = ${jsStringLiteral(apiUrl)};
 
 ${ODS_FETCH_HELPER}
 
@@ -2028,20 +2043,20 @@ loadTable();
 </div>
 
 <script type="module">
-const API_URL = '${apiUrl}';
+const API_URL = ${jsStringLiteral(apiUrl)};
 
 ${ODS_FETCH_HELPER}
 
 async function loadChart() {
   const data = await fetchAllODS(API_URL);
 
-  const xValues = data.map(d => d['${state.labelField}'] || 0);
+  const xValues = data.map(d => d[${jsStringLiteral(state.labelField)}] || 0);
   const yValues = data.map(d => d.value || 0);
 
   var el = document.createElement('scatter-chart');
   el.setAttribute('x', JSON.stringify([xValues]));
   el.setAttribute('y', JSON.stringify([yValues]));
-  el.setAttribute('name', ${JSON.stringify(JSON.stringify([`${state.labelField} vs ${state.valueField}`]))});
+  el.setAttribute('name', ${jsStringLiteral(JSON.stringify([`${state.labelField} vs ${state.valueField}`]))});
   el.setAttribute('selected-palette', '${state.palette}');
   document.getElementById('scatter-container').appendChild(el);
 }
@@ -2076,7 +2091,7 @@ loadChart();
 </div>
 
 <script type="module">
-const API_URL = '${apiUrl}';
+const API_URL = ${jsStringLiteral(apiUrl)};
 
 ${ODS_FETCH_HELPER}
 
@@ -2096,7 +2111,9 @@ async function loadMap() {
   // Transformer les donn\u00e9es en format carte: {"code": valeur, ...}
   const mapData = {};
   records.forEach(d => {
-    let code = String(d['${state.codeField}'] || '').trim();
+    let code = String(d[${jsStringLiteral(state.codeField)}] || '').trim();
+    // Copie deliberee de normalizeDeptCode : ce bloc s'execute dans la page
+    // de l'utilisateur, il ne peut rien importer du monorepo (#610).
     if (/^\\d+$/.test(code) && code.length < 3) {
       code = code.padStart(2, '0');
     }
@@ -2171,14 +2188,14 @@ loadMap();
 
 <script type="module">
 // URL de l'API avec agrégation
-const API_URL = '${apiUrl}';
+const API_URL = ${jsStringLiteral(apiUrl)};
 
 ${ODS_FETCH_HELPER}
 
 async function loadChart() {
   const data = await fetchAllODS(API_URL);
 
-  const labels = data.map(d => d['${state.labelField}'] || 'N/A');
+  const labels = data.map(d => d[${jsStringLiteral(state.labelField)}] || 'N/A');
   const values = data.map(d => Math.round((d.value || 0) * 100) / 100);${extraSeriesExtractCode}
 
   const y = ${allValuesArrayCode};
@@ -2186,7 +2203,7 @@ async function loadChart() {
   var el = document.createElement('${dsfrTag}');
   el.setAttribute('x', JSON.stringify([labels]));
   el.setAttribute('y', y);
-  el.setAttribute('name', '${escapeSingleQuotes(seriesNames)}');
+  el.setAttribute('name', ${jsStringLiteral(seriesNames)});
   el.setAttribute('selected-palette', '${state.palette}');${
     state.chartType === 'horizontalBar'
       ? `

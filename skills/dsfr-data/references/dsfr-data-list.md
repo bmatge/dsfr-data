@@ -29,7 +29,7 @@ les clés du premier objet sont utilisees comme colonnes.
 | server-sort | Boolean | `false` | non | Delegue le tri au serveur (retour page 1 automatique, #304). Alias deprecie : `server-tri` |
 
 ### Tri serveur
-Avec `server-tri`, le clic sur un en-tete de colonne envoie une commande `{ orderBy }`
+Avec `server-sort`, le clic sur un en-tete de colonne envoie une commande `{ orderBy }`
 au source upstream (relais automatique du dsfr-data-query) au lieu de trier localement. Les données
 reviennent déjà triees du serveur.
 
@@ -49,15 +49,15 @@ Fonctionne avec la pagination client et serveur. Compatible avec les autres para
 ```html
 <!-- Tableau simple -->
 <dsfr-data-list source="data"
-  colonnes="nom:Nom, email:Email, ville:Ville">
+  columns="nom:Nom, email:Email, ville:Ville">
 </dsfr-data-list>
 
 <!-- Tableau complet avec toutes les fonctionnalites -->
 <dsfr-data-list source="sites"
-  colonnes="nom:Nom du site, ministere:Ministere, score_rgaa:Score RGAA"
-  recherche
-  filtres="ministere"
-  tri="score_rgaa:desc"
+  columns="nom:Nom du site, ministere:Ministere, score_rgaa:Score RGAA"
+  search
+  filters="ministere"
+  sort="score_rgaa:desc"
   pagination="20"
   export="csv,html">
 </dsfr-data-list>

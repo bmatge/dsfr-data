@@ -1,5 +1,11 @@
 // Utils
-export { escapeHtml } from './utils/escape-html.js';
+export {
+  escapeHtml,
+  singleQuoteAttr,
+  jsonAttr,
+  jsonLiteral,
+  jsStringLiteral,
+} from './utils/escape-html.js';
 export {
   formatKPIValue,
   formatDateShort,
@@ -12,7 +18,7 @@ export {
 } from './utils/formatters.js';
 export type { FormatType } from './utils/formatters.js';
 export { toNumber, looksLikeNumber } from './utils/number-parser.js';
-export { isValidDeptCode } from './utils/dept-codes.js';
+export { isValidDeptCode, normalizeDeptCode } from './utils/dept-codes.js';
 export type { JoinType, JoinKey, JoinOptions } from './utils/join.js';
 export { parseJoinKeys, performJoin } from './utils/join.js';
 export type { UnpivotOptions } from './utils/unpivot.js';
@@ -64,6 +70,7 @@ export {
   buildProxiedRequest,
 } from './api/proxy.js';
 export { fetchWithTimeout, httpErrorMessage } from './api/fetch-helpers.js';
+export { appendQuery } from './api/url.js';
 export { buildGristHeaders } from './api/grist.js';
 
 // Storage
@@ -330,3 +337,11 @@ export {
   downloadDataUrl,
   exportPreviewImage,
 } from './ui/image-export.js';
+
+// --- Diagnostic du pipeline (#604) : collecteur de trace, app-side ---
+//
+// Re-export en bloc du sous-barrel : maintenir DEUX listes explicites les
+// faisait deja diverger (frame/mount ajoutes d'un cote seulement). Une seule
+// source de verite, `debug/index.ts`, qui sert aussi de point d'entree au
+// bundle autonome de #608.
+export * from './debug/index.js';

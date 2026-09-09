@@ -22,6 +22,11 @@ import { dispatchSourceCommand, type PaginationMeta } from './data-bridge.js';
 /** Surface minimale attendue du composant hôte */
 export interface PaginationHostLike {
   source: string;
+  /**
+   * Id du composant hote — nomme l'emetteur des commandes remontantes (#603).
+   * Optionnel : un afficheur n'est pas tenu d'avoir un id.
+   */
+  id?: string;
   urlSync: boolean;
   urlPageParam: string;
   /** Taille de page CLIENTE (attribut `pagination` ; 0 = désactivée) */
@@ -77,7 +82,7 @@ export class PaginationController {
     this._pendingUrlPage = page;
     // La source server-side utilisera la commande ; les autres l'ignorent
     if (this.host.source) {
-      dispatchSourceCommand(this.host.source, { page });
+      dispatchSourceCommand(this.host.source, { page, origin: this.host.id });
     }
   }
 
@@ -125,7 +130,7 @@ export class PaginationController {
     this.previousPage = this.currentPage;
     this.currentPage = page;
     if (this.serverMode && this.host.source) {
-      dispatchSourceCommand(this.host.source, { page });
+      dispatchSourceCommand(this.host.source, { page, origin: this.host.id });
     }
     if (this.host.urlSync) this.syncUrl();
     this.host.requestUpdate();
@@ -140,7 +145,7 @@ export class PaginationController {
     this.previousPage = this.currentPage;
     this.currentPage = 1;
     if (this.host.source) {
-      dispatchSourceCommand(this.host.source, { orderBy, page: 1 });
+      dispatchSourceCommand(this.host.source, { orderBy, page: 1, origin: this.host.id });
     }
     if (this.host.urlSync) this.syncUrl();
     this.host.requestUpdate();
