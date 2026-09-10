@@ -70,7 +70,7 @@ jobs:
 
       - name: Upload captures
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: guide-screenshots
           path: e2e/screenshots/guide/
