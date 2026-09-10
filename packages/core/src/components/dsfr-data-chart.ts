@@ -226,6 +226,13 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'databox-title' })
   databoxTitle = '';
 
+  /**
+   * Niveau de titre HTML du titre de la DataBox (RGAA 9.1, #670) : entier de 2 à 6,
+   * borné (défaut 3, rendu historique de DSFR Chart). `heading-level="2"` rend un h2.
+   */
+  @property({ type: Number, attribute: 'heading-level' })
+  headingLevel = 3;
+
   /** Mention de la source (ex: "INSEE, 2024") */
   @property({ type: String, attribute: 'databox-source' })
   databoxSource = '';
@@ -1317,6 +1324,13 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     return wrapper;
   }
 
+  /** Niveau de titre de la DataBox borné à [2, 6] ; 3 si absent ou invalide (#670). */
+  private _databoxHeadingLevel(): number {
+    const n = Math.round(Number(this.headingLevel));
+    if (!Number.isFinite(n)) return 3;
+    return Math.min(6, Math.max(2, n));
+  }
+
   /**
    * Date affichée par la DataBox et les cartes : `databox-date` explicite
    * prime ; sinon la plus récente des dates ISO de `databox-date-field`
@@ -1378,6 +1392,10 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     // HTML title attribute); keep setting `title` too for 2.0.x hosts.
     databoxEl.setAttribute('name', this.databoxTitle || ' ');
     databoxEl.setAttribute('title', this.databoxTitle || ' ');
+    // Niveau de titre (#670) : DSFR Chart >= 2.1.1 rend le titre via sa prop
+    // `heading-level` (h1..h6, défaut h3) — pas de réécriture DOM ni de
+    // MutationObserver, la DataBox produit directement le bon élément.
+    databoxEl.setAttribute('heading-level', `h${this._databoxHeadingLevel()}`);
     databoxEl.setAttribute('source', this.databoxSource || ' ');
     // Pas de date par défaut (#650) : `new Date()` présentait la date de
     // RENDU comme date des données sur toute page qui laissait le défaut.

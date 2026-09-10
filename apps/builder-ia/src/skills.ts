@@ -1282,6 +1282,7 @@ téléchargement CSV, plein écran, tendance.
 |----------|------|--------|-------------|
 | databox | Boolean | \`false\` | Active l'habillage DataBox DSFR |
 | databox-title | String | \`""\` | Titre affiche dans l'en-tete (ex: "Population par region") |
+| heading-level | Number | \`3\` | Niveau de titre HTML du titre DataBox (2 à 6, borné) — \`heading-level="2"\` rend un h2, à caler sur la hiérarchie de la page (RGAA 9.1) |
 | databox-source | String | \`""\` | Source des données (ex: "INSEE, RP 2021") |
 | databox-date | String | \`""\` | Date des données (ex: "Mars 2024"). Prime sur databox-date-field |
 | databox-date-field | String | \`""\` | Colonne de dates ISO (AAAA-MM-JJ) : la plus récente est affichée comme date, formatée JJ/MM/AAAA (ex: \`databox-date-field="gazole_maj"\`) |
