@@ -216,6 +216,12 @@ miroir → **redeploiement de `chartsbuilder`** verifie au `curl`.
 - Lancer `npm run build` apres modification des composants.
 - Creer un changeset si `packages/core/src/` ou `packages/shared/` sont modifies.
 - Apres un changement proxy/URL : valider empiriquement en grepant les bundles produits (aucune URL ne doit fuir dans la mauvaise dimension — voir ARCHITECTURE.md).
+- Avant de conclure qu'une capacite MANQUE — a la lecture d'un rapport externe, d'un banc d'essai ou
+  d'un constat d'utilisateur : lire [`docs/EVALUER-UNE-REPRODUCTION.md`](docs/EVALUER-UNE-REPRODUCTION.md).
+  Les quatre verdicts (natif · natif mais posterieur a la version chargee · prevu a un jalon · absent
+  du source) ne se confondent pas, une instance deployee peut avoir plusieurs versions de retard
+  (`curl …/dist/skills-meta.json`), et la question « est-ce la bibliotheque, ou d'avoir voulu
+  transposer un autre modele ? » a retire douze critiques sur un seul rapport.
 
 ## Ce que Claude ne doit JAMAIS faire
 

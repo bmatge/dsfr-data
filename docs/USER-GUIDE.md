@@ -1170,6 +1170,11 @@ depuis 2019, il faut tout rapatrier — c'est exactement ce que `year-start-mont
 
 ## Ressources
 
+- **[Evaluer une reproduction](EVALUER-UNE-REPRODUCTION.md)** — la methode a suivre avant de conclure
+  qu'une capacite manque : les quatre verdicts a ne jamais confondre, le chronometrage avant de juger
+  la performance, la verification au navigateur (les cartes se rendent a la visibilite), et la
+  question qui evite le plus de faux constats — est-ce la bibliotheque, ou d'avoir voulu transposer
+  un autre modele ?
 - **Code source** : [github.com/bmatge/dsfr-data](https://github.com/bmatge/dsfr-data)
 - **Demo composants** : section Composants de l'application
 - **Documentation DSFR Chart** : [github.com/GouvernementFR/dsfr-chart](https://github.com/GouvernementFR/dsfr-chart)

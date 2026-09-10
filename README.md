@@ -100,6 +100,7 @@ Pour le detail du monorepo, des conventions, du workflow de release Changesets e
 - [Specifications interactives des composants](https://bmatge.github.io/dsfr-data/specs/)
 - [Guide utilisateur](https://bmatge.github.io/dsfr-data/guide/) — parcours interactifs + exemples live (HTML)
 - [Guide utilisateur (markdown)](docs/USER-GUIDE.md) — meme contenu en markdown, navigable depuis GitHub
+- [Evaluer une reproduction](docs/EVALUER-UNE-REPRODUCTION.md) — methode d'evaluation : les quatre verdicts, le chronometrage, la verification au navigateur
 - [Architecture](docs/ARCHITECTURE.md) — pipeline, adapters, bundles, build
 - [Guide de deploiement](docs/DEPLOYMENT.md) — Docker, 4 scenarios self-hosted, validation
 - [Contribuer](docs/CONTRIBUTING.md) — monorepo, conventions, release Changesets
