@@ -1004,7 +1004,8 @@ Les compteurs de facettes se recalculent dynamiquement.
 | highlight | Boolean | false | non | Ajoute _highlight avec <mark> pour dsfr-data-display |
 | operator | String | "contains" | non | Mode : contains, starts, words |
 | sr-label | Boolean | false | non | Label en sr-only (masque visuellement) |
-| count | Boolean | false | non | Affiche un compteur de résultats visible sous le champ (compte serveur en \`server-search\`). Voir Accessibilité : il n'est une région live que sans afficheur aval |
+| count | Boolean | false | non | Affiche un compteur de résultats visible sous le champ (compte serveur en \`server-search\`), avec séparateur de milliers français. Voir Accessibilité : il n'est une région live que sans afficheur aval. Tant que l'amont attend un filtre (\`require-where\`), le compteur cède la place au message d'attente |
+| idle-message | String | "Choisissez un filtre pour afficher les données" | non | Message rendu à la place du compteur quand l'amont attend un filtre (\`require-where\`). Nécessite \`count\` |
 | url-search-param | String | "" | non | Nom du parametre d'URL a lire comme terme de recherche initial |
 | url-sync | Boolean | false | non | Synchronise l'URL quand l'utilisateur tape (replaceState) |
 | server-search | Boolean | false | non | Delegue la recherche au serveur (le dsfr-data-query amont relaie automatiquement vers la source server-side) |
