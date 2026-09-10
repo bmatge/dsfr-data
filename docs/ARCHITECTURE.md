@@ -41,12 +41,16 @@ dsfr-data-source  ──[fetch via adapter]──[paginate]──[cache]──�
   Tier d'orchestration OPT-IN (#224, ADR-031) — dashboard a filtre commun :
 
   UI natives (select, input...) ──► dsfr-data-context ──┬──► commandes where (whereKey stable/filtre)
-       │                                │                ├──► dsfr-data-source (A)
-       └── dsfr-data-context-filter ────┘                ├──► dsfr-data-source (B)
-           (eq, in, lt, gte, between,                    └──► dsfr-data-source (C)
-            month-of, year-of, lt-day-after,
-            last-n-days, current-year, current-month ; default=)
-  dsfr-data-context-tags (recap supprimable des filtres actifs)
+       │                                ▲                ├──► dsfr-data-source (A)
+       └── dsfr-data-context-filter ────┤                ├──► dsfr-data-source (B)
+           (eq, in, contains, lt, gte,  │                └──► dsfr-data-source (C)
+            between, month-of, year-of, │
+            lt-day-after, last-n-days,  │  un seul bus (#678, ADR-104) : tout ContextFilterLike
+            current-year, current-month ;│
+            default=)                   │  s'enregistre par context="id", meme declare avant
+  dsfr-data-facets  context="id" ───────┤  le contexte dans le DOM
+  dsfr-data-search  context="id" ───────┘  (facets : un filtre par champ ; search : contains)
+  dsfr-data-context-tags (recap supprimable des filtres actifs, tout type confondu)
 
   Pipeline multi-sources (jointure) :
 
@@ -82,6 +86,7 @@ dsfr-data-source  ──[fetch via adapter]──[paginate]──[cache]──�
 - Le where de dsfr-data-query est **colon-only** (l'ODSQL reste reserve au where de dsfr-data-source) ; en delegation serveur il est traduit au dialecte de l'adapter (#275). `transform`/`server-side`/`page-size`/`refresh` n'existent plus sur query (#277/#279) — le relais de commandes est toujours actif, le reste se configure sur la source.
 - Les erreurs de configuration passent par `reportConfigError` (console.error + attribut `data-dsfr-config-error`) sur TOUS les composants, source comprise (#283). Les composants d'affichage rendent erreur/loading via les templates partages `utils/status-templates.ts` (#284).
 - **dsfr-data-context** (opt-in, #224/ADR-031) orchestre des filtres transverses multi-sources : il ecoute des UI natives via ses enfants `dsfr-data-context-filter` et diffuse des commandes `where` a N sources nommees (un `whereKey` stable par filtre -> AND par le merge multi-emetteurs ; jamais « le dernier gagne »). Clause construite en colon puis traduite au `whereFormat` de chaque adapter. `url-sync` (defaut OFF) serialise les filtres dans l'URL (l'intention, pas les dates resolues). Sans contexte, chaque source reste autonome.
+- **Un seul bus de diffusion (#678, ADR-104, amende ADR-031)** : le contrat que le contexte attend d'un filtre est l'interface lib-safe `ContextFilterLike` (`packages/shared/src/query/context-filter.ts` : `field`, `applyTo`, `buildColonWhere()`, `displayLabel()`, `displayValue()`, `clear()`, `urlValue()`, `isConnected`). `dsfr-data-facets context="id"` s'enregistre **une fois par champ** (objet `FacetFieldFilter` : `eq` une valeur, `in` plusieurs), `dsfr-data-search context="id"` comme filtre `contains` sur le champ unique de `fields`, `dsfr-data-context-filter context="id"` peut vivre hors du contexte (repli `closest`). En mode `context`, facets et search **n'emettent plus** de `dsfr-data-source-command` (`_dispatchFacetCommand` est un no-op) et leur `url-sync`/`url-params` propre est ignore : le contexte porte l'URL, un parametre par champ (migration : reporter `url-param-map` sur le contexte). Facets continue de calculer valeurs, compteurs et cascade sur sa `source` — en `server-facets`, le where de base de la cascade exclut ses propres whereKeys (`getEffectiveWhere(string[])`, sinon chaque facette ne proposerait plus que sa selection quand sa source est aussi une cible). **Enregistrement tardif** : le contexte emet `dsfr-data-context-connected { id }` sur `document` a sa connexion ; un composant `context="id"` dont le contexte n'est pas encore la pose une erreur de config et s'enregistre a ce signal. **whereKey** = `uid + champ` (suffixe `-2` pour un second filtre sur le meme champ, AND conserve) : stable a l'insertion tardive, l'ancien index d'ordre DOM decalait les cles. `context-tags` liste `activeFilters()` quel que soit le type. Demonstration : `tests/context-facets-search.test.ts` (page « Comptabilite generale » sans `<option>` en dur).
 - **dsfr-data-map** est le conteneur carte Leaflet. Il ne consomme pas de donnees ; ce sont les **dsfr-data-map-layer** enfants qui utilisent `SourceSubscriberMixin`.
 - **dsfr-data-map-layer** projete les donnees sur la carte (marker, geoshape, circle, heatmap). Chaque layer a sa propre source → multi-source naturel.
 - Le viewport-driven fetch (`bbox`) envoie des commandes `dsfr-data-source-command` avec `whereKey: "map-bbox"` pour le merge avec les autres filtres.

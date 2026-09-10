@@ -2,6 +2,7 @@ import { LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { escapeColonValue } from '../utils/where.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
+import { CONTEXT_CONNECTED_EVENT, findContextById } from './dsfr-data-context.js';
 import type { DsfrDataContext } from './dsfr-data-context.js';
 
 /** YYYY-MM-DD en UTC (#230) */
@@ -124,6 +125,9 @@ const OPERATORS = [
   'lt',
   'gte',
   'between',
+  // Sous-chaine (#678) : deja traduit par filter-translator (like "%v%" en
+  // ODSQL, includes en local), il n'etait simplement pas expose ici
+  'contains',
   // Operateurs de date (#230) — clauses en plages [debut, fin)
   'month-of',
   'year-of',
@@ -137,10 +141,11 @@ type ContextOperator = (typeof OPERATORS)[number];
 /**
  * <dsfr-data-context-filter> — un filtre du contexte (#229).
  *
- * Enfant de <dsfr-data-context>. Écoute les change/input de l'élément d'UI
+ * Enfant de <dsfr-data-context> — ou, avec `context="id"` (#678), placé
+ * n'importe où dans la page. Écoute les change/input de l'élément d'UI
  * référencé par `ui` (select, input, select multiple — ou DEUX ids pour
  * `between` : min puis max), construit une clause **colon** (le dialecte
- * pivot de la lib, #277) et la confie au contexte parent qui la diffuse aux
+ * pivot de la lib, #277) et la confie au contexte qui la diffuse aux
  * sources ciblées, traduite au dialecte de chaque adapter.
  *
  * La valeur vide retire le filtre (where vide sur le même whereKey).
@@ -156,9 +161,10 @@ export class DsfrDataContextFilter extends LitElement {
   ui = '';
 
   /**
-   * Opérateur : eq, in, lt, gte, between — et dates (#230, clauses en plages
-   * [debut, fin)) : month-of, year-of, lt-day-after, last-n-days, current-year,
-   * current-month (#682 — case à cocher, mois en cours, borne dynamique).
+   * Opérateur : eq, in, lt, gte, between, contains (sous-chaîne, #678) — et
+   * dates (#230, clauses en plages [debut, fin)) : month-of, year-of,
+   * lt-day-after, last-n-days, current-year, current-month (#682 — case à
+   * cocher, mois en cours, borne dynamique).
    *
    * `year-of` et `month-of` acceptent une date plus precise que l'operateur
    * et la tronquent (#646) : "2026-09-09" -> annee 2026 / mois 2026-09, ce
@@ -192,7 +198,25 @@ export class DsfrDataContextFilter extends LitElement {
   @property({ type: String, attribute: 'default' })
   defaultValue = '';
 
+  /**
+   * Id du dsfr-data-context cible (#678). Vide = le contexte parent le plus
+   * proche (`closest`), comportement historique. Le contexte peut être
+   * déclaré après ce filtre dans le DOM : l'enregistrement se fait alors à
+   * sa connexion.
+   */
+  @property({ type: String })
+  context = '';
+
   private _context: DsfrDataContext | null = null;
+
+  /** Un contexte visé par id vient d'être connecté : (re)bind si c'est le nôtre (#678) */
+  private _onContextConnected = (e: Event) => {
+    const id = (e as CustomEvent<{ id: string | null }>).detail?.id;
+    if (this.context && id === this.context) {
+      this._unbindUi();
+      this._bind();
+    }
+  };
 
   private _uiEls: HTMLElement[] = [];
 
@@ -207,7 +231,7 @@ export class DsfrDataContextFilter extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
-    this._context = this.closest('dsfr-data-context');
+    document.addEventListener(CONTEXT_CONNECTED_EVENT, this._onContextConnected);
     // Bind différé d'un tick : à l'innerHTML, les éléments d'UI déclarés
     // après le contexte dans le même fragment ne sont pas encore là
     queueMicrotask(() => this._bind());
@@ -215,6 +239,7 @@ export class DsfrDataContextFilter extends LitElement {
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    document.removeEventListener(CONTEXT_CONNECTED_EVENT, this._onContextConnected);
     this._unbindUi();
     this._context?._unregisterFilter(this);
     this._context = null;
@@ -222,7 +247,12 @@ export class DsfrDataContextFilter extends LitElement {
 
   willUpdate(changed: Map<string, unknown>) {
     super.willUpdate(changed);
-    if (changed.has('ui') || changed.has('field') || changed.has('operator')) {
+    if (
+      changed.has('ui') ||
+      changed.has('field') ||
+      changed.has('operator') ||
+      changed.has('context')
+    ) {
       if (this.hasUpdated) {
         this._unbindUi();
         this._bind();
@@ -230,15 +260,28 @@ export class DsfrDataContextFilter extends LitElement {
     }
   }
 
+  /** Contexte cible : par id (`context`, #678) sinon le parent le plus proche */
+  private _resolveContext(): DsfrDataContext | null {
+    if (this.context) return findContextById(this.context);
+    return this.closest('dsfr-data-context');
+  }
+
   /** Validation + abonnement aux éléments d'UI */
   private _bind(): void {
     if (!this.isConnected) return;
 
+    const context = this._resolveContext();
+    if (context !== this._context) {
+      this._context?._unregisterFilter(this);
+      this._context = context;
+    }
     if (!this._context) {
       reportConfigError(
         this,
         'dsfr-data-context-filter',
-        'doit être un enfant de <dsfr-data-context>'
+        this.context
+          ? `dsfr-data-context introuvable : "${this.context}"`
+          : 'doit être un enfant de <dsfr-data-context> (ou le viser par context="id")'
       );
       return;
     }

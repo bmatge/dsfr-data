@@ -11,6 +11,10 @@ import type { DsfrDataContext } from './dsfr-data-context.js';
  * même chemin qu'un utilisateur qui efface le champ : les sources, l'URL
  * (#231) et les tags se mettent à jour ensemble.
  *
+ * Tout type de filtre confondu (#678, contrat `ContextFilterLike`) : filtres
+ * classiques, champs d'une <dsfr-data-facets context="…">, terme d'une
+ * <dsfr-data-search context="…">.
+ *
  * ```html
  * <dsfr-data-context-tags for="ctx"></dsfr-data-context-tags>
  * ```

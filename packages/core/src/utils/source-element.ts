@@ -23,8 +23,11 @@ export interface SourceElement extends HTMLElement {
   /** Retourne l'adapter API associé */
   getAdapter(): ApiAdapter | null;
 
-  /** Retourne la clause WHERE effective, avec fusion des commandes */
-  getEffectiveWhere(excludeKey?: string): string;
+  /**
+   * Retourne la clause WHERE effective, avec fusion des commandes.
+   * `excludeKey` : un whereKey ou une liste de whereKeys a ignorer (#678).
+   */
+  getEffectiveWhere(excludeKey?: string | string[]): string;
 
   /**
    * Retourne les paramètres adapter résolus de la source amont — y compris
