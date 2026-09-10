@@ -21,7 +21,8 @@ import { PaginationController } from '../utils/pagination-controller.js';
  * - {{champ}}           : valeur echappee (HTML-safe)
  * - {{{champ}}}         : valeur brute (non echappee)
  * - {{champ|défaut}}    : valeur avec fallback si null/undefined
- * - {{champ:number}}    : valeur formatee avec separateur de milliers (ex: 32 073 247)
+ * - {{champ:number}}    : séparateur de milliers fr-FR (ex: 32 073 247) ; `:number:2` fixe les décimales
+ * - {{champ:date}}      : date JJ/MM/AAAA (« — » si invalide) ; `:datetime` ajoute HH:MM
  * - {{champ.sous.clé}}  : acces aux proprietes imbriquees
  * - {{$index}}          : index de l'element (0-based)
  *

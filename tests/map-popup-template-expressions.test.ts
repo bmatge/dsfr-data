@@ -92,3 +92,85 @@ describe('#426 — templates de dsfr-data-map-popup', () => {
     expect(render(popup, { nom: 'x' })).toBe('<p></p>');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Épic #694 — moteur de templates : grammaire d'argument, :date, :join, :url,
+// blocs {{#if}}/{{#unless}}, renderTemplate partagé display/popup.
+// ---------------------------------------------------------------------------
+
+import { parseTemplateExpression } from '@/utils/template-expression.js';
+
+describe('#694 — grammaire {{chemin[:format[:arg]][|défaut]}}', () => {
+  it('découpe chemin, format, argument et défaut', () => {
+    expect(parseTemplateExpression('tags:join: / |aucun')).toEqual({
+      path: 'tags',
+      format: 'join',
+      arg: ' / ',
+      defaultValue: 'aucun',
+    });
+  });
+
+  it("conserve les espaces de l'argument mais trime le reste", () => {
+    expect(parseTemplateExpression(' prix : number : 2 | n/a ')).toEqual({
+      path: 'prix',
+      format: 'number',
+      arg: ' 2 ',
+      defaultValue: 'n/a',
+    });
+  });
+
+  it('sans argument ni défaut, arg est undefined', () => {
+    expect(parseTemplateExpression('d:date')).toEqual({
+      path: 'd',
+      format: 'date',
+      arg: undefined,
+      defaultValue: '',
+    });
+    expect(parseTemplateExpression('nom')).toEqual({
+      path: 'nom',
+      format: '',
+      arg: undefined,
+      defaultValue: '',
+    });
+  });
+
+  it("limite documentée : « | » dans l'argument ouvre le défaut", () => {
+    const parsed = parseTemplateExpression('tags:join: | ');
+    expect(parsed.arg).toBe(' ');
+    expect(parsed.defaultValue).toBe('');
+  });
+});
+
+describe('#662 — pipe :date', () => {
+  it('{{d:date}} rend JJ/MM/AAAA', () => {
+    expect(resolveTemplateExpression({ d: '2026-09-09T10:00:00Z' }, 'd:date')).toBe('09/09/2026');
+  });
+
+  it('accepte un objet Date et un timestamp', () => {
+    expect(resolveTemplateExpression({ d: new Date(2026, 8, 9, 12) }, 'd:date')).toBe('09/09/2026');
+    expect(resolveTemplateExpression({ d: new Date(2026, 8, 9, 12).getTime() }, 'd:date')).toBe(
+      '09/09/2026'
+    );
+  });
+
+  it('rend « — » pour une date invalide', () => {
+    expect(resolveTemplateExpression({ d: 'pas une date' }, 'd:date')).toBe('—');
+  });
+
+  it('null passe par le défaut, pas par le format', () => {
+    expect(resolveTemplateExpression({ d: null }, 'd:date|inconnue')).toBe('inconnue');
+  });
+
+  it(':datetime ajoute HH:MM', () => {
+    expect(resolveTemplateExpression({ d: new Date(2026, 8, 9, 14, 5) }, 'd:datetime')).toBe(
+      '09/09/2026 14:05'
+    );
+    expect(resolveTemplateExpression({ d: 'x' }, 'd:datetime')).toBe('—');
+  });
+
+  it(':number:2 fixe les décimales', () => {
+    expect(resolveTemplateExpression({ p: 1234.5 }, 'p:number:2')).toBe(
+      (1234.5).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    );
+  });
+});

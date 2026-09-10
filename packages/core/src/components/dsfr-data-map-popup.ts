@@ -6,7 +6,8 @@
  *
  * Placeholders (memes expressions que dsfr-data-display, toujours echappees) :
  * - {{champ}} / {{champ.sous.clé}} : valeur (imbriquee)
- * - {{champ:number}}               : formatage fr-FR (separateur de milliers)
+ * - {{champ:number}}               : séparateur de milliers fr-FR ; `:number:2` fixe les décimales
+ * - {{champ:date}}                 : JJ/MM/AAAA (« — » si invalide) ; `:datetime` ajoute HH:MM
  * - {{champ|défaut}}               : fallback si null/undefined
  *
  * @example

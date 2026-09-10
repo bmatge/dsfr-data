@@ -1419,13 +1419,19 @@ une instance du template avec les valeurs injectees.
 Le template est défini dans un element \`<template>\` enfant du composant.
 Les placeholders sont remplaces pour chaque element de données :
 
+Grammaire d'un placeholder : \`{{chemin[:format[:arg]][|défaut]}}\` — l'argument du format vient
+après un second \`:\` ; il ne peut pas contenir \`|\` (qui ouvre le défaut).
+
 | Syntaxe | Description |
 |---------|-------------|
 | \`{{champ}}\` | Valeur echappee (HTML-safe) |
 | \`{{{champ}}}\` | Valeur brute (non echappee — utiliser avec precaution) |
 | \`{{champ\\|défaut}}\` | Valeur avec fallback si null/undefined |
 | \`{{champ:number}}\` | Valeur avec separateur de milliers (ex: 32073247 → 32 073 247) |
+| \`{{champ:number:2}}\` | Nombre fr-FR avec 2 décimales fixes |
 | \`{{champ:number\\|0}}\` | Format number + fallback si null |
+| \`{{champ:date}}\` | Date JJ/MM/AAAA depuis une ISO (\`2026-09-09T10:00:00Z\` → \`09/09/2026\`), « — » si invalide |
+| \`{{champ:datetime}}\` | Date et heure JJ/MM/AAAA HH:MM |
 | \`{{champ.sous.clé}}\` | Acces aux proprietes imbriquees (dot notation) |
 | \`{{$index}}\` | Index de l'element dans le tableau (0-based) |
 | \`{{$uid}}\` | Identifiant unique de l'element (base sur uid-field ou index) |
@@ -2584,7 +2590,8 @@ Composant compagnon optionnel qui definit un template et un mode d'affichage pou
 | for | String | \`""\` | ID du layer cible (vide = tous) |
 
 Template avec \`<template>\` et interpolation \`{{champ}}\` (memes expressions que dsfr-data-display,
-toujours echappees) : \`{{champ.sous.clé}}\`, \`{{champ:number}}\` (format fr-FR), \`{{champ|défaut}}\`.
+toujours echappees) : \`{{champ.sous.clé}}\`, \`{{champ:number}}\` (format fr-FR), \`{{champ:date}}\`,
+\`{{champ|défaut}}\`.
 Sans template, tableau auto.
 
 \`\`\`html
