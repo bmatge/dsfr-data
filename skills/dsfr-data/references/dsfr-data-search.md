@@ -111,7 +111,7 @@ contradictoires (#654).
 
 | Attribut | Type | Défaut | Description |
 |---|---|---|---|
-| `context` | `string` | `""` (vide) | Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la recherche devient un filtre `contains` du contexte sur le champ UNIQUE de `fields` (la clause colon ne sait pas dire « ou » entre plusieurs champs). Le contexte diffuse a ses cibles et porte l'URL (`url-sync` et `url-search-param` sont ignores — le parametre est nomme d'apres le champ, ou via `url-param-map` du contexte). Le contexte peut etre declare apres la recherche dans la page. Vide = comportement autonome. |
+| `context` | `string` | `""` (vide) | Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la recherche devient un filtre `contains` du contexte sur le champ UNIQUE de `fields` (la clause colon ne sait pas dire « ou » entre plusieurs champs). Le contexte diffuse a ses cibles et porte l'URL (`url-sync` et `url-search-param` sont ignores — le paramètre est nommé d'apres le champ, ou via `url-param-map` du contexte). Le contexte peut etre declare apres la recherche dans la page. Vide = comportement autonome. |
 | `count` | `boolean` | `false` | Affiche un compteur de resultats sous le champ (compte serveur `meta.total` en `server-search`). Ce compteur reste visible en toutes circonstances ; seule sa nature de region live depend de la chaine aval (#654). |
 | `debounce` | `number` | `300` | Delai en ms avant declenchement du filtre apres la derniere frappe |
 | `fields` | `string` | `""` (vide) | Champs sur lesquels rechercher (virgule-separes). Vide = tous les champs |

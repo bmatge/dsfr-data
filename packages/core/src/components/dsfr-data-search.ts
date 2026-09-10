@@ -172,7 +172,7 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
    * recherche devient un filtre `contains` du contexte sur le champ UNIQUE
    * de `fields` (la clause colon ne sait pas dire « ou » entre plusieurs
    * champs). Le contexte diffuse a ses cibles et porte l'URL (`url-sync`
-   * et `url-search-param` sont ignores — le parametre est nomme d'apres le
+   * et `url-search-param` sont ignores — le paramètre est nommé d'apres le
    * champ, ou via `url-param-map` du contexte). Le contexte peut etre
    * declare apres la recherche dans la page. Vide = comportement autonome.
    */

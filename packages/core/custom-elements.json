@@ -13084,7 +13084,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la\nrecherche devient un filtre `contains` du contexte sur le champ UNIQUE\nde `fields` (la clause colon ne sait pas dire « ou » entre plusieurs\nchamps). Le contexte diffuse a ses cibles et porte l'URL (`url-sync`\net `url-search-param` sont ignores — le parametre est nomme d'apres le\nchamp, ou via `url-param-map` du contexte). Le contexte peut etre\ndeclare apres la recherche dans la page. Vide = comportement autonome.",
+              "description": "Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la\nrecherche devient un filtre `contains` du contexte sur le champ UNIQUE\nde `fields` (la clause colon ne sait pas dire « ou » entre plusieurs\nchamps). Le contexte diffuse a ses cibles et porte l'URL (`url-sync`\net `url-search-param` sont ignores — le paramètre est nommé d'apres le\nchamp, ou via `url-param-map` du contexte). Le contexte peut etre\ndeclare apres la recherche dans la page. Vide = comportement autonome.",
               "attribute": "context"
             },
             {
@@ -13752,7 +13752,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la\nrecherche devient un filtre `contains` du contexte sur le champ UNIQUE\nde `fields` (la clause colon ne sait pas dire « ou » entre plusieurs\nchamps). Le contexte diffuse a ses cibles et porte l'URL (`url-sync`\net `url-search-param` sont ignores — le parametre est nomme d'apres le\nchamp, ou via `url-param-map` du contexte). Le contexte peut etre\ndeclare apres la recherche dans la page. Vide = comportement autonome.",
+              "description": "Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la\nrecherche devient un filtre `contains` du contexte sur le champ UNIQUE\nde `fields` (la clause colon ne sait pas dire « ou » entre plusieurs\nchamps). Le contexte diffuse a ses cibles et porte l'URL (`url-sync`\net `url-search-param` sont ignores — le paramètre est nommé d'apres le\nchamp, ou via `url-param-map` du contexte). Le contexte peut etre\ndeclare apres la recherche dans la page. Vide = comportement autonome.",
               "fieldName": "context"
             }
           ],
