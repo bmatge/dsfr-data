@@ -1406,6 +1406,7 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 | idle-message | String | \`"Choisissez un filtre pour afficher les données"\` | non | Message rendu quand l'amont attend un filtre (\`require-where\`, #690). Distinct de « aucune donnée » : aucune requête n'a été faite. Existe aussi sur list, kpi, display, podium et a11y. |
 | empty-label | String | \`"Non renseigné"\` | non | Libellé d'une catégorie vide (\`null\`, \`undefined\` ou \`""\` dans label-field) : légende du pie, axe X. Évite le « Série N » de DSFR Chart sur un nom vide. Ex: \`empty-label="Sans objet"\` |
 | selected-palette | String | \`"categorical"\` | non | Palette : categorical, sequentialAscending, sequentialDescending, divergentAscending, divergentDescending, neutral, default |
+| color-map | String | \`""\` | non | Couleur fixee par modalite : paires \`modalite:#couleur\` separees par virgule, meme grammaire que dsfr-data-map-layer. Ex: \`"Realise:#000091,Objectif:#E1000F"\`. La modalite est un nom de serie, sinon un libelle de l'axe (part de camembert). Virgule ou deux-points dans une modalite : \`%2C\` / \`%3A\`. Sans effet sur les types map* |
 | unit-tooltip | String | \`""\` | non | Unite dans les info-bulles : %, EUR, etc. |
 | unit-tooltip-bar | String | \`""\` | non | Unite des barres dans un bar-line |
 | horizontal | Boolean | \`false\` | non | Barres horizontales (type bar uniquement) |
@@ -2756,7 +2757,7 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | tooltip-field | String | \`""\` | Champ affiche au survol |
 | color | String | \`"#000091"\` | Couleur (DSFR blue-france). Fallback si color-map ne matche pas |
 | color-field | String | \`""\` | Champ dont la valeur determine la couleur (mapping catégoriel) |
-| color-map | String | \`""\` | Paires \`valeur:#couleur\` separees par virgule. Ex: \`"1:#00A95F,2:#FF9940,3:#E1000F"\` |
+| color-map | String | \`""\` | Paires \`valeur:#couleur\` separees par virgule. Ex: \`"1:#00A95F,2:#FF9940,3:#E1000F"\`. Virgule ou deux-points dans une valeur : \`%2C\` / \`%3A\` (\`"Commerce%2C transport:#000091"\`). Meme grammaire sur dsfr-data-chart |
 | fill-field | String | \`""\` | Champ numérique pour choropleth (geoshape) |
 | fill-opacity | Number | \`0.6\` | Opacite remplissage |
 | selected-palette | String | \`""\` | Palette choropleth : \`sequentialAscending\` (défaut), \`sequentialDescending\`, \`divergentAscending\`, \`divergentDescending\`, \`neutral\`, \`categorical\` |

@@ -54,6 +54,7 @@ import {
 } from '@dsfr-data/shared/lib';
 import { toIsoA2 } from '../data/continent-lookup.js';
 import { toAcademyKey, toRegionKey } from '../utils/map-geo-keys.js';
+import { parseColorMap, applyColorMap, type ColorableChart } from '../utils/color-map.js';
 
 type DSFRChartType =
   | 'line'
@@ -197,6 +198,18 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   /** Palette de couleurs */
   @property({ type: String, attribute: 'selected-palette' })
   selectedPalette = 'categorical';
+
+  /**
+   * Couleur fixée par modalité (#732) : paires `modalité:#couleur` séparées
+   * par des virgules, même grammaire que `dsfr-data-map-layer`. Ex :
+   * `"Réalisé:#000091,Objectif:#E1000F"`. La modalité est un nom de série
+   * (une couleur par courbe ou par barre) ou, à défaut, un libellé de l'axe
+   * (une couleur par part de camembert). Les modalités non citées gardent la
+   * couleur de la palette. Une virgule ou un deux-points dans une modalité
+   * s'écrit `%2C` ou `%3A`. Sans effet sur les cartes (`map*`).
+   */
+  @property({ type: String, attribute: 'color-map' })
+  colorMap = '';
 
   /** Unité à afficher dans les tooltips */
   @property({ type: String, attribute: 'unit-tooltip' })
@@ -387,6 +400,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     this._pendingTimers.clear();
     this._cleanupChartOverlays();
     this._cancelRadialBoundsRaf();
+    this._cancelColorMapRaf();
   }
 
   updated(changed: Map<string, unknown>) {
@@ -398,6 +412,9 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     // Bornes dures de l'echelle radiale (radar + y-min/y-max) : meme principe,
     // ré-appliquées après chaque rendu (le watcher Vue $props recrée le chart).
     this._refreshRadialScaleBounds();
+    // Couleur par modalité (#732) : même principe, l'upstream ne prend pas de
+    // couleur de série en attribut.
+    this._refreshColorMap();
   }
 
   // Light DOM pour les styles DSFR
@@ -1220,6 +1237,83 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     const chart = resolveChartInstance(hosts.chartEl, hosts.canvas);
     if (!chart || !chart.chartArea || chart.chartArea.width <= 0) return false;
     return applyRadialScaleBounds(chart as RadialChartLike, bounds);
+  }
+
+  // --- Couleur par modalite : color-map (#732) --------------------------------
+  // DSFR Chart n'expose aucune prise declarative sur les couleurs de serie
+  // (`tmpColorParse` reste vide) : la couleur se pose sur l'instance Chart.js
+  // apres rendu, avec le meme rAF-poll que les bornes radiales, puis sur les
+  // pastilles de legende que le composant Vue a rendues a cote du canvas.
+
+  private _colorMapRaf: number | null = null;
+
+  /** Un seul warn par composant quand color-map ne s'applique pas au type. */
+  private _colorMapWarned = false;
+
+  private _cancelColorMapRaf() {
+    if (this._colorMapRaf !== null) {
+      cancelAnimationFrame(this._colorMapRaf);
+      this._colorMapRaf = null;
+    }
+  }
+
+  /** (Re)programme l'application de `color-map` après chaque rendu. */
+  private _refreshColorMap() {
+    this._cancelColorMapRaf();
+    if (!this.colorMap.trim()) return;
+    if (this.type in MAP_LEVEL) {
+      if (!this._colorMapWarned) {
+        this._colorMapWarned = true;
+        console.warn(
+          `dsfr-data-chart[${this.id}]: color-map est sans effet sur type="${this.type}" ` +
+            `(l'échelle des cartes vient de selected-palette)`
+        );
+      }
+      return;
+    }
+    const colorMap = parseColorMap(this.colorMap);
+    if (!colorMap.size) return;
+    this._scheduleColorMapApply(colorMap, 120);
+  }
+
+  /** Poll rAF jusqu'a ce que l'instance Chart.js soit prête. */
+  private _scheduleColorMapApply(colorMap: Map<string, string>, framesLeft: number) {
+    if (typeof requestAnimationFrame === 'undefined') return;
+    this._colorMapRaf = requestAnimationFrame(() => {
+      this._colorMapRaf = null;
+      if (!this.isConnected) return;
+      if (this._applyColorMap(colorMap)) return;
+      if (framesLeft > 0) this._scheduleColorMapApply(colorMap, framesLeft - 1);
+      // Degradation gracieuse sans warn : la palette DSFR reste en place.
+    });
+  }
+
+  /** Applique les couleurs sur l'instance et la légende. False si pas prête. */
+  private _applyColorMap(colorMap: Map<string, string>): boolean {
+    const hosts = this._resolveOverlayHosts();
+    if (!hosts) return false;
+    const chart = resolveChartInstance(hosts.chartEl, hosts.canvas);
+    if (!chart || !chart.chartArea || chart.chartArea.width <= 0) return false;
+
+    const applied = applyColorMap(chart as ColorableChart, colorMap, this._getDisplaySeriesNames());
+    if (!applied.applied) return true;
+    this._paintLegendDots(hosts.chartEl, applied.legendColors);
+    return true;
+  }
+
+  /**
+   * Recolore les pastilles de légende rendues par DSFR Chart. Le composant Vue
+   * les pose en `span.legend_dot`, une par série (cartésiens) ou par part
+   * (camembert) : sans ce report, la légende annoncerait la couleur de la
+   * palette sous un graphique recoloré.
+   */
+  private _paintLegendDots(chartEl: HTMLElement, colors: (string | undefined)[]) {
+    const dots = chartEl.querySelectorAll<HTMLElement>('.legend_dot');
+    if (dots.length !== colors.length) return;
+    dots.forEach((dot, i) => {
+      const color = colors[i];
+      if (color) dot.style.backgroundColor = color;
+    });
   }
 
   // --- Cibles : interactivite (tooltip groupe par echeance, legende, #377) ----
