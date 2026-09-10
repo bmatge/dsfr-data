@@ -1550,8 +1550,12 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   private _syncUrl() {
     // Partir des params EXISTANTS (#312) : repartir de zero effacait le
     // parametre du dsfr-data-search voisin et tout autre param de la page
-    // a chaque clic (search preserve, lui)
-    const params = new URLSearchParams(window.location.search);
+    // a chaque clic (search preserve, lui). Construite par l'API URL (#683) :
+    // concatener pathname produisait, sur une page servie sous `//chemin`,
+    // une URL relative au schema (autre hote) et replaceState levait
+    // SecurityError — sync perdue en silence
+    const url = new URL(window.location.href);
+    const params = url.searchParams;
     const paramMap = this._parseUrlParamMap();
     // Build reverse map: field -> URL param name
     const reverseMap = new Map<string, string>();
@@ -1573,11 +1577,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
       params.set(paramName, [...values].join(','));
     }
 
-    const search = params.toString();
-    const newUrl = search
-      ? `${window.location.pathname}?${search}${window.location.hash}`
-      : `${window.location.pathname}${window.location.hash}`;
-    window.history.replaceState(null, '', newUrl);
+    window.history.replaceState(null, '', url.href);
   }
 
   // --- Rendering ---

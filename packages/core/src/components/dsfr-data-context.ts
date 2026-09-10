@@ -250,7 +250,7 @@ export class DsfrDataContext extends LitElement {
    */
   _urlValuesFor(field: string): string[] | null {
     if (!this.urlSync) return null;
-    const params = new URLSearchParams(window.location.search);
+    const params = new URL(window.location.href).searchParams;
     const raw = params.get(this._paramNameFor(field));
     if (raw === null || raw === '') return null;
     return raw.split(',').map((v) => v.trim());
@@ -261,24 +261,25 @@ export class DsfrDataContext extends LitElement {
    * EXISTANTS et ne gère que les siens (leçon #312 : repartir de zéro
    * effaçait les paramètres des composants voisins). replaceState : pas
    * d'entrée d'historique par frappe (ADR-031).
+   *
+   * Construite avec l'API `URL` (#683) : concaténer `pathname` produisait,
+   * sur une page servie sous `//chemin`, une URL relative au schéma
+   * (`//chemin?…` = autre hôte) et `replaceState` levait SecurityError —
+   * toute la synchro d'URL cessait, en silence.
    */
   private _syncUrl(): void {
-    const params = new URLSearchParams(window.location.search);
+    const url = new URL(window.location.href);
     for (const filter of this._filters) {
       if (!filter.field) continue;
       const name = this._paramNameFor(filter.field);
       const value = filter.urlValue();
       if (value) {
-        params.set(name, value);
+        url.searchParams.set(name, value);
       } else {
-        params.delete(name);
+        url.searchParams.delete(name);
       }
     }
-    const search = params.toString();
-    const newUrl = search
-      ? `${window.location.pathname}?${search}${window.location.hash}`
-      : `${window.location.pathname}${window.location.hash}`;
-    window.history.replaceState(null, '', newUrl);
+    window.history.replaceState(null, '', url.href);
   }
 
   /** Cibles effectives d'un filtre : sources du contexte ∩ apply-to */

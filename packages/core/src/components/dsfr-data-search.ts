@@ -722,19 +722,20 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
     this._emitSearchChange(this._filteredData.length);
   }
 
-  /** Sync current search term back to URL (replaceState) */
+  /**
+   * Sync current search term back to URL (replaceState). Construite par
+   * l'API URL (#683) : concatener pathname produisait, sur une page servie
+   * sous `//chemin`, une URL relative au schema (autre hote) et replaceState
+   * levait SecurityError — sync perdue en silence.
+   */
   private _syncUrl() {
-    const params = new URLSearchParams(window.location.search);
+    const url = new URL(window.location.href);
     if (this._term) {
-      params.set(this.urlSearchParam, this._term);
+      url.searchParams.set(this.urlSearchParam, this._term);
     } else {
-      params.delete(this.urlSearchParam);
+      url.searchParams.delete(this.urlSearchParam);
     }
-    const search = params.toString();
-    const newUrl = search
-      ? `${window.location.pathname}?${search}${window.location.hash}`
-      : `${window.location.pathname}${window.location.hash}`;
-    window.history.replaceState(null, '', newUrl);
+    window.history.replaceState(null, '', url.href);
   }
 
   /**
