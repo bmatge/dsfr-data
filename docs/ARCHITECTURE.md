@@ -45,7 +45,7 @@ dsfr-data-source  ──[fetch via adapter]──[paginate]──[cache]──�
        └── dsfr-data-context-filter ────┘                ├──► dsfr-data-source (B)
            (eq, in, lt, gte, between,                    └──► dsfr-data-source (C)
             month-of, year-of, lt-day-after,
-            last-n-days, current-year)
+            last-n-days, current-year, current-month ; default=)
   dsfr-data-context-tags (recap supprimable des filtres actifs)
 
   Pipeline multi-sources (jointure) :

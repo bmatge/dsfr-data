@@ -543,3 +543,327 @@ describe('#646 — pre-remplissage URL : la date complete tient dans le controle
     unsub();
   });
 });
+
+/**
+ * #682 — `default` dynamique (today, first-of-month, first-of-year, litteral)
+ * applique APRES l'URL (l'URL gagne, ADR-031), ecrit dans l'UI puis emis par
+ * le chemin normal ; `current-month`, checkbox symetrique de `current-year`.
+ */
+describe('#682 — AC : default="today" filtre jusqu’a aujourd’hui sans script', () => {
+  afterEach(() => {
+    window.history.replaceState(null, '', window.location.pathname);
+  });
+
+  it('operator="lt-day-after" default="today" → lt lendemain, UI pre-remplie, URL = date', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-10T12:00:00Z'));
+
+    fakeSource('d-src');
+    const { box, unsub } = captureLast('d-src');
+    const input = document.createElement('input');
+    input.type = 'date';
+    input.id = 'ui-def-today';
+    document.body.appendChild(input);
+
+    const ctx = await mount(`
+      <dsfr-data-context id="dctx682a" sources="d-src" url-sync>
+        <dsfr-data-context-filter field="d" operator="lt-day-after" ui="ui-def-today" default="today">
+        </dsfr-data-context-filter>
+      </dsfr-data-context>
+    `);
+
+    expect(input.value).toBe('2026-06-10');
+    expect(box.where).toBe('d:lt:2026-06-11');
+    // Emis par le chemin normal : l'URL est synchronisee comme apres un clic
+    expect(new URLSearchParams(window.location.search).get('d')).toBe('2026-06-10');
+    const filter = ctx.querySelector('dsfr-data-context-filter') as never as {
+      urlValue(): string;
+    };
+    expect(filter.urlValue()).toBe('2026-06-10');
+    unsub();
+  });
+
+  it('today est la date calendaire LOCALE (a 23h30 locale, l’UTC peut etre demain)', async () => {
+    vi.useFakeTimers();
+    // 23:30 heure locale du 10 juin, quel que soit le fuseau de la machine
+    vi.setSystemTime(new Date(2026, 5, 10, 23, 30));
+
+    fakeSource('d-src');
+    const { box, unsub } = captureLast('d-src');
+    const input = document.createElement('input');
+    input.type = 'date';
+    input.id = 'ui-def-local';
+    document.body.appendChild(input);
+
+    await mount(`
+      <dsfr-data-context id="dctx682b" sources="d-src">
+        <dsfr-data-context-filter field="d" operator="lt-day-after" ui="ui-def-local" default="today">
+        </dsfr-data-context-filter>
+      </dsfr-data-context>
+    `);
+
+    expect(input.value).toBe('2026-06-10');
+    expect(box.where).toBe('d:lt:2026-06-11');
+    unsub();
+  });
+
+  it('un ?d=… dans l’URL prime sur default', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-10T12:00:00Z'));
+    window.history.replaceState(null, '', '?d=2026-03-15');
+
+    fakeSource('d-src');
+    const { box, unsub } = captureLast('d-src');
+    const input = document.createElement('input');
+    input.type = 'date';
+    input.id = 'ui-def-url';
+    document.body.appendChild(input);
+
+    await mount(`
+      <dsfr-data-context id="dctx682c" sources="d-src" url-sync>
+        <dsfr-data-context-filter field="d" operator="lt-day-after" ui="ui-def-url" default="today">
+        </dsfr-data-context-filter>
+      </dsfr-data-context>
+    `);
+
+    expect(input.value).toBe('2026-03-15');
+    expect(box.where).toBe('d:lt:2026-03-16');
+    unsub();
+  });
+
+  it('sans URL ni default, rien n’est emis (non-regression)', async () => {
+    fakeSource('d-src');
+    const { box, unsub } = captureLast('d-src');
+    const input = document.createElement('input');
+    input.type = 'date';
+    input.id = 'ui-def-none';
+    document.body.appendChild(input);
+
+    await mount(`
+      <dsfr-data-context id="dctx682d" sources="d-src">
+        <dsfr-data-context-filter field="d" operator="lt-day-after" ui="ui-def-none">
+        </dsfr-data-context-filter>
+      </dsfr-data-context>
+    `);
+
+    expect(input.value).toBe('');
+    expect(box.where).toBeUndefined();
+    unsub();
+  });
+});
+
+describe('#682 — default : mots-cles adaptes au controle, litteral, between', () => {
+  it('first-of-month sur un input type=date gte → 1er du mois en cours', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 5, 10, 12, 0));
+
+    fakeSource('d-src');
+    const { box, unsub } = captureLast('d-src');
+    const input = document.createElement('input');
+    input.type = 'date';
+    input.id = 'ui-def-fom';
+    document.body.appendChild(input);
+
+    await mount(`
+      <dsfr-data-context id="dctx682e" sources="d-src">
+        <dsfr-data-context-filter field="d" operator="gte" ui="ui-def-fom" default="first-of-month">
+        </dsfr-data-context-filter>
+      </dsfr-data-context>
+    `);
+
+    expect(input.value).toBe('2026-06-01');
+    expect(box.where).toBe('d:gte:2026-06-01');
+    unsub();
+  });
+
+  it('today sur un input type=month month-of → "AAAA-MM", plage du mois', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 5, 10, 12, 0));
+
+    fakeSource('d-src');
+    const { box, unsub } = captureLast('d-src');
+    const input = document.createElement('input');
+    input.type = 'month';
+    input.id = 'ui-def-month';
+    document.body.appendChild(input);
+
+    await mount(`
+      <dsfr-data-context id="dctx682f" sources="d-src">
+        <dsfr-data-context-filter field="d" operator="month-of" ui="ui-def-month" default="today">
+        </dsfr-data-context-filter>
+      </dsfr-data-context>
+    `);
+
+    expect(input.value).toBe('2026-06');
+    expect(box.where).toBe('d:gte:2026-06-01, d:lt:2026-07-01');
+    unsub();
+  });
+
+  it('today sur un input texte year-of → "AAAA", plage annuelle', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 5, 10, 12, 0));
+
+    fakeSource('d-src');
+    const { box, unsub } = captureLast('d-src');
+    const input = document.createElement('input');
+    input.id = 'ui-def-year';
+    document.body.appendChild(input);
+
+    await mount(`
+      <dsfr-data-context id="dctx682g" sources="d-src">
+        <dsfr-data-context-filter field="annee" operator="year-of" ui="ui-def-year" default="today">
+        </dsfr-data-context-filter>
+      </dsfr-data-context>
+    `);
+
+    expect(input.value).toBe('2026');
+    expect(box.where).toBe('annee:gte:2026-01-01, annee:lt:2027-01-01');
+    unsub();
+  });
+
+  it('first-of-year sur un input texte lt → litteralement le 1er janvier', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 5, 10, 12, 0));
+
+    fakeSource('d-src');
+    const { box, unsub } = captureLast('d-src');
+    const input = document.createElement('input');
+    input.id = 'ui-def-foy';
+    document.body.appendChild(input);
+
+    await mount(`
+      <dsfr-data-context id="dctx682h" sources="d-src">
+        <dsfr-data-context-filter field="d" operator="lt" ui="ui-def-foy" default="first-of-year">
+        </dsfr-data-context-filter>
+      </dsfr-data-context>
+    `);
+
+    expect(input.value).toBe('2026-01-01');
+    expect(box.where).toBe('d:lt:2026-01-01');
+    unsub();
+  });
+
+  it('un litteral est ecrit tel quel dans un select (eq)', async () => {
+    fakeSource('d-src');
+    const { box, unsub } = captureLast('d-src');
+    const select = document.createElement('select');
+    select.id = 'ui-def-lit';
+    for (const v of ['', 'Bretagne', 'Occitanie']) {
+      const o = document.createElement('option');
+      o.value = v;
+      o.textContent = v || '—';
+      select.appendChild(o);
+    }
+    document.body.appendChild(select);
+
+    await mount(`
+      <dsfr-data-context id="dctx682i" sources="d-src">
+        <dsfr-data-context-filter field="region" ui="ui-def-lit" default="Occitanie">
+        </dsfr-data-context-filter>
+      </dsfr-data-context>
+    `);
+
+    expect(select.value).toBe('Occitanie');
+    expect(box.where).toBe('region:eq:Occitanie');
+    unsub();
+  });
+
+  it('between default="first-of-year,today" → gte 1er janvier, lt aujourd’hui', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 5, 10, 12, 0));
+
+    fakeSource('d-src');
+    const { box, unsub } = captureLast('d-src');
+    for (const id of ['ui-def-min', 'ui-def-max']) {
+      const input = document.createElement('input');
+      input.type = 'date';
+      input.id = id;
+      document.body.appendChild(input);
+    }
+
+    await mount(`
+      <dsfr-data-context id="dctx682j" sources="d-src">
+        <dsfr-data-context-filter field="d" operator="between" ui="ui-def-min ui-def-max"
+          default="first-of-year,today">
+        </dsfr-data-context-filter>
+      </dsfr-data-context>
+    `);
+
+    expect((document.getElementById('ui-def-min') as HTMLInputElement).value).toBe('2026-01-01');
+    expect((document.getElementById('ui-def-max') as HTMLInputElement).value).toBe('2026-06-10');
+    expect(box.where).toBe('d:gte:2026-01-01, d:lt:2026-06-10');
+    unsub();
+  });
+});
+
+describe('#682 — current-month : borne dynamique mois en cours', () => {
+  afterEach(() => {
+    window.history.replaceState(null, '', window.location.pathname);
+  });
+
+  it('une checkbox cochee active la plage du mois courant, recalculee a chaque diffusion', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-10T12:00:00Z'));
+
+    fakeSource('d-src');
+    const { box, unsub } = captureLast('d-src');
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.id = 'ui-cm';
+    document.body.appendChild(checkbox);
+
+    const ctx = await mount(`
+      <dsfr-data-context id="dctx682k" sources="d-src" url-sync>
+        <dsfr-data-context-filter field="d" operator="current-month" ui="ui-cm">
+        </dsfr-data-context-filter>
+      </dsfr-data-context>
+    `);
+
+    checkbox.checked = true;
+    checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(box.where).toBe('d:gte:2026-06-01, d:lt:2026-07-01');
+
+    // Decembre bascule d'annee
+    vi.setSystemTime(new Date('2026-12-20T12:00:00Z'));
+    checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(box.where).toBe('d:gte:2026-12-01, d:lt:2027-01-01');
+
+    // L'URL serialise l'INTENTION (« on »), jamais les dates resolues (ADR-031)
+    const filter = ctx.querySelector('dsfr-data-context-filter') as never as {
+      urlValue(): string;
+      displayValue(): string;
+    };
+    expect(filter.urlValue()).toBe('on');
+    expect(new URLSearchParams(window.location.search).get('d')).toBe('on');
+    expect(filter.displayValue()).toBe('mois en cours');
+
+    checkbox.checked = false;
+    checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(box.where).toBe('');
+    unsub();
+  });
+
+  it('?d=on dans l’URL recoche la case et emet le mois courant', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-10T12:00:00Z'));
+    window.history.replaceState(null, '', '?d=on');
+
+    fakeSource('d-src');
+    const { box, unsub } = captureLast('d-src');
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.id = 'ui-cm-url';
+    document.body.appendChild(checkbox);
+
+    await mount(`
+      <dsfr-data-context id="dctx682l" sources="d-src" url-sync>
+        <dsfr-data-context-filter field="d" operator="current-month" ui="ui-cm-url">
+        </dsfr-data-context-filter>
+      </dsfr-data-context>
+    `);
+
+    expect(checkbox.checked).toBe(true);
+    expect(box.where).toBe('d:gte:2026-06-01, d:lt:2026-07-01');
+    unsub();
+  });
+});

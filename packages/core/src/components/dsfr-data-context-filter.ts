@@ -10,6 +10,31 @@ function isoDate(d: Date): string {
 }
 
 /**
+ * YYYY-MM-DD dans le fuseau LOCAL (#682) : la date calendaire que voit
+ * l'utilisateur — a 00:30 a Paris le 1er juin, l'UTC est encore le 31 mai.
+ */
+function localIsoDate(d: Date): string {
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${month}-${day}`;
+}
+
+/** Mots-clés dynamiques de `default` (#682), résolus au montage dans le fuseau local */
+const DEFAULT_KEYWORDS = ['today', 'first-of-month', 'first-of-year'] as const;
+
+/**
+ * Résout un mot-clé de `default` en date ISO locale (#682) ; toute autre
+ * valeur est un littéral rendu tel quel.
+ */
+function resolveDefaultKeyword(value: string): string {
+  if (!(DEFAULT_KEYWORDS as readonly string[]).includes(value)) return value;
+  const today = localIsoDate(new Date());
+  if (value === 'first-of-month') return `${today.slice(0, 7)}-01`;
+  if (value === 'first-of-year') return `${today.slice(0, 4)}-01-01`;
+  return today;
+}
+
+/**
  * Tronque une date complete a la precision de l'operateur (#646) :
  * `year-of` accepte "YYYY", "YYYY-MM" et "YYYY-MM-DD" (-> "YYYY") ;
  * `month-of` accepte "YYYY-MM" et "YYYY-MM-DD" (-> "YYYY-MM"). Un
@@ -48,6 +73,20 @@ function fitDateToInput(
   if (inputType === 'date') return `${year}-${month}-${day}`;
   if (inputType === 'month') return `${year}-${month}`;
   return truncateToOperator(value, operator);
+}
+
+/**
+ * Adapte une valeur de `default` au controle qui la recoit (#682) : un
+ * mot-cle resout en date complete, qu'un input type="month" refuserait et
+ * qu'un `year-of` sur un input texte n'attend pas. Reutilise la troncature
+ * de #646 ; une valeur qui n'est pas une date est rendue telle quelle.
+ */
+function fitDefaultToInput(value: string, inputType: string, operator: ContextOperator): string {
+  if (operator === 'year-of' || operator === 'month-of') {
+    return fitDateToInput(value, inputType, operator);
+  }
+  if (inputType === 'month') return truncateToOperator(value, 'month-of');
+  return value;
 }
 
 /** Plage [1er du mois, 1er du mois suivant) depuis "YYYY-MM" (ou une date complete, #646) */
@@ -91,6 +130,7 @@ const OPERATORS = [
   'lt-day-after',
   'last-n-days',
   'current-year',
+  'current-month',
 ] as const;
 type ContextOperator = (typeof OPERATORS)[number];
 
@@ -117,7 +157,8 @@ export class DsfrDataContextFilter extends LitElement {
 
   /**
    * Opérateur : eq, in, lt, gte, between — et dates (#230, clauses en plages
-   * [debut, fin)) : month-of, year-of, lt-day-after, last-n-days, current-year.
+   * [debut, fin)) : month-of, year-of, lt-day-after, last-n-days, current-year,
+   * current-month (#682 — case à cocher, mois en cours, borne dynamique).
    *
    * `year-of` et `month-of` acceptent une date plus precise que l'operateur
    * et la tronquent (#646) : "2026-09-09" -> annee 2026 / mois 2026-09, ce
@@ -136,6 +177,20 @@ export class DsfrDataContextFilter extends LitElement {
   /** Libellé naturel pour l'affichage (tags #232) — défaut : field */
   @property({ type: String })
   label = '';
+
+  /**
+   * Valeur initiale du filtre (#682), appliquée au montage APRÈS l'URL —
+   * un paramètre d'URL présent gagne toujours (ADR-031). Mots-clés
+   * dynamiques résolus dans le fuseau local : `today` (date du jour),
+   * `first-of-month` (1er du mois en cours), `first-of-year` (1er janvier
+   * de l'année en cours) ; toute autre valeur est un littéral. La date est
+   * adaptée au contrôle (input type="month" → AAAA-MM, `year-of` → AAAA)
+   * puis écrite dans l'UI et émise par le chemin normal, jamais injectée
+   * dans un where. Pour `between` et `in`, plusieurs valeurs séparées par
+   * une virgule (ex. `first-of-year,today`).
+   */
+  @property({ type: String, attribute: 'default' })
+  defaultValue = '';
 
   private _context: DsfrDataContext | null = null;
 
@@ -238,6 +293,9 @@ export class DsfrDataContextFilter extends LitElement {
     const urlValues = this._context._urlValuesFor(this.field);
     if (urlValues) {
       this._prefillUi(urlValues);
+    } else if (this.defaultValue) {
+      // Valeur initiale (#682) : APRES l'URL, qui gagne — meme chemin
+      this._prefillUi(this._resolvedDefault());
     }
 
     // Une UI déjà remplie au montage applique son filtre immédiatement
@@ -246,7 +304,22 @@ export class DsfrDataContextFilter extends LitElement {
     }
   }
 
-  /** Écrit des valeurs (issues de l'URL) dans les contrôles d'UI liés */
+  /**
+   * Valeurs de `default` résolues (#682) : mots-clés → date locale du jour,
+   * adaptée au contrôle qui la reçoit. `between` et `in` acceptent
+   * plusieurs valeurs séparées par une virgule.
+   */
+  private _resolvedDefault(): string[] {
+    const multi = this.operator === 'between' || this.operator === 'in';
+    const raw = multi ? this.defaultValue.split(',') : [this.defaultValue];
+    return raw.map((v, i) => {
+      const el = this._uiEls[this.operator === 'between' ? i : 0];
+      const inputType = el instanceof HTMLInputElement ? el.type : '';
+      return fitDefaultToInput(resolveDefaultKeyword(v.trim()), inputType, this.operator);
+    });
+  }
+
+  /** Écrit des valeurs (issues de l'URL ou de `default`) dans les contrôles d'UI liés */
   private _prefillUi(values: string[]): void {
     if (this.operator === 'between') {
       const [min, max] = values;
@@ -289,6 +362,7 @@ export class DsfrDataContextFilter extends LitElement {
     }
     const raw = values[0] ?? '';
     if (this.operator === 'current-year') return 'année en cours';
+    if (this.operator === 'current-month') return 'mois en cours';
     if (this.operator === 'last-n-days') return `${raw} derniers jours`;
     if (this.operator === 'year-of' || this.operator === 'month-of') {
       // Le tag montre la precision reellement filtree (#646)
@@ -386,7 +460,7 @@ export class DsfrDataContextFilter extends LitElement {
     if (raw === '') return '';
 
     // Operateurs de date (#230) : plages [debut, fin) en ISO. Les bornes
-    // DYNAMIQUES (last-n-days, current-year) se recalculent ICI, a chaque
+    // DYNAMIQUES (last-n-days, current-year, current-month) se recalculent ICI, a chaque
     // diffusion — jamais de date figee ; l'URL serialise l'intention (#231)
     if (this.operator === 'month-of') {
       const range = monthRange(raw);
@@ -418,6 +492,12 @@ export class DsfrDataContextFilter extends LitElement {
     if (this.operator === 'current-year') {
       const year = new Date().getUTCFullYear();
       return `${this.field}:gte:${year}-01-01, ${this.field}:lt:${year + 1}-01-01`;
+    }
+    if (this.operator === 'current-month') {
+      // Symetrique de current-year (#682) : meme horloge UTC, meme plage [1er, 1er suivant)
+      const range = monthRange(isoDate(new Date()));
+      if (!range) return '';
+      return `${this.field}:gte:${range[0]}, ${this.field}:lt:${range[1]}`;
     }
 
     if (this.operator === 'in') {

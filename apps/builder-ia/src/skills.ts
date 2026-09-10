@@ -2963,9 +2963,10 @@ La valeur vide RETIRE le filtre. Les valeurs sont percent-encodees (#271).
 |----------|------|--------|--------|-------------|
 | field | String | \`""\` | oui | Colonne filtree |
 | ui | String | \`""\` | oui | Id de l'element d'UI ecoute — DEUX ids (min max) pour between |
-| operator | String | \`"eq"\` | non | eq, in, lt, gte, between (between -> gte + lt), et dates (#230) : month-of, year-of, lt-day-after, last-n-days, current-year (bornes dynamiques recalculees a chaque diffusion) |
+| operator | String | \`"eq"\` | non | eq, in, lt, gte, between (between -> gte + lt), et dates (#230) : month-of, year-of, lt-day-after, last-n-days, current-year, current-month (bornes dynamiques recalculees a chaque diffusion) |
 | apply-to | String | \`"*"\` | non | \`*\` = toutes les sources du contexte, ou liste d'ids cibles separes par des espaces |
 | label | String | \`""\` | non | Libelle naturel pour l'affichage (tags #232) — defaut : field |
+| default | String | \`""\` | non | Valeur initiale (#682), appliquee APRES l'URL (l'URL gagne) : \`today\`, \`first-of-month\`, \`first-of-year\` (resolus dans le fuseau local, adaptes au controle) ou un litteral ; pour between/in, valeurs separees par une virgule |
 
 ### Operateurs
 
@@ -2973,8 +2974,12 @@ La valeur vide RETIRE le filtre. Les valeurs sont percent-encodees (#271).
 - \`lt\` / \`gte\` : comparaisons — \`between\` : deux UI (min puis max) -> gte + lt
 - Dates (#230) : \`month-of\` (input type=month -> plage du mois), \`year-of\` (plage annuelle),
   \`lt-day-after\` (inclusif jusqu'au jour choisi), \`last-n-days\` (N derniers jours, borne
-  dynamique), \`current-year\` (checkbox -> annee en cours). Plages [debut, fin) en ISO,
-  recalculees a chaque diffusion — l'URL serialise l'intention (« 30 »), pas les dates resolues.
+  dynamique), \`current-year\` (checkbox -> annee en cours), \`current-month\` (checkbox -> mois
+  en cours, #682). Plages [debut, fin) en ISO, recalculees a chaque diffusion — l'URL serialise
+  l'intention (« 30 », « on »), pas les dates resolues.
+- Valeur initiale (#682) : \`default="today"\` sur un \`lt-day-after\` filtre « jusqu'a aujourd'hui »
+  sans script ; \`default="first-of-year,today"\` sur un \`between\` donne « depuis le 1er janvier ».
+  Un parametre d'URL present prime toujours sur \`default\`.
 - Troncature (#646) : \`year-of\` et \`month-of\` acceptent une date plus precise et la tronquent
   ("2026-09-09" -> annee 2026 / mois 2026-09) : un input type=date peut nourrir les deux (il n'existe
   pas de type=year). Une valeur qui reste inexploitable retire le filtre et l'annonce par un
@@ -3533,8 +3538,22 @@ cochee = filtre actif, decochee = filtre retire.
 </dsfr-data-context>
 \`\`\`
 
-Meme famille : \`year-of\` (annee choisie dans un select), \`month-of\`, \`last-n-days\`,
-\`lt-day-after\` (borne haute inclusive).
+Meme famille : \`current-month\` (case a cocher -> mois en cours, #682), \`year-of\` (annee
+choisie dans un select), \`month-of\`, \`last-n-days\`, \`lt-day-after\` (borne haute inclusive).
+
+### Filtrer jusqu’a aujourd’hui sans script (default="today")
+
+\`default\` (#682) pre-remplit le controle d'UI au montage, APRES l'URL (un parametre d'URL
+present gagne toujours), puis emet par le chemin normal : tags et URL suivent. Mots-cles
+\`today\`, \`first-of-month\`, \`first-of-year\` (date calendaire locale, adaptee au controle :
+input type=month -> AAAA-MM, \`year-of\` -> AAAA) ou un litteral.
+
+\`\`\`html
+<input type="date" id="jusqu-au">
+<dsfr-data-context sources="src" url-sync>
+  <dsfr-data-context-filter field="date_debut" operator="lt-day-after" ui="jusqu-au" default="today"></dsfr-data-context-filter>
+</dsfr-data-context>
+\`\`\`
 
 ### Cles de jointure : comparaison en chaine (join on)
 
