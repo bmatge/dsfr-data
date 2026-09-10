@@ -117,9 +117,11 @@ function renderRow(a: Attr, cols: number, indent: string, editorial?: string): s
 /** Cellules editoriales (3e colonne) des lignes deja presentes, indexees par attribut. */
 function previousEditorial(body: string): Map<string, string> {
   const out = new Map<string, string>();
-  for (const m of body.matchAll(
-    /<tr><td><code>([a-z][a-z0-9-]*)<\/code><\/td>((?:<td>[\s\S]*?<\/td>)+)<\/tr>/g
-  )) {
+  // Le corps de la ligne est capture d'un seul tenant, puis decoupe en cellules.
+  // Surtout PAS `(?:<td>…<\/td>)+` : ce quantificateur imbrique provoque un
+  // backtracking exponentiel sur une ligne dont le `<\/tr>` manque (ReDoS,
+  // signale par CodeQL sur la premiere version).
+  for (const m of body.matchAll(/<tr><td><code>([a-z][a-z0-9-]*)<\/code><\/td>([\s\S]*?)<\/tr>/g)) {
     const cells = m[2].match(/<td>[\s\S]*?<\/td>/g) ?? [];
     if (cells.length >= 3) out.set(m[1], cells[1].replace(/^<td>|<\/td>$/g, ''));
   }
