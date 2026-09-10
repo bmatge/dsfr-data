@@ -89,6 +89,24 @@ export function formatDecimal(value: number): string {
   }).format(value);
 }
 
+/**
+ * Nombre en fr-FR pour les tableaux affichés (#666) : `2.27` → « 2,27 »,
+ * `1234.5` → « 1 234,5 ». Sans `decimals`, au plus 2 décimales (les entiers
+ * restent entiers) ; avec `decimals`, exactement ce nombre de décimales
+ * (colonnes alignées). Réservé au `typeof value === 'number'` : les chaînes
+ * (codes INSEE, SIREN…) ne passent JAMAIS par ici. Non fini (NaN, Infinity)
+ * → `String(value)`.
+ */
+export function formatNumberFr(value: number, options?: { decimals?: number }): string {
+  if (!Number.isFinite(value)) return String(value);
+  const decimals = options?.decimals;
+  const fixed = typeof decimals === 'number' && Number.isFinite(decimals) && decimals >= 0;
+  return new Intl.NumberFormat('fr-FR', {
+    minimumFractionDigits: fixed ? Math.min(20, Math.floor(decimals)) : 0,
+    maximumFractionDigits: fixed ? Math.min(20, Math.floor(decimals)) : 2,
+  }).format(value);
+}
+
 /** Date au format francais JJ/MM/AAAA — '—' si invalide */
 export function formatDate(value: string | Date): string {
   const date = typeof value === 'string' ? new Date(value) : value;

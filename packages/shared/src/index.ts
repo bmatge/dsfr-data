@@ -14,6 +14,7 @@ export {
   formatPercentage,
   formatCurrency,
   formatDecimal,
+  formatNumberFr,
   formatDate,
 } from './utils/formatters.js';
 export type { FormatType } from './utils/formatters.js';

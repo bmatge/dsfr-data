@@ -3,7 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { renderSourceLoading, renderSourceError } from '../utils/status-templates.js';
-import { escapeHtml, buildCsv } from '@dsfr-data/shared/lib';
+import { escapeHtml, buildCsv, formatNumberFr } from '@dsfr-data/shared/lib';
 import { getDataMeta } from '../utils/data-bridge.js';
 import { PaginationController } from '../utils/pagination-controller.js';
 
@@ -21,6 +21,11 @@ interface SortState {
  * <dsfr-data-list> - Liste filtrable et cherchable
  *
  * Affiche un tableau de données avec recherche, filtres et pagination.
+ *
+ * Les cellules numériques sont rendues en fr-FR (`2.27` → « 2,27 », au plus
+ * 2 décimales ou `decimals`, #666) ; les chaînes (codes INSEE, SIREN…) restent
+ * intactes et les exports CSV/HTML restent bruts. Avant #666, le contournement
+ * était `normalize round="champ:2"`, qui arrondit mais ne localise pas.
  *
  * Les alias francais (`colonnes`, `recherche`, `filtres`, `tri`, `server-tri`)
  * restent acceptes pour ne pas casser le code deja publie, mais sont
@@ -84,6 +89,13 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
   /** Nombre d'éléments par page (0 = pas de pagination) */
   @property({ type: Number })
   pagination = 0;
+
+  /**
+   * Nombre de décimales des cellules numériques (#666). Absent : au plus
+   * 2 décimales, format fr-FR. Les exports CSV/HTML ne sont pas concernés.
+   */
+  @property({ type: Number })
+  decimals: number | null = null;
 
   /** Formats d'export disponibles: "csv", "html" (separables par virgule) */
   @property({ type: String })
@@ -439,9 +451,20 @@ ${bodyRows}
 
   // --- Cell formatting ---
 
+  /**
+   * Texte d'une cellule : « — » pour l'absence, Oui/Non pour les booléens,
+   * nombres en fr-FR (#666), tout le reste tel quel (jamais de parsing des
+   * chaînes : un code INSEE « 75056 » reste « 75056 »).
+   */
   formatCellValue(value: unknown): string {
     if (value === null || value === undefined) return '—';
     if (typeof value === 'boolean') return value ? 'Oui' : 'Non';
+    if (typeof value === 'number') {
+      return formatNumberFr(
+        value,
+        this.decimals === null ? undefined : { decimals: this.decimals }
+      );
+    }
     return String(value);
   }
 

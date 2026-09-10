@@ -1350,6 +1350,7 @@ les clés du premier objet sont utilisees comme colonnes.
 | filters | String | \`""\` | non | Colonnes filtrables (dropdown) : \`"col1,col2"\`. Alias deprecie : \`filtres\` |
 | sort | String | \`""\` | non | Tri par défaut : \`"col:asc"\` ou \`"col:desc"\`. Alias deprecie : \`tri\` |
 | pagination | Number | \`0\` | non | Lignes par page (0 = tout afficher sans pagination) |
+| decimals | Number | — | non | Nombre de décimales des cellules numériques ; absent : au plus 2, format fr-FR (#666) |
 | export | String | \`""\` | non | Formats d'export : \`"csv"\`, \`"html"\` ou \`"csv,html"\` |
 | url-sync | Boolean | \`false\` | non | Synchronise le numero de page dans l'URL (?page=N) via replaceState |
 | url-page-param | String | \`"page"\` | non | Nom du parametre URL pour la page |
@@ -1365,6 +1366,13 @@ Quand la source est un \`dsfr-data-source\` avec \`paginate\`, dsfr-data-list d�
 la pagination serveur via les metadonnees (\`meta.total\`, \`meta.page_size\`).
 Chaque changement de page declenche un nouvel appel API (pas de pagination client).
 Le total affiche vient de \`meta.total\`. La recherche et le tri ne s'appliquent qu'a la page courante.
+
+### Format des cellules
+Les cellules numériques (\`typeof number\`) sont rendues en fr-FR : \`2.27\` → « 2,27 », au plus
+2 décimales, ou exactement \`decimals\` décimales. Les chaînes ne sont JAMAIS reformatées
+(codes INSEE, SIREN, années en texte restent intacts) et l'export CSV/HTML reste brut.
+Pour arrondir la donnée elle-même (et pas seulement l'affichage), \`normalize round="champ:2"\`
+reste disponible.
 
 ### Synchronisation URL
 Avec \`url-sync\`, le numero de page est synchronise dans l'URL via \`replaceState\`.
@@ -2283,6 +2291,7 @@ Le contenu est replie dans un accordeon DSFR par défaut.
 | value-field | String | \`""\` | Colonne(s) pour les valeurs du tableau (separees par virgules) |
 | label | String | \`""\` | Libelle personnalise de la section accessible |
 | no-auto-aria | Boolean | \`false\` | Desactive ARIA automatique et skip link |
+| decimals | Number | — | Nombre de décimales des cellules numériques du tableau ; absent : au plus 2, format fr-FR (#666). Le CSV reste brut |
 
 Si ni \`table\`, ni \`download\`, ni \`description\` ne sont définis, les trois sont affiches par défaut.
 
@@ -2346,6 +2355,8 @@ rendu : switch chart/tableau integre, CSV natif). Conserver uniquement :
 - Le contenu est dans un accordeon DSFR (replie par défaut)
 - Le CSV utilise le separateur \`;\` (standard francais)
 - Le tableau est limite a 100 lignes ; le CSV contient toutes les données
+- Les cellules numériques du tableau sont en fr-FR (\`2.27\` → « 2,27 », au plus 2 décimales
+  ou \`decimals\`) ; les chaînes (codes INSEE, SIREN) restent intactes, le CSV reste brut (#666)
 - Compatible avec tous les composants de rendu (chart, datalist, display, kpi)` +
       reference('dsfr-data-a11y'),
   },

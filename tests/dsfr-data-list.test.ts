@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { DsfrDataList } from '@/components/dsfr-data-list.js';
+import { formatNumberFr } from '@dsfr-data/shared/lib';
 import {
   clearDataCache,
   dispatchDataLoaded,
@@ -26,10 +27,11 @@ function parseColumns(colonnes: string): { key: string; label: string }[] {
   });
 }
 
-/** Replicates formatCellValue logic from DsfrDataList */
+/** Replicates formatCellValue logic from DsfrDataList (nombres en fr-FR, #666) */
 function formatCellValue(value: unknown): string {
   if (value === null || value === undefined) return '—';
   if (typeof value === 'boolean') return value ? 'Oui' : 'Non';
+  if (typeof value === 'number') return formatNumberFr(value);
   return String(value);
 }
 
@@ -135,8 +137,13 @@ describe('DsfrDataList logic', () => {
       expect(formatCellValue(42)).toBe('42');
     });
 
+    it('localise les décimales en fr-FR (#666)', () => {
+      expect(formatCellValue(2.27)).toBe('2,27');
+    });
+
     it('passes strings through', () => {
       expect(formatCellValue('hello')).toBe('hello');
+      expect(formatCellValue('75056')).toBe('75056');
     });
 
     it('converts 0 to string', () => {
@@ -387,6 +394,11 @@ describe('DsfrDataList component', () => {
 
     it('converts numbers to string', () => {
       expect(datalist.formatCellValue(42)).toBe('42');
+    });
+
+    it('formate les décimales en fr-FR, jamais les chaînes (#666)', () => {
+      expect(datalist.formatCellValue(2.27)).toBe('2,27');
+      expect(datalist.formatCellValue('75056')).toBe('75056');
     });
   });
 

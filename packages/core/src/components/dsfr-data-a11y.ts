@@ -1,6 +1,6 @@
 import { LitElement, html, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import { buildCsv } from '@dsfr-data/shared/lib';
+import { buildCsv, formatNumberFr } from '@dsfr-data/shared/lib';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
@@ -20,6 +20,11 @@ const MAX_TABLE_ROWS = 100;
  * - Un skip link dans le graphique cible (visible au focus clavier)
  * - `aria-describedby` vers un resume concis (screen readers)
  * - `aria-details` vers le tableau (si active, progressive enhancement)
+ *
+ * Les cellules numériques du tableau sont rendues en fr-FR (`2.27` → « 2,27 »,
+ * au plus 2 décimales, #666) ; les chaînes (codes INSEE, SIREN…) restent
+ * intactes et le CSV téléchargé reste brut. Avant #666, le contournement était
+ * `normalize round="champ:2"`, qui arrondit mais ne localise pas.
  *
  * @example
  * <dsfr-data-chart id="mon-graph" source="data" type="bar"
@@ -70,6 +75,13 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
   /** Desactive la pose automatique des attributs ARIA et du lien d'evitement. */
   @property({ type: Boolean, attribute: 'no-auto-aria' })
   noAutoAria = false;
+
+  /**
+   * Nombre de décimales des cellules numériques du tableau (#666). Absent :
+   * au plus 2 décimales, format fr-FR. Le CSV n'est pas concerné.
+   */
+  @property({ type: Number })
+  decimals: number | null = null;
 
   private _previousForTarget: Element | null = null;
   private _injectedSkipLink: HTMLAnchorElement | null = null;
@@ -300,6 +312,25 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
   }
 
   // ---------------------------------------------------------------------------
+  // Cell formatting (#666)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Texte d'une cellule du tableau : nombres en fr-FR (au plus 2 décimales,
+   * ou `decimals`), tout le reste tel quel. Le CSV (`_buildCsv`) reste brut.
+   */
+  formatCellValue(value: unknown): string {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'number') {
+      return formatNumberFr(
+        value,
+        this.decimals === null ? undefined : { decimals: this.decimals }
+      );
+    }
+    return String(value);
+  }
+
+  // ---------------------------------------------------------------------------
   // Auto-generated description for aria-describedby
   // ---------------------------------------------------------------------------
 
@@ -379,7 +410,7 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
                           ${tableRows.map(
                             (row) => html`
                               <tr>
-                                ${columns.map((col) => html`<td>${row[col] ?? ''}</td>`)}
+                                ${columns.map((col) => html`<td>${this.formatCellValue(row[col])}</td>`)}
                               </tr>
                             `
                           )}
