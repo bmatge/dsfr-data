@@ -168,6 +168,17 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
       return meta;
     }
 
+    /**
+     * Meta produite par le transformateur LUI-MEME quand l'amont n'en
+     * publie aucune (source inline, URL sans `paginate`). Defaut : null,
+     * pas de meta aval — comportement historique. Query (#659) et join
+     * (#660) la surchargent pour publier leurs propres comptes, qui
+     * n'ont rien a voir avec la pagination amont.
+     */
+    protected transformerOwnMeta(): PaginationMeta | null {
+      return null;
+    }
+
     // --- Contrats publics (identiques sur les 6 transformateurs, #280) ---
 
     public isLoading(): boolean {
@@ -247,10 +258,8 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
 
       const primary = this.transformerSources()[0];
       const upstreamMeta = primary ? getDataMeta(primary) : undefined;
-      if (upstreamMeta) {
-        const meta = this.transformMeta(upstreamMeta);
-        if (meta) setDataMeta(this.id, meta);
-      }
+      const meta = upstreamMeta ? this.transformMeta(upstreamMeta) : this.transformerOwnMeta();
+      if (meta) setDataMeta(this.id, meta);
 
       dispatchDataLoaded(this.id, data);
       this.requestUpdate();

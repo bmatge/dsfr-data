@@ -18,8 +18,17 @@ import {
 } from '../utils/status-templates.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import { parseKpiLines, resolveKpiLines, type ResolvedKpiLine } from '../utils/kpi-lines.js';
+import { getDataMeta } from '../utils/data-bridge.js';
 
 type KpiColor = 'vert' | 'orange' | 'rouge' | 'bleu';
+
+/**
+ * Expression speciale `value="meta:total"` (#659) : le total publie dans la
+ * meta de la source (`total_count` serveur en `server-side`, lignes avant
+ * `limit` derriere un query), pas un agregat des lignes recues. Meme
+ * grammaire `champ:fn` que le reste, sans prefixe `$`.
+ */
+const META_TOTAL_EXPR = 'meta:total';
 
 const COLOR_CLASSES: Record<KpiColor, string> = {
   vert: 'dsfr-data-kpi--success',
@@ -53,6 +62,9 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
   /**
    * Expression de valeur — convention cible anglaise (#300).
    * Grammaire commune "champ:fn" (#303), ex. value="population:sum".
+   * `meta:total` (#659) : total publié par l'amont (total serveur en
+   * server-side, lignes avant `limit` derrière un query) — `count` ne
+   * compte que les lignes reçues.
    */
   @property({ type: String })
   value = '';
@@ -223,6 +235,13 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
       return literal !== '' && !Number.isNaN(num) ? num : literal;
     }
     if (!this._sourceData) return null;
+    const rows = Array.isArray(this._sourceData) ? this._sourceData.length : 1;
+    // Total de la meta (#659) : suit recherche et facettes en server-side,
+    // la source reposant sa meta a chaque fetch avant d'emettre.
+    if (expr === META_TOTAL_EXPR) {
+      return getDataMeta(this.source)?.total ?? rows;
+    }
+    if (parseExpression(expr).type === 'count') this._warnPartialCount(rows);
     return computeAggregation(this._sourceData, expr);
   }
 
@@ -234,6 +253,26 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
   private _formatDisplay(value: number | string | null): string {
     if (typeof value === 'string' && this.format !== 'date') return value;
     return formatValue(value, this.format, { decimals: this.decimals, unit: this.unit });
+  }
+
+  /** Warn-once : `count` sur des lignes tronquees (#659). */
+  private _partialCountWarned = false;
+
+  /**
+   * `count` compte les lignes RECUES : derriere un `limit`, une page de
+   * pagination serveur ou un plafond `max-records`, ce n'est pas le total.
+   * Trois annuaires ont affiche « 12 activites » pour 28 pendant sept lots.
+   */
+  private _warnPartialCount(rows: number): void {
+    if (this._partialCountWarned) return;
+    const total = getDataMeta(this.source)?.total;
+    if (typeof total !== 'number' || total <= rows) return;
+    this._partialCountWarned = true;
+    console.warn(
+      `dsfr-data-kpi: value="count" sur "${this.source}" compte ${rows} lignes reçues, ` +
+        `mais l'amont en détient ${total} (meta.total) — chiffre partiel (limit, page ou max-records). ` +
+        `Pour le total : value="meta:total" (#659)`
+    );
   }
 
   private _getColor(): KpiColor {
@@ -298,7 +337,7 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
     this._blockingConfigError = null;
 
     const valueExpr = this.value || this.valeur;
-    if (valueExpr && !valueExpr.startsWith('=')) {
+    if (valueExpr && !valueExpr.startsWith('=') && valueExpr !== META_TOTAL_EXPR) {
       const parsed = parseExpression(valueExpr);
       if (parsed.type === 'invalid') {
         message = `value="${valueExpr}" : ${parsed.error}`;

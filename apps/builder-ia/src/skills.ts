@@ -980,6 +980,17 @@ Dates : \`min\`/\`max\` acceptent une colonne de dates ISO (\`AAAA-MM-JJ\` ou da
 la date la plus ancienne/récente ; \`first\`/\`last\` renvoient la chaîne brute. Avec \`format="date"\`,
 la valeur est rendue JJ/MM/AAAA : \`value="maj:max" format="date"\` -> « 09/09/2026 ».
 
+### Compter le total, pas les lignes reçues : \`value="meta:total"\`
+\`value="count"\` compte les lignes REÇUES. Derrière un \`dsfr-data-query limit="12"\`, une source
+\`server-side\` (une page) ou un plafond \`max-records\`, c'est un chiffre partiel — un warn console
+le signale quand la meta annonce davantage. Pour le total, \`value="meta:total"\` lit la meta de
+l'amont : \`total_count\` serveur en \`server-side\` (suit recherche et facettes), nombre de lignes
+avant \`limit\` derrière un query, nombre de lignes sur une source non paginée.
+\`\`\`html
+<dsfr-data-query id="top12" source="src" order-by="date:desc" limit="12"></dsfr-data-query>
+<dsfr-data-kpi source="top12" value="meta:total" label="Activités"></dsfr-data-kpi>
+\`\`\`
+
 ### Grouper des KPIs : \`<dsfr-data-kpi-group>\`
 Utiliser \`<dsfr-data-kpi-group>\` pour disposer plusieurs KPIs en grille responsive :
 \`\`\`html
@@ -3026,6 +3037,20 @@ Si un champ existe dans les deux sources avec le même nom :
   on="dept_code=code" type="inner">
 </dsfr-data-join>
 \`\`\`
+
+### Comparaison des clés : en chaîne, sans trim ni complétion
+Les clés sont converties en chaîne avant comparaison — le type ne compte pas, la forme oui :
+- \`201\` (nombre) et \`"201"\` (chaîne) **se joignent** ;
+- \`"0201"\` et \`"201"\` **ne se joignent pas** (zéro initial) ; \`" 201"\` et \`"201"\` non plus (espace) ;
+- \`null\` et \`""\` valent tous deux la clé vide et se joignent entre eux.
+Harmoniser en amont : \`numeric="code"\` sur les deux sources pour un code numérique à zéro
+initial, \`normalize trim\` pour les espaces, \`where="cle:isnotnull"\` pour écarter les lignes sans clé.
+
+### Taux d'appariement (volet Diagnostic)
+En \`left\`, le nombre de lignes ne change pas : une jointure qui n'apparie que 22 % des lignes
+paraît saine. Le composant publie \`leftMatched / leftTotal\` et \`rightMatched / rightTotal\` dans sa
+meta (\`getJoinStats()\`) ; le volet Diagnostic affiche « 237 / 1 065 lignes gauche appariées (22 %) »
+et alerte sous 50 %. Pas d'attribut : ouvrir le volet quand les valeurs droites restent vides.
 
 ### Notes
 - Le join est recalcule automatiquement quand l'une des sources emet de nouvelles données

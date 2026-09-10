@@ -1,8 +1,8 @@
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
-import { performJoin } from '@dsfr-data/shared/lib';
-import type { JoinType } from '@dsfr-data/shared/lib';
+import { performJoinWithStats } from '@dsfr-data/shared/lib';
+import type { JoinType, JoinStats } from '@dsfr-data/shared/lib';
 import { TransformerMixin } from '../utils/transformer-mixin.js';
 import type { PaginationMeta } from '../utils/data-bridge.js';
 import type { SourceElement } from '../utils/source-element.js';
@@ -82,6 +82,13 @@ export class DsfrDataJoin extends TransformerMixin(LitElement) {
 
   private _leftData: Row[] | null = null;
   private _rightData: Row[] | null = null;
+
+  /**
+   * Taux d'appariement de la derniere jointure (#660), publie dans la meta
+   * pour le volet Diagnostic. En `left`, 1 065 lignes entrent et 1 065
+   * sortent : sans ce compte, une jointure a 22 % paraissait saine.
+   */
+  private _lastStats: JoinStats | null = null;
 
   protected createRenderRoot(): HTMLElement | DocumentFragment {
     return this;
@@ -200,10 +207,23 @@ export class DsfrDataJoin extends TransformerMixin(LitElement) {
   /**
    * Meta de la source GAUCHE propagee avec `total` invalide (#282) — la
    * gauche porte les lignes (coherent avec le relais de commandes #272),
-   * et le join change le nombre de lignes.
+   * et le join change le nombre de lignes. Le taux d'appariement y est
+   * ajoute (#660) ; la troncature amont ne decrit pas cette etape.
    */
   protected transformMeta(meta: PaginationMeta): PaginationMeta {
-    return { ...meta, total: undefined };
+    const { truncated: _upstreamTruncated, ...rest } = meta;
+    return { ...rest, total: undefined, ...(this._lastStats ? { join: this._lastStats } : {}) };
+  }
+
+  /** Sans meta amont, le join publie quand meme son taux d'appariement (#660). */
+  protected transformerOwnMeta(): PaginationMeta | null {
+    if (!this._lastStats) return null;
+    return { page: 1, pageSize: 0, serverSide: false, join: this._lastStats };
+  }
+
+  /** Taux d'appariement de la derniere jointure, ou null avant la premiere (#660). */
+  public getJoinStats(): JoinStats | null {
+    return this._lastStats ? { ...this._lastStats } : null;
   }
 
   /** Changement d'identite des sources → re-souscription complete (#281) */
@@ -236,13 +256,14 @@ export class DsfrDataJoin extends TransformerMixin(LitElement) {
     }
 
     try {
-      const result = performJoin(this._leftData, this._rightData, {
+      const { rows, stats } = performJoinWithStats(this._leftData, this._rightData, {
         on: this.on,
         type: this.type,
         prefixLeft: this.prefixLeft,
         prefixRight: this.prefixRight,
       });
-      this._data = result;
+      this._lastStats = stats;
+      this._data = rows;
       this.emitTransformedData(this._data);
     } catch (error) {
       this.emitTransformerError(error as Error);
