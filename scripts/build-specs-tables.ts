@@ -169,6 +169,11 @@ function processFile(
   index: Record<string, Map<string, Attr>>,
   problems: Problem[]
 ): { html: string; changed: boolean; blocks: number } {
+  // Faux positif de path-traversal : `file` ne vient pas d'une entree utilisateur
+  // mais de `readdirSync(specsDir)` filtre sur `.html` — le script est un
+  // generateur de build, sans surface d'appel externe. Revoir si l'entree
+  // devenait un argument CLI. Pose le 2026-09-10.
+  // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
   const path = join(specsDir, file);
   const original = readFileSync(path, 'utf-8');
   const assigned: Record<string, Set<string>> = {};
@@ -290,6 +295,11 @@ function highlight(code: string): string {
 const CODE_BLOCK = /(<div class="code-block"><pre>)([\s\S]*?)(<\/pre>)/g;
 
 function highlightFile(file: string): boolean {
+  // Faux positif de path-traversal : `file` ne vient pas d'une entree utilisateur
+  // mais de `readdirSync(specsDir)` filtre sur `.html` — le script est un
+  // generateur de build, sans surface d'appel externe. Revoir si l'entree
+  // devenait un argument CLI. Pose le 2026-09-10.
+  // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
   const path = join(specsDir, file);
   const original = readFileSync(path, 'utf-8');
   const html = original.replace(
