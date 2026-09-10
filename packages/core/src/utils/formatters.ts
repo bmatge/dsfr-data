@@ -9,8 +9,10 @@ export {
   formatCurrency,
   formatDecimal,
   formatDate,
+  FORMAT_TYPES,
+  isFormatType,
 } from '@dsfr-data/shared/lib';
-export type { FormatType } from '@dsfr-data/shared/lib';
+export type { FormatType, FormatValueOptions } from '@dsfr-data/shared/lib';
 
 /**
  * Détermine la couleur selon les seuils

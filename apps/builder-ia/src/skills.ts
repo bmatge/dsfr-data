@@ -962,9 +962,11 @@ Attend un tableau d'objets. L'attribut \`valeur\` determine comment extraire/agr
 | label | String | \`""\` | non | Libelle sous la valeur (et sous les \`lines\`) |
 | description | String | \`""\` | non | Description pour accessibilité (sr-only) |
 | icon | String | \`""\` | non | Classe Remix Icon : \`ri-global-line\`, \`ri-money-euro-circle-line\`, etc. Alias deprecie : \`icone\` |
-| format | String | \`"nombre"\` | non | Format : nombre, pourcentage, euro, decimal, compact (14,8 M) |
+| format | String | \`"nombre"\` | non | Format : nombre, pourcentage, euro, decimal, compact (14,8 M). Les decimales passent par \`decimals\`, jamais par le format (\`euro:3\` est refuse : erreur de configuration) |
+| decimals | Number | - | non | Nombre de decimales affichees (0-20), ex. \`format="euro" decimals="3"\` -> « 1,749 € ». Fixe pour nombre/pourcentage/euro/decimal, plafond pour compact |
+| unit | String | \`""\` | non | Unite accolee apres la valeur (espace insecable), ex. \`format="compact" unit="€"\` -> « 44,9 Md € ». Inutile avec euro et pourcentage (symbole deja present) |
 | trend | String | \`""\` | non | RACCOURCI HERITE (preferez \`lines\`). Expression d'agregation \`"champ:fn"\` (\`"evolution:avg"\`) — PAS un litteral. Rendue avec une fleche en pourcentage fr-FR (\`↑ 5,2 %\`). Alias deprecie : \`tendance\` |
-| lines | String | \`""\` | non | Lignes secondaires declaratives (JSON), rendues ENTRE la valeur et le \`label\`. Chaque item : \`value\` (expression \`champ:fn\`) OU \`text\` (statique), + \`format\`, \`sign\`, \`prefix\`, \`suffix\`, \`color\` (\`"auto"\`=vert si >=0/rouge si <0, token DSFR, ou couleur CSS), \`na\` (repli si non fini). Ex. \`[{"value":"evol:avg","sign":true,"suffix":"vs mai 2025","color":"auto"}]\` |
+| lines | String | \`""\` | non | Lignes secondaires declaratives (JSON), rendues ENTRE la valeur et le \`label\`. Chaque item : \`value\` (expression \`champ:fn\`) OU \`text\` (statique), + \`format\`, \`decimals\`, \`unit\`, \`sign\`, \`prefix\`, \`suffix\`, \`color\` (\`"auto"\`=vert si >=0/rouge si <0, token DSFR, ou couleur CSS), \`na\` (repli si non fini). Ex. \`[{"value":"evol:avg","sign":true,"suffix":"vs mai 2025","color":"auto"}]\` |
 | color-token | String | \`""\` | non | Forcer la couleur (token semantique DSFR) : vert, orange, rouge, bleu. Alias deprecies : \`color\`, \`couleur\` |
 | threshold-green | Number | - | non | Seuil au-dessus duquel couleur = vert. Alias deprecie : \`seuil-vert\` |
 | threshold-orange | Number | - | non | Seuil au-dessus duquel couleur = orange (en-dessous = rouge). Alias deprecie : \`seuil-orange\` |
@@ -3201,7 +3203,7 @@ compte pas (peut etre place apres les composants).
     id: 'attributeGrammars',
     name: 'Grammaires d’attributs et voies natives',
     description:
-      'Par attribut, la grammaire exacte et la voie native a essayer AVANT d’ecrire un script : split, round, format compact, compteur de resultats, facettes radio/select/cascade, annee en cours, cles de jointure, valeurs nulles, fond de carte neutre ou administratif, nom de serie, treemap',
+      'Par attribut, la grammaire exacte et la voie native a essayer AVANT d’ecrire un script : split, round, format compact, decimales et unite d’un KPI, compteur de resultats, facettes radio/select/cascade, annee en cours, cles de jointure, valeurs nulles, fond de carte neutre ou administratif, nom de serie, treemap',
     trigger: [
       'grammaire',
       'voie native',
@@ -3214,6 +3216,7 @@ compte pas (peut etre place apres les composants).
       'decimales',
       'compact',
       'abrege',
+      'unite',
       'nombre de resultats',
       'compteur de resultats',
       'total serveur',
@@ -3291,6 +3294,18 @@ etre n’importe quel caractere, y compris \`|\`, \`;\` ou \`/\` :
 
 \`\`\`html
 <dsfr-data-kpi source="stats" value="population:sum" format="compact" label="Habitants"></dsfr-data-kpi>
+<dsfr-data-kpi source="budget" value="montant:sum" format="compact" unit="€" label="Budget"></dsfr-data-kpi>
+\`\`\`
+
+### Decimales et unite d'un KPI (decimals, unit)
+
+- \`decimals="3"\` fixe les decimales affichees : \`format="euro" decimals="3"\` -> « 1,749 € ».
+  Ne PAS ecrire \`format="euro:3"\` (refuse, erreur de configuration).
+- \`unit="€"\` accole une unite apres la valeur (espace insecable) : \`format="compact" unit="€"\`
+  -> « 44,9 Md € ». Inutile avec \`euro\` et \`pourcentage\`, qui portent deja leur symbole.
+
+\`\`\`html
+<dsfr-data-kpi source="carburants" value="gazole_prix:avg" format="euro" decimals="3" label="Gazole"></dsfr-data-kpi>
 \`\`\`
 
 ### Compteur de resultats et total serveur (count, server-search)

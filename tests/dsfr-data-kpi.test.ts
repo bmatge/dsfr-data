@@ -493,6 +493,110 @@ describe('DsfrDataKpi', () => {
       kpi.remove();
     });
   });
+
+  describe('decimals / unit (#665)', () => {
+    /** Vue interne du composant (membres privés inspectés par les tests). */
+    interface KpiInternals {
+      _sourceData: unknown;
+      _getAriaLabel(): string;
+    }
+    const internals = () => kpi as unknown as KpiInternals;
+    let seq = 0;
+    /** Branche le KPI sur une source du data-bridge et y publie `data`. */
+    const mount = async (data: unknown) => {
+      const id = `kpi-fmt-${++seq}`;
+      clearDataCache(id);
+      kpi.source = id;
+      document.body.appendChild(kpi);
+      dispatchDataLoaded(id, data as object);
+      await kpi.updateComplete;
+    };
+    const valueText = () =>
+      (kpi.querySelector('.dsfr-data-kpi__value')?.textContent || '').replace(/\s/g, ' ').trim();
+
+    it('AC #665 : format="euro" decimals="3" → « 1,749 € »', async () => {
+      kpi.value = 'prix:avg';
+      kpi.format = 'euro';
+      kpi.decimals = 3;
+      await mount([{ prix: 1.749 }]);
+      expect(valueText()).toBe('1,749 €');
+      expect(kpi.hasAttribute('data-dsfr-config-error')).toBe(false);
+      kpi.remove();
+    });
+
+    it('AC #665 : format="compact" unit="€" → « 44,9 Md € »', async () => {
+      kpi.value = 'montant:sum';
+      kpi.format = 'compact';
+      kpi.unit = '€';
+      await mount([{ montant: 44_900_000_000 }]);
+      expect(valueText()).toBe('44,9 Md €');
+      kpi.remove();
+    });
+
+    it("l'aria-label porte la même valeur formatée (decimals + unit)", () => {
+      kpi.value = 'v';
+      kpi.label = 'Prix';
+      kpi.format = 'nombre';
+      kpi.decimals = 1;
+      kpi.unit = 'km';
+      internals()._sourceData = { v: 12.34 };
+      expect(internals()._getAriaLabel().replace(/\s/g, ' ')).toBe('Prix: 12,3 km');
+    });
+
+    it('attributs HTML : decimals="3" et unit="€" sont lus depuis le DOM', async () => {
+      kpi.setAttribute('value', 'prix:max');
+      kpi.setAttribute('format', 'euro');
+      kpi.setAttribute('decimals', '3');
+      await mount([{ prix: 1.749 }, { prix: 1.7 }]);
+      expect(kpi.decimals).toBe(3);
+      expect(valueText()).toBe('1,749 €');
+      kpi.remove();
+    });
+
+    it('une chaîne reste affichée telle quelle (littéral value="=87 %")', async () => {
+      kpi.value = '=87 %';
+      kpi.unit = '€';
+      document.body.appendChild(kpi);
+      await kpi.updateComplete;
+      expect(valueText()).toBe('87 %');
+      kpi.remove();
+    });
+
+    it('refuse format="euro:3" : erreur de configuration bloquante orientant vers decimals', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      kpi.value = 'prix:avg';
+      kpi.setAttribute('format', 'euro:3');
+      await mount([{ prix: 1.749 }]);
+
+      const marker = kpi.getAttribute('data-dsfr-config-error') || '';
+      expect(marker).toContain('format="euro:3"');
+      expect(marker).toContain('decimals="3"');
+      expect(marker).toContain('nombre, pourcentage, euro, decimal, compact');
+      expect(kpi.querySelector('.dsfr-data-status--config-error')).not.toBeNull();
+      expect(kpi.querySelector('.dsfr-data-kpi__value')).toBeNull();
+
+      // Corriger efface l'erreur et rend la valeur
+      kpi.setAttribute('format', 'euro');
+      kpi.setAttribute('decimals', '3');
+      await kpi.updateComplete;
+      expect(kpi.hasAttribute('data-dsfr-config-error')).toBe(false);
+      expect(valueText()).toBe('1,749 €');
+
+      errorSpy.mockRestore();
+      kpi.remove();
+    });
+
+    it('refuse un format inconnu (format="number") plutôt que de rendre un nombre en silence', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      kpi.value = 'v';
+      kpi.setAttribute('format', 'number');
+      await mount([{ v: 1 }]);
+      expect(kpi.getAttribute('data-dsfr-config-error') || '').toContain('format="number" inconnu');
+      expect(kpi.querySelector('.dsfr-data-kpi__value')).toBeNull();
+      errorSpy.mockRestore();
+      kpi.remove();
+    });
+  });
 });
 
 describe('DsfrDataKpiGroup', () => {

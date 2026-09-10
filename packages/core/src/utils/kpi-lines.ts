@@ -19,6 +19,10 @@ export interface KpiLineSpec {
   text?: string;
   /** Format de la valeur calculee. Defaut "pourcentage". */
   format?: FormatType;
+  /** Nombre de decimales affichees (entier 0..20), memes regles que l'attribut `decimals` du KPI (#665). */
+  decimals?: number;
+  /** Unite accolee apres la valeur (espace insecable), ex. "€" (#665). */
+  unit?: string;
   /** Force le signe `+` sur les valeurs positives. */
   sign?: boolean;
   /** Texte accole avant. */
@@ -100,7 +104,12 @@ export function resolveKpiLine(spec: KpiLineSpec, data: unknown): ResolvedKpiLin
         color: resolveColor(spec.color === 'auto' ? undefined : spec.color, null),
       };
     }
-    const body = (spec.sign && num > 0 ? '+' : '') + formatValue(num, spec.format ?? 'pourcentage');
+    const body =
+      (spec.sign && num > 0 ? '+' : '') +
+      formatValue(num, spec.format ?? 'pourcentage', {
+        decimals: spec.decimals,
+        unit: spec.unit,
+      });
     return {
       text: joinParts(spec.prefix, body, spec.suffix),
       color: resolveColor(spec.color, num),

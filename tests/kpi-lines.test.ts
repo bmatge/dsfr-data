@@ -63,6 +63,38 @@ describe('resolveKpiLine — data-driven', () => {
   });
 });
 
+describe('resolveKpiLine — decimals, unit (#665)', () => {
+  const norm = (s: string) => s.replace(/\s+/g, ' ');
+
+  it('decimals fixe les décimales de la ligne (euro à 3 décimales)', () => {
+    const line = resolveKpiLine({ value: 'prix:avg', format: 'euro', decimals: 3 }, [
+      { prix: 1.749 },
+    ]);
+    expect(norm(line!.text)).toBe('1,749 €');
+  });
+
+  it('unit accole une unité après la valeur, avant le suffix', () => {
+    const line = resolveKpiLine(
+      { value: 'm:sum', format: 'compact', unit: '€', suffix: 'de budget' },
+      [{ m: 44_900_000_000 }]
+    );
+    expect(norm(line!.text)).toBe('44,9 Md € de budget');
+  });
+
+  it('sign + decimals + unit se combinent', () => {
+    const line = resolveKpiLine(
+      { value: 'evol:avg', format: 'decimal', decimals: 2, unit: 'pts', sign: true },
+      [{ evol: 1.5 }]
+    );
+    expect(norm(line!.text)).toBe('+1,50 pts');
+  });
+
+  it('défauts inchangés sans decimals/unit', () => {
+    const line = resolveKpiLine({ value: 'evol:avg', sign: true }, [{ evol: 92.5 }]);
+    expect(norm(line!.text)).toBe('+92,5 %');
+  });
+});
+
 describe('resolveKpiLine — texte statique & couleurs', () => {
   it('rend un texte statique avec couleur token française', () => {
     const line = resolveKpiLine({ text: 'Donnée mai 2026', color: 'gris' }, null);

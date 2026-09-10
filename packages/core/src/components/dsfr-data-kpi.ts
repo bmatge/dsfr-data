@@ -1,7 +1,14 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
-import { formatValue, formatPercentage, FormatType, getColorBySeuil } from '../utils/formatters.js';
+import {
+  formatValue,
+  formatPercentage,
+  isFormatType,
+  FORMAT_TYPES,
+  FormatType,
+  getColorBySeuil,
+} from '../utils/formatters.js';
 import { computeAggregation, parseExpression } from '../utils/aggregations.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import {
@@ -78,9 +85,30 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
   @property({ type: String })
   icone = '';
 
-  /** Format d'affichage: nombre, pourcentage, euro, decimal, compact (14 785 684 → « 14,8 M ») */
+  /**
+   * Format d'affichage : nombre (défaut), pourcentage, euro, decimal, compact
+   * (14 785 684 → « 14,8 M »).
+   * Les décimales passent par `decimals`, jamais par le format (`euro:3` est
+   * refusé et affiché comme erreur de configuration, #665).
+   */
   @property({ type: String })
   format: FormatType = 'nombre';
+
+  /**
+   * Nombre de décimales affichées (entier 0 à 20), ex. `format="euro" decimals="3"`
+   * → « 1,749 € ». Fixe pour nombre, pourcentage, euro et decimal ; plafond pour
+   * compact. Absent : défaut historique du format (#665).
+   */
+  @property({ type: Number })
+  decimals?: number;
+
+  /**
+   * Unité accolée après la valeur (espace insécable), ex. `format="compact" unit="€"`
+   * → « 44,9 Md € ». Surtout utile avec nombre, decimal et compact — euro et
+   * pourcentage portent déjà leur symbole (#665).
+   */
+  @property({ type: String })
+  unit = '';
 
   /**
    * RACCOURCI HERITE — pour une ligne d'evolution riche (signe, suffixe,
@@ -198,6 +226,16 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
     return computeAggregation(this._sourceData, expr);
   }
 
+  /**
+   * Texte affiché pour la valeur calculée : `format` + `decimals` + `unit`
+   * (#665). Une chaîne (littéral `value="=87 %"`, champ texte) est rendue
+   * telle quelle.
+   */
+  private _formatDisplay(value: number | string | null): string {
+    if (typeof value === 'string') return value;
+    return formatValue(value, this.format, { decimals: this.decimals, unit: this.unit });
+  }
+
   private _getColor(): KpiColor {
     const explicitColor = this.colorToken || this.color || this.couleur;
     if (explicitColor) return explicitColor;
@@ -268,6 +306,18 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
       }
     }
 
+    // Format inconnu (#665) : bloquant, comme une fonction d'agrégat inconnue —
+    // `euro:3` rendait « 1 749 » en silence, la grammaire colon reste à `value`.
+    if (!message && this.format && !isFormatType(this.format)) {
+      const received = String(this.format);
+      const hint = received.includes(':')
+        ? ` — les décimales passent par decimals="N" (ex. format="${received.split(':')[0]}" decimals="${received.split(':')[1]}")`
+        : '';
+      message =
+        `format="${received}" inconnu${hint} ; ` + `formats acceptés : ${FORMAT_TYPES.join(', ')}`;
+      this._blockingConfigError = message;
+    }
+
     if (!message && this.lines && parseKpiLines(this.lines) === null) {
       message =
         'lines : JSON invalide — attendu un tableau d’objets, ex. ' +
@@ -299,9 +349,7 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
     if (this.description) return this.description;
 
     const value = this._computeValue();
-    // Litteral chaine (value="=87 %") : affiche tel quel, sans formatage numerique
-    const formattedValue =
-      typeof value === 'string' ? value : formatValue(value as number, this.format);
+    const formattedValue = this._formatDisplay(value);
     let label = this.heading
       ? `${this.heading} — ${this.label}: ${formattedValue}`
       : `${this.label}: ${formattedValue}`;
@@ -332,9 +380,7 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
 
   render() {
     const value = this._computeValue();
-    // Litteral chaine (value="=87 %") : affiche tel quel, sans formatage numerique
-    const formattedValue =
-      typeof value === 'string' ? value : formatValue(value as number, this.format);
+    const formattedValue = this._formatDisplay(value);
     const colorClass = COLOR_CLASSES[this._getColor()] || COLOR_CLASSES.bleu;
     const tendance = this._getTendanceInfo();
     const resolvedLines = this._resolveLines();
