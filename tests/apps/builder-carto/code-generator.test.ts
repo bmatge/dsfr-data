@@ -136,6 +136,74 @@ describe('generateCode — couche', () => {
   });
 });
 
+describe('generateCode — discrétisation de la choroplèthe (#714)', () => {
+  /** Couche geoshape colorée par un champ numérique. */
+  function withChoropleth() {
+    const layer = withManualSource();
+    layer.type = 'geoshape';
+    layer.geoField = 'geo';
+    layer.fillField = 'population';
+    return layer;
+  }
+
+  it("n'émet rien tant que les réglages sont au défaut", () => {
+    withChoropleth();
+    const code = generateCode();
+    expect(code).toContain('fill-field="population"');
+    expect(code).not.toContain('classes=');
+    expect(code).not.toContain('method=');
+    expect(code).not.toContain('breaks=');
+  });
+
+  it('émet method et classes pour des intervalles de même largeur', () => {
+    const layer = withChoropleth();
+    layer.classMethod = 'equal';
+    layer.classes = 5;
+    const code = generateCode();
+    expect(code).toContain('method="equal"');
+    expect(code).toContain('classes="5"');
+  });
+
+  it('émet classes seul quand la méthode reste aux quantiles', () => {
+    const layer = withChoropleth();
+    layer.classes = 4;
+    const code = generateCode();
+    expect(code).toContain('classes="4"');
+    expect(code).not.toContain('method=');
+  });
+
+  it('émet breaks seul en mode manuel (method="manual" est implicite)', () => {
+    const layer = withChoropleth();
+    layer.classMethod = 'manual';
+    layer.breaks = ' 10,50,100 ';
+    const code = generateCode();
+    expect(code).toContain('breaks="10,50,100"');
+    expect(code).not.toContain('method=');
+    expect(code).not.toContain('classes=');
+  });
+
+  it('ignore le mode manuel sans bornes, qui désactiverait la coloration', () => {
+    const layer = withChoropleth();
+    layer.classMethod = 'manual';
+    layer.breaks = '';
+    const code = generateCode();
+    expect(code).not.toContain('method="manual"');
+    expect(code).not.toContain('breaks=');
+  });
+
+  it("n'émet la discrétisation que sur une couche colorée par un champ", () => {
+    const layer = withManualSource();
+    layer.type = 'geoshape';
+    layer.geoField = 'geo';
+    layer.fillField = '';
+    layer.classes = 5;
+    layer.classMethod = 'equal';
+    const code = generateCode();
+    expect(code).not.toContain('classes=');
+    expect(code).not.toContain('method=');
+  });
+});
+
 describe('generateCode — timeline', () => {
   it('émet la timeline avec vitesse et intervalle non par défaut', () => {
     const layer = withManualSource();

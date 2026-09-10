@@ -58,6 +58,20 @@ function layerAttrs(layer: LayerConfig): string {
   if (layer.type === 'geoshape') {
     if (layer.fillField) attrs.push(`fill-field="${esc(layer.fillField)}"`);
     if (layer.selectedPalette) attrs.push(`selected-palette="${esc(layer.selectedPalette)}"`);
+    // Decoupage en classes de la choroplethe (#685, expose par #714). Des
+    // bornes manuelles impliquent method="manual" cote composant : les emettre
+    // seules evite un `method` redondant. A l'inverse, method="manual" SANS
+    // bornes desactive toute classification (classifyValues) — on ne l'emet
+    // donc jamais.
+    if (layer.fillField) {
+      const bornes = layer.breaks.trim();
+      if (layer.classMethod === 'manual' && bornes) {
+        attrs.push(`breaks="${esc(bornes)}"`);
+      } else {
+        if (layer.classMethod === 'equal') attrs.push('method="equal"');
+        if (layer.classes > 0) attrs.push(`classes="${esc(layer.classes)}"`);
+      }
+    }
   }
   if (layer.type === 'geoshape' || layer.type === 'circle') {
     if (layer.fillOpacity !== 0.6) attrs.push(`fill-opacity="${esc(layer.fillOpacity)}"`);

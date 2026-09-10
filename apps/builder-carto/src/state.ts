@@ -101,6 +101,17 @@ export interface LayerConfig {
   fillOpacity: number;
   selectedPalette: string;
 
+  /**
+   * Discretisation de la choroplèthe (#685, exposée par #714).
+   * `classMethod` porte l'attribut `method` de `dsfr-data-map-layer` :
+   * `quantile` (défaut), `equal`, ou `manual` avec des bornes saisies.
+   */
+  classMethod: 'quantile' | 'equal' | 'manual';
+  /** Nombre de classes (`classes`). `0` = autant que de couleurs dans l'échelle. */
+  classes: number;
+  /** Bornes hautes manuelles séparées par des virgules (`breaks`). */
+  breaks: string;
+
   // Circle
   radius: number;
   radiusField: string;
@@ -200,6 +211,10 @@ export function createLayer(): LayerConfig {
     fillField: '',
     fillOpacity: 0.6,
     selectedPalette: '',
+
+    classMethod: 'quantile' as const,
+    classes: 0,
+    breaks: '',
 
     radius: 8,
     radiusField: '',

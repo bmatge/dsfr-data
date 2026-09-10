@@ -695,6 +695,48 @@ function renderElementsPanel() {
           <label for="layer-fill-opacity">Opacité</label>
           <input type="number" id="layer-fill-opacity" value="${layer.fillOpacity}" min="0" max="1" step="0.1">
         </div>
+        ${
+          layer.fillField
+            ? `
+        <details class="carto-advanced fr-mt-1w" ${
+          layer.classMethod !== 'quantile' || layer.classes > 0 || layer.breaks ? 'open' : ''
+        }>
+          <summary>Découpage en classes</summary>
+          <div class="carto-inline">
+            <div class="carto-field">
+              <label for="layer-class-method">Méthode</label>
+              <select id="layer-class-method">
+                <option value="quantile" ${layer.classMethod === 'quantile' ? 'selected' : ''}>Effectifs égaux (quantiles) — défaut</option>
+                <option value="equal" ${layer.classMethod === 'equal' ? 'selected' : ''}>Intervalles de même largeur</option>
+                <option value="manual" ${layer.classMethod === 'manual' ? 'selected' : ''}>Bornes choisies</option>
+              </select>
+            </div>
+            ${
+              layer.classMethod !== 'manual'
+                ? `
+            <div class="carto-field" style="max-width:140px">
+              <label for="layer-classes">Nombre de classes
+                <span class="fr-hint-text">0 = autant que de couleurs</span>
+              </label>
+              <input type="number" id="layer-classes" value="${layer.classes}" min="0" max="9">
+            </div>`
+                : ''
+            }
+          </div>
+          ${
+            layer.classMethod === 'manual'
+              ? `
+          <div class="carto-field">
+            <label for="layer-breaks">Bornes hautes
+              <span class="fr-hint-text">Valeur maximale de chaque classe, séparées par des virgules</span>
+            </label>
+            <input type="text" id="layer-breaks" value="${escapeAttr(layer.breaks)}" placeholder="10,50,100">
+          </div>`
+              : ''
+          }
+        </details>`
+            : ''
+        }
       </div>`
           : ''
       }
@@ -976,9 +1018,20 @@ function bindElementsInputs(layer: LayerConfig) {
   bind('layer-heat-radius', 'heatRadius', Number);
   bind('layer-heat-blur', 'heatBlur', Number);
   bind('layer-heat-field', 'heatField');
-  bind('layer-fill-field', 'fillField');
+  // Le panneau de decoupage n'apparait qu'avec un champ de coloration : le
+  // changer re-rend la section (#714).
+  bindRerender('layer-fill-field', (v) => {
+    layer.fillField = v;
+  });
   bind('layer-palette', 'selectedPalette');
   bind('layer-fill-opacity', 'fillOpacity', Number);
+  // Decoupage en classes de la choroplethe : la methode pilote les champs
+  // affiches (nombre de classes ou bornes manuelles).
+  bindRerender('layer-class-method', (v) => {
+    layer.classMethod = v as LayerConfig['classMethod'];
+  });
+  bind('layer-classes', 'classes', Number);
+  bind('layer-breaks', 'breaks');
 
   // Couleur
   document.querySelectorAll('#layer-config [data-swatch]').forEach((btn) => {
