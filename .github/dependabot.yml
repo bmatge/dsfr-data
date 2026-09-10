@@ -12,9 +12,14 @@ updates:
     labels:
       - security
     groups:
+      # `major` inclus (#639) : les paquets vitest s'epinglent mutuellement en
+      # version exacte (`@vitest/coverage-v8@X` exige `vitest: "X"`). Hors du
+      # groupe, une majeure revient en PR separees, chacune impossible a merger
+      # seule — le scenario qui a fait echouer #622 et #623.
       dev-dependencies:
         dependency-type: development
         update-types:
+          - major
           - minor
           - patch
       production-dependencies:
