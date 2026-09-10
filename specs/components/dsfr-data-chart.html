@@ -39,41 +39,37 @@
       <table class="attr-table">
         <thead><tr><th>Attribut</th><th>Type</th><th>Description</th></tr></thead>
         <tbody>
-          <tr><td><code>source</code></td><td>String</td><td>ID du <code>&lt;dsfr-data-source&gt;</code> (requis)</td></tr>
-          <tr><td><code>type</code></td><td>String</td><td>Type de chart : <code>bar</code>, <code>line</code>, <code>pie</code>, <code>radar</code>, <code>gauge</code>, <code>scatter</code>, <code>bar-line</code>, <code>map</code>, <code>map-reg</code>, <code>map-aca</code>, <code>map-monde</code></td></tr>
-          <tr><td><code>label-field</code></td><td>String</td><td>Chemin vers le champ label dans les données</td></tr>
-          <tr><td><code>value-field</code></td><td>String</td><td>Chemin vers le champ valeur dans les données</td></tr>
-          <tr><td><code>empty-label</code></td><td>String</td><td>Libellé affiché pour une catégorie vide (<code>null</code>, <code>undefined</code> ou <code>""</code> dans <code>label-field</code>) : légende du pie, axe X des cartésiens. Défaut <code>Non renseigné</code> ; sans lui DSFR Chart substituerait « Série N » à un nom vide. Pour EXCLURE ces lignes plutôt que les nommer, filtrer en amont : <code>where="champ:isnotnull"</code> (query) ou <code>where="champ is not null"</code> (source ODS) (#647)</td></tr>
-          <tr><td><code>heading-level</code></td><td>Number</td><td>Niveau de titre HTML du titre de la DataBox (RGAA 9.1) : entier de 2 à 6, borné (défaut <code>3</code>, rendu historique de DSFR Chart). <code>heading-level="2"</code> rend un <code>h2</code> (#670)</td></tr>
-          <tr><td><code>selected-palette</code></td><td>String</td><td>Palette : <code>default</code>, <code>categorical</code>, <code>sequential*</code>, <code>divergent*</code></td></tr>
-          <tr><td><code>unit-tooltip</code></td><td>String</td><td>Unite affichee dans les tooltips (%, euro, etc.)</td></tr>
-          <tr><td><code>horizontal</code></td><td>Boolean</td><td>Barres horizontales (bar chart)</td></tr>
-          <tr><td><code>stacked</code></td><td>Boolean</td><td>Barres empilees (bar chart)</td></tr>
-          <tr><td><code>fill</code></td><td>Boolean</td><td>Remplissage plein (pie chart)</td></tr>
-          <tr><td><code>code-field</code></td><td>String</td><td>Champ code : departement/region (map, map-reg), nom d'academie (map-aca), code pays ISO a2/a3/num (map-monde)</td></tr>
-          <tr><td><code>map-highlight</code></td><td>String</td><td>Departements/regions a surligner</td></tr>
-          <tr><td><code>gauge-value</code></td><td>Number</td><td>Valeur de la jauge 0-100 (type gauge)</td></tr>
-          <tr><td><code>value-field-2</code></td><td>String</td><td>2e série de valeurs (bar-line)</td></tr>
-          <tr><td><code>value-fields</code></td><td>String</td><td>Series supplementaires separees par virgules</td></tr>
-          <tr><td><code>series-field</code></td><td>String</td><td>Champ "clé de série" pour données au format long/tidy : chaque valeur distincte devient une série (bar, line, radar). Prioritaire sur <code>value-fields</code></td></tr>
-          <tr><td><code>name</code></td><td>String</td><td>Noms des séries (ex: <code>'["Série 1", "Série 2"]'</code>)</td></tr>
-          <tr><td><code>unit-tooltip-bar</code></td><td>String</td><td>Unite des barres dans les tooltips (bar-line uniquement)</td></tr>
-          <tr><td><code>x-min</code> / <code>x-max</code></td><td>String</td><td>Bornes de l'axe X</td></tr>
-          <tr><td><code>y-min</code> / <code>y-max</code></td><td>String</td><td>Bornes de l'axe Y (line, bar, scatter, bar-line). Pour <code>type="radar"</code> : bornes de l'échelle radiale — le centre est fixé à <code>y-min</code> au lieu du minimum des données ; anneaux de grille entiers si les deux bornes sont entières avec une amplitude de 1 à 10</td></tr>
-          <tr><td><code>highlight-index</code></td><td>String</td><td>Indices a mettre en avant : <code>"[0, 2]"</code></td></tr>
-          <tr><td><code>reference-lines</code></td><td>String (JSON)</td><td>Lignes de référence (overlay) — graphiques cartésiens uniquement (line, bar, bar-line, scatter).
-            Chaque item : <code>{ axis: "x"|"y", value, label?, color?, dash?, position? }</code>.
-            <code>axis:"x"</code> = ligne verticale à une catégorie/date ; <code>axis:"y"</code> = ligne horizontale à un seuil.
-            Ex : <code>reference-lines='[{"axis":"x","value":"2026-02","label":"Lancement","color":"#c9191e","dash":true},{"axis":"y","value":3000,"label":"Objectif"}]'</code>.</td></tr>
-          <tr><td><code>targets</code></td><td>String (JSON)</td><td>Cibles / objectifs futurs (overlay) — types <code>line</code> et <code>bar-line</code> uniquement.
-            Chaque item : <code>{ x (échéance, requis), value (requis), series?, label?, color? }</code>.
-            L'axe X est étendu automatiquement si l'échéance dépasse les données : trait plein jusqu'au dernier
-            point réel, trajectoire pointillée vers un losange à l'échéance, zone future grisée.
-            Ex : <code>targets='[{"x":2030,"value":26,"label":"Cible 2030 : 26 %"}]'</code>.</td></tr>
-          <tr><td><code>targets-zone</code></td><td>String</td><td>Bande grisée + frontière pointillée réalisé/projeté (défaut <code>"on"</code>). <code>"off"</code> désactive.</td></tr>
-          <tr><td><code>targets-legend</code></td><td>String</td><td>Légende sous le graphe : <code>""</code> = libellés par défaut
-            (« Données historiques » / « Trajectoire, cible extrapolée »), <code>"off"</code> = masquée, <code>'["a","b"]'</code> = personnalisés.</td></tr>
-        </tbody>
+            <!-- ATTRS:dsfr-data-chart fields="source,type,label-field,value-field,empty-label,heading-level,selected-palette,unit-tooltip,horizontal,stacked,fill,code-field,map-highlight,gauge-value,value-field-2,value-fields,series-field,name,unit-tooltip-bar,highlight-index,x-min,x-max,y-min,y-max,reference-lines,targets,targets-zone,targets-legend" -->
+              <tr><td><code>source</code></td><td>String</td><td>Id de la <code>&lt;dsfr-data-source&gt;</code> (ou d'un transformateur) dont ce graphique consomme les données.</td></tr>
+              <tr><td><code>type</code></td><td>DSFRChartType</td><td>Type de graphique DSFR</td></tr>
+              <tr><td><code>label-field</code></td><td>String</td><td>Chemin vers le champ label</td></tr>
+              <tr><td><code>value-field</code></td><td>String</td><td>Chemin vers le champ valeur. Alias inline <code>champ:Libellé</code> (#668) : <code>value-field="Panier_moyen:Panier moyen"</code> affiche « Panier moyen » dans la légende à la place du nom technique. Un <code>name</code> explicite prime sur l'alias. Un <code>:</code> littéral dans un chemin ou un libellé s'échappe en <code>%3A</code> (escapeColonValue).</td></tr>
+              <tr><td><code>empty-label</code></td><td>String</td><td>Libellé affiché pour une catégorie vide (<code>null</code>, <code>undefined</code> ou <code>""</code> dans <code>label-field</code>) : légende du pie, axe X des cartésiens (#647). Sans lui, DSFR Chart substituerait « Série N » à un nom vide. Pour EXCLURE ces lignes plutôt que les nommer, filtrer en amont : <code>where="champ:isnotnull"</code> (query) ou <code>where="champ is not null"</code> (source ODS).</td></tr>
+              <tr><td><code>heading-level</code></td><td>Number</td><td>Niveau de titre HTML du titre de la DataBox (RGAA 9.1, #670) : entier de 2 à 6, borné (défaut 3, rendu historique de DSFR Chart). <code>heading-level="2"</code> rend un h2.</td></tr>
+              <tr><td><code>selected-palette</code></td><td>String</td><td>Palette de couleurs</td></tr>
+              <tr><td><code>unit-tooltip</code></td><td>String</td><td>Unité à afficher dans les tooltips</td></tr>
+              <tr><td><code>horizontal</code></td><td>Boolean</td><td>Affichage horizontal (bar chart uniquement)</td></tr>
+              <tr><td><code>stacked</code></td><td>Boolean</td><td>Barres empilées (bar chart uniquement)</td></tr>
+              <tr><td><code>fill</code></td><td>Boolean</td><td>Remplir le graphique (pie chart: true = plein, false = donut)</td></tr>
+              <tr><td><code>code-field</code></td><td>String</td><td>Chemin vers le champ code (prioritaire sur label-field) : departement/region (map/map-reg), nom d'academie (map-aca), code pays ISO a2/a3/num (map-monde)</td></tr>
+              <tr><td><code>map-highlight</code></td><td>String</td><td>ID du département/région à mettre en avant (map chart)</td></tr>
+              <tr><td><code>gauge-value</code></td><td>Number</td><td>Valeur pour la jauge (gauge chart uniquement)</td></tr>
+              <tr><td><code>value-field-2</code></td><td>String</td><td>Chemin vers un second champ de valeur (pour bar-line: y-line). Alias inline <code>champ:Libellé</code> accepté (#668).</td></tr>
+              <tr><td><code>value-fields</code></td><td>String</td><td>Champs de valeur supplémentaires, séparés par des virgules (ex: 'budget,score'). Alias inline <code>champ:Libellé</code> par série (#668) : <code>value-fields="budget:Budget, score:Score"</code>. Un <code>name</code> explicite (tableau JSON) prime sur les alias.</td></tr>
+              <tr><td><code>series-field</code></td><td>String</td><td>Champ "clé de série" pour des données au format long/tidy : ses valeurs distinctes deviennent autant de series (mode multi-series sans colonnes multiples). Ex: données {mois, groupe, valeur} avec series-field="groupe" → une série par groupe. S'applique aux types multi-series (bar, line, radar). Prioritaire sur value-fields.</td></tr>
+              <tr><td><code>name</code></td><td>String</td><td>Nom(s) de série. Chaîne simple recommandée (<code>name="Taux"</code>), enveloppée automatiquement pour DSFR Chart ; tableau JSON pour le multi-séries (<code>name='["Réalisé","Objectif"]'</code>). Sur les cartes (<code>map*</code>), un seul nom : le premier élément d'un JSON est retenu (#653). Priorité (#668) : <code>name</code> explicite, sinon l'alias inline <code>champ:Libellé</code> de value-field(s), sinon le nom du champ (ou les valeurs de series-field en mode tidy).</td></tr>
+              <tr><td><code>unit-tooltip-bar</code></td><td>String</td><td>Unité pour les barres (bar-line uniquement)</td></tr>
+              <tr><td><code>highlight-index</code></td><td>String</td><td>Index des éléments à mettre en avant (ex: "[0, 2]")</td></tr>
+              <tr><td><code>x-min</code></td><td>String</td><td>Limite min de l'axe X (types cartésiens : line, scatter, bar-line).</td></tr>
+              <tr><td><code>x-max</code></td><td>String</td><td>Limite max de l'axe X (types cartésiens : line, scatter, bar-line).</td></tr>
+              <tr><td><code>y-min</code></td><td>String</td><td>Limite min de l'axe Y. Pour <code>type="radar"</code> : borne min de l'échelle radiale (le centre du radar est fixé à <code>y-min</code> au lieu du minimum des données).</td></tr>
+              <tr><td><code>y-max</code></td><td>String</td><td>Limite max de l'axe Y. Pour <code>type="radar"</code> : borne max de l'echelle radiale ; si <code>y-min</code> et <code>y-max</code> sont entiers avec une amplitude de 1 a 10, la grille utilise des anneaux entiers (stepSize 1).</td></tr>
+              <tr><td><code>reference-lines</code></td><td>String</td><td>Lignes de référence (overlay) au format JSON. Graphiques cartésiens uniquement (line, bar, bar-line, scatter). Chaque item : <code>{ axis: "x"|"y", value: string|number, label?, color?, dash?, position? }</code>. <code>axis:"x"</code> → ligne verticale à une catégorie/date ; <code>axis:"y"</code> → ligne horizontale à un seuil. Ex : <code>reference-lines='[{"axis":"x","value":"2026-02", "label":"Lancement","color":"#c9191e","dash":true}]'</code>.</td></tr>
+              <tr><td><code>targets</code></td><td>String</td><td>Cibles / objectifs futurs (overlay) au format JSON. Types <code>line</code> et <code>bar-line</code> uniquement. Chaque item : <code>{ x: string|number (échéance, requis), value: number (requis), series?: string|number (nom de dataset ou index, défaut 0), label?: string, color?: string }</code>. L'axe X est étendu automatiquement si l'échéance est au-delà des données (séries paddées avec null : trait plein jusqu'au dernier point réel, trajectoire pointillée vers le losange). Ex : <code>targets='[{"x":2030,"value":26,"label":"Cible 2030 : 26 %"}]'</code>.</td></tr>
+              <tr><td><code>targets-zone</code></td><td>String</td><td>Zone future grisée + frontière pointillée réalisé/projeté. <code>"off"</code> désactive.</td></tr>
+              <tr><td><code>targets-legend</code></td><td>String</td><td>Légende réalisé/projeté sous le graphe : <code>""</code> = libellés par défaut (« Données historiques » / « Trajectoire, cible extrapolée »), <code>"off"</code> = masquée, <code>'["a","b"]'</code> = libellés personnalisés.</td></tr>
+            <!-- /ATTRS -->
+          </tbody>
       </table>
 
       <h3 class="fr-mt-3w">Attributs DataBox</h3>
@@ -83,22 +79,24 @@
       <table class="attr-table">
         <thead><tr><th>Attribut</th><th>Type</th><th>Description</th></tr></thead>
         <tbody>
-          <tr><td><code>databox</code></td><td>Boolean</td><td>Active l'habillage DataBox DSFR</td></tr>
-          <tr><td><code>databox-title</code></td><td>String</td><td>Titre affiche dans l'en-tete (ex: "Population par region")</td></tr>
-          <tr><td><code>databox-source</code></td><td>String</td><td>Source des données (ex: "INSEE, RP 2021")</td></tr>
-          <tr><td><code>databox-date</code></td><td>String</td><td>Date des données (ex: "Mars 2024")</td></tr>
-          <tr><td><code>databox-date-field</code></td><td>String</td><td>Fraîcheur lue dans la donnée : chemin d'une colonne de dates ISO (<code>AAAA-MM-JJ</code>, heure facultative). La plus récente est affichée comme date de la DataBox (et des cartes), formatée JJ/MM/AAAA. Ignoré si <code>databox-date</code> est posé ; aucune date rendue si la colonne ne contient aucune date ISO valide (#661)</td></tr>
-          <tr><td><code>databox-download</code></td><td>Boolean</td><td>Bouton téléchargement CSV</td></tr>
-          <tr><td><code>databox-screenshot</code></td><td>Boolean</td><td>Bouton screenshot PNG</td></tr>
-          <tr><td><code>databox-fullscreen</code></td><td>Boolean</td><td>Bouton plein écran</td></tr>
-          <tr><td><code>databox-trend</code></td><td>String</td><td>Tendance (ex: "+5.2" ou "-3.1")</td></tr>
-          <tr><td><code>databox-tooltip-title</code></td><td>String</td><td>Titre du tooltip info</td></tr>
-          <tr><td><code>databox-tooltip-content</code></td><td>String</td><td>Contenu du tooltip info</td></tr>
-          <tr><td><code>databox-modal-title</code></td><td>String</td><td>Titre de la modale</td></tr>
-          <tr><td><code>databox-modal-content</code></td><td>String</td><td>Contenu de la modale</td></tr>
-          <tr><td><code>databox-default-source</code></td><td>String</td><td>Source par défaut dans le selecteur multi-source</td></tr>
-          <tr><td><code>databox-actions</code></td><td>String (JSON)</td><td>Actions personnalisees (ex: <code>'["Source officielle","Pole emploi"]'</code>)</td></tr>
-        </tbody>
+            <!-- ATTRS:dsfr-data-chart fields="databox,databox-title,databox-source,databox-date,databox-date-field,databox-download,databox-screenshot,databox-fullscreen,databox-trend,databox-tooltip-title,databox-tooltip-content,databox-modal-title,databox-modal-content,databox-default-source,databox-actions" -->
+              <tr><td><code>databox</code></td><td>Boolean</td><td>Envelopper le chart dans une DataBox DSFR native</td></tr>
+              <tr><td><code>databox-title</code></td><td>String</td><td>Titre affiché dans l'en-tête DataBox</td></tr>
+              <tr><td><code>databox-source</code></td><td>String</td><td>Mention de la source (ex: "INSEE, 2024")</td></tr>
+              <tr><td><code>databox-date</code></td><td>String</td><td>Date de la donnée (ex: "Mars 2024"), affichée dans le pied de la DataBox et sur les cartes. Aucune date n'est rendue si l'attribut est absent — plus de repli sur la date du jour, qui n'est pas celle des données (#650). Prime sur <code>databox-date-field</code> quand les deux sont posés.</td></tr>
+              <tr><td><code>databox-date-field</code></td><td>String</td><td>Fraîcheur lue dans la donnée (#661) : chemin d'une colonne de dates ISO (<code>AAAA-MM-JJ</code>, heure facultative). La plus récente est affichée comme date de la DataBox (et des cartes), formatée JJ/MM/AAAA. Ignoré si <code>databox-date</code> est posé ; aucune date rendue si la colonne ne contient aucune date ISO valide.</td></tr>
+              <tr><td><code>databox-download</code></td><td>Boolean</td><td>Bouton téléchargement CSV dans DataBox</td></tr>
+              <tr><td><code>databox-screenshot</code></td><td>Boolean</td><td>Bouton screenshot PNG</td></tr>
+              <tr><td><code>databox-fullscreen</code></td><td>Boolean</td><td>Bouton plein écran</td></tr>
+              <tr><td><code>databox-trend</code></td><td>String</td><td>Badge tendance (ex: "+5.2", "-3.1")</td></tr>
+              <tr><td><code>databox-tooltip-title</code></td><td>String</td><td>Titre du tooltip info DataBox</td></tr>
+              <tr><td><code>databox-tooltip-content</code></td><td>String</td><td>Contenu du tooltip info DataBox</td></tr>
+              <tr><td><code>databox-modal-title</code></td><td>String</td><td>Titre de la modale DataBox</td></tr>
+              <tr><td><code>databox-modal-content</code></td><td>String</td><td>Contenu de la modale DataBox</td></tr>
+              <tr><td><code>databox-default-source</code></td><td>String</td><td>Source par défaut dans le selecteur multi-source DataBox</td></tr>
+              <tr><td><code>databox-actions</code></td><td>String</td><td>Actions personnalisees DataBox (JSON array, ex: '["Source officielle","Pole emploi"]')</td></tr>
+            <!-- /ATTRS -->
+          </tbody>
       </table>
       <p class="fr-text--sm fr-text--light"><strong>Événements :</strong> le composant n'émet pas d'événement custom ; il participe au data-bridge en consommateur (abonnement à la source, états loading/erreur/vide rendus dans le wrapper).</p>
       <div class="fr-callout fr-callout--brown-caramel fr-mt-2w fr-mb-4w">
@@ -121,14 +119,14 @@
           selected-palette="categorical"
           unit-tooltip="%">
         </dsfr-data-chart>
-        <div class="code-block"><pre>&lt;dsfr-data-chart
-  source="sites"
-  type="bar"
-  label-field="nom"
-  value-field="score_rgaa"
-  selected-palette="categorical"
-  unit-tooltip="%"&gt;
-&lt;/dsfr-data-chart&gt;</pre></div>
+        <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-chart</span>
+  <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"sites"</span>
+  <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"bar"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"nom"</span>
+  <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"score_rgaa"</span>
+  <span class="tok-attr">selected-palette</span><span class="tok-punct">=</span><span class="tok-string">"categorical"</span>
+  <span class="tok-attr">unit-tooltip</span><span class="tok-punct">=</span><span class="tok-string">"%"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-chart</span><span class="tok-punct">&gt;</span></pre></div>
       </section>
 
       <section class="demo-section">
@@ -142,13 +140,13 @@
           unit-tooltip="%"
           horizontal="true">
         </dsfr-data-chart>
-        <div class="code-block"><pre>&lt;dsfr-data-chart
-  source="sites"
-  type="bar"
-  label-field="ministere"
-  value-field="score_rgaa"
-  horizontal="true"&gt;
-&lt;/dsfr-data-chart&gt;</pre></div>
+        <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-chart</span>
+  <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"sites"</span>
+  <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"bar"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"ministere"</span>
+  <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"score_rgaa"</span>
+  <span class="tok-attr">horizontal</span><span class="tok-punct">=</span><span class="tok-string">"true"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-chart</span><span class="tok-punct">&gt;</span></pre></div>
       </section>
 
       <section class="demo-section">
@@ -161,13 +159,13 @@
           selected-palette="default"
           unit-tooltip="%">
         </dsfr-data-chart>
-        <div class="code-block"><pre>&lt;dsfr-data-chart
-  source="sites"
-  type="line"
-  label-field="nom"
-  value-field="score_dsfr"
-  unit-tooltip="%"&gt;
-&lt;/dsfr-data-chart&gt;</pre></div>
+        <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-chart</span>
+  <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"sites"</span>
+  <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"line"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"nom"</span>
+  <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"score_dsfr"</span>
+  <span class="tok-attr">unit-tooltip</span><span class="tok-punct">=</span><span class="tok-string">"%"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-chart</span><span class="tok-punct">&gt;</span></pre></div>
       </section>
 
       <section class="demo-section">
@@ -186,13 +184,13 @@
           unit-tooltip="%"
           reference-lines='[{"axis":"y","value":80,"label":"Objectif","color":"#c9191e"}]'>
         </dsfr-data-chart>
-        <div class="code-block"><pre>&lt;dsfr-data-chart
-  source="sites"
-  type="line"
-  label-field="nom"
-  value-field="score_dsfr"
-  reference-lines='[{"axis":"y","value":80,"label":"Objectif","color":"#c9191e"}]'&gt;
-&lt;/dsfr-data-chart&gt;</pre></div>
+        <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-chart</span>
+  <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"sites"</span>
+  <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"line"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"nom"</span>
+  <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"score_dsfr"</span>
+  reference-lines='[{"axis":"y","value":80,"label":"Objectif","color":"#c9191e"}]'<span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-chart</span><span class="tok-punct">&gt;</span></pre></div>
       </section>
 
       <section class="demo-section">
@@ -221,14 +219,14 @@
           unit-tooltip=" %"
           targets='[{"x":"2030","value":26,"label":"Cible 2030 : 26 %"}]'>
         </dsfr-data-chart>
-        <div class="code-block"><pre>&lt;dsfr-data-chart
-  source="fossiles"
-  type="line"
-  label-field="annee"
-  value-field="part"
-  unit-tooltip=" %"
-  targets='[{"x":"2030","value":26,"label":"Cible 2030 : 26 %"}]'&gt;
-&lt;/dsfr-data-chart&gt;</pre></div>
+        <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-chart</span>
+  <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"fossiles"</span>
+  <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"line"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"annee"</span>
+  <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"part"</span>
+  <span class="tok-attr">unit-tooltip</span><span class="tok-punct">=</span><span class="tok-string">" %"</span>
+  targets='[{"x":"2030","value":26,"label":"Cible 2030 : 26 %"}]'<span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-chart</span><span class="tok-punct">&gt;</span></pre></div>
       </section>
 
       <section class="demo-section">
@@ -241,13 +239,13 @@
           selected-palette="categorical"
           unit-tooltip="%">
         </dsfr-data-chart>
-        <div class="code-block"><pre>&lt;dsfr-data-chart
-  source="sites"
-  type="pie"
-  label-field="ministere"
-  value-field="score_rgaa"
-  selected-palette="categorical"&gt;
-&lt;/dsfr-data-chart&gt;</pre></div>
+        <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-chart</span>
+  <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"sites"</span>
+  <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"pie"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"ministere"</span>
+  <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"score_rgaa"</span>
+  <span class="tok-attr">selected-palette</span><span class="tok-punct">=</span><span class="tok-string">"categorical"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-chart</span><span class="tok-punct">&gt;</span></pre></div>
       </section>
 
       <section class="demo-section">
@@ -261,14 +259,14 @@
           y-max="100"
           selected-palette="default">
         </dsfr-data-chart>
-        <div class="code-block"><pre>&lt;dsfr-data-chart
-  source="sites"
-  type="radar"
-  label-field="ministere"
-  value-field="score_rgaa"
-  y-min="0"
-  y-max="100"&gt;
-&lt;/dsfr-data-chart&gt;</pre></div>
+        <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-chart</span>
+  <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"sites"</span>
+  <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"radar"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"ministere"</span>
+  <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"score_rgaa"</span>
+  <span class="tok-attr">y-min</span><span class="tok-punct">=</span><span class="tok-string">"0"</span>
+  <span class="tok-attr">y-max</span><span class="tok-punct">=</span><span class="tok-string">"100"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-chart</span><span class="tok-punct">&gt;</span></pre></div>
       </section>
 
       <section class="demo-section">
@@ -291,19 +289,19 @@
         <dsfr-data-a11y for="chart-databox" source="data-databox"
           description="Ce graphique montre le score RGAA moyen par ministere.">
         </dsfr-data-a11y>
-        <div class="code-block"><pre>&lt;dsfr-data-chart id="chart" source="data" type="bar"
-  label-field="ministere" value-field="score_moyen"
+        <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-chart</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"chart"</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"data"</span> <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"bar"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"ministere"</span> <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"score_moyen"</span>
   databox
-  databox-title="Score RGAA moyen par ministere"
-  databox-source="Referentiel RGAA"
-  databox-date="2024"
+  <span class="tok-attr">databox-title</span><span class="tok-punct">=</span><span class="tok-string">"Score RGAA moyen par ministere"</span>
+  <span class="tok-attr">databox-source</span><span class="tok-punct">=</span><span class="tok-string">"Referentiel RGAA"</span>
+  <span class="tok-attr">databox-date</span><span class="tok-punct">=</span><span class="tok-string">"2024"</span>
   databox-download
-  databox-screenshot&gt;
-&lt;/dsfr-data-chart&gt;
-&lt;!-- Avec DataBox : pas de table ni download sur a11y --&gt;
-&lt;dsfr-data-a11y for="chart" source="data"
-  description="Ce graphique montre le score RGAA moyen par ministere."&gt;
-&lt;/dsfr-data-a11y&gt;</pre></div>
+  databox-screenshot<span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-chart</span><span class="tok-punct">&gt;</span>
+<span class="tok-comment">&lt;!-- Avec DataBox : pas de table ni download sur a11y --&gt;</span>
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-a11y</span> <span class="tok-attr">for</span><span class="tok-punct">=</span><span class="tok-string">"chart"</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"data"</span>
+  <span class="tok-attr">description</span><span class="tok-punct">=</span><span class="tok-string">"Ce graphique montre le score RGAA moyen par ministere."</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-a11y</span><span class="tok-punct">&gt;</span></pre></div>
       </section>
 
       <h2 class="fr-mt-4w">Comparaison : dsfr-data-chart vs DSFR Chart natif</h2>

@@ -185,11 +185,11 @@ visible (console + `data-dsfr-config-error`, composants aval en erreur) — jama
 |---|---|---|---|
 | `aggregate` | `string` | `""` (vide) | Agrégations pour mode generic/tabular Format: "field:function, field2:function" Ex: "population:sum, count:count" |
 | `filter` | `string` | `""` (vide) | Alias pour where (compatibilite) |
-| `group-by` | `string` | `""` (vide) | Champs de regroupement (separes par virgule) |
-| `limit` | `number` | `0` | Limite de resultats |
-| `order-by` | `string` | `""` (vide) | Tri des resultats Format: "field:direction" ou "field__function:direction" Ex: "total_pop:desc" ou "population__sum:desc" |
+| `group-by` | `string` | `""` (vide) | Champs de regroupement (séparés par virgule) |
+| `limit` | `number` | `0` | Limite de résultats |
+| `order-by` | `string` | `""` (vide) | Tri des résultats Format: "field:direction" ou "field__function:direction" Ex: "total_pop:desc" ou "population__sum:desc" |
 | `source` | `string` | `""` (vide) | ID de la source de données (dsfr-data-source ou dsfr-data-normalize) |
-| `where` | `string` | `""` (vide) | Clause WHERE / Filtres — syntaxe colon UNIQUEMENT : "champ:operateur:valeur, champ2:operateur:valeur2" (operateurs : eq, neq, gt, gte, lt, lte, contains, notcontains, in, notin, isnull, isnotnull — multi-valeurs separees par \|). La syntaxe ODSQL n'est PAS supportee ici (elle l'est sur le `where` de dsfr-data-source) : une clause non parsable est signalee via reportConfigError (#277). En delegation serveur, la clause est traduite au dialecte de l'adapter (#275). |
+| `where` | `string` | `""` (vide) | Clause WHERE / Filtres — syntaxe colon UNIQUEMENT : "champ:opérateur:valeur, champ2:opérateur:valeur2" (opérateurs : eq, neq, gt, gte, lt, lte, contains, notcontains, in, notin, isnull, isnotnull — multi-valeurs séparées par \|). La syntaxe ODSQL n'est PAS supportee ici (elle l'est sur le `where` de dsfr-data-source) : une clause non parsable est signalee via reportConfigError (#277). En délégation serveur, la clause est traduite au dialecte de l'adapter (#275). |
 
 
 **Méthodes publiques**
@@ -197,11 +197,11 @@ visible (console + `data-dsfr-config-error`, composants aval en erreur) — jama
 | Méthode | Retour | Description |
 |---|---|---|
 | `getAdapter()` | `import('../adapters/api-adapter.js').ApiAdapter \| null` | Retourne l'adapter courant (delegue a la source amont) |
-| `getAdapterParams()` | `import('../adapters/api-adapter.js').AdapterParams \| null` | Retourne les parametres adapter resolus de la source amont (delegation transparente, headers api-key-ref inclus — #274). |
+| `getAdapterParams()` | `import('../adapters/api-adapter.js').AdapterParams \| null` | Retourne les paramètres adapter resolus de la source amont (délégation transparente, headers api-key-ref inclus — #274). |
 | `getData()` | `unknown[]` | Retourne les données actuelles (isLoading() et getError() sont fournis par TransformerMixin, #280) |
 | `getDelegation()` | `{ groupBy: boolean; aggregate: boolean; orderBy: boolean; where: boolean; }` | Quelles opérations ont été effectivement déléguées au serveur, et lesquelles tournent côté client (#603). C'est l'information de diagnostic la plus coûteuse à deviner de l'extérieur : un `group-by` non délégué s'exécute sur les seules lignes rapatriées, ce qui produit des totaux justes en apparence et faux en réalité. Elle était déjà calculée par `_negotiateServerSide()` mais restait privée. Copie défensive : l'appelant ne doit pas pouvoir muter l'état interne. |
 | `getEffectiveWhere(excludeKey?: string)` | `string` | Retourne le where effectif complet (statique + dynamique). Delegue a la source amont si disponible. |
-| `reload()` | `void` | Force le rechargement des données. Semantique de pur transformateur (#279) : delegue le refetch a la source amont — meme contrat que dsfr-data-source.reload(). L'emission qui suit redescend naturellement le pipeline jusqu'ici (une chaine query → query → source propage le reload jusqu'a la source). Repli : si l'amont n'expose pas reload() (normalize/unpivot/join avant EPIC C #262), retraite le cache courant (ancien comportement). |
+| `reload()` | `void` | Force le rechargement des données. Semantique de pur transformateur (#279) : delegue le refetch a la source amont — meme contrat que dsfr-data-source.reload(). L'emission qui suit redescend naturellement le pipeline jusqu'ici (une chaîne query → query → source propage le reload jusqu'a la source). Repli : si l'amont n'expose pas reload() (normalize/unpivot/join avant EPIC C #262), retraite le cache courant (ancien comportement). |
 
 
 **Événements** (émis sur `document` : ecouter via `document.addEventListener`, filtrer sur `detail.sourceId`)
@@ -215,7 +215,7 @@ visible (console + `data-dsfr-config-error`, composants aval en erreur) — jama
 | `dsfr-data-error` | `{ sourceId, error }` | émis | Erreur amont ou de transformation, sous l’`id` de ce composant. |
 | `dsfr-data-loading` | `{ sourceId }` | émis | Chargement amont relayé vers l’aval. |
 | `dsfr-data-source-command` | `{ sourceId, page?, where?, whereKey?, orderBy?, groupBy?, aggregate? }` | émis | Commande de pagination / filtre / tri envoyée à la source AMONT — soit originée par ce composant, soit relayée depuis l’aval. |
-| `dsfr-data-source-command` | — | émis | `{ sourceId, groupBy?, aggregate?, orderBy?, where?, whereKey?, origin }` sur `document` — delegation server-side negociee avec la source amont, et liberation des overlays quand elle retombe cote client. `origin` porte l'id de ce composant (#603). |
+| `dsfr-data-source-command` | — | émis | `{ sourceId, groupBy?, aggregate?, orderBy?, where?, whereKey?, origin }` sur `document` — délégation server-side negociee avec la source amont, et liberation des overlays quand elle retombe cote client. `origin` porte l'id de ce composant (#603). |
 
 
 **Slots** — aucun (le composant rend son propre contenu).

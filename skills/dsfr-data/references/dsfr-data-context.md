@@ -72,8 +72,8 @@ connexion. whereKey stable indexe sur `uid + champ` (insertion tardive sans deca
 
 | Événement | Payload | Direction | Quand |
 |---|---|---|---|
-| `dsfr-data-context-change` | — | émis | sur l'element — l'etat des filtres du contexte a change (utile pour <dsfr-data-context-tags> et la synchro d'URL). |
-| `dsfr-data-context-connected` | — | émis | `{ id }` sur `document` — le contexte vient d'etre connecte (#678) : les filtres declares avant lui dans le DOM (`context="id"`) s'enregistrent a ce moment. |
+| `dsfr-data-context-change` | — | émis | sur l'élément — l'etat des filtres du contexte a change (utile pour <dsfr-data-context-tags> et la synchro d'URL). |
+| `dsfr-data-context-connected` | — | émis | `{ id }` sur `document` — le contexte vient d'être connecte (#678) : les filtres declares avant lui dans le DOM (`context="id"`) s'enregistrent a ce moment. |
 | `dsfr-data-source-command` | — | émis | `{ sourceId, where, whereKey, origin? }` sur `document` — clause `where` diffusee vers chaque source de `sources`, avec un whereKey stable par filtre (merge en AND cote source, ADR-031). `origin` (#603) nomme le composant emetteur : le bus etant plat, une trace ne pourrait sinon pas dire qui demande quoi. |
 
 

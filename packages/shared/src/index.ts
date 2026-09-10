@@ -1,6 +1,7 @@
 // Utils
 export {
   escapeHtml,
+  escapeText,
   singleQuoteAttr,
   jsonAttr,
   jsonLiteral,

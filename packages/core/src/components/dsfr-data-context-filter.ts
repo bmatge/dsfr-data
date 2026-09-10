@@ -36,10 +36,10 @@ function resolveDefaultKeyword(value: string): string {
 }
 
 /**
- * Tronque une date complete a la precision de l'operateur (#646) :
+ * Tronque une date complete a la precision de l'opérateur (#646) :
  * `year-of` accepte "YYYY", "YYYY-MM" et "YYYY-MM-DD" (-> "YYYY") ;
  * `month-of` accepte "YYYY-MM" et "YYYY-MM-DD" (-> "YYYY-MM"). Un
- * <input type="date"> peut ainsi nourrir les deux operateurs (il n'existe
+ * <input type="date"> peut ainsi nourrir les deux opérateurs (il n'existe
  * pas de type="year"). Toute autre valeur est rendue telle quelle.
  */
 function truncateToOperator(value: string, operator: 'year-of' | 'month-of'): string {
@@ -61,7 +61,7 @@ function dateParts(value: string): string[] | null {
  * un <input type="date"> refuse "2026" (valeur assainie a vide), un
  * type="month" refuse "2026-09-09". On complete ou tronque pour que le
  * controle accepte la valeur — buildColonWhere() retronque ensuite a la
- * precision de l'operateur.
+ * precision de l'opérateur.
  */
 function fitDateToInput(
   value: string,
@@ -166,7 +166,7 @@ export class DsfrDataContextFilter extends LitElement {
    * lt-day-after, last-n-days, current-year, current-month (#682 — case à
    * cocher, mois en cours, borne dynamique).
    *
-   * `year-of` et `month-of` acceptent une date plus precise que l'operateur
+   * `year-of` et `month-of` acceptent une date plus precise que l'opérateur
    * et la tronquent (#646) : "2026-09-09" -> annee 2026 / mois 2026-09, ce
    * qui permet de les nourrir d'un <input type="date"> (il n'existe pas de
    * type="year"). Une valeur qui reste inexploitable (ni date, ni mois, ni
@@ -222,7 +222,7 @@ export class DsfrDataContextFilter extends LitElement {
 
   private _onUiChange = () => this._emit();
 
-  /** Valeur de date inexploitable deja signalee (#646) — un warn par filtre, pas par frappe */
+  /** Valeur de date inexploitable déjà signalee (#646) — un warn par filtre, pas par frappe */
   private _unusableDateWarned = false;
 
   createRenderRoot() {

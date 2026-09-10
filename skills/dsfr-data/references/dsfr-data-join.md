@@ -126,11 +126,11 @@ et alerte sous 50 %. Pas d'attribut : ouvrir le volet quand les valeurs droites 
 
 | Méthode | Retour | Description |
 |---|---|---|
-| `getAdapter()` | `import('../adapters/api-adapter.js').ApiAdapter \| null` | Retourne l'adapter de la source GAUCHE (delegation transparente). Coherent avec le relais des commandes (#272) : la gauche porte les lignes. Permet aux composants en aval (dsfr-data-facets, dsfr-data-search) d'atteindre l'adapter a travers ce transformateur. |
-| `getAdapterParams()` | `import('../adapters/api-adapter.js').AdapterParams \| null` | Retourne les parametres adapter resolus de la source amont (delegation transparente, headers api-key-ref inclus — #274). |
+| `getAdapter()` | `import('../adapters/api-adapter.js').ApiAdapter \| null` | Retourne l'adapter de la source GAUCHE (délégation transparente). Coherent avec le relais des commandes (#272) : la gauche porte les lignes. Permet aux composants en aval (dsfr-data-facets, dsfr-data-search) d'atteindre l'adapter a travers ce transformateur. |
+| `getAdapterParams()` | `import('../adapters/api-adapter.js').AdapterParams \| null` | Retourne les paramètres adapter resolus de la source amont (délégation transparente, headers api-key-ref inclus — #274). |
 | `getData()` | `Row[]` | — |
-| `getEffectiveWhere(excludeKey?: string)` | `string` | Retourne le where effectif de la source amont (delegation transparente). |
-| `getJoinStats()` | `JoinStats \| null` | Taux d'appariement de la derniere jointure, ou null avant la premiere (#660). |
+| `getEffectiveWhere(excludeKey?: string)` | `string` | Retourne le where effectif de la source amont (délégation transparente). |
+| `getJoinStats()` | `JoinStats \| null` | Taux d'appariement de la dernière jointure, ou null avant la première (#660). |
 
 
 **Événements** (émis sur `document` : ecouter via `document.addEventListener`, filtrer sur `detail.sourceId`)

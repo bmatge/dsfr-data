@@ -14,10 +14,10 @@ import type { DsfrDataContext } from './dsfr-data-context.js';
 type SearchOperator = 'contains' | 'starts' | 'words';
 
 /**
- * Afficheurs aval qui portent leur propre region live de compte de resultats.
+ * Afficheurs aval qui portent leur propre region live de compte de résultats.
  * Quand l'un d'eux consomme la sortie de ce composant (en direct ou via des
- * intermediaires chaines par `source`), search ne rend AUCUNE region live :
- * une seule region live par chaine, portee par le composant terminal (#654).
+ * intermediaires chaînes par `source`), search ne rend AUCUNE region live :
+ * une seule region live par chaîne, portee par le composant terminal (#654).
  */
 const DOWNSTREAM_LIVE_COUNT_TAGS: ReadonlySet<string> = new Set([
   'dsfr-data-list',
@@ -49,7 +49,7 @@ class SearchContextFilter implements ContextFilterLike {
     return `${this.field}:contains:${escapeColonValue(term)}`;
   }
 
-  /** Tag « Recherche : terme » (#679) — le libelle par defaut du champ est un verbe */
+  /** Tag « Recherche : terme » (#679) — le libellé par défaut du champ est un verbe */
   displayLabel(): string {
     const label = this.host.label.trim();
     return label && label !== 'Rechercher' ? label : 'Recherche';
@@ -90,10 +90,10 @@ class SearchContextFilter implements ContextFilterLike {
  *
  * En mode `context="id"` (#678, ADR-104), la recherche devient un filtre
  * `contains` de <dsfr-data-context> sur le champ unique de `fields` : le
- * contexte diffuse a toutes ses sources cibles, porte l'URL (parametre nomme
- * d'apres le champ) et le tag. Elle n'emet plus de commande directe.
+ * contexte diffuse a toutes ses sources cibles, porte l'URL (paramètre nomme
+ * d'après le champ) et le tag. Elle n'emet plus de commande directe.
  *
- * @fires dsfr-data-search-change - `{ query, count }` sur l'element — la saisie de recherche a change (pour synchroniser une UI de page).
+ * @fires dsfr-data-search-change - `{ query, count }` sur l'élément — la saisie de recherche a change (pour synchroniser une UI de page).
  * @fires dsfr-data-source-command - `{ sourceId, where, whereKey, origin }` sur `document` — recherche relayee en filtre serveur vers la source amont (hors mode `context`, ou c'est le contexte qui diffuse). `origin` porte l'id de ce composant (#603).
  */
 @customElement('dsfr-data-search')
@@ -102,7 +102,7 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
   @property({ type: String })
   source = '';
 
-  /** Champs sur lesquels rechercher (virgule-separes). Vide = tous les champs */
+  /** Champs sur lesquels rechercher (virgule-séparés). Vide = tous les champs */
   @property({ type: String })
   fields = '';
 
@@ -114,11 +114,11 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
   @property({ type: String })
   label = 'Rechercher';
 
-  /** Delai en ms avant declenchement du filtre apres la derniere frappe */
+  /** Délai en ms avant déclenchement du filtre après la dernière frappe */
   @property({ type: Number })
   debounce = 300;
 
-  /** Nombre minimum de caractères avant declenchement */
+  /** Nombre minimum de caractères avant déclenchement */
   @property({ type: Number, attribute: 'min-length' })
   minLength = 0;
 
@@ -135,9 +135,9 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
   srLabel = false;
 
   /**
-   * Affiche un compteur de resultats sous le champ (compte serveur `meta.total`
+   * Affiche un compteur de résultats sous le champ (compte serveur `meta.total`
    * en `server-search`). Ce compteur reste visible en toutes circonstances ;
-   * seule sa nature de region live depend de la chaine aval (#654).
+   * seule sa nature de région live dépend de la chaîne aval (#654).
    */
   @property({ type: Boolean })
   count = false;
@@ -171,10 +171,10 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
    * Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la
    * recherche devient un filtre `contains` du contexte sur le champ UNIQUE
    * de `fields` (la clause colon ne sait pas dire « ou » entre plusieurs
-   * champs). Le contexte diffuse a ses cibles et porte l'URL (`url-sync`
-   * et `url-search-param` sont ignores — le paramètre est nommé d'apres le
-   * champ, ou via `url-param-map` du contexte). Le contexte peut etre
-   * declare apres la recherche dans la page. Vide = comportement autonome.
+   * champs). Le contexte diffuse à ses cibles et porte l'URL (`url-sync`
+   * et `url-search-param` sont ignorés — le paramètre est nommé d'après le
+   * champ, ou via `url-param-map` du contexte). Le contexte peut être
+   * déclaré après la recherche dans la page. Vide = comportement autonome.
    */
   @property({ type: String })
   context = '';
@@ -204,16 +204,16 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
   /** Le filtre unique enregistre aupres du contexte (#678) */
   private _contextFilter: SearchContextFilter | null = null;
 
-  /** Derniere clause confiee au contexte — une donnee qui arrive ne re-diffuse pas un terme inchange */
+  /** Dernière clause confiee au contexte — une donnee qui arrive ne re-diffuse pas un terme inchange */
   private _lastPushedWhere: string | null = null;
 
-  /** Un contexte vise par id vient d'etre connecte : (re)bind si c'est le notre (#678) */
+  /** Un contexte vise par id vient d'être connecte : (re)bind si c'est le notre (#678) */
   private _onContextConnected = (e: Event) => {
     const id = (e as CustomEvent<{ id: string | null }>).detail?.id;
     if (this.context && id === this.context) this._bindContext();
   };
 
-  /** Mode `context` demande (que le contexte soit deja resolu ou non) */
+  /** Mode `context` demande (que le contexte soit déjà resolu ou non) */
   private get _contextMode(): boolean {
     return this.context.trim() !== '';
   }
@@ -237,7 +237,7 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
   // --- Public API (delegation to upstream source) ---
 
   /**
-   * Retourne l'adapter de la source amont (delegation transparente).
+   * Retourne l'adapter de la source amont (délégation transparente).
    * Permet aux composants en aval (dsfr-data-facets) d'acceder a l'adapter
    * sans connaitre la structure du pipeline.
    */
@@ -252,7 +252,7 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
   }
 
   /**
-   * Retourne le where effectif de la source amont (delegation transparente).
+   * Retourne le where effectif de la source amont (délégation transparente).
    */
   public getEffectiveWhere(excludeKey?: string | string[]): string {
     if (this.source) {
@@ -266,7 +266,7 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
 
   /**
    * Retourne les paramètres adapter résolus de la source amont
-   * (delegation transparente, headers api-key-ref inclus — #274).
+   * (délégation transparente, headers api-key-ref inclus — #274).
    */
   public getAdapterParams(): import('../adapters/api-adapter.js').AdapterParams | null {
     if (this.source) {
@@ -318,7 +318,7 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
     }
   }
 
-  /** Parametres de recherche → re-filtrage local (#281) */
+  /** Paramètres de recherche → re-filtrage local (#281) */
   protected transformerReprocessProps(): string[] {
     return ['fields', 'operator', 'minLength', 'highlight'];
   }
@@ -327,7 +327,7 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
 
   /**
    * Resout le contexte vise par `context="id"` et y enregistre le filtre.
-   * Le contexte peut arriver plus tard (declare apres dans la page) :
+   * Le contexte peut arriver plus tard (déclaré après dans la page) :
    * l'erreur de config est posee en attendant et levee a sa connexion.
    */
   private _bindContext(): void {
@@ -377,8 +377,8 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
 
   /**
    * Confie le terme courant au contexte, qui diffuse (#678). Deduplique :
-   * _applyFilter est aussi appele a chaque arrivee de donnees, et une source
-   * cible re-emet apres chaque commande — sans ce garde, boucle.
+   * _applyFilter est aussi appele a chaque arrivee de données, et une source
+   * cible re-emet après chaque commande — sans ce garde, boucle.
    */
   private _pushContextFilter(): void {
     if (!this._context || !this._contextFilter) return;
@@ -742,11 +742,11 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
 
   /**
    * Vrai si un afficheur aval (list, display) consomme ce composant, en direct
-   * ou a travers des intermediaires (`source="<id>"` chaines, ex. facets).
-   * Il porte alors seul la region live de la chaine : deux regions `polite`
+   * ou a travers des intermediaires (`source="<id>"` chaînes, ex. facets).
+   * Il porte alors seul la region live de la chaîne : deux regions `polite`
    * pour un meme geste donnaient deux nombres contradictoires (#654).
-   * Evalue a chaque rendu (requete d'attribut, cout negligeable) pour suivre
-   * un DOM aval encore en cours d'analyse au premier rendu. La chaine est
+   * Evalue a chaque rendu (requête d'attribut, cout negligeable) pour suivre
+   * un DOM aval encore en cours d'analyse au premier rendu. La chaîne est
    * suivie par l'ATTRIBUT `source` (usage declaratif) : un consommateur cree
    * en JS avec la seule propriete n'est pas vu, search garde alors sa region.
    */
@@ -830,8 +830,8 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
   }
 
   /**
-   * Compteur de resultats. Une seule region live par chaine (#654) : si un
-   * afficheur aval (list, display) annonce deja son compte, ce composant
+   * Compteur de résultats. Une seule region live par chaîne (#654) : si un
+   * afficheur aval (list, display) annonce déjà son compte, ce composant
    * n'annonce rien — le compteur visible de `count` est conserve, mais
    * sans `aria-live`, et le compteur sr-only n'est pas rendu.
    */

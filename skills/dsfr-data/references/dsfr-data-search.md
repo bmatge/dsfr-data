@@ -111,13 +111,13 @@ contradictoires (#654).
 
 | Attribut | Type | Défaut | Description |
 |---|---|---|---|
-| `context` | `string` | `""` (vide) | Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la recherche devient un filtre `contains` du contexte sur le champ UNIQUE de `fields` (la clause colon ne sait pas dire « ou » entre plusieurs champs). Le contexte diffuse a ses cibles et porte l'URL (`url-sync` et `url-search-param` sont ignores — le paramètre est nommé d'apres le champ, ou via `url-param-map` du contexte). Le contexte peut etre declare apres la recherche dans la page. Vide = comportement autonome. |
-| `count` | `boolean` | `false` | Affiche un compteur de resultats sous le champ (compte serveur `meta.total` en `server-search`). Ce compteur reste visible en toutes circonstances ; seule sa nature de region live depend de la chaine aval (#654). |
-| `debounce` | `number` | `300` | Delai en ms avant declenchement du filtre apres la derniere frappe |
-| `fields` | `string` | `""` (vide) | Champs sur lesquels rechercher (virgule-separes). Vide = tous les champs |
+| `context` | `string` | `""` (vide) | Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la recherche devient un filtre `contains` du contexte sur le champ UNIQUE de `fields` (la clause colon ne sait pas dire « ou » entre plusieurs champs). Le contexte diffuse à ses cibles et porte l'URL (`url-sync` et `url-search-param` sont ignorés — le paramètre est nommé d'après le champ, ou via `url-param-map` du contexte). Le contexte peut être déclaré après la recherche dans la page. Vide = comportement autonome. |
+| `count` | `boolean` | `false` | Affiche un compteur de résultats sous le champ (compte serveur `meta.total` en `server-search`). Ce compteur reste visible en toutes circonstances ; seule sa nature de région live dépend de la chaîne aval (#654). |
+| `debounce` | `number` | `300` | Délai en ms avant déclenchement du filtre après la dernière frappe |
+| `fields` | `string` | `""` (vide) | Champs sur lesquels rechercher (virgule-séparés). Vide = tous les champs |
 | `highlight` | `boolean` | `false` | Ajoute un champ _highlight a chaque record avec les termes trouves marques en <mark> |
 | `label` | `string` | `'Rechercher'` | Label du champ (accessible) |
-| `min-length` | `number` | `0` | Nombre minimum de caractères avant declenchement |
+| `min-length` | `number` | `0` | Nombre minimum de caractères avant déclenchement |
 | `operator` | `SearchOperator` | `'contains'` | Mode de recherche : contains, starts, words |
 | `placeholder` | `string` | `'Rechercher…'` | Placeholder du champ de saisie |
 | `search-template` | `string` | `""` (vide) | Template pour la recherche serveur. {q} est remplace par le terme de recherche. Si vide et server-search active, lu depuis l'adapter de la source amont. Ex ODS: 'search("{q}")', custom: '{q} IN nom' |
@@ -133,10 +133,10 @@ contradictoires (#654).
 | Méthode | Retour | Description |
 |---|---|---|
 | `clear()` | `void` | Efface le champ et restaure toutes les données |
-| `getAdapter()` | `import('../adapters/api-adapter.js').ApiAdapter \| null` | Retourne l'adapter de la source amont (delegation transparente). Permet aux composants en aval (dsfr-data-facets) d'acceder a l'adapter sans connaitre la structure du pipeline. |
-| `getAdapterParams()` | `import('../adapters/api-adapter.js').AdapterParams \| null` | Retourne les paramètres adapter résolus de la source amont (delegation transparente, headers api-key-ref inclus — #274). |
+| `getAdapter()` | `import('../adapters/api-adapter.js').ApiAdapter \| null` | Retourne l'adapter de la source amont (délégation transparente). Permet aux composants en aval (dsfr-data-facets) d'acceder a l'adapter sans connaitre la structure du pipeline. |
+| `getAdapterParams()` | `import('../adapters/api-adapter.js').AdapterParams \| null` | Retourne les paramètres adapter résolus de la source amont (délégation transparente, headers api-key-ref inclus — #274). |
 | `getData()` | `Record<string, unknown>[]` | Retourne les données actuellement filtrees |
-| `getEffectiveWhere(excludeKey?: string | string[])` | `string` | Retourne le where effectif de la source amont (delegation transparente). |
+| `getEffectiveWhere(excludeKey?: string | string[])` | `string` | Retourne le where effectif de la source amont (délégation transparente). |
 | `search(term: string)` | `void` | Declenche une recherche programmatique |
 | `setData(data: Record<string, unknown>[])` | `void` | Remplace le jeu de données source |
 
@@ -152,7 +152,7 @@ contradictoires (#654).
 | `dsfr-data-error` | `{ sourceId, error }` | émis | Erreur amont ou de transformation, sous l’`id` de ce composant. |
 | `dsfr-data-loading` | `{ sourceId }` | émis | Chargement amont relayé vers l’aval. |
 | `dsfr-data-source-command` | `{ sourceId, page?, where?, whereKey?, orderBy?, groupBy?, aggregate? }` | émis | Commande de pagination / filtre / tri envoyée à la source AMONT — soit originée par ce composant, soit relayée depuis l’aval. |
-| `dsfr-data-search-change` | — | émis | `{ query, count }` sur l'element — la saisie de recherche a change (pour synchroniser une UI de page). |
+| `dsfr-data-search-change` | — | émis | `{ query, count }` sur l'élément — la saisie de recherche a change (pour synchroniser une UI de page). |
 | `dsfr-data-source-command` | — | émis | `{ sourceId, where, whereKey, origin }` sur `document` — recherche relayee en filtre serveur vers la source amont (hors mode `context`, ou c'est le contexte qui diffuse). `origin` porte l'id de ce composant (#603). |
 
 

@@ -43,10 +43,12 @@
         <table class="attr-table">
           <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><code>for</code></td><td>String</td><td><code>""</code></td><td>IDs des layers cibles, séparés par des virgules. Vide = tous les layers de la carte ayant un <code>time-field</code>.</td></tr>
-            <tr><td><code>speed</code></td><td>Number</td><td><code>1</code></td><td>Multiplicateur de vitesse initial — le sélecteur de l'UI propose 0.5, 1, 2 et 4</td></tr>
-            <tr><td><code>label</code></td><td>String</td><td><code>"auto"</code></td><td>Format d'affichage du pas courant. <code>auto</code> (défaut) affiche la valeur brute du pas</td></tr>
-            <tr><td><code>interval</code></td><td>Number</td><td><code>1000</code></td><td>Intervalle de base entre deux frames en ms (divisé par <code>speed</code> ; minimum effectif 50&nbsp;ms)</td></tr>
+            <!-- ATTRS:dsfr-data-map-timeline fields="for,speed,label,interval" -->
+              <tr><td><code>for</code></td><td>String</td><td><code>""</code></td><td>Target specific layer IDs (comma-separated). If empty, targets all layers with time-field.</td></tr>
+              <tr><td><code>speed</code></td><td>Number</td><td><code>1</code></td><td>Playback speed multiplier</td></tr>
+              <tr><td><code>label</code></td><td>String</td><td><code>auto</code></td><td>Label format for display. 'auto' uses the raw step value.</td></tr>
+              <tr><td><code>interval</code></td><td>Number</td><td><code>1000</code></td><td>Base interval in ms between frames</td></tr>
+            <!-- /ATTRS -->
           </tbody>
         </table>
 
@@ -71,23 +73,23 @@
 
         <section class="demo-section">
           <h3>1. Timeline sur toutes les couches temporelles</h3>
-          <div class="code-block"><pre>&lt;dsfr-data-source id="mesures" data='[
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-source</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"mesures"</span> data='[
   {"ville":"Paris","lat":48.85,"lon":2.35,"valeur":120,"date":"2025-01"},
   {"ville":"Lyon","lat":45.76,"lon":4.83,"valeur":85,"date":"2025-01"},
   {"ville":"Paris","lat":48.85,"lon":2.35,"valeur":250,"date":"2025-02"},
   {"ville":"Lyon","lat":45.76,"lon":4.83,"valeur":160,"date":"2025-02"}
-]'&gt;&lt;/dsfr-data-source&gt;
+]'<span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-source</span><span class="tok-punct">&gt;</span>
 
-&lt;dsfr-data-map center="46.6,2.3" zoom="6" height="550px"&gt;
-  &lt;dsfr-data-map-layer source="mesures" type="circle"
-    lat-field="lat" lon-field="lon"
-    radius-field="valeur" tooltip-field="ville"
-    time-field="date" time-mode="snapshot"&gt;
-  &lt;/dsfr-data-map-layer&gt;
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map</span> <span class="tok-attr">center</span><span class="tok-punct">=</span><span class="tok-string">"46.6,2.3"</span> <span class="tok-attr">zoom</span><span class="tok-punct">=</span><span class="tok-string">"6"</span> <span class="tok-attr">height</span><span class="tok-punct">=</span><span class="tok-string">"550px"</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map-layer</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"mesures"</span> <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"circle"</span>
+    <span class="tok-attr">lat-field</span><span class="tok-punct">=</span><span class="tok-string">"lat"</span> <span class="tok-attr">lon-field</span><span class="tok-punct">=</span><span class="tok-string">"lon"</span>
+    <span class="tok-attr">radius-field</span><span class="tok-punct">=</span><span class="tok-string">"valeur"</span> <span class="tok-attr">tooltip-field</span><span class="tok-punct">=</span><span class="tok-string">"ville"</span>
+    <span class="tok-attr">time-field</span><span class="tok-punct">=</span><span class="tok-string">"date"</span> <span class="tok-attr">time-mode</span><span class="tok-punct">=</span><span class="tok-string">"snapshot"</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map-layer</span><span class="tok-punct">&gt;</span>
 
-  &lt;!-- Sans "for" : pilote tous les layers à time-field --&gt;
-  &lt;dsfr-data-map-timeline speed="1" interval="1500"&gt;&lt;/dsfr-data-map-timeline&gt;
-&lt;/dsfr-data-map&gt;</pre></div>
+  <span class="tok-comment">&lt;!-- Sans "for" : pilote tous les layers à time-field --&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map-timeline</span> <span class="tok-attr">speed</span><span class="tok-punct">=</span><span class="tok-string">"1"</span> <span class="tok-attr">interval</span><span class="tok-punct">=</span><span class="tok-string">"1500"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map-timeline</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <section class="demo-section fr-mt-4w">
@@ -97,19 +99,19 @@
             dates regroupées par année (<code>time-bucket="year"</code>). La couche de contours,
             sans <code>time-field</code>, reste affichée en permanence.
           </p>
-          <div class="code-block"><pre>&lt;dsfr-data-map center="46.6,2.3" zoom="6"&gt;
-  &lt;dsfr-data-map-layer source="regions" type="geoshape"
-    geo-field="geo_shape" no-interactive color="#7b7b7b" fill-opacity="0"&gt;
-  &lt;/dsfr-data-map-layer&gt;
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map</span> <span class="tok-attr">center</span><span class="tok-punct">=</span><span class="tok-string">"46.6,2.3"</span> <span class="tok-attr">zoom</span><span class="tok-punct">=</span><span class="tok-string">"6"</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map-layer</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"regions"</span> <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"geoshape"</span>
+    <span class="tok-attr">geo-field</span><span class="tok-punct">=</span><span class="tok-string">"geo_shape"</span> no-interactive <span class="tok-attr">color</span><span class="tok-punct">=</span><span class="tok-string">"#7b7b7b"</span> <span class="tok-attr">fill-opacity</span><span class="tok-punct">=</span><span class="tok-string">"0"</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map-layer</span><span class="tok-punct">&gt;</span>
 
-  &lt;dsfr-data-map-layer id="deploiement" source="installations" type="marker"
-    geo-field="geo_point_2d" tooltip-field="nom"
-    time-field="date_mise_en_service" time-bucket="year" time-mode="cumulative"&gt;
-  &lt;/dsfr-data-map-layer&gt;
+  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map-layer</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"deploiement"</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"installations"</span> <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"marker"</span>
+    <span class="tok-attr">geo-field</span><span class="tok-punct">=</span><span class="tok-string">"geo_point_2d"</span> <span class="tok-attr">tooltip-field</span><span class="tok-punct">=</span><span class="tok-string">"nom"</span>
+    <span class="tok-attr">time-field</span><span class="tok-punct">=</span><span class="tok-string">"date_mise_en_service"</span> <span class="tok-attr">time-bucket</span><span class="tok-punct">=</span><span class="tok-string">"year"</span> <span class="tok-attr">time-mode</span><span class="tok-punct">=</span><span class="tok-string">"cumulative"</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map-layer</span><span class="tok-punct">&gt;</span>
 
-  &lt;dsfr-data-map-timeline for="deploiement" interval="800" speed="2"&gt;
-  &lt;/dsfr-data-map-timeline&gt;
-&lt;/dsfr-data-map&gt;</pre></div>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map-timeline</span> <span class="tok-attr">for</span><span class="tok-punct">=</span><span class="tok-string">"deploiement"</span> <span class="tok-attr">interval</span><span class="tok-punct">=</span><span class="tok-string">"800"</span> <span class="tok-attr">speed</span><span class="tok-punct">=</span><span class="tok-string">"2"</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map-timeline</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <h2 class="fr-mt-4w">Voir aussi</h2>

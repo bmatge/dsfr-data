@@ -57,12 +57,14 @@ dsfr-data-source (B)  ──────┘</pre></div>
           <thead><tr><th>Attribut</th><th>Type</th><th>Format / Valeurs</th><th>Description</th></tr></thead>
           <tbody>
             <tr><td><code>id</code></td><td>String</td><td><code>id="enriched"</code></td><td>Identifiant unique (requis). Les composants aval l'utilisent pour s'abonner aux données jointes.</td></tr>
-            <tr><td><code>left</code></td><td>String</td><td><code>left="id-source-a"</code></td><td>ID de la source gauche — source principale (requis)</td></tr>
-            <tr><td><code>right</code></td><td>String</td><td><code>right="id-source-b"</code></td><td>ID de la source droite (requis)</td></tr>
-            <tr><td><code>on</code></td><td>String</td><td>Voir formats ci-dessous</td><td>Clé(s) de jointure (requis)</td></tr>
-            <tr><td><code>type</code></td><td>String</td><td><code>inner</code> | <code>left</code> | <code>right</code> | <code>full</code></td><td>Type de jointure. Défaut : <code>left</code></td></tr>
-            <tr><td><code>prefix-left</code></td><td>String</td><td><code>prefix-left="pop_"</code></td><td>Prefixe pour les champs gauche en cas de collision. Défaut : vide</td></tr>
-            <tr><td><code>prefix-right</code></td><td>String</td><td><code>prefix-right="budget_"</code></td><td>Prefixe pour les champs droite en cas de collision. Défaut : <code>right_</code></td></tr>
+            <!-- ATTRS:dsfr-data-join fields="left,right,on,type,prefix-left,prefix-right" -->
+              <tr><td><code>left</code></td><td>String</td><td><code>left="id-source-a"</code></td><td>ID de la source gauche (source principale)</td></tr>
+              <tr><td><code>right</code></td><td>String</td><td><code>right="id-source-b"</code></td><td>ID de la source droite</td></tr>
+              <tr><td><code>on</code></td><td>String</td><td>Voir formats ci-dessous</td><td>Clé(s) de jointure. - Clé commune : on="code_dept" - Clé différente : on="dept_code=code" (gauche=droite) - Multi-clé : on="annee,code_region"</td></tr>
+              <tr><td><code>type</code></td><td>JoinType</td><td><code>inner</code> | <code>left</code> | <code>right</code> | <code>full</code></td><td>Type de jointure : inner | left | right | full</td></tr>
+              <tr><td><code>prefix-left</code></td><td>String</td><td><code>prefix-left="pop_"</code></td><td>Préfixe pour les champs de la source gauche en cas de collision</td></tr>
+              <tr><td><code>prefix-right</code></td><td>String</td><td><code>prefix-right="budget_"</code></td><td>Préfixe pour les champs de la source droite en cas de collision</td></tr>
+            <!-- /ATTRS -->
           </tbody>
         </table>
 
@@ -71,20 +73,20 @@ dsfr-data-source (B)  ──────┘</pre></div>
         <section class="demo-section">
           <h4>Clé commune</h4>
           <p>Quand le champ porte le même nom dans les deux sources :</p>
-          <div class="code-block"><pre>on="code_dept"</pre></div>
+          <div class="code-block"><pre><span class="tok-attr">on</span><span class="tok-punct">=</span><span class="tok-string">"code_dept"</span></pre></div>
         </section>
 
         <section class="demo-section">
           <h4>Clé de nommage different</h4>
           <p>Quand le champ a un nom different dans chaque source (gauche=droite) :</p>
-          <div class="code-block"><pre>on="dept_code=code"</pre></div>
+          <div class="code-block"><pre><span class="tok-attr">on</span><span class="tok-punct">=</span><span class="tok-string">"dept_code=code"</span></pre></div>
         </section>
 
         <section class="demo-section">
           <h4>Multi-clé</h4>
           <p>Jointure sur plusieurs champs (separes par virgule) :</p>
-          <div class="code-block"><pre>on="annee,code_region"
-on="annee, dept_code=code"</pre></div>
+          <div class="code-block"><pre><span class="tok-attr">on</span><span class="tok-punct">=</span><span class="tok-string">"annee,code_region"</span>
+<span class="tok-attr">on</span><span class="tok-punct">=</span><span class="tok-string">"annee, dept_code=code"</span></pre></div>
         </section>
 
         <h2 id="types" class="fr-mt-4w">Types de jointure</h2>
@@ -106,23 +108,23 @@ on="annee, dept_code=code"</pre></div>
             Jointure gauche entre un dataset de population et un dataset de budgets, sur le code departement.
             <a href="../../guide/guide-exemples-join.html" class="fr-link fr-link--sm">Voir l'exemple live</a>
           </p>
-          <div class="code-block"><pre>&lt;dsfr-data-source id="pop" api-type="opendatasoft"
-  dataset-id="population-dept" base-url="https://data.economie.gouv.fr"&gt;
-&lt;/dsfr-data-source&gt;
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-source</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"pop"</span> <span class="tok-attr">api-type</span><span class="tok-punct">=</span><span class="tok-string">"opendatasoft"</span>
+  <span class="tok-attr">dataset-id</span><span class="tok-punct">=</span><span class="tok-string">"population-dept"</span> <span class="tok-attr">base-url</span><span class="tok-punct">=</span><span class="tok-string">"https://data.economie.gouv.fr"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-source</span><span class="tok-punct">&gt;</span>
 
-&lt;dsfr-data-source id="budget" api-type="tabular"
-  resource="abc123-budget-dept"&gt;
-&lt;/dsfr-data-source&gt;
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-source</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"budget"</span> <span class="tok-attr">api-type</span><span class="tok-punct">=</span><span class="tok-string">"tabular"</span>
+  <span class="tok-attr">resource</span><span class="tok-punct">=</span><span class="tok-string">"abc123-budget-dept"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-source</span><span class="tok-punct">&gt;</span>
 
-&lt;dsfr-data-join id="enriched"
-  left="pop" right="budget"
-  on="code_dept" type="left"
-  prefix-right="budget_"&gt;
-&lt;/dsfr-data-join&gt;
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-join</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"enriched"</span>
+  <span class="tok-attr">left</span><span class="tok-punct">=</span><span class="tok-string">"pop"</span> <span class="tok-attr">right</span><span class="tok-punct">=</span><span class="tok-string">"budget"</span>
+  <span class="tok-attr">on</span><span class="tok-punct">=</span><span class="tok-string">"code_dept"</span> <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"left"</span>
+  <span class="tok-attr">prefix-right</span><span class="tok-punct">=</span><span class="tok-string">"budget_"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-join</span><span class="tok-punct">&gt;</span>
 
-&lt;dsfr-data-chart source="enriched" type="bar"
-  label-field="nom_dept" value-field="budget_montant"&gt;
-&lt;/dsfr-data-chart&gt;</pre></div>
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-chart</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"enriched"</span> <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"bar"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"nom_dept"</span> <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"budget_montant"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-chart</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <section class="demo-section">
@@ -130,19 +132,19 @@ on="annee, dept_code=code"</pre></div>
           <p>
             Apres la jointure, un <code>&lt;dsfr-data-query&gt;</code> peut agréger et trier les données fusionnees.
           </p>
-          <div class="code-block"><pre>&lt;dsfr-data-join id="joined"
-  left="src1" right="src2"
-  on="code_region" type="inner"&gt;
-&lt;/dsfr-data-join&gt;
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-join</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"joined"</span>
+  <span class="tok-attr">left</span><span class="tok-punct">=</span><span class="tok-string">"src1"</span> <span class="tok-attr">right</span><span class="tok-punct">=</span><span class="tok-string">"src2"</span>
+  <span class="tok-attr">on</span><span class="tok-punct">=</span><span class="tok-string">"code_region"</span> <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"inner"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-join</span><span class="tok-punct">&gt;</span>
 
-&lt;dsfr-data-query id="q" source="joined"
-  aggregate="population:sum:total,budget:sum:total_budget"
-  group-by="nom_region" order-by="total:desc"&gt;
-&lt;/dsfr-data-query&gt;
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-query</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"q"</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"joined"</span>
+  <span class="tok-attr">aggregate</span><span class="tok-punct">=</span><span class="tok-string">"population:sum:total,budget:sum:total_budget"</span>
+  <span class="tok-attr">group-by</span><span class="tok-punct">=</span><span class="tok-string">"nom_region"</span> <span class="tok-attr">order-by</span><span class="tok-punct">=</span><span class="tok-string">"total:desc"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-query</span><span class="tok-punct">&gt;</span>
 
-&lt;dsfr-data-chart source="q" type="bar" horizontal
-  label-field="nom_region" value-field="total"&gt;
-&lt;/dsfr-data-chart&gt;</pre></div>
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-chart</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"q"</span> <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"bar"</span> horizontal
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"nom_region"</span> <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"total"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-chart</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <section class="demo-section">
@@ -150,10 +152,10 @@ on="annee, dept_code=code"</pre></div>
           <p>
             Quand le champ de jointure n'a pas le même nom dans les deux sources :
           </p>
-          <div class="code-block"><pre>&lt;dsfr-data-join id="merged"
-  left="src-a" right="src-b"
-  on="dept_code=code" type="inner"&gt;
-&lt;/dsfr-data-join&gt;</pre></div>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-join</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"merged"</span>
+  <span class="tok-attr">left</span><span class="tok-punct">=</span><span class="tok-string">"src-a"</span> <span class="tok-attr">right</span><span class="tok-punct">=</span><span class="tok-string">"src-b"</span>
+  <span class="tok-attr">on</span><span class="tok-punct">=</span><span class="tok-string">"dept_code=code"</span> <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"inner"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-join</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <h2 id="evenements" class="fr-mt-4w">Événements</h2>

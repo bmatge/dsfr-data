@@ -103,12 +103,12 @@ const DEPRECATED_PRESETS: Record<string, { replacement: string; reason: string }
 /**
  * Politique de referrer posee explicitement sur les tuiles (#576).
  *
- * Leaflet ne pose aucun attribut `referrerPolicy` par defaut (option a `false`), c'est donc
+ * Leaflet ne pose aucun attribut `referrerPolicy` par défaut (option a `false`), c'est donc
  * la politique du *document hote* qui s'applique. Une page servie en `Referrer-Policy:
  * no-referrer` supprime alors l'en-tete `Referer` — ce que la Tile Usage Policy de l'OSMF
  * interdit nommement (« Do not set a restrictive Referrer-Policy that prevents the Referer
  * header being sent »), et ce que les fournisseurs a quota utilisent pour identifier le
- * domaine appelant. L'attribut porte par l'element prime sur la politique du document :
+ * domaine appelant. L'attribut porte par l'élément prime sur la politique du document :
  * le fixer ici rend l'embed conforme quelle que soit la page qui l'accueille.
  */
 const TILE_REFERRER_POLICY = 'strict-origin-when-cross-origin';
@@ -155,7 +155,7 @@ export function resolveTilePreset(
 
 /**
  * Construit l'URL et les options de la `TileLayer` a partir des attributs du composant.
- * Fonction pure, extraite de `_updateTiles()` pour etre testable sans Leaflet (#576).
+ * Fonction pure, extraite de `_updateTiles()` pour être testable sans Leaflet (#576).
  *
  * Les warnings sont retournes plutot que loggues, a charge de l'appelant.
  *
@@ -199,7 +199,7 @@ export function buildTileLayerConfig(
 }
 
 /**
- * Clippe des bounds de donnees par un attribut max-bounds "latSW,lonSW,latNE,lonNE"
+ * Clippe des bounds de données par un attribut max-bounds "latSW,lonSW,latNE,lonNE"
  * avant un fitBounds. Retourne null si l'intersection est vide (la vue ne doit
  * pas bouger) ; les bounds inchangees si max-bounds est absent ou invalide.
  *
@@ -284,7 +284,7 @@ export class DsfrDataMap extends LitElement {
   @property({ type: String })
   tiles = 'ign-plan';
 
-  /** Mention d'attribution affichee sur la carte quand `tiles` est une URL custom (obligatoire pour respecter l'ODbL et les CGU du fournisseur). Ignore sur un preset connu, qui porte deja son attribution. Accepte du HTML (liens). */
+  /** Mention d'attribution affichée sur la carte quand `tiles` est une URL custom (obligatoire pour respecter l'ODbL et les CGU du fournisseur). Ignoré sur un preset connu, qui porte déjà son attribution. Accepte du HTML (liens). */
   @property({ type: String, attribute: 'tiles-attribution' })
   tilesAttribution = '';
 
@@ -304,16 +304,16 @@ export class DsfrDataMap extends LitElement {
   @property({ type: Boolean })
   locked = false;
 
-  /** Raccourci encarts territoriaux : groupe ("drom") et/ou territoires nommes
-   *  separes par des virgules ("drom,corse", "guadeloupe,saint-pierre-et-miquelon") */
+  /** Raccourci encarts territoriaux : groupe ("drom") et/ou territoires nommés
+   *  séparés par des virgules ("drom,corse", "guadeloupe,saint-pierre-et-miquelon") */
   @property({ type: String })
   insets = '';
 
-  /** Ajuste le viewport aux donnees a chaque mise a jour. Combine a `max-bounds`, l'emprise est clippee a la zone : les DROM ne dezooment pas la vue, un filtre regional zoome dessus. */
+  /** Ajuste le viewport aux données à chaque mise à jour. Combiné à `max-bounds`, l'emprise est clippée à la zone : les DROM ne dézooment pas la vue, un filtre régional zoome dessus. */
   @property({ type: Boolean, attribute: 'fit-bounds' })
   fitBounds = false;
 
-  /** Limites du deplacement, au format `"latSW,lonSW,latNE,lonNE"`. Clippe aussi le fit de `fit-bounds` quand `fit-zone` est vide. */
+  /** Limites du déplacement, au format `"latSW,lonSW,latNE,lonNE"`. Clippe aussi le fit de `fit-bounds` quand `fit-zone` est vide. */
   @property({ type: String, attribute: 'max-bounds' })
   maxBounds = '';
 
@@ -321,7 +321,7 @@ export class DsfrDataMap extends LitElement {
   @property({ type: String, attribute: 'fit-zone' })
   fitZone = '';
 
-  /** Zoom maximal atteint par `fit-bounds` (ex. `12`) : evite le zoom 18 sur un point isole quand les donnees se reduisent a un marqueur. `0` (defaut) = pas de plafond, `max-zoom` s'applique. */
+  /** Zoom maximal atteint par `fit-bounds` (ex. `12`) : évite le zoom 18 sur un point isolé quand les données se réduisent à un marqueur. `0` (défaut) = pas de plafond, `max-zoom` s'applique. */
   @property({ type: Number, attribute: 'fit-max-zoom' })
   fitMaxZoom = 0;
 
@@ -364,7 +364,7 @@ export class DsfrDataMap extends LitElement {
 
   /**
    * Raccourci `insets` : genere les enfants dsfr-data-map-inset a partir de
-   * groupes ("drom") et/ou de territoires nommes ("guadeloupe,corse").
+   * groupes ("drom") et/ou de territoires nommés ("guadeloupe,corse").
    * Les encarts poses explicitement en HTML priment (pas de doublon).
    */
   private _insetsExpanded = false;
@@ -381,7 +381,7 @@ export class DsfrDataMap extends LitElement {
   }
 
   /**
-   * Defer map initialization until the element is near the viewport.
+   * Defer map initialization until the élément is near the viewport.
    * This avoids loading hundreds of tiles for off-screen maps.
    */
   private _deferInitUntilVisible() {
@@ -453,9 +453,9 @@ export class DsfrDataMap extends LitElement {
   }
 
   /**
-   * Apply the height value to the host element.
+   * Apply the height value to the host élément.
    * If height is a percentage (e.g. "60%"), it is interpreted as a ratio
-   * of the element's own width (aspect-ratio mode). A ResizeObserver keeps
+   * of the élément's own width (aspect-ratio mode). A ResizeObserver keeps
    * the height in sync when the width changes (responsive).
    * Other CSS units (px, vh, rem, etc.) are applied directly.
    */
@@ -510,7 +510,7 @@ export class DsfrDataMap extends LitElement {
 
   // --- Public API ---
 
-  /** Retourne l'instance Leaflet L.Map (ou null si pas encore prete) */
+  /** Retourne l'instance Leaflet L.Map (ou null si pas encore prête) */
   getLeafletMap(): LeafletMap | null {
     return this._leafletMap;
   }
@@ -524,7 +524,7 @@ export class DsfrDataMap extends LitElement {
    * Notifie la carte qu'un layer a ses bounds prets (pour fit-bounds).
    * Stockes PAR layer avec remplacement a chaque rendu (#294) : l'ancien
    * push cumulait les bounds HISTORIQUES — la carte ne pouvait jamais
-   * retrecir sa vue quand les donnees diminuaient, et le tableau grossissait
+   * retrecir sa vue quand les données diminuaient, et le tableau grossissait
    * a chaque refresh / frame de timeline / pan en bbox client.
    */
   registerLayerBounds(layerKey: string, bounds: import('leaflet').LatLngBounds): void {
@@ -790,7 +790,7 @@ export class DsfrDataMap extends LitElement {
   /**
    * Combine les bounds de tous les layers en une COPIE (#294) :
    * `extend` de Leaflet mute en place — l'ancien code corrompait la
-   * premiere entree stockee.
+   * première entree stockee.
    */
   private _combineBounds(
     all: import('leaflet').LatLngBounds[],

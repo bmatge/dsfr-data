@@ -45,14 +45,14 @@ import {
  *   select="count(*) as total, region" group-by="region">
  * </dsfr-data-source>
  *
- * @fires dsfr-data-loaded - `{ sourceId, data }` sur `document` — donnees chargees et publiees sous l'`id` de cette source. C'est l'evenement que tout l'aval ecoute.
+ * @fires dsfr-data-loaded - `{ sourceId, data }` sur `document` — données chargees et publiees sous l'`id` de cette source. C'est l'evenement que tout l'aval ecoute.
  * @fires dsfr-data-loading - `{ sourceId }` sur `document` — un chargement demarre.
  * @fires dsfr-data-error - `{ sourceId, error, attemptedUrl? }` sur `document` — le fetch ou le
  *   parsing a echoue. `attemptedUrl` (#603) porte l'URL REELLEMENT appelee, proxy applique :
  *   elle diverge souvent du `base-url` ecrit dans le HTML, et le message de l'`Error` reste
- *   volontairement court. La cle est absente quand l'URL n'a pas pu etre construite, ou pour
- *   une erreur qui ne vient pas d'un fetch (donnees inline invalides, configuration).
- * @fires cache-fallback - `{ sourceId }` sur l'element — les donnees servies viennent du cache externe apres un echec reseau (#307).
+ *   volontairement court. La cle est absente quand l'URL n'a pas pu être construite, ou pour
+ *   une erreur qui ne vient pas d'un fetch (données inline invalides, configuration).
+ * @fires cache-fallback - `{ sourceId }` sur l'élément — les données servies viennent du cache externe après un echec reseau (#307).
  */
 @customElement('dsfr-data-source')
 export class DsfrDataSource extends LitElement {
@@ -62,19 +62,19 @@ export class DsfrDataSource extends LitElement {
   @property({ type: String })
   url = '';
 
-  /** Methode HTTP : `GET` (defaut) ou `POST`. */
+  /** Méthode HTTP : `GET` (défaut) ou `POST`. */
   @property({ type: String })
   method: 'GET' | 'POST' = 'GET';
 
   /**
-   * En-tetes HTTP en JSON. Ex: `'{"Authorization": "Bearer xxx"}'`.
+   * En-têtes HTTP en JSON. Ex: `'{"Authorization": "Bearer xxx"}'`.
    * OpenDataSoft : la clé va dans `Authorization: Apikey CLE` (seul en-tête
    * autorisé en CORS) — un `apikey` nu est réécrit automatiquement (#655).
    */
   @property({ type: String })
   headers = '';
 
-  /** Parametres de requete en JSON : query string en GET, corps en POST. */
+  /** Paramètres de requête en JSON : query string en GET, corps en POST. */
   @property({ type: String })
   params = '';
 
@@ -82,7 +82,7 @@ export class DsfrDataSource extends LitElement {
   @property({ type: Number })
   refresh = 0;
 
-  /** Chemin JSONPath vers le tableau de donnees dans la reponse. Ex: `"results"`, `"data.items"`. */
+  /** Chemin JSONPath vers le tableau de données dans la réponse. Ex: `"results"`, `"data.items"`. */
   @property({ type: String })
   transform = '';
 
@@ -112,7 +112,7 @@ export class DsfrDataSource extends LitElement {
   @property({ type: String, attribute: 'proxy-url' })
   proxyUrl = '';
 
-  /** Reference vers une clé API declaree dans window.DSFR_DATA_KEYS */
+  /** Référence vers une clé API déclarée dans window.DSFR_DATA_KEYS */
   @property({ type: String, attribute: 'api-key-ref' })
   apiKeyRef = '';
 
@@ -149,8 +149,8 @@ export class DsfrDataSource extends LitElement {
   select = '';
 
   /**
-   * Group-by (pour les APIs qui le supportent server-side). ODS : un element
-   * peut etre une expression aliasee (`year(date) as annee`), transmise telle
+   * Group-by (pour les APIs qui le supportent server-side). ODS : un élément
+   * peut être une expression aliasée (`year(date) as annee`), transmise telle
    * quelle — l'alias `as` est obligatoire cote ODS (#641).
    */
   @property({ type: String, attribute: 'group-by' })
@@ -168,15 +168,15 @@ export class DsfrDataSource extends LitElement {
   @property({ type: Boolean, attribute: 'server-side' })
   serverSide = false;
 
-  /** Limite du nombre de resultats */
+  /** Limite du nombre de résultats */
   @property({ type: Number })
   limit = 0;
 
   /**
    * Plafond de records du fetchAll en mode adapter (#233). 0 = plafond par
-   * defaut de l'adapter (ODS : 1000). A relever explicitement pour les
-   * dashboards « un fetch, N agregations client » — attention au nombre de
-   * requetes en boucle et au poids memoire.
+   * défaut de l'adapter (ODS : 1000). A relever explicitement pour les
+   * dashboards « un fetch, N agrégations client » — attention au nombre de
+   * requêtes en boucle et au poids mémoire.
    */
   @property({ type: Number, attribute: 'max-records' })
   maxRecords = 0;
@@ -207,9 +207,9 @@ export class DsfrDataSource extends LitElement {
   private _whereOverlays = new Map<string, string>();
   /** Dynamic orderBy overlay from dsfr-data-list sort */
   private _orderByOverlay = '';
-  /** Dynamic groupBy overlay from dsfr-data-query delegation */
+  /** Dynamic groupBy overlay from dsfr-data-query délégation */
   private _groupByOverlay = '';
-  /** Dynamic aggregate overlay from dsfr-data-query delegation */
+  /** Dynamic aggregate overlay from dsfr-data-query délégation */
   private _aggregateOverlay = '';
 
   /** Cached adapter instance */
@@ -785,7 +785,7 @@ export class DsfrDataSource extends LitElement {
   /**
    * URL construite par l'adapter pour ce fetch, a seule fin de diagnostic
    * (#598). En mode fetchAll l'adapter pagine ensuite lui-meme : l'URL rendue
-   * est celle de la premiere requete, sans les surcharges de page.
+   * est celle de la première requête, sans les surcharges de page.
    *
    * Purement informative — ne doit jamais faire echouer le log d'erreur.
    */
@@ -802,7 +802,7 @@ export class DsfrDataSource extends LitElement {
   }
 
   /**
-   * Parametres adapter resolus, headers effectifs inclus (headers +
+   * Paramètres adapter resolus, headers effectifs inclus (headers +
    * api-key-ref). Consomme par les composants aval via SourceElement (#274).
    */
   public getAdapterParams(): AdapterParams {
@@ -928,9 +928,9 @@ export class DsfrDataSource extends LitElement {
   // --- Server cache (DB mode) ---
 
   /**
-   * Fingerprint de la requete courante (#307) : la cle de cache inclut
+   * Fingerprint de la requête courante (#307) : la cle de cache inclut
    * URL/params/where/page... — l'ancienne cle (id seul) pouvait resservir
-   * la page 3 filtree d'hier pour une requete page 1 sans filtre.
+   * la page 3 filtree d'hier pour une requête page 1 sans filtre.
    */
   private _cacheFingerprint(): unknown {
     return {

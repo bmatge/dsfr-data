@@ -213,7 +213,7 @@ Quand `databox` est active, dsfr-data-a11y ne doit PAS inclure `table` ni `downl
 | `label-field` | `string` | `""` (vide) | Chemin vers le champ label |
 | `map-highlight` | `string` | `""` (vide) | ID du département/région à mettre en avant (map chart) |
 | `name` | `string` | `""` (vide) | Nom(s) de série. Chaîne simple recommandée (`name="Taux"`), enveloppée automatiquement pour DSFR Chart ; tableau JSON pour le multi-séries (`name='["Réalisé","Objectif"]'`). Sur les cartes (`map*`), un seul nom : le premier élément d'un JSON est retenu (#653). Priorité (#668) : `name` explicite, sinon l'alias inline `champ:Libellé` de value-field(s), sinon le nom du champ (ou les valeurs de series-field en mode tidy). |
-| `reference-lines` | `string` | `""` (vide) | Lignes de reference (overlay) au format JSON. Graphiques cartesiens uniquement (line, bar, bar-line, scatter). Chaque item : `{ axis: "x"\|"y", value: string\|number, label?, color?, dash?, position? }`. `axis:"x"` → ligne verticale à une catégorie/date ; `axis:"y"` → ligne horizontale a un seuil. Ex : `reference-lines='[{"axis":"x","value":"2026-02", "label":"Lancement","color":"#c9191e","dash":true}]'`. |
+| `reference-lines` | `string` | `""` (vide) | Lignes de référence (overlay) au format JSON. Graphiques cartésiens uniquement (line, bar, bar-line, scatter). Chaque item : `{ axis: "x"\|"y", value: string\|number, label?, color?, dash?, position? }`. `axis:"x"` → ligne verticale à une catégorie/date ; `axis:"y"` → ligne horizontale à un seuil. Ex : `reference-lines='[{"axis":"x","value":"2026-02", "label":"Lancement","color":"#c9191e","dash":true}]'`. |
 | `selected-palette` | `string` | `'categorical'` | Palette de couleurs |
 | `series-field` | `string` | `""` (vide) | Champ "clé de série" pour des données au format long/tidy : ses valeurs distinctes deviennent autant de series (mode multi-series sans colonnes multiples). Ex: données {mois, groupe, valeur} avec series-field="groupe" → une série par groupe. S'applique aux types multi-series (bar, line, radar). Prioritaire sur value-fields. |
 | `source` | `string` | `""` (vide) | Id de la `<dsfr-data-source>` (ou d'un transformateur) dont ce graphique consomme les données. |
@@ -227,8 +227,8 @@ Quand `databox` est active, dsfr-data-a11y ne doit PAS inclure `table` ni `downl
 | `value-field` | `string` | `""` (vide) | Chemin vers le champ valeur. Alias inline `champ:Libellé` (#668) : `value-field="Panier_moyen:Panier moyen"` affiche « Panier moyen » dans la légende à la place du nom technique. Un `name` explicite prime sur l'alias. Un `:` littéral dans un chemin ou un libellé s'échappe en `%3A` (escapeColonValue). |
 | `value-field-2` | `string` | `""` (vide) | Chemin vers un second champ de valeur (pour bar-line: y-line). Alias inline `champ:Libellé` accepté (#668). |
 | `value-fields` | `string` | `""` (vide) | Champs de valeur supplémentaires, séparés par des virgules (ex: 'budget,score'). Alias inline `champ:Libellé` par série (#668) : `value-fields="budget:Budget, score:Score"`. Un `name` explicite (tableau JSON) prime sur les alias. |
-| `x-max` | `string` | `""` (vide) | Limite max de l'axe X (types cartesiens : line, scatter, bar-line). |
-| `x-min` | `string` | `""` (vide) | Limite min de l'axe X (types cartesiens : line, scatter, bar-line). |
+| `x-max` | `string` | `""` (vide) | Limite max de l'axe X (types cartésiens : line, scatter, bar-line). |
+| `x-min` | `string` | `""` (vide) | Limite min de l'axe X (types cartésiens : line, scatter, bar-line). |
 | `y-max` | `string` | `""` (vide) | Limite max de l'axe Y. Pour `type="radar"` : borne max de l'echelle radiale ; si `y-min` et `y-max` sont entiers avec une amplitude de 1 a 10, la grille utilise des anneaux entiers (stepSize 1). |
 | `y-min` | `string` | `""` (vide) | Limite min de l'axe Y. Pour `type="radar"` : borne min de l'échelle radiale (le centre du radar est fixé à `y-min` au lieu du minimum des données). |
 
@@ -237,7 +237,7 @@ Quand `databox` est active, dsfr-data-a11y ne doit PAS inclure `table` ni `downl
 
 | Méthode | Retour | Description |
 |---|---|---|
-| `getSkippedCount()` | `number` | Nombre de lignes ignorees par la derniere carte rendue (`type="map*"`) : code geographique absent, vide ou invalide pour le decoupage. 0 hors carte. |
+| `getSkippedCount()` | `number` | Nombre de lignes ignorees par la dernière carte rendue (`type="map*"`) : code geographique absent, vide ou invalide pour le decoupage. 0 hors carte. |
 
 
 **Événements** (émis sur `document` : ecouter via `document.addEventListener`, filtrer sur `detail.sourceId`)

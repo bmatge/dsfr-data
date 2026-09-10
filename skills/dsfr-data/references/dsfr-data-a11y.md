@@ -105,16 +105,16 @@ rendu : switch chart/tableau integre, CSV natif). Conserver uniquement :
 | Attribut | Type | Défaut | Description |
 |---|---|---|---|
 | `decimals` | `number \| null` | `null` | Nombre de décimales des cellules numériques du tableau (#666). Absent : au plus 2 décimales, format fr-FR. Le CSV n'est pas concerné. |
-| `description` | `string` | `""` (vide) | Description textuelle du graphique, lue par les lecteurs d'ecran. |
-| `download` | `boolean` | `false` | Affiche le bouton de telechargement CSV. |
-| `filename` | `string` | `'données.csv'` | Nom du fichier CSV telecharge. |
-| `for` | `string` | `""` (vide) | Id de l'element cible (graphique, carte) pour la liaison ARIA et le lien d'evitement. |
-| `label` | `string` | `""` (vide) | Libelle personnalise de la section accessible. |
-| `label-field` | `string` | `""` (vide) | Colonne utilisee pour les labels du tableau. |
-| `no-auto-aria` | `boolean` | `false` | Desactive la pose automatique des attributs ARIA et du lien d'evitement. |
-| `source` | `string` | `""` (vide) | Id de la source (ou du transformateur) dont ce complement accessible consomme les donnees. |
-| `table` | `boolean` | `false` | Affiche le tableau de donnees equivalent au graphique. |
-| `value-field` | `string` | `""` (vide) | Colonne(s) utilisee(s) pour les valeurs du tableau (separees par des virgules). |
+| `description` | `string` | `""` (vide) | Description textuelle du graphique, lue par les lecteurs d'écran. |
+| `download` | `boolean` | `false` | Affiche le bouton de téléchargement CSV. |
+| `filename` | `string` | `'données.csv'` | Nom du fichier CSV téléchargé. |
+| `for` | `string` | `""` (vide) | Id de l'élément cible (graphique, carte) pour la liaison ARIA et le lien d'évitement. |
+| `label` | `string` | `""` (vide) | Libellé personnalisé de la section accessible. |
+| `label-field` | `string` | `""` (vide) | Colonne utilisée pour les labels du tableau. |
+| `no-auto-aria` | `boolean` | `false` | Desactive la pose automatique des attributs ARIA et du lien d'évitement. |
+| `source` | `string` | `""` (vide) | Id de la source (ou du transformateur) dont ce complément accessible consomme les données. |
+| `table` | `boolean` | `false` | Affiche le tableau de données équivalent au graphique. |
+| `value-field` | `string` | `""` (vide) | Colonne(s) utilisée(s) pour les valeurs du tableau (séparées par des virgules). |
 
 
 **Méthodes publiques**

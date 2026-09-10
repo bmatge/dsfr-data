@@ -432,6 +432,33 @@ export class AppLayoutDemo extends LitElement {
           white-space: pre-wrap;
         }
 
+        /*
+         * Coloration syntaxique des blocs de code.
+         * Les <span class="tok-*"> sont poses au BUILD par
+         * scripts/build-specs-tables.ts (pas de coloriseur au runtime).
+         * Palette calee sur le fond sombre #1e1e1e du .code-block.
+         */
+        .code-block .tok-tag {
+          color: #6cb6ff;
+        }
+
+        .code-block .tok-attr {
+          color: #b3d99a;
+        }
+
+        .code-block .tok-string {
+          color: #e8b882;
+        }
+
+        .code-block .tok-punct {
+          color: #9aa0a6;
+        }
+
+        .code-block .tok-comment {
+          color: #7f8c8d;
+          font-style: italic;
+        }
+
         .attr-table {
           width: 100%;
           border-collapse: collapse;

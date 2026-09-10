@@ -131,27 +131,27 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 | Attribut | Type | Défaut | Description |
 |---|---|---|---|
 | `aggregate` | `string` | `""` (vide) | Agrégation (pour les APIs qui le supportent server-side) |
-| `api-key-ref` | `string` | `""` (vide) | Reference vers une clé API declaree dans window.DSFR_DATA_KEYS |
+| `api-key-ref` | `string` | `""` (vide) | Référence vers une clé API déclarée dans window.DSFR_DATA_KEYS |
 | `api-type` | `string` | `'generic'` | Type d'API — active le mode adapter si != 'generic' et url est vide |
 | `base-url` | `string` | `""` (vide) | URL de base de l'API (pour ODS, Tabular) |
 | `cache-ttl` | `number` | `3600` | TTL du cache externe en secondes (0 = desactive). Actif uniquement si la page hote enregistre `window.DSFR_DATA_CACHE_PROVIDER` (#307) — no-op en embed anonyme. |
 | `data` | `string` | `""` (vide) | Données JSON inline (pas de fetch) |
 | `dataset-id` | `string` | `""` (vide) | ID du dataset (pour ODS) |
-| `group-by` | `string` | `""` (vide) | Group-by (pour les APIs qui le supportent server-side). ODS : un element peut etre une expression aliasee (`year(date) as annee`), transmise telle quelle — l'alias `as` est obligatoire cote ODS (#641). |
-| `headers` | `string` | `""` (vide) | En-tetes HTTP en JSON. Ex: `'{"Authorization": "Bearer xxx"}'`. OpenDataSoft : la clé va dans `Authorization: Apikey CLE` (seul en-tête autorisé en CORS) — un `apikey` nu est réécrit automatiquement (#655). |
-| `limit` | `number` | `0` | Limite du nombre de resultats |
-| `max-records` | `number` | `0` | Plafond de records du fetchAll en mode adapter (#233). 0 = plafond par defaut de l'adapter (ODS : 1000). A relever explicitement pour les dashboards « un fetch, N agregations client » — attention au nombre de requetes en boucle et au poids memoire. |
-| `method` | `'GET' \| 'POST'` | `'GET'` | Methode HTTP : `GET` (defaut) ou `POST`. |
+| `group-by` | `string` | `""` (vide) | Group-by (pour les APIs qui le supportent server-side). ODS : un élément peut être une expression aliasée (`year(date) as annee`), transmise telle quelle — l'alias `as` est obligatoire cote ODS (#641). |
+| `headers` | `string` | `""` (vide) | En-têtes HTTP en JSON. Ex: `'{"Authorization": "Bearer xxx"}'`. OpenDataSoft : la clé va dans `Authorization: Apikey CLE` (seul en-tête autorisé en CORS) — un `apikey` nu est réécrit automatiquement (#655). |
+| `limit` | `number` | `0` | Limite du nombre de résultats |
+| `max-records` | `number` | `0` | Plafond de records du fetchAll en mode adapter (#233). 0 = plafond par défaut de l'adapter (ODS : 1000). A relever explicitement pour les dashboards « un fetch, N agrégations client » — attention au nombre de requêtes en boucle et au poids mémoire. |
+| `method` | `'GET' \| 'POST'` | `'GET'` | Méthode HTTP : `GET` (défaut) ou `POST`. |
 | `order-by` | `string` | `""` (vide) | Order-by |
 | `page-size` | `number` | `20` | Taille de page pour la pagination serveur (nombre de records par page). |
 | `paginate` | `boolean` | `false` | Active la pagination serveur en mode URL : injecte page/page_size dans l'URL et publie la meta. |
-| `params` | `string` | `""` (vide) | Parametres de requete en JSON : query string en GET, corps en POST. |
+| `params` | `string` | `""` (vide) | Paramètres de requête en JSON : query string en GET, corps en POST. |
 | `proxy-url` | `string` | `""` (vide) | Domaine du proxy CORS pour CETTE source (#340), prioritaire sur `window.DSFR_DATA_PROXY` et la config build-time. Sert a la fois la reecriture d'hote connu (Grist gouv/SaaS, Tabular, INSEE) et le `use-proxy` generique. Vide = resolution proxy globale habituelle. Ex: `proxy-url="https://mon-proxy.fr"`. |
 | `refresh` | `number` | `0` | Rafraichissement automatique en secondes (0 = desactive). |
 | `resource` | `string` | `""` (vide) | ID de la ressource (pour Tabular) |
 | `select` | `string` | `""` (vide) | Clause SELECT (pour ODS) |
 | `server-side` | `boolean` | `false` | Mode pagination serveur (datalist, tableaux) |
-| `transform` | `string` | `""` (vide) | Chemin JSONPath vers le tableau de donnees dans la reponse. Ex: `"results"`, `"data.items"`. |
+| `transform` | `string` | `""` (vide) | Chemin JSONPath vers le tableau de données dans la réponse. Ex: `"results"`, `"data.items"`. |
 | `url` | `string` | `""` (vide) | URL de l'API a interroger (mode URL brute). Vide en mode adapter ou en mode `data` inline. |
 | `use-proxy` | `boolean` | `false` | Force le passage par le proxy CORS generique (pour les APIs externes sans CORS) |
 | `where` | `string` | `""` (vide) | Clause WHERE statique |
@@ -162,7 +162,7 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 | Méthode | Retour | Description |
 |---|---|---|
 | `getAdapter()` | `ApiAdapter \| null` | Returns the adapter for this source (if in adapter mode) |
-| `getAdapterParams()` | `AdapterParams` | Parametres adapter resolus, headers effectifs inclus (headers + api-key-ref). Consomme par les composants aval via SourceElement (#274). |
+| `getAdapterParams()` | `AdapterParams` | Paramètres adapter resolus, headers effectifs inclus (headers + api-key-ref). Consomme par les composants aval via SourceElement (#274). |
 | `getData()` | `unknown` | — |
 | `getEffectiveWhere(excludeKey?: string | string[])` | `string` | Returns the effective WHERE clause (static + all dynamic overlays merged). `excludeKey` : un whereKey, ou une liste de whereKeys a ignorer (#678 — une facette en mode `context` emet un whereKey PAR champ et doit les exclure tous du where de base de sa cascade). |
 | `getError()` | `Error \| null` | — |
@@ -174,10 +174,10 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 
 | Événement | Payload | Direction | Quand |
 |---|---|---|---|
-| `cache-fallback` | — | émis | `{ sourceId }` sur l'element — les donnees servies viennent du cache externe apres un echec reseau (#307). |
-| `dsfr-data-loaded` | — | émis | `{ sourceId, data }` sur `document` — donnees chargees et publiees sous l'`id` de cette source. C'est l'evenement que tout l'aval ecoute. |
+| `cache-fallback` | — | émis | `{ sourceId }` sur l'élément — les données servies viennent du cache externe après un echec reseau (#307). |
+| `dsfr-data-loaded` | — | émis | `{ sourceId, data }` sur `document` — données chargees et publiees sous l'`id` de cette source. C'est l'evenement que tout l'aval ecoute. |
 | `dsfr-data-loading` | — | émis | `{ sourceId }` sur `document` — un chargement demarre. |
-| `dsfr-data-error` | — | émis | `{ sourceId, error, attemptedUrl? }` sur `document` — le fetch ou le parsing a echoue. `attemptedUrl` (#603) porte l'URL REELLEMENT appelee, proxy applique : elle diverge souvent du `base-url` ecrit dans le HTML, et le message de l'`Error` reste volontairement court. La cle est absente quand l'URL n'a pas pu etre construite, ou pour une erreur qui ne vient pas d'un fetch (donnees inline invalides, configuration). |
+| `dsfr-data-error` | — | émis | `{ sourceId, error, attemptedUrl? }` sur `document` — le fetch ou le parsing a echoue. `attemptedUrl` (#603) porte l'URL REELLEMENT appelee, proxy applique : elle diverge souvent du `base-url` ecrit dans le HTML, et le message de l'`Error` reste volontairement court. La cle est absente quand l'URL n'a pas pu être construite, ou pour une erreur qui ne vient pas d'un fetch (données inline invalides, configuration). |
 
 
 **Slots** — aucun (le composant rend son propre contenu).

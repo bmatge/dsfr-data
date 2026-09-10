@@ -104,7 +104,7 @@ Fonctionne avec la pagination client et serveur. Compatible avec les autres para
 | `source` | `string` | `""` (vide) | Id de la source (ou du transformateur) dont ce tableau consomme les données. |
 | `tri` | `string` | `""` (vide) | **DEPRECIE** — ne pas utiliser dans du code neuf. alias français de `sort` (#300) |
 | `url-page-param` | `string` | `'page'` | Nom du paramètre URL pour la page (défaut: "page") |
-| `url-sync` | `boolean` | `false` | Synchronise le numero de page dans l'URL (replaceState) |
+| `url-sync` | `boolean` | `false` | Synchronise le numéro de page dans l'URL (replaceState) |
 
 
 **Méthodes publiques**

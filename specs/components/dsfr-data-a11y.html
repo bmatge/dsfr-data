@@ -55,17 +55,19 @@
         <table class="attr-table">
           <thead><tr><th>Attribut</th><th>Type</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><code>source</code></td><td>String</td><td>ID du <code>&lt;dsfr-data-source&gt;</code> ou <code>&lt;dsfr-data-query&gt;</code> (requis)</td></tr>
-            <tr><td><code>for</code></td><td>String</td><td>ID de l'element cible pour skip link + ARIA automatique</td></tr>
-            <tr><td><code>table</code></td><td>Boolean</td><td>Active l'affichage du tableau de données</td></tr>
-            <tr><td><code>download</code></td><td>Boolean</td><td>Active le bouton de téléchargement CSV</td></tr>
-            <tr><td><code>filename</code></td><td>String</td><td>Nom du fichier CSV (défaut : <code>données.csv</code>)</td></tr>
-            <tr><td><code>description</code></td><td>String</td><td>Description textuelle du graphique</td></tr>
-            <tr><td><code>label-field</code></td><td>String</td><td>Colonne pour les labels du tableau (optionnel)</td></tr>
-            <tr><td><code>value-field</code></td><td>String</td><td>Colonne(s) pour les valeurs (separees par virgules, optionnel)</td></tr>
-            <tr><td><code>label</code></td><td>String</td><td>Libelle personnalise de la section accessible</td></tr>
-            <tr><td><code>decimals</code></td><td>Number</td><td>Nombre de décimales des cellules numériques du tableau. Absent : au plus 2 décimales, format fr-FR. Le CSV n'est pas concerné (#666)</td></tr>
-            <tr><td><code>no-auto-aria</code></td><td>Boolean</td><td>Desactive ARIA automatique et skip link</td></tr>
+            <!-- ATTRS:dsfr-data-a11y fields="source,for,table,download,filename,description,label-field,value-field,label,decimals,no-auto-aria" -->
+              <tr><td><code>source</code></td><td>String</td><td>Id de la source (ou du transformateur) dont ce complément accessible consomme les données.</td></tr>
+              <tr><td><code>for</code></td><td>String</td><td>Id de l'élément cible (graphique, carte) pour la liaison ARIA et le lien d'évitement.</td></tr>
+              <tr><td><code>table</code></td><td>Boolean</td><td>Affiche le tableau de données équivalent au graphique.</td></tr>
+              <tr><td><code>download</code></td><td>Boolean</td><td>Affiche le bouton de téléchargement CSV.</td></tr>
+              <tr><td><code>filename</code></td><td>String</td><td>Nom du fichier CSV téléchargé.</td></tr>
+              <tr><td><code>description</code></td><td>String</td><td>Description textuelle du graphique, lue par les lecteurs d'écran.</td></tr>
+              <tr><td><code>label-field</code></td><td>String</td><td>Colonne utilisée pour les labels du tableau.</td></tr>
+              <tr><td><code>value-field</code></td><td>String</td><td>Colonne(s) utilisée(s) pour les valeurs du tableau (séparées par des virgules).</td></tr>
+              <tr><td><code>label</code></td><td>String</td><td>Libellé personnalisé de la section accessible.</td></tr>
+              <tr><td><code>decimals</code></td><td>Number</td><td>Nombre de décimales des cellules numériques du tableau (#666). Absent : au plus 2 décimales, format fr-FR. Le CSV n'est pas concerné.</td></tr>
+              <tr><td><code>no-auto-aria</code></td><td>Boolean</td><td>Desactive la pose automatique des attributs ARIA et du lien d'évitement.</td></tr>
+            <!-- /ATTRS -->
           </tbody>
         </table>
         <p class="fr-text--sm fr-mt-1w">Si ni <code>table</code>, ni <code>download</code>, ni <code>description</code> ne sont définis, les trois sont actives par défaut.</p>
@@ -90,10 +92,10 @@
             label-field="statut" value-field="total">
           </dsfr-data-chart>
           <dsfr-data-a11y for="demo-chart" source="data-chart" table download></dsfr-data-a11y>
-          <div class="code-block"><pre>&lt;dsfr-data-chart id="mon-graph" source="data" type="bar"
-  label-field="statut" value-field="total"&gt;
-&lt;/dsfr-data-chart&gt;
-&lt;dsfr-data-a11y for="mon-graph" source="data" table download&gt;&lt;/dsfr-data-a11y&gt;</pre></div>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-chart</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"mon-graph"</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"data"</span> <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"bar"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"statut"</span> <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"total"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-chart</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-a11y</span> <span class="tok-attr">for</span><span class="tok-punct">=</span><span class="tok-string">"mon-graph"</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"data"</span> table download<span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-a11y</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <section class="demo-section">
@@ -102,10 +104,10 @@
             table download
             description="Ce graphique montre la repartition des sites par statut. Les sites actifs sont les plus nombreux.">
           </dsfr-data-a11y>
-          <div class="code-block"><pre>&lt;dsfr-data-a11y for="mon-graph" source="data"
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-a11y</span> <span class="tok-attr">for</span><span class="tok-punct">=</span><span class="tok-string">"mon-graph"</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"data"</span>
   table download
-  description="Ce graphique montre la repartition des sites par statut."&gt;
-&lt;/dsfr-data-a11y&gt;</pre></div>
+  <span class="tok-attr">description</span><span class="tok-punct">=</span><span class="tok-string">"Ce graphique montre la repartition des sites par statut."</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-a11y</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <section class="demo-section">
@@ -116,23 +118,23 @@
             (DataBox les fournit deja avec un meilleur rendu : switch chart/tableau integre, CSV natif).
             Conserver uniquement <code>description</code> :
           </p>
-          <div class="code-block"><pre>&lt;dsfr-data-chart id="mon-graph" source="data" type="bar"
-  label-field="region" value-field="total"
-  databox databox-title="Population par region"
-  databox-download databox-screenshot&gt;
-&lt;/dsfr-data-chart&gt;
-&lt;!-- Avec DataBox : pas de table ni download --&gt;
-&lt;dsfr-data-a11y for="mon-graph" source="data"
-  description="L'Ile-de-France concentre la majorite de la population."&gt;
-&lt;/dsfr-data-a11y&gt;</pre></div>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-chart</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"mon-graph"</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"data"</span> <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"bar"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"region"</span> <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"total"</span>
+  databox <span class="tok-attr">databox-title</span><span class="tok-punct">=</span><span class="tok-string">"Population par region"</span>
+  databox-download databox-screenshot<span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-chart</span><span class="tok-punct">&gt;</span>
+<span class="tok-comment">&lt;!-- Avec DataBox : pas de table ni download --&gt;</span>
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-a11y</span> <span class="tok-attr">for</span><span class="tok-punct">=</span><span class="tok-string">"mon-graph"</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"data"</span>
+  <span class="tok-attr">description</span><span class="tok-punct">=</span><span class="tok-string">"L'Ile-de-France concentre la majorite de la population."</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-a11y</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <section class="demo-section">
           <h3>4. Mode manuel (no-auto-aria)</h3>
           <p>Si vous gerez manuellement les attributs ARIA :</p>
-          <div class="code-block"><pre>&lt;dsfr-data-a11y source="data"
-  no-auto-aria table download&gt;
-&lt;/dsfr-data-a11y&gt;</pre></div>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-a11y</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"data"</span>
+  no-auto-aria table download<span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-a11y</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
     </div>
   </app-layout-demo>

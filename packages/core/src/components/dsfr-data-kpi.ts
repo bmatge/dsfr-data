@@ -154,7 +154,7 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
    * Expression d'agrégation pour la tendance, évaluée sur les données de la
    * source (grammaire commune "champ:fn", ex. "evolution:avg") — PAS un
    * litteral : l'ancienne doc ("+3.2") laissait croire qu'on passait une
-   * valeur, la chaine etait interpretee comme nom de champ (#303).
+   * valeur, la chaîne etait interpretee comme nom de champ (#303).
    * Rendue avec une fleche (↑/↓) en pourcentage fr-FR ("↑ 5,2 %").
    * `trend="recettes:evolution"` (#675) : taux d'évolution entre la première
    * et la dernière ligne, rendu en pourcentage.

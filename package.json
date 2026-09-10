@@ -49,6 +49,8 @@
     "build:skills-ref": "vite-node scripts/build-skills-reference.ts",
     "build:skills": "npm run build:cem && npm run build:skills-ref && npm run build:skill-matching && npm run build:component-contract && npm run build:lint-markup && vite-node scripts/build-skills-json.ts && npm run build:skills-claude",
     "build:skills-claude": "vite-node scripts/build-skills-claude.ts",
+    "build:specs-tables": "vite-node scripts/build-specs-tables.ts",
+    "check:specs-tables": "vite-node scripts/build-specs-tables.ts --check",
     "skills:install": "node scripts/install-claude-skill.mjs",
     "build:skill-matching": "vite-node scripts/build-skill-matching.ts",
     "build:component-contract": "vite-node scripts/build-component-contract.ts",

@@ -39,7 +39,7 @@ interface PodiumItem {
  */
 @customElement('dsfr-data-podium')
 export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
-  /** Id de la source (ou du transformateur) dont ce composant consomme les donnees. */
+  /** Id de la source (ou du transformateur) dont ce composant consomme les données. */
   @property({ type: String })
   source = '';
 
@@ -51,7 +51,7 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'value-field' })
   valueField = '';
 
-  /** Texte fixe affiche sous chaque label */
+  /** Texte fixe affiché sous chaque label */
   @property({ type: String })
   subtitle = '';
 
@@ -59,7 +59,7 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'subtitle-field' })
   subtitleField = '';
 
-  /** Unite affichee apres la valeur */
+  /** Unité affichée après la valeur */
   @property({ type: String, attribute: 'value-unit' })
   valueUnit = '';
 
@@ -67,7 +67,7 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'selected-palette' })
   selectedPalette = 'sequentialDescending';
 
-  /** Nombre maximum d'items affiches */
+  /** Nombre maximum d'items affichés */
   @property({ type: Number, attribute: 'max-items' })
   maxItems = 5;
 

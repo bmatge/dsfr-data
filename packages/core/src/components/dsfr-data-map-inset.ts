@@ -4,7 +4,7 @@
  * Composant compagnon place comme enfant de dsfr-data-map. Rend une mini-carte
  * verrouillee (zoom fixe, sans interactions) centree sur un territoire, qui
  * reutilise automatiquement les couches (dsfr-data-map-layer) ET le popup
- * (dsfr-data-map-popup) de la carte hote : un clic sur un element de l'encart
+ * (dsfr-data-map-popup) de la carte hote : un clic sur un élément de l'encart
  * ouvre le volet/la modale de la carte principale.
  *
  * @example
@@ -28,7 +28,7 @@ export { TERRITORY_PRESETS, TERRITORY_GROUPS } from '../utils/territories.js';
 export class DsfrDataMapInset extends LitElement {
   /** Territoire predefini (guadeloupe, martinique, guyane, la-reunion, mayotte,
    *  saint-pierre-et-miquelon, saint-martin, saint-barthelemy, nouvelle-caledonie,
-   *  polynesie-francaise, wallis-et-futuna, corse) — fournit center/zoom/label */
+   *  polynesie-française, wallis-et-futuna, corse) — fournit center/zoom/label */
   @property({ type: String })
   territory = '';
 
@@ -40,7 +40,7 @@ export class DsfrDataMapInset extends LitElement {
   @property({ type: Number })
   zoom = 0;
 
-  /** Libelle affiche au-dessus de l'encart (et nom accessible de la mini-carte) */
+  /** Libellé affiché au-dessus de l'encart (et nom accessible de la mini-carte) */
   @property({ type: String })
   label = '';
 

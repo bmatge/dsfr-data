@@ -146,7 +146,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
    * Jeton de generation des rendus (#295) : deux _renderLayer qui se
    * chevauchent pendant le await import(...) (cluster/heatmap)
    * franchissaient chacun clearLayers() puis ajoutaient CHACUN tous les
-   * items — doublons visibles. Le rendu obsolete s'abandonne apres chaque
+   * items — doublons visibles. Le rendu obsolete s'abandonne après chaque
    * await.
    */
   private _renderGeneration = 0;
@@ -161,15 +161,15 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   @property({ type: String })
   type: 'marker' | 'geoshape' | 'circle' | 'heatmap' = 'marker';
 
-  /** Chemin vers le champ latitude (mode coordonnees separees). */
+  /** Chemin vers le champ latitude (mode coordonnées séparées). */
   @property({ type: String, attribute: 'lat-field' })
   latField = '';
 
-  /** Chemin vers le champ longitude (mode coordonnees separees). */
+  /** Chemin vers le champ longitude (mode coordonnées séparées). */
   @property({ type: String, attribute: 'lon-field' })
   lonField = '';
 
-  /** Champ geometrie : objet GeoJSON, {lat, lon}, [lat, lon] ou chaine JSON serialisee (#426) */
+  /** Champ geometrie : objet GeoJSON, {lat, lon}, [lat, lon] ou chaîne JSON serialisee (#426) */
   @property({ type: String, attribute: 'geo-field' })
   geoField = '';
 
@@ -227,7 +227,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'popup-fields' })
   popupFields = '';
 
-  /** Champ affiche au survol de l'element. */
+  /** Champ affiché au survol de l'élément. */
   @property({ type: String, attribute: 'tooltip-field' })
   tooltipField = '';
 
@@ -239,7 +239,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'color-field' })
   colorField = '';
 
-  /** Paires `valeur:#couleur` separees par des virgules. Ex: `"1:#00A95F,2:#FF9940,3:#E1000F"`. */
+  /** Paires `valeur:#couleur` séparées par des virgules. Ex: `"1:#00A95F,2:#FF9940,3:#E1000F"`. */
   @property({ type: String, attribute: 'color-map' })
   colorMap = '';
 
@@ -317,21 +317,21 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   @property({ type: Number, attribute: 'min-zoom' })
   minZoom = 0;
 
-  /** Niveau de zoom au-dela duquel la couche est masquee. */
+  /** Niveau de zoom au-delà duquel la couche est masquee. */
   @property({ type: Number, attribute: 'max-zoom' })
   maxZoom = 18;
 
   /**
-   * Chargement par viewport : re-interroge la source a chaque deplacement de
-   * la carte, et une premiere fois des que la carte est prete (#652). Le tout
+   * Chargement par viewport : re-interroge la source a chaque déplacement de
+   * la carte, et une première fois des que la carte est prête (#652). Le tout
    * premier fetch de la source reste NON filtre (elle charge des sa connexion,
-   * avant que la carte — differee a la visibilite — ait un viewport) : sur un
+   * avant que la carte — différée a la visibilité — ait un viewport) : sur un
    * gros jeu, poser un `limit` ou un `where` initial sur la source.
    */
   @property({ type: Boolean })
   bbox = false;
 
-  /** Delai d'anti-rebond avant le re-fetch bbox, en millisecondes. */
+  /** Délai d'anti-rebond avant le re-fetch bbox, en millisecondes. */
   @property({ type: Number, attribute: 'bbox-debounce' })
   bboxDebounce = 300;
 
@@ -356,10 +356,10 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   // --- Performance ---
 
   /**
-   * Plafond du nombre d'elements rendus sur la carte (défaut 5000). Il protege
-   * les marqueurs DOM (`divIcon`), le fit et les popups ; au-dela, un bandeau
-   * indique combien d'elements sont affiches sur le total. Avec `cluster`,
-   * `max-items="20000"` est sans risque : les marqueurs regroupes ne pesent
+   * Plafond du nombre d'éléments rendus sur la carte (défaut 5000). Il protège
+   * les marqueurs DOM (`divIcon`), le fit et les popups ; au-delà, un bandeau
+   * indique combien d'éléments sont affichés sur le total. Avec `cluster`,
+   * `max-items="20000"` est sans risque : les marqueurs regroupés ne pèsent
    * pas sur le DOM. En mode `bbox`, zoomer recharge la zone visible ; hors
    * `bbox`, seul un `max-items` plus haut (ou un filtre amont) affiche le reste.
    */
@@ -385,12 +385,12 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   private _heatLayerFactory: HeatLayerFactory | null = null;
   private _radiusScale: ((val: number) => number) | null = null;
 
-  /** Elements effectivement dessines au dernier rendu (#482) */
+  /** Éléments effectivement dessines au dernier rendu (#482) */
   private _renderedCount = 0;
 
   /**
-   * Records ecartes du dernier rendu faute de position exploitable : geometrie
-   * invalide (geoshape, #482), coordonnees absentes ou non numeriques (marker,
+   * Records écartés du dernier rendu faute de position exploitable : geometrie
+   * invalide (geoshape, #482), coordonnées absentes ou non numeriques (marker,
    * circle, heatmap — #648). Un seul compteur pour tous les types.
    */
   private _skippedGeoCount = 0;
@@ -677,7 +677,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   }
 
   /**
-   * Nombre d'elements effectivement dessines au dernier rendu (marqueurs,
+   * Nombre d'éléments effectivement dessines au dernier rendu (marqueurs,
    * formes, cercles ou points de chaleur). Contrairement au comptage DOM,
    * ce compte n'inclut pas les bulles de cluster et couvre la heatmap
    * (un seul canvas pour N points) — expose pour les diagnostics (#482).
@@ -688,7 +688,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
 
   /**
    * Nombre de lignes ignorees au dernier rendu faute de position exploitable
-   * (coordonnees ou geometrie absentes ou invalides). Journalise une fois par
+   * (coordonnées ou geometrie absentes ou invalides). Journalise une fois par
    * rendu et remonte dans la trace du volet Diagnostic (#648, #604).
    */
   getSkippedCount(): number {
@@ -1542,7 +1542,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
 
   /**
    * Bbox d'une geometrie GeoJSON (Feature, Polygon, MultiPolygon, lignes...)
-   * par parcours des coordonnees [lon, lat] (#297). null si inextractible.
+   * par parcours des coordonnées [lon, lat] (#297). null si inextractible.
    */
   private _geometryBbox(
     geo: unknown
@@ -1873,7 +1873,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   }
 
   /**
-   * Libelle du bandeau max-items (#644). « Zoomez » n'a de sens qu'en mode
+   * Libellé du bandeau max-items (#644). « Zoomez » n'a de sens qu'en mode
    * `bbox` (la zone visible est rechargee au zoom) ; hors bbox rien n'est
    * recharge, le seul remede est de relever `max-items` — le dire.
    */

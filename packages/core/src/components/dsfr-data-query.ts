@@ -19,7 +19,7 @@ import { unescapeColonValue, filterToOdsql, parseOrderBy } from '../utils/where.
 import { reportConfigError } from '../utils/config-error.js';
 
 /**
- * Operateurs de filtre supportes
+ * Opérateurs de filtre supportes
  */
 export const FILTER_OPERATORS = [
   'eq',
@@ -107,7 +107,7 @@ export interface QuerySort {
  *   order-by="population__sum:desc"
  *   limit="10">
  * </dsfr-data-query>
- * @fires dsfr-data-source-command - `{ sourceId, groupBy?, aggregate?, orderBy?, where?, whereKey?, origin }` sur `document` — delegation server-side negociee avec la source amont, et liberation des overlays quand elle retombe cote client. `origin` porte l'id de ce composant (#603).
+ * @fires dsfr-data-source-command - `{ sourceId, groupBy?, aggregate?, orderBy?, where?, whereKey?, origin }` sur `document` — délégation server-side negociee avec la source amont, et liberation des overlays quand elle retombe cote client. `origin` porte l'id de ce composant (#603).
  */
 @customElement('dsfr-data-query')
 export class DsfrDataQuery extends TransformerMixin(LitElement) {
@@ -119,13 +119,13 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
 
   /**
    * Clause WHERE / Filtres — syntaxe colon UNIQUEMENT :
-   * "champ:operateur:valeur, champ2:operateur:valeur2"
-   * (operateurs : eq, neq, gt, gte, lt, lte, contains, notcontains, in,
-   * notin, isnull, isnotnull — multi-valeurs separees par |).
+   * "champ:opérateur:valeur, champ2:opérateur:valeur2"
+   * (opérateurs : eq, neq, gt, gte, lt, lte, contains, notcontains, in,
+   * notin, isnull, isnotnull — multi-valeurs séparées par |).
    *
    * La syntaxe ODSQL n'est PAS supportee ici (elle l'est sur le `where` de
    * dsfr-data-source) : une clause non parsable est signalee via
-   * reportConfigError (#277). En delegation serveur, la clause est traduite
+   * reportConfigError (#277). En délégation serveur, la clause est traduite
    * au dialecte de l'adapter (#275).
    */
   @property({ type: String })
@@ -138,7 +138,7 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
   filter = '';
 
   /**
-   * Champs de regroupement (separes par virgule)
+   * Champs de regroupement (séparés par virgule)
    */
   @property({ type: String, attribute: 'group-by' })
   groupBy = '';
@@ -152,7 +152,7 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
   aggregate = '';
 
   /**
-   * Tri des resultats
+   * Tri des résultats
    * Format: "field:direction" ou "field__function:direction"
    * Ex: "total_pop:desc" ou "population__sum:desc"
    */
@@ -160,7 +160,7 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
   orderBy = '';
 
   /**
-   * Limite de resultats
+   * Limite de résultats
    */
   @property({ type: Number })
   limit = 0;
@@ -189,7 +189,7 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     where: false,
   };
 
-  /** Source qui detient actuellement nos overlays de delegation (#276) */
+  /** Source qui detient actuellement nos overlays de délégation (#276) */
   private _delegatedSourceId: string | null = null;
 
   /**
@@ -199,8 +199,8 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
   private _aggregateError: string | null = null;
 
   /**
-   * Derniere commande de delegation dispatchee (cible + contenu) : une
-   * re-negociation identique ne redispatche pas — la source est deja dans
+   * Dernière commande de délégation dispatchee (cible + contenu) : une
+   * re-negociation identique ne redispatche pas — la source est déjà dans
    * cet etat, son cache est valide (#276).
    */
   private _lastDelegation: { sourceId: string; cmdJson: string } | null = null;
@@ -208,7 +208,7 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
   /**
    * False entre l'envoi d'une commande a la source et l'emission suivante :
    * le cache de la source est alors perime (pre-commande) et ne doit pas
-   * etre lu. Une re-negociation dedupliquee ne le repasse pas a false.
+   * être lu. Une re-negociation dedupliquee ne le repasse pas a false.
    */
   private _sourceEmittedSinceCommand = true;
 
@@ -274,7 +274,7 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     return 'dsfr-data-query';
   }
 
-  /** Tout changement de prop de requete re-negocie et re-souscrit (#281) */
+  /** Tout changement de prop de requête re-negocie et re-souscrit (#281) */
   protected transformerReinitProps(): string[] {
     return ['source', 'where', 'filter', 'groupBy', 'aggregate', 'orderBy', 'limit'];
   }
@@ -760,8 +760,8 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
   /**
    * Egalite unique du pipeline de filtres (#278) : coercition lache
    * string/number (`"75" == 75`), repli `String === String` pour les
-   * booleens (`true` vs `"true"` — le `==` JS les declare differents).
-   * Utilisee par eq, neq, in, notin : meme entree, memes lignes gardees.
+   * booleens (`true` vs `"true"` — le `==` JS les déclaré differents).
+   * Utilisée par eq, neq, in, notin : meme entree, memes lignes gardees.
    */
   private _looseEquals(a: unknown, b: unknown): boolean {
     if (a === null || a === undefined) return b === null || b === undefined;
@@ -949,7 +949,7 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
   }
 
   /**
-   * Comparateur total a 3 niveaux : null/vide < numerique < chaine (#278).
+   * Comparateur total a 3 niveaux : null/vide < numerique < chaîne (#278).
    * Transitif — l'ancien comparateur mixte (numerique si LES DEUX valeurs
    * sont numeriques, sinon string) produisait un ordre arbitraire sur les
    * colonnes mixtes, et `Number(null) === 0` classait les nulls parmi les
@@ -1016,8 +1016,8 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
   }
 
   /**
-   * Retourne les parametres adapter resolus de la source amont
-   * (delegation transparente, headers api-key-ref inclus — #274).
+   * Retourne les paramètres adapter resolus de la source amont
+   * (délégation transparente, headers api-key-ref inclus — #274).
    */
   public getAdapterParams(): import('../adapters/api-adapter.js').AdapterParams | null {
     if (this.source) {
@@ -1034,7 +1034,7 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    *
    * Semantique de pur transformateur (#279) : delegue le refetch a la
    * source amont — meme contrat que dsfr-data-source.reload(). L'emission
-   * qui suit redescend naturellement le pipeline jusqu'ici (une chaine
+   * qui suit redescend naturellement le pipeline jusqu'ici (une chaîne
    * query → query → source propage le reload jusqu'a la source).
    *
    * Repli : si l'amont n'expose pas reload() (normalize/unpivot/join avant
