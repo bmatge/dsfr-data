@@ -1819,9 +1819,23 @@ function executePreview(fit = false) {
   // --carto-header-h : hauteur du <app-header> commun (mesurée au runtime,
   // cf. observeHeaderHeight), --app-action-bar-h : celle de la barre
   // d'actions commune (publiée par <app-action-bar>).
+  const chromeHaut =
+    'var(--carto-header-h, 96px) - var(--app-action-bar-h, 56px) - var(--carto-tabs-h, 48px)';
+  // Le `body` se réserve DÉJÀ une bande en bas pour le chrome fixe : le rail
+  // du volet Diagnostic à toutes les largeurs, et sous 48em la barre d'actions
+  // fixée en bas (app-diagnostic-panel.ts, app-action-bar.ts). Sans cette
+  // soustraction la carte dépassait de cette réserve — environ 92 px en
+  // mobile — et `.carto-workspace{overflow:hidden}` rognait d'autant : de la
+  // surface de carte perdue, invisible (#628).
+  // --app-action-bar-fixed-h est publiée à 0px au-dessus de 48em : la
+  // soustraire sans condition est juste à toutes les largeurs, ce qu'un
+  // attribut `height` ne saurait de toute façon pas conditionner. Les replis
+  // valent 0px, la réserve n'existant pas tant que le chrome n'a pas publié
+  // sa hauteur.
+  const reserveBasse = 'var(--app-diagnostic-h, 0px) - var(--app-action-bar-fixed-h, 0px)';
   state.map.height = state.map.insets.length
-    ? 'calc(100dvh - var(--carto-header-h, 96px) - var(--app-action-bar-h, 56px) - var(--carto-tabs-h, 48px) - 208px)'
-    : 'calc(100dvh - var(--carto-header-h, 96px) - var(--app-action-bar-h, 56px) - var(--carto-tabs-h, 48px))';
+    ? `calc(100dvh - ${chromeHaut} - ${reserveBasse} - 208px)`
+    : `calc(100dvh - ${chromeHaut} - ${reserveBasse})`;
   if (fit) state.map.fitBounds = true;
   const code = generateCode();
   state.generationMode = saved.mode;

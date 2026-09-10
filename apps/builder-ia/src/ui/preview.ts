@@ -32,7 +32,7 @@ import { MAP_LEVEL_MAP, getPreviewHTML } from '@dsfr-data/shared';
 import { state } from '../state.js';
 import type { ChartConfig, AggregatedResult } from '../state.js';
 import { addMessage } from '../chat/chat.js';
-import { generateCode } from './code-generator.js';
+import { generateCode, seriesPerduesALaGeneration } from './code-generator.js';
 import { applyWhereFilter, aggregateBy, type Aggregation } from '../ia/data-tools.js';
 
 const FRAME_ID = 'preview-frame';
@@ -145,29 +145,28 @@ export function applyChartConfig(config: ChartConfig): void {
   // Multi-séries (format LARGE) : une colonne numerique par série, alignees
   // sur un meme axe d'etiquettes.
   //
-  // CE QUE CETTE BRANCHE NE FAIT PAS, et qu'il ne faut pas lui preter :
-  // `code-generator.ts` n'emet nulle part `value-fields` (zero occurrence).
-  // Les séries supplementaires sont donc PERDUES a la generation — seule la
-  // primaire survit. Le defaut date de #609 ; ce qui est neuf, c'est de le
-  // dire. Deux commentaires successifs ont pretendu ici que le generateur
-  // s'en chargeait : un appel mort a `buildMultiSeries` sous un commentaire
-  // de « validation » (la fonction ne leve jamais), puis une phrase sur un
-  // `value-fields` inexistant. Suivi dans #624.
-  //
-  // En attendant, on le dit a l'utilisateur plutot que de le lui cacher.
+  // CE QUE CETTE BRANCHE NE FAIT PAS, et qu'il ne faut pas lui preter : elle
+  // n'agrege que la série PRIMAIRE, et le code genere ne porte les autres que
+  // la ou il passe par `<dsfr-data-chart>` (variantes ODS et Tabular paginees,
+  // `value-fields`, #624). Les deux variantes qui ecrivent du Chart.js a la
+  // main (API generique, donnees embarquees) restent mono-série : une boucle
+  // `datasets` mal formee y casserait TOUS les graphiques generes, pas
+  // seulement le multi-séries. `seriesPerduesALaGeneration` dit, pour la
+  // source courante, ce qui sera reellement perdu — le taire serait le pire
+  // des deux : un graphique qui a l'air juste et qui ne l'est pas.
   const MULTI_SERIES_TYPES = ['bar', 'line', 'radar', 'horizontalBar', 'bar-line'];
   if (
     config.valueFields &&
     config.valueFields.length > 0 &&
     MULTI_SERIES_TYPES.includes(config.type)
   ) {
-    const perdues = config.valueFields.filter((f) => f && f !== config.valueField);
+    const perdues = seriesPerduesALaGeneration(config);
     if (perdues.length > 0) {
       addMessage(
         'assistant',
         `Note : le code généré ne porte que la série « ${config.valueField} ». ` +
           `Les séries supplémentaires (${perdues.join(', ')}) ne sont pas encore ` +
-          `exportables depuis l'assistant — utilisez le Builder pour un graphique ` +
+          `exportables pour cette source — utilisez le Builder pour un graphique ` +
           `multi-séries.`
       );
     }
