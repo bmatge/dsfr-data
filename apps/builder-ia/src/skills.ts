@@ -1174,11 +1174,11 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 | source | String | \`""\` | oui | ID de la source ou query |
 | type | String | \`"bar"\` | oui | Type de graphique (voir tableau ci-dessus) |
 | label-field | String | \`""\` | selon type | Chemin vers les labels dans les données |
-| value-field | String | \`""\` | oui (sauf gauge) | Chemin vers les valeurs |
-| value-field-2 | String | \`""\` | non | 2e série de valeurs (bar-line) |
-| value-fields | String | \`""\` | non | Séries supplementaires separees par virgules — format LARGE, une colonne par série (ex: \`"budget,score"\`) |
+| value-field | String | \`""\` | oui (sauf gauge) | Chemin vers les valeurs. Alias inline \`champ:Libellé\` pour la légende : \`value-field="Panier_moyen:Panier moyen"\` (un \`:\` littéral s'échappe en \`%3A\`) |
+| value-field-2 | String | \`""\` | non | 2e série de valeurs (bar-line). Alias inline \`champ:Libellé\` accepté |
+| value-fields | String | \`""\` | non | Séries supplementaires separees par virgules — format LARGE, une colonne par série (ex: \`"budget,score"\`). Alias inline par série : \`"budget:Budget, score:Score"\` |
 | series-field | String | \`""\` | non | Champ clé de série pour données LONG/tidy : ses valeurs distinctes deviennent autant de séries. Ex: données \`{mois, groupe, valeur}\` avec \`series-field="groupe"\`. S'applique a bar/line/radar. Prioritaire sur value-fields. Consommateur naturel de \`dsfr-data-unpivot\`. |
-| name | String | \`""\` | non | Nom(s) de série. Chaîne simple recommandée : \`name="Taux"\` (enveloppée automatiquement). JSON pour le multi-séries : \`'["Réalisé","Objectif"]'\`. Sur les cartes, un seul nom (le premier d'un JSON est retenu). Auto-deduit des colonnes ou des valeurs de series-field si absent |
+| name | String | \`""\` | non | Nom(s) de série. Chaîne simple recommandée : \`name="Taux"\` (enveloppée automatiquement). JSON pour le multi-séries : \`'["Réalisé","Objectif"]'\`. Sur les cartes, un seul nom (le premier d'un JSON est retenu). Priorité : \`name\` explicite, sinon l'alias inline \`champ:Libellé\` de value-field(s), sinon le nom du champ ou les valeurs de series-field |
 | empty-label | String | \`"Non renseigné"\` | non | Libellé d'une catégorie vide (\`null\`, \`undefined\` ou \`""\` dans label-field) : légende du pie, axe X. Évite le « Série N » de DSFR Chart sur un nom vide. Ex: \`empty-label="Sans objet"\` |
 | selected-palette | String | \`"categorical"\` | non | Palette : categorical, sequentialAscending, sequentialDescending, divergentAscending, divergentDescending, neutral, default |
 | unit-tooltip | String | \`""\` | non | Unite dans les info-bulles : %, EUR, etc. |
@@ -1282,8 +1282,10 @@ téléchargement CSV, plein écran, tendance.
 |----------|------|--------|-------------|
 | databox | Boolean | \`false\` | Active l'habillage DataBox DSFR |
 | databox-title | String | \`""\` | Titre affiche dans l'en-tete (ex: "Population par region") |
+| heading-level | Number | \`3\` | Niveau de titre HTML du titre DataBox (2 à 6, borné) — \`heading-level="2"\` rend un h2, à caler sur la hiérarchie de la page (RGAA 9.1) |
 | databox-source | String | \`""\` | Source des données (ex: "INSEE, RP 2021") |
-| databox-date | String | \`""\` | Date des données (ex: "Mars 2024") |
+| databox-date | String | \`""\` | Date des données (ex: "Mars 2024"). Prime sur databox-date-field |
+| databox-date-field | String | \`""\` | Colonne de dates ISO (AAAA-MM-JJ) : la plus récente est affichée comme date, formatée JJ/MM/AAAA (ex: \`databox-date-field="gazole_maj"\`) |
 | databox-download | Boolean | \`false\` | Bouton téléchargement CSV |
 | databox-screenshot | Boolean | \`false\` | Bouton screenshot PNG |
 | databox-fullscreen | Boolean | \`false\` | Bouton plein écran |
@@ -3064,7 +3066,7 @@ dsfr-data-source (wide) ──► dsfr-data-unpivot ──► dsfr-data-normaliz
 | id | String | - | oui | Identifiant unique de la sortie. |
 | source | String | "" | oui | ID de la source amont à déplier. |
 | id-cols | String | "" | non | Colonnes conservées telles quelles sur chaque ligne (virgule-séparées). Ex: \`"Indicateurs, Sous_theme"\`. |
-| value-cols | String | "" | non | Liste explicite des colonnes à déplier (virgule-séparée). Exclusif avec value-cols-pattern. |
+| value-cols | String | "" | non | Liste explicite des colonnes à déplier (virgule-séparée). Exclusif avec value-cols-pattern. Alias inline \`col:Libellé\` : \`"gazole_prix:Gazole, sp95_prix:SP95"\` émet « Gazole » / « SP95 » dans var-name (un \`:\` littéral s'échappe en \`%3A\`). |
 | value-cols-pattern | String | "" | non | Motif des colonnes à déplier avec placeholders \`{TOKEN}\`. Ex: \`"c{YYYY}_{MM}"\`. |
 | var-name | String | "variable" | non | Nom de la nouvelle colonne "variable" (clé dépliée). Ex: \`"mois"\`. |
 | var-format | String | "" | non | Reformatage de la clé via les tokens du motif. Ex: \`"{YYYY}-{MM}"\` → \`2023-01\`. |
@@ -3471,8 +3473,10 @@ a poser). Les proprietes sont sous \`properties.*\`.
 et cartes). Pour les graphiques, le composant l’enveloppe lui-meme dans le tableau
 JSON attendu par DSFR Chart (\`["Effectif"]\`) ; un tableau JSON explicite
 (\`name='["2023", "2024"]'\`) reste possible pour nommer plusieurs series.
-Sans \`name\`, les series prennent le nom des champs (\`value-fields\`) ou les valeurs
-de \`series-field\`.
+Sans \`name\`, les series prennent l’alias inline \`champ:Libellé\` de \`value-field(s)\`
+(\`value-field="Panier_moyen:Panier moyen"\` → légende « Panier moyen »), sinon le nom
+des champs, ou les valeurs de \`series-field\`. Même grammaire sur \`value-cols\` de
+\`dsfr-data-unpivot\` pour renommer les variables dépliées à la source.
 
 ### Treemap : la voie native est le barres horizontales
 
