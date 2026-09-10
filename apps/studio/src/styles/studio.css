@@ -181,10 +181,12 @@
 
 /* --- Aperçu (artefact) --- */
 
+/* `height: 100%` retire (#629) : le panneau tend lui-meme le contenu de son
+   onglet Apercu, et une hauteur en pourcentage y resolvait a 300 px au lieu
+   de la hauteur disponible. */
 .studio-preview {
   display: flex;
   flex-direction: column;
-  height: 100%;
   min-height: 0;
 }
 
@@ -197,16 +199,9 @@
   background: #fff;
 }
 
-.empty-state {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-mention-grey);
-  gap: 1rem;
-  min-height: 300px;
-}
+/* `.empty-state` n'est plus surchargee ici (#629) : c'est une classe interne
+   d'`app-preview-panel`, qui la stylait deja — et gagnait, sa regle etant plus
+   specifique. Seuls les enfants propres au Studio restent app-side. */
 
 .empty-state__bars {
   display: flex;

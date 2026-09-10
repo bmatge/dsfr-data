@@ -108,6 +108,11 @@ app-diagnostic-panel[hidden]{display:none}
    app-action-bar, qui pose deja un padding-bottom sur body — sinon le
    gagnant dependrait de l'ordre d'injection des feuilles. */
 body:has(app-diagnostic-panel){padding-bottom:var(--app-diagnostic-h,2.25rem)}
+/* Le padding reserve la place, l'ancrage du defilement est un reglage a part
+   (WCAG 2.2 SC 2.4.11, #627) : sans lui, un element amene au focus se range
+   sous le rail. Le rail est fixe a TOUTES les largeurs, la regle l'est donc
+   aussi — c'est le cumul avec la barre d'actions qui, lui, est mobile. */
+html:has(app-diagnostic-panel){scroll-padding-bottom:var(--app-diagnostic-h,2.25rem)}
 @media (max-width:47.99em){
   app-diagnostic-panel{bottom:var(--app-action-bar-fixed-h,0px)}
   /* La raison de desactivation de l'action primaire est FIXE dans la meme
@@ -124,6 +129,7 @@ body:has(app-diagnostic-panel){padding-bottom:var(--app-diagnostic-h,2.25rem)}
   .app-diag__body{max-height:60vh}
   .app-diag__rail-summary{display:none}
   body:has(app-diagnostic-panel):has(app-action-bar){padding-bottom:calc(var(--app-action-bar-fixed-h,3.5rem) + var(--app-diagnostic-h,2.25rem))}
+  html:has(app-diagnostic-panel):has(app-action-bar){scroll-padding-bottom:calc(var(--app-action-bar-fixed-h,3.5rem) + var(--app-diagnostic-h,2.25rem))}
 }
 `;
   document.head.appendChild(style);

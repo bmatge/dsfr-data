@@ -237,6 +237,11 @@ export class AppLayoutDemo extends LitElement {
           { id: 'charts/index', label: "Vue d'ensemble des graphiques", href: 'charts/index.html' },
           { id: 'charts/line-chart', label: 'line-chart', href: 'charts/line-chart.html' },
           { id: 'charts/bar-chart', label: 'bar-chart', href: 'charts/bar-chart.html' },
+          {
+            id: 'charts/bar-line-chart',
+            label: 'bar-line-chart',
+            href: 'charts/bar-line-chart.html',
+          },
           { id: 'charts/pie-chart', label: 'pie-chart', href: 'charts/pie-chart.html' },
           { id: 'charts/radar-chart', label: 'radar-chart', href: 'charts/radar-chart.html' },
           { id: 'charts/gauge-chart', label: 'gauge-chart', href: 'charts/gauge-chart.html' },

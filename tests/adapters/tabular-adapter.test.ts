@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock fetch globally
 const mockFetch = vi.fn();
@@ -687,11 +687,22 @@ describe('#597 — Tabular : le proxy s’applique meme avec un base-url explici
   const TARGET = 'https://tabular-api.data.gouv.fr';
 
   beforeEach(() => {
+    // #711 — neutralise le proxy build-time herite du `.env` du poste.
+    // `vi.stubEnv` ne suffirait pas : `PROXY_BASE_URL*` sont des constantes de
+    // module lues a l'import, et l'adapter est importe en tete de fichier.
+    // L'opt-out runtime (branche 1 de `getProxyConfig`) court-circuite la
+    // branche 4 (build-time) sans toucher a la branche 0 (attribut
+    // `proxy-url`), qui reste celle que ces tests exercent.
+    (window as unknown as Record<string, unknown>).DSFR_DATA_PROXY = false;
     mockFetch.mockReset();
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ data: [], meta: { total: 0 } }),
     });
+  });
+
+  afterEach(() => {
+    delete (window as unknown as Record<string, unknown>).DSFR_DATA_PROXY;
   });
 
   /** URL reellement passee a fetch lors du dernier appel. */

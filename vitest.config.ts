@@ -4,8 +4,10 @@ import { resolve } from 'path';
 export default defineConfig({
   resolve: {
     alias: {
-      '@': resolve(__dirname, 'packages/core/src'),
-      '@dsfr-data/shared': resolve(__dirname, 'packages/shared/src'),
+      // `import.meta.dirname` plutot que `__dirname` (#639) : ce dernier est
+      // signale incompatible avec `configLoader: 'native'`, futur defaut de Vite.
+      '@': resolve(import.meta.dirname, 'packages/core/src'),
+      '@dsfr-data/shared': resolve(import.meta.dirname, 'packages/shared/src'),
     },
   },
   test: {

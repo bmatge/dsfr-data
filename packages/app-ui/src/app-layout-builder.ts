@@ -204,7 +204,9 @@ export class AppLayoutBuilder extends LitElement {
           @mousedown="${this._handleMouseDown}"
         ></div>
 
-        <main class="builder-layout-right" id="main-content">
+        <!-- tabindex="-1" : <main> n'est pas focalisable par defaut, le lien
+             d'evitement de app-header y menait sans y poser le focus (#627). -->
+        <main class="builder-layout-right" id="main-content" tabindex="-1">
           <!-- Contenu slot="right" sera déplacé ici -->
         </main>
       </div>

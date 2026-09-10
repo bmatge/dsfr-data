@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Charts builder — Favoris</title>
-  <style>@view-transition{navigation:auto}app-header:not(:defined){display:block;min-height:56px}app-footer:not(:defined){display:block;min-height:48px}.modal-overlay{display:none}</style>
+  <style>@view-transition{navigation:auto}app-header:not(:defined){display:block;min-height:141px}@media (min-width:62em){app-header:not(:defined){min-height:175px}}app-footer:not(:defined){display:block;min-height:48px}.modal-overlay{display:none}</style>
 
   <!-- DSFR -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css" integrity="sha384-atVZ+aK6VI0nWyTEhKgze5InDJ+SWRRqa0BCZ2MTNyoOcBiHj1c3dGPdi6ML65B3" crossorigin="anonymous">
@@ -31,7 +31,7 @@
        latéral d'aperçu. Les ids historiques (#favorites-count, #fav-sort,
        #fav-search, #export-btn, #import-btn, #favorites-list, #preview-frame,
        #code-display) sont conservés pour la logique existante. -->
-  <main id="main-content" class="favs-page">
+  <main id="main-content" tabindex="-1" class="favs-page">
     <nav role="navigation" class="fr-breadcrumb" aria-label="vous êtes ici :">
       <button class="fr-breadcrumb__button" aria-expanded="false" aria-controls="page-breadcrumb">Voir le fil d'Ariane</button>
       <div class="fr-collapse" id="page-breadcrumb">
