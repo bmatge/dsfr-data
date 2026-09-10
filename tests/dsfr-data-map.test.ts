@@ -8,6 +8,7 @@ import {
 import { DsfrDataMapLayer } from '@/components/dsfr-data-map-layer.js';
 import { DsfrDataMapTimeline } from '@/components/dsfr-data-map-timeline.js';
 import { clearDataCache, dispatchDataLoaded } from '@/utils/data-bridge.js';
+import { parseColorMap } from '@/utils/color-map.js';
 import { nothing } from 'lit';
 
 // ============================================================================
@@ -1455,10 +1456,10 @@ describe('DsfrDataMapLayer color-field / color-map', () => {
     });
   });
 
-  describe('_parseColorMap', () => {
+  describe('parseColorMap (grammaire partagée, #732)', () => {
     it('parses valid color-map string', () => {
       layer.colorMap = 'active:#00A95F,inactive:#E1000F';
-      const parsed = (layer as any)._parseColorMap() as Map<string, string>;
+      const parsed = parseColorMap(layer.colorMap);
       expect(parsed.size).toBe(2);
       expect(parsed.get('active')).toBe('#00A95F');
       expect(parsed.get('inactive')).toBe('#E1000F');
@@ -1466,20 +1467,20 @@ describe('DsfrDataMapLayer color-field / color-map', () => {
 
     it('trims whitespace around values and colors', () => {
       layer.colorMap = ' status_a : #123ABC , status_b : #456DEF ';
-      const parsed = (layer as any)._parseColorMap() as Map<string, string>;
+      const parsed = parseColorMap(layer.colorMap);
       expect(parsed.get('status_a')).toBe('#123ABC');
       expect(parsed.get('status_b')).toBe('#456DEF');
     });
 
     it('returns empty map for empty string', () => {
       layer.colorMap = '';
-      const parsed = (layer as any)._parseColorMap() as Map<string, string>;
+      const parsed = parseColorMap(layer.colorMap);
       expect(parsed.size).toBe(0);
     });
 
     it('skips pairs without separator', () => {
       layer.colorMap = 'valid:#111,noseparator,also_valid:#222';
-      const parsed = (layer as any)._parseColorMap() as Map<string, string>;
+      const parsed = parseColorMap(layer.colorMap);
       expect(parsed.size).toBe(2);
       expect(parsed.get('valid')).toBe('#111');
       expect(parsed.get('also_valid')).toBe('#222');
@@ -1488,14 +1489,14 @@ describe('DsfrDataMapLayer color-field / color-map', () => {
     it('uses lastIndexOf for colors with colons in value', () => {
       // Value like "http://example" + color → last colon picks color
       layer.colorMap = 'Type A:#ff0000,Type B:#00ff00';
-      const parsed = (layer as any)._parseColorMap() as Map<string, string>;
+      const parsed = parseColorMap(layer.colorMap);
       expect(parsed.get('Type A')).toBe('#ff0000');
       expect(parsed.get('Type B')).toBe('#00ff00');
     });
 
     it('skips pairs with empty key or empty color', () => {
       layer.colorMap = ':#111,valid:#222,:';
-      const parsed = (layer as any)._parseColorMap() as Map<string, string>;
+      const parsed = parseColorMap(layer.colorMap);
       expect(parsed.size).toBe(1);
       expect(parsed.get('valid')).toBe('#222');
     });

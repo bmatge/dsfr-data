@@ -67,7 +67,7 @@ Elle est distincte du code embarquable HTML (voir skills composants dsfr-data).
 | labelField | String | selon type | Champ pour les labels / axe X |
 | valueField | String | oui | Champ pour les valeurs / axe Y |
 | valueField2 | String | non | 2e série (bar-line, comparaisons) |
-| codeField | String | non | Champ code : departement/region (map, map-reg), nom d'academie (map-aca), code pays ISO (map-monde) |
+| codeField | String | non | Champ code : departement (map), region (map-reg : code INSEE, cle ISO IDF/20R/971 ou nom), academie (map-aca : nom accentue ou non, avec ou sans « Academie de »), code pays ISO (map-monde) |
 | aggregation | String | non | Fonction : sum, avg, count, min, max |
 | where | String | non | Filtre pre-agrégation (voir syntaxe ci-dessous) |
 | limit | Number | non | Nombre max de resultats |
@@ -95,8 +95,8 @@ Elle est distincte du code embarquable HTML (voir skills composants dsfr-data).
 | gauge | non | oui | Progression 0-100% |
 | kpi | non | oui | Indicateur chiffre clé unique |
 | map | non (codeField) | oui | Données par departement francais |
-| map-reg | non (codeField) | oui | Données par region francaise |
-| map-aca | non (codeField) | oui | Données par academie (noms en majuscules : PARIS, LYON...) |
+| map-reg | non (codeField) | oui | Données par region francaise (code INSEE 11/84, cle IDF/20R/971 ou nom) |
+| map-aca | non (codeField) | oui | Données par academie (nom accentue ou non : « Academie de Besancon », BESANCON, Orleans-Tours) |
 | map-monde | non (codeField) | oui | Données par pays (ISO 3166-1 : FR, US... — a3/num convertis) |
 | datalist | non | non (colonnes) | Tableau de données filtrable |
 
@@ -1407,6 +1407,7 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 | idle-message | String | \`"Choisissez un filtre pour afficher les données"\` | non | Message rendu quand l'amont attend un filtre (\`require-where\`, #690). Distinct de « aucune donnée » : aucune requête n'a été faite. Existe aussi sur list, kpi, display, podium et a11y. |
 | empty-label | String | \`"Non renseigné"\` | non | Libellé d'une catégorie vide (\`null\`, \`undefined\` ou \`""\` dans label-field) : légende du pie, axe X. Évite le « Série N » de DSFR Chart sur un nom vide. Ex: \`empty-label="Sans objet"\` |
 | selected-palette | String | \`"categorical"\` | non | Palette : categorical, sequentialAscending, sequentialDescending, divergentAscending, divergentDescending, neutral, default |
+| color-map | String | \`""\` | non | Couleur fixee par modalite : paires \`modalite:#couleur\` separees par virgule, meme grammaire que dsfr-data-map-layer. Ex: \`"Realise:#000091,Objectif:#E1000F"\`. La modalite est un nom de serie, sinon un libelle de l'axe (part de camembert). Virgule ou deux-points dans une modalite : \`%2C\` / \`%3A\`. Sans effet sur les types map* |
 | unit-tooltip | String | \`""\` | non | Unite dans les info-bulles : %, EUR, etc. |
 | unit-tooltip-bar | String | \`""\` | non | Unite des barres dans un bar-line |
 | horizontal | Boolean | \`false\` | non | Barres horizontales (type bar uniquement) |
@@ -1418,7 +1419,7 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 | y-min | String | \`""\` | non | Limite min axe Y. Pour type radar : borne min de l'echelle radiale (le centre du radar est fixe a y-min au lieu du minimum des donnees) |
 | y-max | String | \`""\` | non | Limite max axe Y. Pour type radar : borne max de l'echelle radiale ; si y-min et y-max sont entiers avec une amplitude de 1 a 10, anneaux de grille entiers (stepSize 1) |
 | gauge-value | Number | \`null\` | type gauge | Valeur de la jauge (0-100) |
-| code-field | String | \`""\` | types map* | Champ contenant le code : departement/region (map, map-reg), nom d'academie en majuscules (map-aca), code pays ISO 3166-1 alpha-2/alpha-3/numerique (map-monde, converti en alpha-2) — prioritaire sur label-field |
+| code-field | String | \`""\` | types map* | Champ contenant le code : departement (map), region (map-reg : code INSEE, cle DSFR Chart IDF/20R/971 ou nom, traduits), academie (map-aca : nom accentue ou non, prefixe « Academie de » retire), code pays ISO 3166-1 alpha-2/alpha-3/numerique (map-monde, converti en alpha-2) — prioritaire sur label-field. Une cle hors referentiel est ignoree ET comptee (console + volet Diagnostic) |
 | map-highlight | String | \`""\` | non | Departements/regions a surligner |
 | reference-lines | String | \`""\` | non | Lignes de reference (overlay) en JSON. Cartesiens uniquement (line, bar, bar-line, scatter). Chaque item : \`{ axis: "x" ou "y", value (string ou number), label?, color?, dash?, position? }\`. \`axis:"x"\` → ligne verticale a une categorie/date ; \`axis:"y"\` → ligne horizontale a un seuil. Ex : \`reference-lines='[{"axis":"x","value":"2026-02","label":"Lancement","color":"#c9191e","dash":true},{"axis":"y","value":3000,"label":"Objectif"}]'\`. |
 | targets | String | \`""\` | non | Cibles / objectifs futurs (overlay) en JSON. Types line et bar-line uniquement. Chaque item : \`{ x (echeance, string ou number, requis), value (number, requis), series? (nom de dataset ou index, defaut 0), label?, color? }\`. L'axe X est etendu automatiquement si l'echeance depasse les donnees : trait plein jusqu'au dernier point reel, trajectoire pointillee vers un losange a l'echeance, zone future grisee. Ex : \`targets='[{"x":2030,"value":26,"label":"Cible 2030 : 26 %"}]'\`. |
@@ -2288,11 +2289,12 @@ Guide pour choisir le type de visualisation adapte aux données.
 
 ### Carte regions (map-reg)
 - **Quand** : données geographiques par region francaise
-- **Champs** : code-field (code region), value-field
+- **Champs** : code-field (code INSEE 11/84/94, cle DSFR Chart IDF/20R/971 ou nom de region), value-field
 
 ### Carte academies (map-aca)
 - **Quand** : données education par academie
-- **Champs** : code-field (nom d'academie en majuscules : PARIS, LYON, STRASBOURG...), value-field
+- **Champs** : code-field (nom d'academie, accentue ou non, avec ou sans « Academie de » : « Academie de Besancon », BESANCON, Orleans-Tours), value-field
+- **Hors decoupage DSFR Chart** : Polynesie, Wallis-et-Futuna, Saint-Pierre-et-Miquelon, AEFE — lignes comptees comme ignorees
 
 ### Carte mondiale (map-monde)
 - **Quand** : données internationales par pays
@@ -2756,7 +2758,7 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | tooltip-field | String | \`""\` | Champ affiche au survol |
 | color | String | \`"#000091"\` | Couleur (DSFR blue-france). Fallback si color-map ne matche pas |
 | color-field | String | \`""\` | Champ dont la valeur determine la couleur (mapping catégoriel) |
-| color-map | String | \`""\` | Paires \`valeur:#couleur\` separees par virgule. Ex: \`"1:#00A95F,2:#FF9940,3:#E1000F"\` |
+| color-map | String | \`""\` | Paires \`valeur:#couleur\` separees par virgule. Ex: \`"1:#00A95F,2:#FF9940,3:#E1000F"\`. Virgule ou deux-points dans une valeur : \`%2C\` / \`%3A\` (\`"Commerce%2C transport:#000091"\`). Meme grammaire sur dsfr-data-chart |
 | fill-field | String | \`""\` | Champ numérique pour choropleth (geoshape) |
 | fill-opacity | Number | \`0.6\` | Opacite remplissage |
 | selected-palette | String | \`""\` | Palette choropleth : \`sequentialAscending\` (défaut), \`sequentialDescending\`, \`divergentAscending\`, \`divergentDescending\`, \`neutral\`, \`categorical\` |
