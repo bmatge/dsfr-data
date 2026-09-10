@@ -534,6 +534,20 @@ visible (console + \`data-dsfr-config-error\`, composants aval en erreur) — ja
       'multi-valeurs',
       'decouper',
       'group_concat',
+      'compute',
+      'colonne calculee',
+      'colonnes calculees',
+      'calculer une colonne',
+      'recoder',
+      'recodage',
+      'tranche',
+      'seuil',
+      'when',
+      'coalesce',
+      'non renseigne',
+      'annee d une date',
+      'extraire l annee',
+      'solde',
     ],
     content:
       `## <dsfr-data-normalize> - Normalisation de données
@@ -568,7 +582,7 @@ Sortie : même tableau avec valeurs nettoyees/renommees.
 | split | String | \`""\` | non | Decoupe des champs multivalues (chaine avec separateur) en vrais tableaux : \`"Axes:\\|, Cibles:;"\` (entrees separees par virgule, \`champ:sep\`, separateur par defaut = virgule). Elements trimes, vides ecartes, chaine vide = tableau vide. Les facettes affichent alors une valeur par element au lieu d'un bouton combine « a\\|b ». |
 | round | String | \`""\` | non | Arrondit des champs numériques : \`"montant, prix"\` (0 decimales) ou \`"taux:2, score:1"\` (decimales explicites) |
 | lowercase-keys | Boolean | \`false\` | non | Met toutes les clés en minuscules |
-| compute | String | \`""\` | non | Colonnes calculees (ligne a ligne). Format \`"cible = expression; cible2 = expr2"\`. Supporte l'arithmetique \`+ - * /\`, la concatenation texte (\`+\` avec litteraux 'entre quotes') et les parentheses. Ex: \`"pct = valeur * 100; groupe = Indicateurs + ' / ' + Sous_theme"\`. Hors perimetre : conditions, fonctions, calculs sur valeurs agregees. |
+| compute | String | \`""\` | non | Colonnes calculees (ligne a ligne, en dernier). Format \`"cible = expression; cible2 = expr2"\`. Arithmetique \`+ - * /\`, concatenation texte (\`+\` avec litteraux 'entre quotes'), parentheses, fonctions en liste blanche (\`year month day round abs floor ceil lower upper trim len concat replace coalesce is_null is_empty join contains\`), conditions \`when COND then EXPR … else EXPR\` (\`else\` obligatoire), comparaisons \`= != < <= > >=\`, \`and or not\`, litteraux \`null true false\`. Ex: \`"solde = actif - passif; tranche = when montant >= 1000000 then 'Grand' else 'Petit'; type = coalesce(type_entreprise, 'Non renseigné'); annee = year(date_notification)"\`. Fonction inconnue ou \`when\` sans \`else\` = erreur de configuration (console + \`data-dsfr-config-error\`). Grammaire complete : section « Colonnes calculees » ci-dessous. Hors perimetre : valeurs agregees (query / kpi), ligne precedente, cumul. |
 
 ### Ordre d'execution des transformations
 1. **flatten** — aplatit le sous-objet designe
@@ -589,6 +603,74 @@ Sortie : même tableau avec valeurs nettoyees/renommees.
   Le \`:\` separe le pattern de sa valeur de remplacement (valeur vide = suppression).
 - \`replace-fields\` : paires separees par \`|\`, format \`CHAMP:pattern:remplacement\` (les 2 premiers \`:\` sont des delimiteurs, le remplacement peut contenir des \`:\`).
 - \`split\` : entrees separees par virgule, format \`champ:separateur\` (le separateur peut etre \`|\`, \`;\`, \` / \`… ; absent = virgule). Ne pas utiliser \`|\` entre les entrees : c'est le separateur le plus courant a decouper.
+
+### Colonnes calculees : compute (fonctions, when / then / else)
+
+\`compute\` s'execute en dernier, sur les valeurs deja typees par \`numeric\` / \`round\` /
+\`rename\`. Une assignation suivante peut relire une colonne calculee avant elle. Tout
+est **par ligne** : pour un agregat (somme, moyenne, distinct), passer par \`dsfr-data-query\`
+ou \`dsfr-data-kpi\` ; pour l'affichage conditionnel d'un fragment, par les templates
+(\`{{#if}}\`), pas par \`compute\`.
+
+**Fonctions (liste blanche, appel \`f(a, b)\`)** — toute autre fonction est une erreur de
+configuration, jamais une colonne vide :
+
+| Famille | Fonctions | Notes |
+|---------|-----------|-------|
+| Dates | \`year(d)\`, \`month(d)\`, \`day(d)\` | Date ISO (\`2024-03-15\`, \`2024-03-15T10:00:00Z\`, \`2024-03\`) ou objet Date → nombre ; sinon \`null\` (une date \`15/03/2024\` n'est pas reconnue) |
+| Nombres | \`round(x, n)\`, \`abs(x)\`, \`floor(x)\`, \`ceil(x)\` | \`n\` facultatif (0 par defaut) ; chaine numerique FR acceptee (\`"12,5"\`) ; non numerique → \`null\` |
+| Texte | \`lower(s)\`, \`upper(s)\`, \`trim(s)\`, \`len(s)\`, \`concat(a, b, …)\`, \`replace(s, 'de', 'vers')\` | \`replace\` est litteral (toutes les occurrences, pas de regex) ; \`null\` reste \`null\` sauf \`len\` (0) et \`concat\` (vide) |
+| Absence | \`coalesce(a, b, …)\`, \`is_null(x)\`, \`is_empty(x)\` | \`coalesce\` = premiere valeur non nulle (\`''\` compte comme une valeur) ; \`is_empty\` = null, \`''\` ou tableau vide |
+| Tableaux | \`join(arr, ', ')\`, \`contains(arr_ou_texte, v)\` | \`contains\` sur tableau = egalite lache par element (comme \`in\`) ; sur texte = sous-chaine insensible a la casse (comme \`where contains\`) |
+
+**Conditions** : \`when COND then EXPR [when COND then EXPR]… else EXPR\`. La premiere
+condition vraie gagne ; le \`else\` est **obligatoire**. Une condition combine des
+comparaisons \`= != < <= > >=\` avec \`and\`, \`or\`, \`not\` (priorite : \`not\` > \`and\` > \`or\` ;
+parentheses possibles). Un \`when\` peut s'imbriquer dans une arithmetique ou dans une
+branche — le mettre entre parentheses quand il est suivi d'un operateur.
+
+**Meme semantique que \`where\`, syntaxe infixe** : l'egalite est lache (nombre ↔ chaine
+numerique : \`dept = 75\` matche \`"75"\`), \`< <= > >=\` comparent en nombre quand les deux
+cotes sont numeriques et en texte sinon (dates ISO comprises), null / absent / vide ne
+matchent jamais une comparaison d'ordre. Correspondance :
+
+| \`where\` (dialecte colon, attribut) | \`when\` (infixe, dans compute) |
+|------|------|
+| \`champ:eq:v\` | \`champ = 'v'\` ou \`champ = 75\` |
+| \`champ:neq:v\` | \`champ != 'v'\` |
+| \`champ:gt:n\` / \`gte\` / \`lt\` / \`lte\` | \`champ > n\` / \`>=\` / \`<\` / \`<=\` |
+| \`champ:isnull\` / \`champ:isnotnull\` | \`is_null(champ)\` / \`not is_null(champ)\` (ou \`champ = null\` / \`champ != null\`) |
+| \`champ:contains:v\` / \`notcontains\` | \`contains(champ, 'v')\` / \`not contains(champ, 'v')\` |
+| \`champ:in:a\\|b\` / \`notin\` | \`champ = 'a' or champ = 'b'\` / \`not (…)\` |
+| \`a:eq:1, b:eq:2\` (virgule = ET) | \`a = 1 and b = 2\` |
+
+Garde-fous : aucun \`eval\`, seuls les champs de la ligne sont lisibles, expression bornee
+en longueur (2000 caracteres) et en profondeur (32 niveaux). Les colonnes produites
+apparaissent dans la trace du volet Diagnostic (« calculees (compute) : … » avec un exemple
+de valeur).
+
+\`\`\`html
+<!-- Solde, tranche par seuils, valeur par defaut, annee d'une date -->
+<dsfr-data-normalize id="calc" source="raw" numeric="actif, passif, montant"
+  compute="solde = actif - passif;
+           tranche = when montant >= 1000000 then 'Grand' when montant >= 100000 then 'Moyen' else 'Petit';
+           type = coalesce(type_entreprise, 'Non renseigné');
+           annee = year(date_notification)">
+</dsfr-data-normalize>
+<dsfr-data-query id="par-tranche" source="calc" group-by="tranche" aggregate="solde:sum"></dsfr-data-query>
+
+<!-- Part en % arrondie, libelle compose, indicateur booleen -->
+<dsfr-data-normalize id="calc" source="raw"
+  compute="part_pct = round(part * 100, 1);
+           libelle = concat(upper(code), ' - ', trim(nom));
+           actif = when statut = 'A' and not is_empty(siret) then true else false">
+</dsfr-data-normalize>
+
+<!-- Recodage d'une liste (split) puis reconstitution -->
+<dsfr-data-normalize id="calc" source="raw" split="risques:|"
+  compute="nb_risques = len(risques); inondable = contains(risques, 'inondation'); risques_txt = join(risques, ', ')">
+</dsfr-data-normalize>
+\`\`\`
 
 ### Aplatir des données imbriquees (Grist, ODS v1, Airtable)
 
@@ -3437,7 +3519,7 @@ compte pas (peut etre place apres les composants).
     id: 'attributeGrammars',
     name: 'Grammaires d’attributs et voies natives',
     description:
-      'Par attribut, la grammaire exacte et la voie native a essayer AVANT d’ecrire un script : split, round, format compact, decimales et unite d’un KPI, format date, compteur de resultats, facettes radio/select/cascade, annee en cours, cles de jointure, valeurs nulles, fond de carte neutre ou administratif, nom de serie, treemap',
+      'Par attribut, la grammaire exacte et la voie native a essayer AVANT d’ecrire un script : split, round, format compact, decimales et unite d’un KPI, format date, compteur de resultats, facettes radio/select/cascade, annee en cours, cles de jointure, valeurs nulles, colonne calculee et recodage (compute, when), fond de carte neutre ou administratif, nom de serie, treemap',
     trigger: [
       'grammaire',
       'voie native',
@@ -3472,6 +3554,11 @@ compte pas (peut etre place apres les composants).
       'valeur nulle',
       'is not null',
       'isnotnull',
+      'colonne calculee',
+      'compute',
+      'when',
+      'recoder',
+      'tranche',
       'fond neutre',
       'fond gris',
       'niveaux de gris',
@@ -3676,6 +3763,30 @@ Deux dialectes selon l’endroit :
 
 Un groupe « (vide) » dans un graphique vient presque toujours de lignes a valeur
 nulle : filtrer avec \`isnotnull\` plutot que de post-traiter les donnees.
+Pour **remplacer** la valeur nulle par un libelle plutot que l'exclure :
+\`dsfr-data-normalize compute="type = coalesce(type, 'Non renseigné')"\`.
+
+### Colonne derivee, recodage par ligne : compute (when / then / else, fonctions)
+
+\`dsfr-data-normalize compute\` : \`"cible = expression; cible2 = expression2"\`, par ligne,
+en dernier. Arithmetique, concatenation, fonctions en liste blanche (\`year month day
+round abs floor ceil lower upper trim len concat replace coalesce is_null is_empty join
+contains\`) et conditions \`when COND then EXPR … else EXPR\` (\`else\` obligatoire ;
+comparaisons \`= != < <= > >=\`, \`and or not\`). Meme egalite lache que \`where\` : la
+condition \`when dept = 75\` garde les memes lignes que \`where="dept:eq:75"\`.
+
+\`\`\`html
+<dsfr-data-normalize id="calc" source="raw" numeric="montant"
+  compute="tranche = when montant >= 1000000 then 'Grand' when montant >= 100000 then 'Moyen' else 'Petit';
+           annee = year(date_notification); solde = actif - passif">
+</dsfr-data-normalize>
+\`\`\`
+
+Pas de script pour « une colonne annee », « une tranche selon un seuil », « un solde »,
+« null → Non renseigné » : c'est \`compute\`. Une fonction hors liste ou un \`when\` sans
+\`else\` est une erreur de configuration visible (console + \`data-dsfr-config-error\`).
+Les agregats (somme, distinct, part) restent dans \`dsfr-data-query\` / \`dsfr-data-kpi\` ;
+l'affichage conditionnel d'un fragment, dans les templates (\`{{#if}}\`).
 
 ### Fond de carte neutre, grise, niveaux de gris
 

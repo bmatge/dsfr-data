@@ -143,6 +143,13 @@ function describeStage(trace: Trace, nodeId: string, redact: boolean): string {
       `LIGNES IGNORÉES : ${node.skippedRows} (code ou coordonnées géographiques absents ou invalides)`
     );
   }
+  if (node.computedColumns && node.computedColumns.length > 0) {
+    lines.push(
+      `Colonnes calculées (compute) : ${node.computedColumns
+        .map((c) => (redact ? c.name : `${c.name} = ${JSON.stringify(c.sample) ?? 'undefined'}`))
+        .join(', ')}`
+    );
+  }
 
   switch (state.status) {
     case 'loaded':

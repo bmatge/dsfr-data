@@ -88,9 +88,11 @@ export function filterToOdsql(filterExpr: string): string {
 /**
  * Égalité lâche unique (#278) : coercition string/number (`"75" == 75`),
  * repli `String === String` pour les booléens (`true` vs `"true"`).
- * Même sémantique que `_looseEquals` de dsfr-data-query.
+ * Même sémantique que `_looseEquals` de dsfr-data-query. Partagée avec les
+ * comparaisons `=` / `!=` de `compute` (#671) : `where="cat:eq:A"` et
+ * `when cat = 'A'` gardent les mêmes lignes.
  */
-function looseEquals(a: unknown, b: unknown): boolean {
+export function looseEquals(a: unknown, b: unknown): boolean {
   if (a === null || a === undefined) return b === null || b === undefined;
   // eslint-disable-next-line eqeqeq -- loose equality intentional (string/number coercion)
   if (a == b) return true;
