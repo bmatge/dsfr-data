@@ -337,6 +337,19 @@ export class AppPreviewPanel extends LitElement {
           overflow: auto;
         }
 
+        /* Le contenu de l'onglet Apercu est DEPLACE tel quel depuis le slot.
+           Quand une app l'enveloppe dans un simple div slot="preview", ce
+           bloc a une hauteur automatique et coupe la chaine flex avant meme
+           d'arriver a l'etat vide (#629) : le panneau avait beau etre haut,
+           l'apercu s'arretait a sa hauteur minimale. Onglet Apercu seulement
+           — le Code et les Donnees rendent du texte, qui doit defiler. */
+        .preview-panel-tab-content[data-tab='preview'] > * {
+          display: flex;
+          flex-direction: column;
+          flex: 1;
+          min-height: 0;
+        }
+
         /* Styles communs pour le contenu des slots */
 
         /* Preview content */
@@ -366,22 +379,32 @@ export class AppPreviewPanel extends LitElement {
           color: var(--text-mention-grey);
         }
 
+        /* Colonne flex comme .preview-chart / .chart-wrapper : sans elle, un
+           enfant en flex-grow (l'etat vide) ne grandit pas et le conteneur
+           s'effondre a sa hauteur minimale (#629). */
         .preview-panel-tab-content .chart-container {
           position: relative;
+          display: flex;
+          flex-direction: column;
           flex: 1;
           min-height: 300px;
         }
 
+        /* Item flex qui grandit, PAS un overlay (#629). L'etat vide et le
+           rendu s'excluent — les apps masquent l'un quand l'autre paraît —
+           donc rien ne justifiait de le sortir du flux, et le positionnement
+           absolu privait le conteneur de la seule chose qui le tendait quand
+           l'iframe est masquee. */
         .preview-panel-tab-content .empty-state {
-          position: absolute;
-          inset: 0;
+          flex: 1;
+          min-height: 300px;
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
+          gap: 1rem;
           color: var(--text-mention-grey);
           text-align: center;
-          pointer-events: none;
         }
 
         .preview-panel-tab-content .empty-state i {
