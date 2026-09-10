@@ -19,6 +19,8 @@ import {
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import { parseKpiLines, resolveKpiLines, type ResolvedKpiLine } from '../utils/kpi-lines.js';
 import { getDataMeta } from '../utils/data-bridge.js';
+import { getByPath } from '../utils/json-path.js';
+import { applyLocalFilter, validateColonFilter } from '@dsfr-data/shared/lib';
 
 type KpiColor = 'vert' | 'orange' | 'rouge' | 'bleu';
 
@@ -74,6 +76,20 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
   /** @deprecated alias français de `value` (#300) */
   @property({ type: String })
   valeur = '';
+
+  /**
+   * Filtre des lignes AVANT le calcul (#674), dialecte colon de
+   * dsfr-data-query : `where="categorie:eq:Actif, montant:gte:1000"` —
+   * mêmes 12 opérateurs (eq, neq, gt, gte, lt, lte, contains, notcontains,
+   * in, notin, isnull, isnotnull), même égalité lâche, chemins imbriqués
+   * acceptés. Appliqué à `value`, `trend` et `lines`.
+   * CÔTÉ CLIENT SEULEMENT : le KPI ne délègue rien au serveur, le filtre
+   * porte sur les lignes reçues (derrière un `limit` ou une page, poser le
+   * `where` sur la source ou une query amont). `meta:total` n'en tient pas
+   * compte. Une clause non reconnue est une erreur de configuration.
+   */
+  @property({ type: String })
+  where = '';
 
   /**
    * Titre affiché AU-DESSUS de la valeur (surtitre, style majuscules grises).
@@ -225,6 +241,22 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
 
   static styles = css``;
 
+  /**
+   * Lignes de la source après le `where` client (#674). Sans `where` (ou
+   * avec un `where` invalide, déjà signalé), les données brutes — y compris
+   * une source mono-objet, que computeAggregation sait lire.
+   */
+  private _filteredData(): unknown {
+    const data = this._sourceData;
+    if (!this.where || data == null || validateColonFilter(this.where) !== null) return data;
+    const rows: Record<string, unknown>[] = Array.isArray(data)
+      ? (data as Record<string, unknown>[])
+      : typeof data === 'object'
+        ? [data as Record<string, unknown>]
+        : [];
+    return applyLocalFilter(rows, this.where, getByPath);
+  }
+
   private _computeValue(): number | string | null {
     const expr = this.value || this.valeur;
     if (!expr) return null;
@@ -239,13 +271,16 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
     if (!this._sourceData) return null;
     const rows = Array.isArray(this._sourceData) ? this._sourceData.length : 1;
     // Total de la meta (#659) : suit recherche et facettes en server-side,
-    // la source reposant sa meta a chaque fetch avant d'emettre.
+    // la source reposant sa meta a chaque fetch avant d'emettre. Le `where`
+    // client (#674) ne s'y applique pas : c'est le total de l'amont.
     if (expr === META_TOTAL_EXPR) {
       return getDataMeta(this.source)?.total ?? rows;
     }
     const kind = parseExpression(expr).type;
+    // Le warn compare le total amont aux lignes RECUES (avant `where`) :
+    // un filtre qui garde 3 lignes sur 12 n'est pas une troncature.
     if (kind === 'count' || kind === 'distinct') this._warnPartialCount(rows, kind);
-    return computeAggregation(this._sourceData, expr);
+    return computeAggregation(this._filteredData(), expr);
   }
 
   /**
@@ -296,7 +331,7 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
     const trendExpr = this.trend || this.tendance;
     if (!trendExpr || !this._sourceData) return null;
 
-    const tendanceValue = computeAggregation(this._sourceData, trendExpr);
+    const tendanceValue = computeAggregation(this._filteredData(), trendExpr);
     if (typeof tendanceValue !== 'number') return null;
 
     return {
@@ -310,7 +345,7 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
     if (!this.lines) return [];
     const specs = parseKpiLines(this.lines);
     if (!specs) return [];
-    return resolveKpiLines(specs, this._sourceData);
+    return resolveKpiLines(specs, this._filteredData());
   }
 
   /** Dernier message d'erreur de config posé (anti-spam console). */
@@ -348,6 +383,16 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
       }
     }
 
+    // `where` non parsable (#674) : bloquant — un filtre ignoré en silence
+    // afficherait un chiffre faux avec l'aplomb d'un chiffre juste.
+    if (!message && this.where) {
+      const whereError = validateColonFilter(this.where);
+      if (whereError) {
+        message = `where="${this.where}" : ${whereError}`;
+        this._blockingConfigError = message;
+      }
+    }
+
     // Format inconnu (#665) : bloquant, comme une fonction d'agrégat inconnue —
     // `euro:3` rendait « 1 749 » en silence, la grammaire colon reste à `value`.
     if (!message && this.format && !isFormatType(this.format)) {
@@ -371,7 +416,7 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
       if (trendExpr && parseExpression(trendExpr).type === 'invalid') {
         message = `trend="${trendExpr}" : ${parseExpression(trendExpr).error}`;
       } else if (trendExpr && this._sourceData != null) {
-        const v = computeAggregation(this._sourceData, trendExpr);
+        const v = computeAggregation(this._filteredData(), trendExpr);
         if (typeof v !== 'number') {
           message =
             `trend="${trendExpr}" ne résout pas en nombre — attendu une ` +

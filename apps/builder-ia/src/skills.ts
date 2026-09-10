@@ -984,6 +984,7 @@ Attend un tableau d'objets. L'attribut \`valeur\` determine comment extraire/agr
 |----------|------|--------|--------|-------------|
 | source | String | \`""\` | oui | ID de la dsfr-data-source ou dsfr-data-query |
 | value | String | \`""\` | oui | Expression : \`"champ"\`, \`"champ:avg"\`, \`"champ:sum"\`, \`"champ:min"\`, \`"champ:max"\`, \`"champ:distinct"\`, \`"count:champ:valeur"\` (grammaire commune champ:fn, #303). Alias deprecie : \`valeur\` · litteral avec \`=\` : \`value="=667"\`, \`value="=87 %"\` (sans source) |
+| where | String | \`""\` | non | Filtre des lignes AVANT le calcul, dialecte colon de dsfr-data-query : \`where="categorie:eq:Actif, montant:gte:1000"\` (mêmes 12 opérateurs). Appliqué à \`value\`, \`trend\` et \`lines\`. **Client seulement** : porte sur les lignes reçues, jamais délégué au serveur |
 | heading | String | \`""\` | non | Titre affiche AU-DESSUS de la valeur (surtitre, majuscules grises). Nomme \`heading\` (pas \`title\`, qui collisionne avec la propriete DOM native) |
 | label | String | \`""\` | non | Libelle sous la valeur (et sous les \`lines\`) |
 | description | String | \`""\` | non | Description pour accessibilité (sr-only) |
@@ -1010,6 +1011,22 @@ tronquées (limit, page, max-records), un warn console signale le chiffre partie
 Dates : \`min\`/\`max\` acceptent une colonne de dates ISO (\`AAAA-MM-JJ\` ou datetime) et renvoient
 la date la plus ancienne/récente ; \`first\`/\`last\` renvoient la chaîne brute. Avec \`format="date"\`,
 la valeur est rendue JJ/MM/AAAA : \`value="maj:max" format="date"\` -> « 09/09/2026 ».
+
+### Filtrer sans query intermédiaire : \`where\`
+\`where="champ:op:valeur[, …]"\` filtre les lignes AVANT \`value\`, \`trend\` et \`lines\`, avec la
+grammaire colon de dsfr-data-query (eq, neq, gt, gte, lt, lte, contains, notcontains, in, notin,
+isnull, isnotnull ; égalité lâche, \`in\` avec \`|\`). Une somme filtrée ne coûte plus une query :
+\`\`\`html
+<dsfr-data-kpi source="budget" value="montant:sum" where="categorie:eq:Actif" label="Actif" format="euro"></dsfr-data-kpi>
+<dsfr-data-kpi source="budget" value="montant:sum" where="categorie:eq:Passif, exercice:gte:2024" label="Passif 2024+"></dsfr-data-kpi>
+\`\`\`
+- **Côté client seulement** : le KPI ne délègue rien au serveur, le filtre porte sur les lignes
+  reçues. Derrière un \`limit\`, une page serveur ou un \`max-records\`, poser le \`where\` sur la
+  source ou une query amont. \`meta:total\` n'est pas filtré.
+- La forme \`montant:sum:categorie=Actif\` n'existe pas (elle entrerait en collision avec
+  \`count:champ:valeur\`) : le filtre est un attribut, pas un segment de \`value\`.
+- Clause non reconnue (opérateur inconnu, valeur manquante) : erreur de configuration à la
+  place du KPI.
 
 ### Compter le total, pas les lignes reçues : \`value="meta:total"\`
 \`value="count"\` compte les lignes REÇUES. Derrière un \`dsfr-data-query limit="12"\`, une source

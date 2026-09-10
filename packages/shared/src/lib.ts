@@ -61,7 +61,12 @@ export { buildCsv, CSV_BOM } from './utils/csv.js';
 export { escapeColonValue, unescapeColonValue } from './utils/colon-escape.js';
 export type { AliasedColumn } from './utils/aliased-columns.js';
 export { parseAliasedColumn, parseAliasedColumns } from './utils/aliased-columns.js';
-export { filterToOdsql, applyLocalFilter } from './query/filter-translator.js';
+export {
+  filterToOdsql,
+  applyLocalFilter,
+  validateColonFilter,
+  COLON_FILTER_OPERATORS,
+} from './query/filter-translator.js';
 export type { ContextFilterLike } from './query/context-filter.js';
 
 // Constantes DSFR
