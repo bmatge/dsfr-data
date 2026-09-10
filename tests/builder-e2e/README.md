@@ -13,10 +13,14 @@ Ce dossier contient une suite complète de tests E2E Playwright pour vérifier q
 - **`builder-ia-recette.spec.ts`** : Recette des 16 types de l'Assistant IA (#615) — le code
   généré est produit **et rend**, sur source locale (variante embarquée). Depuis #609 l'aperçu
   EST l'export : ce spec est donc la seule vérification qu'un type ne rend pas dans le vide.
-  **Portée** : les trois variantes API (ODS/Tabular paginées, API générique) ne sont pas
-  *rendues* ici — elles demanderaient le réseau ; seule leur forme est vérifiée hors ligne.
-  Cette moitié-là (281 tests) tourne en CI dans
-  `tests/apps/builder-ia/code-generator-recette.test.ts`.
+  La forme du code des variantes API est vérifiée hors ligne, en CI, par
+  `tests/apps/builder-ia/code-generator-recette.test.ts` ; leur **rendu** l'est par
+  `export-html-api-recette.spec.ts` ci-dessous (#625).
+- **`export-html-api-recette.spec.ts`** : Recette des **16 types × 3 variantes API** par
+  interception de route (#625, arbitrage ADR-106). Écrite contre l'**export HTML partagé**
+  (`packages/shared/src/dashboard/export-html.ts`), qui sert le Studio *et* l'Assistant IA —
+  pas contre l'Assistant seul, voué au décommissionnement (ADR-099 §4).
+  Voir « Recette des variantes API » plus bas.
 - **`layout-diagnostic-recette.spec.ts`** : Recette de clôture de l'epic #614 — sur les 5 apps
   (Builder, Assistant IA, Playground, Studio, Carto) : pas de défilement horizontal, mode de
   hauteur déclaré, fin de document bordant le rail, et volet Diagnostic qui **reçoit réellement
@@ -24,6 +28,11 @@ Ce dossier contient une suite complète de tests E2E Playwright pour vérifier q
 
 ### Utilitaires
 - **`data-consistency-checker.ts`** : Fonctions de calcul et vérification de cohérence
+- **`api-fixtures.ts`** : Les quatre faux serveurs de la recette des variantes API (ODS
+  `records` / `exports/json` / `facets`, Tabular, API générique) — **sans Playwright**, donc
+  éprouvés hors ligne par `api-fixtures.test.ts` (21 tests, en CI avec vitest).
+- **`api-harness.ts`** : Le harnais `page.route()` : sert la page, les actifs CDN et les trois
+  API, refuse tout le reste.
 
 ### Documentation
 - **`README.md`** : Ce fichier - guide d'utilisation
@@ -47,6 +56,9 @@ npm run dev
 # 2. Playwright doit être installé
 npx playwright install
 ```
+
+> `export-html-api-recette.spec.ts` est la **seule exception** : elle ne demande aucun serveur
+> (elle sert sa page par `page.route()`), mais elle demande `npm run build`. Voir ci-dessous.
 
 ### Lancer les tests critiques (recommandé)
 
@@ -103,6 +115,57 @@ npx playwright test quick-audit.spec.ts --headed
 # Lancer avec le debugger
 npx playwright test quick-audit.spec.ts --debug
 ```
+
+## 🌐 Recette des variantes API (#625, ADR-106)
+
+`export-html-api-recette.spec.ts` rend les **16 types × 3 variantes API** de l'export HTML
+partagé. C'est la moitié que ni `builder-ia-recette.spec.ts` (source locale) ni
+`code-generator-recette.test.ts` (forme du code, hors ligne) ne pouvaient couvrir : les deux
+défauts les plus coûteux trouvés jusqu'ici (podium vide #617, datalist pilotée par script)
+produisaient un code parfaitement bien formé. Ce spec en a trouvé un troisième de la même
+famille — une carte agrégée dont le champ de code ne survivait pas au `group-by`.
+
+```bash
+npm run build        # une fois : le bundle packages/core/dist est servi à la place du CDN
+npx playwright test --config tests/builder-e2e/playwright.config.ts export-html-api-recette
+
+# La partie hors ligne (les faux serveurs eux-mêmes) tourne en CI avec vitest :
+npx vitest run tests/builder-e2e/api-fixtures.test.ts
+```
+
+### Ce que le harnais garantit
+
+| Point | Comment |
+|-------|---------|
+| **Aucun réseau réel** | Une route `**/*` unique sert la page, les actifs et les trois API ; tout hôte non prévu est refusé **et journalisé**. Chaque test assertionne `journal.inattendues === []`. |
+| **Aucun serveur** | La page est servie par `page.route()` sur un hôte `.invalid` (TLD réservé, RFC 2606) — pas de `npm run dev`, pas de port. |
+| **Enveloppes réelles** | ODS `{ total_count, results }` paginé par `offset`/`limit` (100/page), Tabular `{ data, links, meta }` paginé par `page`, API générique en tableau nu. Plus `/exports/json` (mode `export`, #689) et `/facets`. |
+| **Fidélité aux travers de l'API** | Sur un `group_by`, le faux ODS renvoie un `total_count` égal à la taille de page — le mensonge du vrai ODS (#641). La recette prouve ainsi que l'adaptateur a raison de l'ignorer. |
+| **Jeu piégeux** | 137 lignes (> `ODS_PAGE_SIZE`, sinon la 2ᵉ requête n'existerait pas), étiquettes à apostrophe (« Val-d'Oise ») et esperluette, et le nom de colonne `Nombre d'habitants`. |
+
+### Ce que chaque cas vérifie
+
+- le composant d'affichage **a reçu des lignes** (`_sourceData`), et rend des pixels ;
+- une carte **n'écarte aucune ligne** faute de code géographique (le « podium vide » cartographique) ;
+- **aucune erreur console** hors `favicon` — la liste de tolérance est plus courte que celle de
+  la recette locale : rien ne venant du réseau, un `net::ERR_` signalerait une fuite du harnais ;
+- ODS demande bien sa **seconde page avec `offset=100`**, Tabular enchaîne via `links.next` ;
+- en pagination serveur, la **page 2 est demandée et affichée**, et le **tri délégué émet sa
+  commande** `dsfr-data-source-command` avec `orderBy`, qui repart en `order_by` dans l'URL.
+
+### Pourquoi une réécriture pour la pagination serveur
+
+`export-html.ts` n'émet ni `server-side` ni `server-sort` : le document du Studio charge tout le
+jeu (plafonné par `max-records`) puis pagine dans le navigateur. Le générateur de l'Assistant IA,
+lui, émet bien les deux pour une datalist sur source paginée. `avecPaginationServeur()` pose donc
+sur la page partagée la forme que l'Assistant produit déjà — c'est le seul moyen d'exercer
+`fetchPage`, la commande `page` et le tri délégué, que le chemin `fetchAll` ne montre pas.
+
+### Mode `fetch-mode="export"` (#689)
+
+Le faux serveur `/exports/json` est en place et éprouvé hors ligne (tableau nu, `limit` = plafond
++ 1). Le test de rendu correspondant est `test.skip` tant que l'attribut n'existe pas dans la
+base : à réactiver à la fusion de #689.
 
 ## 📊 Couverture des tests
 

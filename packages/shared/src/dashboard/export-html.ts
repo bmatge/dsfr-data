@@ -26,6 +26,7 @@ import type {
   MapLayerSpec,
   MapWidgetConfig,
 } from './model.js';
+import type { ChartConfig } from './chart-config.js';
 import { getRowColumns, isFavoriteChart, isBuilderChart } from './model.js';
 import { earlyBufferScript } from '../debug/early-buffer.js';
 
@@ -150,6 +151,28 @@ const VARIANT_TO_COLOR_TOKEN: Record<string, string> = {
 };
 
 /**
+ * Champs du `group-by` d'un widget agrege.
+ *
+ * Le champ de CODE geographique en fait partie des qu'il differe de
+ * l'etiquette (#625). Sans lui, la carte demandait `code-field="code_dept"`
+ * sur des lignes agregees qui ne portaient plus que `region` et
+ * `population__sum` : toutes les lignes etaient ecartees faute de code, et la
+ * carte se rendait VIDE — sans erreur, avec un HTML parfaitement bien forme.
+ * C'est le defaut de classe « podium vide » (#617), version cartographique,
+ * que seule une recette de RENDU pouvait voir.
+ *
+ * Le code d'un territoire etant fonctionnellement determine par son nom, le
+ * grouper en plus ne change pas les groupes ; et quand ce n'est pas le cas,
+ * les separer est de toute facon la seule lecture defendable — on ne peut pas
+ * colorier une carte sur une colonne qu'on a jetee.
+ */
+function groupByFields(c: ChartConfig): string[] {
+  const fields = [c.labelField ?? ''];
+  if (c.codeField && c.codeField !== c.labelField) fields.push(c.codeField);
+  return fields.filter(Boolean);
+}
+
+/**
  * Widget `fromBuilder` : traduit la ChartConfig complete du builder-IA en
  * pipeline declaratif. Un `dsfr-data-query` n'est emis que s'il apporte
  * quelque chose (where / aggregation / tri / limite) ; sinon le composant
@@ -181,7 +204,7 @@ function generateBuilderChartHTML(
     const attrs: string[] = [`source="${escapeHtml(sourceId)}"`];
     if (c.where) attrs.push(`where="${escapeHtml(c.where)}"`);
     if (aggregation) {
-      attrs.push(`group-by="${escapeHtml(c.labelField ?? '')}"`);
+      attrs.push(`group-by="${escapeHtml(groupByFields(c).join(','))}"`);
       attrs.push(`aggregate="${escapeHtml(c.valueField)}:${aggregation}"`);
     }
     if (c.sortOrder) attrs.push(`order-by="${escapeHtml(valueOut)}:${c.sortOrder}"`);
