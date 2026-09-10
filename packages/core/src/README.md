@@ -27,6 +27,7 @@ src/
 | `dsfr-data-context` | Orchestrateur de filtres transverses multi-sources |
 | `dsfr-data-context-filter` | Un filtre du contexte (lie a un controle d'UI natif) |
 | `dsfr-data-context-tags` | Tags DSFR supprimables des filtres actifs |
+| `dsfr-data-context-value` | Valeur courante d'un filtre, dans un titre ou une phrase |
 | `dsfr-data-facets` | Filtres a facettes interactifs |
 | `dsfr-data-search` | Recherche plein texte |
 | `dsfr-data-chart` | Graphique DSFR Chart (bar, line, pie, radar, gauge, scatter, bar-line, map, map-reg, map-aca, map-monde) |

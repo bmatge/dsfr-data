@@ -970,6 +970,38 @@ pas des personnes. `weight-field` remplace le nombre de lignes par la **somme** 
 
 ---
 
+### Ecrire la valeur d'un filtre dans un titre
+
+`dsfr-data-context-tags` liste les filtres actifs, mais ne s'insere pas dans une phrase :
+« Résultats pour {{departement}} » n'etait pas exprimable. `<dsfr-data-context-value>` rend
+la valeur courante d'un ou plusieurs filtres du contexte, comme du texte :
+
+```html
+<dsfr-data-context id="ctx" sources="src" url-sync>
+  <dsfr-data-context-filter field="departement" operator="eq" ui="ui-dep">
+  </dsfr-data-context-filter>
+</dsfr-data-context>
+
+<h2>
+  <dsfr-data-context-value for="ctx" template="Résultats pour {{departement}}"
+    fallback="Résultats pour toute la France" live></dsfr-data-context-value>
+</h2>
+```
+
+- `field="departement"` est le raccourci de `template="{{departement}}"`.
+- **Repli declare** : `fallback` s'affiche tant qu'un champ cite n'a aucune valeur. Un seul
+  champ manquant suffit a basculer — « Résultats pour  » serait pire qu'une phrase de repli.
+  Sans `fallback`, le composant ne rend rien.
+- **Accessibilite** : `live` fait du composant une region live polie (`aria-live="polite"`,
+  `role="status"`), pour qu'un titre qui suit le filtre annonce le changement de contenu.
+  A poser sur **un seul** element de la page : trois libelles qui parlent en meme temps sont
+  un bruit, pas une aide.
+- Tout filtre du contexte est lisible ainsi (contrat commun) : `dsfr-data-context-filter`,
+  champs d'une `dsfr-data-facets context="…"`, terme d'une `dsfr-data-search context="…"`.
+- Le rendu est du texte : la valeur d'un filtre ne traverse jamais l'analyseur HTML.
+
+---
+
 ## Ressources
 
 - **Code source** : [github.com/bmatge/dsfr-data](https://github.com/bmatge/dsfr-data)
