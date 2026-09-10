@@ -946,6 +946,30 @@ qu'une facette de categories reste rangee par frequence, sans dupliquer le compo
 
 ---
 
+### Facettes : compter une mesure plutot que des lignes
+
+Sur une table de mesures, « 1 240 » ne dit rien au lecteur : ce sont des lignes de releve,
+pas des personnes. `weight-field` remplace le nombre de lignes par la **somme** d'un champ :
+
+```html
+<dsfr-data-facets id="filtres" source="src" fields="region"
+  weight-field="effectif"></dsfr-data-facets>
+```
+
+- Le tri `count` porte alors sur cette somme, et le nombre est formate a la francaise
+  (`4 500,5`). Les lecteurs d'ecran entendent « total 4 500,5 », pas « 4 500 resultats ».
+- Une valeur non numerique pese zero ; un champ absent de toutes les lignes est signale
+  une fois en console.
+- Sur une cellule multi-valeurs (ChoiceList Grist), chaque valeur recoit le poids entier
+  de la ligne — comme elle recevait une unite dans le comptage par lignes.
+- **Client uniquement, et c'est assume.** En mode `server-facets`, l'API facettes ne
+  renvoie qu'un nombre de lignes : la somme n'existe pas. Plutot qu'afficher un nombre de
+  lignes sous un libelle de somme, le composant **masque les compteurs**, pose
+  `data-dsfr-config-error` et rend un avertissement DSFR au-dessus des facettes. Pour
+  ponderer des facettes serveur, il faut ramener les donnees cote client.
+
+---
+
 ## Ressources
 
 - **Code source** : [github.com/bmatge/dsfr-data](https://github.com/bmatge/dsfr-data)

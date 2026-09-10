@@ -858,6 +858,7 @@ Sortie : même tableau, filtre selon les selections de l'utilisateur.
 | hide-empty | Boolean | \`false\` | non | Masquer les facettes avec une seule valeur |
 | display | String | \`""\` | non | Mode d'affichage par facette : \`"field:select \\| field2:multiselect"\`. Modes : checkbox (défaut), select, multiselect, radio (dropdown a radios), radio-inline (radios visibles en ligne + « Tous ») |
 | hide-counts | Boolean | \`false\` | non | Masquer les compteurs (N) a cote de chaque valeur de facette |
+| weight-field | String | \`""\` | non | **Client uniquement** (#739). Champ numerique dont la SOMME remplace le nombre de lignes dans les compteurs : sur une table de mesures, \`weight-field="effectif"\` annonce la somme des effectifs au lieu de « 1 240 » releves. Le tri \`count\` porte alors sur cette somme, et le nombre est formate a la francaise. Une valeur non numerique pese zero. En mode \`server-facets\`, la somme n'existe pas dans la reponse /facets : les compteurs sont MASQUES, une erreur de configuration est posee et un avertissement DSFR est rendu — ne pas generer \`weight-field\` avec \`server-facets\` |
 | url-params | Boolean | \`false\` | non | Active la lecture des parametres d'URL comme pre-selections de facettes |
 | url-param-map | String | \`""\` | non | Mapping URL param -> champ : \`"r:region \\| t:type"\`. Si vide, correspondance directe |
 | url-sync | Boolean | \`false\` | non | Synchronise l'URL quand l'utilisateur change les facettes (replaceState) |

@@ -5,7 +5,7 @@ import { dispatchSourceCommand } from '../utils/data-bridge.js';
 import { TransformerMixin } from '../utils/transformer-mixin.js';
 import type { ApiAdapter, AdapterParams, FacetDescriptor } from '../adapters/api-adapter.js';
 import type { SourceElement } from '../utils/source-element.js';
-import { isUnsafeKey } from '@dsfr-data/shared/lib';
+import { isUnsafeKey, toNumber } from '@dsfr-data/shared/lib';
 import type { ContextFilterLike } from '@dsfr-data/shared/lib';
 import { joinWhere, escapeColonValue } from '../utils/where.js';
 import { logFetchWarning } from '../utils/fetch-diagnostics.js';
@@ -244,9 +244,42 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   @property({ type: Boolean, attribute: 'hide-counts' })
   hideCounts = false;
 
+  /**
+   * Champ numérique dont la SOMME remplace le nombre de lignes dans les
+   * compteurs (#739). Sur une table de mesures, « 1 240 » relevés ne dit rien
+   * au lecteur : `weight-field="effectif"` annonce la somme des effectifs.
+   * Le tri `count` porte alors sur cette somme.
+   *
+   * CLIENT UNIQUEMENT, et c'est assume : en mode `server-facets`, la reponse
+   * de l'API facettes ne porte qu'un nombre de lignes, jamais la somme d'une
+   * mesure. Plutot qu'afficher un nombre de lignes sous un libellé de somme,
+   * les compteurs y sont MASQUÉS, une erreur de configuration est posee
+   * (console + `data-dsfr-config-error`) et un avertissement DSFR est rendu
+   * au-dessus des facettes. Meme chose en `static-values`, ou les compteurs
+   * sont déjà masques faute de données.
+   *
+   * Une valeur non numérique compte pour zero ; si le champ est absent de
+   * toutes les lignes, un avertissement console le signale.
+   */
+  @property({ type: String, attribute: 'weight-field' })
+  weightField = '';
+
+  /** Champ de ponderation demande, normalise (#739) */
+  private get _weightField(): string {
+    return this.weightField.trim();
+  }
+
+  /**
+   * `weight-field` demande la ou la somme n'existe pas (#739) : mode
+   * `server-facets`. Les compteurs sont masques et l'auteur est prevenu.
+   */
+  get _weightUnsupported(): boolean {
+    return !!this._weightField && this.serverFacets;
+  }
+
   /** Compteurs effectivement masques (force a true en mode static-values) */
   get _effectiveHideCounts(): boolean {
-    return this.hideCounts || !!this.staticValues;
+    return this.hideCounts || !!this.staticValues || this._weightUnsupported;
   }
 
   /** Colonnage DSFR des facettes : "6" (global) ou "field:4 | field2:6" (par facette) */
@@ -430,6 +463,35 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     }
   }
 
+  /**
+   * `weight-field` en mode `server-facets` : erreur de configuration posee
+   * APRES le rendu (#739). `_bindContext()` appelle `clearConfigError()` en
+   * cas de succes, et il tourne dans `willUpdate` : poser le marqueur ici
+   * garantit qu'il survit au cycle.
+   */
+  updated(changed: Map<PropertyKey, unknown>) {
+    super.updated(changed);
+    if (this._weightUnsupported) {
+      const message =
+        `weight-field="${this._weightField}" n'est pas disponible en mode server-facets ` +
+        `(l'API facettes ne renvoie qu'un nombre de lignes, jamais la somme d'une mesure) — ` +
+        `les compteurs sont masques. Retirer weight-field, ou calculer les facettes cote client.`;
+      if (!this._weightUnsupportedReported) {
+        this._weightUnsupportedReported = true;
+        reportConfigError(this, 'dsfr-data-facets', message);
+      } else if (!this.hasAttribute('data-dsfr-config-error')) {
+        // Un cycle a pu lever le marqueur (`clearConfigError` du mode context)
+        this.setAttribute('data-dsfr-config-error', message);
+      }
+    } else if (this._weightUnsupportedReported) {
+      this._weightUnsupportedReported = false;
+      clearConfigError(this);
+    }
+  }
+
+  /** L'erreur `weight-field` + `server-facets` n'est journalisee qu'une fois (#739) */
+  private _weightUnsupportedReported = false;
+
   /** Changement de mode (serveur/statique) → re-souscription complete (#281) */
   protected transformerReinitProps(): string[] {
     return ['source', 'serverFacets', 'staticValues'];
@@ -441,6 +503,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
       'fields',
       'labels',
       'sort',
+      'weightField',
       'hideEmpty',
       'maxValues',
       'disjunctive',
@@ -593,6 +656,25 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
 
   // --- Templates partages entre les 3 modes de rendu (#313) ---
 
+  /**
+   * Compteur affiche : nombre de lignes tel quel (historique), ou somme
+   * ponderee formatee a la francaise (#739) — une somme d'effectifs se lit
+   * « 12 340 », pas « 12340 ».
+   */
+  _formatCount(count: number): string {
+    if (!this._weightField || this._weightUnsupported) return String(count);
+    return count.toLocaleString('fr-FR', { maximumFractionDigits: 2 });
+  }
+
+  /** Texte lu par les lecteurs d'écran a cote d'une valeur de facette */
+  private _countSrText(count: number): string {
+    const formatted = this._formatCount(count);
+    if (this._weightField && !this._weightUnsupported) {
+      return `, total ${formatted}`;
+    }
+    return `, ${formatted} resultat${count > 1 ? 's' : ''}`;
+  }
+
   /** Libellé « valeur + compteur » — etait copie 3x (checkbox, multiselect, radio) */
   private _renderValueLabel(fv: FacetValue) {
     const missingHint = fv.missing
@@ -601,8 +683,9 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     return html`${fv.value}${missingHint}${
       this._effectiveHideCounts || fv.missing
         ? nothing
-        : html`<span class="dsfr-data-facets__count" aria-hidden="true">${fv.count}</span
-            ><span class="fr-sr-only">, ${fv.count} resultat${fv.count > 1 ? 's' : ''}</span>`
+        : html`<span class="dsfr-data-facets__count" aria-hidden="true"
+              >${this._formatCount(fv.count)}</span
+            ><span class="fr-sr-only">${this._countSrText(fv.count)}</span>`
     }`;
   }
 
@@ -829,22 +912,57 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     return candidates;
   }
 
+  /** `weight-field` absent des données : signale une fois par champ (#739) */
+  private _weightFieldMissingWarned = new Set<string>();
+
+  /**
+   * Poids d'une ligne : 1 par défaut, la valeur de `weight-field` sinon
+   * (#739). Une cellule non numérique pese zero — la somme reste lisible,
+   * et un champ entierement absent est signale en console.
+   */
+  private _rowWeight(row: Record<string, unknown>, weightField: string): number {
+    if (!weightField) return 1;
+    const parsed = toNumber(this._resolveValue(row, weightField), true);
+    return parsed ?? 0;
+  }
+
   /** Compute facet values with counts, applying cross-facet filtering for dynamic counts */
   _computeFacetValues(field: string): FacetValue[] {
     // For dynamic counts: filter data by all OTHER active facets (not this one)
     const dataForCounting = this._getDataFilteredExcluding(field);
+    // Somme d'une mesure au lieu d'un nombre de lignes (#739)
+    const weightField = this._weightUnsupported ? '' : this._weightField;
+    let weighted = 0;
 
     const counts = new Map<string, number>();
     for (const row of dataForCounting) {
+      const weight = this._rowWeight(row, weightField);
+      if (weight !== 0) weighted++;
       // Cellule tableau : chaque element compte dans son groupe (#421)
       for (const strVal of this._facetValuesOf(this._resolveValue(row, field))) {
-        counts.set(strVal, (counts.get(strVal) ?? 0) + 1);
+        counts.set(strVal, (counts.get(strVal) ?? 0) + weight);
       }
+    }
+
+    if (
+      weightField &&
+      weighted === 0 &&
+      dataForCounting.length > 0 &&
+      !this._weightFieldMissingWarned.has(weightField)
+    ) {
+      this._weightFieldMissingWarned.add(weightField);
+      const who = this.id ? `dsfr-data-facets[${this.id}]` : 'dsfr-data-facets';
+      console.warn(
+        `${who} : weight-field="${weightField}" ne trouve aucune valeur numérique dans les ` +
+          `données — tous les compteurs valent zero. Verifier le nom du champ et son type.`
+      );
     }
 
     const values: FacetValue[] = [];
     for (const [value, count] of counts) {
-      values.push({ value, count });
+      // Les sommes flottantes accumulent des artefacts (0.1 + 0.2) : arrondi
+      // a 6 decimales, largement au-dela de ce qu'un compteur affiche
+      values.push({ value: value, count: weightField ? Math.round(count * 1e6) / 1e6 : count });
     }
 
     return this._sortValues(values, field);
@@ -1947,6 +2065,20 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
         `
       : nothing;
 
+    // Un compteur faux serait pire qu'un compteur absent (#739) : l'API
+    // facettes ne renvoie qu'un nombre de lignes, la somme n'y est pas.
+    const weightBanner = this._weightUnsupported
+      ? html`
+          <div class="fr-alert fr-alert--warning fr-alert--sm" role="alert">
+            <p>
+              <strong>&lt;dsfr-data-facets&gt;</strong> : weight-field="${this._weightField}" n'est
+              pas disponible en mode server-facets — l'API facettes ne renvoie qu'un nombre de
+              lignes. Les compteurs sont masques.
+            </p>
+          </div>
+        `
+      : nothing;
+
     const useDsfrGrid = !!this.cols;
 
     return html`
@@ -2027,7 +2159,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
       </style>
       <div class="dsfr-data-facets">
         <div aria-live="polite" class="fr-sr-only">${this._liveAnnouncement}</div>
-        ${facetsErrorBanner}
+        ${facetsErrorBanner} ${weightBanner}
         ${
           hasActiveFilters && !this.noReset
             ? html`
@@ -2164,7 +2296,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
                 ${
                   this._effectiveHideCounts || fv.missing
                     ? `${fv.value}${fv.missing ? ' (indisponible)' : ''}`
-                    : `${fv.value} (${fv.count})`
+                    : `${fv.value} (${this._formatCount(fv.count)})`
                 }
               </option>
             `
