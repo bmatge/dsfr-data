@@ -68,15 +68,18 @@ jobs:
       # trois releases (#757). Il tourne avant `check:accents` parce qu'il en
       # est souvent la cause — une description JSDoc de-accentuee arrive dans
       # les pages par la generation, pas par une saisie a la main.
-      # Ne depend que du manifeste commite : aucun build prealable requis.
-      - name: Check generated attribute tables in specs
-        run: npm run check:specs-tables
-
+      # Le script lit le manifeste commite, mais il s'execute par vite-node et
+      # importe `@dsfr-data/shared` : il lui faut donc `packages/shared/dist`,
+      # d'ou sa place APRES `Build shared package` (sinon ERR_MODULE_NOT_FOUND,
+      # cf. le meme piege sur les tests de bundles).
       - name: Check French accents on UI strings
         run: npm run check:accents
 
       - name: Build shared package
         run: npm run build:shared
+
+      - name: Check generated attribute tables in specs
+        run: npm run check:specs-tables
 
       - name: Typecheck
         run: npm run typecheck
