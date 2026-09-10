@@ -79,9 +79,19 @@ class FacetFieldFilter implements ContextFilterLike {
     return this._values().join(', ');
   }
 
+  /** Un tag par valeur dans context-tags (#679) */
+  displayValues(): string[] {
+    return this._values();
+  }
+
   /** Meme chemin qu'un clic « Tout » : la facette re-pousse son etat au contexte */
   clear(): void {
     this.host._clearFieldSelections(this.field);
+  }
+
+  /** Meme chemin qu'une case decochee : les autres valeurs du champ restent (#679) */
+  clearValue(value: string): void {
+    this.host._removeFieldValue(this.field, value);
   }
 
   urlValue(): string {
@@ -233,6 +243,15 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
    */
   @property({ type: String })
   context = '';
+
+  /**
+   * Masque le bouton local « Réinitialiser les filtres » (#679, #640 pt 9).
+   * À poser quand un dsfr-data-context-tags clear-all fait office de « tout
+   * effacer » pour la page (mode `context`), ou pour qu'une colonne de
+   * facettes ne change pas de hauteur à la première sélection.
+   */
+  @property({ type: Boolean, attribute: 'no-reset' })
+  noReset = false;
 
   @state()
   private _rawData: Record<string, unknown>[] = [];
@@ -1434,6 +1453,27 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     this._announce('Aucune option sélectionnée');
   }
 
+  /** Retire UNE valeur d'un champ (tag de context-tags, #679) — les autres restent */
+  _removeFieldValue(field: string, value: string) {
+    const current = this._activeSelections[field];
+    if (!current?.has(value)) return;
+    const fieldSet = new Set(current);
+    fieldSet.delete(value);
+    const selections = { ...this._activeSelections };
+    if (fieldSet.size === 0) {
+      delete selections[field];
+    } else {
+      selections[field] = fieldSet;
+    }
+    this._activeSelections = selections;
+    this._afterSelectionChange();
+    this._announce(
+      fieldSet.size === 0
+        ? 'Aucune option sélectionnée'
+        : `${value} désélectionnée, ${fieldSet.size} option${fieldSet.size > 1 ? 's' : ''} sélectionnée${fieldSet.size > 1 ? 's' : ''}`
+    );
+  }
+
   private _selectAllValues(field: string) {
     const group = this._facetGroups.find((g) => g.field === field);
     if (!group) return;
@@ -1865,7 +1905,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
         <div aria-live="polite" class="fr-sr-only">${this._liveAnnouncement}</div>
         ${facetsErrorBanner}
         ${
-          hasActiveFilters
+          hasActiveFilters && !this.noReset
             ? html`
                 <div class="dsfr-data-facets__header">
                   <button

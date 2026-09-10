@@ -45,4 +45,19 @@ export interface ContextFilterLike {
 
   /** Valeur pour l'URL (valeurs jointes par virgule) — chaine vide = parametre retire */
   urlValue(): string;
+
+  /**
+   * Valeurs humaines, une par une, quand le filtre en porte plusieurs (#679 :
+   * une facette `in` donne un tag par valeur, supprimable individuellement).
+   * Optionnel : sans cette methode, les tags rendent `displayValue()` en un
+   * seul tag et la croix appelle `clear()`.
+   */
+  displayValues?(): string[];
+
+  /**
+   * Retire UNE valeur (celle de `displayValues()`) par le meme chemin qu'un
+   * geste utilisateur — les autres restent actives. Optionnel, va de pair
+   * avec `displayValues()`.
+   */
+  clearValue?(value: string): void;
 }

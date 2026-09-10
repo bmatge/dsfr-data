@@ -731,6 +731,7 @@ Sortie : même tableau, filtre selon les selections de l'utilisateur.
 | static-values | String | \`""\` | non | Valeurs de facettes pre-calculees en JSON : \`'{"region":["IDF","PACA"],"type":["Commune"]}')\`. Les selections envoient des commandes WHERE en colon syntax au dsfr-data-query. Compteurs masques automatiquement. Utile pour Tabular/Grist/generique qui n'ont pas d'API facettes serveur |
 | cols | String | \`""\` | non | Colonnage DSFR : \`"6"\` (global, 2/ligne), \`"4"\` (3/ligne), ou par facette \`"region:4 \\| type:6"\` (défaut fr-col-6 pour non-specifies) |
 | context | String | \`""\` | non | Id d'un dsfr-data-context (#678, ADR-104) : la facette devient un filtre du contexte, un par champ. Le contexte diffuse a toutes ses sources cibles (au dialecte de chacune), porte l'URL (url-sync / url-params de la facette ignores) et alimente context-tags. Valeurs, compteurs et cascade restent calcules sur \`source\`. Vide = mode autonome (commande directe a \`source\`) |
+| no-reset | Boolean | \`false\` | non | Masque le bouton local « Réinitialiser les filtres » (#679, #640) : a poser quand un context-tags clear-all fait office de « tout effacer », ou pour qu'une colonne de facettes ne change pas de hauteur a la premiere selection |
 
 ### Mode context (#678) — un select peuple depuis la donnee, avec cascade
 \`\`\`html
@@ -3029,13 +3030,15 @@ Affiche des tags DSFR supprimables : un tag par filtre actif du contexte observe
 (libelle naturel + valeur). La croix reinitialise le filtre en VIDANT son UI —
 meme chemin qu'un utilisateur qui efface le champ : sources, URL et tags se
 mettent a jour ensemble. Tout type de filtre confondu (#678) : context-filter,
-champs d'une facets context="…", terme d'une search context="…".
+champs d'une facets context="…", terme d'une search context="…" (tag « Recherche : terme »).
+Une facette multi-valeurs (in) donne UN tag par valeur, chacune retirable seule (#679).
 
 ### Attributs
 
 | Attribut | Type | Défaut | Requis | Description |
 |----------|------|--------|--------|-------------|
 | for | String | \`""\` | oui | Id du dsfr-data-context observe |
+| clear-all | Boolean | \`false\` | non | Bouton unique « Tout effacer » (#679) apres les tags : vide tous les filtres actifs en une fois (une seule URL, une seule notification), annonce en region live, absent sans filtre actif. Poser \`no-reset\` sur les facets de la page pour ne pas doubler leur bouton local |
 
 ### Pattern
 
@@ -3044,7 +3047,8 @@ champs d'une facets context="…", terme d'une search context="…".
   <dsfr-data-context-filter field="categorie" label="Catégorie" operator="in" ui="ui-cat">
   </dsfr-data-context-filter>
 </dsfr-data-context>
-<dsfr-data-context-tags for="ctx"></dsfr-data-context-tags>
+<dsfr-data-facets context="ctx" source="src-a" server-facets fields="region" no-reset></dsfr-data-facets>
+<dsfr-data-context-tags for="ctx" clear-all></dsfr-data-context-tags>
 \`\`\`
 ` + reference('dsfr-data-context-tags'),
   },

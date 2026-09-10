@@ -49,8 +49,10 @@ class SearchContextFilter implements ContextFilterLike {
     return `${this.field}:contains:${escapeColonValue(term)}`;
   }
 
+  /** Tag « Recherche : terme » (#679) — le libelle par defaut du champ est un verbe */
   displayLabel(): string {
-    return this.host.label || 'Recherche';
+    const label = this.host.label.trim();
+    return label && label !== 'Rechercher' ? label : 'Recherche';
   }
 
   displayValue(): string {

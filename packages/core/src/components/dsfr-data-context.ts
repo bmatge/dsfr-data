@@ -100,6 +100,13 @@ export class DsfrDataContext extends LitElement {
    */
   private _whereKeys = new Map<ContextFilterLike, string>();
 
+  /**
+   * Lot en cours (`clearAll`, #679) : les commandes partent filtre par
+   * filtre (un whereKey chacun, les sources coalescent leur fetch), mais
+   * l'URL n'est écrite et le changement notifié qu'une fois, à la fin.
+   */
+  private _batching = false;
+
   /** Light DOM : les enfants filter restent visibles/inspectables */
   createRenderRoot() {
     return this;
@@ -206,11 +213,35 @@ export class DsfrDataContext extends LitElement {
       const where = colonWhere ? this._translateFor(sourceId, colonWhere) : '';
       dispatchSourceCommand(sourceId, { where, whereKey, origin: this.id });
     }
+    if (!this._batching) this._notifyChange();
+  }
+
+  /** URL (si url-sync) puis notification des observateurs (dsfr-data-context-tags, #232) */
+  private _notifyChange(): void {
     if (this.urlSync && this.isConnected) {
       this._syncUrl();
     }
-    // Notifie les observateurs (dsfr-data-context-tags, #232)
     this.dispatchEvent(new CustomEvent('dsfr-data-context-change'));
+  }
+
+  /**
+   * Retire tous les filtres actifs d'un coup (#679, « Tout effacer » de
+   * dsfr-data-context-tags). Chaque filtre est vidé par son propre `clear()`
+   * (même chemin qu'un geste utilisateur : son UI se vide), mais l'URL n'est
+   * écrite et `dsfr-data-context-change` émis qu'UNE fois. Retourne le
+   * nombre de filtres retirés.
+   */
+  clearAll(): number {
+    const active = this.activeFilters();
+    if (active.length === 0) return 0;
+    this._batching = true;
+    try {
+      for (const filter of active) filter.clear();
+    } finally {
+      this._batching = false;
+    }
+    this._notifyChange();
+    return active.length;
   }
 
   /**
