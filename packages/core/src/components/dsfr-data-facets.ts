@@ -3,7 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { dispatchSourceCommand } from '../utils/data-bridge.js';
 import { TransformerMixin } from '../utils/transformer-mixin.js';
-import type { ApiAdapter } from '../adapters/api-adapter.js';
+import type { ApiAdapter, AdapterParams, FacetDescriptor } from '../adapters/api-adapter.js';
 import type { SourceElement } from '../utils/source-element.js';
 import { isUnsafeKey } from '@dsfr-data/shared/lib';
 import { joinWhere } from '../utils/where.js';
@@ -58,7 +58,11 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   @property({ type: String })
   source = '';
 
-  /** Champs a exposer comme facettes (virgule-separes). Vide = auto-detection */
+  /**
+   * Champs à exposer comme facettes (virgule-séparés). Vide = auto-détection sur les
+   * données chargées ; en `server-facets`, vide = découverte des facettes déclarées par le
+   * jeu de données (OpenDataSoft : métadonnées du jeu ; Grist : colonnes Choice/ChoiceList, #680)
+   */
   @property({ type: String })
   fields = '';
 
@@ -126,7 +130,9 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
    * Active le mode facettes serveur ODS.
    * Fetch les valeurs de facettes depuis l'API ODS /facets au lieu de les calculer localement.
    * Requiert source pointant vers un dsfr-data-source avec api-type="opendatasoft" et server-side.
-   * En mode server-facets, l'attribut fields est obligatoire (pas d'auto-detection).
+   * Sans `fields`, un appel de découverte au premier cycle liste les facettes déclarées par le
+   * jeu (mémorisé, invalidé si la source ou `dataset-id` change, #680). Les facettes de type
+   * date (valeurs par année) sont filtrées par intervalle et non par égalité (#676).
    */
   @property({ type: Boolean, attribute: 'server-facets' })
   serverFacets = false;
@@ -525,7 +531,10 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     const adapter: ApiAdapter | undefined =
       (rawEl as unknown as SourceElement)?.getAdapter?.() ?? undefined;
     if (adapter?.buildFacetWhere) {
-      return adapter.buildFacetWhere(this._activeSelections, excludeField);
+      // Champs date connus par la decouverte (#676) : une annee devient un intervalle
+      return adapter.buildFacetWhere(this._activeSelections, excludeField, {
+        dateFields: this._dateFacetFields(),
+      });
     }
     // Fallback: colon syntax (for client-side mode without adapter)
     const parts: string[] = [];
@@ -739,6 +748,78 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   /** Erreur du dernier fetch de facettes (rendue, plus avalee — #309) */
   private _facetsError: string | null = null;
 
+  // --- Decouverte des facettes declarees (#680) ---
+
+  /** Facettes decouvertes aupres du provider ; null tant que la decouverte n'a pas abouti */
+  private _discoveredFacets: FacetDescriptor[] | null = null;
+
+  /** Cle (baseUrl + datasetId) de la decouverte memorisee : un autre jeu l'invalide */
+  private _discoveryKey = '';
+
+  /** Decouverte en vol, partagee entre deux cycles de fetch concurrents */
+  private _discoveryPromise: Promise<FacetDescriptor[]> | null = null;
+
+  /** « Aucune facette declaree » deja signale pour ce jeu (un warn, pas un par cycle) */
+  private _discoveryEmptyWarned = false;
+
+  /**
+   * Un appel de decouverte par jeu de donnees : noms et libelles des facettes
+   * declarees (utilises quand `fields` est absent) et champs de type date —
+   * utiles meme avec `fields` explicite, car le where d'une annee doit etre
+   * un intervalle (#676). Une decouverte en echec est memorisee vide (pas de
+   * nouvelle tentative a chaque cycle) jusqu'a un changement de jeu.
+   */
+  private _discoverServerFacets(
+    adapter: ApiAdapter,
+    params: Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl'>
+  ): Promise<FacetDescriptor[]> {
+    if (!adapter.discoverFacets) return Promise.resolve([]);
+    const key = `${params.baseUrl}|${params.datasetId}`;
+    if (this._discoveryKey === key) {
+      if (this._discoveredFacets) return Promise.resolve(this._discoveredFacets);
+      if (this._discoveryPromise) return this._discoveryPromise;
+    }
+    this._discoveryKey = key;
+    this._discoveredFacets = null;
+    this._discoveryEmptyWarned = false;
+    const promise = adapter
+      .discoverFacets(params)
+      .catch((e: unknown) => {
+        logFetchWarning(`dsfr-data-facets[${this.id}]: découverte des facettes en échec`, e);
+        return [] as FacetDescriptor[];
+      })
+      .then((descriptors) => {
+        if (this._discoveryKey === key) {
+          this._discoveredFacets = descriptors;
+          this._discoveryPromise = null;
+        }
+        return descriptors;
+      });
+    this._discoveryPromise = promise;
+    return promise;
+  }
+
+  /** Champs date connus par la decouverte (#676) ; undefined avant decouverte ou sans date */
+  private _dateFacetFields(): ReadonlySet<string> | undefined {
+    if (!this._discoveredFacets) return undefined;
+    const dates = this._discoveredFacets.filter((d) => d.isDate).map((d) => d.field);
+    return dates.length > 0 ? new Set(dates) : undefined;
+  }
+
+  /** Une selection active porte-t-elle une annee sur un champ date decouvert ? */
+  private _hasDateYearSelection(): boolean {
+    const dateFields = this._dateFacetFields();
+    if (!dateFields) return false;
+    return Object.entries(this._activeSelections).some(
+      ([field, values]) => dateFields.has(field) && [...values].some((v) => /^\d{4}$/.test(v))
+    );
+  }
+
+  /** Libelle declare par le provider pour un champ decouvert (a defaut de `labels`) */
+  private _discoveredLabel(field: string): string | undefined {
+    return this._discoveredFacets?.find((d) => d.field === field)?.label;
+  }
+
   /** L'adapter amont supporte-t-il les facettes serveur ? (#313) */
   private _serverFacetsSupported(): boolean {
     const sourceEl = document.getElementById(this.source);
@@ -747,25 +828,16 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     return !!(adapter?.capabilities.serverFacets && adapter.fetchFacets);
   }
 
-  /** Fetch facet values from server API with cross-facet counts */
-  private async _fetchServerFacets() {
-    const sourceEl = document.getElementById(this.source);
-    if (!sourceEl) return;
-
-    // Get adapter from the source element (dsfr-data-query delegates to dsfr-data-source)
-    const adapter: ApiAdapter | undefined =
-      (sourceEl as unknown as SourceElement).getAdapter?.() ?? undefined;
-    if (!adapter?.capabilities.serverFacets || !adapter.fetchFacets) {
-      // Adapter does not support server facets — fallback to client-side
-      this._buildFacetGroups();
-      this._applyFilters();
-      return;
-    }
-
-    // Parametres resolus par la source elle-meme (headers effectifs avec
-    // api-key-ref) via la delegation SourceElement — re-parser les attributs
-    // DOM ratait la resolution d'api-key-ref → 401 sur sources
-    // authentifiees (#274)
+  /**
+   * Parametres serveur (baseUrl, datasetId, headers, proxy) de la source
+   * amont. Resolus par la source elle-meme (headers effectifs avec
+   * api-key-ref) via la delegation SourceElement — re-parser les attributs
+   * DOM ratait la resolution d'api-key-ref → 401 sur sources authentifiees
+   * (#274). Null sans datasetId.
+   */
+  private _resolveServerParams(
+    sourceEl: HTMLElement
+  ): Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl'> | null {
     const resolvedParams = (sourceEl as unknown as SourceElement).getAdapterParams?.() ?? null;
 
     let baseUrl: string;
@@ -794,10 +866,83 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
       }
     }
 
-    if (!datasetId) return;
+    if (!datasetId) return null;
+    return { baseUrl, datasetId, headers, proxyUrl };
+  }
 
-    const fields = _parseCSV(this.fields);
-    if (fields.length === 0) return; // fields requis en mode server
+  /** Une selection active porte-t-elle une valeur en forme d'annee (avant toute decouverte) ? */
+  private _hasYearShapedSelection(): boolean {
+    return Object.values(this._activeSelections).some((values) =>
+      [...values].some((v) => /^\d{4}$/.test(v))
+    );
+  }
+
+  /**
+   * Erreur amont en mode serveur AVANT toute decouverte (#676) : une
+   * selection annuelle issue de l'URL a pu etre emise en egalite sur un
+   * champ date (400) — la source n'emet alors aucune donnee, donc le cycle
+   * de facettes (et sa decouverte) n'aurait jamais lieu. On lance la
+   * decouverte ici et, si un champ date est concerne, on re-emet la
+   * commande en intervalle. Une seule tentative par jeu (decouverte memorisee).
+   */
+  public emitTransformerError(error: Error): void {
+    super.emitTransformerError(error);
+    if (!this.serverFacets || this._discoveredFacets !== null || this._discoveryPromise) return;
+    if (!this._hasYearShapedSelection()) return;
+    const sourceEl = document.getElementById(this.source);
+    const adapter: ApiAdapter | undefined =
+      (sourceEl as unknown as SourceElement | null)?.getAdapter?.() ?? undefined;
+    if (!sourceEl || !adapter?.discoverFacets) return;
+    const serverParams = this._resolveServerParams(sourceEl);
+    if (!serverParams) return;
+    void this._discoverServerFacets(adapter, serverParams).then(() => {
+      if (this.isConnected && this._hasDateYearSelection()) this._dispatchFacetCommand();
+    });
+  }
+
+  /** Fetch facet values from server API with cross-facet counts */
+  private async _fetchServerFacets() {
+    const sourceEl = document.getElementById(this.source);
+    if (!sourceEl) return;
+
+    // Get adapter from the source element (dsfr-data-query delegates to dsfr-data-source)
+    const adapter: ApiAdapter | undefined =
+      (sourceEl as unknown as SourceElement).getAdapter?.() ?? undefined;
+    if (!adapter?.capabilities.serverFacets || !adapter.fetchFacets) {
+      // Adapter does not support server facets — fallback to client-side
+      this._buildFacetGroups();
+      this._applyFilters();
+      return;
+    }
+
+    const serverParams = this._resolveServerParams(sourceEl);
+    if (!serverParams) return;
+    const { baseUrl, datasetId, headers, proxyUrl } = serverParams;
+
+    // Decouverte des facettes declarees (#680) : un appel par jeu, memorise.
+    // Sans `fields`, ses noms deviennent les champs ; avec `fields`, elle ne
+    // sert qu'a typer les champs date (#676).
+    let fields = _parseCSV(this.fields);
+    if (adapter.discoverFacets) {
+      const knewDateFields = this._dateFacetFields() !== undefined;
+      const discovered = await this._discoverServerFacets(adapter, serverParams);
+      if (fields.length === 0) fields = discovered.map((d) => d.field);
+      // Une selection (URL) emise AVANT la decouverte sur un champ date etait
+      // en egalite (400) : la re-emettre en intervalle, le type etant connu
+      if (!knewDateFields && this._hasDateYearSelection()) {
+        this._dispatchFacetCommand();
+      }
+    }
+    if (fields.length === 0) {
+      if (!this.fields && !this._discoveryEmptyWarned) {
+        this._discoveryEmptyWarned = true;
+        console.warn(
+          `dsfr-data-facets[${this.id}]: aucune facette déclarée par le jeu de données — ` +
+            `renseigner l'attribut fields`
+        );
+      }
+      return;
+    }
 
     const labelMap = this._parseLabels();
 
@@ -841,7 +986,8 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
         for (const result of results) {
           allGroups.push({
             field: result.field,
-            label: labelMap.get(result.field) ?? result.field,
+            label:
+              labelMap.get(result.field) ?? this._discoveredLabel(result.field) ?? result.field,
             values: this._sortValues(result.values),
           });
         }

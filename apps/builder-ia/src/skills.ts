@@ -727,7 +727,7 @@ Sortie : même tableau, filtre selon les selections de l'utilisateur.
 | url-params | Boolean | \`false\` | non | Active la lecture des parametres d'URL comme pre-selections de facettes |
 | url-param-map | String | \`""\` | non | Mapping URL param -> champ : \`"r:region \\| t:type"\`. Si vide, correspondance directe |
 | url-sync | Boolean | \`false\` | non | Synchronise l'URL quand l'utilisateur change les facettes (replaceState) |
-| server-facets | Boolean | \`false\` | non | Active le mode facettes serveur ODS. Fetch les valeurs depuis l'API ODS /facets. Requiert une source dsfr-data-source api-type="opendatasoft" server-side (directement ou via un dsfr-data-query, qui relaie automatiquement). En mode server-facets, fields est obligatoire |
+| server-facets | Boolean | \`false\` | non | Active le mode facettes serveur ODS. Fetch les valeurs depuis l'API ODS /facets. Requiert une source dsfr-data-source api-type="opendatasoft" server-side (directement ou via un dsfr-data-query, qui relaie automatiquement). Sans fields, les facettes declarees par le jeu sont decouvertes au premier cycle (ODS : metadonnees du jeu ; Grist : colonnes Choice/ChoiceList) ; une facette de type date (valeurs par annee) est filtree par intervalle (#680, #676) |
 | static-values | String | \`""\` | non | Valeurs de facettes pre-calculees en JSON : \`'{"region":["IDF","PACA"],"type":["Commune"]}')\`. Les selections envoient des commandes WHERE en colon syntax au dsfr-data-query. Compteurs masques automatiquement. Utile pour Tabular/Grist/generique qui n'ont pas d'API facettes serveur |
 | cols | String | \`""\` | non | Colonnage DSFR : \`"6"\` (global, 2/ligne), \`"4"\` (3/ligne), ou par facette \`"region:4 \\| type:6"\` (défaut fr-col-6 pour non-specifies) |
 
@@ -3510,12 +3510,24 @@ pas un bug — il sera renomme \`radio-dropdown\` dans une version majeure. Une 
 Avec \`server-facets\` (adapters OpenDataSoft et Grist), les valeurs et compteurs de
 chaque facette sont recalcules **cote serveur en tenant compte des selections des
 autres facettes** : choisir une region reduit la liste des departements, avec les
-bons compteurs. C’est la cascade native ; \`fields\` est obligatoire dans ce mode.
+bons compteurs. C’est la cascade native. Sans \`fields\`, le composant decouvre au
+premier cycle les facettes declarees par le jeu (ODS : champs annotes « facet » des
+metadonnees, avec leur libelle ; Grist : colonnes Choice / ChoiceList) et les affiche
+toutes, cascade comprise (#680). \`fields\` reste le moyen d’en choisir un sous-ensemble
+ou d’imposer l’ordre.
+
+Une facette ODS de type **date** sert ses valeurs par annee (« 2022 ») ; le filtre emis
+est alors un intervalle \`champ >= date'2022-01-01' AND champ < date'2023-01-01'\`, jamais
+l’egalite \`champ = "2022"\` (refusee par ODS, #676). Rien a configurer : le type vient de
+la decouverte, meme avec \`fields\` explicite.
 
 \`\`\`html
 <dsfr-data-source id="src" api-type="opendatasoft" base-url="..." dataset-id="..." server-side page-size="50"></dsfr-data-source>
 <dsfr-data-facets id="f" source="src" server-facets fields="region, departement"
   display="region:select | departement:select"></dsfr-data-facets>
+
+<!-- Toutes les facettes declarees par le jeu, sans les nommer -->
+<dsfr-data-facets id="f2" source="src" server-facets></dsfr-data-facets>
 \`\`\`
 
 En mode local (sans \`server-facets\`), les compteurs se recalculent aussi selon
