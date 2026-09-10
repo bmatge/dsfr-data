@@ -53,6 +53,12 @@ npx playwright test --config tests/builder-e2e/playwright.config.ts  # Tests exh
 # Lint / garde-fous
 npm run check:accents # Lint BLOQUANT des libelles UI : accents + formes hors lexique
                       #   (scripts/check-french-accents.sh, lexique : docs/ux/actions.md)
+npm run build:specs-tables    # Regenere les tableaux d'attributs de specs/components/*.html
+                      #   depuis packages/core/custom-elements.json
+npm run check:specs-tables    # Meme script en --check, BLOQUANT en CI (etape quality, #757) :
+                      #   echoue si une page est perimee, si un attribut n'est range dans
+                      #   aucune section (`fields="..."` d'un bloc ATTRS ou ATTRS-PROSE),
+                      #   ou si un composant n'apparait sur aucune page.
 
 # Skills (connaissance IA : builder-IA + serveur MCP)
 npm run build:skills  # Chaine complete : analyse CEM -> reference generee -> dist/skills.json
@@ -175,6 +181,11 @@ serveur MCP — il sert justement a constater qu'un redeploiement a bien eu lieu
   la partie « reference » des skills est GENEREE depuis le custom-elements manifest (#512), ne jamais
   editer `apps/builder-ia/src/skills-reference.generated.ts` a la main
   (sinon `tests/apps/builder-ia/skills-reference.test.ts` casse).
+- Apres AJOUT d'un attribut (ou d'un composant public) : le **ranger dans une section** d'une page
+  `specs/components/*.html` — ajouter son nom au `fields="..."` d'un bloc `<!-- ATTRS -->` (ou d'un
+  `<!-- ATTRS-PROSE -->` quand il est documente en prose), ecrire la prose autour, puis lancer
+  `npm run build:specs-tables`. Les lignes des tableaux sont GENEREES : ne jamais les saisir a la main.
+  `npm run check:specs-tables` est bloquant en CI (#757).
 - Apres modif d'un **type de graphique / operateur / agregation** : mettre a jour le guide redige a la main
   dans `apps/builder-ia/src/skills.ts` (sinon `tests/apps/builder-ia/skills.test.ts` casse).
 - Ajouter un export lib-safe dans **les deux** barrels (`packages/shared/src/lib.ts` ET `src/index.ts`).

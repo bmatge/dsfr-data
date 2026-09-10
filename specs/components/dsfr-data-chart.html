@@ -40,7 +40,7 @@
         <table class="attr-table">
           <thead><tr><th>Attribut</th><th>Type</th><th>Description</th></tr></thead>
           <tbody>
-              <!-- ATTRS:dsfr-data-chart fields="source,type,label-field,value-field,empty-label,heading-level,selected-palette,unit-tooltip,horizontal,stacked,fill,code-field,map-highlight,gauge-value,value-field-2,value-fields,series-field,name,unit-tooltip-bar,highlight-index,x-min,x-max,y-min,y-max,reference-lines,targets,targets-zone,targets-legend" -->
+              <!-- ATTRS:dsfr-data-chart fields="source,type,label-field,value-field,empty-label,heading-level,selected-palette,unit-tooltip,horizontal,stacked,fill,code-field,map-highlight,gauge-value,value-field-2,value-fields,series-field,name,unit-tooltip-bar,highlight-index,x-min,x-max,y-min,y-max,reference-lines,targets,targets-zone,targets-legend,idle-message" -->
                 <tr><td><code>source</code></td><td>String</td><td>Id de la <code>&lt;dsfr-data-source&gt;</code> (ou d'un transformateur) dont ce graphique consomme les données.</td></tr>
                 <tr><td><code>type</code></td><td>DSFRChartType</td><td>Type de graphique DSFR</td></tr>
                 <tr><td><code>label-field</code></td><td>String</td><td>Chemin vers le champ label</td></tr>
@@ -69,10 +69,55 @@
                 <tr><td><code>targets</code></td><td>String</td><td>Cibles / objectifs futurs (overlay) au format JSON. Types <code>line</code> et <code>bar-line</code> uniquement. Chaque item : <code>{ x: string|number (échéance, requis), value: number (requis), series?: string|number (nom de dataset ou index, défaut 0), label?: string, color?: string }</code>. L'axe X est étendu automatiquement si l'échéance est au-delà des données (séries paddées avec null : trait plein jusqu'au dernier point réel, trajectoire pointillée vers le losange). Ex : <code>targets='[{"x":2030,"value":26,"label":"Cible 2030 : 26 %"}]'</code>.</td></tr>
                 <tr><td><code>targets-zone</code></td><td>String</td><td>Zone future grisée + frontière pointillée réalisé/projeté. <code>"off"</code> désactive.</td></tr>
                 <tr><td><code>targets-legend</code></td><td>String</td><td>Légende réalisé/projeté sous le graphe : <code>""</code> = libellés par défaut (« Données historiques » / « Trajectoire, cible extrapolée »), <code>"off"</code> = masquée, <code>'["a","b"]'</code> = libellés personnalisés.</td></tr>
+                <tr><td><code>idle-message</code></td><td>String</td><td>Message rendu quand l'amont attend un filtre (<code>require-where</code>, #690). Distinct de « aucune donnée » : aucune requête n'a été faite. Vide, le libellé par défaut est utilisé.</td></tr>
               <!-- /ATTRS -->
             </tbody>
         </table>
       </div>
+
+      <h3 class="fr-mt-3w">En attente d'un filtre</h3>
+      <p>
+        Sur une page d'exploration, l'amont peut porter <code>require-where</code>
+        (<code>&lt;dsfr-data-source&gt;</code> ou <code>&lt;dsfr-data-query&gt;</code>) et ne rien émettre tant
+        qu'aucun filtre n'est posé. Le graphique rend alors le texte de <code>idle-message</code>
+        (« Choisissez un filtre pour afficher les données » par défaut) plutôt qu'un cadre vide : aucune
+        requête n'a été faite, ce n'est pas un jeu de résultats vide. Le mécanisme est décrit sur
+        <a href="dsfr-data-source.html#attributs">dsfr-data-source</a>.
+      </p>
+
+      <h3 class="fr-mt-3w">Couleur fixée par modalité</h3>
+      <p>
+        <code>selected-palette</code> attribue les couleurs dans l'ordre des séries : la même modalité
+        change de couleur dès que le filtrage change l'ordre. Quand une modalité porte une convention
+        (le réalisé en bleu, l'objectif en rouge, un parti politique, un niveau d'alerte),
+        <code>color-map</code> la fixe.
+      </p>
+      <div class="fr-table">
+        <table class="attr-table">
+          <thead><tr><th>Attribut</th><th>Type</th><th>Description</th></tr></thead>
+          <tbody>
+              <!-- ATTRS:dsfr-data-chart fields="color-map" -->
+                <tr><td><code>color-map</code></td><td>String</td><td>Couleur fixée par modalité (#732) : paires <code>modalité:#couleur</code> séparées par des virgules, même grammaire que <code>dsfr-data-map-layer</code>. Ex : <code>"Réalisé:#000091,Objectif:#E1000F"</code>. La modalité est un nom de série (une couleur par courbe ou par barre) ou, à défaut, un libellé de l'axe (une couleur par part de camembert). Les modalités non citées gardent la couleur de la palette. Une virgule ou un deux-points dans une modalité s'écrit <code>%2C</code> ou <code>%3A</code>. Sans effet sur les cartes (<code>map*</code>).</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+        </table>
+      </div>
+      <div class="code-block">
+        <pre>&lt;dsfr-data-chart
+  source="budget"
+  type="line"
+  label-field="mois"
+  value-fields="realise,objectif"
+  color-map="realise:#000091, objectif:#E1000F"&gt;
+&lt;/dsfr-data-chart&gt;</pre>
+      </div>
+      <p class="fr-text--sm fr-text--light">
+        La modalité est un nom de série pour les courbes et les barres, un libellé de l'axe pour les parts
+        d'un camembert. Les modalités non citées gardent la couleur de la palette : on ne fixe que ce qui
+        doit l'être. Sans effet sur les cartes choroplèthes (<code>type="map"</code> et ses variantes), dont
+        le dégradé est piloté par <code>selected-palette</code>. La même grammaire existe sur
+        <a href="dsfr-data-map-layer.html">dsfr-data-map-layer</a>.
+      </p>
 
       <h3 class="fr-mt-3w">Attributs DataBox</h3>
       <p>L'attribut <code>databox</code> active l'habillage DataBox DSFR autour du graphique :
@@ -112,6 +157,15 @@
       </div>
 
       <h2 class="fr-mt-4w">Types de graphiques</h2>
+      <p>
+        <code>type</code> accepte <code>bar</code>, <code>line</code>, <code>pie</code>,
+        <code>radar</code>, <code>gauge</code>, <code>scatter</code>, <code>bar-line</code> et les quatre
+        cartes choroplèthes <code>map</code> (départements), <code>map-reg</code> (régions),
+        <code>map-aca</code> (académies) et <code>map-monde</code>. Les quatre variantes de carte sont des
+        valeurs de <code>type</code>, pas des composants : elles n'ont pas de page propre et sont
+        documentées dans <a href="../charts/map-chart.html">Graphiques &mdash; map-chart</a>, avec les clés
+        géographiques attendues par chacune.
+      </p>
 
       <section class="demo-section">
         <h3>1. Graphique en barres verticales</h3>

@@ -56,7 +56,7 @@
           <table class="attr-table">
             <thead><tr><th>Attribut</th><th>Type</th><th>Description</th></tr></thead>
             <tbody>
-              <!-- ATTRS:dsfr-data-a11y fields="source,for,table,download,filename,description,label-field,value-field,label,decimals,no-auto-aria" -->
+              <!-- ATTRS:dsfr-data-a11y fields="source,for,table,download,filename,description,label-field,value-field,label,decimals,no-auto-aria,idle-message" -->
                 <tr><td><code>source</code></td><td>String</td><td>Id de la source (ou du transformateur) dont ce complément accessible consomme les données.</td></tr>
                 <tr><td><code>for</code></td><td>String</td><td>Id de l'élément cible (graphique, carte) pour la liaison ARIA et le lien d'évitement.</td></tr>
                 <tr><td><code>table</code></td><td>Boolean</td><td>Affiche le tableau de données équivalent au graphique.</td></tr>
@@ -68,11 +68,22 @@
                 <tr><td><code>label</code></td><td>String</td><td>Libellé personnalisé de la section accessible.</td></tr>
                 <tr><td><code>decimals</code></td><td>Number</td><td>Nombre de décimales des cellules numériques du tableau (#666). Absent : au plus 2 décimales, format fr-FR. Le CSV n'est pas concerné.</td></tr>
                 <tr><td><code>no-auto-aria</code></td><td>Boolean</td><td>Desactive la pose automatique des attributs ARIA et du lien d'évitement.</td></tr>
+                <tr><td><code>idle-message</code></td><td>String</td><td>Message annoncé quand l'amont attend un filtre (<code>require-where</code>, #690). Remplace « aucune donnée disponible » dans la description lue par les lecteurs d'écran : rien n'a été chargé, rien n'a échoué.</td></tr>
               <!-- /ATTRS -->
             </tbody>
           </table>
         </div>
         <p class="fr-text--sm fr-mt-1w">Si ni <code>table</code>, ni <code>download</code>, ni <code>description</code> ne sont définis, les trois sont actives par défaut.</p>
+
+        <h3 class="fr-mt-3w">En attente d'un filtre</h3>
+        <p>
+          Sur une page d'exploration, l'amont peut refuser de charger tant qu'aucun filtre n'est posé
+          (<code>require-where</code> sur <code>&lt;dsfr-data-source&gt;</code> ou <code>&lt;dsfr-data-query&gt;</code>).
+          Le complément accessible annonce alors <code>idle-message</code> à la place de « aucune donnée
+          disponible » : rien n'a été chargé, rien n'a échoué, et c'est cette nuance qu'un lecteur d'écran
+          doit entendre. Le tableau et le bouton de téléchargement restent masqués tant que la source attend.
+          Le mécanisme est décrit sur <a href="dsfr-data-source.html#attributs">dsfr-data-source</a>.
+        </p>
 
         <h2 class="fr-mt-4w">Fonctionnement ARIA</h2>
         <ol>

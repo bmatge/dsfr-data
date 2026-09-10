@@ -38,7 +38,7 @@
           <table class="attr-table">
             <thead><tr><th>Attribut</th><th>Type</th><th>Description</th></tr></thead>
             <tbody>
-              <!-- ATTRS:dsfr-data-kpi fields="source,value,heading,label,description,trend,lines,format,unit,decimals,icon,color-token,threshold-green,threshold-orange,col,where" -->
+              <!-- ATTRS:dsfr-data-kpi fields="source,value,heading,label,description,trend,lines,format,unit,decimals,icon,color-token,threshold-green,threshold-orange,col,where,idle-message" -->
                 <tr><td><code>source</code></td><td>String</td><td>Id de la source (ou du transformateur) dont ce KPI consomme les données. Facultatif si <code>value</code> est un littéral (<code>value="=667"</code>).</td></tr>
                 <tr><td><code>value</code></td><td>String</td><td>Expression de valeur — convention cible anglaise (#300). Grammaire commune "champ:fn" (#303), ex. value="population:sum". <code>champ:distinct</code> (alias <code>count-distinct</code>, #672) : nombre de valeurs distinctes, null et chaîne vide exclus, calculé sur les lignes reçues. <code>meta:total</code> (#659) : total publié par l'amont (total serveur en server-side, lignes avant <code>limit</code> derrière un query) — <code>count</code> ne compte que les lignes reçues. Ratio (#673) : <code>value="count:statut:ouvert / count"</code>, chaque côté dans la grammaire ci-dessus (<code>meta:total</code> compris). Résultat = fraction (0,35) ; <code>format="pourcentage"</code> la rend en pourcentage (35 %) — les seuils s'expriment alors en pourcentage aussi. Division par zéro : « — ». <code>count:champ:valeur</code> accepte un champ tableau (un élément égal suffit). <code>champ:evolution</code> (#675) : (dernière − première) / première sur les lignes DANS LEUR ORDRE COURANT — poser un <code>order-by</code> chronologique en amont. Fraction, rendue en pourcentage par <code>format="pourcentage"</code>, <code>trend</code> et <code>lines</code> ; « — » si moins de deux valeurs ou première = 0.</td></tr>
                 <tr><td><code>heading</code></td><td>String</td><td>Titre affiché AU-DESSUS de la valeur (surtitre, style majuscules grises). Nommé <code>heading</code> et non <code>title</code> : ce dernier entrerait en collision avec la propriété DOM native HTMLElement.title (infobulle).</td></tr>
@@ -55,12 +55,23 @@
                 <tr><td><code>threshold-orange</code></td><td>Number</td><td>Seuil au-dessus duquel la valeur est orange</td></tr>
                 <tr><td><code>col</code></td><td>Number</td><td>Largeur en colonnes DSFR (1-12). Significatif uniquement dans un &lt;dsfr-data-kpi-group&gt;.</td></tr>
                 <tr><td><code>where</code></td><td>String</td><td>Filtre des lignes AVANT le calcul (#674), dialecte colon de dsfr-data-query : <code>where="categorie:eq:Actif, montant:gte:1000"</code> — mêmes 12 opérateurs (eq, neq, gt, gte, lt, lte, contains, notcontains, in, notin, isnull, isnotnull), même égalité lâche, chemins imbriqués acceptés. Appliqué à <code>value</code>, <code>trend</code> et <code>lines</code>. CÔTÉ CLIENT SEULEMENT : le KPI ne délègue rien au serveur, le filtre porte sur les lignes reçues (derrière un <code>limit</code> ou une page, poser le <code>where</code> sur la source ou une query amont). <code>meta:total</code> n'en tient pas compte. Une clause non reconnue est une erreur de configuration.</td></tr>
+                <tr><td><code>idle-message</code></td><td>String</td><td>Message rendu quand l'amont attend un filtre (<code>require-where</code>, #690). Distinct de « aucune donnée » : aucune requête n'a été faite. Vide, le libellé par défaut est utilisé.</td></tr>
               <!-- /ATTRS -->
             </tbody>
           </table>
         </div>
         <!-- ATTRS-PROSE:dsfr-data-kpi fields="valeur,icone,couleur,color,seuil-vert,seuil-orange,tendance" -->
         <p class="fr-text--sm fr-text--light">Les anciens noms francais (<code>valeur</code>, <code>icone</code>, <code>couleur</code>, <code>seuil-vert</code>, <code>seuil-orange</code>, <code>tendance</code>) restent lus en alias deprecies (#300).</p>
+
+        <h3 class="fr-mt-3w">En attente d'un filtre</h3>
+        <p>
+          Un chiffre est le pire endroit où afficher un zéro qui n'en est pas un. Quand l'amont porte
+          <code>require-where</code> (<code>&lt;dsfr-data-source&gt;</code> ou <code>&lt;dsfr-data-query&gt;</code>),
+          aucune requête n'est encore partie : le KPI rend le texte de <code>idle-message</code>
+          (« Choisissez un filtre pour afficher les données » par défaut) au lieu d'une valeur. Distinct de
+          « aucune donnée », qui signalerait une requête revenue vide. Le mécanisme est décrit sur
+          <a href="dsfr-data-source.html#attributs">dsfr-data-source</a>.
+        </p>
 
         <h2 class="fr-mt-4w">dsfr-data-kpi-group - Attributs</h2>
         <div class="fr-table">

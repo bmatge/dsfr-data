@@ -108,7 +108,7 @@
                 <tr><td><code>labels</code></td><td>String</td><td><code>""</code></td><td>Labels custom : "field:Label | field2:Label 2"</td></tr>
                 <tr><td><code>max-values</code></td><td>Number</td><td><code>6</code></td><td>Nb de valeurs visibles par facette avant "Voir plus"</td></tr>
                 <tr><td><code>disjunctive</code></td><td>String</td><td><code>""</code></td><td>Champs en mode multi-sélection OU (virgule-séparés)</td></tr>
-                <tr><td><code>sort</code></td><td>String</td><td><code>count</code></td><td>Tri des valeurs de chaque facette, grammaire <code>critere:sens</code> alignée sur <code>order-by</code> de dsfr-data-query (#645) : - <code>count:desc</code> (défaut) : du plus fréquent au plus rare - <code>count:asc</code> : du plus rare au plus fréquent - <code>alpha:asc</code> : A -&gt; Z (collation française) - <code>alpha:desc</code> : Z -&gt; A Raccourcis : <code>count</code> = <code>count:desc</code>, <code>alpha</code> = <code>alpha:asc</code>. Formes <code>-count</code> / <code>-alpha</code> DÉPRÉCIÉES : conservées à l'identique (<code>-count</code> = rare d'abord, <code>-alpha</code> = Z -&gt; A) mais un avertissement console invite a passer a la forme explicite ; retrait dans une version majeure.</td></tr>
+                <tr><td><code>sort</code></td><td>String</td><td><code>count</code></td><td>Tri des valeurs de chaque facette, grammaire <code>critere:sens</code> alignée sur <code>order-by</code> de dsfr-data-query (#645) : - <code>count:desc</code> (défaut) : du plus fréquent au plus rare - <code>count:asc</code> : du plus rare au plus fréquent - <code>alpha:asc</code> : A -&gt; Z (collation française) - <code>alpha:desc</code> : Z -&gt; A Raccourcis : <code>count</code> = <code>count:desc</code>, <code>alpha</code> = <code>alpha:asc</code>. Formes <code>-count</code> / <code>-alpha</code> DÉPRÉCIÉES : conservées à l'identique (<code>-count</code> = rare d'abord, <code>-alpha</code> = Z -&gt; A) mais un avertissement console invite a passer a la forme explicite ; retrait dans une version majeure. Tri PAR CHAMP (#741), même grammaire à barre verticale que <code>labels</code>, <code>display</code> et <code>cols</code> : <code>champ:critere[:sens]</code>, par exemple <code>sort="annee:alpha:asc | categorie:count:desc"</code>. Une facette d'années se range alphabétiquement pendant qu'une facette de catégories reste rangée par fréquence, sans dupliquer le composant. Un champ non nommé garde le tri par défaut ; l'entrée <code>*:critere[:sens]</code> change ce défaut (<code>sort="*:alpha | annee:count:desc"</code>).</td></tr>
                 <tr><td><code>searchable</code></td><td>String</td><td><code>""</code></td><td>Champs avec barre de recherche (virgule-séparés)</td></tr>
                 <tr><td><code>hide-empty</code></td><td>Boolean</td><td><code>false</code></td><td>Masquer les facettes avec une seule valeur</td></tr>
                 <tr><td><code>display</code></td><td>String</td><td><code>""</code></td><td>Mode d'affichage par facette : "champ:mode | champ2:mode". Défaut = checkbox. - <code>checkbox</code> : cases à cocher visibles dans un fieldset DSFR (sélection multiple) - <code>select</code> : liste déroulante native fr-select (sélection unique) - <code>multiselect</code> : menu déroulant repliable avec cases à cocher et recherche (sélection multiple) - <code>radio</code> : menu déroulant repliable contenant des boutons radio et une recherche (sélection unique) — sera renommé <code>radio-dropdown</code> dans une version majeure - <code>radio-inline</code> : boutons radio DSFR visibles en ligne, précédés d'une option « Tous » qui retire la sélection (sélection unique, #684)</td></tr>
@@ -131,6 +131,32 @@
           au data-bridge — ré-émission des données filtrées sous son <code>id</code>
           (<code>dsfr-data-loaded</code> / <code>-loading</code> / <code>-error</code>) en mode client,
           et commandes <code>{ where, whereKey }</code> vers la source en mode serveur/statique.
+        </p>
+
+        <h3 class="fr-mt-3w">Compter autre chose que des lignes : <code>weight-field</code></h3>
+        <!-- ATTRS-PROSE:dsfr-data-facets fields="weight-field" -->
+        <p>
+          Le compteur d'une facette annonce par défaut un nombre de lignes. Sur une table de mesures, « 1 240 »
+          relevés ne dit rien au lecteur : ce qu'il veut savoir, c'est combien d'élèves, d'agents ou d'euros
+          se trouvent derrière la modalité. <code>weight-field</code> nomme un champ numérique dont la
+          <strong>somme</strong> remplace le nombre de lignes dans les compteurs (#739). Le tri
+          <code>sort="count"</code> porte alors sur cette somme.
+        </p>
+        <div class="code-block">
+          <pre>&lt;dsfr-data-facets
+  source="src"
+  fields="academie, niveau"
+  weight-field="effectif"&gt;
+&lt;/dsfr-data-facets&gt;</pre>
+        </div>
+        <p class="fr-text--sm fr-text--light">
+          Une valeur non numérique compte pour zéro ; si le champ est absent de toutes les lignes, un
+          avertissement console le signale. <strong>Côté client uniquement, et c'est assumé</strong> : en
+          mode <code>server-facets</code>, la réponse de l'API facettes ne porte qu'un nombre de lignes,
+          jamais la somme d'une mesure. Plutôt que d'afficher un nombre de lignes sous un libellé de somme,
+          les compteurs y sont masqués, une erreur de configuration est posée (console et
+          <code>data-dsfr-config-error</code>) et un avertissement DSFR est rendu au-dessus des facettes.
+          Même chose en <code>static-values</code>, où les compteurs sont déjà masqués faute de données.
         </p>
 
         <div class="fr-callout fr-mt-3w">

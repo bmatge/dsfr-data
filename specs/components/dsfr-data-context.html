@@ -119,6 +119,32 @@
           checkbox décochée) retire le filtre. Les valeurs sont percent-encodées dans la clause colon.
         </p>
 
+        <h3 class="fr-mt-3w">Années non civiles — <code>year-start-month</code></h3>
+        <!-- ATTRS-PROSE:dsfr-data-context-filter fields="year-start-month" -->
+        <p>
+          <code>year-of</code> et <code>current-year</code> découpent l'année civile. Une bonne partie des
+          données publiques ne s'y range pas : année scolaire, exercice comptable, saison.
+          <code>year-start-month</code> déplace le mois de début de l'année sur le filtre —
+          <code>1</code> (défaut) pour l'année civile, <code>9</code> pour l'année scolaire, <code>4</code>
+          pour l'exercice comptable britannique, <code>7</code> pour l'exercice australien, <code>10</code>
+          pour une saison.
+        </p>
+        <div class="code-block">
+          <pre>&lt;dsfr-data-context-filter field="date_inscription" label="Année scolaire"
+  operator="year-of" year-start-month="9" ui="ui-annee"&gt;
+&lt;/dsfr-data-context-filter&gt;</pre>
+        </div>
+        <p class="fr-text--sm fr-text--light">
+          La clause reste une plage <code>gte</code> + <code>lt</code> : elle se délègue au serveur comme
+          n'importe quelle autre, aucun adaptateur n'est concerné. Avec <code>year-start-month="9"</code>,
+          la valeur « 2024 » filtre <code>[2024-09-01, 2025-09-01)</code> et s'affiche « 2024-2025 » dans
+          les tags. Une valeur plus précise (« 2025-03-10 ») désigne l'année qui la CONTIENT — 2024-2025
+          ici — ce qui permet de nourrir l'opérateur d'un <code>&lt;input type="date"&gt;</code>. Côté
+          client seul, une colonne d'année scolaire se dérive aussi avec le <code>compute</code> de
+          <a href="dsfr-data-normalize.html">dsfr-data-normalize</a> ; l'attribut existe pour les jeux
+          qu'on ne veut pas rapatrier.
+        </p>
+
         <div class="fr-callout fr-callout--green-emeraude">
           <p class="fr-callout__text">
             <strong>Dialectes :</strong> la clause est construite en colon (pivot) puis traduite
@@ -144,6 +170,54 @@
           </table>
         </div>
 
+        <h2 class="fr-h4">Attributs — dsfr-data-context-value</h2>
+        <p>
+          <code>dsfr-data-context-tags</code> <em>liste</em> les filtres actifs sous forme de tags
+          supprimables ; il ne s'insère pas dans une phrase.
+          <code>&lt;dsfr-data-context-value&gt;</code> (#742) rend la valeur courante d'un filtre comme du
+          texte, seule ou interpolée dans un gabarit — pour qu'un titre de page dise « Résultats pour la
+          Gironde » plutôt que « Résultats ».
+        </p>
+        <div class="fr-table fr-table--sm">
+          <table>
+            <thead>
+              <tr><th>Attribut</th><th>Type</th><th>Valeurs</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+            <!-- ATTRS:dsfr-data-context-value fields="for,field,template,fallback,live" -->
+              <tr><td><code>for</code></td><td>String</td><td>requis</td><td>Id du dsfr-data-context observe</td></tr>
+              <tr><td><code>field</code></td><td>String</td><td><code>field="departement"</code></td><td>Champ dont la valeur est rendue — raccourci de <code>template="{{champ}}"</code>. Ignore quand <code>template</code> est pose.</td></tr>
+              <tr><td><code>template</code></td><td>String</td><td><code>"Résultats pour {{champ}}"</code></td><td>Gabarit texte : chaque <code>{{champ}}</code> est remplace par la valeur courante du filtre de ce champ (« Résultats pour {{departement}} »).</td></tr>
+              <tr><td><code>fallback</code></td><td>String</td><td>vide = ne rend rien</td><td>Texte rendu tant qu'un champ cite n'a aucune valeur — le repli declare de #742. Vide : le composant ne rend rien du tout.</td></tr>
+              <tr><td><code>live</code></td><td>Boolean</td><td>présent / absent</td><td>Region live polie : le titre annonce le changement de contenu aux lecteurs d'écran. A poser sur UN seul element de la page.</td></tr>
+            <!-- /ATTRS -->
+          </tbody>
+          </table>
+        </div>
+        <pre class="fr-text--sm" style="background: var(--background-alt-grey); padding: 1rem; border-radius: 4px; overflow-x: auto;"><code>&lt;h2&gt;
+  &lt;dsfr-data-context-value for="ctx"
+    template="Résultats pour {{departement}}"
+    fallback="Résultats pour toute la France" live&gt;
+  &lt;/dsfr-data-context-value&gt;
+&lt;/h2&gt;</code></pre>
+        <p class="fr-text--sm fr-text--light">
+          Le gabarit accepte plusieurs marqueurs dans la même phrase
+          (<code>template="{{departement}} en {{annee}}"</code>) ; <code>field="departement"</code> est le
+          raccourci de <code>template="{{departement}}"</code>, ignoré si <code>template</code> est posé.
+          Un seul champ cité sans valeur suffit à basculer sur <code>fallback</code> : « Résultats pour  »
+          serait pire qu'une phrase de repli. Sans <code>fallback</code>, le composant ne rend rien du tout.
+          La valeur rendue est celle qu'affichent les tags, y compris pour une facette ou une recherche
+          enregistrée sur le contexte par <code>context="id"</code>.
+        </p>
+        <p class="fr-text--sm fr-text--light">
+          <strong>Accessibilité :</strong> <code>live</code> fait du composant une région live discrète
+          (<code>aria-live="polite"</code>, <code>role="status"</code>), pour qu'un titre annonce le
+          changement de contexte. À poser sur <strong>un seul</strong> élément de la page — trois libellés
+          qui parlent en même temps sont un bruit, pas une aide. Le texte rendu est du texte : la valeur
+          d'un filtre traverse le rendu Lit, jamais l'analyseur HTML. Le composant vit en light DOM et
+          hérite donc des styles de la page (titre, paragraphe).
+        </p>
+
         <h2 class="fr-h4">Événements</h2>
         <div class="fr-table fr-table--sm">
           <table>
@@ -156,8 +230,10 @@
           </table>
         </div>
         <p class="fr-text--sm fr-text--light">
-          <code>dsfr-data-context-filter</code> et <code>dsfr-data-context-tags</code> n'émettent
-          aucun événement custom propre : tout passe par le contexte et les commandes du data-bridge.
+          <code>dsfr-data-context-filter</code>, <code>dsfr-data-context-tags</code> et
+          <code>dsfr-data-context-value</code> n'émettent aucun événement custom propre : tout passe par le
+          contexte et les commandes du data-bridge. <code>dsfr-data-context-value</code> se contente
+          d'écouter <code>dsfr-data-context-change</code>, comme les tags.
         </p>
 
         <h2 class="fr-h4">Voir aussi</h2>
