@@ -850,6 +850,30 @@ coutent 30 requetes, et le portail impose un quota partage. `fetch-mode="export"
 le nombre de lignes recues. Si le jeu depasse `max-records`, les donnees sont tronquees, un
 avertissement le dit en console et le volet Diagnostic le signale.
 
+### Passer un parametre propre au portail : `params`
+
+Certains portails attendent un parametre que la bibliotheque ne modelise pas — le plus courant est
+`timezone`, sans lequel un jeu a dates est lu dans le fuseau du serveur et sort decale de deux heures
+en heure d'ete. L'attribut `params` porte ces paires en **mode adaptateur** aussi : elles sont
+ajoutees a l'URL construite par l'adaptateur, en chargement pagine, en `fetch-mode="export"` et en
+`server-side`. C'est ce qui permet a une page a `timezone` d'utiliser `fetch-mode="export"` : avant,
+un tel parametre obligeait a ecrire l'URL complete a la main et donc a renoncer au mode adaptateur.
+
+```html
+<dsfr-data-source id="carburants" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr" dataset-id="prix-des-carburants-en-france-flux-instantane-v2"
+  fetch-mode="export" max-records="20000"
+  params='{"timezone":"Europe/Paris"}'></dsfr-data-source>
+```
+
+**Ce que `params` ne peut pas faire** — les cles que la bibliotheque construit elle-meme a partir des
+attributs du composant (`select`, `where`, `group_by`, `order_by`, `limit`, `offset`, `facet`) sont
+reservees : elles sont refusees, la clause construite est conservee et la source pose une erreur de
+configuration nommant la cle (attribut `data-dsfr-config-error`, message en console). Pour filtrer,
+trier ou agreger, ce sont les attributs `where`, `order-by`, `group-by` et `select` qu'il faut poser.
+Seul l'adaptateur Opendatasoft transmet ces parametres aujourd'hui ; en mode URL brute, `params`
+garde son comportement historique (query string en GET, corps de la requete en POST).
+
 ### Pages d'exploration : ne rien charger tant qu'aucun filtre n'est pose
 
 Sur une page ou l'utilisateur choisit d'abord une commune, une annee ou un theme, charger

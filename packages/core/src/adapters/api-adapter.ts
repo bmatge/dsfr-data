@@ -70,6 +70,15 @@ export interface AdapterParams {
    * Vide/absent = résolution proxy globale habituelle.
    */
   proxyUrl?: string;
+  /**
+   * Passe-plat des paramètres de requête non-clause (#726) : ce que l'attribut
+   * `params` porte en mode adaptateur, une fois les clés réservées écartées
+   * par la source. Sert les paramètres propres au portail que la bibliothèque
+   * ne modélise pas — `timezone`, `lang`, `pretty`… — sans lesquels une page
+   * ne peut pas quitter le mode URL. Les adaptateurs qui ne le connaissent
+   * pas l'ignorent ; seul OpenDataSoft le transmet aujourd'hui.
+   */
+  extraParams?: Record<string, string>;
 }
 
 /**

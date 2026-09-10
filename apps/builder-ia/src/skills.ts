@@ -209,7 +209,7 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 | url | String | \`""\` | oui | URL de l'API (GET par défaut) |
 | method | String | \`"GET"\` | non | Méthode HTTP : GET ou POST |
 | headers | String | \`""\` | non | En-tetes HTTP en JSON : \`'{"Authorization": "Bearer xxx"}'\` |
-| params | String | \`""\` | non | Parametres query (GET) ou body (POST) en JSON |
+| params | String | \`""\` | non | Parametres de requete en JSON. Mode URL : query string (GET) ou corps (POST). Mode adaptateur (#726) : les paires sont ajoutees a l'URL construite par l'adaptateur — c'est ce qui permet a une page a \`timezone\` d'utiliser \`fetch-mode="export"\`, ex. \`params='{"timezone":"Europe/Paris"}'\` sur un jeu ODS a dates. Les cles construites par la bibliotheque (\`select\`, \`where\`, \`group_by\`, \`order_by\`, \`limit\`, \`offset\`, \`facet\`) sont reservees : refusees avec une erreur de configuration. Transmis par OpenDataSoft seulement. |
 | transform | String | \`""\` | non | Chemin JSONPath vers les données : \`"results"\`, \`"data.items"\`, \`"records"\` |
 | refresh | Number | \`0\` | non | Rafraichissement auto en secondes (0 = desactive) |
 | paginate | Boolean | \`false\` | non | Active la pagination serveur (injecte page/page_size dans l'URL, stocke la meta) |
