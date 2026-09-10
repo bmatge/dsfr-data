@@ -1,5 +1,32 @@
 # dsfr-data
 
+## 0.26.0
+
+### Minor Changes
+
+- [#754](https://github.com/bmatge/dsfr-data/pull/754) [`e5f39b2`](https://github.com/bmatge/dsfr-data/commit/e5f39b29ca92f5867e2a3c44c9b9c4f5d523ee71) Thanks [@bmatge](https://github.com/bmatge)! - `color-map` accepte l'échappement percent (`%2C`, `%3A`) : une modalité contenant une virgule ne casse plus le mapping de couleurs de `dsfr-data-map-layer`. Le même attribut arrive sur `dsfr-data-chart` avec la même grammaire : `color-map="Réalisé:#000091,Objectif:#E1000F"` fixe la couleur d'une série ou d'une part de camembert, légende comprise ([#732](https://github.com/bmatge/dsfr-data/issues/732)).
+
+- [#754](https://github.com/bmatge/dsfr-data/pull/754) [`e5f39b2`](https://github.com/bmatge/dsfr-data/commit/e5f39b29ca92f5867e2a3c44c9b9c4f5d523ee71) Thanks [@bmatge](https://github.com/bmatge)! - Les échecs de nommage se voient. Un attribut qui désigne un champ absent des données (`label-field`, `value-field`, `geo-field`, `fill-field`, le `value` d'un KPI, les clés d'un `on` de jointure…) est désormais nommé dans la trace et dans le volet Diagnostic, avec la liste des champs qui existent — et « présent mais vide » est distingué d'« absent du schéma ». Un chemin imbriqué (`fields.nom`) ne déclenche aucun faux positif. En parallèle, un attribut inconnu de la version de la bibliothèque réellement chargée n'est plus ignoré en silence : il est marqué sur la balise, remonté dans le volet, et signalé une fois en console en développement ([#727](https://github.com/bmatge/dsfr-data/issues/727)).
+
+- [#754](https://github.com/bmatge/dsfr-data/pull/754) [`e5f39b2`](https://github.com/bmatge/dsfr-data/commit/e5f39b29ca92f5867e2a3c44c9b9c4f5d523ee71) Thanks [@bmatge](https://github.com/bmatge)! - L'attribut `params` de `<dsfr-data-source>` vit désormais en mode adaptateur : ses paires sont ajoutées à l'URL construite par l'adaptateur Opendatasoft, en chargement paginé comme en `fetch-mode="export"` et en `server-side`. Une page qui a besoin de `params='{"timezone":"Europe/Paris"}'` peut donc quitter le mode URL. Les clés que la bibliothèque construit elle-même (`select`, `where`, `group_by`, `order_by`, `limit`, `offset`, `facet`) sont réservées : elles sont refusées avec une erreur de configuration au lieu d'écraser une clause en silence ([#726](https://github.com/bmatge/dsfr-data/issues/726)).
+
+- [#754](https://github.com/bmatge/dsfr-data/pull/754) [`e5f39b2`](https://github.com/bmatge/dsfr-data/commit/e5f39b29ca92f5867e2a3c44c9b9c4f5d523ee71) Thanks [@bmatge](https://github.com/bmatge)! - Les transformateurs du pipeline (search, facets, normalize, query, join, pivot, unpivot, podium) savent enfin rendre l'attente d'un filtre : `TransformerMixin` expose `isIdle()` en plus de propager l'événement. `dsfr-data-search` s'en sert — son compteur cède la place à `idle-message` tant que l'amont `require-where` n'a rien reçu, au lieu d'annoncer « 0 résultats », et il affiche désormais un séparateur de milliers (« 12 345 résultats ») ([#728](https://github.com/bmatge/dsfr-data/issues/728)).
+
+### Patch Changes
+
+- [#754](https://github.com/bmatge/dsfr-data/pull/754) [`e5f39b2`](https://github.com/bmatge/dsfr-data/commit/e5f39b29ca92f5867e2a3c44c9b9c4f5d523ee71) Thanks [@bmatge](https://github.com/bmatge)! - Les bundles publiés ne se croient plus sur le serveur de développement du dépôt : la garde
+  `import.meta.env.DEV` d'`isViteDevMode()` était pliée à la compilation, si bien qu'une page servie
+  sur `http://localhost:<port>` chez un intégrateur voyait ses appels Tabular, Grist et INSEE réécrits
+  vers des chemins `/…-proxy/` relatifs qui n'existent pas chez lui. Les appels partent désormais en
+  direct. Pour servir volontairement un bundle construit derrière ses propres routes de proxy, poser
+  `window.DSFR_DATA_PROXY = { baseUrl: '' }` avant le chargement de la bibliothèque ([#716](https://github.com/bmatge/dsfr-data/issues/716)).
+
+- [#754](https://github.com/bmatge/dsfr-data/pull/754) [`e5f39b2`](https://github.com/bmatge/dsfr-data/commit/e5f39b29ca92f5867e2a3c44c9b9c4f5d523ee71) Thanks [@bmatge](https://github.com/bmatge)! - `dsfr-data-facets` avertit désormais en console, une fois par instance, quand `display` ou `labels` sépare ses entrées par une virgule au lieu d'une barre verticale, ou quand un mode d'affichage est inconnu : `display="a:select, b:select"` rendait zéro liste déroulante sans un mot. Le message nomme l'attribut, la valeur reçue et la forme attendue ([#731](https://github.com/bmatge/dsfr-data/issues/731)).
+
+- [#754](https://github.com/bmatge/dsfr-data/pull/754) [`e5f39b2`](https://github.com/bmatge/dsfr-data/commit/e5f39b29ca92f5867e2a3c44c9b9c4f5d523ee71) Thanks [@bmatge](https://github.com/bmatge)! - Cartes `map-reg` et `map-aca` : les clés hors du référentiel de DSFR Chart sont désormais comptées par `getSkippedCount()` et remontées dans la console et le volet Diagnostic, au lieu de disparaître en silence. Les noms d'académies accentués ou préfixés (« Académie de Besançon ») et les codes INSEE de région (`11`, `84`) sont traduits vers les clés attendues (`BESANCON`, `IDF`, `ARA`) ([#729](https://github.com/bmatge/dsfr-data/issues/729)).
+
+- [#754](https://github.com/bmatge/dsfr-data/pull/754) [`e5f39b2`](https://github.com/bmatge/dsfr-data/commit/e5f39b29ca92f5867e2a3c44c9b9c4f5d523ee71) Thanks [@bmatge](https://github.com/bmatge)! - `replace` et `replace-fields` de `dsfr-data-normalize` agissent enfin sur une colonne numérique ou booléenne : la comparaison porte sur la forme chaîne de la valeur, à égalité stricte, si bien que `replace-fields="annee:2024:2024-2025"` fonctionne — auparavant l'attribut était ignoré en silence ([#730](https://github.com/bmatge/dsfr-data/issues/730)).
+
 ## 0.25.0
 
 ### Minor Changes
