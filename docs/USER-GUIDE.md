@@ -987,6 +987,47 @@ coutent 30 requetes, et le portail impose un quota partage. `fetch-mode="export"
 le nombre de lignes recues. Si le jeu depasse `max-records`, les donnees sont tronquees, un
 avertissement le dit en console et le volet Diagnostic le signale.
 
+### Un document du Studio : quand il pagine cote serveur, quand il charge tout
+
+Un document exporte depuis le Studio choisit **tout seul** sa strategie de chargement, source par
+source. Deux documents qui se ressemblent a l'ecran peuvent donc ne pas charger de la meme facon —
+ce n'est pas un hasard, c'est le critere ci-dessous.
+
+**Une source, un seul bloc, et ce bloc est un tableau pagine** → le document pagine **cote serveur**.
+La balise de source porte `server-side` et `page-size`, le tableau porte `server-sort` : le
+navigateur ne demande que les lignes de la page affichee, et le tri repart au portail. Un jeu de
+35 000 lignes ne coute plus 35 000 lignes pour en afficher vingt.
+
+```html
+<!-- Emis par le Studio : la source n'alimente que ce tableau -->
+<dsfr-data-source id="marches" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr" dataset-id="decp_augmente"
+  server-side page-size="10"></dsfr-data-source>
+
+<dsfr-data-list source="marches" columns="acheteur:Acheteur, montant:Montant"
+  server-sort pagination="10"></dsfr-data-list>
+```
+
+**Dans tous les autres cas**, le document charge le jeu (plafonne par `max-records`) puis pagine
+dans le navigateur. C'est le cas :
+
+- d'une **source partagee** entre plusieurs blocs — le cas le plus frequent d'un tableau de bord ;
+- d'une source dont le seul bloc **agrege** : graphique, KPI, carte, podium ;
+- d'une source pilotee par un **bloc de filtres** (`dsfr-data-context`), dont le filtrage est
+  effectue dans le navigateur ;
+- d'une source aux **donnees embarquees** ou branchee sur une **API generique** (`url=`), qui ne
+  savent pas rendre une page a la demande.
+
+**Pourquoi la source partagee n'y a pas droit.** Le document n'emet **qu'une** balise par source,
+et tous ses blocs la lisent. Poser `server-side` dessus parce qu'un tableau la consomme ferait
+parvenir dix lignes au graphique ou au KPI d'a cote, qui afficherait alors une agregation **fausse,
+sans la moindre erreur**. La regle l'interdit donc par construction.
+
+**Ce qui reste a faire pour un gros jeu partage** : `fetch-mode="export"` (section precedente).
+Il repond au meme probleme de volume par l'autre bout — une requete au lieu de trente, le jeu
+entier — et c'est exactement le cas ou il a un sens. Les deux ne se combinent jamais : `server-side`
+ignore `fetch-mode` et le signale en console.
+
 ### Passer un parametre propre au portail : `params`
 
 Certains portails attendent un parametre que la bibliotheque ne modelise pas — le plus courant est

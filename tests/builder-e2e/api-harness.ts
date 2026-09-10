@@ -35,6 +35,7 @@ import type { ChartConfig } from '../../packages/shared/src/dashboard/chart-conf
 import type { DashboardData, DashboardSource } from '../../packages/shared/src/dashboard/model.js';
 
 import {
+  CHAMP_PIEGE,
   HOTES,
   RESSOURCES,
   URL_GENERIQUE,
@@ -308,6 +309,17 @@ export function sourceDe(variante: Variante): DashboardSource {
   }
 }
 
+/** Un widget `chart` produit par l'assistant (`fromBuilder`). */
+function blocDe(chart: ChartConfig, id: string, rang: number): DashboardData['widgets'][number] {
+  return {
+    id,
+    title: chart.title ?? `Recette ${chart.type}`,
+    position: { row: rang, col: 0 },
+    type: 'chart',
+    config: { fromBuilder: true, chart, sourceId: ID_SOURCE },
+  };
+}
+
 /** Document a un seul bloc `chart` produit par l'assistant (`fromBuilder`). */
 export function documentPour(chart: ChartConfig, variante: Variante): DashboardData {
   return {
@@ -318,45 +330,81 @@ export function documentPour(chart: ChartConfig, variante: Variante): DashboardD
     updatedAt: null,
     layout: { columns: 1, gap: 'fr-grid-row--gutters' },
     sources: [sourceDe(variante)],
-    widgets: [
-      {
-        id: 'w1',
-        title: chart.title ?? `Recette ${chart.type}`,
-        position: { row: 0, col: 0 },
-        type: 'chart',
-        config: { fromBuilder: true, chart, sourceId: ID_SOURCE },
-      },
-    ],
+    widgets: [blocDe(chart, 'w1', 0)],
   };
 }
 
-/** Le HTML exporte pour une configuration et une variante. */
+/**
+ * Le HTML exporte pour une configuration et une variante.
+ *
+ * ATTENTION AU CRITERE D'ADR-109 (#717) : ce document n'a qu'UN bloc. Sur les
+ * variantes a adaptateur (ODS, Tabular), une `datalist` non agregee y est donc
+ * seule consommatrice de sa source, et l'export emet `server-side` /
+ * `server-sort` — la page ne charge alors qu'une page a la fois. Pour eprouver
+ * le chemin `fetchAll`, prendre `pagePartagee()`.
+ */
 export function pagePour(chart: ChartConfig, variante: Variante): string {
   return generateDashboardHTML(documentPour(chart, variante));
 }
 
 /**
- * Active la pagination serveur sur la page exportee.
+ * Document a DEUX blocs sur LA MEME source : une liste paginee et un KPI qui
+ * somme la population.
  *
- * `export-html.ts` n'emet ni `server-side` ni `server-sort` : le document du
- * Studio charge tout le jeu (plafonne par `max-records`) puis pagine dans le
- * navigateur. Le generateur de l'Assistant IA, lui, emet bien les deux pour
- * une datalist sur source paginee (`code-generator.ts`). Cette reecriture pose
- * donc, sur la page partagee, la forme que l'Assistant produit deja — c'est
- * elle qui exerce `fetchPage`, la commande `page` et le tri delegue, que le
- * chemin `fetchAll` ne peut pas montrer.
+ * C'est la forme la plus frequente d'un tableau de bord, et celle qu'ADR-109
+ * exclut explicitement de la pagination serveur : une source n'est emise
+ * qu'une fois, `server-side` sur la balise partagee ne ferait plus parvenir
+ * qu'une page au KPI, dont le total deviendrait FAUX sans une erreur. Le
+ * document reste donc en chargement complet — c'est aussi le seul cas ou
+ * `fetch-mode="export"` (#689, ADR-106) a un sens.
+ *
+ * Le KPI agrege via sa propre grammaire `value="champ:fn"` et n'a ni filtre ni
+ * tri : l'export ne lui interpose donc AUCUN `dsfr-data-query`, et rien ne
+ * vient poser d'overlay `group_by` sur la source que la liste partage.
  */
-export function avecPaginationServeur(html: string, tailleDePage: number): string {
-  const avecSource = html.replace(
-    /<dsfr-data-source id="([^"]+)"/,
-    `<dsfr-data-source server-side page-size="${tailleDePage}" id="$1"`
-  );
-  const avecListe = avecSource.replace(/<dsfr-data-list /, '<dsfr-data-list server-sort ');
-  if (avecSource === html || avecListe === avecSource) {
-    throw new Error(
-      'avecPaginationServeur : la page exportee ne porte plus les balises attendues ' +
-        '(dsfr-data-source / dsfr-data-list) — reecriture a revoir.'
-    );
-  }
-  return avecListe;
+export function documentPartage(variante: Variante): DashboardData {
+  const liste = documentPour(configListe(), variante);
+  return {
+    ...liste,
+    name: 'Recette source partagee',
+    widgets: [
+      ...liste.widgets,
+      blocDe(
+        {
+          type: 'kpi',
+          valueField: 'population',
+          aggregation: 'sum',
+          unit: 'hab.',
+          title: 'Population totale',
+        },
+        'w2',
+        1
+      ),
+    ],
+  };
 }
+
+/** Le HTML exporte du document a source partagee. */
+export function pagePartagee(variante: Variante): string {
+  return generateDashboardHTML(documentPartage(variante));
+}
+
+/**
+ * La configuration `datalist` de la recette : pas d'agregation (un tableau
+ * montre les lignes), tri descendant, et les colonnes au nom piegeux —
+ * apostrophe et espaces — qui ont casse deux fois le code genere (#615).
+ */
+export function configListe(): ChartConfig {
+  return {
+    type: 'datalist',
+    labelField: 'region',
+    valueField: 'population',
+    sortOrder: 'desc',
+    colonnes: `region:Territoire, ${CHAMP_PIEGE}:Habitants`,
+    pagination: TAILLE_DE_PAGE,
+    title: 'Recette datalist',
+  };
+}
+
+/** Taille de page de la liste de recette, emise par l'export en `page-size`. */
+export const TAILLE_DE_PAGE = 10;
