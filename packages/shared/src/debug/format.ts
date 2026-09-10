@@ -68,7 +68,26 @@ function formatSample(state: StageState, opts: FormatOptions): string[] {
   return state.sample.slice(0, limit).map((row) => `     ${JSON.stringify(row)}`);
 }
 
-function formatMeta(state: StageState): string[] {
+/** Milliers séparés par une espace — « 1 065 », lisible et collable tel quel. */
+export function formatInt(n: number): string {
+  return String(Math.trunc(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+}
+
+/**
+ * Ce qui a tronqué les lignes (#658), lu sur les attributs du nœud : un
+ * `limit` explicite est une troncature voulue, un plafond `max-records`
+ * (défaut 1000 sur ODS) est presque toujours subi. Nommer la cause dit à
+ * l'utilisateur quel attribut relever.
+ */
+function truncationCause(node: StageNode): string {
+  if (node.tag === 'dsfr-data-query') return 'attribut limit';
+  if (node.attrs.limit) return 'attribut limit';
+  return node.attrs['max-records']
+    ? `plafond max-records="${node.attrs['max-records']}"`
+    : 'plafond max-records (défaut 1000, relevable)';
+}
+
+function formatMeta(node: StageNode, state: StageState): string[] {
   const meta = state.meta;
   if (!meta) return [];
   const bits = [`page ${meta.page}`];
@@ -76,6 +95,15 @@ function formatMeta(state: StageState): string[] {
   bits.push(`total ${meta.total ?? 'inconnu'}`);
   bits.push(`serveur=${meta.serverSide ? 'oui' : 'non'}`);
   const lines = [`     meta : ${bits.join(', ')}`];
+  if (meta.truncated) {
+    // Le total peut être inconnu (group_by ODS, #641) : la troncature se
+    // déduit alors d'une page pleine au plafond, sans dénominateur.
+    const delivered = formatInt(state.rows ?? 0);
+    const outOf = meta.total !== undefined ? ` / ${formatInt(meta.total)}` : ' (total inconnu)';
+    lines.push(
+      `     ⚠ tronqué à ${delivered}${outOf} lignes (${truncationCause(node)}) — l'aval ne voit qu'un sous-ensemble du jeu.`
+    );
+  }
   if (meta.needsClientProcessing) {
     lines.push(
       "     ⚠ la source n'a pas pu traiter group-by/aggregate côté serveur.",
@@ -274,7 +302,7 @@ export function formatTrace(trace: Trace, options: FormatOptions = {}): string {
           '     ⚠ la charge reçue est un objet non déroulable — un attribut `transform` est peut-être requis.'
         );
       }
-      out.push(...formatMeta(state));
+      out.push(...formatMeta(node, state));
     }
 
     if (state.status === 'error' && state.attemptedUrl) {
@@ -358,6 +386,7 @@ export function summarizeTrace(trace: Trace): {
       alerts += 1;
     }
     if (state.meta?.needsClientProcessing) alerts += 1;
+    if (state.meta?.truncated) alerts += 1;
   }
 
   return {

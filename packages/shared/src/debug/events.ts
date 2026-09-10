@@ -28,6 +28,11 @@ export interface BusPaginationMeta {
   serverSide?: boolean;
   /** La source n'a pas su traiter group-by/aggregate côté serveur. */
   needsClientProcessing?: boolean;
+  /**
+   * Les lignes livrées sont un sous-ensemble du jeu (#658) : plafond
+   * `max-records` d'une source, attribut `limit` d'un query.
+   */
+  truncated?: boolean;
 }
 
 /** Commande remontante (pagination, recherche, tri, délégation). */

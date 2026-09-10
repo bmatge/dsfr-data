@@ -100,6 +100,13 @@ export interface FetchResult {
   needsClientProcessing: boolean;
   /** JSON brut de la reponse (pour appliquer transform sur la bonne racine) */
   rawJson?: unknown;
+  /**
+   * True quand l'adapter SAIT que `data` est incomplet alors que le total
+   * est inconnu (#658) : page pleine au plafond `max-records` sur une
+   * requete group-by ODS (#641). Quand le total est connu, la source
+   * deduit elle-meme la troncature de `totalCount > data.length`.
+   */
+  truncated?: boolean;
 }
 
 /**

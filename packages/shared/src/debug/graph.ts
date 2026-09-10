@@ -71,6 +71,8 @@ const SHAPE_ATTRS: Record<string, string[]> = {
     'page-size',
     'paginate',
     'server-side',
+    'limit',
+    'max-records',
     'use-proxy',
     'proxy-url',
     'transform',

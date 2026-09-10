@@ -4,6 +4,7 @@ import {
   fieldMatrix,
   formatTrace,
   plural,
+  formatInt,
   summarizeTrace,
   topoOrder,
   type StageNode,
@@ -396,6 +397,7 @@ export class AppDiagnosticPanel extends LitElement {
       !!delegation && wantsAggregation && !delegation.groupBy && !delegation.aggregate;
     const warn =
       state.meta?.needsClientProcessing ||
+      !!state.meta?.truncated ||
       (state.status === 'loaded' && state.rows === 0) ||
       !!node.configError ||
       (node.role === 'display' && state.status === 'idle' && upstreamRows.every((n) => n === 0));
@@ -447,6 +449,20 @@ export class AppDiagnosticPanel extends LitElement {
           state.status === 'loaded' && state.rows === 0
             ? html`<div class="app-diag__stage-note app-diag__stage-note--warn">
                 ⚠ zéro ligne : l’aval ne rendra rien.
+              </div>`
+            : nothing
+        }
+        ${
+          state.meta?.truncated
+            ? html`<div class="app-diag__stage-note app-diag__stage-note--warn">
+                ⚠ tronqué à
+                ${formatInt(state.rows ?? 0)}${
+                  state.meta.total !== undefined
+                    ? ` / ${formatInt(state.meta.total)}`
+                    : ' (total inconnu)'
+                }
+                lignes
+                (${node.tag === 'dsfr-data-query' || node.attrs.limit ? 'limit' : 'max-records'}).
               </div>`
             : nothing
         }

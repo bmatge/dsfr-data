@@ -40,6 +40,11 @@ export interface DataLoadingEvent {
  * - `total` : undefined = inconnu (ex. Grist Records hors derniere page).
  *   L'aval doit alors proposer "page suivante" tant que la page est pleine.
  * - `pageSize` : 0 quand non pagine (fetchAll).
+ * - `truncated` (#658) : les lignes livrees sont un SOUS-ENSEMBLE de ce que
+ *   l'etape aurait pu livrer — plafond `max-records` atteint sur un fetchAll
+ *   (`total > data.length`, ou page pleine au plafond quand le total est
+ *   inconnu, cas `group_by` ODS #641), ou `limit` d'un dsfr-data-query.
+ *   Purement diagnostique : aucun consommateur n'en change de comportement.
  */
 export interface PaginationMeta {
   page: number;
@@ -50,6 +55,8 @@ export interface PaginationMeta {
   serverSide?: boolean;
   /** True si le fetch n'a pas pu traiter group-by/aggregate server-side (fallback client) */
   needsClientProcessing?: boolean;
+  /** True si les lignes livrees sont tronquees (max-records, limit) — #658 */
+  truncated?: boolean;
 }
 
 export interface SourceCommandEvent {
