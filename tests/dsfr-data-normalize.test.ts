@@ -93,6 +93,39 @@ describe('DsfrDataNormalize', () => {
       const map = normalize._parseReplaceFields('time:code1:10:30:00');
       expect(map.get('time')?.get('code1')).toBe('10:30:00');
     });
+
+    describe('percent escaping, consistent with where (#676)', () => {
+      it('decodes %3A in the replace-fields pattern so a time value is rewritable', () => {
+        const map = normalize._parseReplaceFields('h:10%3A00:10h');
+        expect(map.get('h')?.get('10:00')).toBe('10h');
+      });
+
+      it('decodes %3A, %7C, %2C and %25 in field, pattern and replacement', () => {
+        const map = normalize._parseReplaceFields('a%3Ab:x%7Cy:50%25 %2C ok');
+        expect(map.get('a:b')?.get('x|y')).toBe('50% , ok');
+      });
+
+      it('decodes %3A in the global replace pattern (otherwise the colon would split it)', () => {
+        const map = normalize._parsePipeMap('10%3A00:10h | N/A:');
+        expect(map.get('10:00')).toBe('10h');
+        expect(map.get('10')).toBeUndefined();
+        expect(map.get('N/A')).toBe('');
+      });
+
+      it('decodes escapes in the replacement value and in rename keys', () => {
+        expect(normalize._parsePipeMap('x:a%3Ab').get('x')).toBe('a:b');
+        expect(normalize._parsePipeMap('heure%3Adebut:Heure').get('heure:debut')).toBe('Heure');
+      });
+
+      it('keeps raw colons in the replacement untouched', () => {
+        const map = normalize._parseReplaceFields('h:10%3A00:10:00:00');
+        expect(map.get('h')?.get('10:00')).toBe('10:00:00');
+      });
+
+      it('is case-insensitive on the hex digits', () => {
+        expect(normalize._parsePipeMap('10%3a00:10h').get('10:00')).toBe('10h');
+      });
+    });
   });
 
   describe('Numeric conversion', () => {
@@ -404,6 +437,36 @@ describe('DsfrDataNormalize', () => {
 
       const result = getDataCache('test-normalize') as Record<string, unknown>[];
       expect(result[0].time).toBe('10:30:00');
+    });
+
+    it('rewrites a value containing a colon via %3A (replace-fields="h:10%3A00:10h", #676)', () => {
+      normalize.id = 'test-normalize';
+      normalize.source = 'test-source';
+      normalize.replaceFields = 'h:10%3A00:10h';
+
+      normalize.connectedCallback();
+      dispatchDataLoaded('test-source', [
+        { h: '10:00', autre: '10:00' },
+        { h: '11:00', autre: 'x' },
+      ]);
+
+      const result = getDataCache('test-normalize') as Record<string, unknown>[];
+      expect(result[0].h).toBe('10h');
+      expect(result[0].autre).toBe('10:00');
+      expect(result[1].h).toBe('11:00');
+    });
+
+    it('rewrites a value containing a colon via %3A in the global replace (#676)', () => {
+      normalize.id = 'test-normalize';
+      normalize.source = 'test-source';
+      normalize.replace = '10%3A00:10h | 50%25:moitie';
+
+      normalize.connectedCallback();
+      dispatchDataLoaded('test-source', [{ h: '10:00', part: '50%' }]);
+
+      const result = getDataCache('test-normalize') as Record<string, unknown>[];
+      expect(result[0].h).toBe('10h');
+      expect(result[0].part).toBe('moitie');
     });
 
     it('combines replace-fields and global replace', () => {

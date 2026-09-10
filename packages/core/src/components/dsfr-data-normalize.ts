@@ -1,6 +1,12 @@
 import { LitElement, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import { toNumber, looksLikeNumber, compileCompute, applyCompute } from '@dsfr-data/shared/lib';
+import {
+  toNumber,
+  looksLikeNumber,
+  compileCompute,
+  applyCompute,
+  unescapeColonValue,
+} from '@dsfr-data/shared/lib';
 import type { CompiledCompute } from '@dsfr-data/shared/lib';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { getDataCache } from '../utils/data-bridge.js';
@@ -43,7 +49,10 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
   @property({ type: Boolean, attribute: 'numeric-auto' })
   numericAuto = false;
 
-  /** Renommage de clés. Format: "ancien:nouveau | ancien2:nouveau2" */
+  /**
+   * Renommage de clés. Format : "ancien:nouveau | ancien2:nouveau2".
+   * Un `:` ou `|` littéral dans un nom s'échappe en percent (`%3A`, `%7C`), comme dans `where`.
+   */
   @property({ type: String })
   rename = '';
 
@@ -55,11 +64,24 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
   @property({ type: Boolean, attribute: 'strip-html' })
   stripHtml = false;
 
-  /** Remplacement de valeurs. Format: "pattern:remplacement | pattern2:remplacement2" */
+  /**
+   * Remplacement de valeurs, sur tous les champs. Format : "pattern:remplacement | pattern2:remplacement2".
+   * Le pattern est comparé à la valeur entière (égalité stricte, pas de regex) ; un remplacement
+   * vide supprime la valeur. Un `:`, `|`, `,` ou `%` littéral dans le pattern ou le remplacement
+   * s'échappe en percent (`%3A`, `%7C`, `%2C`, `%25`), comme dans `where` (#676) :
+   * `replace="10%3A00:10h"` récrit « 10:00 » en « 10h ». Pour un recodage plus riche
+   * (sous-chaîne, année d'une date ISO), utiliser `compute` avec `replace()` ou `year()`.
+   */
   @property({ type: String })
   replace = '';
 
-  /** Remplacement cible par champ. Format: "CHAMP:pattern:remplacement | CHAMP2:p:r" */
+  /**
+   * Remplacement ciblé par champ. Format : "CHAMP:pattern:remplacement | CHAMP2:p:r".
+   * Les deux premiers `:` sont des délimiteurs, le remplacement peut contenir des `:` bruts.
+   * Un `:` littéral dans le nom du champ ou dans le pattern s'échappe en `%3A` (`%7C`, `%2C`
+   * et `%25` sont aussi décodés), comme dans `where` (#676) : `replace-fields="h:10%3A00:10h"`.
+   * Pas de regex : pour un recodage plus riche, voir `compute` (`replace()`, `year()`).
+   */
   @property({ type: String, attribute: 'replace-fields' })
   replaceFields = '';
 
@@ -456,7 +478,11 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
     return map;
   }
 
-  /** Parse l'attribut replace-fields en Map<champ, Map<pattern, remplacement>> */
+  /**
+   * Parse l'attribut replace-fields en Map<champ, Map<pattern, remplacement>>.
+   * Les trois parties sont décodées par `unescapeColonValue` APRÈS le découpage
+   * sur `|` et sur les deux premiers `:` (échappement percent, #676).
+   */
   _parseReplaceFields(attr: string): Map<string, Map<string, string>> {
     const result = new Map<string, Map<string, string>>();
     if (!attr) return result;
@@ -469,9 +495,9 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
       const secondColon = trimmed.indexOf(':', firstColon + 1);
       if (secondColon === -1) continue;
 
-      const field = trimmed.substring(0, firstColon).trim();
-      const pattern = trimmed.substring(firstColon + 1, secondColon).trim();
-      const replacement = trimmed.substring(secondColon + 1).trim();
+      const field = unescapeColonValue(trimmed.substring(0, firstColon).trim());
+      const pattern = unescapeColonValue(trimmed.substring(firstColon + 1, secondColon).trim());
+      const replacement = unescapeColonValue(trimmed.substring(secondColon + 1).trim());
 
       if (!field || !pattern) continue;
 
@@ -483,7 +509,11 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
     return result;
   }
 
-  /** Parse un attribut pipe-separe en Map clé:valeur */
+  /**
+   * Parse un attribut pipe-séparé (`rename`, `replace`) en Map clé:valeur.
+   * Clé et valeur sont décodées par `unescapeColonValue` APRÈS le découpage
+   * sur `|` et sur le premier `:` (échappement percent, #676).
+   */
   _parsePipeMap(attr: string): Map<string, string> {
     const map = new Map<string, string>();
     if (!attr) return map;
@@ -492,8 +522,8 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
     for (const pair of pairs) {
       const colonIndex = pair.indexOf(':');
       if (colonIndex === -1) continue;
-      const key = pair.substring(0, colonIndex).trim();
-      const value = pair.substring(colonIndex + 1).trim();
+      const key = unescapeColonValue(pair.substring(0, colonIndex).trim());
+      const value = unescapeColonValue(pair.substring(colonIndex + 1).trim());
       if (key) {
         map.set(key, value);
       }
