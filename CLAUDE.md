@@ -141,6 +141,24 @@ Le projet utilise [Changesets](https://github.com/changesets/changesets) pour le
 
 **Pendant le dev** : `npx changeset` pour chaque modif notable (selectionner `dsfr-data`, choisir le niveau, decrire en francais). Le `.changeset/xxx.md` est commite avec le code.
 
+**Nommer les constats du banc d'essai resolus.** Quand l'issue traitee cite un identifiant de registre du
+banc d'essai [open-data-viz](https://github.com/bmatge/open-data-viz) (`AM-0XX`, `BUG-0XX`), le
+**reporter dans le texte du changeset**, sous la forme « resout le constat AM-0XX du banc d'essai ».
+Le changeset devient la note de version : c'est le seul endroit ou le banc puisse lire qu'une de ses
+demandes est satisfaite. Le lien existe deja dans l'autre sens — chaque issue deposee cite son
+identifiant de registre — mais rien ne le renvoyait.
+
+Sans ce geste, le banc redepose ce qui est deja livre, et le cout est mesure : sur le rapport du
+2026-09-10, BUG-005 depose comme bug alors qu'il etait livre depuis la 0.23.0 (#680) dans son cas exact,
+AM-052 depose comme retard de generation alors que la fiche servie contenait tout ce qu'il disait
+manquant, trois entrees requalifiees de « limite » a « corrige » par le banc lui-meme apres coup, neuf des
+dix-sept « echecs muets » deja corriges. A la premiere relecture, sur 16 constats contestes, **11 visaient
+une capacite qui existait deja** (#746).
+
+Le banc lit une **instance deployee**, pas le depot : les deux gestes vont ensemble. Une note qui annonce
+« resout AM-052 » pendant que `chartsbuilder` sert encore la version precedente ne prouve rien —
+d'ou le redeploiement ci-dessous et son `curl …/dist/skills-meta.json` (#733).
+
 **A la release** :
 ```bash
 npm run version-packages    # Bumpe package.json + CHANGELOG.md + sync-versions
@@ -170,7 +188,13 @@ Le tampon de fraicheur (`dist/skills-meta.json` : `generatedAt`, `libVersion`, `
 `npm run build:skills`, servi a cote de `dist/skills.json`, et rendu par `list_skills` et `/health` du
 serveur MCP — il sert justement a constater qu'un redeploiement a bien eu lieu.
 
-**Fin de session Claude Code** : `git diff --stat` → `npx changeset` si `core/src` ou `shared` touches → commit (Conventional) → proposer une release a l'utilisateur (ne pas releaser sans accord).
+**Fin de session Claude Code** : `git diff --stat` → `npx changeset` si `core/src` ou `shared` touches
+(en nommant le constat `AM-0XX` / `BUG-0XX` quand l'issue en cite un) → commit (Conventional) → proposer
+une release a l'utilisateur (ne pas releaser sans accord).
+
+**Recapitulatif des gestes de release**, dans l'ordre : changeset nommant les constats resolus → merge de
+la PR changesets (npm + tag + Release sur bmatge) → resync du miroir + tags + Release recreee sur le
+miroir → **redeploiement de `chartsbuilder`** verifie au `curl`.
 
 ## Ce que Claude DOIT faire
 
