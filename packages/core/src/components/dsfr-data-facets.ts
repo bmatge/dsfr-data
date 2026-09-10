@@ -1313,9 +1313,57 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
 
   // --- Parsing helpers ---
 
+  /**
+   * Grammaires déjà signalées, par attribut ET par valeur reçue (#731) :
+   * `_parseDisplayModes()` est rappelé à chaque rendu et pour chaque champ,
+   * l'avertissement ne doit sortir qu'une fois. Corriger l'attribut puis le
+   * casser autrement redonne donc un avertissement, ce qui est le but.
+   */
+  private _grammarWarned = new Set<string>();
+
+  /**
+   * Avertissement UNIQUE sur une grammaire fausse de `display` ou `labels`
+   * (#731). Ces deux attributs séparent leurs entrées par une barre verticale
+   * là où `split`, `round` et `fields` prennent la virgule : une entrée mal
+   * séparée ou un mode inconnu étaient jusqu'ici ignorés sans un mot, et
+   * `display="a:select, b:select"` rendait zéro liste déroulante sur une page
+   * qui avait l'air juste.
+   */
+  private _warnGrammar(attr: 'display' | 'labels', raw: string, message: string): void {
+    const key = `${attr}=${raw}`;
+    if (this._grammarWarned.has(key)) return;
+    this._grammarWarned.add(key);
+    const who = this.id ? `dsfr-data-facets[${this.id}]` : 'dsfr-data-facets';
+    console.warn(`${who} : attribut "${attr}" — ${message} Valeur reçue : "${raw}".`);
+  }
+
+  /**
+   * Entrées séparées par une virgule alors que l'attribut attend une barre
+   * verticale : une seule entrée est lue, le reste part au défaut.
+   *
+   * `labels` porte des libellés humains, où une virgule est parfaitement
+   * légitime (« Département, région ») : on n'y voit un mauvais séparateur
+   * qu'à une virgule suivie d'une entrée `champ:` — un libellé qui se termine
+   * par une virgule ne déclenche rien. Dans `display`, dont les valeurs sont
+   * une liste fermée de modes, toute virgule est suspecte.
+   */
+  private _warnSeparatorIfSuspect(attr: 'display' | 'labels', raw: string): void {
+    if (raw.includes('|') || !raw.includes(',')) return;
+    if (attr === 'labels' && !/,\s*[^,:|]+:/.test(raw)) return;
+    this._warnGrammar(
+      attr,
+      raw,
+      'les entrées semblent séparées par une virgule, or le séparateur attendu est la barre ' +
+        'verticale. Forme attendue : "champ:valeur | champ2:valeur2" (la virgule sépare les ' +
+        'entrées de "fields", "split" et "round"). En l\'état, une seule entrée est lue.'
+    );
+  }
+
   _parseLabels(): Map<string, string> {
     const map = new Map<string, string>();
     if (!this.labels) return map;
+
+    this._warnSeparatorIfSuspect('labels', this.labels);
 
     const pairs = this.labels.split('|');
     for (const pair of pairs) {
@@ -1335,6 +1383,8 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     const map = new Map<string, FacetDisplayMode>();
     if (!this.display) return map;
 
+    this._warnSeparatorIfSuspect('display', this.display);
+
     const pairs = this.display.split('|');
     for (const pair of pairs) {
       const colonIndex = pair.indexOf(':');
@@ -1343,6 +1393,13 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
       const value = pair.substring(colonIndex + 1).trim();
       if (key && FACET_DISPLAY_MODES.has(value)) {
         map.set(key, value as FacetDisplayMode);
+      } else if (key) {
+        this._warnGrammar(
+          'display',
+          this.display,
+          `mode d'affichage inconnu pour le champ "${key}" : "${value}". Modes acceptés : ` +
+            `${[...FACET_DISPLAY_MODES].join(', ')}. Le champ reste en "checkbox".`
+        );
       }
     }
     return map;

@@ -25,6 +25,24 @@ import {
 } from '../utils/data-bridge.js';
 
 /**
+ * Cles de requete que la bibliotheque construit elle-meme a partir des
+ * attributs des composants (#726) : `select`, `where`, `group_by`, `order_by`
+ * (poses par `_applyOdsqlClauses`), la pagination `limit`/`offset` posee par
+ * les constructeurs d'URL, et `facet` pose par le chargement des facettes.
+ * Une page ne doit pas pouvoir les ecraser depuis l'attribut `params` : le
+ * passe-plat les refuse et la source signale une erreur de configuration.
+ */
+const RESERVED_PARAM_KEYS = new Set([
+  'select',
+  'where',
+  'group_by',
+  'order_by',
+  'limit',
+  'offset',
+  'facet',
+]);
+
+/**
  * <dsfr-data-source> - Connecteur de données
  *
  * Composant invisible qui se connecte a une API REST, récupéré les données,
@@ -79,7 +97,19 @@ export class DsfrDataSource extends LitElement {
   @property({ type: String })
   headers = '';
 
-  /** Paramètres de requête en JSON : query string en GET, corps en POST. */
+  /**
+   * Paramètres de requête en JSON. Mode URL : query string en GET, corps de la
+   * requête en POST. **Mode adaptateur** (#726) : les paires sont ajoutées à
+   * l'URL construite par l'adaptateur, ce qui sert les paramètres propres au
+   * portail que la bibliothèque ne modélise pas — le cas d'usage est
+   * `params='{"timezone":"Europe/Paris"}'` sur un jeu Opendatasoft à
+   * dates, qui n'obligeait jusqu'ici à rester en mode URL. Les clés que la
+   * bibliothèque construit elle-même (`select`, `where`, `group_by`,
+   * `order_by`, `limit`, `offset`, `facet`) sont réservées : elles sont
+   * refusées avec une erreur de configuration plutôt que d'écraser une clause.
+   * Transmis par l'adaptateur Opendatasoft seulement, en chargement paginé
+   * comme en `fetch-mode="export"`.
+   */
   @property({ type: String })
   params = '';
 
@@ -793,6 +823,14 @@ export class DsfrDataSource extends LitElement {
       );
     }
 
+    // Passe-plat `params` fautif, non bloquant (#726) : la clé réservée ou le
+    // JSON invalide est écarté, le reste part quand même. Sans ce message, un
+    // where posé dans `params` disparaissait sans un mot.
+    const extraParamsError = this._parseExtraParams().error;
+    if (extraParamsError) {
+      reportConfigError(this, `dsfr-data-source[${this.id}]`, extraParamsError);
+    }
+
     if (this._abortController) {
       this._abortController.abort();
     }
@@ -955,7 +993,52 @@ export class DsfrDataSource extends LitElement {
       pageSize: this.pageSize,
       headers: parsedHeaders,
       proxyUrl: this.proxyUrl || undefined,
+      extraParams: this._parseExtraParams().extra,
     };
+  }
+
+  /**
+   * Lit l'attribut `params` pour le mode adaptateur (#726) : rend les paires
+   * transmissibles telles quelles a l'adaptateur, et le message a signaler
+   * quand la configuration est fautive (JSON invalide, cle reservee). Pur :
+   * `getAdapterParams()` n'en prend que la valeur, `_fetchViaAdapter()` en
+   * signale l'erreur — un `reportConfigError` pose ici serait efface par le
+   * `clearConfigError` du chemin de chargement.
+   */
+  private _parseExtraParams(): { extra?: Record<string, string>; error?: string } {
+    if (!this.params) return {};
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(this.params);
+    } catch {
+      return { error: 'attribut "params" invalide : un objet JSON est attendu' };
+    }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return { error: 'attribut "params" invalide : un objet JSON est attendu' };
+    }
+
+    const extra: Record<string, string> = {};
+    const reserved: string[] = [];
+    for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+      if (RESERVED_PARAM_KEYS.has(key)) {
+        reserved.push(key);
+        continue;
+      }
+      if (value === null || value === undefined) continue;
+      extra[key] = String(value);
+    }
+
+    const error =
+      reserved.length > 0
+        ? `params : ${reserved.length > 1 ? 'les clés' : 'la clé'} ${reserved
+            .map((k) => `"${k}"`)
+            .join(', ')} ${reserved.length > 1 ? 'sont réservées' : 'est réservée'} — ` +
+          'la bibliothèque construit cette clause depuis les attributs du composant ' +
+          '(select, where, group-by, order-by, limit) ; valeur ignorée'
+        : undefined;
+
+    return { extra: Object.keys(extra).length > 0 ? extra : undefined, error };
   }
 
   // --- API key registry resolution ---

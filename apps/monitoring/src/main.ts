@@ -341,8 +341,13 @@ function renderTable(): void {
     )
     .join('');
 
+  // `fr-table` doit porter sur le CONTENEUR, pas sur la table : c'est la regle
+  // DSFR `.fr-table > table { display: block; overflow: auto }` qui rend la
+  // table defilable horizontalement, condition du critere WCAG 1.4.10 a 320 px
+  // (ADR-108, #720).
   container.innerHTML = `
-    <table class="fr-table monitoring-table">
+    <div class="fr-table">
+      <table class="monitoring-table">
       <thead>
         <tr>
           <th data-sort="referer">Site ${sortIcon('referer')}</th>
@@ -355,7 +360,8 @@ function renderTable(): void {
         </tr>
       </thead>
       <tbody>${rows}</tbody>
-    </table>
+      </table>
+    </div>
   `;
 
   // Attach sort handlers

@@ -47,6 +47,7 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 | idle-message | String | `"Choisissez un filtre pour afficher les données"` | non | Message rendu quand l'amont attend un filtre (`require-where`, #690). Distinct de « aucune donnée » : aucune requête n'a été faite. Existe aussi sur list, kpi, display, podium et a11y. |
 | empty-label | String | `"Non renseigné"` | non | Libellé d'une catégorie vide (`null`, `undefined` ou `""` dans label-field) : légende du pie, axe X. Évite le « Série N » de DSFR Chart sur un nom vide. Ex: `empty-label="Sans objet"` |
 | selected-palette | String | `"categorical"` | non | Palette : categorical, sequentialAscending, sequentialDescending, divergentAscending, divergentDescending, neutral, default |
+| color-map | String | `""` | non | Couleur fixee par modalite : paires `modalite:#couleur` separees par virgule, meme grammaire que dsfr-data-map-layer. Ex: `"Realise:#000091,Objectif:#E1000F"`. La modalite est un nom de serie, sinon un libelle de l'axe (part de camembert). Virgule ou deux-points dans une modalite : `%2C` / `%3A`. Sans effet sur les types map* |
 | unit-tooltip | String | `""` | non | Unite dans les info-bulles : %, EUR, etc. |
 | unit-tooltip-bar | String | `""` | non | Unite des barres dans un bar-line |
 | horizontal | Boolean | `false` | non | Barres horizontales (type bar uniquement) |
@@ -58,7 +59,7 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 | y-min | String | `""` | non | Limite min axe Y. Pour type radar : borne min de l'echelle radiale (le centre du radar est fixe a y-min au lieu du minimum des donnees) |
 | y-max | String | `""` | non | Limite max axe Y. Pour type radar : borne max de l'echelle radiale ; si y-min et y-max sont entiers avec une amplitude de 1 a 10, anneaux de grille entiers (stepSize 1) |
 | gauge-value | Number | `null` | type gauge | Valeur de la jauge (0-100) |
-| code-field | String | `""` | types map* | Champ contenant le code : departement/region (map, map-reg), nom d'academie en majuscules (map-aca), code pays ISO 3166-1 alpha-2/alpha-3/numerique (map-monde, converti en alpha-2) — prioritaire sur label-field |
+| code-field | String | `""` | types map* | Champ contenant le code : departement (map), region (map-reg : code INSEE, cle DSFR Chart IDF/20R/971 ou nom, traduits), academie (map-aca : nom accentue ou non, prefixe « Academie de » retire), code pays ISO 3166-1 alpha-2/alpha-3/numerique (map-monde, converti en alpha-2) — prioritaire sur label-field. Une cle hors referentiel est ignoree ET comptee (console + volet Diagnostic) |
 | map-highlight | String | `""` | non | Departements/regions a surligner |
 | reference-lines | String | `""` | non | Lignes de reference (overlay) en JSON. Cartesiens uniquement (line, bar, bar-line, scatter). Chaque item : `{ axis: "x" ou "y", value (string ou number), label?, color?, dash?, position? }`. `axis:"x"` → ligne verticale a une categorie/date ; `axis:"y"` → ligne horizontale a un seuil. Ex : `reference-lines='[{"axis":"x","value":"2026-02","label":"Lancement","color":"#c9191e","dash":true},{"axis":"y","value":3000,"label":"Objectif"}]'`. |
 | targets | String | `""` | non | Cibles / objectifs futurs (overlay) en JSON. Types line et bar-line uniquement. Chaque item : `{ x (echeance, string ou number, requis), value (number, requis), series? (nom de dataset ou index, defaut 0), label?, color? }`. L'axe X est etendu automatiquement si l'echeance depasse les donnees : trait plein jusqu'au dernier point reel, trajectoire pointillee vers un losange a l'echeance, zone future grisee. Ex : `targets='[{"x":2030,"value":26,"label":"Cible 2030 : 26 %"}]'`. |
@@ -190,6 +191,7 @@ Quand `databox` est active, dsfr-data-a11y ne doit PAS inclure `table` ni `downl
 | Attribut | Type | Défaut | Description |
 |---|---|---|---|
 | `code-field` | `string` | `""` (vide) | Chemin vers le champ code (prioritaire sur label-field) : departement/region (map/map-reg), nom d'academie (map-aca), code pays ISO a2/a3/num (map-monde) |
+| `color-map` | `string` | `""` (vide) | Couleur fixée par modalité (#732) : paires `modalité:#couleur` séparées par des virgules, même grammaire que `dsfr-data-map-layer`. Ex : `"Réalisé:#000091,Objectif:#E1000F"`. La modalité est un nom de série (une couleur par courbe ou par barre) ou, à défaut, un libellé de l'axe (une couleur par part de camembert). Les modalités non citées gardent la couleur de la palette. Une virgule ou un deux-points dans une modalité s'écrit `%2C` ou `%3A`. Sans effet sur les cartes (`map*`). |
 | `databox` | `boolean` | `false` | Envelopper le chart dans une DataBox DSFR native |
 | `databox-actions` | `string` | `""` (vide) | Actions personnalisees DataBox (JSON array, ex: '["Source officielle","Pole emploi"]') |
 | `databox-date` | `string` | `""` (vide) | Date de la donnée (ex: "Mars 2024"), affichée dans le pied de la DataBox et sur les cartes. Aucune date n'est rendue si l'attribut est absent — plus de repli sur la date du jour, qui n'est pas celle des données (#650). Prime sur `databox-date-field` quand les deux sont posés. |
@@ -239,7 +241,7 @@ Quand `databox` est active, dsfr-data-a11y ne doit PAS inclure `table` ni `downl
 
 | Méthode | Retour | Description |
 |---|---|---|
-| `getSkippedCount()` | `number` | Nombre de lignes ignorees par la dernière carte rendue (`type="map*"`) : code geographique absent, vide ou invalide pour le decoupage. 0 hors carte. |
+| `getSkippedCount()` | `number` | Nombre de lignes ignorees par la dernière carte rendue (`type="map*"`) : code geographique absent, vide, invalide ou hors du referentiel du decoupage (academie inconnue, region inconnue, #729). 0 hors carte. |
 
 
 **Événements** (émis sur `document` : ecouter via `document.addEventListener`, filtrer sur `detail.sourceId`)

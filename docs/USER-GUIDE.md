@@ -423,9 +423,21 @@ Quatre decoupages de carte sont disponibles (API cartes unifiee [DSFR Chart](htt
 | `type` | Decoupage | Cles attendues (`code-field`) |
 |--------|-----------|-------------------------------|
 | `map` | Departements | Code INSEE (`01`-`95`, `2A`, `2B`, `971`-`976`) |
-| `map-reg` | Regions | Code region INSEE (`11`, `84`...) |
-| `map-aca` | Academies | Nom en majuscules (`PARIS`, `LYON`...) |
+| `map-reg` | Regions | Code region INSEE (`11`, `84`...), cle DSFR Chart (`IDF`, `20R`, `971`) ou nom (`Ile-de-France`) |
+| `map-aca` | Academies | Nom de l'academie, accentue ou non, avec ou sans le prefixe « Academie de » (`Academie de Besancon`, `BESANCON`, `Orleans-Tours`) |
 | `map-monde` | Monde | Code pays ISO 3166-1 (alpha-2 `FR`, alpha-3 `FRA` ou numerique `250` — convertis automatiquement) |
+
+Les cles sont traduites vers le referentiel de DSFR Chart quand c'est possible. Une cle qui n'y
+correspond a aucun territoire (nom d'academie inconnu, code de region inexistant, territoire absent du
+decoupage `aca` : Polynesie, Wallis-et-Futuna, Saint-Pierre-et-Miquelon, AEFE) n'est pas dessinee : la
+ligne est **comptee** et le nombre de lignes ignorees apparait dans la console et dans le volet
+Diagnostic (#729).
+
+**Couleur d'une modalite** : `color-map="Realise:#000091,Objectif:#E1000F"` fixe la couleur d'une serie
+(une couleur par courbe ou par barre) ou, si aucune serie ne correspond, d'un libelle de l'axe (une
+couleur par part de camembert). Les modalites non citees gardent la couleur de la palette. Meme
+grammaire que `dsfr-data-map-layer`, echappement `%2C` / `%3A` compris. Sans effet sur les cartes
+`map*`, dont l'echelle vient de `selected-palette`.
 
 #### KPI — Indicateurs Industrie du futur
 
@@ -753,6 +765,7 @@ Points cles :
 - **Fonds de carte** : presets `ign-plan` (defaut), `ign-ortho`, `ign-cadastre`, `osm-fr`, `osm-standard`, `opentopomap`, ou une URL de tuiles custom `{z}/{x}/{y}` (`carto-positron` et `carto-dark` sont deprecies : redirection vers `ign-plan`). L'attribut `sovereign-only` restreint aux presets souverains IGN.
 - **Fond attenue** : `tiles-style="muted"` (gris + 55 % d'opacite) ou `tiles-style="grey"` (niveaux de gris) efface le plan sous une carte thematique, sans CSS de page — un fond « neutre » = `ign-plan` attenue. Les encarts heritent du reglage.
 - **Choroplethe** : sur une couche `geoshape`, `fill-field` colore les polygones par classes (`selected-palette`, defaut `sequentialAscending`). `classes="5"` fixe le nombre de classes, `method="quantile|equal|manual"` la discretisation, `breaks="10,50,100"` des bornes manuelles ; defaut : quantiles, autant de classes que de couleurs (9).
+- **Couleurs categorielles** : `color-field` + `color-map="modalite:#couleur,…"`. Meme grammaire sur `dsfr-data-chart` (#732). Une virgule ou un deux-points dans une modalite s'ecrit `%2C` ou `%3A` (`Commerce%2C transport:#000091`), sinon la paire est coupee au decoupage.
 - **Legende** : `<dsfr-data-map-legend for="id-couche" label="…">` rend sous la carte une liste DSFR « pastille + texte » : classes avec bornes chiffrees (fr-FR) pour une choroplethe, paires de `color-map` (+ repli `color`) pour une couche categorielle. Elle se rafraichit a chaque rendu de la couche (`getLegendEntries()` / evenement `dsfr-data-map-layer-render`). Hors perimetre : `dsfr-data-chart type="map"` (echelle continue de DSFR Chart).
 - **Fonds administratifs sans API** : le paquet livre `dsfr-data/geo/regions.json` (18 regions) et `dsfr-data/geo/departements.json` (101 departements), GeoJSON simplifies (~120 et ~300 Ko, proprietes `code`/`nom`), hors bundle — via `import.meta.resolve('dsfr-data/geo/regions.json')`, un CDN npm ou une copie a cote de `dist/`. Recette : `<dsfr-data-source url="…/geo/regions.json" transform="features">` + couche `geoshape geo-field="geometry" no-interactive`. Source : Contours administratifs Etalab, Licence Ouverte 2.0 (`packages/core/geo/README.md`).
 - **`geo-field`** accepte du GeoJSON (Point, Polygon, Feature…), des objets `{lat, lon}`, des tableaux `[lat, lon]` **ou des chaines JSON serialisees** (colonnes texte Grist/CSV) ; a defaut, `lat-field`/`lon-field` pour des colonnes separees.
@@ -849,6 +862,30 @@ coutent 30 requetes, et le portail impose un quota partage. `fetch-mode="export"
 **A savoir** — en mode export le portail ne renvoie pas le total du jeu : un KPI `meta:total` affiche
 le nombre de lignes recues. Si le jeu depasse `max-records`, les donnees sont tronquees, un
 avertissement le dit en console et le volet Diagnostic le signale.
+
+### Passer un parametre propre au portail : `params`
+
+Certains portails attendent un parametre que la bibliotheque ne modelise pas — le plus courant est
+`timezone`, sans lequel un jeu a dates est lu dans le fuseau du serveur et sort decale de deux heures
+en heure d'ete. L'attribut `params` porte ces paires en **mode adaptateur** aussi : elles sont
+ajoutees a l'URL construite par l'adaptateur, en chargement pagine, en `fetch-mode="export"` et en
+`server-side`. C'est ce qui permet a une page a `timezone` d'utiliser `fetch-mode="export"` : avant,
+un tel parametre obligeait a ecrire l'URL complete a la main et donc a renoncer au mode adaptateur.
+
+```html
+<dsfr-data-source id="carburants" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr" dataset-id="prix-des-carburants-en-france-flux-instantane-v2"
+  fetch-mode="export" max-records="20000"
+  params='{"timezone":"Europe/Paris"}'></dsfr-data-source>
+```
+
+**Ce que `params` ne peut pas faire** — les cles que la bibliotheque construit elle-meme a partir des
+attributs du composant (`select`, `where`, `group_by`, `order_by`, `limit`, `offset`, `facet`) sont
+reservees : elles sont refusees, la clause construite est conservee et la source pose une erreur de
+configuration nommant la cle (attribut `data-dsfr-config-error`, message en console). Pour filtrer,
+trier ou agreger, ce sont les attributs `where`, `order-by`, `group-by` et `select` qu'il faut poser.
+Seul l'adaptateur Opendatasoft transmet ces parametres aujourd'hui ; en mode URL brute, `params`
+garde son comportement historique (query string en GET, corps de la requete en POST).
 
 ### Pages d'exploration : ne rien charger tant qu'aucun filtre n'est pose
 

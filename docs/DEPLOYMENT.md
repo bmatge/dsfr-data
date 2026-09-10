@@ -91,6 +91,42 @@ Le fichier [`.env.example`](../.env.example) liste toutes les variables. Les pri
 DSFR_DATA_DEV_BUILD=1 npm run build:all
 ```
 
+`DSFR_DATA_DEV_BUILD=1` a un **second effet depuis #716** : il construit les bundles de la lib en mode
+developpement, ce qui rouvre `isViteDevMode()` — la bascule qui fait resoudre les appels d'API vers des
+chemins `/…-proxy/` **relatifs** quand la page est servie sur `localhost:<port>`.
+
+### Servir un bundle construit sur `localhost` (#716)
+
+Par defaut, un bundle **construit** ne se croit plus jamais sur le serveur de dev de ce depot : c'etait un
+bug, `scripts/build-lib.ts` etant lance par `vite-node` (qui pose `NODE_ENV=development`), la garde
+`import.meta.env.DEV` etait pliee a la compilation et le **paquet npm publie** traitait tout integrateur
+developpant sur `http://localhost:3000` comme notre serveur de dev, avec des URL de proxy relatives qui
+n'existent pas chez lui.
+
+`npm run dev` et les tests e2e ne sont pas concernes : le plugin `dev-lib-redirect` de `vite.config.ts` sert
+les **sources**, pas les bundles.
+
+En revanche, tout ce qui sert le bundle **construit** sur `localhost:<port>` derriere ses propres routes de
+proxy doit desormais le dire — cas typique : `docker compose up -d --build` en local **sans**
+`VITE_PROXY_URL`, ou `app-dist/` servi a la main. Trois facons, de la plus recommandee a la plus locale :
+
+| Situation | Quoi faire |
+|---|---|
+| Docker local, nginx sert deja les routes `/…-proxy/` | `VITE_PROXY_URL=http://localhost:8080` dans `.env` (meme origine que la page : pas d'avertissement CSP, mode `remote`) |
+| Build local a servir sur `localhost` | `DSFR_DATA_DEV_BUILD=1 npm run build:all` |
+| Bundle deja construit, sans reconstruire — y compris pour un **integrateur tiers** | poser, avant le chargement de la lib : `window.DSFR_DATA_PROXY = { baseUrl: '' }` |
+
+```html
+<!-- Echappatoire runtime : chemins de proxy relatifs, sans rebuild -->
+<script>
+  window.DSFR_DATA_PROXY = { baseUrl: '' };
+</script>
+<script type="module" src="/dist/dsfr-data.esm.js"></script>
+```
+
+Sans l'une de ces trois, une page servie sur `localhost:<port>` appelle les API **en direct** — ce qui est le
+comportement correct pour un integrateur, mais expose aux restrictions CORS des fournisseurs qui en ont.
+
 ## Reverse proxy
 
 Le conteneur expose nginx sur le port `8080` (interne). Il faut un reverse proxy en amont qui :

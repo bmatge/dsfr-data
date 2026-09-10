@@ -41,6 +41,14 @@ import {
   SKILL_SECTION_IDS,
 } from './skills.js';
 import type { Skill } from './skills.js';
+import {
+  describeMeta,
+  healthFields,
+  metaPathFor,
+  parseMeta,
+  SKILLS_META_FILENAME,
+} from './skills-meta.js';
+import type { SkillsMeta } from './skills-meta.js';
 
 // ---------------------------------------------------------------------------
 // Outbound proxy (runtime)
@@ -94,6 +102,41 @@ const skillsFile = getArg(process.argv, '--skills-file');
 
 let skillsCache: Skill[] | null = null;
 
+/**
+ * Tampon de fraicheur des fiches (#733), lu dans `dist/skills-meta.json` a cote
+ * de `skills.json`. Il DATE l'instance servie : rien ne deploie le VPS
+ * automatiquement, une instance peut donc etre en retard de plusieurs versions
+ * sur le code. Sans lui, impossible pour un lecteur de distinguer « le code ne
+ * documente pas X » de « l'instance servie est ancienne » — trois agents s'y
+ * sont trompes le meme jour.
+ */
+let metaCache: SkillsMeta | null | undefined;
+
+/**
+ * Charge le tampon. Toujours best-effort : une instance anterieure a #733 ne
+ * sert pas le sidecar, le serveur doit fonctionner exactement comme avant et le
+ * dire (« fraicheur inconnue »), pas echouer.
+ */
+async function loadSkillsMeta(): Promise<SkillsMeta | null> {
+  if (metaCache !== undefined) return metaCache;
+
+  try {
+    if (skillsFile) {
+      const { readFileSync } = await import('node:fs');
+      metaCache = parseMeta(JSON.parse(readFileSync(metaPathFor(skillsFile), 'utf-8')));
+    } else {
+      const res = await fetch(`${baseUrl}/dist/${SKILLS_META_FILENAME}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      metaCache = parseMeta(await res.json());
+    }
+  } catch (err) {
+    console.error(`[dsfr-data-mcp] No freshness stamp (instance older than #733?): ${err}`);
+    metaCache = null;
+  }
+
+  return metaCache;
+}
+
 async function loadSkills(): Promise<Skill[]> {
   if (skillsCache) return skillsCache;
 
@@ -137,6 +180,7 @@ function createMcpServer(): McpServer {
     'List all available dsfr-data skills (id, name, description, addressable sections)',
     async () => {
       const skills = await loadSkills();
+      const meta = await loadSkillsMeta();
       const list = skills.map(s => {
         // Annoncer les sections evite un get_skill "tout" par defaut : l'agent
         // voit d'emblee qu'il peut demander `reference` seule (#513).
@@ -148,9 +192,11 @@ function createMcpServer(): McpServer {
         content: [{
           type: 'text' as const,
           text:
-            `## dsfr-data skills (${skills.length})\n\n${list}\n\n` +
+            `## dsfr-data skills (${skills.length}) — ${describeMeta(meta)}\n\n${list}\n\n` +
             `Utiliser \`get_skill(skill_id, section)\` pour ne recevoir qu'une section ` +
-            `plutot que la fiche entiere.`,
+            `plutot que la fiche entiere.\n\n` +
+            `Ces fiches datent de l'instance servie (${baseUrl}), pas du depot : ` +
+            `un manque apparent peut n'etre qu'un retard de deploiement.`,
         }],
       };
     },
@@ -285,7 +331,10 @@ function createMcpServer(): McpServer {
 
 async function startStdio() {
   await loadSkills();
-  console.error(`[dsfr-data-mcp] stdio mode — ${skillsCache?.length ?? 0} skills from ${baseUrl}`);
+  console.error(
+    `[dsfr-data-mcp] stdio mode — ${skillsCache?.length ?? 0} skills from ${baseUrl} ` +
+      `(${describeMeta(await loadSkillsMeta())})`,
+  );
 
   const server = createMcpServer();
   const transport = new StdioServerTransport();
@@ -298,7 +347,10 @@ async function startStdio() {
 
 async function startHttp() {
   await loadSkills();
-  console.error(`[dsfr-data-mcp] HTTP mode — ${skillsCache?.length ?? 0} skills from ${baseUrl}`);
+  console.error(
+    `[dsfr-data-mcp] HTTP mode — ${skillsCache?.length ?? 0} skills from ${baseUrl} ` +
+      `(${describeMeta(await loadSkillsMeta())})`,
+  );
 
   // Map to store transports by session ID
   const sessions = new Map<string, { server: McpServer; transport: StreamableHTTPServerTransport }>();
@@ -316,10 +368,18 @@ async function startHttp() {
       return;
     }
 
-    // Health check
+    // Health check — porte le tampon de fraicheur (#733) : c'est le point
+    // d'entree le moins couteux pour savoir QUELLE version cette instance sert.
     if (req.url === '/health') {
+      const meta = await loadSkillsMeta();
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ status: 'ok', skills: skillsCache?.length ?? 0 }));
+      res.end(
+        JSON.stringify({
+          status: 'ok',
+          skills: skillsCache?.length ?? 0,
+          ...healthFields(meta),
+        }),
+      );
       return;
     }
 

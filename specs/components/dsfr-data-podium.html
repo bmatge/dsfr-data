@@ -29,34 +29,38 @@
         </p>
 
         <h2>Attributs</h2>
-        <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
-          <tbody>
-            <!-- ATTRS:dsfr-data-podium fields="source,label-field,value-field,subtitle,subtitle-field,value-unit,selected-palette,max-items,no-sort,bar-max" -->
-              <tr><td><code>source</code></td><td>String</td><td><code>""</code></td><td>Id de la source (ou du transformateur) dont ce composant consomme les données.</td></tr>
-              <tr><td><code>label-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers le champ label</td></tr>
-              <tr><td><code>value-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers le champ valeur (numérique)</td></tr>
-              <tr><td><code>subtitle</code></td><td>String</td><td><code>""</code></td><td>Texte fixe affiché sous chaque label</td></tr>
-              <tr><td><code>subtitle-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers un champ pour le sous-titre (prioritaire sur subtitle)</td></tr>
-              <tr><td><code>value-unit</code></td><td>String</td><td><code>""</code></td><td>Unité affichée après la valeur</td></tr>
-              <tr><td><code>selected-palette</code></td><td>String</td><td><code>sequentialDescending</code></td><td>Palette de couleurs pour la bordure gauche</td></tr>
-              <tr><td><code>max-items</code></td><td>Number</td><td><code>5</code></td><td>Nombre maximum d'items affichés</td></tr>
-              <tr><td><code>no-sort</code></td><td>Boolean</td><td><code>false</code></td><td>Desactive le tri automatique (desc par valeur)</td></tr>
-              <tr><td><code>bar-max</code></td><td>Number</td><td>—</td><td>Valeur max forcee pour le calcul des barres (ex: 100 pour des %)</td></tr>
-            <!-- /ATTRS -->
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-podium fields="source,label-field,value-field,subtitle,subtitle-field,value-unit,selected-palette,max-items,no-sort,bar-max" -->
+                <tr><td><code>source</code></td><td>String</td><td><code>""</code></td><td>Id de la source (ou du transformateur) dont ce composant consomme les données.</td></tr>
+                <tr><td><code>label-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers le champ label</td></tr>
+                <tr><td><code>value-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers le champ valeur (numérique)</td></tr>
+                <tr><td><code>subtitle</code></td><td>String</td><td><code>""</code></td><td>Texte fixe affiché sous chaque label</td></tr>
+                <tr><td><code>subtitle-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers un champ pour le sous-titre (prioritaire sur subtitle)</td></tr>
+                <tr><td><code>value-unit</code></td><td>String</td><td><code>""</code></td><td>Unité affichée après la valeur</td></tr>
+                <tr><td><code>selected-palette</code></td><td>String</td><td><code>sequentialDescending</code></td><td>Palette de couleurs pour la bordure gauche</td></tr>
+                <tr><td><code>max-items</code></td><td>Number</td><td><code>5</code></td><td>Nombre maximum d'items affichés</td></tr>
+                <tr><td><code>no-sort</code></td><td>Boolean</td><td><code>false</code></td><td>Desactive le tri automatique (desc par valeur)</td></tr>
+                <tr><td><code>bar-max</code></td><td>Number</td><td>—</td><td>Valeur max forcee pour le calcul des barres (ex: 100 pour des %)</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
 
         <h2 class="fr-mt-4w">Palettes disponibles</h2>
-        <table class="attr-table">
-          <thead><tr><th>Palette</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>sequentialDescending</code></td><td>Bleu fonce vers bleu clair (défaut) — ideal pour les classements</td></tr>
-            <tr><td><code>sequentialAscending</code></td><td>Bleu clair vers bleu fonce</td></tr>
-            <tr><td><code>categorical</code></td><td>Couleurs contrastees — ideal quand les items ne sont pas ordonnes</td></tr>
-            <tr><td><code>neutral</code></td><td>Niveaux de gris</td></tr>
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Palette</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>sequentialDescending</code></td><td>Bleu fonce vers bleu clair (défaut) — ideal pour les classements</td></tr>
+              <tr><td><code>sequentialAscending</code></td><td>Bleu clair vers bleu fonce</td></tr>
+              <tr><td><code>categorical</code></td><td>Couleurs contrastees — ideal quand les items ne sont pas ordonnes</td></tr>
+              <tr><td><code>neutral</code></td><td>Niveaux de gris</td></tr>
+            </tbody>
+          </table>
+        </div>
 
         <h2 class="fr-mt-4w">Exemples</h2>
 

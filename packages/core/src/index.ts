@@ -51,6 +51,13 @@ export {
 } from './utils/formatters.js';
 export { computeAggregation, parseExpression } from './utils/aggregations.js';
 export { SourceSubscriberMixin } from './utils/source-subscriber.js';
+// Controle des attributs inconnus du bundle charge (#727) : appele par les
+// deux mixins, expose pour un composant tiers bati sur eux.
+export {
+  checkUnknownAttributes,
+  resetUnknownAttributeWarnings,
+  UNKNOWN_ATTRS_MARKER,
+} from './utils/unknown-attributes.js';
 
 // Adapters (pour usage avance et extensibilite)
 export type {

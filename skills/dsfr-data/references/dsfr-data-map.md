@@ -61,7 +61,7 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | tooltip-field | String | `""` | Champ affiche au survol |
 | color | String | `"#000091"` | Couleur (DSFR blue-france). Fallback si color-map ne matche pas |
 | color-field | String | `""` | Champ dont la valeur determine la couleur (mapping catégoriel) |
-| color-map | String | `""` | Paires `valeur:#couleur` separees par virgule. Ex: `"1:#00A95F,2:#FF9940,3:#E1000F"` |
+| color-map | String | `""` | Paires `valeur:#couleur` separees par virgule. Ex: `"1:#00A95F,2:#FF9940,3:#E1000F"`. Virgule ou deux-points dans une valeur : `%2C` / `%3A` (`"Commerce%2C transport:#000091"`). Meme grammaire sur dsfr-data-chart |
 | fill-field | String | `""` | Champ numérique pour choropleth (geoshape) |
 | fill-opacity | Number | `0.6` | Opacite remplissage |
 | selected-palette | String | `""` | Palette choropleth : `sequentialAscending` (défaut), `sequentialDescending`, `divergentAscending`, `divergentDescending`, `neutral`, `categorical` |
@@ -455,7 +455,7 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `cluster-radius` | `number` | `80` | Rayon de regroupement des clusters, en pixels. |
 | `color` | `string` | `'#000091'` | Couleur de la couche (défaut : blue-france DSFR). Sert aussi de repli quand `color-map` ne matche pas. |
 | `color-field` | `string` | `""` (vide) | Champ dont la valeur détermine la couleur (mapping catégoriel via `color-map`). |
-| `color-map` | `string` | `""` (vide) | Paires `valeur:#couleur` séparées par des virgules. Ex: `"1:#00A95F,2:#FF9940,3:#E1000F"`. |
+| `color-map` | `string` | `""` (vide) | Paires `valeur:#couleur` séparées par des virgules. Ex: `"1:#00A95F,2:#FF9940,3:#E1000F"`. Une virgule ou un deux-points dans une valeur s'écrit `%2C` ou `%3A`. |
 | `context` | `string` | `""` (vide) | Id du dsfr-data-context auquel s'enregistrer en `refine-on-click` (#681, ADR-104). Le contexte peut être déclaré après la couche dans la page. Vide = commande directe à `source` (chemin dégradé). |
 | `fill-field` | `string` | `""` (vide) | Champ numérique utilisé pour le remplissage en choroplèthe. |
 | `fill-opacity` | `number` | `0.6` | Opacite du remplissage (0-1). |

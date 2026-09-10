@@ -1,12 +1,13 @@
 import { LitElement, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { escapeHtml } from '@dsfr-data/shared/lib';
+import { escapeHtml, formatNumber } from '@dsfr-data/shared/lib';
 import type { ContextFilterLike } from '@dsfr-data/shared/lib';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { escapeColonValue } from '../utils/where.js';
 import { dispatchSourceCommand, getDataMeta } from '../utils/data-bridge.js';
 import { TransformerMixin } from '../utils/transformer-mixin.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
+import { renderSourceIdle, IDLE_MESSAGE_DEFAULT } from '../utils/status-templates.js';
 import type { SourceElement } from '../utils/source-element.js';
 import { CONTEXT_CONNECTED_EVENT, findContextById } from './dsfr-data-context.js';
 import type { DsfrDataContext } from './dsfr-data-context.js';
@@ -136,11 +137,22 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
 
   /**
    * Affiche un compteur de résultats sous le champ (compte serveur `meta.total`
-   * en `server-search`). Ce compteur reste visible en toutes circonstances ;
-   * seule sa nature de région live dépend de la chaîne aval (#654).
+   * en `server-search`), séparateur de milliers français (#728). Ce compteur
+   * reste visible dès qu'une donnée a circulé ; seule sa nature de région live
+   * dépend de la chaîne aval (#654). Tant que l'amont attend un filtre
+   * (`require-where`), il cède la place au message d'attente : annoncer
+   * « 0 résultats » avant toute requête laisserait croire à une page vide.
    */
   @property({ type: Boolean })
   count = false;
+
+  /**
+   * Message rendu quand l'amont attend un filtre (`require-where`, #690).
+   * Distinct de « aucune donnée » : aucune requête n'a été faite. Vide,
+   * le libellé par défaut est utilisé.
+   */
+  @property({ type: String, attribute: 'idle-message' })
+  idleMessage = IDLE_MESSAGE_DEFAULT;
 
   /** Nom du paramètre d'URL à lire comme terme de recherche initial. Vide = désactivé */
   @property({ type: String, attribute: 'url-search-param' })
@@ -836,7 +848,27 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
    * sans `aria-live`, et le compteur sr-only n'est pas rendu.
    */
   private _renderCount() {
-    const label = `${this._resultCount} résultat${this._resultCount !== 1 ? 's' : ''}`;
+    // Attente d'un filtre amont (#728) : aucune requête n'a été faite, aucun
+    // compte n'a de sens — pas même le compteur sr-only, qui annoncerait
+    // « 0 résultats » au lecteur d'écran sur une page qui n'a rien demandé.
+    if (this._transformerIdle) {
+      if (!this.count) return nothing;
+      return html`
+        ${renderSourceIdle('dsfr-data-search', this.idleMessage)}
+        <style>
+          .dsfr-data-search__idle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 0.25rem;
+            color: var(--text-mention-grey, #666);
+            font-size: 0.875rem;
+          }
+        </style>
+      `;
+    }
+
+    const label = `${formatNumber(this._resultCount)} résultat${this._resultCount !== 1 ? 's' : ''}`;
     const deferToDownstream = this._hasDownstreamLiveRegion();
 
     if (this.count) {

@@ -17,6 +17,7 @@ import { sendWidgetBeacon } from '../utils/beacon.js';
 import { dispatchSourceCommand } from '../utils/data-bridge.js';
 import { getByPath } from '../utils/json-path.js';
 import { parseGeoValue } from '../utils/geo-value.js';
+import { parseColorMap } from '../utils/color-map.js';
 import { escapeColonValue, filterToOdsql } from '../utils/where.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import { CONTEXT_CONNECTED_EVENT, findContextHostById } from '../utils/context-registry.js';
@@ -239,7 +240,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'color-field' })
   colorField = '';
 
-  /** Paires `valeur:#couleur` séparées par des virgules. Ex: `"1:#00A95F,2:#FF9940,3:#E1000F"`. */
+  /** Paires `valeur:#couleur` séparées par des virgules. Ex: `"1:#00A95F,2:#FF9940,3:#E1000F"`. Une virgule ou un deux-points dans une valeur s'écrit `%2C` ou `%3A`. */
   @property({ type: String, attribute: 'color-map' })
   colorMap = '';
 
@@ -617,21 +618,8 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   }
 
   // --- Color mapping ---
-
-  /** Parse color-map="val1:#color1,val2:#color2" into a Map */
-  private _parseColorMap(): Map<string, string> {
-    const map = new Map<string, string>();
-    if (!this.colorMap) return map;
-    for (const pair of this.colorMap.split(',')) {
-      const sep = pair.lastIndexOf(':');
-      if (sep > 0) {
-        const value = pair.substring(0, sep).trim();
-        const color = pair.substring(sep + 1).trim();
-        if (value && color) map.set(value, color);
-      }
-    }
-    return map;
-  }
+  // Grammaire partagee avec dsfr-data-chart (#732) : `utils/color-map.ts`,
+  // echappement percent des separateurs compris (#676).
 
   /** Resolve color for a record: color-field + color-map, or fallback to this.color */
   private _resolveColor(record: Record<string, unknown>): string {
@@ -1089,7 +1077,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     }
 
     // Parse color-map (categorical color mapping)
-    this._colorMapParsed = this.colorField && this.colorMap ? this._parseColorMap() : null;
+    this._colorMapParsed = this.colorField && this.colorMap ? parseColorMap(this.colorMap) : null;
     this._colorFallbackUsed = false;
 
     // Choropleth setup (for geoshape with fill-field) — classes parametrables

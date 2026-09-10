@@ -91,8 +91,9 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
    * Le pattern est comparé à la valeur entière (égalité stricte, pas de regex) ; un remplacement
    * vide supprime la valeur. Un `:`, `|`, `,` ou `%` littéral dans le pattern ou le remplacement
    * s'échappe en percent (`%3A`, `%7C`, `%2C`, `%25`), comme dans `where` (#676) :
-   * `replace="10%3A00:10h"` récrit « 10:00 » en « 10h ». Pour un recodage plus riche
-   * (sous-chaîne, année d'une date ISO), utiliser `compute` avec `replace()` ou `year()`.
+   * `replace="10%3A00:10h"` récrit « 10:00 » en « 10h ». La comparaison porte sur la forme
+   * chaîne de la valeur : une colonne numérique est concernée aussi (#730). Pour un recodage
+   * plus riche (sous-chaîne, année d'une date ISO), utiliser `compute` avec `replace()` ou `year()`.
    */
   @property({ type: String })
   replace = '';
@@ -102,6 +103,8 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
    * Les deux premiers `:` sont des délimiteurs, le remplacement peut contenir des `:` bruts.
    * Un `:` littéral dans le nom du champ ou dans le pattern s'échappe en `%3A` (`%7C`, `%2C`
    * et `%25` sont aussi décodés), comme dans `where` (#676) : `replace-fields="h:10%3A00:10h"`.
+   * La comparaison porte sur la forme chaîne de la valeur : une colonne numérique est concernée
+   * aussi, `replace-fields="annee:2024:2024-2025"` fonctionne (#730).
    * Pas de regex : pour un recodage plus riche, voir `compute` (`replace()`, `year()`).
    */
   @property({ type: String, attribute: 'replace-fields' })
@@ -442,12 +445,24 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
         } while (normalizedValue !== previous);
       }
 
+      // Les deux remplacements comparent la FORME CHAINE de la valeur (#730) :
+      // gardes par `typeof === 'string'`, ils étaient sans effet — et sans
+      // message — sur une colonne numérique ou booléenne, l'attribut mentait.
+      // L'égalité reste STRICTE sur cette forme : un nombre n'est jamais
+      // transformé par accident, et `null` / `undefined` / objets restent hors
+      // jeu (« null » n'est pas une valeur qu'on écrit dans `replace`).
+      const replaceable =
+        typeof normalizedValue === 'string' ||
+        typeof normalizedValue === 'number' ||
+        typeof normalizedValue === 'boolean';
+
       // 3a. Field-specific replace (replace-fields)
-      if (replaceFieldsMap.size > 0 && typeof normalizedValue === 'string') {
+      if (replaceFieldsMap.size > 0 && replaceable) {
         const fieldReplacements = replaceFieldsMap.get(key);
         if (fieldReplacements) {
+          const asString = String(normalizedValue);
           for (const [pattern, replacement] of fieldReplacements) {
-            if (normalizedValue === pattern) {
+            if (asString === pattern) {
               normalizedValue = replacement;
               break;
             }
@@ -456,9 +471,10 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
       }
 
       // 3b. Global replace
-      if (replaceMap.size > 0 && typeof normalizedValue === 'string') {
+      if (replaceMap.size > 0 && replaceable) {
+        const asString = String(normalizedValue);
         for (const [pattern, replacement] of replaceMap) {
-          if (normalizedValue === pattern) {
+          if (asString === pattern) {
             normalizedValue = replacement;
             break;
           }

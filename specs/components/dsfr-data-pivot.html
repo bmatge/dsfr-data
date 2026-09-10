@@ -61,22 +61,24 @@ Normandie           | 980  | null</pre></div>
         <div class="code-block"><pre>dsfr-data-source (long) ──► dsfr-data-pivot ──► dsfr-data-list / dsfr-data-chart</pre></div>
 
         <h2 id="attributs" class="fr-mt-4w">Attributs</h2>
-        <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
-          <tbody>
-            <!-- ATTRS:dsfr-data-pivot fields="source,row,column,value,aggregate,column-order,column-format,labels,max-columns" -->
-              <tr><td><code>source</code></td><td>String</td><td><code>""</code></td><td>ID de la source de données à écouter (format long : une observation par ligne).</td></tr>
-              <tr><td><code>row</code></td><td>String</td><td><code>""</code></td><td>Champs formant l'identité de ligne, virgule-séparés : une ligne émise par combinaison distincte. Ex : <code>"commune"</code> ou <code>"etab, dep"</code>.</td></tr>
-              <tr><td><code>column</code></td><td>String</td><td><code>""</code></td><td>Champ dont chaque valeur distincte devient une colonne. Ex : <code>"annee"</code>.</td></tr>
-              <tr><td><code>value</code></td><td>String</td><td><code>""</code></td><td>Champ dont les valeurs remplissent les cellules. Ex : <code>"montant"</code>.</td></tr>
-              <tr><td><code>aggregate</code></td><td>String</td><td><code>sum</code></td><td>Réduction quand plusieurs lignes tombent dans la même cellule : <code>sum</code> (défaut), <code>count</code>, <code>avg</code>, <code>min</code>, <code>max</code>, <code>first</code>, <code>last</code>. Une cellule sans valeur numérique reste <code>null</code> (pas de 0 silencieux).</td></tr>
-              <tr><td><code>column-order</code></td><td>String</td><td><code>""</code></td><td>Ordre des colonnes générées : vide = ordre d'apparition dans les données, <code>asc</code> / <code>desc</code> = tri des valeurs (numérique si elles le sont toutes).</td></tr>
-              <tr><td><code>column-format</code></td><td>String</td><td><code>""</code></td><td>Gabarit des noms de colonnes générées, <code>{value}</code> = valeur brute. Ex : <code>"annee_{value}"</code> donne <code>annee_2023</code> — un identifiant utilisable dans <code>compute</code>. Défaut : la valeur brute (<code>2023</code>).</td></tr>
-              <tr><td><code>labels</code></td><td>String</td><td><code>""</code></td><td>Libellés des colonnes générées, par valeur brute : <code>"2022:Année 2022 | 2023:Année 2023"</code>. Une valeur libellée prend son libellé pour nom de colonne (prime sur column-format). Un <code>:</code> ou <code>|</code> littéral s'échappe en <code>%3A</code> / <code>%7C</code>.</td></tr>
-              <tr><td><code>max-columns</code></td><td>String</td><td><code>PIVOT_DEFAULT_MAX_COLUMNS</code></td><td>Plafond de colonnes générées (défaut 50). Au-delà, erreur de configuration explicite : un pivot sur un champ à 10 000 valeurs distinctes est une erreur de page, pas un tableau.</td></tr>
-            <!-- /ATTRS -->
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-pivot fields="source,row,column,value,aggregate,column-order,column-format,labels,max-columns" -->
+                <tr><td><code>source</code></td><td>String</td><td><code>""</code></td><td>ID de la source de données à écouter (format long : une observation par ligne).</td></tr>
+                <tr><td><code>row</code></td><td>String</td><td><code>""</code></td><td>Champs formant l'identité de ligne, virgule-séparés : une ligne émise par combinaison distincte. Ex : <code>"commune"</code> ou <code>"etab, dep"</code>.</td></tr>
+                <tr><td><code>column</code></td><td>String</td><td><code>""</code></td><td>Champ dont chaque valeur distincte devient une colonne. Ex : <code>"annee"</code>.</td></tr>
+                <tr><td><code>value</code></td><td>String</td><td><code>""</code></td><td>Champ dont les valeurs remplissent les cellules. Ex : <code>"montant"</code>.</td></tr>
+                <tr><td><code>aggregate</code></td><td>String</td><td><code>sum</code></td><td>Réduction quand plusieurs lignes tombent dans la même cellule : <code>sum</code> (défaut), <code>count</code>, <code>avg</code>, <code>min</code>, <code>max</code>, <code>first</code>, <code>last</code>. Une cellule sans valeur numérique reste <code>null</code> (pas de 0 silencieux).</td></tr>
+                <tr><td><code>column-order</code></td><td>String</td><td><code>""</code></td><td>Ordre des colonnes générées : vide = ordre d'apparition dans les données, <code>asc</code> / <code>desc</code> = tri des valeurs (numérique si elles le sont toutes).</td></tr>
+                <tr><td><code>column-format</code></td><td>String</td><td><code>""</code></td><td>Gabarit des noms de colonnes générées, <code>{value}</code> = valeur brute. Ex : <code>"annee_{value}"</code> donne <code>annee_2023</code> — un identifiant utilisable dans <code>compute</code>. Défaut : la valeur brute (<code>2023</code>).</td></tr>
+                <tr><td><code>labels</code></td><td>String</td><td><code>""</code></td><td>Libellés des colonnes générées, par valeur brute : <code>"2022:Année 2022 | 2023:Année 2023"</code>. Une valeur libellée prend son libellé pour nom de colonne (prime sur column-format). Un <code>:</code> ou <code>|</code> littéral s'échappe en <code>%3A</code> / <code>%7C</code>.</td></tr>
+                <tr><td><code>max-columns</code></td><td>String</td><td><code>PIVOT_DEFAULT_MAX_COLUMNS</code></td><td>Plafond de colonnes générées (défaut 50). Au-delà, erreur de configuration explicite : un pivot sur un champ à 10 000 valeurs distinctes est une erreur de page, pas un tableau.</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
 
         <h2 id="schema" class="fr-mt-4w">Le schéma de sortie dépend des données</h2>
         <p>

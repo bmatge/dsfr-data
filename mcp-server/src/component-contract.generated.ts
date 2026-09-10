@@ -4,7 +4,7 @@
  * Source : packages/core/custom-elements.json (lui-meme genere depuis le code).
  * Regeneration : npm run build:component-contract
  *
- * 25 balises, 302 attributs.
+ * 25 balises, 304 attributs.
  */
 
 export const COMPONENT_CONTRACT = {
@@ -32,6 +32,7 @@ export const COMPONENT_CONTRACT = {
   "dsfr-data-chart": {
     "attributes": [
       "code-field",
+      "color-map",
       "databox",
       "databox-actions",
       "databox-date",
@@ -371,6 +372,7 @@ export const COMPONENT_CONTRACT = {
       "debounce",
       "fields",
       "highlight",
+      "idle-message",
       "label",
       "min-length",
       "operator",

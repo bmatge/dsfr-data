@@ -327,10 +327,17 @@ export class OpenDataSoftAdapter implements ApiAdapter {
 
   /**
    * Construit l'URL ODS en mode server-side (une seule page).
+   *
+   * Ne partage pas `_applyOdsqlClauses` (l'overlay porte son propre `where` et
+   * son propre tri), mais pose les memes parametres de passe-plat (#726) : un
+   * `timezone` doit valoir sur un tableau pagine comme sur un chargement
+   * complet, sinon activer `server-side` decalerait les dates en silence.
    */
   buildServerSideUrl(params: AdapterParams, overlay: ServerSideOverlay): string {
     const base = params.baseUrl || 'https://data.opendatasoft.com';
     const url = new URL(`${base}/api/explore/v2.1/catalog/datasets/${params.datasetId}/records`);
+
+    this._applyExtraParams(url, params);
 
     // SELECT
     if (params.select) {
@@ -520,8 +527,14 @@ export class OpenDataSoftAdapter implements ApiAdapter {
    * `select` (explicite ou derive de l'agregat), `where`, `group_by` echappe
    * (#641/#289) et `order_by` traduit. La pagination reste a l'appelant, elle
    * n'a pas le meme sens sur les deux endpoints.
+   *
+   * Les parametres de passe-plat (#726) sont poses EN PREMIER : une clause
+   * construite par la bibliotheque doit toujours gagner, meme si la liste
+   * noire de la source laissait passer une cle reservee.
    */
   private _applyOdsqlClauses(url: URL, params: AdapterParams): void {
+    this._applyExtraParams(url, params);
+
     if (params.select) {
       url.searchParams.set('select', params.select);
     } else if (params.aggregate && params.groupBy) {
@@ -539,6 +552,19 @@ export class OpenDataSoftAdapter implements ApiAdapter {
 
     if (params.orderBy) {
       url.searchParams.set('order_by', toOdsOrderBy(params.orderBy));
+    }
+  }
+
+  /**
+   * Pose les parametres de requete que la bibliotheque ne modelise pas (#726),
+   * tels que l'attribut `params` de la source les a transmis : `timezone`,
+   * `lang`, `pretty`... Les cles reservees ont deja ete ecartees en amont
+   * (`dsfr-data-source`), ou elles produisent une erreur de configuration.
+   */
+  private _applyExtraParams(url: URL, params: AdapterParams): void {
+    if (!params.extraParams) return;
+    for (const [key, value] of Object.entries(params.extraParams)) {
+      url.searchParams.set(key, value);
     }
   }
 

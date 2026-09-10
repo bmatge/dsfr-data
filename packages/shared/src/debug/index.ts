@@ -25,8 +25,17 @@ export {
   readCacheSnapshot,
 } from './early-buffer.js';
 export type { BufferedBusEvent } from './early-buffer.js';
-export { STAGE_ROLES, snapshotGraph, downstreamOf, topoOrder } from './graph.js';
+export { STAGE_ROLES, SHAPE_ATTRS, snapshotGraph, downstreamOf, topoOrder } from './graph.js';
 export type { StageRole, StageNode, DataflowGraph, ComputedColumn } from './graph.js';
+
+export {
+  FIELD_ATTRS,
+  fieldsInAttr,
+  referencedFields,
+  checkNodeFields,
+  fieldIssuesByNode,
+} from './field-check.js';
+export type { FieldAttrKind, FieldIssue, FieldIssueReason, FieldRef } from './field-check.js';
 
 export { extractRows, summarizeStage, diffFields, fieldMatrix } from './summarize.js';
 export type { StageSummary, FieldDiff } from './summarize.js';

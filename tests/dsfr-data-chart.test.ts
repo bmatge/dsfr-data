@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { DsfrDataChart } from '@/components/dsfr-data-chart.js';
 import { clearDataCache, dispatchDataLoaded } from '@/utils/data-bridge.js';
 
@@ -201,7 +201,8 @@ describe('DsfrDataChart', () => {
       expect(result['INVALID']).toBeUndefined();
     });
 
-    it('accepts any non-empty code for map-reg type', () => {
+    it('map-reg : clé du référentiel gardée, clé hors référentiel écartée et comptée (#729)', () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
       (chart as any)._data = [
         { reg: 'IDF', val: 100 },
         { reg: 'PACA', val: 200 },
@@ -212,7 +213,8 @@ describe('DsfrDataChart', () => {
 
       const result = JSON.parse((chart as any)._processMapData());
       expect(result['IDF']).toBe(100);
-      expect(result['PACA']).toBe(200);
+      expect(result['PACA']).toBeUndefined();
+      expect(chart.getSkippedCount()).toBe(1);
     });
   });
 
