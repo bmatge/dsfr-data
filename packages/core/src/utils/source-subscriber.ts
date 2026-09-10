@@ -6,6 +6,7 @@
  */
 import type { LitElement } from 'lit';
 import { subscribeToSource, getDataCache, isDataIdle } from './data-bridge.js';
+import { checkUnknownAttributes } from './unknown-attributes.js';
 
 // Pattern Lit mixin canonique : le constructor doit être callable avec
 // n'importe quels args pour permettre le chaînage `class extends mixin(Parent)`.
@@ -81,6 +82,10 @@ export function SourceSubscriberMixin<T extends Constructor<LitElement>>(superCl
 
     connectedCallback() {
       super.connectedCallback();
+      // Un attribut inconnu du bundle chargé est ignoré en silence (#727) :
+      // seul ce point du cycle voit à la fois la classe réellement
+      // enregistrée et le balisage écrit par l'intégrateur.
+      checkUnknownAttributes(this);
       this._subscribeToSource();
     }
 

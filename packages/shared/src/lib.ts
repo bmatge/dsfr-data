@@ -79,6 +79,12 @@ export {
   COMPUTE_MAX_EXPRESSION_LENGTH,
 } from './utils/compute.js';
 export { isUnsafeKey } from './utils/security.js';
+// Analyse de schéma (#727) — `debug/summarize.ts` s'en sert déjà pour résumer
+// une charge, et le contrôle de nommage pour dire quels champs existent. Pur,
+// sans DOM ni réseau : lib-safe, contrairement au reste de `ia/` qui pilote
+// le Studio. La frontière #319 exige les DEUX barrels, celui-ci et index.ts.
+export { analyzeDataFields } from './ia/data-tools.js';
+export type { Row, Field } from './ia/data-tools.js';
 export type { CsvColumn, BuildCsvOptions } from './utils/csv.js';
 export { buildCsv, CSV_BOM } from './utils/csv.js';
 export { escapeColonValue, unescapeColonValue } from './utils/colon-escape.js';
