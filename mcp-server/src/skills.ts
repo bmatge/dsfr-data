@@ -135,7 +135,8 @@ export function getWidgetSkillIds(chartType?: string): string[] {
     if (lower === 'kpi') ids.push('dsfrDataKpi');
     if (lower === 'podium' || lower === 'classement' || lower === 'ranking')
       ids.push('dsfrDataPodium');
-    if (lower === 'datalist' || lower === 'tableau') ids.push('dsfrDataList');
+    // Tableau : le tableau croisé (long → wide) est un cas fréquent (#255)
+    if (lower === 'datalist' || lower === 'tableau') ids.push('dsfrDataList', 'dsfrDataPivot');
     // Cartes DSFR Chart (choroplèthes dep/reg/aca/monde via dsfr-data-chart)
     if (lower === 'map' || lower === 'map-reg' || lower === 'map-aca' || lower === 'map-monde')
       ids.push('dsfrColors', 'chartTypes');
