@@ -6,12 +6,33 @@ import {
   compileCompute,
   applyCompute,
   unescapeColonValue,
+  toBoolean,
 } from '@dsfr-data/shared/lib';
 import type { CompiledCompute } from '@dsfr-data/shared/lib';
 import { sendWidgetBeacon } from '../utils/beacon.js';
+import { reportConfigError } from '../utils/config-error.js';
 import { getDataCache } from '../utils/data-bridge.js';
 import { TransformerMixin } from '../utils/transformer-mixin.js';
 import type { SourceElement } from '../utils/source-element.js';
+
+/** Un motif de colonne de `fold` : joker `*` en début ou en fin seulement, ou nom exact. */
+export interface FoldMatcher {
+  kind: 'prefix' | 'suffix' | 'exact';
+  /** Partie fixe du motif (sans le joker). */
+  text: string;
+}
+
+/** Une règle de `fold` : les motifs (dans l'ordre déclaré) repliés dans une même cible. */
+export interface FoldRule {
+  target: string;
+  matchers: FoldMatcher[];
+}
+
+/** Résultat du parsing de `fold` : règles valides + erreurs lisibles (mode dégradé). */
+export interface ParsedFold {
+  rules: FoldRule[];
+  errors: string[];
+}
 
 /**
  * <dsfr-data-normalize> - Composant de normalisation de données
@@ -101,6 +122,28 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
   @property({ type: String })
   split = '';
 
+  /**
+   * Repli de colonnes booléennes parallèles en un champ multi-valeurs (#677) — le motif
+   * open data « une colonne Oui/Non par modalité » (`handicap_moteur`, `handicap_visuel`…).
+   * Format : "motif:cible, motif2:cible2". Le joker `*` n'est accepté qu'en début ou en fin
+   * de motif (`handicap_*`, `*_ok`) ; un motif sans joker désigne une colonne exacte ; plusieurs
+   * motifs peuvent viser la même cible. Chaque ligne reçoit dans `cible` le tableau des colonnes
+   * dont la valeur est vraie au sens de `toBoolean` (Oui/Non, 1/0, true/false, X/vide…),
+   * étiquetées par la partie variable du motif (`handicap_moteur` donne « moteur ») ou par le
+   * nom complet de la colonne pour un motif sans joker. Les colonnes sources sont conservées
+   * (voir `fold-drop`). S'exécute après `rename` et `lowercase-keys`, avant `compute` : les
+   * motifs se lisent sur les noms renommés, qui servent donc d'étiquettes
+   * (`rename="handicap_moteur:handicap_Moteur"` donne « Moteur »). Le tableau obtenu se
+   * filtre avec `dsfr-data-facets` comme un champ `split` (une valeur par élément).
+   * Ex : `fold="handicap_*:handicaps"`.
+   */
+  @property({ type: String })
+  fold = '';
+
+  /** Avec `fold` : retire du résultat les colonnes sources repliées. */
+  @property({ type: Boolean, attribute: 'fold-drop' })
+  foldDrop = false;
+
   /** Arrondit les champs numériques a l'entier (ou a N decimales). Format: "champ1, champ2" ou "champ1:2, champ2:0" */
   @property({ type: String })
   round = '';
@@ -171,7 +214,9 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
    * statut est délégué à l'amont — un unpivot peut précéder ce normalize.
    */
   public transformsSchema(): boolean {
-    if (this.rename || this.compute || this.flatten || this.lowercaseKeys) return true;
+    if (this.rename || this.compute || this.flatten || this.lowercaseKeys || this.fold) {
+      return true;
+    }
     if (this.source) {
       const sourceEl = document.getElementById(this.source);
       if (sourceEl && 'transformsSchema' in sourceEl) {
@@ -214,6 +259,8 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
       'replace',
       'replaceFields',
       'lowercaseKeys',
+      'fold',
+      'foldDrop',
       'compute',
     ];
   }
@@ -251,6 +298,12 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
       const replaceMap = this._parsePipeMap(this.replace);
       const replaceFieldsMap = this._parseReplaceFields(this.replaceFields);
       const splitFields = this._parseSplitFields();
+      // Fold (#677) : parse une fois par lot ; une entree malformee est signalee
+      // (console + data-dsfr-config-error) et ignoree, les autres s'appliquent.
+      const { rules: foldRules, errors: foldErrors } = this._parseFold();
+      for (const message of foldErrors) {
+        reportConfigError(this, `dsfr-data-normalize[${this.id}]`, message);
+      }
       // Compile once per batch (not per row). Compute runs LAST, on already-typed
       // values, so `valeur * 100` sees a number and `a + ' / ' + b` concatenates.
       const compiledCompute: CompiledCompute = compileCompute(this.compute);
@@ -259,7 +312,7 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
         if (row === null || row === undefined || typeof row !== 'object') {
           return row;
         }
-        const normalized = this._normalizeRow(
+        let normalized = this._normalizeRow(
           row as Record<string, unknown>,
           numericFields,
           roundFields,
@@ -268,6 +321,11 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
           replaceFieldsMap,
           splitFields
         );
+        // Fold reads the FINAL key names (after rename / lowercase-keys) so the
+        // renamed labels become the folded values; compute may then use the array.
+        if (foldRules.length > 0) {
+          normalized = this._applyFold(normalized, foldRules);
+        }
         return compiledCompute.length > 0 ? applyCompute(normalized, compiledCompute) : normalized;
       });
 
@@ -423,6 +481,113 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
       .split(separator)
       .map((v) => v.trim())
       .filter(Boolean);
+  }
+
+  /**
+   * Parse l'attribut fold en règles `{ cible, motifs }` (#677). Format : "motif:cible, motif2:cible2".
+   * Entrées séparées par virgule ; le premier `:` sépare le motif de la cible (échappement percent
+   * décodé après découpage). Le joker `*` n'est accepté qu'en début ou en fin de motif ; une
+   * entrée malformée (sans `:`, motif ou cible vide, joker au milieu ou multiple) est rendue dans
+   * `errors` et ignorée. Plusieurs motifs visant la même cible sont regroupés, dans l'ordre déclaré.
+   */
+  _parseFold(): ParsedFold {
+    const rules: FoldRule[] = [];
+    const errors: string[] = [];
+    if (!this.fold) return { rules, errors };
+
+    const byTarget = new Map<string, FoldRule>();
+    for (const entry of this.fold.split(',')) {
+      const trimmed = entry.trim();
+      if (!trimmed) continue;
+      const colonIdx = trimmed.indexOf(':');
+      if (colonIdx === -1) {
+        errors.push(`fold : entrée « ${trimmed} » sans cible (format attendu : motif:cible)`);
+        continue;
+      }
+      const pattern = unescapeColonValue(trimmed.substring(0, colonIdx).trim());
+      const target = unescapeColonValue(trimmed.substring(colonIdx + 1).trim());
+      if (!pattern || !target) {
+        errors.push(`fold : entrée « ${trimmed} » incomplète (format attendu : motif:cible)`);
+        continue;
+      }
+      const matcher = this._parseFoldMatcher(pattern);
+      if (!matcher) {
+        errors.push(
+          `fold : motif « ${pattern} » invalide (un seul joker *, en début ou en fin de motif)`
+        );
+        continue;
+      }
+      let rule = byTarget.get(target);
+      if (!rule) {
+        rule = { target, matchers: [] };
+        byTarget.set(target, rule);
+        rules.push(rule);
+      }
+      rule.matchers.push(matcher);
+    }
+    return { rules, errors };
+  }
+
+  /** Un motif de fold : `prefix*`, `*suffix` ou nom exact ; null si le joker est mal placé. */
+  private _parseFoldMatcher(pattern: string): FoldMatcher | null {
+    const stars = pattern.split('*').length - 1;
+    if (stars === 0) return { kind: 'exact', text: pattern };
+    if (stars > 1) return null;
+    if (pattern.endsWith('*')) {
+      const text = pattern.slice(0, -1);
+      return text ? { kind: 'prefix', text } : null;
+    }
+    if (pattern.startsWith('*')) {
+      const text = pattern.slice(1);
+      return text ? { kind: 'suffix', text } : null;
+    }
+    return null;
+  }
+
+  /**
+   * Étiquette d'une colonne repliée : la partie variable du motif (`handicap_moteur` avec
+   * `handicap_*` donne « moteur »), ou le nom complet pour un motif exact ; null si la
+   * colonne ne matche pas. Une partie variable vide (colonne = partie fixe) garde le nom complet.
+   */
+  private _foldLabel(key: string, matcher: FoldMatcher): string | null {
+    switch (matcher.kind) {
+      case 'exact':
+        return key === matcher.text ? key : null;
+      case 'prefix':
+        if (!key.startsWith(matcher.text)) return null;
+        return key.slice(matcher.text.length) || key;
+      case 'suffix':
+        if (!key.endsWith(matcher.text)) return null;
+        return key.slice(0, key.length - matcher.text.length) || key;
+    }
+  }
+
+  /**
+   * Applique les règles de fold à une ligne déjà normalisée (clés finales). Pour chaque cible,
+   * les colonnes matchées sont parcourues motif par motif, dans l'ordre de la ligne ; chaque
+   * colonne ne compte qu'une fois (le premier motif qui la matche fixe son étiquette) et celles
+   * dont la valeur est vraie (`toBoolean`) fournissent leur étiquette au tableau cible, sans
+   * doublon. Les colonnes sources sont retirées si `fold-drop` est posé.
+   */
+  private _applyFold(row: Record<string, unknown>, rules: FoldRule[]): Record<string, unknown> {
+    const result: Record<string, unknown> = { ...row };
+    const keys = Object.keys(row);
+    for (const rule of rules) {
+      const labels: string[] = [];
+      const seenKeys = new Set<string>();
+      for (const matcher of rule.matchers) {
+        for (const key of keys) {
+          if (key === rule.target || seenKeys.has(key)) continue;
+          const label = this._foldLabel(key, matcher);
+          if (label === null) continue;
+          seenKeys.add(key);
+          if (this.foldDrop) delete result[key];
+          if (toBoolean(row[key]) && !labels.includes(label)) labels.push(label);
+        }
+      }
+      result[rule.target] = labels;
+    }
+    return result;
   }
 
   /**

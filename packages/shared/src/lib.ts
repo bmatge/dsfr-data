@@ -59,6 +59,7 @@ export { isUnsafeKey } from './utils/security.js';
 export type { CsvColumn, BuildCsvOptions } from './utils/csv.js';
 export { buildCsv, CSV_BOM } from './utils/csv.js';
 export { escapeColonValue, unescapeColonValue } from './utils/colon-escape.js';
+export { toBoolean } from './utils/to-boolean.js';
 export type { AliasedColumn } from './utils/aliased-columns.js';
 export { parseAliasedColumn, parseAliasedColumns } from './utils/aliased-columns.js';
 export { filterToOdsql, applyLocalFilter } from './query/filter-translator.js';

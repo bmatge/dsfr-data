@@ -1023,6 +1023,281 @@ describe('DsfrDataNormalize', () => {
     });
   });
 
+  describe('Fold (colonnes booléennes parallèles -> champ multi-valeurs, #677)', () => {
+    const HANDICAP_ROWS = [
+      {
+        Nom: 'Mairie',
+        handicap_moteur: 'Oui',
+        handicap_visuel: 'Non',
+        handicap_auditif: 'Oui',
+        handicap_mental: '',
+        surface: '120',
+      },
+      {
+        Nom: 'Piscine',
+        handicap_moteur: 'non',
+        handicap_visuel: 'OUI',
+        handicap_auditif: 'N/A',
+        handicap_mental: 'X',
+        surface: '800',
+      },
+      {
+        Nom: 'Stade',
+        handicap_moteur: 'Non',
+        handicap_visuel: 'Non',
+        handicap_auditif: null,
+        handicap_mental: '0',
+        surface: '5000',
+      },
+    ];
+
+    describe('parsing', () => {
+      it('parses "motif:cible" entries separated by commas, prefix and suffix jokers', () => {
+        normalize.fold = 'handicap_*:handicaps, *_ok:validations';
+        const { rules, errors } = normalize._parseFold();
+        expect(errors).toEqual([]);
+        expect(rules).toEqual([
+          { target: 'handicaps', matchers: [{ kind: 'prefix', text: 'handicap_' }] },
+          { target: 'validations', matchers: [{ kind: 'suffix', text: '_ok' }] },
+        ]);
+      });
+
+      it('accepts an exact column name (no joker) and groups several patterns on one target', () => {
+        normalize.fold = 'Moteur:handicaps, Visuel:handicaps, acces_*:handicaps';
+        const { rules, errors } = normalize._parseFold();
+        expect(errors).toEqual([]);
+        expect(rules).toHaveLength(1);
+        expect(rules[0].target).toBe('handicaps');
+        expect(rules[0].matchers.map((m) => m.kind)).toEqual(['exact', 'exact', 'prefix']);
+      });
+
+      it('decodes percent escapes after splitting (a comma or colon in a column name)', () => {
+        normalize.fold = 'Acc%C3%A8s%2C%3A*:cible';
+        const { rules } = normalize._parseFold();
+        // seuls les separateurs structurels sont decodes (%2C -> ",", %3A -> ":")
+        expect(rules[0].matchers[0]).toEqual({ kind: 'prefix', text: 'Acc%C3%A8s,:' });
+      });
+
+      it('rejects a joker in the middle, several jokers, a lone joker or a missing target', () => {
+        normalize.fold = 'han*cap:h, *a*:h, *:h, sansCible, :vide, a:';
+        const { rules, errors } = normalize._parseFold();
+        expect(rules).toEqual([]);
+        expect(errors).toHaveLength(6);
+        expect(errors[0]).toContain('han*cap');
+        expect(errors[3]).toContain('sansCible');
+      });
+
+      it('keeps the valid entries when one is malformed (degraded mode)', () => {
+        normalize.fold = 'han*cap:h, handicap_*:h';
+        const { rules, errors } = normalize._parseFold();
+        expect(errors).toHaveLength(1);
+        expect(rules).toEqual([{ target: 'h', matchers: [{ kind: 'prefix', text: 'handicap_' }] }]);
+      });
+
+      it('returns no rule for an empty attribute', () => {
+        normalize.fold = '';
+        expect(normalize._parseFold()).toEqual({ rules: [], errors: [] });
+      });
+    });
+
+    it('folds four Oui/Non columns into one array of labels (variable part of the pattern)', () => {
+      normalize.id = 'test-normalize';
+      normalize.source = 'test-source';
+      normalize.fold = 'handicap_*:handicaps';
+
+      normalize.connectedCallback();
+      dispatchDataLoaded('test-source', HANDICAP_ROWS);
+
+      const result = getDataCache('test-normalize') as Record<string, unknown>[];
+      expect(result[0].handicaps).toEqual(['moteur', 'auditif']);
+      expect(result[1].handicaps).toEqual(['visuel', 'mental']);
+      expect(result[2].handicaps).toEqual([]);
+      // Colonnes sources conservees par defaut, autres colonnes intactes
+      expect(result[0].handicap_moteur).toBe('Oui');
+      expect(result[0].surface).toBe('120');
+      expect(result[0].Nom).toBe('Mairie');
+    });
+
+    it('drops the source columns with fold-drop', () => {
+      normalize.id = 'test-normalize';
+      normalize.source = 'test-source';
+      normalize.fold = 'handicap_*:handicaps';
+      normalize.foldDrop = true;
+
+      normalize.connectedCallback();
+      dispatchDataLoaded('test-source', HANDICAP_ROWS);
+
+      const result = getDataCache('test-normalize') as Record<string, unknown>[];
+      expect(Object.keys(result[0])).toEqual(['Nom', 'surface', 'handicaps']);
+      expect(result[0].handicaps).toEqual(['moteur', 'auditif']);
+    });
+
+    it('uses the full column name as label for an exact pattern and a suffix joker', () => {
+      normalize.id = 'test-normalize';
+      normalize.source = 'test-source';
+      normalize.fold = 'Moteur:handicaps, Visuel:handicaps, parking_ok:services, *_ok:services';
+
+      normalize.connectedCallback();
+      dispatchDataLoaded('test-source', [
+        { Moteur: 'oui', Visuel: 'oui', parking_ok: 1, ascenseur_ok: true, wifi_ok: 0 },
+      ]);
+
+      const result = getDataCache('test-normalize') as Record<string, unknown>[];
+      expect(result[0].handicaps).toEqual(['Moteur', 'Visuel']);
+      // parking_ok matche l'exact puis le suffixe : une seule etiquette (pas de doublon)
+      expect(result[0].services).toEqual(['parking_ok', 'ascenseur']);
+    });
+
+    it('accepts 1/0, true/false and X/empty as truth values (toBoolean)', () => {
+      normalize.id = 'test-normalize';
+      normalize.source = 'test-source';
+      normalize.fold = 'opt_*:options';
+
+      normalize.connectedCallback();
+      dispatchDataLoaded('test-source', [
+        { opt_a: 1, opt_b: 0, opt_c: 'true', opt_d: 'false', opt_e: 'X', opt_f: '', opt_g: '1' },
+      ]);
+
+      const result = getDataCache('test-normalize') as Record<string, unknown>[];
+      expect(result[0].options).toEqual(['a', 'c', 'e', 'g']);
+    });
+
+    it('runs after rename: the renamed column names are the labels', () => {
+      normalize.id = 'test-normalize';
+      normalize.source = 'test-source';
+      normalize.rename = 'handicap_moteur:handicap_Moteur | handicap_visuel:handicap_Visuel';
+      normalize.fold = 'handicap_*:handicaps';
+
+      normalize.connectedCallback();
+      dispatchDataLoaded('test-source', [{ handicap_moteur: 'Oui', handicap_visuel: 'Oui' }]);
+
+      const result = getDataCache('test-normalize') as Record<string, unknown>[];
+      expect(result[0].handicaps).toEqual(['Moteur', 'Visuel']);
+    });
+
+    it('runs after lowercase-keys (patterns match the lowercased keys) and before compute', () => {
+      normalize.id = 'test-normalize';
+      normalize.source = 'test-source';
+      normalize.lowercaseKeys = true;
+      normalize.fold = 'handicap_*:handicaps';
+      normalize.compute = "resume = nom + ' : ' + handicaps";
+
+      normalize.connectedCallback();
+      dispatchDataLoaded('test-source', [
+        { Nom: 'Mairie', Handicap_Moteur: 'Oui', Handicap_Visuel: 'Non' },
+      ]);
+
+      const result = getDataCache('test-normalize') as Record<string, unknown>[];
+      expect(result[0].handicaps).toEqual(['moteur']);
+      expect(result[0].resume).toBe('Mairie : moteur');
+    });
+
+    it('does not fold the target column itself and overwrites an existing target', () => {
+      normalize.id = 'test-normalize';
+      normalize.source = 'test-source';
+      normalize.fold = 'h*:h';
+
+      normalize.connectedCallback();
+      dispatchDataLoaded('test-source', [{ h: 'ancien', ha: 'oui', hb: 'non' }]);
+
+      const result = getDataCache('test-normalize') as Record<string, unknown>[];
+      expect(result[0].h).toEqual(['a']);
+    });
+
+    it('reports a malformed entry via data-dsfr-config-error and still applies the valid ones', () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      try {
+        normalize.id = 'test-normalize';
+        normalize.source = 'test-source';
+        normalize.fold = 'han*cap:h, handicap_*:h';
+
+        normalize.connectedCallback();
+        dispatchDataLoaded('test-source', [{ handicap_moteur: 'Oui' }]);
+
+        expect(normalize.getAttribute('data-dsfr-config-error')).toContain('han*cap');
+        const result = getDataCache('test-normalize') as Record<string, unknown>[];
+        expect(result[0].h).toEqual(['moteur']);
+      } finally {
+        errorSpy.mockRestore();
+      }
+    });
+
+    it('declares a schema transformation (a server-side query downstream would not know the target)', () => {
+      expect(normalize.transformsSchema()).toBe(false);
+      normalize.fold = 'handicap_*:handicaps';
+      expect(normalize.transformsSchema()).toBe(true);
+    });
+
+    it('reprocesses cached data when fold or fold-drop changes (#281)', () => {
+      /** Vue interne : cycle de montage du mixin et hook Lit. */
+      interface ReprocessView {
+        _transformerMountCycleDone: boolean;
+        willUpdate(changed: Map<string, unknown>): void;
+      }
+      normalize.id = 'test-normalize';
+      normalize.source = 'test-source';
+      normalize.connectedCallback();
+      dispatchDataLoaded('test-source', [{ h_a: 'oui', h_b: 'non' }]);
+      expect((getDataCache('test-normalize') as Record<string, unknown>[])[0].h).toBeUndefined();
+
+      const view = normalize as unknown as ReprocessView;
+      view._transformerMountCycleDone = true;
+      normalize.fold = 'h_*:h';
+      view.willUpdate(new Map([['fold', '']]));
+      const after = (getDataCache('test-normalize') as Record<string, unknown>[])[0];
+      expect(after.h).toEqual(['a']);
+      expect(after.h_a).toBe('oui');
+
+      normalize.foldDrop = true;
+      view.willUpdate(new Map([['foldDrop', false]]));
+      const dropped = (getDataCache('test-normalize') as Record<string, unknown>[])[0];
+      expect(dropped.h).toEqual(['a']);
+      expect('h_a' in dropped).toBe(false);
+    });
+
+    it('chained with dsfr-data-facets: four Oui/Non columns filtered by ONE facet', () => {
+      const facets = new DsfrDataFacets();
+      const internals = facets as unknown as { _activeSelections: Record<string, Set<string>> };
+      clearDataCache('test-facets');
+      clearDataMeta('test-facets');
+      window.history.replaceState({}, '', window.location.pathname);
+      try {
+        normalize.id = 'test-normalize';
+        normalize.source = 'test-source';
+        normalize.fold = 'handicap_*:handicaps';
+        normalize.connectedCallback();
+
+        facets.id = 'test-facets';
+        facets.source = 'test-normalize';
+        facets.fields = 'handicaps';
+        facets.connectedCallback();
+
+        dispatchDataLoaded('test-source', HANDICAP_ROWS);
+
+        // Une valeur de facette par colonne repliee, comptee sur les lignes vraies
+        const values = facets._computeFacetValues('handicaps');
+        const byValue = Object.fromEntries(values.map((v) => [v.value, v.count]));
+        expect(byValue).toEqual({ moteur: 1, auditif: 1, visuel: 1, mental: 1 });
+
+        let emitted: Record<string, unknown>[] = [];
+        facets.emitTransformedData = (data: Record<string, unknown>[]) => {
+          emitted = data;
+        };
+        internals._activeSelections['handicaps'] = new Set(['visuel']);
+        facets._applyFilters();
+        expect(emitted.map((r) => r.Nom)).toEqual(['Piscine']);
+
+        internals._activeSelections['handicaps'] = new Set(['moteur']);
+        facets._applyFilters();
+        expect(emitted.map((r) => r.Nom)).toEqual(['Mairie']);
+      } finally {
+        if (facets.isConnected) facets.disconnectedCallback();
+        clearDataCache('test-facets');
+        clearDataMeta('test-facets');
+      }
+    });
+  });
+
   describe('Passthrough (no transformation)', () => {
     it('passes data through unchanged when no attributes set', () => {
       normalize.id = 'test-normalize';

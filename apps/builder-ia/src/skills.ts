@@ -534,6 +534,10 @@ visible (console + \`data-dsfr-config-error\`, composants aval en erreur) — ja
       'multi-valeurs',
       'decouper',
       'group_concat',
+      'fold',
+      'replier',
+      'colonnes oui/non',
+      'colonnes booleennes',
     ],
     content:
       `## <dsfr-data-normalize> - Normalisation de données
@@ -568,6 +572,8 @@ Sortie : même tableau avec valeurs nettoyees/renommees.
 | split | String | \`""\` | non | Decoupe des champs multivalues (chaine avec separateur) en vrais tableaux : \`"Axes:\\|, Cibles:;"\` (entrees separees par virgule, \`champ:sep\`, separateur par defaut = virgule). Elements trimes, vides ecartes, chaine vide = tableau vide. Les facettes affichent alors une valeur par element au lieu d'un bouton combine « a\\|b ». |
 | round | String | \`""\` | non | Arrondit des champs numériques : \`"montant, prix"\` (0 decimales) ou \`"taux:2, score:1"\` (decimales explicites) |
 | lowercase-keys | Boolean | \`false\` | non | Met toutes les clés en minuscules |
+| fold | String | \`""\` | non | Replie des colonnes booléennes parallèles (une colonne Oui/Non par modalité) en UN champ tableau : \`"handicap_*:handicaps"\` (entrees separees par virgule, \`motif:cible\`, joker \`*\` en debut ou en fin de motif seulement, ou nom exact ; plusieurs motifs peuvent viser la meme cible). Le tableau contient les noms des colonnes vraies (Oui/Non, 1/0, true/false, X/vide via \`toBoolean\`), etiquetees par la partie variable du motif (\`handicap_moteur\` → « moteur ») ou le nom complet pour un motif exact. Colonnes sources conservees. |
+| fold-drop | Boolean | \`false\` | non | Avec \`fold\` : retire les colonnes sources repliees du resultat. |
 | compute | String | \`""\` | non | Colonnes calculees (ligne a ligne). Format \`"cible = expression; cible2 = expr2"\`. Supporte l'arithmetique \`+ - * /\`, la concatenation texte (\`+\` avec litteraux 'entre quotes') et les parentheses. Ex: \`"pct = valeur * 100; groupe = Indicateurs + ' / ' + Sous_theme"\`. Hors perimetre : conditions, fonctions, calculs sur valeurs agregees. |
 
 ### Ordre d'execution des transformations
@@ -581,7 +587,8 @@ Sortie : même tableau avec valeurs nettoyees/renommees.
 6. **round** — arrondit les valeurs numériques
 7. rename — renomme les clés
 8. lowercase-keys — clés en minuscules
-9. **compute** — colonnes calculees (en dernier, sur valeurs déjà typees : \`valeur * 100\` voit un nombre, \`a + ' / ' + b\` concatene)
+9. **fold** — replie les colonnes booléennes en un tableau (apres rename et lowercase-keys : les motifs se lisent sur les noms finaux, qui servent d'etiquettes — \`rename="handicap_moteur:handicap_Moteur"\` donne « Moteur »)
+10. **compute** — colonnes calculees (en dernier, sur valeurs déjà typees : \`valeur * 100\` voit un nombre, \`a + ' / ' + b\` concatene ; un tableau issu de \`fold\` y est disponible)
 
 ### Separateurs
 - \`numeric\` : champs separes par virgule
@@ -590,6 +597,7 @@ Sortie : même tableau avec valeurs nettoyees/renommees.
 - \`replace-fields\` : paires separees par \`|\`, format \`CHAMP:pattern:remplacement\` (les 2 premiers \`:\` sont des delimiteurs, le remplacement peut contenir des \`:\`).
 - Echappement percent (\`rename\`, \`replace\`, \`replace-fields\`, meme convention que \`where\`) : un \`:\` littéral s'ecrit \`%3A\`, \`|\` → \`%7C\`, \`,\` → \`%2C\`, \`%\` → \`%25\`. Decode APRES le decoupage sur les separateurs : \`replace-fields="h:10%3A00:10h"\` recrit « 10:00 » en « 10h ». Aucune regex n'est acceptee (surface ReDoS) : au-dela de l'egalite stricte, passer par \`compute\` (\`replace(s, 'a', 'b')\` littéral, \`year(date)\`).
 - \`split\` : entrees separees par virgule, format \`champ:separateur\` (le separateur peut etre \`|\`, \`;\`, \` / \`… ; absent = virgule). Ne pas utiliser \`|\` entre les entrees : c'est le separateur le plus courant a decouper.
+- \`fold\` : entrees separees par virgule, format \`motif:cible\` (\`*\` en debut ou en fin du motif seulement ; un motif au joker mal place est signale en console + \`data-dsfr-config-error\` et ignore, les autres s'appliquent).
 
 ### Aplatir des données imbriquees (Grist, ODS v1, Airtable)
 
@@ -663,6 +671,12 @@ rendant les données compatibles avec tous les composants (facettes, datalist, g
 <!-- Champs multivalues (group_concat SQL, CSV « a|b|c ») -> tableaux pour les facettes -->
 <dsfr-data-normalize id="data" source="flat" split="Axes:|, Operateurs:|, Cibles:|"></dsfr-data-normalize>
 <dsfr-data-facets id="filtres" source="data" fields="Axes, Operateurs" disjunctive="Axes"></dsfr-data-facets>
+
+<!-- Colonnes booléennes paralleles (handicap_moteur, handicap_visuel, handicap_auditif,
+     handicap_mental : Oui/Non) -> UN champ tableau « handicaps » filtrable par UNE facette.
+     Sans fold, il faudrait une facette par colonne. fold-drop retire les colonnes d'origine. -->
+<dsfr-data-normalize id="acces" source="raw" fold="handicap_*:handicaps" fold-drop></dsfr-data-normalize>
+<dsfr-data-facets id="filtres" source="acces" fields="handicaps"></dsfr-data-facets>
 
 <!-- INSEE Melodi : les libelles sont resolus automatiquement (#592).
      Les observations n'arrivent plus en codes SDMX : AGE vaut « De 25 a 49 ans »
