@@ -74,8 +74,8 @@ export class DsfrDataContextValue extends LitElement {
   fallback = '';
 
   /**
-   * Region live polie : le titre annonce le changement de contenu aux
-   * lecteurs d'écran. A poser sur UN seul element de la page.
+   * Région live polie : le titre annonce le changement de contenu aux
+   * lecteurs d'écran. À poser sur UN seul élément de la page.
    */
   @property({ type: Boolean })
   live = false;
