@@ -722,6 +722,31 @@ configuration plutot que de produire un tableau a 10 000 colonnes).
 serait lu comme un nombre). Le volet Diagnostic affiche, sur l'etape pivot, le nombre de colonnes
 generees et de cellules vides.
 
+#### Colorer une cellule selon un seuil : colonne calculee → classe (`cell-class`)
+
+Il n'y a pas de `threshold-*` par colonne sur le tableau (c'est une specificite de `dsfr-data-kpi`). La voie est **colonne calculee → classe** : `compute` sait deja produire une tranche, `cell-class` en fait la classe CSS de la cellule. Une seule mecanique au lieu de deux — et le critere RGAA 1.4.1 (« l'information n'est pas portee par la seule couleur ») satisfait par construction, puisque la valeur textuelle existe deja dans une colonne.
+
+```html
+<dsfr-data-normalize id="avec-seuil" source="brut"
+  compute="alerte = when taux_reponse >= 50 then 'seuil-ok' else 'seuil-bas'">
+</dsfr-data-normalize>
+
+<dsfr-data-list source="avec-seuil"
+  columns="service:Service, taux_reponse:Taux de reponse, alerte:Seuil"
+  cell-class="taux_reponse:alerte">
+</dsfr-data-list>
+
+<style>
+  .seuil-bas { background: var(--background-contrast-error); font-weight: 700; }
+  .seuil-ok  { background: var(--background-contrast-success); }
+</style>
+```
+
+- **Grammaire** : `cell-class="colonne:colonne_classe"`, plusieurs paires separees par des virgules. `cell-class="statut"` seul classe la cellule de `statut` par sa propre valeur.
+- **La valeur DEVIENT la classe** : `'seuil-bas'` donne `class="seuil-bas"`, `'fr-badge fr-badge--error'` en donne deux. Seuls les identifiants CSS sont retenus (une valeur comme `12 %` n'en produit aucune) : la donnee ne peut pas sortir de l'attribut `class`.
+- **Si la colonne de classe n'est pas affichee**, sa valeur est ajoutee dans la cellule en texte masque visuellement (`(seuil-bas)`) : un lecteur d'ecran l'entend meme si la colonne n'est pas dans `columns`. Le plus lisible reste de l'afficher, comme dans l'exemple.
+- **Ne comptez pas sur la couleur seule** dans votre CSS : ajoutez une graisse, une bordure ou une icone. La classe est un point d'accroche, pas une garantie de contraste.
+
 ### Cartes interactives Leaflet — la famille dsfr-data-map
 
 Au-dela des cartes choroplethes de `dsfr-data-chart` (type `map`/`map-reg`/`map-aca`/`map-monde`), la famille `dsfr-data-map` (bundle `map`) rend des **cartes interactives Leaflet** multi-couches : marqueurs, formes GeoJSON, cercles proportionnels, heatmap. Six composants se combinent :
@@ -805,6 +830,31 @@ Points d'attention :
 - **Couches decoratives** (`no-interactive`) : aucun evenement ni filtre.
 
 Exemples executables : [guide des cartes](https://chartsbuilder.miweb.run/guide/) (section Cartographie) et [specifications dsfr-data-map](https://chartsbuilder.miweb.run/specs/).
+
+#### Le meme geste sans carte : `refine-on-click` sur la liste et les cartes-tuiles
+
+Depuis la 0.27, `refine-on-click` (et son `context`) existe aussi sur **`dsfr-data-list`** et **`dsfr-data-display`** (#734) : le motif maitre-detail ne demande plus de partir d'une carte. Le contrat est identique a celui de la couche — premier clic = filtre `eq`, second clic sur le meme element = retrait, clic sur un autre = remplacement, tag dans `dsfr-data-context-tags`, URL portee par le contexte, chemin degrade vers `source` sans `context`.
+
+```html
+<dsfr-data-context id="ctx" sources="depenses" url-sync></dsfr-data-context>
+<dsfr-data-context-tags for="ctx"></dsfr-data-context-tags>
+
+<!-- Cliquer une ligne filtre le graphique, pas le tableau (sources distinctes) -->
+<dsfr-data-list source="communes" columns="commune:Commune, population:Population"
+  refine-on-click="commune" context="ctx"></dsfr-data-list>
+<dsfr-data-chart source="depenses" type="bar" label-field="annee" value-field="montant"></dsfr-data-chart>
+```
+
+Accessibilite (le vrai cout du geste, et ce qui en fait la valeur) :
+
+- **Un vrai bouton par ligne**, dans une colonne de selection ajoutee en tete du tableau (ou en pied de chaque carte pour `dsfr-data-display`) : il est dans l'ordre de tabulation, annonce comme un bouton, active par Entree et Espace. Aucun `tabindex` bricole, aucun `role` pose sur la ligne.
+- **L'etat n'est pas porte par la couleur** : `aria-pressed` sur le bouton, `aria-current="true"` sur la ligne, et surtout un libelle qui change — « Filtrer sur Paris » devient « Retirer le filtre Paris ». Le fond bleu et la barre laterale ne font que redire ce que le texte dit deja (RGAA 1.4.1).
+- **Le clic sur la ligne entiere** reste possible pour le confort a la souris ; il ne double pas le clic du bouton et ne vole pas celui d'un lien rendu dans une cellule ou dans le template.
+- Chaque bascule emet `dsfr-data-select` `{ record, elementId, selected }` (bubbles, composed) et est annoncee dans la region live du composant.
+
+Comme pour la carte : si la source du tableau figure aussi dans les `sources` du contexte, le tableau se filtre lui-meme (seule la ligne cliquee reste, jusqu'au second clic). Pour garder la liste complete, donnez au tableau sa propre source.
+
+Hors perimetre : le clic sur une barre ou un secteur de `dsfr-data-chart` (#749) — `@gouvfr/dsfr-chart` n'emet aucun evenement de clic au niveau graphique.
 
 ### KPIs : groupes, formats et litteraux
 

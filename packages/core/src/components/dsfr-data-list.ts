@@ -1,6 +1,7 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
+import { SelectionFilterMixin } from '../utils/selection-filter.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import {
   renderSourceLoading,
@@ -11,6 +12,8 @@ import {
 import { escapeHtml, buildCsv, formatNumberFr } from '@dsfr-data/shared/lib';
 import { getDataMeta } from '../utils/data-bridge.js';
 import { PaginationController } from '../utils/pagination-controller.js';
+import { parseCellClassRules, cellClassTokens } from '../utils/cell-class.js';
+import type { CellClassRule } from '../utils/cell-class.js';
 
 interface ColumnDef {
   key: string;
@@ -58,8 +61,12 @@ export type PageItem = number | 'ellipsis';
  */
 let listInstanceSeq = 0;
 
+/**
+ * @fires dsfr-data-select - `{ record, elementId, selected }` sur le tableau (bubbles, composed) — au clic sur une ligne en `refine-on-click` (#734). `selected` vaut `true` à la sélection, `false` quand le clic la retire (second clic sur la même ligne, ou croix du tag de contexte).
+ * @fires dsfr-data-source-command - `{ sourceId, where, whereKey, origin }` sur `document` — en `refine-on-click` SANS `context` (chemin dégradé) : clause `eq` poussée directement à `source` sous le whereKey `list-select-ID`. Avec `context`, c'est le contexte qui diffuse.
+ */
 @customElement('dsfr-data-list')
-export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
+export class DsfrDataList extends SelectionFilterMixin(SourceSubscriberMixin(LitElement)) {
   /** Prefixe d'ids DOM unique par instance (#304 — ids dupliques entre listes) */
   private readonly _uid = `dsfr-list-${++listInstanceSeq}`;
   /** Id de la source (ou du transformateur) dont ce tableau consomme les données. */
@@ -159,6 +166,56 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
    */
   @property({ type: String, attribute: 'idle-message' })
   idleMessage = IDLE_MESSAGE_DEFAULT;
+
+  /**
+   * Classe CSS d'une cellule pilotée par une colonne calculée (#740) :
+   * `"colonne:colonne_classe"`, plusieurs paires séparées par des virgules ;
+   * `"colonne"` seul classe la cellule par sa propre valeur. La valeur de la
+   * colonne de classe DEVIENT la classe de la cellule (plusieurs classes
+   * séparées par des espaces) : produisez-la avec le `compute` de
+   * dsfr-data-normalize, par exemple
+   * `compute="alerte = when taux >= 50 then 'seuil-ok' else 'seuil-bas'"`,
+   * puis stylez `.seuil-bas` dans la page. Seuls les identifiants CSS sont
+   * retenus, le reste est ignoré. Quand la colonne de classe n'est pas
+   * affichée, sa valeur est ajoutée à la cellule en texte pour les lecteurs
+   * d'écran : l'information n'est jamais portée par la seule couleur.
+   */
+  @property({ type: String, attribute: 'cell-class' })
+  cellClass = '';
+
+  // --- Sélection au clic (#734, ADR-104 — mixin partagé avec la carte) ---
+
+  /**
+   * Champ dont la valeur de la ligne cliquée devient un filtre `eq` (#734).
+   * Premier clic = filtre, second clic sur la même ligne = retrait, clic sur
+   * une autre ligne = remplacement. Une colonne de sélection est ajoutée en
+   * tête du tableau : un bouton par ligne, atteignable au clavier, dont
+   * l'état est annoncé (`aria-pressed`) — la couleur de la ligne
+   * sélectionnée n'est jamais la seule marque. Avec `context="id"`
+   * (recommandé), le tableau s'enregistre comme filtre du dsfr-data-context :
+   * diffusion à toutes ses sources cibles au dialecte de chacune, tag dans
+   * dsfr-data-context-tags, URL portée par le contexte. Sans `context`, la
+   * clause part directement à `source` (whereKey `list-select-ID`) — sans tag
+   * ni URL, et le tableau se filtre lui-même (seule la ligne cliquée reste,
+   * jusqu'au second clic).
+   */
+  @property({ type: String, attribute: 'refine-on-click' })
+  refineOnClick = '';
+
+  /**
+   * Identifiant du dsfr-data-context auquel s'enregistrer en
+   * `refine-on-click` (#734, ADR-104). Le contexte peut être déclaré après le
+   * tableau dans la page. Vide = commande directe à `source` (chemin dégradé).
+   */
+  @property({ type: String })
+  context = '';
+
+  /**
+   * Libellé du tag de contexte en `refine-on-click` (#734). Vide = le libellé
+   * de la colonne filtrée, à défaut le nom du champ.
+   */
+  @property({ type: String })
+  label = '';
 
   @state()
   private _data: Record<string, unknown>[] = [];
@@ -266,6 +323,44 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
     // Detection serveur via le flag explicite serverSide (#270) ; le
     // controleur preserve une page restauree depuis l'URL (#304)
     this._pager.onData(this.source ? getDataMeta(this.source) : undefined);
+  }
+
+  // --- Sélection au clic (#734, mixin partagé avec la carte) ---
+
+  /** whereKey du chemin dégradé : `list-select-ID` */
+  protected selectionWhereKeyPrefix(): string {
+    return 'list-select';
+  }
+
+  /** Repli d'identifiant : le préfixe d'ids DOM de l'instance (#304) */
+  protected selectionUid(): string {
+    return this._uid;
+  }
+
+  /** Libellé du tag : `label`, à défaut le libellé de la colonne, à défaut le champ */
+  selectionLabel(): string {
+    if (this.label) return this.label;
+    const field = this.selectionField;
+    const column = this.parseColumns().find((col) => col.key === field);
+    return column?.label || field;
+  }
+
+  /** La sélection a changé : redessiner l'état des lignes et l'annoncer */
+  protected onSelectionChange(): void {
+    this.requestUpdate();
+    const value = this._selectedValue();
+    this._announce(value ? `Filtre appliqué : ${value}` : 'Filtre retiré');
+  }
+
+  /**
+   * Clic n'importe où sur la ligne : même bascule que le bouton de sélection,
+   * sans le doubler (le clic du bouton remonte jusqu'ici) ni voler le clic
+   * d'un lien ou d'un contrôle rendu dans une cellule.
+   */
+  private _handleRowClick(event: Event, item: Record<string, unknown>) {
+    const target = event.target as Element | null;
+    if (target?.closest('a, button, input, select, textarea, label')) return;
+    this._onFeatureClick(item);
   }
 
   // --- Parsing ---
@@ -719,6 +814,8 @@ ${bodyRows}
   }
 
   private _renderTable(columns: ColumnDef[], paginatedData: Record<string, unknown>[]) {
+    const refine = this.selectionField !== '';
+    const colSpan = columns.length + (refine ? 1 : 0);
     return html`
       <div class="fr-table fr-table--bordered">
         <table>
@@ -727,6 +824,13 @@ ${bodyRows}
           </caption>
           <thead>
             <tr>
+              ${
+                refine
+                  ? html`<th scope="col" class="dsfr-data-list__select-head">
+                      <span class="fr-sr-only">Filtrer</span>
+                    </th>`
+                  : nothing
+              }
               ${columns.map((col) => {
                 const isSorted = this._sort?.key === col.key;
                 const sortDir = isSorted ? this._sort!.direction : null;
@@ -760,26 +864,104 @@ ${bodyRows}
               paginatedData.length === 0
                 ? html`
                     <tr>
-                      <td colspan="${columns.length}" class="dsfr-data-list__empty" role="status">
+                      <td colspan="${colSpan}" class="dsfr-data-list__empty" role="status">
                         Aucune donnée à afficher
                       </td>
                     </tr>
                   `
-                : paginatedData.map(
-                    (item) => html`
-                      <tr>
-                        ${columns.map(
-                          (col) => html` <td>${this.formatCellValue(item[col.key])}</td> `
-                        )}
-                      </tr>
-                    `
-                  )
+                : paginatedData.map((item) => this._renderRow(columns, item, refine))
             }
           </tbody>
         </table>
       </div>
     `;
   }
+
+  /**
+   * Une ligne du tableau. En `refine-on-click`, elle porte le geste de clic
+   * (confort à la souris) et, en tête, une cellule de sélection avec un vrai
+   * bouton : c'est lui le chemin clavier et le porteur de l'état annoncé
+   * (`aria-pressed`). La ligne sélectionnée porte aussi `aria-current` et une
+   * marque visuelle qui ne se réduit pas à une couleur (barre latérale +
+   * icône dans le bouton).
+   */
+  private _renderRow(columns: ColumnDef[], item: Record<string, unknown>, refine: boolean) {
+    const selected = refine && this.isSelected(item);
+    return html`
+      <tr
+        class="${selected ? 'dsfr-data-list__row--selected' : ''}"
+        aria-current="${selected ? 'true' : nothing}"
+        @click="${refine ? (e: Event) => this._handleRowClick(e, item) : nothing}"
+      >
+        ${refine ? this._renderSelectCell(item, selected) : nothing}
+        ${columns.map((col) => this._renderCell(col, item))}
+      </tr>
+    `;
+  }
+
+  /** Cellule de sélection : un bouton par ligne, atteignable au clavier (#734) */
+  private _renderSelectCell(item: Record<string, unknown>, selected: boolean) {
+    const value = this.selectionValueOf(item);
+    const action = selected ? `Retirer le filtre ${value}` : `Filtrer sur ${value}`;
+    return html`
+      <td class="dsfr-data-list__select-cell">
+        <button
+          type="button"
+          class="dsfr-data-list__select-btn"
+          aria-pressed="${selected ? 'true' : 'false'}"
+          title="${action}"
+          @click="${() => this._onFeatureClick(item)}"
+        >
+          <span
+            class="${selected ? 'fr-icon-check-line' : 'fr-icon-filter-line'} fr-icon--sm"
+            aria-hidden="true"
+          ></span>
+          <span class="fr-sr-only">${action}</span>
+        </button>
+      </td>
+    `;
+  }
+
+  /**
+   * Une cellule, avec la classe éventuellement pilotée par une colonne
+   * calculée (`cell-class`, #740). Quand la colonne de classe n'est pas
+   * affichée, sa valeur est restituée en texte masqué visuellement : sans
+   * cela l'information ne tiendrait plus qu'à la couleur (RGAA 1.4.1).
+   */
+  private _renderCell(col: ColumnDef, item: Record<string, unknown>) {
+    const rule = this._cellClassRules().get(col.key);
+    if (!rule) return html` <td>${this.formatCellValue(item[col.key])}</td> `;
+    const raw = item[rule.classColumn];
+    const tokens = cellClassTokens(raw);
+    const mention =
+      rule.classColumn !== col.key && !this._displayedColumnKeys.has(rule.classColumn)
+        ? this.formatCellValue(raw)
+        : '';
+    return html`
+      <td class="${tokens.join(' ')}">
+        ${this.formatCellValue(item[col.key])}${
+          mention ? html`<span class="fr-sr-only"> (${mention})</span>` : nothing
+        }
+      </td>
+    `;
+  }
+
+  /** Règles `cell-class` indexées par colonne (relues quand l'attribut change) */
+  private _cellClassRules(): Map<string, CellClassRule> {
+    if (this._cellClassExpr !== this.cellClass) {
+      this._cellClassExpr = this.cellClass;
+      this._cellClassCache = new Map(
+        parseCellClassRules(this.cellClass).map((rule) => [rule.column, rule])
+      );
+    }
+    return this._cellClassCache;
+  }
+
+  private _cellClassExpr: string | null = null;
+  private _cellClassCache = new Map<string, CellClassRule>();
+
+  /** Colonnes réellement rendues, pour savoir si la colonne de classe est visible */
+  private _displayedColumnKeys = new Set<string>();
 
   private _renderPagination(totalPages: number) {
     // En mode serveur la pagination s'affiche meme sans attribut
@@ -888,6 +1070,7 @@ ${bodyRows}
 
   render() {
     const columns = this.parseColumns();
+    this._displayedColumnKeys = new Set(columns.map((col) => col.key));
     const filterableColumns = this._getFilterableColumns();
     const paginatedData = this._getPaginatedData();
     const totalPages = this._getTotalPages();
@@ -1007,6 +1190,32 @@ ${bodyRows}
         }
         .dsfr-data-list__ellipsis {
           cursor: default;
+        }
+        .dsfr-data-list__select-head,
+        .dsfr-data-list__select-cell {
+          width: 3rem;
+          text-align: center;
+        }
+        .dsfr-data-list__select-btn {
+          background: none;
+          border: 1px solid var(--border-default-grey, #ddd);
+          border-radius: 0.25rem;
+          cursor: pointer;
+          padding: 0.25rem 0.5rem;
+          color: var(--text-action-high-blue-france, #000091);
+          font-family: inherit;
+        }
+        .dsfr-data-list__select-btn[aria-pressed='true'] {
+          background-color: var(--background-action-high-blue-france, #000091);
+          color: var(--text-inverted-blue-france, #fff);
+          border-color: var(--background-action-high-blue-france, #000091);
+        }
+        .dsfr-data-list__row--selected > td {
+          background-color: var(--background-alt-blue-france, #f5f5fe);
+          font-weight: 700;
+        }
+        .dsfr-data-list__row--selected > td:first-child {
+          box-shadow: inset 0.25rem 0 0 0 var(--border-active-blue-france, #000091);
         }
       </style>
     `;
