@@ -181,6 +181,28 @@ export class DsfrDataSource extends LitElement {
   @property({ type: Number, attribute: 'max-records' })
   maxRecords = 0;
 
+  /**
+   * Stratégie de chargement en mode adaptateur (#689) : `records` (défaut,
+   * comportement historique — pagination par pages de 100) ou `export`, qui
+   * charge tout le jeu en **une seule requête** sur l'endpoint d'export du
+   * portail, avec les mêmes clauses (`select`, `where`, `group-by`,
+   * `order-by`). Implémenté par OpenDataSoft seulement ; les autres
+   * adaptateurs ignorent l'attribut.
+   *
+   * À activer pour une page « un fetch, N agrégations client », un jeu de
+   * plus de 1 000 lignes, ou un `group-by` à beaucoup de groupes : le portail
+   * les rend tous d'un coup au lieu d'une page. À ne pas activer avec
+   * `server-side` (pagination page par page), qui reste sur l'endpoint
+   * paginé et signale la contradiction dans la console.
+   *
+   * En mode `export` le total serveur est inconnu : la troncature est
+   * détectée en demandant une ligne de plus que le plafond `max-records`.
+   * Si le portail n'expose pas d'endpoint d'export, la source retombe une
+   * fois sur le chargement paginé, avec un avertissement en console.
+   */
+  @property({ type: String, attribute: 'fetch-mode' })
+  fetchMode: 'records' | 'export' = 'records';
+
   // --- Internal state ---
 
   @state()
@@ -266,6 +288,7 @@ export class DsfrDataSource extends LitElement {
       changedProperties.has('groupBy') ||
       changedProperties.has('aggregate') ||
       changedProperties.has('orderBy') ||
+      changedProperties.has('fetchMode') ||
       changedProperties.has('limit');
     // Attributs communs aux deux modes, historiquement non cables au
     // refetch (#288) — headers a le meme role qu'api-key-ref qui refetchait
@@ -684,6 +707,18 @@ export class DsfrDataSource extends LitElement {
 
     clearConfigError(this);
 
+    // Configuration contradictoire, non bloquante (#689) : l'endpoint
+    // d'export rend le jeu entier, la pagination serveur demande une page.
+    // Le chargement continue sur le chemin pagine (getAdapterParams neutralise
+    // deja fetchMode) ; l'attribut de diagnostic nomme la cause.
+    if (this.fetchMode === 'export' && this.serverSide) {
+      reportConfigError(
+        this,
+        `dsfr-data-source[${this.id}]`,
+        'fetch-mode="export" est ignoré avec server-side : la pagination serveur reste sur l\'endpoint paginé'
+      );
+    }
+
     if (this._abortController) {
       this._abortController.abort();
     }
@@ -795,7 +830,13 @@ export class DsfrDataSource extends LitElement {
     overlay?: ServerSideOverlay
   ): string | undefined {
     try {
-      return overlay ? adapter.buildServerSideUrl(params, overlay) : adapter.buildUrl(params);
+      if (overlay) return adapter.buildServerSideUrl(params, overlay);
+      // Mode export (#689) : l'URL reellement appelee n'est pas celle de
+      // l'endpoint pagine — un repli sur /records a deja son propre warn
+      if (params.fetchMode === 'export' && adapter.buildExportUrl) {
+        return adapter.buildExportUrl(params);
+      }
+      return adapter.buildUrl(params);
     } catch {
       return undefined;
     }
@@ -833,6 +874,9 @@ export class DsfrDataSource extends LitElement {
       orderBy: this._orderByOverlay || this.orderBy,
       limit: this.limit,
       maxRecords: this.maxRecords,
+      // `server-side` ignore fetch-mode (#689) : la pagination page par page
+      // n'a pas de sens sur un endpoint d'export, qui rend tout d'un coup
+      fetchMode: this.fetchMode === 'export' && !this.serverSide ? 'export' : 'records',
       transform: this.transform,
       pageSize: this.pageSize,
       headers: parsedHeaders,

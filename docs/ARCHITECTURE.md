@@ -135,6 +135,28 @@ Pour les cas sans transformation (datalist, display), `dsfr-data-query` peut etr
 | serverGeo | oui | non | non | non | non |
 | whereFormat | odsql | colon | colon | colon | colon |
 | plafond fetchAll (#286) | 1 000 (10×100), relevable via `max-records` (#233) | 25 000 (500×50) | illimite (1 requete) | 100 000 (100×1000) | n/a |
+| chargement en une requete | `fetch-mode="export"` (#689) | non | natif | non | n/a |
+
+**`fetch-mode="export"` (#689, ADR-106)** — opt-in sur la source, defaut `records` (comportement
+inchange). En `export`, `fetchAll` appelle **une fois** `{base}/api/explore/v2.1/catalog/datasets/{id}/exports/json`
+avec les memes clauses ODSQL que `/records` (meme `_applyOdsqlClauses` : select derive de l'agregat,
+where, group_by echappe #641/#289, order_by traduit). Trois consequences a connaitre :
+
+- **Reponse = tableau nu**, pas `{ total_count, results }` : `totalCount` reste `undefined` (contrat
+  #270), donc `meta:total` retombe sur le nombre de lignes. La troncature est detectee en demandant
+  `limit = plafond + 1` — une ligne de trop pose `truncated: true` (#658) et emet le warn #233.
+  Le plafond suit les memes regles qu'en mode records : `max-records` sinon 1 000, rabote par un
+  `limit` explicite plus petit.
+- **`server-side` ignore `fetch-mode`** : la pagination page par page reste sur `/records`
+  (`fetchPage`), `fetchFacets` reste sur `/facets`. `getAdapterParams()` neutralise `fetchMode` dans
+  ce cas et la source pose un `data-dsfr-config-error` non bloquant.
+- **Repli** : une erreur **HTTP** de l'export (404 d'un portail sans endpoint d'export, 400 de clause)
+  emet un warn, repasse une fois par `/records` et **memorise** le repli par `base + dataset` dans
+  l'adaptateur (singleton du registre) — pas de re-tentative a chaque `refresh`. Une erreur reseau
+  (abandon, hors ligne) n'est PAS un repli et remonte telle quelle.
+- **Proxy** : rien de special. `rewriteKnownHost` reecrit par **hote**, jamais par chemin — le chemin
+  `/exports/json` traverse exactement comme `/records` (les hotes ODS ne sont d'ailleurs pas dans la
+  table de reecriture : CORS `*`, appel direct).
 
 **Formats WHERE** :
 - **ODSQL** (OpenDataSoft) : SQL-like — `population > 5000 AND status = 'active'`, clauses jointes par ` AND `.
@@ -145,7 +167,7 @@ Pour les cas sans transformation (datalist, display), `dsfr-data-query` peut etr
 dsfr-data-source fonctionne en deux modes :
 
 - **Mode URL (fetch direct)** : `url`, `method`, `headers`, `params`, `refresh`, `transform`, `paginate`, `page-size`, `cache-ttl`, `data` (inline JSON).
-- **Mode adapter** (api-type != generic ou base-url fourni) : `api-type`, `base-url`, `dataset-id`, `resource`, `where`, `select`, `group-by`, `aggregate`, `order-by`, `server-side`, `page-size`, `limit`, `max-records` (#233 — plafond du fetchAll, 0 = defaut adapter ; a relever en connaissance de cause : requetes en boucle, memoire).
+- **Mode adapter** (api-type != generic ou base-url fourni) : `api-type`, `base-url`, `dataset-id`, `resource`, `where`, `select`, `group-by`, `aggregate`, `order-by`, `server-side`, `page-size`, `limit`, `max-records` (#233 — plafond du fetchAll, 0 = defaut adapter ; a relever en connaissance de cause : requetes en boucle, memoire), `fetch-mode` (#689 — `records` par defaut, `export` pour un chargement ODS en une requete ; voir la table des capacites ci-dessus).
 
 **`cache-ttl` et le hook de cache (#307)** : la lib publiee n'appelle aucune API applicative. `cache-ttl` n'a d'effet que si la page hote enregistre un provider via `window.DSFR_DATA_CACHE_PROVIDER = { get(key), put(key, data, ttl) }` AVANT le chargement des composants (sans provider : no-op, embed anonyme). La cle inclut un hash du fingerprint de la requete (URL/params/where/page) — deux requetes differentes ne partagent jamais une entree. Les apps du repo enregistrent le provider `/api/cache` (mode DB) via `registerServerCacheProvider()` de `@dsfr-data/shared`, appele par `@dsfr-data/app-ui`.
 

@@ -813,6 +813,43 @@ Exemples executables : [guide des cartes](https://chartsbuilder.miweb.run/guide/
 - **Litteral `value="=…"`** : affiche la valeur telle quelle, sans source de donnees (`value="=667"`, `value="=87 %"`).
 - Chaque KPI enfant peut porter `col="1..12"` pour moduler sa largeur dans la grille.
 
+### Charger un jeu Opendatasoft en une requete : `fetch-mode="export"`
+
+Par defaut, une source Opendatasoft lit le jeu **page par page**, 100 lignes a la fois : 3 000 lignes
+coutent 30 requetes, et le portail impose un quota partage. `fetch-mode="export"` charge tout en
+**une seule requete**, avec exactement les memes clauses (`select`, `where`, `group-by`, `order-by`) :
+
+```html
+<dsfr-data-source id="marches" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr" dataset-id="decp_augmente"
+  fetch-mode="export" max-records="20000"
+  select="count(*) as nb, source" group-by="source"></dsfr-data-source>
+
+<dsfr-data-chart source="marches" type="bar"
+  label-field="source" value-field="nb"></dsfr-data-chart>
+```
+
+**Quand l'activer**
+
+- Une page « un chargement, plusieurs graphiques » : le jeu est lu une fois, les agregations se font
+  ensuite dans le navigateur.
+- Un jeu de plus de 1 000 lignes : le plafond par defaut du chargement pagine tronque a 1 000, ici
+  c'est `max-records` qui fixe la limite.
+- Un `group-by` a beaucoup de groupes : l'export les rend tous, la pagination s'arretait a la
+  premiere page.
+
+**Quand ne pas l'activer**
+
+- Avec `server-side` (pagination page par page d'un tableau) : les deux se contredisent, l'attribut
+  est alors ignore et la console le signale.
+- Sur un portail qui n'expose pas d'endpoint d'export : la source retombe automatiquement sur le
+  chargement pagine, avec un avertissement dans la console — rien ne casse, mais l'attribut ne sert
+  a rien.
+
+**A savoir** — en mode export le portail ne renvoie pas le total du jeu : un KPI `meta:total` affiche
+le nombre de lignes recues. Si le jeu depasse `max-records`, les donnees sont tronquees, un
+avertissement le dit en console et le volet Diagnostic le signale.
+
 ---
 
 ## Ressources

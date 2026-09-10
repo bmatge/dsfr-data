@@ -227,6 +227,7 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 | server-side | Boolean | \`false\` | non | Active la pagination serveur page par page (datalist, tableaux). |
 | limit | Number | \`0\` | non | Limite du nombre de resultats (0 = pas de limite). |
 | max-records | Number | \`0\` | non | Plafond du fetchAll en mode adapter (#233). 0 = plafond par defaut de l'adapter (ODS : 1000). A relever explicitement pour les dashboards « un fetch, N agregations client » — attention au volume (requetes en boucle, memoire). |
+| fetch-mode | String | \`"records"\` | non | Strategie de chargement en mode adapter (#689). \`"export"\` charge tout le jeu en UNE requete via l'endpoint d'export du portail (ODS \`/exports/json\`), memes clauses select/where/group-by/order-by. A activer pour « un fetch, N agregations client », un jeu de plus de 1 000 lignes ou un group-by a beaucoup de groupes. Ignore avec \`server-side\` (avertissement console). Implemente par OpenDataSoft seulement ; repli automatique sur le chargement pagine si le portail n'expose pas d'export. |
 | data | String | \`""\` | non | Données JSON inline (pas de fetch). Ex: \`data='[{"x":1},{"x":2}]'\` |
 | use-proxy | Boolean | \`false\` | non | Force le passage par le proxy CORS generique. N'a d'effet QUE si une base de proxy est configuree (\`proxy-url\`, \`window.DSFR_DATA_PROXY\`, ou build) : en embed nu sur un site tiers sans aucune de ces sources, c'est un no-op (URL renvoyee inchangee). |
 | proxy-url | String | \`""\` | non | Domaine du proxy CORS pour CETTE source, prioritaire sur \`window.DSFR_DATA_PROXY\` et la config build. Sert la reecriture d'hote connu (Grist gouv/SaaS, Tabular, INSEE) ET le \`use-proxy\` generique. Ex: \`proxy-url="https://mon-proxy.fr"\`. Vide = resolution proxy globale habituelle. |
@@ -2339,6 +2340,7 @@ Chaque provider a des capacites differentes pour la pagination, l'agrégation et
 |----------|:---:|:---:|:---:|:---:|:---:|
 | Fetch serveur | oui | oui | oui | oui | non (dsfr-data-source) |
 | Pagination auto | oui (offset, 10 pages) | oui (page, 500 pages, max 50/page) | oui (offset, 100/page) | oui (page, 1000/page, 100k max) | non |
+| Chargement en une requete | oui (\`fetch-mode="export"\`) | non | oui (natif) | non | non |
 | Facettes serveur | oui | non | oui (SQL) | non | non |
 | Recherche serveur | oui (full-text) | non | non | non | non |
 | Group-by serveur | oui | oui (column__groupby) | oui (SQL) | non | non |
@@ -2378,6 +2380,20 @@ Chaque provider a des capacites differentes pour la pagination, l'agrégation et
   group-by="categorie_de_produit"
   order-by="total:desc" limit="10">
 </dsfr-data-query>
+\`\`\`
+
+OpenDataSoft pagine par 100 : un jeu de 3 000 lignes coute 30 requetes. \`fetch-mode="export"\`
+(#689) le charge en UNE requete sur \`/exports/json\`, memes clauses ODSQL. A activer pour une page
+« un fetch, N agregations client », un jeu de plus de 1 000 lignes, ou un group-by a beaucoup de
+groupes (l'export les rend tous, la pagination s'arrete au plafond). A ne PAS activer avec
+\`server-side\`. En mode export le total serveur est inconnu : le KPI \`meta:total\` retombe sur le
+nombre de lignes recues, et la troncature est detectee via \`max-records\`.
+\`\`\`html
+<dsfr-data-source id="src" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr" dataset-id="decp_augmente"
+  fetch-mode="export" max-records="20000"
+  select="count(*) as nb" group-by="source">
+</dsfr-data-source>
 \`\`\`
 
 **Tabular** (fetch serveur + agrégation serveur) :
