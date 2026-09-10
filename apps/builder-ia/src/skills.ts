@@ -401,6 +401,7 @@ Apres agrégation, les champs sont nommes automatiquement : \`champ__fonction\`
 | where | String | \`""\` | non | Filtres (voir syntaxe ci-dessous) |
 | filter | String | \`""\` | non | Alias de where (compatibilite) |
 | group-by | String | \`""\` | non | Champs de groupement (separes par virgule) |
+| explode | String | \`""\` | non | Champs multivalués (tableaux) à éclater avant le regroupement (#736). Doivent figurer dans \`group-by\`. Force le regroupement côté client. |
 | aggregate | String | \`""\` | non | Agrégations : \`"champ:fonction"\` ou \`"champ:fonction:alias"\` |
 | order-by | String | \`""\` | non | Tri : \`"champ:asc"\` ou \`"champ:desc"\`. **Omettre cet attribut preserve l'ordre source** (ordre de premiere apparition apres group-by) — utile pour les mois en lettres, jours de la semaine, ou toute série déjà ordonnee en amont. |
 | limit | Number | \`0\` | non | Limite de resultats (0 = illimite) |
@@ -448,6 +449,31 @@ EXCLURE ces lignes comme le fait ods-chart, filtrer explicitement en amont :
 \`where="champ:isnotnull"\` sur dsfr-data-query, ou \`where="champ is not null"\`
 (ODSQL) sur dsfr-data-source.
 
+### Champs multivalués (explode)
+Une cellule tableau (\`besoins: ["audit", "formation"]\`, ChoiceList Grist, facette
+multi-valeurs ODS) est ramenée en chaîne pour la clé de groupe : la COMBINAISON
+« audit,formation » devient une modalité, alors que \`dsfr-data-facets\` éclate le même
+champ et compte « audit » et « formation » séparément. Les deux composants branchés sur
+le même champ donnaient donc des chiffres différents (#736).
+
+\`explode="besoins"\` éclate le champ avant le regroupement : une ligne portant N valeurs
+compte dans N groupes, et les modalités sont exactement celles de la facette du même champ.
+Les éléments vides sont ignorés et une cellule sans aucune valeur (tableau vide, \`null\`)
+ne produit AUCUNE ligne — pas de groupe « non renseigné », comme la facette n'a pas de
+modalité vide.
+
+Le défaut reste l'ancien comportement (des chiffres publiés s'appuient dessus). Chaque
+champ listé doit figurer dans \`group-by\` (sinon \`data-dsfr-config-error\` et champ ignoré),
+et l'éclatement force le regroupement **côté client** : aucune API ne sait éclater un champ
+multivalué. Sur un gros jeu, surveiller \`max-records\` (chiffre partiel silencieux).
+
+\`\`\`html
+<dsfr-data-query id="par-besoin" source="orgs"
+  group-by="besoins" explode="besoins" aggregate="id:count"
+  order-by="id__count:desc">
+</dsfr-data-query>
+\`\`\`
+
 ### Fonctions d'agrégation
 Format : \`"champ:fonction"\` ou \`"champ:fonction:alias"\`
 Nommage automatique sans alias : \`champ__fonction\` (ex: \`population__sum\`)
@@ -460,10 +486,36 @@ Nommage automatique sans alias : \`champ__fonction\` (ex: \`population__sum\`)
 | min | Minimum | \`"temperature:min"\` |
 | max | Maximum | \`"score:max"\` |
 | distinct | Nombre de valeurs distinctes (alias \`count-distinct\`) — null et chaîne vide exclus, \`75\` et \`"75"\` comptent pour une seule valeur | \`"commune:distinct"\` → colonne \`commune__distinct\` |
+| running_sum | **Cumul** : une ligne par ligne de sortie, chacune portant la somme des précédentes (#738) | \`"montant:running_sum"\` → colonne \`montant__running_sum\` |
 
 Délégation de \`distinct\` : ODS \`count(distinct champ)\`, Grist SQL \`COUNT(DISTINCT champ)\` ;
 **Tabular ne le délègue pas** (calcul client sur les lignes reçues, warn console si l'API en
 détient davantage — chiffre partiel derrière un \`max-records\` ou un \`limit\`).
+
+### Cumul (running_sum, #738)
+\`running_sum\` n'est pas une réduction de groupe mais une transformation **ordonnée** :
+elle s'applique APRÈS \`order-by\`, sur les lignes de sortie, et garde une ligne par ligne
+(elle ne replie donc jamais le jeu en une valeur unique comme les autres agrégats sans
+\`group-by\`). Elle peut cumuler une colonne produite par le regroupement :
+
+\`\`\`html
+<!-- Ventes mensuelles, puis cumul depuis janvier -->
+<dsfr-data-query id="cumul" source="ventes"
+  group-by="mois"
+  aggregate="montant:sum, montant__sum:running_sum"
+  order-by="mois:asc">
+</dsfr-data-query>
+<!-- colonnes : mois, montant__sum, montant__sum__running_sum -->
+\`\`\`
+
+- **Sans \`order-by\`, le résultat n'a pas de sens** : le cumul suit l'ordre des lignes reçues,
+  qui n'est pas un contrat. Un avertissement console le signale (pas une erreur : une source
+  déjà triée en amont est légitime).
+- **Jamais délégué au serveur** : aucune API du pipeline ne le traduit. Un \`group-by\` qui
+  porte un cumul redescend donc entièrement côté client, sur les seules lignes rapatriées —
+  surveiller \`max-records\` et \`limit\`.
+- Le cumul n'existe pas sur \`dsfr-data-kpi\` (qui rend une valeur, pas une série) ni dans
+  \`compute\` de \`dsfr-data-normalize\` (par ligne, sans inter-lignes — ADR-105).
 
 Toute autre fonction (\`somme\`, \`moyenne\`, \`median\`…) est une **erreur de configuration**
 visible (console + \`data-dsfr-config-error\`, composants aval en erreur) — jamais un 0 silencieux.
@@ -1694,6 +1746,29 @@ deux attributs d'une balise, il est découpé par l'analyse HTML du \`<template>
 <!-- Lien optionnel : rien si le champ est vide, lien filtré sinon -->
 {{#if site_web}}<a class="fr-link" href="{{site_web:url}}">Site web</a>{{/if}}
 {{#unless site_web}}<span class="fr-text--mention-grey">Pas de site</span>{{/unless}}
+\`\`\`
+
+### Bloc de répétition (#737)
+\`{{#each champ}}…{{/each}}\` répète son contenu pour chaque élément d'un champ tableau —
+la seule façon de rendre un champ multivalué en liste structurée (sinon il est aplati par
+\`{{tags}}\` ou \`{{tags:join: / }}\`). Dans le bloc :
+
+- \`{{.}}\` = l'élément courant, toujours échappé, et les formats de la grammaire s'y
+  appliquent (\`{{.:number}}\`, \`{{.:date}}\`, \`{{.:url}}\`) ;
+- \`{{$index}}\` = le rang de l'élément (0-based), qui masque l'index de ligne ;
+- les autres placeholders désignent toujours les champs de l'enregistrement.
+
+Un tableau vide, un \`null\` ou un champ absent ne rendent RIEN (pas de \`<li>\` vide) ; les
+éléments vides sont ignorés ; une valeur scalaire vaut un élément unique. Comme \`{{#if}}\`,
+le bloc ne s'imbrique pas (un \`{{#each}}\` dans un \`{{#if}}\` n'est pas développé).
+
+Il n'existe PAS de pipe qui rendrait du balisage (\`:tags\` et compagnie) : le moteur échappe
+toujours, un pipe produisant du HTML ouvrirait une surface d'injection.
+
+\`\`\`html
+<ul class="fr-tags-group">
+  {{#each besoins}}<li><p class="fr-tag">{{.}}</p></li>{{/each}}
+</ul>
 \`\`\`
 
 Recette de transition (versions antérieures à 0.22, sans bloc) : rendre le lien toujours et le
@@ -2942,8 +3017,9 @@ Composant compagnon optionnel qui definit un template et un mode d'affichage pou
 Template avec \`<template>\` et interpolation \`{{champ}}\` (même moteur que dsfr-data-display,
 toujours échappé, \`{{{champ}}}\` traité comme \`{{champ}}\`) : \`{{champ.sous.clé}}\`,
 \`{{champ:number}}\`, \`{{champ:date}}\`, \`{{tags:join: / }}\`, \`{{lien:url}}\` (à utiliser
-dans tout \`href\`), \`{{champ|défaut}}\`, blocs \`{{#if champ}}…{{/if}}\` / \`{{#unless}}\`.
-Sans template, tableau auto.
+dans tout \`href\`), \`{{champ|défaut}}\`, blocs \`{{#if champ}}…{{/if}}\` / \`{{#unless}}\` et
+\`{{#each champ}}…{{/each}}\` (répétition sur un champ tableau, \`{{.}}\` = l'élément, \`{{$index}}\`
+= son rang). Sans template, tableau auto.
 
 \`\`\`html
 <dsfr-data-map-popup mode="panel-right" title-field="nom" width="380px">
