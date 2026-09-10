@@ -1,7 +1,14 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
-import { formatValue, formatPercentage, FormatType, getColorBySeuil } from '../utils/formatters.js';
+import {
+  formatValue,
+  formatPercentage,
+  isFormatType,
+  FORMAT_TYPES,
+  FormatType,
+  getColorBySeuil,
+} from '../utils/formatters.js';
 import { computeAggregation, parseExpression } from '../utils/aggregations.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import {
@@ -11,8 +18,17 @@ import {
 } from '../utils/status-templates.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import { parseKpiLines, resolveKpiLines, type ResolvedKpiLine } from '../utils/kpi-lines.js';
+import { getDataMeta } from '../utils/data-bridge.js';
 
 type KpiColor = 'vert' | 'orange' | 'rouge' | 'bleu';
+
+/**
+ * Expression speciale `value="meta:total"` (#659) : le total publie dans la
+ * meta de la source (`total_count` serveur en `server-side`, lignes avant
+ * `limit` derriere un query), pas un agregat des lignes recues. Meme
+ * grammaire `champ:fn` que le reste, sans prefixe `$`.
+ */
+const META_TOTAL_EXPR = 'meta:total';
 
 const COLOR_CLASSES: Record<KpiColor, string> = {
   vert: 'dsfr-data-kpi--success',
@@ -46,6 +62,9 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
   /**
    * Expression de valeur — convention cible anglaise (#300).
    * Grammaire commune "champ:fn" (#303), ex. value="population:sum".
+   * `meta:total` (#659) : total publié par l'amont (total serveur en
+   * server-side, lignes avant `limit` derrière un query) — `count` ne
+   * compte que les lignes reçues.
    */
   @property({ type: String })
   value = '';
@@ -78,9 +97,30 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
   @property({ type: String })
   icone = '';
 
-  /** Format d'affichage: nombre, pourcentage, euro, decimal, compact (14 785 684 → « 14,8 M ») */
+  /**
+   * Format d'affichage : nombre (défaut), pourcentage, euro, decimal, compact
+   * (14 785 684 → « 14,8 M »), date (chaîne ISO → « 09/09/2026 », #667).
+   * Les décimales passent par `decimals`, jamais par le format (`euro:3` est
+   * refusé et affiché comme erreur de configuration, #665).
+   */
   @property({ type: String })
   format: FormatType = 'nombre';
+
+  /**
+   * Nombre de décimales affichées (entier 0 à 20), ex. `format="euro" decimals="3"`
+   * → « 1,749 € ». Fixe pour nombre, pourcentage, euro et decimal ; plafond pour
+   * compact ; sans effet sur date. Absent : défaut historique du format (#665).
+   */
+  @property({ type: Number })
+  decimals?: number;
+
+  /**
+   * Unité accolée après la valeur (espace insécable), ex. `format="compact" unit="€"`
+   * → « 44,9 Md € ». Surtout utile avec nombre, decimal et compact — euro et
+   * pourcentage portent déjà leur symbole (#665).
+   */
+  @property({ type: String })
+  unit = '';
 
   /**
    * RACCOURCI HERITE — pour une ligne d'evolution riche (signe, suffixe,
@@ -195,7 +235,44 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
       return literal !== '' && !Number.isNaN(num) ? num : literal;
     }
     if (!this._sourceData) return null;
+    const rows = Array.isArray(this._sourceData) ? this._sourceData.length : 1;
+    // Total de la meta (#659) : suit recherche et facettes en server-side,
+    // la source reposant sa meta a chaque fetch avant d'emettre.
+    if (expr === META_TOTAL_EXPR) {
+      return getDataMeta(this.source)?.total ?? rows;
+    }
+    if (parseExpression(expr).type === 'count') this._warnPartialCount(rows);
     return computeAggregation(this._sourceData, expr);
+  }
+
+  /**
+   * Texte affiché pour la valeur calculée : `format` + `decimals` + `unit`
+   * (#665). Une chaîne (littéral `value="=87 %"`, champ texte) est rendue
+   * telle quelle — sauf `format="date"`, qui la lit comme date ISO (#667).
+   */
+  private _formatDisplay(value: number | string | null): string {
+    if (typeof value === 'string' && this.format !== 'date') return value;
+    return formatValue(value, this.format, { decimals: this.decimals, unit: this.unit });
+  }
+
+  /** Warn-once : `count` sur des lignes tronquees (#659). */
+  private _partialCountWarned = false;
+
+  /**
+   * `count` compte les lignes RECUES : derriere un `limit`, une page de
+   * pagination serveur ou un plafond `max-records`, ce n'est pas le total.
+   * Trois annuaires ont affiche « 12 activites » pour 28 pendant sept lots.
+   */
+  private _warnPartialCount(rows: number): void {
+    if (this._partialCountWarned) return;
+    const total = getDataMeta(this.source)?.total;
+    if (typeof total !== 'number' || total <= rows) return;
+    this._partialCountWarned = true;
+    console.warn(
+      `dsfr-data-kpi: value="count" sur "${this.source}" compte ${rows} lignes reçues, ` +
+        `mais l'amont en détient ${total} (meta.total) — chiffre partiel (limit, page ou max-records). ` +
+        `Pour le total : value="meta:total" (#659)`
+    );
   }
 
   private _getColor(): KpiColor {
@@ -260,12 +337,24 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
     this._blockingConfigError = null;
 
     const valueExpr = this.value || this.valeur;
-    if (valueExpr && !valueExpr.startsWith('=')) {
+    if (valueExpr && !valueExpr.startsWith('=') && valueExpr !== META_TOTAL_EXPR) {
       const parsed = parseExpression(valueExpr);
       if (parsed.type === 'invalid') {
         message = `value="${valueExpr}" : ${parsed.error}`;
         this._blockingConfigError = message;
       }
+    }
+
+    // Format inconnu (#665) : bloquant, comme une fonction d'agrégat inconnue —
+    // `euro:3` rendait « 1 749 » en silence, la grammaire colon reste à `value`.
+    if (!message && this.format && !isFormatType(this.format)) {
+      const received = String(this.format);
+      const hint = received.includes(':')
+        ? ` — les décimales passent par decimals="N" (ex. format="${received.split(':')[0]}" decimals="${received.split(':')[1]}")`
+        : '';
+      message =
+        `format="${received}" inconnu${hint} ; ` + `formats acceptés : ${FORMAT_TYPES.join(', ')}`;
+      this._blockingConfigError = message;
     }
 
     if (!message && this.lines && parseKpiLines(this.lines) === null) {
@@ -299,9 +388,7 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
     if (this.description) return this.description;
 
     const value = this._computeValue();
-    // Litteral chaine (value="=87 %") : affiche tel quel, sans formatage numerique
-    const formattedValue =
-      typeof value === 'string' ? value : formatValue(value as number, this.format);
+    const formattedValue = this._formatDisplay(value);
     let label = this.heading
       ? `${this.heading} — ${this.label}: ${formattedValue}`
       : `${this.label}: ${formattedValue}`;
@@ -332,9 +419,7 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
 
   render() {
     const value = this._computeValue();
-    // Litteral chaine (value="=87 %") : affiche tel quel, sans formatage numerique
-    const formattedValue =
-      typeof value === 'string' ? value : formatValue(value as number, this.format);
+    const formattedValue = this._formatDisplay(value);
     const colorClass = COLOR_CLASSES[this._getColor()] || COLOR_CLASSES.bleu;
     const tendance = this._getTendanceInfo();
     const resolvedLines = this._resolveLines();

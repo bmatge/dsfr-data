@@ -4,12 +4,13 @@
  * Source : packages/core/custom-elements.json (lui-meme genere depuis le code).
  * Regeneration : npm run build:component-contract
  *
- * 23 balises, 257 attributs.
+ * 24 balises, 271 attributs.
  */
 
 export const COMPONENT_CONTRACT = {
   "dsfr-data-a11y": {
     "attributes": [
+      "decimals",
       "description",
       "download",
       "filename",
@@ -33,6 +34,7 @@ export const COMPONENT_CONTRACT = {
       "databox",
       "databox-actions",
       "databox-date",
+      "databox-date-field",
       "databox-default-source",
       "databox-download",
       "databox-fullscreen",
@@ -47,6 +49,7 @@ export const COMPONENT_CONTRACT = {
       "empty-label",
       "fill",
       "gauge-value",
+      "heading-level",
       "highlight-index",
       "horizontal",
       "label-field",
@@ -139,6 +142,7 @@ export const COMPONENT_CONTRACT = {
     "attributes": [
       "col",
       "color-token",
+      "decimals",
       "description",
       "format",
       "heading",
@@ -149,6 +153,7 @@ export const COMPONENT_CONTRACT = {
       "threshold-green",
       "threshold-orange",
       "trend",
+      "unit",
       "value"
     ],
     "deprecated": {
@@ -169,7 +174,9 @@ export const COMPONENT_CONTRACT = {
   },
   "dsfr-data-list": {
     "attributes": [
+      "caption",
       "columns",
+      "decimals",
       "export",
       "filters",
       "pagination",
@@ -193,6 +200,7 @@ export const COMPONENT_CONTRACT = {
       "center",
       "fit-bounds",
       "fit-max-zoom",
+      "fit-zone",
       "height",
       "insets",
       "locked",
@@ -204,6 +212,7 @@ export const COMPONENT_CONTRACT = {
       "sovereign-only",
       "tiles",
       "tiles-attribution",
+      "tiles-style",
       "zoom"
     ]
   },
@@ -222,6 +231,8 @@ export const COMPONENT_CONTRACT = {
       "bbox",
       "bbox-debounce",
       "bbox-field",
+      "breaks",
+      "classes",
       "cluster",
       "cluster-radius",
       "color",
@@ -237,6 +248,7 @@ export const COMPONENT_CONTRACT = {
       "lon-field",
       "max-items",
       "max-zoom",
+      "method",
       "min-zoom",
       "no-interactive",
       "popup-fields",
@@ -254,6 +266,12 @@ export const COMPONENT_CONTRACT = {
       "time-mode",
       "tooltip-field",
       "type"
+    ]
+  },
+  "dsfr-data-map-legend": {
+    "attributes": [
+      "for",
+      "label"
     ]
   },
   "dsfr-data-map-popup": {

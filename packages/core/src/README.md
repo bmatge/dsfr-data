@@ -40,6 +40,7 @@ src/
 | `dsfr-data-map-layer` | Couche de donnees (marker, geoshape, circle, heatmap) |
 | `dsfr-data-map-popup` | Compagnon d'affichage au clic (popup, modale, panneau) |
 | `dsfr-data-map-inset` | Encart territorial (DROM, Corse, zoom local) |
+| `dsfr-data-map-legend` | Legende d'une couche (classes de `fill-field`, paires de `color-map`) |
 | `dsfr-data-map-timeline` | Controles de lecture temporelle |
 
 ## Adaptateurs (`adapters/`)

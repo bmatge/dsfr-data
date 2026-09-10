@@ -193,14 +193,18 @@ export class OpenDataSoftAdapter implements ApiAdapter {
       totalCount >= 0 &&
       allResults.length < totalCount &&
       (fetchAllRecords || allResults.length < requestedLimit);
+    // Groupes : total inconnu, mais un plafond atteint sur une page pleine
+    // laisse probablement des groupes derriere (#641). C'est le seul signal
+    // de troncature disponible dans ce cas : il est expose dans le resultat
+    // pour la meta de la source (#658), en plus du warn.
+    const groupedAtCap =
+      isGrouped && fetchAllRecords && lastPageFull && allResults.length >= maxRecords;
     if (incomplete) {
       console.warn(
         `[dsfr-data] opendatasoft: pagination incomplete - ${allResults.length}/${totalCount} resultats recuperes ` +
           `(plafond max-records: ${maxRecords} — relevable via l'attribut max-records, #233)`
       );
-    } else if (isGrouped && fetchAllRecords && lastPageFull && allResults.length >= maxRecords) {
-      // Groupes : total inconnu, mais un plafond atteint sur une page pleine
-      // laisse probablement des groupes derriere (#641)
+    } else if (groupedAtCap) {
       console.warn(
         `[dsfr-data] opendatasoft: plafond max-records (${maxRecords}) atteint sur une requete group-by, ` +
           `des groupes peuvent manquer (total inconnu — relevable via l'attribut max-records, #233)`
@@ -211,6 +215,7 @@ export class OpenDataSoftAdapter implements ApiAdapter {
       data: allResults,
       totalCount: isGrouped ? undefined : totalCount >= 0 ? totalCount : allResults.length,
       needsClientProcessing: false,
+      ...(groupedAtCap ? { truncated: true } : {}),
     };
   }
 

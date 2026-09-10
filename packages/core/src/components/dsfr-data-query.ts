@@ -4,6 +4,7 @@ import { getByPath, setByPath } from '../utils/json-path.js';
 import { toNumber } from '@dsfr-data/shared/lib';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { dispatchSourceCommand, getDataCache, getDataMeta } from '../utils/data-bridge.js';
+import type { PaginationMeta } from '../utils/data-bridge.js';
 import { TransformerMixin } from '../utils/transformer-mixin.js';
 import type { AdapterCapabilities } from '../adapters/api-adapter.js';
 import type { SourceElement } from '../utils/source-element.js';
@@ -170,6 +171,13 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
   private _rawData: unknown[] = [];
 
   /**
+   * Nombre de lignes produites AVANT `limit` (#659) — republie dans la meta
+   * comme `total`. Trois annuaires ont affiche « 12 activites » pour 28 :
+   * un KPI `count` en aval ne voyait que les lignes tranchees.
+   */
+  private _rowsBeforeLimit = 0;
+
+  /**
    * Tracks which operations have been delegated to dsfr-data-source server-side.
    * When needsClientProcessing comes back true, we fall back to client-side.
    */
@@ -310,6 +318,30 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    */
   protected shouldReadInitialCache(): boolean {
     return this._sourceEmittedSinceCommand;
+  }
+
+  /**
+   * Meta aval (#659) : `total` = nombre de lignes AVANT `limit`, `truncated`
+   * quand `limit` a tranche. Le reste de la meta amont est conserve.
+   *
+   * En pagination serveur (`serverSide`), le total reste celui du serveur :
+   * les lignes recues ne sont qu'une page, et l'aval (list, display) en a
+   * besoin pour paginer — republier la taille de page casserait leur
+   * pagination.
+   */
+  protected transformMeta(meta: PaginationMeta): PaginationMeta {
+    const truncated = this.limit > 0 && this._rowsBeforeLimit > this.limit;
+    const { truncated: _upstreamTruncated, ...rest } = meta;
+    return {
+      ...rest,
+      ...(meta.serverSide ? {} : { total: this._rowsBeforeLimit }),
+      ...(truncated ? { truncated: true } : {}),
+    };
+  }
+
+  /** Sans meta amont (source inline), la query publie quand meme ses comptes (#659). */
+  protected transformerOwnMeta(): PaginationMeta {
+    return this.transformMeta({ page: 1, pageSize: 0, serverSide: false });
   }
 
   protected onTransformerData(data: unknown): void {
@@ -647,6 +679,7 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     }
 
     // 4. Appliquer la limite (toujours client-side)
+    this._rowsBeforeLimit = result.length;
     if (this.limit > 0) {
       result = result.slice(0, this.limit);
     }

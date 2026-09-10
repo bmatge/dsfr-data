@@ -3,7 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { renderSourceLoading, renderSourceError } from '../utils/status-templates.js';
-import { escapeHtml, buildCsv } from '@dsfr-data/shared/lib';
+import { escapeHtml, buildCsv, formatNumberFr } from '@dsfr-data/shared/lib';
 import { getDataMeta } from '../utils/data-bridge.js';
 import { PaginationController } from '../utils/pagination-controller.js';
 
@@ -17,10 +17,22 @@ interface SortState {
   direction: 'asc' | 'desc';
 }
 
+/** Entrée de la liste de pages : numéro ou ellipse (motif DSFR, #669) */
+export type PageItem = number | 'ellipsis';
+
 /**
  * <dsfr-data-list> - Liste filtrable et cherchable
  *
  * Affiche un tableau de données avec recherche, filtres et pagination.
+ *
+ * Les cellules numériques sont rendues en fr-FR (`2.27` → « 2,27 », au plus
+ * 2 décimales ou `decimals`, #666) ; les chaînes (codes INSEE, SIREN…) restent
+ * intactes et les exports CSV/HTML restent bruts. Avant #666, le contournement
+ * était `normalize round="champ:2"`, qui arrondit mais ne localise pas.
+ *
+ * Le `caption` du tableau (RGAA 5.4, #669) vient de l'attribut `caption`, à
+ * défaut de `aria-label`, sinon « Liste des données ». La pagination suit le
+ * motif DSFR : première/dernière page, ellipses, « Page N sur M ».
  *
  * Les alias francais (`colonnes`, `recherche`, `filtres`, `tri`, `server-tri`)
  * restent acceptes pour ne pas casser le code deja publie, mais sont
@@ -84,6 +96,20 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
   /** Nombre d'éléments par page (0 = pas de pagination) */
   @property({ type: Number })
   pagination = 0;
+
+  /**
+   * Titre du tableau, rendu dans `caption` (masqué visuellement, lu par les
+   * lecteurs d'écran — RGAA 5.4, #669). À défaut, dérivé de `aria-label`.
+   */
+  @property({ type: String })
+  caption = '';
+
+  /**
+   * Nombre de décimales des cellules numériques (#666). Absent : au plus
+   * 2 décimales, format fr-FR. Les exports CSV/HTML ne sont pas concernés.
+   */
+  @property({ type: Number })
+  decimals: number | null = null;
 
   /** Formats d'export disponibles: "csv", "html" (separables par virgule) */
   @property({ type: String })
@@ -360,9 +386,47 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
     }
   }
 
+  /** False en pagination serveur tant que la source n'a pas publié de total (#270) */
+  private _isTotalKnown(): boolean {
+    return !(this._serverPagination && this._serverTotal === undefined);
+  }
+
+  /** « Page 3 sur 115 », ou « Page 3 » quand le total est inconnu */
+  private _pagePosition(page: number, totalPages: number): string {
+    return this._isTotalKnown() ? `Page ${page} sur ${totalPages}` : `Page ${page}`;
+  }
+
   private _handlePageChange(page: number) {
     this._pager.changePage(page);
-    this._announce(`Page ${page} sur ${this._getTotalPages()}`);
+    this._announce(this._pagePosition(page, this._getTotalPages()));
+  }
+
+  /**
+   * Pages à afficher (#669) : première et dernière, fenêtre autour de la
+   * courante, ellipse pour chaque trou — « 1 2 3 … 115 », « 1 … 49 50 51 … 115 ».
+   * Un trou d'une seule page est comblé par son numéro plutôt qu'une ellipse.
+   * Total inconnu (`totalKnown` false) : pas de dernière page ni d'ellipse finale.
+   */
+  getPageItems(totalPages: number, current: number, totalKnown = true): PageItem[] {
+    const wanted = new Set<number>([1]);
+    if (totalKnown) wanted.add(totalPages);
+    for (let p = current - 1; p <= current + 1; p++) wanted.add(p);
+    if (current <= 3) [2, 3].forEach((p) => wanted.add(p));
+    if (totalKnown && current >= totalPages - 2) {
+      [totalPages - 2, totalPages - 1].forEach((p) => wanted.add(p));
+    }
+    const pages = [...wanted].filter((p) => p >= 1 && p <= totalPages).sort((a, b) => a - b);
+
+    const items: PageItem[] = [];
+    let prev = 0;
+    for (const p of pages) {
+      const gap = p - prev;
+      if (gap === 2) items.push(p - 1);
+      else if (gap > 2) items.push('ellipsis');
+      items.push(p);
+      prev = p;
+    }
+    return items;
   }
 
   // --- Export ---
@@ -439,10 +503,28 @@ ${bodyRows}
 
   // --- Cell formatting ---
 
+  /**
+   * Texte d'une cellule : « — » pour l'absence, Oui/Non pour les booléens,
+   * nombres en fr-FR (#666), tout le reste tel quel (jamais de parsing des
+   * chaînes : un code INSEE « 75056 » reste « 75056 »).
+   */
   formatCellValue(value: unknown): string {
+    // Champ multivalué (ODS, Grist) : jonction lisible, comme les templates (#663)
+    if (Array.isArray(value)) return value.join(', ');
     if (value === null || value === undefined) return '—';
     if (typeof value === 'boolean') return value ? 'Oui' : 'Non';
+    if (typeof value === 'number') {
+      return formatNumberFr(
+        value,
+        this.decimals === null ? undefined : { decimals: this.decimals }
+      );
+    }
     return String(value);
+  }
+
+  /** Titre du tableau : `caption`, sinon `aria-label`, sinon libellé générique (#669) */
+  private _getCaption(): string {
+    return this.caption || this.getAttribute('aria-label') || 'Liste des données';
   }
 
   // --- Render sub-templates ---
@@ -571,7 +653,7 @@ ${bodyRows}
       <div class="fr-table fr-table--bordered">
         <table>
           <caption class="fr-sr-only">
-            Liste des données
+            ${this._getCaption()}
           </caption>
           <thead>
             <tr>
@@ -635,29 +717,27 @@ ${bodyRows}
     if (!this._serverPagination && (this.pagination <= 0 || totalPages <= 1)) return '';
     if (this._serverPagination && totalPages <= 1) return '';
 
-    const pages: number[] = [];
-    for (
-      let i = Math.max(1, this._currentPage - 2);
-      i <= Math.min(totalPages, this._currentPage + 2);
-      i++
-    ) {
-      pages.push(i);
-    }
+    const totalKnown = this._isTotalKnown();
+    const current = this._currentPage;
+    const items = this.getPageItems(totalPages, current, totalKnown);
+    const position = this._pagePosition(current, totalPages);
 
     return html`
       <nav
         class="fr-pagination"
+        role="navigation"
         aria-label="${
           this.getAttribute('aria-label')
             ? 'Pagination - ' + this.getAttribute('aria-label')
             : 'Pagination'
         }"
       >
+        <p class="fr-text--sm fr-mb-1w dsfr-data-list__page-position">${position}</p>
         <ul class="fr-pagination__list">
           <li>
             <button
               class="fr-pagination__link fr-pagination__link--first"
-              ?disabled="${this._currentPage === 1}"
+              ?disabled="${current === 1}"
               @click="${() => this._handlePageChange(1)}"
               aria-label="Première page"
               type="button"
@@ -667,54 +747,68 @@ ${bodyRows}
           </li>
           <li>
             <button
-              class="fr-pagination__link fr-pagination__link--prev"
-              ?disabled="${this._currentPage === 1}"
-              @click="${() => this._handlePageChange(this._currentPage - 1)}"
+              class="fr-pagination__link fr-pagination__link--prev fr-pagination__link--lg-label"
+              ?disabled="${current === 1}"
+              @click="${() => this._handlePageChange(current - 1)}"
               aria-label="Page précédente"
               type="button"
             >
               Page précédente
             </button>
           </li>
-          ${pages.map(
-            (page) => html`
-              <li>
-                <button
-                  class="fr-pagination__link ${
-                    page === this._currentPage ? 'fr-pagination__link--active' : ''
-                  }"
-                  @click="${() => this._handlePageChange(page)}"
-                  aria-current="${page === this._currentPage ? 'page' : nothing}"
-                  aria-label="Page ${page} sur ${totalPages}"
-                  type="button"
-                >
-                  ${page}
-                </button>
-              </li>
-            `
+          ${items.map((item) =>
+            item === 'ellipsis'
+              ? html`
+                  <li>
+                    <span class="fr-pagination__link dsfr-data-list__ellipsis" aria-hidden="true"
+                      >…</span
+                    >
+                  </li>
+                `
+              : html`
+                  <li>
+                    <button
+                      class="fr-pagination__link ${
+                        item === current ? 'fr-pagination__link--active' : ''
+                      }"
+                      @click="${() => this._handlePageChange(item)}"
+                      aria-current="${item === current ? 'page' : nothing}"
+                      aria-label="${this._pagePosition(item, totalPages)}"
+                      type="button"
+                    >
+                      ${item}
+                    </button>
+                  </li>
+                `
           )}
           <li>
             <button
-              class="fr-pagination__link fr-pagination__link--next"
-              ?disabled="${this._currentPage === totalPages}"
-              @click="${() => this._handlePageChange(this._currentPage + 1)}"
+              class="fr-pagination__link fr-pagination__link--next fr-pagination__link--lg-label"
+              ?disabled="${current === totalPages}"
+              @click="${() => this._handlePageChange(current + 1)}"
               aria-label="Page suivante"
               type="button"
             >
               Page suivante
             </button>
           </li>
-          <li>
-            <button
-              class="fr-pagination__link fr-pagination__link--last"
-              ?disabled="${this._currentPage === totalPages}"
-              @click="${() => this._handlePageChange(totalPages)}"
-              aria-label="Dernière page"
-              type="button"
-            >
-              Dernière page
-            </button>
-          </li>
+          ${
+            totalKnown
+              ? html`
+                  <li>
+                    <button
+                      class="fr-pagination__link fr-pagination__link--last"
+                      ?disabled="${current === totalPages}"
+                      @click="${() => this._handlePageChange(totalPages)}"
+                      aria-label="Dernière page"
+                      type="button"
+                    >
+                      Dernière page
+                    </button>
+                  </li>
+                `
+              : nothing
+          }
         </ul>
       </nav>
     `;
@@ -834,6 +928,12 @@ ${bodyRows}
           text-align: center;
           color: var(--text-mention-grey);
           padding: 2rem !important;
+        }
+        .dsfr-data-list__page-position {
+          color: var(--text-mention-grey, #666);
+        }
+        .dsfr-data-list__ellipsis {
+          cursor: default;
         }
       </style>
     `;

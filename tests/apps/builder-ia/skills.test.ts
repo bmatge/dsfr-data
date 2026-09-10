@@ -289,6 +289,7 @@ describe('builder-ia skills', () => {
         DsfrDataMapLayer: 'dsfrDataMap',
         DsfrDataMapPopup: 'dsfrDataMap',
         DsfrDataMapInset: 'dsfrDataMap',
+        DsfrDataMapLegend: 'dsfrDataMap',
         DsfrDataMapTimeline: 'dsfrDataMap',
         DsfrDataA11y: 'dsfrDataA11y',
         DsfrDataJoin: 'dsfrDataJoin',

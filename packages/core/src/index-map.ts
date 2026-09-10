@@ -8,4 +8,5 @@ export { DsfrDataMap } from './components/dsfr-data-map.js';
 export { DsfrDataMapLayer } from './components/dsfr-data-map-layer.js';
 export { DsfrDataMapPopup } from './components/dsfr-data-map-popup.js';
 export { DsfrDataMapInset } from './components/dsfr-data-map-inset.js';
+export { DsfrDataMapLegend } from './components/dsfr-data-map-legend.js';
 export { DsfrDataMapTimeline } from './components/dsfr-data-map-timeline.js';

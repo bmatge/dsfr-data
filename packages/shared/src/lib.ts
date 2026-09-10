@@ -38,16 +38,19 @@ export {
   formatDateShort,
   formatValue,
   formatNumber,
+  formatNumberFr,
   formatPercentage,
   formatCurrency,
   formatDecimal,
   formatDate,
+  FORMAT_TYPES,
+  isFormatType,
 } from './utils/formatters.js';
-export type { FormatType } from './utils/formatters.js';
+export type { FormatType, FormatValueOptions } from './utils/formatters.js';
 export { toNumber, looksLikeNumber } from './utils/number-parser.js';
 export { isValidDeptCode, normalizeDeptCode } from './utils/dept-codes.js';
-export type { JoinType, JoinKey, JoinOptions } from './utils/join.js';
-export { parseJoinKeys, performJoin } from './utils/join.js';
+export type { JoinType, JoinKey, JoinOptions, JoinStats, JoinResult } from './utils/join.js';
+export { parseJoinKeys, performJoin, performJoinWithStats } from './utils/join.js';
 export type { UnpivotOptions } from './utils/unpivot.js';
 export { performUnpivot, compileColsPattern } from './utils/unpivot.js';
 export type { CompiledCompute, CompiledAssignment } from './utils/compute.js';
@@ -56,6 +59,8 @@ export { isUnsafeKey } from './utils/security.js';
 export type { CsvColumn, BuildCsvOptions } from './utils/csv.js';
 export { buildCsv, CSV_BOM } from './utils/csv.js';
 export { escapeColonValue, unescapeColonValue } from './utils/colon-escape.js';
+export type { AliasedColumn } from './utils/aliased-columns.js';
+export { parseAliasedColumn, parseAliasedColumns } from './utils/aliased-columns.js';
 export { filterToOdsql, applyLocalFilter } from './query/filter-translator.js';
 
 // Constantes DSFR
@@ -67,8 +72,19 @@ export {
   CHOROPLETH_SCALES,
   quantileBreaks,
   getColorForValue,
+  equalIntervalBreaks,
+  parseManualBreaks,
+  samplePalette,
+  classifyValues,
+  choroplethLegendEntries,
+  formatLegendNumber,
 } from './constants/dsfr-palettes.js';
-export type { PaletteType } from './constants/dsfr-palettes.js';
+export type {
+  PaletteType,
+  ClassificationMethod,
+  ClassificationOptions,
+  LegendEntry,
+} from './constants/dsfr-palettes.js';
 
 // Charts
 export { DSFR_TAG_MAP, MAP_LEVEL_MAP } from './charts/chart-types.js';

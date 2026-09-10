@@ -1,8 +1,8 @@
 # Grammaires d’attributs et voies natives
 
-> Par attribut, la grammaire exacte et la voie native a essayer AVANT d’ecrire un script : split, round, format compact, compteur de resultats, facettes radio/select/cascade, annee en cours, cles de jointure, valeurs nulles, fond de carte neutre ou administratif, nom de serie, treemap
+> Par attribut, la grammaire exacte et la voie native a essayer AVANT d’ecrire un script : split, round, format compact, decimales et unite d’un KPI, format date, compteur de resultats, facettes radio/select/cascade, annee en cours, cles de jointure, valeurs nulles, fond de carte neutre ou administratif, nom de serie, treemap
 >
-> Déclencheurs : grammaire, voie native, decouper, separateur, multivalu, split, arrondir, arrondi, decimales, compact, abrege, nombre de resultats, compteur de resultats, total serveur, choix unique, bouton radio, boutons radio, liste deroulante, cascade, facettes dependantes, annee en cours, annee courante, cle de jointure, cles de jointure, zero initial, non renseigne, valeurs nulles, valeur nulle, is not null, isnotnull, fond neutre, fond gris, niveaux de gris, fond de carte, fond administratif, nom de serie, nom de la serie, treemap
+> Déclencheurs : grammaire, voie native, decouper, separateur, multivalu, split, arrondir, arrondi, decimales, compact, abrege, unite, date de mise a jour, derniere mise a jour, nombre de resultats, compteur de resultats, total serveur, choix unique, bouton radio, boutons radio, liste deroulante, cascade, facettes dependantes, annee en cours, annee courante, cle de jointure, cles de jointure, zero initial, non renseigne, valeurs nulles, valeur nulle, is not null, isnotnull, fond neutre, fond gris, niveaux de gris, fond de carte, fond administratif, nom de serie, nom de la serie, treemap
 
 ## Grammaires d’attributs et voies natives
 
@@ -48,11 +48,32 @@ etre n’importe quel caractere, y compris `|`, `;` ou `/` :
 ### Abreger un grand nombre : format compact (14,8 M)
 
 `dsfr-data-kpi format="compact"` existe : 14 785 684 -> « 14,8 M », 6 676 -> « 6,7 k »
-(notation compacte fr-FR, 1 decimale max). Les cinq formats : `nombre` (defaut),
-`pourcentage`, `euro`, `decimal`, `compact`.
+(notation compacte fr-FR, 1 decimale max). Les six formats : `nombre` (defaut),
+`pourcentage`, `euro`, `decimal`, `compact`, `date`.
 
 ```html
 <dsfr-data-kpi source="stats" value="population:sum" format="compact" label="Habitants"></dsfr-data-kpi>
+<dsfr-data-kpi source="budget" value="montant:sum" format="compact" unit="€" label="Budget"></dsfr-data-kpi>
+```
+
+### Decimales et unite d'un KPI (decimals, unit)
+
+- `decimals="3"` fixe les decimales affichees : `format="euro" decimals="3"` -> « 1,749 € ».
+  Ne PAS ecrire `format="euro:3"` (refuse, erreur de configuration).
+- `unit="€"` accole une unite apres la valeur (espace insecable) : `format="compact" unit="€"`
+  -> « 44,9 Md € ». Inutile avec `euro` et `pourcentage`, qui portent deja leur symbole.
+
+```html
+<dsfr-data-kpi source="carburants" value="gazole_prix:avg" format="euro" decimals="3" label="Gazole"></dsfr-data-kpi>
+```
+
+### Afficher une date (format date, min/max sur dates ISO)
+
+`format="date"` rend une chaine ISO en JJ/MM/AAAA ; `min`/`max` acceptent une colonne de
+dates ISO (la plus ancienne / la plus recente), `first`/`last` la chaine brute :
+
+```html
+<dsfr-data-kpi source="carburants" value="maj:max" format="date" label="Derniere mise a jour"></dsfr-data-kpi>
 ```
 
 ### Compteur de resultats et total serveur (count, server-search)
@@ -190,8 +211,10 @@ a poser). Les proprietes sont sous `properties.*`.
 et cartes). Pour les graphiques, le composant l’enveloppe lui-meme dans le tableau
 JSON attendu par DSFR Chart (`["Effectif"]`) ; un tableau JSON explicite
 (`name='["2023", "2024"]'`) reste possible pour nommer plusieurs series.
-Sans `name`, les series prennent le nom des champs (`value-fields`) ou les valeurs
-de `series-field`.
+Sans `name`, les series prennent l’alias inline `champ:Libellé` de `value-field(s)`
+(`value-field="Panier_moyen:Panier moyen"` → légende « Panier moyen »), sinon le nom
+des champs, ou les valeurs de `series-field`. Même grammaire sur `value-cols` de
+`dsfr-data-unpivot` pour renommer les variables dépliées à la source.
 
 ### Treemap : la voie native est le barres horizontales
 

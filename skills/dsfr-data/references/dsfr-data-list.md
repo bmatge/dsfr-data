@@ -23,6 +23,8 @@ les clés du premier objet sont utilisees comme colonnes.
 | filters | String | `""` | non | Colonnes filtrables (dropdown) : `"col1,col2"`. Alias deprecie : `filtres` |
 | sort | String | `""` | non | Tri par défaut : `"col:asc"` ou `"col:desc"`. Alias deprecie : `tri` |
 | pagination | Number | `0` | non | Lignes par page (0 = tout afficher sans pagination) |
+| caption | String | `""` | non | Titre du tableau (RGAA 5.4), rendu dans `caption` masqué visuellement ; à défaut dérivé de `aria-label` (#669) |
+| decimals | Number | — | non | Nombre de décimales des cellules numériques ; absent : au plus 2, format fr-FR (#666) |
 | export | String | `""` | non | Formats d'export : `"csv"`, `"html"` ou `"csv,html"` |
 | url-sync | Boolean | `false` | non | Synchronise le numero de page dans l'URL (?page=N) via replaceState |
 | url-page-param | String | `"page"` | non | Nom du parametre URL pour la page |
@@ -38,6 +40,16 @@ Quand la source est un `dsfr-data-source` avec `paginate`, dsfr-data-list détec
 la pagination serveur via les metadonnees (`meta.total`, `meta.page_size`).
 Chaque changement de page declenche un nouvel appel API (pas de pagination client).
 Le total affiche vient de `meta.total`. La recherche et le tri ne s'appliquent qu'a la page courante.
+
+### Pagination et format des cellules
+La pagination suit le motif DSFR : première/dernière page, ellipses (`1 2 3 … 115`), et
+« Page N sur M » affiché et annoncé aux lecteurs d'écran (`aria-current="page"` sur la page
+courante). M vient de `meta.total` en mode serveur, sinon du nombre de lignes filtrées.
+Les cellules numériques (`typeof number`) sont rendues en fr-FR : `2.27` → « 2,27 », au plus
+2 décimales, ou exactement `decimals` décimales. Les chaînes ne sont JAMAIS reformatées
+(codes INSEE, SIREN, années en texte restent intacts) et l'export CSV/HTML reste brut.
+Pour arrondir la donnée elle-même (et pas seulement l'affichage), `normalize round="champ:2"`
+reste disponible.
 
 ### Synchronisation URL
 Avec `url-sync`, le numero de page est synchronise dans l'URL via `replaceState`.
@@ -71,8 +83,10 @@ Fonctionne avec la pagination client et serveur. Compatible avec les autres para
 
 | Attribut | Type | Défaut | Description |
 |---|---|---|---|
+| `caption` | `string` | `""` (vide) | Titre du tableau, rendu dans `caption` (masqué visuellement, lu par les lecteurs d'écran — RGAA 5.4, #669). À défaut, dérivé de `aria-label`. |
 | `colonnes` | `string` | `""` (vide) | **DEPRECIE** — ne pas utiliser dans du code neuf. alias français de `columns` (#300) |
 | `columns` | `string` | `""` (vide) | Définition des colonnes: "clé:Label, cle2:Label2" |
+| `decimals` | `number \| null` | `null` | Nombre de décimales des cellules numériques (#666). Absent : au plus 2 décimales, format fr-FR. Les exports CSV/HTML ne sont pas concernés. |
 | `export` | `string` | `""` (vide) | Formats d'export disponibles: "csv", "html" (separables par virgule) |
 | `filters` | `string` | `""` (vide) | Colonnes filtrables: "ministere,statut" |
 | `filtres` | `string` | `""` (vide) | **DEPRECIE** — ne pas utiliser dans du code neuf. alias français de `filters` (#300) |
@@ -92,8 +106,9 @@ Fonctionne avec la pagination client et serveur. Compatible avec les autres para
 
 | Méthode | Retour | Description |
 |---|---|---|
-| `formatCellValue(value: unknown)` | `string` | — |
+| `formatCellValue(value: unknown)` | `string` | Texte d'une cellule : « — » pour l'absence, Oui/Non pour les booléens, nombres en fr-FR (#666), tout le reste tel quel (jamais de parsing des chaînes : un code INSEE « 75056 » reste « 75056 »). |
 | `getFilteredData()` | `Record<string, unknown>[]` | — |
+| `getPageItems(totalPages: number, current: number, totalKnown: unknown)` | `PageItem[]` | Pages à afficher (#669) : première et dernière, fenêtre autour de la courante, ellipse pour chaque trou — « 1 2 3 … 115 », « 1 … 49 50 51 … 115 ». Un trou d'une seule page est comblé par son numéro plutôt qu'une ellipse. Total inconnu (`totalKnown` false) : pas de dernière page ni d'ellipse finale. |
 | `parseColumns()` | `ColumnDef[]` | — |
 
 

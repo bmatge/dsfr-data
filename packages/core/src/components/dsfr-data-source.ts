@@ -719,12 +719,24 @@ export class DsfrDataSource extends LitElement {
         // Publish meta with needsClientProcessing flag. serverSide:false —
         // l'aval ne doit PAS activer sa pagination serveur sur un fetchAll
         // (pageSize 0 produisait des totaux de pages Infinity, #270)
+        //
+        // `truncated` (#658) : le jeu livre est un sous-ensemble — total
+        // connu et superieur aux lignes recues (plafond max-records ou
+        // limit), ou plafond atteint sur une page pleine quand le total est
+        // inconnu (group_by ODS, #641 — signal pose par l'adapter). Le warn
+        // console existait deja ; ce champ rend la troncature lisible par le
+        // volet Diagnostic.
+        const received = Array.isArray(result.data) ? result.data.length : 0;
+        const truncated =
+          result.truncated === true ||
+          (typeof result.totalCount === 'number' && result.totalCount > received);
         setDataMeta(this.id, {
           page: 1,
           pageSize: 0,
           total: result.totalCount,
           serverSide: false,
           needsClientProcessing: result.needsClientProcessing,
+          ...(truncated ? { truncated: true } : {}),
         });
       }
 

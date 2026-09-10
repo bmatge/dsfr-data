@@ -585,6 +585,71 @@ describe('DsfrDataA11y', () => {
     });
   });
 
+  // =========================================================================
+  // Cellules du tableau : format fr-FR des nombres (#666)
+  // =========================================================================
+
+  describe('table cells — fr-FR number formatting (#666)', () => {
+    const nbsp = (str: string) => str.replace(/[\u202F\u00A0]/g, ' ');
+    const cellTexts = (el: Element): string[] =>
+      Array.from(el.querySelectorAll('tbody td')).map((td) => (td.textContent ?? '').trim());
+
+    async function mountWithData(
+      rows: Record<string, unknown>[],
+      attrs: Record<string, string> = {}
+    ) {
+      comp.source = SOURCE_ID;
+      comp.table = true;
+      comp.noAutoAria = true;
+      for (const [name, value] of Object.entries(attrs)) comp.setAttribute(name, value);
+      document.body.appendChild(comp);
+      dispatchDataLoaded(SOURCE_ID, rows);
+      await comp.updateComplete;
+    }
+
+    it('formatCellValue : 2.27 → « 2,27 », chaînes intactes, vide pour null/undefined', () => {
+      expect(comp.formatCellValue(2.27)).toBe('2,27');
+      expect(comp.formatCellValue(0.2)).toBe('0,2');
+      expect(comp.formatCellValue(42)).toBe('42');
+      expect(nbsp(comp.formatCellValue(1234.5))).toBe('1 234,5');
+      expect(comp.formatCellValue('75056')).toBe('75056');
+      expect(comp.formatCellValue('2.27')).toBe('2.27');
+      expect(comp.formatCellValue(null)).toBe('');
+      expect(comp.formatCellValue(undefined)).toBe('');
+    });
+
+    it('decimals fixe le nombre de décimales', () => {
+      comp.decimals = 2;
+      expect(comp.formatCellValue(2)).toBe('2,00');
+      expect(comp.formatCellValue('2')).toBe('2');
+      comp.decimals = 0;
+      expect(comp.formatCellValue(2.27)).toBe('2');
+    });
+
+    it('rend « 2,27 » dans la cellule et laisse le code INSEE « 75056 » intact', async () => {
+      await mountWithData([
+        { code: '75056', taux: 2.27 },
+        { code: '01001', taux: 0.2 },
+      ]);
+      expect(cellTexts(comp)).toEqual(['75056', '2,27', '01001', '0,2']);
+      comp.remove();
+    });
+
+    it("l'attribut decimals est lu depuis le HTML", async () => {
+      await mountWithData([{ taux: 2.27 }, { taux: 3 }], { decimals: '1' });
+      expect(cellTexts(comp)).toEqual(['2,3', '3,0']);
+      comp.remove();
+    });
+
+    it('le CSV reste brut : 2.27, pas 2,27', async () => {
+      await mountWithData([{ code: '75056', taux: 2.27 }], { decimals: '1' });
+      expect(cellTexts(comp)).toEqual(['75056', '2,3']);
+      const csv = comp._buildCsv([{ code: '75056', taux: 2.27 }]);
+      expect(csv).toBe(`${CSV_BOM}code;taux\n75056;2.27`);
+      comp.remove();
+    });
+  });
+
   describe('DataBox cohabitation', () => {
     it('keeps table and download active even when DataBox is present', () => {
       // DataBox table view does not work with async data,

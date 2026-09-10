@@ -42,6 +42,8 @@
     "generate-sri": "vite-node scripts/generate-sri.ts",
     "check:sri": "vite-node scripts/generate-sri.ts -- --check",
     "check:accents": "bash scripts/check-french-accents.sh",
+    "geo:fetch": "node scripts/fetch-geo.mjs",
+    "geo:check": "node scripts/fetch-geo.mjs --check",
     "release-publish": "npm run build:shared && npm run build && changeset publish",
     "build:cem": "cem analyze",
     "build:skills-ref": "vite-node scripts/build-skills-reference.ts",

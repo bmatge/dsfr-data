@@ -2,8 +2,11 @@ import { LitElement, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { getByPath } from '../utils/json-path.js';
-import { resolveTemplateExpression, formatTemplateValue } from '../utils/template-expression.js';
-import { escapeHtml } from '@dsfr-data/shared/lib';
+import {
+  renderTemplate,
+  resolveTemplateExpression,
+  formatTemplateValue,
+} from '../utils/template-expression.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { renderSourceLoading, renderSourceError } from '../utils/status-templates.js';
 import { getDataMeta } from '../utils/data-bridge.js';
@@ -17,13 +20,22 @@ import { PaginationController } from '../utils/pagination-controller.js';
  * resultats. Ideal pour créer des listes de cartes, tuiles, ou tout
  * autre motif repetitif DSFR.
  *
- * Le template utilise des placeholders :
- * - {{champ}}           : valeur echappee (HTML-safe)
- * - {{{champ}}}         : valeur brute (non echappee)
+ * Le template utilise des placeholders, grammaire `{{chemin[:format[:arg]][|défaut]}}` :
+ * - {{champ}}           : valeur échappée (HTML-safe)
+ * - {{{champ}}}         : valeur brute (non échappée)
  * - {{champ|défaut}}    : valeur avec fallback si null/undefined
- * - {{champ:number}}    : valeur formatee avec separateur de milliers (ex: 32 073 247)
- * - {{champ.sous.clé}}  : acces aux proprietes imbriquees
- * - {{$index}}          : index de l'element (0-based)
+ * - {{champ:number}}    : séparateur de milliers fr-FR (ex: 32 073 247) ; `:number:2` fixe les décimales
+ * - {{champ:date}}      : date JJ/MM/AAAA (« — » si invalide) ; `:datetime` ajoute HH:MM
+ * - {{tags}}            : un tableau est joint par « , » ; `{{tags:join: / }}` choisit le séparateur
+ * - {{lien:url}}        : ne laisse passer que http:, https:, mailto:, tel: et les URL relatives,
+ *                         sinon chaîne vide — à utiliser dans tout href
+ * - {{champ.sous.clé}}  : accès aux propriétés imbriquées
+ * - {{$index}}          : index de l'élément (0-based) ; {{$uid}} : identifiant DOM de l'élément
+ * - {{#if champ}}…{{/if}} et {{#unless champ}}…{{/unless}} : blocs conditionnels non imbriqués,
+ *                         vrais si la valeur n'est ni null, undefined, « », [] ni false. Le bloc doit
+ *                         englober du texte, des éléments complets ou une valeur d'attribut : placé
+ *                         entre deux attributs, il est découpé par l'analyse HTML du template
+ * L'argument d'un format ne peut pas contenir « | » (il ouvre le défaut).
  *
  * @example
  * <dsfr-data-source id="data" url="/api/results" transform="records"></dsfr-data-source>
@@ -37,6 +49,7 @@ import { PaginationController } from '../utils/pagination-controller.js';
  *         </div>
  *         <div class="fr-card__footer">
  *           <p class="fr-badge fr-badge--sm">{{catégorie}}</p>
+ *           {{#if site_web}}<a class="fr-link" href="{{site_web:url}}">Site web</a>{{/if}}
  *         </div>
  *       </div>
  *     </div>
@@ -179,27 +192,31 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
   private _renderItem(item: Record<string, unknown>, index: number): string {
     if (!this._templateContent) return '';
 
-    // Une seule passe pour {{{champ}}} (brut) et {{champ}} (echappe) :
-    // la valeur substituee n'est jamais re-scannee, donc une donnee qui
-    // contient elle-meme "{{x}}" est rendue litteralement (pas d'injection
-    // de template en cascade).
-    return this._templateContent.replace(
-      /\{\{\{([^}]+)\}\}\}|\{\{([^}]+)\}\}/g,
-      (_match, rawExpr: string | undefined, escExpr: string | undefined) => {
-        if (rawExpr !== undefined) {
-          return this._resolveExpression(item, rawExpr.trim(), index);
-        }
-        return escapeHtml(this._resolveExpression(item, (escExpr as string).trim(), index));
-      }
-    );
+    // Moteur partagé avec dsfr-data-map-popup (#694) : pré-passe des blocs
+    // {{#if}}/{{#unless}} sur le texte du template, puis UNE seule passe pour
+    // {{{champ}}} (brut) et {{champ}} (échappé). La valeur substituée n'est
+    // jamais re-scannée : une donnée qui contient elle-même "{{x}}" est
+    // rendue littéralement (pas d'injection de template en cascade).
+    return renderTemplate(this._templateContent, item, {
+      raw: true,
+      vars: this._templateVars(item, index),
+    });
   }
 
-  /** Resout une expression : champ, champ:format, champ|défaut, champ:format|défaut, $index, $uid */
-  private _resolveExpression(item: Record<string, unknown>, expr: string, index: number): string {
-    return resolveTemplateExpression(item, expr, {
+  /** Variables spéciales du template : `$index` et `$uid` */
+  private _templateVars(
+    item: Record<string, unknown>,
+    index: number
+  ): Record<string, () => string> {
+    return {
       $index: () => String(index),
       $uid: () => this._getItemUid(item, index),
-    });
+    };
+  }
+
+  /** Résout une expression : champ, champ:format[:arg], champ|défaut, $index, $uid (conservé pour compatibilité, comme _formatValue) */
+  _resolveExpression(item: Record<string, unknown>, expr: string, index: number): string {
+    return resolveTemplateExpression(item, expr, this._templateVars(item, index));
   }
 
   /** Applique un format a une valeur. Formats supportes : number */

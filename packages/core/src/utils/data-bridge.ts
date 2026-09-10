@@ -3,6 +3,8 @@
  * Permet aux composants dsfr-data-* de partager des données via un système d'événements
  */
 
+import type { JoinStats } from '@dsfr-data/shared/lib';
+
 export interface DataLoadedEvent {
   sourceId: string;
   data: unknown;
@@ -40,6 +42,15 @@ export interface DataLoadingEvent {
  * - `total` : undefined = inconnu (ex. Grist Records hors derniere page).
  *   L'aval doit alors proposer "page suivante" tant que la page est pleine.
  * - `pageSize` : 0 quand non pagine (fetchAll).
+ * - `truncated` (#658) : les lignes livrees sont un SOUS-ENSEMBLE de ce que
+ *   l'etape aurait pu livrer — plafond `max-records` atteint sur un fetchAll
+ *   (`total > data.length`, ou page pleine au plafond quand le total est
+ *   inconnu, cas `group_by` ODS #641), ou `limit` d'un dsfr-data-query.
+ *   Purement diagnostique : aucun consommateur n'en change de comportement.
+ * - `join` (#660) : taux d'appariement pose par dsfr-data-join.
+ * - Un dsfr-data-query hors pagination serveur republie `total` = nombre de
+ *   lignes AVANT son `limit` (#659) ; en pagination serveur il conserve le
+ *   total serveur, dont l'aval a besoin pour paginer.
  */
 export interface PaginationMeta {
   page: number;
@@ -50,6 +61,10 @@ export interface PaginationMeta {
   serverSide?: boolean;
   /** True si le fetch n'a pas pu traiter group-by/aggregate server-side (fallback client) */
   needsClientProcessing?: boolean;
+  /** True si les lignes livrees sont tronquees (max-records, limit) — #658 */
+  truncated?: boolean;
+  /** Taux d'appariement d'une jointure — #660 */
+  join?: JoinStats;
 }
 
 export interface SourceCommandEvent {

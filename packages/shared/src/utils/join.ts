@@ -14,6 +14,33 @@ export interface JoinKey {
   right: string;
 }
 
+/**
+ * Taux d'appariement d'une jointure (#660).
+ *
+ * `performJoin` ne comptait rien : en `left`, 1 065 lignes entraient et
+ * 1 065 sortaient, l'étape paraissait saine alors que 237 seulement étaient
+ * appariées. C'est le seul signal contre une jointure sur des clés homonymes
+ * (`code` des deux côtés, mais pas le même référentiel).
+ *
+ * Les clés sont comparées **en chaîne, sans trim ni complétion** (`buildKey`) :
+ * `201` et `"201"` s'apparient, `"0201"` et `"201"` non.
+ */
+export interface JoinStats {
+  /** Lignes gauche ayant au moins une correspondance à droite. */
+  leftMatched: number;
+  /** Lignes gauche en entrée. */
+  leftTotal: number;
+  /** Lignes droite ayant au moins une correspondance à gauche. */
+  rightMatched: number;
+  /** Lignes droite en entrée. */
+  rightTotal: number;
+}
+
+export interface JoinResult {
+  rows: Row[];
+  stats: JoinStats;
+}
+
 export interface JoinOptions {
   /** Join key expression: "field", "left=right", or comma-separated multi-key */
   on: string;
@@ -49,8 +76,26 @@ export function parseJoinKeys(on: string): JoinKey[] {
 
 /**
  * Perform an in-memory join of two datasets. O(n+m) via Map indexing.
+ *
+ * Rend les seules lignes — `performJoinWithStats` y ajoute le taux
+ * d'appariement (#660).
  */
 export function performJoin(leftData: Row[], rightData: Row[], options: JoinOptions): Row[] {
+  return performJoinWithStats(leftData, rightData, options).rows;
+}
+
+/**
+ * Jointure + statistiques d'appariement (#660).
+ *
+ * Le comptage est indépendant du type de jointure : il dit combien de lignes
+ * de chaque côté ont trouvé une correspondance, quel que soit ce que le type
+ * retient ensuite dans le résultat.
+ */
+export function performJoinWithStats(
+  leftData: Row[],
+  rightData: Row[],
+  options: JoinOptions
+): JoinResult {
   const keys = parseJoinKeys(options.on);
   const joinType: JoinType = options.type ?? 'left';
   const prefixLeft = options.prefixLeft ?? '';
@@ -70,6 +115,26 @@ export function performJoin(leftData: Row[], rightData: Row[], options: JoinOpti
     if (!rightIndex.has(k)) rightIndex.set(k, []);
     rightIndex.get(k)!.push(row);
   }
+
+  // Appariement, indépendant du type : une clé gauche présente dans l'index
+  // droit apparie la ligne gauche ET toutes les lignes droites de cette clé.
+  let leftMatched = 0;
+  const matchedRightKeys = new Set<string>();
+  for (const leftRow of leftData) {
+    const k = buildKey(leftRow, leftKeyFields);
+    if (rightIndex.has(k)) {
+      leftMatched += 1;
+      matchedRightKeys.add(k);
+    }
+  }
+  let rightMatched = 0;
+  for (const k of matchedRightKeys) rightMatched += rightIndex.get(k)!.length;
+  const stats: JoinStats = {
+    leftMatched,
+    leftTotal: leftData.length,
+    rightMatched,
+    rightTotal: rightData.length,
+  };
 
   const result: Row[] = [];
 
@@ -104,12 +169,10 @@ export function performJoin(leftData: Row[], rightData: Row[], options: JoinOpti
       }
     }
   } else if (joinType === 'full') {
-    const matchedRightKeys = new Set<string>();
     for (const leftRow of leftData) {
       const k = buildKey(leftRow, leftKeyFields);
       const matches = rightIndex.get(k);
       if (matches) {
-        matchedRightKeys.add(k);
         for (const rightRow of matches) {
           result.push(mergeRow(leftRow, rightRow, keys, collisions, prefixLeft, prefixRight));
         }
@@ -125,7 +188,7 @@ export function performJoin(leftData: Row[], rightData: Row[], options: JoinOpti
     }
   }
 
-  return result;
+  return { rows: result, stats };
 }
 
 // --- Internal helpers (not exported) ---

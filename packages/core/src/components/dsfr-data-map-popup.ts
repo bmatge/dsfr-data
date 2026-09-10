@@ -4,10 +4,20 @@
  * Definit un template HTML pour l'infobulle/panneau/modale et le mode d'affichage.
  * Se place comme enfant de dsfr-data-map.
  *
- * Placeholders (memes expressions que dsfr-data-display, toujours echappees) :
- * - {{champ}} / {{champ.sous.clé}} : valeur (imbriquee)
- * - {{champ:number}}               : formatage fr-FR (separateur de milliers)
+ * Placeholders (même moteur que dsfr-data-display, TOUJOURS échappés — `{{{champ}}}` est
+ * traité comme `{{champ}}`), grammaire `{{chemin[:format[:arg]][|défaut]}}` :
+ * - {{champ}} / {{champ.sous.clé}} : valeur (imbriquée)
  * - {{champ|défaut}}               : fallback si null/undefined
+ * - {{champ:number}}               : séparateur de milliers fr-FR ; `:number:2` fixe les décimales
+ * - {{champ:date}}                 : JJ/MM/AAAA (« — » si invalide) ; `:datetime` ajoute HH:MM
+ * - {{tags}}                       : un tableau est joint par « , » ; `{{tags:join: / }}` choisit le séparateur
+ * - {{lien:url}}                   : ne laisse passer que http:, https:, mailto:, tel: et les URL
+ *                                    relatives, sinon chaîne vide — à utiliser dans tout href
+ * - {{#if champ}}…{{/if}} / {{#unless champ}}…{{/unless}} : blocs conditionnels non imbriqués,
+ *                                    vrais si la valeur n'est ni null, undefined, « », [] ni false.
+ *                                    Le bloc doit englober du texte, des éléments complets ou une
+ *                                    valeur d'attribut (pas se placer entre deux attributs)
+ * L'argument d'un format ne peut pas contenir « | » (il ouvre le défaut).
  *
  * @example
  * <dsfr-data-map-popup mode="panel-right" title-field="nom">
@@ -15,13 +25,15 @@
  *     <h4>{{nom}}</h4>
  *     <p>{{adresse}}</p>
  *     <p class="fr-text--bold">{{prix:number}} EUR</p>
+ *     <p>Mis à jour le {{maj:date}}</p>
+ *     {{#if site_web}}<a class="fr-link" href="{{site_web:url}}">Site web</a>{{/if}}
  *   </template>
  * </dsfr-data-map-popup>
  */
 import { LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { getByPath } from '../utils/json-path.js';
-import { resolveTemplateExpression } from '../utils/template-expression.js';
+import { renderTemplate } from '../utils/template-expression.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { escapeHtml } from '@dsfr-data/shared/lib';
 
@@ -146,12 +158,10 @@ export class DsfrDataMapPopup extends LitElement {
       return this._buildAutoTable(record);
     }
 
-    // Meme resolveur que <dsfr-data-display> (#426) : champ:number, champ|défaut,
-    // chemins imbriques. Toujours echappe (pas de {{{raw}}} dans les popups).
-    const templateHtml = tpl.innerHTML;
-    return templateHtml.replace(/\{\{([^}]+)\}\}/g, (_match, expr: string) => {
-      return escapeHtml(resolveTemplateExpression(record, expr.trim()));
-    });
+    // Même moteur que <dsfr-data-display> (#426, #694) : blocs {{#if}},
+    // champ:format:arg, champ|défaut, chemins imbriqués. Toujours échappé
+    // (pas de {{{raw}}} dans les popups : raw=false).
+    return renderTemplate(tpl.innerHTML, record, { raw: false });
   }
 
   private _buildAutoTable(record: Record<string, unknown>): string {

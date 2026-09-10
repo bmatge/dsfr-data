@@ -962,9 +962,11 @@ Attend un tableau d'objets. L'attribut \`valeur\` determine comment extraire/agr
 | label | String | \`""\` | non | Libelle sous la valeur (et sous les \`lines\`) |
 | description | String | \`""\` | non | Description pour accessibilité (sr-only) |
 | icon | String | \`""\` | non | Classe Remix Icon : \`ri-global-line\`, \`ri-money-euro-circle-line\`, etc. Alias deprecie : \`icone\` |
-| format | String | \`"nombre"\` | non | Format : nombre, pourcentage, euro, decimal, compact (14,8 M) |
+| format | String | \`"nombre"\` | non | Format : nombre, pourcentage, euro, decimal, compact (14,8 M), date (chaine ISO -> 09/09/2026). Les decimales passent par \`decimals\`, jamais par le format (\`euro:3\` est refuse : erreur de configuration) |
+| decimals | Number | - | non | Nombre de decimales affichees (0-20), ex. \`format="euro" decimals="3"\` -> « 1,749 € ». Fixe pour nombre/pourcentage/euro/decimal, plafond pour compact, sans effet sur date |
+| unit | String | \`""\` | non | Unite accolee apres la valeur (espace insecable), ex. \`format="compact" unit="€"\` -> « 44,9 Md € ». Inutile avec euro et pourcentage (symbole deja present) |
 | trend | String | \`""\` | non | RACCOURCI HERITE (preferez \`lines\`). Expression d'agregation \`"champ:fn"\` (\`"evolution:avg"\`) — PAS un litteral. Rendue avec une fleche en pourcentage fr-FR (\`↑ 5,2 %\`). Alias deprecie : \`tendance\` |
-| lines | String | \`""\` | non | Lignes secondaires declaratives (JSON), rendues ENTRE la valeur et le \`label\`. Chaque item : \`value\` (expression \`champ:fn\`) OU \`text\` (statique), + \`format\`, \`sign\`, \`prefix\`, \`suffix\`, \`color\` (\`"auto"\`=vert si >=0/rouge si <0, token DSFR, ou couleur CSS), \`na\` (repli si non fini). Ex. \`[{"value":"evol:avg","sign":true,"suffix":"vs mai 2025","color":"auto"}]\` |
+| lines | String | \`""\` | non | Lignes secondaires declaratives (JSON), rendues ENTRE la valeur et le \`label\`. Chaque item : \`value\` (expression \`champ:fn\`) OU \`text\` (statique), + \`format\` (dont \`"date"\`), \`decimals\`, \`unit\`, \`sign\`, \`prefix\`, \`suffix\`, \`color\` (\`"auto"\`=vert si >=0/rouge si <0, token DSFR, ou couleur CSS), \`na\` (repli si non fini). Ex. \`[{"value":"evol:avg","sign":true,"suffix":"vs mai 2025","color":"auto"}]\` |
 | color-token | String | \`""\` | non | Forcer la couleur (token semantique DSFR) : vert, orange, rouge, bleu. Alias deprecies : \`color\`, \`couleur\` |
 | threshold-green | Number | - | non | Seuil au-dessus duquel couleur = vert. Alias deprecie : \`seuil-vert\` |
 | threshold-orange | Number | - | non | Seuil au-dessus duquel couleur = orange (en-dessous = rouge). Alias deprecie : \`seuil-orange\` |
@@ -973,6 +975,21 @@ Attend un tableau d'objets. L'attribut \`valeur\` determine comment extraire/agr
 Fonctions acceptées dans \`value\`, \`trend\` et \`lines\` : avg, sum, count, min, max, first, last.
 Toute autre fonction (ex. \`"x:somme"\`) affiche une erreur de configuration à la place du KPI
 (console + \`data-dsfr-config-error\`) — jamais une valeur vide.
+
+Dates : \`min\`/\`max\` acceptent une colonne de dates ISO (\`AAAA-MM-JJ\` ou datetime) et renvoient
+la date la plus ancienne/récente ; \`first\`/\`last\` renvoient la chaîne brute. Avec \`format="date"\`,
+la valeur est rendue JJ/MM/AAAA : \`value="maj:max" format="date"\` -> « 09/09/2026 ».
+
+### Compter le total, pas les lignes reçues : \`value="meta:total"\`
+\`value="count"\` compte les lignes REÇUES. Derrière un \`dsfr-data-query limit="12"\`, une source
+\`server-side\` (une page) ou un plafond \`max-records\`, c'est un chiffre partiel — un warn console
+le signale quand la meta annonce davantage. Pour le total, \`value="meta:total"\` lit la meta de
+l'amont : \`total_count\` serveur en \`server-side\` (suit recherche et facettes), nombre de lignes
+avant \`limit\` derrière un query, nombre de lignes sur une source non paginée.
+\`\`\`html
+<dsfr-data-query id="top12" source="src" order-by="date:desc" limit="12"></dsfr-data-query>
+<dsfr-data-kpi source="top12" value="meta:total" label="Activités"></dsfr-data-kpi>
+\`\`\`
 
 ### Grouper des KPIs : \`<dsfr-data-kpi-group>\`
 Utiliser \`<dsfr-data-kpi-group>\` pour disposer plusieurs KPIs en grille responsive :
@@ -1174,11 +1191,11 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 | source | String | \`""\` | oui | ID de la source ou query |
 | type | String | \`"bar"\` | oui | Type de graphique (voir tableau ci-dessus) |
 | label-field | String | \`""\` | selon type | Chemin vers les labels dans les données |
-| value-field | String | \`""\` | oui (sauf gauge) | Chemin vers les valeurs |
-| value-field-2 | String | \`""\` | non | 2e série de valeurs (bar-line) |
-| value-fields | String | \`""\` | non | Séries supplementaires separees par virgules — format LARGE, une colonne par série (ex: \`"budget,score"\`) |
+| value-field | String | \`""\` | oui (sauf gauge) | Chemin vers les valeurs. Alias inline \`champ:Libellé\` pour la légende : \`value-field="Panier_moyen:Panier moyen"\` (un \`:\` littéral s'échappe en \`%3A\`) |
+| value-field-2 | String | \`""\` | non | 2e série de valeurs (bar-line). Alias inline \`champ:Libellé\` accepté |
+| value-fields | String | \`""\` | non | Séries supplementaires separees par virgules — format LARGE, une colonne par série (ex: \`"budget,score"\`). Alias inline par série : \`"budget:Budget, score:Score"\` |
 | series-field | String | \`""\` | non | Champ clé de série pour données LONG/tidy : ses valeurs distinctes deviennent autant de séries. Ex: données \`{mois, groupe, valeur}\` avec \`series-field="groupe"\`. S'applique a bar/line/radar. Prioritaire sur value-fields. Consommateur naturel de \`dsfr-data-unpivot\`. |
-| name | String | \`""\` | non | Nom(s) de série. Chaîne simple recommandée : \`name="Taux"\` (enveloppée automatiquement). JSON pour le multi-séries : \`'["Réalisé","Objectif"]'\`. Sur les cartes, un seul nom (le premier d'un JSON est retenu). Auto-deduit des colonnes ou des valeurs de series-field si absent |
+| name | String | \`""\` | non | Nom(s) de série. Chaîne simple recommandée : \`name="Taux"\` (enveloppée automatiquement). JSON pour le multi-séries : \`'["Réalisé","Objectif"]'\`. Sur les cartes, un seul nom (le premier d'un JSON est retenu). Priorité : \`name\` explicite, sinon l'alias inline \`champ:Libellé\` de value-field(s), sinon le nom du champ ou les valeurs de series-field |
 | empty-label | String | \`"Non renseigné"\` | non | Libellé d'une catégorie vide (\`null\`, \`undefined\` ou \`""\` dans label-field) : légende du pie, axe X. Évite le « Série N » de DSFR Chart sur un nom vide. Ex: \`empty-label="Sans objet"\` |
 | selected-palette | String | \`"categorical"\` | non | Palette : categorical, sequentialAscending, sequentialDescending, divergentAscending, divergentDescending, neutral, default |
 | unit-tooltip | String | \`""\` | non | Unite dans les info-bulles : %, EUR, etc. |
@@ -1282,8 +1299,10 @@ téléchargement CSV, plein écran, tendance.
 |----------|------|--------|-------------|
 | databox | Boolean | \`false\` | Active l'habillage DataBox DSFR |
 | databox-title | String | \`""\` | Titre affiche dans l'en-tete (ex: "Population par region") |
+| heading-level | Number | \`3\` | Niveau de titre HTML du titre DataBox (2 à 6, borné) — \`heading-level="2"\` rend un h2, à caler sur la hiérarchie de la page (RGAA 9.1) |
 | databox-source | String | \`""\` | Source des données (ex: "INSEE, RP 2021") |
-| databox-date | String | \`""\` | Date des données (ex: "Mars 2024") |
+| databox-date | String | \`""\` | Date des données (ex: "Mars 2024"). Prime sur databox-date-field |
+| databox-date-field | String | \`""\` | Colonne de dates ISO (AAAA-MM-JJ) : la plus récente est affichée comme date, formatée JJ/MM/AAAA (ex: \`databox-date-field="gazole_maj"\`) |
 | databox-download | Boolean | \`false\` | Bouton téléchargement CSV |
 | databox-screenshot | Boolean | \`false\` | Bouton screenshot PNG |
 | databox-fullscreen | Boolean | \`false\` | Bouton plein écran |
@@ -1350,6 +1369,8 @@ les clés du premier objet sont utilisees comme colonnes.
 | filters | String | \`""\` | non | Colonnes filtrables (dropdown) : \`"col1,col2"\`. Alias deprecie : \`filtres\` |
 | sort | String | \`""\` | non | Tri par défaut : \`"col:asc"\` ou \`"col:desc"\`. Alias deprecie : \`tri\` |
 | pagination | Number | \`0\` | non | Lignes par page (0 = tout afficher sans pagination) |
+| caption | String | \`""\` | non | Titre du tableau (RGAA 5.4), rendu dans \`caption\` masqué visuellement ; à défaut dérivé de \`aria-label\` (#669) |
+| decimals | Number | — | non | Nombre de décimales des cellules numériques ; absent : au plus 2, format fr-FR (#666) |
 | export | String | \`""\` | non | Formats d'export : \`"csv"\`, \`"html"\` ou \`"csv,html"\` |
 | url-sync | Boolean | \`false\` | non | Synchronise le numero de page dans l'URL (?page=N) via replaceState |
 | url-page-param | String | \`"page"\` | non | Nom du parametre URL pour la page |
@@ -1365,6 +1386,16 @@ Quand la source est un \`dsfr-data-source\` avec \`paginate\`, dsfr-data-list d�
 la pagination serveur via les metadonnees (\`meta.total\`, \`meta.page_size\`).
 Chaque changement de page declenche un nouvel appel API (pas de pagination client).
 Le total affiche vient de \`meta.total\`. La recherche et le tri ne s'appliquent qu'a la page courante.
+
+### Pagination et format des cellules
+La pagination suit le motif DSFR : première/dernière page, ellipses (\`1 2 3 … 115\`), et
+« Page N sur M » affiché et annoncé aux lecteurs d'écran (\`aria-current="page"\` sur la page
+courante). M vient de \`meta.total\` en mode serveur, sinon du nombre de lignes filtrées.
+Les cellules numériques (\`typeof number\`) sont rendues en fr-FR : \`2.27\` → « 2,27 », au plus
+2 décimales, ou exactement \`decimals\` décimales. Les chaînes ne sont JAMAIS reformatées
+(codes INSEE, SIREN, années en texte restent intacts) et l'export CSV/HTML reste brut.
+Pour arrondir la donnée elle-même (et pas seulement l'affichage), \`normalize round="champ:2"\`
+reste disponible.
 
 ### Synchronisation URL
 Avec \`url-sync\`, le numero de page est synchronise dans l'URL via \`replaceState\`.
@@ -1419,16 +1450,40 @@ une instance du template avec les valeurs injectees.
 Le template est défini dans un element \`<template>\` enfant du composant.
 Les placeholders sont remplaces pour chaque element de données :
 
+Grammaire d'un placeholder : \`{{chemin[:format[:arg]][|défaut]}}\` — l'argument du format vient
+après un second \`:\` ; il ne peut pas contenir \`|\` (qui ouvre le défaut).
+
 | Syntaxe | Description |
 |---------|-------------|
 | \`{{champ}}\` | Valeur echappee (HTML-safe) |
 | \`{{{champ}}}\` | Valeur brute (non echappee — utiliser avec precaution) |
 | \`{{champ\\|défaut}}\` | Valeur avec fallback si null/undefined |
 | \`{{champ:number}}\` | Valeur avec separateur de milliers (ex: 32073247 → 32 073 247) |
+| \`{{champ:number:2}}\` | Nombre fr-FR avec 2 décimales fixes |
 | \`{{champ:number\\|0}}\` | Format number + fallback si null |
+| \`{{champ:date}}\` | Date JJ/MM/AAAA depuis une ISO (\`2026-09-09T10:00:00Z\` → \`09/09/2026\`), « — » si invalide |
+| \`{{champ:datetime}}\` | Date et heure JJ/MM/AAAA HH:MM |
+| \`{{tags}}\` | Un tableau (champ multivalué ODS/Grist) est joint par \`, \` |
+| \`{{tags:join: / }}\` | Tableau joint par le séparateur donné, espaces compris |
+| \`{{lien:url}}\` | URL filtrée : seuls \`http:\`, \`https:\`, \`mailto:\`, \`tel:\` et les URL relatives passent, sinon chaîne vide. **À utiliser dans tout \`href\`** |
 | \`{{champ.sous.clé}}\` | Acces aux proprietes imbriquees (dot notation) |
 | \`{{$index}}\` | Index de l'element dans le tableau (0-based) |
 | \`{{$uid}}\` | Identifiant unique de l'element (base sur uid-field ou index) |
+
+### Blocs conditionnels
+\`{{#if champ}}…{{/if}}\` affiche son contenu si la valeur existe (ni null, undefined, chaîne vide,
+tableau vide ni false) ; \`{{#unless champ}}…{{/unless}}\` est le complément. Les blocs ne s'imbriquent
+pas. Le bloc doit englober du texte, des éléments complets ou la valeur d'un attribut : placé entre
+deux attributs d'une balise, il est découpé par l'analyse HTML du \`<template>\` et ignoré.
+
+\`\`\`html
+<!-- Lien optionnel : rien si le champ est vide, lien filtré sinon -->
+{{#if site_web}}<a class="fr-link" href="{{site_web:url}}">Site web</a>{{/if}}
+{{#unless site_web}}<span class="fr-text--mention-grey">Pas de site</span>{{/unless}}
+\`\`\`
+
+Recette de transition (versions antérieures à 0.22, sans bloc) : rendre le lien toujours et le
+masquer en CSS quand l'attribut est vide — \`a[href=""] { display: none; }\`.
 
 ### Attributs
 | Attribut | Type | Défaut | Requis | Description |
@@ -2283,6 +2338,7 @@ Le contenu est replie dans un accordeon DSFR par défaut.
 | value-field | String | \`""\` | Colonne(s) pour les valeurs du tableau (separees par virgules) |
 | label | String | \`""\` | Libelle personnalise de la section accessible |
 | no-auto-aria | Boolean | \`false\` | Desactive ARIA automatique et skip link |
+| decimals | Number | — | Nombre de décimales des cellules numériques du tableau ; absent : au plus 2, format fr-FR (#666). Le CSV reste brut |
 
 Si ni \`table\`, ni \`download\`, ni \`description\` ne sont définis, les trois sont affiches par défaut.
 
@@ -2346,6 +2402,8 @@ rendu : switch chart/tableau integre, CSV natif). Conserver uniquement :
 - Le contenu est dans un accordeon DSFR (replie par défaut)
 - Le CSV utilise le separateur \`;\` (standard francais)
 - Le tableau est limite a 100 lignes ; le CSV contient toutes les données
+- Les cellules numériques du tableau sont en fr-FR (\`2.27\` → « 2,27 », au plus 2 décimales
+  ou \`decimals\`) ; les chaînes (codes INSEE, SIREN) restent intactes, le CSV reste brut (#666)
 - Compatible avec tous les composants de rendu (chart, datalist, display, kpi)` +
       reference('dsfr-data-a11y'),
   },
@@ -2393,6 +2451,18 @@ rendu : switch chart/tableau integre, CSV natif). Conserver uniquement :
       'tiles-attribution',
       'fond de carte',
       'clé api tuiles',
+      'légende',
+      'legende carte',
+      'map-legend',
+      'classes',
+      'bornes',
+      'fond atténué',
+      'tiles-style',
+      'fit-zone',
+      'contours',
+      'fonds administratifs',
+      'geo/regions',
+      'geo/departements',
     ],
     content:
       `## dsfr-data-map + dsfr-data-map-layer — Carte interactive multi-couches
@@ -2423,12 +2493,14 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | height | String | \`"500px"\` | Hauteur CSS (px, vh, rem). Un \`%\` est un ratio de la largeur (ex: \`"60%"\` = 60% de la largeur) |
 | tiles | String | \`"ign-plan"\` | Fond de carte : \`ign-plan\`, \`ign-ortho\`, \`ign-cadastre\`, \`osm-fr\` (alias : \`osm\`), \`osm-standard\`, \`opentopomap\`, ou URL template. Deprecies (redirigent vers \`ign-plan\` avec warning) : \`ign-topo\`, \`carto-positron\`, \`carto-dark\` |
 | tiles-attribution | String | \`""\` | Mention d'attribution quand \`tiles\` est une URL custom. Obligatoire (ODbL + CGU du fournisseur) ; ignore sur un preset connu |
+| tiles-style | String | \`""\` | Fond attenue pour une carte thematique : \`muted\` (gris + 55 % d'opacite) ou \`grey\` (niveaux de gris). Fond « neutre » = \`ign-plan\` + \`tiles-style="muted"\`. Les encarts heritent du reglage |
 | sovereign-only | Boolean | \`false\` | Restreint \`tiles\` aux presets IGN souverains. Tout autre preset (\`osm-fr\`, \`osm-standard\`, \`opentopomap\`...) ou URL custom est refuse avec \`console.warn\` et remplace par \`ign-plan\`. |
 | no-controls | Boolean | \`false\` | Masque les controles de zoom |
 | locked | Boolean | \`false\` | Carte verrouillee : aucune interaction (pan/zoom/clavier) — encarts, vignettes |
 | insets | String | \`""\` | Raccourci encarts territoriaux : groupe et/ou territoires nommes (\`"drom"\`, \`"drom,corse"\`) |
 | fit-bounds | Boolean | \`false\` | Ajuste le viewport aux données a chaque mise a jour (combine a max-bounds : emprise clippee a la zone — les DROM ne dezooment pas la vue, un filtre regional zoome dessus) |
-| max-bounds | String | \`""\` | Limites \`"latSW,lonSW,latNE,lonNE"\` |
+| max-bounds | String | \`""\` | Limites du deplacement \`"latSW,lonSW,latNE,lonNE"\` (clippe aussi le fit si fit-zone est vide) |
+| fit-zone | String | \`""\` | Zone de clip du fit \`"latSW,lonSW,latNE,lonNE"\`, pan libre. Défaut : max-bounds, sinon la metropole (\`41,-5.5,51.5,10\`) des qu'un encart ultramarin est present (\`insets="drom"\`), sinon rien. \`none\` desactive |
 | name | String | \`""\` | Titre (aria-label) |
 
 ### Attributs dsfr-data-map-layer (couche)
@@ -2448,9 +2520,12 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | color | String | \`"#000091"\` | Couleur (DSFR blue-france). Fallback si color-map ne matche pas |
 | color-field | String | \`""\` | Champ dont la valeur determine la couleur (mapping catégoriel) |
 | color-map | String | \`""\` | Paires \`valeur:#couleur\` separees par virgule. Ex: \`"1:#00A95F,2:#FF9940,3:#E1000F"\` |
-| fill-field | String | \`""\` | Champ numérique pour choropleth |
+| fill-field | String | \`""\` | Champ numérique pour choropleth (geoshape) |
 | fill-opacity | Number | \`0.6\` | Opacite remplissage |
-| selected-palette | String | \`""\` | Palette choropleth |
+| selected-palette | String | \`""\` | Palette choropleth : \`sequentialAscending\` (défaut), \`sequentialDescending\`, \`divergentAscending\`, \`divergentDescending\`, \`neutral\`, \`categorical\` |
+| classes | Number | \`0\` | Nombre de classes de la choropleth ; \`0\` = autant que de couleurs dans l'echelle (9) |
+| method | String | \`"quantile"\` | Discretisation : \`quantile\` (effectifs egaux), \`equal\` (intervalles egaux), \`manual\` (bornes de breaks) |
+| breaks | String | \`""\` | Bornes superieures manuelles \`"10,50,100"\` (= 4 classes) ; implique \`method="manual"\` |
 | radius | Number | \`8\` | Rayon fixe (circle) |
 | radius-field | String | \`""\` | Champ rayon variable |
 | radius-unit | String | \`"px"\` | \`px\` ou \`m\` |
@@ -2556,6 +2631,21 @@ La clé appartient a l'integrateur (domaine et quota nominatifs) : la bibliotheq
 </dsfr-data-map>
 \`\`\`
 
+### Exemple : choroplethe a 5 classes avec legende et fond attenue
+
+\`\`\`html
+<dsfr-data-map center="46.6,2.3" zoom="6" tiles="ign-plan" tiles-style="muted">
+  <dsfr-data-map-layer id="couche-pop" source="departements" type="geoshape"
+    geo-field="geo_shape" fill-field="population"
+    selected-palette="sequentialAscending" classes="5" method="quantile"
+    tooltip-field="nom">
+  </dsfr-data-map-layer>
+  <dsfr-data-map-legend for="couche-pop" label="Population"></dsfr-data-map-legend>
+</dsfr-data-map>
+\`\`\`
+
+Bornes imposees : \`breaks="1000,5000,20000"\` (4 classes, method manual implicite).
+
 ### Exemple : multi-couches geoshape + POI
 
 \`\`\`html
@@ -2583,8 +2673,10 @@ Composant compagnon optionnel qui definit un template et un mode d'affichage pou
 | width | String | \`"350px"\` | Largeur du panneau lateral |
 | for | String | \`""\` | ID du layer cible (vide = tous) |
 
-Template avec \`<template>\` et interpolation \`{{champ}}\` (memes expressions que dsfr-data-display,
-toujours echappees) : \`{{champ.sous.clé}}\`, \`{{champ:number}}\` (format fr-FR), \`{{champ|défaut}}\`.
+Template avec \`<template>\` et interpolation \`{{champ}}\` (même moteur que dsfr-data-display,
+toujours échappé, \`{{{champ}}}\` traité comme \`{{champ}}\`) : \`{{champ.sous.clé}}\`,
+\`{{champ:number}}\`, \`{{champ:date}}\`, \`{{tags:join: / }}\`, \`{{lien:url}}\` (à utiliser
+dans tout \`href\`), \`{{champ|défaut}}\`, blocs \`{{#if champ}}…{{/if}}\` / \`{{#unless}}\`.
 Sans template, tableau auto.
 
 \`\`\`html
@@ -2593,6 +2685,8 @@ Sans template, tableau auto.
     <h4>{{nom}}</h4>
     <p>{{adresse}}, {{code_postal}} {{commune}}</p>
     <p class="fr-text--bold">{{prix:number}} EUR</p>
+    <p>Mis à jour le {{date_maj:date}}</p>
+    {{#if site_web}}<a class="fr-link" href="{{site_web:url}}">Site web</a>{{/if}}
   </template>
 </dsfr-data-map-popup>
 \`\`\`
@@ -2613,6 +2707,47 @@ Sans template, tableau auto.
   </dsfr-data-map-layer>
 </dsfr-data-map>
 \`\`\`
+
+### dsfr-data-map-legend — Legende d'une couche
+
+Composant compagnon place comme enfant de \`dsfr-data-map\` (ou n'importe ou dans la page avec \`for\`).
+Rend sous la carte une liste DSFR « pastille + texte » (pastille \`aria-hidden\`, le texte porte le sens — RGAA) :
+- choroplethe (\`fill-field\`) : une entree par classe, bornes chiffrees fr-FR (« De 1 000 à 5 000 ») ;
+- couche categorielle (\`color-field\` + \`color-map\`) : une entree par paire, plus « Autres valeurs » (repli \`color\`) si des valeurs n'ont pas matche ;
+- couche monochrome : une entree, libellee par \`label\`.
+Se rafraichit a chaque rendu de la couche (filtre amont, timeline, bbox) : la couche expose \`getLegendEntries()\` et emet \`dsfr-data-map-layer-render\`.
+Hors perimetre : \`dsfr-data-chart type="map"\` (echelle continue DSFR Chart, pas de classes).
+
+| Attribut | Type | Défaut | Description |
+|----------|------|--------|-------------|
+| for | String | \`""\` | Id (ou \`source\`) de la couche decrite. Vide = toutes les couches directes de la carte |
+| label | String | \`""\` | Titre au-dessus de la liste ; libelle de l'entree unique d'une couche monochrome |
+
+\`\`\`html
+<dsfr-data-map-layer id="statuts" source="sites" type="marker" geo-field="geo_point_2d"
+  color-field="statut" color-map="ouvert:#18753C,ferme:#C9191E" color="#929292">
+</dsfr-data-map-layer>
+<dsfr-data-map-legend for="statuts" label="Statut du site"></dsfr-data-map-legend>
+\`\`\`
+
+### Fonds administratifs livres dans le paquet (sans API)
+
+Le paquet npm livre deux GeoJSON simplifies, hors bundle : \`dsfr-data/geo/regions.json\` (18 regions)
+et \`dsfr-data/geo/departements.json\` (101 departements), proprietes \`code\` et \`nom\`
+(Contours administratifs Etalab, Licence Ouverte 2.0). Servir par la page ou un CDN npm ; joindre
+sur \`code\` (\`dsfr-data-join\`) pour une choroplethe sans referentiel geographique distant.
+
+\`\`\`html
+<dsfr-data-source id="contours" url="https://cdn.jsdelivr.net/npm/dsfr-data@0/geo/regions.json"
+  transform="features"></dsfr-data-source>
+<dsfr-data-map center="46.6,2.9" zoom="6" insets="drom" fit-bounds>
+  <!-- Habillage decoratif : no-interactive, exclu du fit -->
+  <dsfr-data-map-layer source="contours" type="geoshape" geo-field="geometry"
+    no-interactive color="#666" fill-opacity="0"></dsfr-data-map-layer>
+</dsfr-data-map>
+\`\`\`
+
+Avec \`insets="drom"\` et sans \`max-bounds\`, le fit se cale par défaut sur la metropole (\`fit-zone\`).
 
 ### dsfr-data-map-inset — Encarts territoriaux (DROM, Corse...)
 
@@ -2680,7 +2815,8 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
         'dsfr-data-map-layer',
         'dsfr-data-map-popup',
         'dsfr-data-map-inset',
-        'dsfr-data-map-timeline'
+        'dsfr-data-map-timeline',
+        'dsfr-data-map-legend'
       ),
   },
 
@@ -2976,6 +3112,20 @@ Si un champ existe dans les deux sources avec le même nom :
 </dsfr-data-join>
 \`\`\`
 
+### Comparaison des clés : en chaîne, sans trim ni complétion
+Les clés sont converties en chaîne avant comparaison — le type ne compte pas, la forme oui :
+- \`201\` (nombre) et \`"201"\` (chaîne) **se joignent** ;
+- \`"0201"\` et \`"201"\` **ne se joignent pas** (zéro initial) ; \`" 201"\` et \`"201"\` non plus (espace) ;
+- \`null\` et \`""\` valent tous deux la clé vide et se joignent entre eux.
+Harmoniser en amont : \`numeric="code"\` sur les deux sources pour un code numérique à zéro
+initial, \`normalize trim\` pour les espaces, \`where="cle:isnotnull"\` pour écarter les lignes sans clé.
+
+### Taux d'appariement (volet Diagnostic)
+En \`left\`, le nombre de lignes ne change pas : une jointure qui n'apparie que 22 % des lignes
+paraît saine. Le composant publie \`leftMatched / leftTotal\` et \`rightMatched / rightTotal\` dans sa
+meta (\`getJoinStats()\`) ; le volet Diagnostic affiche « 237 / 1 065 lignes gauche appariées (22 %) »
+et alerte sous 50 %. Pas d'attribut : ouvrir le volet quand les valeurs droites restent vides.
+
 ### Notes
 - Le join est recalcule automatiquement quand l'une des sources emet de nouvelles données
 - Relations 1-N : si plusieurs enregistrements droite matchent une clé gauche, autant de lignes sont generees
@@ -3021,7 +3171,7 @@ dsfr-data-source (wide) ──► dsfr-data-unpivot ──► dsfr-data-normaliz
 | id | String | - | oui | Identifiant unique de la sortie. |
 | source | String | "" | oui | ID de la source amont à déplier. |
 | id-cols | String | "" | non | Colonnes conservées telles quelles sur chaque ligne (virgule-séparées). Ex: \`"Indicateurs, Sous_theme"\`. |
-| value-cols | String | "" | non | Liste explicite des colonnes à déplier (virgule-séparée). Exclusif avec value-cols-pattern. |
+| value-cols | String | "" | non | Liste explicite des colonnes à déplier (virgule-séparée). Exclusif avec value-cols-pattern. Alias inline \`col:Libellé\` : \`"gazole_prix:Gazole, sp95_prix:SP95"\` émet « Gazole » / « SP95 » dans var-name (un \`:\` littéral s'échappe en \`%3A\`). |
 | value-cols-pattern | String | "" | non | Motif des colonnes à déplier avec placeholders \`{TOKEN}\`. Ex: \`"c{YYYY}_{MM}"\`. |
 | var-name | String | "variable" | non | Nom de la nouvelle colonne "variable" (clé dépliée). Ex: \`"mois"\`. |
 | var-format | String | "" | non | Reformatage de la clé via les tokens du motif. Ex: \`"{YYYY}-{MM}"\` → \`2023-01\`. |
@@ -3201,7 +3351,7 @@ compte pas (peut etre place apres les composants).
     id: 'attributeGrammars',
     name: 'Grammaires d’attributs et voies natives',
     description:
-      'Par attribut, la grammaire exacte et la voie native a essayer AVANT d’ecrire un script : split, round, format compact, compteur de resultats, facettes radio/select/cascade, annee en cours, cles de jointure, valeurs nulles, fond de carte neutre ou administratif, nom de serie, treemap',
+      'Par attribut, la grammaire exacte et la voie native a essayer AVANT d’ecrire un script : split, round, format compact, decimales et unite d’un KPI, format date, compteur de resultats, facettes radio/select/cascade, annee en cours, cles de jointure, valeurs nulles, fond de carte neutre ou administratif, nom de serie, treemap',
     trigger: [
       'grammaire',
       'voie native',
@@ -3214,6 +3364,9 @@ compte pas (peut etre place apres les composants).
       'decimales',
       'compact',
       'abrege',
+      'unite',
+      'date de mise a jour',
+      'derniere mise a jour',
       'nombre de resultats',
       'compteur de resultats',
       'total serveur',
@@ -3286,11 +3439,32 @@ etre n’importe quel caractere, y compris \`|\`, \`;\` ou \`/\` :
 ### Abreger un grand nombre : format compact (14,8 M)
 
 \`dsfr-data-kpi format="compact"\` existe : 14 785 684 -> « 14,8 M », 6 676 -> « 6,7 k »
-(notation compacte fr-FR, 1 decimale max). Les cinq formats : \`nombre\` (defaut),
-\`pourcentage\`, \`euro\`, \`decimal\`, \`compact\`.
+(notation compacte fr-FR, 1 decimale max). Les six formats : \`nombre\` (defaut),
+\`pourcentage\`, \`euro\`, \`decimal\`, \`compact\`, \`date\`.
 
 \`\`\`html
 <dsfr-data-kpi source="stats" value="population:sum" format="compact" label="Habitants"></dsfr-data-kpi>
+<dsfr-data-kpi source="budget" value="montant:sum" format="compact" unit="€" label="Budget"></dsfr-data-kpi>
+\`\`\`
+
+### Decimales et unite d'un KPI (decimals, unit)
+
+- \`decimals="3"\` fixe les decimales affichees : \`format="euro" decimals="3"\` -> « 1,749 € ».
+  Ne PAS ecrire \`format="euro:3"\` (refuse, erreur de configuration).
+- \`unit="€"\` accole une unite apres la valeur (espace insecable) : \`format="compact" unit="€"\`
+  -> « 44,9 Md € ». Inutile avec \`euro\` et \`pourcentage\`, qui portent deja leur symbole.
+
+\`\`\`html
+<dsfr-data-kpi source="carburants" value="gazole_prix:avg" format="euro" decimals="3" label="Gazole"></dsfr-data-kpi>
+\`\`\`
+
+### Afficher une date (format date, min/max sur dates ISO)
+
+\`format="date"\` rend une chaine ISO en JJ/MM/AAAA ; \`min\`/\`max\` acceptent une colonne de
+dates ISO (la plus ancienne / la plus recente), \`first\`/\`last\` la chaine brute :
+
+\`\`\`html
+<dsfr-data-kpi source="carburants" value="maj:max" format="date" label="Derniere mise a jour"></dsfr-data-kpi>
 \`\`\`
 
 ### Compteur de resultats et total serveur (count, server-search)
@@ -3428,8 +3602,10 @@ a poser). Les proprietes sont sous \`properties.*\`.
 et cartes). Pour les graphiques, le composant l’enveloppe lui-meme dans le tableau
 JSON attendu par DSFR Chart (\`["Effectif"]\`) ; un tableau JSON explicite
 (\`name='["2023", "2024"]'\`) reste possible pour nommer plusieurs series.
-Sans \`name\`, les series prennent le nom des champs (\`value-fields\`) ou les valeurs
-de \`series-field\`.
+Sans \`name\`, les series prennent l’alias inline \`champ:Libellé\` de \`value-field(s)\`
+(\`value-field="Panier_moyen:Panier moyen"\` → légende « Panier moyen »), sinon le nom
+des champs, ou les valeurs de \`series-field\`. Même grammaire sur \`value-cols\` de
+\`dsfr-data-unpivot\` pour renommer les variables dépliées à la source.
 
 ### Treemap : la voie native est le barres horizontales
 

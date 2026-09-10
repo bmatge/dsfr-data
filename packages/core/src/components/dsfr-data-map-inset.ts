@@ -147,6 +147,10 @@ export class DsfrDataMapInset extends LitElement {
     inner.setAttribute('locked', '');
     const tiles = host.getAttribute('tiles');
     if (tiles) inner.setAttribute('tiles', tiles);
+    // Fond attenue (#686) : le filtre est scope a chaque carte, l'encart
+    // reprend le reglage de la carte hote
+    const tilesStyle = host.getAttribute('tiles-style');
+    if (tilesStyle) inner.setAttribute('tiles-style', tilesStyle);
     inner.setAttribute('name', this.label ? `Encart — ${this.label}` : 'Encart de carte');
 
     for (const layer of layers) {

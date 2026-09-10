@@ -85,7 +85,7 @@ dsfr-data-source  ──[fetch via adapter]──[paginate]──[cache]──�
 - **dsfr-data-map** est le conteneur carte Leaflet. Il ne consomme pas de donnees ; ce sont les **dsfr-data-map-layer** enfants qui utilisent `SourceSubscriberMixin`.
 - **dsfr-data-map-layer** projete les donnees sur la carte (marker, geoshape, circle, heatmap). Chaque layer a sa propre source → multi-source naturel.
 - Le viewport-driven fetch (`bbox`) envoie des commandes `dsfr-data-source-command` avec `whereKey: "map-bbox"` pour le merge avec les autres filtres.
-- **dsfr-data-map-popup** (popup/modale/panneau lateral au clic, template `{{champ}}` toujours echappe), **dsfr-data-map-inset** (encarts territoriaux DROM/Corse — clone les couches directes de la carte hote, ADR-094) et **dsfr-data-map-timeline** (controles de lecture des couches `time-field`) completent la famille carto — tous enfants de `dsfr-data-map`, bundle `map`.
+- **dsfr-data-map-popup** (popup/modale/panneau lateral au clic, template `{{champ}}` toujours echappe), **dsfr-data-map-inset** (encarts territoriaux DROM/Corse — clone les couches directes de la carte hote, ADR-094), **dsfr-data-map-legend** (legende d'une couche : classes chiffrees de `fill-field` ou paires de `color-map`, lues via `getLegendEntries()` et rafraichies sur `dsfr-data-map-layer-render`, #685) et **dsfr-data-map-timeline** (controles de lecture des couches `time-field`) completent la famille carto — tous enfants de `dsfr-data-map`, bundle `map`. Les fonds administratifs `packages/core/geo/*.json` (#688) sont publies dans le paquet npm **hors bundle** (`exports` `./geo/*`, regeneres par `scripts/fetch-geo.mjs`).
 - **dsfr-data-world-map** a ete **retire** (epic #402, deprecie v0.13 → retrait v0.18) au profit de `<dsfr-data-chart type="map-monde">` (API cartes unifiee DSFR Chart 2.1.x : `level="dep|reg|aca|monde"`, comme `map-reg`/`map-aca`).
 
 ### Pattern HTML
@@ -258,10 +258,12 @@ Toutes les dependances internes sont resolues via les workspaces npm declares da
       src/
         index.ts                Entree tout-en-un ; index-core.ts / index-map.ts
                                 pour les bundles partiels
-        components/             Les 23 Web Components dsfr-data-* (source, query, join,
+        components/             Les 24 Web Components dsfr-data-* (source, query, join,
                                 unpivot, normalize, context/-filter/-tags, facets, search,
                                 chart, kpi, kpi-group, list, display, podium, a11y, beacon,
-                                map, map-layer, map-popup, map-inset, map-timeline)
+                                map, map-layer, map-popup, map-inset, map-legend, map-timeline)
+        geo/                    Fonds administratifs GeoJSON simplifies (regions, departements),
+                                publies dans le paquet hors bundle (#688, scripts/fetch-geo.mjs)
         adapters/               Adapters api-type (generic, opendatasoft, tabular, grist,
                                 insee) + adapter-registry
         utils/                  data-bridge, mixins (transformer, source-subscriber),
@@ -501,6 +503,16 @@ Trois champs **optionnels**, purement diagnostiques, ajoutes sans toucher au mes
 - `origin` sur `dsfr-data-source-command` — le bus etant plat, une trace ne pourrait sinon pas dire *qui* demande une delegation. Renseigne par `TransformerMixin` (relais aval → amont), `dsfr-data-query`, `-search`, `-facets`, `-context`, `-map-layer` et `PaginationController`.
 - `dsfr-data-query.getDelegation()` — quelles operations tournent cote serveur. Un `group-by` non delegue s'execute sur les seules lignes rapatriees : des totaux justes en apparence, faux en realite.
 
+#### Une meta honnete sur les plafonds silencieux (epic #693)
+
+Les chiffres faux plausibles du banc d'essai venaient tous d'un plafond muet : `max-records`, `limit` de query, page serveur, jointure partielle. Trois champs de `PaginationMeta` (`data-bridge.ts`, dupliques dans `BusPaginationMeta`) les rendent lisibles par le volet, sans attribut d'affichage ad hoc :
+
+- **`truncated`** (#658) — pose par la source en fetchAll quand `total > data.length`, ou quand l'adapter ODS signale une page pleine au plafond sur un `group_by` (total inconnu, #641 : `FetchResult.truncated`). Pose aussi par query quand `limit` a tranche. `formatTrace` nomme la cause en lisant les attributs du noeud (`limit` ou `max-records`, ajoutes a `SHAPE_ATTRS`).
+- **`total` pre-limite** (#659) — `dsfr-data-query.transformMeta` republie `total` = lignes avant `limit`, **sauf en pagination serveur** ou le total serveur est conserve : list/display paginent dessus, le remplacer par la taille de page casserait leur pagination. Sans meta amont (source inline), la query publie quand meme ses comptes via le hook `transformerOwnMeta()` du mixin (defaut null, comportement historique des autres transformateurs). Consommateurs : le warn `count` de `dsfr-data-kpi` et `value="meta:total"`.
+- **`join`** (#660) — `performJoinWithStats` (shared) compte `leftMatched/leftTotal/rightMatched/rightTotal` independamment du type ; `dsfr-data-join` le pose dans sa meta et l'expose par `getJoinStats()`. Alerte sous `JOIN_MATCH_ALERT_RATIO` (50 %) — meme seuil dans `formatTrace`, `summarizeTrace` et le volet. Les cles sont comparees en chaine, sans trim (`201` = `"201"`, `"0201"` ≠ `"201"`).
+
+Un transformateur qui republie la meta amont doit **retirer `truncated`** (query, join le font) : ce champ decrit l'etape qui l'a pose, pas celle d'apres.
+
 ### 3.7 Diagnostic hors des apps : bundle autonome et MCP (#608)
 
 Deux surfaces supplementaires, pour atteindre le code **la ou il vit**.
@@ -651,7 +663,7 @@ Le script `scripts/build-lib.ts` produit trois bundles via Vite en mode `lib` :
 | Bundle | Contenu | gzip (ESM) | gzip (UMD) |
 |--------|---------|---|---|
 | `dsfr-data.core.{esm,umd}.js` | Tous les composants sauf `dsfr-data-map*` (inclut `dsfr-data-join`) | ~70 Ko | ~63 Ko |
-| `dsfr-data.map.{esm,umd}.js` | `dsfr-data-map` + `map-layer` + `map-popup` + `map-inset` + `map-timeline` (Leaflet charge dynamiquement : chunks separes en ESM, inline en UMD) | ~35 Ko | ~85 Ko |
+| `dsfr-data.map.{esm,umd}.js` | `dsfr-data-map` + `map-layer` + `map-popup` + `map-inset` + `map-legend` + `map-timeline` (Leaflet charge dynamiquement : chunks separes en ESM, inline en UMD) | ~35 Ko | ~85 Ko |
 | `dsfr-data.{esm,umd}.js` | Tout-en-un | ~107 Ko | ~150 Ko |
 
 La source du JS dans le code genere est configurable via `VITE_LIB_URL` :

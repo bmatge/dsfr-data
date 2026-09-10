@@ -10,13 +10,20 @@
  * It is the exact inverse of a pivot.
  */
 
+import type { AliasedColumn } from './aliased-columns.js';
+
 type Row = Record<string, unknown>;
 
 export interface UnpivotOptions {
   /** Columns kept as-is on every emitted row (the "identifier" columns). */
   idCols?: string[];
-  /** Explicit list of columns to melt. Mutually exclusive with `valueColsPattern`. */
-  valueCols?: string[];
+  /**
+   * Explicit list of columns to melt. Mutually exclusive with `valueColsPattern`.
+   * An entry may carry a display label (`{ key, label }`, inline alias
+   * `col:Libellé` — #668): the melted key is then the label instead of the
+   * column name.
+   */
+  valueCols?: Array<string | AliasedColumn>;
   /**
    * Pattern matching the columns to melt, with `{TOKEN}` placeholders.
    * Known date tokens have fixed widths: `YYYY` (4 digits), `YY`/`MM`/`DD`/`HH`
@@ -155,10 +162,13 @@ export function performUnpivot(rows: Row[], options: UnpivotOptions): Row[] {
       }
     }
   } else if (options.valueCols && options.valueCols.length > 0) {
-    for (const col of options.valueCols) {
+    for (const entry of options.valueCols) {
+      const col = typeof entry === 'string' ? entry : entry.key;
       if (idColSet.has(col)) continue;
-      // Explicit list: key is the column name (varFormat needs a pattern to apply).
-      valueColMap.set(col, col);
+      // Explicit list: key is the alias when given, else the column name
+      // (varFormat needs a pattern to apply).
+      const key = typeof entry === 'string' ? entry : entry.label || col;
+      valueColMap.set(col, key);
     }
   } else {
     // No explicit list and no pattern: melt every non-id column.

@@ -28,6 +28,7 @@ Le contenu est replie dans un accordeon DSFR par défaut.
 | value-field | String | `""` | Colonne(s) pour les valeurs du tableau (separees par virgules) |
 | label | String | `""` | Libelle personnalise de la section accessible |
 | no-auto-aria | Boolean | `false` | Desactive ARIA automatique et skip link |
+| decimals | Number | — | Nombre de décimales des cellules numériques du tableau ; absent : au plus 2, format fr-FR (#666). Le CSV reste brut |
 
 Si ni `table`, ni `download`, ni `description` ne sont définis, les trois sont affiches par défaut.
 
@@ -91,6 +92,8 @@ rendu : switch chart/tableau integre, CSV natif). Conserver uniquement :
 - Le contenu est dans un accordeon DSFR (replie par défaut)
 - Le CSV utilise le separateur `;` (standard francais)
 - Le tableau est limite a 100 lignes ; le CSV contient toutes les données
+- Les cellules numériques du tableau sont en fr-FR (`2.27` → « 2,27 », au plus 2 décimales
+  ou `decimals`) ; les chaînes (codes INSEE, SIREN) restent intactes, le CSV reste brut (#666)
 - Compatible avec tous les composants de rendu (chart, datalist, display, kpi)
 
 ### Référence `<dsfr-data-a11y>` (générée depuis le code)
@@ -101,6 +104,7 @@ rendu : switch chart/tableau integre, CSV natif). Conserver uniquement :
 
 | Attribut | Type | Défaut | Description |
 |---|---|---|---|
+| `decimals` | `number \| null` | `null` | Nombre de décimales des cellules numériques du tableau (#666). Absent : au plus 2 décimales, format fr-FR. Le CSV n'est pas concerné. |
 | `description` | `string` | `""` (vide) | Description textuelle du graphique, lue par les lecteurs d'ecran. |
 | `download` | `boolean` | `false` | Affiche le bouton de telechargement CSV. |
 | `filename` | `string` | `'données.csv'` | Nom du fichier CSV telecharge. |
@@ -112,6 +116,12 @@ rendu : switch chart/tableau integre, CSV natif). Conserver uniquement :
 | `table` | `boolean` | `false` | Affiche le tableau de donnees equivalent au graphique. |
 | `value-field` | `string` | `""` (vide) | Colonne(s) utilisee(s) pour les valeurs du tableau (separees par des virgules). |
 
+
+**Méthodes publiques**
+
+| Méthode | Retour | Description |
+|---|---|---|
+| `formatCellValue(value: unknown)` | `string` | Texte d'une cellule du tableau : nombres en fr-FR (au plus 2 décimales, ou `decimals`), tout le reste tel quel. Le CSV (`_buildCsv`) reste brut. |
 
 
 **Événements** (émis sur `document` : ecouter via `document.addEventListener`, filtrer sur `detail.sourceId`)

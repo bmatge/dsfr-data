@@ -23,9 +23,11 @@ Attend un tableau d'objets. L'attribut `valeur` determine comment extraire/agré
 | label | String | `""` | non | Libelle sous la valeur (et sous les `lines`) |
 | description | String | `""` | non | Description pour accessibilité (sr-only) |
 | icon | String | `""` | non | Classe Remix Icon : `ri-global-line`, `ri-money-euro-circle-line`, etc. Alias deprecie : `icone` |
-| format | String | `"nombre"` | non | Format : nombre, pourcentage, euro, decimal, compact (14,8 M) |
+| format | String | `"nombre"` | non | Format : nombre, pourcentage, euro, decimal, compact (14,8 M), date (chaine ISO -> 09/09/2026). Les decimales passent par `decimals`, jamais par le format (`euro:3` est refuse : erreur de configuration) |
+| decimals | Number | - | non | Nombre de decimales affichees (0-20), ex. `format="euro" decimals="3"` -> « 1,749 € ». Fixe pour nombre/pourcentage/euro/decimal, plafond pour compact, sans effet sur date |
+| unit | String | `""` | non | Unite accolee apres la valeur (espace insecable), ex. `format="compact" unit="€"` -> « 44,9 Md € ». Inutile avec euro et pourcentage (symbole deja present) |
 | trend | String | `""` | non | RACCOURCI HERITE (preferez `lines`). Expression d'agregation `"champ:fn"` (`"evolution:avg"`) — PAS un litteral. Rendue avec une fleche en pourcentage fr-FR (`↑ 5,2 %`). Alias deprecie : `tendance` |
-| lines | String | `""` | non | Lignes secondaires declaratives (JSON), rendues ENTRE la valeur et le `label`. Chaque item : `value` (expression `champ:fn`) OU `text` (statique), + `format`, `sign`, `prefix`, `suffix`, `color` (`"auto"`=vert si >=0/rouge si <0, token DSFR, ou couleur CSS), `na` (repli si non fini). Ex. `[{"value":"evol:avg","sign":true,"suffix":"vs mai 2025","color":"auto"}]` |
+| lines | String | `""` | non | Lignes secondaires declaratives (JSON), rendues ENTRE la valeur et le `label`. Chaque item : `value` (expression `champ:fn`) OU `text` (statique), + `format` (dont `"date"`), `decimals`, `unit`, `sign`, `prefix`, `suffix`, `color` (`"auto"`=vert si >=0/rouge si <0, token DSFR, ou couleur CSS), `na` (repli si non fini). Ex. `[{"value":"evol:avg","sign":true,"suffix":"vs mai 2025","color":"auto"}]` |
 | color-token | String | `""` | non | Forcer la couleur (token semantique DSFR) : vert, orange, rouge, bleu. Alias deprecies : `color`, `couleur` |
 | threshold-green | Number | - | non | Seuil au-dessus duquel couleur = vert. Alias deprecie : `seuil-vert` |
 | threshold-orange | Number | - | non | Seuil au-dessus duquel couleur = orange (en-dessous = rouge). Alias deprecie : `seuil-orange` |
@@ -34,6 +36,21 @@ Attend un tableau d'objets. L'attribut `valeur` determine comment extraire/agré
 Fonctions acceptées dans `value`, `trend` et `lines` : avg, sum, count, min, max, first, last.
 Toute autre fonction (ex. `"x:somme"`) affiche une erreur de configuration à la place du KPI
 (console + `data-dsfr-config-error`) — jamais une valeur vide.
+
+Dates : `min`/`max` acceptent une colonne de dates ISO (`AAAA-MM-JJ` ou datetime) et renvoient
+la date la plus ancienne/récente ; `first`/`last` renvoient la chaîne brute. Avec `format="date"`,
+la valeur est rendue JJ/MM/AAAA : `value="maj:max" format="date"` -> « 09/09/2026 ».
+
+### Compter le total, pas les lignes reçues : `value="meta:total"`
+`value="count"` compte les lignes REÇUES. Derrière un `dsfr-data-query limit="12"`, une source
+`server-side` (une page) ou un plafond `max-records`, c'est un chiffre partiel — un warn console
+le signale quand la meta annonce davantage. Pour le total, `value="meta:total"` lit la meta de
+l'amont : `total_count` serveur en `server-side` (suit recherche et facettes), nombre de lignes
+avant `limit` derrière un query, nombre de lignes sur une source non paginée.
+```html
+<dsfr-data-query id="top12" source="src" order-by="date:desc" limit="12"></dsfr-data-query>
+<dsfr-data-kpi source="top12" value="meta:total" label="Activités"></dsfr-data-kpi>
+```
 
 ### Grouper des KPIs : `<dsfr-data-kpi-group>`
 Utiliser `<dsfr-data-kpi-group>` pour disposer plusieurs KPIs en grille responsive :
@@ -117,8 +134,9 @@ Utiliser `<dsfr-data-kpi-group>` pour disposer plusieurs KPIs en grille responsi
 | `color` | `KpiColor \| ''` | `""` (vide) | **DEPRECIE** — ne pas utiliser dans du code neuf. alias de `color-token` (#367) — le nom `color` évoque l'attribut de présentation HTML déprécié (faux positif d'audit RGAA 10.1.2) |
 | `color-token` | `KpiColor \| ''` | `""` (vide) | Couleur forcée (token sémantique DSFR) : vert, orange, rouge, bleu |
 | `couleur` | `KpiColor \| ''` | `""` (vide) | **DEPRECIE** — ne pas utiliser dans du code neuf. alias français de `color-token` (#300) |
+| `decimals` | `number \| undefined` | — | Nombre de décimales affichées (entier 0 à 20), ex. `format="euro" decimals="3"` → « 1,749 € ». Fixe pour nombre, pourcentage, euro et decimal ; plafond pour compact ; sans effet sur date. Absent : défaut historique du format (#665). |
 | `description` | `string` | `""` (vide) | Description détaillée pour l'accessibilité |
-| `format` | `FormatType` | `'nombre'` | Format d'affichage: nombre, pourcentage, euro, decimal, compact (14 785 684 → « 14,8 M ») |
+| `format` | `FormatType` | `'nombre'` | Format d'affichage : nombre (défaut), pourcentage, euro, decimal, compact (14 785 684 → « 14,8 M »), date (chaîne ISO → « 09/09/2026 », #667). Les décimales passent par `decimals`, jamais par le format (`euro:3` est refusé et affiché comme erreur de configuration, #665). |
 | `heading` | `string` | `""` (vide) | Titre affiché AU-DESSUS de la valeur (surtitre, style majuscules grises). Nommé `heading` et non `title` : ce dernier entrerait en collision avec la propriété DOM native HTMLElement.title (infobulle). |
 | `icon` | `string` | `""` (vide) | Classe d'icône (ex: ri-global-line) |
 | `icone` | `string` | `""` (vide) | **DEPRECIE** — ne pas utiliser dans du code neuf. alias français de `icon` (#300) |
@@ -131,8 +149,9 @@ Utiliser `<dsfr-data-kpi-group>` pour disposer plusieurs KPIs en grille responsi
 | `threshold-green` | `number \| undefined` | — | Seuil au-dessus duquel la valeur est verte |
 | `threshold-orange` | `number \| undefined` | — | Seuil au-dessus duquel la valeur est orange |
 | `trend` | `string` | `""` (vide) | RACCOURCI HERITE — pour une ligne d'evolution riche (signe, suffixe, couleur, repli n.d.), preferez `lines`. Conserve pour compatibilite. Expression d'agrégation pour la tendance, évaluée sur les données de la source (grammaire commune "champ:fn", ex. "evolution:avg") — PAS un litteral : l'ancienne doc ("+3.2") laissait croire qu'on passait une valeur, la chaine etait interpretee comme nom de champ (#303). Rendue avec une fleche (↑/↓) en pourcentage fr-FR ("↑ 5,2 %"). |
+| `unit` | `string` | `""` (vide) | Unité accolée après la valeur (espace insécable), ex. `format="compact" unit="€"` → « 44,9 Md € ». Surtout utile avec nombre, decimal et compact — euro et pourcentage portent déjà leur symbole (#665). |
 | `valeur` | `string` | `""` (vide) | **DEPRECIE** — ne pas utiliser dans du code neuf. alias français de `value` (#300) |
-| `value` | `string` | `""` (vide) | Expression de valeur — convention cible anglaise (#300). Grammaire commune "champ:fn" (#303), ex. value="population:sum". |
+| `value` | `string` | `""` (vide) | Expression de valeur — convention cible anglaise (#300). Grammaire commune "champ:fn" (#303), ex. value="population:sum". `meta:total` (#659) : total publié par l'amont (total serveur en server-side, lignes avant `limit` derrière un query) — `count` ne compte que les lignes reçues. |
 
 
 
