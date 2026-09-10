@@ -486,10 +486,36 @@ Nommage automatique sans alias : \`champ__fonction\` (ex: \`population__sum\`)
 | min | Minimum | \`"temperature:min"\` |
 | max | Maximum | \`"score:max"\` |
 | distinct | Nombre de valeurs distinctes (alias \`count-distinct\`) — null et chaîne vide exclus, \`75\` et \`"75"\` comptent pour une seule valeur | \`"commune:distinct"\` → colonne \`commune__distinct\` |
+| running_sum | **Cumul** : une ligne par ligne de sortie, chacune portant la somme des précédentes (#738) | \`"montant:running_sum"\` → colonne \`montant__running_sum\` |
 
 Délégation de \`distinct\` : ODS \`count(distinct champ)\`, Grist SQL \`COUNT(DISTINCT champ)\` ;
 **Tabular ne le délègue pas** (calcul client sur les lignes reçues, warn console si l'API en
 détient davantage — chiffre partiel derrière un \`max-records\` ou un \`limit\`).
+
+### Cumul (running_sum, #738)
+\`running_sum\` n'est pas une réduction de groupe mais une transformation **ordonnée** :
+elle s'applique APRÈS \`order-by\`, sur les lignes de sortie, et garde une ligne par ligne
+(elle ne replie donc jamais le jeu en une valeur unique comme les autres agrégats sans
+\`group-by\`). Elle peut cumuler une colonne produite par le regroupement :
+
+\`\`\`html
+<!-- Ventes mensuelles, puis cumul depuis janvier -->
+<dsfr-data-query id="cumul" source="ventes"
+  group-by="mois"
+  aggregate="montant:sum, montant__sum:running_sum"
+  order-by="mois:asc">
+</dsfr-data-query>
+<!-- colonnes : mois, montant__sum, montant__sum__running_sum -->
+\`\`\`
+
+- **Sans \`order-by\`, le résultat n'a pas de sens** : le cumul suit l'ordre des lignes reçues,
+  qui n'est pas un contrat. Un avertissement console le signale (pas une erreur : une source
+  déjà triée en amont est légitime).
+- **Jamais délégué au serveur** : aucune API du pipeline ne le traduit. Un \`group-by\` qui
+  porte un cumul redescend donc entièrement côté client, sur les seules lignes rapatriées —
+  surveiller \`max-records\` et \`limit\`.
+- Le cumul n'existe pas sur \`dsfr-data-kpi\` (qui rend une valeur, pas une série) ni dans
+  \`compute\` de \`dsfr-data-normalize\` (par ligne, sans inter-lignes — ADR-105).
 
 Toute autre fonction (\`somme\`, \`moyenne\`, \`median\`…) est une **erreur de configuration**
 visible (console + \`data-dsfr-config-error\`, composants aval en erreur) — jamais un 0 silencieux.

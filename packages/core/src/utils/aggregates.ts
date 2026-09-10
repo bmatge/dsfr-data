@@ -20,10 +20,39 @@ import { canonicalAggregation } from './aggregations.js';
  * colonne `champ__distinct`, ODS `count(distinct x)`, Grist
  * `COUNT(DISTINCT x)` ; non délégué à Tabular).
  */
-export const AGGREGATE_FUNCTIONS = ['count', 'sum', 'avg', 'min', 'max', 'distinct'] as const;
+export const AGGREGATE_FUNCTIONS = [
+  'count',
+  'sum',
+  'avg',
+  'min',
+  'max',
+  'distinct',
+  'running_sum',
+] as const;
 
 export function isAggregateFunction(fn: string): fn is QueryAggregate['function'] {
   return (AGGREGATE_FUNCTIONS as readonly string[]).includes(fn);
+}
+
+/**
+ * Fonctions CUMULÉES (#738) : ce ne sont pas des réductions d'un groupe mais
+ * des transformations ORDONNÉES, calculées sur les lignes de sortie APRÈS le
+ * tri — une ligne par ligne d'entrée, chacune portant le cumul des
+ * précédentes.
+ *
+ * Deux conséquences, portées ici pour que la query et les adaptateurs lisent
+ * la même liste :
+ * - elles ne participent PAS au calcul des groupes (`_applyGroupByAndAggregate`) ;
+ * - elles ne sont JAMAIS déléguées : aucun adaptateur ne les traduit, et un
+ *   adaptateur qui n'implémente pas `supportsServerAggregate` accepterait
+ *   silencieusement une fonction qu'il ne connaît pas (l'API répondrait en
+ *   erreur pour tous les abonnés de la source).
+ */
+export const RUNNING_AGGREGATE_FUNCTIONS = ['running_sum'] as const;
+
+/** La fonction est-elle un agrégat cumulé, donc client-only et ordonné (#738) ? */
+export function isRunningAggregate(fn: string): boolean {
+  return (RUNNING_AGGREGATE_FUNCTIONS as readonly string[]).includes(fn);
 }
 
 /**
