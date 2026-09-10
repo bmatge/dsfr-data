@@ -1,5 +1,5 @@
 import { getByPath } from './json-path.js';
-import { formatDate } from '@dsfr-data/shared/lib';
+import { escapeHtml, formatDate } from '@dsfr-data/shared/lib';
 
 /**
  * Moteur de templates `{{...}}` partagé entre dsfr-data-display et
@@ -7,13 +7,18 @@ import { formatDate } from '@dsfr-data/shared/lib';
  *
  * Grammaire d'une expression : `chemin[:format[:arg]][|défaut]`
  * - `chemin` / `chemin.sous.clé` : accès (imbriqué) à la valeur
- * - `:format`                    : `number`, `date`, `datetime`, `join`
+ * - `:format`                    : `number`, `date`, `datetime`, `join`, `url`
  * - `:format:arg`                : argument du format, séparé par un second `:`
  *                                  (`number:2` décimales, `join: / ` séparateur)
  * - `|défaut`                    : fallback si null/undefined
  *
  * Limite documentée : `|` est interdit dans l'argument (il ouvre le défaut),
  * `}` est interdit partout (il ferme le placeholder).
+ *
+ * Blocs conditionnels, non imbriqués : `{{#if chemin}}…{{/if}}` et
+ * `{{#unless chemin}}…{{/unless}}`. Ils sont résolus par une pré-passe sur
+ * le texte du template, AVANT la substitution des placeholders : une valeur
+ * substituée n'est jamais rescannée (pas d'injection de template en cascade).
  *
  * Les variables spéciales (`$index`, `$uid`...) sont fournies par l'appelant
  * via `vars` — résolues avant toute autre interprétation.
@@ -85,6 +90,28 @@ export function resolveTemplateExpression(
   return formatTemplateValue(value, format, arg);
 }
 
+/** Schémas d'URL autorisés par le pipe `:url` (comparaison insensible à la casse). */
+const SAFE_URL_SCHEMES = ['http:', 'https:', 'mailto:', 'tel:'];
+
+/**
+ * Pipe `:url` (#664, sécurité) : ne laisse passer qu'une URL dont le schéma
+ * est `http:`, `https:`, `mailto:` ou `tel:`, ou une URL relative sans schéma
+ * (`/page`, `#ancre`, `?q=`, `fiche.html`). Tout autre schéma
+ * (`javascript:`, `data:`, `vbscript:`…) rend une chaîne vide.
+ *
+ * Les caractères de contrôle et espaces ASCII sont ignorés pour détecter le
+ * schéma (les navigateurs les retirent : `java\nscript:` serait exécuté).
+ */
+export function sanitizeTemplateUrl(value: unknown): string {
+  const url = String(value).trim();
+  if (!url) return '';
+  // eslint-disable-next-line no-control-regex -- retrait volontaire des caractères de contrôle
+  const probe = url.replace(/[\u0000-\u0020\u007f]/g, '');
+  const schemeMatch = /^([a-z][a-z0-9+.-]*:)/i.exec(probe);
+  if (!schemeMatch) return url;
+  return SAFE_URL_SCHEMES.includes(schemeMatch[1].toLowerCase()) ? url : '';
+}
+
 function toDate(value: unknown): Date | string {
   if (value instanceof Date) return value;
   if (typeof value === 'number') return new Date(value);
@@ -97,6 +124,7 @@ function toDate(value: unknown): Date | string {
  * - `date`               : JJ/MM/AAAA, « — » si invalide
  * - `datetime`           : JJ/MM/AAAA HH:MM, « — » si invalide
  * - `join[:séparateur]`  : jonction d'un tableau (défaut `, `)
+ * - `url`                : liste blanche de schémas, sinon chaîne vide
  * Sans format, un tableau est joint par `, ` ; sinon `String(value)`.
  */
 export function formatTemplateValue(value: unknown, format: string, arg?: string): string {
@@ -131,7 +159,72 @@ export function formatTemplateValue(value: unknown, format: string, arg?: string
     case 'join':
       if (Array.isArray(value)) return value.join(arg || ', ');
       break;
+    case 'url':
+      return sanitizeTemplateUrl(value);
   }
   if (Array.isArray(value)) return value.join(', ');
   return String(value);
+}
+
+/**
+ * Vérité d'un bloc `{{#if}}` : faux pour null, undefined, `''`, `[]` et `false`
+ * (un booléen faux ne doit pas ouvrir un bloc « si »).
+ */
+export function isTemplateTruthy(value: unknown): boolean {
+  if (value === null || value === undefined || value === '' || value === false) return false;
+  if (Array.isArray(value) && value.length === 0) return false;
+  return true;
+}
+
+const BLOCK_RE = /\{\{#(if|unless)\s+([^}]+?)\s*\}\}([\s\S]*?)\{\{\/\1\s*\}\}/g;
+
+/**
+ * Pré-passe des blocs `{{#if chemin}}…{{/if}}` / `{{#unless chemin}}…{{/unless}}`
+ * sur le TEXTE du template (jamais sur une valeur). Blocs non imbriqués :
+ * un bloc ouvert dans un autre est fermé par la première balise de fin du
+ * même type. Une ouverture sans fermeture n'est pas un bloc (elle sera vidée par la substitution).
+ */
+export function resolveTemplateBlocks(templateHtml: string, item: Record<string, unknown>): string {
+  if (!templateHtml.includes('{{#')) return templateHtml;
+  return templateHtml.replace(BLOCK_RE, (_match, kind: string, path: string, body: string) => {
+    const truthy = isTemplateTruthy(getByPath(item, path));
+    return (kind === 'if') === truthy ? body : '';
+  });
+}
+
+export interface RenderTemplateOptions {
+  /**
+   * Autorise `{{{champ}}}` (valeur brute, non échappée). Sinon la forme à
+   * triple accolade est traitée comme `{{champ}}` (toujours échappée).
+   */
+  raw?: boolean;
+  /** Variables spéciales (`$index`, `$uid`...) résolues avant les champs. */
+  vars?: Record<string, () => string>;
+}
+
+const PLACEHOLDER_RE = /\{\{\{([^}]+)\}\}\}|\{\{([^}]+)\}\}/g;
+
+/**
+ * Rend un template HTML pour un enregistrement : pré-passe des blocs, puis
+ * UNE seule passe de substitution des placeholders. La valeur substituée
+ * n'est jamais rescannée : une donnée qui contient elle-même `{{x}}` ou
+ * `{{#if}}` est rendue littéralement.
+ */
+export function renderTemplate(
+  templateHtml: string,
+  item: Record<string, unknown>,
+  options: RenderTemplateOptions = {}
+): string {
+  const { raw = false, vars } = options;
+  const withBlocks = resolveTemplateBlocks(templateHtml, item);
+  return withBlocks.replace(
+    PLACEHOLDER_RE,
+    (_match, rawExpr: string | undefined, escExpr: string | undefined) => {
+      if (rawExpr !== undefined) {
+        const resolved = resolveTemplateExpression(item, rawExpr, vars);
+        return raw ? resolved : escapeHtml(resolved);
+      }
+      return escapeHtml(resolveTemplateExpression(item, escExpr as string, vars));
+    }
+  );
 }
