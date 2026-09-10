@@ -983,7 +983,7 @@ Attend un tableau d'objets. L'attribut \`valeur\` determine comment extraire/agr
 | Attribut | Type | Défaut | Requis | Description |
 |----------|------|--------|--------|-------------|
 | source | String | \`""\` | oui | ID de la dsfr-data-source ou dsfr-data-query |
-| value | String | \`""\` | oui | Expression : \`"champ"\`, \`"champ:avg"\`, \`"champ:sum"\`, \`"champ:min"\`, \`"champ:max"\`, \`"champ:distinct"\`, \`"count:champ:valeur"\` (grammaire commune champ:fn, #303). Alias deprecie : \`valeur\` · litteral avec \`=\` : \`value="=667"\`, \`value="=87 %"\` (sans source) |
+| value | String | \`""\` | oui | Expression : \`"champ"\`, \`"champ:avg"\`, \`"champ:sum"\`, \`"champ:min"\`, \`"champ:max"\`, \`"champ:distinct"\`, \`"count:champ:valeur"\` (grammaire commune champ:fn, #303), ou un ratio \`"expr / expr"\` (\`"count:statut:ouvert / count"\`). Alias deprecie : \`valeur\` · litteral avec \`=\` : \`value="=667"\`, \`value="=87 %"\` (sans source) |
 | where | String | \`""\` | non | Filtre des lignes AVANT le calcul, dialecte colon de dsfr-data-query : \`where="categorie:eq:Actif, montant:gte:1000"\` (mêmes 12 opérateurs). Appliqué à \`value\`, \`trend\` et \`lines\`. **Client seulement** : porte sur les lignes reçues, jamais délégué au serveur |
 | heading | String | \`""\` | non | Titre affiche AU-DESSUS de la valeur (surtitre, majuscules grises). Nomme \`heading\` (pas \`title\`, qui collisionne avec la propriete DOM native) |
 | label | String | \`""\` | non | Libelle sous la valeur (et sous les \`lines\`) |
@@ -1011,6 +1011,21 @@ tronquées (limit, page, max-records), un warn console signale le chiffre partie
 Dates : \`min\`/\`max\` acceptent une colonne de dates ISO (\`AAAA-MM-JJ\` ou datetime) et renvoient
 la date la plus ancienne/récente ; \`first\`/\`last\` renvoient la chaîne brute. Avec \`format="date"\`,
 la valeur est rendue JJ/MM/AAAA : \`value="maj:max" format="date"\` -> « 09/09/2026 ».
+
+### Part, taux, ratio : \`value="expr / expr"\`
+Deux expressions séparées par \` / \` (barre oblique ENTOURÉE d'espaces), chacune dans la
+grammaire ci-dessus (\`count\`, \`champ:sum\`, \`count:champ:valeur\`, \`champ:distinct\`,
+\`meta:total\`…). Le résultat est une fraction (0,35) ; \`format="pourcentage"\` l'affiche en
+pourcentage (« 35 % ») et les seuils s'expriment alors en pourcentage ; \`format="decimal"\` garde
+la fraction. Division par zéro ou côté non numérique : « — » (jamais Infinity).
+\`\`\`html
+<dsfr-data-kpi source="dossiers" value="count:statut:ouvert / count" format="pourcentage" label="Dossiers ouverts"></dsfr-data-kpi>
+<dsfr-data-kpi source="budget" value="montant:sum / count" format="euro" label="Montant moyen"></dsfr-data-kpi>
+\`\`\`
+- \`count:champ:valeur\` accepte un champ **tableau** (tags) : la ligne compte si l'un des
+  éléments est égal. Le \`where\` s'applique aux deux côtés (sauf \`meta:total\`).
+- Un ratio marche aussi dans \`trend\` (rendu en %) et dans \`lines\` (format pourcentage par défaut).
+- Pas de \`count-if\` sur dsfr-data-query : filtrer avec \`where\` puis compter.
 
 ### Filtrer sans query intermédiaire : \`where\`
 \`where="champ:op:valeur[, …]"\` filtre les lignes AVANT \`value\`, \`trend\` et \`lines\`, avec la
