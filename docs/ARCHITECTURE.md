@@ -501,6 +501,16 @@ Trois champs **optionnels**, purement diagnostiques, ajoutes sans toucher au mes
 - `origin` sur `dsfr-data-source-command` — le bus etant plat, une trace ne pourrait sinon pas dire *qui* demande une delegation. Renseigne par `TransformerMixin` (relais aval → amont), `dsfr-data-query`, `-search`, `-facets`, `-context`, `-map-layer` et `PaginationController`.
 - `dsfr-data-query.getDelegation()` — quelles operations tournent cote serveur. Un `group-by` non delegue s'execute sur les seules lignes rapatriees : des totaux justes en apparence, faux en realite.
 
+#### Une meta honnete sur les plafonds silencieux (epic #693)
+
+Les chiffres faux plausibles du banc d'essai venaient tous d'un plafond muet : `max-records`, `limit` de query, page serveur, jointure partielle. Trois champs de `PaginationMeta` (`data-bridge.ts`, dupliques dans `BusPaginationMeta`) les rendent lisibles par le volet, sans attribut d'affichage ad hoc :
+
+- **`truncated`** (#658) — pose par la source en fetchAll quand `total > data.length`, ou quand l'adapter ODS signale une page pleine au plafond sur un `group_by` (total inconnu, #641 : `FetchResult.truncated`). Pose aussi par query quand `limit` a tranche. `formatTrace` nomme la cause en lisant les attributs du noeud (`limit` ou `max-records`, ajoutes a `SHAPE_ATTRS`).
+- **`total` pre-limite** (#659) — `dsfr-data-query.transformMeta` republie `total` = lignes avant `limit`, **sauf en pagination serveur** ou le total serveur est conserve : list/display paginent dessus, le remplacer par la taille de page casserait leur pagination. Sans meta amont (source inline), la query publie quand meme ses comptes via le hook `transformerOwnMeta()` du mixin (defaut null, comportement historique des autres transformateurs). Consommateurs : le warn `count` de `dsfr-data-kpi` et `value="meta:total"`.
+- **`join`** (#660) — `performJoinWithStats` (shared) compte `leftMatched/leftTotal/rightMatched/rightTotal` independamment du type ; `dsfr-data-join` le pose dans sa meta et l'expose par `getJoinStats()`. Alerte sous `JOIN_MATCH_ALERT_RATIO` (50 %) — meme seuil dans `formatTrace`, `summarizeTrace` et le volet. Les cles sont comparees en chaine, sans trim (`201` = `"201"`, `"0201"` ≠ `"201"`).
+
+Un transformateur qui republie la meta amont doit **retirer `truncated`** (query, join le font) : ce champ decrit l'etape qui l'a pose, pas celle d'apres.
+
 ### 3.7 Diagnostic hors des apps : bundle autonome et MCP (#608)
 
 Deux surfaces supplementaires, pour atteindre le code **la ou il vit**.

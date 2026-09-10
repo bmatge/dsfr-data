@@ -2987,6 +2987,20 @@ Si un champ existe dans les deux sources avec le même nom :
 </dsfr-data-join>
 \`\`\`
 
+### Comparaison des clés : en chaîne, sans trim ni complétion
+Les clés sont converties en chaîne avant comparaison — le type ne compte pas, la forme oui :
+- \`201\` (nombre) et \`"201"\` (chaîne) **se joignent** ;
+- \`"0201"\` et \`"201"\` **ne se joignent pas** (zéro initial) ; \`" 201"\` et \`"201"\` non plus (espace) ;
+- \`null\` et \`""\` valent tous deux la clé vide et se joignent entre eux.
+Harmoniser en amont : \`numeric="code"\` sur les deux sources pour un code numérique à zéro
+initial, \`normalize trim\` pour les espaces, \`where="cle:isnotnull"\` pour écarter les lignes sans clé.
+
+### Taux d'appariement (volet Diagnostic)
+En \`left\`, le nombre de lignes ne change pas : une jointure qui n'apparie que 22 % des lignes
+paraît saine. Le composant publie \`leftMatched / leftTotal\` et \`rightMatched / rightTotal\` dans sa
+meta (\`getJoinStats()\`) ; le volet Diagnostic affiche « 237 / 1 065 lignes gauche appariées (22 %) »
+et alerte sous 50 %. Pas d'attribut : ouvrir le volet quand les valeurs droites restent vides.
+
 ### Notes
 - Le join est recalcule automatiquement quand l'une des sources emet de nouvelles données
 - Relations 1-N : si plusieurs enregistrements droite matchent une clé gauche, autant de lignes sont generees

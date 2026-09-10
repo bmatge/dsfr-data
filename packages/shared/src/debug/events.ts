@@ -13,6 +13,8 @@
  * si un nom change côté core, le test casse ici.
  */
 
+import type { JoinStats } from '../utils/join.js';
+
 export const BUS_EVENTS = {
   LOADED: 'dsfr-data-loaded',
   ERROR: 'dsfr-data-error',
@@ -33,6 +35,8 @@ export interface BusPaginationMeta {
    * `max-records` d'une source, attribut `limit` d'un query.
    */
   truncated?: boolean;
+  /** Taux d'appariement posé par un dsfr-data-join (#660). */
+  join?: JoinStats;
 }
 
 /** Commande remontante (pagination, recherche, tri, délégation). */

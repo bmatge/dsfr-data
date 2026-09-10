@@ -158,6 +158,15 @@ function describeStage(trace: Trace, nodeId: string, redact: boolean): string {
             state.meta.truncated ? ', TRONQUÉ (max-records ou limit)' : ''
           }`
         );
+        const join = state.meta.join;
+        if (join) {
+          const pct =
+            join.leftTotal > 0 ? Math.round((join.leftMatched / join.leftTotal) * 100) : 100;
+          lines.push(
+            `Appariement : ${join.leftMatched} / ${join.leftTotal} lignes gauche appariées (${pct} %), ` +
+              `${join.rightMatched} / ${join.rightTotal} lignes droite${pct < 50 ? ' — ALERTE, clés probablement hétérogènes' : ''}`
+          );
+        }
       }
       if (!redact && state.sample && state.sample.length > 0) {
         lines.push('Échantillon :');

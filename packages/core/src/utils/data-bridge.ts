@@ -3,6 +3,8 @@
  * Permet aux composants dsfr-data-* de partager des données via un système d'événements
  */
 
+import type { JoinStats } from '@dsfr-data/shared/lib';
+
 export interface DataLoadedEvent {
   sourceId: string;
   data: unknown;
@@ -45,6 +47,7 @@ export interface DataLoadingEvent {
  *   (`total > data.length`, ou page pleine au plafond quand le total est
  *   inconnu, cas `group_by` ODS #641), ou `limit` d'un dsfr-data-query.
  *   Purement diagnostique : aucun consommateur n'en change de comportement.
+ * - `join` (#660) : taux d'appariement pose par dsfr-data-join.
  * - Un dsfr-data-query hors pagination serveur republie `total` = nombre de
  *   lignes AVANT son `limit` (#659) ; en pagination serveur il conserve le
  *   total serveur, dont l'aval a besoin pour paginer.
@@ -60,6 +63,8 @@ export interface PaginationMeta {
   needsClientProcessing?: boolean;
   /** True si les lignes livrees sont tronquees (max-records, limit) — #658 */
   truncated?: boolean;
+  /** Taux d'appariement d'une jointure — #660 */
+  join?: JoinStats;
 }
 
 export interface SourceCommandEvent {

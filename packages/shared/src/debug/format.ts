@@ -87,6 +87,32 @@ function truncationCause(node: StageNode): string {
     : 'plafond max-records (défaut 1000, relevable)';
 }
 
+/**
+ * Taux d'appariement d'une jointure (#660) — le seul signal contre une
+ * jointure sur des clés homonymes qui ne se rencontrent jamais. Sous 50 %
+ * de lignes gauche appariées, c'est une alerte : en `left`, le compte de
+ * lignes en sortie ne bouge pas et rien d'autre ne le dirait.
+ */
+export const JOIN_MATCH_ALERT_RATIO = 0.5;
+
+function formatJoinStats(meta: NonNullable<StageState['meta']>): string[] {
+  const join = meta.join;
+  if (!join) return [];
+  const ratio = join.leftTotal > 0 ? join.leftMatched / join.leftTotal : 1;
+  const pct = Math.round(ratio * 100);
+  const alert = join.leftTotal > 0 && ratio < JOIN_MATCH_ALERT_RATIO;
+  const lines = [
+    `     ${alert ? '⚠' : 'appariement :'} ${formatInt(join.leftMatched)} / ${formatInt(join.leftTotal)} lignes gauche appariées (${pct} %)` +
+      `, ${formatInt(join.rightMatched)} / ${formatInt(join.rightTotal)} lignes droite`,
+  ];
+  if (alert) {
+    lines.push(
+      '       Clés comparées en chaîne, sans trim ni complétion (201 = "201", "0201" ≠ "201") : vérifiez le référentiel des deux côtés.'
+    );
+  }
+  return lines;
+}
+
 function formatMeta(node: StageNode, state: StageState): string[] {
   const meta = state.meta;
   if (!meta) return [];
@@ -110,6 +136,7 @@ function formatMeta(node: StageNode, state: StageState): string[] {
       `       Repli client : tout l'aval travaille sur ${state.rows ?? '?'} lignes rapatriées, pas sur le jeu complet.`
     );
   }
+  lines.push(...formatJoinStats(meta));
   return lines;
 }
 
@@ -387,6 +414,10 @@ export function summarizeTrace(trace: Trace): {
     }
     if (state.meta?.needsClientProcessing) alerts += 1;
     if (state.meta?.truncated) alerts += 1;
+    const join = state.meta?.join;
+    if (join && join.leftTotal > 0 && join.leftMatched / join.leftTotal < JOIN_MATCH_ALERT_RATIO) {
+      alerts += 1;
+    }
   }
 
   return {

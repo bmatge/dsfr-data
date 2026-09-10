@@ -5,6 +5,7 @@ import {
   formatTrace,
   plural,
   formatInt,
+  JOIN_MATCH_ALERT_RATIO,
   summarizeTrace,
   topoOrder,
   type StageNode,
@@ -395,9 +396,15 @@ export class AppDiagnosticPanel extends LitElement {
     const wantsAggregation = !!(node.attrs['group-by'] || node.attrs.aggregate);
     const clientSide =
       !!delegation && wantsAggregation && !delegation.groupBy && !delegation.aggregate;
+    // Appariement d'une jointure (#660) : sous 50 % de lignes gauche
+    // appariees, meme seuil que formatTrace / summarizeTrace.
+    const join = state.meta?.join;
+    const joinRatio = join && join.leftTotal > 0 ? join.leftMatched / join.leftTotal : null;
+    const joinAlert = joinRatio !== null && joinRatio < JOIN_MATCH_ALERT_RATIO;
     const warn =
       state.meta?.needsClientProcessing ||
       !!state.meta?.truncated ||
+      joinAlert ||
       (state.status === 'loaded' && state.rows === 0) ||
       !!node.configError ||
       (node.role === 'display' && state.status === 'idle' && upstreamRows.every((n) => n === 0));
@@ -463,6 +470,17 @@ export class AppDiagnosticPanel extends LitElement {
                 }
                 lignes
                 (${node.tag === 'dsfr-data-query' || node.attrs.limit ? 'limit' : 'max-records'}).
+              </div>`
+            : nothing
+        }
+        ${
+          join && joinRatio !== null
+            ? html`<div
+                class="app-diag__stage-note ${joinAlert ? 'app-diag__stage-note--warn' : ''}"
+              >
+                ${joinAlert ? '⚠ ' : ''}${formatInt(join.leftMatched)} /
+                ${formatInt(join.leftTotal)} lignes gauche appariées (${Math.round(joinRatio * 100)}
+                %), ${formatInt(join.rightMatched)} / ${formatInt(join.rightTotal)} lignes droite.
               </div>`
             : nothing
         }
