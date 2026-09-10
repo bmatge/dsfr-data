@@ -496,10 +496,13 @@ export class OpenDataSoftAdapter implements ApiAdapter {
     for (const agg of aggregates) {
       // Identifiants echappes (#289) : un champ a espaces rend aussi son
       // alias par defaut (field__fn) non sur — echapper les deux
+      // `distinct` (#672) : ODSQL `count(distinct champ)`, alias champ__distinct
       const odsFunc =
         agg.function === 'count'
           ? 'count(*)'
-          : `${agg.function}(${escapeOdsqlIdentifier(agg.field)})`;
+          : agg.function === 'distinct'
+            ? `count(distinct ${escapeOdsqlIdentifier(agg.field)})`
+            : `${agg.function}(${escapeOdsqlIdentifier(agg.field)})`;
       const alias = agg.alias || `${agg.field}__${agg.function}`;
       selectParts.push(`${odsFunc} as ${escapeOdsqlIdentifier(alias)}`);
     }

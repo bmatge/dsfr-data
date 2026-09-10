@@ -429,9 +429,16 @@ Nommage automatique sans alias : \`champ__fonction\` (ex: \`population__sum\`)
 | avg | Moyenne | \`"prix:avg"\` |
 | min | Minimum | \`"temperature:min"\` |
 | max | Maximum | \`"score:max"\` |
+| distinct | Nombre de valeurs distinctes (alias \`count-distinct\`) — null et chaîne vide exclus, \`75\` et \`"75"\` comptent pour une seule valeur | \`"commune:distinct"\` → colonne \`commune__distinct\` |
+
+Délégation de \`distinct\` : ODS \`count(distinct champ)\`, Grist SQL \`COUNT(DISTINCT champ)\` ;
+**Tabular ne le délègue pas** (calcul client sur les lignes reçues, warn console si l'API en
+détient davantage — chiffre partiel derrière un \`max-records\` ou un \`limit\`).
 
 Toute autre fonction (\`somme\`, \`moyenne\`, \`median\`…) est une **erreur de configuration**
 visible (console + \`data-dsfr-config-error\`, composants aval en erreur) — jamais un 0 silencieux.
+\`count-if\` est refusé : filtrer avec \`where\` puis \`champ:count\` (sur le KPI :
+\`value="count:champ:valeur"\`).
 
 ### Exemples
 \`\`\`html
@@ -976,7 +983,7 @@ Attend un tableau d'objets. L'attribut \`valeur\` determine comment extraire/agr
 | Attribut | Type | Défaut | Requis | Description |
 |----------|------|--------|--------|-------------|
 | source | String | \`""\` | oui | ID de la dsfr-data-source ou dsfr-data-query |
-| value | String | \`""\` | oui | Expression : \`"champ"\`, \`"champ:avg"\`, \`"champ:sum"\`, \`"champ:min"\`, \`"champ:max"\`, \`"count:champ:valeur"\` (grammaire commune champ:fn, #303). Alias deprecie : \`valeur\` · litteral avec \`=\` : \`value="=667"\`, \`value="=87 %"\` (sans source) |
+| value | String | \`""\` | oui | Expression : \`"champ"\`, \`"champ:avg"\`, \`"champ:sum"\`, \`"champ:min"\`, \`"champ:max"\`, \`"champ:distinct"\`, \`"count:champ:valeur"\` (grammaire commune champ:fn, #303). Alias deprecie : \`valeur\` · litteral avec \`=\` : \`value="=667"\`, \`value="=87 %"\` (sans source) |
 | heading | String | \`""\` | non | Titre affiche AU-DESSUS de la valeur (surtitre, majuscules grises). Nomme \`heading\` (pas \`title\`, qui collisionne avec la propriete DOM native) |
 | label | String | \`""\` | non | Libelle sous la valeur (et sous les \`lines\`) |
 | description | String | \`""\` | non | Description pour accessibilité (sr-only) |
@@ -991,9 +998,14 @@ Attend un tableau d'objets. L'attribut \`valeur\` determine comment extraire/agr
 | threshold-orange | Number | - | non | Seuil au-dessus duquel couleur = orange (en-dessous = rouge). Alias deprecie : \`seuil-orange\` |
 | col | Number | - | non | Largeur en colonnes DSFR (1-12), actif uniquement dans un \`<dsfr-data-kpi-group>\` |
 
-Fonctions acceptées dans \`value\`, \`trend\` et \`lines\` : avg, sum, count, min, max, first, last.
+Fonctions acceptées dans \`value\`, \`trend\` et \`lines\` : avg, sum, count, min, max, first, last,
+distinct (alias \`count-distinct\`).
 Toute autre fonction (ex. \`"x:somme"\`) affiche une erreur de configuration à la place du KPI
 (console + \`data-dsfr-config-error\`) — jamais une valeur vide.
+
+\`value="nom_departement:distinct"\` compte les valeurs distinctes (« 101 départements ») sur les
+lignes reçues — null et chaîne vide exclus, un champ tableau compte ses éléments. Sur des lignes
+tronquées (limit, page, max-records), un warn console signale le chiffre partiel, comme \`count\`.
 
 Dates : \`min\`/\`max\` acceptent une colonne de dates ISO (\`AAAA-MM-JJ\` ou datetime) et renvoient
 la date la plus ancienne/récente ; \`first\`/\`last\` renvoient la chaîne brute. Avec \`format="date"\`,
@@ -1040,6 +1052,7 @@ Utiliser \`<dsfr-data-kpi-group>\` pour disposer plusieurs KPIs en grille respon
 | \`"sum:champ"\` | Somme | \`valeur="sum:montant"\` |
 | \`"min:champ"\` | Minimum | \`valeur="min:prix"\` |
 | \`"max:champ"\` | Maximum | \`valeur="max:prix"\` |
+| \`"champ:distinct"\` | Nombre de valeurs distinctes | \`value="commune:distinct"\` |
 | \`"count:champ:valeur"\` | Nombre d'items ou champ = valeur | \`valeur="count:status:active"\` |
 
 ### Exemples

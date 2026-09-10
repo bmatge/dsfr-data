@@ -6,7 +6,22 @@ import { getByPath } from './json-path.js';
  * Permet de calculer des agrégats (avg, sum, count, min, max) sur des tableaux de données
  */
 
-export type AggregationType = 'avg' | 'sum' | 'count' | 'min' | 'max' | 'first' | 'last';
+export type AggregationType =
+  'avg' | 'sum' | 'count' | 'min' | 'max' | 'first' | 'last' | 'distinct';
+
+/**
+ * Alias acceptés en entrée et ramenés à leur fonction canonique AVANT tout
+ * traitement : `count-distinct` = `distinct` (#672). L'alias de colonne et
+ * les traductions adaptateurs ne voient que la forme canonique.
+ */
+export const AGGREGATION_ALIASES: Readonly<Record<string, AggregationType>> = {
+  'count-distinct': 'distinct',
+};
+
+/** Fonction canonique d'un segment de fonction (alias résolus, #672). */
+export function canonicalAggregation(fn: string): string {
+  return AGGREGATION_ALIASES[fn] ?? fn;
+}
 
 export interface ParsedExpression {
   /** `invalid` : fonction hors liste blanche (#649), `error` porte le message. */
@@ -26,6 +41,7 @@ export const KPI_AGGREGATION_TYPES: readonly AggregationType[] = [
   'max',
   'first',
   'last',
+  'distinct',
 ];
 
 const AGG_TYPES: ReadonlySet<string> = new Set(KPI_AGGREGATION_TYPES);
@@ -46,6 +62,7 @@ let legacyGrammarWarned = false;
  * - "fn:field"         -> ancienne grammaire kpi (dépréciée)
  * - "count"            -> compte tous les enregistrements
  * - "count:field:value"-> compte les occurrences où field == value (lâche)
+ * - "field:distinct"   -> nombre de valeurs distinctes (alias "count-distinct", #672)
  *
  * Une expression à 2+ segments dont AUCUN segment de fonction n'est dans la
  * liste blanche (ex. `x:somme`) est renvoyée en `type: 'invalid'` avec un
@@ -53,7 +70,9 @@ let legacyGrammarWarned = false;
  * était lue comme fn="x" et produisait un KPI vide en silence.
  */
 export function parseExpression(expression: string): ParsedExpression {
-  const parts = expression.split(':');
+  // Alias de fonction (`count-distinct` -> `distinct`, #672) résolus sur
+  // chaque segment : la grammaire commune et l'ancienne les acceptent.
+  const parts = expression.split(':').map(canonicalAggregation);
 
   if (parts.length === 1) {
     // "count" seul = compter tous les enregistrements
@@ -161,6 +180,9 @@ export function computeAggregation(data: unknown, expression: string): number | 
       // toNumber : decimales francaises ('1 234,5') parsees ; NaN exclu (#301)
       return collectNumericValues(items, parsed.field).reduce((acc, v) => acc + v, 0);
 
+    case 'distinct':
+      return countDistinct(items, parsed.field);
+
     case 'avg': {
       // Moyenne sur les seules valeurs numeriques — diviser par
       // items.length comptait les non-numeriques comme des zeros (#301)
@@ -206,6 +228,28 @@ function collectNumericValues(items: Record<string, unknown>[], field: string): 
     if (v !== null) out.push(v);
   }
   return out;
+}
+
+/**
+ * Nombre de valeurs distinctes d'un champ (#672), même sémantique que
+ * `count(distinct x)` côté serveur : `null`, `undefined` et la chaîne vide
+ * (ou blanche) sont EXCLUS ; la comparaison se fait sur la valeur ramenée
+ * en chaîne, donc `75` et `"75"` comptent pour une seule valeur. Un champ
+ * tableau (tags) compte ses éléments distincts.
+ */
+export function countDistinct(items: Record<string, unknown>[], field: string): number {
+  const seen = new Set<string>();
+  const add = (v: unknown): void => {
+    if (v === null || v === undefined) return;
+    const key = String(v).trim();
+    if (key !== '') seen.add(key);
+  };
+  for (const item of items) {
+    const v = getByPath(item, field);
+    if (Array.isArray(v)) v.forEach(add);
+    else add(v);
+  }
+  return seen.size;
 }
 
 /**

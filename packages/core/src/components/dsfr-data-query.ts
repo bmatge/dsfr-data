@@ -14,6 +14,7 @@ import {
   validateAggregateFunctions,
   type ParsedAggregate,
 } from '../utils/aggregates.js';
+import { countDistinct } from '../utils/aggregations.js';
 import { unescapeColonValue, filterToOdsql, parseOrderBy } from '../utils/where.js';
 import { reportConfigError } from '../utils/config-error.js';
 
@@ -402,6 +403,11 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
         const clean = fields.map((f) => f.trim()).filter(Boolean);
         return adapter.supportsServerFields?.(clean) !== false;
       };
+      // Fonction non traduisible par l'adapter (Tabular n'a pas de
+      // `distinct`, #672) : tout le group-by reste client-side, sur les
+      // lignes brutes — comme pour un champ non delegable.
+      const canDelegateAggregates = (aggs: ParsedAggregate[]): boolean =>
+        aggs.every((a) => adapter.supportsServerAggregate?.(a.function) !== false);
 
       // Delegate group-by + aggregate together (they're coupled).
       // Don't override if source already has its own groupBy or aggregate.
@@ -421,12 +427,13 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
           this.filter || this.where,
           caps.whereFormat
         );
+        const aggregates = this._parseAggregates(this.aggregate);
         const fields = [
           ...this.groupBy.split(','),
-          ...this._parseAggregates(this.aggregate).map((a) => a.field),
+          ...aggregates.map((a) => a.field),
           ...whereDelegation.fields,
         ];
-        if (whereDelegation.ok && canDelegateFields(fields)) {
+        if (whereDelegation.ok && canDelegateFields(fields) && canDelegateAggregates(aggregates)) {
           cmd.groupBy = this.groupBy;
           this._serverDelegated.groupBy = true;
 
@@ -927,6 +934,10 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
         return values.length > 0 ? Math.min(...values) : 0;
       case 'max':
         return values.length > 0 ? Math.max(...values) : 0;
+      case 'distinct':
+        // Meme semantique que count(distinct x) serveur (#672) : null et
+        // chaine vide exclus, comparaison sur la valeur en chaine.
+        return countDistinct(items, agg.field);
       default:
         // Garde-fou (#649) : normalement intercepté avant le traitement par
         // validateAggregateFunctions ; jamais un 0 plausible en silence.

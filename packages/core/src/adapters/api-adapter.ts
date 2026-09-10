@@ -222,6 +222,15 @@ export interface ApiAdapter {
   supportsServerFields?(fields: string[]): boolean;
 
   /**
+   * Indique si une fonction d'agrégat de la grammaire commune (`count`,
+   * `sum`, `avg`, `min`, `max`, `distinct`) est traduisible par ce provider.
+   * Tabular n'a pas de `distinct` (#672) : l'adapter retourne false et
+   * dsfr-data-query agrège client-side sur les lignes brutes, comme pour un
+   * champ non délégable. Non implémenté = toutes les fonctions sont déléguées.
+   */
+  supportsServerAggregate?(fn: string): boolean;
+
+  /**
    * Retourne le search template par défaut pour cette API.
    * Ex: ODS retourne 'search("{q}")'.
    */

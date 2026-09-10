@@ -62,6 +62,8 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
   /**
    * Expression de valeur — convention cible anglaise (#300).
    * Grammaire commune "champ:fn" (#303), ex. value="population:sum".
+   * `champ:distinct` (alias `count-distinct`, #672) : nombre de valeurs
+   * distinctes, null et chaîne vide exclus, calculé sur les lignes reçues.
    * `meta:total` (#659) : total publié par l'amont (total serveur en
    * server-side, lignes avant `limit` derrière un query) — `count` ne
    * compte que les lignes reçues.
@@ -241,7 +243,8 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
     if (expr === META_TOTAL_EXPR) {
       return getDataMeta(this.source)?.total ?? rows;
     }
-    if (parseExpression(expr).type === 'count') this._warnPartialCount(rows);
+    const kind = parseExpression(expr).type;
+    if (kind === 'count' || kind === 'distinct') this._warnPartialCount(rows, kind);
     return computeAggregation(this._sourceData, expr);
   }
 
@@ -263,13 +266,13 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
    * pagination serveur ou un plafond `max-records`, ce n'est pas le total.
    * Trois annuaires ont affiche « 12 activites » pour 28 pendant sept lots.
    */
-  private _warnPartialCount(rows: number): void {
+  private _warnPartialCount(rows: number, fn: 'count' | 'distinct' = 'count'): void {
     if (this._partialCountWarned) return;
     const total = getDataMeta(this.source)?.total;
     if (typeof total !== 'number' || total <= rows) return;
     this._partialCountWarned = true;
     console.warn(
-      `dsfr-data-kpi: value="count" sur "${this.source}" compte ${rows} lignes reçues, ` +
+      `dsfr-data-kpi: value="${fn}" sur "${this.source}" compte ${rows} lignes reçues, ` +
         `mais l'amont en détient ${total} (meta.total) — chiffre partiel (limit, page ou max-records). ` +
         `Pour le total : value="meta:total" (#659)`
     );

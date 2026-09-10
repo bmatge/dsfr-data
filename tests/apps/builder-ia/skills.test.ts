@@ -258,7 +258,7 @@ describe('builder-ia skills', () => {
 
     describe('aggregation functions coverage', () => {
       // Must match the AggregateFunction type in dsfr-data-query.ts
-      const AGG_FUNCTIONS: AggregateFunction[] = ['count', 'sum', 'avg', 'min', 'max'];
+      const AGG_FUNCTIONS: AggregateFunction[] = ['count', 'sum', 'avg', 'min', 'max', 'distinct'];
 
       it('dsfrDataQuery skill documents all aggregation functions', () => {
         const content = SKILLS.dsfrDataQuery.content;
