@@ -37,7 +37,13 @@ import {
   type RadialScaleBounds,
   type RadialChartLike,
 } from '../utils/chart-radial-scale.js';
-import { escapeHtml, toNumber, isValidDeptCode, normalizeDeptCode } from '@dsfr-data/shared/lib';
+import {
+  escapeHtml,
+  toNumber,
+  isValidDeptCode,
+  normalizeDeptCode,
+  formatDate,
+} from '@dsfr-data/shared/lib';
 import { toIsoA2 } from '../data/continent-lookup.js';
 
 type DSFRChartType =
@@ -228,9 +234,19 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
    * Date de la donnée (ex: "Mars 2024"), affichée dans le pied de la DataBox
    * et sur les cartes. Aucune date n'est rendue si l'attribut est absent —
    * plus de repli sur la date du jour, qui n'est pas celle des données (#650).
+   * Prime sur `databox-date-field` quand les deux sont posés.
    */
   @property({ type: String, attribute: 'databox-date' })
   databoxDate = '';
+
+  /**
+   * Fraîcheur lue dans la donnée (#661) : chemin d'une colonne de dates ISO
+   * (`AAAA-MM-JJ`, heure facultative). La plus récente est affichée comme date
+   * de la DataBox (et des cartes), formatée JJ/MM/AAAA. Ignoré si `databox-date`
+   * est posé ; aucune date rendue si la colonne ne contient aucune date ISO valide.
+   */
+  @property({ type: String, attribute: 'databox-date-field' })
+  databoxDateField = '';
 
   /** Bouton téléchargement CSV dans DataBox */
   @property({ type: Boolean, attribute: 'databox-download' })
@@ -783,8 +799,10 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
         }
         // Plus de new Date() (#305) : la date du JOUR etait presentee comme
         // date de la donnee sur les cartes — n'envoyer date que si fournie
-        if (this.databoxDate) {
-          deferred['date'] = this.databoxDate;
+        // (explicite ou lue dans la donnee via databox-date-field, #661)
+        const mapDate = this._resolveDataboxDate();
+        if (mapDate) {
+          deferred['date'] = mapDate;
         }
         break;
       }
@@ -1299,6 +1317,37 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     return wrapper;
   }
 
+  /**
+   * Date affichée par la DataBox et les cartes : `databox-date` explicite
+   * prime ; sinon la plus récente des dates ISO de `databox-date-field`
+   * (#661), formatée JJ/MM/AAAA ; sinon '' (aucune date rendue, #650).
+   */
+  private _resolveDataboxDate(): string {
+    if (this.databoxDate) return this.databoxDate;
+    if (!this.databoxDateField) return '';
+    const latest = this._latestIsoDate(this.databoxDateField);
+    return latest ? formatDate(latest) : '';
+  }
+
+  /**
+   * Plus récente valeur ISO (`AAAA-MM-JJ`, heure facultative) d'une colonne :
+   * comparaison lexicographique, valable sur ce format après validation
+   * (préfixe ISO + `Date.parse` finie). Les autres valeurs sont ignorées ;
+   * `null` si aucune date valide.
+   */
+  private _latestIsoDate(field: string): string | null {
+    let latest: string | null = null;
+    for (const record of this._data) {
+      const raw = getByPath(record, field);
+      const value =
+        raw instanceof Date ? raw.toISOString() : typeof raw === 'string' ? raw.trim() : '';
+      if (!/^\d{4}-\d{2}-\d{2}([T ].*)?$/.test(value)) continue;
+      if (!Number.isFinite(Date.parse(value))) continue;
+      if (latest === null || value > latest) latest = value;
+    }
+    return latest;
+  }
+
   /** Creates a DataBox + chart as siblings in a wrapper div.
    *  DSFR DataBox discovers its chart via nextElementSibling or databox-id,
    *  so the chart must be a SIBLING of <data-box>, not a child. */
@@ -1332,9 +1381,11 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     databoxEl.setAttribute('source', this.databoxSource || ' ');
     // Pas de date par défaut (#650) : `new Date()` présentait la date de
     // RENDU comme date des données sur toute page qui laissait le défaut.
-    // Sans `databox-date`, aucune date n'est rendue (Vue affiche '' pour
-    // une prop absente ; la validation `required` n'existe qu'en build dev).
-    if (this.databoxDate) databoxEl.setAttribute('date', this.databoxDate);
+    // Sans `databox-date` ni `databox-date-field` (#661), aucune date n'est
+    // rendue (Vue affiche '' pour une prop absente ; la validation `required`
+    // n'existe qu'en build dev).
+    const date = this._resolveDataboxDate();
+    if (date) databoxEl.setAttribute('date', date);
     if (this.databoxDownload) databoxEl.setAttribute('download', '');
     if (this.databoxScreenshot) databoxEl.setAttribute('screenshot', '');
     if (this.databoxFullscreen) databoxEl.setAttribute('fullscreen', '');

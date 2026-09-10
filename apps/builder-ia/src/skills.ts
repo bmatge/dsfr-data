@@ -1283,7 +1283,8 @@ téléchargement CSV, plein écran, tendance.
 | databox | Boolean | \`false\` | Active l'habillage DataBox DSFR |
 | databox-title | String | \`""\` | Titre affiche dans l'en-tete (ex: "Population par region") |
 | databox-source | String | \`""\` | Source des données (ex: "INSEE, RP 2021") |
-| databox-date | String | \`""\` | Date des données (ex: "Mars 2024") |
+| databox-date | String | \`""\` | Date des données (ex: "Mars 2024"). Prime sur databox-date-field |
+| databox-date-field | String | \`""\` | Colonne de dates ISO (AAAA-MM-JJ) : la plus récente est affichée comme date, formatée JJ/MM/AAAA (ex: \`databox-date-field="gazole_maj"\`) |
 | databox-download | Boolean | \`false\` | Bouton téléchargement CSV |
 | databox-screenshot | Boolean | \`false\` | Bouton screenshot PNG |
 | databox-fullscreen | Boolean | \`false\` | Bouton plein écran |
