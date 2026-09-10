@@ -90,6 +90,12 @@ jobs:
       - name: Build library
         run: npm run build
 
+      # Les garde-fous qui GREPENT les bundles produits (#608, #716) sont
+      # ignores dans l'etape de tests ci-dessus : `dist/` n'existe pas encore.
+      # Ils ne mordent que rejoues APRES le build.
+      - name: Guard tests on built bundles
+        run: npx vitest run tests/lib-dev-mode-guard.test.ts tests/debug/standalone-bundle.test.ts
+
       - name: Build all apps
         run: npm run build:apps
 
