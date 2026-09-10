@@ -45,6 +45,9 @@ export interface DataLoadingEvent {
  *   (`total > data.length`, ou page pleine au plafond quand le total est
  *   inconnu, cas `group_by` ODS #641), ou `limit` d'un dsfr-data-query.
  *   Purement diagnostique : aucun consommateur n'en change de comportement.
+ * - Un dsfr-data-query hors pagination serveur republie `total` = nombre de
+ *   lignes AVANT son `limit` (#659) ; en pagination serveur il conserve le
+ *   total serveur, dont l'aval a besoin pour paginer.
  */
 export interface PaginationMeta {
   page: number;

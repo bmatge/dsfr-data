@@ -974,6 +974,17 @@ Fonctions acceptées dans \`value\`, \`trend\` et \`lines\` : avg, sum, count, m
 Toute autre fonction (ex. \`"x:somme"\`) affiche une erreur de configuration à la place du KPI
 (console + \`data-dsfr-config-error\`) — jamais une valeur vide.
 
+### Compter le total, pas les lignes reçues : \`value="meta:total"\`
+\`value="count"\` compte les lignes REÇUES. Derrière un \`dsfr-data-query limit="12"\`, une source
+\`server-side\` (une page) ou un plafond \`max-records\`, c'est un chiffre partiel — un warn console
+le signale quand la meta annonce davantage. Pour le total, \`value="meta:total"\` lit la meta de
+l'amont : \`total_count\` serveur en \`server-side\` (suit recherche et facettes), nombre de lignes
+avant \`limit\` derrière un query, nombre de lignes sur une source non paginée.
+\`\`\`html
+<dsfr-data-query id="top12" source="src" order-by="date:desc" limit="12"></dsfr-data-query>
+<dsfr-data-kpi source="top12" value="meta:total" label="Activités"></dsfr-data-kpi>
+\`\`\`
+
 ### Grouper des KPIs : \`<dsfr-data-kpi-group>\`
 Utiliser \`<dsfr-data-kpi-group>\` pour disposer plusieurs KPIs en grille responsive :
 \`\`\`html

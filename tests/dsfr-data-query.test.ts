@@ -448,26 +448,45 @@ describe('DsfrDataQuery', () => {
   });
 
   describe('Meta propagation', () => {
-    it('forwards pagination meta from upstream source', () => {
+    it('forwards server-side pagination meta from upstream source (total serveur conservé)', () => {
       query.id = 'test-query';
       query.source = 'test-source';
 
-      // Set pagination meta on the upstream source
-      setDataMeta('test-source', { page: 2, pageSize: 20, total: 100 });
+      // Pagination serveur : les lignes recues ne sont qu'une page, l'aval
+      // (list, display) a besoin du total serveur pour paginer (#659).
+      setDataMeta('test-source', { page: 2, pageSize: 20, total: 100, serverSide: true });
 
-      // Feed data to the query
       (query as any)._rawData = [{ name: 'A' }, { name: 'B' }];
       (query as any)._processClientSide();
 
-      // Query should forward meta under its own ID
       const meta = getDataMeta('test-query');
       expect(meta).toBeDefined();
       expect(meta!.page).toBe(2);
       expect(meta!.pageSize).toBe(20);
       expect(meta!.total).toBe(100);
+      expect(meta!.serverSide).toBe(true);
     });
 
-    it('does not set meta when upstream has none', () => {
+    it('hors pagination serveur, total = lignes avant limit, le reste de la meta est conservé (#659)', () => {
+      query.id = 'test-query';
+      query.source = 'test-source';
+      setDataMeta('test-source', {
+        page: 1,
+        pageSize: 0,
+        total: 3080,
+        serverSide: false,
+        needsClientProcessing: false,
+      });
+
+      (query as any)._rawData = [{ name: 'A' }, { name: 'B' }];
+      (query as any)._processClientSide();
+
+      const meta = getDataMeta('test-query');
+      expect(meta).toMatchObject({ page: 1, pageSize: 0, serverSide: false, total: 2 });
+      expect(meta!.truncated).toBeUndefined();
+    });
+
+    it('publie quand même ses comptes quand l’amont n’a pas de meta (#659)', () => {
       query.id = 'test-query';
       query.source = 'test-source';
       clearDataMeta('test-source');
@@ -476,7 +495,12 @@ describe('DsfrDataQuery', () => {
       (query as any)._rawData = [{ name: 'A' }];
       (query as any)._processClientSide();
 
-      expect(getDataMeta('test-query')).toBeUndefined();
+      expect(getDataMeta('test-query')).toEqual({
+        page: 1,
+        pageSize: 0,
+        serverSide: false,
+        total: 1,
+      });
     });
   });
 
