@@ -651,6 +651,16 @@
             },
             {
               "kind": "field",
+              "name": "colorMap",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Couleur fixée par modalité (#732) : paires `modalité:#couleur` séparées\npar des virgules, même grammaire que `dsfr-data-map-layer`. Ex :\n`\"Réalisé:#000091,Objectif:#E1000F\"`. La modalité est un nom de série\n(une couleur par courbe ou par barre) ou, à défaut, un libellé de l'axe\n(une couleur par part de camembert). Les modalités non citées gardent la\ncouleur de la palette. Une virgule ou un deux-points dans une modalité\ns'écrit `%2C` ou `%3A`. Sans effet sur les cartes (`map*`).",
+              "attribute": "color-map"
+            },
+            {
+              "kind": "field",
               "name": "unitTooltip",
               "type": {
                 "text": "string"
@@ -1180,7 +1190,7 @@
                   "text": "number"
                 }
               },
-              "description": "Nombre de lignes ignorees par la dernière carte rendue (`type=\"map*\"`) :\ncode geographique absent, vide ou invalide pour le decoupage. 0 hors carte."
+              "description": "Nombre de lignes ignorees par la dernière carte rendue (`type=\"map*\"`) :\ncode geographique absent, vide, invalide ou hors du referentiel du\ndecoupage (academie inconnue, region inconnue, #729). 0 hors carte."
             },
             {
               "kind": "method",
@@ -1412,6 +1422,95 @@
                 }
               ],
               "description": "Applique les bornes sur l'instance. Retourne false si pas prête."
+            },
+            {
+              "kind": "field",
+              "name": "_colorMapRaf",
+              "type": {
+                "text": "number | null"
+              },
+              "privacy": "private",
+              "default": "null"
+            },
+            {
+              "kind": "field",
+              "name": "_colorMapWarned",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false",
+              "description": "Un seul warn par composant quand color-map ne s'applique pas au type."
+            },
+            {
+              "kind": "method",
+              "name": "_cancelColorMapRaf",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "_refreshColorMap",
+              "privacy": "private",
+              "description": "(Re)programme l'application de `color-map` après chaque rendu."
+            },
+            {
+              "kind": "method",
+              "name": "_scheduleColorMapApply",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "colorMap",
+                  "type": {
+                    "text": "Map<string, string>"
+                  }
+                },
+                {
+                  "name": "framesLeft",
+                  "type": {
+                    "text": "number"
+                  }
+                }
+              ],
+              "description": "Poll rAF jusqu'a ce que l'instance Chart.js soit prête."
+            },
+            {
+              "kind": "method",
+              "name": "_applyColorMap",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "colorMap",
+                  "type": {
+                    "text": "Map<string, string>"
+                  }
+                }
+              ],
+              "description": "Applique les couleurs sur l'instance et la légende. False si pas prête."
+            },
+            {
+              "kind": "method",
+              "name": "_paintLegendDots",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "chartEl",
+                  "type": {
+                    "text": "HTMLElement"
+                  }
+                },
+                {
+                  "name": "colors",
+                  "type": {
+                    "text": "(string | undefined)[]"
+                  }
+                }
+              ],
+              "description": "Recolore les pastilles de légende rendues par DSFR Chart. Le composant Vue\nles pose en `span.legend_dot`, une par série (cartésiens) ou par part\n(camembert) : sans ce report, la légende annoncerait la couleur de la\npalette sous un graphique recoloré."
             },
             {
               "kind": "method",
@@ -1774,6 +1873,15 @@
               "default": "'categorical'",
               "description": "Palette de couleurs",
               "fieldName": "selectedPalette"
+            },
+            {
+              "name": "color-map",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Couleur fixée par modalité (#732) : paires `modalité:#couleur` séparées\npar des virgules, même grammaire que `dsfr-data-map-layer`. Ex :\n`\"Réalisé:#000091,Objectif:#E1000F\"`. La modalité est un nom de série\n(une couleur par courbe ou par barre) ou, à défaut, un libellé de l'axe\n(une couleur par part de camembert). Les modalités non citées gardent la\ncouleur de la palette. Une virgule ou un deux-points dans une modalité\ns'écrit `%2C` ou `%3A`. Sans effet sur les cartes (`map*`).",
+              "fieldName": "colorMap"
             },
             {
               "name": "unit-tooltip",
@@ -4689,6 +4797,69 @@
             {
               "kind": "method",
               "name": "_applyFilters"
+            },
+            {
+              "kind": "field",
+              "name": "_grammarWarned",
+              "privacy": "private",
+              "default": "new Set<string>()",
+              "description": "Grammaires déjà signalées, par attribut ET par valeur reçue (#731) :\n`_parseDisplayModes()` est rappelé à chaque rendu et pour chaque champ,\nl'avertissement ne doit sortir qu'une fois. Corriger l'attribut puis le\ncasser autrement redonne donc un avertissement, ce qui est le but."
+            },
+            {
+              "kind": "method",
+              "name": "_warnGrammar",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "attr",
+                  "type": {
+                    "text": "'display' | 'labels'"
+                  }
+                },
+                {
+                  "name": "raw",
+                  "type": {
+                    "text": "string"
+                  }
+                },
+                {
+                  "name": "message",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Avertissement UNIQUE sur une grammaire fausse de `display` ou `labels`\n(#731). Ces deux attributs séparent leurs entrées par une barre verticale\nlà où `split`, `round` et `fields` prennent la virgule : une entrée mal\nséparée ou un mode inconnu étaient jusqu'ici ignorés sans un mot, et\n`display=\"a:select, b:select\"` rendait zéro liste déroulante sur une page\nqui avait l'air juste."
+            },
+            {
+              "kind": "method",
+              "name": "_warnSeparatorIfSuspect",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "attr",
+                  "type": {
+                    "text": "'display' | 'labels'"
+                  }
+                },
+                {
+                  "name": "raw",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Entrées séparées par une virgule alors que l'attribut attend une barre\nverticale : une seule entrée est lue, le reste part au défaut.\n\n`labels` porte des libellés humains, où une virgule est parfaitement\nlégitime (« Département, région ») : on n'y voit un mauvais séparateur\nqu'à une virgule suivie d'une entrée `champ:` — un libellé qui se termine\npar une virgule ne déclenche rien. Dans `display`, dont les valeurs sont\nune liste fermée de modes, toute virgule est suspecte."
             },
             {
               "kind": "method",
@@ -7772,7 +7943,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Paires `valeur:#couleur` séparées par des virgules. Ex: `\"1:#00A95F,2:#FF9940,3:#E1000F\"`.",
+              "description": "Paires `valeur:#couleur` séparées par des virgules. Ex: `\"1:#00A95F,2:#FF9940,3:#E1000F\"`. Une virgule ou un deux-points dans une valeur s'écrit `%2C` ou `%3A`.",
               "attribute": "color-map"
             },
             {
@@ -8544,17 +8715,6 @@
                 }
               },
               "description": "Libère la clause du chemin dégradé poussée sur `source` (disconnect, changement de mode)"
-            },
-            {
-              "kind": "method",
-              "name": "_parseColorMap",
-              "privacy": "private",
-              "return": {
-                "type": {
-                  "text": "Map<string, string>"
-                }
-              },
-              "description": "Parse color-map=\"val1:#color1,val2:#color2\" into a Map"
             },
             {
               "kind": "method",
@@ -9369,7 +9529,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Paires `valeur:#couleur` séparées par des virgules. Ex: `\"1:#00A95F,2:#FF9940,3:#E1000F\"`.",
+              "description": "Paires `valeur:#couleur` séparées par des virgules. Ex: `\"1:#00A95F,2:#FF9940,3:#E1000F\"`. Une virgule ou un deux-points dans une valeur s'écrit `%2C` ou `%3A`.",
               "fieldName": "colorMap"
             },
             {
@@ -11392,7 +11552,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Remplacement de valeurs, sur tous les champs. Format : \"pattern:remplacement | pattern2:remplacement2\".\nLe pattern est comparé à la valeur entière (égalité stricte, pas de regex) ; un remplacement\nvide supprime la valeur. Un `:`, `|`, `,` ou `%` littéral dans le pattern ou le remplacement\ns'échappe en percent (`%3A`, `%7C`, `%2C`, `%25`), comme dans `where` (#676) :\n`replace=\"10%3A00:10h\"` récrit « 10:00 » en « 10h ». Pour un recodage plus riche\n(sous-chaîne, année d'une date ISO), utiliser `compute` avec `replace()` ou `year()`.",
+              "description": "Remplacement de valeurs, sur tous les champs. Format : \"pattern:remplacement | pattern2:remplacement2\".\nLe pattern est comparé à la valeur entière (égalité stricte, pas de regex) ; un remplacement\nvide supprime la valeur. Un `:`, `|`, `,` ou `%` littéral dans le pattern ou le remplacement\ns'échappe en percent (`%3A`, `%7C`, `%2C`, `%25`), comme dans `where` (#676) :\n`replace=\"10%3A00:10h\"` récrit « 10:00 » en « 10h ». La comparaison porte sur la forme\nchaîne de la valeur : une colonne numérique est concernée aussi (#730). Pour un recodage\nplus riche (sous-chaîne, année d'une date ISO), utiliser `compute` avec `replace()` ou `year()`.",
               "attribute": "replace"
             },
             {
@@ -11402,7 +11562,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Remplacement ciblé par champ. Format : \"CHAMP:pattern:remplacement | CHAMP2:p:r\".\nLes deux premiers `:` sont des délimiteurs, le remplacement peut contenir des `:` bruts.\nUn `:` littéral dans le nom du champ ou dans le pattern s'échappe en `%3A` (`%7C`, `%2C`\net `%25` sont aussi décodés), comme dans `where` (#676) : `replace-fields=\"h:10%3A00:10h\"`.\nPas de regex : pour un recodage plus riche, voir `compute` (`replace()`, `year()`).",
+              "description": "Remplacement ciblé par champ. Format : \"CHAMP:pattern:remplacement | CHAMP2:p:r\".\nLes deux premiers `:` sont des délimiteurs, le remplacement peut contenir des `:` bruts.\nUn `:` littéral dans le nom du champ ou dans le pattern s'échappe en `%3A` (`%7C`, `%2C`\net `%25` sont aussi décodés), comme dans `where` (#676) : `replace-fields=\"h:10%3A00:10h\"`.\nLa comparaison porte sur la forme chaîne de la valeur : une colonne numérique est concernée\naussi, `replace-fields=\"annee:2024:2024-2025\"` fonctionne (#730).\nPas de regex : pour un recodage plus riche, voir `compute` (`replace()`, `year()`).",
               "attribute": "replace-fields"
             },
             {
@@ -11983,7 +12143,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Remplacement de valeurs, sur tous les champs. Format : \"pattern:remplacement | pattern2:remplacement2\".\nLe pattern est comparé à la valeur entière (égalité stricte, pas de regex) ; un remplacement\nvide supprime la valeur. Un `:`, `|`, `,` ou `%` littéral dans le pattern ou le remplacement\ns'échappe en percent (`%3A`, `%7C`, `%2C`, `%25`), comme dans `where` (#676) :\n`replace=\"10%3A00:10h\"` récrit « 10:00 » en « 10h ». Pour un recodage plus riche\n(sous-chaîne, année d'une date ISO), utiliser `compute` avec `replace()` ou `year()`.",
+              "description": "Remplacement de valeurs, sur tous les champs. Format : \"pattern:remplacement | pattern2:remplacement2\".\nLe pattern est comparé à la valeur entière (égalité stricte, pas de regex) ; un remplacement\nvide supprime la valeur. Un `:`, `|`, `,` ou `%` littéral dans le pattern ou le remplacement\ns'échappe en percent (`%3A`, `%7C`, `%2C`, `%25`), comme dans `where` (#676) :\n`replace=\"10%3A00:10h\"` récrit « 10:00 » en « 10h ». La comparaison porte sur la forme\nchaîne de la valeur : une colonne numérique est concernée aussi (#730). Pour un recodage\nplus riche (sous-chaîne, année d'une date ISO), utiliser `compute` avec `replace()` ou `year()`.",
               "fieldName": "replace"
             },
             {
@@ -11992,7 +12152,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Remplacement ciblé par champ. Format : \"CHAMP:pattern:remplacement | CHAMP2:p:r\".\nLes deux premiers `:` sont des délimiteurs, le remplacement peut contenir des `:` bruts.\nUn `:` littéral dans le nom du champ ou dans le pattern s'échappe en `%3A` (`%7C`, `%2C`\net `%25` sont aussi décodés), comme dans `where` (#676) : `replace-fields=\"h:10%3A00:10h\"`.\nPas de regex : pour un recodage plus riche, voir `compute` (`replace()`, `year()`).",
+              "description": "Remplacement ciblé par champ. Format : \"CHAMP:pattern:remplacement | CHAMP2:p:r\".\nLes deux premiers `:` sont des délimiteurs, le remplacement peut contenir des `:` bruts.\nUn `:` littéral dans le nom du champ ou dans le pattern s'échappe en `%3A` (`%7C`, `%2C`\net `%25` sont aussi décodés), comme dans `where` (#676) : `replace-fields=\"h:10%3A00:10h\"`.\nLa comparaison porte sur la forme chaîne de la valeur : une colonne numérique est concernée\naussi, `replace-fields=\"annee:2024:2024-2025\"` fonctionne (#730).\nPas de regex : pour un recodage plus riche, voir `compute` (`replace()`, `year()`).",
               "fieldName": "replaceFields"
             },
             {
@@ -13864,8 +14024,15 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Affiche un compteur de résultats sous le champ (compte serveur `meta.total`\nen `server-search`). Ce compteur reste visible en toutes circonstances ;\nseule sa nature de région live dépend de la chaîne aval (#654).",
+              "description": "Affiche un compteur de résultats sous le champ (compte serveur `meta.total`\nen `server-search`), séparateur de milliers français (#728). Ce compteur\nreste visible dès qu'une donnée a circulé ; seule sa nature de région live\ndépend de la chaîne aval (#654). Tant que l'amont attend un filtre\n(`require-where`), il cède la place au message d'attente : annoncer\n« 0 résultats » avant toute requête laisserait croire à une page vide.",
               "attribute": "count"
+            },
+            {
+              "kind": "field",
+              "name": "idleMessage",
+              "default": "IDLE_MESSAGE_DEFAULT",
+              "description": "Message rendu quand l'amont attend un filtre (`require-where`, #690).\nDistinct de « aucune donnée » : aucune requête n'a été faite. Vide,\nle libellé par défaut est utilisé.",
+              "attribute": "idle-message"
             },
             {
               "kind": "field",
@@ -14537,8 +14704,14 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Affiche un compteur de résultats sous le champ (compte serveur `meta.total`\nen `server-search`). Ce compteur reste visible en toutes circonstances ;\nseule sa nature de région live dépend de la chaîne aval (#654).",
+              "description": "Affiche un compteur de résultats sous le champ (compte serveur `meta.total`\nen `server-search`), séparateur de milliers français (#728). Ce compteur\nreste visible dès qu'une donnée a circulé ; seule sa nature de région live\ndépend de la chaîne aval (#654). Tant que l'amont attend un filtre\n(`require-where`), il cède la place au message d'attente : annoncer\n« 0 résultats » avant toute requête laisserait croire à une page vide.",
               "fieldName": "count"
+            },
+            {
+              "name": "idle-message",
+              "default": "IDLE_MESSAGE_DEFAULT",
+              "description": "Message rendu quand l'amont attend un filtre (`require-where`, #690).\nDistinct de « aucune donnée » : aucune requête n'a été faite. Vide,\nle libellé par défaut est utilisé.",
+              "fieldName": "idleMessage"
             },
             {
               "name": "url-search-param",
@@ -14665,7 +14838,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Paramètres de requête en JSON : query string en GET, corps en POST.",
+              "description": "Paramètres de requête en JSON. Mode URL : query string en GET, corps de la\nrequête en POST. **Mode adaptateur** (#726) : les paires sont ajoutées à\nl'URL construite par l'adaptateur, ce qui sert les paramètres propres au\nportail que la bibliothèque ne modélise pas — le cas d'usage est\n`params='{\"timezone\":\"Europe/Paris\"}'` sur un jeu Opendatasoft à\ndates, qui n'obligeait jusqu'ici à rester en mode URL. Les clés que la\nbibliothèque construit elle-même (`select`, `where`, `group_by`,\n`order_by`, `limit`, `offset`, `facet`) sont réservées : elles sont\nrefusées avec une erreur de configuration plutôt que d'écraser une clause.\nTransmis par l'adaptateur Opendatasoft seulement, en chargement paginé\ncomme en `fetch-mode=\"export\"`.",
               "attribute": "params"
             },
             {
@@ -15241,6 +15414,17 @@
             },
             {
               "kind": "method",
+              "name": "_parseExtraParams",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "{ extra?: Record<string, string>; error?: string }"
+                }
+              },
+              "description": "Lit l'attribut `params` pour le mode adaptateur (#726) : rend les paires\ntransmissibles telles quelles a l'adaptateur, et le message a signaler\nquand la configuration est fautive (JSON invalide, cle reservee). Pur :\n`getAdapterParams()` n'en prend que la valeur, `_fetchViaAdapter()` en\nsignale l'erreur — un `reportConfigError` pose ici serait efface par le\n`clearConfigError` du chemin de chargement."
+            },
+            {
+              "kind": "method",
               "name": "_resolveApiKeyHeaders",
               "privacy": "private",
               "return": {
@@ -15370,7 +15554,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Paramètres de requête en JSON : query string en GET, corps en POST.",
+              "description": "Paramètres de requête en JSON. Mode URL : query string en GET, corps de la\nrequête en POST. **Mode adaptateur** (#726) : les paires sont ajoutées à\nl'URL construite par l'adaptateur, ce qui sert les paramètres propres au\nportail que la bibliothèque ne modélise pas — le cas d'usage est\n`params='{\"timezone\":\"Europe/Paris\"}'` sur un jeu Opendatasoft à\ndates, qui n'obligeait jusqu'ici à rester en mode URL. Les clés que la\nbibliothèque construit elle-même (`select`, `where`, `group_by`,\n`order_by`, `limit`, `offset`, `facet`) sont réservées : elles sont\nrefusées avec une erreur de configuration plutôt que d'écraser une clause.\nTransmis par l'adaptateur Opendatasoft seulement, en chargement paginé\ncomme en `fetch-mode=\"export\"`.",
               "fieldName": "params"
             },
             {

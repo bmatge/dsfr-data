@@ -54,11 +54,12 @@ Guide pour choisir le type de visualisation adapte aux données.
 
 ### Carte regions (map-reg)
 - **Quand** : données geographiques par region francaise
-- **Champs** : code-field (code region), value-field
+- **Champs** : code-field (code INSEE 11/84/94, cle DSFR Chart IDF/20R/971 ou nom de region), value-field
 
 ### Carte academies (map-aca)
 - **Quand** : données education par academie
-- **Champs** : code-field (nom d'academie en majuscules : PARIS, LYON, STRASBOURG...), value-field
+- **Champs** : code-field (nom d'academie, accentue ou non, avec ou sans « Academie de » : « Academie de Besancon », BESANCON, Orleans-Tours), value-field
+- **Hors decoupage DSFR Chart** : Polynesie, Wallis-et-Futuna, Saint-Pierre-et-Miquelon, AEFE — lignes comptees comme ignorees
 
 ### Carte mondiale (map-monde)
 - **Quand** : données internationales par pays
