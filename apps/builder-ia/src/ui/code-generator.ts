@@ -4,6 +4,7 @@
 
 import {
   escapeHtml,
+  escapeColonValue,
   appendQuery,
   jsonAttr,
   jsonLiteral,
@@ -39,18 +40,30 @@ const CHARTJS_STANDALONE_URL = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist
  * => "sum(montant) as montant__sum, dept"
  * This outputs the native ODS select param so the component doesn't need
  * to do aggregate-to-select conversion (works with any UMD version).
+ *
+ * `extraValueFields` ajoute une colonne agregee par serie supplementaire
+ * (#624) : le composant ne peut porter que ce que la requete a ramene.
  */
 function buildOdsSelect(
   aggregation: string,
   valueField: string,
-  groupByField: string
-): { selectExpr: string; resultField: string } {
+  groupByField: string,
+  extraValueFields: string[] = []
+): { selectExpr: string; resultField: string; extraResultFields: string[] } {
   const func = aggregation || 'sum';
   const odsFunc = func === 'count' ? 'count(*)' : `${func}(${valueField})`;
   const alias = func === 'count' ? 'count__count' : `${valueField}__${func}`;
+  // `count(*)` ne depend d'aucun champ de valeur : les series supplementaires
+  // seraient le MEME decompte, sous le meme alias. Rien a emettre.
+  const extras = func === 'count' ? [] : extraValueFields;
   return {
-    selectExpr: `${odsFunc} as ${alias}, ${groupByField}`,
+    selectExpr: [
+      `${odsFunc} as ${alias}`,
+      ...extras.map((f) => `${func}(${f}) as ${f}__${func}`),
+      groupByField,
+    ].join(', '),
     resultField: alias,
+    extraResultFields: extras.map((f) => `${f}__${func}`),
   };
 }
 
@@ -713,21 +726,105 @@ function generateDatalistCode(config: ChartConfig): string {
 // Standard chart types (bar, line, pie, doughnut, radar, horizontalBar)
 // ---------------------------------------------------------------------------
 
+/** Types de graphique qui savent aligner plusieurs series sur un meme axe. */
+const MULTI_SERIES_TYPES = ['bar', 'line', 'radar', 'horizontalBar', 'bar-line'];
+
+/**
+ * Series supplementaires demandees par la config : `valueFields` prive de la
+ * serie primaire, des entrees vides et des doublons. Vide des que le type ne
+ * sait pas afficher plusieurs series.
+ */
+function extraSeriesFields(config: ChartConfig): string[] {
+  if (!MULTI_SERIES_TYPES.includes(config.type)) return [];
+  const vus = new Set<string>([config.valueField]);
+  const extras: string[] = [];
+  for (const champ of config.valueFields ?? []) {
+    if (!champ || vus.has(champ)) continue;
+    vus.add(champ);
+    extras.push(champ);
+  }
+  return extras;
+}
+
+/**
+ * Variante « composant » applicable a la source courante, s'il y en a une :
+ * ODS et Tabular paginees passent par `dsfr-data-query` + `dsfr-data-chart`.
+ * Les deux autres variantes ecrivent du Chart.js a la main.
+ */
+function componentChartTarget():
+  | { kind: 'ods'; baseUrl: string; datasetId: string }
+  | { kind: 'tabular'; baseUrl: string; resourceId: string }
+  | null {
+  if (!(state.source?.type === 'api' && state.source?.apiUrl && needsPagination())) return null;
+  const provider = detectProvider(state.source.apiUrl);
+  const resourceIds = extractResourceIds(state.source.apiUrl, provider);
+  const apiBaseUrl = new URL(state.source.apiUrl).origin;
+  if (provider.id === 'opendatasoft' && resourceIds?.datasetId) {
+    return { kind: 'ods', baseUrl: apiBaseUrl, datasetId: resourceIds.datasetId };
+  }
+  if (provider.id === 'tabular' && resourceIds?.resourceId) {
+    return { kind: 'tabular', baseUrl: apiBaseUrl, resourceId: resourceIds.resourceId };
+  }
+  return null;
+}
+
+/**
+ * Series supplementaires que le code genere NE portera PAS, pour la source
+ * courante (#624).
+ *
+ * Les variantes a composant (ODS, Tabular paginees) les emettent desormais via
+ * `value-fields`. Les deux variantes qui ecrivent du Chart.js a la main (API
+ * generique, donnees embarquees) restent mono-serie : une boucle `datasets`
+ * mal formee y casserait TOUS les graphiques generes, pas seulement le
+ * multi-series. On le dit a l'utilisateur plutot que de le lui cacher.
+ *
+ * Un `count` fait exception meme sur les variantes a composant : le decompte
+ * ne depend pas du champ de valeur, les series supplementaires seraient le
+ * meme nombre repete.
+ */
+export function seriesPerduesALaGeneration(config: ChartConfig): string[] {
+  const extras = extraSeriesFields(config);
+  if (extras.length === 0) return [];
+  const cible = componentChartTarget();
+  return cible && (config.aggregation || 'sum') !== 'count' ? [] : extras;
+}
+
+/**
+ * Attributs de series de `<dsfr-data-chart>` pour les variantes a composant.
+ *
+ * Les champs designes sont les colonnes AGREGEES (`population__sum`) : on leur
+ * accole l'alias inline `champ:Libelle` (#668) pour que la legende porte le nom
+ * de colonne d'origine et non l'alias technique. En multi-series, `name` est
+ * omis — une chaine simple ne nommerait que la premiere serie, et le composant
+ * derive les noms des alias.
+ */
+function seriesAttrs(
+  config: ChartConfig,
+  resultField: string,
+  extras: { field: string; resultField: string }[]
+): string {
+  if (extras.length === 0) {
+    return `value-field="${escapeHtml(resultField)}"
+    name="${escapeHtml(config.title || 'Mon graphique')}"`;
+  }
+  const alias = (resultat: string, champ: string) =>
+    `${escapeColonValue(resultat)}:${escapeColonValue(champ)}`;
+  const supplementaires = extras.map((e) => alias(e.resultField, e.field)).join(', ');
+  return `value-field="${escapeHtml(alias(resultField, config.valueField))}"
+    value-fields="${escapeHtml(supplementaires)}"`;
+}
+
 function generateStandardChartCode(config: ChartConfig, data: AggregatedResult[]): string {
   const isMultiColor = ['pie', 'doughnut', 'radar'].includes(config.type);
   const colorsArray = JSON.stringify(DSFR_COLORS.slice(0, data.length || 10));
 
   // ODS/Tabular with pagination needed: use dsfr-data-query + dsfr-data-chart
-  if (state.source?.type === 'api' && state.source?.apiUrl && needsPagination()) {
-    const provider = detectProvider(state.source.apiUrl);
-    const resourceIds = extractResourceIds(state.source.apiUrl, provider);
-    const apiBaseUrl = new URL(state.source.apiUrl).origin;
-    if (provider.id === 'opendatasoft' && resourceIds?.datasetId) {
-      return generateStandardChartCodeODS(config, apiBaseUrl, resourceIds.datasetId);
-    }
-    if (provider.id === 'tabular' && resourceIds?.resourceId) {
-      return generateStandardChartCodeTabular(config, apiBaseUrl, resourceIds.resourceId);
-    }
+  const cible = componentChartTarget();
+  if (cible?.kind === 'ods') {
+    return generateStandardChartCodeODS(config, cible.baseUrl, cible.datasetId);
+  }
+  if (cible?.kind === 'tabular') {
+    return generateStandardChartCodeTabular(config, cible.baseUrl, cible.resourceId);
   }
 
   // API-dynamic variant (single-page fetch)
@@ -744,10 +841,12 @@ function generateStandardChartCodeODS(
   baseUrl: string,
   datasetId: string
 ): string {
-  const { selectExpr, resultField } = buildOdsSelect(
+  const extras = extraSeriesFields(config);
+  const { selectExpr, resultField, extraResultFields } = buildOdsSelect(
     config.aggregation || 'sum',
     config.valueField,
-    config.labelField!
+    config.labelField!,
+    extras
   );
   const whereAttr = config.where ? `\n    where="${escapeHtml(filterToOdsql(config.where))}"` : '';
   const orderAttr =
@@ -757,6 +856,11 @@ function generateStandardChartCodeODS(
   const chartType =
     config.type === 'horizontalBar' ? 'bar' : config.type === 'bar-line' ? 'bar' : config.type;
   const horizontalAttr = config.type === 'horizontalBar' ? '\n    horizontal' : '';
+  const series = seriesAttrs(
+    config,
+    resultField,
+    extraResultFields.map((champAgrege, i) => ({ field: extras[i], resultField: champAgrege }))
+  );
 
   return `<!-- Graphique généré avec dsfr-data Builder IA -->
 <!-- Source API dynamique avec pagination automatique -->
@@ -789,8 +893,7 @@ function generateStandardChartCodeODS(
     source="chart-data"
     type="${escapeHtml(chartType)}"
     label-field="${escapeHtml(config.labelField)}"
-    value-field="${escapeHtml(resultField)}"
-    name="${escapeHtml(config.title || 'Mon graphique')}"${horizontalAttr}
+    ${series}${horizontalAttr}
     selected-palette="${escapeHtml(config.palette || 'categorical')}">
   </dsfr-data-chart>
 </div>`;
@@ -801,14 +904,20 @@ function generateStandardChartCodeTabular(
   baseUrl: string,
   resourceId: string
 ): string {
-  const aggregateExpr =
+  const agregation = config.aggregation || 'sum';
+  // `count` compte des lignes, pas un champ : les series supplementaires
+  // seraient le meme decompte repete (#624).
+  const extras = agregation === 'count' ? [] : extraSeriesFields(config);
+  const aggregateExpr = [
     config.aggregation === 'count'
       ? `${config.labelField}:count`
-      : `${config.valueField}:${config.aggregation || 'sum'}`;
+      : `${config.valueField}:${agregation}`,
+    ...extras.map((champ) => `${champ}:${agregation}`),
+  ].join(', ');
   const resultField =
     config.aggregation === 'count'
       ? `${config.labelField}__count`
-      : `${config.valueField}__${config.aggregation || 'sum'}`;
+      : `${config.valueField}__${agregation}`;
   const filterAttr = config.where ? `\n    filter="${escapeHtml(config.where)}"` : '';
   const orderAttr =
     config.sortOrder && config.labelField
@@ -817,6 +926,11 @@ function generateStandardChartCodeTabular(
   const chartType =
     config.type === 'horizontalBar' ? 'bar' : config.type === 'bar-line' ? 'bar' : config.type;
   const horizontalAttr = config.type === 'horizontalBar' ? '\n    horizontal' : '';
+  const series = seriesAttrs(
+    config,
+    resultField,
+    extras.map((champ) => ({ field: champ, resultField: `${champ}__${agregation}` }))
+  );
 
   return `<!-- Graphique généré avec dsfr-data Builder IA -->
 <!-- Source API Tabular avec pagination automatique -->
@@ -849,8 +963,7 @@ function generateStandardChartCodeTabular(
     source="chart-data"
     type="${escapeHtml(chartType)}"
     label-field="${escapeHtml(config.labelField)}"
-    value-field="${escapeHtml(resultField)}"
-    name="${escapeHtml(config.title || 'Mon graphique')}"${horizontalAttr}
+    ${series}${horizontalAttr}
     selected-palette="${escapeHtml(config.palette || 'categorical')}">
   </dsfr-data-chart>
 </div>`;
