@@ -3,6 +3,10 @@
  *
  * Orchestre ses couches enfantes (dsfr-data-map-layer), gere le viewport
  * et expose des controles utilisateur. Ne consomme pas de données directement.
+ *
+ * Fond de carte : `tiles` choisit le preset, `tiles-style` l'atténue (`muted`,
+ * `grey`) pour une carte thématique — un fond neutre, c'est `ign-plan` atténué
+ * (#686).
  */
 import { LitElement, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
@@ -282,6 +286,10 @@ export class DsfrDataMap extends LitElement {
   @property({ type: String, attribute: 'tiles-attribution' })
   tilesAttribution = '';
 
+  /** Atténuation du fond de carte pour les cartes thématiques : `muted` (gris + 55 % d'opacité), `grey` (niveaux de gris). Vide (défaut) : fond tel quel. Filtre CSS sur le volet des tuiles de cette carte seulement ; les encarts héritent du réglage. Un fond « neutre » = `ign-plan` + `tiles-style="muted"` (#686). */
+  @property({ type: String, attribute: 'tiles-style' })
+  tilesStyle: '' | 'muted' | 'grey' = '';
+
   /** Restreint `tiles` aux presets IGN souverains : tout autre preset ou URL custom est refuse (console.warn) et remplace par `ign-plan`. */
   @property({ type: Boolean, attribute: 'sovereign-only' })
   sovereignOnly = false;
@@ -419,6 +427,18 @@ export class DsfrDataMap extends LitElement {
 
   updated(changedProperties: Map<string, unknown>) {
     super.updated(changedProperties);
+
+    // tiles-style est applique par un selecteur d'attribut de la feuille
+    // injectee (#686) : une valeur posee en propriete doit se voir dans le
+    // DOM. Pas de `reflect` Lit, qui poserait un attribut vide sur chaque
+    // carte (encarts compris) des le premier rendu.
+    if (
+      changedProperties.has('tilesStyle') &&
+      this.getAttribute('tiles-style') !== this.tilesStyle
+    ) {
+      if (this.tilesStyle) this.setAttribute('tiles-style', this.tilesStyle);
+      else this.removeAttribute('tiles-style');
+    }
 
     if (this._leafletMap) {
       if (changedProperties.has('tiles') || changedProperties.has('sovereignOnly')) {
@@ -795,6 +815,16 @@ export class DsfrDataMap extends LitElement {
       .dsfr-data-map__container {
         z-index: 0;
         overflow: hidden;
+      }
+      /* Fond attenue pour les cartes thematiques (#686) : filtre sur le volet
+         des tuiles de CETTE carte (combinateur enfant : les encarts, cartes
+         imbriquees, ne l'heritent que par leur propre attribut, recopie par
+         dsfr-data-map-inset). Les couches de donnees restent intactes. */
+      dsfr-data-map[tiles-style="muted"] > .dsfr-data-map__container .leaflet-tile-pane {
+        filter: grayscale(1) opacity(0.55);
+      }
+      dsfr-data-map[tiles-style="grey"] > .dsfr-data-map__container .leaflet-tile-pane {
+        filter: grayscale(1);
       }
       /* Fix DSFR vs Leaflet conflicts — DSFR styles all [href] with underlines, background-image and ::before/::after */
       .dsfr-data-map__container a,
