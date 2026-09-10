@@ -3256,6 +3256,7 @@ La valeur vide RETIRE le filtre. Les valeurs sont percent-encodees (#271).
 | label | String | \`""\` | non | Libelle naturel pour l'affichage (tags #232) — defaut : field |
 | default | String | \`""\` | non | Valeur initiale (#682), appliquee APRES l'URL (l'URL gagne) : \`today\`, \`first-of-month\`, \`first-of-year\` (resolus dans le fuseau local, adaptes au controle) ou un litteral ; pour between/in, valeurs separees par une virgule |
 | context | String | \`""\` | non | Id du dsfr-data-context cible (#678) — permet de placer le filtre hors du contexte, meme declare avant lui. Vide = contexte parent le plus proche |
+| year-start-month | Number | \`1\` | non | Mois de debut de l'annee pour \`year-of\` et \`current-year\` (#735) : 1 = annee civile, 9 = annee scolaire, 4 = exercice comptable britannique, 10 = saison. La clause reste une plage \`gte\` + \`lt\` : elle se delegue au serveur, aucun adaptateur n'est concerne. Le tag affiche « 2024-2025 ». Sans effet sur les autres opérateurs (console.warn) |
 
 ### Operateurs
 
@@ -3274,6 +3275,26 @@ La valeur vide RETIRE le filtre. Les valeurs sont percent-encodees (#271).
   ("2026-09-09" -> annee 2026 / mois 2026-09) : un input type=date peut nourrir les deux (il n'existe
   pas de type=year). Une valeur qui reste inexploitable retire le filtre et l'annonce par un
   console.warn (une fois par filtre).
+- Annee non civile (#735) : \`year-start-month="9"\` sur \`year-of\` ou \`current-year\` donne une
+  plage septembre -> aout (annee scolaire) ; \`4\` l'exercice comptable, \`10\` une saison. Le
+  desucrage reste \`gte\` + \`lt\`, donc la plage se DELEGUE au serveur comme n'importe quelle
+  autre — c'est la difference avec la voie client. Une annee nue ("2024") nomme l'annee qui
+  COMMENCE en 2024 ; une date ("2025-03-10") designe l'annee qui la CONTIENT. Tag « 2024-2025 ».
+
+\`\`\`html
+<dsfr-data-context-filter field="date_rentree" label="Année scolaire" operator="year-of"
+  year-start-month="9" ui="ui-annee"></dsfr-data-context-filter>
+\`\`\`
+
+  Cote CLIENT seul, une colonne d'annee scolaire se derive aussi sans nouvel attribut, avec
+  \`compute\` sur dsfr-data-normalize (#671) — pratique pour un \`group-by\`, mais le
+  transformateur est client : sur un gros jeu il faut tout rapatrier.
+
+\`\`\`html
+<dsfr-data-normalize source="src"
+  compute="annee_scolaire = when month(d) >= 9 then concat(year(d),'-',year(d)+1) else concat(year(d)-1,'-',year(d))">
+</dsfr-data-normalize>
+\`\`\`
 ` + reference('dsfr-data-context-filter'),
   },
 

@@ -1002,6 +1002,48 @@ la valeur courante d'un ou plusieurs filtres du contexte, comme du texte :
 
 ---
 
+### Annee scolaire, exercice comptable, saison : `year-start-month`
+
+Tous les operateurs de date raisonnent en annee civile ; `year-of` coupait l'annee scolaire
+en son milieu, en silence. `year-start-month` dit ou commence l'annee :
+
+```html
+<label for="ui-annee">Année scolaire</label>
+<input id="ui-annee" type="number" min="2015" max="2030" step="1" value="2024">
+
+<dsfr-data-context id="ctx" sources="src">
+  <dsfr-data-context-filter field="date_rentree" label="Année scolaire" operator="year-of"
+    year-start-month="9" ui="ui-annee"></dsfr-data-context-filter>
+</dsfr-data-context>
+```
+
+- `year-start-month="9"` filtre `[2024-09-01, 2025-09-01)` pour la valeur « 2024 ». `4` donne
+  l'exercice comptable britannique, `7` l'exercice australien, `10` une saison sportive.
+  `1` (defaut) laisse l'annee civile strictement inchangee.
+- L'attribut vaut aussi pour `current-year` : en juin 2026 avec `year-start-month="9"`,
+  l'annee en cours est 2025-2026.
+- **Une annee nue** (« 2024 ») nomme l'annee qui **commence** en 2024 ; **une date**
+  (« 2025-03-10 ») designe l'annee qui la **contient**. Les deux regles coincident quand
+  l'annee commence en janvier, ce qui permet de nourrir l'operateur d'un `<input type="date">`.
+- Le tag affiche « 2024-2025 », pas « 2024 » : ce qui est filtre est ce qui est ecrit.
+- **Le desucrage reste `gte` + `lt`** : la plage se delegue au serveur comme n'importe quelle
+  autre. Aucun adaptateur, aucun dialecte n'est concerne.
+
+**La voie client, disponible depuis la 0.24** : une colonne d'annee scolaire se derive avec
+`compute` sur `dsfr-data-normalize`, ce qui donne en prime un `group-by` et un libelle
+« 2024-2025 » gratuits :
+
+```html
+<dsfr-data-normalize id="clean" source="src"
+  compute="annee_scolaire = when month(d) >= 9 then concat(year(d),'-',year(d)+1) else concat(year(d)-1,'-',year(d))">
+</dsfr-data-normalize>
+```
+
+`compute` est un transformateur **client** : il ne se delegue pas. Sur un jeu hebdomadaire
+depuis 2019, il faut tout rapatrier — c'est exactement ce que `year-start-month` evite.
+
+---
+
 ## Ressources
 
 - **Code source** : [github.com/bmatge/dsfr-data](https://github.com/bmatge/dsfr-data)
