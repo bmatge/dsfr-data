@@ -72,6 +72,10 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
    * (0,35) ; `format="pourcentage"` la rend en pourcentage (35 %) — les
    * seuils s'expriment alors en pourcentage aussi. Division par zéro : « — ».
    * `count:champ:valeur` accepte un champ tableau (un élément égal suffit).
+   * `champ:evolution` (#675) : (dernière − première) / première sur les
+   * lignes DANS LEUR ORDRE COURANT — poser un `order-by` chronologique en
+   * amont. Fraction, rendue en pourcentage par `format="pourcentage"`,
+   * `trend` et `lines` ; « — » si moins de deux valeurs ou première = 0.
    */
   @property({ type: String })
   value = '';
@@ -152,6 +156,8 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
    * litteral : l'ancienne doc ("+3.2") laissait croire qu'on passait une
    * valeur, la chaine etait interpretee comme nom de champ (#303).
    * Rendue avec une fleche (↑/↓) en pourcentage fr-FR ("↑ 5,2 %").
+   * `trend="recettes:evolution"` (#675) : taux d'évolution entre la première
+   * et la dernière ligne, rendu en pourcentage.
    */
   @property({ type: String })
   trend = '';

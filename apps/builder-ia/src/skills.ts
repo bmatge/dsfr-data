@@ -1000,7 +1000,7 @@ Attend un tableau d'objets. L'attribut \`valeur\` determine comment extraire/agr
 | col | Number | - | non | Largeur en colonnes DSFR (1-12), actif uniquement dans un \`<dsfr-data-kpi-group>\` |
 
 Fonctions acceptées dans \`value\`, \`trend\` et \`lines\` : avg, sum, count, min, max, first, last,
-distinct (alias \`count-distinct\`).
+distinct (alias \`count-distinct\`), evolution.
 Toute autre fonction (ex. \`"x:somme"\`) affiche une erreur de configuration à la place du KPI
 (console + \`data-dsfr-config-error\`) — jamais une valeur vide.
 
@@ -1011,6 +1011,20 @@ tronquées (limit, page, max-records), un warn console signale le chiffre partie
 Dates : \`min\`/\`max\` acceptent une colonne de dates ISO (\`AAAA-MM-JJ\` ou datetime) et renvoient
 la date la plus ancienne/récente ; \`first\`/\`last\` renvoient la chaîne brute. Avec \`format="date"\`,
 la valeur est rendue JJ/MM/AAAA : \`value="maj:max" format="date"\` -> « 09/09/2026 ».
+
+### Taux d'évolution N / N-1 : \`champ:evolution\`
+\`value="recettes:evolution" format="pourcentage"\` = (dernière − première) / première, calculé sur
+les lignes **dans leur ordre courant** : poser un \`order-by\` chronologique sur la query ou la
+source amont (\`order-by="annee:asc"\`), sinon le sens du taux dépend de l'ordre de livraison.
+Fraction (0,25) rendue en pourcentage (« 25 % ») par \`format="pourcentage"\`, par \`trend\`
+(« ↑ 25 % ») et par \`lines\` (format pourcentage par défaut). « — » si moins de deux valeurs
+numériques ou si la première vaut 0. Réservé au KPI (pas sur \`aggregate\` de dsfr-data-query).
+\`\`\`html
+<dsfr-data-query id="chrono" source="budget" order-by="annee:asc"></dsfr-data-query>
+<dsfr-data-kpi source="chrono" value="recettes:last" format="euro" trend="recettes:evolution" label="Recettes"></dsfr-data-kpi>
+\`\`\`
+Différence entre deux **séries** (par ligne) : ce n'est pas un agrégat — passer par un pivot
+long → large (\`dsfr-data-pivot\`) puis \`compute\`.
 
 ### Part, taux, ratio : \`value="expr / expr"\`
 Deux expressions séparées par \` / \` (barre oblique ENTOURÉE d'espaces), chacune dans la
@@ -1085,6 +1099,8 @@ Utiliser \`<dsfr-data-kpi-group>\` pour disposer plusieurs KPIs en grille respon
 | \`"min:champ"\` | Minimum | \`valeur="min:prix"\` |
 | \`"max:champ"\` | Maximum | \`valeur="max:prix"\` |
 | \`"champ:distinct"\` | Nombre de valeurs distinctes | \`value="commune:distinct"\` |
+| \`"champ:evolution"\` | (dernière − première) / première, source ordonnée | \`value="recettes:evolution" format="pourcentage"\` |
+| \`"expr / expr"\` | Ratio de deux expressions | \`value="count:statut:ouvert / count" format="pourcentage"\` |
 | \`"count:champ:valeur"\` | Nombre d'items ou champ = valeur | \`valeur="count:status:active"\` |
 
 ### Exemples

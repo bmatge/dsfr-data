@@ -7,7 +7,7 @@ import { getByPath } from './json-path.js';
  */
 
 export type AggregationType =
-  'avg' | 'sum' | 'count' | 'min' | 'max' | 'first' | 'last' | 'distinct';
+  'avg' | 'sum' | 'count' | 'min' | 'max' | 'first' | 'last' | 'distinct' | 'evolution';
 
 /**
  * Alias acceptés en entrée et ramenés à leur fonction canonique AVANT tout
@@ -67,9 +67,25 @@ export const KPI_AGGREGATION_TYPES: readonly AggregationType[] = [
   'first',
   'last',
   'distinct',
+  'evolution',
 ];
 
 const AGG_TYPES: ReadonlySet<string> = new Set(KPI_AGGREGATION_TYPES);
+
+/**
+ * Fonctions lisibles dans l'ancienne grammaire inversée "fn:champ" (#303) :
+ * celles qui existaient à sa dépréciation. `distinct` (#672) et `evolution`
+ * (#675) ne s'écrivent qu'en grammaire commune "champ:fn".
+ */
+const LEGACY_AGG_TYPES: ReadonlySet<string> = new Set([
+  'avg',
+  'sum',
+  'count',
+  'min',
+  'max',
+  'first',
+  'last',
+]);
 
 let legacyGrammarWarned = false;
 
@@ -88,6 +104,7 @@ let legacyGrammarWarned = false;
  * - "count"            -> compte tous les enregistrements
  * - "count:field:value"-> compte les occurrences où field == value (lâche)
  * - "field:distinct"   -> nombre de valeurs distinctes (alias "count-distinct", #672)
+ * - "field:evolution"  -> (dernière − première) / première, dans l'ordre courant (#675)
  * - "meta:total"       -> total publié par l'amont (#659), via le contexte
  * - "<expr> / <expr>"  -> ratio de deux expressions ci-dessus (#673)
  *
@@ -135,14 +152,19 @@ export function parseExpression(expression: string): ParsedExpression {
   }
 
   // Grammaire commune "field:fn" : parts[1] est une fonction connue et
-  // parts[0] n'en est pas une (un champ nommé 'sum' reste l'ancienne lecture)
-  if (parts.length === 2 && AGG_TYPES.has(parts[1]) && !AGG_TYPES.has(parts[0])) {
+  // parts[0] n'est pas une fonction de l'ancienne grammaire (un champ nommé
+  // 'count' — colonne d'un group-by — garde la lecture historique `sum:count`).
+  // Les fonctions ajoutées après la dépréciation (`distinct`, `evolution`)
+  // n'ont JAMAIS eu de forme inversée : `evolution:avg` est la moyenne de la
+  // colonne "evolution" (exemple documenté partout), pas l'évolution d'une
+  // colonne "avg" (#675).
+  if (parts.length === 2 && AGG_TYPES.has(parts[1]) && !LEGACY_AGG_TYPES.has(parts[0])) {
     return { type: parts[1] as AggregationType, field: parts[0] };
   }
 
   // Ni grammaire commune ("champ:fn") ni grammaire historique ("fn:champ",
   // "count:champ:valeur") : la fonction reçue est inconnue (#649).
-  if (!AGG_TYPES.has(parts[0])) {
+  if (!LEGACY_AGG_TYPES.has(parts[0])) {
     const received = parts.length === 2 ? parts[1] : parts[0];
     return {
       type: 'invalid',
@@ -181,13 +203,14 @@ export function parseExpression(expression: string): ParsedExpression {
 }
 
 /**
- * Une expression est-elle un TAUX (#673) — ratio, dont le résultat est une
- * fraction (0,35) que `format="pourcentage"`, `trend` et les `lines` rendent
- * en pourcentage (35 %) ? Les autres expressions renvoient une valeur dans
- * l'unité de la colonne.
+ * Une expression est-elle un TAUX — ratio (#673) ou `evolution` (#675) —
+ * dont le résultat est une fraction (0,35) que `format="pourcentage"`,
+ * `trend` et les `lines` rendent en pourcentage (35 %) ? Les autres
+ * expressions renvoient une valeur dans l'unité de la colonne.
  */
 export function isRateExpression(expression: string): boolean {
-  return parseExpression(expression).type === 'ratio';
+  const type = parseExpression(expression).type;
+  return type === 'ratio' || type === 'evolution';
 }
 
 /**
@@ -280,6 +303,19 @@ function evaluateParsed(
 
     case 'distinct':
       return countDistinct(items, parsed.field);
+
+    case 'evolution': {
+      // (dernière − première) / première (#675) sur les valeurs numériques
+      // renseignées, DANS L'ORDRE COURANT de la source : c'est à l'amont
+      // (order-by d'une query, tri de la source) de garantir l'ordre
+      // chronologique. Moins de deux valeurs ou première = 0 -> null.
+      const values = collectNumericValues(items, parsed.field);
+      if (values.length < 2) return null;
+      const first = values[0];
+      const last = values[values.length - 1];
+      if (first === 0) return null;
+      return (last - first) / first;
+    }
 
     case 'avg': {
       // Moyenne sur les seules valeurs numeriques — diviser par

@@ -232,11 +232,12 @@ describe('#672 — traduction par adaptateur', () => {
 
   describe('Tabular : délégation refusée', () => {
     let adapter: TabularAdapter;
-    let warn: ReturnType<typeof vi.spyOn>;
+    let warn: ReturnType<typeof vi.fn<(...args: unknown[]) => void>>;
     beforeEach(() => {
       adapter = new TabularAdapter();
       mockFetch.mockReset();
-      warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      warn = vi.fn<(...args: unknown[]) => void>();
+      vi.spyOn(console, 'warn').mockImplementation(warn);
     });
     afterEach(() => vi.restoreAllMocks());
 
