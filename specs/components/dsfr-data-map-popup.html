@@ -32,17 +32,19 @@
         </p>
 
         <h2 id="attributs">Attributs</h2>
-        <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
-          <tbody>
-            <!-- ATTRS:dsfr-data-map-popup fields="mode,title-field,width,for" -->
-              <tr><td><code>mode</code></td><td>PopupMode</td><td><code>popup</code></td><td>Mode d'affichage : <code>popup</code> (bulle sur la carte), <code>modal</code>, <code>panel-right</code>, <code>panel-left</code>.</td></tr>
-              <tr><td><code>title-field</code></td><td>String</td><td><code>""</code></td><td>Champ utilise comme titre du panneau ou de la modale.</td></tr>
-              <tr><td><code>width</code></td><td>String</td><td><code>350px</code></td><td>Largeur du panneau lateral (modes <code>panel-*</code>).</td></tr>
-              <tr><td><code>for</code></td><td>String</td><td><code>""</code></td><td>Id du layer cible. Vide = tous les layers de la carte.</td></tr>
-            <!-- /ATTRS -->
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-map-popup fields="mode,title-field,width,for" -->
+                <tr><td><code>mode</code></td><td>PopupMode</td><td><code>popup</code></td><td>Mode d'affichage : <code>popup</code> (bulle sur la carte), <code>modal</code>, <code>panel-right</code>, <code>panel-left</code>.</td></tr>
+                <tr><td><code>title-field</code></td><td>String</td><td><code>""</code></td><td>Champ utilise comme titre du panneau ou de la modale.</td></tr>
+                <tr><td><code>width</code></td><td>String</td><td><code>350px</code></td><td>Largeur du panneau lateral (modes <code>panel-*</code>).</td></tr>
+                <tr><td><code>for</code></td><td>String</td><td><code>""</code></td><td>Id du layer cible. Vide = tous les layers de la carte.</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
 
         <h2 id="modes" class="fr-mt-4w">Modes</h2>
         <ul>
@@ -57,15 +59,17 @@
           compatible avec un script chargé dans le <code>&lt;head&gt;</code> sans <code>defer</code>).
           Les expressions sont celles de <code>dsfr-data-display</code> (#426) :
         </p>
-        <table class="attr-table">
-          <thead><tr><th>Syntaxe</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>{{champ}}</code></td><td>Valeur échappée (HTML-safe)</td></tr>
-            <tr><td><code>{{champ.sous.clé}}</code></td><td>Accès aux propriétés imbriquées</td></tr>
-            <tr><td><code>{{champ:number}}</code></td><td>Formatage fr-FR avec séparateurs de milliers</td></tr>
-            <tr><td><code>{{champ|défaut}}</code></td><td>Repli si null/undefined</td></tr>
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Syntaxe</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>{{champ}}</code></td><td>Valeur échappée (HTML-safe)</td></tr>
+              <tr><td><code>{{champ.sous.clé}}</code></td><td>Accès aux propriétés imbriquées</td></tr>
+              <tr><td><code>{{champ:number}}</code></td><td>Formatage fr-FR avec séparateurs de milliers</td></tr>
+              <tr><td><code>{{champ|défaut}}</code></td><td>Repli si null/undefined</td></tr>
+            </tbody>
+          </table>
+        </div>
         <div class="fr-callout fr-callout--brown-caramel fr-mt-2w">
           <p class="fr-callout__text">
             <strong>Asymétrie volontaire avec display :</strong> contrairement à
@@ -89,16 +93,18 @@
         </ol>
 
         <h2 id="api-js" class="fr-mt-4w">API JavaScript</h2>
-        <table class="attr-table">
-          <thead><tr><th>Méthode</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>matchesLayer(layerId)</code></td><td>Teste si ce popup s'applique à une couche</td></tr>
-            <tr><td><code>showForRecord(record)</code></td><td>Ouvre le panneau/la modale pour un enregistrement</td></tr>
-            <tr><td><code>getPopupHtml(record)</code></td><td>Rend le HTML du template (ou du tableau auto) pour un enregistrement</td></tr>
-            <tr><td><code>hasTemplate()</code></td><td>Indique si un <code>&lt;template&gt;</code> est défini</td></tr>
-            <tr><td><code>close()</code></td><td>Ferme le panneau/la modale</td></tr>
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Méthode</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>matchesLayer(layerId)</code></td><td>Teste si ce popup s'applique à une couche</td></tr>
+              <tr><td><code>showForRecord(record)</code></td><td>Ouvre le panneau/la modale pour un enregistrement</td></tr>
+              <tr><td><code>getPopupHtml(record)</code></td><td>Rend le HTML du template (ou du tableau auto) pour un enregistrement</td></tr>
+              <tr><td><code>hasTemplate()</code></td><td>Indique si un <code>&lt;template&gt;</code> est défini</td></tr>
+              <tr><td><code>close()</code></td><td>Ferme le panneau/la modale</td></tr>
+            </tbody>
+          </table>
+        </div>
         <p class="fr-text--sm fr-text--light">Le composant n'émet aucun événement custom.</p>
 
         <h2 class="fr-mt-4w">Exemples</h2>

@@ -143,6 +143,30 @@ export const DEFAULT_PROXY_CONFIG: ProxyConfig = {
  * vite.config), `false` (objet env inliné) dans les bundles construits
  * distribués sur npm/CDN. Un intégrateur tiers en dev local
  * (`localhost:3000`) n'est donc jamais traité comme notre dev server (#319).
+ *
+ * ⚠️ CETTE GARDE A DÉJÀ ÉTÉ PLIÉE AU BUILD (#716). `scripts/build-lib.ts` est
+ * lancé par `vite-node`, qui pose `NODE_ENV=development` ; Vite en déduisait
+ * `DEV: true` et supprimait la condition à la compilation. Le bundle **publié
+ * sur npm** ne testait donc plus que l'hôte et le port : n'importe quel
+ * intégrateur développant sur `http://localhost:3000` recevait des URL
+ * `/…-proxy/` relatives qui n'existent pas chez lui. Le signal est depuis posé
+ * explicitement (`mode` + `define` de `import.meta.env.DEV`) dans
+ * `scripts/build-lib.ts`, et `DSFR_DATA_DEV_BUILD=1` rouvre le chemin de
+ * développement. Un test-garde grep les bundles produits.
+ *
+ * Ne jamais remplacer `import.meta.env.DEV` par une indirection : la
+ * substitution statique de Vite ne survivrait pas, et l'heuristique d'hôte
+ * redeviendrait seule maîtresse — c'est-à-dire le bug.
+ *
+ * Servir le bundle **construit** sur `localhost` derrière ses propres routes de
+ * proxy est un cas légitime (Docker en local, `npm run preview`, `app-dist/`
+ * servi à la main, pages `guide/` hors serveur de dev). Deux échappatoires,
+ * dans cet ordre :
+ *
+ *  - au runtime, sans reconstruire — `window.DSFR_DATA_PROXY = { baseUrl: '' }`
+ *    avant le chargement de la lib : la branche 2 de `getProxyConfig` rend les
+ *    mêmes chemins relatifs ;
+ *  - au build — `DSFR_DATA_DEV_BUILD=1 npm run build`.
  */
 export function isViteDevMode(): boolean {
   if (typeof window === 'undefined') return false;

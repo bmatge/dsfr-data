@@ -64,21 +64,23 @@
           et applique des transformations client-side (filter, group-by, aggregate, sort, limit).</p>
 
         <h2 id="attributs" class="fr-mt-4w">Attributs</h2>
-        <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Format / Valeurs</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>id</code></td><td>String</td><td><code>id="mon-query"</code></td><td>Identifiant unique (requis). Les composants de visualisation l'utilisent pour s'abonner aux données transformees.</td></tr>
-            <!-- ATTRS:dsfr-data-query fields="source,where,filter,group-by,aggregate,order-by,limit" -->
-              <tr><td><code>source</code></td><td>String</td><td><code>source="id-source"</code></td><td>ID de la source de données (dsfr-data-source ou dsfr-data-normalize)</td></tr>
-              <tr><td><code>where</code></td><td>String</td><td><code>"champ:op:val, ..."</code></td><td>Clause WHERE / Filtres — syntaxe colon UNIQUEMENT : "champ:opérateur:valeur, champ2:opérateur:valeur2" (opérateurs : eq, neq, gt, gte, lt, lte, contains, notcontains, in, notin, isnull, isnotnull — multi-valeurs séparées par |). La syntaxe ODSQL n'est PAS supportee ici (elle l'est sur le <code>where</code> de dsfr-data-source) : une clause non parsable est signalee via reportConfigError (#277). En délégation serveur, la clause est traduite au dialecte de l'adapter (#275).</td></tr>
-              <tr><td><code>filter</code></td><td>String</td><td>(même format que <code>where</code>)</td><td>Alias pour where (compatibilite)</td></tr>
-              <tr><td><code>group-by</code></td><td>String</td><td><code>"champ1, champ2"</code></td><td>Champs de regroupement (séparés par virgule)</td></tr>
-              <tr><td><code>aggregate</code></td><td>String</td><td><code>"champ:fn"</code> ou <code>"champ:fn:alias"</code></td><td>Agrégations pour mode generic/tabular Format: "field:function, field2:function" Ex: "population:sum, count:count"</td></tr>
-              <tr><td><code>order-by</code></td><td>String</td><td><code>"champ:asc"</code> ou <code>"champ:desc"</code></td><td>Tri des résultats Format: "field:direction" ou "field__function:direction" Ex: "total_pop:desc" ou "population__sum:desc"</td></tr>
-              <tr><td><code>limit</code></td><td>Number</td><td>Entier positif. <code>0</code> = illimite</td><td>Limite de résultats</td></tr>
-            <!-- /ATTRS -->
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Format / Valeurs</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>id</code></td><td>String</td><td><code>id="mon-query"</code></td><td>Identifiant unique (requis). Les composants de visualisation l'utilisent pour s'abonner aux données transformees.</td></tr>
+              <!-- ATTRS:dsfr-data-query fields="source,where,filter,group-by,aggregate,order-by,limit" -->
+                <tr><td><code>source</code></td><td>String</td><td><code>source="id-source"</code></td><td>ID de la source de données (dsfr-data-source ou dsfr-data-normalize)</td></tr>
+                <tr><td><code>where</code></td><td>String</td><td><code>"champ:op:val, ..."</code></td><td>Clause WHERE / Filtres — syntaxe colon UNIQUEMENT : "champ:opérateur:valeur, champ2:opérateur:valeur2" (opérateurs : eq, neq, gt, gte, lt, lte, contains, notcontains, in, notin, isnull, isnotnull — multi-valeurs séparées par |). La syntaxe ODSQL n'est PAS supportee ici (elle l'est sur le <code>where</code> de dsfr-data-source) : une clause non parsable est signalee via reportConfigError (#277). En délégation serveur, la clause est traduite au dialecte de l'adapter (#275).</td></tr>
+                <tr><td><code>filter</code></td><td>String</td><td>(même format que <code>where</code>)</td><td>Alias pour where (compatibilite)</td></tr>
+                <tr><td><code>group-by</code></td><td>String</td><td><code>"champ1, champ2"</code></td><td>Champs de regroupement (séparés par virgule)</td></tr>
+                <tr><td><code>aggregate</code></td><td>String</td><td><code>"champ:fn"</code> ou <code>"champ:fn:alias"</code></td><td>Agrégations pour mode generic/tabular Format: "field:function, field2:function" Ex: "population:sum, count:count"</td></tr>
+                <tr><td><code>order-by</code></td><td>String</td><td><code>"champ:asc"</code> ou <code>"champ:desc"</code></td><td>Tri des résultats Format: "field:direction" ou "field__function:direction" Ex: "total_pop:desc" ou "population__sum:desc"</td></tr>
+                <tr><td><code>limit</code></td><td>Number</td><td>Entier positif. <code>0</code> = illimite</td><td>Limite de résultats</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
         <p class="fr-text--sm fr-text--light">Attributs retires (#277, #279) : <code>transform</code>, <code>page-size</code> et <code>refresh</code> se configurent sur <code>&lt;dsfr-data-source&gt;</code> ; <code>server-side</code> est sans objet (le relais de commandes vers la source est toujours actif).</p>
 
         <h3 class="fr-mt-3w">Syntaxe detaillee des attributs clés</h3>
@@ -114,23 +116,25 @@
 
         <h2 id="operateurs" class="fr-mt-4w">Operateurs de filtre</h2>
         <p>Utilisables dans les attributs <code>where</code> / <code>filter</code> (format <code>"champ:operateur:valeur"</code>) :</p>
-        <table class="attr-table">
-          <thead><tr><th>Operateur</th><th>Description</th><th>Exemple</th></tr></thead>
-          <tbody>
-            <tr><td><code>eq</code></td><td>Egal a</td><td><code>status:eq:active</code></td></tr>
-            <tr><td><code>neq</code></td><td>Different de</td><td><code>status:neq:archived</code></td></tr>
-            <tr><td><code>gt</code></td><td>Strictement superieur</td><td><code>population:gt:5000</code></td></tr>
-            <tr><td><code>gte</code></td><td>Superieur ou egal</td><td><code>population:gte:5000</code></td></tr>
-            <tr><td><code>lt</code></td><td>Strictement inferieur</td><td><code>population:lt:1000</code></td></tr>
-            <tr><td><code>lte</code></td><td>Inferieur ou egal</td><td><code>population:lte:1000</code></td></tr>
-            <tr><td><code>contains</code></td><td>Contient (insensible a la casse)</td><td><code>nom:contains:paris</code></td></tr>
-            <tr><td><code>notcontains</code></td><td>Ne contient pas</td><td><code>nom:notcontains:test</code></td></tr>
-            <tr><td><code>in</code></td><td>Dans une liste (separateur <code>|</code>)</td><td><code>region:in:IDF|OCC|BRE</code></td></tr>
-            <tr><td><code>notin</code></td><td>Pas dans une liste</td><td><code>region:notin:IDF|OCC</code></td></tr>
-            <tr><td><code>isnull</code></td><td>Est null/undefined</td><td><code>email:isnull</code></td></tr>
-            <tr><td><code>isnotnull</code></td><td>N'est pas null</td><td><code>email:isnotnull</code></td></tr>
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Operateur</th><th>Description</th><th>Exemple</th></tr></thead>
+            <tbody>
+              <tr><td><code>eq</code></td><td>Egal a</td><td><code>status:eq:active</code></td></tr>
+              <tr><td><code>neq</code></td><td>Different de</td><td><code>status:neq:archived</code></td></tr>
+              <tr><td><code>gt</code></td><td>Strictement superieur</td><td><code>population:gt:5000</code></td></tr>
+              <tr><td><code>gte</code></td><td>Superieur ou egal</td><td><code>population:gte:5000</code></td></tr>
+              <tr><td><code>lt</code></td><td>Strictement inferieur</td><td><code>population:lt:1000</code></td></tr>
+              <tr><td><code>lte</code></td><td>Inferieur ou egal</td><td><code>population:lte:1000</code></td></tr>
+              <tr><td><code>contains</code></td><td>Contient (insensible a la casse)</td><td><code>nom:contains:paris</code></td></tr>
+              <tr><td><code>notcontains</code></td><td>Ne contient pas</td><td><code>nom:notcontains:test</code></td></tr>
+              <tr><td><code>in</code></td><td>Dans une liste (separateur <code>|</code>)</td><td><code>region:in:IDF|OCC|BRE</code></td></tr>
+              <tr><td><code>notin</code></td><td>Pas dans une liste</td><td><code>region:notin:IDF|OCC</code></td></tr>
+              <tr><td><code>isnull</code></td><td>Est null/undefined</td><td><code>email:isnull</code></td></tr>
+              <tr><td><code>isnotnull</code></td><td>N'est pas null</td><td><code>email:isnotnull</code></td></tr>
+            </tbody>
+          </table>
+        </div>
 
         <h2 id="exemples" class="fr-mt-4w">Exemples</h2>
 
@@ -341,15 +345,17 @@
         </ul>
 
         <h2 id="methodes" class="fr-mt-4w">Méthodes publiques</h2>
-        <table class="attr-table">
-          <thead><tr><th>Méthode</th><th>Retour</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>reload()</code></td><td>void</td><td>Force le rechargement / re-traitement des données</td></tr>
-            <tr><td><code>getData()</code></td><td>Array</td><td>Retourne les données transformees actuelles</td></tr>
-            <tr><td><code>isLoading()</code></td><td>Boolean</td><td>Indique si un traitement est en cours</td></tr>
-            <tr><td><code>getError()</code></td><td>Error | null</td><td>Retourne l'erreur eventuelle</td></tr>
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Méthode</th><th>Retour</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>reload()</code></td><td>void</td><td>Force le rechargement / re-traitement des données</td></tr>
+              <tr><td><code>getData()</code></td><td>Array</td><td>Retourne les données transformees actuelles</td></tr>
+              <tr><td><code>isLoading()</code></td><td>Boolean</td><td>Indique si un traitement est en cours</td></tr>
+              <tr><td><code>getError()</code></td><td>Error | null</td><td>Retourne l'erreur eventuelle</td></tr>
+            </tbody>
+          </table>
+        </div>
 
         <h2 id="conseils" class="fr-mt-4w">Conseils d'utilisation</h2>
         <div class="fr-callout">

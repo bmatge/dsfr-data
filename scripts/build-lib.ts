@@ -31,10 +31,44 @@ if (!commit) {
   }
 }
 
+/**
+ * Build de developpement : bundles destines a etre servis par ce depot sur
+ * `localhost:<port>` derriere les routes `/*-proxy/` du serveur Vite.
+ *
+ * POURQUOI CE DRAPEAU EXISTE (#716). `isViteDevMode()` garde son heuristique
+ * d'hote derriere `import.meta.env.DEV`, precisement pour qu'un integrateur
+ * tiers qui developpe sur `http://localhost:3000` ne soit PAS traite comme le
+ * serveur de dev de ce depot (frontiere #319). Or ce script est lance par
+ * `vite-node`, qui pose `NODE_ENV=development` : Vite en deduisait `DEV: true`
+ * et pliait la garde a la compilation. Le bundle publie sur npm reecrivait donc
+ * Tabular, Grist et INSEE vers des chemins `/…-proxy/` relatifs chez n'importe
+ * quel integrateur en local — le bug etait DANS LE PAQUET PUBLIE.
+ *
+ * Le signal est desormais EXPLICITE : `mode` et `import.meta.env.DEV` sont
+ * poses ici, et ne dependent plus de ce que `vite-node` a laisse dans
+ * `NODE_ENV`. `DSFR_DATA_DEV_BUILD=1` est le drapeau deja conventionne du depot
+ * (cf. `scripts/validate-build-env.ts`, `docs/DEPLOYMENT.md`).
+ *
+ * A savoir : `npm run dev` et les e2e ne passent PAS par ici — le plugin
+ * `dev-lib-redirect` de `vite.config.ts` sert les SOURCES. Ce drapeau ne sert
+ * qu'aux chemins qui servent un bundle CONSTRUIT sur `localhost` : Docker en
+ * local, `npm run preview`, `app-dist/` servi localement, les pages `examples/`
+ * et `guide/` hors serveur de dev.
+ */
+const devBuild = process.env.DSFR_DATA_DEV_BUILD === '1';
+
 const commonConfig = {
+  // Ne jamais laisser Vite deduire le mode de NODE_ENV : sous `vite-node` il
+  // vaut « development », ce qui produirait un bundle de dev publie sur npm.
+  mode: devBuild ? ('development' as const) : ('production' as const),
   esbuild: { keepNames: true },
   define: {
-    'process.env.NODE_ENV': '"production"',
+    'process.env.NODE_ENV': devBuild ? '"development"' : '"production"',
+    // Redondant avec `mode` par construction, et c'est voulu : c'est la valeur
+    // que lit `isViteDevMode()`, elle est posee ici noir sur blanc plutot que
+    // deduite d'une chaine mode -> isProduction -> DEV.
+    'import.meta.env.DEV': JSON.stringify(devBuild),
+    'import.meta.env.PROD': JSON.stringify(!devBuild),
     __DSFR_DATA_VERSION__: JSON.stringify(version),
     __DSFR_DATA_COMMIT__: JSON.stringify(commit),
   },

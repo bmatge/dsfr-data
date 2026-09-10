@@ -31,25 +31,27 @@
       </div>
 
       <h2>Attributs</h2>
-      <table class="attr-table">
-        <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
-        <tbody>
-          <tr><td><code>x</code></td><td>String (JSON)</td><td>—</td><td><strong>Requis.</strong> Catégories, tableau <strong>plat</strong> : <code>'["2021", "2022"]'</code>. Contrairement à <code>&lt;bar-chart&gt;</code>, pas de tableau imbriqué.</td></tr>
-          <tr><td><code>y-bar</code></td><td>String (JSON)</td><td>—</td><td><strong>Requis.</strong> Valeurs de la série en barres, tableau plat : <code>"[120, 135]"</code></td></tr>
-          <tr><td><code>y-line</code></td><td>String (JSON)</td><td>—</td><td><strong>Requis.</strong> Valeurs de la série en ligne, tableau plat, même longueur que <code>x</code></td></tr>
-          <tr><td><code>name-bar</code> / <code>name-line</code></td><td>String</td><td><code>""</code></td><td>Libellé de chaque série dans la légende. Ce sont deux chaînes simples, pas un tableau JSON.</td></tr>
-          <tr><td><code>unit-tooltip-bar</code> / <code>unit-tooltip-line</code></td><td>String</td><td><code>""</code></td><td>Unité affichée dans les tooltips, série par série — c'est ce qui rend les deux échelles lisibles</td></tr>
-          <tr><td><code>y-bar-min</code> / <code>y-bar-max</code></td><td>Number</td><td><code>""</code></td><td>Bornes de l'axe des barres</td></tr>
-          <tr><td><code>y-line-min</code> / <code>y-line-max</code></td><td>Number</td><td><code>""</code></td><td>Bornes de l'axe de la ligne, indépendantes des précédentes</td></tr>
-          <tr><td><code>x-min</code> / <code>x-max</code></td><td>Number</td><td><code>""</code></td><td>Bornes de l'axe des abscisses</td></tr>
-          <tr><td><code>bar-size</code> / <code>max-bar-size</code></td><td>Number</td><td><code>""</code></td><td>Largeur des barres, en pixels</td></tr>
-          <tr><td><code>selected-palette</code></td><td>String</td><td><code>""</code></td><td>Palette DSFR Chart : <code>default</code>, <code>categorical</code>, <code>sequentialAscending</code>, <code>sequentialDescending</code>, <code>divergentAscending</code>, <code>divergentDescending</code>, <code>neutral</code></td></tr>
-          <tr><td><code>vline</code> / <code>vlinecolor</code> / <code>vlinename</code></td><td>String</td><td><code>""</code></td><td>Repère vertical (valeur, couleur, libellé)</td></tr>
-          <tr><td><code>hline</code> / <code>hlinecolor</code> / <code>hlinename</code></td><td>String</td><td><code>""</code></td><td>Repère horizontal (valeur, couleur, libellé)</td></tr>
-          <tr><td><code>date</code></td><td>String</td><td><code>""</code></td><td>Date de la donnée (mention sous le graphique)</td></tr>
-          <tr><td><code>aspect-ratio</code></td><td>Number</td><td><code>2</code></td><td>Ratio largeur/hauteur du canvas</td></tr>
-        </tbody>
-      </table>
+      <div class="fr-table">
+        <table class="attr-table">
+          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>x</code></td><td>String (JSON)</td><td>—</td><td><strong>Requis.</strong> Catégories, tableau <strong>plat</strong> : <code>'["2021", "2022"]'</code>. Contrairement à <code>&lt;bar-chart&gt;</code>, pas de tableau imbriqué.</td></tr>
+            <tr><td><code>y-bar</code></td><td>String (JSON)</td><td>—</td><td><strong>Requis.</strong> Valeurs de la série en barres, tableau plat : <code>"[120, 135]"</code></td></tr>
+            <tr><td><code>y-line</code></td><td>String (JSON)</td><td>—</td><td><strong>Requis.</strong> Valeurs de la série en ligne, tableau plat, même longueur que <code>x</code></td></tr>
+            <tr><td><code>name-bar</code> / <code>name-line</code></td><td>String</td><td><code>""</code></td><td>Libellé de chaque série dans la légende. Ce sont deux chaînes simples, pas un tableau JSON.</td></tr>
+            <tr><td><code>unit-tooltip-bar</code> / <code>unit-tooltip-line</code></td><td>String</td><td><code>""</code></td><td>Unité affichée dans les tooltips, série par série — c'est ce qui rend les deux échelles lisibles</td></tr>
+            <tr><td><code>y-bar-min</code> / <code>y-bar-max</code></td><td>Number</td><td><code>""</code></td><td>Bornes de l'axe des barres</td></tr>
+            <tr><td><code>y-line-min</code> / <code>y-line-max</code></td><td>Number</td><td><code>""</code></td><td>Bornes de l'axe de la ligne, indépendantes des précédentes</td></tr>
+            <tr><td><code>x-min</code> / <code>x-max</code></td><td>Number</td><td><code>""</code></td><td>Bornes de l'axe des abscisses</td></tr>
+            <tr><td><code>bar-size</code> / <code>max-bar-size</code></td><td>Number</td><td><code>""</code></td><td>Largeur des barres, en pixels</td></tr>
+            <tr><td><code>selected-palette</code></td><td>String</td><td><code>""</code></td><td>Palette DSFR Chart : <code>default</code>, <code>categorical</code>, <code>sequentialAscending</code>, <code>sequentialDescending</code>, <code>divergentAscending</code>, <code>divergentDescending</code>, <code>neutral</code></td></tr>
+            <tr><td><code>vline</code> / <code>vlinecolor</code> / <code>vlinename</code></td><td>String</td><td><code>""</code></td><td>Repère vertical (valeur, couleur, libellé)</td></tr>
+            <tr><td><code>hline</code> / <code>hlinecolor</code> / <code>hlinename</code></td><td>String</td><td><code>""</code></td><td>Repère horizontal (valeur, couleur, libellé)</td></tr>
+            <tr><td><code>date</code></td><td>String</td><td><code>""</code></td><td>Date de la donnée (mention sous le graphique)</td></tr>
+            <tr><td><code>aspect-ratio</code></td><td>Number</td><td><code>2</code></td><td>Ratio largeur/hauteur du canvas</td></tr>
+          </tbody>
+        </table>
+      </div>
       <p class="fr-text--sm fr-text--light">Les attributs <code>databox-id</code>, <code>databox-type</code> et <code>databox-source</code> servent à l'intégration DataBox — via <code>dsfr-data-chart type="bar-line" databox</code>, ils sont posés automatiquement.</p>
 
       <section class="demo-section">

@@ -53,20 +53,22 @@
 dsfr-data-source (B)  ──────┘</pre></div>
 
         <h2 id="attributs" class="fr-mt-4w">Attributs</h2>
-        <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Format / Valeurs</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>id</code></td><td>String</td><td><code>id="enriched"</code></td><td>Identifiant unique (requis). Les composants aval l'utilisent pour s'abonner aux données jointes.</td></tr>
-            <!-- ATTRS:dsfr-data-join fields="left,right,on,type,prefix-left,prefix-right" -->
-              <tr><td><code>left</code></td><td>String</td><td><code>left="id-source-a"</code></td><td>ID de la source gauche (source principale)</td></tr>
-              <tr><td><code>right</code></td><td>String</td><td><code>right="id-source-b"</code></td><td>ID de la source droite</td></tr>
-              <tr><td><code>on</code></td><td>String</td><td>Voir formats ci-dessous</td><td>Clé(s) de jointure. - Clé commune : on="code_dept" - Clé différente : on="dept_code=code" (gauche=droite) - Multi-clé : on="annee,code_region"</td></tr>
-              <tr><td><code>type</code></td><td>JoinType</td><td><code>inner</code> | <code>left</code> | <code>right</code> | <code>full</code></td><td>Type de jointure : inner | left | right | full</td></tr>
-              <tr><td><code>prefix-left</code></td><td>String</td><td><code>prefix-left="pop_"</code></td><td>Préfixe pour les champs de la source gauche en cas de collision</td></tr>
-              <tr><td><code>prefix-right</code></td><td>String</td><td><code>prefix-right="budget_"</code></td><td>Préfixe pour les champs de la source droite en cas de collision</td></tr>
-            <!-- /ATTRS -->
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Format / Valeurs</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>id</code></td><td>String</td><td><code>id="enriched"</code></td><td>Identifiant unique (requis). Les composants aval l'utilisent pour s'abonner aux données jointes.</td></tr>
+              <!-- ATTRS:dsfr-data-join fields="left,right,on,type,prefix-left,prefix-right" -->
+                <tr><td><code>left</code></td><td>String</td><td><code>left="id-source-a"</code></td><td>ID de la source gauche (source principale)</td></tr>
+                <tr><td><code>right</code></td><td>String</td><td><code>right="id-source-b"</code></td><td>ID de la source droite</td></tr>
+                <tr><td><code>on</code></td><td>String</td><td>Voir formats ci-dessous</td><td>Clé(s) de jointure. - Clé commune : on="code_dept" - Clé différente : on="dept_code=code" (gauche=droite) - Multi-clé : on="annee,code_region"</td></tr>
+                <tr><td><code>type</code></td><td>JoinType</td><td><code>inner</code> | <code>left</code> | <code>right</code> | <code>full</code></td><td>Type de jointure : inner | left | right | full</td></tr>
+                <tr><td><code>prefix-left</code></td><td>String</td><td><code>prefix-left="pop_"</code></td><td>Préfixe pour les champs de la source gauche en cas de collision</td></tr>
+                <tr><td><code>prefix-right</code></td><td>String</td><td><code>prefix-right="budget_"</code></td><td>Préfixe pour les champs de la source droite en cas de collision</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
 
         <h3 class="fr-mt-3w">Format de l'attribut <code>on</code></h3>
 
@@ -90,15 +92,17 @@ dsfr-data-source (B)  ──────┘</pre></div>
         </section>
 
         <h2 id="types" class="fr-mt-4w">Types de jointure</h2>
-        <table class="attr-table">
-          <thead><tr><th>Type</th><th>Description</th><th>Equivalent SQL</th></tr></thead>
-          <tbody>
-            <tr><td><code>inner</code></td><td>Seuls les enregistrements presents dans les deux sources</td><td><code>INNER JOIN</code></td></tr>
-            <tr><td><code>left</code></td><td>Tous les enregistrements gauche ; champs droite a <code>null</code> si absent</td><td><code>LEFT JOIN</code></td></tr>
-            <tr><td><code>right</code></td><td>Tous les enregistrements droite ; champs gauche a <code>null</code> si absent</td><td><code>RIGHT JOIN</code></td></tr>
-            <tr><td><code>full</code></td><td>Union de tous les enregistrements ; <code>null</code> pour les champs manquants</td><td><code>FULL OUTER JOIN</code></td></tr>
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Type</th><th>Description</th><th>Equivalent SQL</th></tr></thead>
+            <tbody>
+              <tr><td><code>inner</code></td><td>Seuls les enregistrements presents dans les deux sources</td><td><code>INNER JOIN</code></td></tr>
+              <tr><td><code>left</code></td><td>Tous les enregistrements gauche ; champs droite a <code>null</code> si absent</td><td><code>LEFT JOIN</code></td></tr>
+              <tr><td><code>right</code></td><td>Tous les enregistrements droite ; champs gauche a <code>null</code> si absent</td><td><code>RIGHT JOIN</code></td></tr>
+              <tr><td><code>full</code></td><td>Union de tous les enregistrements ; <code>null</code> pour les champs manquants</td><td><code>FULL OUTER JOIN</code></td></tr>
+            </tbody>
+          </table>
+        </div>
 
         <h2 id="exemples" class="fr-mt-4w">Exemples</h2>
 
@@ -167,14 +171,16 @@ dsfr-data-source (B)  ──────┘</pre></div>
         </ul>
 
         <h2 id="methodes" class="fr-mt-4w">Méthodes publiques</h2>
-        <table class="attr-table">
-          <thead><tr><th>Méthode</th><th>Retour</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>getData()</code></td><td>Array</td><td>Retourne les données jointes actuelles</td></tr>
-            <tr><td><code>isLoading()</code></td><td>Boolean</td><td>Indique si le composant attend encore des données</td></tr>
-            <tr><td><code>getError()</code></td><td>Error | null</td><td>Retourne l'erreur eventuelle</td></tr>
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Méthode</th><th>Retour</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>getData()</code></td><td>Array</td><td>Retourne les données jointes actuelles</td></tr>
+              <tr><td><code>isLoading()</code></td><td>Boolean</td><td>Indique si le composant attend encore des données</td></tr>
+              <tr><td><code>getError()</code></td><td>Error | null</td><td>Retourne l'erreur eventuelle</td></tr>
+            </tbody>
+          </table>
+        </div>
 
         <h2 id="conseils" class="fr-mt-4w">Conseils d'utilisation</h2>
         <div class="fr-callout">
