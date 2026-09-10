@@ -65,9 +65,9 @@ jobs:
       # Les tableaux d'attributs des pages specs sont GENERES depuis le
       # custom-elements manifest. Le controle existait depuis #709 mais n'etait
       # cable dans aucun workflow : la dette s'est accumulee en silence sur
-      # trois releases (#757). Il tourne avant `check:accents` parce qu'il en
-      # est souvent la cause — une description JSDoc de-accentuee arrive dans
-      # les pages par la generation, pas par une saisie a la main.
+      # trois releases (#757). Une description JSDoc de-accentuee arrive dans
+      # les pages par la generation, pas par une saisie a la main : ce controle
+      # est donc souvent la cause d'un echec de `check:accents`.
       # Le script lit le manifeste commite, mais il s'execute par vite-node et
       # importe `@dsfr-data/shared` : il lui faut donc `packages/shared/dist`,
       # d'ou sa place APRES `Build shared package` (sinon ERR_MODULE_NOT_FOUND,
