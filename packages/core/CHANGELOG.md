@@ -1,5 +1,17 @@
 # dsfr-data
 
+## 0.25.0
+
+### Minor Changes
+
+- [#715](https://github.com/bmatge/dsfr-data/pull/715) [`0bf9444`](https://github.com/bmatge/dsfr-data/commit/0bf9444f2321da6c496a6ee6945f007144931ab9) Thanks [@bmatge](https://github.com/bmatge)! - Nouvel attribut `fetch-mode` sur `dsfr-data-source` : `fetch-mode="export"` charge un jeu Opendatasoft en une seule requête via l'endpoint d'export du portail, avec les mêmes clauses `select` / `where` / `group-by` / `order-by`, au lieu de le paginer par pages de 100. Défaut inchangé (`records`), repli automatique sur le chargement paginé si le portail n'expose pas d'export, et attribut ignoré avec `server-side` ([#689](https://github.com/bmatge/dsfr-data/issues/689)).
+
+- [#715](https://github.com/bmatge/dsfr-data/pull/715) [`0bf9444`](https://github.com/bmatge/dsfr-data/commit/0bf9444f2321da6c496a6ee6945f007144931ab9) Thanks [@bmatge](https://github.com/bmatge)! - Nouvel attribut `require-where` sur `dsfr-data-source` et `dsfr-data-query` : sur une page d'exploration, plus aucune requête n'est lancée tant que l'utilisateur n'a posé aucun filtre, et retirer le dernier filtre y ramène (jamais de requête « tout »). Les afficheurs rendent alors un message DSFR paramétrable par `idle-message` (défaut « Choisissez un filtre pour afficher les données »), distinct de « aucune donnée » et du chargement ; l'attente est visible dans le volet Diagnostic et sur le bus via l'événement `dsfr-data-idle` ([#690](https://github.com/bmatge/dsfr-data/issues/690)).
+
+### Patch Changes
+
+- [#715](https://github.com/bmatge/dsfr-data/pull/715) [`0bf9444`](https://github.com/bmatge/dsfr-data/commit/0bf9444f2321da6c496a6ee6945f007144931ab9) Thanks [@bmatge](https://github.com/bmatge)! - Export HTML : une carte agrégée garde désormais son champ de code dans le `group-by`. Une configuration « population par région, coloriée par département » perdait la colonne de code à l'agrégation et rendait une carte vide, sans message ([#625](https://github.com/bmatge/dsfr-data/issues/625)).
+
 ## 0.24.0
 
 ### Minor Changes
