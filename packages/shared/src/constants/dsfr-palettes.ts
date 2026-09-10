@@ -172,3 +172,151 @@ export function getColorForValue(
   }
   return palette[palette.length - 1];
 }
+
+/**
+ * Breaks a intervalles egaux : l'etendue [min, max] est decoupee en `steps`
+ * classes de meme largeur. Retourne `steps - 1` bornes SUPERIEURES inclusives
+ * (meme convention que `quantileBreaks`). Vide si aucune valeur (#685).
+ */
+export function equalIntervalBreaks(values: number[], steps: number): number[] {
+  if (values.length === 0 || steps < 2) return [];
+  let min = Infinity;
+  let max = -Infinity;
+  for (const v of values) {
+    if (v < min) min = v;
+    if (v > max) max = v;
+  }
+  const width = (max - min) / steps;
+  const breaks: number[] = [];
+  for (let i = 1; i < steps; i++) breaks.push(min + width * i);
+  return breaks;
+}
+
+/**
+ * Bornes manuelles `"10,50,100"` -> `[10, 50, 100]` : triees, dedoublonnees,
+ * les entrees non numeriques sont ignorees (#685).
+ */
+export function parseManualBreaks(spec: string): number[] {
+  const parsed = spec
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => s !== '')
+    .map(Number)
+    .filter((n) => Number.isFinite(n));
+  return [...new Set(parsed)].sort((a, b) => a - b);
+}
+
+/**
+ * Sous-echantillonne une echelle a `n` couleurs reparties uniformement, les
+ * deux extremites conservees : 5 classes sur une echelle de 9 prennent les
+ * pas 1, 3, 5, 7, 9. `n` superieur ou egal a la taille de l'echelle : echelle
+ * inchangee (#685).
+ */
+export function samplePalette(palette: readonly string[], n: number): readonly string[] {
+  if (n < 1 || n >= palette.length) return palette;
+  if (n === 1) return [palette[palette.length - 1]];
+  const out: string[] = [];
+  for (let i = 0; i < n; i++) {
+    out.push(palette[Math.round((i * (palette.length - 1)) / (n - 1))]);
+  }
+  return out;
+}
+
+/** Methode de discretisation d'une choroplethe (#685). */
+export type ClassificationMethod = 'quantile' | 'equal' | 'manual';
+
+export interface ClassificationOptions {
+  /** `quantile` (défaut), `equal` ou `manual`. */
+  method?: string;
+  /** Nombre de classes ; `0` ou absent = taille de l'echelle. */
+  classes?: number;
+  /** Bornes manuelles (`"10,50,100"` ou tableau) — implique `manual`. */
+  breaks?: string | number[];
+}
+
+/**
+ * Discretise des valeurs en classes et aligne l'echelle dessus : retourne
+ * `breaks` (bornes superieures inclusives) et une `palette` de
+ * `breaks.length + 1` couleurs, sous-echantillonnee depuis `scale`.
+ *
+ * - `breaks` renseigne (ou `method="manual"`) : bornes telles quelles, le
+ *   nombre de classes en decoule ;
+ * - sinon `classes` classes (plafonne a la taille de l'echelle, défaut = la
+ *   taille de l'echelle : comportement historique quantiles/9) selon
+ *   `method` (`quantile` par défaut, `equal`).
+ * - aucune valeur exploitable : `breaks` vide (pas de choroplethe).
+ */
+export function classifyValues(
+  values: number[],
+  scale: readonly string[],
+  options: ClassificationOptions = {}
+): { breaks: number[]; palette: readonly string[] } {
+  const manual =
+    typeof options.breaks === 'string'
+      ? parseManualBreaks(options.breaks)
+      : Array.isArray(options.breaks)
+        ? [...options.breaks].filter((n) => Number.isFinite(n)).sort((a, b) => a - b)
+        : [];
+  if (manual.length > 0 || options.method === 'manual') {
+    if (manual.length === 0) return { breaks: [], palette: scale };
+    return { breaks: manual, palette: samplePalette(scale, manual.length + 1) };
+  }
+  if (values.length === 0) return { breaks: [], palette: scale };
+  const requested = options.classes && options.classes > 0 ? Math.floor(options.classes) : 0;
+  const steps = requested > 0 ? Math.min(Math.max(requested, 1), scale.length) : scale.length;
+  const palette = samplePalette(scale, steps);
+  const breaks =
+    options.method === 'equal' ? equalIntervalBreaks(values, steps) : quantileBreaks(values, steps);
+  return { breaks, palette };
+}
+
+/** Entree de legende : une pastille et son libelle (#685). */
+export interface LegendEntry {
+  color: string;
+  label: string;
+  /** Borne inferieure de la classe (choroplethe), si connue. */
+  from?: number;
+  /** Borne superieure inclusive de la classe (choroplethe), si connue. */
+  to?: number;
+}
+
+const LEGEND_NUMBER_FORMAT = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 });
+
+/** Nombre au format fr-FR pour une legende (2 decimales max). */
+export function formatLegendNumber(value: number): string {
+  return LEGEND_NUMBER_FORMAT.format(value);
+}
+
+/**
+ * Entrees de legende d'une choroplethe : une par classe, dans l'ordre de
+ * l'echelle, avec bornes chiffrees fr-FR. Les bornes sont des maxima
+ * inclusifs : la classe 0 va jusqu'a `breaks[0]`, la classe i couvre
+ * `]breaks[i-1], breaks[i]]`, la derniere est au-dela de la derniere borne.
+ * `extent` (min/max des donnees) precise les extremites (« De 12 à 40 »
+ * plutôt que « Jusqu'à 40 »). Une classe vide (deux bornes egales, quantiles
+ * sur peu de valeurs distinctes) est omise (#685).
+ */
+export function choroplethLegendEntries(
+  breaks: number[],
+  palette: readonly string[],
+  extent?: { min: number; max: number }
+): LegendEntry[] {
+  if (breaks.length === 0) return [];
+  const fmt = formatLegendNumber;
+  const color = (i: number) => palette[Math.min(i, palette.length - 1)];
+  const entries: LegendEntry[] = [];
+  const count = breaks.length + 1;
+  for (let i = 0; i < count; i++) {
+    const from = i === 0 ? extent?.min : breaks[i - 1];
+    const to = i === count - 1 ? extent?.max : breaks[i];
+    if (i > 0 && from !== undefined && to !== undefined && from >= to) continue;
+    let label: string;
+    if (from === undefined && to !== undefined) label = `Jusqu'à ${fmt(to)}`;
+    else if (to === undefined && from !== undefined) label = `Plus de ${fmt(from)}`;
+    else if (from !== undefined && to !== undefined)
+      label = from === to ? fmt(to) : `De ${fmt(from)} à ${fmt(to)}`;
+    else label = '';
+    entries.push({ color: color(i), label, from, to });
+  }
+  return entries;
+}

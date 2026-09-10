@@ -656,26 +656,33 @@ Les donnees passent par `dsfr-data-query` qui les filtre, regroupe et/ou agrege 
 
 ### Cartes interactives Leaflet — la famille dsfr-data-map
 
-Au-dela des cartes choroplethes de `dsfr-data-chart` (type `map`/`map-reg`/`map-aca`/`map-monde`), la famille `dsfr-data-map` (bundle `map`) rend des **cartes interactives Leaflet** multi-couches : marqueurs, formes GeoJSON, cercles proportionnels, heatmap. Cinq composants se combinent :
+Au-dela des cartes choroplethes de `dsfr-data-chart` (type `map`/`map-reg`/`map-aca`/`map-monde`), la famille `dsfr-data-map` (bundle `map`) rend des **cartes interactives Leaflet** multi-couches : marqueurs, formes GeoJSON, cercles proportionnels, heatmap. Six composants se combinent :
 
 - `<dsfr-data-map>` : le conteneur (fond de carte, zoom, encarts, accessibilite integree) ;
 - `<dsfr-data-map-layer>` : une couche de donnees (une source par couche → multi-source naturel) ;
 - `<dsfr-data-map-popup>` : l'affichage au clic (popup, modale ou panneau lateral, template `{{champ}}`) ;
 - `<dsfr-data-map-inset>` : un encart territorial (DROM, Corse, zoom local) ;
+- `<dsfr-data-map-legend>` : la legende d'une couche (classes chiffrees d'une choroplethe, paires de `color-map`) ;
 - `<dsfr-data-map-timeline>` : les controles de lecture temporelle des couches datees (`time-field`).
 
 ```html
 <dsfr-data-source id="communes" api-type="opendatasoft"
   base-url="https://data.economie.gouv.fr" dataset-id="mon-dataset-geo"></dsfr-data-source>
 
-<dsfr-data-map center="46.6,2.9" zoom="6" tiles="ign-plan" name="Carte des communes"
-  insets="drom,corse" fit-bounds max-bounds="41,-5.5,51.5,10">
+<!-- Contours des regions livres dans le paquet npm (hors bundle) : dsfr-data/geo/regions.json -->
+<dsfr-data-source id="contours" url="https://cdn.jsdelivr.net/npm/dsfr-data@0/geo/regions.json"
+  transform="features"></dsfr-data-source>
+
+<dsfr-data-map center="46.6,2.9" zoom="6" tiles="ign-plan" tiles-style="muted" name="Carte des communes"
+  insets="drom,corse" fit-bounds>
   <!-- Couche decorative (contours) : aucune interaction, exclue du fit-bounds -->
-  <dsfr-data-map-layer source="contours" type="geoshape" geo-field="geo_shape"
-    no-interactive color="#666"></dsfr-data-map-layer>
-  <!-- Couche de donnees -->
+  <dsfr-data-map-layer source="contours" type="geoshape" geo-field="geometry"
+    no-interactive color="#666" fill-opacity="0"></dsfr-data-map-layer>
+  <!-- Couche de donnees : choroplethe a 5 classes -->
   <dsfr-data-map-layer id="couche-communes" source="communes" type="geoshape"
-    geo-field="geo_shape" fill-field="population" tooltip-field="nom"></dsfr-data-map-layer>
+    geo-field="geo_shape" fill-field="population" classes="5" tooltip-field="nom"></dsfr-data-map-layer>
+  <!-- Legende des 5 classes, sous la carte -->
+  <dsfr-data-map-legend for="couche-communes" label="Population"></dsfr-data-map-legend>
   <!-- Panneau lateral au clic, avec formatage numerique -->
   <dsfr-data-map-popup mode="panel-right" for="couche-communes" title-field="nom">
     <template>
@@ -688,10 +695,14 @@ Au-dela des cartes choroplethes de `dsfr-data-chart` (type `map`/`map-reg`/`map-
 
 Points cles :
 
-- **Fonds de carte** : presets `ign-plan` (defaut), `ign-ortho`, `ign-cadastre`, `osm-fr`, `osm-standard`, `carto-positron`, `carto-dark`, `opentopomap`, ou une URL de tuiles custom `{z}/{x}/{y}`. L'attribut `sovereign-only` restreint aux presets souverains IGN.
+- **Fonds de carte** : presets `ign-plan` (defaut), `ign-ortho`, `ign-cadastre`, `osm-fr`, `osm-standard`, `opentopomap`, ou une URL de tuiles custom `{z}/{x}/{y}` (`carto-positron` et `carto-dark` sont deprecies : redirection vers `ign-plan`). L'attribut `sovereign-only` restreint aux presets souverains IGN.
+- **Fond attenue** : `tiles-style="muted"` (gris + 55 % d'opacite) ou `tiles-style="grey"` (niveaux de gris) efface le plan sous une carte thematique, sans CSS de page — un fond « neutre » = `ign-plan` attenue. Les encarts heritent du reglage.
+- **Choroplethe** : sur une couche `geoshape`, `fill-field` colore les polygones par classes (`selected-palette`, defaut `sequentialAscending`). `classes="5"` fixe le nombre de classes, `method="quantile|equal|manual"` la discretisation, `breaks="10,50,100"` des bornes manuelles ; defaut : quantiles, autant de classes que de couleurs (9).
+- **Legende** : `<dsfr-data-map-legend for="id-couche" label="…">` rend sous la carte une liste DSFR « pastille + texte » : classes avec bornes chiffrees (fr-FR) pour une choroplethe, paires de `color-map` (+ repli `color`) pour une couche categorielle. Elle se rafraichit a chaque rendu de la couche (`getLegendEntries()` / evenement `dsfr-data-map-layer-render`). Hors perimetre : `dsfr-data-chart type="map"` (echelle continue de DSFR Chart).
+- **Fonds administratifs sans API** : le paquet livre `dsfr-data/geo/regions.json` (18 regions) et `dsfr-data/geo/departements.json` (101 departements), GeoJSON simplifies (~120 et ~300 Ko, proprietes `code`/`nom`), hors bundle — via `import.meta.resolve('dsfr-data/geo/regions.json')`, un CDN npm ou une copie a cote de `dist/`. Recette : `<dsfr-data-source url="…/geo/regions.json" transform="features">` + couche `geoshape geo-field="geometry" no-interactive`. Source : Contours administratifs Etalab, Licence Ouverte 2.0 (`packages/core/geo/README.md`).
 - **`geo-field`** accepte du GeoJSON (Point, Polygon, Feature…), des objets `{lat, lon}`, des tableaux `[lat, lon]` **ou des chaines JSON serialisees** (colonnes texte Grist/CSV) ; a defaut, `lat-field`/`lon-field` pour des colonnes separees.
 - **Couches decoratives** : `no-interactive` desactive clic/tooltip/popup et **exclut la couche du fit-bounds** (contours administratifs, habillage).
-- **Cadrage** : `fit-bounds` ajuste la vue aux donnees ; `max-bounds="latSW,lonSW,latNE,lonNE"` limite le deplacement ET clippe le fit (les DROM lointains ne dezooment plus la vue metropolitaine — d'ou l'interet des encarts `insets="drom"`).
+- **Cadrage** : `fit-bounds` ajuste la vue aux donnees ; `max-bounds="latSW,lonSW,latNE,lonNE"` limite le deplacement ET clippe le fit. Des que la carte porte un encart ultramarin (`insets="drom"`…) sans `max-bounds`, le fit est clippe par defaut sur la metropole (`41,-5.5,51.5,10`) : les DROM ne dezooment plus la vue, le deplacement reste libre. `fit-zone="latSW,lonSW,latNE,lonNE"` surcharge cette zone (`fit-zone="none"` la desactive).
 - **Popup** : placeholders `{{champ}}` (echappe), `{{champ:number}}` (format fr-FR), `{{champ|defaut}}`, `{{champ.sous.cle}}` ; modes `popup`, `modal`, `panel-right`, `panel-left`.
 - **Timeline** : sur une couche, `time-field` (+ `time-bucket`, `time-mode="snapshot|cumulative"`) decoupe les donnees en etapes ; `<dsfr-data-map-timeline>` ajoute lecture/pause et navigation clavier.
 

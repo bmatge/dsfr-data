@@ -39,8 +39,19 @@ export {
   CHOROPLETH_SCALES,
   quantileBreaks,
   getColorForValue,
+  equalIntervalBreaks,
+  parseManualBreaks,
+  samplePalette,
+  classifyValues,
+  choroplethLegendEntries,
+  formatLegendNumber,
 } from './constants/dsfr-palettes.js';
-export type { PaletteType } from './constants/dsfr-palettes.js';
+export type {
+  PaletteType,
+  ClassificationMethod,
+  ClassificationOptions,
+  LegendEntry,
+} from './constants/dsfr-palettes.js';
 
 // Templates / CDN
 export { CDN_URLS, getPreviewHTML } from './templates/cdn-versions.js';

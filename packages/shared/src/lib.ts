@@ -67,8 +67,19 @@ export {
   CHOROPLETH_SCALES,
   quantileBreaks,
   getColorForValue,
+  equalIntervalBreaks,
+  parseManualBreaks,
+  samplePalette,
+  classifyValues,
+  choroplethLegendEntries,
+  formatLegendNumber,
 } from './constants/dsfr-palettes.js';
-export type { PaletteType } from './constants/dsfr-palettes.js';
+export type {
+  PaletteType,
+  ClassificationMethod,
+  ClassificationOptions,
+  LegendEntry,
+} from './constants/dsfr-palettes.js';
 
 // Charts
 export { DSFR_TAG_MAP, MAP_LEVEL_MAP } from './charts/chart-types.js';
