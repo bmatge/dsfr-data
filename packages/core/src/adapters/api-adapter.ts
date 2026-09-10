@@ -118,6 +118,27 @@ export interface FacetResult {
 }
 
 /**
+ * Facette declaree par le jeu de donnees, renvoyee par la decouverte en
+ * mode server-facets quand `fields` est absent (#680).
+ */
+export interface FacetDescriptor {
+  field: string;
+  /** Libelle declare par le provider (utilise a defaut de `labels`) */
+  label?: string;
+  /**
+   * Champ de type date : le provider sert ses valeurs par annee et refuse
+   * l'egalite `champ = "2022"` — le where doit etre un intervalle (#676).
+   */
+  isDate?: boolean;
+}
+
+/** Options de construction du where de facettes (#676) */
+export interface FacetWhereOptions {
+  /** Champs de type date : une valeur annuelle devient un intervalle [1er janvier, 1er janvier suivant) */
+  dateFields?: ReadonlySet<string>;
+}
+
+/**
  * Interface commune pour tous les adapters d'API.
  * Les adapters sont stateless : ils recoivent tout via les arguments
  * et retournent des structures de données pures. Pas d'acces DOM,
@@ -175,6 +196,17 @@ export interface ApiAdapter {
   ): Promise<FacetResult[]>;
 
   /**
+   * Decouvre les facettes declarees par le jeu de donnees (#680) : noms,
+   * libelles et type date. Utilise par dsfr-data-facets en mode
+   * server-facets sans `fields`, et pour typer les champs date meme quand
+   * `fields` est fourni. Absent = pas de decouverte (fields obligatoire).
+   */
+  discoverFacets?(
+    params: Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl'>,
+    signal?: AbortSignal
+  ): Promise<FacetDescriptor[]>;
+
+  /**
    * Indique si les champs donnes peuvent etre delegues cote serveur pour
    * group-by / aggregate / order-by.
    *
@@ -204,8 +236,13 @@ export interface ApiAdapter {
   /**
    * Construit un WHERE clause a partir de selections de facettes.
    * Utilise par dsfr-data-facets pour générer les filtres dans la syntaxe du provider.
+   * `options.dateFields` : champs date dont une valeur annuelle devient un intervalle (#676).
    */
-  buildFacetWhere?(selections: Record<string, Set<string>>, excludeField?: string): string;
+  buildFacetWhere?(
+    selections: Record<string, Set<string>>,
+    excludeField?: string,
+    options?: FacetWhereOptions
+  ): string;
 
   /**
    * Retourne la config provider declarative associee a cet adapter.

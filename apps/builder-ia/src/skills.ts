@@ -722,12 +722,12 @@ Sortie : même tableau, filtre selon les selections de l'utilisateur.
 | sort | String | \`"count"\` | non | Tri des valeurs, grammaire \`critere:sens\` (comme order-by) : \`count:desc\` (défaut, plus frequent d'abord), \`count:asc\`, \`alpha:asc\` (A-Z), \`alpha:desc\` (Z-A). Raccourcis : \`count\` = count:desc, \`alpha\` = alpha:asc. \`-count\` / \`-alpha\` deprecies (warn console) — ne plus les generer |
 | searchable | String | \`""\` | non | Champs avec barre de recherche (virgule-separes) |
 | hide-empty | Boolean | \`false\` | non | Masquer les facettes avec une seule valeur |
-| display | String | \`""\` | non | Mode d'affichage par facette : \`"field:select \\| field2:multiselect"\`. Modes : checkbox (défaut), select, multiselect, radio |
+| display | String | \`""\` | non | Mode d'affichage par facette : \`"field:select \\| field2:multiselect"\`. Modes : checkbox (défaut), select, multiselect, radio (dropdown a radios), radio-inline (radios visibles en ligne + « Tous ») |
 | hide-counts | Boolean | \`false\` | non | Masquer les compteurs (N) a cote de chaque valeur de facette |
 | url-params | Boolean | \`false\` | non | Active la lecture des parametres d'URL comme pre-selections de facettes |
 | url-param-map | String | \`""\` | non | Mapping URL param -> champ : \`"r:region \\| t:type"\`. Si vide, correspondance directe |
 | url-sync | Boolean | \`false\` | non | Synchronise l'URL quand l'utilisateur change les facettes (replaceState) |
-| server-facets | Boolean | \`false\` | non | Active le mode facettes serveur ODS. Fetch les valeurs depuis l'API ODS /facets. Requiert une source dsfr-data-source api-type="opendatasoft" server-side (directement ou via un dsfr-data-query, qui relaie automatiquement). En mode server-facets, fields est obligatoire |
+| server-facets | Boolean | \`false\` | non | Active le mode facettes serveur ODS. Fetch les valeurs depuis l'API ODS /facets. Requiert une source dsfr-data-source api-type="opendatasoft" server-side (directement ou via un dsfr-data-query, qui relaie automatiquement). Sans fields, les facettes declarees par le jeu sont decouvertes au premier cycle (ODS : metadonnees du jeu ; Grist : colonnes Choice/ChoiceList) ; une facette de type date (valeurs par annee) est filtree par intervalle (#680, #676) |
 | static-values | String | \`""\` | non | Valeurs de facettes pre-calculees en JSON : \`'{"region":["IDF","PACA"],"type":["Commune"]}')\`. Les selections envoient des commandes WHERE en colon syntax au dsfr-data-query. Compteurs masques automatiquement. Utile pour Tabular/Grist/generique qui n'ont pas d'API facettes serveur |
 | cols | String | \`""\` | non | Colonnage DSFR : \`"6"\` (global, 2/ligne), \`"4"\` (3/ligne), ou par facette \`"region:4 \\| type:6"\` (défaut fr-col-6 pour non-specifies) |
 
@@ -735,10 +735,11 @@ Sortie : même tableau, filtre selon les selections de l'utilisateur.
 - **checkbox** (défaut) : fieldset DSFR avec checkboxes, compteurs, "Voir plus/moins", recherche optionnelle
 - **select** : liste deroulante DSFR standard, selection exclusive (une seule valeur)
 - **multiselect** : dropdown collapsible avec checkboxes DSFR, recherche integree, bouton "Tout sélectionner/deselectionner"
-- **radio** : dropdown collapsible avec radio buttons DSFR, recherche integree, selection exclusive
+- **radio** : dropdown collapsible avec radio buttons DSFR, recherche integree, selection exclusive (sera renomme \`radio-dropdown\` dans une version majeure)
+- **radio-inline** : boutons radio DSFR visibles en ligne dans un fieldset, precedes d'une option « Tous » qui retire la selection ; selection exclusive, toutes les valeurs affichees (#684)
 
 Le mode \`select\` rend la facette automatiquement exclusive.
-Le mode \`radio\` rend la facette automatiquement exclusive.
+Le mode \`radio\` rend la facette automatiquement exclusive, \`radio-inline\` aussi.
 Le mode \`multiselect\` rend la facette automatiquement disjonctive (multi-selection OU).
 
 ### Logique de filtrage
@@ -3500,23 +3501,38 @@ Les modes et ce qu’ils rendent :
 | \`checkbox\` (defaut) | cases a cocher en ligne | multiple (OU intra-facette) |
 | \`select\` | \`<select class="fr-select">\` natif, en ligne | **unique** |
 | \`radio\` | **dropdown** repliable contenant des boutons radio + recherche | unique |
+| \`radio-inline\` | boutons radio **visibles en ligne** (fieldset DSFR), option « Tous » en tete | unique |
 | \`multiselect\` | dropdown repliable avec cases a cocher + « tout selectionner » | multiple |
 
-Donc : « un choix unique visible directement » = \`champ:select\`. \`radio\` n’est pas
-une rangee de boutons radio en ligne mais un menu deroulant ; c’est documente, pas un
-bug. Une facette en \`select\` ou \`radio\` est exclusive d’office, sans \`disjunctive\`.
+Donc : « un choix unique visible directement » = \`champ:select\` (liste deroulante) ou
+\`champ:radio-inline\` (boutons radio en ligne, « Tous » pour retirer le choix). \`radio\`
+n’est pas une rangee de boutons radio en ligne mais un menu deroulant ; c’est documente,
+pas un bug — il sera renomme \`radio-dropdown\` dans une version majeure. Une facette en
+\`select\`, \`radio\` ou \`radio-inline\` est exclusive d’office, sans \`disjunctive\`.
 
 ### Facettes en cascade (server-facets)
 
 Avec \`server-facets\` (adapters OpenDataSoft et Grist), les valeurs et compteurs de
 chaque facette sont recalcules **cote serveur en tenant compte des selections des
 autres facettes** : choisir une region reduit la liste des departements, avec les
-bons compteurs. C’est la cascade native ; \`fields\` est obligatoire dans ce mode.
+bons compteurs. C’est la cascade native. Sans \`fields\`, le composant decouvre au
+premier cycle les facettes declarees par le jeu (ODS : champs annotes « facet » des
+metadonnees, avec leur libelle ; Grist : colonnes Choice / ChoiceList) et les affiche
+toutes, cascade comprise (#680). \`fields\` reste le moyen d’en choisir un sous-ensemble
+ou d’imposer l’ordre.
+
+Une facette ODS de type **date** sert ses valeurs par annee (« 2022 ») ; le filtre emis
+est alors un intervalle \`champ >= date'2022-01-01' AND champ < date'2023-01-01'\`, jamais
+l’egalite \`champ = "2022"\` (refusee par ODS, #676). Rien a configurer : le type vient de
+la decouverte, meme avec \`fields\` explicite.
 
 \`\`\`html
 <dsfr-data-source id="src" api-type="opendatasoft" base-url="..." dataset-id="..." server-side page-size="50"></dsfr-data-source>
 <dsfr-data-facets id="f" source="src" server-facets fields="region, departement"
   display="region:select | departement:select"></dsfr-data-facets>
+
+<!-- Toutes les facettes declarees par le jeu, sans les nommer -->
+<dsfr-data-facets id="f2" source="src" server-facets></dsfr-data-facets>
 \`\`\`
 
 En mode local (sans \`server-facets\`), les compteurs se recalculent aussi selon

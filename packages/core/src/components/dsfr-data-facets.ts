@@ -3,13 +3,22 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { dispatchSourceCommand } from '../utils/data-bridge.js';
 import { TransformerMixin } from '../utils/transformer-mixin.js';
-import type { ApiAdapter } from '../adapters/api-adapter.js';
+import type { ApiAdapter, AdapterParams, FacetDescriptor } from '../adapters/api-adapter.js';
 import type { SourceElement } from '../utils/source-element.js';
 import { isUnsafeKey } from '@dsfr-data/shared/lib';
 import { joinWhere } from '../utils/where.js';
 import { logFetchWarning } from '../utils/fetch-diagnostics.js';
 
-type FacetDisplayMode = 'checkbox' | 'select' | 'multiselect' | 'radio';
+type FacetDisplayMode = 'checkbox' | 'select' | 'multiselect' | 'radio' | 'radio-inline';
+
+/** Modes d'affichage reconnus par `display` (toute autre valeur est ignoree) */
+const FACET_DISPLAY_MODES: ReadonlySet<string> = new Set<FacetDisplayMode>([
+  'checkbox',
+  'select',
+  'multiselect',
+  'radio',
+  'radio-inline',
+]);
 
 interface FacetValue {
   value: string;
@@ -49,7 +58,11 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   @property({ type: String })
   source = '';
 
-  /** Champs a exposer comme facettes (virgule-separes). Vide = auto-detection */
+  /**
+   * Champs à exposer comme facettes (virgule-séparés). Vide = auto-détection sur les
+   * données chargées ; en `server-facets`, vide = découverte des facettes déclarées par le
+   * jeu de données (OpenDataSoft : métadonnées du jeu ; Grist : colonnes Choice/ChoiceList, #680)
+   */
   @property({ type: String })
   fields = '';
 
@@ -88,7 +101,16 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   @property({ type: Boolean, attribute: 'hide-empty' })
   hideEmpty = false;
 
-  /** Mode d'affichage par facette : "field:select | field2:multiselect". Défaut = checkbox */
+  /**
+   * Mode d'affichage par facette : "champ:mode | champ2:mode". Défaut = checkbox.
+   * - `checkbox` : cases à cocher visibles dans un fieldset DSFR (sélection multiple)
+   * - `select` : liste déroulante native fr-select (sélection unique)
+   * - `multiselect` : menu déroulant repliable avec cases à cocher et recherche (sélection multiple)
+   * - `radio` : menu déroulant repliable contenant des boutons radio et une recherche
+   *   (sélection unique) — sera renommé `radio-dropdown` dans une version majeure
+   * - `radio-inline` : boutons radio DSFR visibles en ligne, précédés d'une option « Tous »
+   *   qui retire la sélection (sélection unique, #684)
+   */
   @property({ type: String })
   display = '';
 
@@ -108,7 +130,9 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
    * Active le mode facettes serveur ODS.
    * Fetch les valeurs de facettes depuis l'API ODS /facets au lieu de les calculer localement.
    * Requiert source pointant vers un dsfr-data-source avec api-type="opendatasoft" et server-side.
-   * En mode server-facets, l'attribut fields est obligatoire (pas d'auto-detection).
+   * Sans `fields`, un appel de découverte au premier cycle liste les facettes déclarées par le
+   * jeu (mémorisé, invalidé si la source ou `dataset-id` change, #680). Les facettes de type
+   * date (valeurs par année) sont filtrées par intervalle et non par égalité (#676).
    */
   @property({ type: Boolean, attribute: 'server-facets' })
   serverFacets = false;
@@ -427,17 +451,18 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     `;
   }
 
-  /** Element checkbox/radio complet — etait copie 3x */
+  /** Element checkbox/radio complet — etait copie 3x. `inline` : element en ligne (radio-inline, #684) */
   private _renderToggleItem(
     group: FacetGroup,
     fv: FacetValue,
     inputId: string,
     kind: 'checkbox' | 'radio',
-    radioName?: string
+    radioName?: string,
+    inline = false
   ) {
     const isChecked = (this._activeSelections[group.field] ?? new Set()).has(fv.value);
     return html`
-      <div class="fr-fieldset__element">
+      <div class="fr-fieldset__element${inline ? ' fr-fieldset__element--inline' : ''}">
         <div class="fr-${kind}-group fr-${kind}-group--sm">
           <input
             type="${kind}"
@@ -506,7 +531,10 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     const adapter: ApiAdapter | undefined =
       (rawEl as unknown as SourceElement)?.getAdapter?.() ?? undefined;
     if (adapter?.buildFacetWhere) {
-      return adapter.buildFacetWhere(this._activeSelections, excludeField);
+      // Champs date connus par la decouverte (#676) : une annee devient un intervalle
+      return adapter.buildFacetWhere(this._activeSelections, excludeField, {
+        dateFields: this._dateFacetFields(),
+      });
     }
     // Fallback: colon syntax (for client-side mode without adapter)
     const parts: string[] = [];
@@ -720,6 +748,78 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   /** Erreur du dernier fetch de facettes (rendue, plus avalee — #309) */
   private _facetsError: string | null = null;
 
+  // --- Decouverte des facettes declarees (#680) ---
+
+  /** Facettes decouvertes aupres du provider ; null tant que la decouverte n'a pas abouti */
+  private _discoveredFacets: FacetDescriptor[] | null = null;
+
+  /** Cle (baseUrl + datasetId) de la decouverte memorisee : un autre jeu l'invalide */
+  private _discoveryKey = '';
+
+  /** Decouverte en vol, partagee entre deux cycles de fetch concurrents */
+  private _discoveryPromise: Promise<FacetDescriptor[]> | null = null;
+
+  /** « Aucune facette declaree » deja signale pour ce jeu (un warn, pas un par cycle) */
+  private _discoveryEmptyWarned = false;
+
+  /**
+   * Un appel de decouverte par jeu de donnees : noms et libelles des facettes
+   * declarees (utilises quand `fields` est absent) et champs de type date —
+   * utiles meme avec `fields` explicite, car le where d'une annee doit etre
+   * un intervalle (#676). Une decouverte en echec est memorisee vide (pas de
+   * nouvelle tentative a chaque cycle) jusqu'a un changement de jeu.
+   */
+  private _discoverServerFacets(
+    adapter: ApiAdapter,
+    params: Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl'>
+  ): Promise<FacetDescriptor[]> {
+    if (!adapter.discoverFacets) return Promise.resolve([]);
+    const key = `${params.baseUrl}|${params.datasetId}`;
+    if (this._discoveryKey === key) {
+      if (this._discoveredFacets) return Promise.resolve(this._discoveredFacets);
+      if (this._discoveryPromise) return this._discoveryPromise;
+    }
+    this._discoveryKey = key;
+    this._discoveredFacets = null;
+    this._discoveryEmptyWarned = false;
+    const promise = adapter
+      .discoverFacets(params)
+      .catch((e: unknown) => {
+        logFetchWarning(`dsfr-data-facets[${this.id}]: découverte des facettes en échec`, e);
+        return [] as FacetDescriptor[];
+      })
+      .then((descriptors) => {
+        if (this._discoveryKey === key) {
+          this._discoveredFacets = descriptors;
+          this._discoveryPromise = null;
+        }
+        return descriptors;
+      });
+    this._discoveryPromise = promise;
+    return promise;
+  }
+
+  /** Champs date connus par la decouverte (#676) ; undefined avant decouverte ou sans date */
+  private _dateFacetFields(): ReadonlySet<string> | undefined {
+    if (!this._discoveredFacets) return undefined;
+    const dates = this._discoveredFacets.filter((d) => d.isDate).map((d) => d.field);
+    return dates.length > 0 ? new Set(dates) : undefined;
+  }
+
+  /** Une selection active porte-t-elle une annee sur un champ date decouvert ? */
+  private _hasDateYearSelection(): boolean {
+    const dateFields = this._dateFacetFields();
+    if (!dateFields) return false;
+    return Object.entries(this._activeSelections).some(
+      ([field, values]) => dateFields.has(field) && [...values].some((v) => /^\d{4}$/.test(v))
+    );
+  }
+
+  /** Libelle declare par le provider pour un champ decouvert (a defaut de `labels`) */
+  private _discoveredLabel(field: string): string | undefined {
+    return this._discoveredFacets?.find((d) => d.field === field)?.label;
+  }
+
   /** L'adapter amont supporte-t-il les facettes serveur ? (#313) */
   private _serverFacetsSupported(): boolean {
     const sourceEl = document.getElementById(this.source);
@@ -728,25 +828,16 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     return !!(adapter?.capabilities.serverFacets && adapter.fetchFacets);
   }
 
-  /** Fetch facet values from server API with cross-facet counts */
-  private async _fetchServerFacets() {
-    const sourceEl = document.getElementById(this.source);
-    if (!sourceEl) return;
-
-    // Get adapter from the source element (dsfr-data-query delegates to dsfr-data-source)
-    const adapter: ApiAdapter | undefined =
-      (sourceEl as unknown as SourceElement).getAdapter?.() ?? undefined;
-    if (!adapter?.capabilities.serverFacets || !adapter.fetchFacets) {
-      // Adapter does not support server facets — fallback to client-side
-      this._buildFacetGroups();
-      this._applyFilters();
-      return;
-    }
-
-    // Parametres resolus par la source elle-meme (headers effectifs avec
-    // api-key-ref) via la delegation SourceElement — re-parser les attributs
-    // DOM ratait la resolution d'api-key-ref → 401 sur sources
-    // authentifiees (#274)
+  /**
+   * Parametres serveur (baseUrl, datasetId, headers, proxy) de la source
+   * amont. Resolus par la source elle-meme (headers effectifs avec
+   * api-key-ref) via la delegation SourceElement — re-parser les attributs
+   * DOM ratait la resolution d'api-key-ref → 401 sur sources authentifiees
+   * (#274). Null sans datasetId.
+   */
+  private _resolveServerParams(
+    sourceEl: HTMLElement
+  ): Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl'> | null {
     const resolvedParams = (sourceEl as unknown as SourceElement).getAdapterParams?.() ?? null;
 
     let baseUrl: string;
@@ -775,10 +866,83 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
       }
     }
 
-    if (!datasetId) return;
+    if (!datasetId) return null;
+    return { baseUrl, datasetId, headers, proxyUrl };
+  }
 
-    const fields = _parseCSV(this.fields);
-    if (fields.length === 0) return; // fields requis en mode server
+  /** Une selection active porte-t-elle une valeur en forme d'annee (avant toute decouverte) ? */
+  private _hasYearShapedSelection(): boolean {
+    return Object.values(this._activeSelections).some((values) =>
+      [...values].some((v) => /^\d{4}$/.test(v))
+    );
+  }
+
+  /**
+   * Erreur amont en mode serveur AVANT toute decouverte (#676) : une
+   * selection annuelle issue de l'URL a pu etre emise en egalite sur un
+   * champ date (400) — la source n'emet alors aucune donnee, donc le cycle
+   * de facettes (et sa decouverte) n'aurait jamais lieu. On lance la
+   * decouverte ici et, si un champ date est concerne, on re-emet la
+   * commande en intervalle. Une seule tentative par jeu (decouverte memorisee).
+   */
+  public emitTransformerError(error: Error): void {
+    super.emitTransformerError(error);
+    if (!this.serverFacets || this._discoveredFacets !== null || this._discoveryPromise) return;
+    if (!this._hasYearShapedSelection()) return;
+    const sourceEl = document.getElementById(this.source);
+    const adapter: ApiAdapter | undefined =
+      (sourceEl as unknown as SourceElement | null)?.getAdapter?.() ?? undefined;
+    if (!sourceEl || !adapter?.discoverFacets) return;
+    const serverParams = this._resolveServerParams(sourceEl);
+    if (!serverParams) return;
+    void this._discoverServerFacets(adapter, serverParams).then(() => {
+      if (this.isConnected && this._hasDateYearSelection()) this._dispatchFacetCommand();
+    });
+  }
+
+  /** Fetch facet values from server API with cross-facet counts */
+  private async _fetchServerFacets() {
+    const sourceEl = document.getElementById(this.source);
+    if (!sourceEl) return;
+
+    // Get adapter from the source element (dsfr-data-query delegates to dsfr-data-source)
+    const adapter: ApiAdapter | undefined =
+      (sourceEl as unknown as SourceElement).getAdapter?.() ?? undefined;
+    if (!adapter?.capabilities.serverFacets || !adapter.fetchFacets) {
+      // Adapter does not support server facets — fallback to client-side
+      this._buildFacetGroups();
+      this._applyFilters();
+      return;
+    }
+
+    const serverParams = this._resolveServerParams(sourceEl);
+    if (!serverParams) return;
+    const { baseUrl, datasetId, headers, proxyUrl } = serverParams;
+
+    // Decouverte des facettes declarees (#680) : un appel par jeu, memorise.
+    // Sans `fields`, ses noms deviennent les champs ; avec `fields`, elle ne
+    // sert qu'a typer les champs date (#676).
+    let fields = _parseCSV(this.fields);
+    if (adapter.discoverFacets) {
+      const knewDateFields = this._dateFacetFields() !== undefined;
+      const discovered = await this._discoverServerFacets(adapter, serverParams);
+      if (fields.length === 0) fields = discovered.map((d) => d.field);
+      // Une selection (URL) emise AVANT la decouverte sur un champ date etait
+      // en egalite (400) : la re-emettre en intervalle, le type etant connu
+      if (!knewDateFields && this._hasDateYearSelection()) {
+        this._dispatchFacetCommand();
+      }
+    }
+    if (fields.length === 0) {
+      if (!this.fields && !this._discoveryEmptyWarned) {
+        this._discoveryEmptyWarned = true;
+        console.warn(
+          `dsfr-data-facets[${this.id}]: aucune facette déclarée par le jeu de données — ` +
+            `renseigner l'attribut fields`
+        );
+      }
+      return;
+    }
 
     const labelMap = this._parseLabels();
 
@@ -822,7 +986,8 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
         for (const result of results) {
           allGroups.push({
             field: result.field,
-            label: labelMap.get(result.field) ?? result.field,
+            label:
+              labelMap.get(result.field) ?? this._discoveredLabel(result.field) ?? result.field,
             values: this._sortValues(result.values),
           });
         }
@@ -910,11 +1075,8 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
       if (colonIndex === -1) continue;
       const key = pair.substring(0, colonIndex).trim();
       const value = pair.substring(colonIndex + 1).trim();
-      if (
-        key &&
-        (value === 'checkbox' || value === 'select' || value === 'multiselect' || value === 'radio')
-      ) {
-        map.set(key, value);
+      if (key && FACET_DISPLAY_MODES.has(value)) {
+        map.set(key, value as FacetDisplayMode);
       }
     }
     return map;
@@ -989,7 +1151,12 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     this._afterSelectionChange();
 
     // Announce selection change for all interactive modes
-    if (displayMode === 'multiselect' || displayMode === 'radio' || displayMode === 'checkbox') {
+    if (
+      displayMode === 'multiselect' ||
+      displayMode === 'radio' ||
+      displayMode === 'radio-inline' ||
+      displayMode === 'checkbox'
+    ) {
       const action = wasSelected ? 'désélectionnée' : 'sélectionnée';
       this._announce(
         `${value} ${action}, ${fieldSet.size} option${fieldSet.size > 1 ? 's' : ''} sélectionnée${fieldSet.size > 1 ? 's' : ''}`
@@ -1481,6 +1648,8 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
         return this._renderMultiselectGroup(group);
       case 'radio':
         return this._renderRadioGroup(group);
+      case 'radio-inline':
+        return this._renderRadioInlineGroup(group);
       default:
         return this._renderCheckboxGroup(group);
     }
@@ -1668,6 +1837,46 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
             : nothing
         }
       </div>
+    `;
+  }
+
+  /**
+   * Boutons radio DSFR visibles en ligne (#684) : fieldset dont la legende est
+   * le libelle de la facette, une option « Tous » (cochee quand rien n'est
+   * selectionne) qui retire la selection, puis une radio par valeur. Toutes
+   * les valeurs sont rendues (pas de « Voir plus » : un choix unique visible
+   * d'un coup d'oeil, comme `select`).
+   */
+  private _renderRadioInlineGroup(group: FacetGroup) {
+    const uid = `${this._instanceUid}-${group.field}`;
+    const selected = this._activeSelections[group.field] ?? new Set();
+    const hasSelection = selected.size > 0;
+    const radioName = `${uid}-radio`;
+
+    return html`
+      <fieldset
+        class="fr-fieldset dsfr-data-facets__group dsfr-data-facets__radio-inline"
+        aria-labelledby="${uid}-legend"
+        data-field="${group.field}"
+      >
+        <legend class="fr-fieldset__legend fr-text--bold" id="${uid}-legend">${group.label}</legend>
+        <div class="fr-fieldset__element fr-fieldset__element--inline">
+          <div class="fr-radio-group fr-radio-group--sm">
+            <input
+              type="radio"
+              id="${uid}-all"
+              name="${radioName}"
+              value=""
+              .checked="${!hasSelection}"
+              @change="${() => this._clearFieldSelections(group.field)}"
+            />
+            <label class="fr-label" for="${uid}-all">Tous</label>
+          </div>
+        </div>
+        ${group.values.map((fv, fvIndex) =>
+          this._renderToggleItem(group, fv, `${uid}-${fvIndex}`, 'radio', radioName, true)
+        )}
+      </fieldset>
     `;
   }
 
