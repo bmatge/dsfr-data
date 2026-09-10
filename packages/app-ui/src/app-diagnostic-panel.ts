@@ -401,13 +401,19 @@ export class AppDiagnosticPanel extends LitElement {
     const join = state.meta?.join;
     const joinRatio = join && join.leftTotal > 0 ? join.leftMatched / join.leftTotal : null;
     const joinAlert = joinRatio !== null && joinRatio < JOIN_MATCH_ALERT_RATIO;
+    // Un afficheur sous une etape en attente d'un filtre n'est pas une
+    // alerte : la page fait exactement ce qu'on lui a demande (#690).
+    const upstreamWaiting = node.upstream.some((up) => trace.states[up]?.status === 'waiting');
     const warn =
       state.meta?.needsClientProcessing ||
       !!state.meta?.truncated ||
       joinAlert ||
       (state.status === 'loaded' && state.rows === 0) ||
       !!node.configError ||
-      (node.role === 'display' && state.status === 'idle' && upstreamRows.every((n) => n === 0));
+      (node.role === 'display' &&
+        state.status === 'idle' &&
+        !upstreamWaiting &&
+        upstreamRows.every((n) => n === 0));
 
     return html`
       <div class="app-diag__stage" data-status=${state.status} data-warn=${warn ? 'true' : 'false'}>
@@ -431,9 +437,17 @@ export class AppDiagnosticPanel extends LitElement {
                 ? html`<span class="app-diag__stage-note--error">✗ échec</span>`
                 : state.status === 'loading'
                   ? html`… chargement`
-                  : node.role === 'display'
-                    ? html`${upstreamRows.some((n) => n > 0) ? '✓ alimenté' : '⚠ rien reçu'}`
-                    : html`inerte`
+                  : state.status === 'waiting'
+                    ? html`en attente d’un filtre`
+                    : node.role === 'display'
+                      ? html`${
+                          upstreamWaiting
+                            ? 'en attente d’un filtre'
+                            : upstreamRows.some((n) => n > 0)
+                              ? '✓ alimenté'
+                              : '⚠ rien reçu'
+                        }`
+                      : html`inerte`
           }
         </div>
         ${
@@ -578,6 +592,9 @@ export class AppDiagnosticPanel extends LitElement {
               break;
             case 'loading':
               body = html`<strong>${e.node}</strong> chargement…`;
+              break;
+            case 'waiting':
+              body = html`<strong>${e.node}</strong> en attente d’un filtre (${e.reason})`;
               break;
             default:
               body = html`${e.from ? html`<strong>${e.from}</strong> → ` : nothing}

@@ -4,6 +4,7 @@ import { buildCsv, formatNumberFr } from '@dsfr-data/shared/lib';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
+import { IDLE_MESSAGE_DEFAULT } from '../utils/status-templates.js';
 
 let autoIdCounter = 0;
 const MAX_TABLE_ROWS = 100;
@@ -82,6 +83,14 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
    */
   @property({ type: Number })
   decimals: number | null = null;
+
+  /**
+   * Message annoncé quand l'amont attend un filtre (`require-where`, #690).
+   * Remplace « aucune donnée disponible » dans la description lue par les
+   * lecteurs d'écran : rien n'a été chargé, rien n'a échoué.
+   */
+  @property({ type: String, attribute: 'idle-message' })
+  idleMessage = IDLE_MESSAGE_DEFAULT;
 
   private _previousForTarget: Element | null = null;
   private _injectedSkipLink: HTMLAnchorElement | null = null;
@@ -335,6 +344,8 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
   // ---------------------------------------------------------------------------
 
   private _getAutoDescription(hasData: boolean, data: unknown): string {
+    // En attente d'un filtre (#690) : dire ce qui manque, pas « aucune donnée »
+    if (this._sourceIdle) return `${this.idleMessage || IDLE_MESSAGE_DEFAULT}.`;
     if (!hasData) return 'Aucune donnee disponible.';
     const count = (data as unknown[]).length;
     // Detect if target is a map component

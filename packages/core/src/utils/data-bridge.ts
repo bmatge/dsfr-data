@@ -33,6 +33,21 @@ export interface DataLoadingEvent {
 }
 
 /**
+ * Étape volontairement en attente (#690) : `require-where` est posé et aucun
+ * filtre non vide n'a encore été reçu.
+ *
+ * Distinct d'un chargement (rien n'est parti), d'une erreur (rien n'a échoué)
+ * et d'un résultat vide (aucune requête n'a été faite). Les afficheurs le
+ * rendent en message « choisissez un filtre », le volet Diagnostic en
+ * « en attente d'un filtre ».
+ */
+export interface DataIdleEvent {
+  sourceId: string;
+  /** Pourquoi l'étape attend. Seule valeur actuelle : `require-where`. */
+  reason: 'require-where';
+}
+
+/**
  * Metadonnees de pagination publiees par les sources (#270).
  *
  * CONTRAT :
@@ -92,6 +107,7 @@ export const DATA_EVENTS = {
   LOADED: 'dsfr-data-loaded',
   ERROR: 'dsfr-data-error',
   LOADING: 'dsfr-data-loading',
+  IDLE: 'dsfr-data-idle',
   SOURCE_COMMAND: 'dsfr-data-source-command',
 } as const;
 
@@ -99,13 +115,23 @@ export const DATA_EVENTS = {
 type WindowWithCache = Window & {
   __dsfrDataCache?: Map<string, unknown>;
   __dsfrDataMeta?: Map<string, PaginationMeta>;
+  __dsfrDataIdle?: Set<string>;
 };
 const _win: WindowWithCache | Record<string, never> =
   typeof window !== 'undefined' ? (window as WindowWithCache) : {};
 if (!_win.__dsfrDataCache) _win.__dsfrDataCache = new Map<string, unknown>();
 if (!_win.__dsfrDataMeta) _win.__dsfrDataMeta = new Map<string, PaginationMeta>();
+if (!_win.__dsfrDataIdle) _win.__dsfrDataIdle = new Set<string>();
 const dataCache: Map<string, unknown> = _win.__dsfrDataCache;
 const metaCache: Map<string, PaginationMeta> = _win.__dsfrDataMeta;
+/**
+ * Étapes actuellement en attente d'un filtre (#690).
+ *
+ * Le bus est événementiel : un afficheur monté APRÈS l'entrée en attente
+ * n'aurait rien à lire — ni événement passé, ni cache (purgé). Ce registre
+ * joue pour l'état « idle » le rôle que `dataCache` joue pour les lignes.
+ */
+const idleSources: Set<string> = _win.__dsfrDataIdle;
 
 /**
  * Enregistre des données dans le cache global
@@ -126,6 +152,15 @@ export function getDataCache(sourceId: string): unknown | undefined {
  */
 export function clearDataCache(sourceId: string): void {
   dataCache.delete(sourceId);
+  idleSources.delete(sourceId);
+}
+
+/**
+ * L'étape attend-elle un filtre (#690) ? Lu par les abonnés qui se branchent
+ * après coup, l'événement `dsfr-data-idle` étant déjà passé.
+ */
+export function isDataIdle(sourceId: string): boolean {
+  return idleSources.has(sourceId);
 }
 
 /**
@@ -154,6 +189,7 @@ export function clearDataMeta(sourceId: string): void {
  */
 export function dispatchDataLoaded(sourceId: string, data: unknown): void {
   setDataCache(sourceId, data);
+  idleSources.delete(sourceId);
 
   const event = new CustomEvent<DataLoadedEvent>(DATA_EVENTS.LOADED, {
     bubbles: true,
@@ -171,6 +207,7 @@ export function dispatchDataLoaded(sourceId: string, data: unknown): void {
  * modifie ni le message de l'`Error`, ni le contrat des abonnés existants.
  */
 export function dispatchDataError(sourceId: string, error: Error, attemptedUrl?: string): void {
+  idleSources.delete(sourceId);
   const event = new CustomEvent<DataErrorEvent>(DATA_EVENTS.ERROR, {
     bubbles: true,
     composed: true,
@@ -184,10 +221,36 @@ export function dispatchDataError(sourceId: string, error: Error, attemptedUrl?:
  * Dispatch un événement de chargement en cours
  */
 export function dispatchDataLoading(sourceId: string): void {
+  idleSources.delete(sourceId);
   const event = new CustomEvent<DataLoadingEvent>(DATA_EVENTS.LOADING, {
     bubbles: true,
     composed: true,
     detail: { sourceId },
+  });
+
+  document.dispatchEvent(event);
+}
+
+/**
+ * Dispatch un état « en attente d'un filtre » (#690).
+ *
+ * Le cache et la meta de l'étape sont PURGÉS avant l'émission : une étape qui
+ * repasse en attente (dernier filtre retiré) ne doit pas laisser ses lignes
+ * précédentes derrière elle — un afficheur monté après coup les lirait au
+ * cache et se croirait alimenté.
+ */
+export function dispatchDataIdle(
+  sourceId: string,
+  reason: DataIdleEvent['reason'] = 'require-where'
+): void {
+  clearDataCache(sourceId);
+  clearDataMeta(sourceId);
+  idleSources.add(sourceId);
+
+  const event = new CustomEvent<DataIdleEvent>(DATA_EVENTS.IDLE, {
+    bubbles: true,
+    composed: true,
+    detail: { sourceId, reason },
   });
 
   document.dispatchEvent(event);
@@ -236,6 +299,8 @@ export function subscribeToSource(
     onLoaded?: (data: unknown) => void;
     onError?: (error: Error) => void;
     onLoading?: () => void;
+    /** L'étape amont attend un filtre (`require-where`, #690) */
+    onIdle?: (reason: DataIdleEvent['reason']) => void;
   }
 ): () => void {
   const handleLoaded = (e: Event) => {
@@ -259,14 +324,23 @@ export function subscribeToSource(
     }
   };
 
+  const handleIdle = (e: Event) => {
+    const event = e as CustomEvent<DataIdleEvent>;
+    if (event.detail.sourceId === sourceId && callbacks.onIdle) {
+      callbacks.onIdle(event.detail.reason);
+    }
+  };
+
   document.addEventListener(DATA_EVENTS.LOADED, handleLoaded);
   document.addEventListener(DATA_EVENTS.ERROR, handleError);
   document.addEventListener(DATA_EVENTS.LOADING, handleLoading);
+  document.addEventListener(DATA_EVENTS.IDLE, handleIdle);
 
   // Retourne une fonction de cleanup
   return () => {
     document.removeEventListener(DATA_EVENTS.LOADED, handleLoaded);
     document.removeEventListener(DATA_EVENTS.ERROR, handleError);
     document.removeEventListener(DATA_EVENTS.LOADING, handleLoading);
+    document.removeEventListener(DATA_EVENTS.IDLE, handleIdle);
   };
 }

@@ -8,7 +8,12 @@ import {
   formatTemplateValue,
 } from '../utils/template-expression.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
-import { renderSourceLoading, renderSourceError } from '../utils/status-templates.js';
+import {
+  renderSourceLoading,
+  renderSourceError,
+  renderSourceIdle,
+  IDLE_MESSAGE_DEFAULT,
+} from '../utils/status-templates.js';
 import { getDataMeta } from '../utils/data-bridge.js';
 import { PaginationController } from '../utils/pagination-controller.js';
 
@@ -93,6 +98,14 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
   /** Nom du paramètre URL pour la page (défaut: "page") */
   @property({ type: String, attribute: 'url-page-param' })
   urlPageParam = 'page';
+
+  /**
+   * Message rendu quand l'amont attend un filtre (`require-where`, #690).
+   * Distinct de « aucune donnée » : aucune requête n'a été faite. Vide,
+   * le libellé par défaut est utilisé.
+   */
+  @property({ type: String, attribute: 'idle-message' })
+  idleMessage = IDLE_MESSAGE_DEFAULT;
 
   @state()
   private _data: Record<string, unknown>[] = [];
@@ -412,23 +425,25 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
             ? renderSourceLoading('dsfr-data-display')
             : this._sourceError && !(this._serverPagination && this._data.length > 0)
               ? renderSourceError('dsfr-data-display', this._sourceError)
-              : totalItems === 0
-                ? html`
-                    <div class="dsfr-data-display__empty" aria-live="polite" role="status">
-                      ${this.empty}
-                    </div>
-                  `
-                : html`
-                    <p
-                      class="fr-text--sm fr-mb-1w"
-                      aria-live="polite"
-                      aria-atomic="true"
-                      role="status"
-                    >
-                      ${totalItems} resultat${totalItems > 1 ? 's' : ''}
-                    </p>
-                    ${this._renderGrid(paginatedData)} ${this._renderPagination(totalPages)}
-                  `
+              : this._sourceIdle
+                ? renderSourceIdle('dsfr-data-display', this.idleMessage)
+                : totalItems === 0
+                  ? html`
+                      <div class="dsfr-data-display__empty" aria-live="polite" role="status">
+                        ${this.empty}
+                      </div>
+                    `
+                  : html`
+                      <p
+                        class="fr-text--sm fr-mb-1w"
+                        aria-live="polite"
+                        aria-atomic="true"
+                        role="status"
+                      >
+                        ${totalItems} resultat${totalItems > 1 ? 's' : ''}
+                      </p>
+                      ${this._renderGrid(paginatedData)} ${this._renderPagination(totalPages)}
+                    `
         }
       </div>
 

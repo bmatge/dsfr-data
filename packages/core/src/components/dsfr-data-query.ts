@@ -107,6 +107,9 @@ export interface QuerySort {
  *   order-by="population__sum:desc"
  *   limit="10">
  * </dsfr-data-query>
+ * @fires dsfr-data-idle - `{ sourceId, reason }` sur `document` — la requête attend un filtre
+ *   (`require-where` posé, aucun filtre reçu) : elle n'émet aucune ligne, et les afficheurs en
+ *   aval rendent « choisissez un filtre » (#690). Relayé tel quel quand c'est l'amont qui attend.
  * @fires dsfr-data-source-command - `{ sourceId, groupBy?, aggregate?, orderBy?, where?, whereKey?, origin }` sur `document` — délégation server-side negociee avec la source amont, et liberation des overlays quand elle retombe cote client. `origin` porte l'id de ce composant (#603).
  */
 @customElement('dsfr-data-query')
@@ -165,6 +168,22 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
   @property({ type: Number })
   limit = 0;
 
+  /**
+   * N'émettre aucune ligne tant qu'aucun filtre n'est posé (#690).
+   *
+   * Pendant de `require-where` sur `dsfr-data-source`, pour les pages
+   * d'exploration : la requête reste en attente, émet `dsfr-data-idle`, et
+   * les afficheurs en aval rendent « choisissez un filtre » au lieu du jeu
+   * entier.
+   *
+   * Ce qui compte comme filtre : le `where` (ou `filter`) de CETTE requête —
+   * sur un query, c'est la surface de filtrage que la page pilote — et toute
+   * clause `where` non vide reçue par commande (facettes, recherche,
+   * `dsfr-data-context`). Tout retirer fait repasser la requête en attente.
+   */
+  @property({ type: Boolean, attribute: 'require-where' })
+  requireWhere = false;
+
   @state()
   private _data: unknown[] = [];
 
@@ -211,6 +230,14 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * être lu. Une re-negociation dedupliquee ne le repasse pas a false.
    */
   private _sourceEmittedSinceCommand = true;
+
+  /**
+   * Clauses `where` reçues par commande, par whereKey (#690) — un contexte
+   * ou une facette peut viser l'id de cette requête, qui les relaie en amont.
+   * Elles ne servent PAS au traitement (le filtrage a lieu en amont) : elles
+   * disent seulement qu'un filtre est posé, pour `require-where`.
+   */
+  private _receivedWhere = new Map<string, string>();
 
   // Pas de rendu - composant invisible
   protected createRenderRoot(): HTMLElement | DocumentFragment {
@@ -276,7 +303,16 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
 
   /** Tout changement de prop de requête re-negocie et re-souscrit (#281) */
   protected transformerReinitProps(): string[] {
-    return ['source', 'where', 'filter', 'groupBy', 'aggregate', 'orderBy', 'limit'];
+    return [
+      'source',
+      'where',
+      'filter',
+      'groupBy',
+      'aggregate',
+      'orderBy',
+      'limit',
+      'requireWhere',
+    ];
   }
 
   protected validateTransformerConfig(): string | null {
@@ -311,6 +347,13 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     // Negotiate server-side delegation BEFORE subscribing to data.
     // This sends commands to dsfr-data-source so it re-fetches with the right params.
     this._negotiateServerSide();
+
+    // Sans filtre (#690), l'aval doit voir l'attente TOUT DE SUITE : attendre
+    // une émission amont laisserait les afficheurs en « aucune donnée » —
+    // et l'amont, s'il porte lui aussi require-where, n'émettra rien.
+    if (this.requireWhere && !this._hasFilter()) {
+      this.emitTransformerIdle();
+    }
   }
 
   /**
@@ -349,6 +392,45 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     this._sourceEmittedSinceCommand = true;
     this._rawData = Array.isArray(data) ? data : [data];
     this._handleSourceData();
+  }
+
+  /**
+   * Observation des commandes qui transitent par cette requête (#690) : le
+   * relais vers l'amont reste inchangé, on note seulement si un filtre est
+   * posé. Une transition d'état rejoue le traitement local, car l'amont ne
+   * réémet pas forcément (source inline, commande dédupliquée).
+   */
+  protected onTransformerCommand(cmd: { where?: string; whereKey?: string }): void {
+    if (cmd.where === undefined) return;
+    const key = cmd.whereKey || '__default';
+    const previous = this._receivedWhere.get(key) ?? '';
+    if (cmd.where === previous) return;
+
+    const wasFiltered = this._hasFilter();
+    if (cmd.where) {
+      this._receivedWhere.set(key, cmd.where);
+    } else {
+      this._receivedWhere.delete(key);
+    }
+    if (!this.requireWhere || this._hasFilter() === wasFiltered) return;
+
+    if (this._hasFilter()) {
+      if (this._rawData.length > 0) this._handleSourceData();
+    } else {
+      this.emitTransformerIdle();
+    }
+  }
+
+  /**
+   * Un filtre est-il posé (#690) ? Le `where`/`filter` de cette requête, ou
+   * une clause non vide reçue par commande.
+   */
+  private _hasFilter(): boolean {
+    if (this.filter || this.where) return true;
+    for (const value of this._receivedWhere.values()) {
+      if (value) return true;
+    }
+    return false;
   }
 
   // --- Server-side negotiation ---
@@ -622,6 +704,12 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * Handle data received from upstream source (via onTransformerData).
    */
   private _handleSourceData() {
+    // En attente d'un filtre (#690) : aucune émission de lignes, un état
+    // idle a la place — l'aval affiche « choisissez un filtre ».
+    if (this.requireWhere && !this._hasFilter()) {
+      this.emitTransformerIdle();
+      return;
+    }
     // Erreur de configuration sur `aggregate` (#649) : état d'erreur aval,
     // jamais un résultat à 0 — le message est déjà en console (reportConfigError).
     if (this._aggregateError) {

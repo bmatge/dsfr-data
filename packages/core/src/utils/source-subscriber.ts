@@ -5,7 +5,7 @@
  * dsfr-data-kpi, dsfr-data-list, dsfr-data-chart.
  */
 import type { LitElement } from 'lit';
-import { subscribeToSource, getDataCache } from './data-bridge.js';
+import { subscribeToSource, getDataCache, isDataIdle } from './data-bridge.js';
 
 // Pattern Lit mixin canonique : le constructor doit être callable avec
 // n'importe quels args pour permettre le chaînage `class extends mixin(Parent)`.
@@ -17,6 +17,8 @@ export interface SourceSubscriberInterface {
   _sourceLoading: boolean;
   _sourceData: unknown;
   _sourceError: Error | null;
+  /** L'amont attend un filtre (`require-where`, #690) — état « idle ». */
+  _sourceIdle: boolean;
   onSourceData(data: unknown): void;
   onSourceError?(error: Error): void;
   onSourceReset?(): void;
@@ -34,6 +36,12 @@ export function SourceSubscriberMixin<T extends Constructor<LitElement>>(superCl
     _sourceLoading = false;
     _sourceData: unknown = null;
     _sourceError: Error | null = null;
+    /**
+     * L'amont attend un filtre (#690). Purement un ÉTAT DE RENDU : il n'y a
+     * ni données périmées ni erreur à montrer, et surtout pas un « aucune
+     * donnée » qui laisserait croire que la requête a été faite pour rien.
+     */
+    _sourceIdle = false;
 
     private _unsubscribeSource: (() => void) | null = null;
 
@@ -101,11 +109,16 @@ export function SourceSubscriberMixin<T extends Constructor<LitElement>>(superCl
       this._sourceData = null;
       this._sourceError = null;
       this._sourceLoading = false;
+      this._sourceIdle = false;
       this.onSourceReset();
       this.requestUpdate();
 
       const source = (this as unknown as SourceSubscriberInterface).source;
       if (!source) return;
+
+      // L'amont peut être entré en attente AVANT ce montage (#690) :
+      // l'événement est passé, le cache est vide — le registre fait foi.
+      this._sourceIdle = isDataIdle(source);
 
       // Récupère les données en cache
       const cachedData = getDataCache(source);
@@ -119,17 +132,31 @@ export function SourceSubscriberMixin<T extends Constructor<LitElement>>(superCl
           this._sourceData = data;
           this._sourceLoading = false;
           this._sourceError = null;
+          this._sourceIdle = false;
           this.onSourceData(data);
           this.requestUpdate();
         },
         onLoading: () => {
           this._sourceLoading = true;
+          this._sourceIdle = false;
           this.requestUpdate();
         },
         onError: (error) => {
           this._sourceError = error;
           this._sourceLoading = false;
+          this._sourceIdle = false;
           this.onSourceError(error);
+          this.requestUpdate();
+        },
+        // Retour en attente (#690) : l'état dérivé de l'hôte est purgé par
+        // onSourceReset — sinon un graphique garderait les lignes du filtre
+        // qu'on vient de retirer, sous un message « choisissez un filtre ».
+        onIdle: () => {
+          this._sourceIdle = true;
+          this._sourceLoading = false;
+          this._sourceError = null;
+          this._sourceData = null;
+          this.onSourceReset();
           this.requestUpdate();
         },
       });

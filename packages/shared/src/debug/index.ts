@@ -14,6 +14,7 @@ export type {
   BusLoadedDetail,
   BusErrorDetail,
   BusLoadingDetail,
+  BusIdleDetail,
   BusCommandDetail,
 } from './events.js';
 
