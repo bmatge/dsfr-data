@@ -104,23 +104,38 @@ Les modes et ce qu’ils rendent :
 | `checkbox` (defaut) | cases a cocher en ligne | multiple (OU intra-facette) |
 | `select` | `<select class="fr-select">` natif, en ligne | **unique** |
 | `radio` | **dropdown** repliable contenant des boutons radio + recherche | unique |
+| `radio-inline` | boutons radio **visibles en ligne** (fieldset DSFR), option « Tous » en tete | unique |
 | `multiselect` | dropdown repliable avec cases a cocher + « tout selectionner » | multiple |
 
-Donc : « un choix unique visible directement » = `champ:select`. `radio` n’est pas
-une rangee de boutons radio en ligne mais un menu deroulant ; c’est documente, pas un
-bug. Une facette en `select` ou `radio` est exclusive d’office, sans `disjunctive`.
+Donc : « un choix unique visible directement » = `champ:select` (liste deroulante) ou
+`champ:radio-inline` (boutons radio en ligne, « Tous » pour retirer le choix). `radio`
+n’est pas une rangee de boutons radio en ligne mais un menu deroulant ; c’est documente,
+pas un bug — il sera renomme `radio-dropdown` dans une version majeure. Une facette en
+`select`, `radio` ou `radio-inline` est exclusive d’office, sans `disjunctive`.
 
 ### Facettes en cascade (server-facets)
 
 Avec `server-facets` (adapters OpenDataSoft et Grist), les valeurs et compteurs de
 chaque facette sont recalcules **cote serveur en tenant compte des selections des
 autres facettes** : choisir une region reduit la liste des departements, avec les
-bons compteurs. C’est la cascade native ; `fields` est obligatoire dans ce mode.
+bons compteurs. C’est la cascade native. Sans `fields`, le composant decouvre au
+premier cycle les facettes declarees par le jeu (ODS : champs annotes « facet » des
+metadonnees, avec leur libelle ; Grist : colonnes Choice / ChoiceList) et les affiche
+toutes, cascade comprise (#680). `fields` reste le moyen d’en choisir un sous-ensemble
+ou d’imposer l’ordre.
+
+Une facette ODS de type **date** sert ses valeurs par annee (« 2022 ») ; le filtre emis
+est alors un intervalle `champ >= date'2022-01-01' AND champ < date'2023-01-01'`, jamais
+l’egalite `champ = "2022"` (refusee par ODS, #676). Rien a configurer : le type vient de
+la decouverte, meme avec `fields` explicite.
 
 ```html
 <dsfr-data-source id="src" api-type="opendatasoft" base-url="..." dataset-id="..." server-side page-size="50"></dsfr-data-source>
 <dsfr-data-facets id="f" source="src" server-facets fields="region, departement"
   display="region:select | departement:select"></dsfr-data-facets>
+
+<!-- Toutes les facettes declarees par le jeu, sans les nommer -->
+<dsfr-data-facets id="f2" source="src" server-facets></dsfr-data-facets>
 ```
 
 En mode local (sans `server-facets`), les compteurs se recalculent aussi selon
@@ -142,8 +157,22 @@ cochee = filtre actif, decochee = filtre retire.
 </dsfr-data-context>
 ```
 
-Meme famille : `year-of` (annee choisie dans un select), `month-of`, `last-n-days`,
-`lt-day-after` (borne haute inclusive).
+Meme famille : `current-month` (case a cocher -> mois en cours, #682), `year-of` (annee
+choisie dans un select), `month-of`, `last-n-days`, `lt-day-after` (borne haute inclusive).
+
+### Filtrer jusqu’a aujourd’hui sans script (default="today")
+
+`default` (#682) pre-remplit le controle d'UI au montage, APRES l'URL (un parametre d'URL
+present gagne toujours), puis emet par le chemin normal : tags et URL suivent. Mots-cles
+`today`, `first-of-month`, `first-of-year` (date calendaire locale, adaptee au controle :
+input type=month -> AAAA-MM, `year-of` -> AAAA) ou un litteral.
+
+```html
+<input type="date" id="jusqu-au">
+<dsfr-data-context sources="src" url-sync>
+  <dsfr-data-context-filter field="date_debut" operator="lt-day-after" ui="jusqu-au" default="today"></dsfr-data-context-filter>
+</dsfr-data-context>
+```
 
 ### Cles de jointure : comparaison en chaine (join on)
 

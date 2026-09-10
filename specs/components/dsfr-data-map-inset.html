@@ -49,6 +49,7 @@
             <tr><td><code>center</code></td><td>String</td><td><code>""</code></td><td>Centre <code>"lat,lon"</code> — requis sans <code>territory</code> ; prioritaire sur le preset (surcharge de cadrage)</td></tr>
             <tr><td><code>zoom</code></td><td>Number</td><td><code>0</code> (&rarr; preset, sinon 8)</td><td>Zoom fixe de l'encart (= min-zoom = max-zoom de la mini-carte)</td></tr>
             <tr><td><code>label</code></td><td>String</td><td><code>""</code></td><td>Libellé affiché au-dessus de l'encart et nom accessible de la mini-carte (« Encart — X »). Défaut : le libellé du preset.</td></tr>
+            <tr><td><code>width</code></td><td>String</td><td><code>""</code></td><td>Largeur de l'encart (<code>px</code>, <code>rem</code>, <code>%</code>). Un <code>%</code> est relatif à la largeur de la carte hôte : <code>width="20%"</code> répartit cinq encarts sur une ligne. Sans attribut, la feuille injectée par la carte pose <code>10rem</code> — une règle de page <code>dsfr-data-map-inset { width: &hellip; }</code> prime toujours dessus (#643)</td></tr>
             <tr><td><code>height</code></td><td>String</td><td><code>"160px"</code></td><td>Hauteur de la mini-carte</td></tr>
           </tbody>
         </table>

@@ -46,6 +46,8 @@
             <tr><td><code>sort</code></td><td>String</td><td>Tri par défaut : <code>"col:asc"</code> ou <code>"col:desc"</code></td></tr>
             <tr><td><code>pagination</code></td><td>Number</td><td>Nombre d'elements par page (0 = pas de pagination)</td></tr>
             <tr><td><code>export</code></td><td>String</td><td>Formats d'export disponibles : <code>"csv"</code></td></tr>
+            <tr><td><code>caption</code></td><td>String</td><td>Titre du tableau, rendu dans <code>caption</code> (masqué visuellement, lu par les lecteurs d'écran — RGAA 5.4, #669). À défaut, dérivé de <code>aria-label</code></td></tr>
+            <tr><td><code>decimals</code></td><td>Number</td><td>Nombre de décimales des cellules numériques. Absent : au plus 2 décimales, format fr-FR. Les exports CSV/HTML ne sont pas concernés (#666)</td></tr>
             <tr><td><code>url-sync</code></td><td>Boolean</td><td>Synchronise le numero de page dans l'URL (replaceState)</td></tr>
             <tr><td><code>url-page-param</code></td><td>String</td><td>Nom du paramètre URL pour la page (défaut : <code>page</code>)</td></tr>
             <tr><td><code>server-sort</code></td><td>Boolean</td><td>Deleguer le tri des colonnes au serveur via <code>dsfr-data-source-command</code> (orderBy). Les en-tetes de colonnes envoient des commandes de tri a la source amont au lieu de trier localement.</td></tr>
