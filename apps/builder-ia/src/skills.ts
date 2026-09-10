@@ -1722,6 +1722,29 @@ deux attributs d'une balise, il est découpé par l'analyse HTML du \`<template>
 {{#unless site_web}}<span class="fr-text--mention-grey">Pas de site</span>{{/unless}}
 \`\`\`
 
+### Bloc de répétition (#737)
+\`{{#each champ}}…{{/each}}\` répète son contenu pour chaque élément d'un champ tableau —
+la seule façon de rendre un champ multivalué en liste structurée (sinon il est aplati par
+\`{{tags}}\` ou \`{{tags:join: / }}\`). Dans le bloc :
+
+- \`{{.}}\` = l'élément courant, toujours échappé, et les formats de la grammaire s'y
+  appliquent (\`{{.:number}}\`, \`{{.:date}}\`, \`{{.:url}}\`) ;
+- \`{{$index}}\` = le rang de l'élément (0-based), qui masque l'index de ligne ;
+- les autres placeholders désignent toujours les champs de l'enregistrement.
+
+Un tableau vide, un \`null\` ou un champ absent ne rendent RIEN (pas de \`<li>\` vide) ; les
+éléments vides sont ignorés ; une valeur scalaire vaut un élément unique. Comme \`{{#if}}\`,
+le bloc ne s'imbrique pas (un \`{{#each}}\` dans un \`{{#if}}\` n'est pas développé).
+
+Il n'existe PAS de pipe qui rendrait du balisage (\`:tags\` et compagnie) : le moteur échappe
+toujours, un pipe produisant du HTML ouvrirait une surface d'injection.
+
+\`\`\`html
+<ul class="fr-tags-group">
+  {{#each besoins}}<li><p class="fr-tag">{{.}}</p></li>{{/each}}
+</ul>
+\`\`\`
+
 Recette de transition (versions antérieures à 0.22, sans bloc) : rendre le lien toujours et le
 masquer en CSS quand l'attribut est vide — \`a[href=""] { display: none; }\`.
 
@@ -2941,8 +2964,9 @@ Composant compagnon optionnel qui definit un template et un mode d'affichage pou
 Template avec \`<template>\` et interpolation \`{{champ}}\` (même moteur que dsfr-data-display,
 toujours échappé, \`{{{champ}}}\` traité comme \`{{champ}}\`) : \`{{champ.sous.clé}}\`,
 \`{{champ:number}}\`, \`{{champ:date}}\`, \`{{tags:join: / }}\`, \`{{lien:url}}\` (à utiliser
-dans tout \`href\`), \`{{champ|défaut}}\`, blocs \`{{#if champ}}…{{/if}}\` / \`{{#unless}}\`.
-Sans template, tableau auto.
+dans tout \`href\`), \`{{champ|défaut}}\`, blocs \`{{#if champ}}…{{/if}}\` / \`{{#unless}}\` et
+\`{{#each champ}}…{{/each}}\` (répétition sur un champ tableau, \`{{.}}\` = l'élément, \`{{$index}}\`
+= son rang). Sans template, tableau auto.
 
 \`\`\`html
 <dsfr-data-map-popup mode="panel-right" title-field="nom" width="380px">
