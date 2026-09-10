@@ -1221,6 +1221,11 @@ la fraction. Division par zéro ou côté non numérique : « — » (jamais Inf
   éléments est égal. Le \`where\` s'applique aux deux côtés (sauf \`meta:total\`).
 - Un ratio marche aussi dans \`trend\` (rendu en %) et dans \`lines\` (format pourcentage par défaut).
 - Pas de \`count-if\` sur dsfr-data-query : filtrer avec \`where\` puis compter.
+- **Les deux côtés viennent de LA MÊME source** : \`source\` est un identifiant unique. Un indicateur
+  « par habitant », qui croise des faits et une population venus de deux jeux, passe par le pattern
+  \`dsfr-data-query group-by\` → \`dsfr-data-join\` → ratio (skill dsfr-data-join, « Pattern : ratio
+  entre DEUX sources »). Ne jamais générer \`value="src_a:count / src_b:sum:population"\` : cette
+  grammaire multi-sources n'existe pas.
 
 ### Filtrer sans query intermédiaire : \`where\`
 \`where="champ:op:valeur[, …]"\` filtre les lignes AVANT \`value\`, \`trend\` et \`lines\`, avec la
@@ -3277,6 +3282,31 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
     ],
     content: `## Pieges courants et troubleshooting
 
+### 0. Quand il n'y a pas de symptôme — les pieges muets
+Les sections suivantes partent d'un symptôme visible. La famille la plus coûteuse n'en produit
+aucun : la page rend un résultat plausible et faux. Ce qui reste muet aujourd'hui, une fois
+déduits les correctifs de diagnostic (#641, #646, #653, #659, #727, #729, #730, #731) :
+- **Grammaire d'attribut ignorée** : le séparateur d'entrées change d'un attribut à l'autre
+  (\`|\` pour \`labels\`, \`display\`, \`cols\` ; \`,\` pour \`split\`, \`round\`, \`fields\` ; \`;\` pour
+  \`compute\`). Une entrée mal séparée est ignorée sans un mot — seul \`dsfr-data-facets\` avertit
+  (#731). Vérifier la grammaire dans la skill \`attributeGrammars\`, jamais de mémoire.
+- **Virgule ou deux-points DANS une valeur** (libellé métier, heure « 10:00 ») : la paire est
+  coupée en silence. Échapper en \`%2C\` / \`%3A\` (\`%7C\`, \`%25\`) — grammaire par attribut dans
+  \`attributeGrammars\`.
+- **Modalité vide ou \`null\`** : barre sans libellé, part de camembert « Série 3 », comptes
+  décalés. \`empty-label\` la nomme, \`where="champ:isnotnull"\` l'écarte. Aucun avertissement.
+- **CSS de la page qui écrase le \`:host\`** : une règle large (\`section > * { display: block }\`)
+  casse la mise en page interne d'un composant, sans erreur ni trace.
+- **Troncature** : plus muette (avertissement console, \`meta.truncated\`, volet Diagnostic,
+  bandeau sur la carte) mais toujours INVISIBLE DANS LA PAGE. Repasser du mode export au mode
+  adaptateur réapplique le plafond \`max-records\` de 1 000. Ouvrir le volet avant de publier
+  un chiffre.
+- **Instance servie en retard** : un attribut inconnu de la version CHARGÉE est signalé (#727),
+  mais une instance publique peut servir une version antérieure — \`curl …/dist/skills-meta.json\`
+  donne sa \`libVersion\`.
+Méthode d'évaluation (les quatre verdicts, le chronométrage, le rendu différé) :
+\`docs/EVALUER-UNE-REPRODUCTION.md\`.
+
 ### 1. Le graphique est vide / ne s'affiche pas
 - **Vérifier \`transform\`** : l'API retourne souvent un objet enveloppe (\`{results: [...]}\`).
   Si \`transform\` n'est pas défini ou pointe au mauvais endroit, les données seront vides.
@@ -3646,6 +3676,40 @@ Si un champ existe dans les deux sources avec le même nom :
   on="dept_code=code" type="inner">
 </dsfr-data-join>
 \`\`\`
+
+### Pattern : ratio entre DEUX sources (agréger, joindre, diviser)
+Le ratio de \`dsfr-data-kpi\` (\`value="a / b"\`) s'évalue sur l'UNIQUE source du KPI : \`source\` est
+un scalaire. Un indicateur « par habitant » — donc toute comparaison entre territoires de tailles
+différentes — croise deux jeux. Le motif qui marche aujourd'hui, à trois balises : **agréger avant
+de joindre**. On ne joint pas 333 611 équipements à une table de population ; un \`group-by\` par
+territoire ramène chaque source à UNE LIGNE PAR TERRITOIRE, la jointure les rapproche, et le ratio
+mono-source s'applique à la ligne jointe.
+\`\`\`html
+<!-- 1. Agréger CHAQUE source par territoire -->
+<dsfr-data-query id="equip-par-commune" source="equipements"
+  group-by="code_insee" aggregate="code_insee:count:nb_equipements"></dsfr-data-query>
+<dsfr-data-query id="pop-par-commune" source="communes"
+  group-by="com_code" aggregate="population:sum:habitants"></dsfr-data-query>
+
+<!-- 2. Rapprocher les deux agrégats sur la clé de maille commune -->
+<dsfr-data-join id="par-commune" type="inner"
+  left="equip-par-commune" right="pop-par-commune" on="code_insee=com_code"></dsfr-data-join>
+
+<!-- 3. Le ratio mono-source s'applique à la ligne jointe -->
+<dsfr-data-kpi source="par-commune" value="nb_equipements:sum / habitants:sum"
+  format="decimal" decimals="3" label="Équipements par habitant"></dsfr-data-kpi>
+\`\`\`
+Pour un CLASSEMENT plutôt qu'un chiffre, intercaler un \`dsfr-data-normalize\` après la jointure :
+\`compute="pour_mille = round(nb_equipements / habitants * 1000, 1)"\`, puis brancher un podium ou
+un chart sur la colonne calculée.
+
+**Limite à énoncer à l'utilisateur** : ce motif exige une CLÉ DE MAILLE COMMUNE aux deux sources —
+même niveau territorial et même codage de la clé. Mailles différentes (adresse contre département) :
+ramener d'abord la source fine à la maille grossière par \`group-by\`. Codages différents (code INSEE
+contre nom, \`01\` contre \`1\`) : normaliser la clé avec \`dsfr-data-normalize\` AVANT la jointure —
+une jointure sur des clés qui ne s'égalent pas rend zéro ligne, en silence (voir le taux
+d'appariement du volet Diagnostic). Si une seule des deux sources connaît le territoire, le ratio
+n'est pas exprimable.
 
 ### Comparaison des clés : en chaîne, sans trim ni complétion
 Les clés sont converties en chaîne avant comparaison — le type ne compte pas, la forme oui :

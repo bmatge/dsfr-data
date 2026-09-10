@@ -75,6 +75,11 @@ la fraction. Division par zéro ou côté non numérique : « — » (jamais Inf
   éléments est égal. Le `where` s'applique aux deux côtés (sauf `meta:total`).
 - Un ratio marche aussi dans `trend` (rendu en %) et dans `lines` (format pourcentage par défaut).
 - Pas de `count-if` sur dsfr-data-query : filtrer avec `where` puis compter.
+- **Les deux côtés viennent de LA MÊME source** : `source` est un identifiant unique. Un indicateur
+  « par habitant », qui croise des faits et une population venus de deux jeux, passe par le pattern
+  `dsfr-data-query group-by` → `dsfr-data-join` → ratio (skill dsfr-data-join, « Pattern : ratio
+  entre DEUX sources »). Ne jamais générer `value="src_a:count / src_b:sum:population"` : cette
+  grammaire multi-sources n'existe pas.
 
 ### Filtrer sans query intermédiaire : `where`
 `where="champ:op:valeur[, …]"` filtre les lignes AVANT `value`, `trend` et `lines`, avec la

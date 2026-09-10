@@ -878,6 +878,78 @@ Hors perimetre : le clic sur une barre ou un secteur de `dsfr-data-chart` (#749)
 - **Litteral `value="=…"`** : affiche la valeur telle quelle, sans source de donnees (`value="=667"`, `value="=87 %"`).
 - Chaque KPI enfant peut porter `col="1..12"` pour moduler sa largeur dans la grille.
 
+### Un ratio entre DEUX sources : agreger, joindre, diviser
+
+Le ratio de `dsfr-data-kpi` (`value="a / b"`) s'evalue sur **l'unique source** du KPI. Un indicateur
+« par habitant » — donc toute comparaison entre territoires de tailles differentes — met en jeu deux
+jeux de donnees : les faits d'un cote, la population de l'autre. Le motif ci-dessous les rapproche
+**sans changer d'architecture**, avec les composants d'aujourd'hui.
+
+L'idee tient en une phrase : **agreger avant de joindre**. On ne joint jamais 333 611 equipements a une
+table de population — on ramene d'abord chaque source a **une ligne par territoire** avec
+`dsfr-data-query group-by`, puis la jointure rapproche deux tables de meme granularite, et le ratio
+mono-source s'applique a la ligne jointe.
+
+```html
+<!-- Deux sources independantes : une ligne par equipement, une ligne par commune -->
+<dsfr-data-source id="equipements" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr" dataset-id="equipements-sportifs"
+  fetch-mode="export" max-records="50000"></dsfr-data-source>
+
+<dsfr-data-source id="communes" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr" dataset-id="population-communes"
+  fetch-mode="export" max-records="50000"></dsfr-data-source>
+
+<!-- 1. Agreger CHAQUE source par territoire : une ligne par commune de chaque cote -->
+<dsfr-data-query id="equip-par-commune" source="equipements"
+  group-by="code_insee"
+  aggregate="code_insee:count:nb_equipements"></dsfr-data-query>
+
+<dsfr-data-query id="pop-par-commune" source="communes"
+  group-by="com_code"
+  aggregate="population:sum:habitants"></dsfr-data-query>
+
+<!-- 2. Rapprocher les deux agregats sur la cle de maille commune -->
+<dsfr-data-join id="par-commune" type="inner"
+  left="equip-par-commune" right="pop-par-commune"
+  on="code_insee=com_code"></dsfr-data-join>
+
+<!-- 3. Le ratio mono-source s'applique a la ligne jointe -->
+<dsfr-data-kpi source="par-commune"
+  value="nb_equipements:sum / habitants:sum"
+  label="Equipements par habitant" format="decimal" decimals="3"></dsfr-data-kpi>
+```
+
+**Pour un classement plutot qu'un chiffre**, ajoutez un `dsfr-data-normalize` apres la jointure : son
+`compute` calcule la colonne de taux, que n'importe quel afficheur consomme ensuite.
+
+```html
+<dsfr-data-normalize id="taux" source="par-commune"
+  compute="pour_mille = round(nb_equipements / habitants * 1000, 1)"></dsfr-data-normalize>
+
+<dsfr-data-podium source="taux" label-field="code_insee" value-field="pour_mille"
+  value-unit="pour 1 000 hab." max-items="10"></dsfr-data-podium>
+```
+
+**La limite, ecrite** : ce motif exige une **cle de maille commune** aux deux sources — meme niveau
+territorial (commune avec commune, departement avec departement) et meme codage de la cle. Deux jeux
+qui ne partagent pas cette cle ne se joignent pas :
+
+- **Mailles differentes** (equipements geolocalises a l'adresse, population au departement) : il faut
+  d'abord ramener la source fine a la maille grossiere. Si elle porte le code du territoire englobant,
+  `group-by` sur ce code suffit ; sinon, le rattachement est un travail de preparation des donnees, en
+  amont de la bibliotheque.
+- **Codages differents** (code INSEE d'un cote, nom de commune de l'autre ; `01` contre `1`) : normalisez
+  la cle avec `dsfr-data-normalize` (`rename`, `compute`, `replace`) **avant** la jointure — une
+  jointure sur des cles qui ne s'egalent pas rend zero ligne, en silence.
+- **Une seule des deux sources connait le territoire** : le ratio n'est pas exprimable, quelle que soit
+  la bibliotheque.
+
+Ce motif est verbeux — trois a quatre balises la ou une expression multi-sources
+(`value="src_a:count / src_b:sum:population"`) tiendrait en une. Ce raccourci n'existe pas : il
+obligerait un afficheur a souscrire a N sources et a n'attendre qu'elles soient toutes arrivees, ce
+qu'aucun ne fait aujourd'hui. Le motif documente ici couvre le besoin sans ce changement.
+
 ### Charger un jeu Opendatasoft en une requete : `fetch-mode="export"`
 
 Par defaut, une source Opendatasoft lit le jeu **page par page**, 100 lignes a la fois : 3 000 lignes
@@ -1098,6 +1170,11 @@ depuis 2019, il faut tout rapatrier — c'est exactement ce que `year-start-mont
 
 ## Ressources
 
+- **[Evaluer une reproduction](EVALUER-UNE-REPRODUCTION.md)** — la methode a suivre avant de conclure
+  qu'une capacite manque : les quatre verdicts a ne jamais confondre, le chronometrage avant de juger
+  la performance, la verification au navigateur (les cartes se rendent a la visibilite), et la
+  question qui evite le plus de faux constats — est-ce la bibliotheque, ou d'avoir voulu transposer
+  un autre modele ?
 - **Code source** : [github.com/bmatge/dsfr-data](https://github.com/bmatge/dsfr-data)
 - **Demo composants** : section Composants de l'application
 - **Documentation DSFR Chart** : [github.com/GouvernementFR/dsfr-chart](https://github.com/GouvernementFR/dsfr-chart)

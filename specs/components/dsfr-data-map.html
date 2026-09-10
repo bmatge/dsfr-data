@@ -148,6 +148,39 @@ dsfr-data-source (B) ──┘     ├── dsfr-data-map-layer <span class="to
         </p>
         <p><strong>Mode <code>sovereign-only</code></strong> : pour les DSI qui imposent une politique « zéro tiers externe non souverain », l'attribut booléen <code>sovereign-only</code> restreint les presets disponibles aux seules tuiles IGN. Tout autre preset ou URL custom est refusé avec un avertissement console et remplacé par <code>ign-plan</code>.</p>
 
+        <h3 class="fr-mt-3w">Laisser le lecteur choisir son fond</h3>
+        <p>
+          <code>tiles</code> décide du fond une fois pour toutes. Sur une carte de terrain, le lecteur a
+          souvent besoin des deux : le plan pour se repérer, l'orthophoto pour reconnaître les lieux.
+          <code>tiles-switcher</code> énumère les fonds qu'on lui propose et rend un menu déroulant
+          étiqueté « Fond de carte » en haut à droite, utilisable au clavier.
+        </p>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-map fields="tiles-switcher" -->
+                <tr><td><code>tiles-switcher</code></td><td>String</td><td><code>""</code></td><td>Fonds proposés au LECTEUR, séparés par des virgules (ex. <code>"ign-plan,ign-ortho"</code>). Vide (défaut) : aucun sélecteur, seul <code>tiles</code> décide. Rend un menu déroulant étiqueté « Fond de carte » en haut à droite de la carte, utilisable au clavier ; changer de fond met à jour la carte et ses encarts. Les entrées hors presets connus sont écartées avec un avertissement, et il en faut au moins deux pour que le sélecteur apparaisse. Sans effet avec <code>locked</code> ou <code>no-controls</code> (#744).</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
+        <div class="code-block">
+          <pre>&lt;dsfr-data-map
+  center="48.85,2.35" zoom="12"
+  tiles="ign-plan"
+  tiles-switcher="ign-plan,ign-ortho,ign-cadastre"&gt;
+  &lt;dsfr-data-map-layer source="poi"&gt;&lt;/dsfr-data-map-layer&gt;
+&lt;/dsfr-data-map&gt;</pre>
+        </div>
+        <p class="fr-text--sm fr-text--light">
+          Les entrées hors presets connus sont écartées avec un avertissement, et il en faut au moins deux
+          pour que le sélecteur apparaisse. Changer de fond met à jour la carte et ses encarts. Sans effet
+          avec <code>locked</code> ou <code>no-controls</code>, qui retirent précisément l'interaction
+          (#744). <code>sovereign-only</code> continue de s'appliquer : un fond non souverain proposé au
+          lecteur est écarté comme il le serait sur <code>tiles</code>.
+        </p>
+
         <!-- ============================================================ -->
         <!-- Événements / API -->
         <!-- ============================================================ -->

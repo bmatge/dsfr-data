@@ -40,7 +40,7 @@
               <tr><th>Attribut</th><th>Type</th><th>Description</th></tr>
             </thead>
             <tbody>
-              <!-- ATTRS:dsfr-data-list fields="source,columns,search,filters,sort,pagination,export,caption,decimals,url-sync,url-page-param,server-sort,columns-auto" -->
+              <!-- ATTRS:dsfr-data-list fields="source,columns,search,filters,sort,pagination,export,caption,decimals,url-sync,url-page-param,server-sort,columns-auto,idle-message" -->
                 <tr><td><code>source</code></td><td>String</td><td>Id de la source (ou du transformateur) dont ce tableau consomme les données.</td></tr>
                 <tr><td><code>columns</code></td><td>String</td><td>Définition des colonnes : <code>"clé:Label, cle2:Label2"</code>. Omis : toutes les clés présentes dans les données deviennent colonnes, dans leur ordre d'apparition, libellé = clé — le tableau suit un schéma dynamique (aval d'un <code>dsfr-data-pivot</code>, #255).</td></tr>
                 <tr><td><code>search</code></td><td>Boolean</td><td>Afficher un champ de recherche</td></tr>
@@ -54,6 +54,7 @@
                 <tr><td><code>url-page-param</code></td><td>String</td><td>Nom du paramètre URL pour la page (défaut: "page")</td></tr>
                 <tr><td><code>server-sort</code></td><td>Boolean</td><td>Active le tri serveur. Au lieu de trier localement, envoie une commande { orderBy } au source upstream (dsfr-data-query server-side) qui re-fetche les données triees.</td></tr>
                 <tr><td><code>columns-auto</code></td><td>Boolean</td><td>Complète <code>columns</code> avec les clés des données qui n'y figurent pas (ordre d'apparition, libellé = clé) : les premières colonnes sont libellées et figées, les suivantes suivent les données (#640).</td></tr>
+                <tr><td><code>idle-message</code></td><td>String</td><td>Message rendu quand l'amont attend un filtre (<code>require-where</code>, #690). Distinct de « aucune donnée » : aucune requête n'a été faite. Vide, le libellé par défaut est utilisé.</td></tr>
               <!-- /ATTRS -->
             </tbody>
           </table>
@@ -61,6 +62,98 @@
         <!-- ATTRS-PROSE:dsfr-data-list fields="colonnes,recherche,filtres,tri,server-tri" -->
         <p class="fr-text--sm fr-text--light">Les anciens noms francais (<code>colonnes</code>, <code>recherche</code>, <code>filtres</code>, <code>tri</code>, <code>server-tri</code>) restent lus en alias deprecies (#300).</p>
         <p class="fr-text--sm fr-text--light"><strong>Événements :</strong> le composant n'émet pas d'événement custom ; il participe au data-bridge en consommateur (abonnement à la source) et émet des commandes <code>dsfr-data-source-command</code> (<code>page</code>, <code>orderBy</code>) en pagination/tri serveur.</p>
+
+        <h3 class="fr-mt-3w">En attente d'un filtre</h3>
+        <p>
+          Sur une page d'exploration, l'amont peut porter <code>require-where</code>
+          (<code>&lt;dsfr-data-source&gt;</code> ou <code>&lt;dsfr-data-query&gt;</code>) et ne rien émettre
+          tant qu'aucun filtre n'est posé — un tableau de 19 000 lignes que personne ne lira ne part pas.
+          Le tableau rend alors le texte de <code>idle-message</code> (« Choisissez un filtre pour afficher
+          les données » par défaut) à la place du message « aucune donnée » : rien n'a été demandé, aucune
+          requête n'est revenue vide. Le mécanisme est décrit sur
+          <a href="dsfr-data-source.html#attributs">dsfr-data-source</a>.
+        </p>
+
+        <h3 class="fr-mt-3w">Classe CSS pilotée par une colonne</h3>
+        <p>
+          Colorer une cellule selon sa valeur ne se fait pas dans le tableau : la règle est une donnée, elle
+          se calcule en amont. <code>cell-class</code> relie une colonne affichée à une colonne de classes
+          produite par le <code>compute</code> de
+          <a href="dsfr-data-normalize.html">dsfr-data-normalize</a>.
+        </p>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead>
+              <tr><th>Attribut</th><th>Type</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-list fields="cell-class" -->
+                <tr><td><code>cell-class</code></td><td>String</td><td>Classe CSS d'une cellule pilotée par une colonne calculée (#740) : <code>"colonne:colonne_classe"</code>, plusieurs paires séparées par des virgules ; <code>"colonne"</code> seul classe la cellule par sa propre valeur. La valeur de la colonne de classe DEVIENT la classe de la cellule (plusieurs classes séparées par des espaces) : produisez-la avec le <code>compute</code> de dsfr-data-normalize, par exemple <code>compute="alerte = when taux &gt;= 50 then 'seuil-ok' else 'seuil-bas'"</code>, puis stylez <code>.seuil-bas</code> dans la page. Seuls les identifiants CSS sont retenus, le reste est ignoré. Quand la colonne de classe n'est pas affichée, sa valeur est ajoutée à la cellule en texte pour les lecteurs d'écran : l'information n'est jamais portée par la seule couleur.</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
+        <div class="code-block">
+          <pre>&lt;dsfr-data-normalize id="calc" source="src"
+  compute="alerte = when taux &gt;= 50 then 'seuil-ok' else 'seuil-bas'"&gt;
+&lt;/dsfr-data-normalize&gt;
+
+&lt;dsfr-data-list source="calc"
+  columns="commune:Commune, taux:Taux (%)"
+  cell-class="taux:alerte"&gt;
+&lt;/dsfr-data-list&gt;
+
+&lt;style&gt;.seuil-bas { color: var(--text-default-error); }&lt;/style&gt;</pre>
+        </div>
+        <p class="fr-text--sm fr-text--light">
+          Plusieurs paires se séparent par des virgules ; <code>cell-class="taux"</code> seul classe la
+          cellule par sa propre valeur. Seuls les identifiants CSS sont retenus. Quand la colonne de classes
+          n'est pas affichée, sa valeur est ajoutée à la cellule en texte pour les lecteurs d'écran :
+          l'information n'est jamais portée par la seule couleur.
+        </p>
+
+        <h3 class="fr-mt-3w">Filtrer d'un clic sur une ligne</h3>
+        <p>
+          Un tableau sert souvent de sélecteur : on clique une ligne, et les graphiques de la page se
+          recentrent sur elle. <code>refine-on-click</code> nomme le champ dont la valeur de la ligne
+          cliquée devient un filtre <code>eq</code>. Une colonne de sélection est ajoutée en tête du
+          tableau : un bouton par ligne, atteignable au clavier et dont l'état est annoncé
+          (<code>aria-pressed</code>) — la couleur de la ligne n'est jamais la seule marque.
+        </p>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead>
+              <tr><th>Attribut</th><th>Type</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-list fields="refine-on-click,context,label" -->
+                <tr><td><code>refine-on-click</code></td><td>String</td><td>Champ dont la valeur de la ligne cliquée devient un filtre <code>eq</code> (#734). Premier clic = filtre, second clic sur la même ligne = retrait, clic sur une autre ligne = remplacement. Une colonne de sélection est ajoutée en tête du tableau : un bouton par ligne, atteignable au clavier, dont l'état est annoncé (<code>aria-pressed</code>) — la couleur de la ligne sélectionnée n'est jamais la seule marque. Avec <code>context="id"</code> (recommandé), le tableau s'enregistre comme filtre du dsfr-data-context : diffusion à toutes ses sources cibles au dialecte de chacune, tag dans dsfr-data-context-tags, URL portée par le contexte. Sans <code>context</code>, la clause part directement à <code>source</code> (whereKey <code>list-select-ID</code>) — sans tag ni URL, et le tableau se filtre lui-même (seule la ligne cliquée reste, jusqu'au second clic).</td></tr>
+                <tr><td><code>context</code></td><td>String</td><td>Identifiant du dsfr-data-context auquel s'enregistrer en <code>refine-on-click</code> (#734, ADR-104). Le contexte peut être déclaré après le tableau dans la page. Vide = commande directe à <code>source</code> (chemin dégradé).</td></tr>
+                <tr><td><code>label</code></td><td>String</td><td>Libellé du tag de contexte en <code>refine-on-click</code> (#734). Vide = le libellé de la colonne filtrée, à défaut le nom du champ.</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
+        <div class="code-block">
+          <pre>&lt;dsfr-data-context id="ctx" sources="src"&gt;&lt;/dsfr-data-context&gt;
+&lt;dsfr-data-context-tags for="ctx"&gt;&lt;/dsfr-data-context-tags&gt;
+
+&lt;dsfr-data-list
+  source="src"
+  columns="departement:Département, total:Total"
+  refine-on-click="departement"
+  context="ctx"
+  label="Département"&gt;
+&lt;/dsfr-data-list&gt;</pre>
+        </div>
+        <p class="fr-text--sm fr-text--light">
+          Premier clic = filtre, second clic sur la même ligne = retrait, clic sur une autre ligne =
+          remplacement. Avec <code>context</code> (recommandé), le tableau s'enregistre comme filtre du
+          <a href="dsfr-data-context.html">dsfr-data-context</a> : diffusion à toutes ses sources cibles au
+          dialecte de chacune, tag supprimable, URL portée par le contexte, et <code>label</code> donne son
+          libellé au tag. Sans <code>context</code>, la clause part directement à <code>source</code> — sans
+          tag ni URL, et le tableau se filtre lui-même, ne gardant que la ligne cliquée jusqu'au second clic.
+        </p>
 
         <!-- Variante 1: Tableau simple -->
         <h2 class="fr-mt-4w">Variantes</h2>

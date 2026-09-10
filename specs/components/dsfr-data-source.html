@@ -142,7 +142,7 @@
               <!-- ATTRS:dsfr-data-source fields="url,method,params,paginate,page-size,use-proxy,proxy-url" -->
                 <tr><td><code>url</code></td><td>String</td><td>URL relative ou absolue</td><td>URL de l'API a interroger (mode URL brute). Vide en mode adapter ou en mode <code>data</code> inline.</td></tr>
                 <tr><td><code>method</code></td><td><code>GET</code> · <code>POST</code></td><td><code>GET</code> | <code>POST</code></td><td>Méthode HTTP : <code>GET</code> (défaut) ou <code>POST</code>.</td></tr>
-                <tr><td><code>params</code></td><td>String</td><td><code>'{"limit": 100}'</code></td><td>Paramètres de requête en JSON : query string en GET, corps en POST.</td></tr>
+                <tr><td><code>params</code></td><td>String</td><td><code>'{"limit": 100}'</code></td><td>Paramètres de requête en JSON. Mode URL : query string en GET, corps de la requête en POST. **Mode adaptateur** (#726) : les paires sont ajoutées à l'URL construite par l'adaptateur, ce qui sert les paramètres propres au portail que la bibliothèque ne modélise pas — le cas d'usage est <code>params='{"timezone":"Europe/Paris"}'</code> sur un jeu Opendatasoft à dates, qui n'obligeait jusqu'ici à rester en mode URL. Les clés que la bibliothèque construit elle-même (<code>select</code>, <code>where</code>, <code>group_by</code>, <code>order_by</code>, <code>limit</code>, <code>offset</code>, <code>facet</code>) sont réservées : elles sont refusées avec une erreur de configuration plutôt que d'écraser une clause. Transmis par l'adaptateur Opendatasoft seulement, en chargement paginé comme en <code>fetch-mode="export"</code>.</td></tr>
                 <tr><td><code>paginate</code></td><td>Boolean</td><td>Presence = <code>true</code></td><td>Active la pagination serveur en mode URL : injecte page/page_size dans l'URL et publie la meta.</td></tr>
                 <tr><td><code>page-size</code></td><td>Number</td><td>Entier positif. Défaut : <code>20</code></td><td>Taille de page pour la pagination serveur (nombre de records par page).</td></tr>
                 <tr><td><code>use-proxy</code></td><td>Boolean</td><td>Presence = <code>true</code></td><td>Force le passage par le proxy CORS generique (pour les APIs externes sans CORS)</td></tr>
@@ -175,6 +175,43 @@
           </table>
         </div>
 
+        <h4 class="fr-mt-3w">Tout charger en un seul appel : <code>fetch-mode</code></h4>
+        <p>
+          En mode adaptateur, la source pagine par tranches de 100 lignes. Pour une page « un fetch, N
+          agrégations client », c'est autant d'allers-retours ; et sur un <code>group-by</code> à beaucoup
+          de groupes, le portail ne rend qu'une page de groupes.
+          <code>fetch-mode="export"</code> passe par l'endpoint d'export du portail, qui rend tout d'un coup,
+          avec les mêmes clauses (<code>select</code>, <code>where</code>, <code>group-by</code>,
+          <code>order-by</code>).
+        </p>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-source fields="fetch-mode" -->
+                <tr><td><code>fetch-mode</code></td><td><code>records</code> · <code>export</code></td><td><code>records</code></td><td>Stratégie de chargement en mode adaptateur (#689) : <code>records</code> (défaut, comportement historique — pagination par pages de 100) ou <code>export</code>, qui charge tout le jeu en **une seule requête** sur l'endpoint d'export du portail, avec les mêmes clauses (<code>select</code>, <code>where</code>, <code>group-by</code>, <code>order-by</code>). Implémenté par OpenDataSoft seulement ; les autres adaptateurs ignorent l'attribut. À activer pour une page « un fetch, N agrégations client », un jeu de plus de 1 000 lignes, ou un <code>group-by</code> à beaucoup de groupes : le portail les rend tous d'un coup au lieu d'une page. À ne pas activer avec <code>server-side</code> (pagination page par page), qui reste sur l'endpoint paginé et signale la contradiction dans la console. En mode <code>export</code> le total serveur est inconnu : la troncature est détectée en demandant une ligne de plus que le plafond <code>max-records</code>. Si le portail n'expose pas d'endpoint d'export, la source retombe une fois sur le chargement paginé, avec un avertissement en console.</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
+        <div class="code-block">
+          <pre>&lt;dsfr-data-source id="src"
+  api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr"
+  dataset-id="mon-jeu"
+  fetch-mode="export"
+  max-records="20000"&gt;
+&lt;/dsfr-data-source&gt;</pre>
+        </div>
+        <p class="fr-text--sm fr-text--light">
+          Implémenté par l'adaptateur OpenDataSoft seulement ; les autres l'ignorent, et une source dont le
+          portail n'expose pas d'endpoint d'export retombe une fois sur le chargement paginé, avec un
+          avertissement console. À ne pas combiner avec <code>server-side</code>, qui pagine page par page
+          et reste sur l'endpoint paginé : la contradiction est signalée dans la console. En mode export le
+          total serveur est inconnu, donc la troncature est détectée en demandant une ligne de plus que le
+          plafond <code>max-records</code> — pensez à relever ce plafond en même temps.
+        </p>
+
         <h3 class="fr-mt-3w">Attribut mode inline</h3>
         <div class="fr-table">
           <table class="attr-table">
@@ -186,6 +223,54 @@
             </tbody>
           </table>
         </div>
+
+        <h3 id="require-where" class="fr-mt-3w">Ne rien charger avant le premier filtre</h3>
+        <p>
+          Sans précaution, une source interroge son API dès le montage et rapatrie le jeu entier — une
+          requête coûteuse dont personne ne regarde le résultat sur une page d'exploration, où l'utilisateur
+          va de toute façon commencer par choisir une commune, une année, un thème.
+          <code>require-where</code> retarde le premier appel jusqu'à ce filtre.
+        </p>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-source fields="require-where" -->
+                <tr><td><code>require-where</code></td><td>Boolean</td><td><code>false</code></td><td>Ne rien charger tant qu'aucun filtre n'a été reçu (#690). Pensé pour les pages d'exploration : sans cet attribut, une source interroge l'API dès le montage et rapatrie le jeu entier — une requête coûteuse dont personne ne regarde le résultat. Avec lui, la source reste en attente, émet <code>dsfr-data-idle</code> et ne part chercher les données qu'au premier filtre. Ce qui compte comme filtre : les clauses reçues par commande — facettes, recherche, <code>dsfr-data-context</code>, délégation d'un <code>dsfr-data-query</code>. Le <code>where</code> STATIQUE de la source ne compte PAS : il fait partie de la définition du jeu, pas du geste de l'utilisateur ; le contraire rendrait l'attribut sans effet sur toute source qui restreint déjà son périmètre. Quand le dernier filtre est retiré, la source repasse en attente : jamais de requête « tout » implicite. Sans effet en mode données inline (<code>data</code>), qui ne fait aucune requête.</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
+        <div class="code-block">
+          <pre>&lt;dsfr-data-source id="src" api-type="opendatasoft" require-where
+  base-url="https://data.economie.gouv.fr" dataset-id="equipements"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-facets source="src" fields="commune"&gt;&lt;/dsfr-data-facets&gt;
+
+&lt;dsfr-data-list source="src"
+  idle-message="Choisissez une commune pour afficher ses équipements"&gt;
+&lt;/dsfr-data-list&gt;</pre>
+        </div>
+        <p class="fr-text--sm fr-text--light">
+          Ce qui compte comme filtre : les clauses reçues <strong>par commande</strong> — facettes,
+          recherche, <a href="dsfr-data-context.html">dsfr-data-context</a>, délégation d'un
+          <a href="dsfr-data-query.html">dsfr-data-query</a>. Le <code>where</code> STATIQUE de la source ne
+          compte pas : il fait partie de la définition du jeu, pas du geste de l'utilisateur — le contraire
+          rendrait l'attribut sans effet sur toute source qui restreint déjà son périmètre. Quand le dernier
+          filtre est retiré, la source repasse en attente : jamais de requête « tout » implicite. Sans effet
+          en mode <code>data</code> inline, qui ne fait aucune requête.
+        </p>
+        <p class="fr-text--sm fr-text--light">
+          Pendant l'attente, la source publie <code>dsfr-data-idle</code> plutôt que des données vides. Les
+          afficheurs en aval (<a href="dsfr-data-list.html">list</a>,
+          <a href="dsfr-data-display.html">display</a>, <a href="dsfr-data-kpi.html">kpi</a>,
+          <a href="dsfr-data-chart.html">chart</a>, <a href="dsfr-data-podium.html">podium</a>,
+          <a href="dsfr-data-search.html">search</a>, <a href="dsfr-data-a11y.html">a11y</a>) rendent alors
+          leur <code>idle-message</code> — « Choisissez un filtre pour afficher les données » par défaut —
+          et non « aucune donnée », qui annoncerait une requête revenue vide. Un pendant purement client
+          existe sur <a href="dsfr-data-query.html"><code>dsfr-data-query</code></a>.
+        </p>
 
         <h2 id="filtres" class="fr-mt-4w">Filtres et WHERE dynamique</h2>
 

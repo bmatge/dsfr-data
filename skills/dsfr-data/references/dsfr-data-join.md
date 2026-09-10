@@ -86,6 +86,40 @@ Si un champ existe dans les deux sources avec le même nom :
 </dsfr-data-join>
 ```
 
+### Pattern : ratio entre DEUX sources (agréger, joindre, diviser)
+Le ratio de `dsfr-data-kpi` (`value="a / b"`) s'évalue sur l'UNIQUE source du KPI : `source` est
+un scalaire. Un indicateur « par habitant » — donc toute comparaison entre territoires de tailles
+différentes — croise deux jeux. Le motif qui marche aujourd'hui, à trois balises : **agréger avant
+de joindre**. On ne joint pas 333 611 équipements à une table de population ; un `group-by` par
+territoire ramène chaque source à UNE LIGNE PAR TERRITOIRE, la jointure les rapproche, et le ratio
+mono-source s'applique à la ligne jointe.
+```html
+<!-- 1. Agréger CHAQUE source par territoire -->
+<dsfr-data-query id="equip-par-commune" source="equipements"
+  group-by="code_insee" aggregate="code_insee:count:nb_equipements"></dsfr-data-query>
+<dsfr-data-query id="pop-par-commune" source="communes"
+  group-by="com_code" aggregate="population:sum:habitants"></dsfr-data-query>
+
+<!-- 2. Rapprocher les deux agrégats sur la clé de maille commune -->
+<dsfr-data-join id="par-commune" type="inner"
+  left="equip-par-commune" right="pop-par-commune" on="code_insee=com_code"></dsfr-data-join>
+
+<!-- 3. Le ratio mono-source s'applique à la ligne jointe -->
+<dsfr-data-kpi source="par-commune" value="nb_equipements:sum / habitants:sum"
+  format="decimal" decimals="3" label="Équipements par habitant"></dsfr-data-kpi>
+```
+Pour un CLASSEMENT plutôt qu'un chiffre, intercaler un `dsfr-data-normalize` après la jointure :
+`compute="pour_mille = round(nb_equipements / habitants * 1000, 1)"`, puis brancher un podium ou
+un chart sur la colonne calculée.
+
+**Limite à énoncer à l'utilisateur** : ce motif exige une CLÉ DE MAILLE COMMUNE aux deux sources —
+même niveau territorial et même codage de la clé. Mailles différentes (adresse contre département) :
+ramener d'abord la source fine à la maille grossière par `group-by`. Codages différents (code INSEE
+contre nom, `01` contre `1`) : normaliser la clé avec `dsfr-data-normalize` AVANT la jointure —
+une jointure sur des clés qui ne s'égalent pas rend zéro ligne, en silence (voir le taux
+d'appariement du volet Diagnostic). Si une seule des deux sources connaît le territoire, le ratio
+n'est pas exprimable.
+
 ### Comparaison des clés : en chaîne, sans trim ni complétion
 Les clés sont converties en chaîne avant comparaison — le type ne compte pas, la forme oui :
 - `201` (nombre) et `"201"` (chaîne) **se joignent** ;

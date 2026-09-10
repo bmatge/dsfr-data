@@ -96,7 +96,7 @@
             <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
             <tbody>
               <tr><td><code>id</code></td><td>String</td><td>-</td><td><strong>Requis.</strong> Identifiant de la sortie (données filtrees).</td></tr>
-              <!-- ATTRS:dsfr-data-search fields="source,fields,placeholder,label,debounce,min-length,highlight,operator,sr-label,count,url-search-param,url-sync,server-search,search-template,context" -->
+              <!-- ATTRS:dsfr-data-search fields="source,fields,placeholder,label,debounce,min-length,highlight,operator,sr-label,count,url-search-param,url-sync,server-search,search-template,context,idle-message" -->
                 <tr><td><code>source</code></td><td>String</td><td><code>""</code></td><td>ID de la source de données a ecouter</td></tr>
                 <tr><td><code>fields</code></td><td>String</td><td><code>""</code></td><td>Champs sur lesquels rechercher (virgule-séparés). Vide = tous les champs</td></tr>
                 <tr><td><code>placeholder</code></td><td>String</td><td><code>Rechercher\u2026</code></td><td>Placeholder du champ de saisie</td></tr>
@@ -106,16 +106,27 @@
                 <tr><td><code>highlight</code></td><td>Boolean</td><td><code>false</code></td><td>Ajoute un champ _highlight a chaque record avec les termes trouves marques en &lt;mark&gt;</td></tr>
                 <tr><td><code>operator</code></td><td>SearchOperator</td><td><code>contains</code></td><td>Mode de recherche : contains, starts, words</td></tr>
                 <tr><td><code>sr-label</code></td><td>Boolean</td><td><code>false</code></td><td>Si true, le label est en sr-only (visuellement masque, accessible)</td></tr>
-                <tr><td><code>count</code></td><td>Boolean</td><td><code>false</code></td><td>Affiche un compteur de résultats sous le champ (compte serveur <code>meta.total</code> en <code>server-search</code>). Ce compteur reste visible en toutes circonstances ; seule sa nature de région live dépend de la chaîne aval (#654).</td></tr>
+                <tr><td><code>count</code></td><td>Boolean</td><td><code>false</code></td><td>Affiche un compteur de résultats sous le champ (compte serveur <code>meta.total</code> en <code>server-search</code>), séparateur de milliers français (#728). Ce compteur reste visible dès qu'une donnée a circulé ; seule sa nature de région live dépend de la chaîne aval (#654). Tant que l'amont attend un filtre (<code>require-where</code>), il cède la place au message d'attente : annoncer « 0 résultats » avant toute requête laisserait croire à une page vide.</td></tr>
                 <tr><td><code>url-search-param</code></td><td>String</td><td><code>""</code></td><td>Nom du paramètre d'URL à lire comme terme de recherche initial. Vide = désactivé</td></tr>
                 <tr><td><code>url-sync</code></td><td>Boolean</td><td><code>false</code></td><td>Synchronise l'URL quand l'utilisateur tape (replaceState)</td></tr>
                 <tr><td><code>server-search</code></td><td>Boolean</td><td><code>false</code></td><td>Active le mode recherche serveur. Au lieu de filtrer localement, envoie une commande { where } au source upstream (dsfr-data-query server-side) qui re-fetche les données avec le filtre search.</td></tr>
                 <tr><td><code>search-template</code></td><td>String</td><td><code>""</code></td><td>Template pour la recherche serveur. {q} est remplace par le terme de recherche. Si vide et server-search active, lu depuis l'adapter de la source amont. Ex ODS: 'search("{q}")', custom: '{q} IN nom'</td></tr>
                 <tr><td><code>context</code></td><td>String</td><td><code>""</code></td><td>Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la recherche devient un filtre <code>contains</code> du contexte sur le champ UNIQUE de <code>fields</code> (la clause colon ne sait pas dire « ou » entre plusieurs champs). Le contexte diffuse à ses cibles et porte l'URL (<code>url-sync</code> et <code>url-search-param</code> sont ignorés — le paramètre est nommé d'après le champ, ou via <code>url-param-map</code> du contexte). Le contexte peut être déclaré après la recherche dans la page. Vide = comportement autonome.</td></tr>
+                <tr><td><code>idle-message</code></td><td>String</td><td><code>IDLE_MESSAGE_DEFAULT</code></td><td>Message rendu quand l'amont attend un filtre (<code>require-where</code>, #690). Distinct de « aucune donnée » : aucune requête n'a été faite. Vide, le libellé par défaut est utilisé.</td></tr>
               <!-- /ATTRS -->
             </tbody>
           </table>
         </div>
+
+        <h3 class="fr-mt-3w">En attente d'un filtre</h3>
+        <p>
+          Quand l'amont porte <code>require-where</code>, aucune requête n'est partie : le compteur de
+          <code>count</code> céderait la place à un « 0 résultat » trompeur. Il est remplacé par le texte de
+          <code>idle-message</code> (« Choisissez un filtre pour afficher les données » par défaut), qui dit
+          que rien n'a encore été demandé. Le champ de saisie, lui, reste utilisable — c'est souvent lui qui
+          pose le premier filtre et débloque la source. Le mécanisme est décrit sur
+          <a href="dsfr-data-source.html#attributs">dsfr-data-source</a>.
+        </p>
 
         <div class="fr-callout fr-mt-3w">
           <p class="fr-callout__text">

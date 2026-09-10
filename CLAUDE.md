@@ -53,6 +53,12 @@ npx playwright test --config tests/builder-e2e/playwright.config.ts  # Tests exh
 # Lint / garde-fous
 npm run check:accents # Lint BLOQUANT des libelles UI : accents + formes hors lexique
                       #   (scripts/check-french-accents.sh, lexique : docs/ux/actions.md)
+npm run build:specs-tables    # Regenere les tableaux d'attributs de specs/components/*.html
+                      #   depuis packages/core/custom-elements.json
+npm run check:specs-tables    # Meme script en --check, BLOQUANT en CI (etape quality, #757) :
+                      #   echoue si une page est perimee, si un attribut n'est range dans
+                      #   aucune section (`fields="..."` d'un bloc ATTRS ou ATTRS-PROSE),
+                      #   ou si un composant n'apparait sur aucune page.
 
 # Skills (connaissance IA : builder-IA + serveur MCP)
 npm run build:skills  # Chaine complete : analyse CEM -> reference generee -> dist/skills.json
@@ -135,6 +141,24 @@ Le projet utilise [Changesets](https://github.com/changesets/changesets) pour le
 
 **Pendant le dev** : `npx changeset` pour chaque modif notable (selectionner `dsfr-data`, choisir le niveau, decrire en francais). Le `.changeset/xxx.md` est commite avec le code.
 
+**Nommer les constats du banc d'essai resolus.** Quand l'issue traitee cite un identifiant de registre du
+banc d'essai [open-data-viz](https://github.com/bmatge/open-data-viz) (`AM-0XX`, `BUG-0XX`), le
+**reporter dans le texte du changeset**, sous la forme « resout le constat AM-0XX du banc d'essai ».
+Le changeset devient la note de version : c'est le seul endroit ou le banc puisse lire qu'une de ses
+demandes est satisfaite. Le lien existe deja dans l'autre sens — chaque issue deposee cite son
+identifiant de registre — mais rien ne le renvoyait.
+
+Sans ce geste, le banc redepose ce qui est deja livre, et le cout est mesure : sur le rapport du
+2026-09-10, BUG-005 depose comme bug alors qu'il etait livre depuis la 0.23.0 (#680) dans son cas exact,
+AM-052 depose comme retard de generation alors que la fiche servie contenait tout ce qu'il disait
+manquant, trois entrees requalifiees de « limite » a « corrige » par le banc lui-meme apres coup, neuf des
+dix-sept « echecs muets » deja corriges. A la premiere relecture, sur 16 constats contestes, **11 visaient
+une capacite qui existait deja** (#746).
+
+Le banc lit une **instance deployee**, pas le depot : les deux gestes vont ensemble. Une note qui annonce
+« resout AM-052 » pendant que `chartsbuilder` sert encore la version precedente ne prouve rien —
+d'ou le redeploiement ci-dessous et son `curl …/dist/skills-meta.json` (#733).
+
 **A la release** :
 ```bash
 npm run version-packages    # Bumpe package.json + CHANGELOG.md + sync-versions
@@ -164,7 +188,13 @@ Le tampon de fraicheur (`dist/skills-meta.json` : `generatedAt`, `libVersion`, `
 `npm run build:skills`, servi a cote de `dist/skills.json`, et rendu par `list_skills` et `/health` du
 serveur MCP — il sert justement a constater qu'un redeploiement a bien eu lieu.
 
-**Fin de session Claude Code** : `git diff --stat` → `npx changeset` si `core/src` ou `shared` touches → commit (Conventional) → proposer une release a l'utilisateur (ne pas releaser sans accord).
+**Fin de session Claude Code** : `git diff --stat` → `npx changeset` si `core/src` ou `shared` touches
+(en nommant le constat `AM-0XX` / `BUG-0XX` quand l'issue en cite un) → commit (Conventional) → proposer
+une release a l'utilisateur (ne pas releaser sans accord).
+
+**Recapitulatif des gestes de release**, dans l'ordre : changeset nommant les constats resolus → merge de
+la PR changesets (npm + tag + Release sur bmatge) → resync du miroir + tags + Release recreee sur le
+miroir → **redeploiement de `chartsbuilder`** verifie au `curl`.
 
 ## Ce que Claude DOIT faire
 
@@ -175,12 +205,23 @@ serveur MCP — il sert justement a constater qu'un redeploiement a bien eu lieu
   la partie « reference » des skills est GENEREE depuis le custom-elements manifest (#512), ne jamais
   editer `apps/builder-ia/src/skills-reference.generated.ts` a la main
   (sinon `tests/apps/builder-ia/skills-reference.test.ts` casse).
+- Apres AJOUT d'un attribut (ou d'un composant public) : le **ranger dans une section** d'une page
+  `specs/components/*.html` — ajouter son nom au `fields="..."` d'un bloc `<!-- ATTRS -->` (ou d'un
+  `<!-- ATTRS-PROSE -->` quand il est documente en prose), ecrire la prose autour, puis lancer
+  `npm run build:specs-tables`. Les lignes des tableaux sont GENEREES : ne jamais les saisir a la main.
+  `npm run check:specs-tables` est bloquant en CI (#757).
 - Apres modif d'un **type de graphique / operateur / agregation** : mettre a jour le guide redige a la main
   dans `apps/builder-ia/src/skills.ts` (sinon `tests/apps/builder-ia/skills.test.ts` casse).
 - Ajouter un export lib-safe dans **les deux** barrels (`packages/shared/src/lib.ts` ET `src/index.ts`).
 - Lancer `npm run build` apres modification des composants.
 - Creer un changeset si `packages/core/src/` ou `packages/shared/` sont modifies.
 - Apres un changement proxy/URL : valider empiriquement en grepant les bundles produits (aucune URL ne doit fuir dans la mauvaise dimension — voir ARCHITECTURE.md).
+- Avant de conclure qu'une capacite MANQUE — a la lecture d'un rapport externe, d'un banc d'essai ou
+  d'un constat d'utilisateur : lire [`docs/EVALUER-UNE-REPRODUCTION.md`](docs/EVALUER-UNE-REPRODUCTION.md).
+  Les quatre verdicts (natif · natif mais posterieur a la version chargee · prevu a un jalon · absent
+  du source) ne se confondent pas, une instance deployee peut avoir plusieurs versions de retard
+  (`curl …/dist/skills-meta.json`), et la question « est-ce la bibliotheque, ou d'avoir voulu
+  transposer un autre modele ? » a retire douze critiques sur un seul rapport.
 
 ## Ce que Claude ne doit JAMAIS faire
 

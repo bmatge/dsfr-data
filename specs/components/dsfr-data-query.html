@@ -74,7 +74,7 @@
                 <tr><td><code>where</code></td><td>String</td><td><code>"champ:op:val, ..."</code></td><td>Clause WHERE / Filtres — syntaxe colon UNIQUEMENT : "champ:opérateur:valeur, champ2:opérateur:valeur2" (opérateurs : eq, neq, gt, gte, lt, lte, contains, notcontains, in, notin, isnull, isnotnull — multi-valeurs séparées par |). La syntaxe ODSQL n'est PAS supportee ici (elle l'est sur le <code>where</code> de dsfr-data-source) : une clause non parsable est signalee via reportConfigError (#277). En délégation serveur, la clause est traduite au dialecte de l'adapter (#275).</td></tr>
                 <tr><td><code>filter</code></td><td>String</td><td>(même format que <code>where</code>)</td><td>Alias pour where (compatibilite)</td></tr>
                 <tr><td><code>group-by</code></td><td>String</td><td><code>"champ1, champ2"</code></td><td>Champs de regroupement (séparés par virgule)</td></tr>
-                <tr><td><code>aggregate</code></td><td>String</td><td><code>"champ:fn"</code> ou <code>"champ:fn:alias"</code></td><td>Agrégations pour mode generic/tabular Format: "field:function, field2:function" Ex: "population:sum, count:count"</td></tr>
+                <tr><td><code>aggregate</code></td><td>String</td><td><code>"champ:fn"</code> ou <code>"champ:fn:alias"</code></td><td>Agrégations pour mode generic/tabular Format: "field:function, field2:function" Ex: "population:sum, count:count" <code>running_sum</code> (#738) n'est pas une réduction de groupe mais un CUMUL : il produit une ligne par ligne de sortie, chacune portant la somme des précédentes, calculée APRÈS <code>order-by</code>. Sans <code>order-by</code>, l'ordre des lignes reçues fait foi et le résultat n'a en général pas de sens : un avertissement console le signale. Le cumul reste toujours côté client. Ex. <code>group-by="mois" aggregate="montant:sum, montant__sum:running_sum"</code> avec <code>order-by="mois:asc"</code>.</td></tr>
                 <tr><td><code>order-by</code></td><td>String</td><td><code>"champ:asc"</code> ou <code>"champ:desc"</code></td><td>Tri des résultats Format: "field:direction" ou "field__function:direction" Ex: "total_pop:desc" ou "population__sum:desc"</td></tr>
                 <tr><td><code>limit</code></td><td>Number</td><td>Entier positif. <code>0</code> = illimite</td><td>Limite de résultats</td></tr>
               <!-- /ATTRS -->
@@ -113,6 +113,73 @@
 <span class="tok-attr">order-by</span><span class="tok-punct">=</span><span class="tok-string">"population__sum:desc"</span>       <span class="tok-comment">&lt;!-- champ agrège sans alias --&gt;</span>
 <span class="tok-attr">order-by</span><span class="tok-punct">=</span><span class="tok-string">"total:desc"</span>                 <span class="tok-comment">&lt;!-- champ agrège avec alias --&gt;</span></pre></div>
         </section>
+
+        <h3 class="fr-mt-3w">Champs multivalués : <code>explode</code></h3>
+        <p>
+          Une cellule qui contient une liste (<code>["a", "b"]</code>, une ChoiceList Grist, un champ
+          découpé par <code>split</code> sur <a href="dsfr-data-normalize.html">dsfr-data-normalize</a>)
+          n'est pas une modalité. Sans <code>explode</code>, elle est ramenée en chaîne pour former la clé
+          de groupe : <code>"a,b"</code> devient une modalité à part entière, une COMBINAISON comptée pour
+          une valeur — là où <a href="dsfr-data-facets.html">dsfr-data-facets</a> éclate le même champ.
+          Deux composants branchés sur le même champ donnaient donc des chiffres différents sans rien
+          signaler (#736). <code>explode</code> aligne le regroupement sur les facettes.
+        </p>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-query fields="explode" -->
+                <tr><td><code>explode</code></td><td>String</td><td>Champs multivalués à éclater avant le regroupement (séparés par virgule). Sans cet attribut, une cellule tableau est ramenée en chaîne pour la clé de groupe : <code>["a", "b"]</code> devient la modalité <code>"a,b"</code>, une COMBINAISON comptée comme une valeur — là où <code>dsfr-data-facets</code> éclate le même champ (#421). Les deux composants branchés sur le même champ donnaient donc des chiffres différents, sans rien signaler (#736). Avec <code>explode="tags"</code>, chaque élément de la cellule produit sa propre ligne : les modalités du regroupement sont exactement celles de la facette du même champ, et une ligne portant N valeurs compte dans N groupes (les agrégats la comptent donc N fois). Règles, alignées sur les facettes : les éléments vides sont ignorés, et une cellule sans aucune valeur (tableau vide, <code>null</code>, chaîne vide) ne produit AUCUNE ligne — pas de groupe « non renseigné », comme la facette n'a pas de modalité vide. Une cellule scalaire est inchangée. Chaque champ listé doit figurer dans <code>group-by</code> (sinon erreur de configuration et champ ignoré : éclater un champ hors regroupement dupliquerait les lignes et gonflerait les sommes). L'éclatement force le regroupement CÔTÉ CLIENT : aucune API du pipeline ne sait éclater un champ multivalué, déléguer produirait à nouveau des combinaisons. Sur une source volumineuse, penser au plafond de lignes rapatriées. Par défaut vide : le comportement historique est conservé.</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
+        <div class="code-block">
+          <pre>&lt;dsfr-data-query id="par-theme"
+  source="src"
+  group-by="themes"
+  explode="themes"
+  aggregate="montant:sum"
+  order-by="montant__sum:desc"&gt;
+&lt;/dsfr-data-query&gt;</pre>
+        </div>
+        <p class="fr-text--sm fr-text--light">
+          Une ligne portant N valeurs compte dans N groupes : les agrégats la comptent donc N fois — c'est
+          voulu, et c'est ce que fait déjà la facette. Les éléments vides sont ignorés, et une cellule sans
+          aucune valeur (tableau vide, <code>null</code>, chaîne vide) ne produit aucune ligne : pas de
+          groupe « non renseigné ». Une cellule scalaire est inchangée. Chaque champ listé doit figurer dans
+          <code>group-by</code>, sinon la configuration est refusée et le champ ignoré : éclater un champ
+          hors regroupement dupliquerait les lignes et gonflerait les sommes. L'éclatement force le
+          regroupement <strong>côté client</strong> — aucune API du pipeline ne sait éclater un champ
+          multivalué : sur une source volumineuse, penser au plafond de lignes rapatriées.
+        </p>
+
+        <h3 class="fr-mt-3w">En attente d'un filtre : <code>require-where</code></h3>
+        <p>
+          Sur une page d'exploration, afficher le jeu entier avant tout choix de l'utilisateur est au mieux
+          inutile, au pire coûteux. <code>require-where</code> met la requête en attente : elle n'émet
+          aucune ligne, publie <code>dsfr-data-idle</code>, et les afficheurs en aval rendent leur
+          <code>idle-message</code> au lieu du jeu complet.
+        </p>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-query fields="require-where" -->
+                <tr><td><code>require-where</code></td><td>Boolean</td><td>N'émettre aucune ligne tant qu'aucun filtre n'est posé (#690). Pendant de <code>require-where</code> sur <code>dsfr-data-source</code>, pour les pages d'exploration : la requête reste en attente, émet <code>dsfr-data-idle</code>, et les afficheurs en aval rendent « choisissez un filtre » au lieu du jeu entier. Ce qui compte comme filtre : le <code>where</code> (ou <code>filter</code>) de CETTE requête — sur un query, c'est la surface de filtrage que la page pilote — et toute clause <code>where</code> non vide reçue par commande (facettes, recherche, <code>dsfr-data-context</code>). Tout retirer fait repasser la requête en attente.</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
+        <p class="fr-text--sm fr-text--light">
+          Ce qui compte comme filtre : le <code>where</code> (ou <code>filter</code>) de CETTE requête —
+          sur un query, c'est la surface de filtrage que la page pilote — et toute clause <code>where</code>
+          non vide reçue par commande (facettes, recherche,
+          <a href="dsfr-data-context.html">dsfr-data-context</a>). Tout retirer fait repasser la requête en
+          attente : jamais de requête « tout » implicite. C'est le pendant client de
+          <a href="dsfr-data-source.html#attributs"><code>require-where</code> sur
+          <code>&lt;dsfr-data-source&gt;</code></a>, qui, lui, empêche le fetch.
+        </p>
 
         <h2 id="operateurs" class="fr-mt-4w">Operateurs de filtre</h2>
         <p>Utilisables dans les attributs <code>where</code> / <code>filter</code> (format <code>"champ:operateur:valeur"</code>) :</p>

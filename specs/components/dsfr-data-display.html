@@ -42,7 +42,7 @@
               <tr><th>Attribut</th><th>Type</th><th>Description</th></tr>
             </thead>
             <tbody>
-              <!-- ATTRS:dsfr-data-display fields="source,cols,pagination,empty,gap,uid-field,url-sync,url-page-param" -->
+              <!-- ATTRS:dsfr-data-display fields="source,cols,pagination,empty,gap,uid-field,url-sync,url-page-param,idle-message" -->
                 <tr><td><code>source</code></td><td>String</td><td>Id de la source (ou du transformateur) dont ce composant consomme les données.</td></tr>
                 <tr><td><code>cols</code></td><td>Number</td><td>Nombre de colonnes dans la grille (1-6, défaut 1 = pleine largeur)</td></tr>
                 <tr><td><code>pagination</code></td><td>Number</td><td>Nombre d'éléments par page (0 = tout afficher)</td></tr>
@@ -51,11 +51,66 @@
                 <tr><td><code>uid-field</code></td><td>String</td><td>Champ de données a utiliser comme identifiant unique par item. Si vide, utilise l'index</td></tr>
                 <tr><td><code>url-sync</code></td><td>Boolean</td><td>Synchronise le numéro de page dans l'URL (replaceState)</td></tr>
                 <tr><td><code>url-page-param</code></td><td>String</td><td>Nom du paramètre URL pour la page (défaut: "page")</td></tr>
+                <tr><td><code>idle-message</code></td><td>String</td><td>Message rendu quand l'amont attend un filtre (<code>require-where</code>, #690). Distinct de « aucune donnée » : aucune requête n'a été faite. Vide, le libellé par défaut est utilisé.</td></tr>
               <!-- /ATTRS -->
             </tbody>
           </table>
         </div>
         <p class="fr-text--sm fr-text--light"><strong>Événements :</strong> le composant n'émet pas d'événement custom ; il participe au data-bridge en consommateur (abonnement à la source via <code>dsfr-data-loaded</code>).</p>
+
+        <h3 class="fr-mt-3w">En attente d'un filtre</h3>
+        <p>
+          <code>empty</code> répond à « la requête est revenue vide ». Il existe un second état, qu'il ne
+          faut pas confondre : l'amont porte <code>require-where</code>
+          (<code>&lt;dsfr-data-source&gt;</code> ou <code>&lt;dsfr-data-query&gt;</code>) et n'a encore rien
+          demandé. C'est <code>idle-message</code> qui est alors rendu — « Choisissez un filtre pour afficher
+          les données » par défaut. Le mécanisme est décrit sur
+          <a href="dsfr-data-source.html#attributs">dsfr-data-source</a>.
+        </p>
+
+        <h3 class="fr-mt-3w">Filtrer d'un clic sur un élément</h3>
+        <p>
+          Une grille de cartes sert souvent de sélecteur : on clique un territoire, un service, une
+          catégorie, et le reste de la page se recentre dessus. <code>refine-on-click</code> nomme le champ
+          dont la valeur de l'élément cliqué devient un filtre <code>eq</code>. Chaque élément reçoit un
+          bouton « Filtrer sur … », atteignable au clavier et dont l'état est annoncé
+          (<code>aria-pressed</code>) : la mise en avant visuelle n'est jamais la seule marque.
+        </p>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead>
+              <tr><th>Attribut</th><th>Type</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-display fields="refine-on-click,context,label" -->
+                <tr><td><code>refine-on-click</code></td><td>String</td><td>Champ dont la valeur de l'élément cliqué devient un filtre <code>eq</code> (#734). Premier clic = filtre, second clic sur le même élément = retrait, clic sur un autre élément = remplacement. Chaque élément reçoit un bouton « Filtrer sur … », atteignable au clavier et dont l'état est annoncé (<code>aria-pressed</code>) : la mise en avant de l'élément sélectionné n'est jamais la seule marque. Avec <code>context="id"</code> (recommandé), le composant s'enregistre comme filtre du dsfr-data-context : diffusion à toutes ses sources cibles au dialecte de chacune, tag dans dsfr-data-context-tags, URL portée par le contexte. Sans <code>context</code>, la clause part directement à <code>source</code> (whereKey <code>display-select-ID</code>) — sans tag ni URL, et la liste se filtre elle-même (seul l'élément cliqué reste, jusqu'au second clic).</td></tr>
+                <tr><td><code>context</code></td><td>String</td><td>Identifiant du dsfr-data-context auquel s'enregistrer en <code>refine-on-click</code> (#734, ADR-104). Le contexte peut être déclaré après le composant dans la page. Vide = commande directe à <code>source</code> (chemin dégradé).</td></tr>
+                <tr><td><code>label</code></td><td>String</td><td>Libellé du tag de contexte en <code>refine-on-click</code> (#734). Vide = le nom du champ filtré.</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
+        <div class="code-block">
+          <pre>&lt;dsfr-data-context id="ctx" sources="src"&gt;&lt;/dsfr-data-context&gt;
+&lt;dsfr-data-context-tags for="ctx"&gt;&lt;/dsfr-data-context-tags&gt;
+
+&lt;dsfr-data-display
+  source="src"
+  cols="3"
+  refine-on-click="departement"
+  context="ctx"
+  label="Département"&gt;
+  &lt;template&gt;…&lt;/template&gt;
+&lt;/dsfr-data-display&gt;</pre>
+        </div>
+        <p class="fr-text--sm fr-text--light">
+          Premier clic = filtre, second clic sur le même élément = retrait, clic sur un autre élément =
+          remplacement. Avec <code>context</code> (recommandé), la grille s'enregistre comme filtre du
+          <a href="dsfr-data-context.html">dsfr-data-context</a> : diffusion à toutes ses sources cibles au
+          dialecte de chacune, tag supprimable, URL portée par le contexte, et <code>label</code> donne son
+          libellé au tag. Sans <code>context</code>, la clause part directement à <code>source</code> — sans
+          tag ni URL, et la grille se filtre elle-même, ne gardant que l'élément cliqué jusqu'au second clic.
+        </p>
 
         <!-- Syntaxe du template -->
         <h2 class="fr-mt-4w">Syntaxe du template</h2>
