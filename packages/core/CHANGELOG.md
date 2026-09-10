@@ -1,5 +1,25 @@
 # dsfr-data
 
+## 0.23.0
+
+### Minor Changes
+
+- [#706](https://github.com/bmatge/dsfr-data/pull/706) [`d19cb4d`](https://github.com/bmatge/dsfr-data/commit/d19cb4dff314ed1a3550e10a51799fdb56049da0) Thanks [@bmatge](https://github.com/bmatge)! - `dsfr-data-context-filter` gagne un attribut `default` (`today`, `first-of-month`, `first-of-year` ou un littéral) qui pré-remplit le filtre au montage — après l'URL, qui gagne toujours — et un opérateur `current-month` (case à cocher, mois en cours, borne dynamique) symétrique de `current-year` : `operator="lt-day-after" default="today"` filtre jusqu'à aujourd'hui sans script ([#682](https://github.com/bmatge/dsfr-data/issues/682)).
+
+- [#706](https://github.com/bmatge/dsfr-data/pull/706) [`d19cb4d`](https://github.com/bmatge/dsfr-data/commit/d19cb4dff314ed1a3550e10a51799fdb56049da0) Thanks [@bmatge](https://github.com/bmatge)! - `dsfr-data-context-tags` reprend les filtres issus des facettes (un tag par valeur, retirable seule) et de la recherche (« Recherche : terme »), et gagne l'attribut `clear-all` : un bouton unique « Tout effacer » qui vide tous les filtres du contexte en une seule diffusion (`DsfrDataContext.clearAll()`). Nouvel attribut `no-reset` sur `dsfr-data-facets` pour masquer son bouton « Réinitialiser les filtres » local ([#679](https://github.com/bmatge/dsfr-data/issues/679)).
+
+- [#706](https://github.com/bmatge/dsfr-data/pull/706) [`d19cb4d`](https://github.com/bmatge/dsfr-data/commit/d19cb4dff314ed1a3550e10a51799fdb56049da0) Thanks [@bmatge](https://github.com/bmatge)! - `dsfr-data-facets` : nouveau mode `display="champ:radio-inline"` — boutons radio DSFR visibles en ligne (fieldset dont la légende est le libellé de la facette), avec une option « Tous » qui retire la sélection. Le mode `radio` (menu déroulant à radios) ne change pas et sera renommé `radio-dropdown` dans une version majeure ([#684](https://github.com/bmatge/dsfr-data/issues/684)).
+
+- [#706](https://github.com/bmatge/dsfr-data/pull/706) [`d19cb4d`](https://github.com/bmatge/dsfr-data/commit/d19cb4dff314ed1a3550e10a51799fdb56049da0) Thanks [@bmatge](https://github.com/bmatge)! - Facettes et recherche comme filtres de `dsfr-data-context` : nouvel attribut `context="id"` sur `dsfr-data-facets` (un filtre par champ, select peuplé depuis la donnée avec cascade `server-facets`, sans `<option>` en dur), `dsfr-data-search` (filtre `contains`) et `dsfr-data-context-filter` (placé hors du contexte, même déclaré avant lui). Un seul bus de diffusion : le contexte diffuse à ses sources cibles, porte l'URL (un paramètre par champ) et alimente `context-tags` ; `contains` est exposé dans les opérateurs du `context-filter` ; `whereKey` stable indexé sur le champ ([#678](https://github.com/bmatge/dsfr-data/issues/678)).
+
+- [#706](https://github.com/bmatge/dsfr-data/pull/706) [`d19cb4d`](https://github.com/bmatge/dsfr-data/commit/d19cb4dff314ed1a3550e10a51799fdb56049da0) Thanks [@bmatge](https://github.com/bmatge)! - `dsfr-data-facets server-facets` sans `fields` : découverte au premier cycle des facettes déclarées par le jeu de données (OpenDataSoft : champs annotés « facet » des métadonnées, avec leur libellé ; Grist : colonnes Choice/ChoiceList), mémorisée et invalidée au changement de `dataset-id`, puis cascade normale ([#680](https://github.com/bmatge/dsfr-data/issues/680)). Sur une facette ODS de type date, la sélection d'une année émet un intervalle `champ >= date'2022-01-01' AND champ < date'2023-01-01'` au lieu de l'égalité `champ = "2022"` que l'API refuse (400 `IncompatibleTypesInComparisonFilter`, [#676](https://github.com/bmatge/dsfr-data/issues/676)) ; nouvelle méthode optionnelle `discoverFacets` et option `dateFields` de `buildFacetWhere` sur les adaptateurs.
+
+- [#706](https://github.com/bmatge/dsfr-data/pull/706) [`d19cb4d`](https://github.com/bmatge/dsfr-data/commit/d19cb4dff314ed1a3550e10a51799fdb56049da0) Thanks [@bmatge](https://github.com/bmatge)! - La carte comme filtre du contexte ([#681](https://github.com/bmatge/dsfr-data/issues/681), ADR-104) : `dsfr-data-map-layer` émet `dsfr-data-map-select` `{ record, layerId, selected }` au clic sur un marqueur, un cercle ou une forme ; avec `refine-on-click="champ"` et `context="id"`, la couche s'enregistre comme filtre `eq` du `dsfr-data-context` (les autres vues se filtrent, tag dans `context-tags`, URL portée par le contexte, second clic = retrait). Sans `context`, la clause part directement à `source` (whereKey `map-select-<id>`). Nouvel attribut `label` (libellé du tag).
+
+### Patch Changes
+
+- [#706](https://github.com/bmatge/dsfr-data/pull/706) [`d19cb4d`](https://github.com/bmatge/dsfr-data/commit/d19cb4dff314ed1a3550e10a51799fdb56049da0) Thanks [@bmatge](https://github.com/bmatge)! - URL de synchronisation (`url-sync` de `dsfr-data-context`, `dsfr-data-facets`, `dsfr-data-search`) construite avec l'API `URL` : sur une page servie sous `//chemin`, `replaceState` levait `SecurityError` et la synchro d'URL cessait en silence ([#683](https://github.com/bmatge/dsfr-data/issues/683)).
+
 ## 0.22.0
 
 ### Minor Changes
