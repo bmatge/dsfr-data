@@ -1350,6 +1350,7 @@ les clés du premier objet sont utilisees comme colonnes.
 | filters | String | \`""\` | non | Colonnes filtrables (dropdown) : \`"col1,col2"\`. Alias deprecie : \`filtres\` |
 | sort | String | \`""\` | non | Tri par défaut : \`"col:asc"\` ou \`"col:desc"\`. Alias deprecie : \`tri\` |
 | pagination | Number | \`0\` | non | Lignes par page (0 = tout afficher sans pagination) |
+| caption | String | \`""\` | non | Titre du tableau (RGAA 5.4), rendu dans \`caption\` masqué visuellement ; à défaut dérivé de \`aria-label\` (#669) |
 | decimals | Number | — | non | Nombre de décimales des cellules numériques ; absent : au plus 2, format fr-FR (#666) |
 | export | String | \`""\` | non | Formats d'export : \`"csv"\`, \`"html"\` ou \`"csv,html"\` |
 | url-sync | Boolean | \`false\` | non | Synchronise le numero de page dans l'URL (?page=N) via replaceState |
@@ -1367,7 +1368,10 @@ la pagination serveur via les metadonnees (\`meta.total\`, \`meta.page_size\`).
 Chaque changement de page declenche un nouvel appel API (pas de pagination client).
 Le total affiche vient de \`meta.total\`. La recherche et le tri ne s'appliquent qu'a la page courante.
 
-### Format des cellules
+### Pagination et format des cellules
+La pagination suit le motif DSFR : première/dernière page, ellipses (\`1 2 3 … 115\`), et
+« Page N sur M » affiché et annoncé aux lecteurs d'écran (\`aria-current="page"\` sur la page
+courante). M vient de \`meta.total\` en mode serveur, sinon du nombre de lignes filtrées.
 Les cellules numériques (\`typeof number\`) sont rendues en fr-FR : \`2.27\` → « 2,27 », au plus
 2 décimales, ou exactement \`decimals\` décimales. Les chaînes ne sont JAMAIS reformatées
 (codes INSEE, SIREN, années en texte restent intacts) et l'export CSV/HTML reste brut.
