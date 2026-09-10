@@ -23,6 +23,7 @@ import { PaginationController } from '../utils/pagination-controller.js';
  * - {{champ|défaut}}    : valeur avec fallback si null/undefined
  * - {{champ:number}}    : séparateur de milliers fr-FR (ex: 32 073 247) ; `:number:2` fixe les décimales
  * - {{champ:date}}      : date JJ/MM/AAAA (« — » si invalide) ; `:datetime` ajoute HH:MM
+ * - {{tags}}            : un tableau est joint par « , » ; `{{tags:join: / }}` choisit le séparateur
  * - {{champ.sous.clé}}  : acces aux proprietes imbriquees
  * - {{$index}}          : index de l'element (0-based)
  *

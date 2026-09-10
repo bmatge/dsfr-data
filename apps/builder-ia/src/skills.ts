@@ -1432,6 +1432,8 @@ après un second \`:\` ; il ne peut pas contenir \`|\` (qui ouvre le défaut).
 | \`{{champ:number\\|0}}\` | Format number + fallback si null |
 | \`{{champ:date}}\` | Date JJ/MM/AAAA depuis une ISO (\`2026-09-09T10:00:00Z\` → \`09/09/2026\`), « — » si invalide |
 | \`{{champ:datetime}}\` | Date et heure JJ/MM/AAAA HH:MM |
+| \`{{tags}}\` | Un tableau (champ multivalué ODS/Grist) est joint par \`, \` |
+| \`{{tags:join: / }}\` | Tableau joint par le séparateur donné, espaces compris |
 | \`{{champ.sous.clé}}\` | Acces aux proprietes imbriquees (dot notation) |
 | \`{{$index}}\` | Index de l'element dans le tableau (0-based) |
 | \`{{$uid}}\` | Identifiant unique de l'element (base sur uid-field ou index) |
@@ -2591,7 +2593,7 @@ Composant compagnon optionnel qui definit un template et un mode d'affichage pou
 
 Template avec \`<template>\` et interpolation \`{{champ}}\` (memes expressions que dsfr-data-display,
 toujours echappees) : \`{{champ.sous.clé}}\`, \`{{champ:number}}\` (format fr-FR), \`{{champ:date}}\`,
-\`{{champ|défaut}}\`.
+\`{{tags:join: / }}\`, \`{{champ|défaut}}\`.
 Sans template, tableau auto.
 
 \`\`\`html

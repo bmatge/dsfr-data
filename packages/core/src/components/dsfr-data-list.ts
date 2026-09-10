@@ -440,6 +440,8 @@ ${bodyRows}
   // --- Cell formatting ---
 
   formatCellValue(value: unknown): string {
+    // Champ multivalué (ODS, Grist) : jonction lisible, comme les templates (#663)
+    if (Array.isArray(value)) return value.join(', ');
     if (value === null || value === undefined) return '—';
     if (typeof value === 'boolean') return value ? 'Oui' : 'Non';
     return String(value);

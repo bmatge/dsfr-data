@@ -7,9 +7,9 @@ import { formatDate } from '@dsfr-data/shared/lib';
  *
  * Grammaire d'une expression : `chemin[:format[:arg]][|défaut]`
  * - `chemin` / `chemin.sous.clé` : accès (imbriqué) à la valeur
- * - `:format`                    : `number`, `date`, `datetime`
+ * - `:format`                    : `number`, `date`, `datetime`, `join`
  * - `:format:arg`                : argument du format, séparé par un second `:`
- *                                  (`number:2` décimales)
+ *                                  (`number:2` décimales, `join: / ` séparateur)
  * - `|défaut`                    : fallback si null/undefined
  *
  * Limite documentée : `|` est interdit dans l'argument (il ouvre le défaut),
@@ -63,7 +63,10 @@ export function parseTemplateExpression(expr: string): ParsedTemplateExpression 
   return { path: path.trim(), format, arg, defaultValue };
 }
 
-/** Résout une expression `{{...}}` pour un enregistrement donné. */
+/**
+ * Résout une expression `{{...}}` pour un enregistrement donné. Un tableau
+ * sans format est joint par `, ` (#663).
+ */
 export function resolveTemplateExpression(
   item: Record<string, unknown>,
   expr: string,
@@ -93,7 +96,8 @@ function toDate(value: unknown): Date | string {
  * - `number[:décimales]` : fr-FR, séparateur de milliers (non-numérique inchangé)
  * - `date`               : JJ/MM/AAAA, « — » si invalide
  * - `datetime`           : JJ/MM/AAAA HH:MM, « — » si invalide
- * Sinon `String(value)`.
+ * - `join[:séparateur]`  : jonction d'un tableau (défaut `, `)
+ * Sans format, un tableau est joint par `, ` ; sinon `String(value)`.
  */
 export function formatTemplateValue(value: unknown, format: string, arg?: string): string {
   switch (format) {
@@ -124,6 +128,10 @@ export function formatTemplateValue(value: unknown, format: string, arg?: string
         minute: '2-digit',
       }).format(date);
     }
+    case 'join':
+      if (Array.isArray(value)) return value.join(arg || ', ');
+      break;
   }
+  if (Array.isArray(value)) return value.join(', ');
   return String(value);
 }

@@ -174,3 +174,28 @@ describe('#662 — pipe :date', () => {
     );
   });
 });
+
+describe('#663 — tableaux joints et pipe :join', () => {
+  const item = { tags: ['a', 'b'], vide: [], un: ['seul'] };
+
+  it('{{tags}} joint par « , » par défaut', () => {
+    expect(resolveTemplateExpression(item, 'tags')).toBe('a, b');
+    expect(resolveTemplateExpression(item, 'un')).toBe('seul');
+    expect(resolveTemplateExpression(item, 'vide')).toBe('');
+  });
+
+  it('{{tags:join: / }} utilise le séparateur donné, espaces compris', () => {
+    expect(resolveTemplateExpression(item, 'tags:join: / ')).toBe('a / b');
+    expect(resolveTemplateExpression(item, 'tags:join: · ')).toBe('a · b');
+    expect(resolveTemplateExpression(item, 'tags:join:')).toBe('a, b');
+    expect(resolveTemplateExpression(item, 'tags:join')).toBe('a, b');
+  });
+
+  it(':join sur une valeur scalaire la laisse passer', () => {
+    expect(resolveTemplateExpression({ x: 'seul' }, 'x:join: / ')).toBe('seul');
+  });
+
+  it('un tableau vide avec défaut ne déclenche pas le défaut (il existe)', () => {
+    expect(resolveTemplateExpression(item, 'vide|aucun')).toBe('');
+  });
+});

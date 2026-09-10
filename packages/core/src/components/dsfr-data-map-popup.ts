@@ -8,6 +8,7 @@
  * - {{champ}} / {{champ.sous.clé}} : valeur (imbriquee)
  * - {{champ:number}}               : séparateur de milliers fr-FR ; `:number:2` fixe les décimales
  * - {{champ:date}}                 : JJ/MM/AAAA (« — » si invalide) ; `:datetime` ajoute HH:MM
+ * - {{tags}}                       : un tableau est joint par « , » ; `{{tags:join: / }}` choisit le séparateur
  * - {{champ|défaut}}               : fallback si null/undefined
  *
  * @example

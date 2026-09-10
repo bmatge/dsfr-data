@@ -388,6 +388,13 @@ describe('DsfrDataList component', () => {
     it('converts numbers to string', () => {
       expect(datalist.formatCellValue(42)).toBe('42');
     });
+
+    it('joint un tableau par « , » (#663 — champs multivalués ODS/Grist)', () => {
+      expect(datalist.formatCellValue(['a', 'b', 'c'])).toBe('a, b, c');
+      expect(datalist.formatCellValue([1, 2])).toBe('1, 2');
+      expect(datalist.formatCellValue([])).toBe('');
+      expect(datalist.formatCellValue(['seul'])).toBe('seul');
+    });
   });
 
   describe('onSourceData', () => {
