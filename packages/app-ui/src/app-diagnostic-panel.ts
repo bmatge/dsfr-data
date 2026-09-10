@@ -1,6 +1,7 @@
 import { LitElement, html, nothing, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import {
+  fieldIssuesByNode,
   fieldMatrix,
   formatTrace,
   plural,
@@ -8,6 +9,7 @@ import {
   JOIN_MATCH_ALERT_RATIO,
   summarizeTrace,
   topoOrder,
+  type FieldIssue,
   type StageNode,
   type StageState,
   type Trace,
@@ -374,8 +376,13 @@ export class AppDiagnosticPanel extends LitElement {
         Aucun composant dsfr-data dans cette page — rien à diagnostiquer.
       </p>`;
     }
+    // Champs nommés par un attribut et absents de ce que l'étape reçoit
+    // (#727) : calculé une fois pour tout le pipeline, comme dans formatTrace.
+    const champs = fieldIssuesByNode(trace.graph, trace.states);
     return html`
-      <div class="app-diag__chain">${nodes.map((node) => this._renderStage(node, trace))}</div>
+      <div class="app-diag__chain">
+        ${nodes.map((node) => this._renderStage(node, trace, champs[node.id] ?? []))}
+      </div>
       ${
         trace.graph.dangling.length > 0
           ? html`<p class="app-diag__stage-note app-diag__stage-note--error">
@@ -390,7 +397,7 @@ export class AppDiagnosticPanel extends LitElement {
     `;
   }
 
-  private _renderStage(node: StageNode, trace: Trace): TemplateResult {
+  private _renderStage(node: StageNode, trace: Trace, champs: FieldIssue[]): TemplateResult {
     const state: StageState = trace.states[node.id] ?? { status: 'idle', emissions: 0 };
     const upstreamRows = node.upstream
       .map((up) => trace.states[up]?.rows)
@@ -416,6 +423,8 @@ export class AppDiagnosticPanel extends LitElement {
       joinAlert ||
       (state.status === 'loaded' && state.rows === 0) ||
       !!node.configError ||
+      champs.length > 0 ||
+      (node.unknownAttrs?.length ?? 0) > 0 ||
       (node.role === 'display' &&
         state.status === 'idle' &&
         !upstreamWaiting &&
@@ -462,6 +471,34 @@ export class AppDiagnosticPanel extends LitElement {
                 ✗ ${node.configError}
               </div>`
             : nothing
+        }
+        ${
+          // Un attribut que le bundle chargé ne connaît pas est ignoré en
+          // silence : la page est juste, la bibliothèque est en retard (#727).
+          node.unknownAttrs?.length
+            ? html`<div class="app-diag__stage-note app-diag__stage-note--warn">
+                ⚠ ${plural(node.unknownAttrs.length, 'attribut')}
+                inconnu${node.unknownAttrs.length > 1 ? 's' : ''} de la version chargée :
+                ${node.unknownAttrs.join(', ')} — ignoré${node.unknownAttrs.length > 1 ? 's' : ''}
+                en silence.
+              </div>`
+            : nothing
+        }
+        ${
+          // Un champ nommé par un attribut et absent du schéma reçu : la
+          // panne muette n°1 du banc d'essai (#727).
+          champs.map(
+            (issue) =>
+              html`<div
+                class="app-diag__stage-note ${
+                issue.reason === 'absent'
+                  ? 'app-diag__stage-note--error'
+                  : 'app-diag__stage-note--warn'
+              }"
+              >
+                ${issue.reason === 'absent' ? '✗' : '⚠'} ${issue.message}
+              </div>`
+          )
         }
         ${
           state.status === 'error'

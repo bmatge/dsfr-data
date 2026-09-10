@@ -19,6 +19,7 @@ import type { StageNode } from './graph.js';
 import { diffFields } from './summarize.js';
 import type { DelegationState, StageState, Trace } from './recorder.js';
 import { topoOrder } from './graph.js';
+import { fieldIssuesByNode, type FieldIssue } from './field-check.js';
 import type { Field } from '../ia/data-tools.js';
 
 export interface FormatOptions {
@@ -48,10 +49,45 @@ function humanizeDelay(ms: number | null): string {
   return `il y a ${Math.round(s / 60)} min`;
 }
 
+/**
+ * Valeur d'attribut bornée : depuis #727 la collecte retient aussi tous les
+ * attributs qui nomment un champ, et un `columns="a:A, b:B, …"` de trois
+ * lignes noierait l'en-tête de l'étape.
+ */
+function borner(value: string, max = 60): string {
+  return value.length > max ? `${value.slice(0, max - 1)}…` : value;
+}
+
 function formatAttrs(node: StageNode): string {
   const pairs = Object.entries(node.attrs);
   if (pairs.length === 0) return '';
-  return pairs.map(([k, v]) => (v === '' ? k : `${k}="${v}"`)).join('  ');
+  return pairs.map(([k, v]) => (v === '' ? k : `${k}="${borner(v)}"`)).join('  ');
+}
+
+/**
+ * Un champ nommé par un attribut et introuvable dans ce que l'étape reçoit
+ * (#727) — la panne la plus fréquente et la plus muette : le graphique se
+ * rend, vide, sans un mot.
+ */
+function formatFieldIssues(issues: FieldIssue[] | undefined): string[] {
+  if (!issues || issues.length === 0) return [];
+  return issues.map(
+    (issue) => `     ${issue.reason === 'absent' ? '✗ CHAMP' : '⚠ champ'} — ${issue.message}`
+  );
+}
+
+/**
+ * Attributs que le bundle CHARGÉ ne connaît pas (#727) : une page juste,
+ * écrite contre une documentation juste, qui ne fait rien parce que la
+ * bibliothèque servie est plus ancienne que l'attribut.
+ */
+function formatUnknownAttrs(node: StageNode): string[] {
+  const attrs = node.unknownAttrs;
+  if (!attrs || attrs.length === 0) return [];
+  return [
+    `     ⚠ ${plural(attrs.length, 'attribut')} inconnu${attrs.length > 1 ? 's' : ''} de la version chargée : ${attrs.join(', ')}`,
+    "       Ignoré en silence — vérifiez l'orthographe, ou mettez la bibliothèque à jour.",
+  ];
 }
 
 function formatFieldList(fields: Field[], max = 12): string {
@@ -365,6 +401,8 @@ export function formatTrace(trace: Trace, options: FormatOptions = {}): string {
   }
   out.push('');
 
+  const champsIntrouvables = fieldIssuesByNode(trace.graph, trace.states);
+
   for (const node of ordered) {
     const state = trace.states[node.id] ?? { status: 'idle' as const, emissions: 0 };
     const attrs = formatAttrs(node);
@@ -373,6 +411,7 @@ export function formatTrace(trace: Trace, options: FormatOptions = {}): string {
     if (node.configError) {
       out.push(`     ✗ CONFIGURATION — ${node.configError}`);
     }
+    out.push(...formatUnknownAttrs(node));
 
     out.push(...formatInputs(node, trace.states));
     // Un amont en échec ne compte pas comme alimentant : sinon un afficheur
@@ -384,6 +423,7 @@ export function formatTrace(trace: Trace, options: FormatOptions = {}): string {
     const upstreamWaiting = node.upstream.some((up) => trace.states[up]?.status === 'waiting');
     out.push(statusLine(node, state, upstreamHasData, upstreamWaiting));
     out.push(...formatSkippedRows(node));
+    out.push(...formatFieldIssues(champsIntrouvables[node.id]));
     out.push(...formatComputedColumns(node, opts));
 
     if (state.status === 'loaded') {
@@ -464,11 +504,18 @@ export function summarizeTrace(trace: Trace): {
     .map((n) => trace.states[n.id])
     .filter((s): s is StageState => !!s && s.status !== 'error' && s.rows !== undefined);
 
+  const champsIntrouvables = fieldIssuesByNode(trace.graph, trace.states);
+
   let alerts = trace.graph.dangling.length;
   for (const node of ordered) {
     const state = trace.states[node.id];
     if (node.configError) alerts += 1;
     if (node.skippedRows) alerts += 1;
+    // Un champ nommé pour rien et un attribut que le bundle ignore sont deux
+    // pannes muettes : elles doivent peser sur le compte du rail replié,
+    // sinon « aucune alerte » s'affiche au-dessus d'un graphique vide (#727).
+    alerts += champsIntrouvables[node.id]?.length ?? 0;
+    alerts += node.unknownAttrs?.length ?? 0;
     if (!state) continue;
     if (state.status === 'error') alerts += 1;
     if (state.status === 'loaded' && state.rows === 0) alerts += 1;

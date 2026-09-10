@@ -49,6 +49,7 @@ import {
   type SourceCommandEvent,
 } from './data-bridge.js';
 import { reportConfigError, clearConfigError } from './config-error.js';
+import { checkUnknownAttributes } from './unknown-attributes.js';
 
 // Pattern Lit mixin canonique : le constructor doit être callable avec
 // n'importe quels args pour permettre le chaînage `class extends mixin(Parent)`.
@@ -324,6 +325,10 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
      */
     connectedCallback() {
       super.connectedCallback();
+      // Un attribut inconnu du bundle chargé est ignoré en silence (#727) :
+      // seul ce point du cycle voit à la fois la classe réellement
+      // enregistrée et le balisage écrit par l'intégrateur.
+      checkUnknownAttributes(this);
       this.reinitTransformer();
     }
 
