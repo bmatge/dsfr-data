@@ -369,11 +369,9 @@ test.describe('le champ de code survit a l’agregation', () => {
 });
 
 test.describe('mode export ODS (#689, ADR-106)', () => {
-  // Le faux serveur `/exports/json` est deja en place (tableau nu, `limit`
-  // respecte, cf. api-fixtures.test.ts). Il ne manque que l'attribut, livre
-  // par #689 : `fetch-mode="export"` sur `dsfr-data-source`. A reactiver a la
-  // fusion — la reecriture ci-dessous suffit alors.
-  test.skip('fetch-mode="export" charge tout en une requete', async ({ page }) => {
+  // Le faux serveur `/exports/json` sert un tableau nu et respecte `limit`
+  // (cf. api-fixtures.test.ts) ; l'attribut est livre par #689.
+  test('fetch-mode="export" charge tout en une requete', async ({ page }) => {
     const html = pagePour(configPour('datalist'), 'ods').replace(
       /<dsfr-data-source id="([^"]+)"/,
       '<dsfr-data-source fetch-mode="export" id="$1"'
