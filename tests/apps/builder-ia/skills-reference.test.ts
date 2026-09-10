@@ -55,6 +55,7 @@ import { DsfrDataMap } from '@/components/dsfr-data-map.js';
 import { DsfrDataMapLayer } from '@/components/dsfr-data-map-layer.js';
 import { DsfrDataMapPopup } from '@/components/dsfr-data-map-popup.js';
 import { DsfrDataMapInset } from '@/components/dsfr-data-map-inset.js';
+import { DsfrDataMapLegend } from '@/components/dsfr-data-map-legend.js';
 import { DsfrDataMapTimeline } from '@/components/dsfr-data-map-timeline.js';
 import { DsfrDataPodium } from '@/components/dsfr-data-podium.js';
 import { DsfrDataBeacon } from '@/components/dsfr-data-beacon.js';
@@ -79,6 +80,7 @@ const COMPONENTS: Array<[string, typeof DsfrDataSource]> = (
     ['dsfr-data-list', DsfrDataList],
     ['dsfr-data-map', DsfrDataMap],
     ['dsfr-data-map-inset', DsfrDataMapInset],
+    ['dsfr-data-map-legend', DsfrDataMapLegend],
     ['dsfr-data-map-layer', DsfrDataMapLayer],
     ['dsfr-data-map-popup', DsfrDataMapPopup],
     ['dsfr-data-map-timeline', DsfrDataMapTimeline],
@@ -143,6 +145,7 @@ const SKILL_TAGS: Record<string, string[]> = {
     'dsfr-data-map-popup',
     'dsfr-data-map-inset',
     'dsfr-data-map-timeline',
+    'dsfr-data-map-legend',
   ],
   dsfrDataContext: ['dsfr-data-context'],
   dsfrDataContextFilter: ['dsfr-data-context-filter'],

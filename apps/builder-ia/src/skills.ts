@@ -2815,7 +2815,8 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
         'dsfr-data-map-layer',
         'dsfr-data-map-popup',
         'dsfr-data-map-inset',
-        'dsfr-data-map-timeline'
+        'dsfr-data-map-timeline',
+        'dsfr-data-map-legend'
       ),
   },
 

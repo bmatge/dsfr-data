@@ -100,7 +100,7 @@ Bibliothèque de Web Components de dataviz conformes au DSFR (Design System de l
 
 | Référence | Quand la lire | Déclencheurs |
 |---|---|---|
-| [Grammaires d’attributs et voies natives](references/attribute-grammars.md) | Par attribut, la grammaire exacte et la voie native a essayer AVANT d’ecrire un script : split, round, format compact, compteur de resultats, facettes radio/select/cascade, annee en cours, cles de jointure, valeurs nulles, fond de carte neutre ou administratif, nom de serie, treemap | grammaire, voie native, decouper, separateur, multivalu, split |
+| [Grammaires d’attributs et voies natives](references/attribute-grammars.md) | Par attribut, la grammaire exacte et la voie native a essayer AVANT d’ecrire un script : split, round, format compact, decimales et unite d’un KPI, format date, compteur de resultats, facettes radio/select/cascade, annee en cours, cles de jointure, valeurs nulles, fond de carte neutre ou administratif, nom de serie, treemap | grammaire, voie native, decouper, separateur, multivalu, split |
 
 ## Règles transverses
 

@@ -25,7 +25,7 @@ dsfr-data-source (wide) ──► dsfr-data-unpivot ──► dsfr-data-normaliz
 | id | String | - | oui | Identifiant unique de la sortie. |
 | source | String | "" | oui | ID de la source amont à déplier. |
 | id-cols | String | "" | non | Colonnes conservées telles quelles sur chaque ligne (virgule-séparées). Ex: `"Indicateurs, Sous_theme"`. |
-| value-cols | String | "" | non | Liste explicite des colonnes à déplier (virgule-séparée). Exclusif avec value-cols-pattern. |
+| value-cols | String | "" | non | Liste explicite des colonnes à déplier (virgule-séparée). Exclusif avec value-cols-pattern. Alias inline `col:Libellé` : `"gazole_prix:Gazole, sp95_prix:SP95"` émet « Gazole » / « SP95 » dans var-name (un `:` littéral s'échappe en `%3A`). |
 | value-cols-pattern | String | "" | non | Motif des colonnes à déplier avec placeholders `{TOKEN}`. Ex: `"c{YYYY}_{MM}"`. |
 | var-name | String | "variable" | non | Nom de la nouvelle colonne "variable" (clé dépliée). Ex: `"mois"`. |
 | var-format | String | "" | non | Reformatage de la clé via les tokens du motif. Ex: `"{YYYY}-{MM}"` → `2023-01`. |
@@ -69,7 +69,7 @@ Tout autre `{nom}` matche un segment générique. Le motif est ancré (début à
 | `drop-empty` | `boolean` | `false` | Ne pas émettre de ligne quand la cellule dépliée est vide/null. |
 | `id-cols` | `string` | `""` (vide) | Colonnes conservées telles quelles sur chaque ligne. Ex: "Indicateurs, Sous_theme" |
 | `source` | `string` | `""` (vide) | ID de la source de données à écouter |
-| `value-cols` | `string` | `""` (vide) | Liste explicite des colonnes à déplier (virgule-séparée). Exclusif avec value-cols-pattern. |
+| `value-cols` | `string` | `""` (vide) | Liste explicite des colonnes à déplier (virgule-séparée). Exclusif avec value-cols-pattern. Alias inline `col:Libellé` (#668) : `value-cols="gazole_prix:Gazole, sp95_prix:SP95"` émet « Gazole » et « SP95 » dans la colonne var-name à la place des noms techniques. Un `:` littéral dans un nom ou un libellé s'échappe en `%3A` (escapeColonValue). |
 | `value-cols-pattern` | `string` | `""` (vide) | Motif des colonnes à déplier, avec placeholders `{TOKEN}`. Tokens date à largeur fixe : YYYY (4 chiffres), YY/MM/DD/HH (2), Q (1). Ex: "c{YYYY}_{MM}" matche `c2023_01`. |
 | `value-name` | `string` | `""` (vide) | Nom de la nouvelle colonne "valeur". Défaut: "value". |
 | `var-format` | `string` | `""` (vide) | Reformatage de la clé via les tokens du motif. Ex: "{YYYY}-{MM}" → `2023-01`. |

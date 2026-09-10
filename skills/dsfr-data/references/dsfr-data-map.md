@@ -2,7 +2,7 @@
 
 > Carte interactive Leaflet multi-couches avec POI, geoshape, cercles, clustering et chargement par viewport
 >
-> Déclencheurs : carte, map, leaflet, poi, marker, geoshape, geojson, clustering, bbox, viewport, tuiles, ign, geoplateforme, cercles proportionnels, heatmap, carte interactive, geo_point, geo_shape, choropleth carte, map layer, timeline, animation temporelle, carte animee, evolution temporelle, color-map, couleur catégorielle, couleur par valeur, souverainete, sovereign-only, osm-fr, tiles-attribution, fond de carte, clé api tuiles
+> Déclencheurs : carte, map, leaflet, poi, marker, geoshape, geojson, clustering, bbox, viewport, tuiles, ign, geoplateforme, cercles proportionnels, heatmap, carte interactive, geo_point, geo_shape, choropleth carte, map layer, timeline, animation temporelle, carte animee, evolution temporelle, color-map, couleur catégorielle, couleur par valeur, souverainete, sovereign-only, osm-fr, tiles-attribution, fond de carte, clé api tuiles, légende, legende carte, map-legend, classes, bornes, fond atténué, tiles-style, fit-zone, contours, fonds administratifs, geo/regions, geo/departements
 
 ## dsfr-data-map + dsfr-data-map-layer — Carte interactive multi-couches
 
@@ -32,12 +32,14 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | height | String | `"500px"` | Hauteur CSS (px, vh, rem). Un `%` est un ratio de la largeur (ex: `"60%"` = 60% de la largeur) |
 | tiles | String | `"ign-plan"` | Fond de carte : `ign-plan`, `ign-ortho`, `ign-cadastre`, `osm-fr` (alias : `osm`), `osm-standard`, `opentopomap`, ou URL template. Deprecies (redirigent vers `ign-plan` avec warning) : `ign-topo`, `carto-positron`, `carto-dark` |
 | tiles-attribution | String | `""` | Mention d'attribution quand `tiles` est une URL custom. Obligatoire (ODbL + CGU du fournisseur) ; ignore sur un preset connu |
+| tiles-style | String | `""` | Fond attenue pour une carte thematique : `muted` (gris + 55 % d'opacite) ou `grey` (niveaux de gris). Fond « neutre » = `ign-plan` + `tiles-style="muted"`. Les encarts heritent du reglage |
 | sovereign-only | Boolean | `false` | Restreint `tiles` aux presets IGN souverains. Tout autre preset (`osm-fr`, `osm-standard`, `opentopomap`...) ou URL custom est refuse avec `console.warn` et remplace par `ign-plan`. |
 | no-controls | Boolean | `false` | Masque les controles de zoom |
 | locked | Boolean | `false` | Carte verrouillee : aucune interaction (pan/zoom/clavier) — encarts, vignettes |
 | insets | String | `""` | Raccourci encarts territoriaux : groupe et/ou territoires nommes (`"drom"`, `"drom,corse"`) |
 | fit-bounds | Boolean | `false` | Ajuste le viewport aux données a chaque mise a jour (combine a max-bounds : emprise clippee a la zone — les DROM ne dezooment pas la vue, un filtre regional zoome dessus) |
-| max-bounds | String | `""` | Limites `"latSW,lonSW,latNE,lonNE"` |
+| max-bounds | String | `""` | Limites du deplacement `"latSW,lonSW,latNE,lonNE"` (clippe aussi le fit si fit-zone est vide) |
+| fit-zone | String | `""` | Zone de clip du fit `"latSW,lonSW,latNE,lonNE"`, pan libre. Défaut : max-bounds, sinon la metropole (`41,-5.5,51.5,10`) des qu'un encart ultramarin est present (`insets="drom"`), sinon rien. `none` desactive |
 | name | String | `""` | Titre (aria-label) |
 
 ### Attributs dsfr-data-map-layer (couche)
@@ -57,9 +59,12 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | color | String | `"#000091"` | Couleur (DSFR blue-france). Fallback si color-map ne matche pas |
 | color-field | String | `""` | Champ dont la valeur determine la couleur (mapping catégoriel) |
 | color-map | String | `""` | Paires `valeur:#couleur` separees par virgule. Ex: `"1:#00A95F,2:#FF9940,3:#E1000F"` |
-| fill-field | String | `""` | Champ numérique pour choropleth |
+| fill-field | String | `""` | Champ numérique pour choropleth (geoshape) |
 | fill-opacity | Number | `0.6` | Opacite remplissage |
-| selected-palette | String | `""` | Palette choropleth |
+| selected-palette | String | `""` | Palette choropleth : `sequentialAscending` (défaut), `sequentialDescending`, `divergentAscending`, `divergentDescending`, `neutral`, `categorical` |
+| classes | Number | `0` | Nombre de classes de la choropleth ; `0` = autant que de couleurs dans l'echelle (9) |
+| method | String | `"quantile"` | Discretisation : `quantile` (effectifs egaux), `equal` (intervalles egaux), `manual` (bornes de breaks) |
+| breaks | String | `""` | Bornes superieures manuelles `"10,50,100"` (= 4 classes) ; implique `method="manual"` |
 | radius | Number | `8` | Rayon fixe (circle) |
 | radius-field | String | `""` | Champ rayon variable |
 | radius-unit | String | `"px"` | `px` ou `m` |
@@ -165,6 +170,21 @@ La clé appartient a l'integrateur (domaine et quota nominatifs) : la bibliotheq
 </dsfr-data-map>
 ```
 
+### Exemple : choroplethe a 5 classes avec legende et fond attenue
+
+```html
+<dsfr-data-map center="46.6,2.3" zoom="6" tiles="ign-plan" tiles-style="muted">
+  <dsfr-data-map-layer id="couche-pop" source="departements" type="geoshape"
+    geo-field="geo_shape" fill-field="population"
+    selected-palette="sequentialAscending" classes="5" method="quantile"
+    tooltip-field="nom">
+  </dsfr-data-map-layer>
+  <dsfr-data-map-legend for="couche-pop" label="Population"></dsfr-data-map-legend>
+</dsfr-data-map>
+```
+
+Bornes imposees : `breaks="1000,5000,20000"` (4 classes, method manual implicite).
+
 ### Exemple : multi-couches geoshape + POI
 
 ```html
@@ -192,8 +212,10 @@ Composant compagnon optionnel qui definit un template et un mode d'affichage pou
 | width | String | `"350px"` | Largeur du panneau lateral |
 | for | String | `""` | ID du layer cible (vide = tous) |
 
-Template avec `<template>` et interpolation `{{champ}}` (memes expressions que dsfr-data-display,
-toujours echappees) : `{{champ.sous.clé}}`, `{{champ:number}}` (format fr-FR), `{{champ|défaut}}`.
+Template avec `<template>` et interpolation `{{champ}}` (même moteur que dsfr-data-display,
+toujours échappé, `{{{champ}}}` traité comme `{{champ}}`) : `{{champ.sous.clé}}`,
+`{{champ:number}}`, `{{champ:date}}`, `{{tags:join: / }}`, `{{lien:url}}` (à utiliser
+dans tout `href`), `{{champ|défaut}}`, blocs `{{#if champ}}…{{/if}}` / `{{#unless}}`.
 Sans template, tableau auto.
 
 ```html
@@ -202,6 +224,8 @@ Sans template, tableau auto.
     <h4>{{nom}}</h4>
     <p>{{adresse}}, {{code_postal}} {{commune}}</p>
     <p class="fr-text--bold">{{prix:number}} EUR</p>
+    <p>Mis à jour le {{date_maj:date}}</p>
+    {{#if site_web}}<a class="fr-link" href="{{site_web:url}}">Site web</a>{{/if}}
   </template>
 </dsfr-data-map-popup>
 ```
@@ -222,6 +246,47 @@ Sans template, tableau auto.
   </dsfr-data-map-layer>
 </dsfr-data-map>
 ```
+
+### dsfr-data-map-legend — Legende d'une couche
+
+Composant compagnon place comme enfant de `dsfr-data-map` (ou n'importe ou dans la page avec `for`).
+Rend sous la carte une liste DSFR « pastille + texte » (pastille `aria-hidden`, le texte porte le sens — RGAA) :
+- choroplethe (`fill-field`) : une entree par classe, bornes chiffrees fr-FR (« De 1 000 à 5 000 ») ;
+- couche categorielle (`color-field` + `color-map`) : une entree par paire, plus « Autres valeurs » (repli `color`) si des valeurs n'ont pas matche ;
+- couche monochrome : une entree, libellee par `label`.
+Se rafraichit a chaque rendu de la couche (filtre amont, timeline, bbox) : la couche expose `getLegendEntries()` et emet `dsfr-data-map-layer-render`.
+Hors perimetre : `dsfr-data-chart type="map"` (echelle continue DSFR Chart, pas de classes).
+
+| Attribut | Type | Défaut | Description |
+|----------|------|--------|-------------|
+| for | String | `""` | Id (ou `source`) de la couche decrite. Vide = toutes les couches directes de la carte |
+| label | String | `""` | Titre au-dessus de la liste ; libelle de l'entree unique d'une couche monochrome |
+
+```html
+<dsfr-data-map-layer id="statuts" source="sites" type="marker" geo-field="geo_point_2d"
+  color-field="statut" color-map="ouvert:#18753C,ferme:#C9191E" color="#929292">
+</dsfr-data-map-layer>
+<dsfr-data-map-legend for="statuts" label="Statut du site"></dsfr-data-map-legend>
+```
+
+### Fonds administratifs livres dans le paquet (sans API)
+
+Le paquet npm livre deux GeoJSON simplifies, hors bundle : `dsfr-data/geo/regions.json` (18 regions)
+et `dsfr-data/geo/departements.json` (101 departements), proprietes `code` et `nom`
+(Contours administratifs Etalab, Licence Ouverte 2.0). Servir par la page ou un CDN npm ; joindre
+sur `code` (`dsfr-data-join`) pour une choroplethe sans referentiel geographique distant.
+
+```html
+<dsfr-data-source id="contours" url="https://cdn.jsdelivr.net/npm/dsfr-data@0/geo/regions.json"
+  transform="features"></dsfr-data-source>
+<dsfr-data-map center="46.6,2.9" zoom="6" insets="drom" fit-bounds>
+  <!-- Habillage decoratif : no-interactive, exclu du fit -->
+  <dsfr-data-map-layer source="contours" type="geoshape" geo-field="geometry"
+    no-interactive color="#666" fill-opacity="0"></dsfr-data-map-layer>
+</dsfr-data-map>
+```
+
+Avec `insets="drom"` et sans `max-bounds`, le fit se cale par défaut sur la metropole (`fit-zone`).
 
 ### dsfr-data-map-inset — Encarts territoriaux (DROM, Corse...)
 
@@ -296,10 +361,11 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `center` | `string` | `'46.603,2.888'` | Centre initial de la carte, au format `"lat,lon"`. |
 | `fit-bounds` | `boolean` | `false` | Ajuste le viewport aux donnees a chaque mise a jour. Combine a `max-bounds`, l'emprise est clippee a la zone : les DROM ne dezooment pas la vue, un filtre regional zoome dessus. |
 | `fit-max-zoom` | `number` | `0` | Zoom maximal atteint par `fit-bounds` (ex. `12`) : evite le zoom 18 sur un point isole quand les donnees se reduisent a un marqueur. `0` (defaut) = pas de plafond, `max-zoom` s'applique. |
+| `fit-zone` | `string` | `""` (vide) | Zone sur laquelle `fit-bounds` est clippé, au format `"latSW,lonSW,latNE,lonNE"` — le pan reste libre. Défaut : `max-bounds` s'il est renseigné ; sinon la métropole (`41,-5.5,51.5,10`) dès que la carte porte un encart ultramarin (`insets="drom"`…), pour que les DROM ne dézooment pas la vue ; sinon aucune zone. `fit-zone="none"` désactive le clip (#687). |
 | `height` | `string` | `'500px'` | Hauteur CSS (px, vh, rem). Un `%` est un ratio de la LARGEUR (ex: `"60%"` = 60 % de la largeur). |
 | `insets` | `string` | `""` (vide) | Raccourci encarts territoriaux : groupe ("drom") et/ou territoires nommes separes par des virgules ("drom,corse", "guadeloupe,saint-pierre-et-miquelon") |
 | `locked` | `boolean` | `false` | Carte verrouillee : aucune interaction (pan/zoom/clavier) — encarts, vignettes |
-| `max-bounds` | `string` | `""` (vide) | Limites du deplacement, au format `"latSW,lonSW,latNE,lonNE"`. |
+| `max-bounds` | `string` | `""` (vide) | Limites du deplacement, au format `"latSW,lonSW,latNE,lonNE"`. Clippe aussi le fit de `fit-bounds` quand `fit-zone` est vide. |
 | `max-zoom` | `number` | `18` | Zoom maximum autorise. |
 | `min-zoom` | `number` | `2` | Zoom minimum autorise. |
 | `name` | `string` | `""` (vide) | Titre de la carte, utilise comme nom accessible (aria-label). |
@@ -307,6 +373,7 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `sovereign-only` | `boolean` | `false` | Restreint `tiles` aux presets IGN souverains : tout autre preset ou URL custom est refuse (console.warn) et remplace par `ign-plan`. |
 | `tiles` | `string` | `'ign-plan'` | Fond de carte : `ign-plan`, `ign-ortho`, `ign-cadastre`, `osm-fr` (alias `osm`), `osm-standard`, `opentopomap`, ou une URL template. Presets deprecies (redirigent vers `ign-plan` avec un warning) : `ign-topo`, `carto-positron`, `carto-dark`. |
 | `tiles-attribution` | `string` | `""` (vide) | Mention d'attribution affichee sur la carte quand `tiles` est une URL custom (obligatoire pour respecter l'ODbL et les CGU du fournisseur). Ignore sur un preset connu, qui porte deja son attribution. Accepte du HTML (liens). |
+| `tiles-style` | `'' \| 'muted' \| 'grey'` | `""` (vide) | Atténuation du fond de carte pour les cartes thématiques : `muted` (gris + 55 % d'opacité), `grey` (niveaux de gris). Vide (défaut) : fond tel quel. Filtre CSS sur le volet des tuiles de cette carte seulement ; les encarts héritent du réglage. Un fond « neutre » = `ign-plan` + `tiles-style="muted"` (#686). |
 | `zoom` | `number` | `6` | Niveau de zoom initial (1-18). |
 
 
@@ -318,6 +385,7 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `getLeafletLib()` | `typeof import('leaflet') \| null` | Retourne le module Leaflet charge (pour les layers) |
 | `getLeafletMap()` | `LeafletMap \| null` | Retourne l'instance Leaflet L.Map (ou null si pas encore prete) |
 | `registerLayerBounds(layerKey: string, bounds: import('leaflet').LatLngBounds)` | `void` | Notifie la carte qu'un layer a ses bounds prets (pour fit-bounds). Stockes PAR layer avec remplacement a chaque rendu (#294) : l'ancien push cumulait les bounds HISTORIQUES — la carte ne pouvait jamais retrecir sa vue quand les donnees diminuaient, et le tableau grossissait a chaque refresh / frame de timeline / pan en bbox client. |
+| `resolveFitZone()` | `string` | Zone de clip du fit (#687) : `fit-zone` explicite (`none` = aucune), sinon `max-bounds`, sinon la metropole des qu'un encart ultramarin est present (raccourci `insets` ou enfant dsfr-data-map-inset explicite) — le clip ne touche que le fit, jamais le pan. Expose pour les tests. |
 | `unregisterLayerBounds(layerKey: string)` | `void` | Libere les bounds d'un layer retire (#294) |
 | `updateDescription(layerSummaries: string[])` | `void` | Met a jour la description de la carte (appele par les layers quand les données changent) |
 
@@ -341,6 +409,8 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `bbox` | `boolean` | `false` | Chargement par viewport : re-interroge la source a chaque deplacement de la carte, et une premiere fois des que la carte est prete (#652). Le tout premier fetch de la source reste NON filtre (elle charge des sa connexion, avant que la carte — differee a la visibilite — ait un viewport) : sur un gros jeu, poser un `limit` ou un `where` initial sur la source. |
 | `bbox-debounce` | `number` | `300` | Delai d'anti-rebond avant le re-fetch bbox, en millisecondes. |
 | `bbox-field` | `string` | `""` (vide) | Champ géographique utilisé pour la requête bbox (auto-détecté si vide). |
+| `breaks` | `string` | `""` (vide) | Bornes supérieures manuelles des classes, séparées par des virgules : `"10,50,100"` donne 4 classes (jusqu'à 10, 10 à 50, 50 à 100, plus de 100). Implique `method="manual"`. |
+| `classes` | `number` | `0` | Nombre de classes de la choroplèthe (`fill-field`). `0` (défaut) = autant de classes que de couleurs dans l'échelle (9). Plafonné à la taille de l'échelle (#685). |
 | `cluster` | `boolean` | `false` | Regroupe les marqueurs proches en clusters. |
 | `cluster-radius` | `number` | `80` | Rayon de regroupement des clusters, en pixels. |
 | `color` | `string` | `'#000091'` | Couleur de la couche (défaut : blue-france DSFR). Sert aussi de repli quand `color-map` ne matche pas. |
@@ -356,6 +426,7 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `lon-field` | `string` | `""` (vide) | Chemin vers le champ longitude (mode coordonnees separees). |
 | `max-items` | `number` | `5000` | Plafond du nombre d'elements rendus sur la carte (défaut 5000). Il protege les marqueurs DOM (`divIcon`), le fit et les popups ; au-dela, un bandeau indique combien d'elements sont affiches sur le total. Avec `cluster`, `max-items="20000"` est sans risque : les marqueurs regroupes ne pesent pas sur le DOM. En mode `bbox`, zoomer recharge la zone visible ; hors `bbox`, seul un `max-items` plus haut (ou un filtre amont) affiche le reste. |
 | `max-zoom` | `number` | `18` | Niveau de zoom au-dela duquel la couche est masquee. |
+| `method` | `'quantile' \| 'equal' \| 'manual'` | `'quantile'` | Méthode de discrétisation de la choroplèthe : `quantile` (défaut, effectifs égaux par classe), `equal` (intervalles de même largeur), `manual` (bornes de `breaks`). |
 | `min-zoom` | `number` | `0` | Niveau de zoom en deca duquel la couche est masquee. |
 | `no-interactive` | `boolean` | `false` | Couche decorative : aucune interaction (pas de clic, tooltip ni popup) — contours administratifs, habillage |
 | `popup-fields` | `string` | `""` (vide) | Champs a presenter en tableau automatique dans la popup. Ex: `"nom,adresse"`. |
@@ -365,7 +436,7 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `radius-max` | `number` | `30` | Rayon maximum de l'auto-scaling, en pixels. |
 | `radius-min` | `number` | `4` | Rayon minimum de l'auto-scaling, en pixels. |
 | `radius-unit` | `'px' \| 'm'` | `'px'` | Unité du rayon : `px` (constant à l'écran) ou `m` (mètres, suit le zoom). |
-| `selected-palette` | `string` | `""` (vide) | Palette DSFR utilisée pour le dégradé choroplèthe (`fill-field`). |
+| `selected-palette` | `string` | `""` (vide) | Palette DSFR utilisée pour le dégradé choroplèthe (`fill-field`) : `sequentialAscending` (défaut), `sequentialDescending`, `divergentAscending`, `divergentDescending`, `neutral`, `categorical`. |
 | `shape-class` | `string` | `""` (vide) | Classe CSS appliquee aux traces SVG de la couche (geoshape/circle) — permet un style page (motif hachure, pointilles...) via CSS/SVG <pattern> |
 | `source` | `string` | `""` (vide) | Id de la source (ou du transformateur) dont cette couche consomme les données. |
 | `time-bucket` | `'none' \| 'hour' \| 'day' \| 'month' \| 'year'` | `'none'` | Granularite des pas de temps : `none`, `hour`, `day`, `month`, `year`. |
@@ -379,6 +450,7 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 
 | Méthode | Retour | Description |
 |---|---|---|
+| `getLegendEntries()` | `LegendEntry[]` | Entrées de légende du dernier rendu (#685) : les classes de `fill-field` avec leurs bornes (choroplèthe), sinon les paires de `color-map` plus le repli `color` s'il a servi, sinon la seule couleur de la couche (libellé vide, à fournir par la légende). Consommé par dsfr-data-map-legend, qui se rafraîchit sur `dsfr-data-map-layer-render`. |
 | `getRenderedCount()` | `number` | Nombre d'elements effectivement dessines au dernier rendu (marqueurs, formes, cercles ou points de chaleur). Contrairement au comptage DOM, ce compte n'inclut pas les bulles de cluster et couvre la heatmap (un seul canvas pour N points) — expose pour les diagnostics (#482). |
 | `getSkippedCount()` | `number` | Nombre de lignes ignorees au dernier rendu faute de position exploitable (coordonnees ou geometrie absentes ou invalides). Journalise une fois par rendu et remonte dans la trace du volet Diagnostic (#648, #604). |
 | `getTimeSteps()` | `string[]` | Returns sorted time step labels |
@@ -393,7 +465,8 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `dsfr-data-loaded` | `{ sourceId, data }` | écoute | Nouvelles données publiées par la source désignée par `source`. |
 | `dsfr-data-error` | `{ sourceId, error }` | écoute | Erreur amont. |
 | `dsfr-data-loading` | `{ sourceId }` | écoute | Chargement amont démarré. |
-| `dsfr-data-map-layer-time-ready` | — | émis | — |
+| `dsfr-data-map-layer-time-ready` | — | émis | `{ steps }` sur `document` — les pas de temps de la couche sont calcules ; dsfr-data-map-timeline s'en sert pour construire son curseur. |
+| `dsfr-data-map-layer-render` | — | émis | `{ rendered, skipped, total, legend }` sur la couche (bubbles) après chaque rendu : éléments dessinés, lignes ignorées, total avant plafond, entrées de légende (`getLegendEntries()`). dsfr-data-map-legend s'en sert pour se rafraîchir (#685). |
 
 
 **Slots** — aucun (le composant rend son propre contenu).
@@ -472,6 +545,34 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `label` | `string` | `'auto'` | Label format for display. 'auto' uses the raw step value. |
 | `speed` | `number` | `1` | Playback speed multiplier |
 
+
+
+**Événements** — aucun.
+
+
+**Slots** — aucun (le composant rend son propre contenu).
+
+**Variables CSS publiques** — aucune (styler via les variables du DSFR sur le conteneur parent).
+
+
+### Référence `<dsfr-data-map-legend>` (générée depuis le code)
+
+**Rôle pipeline** : autonome — n’utilise pas les mixins d’abonnement du pipeline (voir les événements ci-dessous).
+
+**Attributs**
+
+| Attribut | Type | Défaut | Description |
+|---|---|---|---|
+| `for` | `string` | `""` (vide) | Id (ou `source`) de la couche dsfr-data-map-layer décrite. Vide = toutes les couches directes de la carte hôte, entrées concaténées. |
+| `label` | `string` | `""` (vide) | Titre de la légende, affiché au-dessus de la liste (ex. « Densité (hab./km²) »). Sert aussi de libellé à l'entrée unique d'une couche monochrome. |
+
+
+**Méthodes publiques**
+
+| Méthode | Retour | Description |
+|---|---|---|
+| `getEntries()` | `LegendEntry[]` | Entrées actuellement affichées (lecture, pour les tests et les diagnostics). |
+| `refresh()` | `void` | Relit les couches et redessine la liste. |
 
 
 **Événements** — aucun.

@@ -8,7 +8,7 @@
       "declarations": [
         {
           "kind": "class",
-          "description": "<dsfr-data-a11y> - Companion d'accessibilité pour visualisations\n\nOffre trois alternatives accessibles a un graphique, chacune activable :\n- `table`       : tableau HTML avec les données du graphique\n- `download`    : bouton de téléchargement CSV\n- `description` : transcription textuelle libre\n\nVia l'attribut `for`, il injecte :\n- Un skip link dans le graphique cible (visible au focus clavier)\n- `aria-describedby` vers un resume concis (screen readers)\n- `aria-details` vers le tableau (si active, progressive enhancement)",
+          "description": "<dsfr-data-a11y> - Companion d'accessibilité pour visualisations\n\nOffre trois alternatives accessibles a un graphique, chacune activable :\n- `table`       : tableau HTML avec les données du graphique\n- `download`    : bouton de téléchargement CSV\n- `description` : transcription textuelle libre\n\nVia l'attribut `for`, il injecte :\n- Un skip link dans le graphique cible (visible au focus clavier)\n- `aria-describedby` vers un resume concis (screen readers)\n- `aria-details` vers le tableau (si active, progressive enhancement)\n\nLes cellules numériques du tableau sont rendues en fr-FR (`2.27` → « 2,27 »,\nau plus 2 décimales, #666) ; les chaînes (codes INSEE, SIREN…) restent\nintactes et le CSV téléchargé reste brut. Avant #666, le contournement était\n`normalize round=\"champ:2\"`, qui arrondit mais ne localise pas.",
           "name": "DsfrDataA11y",
           "members": [
             {
@@ -110,6 +110,16 @@
               "default": "false",
               "description": "Desactive la pose automatique des attributs ARIA et du lien d'evitement.",
               "attribute": "no-auto-aria"
+            },
+            {
+              "kind": "field",
+              "name": "decimals",
+              "type": {
+                "text": "number | null"
+              },
+              "default": "null",
+              "description": "Nombre de décimales des cellules numériques du tableau (#666). Absent :\nau plus 2 décimales, format fr-FR. Le CSV n'est pas concerné.",
+              "attribute": "decimals"
             },
             {
               "kind": "field",
@@ -267,6 +277,24 @@
             },
             {
               "kind": "method",
+              "name": "formatCellValue",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "value",
+                  "type": {
+                    "text": "unknown"
+                  }
+                }
+              ],
+              "description": "Texte d'une cellule du tableau : nombres en fr-FR (au plus 2 décimales,\nou `decimals`), tout le reste tel quel. Le CSV (`_buildCsv`) reste brut."
+            },
+            {
+              "kind": "method",
               "name": "_getAutoDescription",
               "privacy": "private",
               "return": {
@@ -380,6 +408,15 @@
               "default": "false",
               "description": "Desactive la pose automatique des attributs ARIA et du lien d'evitement.",
               "fieldName": "noAutoAria"
+            },
+            {
+              "name": "decimals",
+              "type": {
+                "text": "number | null"
+              },
+              "default": "null",
+              "description": "Nombre de décimales des cellules numériques du tableau (#666). Absent :\nau plus 2 décimales, format fr-FR. Le CSV n'est pas concerné.",
+              "fieldName": "decimals"
             }
           ],
           "mixins": [
@@ -539,7 +576,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Chemin vers le champ valeur",
+              "description": "Chemin vers le champ valeur. Alias inline `champ:Libellé` (#668) :\n`value-field=\"Panier_moyen:Panier moyen\"` affiche « Panier moyen » dans la\nlégende à la place du nom technique. Un `name` explicite prime sur l'alias.\nUn `:` littéral dans un chemin ou un libellé s'échappe en `%3A` (escapeColonValue).",
               "attribute": "value-field"
             },
             {
@@ -549,7 +586,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Chemin vers un second champ de valeur (pour bar-line: y-bar)",
+              "description": "Chemin vers un second champ de valeur (pour bar-line: y-line). Alias inline `champ:Libellé` accepté (#668).",
               "attribute": "value-field-2"
             },
             {
@@ -559,7 +596,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Champs de valeur supplementaires, separes par des virgules (ex: 'budget,score')",
+              "description": "Champs de valeur supplémentaires, séparés par des virgules (ex: 'budget,score').\nAlias inline `champ:Libellé` par série (#668) : `value-fields=\"budget:Budget, score:Score\"`.\nUn `name` explicite (tableau JSON) prime sur les alias.",
               "attribute": "value-fields"
             },
             {
@@ -579,7 +616,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Nom(s) de série. Chaîne simple recommandée (`name=\"Taux\"`), enveloppée\nautomatiquement pour DSFR Chart ; tableau JSON pour le multi-séries\n(`name='[\"Réalisé\",\"Objectif\"]'`). Sur les cartes (`map*`), un seul nom :\nle premier élément d'un JSON est retenu (#653).",
+              "description": "Nom(s) de série. Chaîne simple recommandée (`name=\"Taux\"`), enveloppée\nautomatiquement pour DSFR Chart ; tableau JSON pour le multi-séries\n(`name='[\"Réalisé\",\"Objectif\"]'`). Sur les cartes (`map*`), un seul nom :\nle premier élément d'un JSON est retenu (#653). Priorité (#668) : `name`\nexplicite, sinon l'alias inline `champ:Libellé` de value-field(s), sinon le\nnom du champ (ou les valeurs de series-field en mode tidy).",
               "attribute": "name"
             },
             {
@@ -734,6 +771,16 @@
             },
             {
               "kind": "field",
+              "name": "headingLevel",
+              "type": {
+                "text": "number"
+              },
+              "default": "3",
+              "description": "Niveau de titre HTML du titre de la DataBox (RGAA 9.1, #670) : entier de 2 à 6,\nborné (défaut 3, rendu historique de DSFR Chart). `heading-level=\"2\"` rend un h2.",
+              "attribute": "heading-level"
+            },
+            {
+              "kind": "field",
               "name": "databoxSource",
               "type": {
                 "text": "string"
@@ -749,8 +796,18 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Date de la donnée (ex: \"Mars 2024\"), affichée dans le pied de la DataBox\net sur les cartes. Aucune date n'est rendue si l'attribut est absent —\nplus de repli sur la date du jour, qui n'est pas celle des données (#650).",
+              "description": "Date de la donnée (ex: \"Mars 2024\"), affichée dans le pied de la DataBox\net sur les cartes. Aucune date n'est rendue si l'attribut est absent —\nplus de repli sur la date du jour, qui n'est pas celle des données (#650).\nPrime sur `databox-date-field` quand les deux sont posés.",
               "attribute": "databox-date"
+            },
+            {
+              "kind": "field",
+              "name": "databoxDateField",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Fraîcheur lue dans la donnée (#661) : chemin d'une colonne de dates ISO\n(`AAAA-MM-JJ`, heure facultative). La plus récente est affichée comme date\nde la DataBox (et des cartes), formatée JJ/MM/AAAA. Ignoré si `databox-date`\nest posé ; aucune date rendue si la colonne ne contient aucune date ISO valide.",
+              "attribute": "databox-date-field"
             },
             {
               "kind": "field",
@@ -993,6 +1050,28 @@
             },
             {
               "kind": "method",
+              "name": "_valueFieldKey",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "description": "Chemin de `value-field` sans son alias inline (#668) : `Panier_moyen:Panier\nmoyen` → `Panier_moyen`. Toute lecture de la valeur passe par ici."
+            },
+            {
+              "kind": "method",
+              "name": "_getValueFieldSpecs",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "AliasedColumn[]"
+                }
+              },
+              "description": "Champs de valeur (chemin + libellé), dans l'ordre de rendu : value-field,\npuis value-fields (sinon value-field-2). Le libellé est l'alias inline\n`champ:Libellé` quand il est donné, sinon le chemin lui-même (#668)."
+            },
+            {
+              "kind": "method",
               "name": "_getAllValueFields",
               "privacy": "private",
               "return": {
@@ -1000,7 +1079,7 @@
                   "text": "string[]"
                 }
               },
-              "description": "Parse all value field names (value-field, value-field-2, value-fields)"
+              "description": "Parse all value field paths (value-field, value-field-2, value-fields)"
             },
             {
               "kind": "method",
@@ -1011,7 +1090,7 @@
                   "text": "string[]"
                 }
               },
-              "description": "Series names, in render order.\n- tidy mode (series-field) : distinct values of seriesField, in first-seen order\n- wide mode : the value field names (value-field, value-field-2, value-fields)"
+              "description": "Series names, in render order.\n- tidy mode (series-field) : distinct values of seriesField, in first-seen order\n- wide mode : the value field labels (alias inline `champ:Libellé`, #668)\n  or paths (value-field, value-field-2, value-fields)"
             },
             {
               "kind": "method",
@@ -1492,6 +1571,47 @@
             },
             {
               "kind": "method",
+              "name": "_databoxHeadingLevel",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "number"
+                }
+              },
+              "description": "Niveau de titre de la DataBox borné à [2, 6] ; 3 si absent ou invalide (#670)."
+            },
+            {
+              "kind": "method",
+              "name": "_resolveDataboxDate",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "description": "Date affichée par la DataBox et les cartes : `databox-date` explicite\nprime ; sinon la plus récente des dates ISO de `databox-date-field`\n(#661), formatée JJ/MM/AAAA ; sinon '' (aucune date rendue, #650)."
+            },
+            {
+              "kind": "method",
+              "name": "_latestIsoDate",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string | null"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "field",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Plus récente valeur ISO (`AAAA-MM-JJ`, heure facultative) d'une colonne :\ncomparaison lexicographique, valable sur ce format après validation\n(préfixe ISO + `Date.parse` finie). Les autres valeurs sont ignorées ;\n`null` si aucune date valide."
+            },
+            {
+              "kind": "method",
               "name": "_createDataboxElement",
               "privacy": "private",
               "parameters": [
@@ -1581,7 +1701,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Chemin vers le champ valeur",
+              "description": "Chemin vers le champ valeur. Alias inline `champ:Libellé` (#668) :\n`value-field=\"Panier_moyen:Panier moyen\"` affiche « Panier moyen » dans la\nlégende à la place du nom technique. Un `name` explicite prime sur l'alias.\nUn `:` littéral dans un chemin ou un libellé s'échappe en `%3A` (escapeColonValue).",
               "fieldName": "valueField"
             },
             {
@@ -1590,7 +1710,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Chemin vers un second champ de valeur (pour bar-line: y-bar)",
+              "description": "Chemin vers un second champ de valeur (pour bar-line: y-line). Alias inline `champ:Libellé` accepté (#668).",
               "fieldName": "valueField2"
             },
             {
@@ -1599,7 +1719,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Champs de valeur supplementaires, separes par des virgules (ex: 'budget,score')",
+              "description": "Champs de valeur supplémentaires, séparés par des virgules (ex: 'budget,score').\nAlias inline `champ:Libellé` par série (#668) : `value-fields=\"budget:Budget, score:Score\"`.\nUn `name` explicite (tableau JSON) prime sur les alias.",
               "fieldName": "valueFields"
             },
             {
@@ -1617,7 +1737,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Nom(s) de série. Chaîne simple recommandée (`name=\"Taux\"`), enveloppée\nautomatiquement pour DSFR Chart ; tableau JSON pour le multi-séries\n(`name='[\"Réalisé\",\"Objectif\"]'`). Sur les cartes (`map*`), un seul nom :\nle premier élément d'un JSON est retenu (#653).",
+              "description": "Nom(s) de série. Chaîne simple recommandée (`name=\"Taux\"`), enveloppée\nautomatiquement pour DSFR Chart ; tableau JSON pour le multi-séries\n(`name='[\"Réalisé\",\"Objectif\"]'`). Sur les cartes (`map*`), un seul nom :\nle premier élément d'un JSON est retenu (#653). Priorité (#668) : `name`\nexplicite, sinon l'alias inline `champ:Libellé` de value-field(s), sinon le\nnom du champ (ou les valeurs de series-field en mode tidy).",
               "fieldName": "name"
             },
             {
@@ -1756,6 +1876,15 @@
               "fieldName": "databoxTitle"
             },
             {
+              "name": "heading-level",
+              "type": {
+                "text": "number"
+              },
+              "default": "3",
+              "description": "Niveau de titre HTML du titre de la DataBox (RGAA 9.1, #670) : entier de 2 à 6,\nborné (défaut 3, rendu historique de DSFR Chart). `heading-level=\"2\"` rend un h2.",
+              "fieldName": "headingLevel"
+            },
+            {
               "name": "databox-source",
               "type": {
                 "text": "string"
@@ -1770,8 +1899,17 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Date de la donnée (ex: \"Mars 2024\"), affichée dans le pied de la DataBox\net sur les cartes. Aucune date n'est rendue si l'attribut est absent —\nplus de repli sur la date du jour, qui n'est pas celle des données (#650).",
+              "description": "Date de la donnée (ex: \"Mars 2024\"), affichée dans le pied de la DataBox\net sur les cartes. Aucune date n'est rendue si l'attribut est absent —\nplus de repli sur la date du jour, qui n'est pas celle des données (#650).\nPrime sur `databox-date-field` quand les deux sont posés.",
               "fieldName": "databoxDate"
+            },
+            {
+              "name": "databox-date-field",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Fraîcheur lue dans la donnée (#661) : chemin d'une colonne de dates ISO\n(`AAAA-MM-JJ`, heure facultative). La plus récente est affichée comme date\nde la DataBox (et des cartes), formatée JJ/MM/AAAA. Ignoré si `databox-date`\nest posé ; aucune date rendue si la colonne ne contient aucune date ISO valide.",
+              "fieldName": "databoxDateField"
             },
             {
               "name": "databox-download",
@@ -2917,8 +3055,32 @@
             },
             {
               "kind": "method",
-              "name": "_resolveExpression",
+              "name": "_templateVars",
               "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "Record<string, () => string>"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "item",
+                  "type": {
+                    "text": "Record<string, unknown>"
+                  }
+                },
+                {
+                  "name": "index",
+                  "type": {
+                    "text": "number"
+                  }
+                }
+              ],
+              "description": "Variables spéciales du template : `$index` et `$uid`"
+            },
+            {
+              "kind": "method",
+              "name": "_resolveExpression",
               "return": {
                 "type": {
                   "text": "string"
@@ -2944,7 +3106,7 @@
                   }
                 }
               ],
-              "description": "Resout une expression : champ, champ:format, champ|défaut, champ:format|défaut, $index, $uid"
+              "description": "Résout une expression : champ, champ:format[:arg], champ|défaut, $index, $uid (conservé pour compatibilité, comme _formatValue)"
             },
             {
               "kind": "method",
@@ -4619,6 +4781,16 @@
               "default": "null"
             },
             {
+              "kind": "field",
+              "name": "_lastStats",
+              "type": {
+                "text": "JoinStats | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Taux d'appariement de la derniere jointure (#660), publie dans la meta\npour le volet Diagnostic. En `left`, 1 065 lignes entrent et 1 065\nsortent : sans ce compte, une jointure a 22 % paraissait saine."
+            },
+            {
               "kind": "method",
               "name": "getAdapter",
               "privacy": "public",
@@ -4768,7 +4940,29 @@
                   }
                 }
               ],
-              "description": "Meta de la source GAUCHE propagee avec `total` invalide (#282) — la\ngauche porte les lignes (coherent avec le relais de commandes #272),\net le join change le nombre de lignes."
+              "description": "Meta de la source GAUCHE propagee avec `total` invalide (#282) — la\ngauche porte les lignes (coherent avec le relais de commandes #272),\net le join change le nombre de lignes. Le taux d'appariement y est\najoute (#660) ; la troncature amont ne decrit pas cette etape."
+            },
+            {
+              "kind": "method",
+              "name": "transformerOwnMeta",
+              "privacy": "protected",
+              "return": {
+                "type": {
+                  "text": "PaginationMeta | null"
+                }
+              },
+              "description": "Sans meta amont, le join publie quand meme son taux d'appariement (#660)."
+            },
+            {
+              "kind": "method",
+              "name": "getJoinStats",
+              "privacy": "public",
+              "return": {
+                "type": {
+                  "text": "JoinStats | null"
+                }
+              },
+              "description": "Taux d'appariement de la derniere jointure, ou null avant la premiere (#660)."
             },
             {
               "kind": "method",
@@ -5039,7 +5233,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Expression de valeur — convention cible anglaise (#300).\nGrammaire commune \"champ:fn\" (#303), ex. value=\"population:sum\".",
+              "description": "Expression de valeur — convention cible anglaise (#300).\nGrammaire commune \"champ:fn\" (#303), ex. value=\"population:sum\".\n`meta:total` (#659) : total publié par l'amont (total serveur en\nserver-side, lignes avant `limit` derrière un query) — `count` ne\ncompte que les lignes reçues.",
               "attribute": "value"
             },
             {
@@ -5109,8 +5303,27 @@
                 "text": "FormatType"
               },
               "default": "'nombre'",
-              "description": "Format d'affichage: nombre, pourcentage, euro, decimal, compact (14 785 684 → « 14,8 M »)",
+              "description": "Format d'affichage : nombre (défaut), pourcentage, euro, decimal, compact\n(14 785 684 → « 14,8 M »), date (chaîne ISO → « 09/09/2026 », #667).\nLes décimales passent par `decimals`, jamais par le format (`euro:3` est\nrefusé et affiché comme erreur de configuration, #665).",
               "attribute": "format"
+            },
+            {
+              "kind": "field",
+              "name": "decimals",
+              "type": {
+                "text": "number | undefined"
+              },
+              "description": "Nombre de décimales affichées (entier 0 à 20), ex. `format=\"euro\" decimals=\"3\"`\n→ « 1,749 € ». Fixe pour nombre, pourcentage, euro et decimal ; plafond pour\ncompact ; sans effet sur date. Absent : défaut historique du format (#665).",
+              "attribute": "decimals"
+            },
+            {
+              "kind": "field",
+              "name": "unit",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Unité accolée après la valeur (espace insécable), ex. `format=\"compact\" unit=\"€\"`\n→ « 44,9 Md € ». Surtout utile avec nombre, decimal et compact — euro et\npourcentage portent déjà leur symbole (#665).",
+              "attribute": "unit"
             },
             {
               "kind": "field",
@@ -5242,6 +5455,54 @@
             },
             {
               "kind": "method",
+              "name": "_formatDisplay",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "value",
+                  "type": {
+                    "text": "number | string | null"
+                  }
+                }
+              ],
+              "description": "Texte affiché pour la valeur calculée : `format` + `decimals` + `unit`\n(#665). Une chaîne (littéral `value=\"=87 %\"`, champ texte) est rendue\ntelle quelle — sauf `format=\"date\"`, qui la lit comme date ISO (#667)."
+            },
+            {
+              "kind": "field",
+              "name": "_partialCountWarned",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false",
+              "description": "Warn-once : `count` sur des lignes tronquees (#659)."
+            },
+            {
+              "kind": "method",
+              "name": "_warnPartialCount",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "rows",
+                  "type": {
+                    "text": "number"
+                  }
+                }
+              ],
+              "description": "`count` compte les lignes RECUES : derriere un `limit`, une page de\npagination serveur ou un plafond `max-records`, ce n'est pas le total.\nTrois annuaires ont affiche « 12 activites » pour 28 pendant sept lots."
+            },
+            {
+              "kind": "method",
               "name": "_getColor",
               "privacy": "private",
               "return": {
@@ -5324,7 +5585,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Expression de valeur — convention cible anglaise (#300).\nGrammaire commune \"champ:fn\" (#303), ex. value=\"population:sum\".",
+              "description": "Expression de valeur — convention cible anglaise (#300).\nGrammaire commune \"champ:fn\" (#303), ex. value=\"population:sum\".\n`meta:total` (#659) : total publié par l'amont (total serveur en\nserver-side, lignes avant `limit` derrière un query) — `count` ne\ncompte que les lignes reçues.",
               "fieldName": "value"
             },
             {
@@ -5387,8 +5648,25 @@
                 "text": "FormatType"
               },
               "default": "'nombre'",
-              "description": "Format d'affichage: nombre, pourcentage, euro, decimal, compact (14 785 684 → « 14,8 M »)",
+              "description": "Format d'affichage : nombre (défaut), pourcentage, euro, decimal, compact\n(14 785 684 → « 14,8 M »), date (chaîne ISO → « 09/09/2026 », #667).\nLes décimales passent par `decimals`, jamais par le format (`euro:3` est\nrefusé et affiché comme erreur de configuration, #665).",
               "fieldName": "format"
+            },
+            {
+              "name": "decimals",
+              "type": {
+                "text": "number | undefined"
+              },
+              "description": "Nombre de décimales affichées (entier 0 à 20), ex. `format=\"euro\" decimals=\"3\"`\n→ « 1,749 € ». Fixe pour nombre, pourcentage, euro et decimal ; plafond pour\ncompact ; sans effet sur date. Absent : défaut historique du format (#665).",
+              "fieldName": "decimals"
+            },
+            {
+              "name": "unit",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Unité accolée après la valeur (espace insécable), ex. `format=\"compact\" unit=\"€\"`\n→ « 44,9 Md € ». Surtout utile avec nombre, decimal et compact — euro et\npourcentage portent déjà leur symbole (#665).",
+              "fieldName": "unit"
             },
             {
               "name": "trend",
@@ -5634,6 +5912,26 @@
               "default": "0",
               "description": "Nombre d'éléments par page (0 = pas de pagination)",
               "attribute": "pagination"
+            },
+            {
+              "kind": "field",
+              "name": "caption",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Titre du tableau, rendu dans `caption` (masqué visuellement, lu par les\nlecteurs d'écran — RGAA 5.4, #669). À défaut, dérivé de `aria-label`.",
+              "attribute": "caption"
+            },
+            {
+              "kind": "field",
+              "name": "decimals",
+              "type": {
+                "text": "number | null"
+              },
+              "default": "null",
+              "description": "Nombre de décimales des cellules numériques (#666). Absent : au plus\n2 décimales, format fr-FR. Les exports CSV/HTML ne sont pas concernés.",
+              "attribute": "decimals"
             },
             {
               "kind": "field",
@@ -5963,6 +6261,42 @@
             },
             {
               "kind": "method",
+              "name": "_isTotalKnown",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "description": "False en pagination serveur tant que la source n'a pas publié de total (#270)"
+            },
+            {
+              "kind": "method",
+              "name": "_pagePosition",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "page",
+                  "type": {
+                    "text": "number"
+                  }
+                },
+                {
+                  "name": "totalPages",
+                  "type": {
+                    "text": "number"
+                  }
+                }
+              ],
+              "description": "« Page 3 sur 115 », ou « Page 3 » quand le total est inconnu"
+            },
+            {
+              "kind": "method",
               "name": "_handlePageChange",
               "privacy": "private",
               "parameters": [
@@ -5973,6 +6307,34 @@
                   }
                 }
               ]
+            },
+            {
+              "kind": "method",
+              "name": "getPageItems",
+              "return": {
+                "type": {
+                  "text": "PageItem[]"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "totalPages",
+                  "type": {
+                    "text": "number"
+                  }
+                },
+                {
+                  "name": "current",
+                  "type": {
+                    "text": "number"
+                  }
+                },
+                {
+                  "name": "totalKnown",
+                  "default": "true"
+                }
+              ],
+              "description": "Pages à afficher (#669) : première et dernière, fenêtre autour de la\ncourante, ellipse pour chaque trou — « 1 2 3 … 115 », « 1 … 49 50 51 … 115 ».\nUn trou d'une seule page est comblé par son numéro plutôt qu'une ellipse.\nTotal inconnu (`totalKnown` false) : pas de dernière page ni d'ellipse finale."
             },
             {
               "kind": "method",
@@ -5999,7 +6361,19 @@
                     "text": "unknown"
                   }
                 }
-              ]
+              ],
+              "description": "Texte d'une cellule : « — » pour l'absence, Oui/Non pour les booléens,\nnombres en fr-FR (#666), tout le reste tel quel (jamais de parsing des\nchaînes : un code INSEE « 75056 » reste « 75056 »)."
+            },
+            {
+              "kind": "method",
+              "name": "_getCaption",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "description": "Titre du tableau : `caption`, sinon `aria-label`, sinon libellé générique (#669)"
             },
             {
               "kind": "method",
@@ -6171,6 +6545,24 @@
               "default": "0",
               "description": "Nombre d'éléments par page (0 = pas de pagination)",
               "fieldName": "pagination"
+            },
+            {
+              "name": "caption",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Titre du tableau, rendu dans `caption` (masqué visuellement, lu par les\nlecteurs d'écran — RGAA 5.4, #669). À défaut, dérivé de `aria-label`.",
+              "fieldName": "caption"
+            },
+            {
+              "name": "decimals",
+              "type": {
+                "text": "number | null"
+              },
+              "default": "null",
+              "description": "Nombre de décimales des cellules numériques (#666). Absent : au plus\n2 décimales, format fr-FR. Les exports CSV/HTML ne sont pas concernés.",
+              "fieldName": "decimals"
             },
             {
               "name": "export",
@@ -6633,8 +7025,38 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Palette DSFR utilisée pour le dégradé choroplèthe (`fill-field`).",
+              "description": "Palette DSFR utilisée pour le dégradé choroplèthe (`fill-field`) : `sequentialAscending` (défaut), `sequentialDescending`, `divergentAscending`, `divergentDescending`, `neutral`, `categorical`.",
               "attribute": "selected-palette"
+            },
+            {
+              "kind": "field",
+              "name": "classes",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "description": "Nombre de classes de la choroplèthe (`fill-field`). `0` (défaut) = autant de classes que de couleurs dans l'échelle (9). Plafonné à la taille de l'échelle (#685).",
+              "attribute": "classes"
+            },
+            {
+              "kind": "field",
+              "name": "method",
+              "type": {
+                "text": "'quantile' | 'equal' | 'manual'"
+              },
+              "default": "'quantile'",
+              "description": "Méthode de discrétisation de la choroplèthe : `quantile` (défaut, effectifs égaux par classe), `equal` (intervalles de même largeur), `manual` (bornes de `breaks`).",
+              "attribute": "method"
+            },
+            {
+              "kind": "field",
+              "name": "breaks",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Bornes supérieures manuelles des classes, séparées par des virgules : `\"10,50,100\"` donne 4 classes (jusqu'à 10, 10 à 50, 50 à 100, plus de 100). Implique `method=\"manual\"`.",
+              "attribute": "breaks"
             },
             {
               "kind": "field",
@@ -7021,6 +7443,26 @@
             },
             {
               "kind": "field",
+              "name": "_legendEntries",
+              "type": {
+                "text": "LegendEntry[]"
+              },
+              "privacy": "private",
+              "default": "[]",
+              "description": "Entrees de legende du dernier rendu (#685) — voir getLegendEntries()"
+            },
+            {
+              "kind": "field",
+              "name": "_colorFallbackUsed",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false",
+              "description": "Au moins un record est retombe sur `color` faute de correspondance dans color-map"
+            },
+            {
+              "kind": "field",
               "name": "_timeFrames",
               "type": {
                 "text": "Map<string, Record<string, unknown>[]>"
@@ -7078,6 +7520,42 @@
             },
             {
               "kind": "method",
+              "name": "getLegendEntries",
+              "return": {
+                "type": {
+                  "text": "LegendEntry[]"
+                }
+              },
+              "description": "Entrées de légende du dernier rendu (#685) : les classes de `fill-field`\navec leurs bornes (choroplèthe), sinon les paires de `color-map` plus le\nrepli `color` s'il a servi, sinon la seule couleur de la couche (libellé\nvide, à fournir par la légende). Consommé par dsfr-data-map-legend, qui\nse rafraîchit sur `dsfr-data-map-layer-render`."
+            },
+            {
+              "kind": "method",
+              "name": "_buildLegendEntries",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "breaks",
+                  "type": {
+                    "text": "number[]"
+                  }
+                },
+                {
+                  "name": "palette",
+                  "type": {
+                    "text": "readonly string[]"
+                  }
+                },
+                {
+                  "name": "values",
+                  "type": {
+                    "text": "number[]"
+                  }
+                }
+              ],
+              "description": "Recalcule les entrees de legende a partir de l'etat du dernier rendu."
+            },
+            {
+              "kind": "method",
               "name": "getRenderedCount",
               "return": {
                 "type": {
@@ -7102,7 +7580,7 @@
               "privacy": "private",
               "static": true,
               "readonly": true,
-              "default": "new Set<string>([ 'type', 'latField', 'lonField', 'geoField', 'shapeClass', 'noInteractive', 'popupTemplate', 'popupFields', 'tooltipField', 'color', 'colorField', 'colorMap', 'fillField', 'fillOpacity', 'selectedPalette', 'radius', 'radiusField', 'radiusUnit', 'radiusMin', 'radiusMax', 'heatRadius', 'heatBlur', 'heatField', 'cluster', 'clusterRadius', 'maxItems', 'timeField', 'timeBucket', 'timeMode', ])",
+              "default": "new Set<string>([ 'type', 'latField', 'lonField', 'geoField', 'shapeClass', 'noInteractive', 'popupTemplate', 'popupFields', 'tooltipField', 'color', 'colorField', 'colorMap', 'fillField', 'fillOpacity', 'selectedPalette', 'classes', 'method', 'breaks', 'radius', 'radiusField', 'radiusUnit', 'radiusMin', 'radiusMax', 'heatRadius', 'heatBlur', 'heatField', 'cluster', 'clusterRadius', 'maxItems', 'timeField', 'timeBucket', 'timeMode', ])",
               "description": "Proprietes dont le changement doit redessiner la couche (#482 bug 6) :\nsans ce hook, modifier un attribut en place (type, cluster, couleur…)\nne produisait aucun effet avant la prochaine emission de la source."
             },
             {
@@ -7670,7 +8148,15 @@
               "name": "dsfr-data-map-layer-time-ready",
               "type": {
                 "text": "CustomEvent"
-              }
+              },
+              "description": "`{ steps }` sur `document` — les pas de temps de la couche sont calcules ; dsfr-data-map-timeline s'en sert pour construire son curseur."
+            },
+            {
+              "name": "dsfr-data-map-layer-render",
+              "type": {
+                "text": "CustomEvent"
+              },
+              "description": "`{ rendered, skipped, total, legend }` sur la couche (bubbles) après chaque rendu : éléments dessinés, lignes ignorées, total avant plafond, entrées de légende (`getLegendEntries()`). dsfr-data-map-legend s'en sert pour se rafraîchir (#685)."
             }
           ],
           "attributes": [
@@ -7815,8 +8301,35 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Palette DSFR utilisée pour le dégradé choroplèthe (`fill-field`).",
+              "description": "Palette DSFR utilisée pour le dégradé choroplèthe (`fill-field`) : `sequentialAscending` (défaut), `sequentialDescending`, `divergentAscending`, `divergentDescending`, `neutral`, `categorical`.",
               "fieldName": "selectedPalette"
+            },
+            {
+              "name": "classes",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "description": "Nombre de classes de la choroplèthe (`fill-field`). `0` (défaut) = autant de classes que de couleurs dans l'échelle (9). Plafonné à la taille de l'échelle (#685).",
+              "fieldName": "classes"
+            },
+            {
+              "name": "method",
+              "type": {
+                "text": "'quantile' | 'equal' | 'manual'"
+              },
+              "default": "'quantile'",
+              "description": "Méthode de discrétisation de la choroplèthe : `quantile` (défaut, effectifs égaux par classe), `equal` (intervalles de même largeur), `manual` (bornes de `breaks`).",
+              "fieldName": "method"
+            },
+            {
+              "name": "breaks",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Bornes supérieures manuelles des classes, séparées par des virgules : `\"10,50,100\"` donne 4 classes (jusqu'à 10, 10 à 50, 50 à 100, plus de 100). Implique `method=\"manual\"`.",
+              "fieldName": "breaks"
             },
             {
               "name": "radius",
@@ -8019,6 +8532,146 @@
           "declaration": {
             "name": "DsfrDataMapLayer",
             "module": "packages/core/src/components/dsfr-data-map-layer.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "packages/core/src/components/dsfr-data-map-legend.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "DsfrDataMapLegend",
+          "members": [
+            {
+              "kind": "field",
+              "name": "for",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Id (ou `source`) de la couche dsfr-data-map-layer décrite. Vide = toutes les couches directes de la carte hôte, entrées concaténées.",
+              "attribute": "for"
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Titre de la légende, affiché au-dessus de la liste (ex. « Densité (hab./km²) »). Sert aussi de libellé à l'entrée unique d'une couche monochrome.",
+              "attribute": "label"
+            },
+            {
+              "kind": "field",
+              "name": "_root",
+              "type": {
+                "text": "HTMLDivElement | null"
+              },
+              "privacy": "private",
+              "default": "null"
+            },
+            {
+              "kind": "field",
+              "name": "_onRender",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "_targetLayers",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "LegendSourceLayer[]"
+                }
+              },
+              "description": "Couches decrites par cette legende (voir `for`)."
+            },
+            {
+              "kind": "method",
+              "name": "_handleRender",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "e",
+                  "type": {
+                    "text": "Event"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "getEntries",
+              "return": {
+                "type": {
+                  "text": "LegendEntry[]"
+                }
+              },
+              "description": "Entrées actuellement affichées (lecture, pour les tests et les diagnostics)."
+            },
+            {
+              "kind": "method",
+              "name": "refresh",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "Relit les couches et redessine la liste."
+            },
+            {
+              "kind": "method",
+              "name": "_injectStyles",
+              "privacy": "private"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "for",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Id (ou `source`) de la couche dsfr-data-map-layer décrite. Vide = toutes les couches directes de la carte hôte, entrées concaténées.",
+              "fieldName": "for"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Titre de la légende, affiché au-dessus de la liste (ex. « Densité (hab./km²) »). Sert aussi de libellé à l'entrée unique d'une couche monochrome.",
+              "fieldName": "label"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "dsfr-data-map-legend",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "DsfrDataMapLegend",
+          "declaration": {
+            "name": "DsfrDataMapLegend",
+            "module": "packages/core/src/components/dsfr-data-map-legend.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "dsfr-data-map-legend",
+          "declaration": {
+            "name": "DsfrDataMapLegend",
+            "module": "packages/core/src/components/dsfr-data-map-legend.ts"
           }
         }
       ]
@@ -8934,6 +9587,16 @@
             },
             {
               "kind": "field",
+              "name": "tilesStyle",
+              "type": {
+                "text": "'' | 'muted' | 'grey'"
+              },
+              "default": "''",
+              "description": "Atténuation du fond de carte pour les cartes thématiques : `muted` (gris + 55 % d'opacité), `grey` (niveaux de gris). Vide (défaut) : fond tel quel. Filtre CSS sur le volet des tuiles de cette carte seulement ; les encarts héritent du réglage. Un fond « neutre » = `ign-plan` + `tiles-style=\"muted\"` (#686).",
+              "attribute": "tiles-style"
+            },
+            {
+              "kind": "field",
               "name": "sovereignOnly",
               "type": {
                 "text": "boolean"
@@ -8989,8 +9652,18 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Limites du deplacement, au format `\"latSW,lonSW,latNE,lonNE\"`.",
+              "description": "Limites du deplacement, au format `\"latSW,lonSW,latNE,lonNE\"`. Clippe aussi le fit de `fit-bounds` quand `fit-zone` est vide.",
               "attribute": "max-bounds"
+            },
+            {
+              "kind": "field",
+              "name": "fitZone",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Zone sur laquelle `fit-bounds` est clippé, au format `\"latSW,lonSW,latNE,lonNE\"` — le pan reste libre. Défaut : `max-bounds` s'il est renseigné ; sinon la métropole (`41,-5.5,51.5,10`) dès que la carte porte un encart ultramarin (`insets=\"drom\"`…), pour que les DROM ne dézooment pas la vue ; sinon aucune zone. `fit-zone=\"none\"` désactive le clip (#687).",
+              "attribute": "fit-zone"
             },
             {
               "kind": "field",
@@ -9290,6 +9963,16 @@
             },
             {
               "kind": "method",
+              "name": "resolveFitZone",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "description": "Zone de clip du fit (#687) : `fit-zone` explicite (`none` = aucune),\nsinon `max-bounds`, sinon la metropole des qu'un encart ultramarin est\npresent (raccourci `insets` ou enfant dsfr-data-map-inset explicite) —\nle clip ne touche que le fit, jamais le pan. Expose pour les tests."
+            },
+            {
+              "kind": "method",
               "name": "_applyFitBounds",
               "privacy": "private"
             },
@@ -9389,6 +10072,15 @@
               "fieldName": "tilesAttribution"
             },
             {
+              "name": "tiles-style",
+              "type": {
+                "text": "'' | 'muted' | 'grey'"
+              },
+              "default": "''",
+              "description": "Atténuation du fond de carte pour les cartes thématiques : `muted` (gris + 55 % d'opacité), `grey` (niveaux de gris). Vide (défaut) : fond tel quel. Filtre CSS sur le volet des tuiles de cette carte seulement ; les encarts héritent du réglage. Un fond « neutre » = `ign-plan` + `tiles-style=\"muted\"` (#686).",
+              "fieldName": "tilesStyle"
+            },
+            {
               "name": "sovereign-only",
               "type": {
                 "text": "boolean"
@@ -9439,8 +10131,17 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Limites du deplacement, au format `\"latSW,lonSW,latNE,lonNE\"`.",
+              "description": "Limites du deplacement, au format `\"latSW,lonSW,latNE,lonNE\"`. Clippe aussi le fit de `fit-bounds` quand `fit-zone` est vide.",
               "fieldName": "maxBounds"
+            },
+            {
+              "name": "fit-zone",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Zone sur laquelle `fit-bounds` est clippé, au format `\"latSW,lonSW,latNE,lonNE\"` — le pan reste libre. Défaut : `max-bounds` s'il est renseigné ; sinon la métropole (`41,-5.5,51.5,10`) dès que la carte porte un encart ultramarin (`insets=\"drom\"`…), pour que les DROM ne dézooment pas la vue ; sinon aucune zone. `fit-zone=\"none\"` désactive le clip (#687).",
+              "fieldName": "fitZone"
             },
             {
               "name": "fit-max-zoom",
@@ -10567,6 +11268,16 @@
             },
             {
               "kind": "field",
+              "name": "_rowsBeforeLimit",
+              "type": {
+                "text": "number"
+              },
+              "privacy": "private",
+              "default": "0",
+              "description": "Nombre de lignes produites AVANT `limit` (#659) — republie dans la meta\ncomme `total`. Trois annuaires ont affiche « 12 activites » pour 28 :\nun KPI `count` en aval ne voyait que les lignes tranchees."
+            },
+            {
+              "kind": "field",
               "name": "_serverDelegated",
               "type": {
                 "text": "object"
@@ -10677,6 +11388,36 @@
                 }
               },
               "description": "Le cache de la source est perime entre une commande envoyee et\nl'emission suivante (#276) — ne pas le lire dans cet intervalle."
+            },
+            {
+              "kind": "method",
+              "name": "transformMeta",
+              "privacy": "protected",
+              "return": {
+                "type": {
+                  "text": "PaginationMeta"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "meta",
+                  "type": {
+                    "text": "PaginationMeta"
+                  }
+                }
+              ],
+              "description": "Meta aval (#659) : `total` = nombre de lignes AVANT `limit`, `truncated`\nquand `limit` a tranche. Le reste de la meta amont est conserve.\n\nEn pagination serveur (`serverSide`), le total reste celui du serveur :\nles lignes recues ne sont qu'une page, et l'aval (list, display) en a\nbesoin pour paginer — republier la taille de page casserait leur\npagination."
+            },
+            {
+              "kind": "method",
+              "name": "transformerOwnMeta",
+              "privacy": "protected",
+              "return": {
+                "type": {
+                  "text": "PaginationMeta"
+                }
+              },
+              "description": "Sans meta amont (source inline), la query publie quand meme ses comptes (#659)."
             },
             {
               "kind": "method",
@@ -12936,7 +13677,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Liste explicite des colonnes à déplier (virgule-séparée). Exclusif avec value-cols-pattern.",
+              "description": "Liste explicite des colonnes à déplier (virgule-séparée). Exclusif avec value-cols-pattern.\nAlias inline `col:Libellé` (#668) : `value-cols=\"gazole_prix:Gazole, sp95_prix:SP95\"` émet\n« Gazole » et « SP95 » dans la colonne var-name à la place des noms techniques. Un `:` littéral\ndans un nom ou un libellé s'échappe en `%3A` (escapeColonValue).",
               "attribute": "value-cols"
             },
             {
@@ -13177,7 +13918,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Liste explicite des colonnes à déplier (virgule-séparée). Exclusif avec value-cols-pattern.",
+              "description": "Liste explicite des colonnes à déplier (virgule-séparée). Exclusif avec value-cols-pattern.\nAlias inline `col:Libellé` (#668) : `value-cols=\"gazole_prix:Gazole, sp95_prix:SP95\"` émet\n« Gazole » et « SP95 » dans la colonne var-name à la place des noms techniques. Un `:` littéral\ndans un nom ou un libellé s'échappe en `%3A` (escapeColonValue).",
               "fieldName": "valueCols"
             },
             {

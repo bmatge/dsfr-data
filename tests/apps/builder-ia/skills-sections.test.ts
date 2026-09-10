@@ -79,7 +79,7 @@ describe('sections de skills (#513)', () => {
       expect(parts.exemples).not.toContain('### Référence `<dsfr-data-chart>`');
     });
 
-    it('regroupe les 5 composants carto dans la reference du skill dsfrDataMap', () => {
+    it('regroupe les 6 composants carto dans la reference du skill dsfrDataMap', () => {
       const parts = splitSkillContent(SKILLS.dsfrDataMap.content);
       for (const tag of [
         'dsfr-data-map',
@@ -87,6 +87,7 @@ describe('sections de skills (#513)', () => {
         'dsfr-data-map-popup',
         'dsfr-data-map-inset',
         'dsfr-data-map-timeline',
+        'dsfr-data-map-legend',
       ]) {
         expect(parts.reference).toContain(`### Référence \`<${tag}>\``);
       }
