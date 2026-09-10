@@ -28,10 +28,12 @@ import type { ChartConfig } from '../../packages/shared/src/dashboard/chart-conf
 import {
   ID_SOURCE,
   LIBELLE_VARIANTE,
+  TAILLE_DE_PAGE,
   VARIANTES,
   appelsContenant,
-  avecPaginationServeur,
+  configListe,
   installerHarnais,
+  pagePartagee,
   pagePour,
   verifierBundleConstruit,
   type Harnais,
@@ -93,20 +95,7 @@ function configPour(type: ChartConfig['type']): ChartConfig {
   if (geo) return { ...base, labelField: geo, codeField: geo };
   if (type === 'kpi') return { ...base, unit: 'hab.' };
   if (type === 'podium') return { ...base, limit: 3, unit: 'hab.' };
-  if (type === 'datalist') {
-    // Pas d'agregation : un tableau montre les lignes. Les colonnes portent
-    // le nom piegeux — apostrophe et espaces — qui a casse deux fois le code
-    // genere (#615).
-    return {
-      type,
-      labelField: 'region',
-      valueField: 'population',
-      sortOrder: 'desc',
-      colonnes: `region:Territoire, ${CHAMP_PIEGE}:Habitants`,
-      pagination: 10,
-      title: 'Recette datalist',
-    };
-  }
+  if (type === 'datalist') return configListe();
   return base;
 }
 
@@ -243,10 +232,12 @@ test.describe('les etiquettes et colonnes piegeuses traversent l’API', () => {
 });
 
 test.describe('la pagination des adaptateurs enchaine reellement', () => {
+  // Documents a SOURCE PARTAGEE : c'est desormais la forme qui charge tout le
+  // jeu, la liste seule paginant cote serveur (ADR-109).
   test(`ODS — la seconde page est demandee avec offset=${ODS_PAGE_SIZE}`, async ({ page }) => {
     // Le jeu depasse ODS_PAGE_SIZE : `fetchAll` doit enchainer une seconde
     // requete. A 100 lignes ou moins, ce chemin n'existerait pas.
-    await harnais.ouvrir(pagePour(configPour('datalist'), 'ods'));
+    await harnais.ouvrir(pagePartagee('ods'));
 
     await expect
       .poll(() => lignesRecues(page, 'dsfr-data-list'), { timeout: 20_000 })
@@ -260,7 +251,7 @@ test.describe('la pagination des adaptateurs enchaine reellement', () => {
   });
 
   test('Tabular — les pages s’enchainent via links.next', async ({ page }) => {
-    await harnais.ouvrir(pagePour(configPour('datalist'), 'tabular'));
+    await harnais.ouvrir(pagePartagee('tabular'));
 
     await expect
       .poll(() => lignesRecues(page, 'dsfr-data-list'), { timeout: 20_000 })
@@ -271,12 +262,22 @@ test.describe('la pagination des adaptateurs enchaine reellement', () => {
   });
 });
 
-test.describe('pagination serveur et tri delegue (source server-side)', () => {
-  const TAILLE = 10;
+test.describe('pagination serveur emise par l’export (ADR-109, #717)', () => {
+  const TAILLE = TAILLE_DE_PAGE;
+
+  test('la source d’une liste seule porte server-side et page-size', async () => {
+    // Garde-fou de FORME sur le document reellement monte par les tests
+    // suivants : sans lui, un echec de rendu ne dirait pas si la regle
+    // d'emission ou le composant est en cause.
+    const html = pagePour(configPour('datalist'), 'ods');
+    expect(html).toContain(`server-side page-size="${TAILLE}"`);
+    expect(html).toContain('server-sort');
+    expect(html).not.toContain('fetch-mode');
+  });
 
   test('ODS — la page 2 est demandee et affichee', async ({ page }) => {
     const erreurs = collecterErreurs(page);
-    await harnais.ouvrir(avecPaginationServeur(pagePour(configPour('datalist'), 'ods'), TAILLE));
+    await harnais.ouvrir(pagePour(configPour('datalist'), 'ods'));
 
     const liste = page.locator('dsfr-data-list');
     await expect.poll(() => lignesRecues(page, 'dsfr-data-list'), { timeout: 20_000 }).toBe(TAILLE);
@@ -305,7 +306,7 @@ test.describe('pagination serveur et tri delegue (source server-side)', () => {
   });
 
   test('le tri delegue emet une commande orderBy', async ({ page }) => {
-    await harnais.ouvrir(avecPaginationServeur(pagePour(configPour('datalist'), 'ods'), TAILLE));
+    await harnais.ouvrir(pagePour(configPour('datalist'), 'ods'));
 
     await expect.poll(() => lignesRecues(page, 'dsfr-data-list'), { timeout: 20_000 }).toBe(TAILLE);
 
@@ -331,6 +332,52 @@ test.describe('pagination serveur et tri delegue (source server-side)', () => {
       })
       .toBeGreaterThan(0);
   });
+});
+
+test.describe('une source partagee garde ses chiffres (ADR-109, #717)', () => {
+  /** Le total que le KPI doit afficher : la somme sur le jeu ENTIER. */
+  const SOMME = JEU.reduce((total, ligne) => total + ligne.population, 0);
+
+  for (const variante of ['ods', 'tabular'] as const) {
+    test(`${LIBELLE_VARIANTE[variante]} — le KPI totalise les ${NOMBRE_DE_LIGNES} lignes`, async ({
+      page,
+    }) => {
+      // LA REGRESSION SILENCIEUSE QUE LA REGLE INTERDIT. Une source n'est
+      // emise qu'une fois : si l'export posait `server-side` parce qu'une
+      // liste paginee la consomme, le KPI d'a cote ne recevrait plus qu'une
+      // page de dix lignes et afficherait un total FAUX — sans erreur, sur un
+      // HTML parfaitement bien forme. Seul un rendu peut le voir.
+      const erreurs = collecterErreurs(page);
+      const html = pagePartagee(variante);
+      expect(html, 'une source partagee ne doit jamais paginer cote serveur').not.toContain(
+        'server-side'
+      );
+
+      await harnais.ouvrir(html);
+
+      // Le KPI et la liste partagent la meme balise : tous deux recoivent le
+      // jeu entier.
+      await expect
+        .poll(() => lignesRecues(page, 'dsfr-data-kpi'), { timeout: 20_000 })
+        .toBe(NOMBRE_DE_LIGNES);
+      await expect
+        .poll(() => lignesRecues(page, 'dsfr-data-list'), { timeout: 20_000 })
+        .toBe(NOMBRE_DE_LIGNES);
+
+      // Et le chiffre AFFICHE est le bon. Compare sur les seuls chiffres :
+      // le format « nombre » insere des separateurs de milliers insecables.
+      await expect
+        .poll(
+          async () =>
+            ((await page.locator('dsfr-data-kpi').first().textContent()) ?? '').replace(/\D/g, ''),
+          { timeout: 20_000, message: 'le KPI n’affiche pas le total du jeu entier' }
+        )
+        .toContain(String(SOMME));
+
+      expect(harnais.journal.inattendues).toEqual([]);
+      expect(erreurs).toEqual([]);
+    });
+  }
 });
 
 test.describe('le champ de code survit a l’agregation', () => {
@@ -371,8 +418,17 @@ test.describe('le champ de code survit a l’agregation', () => {
 test.describe('mode export ODS (#689, ADR-106)', () => {
   // Le faux serveur `/exports/json` sert un tableau nu et respecte `limit`
   // (cf. api-fixtures.test.ts) ; l'attribut est livre par #689.
+  //
+  // POSE SUR LE DOCUMENT A SOURCE PARTAGEE, et c'est le point : `fetch-mode`
+  // et `server-side` s'excluent par construction (dsfr-data-source pose alors
+  // un attribut de diagnostic et reste sur l'endpoint pagine). Une source
+  // partagee etant precisement celle qu'ADR-109 laisse en chargement complet,
+  // c'est la seule ou l'export a un sens — et la seule ou les deux ne peuvent
+  // pas se croiser.
   test('fetch-mode="export" charge tout en une requete', async ({ page }) => {
-    const html = pagePour(configPour('datalist'), 'ods').replace(
+    const base = pagePartagee('ods');
+    expect(base, 'fetch-mode ne doit jamais croiser server-side').not.toContain('server-side');
+    const html = base.replace(
       /<dsfr-data-source id="([^"]+)"/,
       '<dsfr-data-source fetch-mode="export" id="$1"'
     );

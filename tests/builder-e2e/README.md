@@ -151,21 +151,31 @@ npx vitest run tests/builder-e2e/api-fixtures.test.ts
   la recette locale : rien ne venant du réseau, un `net::ERR_` signalerait une fuite du harnais ;
 - ODS demande bien sa **seconde page avec `offset=100`**, Tabular enchaîne via `links.next` ;
 - en pagination serveur, la **page 2 est demandée et affichée**, et le **tri délégué émet sa
-  commande** `dsfr-data-source-command` avec `orderBy`, qui repart en `order_by` dans l'URL.
+  commande** `dsfr-data-source-command` avec `orderBy`, qui repart en `order_by` dans l'URL ;
+- sur une **source partagée**, le KPI totalise bien les 137 lignes — pas une page de dix.
 
-### Pourquoi une réécriture pour la pagination serveur
+### Deux documents, deux stratégies de chargement (ADR-109, #717)
 
-`export-html.ts` n'émet ni `server-side` ni `server-sort` : le document du Studio charge tout le
-jeu (plafonné par `max-records`) puis pagine dans le navigateur. Le générateur de l'Assistant IA,
-lui, émet bien les deux pour une datalist sur source paginée. `avecPaginationServeur()` pose donc
-sur la page partagée la forme que l'Assistant produit déjà — c'est le seul moyen d'exercer
-`fetchPage`, la commande `page` et le tri délégué, que le chemin `fetchAll` ne montre pas.
+L'export émet `server-side` / `server-sort` **seulement** quand une source n'a qu'un consommateur
+et que ce consommateur est une liste paginée. Les deux documents du harnais matérialisent les deux
+branches, et il faut prendre le bon :
+
+| Fabrique | Document | Ce que la page fait |
+|---|---|---|
+| `pagePour(config, variante)` | un seul bloc | une `datalist` non agrégée y est seule sur sa source : sur ODS et Tabular, la page **pagine côté serveur** (`fetchPage`, commande `page`, tri délégué). |
+| `pagePartagee(variante)` | une liste **et** un KPI sur la **même** source | source partagée : **jamais** `server-side`, la page **charge tout** puis pagine dans le navigateur (`fetchAll`, `offset=100`, `links.next`). |
+
+Une source n'étant émise qu'une fois, poser `server-side` sur une source partagée ne ferait plus
+parvenir qu'une page de dix lignes au KPI d'à côté : un total **faux, sans erreur**. C'est ce que
+la règle interdit par construction, et ce que le cas « une source partagée garde ses chiffres »
+verrouille sur un rendu.
 
 ### Mode `fetch-mode="export"` (#689)
 
-Le faux serveur `/exports/json` est en place et éprouvé hors ligne (tableau nu, `limit` = plafond
-+ 1). Le test de rendu correspondant est `test.skip` tant que l'attribut n'existe pas dans la
-base : à réactiver à la fusion de #689.
+Le faux serveur `/exports/json` sert un tableau nu et respecte `limit` (= plafond + 1). Le test de
+rendu est posé sur `pagePartagee()`, et pas par hasard : `fetch-mode` et `server-side` s'excluent
+par construction, et la source partagée est justement celle qu'ADR-109 laisse en chargement
+complet — donc la seule où l'export a un sens.
 
 ## 📊 Couverture des tests
 

@@ -2106,6 +2106,41 @@ empiler une région live de page par-dessus (#654).
 <dsfr-data-list source="sites" columns="nom:Nom, ministere:Ministere, score_rgaa:Score" search filters="ministere" sort="score_rgaa:desc" pagination="20" export="csv"></dsfr-data-list>
 \`\`\`
 
+### Strategie de chargement : \`server-side\` ou tout charger (ADR-109)
+
+Une balise de source est emise UNE FOIS et partagee par tous ses consommateurs. La strategie se
+choisit donc **par source**, selon qui la lit :
+
+| La source est lue par… | Strategie | Attributs |
+|---|---|---|
+| un seul tableau pagine, sans agregation ni limite | pagination serveur | \`server-side\` + \`page-size\` sur la source, \`server-sort\` sur la liste |
+| plusieurs blocs (source partagee) | tout charger | rien — et \`fetch-mode="export"\` si le jeu est gros |
+| un seul bloc qui agrege (graphique, KPI, carte, podium) | tout charger | rien |
+| un \`dsfr-data-context\` (filtres partages, filtrage client) | tout charger | rien |
+
+**Ne JAMAIS poser \`server-side\` sur une source partagee.** Le graphique ou le KPI d'a cote ne
+recevrait plus qu'une page de dix lignes et afficherait une agregation FAUSSE, sans erreur, sur un
+HTML parfaitement bien forme. Pour un gros jeu partage, la reponse est \`fetch-mode="export"\` : une
+requete au lieu de trente, et le jeu entier. Les deux ne se combinent jamais — \`server-side\` ignore
+\`fetch-mode\` et le signale en console.
+
+En pagination serveur, ne pas mettre \`search\` ni \`filters\` sur la liste : ils n'opereraient que sur
+la page chargee (compteurs faux), et le composant les desactive avec un avertissement. Utiliser
+\`dsfr-data-search server-search\` ou \`dsfr-data-facets server-facets\` en amont.
+
+\`\`\`html
+<!-- Une source, un seul tableau : la page ne charge que ses dix lignes -->
+<dsfr-data-source id="marches" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr" dataset-id="decp_augmente"
+  server-side page-size="10">
+</dsfr-data-source>
+<dsfr-data-list source="marches" columns="acheteur:Acheteur, montant:Montant"
+  server-sort pagination="10" export="csv"></dsfr-data-list>
+\`\`\`
+
+C'est aussi le critere qu'applique l'export HTML d'un document du Studio : deux documents
+visuellement identiques peuvent charger differemment selon qu'une source y est partagee ou non.
+
 ### Chainabilite des queries
 \`\`\`html
 <dsfr-data-source id="raw" url="..." transform="data"></dsfr-data-source>
