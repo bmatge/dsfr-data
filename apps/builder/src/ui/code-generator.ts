@@ -342,6 +342,25 @@ export function generateFacetsElement(
     attrs.push('server-facets');
   }
 
+  // Partage par l'adresse (#714) : un seul reglage produit les deux sens de
+  // la synchronisation — `url-params` relit l'adresse au chargement,
+  // `url-sync` l'ecrit a chaque changement de filtre.
+  if (state.urlSync) {
+    attrs.push('url-params');
+    attrs.push('url-sync');
+    // Champs prefixes (Grist non aplati) : sans correspondance explicite,
+    // l'adresse porterait `?fields.region=…`. `url-param-map` la garde
+    // lisible ; il doit couvrir TOUS les champs, car des qu'il est renseigne
+    // les parametres non mappes sont ignores (dsfr-data-facets).
+    if (pfx) {
+      attrs.push(
+        `url-param-map="${escapeHtml(
+          activeFields.map((f) => `${f.field}:${pfx}${f.field}`).join(' | ')
+        )}"`
+      );
+    }
+  }
+
   // Mode static-values (Tabular/Grist) : valeurs pre-calculees
   if (mode?.staticValues) {
     const json = JSON.stringify(mode.staticValues);
@@ -470,6 +489,14 @@ function buildDatalistAttrs(paginationServeur = false): string {
     .map((c) => c.field);
   if (state.datalistFiltres && filtrables.length > 0 && !paginationServeur) {
     attrs += `\n    filters="${filtrables.join(',')}"`;
+  }
+  // Partage par l'adresse (#714) : le numero de page suit l'adresse, dans les
+  // deux sens. `url-page-param` n'est emis que s'il s'ecarte du defaut.
+  if (state.urlSync) {
+    attrs += '\n    url-sync';
+    if (state.urlPageParam && state.urlPageParam !== 'page') {
+      attrs += `\n    url-page-param="${escapeHtml(state.urlPageParam)}"`;
+    }
   }
   return attrs;
 }

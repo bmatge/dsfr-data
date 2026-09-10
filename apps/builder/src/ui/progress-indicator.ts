@@ -139,6 +139,7 @@ function buildSummaries(s: BuilderState, c: Completeness): Record<string, Sectio
     'section-generation-mode': genModeText ? { tone: 'done', text: genModeText } : null,
     'section-normalize': normalizeText ? { tone: 'done', text: normalizeText } : null,
     'section-facets': facetsText ? { tone: 'done', text: facetsText } : null,
+    'section-url-sync': s.urlSync ? { tone: 'done', text: 'activé' } : null,
     'section-databox': databoxText ? { tone: 'done', text: databoxText } : null,
     'section-a11y': a11yText ? { tone: 'done', text: a11yText } : null,
   };

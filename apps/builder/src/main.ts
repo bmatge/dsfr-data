@@ -38,6 +38,7 @@ import type { ChartType } from './state.js';
 import { setupDatalistListeners } from './ui/datalist-config.js';
 import { setupNormalizeListeners, updateMiddlewareSections } from './ui/normalize-config.js';
 import { setupFacetsListeners } from './ui/facets-config.js';
+import { setupUrlSyncListeners } from './ui/url-sync-config.js';
 import { addExtraSeries } from './ui/extra-series.js';
 import { initHelpTooltips, updatePreviewSteps } from './ui/help-tooltips.js';
 import { applyAggregationDefault, updateAggregationBadge } from './ui/aggregation-smart.js';
@@ -350,6 +351,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Normalize & facets config listeners
   setupNormalizeListeners();
   setupFacetsListeners();
+
+  // Partage par l'adresse (famille url-sync)
+  setupUrlSyncListeners();
 
   // Initialize UI for the default chart type (bar)
   selectChartType(state.chartType);

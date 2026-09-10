@@ -30,6 +30,7 @@ import {
 } from './ui/aggregation-smart.js';
 import { generateCodeForLocalData } from './ui/code-generator.js';
 import { updateMiddlewareSections, autoEnableNormalizeForGrist } from './ui/normalize-config.js';
+import { updateUrlSyncSection, syncUrlSyncControls } from './ui/url-sync-config.js';
 import { restoreExtraSeriesFromState } from './ui/extra-series.js';
 import { updatePreviewSteps } from './ui/help-tooltips.js';
 
@@ -594,6 +595,11 @@ export function loadFavoriteState(): void {
     }
     const refreshInput = document.getElementById('refresh-interval') as HTMLInputElement | null;
     if (refreshInput && state.refreshInterval) refreshInput.value = String(state.refreshInterval);
+
+    // Partage par l'adresse (#714) : la section suit le type et les facettes,
+    // les controles suivent l'etat restaure.
+    updateUrlSyncSection();
+    syncUrlSyncControls();
 
     // Restore accessibility toggles
     const a11yToggle = document.getElementById('a11y-toggle') as HTMLInputElement | null;

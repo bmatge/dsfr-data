@@ -5,6 +5,7 @@
  */
 
 import { state } from '../state.js';
+import { updateUrlSyncSection } from './url-sync-config.js';
 
 /**
  * Show or hide the normalize & facets sections based on generation mode.
@@ -31,6 +32,9 @@ export function updateMiddlewareSections(): void {
     if (normalizeOpts) normalizeOpts.style.display = 'none';
     if (facetsOpts) facetsOpts.style.display = 'none';
   }
+
+  // Le partage par l'adresse suit les facettes (et le type tableau) : #714
+  updateUrlSyncSection();
 }
 
 /**

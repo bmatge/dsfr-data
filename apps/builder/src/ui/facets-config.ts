@@ -4,6 +4,7 @@
 
 import { state, type FacetFieldConfig } from '../state.js';
 import { openModal, closeModal, setupModalOverlayClose } from '@dsfr-data/shared';
+import { updateUrlSyncSection } from './url-sync-config.js';
 
 /**
  * Initialize facets fields from current state.fields (all inactive by default).
@@ -169,6 +170,7 @@ export function setupFacetsListeners(): void {
     enabledToggle.addEventListener('change', () => {
       state.facetsConfig.enabled = enabledToggle.checked;
       if (options) options.style.display = enabledToggle.checked ? 'block' : 'none';
+      updateUrlSyncSection();
     });
   }
 

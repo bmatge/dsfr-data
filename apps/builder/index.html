@@ -633,6 +633,38 @@
         </div>
       </div>
 
+      <!-- Partage par l'adresse : un seul reglage pour la famille url-sync
+           (#714). Il pilote `url-sync` + `url-params` de dsfr-data-facets et
+           `url-sync` de dsfr-data-list ; `url-param-map` est deduit du prefixe
+           de champs par le generateur. -->
+      <div class="config-section collapsed" id="section-url-sync" style="display: none;">
+        <div class="config-section-header" onclick="toggleSection('section-url-sync')">
+          <h3><i class="ri-links-line"></i> Partage par l'adresse</h3>
+          <i class="ri-arrow-down-s-line collapse-icon"></i>
+        </div>
+        <p class="fr-hint-text config-section-hint">Inscrit les filtres et la page courante dans l'adresse de la page : le lien copié rouvre la même vue.</p>
+        <div class="config-section-content">
+          <div class="fr-toggle">
+            <input type="checkbox" class="fr-toggle__input" id="url-sync-enabled" aria-describedby="url-sync-hint">
+            <label class="fr-toggle__label" for="url-sync-enabled"
+              data-fr-checked-label="Active" data-fr-unchecked-label="Desactive">
+              Adresse partageable
+            </label>
+            <p class="fr-hint-text" id="url-sync-hint">L'utilisateur final peut copier l'adresse pour rouvrir ses filtres et sa page ; l'adresse est aussi lue au chargement.</p>
+          </div>
+
+          <div id="url-sync-options" style="display: none;" class="fr-mt-2w">
+            <div class="fr-input-group fr-input-group--sm">
+              <label class="fr-label" for="url-page-param">
+                Nom du paramètre de page
+                <span class="fr-hint-text">Par défaut : page. À changer si l'une de vos facettes porte ce nom.</span>
+              </label>
+              <input class="fr-input" type="text" id="url-page-param" value="page">
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="config-section collapsed" id="section-a11y">
         <div class="config-section-header" onclick="toggleSection('section-a11y')">
           <h3><i class="ri-accessibility-line"></i> Accessibilité</h3>

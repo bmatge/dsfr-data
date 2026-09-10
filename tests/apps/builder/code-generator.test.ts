@@ -72,6 +72,8 @@ function resetState(): void {
     sort: 'count',
     hideEmpty: false,
   };
+  state.urlSync = false;
+  state.urlPageParam = 'page';
 }
 
 describe('generateDsfrDataQueryCode', () => {
@@ -667,6 +669,96 @@ describe('generateCodeForLocalData', () => {
 
     const code = document.getElementById('generated-code')!.textContent!;
     expect(code).toContain('filters="region"');
+  });
+});
+
+// =====================================================================
+// Partage par l'adresse — famille url-sync (#714)
+// =====================================================================
+describe('famille url-sync', () => {
+  beforeEach(() => {
+    resetState();
+    document.body.innerHTML = `
+      <div id="generated-code"></div>
+      <div id="raw-data"></div>
+      <select id="kpi-variant"><option value="">Default</option></select>
+      <input id="kpi-unit" value="">
+    `;
+  });
+
+  function withDatalist(): void {
+    state.chartType = 'datalist';
+    state.localData = [{ region: 'Bretagne' }];
+    state.fields = [{ name: 'region', type: 'string', sample: 'Bretagne' }];
+    state.labelField = 'region';
+  }
+
+  function withFacets(): void {
+    state.facetsConfig.enabled = true;
+    state.facetsConfig.fields = [
+      {
+        field: 'region',
+        label: 'Region',
+        display: 'checkbox',
+        searchable: false,
+        disjunctive: false,
+      },
+      {
+        field: 'dept',
+        label: 'Departement',
+        display: 'checkbox',
+        searchable: false,
+        disjunctive: false,
+      },
+    ];
+  }
+
+  it("n'emet aucun attribut d'URL quand le partage est desactive", () => {
+    withDatalist();
+    withFacets();
+    generateCodeForLocalData();
+    const code = document.getElementById('generated-code')!.textContent!;
+    expect(code).not.toContain('url-sync');
+
+    const facets = generateFacetsElement('src');
+    expect(facets.element).not.toContain('url-sync');
+    expect(facets.element).not.toContain('url-params');
+  });
+
+  it('emet url-sync sur la liste quand le partage est actif', () => {
+    withDatalist();
+    state.urlSync = true;
+    generateCodeForLocalData();
+    const code = document.getElementById('generated-code')!.textContent!;
+    expect(code).toContain('url-sync');
+    // Nom du parametre par defaut : pas d'attribut superflu
+    expect(code).not.toContain('url-page-param');
+  });
+
+  it("emet url-page-param quand le nom du parametre s'ecarte du defaut", () => {
+    withDatalist();
+    state.urlSync = true;
+    state.urlPageParam = 'p';
+    generateCodeForLocalData();
+    const code = document.getElementById('generated-code')!.textContent!;
+    expect(code).toContain('url-page-param="p"');
+  });
+
+  it('emet url-params et url-sync sur les facettes', () => {
+    withFacets();
+    state.urlSync = true;
+    const result = generateFacetsElement('src');
+    expect(result.element).toContain('url-params');
+    expect(result.element).toContain('url-sync');
+    // Sans prefixe, la correspondance directe suffit
+    expect(result.element).not.toContain('url-param-map');
+  });
+
+  it('deduit url-param-map quand les champs de facette portent un prefixe', () => {
+    withFacets();
+    state.urlSync = true;
+    const result = generateFacetsElement('src', { fieldPrefix: 'fields.' });
+    expect(result.element).toContain('url-param-map="region:fields.region | dept:fields.dept"');
   });
 });
 
