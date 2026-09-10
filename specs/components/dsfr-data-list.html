@@ -34,28 +34,30 @@
 
         <!-- Attributs -->
         <h2>Attributs</h2>
-        <table class="attr-table">
-          <thead>
-            <tr><th>Attribut</th><th>Type</th><th>Description</th></tr>
-          </thead>
-          <tbody>
-            <!-- ATTRS:dsfr-data-list fields="source,columns,search,filters,sort,pagination,export,caption,decimals,url-sync,url-page-param,server-sort,columns-auto" -->
-              <tr><td><code>source</code></td><td>String</td><td>Id de la source (ou du transformateur) dont ce tableau consomme les données.</td></tr>
-              <tr><td><code>columns</code></td><td>String</td><td>Définition des colonnes : <code>"clé:Label, cle2:Label2"</code>. Omis : toutes les clés présentes dans les données deviennent colonnes, dans leur ordre d'apparition, libellé = clé — le tableau suit un schéma dynamique (aval d'un <code>dsfr-data-pivot</code>, #255).</td></tr>
-              <tr><td><code>search</code></td><td>Boolean</td><td>Afficher un champ de recherche</td></tr>
-              <tr><td><code>filters</code></td><td>String</td><td>Colonnes filtrables: "ministere,statut"</td></tr>
-              <tr><td><code>sort</code></td><td>String</td><td>Tri par défaut: "score:desc"</td></tr>
-              <tr><td><code>pagination</code></td><td>Number</td><td>Nombre d'éléments par page (0 = pas de pagination)</td></tr>
-              <tr><td><code>export</code></td><td>String</td><td>Formats d'export disponibles: "csv", "html" (separables par virgule)</td></tr>
-              <tr><td><code>caption</code></td><td>String</td><td>Titre du tableau, rendu dans <code>caption</code> (masqué visuellement, lu par les lecteurs d'écran — RGAA 5.4, #669). À défaut, dérivé de <code>aria-label</code>.</td></tr>
-              <tr><td><code>decimals</code></td><td>Number</td><td>Nombre de décimales des cellules numériques (#666). Absent : au plus 2 décimales, format fr-FR. Les exports CSV/HTML ne sont pas concernés.</td></tr>
-              <tr><td><code>url-sync</code></td><td>Boolean</td><td>Synchronise le numéro de page dans l'URL (replaceState)</td></tr>
-              <tr><td><code>url-page-param</code></td><td>String</td><td>Nom du paramètre URL pour la page (défaut: "page")</td></tr>
-              <tr><td><code>server-sort</code></td><td>Boolean</td><td>Active le tri serveur. Au lieu de trier localement, envoie une commande { orderBy } au source upstream (dsfr-data-query server-side) qui re-fetche les données triees.</td></tr>
-              <tr><td><code>columns-auto</code></td><td>Boolean</td><td>Complète <code>columns</code> avec les clés des données qui n'y figurent pas (ordre d'apparition, libellé = clé) : les premières colonnes sont libellées et figées, les suivantes suivent les données (#640).</td></tr>
-            <!-- /ATTRS -->
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead>
+              <tr><th>Attribut</th><th>Type</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-list fields="source,columns,search,filters,sort,pagination,export,caption,decimals,url-sync,url-page-param,server-sort,columns-auto" -->
+                <tr><td><code>source</code></td><td>String</td><td>Id de la source (ou du transformateur) dont ce tableau consomme les données.</td></tr>
+                <tr><td><code>columns</code></td><td>String</td><td>Définition des colonnes : <code>"clé:Label, cle2:Label2"</code>. Omis : toutes les clés présentes dans les données deviennent colonnes, dans leur ordre d'apparition, libellé = clé — le tableau suit un schéma dynamique (aval d'un <code>dsfr-data-pivot</code>, #255).</td></tr>
+                <tr><td><code>search</code></td><td>Boolean</td><td>Afficher un champ de recherche</td></tr>
+                <tr><td><code>filters</code></td><td>String</td><td>Colonnes filtrables: "ministere,statut"</td></tr>
+                <tr><td><code>sort</code></td><td>String</td><td>Tri par défaut: "score:desc"</td></tr>
+                <tr><td><code>pagination</code></td><td>Number</td><td>Nombre d'éléments par page (0 = pas de pagination)</td></tr>
+                <tr><td><code>export</code></td><td>String</td><td>Formats d'export disponibles: "csv", "html" (separables par virgule)</td></tr>
+                <tr><td><code>caption</code></td><td>String</td><td>Titre du tableau, rendu dans <code>caption</code> (masqué visuellement, lu par les lecteurs d'écran — RGAA 5.4, #669). À défaut, dérivé de <code>aria-label</code>.</td></tr>
+                <tr><td><code>decimals</code></td><td>Number</td><td>Nombre de décimales des cellules numériques (#666). Absent : au plus 2 décimales, format fr-FR. Les exports CSV/HTML ne sont pas concernés.</td></tr>
+                <tr><td><code>url-sync</code></td><td>Boolean</td><td>Synchronise le numéro de page dans l'URL (replaceState)</td></tr>
+                <tr><td><code>url-page-param</code></td><td>String</td><td>Nom du paramètre URL pour la page (défaut: "page")</td></tr>
+                <tr><td><code>server-sort</code></td><td>Boolean</td><td>Active le tri serveur. Au lieu de trier localement, envoie une commande { orderBy } au source upstream (dsfr-data-query server-side) qui re-fetche les données triees.</td></tr>
+                <tr><td><code>columns-auto</code></td><td>Boolean</td><td>Complète <code>columns</code> avec les clés des données qui n'y figurent pas (ordre d'apparition, libellé = clé) : les premières colonnes sont libellées et figées, les suivantes suivent les données (#640).</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
         <!-- ATTRS-PROSE:dsfr-data-list fields="colonnes,recherche,filtres,tri,server-tri" -->
         <p class="fr-text--sm fr-text--light">Les anciens noms francais (<code>colonnes</code>, <code>recherche</code>, <code>filtres</code>, <code>tri</code>, <code>server-tri</code>) restent lus en alias deprecies (#300).</p>
         <p class="fr-text--sm fr-text--light"><strong>Événements :</strong> le composant n'émet pas d'événement custom ; il participe au data-bridge en consommateur (abonnement à la source) et émet des commandes <code>dsfr-data-source-command</code> (<code>page</code>, <code>orderBy</code>) en pagination/tri serveur.</p>

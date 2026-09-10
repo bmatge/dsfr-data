@@ -42,19 +42,21 @@
         </div>
 
         <h2 id="attributs">Attributs</h2>
-        <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
-          <tbody>
-            <!-- ATTRS:dsfr-data-map-inset fields="territory,center,zoom,label,width,height" -->
-              <tr><td><code>territory</code></td><td>String</td><td><code>""</code></td><td>Territoire predefini (guadeloupe, martinique, guyane, la-reunion, mayotte, saint-pierre-et-miquelon, saint-martin, saint-barthelemy, nouvelle-caledonie, polynesie-française, wallis-et-futuna, corse) — fournit center/zoom/label</td></tr>
-              <tr><td><code>center</code></td><td>String</td><td><code>""</code></td><td>Centre "lat,lon" de l'encart (requis sans territory ; prioritaire sur le preset)</td></tr>
-              <tr><td><code>zoom</code></td><td>Number</td><td><code>0</code></td><td>Zoom fixe de l'encart (prioritaire sur le preset)</td></tr>
-              <tr><td><code>label</code></td><td>String</td><td><code>""</code></td><td>Libellé affiché au-dessus de l'encart (et nom accessible de la mini-carte)</td></tr>
-              <tr><td><code>width</code></td><td>String</td><td><code>""</code></td><td>Largeur de l'encart (px, rem, %). Un <code>%</code> est relatif a la largeur de la carte hote : <code>width="20%"</code> repartit cinq encarts sur une ligne. Sans attribut, la feuille injectee par la carte pose <code>10rem</code> — une regle de page <code>dsfr-data-map-inset { width: … }</code> prime toujours dessus (#643).</td></tr>
-              <tr><td><code>height</code></td><td>String</td><td><code>160px</code></td><td>Hauteur de la mini-carte (px, rem, vh). Un <code>%</code> est un ratio de la LARGEUR de l'encart, comme sur <code>dsfr-data-map</code>.</td></tr>
-            <!-- /ATTRS -->
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-map-inset fields="territory,center,zoom,label,width,height" -->
+                <tr><td><code>territory</code></td><td>String</td><td><code>""</code></td><td>Territoire predefini (guadeloupe, martinique, guyane, la-reunion, mayotte, saint-pierre-et-miquelon, saint-martin, saint-barthelemy, nouvelle-caledonie, polynesie-française, wallis-et-futuna, corse) — fournit center/zoom/label</td></tr>
+                <tr><td><code>center</code></td><td>String</td><td><code>""</code></td><td>Centre "lat,lon" de l'encart (requis sans territory ; prioritaire sur le preset)</td></tr>
+                <tr><td><code>zoom</code></td><td>Number</td><td><code>0</code></td><td>Zoom fixe de l'encart (prioritaire sur le preset)</td></tr>
+                <tr><td><code>label</code></td><td>String</td><td><code>""</code></td><td>Libellé affiché au-dessus de l'encart (et nom accessible de la mini-carte)</td></tr>
+                <tr><td><code>width</code></td><td>String</td><td><code>""</code></td><td>Largeur de l'encart (px, rem, %). Un <code>%</code> est relatif a la largeur de la carte hote : <code>width="20%"</code> repartit cinq encarts sur une ligne. Sans attribut, la feuille injectee par la carte pose <code>10rem</code> — une regle de page <code>dsfr-data-map-inset { width: … }</code> prime toujours dessus (#643).</td></tr>
+                <tr><td><code>height</code></td><td>String</td><td><code>160px</code></td><td>Hauteur de la mini-carte (px, rem, vh). Un <code>%</code> est un ratio de la LARGEUR de l'encart, comme sur <code>dsfr-data-map</code>.</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
         <p class="fr-text--sm fr-text--light">Aucun événement, aucun slot, aucune méthode publique.</p>
 
         <h2 id="raccourci" class="fr-mt-4w">Raccourci <code>insets</code> côté carte</h2>

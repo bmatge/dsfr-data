@@ -54,14 +54,16 @@
         </p>
 
         <h2 id="attributs" class="fr-mt-4w">Attributs</h2>
-        <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Format / Valeurs</th><th>Description</th></tr></thead>
-          <tbody>
-            <!-- ATTRS:dsfr-data-beacon fields="url" -->
-              <tr><td><code>url</code></td><td>String</td><td><code>url="https://collecte.ministere.fr"</code></td><td>Domaine de collecte du beacon. Vide = pas de cible declarative (no-op).</td></tr>
-            <!-- /ATTRS -->
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Format / Valeurs</th><th>Description</th></tr></thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-beacon fields="url" -->
+                <tr><td><code>url</code></td><td>String</td><td><code>url="https://collecte.ministere.fr"</code></td><td>Domaine de collecte du beacon. Vide = pas de cible declarative (no-op).</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
 
         <h2 id="precedence" class="fr-mt-4w">Precedence et opt-in</h2>
         <p>L'URL de collecte est resolue, du plus spécifique au plus général :</p>

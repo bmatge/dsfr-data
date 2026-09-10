@@ -54,126 +54,138 @@
 
         <h2 id="modes">Modes de fonctionnement</h2>
         <p>Le composant supporte trois modes :</p>
-        <table class="attr-table">
-          <thead><tr><th>Mode</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr>
-              <td><strong>URL brute</strong></td>
-              <td>Appel HTTP generique via l'attribut <code>url</code>. Supporte GET/POST, headers,
-                params JSON, extraction via <code>transform</code> et pagination manuelle via <code>paginate</code>.</td>
-            </tr>
-            <tr>
-              <td><strong>Adapter</strong></td>
-              <td>Active via <code>api-type</code> (sans <code>url</code>). L'adapter gere la construction d'URL,
-                la pagination automatique, les filtres et le parsing spécifiques au provider
-                (OpenDataSoft, Tabular, Grist, INSEE Melodi).</td>
-            </tr>
-            <tr>
-              <td><strong>Inline data</strong></td>
-              <td>Données JSON passees directement via l'attribut <code>data</code>. Pas de fetch HTTP.</td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Mode</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><strong>URL brute</strong></td>
+                <td>Appel HTTP generique via l'attribut <code>url</code>. Supporte GET/POST, headers,
+                  params JSON, extraction via <code>transform</code> et pagination manuelle via <code>paginate</code>.</td>
+              </tr>
+              <tr>
+                <td><strong>Adapter</strong></td>
+                <td>Active via <code>api-type</code> (sans <code>url</code>). L'adapter gere la construction d'URL,
+                  la pagination automatique, les filtres et le parsing spécifiques au provider
+                  (OpenDataSoft, Tabular, Grist, INSEE Melodi).</td>
+              </tr>
+              <tr>
+                <td><strong>Inline data</strong></td>
+                <td>Données JSON passees directement via l'attribut <code>data</code>. Pas de fetch HTTP.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
         <h3 class="fr-mt-3w">Types d'adapter</h3>
         <p>En mode adapter, l'attribut <code>api-type</code> sélectionne le provider :</p>
-        <table class="attr-table">
-          <thead><tr><th>api-type</th><th>API</th><th>Identifiant requis</th><th>Pagination</th><th>Max records</th></tr></thead>
-          <tbody>
-            <tr>
-              <td><code>opendatasoft</code></td>
-              <td>OpenDataSoft (v2.1)</td>
-              <td><code>dataset-id</code></td>
-              <td>offset, 100/page, max 10 pages</td>
-              <td>1 000</td>
-            </tr>
-            <tr>
-              <td><code>tabular</code></td>
-              <td>Tabular API (data.gouv.fr)</td>
-              <td><code>resource</code></td>
-              <td>page, 50/page, max 500 pages</td>
-              <td>25 000</td>
-            </tr>
-            <tr>
-              <td><code>grist</code></td>
-              <td>Grist (grist.numerique.gouv.fr, getgrist.com)</td>
-              <td><code>base-url</code></td>
-              <td>offset, 100/page, illimitee</td>
-              <td>Illimite</td>
-            </tr>
-            <tr>
-              <td><code>insee</code></td>
-              <td>INSEE Melodi (api.insee.fr/melodi)</td>
-              <td><code>dataset-id</code></td>
-              <td>page, 1 000/page, max 100 pages</td>
-              <td>100 000</td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>api-type</th><th>API</th><th>Identifiant requis</th><th>Pagination</th><th>Max records</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><code>opendatasoft</code></td>
+                <td>OpenDataSoft (v2.1)</td>
+                <td><code>dataset-id</code></td>
+                <td>offset, 100/page, max 10 pages</td>
+                <td>1 000</td>
+              </tr>
+              <tr>
+                <td><code>tabular</code></td>
+                <td>Tabular API (data.gouv.fr)</td>
+                <td><code>resource</code></td>
+                <td>page, 50/page, max 500 pages</td>
+                <td>25 000</td>
+              </tr>
+              <tr>
+                <td><code>grist</code></td>
+                <td>Grist (grist.numerique.gouv.fr, getgrist.com)</td>
+                <td><code>base-url</code></td>
+                <td>offset, 100/page, illimitee</td>
+                <td>Illimite</td>
+              </tr>
+              <tr>
+                <td><code>insee</code></td>
+                <td>INSEE Melodi (api.insee.fr/melodi)</td>
+                <td><code>dataset-id</code></td>
+                <td>page, 1 000/page, max 100 pages</td>
+                <td>100 000</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
         <h2 id="attributs" class="fr-mt-4w">Attributs</h2>
 
         <h3>Attributs communs</h3>
-        <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Format / Valeurs</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>id</code></td><td>String</td><td><code>id="ma-source"</code></td><td>Identifiant unique (requis). Les composants en aval l'utilisent pour s'abonner aux données.</td></tr>
-            <!-- ATTRS:dsfr-data-source fields="refresh,transform,headers,api-key-ref,cache-ttl" -->
-              <tr><td><code>refresh</code></td><td>Number</td><td>Entier en secondes. <code>0</code> = off</td><td>Rafraichissement automatique en secondes (0 = desactive).</td></tr>
-              <tr><td><code>transform</code></td><td>String</td><td><code>"results"</code>, <code>"data.items"</code></td><td>Chemin JSONPath vers le tableau de données dans la réponse. Ex: <code>"results"</code>, <code>"data.items"</code>.</td></tr>
-              <tr><td><code>headers</code></td><td>String</td><td><code>'{"apikey":"abc123"}'</code></td><td>En-têtes HTTP en JSON. Ex: <code>'{"Authorization": "Bearer xxx"}'</code>. OpenDataSoft : la clé va dans <code>Authorization: Apikey CLE</code> (seul en-tête autorisé en CORS) — un <code>apikey</code> nu est réécrit automatiquement (#655).</td></tr>
-              <tr><td><code>api-key-ref</code></td><td>String</td><td><code>"tmdb"</code></td><td>Référence vers une clé API déclarée dans window.DSFR_DATA_KEYS</td></tr>
-              <tr><td><code>cache-ttl</code></td><td>Number</td><td>Entier en secondes. Défaut : <code>3600</code></td><td>TTL du cache externe en secondes (0 = desactive). Actif uniquement si la page hote enregistre <code>window.DSFR_DATA_CACHE_PROVIDER</code> (#307) — no-op en embed anonyme.</td></tr>
-            <!-- /ATTRS -->
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Format / Valeurs</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>id</code></td><td>String</td><td><code>id="ma-source"</code></td><td>Identifiant unique (requis). Les composants en aval l'utilisent pour s'abonner aux données.</td></tr>
+              <!-- ATTRS:dsfr-data-source fields="refresh,transform,headers,api-key-ref,cache-ttl" -->
+                <tr><td><code>refresh</code></td><td>Number</td><td>Entier en secondes. <code>0</code> = off</td><td>Rafraichissement automatique en secondes (0 = desactive).</td></tr>
+                <tr><td><code>transform</code></td><td>String</td><td><code>"results"</code>, <code>"data.items"</code></td><td>Chemin JSONPath vers le tableau de données dans la réponse. Ex: <code>"results"</code>, <code>"data.items"</code>.</td></tr>
+                <tr><td><code>headers</code></td><td>String</td><td><code>'{"apikey":"abc123"}'</code></td><td>En-têtes HTTP en JSON. Ex: <code>'{"Authorization": "Bearer xxx"}'</code>. OpenDataSoft : la clé va dans <code>Authorization: Apikey CLE</code> (seul en-tête autorisé en CORS) — un <code>apikey</code> nu est réécrit automatiquement (#655).</td></tr>
+                <tr><td><code>api-key-ref</code></td><td>String</td><td><code>"tmdb"</code></td><td>Référence vers une clé API déclarée dans window.DSFR_DATA_KEYS</td></tr>
+                <tr><td><code>cache-ttl</code></td><td>Number</td><td>Entier en secondes. Défaut : <code>3600</code></td><td>TTL du cache externe en secondes (0 = desactive). Actif uniquement si la page hote enregistre <code>window.DSFR_DATA_CACHE_PROVIDER</code> (#307) — no-op en embed anonyme.</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
 
         <h3 class="fr-mt-3w">Attributs mode URL brute</h3>
-        <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Format / Valeurs</th><th>Description</th></tr></thead>
-          <tbody>
-            <!-- ATTRS:dsfr-data-source fields="url,method,params,paginate,page-size,use-proxy,proxy-url" -->
-              <tr><td><code>url</code></td><td>String</td><td>URL relative ou absolue</td><td>URL de l'API a interroger (mode URL brute). Vide en mode adapter ou en mode <code>data</code> inline.</td></tr>
-              <tr><td><code>method</code></td><td><code>GET</code> · <code>POST</code></td><td><code>GET</code> | <code>POST</code></td><td>Méthode HTTP : <code>GET</code> (défaut) ou <code>POST</code>.</td></tr>
-              <tr><td><code>params</code></td><td>String</td><td><code>'{"limit": 100}'</code></td><td>Paramètres de requête en JSON : query string en GET, corps en POST.</td></tr>
-              <tr><td><code>paginate</code></td><td>Boolean</td><td>Presence = <code>true</code></td><td>Active la pagination serveur en mode URL : injecte page/page_size dans l'URL et publie la meta.</td></tr>
-              <tr><td><code>page-size</code></td><td>Number</td><td>Entier positif. Défaut : <code>20</code></td><td>Taille de page pour la pagination serveur (nombre de records par page).</td></tr>
-              <tr><td><code>use-proxy</code></td><td>Boolean</td><td>Presence = <code>true</code></td><td>Force le passage par le proxy CORS generique (pour les APIs externes sans CORS)</td></tr>
-              <tr><td><code>proxy-url</code></td><td>String</td><td><code>""</code></td><td>Domaine du proxy CORS pour CETTE source (#340), prioritaire sur <code>window.DSFR_DATA_PROXY</code> et la config build-time. Sert a la fois la reecriture d'hote connu (Grist gouv/SaaS, Tabular, INSEE) et le <code>use-proxy</code> generique. Vide = resolution proxy globale habituelle. Ex: <code>proxy-url="https://mon-proxy.fr"</code>.</td></tr>
-            <!-- /ATTRS -->
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Format / Valeurs</th><th>Description</th></tr></thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-source fields="url,method,params,paginate,page-size,use-proxy,proxy-url" -->
+                <tr><td><code>url</code></td><td>String</td><td>URL relative ou absolue</td><td>URL de l'API a interroger (mode URL brute). Vide en mode adapter ou en mode <code>data</code> inline.</td></tr>
+                <tr><td><code>method</code></td><td><code>GET</code> · <code>POST</code></td><td><code>GET</code> | <code>POST</code></td><td>Méthode HTTP : <code>GET</code> (défaut) ou <code>POST</code>.</td></tr>
+                <tr><td><code>params</code></td><td>String</td><td><code>'{"limit": 100}'</code></td><td>Paramètres de requête en JSON : query string en GET, corps en POST.</td></tr>
+                <tr><td><code>paginate</code></td><td>Boolean</td><td>Presence = <code>true</code></td><td>Active la pagination serveur en mode URL : injecte page/page_size dans l'URL et publie la meta.</td></tr>
+                <tr><td><code>page-size</code></td><td>Number</td><td>Entier positif. Défaut : <code>20</code></td><td>Taille de page pour la pagination serveur (nombre de records par page).</td></tr>
+                <tr><td><code>use-proxy</code></td><td>Boolean</td><td>Presence = <code>true</code></td><td>Force le passage par le proxy CORS generique (pour les APIs externes sans CORS)</td></tr>
+                <tr><td><code>proxy-url</code></td><td>String</td><td><code>""</code></td><td>Domaine du proxy CORS pour CETTE source (#340), prioritaire sur <code>window.DSFR_DATA_PROXY</code> et la config build-time. Sert a la fois la reecriture d'hote connu (Grist gouv/SaaS, Tabular, INSEE) et le <code>use-proxy</code> generique. Vide = resolution proxy globale habituelle. Ex: <code>proxy-url="https://mon-proxy.fr"</code>.</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
 
         <h3 class="fr-mt-3w">Attributs mode adapter</h3>
-        <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Format / Valeurs</th><th>Description</th></tr></thead>
-          <tbody>
-            <!-- ATTRS:dsfr-data-source fields="api-type,base-url,dataset-id,resource,where,select,group-by,aggregate,order-by,limit,max-records,server-side" -->
-              <tr><td><code>api-type</code></td><td>String</td><td><code>opendatasoft</code> | <code>tabular</code> | <code>grist</code> | <code>insee</code></td><td>Type d'API — active le mode adapter si != 'generic' et url est vide</td></tr>
-              <tr><td><code>base-url</code></td><td>String</td><td><code>"https://data.iledefrance.fr"</code></td><td>URL de base de l'API (pour ODS, Tabular)</td></tr>
-              <tr><td><code>dataset-id</code></td><td>String</td><td><code>"mon-dataset-2024"</code></td><td>ID du dataset (pour ODS)</td></tr>
-              <tr><td><code>resource</code></td><td>String</td><td><code>"2876a346-d50c-..."</code> (UUID)</td><td>ID de la ressource (pour Tabular)</td></tr>
-              <tr><td><code>where</code></td><td>String</td><td>Colon : <code>"champ:op:val"</code><br>ODS : ODSQL libre</td><td>Clause WHERE statique</td></tr>
-              <tr><td><code>select</code></td><td>String</td><td><code>"sum(pop) as total, region"</code></td><td>Clause SELECT (pour ODS)</td></tr>
-              <tr><td><code>group-by</code></td><td>String</td><td><code>"champ1, champ2"</code></td><td>Group-by (pour les APIs qui le supportent server-side). ODS : un élément peut être une expression aliasée (<code>year(date) as annee</code>), transmise telle quelle — l'alias <code>as</code> est obligatoire cote ODS (#641).</td></tr>
-              <tr><td><code>aggregate</code></td><td>String</td><td><code>"champ:fn"</code> ou <code>"champ:fn:alias"</code></td><td>Agrégation (pour les APIs qui le supportent server-side)</td></tr>
-              <tr><td><code>order-by</code></td><td>String</td><td><code>"champ:asc"</code> ou <code>"champ:desc"</code></td><td>Order-by</td></tr>
-              <tr><td><code>limit</code></td><td>Number</td><td>Entier positif. <code>0</code> = illimite</td><td>Limite du nombre de résultats</td></tr>
-              <tr><td><code>max-records</code></td><td>Number</td><td>Entier positif. <code>0</code> = plafond par défaut de l'adapter</td><td>Plafond de records du fetchAll en mode adapter (#233). 0 = plafond par défaut de l'adapter (ODS : 1000). A relever explicitement pour les dashboards « un fetch, N agrégations client » — attention au nombre de requêtes en boucle et au poids mémoire.</td></tr>
-              <tr><td><code>server-side</code></td><td>Boolean</td><td>Presence = <code>true</code></td><td>Mode pagination serveur (datalist, tableaux)</td></tr>
-            <!-- /ATTRS -->
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Format / Valeurs</th><th>Description</th></tr></thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-source fields="api-type,base-url,dataset-id,resource,where,select,group-by,aggregate,order-by,limit,max-records,server-side" -->
+                <tr><td><code>api-type</code></td><td>String</td><td><code>opendatasoft</code> | <code>tabular</code> | <code>grist</code> | <code>insee</code></td><td>Type d'API — active le mode adapter si != 'generic' et url est vide</td></tr>
+                <tr><td><code>base-url</code></td><td>String</td><td><code>"https://data.iledefrance.fr"</code></td><td>URL de base de l'API (pour ODS, Tabular)</td></tr>
+                <tr><td><code>dataset-id</code></td><td>String</td><td><code>"mon-dataset-2024"</code></td><td>ID du dataset (pour ODS)</td></tr>
+                <tr><td><code>resource</code></td><td>String</td><td><code>"2876a346-d50c-..."</code> (UUID)</td><td>ID de la ressource (pour Tabular)</td></tr>
+                <tr><td><code>where</code></td><td>String</td><td>Colon : <code>"champ:op:val"</code><br>ODS : ODSQL libre</td><td>Clause WHERE statique</td></tr>
+                <tr><td><code>select</code></td><td>String</td><td><code>"sum(pop) as total, region"</code></td><td>Clause SELECT (pour ODS)</td></tr>
+                <tr><td><code>group-by</code></td><td>String</td><td><code>"champ1, champ2"</code></td><td>Group-by (pour les APIs qui le supportent server-side). ODS : un élément peut être une expression aliasée (<code>year(date) as annee</code>), transmise telle quelle — l'alias <code>as</code> est obligatoire cote ODS (#641).</td></tr>
+                <tr><td><code>aggregate</code></td><td>String</td><td><code>"champ:fn"</code> ou <code>"champ:fn:alias"</code></td><td>Agrégation (pour les APIs qui le supportent server-side)</td></tr>
+                <tr><td><code>order-by</code></td><td>String</td><td><code>"champ:asc"</code> ou <code>"champ:desc"</code></td><td>Order-by</td></tr>
+                <tr><td><code>limit</code></td><td>Number</td><td>Entier positif. <code>0</code> = illimite</td><td>Limite du nombre de résultats</td></tr>
+                <tr><td><code>max-records</code></td><td>Number</td><td>Entier positif. <code>0</code> = plafond par défaut de l'adapter</td><td>Plafond de records du fetchAll en mode adapter (#233). 0 = plafond par défaut de l'adapter (ODS : 1000). A relever explicitement pour les dashboards « un fetch, N agrégations client » — attention au nombre de requêtes en boucle et au poids mémoire.</td></tr>
+                <tr><td><code>server-side</code></td><td>Boolean</td><td>Presence = <code>true</code></td><td>Mode pagination serveur (datalist, tableaux)</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
 
         <h3 class="fr-mt-3w">Attribut mode inline</h3>
-        <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Format / Valeurs</th><th>Description</th></tr></thead>
-          <tbody>
-            <!-- ATTRS:dsfr-data-source fields="data" -->
-              <tr><td><code>data</code></td><td>String</td><td>JSON valide (tableau ou objet)</td><td>Données JSON inline (pas de fetch)</td></tr>
-            <!-- /ATTRS -->
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Format / Valeurs</th><th>Description</th></tr></thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-source fields="data" -->
+                <tr><td><code>data</code></td><td>String</td><td>JSON valide (tableau ou objet)</td><td>Données JSON inline (pas de fetch)</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
 
         <h2 id="filtres" class="fr-mt-4w">Filtres et WHERE dynamique</h2>
 
@@ -226,14 +238,16 @@
           Cela permet d'afficher des datasets de milliers d'enregistrements sans tout charger en memoire.
         </p>
         <p>Le composant reagit a trois types de commandes :</p>
-        <table class="attr-table">
-          <thead><tr><th>Commande</th><th>Source</th><th>Effet</th></tr></thead>
-          <tbody>
-            <tr><td><code>{ page }</code></td><td><code>dsfr-data-list</code></td><td>Change la page courante et re-fetche</td></tr>
-            <tr><td><code>{ where, whereKey }</code></td><td><code>dsfr-data-facets</code>, <code>dsfr-data-search</code></td><td>Ajoute/supprime un overlay WHERE et reset a la page 1</td></tr>
-            <tr><td><code>{ orderBy }</code></td><td><code>dsfr-data-list</code></td><td>Change le tri et re-fetche</td></tr>
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Commande</th><th>Source</th><th>Effet</th></tr></thead>
+            <tbody>
+              <tr><td><code>{ page }</code></td><td><code>dsfr-data-list</code></td><td>Change la page courante et re-fetche</td></tr>
+              <tr><td><code>{ where, whereKey }</code></td><td><code>dsfr-data-facets</code>, <code>dsfr-data-search</code></td><td>Ajoute/supprime un overlay WHERE et reset a la page 1</td></tr>
+              <tr><td><code>{ orderBy }</code></td><td><code>dsfr-data-list</code></td><td>Change le tri et re-fetche</td></tr>
+            </tbody>
+          </table>
+        </div>
 
         <h2 id="exemples" class="fr-mt-4w">Exemples</h2>
 
@@ -485,18 +499,20 @@
         </ul>
 
         <h2 id="methodes" class="fr-mt-4w">Méthodes publiques</h2>
-        <table class="attr-table">
-          <thead><tr><th>Méthode</th><th>Retour</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>reload()</code></td><td>void</td><td>Force le rechargement des données</td></tr>
-            <tr><td><code>getData()</code></td><td>unknown</td><td>Retourne les données actuelles</td></tr>
-            <tr><td><code>isLoading()</code></td><td>Boolean</td><td>Indique si un chargement est en cours</td></tr>
-            <tr><td><code>getError()</code></td><td>Error | null</td><td>Retourne l'erreur eventuelle</td></tr>
-            <tr><td><code>getAdapter()</code></td><td>ApiAdapter | null</td><td>Retourne l'adapter actif (mode adapter uniquement, <code>null</code> en mode URL brute)</td></tr>
-            <tr><td><code>getEffectiveWhere(excludeKey?)</code></td><td>String</td><td>Retourne la clause WHERE fusionnee (statique + tous les overlays dynamiques).
-              Le paramètre <code>excludeKey</code> permet d'exclure un overlay spécifique (utilise par les facettes).</td></tr>
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Méthode</th><th>Retour</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>reload()</code></td><td>void</td><td>Force le rechargement des données</td></tr>
+              <tr><td><code>getData()</code></td><td>unknown</td><td>Retourne les données actuelles</td></tr>
+              <tr><td><code>isLoading()</code></td><td>Boolean</td><td>Indique si un chargement est en cours</td></tr>
+              <tr><td><code>getError()</code></td><td>Error | null</td><td>Retourne l'erreur eventuelle</td></tr>
+              <tr><td><code>getAdapter()</code></td><td>ApiAdapter | null</td><td>Retourne l'adapter actif (mode adapter uniquement, <code>null</code> en mode URL brute)</td></tr>
+              <tr><td><code>getEffectiveWhere(excludeKey?)</code></td><td>String</td><td>Retourne la clause WHERE fusionnee (statique + tous les overlays dynamiques).
+                Le paramètre <code>excludeKey</code> permet d'exclure un overlay spécifique (utilise par les facettes).</td></tr>
+            </tbody>
+          </table>
+        </div>
 
         <h2 id="conseils" class="fr-mt-4w">Conseils d'utilisation</h2>
         <div class="fr-callout">

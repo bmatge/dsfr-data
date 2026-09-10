@@ -53,34 +53,38 @@ Immatriculations VE   | Vehicule Particulier | 2023-02 | 19965</pre></div>
         <div class="code-block"><pre>dsfr-data-source (wide) ──► dsfr-data-unpivot ──► dsfr-data-normalize ──► dsfr-data-query ──► dsfr-data-chart</pre></div>
 
         <h2 id="attributs" class="fr-mt-4w">Attributs</h2>
-        <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Format / Valeurs</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>id</code></td><td>String</td><td><code>id="tidy"</code></td><td>Identifiant unique de la sortie (requis). Les composants aval s'y abonnent.</td></tr>
-            <!-- ATTRS:dsfr-data-unpivot fields="source,id-cols,value-cols,value-cols-pattern,var-name,var-format,value-name,drop-empty" -->
-              <tr><td><code>source</code></td><td>String</td><td><code>source="grist_wide"</code></td><td>ID de la source de données à écouter</td></tr>
-              <tr><td><code>id-cols</code></td><td>String</td><td><code>id-cols="Indicateurs, Sous_theme"</code></td><td>Colonnes conservées telles quelles sur chaque ligne. Ex: "Indicateurs, Sous_theme"</td></tr>
-              <tr><td><code>value-cols</code></td><td>String</td><td><code>value-cols="janv, fevr, mars"</code></td><td>Liste explicite des colonnes à déplier (virgule-séparée). Exclusif avec value-cols-pattern. Alias inline <code>col:Libellé</code> (#668) : <code>value-cols="gazole_prix:Gazole, sp95_prix:SP95"</code> émet « Gazole » et « SP95 » dans la colonne var-name à la place des noms techniques. Un <code>:</code> littéral dans un nom ou un libellé s'échappe en <code>%3A</code> (escapeColonValue).</td></tr>
-              <tr><td><code>value-cols-pattern</code></td><td>String</td><td><code>value-cols-pattern="c{YYYY}_{MM}"</code></td><td>Motif des colonnes à déplier, avec placeholders <code>{TOKEN}</code>. Tokens date à largeur fixe : YYYY (4 chiffres), YY/MM/DD/HH (2), Q (1). Ex: "c{YYYY}_{MM}" matche <code>c2023_01</code>.</td></tr>
-              <tr><td><code>var-name</code></td><td>String</td><td><code>var-name="mois"</code></td><td>Nom de la nouvelle colonne "variable" (clé dépliée). Défaut: "variable".</td></tr>
-              <tr><td><code>var-format</code></td><td>String</td><td><code>var-format="{YYYY}-{MM}"</code></td><td>Reformatage de la clé via les tokens du motif. Ex: "{YYYY}-{MM}" → <code>2023-01</code>.</td></tr>
-              <tr><td><code>value-name</code></td><td>String</td><td><code>value-name="valeur"</code></td><td>Nom de la nouvelle colonne "valeur". Défaut: "value".</td></tr>
-              <tr><td><code>drop-empty</code></td><td>Boolean</td><td><code>drop-empty</code></td><td>Ne pas émettre de ligne quand la cellule dépliée est vide/null.</td></tr>
-            <!-- /ATTRS -->
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Format / Valeurs</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>id</code></td><td>String</td><td><code>id="tidy"</code></td><td>Identifiant unique de la sortie (requis). Les composants aval s'y abonnent.</td></tr>
+              <!-- ATTRS:dsfr-data-unpivot fields="source,id-cols,value-cols,value-cols-pattern,var-name,var-format,value-name,drop-empty" -->
+                <tr><td><code>source</code></td><td>String</td><td><code>source="grist_wide"</code></td><td>ID de la source de données à écouter</td></tr>
+                <tr><td><code>id-cols</code></td><td>String</td><td><code>id-cols="Indicateurs, Sous_theme"</code></td><td>Colonnes conservées telles quelles sur chaque ligne. Ex: "Indicateurs, Sous_theme"</td></tr>
+                <tr><td><code>value-cols</code></td><td>String</td><td><code>value-cols="janv, fevr, mars"</code></td><td>Liste explicite des colonnes à déplier (virgule-séparée). Exclusif avec value-cols-pattern. Alias inline <code>col:Libellé</code> (#668) : <code>value-cols="gazole_prix:Gazole, sp95_prix:SP95"</code> émet « Gazole » et « SP95 » dans la colonne var-name à la place des noms techniques. Un <code>:</code> littéral dans un nom ou un libellé s'échappe en <code>%3A</code> (escapeColonValue).</td></tr>
+                <tr><td><code>value-cols-pattern</code></td><td>String</td><td><code>value-cols-pattern="c{YYYY}_{MM}"</code></td><td>Motif des colonnes à déplier, avec placeholders <code>{TOKEN}</code>. Tokens date à largeur fixe : YYYY (4 chiffres), YY/MM/DD/HH (2), Q (1). Ex: "c{YYYY}_{MM}" matche <code>c2023_01</code>.</td></tr>
+                <tr><td><code>var-name</code></td><td>String</td><td><code>var-name="mois"</code></td><td>Nom de la nouvelle colonne "variable" (clé dépliée). Défaut: "variable".</td></tr>
+                <tr><td><code>var-format</code></td><td>String</td><td><code>var-format="{YYYY}-{MM}"</code></td><td>Reformatage de la clé via les tokens du motif. Ex: "{YYYY}-{MM}" → <code>2023-01</code>.</td></tr>
+                <tr><td><code>value-name</code></td><td>String</td><td><code>value-name="valeur"</code></td><td>Nom de la nouvelle colonne "valeur". Défaut: "value".</td></tr>
+                <tr><td><code>drop-empty</code></td><td>Boolean</td><td><code>drop-empty</code></td><td>Ne pas émettre de ligne quand la cellule dépliée est vide/null.</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
 
         <h2 id="tokens" class="fr-mt-4w">Tokens du motif <code>value-cols-pattern</code></h2>
         <p>Les placeholders <code>{TOKEN}</code> capturent une partie du nom de colonne. Le motif est ancre (debut a fin).</p>
-        <table class="attr-table">
-          <thead><tr><th>Token</th><th>Largeur</th><th>Exemple</th></tr></thead>
-          <tbody>
-            <tr><td><code>YYYY</code></td><td>4 chiffres</td><td><code>2023</code></td></tr>
-            <tr><td><code>YY</code> / <code>MM</code> / <code>DD</code> / <code>HH</code></td><td>2 chiffres</td><td><code>01</code></td></tr>
-            <tr><td><code>Q</code></td><td>1 chiffre</td><td><code>4</code></td></tr>
-            <tr><td><code>{nom}</code> (generique)</td><td>un segment</td><td><code>region</code></td></tr>
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Token</th><th>Largeur</th><th>Exemple</th></tr></thead>
+            <tbody>
+              <tr><td><code>YYYY</code></td><td>4 chiffres</td><td><code>2023</code></td></tr>
+              <tr><td><code>YY</code> / <code>MM</code> / <code>DD</code> / <code>HH</code></td><td>2 chiffres</td><td><code>01</code></td></tr>
+              <tr><td><code>Q</code></td><td>1 chiffre</td><td><code>4</code></td></tr>
+              <tr><td><code>{nom}</code> (generique)</td><td>un segment</td><td><code>region</code></td></tr>
+            </tbody>
+          </table>
+        </div>
 
         <h2 id="exemples" class="fr-mt-4w">Exemples</h2>
 
@@ -152,12 +156,14 @@ Immatriculations VE   | Vehicule Particulier | 2023-02 | 19965</pre></div>
         </ul>
 
         <h2 id="methodes" class="fr-mt-4w">Méthodes publiques</h2>
-        <table class="attr-table">
-          <thead><tr><th>Méthode</th><th>Retour</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>getData()</code></td><td>Array</td><td>Retourne les données depliees actuelles</td></tr>
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Méthode</th><th>Retour</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>getData()</code></td><td>Array</td><td>Retourne les données depliees actuelles</td></tr>
+            </tbody>
+          </table>
+        </div>
 
         <h2 id="conseils" class="fr-mt-4w">Conseils d'utilisation</h2>
         <div class="fr-callout">
