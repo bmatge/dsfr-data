@@ -12,5 +12,9 @@ mcp-server/src/skill-matching.generated.ts
 **/*.html
 **/*.md
 
+# Fonds administratifs GeoJSON livres dans le paquet (node scripts/fetch-geo.mjs,
+# compares octet a octet par --check) : une ligne, jamais reformates
+packages/core/geo/*.json
+
 # Export skill Claude Code (généré par build:skills, comparé octet à octet par tests/skills-export.test.ts)
 skills/dsfr-data/

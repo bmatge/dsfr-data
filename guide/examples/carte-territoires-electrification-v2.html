@@ -137,8 +137,9 @@
       </dsfr-data-facets>
     </div>
 
-    <!-- Contours des regions (fichier statique du repo, simplifie — habillage decoratif) -->
-    <dsfr-data-source id="contours-regions" url="/guide/examples/data/regions-simplifiees.geojson"
+    <!-- Contours des regions : GeoJSON simplifie livre dans le paquet npm, hors bundle
+         (dsfr-data/geo/regions.json — Contours administratifs Etalab, Licence Ouverte 2.0) -->
+    <dsfr-data-source id="contours-regions" url="https://cdn.jsdelivr.net/npm/dsfr-data@0/geo/regions.json"
       transform="features"></dsfr-data-source>
 
     <!-- Scission du flux filtre : les communes (etendue trop faible pour etre visible
