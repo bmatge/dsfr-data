@@ -18,7 +18,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Id de la source (ou du transformateur) dont ce complement accessible consomme les donnees.",
+              "description": "Id de la source (ou du transformateur) dont ce complément accessible consomme les données.",
               "attribute": "source"
             },
             {
@@ -28,7 +28,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Id de l'element cible (graphique, carte) pour la liaison ARIA et le lien d'evitement.",
+              "description": "Id de l'élément cible (graphique, carte) pour la liaison ARIA et le lien d'évitement.",
               "attribute": "for"
             },
             {
@@ -38,7 +38,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Affiche le tableau de donnees equivalent au graphique.",
+              "description": "Affiche le tableau de données équivalent au graphique.",
               "attribute": "table"
             },
             {
@@ -48,7 +48,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Affiche le bouton de telechargement CSV.",
+              "description": "Affiche le bouton de téléchargement CSV.",
               "attribute": "download"
             },
             {
@@ -58,7 +58,7 @@
                 "text": "string"
               },
               "default": "'données.csv'",
-              "description": "Nom du fichier CSV telecharge.",
+              "description": "Nom du fichier CSV téléchargé.",
               "attribute": "filename"
             },
             {
@@ -68,7 +68,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Description textuelle du graphique, lue par les lecteurs d'ecran.",
+              "description": "Description textuelle du graphique, lue par les lecteurs d'écran.",
               "attribute": "description"
             },
             {
@@ -78,7 +78,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Colonne utilisee pour les labels du tableau.",
+              "description": "Colonne utilisée pour les labels du tableau.",
               "attribute": "label-field"
             },
             {
@@ -88,7 +88,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Colonne(s) utilisee(s) pour les valeurs du tableau (separees par des virgules).",
+              "description": "Colonne(s) utilisée(s) pour les valeurs du tableau (séparées par des virgules).",
               "attribute": "value-field"
             },
             {
@@ -98,7 +98,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Libelle personnalise de la section accessible.",
+              "description": "Libellé personnalisé de la section accessible.",
               "attribute": "label"
             },
             {
@@ -108,7 +108,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Desactive la pose automatique des attributs ARIA et du lien d'evitement.",
+              "description": "Desactive la pose automatique des attributs ARIA et du lien d'évitement.",
               "attribute": "no-auto-aria"
             },
             {
@@ -325,7 +325,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Id de la source (ou du transformateur) dont ce complement accessible consomme les donnees.",
+              "description": "Id de la source (ou du transformateur) dont ce complément accessible consomme les données.",
               "fieldName": "source"
             },
             {
@@ -334,7 +334,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Id de l'element cible (graphique, carte) pour la liaison ARIA et le lien d'evitement.",
+              "description": "Id de l'élément cible (graphique, carte) pour la liaison ARIA et le lien d'évitement.",
               "fieldName": "for"
             },
             {
@@ -343,7 +343,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Affiche le tableau de donnees equivalent au graphique.",
+              "description": "Affiche le tableau de données équivalent au graphique.",
               "fieldName": "table"
             },
             {
@@ -352,7 +352,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Affiche le bouton de telechargement CSV.",
+              "description": "Affiche le bouton de téléchargement CSV.",
               "fieldName": "download"
             },
             {
@@ -361,7 +361,7 @@
                 "text": "string"
               },
               "default": "'données.csv'",
-              "description": "Nom du fichier CSV telecharge.",
+              "description": "Nom du fichier CSV téléchargé.",
               "fieldName": "filename"
             },
             {
@@ -370,7 +370,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Description textuelle du graphique, lue par les lecteurs d'ecran.",
+              "description": "Description textuelle du graphique, lue par les lecteurs d'écran.",
               "fieldName": "description"
             },
             {
@@ -379,7 +379,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Colonne utilisee pour les labels du tableau.",
+              "description": "Colonne utilisée pour les labels du tableau.",
               "fieldName": "labelField"
             },
             {
@@ -388,7 +388,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Colonne(s) utilisee(s) pour les valeurs du tableau (separees par des virgules).",
+              "description": "Colonne(s) utilisée(s) pour les valeurs du tableau (séparées par des virgules).",
               "fieldName": "valueField"
             },
             {
@@ -397,7 +397,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Libelle personnalise de la section accessible.",
+              "description": "Libellé personnalisé de la section accessible.",
               "fieldName": "label"
             },
             {
@@ -406,7 +406,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Desactive la pose automatique des attributs ARIA et du lien d'evitement.",
+              "description": "Desactive la pose automatique des attributs ARIA et du lien d'évitement.",
               "fieldName": "noAutoAria"
             },
             {
@@ -458,7 +458,7 @@
       "declarations": [
         {
           "kind": "class",
-          "description": "<dsfr-data-beacon url=\"...\"> — cible telemetrie declarative (#345).\n\nPendant declaratif de `proxy-url` (#340) cote telemetrie : rend la collecte\ndu beacon VISIBLE et RETIRABLE dans le HTML, au lieu d'un `window.*` opaque.\nL'integrateur qui colle un embed *voit* qu'une telemetrie part et vers ou,\net peut la retirer en connaissance de cause (argument RGPD/souverainete).\n\nLa presence d'un element avec un `url` non vide :\n  - fournit l'URL de collecte, **prioritaire** sur `window.DSFR_DATA_BEACON_URL`\n    puis sur l'URL bakee au build ;\n  - vaut **opt-in** (equivaut a `window.DSFR_DATA_BEACON = true`).\n`window.DSFR_DATA_BEACON = false` reste un **kill switch** qui neutralise meme\nun element present (coherent avec `window.DSFR_DATA_PROXY = false`).\n\nL'element est invisible (aucun rendu) et vit dans le bundle core. Il ne\ndeclenche AUCUN beacon lui-meme : c'est `beacon.ts` qui le consulte en\n**lookup paresseux** au moment de l'envoi (#156), donc l'ordre de declaration\ndans le DOM ne compte pas — l'element peut etre place apres les composants.\n\n```html\n<dsfr-data-beacon url=\"https://collecte.ministere.fr\"></dsfr-data-beacon>\n<dsfr-data-chart ...></dsfr-data-chart>\n```",
+          "description": "<dsfr-data-beacon url=\"...\"> — cible telemetrie declarative (#345).\n\nPendant declaratif de `proxy-url` (#340) cote telemetrie : rend la collecte\ndu beacon VISIBLE et RETIRABLE dans le HTML, au lieu d'un `window.*` opaque.\nL'integrateur qui colle un embed *voit* qu'une telemetrie part et vers ou,\net peut la retirer en connaissance de cause (argument RGPD/souverainete).\n\nLa presence d'un élément avec un `url` non vide :\n  - fournit l'URL de collecte, **prioritaire** sur `window.DSFR_DATA_BEACON_URL`\n    puis sur l'URL bakee au build ;\n  - vaut **opt-in** (equivaut a `window.DSFR_DATA_BEACON = true`).\n`window.DSFR_DATA_BEACON = false` reste un **kill switch** qui neutralise meme\nun élément present (coherent avec `window.DSFR_DATA_PROXY = false`).\n\nL'élément est invisible (aucun rendu) et vit dans le bundle core. Il ne\ndeclenche AUCUN beacon lui-meme : c'est `beacon.ts` qui le consulte en\n**lookup paresseux** au moment de l'envoi (#156), donc l'ordre de declaration\ndans le DOM ne compte pas — l'élément peut être place après les composants.\n\n```html\n<dsfr-data-beacon url=\"https://collecte.ministere.fr\"></dsfr-data-beacon>\n<dsfr-data-chart ...></dsfr-data-chart>\n```",
           "name": "DsfrDataBeacon",
           "members": [
             {
@@ -696,7 +696,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Limite min de l'axe X (types cartesiens : line, scatter, bar-line).",
+              "description": "Limite min de l'axe X (types cartésiens : line, scatter, bar-line).",
               "attribute": "x-min"
             },
             {
@@ -706,7 +706,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Limite max de l'axe X (types cartesiens : line, scatter, bar-line).",
+              "description": "Limite max de l'axe X (types cartésiens : line, scatter, bar-line).",
               "attribute": "x-max"
             },
             {
@@ -916,7 +916,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Lignes de reference (overlay) au format JSON. Graphiques cartesiens\nuniquement (line, bar, bar-line, scatter). Chaque item :\n`{ axis: \"x\"|\"y\", value: string|number, label?, color?, dash?, position? }`.\n`axis:\"x\"` → ligne verticale à une catégorie/date ; `axis:\"y\"` → ligne\nhorizontale a un seuil. Ex : `reference-lines='[{\"axis\":\"x\",\"value\":\"2026-02\",\n\"label\":\"Lancement\",\"color\":\"#c9191e\",\"dash\":true}]'`.",
+              "description": "Lignes de référence (overlay) au format JSON. Graphiques cartésiens\nuniquement (line, bar, bar-line, scatter). Chaque item :\n`{ axis: \"x\"|\"y\", value: string|number, label?, color?, dash?, position? }`.\n`axis:\"x\"` → ligne verticale à une catégorie/date ; `axis:\"y\"` → ligne\nhorizontale à un seuil. Ex : `reference-lines='[{\"axis\":\"x\",\"value\":\"2026-02\",\n\"label\":\"Lancement\",\"color\":\"#c9191e\",\"dash\":true}]'`.",
               "attribute": "reference-lines"
             },
             {
@@ -973,7 +973,7 @@
               },
               "privacy": "private",
               "default": "null",
-              "description": "Overlays (reference-lines #341 + targets #377) : poll rAF en cours (annule au disconnect)"
+              "description": "Overlays (référence-lines #341 + targets #377) : poll rAF en cours (annule au disconnect)"
             },
             {
               "kind": "field",
@@ -1140,7 +1140,7 @@
               },
               "privacy": "private",
               "default": "0",
-              "description": "Lignes ecartees des cartes `map*` faute de code geographique exploitable\n(#648) : compte du dernier `_processMapData`, journalise une fois par jeu\nde donnees et remonte dans la trace du volet Diagnostic (#604)."
+              "description": "Lignes ecartees des cartes `map*` faute de code geographique exploitable\n(#648) : compte du dernier `_processMapData`, journalise une fois par jeu\nde données et remonte dans la trace du volet Diagnostic (#604)."
             },
             {
               "kind": "field",
@@ -1150,7 +1150,7 @@
               },
               "privacy": "private",
               "default": "null",
-              "description": "Jeu de donnees pour lequel le warn a deja ete emis (un warn par cycle)"
+              "description": "Jeu de données pour lequel le warn a déjà ete emis (un warn par cycle)"
             },
             {
               "kind": "method",
@@ -1160,7 +1160,7 @@
                   "text": "number"
                 }
               },
-              "description": "Nombre de lignes ignorees par la derniere carte rendue (`type=\"map*\"`) :\ncode geographique absent, vide ou invalide pour le decoupage. 0 hors carte."
+              "description": "Nombre de lignes ignorees par la dernière carte rendue (`type=\"map*\"`) :\ncode geographique absent, vide ou invalide pour le decoupage. 0 hors carte."
             },
             {
               "kind": "method",
@@ -1287,7 +1287,7 @@
                   }
                 }
               ],
-              "description": "Poll rAF jusqu'a ce que l'instance Chart.js soit prete (chartArea > 0)."
+              "description": "Poll rAF jusqu'a ce que l'instance Chart.js soit prête (chartArea > 0)."
             },
             {
               "kind": "method",
@@ -1317,7 +1317,7 @@
                   }
                 }
               ],
-              "description": "Dessine les overlays. Retourne false si l'instance Chart.js n'est pas prete."
+              "description": "Dessine les overlays. Retourne false si l'instance Chart.js n'est pas prête."
             },
             {
               "kind": "method",
@@ -1352,7 +1352,7 @@
               "kind": "method",
               "name": "_refreshRadialScaleBounds",
               "privacy": "private",
-              "description": "(Re)programme l'application des bornes radiales apres chaque rendu."
+              "description": "(Re)programme l'application des bornes radiales après chaque rendu."
             },
             {
               "kind": "method",
@@ -1372,7 +1372,7 @@
                   }
                 }
               ],
-              "description": "Poll rAF jusqu'a ce que l'instance Chart.js radar soit prete."
+              "description": "Poll rAF jusqu'a ce que l'instance Chart.js radar soit prête."
             },
             {
               "kind": "method",
@@ -1391,7 +1391,7 @@
                   }
                 }
               ],
-              "description": "Applique les bornes sur l'instance. Retourne false si pas prete."
+              "description": "Applique les bornes sur l'instance. Retourne false si pas prête."
             },
             {
               "kind": "method",
@@ -1411,7 +1411,7 @@
                   }
                 }
               ],
-              "description": "Branche le tooltip sur les losanges (seuls elements pointer-events:auto)."
+              "description": "Branche le tooltip sur les losanges (seuls éléments pointer-events:auto)."
             },
             {
               "kind": "method",
@@ -1521,7 +1521,7 @@
                   }
                 }
               ],
-              "description": "Met a jour les attributs d'un element chart EXISTANT (#305) : pose les\nnouveaux, retire ceux que nous gerions et qui ont disparu, re-applique\nles differes. Vue (DSFR Chart) observe ses props — pas besoin de\nremonter le composant."
+              "description": "Met a jour les attributs d'un élément chart EXISTANT (#305) : pose les\nnouveaux, retire ceux que nous gerions et qui ont disparu, re-applique\nles differes. Vue (DSFR Chart) observe ses props — pas besoin de\nremonter le composant."
             },
             {
               "kind": "method",
@@ -1541,7 +1541,7 @@
                   }
                 }
               ],
-              "description": "Re-applique les attributs differes apres le montage Vue — timer TRACKE\n(#305) : les setTimeout(500) s'empilaient a chaque onSourceData sans\njamais etre annules au disconnect, et pouvaient cibler des elements\nremplaces entre-temps (gardes isConnected)."
+              "description": "Re-applique les attributs differes après le montage Vue — timer TRACKE\n(#305) : les setTimeout(500) s'empilaient a chaque onSourceData sans\njamais être annules au disconnect, et pouvaient cibler des éléments\nremplaces entre-temps (gardes isConnected)."
             },
             {
               "kind": "method",
@@ -1809,7 +1809,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Limite min de l'axe X (types cartesiens : line, scatter, bar-line).",
+              "description": "Limite min de l'axe X (types cartésiens : line, scatter, bar-line).",
               "fieldName": "xMin"
             },
             {
@@ -1818,7 +1818,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Limite max de l'axe X (types cartesiens : line, scatter, bar-line).",
+              "description": "Limite max de l'axe X (types cartésiens : line, scatter, bar-line).",
               "fieldName": "xMax"
             },
             {
@@ -2007,7 +2007,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Lignes de reference (overlay) au format JSON. Graphiques cartesiens\nuniquement (line, bar, bar-line, scatter). Chaque item :\n`{ axis: \"x\"|\"y\", value: string|number, label?, color?, dash?, position? }`.\n`axis:\"x\"` → ligne verticale à une catégorie/date ; `axis:\"y\"` → ligne\nhorizontale a un seuil. Ex : `reference-lines='[{\"axis\":\"x\",\"value\":\"2026-02\",\n\"label\":\"Lancement\",\"color\":\"#c9191e\",\"dash\":true}]'`.",
+              "description": "Lignes de référence (overlay) au format JSON. Graphiques cartésiens\nuniquement (line, bar, bar-line, scatter). Chaque item :\n`{ axis: \"x\"|\"y\", value: string|number, label?, color?, dash?, position? }`.\n`axis:\"x\"` → ligne verticale à une catégorie/date ; `axis:\"y\"` → ligne\nhorizontale à un seuil. Ex : `reference-lines='[{\"axis\":\"x\",\"value\":\"2026-02\",\n\"label\":\"Lancement\",\"color\":\"#c9191e\",\"dash\":true}]'`.",
               "fieldName": "referenceLines"
             },
             {
@@ -2107,7 +2107,7 @@
                 "text": "ContextOperator"
               },
               "default": "'eq'",
-              "description": "Opérateur : eq, in, lt, gte, between, contains (sous-chaîne, #678) — et\ndates (#230, clauses en plages [debut, fin)) : month-of, year-of,\nlt-day-after, last-n-days, current-year, current-month (#682 — case à\ncocher, mois en cours, borne dynamique).\n\n`year-of` et `month-of` acceptent une date plus precise que l'operateur\net la tronquent (#646) : \"2026-09-09\" -> annee 2026 / mois 2026-09, ce\nqui permet de les nourrir d'un <input type=\"date\"> (il n'existe pas de\ntype=\"year\"). Une valeur qui reste inexploitable (ni date, ni mois, ni\nannee) retire le filtre et le signale par un avertissement console,\nemis une seule fois par filtre.",
+              "description": "Opérateur : eq, in, lt, gte, between, contains (sous-chaîne, #678) — et\ndates (#230, clauses en plages [debut, fin)) : month-of, year-of,\nlt-day-after, last-n-days, current-year, current-month (#682 — case à\ncocher, mois en cours, borne dynamique).\n\n`year-of` et `month-of` acceptent une date plus precise que l'opérateur\net la tronquent (#646) : \"2026-09-09\" -> annee 2026 / mois 2026-09, ce\nqui permet de les nourrir d'un <input type=\"date\"> (il n'existe pas de\ntype=\"year\"). Une valeur qui reste inexploitable (ni date, ni mois, ni\nannee) retire le filtre et le signale par un avertissement console,\nemis une seule fois par filtre.",
               "attribute": "operator"
             },
             {
@@ -2187,7 +2187,7 @@
               },
               "privacy": "private",
               "default": "false",
-              "description": "Valeur de date inexploitable deja signalee (#646) — un warn par filtre, pas par frappe"
+              "description": "Valeur de date inexploitable déjà signalee (#646) — un warn par filtre, pas par frappe"
             },
             {
               "kind": "method",
@@ -2374,7 +2374,7 @@
                 "text": "ContextOperator"
               },
               "default": "'eq'",
-              "description": "Opérateur : eq, in, lt, gte, between, contains (sous-chaîne, #678) — et\ndates (#230, clauses en plages [debut, fin)) : month-of, year-of,\nlt-day-after, last-n-days, current-year, current-month (#682 — case à\ncocher, mois en cours, borne dynamique).\n\n`year-of` et `month-of` acceptent une date plus precise que l'operateur\net la tronquent (#646) : \"2026-09-09\" -> annee 2026 / mois 2026-09, ce\nqui permet de les nourrir d'un <input type=\"date\"> (il n'existe pas de\ntype=\"year\"). Une valeur qui reste inexploitable (ni date, ni mois, ni\nannee) retire le filtre et le signale par un avertissement console,\nemis une seule fois par filtre.",
+              "description": "Opérateur : eq, in, lt, gte, between, contains (sous-chaîne, #678) — et\ndates (#230, clauses en plages [debut, fin)) : month-of, year-of,\nlt-day-after, last-n-days, current-year, current-month (#682 — case à\ncocher, mois en cours, borne dynamique).\n\n`year-of` et `month-of` acceptent une date plus precise que l'opérateur\net la tronquent (#646) : \"2026-09-09\" -> annee 2026 / mois 2026-09, ce\nqui permet de les nourrir d'un <input type=\"date\"> (il n'existe pas de\ntype=\"year\"). Une valeur qui reste inexploitable (ni date, ni mois, ni\nannee) retire le filtre et le signale par un avertissement console,\nemis une seule fois par filtre.",
               "fieldName": "operator"
             },
             {
@@ -2630,7 +2630,7 @@
               }
             }
           ],
-          "description": "Resout un contexte par id — null si absent ou pas encore defini/upgrade\n(un element non upgrade n'a pas encore `_registerFilter`). Les filtres\ndeclares AVANT le contexte dans le DOM retentent a l'evenement\n`dsfr-data-context-connected` (#678). La resolution vit dans\n`utils/context-registry.ts` (#681) : la carte, dans un autre bundle,\ns'en sert sans importer ce composant."
+          "description": "Resout un contexte par id — null si absent ou pas encore defini/upgrade\n(un élément non upgrade n'a pas encore `_registerFilter`). Les filtres\ndeclares AVANT le contexte dans le DOM retentent a l'evenement\n`dsfr-data-context-connected` (#678). La resolution vit dans\n`utils/context-registry.ts` (#681) : la carte, dans un autre bundle,\ns'en sert sans importer ce composant."
         },
         {
           "kind": "class",
@@ -2936,10 +2936,10 @@
               "type": {
                 "text": "CustomEvent"
               },
-              "description": "sur l'element — l'etat des filtres du contexte a change (utile pour <dsfr-data-context-tags> et la synchro d'URL)."
+              "description": "sur l'élément — l'etat des filtres du contexte a change (utile pour <dsfr-data-context-tags> et la synchro d'URL)."
             },
             {
-              "description": "`{ id }` sur `document` — le contexte vient d'etre connecte (#678) : les filtres declares avant lui dans le DOM (`context=\"id\"`) s'enregistrent a ce moment.",
+              "description": "`{ id }` sur `document` — le contexte vient d'être connecte (#678) : les filtres declares avant lui dans le DOM (`context=\"id\"`) s'enregistrent a ce moment.",
               "name": "dsfr-data-context-connected"
             },
             {
@@ -3043,7 +3043,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Id de la source (ou du transformateur) dont ce composant consomme les donnees.",
+              "description": "Id de la source (ou du transformateur) dont ce composant consomme les données.",
               "attribute": "source"
             },
             {
@@ -3063,7 +3063,7 @@
                 "text": "number"
               },
               "default": "0",
-              "description": "Nombre d'elements par page (0 = tout afficher)",
+              "description": "Nombre d'éléments par page (0 = tout afficher)",
               "attribute": "pagination"
             },
             {
@@ -3103,7 +3103,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Synchronise le numero de page dans l'URL (replaceState)",
+              "description": "Synchronise le numéro de page dans l'URL (replaceState)",
               "attribute": "url-sync"
             },
             {
@@ -3113,7 +3113,7 @@
                 "text": "string"
               },
               "default": "'page'",
-              "description": "Nom du parametre URL pour la page (défaut: \"page\")",
+              "description": "Nom du paramètre URL pour la page (défaut: \"page\")",
               "attribute": "url-page-param"
             },
             {
@@ -3475,7 +3475,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Id de la source (ou du transformateur) dont ce composant consomme les donnees.",
+              "description": "Id de la source (ou du transformateur) dont ce composant consomme les données.",
               "fieldName": "source"
             },
             {
@@ -3493,7 +3493,7 @@
                 "text": "number"
               },
               "default": "0",
-              "description": "Nombre d'elements par page (0 = tout afficher)",
+              "description": "Nombre d'éléments par page (0 = tout afficher)",
               "fieldName": "pagination"
             },
             {
@@ -3529,7 +3529,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Synchronise le numero de page dans l'URL (replaceState)",
+              "description": "Synchronise le numéro de page dans l'URL (replaceState)",
               "fieldName": "urlSync"
             },
             {
@@ -3538,7 +3538,7 @@
                 "text": "string"
               },
               "default": "'page'",
-              "description": "Nom du parametre URL pour la page (défaut: \"page\")",
+              "description": "Nom du paramètre URL pour la page (défaut: \"page\")",
               "fieldName": "urlPageParam"
             }
           ],
@@ -3631,7 +3631,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Champs en mode multi-selection OU (virgule-separes)",
+              "description": "Champs en mode multi-sélection OU (virgule-séparés)",
               "attribute": "disjunctive"
             },
             {
@@ -3641,7 +3641,7 @@
                 "text": "string"
               },
               "default": "'count'",
-              "description": "Tri des valeurs de chaque facette, grammaire `critere:sens` alignee sur\n`order-by` de dsfr-data-query (#645) :\n- `count:desc` (defaut) : du plus frequent au plus rare\n- `count:asc` : du plus rare au plus frequent\n- `alpha:asc` : A -> Z (collation francaise)\n- `alpha:desc` : Z -> A\nRaccourcis : `count` = `count:desc`, `alpha` = `alpha:asc`.\nFormes `-count` / `-alpha` DEPRECIEES : conservees a l'identique\n(`-count` = rare d'abord, `-alpha` = Z -> A) mais un avertissement console\ninvite a passer a la forme explicite ; retrait dans une version majeure.",
+              "description": "Tri des valeurs de chaque facette, grammaire `critere:sens` alignée sur\n`order-by` de dsfr-data-query (#645) :\n- `count:desc` (défaut) : du plus fréquent au plus rare\n- `count:asc` : du plus rare au plus fréquent\n- `alpha:asc` : A -> Z (collation française)\n- `alpha:desc` : Z -> A\nRaccourcis : `count` = `count:desc`, `alpha` = `alpha:asc`.\nFormes `-count` / `-alpha` DÉPRÉCIÉES : conservées à l'identique\n(`-count` = rare d'abord, `-alpha` = Z -> A) mais un avertissement console\ninvite a passer a la forme explicite ; retrait dans une version majeure.",
               "attribute": "sort"
             },
             {
@@ -3651,7 +3651,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Champs avec barre de recherche (virgule-separes)",
+              "description": "Champs avec barre de recherche (virgule-séparés)",
               "attribute": "searchable"
             },
             {
@@ -3681,7 +3681,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Active la lecture des parametres d'URL comme pre-selections de facettes",
+              "description": "Active la lecture des paramètres d'URL comme pré-sélections de facettes",
               "attribute": "url-params"
             },
             {
@@ -3701,7 +3701,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Synchronise l'URL quand l'utilisateur change les facettes (replaceState — pas d'entree d'historique par clic)",
+              "description": "Synchronise l'URL quand l'utilisateur change les facettes (replaceState — pas d'entrée d'historique par clic)",
               "attribute": "url-sync"
             },
             {
@@ -3760,7 +3760,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104). La facette\ndevient alors un filtre du contexte, un par champ : c'est le contexte\nqui diffuse a ses sources cibles et qui porte l'URL (`url-sync` et\n`url-params` de la facette sont ignores — reporter `url-param-map` sur\nle contexte). Le contexte peut etre declare apres la facette dans la\npage. Vide = comportement autonome historique (commande directe a `source`).",
+              "description": "Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104). La facette\ndevient alors un filtre du contexte, un par champ : c'est le contexte\nqui diffuse a ses sources cibles et qui porte l'URL (`url-sync` et\n`url-params` de la facette sont ignorés — reporter `url-param-map` sur\nle contexte). Le contexte peut être déclaré après la facette dans la\npage. Vide = comportement autonome historique (commande directe à `source`).",
               "attribute": "context"
             },
             {
@@ -3871,13 +3871,13 @@
               "name": "_contextFilters",
               "privacy": "private",
               "default": "new Map< string, { filter: FacetFieldFilter; whereKey: string; pushed: string } >()",
-              "description": "Un filtre de contexte par champ, avec son whereKey et la derniere clause\nconfiee au contexte (mode `context`, #678) — un champ inchange n'est pas\nre-diffuse : une source cible re-emet apres chaque commande"
+              "description": "Un filtre de contexte par champ, avec son whereKey et la dernière clause\nconfiee au contexte (mode `context`, #678) — un champ inchange n'est pas\nre-diffuse : une source cible re-emet après chaque commande"
             },
             {
               "kind": "field",
               "name": "_onContextConnected",
               "privacy": "private",
-              "description": "Un contexte vise par id vient d'etre connecte : (re)bind si c'est le notre (#678)"
+              "description": "Un contexte vise par id vient d'être connecte : (re)bind si c'est le notre (#678)"
             },
             {
               "kind": "field",
@@ -3886,7 +3886,7 @@
                 "text": "boolean"
               },
               "privacy": "private",
-              "description": "Mode `context` demande (que le contexte soit deja resolu ou non)",
+              "description": "Mode `context` demande (que le contexte soit déjà resolu ou non)",
               "readonly": true
             },
             {
@@ -3936,7 +3936,7 @@
                   "text": "ApiAdapter | null"
                 }
               },
-              "description": "Retourne l'adapter de la source amont (delegation transparente).\nPermet aux composants en aval d'acceder a l'adapter\nsans connaitre la structure du pipeline."
+              "description": "Retourne l'adapter de la source amont (délégation transparente).\nPermet aux composants en aval d'acceder a l'adapter\nsans connaitre la structure du pipeline."
             },
             {
               "kind": "method",
@@ -3956,7 +3956,7 @@
                   }
                 }
               ],
-              "description": "Retourne le where effectif de la source amont (delegation transparente)."
+              "description": "Retourne le where effectif de la source amont (délégation transparente)."
             },
             {
               "kind": "field",
@@ -3987,7 +3987,7 @@
                   "text": "string[]"
                 }
               },
-              "description": "Parametres de facettes → reconstruction des groupes (#281)"
+              "description": "Paramètres de facettes → reconstruction des groupes (#281)"
             },
             {
               "kind": "method",
@@ -4096,7 +4096,7 @@
                   }
                 }
               ],
-              "description": "Reinjecte les selections orphelines dans les groupes (#310) : apres un\nrefetch, une valeur selectionnee disparue des donnees restait dans\n_activeSelections — la checkbox n'etait plus rendue mais le filtre\nrestait actif (resultats vides inexplicables). Elle est rendue cochee,\nmarquee indisponible, donc desactivable."
+              "description": "Reinjecte les selections orphelines dans les groupes (#310) : après un\nrefetch, une valeur selectionnee disparue des données restait dans\n_activeSelections — la checkbox n'etait plus rendue mais le filtre\nrestait actif (résultats vides inexplicables). Elle est rendue cochee,\nmarquee indisponible, donc desactivable."
             },
             {
               "kind": "method",
@@ -4110,7 +4110,7 @@
                   }
                 }
               ],
-              "description": "Libelle « valeur + compteur » — etait copie 3x (checkbox, multiselect, radio)"
+              "description": "Libellé « valeur + compteur » — etait copie 3x (checkbox, multiselect, radio)"
             },
             {
               "kind": "method",
@@ -4173,7 +4173,7 @@
                   "default": "false"
                 }
               ],
-              "description": "Element checkbox/radio complet — etait copie 3x. `inline` : element en ligne (radio-inline, #684)"
+              "description": "Élément checkbox/radio complet — etait copie 3x. `inline` : élément en ligne (radio-inline, #684)"
             },
             {
               "kind": "method",
@@ -4212,7 +4212,7 @@
                   "text": "HTMLElement | null"
                 }
               },
-              "description": "Walk upstream through the source chain to find the actual dsfr-data-source element\n(the one with baseUrl/datasetId/headers). Intermediate components like dsfr-data-query\nhave a `source` property pointing to their upstream."
+              "description": "Walk upstream through the source chain to find the actual dsfr-data-source élément\n(the one with baseUrl/datasetId/headers). Intermediate components like dsfr-data-query\nhave a `source` property pointing to their upstream."
             },
             {
               "kind": "method",
@@ -4256,7 +4256,7 @@
                   }
                 }
               ],
-              "description": "Valeurs de facette d'une cellule (#421) : une cellule tableau (champ\nmulti-valeurs, ex. ChoiceList Grist) fournit chaque element ; une cellule\nscalaire fournit sa valeur. Les elements vides sont ignores. L'ancien\n`String(val)` stringifiait le tableau (« a,b ») : la valeur ne matchait\njamais une selection et polluait les groupes de facettes."
+              "description": "Valeurs de facette d'une cellule (#421) : une cellule tableau (champ\nmulti-valeurs, ex. ChoiceList Grist) fournit chaque élément ; une cellule\nscalaire fournit sa valeur. Les éléments vides sont ignorés. L'ancien\n`String(val)` stringifiait le tableau (« a,b ») : la valeur ne matchait\njamais une selection et polluait les groupes de facettes."
             },
             {
               "kind": "method",
@@ -4346,7 +4346,7 @@
               "name": "_deprecatedSortWarned",
               "privacy": "private",
               "default": "new Set<string>()",
-              "description": "Formes de `sort` deja signalees comme depreciees (un warn par forme et par instance, #645)"
+              "description": "Formes de `sort` déjà signalees comme depreciees (un warn par forme et par instance, #645)"
             },
             {
               "kind": "method",
@@ -4357,7 +4357,7 @@
                   "text": "{ by: 'count' | 'alpha'; dir: 'asc' | 'desc' }"
                 }
               },
-              "description": "Resout l'attribut `sort` en (critere, sens) — grammaire `critere:sens`\nde `order-by` (#645). Les formes `-count` / `-alpha` restent acceptees\navec leur sens historique mais sont signalees : le tiret y voulait dire\n« inverse du defaut » (croissant pour count, decroissant pour alpha),\nune convention ambigue qu'aucune forme explicite ne partage."
+              "description": "Resout l'attribut `sort` en (critère, sens) — grammaire `critere:sens`\nde `order-by` (#645). Les formes `-count` / `-alpha` restent acceptees\navec leur sens historique mais sont signalees : le tiret y voulait dire\n« inverse du défaut » (croissant pour count, decroissant pour alpha),\nune convention ambigue qu'aucune forme explicite ne partage."
             },
             {
               "kind": "method",
@@ -4463,7 +4463,7 @@
               },
               "privacy": "private",
               "default": "false",
-              "description": "« Aucune facette declaree » deja signale pour ce jeu (un warn, pas un par cycle)"
+              "description": "« Aucune facette déclarée » déjà signale pour ce jeu (un warn, pas un par cycle)"
             },
             {
               "kind": "method",
@@ -4488,7 +4488,7 @@
                   }
                 }
               ],
-              "description": "Un appel de decouverte par jeu de donnees : noms et libelles des facettes\ndeclarees (utilises quand `fields` est absent) et champs de type date —\nutiles meme avec `fields` explicite, car le where d'une annee doit etre\nun intervalle (#676). Une decouverte en echec est memorisee vide (pas de\nnouvelle tentative a chaque cycle) jusqu'a un changement de jeu."
+              "description": "Un appel de decouverte par jeu de données : noms et libellés des facettes\ndeclarees (utilisés quand `fields` est absent) et champs de type date —\nutiles meme avec `fields` explicite, car le where d'une annee doit être\nun intervalle (#676). Une decouverte en echec est memorisee vide (pas de\nnouvelle tentative a chaque cycle) jusqu'a un changement de jeu."
             },
             {
               "kind": "method",
@@ -4529,7 +4529,7 @@
                   }
                 }
               ],
-              "description": "Libelle declare par le provider pour un champ decouvert (a defaut de `labels`)"
+              "description": "Libellé déclaré par le provider pour un champ decouvert (a défaut de `labels`)"
             },
             {
               "kind": "method",
@@ -4559,7 +4559,7 @@
                   }
                 }
               ],
-              "description": "Parametres serveur (baseUrl, datasetId, headers, proxy) de la source\namont. Resolus par la source elle-meme (headers effectifs avec\napi-key-ref) via la delegation SourceElement — re-parser les attributs\nDOM ratait la resolution d'api-key-ref → 401 sur sources authentifiees\n(#274). Null sans datasetId."
+              "description": "Paramètres serveur (baseUrl, datasetId, headers, proxy) de la source\namont. Resolus par la source elle-meme (headers effectifs avec\napi-key-ref) via la délégation SourceElement — re-parser les attributs\nDOM ratait la resolution d'api-key-ref → 401 sur sources authentifiees\n(#274). Null sans datasetId."
             },
             {
               "kind": "method",
@@ -4589,7 +4589,7 @@
                   }
                 }
               ],
-              "description": "Erreur amont en mode serveur AVANT toute decouverte (#676) : une\nselection annuelle issue de l'URL a pu etre emise en egalite sur un\nchamp date (400) — la source n'emet alors aucune donnee, donc le cycle\nde facettes (et sa decouverte) n'aurait jamais lieu. On lance la\ndecouverte ici et, si un champ date est concerne, on re-emet la\ncommande en intervalle. Une seule tentative par jeu (decouverte memorisee)."
+              "description": "Erreur amont en mode serveur AVANT toute decouverte (#676) : une\nselection annuelle issue de l'URL a pu être emise en egalite sur un\nchamp date (400) — la source n'emet alors aucune donnee, donc le cycle\nde facettes (et sa decouverte) n'aurait jamais lieu. On lance la\ndecouverte ici et, si un champ date est concerne, on re-emet la\ncommande en intervalle. Une seule tentative par jeu (decouverte memorisee)."
             },
             {
               "kind": "method",
@@ -4612,7 +4612,7 @@
                   "text": "void"
                 }
               },
-              "description": "Resout le contexte vise par `context=\"id\"` et y enregistre un filtre par\nchamp connu. Le contexte peut arriver plus tard (declare apres dans la\npage) : l'erreur de config est posee en attendant et levee a sa connexion."
+              "description": "Resout le contexte vise par `context=\"id\"` et y enregistre un filtre par\nchamp connu. Le contexte peut arriver plus tard (déclaré après dans la\npage) : l'erreur de config est posee en attendant et levee a sa connexion."
             },
             {
               "kind": "method",
@@ -4634,7 +4634,7 @@
                   "text": "void"
                 }
               },
-              "description": "Un filtre par champ connu (`fields`, groupes construits, selections) :\nles champs auto-detectes en mode client n'existent qu'apres les donnees.\nIdempotent — un champ deja enregistre garde son filtre et son whereKey."
+              "description": "Un filtre par champ connu (`fields`, groupes construits, selections) :\nles champs auto-detectes en mode client n'existent qu'après les données.\nIdempotent — un champ déjà enregistre garde son filtre et son whereKey."
             },
             {
               "kind": "method",
@@ -4946,7 +4946,7 @@
             {
               "kind": "method",
               "name": "_applyUrlParams",
-              "description": "Read URL search params and apply as facet pre-selections"
+              "description": "Read URL search params and apply as facet pré-sélections"
             },
             {
               "kind": "method",
@@ -5018,7 +5018,7 @@
                   }
                 }
               ],
-              "description": "Boutons radio DSFR visibles en ligne (#684) : fieldset dont la legende est\nle libelle de la facette, une option « Tous » (cochee quand rien n'est\nselectionne) qui retire la selection, puis une radio par valeur. Toutes\nles valeurs sont rendues (pas de « Voir plus » : un choix unique visible\nd'un coup d'oeil, comme `select`)."
+              "description": "Boutons radio DSFR visibles en ligne (#684) : fieldset dont la legende est\nle libellé de la facette, une option « Tous » (cochee quand rien n'est\nselectionne) qui retire la selection, puis une radio par valeur. Toutes\nles valeurs sont rendues (pas de « Voir plus » : un choix unique visible\nd'un coup d'oeil, comme `select`)."
             },
             {
               "kind": "method",
@@ -5077,7 +5077,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Champs en mode multi-selection OU (virgule-separes)",
+              "description": "Champs en mode multi-sélection OU (virgule-séparés)",
               "fieldName": "disjunctive"
             },
             {
@@ -5086,7 +5086,7 @@
                 "text": "string"
               },
               "default": "'count'",
-              "description": "Tri des valeurs de chaque facette, grammaire `critere:sens` alignee sur\n`order-by` de dsfr-data-query (#645) :\n- `count:desc` (defaut) : du plus frequent au plus rare\n- `count:asc` : du plus rare au plus frequent\n- `alpha:asc` : A -> Z (collation francaise)\n- `alpha:desc` : Z -> A\nRaccourcis : `count` = `count:desc`, `alpha` = `alpha:asc`.\nFormes `-count` / `-alpha` DEPRECIEES : conservees a l'identique\n(`-count` = rare d'abord, `-alpha` = Z -> A) mais un avertissement console\ninvite a passer a la forme explicite ; retrait dans une version majeure.",
+              "description": "Tri des valeurs de chaque facette, grammaire `critere:sens` alignée sur\n`order-by` de dsfr-data-query (#645) :\n- `count:desc` (défaut) : du plus fréquent au plus rare\n- `count:asc` : du plus rare au plus fréquent\n- `alpha:asc` : A -> Z (collation française)\n- `alpha:desc` : Z -> A\nRaccourcis : `count` = `count:desc`, `alpha` = `alpha:asc`.\nFormes `-count` / `-alpha` DÉPRÉCIÉES : conservées à l'identique\n(`-count` = rare d'abord, `-alpha` = Z -> A) mais un avertissement console\ninvite a passer a la forme explicite ; retrait dans une version majeure.",
               "fieldName": "sort"
             },
             {
@@ -5095,7 +5095,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Champs avec barre de recherche (virgule-separes)",
+              "description": "Champs avec barre de recherche (virgule-séparés)",
               "fieldName": "searchable"
             },
             {
@@ -5122,7 +5122,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Active la lecture des parametres d'URL comme pre-selections de facettes",
+              "description": "Active la lecture des paramètres d'URL comme pré-sélections de facettes",
               "fieldName": "urlParams"
             },
             {
@@ -5140,7 +5140,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Synchronise l'URL quand l'utilisateur change les facettes (replaceState — pas d'entree d'historique par clic)",
+              "description": "Synchronise l'URL quand l'utilisateur change les facettes (replaceState — pas d'entrée d'historique par clic)",
               "fieldName": "urlSync"
             },
             {
@@ -5185,7 +5185,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104). La facette\ndevient alors un filtre du contexte, un par champ : c'est le contexte\nqui diffuse a ses sources cibles et qui porte l'URL (`url-sync` et\n`url-params` de la facette sont ignores — reporter `url-param-map` sur\nle contexte). Le contexte peut etre declare apres la facette dans la\npage. Vide = comportement autonome historique (commande directe a `source`).",
+              "description": "Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104). La facette\ndevient alors un filtre du contexte, un par champ : c'est le contexte\nqui diffuse a ses sources cibles et qui porte l'URL (`url-sync` et\n`url-params` de la facette sont ignorés — reporter `url-param-map` sur\nle contexte). Le contexte peut être déclaré après la facette dans la\npage. Vide = comportement autonome historique (commande directe à `source`).",
               "fieldName": "context"
             },
             {
@@ -5361,7 +5361,7 @@
               },
               "privacy": "private",
               "default": "null",
-              "description": "Taux d'appariement de la derniere jointure (#660), publie dans la meta\npour le volet Diagnostic. En `left`, 1 065 lignes entrent et 1 065\nsortent : sans ce compte, une jointure a 22 % paraissait saine."
+              "description": "Taux d'appariement de la dernière jointure (#660), publie dans la meta\npour le volet Diagnostic. En `left`, 1 065 lignes entrent et 1 065\nsortent : sans ce compte, une jointure a 22 % paraissait saine."
             },
             {
               "kind": "method",
@@ -5372,7 +5372,7 @@
                   "text": "import('../adapters/api-adapter.js').ApiAdapter | null"
                 }
               },
-              "description": "Retourne l'adapter de la source GAUCHE (delegation transparente).\nCoherent avec le relais des commandes (#272) : la gauche porte les lignes.\nPermet aux composants en aval (dsfr-data-facets, dsfr-data-search)\nd'atteindre l'adapter a travers ce transformateur."
+              "description": "Retourne l'adapter de la source GAUCHE (délégation transparente).\nCoherent avec le relais des commandes (#272) : la gauche porte les lignes.\nPermet aux composants en aval (dsfr-data-facets, dsfr-data-search)\nd'atteindre l'adapter a travers ce transformateur."
             },
             {
               "kind": "method",
@@ -5392,7 +5392,7 @@
                   }
                 }
               ],
-              "description": "Retourne le where effectif de la source amont (delegation transparente)."
+              "description": "Retourne le where effectif de la source amont (délégation transparente)."
             },
             {
               "kind": "method",
@@ -5403,7 +5403,7 @@
                   "text": "import('../adapters/api-adapter.js').AdapterParams | null"
                 }
               },
-              "description": "Retourne les parametres adapter resolus de la source amont\n(delegation transparente, headers api-key-ref inclus — #274)."
+              "description": "Retourne les paramètres adapter resolus de la source amont\n(délégation transparente, headers api-key-ref inclus — #274)."
             },
             {
               "kind": "method",
@@ -5444,7 +5444,7 @@
                   "text": "string | null"
                 }
               },
-              "description": "Relaye les commandes aval (page, where, orderBy) vers la source GAUCHE,\nporteuse des lignes principales du join — la droite est traitee comme\ntable de reference et n'est pas filtree/paginee (#272). Sans relais,\nun dsfr-data-list pagine derriere un join perdait ses commandes."
+              "description": "Relaye les commandes aval (page, where, orderBy) vers la source GAUCHE,\nporteuse des lignes principales du join — la droite est traitee comme\ntable de référence et n'est pas filtree/paginee (#272). Sans relais,\nun dsfr-data-list pagine derriere un join perdait ses commandes."
             },
             {
               "kind": "method",
@@ -5535,7 +5535,7 @@
                   "text": "JoinStats | null"
                 }
               },
-              "description": "Taux d'appariement de la derniere jointure, ou null avant la premiere (#660)."
+              "description": "Taux d'appariement de la dernière jointure, ou null avant la première (#660)."
             },
             {
               "kind": "method",
@@ -5557,7 +5557,7 @@
                   "text": "string[]"
                 }
               },
-              "description": "Parametres de jointure → recalcul avec les donnees deja recues (#281)"
+              "description": "Paramètres de jointure → recalcul avec les données déjà recues (#281)"
             },
             {
               "kind": "method",
@@ -5915,7 +5915,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "RACCOURCI HERITE — pour une ligne d'evolution riche (signe, suffixe,\ncouleur, repli n.d.), preferez `lines`. Conserve pour compatibilite.\n\nExpression d'agrégation pour la tendance, évaluée sur les données de la\nsource (grammaire commune \"champ:fn\", ex. \"evolution:avg\") — PAS un\nlitteral : l'ancienne doc (\"+3.2\") laissait croire qu'on passait une\nvaleur, la chaine etait interpretee comme nom de champ (#303).\nRendue avec une fleche (↑/↓) en pourcentage fr-FR (\"↑ 5,2 %\").\n`trend=\"recettes:evolution\"` (#675) : taux d'évolution entre la première\net la dernière ligne, rendu en pourcentage.",
+              "description": "RACCOURCI HERITE — pour une ligne d'evolution riche (signe, suffixe,\ncouleur, repli n.d.), preferez `lines`. Conserve pour compatibilite.\n\nExpression d'agrégation pour la tendance, évaluée sur les données de la\nsource (grammaire commune \"champ:fn\", ex. \"evolution:avg\") — PAS un\nlitteral : l'ancienne doc (\"+3.2\") laissait croire qu'on passait une\nvaleur, la chaîne etait interpretee comme nom de champ (#303).\nRendue avec une fleche (↑/↓) en pourcentage fr-FR (\"↑ 5,2 %\").\n`trend=\"recettes:evolution\"` (#675) : taux d'évolution entre la première\net la dernière ligne, rendu en pourcentage.",
               "attribute": "trend"
             },
             {
@@ -6326,7 +6326,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "RACCOURCI HERITE — pour une ligne d'evolution riche (signe, suffixe,\ncouleur, repli n.d.), preferez `lines`. Conserve pour compatibilite.\n\nExpression d'agrégation pour la tendance, évaluée sur les données de la\nsource (grammaire commune \"champ:fn\", ex. \"evolution:avg\") — PAS un\nlitteral : l'ancienne doc (\"+3.2\") laissait croire qu'on passait une\nvaleur, la chaine etait interpretee comme nom de champ (#303).\nRendue avec une fleche (↑/↓) en pourcentage fr-FR (\"↑ 5,2 %\").\n`trend=\"recettes:evolution\"` (#675) : taux d'évolution entre la première\net la dernière ligne, rendu en pourcentage.",
+              "description": "RACCOURCI HERITE — pour une ligne d'evolution riche (signe, suffixe,\ncouleur, repli n.d.), preferez `lines`. Conserve pour compatibilite.\n\nExpression d'agrégation pour la tendance, évaluée sur les données de la\nsource (grammaire commune \"champ:fn\", ex. \"evolution:avg\") — PAS un\nlitteral : l'ancienne doc (\"+3.2\") laissait croire qu'on passait une\nvaleur, la chaîne etait interpretee comme nom de champ (#303).\nRendue avec une fleche (↑/↓) en pourcentage fr-FR (\"↑ 5,2 %\").\n`trend=\"recettes:evolution\"` (#675) : taux d'évolution entre la première\net la dernière ligne, rendu en pourcentage.",
               "fieldName": "trend"
             },
             {
@@ -6612,7 +6612,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Synchronise le numero de page dans l'URL (replaceState)",
+              "description": "Synchronise le numéro de page dans l'URL (replaceState)",
               "attribute": "url-sync"
             },
             {
@@ -7261,7 +7261,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Synchronise le numero de page dans l'URL (replaceState)",
+              "description": "Synchronise le numéro de page dans l'URL (replaceState)",
               "fieldName": "urlSync"
             },
             {
@@ -7341,7 +7341,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Territoire predefini (guadeloupe, martinique, guyane, la-reunion, mayotte,\nsaint-pierre-et-miquelon, saint-martin, saint-barthelemy, nouvelle-caledonie,\npolynesie-francaise, wallis-et-futuna, corse) — fournit center/zoom/label",
+              "description": "Territoire predefini (guadeloupe, martinique, guyane, la-reunion, mayotte,\nsaint-pierre-et-miquelon, saint-martin, saint-barthelemy, nouvelle-caledonie,\npolynesie-française, wallis-et-futuna, corse) — fournit center/zoom/label",
               "attribute": "territory"
             },
             {
@@ -7371,7 +7371,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Libelle affiche au-dessus de l'encart (et nom accessible de la mini-carte)",
+              "description": "Libellé affiché au-dessus de l'encart (et nom accessible de la mini-carte)",
               "attribute": "label"
             },
             {
@@ -7431,7 +7431,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Territoire predefini (guadeloupe, martinique, guyane, la-reunion, mayotte,\nsaint-pierre-et-miquelon, saint-martin, saint-barthelemy, nouvelle-caledonie,\npolynesie-francaise, wallis-et-futuna, corse) — fournit center/zoom/label",
+              "description": "Territoire predefini (guadeloupe, martinique, guyane, la-reunion, mayotte,\nsaint-pierre-et-miquelon, saint-martin, saint-barthelemy, nouvelle-caledonie,\npolynesie-française, wallis-et-futuna, corse) — fournit center/zoom/label",
               "fieldName": "territory"
             },
             {
@@ -7458,7 +7458,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Libelle affiche au-dessus de l'encart (et nom accessible de la mini-carte)",
+              "description": "Libellé affiché au-dessus de l'encart (et nom accessible de la mini-carte)",
               "fieldName": "label"
             },
             {
@@ -7548,7 +7548,7 @@
               },
               "privacy": "private",
               "default": "0",
-              "description": "Jeton de generation des rendus (#295) : deux _renderLayer qui se\nchevauchent pendant le await import(...) (cluster/heatmap)\nfranchissaient chacun clearLayers() puis ajoutaient CHACUN tous les\nitems — doublons visibles. Le rendu obsolete s'abandonne apres chaque\nawait."
+              "description": "Jeton de generation des rendus (#295) : deux _renderLayer qui se\nchevauchent pendant le await import(...) (cluster/heatmap)\nfranchissaient chacun clearLayers() puis ajoutaient CHACUN tous les\nitems — doublons visibles. Le rendu obsolete s'abandonne après chaque\nawait."
             },
             {
               "kind": "field",
@@ -7577,7 +7577,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Chemin vers le champ latitude (mode coordonnees separees).",
+              "description": "Chemin vers le champ latitude (mode coordonnées séparées).",
               "attribute": "lat-field"
             },
             {
@@ -7587,7 +7587,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Chemin vers le champ longitude (mode coordonnees separees).",
+              "description": "Chemin vers le champ longitude (mode coordonnées séparées).",
               "attribute": "lon-field"
             },
             {
@@ -7597,7 +7597,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Champ geometrie : objet GeoJSON, {lat, lon}, [lat, lon] ou chaine JSON serialisee (#426)",
+              "description": "Champ geometrie : objet GeoJSON, {lat, lon}, [lat, lon] ou chaîne JSON serialisee (#426)",
               "attribute": "geo-field"
             },
             {
@@ -7677,7 +7677,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Champ affiche au survol de l'element.",
+              "description": "Champ affiché au survol de l'élément.",
               "attribute": "tooltip-field"
             },
             {
@@ -7707,7 +7707,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Paires `valeur:#couleur` separees par des virgules. Ex: `\"1:#00A95F,2:#FF9940,3:#E1000F\"`.",
+              "description": "Paires `valeur:#couleur` séparées par des virgules. Ex: `\"1:#00A95F,2:#FF9940,3:#E1000F\"`.",
               "attribute": "color-map"
             },
             {
@@ -7887,7 +7887,7 @@
                 "text": "number"
               },
               "default": "18",
-              "description": "Niveau de zoom au-dela duquel la couche est masquee.",
+              "description": "Niveau de zoom au-delà duquel la couche est masquee.",
               "attribute": "max-zoom"
             },
             {
@@ -7897,7 +7897,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Chargement par viewport : re-interroge la source a chaque deplacement de\nla carte, et une premiere fois des que la carte est prete (#652). Le tout\npremier fetch de la source reste NON filtre (elle charge des sa connexion,\navant que la carte — differee a la visibilite — ait un viewport) : sur un\ngros jeu, poser un `limit` ou un `where` initial sur la source.",
+              "description": "Chargement par viewport : re-interroge la source a chaque déplacement de\nla carte, et une première fois des que la carte est prête (#652). Le tout\npremier fetch de la source reste NON filtre (elle charge des sa connexion,\navant que la carte — différée a la visibilité — ait un viewport) : sur un\ngros jeu, poser un `limit` ou un `where` initial sur la source.",
               "attribute": "bbox"
             },
             {
@@ -7907,7 +7907,7 @@
                 "text": "number"
               },
               "default": "300",
-              "description": "Delai d'anti-rebond avant le re-fetch bbox, en millisecondes.",
+              "description": "Délai d'anti-rebond avant le re-fetch bbox, en millisecondes.",
               "attribute": "bbox-debounce"
             },
             {
@@ -7957,7 +7957,7 @@
                 "text": "number"
               },
               "default": "5000",
-              "description": "Plafond du nombre d'elements rendus sur la carte (défaut 5000). Il protege\nles marqueurs DOM (`divIcon`), le fit et les popups ; au-dela, un bandeau\nindique combien d'elements sont affiches sur le total. Avec `cluster`,\n`max-items=\"20000\"` est sans risque : les marqueurs regroupes ne pesent\npas sur le DOM. En mode `bbox`, zoomer recharge la zone visible ; hors\n`bbox`, seul un `max-items` plus haut (ou un filtre amont) affiche le reste.",
+              "description": "Plafond du nombre d'éléments rendus sur la carte (défaut 5000). Il protège\nles marqueurs DOM (`divIcon`), le fit et les popups ; au-delà, un bandeau\nindique combien d'éléments sont affichés sur le total. Avec `cluster`,\n`max-items=\"20000\"` est sans risque : les marqueurs regroupés ne pèsent\npas sur le DOM. En mode `bbox`, zoomer recharge la zone visible ; hors\n`bbox`, seul un `max-items` plus haut (ou un filtre amont) affiche le reste.",
               "attribute": "max-items"
             },
             {
@@ -8112,7 +8112,7 @@
               },
               "privacy": "private",
               "default": "0",
-              "description": "Elements effectivement dessines au dernier rendu (#482)"
+              "description": "Éléments effectivement dessines au dernier rendu (#482)"
             },
             {
               "kind": "field",
@@ -8122,7 +8122,7 @@
               },
               "privacy": "private",
               "default": "0",
-              "description": "Records ecartes du dernier rendu faute de position exploitable : geometrie\ninvalide (geoshape, #482), coordonnees absentes ou non numeriques (marker,\ncircle, heatmap — #648). Un seul compteur pour tous les types."
+              "description": "Records écartés du dernier rendu faute de position exploitable : geometrie\ninvalide (geoshape, #482), coordonnées absentes ou non numeriques (marker,\ncircle, heatmap — #648). Un seul compteur pour tous les types."
             },
             {
               "kind": "field",
@@ -8554,7 +8554,7 @@
                   "text": "number"
                 }
               },
-              "description": "Nombre d'elements effectivement dessines au dernier rendu (marqueurs,\nformes, cercles ou points de chaleur). Contrairement au comptage DOM,\nce compte n'inclut pas les bulles de cluster et couvre la heatmap\n(un seul canvas pour N points) — expose pour les diagnostics (#482)."
+              "description": "Nombre d'éléments effectivement dessines au dernier rendu (marqueurs,\nformes, cercles ou points de chaleur). Contrairement au comptage DOM,\nce compte n'inclut pas les bulles de cluster et couvre la heatmap\n(un seul canvas pour N points) — expose pour les diagnostics (#482)."
             },
             {
               "kind": "method",
@@ -8564,7 +8564,7 @@
                   "text": "number"
                 }
               },
-              "description": "Nombre de lignes ignorees au dernier rendu faute de position exploitable\n(coordonnees ou geometrie absentes ou invalides). Journalise une fois par\nrendu et remonte dans la trace du volet Diagnostic (#648, #604)."
+              "description": "Nombre de lignes ignorees au dernier rendu faute de position exploitable\n(coordonnées ou geometrie absentes ou invalides). Journalise une fois par\nrendu et remonte dans la trace du volet Diagnostic (#648, #604)."
             },
             {
               "kind": "field",
@@ -8921,7 +8921,7 @@
                   }
                 }
               ],
-              "description": "Bbox d'une geometrie GeoJSON (Feature, Polygon, MultiPolygon, lignes...)\npar parcours des coordonnees [lon, lat] (#297). null si inextractible."
+              "description": "Bbox d'une geometrie GeoJSON (Feature, Polygon, MultiPolygon, lignes...)\npar parcours des coordonnées [lon, lat] (#297). null si inextractible."
             },
             {
               "kind": "method",
@@ -9127,7 +9127,7 @@
                   }
                 }
               ],
-              "description": "Libelle du bandeau max-items (#644). « Zoomez » n'a de sens qu'en mode\n`bbox` (la zone visible est rechargee au zoom) ; hors bbox rien n'est\nrecharge, le seul remede est de relever `max-items` — le dire."
+              "description": "Libellé du bandeau max-items (#644). « Zoomez » n'a de sens qu'en mode\n`bbox` (la zone visible est rechargee au zoom) ; hors bbox rien n'est\nrecharge, le seul remede est de relever `max-items` — le dire."
             },
             {
               "kind": "method",
@@ -9187,7 +9187,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Chemin vers le champ latitude (mode coordonnees separees).",
+              "description": "Chemin vers le champ latitude (mode coordonnées séparées).",
               "fieldName": "latField"
             },
             {
@@ -9196,7 +9196,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Chemin vers le champ longitude (mode coordonnees separees).",
+              "description": "Chemin vers le champ longitude (mode coordonnées séparées).",
               "fieldName": "lonField"
             },
             {
@@ -9205,7 +9205,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Champ geometrie : objet GeoJSON, {lat, lon}, [lat, lon] ou chaine JSON serialisee (#426)",
+              "description": "Champ geometrie : objet GeoJSON, {lat, lon}, [lat, lon] ou chaîne JSON serialisee (#426)",
               "fieldName": "geoField"
             },
             {
@@ -9277,7 +9277,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Champ affiche au survol de l'element.",
+              "description": "Champ affiché au survol de l'élément.",
               "fieldName": "tooltipField"
             },
             {
@@ -9304,7 +9304,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Paires `valeur:#couleur` separees par des virgules. Ex: `\"1:#00A95F,2:#FF9940,3:#E1000F\"`.",
+              "description": "Paires `valeur:#couleur` séparées par des virgules. Ex: `\"1:#00A95F,2:#FF9940,3:#E1000F\"`.",
               "fieldName": "colorMap"
             },
             {
@@ -9466,7 +9466,7 @@
                 "text": "number"
               },
               "default": "18",
-              "description": "Niveau de zoom au-dela duquel la couche est masquee.",
+              "description": "Niveau de zoom au-delà duquel la couche est masquee.",
               "fieldName": "maxZoom"
             },
             {
@@ -9475,7 +9475,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Chargement par viewport : re-interroge la source a chaque deplacement de\nla carte, et une premiere fois des que la carte est prete (#652). Le tout\npremier fetch de la source reste NON filtre (elle charge des sa connexion,\navant que la carte — differee a la visibilite — ait un viewport) : sur un\ngros jeu, poser un `limit` ou un `where` initial sur la source.",
+              "description": "Chargement par viewport : re-interroge la source a chaque déplacement de\nla carte, et une première fois des que la carte est prête (#652). Le tout\npremier fetch de la source reste NON filtre (elle charge des sa connexion,\navant que la carte — différée a la visibilité — ait un viewport) : sur un\ngros jeu, poser un `limit` ou un `where` initial sur la source.",
               "fieldName": "bbox"
             },
             {
@@ -9484,7 +9484,7 @@
                 "text": "number"
               },
               "default": "300",
-              "description": "Delai d'anti-rebond avant le re-fetch bbox, en millisecondes.",
+              "description": "Délai d'anti-rebond avant le re-fetch bbox, en millisecondes.",
               "fieldName": "bboxDebounce"
             },
             {
@@ -9529,7 +9529,7 @@
                 "text": "number"
               },
               "default": "5000",
-              "description": "Plafond du nombre d'elements rendus sur la carte (défaut 5000). Il protege\nles marqueurs DOM (`divIcon`), le fit et les popups ; au-dela, un bandeau\nindique combien d'elements sont affiches sur le total. Avec `cluster`,\n`max-items=\"20000\"` est sans risque : les marqueurs regroupes ne pesent\npas sur le DOM. En mode `bbox`, zoomer recharge la zone visible ; hors\n`bbox`, seul un `max-items` plus haut (ou un filtre amont) affiche le reste.",
+              "description": "Plafond du nombre d'éléments rendus sur la carte (défaut 5000). Il protège\nles marqueurs DOM (`divIcon`), le fit et les popups ; au-delà, un bandeau\nindique combien d'éléments sont affichés sur le total. Avec `cluster`,\n`max-items=\"20000\"` est sans risque : les marqueurs regroupés ne pèsent\npas sur le DOM. En mode `bbox`, zoomer recharge la zone visible ; hors\n`bbox`, seul un `max-items` plus haut (ou un filtre amont) affiche le reste.",
               "fieldName": "maxItems"
             }
           ],
@@ -9838,7 +9838,7 @@
               },
               "privacy": "private",
               "default": "null",
-              "description": "Element focus avant l'ouverture de la modale (restitution RGAA, #296)"
+              "description": "Élément focus avant l'ouverture de la modale (restitution RGAA, #296)"
             },
             {
               "kind": "method",
@@ -10499,7 +10499,7 @@
               "default": "false"
             }
           ],
-          "description": "Construit l'URL et les options de la `TileLayer` a partir des attributs du composant.\nFonction pure, extraite de `_updateTiles()` pour etre testable sans Leaflet (#576).\n\nLes warnings sont retournes plutot que loggues, a charge de l'appelant.\n\nExpose pour les tests."
+          "description": "Construit l'URL et les options de la `TileLayer` a partir des attributs du composant.\nFonction pure, extraite de `_updateTiles()` pour être testable sans Leaflet (#576).\n\nLes warnings sont retournes plutot que loggues, a charge de l'appelant.\n\nExpose pour les tests."
         },
         {
           "kind": "function",
@@ -10529,7 +10529,7 @@
               }
             }
           ],
-          "description": "Clippe des bounds de donnees par un attribut max-bounds \"latSW,lonSW,latNE,lonNE\"\navant un fitBounds. Retourne null si l'intersection est vide (la vue ne doit\npas bouger) ; les bounds inchangees si max-bounds est absent ou invalide.\n\nUne emprise degeneree (un seul marqueur, plusieurs au meme endroit, segment\nnord-sud ou est-ouest) est VALIDE (#642) : `sud === nord` ou `ouest === est`\ndans la zone donne des bounds d'aire nulle que `fitBounds` cale au zoom\nmaximal sur le point. L'ancienne condition `>=` renvoyait null et laissait\nla vue sur la France entiere pour une recherche par commune.\n\nExpose pour les tests."
+          "description": "Clippe des bounds de données par un attribut max-bounds \"latSW,lonSW,latNE,lonNE\"\navant un fitBounds. Retourne null si l'intersection est vide (la vue ne doit\npas bouger) ; les bounds inchangees si max-bounds est absent ou invalide.\n\nUne emprise degeneree (un seul marqueur, plusieurs au meme endroit, segment\nnord-sud ou est-ouest) est VALIDE (#642) : `sud === nord` ou `ouest === est`\ndans la zone donne des bounds d'aire nulle que `fitBounds` cale au zoom\nmaximal sur le point. L'ancienne condition `>=` renvoyait null et laissait\nla vue sur la France entiere pour une recherche par commune.\n\nExpose pour les tests."
         },
         {
           "kind": "variable",
@@ -10612,7 +10612,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Mention d'attribution affichee sur la carte quand `tiles` est une URL custom (obligatoire pour respecter l'ODbL et les CGU du fournisseur). Ignore sur un preset connu, qui porte deja son attribution. Accepte du HTML (liens).",
+              "description": "Mention d'attribution affichée sur la carte quand `tiles` est une URL custom (obligatoire pour respecter l'ODbL et les CGU du fournisseur). Ignoré sur un preset connu, qui porte déjà son attribution. Accepte du HTML (liens).",
               "attribute": "tiles-attribution"
             },
             {
@@ -10662,7 +10662,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Raccourci encarts territoriaux : groupe (\"drom\") et/ou territoires nommes\nsepares par des virgules (\"drom,corse\", \"guadeloupe,saint-pierre-et-miquelon\")",
+              "description": "Raccourci encarts territoriaux : groupe (\"drom\") et/ou territoires nommés\nséparés par des virgules (\"drom,corse\", \"guadeloupe,saint-pierre-et-miquelon\")",
               "attribute": "insets"
             },
             {
@@ -10672,7 +10672,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Ajuste le viewport aux donnees a chaque mise a jour. Combine a `max-bounds`, l'emprise est clippee a la zone : les DROM ne dezooment pas la vue, un filtre regional zoome dessus.",
+              "description": "Ajuste le viewport aux données à chaque mise à jour. Combiné à `max-bounds`, l'emprise est clippée à la zone : les DROM ne dézooment pas la vue, un filtre régional zoome dessus.",
               "attribute": "fit-bounds"
             },
             {
@@ -10682,7 +10682,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Limites du deplacement, au format `\"latSW,lonSW,latNE,lonNE\"`. Clippe aussi le fit de `fit-bounds` quand `fit-zone` est vide.",
+              "description": "Limites du déplacement, au format `\"latSW,lonSW,latNE,lonNE\"`. Clippe aussi le fit de `fit-bounds` quand `fit-zone` est vide.",
               "attribute": "max-bounds"
             },
             {
@@ -10702,7 +10702,7 @@
                 "text": "number"
               },
               "default": "0",
-              "description": "Zoom maximal atteint par `fit-bounds` (ex. `12`) : evite le zoom 18 sur un point isole quand les donnees se reduisent a un marqueur. `0` (defaut) = pas de plafond, `max-zoom` s'applique.",
+              "description": "Zoom maximal atteint par `fit-bounds` (ex. `12`) : évite le zoom 18 sur un point isolé quand les données se réduisent à un marqueur. `0` (défaut) = pas de plafond, `max-zoom` s'applique.",
               "attribute": "fit-max-zoom"
             },
             {
@@ -10829,7 +10829,7 @@
               },
               "privacy": "private",
               "default": "false",
-              "description": "Raccourci `insets` : genere les enfants dsfr-data-map-inset a partir de\ngroupes (\"drom\") et/ou de territoires nommes (\"guadeloupe,corse\").\nLes encarts poses explicitement en HTML priment (pas de doublon)."
+              "description": "Raccourci `insets` : genere les enfants dsfr-data-map-inset a partir de\ngroupes (\"drom\") et/ou de territoires nommés (\"guadeloupe,corse\").\nLes encarts poses explicitement en HTML priment (pas de doublon)."
             },
             {
               "kind": "method",
@@ -10840,13 +10840,13 @@
               "kind": "method",
               "name": "_deferInitUntilVisible",
               "privacy": "private",
-              "description": "Defer map initialization until the element is near the viewport.\nThis avoids loading hundreds of tiles for off-screen maps."
+              "description": "Defer map initialization until the élément is near the viewport.\nThis avoids loading hundreds of tiles for off-screen maps."
             },
             {
               "kind": "method",
               "name": "_applyHeight",
               "privacy": "private",
-              "description": "Apply the height value to the host element.\nIf height is a percentage (e.g. \"60%\"), it is interpreted as a ratio\nof the element's own width (aspect-ratio mode). A ResizeObserver keeps\nthe height in sync when the width changes (responsive).\nOther CSS units (px, vh, rem, etc.) are applied directly."
+              "description": "Apply the height value to the host élément.\nIf height is a percentage (e.g. \"60%\"), it is interpreted as a ratio\nof the élément's own width (aspect-ratio mode). A ResizeObserver keeps\nthe height in sync when the width changes (responsive).\nOther CSS units (px, vh, rem, etc.) are applied directly."
             },
             {
               "kind": "method",
@@ -10871,7 +10871,7 @@
                   "text": "LeafletMap | null"
                 }
               },
-              "description": "Retourne l'instance Leaflet L.Map (ou null si pas encore prete)"
+              "description": "Retourne l'instance Leaflet L.Map (ou null si pas encore prête)"
             },
             {
               "kind": "method",
@@ -10905,7 +10905,7 @@
                   }
                 }
               ],
-              "description": "Notifie la carte qu'un layer a ses bounds prets (pour fit-bounds).\nStockes PAR layer avec remplacement a chaque rendu (#294) : l'ancien\npush cumulait les bounds HISTORIQUES — la carte ne pouvait jamais\nretrecir sa vue quand les donnees diminuaient, et le tableau grossissait\na chaque refresh / frame de timeline / pan en bbox client."
+              "description": "Notifie la carte qu'un layer a ses bounds prets (pour fit-bounds).\nStockes PAR layer avec remplacement a chaque rendu (#294) : l'ancien\npush cumulait les bounds HISTORIQUES — la carte ne pouvait jamais\nretrecir sa vue quand les données diminuaient, et le tableau grossissait\na chaque refresh / frame de timeline / pan en bbox client."
             },
             {
               "kind": "method",
@@ -11029,7 +11029,7 @@
                   }
                 }
               ],
-              "description": "Combine les bounds de tous les layers en une COPIE (#294) :\n`extend` de Leaflet mute en place — l'ancien code corrompait la\npremiere entree stockee."
+              "description": "Combine les bounds de tous les layers en une COPIE (#294) :\n`extend` de Leaflet mute en place — l'ancien code corrompait la\npremière entree stockee."
             },
             {
               "kind": "method",
@@ -11098,7 +11098,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Mention d'attribution affichee sur la carte quand `tiles` est une URL custom (obligatoire pour respecter l'ODbL et les CGU du fournisseur). Ignore sur un preset connu, qui porte deja son attribution. Accepte du HTML (liens).",
+              "description": "Mention d'attribution affichée sur la carte quand `tiles` est une URL custom (obligatoire pour respecter l'ODbL et les CGU du fournisseur). Ignoré sur un preset connu, qui porte déjà son attribution. Accepte du HTML (liens).",
               "fieldName": "tilesAttribution"
             },
             {
@@ -11143,7 +11143,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Raccourci encarts territoriaux : groupe (\"drom\") et/ou territoires nommes\nsepares par des virgules (\"drom,corse\", \"guadeloupe,saint-pierre-et-miquelon\")",
+              "description": "Raccourci encarts territoriaux : groupe (\"drom\") et/ou territoires nommés\nséparés par des virgules (\"drom,corse\", \"guadeloupe,saint-pierre-et-miquelon\")",
               "fieldName": "insets"
             },
             {
@@ -11152,7 +11152,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Ajuste le viewport aux donnees a chaque mise a jour. Combine a `max-bounds`, l'emprise est clippee a la zone : les DROM ne dezooment pas la vue, un filtre regional zoome dessus.",
+              "description": "Ajuste le viewport aux données à chaque mise à jour. Combiné à `max-bounds`, l'emprise est clippée à la zone : les DROM ne dézooment pas la vue, un filtre régional zoome dessus.",
               "fieldName": "fitBounds"
             },
             {
@@ -11161,7 +11161,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Limites du deplacement, au format `\"latSW,lonSW,latNE,lonNE\"`. Clippe aussi le fit de `fit-bounds` quand `fit-zone` est vide.",
+              "description": "Limites du déplacement, au format `\"latSW,lonSW,latNE,lonNE\"`. Clippe aussi le fit de `fit-bounds` quand `fit-zone` est vide.",
               "fieldName": "maxBounds"
             },
             {
@@ -11179,7 +11179,7 @@
                 "text": "number"
               },
               "default": "0",
-              "description": "Zoom maximal atteint par `fit-bounds` (ex. `12`) : evite le zoom 18 sur un point isole quand les donnees se reduisent a un marqueur. `0` (defaut) = pas de plafond, `max-zoom` s'applique.",
+              "description": "Zoom maximal atteint par `fit-bounds` (ex. `12`) : évite le zoom 18 sur un point isolé quand les données se réduisent à un marqueur. `0` (défaut) = pas de plafond, `max-zoom` s'applique.",
               "fieldName": "fitMaxZoom"
             },
             {
@@ -11277,7 +11277,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Champs a convertir en nombre (virgule-separes). Ex: \"population, surface\"",
+              "description": "Champs a convertir en nombre (virgule-séparés). Ex: \"population, surface\"",
               "attribute": "numeric"
             },
             {
@@ -11357,7 +11357,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Decoupe des champs multivalues (chaine avec separateur) en vrais tableaux,\ncomme une ChoiceList Grist. Format : \"champ:sep, champ2:sep2\" ; separateur\npar defaut : la virgule (\"champ\" seul). Ex : \"Axes:|, Cibles:;\".\nChaque element est trime, les elements vides sont ecartes, une chaine vide\ndonne un tableau vide. Les valeurs non-string (tableau deja forme, null,\nnombre) sont laissees telles quelles. Les composants aval traitent ces\ntableaux comme des champs multi-valeurs (facettes : une valeur par element).",
+              "description": "Découpe des champs multivalués (chaîne avec séparateur) en vrais tableaux,\ncomme une ChoiceList Grist. Format : \"champ:sep, champ2:sep2\" ; séparateur\npar défaut : la virgule (\"champ\" seul). Ex : \"Axes:|, Cibles:;\".\nChaque élément est trimé, les éléments vides sont écartés, une chaîne vide\ndonne un tableau vide. Les valeurs non-string (tableau déjà forme, null,\nnombre) sont laissées telles quelles. Les composants aval traitent ces\ntableaux comme des champs multi-valeurs (facettes : une valeur par élément).",
               "attribute": "split"
             },
             {
@@ -11387,7 +11387,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Arrondit les champs numériques a l'entier (ou a N decimales). Format: \"champ1, champ2\" ou \"champ1:2, champ2:0\"",
+              "description": "Arrondit les champs numériques à l'entier (ou à N décimales). Format: \"champ1, champ2\" ou \"champ1:2, champ2:0\"",
               "attribute": "round"
             },
             {
@@ -11407,7 +11407,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Colonnes calculées, ligne à ligne, en dernier (sur les valeurs déjà typées par\nnumeric / round / rename). Format : \"cible = expression; cible2 = expression2\"\n(une assignation suivante peut relire une colonne calculée avant elle).\n\nGrammaire (ADR-105, #671) :\n- arithmétique `+ - * /`, parenthèses, moins unaire ; `+` concatène dès qu'un côté\n  n'est pas numérique ; littéraux texte 'entre quotes simples', nombres à point ;\n- littéraux `null`, `true`, `false` ;\n- fonctions en liste blanche, appel `f(a, b)` :\n  dates `year(d)`, `month(d)`, `day(d)` (ISO ou Date, sinon null) ;\n  nombres `round(x, n)`, `abs(x)`, `floor(x)`, `ceil(x)` (non numérique → null) ;\n  texte `lower(s)`, `upper(s)`, `trim(s)`, `len(s)`, `concat(a, b, …)`,\n  `replace(s, 'de', 'vers')` (littéral, toutes les occurrences, pas de regex) ;\n  absence `coalesce(a, b, …)` (première valeur non nulle), `is_null(x)`,\n  `is_empty(x)` (null, '' ou tableau vide) ;\n  tableaux `join(arr, ', ')`, `contains(arr_ou_texte, v)` ;\n- conditions `when COND then EXPR [when … then …]… else EXPR` — le `else` est\n  obligatoire (erreur de configuration sinon) ; comparaisons d'égalité `=` et `!=`\n  et d'ordre (inférieur, inférieur ou égal, supérieur, supérieur ou égal, avec les\n  signes usuels — grammaire complète dans le guide « Colonnes calculées » de la skill),\n  `and`, `or`, `not`. L'égalité est lâche comme celle de `where` (nombre ↔ chaîne\n  numérique) : `when cat = 'A'` et `where=\"cat:eq:A\"` gardent les mêmes lignes.\n  Les comparaisons d'ordre se font en nombre quand les deux côtés sont numériques,\n  en texte sinon (dates ISO comprises) ; null, undefined et '' ne matchent jamais.\n\nExemples : \"solde = actif - passif\",\n\"tranche = when montant = 0 then 'Nul' when is_null(montant) then 'Inconnu' else 'Renseigné'\",\n\"type = coalesce(type_entreprise, 'Non renseigné')\", \"annee = year(date_notification)\",\n\"pct = round(part * 100, 1)\", \"serie = Indicateurs + ' / ' + Sous_theme\" ; une tranche\npar seuils s'écrit avec les opérateurs d'ordre (voir le guide).\n\nFonction hors liste, arité fausse, `when` sans `else`, expression trop longue ou trop\nimbriquée : erreur de configuration (console + `data-dsfr-config-error`), état d'erreur\nen aval — jamais une colonne silencieusement vide. Aucun `eval` : tokenizer, parseur,\nAST ; seuls les champs de la ligne sont accessibles. Hors périmètre : valeurs\nagrégées (query / kpi), ligne précédente, cumul.",
+              "description": "Colonnes calculées, ligne à ligne, en dernier (sur les valeurs déjà typées par\nnumeric / round / rename). Format : `cible = expression; cible2 = expression2`\n(une assignation suivante peut relire une colonne calculée avant elle).\n\nGrammaire (ADR-105, #671) :\n- arithmétique `+ - * /`, parenthèses, moins unaire ; `+` concatène dès qu'un côté\n  n'est pas numérique ; littéraux texte 'entre quotes simples', nombres à point ;\n- littéraux `null`, `true`, `false` ;\n- fonctions en liste blanche, appel `f(a, b)` :\n  dates `year(d)`, `month(d)`, `day(d)` (ISO ou Date, sinon null) ;\n  nombres `round(x, n)`, `abs(x)`, `floor(x)`, `ceil(x)` (non numérique → null) ;\n  texte `lower(s)`, `upper(s)`, `trim(s)`, `len(s)`, `concat(a, b, …)`,\n  `replace(s, 'de', 'vers')` (littéral, toutes les occurrences, pas de regex) ;\n  absence `coalesce(a, b, …)` (première valeur non nulle), `is_null(x)`,\n  `is_empty(x)` (null, '' ou tableau vide) ;\n  tableaux `join(arr, ', ')`, `contains(arr_ou_texte, v)` ;\n- conditions `when COND then EXPR [when … then …]… else EXPR` — le `else` est\n  obligatoire (erreur de configuration sinon) ; comparaisons d'égalité `=` et `!=`\n  et d'ordre (inférieur, inférieur ou égal, supérieur, supérieur ou égal, avec les\n  signes usuels — grammaire complète dans le guide « Colonnes calculées » de la skill),\n  `and`, `or`, `not`. L'égalité est lâche comme celle de `where` (nombre ↔ chaîne\n  numérique) : `when cat = 'A'` et `where=\"cat:eq:A\"` gardent les mêmes lignes.\n  Les comparaisons d'ordre se font en nombre quand les deux côtés sont numériques,\n  en texte sinon (dates ISO comprises) ; null, undefined et '' ne matchent jamais.\n\nExemples : `solde = actif - passif`,\n`tranche = when montant = 0 then 'Nul' when is_null(montant) then 'Inconnu' else 'Renseigné'`,\n`type = coalesce(type_entreprise, 'Non renseigné')`, `annee = year(date_notification)`,\n`pct = round(part * 100, 1)`, `serie = Indicateurs + ' / ' + Sous_theme` ; une tranche\npar seuils s'écrit avec les opérateurs d'ordre (voir le guide).\n\nFonction hors liste, arité fausse, `when` sans `else`, expression trop longue ou trop\nimbriquée : erreur de configuration (console + `data-dsfr-config-error`), état d'erreur\nen aval — jamais une colonne silencieusement vide. Aucun `eval` : tokenizer, parseur,\nAST ; seuls les champs de la ligne sont accessibles. Hors périmètre : valeurs\nagrégées (query / kpi), ligne précédente, cumul.",
               "attribute": "compute"
             },
             {
@@ -11450,7 +11450,7 @@
                   "text": "import('../adapters/api-adapter.js').ApiAdapter | null"
                 }
               },
-              "description": "Retourne l'adapter de la source amont (delegation transparente).\nPermet aux composants en aval (dsfr-data-facets, dsfr-data-search)\nd'acceder a l'adapter sans connaitre la structure du pipeline."
+              "description": "Retourne l'adapter de la source amont (délégation transparente).\nPermet aux composants en aval (dsfr-data-facets, dsfr-data-search)\nd'acceder a l'adapter sans connaitre la structure du pipeline."
             },
             {
               "kind": "method",
@@ -11470,7 +11470,7 @@
                   }
                 }
               ],
-              "description": "Retourne le where effectif de la source amont (delegation transparente)."
+              "description": "Retourne le where effectif de la source amont (délégation transparente)."
             },
             {
               "kind": "method",
@@ -11481,7 +11481,7 @@
                   "text": "import('../adapters/api-adapter.js').AdapterParams | null"
                 }
               },
-              "description": "Retourne les parametres adapter resolus de la source amont\n(delegation transparente, headers api-key-ref inclus — #274)."
+              "description": "Retourne les paramètres adapter resolus de la source amont\n(délégation transparente, headers api-key-ref inclus — #274)."
             },
             {
               "kind": "method",
@@ -11513,7 +11513,7 @@
                   "text": "string[]"
                 }
               },
-              "description": "Regles de normalisation → retraitement des donnees en cache (#281)"
+              "description": "Regles de normalisation → retraitement des données en cache (#281)"
             },
             {
               "kind": "method",
@@ -11709,7 +11709,7 @@
                   }
                 }
               ],
-              "description": "Decoupe une cellule multivaluee : elements trimes, vides ecartes"
+              "description": "Découpe une cellule multivaluee : éléments trimes, vides écartés"
             },
             {
               "kind": "method",
@@ -11798,7 +11798,7 @@
                   "text": "Map<string, string>"
                 }
               },
-              "description": "Parse l'attribut split en Map<champ, separateur>. Format : \"champ:sep, champ2:sep2\".\nEntrees separees par virgule ; le premier `:` separe le champ du separateur.\nSeparateur absent ou vide = virgule (ainsi \"Tags\" et \"Tags:,\" sont equivalents)."
+              "description": "Parse l'attribut split en Map<champ, séparateur>. Format : \"champ:sep, champ2:sep2\".\nEntrees séparées par virgule ; le premier `:` separe le champ du séparateur.\nSéparateur absent ou vide = virgule (ainsi \"Tags\" et \"Tags:,\" sont equivalents)."
             },
             {
               "kind": "method",
@@ -11873,7 +11873,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Champs a convertir en nombre (virgule-separes). Ex: \"population, surface\"",
+              "description": "Champs a convertir en nombre (virgule-séparés). Ex: \"population, surface\"",
               "fieldName": "numeric"
             },
             {
@@ -11945,7 +11945,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Decoupe des champs multivalues (chaine avec separateur) en vrais tableaux,\ncomme une ChoiceList Grist. Format : \"champ:sep, champ2:sep2\" ; separateur\npar defaut : la virgule (\"champ\" seul). Ex : \"Axes:|, Cibles:;\".\nChaque element est trime, les elements vides sont ecartes, une chaine vide\ndonne un tableau vide. Les valeurs non-string (tableau deja forme, null,\nnombre) sont laissees telles quelles. Les composants aval traitent ces\ntableaux comme des champs multi-valeurs (facettes : une valeur par element).",
+              "description": "Découpe des champs multivalués (chaîne avec séparateur) en vrais tableaux,\ncomme une ChoiceList Grist. Format : \"champ:sep, champ2:sep2\" ; séparateur\npar défaut : la virgule (\"champ\" seul). Ex : \"Axes:|, Cibles:;\".\nChaque élément est trimé, les éléments vides sont écartés, une chaîne vide\ndonne un tableau vide. Les valeurs non-string (tableau déjà forme, null,\nnombre) sont laissées telles quelles. Les composants aval traitent ces\ntableaux comme des champs multi-valeurs (facettes : une valeur par élément).",
               "fieldName": "split"
             },
             {
@@ -11972,7 +11972,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Arrondit les champs numériques a l'entier (ou a N decimales). Format: \"champ1, champ2\" ou \"champ1:2, champ2:0\"",
+              "description": "Arrondit les champs numériques à l'entier (ou à N décimales). Format: \"champ1, champ2\" ou \"champ1:2, champ2:0\"",
               "fieldName": "round"
             },
             {
@@ -11990,7 +11990,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Colonnes calculées, ligne à ligne, en dernier (sur les valeurs déjà typées par\nnumeric / round / rename). Format : \"cible = expression; cible2 = expression2\"\n(une assignation suivante peut relire une colonne calculée avant elle).\n\nGrammaire (ADR-105, #671) :\n- arithmétique `+ - * /`, parenthèses, moins unaire ; `+` concatène dès qu'un côté\n  n'est pas numérique ; littéraux texte 'entre quotes simples', nombres à point ;\n- littéraux `null`, `true`, `false` ;\n- fonctions en liste blanche, appel `f(a, b)` :\n  dates `year(d)`, `month(d)`, `day(d)` (ISO ou Date, sinon null) ;\n  nombres `round(x, n)`, `abs(x)`, `floor(x)`, `ceil(x)` (non numérique → null) ;\n  texte `lower(s)`, `upper(s)`, `trim(s)`, `len(s)`, `concat(a, b, …)`,\n  `replace(s, 'de', 'vers')` (littéral, toutes les occurrences, pas de regex) ;\n  absence `coalesce(a, b, …)` (première valeur non nulle), `is_null(x)`,\n  `is_empty(x)` (null, '' ou tableau vide) ;\n  tableaux `join(arr, ', ')`, `contains(arr_ou_texte, v)` ;\n- conditions `when COND then EXPR [when … then …]… else EXPR` — le `else` est\n  obligatoire (erreur de configuration sinon) ; comparaisons d'égalité `=` et `!=`\n  et d'ordre (inférieur, inférieur ou égal, supérieur, supérieur ou égal, avec les\n  signes usuels — grammaire complète dans le guide « Colonnes calculées » de la skill),\n  `and`, `or`, `not`. L'égalité est lâche comme celle de `where` (nombre ↔ chaîne\n  numérique) : `when cat = 'A'` et `where=\"cat:eq:A\"` gardent les mêmes lignes.\n  Les comparaisons d'ordre se font en nombre quand les deux côtés sont numériques,\n  en texte sinon (dates ISO comprises) ; null, undefined et '' ne matchent jamais.\n\nExemples : \"solde = actif - passif\",\n\"tranche = when montant = 0 then 'Nul' when is_null(montant) then 'Inconnu' else 'Renseigné'\",\n\"type = coalesce(type_entreprise, 'Non renseigné')\", \"annee = year(date_notification)\",\n\"pct = round(part * 100, 1)\", \"serie = Indicateurs + ' / ' + Sous_theme\" ; une tranche\npar seuils s'écrit avec les opérateurs d'ordre (voir le guide).\n\nFonction hors liste, arité fausse, `when` sans `else`, expression trop longue ou trop\nimbriquée : erreur de configuration (console + `data-dsfr-config-error`), état d'erreur\nen aval — jamais une colonne silencieusement vide. Aucun `eval` : tokenizer, parseur,\nAST ; seuls les champs de la ligne sont accessibles. Hors périmètre : valeurs\nagrégées (query / kpi), ligne précédente, cumul.",
+              "description": "Colonnes calculées, ligne à ligne, en dernier (sur les valeurs déjà typées par\nnumeric / round / rename). Format : `cible = expression; cible2 = expression2`\n(une assignation suivante peut relire une colonne calculée avant elle).\n\nGrammaire (ADR-105, #671) :\n- arithmétique `+ - * /`, parenthèses, moins unaire ; `+` concatène dès qu'un côté\n  n'est pas numérique ; littéraux texte 'entre quotes simples', nombres à point ;\n- littéraux `null`, `true`, `false` ;\n- fonctions en liste blanche, appel `f(a, b)` :\n  dates `year(d)`, `month(d)`, `day(d)` (ISO ou Date, sinon null) ;\n  nombres `round(x, n)`, `abs(x)`, `floor(x)`, `ceil(x)` (non numérique → null) ;\n  texte `lower(s)`, `upper(s)`, `trim(s)`, `len(s)`, `concat(a, b, …)`,\n  `replace(s, 'de', 'vers')` (littéral, toutes les occurrences, pas de regex) ;\n  absence `coalesce(a, b, …)` (première valeur non nulle), `is_null(x)`,\n  `is_empty(x)` (null, '' ou tableau vide) ;\n  tableaux `join(arr, ', ')`, `contains(arr_ou_texte, v)` ;\n- conditions `when COND then EXPR [when … then …]… else EXPR` — le `else` est\n  obligatoire (erreur de configuration sinon) ; comparaisons d'égalité `=` et `!=`\n  et d'ordre (inférieur, inférieur ou égal, supérieur, supérieur ou égal, avec les\n  signes usuels — grammaire complète dans le guide « Colonnes calculées » de la skill),\n  `and`, `or`, `not`. L'égalité est lâche comme celle de `where` (nombre ↔ chaîne\n  numérique) : `when cat = 'A'` et `where=\"cat:eq:A\"` gardent les mêmes lignes.\n  Les comparaisons d'ordre se font en nombre quand les deux côtés sont numériques,\n  en texte sinon (dates ISO comprises) ; null, undefined et '' ne matchent jamais.\n\nExemples : `solde = actif - passif`,\n`tranche = when montant = 0 then 'Nul' when is_null(montant) then 'Inconnu' else 'Renseigné'`,\n`type = coalesce(type_entreprise, 'Non renseigné')`, `annee = year(date_notification)`,\n`pct = round(part * 100, 1)`, `serie = Indicateurs + ' / ' + Sous_theme` ; une tranche\npar seuils s'écrit avec les opérateurs d'ordre (voir le guide).\n\nFonction hors liste, arité fausse, `when` sans `else`, expression trop longue ou trop\nimbriquée : erreur de configuration (console + `data-dsfr-config-error`), état d'erreur\nen aval — jamais une colonne silencieusement vide. Aucun `eval` : tokenizer, parseur,\nAST ; seuls les champs de la ligne sont accessibles. Hors périmètre : valeurs\nagrégées (query / kpi), ligne précédente, cumul.",
               "fieldName": "compute"
             }
           ],
@@ -12478,7 +12478,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Id de la source (ou du transformateur) dont ce composant consomme les donnees.",
+              "description": "Id de la source (ou du transformateur) dont ce composant consomme les données.",
               "attribute": "source"
             },
             {
@@ -12508,7 +12508,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Texte fixe affiche sous chaque label",
+              "description": "Texte fixe affiché sous chaque label",
               "attribute": "subtitle"
             },
             {
@@ -12528,7 +12528,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Unite affichee apres la valeur",
+              "description": "Unité affichée après la valeur",
               "attribute": "value-unit"
             },
             {
@@ -12548,7 +12548,7 @@
                 "text": "number"
               },
               "default": "5",
-              "description": "Nombre maximum d'items affiches",
+              "description": "Nombre maximum d'items affichés",
               "attribute": "max-items"
             },
             {
@@ -12656,7 +12656,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Id de la source (ou du transformateur) dont ce composant consomme les donnees.",
+              "description": "Id de la source (ou du transformateur) dont ce composant consomme les données.",
               "fieldName": "source"
             },
             {
@@ -12683,7 +12683,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Texte fixe affiche sous chaque label",
+              "description": "Texte fixe affiché sous chaque label",
               "fieldName": "subtitle"
             },
             {
@@ -12701,7 +12701,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Unite affichee apres la valeur",
+              "description": "Unité affichée après la valeur",
               "fieldName": "valueUnit"
             },
             {
@@ -12719,7 +12719,7 @@
                 "text": "number"
               },
               "default": "5",
-              "description": "Nombre maximum d'items affiches",
+              "description": "Nombre maximum d'items affichés",
               "fieldName": "maxItems"
             },
             {
@@ -12784,7 +12784,7 @@
             "text": "[\n  'eq',\n  'neq',\n  'gt',\n  'gte',\n  'lt',\n  'lte',\n  'contains',\n  'notcontains',\n  'in',\n  'notin',\n  'isnull',\n  'isnotnull',\n]"
           },
           "default": "[ 'eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'contains', 'notcontains', 'in', 'notin', 'isnull', 'isnotnull', ]",
-          "description": "Operateurs de filtre supportes"
+          "description": "Opérateurs de filtre supportes"
         },
         {
           "kind": "class",
@@ -12808,7 +12808,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Clause WHERE / Filtres — syntaxe colon UNIQUEMENT :\n\"champ:operateur:valeur, champ2:operateur:valeur2\"\n(operateurs : eq, neq, gt, gte, lt, lte, contains, notcontains, in,\nnotin, isnull, isnotnull — multi-valeurs separees par |).\n\nLa syntaxe ODSQL n'est PAS supportee ici (elle l'est sur le `where` de\ndsfr-data-source) : une clause non parsable est signalee via\nreportConfigError (#277). En delegation serveur, la clause est traduite\nau dialecte de l'adapter (#275).",
+              "description": "Clause WHERE / Filtres — syntaxe colon UNIQUEMENT :\n\"champ:opérateur:valeur, champ2:opérateur:valeur2\"\n(opérateurs : eq, neq, gt, gte, lt, lte, contains, notcontains, in,\nnotin, isnull, isnotnull — multi-valeurs séparées par |).\n\nLa syntaxe ODSQL n'est PAS supportee ici (elle l'est sur le `where` de\ndsfr-data-source) : une clause non parsable est signalee via\nreportConfigError (#277). En délégation serveur, la clause est traduite\nau dialecte de l'adapter (#275).",
               "attribute": "where"
             },
             {
@@ -12828,7 +12828,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Champs de regroupement (separes par virgule)",
+              "description": "Champs de regroupement (séparés par virgule)",
               "attribute": "group-by"
             },
             {
@@ -12848,7 +12848,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Tri des resultats\nFormat: \"field:direction\" ou \"field__function:direction\"\nEx: \"total_pop:desc\" ou \"population__sum:desc\"",
+              "description": "Tri des résultats\nFormat: \"field:direction\" ou \"field__function:direction\"\nEx: \"total_pop:desc\" ou \"population__sum:desc\"",
               "attribute": "order-by"
             },
             {
@@ -12858,7 +12858,7 @@
                 "text": "number"
               },
               "default": "0",
-              "description": "Limite de resultats",
+              "description": "Limite de résultats",
               "attribute": "limit"
             },
             {
@@ -12907,7 +12907,7 @@
               },
               "privacy": "private",
               "default": "null",
-              "description": "Source qui detient actuellement nos overlays de delegation (#276)"
+              "description": "Source qui detient actuellement nos overlays de délégation (#276)"
             },
             {
               "kind": "field",
@@ -12927,7 +12927,7 @@
               },
               "privacy": "private",
               "default": "null",
-              "description": "Derniere commande de delegation dispatchee (cible + contenu) : une\nre-negociation identique ne redispatche pas — la source est deja dans\ncet etat, son cache est valide (#276)."
+              "description": "Dernière commande de délégation dispatchee (cible + contenu) : une\nre-negociation identique ne redispatche pas — la source est déjà dans\ncet etat, son cache est valide (#276)."
             },
             {
               "kind": "field",
@@ -12937,7 +12937,7 @@
               },
               "privacy": "private",
               "default": "true",
-              "description": "False entre l'envoi d'une commande a la source et l'emission suivante :\nle cache de la source est alors perime (pre-commande) et ne doit pas\netre lu. Une re-negociation dedupliquee ne le repasse pas a false."
+              "description": "False entre l'envoi d'une commande a la source et l'emission suivante :\nle cache de la source est alors perime (pre-commande) et ne doit pas\nêtre lu. Une re-negociation dedupliquee ne le repasse pas a false."
             },
             {
               "kind": "method",
@@ -12969,7 +12969,7 @@
                   "text": "string[]"
                 }
               },
-              "description": "Tout changement de prop de requete re-negocie et re-souscrit (#281)"
+              "description": "Tout changement de prop de requête re-negocie et re-souscrit (#281)"
             },
             {
               "kind": "method",
@@ -13244,7 +13244,7 @@
                   }
                 }
               ],
-              "description": "Egalite unique du pipeline de filtres (#278) : coercition lache\nstring/number (`\"75\" == 75`), repli `String === String` pour les\nbooleens (`true` vs `\"true\"` — le `==` JS les declare differents).\nUtilisee par eq, neq, in, notin : meme entree, memes lignes gardees."
+              "description": "Egalite unique du pipeline de filtres (#278) : coercition lache\nstring/number (`\"75\" == 75`), repli `String === String` pour les\nbooleens (`true` vs `\"true\"` — le `==` JS les déclaré differents).\nUtilisée par eq, neq, in, notin : meme entree, memes lignes gardees."
             },
             {
               "kind": "method",
@@ -13417,7 +13417,7 @@
                   }
                 }
               ],
-              "description": "Comparateur total a 3 niveaux : null/vide < numerique < chaine (#278).\nTransitif — l'ancien comparateur mixte (numerique si LES DEUX valeurs\nsont numeriques, sinon string) produisait un ordre arbitraire sur les\ncolonnes mixtes, et `Number(null) === 0` classait les nulls parmi les\nnombres."
+              "description": "Comparateur total a 3 niveaux : null/vide < numerique < chaîne (#278).\nTransitif — l'ancien comparateur mixte (numerique si LES DEUX valeurs\nsont numeriques, sinon string) produisait un ordre arbitraire sur les\ncolonnes mixtes, et `Number(null) === 0` classait les nulls parmi les\nnombres."
             },
             {
               "kind": "method",
@@ -13477,13 +13477,13 @@
                   "text": "import('../adapters/api-adapter.js').AdapterParams | null"
                 }
               },
-              "description": "Retourne les parametres adapter resolus de la source amont\n(delegation transparente, headers api-key-ref inclus — #274)."
+              "description": "Retourne les paramètres adapter resolus de la source amont\n(délégation transparente, headers api-key-ref inclus — #274)."
             },
             {
               "kind": "method",
               "name": "reload",
               "privacy": "public",
-              "description": "Force le rechargement des données.\n\nSemantique de pur transformateur (#279) : delegue le refetch a la\nsource amont — meme contrat que dsfr-data-source.reload(). L'emission\nqui suit redescend naturellement le pipeline jusqu'ici (une chaine\nquery → query → source propage le reload jusqu'a la source).\n\nRepli : si l'amont n'expose pas reload() (normalize/unpivot/join avant\nEPIC C #262), retraite le cache courant (ancien comportement)."
+              "description": "Force le rechargement des données.\n\nSemantique de pur transformateur (#279) : delegue le refetch a la\nsource amont — meme contrat que dsfr-data-source.reload(). L'emission\nqui suit redescend naturellement le pipeline jusqu'ici (une chaîne\nquery → query → source propage le reload jusqu'a la source).\n\nRepli : si l'amont n'expose pas reload() (normalize/unpivot/join avant\nEPIC C #262), retraite le cache courant (ancien comportement)."
             },
             {
               "kind": "method",
@@ -13510,7 +13510,7 @@
           ],
           "events": [
             {
-              "description": "`{ sourceId, groupBy?, aggregate?, orderBy?, where?, whereKey?, origin }` sur `document` — delegation server-side negociee avec la source amont, et liberation des overlays quand elle retombe cote client. `origin` porte l'id de ce composant (#603).",
+              "description": "`{ sourceId, groupBy?, aggregate?, orderBy?, where?, whereKey?, origin }` sur `document` — délégation server-side negociee avec la source amont, et liberation des overlays quand elle retombe cote client. `origin` porte l'id de ce composant (#603).",
               "name": "dsfr-data-source-command"
             }
           ],
@@ -13530,7 +13530,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Clause WHERE / Filtres — syntaxe colon UNIQUEMENT :\n\"champ:operateur:valeur, champ2:operateur:valeur2\"\n(operateurs : eq, neq, gt, gte, lt, lte, contains, notcontains, in,\nnotin, isnull, isnotnull — multi-valeurs separees par |).\n\nLa syntaxe ODSQL n'est PAS supportee ici (elle l'est sur le `where` de\ndsfr-data-source) : une clause non parsable est signalee via\nreportConfigError (#277). En delegation serveur, la clause est traduite\nau dialecte de l'adapter (#275).",
+              "description": "Clause WHERE / Filtres — syntaxe colon UNIQUEMENT :\n\"champ:opérateur:valeur, champ2:opérateur:valeur2\"\n(opérateurs : eq, neq, gt, gte, lt, lte, contains, notcontains, in,\nnotin, isnull, isnotnull — multi-valeurs séparées par |).\n\nLa syntaxe ODSQL n'est PAS supportee ici (elle l'est sur le `where` de\ndsfr-data-source) : une clause non parsable est signalee via\nreportConfigError (#277). En délégation serveur, la clause est traduite\nau dialecte de l'adapter (#275).",
               "fieldName": "where"
             },
             {
@@ -13548,7 +13548,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Champs de regroupement (separes par virgule)",
+              "description": "Champs de regroupement (séparés par virgule)",
               "fieldName": "groupBy"
             },
             {
@@ -13566,7 +13566,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Tri des resultats\nFormat: \"field:direction\" ou \"field__function:direction\"\nEx: \"total_pop:desc\" ou \"population__sum:desc\"",
+              "description": "Tri des résultats\nFormat: \"field:direction\" ou \"field__function:direction\"\nEx: \"total_pop:desc\" ou \"population__sum:desc\"",
               "fieldName": "orderBy"
             },
             {
@@ -13575,7 +13575,7 @@
                 "text": "number"
               },
               "default": "0",
-              "description": "Limite de resultats",
+              "description": "Limite de résultats",
               "fieldName": "limit"
             }
           ],
@@ -13646,7 +13646,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Champs sur lesquels rechercher (virgule-separes). Vide = tous les champs",
+              "description": "Champs sur lesquels rechercher (virgule-séparés). Vide = tous les champs",
               "attribute": "fields"
             },
             {
@@ -13676,7 +13676,7 @@
                 "text": "number"
               },
               "default": "300",
-              "description": "Delai en ms avant declenchement du filtre apres la derniere frappe",
+              "description": "Délai en ms avant déclenchement du filtre après la dernière frappe",
               "attribute": "debounce"
             },
             {
@@ -13686,7 +13686,7 @@
                 "text": "number"
               },
               "default": "0",
-              "description": "Nombre minimum de caractères avant declenchement",
+              "description": "Nombre minimum de caractères avant déclenchement",
               "attribute": "min-length"
             },
             {
@@ -13726,7 +13726,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Affiche un compteur de resultats sous le champ (compte serveur `meta.total`\nen `server-search`). Ce compteur reste visible en toutes circonstances ;\nseule sa nature de region live depend de la chaine aval (#654).",
+              "description": "Affiche un compteur de résultats sous le champ (compte serveur `meta.total`\nen `server-search`). Ce compteur reste visible en toutes circonstances ;\nseule sa nature de région live dépend de la chaîne aval (#654).",
               "attribute": "count"
             },
             {
@@ -13776,7 +13776,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la\nrecherche devient un filtre `contains` du contexte sur le champ UNIQUE\nde `fields` (la clause colon ne sait pas dire « ou » entre plusieurs\nchamps). Le contexte diffuse a ses cibles et porte l'URL (`url-sync`\net `url-search-param` sont ignores — le paramètre est nommé d'apres le\nchamp, ou via `url-param-map` du contexte). Le contexte peut etre\ndeclare apres la recherche dans la page. Vide = comportement autonome.",
+              "description": "Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la\nrecherche devient un filtre `contains` du contexte sur le champ UNIQUE\nde `fields` (la clause colon ne sait pas dire « ou » entre plusieurs\nchamps). Le contexte diffuse à ses cibles et porte l'URL (`url-sync`\net `url-search-param` sont ignorés — le paramètre est nommé d'après le\nchamp, ou via `url-param-map` du contexte). Le contexte peut être\ndéclaré après la recherche dans la page. Vide = comportement autonome.",
               "attribute": "context"
             },
             {
@@ -13871,13 +13871,13 @@
               },
               "privacy": "private",
               "default": "null",
-              "description": "Derniere clause confiee au contexte — une donnee qui arrive ne re-diffuse pas un terme inchange"
+              "description": "Dernière clause confiee au contexte — une donnee qui arrive ne re-diffuse pas un terme inchange"
             },
             {
               "kind": "field",
               "name": "_onContextConnected",
               "privacy": "private",
-              "description": "Un contexte vise par id vient d'etre connecte : (re)bind si c'est le notre (#678)"
+              "description": "Un contexte vise par id vient d'être connecte : (re)bind si c'est le notre (#678)"
             },
             {
               "kind": "field",
@@ -13886,7 +13886,7 @@
                 "text": "boolean"
               },
               "privacy": "private",
-              "description": "Mode `context` demande (que le contexte soit deja resolu ou non)",
+              "description": "Mode `context` demande (que le contexte soit déjà resolu ou non)",
               "readonly": true
             },
             {
@@ -13928,7 +13928,7 @@
                   "text": "import('../adapters/api-adapter.js').ApiAdapter | null"
                 }
               },
-              "description": "Retourne l'adapter de la source amont (delegation transparente).\nPermet aux composants en aval (dsfr-data-facets) d'acceder a l'adapter\nsans connaitre la structure du pipeline."
+              "description": "Retourne l'adapter de la source amont (délégation transparente).\nPermet aux composants en aval (dsfr-data-facets) d'acceder a l'adapter\nsans connaitre la structure du pipeline."
             },
             {
               "kind": "method",
@@ -13948,7 +13948,7 @@
                   }
                 }
               ],
-              "description": "Retourne le where effectif de la source amont (delegation transparente)."
+              "description": "Retourne le where effectif de la source amont (délégation transparente)."
             },
             {
               "kind": "method",
@@ -13959,7 +13959,7 @@
                   "text": "import('../adapters/api-adapter.js').AdapterParams | null"
                 }
               },
-              "description": "Retourne les paramètres adapter résolus de la source amont\n(delegation transparente, headers api-key-ref inclus — #274)."
+              "description": "Retourne les paramètres adapter résolus de la source amont\n(délégation transparente, headers api-key-ref inclus — #274)."
             },
             {
               "kind": "method",
@@ -13970,7 +13970,7 @@
                   "text": "string[]"
                 }
               },
-              "description": "Parametres de recherche → re-filtrage local (#281)"
+              "description": "Paramètres de recherche → re-filtrage local (#281)"
             },
             {
               "kind": "method",
@@ -13981,7 +13981,7 @@
                   "text": "void"
                 }
               },
-              "description": "Resout le contexte vise par `context=\"id\"` et y enregistre le filtre.\nLe contexte peut arriver plus tard (declare apres dans la page) :\nl'erreur de config est posee en attendant et levee a sa connexion."
+              "description": "Resout le contexte vise par `context=\"id\"` et y enregistre le filtre.\nLe contexte peut arriver plus tard (déclaré après dans la page) :\nl'erreur de config est posee en attendant et levee a sa connexion."
             },
             {
               "kind": "method",
@@ -14003,7 +14003,7 @@
                   "text": "void"
                 }
               },
-              "description": "Confie le terme courant au contexte, qui diffuse (#678). Deduplique :\n_applyFilter est aussi appele a chaque arrivee de donnees, et une source\ncible re-emet apres chaque commande — sans ce garde, boucle."
+              "description": "Confie le terme courant au contexte, qui diffuse (#678). Deduplique :\n_applyFilter est aussi appele a chaque arrivee de données, et une source\ncible re-emet après chaque commande — sans ce garde, boucle."
             },
             {
               "kind": "method",
@@ -14292,18 +14292,18 @@
                   "text": "boolean"
                 }
               },
-              "description": "Vrai si un afficheur aval (list, display) consomme ce composant, en direct\nou a travers des intermediaires (`source=\"<id>\"` chaines, ex. facets).\nIl porte alors seul la region live de la chaine : deux regions `polite`\npour un meme geste donnaient deux nombres contradictoires (#654).\nEvalue a chaque rendu (requete d'attribut, cout negligeable) pour suivre\nun DOM aval encore en cours d'analyse au premier rendu. La chaine est\nsuivie par l'ATTRIBUT `source` (usage declaratif) : un consommateur cree\nen JS avec la seule propriete n'est pas vu, search garde alors sa region."
+              "description": "Vrai si un afficheur aval (list, display) consomme ce composant, en direct\nou a travers des intermediaires (`source=\"<id>\"` chaînes, ex. facets).\nIl porte alors seul la region live de la chaîne : deux regions `polite`\npour un meme geste donnaient deux nombres contradictoires (#654).\nEvalue a chaque rendu (requête d'attribut, cout negligeable) pour suivre\nun DOM aval encore en cours d'analyse au premier rendu. La chaîne est\nsuivie par l'ATTRIBUT `source` (usage declaratif) : un consommateur cree\nen JS avec la seule propriete n'est pas vu, search garde alors sa region."
             },
             {
               "kind": "method",
               "name": "_renderCount",
               "privacy": "private",
-              "description": "Compteur de resultats. Une seule region live par chaine (#654) : si un\nafficheur aval (list, display) annonce deja son compte, ce composant\nn'annonce rien — le compteur visible de `count` est conserve, mais\nsans `aria-live`, et le compteur sr-only n'est pas rendu."
+              "description": "Compteur de résultats. Une seule region live par chaîne (#654) : si un\nafficheur aval (list, display) annonce déjà son compte, ce composant\nn'annonce rien — le compteur visible de `count` est conserve, mais\nsans `aria-live`, et le compteur sr-only n'est pas rendu."
             }
           ],
           "events": [
             {
-              "description": "`{ query, count }` sur l'element — la saisie de recherche a change (pour synchroniser une UI de page).",
+              "description": "`{ query, count }` sur l'élément — la saisie de recherche a change (pour synchroniser une UI de page).",
               "name": "dsfr-data-search-change"
             },
             {
@@ -14327,7 +14327,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Champs sur lesquels rechercher (virgule-separes). Vide = tous les champs",
+              "description": "Champs sur lesquels rechercher (virgule-séparés). Vide = tous les champs",
               "fieldName": "fields"
             },
             {
@@ -14354,7 +14354,7 @@
                 "text": "number"
               },
               "default": "300",
-              "description": "Delai en ms avant declenchement du filtre apres la derniere frappe",
+              "description": "Délai en ms avant déclenchement du filtre après la dernière frappe",
               "fieldName": "debounce"
             },
             {
@@ -14363,7 +14363,7 @@
                 "text": "number"
               },
               "default": "0",
-              "description": "Nombre minimum de caractères avant declenchement",
+              "description": "Nombre minimum de caractères avant déclenchement",
               "fieldName": "minLength"
             },
             {
@@ -14399,7 +14399,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Affiche un compteur de resultats sous le champ (compte serveur `meta.total`\nen `server-search`). Ce compteur reste visible en toutes circonstances ;\nseule sa nature de region live depend de la chaine aval (#654).",
+              "description": "Affiche un compteur de résultats sous le champ (compte serveur `meta.total`\nen `server-search`). Ce compteur reste visible en toutes circonstances ;\nseule sa nature de région live dépend de la chaîne aval (#654).",
               "fieldName": "count"
             },
             {
@@ -14444,7 +14444,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la\nrecherche devient un filtre `contains` du contexte sur le champ UNIQUE\nde `fields` (la clause colon ne sait pas dire « ou » entre plusieurs\nchamps). Le contexte diffuse a ses cibles et porte l'URL (`url-sync`\net `url-search-param` sont ignores — le paramètre est nommé d'apres le\nchamp, ou via `url-param-map` du contexte). Le contexte peut etre\ndeclare apres la recherche dans la page. Vide = comportement autonome.",
+              "description": "Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la\nrecherche devient un filtre `contains` du contexte sur le champ UNIQUE\nde `fields` (la clause colon ne sait pas dire « ou » entre plusieurs\nchamps). Le contexte diffuse à ses cibles et porte l'URL (`url-sync`\net `url-search-param` sont ignorés — le paramètre est nommé d'après le\nchamp, ou via `url-param-map` du contexte). Le contexte peut être\ndéclaré après la recherche dans la page. Vide = comportement autonome.",
               "fieldName": "context"
             }
           ],
@@ -14507,7 +14507,7 @@
                 "text": "'GET' | 'POST'"
               },
               "default": "'GET'",
-              "description": "Methode HTTP : `GET` (defaut) ou `POST`.",
+              "description": "Méthode HTTP : `GET` (défaut) ou `POST`.",
               "attribute": "method"
             },
             {
@@ -14517,7 +14517,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "En-tetes HTTP en JSON. Ex: `'{\"Authorization\": \"Bearer xxx\"}'`.\nOpenDataSoft : la clé va dans `Authorization: Apikey CLE` (seul en-tête\nautorisé en CORS) — un `apikey` nu est réécrit automatiquement (#655).",
+              "description": "En-têtes HTTP en JSON. Ex: `'{\"Authorization\": \"Bearer xxx\"}'`.\nOpenDataSoft : la clé va dans `Authorization: Apikey CLE` (seul en-tête\nautorisé en CORS) — un `apikey` nu est réécrit automatiquement (#655).",
               "attribute": "headers"
             },
             {
@@ -14527,7 +14527,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Parametres de requete en JSON : query string en GET, corps en POST.",
+              "description": "Paramètres de requête en JSON : query string en GET, corps en POST.",
               "attribute": "params"
             },
             {
@@ -14547,7 +14547,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Chemin JSONPath vers le tableau de donnees dans la reponse. Ex: `\"results\"`, `\"data.items\"`.",
+              "description": "Chemin JSONPath vers le tableau de données dans la réponse. Ex: `\"results\"`, `\"data.items\"`.",
               "attribute": "transform"
             },
             {
@@ -14607,7 +14607,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Reference vers une clé API declaree dans window.DSFR_DATA_KEYS",
+              "description": "Référence vers une clé API déclarée dans window.DSFR_DATA_KEYS",
               "attribute": "api-key-ref"
             },
             {
@@ -14687,7 +14687,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Group-by (pour les APIs qui le supportent server-side). ODS : un element\npeut etre une expression aliasee (`year(date) as annee`), transmise telle\nquelle — l'alias `as` est obligatoire cote ODS (#641).",
+              "description": "Group-by (pour les APIs qui le supportent server-side). ODS : un élément\npeut être une expression aliasée (`year(date) as annee`), transmise telle\nquelle — l'alias `as` est obligatoire cote ODS (#641).",
               "attribute": "group-by"
             },
             {
@@ -14727,7 +14727,7 @@
                 "text": "number"
               },
               "default": "0",
-              "description": "Limite du nombre de resultats",
+              "description": "Limite du nombre de résultats",
               "attribute": "limit"
             },
             {
@@ -14737,7 +14737,7 @@
                 "text": "number"
               },
               "default": "0",
-              "description": "Plafond de records du fetchAll en mode adapter (#233). 0 = plafond par\ndefaut de l'adapter (ODS : 1000). A relever explicitement pour les\ndashboards « un fetch, N agregations client » — attention au nombre de\nrequetes en boucle et au poids memoire.",
+              "description": "Plafond de records du fetchAll en mode adapter (#233). 0 = plafond par\ndéfaut de l'adapter (ODS : 1000). A relever explicitement pour les\ndashboards « un fetch, N agrégations client » — attention au nombre de\nrequêtes en boucle et au poids mémoire.",
               "attribute": "max-records"
             },
             {
@@ -14866,7 +14866,7 @@
               },
               "privacy": "private",
               "default": "''",
-              "description": "Dynamic groupBy overlay from dsfr-data-query delegation"
+              "description": "Dynamic groupBy overlay from dsfr-data-query délégation"
             },
             {
               "kind": "field",
@@ -14876,7 +14876,7 @@
               },
               "privacy": "private",
               "default": "''",
-              "description": "Dynamic aggregate overlay from dsfr-data-query delegation"
+              "description": "Dynamic aggregate overlay from dsfr-data-query délégation"
             },
             {
               "kind": "field",
@@ -15041,7 +15041,7 @@
                   }
                 }
               ],
-              "description": "URL construite par l'adapter pour ce fetch, a seule fin de diagnostic\n(#598). En mode fetchAll l'adapter pagine ensuite lui-meme : l'URL rendue\nest celle de la premiere requete, sans les surcharges de page.\n\nPurement informative — ne doit jamais faire echouer le log d'erreur."
+              "description": "URL construite par l'adapter pour ce fetch, a seule fin de diagnostic\n(#598). En mode fetchAll l'adapter pagine ensuite lui-meme : l'URL rendue\nest celle de la première requête, sans les surcharges de page.\n\nPurement informative — ne doit jamais faire echouer le log d'erreur."
             },
             {
               "kind": "method",
@@ -15052,7 +15052,7 @@
                   "text": "AdapterParams"
                 }
               },
-              "description": "Parametres adapter resolus, headers effectifs inclus (headers +\napi-key-ref). Consomme par les composants aval via SourceElement (#274)."
+              "description": "Paramètres adapter resolus, headers effectifs inclus (headers +\napi-key-ref). Consomme par les composants aval via SourceElement (#274)."
             },
             {
               "kind": "method",
@@ -15093,7 +15093,7 @@
                   "text": "unknown"
                 }
               },
-              "description": "Fingerprint de la requete courante (#307) : la cle de cache inclut\nURL/params/where/page... — l'ancienne cle (id seul) pouvait resservir\nla page 3 filtree d'hier pour une requete page 1 sans filtre."
+              "description": "Fingerprint de la requête courante (#307) : la cle de cache inclut\nURL/params/where/page... — l'ancienne cle (id seul) pouvait resservir\nla page 3 filtree d'hier pour une requête page 1 sans filtre."
             },
             {
               "kind": "method",
@@ -15132,10 +15132,10 @@
               "type": {
                 "text": "CustomEvent"
               },
-              "description": "`{ sourceId }` sur l'element — les donnees servies viennent du cache externe apres un echec reseau (#307)."
+              "description": "`{ sourceId }` sur l'élément — les données servies viennent du cache externe après un echec reseau (#307)."
             },
             {
-              "description": "`{ sourceId, data }` sur `document` — donnees chargees et publiees sous l'`id` de cette source. C'est l'evenement que tout l'aval ecoute.",
+              "description": "`{ sourceId, data }` sur `document` — données chargees et publiees sous l'`id` de cette source. C'est l'evenement que tout l'aval ecoute.",
               "name": "dsfr-data-loaded"
             },
             {
@@ -15143,7 +15143,7 @@
               "name": "dsfr-data-loading"
             },
             {
-              "description": "`{ sourceId, error, attemptedUrl? }` sur `document` — le fetch ou le parsing a echoue. `attemptedUrl` (#603) porte l'URL REELLEMENT appelee, proxy applique : elle diverge souvent du `base-url` ecrit dans le HTML, et le message de l'`Error` reste volontairement court. La cle est absente quand l'URL n'a pas pu etre construite, ou pour une erreur qui ne vient pas d'un fetch (donnees inline invalides, configuration).",
+              "description": "`{ sourceId, error, attemptedUrl? }` sur `document` — le fetch ou le parsing a echoue. `attemptedUrl` (#603) porte l'URL REELLEMENT appelee, proxy applique : elle diverge souvent du `base-url` ecrit dans le HTML, et le message de l'`Error` reste volontairement court. La cle est absente quand l'URL n'a pas pu être construite, ou pour une erreur qui ne vient pas d'un fetch (données inline invalides, configuration).",
               "name": "dsfr-data-error"
             }
           ],
@@ -15163,7 +15163,7 @@
                 "text": "'GET' | 'POST'"
               },
               "default": "'GET'",
-              "description": "Methode HTTP : `GET` (defaut) ou `POST`.",
+              "description": "Méthode HTTP : `GET` (défaut) ou `POST`.",
               "fieldName": "method"
             },
             {
@@ -15172,7 +15172,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "En-tetes HTTP en JSON. Ex: `'{\"Authorization\": \"Bearer xxx\"}'`.\nOpenDataSoft : la clé va dans `Authorization: Apikey CLE` (seul en-tête\nautorisé en CORS) — un `apikey` nu est réécrit automatiquement (#655).",
+              "description": "En-têtes HTTP en JSON. Ex: `'{\"Authorization\": \"Bearer xxx\"}'`.\nOpenDataSoft : la clé va dans `Authorization: Apikey CLE` (seul en-tête\nautorisé en CORS) — un `apikey` nu est réécrit automatiquement (#655).",
               "fieldName": "headers"
             },
             {
@@ -15181,7 +15181,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Parametres de requete en JSON : query string en GET, corps en POST.",
+              "description": "Paramètres de requête en JSON : query string en GET, corps en POST.",
               "fieldName": "params"
             },
             {
@@ -15199,7 +15199,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Chemin JSONPath vers le tableau de donnees dans la reponse. Ex: `\"results\"`, `\"data.items\"`.",
+              "description": "Chemin JSONPath vers le tableau de données dans la réponse. Ex: `\"results\"`, `\"data.items\"`.",
               "fieldName": "transform"
             },
             {
@@ -15253,7 +15253,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Reference vers une clé API declaree dans window.DSFR_DATA_KEYS",
+              "description": "Référence vers une clé API déclarée dans window.DSFR_DATA_KEYS",
               "fieldName": "apiKeyRef"
             },
             {
@@ -15325,7 +15325,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Group-by (pour les APIs qui le supportent server-side). ODS : un element\npeut etre une expression aliasee (`year(date) as annee`), transmise telle\nquelle — l'alias `as` est obligatoire cote ODS (#641).",
+              "description": "Group-by (pour les APIs qui le supportent server-side). ODS : un élément\npeut être une expression aliasée (`year(date) as annee`), transmise telle\nquelle — l'alias `as` est obligatoire cote ODS (#641).",
               "fieldName": "groupBy"
             },
             {
@@ -15361,7 +15361,7 @@
                 "text": "number"
               },
               "default": "0",
-              "description": "Limite du nombre de resultats",
+              "description": "Limite du nombre de résultats",
               "fieldName": "limit"
             },
             {
@@ -15370,7 +15370,7 @@
                 "text": "number"
               },
               "default": "0",
-              "description": "Plafond de records du fetchAll en mode adapter (#233). 0 = plafond par\ndefaut de l'adapter (ODS : 1000). A relever explicitement pour les\ndashboards « un fetch, N agregations client » — attention au nombre de\nrequetes en boucle et au poids memoire.",
+              "description": "Plafond de records du fetchAll en mode adapter (#233). 0 = plafond par\ndéfaut de l'adapter (ODS : 1000). A relever explicitement pour les\ndashboards « un fetch, N agrégations client » — attention au nombre de\nrequêtes en boucle et au poids mémoire.",
               "fieldName": "maxRecords"
             }
           ],
@@ -15508,7 +15508,7 @@
                   "text": "import('../adapters/api-adapter.js').ApiAdapter | null"
                 }
               },
-              "description": "Retourne l'adapter de la source amont (delegation transparente).\nPermet aux composants en aval (dsfr-data-facets, dsfr-data-search)\nd'atteindre l'adapter a travers ce transformateur."
+              "description": "Retourne l'adapter de la source amont (délégation transparente).\nPermet aux composants en aval (dsfr-data-facets, dsfr-data-search)\nd'atteindre l'adapter a travers ce transformateur."
             },
             {
               "kind": "method",
@@ -15528,7 +15528,7 @@
                   }
                 }
               ],
-              "description": "Retourne le where effectif de la source amont (delegation transparente)."
+              "description": "Retourne le where effectif de la source amont (délégation transparente)."
             },
             {
               "kind": "method",
@@ -15539,7 +15539,7 @@
                   "text": "import('../adapters/api-adapter.js').AdapterParams | null"
                 }
               },
-              "description": "Retourne les parametres adapter resolus de la source amont\n(delegation transparente, headers api-key-ref inclus — #274)."
+              "description": "Retourne les paramètres adapter resolus de la source amont\n(délégation transparente, headers api-key-ref inclus — #274)."
             },
             {
               "kind": "method",
@@ -15606,7 +15606,7 @@
                   }
                 }
               ],
-              "description": "Meta amont propagee avec `total` invalide (#282) : l'unpivot change le\nnombre de lignes, mais needsClientProcessing/serverSide doivent suivre\n— un query aval d'un unpivot sur fallback Grist sautait son traitement\nclient sur des donnees brutes."
+              "description": "Meta amont propagee avec `total` invalide (#282) : l'unpivot change le\nnombre de lignes, mais needsClientProcessing/serverSide doivent suivre\n— un query aval d'un unpivot sur fallback Grist sautait son traitement\nclient sur des données brutes."
             },
             {
               "kind": "method",
@@ -15617,7 +15617,7 @@
                   "text": "string[]"
                 }
               },
-              "description": "Parametres d'unpivot → retraitement des donnees en cache (#281)"
+              "description": "Paramètres d'unpivot → retraitement des données en cache (#281)"
             },
             {
               "kind": "method",

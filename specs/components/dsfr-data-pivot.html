@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-scheme="system">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dsfr-data-pivot - Composants - dsfr-data</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css" integrity="sha384-atVZ+aK6VI0nWyTEhKgze5InDJ+SWRRqa0BCZ2MTNyoOcBiHj1c3dGPdi6ML65B3" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css" integrity="sha384-5P5DFFqorcEBpfnK9WHu/Ralfr7ZxyCZh0ryaJbgucSvc71+qRYdGvNEcyMqQwa/" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script type="module" src="/dist/app-ui.esm.js"></script>
+  <style>
+    body { min-height: 100vh; display: flex; flex-direction: column; }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <app-header current-page="composants" base-path="../../"></app-header>
+
+  <!-- Layout documentation avec sidemenu -->
+  <app-layout-demo
+    title="dsfr-data-pivot"
+    icon="ri-table-line"
+    active-path="components/dsfr-data-pivot"
+    base-path="../">
+    <div slot="content">
+        <p class="fr-text--lead">
+          Replie un tableau « long » en tableau « wide » (tableau croisé) : une ligne par valeur
+          distincte de <code>row</code>, une colonne par valeur distincte de <code>column</code>, et
+          dans chaque cellule l'agrégat des valeurs de <code>value</code>.
+          Symétrique exact de <a href="dsfr-data-unpivot.html"><code>&lt;dsfr-data-unpivot&gt;</code></a>.
+        </p>
+
+        <div class="fr-callout fr-callout--blue-france">
+          <p class="fr-callout__text">
+            <strong>Invisible :</strong> transformateur pur, frère de <code>&lt;dsfr-data-query&gt;</code>,
+            <code>&lt;dsfr-data-join&gt;</code> et <code>&lt;dsfr-data-unpivot&gt;</code> — aucun fetch HTTP.
+            Il écoute une source, croise ses lignes, puis redistribue le résultat via le système d'événements.
+          </p>
+        </div>
+
+        <h2 id="probleme">Le problème résolu</h2>
+        <p>Une source « tidy » porte une observation par ligne :</p>
+        <div class="code-block"><pre>region              | annee | montant
+Bretagne            | 2023  | 1200
+Bretagne            | 2024  | 1450
+Normandie           | 2023  | 980</pre></div>
+        <p>Un tableau croisé se lit ligne à ligne, une colonne par période :</p>
+        <div class="code-block"><pre>region              | 2023 | 2024
+Bretagne            | 1200 | 1450
+Normandie           | 980  | null</pre></div>
+        <p>
+          Une cellule sans observation vaut <code>null</code>, <strong>jamais</strong> <code>0</code> —
+          l'absence de mesure et une mesure nulle ne se confondent pas. Toutes les lignes émises portent
+          toutes les colonnes générées : un <code>&lt;dsfr-data-list&gt;</code> en aval sans attribut
+          <code>columns</code> dérive ses colonnes des données, et suit donc une facette ou un filtre
+          posé en amont.
+        </p>
+
+        <h2 id="pipeline" class="fr-mt-4w">Position dans le pipeline</h2>
+        <div class="code-block"><pre>dsfr-data-source (long) ──► dsfr-data-pivot ──► dsfr-data-list / dsfr-data-chart</pre></div>
+
+        <h2 id="attributs" class="fr-mt-4w">Attributs</h2>
+        <table class="attr-table">
+          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+          <tbody>
+            <!-- ATTRS:dsfr-data-pivot fields="source,row,column,value,aggregate,column-order,column-format,labels,max-columns" -->
+              <tr><td><code>source</code></td><td>String</td><td><code>""</code></td><td>ID de la source de données à écouter (format long : une observation par ligne).</td></tr>
+              <tr><td><code>row</code></td><td>String</td><td><code>""</code></td><td>Champs formant l'identité de ligne, virgule-séparés : une ligne émise par combinaison distincte. Ex : <code>"commune"</code> ou <code>"etab, dep"</code>.</td></tr>
+              <tr><td><code>column</code></td><td>String</td><td><code>""</code></td><td>Champ dont chaque valeur distincte devient une colonne. Ex : <code>"annee"</code>.</td></tr>
+              <tr><td><code>value</code></td><td>String</td><td><code>""</code></td><td>Champ dont les valeurs remplissent les cellules. Ex : <code>"montant"</code>.</td></tr>
+              <tr><td><code>aggregate</code></td><td>String</td><td><code>sum</code></td><td>Réduction quand plusieurs lignes tombent dans la même cellule : <code>sum</code> (défaut), <code>count</code>, <code>avg</code>, <code>min</code>, <code>max</code>, <code>first</code>, <code>last</code>. Une cellule sans valeur numérique reste <code>null</code> (pas de 0 silencieux).</td></tr>
+              <tr><td><code>column-order</code></td><td>String</td><td><code>""</code></td><td>Ordre des colonnes générées : vide = ordre d'apparition dans les données, <code>asc</code> / <code>desc</code> = tri des valeurs (numérique si elles le sont toutes).</td></tr>
+              <tr><td><code>column-format</code></td><td>String</td><td><code>""</code></td><td>Gabarit des noms de colonnes générées, <code>{value}</code> = valeur brute. Ex : <code>"annee_{value}"</code> donne <code>annee_2023</code> — un identifiant utilisable dans <code>compute</code>. Défaut : la valeur brute (<code>2023</code>).</td></tr>
+              <tr><td><code>labels</code></td><td>String</td><td><code>""</code></td><td>Libellés des colonnes générées, par valeur brute : <code>"2022:Année 2022 | 2023:Année 2023"</code>. Une valeur libellée prend son libellé pour nom de colonne (prime sur column-format). Un <code>:</code> ou <code>|</code> littéral s'échappe en <code>%3A</code> / <code>%7C</code>.</td></tr>
+              <tr><td><code>max-columns</code></td><td>String</td><td><code>PIVOT_DEFAULT_MAX_COLUMNS</code></td><td>Plafond de colonnes générées (défaut 50). Au-delà, erreur de configuration explicite : un pivot sur un champ à 10 000 valeurs distinctes est une erreur de page, pas un tableau.</td></tr>
+            <!-- /ATTRS -->
+          </tbody>
+        </table>
+
+        <h2 id="schema" class="fr-mt-4w">Le schéma de sortie dépend des données</h2>
+        <p>
+          Les noms de colonnes proviennent des <em>valeurs</em> rencontrées dans <code>column</code> :
+          ils changent donc avec le jeu de données. Pour des noms stables et sûrs dans un
+          <code>compute</code> — écrire <code>annee_2023 - annee_2022</code> suppose de connaître les
+          noms — poser <code>column-format="annee_{value}"</code>.
+        </p>
+        <p>
+          Au-delà de <code>max-columns</code> valeurs distinctes (50 par défaut), le composant signale
+          une <strong>erreur de configuration</strong> (<code>data-dsfr-config-error</code>) plutôt que
+          de produire un tableau de 10 000 colonnes.
+        </p>
+
+        <h2 id="voir-aussi" class="fr-mt-4w">Voir aussi</h2>
+        <ul>
+          <li><a href="dsfr-data-unpivot.html"><code>dsfr-data-unpivot</code></a> — l'opération inverse : déplier des colonnes en lignes</li>
+          <li><a href="dsfr-data-query.html"><code>dsfr-data-query</code></a> — filtrer et agréger en amont du croisement</li>
+          <li><a href="dsfr-data-normalize.html"><code>dsfr-data-normalize</code></a> — <code>compute</code> pour dériver une colonne d'écart entre deux colonnes croisées</li>
+        </ul>
+    </div>
+  </app-layout-demo>
+
+  <!-- Footer -->
+  <app-footer base-path="../../"></app-footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.module.min.js" integrity="sha384-gPgRd2+olihO/srZe/Bqw6iVLiiaL7meuri1d5YVMejwPXg7VehLSBeORYq9yh2F" crossorigin="anonymous"></script>
+</body>
+</html>

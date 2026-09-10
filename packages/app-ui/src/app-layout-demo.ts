@@ -141,6 +141,11 @@ export class AppLayoutDemo extends LitElement {
             href: 'components/dsfr-data-unpivot.html',
           },
           {
+            id: 'components/dsfr-data-pivot',
+            label: 'dsfr-data-pivot',
+            href: 'components/dsfr-data-pivot.html',
+          },
+          {
             id: 'components/dsfr-data-facets',
             label: 'dsfr-data-facets',
             href: 'components/dsfr-data-facets.html',

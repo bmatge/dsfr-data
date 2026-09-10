@@ -39,9 +39,9 @@
             <tr><th>Attribut</th><th>Type</th><th>Description</th></tr>
           </thead>
           <tbody>
-            <!-- ATTRS:dsfr-data-list fields="source,columns,search,filters,sort,pagination,export,caption,decimals,url-sync,url-page-param,server-sort" -->
+            <!-- ATTRS:dsfr-data-list fields="source,columns,search,filters,sort,pagination,export,caption,decimals,url-sync,url-page-param,server-sort,columns-auto" -->
               <tr><td><code>source</code></td><td>String</td><td>Id de la source (ou du transformateur) dont ce tableau consomme les données.</td></tr>
-              <tr><td><code>columns</code></td><td>String</td><td>Définition des colonnes: "clé:Label, cle2:Label2"</td></tr>
+              <tr><td><code>columns</code></td><td>String</td><td>Définition des colonnes : <code>"clé:Label, cle2:Label2"</code>. Omis : toutes les clés présentes dans les données deviennent colonnes, dans leur ordre d'apparition, libellé = clé — le tableau suit un schéma dynamique (aval d'un <code>dsfr-data-pivot</code>, #255).</td></tr>
               <tr><td><code>search</code></td><td>Boolean</td><td>Afficher un champ de recherche</td></tr>
               <tr><td><code>filters</code></td><td>String</td><td>Colonnes filtrables: "ministere,statut"</td></tr>
               <tr><td><code>sort</code></td><td>String</td><td>Tri par défaut: "score:desc"</td></tr>
@@ -52,6 +52,7 @@
               <tr><td><code>url-sync</code></td><td>Boolean</td><td>Synchronise le numéro de page dans l'URL (replaceState)</td></tr>
               <tr><td><code>url-page-param</code></td><td>String</td><td>Nom du paramètre URL pour la page (défaut: "page")</td></tr>
               <tr><td><code>server-sort</code></td><td>Boolean</td><td>Active le tri serveur. Au lieu de trier localement, envoie une commande { orderBy } au source upstream (dsfr-data-query server-side) qui re-fetche les données triees.</td></tr>
+              <tr><td><code>columns-auto</code></td><td>Boolean</td><td>Complète <code>columns</code> avec les clés des données qui n'y figurent pas (ordre d'apparition, libellé = clé) : les premières colonnes sont libellées et figées, les suivantes suivent les données (#640).</td></tr>
             <!-- /ATTRS -->
           </tbody>
         </table>

@@ -145,7 +145,7 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
   @property({ type: Boolean, attribute: 'fold-drop' })
   foldDrop = false;
 
-  /** Arrondit les champs numériques a l'entier (ou a N decimales). Format: "champ1, champ2" ou "champ1:2, champ2:0" */
+  /** Arrondit les champs numériques à l'entier (ou à N décimales). Format: "champ1, champ2" ou "champ1:2, champ2:0" */
   @property({ type: String })
   round = '';
 
@@ -155,7 +155,7 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
 
   /**
    * Colonnes calculées, ligne à ligne, en dernier (sur les valeurs déjà typées par
-   * numeric / round / rename). Format : "cible = expression; cible2 = expression2"
+   * numeric / round / rename). Format : `cible = expression; cible2 = expression2`
    * (une assignation suivante peut relire une colonne calculée avant elle).
    *
    * Grammaire (ADR-105, #671) :
@@ -179,10 +179,10 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
    *   Les comparaisons d'ordre se font en nombre quand les deux côtés sont numériques,
    *   en texte sinon (dates ISO comprises) ; null, undefined et '' ne matchent jamais.
    *
-   * Exemples : "solde = actif - passif",
-   * "tranche = when montant = 0 then 'Nul' when is_null(montant) then 'Inconnu' else 'Renseigné'",
-   * "type = coalesce(type_entreprise, 'Non renseigné')", "annee = year(date_notification)",
-   * "pct = round(part * 100, 1)", "serie = Indicateurs + ' / ' + Sous_theme" ; une tranche
+   * Exemples : `solde = actif - passif`,
+   * `tranche = when montant = 0 then 'Nul' when is_null(montant) then 'Inconnu' else 'Renseigné'`,
+   * `type = coalesce(type_entreprise, 'Non renseigné')`, `annee = year(date_notification)`,
+   * `pct = round(part * 100, 1)`, `serie = Indicateurs + ' / ' + Sous_theme` ; une tranche
    * par seuils s'écrit avec les opérateurs d'ordre (voir le guide).
    *
    * Fonction hors liste, arité fausse, `when` sans `else`, expression trop longue ou trop

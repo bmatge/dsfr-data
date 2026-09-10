@@ -357,6 +357,23 @@ for (const [tag, attrs] of Object.entries(index)) {
   }
 }
 
+// Un composant entierement absent des pages n'a AUCUN marqueur : le controle
+// d'exhaustivite par bloc ne peut donc pas le voir. `dsfr-data-pivot` est arrive
+// en 0.24.0 sans page et n'a ete remarque que par hasard — d'ou ce second
+// controle, au niveau du catalogue.
+const documented = new Set<string>();
+for (const file of readdirSync(specsDir).filter((f) => f.endsWith('.html'))) {
+  const src = readFileSync(join(specsDir, file), 'utf-8');
+  for (const m of src.matchAll(/<!-- ATTRS(?:-PROSE)?:([a-z0-9-]+)/g)) documented.add(m[1]);
+}
+const undocumented = Object.keys(index).filter((t) => !documented.has(t));
+if (undocumented.length) {
+  problems.push({
+    file: 'specs/components/',
+    message: `composant(s) absent(s) de toute page : ${undocumented.join(', ')} — creer la page ou l'ajouter a une page hote`,
+  });
+}
+
 console.log(`Blocs <!-- ATTRS --> traites : ${totalBlocks}`);
 if (checkOnly) {
   if (stale.length) {
