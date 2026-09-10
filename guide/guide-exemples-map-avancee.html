@@ -26,8 +26,6 @@
     .guide-content li { margin-bottom: 0.25rem; }
     .example-container { border: 1px solid var(--border-default-grey); border-radius: 4px; padding: 1rem; background: white; min-height: 100px; }
     .example-loading { padding: 2rem; text-align: center; color: var(--text-mention-grey); border: 1px solid var(--border-default-grey); border-radius: 4px; }
-    .map-legend { display: flex; align-items: center; gap: 0.25rem; margin-top: 0.75rem; font-size: 0.85rem; }
-    .map-legend .swatch { width: 2rem; height: 1rem; display: inline-block; border: 1px solid var(--border-default-grey); }
   </style>
 </head>
 <body>
@@ -65,9 +63,14 @@
         <h2>Choroplèthe départementale (fill-field)</h2>
         <p>
           Sur une couche <code>geoshape</code>, l'attribut <code>fill-field</code> colore chaque polygone
-          selon une valeur numérique : les valeurs sont réparties en classes par
-          <strong>quantiles</strong>, puis projetées sur la palette choisie via
-          <code>selected-palette</code> (par défaut <code>sequentialAscending</code>).
+          selon une valeur numérique : les valeurs sont réparties en classes
+          (<code>classes="5"</code> ; méthode <code>method="quantile|equal|manual"</code>, bornes
+          <code>breaks="10,50,100"</code>), puis projetées sur la palette choisie via
+          <code>selected-palette</code> (par défaut <code>sequentialAscending</code>, 9 classes par quantiles).
+          Le compagnon <code>&lt;dsfr-data-map-legend for="id-couche"&gt;</code> rend sous la carte la
+          légende des classes avec leurs bornes chiffrées (ou les paires de <code>color-map</code>
+          d'une couche catégorielle) — pastilles décoratives, texte porteur du sens (RGAA).
+          Le fond <code>tiles-style="muted"</code> atténue le plan IGN pour laisser la couleur aux données.
           Le pipeline classique : données agrégées par département (ODS <code>group-by</code>)
           + référentiel géographique <code>georef-france-departement</code>, réunis par
           <code>dsfr-data-join</code>.
@@ -75,16 +78,6 @@
 
         <h4>Bénéficiaires FranceNum par département</h4>
         <div class="example-loading" data-example>Chargement...</div>
-        <div class="map-legend" aria-hidden="true">
-          <span>Moins</span>
-          <span class="swatch" style="background:#F5F5FE"></span>
-          <span class="swatch" style="background:#C1C1FB"></span>
-          <span class="swatch" style="background:#8585F6"></span>
-          <span class="swatch" style="background:#4747E5"></span>
-          <span class="swatch" style="background:#000091"></span>
-          <span>Plus</span>
-          <span class="fr-ml-2w fr-text--xs">(classes par quantiles, palette <code>sequentialAscending</code>)</span>
-        </div>
         <section class="fr-accordion fr-mt-1w">
           <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-choro">Code source</button></h3>
           <div class="fr-collapse" id="code-choro">
@@ -107,23 +100,57 @@
 &lt;!-- 3. Jointure valeurs + geometries sur le code departement --&gt;
 &lt;dsfr-data-join id="dept-geo" left="fn-dept" right="geo-dept" on="dep2" type="inner"&gt;&lt;/dsfr-data-join&gt;
 
-&lt;!-- 4. Choroplethe --&gt;
-&lt;dsfr-data-map center="46.6,2.3" zoom="6" height="550px" tiles="ign-plan"
+&lt;!-- 4. Choroplethe a 5 classes, fond attenue, legende sous la carte --&gt;
+&lt;dsfr-data-map center="46.6,2.3" zoom="6" height="550px" tiles="ign-plan" tiles-style="muted"
   name="Beneficiaires FranceNum par departement"&gt;
-  &lt;dsfr-data-map-layer source="dept-geo" type="geoshape"
+  &lt;dsfr-data-map-layer id="couche-fn" source="dept-geo" type="geoshape"
     geo-field="geo_shape"
-    fill-field="nb" selected-palette="sequentialAscending" fill-opacity="0.75"
+    fill-field="nb" selected-palette="sequentialAscending" classes="5" fill-opacity="0.75"
     tooltip-field="dep_name"
     popup-template="{dep_name} — {nb} beneficiaires"&gt;
   &lt;/dsfr-data-map-layer&gt;
+  &lt;dsfr-data-map-legend for="couche-fn" label="Beneficiaires FranceNum"&gt;&lt;/dsfr-data-map-legend&gt;
 &lt;/dsfr-data-map&gt;</pre>
           </div>
         </section>
         <p class="fr-mt-1w">
-          La légende n'est pas générée automatiquement : ajoutez-la en HTML (comme ci-dessus)
-          ou associez un <code>dsfr-data-a11y</code> pour offrir le tableau des valeurs.
+          La légende se met à jour à chaque rendu de la couche (filtre amont, timeline). Pour le
+          tableau complet des valeurs, associez un <code>dsfr-data-a11y</code>.
           Exemple complet en production : <a href="examples/exemple-france-num.html">Observatoire FranceNum</a>.
         </p>
+
+        <h4>Fonds administratifs du paquet (sans API) et zone de fit</h4>
+        <p>
+          Le paquet npm livre deux GeoJSON simplifiés, hors bundle :
+          <code>dsfr-data/geo/regions.json</code> (18 régions) et <code>dsfr-data/geo/departements.json</code>
+          (101 départements), propriétés <code>code</code> et <code>nom</code>
+          (Contours administratifs — Etalab, Licence Ouverte 2.0). Servis par la page ou un CDN,
+          ils habillent une carte sans requête API ; joints sur <code>code</code>, ils portent une
+          choroplèthe. Avec des encarts ultramarins (<code>insets="drom"</code>) et sans
+          <code>max-bounds</code>, <code>fit-bounds</code> se cale par défaut sur la métropole
+          (zone <code>41,-5.5,51.5,10</code>, surchargeable par <code>fit-zone</code>) : les DROM
+          n'écrasent plus la vue, le déplacement reste libre.
+        </p>
+        <div class="example-loading" data-example>Chargement...</div>
+        <section class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-geo-paquet">Code source</button></h3>
+          <div class="fr-collapse" id="code-geo-paquet">
+<pre class="example-code">&lt;!-- Contours des regions livres dans le paquet npm (hors bundle) --&gt;
+&lt;dsfr-data-source id="contours-regions"
+  url="https://cdn.jsdelivr.net/npm/dsfr-data@0/geo/regions.json"
+  transform="features"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-map center="46.6,2.9" zoom="5" height="500px" tiles="ign-plan" tiles-style="grey"
+  insets="drom" fit-bounds name="Regions de France"&gt;
+  &lt;dsfr-data-map-layer id="couche-regions" source="contours-regions" type="geoshape"
+    geo-field="geometry" color="#000091" fill-opacity="0.15"
+    tooltip-field="properties.nom"&gt;
+  &lt;/dsfr-data-map-layer&gt;
+  &lt;dsfr-data-map-legend for="couche-regions" label="Regions (contours Etalab, Licence Ouverte 2.0)"&gt;&lt;/dsfr-data-map-legend&gt;
+&lt;/dsfr-data-map&gt;</pre>
+          </div>
+        </section>
 
         <!-- ============================================================ -->
         <h2>Cercles en mètres réels (radius-unit="m")</h2>

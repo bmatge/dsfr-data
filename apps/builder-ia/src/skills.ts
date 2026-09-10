@@ -2451,6 +2451,18 @@ rendu : switch chart/tableau integre, CSV natif). Conserver uniquement :
       'tiles-attribution',
       'fond de carte',
       'clé api tuiles',
+      'légende',
+      'legende carte',
+      'map-legend',
+      'classes',
+      'bornes',
+      'fond atténué',
+      'tiles-style',
+      'fit-zone',
+      'contours',
+      'fonds administratifs',
+      'geo/regions',
+      'geo/departements',
     ],
     content:
       `## dsfr-data-map + dsfr-data-map-layer — Carte interactive multi-couches
@@ -2481,12 +2493,14 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | height | String | \`"500px"\` | Hauteur CSS (px, vh, rem). Un \`%\` est un ratio de la largeur (ex: \`"60%"\` = 60% de la largeur) |
 | tiles | String | \`"ign-plan"\` | Fond de carte : \`ign-plan\`, \`ign-ortho\`, \`ign-cadastre\`, \`osm-fr\` (alias : \`osm\`), \`osm-standard\`, \`opentopomap\`, ou URL template. Deprecies (redirigent vers \`ign-plan\` avec warning) : \`ign-topo\`, \`carto-positron\`, \`carto-dark\` |
 | tiles-attribution | String | \`""\` | Mention d'attribution quand \`tiles\` est une URL custom. Obligatoire (ODbL + CGU du fournisseur) ; ignore sur un preset connu |
+| tiles-style | String | \`""\` | Fond attenue pour une carte thematique : \`muted\` (gris + 55 % d'opacite) ou \`grey\` (niveaux de gris). Fond « neutre » = \`ign-plan\` + \`tiles-style="muted"\`. Les encarts heritent du reglage |
 | sovereign-only | Boolean | \`false\` | Restreint \`tiles\` aux presets IGN souverains. Tout autre preset (\`osm-fr\`, \`osm-standard\`, \`opentopomap\`...) ou URL custom est refuse avec \`console.warn\` et remplace par \`ign-plan\`. |
 | no-controls | Boolean | \`false\` | Masque les controles de zoom |
 | locked | Boolean | \`false\` | Carte verrouillee : aucune interaction (pan/zoom/clavier) — encarts, vignettes |
 | insets | String | \`""\` | Raccourci encarts territoriaux : groupe et/ou territoires nommes (\`"drom"\`, \`"drom,corse"\`) |
 | fit-bounds | Boolean | \`false\` | Ajuste le viewport aux données a chaque mise a jour (combine a max-bounds : emprise clippee a la zone — les DROM ne dezooment pas la vue, un filtre regional zoome dessus) |
-| max-bounds | String | \`""\` | Limites \`"latSW,lonSW,latNE,lonNE"\` |
+| max-bounds | String | \`""\` | Limites du deplacement \`"latSW,lonSW,latNE,lonNE"\` (clippe aussi le fit si fit-zone est vide) |
+| fit-zone | String | \`""\` | Zone de clip du fit \`"latSW,lonSW,latNE,lonNE"\`, pan libre. Défaut : max-bounds, sinon la metropole (\`41,-5.5,51.5,10\`) des qu'un encart ultramarin est present (\`insets="drom"\`), sinon rien. \`none\` desactive |
 | name | String | \`""\` | Titre (aria-label) |
 
 ### Attributs dsfr-data-map-layer (couche)
@@ -2506,9 +2520,12 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | color | String | \`"#000091"\` | Couleur (DSFR blue-france). Fallback si color-map ne matche pas |
 | color-field | String | \`""\` | Champ dont la valeur determine la couleur (mapping catégoriel) |
 | color-map | String | \`""\` | Paires \`valeur:#couleur\` separees par virgule. Ex: \`"1:#00A95F,2:#FF9940,3:#E1000F"\` |
-| fill-field | String | \`""\` | Champ numérique pour choropleth |
+| fill-field | String | \`""\` | Champ numérique pour choropleth (geoshape) |
 | fill-opacity | Number | \`0.6\` | Opacite remplissage |
-| selected-palette | String | \`""\` | Palette choropleth |
+| selected-palette | String | \`""\` | Palette choropleth : \`sequentialAscending\` (défaut), \`sequentialDescending\`, \`divergentAscending\`, \`divergentDescending\`, \`neutral\`, \`categorical\` |
+| classes | Number | \`0\` | Nombre de classes de la choropleth ; \`0\` = autant que de couleurs dans l'echelle (9) |
+| method | String | \`"quantile"\` | Discretisation : \`quantile\` (effectifs egaux), \`equal\` (intervalles egaux), \`manual\` (bornes de breaks) |
+| breaks | String | \`""\` | Bornes superieures manuelles \`"10,50,100"\` (= 4 classes) ; implique \`method="manual"\` |
 | radius | Number | \`8\` | Rayon fixe (circle) |
 | radius-field | String | \`""\` | Champ rayon variable |
 | radius-unit | String | \`"px"\` | \`px\` ou \`m\` |
@@ -2614,6 +2631,21 @@ La clé appartient a l'integrateur (domaine et quota nominatifs) : la bibliotheq
 </dsfr-data-map>
 \`\`\`
 
+### Exemple : choroplethe a 5 classes avec legende et fond attenue
+
+\`\`\`html
+<dsfr-data-map center="46.6,2.3" zoom="6" tiles="ign-plan" tiles-style="muted">
+  <dsfr-data-map-layer id="couche-pop" source="departements" type="geoshape"
+    geo-field="geo_shape" fill-field="population"
+    selected-palette="sequentialAscending" classes="5" method="quantile"
+    tooltip-field="nom">
+  </dsfr-data-map-layer>
+  <dsfr-data-map-legend for="couche-pop" label="Population"></dsfr-data-map-legend>
+</dsfr-data-map>
+\`\`\`
+
+Bornes imposees : \`breaks="1000,5000,20000"\` (4 classes, method manual implicite).
+
 ### Exemple : multi-couches geoshape + POI
 
 \`\`\`html
@@ -2675,6 +2707,47 @@ Sans template, tableau auto.
   </dsfr-data-map-layer>
 </dsfr-data-map>
 \`\`\`
+
+### dsfr-data-map-legend — Legende d'une couche
+
+Composant compagnon place comme enfant de \`dsfr-data-map\` (ou n'importe ou dans la page avec \`for\`).
+Rend sous la carte une liste DSFR « pastille + texte » (pastille \`aria-hidden\`, le texte porte le sens — RGAA) :
+- choroplethe (\`fill-field\`) : une entree par classe, bornes chiffrees fr-FR (« De 1 000 à 5 000 ») ;
+- couche categorielle (\`color-field\` + \`color-map\`) : une entree par paire, plus « Autres valeurs » (repli \`color\`) si des valeurs n'ont pas matche ;
+- couche monochrome : une entree, libellee par \`label\`.
+Se rafraichit a chaque rendu de la couche (filtre amont, timeline, bbox) : la couche expose \`getLegendEntries()\` et emet \`dsfr-data-map-layer-render\`.
+Hors perimetre : \`dsfr-data-chart type="map"\` (echelle continue DSFR Chart, pas de classes).
+
+| Attribut | Type | Défaut | Description |
+|----------|------|--------|-------------|
+| for | String | \`""\` | Id (ou \`source\`) de la couche decrite. Vide = toutes les couches directes de la carte |
+| label | String | \`""\` | Titre au-dessus de la liste ; libelle de l'entree unique d'une couche monochrome |
+
+\`\`\`html
+<dsfr-data-map-layer id="statuts" source="sites" type="marker" geo-field="geo_point_2d"
+  color-field="statut" color-map="ouvert:#18753C,ferme:#C9191E" color="#929292">
+</dsfr-data-map-layer>
+<dsfr-data-map-legend for="statuts" label="Statut du site"></dsfr-data-map-legend>
+\`\`\`
+
+### Fonds administratifs livres dans le paquet (sans API)
+
+Le paquet npm livre deux GeoJSON simplifies, hors bundle : \`dsfr-data/geo/regions.json\` (18 regions)
+et \`dsfr-data/geo/departements.json\` (101 departements), proprietes \`code\` et \`nom\`
+(Contours administratifs Etalab, Licence Ouverte 2.0). Servir par la page ou un CDN npm ; joindre
+sur \`code\` (\`dsfr-data-join\`) pour une choroplethe sans referentiel geographique distant.
+
+\`\`\`html
+<dsfr-data-source id="contours" url="https://cdn.jsdelivr.net/npm/dsfr-data@0/geo/regions.json"
+  transform="features"></dsfr-data-source>
+<dsfr-data-map center="46.6,2.9" zoom="6" insets="drom" fit-bounds>
+  <!-- Habillage decoratif : no-interactive, exclu du fit -->
+  <dsfr-data-map-layer source="contours" type="geoshape" geo-field="geometry"
+    no-interactive color="#666" fill-opacity="0"></dsfr-data-map-layer>
+</dsfr-data-map>
+\`\`\`
+
+Avec \`insets="drom"\` et sans \`max-bounds\`, le fit se cale par défaut sur la metropole (\`fit-zone\`).
 
 ### dsfr-data-map-inset — Encarts territoriaux (DROM, Corse...)
 

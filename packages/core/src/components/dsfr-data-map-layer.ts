@@ -3,6 +3,12 @@
  *
  * Composant invisible utilisant SourceSubscriberMixin pour recevoir des données
  * et les projeter sur la carte parente (markers, geoshape, circle, heatmap).
+ *
+ * Choroplèthe (`type="geoshape"` + `fill-field`) : les valeurs sont discrétisées
+ * en classes (`classes`, `method`, `breaks`) colorées par `selected-palette` ;
+ * `getLegendEntries()` expose les classes (ou les paires de `color-map`) pour le
+ * compagnon dsfr-data-map-legend, qui se rafraîchit sur l'événement
+ * `dsfr-data-map-layer-render` (#685).
  */
 import { LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
@@ -11,8 +17,14 @@ import { sendWidgetBeacon } from '../utils/beacon.js';
 import { dispatchSourceCommand } from '../utils/data-bridge.js';
 import { getByPath } from '../utils/json-path.js';
 import { parseGeoValue } from '../utils/geo-value.js';
-import { CHOROPLETH_SCALES, quantileBreaks, getColorForValue } from '@dsfr-data/shared/lib';
-import { escapeHtml } from '@dsfr-data/shared/lib';
+import {
+  CHOROPLETH_SCALES,
+  classifyValues,
+  getColorForValue,
+  choroplethLegendEntries,
+  escapeHtml,
+} from '@dsfr-data/shared/lib';
+import type { LegendEntry } from '@dsfr-data/shared/lib';
 import type { DsfrDataMap } from './dsfr-data-map.js';
 import type { SourceElement } from '../utils/source-element.js';
 // @ts-expect-error — Vite ?inline import returns CSS as string
@@ -54,8 +66,6 @@ type ClusterFactory = (opts: Record<string, unknown>) => FeatureGroup;
  * `window.L` (namespace exposé par loadLeaflet) ou seulement sur l'export
  * `default` du module Leaflet bundlé — on consulte les deux. Plus aucun
  * fallback CDN runtime (#292) : incompatible CSP strict et sovereign-only.
- *
- * @fires dsfr-data-map-layer-time-ready - `{ steps }` sur `document` — les pas de temps de la couche sont calcules ; <dsfr-data-map-timeline> s'en sert pour construire son curseur.
  */
 async function resolveLeafletPluginSymbol<T>(name: string): Promise<T | undefined> {
   const winL = (window as WindowWithLeaflet).L as Record<string, unknown> | undefined;
@@ -72,6 +82,10 @@ async function resolveLeafletPluginSymbol<T>(name: string): Promise<T | undefine
 
 let layerBoundsSeq = 0;
 
+/**
+ * @fires dsfr-data-map-layer-time-ready - `{ steps }` sur `document` — les pas de temps de la couche sont calcules ; dsfr-data-map-timeline s'en sert pour construire son curseur.
+ * @fires dsfr-data-map-layer-render - `{ rendered, skipped, total, legend }` sur la couche (bubbles) après chaque rendu : éléments dessinés, lignes ignorées, total avant plafond, entrées de légende (`getLegendEntries()`). dsfr-data-map-legend s'en sert pour se rafraîchir (#685).
+ */
 @customElement('dsfr-data-map-layer')
 export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   /** Cle stable des bounds aupres de la carte parente (#294) */
@@ -152,9 +166,21 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   @property({ type: Number, attribute: 'fill-opacity' })
   fillOpacity = 0.6;
 
-  /** Palette DSFR utilisée pour le dégradé choroplèthe (`fill-field`). */
+  /** Palette DSFR utilisée pour le dégradé choroplèthe (`fill-field`) : `sequentialAscending` (défaut), `sequentialDescending`, `divergentAscending`, `divergentDescending`, `neutral`, `categorical`. */
   @property({ type: String, attribute: 'selected-palette' })
   selectedPalette = '';
+
+  /** Nombre de classes de la choroplèthe (`fill-field`). `0` (défaut) = autant de classes que de couleurs dans l'échelle (9). Plafonné à la taille de l'échelle (#685). */
+  @property({ type: Number })
+  classes = 0;
+
+  /** Méthode de discrétisation de la choroplèthe : `quantile` (défaut, effectifs égaux par classe), `equal` (intervalles de même largeur), `manual` (bornes de `breaks`). */
+  @property({ type: String })
+  method: 'quantile' | 'equal' | 'manual' = 'quantile';
+
+  /** Bornes supérieures manuelles des classes, séparées par des virgules : `"10,50,100"` donne 4 classes (jusqu'à 10, 10 à 50, 50 à 100, plus de 100). Implique `method="manual"`. */
+  @property({ type: String })
+  breaks = '';
 
   /** Rayon fixe des cercles (`type="circle"`). */
   @property({ type: Number })
@@ -291,6 +317,12 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   private _popupCompanion: import('./dsfr-data-map-popup.js').DsfrDataMapPopup | null = null;
   private _colorMapParsed: Map<string, string> | null = null;
 
+  /** Entrees de legende du dernier rendu (#685) — voir getLegendEntries() */
+  private _legendEntries: LegendEntry[] = [];
+
+  /** Au moins un record est retombe sur `color` faute de correspondance dans color-map */
+  private _colorFallbackUsed = false;
+
   // Timeline state
   private _timeFrames: Map<string, Record<string, unknown>[]> = new Map();
   private _timeSteps: string[] = [];
@@ -322,7 +354,43 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   private _resolveColor(record: Record<string, unknown>): string {
     if (!this.colorField || !this._colorMapParsed?.size) return this.color;
     const val = String(getByPath(record, this.colorField) ?? '');
-    return this._colorMapParsed.get(val) ?? this.color;
+    const mapped = this._colorMapParsed.get(val);
+    if (mapped === undefined) this._colorFallbackUsed = true;
+    return mapped ?? this.color;
+  }
+
+  /**
+   * Entrées de légende du dernier rendu (#685) : les classes de `fill-field`
+   * avec leurs bornes (choroplèthe), sinon les paires de `color-map` plus le
+   * repli `color` s'il a servi, sinon la seule couleur de la couche (libellé
+   * vide, à fournir par la légende). Consommé par dsfr-data-map-legend, qui
+   * se rafraîchit sur `dsfr-data-map-layer-render`.
+   */
+  getLegendEntries(): LegendEntry[] {
+    return this._legendEntries.map((e) => ({ ...e }));
+  }
+
+  /** Recalcule les entrees de legende a partir de l'etat du dernier rendu. */
+  private _buildLegendEntries(breaks: number[], palette: readonly string[], values: number[]) {
+    if (this.fillField && this.type === 'geoshape' && breaks.length > 0) {
+      let min = Infinity;
+      let max = -Infinity;
+      for (const v of values) {
+        if (v < min) min = v;
+        if (v > max) max = v;
+      }
+      const extent = values.length > 0 ? { min, max } : undefined;
+      this._legendEntries = choroplethLegendEntries(breaks, palette, extent);
+      return;
+    }
+    if (this._colorMapParsed?.size) {
+      const entries: LegendEntry[] = [];
+      for (const [value, color] of this._colorMapParsed) entries.push({ color, label: value });
+      if (this._colorFallbackUsed) entries.push({ color: this.color, label: 'Autres valeurs' });
+      this._legendEntries = entries;
+      return;
+    }
+    this._legendEntries = [{ color: this.color, label: '' }];
   }
 
   /**
@@ -365,6 +433,9 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     'fillField',
     'fillOpacity',
     'selectedPalette',
+    'classes',
+    'method',
+    'breaks',
     'radius',
     'radiusField',
     'radiusUnit',
@@ -705,16 +776,23 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
 
     // Parse color-map (categorical color mapping)
     this._colorMapParsed = this.colorField && this.colorMap ? this._parseColorMap() : null;
+    this._colorFallbackUsed = false;
 
-    // Choropleth setup (for geoshape with fill-field)
+    // Choropleth setup (for geoshape with fill-field) — classes parametrables
+    // (#685) : classes/method/breaks, défaut inchange (quantiles, autant de
+    // classes que de couleurs dans l'echelle)
     let breaks: number[] = [];
     let palette: readonly string[] = [];
-    if (this.fillField && this.selectedPalette && this.type === 'geoshape') {
-      const values = items
-        .map((r) => Number(getByPath(r, this.fillField)))
-        .filter((v) => !isNaN(v));
-      palette = CHOROPLETH_SCALES[this.selectedPalette] || CHOROPLETH_SCALES['sequentialAscending'];
-      breaks = quantileBreaks(values, palette.length);
+    let fillValues: number[] = [];
+    if (this.fillField && this.type === 'geoshape') {
+      fillValues = items.map((r) => Number(getByPath(r, this.fillField))).filter((v) => !isNaN(v));
+      const scale =
+        CHOROPLETH_SCALES[this.selectedPalette] || CHOROPLETH_SCALES['sequentialAscending'];
+      ({ breaks, palette } = classifyValues(fillValues, scale, {
+        method: this.method,
+        classes: this.classes,
+        breaks: this.breaks,
+      }));
     }
 
     // Auto-scaling for circle radius-field
@@ -870,6 +948,21 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
         this._mapParent.updateDescription([`Couches : ${summaries.join(', ')}.`]);
       }
     }
+
+    // Legende (#685) : entrees figees a ce rendu, puis notification des
+    // compagnons (dsfr-data-map-legend) et des diagnostics
+    this._buildLegendEntries(breaks, palette, fillValues);
+    this.dispatchEvent(
+      new CustomEvent('dsfr-data-map-layer-render', {
+        bubbles: true,
+        detail: {
+          rendered: this._renderedCount,
+          skipped: this._skippedGeoCount,
+          total: this._totalCount,
+          legend: this.getLegendEntries(),
+        },
+      })
+    );
   }
 
   /** Champs de position tels que configures, pour les messages de diagnostic. */
