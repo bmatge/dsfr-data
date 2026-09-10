@@ -7,10 +7,11 @@ import {
   applyCompute,
   unescapeColonValue,
   toBoolean,
+  computeTargets,
 } from '@dsfr-data/shared/lib';
-import type { CompiledCompute } from '@dsfr-data/shared/lib';
+import type { CompiledCompute, ComputedColumn } from '@dsfr-data/shared/lib';
 import { sendWidgetBeacon } from '../utils/beacon.js';
-import { reportConfigError } from '../utils/config-error.js';
+import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import { getDataCache } from '../utils/data-bridge.js';
 import { TransformerMixin } from '../utils/transformer-mixin.js';
 import type { SourceElement } from '../utils/source-element.js';
@@ -153,14 +154,60 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
   lowercaseKeys = false;
 
   /**
-   * Colonnes calculées (ligne à ligne, sur valeurs brutes).
-   * Format : "cible = expression; cible2 = expression2".
-   * Supporte l'arithmétique (+ - * /), la concaténation texte (+ avec littéraux 'entre quotes')
-   * et les parenthèses. Ex : "pct = valeur * 100; groupe = Indicateurs + ' / ' + Sous_theme".
-   * Hors périmètre : conditions, fonctions, calculs sur valeurs agrégées.
+   * Colonnes calculées, ligne à ligne, en dernier (sur les valeurs déjà typées par
+   * numeric / round / rename). Format : "cible = expression; cible2 = expression2"
+   * (une assignation suivante peut relire une colonne calculée avant elle).
+   *
+   * Grammaire (ADR-105, #671) :
+   * - arithmétique `+ - * /`, parenthèses, moins unaire ; `+` concatène dès qu'un côté
+   *   n'est pas numérique ; littéraux texte 'entre quotes simples', nombres à point ;
+   * - littéraux `null`, `true`, `false` ;
+   * - fonctions en liste blanche, appel `f(a, b)` :
+   *   dates `year(d)`, `month(d)`, `day(d)` (ISO ou Date, sinon null) ;
+   *   nombres `round(x, n)`, `abs(x)`, `floor(x)`, `ceil(x)` (non numérique → null) ;
+   *   texte `lower(s)`, `upper(s)`, `trim(s)`, `len(s)`, `concat(a, b, …)`,
+   *   `replace(s, 'de', 'vers')` (littéral, toutes les occurrences, pas de regex) ;
+   *   absence `coalesce(a, b, …)` (première valeur non nulle), `is_null(x)`,
+   *   `is_empty(x)` (null, '' ou tableau vide) ;
+   *   tableaux `join(arr, ', ')`, `contains(arr_ou_texte, v)` ;
+   * - conditions `when COND then EXPR [when … then …]… else EXPR` — le `else` est
+   *   obligatoire (erreur de configuration sinon) ; comparaisons d'égalité `=` et `!=`
+   *   et d'ordre (inférieur, inférieur ou égal, supérieur, supérieur ou égal, avec les
+   *   signes usuels — grammaire complète dans le guide « Colonnes calculées » de la skill),
+   *   `and`, `or`, `not`. L'égalité est lâche comme celle de `where` (nombre ↔ chaîne
+   *   numérique) : `when cat = 'A'` et `where="cat:eq:A"` gardent les mêmes lignes.
+   *   Les comparaisons d'ordre se font en nombre quand les deux côtés sont numériques,
+   *   en texte sinon (dates ISO comprises) ; null, undefined et '' ne matchent jamais.
+   *
+   * Exemples : "solde = actif - passif",
+   * "tranche = when montant = 0 then 'Nul' when is_null(montant) then 'Inconnu' else 'Renseigné'",
+   * "type = coalesce(type_entreprise, 'Non renseigné')", "annee = year(date_notification)",
+   * "pct = round(part * 100, 1)", "serie = Indicateurs + ' / ' + Sous_theme" ; une tranche
+   * par seuils s'écrit avec les opérateurs d'ordre (voir le guide).
+   *
+   * Fonction hors liste, arité fausse, `when` sans `else`, expression trop longue ou trop
+   * imbriquée : erreur de configuration (console + `data-dsfr-config-error`), état d'erreur
+   * en aval — jamais une colonne silencieusement vide. Aucun `eval` : tokenizer, parseur,
+   * AST ; seuls les champs de la ligne sont accessibles. Hors périmètre : valeurs
+   * agrégées (query / kpi), ligne précédente, cumul.
    */
   @property({ type: String })
   compute = '';
+
+  /**
+   * Colonnes produites par `compute` au dernier traitement, avec un exemple
+   * de valeur (première ligne) — lu par la trace du volet Diagnostic (#604,
+   * #671), même doctrine que `getSkippedCount()` des afficheurs.
+   */
+  private _computedColumns: ComputedColumn[] = [];
+
+  /** True tant qu'une erreur de grammaire `compute` est affichée (#671). */
+  private _computeConfigError = false;
+
+  /** Colonnes ajoutées par `compute` au dernier traitement (vide sans compute). */
+  public getComputedColumns(): ComputedColumn[] {
+    return this._computedColumns.map((c) => ({ ...c }));
+  }
 
   // --- Public API (delegation to upstream source) ---
 
@@ -306,7 +353,24 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
       }
       // Compile once per batch (not per row). Compute runs LAST, on already-typed
       // values, so `valeur * 100` sees a number and `a + ' / ' + b` concatenates.
-      const compiledCompute: CompiledCompute = compileCompute(this.compute);
+      // Erreur de grammaire (fonction hors liste, `when` sans `else`…, #671) :
+      // erreur de configuration nommée (#649) + état d'erreur aval, jamais une
+      // colonne vide en silence.
+      let compiledCompute: CompiledCompute;
+      try {
+        compiledCompute = compileCompute(this.compute);
+      } catch (error) {
+        const message = `compute="${this.compute}" : ${(error as Error).message}`;
+        reportConfigError(this, `dsfr-data-normalize[${this.id}]`, message);
+        this._computeConfigError = true;
+        this._computedColumns = [];
+        this.emitTransformerError(new Error(message));
+        return;
+      }
+      if (this._computeConfigError) {
+        clearConfigError(this);
+        this._computeConfigError = false;
+      }
 
       const result = rows.map((row) => {
         if (row === null || row === undefined || typeof row !== 'object') {
@@ -328,6 +392,14 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
         }
         return compiledCompute.length > 0 ? applyCompute(normalized, compiledCompute) : normalized;
       });
+
+      // Colonnes dérivées pour la trace (#671) : noms + valeur de la première ligne.
+      const firstRow = result.find((r) => r !== null && typeof r === 'object') as
+        Record<string, unknown> | undefined;
+      this._computedColumns = computeTargets(compiledCompute).map((name) => ({
+        name,
+        sample: firstRow ? firstRow[name] : undefined,
+      }));
 
       // Meta de pagination posee AVANT le dispatch par le mixin (#282) —
       // document.dispatchEvent est synchrone, l'aval lirait sinon la meta

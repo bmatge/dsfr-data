@@ -265,6 +265,35 @@ function formatSkippedRows(node: StageNode): string[] {
   return [`     ⚠ ${plural(n, 'ligne')} ignorée${n > 1 ? 's' : ''} (${cause})`];
 }
 
+/** Valeur d'exemple compacte : JSON tronqué, pour tenir sur la ligne. */
+function formatSampleValue(value: unknown, max = 40): string {
+  let text: string;
+  if (value === undefined) text = 'undefined';
+  else {
+    try {
+      text = JSON.stringify(value) ?? String(value);
+    } catch {
+      text = String(value);
+    }
+  }
+  return text.length > max ? text.slice(0, max - 1) + '…' : text;
+}
+
+/**
+ * Colonnes dérivées par `compute` sur un normalize (#671). Un recodage est
+ * la « boîte noire » type du pipeline : nommer les colonnes produites et
+ * montrer une valeur dit tout de suite si l'expression a fait ce qu'on
+ * croit. Les valeurs sont masquées avec `redactValues`.
+ */
+function formatComputedColumns(node: StageNode, opts: FormatOptions): string[] {
+  const columns = node.computedColumns;
+  if (!columns || columns.length === 0) return [];
+  const items = columns.map((c) =>
+    opts.redactValues ? c.name : `${c.name} = ${formatSampleValue(c.sample)}`
+  );
+  return [`     calculées (compute) : ${items.join(', ')}`];
+}
+
 /**
  * Rend la trace en texte français.
  *
@@ -315,6 +344,7 @@ export function formatTrace(trace: Trace, options: FormatOptions = {}): string {
     });
     out.push(statusLine(node, state, upstreamHasData));
     out.push(...formatSkippedRows(node));
+    out.push(...formatComputedColumns(node, opts));
 
     if (state.status === 'loaded') {
       out.push(`     champs : ${formatFieldList(state.fields ?? [])}`);

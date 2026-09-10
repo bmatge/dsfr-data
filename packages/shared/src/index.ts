@@ -27,7 +27,14 @@ export { parseJoinKeys, performJoin, performJoinWithStats } from './utils/join.j
 export type { UnpivotOptions } from './utils/unpivot.js';
 export { performUnpivot, compileColsPattern } from './utils/unpivot.js';
 export type { CompiledCompute, CompiledAssignment } from './utils/compute.js';
-export { compileCompute, applyCompute } from './utils/compute.js';
+export {
+  compileCompute,
+  applyCompute,
+  computeTargets,
+  COMPUTE_FUNCTIONS,
+  COMPUTE_MAX_DEPTH,
+  COMPUTE_MAX_EXPRESSION_LENGTH,
+} from './utils/compute.js';
 export { isUnsafeKey } from './utils/security.js';
 export type { CsvColumn, BuildCsvOptions } from './utils/csv.js';
 export { buildCsv, CSV_BOM } from './utils/csv.js';

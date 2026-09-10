@@ -78,7 +78,7 @@ const SHAPE_ATTRS: Record<string, string[]> = {
     'transform',
   ],
   'dsfr-data-query': ['where', 'filter', 'group-by', 'aggregate', 'order-by', 'limit'],
-  'dsfr-data-normalize': ['rules', 'trim', 'flatten', 'split', 'rename'],
+  'dsfr-data-normalize': ['rules', 'trim', 'flatten', 'split', 'rename', 'compute'],
   'dsfr-data-join': ['left', 'right', 'on', 'type', 'prefix-left', 'prefix-right'],
   'dsfr-data-unpivot': ['cols', 'name-field', 'value-field'],
   'dsfr-data-facets': ['fields', 'multi'],
@@ -124,6 +124,19 @@ export interface StageNode {
    * ignoré ou quand le composant ne l'expose pas.
    */
   skippedRows?: number;
+  /**
+   * Colonnes dérivées par l'attribut `compute` d'un normalize (#671), avec
+   * la valeur de la première ligne en exemple — ce qu'un recodage a produit,
+   * visible sans ouvrir l'échantillon. Lu sur `getComputedColumns()` du
+   * composant rehaussé ; absent sans compute ou quand rien n'a été traité.
+   */
+  computedColumns?: ComputedColumn[];
+}
+
+/** Une colonne produite par `compute` et un exemple de valeur (première ligne). */
+export interface ComputedColumn {
+  name: string;
+  sample: unknown;
 }
 
 export interface DataflowGraph {
@@ -162,6 +175,29 @@ function readSkippedRows(el: Element): number | undefined {
   try {
     const n = counting.getSkippedCount();
     return typeof n === 'number' && n > 0 ? n : undefined;
+  } catch {
+    // Un composant à moitié initialisé ne doit jamais casser la trace.
+    return undefined;
+  }
+}
+
+/** Transformateur qui sait lister ses colonnes dérivées (#671). */
+interface ComputingElement extends Element {
+  getComputedColumns?: () => ComputedColumn[];
+}
+
+/**
+ * Colonnes dérivées par `compute`, si le composant est rehaussé et les
+ * expose — même doctrine que `readSkippedRows` : une méthode publique du
+ * composant, pas un événement du bus (le bus transporte les lignes, pas la
+ * provenance des colonnes).
+ */
+function readComputedColumns(el: Element): ComputedColumn[] | undefined {
+  const computing = el as ComputingElement;
+  if (typeof computing.getComputedColumns !== 'function') return undefined;
+  try {
+    const columns = computing.getComputedColumns();
+    return Array.isArray(columns) && columns.length > 0 ? columns : undefined;
   } catch {
     // Un composant à moitié initialisé ne doit jamais casser la trace.
     return undefined;
@@ -219,6 +255,7 @@ export function snapshotGraph(root: ParentNode): DataflowGraph {
 
     const configError = el.getAttribute('data-dsfr-config-error');
     const skippedRows = role === 'display' ? readSkippedRows(el) : undefined;
+    const computedColumns = role === 'transform' ? readComputedColumns(el) : undefined;
 
     nodes.push({
       id,
@@ -230,6 +267,7 @@ export function snapshotGraph(root: ParentNode): DataflowGraph {
       attrs: readShapeAttrs(el, tag),
       ...(configError ? { configError } : {}),
       ...(skippedRows !== undefined ? { skippedRows } : {}),
+      ...(computedColumns !== undefined ? { computedColumns } : {}),
     });
   }
 
