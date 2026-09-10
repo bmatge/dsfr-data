@@ -3,8 +3,11 @@
 /* ---- Page ---- */
 body.carto-app {
   /* --carto-header-h est mesurée au runtime (main.ts) pour compenser la
-     hauteur réelle du <app-header> commun, qui varie selon breakpoint. */
-  --carto-header-h: 96px;
+     hauteur réelle du <app-header> commun, qui varie selon breakpoint.
+     Cette valeur n'est donc qu'un repli d'avant hydratation : 141 px, la
+     hauteur réelle mesurée sous 62em, et non 96 px — un chiffre qui n'a
+     jamais correspondu à rien (#628). */
+  --carto-header-h: 141px;
   margin: 0;
   overflow: hidden;
   display: flex;

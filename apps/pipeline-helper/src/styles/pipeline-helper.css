@@ -5,9 +5,25 @@
   display: flex;
   flex-direction: column;
   /* Hauteurs réelles du header commun et de la barre d'actions, publiées
-     par <app-header> (#538) et <app-action-bar> (#539). */
-  height: calc(100vh - var(--app-header-h, 56px) - var(--app-action-bar-h, 0px));
+     par <app-header> (#538) et <app-action-bar> (#539). Le repli de
+     --app-header-h ne sert qu'avant la définition du custom element : 141 px,
+     la hauteur mesurée sous 62em, et non 56 px (#628). */
+  height: calc(100vh - var(--app-header-h, 141px) - var(--app-action-bar-h, 0px));
   overflow: hidden;
+}
+
+/* Sous 48em, le `body` se réserve déjà en bas la barre d'actions fixée et le
+   rail du volet Diagnostic (app-action-bar.ts, app-diagnostic-panel.ts). Ce
+   calcul les ignorait : la page dépassait d'autant, et son propre
+   `overflow: hidden` rognait le bas de l'inspecteur (#628). Mêmes variables
+   publiées, même seuil que le chrome mobile. */
+@media (max-width: 47.99em) {
+  .pipeline-page {
+    height: calc(
+      100vh - var(--app-header-h, 141px) - var(--app-action-bar-h, 0px) -
+        var(--app-action-bar-fixed-h, 3.5rem) - var(--app-diagnostic-h, 2.25rem)
+    );
+  }
 }
 
 /* ---- Main 2/3 + 1/3 layout ---- */
