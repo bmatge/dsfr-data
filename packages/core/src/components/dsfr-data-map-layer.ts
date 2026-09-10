@@ -17,6 +17,10 @@ import { sendWidgetBeacon } from '../utils/beacon.js';
 import { dispatchSourceCommand } from '../utils/data-bridge.js';
 import { getByPath } from '../utils/json-path.js';
 import { parseGeoValue } from '../utils/geo-value.js';
+import { escapeColonValue, filterToOdsql } from '../utils/where.js';
+import { reportConfigError, clearConfigError } from '../utils/config-error.js';
+import { CONTEXT_CONNECTED_EVENT, findContextHostById } from '../utils/context-registry.js';
+import type { ContextHost } from '../utils/context-registry.js';
 import {
   CHOROPLETH_SCALES,
   classifyValues,
@@ -24,7 +28,7 @@ import {
   choroplethLegendEntries,
   escapeHtml,
 } from '@dsfr-data/shared/lib';
-import type { LegendEntry } from '@dsfr-data/shared/lib';
+import type { LegendEntry, ContextFilterLike } from '@dsfr-data/shared/lib';
 import type { DsfrDataMap } from './dsfr-data-map.js';
 import type { SourceElement } from '../utils/source-element.js';
 // @ts-expect-error — Vite ?inline import returns CSS as string
@@ -83,6 +87,53 @@ async function resolveLeafletPluginSymbol<T>(name: string): Promise<T | undefine
 let layerBoundsSeq = 0;
 
 /**
+ * La sélection de la carte vue par le contexte (#681, ADR-104) : UN filtre
+ * `eq` sur le champ de `refine-on-click`, dont la valeur est celle de
+ * l'objet cliqué. Le contexte diffuse à ses cibles (au dialecte de
+ * chacune), porte l'URL et le tag ; la couche ne fait que tenir la
+ * sélection courante.
+ */
+class MapSelectFilter implements ContextFilterLike {
+  readonly applyTo = '*';
+  readonly operator = 'eq';
+
+  constructor(private readonly host: DsfrDataMapLayer) {}
+
+  get field(): string {
+    return this.host.refineOnClick.trim();
+  }
+
+  get isConnected(): boolean {
+    return this.host.isConnected;
+  }
+
+  buildColonWhere(): string {
+    const value = this.host._selectedValue();
+    if (!value || !this.field) return '';
+    return `${this.field}:eq:${escapeColonValue(value)}`;
+  }
+
+  displayLabel(): string {
+    return this.host.label || this.field;
+  }
+
+  displayValue(): string {
+    return this.host._selectedValue();
+  }
+
+  /** Même chemin qu'un second clic sur l'objet sélectionné : la couche vide sa sélection et re-diffuse */
+  clear(): void {
+    this.host._clearSelection();
+  }
+
+  urlValue(): string {
+    return this.host._selectedValue();
+  }
+}
+
+/**
+ * @fires dsfr-data-map-select - `{ record, layerId, selected }` sur la couche (bubbles, composed) — au clic sur un marqueur, un cercle ou une forme (#681), en plus de la popup ; jamais en `no-interactive`. `selected` vaut `true` à la sélection, `false` quand le clic retire la sélection courante (second clic sur le même objet, ou `clear()` du filtre de contexte).
+ * @fires dsfr-data-source-command - `{ sourceId, where, whereKey, origin }` sur `document` — en `refine-on-click` SANS `context` (chemin dégradé) : clause `eq` poussée directement à `source` sous le whereKey `map-select-ID`. Avec `context`, c'est le contexte qui diffuse.
  * @fires dsfr-data-map-layer-time-ready - `{ steps }` sur `document` — les pas de temps de la couche sont calcules ; dsfr-data-map-timeline s'en sert pour construire son curseur.
  * @fires dsfr-data-map-layer-render - `{ rendered, skipped, total, legend }` sur la couche (bubbles) après chaque rendu : éléments dessinés, lignes ignorées, total avant plafond, entrées de légende (`getLegendEntries()`). dsfr-data-map-legend s'en sert pour se rafraîchir (#685).
  */
@@ -131,6 +182,40 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
    *  contours administratifs, habillage */
   @property({ type: Boolean, attribute: 'no-interactive' })
   noInteractive = false;
+
+  /**
+   * Libellé de la couche — sert de libellé au tag du contexte en
+   * `refine-on-click` (#681). Vide = le nom du champ.
+   */
+  @property({ type: String })
+  label = '';
+
+  // --- Sélection au clic (#681, ADR-104) ---
+
+  /**
+   * Champ dont la valeur de l'objet cliqué devient un filtre `eq` (#681).
+   * Premier clic = filtre, second clic sur le même objet = retrait, clic sur
+   * un autre objet = remplacement. Avec `context="id"` (recommandé), la
+   * couche s'enregistre comme filtre du dsfr-data-context : diffusion à
+   * toutes ses sources cibles au dialecte de chacune, tag dans
+   * dsfr-data-context-tags, URL portée par le contexte. Sans `context`,
+   * la clause part directement à `source` (whereKey `map-select-ID`) —
+   * sans tag ni URL. Attention : si `source` est aussi une cible du
+   * contexte, la carte se filtre elle-même (seul l'objet cliqué reste,
+   * jusqu'au second clic) ; pour garder tous les points, ne pas lister
+   * cette source dans `sources` du contexte (ou donner à la carte sa
+   * propre source).
+   */
+  @property({ type: String, attribute: 'refine-on-click' })
+  refineOnClick = '';
+
+  /**
+   * Id du dsfr-data-context auquel s'enregistrer en `refine-on-click`
+   * (#681, ADR-104). Le contexte peut être déclaré après la couche dans
+   * la page. Vide = commande directe à `source` (chemin dégradé).
+   */
+  @property({ type: String })
+  context = '';
 
   // --- Display ---
 
@@ -328,9 +413,207 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   private _timeSteps: string[] = [];
   private _currentFrameIndex = -1; // -1 = show all (no timeline active)
 
+  // Sélection au clic (#681)
+
+  /** Objet sélectionné (null hors sélection ; null aussi si la sélection vient de l'URL) */
+  private _selectedRecord: Record<string, unknown> | null = null;
+
+  /**
+   * Identité de la sélection : la valeur du champ `refine-on-click` (stable
+   * d'un rendu à l'autre — la couche se re-dessine avec de nouveaux objets
+   * quand sa source re-émet), sinon l'objet lui-même.
+   */
+  private _selectedKey: string | Record<string, unknown> | null = null;
+
+  /** Valeur filtrée (mode refine) — conservée même sans objet (pré-remplie depuis l'URL) */
+  private _selectedFieldValue = '';
+
+  /** Contexte résolu (mode `context`, #681) */
+  private _context: ContextHost | null = null;
+
+  /** Le filtre unique enregistré auprès du contexte (#681) */
+  private _contextFilter: MapSelectFilter | null = null;
+
+  /** Dernière clause confiée au contexte ou à la source — ne re-diffuse pas une clause inchangée */
+  private _lastPushedWhere = '';
+
+  /** Un contexte visé par id vient d'être connecté : (re)bind si c'est le nôtre (#681) */
+  private _onContextConnected = (e: Event) => {
+    const id = (e as CustomEvent<{ id: string | null }>).detail?.id;
+    if (this.context && id === this.context) this._bindContext();
+  };
+
   // Light DOM — invisible component
   createRenderRoot() {
     return this;
+  }
+
+  // --- Sélection au clic (#681, ADR-104) ---
+
+  /** Mode `refine-on-click` demandé */
+  private get _refineMode(): boolean {
+    return this.refineOnClick.trim() !== '';
+  }
+
+  /** Mode `context` demandé (que le contexte soit déjà résolu ou non) */
+  private get _contextMode(): boolean {
+    return this._refineMode && this.context.trim() !== '';
+  }
+
+  /** whereKey du chemin dégradé (commande directe à `source`) */
+  private get _directWhereKey(): string {
+    return `map-select-${this.id || this._boundsKey}`;
+  }
+
+  /** Valeur courante du filtre de sélection (lue par le filtre de contexte) */
+  _selectedValue(): string {
+    return this._selectedFieldValue;
+  }
+
+  /** Objet actuellement sélectionné (null hors sélection) */
+  getSelectedRecord(): Record<string, unknown> | null {
+    return this._selectedRecord;
+  }
+
+  /** Identité d'un objet pour la sélection : valeur du champ en mode refine, l'objet sinon */
+  private _selectionKeyOf(record: Record<string, unknown>): string | Record<string, unknown> {
+    if (!this._refineMode) return record;
+    const raw = getByPath(record, this.refineOnClick.trim());
+    return raw === undefined || raw === null ? '' : String(raw);
+  }
+
+  /** Branche le clic de sélection sur un objet Leaflet (marqueur, forme, cercle) */
+  private _bindSelect(layer: LeafletLayer, record: Record<string, unknown>): void {
+    if (this.noInteractive) return;
+    layer.on('click', () => this._onFeatureClick(record));
+  }
+
+  /**
+   * Clic sur un objet : bascule la sélection (premier clic = sélection,
+   * second clic sur le même objet = retrait, autre objet = remplacement),
+   * émet `dsfr-data-map-select`, puis diffuse le filtre en mode refine.
+   */
+  _onFeatureClick(record: Record<string, unknown>): void {
+    const key = this._selectionKeyOf(record);
+    const same = this._selectedKey !== null && key === this._selectedKey;
+    if (same) {
+      this._setSelection(null, null);
+      this._emitSelect(record, false);
+    } else {
+      this._setSelection(record, key);
+      this._emitSelect(record, true);
+    }
+    this._pushSelection();
+  }
+
+  /** Retire la sélection courante par le même chemin qu'un second clic (appelé par le tag du contexte) */
+  _clearSelection(): void {
+    if (this._selectedKey === null && !this._selectedFieldValue) return;
+    const previous = this._selectedRecord;
+    this._setSelection(null, null);
+    if (previous) this._emitSelect(previous, false);
+    this._pushSelection();
+  }
+
+  private _setSelection(
+    record: Record<string, unknown> | null,
+    key: string | Record<string, unknown> | null
+  ): void {
+    this._selectedRecord = record;
+    this._selectedKey = key;
+    this._selectedFieldValue = typeof key === 'string' ? key : '';
+  }
+
+  private _emitSelect(record: Record<string, unknown>, selected: boolean): void {
+    this.dispatchEvent(
+      new CustomEvent('dsfr-data-map-select', {
+        bubbles: true,
+        composed: true,
+        detail: { record, layerId: this.id, selected },
+      })
+    );
+  }
+
+  /**
+   * Diffuse la sélection courante : au contexte (qui traduit, porte l'URL et
+   * le tag) ou, sans `context`, directement à `source` sous un whereKey
+   * stable. Dédupliqué : une clause inchangée ne repart pas.
+   */
+  private _pushSelection(): void {
+    if (!this._refineMode) return;
+    if (this._context && this._contextFilter) {
+      const where = this._contextFilter.buildColonWhere();
+      if (where === this._lastPushedWhere) return;
+      this._lastPushedWhere = where;
+      this._context._applyFilter(this._contextFilter, where);
+      return;
+    }
+    // Contexte demandé mais pas encore résolu : rien ne part en direct
+    if (this._contextMode || !this.source) return;
+    const field = this.refineOnClick.trim();
+    const colon = this._selectedFieldValue
+      ? `${field}:eq:${escapeColonValue(this._selectedFieldValue)}`
+      : '';
+    if (colon === this._lastPushedWhere) return;
+    this._lastPushedWhere = colon;
+    const sourceEl = document.getElementById(this.source) as unknown as SourceElement | null;
+    const whereFormat = sourceEl?.getAdapter?.()?.capabilities?.whereFormat;
+    const where = colon && whereFormat === 'odsql' ? filterToOdsql(colon) : colon;
+    dispatchSourceCommand(this.source, { where, whereKey: this._directWhereKey, origin: this.id });
+  }
+
+  /**
+   * Résout le contexte visé par `context="id"` et y enregistre le filtre.
+   * Le contexte peut arriver plus tard (déclaré après dans la page) :
+   * l'erreur de config est posée en attendant et levée à sa connexion.
+   */
+  private _bindContext(): void {
+    if (!this.isConnected || !this._contextMode) return;
+    const context = findContextHostById(this.context);
+    if (context && context === this._context) return;
+    this._unbindContext();
+    if (!context) {
+      reportConfigError(
+        this,
+        'dsfr-data-map-layer',
+        `dsfr-data-context introuvable : "${this.context}"`
+      );
+      return;
+    }
+    clearConfigError(this);
+    this._context = context;
+    this._contextFilter = new MapSelectFilter(this);
+    context._registerFilter(this._contextFilter);
+
+    // Valeur initiale depuis l'URL du contexte (#231, ADR-031) : elle devient
+    // la sélection courante (sans objet : la donnée n'est pas encore là) et
+    // repasse par le MÊME chemin qu'un clic — jamais injectée dans un where.
+    const urlValues = context._urlValuesFor(this._contextFilter.field);
+    if (urlValues && urlValues.length > 0 && !this._selectedFieldValue) {
+      this._setSelection(null, urlValues[0]);
+    }
+    this._pushSelection();
+  }
+
+  /** Libère le filtre auprès du contexte (disconnect, changement de contexte) */
+  private _unbindContext(): void {
+    if (this._context && this._contextFilter) {
+      this._context._unregisterFilter(this._contextFilter);
+    }
+    this._context = null;
+    this._contextFilter = null;
+    this._lastPushedWhere = '';
+  }
+
+  /** Libère la clause du chemin dégradé poussée sur `source` (disconnect, changement de mode) */
+  private _releaseDirectSelection(): void {
+    if (!this._lastPushedWhere || this._context || !this.source) return;
+    this._lastPushedWhere = '';
+    dispatchSourceCommand(this.source, {
+      where: '',
+      whereKey: this._directWhereKey,
+      origin: this.id,
+    });
   }
 
   // --- Color mapping ---
@@ -451,6 +734,26 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     'timeBucket',
     'timeMode',
   ]);
+
+  willUpdate(changed: Map<PropertyKey, unknown>) {
+    super.willUpdate(changed);
+    // Changement de contexte ou de champ à chaud (#681) : la sélection
+    // courante est libérée sur l'ancien chemin, le nouveau est rejoint
+    if ((changed.has('context') || changed.has('refineOnClick')) && this.hasUpdated) {
+      // Sélection vidée AVANT le désenregistrement : le contexte relit
+      // urlValue() du filtre en libérant sa clause (synchro d'URL)
+      this._setSelection(null, null);
+      this._releaseDirectSelection();
+      this._unbindContext();
+      document.removeEventListener(CONTEXT_CONNECTED_EVENT, this._onContextConnected);
+      if (this._contextMode) {
+        document.addEventListener(CONTEXT_CONNECTED_EVENT, this._onContextConnected);
+        this._bindContext();
+      } else {
+        clearConfigError(this);
+      }
+    }
+  }
 
   updated(changedProperties: Map<string, unknown>) {
     super.updated(changedProperties);
@@ -628,10 +931,21 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
       );
     }
     sendWidgetBeacon('dsfr-data-map-layer', this.type);
+    if (this._contextMode) {
+      document.addEventListener(CONTEXT_CONNECTED_EVENT, this._onContextConnected);
+      // Bind différé d'un tick : dans un même fragment innerHTML, le contexte
+      // déclaré après la couche n'est pas encore upgradé
+      queueMicrotask(() => this._bindContext());
+    }
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    // Libère la sélection au clic (#681) : clause directe ou filtre du contexte
+    document.removeEventListener(CONTEXT_CONNECTED_EVENT, this._onContextConnected);
+    this._setSelection(null, null);
+    this._releaseDirectSelection();
+    this._unbindContext();
     // Libere les bounds enregistres aupres de la carte (#294)
     this._mapParent?.unregisterLayerBounds?.(this._boundsKey);
     // Libere le filtre viewport pousse sur la source (#297) : un layer
@@ -1000,6 +1314,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     });
     this._bindPopup(marker, record);
     this._bindTooltip(marker, record);
+    this._bindSelect(marker, record);
     group.addLayer(marker);
     this._renderedCount++;
   }
@@ -1060,6 +1375,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     if (!this.noInteractive) {
       this._bindPopup(layer, record);
       this._bindTooltip(layer, record);
+      this._bindSelect(layer, record);
     }
     group.addLayer(layer);
     this._renderedCount++;
@@ -1104,6 +1420,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     if (!this.noInteractive) {
       this._bindPopup(circle, record);
       this._bindTooltip(circle, record);
+      this._bindSelect(circle, record);
     }
     group.addLayer(circle);
     this._renderedCount++;

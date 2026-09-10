@@ -2481,6 +2481,11 @@ rendu : switch chart/tableau integre, CSV natif). Conserver uniquement :
       'fonds administratifs',
       'geo/regions',
       'geo/departements',
+      'refine-on-click',
+      'map-select',
+      'clic sur la carte',
+      'carte comme filtre',
+      'annuaire',
     ],
     content:
       `## dsfr-data-map + dsfr-data-map-layer — Carte interactive multi-couches
@@ -2532,6 +2537,9 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | geo-field | String | \`""\` | Chemin vers GeoJSON (Point, Polygon) — objet ou chaine JSON serialisee (colonnes Text Grist/CSV) |
 | shape-class | String | \`""\` | Classe CSS appliquee aux traces SVG (geoshape/circle) — motifs hachures via <pattern> defini par la page |
 | no-interactive | Boolean | \`false\` | Couche decorative : aucun clic/tooltip/popup (contours administratifs, habillage) |
+| label | String | \`""\` | Libellé de la couche — libellé du tag du contexte en \`refine-on-click\` (défaut : le nom du champ) |
+| refine-on-click | String | \`""\` | Champ dont la valeur de l'objet clique devient un filtre \`eq\` (#681) : premier clic = filtre, second clic sur le même objet = retrait, autre objet = remplacement. Avec \`context\` (recommandé) : filtre du dsfr-data-context (tag, URL, dialecte de chaque cible). Sans \`context\` : commande directe a \`source\` (whereKey \`map-select-ID\`, sans tag ni URL) |
+| context | String | \`""\` | Id du dsfr-data-context auquel s'enregistrer en \`refine-on-click\` (#681, ADR-104). Peut etre declare apres la couche |
 | popup-template | String | \`""\` | Template : \`"{nom} — {val} kW"\` |
 | popup-fields | String | \`""\` | Champs pour tableau auto : \`"nom,adresse"\` |
 | tooltip-field | String | \`""\` | Champ affiche au survol |
@@ -2708,6 +2716,43 @@ Sans template, tableau auto.
   </template>
 </dsfr-data-map-popup>
 \`\`\`
+
+### La carte comme filtre — dsfr-data-map-select et refine-on-click (#681, ADR-104)
+
+Au clic sur un marqueur, un cercle ou une forme (jamais en \`no-interactive\`), la couche emet
+\`dsfr-data-map-select\` \`{ record, layerId, selected }\` (bubbles, composed) en plus de la popup :
+tout JS de page peut reagir. \`selected\` vaut \`true\` a la selection, \`false\` au retrait
+(second clic sur le même objet).
+
+Avec \`refine-on-click="champ"\` + \`context="ctx"\` (recommande), la couche s'enregistre comme
+filtre \`eq\` du dsfr-data-context : premier clic = filtre diffuse a toutes les sources du contexte
+(au dialecte de chacune), tag dans dsfr-data-context-tags (libelle = \`label\` de la couche ou le
+champ), URL portee par le contexte (\`url-sync\`) ; second clic sur le même objet = retrait ; autre
+objet = remplacement. Sans \`context\`, la clause part directement a \`source\` (whereKey
+\`map-select-ID\`) : pas de tag, pas d'URL, pas de traduction de dialecte — chemin degrade.
+
+Recette annuaire (la carte filtre la liste) :
+
+\`\`\`html
+<dsfr-data-source id="etablissements" api-type="opendatasoft" base-url="…" dataset-id="…"></dsfr-data-source>
+<dsfr-data-source id="etablissements-carte" api-type="opendatasoft" base-url="…" dataset-id="…"></dsfr-data-source>
+
+<!-- Le contexte ne cible que la liste : la carte garde tous ses points -->
+<dsfr-data-context id="ctx" sources="etablissements" url-sync></dsfr-data-context>
+<dsfr-data-context-tags for="ctx"></dsfr-data-context-tags>
+
+<dsfr-data-map center="46.6,2.3" zoom="6" fit-bounds>
+  <dsfr-data-map-layer source="etablissements-carte" type="marker" geo-field="geo_point_2d"
+    tooltip-field="commune" refine-on-click="commune" context="ctx" label="Commune">
+  </dsfr-data-map-layer>
+</dsfr-data-map>
+<dsfr-data-list source="etablissements" fields="nom,adresse,commune"></dsfr-data-list>
+\`\`\`
+
+Piege : si la source de la carte est AUSSI dans \`sources\` du contexte, la carte se filtre
+elle-même au clic (seul l'objet clique reste, jusqu'au second clic). Pour garder tous les points,
+donner a la carte sa propre source (deux dsfr-data-source sur le même jeu) et ne lister que la
+liste dans \`sources\` — c'est \`sources\` du contexte qui regle les cibles, pas la couche.
 
 ### Exemple : zoom ranges (multi-resolution)
 
@@ -2966,7 +3011,8 @@ construite en colon (dialecte pivot) puis traduite au whereFormat de chaque adap
 Tout composant qui filtre peut etre un filtre du contexte via \`context="id"\` :
 <dsfr-data-context-filter context="ctx"> (place n'importe ou, plus seulement enfant),
 <dsfr-data-facets context="ctx"> (un filtre par champ, select peuple + cascade sans option
-en dur) et <dsfr-data-search context="ctx"> (filtre contains sur un champ). Le contexte
+en dur), <dsfr-data-search context="ctx"> (filtre contains sur un champ) et
+<dsfr-data-map-layer refine-on-click="champ" context="ctx"> (filtre eq au clic sur la carte, #681). Le contexte
 diffuse, porte l'URL (un parametre par champ, url-sync unique) et alimente context-tags.
 Le contexte peut etre declare APRES ces composants dans la page : ils s'enregistrent a sa
 connexion. whereKey stable indexe sur \`uid + champ\` (insertion tardive sans decalage).
