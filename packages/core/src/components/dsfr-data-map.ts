@@ -6,12 +6,14 @@
  *
  * Fond de carte : `tiles` choisit le preset, `tiles-style` l'atténue (`muted`,
  * `grey`) pour une carte thématique — un fond neutre, c'est `ign-plan` atténué
- * (#686).
+ * (#686). Cadrage : `fit-bounds` suit les données, clippé par `fit-zone`
+ * (défaut métropole dès qu'un encart ultramarin est présent, #687) ou à défaut
+ * par `max-bounds`.
  */
 import { LitElement, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
-import { TERRITORY_GROUPS } from '../utils/territories.js';
+import { METROPOLE_FIT_ZONE, expandInsets, hasOverseasTerritory } from '../utils/territories.js';
 // @ts-expect-error — Vite ?inline import returns CSS as string
 import leafletCss from 'leaflet/dist/leaflet.css?inline';
 
@@ -311,9 +313,13 @@ export class DsfrDataMap extends LitElement {
   @property({ type: Boolean, attribute: 'fit-bounds' })
   fitBounds = false;
 
-  /** Limites du deplacement, au format `"latSW,lonSW,latNE,lonNE"`. */
+  /** Limites du deplacement, au format `"latSW,lonSW,latNE,lonNE"`. Clippe aussi le fit de `fit-bounds` quand `fit-zone` est vide. */
   @property({ type: String, attribute: 'max-bounds' })
   maxBounds = '';
+
+  /** Zone sur laquelle `fit-bounds` est clippé, au format `"latSW,lonSW,latNE,lonNE"` — le pan reste libre. Défaut : `max-bounds` s'il est renseigné ; sinon la métropole (`41,-5.5,51.5,10`) dès que la carte porte un encart ultramarin (`insets="drom"`…), pour que les DROM ne dézooment pas la vue ; sinon aucune zone. `fit-zone="none"` désactive le clip (#687). */
+  @property({ type: String, attribute: 'fit-zone' })
+  fitZone = '';
 
   /** Zoom maximal atteint par `fit-bounds` (ex. `12`) : evite le zoom 18 sur un point isole quand les donnees se reduisent a un marqueur. `0` (defaut) = pas de plafond, `max-zoom` s'applique. */
   @property({ type: Number, attribute: 'fit-max-zoom' })
@@ -366,12 +372,7 @@ export class DsfrDataMap extends LitElement {
   private _expandInsets() {
     if (this._insetsExpanded || !this.insets) return;
     this._insetsExpanded = true;
-    const names = this.insets
-      .split(',')
-      .map((t) => t.trim().toLowerCase())
-      .filter(Boolean)
-      .flatMap((t) => TERRITORY_GROUPS[t] ?? [t]);
-    for (const name of names) {
+    for (const name of expandInsets(this.insets)) {
       if (this.querySelector(`:scope > dsfr-data-map-inset[territory="${name}"]`)) continue;
       const inset = document.createElement('dsfr-data-map-inset');
       inset.setAttribute('territory', name);
@@ -746,15 +747,32 @@ export class DsfrDataMap extends LitElement {
     }
   }
 
+  /**
+   * Zone de clip du fit (#687) : `fit-zone` explicite (`none` = aucune),
+   * sinon `max-bounds`, sinon la metropole des qu'un encart ultramarin est
+   * present (raccourci `insets` ou enfant dsfr-data-map-inset explicite) —
+   * le clip ne touche que le fit, jamais le pan. Expose pour les tests.
+   */
+  resolveFitZone(): string {
+    if (this.fitZone) return this.fitZone.trim().toLowerCase() === 'none' ? '' : this.fitZone;
+    if (this.maxBounds) return this.maxBounds;
+    const names = expandInsets(this.insets);
+    for (const inset of this.querySelectorAll(':scope > dsfr-data-map-inset[territory]')) {
+      names.push(inset.getAttribute('territory') ?? '');
+    }
+    return hasOverseasTerritory(names) ? METROPOLE_FIT_ZONE : '';
+  }
+
   private _applyFitBounds() {
     if (!this._leafletMap || !L || this._layerBounds.size === 0) return;
     const combined = this._combineBounds([...this._layerBounds.values()], L);
     if (!combined) return;
-    // fit-bounds + max-bounds : le fit est clippe a la zone d'interet de la
-    // carte. Un jeu incluant des territoires lointains (DROM) ne dezoome plus
-    // la vue au monde entier ; si les donnees filtrees sont entierement hors
-    // zone, la vue ne bouge pas (les encarts s'en chargent).
-    const clipped = clipBoundsForFit(combined, this.maxBounds, L);
+    // fit-bounds + zone (fit-zone, max-bounds ou metropole par défaut avec
+    // des encarts ultramarins, #687) : le fit est clippe a la zone d'interet
+    // de la carte. Un jeu incluant des territoires lointains (DROM) ne dezoome
+    // plus la vue au monde entier ; si les donnees filtrees sont entierement
+    // hors zone, la vue ne bouge pas (les encarts s'en chargent).
+    const clipped = clipBoundsForFit(combined, this.resolveFitZone(), L);
     if (!clipped) return;
     // Sans animation : le zoom anime de Leaflet est regulierement annule
     // (re-rendu des couches sur moveend, compagnons hors-carte) — constate
