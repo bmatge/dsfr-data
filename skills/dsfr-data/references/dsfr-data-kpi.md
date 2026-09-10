@@ -194,6 +194,7 @@ Utiliser `<dsfr-data-kpi-group>` pour disposer plusieurs KPIs en grille responsi
 | `heading` | `string` | `""` (vide) | Titre affiché AU-DESSUS de la valeur (surtitre, style majuscules grises). Nommé `heading` et non `title` : ce dernier entrerait en collision avec la propriété DOM native HTMLElement.title (infobulle). |
 | `icon` | `string` | `""` (vide) | Classe d'icône (ex: ri-global-line) |
 | `icone` | `string` | `""` (vide) | **DEPRECIE** — ne pas utiliser dans du code neuf. alias français de `icon` (#300) |
+| `idle-message` | `string` | `IDLE_MESSAGE_DEFAULT` | Message rendu quand l'amont attend un filtre (`require-where`, #690). Distinct de « aucune donnée » : aucune requête n'a été faite. Vide, le libellé par défaut est utilisé. |
 | `label` | `string` | `""` (vide) | Libellé affiché sous le chiffre (et sous les `lines`) |
 | `lines` | `string` | `""` (vide) | Lignes secondaires declaratives (JSON), rendues ENTRE la valeur et le `label`. Chaque item est soit data-driven (`value` = expression "champ:fn"), soit texte statique (`text`), avec couleur declarative. Ex. `[{"value":"evol:avg","sign":true,"suffix":"vs mai 2025","color":"auto"}]`. Schema complet : packages/core/src/utils/kpi-lines.ts (KpiLineSpec). |
 | `seuil-orange` | `number \| undefined` | — | **DEPRECIE** — ne pas utiliser dans du code neuf. alias français de `threshold-orange` (#300) |

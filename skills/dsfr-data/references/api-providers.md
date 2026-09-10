@@ -14,6 +14,7 @@ Chaque provider a des capacites differentes pour la pagination, l'agrégation et
 |----------|:---:|:---:|:---:|:---:|:---:|
 | Fetch serveur | oui | oui | oui | oui | non (dsfr-data-source) |
 | Pagination auto | oui (offset, 10 pages) | oui (page, 500 pages, max 50/page) | oui (offset, 100/page) | oui (page, 1000/page, 100k max) | non |
+| Chargement en une requete | oui (`fetch-mode="export"`) | non | oui (natif) | non | non |
 | Facettes serveur | oui | non | oui (SQL) | non | non |
 | Recherche serveur | oui (full-text) | non | non | non | non |
 | Group-by serveur | oui | oui (column__groupby) | oui (SQL) | non | non |
@@ -53,6 +54,20 @@ Chaque provider a des capacites differentes pour la pagination, l'agrégation et
   group-by="categorie_de_produit"
   order-by="total:desc" limit="10">
 </dsfr-data-query>
+```
+
+OpenDataSoft pagine par 100 : un jeu de 3 000 lignes coute 30 requetes. `fetch-mode="export"`
+(#689) le charge en UNE requete sur `/exports/json`, memes clauses ODSQL. A activer pour une page
+« un fetch, N agregations client », un jeu de plus de 1 000 lignes, ou un group-by a beaucoup de
+groupes (l'export les rend tous, la pagination s'arrete au plafond). A ne PAS activer avec
+`server-side`. En mode export le total serveur est inconnu : le KPI `meta:total` retombe sur le
+nombre de lignes recues, et la troncature est detectee via `max-records`.
+```html
+<dsfr-data-source id="src" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr" dataset-id="decp_augmente"
+  fetch-mode="export" max-records="20000"
+  select="count(*) as nb" group-by="source">
+</dsfr-data-source>
 ```
 
 **Tabular** (fetch serveur + agrégation serveur) :

@@ -4,7 +4,7 @@
  * Source : packages/core/custom-elements.json (lui-meme genere depuis le code).
  * Regeneration : npm run build:component-contract
  *
- * 25 balises, 293 attributs.
+ * 25 balises, 302 attributs.
  */
 
 export const COMPONENT_CONTRACT = {
@@ -15,6 +15,7 @@ export const COMPONENT_CONTRACT = {
       "download",
       "filename",
       "for",
+      "idle-message",
       "label",
       "label-field",
       "no-auto-aria",
@@ -52,6 +53,7 @@ export const COMPONENT_CONTRACT = {
       "heading-level",
       "highlight-index",
       "horizontal",
+      "idle-message",
       "label-field",
       "map-highlight",
       "name",
@@ -104,6 +106,7 @@ export const COMPONENT_CONTRACT = {
       "cols",
       "empty",
       "gap",
+      "idle-message",
       "pagination",
       "source",
       "uid-field",
@@ -152,6 +155,7 @@ export const COMPONENT_CONTRACT = {
       "format",
       "heading",
       "icon",
+      "idle-message",
       "label",
       "lines",
       "source",
@@ -186,6 +190,7 @@ export const COMPONENT_CONTRACT = {
       "decimals",
       "export",
       "filters",
+      "idle-message",
       "pagination",
       "search",
       "server-sort",
@@ -335,6 +340,7 @@ export const COMPONENT_CONTRACT = {
   "dsfr-data-podium": {
     "attributes": [
       "bar-max",
+      "idle-message",
       "label-field",
       "max-items",
       "no-sort",
@@ -353,6 +359,7 @@ export const COMPONENT_CONTRACT = {
       "group-by",
       "limit",
       "order-by",
+      "require-where",
       "source",
       "where"
     ]
@@ -385,6 +392,7 @@ export const COMPONENT_CONTRACT = {
       "cache-ttl",
       "data",
       "dataset-id",
+      "fetch-mode",
       "group-by",
       "headers",
       "limit",
@@ -396,6 +404,7 @@ export const COMPONENT_CONTRACT = {
       "params",
       "proxy-url",
       "refresh",
+      "require-where",
       "resource",
       "select",
       "server-side",

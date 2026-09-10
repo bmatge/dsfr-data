@@ -95,6 +95,7 @@ Fonctionne avec la pagination client et serveur. Compatible avec les autres para
 | `export` | `string` | `""` (vide) | Formats d'export disponibles: "csv", "html" (separables par virgule) |
 | `filters` | `string` | `""` (vide) | Colonnes filtrables: "ministere,statut" |
 | `filtres` | `string` | `""` (vide) | **DEPRECIE** — ne pas utiliser dans du code neuf. alias français de `filters` (#300) |
+| `idle-message` | `string` | `IDLE_MESSAGE_DEFAULT` | Message rendu quand l'amont attend un filtre (`require-where`, #690). Distinct de « aucune donnée » : aucune requête n'a été faite. Vide, le libellé par défaut est utilisé. |
 | `pagination` | `number` | `0` | Nombre d'éléments par page (0 = pas de pagination) |
 | `recherche` | `boolean` | `false` | **DEPRECIE** — ne pas utiliser dans du code neuf. alias français de `search` (#300) |
 | `search` | `boolean` | `false` | Afficher un champ de recherche |

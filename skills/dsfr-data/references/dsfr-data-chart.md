@@ -44,6 +44,7 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 | value-fields | String | `""` | non | Séries supplementaires separees par virgules — format LARGE, une colonne par série (ex: `"budget,score"`). Alias inline par série : `"budget:Budget, score:Score"` |
 | series-field | String | `""` | non | Champ clé de série pour données LONG/tidy : ses valeurs distinctes deviennent autant de séries. Ex: données `{mois, groupe, valeur}` avec `series-field="groupe"`. S'applique a bar/line/radar. Prioritaire sur value-fields. Consommateur naturel de `dsfr-data-unpivot`. |
 | name | String | `""` | non | Nom(s) de série. Chaîne simple recommandée : `name="Taux"` (enveloppée automatiquement). JSON pour le multi-séries : `'["Réalisé","Objectif"]'`. Sur les cartes, un seul nom (le premier d'un JSON est retenu). Priorité : `name` explicite, sinon l'alias inline `champ:Libellé` de value-field(s), sinon le nom du champ ou les valeurs de series-field |
+| idle-message | String | `"Choisissez un filtre pour afficher les données"` | non | Message rendu quand l'amont attend un filtre (`require-where`, #690). Distinct de « aucune donnée » : aucune requête n'a été faite. Existe aussi sur list, kpi, display, podium et a11y. |
 | empty-label | String | `"Non renseigné"` | non | Libellé d'une catégorie vide (`null`, `undefined` ou `""` dans label-field) : légende du pie, axe X. Évite le « Série N » de DSFR Chart sur un nom vide. Ex: `empty-label="Sans objet"` |
 | selected-palette | String | `"categorical"` | non | Palette : categorical, sequentialAscending, sequentialDescending, divergentAscending, divergentDescending, neutral, default |
 | unit-tooltip | String | `""` | non | Unite dans les info-bulles : %, EUR, etc. |
@@ -210,6 +211,7 @@ Quand `databox` est active, dsfr-data-a11y ne doit PAS inclure `table` ni `downl
 | `heading-level` | `number` | `3` | Niveau de titre HTML du titre de la DataBox (RGAA 9.1, #670) : entier de 2 à 6, borné (défaut 3, rendu historique de DSFR Chart). `heading-level="2"` rend un h2. |
 | `highlight-index` | `string` | `""` (vide) | Index des éléments à mettre en avant (ex: "[0, 2]") |
 | `horizontal` | `boolean` | `false` | Affichage horizontal (bar chart uniquement) |
+| `idle-message` | `string` | `IDLE_MESSAGE_DEFAULT` | Message rendu quand l'amont attend un filtre (`require-where`, #690). Distinct de « aucune donnée » : aucune requête n'a été faite. Vide, le libellé par défaut est utilisé. |
 | `label-field` | `string` | `""` (vide) | Chemin vers le champ label |
 | `map-highlight` | `string` | `""` (vide) | ID du département/région à mettre en avant (map chart) |
 | `name` | `string` | `""` (vide) | Nom(s) de série. Chaîne simple recommandée (`name="Taux"`), enveloppée automatiquement pour DSFR Chart ; tableau JSON pour le multi-séries (`name='["Réalisé","Objectif"]'`). Sur les cartes (`map*`), un seul nom : le premier élément d'un JSON est retenu (#653). Priorité (#668) : `name` explicite, sinon l'alias inline `champ:Libellé` de value-field(s), sinon le nom du champ (ou les valeurs de series-field en mode tidy). |

@@ -109,6 +109,7 @@ rendu : switch chart/tableau integre, CSV natif). Conserver uniquement :
 | `download` | `boolean` | `false` | Affiche le bouton de téléchargement CSV. |
 | `filename` | `string` | `'données.csv'` | Nom du fichier CSV téléchargé. |
 | `for` | `string` | `""` (vide) | Id de l'élément cible (graphique, carte) pour la liaison ARIA et le lien d'évitement. |
+| `idle-message` | `string` | `IDLE_MESSAGE_DEFAULT` | Message annoncé quand l'amont attend un filtre (`require-where`, #690). Remplace « aucune donnée disponible » dans la description lue par les lecteurs d'écran : rien n'a été chargé, rien n'a échoué. |
 | `label` | `string` | `""` (vide) | Libellé personnalisé de la section accessible. |
 | `label-field` | `string` | `""` (vide) | Colonne utilisée pour les labels du tableau. |
 | `no-auto-aria` | `boolean` | `false` | Desactive la pose automatique des attributs ARIA et du lien d'évitement. |

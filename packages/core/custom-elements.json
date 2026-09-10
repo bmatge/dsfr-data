@@ -123,6 +123,13 @@
             },
             {
               "kind": "field",
+              "name": "idleMessage",
+              "default": "IDLE_MESSAGE_DEFAULT",
+              "description": "Message annoncé quand l'amont attend un filtre (`require-where`, #690).\nRemplace « aucune donnée disponible » dans la description lue par les\nlecteurs d'écran : rien n'a été chargé, rien n'a échoué.",
+              "attribute": "idle-message"
+            },
+            {
+              "kind": "field",
               "name": "_previousForTarget",
               "type": {
                 "text": "Element | null"
@@ -417,6 +424,12 @@
               "default": "null",
               "description": "Nombre de décimales des cellules numériques du tableau (#666). Absent :\nau plus 2 décimales, format fr-FR. Le CSV n'est pas concerné.",
               "fieldName": "decimals"
+            },
+            {
+              "name": "idle-message",
+              "default": "IDLE_MESSAGE_DEFAULT",
+              "description": "Message annoncé quand l'amont attend un filtre (`require-where`, #690).\nRemplace « aucune donnée disponible » dans la description lue par les\nlecteurs d'écran : rien n'a été chargé, rien n'a échoué.",
+              "fieldName": "idleMessage"
             }
           ],
           "mixins": [
@@ -558,6 +571,13 @@
               "default": "'Non renseigné'",
               "description": "Libellé affiché pour une catégorie vide (`null`, `undefined` ou `\"\"`\ndans `label-field`) : légende du pie, axe X des cartésiens (#647).\nSans lui, DSFR Chart substituerait « Série N » à un nom vide.\nPour EXCLURE ces lignes plutôt que les nommer, filtrer en amont :\n`where=\"champ:isnotnull\"` (query) ou `where=\"champ is not null\"` (source ODS).",
               "attribute": "empty-label"
+            },
+            {
+              "kind": "field",
+              "name": "idleMessage",
+              "default": "IDLE_MESSAGE_DEFAULT",
+              "description": "Message rendu quand l'amont attend un filtre (`require-where`, #690).\nDistinct de « aucune donnée » : aucune requête n'a été faite. Vide,\nle libellé par défaut est utilisé.",
+              "attribute": "idle-message"
             },
             {
               "kind": "field",
@@ -1685,6 +1705,12 @@
               "default": "'Non renseigné'",
               "description": "Libellé affiché pour une catégorie vide (`null`, `undefined` ou `\"\"`\ndans `label-field`) : légende du pie, axe X des cartésiens (#647).\nSans lui, DSFR Chart substituerait « Série N » à un nom vide.\nPour EXCLURE ces lignes plutôt que les nommer, filtrer en amont :\n`where=\"champ:isnotnull\"` (query) ou `where=\"champ is not null\"` (source ODS).",
               "fieldName": "emptyLabel"
+            },
+            {
+              "name": "idle-message",
+              "default": "IDLE_MESSAGE_DEFAULT",
+              "description": "Message rendu quand l'amont attend un filtre (`require-where`, #690).\nDistinct de « aucune donnée » : aucune requête n'a été faite. Vide,\nle libellé par défaut est utilisé.",
+              "fieldName": "idleMessage"
             },
             {
               "name": "code-field",
@@ -3118,6 +3144,13 @@
             },
             {
               "kind": "field",
+              "name": "idleMessage",
+              "default": "IDLE_MESSAGE_DEFAULT",
+              "description": "Message rendu quand l'amont attend un filtre (`require-where`, #690).\nDistinct de « aucune donnée » : aucune requête n'a été faite. Vide,\nle libellé par défaut est utilisé.",
+              "attribute": "idle-message"
+            },
+            {
+              "kind": "field",
               "name": "_data",
               "type": {
                 "text": "Record<string, unknown>[]"
@@ -3540,6 +3573,12 @@
               "default": "'page'",
               "description": "Nom du paramètre URL pour la page (défaut: \"page\")",
               "fieldName": "urlPageParam"
+            },
+            {
+              "name": "idle-message",
+              "default": "IDLE_MESSAGE_DEFAULT",
+              "description": "Message rendu quand l'amont attend un filtre (`require-where`, #690).\nDistinct de « aucune donnée » : aucune requête n'a été faite. Vide,\nle libellé par défaut est utilisé.",
+              "fieldName": "idleMessage"
             }
           ],
           "mixins": [
@@ -6015,6 +6054,13 @@
               "reflects": true
             },
             {
+              "kind": "field",
+              "name": "idleMessage",
+              "default": "IDLE_MESSAGE_DEFAULT",
+              "description": "Message rendu quand l'amont attend un filtre (`require-where`, #690).\nDistinct de « aucune donnée » : aucune requête n'a été faite. Vide,\nle libellé par défaut est utilisé.",
+              "attribute": "idle-message"
+            },
+            {
               "kind": "method",
               "name": "_warnDeprecatedFrenchAttrs",
               "privacy": "private",
@@ -6413,6 +6459,12 @@
               },
               "description": "Largeur en colonnes DSFR (1-12). Significatif uniquement dans un <dsfr-data-kpi-group>.",
               "fieldName": "col"
+            },
+            {
+              "name": "idle-message",
+              "default": "IDLE_MESSAGE_DEFAULT",
+              "description": "Message rendu quand l'amont attend un filtre (`require-where`, #690).\nDistinct de « aucune donnée » : aucune requête n'a été faite. Vide,\nle libellé par défaut est utilisé.",
+              "fieldName": "idleMessage"
             }
           ],
           "mixins": [
@@ -6644,6 +6696,13 @@
               "default": "false",
               "deprecated": "alias français de `server-sort` (#300)",
               "attribute": "server-tri"
+            },
+            {
+              "kind": "field",
+              "name": "idleMessage",
+              "default": "IDLE_MESSAGE_DEFAULT",
+              "description": "Message rendu quand l'amont attend un filtre (`require-where`, #690).\nDistinct de « aucune donnée » : aucune requête n'a été faite. Vide,\nle libellé par défaut est utilisé.",
+              "attribute": "idle-message"
             },
             {
               "kind": "field",
@@ -7290,6 +7349,12 @@
               "default": "false",
               "deprecated": "alias français de `server-sort` (#300)",
               "fieldName": "serverTri"
+            },
+            {
+              "name": "idle-message",
+              "default": "IDLE_MESSAGE_DEFAULT",
+              "description": "Message rendu quand l'amont attend un filtre (`require-where`, #690).\nDistinct de « aucune donnée » : aucune requête n'a été faite. Vide,\nle libellé par défaut est utilisé.",
+              "fieldName": "idleMessage"
             }
           ],
           "mixins": [
@@ -12572,6 +12637,13 @@
             },
             {
               "kind": "field",
+              "name": "idleMessage",
+              "default": "IDLE_MESSAGE_DEFAULT",
+              "description": "Message rendu quand l'amont attend un filtre (`require-where`, #690).\nDistinct de « aucune donnée » : aucune requête n'a été faite. Vide,\nle libellé par défaut est utilisé.",
+              "attribute": "idle-message"
+            },
+            {
+              "kind": "field",
               "name": "_data",
               "type": {
                 "text": "Record<string, unknown>[]"
@@ -12738,6 +12810,12 @@
               },
               "description": "Valeur max forcee pour le calcul des barres (ex: 100 pour des %)",
               "fieldName": "barMax"
+            },
+            {
+              "name": "idle-message",
+              "default": "IDLE_MESSAGE_DEFAULT",
+              "description": "Message rendu quand l'amont attend un filtre (`require-where`, #690).\nDistinct de « aucune donnée » : aucune requête n'a été faite. Vide,\nle libellé par défaut est utilisé.",
+              "fieldName": "idleMessage"
             }
           ],
           "mixins": [
@@ -12863,6 +12941,16 @@
             },
             {
               "kind": "field",
+              "name": "requireWhere",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "N'émettre aucune ligne tant qu'aucun filtre n'est posé (#690).\n\nPendant de `require-where` sur `dsfr-data-source`, pour les pages\nd'exploration : la requête reste en attente, émet `dsfr-data-idle`, et\nles afficheurs en aval rendent « choisissez un filtre » au lieu du jeu\nentier.\n\nCe qui compte comme filtre : le `where` (ou `filter`) de CETTE requête —\nsur un query, c'est la surface de filtrage que la page pilote — et toute\nclause `where` non vide reçue par commande (facettes, recherche,\n`dsfr-data-context`). Tout retirer fait repasser la requête en attente.",
+              "attribute": "require-where"
+            },
+            {
+              "kind": "field",
               "name": "_data",
               "type": {
                 "text": "unknown[]"
@@ -12938,6 +13026,13 @@
               "privacy": "private",
               "default": "true",
               "description": "False entre l'envoi d'une commande a la source et l'emission suivante :\nle cache de la source est alors perime (pre-commande) et ne doit pas\nêtre lu. Une re-negociation dedupliquee ne le repasse pas a false."
+            },
+            {
+              "kind": "field",
+              "name": "_receivedWhere",
+              "privacy": "private",
+              "default": "new Map<string, string>()",
+              "description": "Clauses `where` reçues par commande, par whereKey (#690) — un contexte\nou une facette peut viser l'id de cette requête, qui les relaie en amont.\nElles ne servent PAS au traitement (le filtrage a lieu en amont) : elles\ndisent seulement qu'un filtre est posé, pour `require-where`."
             },
             {
               "kind": "method",
@@ -13049,6 +13144,36 @@
                   }
                 }
               ]
+            },
+            {
+              "kind": "method",
+              "name": "onTransformerCommand",
+              "privacy": "protected",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "cmd",
+                  "type": {
+                    "text": "{ where?: string; whereKey?: string }"
+                  }
+                }
+              ],
+              "description": "Observation des commandes qui transitent par cette requête (#690) : le\nrelais vers l'amont reste inchangé, on note seulement si un filtre est\nposé. Une transition d'état rejoue le traitement local, car l'amont ne\nréémet pas forcément (source inline, commande dédupliquée)."
+            },
+            {
+              "kind": "method",
+              "name": "_hasFilter",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "description": "Un filtre est-il posé (#690) ? Le `where`/`filter` de cette requête, ou\nune clause non vide reçue par commande."
             },
             {
               "kind": "method",
@@ -13510,6 +13635,10 @@
           ],
           "events": [
             {
+              "description": "`{ sourceId, reason }` sur `document` — la requête attend un filtre (`require-where` posé, aucun filtre reçu) : elle n'émet aucune ligne, et les afficheurs en aval rendent « choisissez un filtre » (#690). Relayé tel quel quand c'est l'amont qui attend.",
+              "name": "dsfr-data-idle"
+            },
+            {
               "description": "`{ sourceId, groupBy?, aggregate?, orderBy?, where?, whereKey?, origin }` sur `document` — délégation server-side negociee avec la source amont, et liberation des overlays quand elle retombe cote client. `origin` porte l'id de ce composant (#603).",
               "name": "dsfr-data-source-command"
             }
@@ -13577,6 +13706,15 @@
               "default": "0",
               "description": "Limite de résultats",
               "fieldName": "limit"
+            },
+            {
+              "name": "require-where",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "N'émettre aucune ligne tant qu'aucun filtre n'est posé (#690).\n\nPendant de `require-where` sur `dsfr-data-source`, pour les pages\nd'exploration : la requête reste en attente, émet `dsfr-data-idle`, et\nles afficheurs en aval rendent « choisissez un filtre » au lieu du jeu\nentier.\n\nCe qui compte comme filtre : le `where` (ou `filter`) de CETTE requête —\nsur un query, c'est la surface de filtrage que la page pilote — et toute\nclause `where` non vide reçue par commande (facettes, recherche,\n`dsfr-data-context`). Tout retirer fait repasser la requête en attente.",
+              "fieldName": "requireWhere"
             }
           ],
           "mixins": [
@@ -14742,6 +14880,26 @@
             },
             {
               "kind": "field",
+              "name": "fetchMode",
+              "type": {
+                "text": "'records' | 'export'"
+              },
+              "default": "'records'",
+              "description": "Stratégie de chargement en mode adaptateur (#689) : `records` (défaut,\ncomportement historique — pagination par pages de 100) ou `export`, qui\ncharge tout le jeu en **une seule requête** sur l'endpoint d'export du\nportail, avec les mêmes clauses (`select`, `where`, `group-by`,\n`order-by`). Implémenté par OpenDataSoft seulement ; les autres\nadaptateurs ignorent l'attribut.\n\nÀ activer pour une page « un fetch, N agrégations client », un jeu de\nplus de 1 000 lignes, ou un `group-by` à beaucoup de groupes : le portail\nles rend tous d'un coup au lieu d'une page. À ne pas activer avec\n`server-side` (pagination page par page), qui reste sur l'endpoint\npaginé et signale la contradiction dans la console.\n\nEn mode `export` le total serveur est inconnu : la troncature est\ndétectée en demandant une ligne de plus que le plafond `max-records`.\nSi le portail n'expose pas d'endpoint d'export, la source retombe une\nfois sur le chargement paginé, avec un avertissement en console.",
+              "attribute": "fetch-mode"
+            },
+            {
+              "kind": "field",
+              "name": "requireWhere",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Ne rien charger tant qu'aucun filtre n'a été reçu (#690).\n\nPensé pour les pages d'exploration : sans cet attribut, une source\ninterroge l'API dès le montage et rapatrie le jeu entier — une requête\ncoûteuse dont personne ne regarde le résultat. Avec lui, la source reste\nen attente, émet `dsfr-data-idle` et ne part chercher les données qu'au\npremier filtre.\n\nCe qui compte comme filtre : les clauses reçues par commande — facettes,\nrecherche, `dsfr-data-context`, délégation d'un `dsfr-data-query`. Le\n`where` STATIQUE de la source ne compte PAS : il fait partie de la\ndéfinition du jeu, pas du geste de l'utilisateur ; le contraire rendrait\nl'attribut sans effet sur toute source qui restreint déjà son périmètre.\n\nQuand le dernier filtre est retiré, la source repasse en attente : jamais\nde requête « tout » implicite. Sans effet en mode données inline (`data`),\nqui ne fait aucune requête.",
+              "attribute": "require-where"
+            },
+            {
+              "kind": "field",
               "name": "_loading",
               "type": {
                 "text": "boolean"
@@ -14840,6 +14998,16 @@
               "privacy": "private",
               "default": "false",
               "description": "Warn-once : commandes adapter recues en mode URL (#288)"
+            },
+            {
+              "kind": "field",
+              "name": "_requireWhereModeWarned",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false",
+              "description": "Warn-once : require-where pose sur une source qui ne peut rien recevoir (#690)"
             },
             {
               "kind": "field",
@@ -14989,6 +15157,23 @@
               "name": "_scheduleReemit",
               "privacy": "private",
               "description": "Re-emission asynchrone du cache (commande no-op, #276)"
+            },
+            {
+              "kind": "method",
+              "name": "_hasReceivedWhere",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "description": "Un filtre utilisateur est-il posé (#690) ? Seuls les overlays reçus par\ncommande comptent — le `where` statique fait partie de la définition de\nla source, pas du geste de l'utilisateur."
+            },
+            {
+              "kind": "method",
+              "name": "_enterIdle",
+              "privacy": "private",
+              "description": "Entrée (ou retour) en attente d'un filtre : rien n'est chargé (#690)."
             },
             {
               "kind": "method",
@@ -15145,6 +15330,10 @@
             {
               "description": "`{ sourceId, error, attemptedUrl? }` sur `document` — le fetch ou le parsing a echoue. `attemptedUrl` (#603) porte l'URL REELLEMENT appelee, proxy applique : elle diverge souvent du `base-url` ecrit dans le HTML, et le message de l'`Error` reste volontairement court. La cle est absente quand l'URL n'a pas pu être construite, ou pour une erreur qui ne vient pas d'un fetch (données inline invalides, configuration).",
               "name": "dsfr-data-error"
+            },
+            {
+              "description": "`{ sourceId, reason }` sur `document` — la source attend un filtre (`require-where` posé, aucun filtre reçu). Aucune requête n'est partie : l'état est distinct d'un chargement, d'une erreur et d'un résultat vide. Les afficheurs le rendent en message « choisissez un filtre » (#690).",
+              "name": "dsfr-data-idle"
             }
           ],
           "attributes": [
@@ -15372,6 +15561,24 @@
               "default": "0",
               "description": "Plafond de records du fetchAll en mode adapter (#233). 0 = plafond par\ndéfaut de l'adapter (ODS : 1000). A relever explicitement pour les\ndashboards « un fetch, N agrégations client » — attention au nombre de\nrequêtes en boucle et au poids mémoire.",
               "fieldName": "maxRecords"
+            },
+            {
+              "name": "fetch-mode",
+              "type": {
+                "text": "'records' | 'export'"
+              },
+              "default": "'records'",
+              "description": "Stratégie de chargement en mode adaptateur (#689) : `records` (défaut,\ncomportement historique — pagination par pages de 100) ou `export`, qui\ncharge tout le jeu en **une seule requête** sur l'endpoint d'export du\nportail, avec les mêmes clauses (`select`, `where`, `group-by`,\n`order-by`). Implémenté par OpenDataSoft seulement ; les autres\nadaptateurs ignorent l'attribut.\n\nÀ activer pour une page « un fetch, N agrégations client », un jeu de\nplus de 1 000 lignes, ou un `group-by` à beaucoup de groupes : le portail\nles rend tous d'un coup au lieu d'une page. À ne pas activer avec\n`server-side` (pagination page par page), qui reste sur l'endpoint\npaginé et signale la contradiction dans la console.\n\nEn mode `export` le total serveur est inconnu : la troncature est\ndétectée en demandant une ligne de plus que le plafond `max-records`.\nSi le portail n'expose pas d'endpoint d'export, la source retombe une\nfois sur le chargement paginé, avec un avertissement en console.",
+              "fieldName": "fetchMode"
+            },
+            {
+              "name": "require-where",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Ne rien charger tant qu'aucun filtre n'a été reçu (#690).\n\nPensé pour les pages d'exploration : sans cet attribut, une source\ninterroge l'API dès le montage et rapatrie le jeu entier — une requête\ncoûteuse dont personne ne regarde le résultat. Avec lui, la source reste\nen attente, émet `dsfr-data-idle` et ne part chercher les données qu'au\npremier filtre.\n\nCe qui compte comme filtre : les clauses reçues par commande — facettes,\nrecherche, `dsfr-data-context`, délégation d'un `dsfr-data-query`. Le\n`where` STATIQUE de la source ne compte PAS : il fait partie de la\ndéfinition du jeu, pas du geste de l'utilisateur ; le contraire rendrait\nl'attribut sans effet sur toute source qui restreint déjà son périmètre.\n\nQuand le dernier filtre est retiré, la source repasse en attente : jamais\nde requête « tout » implicite. Sans effet en mode données inline (`data`),\nqui ne fait aucune requête.",
+              "fieldName": "requireWhere"
             }
           ],
           "superclass": {
