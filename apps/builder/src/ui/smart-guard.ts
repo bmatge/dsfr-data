@@ -160,6 +160,8 @@ function configSnapshot(): string {
     'refreshInterval',
     'normalizeConfig',
     'facetsConfig',
+    'urlSync',
+    'urlPageParam',
     'datalistColumns',
     'datalistRecherche',
     'datalistFiltres',

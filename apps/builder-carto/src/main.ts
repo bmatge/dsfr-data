@@ -695,6 +695,48 @@ function renderElementsPanel() {
           <label for="layer-fill-opacity">Opacité</label>
           <input type="number" id="layer-fill-opacity" value="${layer.fillOpacity}" min="0" max="1" step="0.1">
         </div>
+        ${
+          layer.fillField
+            ? `
+        <details class="carto-advanced fr-mt-1w" ${
+          layer.classMethod !== 'quantile' || layer.classes > 0 || layer.breaks ? 'open' : ''
+        }>
+          <summary>Découpage en classes</summary>
+          <div class="carto-inline">
+            <div class="carto-field">
+              <label for="layer-class-method">Méthode</label>
+              <select id="layer-class-method">
+                <option value="quantile" ${layer.classMethod === 'quantile' ? 'selected' : ''}>Effectifs égaux (quantiles) — défaut</option>
+                <option value="equal" ${layer.classMethod === 'equal' ? 'selected' : ''}>Intervalles de même largeur</option>
+                <option value="manual" ${layer.classMethod === 'manual' ? 'selected' : ''}>Bornes choisies</option>
+              </select>
+            </div>
+            ${
+              layer.classMethod !== 'manual'
+                ? `
+            <div class="carto-field" style="max-width:140px">
+              <label for="layer-classes">Nombre de classes
+                <span class="fr-hint-text">0 = autant que de couleurs</span>
+              </label>
+              <input type="number" id="layer-classes" value="${layer.classes}" min="0" max="9">
+            </div>`
+                : ''
+            }
+          </div>
+          ${
+            layer.classMethod === 'manual'
+              ? `
+          <div class="carto-field">
+            <label for="layer-breaks">Bornes hautes
+              <span class="fr-hint-text">Valeur maximale de chaque classe, séparées par des virgules</span>
+            </label>
+            <input type="text" id="layer-breaks" value="${escapeAttr(layer.breaks)}" placeholder="10,50,100">
+          </div>`
+              : ''
+          }
+        </details>`
+            : ''
+        }
       </div>`
           : ''
       }
@@ -976,9 +1018,20 @@ function bindElementsInputs(layer: LayerConfig) {
   bind('layer-heat-radius', 'heatRadius', Number);
   bind('layer-heat-blur', 'heatBlur', Number);
   bind('layer-heat-field', 'heatField');
-  bind('layer-fill-field', 'fillField');
+  // Le panneau de decoupage n'apparait qu'avec un champ de coloration : le
+  // changer re-rend la section (#714).
+  bindRerender('layer-fill-field', (v) => {
+    layer.fillField = v;
+  });
   bind('layer-palette', 'selectedPalette');
   bind('layer-fill-opacity', 'fillOpacity', Number);
+  // Decoupage en classes de la choroplethe : la methode pilote les champs
+  // affiches (nombre de classes ou bornes manuelles).
+  bindRerender('layer-class-method', (v) => {
+    layer.classMethod = v as LayerConfig['classMethod'];
+  });
+  bind('layer-classes', 'classes', Number);
+  bind('layer-breaks', 'breaks');
 
   // Couleur
   document.querySelectorAll('#layer-config [data-swatch]').forEach((btn) => {
@@ -1766,9 +1819,23 @@ function executePreview(fit = false) {
   // --carto-header-h : hauteur du <app-header> commun (mesurée au runtime,
   // cf. observeHeaderHeight), --app-action-bar-h : celle de la barre
   // d'actions commune (publiée par <app-action-bar>).
+  const chromeHaut =
+    'var(--carto-header-h, 96px) - var(--app-action-bar-h, 56px) - var(--carto-tabs-h, 48px)';
+  // Le `body` se réserve DÉJÀ une bande en bas pour le chrome fixe : le rail
+  // du volet Diagnostic à toutes les largeurs, et sous 48em la barre d'actions
+  // fixée en bas (app-diagnostic-panel.ts, app-action-bar.ts). Sans cette
+  // soustraction la carte dépassait de cette réserve — environ 92 px en
+  // mobile — et `.carto-workspace{overflow:hidden}` rognait d'autant : de la
+  // surface de carte perdue, invisible (#628).
+  // --app-action-bar-fixed-h est publiée à 0px au-dessus de 48em : la
+  // soustraire sans condition est juste à toutes les largeurs, ce qu'un
+  // attribut `height` ne saurait de toute façon pas conditionner. Les replis
+  // valent 0px, la réserve n'existant pas tant que le chrome n'a pas publié
+  // sa hauteur.
+  const reserveBasse = 'var(--app-diagnostic-h, 0px) - var(--app-action-bar-fixed-h, 0px)';
   state.map.height = state.map.insets.length
-    ? 'calc(100dvh - var(--carto-header-h, 96px) - var(--app-action-bar-h, 56px) - var(--carto-tabs-h, 48px) - 208px)'
-    : 'calc(100dvh - var(--carto-header-h, 96px) - var(--app-action-bar-h, 56px) - var(--carto-tabs-h, 48px))';
+    ? `calc(100dvh - ${chromeHaut} - ${reserveBasse} - 208px)`
+    : `calc(100dvh - ${chromeHaut} - ${reserveBasse})`;
   if (fit) state.map.fitBounds = true;
   const code = generateCode();
   state.generationMode = saved.mode;

@@ -52,6 +52,8 @@ export function getBuilderStateToSave(): Record<string, unknown> {
     datalistColumns: state.datalistColumns,
     normalizeConfig: state.normalizeConfig,
     facetsConfig: state.facetsConfig,
+    urlSync: state.urlSync,
+    urlPageParam: state.urlPageParam,
     a11yEnabled: state.a11yEnabled,
     a11yTable: state.a11yTable,
     a11yDownload: state.a11yDownload,

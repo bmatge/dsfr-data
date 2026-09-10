@@ -2251,7 +2251,7 @@
                 "text": "number"
               },
               "default": "1",
-              "description": "Mois de debut de l'annee pour `year-of` et `current-year` (#735) —\n1 (defaut) = annee civile, 9 = annee scolaire, 4 = exercice comptable\nbritannique, 7 = exercice australien, 10 = saison. La clause reste une\nplage `gte` + `lt` : elle se delegue au serveur comme n'importe quelle\nautre, aucun adaptateur n'est concerne.\n\n`year-of` avec `year-start-month=\"9\"` et la valeur « 2024 » filtre\n`[2024-09-01, 2025-09-01)` et s'affiche « 2024-2025 » dans les tags.\nUne valeur plus precise (« 2025-03-10 ») designe l'annee qui la\nCONTIENT — soit 2024-2025 ici — ce qui permet de nourrir l'opérateur\nd'un contrôle de type date.\n\nCote client seul, une colonne d'annee scolaire se derive aussi avec\n`compute` sur dsfr-data-normalize ; l'attribut existe pour les jeux\nqu'on ne veut pas rapatrier.",
+              "description": "Mois de début de l'année pour `year-of` et `current-year` (#735) —\n1 (défaut) = année civile, 9 = année scolaire, 4 = exercice comptable\nbritannique, 7 = exercice australien, 10 = saison. La clause reste une\nplage `gte` + `lt` : elle se délègue au serveur comme n'importe quelle\nautre, aucun adaptateur n'est concerné.\n\n`year-of` avec `year-start-month=\"9\"` et la valeur « 2024 » filtre\n`[2024-09-01, 2025-09-01)` et s'affiche « 2024-2025 » dans les tags.\nUne valeur plus précise (« 2025-03-10 ») désigne l'année qui la\nCONTIENT — soit 2024-2025 ici — ce qui permet de nourrir l'opérateur\nd'un contrôle de type date.\n\nCôté client seul, une colonne d'année scolaire se dérive aussi avec\n`compute` sur dsfr-data-normalize ; l'attribut existe pour les jeux\nqu'on ne veut pas rapatrier.",
               "attribute": "year-start-month"
             },
             {
@@ -2548,7 +2548,7 @@
                 "text": "number"
               },
               "default": "1",
-              "description": "Mois de debut de l'annee pour `year-of` et `current-year` (#735) —\n1 (defaut) = annee civile, 9 = annee scolaire, 4 = exercice comptable\nbritannique, 7 = exercice australien, 10 = saison. La clause reste une\nplage `gte` + `lt` : elle se delegue au serveur comme n'importe quelle\nautre, aucun adaptateur n'est concerne.\n\n`year-of` avec `year-start-month=\"9\"` et la valeur « 2024 » filtre\n`[2024-09-01, 2025-09-01)` et s'affiche « 2024-2025 » dans les tags.\nUne valeur plus precise (« 2025-03-10 ») designe l'annee qui la\nCONTIENT — soit 2024-2025 ici — ce qui permet de nourrir l'opérateur\nd'un contrôle de type date.\n\nCote client seul, une colonne d'annee scolaire se derive aussi avec\n`compute` sur dsfr-data-normalize ; l'attribut existe pour les jeux\nqu'on ne veut pas rapatrier.",
+              "description": "Mois de début de l'année pour `year-of` et `current-year` (#735) —\n1 (défaut) = année civile, 9 = année scolaire, 4 = exercice comptable\nbritannique, 7 = exercice australien, 10 = saison. La clause reste une\nplage `gte` + `lt` : elle se délègue au serveur comme n'importe quelle\nautre, aucun adaptateur n'est concerné.\n\n`year-of` avec `year-start-month=\"9\"` et la valeur « 2024 » filtre\n`[2024-09-01, 2025-09-01)` et s'affiche « 2024-2025 » dans les tags.\nUne valeur plus précise (« 2025-03-10 ») désigne l'année qui la\nCONTIENT — soit 2024-2025 ici — ce qui permet de nourrir l'opérateur\nd'un contrôle de type date.\n\nCôté client seul, une colonne d'année scolaire se dérive aussi avec\n`compute` sur dsfr-data-normalize ; l'attribut existe pour les jeux\nqu'on ne veut pas rapatrier.",
               "fieldName": "yearStartMonth"
             },
             {
@@ -2840,7 +2840,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Region live polie : le titre annonce le changement de contenu aux\nlecteurs d'écran. A poser sur UN seul element de la page.",
+              "description": "Région live polie : le titre annonce le changement de contenu aux\nlecteurs d'écran. À poser sur UN seul élément de la page.",
               "attribute": "live"
             },
             {
@@ -2965,7 +2965,7 @@
               "type": {
                 "text": "boolean"
               },
-              "description": "Region live polie : le titre annonce le changement de contenu aux\nlecteurs d'écran. A poser sur UN seul element de la page.",
+              "description": "Région live polie : le titre annonce le changement de contenu aux\nlecteurs d'écran. À poser sur UN seul élément de la page.",
               "name": "live",
               "default": "false",
               "fieldName": "live"

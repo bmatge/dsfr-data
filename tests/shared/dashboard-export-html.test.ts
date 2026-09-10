@@ -251,6 +251,163 @@ describe('export-html — filtres partages', () => {
   });
 });
 
+describe('export-html — strategie de chargement (ADR-109, #717)', () => {
+  /** Source ODS a adaptateur : la seule forme qui sache paginer cote serveur. */
+  const ODS = {
+    id: 'ods',
+    name: 'Jeu ODS',
+    provider: 'opendatasoft',
+    apiUrl: 'https://data.example.com/api/explore/v2.1/catalog/datasets/mon-jeu/records',
+    resourceIds: { datasetId: 'mon-jeu' },
+  };
+
+  const listeWidget = (sourceId = 'ods', id = 'w-liste'): Widget => ({
+    id,
+    type: 'chart',
+    title: 'Tableau',
+    position: { row: 0, col: 0 },
+    config: {
+      fromBuilder: true,
+      sourceId,
+      chart: {
+        type: 'datalist',
+        labelField: 'region',
+        valueField: 'population',
+        colonnes: 'region:Territoire, population:Habitants',
+        pagination: 25,
+      },
+    },
+  });
+
+  const graphiqueWidget = (sourceId = 'ods', id = 'w-graphe'): Widget => ({
+    id,
+    type: 'chart',
+    title: 'Graphique',
+    position: { row: 1, col: 0 },
+    config: {
+      fromBuilder: true,
+      sourceId,
+      chart: {
+        type: 'bar',
+        labelField: 'region',
+        valueField: 'population',
+        aggregation: 'sum',
+      },
+    },
+  });
+
+  it('une source a consommateur unique et paginant pagine cote serveur', () => {
+    const html = generateDashboardHTML(dashboardWith([listeWidget()], [ODS]));
+    expect(html).toContain('server-side page-size="25"');
+    expect(html).toContain('<dsfr-data-list source="ods"');
+    expect(html).toContain('server-sort');
+    // La recherche locale ne verrait que la page chargee : le composant la
+    // desactiverait avec un avertissement (#304). Autant ne pas l'offrir.
+    expect(html).not.toContain(' search');
+    // Les deux strategies s'excluent par construction (#689, ADR-106).
+    expect(html).not.toContain('fetch-mode');
+  });
+
+  it('une source PARTAGEE ne pagine jamais cote serveur, quel que soit le volume', () => {
+    // LA REGRESSION QUE LA REGLE INTERDIT PAR CONSTRUCTION. Une source n'est
+    // emise qu'une fois : `server-side` sur la balise partagee ne ferait plus
+    // parvenir qu'une page de 25 lignes au graphique d'a cote, qui afficherait
+    // une somme FAUSSE, sans erreur, sur un HTML parfaitement bien forme.
+    const html = generateDashboardHTML(dashboardWith([listeWidget(), graphiqueWidget()], [ODS]));
+    expect(html).not.toContain('server-side');
+    expect(html).not.toContain('server-sort');
+    expect(html).toContain(' search');
+  });
+
+  it('une source dont le seul consommateur agrege ne pagine pas cote serveur', () => {
+    const html = generateDashboardHTML(dashboardWith([graphiqueWidget()], [ODS]));
+    expect(html).not.toContain('server-side');
+  });
+
+  it('une source pilotee par un contexte ne pagine pas cote serveur', () => {
+    // Le filtrage de `dsfr-data-context` est CLIENT : il ne saurait filtrer
+    // que la page chargee.
+    const filtres: Widget = {
+      id: 'f1',
+      type: 'filters',
+      title: 'Filtres',
+      position: { row: 0, col: 0 },
+      config: { filters: [{ field: 'region', operator: 'eq', options: ['IDF'] }] },
+    };
+    const html = generateDashboardHTML(dashboardWith([filtres, listeWidget()], [ODS]));
+    expect(html).toContain('<dsfr-data-context id="ctx-f1" sources="ods">');
+    expect(html).not.toContain('server-side');
+  });
+
+  it('une liste agregee ou limitee lit des groupes, pas des lignes : pas de pagination serveur', () => {
+    const agregee = { ...listeWidget() } as Widget & { type: 'chart' };
+    const html = generateDashboardHTML(
+      dashboardWith(
+        [
+          {
+            ...agregee,
+            config: {
+              fromBuilder: true,
+              sourceId: 'ods',
+              chart: {
+                type: 'datalist',
+                labelField: 'region',
+                valueField: 'population',
+                aggregation: 'sum',
+              },
+            },
+          },
+        ],
+        [ODS]
+      )
+    );
+    // ODS annonce la taille de page et non le nombre de groupes sur un
+    // group_by (#641) : le total de pages serait faux.
+    expect(html).not.toContain('server-side');
+  });
+
+  it('une source embarquee ou generique ne pagine pas cote serveur', () => {
+    const embarquee = generateDashboardHTML(dashboardWith([listeWidget('src-1')], [SRC]));
+    expect(embarquee).not.toContain('server-side');
+
+    const generique = generateDashboardHTML(
+      dashboardWith([listeWidget('api')], [{ id: 'api', name: 'API', apiUrl: 'https://x.test/i' }])
+    );
+    expect(generique).not.toContain('server-side');
+  });
+
+  it('un tableau branche sur sa propre source pagine aussi cote serveur', () => {
+    const table: Widget = {
+      id: 't1',
+      type: 'table',
+      title: 'Tableau',
+      position: { row: 0, col: 0 },
+      config: { columns: ['region'], searchable: true, sortable: true, sourceId: 'ods' },
+    };
+    const html = generateDashboardHTML(dashboardWith([table], [ODS]));
+    expect(html).toContain('server-side page-size="10"');
+    expect(html).toContain('server-sort');
+    expect(html).not.toContain(' search');
+  });
+
+  it('deux sources cote a cote : seule celle qui n’est pas partagee pagine', () => {
+    // Deux documents visuellement proches, deux strategies : c'est la
+    // consequence assumee d'ADR-109, et elle est documentee.
+    const AUTRE = { ...ODS, id: 'ods-2' };
+    const html = generateDashboardHTML(
+      dashboardWith(
+        [listeWidget('ods'), listeWidget('ods-2', 'w-liste-2'), graphiqueWidget('ods-2')],
+        [ODS, AUTRE]
+      )
+    );
+    const balises = html.split('<dsfr-data-source');
+    const premiere = balises.find((b) => b.includes('id="ods"'));
+    const seconde = balises.find((b) => b.includes('id="ods-2"'));
+    expect(premiere).toContain('server-side');
+    expect(seconde).not.toContain('server-side');
+  });
+});
+
 describe('export-html — page complete', () => {
   it('reste sur le bundle core sans carte, passe au bundle complet avec carte', () => {
     const noMap = generateDashboardHTML(

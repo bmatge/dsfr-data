@@ -55,7 +55,7 @@ Regles :
 | `fallback` | `string` | `""` (vide) | Texte rendu tant qu'un champ cite n'a aucune valeur — le repli declare de #742. Vide : le composant ne rend rien du tout. |
 | `field` | `string` | `""` (vide) | Champ dont la valeur est rendue — raccourci de `template="{{champ}}"`. Ignore quand `template` est pose. |
 | `for` | `string` | `""` (vide) | Id du dsfr-data-context observe |
-| `live` | `boolean` | `false` | Region live polie : le titre annonce le changement de contenu aux lecteurs d'écran. A poser sur UN seul element de la page. |
+| `live` | `boolean` | `false` | Région live polie : le titre annonce le changement de contenu aux lecteurs d'écran. À poser sur UN seul élément de la page. |
 | `template` | `string` | `""` (vide) | Gabarit texte : chaque `{{champ}}` est remplace par la valeur courante du filtre de ce champ (« Résultats pour {{departement}} »). |
 
 

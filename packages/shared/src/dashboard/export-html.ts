@@ -11,6 +11,11 @@
  * les donnees sont soit refetchees (source API), soit embarquees (attribut
  * `data` inline). C'est aussi elle qui sert d'apercu (iframe srcdoc) dans le
  * studio : l'apercu EST l'export.
+ *
+ * STRATEGIE DE CHARGEMENT (ADR-109, #717) : par defaut le document charge le
+ * jeu puis pagine dans le navigateur. `server-side` / `server-sort` ne sont
+ * emis que pour une source dont l'UNIQUE consommateur est une liste paginee
+ * — voir `serverPaginatedSources()` pour le critere et ce qu'il protege.
  */
 
 import { escapeHtml, jsonAttr } from '../utils/escape-html.js';
@@ -35,6 +40,33 @@ function aggregatedAlias(field: string, fn: string): string {
   return `${field}__${fn}`;
 }
 
+/** Taille de page par defaut d'une liste, cote widget comme cote source. */
+const DEFAULT_PAGE_SIZE = 10;
+
+/** Options d'emission d'une balise de source. */
+export interface SourceEmitOptions {
+  /**
+   * Pagination serveur (ADR-109) : la source ne charge qu'une page a la fois
+   * au lieu de rapatrier tout le jeu. Reserve par `serverPaginatedSources()`
+   * aux sources a adaptateur dont l'UNIQUE consommateur est une liste paginee.
+   *
+   * A ne jamais combiner avec `fetch-mode="export"` (#689, ADR-106), qui vise
+   * exactement le cas inverse : le composant ignore alors l'export et pose un
+   * attribut de diagnostic. L'export n'emet pas `fetch-mode` ; si un jour il
+   * le fait, les deux devront rester exclusifs.
+   */
+  serverSide?: boolean;
+  /** Taille de page demandee, quand `serverSide` est actif. */
+  pageSize?: number;
+}
+
+/** Attributs de pagination serveur, ou chaine vide. */
+function serverPaginationAttrs(options: SourceEmitOptions, indent: string): string {
+  if (!options.serverSide) return '';
+  const pageSize = options.pageSize && options.pageSize > 0 ? options.pageSize : DEFAULT_PAGE_SIZE;
+  return `\n${indent}  server-side page-size="${pageSize}"`;
+}
+
 /**
  * Emet la balise `<dsfr-data-source>` d'une source du dashboard.
  *
@@ -42,7 +74,11 @@ function aggregatedAlias(field: string, fn: string): string {
  * chargees embarquees en priorite (fonctionne partout, y compris Grist sans
  * exposer de cle), sinon connexion API declarative.
  */
-export function generateSourceHTML(source: DashboardSource, indent = '    '): string {
+export function generateSourceHTML(
+  source: DashboardSource,
+  indent = '    ',
+  options: SourceEmitOptions = {}
+): string {
   const id = escapeHtml(source.id);
   const data = source.data;
   if (Array.isArray(data) && data.length > 0) {
@@ -53,6 +89,7 @@ export function generateSourceHTML(source: DashboardSource, indent = '    '): st
   const provider = typeof source.provider === 'string' ? source.provider : '';
   const resourceIds = (source.resourceIds ?? {}) as Record<string, unknown>;
   const dataPath = typeof source.dataPath === 'string' ? source.dataPath : '';
+  const serverAttrs = serverPaginationAttrs(options, indent);
 
   if (provider === 'opendatasoft' && typeof resourceIds.datasetId === 'string') {
     let baseUrl: string;
@@ -64,13 +101,13 @@ export function generateSourceHTML(source: DashboardSource, indent = '    '): st
     return (
       `${indent}<dsfr-data-source id="${id}" api-type="opendatasoft"\n` +
       `${indent}  base-url="${escapeHtml(baseUrl)}"\n` +
-      `${indent}  dataset-id="${escapeHtml(resourceIds.datasetId)}"></dsfr-data-source>\n`
+      `${indent}  dataset-id="${escapeHtml(resourceIds.datasetId)}"${serverAttrs}></dsfr-data-source>\n`
     );
   }
   if (provider === 'tabular' && typeof resourceIds.resourceId === 'string') {
     return (
       `${indent}<dsfr-data-source id="${id}" api-type="tabular"\n` +
-      `${indent}  resource="${escapeHtml(resourceIds.resourceId)}"></dsfr-data-source>\n`
+      `${indent}  resource="${escapeHtml(resourceIds.resourceId)}"${serverAttrs}></dsfr-data-source>\n`
     );
   }
   if (apiUrl) {
@@ -78,6 +115,23 @@ export function generateSourceHTML(source: DashboardSource, indent = '    '): st
     return `${indent}<dsfr-data-source id="${id}" url="${escapeHtml(apiUrl)}"${transform}></dsfr-data-source>\n`;
   }
   return `${indent}<!-- Source « ${escapeHtml(source.name)} » (${id}) : pas de donnees embarquees ni d'URL exportable -->\n`;
+}
+
+/**
+ * Une source ne sait paginer cote serveur que si elle parle a un adaptateur :
+ * les donnees embarquees sont deja la, et le mode `url=` d'une API quelconque
+ * ne sait pas serialiser une page (voir dsfr-data-source, mode URL).
+ *
+ * Le predicat suit exactement les branches de `generateSourceHTML` qui posent
+ * un `api-type` : si l'une change, celui-ci doit changer avec elle.
+ */
+function supportsServerPagination(source: DashboardSource): boolean {
+  if (Array.isArray(source.data) && source.data.length > 0) return false;
+  const provider = typeof source.provider === 'string' ? source.provider : '';
+  const resourceIds = (source.resourceIds ?? {}) as Record<string, unknown>;
+  if (provider === 'opendatasoft') return typeof resourceIds.datasetId === 'string';
+  if (provider === 'tabular') return typeof resourceIds.resourceId === 'string';
+  return false;
 }
 
 /** Ids des sources pilotees par un bloc de filtres (toutes par defaut). */
@@ -182,7 +236,8 @@ function generateBuilderChartHTML(
   widget: Widget,
   config: BuilderChartWidgetConfig,
   dashboard: DashboardData,
-  indent: string
+  indent: string,
+  serverPaginated: Map<string, number>
 ): string {
   const c = config.chart;
   const sourceId = config.sourceId || dashboard.sources[0]?.id || '';
@@ -232,8 +287,13 @@ function generateBuilderChartHTML(
     case 'datalist': {
       const attrs = [src];
       if (c.colonnes) attrs.push(`columns="${escapeHtml(c.colonnes)}"`);
-      attrs.push('search');
-      attrs.push(`pagination="${c.pagination ?? 10}"`);
+      // En pagination serveur, le tri part au serveur (`server-sort`) et la
+      // recherche locale n'a plus lieu d'etre : elle ne verrait que la page
+      // chargee, avec des compteurs faux — le composant la desactive avec un
+      // avertissement (#304). Meme forme que le generateur de l'Assistant IA.
+      if (serverPaginated.has(sourceId)) attrs.push('server-sort');
+      else attrs.push('search');
+      attrs.push(`pagination="${c.pagination ?? DEFAULT_PAGE_SIZE}"`);
       return html + `${indent}<dsfr-data-list ${attrs.join(' ')}></dsfr-data-list>\n`;
     }
 
@@ -320,7 +380,11 @@ function generateMapHTML(
   return `${title}${indent}<dsfr-data-map ${attrs.join(' ')}>\n${layers}\n${indent}</dsfr-data-map>\n`;
 }
 
-export function generateWidgetHTML(widget: Widget, dashboard: DashboardData): string {
+export function generateWidgetHTML(
+  widget: Widget,
+  dashboard: DashboardData,
+  serverPaginated: Map<string, number> = serverPaginatedSources(dashboard)
+): string {
   const indent = '        ';
 
   switch (widget.type) {
@@ -347,7 +411,7 @@ ${indent}</dsfr-data-kpi>\n`;
         const title = widget.title
           ? `${indent}<h3 class="fr-h6">${escapeHtml(widget.title)}</h3>\n`
           : '';
-        return title + generateBuilderChartHTML(widget, cfg, dashboard, indent);
+        return title + generateBuilderChartHTML(widget, cfg, dashboard, indent, serverPaginated);
       }
       const sourceAttr = cfg.sourceId ? `\n${indent}  source="${escapeHtml(cfg.sourceId)}"` : '';
       return `${indent}<dsfr-data-chart${sourceAttr}
@@ -362,8 +426,12 @@ ${indent}</dsfr-data-chart>\n`;
       const cfg = widget.config;
       if (cfg.sourceId) {
         const cols = cfg.columns.length ? ` columns="${escapeHtml(cfg.columns.join(','))}"` : '';
-        const search = cfg.searchable ? ' search' : '';
-        return `${indent}<dsfr-data-list source="${escapeHtml(cfg.sourceId)}"${cols}${search} pagination="10">
+        // Voir le cas `datalist` : en pagination serveur, tri delegue et pas
+        // de recherche locale.
+        const serverPaged = serverPaginated.has(cfg.sourceId);
+        const search = cfg.searchable && !serverPaged ? ' search' : '';
+        const serverSort = serverPaged ? ' server-sort' : '';
+        return `${indent}<dsfr-data-list source="${escapeHtml(cfg.sourceId)}"${cols}${search}${serverSort} pagination="${DEFAULT_PAGE_SIZE}">
 ${indent}</dsfr-data-list>\n`;
       }
       // Forme historique (sans source) conservee pour les dashboards existants.
@@ -394,6 +462,10 @@ ${indent}</div>\n`;
 
 /** Contenu du conteneur (titre, chapo, sources, lignes de widgets) — sans le squelette de page. */
 export function generateDashboardBodyHTML(dashboard: DashboardData): string {
+  // Calcule UNE FOIS, puis servi aux sources comme aux widgets : les deux
+  // faces de la regle doivent decrire le meme document (une source
+  // `server-side` sans `server-sort` en face trierait la page seule).
+  const serverPaginated = serverPaginatedSources(dashboard);
   const widgetsByRow: Record<number, Widget[]> = {};
   dashboard.widgets.forEach((w) => {
     if (!widgetsByRow[w.position.row]) {
@@ -420,7 +492,7 @@ export function generateDashboardBodyHTML(dashboard: DashboardData): string {
         // Un bloc de filtres occupe toute la largeur de sa ligne.
         const cls = widget.type === 'filters' ? 'fr-col-12' : colClass;
         widgetsHTML += `      <div class="${cls}">\n`;
-        widgetsHTML += generateWidgetHTML(widget, dashboard);
+        widgetsHTML += generateWidgetHTML(widget, dashboard, serverPaginated);
         widgetsHTML += `      </div>\n`;
       });
 
@@ -434,7 +506,12 @@ export function generateDashboardBodyHTML(dashboard: DashboardData): string {
   const usedSourceIds = collectUsedSourceIds(dashboard);
   const sourcesHTML = dashboard.sources
     .filter((s) => usedSourceIds.has(s.id))
-    .map((s) => generateSourceHTML(s))
+    .map((s) =>
+      generateSourceHTML(s, '    ', {
+        serverSide: serverPaginated.has(s.id),
+        pageSize: serverPaginated.get(s.id),
+      })
+    )
     .join('');
 
   return (
@@ -446,33 +523,123 @@ export function generateDashboardBodyHTML(dashboard: DashboardData): string {
   );
 }
 
-/** Ids de sources effectivement references par au moins un widget. */
-function collectUsedSourceIds(dashboard: DashboardData): Set<string> {
-  const ids = new Set<string>();
+/**
+ * Ce qu'un widget attend de sa source, du point de vue du CHARGEMENT.
+ *
+ * - `liste-paginee` : une `dsfr-data-list` qui n'affiche qu'une page a la
+ *   fois, sans agregation ni limite — la seule forme qui se contente d'une
+ *   page rapatriee du serveur.
+ * - `jeu-entier` : tout le reste (graphique, KPI, carte, podium, liste
+ *   agregee). Une agregation calculee sur dix lignes est FAUSSE, et elle est
+ *   fausse en silence.
+ * - `contexte` : un bloc de filtres partages, dont le filtrage est client
+ *   (`dsfr-data-context`) et suppose donc le jeu entier.
+ */
+type ConsumerNeed = 'liste-paginee' | 'jeu-entier' | 'contexte';
+
+interface SourceConsumer {
+  need: ConsumerNeed;
+  /** Taille de page demandee, pour un consommateur `liste-paginee`. */
+  pageSize: number;
+}
+
+/**
+ * Graphe des consommateurs : id de source -> ce que chaque widget en attend.
+ *
+ * C'est ce graphe qui rend la regle d'ADR-109 LOCALE : l'export sait deja,
+ * au moment d'emettre une balise de source, combien de widgets la lisent et
+ * ce qu'ils en font.
+ */
+function collectSourceConsumers(dashboard: DashboardData): Map<string, SourceConsumer[]> {
+  const graph = new Map<string, SourceConsumer[]>();
+  const add = (id: string | undefined, consumer: SourceConsumer): void => {
+    if (!id) return;
+    const existing = graph.get(id);
+    if (existing) existing.push(consumer);
+    else graph.set(id, [consumer]);
+  };
+  const jeuEntier: SourceConsumer = { need: 'jeu-entier', pageSize: 0 };
+
   for (const w of dashboard.widgets) {
+    if (w.type === 'text') continue;
     if (w.type === 'filters') {
-      for (const id of filterTargetIds(w.config, dashboard)) ids.add(id);
+      for (const id of filterTargetIds(w.config, dashboard)) {
+        add(id, { need: 'contexte', pageSize: 0 });
+      }
       continue;
     }
-    if (w.type === 'text') continue;
     if (w.type === 'map') {
-      for (const layer of w.config.layers) ids.add(layer.sourceId);
+      for (const layer of w.config.layers) add(layer.sourceId, jeuEntier);
       continue;
     }
     if (w.type === 'chart') {
       const cfg = w.config;
       if (isFavoriteChart(cfg)) continue;
       if (isBuilderChart(cfg)) {
-        ids.add(cfg.sourceId || dashboard.sources[0]?.id || '');
+        const id = cfg.sourceId || dashboard.sources[0]?.id || '';
+        add(id, builderChartConsumer(cfg.chart));
         continue;
       }
-      if (cfg.sourceId) ids.add(cfg.sourceId);
+      add(cfg.sourceId, jeuEntier);
       continue;
     }
-    if (w.config.sourceId) ids.add(w.config.sourceId);
+    if (w.type === 'table') {
+      // La forme sans source ne branche aucune balise vivante.
+      if (w.config.sourceId) {
+        add(w.config.sourceId, { need: 'liste-paginee', pageSize: DEFAULT_PAGE_SIZE });
+      }
+      continue;
+    }
+    add(w.config.sourceId, jeuEntier);
   }
-  ids.delete('');
-  return ids;
+  graph.delete('');
+  return graph;
+}
+
+/**
+ * Une `datalist` de l'assistant ne se contente d'une page que si elle affiche
+ * les lignes telles quelles. Avec une agregation, elle lit des groupes — et
+ * un `group-by` pagine cote serveur rend un total de pages faux (ODS annonce
+ * la taille de page, pas le nombre de groupes, #641). Avec une limite, elle
+ * affiche un palmares, pas un tableau qu'on feuillette.
+ */
+function builderChartConsumer(c: ChartConfig): SourceConsumer {
+  const paginable = c.type === 'datalist' && !c.aggregation && !c.limit;
+  return paginable
+    ? { need: 'liste-paginee', pageSize: c.pagination ?? DEFAULT_PAGE_SIZE }
+    : { need: 'jeu-entier', pageSize: 0 };
+}
+
+/**
+ * Sources que le document peut paginer cote serveur, avec leur taille de page
+ * (ADR-109, #717).
+ *
+ * Le critere est volontairement etroit : **une source, un seul consommateur,
+ * et ce consommateur est une liste paginee**. Une source n'etant emise qu'UNE
+ * FOIS et partagee par tous les widgets, poser `server-side` sur une source
+ * partagee ne ferait plus parvenir qu'une page de dix lignes au graphique ou
+ * au KPI d'a cote : une agregation fausse, sans la moindre erreur. Le cas de
+ * la source partagee garde donc sa reponse existante, `fetch-mode="export"`
+ * (#689, ADR-106) : une requete au lieu de trente, et le jeu entier.
+ */
+function serverPaginatedSources(dashboard: DashboardData): Map<string, number> {
+  const paginated = new Map<string, number>();
+  const graph = collectSourceConsumers(dashboard);
+  const byId = new Map(dashboard.sources.map((s) => [s.id, s]));
+  for (const [id, consumers] of graph) {
+    if (consumers.length !== 1) continue;
+    const only = consumers[0];
+    if (only.need !== 'liste-paginee') continue;
+    const source = byId.get(id);
+    if (!source || !supportsServerPagination(source)) continue;
+    paginated.set(id, only.pageSize);
+  }
+  return paginated;
+}
+
+/** Ids de sources effectivement references par au moins un widget. */
+function collectUsedSourceIds(dashboard: DashboardData): Set<string> {
+  return new Set(collectSourceConsumers(dashboard).keys());
 }
 
 /** Le bundle core suffit sauf si un widget rend une carte (composants Leaflet). */

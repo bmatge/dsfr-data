@@ -346,10 +346,15 @@ describe('inventaire d’observabilite — ce que le volet Diagnostic peut voir'
 });
 
 describe('les séries perdues sont annoncees, pas escamotees', () => {
-  // `code-generator.ts` n'emet nulle part `value-fields` : une configuration
-  // multi-séries perd ses colonnes supplementaires a la generation (#624).
-  // Tant que ce n'est pas corrige, le taire serait le pire des deux — un
-  // graphique qui a l'air juste et qui ne l'est pas.
+  // Ce qui reste perdu apres #624 : les DEUX variantes qui ecrivent du
+  // Chart.js a la main (API generique, donnees embarquees). Elles concatenent
+  // des chaines JS ; une boucle `datasets` mal formee y casserait TOUS les
+  // graphiques generes, pas seulement le multi-séries. L'arbitrage les laisse
+  // sous mitigation — et le taire serait le pire des deux : un graphique qui a
+  // l'air juste et qui ne l'est pas.
+  //
+  // Les variantes a composant (ODS, Tabular paginees) ne perdent plus rien :
+  // le bloc suivant les couvre.
   //
   // Ce comportement etait le seul correctif de sa passe sans garde-fou.
 
@@ -436,6 +441,158 @@ describe('les séries perdues sont annoncees, pas escamotees', () => {
     } finally {
       nettoyer();
     }
+  });
+});
+
+describe('le multi-séries survit sur les variantes a composant (#624)', () => {
+  // L'arbitrage de #624 : les deux variantes qui passent par
+  // `<dsfr-data-chart>` emettent `value-fields` — ajout d'un attribut, sans
+  // risque. Les deux variantes Chart.js restent en l'etat, sous mitigation.
+  //
+  // Ce que ces tests tiennent, et qui n'allait pas de soi : l'attribut ne
+  // suffit pas. Le composant ne peut porter que ce que la REQUETE a ramene,
+  // donc le select ODS et l'`aggregate` Tabular doivent agreger la colonne
+  // supplementaire, sous l'alias exact que `value-fields` designe.
+
+  const AVEC_SERIE = { ...configPour('bar'), valueFields: ['pop2025'] };
+
+  /** Attribut d'un element du code genere. */
+  function attr(code: string, selecteur: string, nom: string): string | null {
+    const doc = new DOMParser().parseFromString(code, 'text/html');
+    return doc.querySelector(selecteur)?.getAttribute(nom) ?? null;
+  }
+
+  beforeEach(() => {
+    state.fields = [
+      { name: 'region', type: 'string', sample: 'Ile-de-France' },
+      { name: 'population', type: 'number', sample: 12271794 },
+      { name: 'pop2025', type: 'number', sample: 12345678 },
+    ];
+  });
+
+  describe('API OpenDataSoft', () => {
+    beforeEach(() => {
+      state.source = VARIANTES['API OpenDataSoft']();
+    });
+
+    it('emet value-fields sur la colonne agregee', () => {
+      // T1 — mutation : retirer l'attribut. La série supplementaire disparait
+      // du code alors que l'apercu la montre (le defaut de #624).
+      const code = genererCode(AVEC_SERIE);
+
+      expect(attr(code, 'dsfr-data-chart', 'value-fields')).toBe('pop2025__sum:pop2025');
+    });
+
+    it('agrege la colonne supplementaire dans le select', () => {
+      // T2 — mutation : n'emettre que l'attribut. Le composant designerait une
+      // colonne que la requete n'a jamais ramenee : série a zero.
+      expect(attr(genererCode(AVEC_SERIE), 'dsfr-data-source', 'select')).toBe(
+        'sum(population) as population__sum, sum(pop2025) as pop2025__sum, region'
+      );
+    });
+
+    it('laisse les alias nommer les séries', () => {
+      // T3 — mutation : garder `name="<titre>"`. Une chaine simple ne nomme
+      // que la PREMIERE série ; la seconde perdrait sa legende.
+      const code = genererCode(AVEC_SERIE);
+
+      expect(attr(code, 'dsfr-data-chart', 'name')).toBeNull();
+      expect(attr(code, 'dsfr-data-chart', 'value-field')).toBe('population__sum:population');
+    });
+
+    it('ne change rien en mono-série', () => {
+      // T4 — mutation : aliaser et retirer `name` partout. Le cas courant
+      // perdrait le titre en legende sans rien y gagner.
+      const code = genererCode(configPour('bar'));
+
+      expect(attr(code, 'dsfr-data-chart', 'value-field')).toBe('population__sum');
+      expect(attr(code, 'dsfr-data-chart', 'name')).toBe('Population par region');
+      expect(attr(code, 'dsfr-data-chart', 'value-fields')).toBeNull();
+    });
+
+    it('se tait sur un decompte', () => {
+      // Un `count` ne depend pas du champ de valeur : les séries
+      // supplementaires seraient le meme nombre repete, sous le meme alias.
+      const code = genererCode({ ...AVEC_SERIE, aggregation: 'count' });
+
+      expect(attr(code, 'dsfr-data-chart', 'value-fields')).toBeNull();
+      expect(attr(code, 'dsfr-data-source', 'select')).toBe('count(*) as count__count, region');
+    });
+  });
+
+  describe('API Tabular', () => {
+    beforeEach(() => {
+      state.source = VARIANTES['API Tabular']();
+    });
+
+    it('emet value-fields sur la colonne agregee', () => {
+      expect(attr(genererCode(AVEC_SERIE), 'dsfr-data-chart', 'value-fields')).toBe(
+        'pop2025__sum:pop2025'
+      );
+    });
+
+    it('agrege la colonne supplementaire dans la requete', () => {
+      expect(attr(genererCode(AVEC_SERIE), 'dsfr-data-query', 'aggregate')).toBe(
+        'population:sum, pop2025:sum'
+      );
+    });
+
+    it('ne change rien en mono-série', () => {
+      const code = genererCode(configPour('bar'));
+
+      expect(attr(code, 'dsfr-data-query', 'aggregate')).toBe('population:sum');
+      expect(attr(code, 'dsfr-data-chart', 'name')).toBe('Population par region');
+      expect(attr(code, 'dsfr-data-chart', 'value-fields')).toBeNull();
+    });
+
+    it('se tait sur un decompte', () => {
+      const code = genererCode({ ...AVEC_SERIE, aggregation: 'count' });
+
+      expect(attr(code, 'dsfr-data-chart', 'value-fields')).toBeNull();
+      expect(attr(code, 'dsfr-data-query', 'aggregate')).toBe('region:count');
+    });
+  });
+
+  it('les variantes Chart.js restent mono-série, sciemment', () => {
+    // Elles ecrivent leurs `datasets` en chaines concatenees a la main : une
+    // boucle mal formee y casserait TOUS les graphiques generes. Ce test dit
+    // que c'est un choix, pas un oubli — le jour ou elles passeront par le
+    // composant, il tombera et sera a inverser.
+    for (const variante of ['API generique', 'embarquee (donnees inline)'] as const) {
+      state.source = VARIANTES[variante]();
+
+      expect(genererCode(AVEC_SERIE), variante).not.toContain('value-fields');
+    }
+  });
+
+  it('ne previent que la ou une série est reellement perdue', async () => {
+    // La mitigation dans le chat parlait sans regarder la source : depuis
+    // #624 elle mentirait sur ODS et Tabular.
+    const { applyChartConfig } = await import('../../../apps/builder-ia/src/ui/preview.js');
+    const pre = document.createElement('pre');
+    pre.id = 'generated-code';
+    const chat = document.createElement('div');
+    chat.id = 'chat-messages';
+    document.body.append(pre, chat);
+    const dits: Record<string, number> = {};
+    try {
+      for (const variante of Object.keys(VARIANTES) as (keyof typeof VARIANTES)[]) {
+        state.source = VARIANTES[variante]();
+        state.messages = [];
+        applyChartConfig(AVEC_SERIE);
+        dits[variante] = state.messages.length;
+      }
+    } finally {
+      pre.remove();
+      chat.remove();
+    }
+
+    expect(dits).toEqual({
+      'embarquee (donnees inline)': 1,
+      'API OpenDataSoft': 0,
+      'API Tabular': 0,
+      'API generique': 1,
+    });
   });
 });
 

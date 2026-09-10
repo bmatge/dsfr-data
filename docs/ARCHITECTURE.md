@@ -160,6 +160,21 @@ where, group_by echappe #641/#289, order_by traduit). Trois consequences a conna
   `/exports/json` traverse exactement comme `/records` (les hotes ODS ne sont d'ailleurs pas dans la
   table de reecriture : CORS `*`, appel direct).
 
+**Strategie de chargement d'un document exporte (#717, ADR-109)** ⚠️ — `export-html.ts` n'emet
+`server-side` / `server-sort` **que** pour une source dont l'UNIQUE consommateur est une liste
+paginee non agregee et non limitee, et seulement en mode adaptateur (ODS, Tabular). Le critere est
+calcule par `serverPaginatedSources()` a partir du graphe de consommateurs deja collecte, puis servi
+**une seule fois** aux sources ET aux widgets : les deux faces doivent decrire le meme document.
+
+Le couplage non evident est celui-ci : **une source n'est emise qu'une fois et partagee par tous les
+widgets** du document. Poser `server-side` parce qu'un tableau la consomme casserait SILENCIEUSEMENT
+les autres — un `dsfr-data-chart` ou un `dsfr-data-kpi` qui ne recoit plus qu'une page de dix lignes
+affiche une agregation fausse, sans erreur, sur un HTML bien forme. Une source partagee, agregee ou
+pilotee par un `dsfr-data-context` (filtrage client) reste donc en chargement complet ; sa reponse
+au volume est `fetch-mode="export"` (ci-dessus), qui ne se combine jamais avec `server-side`.
+Garde-fous : forme dans `tests/shared/dashboard-export-html.test.ts`, rendu dans
+`tests/builder-e2e/export-html-api-recette.spec.ts` (documents `pagePour()` vs `pagePartagee()`).
+
 **Formats WHERE** :
 - **ODSQL** (OpenDataSoft) : SQL-like — `population > 5000 AND status = 'active'`, clauses jointes par ` AND `.
 - **Colon** (Tabular, Grist, INSEE, Generic) : `field:operator:value, field2:operator:value2`. Les caracteres structurels (`,` `:` `|`) dans une VALEUR sont percent-encodes (`escapeColonValue`/`unescapeColonValue` dans `packages/core/src/utils/where.ts`, #271) ; tous les parseurs colon decodent apres decoupage.

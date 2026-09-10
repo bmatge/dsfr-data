@@ -166,6 +166,17 @@ export interface BuilderState {
   datalistColumns: DatalistColumn[];
   normalizeConfig: NormalizeConfig;
   facetsConfig: FacetsConfig;
+  /**
+   * Inscrit l'état de la vue dans l'adresse de la page : filtres à facettes
+   * (`url-sync` + `url-params` sur `dsfr-data-facets`) et numéro de page
+   * (`url-sync` sur `dsfr-data-list`). Un seul réglage pour le concept.
+   */
+  urlSync: boolean;
+  /**
+   * Nom du paramètre d'adresse portant le numéro de page
+   * (`url-page-param` de `dsfr-data-list`). Défaut : `page`.
+   */
+  urlPageParam: string;
   a11yEnabled: boolean;
   a11yTable: boolean;
   a11yDownload: boolean;
@@ -313,6 +324,8 @@ export const state: BuilderState = {
     sort: 'count',
     hideEmpty: false,
   },
+  urlSync: false,
+  urlPageParam: 'page',
   isSampleData: false,
   a11yEnabled: true,
   a11yTable: true,

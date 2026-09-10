@@ -214,19 +214,19 @@ export class DsfrDataContextFilter extends LitElement {
   operator: ContextOperator = 'eq';
 
   /**
-   * Mois de debut de l'annee pour `year-of` et `current-year` (#735) —
-   * 1 (defaut) = annee civile, 9 = annee scolaire, 4 = exercice comptable
+   * Mois de début de l'année pour `year-of` et `current-year` (#735) —
+   * 1 (défaut) = année civile, 9 = année scolaire, 4 = exercice comptable
    * britannique, 7 = exercice australien, 10 = saison. La clause reste une
-   * plage `gte` + `lt` : elle se delegue au serveur comme n'importe quelle
-   * autre, aucun adaptateur n'est concerne.
+   * plage `gte` + `lt` : elle se délègue au serveur comme n'importe quelle
+   * autre, aucun adaptateur n'est concerné.
    *
    * `year-of` avec `year-start-month="9"` et la valeur « 2024 » filtre
    * `[2024-09-01, 2025-09-01)` et s'affiche « 2024-2025 » dans les tags.
-   * Une valeur plus precise (« 2025-03-10 ») designe l'annee qui la
+   * Une valeur plus précise (« 2025-03-10 ») désigne l'année qui la
    * CONTIENT — soit 2024-2025 ici — ce qui permet de nourrir l'opérateur
    * d'un contrôle de type date.
    *
-   * Cote client seul, une colonne d'annee scolaire se derive aussi avec
+   * Côté client seul, une colonne d'année scolaire se dérive aussi avec
    * `compute` sur dsfr-data-normalize ; l'attribut existe pour les jeux
    * qu'on ne veut pas rapatrier.
    */
