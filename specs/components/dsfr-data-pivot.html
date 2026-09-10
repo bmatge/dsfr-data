@@ -91,6 +91,99 @@ Normandie           | 980  | null</pre></div>
           de produire un tableau de 10 000 colonnes.
         </p>
 
+        <h2 id="exemples" class="fr-mt-4w">Exemples</h2>
+
+        <p>
+          Les trois exemples partent du même jeu de données : les crédits de paiement du budget de
+          l'État, une ligne par mission et par année, en millions d'euros.
+        </p>
+        <div class="code-block"><pre>mission              | annee | credits_pa
+Écologie             | 2023  | 21400
+Écologie             | 2024  | 23900
+Enseignement scolaire| 2023  | 60200
+Enseignement scolaire| 2024  | 62100
+Justice              | 2023  | 11600
+Justice              | 2024  | 12200</pre></div>
+
+        <section class="demo-section">
+          <h3>Budget par mission et par année</h3>
+          <p>
+            Le croisement le plus simple : une ligne par mission, une colonne par année, la somme des
+            crédits dans chaque cellule. <code>column-order="asc"</code> range les années dans l'ordre
+            plutôt que dans celui d'apparition dans les données.
+          </p>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-source</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"budget"</span> <span class="tok-attr">api-type</span><span class="tok-punct">=</span><span class="tok-string">"tabular"</span>
+  <span class="tok-attr">base-url</span><span class="tok-punct">=</span><span class="tok-string">"https://tabular-api.data.gouv.fr"</span>
+  <span class="tok-attr">resource</span><span class="tok-punct">=</span><span class="tok-string">"RESOURCE_ID"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-source</span><span class="tok-punct">&gt;</span>
+
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-pivot</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"croise"</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"budget"</span>
+  <span class="tok-attr">row</span><span class="tok-punct">=</span><span class="tok-string">"mission"</span> <span class="tok-attr">column</span><span class="tok-punct">=</span><span class="tok-string">"annee"</span> <span class="tok-attr">value</span><span class="tok-punct">=</span><span class="tok-string">"credits_pa"</span>
+  <span class="tok-attr">aggregate</span><span class="tok-punct">=</span><span class="tok-string">"sum"</span> <span class="tok-attr">column-order</span><span class="tok-punct">=</span><span class="tok-string">"asc"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-pivot</span><span class="tok-punct">&gt;</span>
+
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-list</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"croise"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-list</span><span class="tok-punct">&gt;</span></pre></div>
+          <p class="fr-text--sm fr-mt-1w">
+            Sans attribut <code>columns</code>, la liste dérive ses colonnes des données : elle affiche
+            <code>mission</code>, <code>2023</code> et <code>2024</code>. Une mission sans crédits une
+            année donnée porte <code>null</code>, pas <code>0</code>.
+          </p>
+        </section>
+
+        <section class="demo-section">
+          <h3>Des noms de colonnes sûrs avec <code>column-format</code></h3>
+          <p>
+            Un nom de colonne issu des données peut commencer par un chiffre (<code>2023</code>) : il
+            n'est alors pas un identifiant utilisable dans un <code>compute</code> en aval, ni dans un
+            attribut <code>value-field</code>. Le gabarit <code>column-format</code> préfixe la valeur
+            brute et rend le schéma de sortie prévisible.
+          </p>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-pivot</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"croise"</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"budget"</span>
+  <span class="tok-attr">row</span><span class="tok-punct">=</span><span class="tok-string">"mission"</span> <span class="tok-attr">column</span><span class="tok-punct">=</span><span class="tok-string">"annee"</span> <span class="tok-attr">value</span><span class="tok-punct">=</span><span class="tok-string">"credits_pa"</span>
+  <span class="tok-attr">aggregate</span><span class="tok-punct">=</span><span class="tok-string">"sum"</span> <span class="tok-attr">column-order</span><span class="tok-punct">=</span><span class="tok-string">"asc"</span>
+  <span class="tok-attr">column-format</span><span class="tok-punct">=</span><span class="tok-string">"annee_{value}"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-pivot</span><span class="tok-punct">&gt;</span>
+
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-chart</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"croise"</span> <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"bar"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"mission"</span> <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"annee_2024"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-chart</span><span class="tok-punct">&gt;</span></pre></div>
+          <p class="fr-text--sm fr-mt-1w">
+            Les colonnes générées deviennent <code>annee_2023</code> et <code>annee_2024</code>. Pour un
+            libellé lisible à l'affichage sans perdre ces identifiants, préférer <code>labels</code> sur
+            le composant qui restitue les données plutôt que sur le pivot.
+          </p>
+        </section>
+
+        <section class="demo-section">
+          <h3>Écart entre deux années</h3>
+          <p>
+            C'est le motif qui justifie <code>column-format</code> : une fois les deux années devenues
+            deux colonnes aux noms connus, <code>&lt;dsfr-data-normalize&gt;</code> dérive l'écart en
+            aval du croisement. Le pivot ne calcule pas de colonne dérivée lui-même : il croise, et le
+            reste du pipeline s'applique normalement.
+          </p>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-pivot</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"croise"</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"budget"</span>
+  <span class="tok-attr">row</span><span class="tok-punct">=</span><span class="tok-string">"mission"</span> <span class="tok-attr">column</span><span class="tok-punct">=</span><span class="tok-string">"annee"</span> <span class="tok-attr">value</span><span class="tok-punct">=</span><span class="tok-string">"credits_pa"</span>
+  <span class="tok-attr">aggregate</span><span class="tok-punct">=</span><span class="tok-string">"sum"</span> <span class="tok-attr">column-order</span><span class="tok-punct">=</span><span class="tok-string">"asc"</span>
+  <span class="tok-attr">column-format</span><span class="tok-punct">=</span><span class="tok-string">"annee_{value}"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-pivot</span><span class="tok-punct">&gt;</span>
+
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-normalize</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"evolution"</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"croise"</span>
+  numeric-auto
+  <span class="tok-attr">compute</span><span class="tok-punct">=</span><span class="tok-string">"ecart = annee_2024 - annee_2023"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-normalize</span><span class="tok-punct">&gt;</span>
+
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-list</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"evolution"</span>
+  <span class="tok-attr">columns</span><span class="tok-punct">=</span><span class="tok-string">"mission, annee_2023, annee_2024, ecart"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-list</span><span class="tok-punct">&gt;</span></pre></div>
+          <p class="fr-text--sm fr-mt-1w">
+            <code>numeric-auto</code> n'est pas facultatif ici : une source qui rend ses montants sous
+            forme de chaînes ferait concaténer <code>compute</code> au lieu de soustraire. Une mission
+            absente d'une des deux années donne un écart <code>null</code>, cohérent avec la cellule
+            manquante.
+          </p>
+        </section>
+
         <h2 id="voir-aussi" class="fr-mt-4w">Voir aussi</h2>
         <ul>
           <li><a href="dsfr-data-unpivot.html"><code>dsfr-data-unpivot</code></a> — l'opération inverse : déplier des colonnes en lignes</li>
