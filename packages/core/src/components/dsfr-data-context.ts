@@ -5,6 +5,7 @@ import { dispatchSourceCommand } from '../utils/data-bridge.js';
 import { filterToOdsql } from '../utils/where.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
+import { CONTEXT_CONNECTED_EVENT, findContextHostById } from '../utils/context-registry.js';
 
 interface SourceWithAdapter extends HTMLElement {
   getAdapter?: () => { capabilities?: { whereFormat?: string } } | null;
@@ -12,20 +13,18 @@ interface SourceWithAdapter extends HTMLElement {
 
 let contextSeq = 0;
 
-/** Nom de l'evenement document emis a la connexion d'un contexte (#678) */
-export const CONTEXT_CONNECTED_EVENT = 'dsfr-data-context-connected';
+export { CONTEXT_CONNECTED_EVENT } from '../utils/context-registry.js';
 
 /**
  * Resout un contexte par id — null si absent ou pas encore defini/upgrade
  * (un element non upgrade n'a pas encore `_registerFilter`). Les filtres
  * declares AVANT le contexte dans le DOM retentent a l'evenement
- * `dsfr-data-context-connected` (#678).
+ * `dsfr-data-context-connected` (#678). La resolution vit dans
+ * `utils/context-registry.ts` (#681) : la carte, dans un autre bundle,
+ * s'en sert sans importer ce composant.
  */
 export function findContextById(id: string): DsfrDataContext | null {
-  if (!id) return null;
-  const el = document.getElementById(id);
-  if (!el || el.tagName.toLowerCase() !== 'dsfr-data-context') return null;
-  return '_registerFilter' in el ? (el as DsfrDataContext) : null;
+  return findContextHostById(id) as DsfrDataContext | null;
 }
 
 /**
