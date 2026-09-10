@@ -1,6 +1,6 @@
 {
   "name": "dsfr-data",
-  "version": "0.21.0",
+  "version": "0.27.0",
   "description": "Bibliotheque de Web Components de dataviz pour sites gouvernementaux",
   "keywords": [
     "dsfr",
@@ -32,11 +32,13 @@
     "./core": {
       "import": "./dist/dsfr-data.core.esm.js",
       "require": "./dist/dsfr-data.core.umd.js"
-    }
+    },
+    "./geo/*": "./geo/*"
   },
   "files": [
     "dist/*.js",
     "dist/data/",
+    "geo/",
     "custom-elements.json"
   ],
   "customElements": "custom-elements.json",

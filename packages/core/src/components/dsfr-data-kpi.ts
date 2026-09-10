@@ -1,12 +1,34 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
-import { formatValue, formatPercentage, FormatType, getColorBySeuil } from '../utils/formatters.js';
-import { computeAggregation } from '../utils/aggregations.js';
+import {
+  formatValue,
+  formatPercentage,
+  isFormatType,
+  FORMAT_TYPES,
+  FormatType,
+  getColorBySeuil,
+} from '../utils/formatters.js';
+import {
+  computeAggregation,
+  parseExpression,
+  countsReceivedRows,
+  isRateExpression,
+  type AggregationContext,
+} from '../utils/aggregations.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
-import { renderSourceLoading, renderSourceError } from '../utils/status-templates.js';
+import {
+  renderSourceLoading,
+  renderSourceError,
+  renderConfigError,
+  renderSourceIdle,
+  IDLE_MESSAGE_DEFAULT,
+} from '../utils/status-templates.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import { parseKpiLines, resolveKpiLines, type ResolvedKpiLine } from '../utils/kpi-lines.js';
+import { getDataMeta } from '../utils/data-bridge.js';
+import { getByPath } from '../utils/json-path.js';
+import { applyLocalFilter, validateColonFilter } from '@dsfr-data/shared/lib';
 
 type KpiColor = 'vert' | 'orange' | 'rouge' | 'bleu';
 
@@ -42,6 +64,20 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
   /**
    * Expression de valeur — convention cible anglaise (#300).
    * Grammaire commune "champ:fn" (#303), ex. value="population:sum".
+   * `champ:distinct` (alias `count-distinct`, #672) : nombre de valeurs
+   * distinctes, null et chaîne vide exclus, calculé sur les lignes reçues.
+   * `meta:total` (#659) : total publié par l'amont (total serveur en
+   * server-side, lignes avant `limit` derrière un query) — `count` ne
+   * compte que les lignes reçues.
+   * Ratio (#673) : `value="count:statut:ouvert / count"`, chaque côté dans
+   * la grammaire ci-dessus (`meta:total` compris). Résultat = fraction
+   * (0,35) ; `format="pourcentage"` la rend en pourcentage (35 %) — les
+   * seuils s'expriment alors en pourcentage aussi. Division par zéro : « — ».
+   * `count:champ:valeur` accepte un champ tableau (un élément égal suffit).
+   * `champ:evolution` (#675) : (dernière − première) / première sur les
+   * lignes DANS LEUR ORDRE COURANT — poser un `order-by` chronologique en
+   * amont. Fraction, rendue en pourcentage par `format="pourcentage"`,
+   * `trend` et `lines` ; « — » si moins de deux valeurs ou première = 0.
    */
   @property({ type: String })
   value = '';
@@ -49,6 +85,20 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
   /** @deprecated alias français de `value` (#300) */
   @property({ type: String })
   valeur = '';
+
+  /**
+   * Filtre des lignes AVANT le calcul (#674), dialecte colon de
+   * dsfr-data-query : `where="categorie:eq:Actif, montant:gte:1000"` —
+   * mêmes 12 opérateurs (eq, neq, gt, gte, lt, lte, contains, notcontains,
+   * in, notin, isnull, isnotnull), même égalité lâche, chemins imbriqués
+   * acceptés. Appliqué à `value`, `trend` et `lines`.
+   * CÔTÉ CLIENT SEULEMENT : le KPI ne délègue rien au serveur, le filtre
+   * porte sur les lignes reçues (derrière un `limit` ou une page, poser le
+   * `where` sur la source ou une query amont). `meta:total` n'en tient pas
+   * compte. Une clause non reconnue est une erreur de configuration.
+   */
+  @property({ type: String })
+  where = '';
 
   /**
    * Titre affiché AU-DESSUS de la valeur (surtitre, style majuscules grises).
@@ -74,9 +124,30 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
   @property({ type: String })
   icone = '';
 
-  /** Format d'affichage: nombre, pourcentage, euro, decimal */
+  /**
+   * Format d'affichage : nombre (défaut), pourcentage, euro, decimal, compact
+   * (14 785 684 → « 14,8 M »), date (chaîne ISO → « 09/09/2026 », #667).
+   * Les décimales passent par `decimals`, jamais par le format (`euro:3` est
+   * refusé et affiché comme erreur de configuration, #665).
+   */
   @property({ type: String })
   format: FormatType = 'nombre';
+
+  /**
+   * Nombre de décimales affichées (entier 0 à 20), ex. `format="euro" decimals="3"`
+   * → « 1,749 € ». Fixe pour nombre, pourcentage, euro et decimal ; plafond pour
+   * compact ; sans effet sur date. Absent : défaut historique du format (#665).
+   */
+  @property({ type: Number })
+  decimals?: number;
+
+  /**
+   * Unité accolée après la valeur (espace insécable), ex. `format="compact" unit="€"`
+   * → « 44,9 Md € ». Surtout utile avec nombre, decimal et compact — euro et
+   * pourcentage portent déjà leur symbole (#665).
+   */
+  @property({ type: String })
+  unit = '';
 
   /**
    * RACCOURCI HERITE — pour une ligne d'evolution riche (signe, suffixe,
@@ -85,8 +156,10 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
    * Expression d'agrégation pour la tendance, évaluée sur les données de la
    * source (grammaire commune "champ:fn", ex. "evolution:avg") — PAS un
    * litteral : l'ancienne doc ("+3.2") laissait croire qu'on passait une
-   * valeur, la chaine etait interpretee comme nom de champ (#303).
+   * valeur, la chaîne etait interpretee comme nom de champ (#303).
    * Rendue avec une fleche (↑/↓) en pourcentage fr-FR ("↑ 5,2 %").
+   * `trend="recettes:evolution"` (#675) : taux d'évolution entre la première
+   * et la dernière ligne, rendu en pourcentage.
    */
   @property({ type: String })
   trend = '';
@@ -138,6 +211,14 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
   @property({ type: Number, reflect: true })
   col?: number;
 
+  /**
+   * Message rendu quand l'amont attend un filtre (`require-where`, #690).
+   * Distinct de « aucune donnée » : aucune requête n'a été faite. Vide,
+   * le libellé par défaut est utilisé.
+   */
+  @property({ type: String, attribute: 'idle-message' })
+  idleMessage = IDLE_MESSAGE_DEFAULT;
+
   // Utilise le Light DOM pour bénéficier des styles DSFR
   createRenderRoot() {
     return this;
@@ -179,6 +260,22 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
 
   static styles = css``;
 
+  /**
+   * Lignes de la source après le `where` client (#674). Sans `where` (ou
+   * avec un `where` invalide, déjà signalé), les données brutes — y compris
+   * une source mono-objet, que computeAggregation sait lire.
+   */
+  private _filteredData(): unknown {
+    const data = this._sourceData;
+    if (!this.where || data == null || validateColonFilter(this.where) !== null) return data;
+    const rows: Record<string, unknown>[] = Array.isArray(data)
+      ? (data as Record<string, unknown>[])
+      : typeof data === 'object'
+        ? [data as Record<string, unknown>]
+        : [];
+    return applyLocalFilter(rows, this.where, getByPath);
+  }
+
   private _computeValue(): number | string | null {
     const expr = this.value || this.valeur;
     if (!expr) return null;
@@ -191,7 +288,68 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
       return literal !== '' && !Number.isNaN(num) ? num : literal;
     }
     if (!this._sourceData) return null;
-    return computeAggregation(this._sourceData, expr);
+    const rows = Array.isArray(this._sourceData) ? this._sourceData.length : 1;
+    const parsed = parseExpression(expr);
+    // Le warn compare le total amont aux lignes RECUES (avant `where`) :
+    // un filtre qui garde 3 lignes sur 12 n'est pas une troncature.
+    if (countsReceivedRows(parsed)) {
+      this._warnPartialCount(rows, parsed.type === 'distinct' ? 'distinct' : 'count');
+    }
+    // `meta:total` (#659) est résolu par le contexte : total de l'amont,
+    // que le `where` client (#674) ne filtre pas.
+    const raw = computeAggregation(this._filteredData(), expr, this._aggregationContext());
+    return this._scaleRate(raw, expr, this.format);
+  }
+
+  /** Contexte d'évaluation : total publié par l'amont (`meta:total`, #659). */
+  private _aggregationContext(): AggregationContext {
+    return { metaTotal: getDataMeta(this.source)?.total };
+  }
+
+  /**
+   * Un ratio (#673) est une fraction ; en `format="pourcentage"` on la rend
+   * en pourcentage (0,35 -> 35). La valeur retournée par `_computeValue` est
+   * celle qui s'affiche : seuils et aria-label parlent de la même unité.
+   */
+  private _scaleRate(
+    value: number | string | null,
+    expr: string,
+    format: string
+  ): number | string | null {
+    if (typeof value === 'number' && format === 'pourcentage' && isRateExpression(expr)) {
+      return value * 100;
+    }
+    return value;
+  }
+
+  /**
+   * Texte affiché pour la valeur calculée : `format` + `decimals` + `unit`
+   * (#665). Une chaîne (littéral `value="=87 %"`, champ texte) est rendue
+   * telle quelle — sauf `format="date"`, qui la lit comme date ISO (#667).
+   */
+  private _formatDisplay(value: number | string | null): string {
+    if (typeof value === 'string' && this.format !== 'date') return value;
+    return formatValue(value, this.format, { decimals: this.decimals, unit: this.unit });
+  }
+
+  /** Warn-once : `count` sur des lignes tronquees (#659). */
+  private _partialCountWarned = false;
+
+  /**
+   * `count` compte les lignes RECUES : derriere un `limit`, une page de
+   * pagination serveur ou un plafond `max-records`, ce n'est pas le total.
+   * Trois annuaires ont affiche « 12 activites » pour 28 pendant sept lots.
+   */
+  private _warnPartialCount(rows: number, fn: 'count' | 'distinct' = 'count'): void {
+    if (this._partialCountWarned) return;
+    const total = getDataMeta(this.source)?.total;
+    if (typeof total !== 'number' || total <= rows) return;
+    this._partialCountWarned = true;
+    console.warn(
+      `dsfr-data-kpi: value="${fn}" sur "${this.source}" compte ${rows} lignes reçues, ` +
+        `mais l'amont en détient ${total} (meta.total) — chiffre partiel (limit, page ou max-records). ` +
+        `Pour le total : value="meta:total" (#659)`
+    );
   }
 
   private _getColor(): KpiColor {
@@ -212,7 +370,13 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
     const trendExpr = this.trend || this.tendance;
     if (!trendExpr || !this._sourceData) return null;
 
-    const tendanceValue = computeAggregation(this._sourceData, trendExpr);
+    // La tendance est TOUJOURS rendue en pourcentage : un ratio y est mis à
+    // l'échelle (#673), une colonne d'évolution est déjà en points de %.
+    const tendanceValue = this._scaleRate(
+      computeAggregation(this._filteredData(), trendExpr, this._aggregationContext()),
+      trendExpr,
+      'pourcentage'
+    );
     if (typeof tendanceValue !== 'number') return null;
 
     return {
@@ -226,27 +390,67 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
     if (!this.lines) return [];
     const specs = parseKpiLines(this.lines);
     if (!specs) return [];
-    return resolveKpiLines(specs, this._sourceData);
+    return resolveKpiLines(specs, this._filteredData(), this._aggregationContext());
   }
 
   /** Dernier message d'erreur de config posé (anti-spam console). */
   private _configErrorKey: string | null = null;
 
-  updated(changedProperties: Map<string, unknown>) {
-    super.updated(changedProperties);
+  /**
+   * Erreur de configuration BLOQUANTE (#649) : fonction d'agrégat inconnue
+   * dans `value` — rendue dans la page à la place d'un KPI vide.
+   */
+  private _blockingConfigError: string | null = null;
+
+  willUpdate(changedProperties: Map<string, unknown>) {
+    super.willUpdate(changedProperties);
+    // Avant le rendu (et non dans updated()) : render() lit
+    // _blockingConfigError sans déclencher un second cycle de mise à jour.
     this._validateConfig();
   }
 
   /**
    * Diagnostic de configuration (hors render pour garder render() pur) :
-   * `lines` JSON invalide, ou raccourci hérité `trend` qui ne résout pas en
-   * nombre. Reporté une seule fois par état (au lieu de disparaître en
-   * silence — #338).
+   * fonction d'agrégat inconnue dans `value`/`trend` (#649), `lines` JSON
+   * invalide, ou raccourci hérité `trend` qui ne résout pas en nombre.
+   * Reporté une seule fois par état (au lieu de disparaître en silence — #338).
    */
   private _validateConfig() {
     let message: string | null = null;
+    this._blockingConfigError = null;
 
-    if (this.lines && parseKpiLines(this.lines) === null) {
+    const valueExpr = this.value || this.valeur;
+    if (valueExpr && !valueExpr.startsWith('=')) {
+      const parsed = parseExpression(valueExpr);
+      if (parsed.type === 'invalid') {
+        message = `value="${valueExpr}" : ${parsed.error}`;
+        this._blockingConfigError = message;
+      }
+    }
+
+    // `where` non parsable (#674) : bloquant — un filtre ignoré en silence
+    // afficherait un chiffre faux avec l'aplomb d'un chiffre juste.
+    if (!message && this.where) {
+      const whereError = validateColonFilter(this.where);
+      if (whereError) {
+        message = `where="${this.where}" : ${whereError}`;
+        this._blockingConfigError = message;
+      }
+    }
+
+    // Format inconnu (#665) : bloquant, comme une fonction d'agrégat inconnue —
+    // `euro:3` rendait « 1 749 » en silence, la grammaire colon reste à `value`.
+    if (!message && this.format && !isFormatType(this.format)) {
+      const received = String(this.format);
+      const hint = received.includes(':')
+        ? ` — les décimales passent par decimals="N" (ex. format="${received.split(':')[0]}" decimals="${received.split(':')[1]}")`
+        : '';
+      message =
+        `format="${received}" inconnu${hint} ; ` + `formats acceptés : ${FORMAT_TYPES.join(', ')}`;
+      this._blockingConfigError = message;
+    }
+
+    if (!message && this.lines && parseKpiLines(this.lines) === null) {
       message =
         'lines : JSON invalide — attendu un tableau d’objets, ex. ' +
         '[{"value":"evol:avg","suffix":"vs N-1","color":"auto"}]';
@@ -254,8 +458,10 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
 
     if (!message) {
       const trendExpr = this.trend || this.tendance;
-      if (trendExpr && this._sourceData != null) {
-        const v = computeAggregation(this._sourceData, trendExpr);
+      if (trendExpr && parseExpression(trendExpr).type === 'invalid') {
+        message = `trend="${trendExpr}" : ${parseExpression(trendExpr).error}`;
+      } else if (trendExpr && this._sourceData != null) {
+        const v = computeAggregation(this._filteredData(), trendExpr, this._aggregationContext());
         if (typeof v !== 'number') {
           message =
             `trend="${trendExpr}" ne résout pas en nombre — attendu une ` +
@@ -275,9 +481,7 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
     if (this.description) return this.description;
 
     const value = this._computeValue();
-    // Litteral chaine (value="=87 %") : affiche tel quel, sans formatage numerique
-    const formattedValue =
-      typeof value === 'string' ? value : formatValue(value as number, this.format);
+    const formattedValue = this._formatDisplay(value);
     let label = this.heading
       ? `${this.heading} — ${this.label}: ${formattedValue}`
       : `${this.label}: ${formattedValue}`;
@@ -308,9 +512,7 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
 
   render() {
     const value = this._computeValue();
-    // Litteral chaine (value="=87 %") : affiche tel quel, sans formatage numerique
-    const formattedValue =
-      typeof value === 'string' ? value : formatValue(value as number, this.format);
+    const formattedValue = this._formatDisplay(value);
     const colorClass = COLOR_CLASSES[this._getColor()] || COLOR_CLASSES.bleu;
     const tendance = this._getTendanceInfo();
     const resolvedLines = this._resolveLines();
@@ -318,68 +520,72 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
     return html`
       <div class="dsfr-data-kpi ${colorClass}" role="figure" aria-label="${this._getAriaLabel()}">
         ${
-          this._sourceLoading
-            ? renderSourceLoading('dsfr-data-kpi')
-            : this._sourceError
-              ? renderSourceError('dsfr-data-kpi', this._sourceError)
-              : html`
-                  <div class="dsfr-data-kpi__content">
-                    ${
-                      this.heading
-                        ? html`<span class="dsfr-data-kpi__heading">${this.heading}</span>`
-                        : ''
-                    }
-                    ${
-                      this.icon || this.icone
-                        ? html`
+          this._blockingConfigError
+            ? renderConfigError('dsfr-data-kpi', this._blockingConfigError)
+            : this._sourceLoading
+              ? renderSourceLoading('dsfr-data-kpi')
+              : this._sourceError
+                ? renderSourceError('dsfr-data-kpi', this._sourceError)
+                : this._sourceIdle
+                  ? renderSourceIdle('dsfr-data-kpi', this.idleMessage)
+                  : html`
+                      <div class="dsfr-data-kpi__content">
+                        ${
+                          this.heading
+                            ? html`<span class="dsfr-data-kpi__heading">${this.heading}</span>`
+                            : ''
+                        }
+                        ${
+                          this.icon || this.icone
+                            ? html`
+                                <span
+                                  class="dsfr-data-kpi__icon ${this.icon || this.icone}"
+                                  aria-hidden="true"
+                                ></span>
+                              `
+                            : ''
+                        }
+                        <div class="dsfr-data-kpi__value-wrapper">
+                          <span class="dsfr-data-kpi__value">${formattedValue}</span>
+                          ${
+                            tendance
+                              ? html`
+                                  <span
+                                    class="dsfr-data-kpi__tendance dsfr-data-kpi__tendance--${tendance.direction}"
+                                    role="img"
+                                    aria-label="${
+                                      tendance.value > 0
+                                        ? `en hausse de ${formatPercentage(Math.abs(tendance.value))}`
+                                        : tendance.value < 0
+                                          ? `en baisse de ${formatPercentage(Math.abs(tendance.value))}`
+                                          : 'stable'
+                                    }"
+                                  >
+                                    ${
+                                      tendance.direction === 'up'
+                                        ? '↑'
+                                        : tendance.direction === 'down'
+                                          ? '↓'
+                                          : '→'
+                                    }
+                                    ${formatPercentage(Math.abs(tendance.value))}
+                                  </span>
+                                `
+                              : ''
+                          }
+                        </div>
+                        ${resolvedLines.map(
+                          (line) => html`
                             <span
-                              class="dsfr-data-kpi__icon ${this.icon || this.icone}"
-                              aria-hidden="true"
-                            ></span>
+                              class="dsfr-data-kpi__line"
+                              style=${line.color ? `color: ${line.color};` : ''}
+                              >${line.text}</span
+                            >
                           `
-                        : ''
-                    }
-                    <div class="dsfr-data-kpi__value-wrapper">
-                      <span class="dsfr-data-kpi__value">${formattedValue}</span>
-                      ${
-                        tendance
-                          ? html`
-                              <span
-                                class="dsfr-data-kpi__tendance dsfr-data-kpi__tendance--${tendance.direction}"
-                                role="img"
-                                aria-label="${
-                                  tendance.value > 0
-                                    ? `en hausse de ${formatPercentage(Math.abs(tendance.value))}`
-                                    : tendance.value < 0
-                                      ? `en baisse de ${formatPercentage(Math.abs(tendance.value))}`
-                                      : 'stable'
-                                }"
-                              >
-                                ${
-                                  tendance.direction === 'up'
-                                    ? '↑'
-                                    : tendance.direction === 'down'
-                                      ? '↓'
-                                      : '→'
-                                }
-                                ${formatPercentage(Math.abs(tendance.value))}
-                              </span>
-                            `
-                          : ''
-                      }
-                    </div>
-                    ${resolvedLines.map(
-                      (line) => html`
-                        <span
-                          class="dsfr-data-kpi__line"
-                          style=${line.color ? `color: ${line.color};` : ''}
-                          >${line.text}</span
-                        >
-                      `
-                    )}
-                    <span class="dsfr-data-kpi__label">${this.label}</span>
-                  </div>
-                `
+                        )}
+                        <span class="dsfr-data-kpi__label">${this.label}</span>
+                      </div>
+                    `
         }
       </div>
       <style>

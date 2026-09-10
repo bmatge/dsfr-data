@@ -1,9 +1,10 @@
 import { LitElement, html, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import { buildCsv } from '@dsfr-data/shared/lib';
+import { buildCsv, formatNumberFr } from '@dsfr-data/shared/lib';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
+import { IDLE_MESSAGE_DEFAULT } from '../utils/status-templates.js';
 
 let autoIdCounter = 0;
 const MAX_TABLE_ROWS = 100;
@@ -21,6 +22,11 @@ const MAX_TABLE_ROWS = 100;
  * - `aria-describedby` vers un resume concis (screen readers)
  * - `aria-details` vers le tableau (si active, progressive enhancement)
  *
+ * Les cellules numériques du tableau sont rendues en fr-FR (`2.27` → « 2,27 »,
+ * au plus 2 décimales, #666) ; les chaînes (codes INSEE, SIREN…) restent
+ * intactes et le CSV téléchargé reste brut. Avant #666, le contournement était
+ * `normalize round="champ:2"`, qui arrondit mais ne localise pas.
+ *
  * @example
  * <dsfr-data-chart id="mon-graph" source="data" type="bar"
  *   label-field="region" value-field="total">
@@ -31,45 +37,60 @@ const MAX_TABLE_ROWS = 100;
  */
 @customElement('dsfr-data-a11y')
 export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
-  /** Id de la source (ou du transformateur) dont ce complement accessible consomme les donnees. */
+  /** Id de la source (ou du transformateur) dont ce complément accessible consomme les données. */
   @property({ type: String })
   source = '';
 
-  /** Id de l'element cible (graphique, carte) pour la liaison ARIA et le lien d'evitement. */
+  /** Id de l'élément cible (graphique, carte) pour la liaison ARIA et le lien d'évitement. */
   @property({ type: String, attribute: 'for' })
   for = '';
 
-  /** Affiche le tableau de donnees equivalent au graphique. */
+  /** Affiche le tableau de données équivalent au graphique. */
   @property({ type: Boolean })
   table = false;
 
-  /** Affiche le bouton de telechargement CSV. */
+  /** Affiche le bouton de téléchargement CSV. */
   @property({ type: Boolean })
   download = false;
 
-  /** Nom du fichier CSV telecharge. */
+  /** Nom du fichier CSV téléchargé. */
   @property({ type: String })
   filename = 'données.csv';
 
-  /** Description textuelle du graphique, lue par les lecteurs d'ecran. */
+  /** Description textuelle du graphique, lue par les lecteurs d'écran. */
   @property({ type: String })
   description = '';
 
-  /** Colonne utilisee pour les labels du tableau. */
+  /** Colonne utilisée pour les labels du tableau. */
   @property({ type: String, attribute: 'label-field' })
   labelField = '';
 
-  /** Colonne(s) utilisee(s) pour les valeurs du tableau (separees par des virgules). */
+  /** Colonne(s) utilisée(s) pour les valeurs du tableau (séparées par des virgules). */
   @property({ type: String, attribute: 'value-field' })
   valueField = '';
 
-  /** Libelle personnalise de la section accessible. */
+  /** Libellé personnalisé de la section accessible. */
   @property({ type: String })
   label = '';
 
-  /** Desactive la pose automatique des attributs ARIA et du lien d'evitement. */
+  /** Desactive la pose automatique des attributs ARIA et du lien d'évitement. */
   @property({ type: Boolean, attribute: 'no-auto-aria' })
   noAutoAria = false;
+
+  /**
+   * Nombre de décimales des cellules numériques du tableau (#666). Absent :
+   * au plus 2 décimales, format fr-FR. Le CSV n'est pas concerné.
+   */
+  @property({ type: Number })
+  decimals: number | null = null;
+
+  /**
+   * Message annoncé quand l'amont attend un filtre (`require-where`, #690).
+   * Remplace « aucune donnée disponible » dans la description lue par les
+   * lecteurs d'écran : rien n'a été chargé, rien n'a échoué.
+   */
+  @property({ type: String, attribute: 'idle-message' })
+  idleMessage = IDLE_MESSAGE_DEFAULT;
 
   private _previousForTarget: Element | null = null;
   private _injectedSkipLink: HTMLAnchorElement | null = null;
@@ -300,10 +321,31 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
   }
 
   // ---------------------------------------------------------------------------
+  // Cell formatting (#666)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Texte d'une cellule du tableau : nombres en fr-FR (au plus 2 décimales,
+   * ou `decimals`), tout le reste tel quel. Le CSV (`_buildCsv`) reste brut.
+   */
+  formatCellValue(value: unknown): string {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'number') {
+      return formatNumberFr(
+        value,
+        this.decimals === null ? undefined : { decimals: this.decimals }
+      );
+    }
+    return String(value);
+  }
+
+  // ---------------------------------------------------------------------------
   // Auto-generated description for aria-describedby
   // ---------------------------------------------------------------------------
 
   private _getAutoDescription(hasData: boolean, data: unknown): string {
+    // En attente d'un filtre (#690) : dire ce qui manque, pas « aucune donnée »
+    if (this._sourceIdle) return `${this.idleMessage || IDLE_MESSAGE_DEFAULT}.`;
     if (!hasData) return 'Aucune donnee disponible.';
     const count = (data as unknown[]).length;
     // Detect if target is a map component
@@ -379,7 +421,7 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
                           ${tableRows.map(
                             (row) => html`
                               <tr>
-                                ${columns.map((col) => html`<td>${row[col] ?? ''}</td>`)}
+                                ${columns.map((col) => html`<td>${this.formatCellValue(row[col])}</td>`)}
                               </tr>
                             `
                           )}

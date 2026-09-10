@@ -1,8 +1,8 @@
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
-import { performJoin } from '@dsfr-data/shared/lib';
-import type { JoinType } from '@dsfr-data/shared/lib';
+import { performJoinWithStats } from '@dsfr-data/shared/lib';
+import type { JoinType, JoinStats } from '@dsfr-data/shared/lib';
 import { TransformerMixin } from '../utils/transformer-mixin.js';
 import type { PaginationMeta } from '../utils/data-bridge.js';
 import type { SourceElement } from '../utils/source-element.js';
@@ -83,6 +83,13 @@ export class DsfrDataJoin extends TransformerMixin(LitElement) {
   private _leftData: Row[] | null = null;
   private _rightData: Row[] | null = null;
 
+  /**
+   * Taux d'appariement de la dernière jointure (#660), publie dans la meta
+   * pour le volet Diagnostic. En `left`, 1 065 lignes entrent et 1 065
+   * sortent : sans ce compte, une jointure a 22 % paraissait saine.
+   */
+  private _lastStats: JoinStats | null = null;
+
   protected createRenderRoot(): HTMLElement | DocumentFragment {
     return this;
   }
@@ -105,7 +112,7 @@ export class DsfrDataJoin extends TransformerMixin(LitElement) {
   // --- Delegation amont (SourceElement, #274) ---
 
   /**
-   * Retourne l'adapter de la source GAUCHE (delegation transparente).
+   * Retourne l'adapter de la source GAUCHE (délégation transparente).
    * Coherent avec le relais des commandes (#272) : la gauche porte les lignes.
    * Permet aux composants en aval (dsfr-data-facets, dsfr-data-search)
    * d'atteindre l'adapter a travers ce transformateur.
@@ -120,7 +127,7 @@ export class DsfrDataJoin extends TransformerMixin(LitElement) {
     return null;
   }
 
-  /** Retourne le where effectif de la source amont (delegation transparente). */
+  /** Retourne le where effectif de la source amont (délégation transparente). */
   public getEffectiveWhere(excludeKey?: string): string {
     if (this.left) {
       const sourceEl = document.getElementById(this.left);
@@ -132,8 +139,8 @@ export class DsfrDataJoin extends TransformerMixin(LitElement) {
   }
 
   /**
-   * Retourne les parametres adapter resolus de la source amont
-   * (delegation transparente, headers api-key-ref inclus — #274).
+   * Retourne les paramètres adapter resolus de la source amont
+   * (délégation transparente, headers api-key-ref inclus — #274).
    */
   public getAdapterParams(): import('../adapters/api-adapter.js').AdapterParams | null {
     if (this.left) {
@@ -163,7 +170,7 @@ export class DsfrDataJoin extends TransformerMixin(LitElement) {
   /**
    * Relaye les commandes aval (page, where, orderBy) vers la source GAUCHE,
    * porteuse des lignes principales du join — la droite est traitee comme
-   * table de reference et n'est pas filtree/paginee (#272). Sans relais,
+   * table de référence et n'est pas filtree/paginee (#272). Sans relais,
    * un dsfr-data-list pagine derriere un join perdait ses commandes.
    */
   protected transformerCommandTarget(): string | null {
@@ -200,10 +207,23 @@ export class DsfrDataJoin extends TransformerMixin(LitElement) {
   /**
    * Meta de la source GAUCHE propagee avec `total` invalide (#282) — la
    * gauche porte les lignes (coherent avec le relais de commandes #272),
-   * et le join change le nombre de lignes.
+   * et le join change le nombre de lignes. Le taux d'appariement y est
+   * ajoute (#660) ; la troncature amont ne decrit pas cette etape.
    */
   protected transformMeta(meta: PaginationMeta): PaginationMeta {
-    return { ...meta, total: undefined };
+    const { truncated: _upstreamTruncated, ...rest } = meta;
+    return { ...rest, total: undefined, ...(this._lastStats ? { join: this._lastStats } : {}) };
+  }
+
+  /** Sans meta amont, le join publie quand meme son taux d'appariement (#660). */
+  protected transformerOwnMeta(): PaginationMeta | null {
+    if (!this._lastStats) return null;
+    return { page: 1, pageSize: 0, serverSide: false, join: this._lastStats };
+  }
+
+  /** Taux d'appariement de la dernière jointure, ou null avant la première (#660). */
+  public getJoinStats(): JoinStats | null {
+    return this._lastStats ? { ...this._lastStats } : null;
   }
 
   /** Changement d'identite des sources → re-souscription complete (#281) */
@@ -211,7 +231,7 @@ export class DsfrDataJoin extends TransformerMixin(LitElement) {
     return ['left', 'right', 'on'];
   }
 
-  /** Parametres de jointure → recalcul avec les donnees deja recues (#281) */
+  /** Paramètres de jointure → recalcul avec les données déjà recues (#281) */
   protected transformerReprocessProps(): string[] {
     return ['type', 'prefixLeft', 'prefixRight'];
   }
@@ -236,13 +256,14 @@ export class DsfrDataJoin extends TransformerMixin(LitElement) {
     }
 
     try {
-      const result = performJoin(this._leftData, this._rightData, {
+      const { rows, stats } = performJoinWithStats(this._leftData, this._rightData, {
         on: this.on,
         type: this.type,
         prefixLeft: this.prefixLeft,
         prefixRight: this.prefixRight,
       });
-      this._data = result;
+      this._lastStats = stats;
+      this._data = rows;
       this.emitTransformedData(this._data);
     } catch (error) {
       this.emitTransformerError(error as Error);

@@ -74,9 +74,6 @@ export function resetChartPreview(): void {
   }
   const emptyState = document.getElementById('empty-state');
   if (emptyState) emptyState.hidden = false;
-
-  const previewPanel = document.querySelector('app-preview-panel');
-  if (previewPanel) (previewPanel as HTMLElement & { code: string }).code = '';
 }
 
 /** Signale un probleme de configuration dans le chat, sans rien rendre. */

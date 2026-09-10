@@ -10,9 +10,11 @@ export { DsfrDataSource } from './components/dsfr-data-source.js';
 export { DsfrDataQuery } from './components/dsfr-data-query.js';
 export { DsfrDataJoin } from './components/dsfr-data-join.js';
 export { DsfrDataUnpivot } from './components/dsfr-data-unpivot.js';
+export { DsfrDataPivot } from './components/dsfr-data-pivot.js';
 export { DsfrDataContext } from './components/dsfr-data-context.js';
 export { DsfrDataContextFilter } from './components/dsfr-data-context-filter.js';
 export { DsfrDataContextTags } from './components/dsfr-data-context-tags.js';
+export { DsfrDataContextValue } from './components/dsfr-data-context-value.js';
 export { DsfrDataNormalize } from './components/dsfr-data-normalize.js';
 export { DsfrDataFacets } from './components/dsfr-data-facets.js';
 export { DsfrDataSearch } from './components/dsfr-data-search.js';
@@ -45,6 +47,13 @@ export {
 } from './utils/formatters.js';
 export { computeAggregation, parseExpression } from './utils/aggregations.js';
 export { SourceSubscriberMixin } from './utils/source-subscriber.js';
+// Controle des attributs inconnus du bundle charge (#727) : appele par les
+// deux mixins, expose pour un composant tiers bati sur eux.
+export {
+  checkUnknownAttributes,
+  resetUnknownAttributeWarnings,
+  UNKNOWN_ATTRS_MARKER,
+} from './utils/unknown-attributes.js';
 
 // Adapters
 export type {

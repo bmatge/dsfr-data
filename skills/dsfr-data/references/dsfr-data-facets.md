@@ -28,26 +28,45 @@ Sortie : même tableau, filtre selon les selections de l'utilisateur.
 | labels | String | `""` | non | Labels custom : `"field:Label \| field2:Label 2"` (pipe-separe) |
 | max-values | Number | `6` | non | Nb de valeurs visibles par facette avant "Voir plus" |
 | disjunctive | String | `""` | non | Champs en mode multi-selection OU (virgule-separes) |
-| sort | String | `"count"` | non | Tri des valeurs : count, -count, alpha, -alpha |
+| sort | String | `"count"` | non | Tri des valeurs, grammaire `critere:sens` (comme order-by) : `count:desc` (défaut, plus frequent d'abord), `count:asc`, `alpha:asc` (A-Z), `alpha:desc` (Z-A). Raccourcis : `count` = count:desc, `alpha` = alpha:asc. **Par champ** (#741) : `"annee:alpha:asc \| categorie:count:desc"` (pipe-separe, comme labels/display/cols) — une facette d'annees rangee A-Z pendant qu'une facette de categories reste rangee par frequence, sans dupliquer le composant. Un champ non nomme garde le défaut ; l'entree `"*:alpha"` change ce défaut. `-count` / `-alpha` deprecies (warn console) — ne plus les generer |
 | searchable | String | `""` | non | Champs avec barre de recherche (virgule-separes) |
 | hide-empty | Boolean | `false` | non | Masquer les facettes avec une seule valeur |
-| display | String | `""` | non | Mode d'affichage par facette : `"field:select \| field2:multiselect"`. Modes : checkbox (défaut), select, multiselect, radio |
+| display | String | `""` | non | Mode d'affichage par facette : `"field:select \| field2:multiselect"`. Modes : checkbox (défaut), select, multiselect, radio (dropdown a radios), radio-inline (radios visibles en ligne + « Tous ») |
 | hide-counts | Boolean | `false` | non | Masquer les compteurs (N) a cote de chaque valeur de facette |
+| weight-field | String | `""` | non | **Client uniquement** (#739). Champ numerique dont la SOMME remplace le nombre de lignes dans les compteurs : sur une table de mesures, `weight-field="effectif"` annonce la somme des effectifs au lieu de « 1 240 » releves. Le tri `count` porte alors sur cette somme, et le nombre est formate a la francaise. Une valeur non numerique pese zero. En mode `server-facets`, la somme n'existe pas dans la reponse /facets : les compteurs sont MASQUES, une erreur de configuration est posee et un avertissement DSFR est rendu — ne pas generer `weight-field` avec `server-facets` |
 | url-params | Boolean | `false` | non | Active la lecture des parametres d'URL comme pre-selections de facettes |
 | url-param-map | String | `""` | non | Mapping URL param -> champ : `"r:region \| t:type"`. Si vide, correspondance directe |
 | url-sync | Boolean | `false` | non | Synchronise l'URL quand l'utilisateur change les facettes (replaceState) |
-| server-facets | Boolean | `false` | non | Active le mode facettes serveur ODS. Fetch les valeurs depuis l'API ODS /facets. Requiert une source dsfr-data-source api-type="opendatasoft" server-side (directement ou via un dsfr-data-query, qui relaie automatiquement). En mode server-facets, fields est obligatoire |
+| server-facets | Boolean | `false` | non | Active le mode facettes serveur ODS. Fetch les valeurs depuis l'API ODS /facets. Requiert une source dsfr-data-source api-type="opendatasoft" server-side (directement ou via un dsfr-data-query, qui relaie automatiquement). Sans fields, les facettes declarees par le jeu sont decouvertes au premier cycle (ODS : metadonnees du jeu ; Grist : colonnes Choice/ChoiceList) ; une facette de type date (valeurs par annee) est filtree par intervalle (#680, #676) |
 | static-values | String | `""` | non | Valeurs de facettes pre-calculees en JSON : `'{"region":["IDF","PACA"],"type":["Commune"]}')`. Les selections envoient des commandes WHERE en colon syntax au dsfr-data-query. Compteurs masques automatiquement. Utile pour Tabular/Grist/generique qui n'ont pas d'API facettes serveur |
 | cols | String | `""` | non | Colonnage DSFR : `"6"` (global, 2/ligne), `"4"` (3/ligne), ou par facette `"region:4 \| type:6"` (défaut fr-col-6 pour non-specifies) |
+| context | String | `""` | non | Id d'un dsfr-data-context (#678, ADR-104) : la facette devient un filtre du contexte, un par champ. Le contexte diffuse a toutes ses sources cibles (au dialecte de chacune), porte l'URL (url-sync / url-params de la facette ignores) et alimente context-tags. Valeurs, compteurs et cascade restent calcules sur `source`. Vide = mode autonome (commande directe a `source`) |
+| no-reset | Boolean | `false` | non | Masque le bouton local « Réinitialiser les filtres » (#679, #640) : a poser quand un context-tags clear-all fait office de « tout effacer », ou pour qu'une colonne de facettes ne change pas de hauteur a la premiere selection |
+
+### Mode context (#678) — un select peuple depuis la donnee, avec cascade
+```html
+<dsfr-data-context id="ctx" sources="src-charges src-produits" url-sync></dsfr-data-context>
+<dsfr-data-facets id="geo" context="ctx" source="src-facettes" server-facets
+  fields="region,departement" display="region:select | departement:select"></dsfr-data-facets>
+<dsfr-data-context-tags for="ctx"></dsfr-data-context-tags>
+```
+Zero <option> ecrite a la main : les valeurs viennent de l'API facettes, choisir une region
+restreint les departements (cascade server-facets), et les deux sources cibles se refiltrent
+ensemble. Un filtre par champ (eq une valeur, in plusieurs), whereKey stable `uid + champ`.
+Le contexte peut etre declare apres la facette dans la page. Ne PAS generer d'`<option>` en dur
+ni d'`options-source` sur context-filter (refuse) : c'est ce pattern qu'il faut.
+Migration d'une facette qui portait url-sync : reporter `url-param-map` sur le contexte
+(un parametre par champ, format du contexte).
 
 ### Modes d'affichage
 - **checkbox** (défaut) : fieldset DSFR avec checkboxes, compteurs, "Voir plus/moins", recherche optionnelle
 - **select** : liste deroulante DSFR standard, selection exclusive (une seule valeur)
 - **multiselect** : dropdown collapsible avec checkboxes DSFR, recherche integree, bouton "Tout sélectionner/deselectionner"
-- **radio** : dropdown collapsible avec radio buttons DSFR, recherche integree, selection exclusive
+- **radio** : dropdown collapsible avec radio buttons DSFR, recherche integree, selection exclusive (sera renomme `radio-dropdown` dans une version majeure)
+- **radio-inline** : boutons radio DSFR visibles en ligne dans un fieldset, precedes d'une option « Tous » qui retire la selection ; selection exclusive, toutes les valeurs affichees (#684)
 
 Le mode `select` rend la facette automatiquement exclusive.
-Le mode `radio` rend la facette automatiquement exclusive.
+Le mode `radio` rend la facette automatiquement exclusive, `radio-inline` aussi.
 Le mode `multiselect` rend la facette automatiquement disjonctive (multi-selection OU).
 
 ### Logique de filtrage
@@ -130,29 +149,33 @@ champs de type string avec 2 a 50 valeurs uniques (exclut les champs ID-like).
 | Attribut | Type | Défaut | Description |
 |---|---|---|---|
 | `cols` | `string` | `""` (vide) | Colonnage DSFR des facettes : "6" (global) ou "field:4 \| field2:6" (par facette) |
-| `disjunctive` | `string` | `""` (vide) | Champs en mode multi-selection OU (virgule-separes) |
-| `display` | `string` | `""` (vide) | Mode d'affichage par facette : "field:select \| field2:multiselect". Défaut = checkbox |
-| `fields` | `string` | `""` (vide) | Champs a exposer comme facettes (virgule-separes). Vide = auto-detection |
+| `context` | `string` | `""` (vide) | Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104). La facette devient alors un filtre du contexte, un par champ : c'est le contexte qui diffuse a ses sources cibles et qui porte l'URL (`url-sync` et `url-params` de la facette sont ignorés — reporter `url-param-map` sur le contexte). Le contexte peut être déclaré après la facette dans la page. Vide = comportement autonome historique (commande directe à `source`). |
+| `disjunctive` | `string` | `""` (vide) | Champs en mode multi-sélection OU (virgule-séparés) |
+| `display` | `string` | `""` (vide) | Mode d'affichage par facette : "champ:mode \| champ2:mode". Défaut = checkbox. - `checkbox` : cases à cocher visibles dans un fieldset DSFR (sélection multiple) - `select` : liste déroulante native fr-select (sélection unique) - `multiselect` : menu déroulant repliable avec cases à cocher et recherche (sélection multiple) - `radio` : menu déroulant repliable contenant des boutons radio et une recherche (sélection unique) — sera renommé `radio-dropdown` dans une version majeure - `radio-inline` : boutons radio DSFR visibles en ligne, précédés d'une option « Tous » qui retire la sélection (sélection unique, #684) |
+| `fields` | `string` | `""` (vide) | Champs à exposer comme facettes (virgule-séparés). Vide = auto-détection sur les données chargées ; en `server-facets`, vide = découverte des facettes déclarées par le jeu de données (OpenDataSoft : métadonnées du jeu ; Grist : colonnes Choice/ChoiceList, #680) |
 | `hide-counts` | `boolean` | `false` | Masquer les compteurs a cote de chaque valeur de facette |
 | `hide-empty` | `boolean` | `false` | Masquer les facettes avec une seule valeur |
 | `labels` | `string` | `""` (vide) | Labels custom : "field:Label \| field2:Label 2" |
 | `max-values` | `number` | `6` | Nb de valeurs visibles par facette avant "Voir plus" |
-| `searchable` | `string` | `""` (vide) | Champs avec barre de recherche (virgule-separes) |
-| `server-facets` | `boolean` | `false` | Active le mode facettes serveur ODS. Fetch les valeurs de facettes depuis l'API ODS /facets au lieu de les calculer localement. Requiert source pointant vers un dsfr-data-source avec api-type="opendatasoft" et server-side. En mode server-facets, l'attribut fields est obligatoire (pas d'auto-detection). |
-| `sort` | `string` | `'count'` | Tri des valeurs : count, -count, alpha, -alpha |
+| `no-reset` | `boolean` | `false` | Masque le bouton local « Réinitialiser les filtres » (#679, #640 pt 9). À poser quand un dsfr-data-context-tags clear-all fait office de « tout effacer » pour la page (mode `context`), ou pour qu'une colonne de facettes ne change pas de hauteur à la première sélection. |
+| `searchable` | `string` | `""` (vide) | Champs avec barre de recherche (virgule-séparés) |
+| `server-facets` | `boolean` | `false` | Active le mode facettes serveur ODS. Fetch les valeurs de facettes depuis l'API ODS /facets au lieu de les calculer localement. Requiert source pointant vers un dsfr-data-source avec api-type="opendatasoft" et server-side. Sans `fields`, un appel de découverte au premier cycle liste les facettes déclarées par le jeu (mémorisé, invalidé si la source ou `dataset-id` change, #680). Les facettes de type date (valeurs par année) sont filtrées par intervalle et non par égalité (#676). |
+| `sort` | `string` | `'count'` | Tri des valeurs de chaque facette, grammaire `critere:sens` alignée sur `order-by` de dsfr-data-query (#645) : - `count:desc` (défaut) : du plus fréquent au plus rare - `count:asc` : du plus rare au plus fréquent - `alpha:asc` : A -> Z (collation française) - `alpha:desc` : Z -> A Raccourcis : `count` = `count:desc`, `alpha` = `alpha:asc`. Formes `-count` / `-alpha` DÉPRÉCIÉES : conservées à l'identique (`-count` = rare d'abord, `-alpha` = Z -> A) mais un avertissement console invite a passer a la forme explicite ; retrait dans une version majeure. Tri PAR CHAMP (#741), même grammaire à barre verticale que `labels`, `display` et `cols` : `champ:critere[:sens]`, par exemple `sort="annee:alpha:asc \| categorie:count:desc"`. Une facette d'années se range alphabétiquement pendant qu'une facette de catégories reste rangée par fréquence, sans dupliquer le composant. Un champ non nommé garde le tri par défaut ; l'entrée `*:critere[:sens]` change ce défaut (`sort="*:alpha \| annee:count:desc"`). |
 | `source` | `string` | `""` (vide) | ID de la source de données a ecouter |
 | `static-values` | `string` | `""` (vide) | Valeurs de facettes pre-calculees (JSON). Format: {"field": ["val1", "val2"], "field2": ["a", "b"]} Quand cet attribut est défini, les facettes utilisent ces valeurs sans les calculer depuis les données. Les selections envoient des commandes WHERE en colon syntax (compatible Tabular / generique) au dsfr-data-query en amont. Attribut fields requis (pas d'auto-detection). |
 | `url-param-map` | `string` | `""` (vide) | Mapping URL param -> champ facette : "param:field \| param2:field2". Si vide, correspondance directe |
-| `url-params` | `boolean` | `false` | Active la lecture des parametres d'URL comme pre-selections de facettes |
-| `url-sync` | `boolean` | `false` | Synchronise l'URL quand l'utilisateur change les facettes (replaceState — pas d'entree d'historique par clic) |
+| `url-params` | `boolean` | `false` | Active la lecture des paramètres d'URL comme pré-sélections de facettes |
+| `url-sync` | `boolean` | `false` | Synchronise l'URL quand l'utilisateur change les facettes (replaceState — pas d'entrée d'historique par clic) |
+| `weight-field` | `string` | `""` (vide) | Champ numérique dont la SOMME remplace le nombre de lignes dans les compteurs (#739). Sur une table de mesures, « 1 240 » relevés ne dit rien au lecteur : `weight-field="effectif"` annonce la somme des effectifs. Le tri `count` porte alors sur cette somme. CLIENT UNIQUEMENT, et c'est assume : en mode `server-facets`, la reponse de l'API facettes ne porte qu'un nombre de lignes, jamais la somme d'une mesure. Plutot qu'afficher un nombre de lignes sous un libellé de somme, les compteurs y sont MASQUÉS, une erreur de configuration est posee (console + `data-dsfr-config-error`) et un avertissement DSFR est rendu au-dessus des facettes. Meme chose en `static-values`, ou les compteurs sont déjà masques faute de données. Une valeur non numérique compte pour zero ; si le champ est absent de toutes les lignes, un avertissement console le signale. |
 
 
 **Méthodes publiques**
 
 | Méthode | Retour | Description |
 |---|---|---|
-| `getAdapter()` | `ApiAdapter \| null` | Retourne l'adapter de la source amont (delegation transparente). Permet aux composants en aval d'acceder a l'adapter sans connaitre la structure du pipeline. |
-| `getEffectiveWhere(excludeKey?: string)` | `string` | Retourne le where effectif de la source amont (delegation transparente). |
+| `emitTransformerError(error: Error)` | `void` | Erreur amont en mode serveur AVANT toute decouverte (#676) : une selection annuelle issue de l'URL a pu être emise en egalite sur un champ date (400) — la source n'emet alors aucune donnee, donc le cycle de facettes (et sa decouverte) n'aurait jamais lieu. On lance la decouverte ici et, si un champ date est concerne, on re-emet la commande en intervalle. Une seule tentative par jeu (decouverte memorisee). |
+| `getAdapter()` | `ApiAdapter \| null` | Retourne l'adapter de la source amont (délégation transparente). Permet aux composants en aval d'acceder a l'adapter sans connaitre la structure du pipeline. |
+| `getEffectiveWhere(excludeKey?: string | string[])` | `string` | Retourne le where effectif de la source amont (délégation transparente). |
 
 
 **Événements** (émis sur `document` : ecouter via `document.addEventListener`, filtrer sur `detail.sourceId`)

@@ -5,7 +5,12 @@ import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { getByPath } from '../utils/json-path.js';
 import { formatNumber } from '../utils/formatters.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
-import { renderSourceLoading, renderSourceError } from '../utils/status-templates.js';
+import {
+  renderSourceLoading,
+  renderSourceError,
+  renderSourceIdle,
+  IDLE_MESSAGE_DEFAULT,
+} from '../utils/status-templates.js';
 
 // Palettes : source unique @dsfr-data/shared (#302) — la categorical locale
 // differait de PALETTE_COLORS : meme attribut selected-palette que chart,
@@ -39,7 +44,7 @@ interface PodiumItem {
  */
 @customElement('dsfr-data-podium')
 export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
-  /** Id de la source (ou du transformateur) dont ce composant consomme les donnees. */
+  /** Id de la source (ou du transformateur) dont ce composant consomme les données. */
   @property({ type: String })
   source = '';
 
@@ -51,7 +56,7 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'value-field' })
   valueField = '';
 
-  /** Texte fixe affiche sous chaque label */
+  /** Texte fixe affiché sous chaque label */
   @property({ type: String })
   subtitle = '';
 
@@ -59,7 +64,7 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'subtitle-field' })
   subtitleField = '';
 
-  /** Unite affichee apres la valeur */
+  /** Unité affichée après la valeur */
   @property({ type: String, attribute: 'value-unit' })
   valueUnit = '';
 
@@ -67,7 +72,7 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'selected-palette' })
   selectedPalette = 'sequentialDescending';
 
-  /** Nombre maximum d'items affiches */
+  /** Nombre maximum d'items affichés */
   @property({ type: Number, attribute: 'max-items' })
   maxItems = 5;
 
@@ -78,6 +83,14 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
   /** Valeur max forcee pour le calcul des barres (ex: 100 pour des %) */
   @property({ type: Number, attribute: 'bar-max' })
   barMax?: number;
+
+  /**
+   * Message rendu quand l'amont attend un filtre (`require-where`, #690).
+   * Distinct de « aucune donnée » : aucune requête n'a été faite. Vide,
+   * le libellé par défaut est utilisé.
+   */
+  @property({ type: String, attribute: 'idle-message' })
+  idleMessage = IDLE_MESSAGE_DEFAULT;
 
   @state()
   private _data: Record<string, unknown>[] = [];
@@ -163,6 +176,15 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
       return html`
         <div class="dsfr-data-podium">
           ${renderSourceError('dsfr-data-podium', this._sourceError)}
+        </div>
+        ${this._renderStyles()}
+      `;
+    }
+
+    if (this._sourceIdle) {
+      return html`
+        <div class="dsfr-data-podium">
+          ${renderSourceIdle('dsfr-data-podium', this.idleMessage)}
         </div>
         ${this._renderStyles()}
       `;

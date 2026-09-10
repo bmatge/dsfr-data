@@ -64,10 +64,12 @@
               <tr><th>Attribut</th><th>Type</th><th>Valeurs</th><th>Description</th></tr>
             </thead>
             <tbody>
-              <tr><td><code>sources</code></td><td>String</td><td>requis</td><td>Ids des sources cibles, separes par des espaces</td></tr>
-              <tr><td><code>url-sync</code></td><td>Boolean</td><td>défaut : off</td><td>Serialisation URL des filtres (lecture au chargement, ecriture replaceState). Opt-in : evite les collisions avec le routing du site hote. Les valeurs lues pre-remplissent les UI — jamais injectees directement dans un where.</td></tr>
-              <tr><td><code>url-param-map</code></td><td>String</td><td><code>"param:field | p2:f2"</code></td><td>Renommage des paramètres URL (défaut : le nom du champ)</td></tr>
-            </tbody>
+            <!-- ATTRS:dsfr-data-context fields="sources,url-sync,url-param-map" -->
+              <tr><td><code>sources</code></td><td>String</td><td>requis</td><td>Ids des sources cibles, séparés par des espaces</td></tr>
+              <tr><td><code>url-sync</code></td><td>Boolean</td><td>défaut : off</td><td>Sérialisation URL des filtres (#231, ADR-031) — OPT-IN, défaut OFF (collision possible avec le routing query-string du site hôte). Lecture au chargement (pré-remplit les UI, qui repassent par le même chemin qu'un clic — aucune injection directe dans un where) ; écriture en history.replaceState à chaque changement. Un paramètre par champ, pour les filtres classiques comme pour les facettes et la recherche enregistrées par <code>context="id"</code> (#678) : l'URL-sync est unique.</td></tr>
+              <tr><td><code>url-param-map</code></td><td>String</td><td><code>"param:field | p2:f2"</code></td><td>Renommage des paramètres : "param:field | param2:field2" (#231)</td></tr>
+            <!-- /ATTRS -->
+          </tbody>
           </table>
         </div>
 
@@ -78,12 +80,16 @@
               <tr><th>Attribut</th><th>Type</th><th>Valeurs</th><th>Description</th></tr>
             </thead>
             <tbody>
-              <tr><td><code>field</code></td><td>String</td><td>requis</td><td>Colonne filtree</td></tr>
-              <tr><td><code>ui</code></td><td>String</td><td>requis</td><td>Id de l'element d'UI ecoute — DEUX ids (min puis max) pour <code>between</code></td></tr>
-              <tr><td><code>operator</code></td><td>String</td><td><code>eq</code> (défaut), <code>in</code>, <code>lt</code>, <code>gte</code>, <code>between</code>, <code>month-of</code>, <code>year-of</code>, <code>lt-day-after</code>, <code>last-n-days</code>, <code>current-year</code></td><td>Opérateur de la clause générée — 5 opérateurs de base + 5 opérateurs de date (#230). Voir le tableau des operateurs</td></tr>
-              <tr><td><code>apply-to</code></td><td>String</td><td><code>*</code></td><td><code>*</code> = toutes les sources du contexte, ou liste d'ids cibles</td></tr>
-              <tr><td><code>label</code></td><td>String</td><td>défaut : field</td><td>Libelle naturel pour l'affichage (tags)</td></tr>
-            </tbody>
+            <!-- ATTRS:dsfr-data-context-filter fields="field,ui,operator,apply-to,label,default,context" -->
+              <tr><td><code>field</code></td><td>String</td><td>requis</td><td>Colonne filtrée</td></tr>
+              <tr><td><code>ui</code></td><td>String</td><td>requis</td><td>Id(s) de l'élément d'UI écouté — deux ids (min max) pour between</td></tr>
+              <tr><td><code>operator</code></td><td>ContextOperator</td><td><code>eq</code> (défaut), <code>in</code>, <code>lt</code>, <code>gte</code>, <code>between</code>, <code>month-of</code>, <code>year-of</code>, <code>lt-day-after</code>, <code>last-n-days</code>, <code>current-year</code>, <code>current-month</code></td><td>Opérateur : eq, in, lt, gte, between, contains (sous-chaîne, #678) — et dates (#230, clauses en plages [debut, fin)) : month-of, year-of, lt-day-after, last-n-days, current-year, current-month (#682 — case à cocher, mois en cours, borne dynamique). <code>year-of</code> et <code>month-of</code> acceptent une date plus precise que l'opérateur et la tronquent (#646) : "2026-09-09" -&gt; annee 2026 / mois 2026-09, ce qui permet de les nourrir d'un &lt;input type="date"&gt; (il n'existe pas de type="year"). Une valeur qui reste inexploitable (ni date, ni mois, ni annee) retire le filtre et le signale par un avertissement console, emis une seule fois par filtre.</td></tr>
+              <tr><td><code>apply-to</code></td><td>String</td><td><code>*</code></td><td>Cibles : "*" (défaut, toutes les sources du contexte) ou ids ciblés</td></tr>
+              <tr><td><code>label</code></td><td>String</td><td>défaut : field</td><td>Libellé naturel pour l'affichage (tags #232) — défaut : field</td></tr>
+              <tr><td><code>default</code></td><td>String</td><td><code>today</code>, <code>first-of-month</code>, <code>first-of-year</code> ou littéral</td><td>Valeur initiale du filtre (#682), appliquée au montage APRÈS l'URL — un paramètre d'URL présent gagne toujours (ADR-031). Mots-clés dynamiques résolus dans le fuseau local : <code>today</code> (date du jour), <code>first-of-month</code> (1er du mois en cours), <code>first-of-year</code> (1er janvier de l'année en cours) ; toute autre valeur est un littéral. La date est adaptée au contrôle (input type="month" → AAAA-MM, <code>year-of</code> → AAAA) puis écrite dans l'UI et émise par le chemin normal, jamais injectée dans un where. Pour <code>between</code> et <code>in</code>, plusieurs valeurs séparées par une virgule (ex. <code>first-of-year,today</code>).</td></tr>
+              <tr><td><code>context</code></td><td>String</td><td><code>context="ctx"</code></td><td>Id du dsfr-data-context cible (#678). Vide = le contexte parent le plus proche (<code>closest</code>), comportement historique. Le contexte peut être déclaré après ce filtre dans le DOM : l'enregistrement se fait alors à sa connexion.</td></tr>
+            <!-- /ATTRS -->
+          </tbody>
           </table>
         </div>
 
@@ -103,6 +109,7 @@
               <tr><td><code>lt-day-after</code></td><td><code>input type="date"</code></td><td>inclusif jusqu'au jour choisi</td></tr>
               <tr><td><code>last-n-days</code></td><td>input N</td><td>borne dynamique « N derniers jours », recalculee a chaque diffusion</td></tr>
               <tr><td><code>current-year</code></td><td>checkbox</td><td>plage de l'annee en cours (dynamique)</td></tr>
+              <tr><td><code>current-month</code></td><td>checkbox</td><td>plage du mois en cours (dynamique, #682)</td></tr>
             </tbody>
           </table>
         </div>
@@ -129,8 +136,11 @@
               <tr><th>Attribut</th><th>Type</th><th>Valeurs</th><th>Description</th></tr>
             </thead>
             <tbody>
-              <tr><td><code>for</code></td><td>String</td><td>requis</td><td>Id du dsfr-data-context observe. Rend un tag DSFR supprimable par filtre actif : la croix vide l'UI du filtre (même chemin qu'un clic utilisateur), sources, URL et tags se mettent a jour ensemble.</td></tr>
-            </tbody>
+            <!-- ATTRS:dsfr-data-context-tags fields="for,clear-all" -->
+              <tr><td><code>for</code></td><td>String</td><td>requis</td><td>Id du dsfr-data-context observé</td></tr>
+              <tr><td><code>clear-all</code></td><td>Boolean</td><td>présent / absent</td><td>Bouton « Tout effacer » (#679) — un seul geste pour vider tous les filtres du contexte</td></tr>
+            <!-- /ATTRS -->
+          </tbody>
           </table>
         </div>
 

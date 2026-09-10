@@ -4,16 +4,18 @@
  * Source : packages/core/custom-elements.json (lui-meme genere depuis le code).
  * Regeneration : npm run build:component-contract
  *
- * 23 balises, 254 attributs.
+ * 26 balises, 320 attributs.
  */
 
 export const COMPONENT_CONTRACT = {
   "dsfr-data-a11y": {
     "attributes": [
+      "decimals",
       "description",
       "download",
       "filename",
       "for",
+      "idle-message",
       "label",
       "label-field",
       "no-auto-aria",
@@ -30,9 +32,11 @@ export const COMPONENT_CONTRACT = {
   "dsfr-data-chart": {
     "attributes": [
       "code-field",
+      "color-map",
       "databox",
       "databox-actions",
       "databox-date",
+      "databox-date-field",
       "databox-default-source",
       "databox-download",
       "databox-fullscreen",
@@ -44,10 +48,13 @@ export const COMPONENT_CONTRACT = {
       "databox-tooltip-content",
       "databox-tooltip-title",
       "databox-trend",
+      "empty-label",
       "fill",
       "gauge-value",
+      "heading-level",
       "highlight-index",
       "horizontal",
+      "idle-message",
       "label-field",
       "map-highlight",
       "name",
@@ -81,23 +88,40 @@ export const COMPONENT_CONTRACT = {
   "dsfr-data-context-filter": {
     "attributes": [
       "apply-to",
+      "context",
+      "default",
       "field",
       "label",
       "operator",
-      "ui"
+      "ui",
+      "year-start-month"
     ]
   },
   "dsfr-data-context-tags": {
     "attributes": [
+      "clear-all",
       "for"
+    ]
+  },
+  "dsfr-data-context-value": {
+    "attributes": [
+      "fallback",
+      "field",
+      "for",
+      "live",
+      "template"
     ]
   },
   "dsfr-data-display": {
     "attributes": [
       "cols",
+      "context",
       "empty",
       "gap",
+      "idle-message",
+      "label",
       "pagination",
+      "refine-on-click",
       "source",
       "uid-field",
       "url-page-param",
@@ -107,6 +131,7 @@ export const COMPONENT_CONTRACT = {
   "dsfr-data-facets": {
     "attributes": [
       "cols",
+      "context",
       "disjunctive",
       "display",
       "fields",
@@ -114,6 +139,7 @@ export const COMPONENT_CONTRACT = {
       "hide-empty",
       "labels",
       "max-values",
+      "no-reset",
       "searchable",
       "server-facets",
       "sort",
@@ -121,7 +147,8 @@ export const COMPONENT_CONTRACT = {
       "static-values",
       "url-param-map",
       "url-params",
-      "url-sync"
+      "url-sync",
+      "weight-field"
     ]
   },
   "dsfr-data-join": {
@@ -138,17 +165,21 @@ export const COMPONENT_CONTRACT = {
     "attributes": [
       "col",
       "color-token",
+      "decimals",
       "description",
       "format",
       "heading",
       "icon",
+      "idle-message",
       "label",
       "lines",
       "source",
       "threshold-green",
       "threshold-orange",
       "trend",
-      "value"
+      "unit",
+      "value",
+      "where"
     ],
     "deprecated": {
       "valeur": "alias français de `value` (#300)",
@@ -168,10 +199,18 @@ export const COMPONENT_CONTRACT = {
   },
   "dsfr-data-list": {
     "attributes": [
+      "caption",
+      "cell-class",
       "columns",
+      "columns-auto",
+      "context",
+      "decimals",
       "export",
       "filters",
+      "idle-message",
+      "label",
       "pagination",
+      "refine-on-click",
       "search",
       "server-sort",
       "sort",
@@ -191,6 +230,8 @@ export const COMPONENT_CONTRACT = {
     "attributes": [
       "center",
       "fit-bounds",
+      "fit-max-zoom",
+      "fit-zone",
       "height",
       "insets",
       "locked",
@@ -202,6 +243,8 @@ export const COMPONENT_CONTRACT = {
       "sovereign-only",
       "tiles",
       "tiles-attribution",
+      "tiles-style",
+      "tiles-switcher",
       "zoom"
     ]
   },
@@ -211,6 +254,7 @@ export const COMPONENT_CONTRACT = {
       "height",
       "label",
       "territory",
+      "width",
       "zoom"
     ]
   },
@@ -219,21 +263,26 @@ export const COMPONENT_CONTRACT = {
       "bbox",
       "bbox-debounce",
       "bbox-field",
+      "breaks",
+      "classes",
       "cluster",
       "cluster-radius",
       "color",
       "color-field",
       "color-map",
+      "context",
       "fill-field",
       "fill-opacity",
       "geo-field",
       "heat-blur",
       "heat-field",
       "heat-radius",
+      "label",
       "lat-field",
       "lon-field",
       "max-items",
       "max-zoom",
+      "method",
       "min-zoom",
       "no-interactive",
       "popup-fields",
@@ -243,6 +292,7 @@ export const COMPONENT_CONTRACT = {
       "radius-max",
       "radius-min",
       "radius-unit",
+      "refine-on-click",
       "selected-palette",
       "shape-class",
       "source",
@@ -251,6 +301,12 @@ export const COMPONENT_CONTRACT = {
       "time-mode",
       "tooltip-field",
       "type"
+    ]
+  },
+  "dsfr-data-map-legend": {
+    "attributes": [
+      "for",
+      "label"
     ]
   },
   "dsfr-data-map-popup": {
@@ -273,6 +329,8 @@ export const COMPONENT_CONTRACT = {
     "attributes": [
       "compute",
       "flatten",
+      "fold",
+      "fold-drop",
       "lowercase-keys",
       "numeric",
       "numeric-auto",
@@ -286,9 +344,23 @@ export const COMPONENT_CONTRACT = {
       "trim"
     ]
   },
+  "dsfr-data-pivot": {
+    "attributes": [
+      "aggregate",
+      "column",
+      "column-format",
+      "column-order",
+      "labels",
+      "max-columns",
+      "row",
+      "source",
+      "value"
+    ]
+  },
   "dsfr-data-podium": {
     "attributes": [
       "bar-max",
+      "idle-message",
       "label-field",
       "max-items",
       "no-sort",
@@ -303,20 +375,24 @@ export const COMPONENT_CONTRACT = {
   "dsfr-data-query": {
     "attributes": [
       "aggregate",
+      "explode",
       "filter",
       "group-by",
       "limit",
       "order-by",
+      "require-where",
       "source",
       "where"
     ]
   },
   "dsfr-data-search": {
     "attributes": [
+      "context",
       "count",
       "debounce",
       "fields",
       "highlight",
+      "idle-message",
       "label",
       "min-length",
       "operator",
@@ -338,6 +414,7 @@ export const COMPONENT_CONTRACT = {
       "cache-ttl",
       "data",
       "dataset-id",
+      "fetch-mode",
       "group-by",
       "headers",
       "limit",
@@ -349,6 +426,7 @@ export const COMPONENT_CONTRACT = {
       "params",
       "proxy-url",
       "refresh",
+      "require-where",
       "resource",
       "select",
       "server-side",

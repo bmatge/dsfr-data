@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-scheme="system">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bar Line Chart - DSFR Chart - dsfr-data</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css" integrity="sha384-atVZ+aK6VI0nWyTEhKgze5InDJ+SWRRqa0BCZ2MTNyoOcBiHj1c3dGPdi6ML65B3" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css" integrity="sha384-5P5DFFqorcEBpfnK9WHu/Ralfr7ZxyCZh0ryaJbgucSvc71+qRYdGvNEcyMqQwa/" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.1.1/dist/DSFRChart/DSFRChart.css" integrity="sha384-5m9vgfA+uOR3qcY14HhRzWDK17cwEVXO75RSwv2KJXignSdIrOvz1xNaaDpWXCeu" crossorigin="anonymous">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script type="module" src="/dist/app-ui.esm.js"></script>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.1.1/dist/DSFRChart/DSFRChart.js" integrity="sha384-OJTIJmv0zL1Ym2Bd6hA0oHB25gTqveSogoyVtnN3cEJcm4qE28qzTEp56vJeeKIS" crossorigin="anonymous"></script>
+  <style>
+    body { min-height: 100vh; display: flex; flex-direction: column; }
+  </style>
+</head>
+<body>
+  <app-header current-page="composants" base-path="../../"></app-header>
+
+  <app-layout-demo title="Graphique mixte barres et ligne" icon="ri-bar-chart-2-line" active-path="charts/bar-line-chart" base-path="../">
+    <div slot="content">
+      <p class="fr-text--lead">Le composant <code>&lt;bar-line-chart&gt;</code> superpose une série en barres et une série en ligne sur les mêmes catégories, avec deux axes des ordonnées indépendants.</p>
+
+      <div class="fr-callout fr-callout--blue-france">
+        <p class="fr-callout__text">
+          Le cas d'usage est un <strong>volume</strong> et un <strong>taux</strong> qui n'ont ni la même
+          unité ni le même ordre de grandeur : des effectifs en barres, un pourcentage en ligne. Deux
+          séries de même unité se lisent mieux en deux séries de barres ou en deux lignes.
+        </p>
+      </div>
+
+      <h2>Attributs</h2>
+      <div class="fr-table">
+        <table class="attr-table">
+          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>x</code></td><td>String (JSON)</td><td>—</td><td><strong>Requis.</strong> Catégories, tableau <strong>plat</strong> : <code>'["2021", "2022"]'</code>. Contrairement à <code>&lt;bar-chart&gt;</code>, pas de tableau imbriqué.</td></tr>
+            <tr><td><code>y-bar</code></td><td>String (JSON)</td><td>—</td><td><strong>Requis.</strong> Valeurs de la série en barres, tableau plat : <code>"[120, 135]"</code></td></tr>
+            <tr><td><code>y-line</code></td><td>String (JSON)</td><td>—</td><td><strong>Requis.</strong> Valeurs de la série en ligne, tableau plat, même longueur que <code>x</code></td></tr>
+            <tr><td><code>name-bar</code> / <code>name-line</code></td><td>String</td><td><code>""</code></td><td>Libellé de chaque série dans la légende. Ce sont deux chaînes simples, pas un tableau JSON.</td></tr>
+            <tr><td><code>unit-tooltip-bar</code> / <code>unit-tooltip-line</code></td><td>String</td><td><code>""</code></td><td>Unité affichée dans les tooltips, série par série — c'est ce qui rend les deux échelles lisibles</td></tr>
+            <tr><td><code>y-bar-min</code> / <code>y-bar-max</code></td><td>Number</td><td><code>""</code></td><td>Bornes de l'axe des barres</td></tr>
+            <tr><td><code>y-line-min</code> / <code>y-line-max</code></td><td>Number</td><td><code>""</code></td><td>Bornes de l'axe de la ligne, indépendantes des précédentes</td></tr>
+            <tr><td><code>x-min</code> / <code>x-max</code></td><td>Number</td><td><code>""</code></td><td>Bornes de l'axe des abscisses</td></tr>
+            <tr><td><code>bar-size</code> / <code>max-bar-size</code></td><td>Number</td><td><code>""</code></td><td>Largeur des barres, en pixels</td></tr>
+            <tr><td><code>selected-palette</code></td><td>String</td><td><code>""</code></td><td>Palette DSFR Chart : <code>default</code>, <code>categorical</code>, <code>sequentialAscending</code>, <code>sequentialDescending</code>, <code>divergentAscending</code>, <code>divergentDescending</code>, <code>neutral</code></td></tr>
+            <tr><td><code>vline</code> / <code>vlinecolor</code> / <code>vlinename</code></td><td>String</td><td><code>""</code></td><td>Repère vertical (valeur, couleur, libellé)</td></tr>
+            <tr><td><code>hline</code> / <code>hlinecolor</code> / <code>hlinename</code></td><td>String</td><td><code>""</code></td><td>Repère horizontal (valeur, couleur, libellé)</td></tr>
+            <tr><td><code>date</code></td><td>String</td><td><code>""</code></td><td>Date de la donnée (mention sous le graphique)</td></tr>
+            <tr><td><code>aspect-ratio</code></td><td>Number</td><td><code>2</code></td><td>Ratio largeur/hauteur du canvas</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="fr-text--sm fr-text--light">Les attributs <code>databox-id</code>, <code>databox-type</code> et <code>databox-source</code> servent à l'intégration DataBox — via <code>dsfr-data-chart type="bar-line" databox</code>, ils sont posés automatiquement.</p>
+
+      <section class="demo-section">
+        <h3>1. Volume et taux</h3>
+        <p>Le nombre de demandes traitées en barres, le taux de satisfaction en ligne : deux unités, deux axes.</p>
+        <bar-line-chart
+          x='["2020", "2021", "2022", "2023", "2024"]'
+          y-bar="[12400, 13800, 15200, 16900, 18300]"
+          y-line="[71, 74, 78, 81, 84]"
+          name-bar="Demandes traitées"
+          name-line="Taux de satisfaction"
+          unit-tooltip-bar="demandes"
+          unit-tooltip-line="%"
+          selected-palette="categorical">
+        </bar-line-chart>
+        <div class="code-block"><pre>&lt;bar-line-chart
+  x='["2020", "2021", "2022", "2023", "2024"]'
+  y-bar="[12400, 13800, 15200, 16900, 18300]"
+  y-line="[71, 74, 78, 81, 84]"
+  name-bar="Demandes traitées"
+  name-line="Taux de satisfaction"
+  unit-tooltip-bar="demandes"
+  unit-tooltip-line="%"
+  selected-palette="categorical"&gt;
+&lt;/bar-line-chart&gt;</pre></div>
+      </section>
+
+      <section class="demo-section">
+        <h3>2. Axe de la ligne borné</h3>
+        <p>
+          Un taux qui varie peu occupe tout l'axe et donne l'illusion d'une envolée. Borner l'axe de la
+          ligne sur son domaine réel — ici 0 à 100 — remet la variation à son échelle. Les bornes des
+          barres restent automatiques.
+        </p>
+        <bar-line-chart
+          x='["T1", "T2", "T3", "T4"]'
+          y-bar="[3200, 4100, 3800, 4600]"
+          y-line="[92, 94, 93, 95]"
+          name-bar="Dossiers déposés"
+          name-line="Taux de complétude"
+          unit-tooltip-bar="dossiers"
+          unit-tooltip-line="%"
+          y-line-min="0"
+          y-line-max="100"
+          selected-palette="default">
+        </bar-line-chart>
+        <div class="code-block"><pre>&lt;bar-line-chart
+  x='["T1", "T2", "T3", "T4"]'
+  y-bar="[3200, 4100, 3800, 4600]"
+  y-line="[92, 94, 93, 95]"
+  name-bar="Dossiers déposés"
+  name-line="Taux de complétude"
+  unit-tooltip-bar="dossiers"
+  unit-tooltip-line="%"
+  y-line-min="0"
+  y-line-max="100"
+  selected-palette="default"&gt;
+&lt;/bar-line-chart&gt;</pre></div>
+      </section>
+
+      <section class="demo-section">
+        <h3>3. Alimenté par une source de données</h3>
+        <p>
+          Avec <code>&lt;dsfr-data-chart type="bar-line"&gt;</code>, les deux séries viennent de deux
+          champs de la source : <code>value-field</code> alimente les barres, <code>value-field-2</code>
+          la ligne. Le wrapper traduit lui-même en <code>y-bar</code> / <code>y-line</code>.
+        </p>
+        <div class="code-block"><pre>&lt;dsfr-data-source id="activite" api-type="tabular"
+  base-url="https://tabular-api.data.gouv.fr"
+  resource="RESOURCE_ID"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-chart source="activite" type="bar-line"
+  label-field="annee"
+  value-field="demandes:Demandes traitées"
+  value-field-2="satisfaction:Taux de satisfaction"
+  unit-tooltip-bar="demandes"
+  unit-tooltip="%"&gt;
+&lt;/dsfr-data-chart&gt;</pre></div>
+        <p class="fr-text--sm fr-mt-1w">
+          Sur ce type, <code>unit-tooltip</code> s'applique à la ligne et <code>unit-tooltip-bar</code>
+          aux barres. Les alias en ligne <code>champ:Libellé</code> fournissent la légende sans passer
+          par <code>name</code>.
+        </p>
+      </section>
+    </div>
+  </app-layout-demo>
+
+  <app-footer base-path="../../"></app-footer>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.module.min.js" integrity="sha384-gPgRd2+olihO/srZe/Bqw6iVLiiaL7meuri1d5YVMejwPXg7VehLSBeORYq9yh2F" crossorigin="anonymous"></script>
+</body>
+</html>

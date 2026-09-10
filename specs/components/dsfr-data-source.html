@@ -54,128 +54,138 @@
 
         <h2 id="modes">Modes de fonctionnement</h2>
         <p>Le composant supporte trois modes :</p>
-        <table class="attr-table">
-          <thead><tr><th>Mode</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr>
-              <td><strong>URL brute</strong></td>
-              <td>Appel HTTP generique via l'attribut <code>url</code>. Supporte GET/POST, headers,
-                params JSON, extraction via <code>transform</code> et pagination manuelle via <code>paginate</code>.</td>
-            </tr>
-            <tr>
-              <td><strong>Adapter</strong></td>
-              <td>Active via <code>api-type</code> (sans <code>url</code>). L'adapter gere la construction d'URL,
-                la pagination automatique, les filtres et le parsing spécifiques au provider
-                (OpenDataSoft, Tabular, Grist, INSEE Melodi).</td>
-            </tr>
-            <tr>
-              <td><strong>Inline data</strong></td>
-              <td>Données JSON passees directement via l'attribut <code>data</code>. Pas de fetch HTTP.</td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Mode</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><strong>URL brute</strong></td>
+                <td>Appel HTTP generique via l'attribut <code>url</code>. Supporte GET/POST, headers,
+                  params JSON, extraction via <code>transform</code> et pagination manuelle via <code>paginate</code>.</td>
+              </tr>
+              <tr>
+                <td><strong>Adapter</strong></td>
+                <td>Active via <code>api-type</code> (sans <code>url</code>). L'adapter gere la construction d'URL,
+                  la pagination automatique, les filtres et le parsing spécifiques au provider
+                  (OpenDataSoft, Tabular, Grist, INSEE Melodi).</td>
+              </tr>
+              <tr>
+                <td><strong>Inline data</strong></td>
+                <td>Données JSON passees directement via l'attribut <code>data</code>. Pas de fetch HTTP.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
         <h3 class="fr-mt-3w">Types d'adapter</h3>
         <p>En mode adapter, l'attribut <code>api-type</code> sélectionne le provider :</p>
-        <table class="attr-table">
-          <thead><tr><th>api-type</th><th>API</th><th>Identifiant requis</th><th>Pagination</th><th>Max records</th></tr></thead>
-          <tbody>
-            <tr>
-              <td><code>opendatasoft</code></td>
-              <td>OpenDataSoft (v2.1)</td>
-              <td><code>dataset-id</code></td>
-              <td>offset, 100/page, max 10 pages</td>
-              <td>1 000</td>
-            </tr>
-            <tr>
-              <td><code>tabular</code></td>
-              <td>Tabular API (data.gouv.fr)</td>
-              <td><code>resource</code></td>
-              <td>page, 50/page, max 500 pages</td>
-              <td>25 000</td>
-            </tr>
-            <tr>
-              <td><code>grist</code></td>
-              <td>Grist (grist.numerique.gouv.fr, getgrist.com)</td>
-              <td><code>base-url</code></td>
-              <td>offset, 100/page, illimitee</td>
-              <td>Illimite</td>
-            </tr>
-            <tr>
-              <td><code>insee</code></td>
-              <td>INSEE Melodi (api.insee.fr/melodi)</td>
-              <td><code>dataset-id</code></td>
-              <td>page, 1 000/page, max 100 pages</td>
-              <td>100 000</td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>api-type</th><th>API</th><th>Identifiant requis</th><th>Pagination</th><th>Max records</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><code>opendatasoft</code></td>
+                <td>OpenDataSoft (v2.1)</td>
+                <td><code>dataset-id</code></td>
+                <td>offset, 100/page, max 10 pages</td>
+                <td>1 000</td>
+              </tr>
+              <tr>
+                <td><code>tabular</code></td>
+                <td>Tabular API (data.gouv.fr)</td>
+                <td><code>resource</code></td>
+                <td>page, 50/page, max 500 pages</td>
+                <td>25 000</td>
+              </tr>
+              <tr>
+                <td><code>grist</code></td>
+                <td>Grist (grist.numerique.gouv.fr, getgrist.com)</td>
+                <td><code>base-url</code></td>
+                <td>offset, 100/page, illimitee</td>
+                <td>Illimite</td>
+              </tr>
+              <tr>
+                <td><code>insee</code></td>
+                <td>INSEE Melodi (api.insee.fr/melodi)</td>
+                <td><code>dataset-id</code></td>
+                <td>page, 1 000/page, max 100 pages</td>
+                <td>100 000</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
         <h2 id="attributs" class="fr-mt-4w">Attributs</h2>
 
         <h3>Attributs communs</h3>
-        <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Format / Valeurs</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>id</code></td><td>String</td><td><code>id="ma-source"</code></td><td>Identifiant unique (requis). Les composants en aval l'utilisent pour s'abonner aux données.</td></tr>
-            <tr><td><code>refresh</code></td><td>Number</td><td>Entier en secondes. <code>0</code> = off</td><td>Intervalle de rafraichissement automatique</td></tr>
-            <tr><td><code>transform</code></td><td>String</td><td><code>"results"</code>, <code>"data.items"</code></td><td>Chemin JSON pour extraire les données de la reponse API</td></tr>
-            <tr><td><code>headers</code></td><td>String</td><td><code>'{"apikey":"abc123"}'</code></td><td>Headers HTTP en JSON (API key, Bearer token, etc.)</td></tr>
-            <tr><td><code>api-key-ref</code></td><td>String</td><td><code>"tmdb"</code></td><td>Référence vers une clé API declaree dans <code>window.DSFR_DATA_KEYS</code>.
-              La valeur est injectee comme header <code>Authorization</code>. Prioritaire sur un header Authorization explicite.</td></tr>
-            <tr><td><code>cache-ttl</code></td><td>Number</td><td>Entier en secondes. Défaut : <code>3600</code></td><td>Duree de cache serveur en mode DB (0 = pas de cache)</td></tr>
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Format / Valeurs</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>id</code></td><td>String</td><td><code>id="ma-source"</code></td><td>Identifiant unique (requis). Les composants en aval l'utilisent pour s'abonner aux données.</td></tr>
+              <!-- ATTRS:dsfr-data-source fields="refresh,transform,headers,api-key-ref,cache-ttl" -->
+                <tr><td><code>refresh</code></td><td>Number</td><td>Entier en secondes. <code>0</code> = off</td><td>Rafraichissement automatique en secondes (0 = desactive).</td></tr>
+                <tr><td><code>transform</code></td><td>String</td><td><code>"results"</code>, <code>"data.items"</code></td><td>Chemin JSONPath vers le tableau de données dans la réponse. Ex: <code>"results"</code>, <code>"data.items"</code>.</td></tr>
+                <tr><td><code>headers</code></td><td>String</td><td><code>'{"apikey":"abc123"}'</code></td><td>En-têtes HTTP en JSON. Ex: <code>'{"Authorization": "Bearer xxx"}'</code>. OpenDataSoft : la clé va dans <code>Authorization: Apikey CLE</code> (seul en-tête autorisé en CORS) — un <code>apikey</code> nu est réécrit automatiquement (#655).</td></tr>
+                <tr><td><code>api-key-ref</code></td><td>String</td><td><code>"tmdb"</code></td><td>Référence vers une clé API déclarée dans window.DSFR_DATA_KEYS</td></tr>
+                <tr><td><code>cache-ttl</code></td><td>Number</td><td>Entier en secondes. Défaut : <code>3600</code></td><td>TTL du cache externe en secondes (0 = desactive). Actif uniquement si la page hote enregistre <code>window.DSFR_DATA_CACHE_PROVIDER</code> (#307) — no-op en embed anonyme.</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
 
         <h3 class="fr-mt-3w">Attributs mode URL brute</h3>
-        <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Format / Valeurs</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>url</code></td><td>String</td><td>URL relative ou absolue</td><td>URL de l'API REST a appeler</td></tr>
-            <tr><td><code>method</code></td><td>String</td><td><code>GET</code> | <code>POST</code></td><td>Méthode HTTP. Défaut : <code>GET</code></td></tr>
-            <tr><td><code>params</code></td><td>String</td><td><code>'{"limit": 100}'</code></td><td>GET : ajoutes a l'URL comme query params. POST : envoyes comme body JSON.</td></tr>
-            <tr><td><code>paginate</code></td><td>Boolean</td><td>Presence = <code>true</code></td><td>Active la pagination manuelle. Injecte <code>page</code> et <code>page_size</code> dans l'URL.
-              Auto-extrait <code>json.data</code> si aucun <code>transform</code> n'est défini.</td></tr>
-            <tr><td><code>page-size</code></td><td>Number</td><td>Entier positif. Défaut : <code>20</code></td><td>Taille de page pour la pagination manuelle</td></tr>
-            <tr><td><code>use-proxy</code></td><td>Boolean</td><td>Presence = <code>true</code></td><td>Force le passage par le proxy CORS generique (<code>/cors-proxy</code>).
-              Utile pour les APIs externes qui ne gerent pas CORS. La requête est routee cote serveur
-              via un header <code>X-Target-URL</code>. <strong>N'a d'effet que si une base de proxy est
-              configuree</strong> (<code>proxy-url</code>, <code>window.DSFR_DATA_PROXY</code> ou build) :
-              en embed nu sans proxy, c'est un no-op (URL renvoyee inchangee).</td></tr>
-            <tr><td><code>proxy-url</code></td><td>String</td><td><code>""</code></td><td>Domaine du proxy CORS pour
-              <strong>cette source</strong>, prioritaire sur <code>window.DSFR_DATA_PROXY</code> et la config build.
-              Sert a la fois la reecriture d'hote connu (Grist gouv/SaaS, Tabular, INSEE) et le <code>use-proxy</code>
-              generique. Ex : <code>proxy-url="https://mon-proxy.fr"</code>. Vide = resolution proxy globale habituelle.</td></tr>
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Format / Valeurs</th><th>Description</th></tr></thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-source fields="url,method,params,paginate,page-size,use-proxy,proxy-url" -->
+                <tr><td><code>url</code></td><td>String</td><td>URL relative ou absolue</td><td>URL de l'API a interroger (mode URL brute). Vide en mode adapter ou en mode <code>data</code> inline.</td></tr>
+                <tr><td><code>method</code></td><td><code>GET</code> · <code>POST</code></td><td><code>GET</code> | <code>POST</code></td><td>Méthode HTTP : <code>GET</code> (défaut) ou <code>POST</code>.</td></tr>
+                <tr><td><code>params</code></td><td>String</td><td><code>'{"limit": 100}'</code></td><td>Paramètres de requête en JSON : query string en GET, corps en POST.</td></tr>
+                <tr><td><code>paginate</code></td><td>Boolean</td><td>Presence = <code>true</code></td><td>Active la pagination serveur en mode URL : injecte page/page_size dans l'URL et publie la meta.</td></tr>
+                <tr><td><code>page-size</code></td><td>Number</td><td>Entier positif. Défaut : <code>20</code></td><td>Taille de page pour la pagination serveur (nombre de records par page).</td></tr>
+                <tr><td><code>use-proxy</code></td><td>Boolean</td><td>Presence = <code>true</code></td><td>Force le passage par le proxy CORS generique (pour les APIs externes sans CORS)</td></tr>
+                <tr><td><code>proxy-url</code></td><td>String</td><td><code>""</code></td><td>Domaine du proxy CORS pour CETTE source (#340), prioritaire sur <code>window.DSFR_DATA_PROXY</code> et la config build-time. Sert a la fois la reecriture d'hote connu (Grist gouv/SaaS, Tabular, INSEE) et le <code>use-proxy</code> generique. Vide = resolution proxy globale habituelle. Ex: <code>proxy-url="https://mon-proxy.fr"</code>.</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
 
         <h3 class="fr-mt-3w">Attributs mode adapter</h3>
-        <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Format / Valeurs</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>api-type</code></td><td>String</td><td><code>opendatasoft</code> | <code>tabular</code> | <code>grist</code> | <code>insee</code></td><td>Type de provider. Active le mode adapter (ne pas combiner avec <code>url</code>).</td></tr>
-            <tr><td><code>base-url</code></td><td>String</td><td><code>"https://data.iledefrance.fr"</code></td><td>URL de base de l'API. Requis pour Grist, optionnel pour ODS/Tabular (defauts fournis).</td></tr>
-            <tr><td><code>dataset-id</code></td><td>String</td><td><code>"mon-dataset-2024"</code></td><td>Identifiant (slug) du dataset. Mode <code>opendatasoft</code> uniquement.</td></tr>
-            <tr><td><code>resource</code></td><td>String</td><td><code>"2876a346-d50c-..."</code> (UUID)</td><td>Identifiant de la ressource. Mode <code>tabular</code> uniquement.</td></tr>
-            <tr><td><code>where</code></td><td>String</td><td>Colon : <code>"champ:op:val"</code><br>ODS : ODSQL libre</td><td>Clause WHERE statique. Format depend du provider (voir section Filtres).</td></tr>
-            <tr><td><code>select</code></td><td>String</td><td><code>"sum(pop) as total, region"</code></td><td>Clause SELECT en syntaxe ODSQL. Mode <code>opendatasoft</code> uniquement.</td></tr>
-            <tr><td><code>group-by</code></td><td>String</td><td><code>"champ1, champ2"</code></td><td>Champs de regroupement. Delegue au serveur si le provider le supporte.</td></tr>
-            <tr><td><code>aggregate</code></td><td>String</td><td><code>"champ:fn"</code> ou <code>"champ:fn:alias"</code></td><td>Agrégations server-side. Fonctions : <code>count</code> <code>sum</code> <code>avg</code> <code>min</code> <code>max</code>.</td></tr>
-            <tr><td><code>order-by</code></td><td>String</td><td><code>"champ:asc"</code> ou <code>"champ:desc"</code></td><td>Tri des resultats. Peut etre surcharge dynamiquement par un <code>dsfr-data-list</code>.</td></tr>
-            <tr><td><code>limit</code></td><td>Number</td><td>Entier positif. <code>0</code> = illimite</td><td>Nombre maximum de resultats</td></tr>
-            <tr><td><code>max-records</code></td><td>Number</td><td>Entier positif. <code>0</code> = plafond par défaut de l'adapter</td><td>Plafond du fetchAll en mode adapter (#233). Le défaut ODS (1 000) est un garde-fou, pas une limite API : le relever augmente le nombre de requêtes en boucle et le poids memoire — a faire en connaissance de cause (dashboards « un fetch, N agrégations client »).</td></tr>
-            <tr><td><code>server-side</code></td><td>Boolean</td><td>Presence = <code>true</code></td><td>Mode pagination pilotable : charge une page a la fois, ecoute les commandes
-              des composants en aval (<code>dsfr-data-list</code>, <code>dsfr-data-facets</code>, <code>dsfr-data-search</code>).</td></tr>
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Format / Valeurs</th><th>Description</th></tr></thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-source fields="api-type,base-url,dataset-id,resource,where,select,group-by,aggregate,order-by,limit,max-records,server-side" -->
+                <tr><td><code>api-type</code></td><td>String</td><td><code>opendatasoft</code> | <code>tabular</code> | <code>grist</code> | <code>insee</code></td><td>Type d'API — active le mode adapter si != 'generic' et url est vide</td></tr>
+                <tr><td><code>base-url</code></td><td>String</td><td><code>"https://data.iledefrance.fr"</code></td><td>URL de base de l'API (pour ODS, Tabular)</td></tr>
+                <tr><td><code>dataset-id</code></td><td>String</td><td><code>"mon-dataset-2024"</code></td><td>ID du dataset (pour ODS)</td></tr>
+                <tr><td><code>resource</code></td><td>String</td><td><code>"2876a346-d50c-..."</code> (UUID)</td><td>ID de la ressource (pour Tabular)</td></tr>
+                <tr><td><code>where</code></td><td>String</td><td>Colon : <code>"champ:op:val"</code><br>ODS : ODSQL libre</td><td>Clause WHERE statique</td></tr>
+                <tr><td><code>select</code></td><td>String</td><td><code>"sum(pop) as total, region"</code></td><td>Clause SELECT (pour ODS)</td></tr>
+                <tr><td><code>group-by</code></td><td>String</td><td><code>"champ1, champ2"</code></td><td>Group-by (pour les APIs qui le supportent server-side). ODS : un élément peut être une expression aliasée (<code>year(date) as annee</code>), transmise telle quelle — l'alias <code>as</code> est obligatoire cote ODS (#641).</td></tr>
+                <tr><td><code>aggregate</code></td><td>String</td><td><code>"champ:fn"</code> ou <code>"champ:fn:alias"</code></td><td>Agrégation (pour les APIs qui le supportent server-side)</td></tr>
+                <tr><td><code>order-by</code></td><td>String</td><td><code>"champ:asc"</code> ou <code>"champ:desc"</code></td><td>Order-by</td></tr>
+                <tr><td><code>limit</code></td><td>Number</td><td>Entier positif. <code>0</code> = illimite</td><td>Limite du nombre de résultats</td></tr>
+                <tr><td><code>max-records</code></td><td>Number</td><td>Entier positif. <code>0</code> = plafond par défaut de l'adapter</td><td>Plafond de records du fetchAll en mode adapter (#233). 0 = plafond par défaut de l'adapter (ODS : 1000). A relever explicitement pour les dashboards « un fetch, N agrégations client » — attention au nombre de requêtes en boucle et au poids mémoire.</td></tr>
+                <tr><td><code>server-side</code></td><td>Boolean</td><td>Presence = <code>true</code></td><td>Mode pagination serveur (datalist, tableaux)</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
 
         <h3 class="fr-mt-3w">Attribut mode inline</h3>
-        <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Format / Valeurs</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>data</code></td><td>String</td><td>JSON valide (tableau ou objet)</td><td>Données inline. Pas de fetch HTTP, les données sont parsees et emises directement.</td></tr>
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Format / Valeurs</th><th>Description</th></tr></thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-source fields="data" -->
+                <tr><td><code>data</code></td><td>String</td><td>JSON valide (tableau ou objet)</td><td>Données JSON inline (pas de fetch)</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
 
         <h2 id="filtres" class="fr-mt-4w">Filtres et WHERE dynamique</h2>
 
@@ -183,11 +193,11 @@
           <h3>WHERE statique</h3>
           <p>L'attribut <code>where</code> definit un filtre permanent sur la source.</p>
           <p>En mode <strong>Tabular / Grist</strong>, format colon <code>champ:operateur:valeur</code> :</p>
-          <div class="code-block"><pre>where="population:gt:5000"
-where="population:gt:5000, region:in:IDF|OCC|BRE"
-where="email:isnull"</pre></div>
+          <div class="code-block"><pre><span class="tok-attr">where</span><span class="tok-punct">=</span><span class="tok-string">"population:gt:5000"</span>
+<span class="tok-attr">where</span><span class="tok-punct">=</span><span class="tok-string">"population:gt:5000, region:in:IDF|OCC|BRE"</span>
+<span class="tok-attr">where</span><span class="tok-punct">=</span><span class="tok-string">"email:isnull"</span></pre></div>
           <p>En mode <strong>OpenDataSoft</strong>, syntaxe ODSQL libre :</p>
-          <div class="code-block"><pre>where="population > 5000 AND status = 'active'"</pre></div>
+          <div class="code-block"><pre><span class="tok-attr">where</span><span class="tok-punct">=</span><span class="tok-string">"population > 5000 AND status = 'active'"</span></pre></div>
         </section>
 
         <section class="demo-section">
@@ -202,23 +212,23 @@ where="email:isnull"</pre></div>
             Les overlays sont combines en <strong>ET logique</strong>. La méthode <code>getEffectiveWhere()</code>
             retourne la clause WHERE fusionnee.
           </p>
-          <div class="code-block"><pre>&lt;!-- WHERE statique + overlays dynamiques des facettes et recherche --&gt;
-&lt;dsfr-data-source id="src" api-type="opendatasoft"
-  dataset-id="rappelconso-v2-gtin-trie"
-  base-url="https://data.economie.gouv.fr"
-  where="categorie_produit = 'Alimentation'"
-  server-side page-size="20"&gt;
-&lt;/dsfr-data-source&gt;
+          <div class="code-block"><pre><span class="tok-comment">&lt;!-- WHERE statique + overlays dynamiques des facettes et recherche --&gt;</span>
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-source</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"src"</span> <span class="tok-attr">api-type</span><span class="tok-punct">=</span><span class="tok-string">"opendatasoft"</span>
+  <span class="tok-attr">dataset-id</span><span class="tok-punct">=</span><span class="tok-string">"rappelconso-v2-gtin-trie"</span>
+  <span class="tok-attr">base-url</span><span class="tok-punct">=</span><span class="tok-string">"https://data.economie.gouv.fr"</span>
+  <span class="tok-attr">where</span><span class="tok-punct">=</span><span class="tok-string">"categorie_produit = 'Alimentation'"</span>
+  server-side <span class="tok-attr">page-size</span><span class="tok-punct">=</span><span class="tok-string">"20"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-source</span><span class="tok-punct">&gt;</span>
 
-&lt;!-- La recherche ajoute un overlay WHERE via server-search --&gt;
-&lt;dsfr-data-search id="search" source="src"
-  server-search&gt;
-&lt;/dsfr-data-search&gt;
+<span class="tok-comment">&lt;!-- La recherche ajoute un overlay WHERE via server-search --&gt;</span>
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-search</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"search"</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"src"</span>
+  server-search<span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-search</span><span class="tok-punct">&gt;</span>
 
-&lt;!-- Les facettes ajoutent des overlays WHERE --&gt;
-&lt;dsfr-data-facets id="facets" source="src"
-  fields="categorie_produit, marque_produit" server-facets&gt;
-&lt;/dsfr-data-facets&gt;</pre></div>
+<span class="tok-comment">&lt;!-- Les facettes ajoutent des overlays WHERE --&gt;</span>
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-facets</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"facets"</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"src"</span>
+  <span class="tok-attr">fields</span><span class="tok-punct">=</span><span class="tok-string">"categorie_produit, marque_produit"</span> server-facets<span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-facets</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <h2 id="server-side" class="fr-mt-4w">Mode server-side</h2>
@@ -228,37 +238,39 @@ where="email:isnull"</pre></div>
           Cela permet d'afficher des datasets de milliers d'enregistrements sans tout charger en memoire.
         </p>
         <p>Le composant reagit a trois types de commandes :</p>
-        <table class="attr-table">
-          <thead><tr><th>Commande</th><th>Source</th><th>Effet</th></tr></thead>
-          <tbody>
-            <tr><td><code>{ page }</code></td><td><code>dsfr-data-list</code></td><td>Change la page courante et re-fetche</td></tr>
-            <tr><td><code>{ where, whereKey }</code></td><td><code>dsfr-data-facets</code>, <code>dsfr-data-search</code></td><td>Ajoute/supprime un overlay WHERE et reset a la page 1</td></tr>
-            <tr><td><code>{ orderBy }</code></td><td><code>dsfr-data-list</code></td><td>Change le tri et re-fetche</td></tr>
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Commande</th><th>Source</th><th>Effet</th></tr></thead>
+            <tbody>
+              <tr><td><code>{ page }</code></td><td><code>dsfr-data-list</code></td><td>Change la page courante et re-fetche</td></tr>
+              <tr><td><code>{ where, whereKey }</code></td><td><code>dsfr-data-facets</code>, <code>dsfr-data-search</code></td><td>Ajoute/supprime un overlay WHERE et reset a la page 1</td></tr>
+              <tr><td><code>{ orderBy }</code></td><td><code>dsfr-data-list</code></td><td>Change le tri et re-fetche</td></tr>
+            </tbody>
+          </table>
+        </div>
 
         <h2 id="exemples" class="fr-mt-4w">Exemples</h2>
 
         <section class="demo-section">
           <h3>Mode URL brute : API REST generique</h3>
-          <div class="code-block"><pre>&lt;dsfr-data-source
-  id="prix-ct"
-  url="https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/prix-controle-technique/records"
-  transform="results"
-&gt;&lt;/dsfr-data-source&gt;</pre></div>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-source</span>
+  <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"prix-ct"</span>
+  <span class="tok-attr">url</span><span class="tok-punct">=</span><span class="tok-string">"https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/prix-controle-technique/records"</span>
+  <span class="tok-attr">transform</span><span class="tok-punct">=</span><span class="tok-string">"results"</span>
+<span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-source</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <section class="demo-section">
           <h3>Mode URL brute : POST avec headers et params</h3>
-          <div class="code-block"><pre>&lt;dsfr-data-source
-  id="api-privee"
-  url="https://mon-api.gouv.fr/data"
-  method="POST"
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-source</span>
+  <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"api-privee"</span>
+  <span class="tok-attr">url</span><span class="tok-punct">=</span><span class="tok-string">"https://mon-api.gouv.fr/data"</span>
+  <span class="tok-attr">method</span><span class="tok-punct">=</span><span class="tok-string">"POST"</span>
   headers='{"Authorization": "Bearer TOKEN"}'
   params='{"limit": 100, "filters": {"annee": 2024}}'
-  transform="data.items"
-  refresh="60"
-&gt;&lt;/dsfr-data-source&gt;</pre></div>
+  <span class="tok-attr">transform</span><span class="tok-punct">=</span><span class="tok-string">"data.items"</span>
+  <span class="tok-attr">refresh</span><span class="tok-punct">=</span><span class="tok-string">"60"</span>
+<span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-source</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <section class="demo-section">
@@ -267,20 +279,20 @@ where="email:isnull"</pre></div>
             Avec <code>paginate</code>, chaque changement de page dans un <code>dsfr-data-list</code>
             en aval declenche un nouvel appel API avec les paramètres de pagination.
           </p>
-          <div class="code-block"><pre>&lt;dsfr-data-source
-  id="browse"
-  api-type="opendatasoft"
-  dataset-id="rappelconso-v2-gtin-trie"
-  base-url="https://data.economie.gouv.fr"
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-source</span>
+  <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"browse"</span>
+  <span class="tok-attr">api-type</span><span class="tok-punct">=</span><span class="tok-string">"opendatasoft"</span>
+  <span class="tok-attr">dataset-id</span><span class="tok-punct">=</span><span class="tok-string">"rappelconso-v2-gtin-trie"</span>
+  <span class="tok-attr">base-url</span><span class="tok-punct">=</span><span class="tok-string">"https://data.economie.gouv.fr"</span>
   server-side
   paginate
-  page-size="20"
-&gt;&lt;/dsfr-data-source&gt;
+  <span class="tok-attr">page-size</span><span class="tok-punct">=</span><span class="tok-string">"20"</span>
+<span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-source</span><span class="tok-punct">&gt;</span>
 
-&lt;dsfr-data-list source="browse"
-  columns="modeles_ou_references:Produit, categorie_produit:Catégorie, marque_produit:Marque"
-  pagination="20"&gt;
-&lt;/dsfr-data-list&gt;</pre></div>
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-list</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"browse"</span>
+  <span class="tok-attr">columns</span><span class="tok-punct">=</span><span class="tok-string">"modeles_ou_references:Produit, categorie_produit:Catégorie, marque_produit:Marque"</span>
+  <span class="tok-attr">pagination</span><span class="tok-punct">=</span><span class="tok-string">"20"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-list</span><span class="tok-punct">&gt;</span></pre></div>
           <div class="fr-callout fr-callout--blue-ecume fr-mt-2w">
             <p class="fr-callout__text">
               <strong>Auto-extraction :</strong> en mode <code>paginate</code>, pas besoin de <code>transform="data"</code>.
@@ -296,11 +308,11 @@ where="email:isnull"</pre></div>
             L'attribut <code>use-proxy</code> force le passage par le proxy CORS generique.
             Utile quand l'API cible ne renvoie pas les headers CORS necessaires.
           </p>
-          <div class="code-block"><pre>&lt;dsfr-data-source
-  id="ghibli-films"
-  url="https://ghibliapi.vercel.app/films"
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-source</span>
+  <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"ghibli-films"</span>
+  <span class="tok-attr">url</span><span class="tok-punct">=</span><span class="tok-string">"https://ghibliapi.vercel.app/films"</span>
   use-proxy
-&gt;&lt;/dsfr-data-source&gt;</pre></div>
+<span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-source</span><span class="tok-punct">&gt;</span></pre></div>
           <div class="fr-callout fr-callout--blue-ecume fr-mt-2w">
             <p class="fr-callout__text">
               <strong>Fonctionnement :</strong> en dev, la requête est routee via le middleware Vite
@@ -317,23 +329,23 @@ where="email:isnull"</pre></div>
             L'adapter gere automatiquement la construction d'URL, la pagination et le parsing.
             Pagination automatique (toutes les pages en une seule requête) jusqu'a 1 000 records.
           </p>
-          <div class="code-block"><pre>&lt;dsfr-data-source
-  id="elus"
-  api-type="opendatasoft"
-  base-url="https://data.iledefrance.fr"
-  dataset-id="elus-regionaux"
-  where="sexe = 'F'"
-&gt;&lt;/dsfr-data-source&gt;
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-source</span>
+  <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"elus"</span>
+  <span class="tok-attr">api-type</span><span class="tok-punct">=</span><span class="tok-string">"opendatasoft"</span>
+  <span class="tok-attr">base-url</span><span class="tok-punct">=</span><span class="tok-string">"https://data.iledefrance.fr"</span>
+  <span class="tok-attr">dataset-id</span><span class="tok-punct">=</span><span class="tok-string">"elus-regionaux"</span>
+  <span class="tok-attr">where</span><span class="tok-punct">=</span><span class="tok-string">"sexe = 'F'"</span>
+<span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-source</span><span class="tok-punct">&gt;</span>
 
-&lt;dsfr-data-query id="stats" source="elus"
-  group-by="groupe_politique"
-  aggregate="nom:count:nb"
-  order-by="nb:desc"&gt;
-&lt;/dsfr-data-query&gt;
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-query</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"stats"</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"elus"</span>
+  <span class="tok-attr">group-by</span><span class="tok-punct">=</span><span class="tok-string">"groupe_politique"</span>
+  <span class="tok-attr">aggregate</span><span class="tok-punct">=</span><span class="tok-string">"nom:count:nb"</span>
+  <span class="tok-attr">order-by</span><span class="tok-punct">=</span><span class="tok-string">"nb:desc"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-query</span><span class="tok-punct">&gt;</span>
 
-&lt;dsfr-data-chart source="stats" type="bar"
-  label-field="groupe_politique" value-field="nb"&gt;
-&lt;/dsfr-data-chart&gt;</pre></div>
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-chart</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"stats"</span> <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"bar"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"groupe_politique"</span> <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"nb"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-chart</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <section class="demo-section">
@@ -342,20 +354,20 @@ where="email:isnull"</pre></div>
             L'adapter ODS gere la pagination, le tri serveur, la recherche full-text et les facettes.
             Ici un simple datalist pagine.
           </p>
-          <div class="code-block"><pre>&lt;dsfr-data-source
-  id="src-ods"
-  api-type="opendatasoft"
-  dataset-id="rappelconso-v2-gtin-trie"
-  base-url="https://data.economie.gouv.fr"
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-source</span>
+  <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"src-ods"</span>
+  <span class="tok-attr">api-type</span><span class="tok-punct">=</span><span class="tok-string">"opendatasoft"</span>
+  <span class="tok-attr">dataset-id</span><span class="tok-punct">=</span><span class="tok-string">"rappelconso-v2-gtin-trie"</span>
+  <span class="tok-attr">base-url</span><span class="tok-punct">=</span><span class="tok-string">"https://data.economie.gouv.fr"</span>
   server-side
-  page-size="20"
-&gt;&lt;/dsfr-data-source&gt;
+  <span class="tok-attr">page-size</span><span class="tok-punct">=</span><span class="tok-string">"20"</span>
+<span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-source</span><span class="tok-punct">&gt;</span>
 
-&lt;dsfr-data-list source="src-ods"
-  columns="modeles_ou_references:Produit, categorie_produit:Catégorie, marque_produit:Marque, date_publication:Date"
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-list</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"src-ods"</span>
+  <span class="tok-attr">columns</span><span class="tok-punct">=</span><span class="tok-string">"modeles_ou_references:Produit, categorie_produit:Catégorie, marque_produit:Marque, date_publication:Date"</span>
   server-sort
-  pagination="20"&gt;
-&lt;/dsfr-data-list&gt;</pre></div>
+  <span class="tok-attr">pagination</span><span class="tok-punct">=</span><span class="tok-string">"20"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-list</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <section class="demo-section">
@@ -365,16 +377,16 @@ where="email:isnull"</pre></div>
             Il détecté automatiquement si la requête necessite le mode SQL (groupement, agrégation,
             operateurs avances) ou le mode Records standard.
           </p>
-          <div class="code-block"><pre>&lt;dsfr-data-source
-  id="grist-data"
-  api-type="grist"
-  base-url="https://grist.numerique.gouv.fr/api/docs/DOC_ID/tables/TABLE_ID/records"
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-source</span>
+  <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"grist-data"</span>
+  <span class="tok-attr">api-type</span><span class="tok-punct">=</span><span class="tok-string">"grist"</span>
+  <span class="tok-attr">base-url</span><span class="tok-punct">=</span><span class="tok-string">"https://grist.numerique.gouv.fr/api/docs/DOC_ID/tables/TABLE_ID/records"</span>
   headers='{"Authorization": "Bearer TOKEN"}'
-&gt;&lt;/dsfr-data-source&gt;
+<span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-source</span><span class="tok-punct">&gt;</span>
 
-&lt;dsfr-data-chart source="grist-data" type="bar"
-  label-field="nom" value-field="valeur"&gt;
-&lt;/dsfr-data-chart&gt;</pre></div>
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-chart</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"grist-data"</span> <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"bar"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"nom"</span> <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"valeur"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-chart</span><span class="tok-punct">&gt;</span></pre></div>
           <div class="fr-callout fr-callout--blue-ecume fr-mt-2w">
             <p class="fr-callout__text">
               <strong>Aplatissement automatique :</strong> l'adapter Grist aplatit lui-même la structure
@@ -392,20 +404,20 @@ where="email:isnull"</pre></div>
             Avec <code>server-side</code>, la source charge une page a la fois.
             Le <code>dsfr-data-list</code> en aval pilote la navigation entre les pages.
           </p>
-          <div class="code-block"><pre>&lt;dsfr-data-source
-  id="srv"
-  api-type="opendatasoft"
-  dataset-id="rappelconso-v2-gtin-trie"
-  base-url="https://data.economie.gouv.fr"
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-source</span>
+  <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"srv"</span>
+  <span class="tok-attr">api-type</span><span class="tok-punct">=</span><span class="tok-string">"opendatasoft"</span>
+  <span class="tok-attr">dataset-id</span><span class="tok-punct">=</span><span class="tok-string">"rappelconso-v2-gtin-trie"</span>
+  <span class="tok-attr">base-url</span><span class="tok-punct">=</span><span class="tok-string">"https://data.economie.gouv.fr"</span>
   server-side
-  page-size="20"
-&gt;&lt;/dsfr-data-source&gt;
+  <span class="tok-attr">page-size</span><span class="tok-punct">=</span><span class="tok-string">"20"</span>
+<span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-source</span><span class="tok-punct">&gt;</span>
 
-&lt;dsfr-data-list source="srv"
-  columns="modeles_ou_references:Produit, categorie_produit:Catégorie, marque_produit:Marque"
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-list</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"srv"</span>
+  <span class="tok-attr">columns</span><span class="tok-punct">=</span><span class="tok-string">"modeles_ou_references:Produit, categorie_produit:Catégorie, marque_produit:Marque"</span>
   server-sort
-  pagination="20"&gt;
-&lt;/dsfr-data-list&gt;</pre></div>
+  <span class="tok-attr">pagination</span><span class="tok-punct">=</span><span class="tok-string">"20"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-list</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <section class="demo-section">
@@ -414,14 +426,14 @@ where="email:isnull"</pre></div>
             L'attribut <code>data</code> permet de passer des données JSON directement,
             sans aucun appel HTTP. Utile pour les exemples, prototypes ou données statiques.
           </p>
-          <div class="code-block"><pre>&lt;dsfr-data-source
-  id="inline"
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-source</span>
+  <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"inline"</span>
   data='[{"nom":"Paris","pop":2161000},{"nom":"Lyon","pop":516092},{"nom":"Marseille","pop":870731}]'
-&gt;&lt;/dsfr-data-source&gt;
+<span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-source</span><span class="tok-punct">&gt;</span>
 
-&lt;dsfr-data-chart source="inline" type="bar"
-  label-field="nom" value-field="pop"&gt;
-&lt;/dsfr-data-chart&gt;</pre></div>
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-chart</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"inline"</span> <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"bar"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"nom"</span> <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"pop"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-chart</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <section class="demo-section">
@@ -431,19 +443,19 @@ where="email:isnull"</pre></div>
             dans un registre global <code>window.DSFR_DATA_KEYS</code>, puis referencez-les par nom
             avec <code>api-key-ref</code>. La clé est injectee comme header <code>Authorization</code>.
           </p>
-          <div class="code-block"><pre>&lt;script&gt;
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">script</span><span class="tok-punct">&gt;</span>
   window.DSFR_DATA_KEYS = {
     tmdb: 'Bearer eyJhbGciOiJIUzI1NiJ9...',
     monapi: 'Token abc123'
   };
-&lt;/script&gt;
+<span class="tok-punct">&lt;/</span><span class="tok-tag">script</span><span class="tok-punct">&gt;</span>
 
-&lt;dsfr-data-source
-  id="films"
-  url="https://api.themoviedb.org/3/movie/popular"
-  api-key-ref="tmdb"
-  transform="results"
-&gt;&lt;/dsfr-data-source&gt;</pre></div>
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-source</span>
+  <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"films"</span>
+  <span class="tok-attr">url</span><span class="tok-punct">=</span><span class="tok-string">"https://api.themoviedb.org/3/movie/popular"</span>
+  <span class="tok-attr">api-key-ref</span><span class="tok-punct">=</span><span class="tok-string">"tmdb"</span>
+  <span class="tok-attr">transform</span><span class="tok-punct">=</span><span class="tok-string">"results"</span>
+<span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-source</span><span class="tok-punct">&gt;</span></pre></div>
           <div class="fr-callout fr-callout--blue-ecume fr-mt-2w">
             <p class="fr-callout__text">
               <strong>Comportement :</strong> si <code>api-key-ref</code> est défini et que la clé existe
@@ -468,13 +480,13 @@ where="email:isnull"</pre></div>
             L'attribut <code>refresh</code> re-execute la requête a intervalles reguliers (en secondes).
             Fonctionne dans les deux modes (URL brute et adapter).
           </p>
-          <div class="code-block"><pre>&lt;dsfr-data-source
-  id="live"
-  api-type="opendatasoft"
-  base-url="https://data.opendatasoft.com"
-  dataset-id="mon-dataset"
-  refresh="30"
-&gt;&lt;/dsfr-data-source&gt;</pre></div>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-source</span>
+  <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"live"</span>
+  <span class="tok-attr">api-type</span><span class="tok-punct">=</span><span class="tok-string">"opendatasoft"</span>
+  <span class="tok-attr">base-url</span><span class="tok-punct">=</span><span class="tok-string">"https://data.opendatasoft.com"</span>
+  <span class="tok-attr">dataset-id</span><span class="tok-punct">=</span><span class="tok-string">"mon-dataset"</span>
+  <span class="tok-attr">refresh</span><span class="tok-punct">=</span><span class="tok-string">"30"</span>
+<span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-source</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <h2 id="evenements" class="fr-mt-4w">Événements</h2>
@@ -487,18 +499,20 @@ where="email:isnull"</pre></div>
         </ul>
 
         <h2 id="methodes" class="fr-mt-4w">Méthodes publiques</h2>
-        <table class="attr-table">
-          <thead><tr><th>Méthode</th><th>Retour</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>reload()</code></td><td>void</td><td>Force le rechargement des données</td></tr>
-            <tr><td><code>getData()</code></td><td>unknown</td><td>Retourne les données actuelles</td></tr>
-            <tr><td><code>isLoading()</code></td><td>Boolean</td><td>Indique si un chargement est en cours</td></tr>
-            <tr><td><code>getError()</code></td><td>Error | null</td><td>Retourne l'erreur eventuelle</td></tr>
-            <tr><td><code>getAdapter()</code></td><td>ApiAdapter | null</td><td>Retourne l'adapter actif (mode adapter uniquement, <code>null</code> en mode URL brute)</td></tr>
-            <tr><td><code>getEffectiveWhere(excludeKey?)</code></td><td>String</td><td>Retourne la clause WHERE fusionnee (statique + tous les overlays dynamiques).
-              Le paramètre <code>excludeKey</code> permet d'exclure un overlay spécifique (utilise par les facettes).</td></tr>
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Méthode</th><th>Retour</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>reload()</code></td><td>void</td><td>Force le rechargement des données</td></tr>
+              <tr><td><code>getData()</code></td><td>unknown</td><td>Retourne les données actuelles</td></tr>
+              <tr><td><code>isLoading()</code></td><td>Boolean</td><td>Indique si un chargement est en cours</td></tr>
+              <tr><td><code>getError()</code></td><td>Error | null</td><td>Retourne l'erreur eventuelle</td></tr>
+              <tr><td><code>getAdapter()</code></td><td>ApiAdapter | null</td><td>Retourne l'adapter actif (mode adapter uniquement, <code>null</code> en mode URL brute)</td></tr>
+              <tr><td><code>getEffectiveWhere(excludeKey?)</code></td><td>String</td><td>Retourne la clause WHERE fusionnee (statique + tous les overlays dynamiques).
+                Le paramètre <code>excludeKey</code> permet d'exclure un overlay spécifique (utilise par les facettes).</td></tr>
+            </tbody>
+          </table>
+        </div>
 
         <h2 id="conseils" class="fr-mt-4w">Conseils d'utilisation</h2>
         <div class="fr-callout">

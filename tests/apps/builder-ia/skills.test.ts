@@ -6,8 +6,8 @@ import type { Source } from '../../../apps/builder-ia/src/state';
 import type { FilterOperator, AggregateFunction } from '@/components/dsfr-data-query.js';
 
 describe('builder-ia skills', () => {
-  it('should have 29 skill definitions', () => {
-    expect(Object.keys(SKILLS)).toHaveLength(29);
+  it('should have 32 skill definitions', () => {
+    expect(Object.keys(SKILLS)).toHaveLength(32);
   });
 
   it('should have expected skill IDs', () => {
@@ -34,8 +34,11 @@ describe('builder-ia skills', () => {
     expect(SKILLS).toHaveProperty('dsfrDataMap');
     expect(SKILLS).toHaveProperty('troubleshooting');
     expect(SKILLS).toHaveProperty('dsfrDataJoin');
+    expect(SKILLS).toHaveProperty('dsfrDataUnpivot');
+    expect(SKILLS).toHaveProperty('dsfrDataPivot');
     expect(SKILLS).toHaveProperty('dsfrDataPodium');
     expect(SKILLS).toHaveProperty('dsfrDataBeacon');
+    expect(SKILLS).toHaveProperty('attributeGrammars');
   });
 
   it('each skill should have required properties', () => {
@@ -135,6 +138,27 @@ describe('builder-ia skills', () => {
       const result = getRelevantSkills('filtre par departement', null);
       const ids = result.map((s) => s.id);
       expect(ids).toContain('dsfrDataQuery');
+    });
+
+    // #657 — chaque voie native ratee par le banc d'essai doit remonter la
+    // fiche « grammaires d'attributs » sur sa question naturelle.
+    it.each([
+      'comment découper une colonne sur |',
+      'arrondir un taux à 2 décimales',
+      'afficher 14,8 M au lieu du nombre complet, format abrégé',
+      'afficher le nombre de résultats total côté serveur',
+      'facette en choix unique avec des boutons radio',
+      'facettes en cascade : la région filtre les départements',
+      'filtrer sur l’année en cours sans script',
+      'la jointure ne matche pas à cause du zéro initial',
+      'exclure les valeurs nulles du graphique (is not null)',
+      'fond de carte neutre en niveaux de gris',
+      'afficher les contours des départements en fond administratif',
+      'changer le nom de la série du graphique',
+      'faire un treemap',
+    ])('« %s » remonte attributeGrammars', (question) => {
+      const ids = getRelevantSkills(question, null).map((s) => s.id);
+      expect(ids).toContain('attributeGrammars');
     });
   });
 
@@ -236,7 +260,15 @@ describe('builder-ia skills', () => {
 
     describe('aggregation functions coverage', () => {
       // Must match the AggregateFunction type in dsfr-data-query.ts
-      const AGG_FUNCTIONS: AggregateFunction[] = ['count', 'sum', 'avg', 'min', 'max'];
+      const AGG_FUNCTIONS: AggregateFunction[] = [
+        'count',
+        'sum',
+        'avg',
+        'min',
+        'max',
+        'distinct',
+        'running_sum',
+      ];
 
       it('dsfrDataQuery skill documents all aggregation functions', () => {
         const content = SKILLS.dsfrDataQuery.content;
@@ -267,14 +299,17 @@ describe('builder-ia skills', () => {
         DsfrDataMapLayer: 'dsfrDataMap',
         DsfrDataMapPopup: 'dsfrDataMap',
         DsfrDataMapInset: 'dsfrDataMap',
+        DsfrDataMapLegend: 'dsfrDataMap',
         DsfrDataMapTimeline: 'dsfrDataMap',
         DsfrDataA11y: 'dsfrDataA11y',
         DsfrDataJoin: 'dsfrDataJoin',
         DsfrDataUnpivot: 'dsfrDataUnpivot',
+        DsfrDataPivot: 'dsfrDataPivot',
         DsfrDataPodium: 'dsfrDataPodium',
         DsfrDataContext: 'dsfrDataContext',
         DsfrDataContextFilter: 'dsfrDataContextFilter',
         DsfrDataContextTags: 'dsfrDataContextTags',
+        DsfrDataContextValue: 'dsfrDataContextValue',
         DsfrDataBeacon: 'dsfrDataBeacon',
       };
 

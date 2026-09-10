@@ -6,7 +6,7 @@ description: Génère et corrige du HTML/JS qui utilise les Web Components datav
 # dsfr-data — skill Claude Code
 
 Bibliothèque de Web Components de dataviz conformes au DSFR (Design System de l'État), version
-0.21.0. Cette skill est **générée** par `npm run build:skills` depuis les skills du builder-IA
+0.27.0. Cette skill est **générée** par `npm run build:skills` depuis les skills du builder-IA
 (`apps/builder-ia/src/skills.ts` + référence extraite du code) : ne pas l'éditer à la main.
 
 ## Principe : un pipeline d'éléments HTML reliés par `id` / `source`
@@ -95,6 +95,14 @@ Bibliothèque de Web Components de dataviz conformes au DSFR (Design System de l
 |---|---|---|
 | [Action createChart](references/create-chart-action.md) | Specification de l'action JSON pour créer un graphique dans le builder-IA | createchart, créer un graphique, aperçu, preview |
 | [Action reloadData](references/reload-data-action.md) | Recharger les données de la source avec des parametres ODSQL | recharger, reloaddata, nouveaux parametres, refiltrer |
+
+### Autres
+
+| Référence | Quand la lire | Déclencheurs |
+|---|---|---|
+| [dsfr-data-context-value](references/dsfr-data-context-value.md) | Valeur courante d'un filtre du contexte, dans un titre ou une phrase | context-value, valeur du filtre, titre dynamique, resultats pour, interpoler filtre, libelle du filtre |
+| [dsfr-data-pivot](references/dsfr-data-pivot.md) | Replie un tableau "long" en "wide" (tableau croisé) : une colonne par valeur distincte d'un champ | pivot, tableau croisé, tableau croise, crosstab, cross-tab, lignes en colonnes |
+| [Grammaires d’attributs et voies natives](references/attribute-grammars.md) | Par attribut, la grammaire exacte et la voie native a essayer AVANT d’ecrire un script : split, round, format compact, decimales et unite d’un KPI, format date, compteur de resultats, facettes radio/select/cascade, annee en cours, cles de jointure, valeurs nulles, colonne calculee et recodage (compute, when), fond de carte neutre ou administratif, nom de serie, treemap | grammaire, voie native, decouper, separateur, multivalu, split |
 
 ## Règles transverses
 

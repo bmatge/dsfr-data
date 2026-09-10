@@ -49,9 +49,9 @@
 
         <h3>Pipeline</h3>
         <div class="code-block"><pre>dsfr-data-source (A) ──┐
-                       ├──&gt; dsfr-data-map                      (conteneur : Leaflet, tuiles, viewport, a11y)
-dsfr-data-source (B) ──┘     ├── dsfr-data-map-layer source="A"  (geoshape choroplèthe)
-                             ├── dsfr-data-map-layer source="B"  (markers, cercles, heatmap...)
+                       ├──<span class="tok-punct">&gt;</span> dsfr-data-map                      (conteneur : Leaflet, tuiles, viewport, a11y)
+dsfr-data-source (B) ──┘     ├── dsfr-data-map-layer <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"A"</span>  (geoshape choroplèthe)
+                             ├── dsfr-data-map-layer <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"B"</span>  (markers, cercles, heatmap...)
                              ├── dsfr-data-map-popup             (popup / modale / volet au clic)
                              ├── dsfr-data-map-inset             (encarts DROM, Corse...)
                              └── dsfr-data-map-timeline          (lecture temporelle des couches à time-field)</pre></div>
@@ -92,40 +92,49 @@ dsfr-data-source (B) ──┘     ├── dsfr-data-map-layer source="A"  (ge
         <!-- ============================================================ -->
 
         <h2 id="attributs" class="fr-mt-4w">Attributs</h2>
-        <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>center</code></td><td>String</td><td><code>"46.603,2.888"</code></td><td>Centre initial <code>"lat,lon"</code> (France métropolitaine par défaut)</td></tr>
-            <tr><td><code>zoom</code></td><td>Number</td><td><code>6</code></td><td>Niveau de zoom initial (1-18)</td></tr>
-            <tr><td><code>min-zoom</code></td><td>Number</td><td><code>2</code></td><td>Zoom minimum autorisé</td></tr>
-            <tr><td><code>max-zoom</code></td><td>Number</td><td><code>18</code></td><td>Zoom maximum autorisé</td></tr>
-            <tr><td><code>height</code></td><td>String</td><td><code>"500px"</code></td><td>Hauteur du conteneur Leaflet (pas de l'hôte : les encarts gardent leur place). Accepte toute unité CSS (<code>px</code>, <code>vh</code>, <code>rem</code>). Un pourcentage <code>"NN%"</code> est interprété comme un <strong>ratio de la largeur</strong> (aspect-ratio responsive, recalculé par ResizeObserver) : <code>height="60%"</code> = hauteur à 60&nbsp;% de la largeur courante.</td></tr>
-            <tr><td><code>tiles</code></td><td>String</td><td><code>"ign-plan"</code></td><td>Fond de carte : un des 6 presets (voir tableau ci-dessous), l'alias <code>osm</code> (&rarr; <code>osm-fr</code>), un preset déprécié (&rarr; <code>ign-plan</code> + warn : <code>ign-topo</code> #429, <code>carto-positron</code> et <code>carto-dark</code> #576), ou une URL template custom <code>{z}/{x}/{y}</code> &mdash; dans ce dernier cas <code>tiles-attribution</code> est obligatoire</td></tr>
-            <tr><td><code>tiles-attribution</code></td><td>String</td><td><code>""</code></td><td>Mention d'attribution affichée sur la carte quand <code>tiles</code> est une URL custom. Obligatoire pour respecter l'ODbL et les CGU du fournisseur (un <code>console.warn</code> signale son absence). Ignoré sur un preset connu, qui porte déjà son attribution.</td></tr>
-            <tr><td><code>sovereign-only</code></td><td>Boolean</td><td><code>false</code></td><td>Restreint <code>tiles</code> aux presets IGN souverains (<code>ign-plan</code>, <code>ign-ortho</code>, <code>ign-topo</code>, <code>ign-cadastre</code>). Tout autre preset ou URL custom est refusé avec un <code>console.warn</code> et remplacé par <code>ign-plan</code>.</td></tr>
-            <tr><td><code>no-controls</code></td><td>Boolean</td><td><code>false</code></td><td>Masque le contrôle de zoom Leaflet</td></tr>
-            <tr><td><code>locked</code></td><td>Boolean</td><td><code>false</code></td><td>Carte verrouillée : aucune interaction (pan, zoom, molette, clavier). Utilisé par les encarts et les vignettes.</td></tr>
-            <tr><td><code>insets</code></td><td>String</td><td><code>""</code></td><td>Raccourci encarts territoriaux : groupe et/ou territoires nommés séparés par des virgules (<code>"drom"</code>, <code>"drom,corse"</code>). Le groupe <code>drom</code> = guadeloupe, martinique, guyane, la-reunion, mayotte. Produit les <code>&lt;dsfr-data-map-inset&gt;</code> correspondants ; un encart posé explicitement en HTML pour le même territoire prime.</td></tr>
-            <tr><td><code>fit-bounds</code></td><td>Boolean</td><td><code>false</code></td><td>Ajuste automatiquement le viewport aux bounds des couches (padding 20, sans animation ; bounds recalculés à chaque rendu de couche). Les couches <code>no-interactive</code> sont exclues du calcul.</td></tr>
-            <tr><td><code>max-bounds</code></td><td>String</td><td><code>""</code></td><td>Limites de pan Leaflet <code>"latSW,lonSW,latNE,lonNE"</code> — <strong>ET clip du fit</strong> (ADR-094) : le rectangle du <code>fit-bounds</code> est intersecté avec cette zone, si bien que des données lointaines (DROM) ne dézooment plus la vue métropole. Intersection vide = vue inchangée.</td></tr>
-            <tr><td><code>name</code></td><td>String</td><td><code>""</code></td><td>Nom accessible de la carte (aria-label + description + télémétrie beacon)</td></tr>
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-map fields="center,zoom,min-zoom,max-zoom,height,tiles,tiles-attribution,tiles-style,sovereign-only,no-controls,locked,insets,fit-bounds,max-bounds,fit-zone,fit-max-zoom,name" -->
+                <tr><td><code>center</code></td><td>String</td><td><code>46.603,2.888</code></td><td>Centre initial de la carte, au format <code>"lat,lon"</code>.</td></tr>
+                <tr><td><code>zoom</code></td><td>Number</td><td><code>6</code></td><td>Niveau de zoom initial (1-18).</td></tr>
+                <tr><td><code>min-zoom</code></td><td>Number</td><td><code>2</code></td><td>Zoom minimum autorise.</td></tr>
+                <tr><td><code>max-zoom</code></td><td>Number</td><td><code>18</code></td><td>Zoom maximum autorise.</td></tr>
+                <tr><td><code>height</code></td><td>String</td><td><code>500px</code></td><td>Hauteur CSS (px, vh, rem). Un <code>%</code> est un ratio de la LARGEUR (ex: <code>"60%"</code> = 60 % de la largeur).</td></tr>
+                <tr><td><code>tiles</code></td><td>String</td><td><code>ign-plan</code></td><td>Fond de carte : <code>ign-plan</code>, <code>ign-ortho</code>, <code>ign-cadastre</code>, <code>osm-fr</code> (alias <code>osm</code>), <code>osm-standard</code>, <code>opentopomap</code>, ou une URL template. Presets deprecies (redirigent vers <code>ign-plan</code> avec un warning) : <code>ign-topo</code>, <code>carto-positron</code>, <code>carto-dark</code>.</td></tr>
+                <tr><td><code>tiles-attribution</code></td><td>String</td><td><code>""</code></td><td>Mention d'attribution affichée sur la carte quand <code>tiles</code> est une URL custom (obligatoire pour respecter l'ODbL et les CGU du fournisseur). Ignoré sur un preset connu, qui porte déjà son attribution. Accepte du HTML (liens).</td></tr>
+                <tr><td><code>tiles-style</code></td><td><code>""</code> · <code>muted</code> · <code>grey</code></td><td><code>""</code></td><td>Atténuation du fond de carte pour les cartes thématiques : <code>muted</code> (gris + 55 % d'opacité), <code>grey</code> (niveaux de gris). Vide (défaut) : fond tel quel. Filtre CSS sur le volet des tuiles de cette carte seulement ; les encarts héritent du réglage. Un fond « neutre » = <code>ign-plan</code> + <code>tiles-style="muted"</code> (#686).</td></tr>
+                <tr><td><code>sovereign-only</code></td><td>Boolean</td><td><code>false</code></td><td>Restreint <code>tiles</code> aux presets IGN souverains : tout autre preset ou URL custom est refuse (console.warn) et remplace par <code>ign-plan</code>.</td></tr>
+                <tr><td><code>no-controls</code></td><td>Boolean</td><td><code>false</code></td><td>Masque les controles de zoom.</td></tr>
+                <tr><td><code>locked</code></td><td>Boolean</td><td><code>false</code></td><td>Carte verrouillee : aucune interaction (pan/zoom/clavier) — encarts, vignettes</td></tr>
+                <tr><td><code>insets</code></td><td>String</td><td><code>""</code></td><td>Raccourci encarts territoriaux : groupe ("drom") et/ou territoires nommés séparés par des virgules ("drom,corse", "guadeloupe,saint-pierre-et-miquelon")</td></tr>
+                <tr><td><code>fit-bounds</code></td><td>Boolean</td><td><code>false</code></td><td>Ajuste le viewport aux données à chaque mise à jour. Combiné à <code>max-bounds</code>, l'emprise est clippée à la zone : les DROM ne dézooment pas la vue, un filtre régional zoome dessus.</td></tr>
+                <tr><td><code>max-bounds</code></td><td>String</td><td><code>""</code></td><td>Limites du déplacement, au format <code>"latSW,lonSW,latNE,lonNE"</code>. Clippe aussi le fit de <code>fit-bounds</code> quand <code>fit-zone</code> est vide.</td></tr>
+                <tr><td><code>fit-zone</code></td><td>String</td><td><code>""</code></td><td>Zone sur laquelle <code>fit-bounds</code> est clippé, au format <code>"latSW,lonSW,latNE,lonNE"</code> — le pan reste libre. Défaut : <code>max-bounds</code> s'il est renseigné ; sinon la métropole (<code>41,-5.5,51.5,10</code>) dès que la carte porte un encart ultramarin (<code>insets="drom"</code>…), pour que les DROM ne dézooment pas la vue ; sinon aucune zone. <code>fit-zone="none"</code> désactive le clip (#687).</td></tr>
+                <tr><td><code>fit-max-zoom</code></td><td>Number</td><td><code>0</code></td><td>Zoom maximal atteint par <code>fit-bounds</code> (ex. <code>12</code>) : évite le zoom 18 sur un point isolé quand les données se réduisent à un marqueur. <code>0</code> (défaut) = pas de plafond, <code>max-zoom</code> s'applique.</td></tr>
+                <tr><td><code>name</code></td><td>String</td><td><code>""</code></td><td>Titre de la carte, utilise comme nom accessible (aria-label).</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
 
         <h3>Fonds de carte prédéfinis</h3>
         <p>Tuiles accessibles <strong>sans clé API</strong>. Les presets <code>ign-*</code> sont servis par la <a href="https://geoservices.ign.fr/services-geoplateforme">Géoplateforme nationale IGN</a> (infrastructure cartographique de l'État, hébergée en France). Le preset <code>osm-fr</code> est servi par l'<a href="https://www.openstreetmap.fr/">association OpenStreetMap France</a> (association loi 1901, infra hébergée en France, distincte de l'OSM Foundation).</p>
         <p>Les fonds non-IGN sont fournis en <strong>best effort</strong> par des associations : aucune garantie de disponibilité, et des conditions d'usage propres à chaque fournisseur. En particulier, la <a href="https://www.openstreetmap.fr/usage/">politique d'usage d'OSM France</a> exige un site <strong>public, sans login ni intranet</strong>, sans but lucratif et à trafic modéré &mdash; ce qui exclut <code>osm-fr</code> d'un déploiement derrière authentification. Détail dans <code>docs/THIRD-PARTY-LICENSES.md</code>.</p>
-        <table class="attr-table">
-          <thead><tr><th>Preset</th><th>Source</th><th>Souverain</th><th>Endpoint</th></tr></thead>
-          <tbody>
-            <tr><td><code>ign-plan</code></td><td>Géoplateforme IGN — Plan IGN</td><td>Oui</td><td><code>data.geopf.fr/wmts</code> (layer <code>GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2</code>)</td></tr>
-            <tr><td><code>ign-ortho</code></td><td>Géoplateforme IGN — Orthophoto</td><td>Oui</td><td><code>data.geopf.fr/wmts</code> (layer <code>ORTHOIMAGERY.ORTHOPHOTOS</code>)</td></tr>
-            <tr><td><code>ign-cadastre</code></td><td>Géoplateforme IGN — Cadastre</td><td>Oui</td><td><code>data.geopf.fr/wmts</code> (layer <code>CADASTRALPARCELS.PARCELLAIRE_EXPRESS</code>)</td></tr>
-            <tr><td><code>osm-fr</code></td><td>OpenStreetMap France (association)</td><td>Non (associatif hors État)</td><td><code>{s}.tile.openstreetmap.fr/osmfr</code></td></tr>
-            <tr><td><code>osm-standard</code></td><td>OpenStreetMap (OSM Foundation)</td><td>Non</td><td><code>tile.openstreetmap.org</code></td></tr>
-            <tr><td><code>opentopomap</code></td><td>OpenTopoMap (CC-BY-SA)</td><td>Non</td><td><code>{s}.tile.opentopomap.org</code></td></tr>
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Preset</th><th>Source</th><th>Souverain</th><th>Endpoint</th></tr></thead>
+            <tbody>
+              <tr><td><code>ign-plan</code></td><td>Géoplateforme IGN — Plan IGN</td><td>Oui</td><td><code>data.geopf.fr/wmts</code> (layer <code>GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2</code>)</td></tr>
+              <tr><td><code>ign-ortho</code></td><td>Géoplateforme IGN — Orthophoto</td><td>Oui</td><td><code>data.geopf.fr/wmts</code> (layer <code>ORTHOIMAGERY.ORTHOPHOTOS</code>)</td></tr>
+              <tr><td><code>ign-cadastre</code></td><td>Géoplateforme IGN — Cadastre</td><td>Oui</td><td><code>data.geopf.fr/wmts</code> (layer <code>CADASTRALPARCELS.PARCELLAIRE_EXPRESS</code>)</td></tr>
+              <tr><td><code>osm-fr</code></td><td>OpenStreetMap France (association)</td><td>Non (associatif hors État)</td><td><code>{s}.tile.openstreetmap.fr/osmfr</code></td></tr>
+              <tr><td><code>osm-standard</code></td><td>OpenStreetMap (OSM Foundation)</td><td>Non</td><td><code>tile.openstreetmap.org</code></td></tr>
+              <tr><td><code>opentopomap</code></td><td>OpenTopoMap (CC-BY-SA)</td><td>Non</td><td><code>{s}.tile.opentopomap.org</code></td></tr>
+            </tbody>
+          </table>
+        </div>
         <p class="fr-mt-2w">
           <strong>Alias et dépréciation</strong> : <code>tiles="osm"</code> reste accepté et pointe
           vers le preset <code>osm-fr</code>. Trois presets sont <strong>dépréciés</strong> et résolvent vers
@@ -152,17 +161,19 @@ dsfr-data-source (B) ──┘     ├── dsfr-data-map-layer source="A"  (ge
         </p>
 
         <h2 id="api-js" class="fr-mt-4w">API JavaScript</h2>
-        <table class="attr-table">
-          <thead><tr><th>Méthode</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>getLeafletMap()</code></td><td>Retourne l'instance <code>L.Map</code> (ou <code>null</code> avant init)</td></tr>
-            <tr><td><code>getLeafletLib()</code></td><td>Retourne le module Leaflet chargé dynamiquement</td></tr>
-            <tr><td><code>registerLayerBounds(key, bounds)</code></td><td>Déclare les bounds d'une couche pour le <code>fit-bounds</code> (les bounds d'une clé sont remplacés à chaque rendu)</td></tr>
-            <tr><td><code>unregisterLayerBounds(key)</code></td><td>Retire une couche du calcul de fit</td></tr>
-            <tr><td><code>announceToScreenReader(msg)</code></td><td>Annonce un message dans la live region assertive</td></tr>
-            <tr><td><code>updateDescription(summaries)</code></td><td>Met à jour la description sr-only de la carte (appelé par les couches)</td></tr>
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Méthode</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>getLeafletMap()</code></td><td>Retourne l'instance <code>L.Map</code> (ou <code>null</code> avant init)</td></tr>
+              <tr><td><code>getLeafletLib()</code></td><td>Retourne le module Leaflet chargé dynamiquement</td></tr>
+              <tr><td><code>registerLayerBounds(key, bounds)</code></td><td>Déclare les bounds d'une couche pour le <code>fit-bounds</code> (les bounds d'une clé sont remplacés à chaque rendu)</td></tr>
+              <tr><td><code>unregisterLayerBounds(key)</code></td><td>Retire une couche du calcul de fit</td></tr>
+              <tr><td><code>announceToScreenReader(msg)</code></td><td>Annonce un message dans la live region assertive</td></tr>
+              <tr><td><code>updateDescription(summaries)</code></td><td>Met à jour la description sr-only de la carte (appelé par les couches)</td></tr>
+            </tbody>
+          </table>
+        </div>
 
         <!-- ============================================================ -->
         <!-- Exemples -->
@@ -172,30 +183,30 @@ dsfr-data-source (B) ──┘     ├── dsfr-data-map-layer source="A"  (ge
 
         <section class="demo-section">
           <h3>1. Carte simple avec une couche de POI</h3>
-          <div class="code-block"><pre>&lt;dsfr-data-source id="bornes" api-type="opendatasoft"
-  base-url="https://odre.opendatasoft.com" dataset-id="bornes-irve"
-  select="geo_point_2d,nom_station,puissance_nominale,adresse"
-  limit="5000"&gt;
-&lt;/dsfr-data-source&gt;
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-source</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"bornes"</span> <span class="tok-attr">api-type</span><span class="tok-punct">=</span><span class="tok-string">"opendatasoft"</span>
+  <span class="tok-attr">base-url</span><span class="tok-punct">=</span><span class="tok-string">"https://odre.opendatasoft.com"</span> <span class="tok-attr">dataset-id</span><span class="tok-punct">=</span><span class="tok-string">"bornes-irve"</span>
+  <span class="tok-attr">select</span><span class="tok-punct">=</span><span class="tok-string">"geo_point_2d,nom_station,puissance_nominale,adresse"</span>
+  <span class="tok-attr">limit</span><span class="tok-punct">=</span><span class="tok-string">"5000"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-source</span><span class="tok-punct">&gt;</span>
 
-&lt;dsfr-data-map name="Bornes de recharge en France" center="46.6,2.3" zoom="6" tiles="ign-plan" fit-bounds&gt;
-  &lt;dsfr-data-map-layer source="bornes" type="marker"
-    geo-field="geo_point_2d"
-    tooltip-field="nom_station"
-    cluster&gt;
-  &lt;/dsfr-data-map-layer&gt;
-&lt;/dsfr-data-map&gt;</pre></div>
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map</span> <span class="tok-attr">name</span><span class="tok-punct">=</span><span class="tok-string">"Bornes de recharge en France"</span> <span class="tok-attr">center</span><span class="tok-punct">=</span><span class="tok-string">"46.6,2.3"</span> <span class="tok-attr">zoom</span><span class="tok-punct">=</span><span class="tok-string">"6"</span> <span class="tok-attr">tiles</span><span class="tok-punct">=</span><span class="tok-string">"ign-plan"</span> fit-bounds<span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map-layer</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"bornes"</span> <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"marker"</span>
+    <span class="tok-attr">geo-field</span><span class="tok-punct">=</span><span class="tok-string">"geo_point_2d"</span>
+    <span class="tok-attr">tooltip-field</span><span class="tok-punct">=</span><span class="tok-string">"nom_station"</span>
+    cluster<span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map-layer</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <section class="demo-section fr-mt-4w">
           <h3>2. Hauteur en ratio + carte verrouillée (vignette)</h3>
-          <div class="code-block"><pre>&lt;!-- height="60%" = hauteur à 60 % de la largeur courante (aspect-ratio responsive) --&gt;
-&lt;dsfr-data-map center="48.85,2.35" zoom="11" height="60%"
-  locked no-controls tiles="ign-plan" name="Vignette Paris"&gt;
-  &lt;dsfr-data-map-layer source="arrondissements" type="geoshape"
-    geo-field="geo_shape" no-interactive color="#000091" fill-opacity="0.1"&gt;
-  &lt;/dsfr-data-map-layer&gt;
-&lt;/dsfr-data-map&gt;</pre></div>
+          <div class="code-block"><pre><span class="tok-comment">&lt;!-- height="60%" = hauteur à 60 % de la largeur courante (aspect-ratio responsive) --&gt;</span>
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map</span> <span class="tok-attr">center</span><span class="tok-punct">=</span><span class="tok-string">"48.85,2.35"</span> <span class="tok-attr">zoom</span><span class="tok-punct">=</span><span class="tok-string">"11"</span> <span class="tok-attr">height</span><span class="tok-punct">=</span><span class="tok-string">"60%"</span>
+  locked no-controls <span class="tok-attr">tiles</span><span class="tok-punct">=</span><span class="tok-string">"ign-plan"</span> <span class="tok-attr">name</span><span class="tok-punct">=</span><span class="tok-string">"Vignette Paris"</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map-layer</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"arrondissements"</span> <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"geoshape"</span>
+    <span class="tok-attr">geo-field</span><span class="tok-punct">=</span><span class="tok-string">"geo_shape"</span> no-interactive <span class="tok-attr">color</span><span class="tok-punct">=</span><span class="tok-string">"#000091"</span> <span class="tok-attr">fill-opacity</span><span class="tok-punct">=</span><span class="tok-string">"0.1"</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map-layer</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <section class="demo-section fr-mt-4w">
@@ -205,28 +216,47 @@ dsfr-data-source (B) ──┘     ├── dsfr-data-map-layer source="A"  (ge
             feraient dézoomer sur l'Atlantique. <code>max-bounds</code> clippe le fit sur la
             métropole ; les DROM restent visibles dans les encarts.
           </p>
-          <div class="code-block"><pre>&lt;dsfr-data-map center="46.5,2.6" zoom="6" min-zoom="3" height="620px"
-  tiles="ign-plan" fit-bounds max-bounds="38.5,-13,54,15"
-  insets="drom" name="Territoires engagés"&gt;
-  &lt;dsfr-data-map-layer source="territoires" type="geoshape"
-    geo-field="geojson" fill-field="habitants"
-    selected-palette="sequentialAscending" tooltip-field="nom"&gt;
-  &lt;/dsfr-data-map-layer&gt;
-  &lt;dsfr-data-map-popup mode="panel-right" title-field="nom"&gt;
-    &lt;template&gt;&lt;p&gt;{{habitants:number}} habitants&lt;/p&gt;&lt;/template&gt;
-  &lt;/dsfr-data-map-popup&gt;
-&lt;/dsfr-data-map&gt;</pre></div>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map</span> <span class="tok-attr">center</span><span class="tok-punct">=</span><span class="tok-string">"46.5,2.6"</span> <span class="tok-attr">zoom</span><span class="tok-punct">=</span><span class="tok-string">"6"</span> <span class="tok-attr">min-zoom</span><span class="tok-punct">=</span><span class="tok-string">"3"</span> <span class="tok-attr">height</span><span class="tok-punct">=</span><span class="tok-string">"620px"</span>
+  <span class="tok-attr">tiles</span><span class="tok-punct">=</span><span class="tok-string">"ign-plan"</span> fit-bounds <span class="tok-attr">max-bounds</span><span class="tok-punct">=</span><span class="tok-string">"38.5,-13,54,15"</span>
+  <span class="tok-attr">insets</span><span class="tok-punct">=</span><span class="tok-string">"drom"</span> <span class="tok-attr">name</span><span class="tok-punct">=</span><span class="tok-string">"Territoires engagés"</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map-layer</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"territoires"</span> <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"geoshape"</span>
+    <span class="tok-attr">geo-field</span><span class="tok-punct">=</span><span class="tok-string">"geojson"</span> <span class="tok-attr">fill-field</span><span class="tok-punct">=</span><span class="tok-string">"habitants"</span>
+    <span class="tok-attr">selected-palette</span><span class="tok-punct">=</span><span class="tok-string">"sequentialAscending"</span> <span class="tok-attr">tooltip-field</span><span class="tok-punct">=</span><span class="tok-string">"nom"</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map-layer</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map-popup</span> <span class="tok-attr">mode</span><span class="tok-punct">=</span><span class="tok-string">"panel-right"</span> <span class="tok-attr">title-field</span><span class="tok-punct">=</span><span class="tok-string">"nom"</span><span class="tok-punct">&gt;</span>
+    <span class="tok-punct">&lt;</span><span class="tok-tag">template</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;</span><span class="tok-tag">p</span><span class="tok-punct">&gt;</span>{{habitants:number}} habitants<span class="tok-punct">&lt;/</span><span class="tok-tag">p</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">template</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map-popup</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <!-- ============================================================ -->
         <!-- Voir aussi -->
         <!-- ============================================================ -->
 
+        <h2 id="legende" class="fr-mt-4w">Légende &mdash; <code>dsfr-data-map-legend</code></h2>
+        <p>
+          Compagnon déclaratif placé dans la carte : il rend la légende des couches
+          (classes d'une choroplèthe, paires de <code>color-map</code>, ou entrée unique
+          d'une couche monochrome) et se met à jour avec elles.
+        </p>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-map-legend fields="for,label" -->
+                <tr><td><code>for</code></td><td>String</td><td><code>""</code></td><td>Id (ou <code>source</code>) de la couche dsfr-data-map-layer décrite. Vide = toutes les couches directes de la carte hôte, entrées concaténées.</td></tr>
+                <tr><td><code>label</code></td><td>String</td><td><code>""</code></td><td>Titre de la légende, affiché au-dessus de la liste (ex. « Densité (hab./km²) »). Sert aussi de libellé à l'entrée unique d'une couche monochrome.</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
+
         <h2 class="fr-mt-4w">Composants compagnons</h2>
         <ul>
           <li><a href="dsfr-data-map-layer.html"><code>dsfr-data-map-layer</code></a> — couche de données : markers, geoshape, cercles proportionnels, heatmap, clustering, bbox, animation temporelle</li>
           <li><a href="dsfr-data-map-popup.html"><code>dsfr-data-map-popup</code></a> — affichage au clic : popup, modale ou volet latéral avec template</li>
           <li><a href="dsfr-data-map-inset.html"><code>dsfr-data-map-inset</code></a> — encarts territoriaux (DROM, Corse, zoom local)</li>
+          <li><a href="#legende"><code>dsfr-data-map-legend</code></a> — légende des couches (classes de choroplèthe, <code>color-map</code>, couche monochrome)</li>
           <li><a href="dsfr-data-map-timeline.html"><code>dsfr-data-map-timeline</code></a> — contrôles de lecture temporelle</li>
         </ul>
     </div>

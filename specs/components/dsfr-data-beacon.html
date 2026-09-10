@@ -54,16 +54,20 @@
         </p>
 
         <h2 id="attributs" class="fr-mt-4w">Attributs</h2>
-        <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Format / Valeurs</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>url</code></td><td>String</td><td><code>url="https://collecte.ministere.fr"</code></td><td>Domaine de collecte du beacon. Présence avec valeur non vide = opt-in + cible. Vide ou absent = no-op (aucune collecte declarative).</td></tr>
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Format / Valeurs</th><th>Description</th></tr></thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-beacon fields="url" -->
+                <tr><td><code>url</code></td><td>String</td><td><code>url="https://collecte.ministere.fr"</code></td><td>Domaine de collecte du beacon. Vide = pas de cible declarative (no-op).</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
 
         <h2 id="precedence" class="fr-mt-4w">Precedence et opt-in</h2>
         <p>L'URL de collecte est resolue, du plus spécifique au plus général :</p>
-        <div class="code-block"><pre>&lt;dsfr-data-beacon url&gt;  &gt;  window.DSFR_DATA_BEACON_URL  &gt;  URL bakee au build</pre></div>
+        <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-beacon</span> url<span class="tok-punct">&gt;</span>  <span class="tok-punct">&gt;</span>  window.DSFR_DATA_BEACON_URL  <span class="tok-punct">&gt;</span>  URL bakee au build</pre></div>
         <p>L'opt-in (off par défaut) est acquis si l'une de ces conditions est vraie :</p>
         <ul>
           <li><code>window.DSFR_DATA_BEACON === true</code> (opt-in global classique) ;</li>
@@ -81,23 +85,23 @@
         <section class="demo-section">
           <h3>Telemetrie vers un collecteur souverain</h3>
           <p>L'element, visible dans la page, active et cible la collecte. Il peut etre place avant ou apres les composants.</p>
-          <div class="code-block"><pre>&lt;dsfr-data-beacon url="https://collecte.ministere.fr"&gt;&lt;/dsfr-data-beacon&gt;
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-beacon</span> <span class="tok-attr">url</span><span class="tok-punct">=</span><span class="tok-string">"https://collecte.ministere.fr"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-beacon</span><span class="tok-punct">&gt;</span>
 
-&lt;dsfr-data-source id="src" api-type="opendatasoft"
-  dataset-id="..." base-url="https://data.gouv.fr"&gt;
-&lt;/dsfr-data-source&gt;
-&lt;dsfr-data-chart source="src" type="bar"
-  label-field="region" value-field="total"&gt;
-&lt;/dsfr-data-chart&gt;</pre></div>
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-source</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"src"</span> <span class="tok-attr">api-type</span><span class="tok-punct">=</span><span class="tok-string">"opendatasoft"</span>
+  <span class="tok-attr">dataset-id</span><span class="tok-punct">=</span><span class="tok-string">"..."</span> <span class="tok-attr">base-url</span><span class="tok-punct">=</span><span class="tok-string">"https://data.gouv.fr"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-source</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-chart</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"src"</span> <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"bar"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"region"</span> <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"total"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-chart</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <section class="demo-section">
           <h3>Retrait par l'integrateur</h3>
           <p>Pour desactiver la telemetrie, il suffit de retirer la ligne — ou de poser le kill switch :</p>
-          <div class="code-block"><pre>&lt;!-- Aucune ligne &lt;dsfr-data-beacon&gt; : aucune telemetrie declarative --&gt;
+          <div class="code-block"><pre><span class="tok-comment">&lt;!-- Aucune ligne &lt;dsfr-data-beacon&gt; : aucune telemetrie declarative --&gt;</span>
 
-&lt;!-- ...ou neutralisation explicite, même si un element traine ailleurs : --&gt;
-&lt;script&gt;window.DSFR_DATA_BEACON = false;&lt;/script&gt;</pre></div>
+<span class="tok-comment">&lt;!-- ...ou neutralisation explicite, même si un element traine ailleurs : --&gt;</span>
+<span class="tok-punct">&lt;</span><span class="tok-tag">script</span><span class="tok-punct">&gt;</span>window.DSFR_DATA_BEACON = false;<span class="tok-punct">&lt;/</span><span class="tok-tag">script</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <h2 id="comportement" class="fr-mt-4w">Comportement</h2>

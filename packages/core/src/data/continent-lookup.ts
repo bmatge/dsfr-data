@@ -3,6 +3,7 @@
  * Data from Natural Earth / UN M49 classification.
  * Covers all 177 countries in world-atlas countries-110m.json.
  */
+import { normalizeGeoLabel, flattenSeparators } from '../utils/map-geo-keys.js';
 
 /** ISO 3166-1 numeric → continent */
 export const COUNTRY_CONTINENT: Record<string, string> = {
@@ -552,6 +553,253 @@ export const ISO_A3_TO_NUM: Record<string, string> = {
   SLB: '090',
 };
 
+/**
+ * Nom français de pays (désaccentué, séparateurs aplatis, apostrophe droite)
+ * vers l'alpha-2 (#743).
+ *
+ * Les jeux publics nomment leurs pays en français bien plus souvent qu'ils ne
+ * les codent : sans cette table, `<map-chart level="monde">` obligeait à
+ * réécrire à la main chaque correspondance. Les clés sont déjà normalisées par
+ * `normalizeGeoLabel` + `flattenSeparators` — la recherche normalise l'entrée
+ * de la même façon, ce qui rend la table insensible à la casse, aux accents et
+ * aux traits d'union.
+ *
+ * Liste blanche, comme les référentiels d'académies et de régions (#729) : un
+ * nom absent de cette table renvoie une chaîne vide, donc une ligne comptée
+ * par `getSkippedCount()`. On ne devine pas — mieux vaut une ligne ignorée
+ * qu'un pays colorié à tort. C'est pourquoi « Angleterre » n'y figure pas :
+ * ce n'est pas le Royaume-Uni.
+ *
+ * Le périmètre est celui de `ISO_A2_TO_NUM`, c'est-à-dire les pays que la
+ * carte monde de DSFR Chart sait dessiner.
+ */
+export const FRENCH_COUNTRY_NAMES: Readonly<Record<string, string>> = {
+  AFGHANISTAN: 'AF',
+  'AFRIQUE DU SUD': 'ZA',
+  ALBANIE: 'AL',
+  ALGERIE: 'DZ',
+  ALLEMAGNE: 'DE',
+  "REPUBLIQUE FEDERALE D'ALLEMAGNE": 'DE',
+  ANGOLA: 'AO',
+  ANTARCTIQUE: 'AQ',
+  'ARABIE SAOUDITE': 'SA',
+  ARGENTINE: 'AR',
+  ARMENIE: 'AM',
+  AUSTRALIE: 'AU',
+  AUTRICHE: 'AT',
+  AZERBAIDJAN: 'AZ',
+  BAHAMAS: 'BS',
+  BAHREIN: 'BH',
+  BANGLADESH: 'BD',
+  BELGIQUE: 'BE',
+  BELIZE: 'BZ',
+  BENIN: 'BJ',
+  BHOUTAN: 'BT',
+  BIELORUSSIE: 'BY',
+  BELARUS: 'BY',
+  BIRMANIE: 'MM',
+  MYANMAR: 'MM',
+  BOLIVIE: 'BO',
+  'BOSNIE HERZEGOVINE': 'BA',
+  BOTSWANA: 'BW',
+  BRESIL: 'BR',
+  BRUNEI: 'BN',
+  'BRUNEI DARUSSALAM': 'BN',
+  BULGARIE: 'BG',
+  'BURKINA FASO': 'BF',
+  BURUNDI: 'BI',
+  CAMBODGE: 'KH',
+  CAMEROUN: 'CM',
+  CANADA: 'CA',
+  CENTRAFRIQUE: 'CF',
+  'REPUBLIQUE CENTRAFRICAINE': 'CF',
+  CHILI: 'CL',
+  CHINE: 'CN',
+  'REPUBLIQUE POPULAIRE DE CHINE': 'CN',
+  CHYPRE: 'CY',
+  COLOMBIE: 'CO',
+  CONGO: 'CG',
+  'REPUBLIQUE DU CONGO': 'CG',
+  'CONGO BRAZZAVILLE': 'CG',
+  'REPUBLIQUE DEMOCRATIQUE DU CONGO': 'CD',
+  'CONGO KINSHASA': 'CD',
+  RDC: 'CD',
+  'COREE DU NORD': 'KP',
+  'REPUBLIQUE POPULAIRE DEMOCRATIQUE DE COREE': 'KP',
+  'COREE DU SUD': 'KR',
+  'REPUBLIQUE DE COREE': 'KR',
+  'COSTA RICA': 'CR',
+  "COTE D'IVOIRE": 'CI',
+  CROATIE: 'HR',
+  CUBA: 'CU',
+  DANEMARK: 'DK',
+  DJIBOUTI: 'DJ',
+  EGYPTE: 'EG',
+  'EMIRATS ARABES UNIS': 'AE',
+  EQUATEUR: 'EC',
+  ERYTHREE: 'ER',
+  ESPAGNE: 'ES',
+  ESTONIE: 'EE',
+  ESWATINI: 'SZ',
+  SWAZILAND: 'SZ',
+  'ETATS UNIS': 'US',
+  "ETATS UNIS D'AMERIQUE": 'US',
+  ETHIOPIE: 'ET',
+  FIDJI: 'FJ',
+  'ILES FIDJI': 'FJ',
+  FINLANDE: 'FI',
+  FRANCE: 'FR',
+  'REPUBLIQUE FRANCAISE': 'FR',
+  GABON: 'GA',
+  GAMBIE: 'GM',
+  GEORGIE: 'GE',
+  GHANA: 'GH',
+  GRECE: 'GR',
+  GRENADE: 'GD',
+  GROENLAND: 'GL',
+  GUATEMALA: 'GT',
+  GUINEE: 'GN',
+  'GUINEE BISSAU': 'GW',
+  'GUINEE EQUATORIALE': 'GQ',
+  GUYANA: 'GY',
+  HAITI: 'HT',
+  HONDURAS: 'HN',
+  HONGRIE: 'HU',
+  'ILES MALOUINES': 'FK',
+  MALOUINES: 'FK',
+  'ILES FALKLAND': 'FK',
+  'ILES SALOMON': 'SB',
+  SALOMON: 'SB',
+  INDE: 'IN',
+  INDONESIE: 'ID',
+  IRAK: 'IQ',
+  IRAN: 'IR',
+  IRLANDE: 'IE',
+  ISLANDE: 'IS',
+  ISRAEL: 'IL',
+  ITALIE: 'IT',
+  JAMAIQUE: 'JM',
+  JAPON: 'JP',
+  JORDANIE: 'JO',
+  KAZAKHSTAN: 'KZ',
+  KENYA: 'KE',
+  KIRGHIZISTAN: 'KG',
+  KOWEIT: 'KW',
+  LAOS: 'LA',
+  LESOTHO: 'LS',
+  LETTONIE: 'LV',
+  LIBAN: 'LB',
+  LIBERIA: 'LR',
+  LIBYE: 'LY',
+  LITUANIE: 'LT',
+  LUXEMBOURG: 'LU',
+  'MACEDOINE DU NORD': 'MK',
+  MACEDOINE: 'MK',
+  MADAGASCAR: 'MG',
+  MALAISIE: 'MY',
+  MALAWI: 'MW',
+  MALI: 'ML',
+  MAROC: 'MA',
+  MAURITANIE: 'MR',
+  MEXIQUE: 'MX',
+  MOLDAVIE: 'MD',
+  MONGOLIE: 'MN',
+  MONTENEGRO: 'ME',
+  MOZAMBIQUE: 'MZ',
+  NAMIBIE: 'NA',
+  NEPAL: 'NP',
+  NICARAGUA: 'NI',
+  NIGER: 'NE',
+  NIGERIA: 'NG',
+  NORVEGE: 'NO',
+  'NOUVELLE CALEDONIE': 'NC',
+  'NOUVELLE ZELANDE': 'NZ',
+  OMAN: 'OM',
+  OUGANDA: 'UG',
+  OUZBEKISTAN: 'UZ',
+  PAKISTAN: 'PK',
+  PALESTINE: 'PS',
+  'TERRITOIRES PALESTINIENS': 'PS',
+  PANAMA: 'PA',
+  'PAPOUASIE NOUVELLE GUINEE': 'PG',
+  PARAGUAY: 'PY',
+  'PAYS BAS': 'NL',
+  PEROU: 'PE',
+  PHILIPPINES: 'PH',
+  POLOGNE: 'PL',
+  'PORTO RICO': 'PR',
+  PORTUGAL: 'PT',
+  QATAR: 'QA',
+  ROUMANIE: 'RO',
+  'ROYAUME UNI': 'GB',
+  "ROYAUME UNI DE GRANDE BRETAGNE ET D'IRLANDE DU NORD": 'GB',
+  RUSSIE: 'RU',
+  'FEDERATION DE RUSSIE': 'RU',
+  RWANDA: 'RW',
+  'SAHARA OCCIDENTAL': 'EH',
+  SALVADOR: 'SV',
+  'EL SALVADOR': 'SV',
+  SENEGAL: 'SN',
+  SERBIE: 'RS',
+  'SIERRA LEONE': 'SL',
+  SINGAPOUR: 'SG',
+  SLOVAQUIE: 'SK',
+  SLOVENIE: 'SI',
+  SOMALIE: 'SO',
+  SOUDAN: 'SD',
+  'SOUDAN DU SUD': 'SS',
+  'SRI LANKA': 'LK',
+  SUEDE: 'SE',
+  SUISSE: 'CH',
+  SURINAME: 'SR',
+  SYRIE: 'SY',
+  TADJIKISTAN: 'TJ',
+  TAIWAN: 'TW',
+  TANZANIE: 'TZ',
+  TCHAD: 'TD',
+  TCHEQUIE: 'CZ',
+  'REPUBLIQUE TCHEQUE': 'CZ',
+  THAILANDE: 'TH',
+  'TIMOR ORIENTAL': 'TL',
+  'TIMOR LESTE': 'TL',
+  TOGO: 'TG',
+  'TRINITE ET TOBAGO': 'TT',
+  TUNISIE: 'TN',
+  TURKMENISTAN: 'TM',
+  TURQUIE: 'TR',
+  UKRAINE: 'UA',
+  URUGUAY: 'UY',
+  VANUATU: 'VU',
+  VENEZUELA: 'VE',
+  'VIET NAM': 'VN',
+  VIETNAM: 'VN',
+  YEMEN: 'YE',
+  ZAMBIE: 'ZM',
+  ZIMBABWE: 'ZW',
+  'REPUBLIQUE DOMINICAINE': 'DO',
+};
+
+/** Article ouvrant un nom de pays (« la France », « les Pays-Bas », « l'Inde »). */
+const COUNTRY_ARTICLE = /^(?:LE |LA |LES |L'|DU |DES |DE LA |DE L')/;
+
+/**
+ * Alpha-2 correspondant à un nom de pays écrit en français, ou chaîne vide si
+ * le nom n'est pas au référentiel (#743).
+ *
+ * Insensible à la casse, aux accents, aux traits d'union et à l'article de
+ * tête : « Allemagne », « allemagne », « ALLEMAGNE » et « l'Allemagne »
+ * donnent tous `DE`. Les formes longues courantes sont acceptées quand elles
+ * lèvent une ambiguïté (« République fédérale d'Allemagne »).
+ */
+export function frenchNameToIsoA2(name: string): string {
+  const normalized = flattenSeparators(normalizeGeoLabel(name));
+  if (!normalized) return '';
+  const direct = FRENCH_COUNTRY_NAMES[normalized];
+  if (direct) return direct;
+  const withoutArticle = normalized.replace(COUNTRY_ARTICLE, '').trim();
+  return FRENCH_COUNTRY_NAMES[withoutArticle] ?? '';
+}
+
 /** Normalize any ISO code format to numeric */
 export function toIsoNumeric(code: string, format: 'iso-a2' | 'iso-a3' | 'iso-num'): string {
   const upper = code.trim().toUpperCase();
@@ -568,10 +816,14 @@ export function toIsoNumeric(code: string, format: 'iso-a2' | 'iso-a3' | 'iso-nu
 let NUM_TO_ISO_A2: Record<string, string> | null = null;
 
 /**
- * Normalize any ISO code format (alpha-2, alpha-3 or numeric) to alpha-2,
- * auto-detecting the input format. Returns '' when the code is unknown.
- * Needed by <map-chart level="monde"> (DSFR Chart >= 2.1.0), which only
- * accepts alpha-2 keys.
+ * Normalise un code alpha-2, alpha-3, numérique **ou un nom de pays écrit en
+ * français** vers l'alpha-2, en détectant seule la forme de l'entrée.
+ * Retourne une chaîne vide quand la valeur ne désigne aucun pays du
+ * référentiel — l'appelant la compte alors comme ignorée (#729, #743) plutôt
+ * que de la transmettre en silence.
+ *
+ * Nécessaire à `map-chart level="monde"` (DSFR Chart 2.1 et plus), qui
+ * n'accepte que des clés alpha-2.
  */
 export function toIsoA2(code: string): string {
   const upper = code.trim().toUpperCase();
@@ -584,7 +836,10 @@ export function toIsoA2(code: string): string {
   } else if (/^\d{1,3}$/.test(upper)) {
     num = upper.padStart(3, '0');
   }
-  if (!num) return '';
+  // Ni alpha-2, ni alpha-3, ni numérique : dernière chance, un nom français
+  // (#743). Aucune collision possible, aucun nom de pays ne fait deux ou
+  // trois lettres non accentuées.
+  if (!num) return frenchNameToIsoA2(code);
   if (!NUM_TO_ISO_A2) {
     NUM_TO_ISO_A2 = {};
     for (const [a2, n] of Object.entries(ISO_A2_TO_NUM)) {

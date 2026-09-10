@@ -3,7 +3,12 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { getByPath } from '../utils/json-path.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
-import { renderSourceLoading, renderSourceError } from '../utils/status-templates.js';
+import {
+  renderSourceLoading,
+  renderSourceError,
+  renderSourceIdle,
+  IDLE_MESSAGE_DEFAULT,
+} from '../utils/status-templates.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import {
   parseReferenceLines,
@@ -37,8 +42,19 @@ import {
   type RadialScaleBounds,
   type RadialChartLike,
 } from '../utils/chart-radial-scale.js';
-import { escapeHtml, toNumber, isValidDeptCode, normalizeDeptCode } from '@dsfr-data/shared/lib';
+import {
+  escapeHtml,
+  toNumber,
+  isValidDeptCode,
+  normalizeDeptCode,
+  formatDate,
+  parseAliasedColumn,
+  parseAliasedColumns,
+  type AliasedColumn,
+} from '@dsfr-data/shared/lib';
 import { toIsoA2 } from '../data/continent-lookup.js';
+import { toAcademyKey, toRegionKey } from '../utils/map-geo-keys.js';
+import { parseColorMap, applyColorMap, type ColorableChart } from '../utils/color-map.js';
 
 type DSFRChartType =
   | 'line'
@@ -68,7 +84,7 @@ const MAP_LEVEL: Record<string, string> = {
   'map-monde': 'monde',
 };
 
-/** Maps chart type -> DSFR custom element tag name */
+/** Maps chart type -> DSFR custom élément tag name */
 const CHART_TAG_MAP: Record<string, string> = {
   line: 'line-chart',
   bar: 'bar-chart',
@@ -114,21 +130,48 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   labelField = '';
 
   /**
+   * Libellé affiché pour une catégorie vide (`null`, `undefined` ou `""`
+   * dans `label-field`) : légende du pie, axe X des cartésiens (#647).
+   * Sans lui, DSFR Chart substituerait « Série N » à un nom vide.
+   * Pour EXCLURE ces lignes plutôt que les nommer, filtrer en amont :
+   * `where="champ:isnotnull"` (query) ou `where="champ is not null"` (source ODS).
+   */
+  @property({ type: String, attribute: 'empty-label' })
+  emptyLabel = 'Non renseigné';
+
+  /**
+   * Message rendu quand l'amont attend un filtre (`require-where`, #690).
+   * Distinct de « aucune donnée » : aucune requête n'a été faite. Vide,
+   * le libellé par défaut est utilisé.
+   */
+  @property({ type: String, attribute: 'idle-message' })
+  idleMessage = IDLE_MESSAGE_DEFAULT;
+
+  /**
    * Chemin vers le champ code (prioritaire sur label-field) : departement/region
    * (map/map-reg), nom d'academie (map-aca), code pays ISO a2/a3/num (map-monde)
    */
   @property({ type: String, attribute: 'code-field' })
   codeField = '';
 
-  /** Chemin vers le champ valeur */
+  /**
+   * Chemin vers le champ valeur. Alias inline `champ:Libellé` (#668) :
+   * `value-field="Panier_moyen:Panier moyen"` affiche « Panier moyen » dans la
+   * légende à la place du nom technique. Un `name` explicite prime sur l'alias.
+   * Un `:` littéral dans un chemin ou un libellé s'échappe en `%3A` (escapeColonValue).
+   */
   @property({ type: String, attribute: 'value-field' })
   valueField = '';
 
-  /** Chemin vers un second champ de valeur (pour bar-line: y-bar) */
+  /** Chemin vers un second champ de valeur (pour bar-line: y-line). Alias inline `champ:Libellé` accepté (#668). */
   @property({ type: String, attribute: 'value-field-2' })
   valueField2 = '';
 
-  /** Champs de valeur supplementaires, separes par des virgules (ex: 'budget,score') */
+  /**
+   * Champs de valeur supplémentaires, séparés par des virgules (ex: 'budget,score').
+   * Alias inline `champ:Libellé` par série (#668) : `value-fields="budget:Budget, score:Score"`.
+   * Un `name` explicite (tableau JSON) prime sur les alias.
+   */
   @property({ type: String, attribute: 'value-fields' })
   valueFields = '';
 
@@ -141,13 +184,32 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'series-field' })
   seriesField = '';
 
-  /** Noms des séries (ex: '["Série 1", "Série 2"]') */
+  /**
+   * Nom(s) de série. Chaîne simple recommandée (`name="Taux"`), enveloppée
+   * automatiquement pour DSFR Chart ; tableau JSON pour le multi-séries
+   * (`name='["Réalisé","Objectif"]'`). Sur les cartes (`map*`), un seul nom :
+   * le premier élément d'un JSON est retenu (#653). Priorité (#668) : `name`
+   * explicite, sinon l'alias inline `champ:Libellé` de value-field(s), sinon le
+   * nom du champ (ou les valeurs de series-field en mode tidy).
+   */
   @property({ type: String })
   name = '';
 
   /** Palette de couleurs */
   @property({ type: String, attribute: 'selected-palette' })
   selectedPalette = 'categorical';
+
+  /**
+   * Couleur fixée par modalité (#732) : paires `modalité:#couleur` séparées
+   * par des virgules, même grammaire que `dsfr-data-map-layer`. Ex :
+   * `"Réalisé:#000091,Objectif:#E1000F"`. La modalité est un nom de série
+   * (une couleur par courbe ou par barre) ou, à défaut, un libellé de l'axe
+   * (une couleur par part de camembert). Les modalités non citées gardent la
+   * couleur de la palette. Une virgule ou un deux-points dans une modalité
+   * s'écrit `%2C` ou `%3A`. Sans effet sur les cartes (`map*`).
+   */
+  @property({ type: String, attribute: 'color-map' })
+  colorMap = '';
 
   /** Unité à afficher dans les tooltips */
   @property({ type: String, attribute: 'unit-tooltip' })
@@ -173,11 +235,11 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'highlight-index' })
   highlightIndex = '';
 
-  /** Limite min de l'axe X (types cartesiens : line, scatter, bar-line). */
+  /** Limite min de l'axe X (types cartésiens : line, scatter, bar-line). */
   @property({ type: String, attribute: 'x-min' })
   xMin = '';
 
-  /** Limite max de l'axe X (types cartesiens : line, scatter, bar-line). */
+  /** Limite max de l'axe X (types cartésiens : line, scatter, bar-line). */
   @property({ type: String, attribute: 'x-max' })
   xMax = '';
 
@@ -205,13 +267,34 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'databox-title' })
   databoxTitle = '';
 
+  /**
+   * Niveau de titre HTML du titre de la DataBox (RGAA 9.1, #670) : entier de 2 à 6,
+   * borné (défaut 3, rendu historique de DSFR Chart). `heading-level="2"` rend un h2.
+   */
+  @property({ type: Number, attribute: 'heading-level' })
+  headingLevel = 3;
+
   /** Mention de la source (ex: "INSEE, 2024") */
   @property({ type: String, attribute: 'databox-source' })
   databoxSource = '';
 
-  /** Date de la donnée (ex: "Mars 2024") */
+  /**
+   * Date de la donnée (ex: "Mars 2024"), affichée dans le pied de la DataBox
+   * et sur les cartes. Aucune date n'est rendue si l'attribut est absent —
+   * plus de repli sur la date du jour, qui n'est pas celle des données (#650).
+   * Prime sur `databox-date-field` quand les deux sont posés.
+   */
   @property({ type: String, attribute: 'databox-date' })
   databoxDate = '';
+
+  /**
+   * Fraîcheur lue dans la donnée (#661) : chemin d'une colonne de dates ISO
+   * (`AAAA-MM-JJ`, heure facultative). La plus récente est affichée comme date
+   * de la DataBox (et des cartes), formatée JJ/MM/AAAA. Ignoré si `databox-date`
+   * est posé ; aucune date rendue si la colonne ne contient aucune date ISO valide.
+   */
+  @property({ type: String, attribute: 'databox-date-field' })
+  databoxDateField = '';
 
   /** Bouton téléchargement CSV dans DataBox */
   @property({ type: Boolean, attribute: 'databox-download' })
@@ -254,11 +337,11 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   databoxActions = '';
 
   /**
-   * Lignes de reference (overlay) au format JSON. Graphiques cartesiens
+   * Lignes de référence (overlay) au format JSON. Graphiques cartésiens
    * uniquement (line, bar, bar-line, scatter). Chaque item :
    * `{ axis: "x"|"y", value: string|number, label?, color?, dash?, position? }`.
    * `axis:"x"` → ligne verticale à une catégorie/date ; `axis:"y"` → ligne
-   * horizontale a un seuil. Ex : `reference-lines='[{"axis":"x","value":"2026-02",
+   * horizontale à un seuil. Ex : `reference-lines='[{"axis":"x","value":"2026-02",
    * "label":"Lancement","color":"#c9191e","dash":true}]'`.
    */
   @property({ type: String, attribute: 'reference-lines' })
@@ -294,7 +377,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   /** Timers differes en vol — annules au disconnect (#305) */
   private _pendingTimers = new Set<number>();
 
-  /** Overlays (reference-lines #341 + targets #377) : poll rAF en cours (annule au disconnect) */
+  /** Overlays (référence-lines #341 + targets #377) : poll rAF en cours (annule au disconnect) */
   private _overlayRaf: number | null = null;
   /** Overlays : observer de resize du canvas */
   private _overlayResize: ResizeObserver | null = null;
@@ -317,6 +400,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     this._pendingTimers.clear();
     this._cleanupChartOverlays();
     this._cancelRadialBoundsRaf();
+    this._cancelColorMapRaf();
   }
 
   updated(changed: Map<string, unknown>) {
@@ -328,6 +412,9 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     // Bornes dures de l'echelle radiale (radar + y-min/y-max) : meme principe,
     // ré-appliquées après chaque rendu (le watcher Vue $props recrée le chart).
     this._refreshRadialScaleBounds();
+    // Couleur par modalité (#732) : même principe, l'upstream ne prend pas de
+    // couleur de série en attribut.
+    this._refreshColorMap();
   }
 
   // Light DOM pour les styles DSFR
@@ -353,32 +440,46 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
 
   // --- Data processing ---
 
-  /** Parse all value field names (value-field, value-field-2, value-fields) */
-  private _getAllValueFields(): string[] {
+  /**
+   * Chemin de `value-field` sans son alias inline (#668) : `Panier_moyen:Panier
+   * moyen` → `Panier_moyen`. Toute lecture de la valeur passe par ici.
+   */
+  private _valueFieldKey(): string {
+    return this.valueField ? parseAliasedColumn(this.valueField).key : '';
+  }
+
+  /**
+   * Champs de valeur (chemin + libellé), dans l'ordre de rendu : value-field,
+   * puis value-fields (sinon value-field-2). Le libellé est l'alias inline
+   * `champ:Libellé` quand il est donné, sinon le chemin lui-même (#668).
+   */
+  private _getValueFieldSpecs(): AliasedColumn[] {
     // value-fields SANS value-field (#305) : l'ancien code incluait
     // toujours '' en tete -> getByPath(record, '') retournait l'objet
     // entier, premiere serie a zero + nom de serie vide dans la legende
-    const fields: string[] = [];
-    if (this.valueField) fields.push(this.valueField);
+    const specs: AliasedColumn[] = [];
+    if (this.valueField) specs.push(parseAliasedColumn(this.valueField));
     if (this.valueFields) {
-      fields.push(
-        ...this.valueFields
-          .split(',')
-          .map((f) => f.trim())
-          .filter(Boolean)
-      );
+      specs.push(...parseAliasedColumns(this.valueFields));
     } else if (this.valueField2) {
-      fields.push(this.valueField2);
+      specs.push(parseAliasedColumn(this.valueField2));
     }
+    return specs;
+  }
+
+  /** Parse all value field paths (value-field, value-field-2, value-fields) */
+  private _getAllValueFields(): string[] {
+    const fields = this._getValueFieldSpecs().map((s) => s.key);
     // Sans aucun champ : comportement historique conserve (les chemins
     // lisent allSeries[0])
-    return fields.length > 0 ? fields : [this.valueField];
+    return fields.length > 0 ? fields : [this._valueFieldKey()];
   }
 
   /**
    * Series names, in render order.
    * - tidy mode (series-field) : distinct values of seriesField, in first-seen order
-   * - wide mode : the value field names (value-field, value-field-2, value-fields)
+   * - wide mode : the value field labels (alias inline `champ:Libellé`, #668)
+   *   or paths (value-field, value-field-2, value-fields)
    */
   private _getSeriesNames(): string[] {
     if (this.seriesField) {
@@ -393,7 +494,18 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       }
       return names;
     }
-    return this._getAllValueFields();
+    const labels = this._getValueFieldSpecs().map((s) => s.label);
+    return labels.length > 0 ? labels : [this._valueFieldKey()];
+  }
+
+  /**
+   * Libellé d'une ligne : la valeur de `label-field`, ou `empty-label` si elle
+   * est vide (`null` / `undefined` / `""`) — même rendu quel que soit le chemin
+   * (group_by serveur → null, group-by client → null, saisie vide → "") (#647).
+   */
+  private _labelOf(record: unknown): string {
+    const v = getByPath(record, this.labelField);
+    return v === null || v === undefined || v === '' ? this.emptyLabel : String(v);
   }
 
   /**
@@ -413,7 +525,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     const labels: string[] = [];
     const labelIndex = new Map<string, number>();
     for (const record of this._data) {
-      const l = String(getByPath(record, this.labelField) ?? 'N/A');
+      const l = this._labelOf(record);
       if (!labelIndex.has(l)) {
         labelIndex.set(l, labels.length);
         labels.push(l);
@@ -425,12 +537,12 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     const allSeries: number[][] = seriesNames.map(() => new Array(labels.length).fill(0));
 
     for (const record of this._data) {
-      const l = String(getByPath(record, this.labelField) ?? 'N/A');
+      const l = this._labelOf(record);
       const s = String(getByPath(record, this.seriesField) ?? '');
       const li = labelIndex.get(l);
       const si = seriesIndex.get(s);
       if (li !== undefined && si !== undefined) {
-        allSeries[si][li] = toNumber(getByPath(record, this.valueField));
+        allSeries[si][li] = toNumber(getByPath(record, this._valueFieldKey()));
       }
     }
 
@@ -474,7 +586,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     const allSeries: number[][] = allFields.map(() => []);
 
     for (const record of this._data) {
-      labels.push(String(getByPath(record, this.labelField) ?? 'N/A'));
+      labels.push(this._labelOf(record));
       for (let i = 0; i < allFields.length; i++) {
         allSeries[i].push(toNumber(getByPath(record, allFields[i])));
       }
@@ -497,7 +609,27 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     };
   }
 
+  /**
+   * Lignes ecartees des cartes `map*` faute de code geographique exploitable
+   * (#648) : compte du dernier `_processMapData`, journalise une fois par jeu
+   * de données et remonte dans la trace du volet Diagnostic (#604).
+   */
+  private _skippedGeoCount = 0;
+
+  /** Jeu de données pour lequel le warn a déjà ete emis (un warn par cycle) */
+  private _skippedWarnedData: unknown[] | null = null;
+
+  /**
+   * Nombre de lignes ignorees par la dernière carte rendue (`type="map*"`) :
+   * code geographique absent, vide, invalide ou hors du referentiel du
+   * decoupage (academie inconnue, region inconnue, #729). 0 hors carte.
+   */
+  getSkippedCount(): number {
+    return this._skippedGeoCount;
+  }
+
   private _processMapData(): string {
+    this._skippedGeoCount = 0;
     if (!this._data || this._data.length === 0) return '{}';
 
     const field = this.codeField || this.labelField;
@@ -508,18 +640,47 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
         // <map-chart level="monde"> n'accepte que l'alpha-2 : convertit
         // iso-a3 / iso-num a la volee, ignore les codes inconnus
         code = toIsoA2(code);
-        if (!code) continue;
+        if (!code) {
+          this._skippedGeoCount++;
+          continue;
+        }
       } else if (this.type === 'map-aca') {
-        // Cles = nom d'academie en majuscules ("PARIS", "LYON"...)
-        code = code.toUpperCase();
-        if (!code) continue;
+        // Cles = capitale de l'academie sans accent ni article ("PARIS",
+        // "BESANCON", "ORLEANS-TOURS"). Liste blanche : une valeur hors
+        // referentiel est comptee, pas transmise en silence (#729).
+        code = toAcademyKey(code);
+        if (!code) {
+          this._skippedGeoCount++;
+          continue;
+        }
+      } else if (this.type === 'map-reg') {
+        // Cles = ISO 3166-2 sans prefixe pays ("IDF", "20R") ou code INSEE
+        // ultramarin ("971"). Traduit le code INSEE et le nom (#729).
+        code = toRegionKey(code);
+        if (!code) {
+          this._skippedGeoCount++;
+          continue;
+        }
       } else {
         // Normalisation partagee (#610) : source unique du padding.
         code = normalizeDeptCode(code);
-        if (this.type === 'map' ? !isValidDeptCode(code) : code === '') continue;
+        if (this.type === 'map' ? !isValidDeptCode(code) : code === '') {
+          this._skippedGeoCount++;
+          continue;
+        }
       }
-      const value = toNumber(getByPath(record, this.valueField));
+      const value = toNumber(getByPath(record, this._valueFieldKey()));
       mapData[code] = Math.round(value * 100) / 100;
+    }
+
+    // Un warn par jeu de donnees (#648) : _processMapData est rappele a
+    // chaque rendu (attributs, refresh), pas seulement a chaque emission
+    if (this._skippedGeoCount > 0 && this._skippedWarnedData !== this._data) {
+      this._skippedWarnedData = this._data;
+      console.warn(
+        `dsfr-data-chart[${this.id}]: ${this._skippedGeoCount} ligne(s) sur ${this._data.length} ` +
+          `ignorée(s) — code géographique absent, invalide ou hors référentiel dans "${field}" pour ${this.type}`
+      );
     }
     return JSON.stringify(mapData);
   }
@@ -542,21 +703,40 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       const trimmed = this.name.trim();
       const isMap = this.type in MAP_LEVEL;
       attrs['name'] = isMap
-        ? trimmed
+        ? this._mapSeriesName(trimmed)
         : trimmed.startsWith('[')
           ? trimmed
           : JSON.stringify([trimmed]);
     } else if (this.valueField) {
       const isMap = this.type in MAP_LEVEL;
       if (isMap) {
-        attrs['name'] = this.valueField;
+        // Libellé de l'alias inline si présent, sinon le chemin (#668)
+        attrs['name'] = parseAliasedColumn(this.valueField).label;
       } else {
-        // Series names : distinct series-field values (tidy) or value field names (wide).
+        // Series names : distinct series-field values (tidy) or value field
+        // labels/names (wide).
         attrs['name'] = JSON.stringify(this._getSeriesNames());
       }
     }
 
     return attrs;
+  }
+
+  /**
+   * Nom de série d'une carte : `<map-chart>` attend une chaîne simple. Un
+   * tableau JSON (forme documentée pour les cartésiens) est déplié sur son
+   * premier élément au lieu d'être affiché littéralement (#653) ; JSON
+   * invalide → chaîne telle quelle.
+   */
+  private _mapSeriesName(trimmed: string): string {
+    if (!trimmed.startsWith('[')) return trimmed;
+    try {
+      const parsed: unknown = JSON.parse(trimmed);
+      if (Array.isArray(parsed) && parsed.length > 0) return String(parsed[0]);
+    } catch {
+      /* JSON invalide : affichage tel quel */
+    }
+    return trimmed;
   }
 
   /** Cibles actives : attribut non vide, parse valide, type supporté. */
@@ -590,6 +770,9 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     if (typeof target.series === 'string') {
       let i = this._getDisplaySeriesNames().indexOf(target.series);
       if (i < 0) i = this._getSeriesNames().indexOf(target.series);
+      // Une cible peut viser le chemin du champ même quand la série est
+      // affichée sous son alias inline (#668)
+      if (i < 0) i = this._getAllValueFields().indexOf(target.series);
       return i >= 0 ? i : 0;
     }
     return 0;
@@ -624,7 +807,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       case 'gauge': {
         const gaugeVal =
           this.gaugeValue ??
-          (this._data.length > 0 ? toNumber(getByPath(this._data[0], this.valueField)) : 0);
+          (this._data.length > 0 ? toNumber(getByPath(this._data[0], this._valueFieldKey())) : 0);
         attrs['percent'] = String(Math.round(gaugeVal));
         attrs['init'] = '0';
         attrs['target'] = '100';
@@ -647,7 +830,10 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
         attrs['y-line'] = JSON.stringify(
           paddedSeries.length > 1 ? paddedSeries[1] : (paddedSeries[0] ?? values)
         );
-        // BarLineChart uses name-bar/name-line (not name)
+        // BarLineChart uses name-bar/name-line (not name). Sans `name`, la
+        // légende était vide : les libellés dérivés des champs (alias inline
+        // `champ:Libellé` ou chemin, #668) prennent le relais, comme pour les
+        // autres types.
         if (this.name) {
           try {
             const trimmed = this.name.trim();
@@ -657,6 +843,10 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
           } catch {
             /* ignore parse errors */
           }
+        } else if (this.valueField) {
+          const names = this._getSeriesNames();
+          if (names[0]) attrs['name-bar'] = names[0];
+          if (names[1]) attrs['name-line'] = names[1];
         }
         // BarLineChart uses unit-tooltip-bar / unit-tooltip-line (not unit-tooltip)
         if (this.unitTooltipBar) attrs['unit-tooltip-bar'] = this.unitTooltipBar;
@@ -670,16 +860,23 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
         // Le decoupage est choisi par l'attribut level (API unifiee 2.1.0) —
         // statique : Vue le lit au montage et ne l'ecrase pas
         attrs['level'] = MAP_LEVEL[this.type];
-        // All map attributes go in `deferred` because the DSFR Chart Vue component
-        // overwrites props set before mount with their default values.
-        // Deferred attrs are applied via setTimeout(500ms) after Vue has mounted,
-        // triggering the $props watcher which calls createChart() with correct data.
-        deferred['data'] = this._processMapData();
+        // `value` et `date` vont dans `deferred` : le composant Vue de DSFR
+        // Chart ecrase au montage les props qui ont un defaut (`value: ""`,
+        // `date: ""`). Les differes sont re-poses via setTimeout(500ms) apres
+        // le montage, ce qui declenche le watcher $props -> createChart().
+        // `data` est `required` SANS defaut (MapChart.js) : rien ne l'ecrase.
+        // Elle est donc posee immediatement — sinon `mounted()` fait
+        // `JSON.parse(undefined)` et logge « Erreur lors du parsing des
+        // données data » a chaque montage de carte (#651) — ET conservee
+        // dans `deferred` (double pose) pour garder le cycle de re-pose.
+        const mapData = this._processMapData();
+        attrs['data'] = mapData;
+        deferred['data'] = mapData;
         if (this._data.length > 0) {
           let total = 0;
           let count = 0;
           for (const record of this._data) {
-            const v = toNumber(getByPath(record, this.valueField), true);
+            const v = toNumber(getByPath(record, this._valueFieldKey()), true);
             if (v !== null) {
               total += v;
               count++;
@@ -692,8 +889,10 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
         }
         // Plus de new Date() (#305) : la date du JOUR etait presentee comme
         // date de la donnee sur les cartes — n'envoyer date que si fournie
-        if (this.databoxDate) {
-          deferred['date'] = this.databoxDate;
+        // (explicite ou lue dans la donnee via databox-date-field, #661)
+        const mapDate = this._resolveDataboxDate();
+        if (mapDate) {
+          deferred['date'] = mapDate;
         }
         break;
       }
@@ -875,7 +1074,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     this._scheduleOverlayDraw({ lines, targets }, 120);
   }
 
-  /** Poll rAF jusqu'a ce que l'instance Chart.js soit prete (chartArea > 0). */
+  /** Poll rAF jusqu'a ce que l'instance Chart.js soit prête (chartArea > 0). */
   private _scheduleOverlayDraw(
     overlays: { lines: ReferenceLine[]; targets: ChartTarget[] },
     framesLeft: number
@@ -916,7 +1115,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     return { container, canvas, chartEl };
   }
 
-  /** Dessine les overlays. Retourne false si l'instance Chart.js n'est pas prete. */
+  /** Dessine les overlays. Retourne false si l'instance Chart.js n'est pas prête. */
   private _paintChartOverlays(overlays: {
     lines: ReferenceLine[];
     targets: ChartTarget[];
@@ -1009,7 +1208,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     }
   }
 
-  /** (Re)programme l'application des bornes radiales apres chaque rendu. */
+  /** (Re)programme l'application des bornes radiales après chaque rendu. */
   private _refreshRadialScaleBounds() {
     this._cancelRadialBoundsRaf();
     if (!isRadialChartType(this.type)) return;
@@ -1018,7 +1217,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     this._scheduleRadialBoundsApply(bounds, 120);
   }
 
-  /** Poll rAF jusqu'a ce que l'instance Chart.js radar soit prete. */
+  /** Poll rAF jusqu'a ce que l'instance Chart.js radar soit prête. */
   private _scheduleRadialBoundsApply(bounds: RadialScaleBounds, framesLeft: number) {
     if (typeof requestAnimationFrame === 'undefined') return;
     this._radialBoundsRaf = requestAnimationFrame(() => {
@@ -1031,7 +1230,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     });
   }
 
-  /** Applique les bornes sur l'instance. Retourne false si pas prete. */
+  /** Applique les bornes sur l'instance. Retourne false si pas prête. */
   private _applyRadialScaleBounds(bounds: RadialScaleBounds): boolean {
     const hosts = this._resolveOverlayHosts();
     if (!hosts) return false;
@@ -1040,9 +1239,86 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     return applyRadialScaleBounds(chart as RadialChartLike, bounds);
   }
 
+  // --- Couleur par modalite : color-map (#732) --------------------------------
+  // DSFR Chart n'expose aucune prise declarative sur les couleurs de serie
+  // (`tmpColorParse` reste vide) : la couleur se pose sur l'instance Chart.js
+  // apres rendu, avec le meme rAF-poll que les bornes radiales, puis sur les
+  // pastilles de legende que le composant Vue a rendues a cote du canvas.
+
+  private _colorMapRaf: number | null = null;
+
+  /** Un seul warn par composant quand color-map ne s'applique pas au type. */
+  private _colorMapWarned = false;
+
+  private _cancelColorMapRaf() {
+    if (this._colorMapRaf !== null) {
+      cancelAnimationFrame(this._colorMapRaf);
+      this._colorMapRaf = null;
+    }
+  }
+
+  /** (Re)programme l'application de `color-map` après chaque rendu. */
+  private _refreshColorMap() {
+    this._cancelColorMapRaf();
+    if (!this.colorMap.trim()) return;
+    if (this.type in MAP_LEVEL) {
+      if (!this._colorMapWarned) {
+        this._colorMapWarned = true;
+        console.warn(
+          `dsfr-data-chart[${this.id}]: color-map est sans effet sur type="${this.type}" ` +
+            `(l'échelle des cartes vient de selected-palette)`
+        );
+      }
+      return;
+    }
+    const colorMap = parseColorMap(this.colorMap);
+    if (!colorMap.size) return;
+    this._scheduleColorMapApply(colorMap, 120);
+  }
+
+  /** Poll rAF jusqu'a ce que l'instance Chart.js soit prête. */
+  private _scheduleColorMapApply(colorMap: Map<string, string>, framesLeft: number) {
+    if (typeof requestAnimationFrame === 'undefined') return;
+    this._colorMapRaf = requestAnimationFrame(() => {
+      this._colorMapRaf = null;
+      if (!this.isConnected) return;
+      if (this._applyColorMap(colorMap)) return;
+      if (framesLeft > 0) this._scheduleColorMapApply(colorMap, framesLeft - 1);
+      // Degradation gracieuse sans warn : la palette DSFR reste en place.
+    });
+  }
+
+  /** Applique les couleurs sur l'instance et la légende. False si pas prête. */
+  private _applyColorMap(colorMap: Map<string, string>): boolean {
+    const hosts = this._resolveOverlayHosts();
+    if (!hosts) return false;
+    const chart = resolveChartInstance(hosts.chartEl, hosts.canvas);
+    if (!chart || !chart.chartArea || chart.chartArea.width <= 0) return false;
+
+    const applied = applyColorMap(chart as ColorableChart, colorMap, this._getDisplaySeriesNames());
+    if (!applied.applied) return true;
+    this._paintLegendDots(hosts.chartEl, applied.legendColors);
+    return true;
+  }
+
+  /**
+   * Recolore les pastilles de légende rendues par DSFR Chart. Le composant Vue
+   * les pose en `span.legend_dot`, une par série (cartésiens) ou par part
+   * (camembert) : sans ce report, la légende annoncerait la couleur de la
+   * palette sous un graphique recoloré.
+   */
+  private _paintLegendDots(chartEl: HTMLElement, colors: (string | undefined)[]) {
+    const dots = chartEl.querySelectorAll<HTMLElement>('.legend_dot');
+    if (dots.length !== colors.length) return;
+    dots.forEach((dot, i) => {
+      const color = colors[i];
+      if (color) dot.style.backgroundColor = color;
+    });
+  }
+
   // --- Cibles : interactivite (tooltip groupe par echeance, legende, #377) ----
 
-  /** Branche le tooltip sur les losanges (seuls elements pointer-events:auto). */
+  /** Branche le tooltip sur les losanges (seuls éléments pointer-events:auto). */
   private _bindTargetMarkerEvents(svg: SVGSVGElement, layout: TargetsLayout) {
     const polygons = svg.querySelectorAll<SVGPolygonElement>('.dsfr-data-chart__target-marker');
     // buildTargetsOverlaySvg appose un polygon par marker, dans l'ordre du layout
@@ -1150,7 +1426,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   }
 
   /**
-   * Met a jour les attributs d'un element chart EXISTANT (#305) : pose les
+   * Met a jour les attributs d'un élément chart EXISTANT (#305) : pose les
    * nouveaux, retire ceux que nous gerions et qui ont disparu, re-applique
    * les differes. Vue (DSFR Chart) observe ses props — pas besoin de
    * remonter le composant.
@@ -1176,9 +1452,9 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   }
 
   /**
-   * Re-applique les attributs differes apres le montage Vue — timer TRACKE
+   * Re-applique les attributs differes après le montage Vue — timer TRACKE
    * (#305) : les setTimeout(500) s'empilaient a chaque onSourceData sans
-   * jamais etre annules au disconnect, et pouvaient cibler des elements
+   * jamais être annules au disconnect, et pouvaient cibler des éléments
    * remplaces entre-temps (gardes isConnected).
    */
   private _scheduleDeferredAttrs(el: HTMLElement, deferred: Record<string, string>) {
@@ -1208,6 +1484,44 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     return wrapper;
   }
 
+  /** Niveau de titre de la DataBox borné à [2, 6] ; 3 si absent ou invalide (#670). */
+  private _databoxHeadingLevel(): number {
+    const n = Math.round(Number(this.headingLevel));
+    if (!Number.isFinite(n)) return 3;
+    return Math.min(6, Math.max(2, n));
+  }
+
+  /**
+   * Date affichée par la DataBox et les cartes : `databox-date` explicite
+   * prime ; sinon la plus récente des dates ISO de `databox-date-field`
+   * (#661), formatée JJ/MM/AAAA ; sinon '' (aucune date rendue, #650).
+   */
+  private _resolveDataboxDate(): string {
+    if (this.databoxDate) return this.databoxDate;
+    if (!this.databoxDateField) return '';
+    const latest = this._latestIsoDate(this.databoxDateField);
+    return latest ? formatDate(latest) : '';
+  }
+
+  /**
+   * Plus récente valeur ISO (`AAAA-MM-JJ`, heure facultative) d'une colonne :
+   * comparaison lexicographique, valable sur ce format après validation
+   * (préfixe ISO + `Date.parse` finie). Les autres valeurs sont ignorées ;
+   * `null` si aucune date valide.
+   */
+  private _latestIsoDate(field: string): string | null {
+    let latest: string | null = null;
+    for (const record of this._data) {
+      const raw = getByPath(record, field);
+      const value =
+        raw instanceof Date ? raw.toISOString() : typeof raw === 'string' ? raw.trim() : '';
+      if (!/^\d{4}-\d{2}-\d{2}([T ].*)?$/.test(value)) continue;
+      if (!Number.isFinite(Date.parse(value))) continue;
+      if (latest === null || value > latest) latest = value;
+    }
+    return latest;
+  }
+
   /** Creates a DataBox + chart as siblings in a wrapper div.
    *  DSFR DataBox discovers its chart via nextElementSibling or databox-id,
    *  so the chart must be a SIBLING of <data-box>, not a child. */
@@ -1233,13 +1547,23 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     // creates the Teleport target containers when segmented-control is set.
     // Without it, the chart's Vue <Teleport> has no target and renders outside.
     databoxEl.setAttribute('segmented-control', '');
-    // name, source, date are REQUIRED props for DataBox — always set them.
+    // name and source are REQUIRED props for DataBox — always set them.
     // DSFR Chart 2.1.0 renamed `title` to `name` (conflict with the native
     // HTML title attribute); keep setting `title` too for 2.0.x hosts.
     databoxEl.setAttribute('name', this.databoxTitle || ' ');
     databoxEl.setAttribute('title', this.databoxTitle || ' ');
+    // Niveau de titre (#670) : DSFR Chart >= 2.1.1 rend le titre via sa prop
+    // `heading-level` (h1..h6, défaut h3) — pas de réécriture DOM ni de
+    // MutationObserver, la DataBox produit directement le bon élément.
+    databoxEl.setAttribute('heading-level', `h${this._databoxHeadingLevel()}`);
     databoxEl.setAttribute('source', this.databoxSource || ' ');
-    databoxEl.setAttribute('date', this.databoxDate || new Date().toISOString().split('T')[0]);
+    // Pas de date par défaut (#650) : `new Date()` présentait la date de
+    // RENDU comme date des données sur toute page qui laissait le défaut.
+    // Sans `databox-date` ni `databox-date-field` (#661), aucune date n'est
+    // rendue (Vue affiche '' pour une prop absente ; la validation `required`
+    // n'existe qu'en build dev).
+    const date = this._resolveDataboxDate();
+    if (date) databoxEl.setAttribute('date', date);
     if (this.databoxDownload) databoxEl.setAttribute('download', '');
     if (this.databoxScreenshot) databoxEl.setAttribute('screenshot', '');
     if (this.databoxFullscreen) databoxEl.setAttribute('fullscreen', '');
@@ -1294,19 +1618,22 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       const container = document.getElementById(containerId);
       if (!container) return;
 
-      // Build table from data (like dsfr-data-a11y)
-      const columns = [this.labelField, this.valueField].filter(Boolean);
+      // Build table from data (like dsfr-data-a11y). En-tête = libellé de
+      // l'alias inline s'il existe, cellules lues sur le chemin (#668).
+      const columns: AliasedColumn[] = [];
+      if (this.labelField) columns.push({ key: this.labelField, label: this.labelField });
+      if (this.valueField) columns.push(parseAliasedColumn(this.valueField));
       if (columns.length === 0) return;
       const rows = this._data.slice(0, 100);
 
       const headerCells = columns
-        .map((c) => `<th scope="col">${escapeHtml(String(c))}</th>`)
+        .map((c) => `<th scope="col">${escapeHtml(c.label)}</th>`)
         .join('');
       const bodyRows = rows
         .map((row) => {
           const cells = columns
             .map((col) => {
-              const val = getByPath(row, col);
+              const val = getByPath(row, col.key);
               return `<td>${escapeHtml(String(val ?? ''))}</td>`;
             })
             .join('');
@@ -1405,6 +1732,23 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
             padding: 1rem;
             color: var(--text-default-error, #ce0500);
             background: var(--background-alt-red-marianne, #ffe5e5);
+            border-radius: 4px;
+          }
+        </style>
+      `;
+    }
+
+    if (this._sourceIdle) {
+      return html`
+        ${renderSourceIdle('dsfr-data-chart', this.idleMessage)}
+        <style>
+          .dsfr-data-chart__idle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem;
+            color: var(--text-mention-grey, #666);
+            background: var(--background-alt-grey, #f5f5f5);
             border-radius: 4px;
           }
         </style>

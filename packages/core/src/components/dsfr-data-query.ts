@@ -1,18 +1,26 @@
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { getByPath, setByPath } from '../utils/json-path.js';
-import { toNumber } from '@dsfr-data/shared/lib';
+import { isUnsafeKey, toNumber } from '@dsfr-data/shared/lib';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { dispatchSourceCommand, getDataCache, getDataMeta } from '../utils/data-bridge.js';
+import type { PaginationMeta } from '../utils/data-bridge.js';
 import { TransformerMixin } from '../utils/transformer-mixin.js';
 import type { AdapterCapabilities } from '../adapters/api-adapter.js';
 import type { SourceElement } from '../utils/source-element.js';
-import { parseAggregates, type ParsedAggregate } from '../utils/aggregates.js';
+import {
+  AGGREGATE_FUNCTIONS,
+  isRunningAggregate,
+  parseAggregates,
+  validateAggregateFunctions,
+  type ParsedAggregate,
+} from '../utils/aggregates.js';
+import { countDistinct } from '../utils/aggregations.js';
 import { unescapeColonValue, filterToOdsql, parseOrderBy } from '../utils/where.js';
 import { reportConfigError } from '../utils/config-error.js';
 
 /**
- * Operateurs de filtre supportes
+ * Opérateurs de filtre supportes
  */
 export const FILTER_OPERATORS = [
   'eq',
@@ -34,7 +42,7 @@ export type FilterOperator = (typeof FILTER_OPERATORS)[number];
 /**
  * Fonctions d'agrégation supportees
  */
-export type AggregateFunction = 'count' | 'sum' | 'avg' | 'min' | 'max';
+export type AggregateFunction = (typeof AGGREGATE_FUNCTIONS)[number];
 
 /**
  * Structure d'un filtre
@@ -100,7 +108,10 @@ export interface QuerySort {
  *   order-by="population__sum:desc"
  *   limit="10">
  * </dsfr-data-query>
- * @fires dsfr-data-source-command - `{ sourceId, groupBy?, aggregate?, orderBy?, where?, whereKey?, origin }` sur `document` — delegation server-side negociee avec la source amont, et liberation des overlays quand elle retombe cote client. `origin` porte l'id de ce composant (#603).
+ * @fires dsfr-data-idle - `{ sourceId, reason }` sur `document` — la requête attend un filtre
+ *   (`require-where` posé, aucun filtre reçu) : elle n'émet aucune ligne, et les afficheurs en
+ *   aval rendent « choisissez un filtre » (#690). Relayé tel quel quand c'est l'amont qui attend.
+ * @fires dsfr-data-source-command - `{ sourceId, groupBy?, aggregate?, orderBy?, where?, whereKey?, origin }` sur `document` — délégation server-side negociee avec la source amont, et liberation des overlays quand elle retombe cote client. `origin` porte l'id de ce composant (#603).
  */
 @customElement('dsfr-data-query')
 export class DsfrDataQuery extends TransformerMixin(LitElement) {
@@ -112,13 +123,13 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
 
   /**
    * Clause WHERE / Filtres — syntaxe colon UNIQUEMENT :
-   * "champ:operateur:valeur, champ2:operateur:valeur2"
-   * (operateurs : eq, neq, gt, gte, lt, lte, contains, notcontains, in,
-   * notin, isnull, isnotnull — multi-valeurs separees par |).
+   * "champ:opérateur:valeur, champ2:opérateur:valeur2"
+   * (opérateurs : eq, neq, gt, gte, lt, lte, contains, notcontains, in,
+   * notin, isnull, isnotnull — multi-valeurs séparées par |).
    *
    * La syntaxe ODSQL n'est PAS supportee ici (elle l'est sur le `where` de
    * dsfr-data-source) : une clause non parsable est signalee via
-   * reportConfigError (#277). En delegation serveur, la clause est traduite
+   * reportConfigError (#277). En délégation serveur, la clause est traduite
    * au dialecte de l'adapter (#275).
    */
   @property({ type: String })
@@ -131,7 +142,7 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
   filter = '';
 
   /**
-   * Champs de regroupement (separes par virgule)
+   * Champs de regroupement (séparés par virgule)
    */
   @property({ type: String, attribute: 'group-by' })
   groupBy = '';
@@ -140,12 +151,53 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * Agrégations pour mode generic/tabular
    * Format: "field:function, field2:function"
    * Ex: "population:sum, count:count"
+   *
+   * `running_sum` (#738) n'est pas une réduction de groupe mais un CUMUL :
+   * il produit une ligne par ligne de sortie, chacune portant la somme des
+   * précédentes, calculée APRÈS `order-by`. Sans `order-by`, l'ordre des
+   * lignes reçues fait foi et le résultat n'a en général pas de sens : un
+   * avertissement console le signale. Le cumul reste toujours côté client.
+   * Ex. `group-by="mois" aggregate="montant:sum, montant__sum:running_sum"`
+   * avec `order-by="mois:asc"`.
    */
   @property({ type: String })
   aggregate = '';
 
   /**
-   * Tri des resultats
+   * Champs multivalués à éclater avant le regroupement (séparés par virgule).
+   *
+   * Sans cet attribut, une cellule tableau est ramenée en chaîne pour la clé
+   * de groupe : `["a", "b"]` devient la modalité `"a,b"`, une COMBINAISON
+   * comptée comme une valeur — là où `dsfr-data-facets` éclate le même champ
+   * (#421). Les deux composants branchés sur le même champ donnaient donc des
+   * chiffres différents, sans rien signaler (#736).
+   *
+   * Avec `explode="tags"`, chaque élément de la cellule produit sa propre
+   * ligne : les modalités du regroupement sont exactement celles de la
+   * facette du même champ, et une ligne portant N valeurs compte dans N
+   * groupes (les agrégats la comptent donc N fois).
+   *
+   * Règles, alignées sur les facettes : les éléments vides sont ignorés, et
+   * une cellule sans aucune valeur (tableau vide, `null`, chaîne vide)
+   * ne produit AUCUNE ligne — pas de groupe « non renseigné », comme la
+   * facette n'a pas de modalité vide. Une cellule scalaire est inchangée.
+   *
+   * Chaque champ listé doit figurer dans `group-by` (sinon erreur de
+   * configuration et champ ignoré : éclater un champ hors regroupement
+   * dupliquerait les lignes et gonflerait les sommes).
+   *
+   * L'éclatement force le regroupement CÔTÉ CLIENT : aucune API du pipeline
+   * ne sait éclater un champ multivalué, déléguer produirait à nouveau des
+   * combinaisons. Sur une source volumineuse, penser au plafond de lignes
+   * rapatriées.
+   *
+   * Par défaut vide : le comportement historique est conservé.
+   */
+  @property({ type: String })
+  explode = '';
+
+  /**
+   * Tri des résultats
    * Format: "field:direction" ou "field__function:direction"
    * Ex: "total_pop:desc" ou "population__sum:desc"
    */
@@ -153,16 +205,39 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
   orderBy = '';
 
   /**
-   * Limite de resultats
+   * Limite de résultats
    */
   @property({ type: Number })
   limit = 0;
+
+  /**
+   * N'émettre aucune ligne tant qu'aucun filtre n'est posé (#690).
+   *
+   * Pendant de `require-where` sur `dsfr-data-source`, pour les pages
+   * d'exploration : la requête reste en attente, émet `dsfr-data-idle`, et
+   * les afficheurs en aval rendent « choisissez un filtre » au lieu du jeu
+   * entier.
+   *
+   * Ce qui compte comme filtre : le `where` (ou `filter`) de CETTE requête —
+   * sur un query, c'est la surface de filtrage que la page pilote — et toute
+   * clause `where` non vide reçue par commande (facettes, recherche,
+   * `dsfr-data-context`). Tout retirer fait repasser la requête en attente.
+   */
+  @property({ type: Boolean, attribute: 'require-where' })
+  requireWhere = false;
 
   @state()
   private _data: unknown[] = [];
 
   @state()
   private _rawData: unknown[] = [];
+
+  /**
+   * Nombre de lignes produites AVANT `limit` (#659) — republie dans la meta
+   * comme `total`. Trois annuaires ont affiche « 12 activites » pour 28 :
+   * un KPI `count` en aval ne voyait que les lignes tranchees.
+   */
+  private _rowsBeforeLimit = 0;
 
   /**
    * Tracks which operations have been delegated to dsfr-data-source server-side.
@@ -175,12 +250,18 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     where: false,
   };
 
-  /** Source qui detient actuellement nos overlays de delegation (#276) */
+  /** Source qui detient actuellement nos overlays de délégation (#276) */
   private _delegatedSourceId: string | null = null;
 
   /**
-   * Derniere commande de delegation dispatchee (cible + contenu) : une
-   * re-negociation identique ne redispatche pas — la source est deja dans
+   * Message d'erreur de configuration de `aggregate` (fonction hors liste
+   * blanche, #649), posé à la (re)négociation ; null si l'expression est valide.
+   */
+  private _aggregateError: string | null = null;
+
+  /**
+   * Dernière commande de délégation dispatchee (cible + contenu) : une
+   * re-negociation identique ne redispatche pas — la source est déjà dans
    * cet etat, son cache est valide (#276).
    */
   private _lastDelegation: { sourceId: string; cmdJson: string } | null = null;
@@ -188,9 +269,17 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
   /**
    * False entre l'envoi d'une commande a la source et l'emission suivante :
    * le cache de la source est alors perime (pre-commande) et ne doit pas
-   * etre lu. Une re-negociation dedupliquee ne le repasse pas a false.
+   * être lu. Une re-negociation dedupliquee ne le repasse pas a false.
    */
   private _sourceEmittedSinceCommand = true;
+
+  /**
+   * Clauses `where` reçues par commande, par whereKey (#690) — un contexte
+   * ou une facette peut viser l'id de cette requête, qui les relaie en amont.
+   * Elles ne servent PAS au traitement (le filtrage a lieu en amont) : elles
+   * disent seulement qu'un filtre est posé, pour `require-where`.
+   */
+  private _receivedWhere = new Map<string, string>();
 
   // Pas de rendu - composant invisible
   protected createRenderRoot(): HTMLElement | DocumentFragment {
@@ -254,9 +343,19 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     return 'dsfr-data-query';
   }
 
-  /** Tout changement de prop de requete re-negocie et re-souscrit (#281) */
+  /** Tout changement de prop de requête re-negocie et re-souscrit (#281) */
   protected transformerReinitProps(): string[] {
-    return ['source', 'where', 'filter', 'groupBy', 'aggregate', 'orderBy', 'limit'];
+    return [
+      'source',
+      'where',
+      'filter',
+      'groupBy',
+      'explode',
+      'aggregate',
+      'orderBy',
+      'limit',
+      'requireWhere',
+    ];
   }
 
   protected validateTransformerConfig(): string | null {
@@ -278,9 +377,39 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
       }
     }
 
+    // Fonction d'agrégat hors liste blanche (#649) : signalée ici (console +
+    // data-dsfr-config-error) et rendue en erreur aval au traitement — un
+    // `sum` → `somme` produisait un 0 plausible en silence. Pas de délégation
+    // serveur non plus : l'API rejetterait la fonction pour tous les abonnés.
+    const aggError = this.aggregate ? validateAggregateFunctions(this.aggregate) : null;
+    this._aggregateError = aggError ? `aggregate="${this.aggregate}" : ${aggError}` : null;
+    if (this._aggregateError) {
+      reportConfigError(this, `dsfr-data-query[${this.id}]`, this._aggregateError);
+    }
+
+    // Cumul sans ordre explicite (#738) : le resultat depend alors de l'ordre
+    // des lignes recues, qui n'est pas un contrat. Avertissement, pas erreur :
+    // une source deja triee (order-by pose sur elle) est un cas legitime.
+    this._warnRunningWithoutOrder();
+
+    // Éclatement d'un champ hors regroupement (#736) : la ligne serait
+    // dupliquée sans changer de groupe, et toutes les sommes gonfleraient.
+    // Signalé, puis le champ est ignoré (le reste de la requête tourne).
+    const explodeError = this._validateExplode();
+    if (explodeError) {
+      reportConfigError(this, `dsfr-data-query[${this.id}]`, explodeError);
+    }
+
     // Negotiate server-side delegation BEFORE subscribing to data.
     // This sends commands to dsfr-data-source so it re-fetches with the right params.
     this._negotiateServerSide();
+
+    // Sans filtre (#690), l'aval doit voir l'attente TOUT DE SUITE : attendre
+    // une émission amont laisserait les afficheurs en « aucune donnée » —
+    // et l'amont, s'il porte lui aussi require-where, n'émettra rien.
+    if (this.requireWhere && !this._hasFilter()) {
+      this.emitTransformerIdle();
+    }
   }
 
   /**
@@ -291,10 +420,73 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     return this._sourceEmittedSinceCommand;
   }
 
+  /**
+   * Meta aval (#659) : `total` = nombre de lignes AVANT `limit`, `truncated`
+   * quand `limit` a tranche. Le reste de la meta amont est conserve.
+   *
+   * En pagination serveur (`serverSide`), le total reste celui du serveur :
+   * les lignes recues ne sont qu'une page, et l'aval (list, display) en a
+   * besoin pour paginer — republier la taille de page casserait leur
+   * pagination.
+   */
+  protected transformMeta(meta: PaginationMeta): PaginationMeta {
+    const truncated = this.limit > 0 && this._rowsBeforeLimit > this.limit;
+    const { truncated: _upstreamTruncated, ...rest } = meta;
+    return {
+      ...rest,
+      ...(meta.serverSide ? {} : { total: this._rowsBeforeLimit }),
+      ...(truncated ? { truncated: true } : {}),
+    };
+  }
+
+  /** Sans meta amont (source inline), la query publie quand meme ses comptes (#659). */
+  protected transformerOwnMeta(): PaginationMeta {
+    return this.transformMeta({ page: 1, pageSize: 0, serverSide: false });
+  }
+
   protected onTransformerData(data: unknown): void {
     this._sourceEmittedSinceCommand = true;
     this._rawData = Array.isArray(data) ? data : [data];
     this._handleSourceData();
+  }
+
+  /**
+   * Observation des commandes qui transitent par cette requête (#690) : le
+   * relais vers l'amont reste inchangé, on note seulement si un filtre est
+   * posé. Une transition d'état rejoue le traitement local, car l'amont ne
+   * réémet pas forcément (source inline, commande dédupliquée).
+   */
+  protected onTransformerCommand(cmd: { where?: string; whereKey?: string }): void {
+    if (cmd.where === undefined) return;
+    const key = cmd.whereKey || '__default';
+    const previous = this._receivedWhere.get(key) ?? '';
+    if (cmd.where === previous) return;
+
+    const wasFiltered = this._hasFilter();
+    if (cmd.where) {
+      this._receivedWhere.set(key, cmd.where);
+    } else {
+      this._receivedWhere.delete(key);
+    }
+    if (!this.requireWhere || this._hasFilter() === wasFiltered) return;
+
+    if (this._hasFilter()) {
+      if (this._rawData.length > 0) this._handleSourceData();
+    } else {
+      this.emitTransformerIdle();
+    }
+  }
+
+  /**
+   * Un filtre est-il posé (#690) ? Le `where`/`filter` de cette requête, ou
+   * une clause non vide reçue par commande.
+   */
+  private _hasFilter(): boolean {
+    if (this.filter || this.where) return true;
+    for (const value of this._receivedWhere.values()) {
+      if (value) return true;
+    }
+    return false;
   }
 
   // --- Server-side negotiation ---
@@ -349,10 +541,35 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
         const clean = fields.map((f) => f.trim()).filter(Boolean);
         return adapter.supportsServerFields?.(clean) !== false;
       };
+      // Fonction non traduisible par l'adapter (Tabular n'a pas de
+      // `distinct`, #672) : tout le group-by reste client-side, sur les
+      // lignes brutes — comme pour un champ non delegable.
+      //
+      // Un agregat CUMULE (#738) est refuse avant meme d'interroger l'adapter :
+      // aucun ne le traduit, et ceux qui n'implementent pas
+      // `supportsServerAggregate` (ODS, Grist) repondent `undefined`, donc
+      // « delegable » — l'API recevrait `running_sum` et repondrait en erreur
+      // pour tous les abonnes de la source.
+      const canDelegateAggregates = (aggs: ParsedAggregate[]): boolean =>
+        aggs.every(
+          (a) =>
+            !isRunningAggregate(a.function) &&
+            adapter.supportsServerAggregate?.(a.function) !== false
+        );
 
       // Delegate group-by + aggregate together (they're coupled).
       // Don't override if source already has its own groupBy or aggregate.
-      if (this.groupBy && caps.serverGroupBy && !sourceGroupBy && !sourceAggregate) {
+      // `explode` (#736) reste client-side : aucune API du pipeline ne sait
+      // éclater un champ multivalué, un group_by serveur regrouperait à
+      // nouveau par combinaison.
+      if (
+        this.groupBy &&
+        caps.serverGroupBy &&
+        !sourceGroupBy &&
+        !sourceAggregate &&
+        !this._aggregateError &&
+        !this.explode
+      ) {
         // Le where conditionne la délégation du group-by (#275) : un filtre
         // intraduisible doit s'appliquer client-side sur les lignes BRUTES,
         // donc avant un group-by qui reste alors client-side lui aussi.
@@ -362,12 +579,13 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
           this.filter || this.where,
           caps.whereFormat
         );
+        const aggregates = this._parseAggregates(this.aggregate);
         const fields = [
           ...this.groupBy.split(','),
-          ...this._parseAggregates(this.aggregate).map((a) => a.field),
+          ...aggregates.map((a) => a.field),
           ...whereDelegation.fields,
         ];
-        if (whereDelegation.ok && canDelegateFields(fields)) {
+        if (whereDelegation.ok && canDelegateFields(fields) && canDelegateAggregates(aggregates)) {
           cmd.groupBy = this.groupBy;
           this._serverDelegated.groupBy = true;
 
@@ -556,6 +774,18 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * Handle data received from upstream source (via onTransformerData).
    */
   private _handleSourceData() {
+    // En attente d'un filtre (#690) : aucune émission de lignes, un état
+    // idle a la place — l'aval affiche « choisissez un filtre ».
+    if (this.requireWhere && !this._hasFilter()) {
+      this.emitTransformerIdle();
+      return;
+    }
+    // Erreur de configuration sur `aggregate` (#649) : état d'erreur aval,
+    // jamais un résultat à 0 — le message est déjà en console (reportConfigError).
+    if (this._aggregateError) {
+      this.emitTransformerError(new Error(this._aggregateError));
+      return;
+    }
     try {
       this.emitTransformerLoading();
       this._processClientSide();
@@ -599,10 +829,12 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     const needsClientGroupBy = this.groupBy && (!this._serverDelegated.groupBy || forceClientSide);
     if (needsClientGroupBy) {
       result = this._applyGroupByAndAggregate(result);
-    } else if (!this.groupBy && this.aggregate) {
+    } else if (!this.groupBy && this._groupAggregates().length > 0) {
       // Agregat global (#278) : aggregate sans group-by produit UNE ligne
       // (la grammaire etait acceptee mais no-op silencieux). Cas d'usage
       // typique : alimenter un dsfr-data-kpi (total, moyenne...).
+      // Les agregats cumules (#738) en sont exclus : ils gardent une ligne
+      // par ligne, sinon `montant:running_sum` seul replierait tout en une.
       result = [this._computeGlobalAggregates(result)];
     }
 
@@ -613,7 +845,18 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
       result = this._applySort(result);
     }
 
+    // 3 bis. Agregats cumules (#738) : transformation ORDONNEE, donc APRES le
+    // tri et sur les lignes de sortie (elle peut cumuler une colonne produite
+    // par le group-by). Toujours client-side. Avant ou apres `limit` est
+    // indifferent : un cumul est un prefixe, les N premieres valeurs sont les
+    // memes — la place ici evite d'y penser.
+    const runningAggregates = this._runningAggregates();
+    if (runningAggregates.length > 0) {
+      result = this._applyRunningAggregates(result, runningAggregates);
+    }
+
     // 4. Appliquer la limite (toujours client-side)
+    this._rowsBeforeLimit = result.length;
     if (this.limit > 0) {
       result = result.slice(0, this.limit);
     }
@@ -687,8 +930,8 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
   /**
    * Egalite unique du pipeline de filtres (#278) : coercition lache
    * string/number (`"75" == 75`), repli `String === String` pour les
-   * booleens (`true` vs `"true"` — le `==` JS les declare differents).
-   * Utilisee par eq, neq, in, notin : meme entree, memes lignes gardees.
+   * booleens (`true` vs `"true"` — le `==` JS les déclaré differents).
+   * Utilisée par eq, neq, in, notin : meme entree, memes lignes gardees.
    */
   private _looseEquals(a: unknown, b: unknown): boolean {
     if (a === null || a === undefined) return b === null || b === undefined;
@@ -780,6 +1023,100 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     }
   }
 
+  /** Champs listés dans `explode`, trimés (#736). */
+  private _explodeFields(): string[] {
+    return this.explode
+      .split(',')
+      .map((f) => f.trim())
+      .filter(Boolean);
+  }
+
+  /**
+   * Vérifie que chaque champ d'`explode` est bien un champ de regroupement
+   * (#736). Retourne un message lisible (destiné à reportConfigError), ou
+   * null si la configuration est cohérente.
+   */
+  private _validateExplode(): string | null {
+    const explodeFields = this._explodeFields();
+    if (explodeFields.length === 0) return null;
+
+    const groupFields = this.groupBy
+      .split(',')
+      .map((f) => f.trim())
+      .filter(Boolean);
+    const orphans = explodeFields.filter((f) => !groupFields.includes(f));
+    if (orphans.length === 0) return null;
+
+    return (
+      `explode="${this.explode}" : ${orphans.map((f) => `"${f}"`).join(', ')} ` +
+      `${orphans.length > 1 ? 'ne sont pas des champs' : "n'est pas un champ"} de group-by — ` +
+      `l'éclatement ne s'applique qu'aux champs de regroupement ` +
+      `(ajoutez-les à group-by, sinon les lignes seraient dupliquées et les sommes gonflées)`
+    );
+  }
+
+  /**
+   * Valeurs d'éclatement d'une cellule (#736) — même règle que les facettes
+   * (`_facetValuesOf`, #421) : un tableau fournit chacun de ses éléments non
+   * vides, une cellule vide n'en fournit aucune, un scalaire fournit sa
+   * valeur.
+   */
+  private _explodedValuesOf(val: unknown): unknown[] {
+    if (val === null || val === undefined || val === '') return [];
+    if (Array.isArray(val)) {
+      return val.filter((v) => v !== null && v !== undefined && v !== '');
+    }
+    return [val];
+  }
+
+  /**
+   * Copie d'une ligne avec une valeur de remplacement sur un champ (#736).
+   * La colonne vertébrale du chemin est clonée : `setByPath` sur une copie
+   * de surface écrirait dans l'objet imbriqué PARTAGÉ avec la ligne source.
+   */
+  private _rowWithFieldValue(
+    row: Record<string, unknown>,
+    field: string,
+    value: unknown
+  ): Record<string, unknown> {
+    const clone: Record<string, unknown> = { ...row };
+    const keys = field.replace(/\[(\d+)\]/g, '.$1').split('.');
+    let current = clone;
+    for (let i = 0; i < keys.length - 1; i++) {
+      const key = keys[i];
+      if (isUnsafeKey(key)) return clone;
+      const child = current[key];
+      if (!child || typeof child !== 'object' || Array.isArray(child)) break;
+      const childClone = { ...(child as Record<string, unknown>) };
+      current[key] = childClone;
+      current = childClone;
+    }
+    setByPath(clone, field, value);
+    return clone;
+  }
+
+  /**
+   * Éclate les champs multivalués demandés (#736) : une ligne portant N
+   * valeurs devient N lignes, une pour chaque valeur. Les lignes d'origine
+   * ne sont jamais mutées.
+   */
+  private _explodeRows(
+    data: Record<string, unknown>[],
+    fields: string[]
+  ): Record<string, unknown>[] {
+    let rows = data;
+    for (const field of fields) {
+      const out: Record<string, unknown>[] = [];
+      for (const row of rows) {
+        for (const value of this._explodedValuesOf(getByPath(row, field))) {
+          out.push(this._rowWithFieldValue(row, field, value));
+        }
+      }
+      rows = out;
+    }
+    return rows;
+  }
+
   /**
    * Applique le GROUP BY et les agrégations
    */
@@ -788,12 +1125,20 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
       .split(',')
       .map((f) => f.trim())
       .filter(Boolean);
-    const aggregates = this._parseAggregates(this.aggregate);
+    // Les agregats cumules (#738) ne reduisent pas un groupe : ils sont
+    // appliques apres le tri, sur les lignes de sortie.
+    const aggregates = this._groupAggregates();
+
+    // Éclatement des champs multivalués demandés (#736), AVANT la clé de
+    // groupe : sans lui, `["a","b"]` serait la modalité « a,b ». Les champs
+    // hors group-by sont ignorés (erreur de configuration déjà signalée).
+    const explodeFields = this._explodeFields().filter((f) => groupFields.includes(f));
+    const rows = explodeFields.length > 0 ? this._explodeRows(data, explodeFields) : data;
 
     // Créer les groupes
     const groups = new Map<string, Record<string, unknown>[]>();
 
-    for (const item of data) {
+    for (const item of rows) {
       const key = groupFields.map((f) => String(getByPath(item, f) ?? '')).join('|||');
       if (!groups.has(key)) {
         groups.set(key, []);
@@ -807,10 +1152,13 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     for (const [key, items] of groups) {
       const row: Record<string, unknown> = {};
 
-      // Ajouter les champs de regroupement (structure imbriquee preservee)
+      // Ajouter les champs de regroupement (structure imbriquee preservee).
+      // Un groupe vide (null / undefined / "") ressort en null, pas en "" (#647) :
+      // meme forme que le group_by serveur, un `isnull` aval l'attrape et le
+      // chart le libelle via `empty-label` au lieu de « Série N ».
       const keyParts = key.split('|||');
       groupFields.forEach((field, i) => {
-        setByPath(row, field, keyParts[i]);
+        setByPath(row, field, keyParts[i] === '' ? null : keyParts[i]);
       });
 
       // Calculer les agrégations (structure imbriquee preservee)
@@ -829,13 +1177,63 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     return parseAggregates(aggExpr);
   }
 
+  /** Agregats reducteurs : ceux qui replient un groupe en une valeur (#738). */
+  private _groupAggregates(): ParsedAggregate[] {
+    return this._parseAggregates(this.aggregate).filter((a) => !isRunningAggregate(a.function));
+  }
+
+  /** Agregats cumules, appliques apres le tri sur les lignes de sortie (#738). */
+  private _runningAggregates(): ParsedAggregate[] {
+    return this._parseAggregates(this.aggregate).filter((a) => isRunningAggregate(a.function));
+  }
+
+  /**
+   * Avertit qu'un cumul est demandé sans `order-by` (#738) : le résultat suit
+   * alors l'ordre des lignes reçues, qui n'est pas un contrat (pagination,
+   * ordre d'insertion de l'API). Un `order-by` posé sur la source amont reste
+   * légitime, d'où un avertissement et non une erreur de configuration.
+   */
+  private _warnRunningWithoutOrder(): void {
+    if (this.orderBy || this._runningAggregates().length === 0) return;
+    console.warn(
+      `dsfr-data-query[${this.id}]: aggregate="${this.aggregate}" cumule sans "order-by" — ` +
+        `le cumul suit l'ordre des lignes reçues, qui n'est pas garanti. ` +
+        `Ajoutez order-by (ex. order-by="mois:asc") ou assurez-vous que la source amont est triée.`
+    );
+  }
+
+  /**
+   * Applique les agrégats cumulés sur les lignes de sortie (#738), dans leur
+   * ordre courant : chaque ligne porte la somme des valeurs des lignes
+   * précédentes, la sienne comprise. Les valeurs non numériques sont ignorées
+   * (même règle que `sum`, #301) et la ligne porte alors le cumul en cours.
+   * Les lignes ne sont jamais mutées : sans group-by, ce sont les objets de
+   * la source.
+   */
+  private _applyRunningAggregates(
+    data: Record<string, unknown>[],
+    aggregates: ParsedAggregate[]
+  ): Record<string, unknown>[] {
+    const totals = new Map<string, number>();
+    return data.map((row) => {
+      let out = row;
+      for (const agg of aggregates) {
+        const value = toNumber(getByPath(row, agg.field), true);
+        const total = (totals.get(agg.alias) ?? 0) + (value ?? 0);
+        totals.set(agg.alias, total);
+        out = this._rowWithFieldValue(out, agg.alias, total);
+      }
+      return out;
+    });
+  }
+
   /**
    * Agregat global (#278) : agrege l'ensemble des lignes (filtrees) en une
    * seule ligne, avec la meme convention d'alias field__fn que le group-by.
    */
   private _computeGlobalAggregates(data: Record<string, unknown>[]): Record<string, unknown> {
     const row: Record<string, unknown> = {};
-    for (const agg of this._parseAggregates(this.aggregate)) {
+    for (const agg of this._groupAggregates()) {
       setByPath(row, agg.alias, this._computeAggregate(data, agg));
     }
     return row;
@@ -858,13 +1256,22 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
         return values.length > 0 ? Math.min(...values) : 0;
       case 'max':
         return values.length > 0 ? Math.max(...values) : 0;
+      case 'distinct':
+        // Meme semantique que count(distinct x) serveur (#672) : null et
+        // chaine vide exclus, comparaison sur la valeur en chaine.
+        return countDistinct(items, agg.field);
       default:
-        return 0;
+        // Garde-fou (#649) : normalement intercepté avant le traitement par
+        // validateAggregateFunctions ; jamais un 0 plausible en silence.
+        throw new Error(
+          `fonction d'agrégat "${String(agg.function)}" inconnue — ` +
+            `fonctions acceptées : ${AGGREGATE_FUNCTIONS.join(', ')}`
+        );
     }
   }
 
   /**
-   * Comparateur total a 3 niveaux : null/vide < numerique < chaine (#278).
+   * Comparateur total a 3 niveaux : null/vide < numerique < chaîne (#278).
    * Transitif — l'ancien comparateur mixte (numerique si LES DEUX valeurs
    * sont numeriques, sinon string) produisait un ordre arbitraire sur les
    * colonnes mixtes, et `Number(null) === 0` classait les nulls parmi les
@@ -931,8 +1338,8 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
   }
 
   /**
-   * Retourne les parametres adapter resolus de la source amont
-   * (delegation transparente, headers api-key-ref inclus — #274).
+   * Retourne les paramètres adapter resolus de la source amont
+   * (délégation transparente, headers api-key-ref inclus — #274).
    */
   public getAdapterParams(): import('../adapters/api-adapter.js').AdapterParams | null {
     if (this.source) {
@@ -949,7 +1356,7 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    *
    * Semantique de pur transformateur (#279) : delegue le refetch a la
    * source amont — meme contrat que dsfr-data-source.reload(). L'emission
-   * qui suit redescend naturellement le pipeline jusqu'ici (une chaine
+   * qui suit redescend naturellement le pipeline jusqu'ici (une chaîne
    * query → query → source propage le reload jusqu'a la source).
    *
    * Repli : si l'amont n'expose pas reload() (normalize/unpivot/join avant

@@ -65,6 +65,7 @@ Un graphique en barres agrégé depuis une API OpenDataSoft, en trois balises :
 | `<dsfr-data-query>` | Transformateur : filtre (`where` colon), group-by, agrégation, tri, limite — délégation serveur automatique |
 | `<dsfr-data-join>` | Jointure de deux sources sur clé(s) pivot (inner, left, right, full) |
 | `<dsfr-data-unpivot>` | Bascule un tableau « wide » en « long/tidy » (melt) |
+| `<dsfr-data-pivot>` | Replie un tableau « long » en « wide » (tableau croisé : `row`, `column`, `value`, `aggregate`) |
 | `<dsfr-data-normalize>` | Nettoyage : conversion numérique, renommage, trim, flatten, colonnes calculées `compute` |
 | `<dsfr-data-context>` | Orchestrateur de filtres transverses multi-sources |
 | `<dsfr-data-context-filter>` | Un filtre du contexte, lié à un contrôle d'UI natif existant |

@@ -138,6 +138,18 @@ function describeStage(trace: Trace, nodeId: string, redact: boolean): string {
   }
   if (node.upstream.length > 0) lines.push(`Amont : ${node.upstream.join(', ')}`);
   if (node.configError) lines.push(`ERREUR DE CONFIGURATION : ${node.configError}`);
+  if (node.skippedRows) {
+    lines.push(
+      `LIGNES IGNORÉES : ${node.skippedRows} (code ou coordonnées géographiques absents ou invalides)`
+    );
+  }
+  if (node.computedColumns && node.computedColumns.length > 0) {
+    lines.push(
+      `Colonnes calculées (compute) : ${node.computedColumns
+        .map((c) => (redact ? c.name : `${c.name} = ${JSON.stringify(c.sample) ?? 'undefined'}`))
+        .join(', ')}`
+    );
+  }
 
   switch (state.status) {
     case 'loaded':
@@ -149,8 +161,19 @@ function describeStage(trace: Trace, nodeId: string, redact: boolean): string {
         lines.push(
           `Pagination : page ${state.meta.page}, total ${state.meta.total ?? 'inconnu'}, serveur=${
             state.meta.serverSide ? 'oui' : 'non'
-          }${state.meta.needsClientProcessing ? ', REPLI CLIENT' : ''}`
+          }${state.meta.needsClientProcessing ? ', REPLI CLIENT' : ''}${
+            state.meta.truncated ? ', TRONQUÉ (max-records ou limit)' : ''
+          }`
         );
+        const join = state.meta.join;
+        if (join) {
+          const pct =
+            join.leftTotal > 0 ? Math.round((join.leftMatched / join.leftTotal) * 100) : 100;
+          lines.push(
+            `Appariement : ${join.leftMatched} / ${join.leftTotal} lignes gauche appariées (${pct} %), ` +
+              `${join.rightMatched} / ${join.rightTotal} lignes droite${pct < 50 ? ' — ALERTE, clés probablement hétérogènes' : ''}`
+          );
+        }
       }
       if (!redact && state.sample && state.sample.length > 0) {
         lines.push('Échantillon :');
@@ -163,6 +186,11 @@ function describeStage(trace: Trace, nodeId: string, redact: boolean): string {
       break;
     case 'loading':
       lines.push('Chargement en cours au moment du relevé.');
+      break;
+    case 'waiting':
+      lines.push(
+        "En attente d'un filtre (require-where) : aucune requête n'a été lancée, c'est voulu."
+      );
       break;
     default:
       lines.push(

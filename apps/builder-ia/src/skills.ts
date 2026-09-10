@@ -67,7 +67,7 @@ Elle est distincte du code embarquable HTML (voir skills composants dsfr-data).
 | labelField | String | selon type | Champ pour les labels / axe X |
 | valueField | String | oui | Champ pour les valeurs / axe Y |
 | valueField2 | String | non | 2e série (bar-line, comparaisons) |
-| codeField | String | non | Champ code : departement/region (map, map-reg), nom d'academie (map-aca), code pays ISO (map-monde) |
+| codeField | String | non | Champ code : departement (map), region (map-reg : code INSEE, cle ISO IDF/20R/971 ou nom), academie (map-aca : nom accentue ou non, avec ou sans « Academie de »), code pays ISO ou nom de pays en francais (map-monde) |
 | aggregation | String | non | Fonction : sum, avg, count, min, max |
 | where | String | non | Filtre pre-agrégation (voir syntaxe ci-dessous) |
 | limit | Number | non | Nombre max de resultats |
@@ -95,9 +95,9 @@ Elle est distincte du code embarquable HTML (voir skills composants dsfr-data).
 | gauge | non | oui | Progression 0-100% |
 | kpi | non | oui | Indicateur chiffre clé unique |
 | map | non (codeField) | oui | Données par departement francais |
-| map-reg | non (codeField) | oui | Données par region francaise |
-| map-aca | non (codeField) | oui | Données par academie (noms en majuscules : PARIS, LYON...) |
-| map-monde | non (codeField) | oui | Données par pays (ISO 3166-1 : FR, US... — a3/num convertis) |
+| map-reg | non (codeField) | oui | Données par region francaise (code INSEE 11/84, cle IDF/20R/971 ou nom) |
+| map-aca | non (codeField) | oui | Données par academie (nom accentue ou non : « Academie de Besancon », BESANCON, Orleans-Tours) |
+| map-monde | non (codeField) | oui | Données par pays (ISO 3166-1 : FR, US... — a3/num convertis) ou nom francais (Allemagne, Pays-Bas) |
 | datalist | non | non (colonnes) | Tableau de données filtrable |
 
 IMPORTANT :
@@ -209,7 +209,7 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 | url | String | \`""\` | oui | URL de l'API (GET par défaut) |
 | method | String | \`"GET"\` | non | Méthode HTTP : GET ou POST |
 | headers | String | \`""\` | non | En-tetes HTTP en JSON : \`'{"Authorization": "Bearer xxx"}'\` |
-| params | String | \`""\` | non | Parametres query (GET) ou body (POST) en JSON |
+| params | String | \`""\` | non | Parametres de requete en JSON. Mode URL : query string (GET) ou corps (POST). Mode adaptateur (#726) : les paires sont ajoutees a l'URL construite par l'adaptateur — c'est ce qui permet a une page a \`timezone\` d'utiliser \`fetch-mode="export"\`, ex. \`params='{"timezone":"Europe/Paris"}'\` sur un jeu ODS a dates. Les cles construites par la bibliotheque (\`select\`, \`where\`, \`group_by\`, \`order_by\`, \`limit\`, \`offset\`, \`facet\`) sont reservees : refusees avec une erreur de configuration. Transmis par OpenDataSoft seulement. |
 | transform | String | \`""\` | non | Chemin JSONPath vers les données : \`"results"\`, \`"data.items"\`, \`"records"\` |
 | refresh | Number | \`0\` | non | Rafraichissement auto en secondes (0 = desactive) |
 | paginate | Boolean | \`false\` | non | Active la pagination serveur (injecte page/page_size dans l'URL, stocke la meta) |
@@ -221,12 +221,14 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 | resource | String | \`""\` | non | ID de la ressource (Tabular). |
 | where | String | \`""\` | non | Clause WHERE statique (ODSQL ou colon syntax). |
 | select | String | \`""\` | non | Clause SELECT serveur (ODS). Ex: \`"count(*) as total, region"\` |
-| group-by | String | \`""\` | non | Group-by serveur (si supporte par le provider). |
+| group-by | String | \`""\` | non | Group-by serveur (si supporte par le provider). ODS : accepte une expression aliasee, ex. \`"year(date) as annee"\` |
 | aggregate | String | \`""\` | non | Agrégation serveur. Ex: \`"population:sum"\` |
 | order-by | String | \`""\` | non | Tri serveur. Ex: \`"population:desc"\` |
 | server-side | Boolean | \`false\` | non | Active la pagination serveur page par page (datalist, tableaux). |
 | limit | Number | \`0\` | non | Limite du nombre de resultats (0 = pas de limite). |
 | max-records | Number | \`0\` | non | Plafond du fetchAll en mode adapter (#233). 0 = plafond par defaut de l'adapter (ODS : 1000). A relever explicitement pour les dashboards « un fetch, N agregations client » — attention au volume (requetes en boucle, memoire). |
+| fetch-mode | String | \`"records"\` | non | Strategie de chargement en mode adapter (#689). \`"export"\` charge tout le jeu en UNE requete via l'endpoint d'export du portail (ODS \`/exports/json\`), memes clauses select/where/group-by/order-by. A activer pour « un fetch, N agregations client », un jeu de plus de 1 000 lignes ou un group-by a beaucoup de groupes. Ignore avec \`server-side\` (avertissement console). Implemente par OpenDataSoft seulement ; repli automatique sur le chargement pagine si le portail n'expose pas d'export. |
+| require-where | Boolean | \`false\` | non | Ne rien charger tant qu'aucun filtre n'a été reçu (#690) : la source reste en attente et émet \`dsfr-data-idle\`, les afficheurs rendent « Choisissez un filtre pour afficher les données ». Le \`where\` STATIQUE ne compte pas — seules les clauses reçues par commande (facettes, recherche, dsfr-data-context, délégation d'un dsfr-data-query). Retirer le dernier filtre repasse en attente : jamais de requête « tout ». Réservé au mode adapter (les commandes where sont refusées en mode URL). |
 | data | String | \`""\` | non | Données JSON inline (pas de fetch). Ex: \`data='[{"x":1},{"x":2}]'\` |
 | use-proxy | Boolean | \`false\` | non | Force le passage par le proxy CORS generique. N'a d'effet QUE si une base de proxy est configuree (\`proxy-url\`, \`window.DSFR_DATA_PROXY\`, ou build) : en embed nu sur un site tiers sans aucune de ces sources, c'est un no-op (URL renvoyee inchangee). |
 | proxy-url | String | \`""\` | non | Domaine du proxy CORS pour CETTE source, prioritaire sur \`window.DSFR_DATA_PROXY\` et la config build. Sert la reecriture d'hote connu (Grist gouv/SaaS, Tabular, INSEE) ET le \`use-proxy\` generique. Ex: \`proxy-url="https://mon-proxy.fr"\`. Vide = resolution proxy globale habituelle. |
@@ -308,7 +310,34 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
   base-url="https://proxy.example.com/grist-proxy/api/docs/x/tables/y/records"
   headers='{"Authorization": "Bearer TOKEN"}'>
 </dsfr-data-source>
-\\\`\\\`\\\`` + reference('dsfr-data-source'),
+\\\`\\\`\\\`
+
+### Pages d'exploration : ne rien charger tant que l'utilisateur n'a rien choisi
+
+Une page où l'on choisit une commune, une année ou un thème avant de voir quoi que ce soit
+ne doit PAS rapatrier le jeu entier au chargement : c'est une requête coûteuse dont
+personne ne regarde le résultat. \`require-where\` sur la source (ou sur la requête) tient
+le pipeline en attente jusqu'au premier filtre, et les afficheurs rendent un message
+DSFR au lieu d'un graphique vide.
+
+\\\`\\\`\\\`html
+<dsfr-data-context id="ctx" sources="src">
+  <dsfr-data-context-filter field="commune" operator="eq"></dsfr-data-context-filter>
+</dsfr-data-context>
+
+<!-- Aucune requête tant qu'aucune commune n'est choisie -->
+<dsfr-data-source id="src" api-type="opendatasoft" require-where
+  base-url="https://data.example.gouv.fr" dataset-id="equipements">
+</dsfr-data-source>
+
+<dsfr-data-list source="src" columns="commune,equipement"
+  idle-message="Choisissez une commune pour afficher ses équipements">
+</dsfr-data-list>
+\\\`\\\`\\\`
+
+Retirer le dernier filtre ramène la page en attente : il n'y a jamais de requête
+« tout » implicite. L'état est visible dans le volet Diagnostic (« en attente d'un
+filtre ») et sur le bus via l'événement \`dsfr-data-idle\`.` + reference('dsfr-data-source'),
   },
 
   dsfrDataQuery: {
@@ -372,9 +401,11 @@ Apres agrégation, les champs sont nommes automatiquement : \`champ__fonction\`
 | where | String | \`""\` | non | Filtres (voir syntaxe ci-dessous) |
 | filter | String | \`""\` | non | Alias de where (compatibilite) |
 | group-by | String | \`""\` | non | Champs de groupement (separes par virgule) |
+| explode | String | \`""\` | non | Champs multivalués (tableaux) à éclater avant le regroupement (#736). Doivent figurer dans \`group-by\`. Force le regroupement côté client. |
 | aggregate | String | \`""\` | non | Agrégations : \`"champ:fonction"\` ou \`"champ:fonction:alias"\` |
 | order-by | String | \`""\` | non | Tri : \`"champ:asc"\` ou \`"champ:desc"\`. **Omettre cet attribut preserve l'ordre source** (ordre de premiere apparition apres group-by) — utile pour les mois en lettres, jours de la semaine, ou toute série déjà ordonnee en amont. |
 | limit | Number | \`0\` | non | Limite de resultats (0 = illimite) |
+| require-where | Boolean | \`false\` | non | N'émettre aucune ligne tant qu'aucun filtre n'est posé (#690) : l'état \`idle\` descend jusqu'aux afficheurs. Compte comme filtre le \`where\`/\`filter\` de cette requête, ou toute clause reçue par commande. |
 
 > dsfr-data-query est un pur transformateur de données. Utilisez dsfr-data-source pour le fetch HTTP.
 > Le where de query est colon-only : la syntaxe ODSQL ne s'utilise que sur le where de dsfr-data-source.
@@ -411,6 +442,38 @@ Multiples filtres separes par virgule (logique ET) :
 | isnull | Est vide/null | \`"email:isnull"\` |
 | isnotnull | N'est pas vide | \`"telephone:isnotnull"\` |
 
+**Catégories vides et parité ods-chart** : un group-by sur un champ partiellement
+renseigné produit un groupe \`null\` (jamais \`""\`), que dsfr-data-chart libelle
+« Non renseigné » (attribut \`empty-label\`). Rien n'est masqué par défaut. Pour
+EXCLURE ces lignes comme le fait ods-chart, filtrer explicitement en amont :
+\`where="champ:isnotnull"\` sur dsfr-data-query, ou \`where="champ is not null"\`
+(ODSQL) sur dsfr-data-source.
+
+### Champs multivalués (explode)
+Une cellule tableau (\`besoins: ["audit", "formation"]\`, ChoiceList Grist, facette
+multi-valeurs ODS) est ramenée en chaîne pour la clé de groupe : la COMBINAISON
+« audit,formation » devient une modalité, alors que \`dsfr-data-facets\` éclate le même
+champ et compte « audit » et « formation » séparément. Les deux composants branchés sur
+le même champ donnaient donc des chiffres différents (#736).
+
+\`explode="besoins"\` éclate le champ avant le regroupement : une ligne portant N valeurs
+compte dans N groupes, et les modalités sont exactement celles de la facette du même champ.
+Les éléments vides sont ignorés et une cellule sans aucune valeur (tableau vide, \`null\`)
+ne produit AUCUNE ligne — pas de groupe « non renseigné », comme la facette n'a pas de
+modalité vide.
+
+Le défaut reste l'ancien comportement (des chiffres publiés s'appuient dessus). Chaque
+champ listé doit figurer dans \`group-by\` (sinon \`data-dsfr-config-error\` et champ ignoré),
+et l'éclatement force le regroupement **côté client** : aucune API ne sait éclater un champ
+multivalué. Sur un gros jeu, surveiller \`max-records\` (chiffre partiel silencieux).
+
+\`\`\`html
+<dsfr-data-query id="par-besoin" source="orgs"
+  group-by="besoins" explode="besoins" aggregate="id:count"
+  order-by="id__count:desc">
+</dsfr-data-query>
+\`\`\`
+
 ### Fonctions d'agrégation
 Format : \`"champ:fonction"\` ou \`"champ:fonction:alias"\`
 Nommage automatique sans alias : \`champ__fonction\` (ex: \`population__sum\`)
@@ -422,6 +485,42 @@ Nommage automatique sans alias : \`champ__fonction\` (ex: \`population__sum\`)
 | avg | Moyenne | \`"prix:avg"\` |
 | min | Minimum | \`"temperature:min"\` |
 | max | Maximum | \`"score:max"\` |
+| distinct | Nombre de valeurs distinctes (alias \`count-distinct\`) — null et chaîne vide exclus, \`75\` et \`"75"\` comptent pour une seule valeur | \`"commune:distinct"\` → colonne \`commune__distinct\` |
+| running_sum | **Cumul** : une ligne par ligne de sortie, chacune portant la somme des précédentes (#738) | \`"montant:running_sum"\` → colonne \`montant__running_sum\` |
+
+Délégation de \`distinct\` : ODS \`count(distinct champ)\`, Grist SQL \`COUNT(DISTINCT champ)\` ;
+**Tabular ne le délègue pas** (calcul client sur les lignes reçues, warn console si l'API en
+détient davantage — chiffre partiel derrière un \`max-records\` ou un \`limit\`).
+
+### Cumul (running_sum, #738)
+\`running_sum\` n'est pas une réduction de groupe mais une transformation **ordonnée** :
+elle s'applique APRÈS \`order-by\`, sur les lignes de sortie, et garde une ligne par ligne
+(elle ne replie donc jamais le jeu en une valeur unique comme les autres agrégats sans
+\`group-by\`). Elle peut cumuler une colonne produite par le regroupement :
+
+\`\`\`html
+<!-- Ventes mensuelles, puis cumul depuis janvier -->
+<dsfr-data-query id="cumul" source="ventes"
+  group-by="mois"
+  aggregate="montant:sum, montant__sum:running_sum"
+  order-by="mois:asc">
+</dsfr-data-query>
+<!-- colonnes : mois, montant__sum, montant__sum__running_sum -->
+\`\`\`
+
+- **Sans \`order-by\`, le résultat n'a pas de sens** : le cumul suit l'ordre des lignes reçues,
+  qui n'est pas un contrat. Un avertissement console le signale (pas une erreur : une source
+  déjà triée en amont est légitime).
+- **Jamais délégué au serveur** : aucune API du pipeline ne le traduit. Un \`group-by\` qui
+  porte un cumul redescend donc entièrement côté client, sur les seules lignes rapatriées —
+  surveiller \`max-records\` et \`limit\`.
+- Le cumul n'existe pas sur \`dsfr-data-kpi\` (qui rend une valeur, pas une série) ni dans
+  \`compute\` de \`dsfr-data-normalize\` (par ligne, sans inter-lignes — ADR-105).
+
+Toute autre fonction (\`somme\`, \`moyenne\`, \`median\`…) est une **erreur de configuration**
+visible (console + \`data-dsfr-config-error\`, composants aval en erreur) — jamais un 0 silencieux.
+\`count-if\` est refusé : filtrer avec \`where\` puis \`champ:count\` (sur le KPI :
+\`value="count:champ:valeur"\`).
 
 ### Exemples
 \`\`\`html
@@ -524,6 +623,24 @@ Nommage automatique sans alias : \`champ__fonction\` (ex: \`population__sum\`)
       'multi-valeurs',
       'decouper',
       'group_concat',
+      'fold',
+      'replier',
+      'colonnes oui/non',
+      'colonnes booleennes',
+      'compute',
+      'colonne calculee',
+      'colonnes calculees',
+      'calculer une colonne',
+      'recoder',
+      'recodage',
+      'tranche',
+      'seuil',
+      'when',
+      'coalesce',
+      'non renseigne',
+      'annee d une date',
+      'extraire l annee',
+      'solde',
     ],
     content:
       `## <dsfr-data-normalize> - Normalisation de données
@@ -553,12 +670,14 @@ Sortie : même tableau avec valeurs nettoyees/renommees.
 | rename | String | \`""\` | non | Renommage : \`"ancien:nouveau \\| ancien2:nouveau2"\` (pipe-separe) |
 | trim | Boolean | \`false\` | non | Supprime les espaces en debut/fin des clés ET valeurs string |
 | strip-html | Boolean | \`false\` | non | Supprime les balises HTML des valeurs string |
-| replace | String | \`""\` | non | Remplace des valeurs globalement : \`"N/A: \\| n.d.: \\| -:0"\` (pipe-separe) |
-| replace-fields | String | \`""\` | non | Remplacement cible par champ : \`"CHAMP:ancien:nouveau \\| CHAMP2:a:n"\` (pipe-separe). Ne remplace que dans le champ specifie. |
+| replace | String | \`""\` | non | Remplace des valeurs globalement : \`"N/A: \\| n.d.: \\| -:0"\` (pipe-separe). Egalite stricte sur la FORME CHAINE de la valeur entiere, pas de regex : une colonne numerique ou booleenne est concernee aussi (#730). Un \`:\` littéral dans le pattern s'échappe en \`%3A\` (\`%7C\`, \`%2C\`, \`%25\` idem) : \`"10%3A00:10h"\`. |
+| replace-fields | String | \`""\` | non | Remplacement cible par champ : \`"CHAMP:ancien:nouveau \\| CHAMP2:a:n"\` (pipe-separe). Ne remplace que dans le champ specifie. Egalite stricte sur la forme chaine de la valeur : \`replace-fields="annee:2024:2024-2025"\` fonctionne sur une colonne numerique (#730). Un \`:\` littéral dans le pattern s'échappe en \`%3A\` : \`"h:10%3A00:10h"\`. Pas de regex : pour un recodage plus riche (sous-chaine, annee d'une date), utiliser \`compute\` avec \`replace()\` ou \`year()\`. |
 | split | String | \`""\` | non | Decoupe des champs multivalues (chaine avec separateur) en vrais tableaux : \`"Axes:\\|, Cibles:;"\` (entrees separees par virgule, \`champ:sep\`, separateur par defaut = virgule). Elements trimes, vides ecartes, chaine vide = tableau vide. Les facettes affichent alors une valeur par element au lieu d'un bouton combine « a\\|b ». |
 | round | String | \`""\` | non | Arrondit des champs numériques : \`"montant, prix"\` (0 decimales) ou \`"taux:2, score:1"\` (decimales explicites) |
 | lowercase-keys | Boolean | \`false\` | non | Met toutes les clés en minuscules |
-| compute | String | \`""\` | non | Colonnes calculees (ligne a ligne). Format \`"cible = expression; cible2 = expr2"\`. Supporte l'arithmetique \`+ - * /\`, la concatenation texte (\`+\` avec litteraux 'entre quotes') et les parentheses. Ex: \`"pct = valeur * 100; groupe = Indicateurs + ' / ' + Sous_theme"\`. Hors perimetre : conditions, fonctions, calculs sur valeurs agregees. |
+| fold | String | \`""\` | non | Replie des colonnes booléennes parallèles (une colonne Oui/Non par modalité) en UN champ tableau : \`"handicap_*:handicaps"\` (entrees separees par virgule, \`motif:cible\`, joker \`*\` en debut ou en fin de motif seulement, ou nom exact ; plusieurs motifs peuvent viser la meme cible). Le tableau contient les noms des colonnes vraies (Oui/Non, 1/0, true/false, X/vide via \`toBoolean\`), etiquetees par la partie variable du motif (\`handicap_moteur\` → « moteur ») ou le nom complet pour un motif exact. Colonnes sources conservees. |
+| fold-drop | Boolean | \`false\` | non | Avec \`fold\` : retire les colonnes sources repliees du resultat. |
+| compute | String | \`""\` | non | Colonnes calculees (ligne a ligne, en dernier). Format \`"cible = expression; cible2 = expr2"\`. Arithmetique \`+ - * /\`, concatenation texte (\`+\` avec litteraux 'entre quotes'), parentheses, fonctions en liste blanche (\`year month day round abs floor ceil lower upper trim len concat replace coalesce is_null is_empty join contains\`), conditions \`when COND then EXPR … else EXPR\` (\`else\` obligatoire), comparaisons \`= != < <= > >=\`, \`and or not\`, litteraux \`null true false\`. Ex: \`"solde = actif - passif; tranche = when montant >= 1000000 then 'Grand' else 'Petit'; type = coalesce(type_entreprise, 'Non renseigné'); annee = year(date_notification)"\`. Fonction inconnue ou \`when\` sans \`else\` = erreur de configuration (console + \`data-dsfr-config-error\`). Grammaire complete : section « Colonnes calculees » ci-dessous. Hors perimetre : valeurs agregees (query / kpi), ligne precedente, cumul. |
 
 ### Ordre d'execution des transformations
 1. **flatten** — aplatit le sous-objet designe
@@ -571,14 +690,85 @@ Sortie : même tableau avec valeurs nettoyees/renommees.
 6. **round** — arrondit les valeurs numériques
 7. rename — renomme les clés
 8. lowercase-keys — clés en minuscules
-9. **compute** — colonnes calculees (en dernier, sur valeurs déjà typees : \`valeur * 100\` voit un nombre, \`a + ' / ' + b\` concatene)
+9. **fold** — replie les colonnes booléennes en un tableau (apres rename et lowercase-keys : les motifs se lisent sur les noms finaux, qui servent d'etiquettes — \`rename="handicap_moteur:handicap_Moteur"\` donne « Moteur »)
+10. **compute** — colonnes calculees (en dernier, sur valeurs déjà typees : \`valeur * 100\` voit un nombre, \`a + ' / ' + b\` concatene ; un tableau issu de \`fold\` y est disponible)
 
 ### Separateurs
 - \`numeric\` : champs separes par virgule
 - \`rename\` et \`replace\` : paires separees par \`|\`, clé et valeur separees par \`:\`
   Le \`:\` separe le pattern de sa valeur de remplacement (valeur vide = suppression).
 - \`replace-fields\` : paires separees par \`|\`, format \`CHAMP:pattern:remplacement\` (les 2 premiers \`:\` sont des delimiteurs, le remplacement peut contenir des \`:\`).
+- Echappement percent (\`rename\`, \`replace\`, \`replace-fields\`, meme convention que \`where\`) : un \`:\` littéral s'ecrit \`%3A\`, \`|\` → \`%7C\`, \`,\` → \`%2C\`, \`%\` → \`%25\`. Decode APRES le decoupage sur les separateurs : \`replace-fields="h:10%3A00:10h"\` recrit « 10:00 » en « 10h ». Aucune regex n'est acceptee (surface ReDoS) : au-dela de l'egalite stricte, passer par \`compute\` (\`replace(s, 'a', 'b')\` littéral, \`year(date)\`).
 - \`split\` : entrees separees par virgule, format \`champ:separateur\` (le separateur peut etre \`|\`, \`;\`, \` / \`… ; absent = virgule). Ne pas utiliser \`|\` entre les entrees : c'est le separateur le plus courant a decouper.
+- \`fold\` : entrees separees par virgule, format \`motif:cible\` (\`*\` en debut ou en fin du motif seulement ; un motif au joker mal place est signale en console + \`data-dsfr-config-error\` et ignore, les autres s'appliquent).
+
+### Colonnes calculees : compute (fonctions, when / then / else)
+
+\`compute\` s'execute en dernier, sur les valeurs deja typees par \`numeric\` / \`round\` /
+\`rename\`. Une assignation suivante peut relire une colonne calculee avant elle. Tout
+est **par ligne** : pour un agregat (somme, moyenne, distinct), passer par \`dsfr-data-query\`
+ou \`dsfr-data-kpi\` ; pour l'affichage conditionnel d'un fragment, par les templates
+(\`{{#if}}\`), pas par \`compute\`.
+
+**Fonctions (liste blanche, appel \`f(a, b)\`)** — toute autre fonction est une erreur de
+configuration, jamais une colonne vide :
+
+| Famille | Fonctions | Notes |
+|---------|-----------|-------|
+| Dates | \`year(d)\`, \`month(d)\`, \`day(d)\` | Date ISO (\`2024-03-15\`, \`2024-03-15T10:00:00Z\`, \`2024-03\`) ou objet Date → nombre ; sinon \`null\` (une date \`15/03/2024\` n'est pas reconnue) |
+| Nombres | \`round(x, n)\`, \`abs(x)\`, \`floor(x)\`, \`ceil(x)\` | \`n\` facultatif (0 par defaut) ; chaine numerique FR acceptee (\`"12,5"\`) ; non numerique → \`null\` |
+| Texte | \`lower(s)\`, \`upper(s)\`, \`trim(s)\`, \`len(s)\`, \`concat(a, b, …)\`, \`replace(s, 'de', 'vers')\` | \`replace\` est litteral (toutes les occurrences, pas de regex) ; \`null\` reste \`null\` sauf \`len\` (0) et \`concat\` (vide) |
+| Absence | \`coalesce(a, b, …)\`, \`is_null(x)\`, \`is_empty(x)\` | \`coalesce\` = premiere valeur non nulle (\`''\` compte comme une valeur) ; \`is_empty\` = null, \`''\` ou tableau vide |
+| Tableaux | \`join(arr, ', ')\`, \`contains(arr_ou_texte, v)\` | \`contains\` sur tableau = egalite lache par element (comme \`in\`) ; sur texte = sous-chaine insensible a la casse (comme \`where contains\`) |
+
+**Conditions** : \`when COND then EXPR [when COND then EXPR]… else EXPR\`. La premiere
+condition vraie gagne ; le \`else\` est **obligatoire**. Une condition combine des
+comparaisons \`= != < <= > >=\` avec \`and\`, \`or\`, \`not\` (priorite : \`not\` > \`and\` > \`or\` ;
+parentheses possibles). Un \`when\` peut s'imbriquer dans une arithmetique ou dans une
+branche — le mettre entre parentheses quand il est suivi d'un operateur.
+
+**Meme semantique que \`where\`, syntaxe infixe** : l'egalite est lache (nombre ↔ chaine
+numerique : \`dept = 75\` matche \`"75"\`), \`< <= > >=\` comparent en nombre quand les deux
+cotes sont numeriques et en texte sinon (dates ISO comprises), null / absent / vide ne
+matchent jamais une comparaison d'ordre. Correspondance :
+
+| \`where\` (dialecte colon, attribut) | \`when\` (infixe, dans compute) |
+|------|------|
+| \`champ:eq:v\` | \`champ = 'v'\` ou \`champ = 75\` |
+| \`champ:neq:v\` | \`champ != 'v'\` |
+| \`champ:gt:n\` / \`gte\` / \`lt\` / \`lte\` | \`champ > n\` / \`>=\` / \`<\` / \`<=\` |
+| \`champ:isnull\` / \`champ:isnotnull\` | \`is_null(champ)\` / \`not is_null(champ)\` (ou \`champ = null\` / \`champ != null\`) |
+| \`champ:contains:v\` / \`notcontains\` | \`contains(champ, 'v')\` / \`not contains(champ, 'v')\` |
+| \`champ:in:a\\|b\` / \`notin\` | \`champ = 'a' or champ = 'b'\` / \`not (…)\` |
+| \`a:eq:1, b:eq:2\` (virgule = ET) | \`a = 1 and b = 2\` |
+
+Garde-fous : aucun \`eval\`, seuls les champs de la ligne sont lisibles, expression bornee
+en longueur (2000 caracteres) et en profondeur (32 niveaux). Les colonnes produites
+apparaissent dans la trace du volet Diagnostic (« calculees (compute) : … » avec un exemple
+de valeur).
+
+\`\`\`html
+<!-- Solde, tranche par seuils, valeur par defaut, annee d'une date -->
+<dsfr-data-normalize id="calc" source="raw" numeric="actif, passif, montant"
+  compute="solde = actif - passif;
+           tranche = when montant >= 1000000 then 'Grand' when montant >= 100000 then 'Moyen' else 'Petit';
+           type = coalesce(type_entreprise, 'Non renseigné');
+           annee = year(date_notification)">
+</dsfr-data-normalize>
+<dsfr-data-query id="par-tranche" source="calc" group-by="tranche" aggregate="solde:sum"></dsfr-data-query>
+
+<!-- Part en % arrondie, libelle compose, indicateur booleen -->
+<dsfr-data-normalize id="calc" source="raw"
+  compute="part_pct = round(part * 100, 1);
+           libelle = concat(upper(code), ' - ', trim(nom));
+           actif = when statut = 'A' and not is_empty(siret) then true else false">
+</dsfr-data-normalize>
+
+<!-- Recodage d'une liste (split) puis reconstitution -->
+<dsfr-data-normalize id="calc" source="raw" split="risques:|"
+  compute="nb_risques = len(risques); inondable = contains(risques, 'inondation'); risques_txt = join(risques, ', ')">
+</dsfr-data-normalize>
+\`\`\`
 
 ### Aplatir des données imbriquees (Grist, ODS v1, Airtable)
 
@@ -653,6 +843,12 @@ rendant les données compatibles avec tous les composants (facettes, datalist, g
 <dsfr-data-normalize id="data" source="flat" split="Axes:|, Operateurs:|, Cibles:|"></dsfr-data-normalize>
 <dsfr-data-facets id="filtres" source="data" fields="Axes, Operateurs" disjunctive="Axes"></dsfr-data-facets>
 
+<!-- Colonnes booléennes paralleles (handicap_moteur, handicap_visuel, handicap_auditif,
+     handicap_mental : Oui/Non) -> UN champ tableau « handicaps » filtrable par UNE facette.
+     Sans fold, il faudrait une facette par colonne. fold-drop retire les colonnes d'origine. -->
+<dsfr-data-normalize id="acces" source="raw" fold="handicap_*:handicaps" fold-drop></dsfr-data-normalize>
+<dsfr-data-facets id="filtres" source="acces" fields="handicaps"></dsfr-data-facets>
+
 <!-- INSEE Melodi : les libelles sont resolus automatiquement (#592).
      Les observations n'arrivent plus en codes SDMX : AGE vaut « De 25 a 49 ans »
      et non « Y25T49 », GEO vaut « Ain » et non « 2025-DEP-01 ». Le code d'origine
@@ -709,26 +905,45 @@ Sortie : même tableau, filtre selon les selections de l'utilisateur.
 | labels | String | \`""\` | non | Labels custom : \`"field:Label \\| field2:Label 2"\` (pipe-separe) |
 | max-values | Number | \`6\` | non | Nb de valeurs visibles par facette avant "Voir plus" |
 | disjunctive | String | \`""\` | non | Champs en mode multi-selection OU (virgule-separes) |
-| sort | String | \`"count"\` | non | Tri des valeurs : count, -count, alpha, -alpha |
+| sort | String | \`"count"\` | non | Tri des valeurs, grammaire \`critere:sens\` (comme order-by) : \`count:desc\` (défaut, plus frequent d'abord), \`count:asc\`, \`alpha:asc\` (A-Z), \`alpha:desc\` (Z-A). Raccourcis : \`count\` = count:desc, \`alpha\` = alpha:asc. **Par champ** (#741) : \`"annee:alpha:asc \\| categorie:count:desc"\` (pipe-separe, comme labels/display/cols) — une facette d'annees rangee A-Z pendant qu'une facette de categories reste rangee par frequence, sans dupliquer le composant. Un champ non nomme garde le défaut ; l'entree \`"*:alpha"\` change ce défaut. \`-count\` / \`-alpha\` deprecies (warn console) — ne plus les generer |
 | searchable | String | \`""\` | non | Champs avec barre de recherche (virgule-separes) |
 | hide-empty | Boolean | \`false\` | non | Masquer les facettes avec une seule valeur |
-| display | String | \`""\` | non | Mode d'affichage par facette : \`"field:select \\| field2:multiselect"\`. Modes : checkbox (défaut), select, multiselect, radio |
+| display | String | \`""\` | non | Mode d'affichage par facette : \`"field:select \\| field2:multiselect"\`. Modes : checkbox (défaut), select, multiselect, radio (dropdown a radios), radio-inline (radios visibles en ligne + « Tous ») |
 | hide-counts | Boolean | \`false\` | non | Masquer les compteurs (N) a cote de chaque valeur de facette |
+| weight-field | String | \`""\` | non | **Client uniquement** (#739). Champ numerique dont la SOMME remplace le nombre de lignes dans les compteurs : sur une table de mesures, \`weight-field="effectif"\` annonce la somme des effectifs au lieu de « 1 240 » releves. Le tri \`count\` porte alors sur cette somme, et le nombre est formate a la francaise. Une valeur non numerique pese zero. En mode \`server-facets\`, la somme n'existe pas dans la reponse /facets : les compteurs sont MASQUES, une erreur de configuration est posee et un avertissement DSFR est rendu — ne pas generer \`weight-field\` avec \`server-facets\` |
 | url-params | Boolean | \`false\` | non | Active la lecture des parametres d'URL comme pre-selections de facettes |
 | url-param-map | String | \`""\` | non | Mapping URL param -> champ : \`"r:region \\| t:type"\`. Si vide, correspondance directe |
 | url-sync | Boolean | \`false\` | non | Synchronise l'URL quand l'utilisateur change les facettes (replaceState) |
-| server-facets | Boolean | \`false\` | non | Active le mode facettes serveur ODS. Fetch les valeurs depuis l'API ODS /facets. Requiert une source dsfr-data-source api-type="opendatasoft" server-side (directement ou via un dsfr-data-query, qui relaie automatiquement). En mode server-facets, fields est obligatoire |
+| server-facets | Boolean | \`false\` | non | Active le mode facettes serveur ODS. Fetch les valeurs depuis l'API ODS /facets. Requiert une source dsfr-data-source api-type="opendatasoft" server-side (directement ou via un dsfr-data-query, qui relaie automatiquement). Sans fields, les facettes declarees par le jeu sont decouvertes au premier cycle (ODS : metadonnees du jeu ; Grist : colonnes Choice/ChoiceList) ; une facette de type date (valeurs par annee) est filtree par intervalle (#680, #676) |
 | static-values | String | \`""\` | non | Valeurs de facettes pre-calculees en JSON : \`'{"region":["IDF","PACA"],"type":["Commune"]}')\`. Les selections envoient des commandes WHERE en colon syntax au dsfr-data-query. Compteurs masques automatiquement. Utile pour Tabular/Grist/generique qui n'ont pas d'API facettes serveur |
 | cols | String | \`""\` | non | Colonnage DSFR : \`"6"\` (global, 2/ligne), \`"4"\` (3/ligne), ou par facette \`"region:4 \\| type:6"\` (défaut fr-col-6 pour non-specifies) |
+| context | String | \`""\` | non | Id d'un dsfr-data-context (#678, ADR-104) : la facette devient un filtre du contexte, un par champ. Le contexte diffuse a toutes ses sources cibles (au dialecte de chacune), porte l'URL (url-sync / url-params de la facette ignores) et alimente context-tags. Valeurs, compteurs et cascade restent calcules sur \`source\`. Vide = mode autonome (commande directe a \`source\`) |
+| no-reset | Boolean | \`false\` | non | Masque le bouton local « Réinitialiser les filtres » (#679, #640) : a poser quand un context-tags clear-all fait office de « tout effacer », ou pour qu'une colonne de facettes ne change pas de hauteur a la premiere selection |
+
+### Mode context (#678) — un select peuple depuis la donnee, avec cascade
+\`\`\`html
+<dsfr-data-context id="ctx" sources="src-charges src-produits" url-sync></dsfr-data-context>
+<dsfr-data-facets id="geo" context="ctx" source="src-facettes" server-facets
+  fields="region,departement" display="region:select | departement:select"></dsfr-data-facets>
+<dsfr-data-context-tags for="ctx"></dsfr-data-context-tags>
+\`\`\`
+Zero <option> ecrite a la main : les valeurs viennent de l'API facettes, choisir une region
+restreint les departements (cascade server-facets), et les deux sources cibles se refiltrent
+ensemble. Un filtre par champ (eq une valeur, in plusieurs), whereKey stable \`uid + champ\`.
+Le contexte peut etre declare apres la facette dans la page. Ne PAS generer d'\`<option>\` en dur
+ni d'\`options-source\` sur context-filter (refuse) : c'est ce pattern qu'il faut.
+Migration d'une facette qui portait url-sync : reporter \`url-param-map\` sur le contexte
+(un parametre par champ, format du contexte).
 
 ### Modes d'affichage
 - **checkbox** (défaut) : fieldset DSFR avec checkboxes, compteurs, "Voir plus/moins", recherche optionnelle
 - **select** : liste deroulante DSFR standard, selection exclusive (une seule valeur)
 - **multiselect** : dropdown collapsible avec checkboxes DSFR, recherche integree, bouton "Tout sélectionner/deselectionner"
-- **radio** : dropdown collapsible avec radio buttons DSFR, recherche integree, selection exclusive
+- **radio** : dropdown collapsible avec radio buttons DSFR, recherche integree, selection exclusive (sera renomme \`radio-dropdown\` dans une version majeure)
+- **radio-inline** : boutons radio DSFR visibles en ligne dans un fieldset, precedes d'une option « Tous » qui retire la selection ; selection exclusive, toutes les valeurs affichees (#684)
 
 Le mode \`select\` rend la facette automatiquement exclusive.
-Le mode \`radio\` rend la facette automatiquement exclusive.
+Le mode \`radio\` rend la facette automatiquement exclusive, \`radio-inline\` aussi.
 Le mode \`multiselect\` rend la facette automatiquement disjonctive (multi-selection OU).
 
 ### Logique de filtrage
@@ -842,16 +1057,28 @@ Les compteurs de facettes se recalculent dynamiquement.
 | highlight | Boolean | false | non | Ajoute _highlight avec <mark> pour dsfr-data-display |
 | operator | String | "contains" | non | Mode : contains, starts, words |
 | sr-label | Boolean | false | non | Label en sr-only (masque visuellement) |
-| count | Boolean | false | non | Affiche compteur de resultats |
+| count | Boolean | false | non | Affiche un compteur de résultats visible sous le champ (compte serveur en \`server-search\`), avec séparateur de milliers français. Voir Accessibilité : il n'est une région live que sans afficheur aval. Tant que l'amont attend un filtre (\`require-where\`), le compteur cède la place au message d'attente |
+| idle-message | String | "Choisissez un filtre pour afficher les données" | non | Message rendu à la place du compteur quand l'amont attend un filtre (\`require-where\`). Nécessite \`count\` |
 | url-search-param | String | "" | non | Nom du parametre d'URL a lire comme terme de recherche initial |
 | url-sync | Boolean | false | non | Synchronise l'URL quand l'utilisateur tape (replaceState) |
 | server-search | Boolean | false | non | Delegue la recherche au serveur (le dsfr-data-query amont relaie automatiquement vers la source server-side) |
 | search-template | String | \`'search("{q}")'\` | non | Template ODSQL pour la recherche serveur ({q} = terme) |
+| context | String | "" | non | Id d'un dsfr-data-context (#678) : la recherche devient un filtre \`contains\` du contexte sur le champ UNIQUE de \`fields\` (obligatoire). Le contexte diffuse a ses cibles, porte l'URL (parametre nomme d'apres le champ ; url-sync / url-search-param ignores) et le tag. Vide = mode autonome |
 
 ### Recherche serveur
 Avec \`server-search\`, au lieu de filtrer localement, dsfr-data-search envoie une commande
 \`{ where }\` au source upstream (relais automatique du dsfr-data-query). Le template par défaut utilise
 la fonction ODSQL \`search()\` pour une recherche full-text. Personnalisable via \`search-template\`.
+
+### Accessibilité : une seule région live par chaîne
+Le compte de résultats n'est annoncé au lecteur d'écran (\`aria-live\`) qu'une fois par chaîne,
+par le composant terminal. Quand un afficheur aval (\`dsfr-data-list\`, \`dsfr-data-display\`)
+consomme la sortie de search — en direct ou via \`dsfr-data-facets\` — search ne rend aucune
+région live : le compteur \`count\` reste visible mais silencieux, l'afficheur annonce seul
+le compte final (après les facettes). Sans afficheur aval (search → chart, kpi...), search
+annonce lui-même son compte. Ne pas ajouter de région live supplémentaire dans la page
+(un \`<p role="status">\` maison) : deux annonces pour un même geste donnent deux nombres
+contradictoires (#654).
 
 ### Modes de recherche
 - **contains** (défaut) : sous-chaine insensible a la casse et aux accents
@@ -937,18 +1164,90 @@ Attend un tableau d'objets. L'attribut \`valeur\` determine comment extraire/agr
 | Attribut | Type | Défaut | Requis | Description |
 |----------|------|--------|--------|-------------|
 | source | String | \`""\` | oui | ID de la dsfr-data-source ou dsfr-data-query |
-| value | String | \`""\` | oui | Expression : \`"champ"\`, \`"champ:avg"\`, \`"champ:sum"\`, \`"champ:min"\`, \`"champ:max"\`, \`"count:champ:valeur"\` (grammaire commune champ:fn, #303). Alias deprecie : \`valeur\` · litteral avec \`=\` : \`value="=667"\`, \`value="=87 %"\` (sans source) |
+| value | String | \`""\` | oui | Expression : \`"champ"\`, \`"champ:avg"\`, \`"champ:sum"\`, \`"champ:min"\`, \`"champ:max"\`, \`"champ:distinct"\`, \`"count:champ:valeur"\` (grammaire commune champ:fn, #303), ou un ratio \`"expr / expr"\` (\`"count:statut:ouvert / count"\`). Alias deprecie : \`valeur\` · litteral avec \`=\` : \`value="=667"\`, \`value="=87 %"\` (sans source) |
+| where | String | \`""\` | non | Filtre des lignes AVANT le calcul, dialecte colon de dsfr-data-query : \`where="categorie:eq:Actif, montant:gte:1000"\` (mêmes 12 opérateurs). Appliqué à \`value\`, \`trend\` et \`lines\`. **Client seulement** : porte sur les lignes reçues, jamais délégué au serveur |
 | heading | String | \`""\` | non | Titre affiche AU-DESSUS de la valeur (surtitre, majuscules grises). Nomme \`heading\` (pas \`title\`, qui collisionne avec la propriete DOM native) |
 | label | String | \`""\` | non | Libelle sous la valeur (et sous les \`lines\`) |
 | description | String | \`""\` | non | Description pour accessibilité (sr-only) |
 | icon | String | \`""\` | non | Classe Remix Icon : \`ri-global-line\`, \`ri-money-euro-circle-line\`, etc. Alias deprecie : \`icone\` |
-| format | String | \`"nombre"\` | non | Format : nombre, pourcentage, euro, decimal, compact (14,8 M) |
+| format | String | \`"nombre"\` | non | Format : nombre, pourcentage, euro, decimal, compact (14,8 M), date (chaine ISO -> 09/09/2026). Les decimales passent par \`decimals\`, jamais par le format (\`euro:3\` est refuse : erreur de configuration) |
+| decimals | Number | - | non | Nombre de decimales affichees (0-20), ex. \`format="euro" decimals="3"\` -> « 1,749 € ». Fixe pour nombre/pourcentage/euro/decimal, plafond pour compact, sans effet sur date |
+| unit | String | \`""\` | non | Unite accolee apres la valeur (espace insecable), ex. \`format="compact" unit="€"\` -> « 44,9 Md € ». Inutile avec euro et pourcentage (symbole deja present) |
 | trend | String | \`""\` | non | RACCOURCI HERITE (preferez \`lines\`). Expression d'agregation \`"champ:fn"\` (\`"evolution:avg"\`) — PAS un litteral. Rendue avec une fleche en pourcentage fr-FR (\`↑ 5,2 %\`). Alias deprecie : \`tendance\` |
-| lines | String | \`""\` | non | Lignes secondaires declaratives (JSON), rendues ENTRE la valeur et le \`label\`. Chaque item : \`value\` (expression \`champ:fn\`) OU \`text\` (statique), + \`format\`, \`sign\`, \`prefix\`, \`suffix\`, \`color\` (\`"auto"\`=vert si >=0/rouge si <0, token DSFR, ou couleur CSS), \`na\` (repli si non fini). Ex. \`[{"value":"evol:avg","sign":true,"suffix":"vs mai 2025","color":"auto"}]\` |
+| lines | String | \`""\` | non | Lignes secondaires declaratives (JSON), rendues ENTRE la valeur et le \`label\`. Chaque item : \`value\` (expression \`champ:fn\`) OU \`text\` (statique), + \`format\` (dont \`"date"\`), \`decimals\`, \`unit\`, \`sign\`, \`prefix\`, \`suffix\`, \`color\` (\`"auto"\`=vert si >=0/rouge si <0, token DSFR, ou couleur CSS), \`na\` (repli si non fini). Ex. \`[{"value":"evol:avg","sign":true,"suffix":"vs mai 2025","color":"auto"}]\` |
 | color-token | String | \`""\` | non | Forcer la couleur (token semantique DSFR) : vert, orange, rouge, bleu. Alias deprecies : \`color\`, \`couleur\` |
 | threshold-green | Number | - | non | Seuil au-dessus duquel couleur = vert. Alias deprecie : \`seuil-vert\` |
 | threshold-orange | Number | - | non | Seuil au-dessus duquel couleur = orange (en-dessous = rouge). Alias deprecie : \`seuil-orange\` |
 | col | Number | - | non | Largeur en colonnes DSFR (1-12), actif uniquement dans un \`<dsfr-data-kpi-group>\` |
+
+Fonctions acceptées dans \`value\`, \`trend\` et \`lines\` : avg, sum, count, min, max, first, last,
+distinct (alias \`count-distinct\`), evolution.
+Toute autre fonction (ex. \`"x:somme"\`) affiche une erreur de configuration à la place du KPI
+(console + \`data-dsfr-config-error\`) — jamais une valeur vide.
+
+\`value="nom_departement:distinct"\` compte les valeurs distinctes (« 101 départements ») sur les
+lignes reçues — null et chaîne vide exclus, un champ tableau compte ses éléments. Sur des lignes
+tronquées (limit, page, max-records), un warn console signale le chiffre partiel, comme \`count\`.
+
+Dates : \`min\`/\`max\` acceptent une colonne de dates ISO (\`AAAA-MM-JJ\` ou datetime) et renvoient
+la date la plus ancienne/récente ; \`first\`/\`last\` renvoient la chaîne brute. Avec \`format="date"\`,
+la valeur est rendue JJ/MM/AAAA : \`value="maj:max" format="date"\` -> « 09/09/2026 ».
+
+### Taux d'évolution N / N-1 : \`champ:evolution\`
+\`value="recettes:evolution" format="pourcentage"\` = (dernière − première) / première, calculé sur
+les lignes **dans leur ordre courant** : poser un \`order-by\` chronologique sur la query ou la
+source amont (\`order-by="annee:asc"\`), sinon le sens du taux dépend de l'ordre de livraison.
+Fraction (0,25) rendue en pourcentage (« 25 % ») par \`format="pourcentage"\`, par \`trend\`
+(« ↑ 25 % ») et par \`lines\` (format pourcentage par défaut). « — » si moins de deux valeurs
+numériques ou si la première vaut 0. Réservé au KPI (pas sur \`aggregate\` de dsfr-data-query).
+\`\`\`html
+<dsfr-data-query id="chrono" source="budget" order-by="annee:asc"></dsfr-data-query>
+<dsfr-data-kpi source="chrono" value="recettes:last" format="euro" trend="recettes:evolution" label="Recettes"></dsfr-data-kpi>
+\`\`\`
+Différence entre deux **séries** (par ligne) : ce n'est pas un agrégat — passer par un pivot
+long → large (\`dsfr-data-pivot\`) puis \`compute\`.
+
+### Part, taux, ratio : \`value="expr / expr"\`
+Deux expressions séparées par \` / \` (barre oblique ENTOURÉE d'espaces), chacune dans la
+grammaire ci-dessus (\`count\`, \`champ:sum\`, \`count:champ:valeur\`, \`champ:distinct\`,
+\`meta:total\`…). Le résultat est une fraction (0,35) ; \`format="pourcentage"\` l'affiche en
+pourcentage (« 35 % ») et les seuils s'expriment alors en pourcentage ; \`format="decimal"\` garde
+la fraction. Division par zéro ou côté non numérique : « — » (jamais Infinity).
+\`\`\`html
+<dsfr-data-kpi source="dossiers" value="count:statut:ouvert / count" format="pourcentage" label="Dossiers ouverts"></dsfr-data-kpi>
+<dsfr-data-kpi source="budget" value="montant:sum / count" format="euro" label="Montant moyen"></dsfr-data-kpi>
+\`\`\`
+- \`count:champ:valeur\` accepte un champ **tableau** (tags) : la ligne compte si l'un des
+  éléments est égal. Le \`where\` s'applique aux deux côtés (sauf \`meta:total\`).
+- Un ratio marche aussi dans \`trend\` (rendu en %) et dans \`lines\` (format pourcentage par défaut).
+- Pas de \`count-if\` sur dsfr-data-query : filtrer avec \`where\` puis compter.
+
+### Filtrer sans query intermédiaire : \`where\`
+\`where="champ:op:valeur[, …]"\` filtre les lignes AVANT \`value\`, \`trend\` et \`lines\`, avec la
+grammaire colon de dsfr-data-query (eq, neq, gt, gte, lt, lte, contains, notcontains, in, notin,
+isnull, isnotnull ; égalité lâche, \`in\` avec \`|\`). Une somme filtrée ne coûte plus une query :
+\`\`\`html
+<dsfr-data-kpi source="budget" value="montant:sum" where="categorie:eq:Actif" label="Actif" format="euro"></dsfr-data-kpi>
+<dsfr-data-kpi source="budget" value="montant:sum" where="categorie:eq:Passif, exercice:gte:2024" label="Passif 2024+"></dsfr-data-kpi>
+\`\`\`
+- **Côté client seulement** : le KPI ne délègue rien au serveur, le filtre porte sur les lignes
+  reçues. Derrière un \`limit\`, une page serveur ou un \`max-records\`, poser le \`where\` sur la
+  source ou une query amont. \`meta:total\` n'est pas filtré.
+- La forme \`montant:sum:categorie=Actif\` n'existe pas (elle entrerait en collision avec
+  \`count:champ:valeur\`) : le filtre est un attribut, pas un segment de \`value\`.
+- Clause non reconnue (opérateur inconnu, valeur manquante) : erreur de configuration à la
+  place du KPI.
+
+### Compter le total, pas les lignes reçues : \`value="meta:total"\`
+\`value="count"\` compte les lignes REÇUES. Derrière un \`dsfr-data-query limit="12"\`, une source
+\`server-side\` (une page) ou un plafond \`max-records\`, c'est un chiffre partiel — un warn console
+le signale quand la meta annonce davantage. Pour le total, \`value="meta:total"\` lit la meta de
+l'amont : \`total_count\` serveur en \`server-side\` (suit recherche et facettes), nombre de lignes
+avant \`limit\` derrière un query, nombre de lignes sur une source non paginée.
+\`\`\`html
+<dsfr-data-query id="top12" source="src" order-by="date:desc" limit="12"></dsfr-data-query>
+<dsfr-data-kpi source="top12" value="meta:total" label="Activités"></dsfr-data-kpi>
+\`\`\`
 
 ### Grouper des KPIs : \`<dsfr-data-kpi-group>\`
 Utiliser \`<dsfr-data-kpi-group>\` pour disposer plusieurs KPIs en grille responsive :
@@ -980,6 +1279,9 @@ Utiliser \`<dsfr-data-kpi-group>\` pour disposer plusieurs KPIs en grille respon
 | \`"sum:champ"\` | Somme | \`valeur="sum:montant"\` |
 | \`"min:champ"\` | Minimum | \`valeur="min:prix"\` |
 | \`"max:champ"\` | Maximum | \`valeur="max:prix"\` |
+| \`"champ:distinct"\` | Nombre de valeurs distinctes | \`value="commune:distinct"\` |
+| \`"champ:evolution"\` | (dernière − première) / première, source ordonnée | \`value="recettes:evolution" format="pourcentage"\` |
+| \`"expr / expr"\` | Ratio de deux expressions | \`value="count:statut:ouvert / count" format="pourcentage"\` |
 | \`"count:champ:valeur"\` | Nombre d'items ou champ = valeur | \`valeur="count:status:active"\` |
 
 ### Exemples
@@ -1150,12 +1452,15 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 | source | String | \`""\` | oui | ID de la source ou query |
 | type | String | \`"bar"\` | oui | Type de graphique (voir tableau ci-dessus) |
 | label-field | String | \`""\` | selon type | Chemin vers les labels dans les données |
-| value-field | String | \`""\` | oui (sauf gauge) | Chemin vers les valeurs |
-| value-field-2 | String | \`""\` | non | 2e série de valeurs (bar-line) |
-| value-fields | String | \`""\` | non | Séries supplementaires separees par virgules — format LARGE, une colonne par série (ex: \`"budget,score"\`) |
+| value-field | String | \`""\` | oui (sauf gauge) | Chemin vers les valeurs. Alias inline \`champ:Libellé\` pour la légende : \`value-field="Panier_moyen:Panier moyen"\` (un \`:\` littéral s'échappe en \`%3A\`) |
+| value-field-2 | String | \`""\` | non | 2e série de valeurs (bar-line). Alias inline \`champ:Libellé\` accepté |
+| value-fields | String | \`""\` | non | Séries supplementaires separees par virgules — format LARGE, une colonne par série (ex: \`"budget,score"\`). Alias inline par série : \`"budget:Budget, score:Score"\` |
 | series-field | String | \`""\` | non | Champ clé de série pour données LONG/tidy : ses valeurs distinctes deviennent autant de séries. Ex: données \`{mois, groupe, valeur}\` avec \`series-field="groupe"\`. S'applique a bar/line/radar. Prioritaire sur value-fields. Consommateur naturel de \`dsfr-data-unpivot\`. |
-| name | String | \`""\` | non | Noms des séries en JSON : \`'["Série 1","Série 2"]'\` (auto-deduit des colonnes ou des valeurs de series-field si absent) |
+| name | String | \`""\` | non | Nom(s) de série. Chaîne simple recommandée : \`name="Taux"\` (enveloppée automatiquement). JSON pour le multi-séries : \`'["Réalisé","Objectif"]'\`. Sur les cartes, un seul nom (le premier d'un JSON est retenu). Priorité : \`name\` explicite, sinon l'alias inline \`champ:Libellé\` de value-field(s), sinon le nom du champ ou les valeurs de series-field |
+| idle-message | String | \`"Choisissez un filtre pour afficher les données"\` | non | Message rendu quand l'amont attend un filtre (\`require-where\`, #690). Distinct de « aucune donnée » : aucune requête n'a été faite. Existe aussi sur list, kpi, display, podium et a11y. |
+| empty-label | String | \`"Non renseigné"\` | non | Libellé d'une catégorie vide (\`null\`, \`undefined\` ou \`""\` dans label-field) : légende du pie, axe X. Évite le « Série N » de DSFR Chart sur un nom vide. Ex: \`empty-label="Sans objet"\` |
 | selected-palette | String | \`"categorical"\` | non | Palette : categorical, sequentialAscending, sequentialDescending, divergentAscending, divergentDescending, neutral, default |
+| color-map | String | \`""\` | non | Couleur fixee par modalite : paires \`modalite:#couleur\` separees par virgule, meme grammaire que dsfr-data-map-layer. Ex: \`"Realise:#000091,Objectif:#E1000F"\`. La modalite est un nom de serie, sinon un libelle de l'axe (part de camembert). Virgule ou deux-points dans une modalite : \`%2C\` / \`%3A\`. Sans effet sur les types map* |
 | unit-tooltip | String | \`""\` | non | Unite dans les info-bulles : %, EUR, etc. |
 | unit-tooltip-bar | String | \`""\` | non | Unite des barres dans un bar-line |
 | horizontal | Boolean | \`false\` | non | Barres horizontales (type bar uniquement) |
@@ -1167,7 +1472,7 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 | y-min | String | \`""\` | non | Limite min axe Y. Pour type radar : borne min de l'echelle radiale (le centre du radar est fixe a y-min au lieu du minimum des donnees) |
 | y-max | String | \`""\` | non | Limite max axe Y. Pour type radar : borne max de l'echelle radiale ; si y-min et y-max sont entiers avec une amplitude de 1 a 10, anneaux de grille entiers (stepSize 1) |
 | gauge-value | Number | \`null\` | type gauge | Valeur de la jauge (0-100) |
-| code-field | String | \`""\` | types map* | Champ contenant le code : departement/region (map, map-reg), nom d'academie en majuscules (map-aca), code pays ISO 3166-1 alpha-2/alpha-3/numerique (map-monde, converti en alpha-2) — prioritaire sur label-field |
+| code-field | String | \`""\` | types map* | Champ contenant le code : departement (map), region (map-reg : code INSEE, cle DSFR Chart IDF/20R/971 ou nom, traduits), academie (map-aca : nom accentue ou non, prefixe « Academie de » retire), code pays ISO 3166-1 alpha-2/alpha-3/numerique OU nom de pays en francais (map-monde : « Allemagne », « l'Allemagne », « Pays-Bas », converti en alpha-2) — prioritaire sur label-field. Une cle hors referentiel est ignoree ET comptee (console + volet Diagnostic) |
 | map-highlight | String | \`""\` | non | Departements/regions a surligner |
 | reference-lines | String | \`""\` | non | Lignes de reference (overlay) en JSON. Cartesiens uniquement (line, bar, bar-line, scatter). Chaque item : \`{ axis: "x" ou "y", value (string ou number), label?, color?, dash?, position? }\`. \`axis:"x"\` → ligne verticale a une categorie/date ; \`axis:"y"\` → ligne horizontale a un seuil. Ex : \`reference-lines='[{"axis":"x","value":"2026-02","label":"Lancement","color":"#c9191e","dash":true},{"axis":"y","value":3000,"label":"Objectif"}]'\`. |
 | targets | String | \`""\` | non | Cibles / objectifs futurs (overlay) en JSON. Types line et bar-line uniquement. Chaque item : \`{ x (echeance, string ou number, requis), value (number, requis), series? (nom de dataset ou index, defaut 0), label?, color? }\`. L'axe X est etendu automatiquement si l'echeance depasse les donnees : trait plein jusqu'au dernier point reel, trajectoire pointillee vers un losange a l'echeance, zone future grisee. Ex : \`targets='[{"x":2030,"value":26,"label":"Cible 2030 : 26 %"}]'\`. |
@@ -1257,8 +1562,10 @@ téléchargement CSV, plein écran, tendance.
 |----------|------|--------|-------------|
 | databox | Boolean | \`false\` | Active l'habillage DataBox DSFR |
 | databox-title | String | \`""\` | Titre affiche dans l'en-tete (ex: "Population par region") |
+| heading-level | Number | \`3\` | Niveau de titre HTML du titre DataBox (2 à 6, borné) — \`heading-level="2"\` rend un h2, à caler sur la hiérarchie de la page (RGAA 9.1) |
 | databox-source | String | \`""\` | Source des données (ex: "INSEE, RP 2021") |
-| databox-date | String | \`""\` | Date des données (ex: "Mars 2024") |
+| databox-date | String | \`""\` | Date des données (ex: "Mars 2024"). Prime sur databox-date-field |
+| databox-date-field | String | \`""\` | Colonne de dates ISO (AAAA-MM-JJ) : la plus récente est affichée comme date, formatée JJ/MM/AAAA (ex: \`databox-date-field="gazole_maj"\`) |
 | databox-download | Boolean | \`false\` | Bouton téléchargement CSV |
 | databox-screenshot | Boolean | \`false\` | Bouton screenshot PNG |
 | databox-fullscreen | Boolean | \`false\` | Bouton plein écran |
@@ -1312,23 +1619,76 @@ Affiche un tableau DSFR filtrable, triable, paginable avec export CSV et/ou HTML
 Se connecte a une dsfr-data-source ou dsfr-data-query via l'attribut \`source\`.
 
 ### Format des données
-Attend un tableau d'objets plats. Les colonnes sont définies par l'attribut \`colonnes\`
-au format \`"cle_json:Label affiche, cle2:Label2"\`. Si \`colonnes\` est omis, toutes
-les clés du premier objet sont utilisees comme colonnes.
+Attend un tableau d'objets plats. Les colonnes sont définies par l'attribut \`columns\`
+au format \`"cle_json:Label affiche, cle2:Label2"\`. Si \`columns\` est omis, toutes
+les clés présentes dans les données deviennent colonnes (ordre d'apparition, libellé = clé) :
+le tableau suit un schéma dynamique — c'est le consommateur naturel d'un \`dsfr-data-pivot\`
+dont les colonnes suivent une facette (#255, #640). \`columns-auto\` combine les deux :
+les colonnes déclarées (libellées, en tête) puis celles des données.
 
 ### Attributs
 | Attribut | Type | Défaut | Requis | Description |
 |----------|------|--------|--------|-------------|
 | source | String | \`""\` | oui | ID de la source ou query |
-| columns | String | \`""\` | non | Definition des colonnes : \`"key:Label, key2:Label2"\`. Alias deprecie : \`colonnes\` |
+| columns | String | \`""\` | non | Definition des colonnes : \`"key:Label, key2:Label2"\`. Omis : toutes les clés des données (ordre d'apparition). Alias deprecie : \`colonnes\` |
+| columns-auto | Boolean | \`false\` | non | Complète \`columns\` avec les clés des données absentes de la liste (libellé = clé) : colonnes figées en tête, dynamiques ensuite (#640) |
 | search | Boolean | \`false\` | non | Afficher la barre de recherche full-text (desactivee en pagination serveur, #304). Alias deprecie : \`recherche\` |
 | filters | String | \`""\` | non | Colonnes filtrables (dropdown) : \`"col1,col2"\`. Alias deprecie : \`filtres\` |
 | sort | String | \`""\` | non | Tri par défaut : \`"col:asc"\` ou \`"col:desc"\`. Alias deprecie : \`tri\` |
 | pagination | Number | \`0\` | non | Lignes par page (0 = tout afficher sans pagination) |
+| caption | String | \`""\` | non | Titre du tableau (RGAA 5.4), rendu dans \`caption\` masqué visuellement ; à défaut dérivé de \`aria-label\` (#669) |
+| decimals | Number | — | non | Nombre de décimales des cellules numériques ; absent : au plus 2, format fr-FR (#666) |
 | export | String | \`""\` | non | Formats d'export : \`"csv"\`, \`"html"\` ou \`"csv,html"\` |
 | url-sync | Boolean | \`false\` | non | Synchronise le numero de page dans l'URL (?page=N) via replaceState |
 | url-page-param | String | \`"page"\` | non | Nom du parametre URL pour la page |
 | server-sort | Boolean | \`false\` | non | Delegue le tri au serveur (retour page 1 automatique, #304). Alias deprecie : \`server-tri\` |
+| refine-on-click | String | \`""\` | non | Champ dont la valeur de la ligne cliquee devient un filtre \`eq\` (#734) : premier clic = filtre, second clic sur la meme ligne = retrait, autre ligne = remplacement. Avec \`context\` (recommande) : filtre du dsfr-data-context (tag, URL, dialecte de chaque cible). Sans \`context\` : commande directe a \`source\` (whereKey \`list-select-ID\`) |
+| context | String | \`""\` | non | Id du dsfr-data-context auquel s'enregistrer en \`refine-on-click\` (#734, ADR-104). Peut etre declare apres le tableau |
+| label | String | \`""\` | non | Libelle du tag du contexte en \`refine-on-click\` (defaut : le libelle de la colonne filtree, sinon le nom du champ) |
+| cell-class | String | \`""\` | non | Classe CSS d'une cellule pilotee par une colonne calculee (#740) : \`"colonne:colonne_classe"\`, plusieurs paires separees par des virgules ; \`"colonne"\` seul classe la cellule par sa propre valeur |
+
+### Colorer une cellule selon un seuil (cell-class, #740)
+Il n'y a pas de \`threshold-*\` par colonne sur le tableau : la voie est **colonne calculee →
+classe**. Le \`compute\` de \`dsfr-data-normalize\` sait deja produire une tranche (#671) ;
+\`cell-class\` en fait la classe de la cellule. Une seule mecanique, et le critere RGAA 1.4.1
+satisfait par construction : la valeur textuelle existe deja dans une colonne. Quand cette
+colonne n'est PAS affichee, le tableau la restitue dans la cellule en texte masque
+visuellement — l'information n'est jamais portee par la seule couleur.
+
+La valeur de la colonne de classe devient la classe (plusieurs classes separees par des
+espaces) ; seuls les identifiants CSS sont retenus, le reste est ignore.
+
+\`\`\`html
+<dsfr-data-normalize id="avec-seuil" source="brut"
+  compute="alerte = when taux_reponse >= 50 then 'seuil-ok' else 'seuil-bas'"></dsfr-data-normalize>
+
+<dsfr-data-list source="avec-seuil"
+  columns="service:Service, taux_reponse:Taux de reponse, alerte:Seuil"
+  cell-class="taux_reponse:alerte"></dsfr-data-list>
+
+<style>
+  .seuil-bas { background: var(--background-contrast-error); font-weight: 700; }
+  .seuil-ok  { background: var(--background-contrast-success); }
+</style>
+\`\`\`
+
+### Le clic sur une ligne filtre les autres vues (refine-on-click, #734)
+Meme mecanique que \`dsfr-data-map-layer refine-on-click\` (#681), meme mixin : le tableau
+devient un filtre du \`dsfr-data-context\`. Une colonne de selection est ajoutee en tete du
+tableau, avec un vrai \`<button>\` par ligne : atteignable au clavier, annonce comme un bouton,
+etat porte par \`aria-pressed\` et par le libelle (« Filtrer sur Paris » / « Retirer le filtre
+Paris »), jamais par la seule couleur. La ligne selectionnee porte aussi \`aria-current="true"\`.
+Le clic n'importe ou sur la ligne fait la meme bascule (confort a la souris) sans voler le clic
+d'un lien rendu dans une cellule. L'evenement \`dsfr-data-select\` \`{ record, elementId, selected }\`
+est emis a chaque bascule (bubbles, composed). Meme chose sur \`dsfr-data-display\`.
+
+\`\`\`html
+<dsfr-data-context id="ctx" sources="details" url-sync></dsfr-data-context>
+<dsfr-data-list source="communes" columns="commune:Commune, population:Population"
+  refine-on-click="commune" context="ctx"></dsfr-data-list>
+<dsfr-data-context-tags context="ctx"></dsfr-data-context-tags>
+<dsfr-data-chart source="details" type="bar" label-field="annee" value-field="valeur"></dsfr-data-chart>
+\`\`\`
 
 ### Tri serveur
 Avec \`server-sort\`, le clic sur un en-tete de colonne envoie une commande \`{ orderBy }\`
@@ -1340,6 +1700,16 @@ Quand la source est un \`dsfr-data-source\` avec \`paginate\`, dsfr-data-list d�
 la pagination serveur via les metadonnees (\`meta.total\`, \`meta.page_size\`).
 Chaque changement de page declenche un nouvel appel API (pas de pagination client).
 Le total affiche vient de \`meta.total\`. La recherche et le tri ne s'appliquent qu'a la page courante.
+
+### Pagination et format des cellules
+La pagination suit le motif DSFR : première/dernière page, ellipses (\`1 2 3 … 115\`), et
+« Page N sur M » affiché et annoncé aux lecteurs d'écran (\`aria-current="page"\` sur la page
+courante). M vient de \`meta.total\` en mode serveur, sinon du nombre de lignes filtrées.
+Les cellules numériques (\`typeof number\`) sont rendues en fr-FR : \`2.27\` → « 2,27 », au plus
+2 décimales, ou exactement \`decimals\` décimales. Les chaînes ne sont JAMAIS reformatées
+(codes INSEE, SIREN, années en texte restent intacts) et l'export CSV/HTML reste brut.
+Pour arrondir la donnée elle-même (et pas seulement l'affichage), \`normalize round="champ:2"\`
+reste disponible.
 
 ### Synchronisation URL
 Avec \`url-sync\`, le numero de page est synchronise dans l'URL via \`replaceState\`.
@@ -1394,16 +1764,63 @@ une instance du template avec les valeurs injectees.
 Le template est défini dans un element \`<template>\` enfant du composant.
 Les placeholders sont remplaces pour chaque element de données :
 
+Grammaire d'un placeholder : \`{{chemin[:format[:arg]][|défaut]}}\` — l'argument du format vient
+après un second \`:\` ; il ne peut pas contenir \`|\` (qui ouvre le défaut).
+
 | Syntaxe | Description |
 |---------|-------------|
 | \`{{champ}}\` | Valeur echappee (HTML-safe) |
 | \`{{{champ}}}\` | Valeur brute (non echappee — utiliser avec precaution) |
 | \`{{champ\\|défaut}}\` | Valeur avec fallback si null/undefined |
 | \`{{champ:number}}\` | Valeur avec separateur de milliers (ex: 32073247 → 32 073 247) |
+| \`{{champ:number:2}}\` | Nombre fr-FR avec 2 décimales fixes |
 | \`{{champ:number\\|0}}\` | Format number + fallback si null |
+| \`{{champ:date}}\` | Date JJ/MM/AAAA depuis une ISO (\`2026-09-09T10:00:00Z\` → \`09/09/2026\`), « — » si invalide |
+| \`{{champ:datetime}}\` | Date et heure JJ/MM/AAAA HH:MM |
+| \`{{tags}}\` | Un tableau (champ multivalué ODS/Grist) est joint par \`, \` |
+| \`{{tags:join: / }}\` | Tableau joint par le séparateur donné, espaces compris |
+| \`{{lien:url}}\` | URL filtrée : seuls \`http:\`, \`https:\`, \`mailto:\`, \`tel:\` et les URL relatives passent, sinon chaîne vide. **À utiliser dans tout \`href\`** |
 | \`{{champ.sous.clé}}\` | Acces aux proprietes imbriquees (dot notation) |
 | \`{{$index}}\` | Index de l'element dans le tableau (0-based) |
 | \`{{$uid}}\` | Identifiant unique de l'element (base sur uid-field ou index) |
+
+### Blocs conditionnels
+\`{{#if champ}}…{{/if}}\` affiche son contenu si la valeur existe (ni null, undefined, chaîne vide,
+tableau vide ni false) ; \`{{#unless champ}}…{{/unless}}\` est le complément. Les blocs ne s'imbriquent
+pas. Le bloc doit englober du texte, des éléments complets ou la valeur d'un attribut : placé entre
+deux attributs d'une balise, il est découpé par l'analyse HTML du \`<template>\` et ignoré.
+
+\`\`\`html
+<!-- Lien optionnel : rien si le champ est vide, lien filtré sinon -->
+{{#if site_web}}<a class="fr-link" href="{{site_web:url}}">Site web</a>{{/if}}
+{{#unless site_web}}<span class="fr-text--mention-grey">Pas de site</span>{{/unless}}
+\`\`\`
+
+### Bloc de répétition (#737)
+\`{{#each champ}}…{{/each}}\` répète son contenu pour chaque élément d'un champ tableau —
+la seule façon de rendre un champ multivalué en liste structurée (sinon il est aplati par
+\`{{tags}}\` ou \`{{tags:join: / }}\`). Dans le bloc :
+
+- \`{{.}}\` = l'élément courant, toujours échappé, et les formats de la grammaire s'y
+  appliquent (\`{{.:number}}\`, \`{{.:date}}\`, \`{{.:url}}\`) ;
+- \`{{$index}}\` = le rang de l'élément (0-based), qui masque l'index de ligne ;
+- les autres placeholders désignent toujours les champs de l'enregistrement.
+
+Un tableau vide, un \`null\` ou un champ absent ne rendent RIEN (pas de \`<li>\` vide) ; les
+éléments vides sont ignorés ; une valeur scalaire vaut un élément unique. Comme \`{{#if}}\`,
+le bloc ne s'imbrique pas (un \`{{#each}}\` dans un \`{{#if}}\` n'est pas développé).
+
+Il n'existe PAS de pipe qui rendrait du balisage (\`:tags\` et compagnie) : le moteur échappe
+toujours, un pipe produisant du HTML ouvrirait une surface d'injection.
+
+\`\`\`html
+<ul class="fr-tags-group">
+  {{#each besoins}}<li><p class="fr-tag">{{.}}</p></li>{{/each}}
+</ul>
+\`\`\`
+
+Recette de transition (versions antérieures à 0.22, sans bloc) : rendre le lien toujours et le
+masquer en CSS quand l'attribut est vide — \`a[href=""] { display: none; }\`.
 
 ### Attributs
 | Attribut | Type | Défaut | Requis | Description |
@@ -1412,10 +1829,22 @@ Les placeholders sont remplaces pour chaque element de données :
 | cols | Number | \`1\` | non | Nombre de colonnes dans la grille (1-6) |
 | pagination | Number | \`0\` | non | Elements par page (0 = tout afficher) |
 | empty | String | \`"Aucun resultat"\` | non | Message quand le tableau est vide |
+| idle-message | String | \`"Choisissez un filtre pour afficher les données"\` | non | Message rendu quand l'amont attend un filtre (\`require-where\`, #690) — distinct de \`empty\`, qui répond à une requête revenue vide. |
 | gap | String | \`"fr-grid-row--gutters"\` | non | Classe CSS de gap pour la grille |
 | uid-field | String | \`""\` | non | Champ de données pour l'ID unique par item. Chaque item recoit un id="item-{valeur}" pour ancrage URL |
 | url-sync | Boolean | \`false\` | non | Synchronise le numero de page dans l'URL (?page=N) via replaceState |
 | url-page-param | String | \`"page"\` | non | Nom du parametre URL pour la page |
+| refine-on-click | String | \`""\` | non | Champ dont la valeur de l'element clique devient un filtre \`eq\` (#734) : premier clic = filtre, second clic sur le meme element = retrait, autre element = remplacement. Avec \`context\` (recommande) : filtre du dsfr-data-context (tag, URL, dialecte de chaque cible). Sans \`context\` : commande directe a \`source\` (whereKey \`display-select-ID\`) |
+| context | String | \`""\` | non | Id du dsfr-data-context auquel s'enregistrer en \`refine-on-click\` (#734, ADR-104). Peut etre declare apres le composant |
+| label | String | \`""\` | non | Libelle du tag du contexte en \`refine-on-click\` (defaut : le nom du champ) |
+
+### Le clic sur un element filtre les autres vues (refine-on-click, #734)
+Meme mecanique et meme mixin que \`dsfr-data-list\` et \`dsfr-data-map-layer\`. Chaque element
+recoit un vrai \`<button>\` « Filtrer sur … » : atteignable au clavier, annonce comme un bouton,
+etat porte par \`aria-pressed\` et par son libelle (« Retirer le filtre … » une fois selectionne),
+jamais par la seule couleur ; l'element selectionne porte \`aria-current="true"\`. Le clic
+n'importe ou sur l'element fait la meme bascule, sans voler le clic d'un lien du template.
+Evenement \`dsfr-data-select\` \`{ record, elementId, selected }\` (bubbles, composed).
 
 ### Pagination serveur
 Quand la source est un \`dsfr-data-source\` avec \`paginate\`, dsfr-data-display détecté automatiquement
@@ -1646,6 +2075,11 @@ Pour ameliorer l'accessibilité, ajoutez \`dsfr-data-a11y\` apres chaque visuali
 \`\`\`
 L'attribut \`for\` injecte un skip link et pose \`aria-describedby\` + \`aria-details\` sur le graphique cible.
 
+**Une seule région live par chaîne** : le compte de résultats est annoncé (\`aria-live\`) par le
+seul composant terminal (\`dsfr-data-list\`, \`dsfr-data-display\`). \`dsfr-data-search\` se tait
+quand l'un d'eux est en aval (même via facets) et n'annonce que s'il est seul. Ne jamais
+empiler une région live de page par-dessus (#654).
+
 ### Pipeline simplifie : Source -> Visualisation (sans transformation)
 \`\`\`html
 <dsfr-data-source id="data" url="https://api.fr/records" transform="results"></dsfr-data-source>
@@ -1768,7 +2202,7 @@ Le code généré doit etre un **snippet** pret a copier-coller dans une page ex
 - L'utilisateur collera ce snippet dans sa propre page.
 
 ### Dependances CDN requises
-Toujours inclure ces 6 dependances dans cet ordre exact :
+Toujours inclure ces 5 dependances dans cet ordre exact :
 \`\`\`html
 <!-- CSS DSFR (obligatoire) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
@@ -1776,19 +2210,19 @@ Toujours inclure ces 6 dependances dans cet ordre exact :
 
 <!-- DSFR Chart (obligatoire pour les graphiques) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
-<script src="${CDN_URLS.chartJs}"></script>
 <script type="module" src="${CDN_URLS.dsfrChartJs}"></script>
 
 <!-- dsfr-data (obligatoire) -->
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 \`\`\`
+**Ne jamais charger Chart.js a part** (\`chart.umd.min.js\` ou equivalent) : DSFR Chart embarque
+sa propre copie de Chart.js dans \`DSFRChart.js\`. Un second script a cote pese ~200 Ko pour rien.
 
 ### Exemple de snippet complet
 \`\`\`html
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
-<script src="${CDN_URLS.chartJs}"></script>
 <script type="module" src="${CDN_URLS.dsfrChartJs}"></script>
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
@@ -1842,7 +2276,7 @@ et par l'action \`reloadData\` du builder-IA.
 |-----------|-------------|---------|
 | select | Champs a retourner (avec aliases) | \`select=nom,population\` ou \`select=avg(prix) as prix_moyen\` |
 | where | Condition de filtrage | \`where=population>10000\` ou \`where=nom like "Paris%"\` |
-| group_by | Champ de groupement | \`group_by=region\` |
+| group_by | Champ de groupement, ou expression **avec alias obligatoire** (\`as\`) | \`group_by=region\` ou \`group_by=year(date) as annee\` |
 | order_by | Tri | \`order_by=population DESC\` |
 | limit | Max resultats (défaut: 10, max: 100 par requête) | \`limit=100\` |
 | offset | Pagination | \`offset=100\` |
@@ -1868,6 +2302,11 @@ dsfr-data-query gere automatiquement la pagination via offset quand la limite de
 ### Fonctions sur les dates
 - year(date), month(date), day(date)
 - date_format(date, "YYYY-MM")
+
+Grouper par une expression de date : \`group-by="year(date) as annee"\` — l'alias \`as\` est
+OBLIGATOIRE cote ODS pour une expression (sans alias : HTTP 400). L'expression est transmise
+telle quelle (pas de backquotes), seuls les noms de champs a espaces sont echappes.
+NE PAS contourner avec "champ brut dans group-by, fonction dans select" : cela ne groupe pas par annee.
 
 ### Exemple complet
 \`?select=region,avg(prix) as prix_moyen&where=annee>=2020&group_by=region&order_by=prix_moyen DESC&limit=10\`
@@ -1984,15 +2423,18 @@ Guide pour choisir le type de visualisation adapte aux données.
 
 ### Carte regions (map-reg)
 - **Quand** : données geographiques par region francaise
-- **Champs** : code-field (code region), value-field
+- **Champs** : code-field (code INSEE 11/84/94, cle DSFR Chart IDF/20R/971 ou nom de region), value-field
 
 ### Carte academies (map-aca)
 - **Quand** : données education par academie
-- **Champs** : code-field (nom d'academie en majuscules : PARIS, LYON, STRASBOURG...), value-field
+- **Champs** : code-field (nom d'academie, accentue ou non, avec ou sans « Academie de » : « Academie de Besancon », BESANCON, Orleans-Tours), value-field
+- **Hors decoupage DSFR Chart** : Polynesie, Wallis-et-Futuna, Saint-Pierre-et-Miquelon, AEFE — lignes comptees comme ignorees
 
 ### Carte mondiale (map-monde)
 - **Quand** : données internationales par pays
 - **Champs** : code-field (code pays ISO 3166-1 : alpha-2 "FR", alpha-3 "FRA" ou numerique "250" — convertis automatiquement en alpha-2), value-field
+- **Nom de pays en francais accepte** : "Allemagne", "allemagne", "l'Allemagne", "Pays-Bas", "Etats-Unis", "Cote d'Ivoire" valent leur code (insensible a la casse, aux accents, aux traits d'union et a l'article). Formes longues courantes reconnues ("Republique federale d'Allemagne", "Republique tcheque"/"Tchequie", "Birmanie"/"Myanmar")
+- **Liste blanche** : un nom hors referentiel (ex. "Angleterre", qui n'est pas le Royaume-Uni) est ignore ET compte (console + volet Diagnostic), jamais devine
 - **Palette recommandee** : sequentialAscending
 
 ### Séries multiples (bar, line, bar-line, radar)
@@ -2068,6 +2510,7 @@ Chaque provider a des capacites differentes pour la pagination, l'agrégation et
 |----------|:---:|:---:|:---:|:---:|:---:|
 | Fetch serveur | oui | oui | oui | oui | non (dsfr-data-source) |
 | Pagination auto | oui (offset, 10 pages) | oui (page, 500 pages, max 50/page) | oui (offset, 100/page) | oui (page, 1000/page, 100k max) | non |
+| Chargement en une requete | oui (\`fetch-mode="export"\`) | non | oui (natif) | non | non |
 | Facettes serveur | oui | non | oui (SQL) | non | non |
 | Recherche serveur | oui (full-text) | non | non | non | non |
 | Group-by serveur | oui | oui (column__groupby) | oui (SQL) | non | non |
@@ -2107,6 +2550,20 @@ Chaque provider a des capacites differentes pour la pagination, l'agrégation et
   group-by="categorie_de_produit"
   order-by="total:desc" limit="10">
 </dsfr-data-query>
+\`\`\`
+
+OpenDataSoft pagine par 100 : un jeu de 3 000 lignes coute 30 requetes. \`fetch-mode="export"\`
+(#689) le charge en UNE requete sur \`/exports/json\`, memes clauses ODSQL. A activer pour une page
+« un fetch, N agregations client », un jeu de plus de 1 000 lignes, ou un group-by a beaucoup de
+groupes (l'export les rend tous, la pagination s'arrete au plafond). A ne PAS activer avec
+\`server-side\`. En mode export le total serveur est inconnu : le KPI \`meta:total\` retombe sur le
+nombre de lignes recues, et la troncature est detectee via \`max-records\`.
+\`\`\`html
+<dsfr-data-source id="src" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr" dataset-id="decp_augmente"
+  fetch-mode="export" max-records="20000"
+  select="count(*) as nb" group-by="source">
+</dsfr-data-source>
 \`\`\`
 
 **Tabular** (fetch serveur + agrégation serveur) :
@@ -2163,11 +2620,15 @@ L'adapter INSEE aplatit automatiquement les observations (dimensions + measures 
 ### Authentification par provider
 | Provider | Méthode | Header/Param |
 |----------|---------|-------------|
-| OpenDataSoft | API Key | \`headers='{"apikey":"KEY"}'\` |
+| OpenDataSoft | API Key | \`api-key-ref="k"\` + \`window.DSFR_DATA_KEYS = { k: 'Apikey KEY' }\`, ou \`headers='{"Authorization":"Apikey KEY"}'\` |
 | Tabular | Aucune | Acces public uniquement |
 | Grist | Bearer token | \`headers='{"Authorization":"Bearer KEY"}'\` |
 | INSEE (Melodi) | Aucune | Acces anonyme (30 req/min) |
 | Generique | Variable | Via \`headers\` sur dsfr-data-source |
+
+ODS n'accepte la clé QUE dans \`Authorization: Apikey <clé>\` (seul en-tête autorisé en
+preflight CORS) : un en-tête \`apikey\` nu échoue. Le composant réécrit \`apikey\` / \`x-api-key\`
+en \`Authorization: Apikey\` (#655), mais écrire directement la forme \`Authorization\`.
 
 ### Proxy CORS
 Certaines APIs externes (Grist gouv/SaaS, Tabular) ne supportent pas le CORS
@@ -2244,6 +2705,7 @@ Le contenu est replie dans un accordeon DSFR par défaut.
 | value-field | String | \`""\` | Colonne(s) pour les valeurs du tableau (separees par virgules) |
 | label | String | \`""\` | Libelle personnalise de la section accessible |
 | no-auto-aria | Boolean | \`false\` | Desactive ARIA automatique et skip link |
+| decimals | Number | — | Nombre de décimales des cellules numériques du tableau ; absent : au plus 2, format fr-FR (#666). Le CSV reste brut |
 
 Si ni \`table\`, ni \`download\`, ni \`description\` ne sont définis, les trois sont affiches par défaut.
 
@@ -2307,6 +2769,8 @@ rendu : switch chart/tableau integre, CSV natif). Conserver uniquement :
 - Le contenu est dans un accordeon DSFR (replie par défaut)
 - Le CSV utilise le separateur \`;\` (standard francais)
 - Le tableau est limite a 100 lignes ; le CSV contient toutes les données
+- Les cellules numériques du tableau sont en fr-FR (\`2.27\` → « 2,27 », au plus 2 décimales
+  ou \`decimals\`) ; les chaînes (codes INSEE, SIREN) restent intactes, le CSV reste brut (#666)
 - Compatible avec tous les composants de rendu (chart, datalist, display, kpi)` +
       reference('dsfr-data-a11y'),
   },
@@ -2354,6 +2818,27 @@ rendu : switch chart/tableau integre, CSV natif). Conserver uniquement :
       'tiles-attribution',
       'fond de carte',
       'clé api tuiles',
+      'légende',
+      'legende carte',
+      'map-legend',
+      'classes',
+      'bornes',
+      'fond atténué',
+      'tiles-style',
+      'tiles-switcher',
+      'changer de fond',
+      'selecteur de fond',
+      'vue aérienne',
+      'fit-zone',
+      'contours',
+      'fonds administratifs',
+      'geo/regions',
+      'geo/departements',
+      'refine-on-click',
+      'map-select',
+      'clic sur la carte',
+      'carte comme filtre',
+      'annuaire',
     ],
     content:
       `## dsfr-data-map + dsfr-data-map-layer — Carte interactive multi-couches
@@ -2384,12 +2869,15 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | height | String | \`"500px"\` | Hauteur CSS (px, vh, rem). Un \`%\` est un ratio de la largeur (ex: \`"60%"\` = 60% de la largeur) |
 | tiles | String | \`"ign-plan"\` | Fond de carte : \`ign-plan\`, \`ign-ortho\`, \`ign-cadastre\`, \`osm-fr\` (alias : \`osm\`), \`osm-standard\`, \`opentopomap\`, ou URL template. Deprecies (redirigent vers \`ign-plan\` avec warning) : \`ign-topo\`, \`carto-positron\`, \`carto-dark\` |
 | tiles-attribution | String | \`""\` | Mention d'attribution quand \`tiles\` est une URL custom. Obligatoire (ODbL + CGU du fournisseur) ; ignore sur un preset connu |
+| tiles-style | String | \`""\` | Fond attenue pour une carte thematique : \`muted\` (gris + 55 % d'opacite) ou \`grey\` (niveaux de gris). Fond « neutre » = \`ign-plan\` + \`tiles-style="muted"\`. Les encarts heritent du reglage |
+| tiles-switcher | String | \`""\` | Fonds proposes au LECTEUR, separes par des virgules (\`"ign-plan,ign-ortho"\`). Rend un menu deroulant « Fond de carte » en haut a droite, utilisable au clavier ; les encarts suivent. Au moins deux presets connus, sinon rien ne s'affiche. Sans effet avec \`locked\` ou \`no-controls\` |
 | sovereign-only | Boolean | \`false\` | Restreint \`tiles\` aux presets IGN souverains. Tout autre preset (\`osm-fr\`, \`osm-standard\`, \`opentopomap\`...) ou URL custom est refuse avec \`console.warn\` et remplace par \`ign-plan\`. |
 | no-controls | Boolean | \`false\` | Masque les controles de zoom |
 | locked | Boolean | \`false\` | Carte verrouillee : aucune interaction (pan/zoom/clavier) — encarts, vignettes |
 | insets | String | \`""\` | Raccourci encarts territoriaux : groupe et/ou territoires nommes (\`"drom"\`, \`"drom,corse"\`) |
 | fit-bounds | Boolean | \`false\` | Ajuste le viewport aux données a chaque mise a jour (combine a max-bounds : emprise clippee a la zone — les DROM ne dezooment pas la vue, un filtre regional zoome dessus) |
-| max-bounds | String | \`""\` | Limites \`"latSW,lonSW,latNE,lonNE"\` |
+| max-bounds | String | \`""\` | Limites du deplacement \`"latSW,lonSW,latNE,lonNE"\` (clippe aussi le fit si fit-zone est vide) |
+| fit-zone | String | \`""\` | Zone de clip du fit \`"latSW,lonSW,latNE,lonNE"\`, pan libre. Défaut : max-bounds, sinon la metropole (\`41,-5.5,51.5,10\`) des qu'un encart ultramarin est present (\`insets="drom"\`), sinon rien. \`none\` desactive |
 | name | String | \`""\` | Titre (aria-label) |
 
 ### Attributs dsfr-data-map-layer (couche)
@@ -2403,15 +2891,21 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | geo-field | String | \`""\` | Chemin vers GeoJSON (Point, Polygon) — objet ou chaine JSON serialisee (colonnes Text Grist/CSV) |
 | shape-class | String | \`""\` | Classe CSS appliquee aux traces SVG (geoshape/circle) — motifs hachures via <pattern> defini par la page |
 | no-interactive | Boolean | \`false\` | Couche decorative : aucun clic/tooltip/popup (contours administratifs, habillage) |
+| label | String | \`""\` | Libellé de la couche — libellé du tag du contexte en \`refine-on-click\` (défaut : le nom du champ) |
+| refine-on-click | String | \`""\` | Champ dont la valeur de l'objet clique devient un filtre \`eq\` (#681) : premier clic = filtre, second clic sur le même objet = retrait, autre objet = remplacement. Avec \`context\` (recommandé) : filtre du dsfr-data-context (tag, URL, dialecte de chaque cible). Sans \`context\` : commande directe a \`source\` (whereKey \`map-select-ID\`, sans tag ni URL) |
+| context | String | \`""\` | Id du dsfr-data-context auquel s'enregistrer en \`refine-on-click\` (#681, ADR-104). Peut etre declare apres la couche |
 | popup-template | String | \`""\` | Template : \`"{nom} — {val} kW"\` |
 | popup-fields | String | \`""\` | Champs pour tableau auto : \`"nom,adresse"\` |
 | tooltip-field | String | \`""\` | Champ affiche au survol |
 | color | String | \`"#000091"\` | Couleur (DSFR blue-france). Fallback si color-map ne matche pas |
 | color-field | String | \`""\` | Champ dont la valeur determine la couleur (mapping catégoriel) |
-| color-map | String | \`""\` | Paires \`valeur:#couleur\` separees par virgule. Ex: \`"1:#00A95F,2:#FF9940,3:#E1000F"\` |
-| fill-field | String | \`""\` | Champ numérique pour choropleth |
+| color-map | String | \`""\` | Paires \`valeur:#couleur\` separees par virgule. Ex: \`"1:#00A95F,2:#FF9940,3:#E1000F"\`. Virgule ou deux-points dans une valeur : \`%2C\` / \`%3A\` (\`"Commerce%2C transport:#000091"\`). Meme grammaire sur dsfr-data-chart |
+| fill-field | String | \`""\` | Champ numérique pour choropleth (geoshape) |
 | fill-opacity | Number | \`0.6\` | Opacite remplissage |
-| selected-palette | String | \`""\` | Palette choropleth |
+| selected-palette | String | \`""\` | Palette choropleth : \`sequentialAscending\` (défaut), \`sequentialDescending\`, \`divergentAscending\`, \`divergentDescending\`, \`neutral\`, \`categorical\` |
+| classes | Number | \`0\` | Nombre de classes de la choropleth ; \`0\` = autant que de couleurs dans l'echelle (9) |
+| method | String | \`"quantile"\` | Discretisation : \`quantile\` (effectifs egaux), \`equal\` (intervalles egaux), \`manual\` (bornes de breaks) |
+| breaks | String | \`""\` | Bornes superieures manuelles \`"10,50,100"\` (= 4 classes) ; implique \`method="manual"\` |
 | radius | Number | \`8\` | Rayon fixe (circle) |
 | radius-field | String | \`""\` | Champ rayon variable |
 | radius-unit | String | \`"px"\` | \`px\` ou \`m\` |
@@ -2454,6 +2948,26 @@ Presets deprecies (resolvent vers \`ign-plan\` avec un \`console.warn\`) :
 - \`carto-positron\`, \`carto-dark\` : CARTO exige desormais une clé API et filigrane les tuiles anonymes ("API KEY REQUIRED") en HTTP 200
 
 **Il n'y a pas de fond sombre souverain.** Ne pas proposer \`carto-dark\` : il ne fonctionne plus.
+
+### Laisser le lecteur choisir son fond (tiles-switcher)
+
+\`tiles\` fixe le fond pour toute la page ; \`tiles-switcher\` ouvre le choix au lecteur.
+
+\`\`\`html
+<dsfr-data-map center="46.6,2.3" zoom="6" tiles="ign-plan" tiles-switcher="ign-plan,ign-ortho">
+  <dsfr-data-map-layer source="sites" type="marker" geo-field="geo"></dsfr-data-map-layer>
+</dsfr-data-map>
+\`\`\`
+
+- Menu deroulant natif etiquete « Fond de carte », en haut a droite de la carte : atteint au clavier
+  avant la carte (juste apres le lien d'evitement), valeur annoncee par les lecteurs d'ecran.
+- Les entrees sont des **presets** (\`ign-plan\`, \`ign-ortho\`, \`ign-cadastre\`, \`osm-fr\`, \`osm-standard\`,
+  \`opentopomap\`, alias compris) ; une URL custom ou un nom inconnu est ecarte avec un \`console.warn\`.
+- Il faut au moins deux fonds differents apres resolution, sinon aucun selecteur n'est rendu.
+  Avec \`sovereign-only\`, ne declarer que des presets IGN — les autres retombent tous sur \`ign-plan\`.
+- Le fond courant est ajoute en tete s'il manque a la liste. Les encarts (\`insets\`) suivent le choix.
+- Evenement \`dsfr-data-map-tiles-change\` \`{ tiles }\` (bubbles, composed) a chaque bascule du lecteur.
+- Sans effet avec \`locked\` ou \`no-controls\`.
 
 ### Fond de carte custom (URL + clé API)
 
@@ -2517,6 +3031,21 @@ La clé appartient a l'integrateur (domaine et quota nominatifs) : la bibliotheq
 </dsfr-data-map>
 \`\`\`
 
+### Exemple : choroplethe a 5 classes avec legende et fond attenue
+
+\`\`\`html
+<dsfr-data-map center="46.6,2.3" zoom="6" tiles="ign-plan" tiles-style="muted">
+  <dsfr-data-map-layer id="couche-pop" source="departements" type="geoshape"
+    geo-field="geo_shape" fill-field="population"
+    selected-palette="sequentialAscending" classes="5" method="quantile"
+    tooltip-field="nom">
+  </dsfr-data-map-layer>
+  <dsfr-data-map-legend for="couche-pop" label="Population"></dsfr-data-map-legend>
+</dsfr-data-map>
+\`\`\`
+
+Bornes imposees : \`breaks="1000,5000,20000"\` (4 classes, method manual implicite).
+
 ### Exemple : multi-couches geoshape + POI
 
 \`\`\`html
@@ -2544,9 +3073,12 @@ Composant compagnon optionnel qui definit un template et un mode d'affichage pou
 | width | String | \`"350px"\` | Largeur du panneau lateral |
 | for | String | \`""\` | ID du layer cible (vide = tous) |
 
-Template avec \`<template>\` et interpolation \`{{champ}}\` (memes expressions que dsfr-data-display,
-toujours echappees) : \`{{champ.sous.clé}}\`, \`{{champ:number}}\` (format fr-FR), \`{{champ|défaut}}\`.
-Sans template, tableau auto.
+Template avec \`<template>\` et interpolation \`{{champ}}\` (même moteur que dsfr-data-display,
+toujours échappé, \`{{{champ}}}\` traité comme \`{{champ}}\`) : \`{{champ.sous.clé}}\`,
+\`{{champ:number}}\`, \`{{champ:date}}\`, \`{{tags:join: / }}\`, \`{{lien:url}}\` (à utiliser
+dans tout \`href\`), \`{{champ|défaut}}\`, blocs \`{{#if champ}}…{{/if}}\` / \`{{#unless}}\` et
+\`{{#each champ}}…{{/each}}\` (répétition sur un champ tableau, \`{{.}}\` = l'élément, \`{{$index}}\`
+= son rang). Sans template, tableau auto.
 
 \`\`\`html
 <dsfr-data-map-popup mode="panel-right" title-field="nom" width="380px">
@@ -2554,9 +3086,48 @@ Sans template, tableau auto.
     <h4>{{nom}}</h4>
     <p>{{adresse}}, {{code_postal}} {{commune}}</p>
     <p class="fr-text--bold">{{prix:number}} EUR</p>
+    <p>Mis à jour le {{date_maj:date}}</p>
+    {{#if site_web}}<a class="fr-link" href="{{site_web:url}}">Site web</a>{{/if}}
   </template>
 </dsfr-data-map-popup>
 \`\`\`
+
+### La carte comme filtre — dsfr-data-map-select et refine-on-click (#681, ADR-104)
+
+Au clic sur un marqueur, un cercle ou une forme (jamais en \`no-interactive\`), la couche emet
+\`dsfr-data-map-select\` \`{ record, layerId, selected }\` (bubbles, composed) en plus de la popup :
+tout JS de page peut reagir. \`selected\` vaut \`true\` a la selection, \`false\` au retrait
+(second clic sur le même objet).
+
+Avec \`refine-on-click="champ"\` + \`context="ctx"\` (recommande), la couche s'enregistre comme
+filtre \`eq\` du dsfr-data-context : premier clic = filtre diffuse a toutes les sources du contexte
+(au dialecte de chacune), tag dans dsfr-data-context-tags (libelle = \`label\` de la couche ou le
+champ), URL portee par le contexte (\`url-sync\`) ; second clic sur le même objet = retrait ; autre
+objet = remplacement. Sans \`context\`, la clause part directement a \`source\` (whereKey
+\`map-select-ID\`) : pas de tag, pas d'URL, pas de traduction de dialecte — chemin degrade.
+
+Recette annuaire (la carte filtre la liste) :
+
+\`\`\`html
+<dsfr-data-source id="etablissements" api-type="opendatasoft" base-url="…" dataset-id="…"></dsfr-data-source>
+<dsfr-data-source id="etablissements-carte" api-type="opendatasoft" base-url="…" dataset-id="…"></dsfr-data-source>
+
+<!-- Le contexte ne cible que la liste : la carte garde tous ses points -->
+<dsfr-data-context id="ctx" sources="etablissements" url-sync></dsfr-data-context>
+<dsfr-data-context-tags for="ctx"></dsfr-data-context-tags>
+
+<dsfr-data-map center="46.6,2.3" zoom="6" fit-bounds>
+  <dsfr-data-map-layer source="etablissements-carte" type="marker" geo-field="geo_point_2d"
+    tooltip-field="commune" refine-on-click="commune" context="ctx" label="Commune">
+  </dsfr-data-map-layer>
+</dsfr-data-map>
+<dsfr-data-list source="etablissements" fields="nom,adresse,commune"></dsfr-data-list>
+\`\`\`
+
+Piege : si la source de la carte est AUSSI dans \`sources\` du contexte, la carte se filtre
+elle-même au clic (seul l'objet clique reste, jusqu'au second clic). Pour garder tous les points,
+donner a la carte sa propre source (deux dsfr-data-source sur le même jeu) et ne lister que la
+liste dans \`sources\` — c'est \`sources\` du contexte qui regle les cibles, pas la couche.
 
 ### Exemple : zoom ranges (multi-resolution)
 
@@ -2574,6 +3145,47 @@ Sans template, tableau auto.
   </dsfr-data-map-layer>
 </dsfr-data-map>
 \`\`\`
+
+### dsfr-data-map-legend — Legende d'une couche
+
+Composant compagnon place comme enfant de \`dsfr-data-map\` (ou n'importe ou dans la page avec \`for\`).
+Rend sous la carte une liste DSFR « pastille + texte » (pastille \`aria-hidden\`, le texte porte le sens — RGAA) :
+- choroplethe (\`fill-field\`) : une entree par classe, bornes chiffrees fr-FR (« De 1 000 à 5 000 ») ;
+- couche categorielle (\`color-field\` + \`color-map\`) : une entree par paire, plus « Autres valeurs » (repli \`color\`) si des valeurs n'ont pas matche ;
+- couche monochrome : une entree, libellee par \`label\`.
+Se rafraichit a chaque rendu de la couche (filtre amont, timeline, bbox) : la couche expose \`getLegendEntries()\` et emet \`dsfr-data-map-layer-render\`.
+Hors perimetre : \`dsfr-data-chart type="map"\` (echelle continue DSFR Chart, pas de classes).
+
+| Attribut | Type | Défaut | Description |
+|----------|------|--------|-------------|
+| for | String | \`""\` | Id (ou \`source\`) de la couche decrite. Vide = toutes les couches directes de la carte |
+| label | String | \`""\` | Titre au-dessus de la liste ; libelle de l'entree unique d'une couche monochrome |
+
+\`\`\`html
+<dsfr-data-map-layer id="statuts" source="sites" type="marker" geo-field="geo_point_2d"
+  color-field="statut" color-map="ouvert:#18753C,ferme:#C9191E" color="#929292">
+</dsfr-data-map-layer>
+<dsfr-data-map-legend for="statuts" label="Statut du site"></dsfr-data-map-legend>
+\`\`\`
+
+### Fonds administratifs livres dans le paquet (sans API)
+
+Le paquet npm livre deux GeoJSON simplifies, hors bundle : \`dsfr-data/geo/regions.json\` (18 regions)
+et \`dsfr-data/geo/departements.json\` (101 departements), proprietes \`code\` et \`nom\`
+(Contours administratifs Etalab, Licence Ouverte 2.0). Servir par la page ou un CDN npm ; joindre
+sur \`code\` (\`dsfr-data-join\`) pour une choroplethe sans referentiel geographique distant.
+
+\`\`\`html
+<dsfr-data-source id="contours" url="https://cdn.jsdelivr.net/npm/dsfr-data@0/geo/regions.json"
+  transform="features"></dsfr-data-source>
+<dsfr-data-map center="46.6,2.9" zoom="6" insets="drom" fit-bounds>
+  <!-- Habillage decoratif : no-interactive, exclu du fit -->
+  <dsfr-data-map-layer source="contours" type="geoshape" geo-field="geometry"
+    no-interactive color="#666" fill-opacity="0"></dsfr-data-map-layer>
+</dsfr-data-map>
+\`\`\`
+
+Avec \`insets="drom"\` et sans \`max-bounds\`, le fit se cale par défaut sur la metropole (\`fit-zone\`).
 
 ### dsfr-data-map-inset — Encarts territoriaux (DROM, Corse...)
 
@@ -2641,7 +3253,8 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
         'dsfr-data-map-layer',
         'dsfr-data-map-popup',
         'dsfr-data-map-inset',
-        'dsfr-data-map-timeline'
+        'dsfr-data-map-timeline',
+        'dsfr-data-map-legend'
       ),
   },
 
@@ -2767,6 +3380,17 @@ Sans contexte, chaque source reste autonome (defaut inchange).
 Les enfants <dsfr-data-context-filter> declarent chacun UN filtre. La clause est
 construite en colon (dialecte pivot) puis traduite au whereFormat de chaque adapter
 (ODSQL pour OpenDataSoft). Le disconnect du contexte libere tous ses filtres.
+
+### Un seul bus de diffusion (#678, ADR-104)
+
+Tout composant qui filtre peut etre un filtre du contexte via \`context="id"\` :
+<dsfr-data-context-filter context="ctx"> (place n'importe ou, plus seulement enfant),
+<dsfr-data-facets context="ctx"> (un filtre par champ, select peuple + cascade sans option
+en dur), <dsfr-data-search context="ctx"> (filtre contains sur un champ) et
+<dsfr-data-map-layer refine-on-click="champ" context="ctx"> (filtre eq au clic sur la carte, #681). Le contexte
+diffuse, porte l'URL (un parametre par champ, url-sync unique) et alimente context-tags.
+Le contexte peut etre declare APRES ces composants dans la page : ils s'enregistrent a sa
+connexion. whereKey stable indexe sur \`uid + champ\` (insertion tardive sans decalage).
 ` + reference('dsfr-data-context'),
   },
 
@@ -2788,18 +3412,50 @@ La valeur vide RETIRE le filtre. Les valeurs sont percent-encodees (#271).
 |----------|------|--------|--------|-------------|
 | field | String | \`""\` | oui | Colonne filtree |
 | ui | String | \`""\` | oui | Id de l'element d'UI ecoute — DEUX ids (min max) pour between |
-| operator | String | \`"eq"\` | non | eq, in, lt, gte, between (between -> gte + lt), et dates (#230) : month-of, year-of, lt-day-after, last-n-days, current-year (bornes dynamiques recalculees a chaque diffusion) |
+| operator | String | \`"eq"\` | non | eq, in, lt, gte, between (between -> gte + lt), contains (sous-chaine, #678), et dates (#230) : month-of, year-of, lt-day-after, last-n-days, current-year, current-month (bornes dynamiques recalculees a chaque diffusion) |
 | apply-to | String | \`"*"\` | non | \`*\` = toutes les sources du contexte, ou liste d'ids cibles separes par des espaces |
 | label | String | \`""\` | non | Libelle naturel pour l'affichage (tags #232) — defaut : field |
+| default | String | \`""\` | non | Valeur initiale (#682), appliquee APRES l'URL (l'URL gagne) : \`today\`, \`first-of-month\`, \`first-of-year\` (resolus dans le fuseau local, adaptes au controle) ou un litteral ; pour between/in, valeurs separees par une virgule |
+| context | String | \`""\` | non | Id du dsfr-data-context cible (#678) — permet de placer le filtre hors du contexte, meme declare avant lui. Vide = contexte parent le plus proche |
+| year-start-month | Number | \`1\` | non | Mois de debut de l'annee pour \`year-of\` et \`current-year\` (#735) : 1 = annee civile, 9 = annee scolaire, 4 = exercice comptable britannique, 10 = saison. La clause reste une plage \`gte\` + \`lt\` : elle se delegue au serveur, aucun adaptateur n'est concerne. Le tag affiche « 2024-2025 ». Sans effet sur les autres opérateurs (console.warn) |
 
 ### Operateurs
 
 - \`eq\` : egalite — \`in\` : multi-valeurs (select multiple, valeurs jointes par | ou ,)
+- \`contains\` : sous-chaine (input texte ; \`like "%v%"\` en ODSQL) — #678
 - \`lt\` / \`gte\` : comparaisons — \`between\` : deux UI (min puis max) -> gte + lt
 - Dates (#230) : \`month-of\` (input type=month -> plage du mois), \`year-of\` (plage annuelle),
   \`lt-day-after\` (inclusif jusqu'au jour choisi), \`last-n-days\` (N derniers jours, borne
-  dynamique), \`current-year\` (checkbox -> annee en cours). Plages [debut, fin) en ISO,
-  recalculees a chaque diffusion — l'URL serialise l'intention (« 30 »), pas les dates resolues.
+  dynamique), \`current-year\` (checkbox -> annee en cours), \`current-month\` (checkbox -> mois
+  en cours, #682). Plages [debut, fin) en ISO, recalculees a chaque diffusion — l'URL serialise
+  l'intention (« 30 », « on »), pas les dates resolues.
+- Valeur initiale (#682) : \`default="today"\` sur un \`lt-day-after\` filtre « jusqu'a aujourd'hui »
+  sans script ; \`default="first-of-year,today"\` sur un \`between\` donne « depuis le 1er janvier ».
+  Un parametre d'URL present prime toujours sur \`default\`.
+- Troncature (#646) : \`year-of\` et \`month-of\` acceptent une date plus precise et la tronquent
+  ("2026-09-09" -> annee 2026 / mois 2026-09) : un input type=date peut nourrir les deux (il n'existe
+  pas de type=year). Une valeur qui reste inexploitable retire le filtre et l'annonce par un
+  console.warn (une fois par filtre).
+- Annee non civile (#735) : \`year-start-month="9"\` sur \`year-of\` ou \`current-year\` donne une
+  plage septembre -> aout (annee scolaire) ; \`4\` l'exercice comptable, \`10\` une saison. Le
+  desucrage reste \`gte\` + \`lt\`, donc la plage se DELEGUE au serveur comme n'importe quelle
+  autre — c'est la difference avec la voie client. Une annee nue ("2024") nomme l'annee qui
+  COMMENCE en 2024 ; une date ("2025-03-10") designe l'annee qui la CONTIENT. Tag « 2024-2025 ».
+
+\`\`\`html
+<dsfr-data-context-filter field="date_rentree" label="Année scolaire" operator="year-of"
+  year-start-month="9" ui="ui-annee"></dsfr-data-context-filter>
+\`\`\`
+
+  Cote CLIENT seul, une colonne d'annee scolaire se derive aussi sans nouvel attribut, avec
+  \`compute\` sur dsfr-data-normalize (#671) — pratique pour un \`group-by\`, mais le
+  transformateur est client : sur un gros jeu il faut tout rapatrier.
+
+\`\`\`html
+<dsfr-data-normalize source="src"
+  compute="annee_scolaire = when month(d) >= 9 then concat(year(d),'-',year(d)+1) else concat(year(d)-1,'-',year(d))">
+</dsfr-data-normalize>
+\`\`\`
 ` + reference('dsfr-data-context-filter'),
   },
 
@@ -2814,13 +3470,16 @@ La valeur vide RETIRE le filtre. Les valeurs sont percent-encodees (#271).
 Affiche des tags DSFR supprimables : un tag par filtre actif du contexte observe
 (libelle naturel + valeur). La croix reinitialise le filtre en VIDANT son UI —
 meme chemin qu'un utilisateur qui efface le champ : sources, URL et tags se
-mettent a jour ensemble.
+mettent a jour ensemble. Tout type de filtre confondu (#678) : context-filter,
+champs d'une facets context="…", terme d'une search context="…" (tag « Recherche : terme »).
+Une facette multi-valeurs (in) donne UN tag par valeur, chacune retirable seule (#679).
 
 ### Attributs
 
 | Attribut | Type | Défaut | Requis | Description |
 |----------|------|--------|--------|-------------|
 | for | String | \`""\` | oui | Id du dsfr-data-context observe |
+| clear-all | Boolean | \`false\` | non | Bouton unique « Tout effacer » (#679) apres les tags : vide tous les filtres actifs en une fois (une seule URL, une seule notification), annonce en region live, absent sans filtre actif. Poser \`no-reset\` sur les facets de la page pour ne pas doubler leur bouton local |
 
 ### Pattern
 
@@ -2829,9 +3488,64 @@ mettent a jour ensemble.
   <dsfr-data-context-filter field="categorie" label="Catégorie" operator="in" ui="ui-cat">
   </dsfr-data-context-filter>
 </dsfr-data-context>
-<dsfr-data-context-tags for="ctx"></dsfr-data-context-tags>
+<dsfr-data-facets context="ctx" source="src-a" server-facets fields="region" no-reset></dsfr-data-facets>
+<dsfr-data-context-tags for="ctx" clear-all></dsfr-data-context-tags>
 \`\`\`
 ` + reference('dsfr-data-context-tags'),
+  },
+
+  dsfrDataContextValue: {
+    id: 'dsfrDataContextValue',
+    name: 'dsfr-data-context-value',
+    description: "Valeur courante d'un filtre du contexte, dans un titre ou une phrase",
+    trigger: [
+      'context-value',
+      'valeur du filtre',
+      'titre dynamique',
+      'resultats pour',
+      'interpoler filtre',
+      'libelle du filtre',
+    ],
+    content:
+      `## <dsfr-data-context-value> - La valeur d'un filtre dans une phrase
+
+context-tags LISTE les filtres actifs ; il ne s'insere pas dans un titre.
+Ce composant rend la valeur courante d'un ou plusieurs filtres du contexte
+comme du TEXTE, interpolee dans un gabarit : « Résultats pour {{departement}} ».
+Il lit le meme contrat que les tags (#678) : context-filter, champs d'une
+facets context="…", terme d'une search context="…", refine-on-click d'une couche.
+
+### Attributs
+
+| Attribut | Type | Défaut | Requis | Description |
+|----------|------|--------|--------|-------------|
+| for | String | \`""\` | oui | Id du dsfr-data-context observe. Le contexte peut etre declare APRES dans la page |
+| field | String | \`""\` | non | Champ dont la valeur est rendue — raccourci de \`template="{{champ}}"\`. Ignore si \`template\` est pose |
+| template | String | \`""\` | non | Gabarit texte : chaque \`{{champ}}\` est remplace par la valeur courante du filtre de ce champ. Plusieurs champs acceptes |
+| fallback | String | \`""\` | non | Texte de repli rendu tant qu'un champ cite n'a AUCUNE valeur (« Résultats pour toute la France »). Vide = le composant ne rend rien |
+| live | Boolean | \`false\` | non | Region live polie (\`aria-live="polite"\`, \`role="status"\`) : le titre annonce le changement de contenu aux lecteurs d'écran. A poser sur UN seul element de la page — plusieurs libelles qui parlent en meme temps sont un bruit |
+
+### Pattern
+
+\`\`\`html
+<dsfr-data-context id="ctx" sources="src" url-sync>
+  <dsfr-data-context-filter field="departement" operator="eq" ui="ui-dep">
+  </dsfr-data-context-filter>
+</dsfr-data-context>
+
+<h2>
+  <dsfr-data-context-value for="ctx" template="Résultats pour {{departement}}"
+    fallback="Résultats pour toute la France" live></dsfr-data-context-value>
+</h2>
+\`\`\`
+
+Regles :
+- Un seul champ cite sans valeur suffit a basculer sur \`fallback\` — « Résultats pour  »
+  serait pire qu'une phrase de repli.
+- Le rendu est du texte : la valeur d'un filtre ne traverse jamais l'analyseur HTML.
+- Pour LISTER les filtres et les retirer un a un, c'est context-tags ; ce composant
+  ne sert qu'a l'ecrire dans une phrase.
+` + reference('dsfr-data-context-value'),
   },
 
   dsfrDataJoin: {
@@ -2933,6 +3647,20 @@ Si un champ existe dans les deux sources avec le même nom :
 </dsfr-data-join>
 \`\`\`
 
+### Comparaison des clés : en chaîne, sans trim ni complétion
+Les clés sont converties en chaîne avant comparaison — le type ne compte pas, la forme oui :
+- \`201\` (nombre) et \`"201"\` (chaîne) **se joignent** ;
+- \`"0201"\` et \`"201"\` **ne se joignent pas** (zéro initial) ; \`" 201"\` et \`"201"\` non plus (espace) ;
+- \`null\` et \`""\` valent tous deux la clé vide et se joignent entre eux.
+Harmoniser en amont : \`numeric="code"\` sur les deux sources pour un code numérique à zéro
+initial, \`normalize trim\` pour les espaces, \`where="cle:isnotnull"\` pour écarter les lignes sans clé.
+
+### Taux d'appariement (volet Diagnostic)
+En \`left\`, le nombre de lignes ne change pas : une jointure qui n'apparie que 22 % des lignes
+paraît saine. Le composant publie \`leftMatched / leftTotal\` et \`rightMatched / rightTotal\` dans sa
+meta (\`getJoinStats()\`) ; le volet Diagnostic affiche « 237 / 1 065 lignes gauche appariées (22 %) »
+et alerte sous 50 %. Pas d'attribut : ouvrir le volet quand les valeurs droites restent vides.
+
 ### Notes
 - Le join est recalcule automatiquement quand l'une des sources emet de nouvelles données
 - Relations 1-N : si plusieurs enregistrements droite matchent une clé gauche, autant de lignes sont generees
@@ -2978,7 +3706,7 @@ dsfr-data-source (wide) ──► dsfr-data-unpivot ──► dsfr-data-normaliz
 | id | String | - | oui | Identifiant unique de la sortie. |
 | source | String | "" | oui | ID de la source amont à déplier. |
 | id-cols | String | "" | non | Colonnes conservées telles quelles sur chaque ligne (virgule-séparées). Ex: \`"Indicateurs, Sous_theme"\`. |
-| value-cols | String | "" | non | Liste explicite des colonnes à déplier (virgule-séparée). Exclusif avec value-cols-pattern. |
+| value-cols | String | "" | non | Liste explicite des colonnes à déplier (virgule-séparée). Exclusif avec value-cols-pattern. Alias inline \`col:Libellé\` : \`"gazole_prix:Gazole, sp95_prix:SP95"\` émet « Gazole » / « SP95 » dans var-name (un \`:\` littéral s'échappe en \`%3A\`). |
 | value-cols-pattern | String | "" | non | Motif des colonnes à déplier avec placeholders \`{TOKEN}\`. Ex: \`"c{YYYY}_{MM}"\`. |
 | var-name | String | "variable" | non | Nom de la nouvelle colonne "variable" (clé dépliée). Ex: \`"mois"\`. |
 | var-format | String | "" | non | Reformatage de la clé via les tokens du motif. Ex: \`"{YYYY}-{MM}"\` → \`2023-01\`. |
@@ -3011,6 +3739,113 @@ Tout autre \`{nom}\` matche un segment générique. Le motif est ancré (début 
 - Plusieurs id-cols sont portées sur chaque ligne émise.
 - Recalcule automatiquement quand la source amont émet de nouvelles données.` +
       reference('dsfr-data-unpivot'),
+  },
+
+  dsfrDataPivot: {
+    id: 'dsfrDataPivot',
+    name: 'dsfr-data-pivot',
+    description:
+      'Replie un tableau "long" en "wide" (tableau croisé) : une colonne par valeur distincte d\'un champ',
+    trigger: [
+      'pivot',
+      'tableau croisé',
+      'tableau croise',
+      'crosstab',
+      'cross-tab',
+      'lignes en colonnes',
+      'une colonne par année',
+      'une colonne par annee',
+      'une colonne par valeur',
+      'long vers wide',
+      'écart entre deux séries',
+      'ecart entre deux series',
+      'différence entre deux années',
+      'difference entre deux annees',
+      'comparer deux années',
+    ],
+    content:
+      `## <dsfr-data-pivot> - Repli "long" → "wide" (tableau croisé)
+
+Composant invisible, pur transformateur (aucun fetch HTTP), symétrique exact de
+dsfr-data-unpivot. Un jeu "long" porte une observation par ligne
+(\`commune | annee | montant\`) ; le pivot en fait un tableau croisé : une ligne par
+valeur de \`row\`, une colonne par valeur distincte de \`column\`, et dans chaque cellule
+l'agrégat des valeurs de \`value\`.
+
+### Position dans le pipeline
+\`\`\`
+dsfr-data-source (long) ──► [dsfr-data-query : filtre / facette] ──► dsfr-data-pivot ──► dsfr-data-list
+                                                                              └──► dsfr-data-normalize (compute) ──► chart / kpi
+\`\`\`
+
+### Attributs
+| Attribut | Type | Défaut | Requis | Description |
+|----------|------|--------|--------|-------------|
+| id | String | - | oui | Identifiant unique de la sortie. |
+| source | String | "" | oui | ID de la source amont (format long). |
+| row | String | "" | oui | Champs formant l'identité de ligne, virgule-séparés. Ex: \`"commune"\`, \`"etab, dep"\`. |
+| column | String | "" | oui | Champ dont chaque valeur distincte devient une colonne. Ex: \`"annee"\`. |
+| value | String | "" | oui | Champ dont les valeurs remplissent les cellules. Ex: \`"montant"\`. |
+| aggregate | String | "sum" | non | Réduction quand plusieurs lignes tombent dans la même cellule : \`sum\`, \`count\`, \`avg\`, \`min\`, \`max\`, \`first\`, \`last\` (grammaire commune du pipeline). |
+| column-order | String | "" | non | Ordre des colonnes générées : vide = ordre d'apparition, \`asc\` / \`desc\` (tri numérique si toutes les valeurs le sont). |
+| column-format | String | "" | non | Gabarit des noms de colonnes, \`{value}\` = valeur brute. Ex: \`"annee_{value}"\` → \`annee_2023\` (identifiant sûr pour \`compute\`). |
+| labels | String | "" | non | Libellés par valeur brute : \`"2022:Année 2022 \\| 2023:Année 2023"\` (prime sur column-format ; \`:\` et \`\\|\` littéraux échappés en \`%3A\` / \`%7C\`). |
+| max-columns | Number | 50 | non | Plafond de colonnes générées. Au-delà : erreur de configuration explicite, pas un tableau. |
+
+### Règles
+- **Cellule sans observation = \`null\`**, jamais 0 (#301). \`sum\`/\`avg\` sans valeur numérique → \`null\` aussi.
+- Toutes les lignes émises portent **toutes** les colonnes générées (schéma uniforme).
+- Le **schéma de sortie dépend des données** : une nouvelle valeur de \`column\` dans la source
+  crée une nouvelle colonne sans changer le HTML. Un \`dsfr-data-list\` sans \`columns\` (ou avec
+  \`columns-auto\`) suit ce schéma ; un \`dsfr-data-chart\` en \`value-fields\` doit nommer les colonnes
+  qu'il attend (utiliser \`column-format\` pour des noms prévisibles).
+- Les lignes dont le champ \`column\` est vide/null sont ignorées (comptées dans la trace).
+- Une valeur de \`column\` qui porte le nom d'un champ de \`row\` est une erreur (collision) :
+  poser \`column-format\`.
+- Plus de \`max-columns\` valeurs distinctes (50 par défaut) → \`data-dsfr-config-error\` : un pivot
+  sur un identifiant (10 000 valeurs) est une erreur de page. Filtrer en amont ou changer de champ.
+- La trace du volet Diagnostic (#604) affiche le nombre de colonnes générées et de cellules vides.
+
+### Exemple 1 : tableau croisé dont les colonnes suivent une facette (#640)
+\`\`\`html
+<dsfr-data-source id="tarifs" api-type="tabular" resource="…"></dsfr-data-source>
+<!-- la facette filtre les services ; les colonnes de la grille suivent la sélection -->
+<dsfr-data-facets id="svc" source="tarifs" fields="service"></dsfr-data-facets>
+<dsfr-data-pivot id="large" source="svc"
+  row="etab, dep" column="service" value="tarif" aggregate="first">
+</dsfr-data-pivot>
+<dsfr-data-list source="large"
+  columns="etab:Établissement, dep:Département" columns-auto
+  sort="etab:asc" export="csv">
+</dsfr-data-list>
+\`\`\`
+
+### Exemple 2 : écart entre deux séries (pivot puis compute)
+\`\`\`html
+<dsfr-data-source id="long" data='[
+  {"commune":"Lyon","annee":2022,"montant":10},
+  {"commune":"Lyon","annee":2023,"montant":12},
+  {"commune":"Nice","annee":2022,"montant":7},
+  {"commune":"Nice","annee":2023,"montant":9}
+]'></dsfr-data-source>
+<dsfr-data-pivot id="wide" source="long"
+  row="commune" column="annee" value="montant" column-format="annee_{value}">
+</dsfr-data-pivot>
+<dsfr-data-normalize id="ecart" source="wide"
+  compute="ecart = annee_2023 - annee_2022">
+</dsfr-data-normalize>
+<dsfr-data-chart source="ecart" type="bar" label-field="commune" value-field="ecart:Écart 2023 − 2022">
+</dsfr-data-chart>
+\`\`\`
+
+### Pièges
+- Sans \`column-format\`, les colonnes s'appellent \`2022\`, \`2023\` : un \`compute\` lit alors
+  un nombre, pas un champ. Toujours \`column-format="annee_{value}"\` avant un calcul.
+- \`aggregate\` par défaut = \`sum\` : pour des tarifs ou des libellés (une valeur par cellule),
+  préférer \`first\`.
+- Ne pas pivoter pour alimenter un graphique multi-séries : \`dsfr-data-chart series-field\`
+  consomme le format long directement. Le pivot sert au **tableau croisé** et au **calcul
+  entre colonnes**.` + reference('dsfr-data-pivot'),
   },
 
   dsfrDataPodium: {
@@ -3148,6 +3983,349 @@ compte pas (peut etre place apres les composants).
 <dsfr-data-kpi ...></dsfr-data-kpi>
 \`\`\`
 ` + reference('dsfr-data-beacon'),
+  },
+
+  // ---------------------------------------------------------------------------
+  // Grammaires d'attributs et voies natives (#657)
+  // ---------------------------------------------------------------------------
+
+  attributeGrammars: {
+    id: 'attributeGrammars',
+    name: 'Grammaires d’attributs et voies natives',
+    description:
+      'Par attribut, la grammaire exacte et la voie native a essayer AVANT d’ecrire un script : split, round, format compact, decimales et unite d’un KPI, format date, compteur de resultats, facettes radio/select/cascade, annee en cours, cles de jointure, valeurs nulles, colonne calculee et recodage (compute, when), fond de carte neutre ou administratif, nom de serie, treemap',
+    trigger: [
+      'grammaire',
+      'voie native',
+      'decouper',
+      'separateur',
+      'multivalu',
+      'split',
+      'arrondir',
+      'arrondi',
+      'decimales',
+      'compact',
+      'abrege',
+      'unite',
+      'date de mise a jour',
+      'derniere mise a jour',
+      'nombre de resultats',
+      'compteur de resultats',
+      'total serveur',
+      'choix unique',
+      'bouton radio',
+      'boutons radio',
+      'liste deroulante',
+      'cascade',
+      'facettes dependantes',
+      'annee en cours',
+      'annee courante',
+      'cle de jointure',
+      'cles de jointure',
+      'zero initial',
+      'non renseigne',
+      'valeurs nulles',
+      'valeur nulle',
+      'is not null',
+      'isnotnull',
+      'colonne calculee',
+      'compute',
+      'when',
+      'recoder',
+      'tranche',
+      'fond neutre',
+      'fond gris',
+      'niveaux de gris',
+      'fond de carte',
+      'fond administratif',
+      'nom de serie',
+      'nom de la serie',
+      'treemap',
+    ],
+    content: `## Grammaires d’attributs et voies natives
+
+Douze demandes sur cinquante-quatre d’un banc d’essai ont fini en script ou en
+composant custom alors qu’un attribut existant faisait le travail — presque toujours
+faute d’avoir lu la grammaire exacte de l’attribut ou essaye un mode existant.
+Cette fiche rappelle, par besoin, la grammaire et la voie native. La regle :
+**chercher l’attribut avant d’ecrire du JavaScript**.
+
+### Decouper une colonne multivaluee (split, separateur)
+
+\`dsfr-data-normalize split\` : entrees separees par **virgule**, et dans chaque
+entree le **premier \`:\`** separe le champ du separateur. Le separateur peut donc
+etre n’importe quel caractere, y compris \`|\`, \`;\` ou \`/\` :
+
+\`\`\`html
+<!-- "risques" contient "inondation|seisme|feu" -> tableau de 3 valeurs -->
+<dsfr-data-normalize id="clean" source="raw" split="risques:|, tags:;"></dsfr-data-normalize>
+<dsfr-data-facets id="f" source="clean" fields="risques"></dsfr-data-facets>
+\`\`\`
+
+- Sans separateur (\`split="tags"\`), c’est la virgule.
+- Chaque element est trime, les vides sont ecartes ; une chaine vide donne \`[]\`.
+- Le decoupage s’applique **apres** \`replace\` (un « N/A » remplace par vide donne \`[]\`)
+  et **avant** \`numeric\` / \`compute\`.
+- \`dsfr-data-facets\` traite le tableau comme un champ multi-valeurs : une entree
+  de facette par element, et une ligne matche des qu’un de ses elements est choisi.
+
+### Arrondir un nombre (round, decimales)
+
+\`dsfr-data-normalize round\` existe : \`"champ"\` arrondit a l’entier, \`"champ:2"\` a
+2 decimales. Entrees separees par virgule :
+
+\`\`\`html
+<dsfr-data-normalize id="clean" source="raw" numeric="taux, montant" round="taux:2, montant"></dsfr-data-normalize>
+\`\`\`
+
+- \`round\` n’agit que sur des **nombres** : convertir d’abord avec \`numeric\` (ou
+  \`numeric-auto\`) si le champ arrive en chaine.
+- Il cible le **nom d’origine** du champ (\`rename\` s’applique apres).
+- Inutile pour un KPI : \`dsfr-data-kpi format\` arrondit lui-meme a l’affichage.
+
+### Abreger un grand nombre : format compact (14,8 M)
+
+\`dsfr-data-kpi format="compact"\` existe : 14 785 684 -> « 14,8 M », 6 676 -> « 6,7 k »
+(notation compacte fr-FR, 1 decimale max). Les six formats : \`nombre\` (defaut),
+\`pourcentage\`, \`euro\`, \`decimal\`, \`compact\`, \`date\`.
+
+\`\`\`html
+<dsfr-data-kpi source="stats" value="population:sum" format="compact" label="Habitants"></dsfr-data-kpi>
+<dsfr-data-kpi source="budget" value="montant:sum" format="compact" unit="€" label="Budget"></dsfr-data-kpi>
+\`\`\`
+
+### Decimales et unite d'un KPI (decimals, unit)
+
+- \`decimals="3"\` fixe les decimales affichees : \`format="euro" decimals="3"\` -> « 1,749 € ».
+  Ne PAS ecrire \`format="euro:3"\` (refuse, erreur de configuration).
+- \`unit="€"\` accole une unite apres la valeur (espace insecable) : \`format="compact" unit="€"\`
+  -> « 44,9 Md € ». Inutile avec \`euro\` et \`pourcentage\`, qui portent deja leur symbole.
+
+\`\`\`html
+<dsfr-data-kpi source="carburants" value="gazole_prix:avg" format="euro" decimals="3" label="Gazole"></dsfr-data-kpi>
+\`\`\`
+
+### Afficher une date (format date, min/max sur dates ISO)
+
+\`format="date"\` rend une chaine ISO en JJ/MM/AAAA ; \`min\`/\`max\` acceptent une colonne de
+dates ISO (la plus ancienne / la plus recente), \`first\`/\`last\` la chaine brute :
+
+\`\`\`html
+<dsfr-data-kpi source="carburants" value="maj:max" format="date" label="Derniere mise a jour"></dsfr-data-kpi>
+\`\`\`
+
+### Compteur de resultats et total serveur (count, server-search)
+
+- \`dsfr-data-search count\` affiche « N resultats » sous le champ. Avec
+  \`server-search\`, N est le **total serveur** (meta \`total\` de la source), pas la
+  taille de la page recue.
+- \`dsfr-data-list\` et \`dsfr-data-display\` affichent aussi « N resultats » avec le
+  total serveur des que la source amont est en pagination serveur
+  (\`dsfr-data-source server-side page-size="50"\`).
+
+\`\`\`html
+<dsfr-data-source id="src" api-type="opendatasoft" base-url="..." dataset-id="..." server-side page-size="50"></dsfr-data-source>
+<dsfr-data-search id="q" source="src" server-search count></dsfr-data-search>
+<dsfr-data-list source="q" columns="nom, ville"></dsfr-data-list>
+\`\`\`
+
+Pas de compteur a coder : ni \`document.querySelectorAll\`, ni ecoute manuelle
+de \`dsfr-data-source-loaded\`.
+
+### Facettes : choix unique, boutons radio, liste deroulante (display)
+
+\`dsfr-data-facets display="champ:mode | champ2:mode"\` (entrees separees par \`|\`).
+Les modes et ce qu’ils rendent :
+
+| Mode | Rendu | Selection |
+|------|-------|-----------|
+| \`checkbox\` (defaut) | cases a cocher en ligne | multiple (OU intra-facette) |
+| \`select\` | \`<select class="fr-select">\` natif, en ligne | **unique** |
+| \`radio\` | **dropdown** repliable contenant des boutons radio + recherche | unique |
+| \`radio-inline\` | boutons radio **visibles en ligne** (fieldset DSFR), option « Tous » en tete | unique |
+| \`multiselect\` | dropdown repliable avec cases a cocher + « tout selectionner » | multiple |
+
+Donc : « un choix unique visible directement » = \`champ:select\` (liste deroulante) ou
+\`champ:radio-inline\` (boutons radio en ligne, « Tous » pour retirer le choix). \`radio\`
+n’est pas une rangee de boutons radio en ligne mais un menu deroulant ; c’est documente,
+pas un bug — il sera renomme \`radio-dropdown\` dans une version majeure. Une facette en
+\`select\`, \`radio\` ou \`radio-inline\` est exclusive d’office, sans \`disjunctive\`.
+
+### Facettes en cascade (server-facets)
+
+Avec \`server-facets\` (adapters OpenDataSoft et Grist), les valeurs et compteurs de
+chaque facette sont recalcules **cote serveur en tenant compte des selections des
+autres facettes** : choisir une region reduit la liste des departements, avec les
+bons compteurs. C’est la cascade native. Sans \`fields\`, le composant decouvre au
+premier cycle les facettes declarees par le jeu (ODS : champs annotes « facet » des
+metadonnees, avec leur libelle ; Grist : colonnes Choice / ChoiceList) et les affiche
+toutes, cascade comprise (#680). \`fields\` reste le moyen d’en choisir un sous-ensemble
+ou d’imposer l’ordre.
+
+Une facette ODS de type **date** sert ses valeurs par annee (« 2022 ») ; le filtre emis
+est alors un intervalle \`champ >= date'2022-01-01' AND champ < date'2023-01-01'\`, jamais
+l’egalite \`champ = "2022"\` (refusee par ODS, #676). Rien a configurer : le type vient de
+la decouverte, meme avec \`fields\` explicite.
+
+\`\`\`html
+<dsfr-data-source id="src" api-type="opendatasoft" base-url="..." dataset-id="..." server-side page-size="50"></dsfr-data-source>
+<dsfr-data-facets id="f" source="src" server-facets fields="region, departement"
+  display="region:select | departement:select"></dsfr-data-facets>
+
+<!-- Toutes les facettes declarees par le jeu, sans les nommer -->
+<dsfr-data-facets id="f2" source="src" server-facets></dsfr-data-facets>
+\`\`\`
+
+En mode local (sans \`server-facets\`), les compteurs se recalculent aussi selon
+les autres selections — sur les donnees deja chargees. Sur Tabular ou generique,
+\`static-values\` fournit les listes (sans compteurs).
+
+### Filtrer sur l’annee en cours (current-year)
+
+\`dsfr-data-context-filter operator="current-year"\` produit la plage
+\`[1er janvier, 1er janvier suivant)\` de l’annee courante, recalculee a chaque
+emission — sans \`new Date()\` dans la page. L’UI associee est une case a cocher :
+cochee = filtre actif, decochee = filtre retire.
+
+\`\`\`html
+<input type="checkbox" id="cette-annee" checked>
+<label for="cette-annee">Annee en cours</label>
+<dsfr-data-context sources="src">
+  <dsfr-data-context-filter field="date_debut" operator="current-year" ui="cette-annee"></dsfr-data-context-filter>
+</dsfr-data-context>
+\`\`\`
+
+Meme famille : \`current-month\` (case a cocher -> mois en cours, #682), \`year-of\` (annee
+choisie dans un select), \`month-of\`, \`last-n-days\`, \`lt-day-after\` (borne haute inclusive).
+
+### Filtrer jusqu’a aujourd’hui sans script (default="today")
+
+\`default\` (#682) pre-remplit le controle d'UI au montage, APRES l'URL (un parametre d'URL
+present gagne toujours), puis emet par le chemin normal : tags et URL suivent. Mots-cles
+\`today\`, \`first-of-month\`, \`first-of-year\` (date calendaire locale, adaptee au controle :
+input type=month -> AAAA-MM, \`year-of\` -> AAAA) ou un litteral.
+
+\`\`\`html
+<input type="date" id="jusqu-au">
+<dsfr-data-context sources="src" url-sync>
+  <dsfr-data-context-filter field="date_debut" operator="lt-day-after" ui="jusqu-au" default="today"></dsfr-data-context-filter>
+</dsfr-data-context>
+\`\`\`
+
+### Cles de jointure : comparaison en chaine (join on)
+
+\`dsfr-data-join on="cle"\` (ou \`on="cle_gauche=cle_droite"\`, multi-cle par virgule)
+compare les cles **converties en chaine, sans trim ni completion** :
+
+- \`201\` (nombre) et \`"201"\` (chaine) **se joignent** ;
+- \`"0201"\` et \`"201"\` **ne se joignent pas** (zero initial) ;
+- \`" 201"\` et \`"201"\` ne se joignent pas (espace) : passer par \`normalize trim\` en amont ;
+- \`null\` et \`""\` valent tous deux la cle vide et se joignent **entre eux** —
+  filtrer les lignes sans cle (\`where="cle:isnotnull"\`) avant de joindre.
+
+Pour harmoniser un code numerique a zero initial des deux cotes, \`numeric="code"\`
+sur les deux sources (\`"0201"\` -> \`201\`) suffit — sauf codes non numeriques
+(\`2A\`, \`2B\`), a traiter avec \`replace-fields\`.
+
+### Valeurs nulles, non renseignees : isnull / isnotnull
+
+Deux dialectes selon l’endroit :
+
+- \`dsfr-data-query where="champ:isnotnull"\` (syntaxe colon, sans valeur) ; inverse \`champ:isnull\`.
+- \`dsfr-data-source where\` parle le dialecte du provider : ODSQL \`champ is not null\`
+  sur OpenDataSoft ; sur Tabular, la syntaxe colon (\`champ:isnotnull\`) est traduite.
+
+Un groupe « (vide) » dans un graphique vient presque toujours de lignes a valeur
+nulle : filtrer avec \`isnotnull\` plutot que de post-traiter les donnees.
+Pour **remplacer** la valeur nulle par un libelle plutot que l'exclure :
+\`dsfr-data-normalize compute="type = coalesce(type, 'Non renseigné')"\`.
+
+### Colonne derivee, recodage par ligne : compute (when / then / else, fonctions)
+
+\`dsfr-data-normalize compute\` : \`"cible = expression; cible2 = expression2"\`, par ligne,
+en dernier. Arithmetique, concatenation, fonctions en liste blanche (\`year month day
+round abs floor ceil lower upper trim len concat replace coalesce is_null is_empty join
+contains\`) et conditions \`when COND then EXPR … else EXPR\` (\`else\` obligatoire ;
+comparaisons \`= != < <= > >=\`, \`and or not\`). Meme egalite lache que \`where\` : la
+condition \`when dept = 75\` garde les memes lignes que \`where="dept:eq:75"\`.
+
+\`\`\`html
+<dsfr-data-normalize id="calc" source="raw" numeric="montant"
+  compute="tranche = when montant >= 1000000 then 'Grand' when montant >= 100000 then 'Moyen' else 'Petit';
+           annee = year(date_notification); solde = actif - passif">
+</dsfr-data-normalize>
+\`\`\`
+
+Pas de script pour « une colonne annee », « une tranche selon un seuil », « un solde »,
+« null → Non renseigné » : c'est \`compute\`. Une fonction hors liste ou un \`when\` sans
+\`else\` est une erreur de configuration visible (console + \`data-dsfr-config-error\`).
+Les agregats (somme, distinct, part) restent dans \`dsfr-data-query\` / \`dsfr-data-kpi\` ;
+l'affichage conditionnel d'un fragment, dans les templates (\`{{#if}}\`).
+
+### Fond de carte neutre, grise, niveaux de gris
+
+Il n’existe **pas** de « plan IGN clair » en raster libre : les presets sont
+\`ign-plan\`, \`ign-ortho\`, \`ign-cadastre\`, \`osm-fr\`, \`osm-standard\`, \`opentopomap\`
+(les fonds CARTO Positron/Dark exigent desormais une cle API et sont retires).
+\`dsfr-data-map\` rend en **light DOM** : un filtre CSS de la page sur le calque des
+tuiles suffit pour un fond neutre, sans changer de fournisseur.
+
+\`\`\`html
+<style>
+  dsfr-data-map .leaflet-tile-pane { filter: grayscale(1) opacity(0.65); }
+</style>
+<dsfr-data-map center="46.6,2.3" zoom="6" tiles="ign-plan">...</dsfr-data-map>
+\`\`\`
+
+### Fond administratif (contours) sans tuiles
+
+Pour des contours de regions/departements en habillage, ne pas chercher un fond
+raster : un **GeoJSON simplifie statique** (fichier hebergé avec la page) charge par
+une source avec \`transform="features"\`, rendu en couche \`geoshape\` **\`no-interactive\`**
+(pas de clic, tooltip ni popup, et sans effet sur le cadrage automatique) :
+
+\`\`\`html
+<dsfr-data-source id="contours" url="/geo/departements-simplifies.geojson" transform="features"></dsfr-data-source>
+<dsfr-data-map center="46.6,2.3" zoom="6">
+  <dsfr-data-map-layer source="contours" type="geoshape" no-interactive
+    color="#666" fill-opacity="0.05"></dsfr-data-map-layer>
+  <dsfr-data-map-layer source="points" type="marker" lat-field="lat" lon-field="lon"></dsfr-data-map-layer>
+</dsfr-data-map>
+\`\`\`
+
+Chaque \`Feature\` porte sa \`geometry\`, detectee automatiquement (pas de \`geo-field\`
+a poser). Les proprietes sont sous \`properties.*\`.
+
+### Nom de serie dans un graphique (name)
+
+\`dsfr-data-chart name="Effectif"\` : une **chaine simple** suffit partout (graphiques
+et cartes). Pour les graphiques, le composant l’enveloppe lui-meme dans le tableau
+JSON attendu par DSFR Chart (\`["Effectif"]\`) ; un tableau JSON explicite
+(\`name='["2023", "2024"]'\`) reste possible pour nommer plusieurs series.
+Sans \`name\`, les series prennent l’alias inline \`champ:Libellé\` de \`value-field(s)\`
+(\`value-field="Panier_moyen:Panier moyen"\` → légende « Panier moyen »), sinon le nom
+des champs, ou les valeurs de \`series-field\`. Même grammaire sur \`value-cols\` de
+\`dsfr-data-unpivot\` pour renommer les variables dépliées à la source.
+
+### Treemap : la voie native est le barres horizontales
+
+DSFR Chart n’a **pas** de treemap (ni sunburst). Pour une repartition par
+categorie, le substitut conforme est le graphique en barres horizontales, trie :
+
+\`\`\`html
+<dsfr-data-query id="rep" source="src" group-by="categorie" aggregate="montant:sum" order-by="montant__sum:desc"></dsfr-data-query>
+<dsfr-data-chart source="rep" type="bar" horizontal label-field="categorie" value-field="montant__sum"></dsfr-data-chart>
+\`\`\`
+
+Ne pas importer une bibliotheque tierce pour un treemap dans une page DSFR.
+
+### Regle generale
+
+Avant tout script : (1) lire la grammaire de l’attribut dans la reference du
+composant (\`get_skill(id, "reference")\`), (2) essayer le mode existant
+(\`display\`, \`format\`, \`operator\`, \`transform\`), (3) seulement ensuite envisager
+du JavaScript. Une virgule ou un \`:\` mal place est la premiere cause de « ca ne
+marche pas ».`,
   },
 };
 

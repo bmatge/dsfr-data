@@ -67,6 +67,98 @@ describe('clipBoundsForFit', () => {
     const martinique = bounds(14.3, -61.3, 14.9, -60.8);
     expect(clipBoundsForFit(martinique, METRO, fakeLeaflet)).toBe(null);
   });
+
+  // #642 — emprises degenerees : un marqueur unique (sud = nord, ouest = est)
+  // ou un segment. L'ancienne condition `>=` les prenait pour une
+  // intersection vide et le fit ne bougeait pas.
+  it('un point dans la zone (sud = nord, ouest = est) : bounds d aire nulle, pas null', () => {
+    const paris = bounds(48.8566, 2.3522, 48.8566, 2.3522);
+    const clipped = clipBoundsForFit(paris, METRO, fakeLeaflet);
+    expect(clipped).not.toBeNull();
+    expect(clipped!.getSouth()).toBe(48.8566);
+    expect(clipped!.getNorth()).toBe(48.8566);
+    expect(clipped!.getWest()).toBe(2.3522);
+    expect(clipped!.getEast()).toBe(2.3522);
+  });
+
+  it('un segment nord-sud dans la zone (ouest = est) : conserve', () => {
+    const meridien = bounds(43.0, 2.35, 49.0, 2.35);
+    const clipped = clipBoundsForFit(meridien, METRO, fakeLeaflet);
+    expect(clipped).not.toBeNull();
+    expect(clipped!.getWest()).toBe(2.35);
+    expect(clipped!.getEast()).toBe(2.35);
+    expect(clipped!.getSouth()).toBe(43.0);
+    expect(clipped!.getNorth()).toBe(49.0);
+  });
+
+  it('un segment est-ouest partiellement hors zone : clippe a la zone', () => {
+    const parallele = bounds(45.0, -10.0, 45.0, 3.0);
+    const clipped = clipBoundsForFit(parallele, METRO, fakeLeaflet)!;
+    expect(clipped.getSouth()).toBe(45.0);
+    expect(clipped.getNorth()).toBe(45.0);
+    expect(clipped.getWest()).toBe(-6.5);
+    expect(clipped.getEast()).toBe(3.0);
+  });
+
+  it('un point hors zone (Fort-de-France) : null, la vue ne bouge pas', () => {
+    const fdf = bounds(14.6, -61.07, 14.6, -61.07);
+    expect(clipBoundsForFit(fdf, METRO, fakeLeaflet)).toBe(null);
+  });
+
+  it('un point exactement sur la frontiere de la zone : conserve', () => {
+    const coin = bounds(40.5, -6.5, 40.5, -6.5);
+    expect(clipBoundsForFit(coin, METRO, fakeLeaflet)).not.toBeNull();
+  });
+});
+
+describe('fit-max-zoom (#642) — plafond du zoom de fit', () => {
+  /** Vue interne de la carte : ce que _applyFitBounds touche. */
+  interface MapInternals {
+    _leafletMap: { fitBounds: ReturnType<typeof vi.fn> } | null;
+    _initMap: () => Promise<void>;
+  }
+
+  /**
+   * Charge le module Leaflet interne (cache de module) sans creer de carte :
+   * _initMap sur un element DECONNECTE s'abandonne juste apres loadLeaflet
+   * (init posthume, #298). On pose ensuite une fausse carte qui espionne
+   * fitBounds.
+   */
+  async function fitSpyMap(attrs: { fitMaxZoom?: number } = {}) {
+    const map = new DsfrDataMap();
+    await (map as unknown as MapInternals)._initMap();
+    const leaflet = map.getLeafletLib()!;
+    map.fitBounds = true;
+    map.maxBounds = METRO;
+    if (attrs.fitMaxZoom !== undefined) map.fitMaxZoom = attrs.fitMaxZoom;
+    const fitBounds = vi.fn();
+    (map as unknown as MapInternals)._leafletMap = { fitBounds };
+    // Bounds Leaflet reelles : _combineBounds les copie via getSouthWest()
+    const point = (lat: number, lon: number) => leaflet.latLngBounds([lat, lon], [lat, lon]);
+    return { map, fitBounds, point };
+  }
+
+  it('un point dans la zone declenche bien un fit (plus de null)', async () => {
+    const { map, fitBounds, point } = await fitSpyMap();
+    map.registerLayerBounds('commune', point(48.85, 2.35));
+    expect(fitBounds).toHaveBeenCalledTimes(1);
+    const opts = fitBounds.mock.calls[0][1] as Record<string, unknown>;
+    expect(opts.maxZoom).toBeUndefined();
+  });
+
+  it('fit-max-zoom="12" est transmis a fitBounds comme maxZoom', async () => {
+    const { map, fitBounds, point } = await fitSpyMap({ fitMaxZoom: 12 });
+    map.registerLayerBounds('commune', point(48.85, 2.35));
+    expect(fitBounds).toHaveBeenCalledTimes(1);
+    const opts = fitBounds.mock.calls[0][1] as Record<string, unknown>;
+    expect(opts.maxZoom).toBe(12);
+  });
+
+  it('un point hors zone ne fitte pas (la vue ne bouge pas)', async () => {
+    const { map, fitBounds, point } = await fitSpyMap({ fitMaxZoom: 12 });
+    map.registerLayerBounds('fdf', point(14.6, -61.07));
+    expect(fitBounds).not.toHaveBeenCalled();
+  });
 });
 
 describe('bounds liberees par une couche videe (filtrage amont)', () => {
@@ -79,5 +171,113 @@ describe('bounds liberees par une couche videe (filtrage amont)', () => {
     // Idempotent
     map.unregisterLayerBounds('communes');
     expect((map as unknown as { _layerBounds: Map<string, unknown> })._layerBounds.size).toBe(0);
+  });
+});
+
+describe('fit-zone (#687) — zone de fit par défaut avec des encarts ultramarins', () => {
+  interface MapInternals {
+    _leafletMap: { fitBounds: ReturnType<typeof vi.fn> } | null;
+    _initMap: () => Promise<void>;
+  }
+
+  /** Carte a fit espionne, sans max-bounds : la zone vient de fit-zone ou des encarts. */
+  async function fitSpyMap(attrs: { insets?: string; fitZone?: string; maxBounds?: string } = {}) {
+    const map = new DsfrDataMap();
+    await (map as unknown as MapInternals)._initMap();
+    const leaflet = map.getLeafletLib()!;
+    map.fitBounds = true;
+    if (attrs.insets !== undefined) map.insets = attrs.insets;
+    if (attrs.fitZone !== undefined) map.fitZone = attrs.fitZone;
+    if (attrs.maxBounds !== undefined) map.maxBounds = attrs.maxBounds;
+    const fitBounds = vi.fn();
+    (map as unknown as MapInternals)._leafletMap = { fitBounds };
+    const box = (s: number, w: number, n: number, e: number) =>
+      leaflet.latLngBounds([s, w], [n, e]);
+    return { map, fitBounds, box };
+  }
+
+  /** Jeu France entiere : de la Reunion (-21) a Lille (51), Guadeloupe a l'ouest. */
+  const FRANCE_ENTIERE = [-21.4, -61.8, 51.1, 55.8] as const;
+
+  it('resolveFitZone : rien sans encart ni max-bounds', () => {
+    const map = new DsfrDataMap();
+    expect(map.resolveFitZone()).toBe('');
+  });
+
+  it('resolveFitZone : metropole des que insets contient un DROM (groupe ou nom)', () => {
+    const map = new DsfrDataMap();
+    map.insets = 'drom';
+    expect(map.resolveFitZone()).toBe('41,-5.5,51.5,10');
+    map.insets = 'corse,mayotte';
+    expect(map.resolveFitZone()).toBe('41,-5.5,51.5,10');
+    map.insets = 'nouvelle-caledonie';
+    expect(map.resolveFitZone()).toBe('41,-5.5,51.5,10');
+  });
+
+  it('resolveFitZone : la Corse seule ne declenche pas le clip', () => {
+    const map = new DsfrDataMap();
+    map.insets = 'corse';
+    expect(map.resolveFitZone()).toBe('');
+  });
+
+  it('resolveFitZone : un encart explicite en HTML compte aussi', () => {
+    const map = new DsfrDataMap();
+    const inset = document.createElement('dsfr-data-map-inset');
+    inset.setAttribute('territory', 'guadeloupe');
+    map.appendChild(inset);
+    expect(map.resolveFitZone()).toBe('41,-5.5,51.5,10');
+  });
+
+  it('resolveFitZone : max-bounds garde la main sur le défaut, fit-zone sur max-bounds', () => {
+    const map = new DsfrDataMap();
+    map.insets = 'drom';
+    map.maxBounds = METRO;
+    expect(map.resolveFitZone()).toBe(METRO);
+    map.fitZone = '47,-5,49,-1';
+    expect(map.resolveFitZone()).toBe('47,-5,49,-1');
+  });
+
+  it('resolveFitZone : fit-zone="none" desactive le clip malgre les encarts', () => {
+    const map = new DsfrDataMap();
+    map.insets = 'drom';
+    map.fitZone = 'none';
+    expect(map.resolveFitZone()).toBe('');
+  });
+
+  it('insets="drom" fit-bounds sans max-bounds : le fit est clippe a la metropole', async () => {
+    const { map, fitBounds, box } = await fitSpyMap({ insets: 'drom' });
+    map.registerLayerBounds('tout', box(...FRANCE_ENTIERE));
+    expect(fitBounds).toHaveBeenCalledTimes(1);
+    const fitted = fitBounds.mock.calls[0][0] as import('leaflet').LatLngBounds;
+    expect(fitted.getSouth()).toBe(41);
+    expect(fitted.getWest()).toBe(-5.5);
+    expect(fitted.getNorth()).toBe(51.1);
+    expect(fitted.getEast()).toBe(10);
+  });
+
+  it('sans encart ni zone : le fit couvre tout le jeu (comportement inchange)', async () => {
+    const { map, fitBounds, box } = await fitSpyMap();
+    map.registerLayerBounds('tout', box(...FRANCE_ENTIERE));
+    const fitted = fitBounds.mock.calls[0][0] as import('leaflet').LatLngBounds;
+    expect(fitted.getSouth()).toBe(-21.4);
+    expect(fitted.getEast()).toBe(55.8);
+  });
+
+  it('fit-zone explicite surcharge le défaut', async () => {
+    const { map, fitBounds, box } = await fitSpyMap({ insets: 'drom', fitZone: '47,-5,49,-1' });
+    map.registerLayerBounds('tout', box(...FRANCE_ENTIERE));
+    const fitted = fitBounds.mock.calls[0][0] as import('leaflet').LatLngBounds;
+    expect(fitted.getSouth()).toBe(47);
+    expect(fitted.getWest()).toBe(-5);
+    expect(fitted.getNorth()).toBe(49);
+    expect(fitted.getEast()).toBe(-1);
+  });
+
+  it('le pan reste libre : le défaut ne renseigne pas max-bounds', () => {
+    const map = new DsfrDataMap();
+    map.insets = 'drom';
+    map.fitBounds = true;
+    expect(map.resolveFitZone()).not.toBe('');
+    expect(map.maxBounds).toBe('');
   });
 });

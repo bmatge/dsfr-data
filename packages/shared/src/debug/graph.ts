@@ -17,6 +17,8 @@
  *    attend un événement qui ne viendra jamais. On la détecte ici.
  */
 
+import { FIELD_ATTRS } from './field-check.js';
+
 export type StageRole = 'source' | 'transform' | 'display';
 
 /**
@@ -39,6 +41,7 @@ export const STAGE_ROLES: Record<string, StageRole> = {
   'dsfr-data-facets': 'transform',
   'dsfr-data-join': 'transform',
   'dsfr-data-normalize': 'transform',
+  'dsfr-data-pivot': 'transform',
   'dsfr-data-query': 'transform',
   'dsfr-data-search': 'transform',
   'dsfr-data-unpivot': 'transform',
@@ -56,8 +59,14 @@ export const STAGE_ROLES: Record<string, StageRole> = {
  * Attributs retenus par balise pour l'affichage et le résumé textuel — ceux
  * qui expliquent la FORME du résultat. Inutile de recracher trente attributs
  * de style : ce qu'on veut lire, c'est ce qui filtre, groupe et projette.
+ *
+ * Cette table ne porte QUE les attributs de cadrage (requête, pagination,
+ * jointure…). Ceux qui nomment un champ des données viennent de `FIELD_ATTRS`
+ * et sont ajoutés automatiquement par `attrsDeForme` : sans quoi il faudrait
+ * tenir deux listes d'accord, et l'oubli d'un `geo-field` ici rendrait le
+ * contrôle de nommage aveugle là-bas (#727).
  */
-const SHAPE_ATTRS: Record<string, string[]> = {
+export const SHAPE_ATTRS: Record<string, string[]> = {
   'dsfr-data-source': [
     'api-type',
     'base-url',
@@ -71,24 +80,60 @@ const SHAPE_ATTRS: Record<string, string[]> = {
     'page-size',
     'paginate',
     'server-side',
+    'limit',
+    'max-records',
     'use-proxy',
     'proxy-url',
     'transform',
   ],
-  'dsfr-data-query': ['where', 'filter', 'group-by', 'aggregate', 'order-by', 'limit'],
-  'dsfr-data-normalize': ['rules', 'trim', 'flatten', 'split', 'rename'],
+  'dsfr-data-query': [
+    'where',
+    'filter',
+    'group-by',
+    'aggregate',
+    'order-by',
+    'limit',
+    'require-where',
+  ],
+  'dsfr-data-normalize': [
+    'numeric',
+    'numeric-auto',
+    'trim',
+    'rename',
+    'flatten',
+    'split',
+    'compute',
+  ],
   'dsfr-data-join': ['left', 'right', 'on', 'type', 'prefix-left', 'prefix-right'],
-  'dsfr-data-unpivot': ['cols', 'name-field', 'value-field'],
-  'dsfr-data-facets': ['fields', 'multi'],
-  'dsfr-data-search': ['fields', 'placeholder'],
+  'dsfr-data-unpivot': ['id-cols', 'value-cols', 'value-cols-pattern', 'var-name', 'value-name'],
+  'dsfr-data-pivot': ['row', 'column', 'value', 'aggregate', 'column-order', 'column-format'],
+  'dsfr-data-facets': ['fields', 'server-facets', 'context'],
+  'dsfr-data-search': ['fields', 'placeholder', 'server-search', 'context'],
   'dsfr-data-chart': ['type', 'label-field', 'value-field', 'series-field', 'selected-palette'],
-  'dsfr-data-list': ['columns', 'search', 'pagination', 'sortable'],
-  'dsfr-data-kpi': ['value', 'label', 'format', 'field', 'aggregate'],
-  'dsfr-data-podium': ['label-field', 'value-field'],
-  'dsfr-data-display': ['fields', 'template'],
-  'dsfr-data-map-layer': ['type', 'lat-field', 'lon-field', 'geo-field', 'value-field'],
-  'dsfr-data-a11y': ['label-field', 'value-field'],
+  'dsfr-data-list': ['columns', 'columns-auto', 'search', 'pagination', 'server-sort'],
+  'dsfr-data-kpi': ['value', 'label', 'format', 'unit'],
+  'dsfr-data-podium': ['label-field', 'value-field', 'max-items'],
+  'dsfr-data-display': ['cols', 'pagination', 'uid-field'],
+  'dsfr-data-map-layer': ['type', 'lat-field', 'lon-field', 'geo-field'],
+  'dsfr-data-a11y': ['label-field', 'value-field', 'for', 'table'],
 };
+
+/**
+ * Attributs collectés pour une balise : le cadrage, plus tout attribut qui
+ * nomme un champ (#727). Mémorisé — `snapshotGraph` repasse sur chaque nœud à
+ * chaque instantané, et l'union est stable pour la durée du programme.
+ */
+const attrsParTag = new Map<string, string[]>();
+
+function attrsDeForme(tag: string): string[] {
+  const connu = attrsParTag.get(tag);
+  if (connu) return connu;
+  const union = Array.from(
+    new Set([...(SHAPE_ATTRS[tag] ?? []), ...Object.keys(FIELD_ATTRS[tag] ?? {})])
+  );
+  attrsParTag.set(tag, union);
+  return union;
+}
 
 export interface StageNode {
   /** Clé sur le bus : l'attribut `id`, ou une clé synthétique. */
@@ -115,6 +160,37 @@ export interface StageNode {
   attrs: Record<string, string>;
   /** Message posé par `reportConfigError` (attribut requis manquant…). */
   configError?: string;
+  /**
+   * Attributs écrits sur la balise mais INCONNUS du bundle réellement chargé
+   * (#727) — ils seront ignorés en silence.
+   *
+   * Posés au runtime par les mixins du cœur dans `data-dsfr-unknown-attrs`,
+   * seul endroit d'où l'on voie la version chargée : le lint statique compare
+   * au manifeste du dépôt, il ne verra jamais qu'une page est écrite contre
+   * une documentation plus récente que sa bibliothèque. Le banc d'essai a
+   * vécu quatre versions mineures de retard sans s'en apercevoir.
+   */
+  unknownAttrs?: string[];
+  /**
+   * Lignes reçues mais écartées du rendu par un afficheur cartographique —
+   * code ou coordonnées géographiques absents ou invalides (#648). Lu sur
+   * `getSkippedCount()` du composant rehaussé ; absent quand rien n'est
+   * ignoré ou quand le composant ne l'expose pas.
+   */
+  skippedRows?: number;
+  /**
+   * Colonnes dérivées par l'attribut `compute` d'un normalize (#671), avec
+   * la valeur de la première ligne en exemple — ce qu'un recodage a produit,
+   * visible sans ouvrir l'échantillon. Lu sur `getComputedColumns()` du
+   * composant rehaussé ; absent sans compute ou quand rien n'a été traité.
+   */
+  computedColumns?: ComputedColumn[];
+}
+
+/** Une colonne produite par `compute` et un exemple de valeur (première ligne). */
+export interface ComputedColumn {
+  name: string;
+  sample: unknown;
 }
 
 export interface DataflowGraph {
@@ -134,9 +210,57 @@ function readUpstream(el: Element, tag: string): string[] {
   return source ? [source] : [];
 }
 
+/** Composant qui sait dire combien de lignes il a écartées (#648). */
+interface SkipCountingElement extends Element {
+  getSkippedCount?: () => number;
+}
+
+/**
+ * Lignes écartées par un afficheur, si le composant est rehaussé et l'expose.
+ *
+ * Même doctrine que la délégation des `dsfr-data-query` : on lit une méthode
+ * publique du composant plutôt qu'un événement du bus — un afficheur ne
+ * réémet rien, c'est le seul endroit où cette information existe. Un
+ * composant non rehaussé (bundle absent, tag inconnu) rend `undefined`.
+ */
+function readSkippedRows(el: Element): number | undefined {
+  const counting = el as SkipCountingElement;
+  if (typeof counting.getSkippedCount !== 'function') return undefined;
+  try {
+    const n = counting.getSkippedCount();
+    return typeof n === 'number' && n > 0 ? n : undefined;
+  } catch {
+    // Un composant à moitié initialisé ne doit jamais casser la trace.
+    return undefined;
+  }
+}
+
+/** Transformateur qui sait lister ses colonnes dérivées (#671). */
+interface ComputingElement extends Element {
+  getComputedColumns?: () => ComputedColumn[];
+}
+
+/**
+ * Colonnes dérivées par `compute`, si le composant est rehaussé et les
+ * expose — même doctrine que `readSkippedRows` : une méthode publique du
+ * composant, pas un événement du bus (le bus transporte les lignes, pas la
+ * provenance des colonnes).
+ */
+function readComputedColumns(el: Element): ComputedColumn[] | undefined {
+  const computing = el as ComputingElement;
+  if (typeof computing.getComputedColumns !== 'function') return undefined;
+  try {
+    const columns = computing.getComputedColumns();
+    return Array.isArray(columns) && columns.length > 0 ? columns : undefined;
+  } catch {
+    // Un composant à moitié initialisé ne doit jamais casser la trace.
+    return undefined;
+  }
+}
+
 function readShapeAttrs(el: Element, tag: string): Record<string, string> {
   const attrs: Record<string, string> = {};
-  for (const name of SHAPE_ATTRS[tag] ?? []) {
+  for (const name of attrsDeForme(tag)) {
     const value = el.getAttribute(name);
     // Un attribut booléen présent vaut chaîne vide : on le note quand même,
     // `paginate` ou `search` changent le comportement par leur seule présence.
@@ -184,6 +308,16 @@ export function snapshotGraph(root: ParentNode): DataflowGraph {
     seenIds.add(id);
 
     const configError = el.getAttribute('data-dsfr-config-error');
+    // Marqueur posé par `checkUnknownAttributes`
+    // (packages/core/src/utils/unknown-attributes.ts) — même doctrine que
+    // `data-dsfr-config-error` : le cœur écrit, le collecteur relit, aucune
+    // dépendance de module entre les deux.
+    const unknownAttrs = (el.getAttribute('data-dsfr-unknown-attrs') ?? '')
+      .split(',')
+      .map((a) => a.trim())
+      .filter(Boolean);
+    const skippedRows = role === 'display' ? readSkippedRows(el) : undefined;
+    const computedColumns = role === 'transform' ? readComputedColumns(el) : undefined;
 
     nodes.push({
       id,
@@ -194,6 +328,9 @@ export function snapshotGraph(root: ParentNode): DataflowGraph {
       upstream: readUpstream(el, tag),
       attrs: readShapeAttrs(el, tag),
       ...(configError ? { configError } : {}),
+      ...(unknownAttrs.length > 0 ? { unknownAttrs } : {}),
+      ...(skippedRows !== undefined ? { skippedRows } : {}),
+      ...(computedColumns !== undefined ? { computedColumns } : {}),
     });
   }
 

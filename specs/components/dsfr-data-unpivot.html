@@ -53,32 +53,38 @@ Immatriculations VE   | Vehicule Particulier | 2023-02 | 19965</pre></div>
         <div class="code-block"><pre>dsfr-data-source (wide) ──► dsfr-data-unpivot ──► dsfr-data-normalize ──► dsfr-data-query ──► dsfr-data-chart</pre></div>
 
         <h2 id="attributs" class="fr-mt-4w">Attributs</h2>
-        <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Format / Valeurs</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>id</code></td><td>String</td><td><code>id="tidy"</code></td><td>Identifiant unique de la sortie (requis). Les composants aval s'y abonnent.</td></tr>
-            <tr><td><code>source</code></td><td>String</td><td><code>source="grist_wide"</code></td><td>ID de la source amont a deplier (requis)</td></tr>
-            <tr><td><code>id-cols</code></td><td>String</td><td><code>id-cols="Indicateurs, Sous_theme"</code></td><td>Colonnes conservees telles quelles sur chaque ligne (virgule-separees)</td></tr>
-            <tr><td><code>value-cols</code></td><td>String</td><td><code>value-cols="janv, fevr, mars"</code></td><td>Liste explicite des colonnes a deplier. Exclusif avec <code>value-cols-pattern</code></td></tr>
-            <tr><td><code>value-cols-pattern</code></td><td>String</td><td><code>value-cols-pattern="c{YYYY}_{MM}"</code></td><td>Motif des colonnes a deplier (voir tokens ci-dessous)</td></tr>
-            <tr><td><code>var-name</code></td><td>String</td><td><code>var-name="mois"</code></td><td>Nom de la nouvelle colonne « variable » (clé depliee). Défaut : <code>variable</code></td></tr>
-            <tr><td><code>var-format</code></td><td>String</td><td><code>var-format="{YYYY}-{MM}"</code></td><td>Reformatage de la clé via les tokens du motif (<code>c2023_01</code> → <code>2023-01</code>)</td></tr>
-            <tr><td><code>value-name</code></td><td>String</td><td><code>value-name="valeur"</code></td><td>Nom de la nouvelle colonne « valeur ». Défaut : <code>value</code></td></tr>
-            <tr><td><code>drop-empty</code></td><td>Boolean</td><td><code>drop-empty</code></td><td>Ne pas emettre de ligne quand la cellule depliee est vide / null</td></tr>
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Format / Valeurs</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>id</code></td><td>String</td><td><code>id="tidy"</code></td><td>Identifiant unique de la sortie (requis). Les composants aval s'y abonnent.</td></tr>
+              <!-- ATTRS:dsfr-data-unpivot fields="source,id-cols,value-cols,value-cols-pattern,var-name,var-format,value-name,drop-empty" -->
+                <tr><td><code>source</code></td><td>String</td><td><code>source="grist_wide"</code></td><td>ID de la source de données à écouter</td></tr>
+                <tr><td><code>id-cols</code></td><td>String</td><td><code>id-cols="Indicateurs, Sous_theme"</code></td><td>Colonnes conservées telles quelles sur chaque ligne. Ex: "Indicateurs, Sous_theme"</td></tr>
+                <tr><td><code>value-cols</code></td><td>String</td><td><code>value-cols="janv, fevr, mars"</code></td><td>Liste explicite des colonnes à déplier (virgule-séparée). Exclusif avec value-cols-pattern. Alias inline <code>col:Libellé</code> (#668) : <code>value-cols="gazole_prix:Gazole, sp95_prix:SP95"</code> émet « Gazole » et « SP95 » dans la colonne var-name à la place des noms techniques. Un <code>:</code> littéral dans un nom ou un libellé s'échappe en <code>%3A</code> (escapeColonValue).</td></tr>
+                <tr><td><code>value-cols-pattern</code></td><td>String</td><td><code>value-cols-pattern="c{YYYY}_{MM}"</code></td><td>Motif des colonnes à déplier, avec placeholders <code>{TOKEN}</code>. Tokens date à largeur fixe : YYYY (4 chiffres), YY/MM/DD/HH (2), Q (1). Ex: "c{YYYY}_{MM}" matche <code>c2023_01</code>.</td></tr>
+                <tr><td><code>var-name</code></td><td>String</td><td><code>var-name="mois"</code></td><td>Nom de la nouvelle colonne "variable" (clé dépliée). Défaut: "variable".</td></tr>
+                <tr><td><code>var-format</code></td><td>String</td><td><code>var-format="{YYYY}-{MM}"</code></td><td>Reformatage de la clé via les tokens du motif. Ex: "{YYYY}-{MM}" → <code>2023-01</code>.</td></tr>
+                <tr><td><code>value-name</code></td><td>String</td><td><code>value-name="valeur"</code></td><td>Nom de la nouvelle colonne "valeur". Défaut: "value".</td></tr>
+                <tr><td><code>drop-empty</code></td><td>Boolean</td><td><code>drop-empty</code></td><td>Ne pas émettre de ligne quand la cellule dépliée est vide/null.</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
 
         <h2 id="tokens" class="fr-mt-4w">Tokens du motif <code>value-cols-pattern</code></h2>
         <p>Les placeholders <code>{TOKEN}</code> capturent une partie du nom de colonne. Le motif est ancre (debut a fin).</p>
-        <table class="attr-table">
-          <thead><tr><th>Token</th><th>Largeur</th><th>Exemple</th></tr></thead>
-          <tbody>
-            <tr><td><code>YYYY</code></td><td>4 chiffres</td><td><code>2023</code></td></tr>
-            <tr><td><code>YY</code> / <code>MM</code> / <code>DD</code> / <code>HH</code></td><td>2 chiffres</td><td><code>01</code></td></tr>
-            <tr><td><code>Q</code></td><td>1 chiffre</td><td><code>4</code></td></tr>
-            <tr><td><code>{nom}</code> (generique)</td><td>un segment</td><td><code>region</code></td></tr>
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Token</th><th>Largeur</th><th>Exemple</th></tr></thead>
+            <tbody>
+              <tr><td><code>YYYY</code></td><td>4 chiffres</td><td><code>2023</code></td></tr>
+              <tr><td><code>YY</code> / <code>MM</code> / <code>DD</code> / <code>HH</code></td><td>2 chiffres</td><td><code>01</code></td></tr>
+              <tr><td><code>Q</code></td><td>1 chiffre</td><td><code>4</code></td></tr>
+              <tr><td><code>{nom}</code> (generique)</td><td>un segment</td><td><code>region</code></td></tr>
+            </tbody>
+          </table>
+        </div>
 
         <h2 id="exemples" class="fr-mt-4w">Exemples</h2>
 
@@ -88,26 +94,26 @@ Immatriculations VE   | Vehicule Particulier | 2023-02 | 19965</pre></div>
             La table Grist a une colonne par mois (<code>c2023_01</code>...). On la bascule en tidy, on type
             les valeurs, et on trace une courbe — sans une ligne de JavaScript.
           </p>
-          <div class="code-block"><pre>&lt;dsfr-data-source id="grist_wide" api-type="grist"
-  base-url="https://grist.numerique.gouv.fr/api/docs/DOC_ID/tables/Plan_Elec/records"&gt;
-&lt;/dsfr-data-source&gt;
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-source</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"grist_wide"</span> <span class="tok-attr">api-type</span><span class="tok-punct">=</span><span class="tok-string">"grist"</span>
+  <span class="tok-attr">base-url</span><span class="tok-punct">=</span><span class="tok-string">"https://grist.numerique.gouv.fr/api/docs/DOC_ID/tables/Plan_Elec/records"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-source</span><span class="tok-punct">&gt;</span>
 
-&lt;dsfr-data-unpivot id="tidy" source="grist_wide"
-  id-cols="Indicateurs, Sous_theme"
-  value-cols-pattern="c{YYYY}_{MM}"
-  var-name="mois" var-format="{YYYY}-{MM}"
-  value-name="valeur"&gt;
-&lt;/dsfr-data-unpivot&gt;
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-unpivot</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"tidy"</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"grist_wide"</span>
+  <span class="tok-attr">id-cols</span><span class="tok-punct">=</span><span class="tok-string">"Indicateurs, Sous_theme"</span>
+  <span class="tok-attr">value-cols-pattern</span><span class="tok-punct">=</span><span class="tok-string">"c{YYYY}_{MM}"</span>
+  <span class="tok-attr">var-name</span><span class="tok-punct">=</span><span class="tok-string">"mois"</span> <span class="tok-attr">var-format</span><span class="tok-punct">=</span><span class="tok-string">"{YYYY}-{MM}"</span>
+  <span class="tok-attr">value-name</span><span class="tok-punct">=</span><span class="tok-string">"valeur"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-unpivot</span><span class="tok-punct">&gt;</span>
 
-&lt;dsfr-data-normalize id="prep" source="tidy" numeric-auto&gt;&lt;/dsfr-data-normalize&gt;
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-normalize</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"prep"</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"tidy"</span> numeric-auto<span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-normalize</span><span class="tok-punct">&gt;</span>
 
-&lt;dsfr-data-query id="ve" source="prep"
-  where="Indicateurs:eq:Nombre immatriculations VE" order-by="mois:asc"&gt;
-&lt;/dsfr-data-query&gt;
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-query</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"ve"</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"prep"</span>
+  <span class="tok-attr">where</span><span class="tok-punct">=</span><span class="tok-string">"Indicateurs:eq:Nombre immatriculations VE"</span> <span class="tok-attr">order-by</span><span class="tok-punct">=</span><span class="tok-string">"mois:asc"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-query</span><span class="tok-punct">&gt;</span>
 
-&lt;dsfr-data-chart source="ve" type="line"
-  label-field="mois" value-field="valeur"&gt;
-&lt;/dsfr-data-chart&gt;</pre></div>
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-chart</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"ve"</span> <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"line"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"mois"</span> <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"valeur"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-chart</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <section class="demo-section">
@@ -118,14 +124,14 @@ Immatriculations VE   | Vehicule Particulier | 2023-02 | 19965</pre></div>
             les recolle en une clé unique. Le <code>series-field</code> de <code>&lt;dsfr-data-chart&gt;</code>
             transforme alors cette clé tidy en une courbe par série — sans une ligne de JavaScript.
           </p>
-          <div class="code-block"><pre>&lt;dsfr-data-normalize id="prep" source="tidy"
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-normalize</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"prep"</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"tidy"</span>
   numeric-auto
-  compute="groupe = Indicateurs + ' / ' + Sous_theme"&gt;
-&lt;/dsfr-data-normalize&gt;
+  <span class="tok-attr">compute</span><span class="tok-punct">=</span><span class="tok-string">"groupe = Indicateurs + ' / ' + Sous_theme"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-normalize</span><span class="tok-punct">&gt;</span>
 
-&lt;dsfr-data-chart source="prep" type="line"
-  label-field="mois" series-field="groupe" value-field="valeur"&gt;
-&lt;/dsfr-data-chart&gt;</pre></div>
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-chart</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"prep"</span> <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"line"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"mois"</span> <span class="tok-attr">series-field</span><span class="tok-punct">=</span><span class="tok-string">"groupe"</span> <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"valeur"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-chart</span><span class="tok-punct">&gt;</span></pre></div>
           <p class="fr-text--sm fr-mt-1w">
             Alternative pour une seule série : filtrer via <code>&lt;dsfr-data-query where="groupe:eq:..."&gt;</code>.
           </p>
@@ -134,11 +140,11 @@ Immatriculations VE   | Vehicule Particulier | 2023-02 | 19965</pre></div>
         <section class="demo-section">
           <h3>Liste explicite de colonnes</h3>
           <p>Quand les colonnes ne suivent pas de motif, on les liste explicitement :</p>
-          <div class="code-block"><pre>&lt;dsfr-data-unpivot id="tidy" source="src"
-  id-cols="produit"
-  value-cols="janvier, fevrier, mars"
-  var-name="mois" value-name="ventes"&gt;
-&lt;/dsfr-data-unpivot&gt;</pre></div>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-unpivot</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"tidy"</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"src"</span>
+  <span class="tok-attr">id-cols</span><span class="tok-punct">=</span><span class="tok-string">"produit"</span>
+  <span class="tok-attr">value-cols</span><span class="tok-punct">=</span><span class="tok-string">"janvier, fevrier, mars"</span>
+  <span class="tok-attr">var-name</span><span class="tok-punct">=</span><span class="tok-string">"mois"</span> <span class="tok-attr">value-name</span><span class="tok-punct">=</span><span class="tok-string">"ventes"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-unpivot</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <h2 id="evenements" class="fr-mt-4w">Événements</h2>
@@ -150,12 +156,14 @@ Immatriculations VE   | Vehicule Particulier | 2023-02 | 19965</pre></div>
         </ul>
 
         <h2 id="methodes" class="fr-mt-4w">Méthodes publiques</h2>
-        <table class="attr-table">
-          <thead><tr><th>Méthode</th><th>Retour</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>getData()</code></td><td>Array</td><td>Retourne les données depliees actuelles</td></tr>
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Méthode</th><th>Retour</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>getData()</code></td><td>Array</td><td>Retourne les données depliees actuelles</td></tr>
+            </tbody>
+          </table>
+        </div>
 
         <h2 id="conseils" class="fr-mt-4w">Conseils d'utilisation</h2>
         <div class="fr-callout">

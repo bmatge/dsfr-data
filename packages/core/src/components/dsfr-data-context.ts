@@ -1,16 +1,31 @@
 import { LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
+import type { ContextFilterLike } from '@dsfr-data/shared/lib';
 import { dispatchSourceCommand } from '../utils/data-bridge.js';
 import { filterToOdsql } from '../utils/where.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
-import type { DsfrDataContextFilter } from './dsfr-data-context-filter.js';
+import { CONTEXT_CONNECTED_EVENT, findContextHostById } from '../utils/context-registry.js';
 
 interface SourceWithAdapter extends HTMLElement {
   getAdapter?: () => { capabilities?: { whereFormat?: string } } | null;
 }
 
 let contextSeq = 0;
+
+export { CONTEXT_CONNECTED_EVENT } from '../utils/context-registry.js';
+
+/**
+ * Resout un contexte par id — null si absent ou pas encore defini/upgrade
+ * (un élément non upgrade n'a pas encore `_registerFilter`). Les filtres
+ * declares AVANT le contexte dans le DOM retentent a l'evenement
+ * `dsfr-data-context-connected` (#678). La resolution vit dans
+ * `utils/context-registry.ts` (#681) : la carte, dans un autre bundle,
+ * s'en sert sans importer ce composant.
+ */
+export function findContextById(id: string): DsfrDataContext | null {
+  return findContextHostById(id) as DsfrDataContext | null;
+}
 
 /**
  * <dsfr-data-context> — chef d'orchestre de filtres transverses (#229).
@@ -22,20 +37,31 @@ let contextSeq = 0;
  * Les pages mono-graphique ne sont PAS concernées : sans contexte, tout
  * fonctionne comme avant.
  *
- * Il ne fetch rien et ne transforme rien : il écoute les enfants
- * <dsfr-data-context-filter> et émet des commandes `where` via
- * dispatchSourceCommand, un **whereKey stable par filtre** — le merge
- * multi-émetteurs existant côté source fait le AND (ADR-031 : jamais
- * « le dernier gagne », l'ordre des balises HTML ne change rien).
+ * Il ne fetch rien et ne transforme rien : il écoute ses filtres et émet
+ * des commandes `where` via dispatchSourceCommand, un **whereKey stable
+ * par filtre** — le merge multi-émetteurs existant côté source fait le AND
+ * (ADR-031 : jamais « le dernier gagne », l'ordre des balises HTML ne
+ * change rien).
+ *
+ * Un seul bus de diffusion (#678, ADR-104) : tout composant qui remplit le
+ * contrat `ContextFilterLike` peut s'y enregistrer — les enfants
+ * <dsfr-data-context-filter>, mais aussi <dsfr-data-facets context="id">
+ * et <dsfr-data-search context="id">, qui vivent hors du contexte dans la
+ * mise en page. Le whereKey est indexé sur `uid + champ` : stable à
+ * l'insertion tardive d'un filtre, quel que soit l'ordre du DOM.
  *
  * ```html
- * <dsfr-data-context sources="src-a src-b">
+ * <dsfr-data-context id="ctx" sources="src-a src-b" url-sync>
  *   <dsfr-data-context-filter field="categorie" operator="in" ui="select-cat">
  *   </dsfr-data-context-filter>
  * </dsfr-data-context>
+ * <dsfr-data-facets context="ctx" source="src-facettes" server-facets
+ *   fields="region,departement" display="region:select | departement:select">
+ * </dsfr-data-facets>
  * ```
  *
- * @fires dsfr-data-context-change - sur l'element — l'etat des filtres du contexte a change (utile pour <dsfr-data-context-tags> et la synchro d'URL).
+ * @fires dsfr-data-context-change - sur l'élément — l'etat des filtres du contexte a change (utile pour <dsfr-data-context-tags> et la synchro d'URL).
+ * @fires dsfr-data-context-connected - `{ id }` sur `document` — le contexte vient d'être connecte (#678) : les filtres declares avant lui dans le DOM (`context="id"`) s'enregistrent a ce moment.
  * @fires dsfr-data-source-command - `{ sourceId, where, whereKey, origin? }` sur `document` — clause `where` diffusee vers chaque source de `sources`, avec un whereKey stable par filtre (merge en AND cote source, ADR-031). `origin` (#603) nomme le composant emetteur : le bus etant plat, une trace ne pourrait sinon pas dire qui demande quoi.
  */
 @customElement('dsfr-data-context')
@@ -49,7 +75,9 @@ export class DsfrDataContext extends LitElement {
    * (collision possible avec le routing query-string du site hôte).
    * Lecture au chargement (pré-remplit les UI, qui repassent par le même
    * chemin qu'un clic — aucune injection directe dans un where) ; écriture
-   * en history.replaceState à chaque changement.
+   * en history.replaceState à chaque changement. Un paramètre par champ,
+   * pour les filtres classiques comme pour les facettes et la recherche
+   * enregistrées par `context="id"` (#678) : l'URL-sync est unique.
    */
   @property({ type: Boolean, attribute: 'url-sync' })
   urlSync = false;
@@ -61,8 +89,22 @@ export class DsfrDataContext extends LitElement {
   /** Uid stable pour les whereKeys (contexte sans id explicite) */
   private readonly _uid = `dsfr-ctx-${++contextSeq}`;
 
-  /** Filtres enregistrés, dans l'ordre DOM (index → whereKey stable) */
-  private _filters: DsfrDataContextFilter[] = [];
+  /** Filtres enregistrés (tout type : filter, facettes, recherche) */
+  private _filters: ContextFilterLike[] = [];
+
+  /**
+   * whereKey de chaque filtre, indexé sur `uid + champ` (#678) — stable à
+   * l'insertion tardive : un filtre enregistré après coup ne décale pas les
+   * clés des autres (l'ancien index d'ordre DOM le faisait).
+   */
+  private _whereKeys = new Map<ContextFilterLike, string>();
+
+  /**
+   * Lot en cours (`clearAll`, #679) : les commandes partent filtre par
+   * filtre (un whereKey chacun, les sources coalescent leur fetch), mais
+   * l'URL n'est écrite et le changement notifié qu'une fois, à la fin.
+   */
+  private _batching = false;
 
   /** Light DOM : les enfants filter restent visibles/inspectables */
   createRenderRoot() {
@@ -73,6 +115,11 @@ export class DsfrDataContext extends LitElement {
     super.connectedCallback();
     sendWidgetBeacon('dsfr-data-context');
     this._validate();
+    // Les filtres enregistrés par id (`context="…"`) et déclarés AVANT ce
+    // contexte dans le DOM attendent ce signal pour s'enregistrer (#678)
+    document.dispatchEvent(
+      new CustomEvent(CONTEXT_CONNECTED_EVENT, { detail: { id: this.id || null } })
+    );
   }
 
   disconnectedCallback() {
@@ -83,6 +130,7 @@ export class DsfrDataContext extends LitElement {
       this._clearFilter(filter);
     }
     this._filters = [];
+    this._whereKeys.clear();
   }
 
   willUpdate(changed: Map<string, unknown>) {
@@ -110,15 +158,20 @@ export class DsfrDataContext extends LitElement {
   }
 
   /**
-   * Enregistrement d'un enfant filter (appelé à son montage).
-   * Retourne le whereKey stable du filtre — indexé sur l'ordre
-   * d'enregistrement (= ordre DOM), pas sur field/operator : deux filtres
-   * identiques restent deux émetteurs AND distincts (ADR-031).
+   * Enregistrement d'un filtre (appelé à son montage).
+   * Retourne le whereKey stable du filtre — indexé sur `uid + champ` (#678),
+   * pas sur l'ordre DOM : un filtre enregistré tard (facette déclarée
+   * ailleurs dans la page, contexte connecté après lui) ne décale rien.
+   * Deux filtres sur le même champ restent deux émetteurs AND distincts
+   * (ADR-031) : le second reçoit un suffixe.
    */
-  _registerFilter(filter: DsfrDataContextFilter): string {
-    if (!this._filters.includes(filter)) {
-      // Doublon field+operator sur les mêmes cibles : AND conservé, mais
-      // c'est très probablement une erreur de config (ADR-031)
+  _registerFilter(filter: ContextFilterLike): string {
+    const known = this._whereKeys.get(filter);
+    if (known) return known;
+
+    // Doublon field+operator sur les mêmes cibles : AND conservé, mais
+    // c'est très probablement une erreur de config (ADR-031)
+    if (filter.operator) {
       const duplicate = this._filters.find(
         (f) => f.field === filter.field && f.operator === filter.operator
       );
@@ -129,16 +182,23 @@ export class DsfrDataContext extends LitElement {
             `(probable erreur de config ; pour un OU multi-valeurs, utilisez operator="in")`
         );
       }
-      this._filters.push(filter);
     }
-    return `${this._uid}-f${this._filters.indexOf(filter)}`;
+    this._filters.push(filter);
+
+    const base = `${this._uid}-${filter.field}`;
+    const taken = new Set(this._whereKeys.values());
+    let key = base;
+    for (let n = 2; taken.has(key); n++) key = `${base}-${n}`;
+    this._whereKeys.set(filter, key);
+    return key;
   }
 
-  /** Désenregistrement (disconnect d'un enfant) — son filtre est libéré */
-  _unregisterFilter(filter: DsfrDataContextFilter): void {
-    if (this._filters.includes(filter)) {
-      this._clearFilter(filter);
-    }
+  /** Désenregistrement (disconnect d'un filtre) — son filtre est libéré */
+  _unregisterFilter(filter: ContextFilterLike): void {
+    if (!this._whereKeys.has(filter)) return;
+    this._clearFilter(filter);
+    this._filters = this._filters.filter((f) => f !== filter);
+    this._whereKeys.delete(filter);
   }
 
   /**
@@ -146,24 +206,49 @@ export class DsfrDataContext extends LitElement {
    * (colon natif ; traduit en ODSQL via la couche partagée #275 quand
    * l'adapter l'exige) et l'émet sur le whereKey du filtre.
    */
-  _applyFilter(filter: DsfrDataContextFilter, colonWhere: string): void {
+  _applyFilter(filter: ContextFilterLike, colonWhere: string): void {
     const whereKey = this._registerFilter(filter);
     for (const sourceId of this._targetsFor(filter)) {
       const where = colonWhere ? this._translateFor(sourceId, colonWhere) : '';
       dispatchSourceCommand(sourceId, { where, whereKey, origin: this.id });
     }
+    if (!this._batching) this._notifyChange();
+  }
+
+  /** URL (si url-sync) puis notification des observateurs (dsfr-data-context-tags, #232) */
+  private _notifyChange(): void {
     if (this.urlSync && this.isConnected) {
       this._syncUrl();
     }
-    // Notifie les observateurs (dsfr-data-context-tags, #232)
     this.dispatchEvent(new CustomEvent('dsfr-data-context-change'));
   }
 
   /**
-   * Filtres actifs du contexte (#232) — pour les composants d'affichage
-   * (tags). Un filtre est actif si sa clause courante est non vide.
+   * Retire tous les filtres actifs d'un coup (#679, « Tout effacer » de
+   * dsfr-data-context-tags). Chaque filtre est vidé par son propre `clear()`
+   * (même chemin qu'un geste utilisateur : son UI se vide), mais l'URL n'est
+   * écrite et `dsfr-data-context-change` émis qu'UNE fois. Retourne le
+   * nombre de filtres retirés.
    */
-  activeFilters(): DsfrDataContextFilter[] {
+  clearAll(): number {
+    const active = this.activeFilters();
+    if (active.length === 0) return 0;
+    this._batching = true;
+    try {
+      for (const filter of active) filter.clear();
+    } finally {
+      this._batching = false;
+    }
+    this._notifyChange();
+    return active.length;
+  }
+
+  /**
+   * Filtres actifs du contexte (#232) — pour les composants d'affichage
+   * (tags). Un filtre est actif si sa clause courante est non vide. Tout
+   * type de filtre confondu (#678) : filter, facettes, recherche.
+   */
+  activeFilters(): ContextFilterLike[] {
     return this._filters.filter((f) => f.isConnected && f.buildColonWhere() !== '');
   }
 
@@ -195,7 +280,7 @@ export class DsfrDataContext extends LitElement {
    */
   _urlValuesFor(field: string): string[] | null {
     if (!this.urlSync) return null;
-    const params = new URLSearchParams(window.location.search);
+    const params = new URL(window.location.href).searchParams;
     const raw = params.get(this._paramNameFor(field));
     if (raw === null || raw === '') return null;
     return raw.split(',').map((v) => v.trim());
@@ -206,28 +291,29 @@ export class DsfrDataContext extends LitElement {
    * EXISTANTS et ne gère que les siens (leçon #312 : repartir de zéro
    * effaçait les paramètres des composants voisins). replaceState : pas
    * d'entrée d'historique par frappe (ADR-031).
+   *
+   * Construite avec l'API `URL` (#683) : concaténer `pathname` produisait,
+   * sur une page servie sous `//chemin`, une URL relative au schéma
+   * (`//chemin?…` = autre hôte) et `replaceState` levait SecurityError —
+   * toute la synchro d'URL cessait, en silence.
    */
   private _syncUrl(): void {
-    const params = new URLSearchParams(window.location.search);
+    const url = new URL(window.location.href);
     for (const filter of this._filters) {
       if (!filter.field) continue;
       const name = this._paramNameFor(filter.field);
       const value = filter.urlValue();
       if (value) {
-        params.set(name, value);
+        url.searchParams.set(name, value);
       } else {
-        params.delete(name);
+        url.searchParams.delete(name);
       }
     }
-    const search = params.toString();
-    const newUrl = search
-      ? `${window.location.pathname}?${search}${window.location.hash}`
-      : `${window.location.pathname}${window.location.hash}`;
-    window.history.replaceState(null, '', newUrl);
+    window.history.replaceState(null, '', url.href);
   }
 
   /** Cibles effectives d'un filtre : sources du contexte ∩ apply-to */
-  private _targetsFor(filter: DsfrDataContextFilter): string[] {
+  private _targetsFor(filter: ContextFilterLike): string[] {
     const all = this.sourceIds;
     const applyTo = (filter.applyTo || '*').trim();
     if (applyTo === '*' || applyTo === '') return all;
@@ -236,7 +322,7 @@ export class DsfrDataContext extends LitElement {
   }
 
   /** Retire le filtre de toutes ses cibles (where vide, contrat #276) */
-  private _clearFilter(filter: DsfrDataContextFilter): void {
+  private _clearFilter(filter: ContextFilterLike): void {
     this._applyFilter(filter, '');
   }
 

@@ -2,7 +2,7 @@
  * Decoupage des skills en sections adressables (#513).
  *
  * L'exigence forte est l'invariant de PARTITION : passer aux sections ne doit
- * faire disparaitre aucune connaissance. Les tests verifient donc, pour les 29
+ * faire disparaitre aucune connaissance. Les tests verifient donc, pour les 30
  * skills reelles, que chaque bloc du contenu se retrouve dans exactement une
  * section — pas seulement que le decoupage « marche » sur un exemple jouet.
  */
@@ -79,7 +79,7 @@ describe('sections de skills (#513)', () => {
       expect(parts.exemples).not.toContain('### Référence `<dsfr-data-chart>`');
     });
 
-    it('regroupe les 5 composants carto dans la reference du skill dsfrDataMap', () => {
+    it('regroupe les 6 composants carto dans la reference du skill dsfrDataMap', () => {
       const parts = splitSkillContent(SKILLS.dsfrDataMap.content);
       for (const tag of [
         'dsfr-data-map',
@@ -87,6 +87,7 @@ describe('sections de skills (#513)', () => {
         'dsfr-data-map-popup',
         'dsfr-data-map-inset',
         'dsfr-data-map-timeline',
+        'dsfr-data-map-legend',
       ]) {
         expect(parts.reference).toContain(`### Référence \`<${tag}>\``);
       }

@@ -13,9 +13,9 @@
  *   cache initial (hook de veto pour query, #276) ;
  * - la re-souscription via `reinitTransformer()` — cleanup TOUJOURS en
  *   premier, même si la nouvelle config est invalide ;
- * - les états loading/error avec les contrats publics `isLoading()` /
- *   `getError()` identiques partout ; l'erreur est remise à null à chaque
- *   succès ;
+ * - les états loading/error/attente avec les contrats publics `isLoading()` /
+ *   `getError()` / `isIdle()` identiques partout ; l'erreur est remise à null
+ *   à chaque succès ;
  * - la ré-émission aval : meta de pagination posée AVANT `dispatchDataLoaded`
  *   (#282 — `document.dispatchEvent` est synchrone, l'aval lirait sinon la
  *   meta du batch précédent) ;
@@ -39,13 +39,17 @@ import {
   dispatchDataLoaded,
   dispatchDataError,
   dispatchDataLoading,
+  dispatchDataIdle,
+  isDataIdle,
   dispatchSourceCommand,
   subscribeToSourceCommands,
   clearDataCache,
   clearDataMeta,
   type PaginationMeta,
+  type SourceCommandEvent,
 } from './data-bridge.js';
 import { reportConfigError, clearConfigError } from './config-error.js';
+import { checkUnknownAttributes } from './unknown-attributes.js';
 
 // Pattern Lit mixin canonique : le constructor doit être callable avec
 // n'importe quels args pour permettre le chaînage `class extends mixin(Parent)`.
@@ -55,10 +59,14 @@ type Constructor<T = object> = new (...args: any[]) => T;
 export interface TransformerInterface {
   isLoading(): boolean;
   getError(): Error | null;
+  isIdle(): boolean;
+  /** L'amont attend un filtre (`require-where`, #690) — état « attente ». */
+  _transformerIdle: boolean;
   reinitTransformer(): void;
   emitTransformedData(data: unknown): void;
   emitTransformerError(error: Error): void;
   emitTransformerLoading(): void;
+  emitTransformerIdle(): void;
 }
 
 export function TransformerMixin<T extends Constructor<LitElement>>(superClass: T) {
@@ -68,6 +76,18 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
 
     /** Dernière erreur amont/traitement (contrat public via getError()) */
     _transformerError: Error | null = null;
+
+    /**
+     * L'amont attend un filtre (#690) — contrat public via isIdle().
+     *
+     * `emitTransformerIdle()` propageait l'état aval sans jamais le rendre
+     * lisible par l'hôte : aucun transformateur ne pouvait donc afficher
+     * l'attente, là où `SourceSubscriberMixin` porte `_sourceIdle` (#728).
+     * Purement un ÉTAT DE RENDU : il n'y a ni données périmées ni erreur à
+     * montrer, et surtout pas un « aucune donnée » qui laisserait croire que
+     * la requête a été faite pour rien.
+     */
+    _transformerIdle = false;
 
     /** Désabonnements des sources amont (1 par source, join en a 2) */
     _transformerUnsubs: Array<() => void> = [];
@@ -142,6 +162,15 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
     }
 
     /**
+     * Commande aval reçue, AVANT son relais vers l'amont (#690). Permet à
+     * l'hôte d'observer les filtres qui transitent par lui (require-where)
+     * sans court-circuiter le relais.
+     */
+    protected onTransformerCommand(_cmd: Omit<SourceCommandEvent, 'sourceId'>): void {
+      // défaut : no-op
+    }
+
+    /**
      * Autorise la lecture du cache à l'abonnement. Query refuse entre une
      * commande envoyée et l'émission suivante — cache périmé (#276).
      */
@@ -168,6 +197,17 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
       return meta;
     }
 
+    /**
+     * Meta produite par le transformateur LUI-MEME quand l'amont n'en
+     * publie aucune (source inline, URL sans `paginate`). Defaut : null,
+     * pas de meta aval — comportement historique. Query (#659) et join
+     * (#660) la surchargent pour publier leurs propres comptes, qui
+     * n'ont rien a voir avec la pagination amont.
+     */
+    protected transformerOwnMeta(): PaginationMeta | null {
+      return null;
+    }
+
     // --- Contrats publics (identiques sur les 6 transformateurs, #280) ---
 
     public isLoading(): boolean {
@@ -176,6 +216,11 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
 
     public getError(): Error | null {
       return this._transformerError;
+    }
+
+    /** Attente d'un filtre amont (`require-where`, #690, #728) */
+    public isIdle(): boolean {
+      return this._transformerIdle;
     }
 
     // --- Orchestration ---
@@ -190,6 +235,11 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
       // (fuite historique de facets/search).
       this._cleanup();
 
+      // Purge de l'attente : changer de `source` ne doit pas laisser le
+      // message « choisissez un filtre » d'un amont qu'on vient de quitter
+      // (#728). Repositionné juste après par isDataIdle() si besoin.
+      this._transformerIdle = false;
+
       const error = this.validateTransformerConfig();
       if (error) {
         const name = this.transformerName();
@@ -203,7 +253,12 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
       this.transformerSources().forEach((sourceId, index) => {
         // Lecture du cache avant abonnement (évite la race si la source a
         // déjà émis), sauf veto de l'hôte
-        if (this.shouldReadInitialCache(sourceId)) {
+        // Un amont déjà en attente d'un filtre (#690) : son événement est
+        // passé et son cache est vide — sans cette relecture, ce nœud et tout
+        // son aval resteraient muets au lieu d'afficher « choisissez un filtre ».
+        if (isDataIdle(sourceId)) {
+          this.emitTransformerIdle();
+        } else if (this.shouldReadInitialCache(sourceId)) {
           const cached = getDataCache(sourceId);
           if (cached !== undefined) {
             this.onTransformerData(cached, sourceId, index);
@@ -217,17 +272,23 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
               // Une émission réussie efface l'erreur précédente — query ne
               // le faisait jamais (#280)
               this._transformerError = null;
+              this._transformerIdle = false;
               this.onTransformerData(data, sourceId, index);
               this.requestUpdate();
             },
             onLoading: () => this.emitTransformerLoading(),
             onError: (err: Error) => this.emitTransformerError(err),
+            // Une étape en attente d'un filtre ne livre rien : le relayer
+            // aval est la seule façon qu'a un afficheur derrière une chaîne
+            // de transformateurs de rendre l'état « idle » (#690).
+            onIdle: () => this.emitTransformerIdle(),
           })
         );
       });
 
       if (this.id && this.transformerCommandTarget()) {
         this._transformerUnsubCommands = subscribeToSourceCommands(this.id, (cmd) => {
+          this.onTransformerCommand(cmd);
           const target = this.transformerCommandTarget();
           // `origin` est écrasé par l'id du relayeur : c'est bien ce nœud-ci
           // qui adresse la commande à son amont (#603, purement diagnostique).
@@ -244,13 +305,12 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
       if (!this.id) return;
       this._transformerLoading = false;
       this._transformerError = null;
+      this._transformerIdle = false;
 
       const primary = this.transformerSources()[0];
       const upstreamMeta = primary ? getDataMeta(primary) : undefined;
-      if (upstreamMeta) {
-        const meta = this.transformMeta(upstreamMeta);
-        if (meta) setDataMeta(this.id, meta);
-      }
+      const meta = upstreamMeta ? this.transformMeta(upstreamMeta) : this.transformerOwnMeta();
+      if (meta) setDataMeta(this.id, meta);
 
       dispatchDataLoaded(this.id, data);
       this.requestUpdate();
@@ -260,13 +320,29 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
     public emitTransformerError(error: Error): void {
       this._transformerError = error;
       this._transformerLoading = false;
+      this._transformerIdle = false;
       if (this.id) dispatchDataError(this.id, error);
+      this.requestUpdate();
+    }
+
+    /**
+     * Attente d'un filtre : état + propagation aval (#690).
+     *
+     * `dispatchDataIdle` purge le cache et la meta de CE nœud : l'aval monté
+     * plus tard ne doit pas retrouver les lignes du filtre précédent.
+     */
+    public emitTransformerIdle(): void {
+      this._transformerLoading = false;
+      this._transformerError = null;
+      this._transformerIdle = true;
+      if (this.id) dispatchDataIdle(this.id);
       this.requestUpdate();
     }
 
     /** Chargement : état + propagation aval */
     public emitTransformerLoading(): void {
       this._transformerLoading = true;
+      this._transformerIdle = false;
       if (this.id) dispatchDataLoading(this.id);
       this.requestUpdate();
     }
@@ -279,6 +355,10 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
      */
     connectedCallback() {
       super.connectedCallback();
+      // Un attribut inconnu du bundle chargé est ignoré en silence (#727) :
+      // seul ce point du cycle voit à la fois la classe réellement
+      // enregistrée et le balisage écrit par l'intégrateur.
+      checkUnknownAttributes(this);
       this.reinitTransformer();
     }
 

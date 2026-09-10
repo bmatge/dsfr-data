@@ -1,7 +1,7 @@
 /**
  * Le collecteur : un seul écouteur, tout le flux (#604).
  *
- * Tout le trafic inter-composants passe par quatre `CustomEvent` dispatchés
+ * Tout le trafic inter-composants passe par cinq `CustomEvent` dispatchés
  * sur `document` (`packages/core/src/utils/data-bridge.ts`). Un unique
  * `addEventListener` voit donc passer l'intégralité du pipeline d'une page,
  * **sans modifier un seul composant** — c'est ce qui rend ce chantier petit.
@@ -23,6 +23,7 @@ import {
   BUS_EVENTS,
   type BusCommandDetail,
   type BusErrorDetail,
+  type BusIdleDetail,
   type BusLoadedDetail,
   type BusLoadingDetail,
   type BusPaginationMeta,
@@ -34,6 +35,7 @@ import type { Field, Row } from '../ia/data-tools.js';
 
 export type TraceEvent =
   | { seq: number; t: number; kind: 'loading'; node: string }
+  | { seq: number; t: number; kind: 'waiting'; node: string; reason: BusIdleDetail['reason'] }
   | {
       seq: number;
       t: number;
@@ -65,7 +67,15 @@ type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K>
 /** Un événement de trace, avant que le collecteur ne le date et le numérote. */
 export type TraceEventInput = DistributiveOmit<TraceEvent, 'seq' | 't'>;
 
-export type StageStatus = 'idle' | 'loading' | 'loaded' | 'error';
+/**
+ * État d'une étape.
+ *
+ * `idle` et `waiting` ne disent PAS la même chose, et les confondre est le
+ * piège de ce module : `idle` est l'absence d'observation (rien n'a jamais
+ * été émis sous cette clé — souvent une panne), `waiting` est une attente
+ * VOULUE, annoncée par l'étape elle-même (`require-where`, #690).
+ */
+export type StageStatus = 'idle' | 'waiting' | 'loading' | 'loaded' | 'error';
 
 /** Dernier état connu d'une étape — ce que le volet affiche par nœud. */
 export interface StageState {
@@ -256,6 +266,9 @@ export class DataflowRecorder {
       case BUS_EVENTS.LOADING:
         this.onLoading(event.detail as BusLoadingDetail);
         break;
+      case BUS_EVENTS.IDLE:
+        this.onIdle(event.detail as BusIdleDetail);
+        break;
       case BUS_EVENTS.LOADED:
         this.onLoaded(event.detail as BusLoadedDetail);
         break;
@@ -270,7 +283,7 @@ export class DataflowRecorder {
     }
   }
 
-  /** Branche les quatre écouteurs. Idempotent. */
+  /** Branche les écouteurs du bus. Idempotent. */
   start(): void {
     if (this.running) return;
     this.running = true;
@@ -282,6 +295,7 @@ export class DataflowRecorder {
     };
 
     on<BusLoadingDetail>(BUS_EVENTS.LOADING, (d) => this.onLoading(d));
+    on<BusIdleDetail>(BUS_EVENTS.IDLE, (d) => this.onIdle(d));
     on<BusLoadedDetail>(BUS_EVENTS.LOADED, (d) => this.onLoaded(d));
     on<BusErrorDetail>(BUS_EVENTS.ERROR, (d) => this.onError(d));
     on<BusCommandDetail>(BUS_EVENTS.SOURCE_COMMAND, (d) => this.onCommand(d));
@@ -291,6 +305,28 @@ export class DataflowRecorder {
     if (!d?.sourceId) return;
     this.push({ kind: 'loading', node: d.sourceId } as const);
     this.patch(d.sourceId, { status: 'loading' });
+  }
+
+  /**
+   * Attente d'un filtre (#690).
+   *
+   * Les lignes du dernier succès sont PÉRIMÉES — même raison que pour une
+   * erreur : le filtre qui les a produites vient d'être retiré, les garder
+   * ferait rapporter à l'aval un compte que plus rien ne produit.
+   */
+  private onIdle(d: BusIdleDetail): void {
+    if (!d?.sourceId) return;
+    this.push({ kind: 'waiting', node: d.sourceId, reason: d.reason ?? 'require-where' } as const);
+    this.patch(d.sourceId, {
+      status: 'waiting',
+      rows: undefined,
+      fields: undefined,
+      sample: undefined,
+      shape: undefined,
+      meta: undefined,
+      message: undefined,
+      attemptedUrl: undefined,
+    });
   }
 
   private onLoaded(d: BusLoadedDetail): void {

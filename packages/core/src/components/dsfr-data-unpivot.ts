@@ -1,6 +1,6 @@
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { performUnpivot } from '@dsfr-data/shared/lib';
+import { performUnpivot, parseAliasedColumns } from '@dsfr-data/shared/lib';
 import type { UnpivotOptions } from '@dsfr-data/shared/lib';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { getDataCache, type PaginationMeta } from '../utils/data-bridge.js';
@@ -44,7 +44,12 @@ export class DsfrDataUnpivot extends TransformerMixin(LitElement) {
   @property({ type: String, attribute: 'id-cols' })
   idCols = '';
 
-  /** Liste explicite des colonnes à déplier (virgule-séparée). Exclusif avec value-cols-pattern. */
+  /**
+   * Liste explicite des colonnes à déplier (virgule-séparée). Exclusif avec value-cols-pattern.
+   * Alias inline `col:Libellé` (#668) : `value-cols="gazole_prix:Gazole, sp95_prix:SP95"` émet
+   * « Gazole » et « SP95 » dans la colonne var-name à la place des noms techniques. Un `:` littéral
+   * dans un nom ou un libellé s'échappe en `%3A` (escapeColonValue).
+   */
   @property({ type: String, attribute: 'value-cols' })
   valueCols = '';
 
@@ -93,7 +98,7 @@ export class DsfrDataUnpivot extends TransformerMixin(LitElement) {
   // --- Delegation amont (SourceElement, #274) ---
 
   /**
-   * Retourne l'adapter de la source amont (delegation transparente).
+   * Retourne l'adapter de la source amont (délégation transparente).
    * Permet aux composants en aval (dsfr-data-facets, dsfr-data-search)
    * d'atteindre l'adapter a travers ce transformateur.
    */
@@ -107,7 +112,7 @@ export class DsfrDataUnpivot extends TransformerMixin(LitElement) {
     return null;
   }
 
-  /** Retourne le where effectif de la source amont (delegation transparente). */
+  /** Retourne le where effectif de la source amont (délégation transparente). */
   public getEffectiveWhere(excludeKey?: string): string {
     if (this.source) {
       const sourceEl = document.getElementById(this.source);
@@ -119,8 +124,8 @@ export class DsfrDataUnpivot extends TransformerMixin(LitElement) {
   }
 
   /**
-   * Retourne les parametres adapter resolus de la source amont
-   * (delegation transparente, headers api-key-ref inclus — #274).
+   * Retourne les paramètres adapter resolus de la source amont
+   * (délégation transparente, headers api-key-ref inclus — #274).
    */
   public getAdapterParams(): import('../adapters/api-adapter.js').AdapterParams | null {
     if (this.source) {
@@ -160,13 +165,13 @@ export class DsfrDataUnpivot extends TransformerMixin(LitElement) {
    * Meta amont propagee avec `total` invalide (#282) : l'unpivot change le
    * nombre de lignes, mais needsClientProcessing/serverSide doivent suivre
    * — un query aval d'un unpivot sur fallback Grist sautait son traitement
-   * client sur des donnees brutes.
+   * client sur des données brutes.
    */
   protected transformMeta(meta: PaginationMeta): PaginationMeta {
     return { ...meta, total: undefined };
   }
 
-  /** Parametres d'unpivot → retraitement des donnees en cache (#281) */
+  /** Paramètres d'unpivot → retraitement des données en cache (#281) */
   protected transformerReprocessProps(): string[] {
     return [
       'idCols',
@@ -195,7 +200,8 @@ export class DsfrDataUnpivot extends TransformerMixin(LitElement) {
 
     return {
       idCols: splitList(this.idCols),
-      valueCols: this.valueCols ? splitList(this.valueCols) : undefined,
+      // Alias inline col:Libellé (#668) : la clé dépliée est le libellé
+      valueCols: this.valueCols ? parseAliasedColumns(this.valueCols) : undefined,
       valueColsPattern: this.valueColsPattern || undefined,
       varName: this.varName || undefined,
       varFormat: this.varFormat || undefined,

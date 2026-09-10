@@ -4,7 +4,7 @@
  * Composant compagnon place comme enfant de dsfr-data-map. Rend une mini-carte
  * verrouillee (zoom fixe, sans interactions) centree sur un territoire, qui
  * reutilise automatiquement les couches (dsfr-data-map-layer) ET le popup
- * (dsfr-data-map-popup) de la carte hote : un clic sur un element de l'encart
+ * (dsfr-data-map-popup) de la carte hote : un clic sur un élément de l'encart
  * ouvre le volet/la modale de la carte principale.
  *
  * @example
@@ -28,7 +28,7 @@ export { TERRITORY_PRESETS, TERRITORY_GROUPS } from '../utils/territories.js';
 export class DsfrDataMapInset extends LitElement {
   /** Territoire predefini (guadeloupe, martinique, guyane, la-reunion, mayotte,
    *  saint-pierre-et-miquelon, saint-martin, saint-barthelemy, nouvelle-caledonie,
-   *  polynesie-francaise, wallis-et-futuna, corse) — fournit center/zoom/label */
+   *  polynesie-française, wallis-et-futuna, corse) — fournit center/zoom/label */
   @property({ type: String })
   territory = '';
 
@@ -40,13 +40,22 @@ export class DsfrDataMapInset extends LitElement {
   @property({ type: Number })
   zoom = 0;
 
-  /** Libelle affiche au-dessus de l'encart (et nom accessible de la mini-carte) */
+  /** Libellé affiché au-dessus de l'encart (et nom accessible de la mini-carte) */
   @property({ type: String })
   label = '';
 
-  /** Hauteur de la mini-carte */
+  /** Hauteur de la mini-carte (px, rem, vh). Un `%` est un ratio de la LARGEUR de l'encart, comme sur `dsfr-data-map`. */
   @property({ type: String })
   height = '160px';
+
+  /**
+   * Largeur de l'encart (px, rem, %). Un `%` est relatif a la largeur de la
+   * carte hote : `width="20%"` repartit cinq encarts sur une ligne. Sans
+   * attribut, la feuille injectee par la carte pose `10rem` — une regle de
+   * page `dsfr-data-map-inset { width: … }` prime toujours dessus (#643).
+   */
+  @property({ type: String })
+  width = '';
 
   private _built = false;
   private _innerMap: HTMLElement | null = null;
@@ -68,6 +77,23 @@ export class DsfrDataMapInset extends LitElement {
     this._innerMap?.remove();
     this._innerMap = null;
     this._built = false;
+  }
+
+  updated(changedProperties: Map<string, unknown>) {
+    super.updated(changedProperties);
+    if (changedProperties.has('width')) {
+      // Attribut retire : on n'efface que ce qu'on avait pose, jamais un
+      // style="width:…" ecrit par l'integrateur
+      if (this.width || changedProperties.get('width')) this._applyWidth();
+    }
+    if (changedProperties.has('height') && this._innerMap) {
+      this._innerMap.setAttribute('height', this.height);
+    }
+  }
+
+  /** Attribut `width` explicite → style inline ; vide → la feuille injectee decide. */
+  private _applyWidth() {
+    this.style.width = this.width;
   }
 
   private _build() {
@@ -97,8 +123,10 @@ export class DsfrDataMapInset extends LitElement {
     const layers = host.querySelectorAll(':scope > dsfr-data-map-layer');
     if (layers.length === 0) return;
 
-    this.style.display = 'inline-block';
-    this.style.verticalAlign = 'top';
+    // Le placement (flottant, largeur par defaut, gouttiere) vient de la
+    // feuille injectee par dsfr-data-map (#643) : rien en style inline, pour
+    // que le CSS de page garde la main. Seul l'attribut explicite se pose ici.
+    if (this.width) this._applyWidth();
 
     if (this.label) {
       const labelEl = document.createElement('span');
@@ -119,6 +147,10 @@ export class DsfrDataMapInset extends LitElement {
     inner.setAttribute('locked', '');
     const tiles = host.getAttribute('tiles');
     if (tiles) inner.setAttribute('tiles', tiles);
+    // Fond attenue (#686) : le filtre est scope a chaque carte, l'encart
+    // reprend le reglage de la carte hote
+    const tilesStyle = host.getAttribute('tiles-style');
+    if (tilesStyle) inner.setAttribute('tiles-style', tilesStyle);
     inner.setAttribute('name', this.label ? `Encart — ${this.label}` : 'Encart de carte');
 
     for (const layer of layers) {

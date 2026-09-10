@@ -155,6 +155,52 @@ describe('export-html — widget fromBuilder', () => {
     expect(podium).toContain('max-items="3"');
   });
 
+  it('une carte agregee garde son champ de code dans le group-by', () => {
+    // DEFAUT TROUVE PAR LA RECETTE E2E DES VARIANTES API (#625). La
+    // configuration la plus naturelle — « population par region, coloriee par
+    // departement » — emettait group-by="region" et code-field="code_dept".
+    // Les lignes agregees ne portaient plus que `region` et `population__sum` :
+    // le composant ecartait les 137 lignes faute de code geographique et
+    // rendait une carte VIDE, sans erreur, sur un HTML bien forme. Aucune
+    // assertion de chaine ne pouvait le voir — seul un rendu le pouvait.
+    const html = generateWidgetHTML(
+      builderWidget({
+        type: 'map',
+        labelField: 'region',
+        valueField: 'population',
+        codeField: 'code_dept',
+        aggregation: 'sum',
+      }),
+      dashboardWith([], [SRC])
+    );
+    expect(html).toContain('group-by="region,code_dept"');
+    expect(html).toContain('code-field="code_dept"');
+    expect(html).toContain('value-field="population__sum"');
+  });
+
+  it('un code identique a l’etiquette n’est pas groupe deux fois', () => {
+    const html = generateWidgetHTML(
+      builderWidget({
+        type: 'map-reg',
+        labelField: 'code_reg',
+        valueField: 'population',
+        codeField: 'code_reg',
+        aggregation: 'sum',
+      }),
+      dashboardWith([], [SRC])
+    );
+    expect(html).toContain('group-by="code_reg"');
+  });
+
+  it('sans agregation, le champ de code ne cree pas de group-by', () => {
+    const html = generateWidgetHTML(
+      builderWidget({ type: 'map', labelField: 'region', valueField: 'v', codeField: 'dep' }),
+      dashboardWith([], [SRC])
+    );
+    expect(html).not.toContain('dsfr-data-query');
+    expect(html).toContain('code-field="dep"');
+  });
+
   it('sans source associee, emet un commentaire explicite plutot qu’un pipeline casse', () => {
     const html = generateWidgetHTML(
       builderWidget({ type: 'bar', valueField: 'x' }, ''),

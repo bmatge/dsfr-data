@@ -6,10 +6,13 @@ import {
   formatCurrency,
   formatDecimal,
   formatDate,
+  FORMAT_TYPES,
+  isFormatType,
   getColorBySeuil,
   getDsfrColorClass,
   getDsfrKpiColor,
 } from '@/utils/formatters.js';
+import { formatNumberFr } from '@dsfr-data/shared/lib';
 
 describe('formatters', () => {
   describe('formatNumber', () => {
@@ -183,5 +186,109 @@ describe('formatValue — compact (fr-FR)', () => {
   });
   it('petits nombres : 42 → "42"', () => {
     expect(formatValue(42, 'compact')).toBe('42');
+  });
+});
+
+describe('formatValue — options decimals / unit (#665)', () => {
+  const norm = (s: string) => s.replace(/\s/g, ' ');
+
+  it('AC : format="euro" decimals="3" → « 1,749 € »', () => {
+    expect(norm(formatValue(1.749, 'euro', { decimals: 3 }))).toBe('1,749 €');
+  });
+
+  it('AC : format="compact" unit="€" → « 44,9 Md € »', () => {
+    expect(norm(formatValue(44_900_000_000, 'compact', { unit: '€' }))).toBe('44,9 Md €');
+  });
+
+  it("l'unité est accolée par une espace insécable U+00A0 (convention Intl fr-FR)", () => {
+    expect(formatValue(42, 'nombre', { unit: 'km' })).toBe('42 km');
+  });
+
+  it('decimals est FIXE sur nombre, euro, decimal, pourcentage (min = max)', () => {
+    expect(norm(formatValue(42, 'nombre', { decimals: 2 }))).toBe('42,00');
+    expect(norm(formatValue(1.75, 'euro', { decimals: 3 }))).toBe('1,750 €');
+    expect(norm(formatValue(3.14159, 'decimal', { decimals: 3 }))).toBe('3,142');
+    expect(norm(formatValue(75, 'pourcentage', { decimals: 1 }))).toBe('75,0 %');
+  });
+
+  it('decimals est un PLAFOND sur compact (42 reste « 42 »)', () => {
+    expect(formatValue(42, 'compact', { decimals: 2 })).toBe('42');
+    expect(norm(formatValue(14_785_684, 'compact', { decimals: 2 }))).toBe('14,79 M');
+  });
+
+  it('défauts INCHANGÉS sans options (parité previews #317)', () => {
+    expect(formatValue(1234.56, 'euro')).toBe(formatValue(1234.56, 'euro', {}));
+    expect(norm(formatValue(1234.56, 'euro'))).toBe('1 235 €');
+    expect(norm(formatValue(42, 'decimal'))).toBe('42,0');
+    expect(formatValue(123.456, 'nombre')).toBe('123');
+  });
+
+  it("pas d'unité sur une valeur non formatable (« — » reste seul)", () => {
+    expect(formatValue(null, 'nombre', { unit: '€' })).toBe('—');
+    expect(formatValue('abc', 'nombre', { unit: '€' })).toBe('—');
+  });
+
+  it('decimals hors bornes ou non entier : ignoré (défaut du format, jamais de RangeError)', () => {
+    expect(formatValue(1.5, 'euro', { decimals: 99 })).toBe(formatValue(1.5, 'euro'));
+    expect(formatValue(1.5, 'euro', { decimals: -1 })).toBe(formatValue(1.5, 'euro'));
+    expect(formatValue(1.5, 'euro', { decimals: NaN })).toBe(formatValue(1.5, 'euro'));
+  });
+});
+
+describe('formatValue — format="date" (#667)', () => {
+  it('AC : chaîne ISO → « 09/09/2026 »', () => {
+    expect(formatValue('2026-09-09', 'date')).toBe('09/09/2026');
+  });
+
+  it('datetime ISO et timestamp numérique', () => {
+    expect(formatValue('2026-09-09T10:30:00Z', 'date')).toMatch(/^\d{2}\/09\/2026$/);
+    expect(formatValue(Date.UTC(2026, 8, 9, 12), 'date')).toMatch(/^\d{2}\/09\/2026$/);
+  });
+
+  it('« — » si vide ou illisible ; decimals/unit sans effet', () => {
+    expect(formatValue('', 'date')).toBe('—');
+    expect(formatValue('pas une date', 'date')).toBe('—');
+    expect(formatValue('2026-09-09', 'date', { decimals: 2, unit: '€' })).toBe('09/09/2026');
+  });
+
+  it("formatDate : une date calendaire seule ne glisse pas d'un jour selon le fuseau", () => {
+    // AAAA-MM-JJ est lu à minuit UTC par `new Date` ; rendu en UTC pour garder le jour.
+    expect(formatDate('2025-01-15')).toBe('15/01/2025');
+    expect(formatDate(' 2025-12-31 ')).toBe('31/12/2025');
+  });
+});
+
+describe('formatNumberFr — nombre fr-FR typeof number (#665, réutilisé par list/a11y)', () => {
+  const norm = (s: string) => s.replace(/\s/g, ' ');
+
+  it('garde les décimales de la valeur (au plus 2), sans zéro de bourrage', () => {
+    expect(norm(formatNumberFr(1234.5))).toBe('1 234,5');
+    expect(norm(formatNumberFr(1234))).toBe('1 234');
+    expect(norm(formatNumberFr(1.23456))).toBe('1,23');
+  });
+
+  it('decimals fixe exactement le nombre de décimales (même sémantique que le KPI)', () => {
+    expect(norm(formatNumberFr(1234.5678, { decimals: 2 }))).toBe('1 234,57');
+    expect(norm(formatNumberFr(1234.5, { decimals: 0 }))).toBe('1 235');
+    expect(norm(formatNumberFr(42, { decimals: 2 }))).toBe('42,00');
+  });
+
+  it('« — » si non fini', () => {
+    expect(formatNumberFr(NaN)).toBe('—');
+    expect(formatNumberFr(Infinity)).toBe('—');
+  });
+});
+
+describe('FORMAT_TYPES / isFormatType (#665)', () => {
+  it('liste les six formats, date inclus', () => {
+    expect(FORMAT_TYPES).toEqual(['nombre', 'pourcentage', 'euro', 'decimal', 'compact', 'date']);
+  });
+
+  it('refuse la grammaire colon « euro:3 » et les inconnus', () => {
+    expect(isFormatType('euro')).toBe(true);
+    expect(isFormatType('date')).toBe(true);
+    expect(isFormatType('euro:3')).toBe(false);
+    expect(isFormatType('number')).toBe(false);
+    expect(isFormatType(undefined)).toBe(false);
   });
 });

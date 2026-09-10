@@ -38,9 +38,11 @@ Apres agrégation, les champs sont nommes automatiquement : `champ__fonction`
 | where | String | `""` | non | Filtres (voir syntaxe ci-dessous) |
 | filter | String | `""` | non | Alias de where (compatibilite) |
 | group-by | String | `""` | non | Champs de groupement (separes par virgule) |
+| explode | String | `""` | non | Champs multivalués (tableaux) à éclater avant le regroupement (#736). Doivent figurer dans `group-by`. Force le regroupement côté client. |
 | aggregate | String | `""` | non | Agrégations : `"champ:fonction"` ou `"champ:fonction:alias"` |
 | order-by | String | `""` | non | Tri : `"champ:asc"` ou `"champ:desc"`. **Omettre cet attribut preserve l'ordre source** (ordre de premiere apparition apres group-by) — utile pour les mois en lettres, jours de la semaine, ou toute série déjà ordonnee en amont. |
 | limit | Number | `0` | non | Limite de resultats (0 = illimite) |
+| require-where | Boolean | `false` | non | N'émettre aucune ligne tant qu'aucun filtre n'est posé (#690) : l'état `idle` descend jusqu'aux afficheurs. Compte comme filtre le `where`/`filter` de cette requête, ou toute clause reçue par commande. |
 
 > dsfr-data-query est un pur transformateur de données. Utilisez dsfr-data-source pour le fetch HTTP.
 > Le where de query est colon-only : la syntaxe ODSQL ne s'utilise que sur le where de dsfr-data-source.
@@ -77,6 +79,38 @@ Multiples filtres separes par virgule (logique ET) :
 | isnull | Est vide/null | `"email:isnull"` |
 | isnotnull | N'est pas vide | `"telephone:isnotnull"` |
 
+**Catégories vides et parité ods-chart** : un group-by sur un champ partiellement
+renseigné produit un groupe `null` (jamais `""`), que dsfr-data-chart libelle
+« Non renseigné » (attribut `empty-label`). Rien n'est masqué par défaut. Pour
+EXCLURE ces lignes comme le fait ods-chart, filtrer explicitement en amont :
+`where="champ:isnotnull"` sur dsfr-data-query, ou `where="champ is not null"`
+(ODSQL) sur dsfr-data-source.
+
+### Champs multivalués (explode)
+Une cellule tableau (`besoins: ["audit", "formation"]`, ChoiceList Grist, facette
+multi-valeurs ODS) est ramenée en chaîne pour la clé de groupe : la COMBINAISON
+« audit,formation » devient une modalité, alors que `dsfr-data-facets` éclate le même
+champ et compte « audit » et « formation » séparément. Les deux composants branchés sur
+le même champ donnaient donc des chiffres différents (#736).
+
+`explode="besoins"` éclate le champ avant le regroupement : une ligne portant N valeurs
+compte dans N groupes, et les modalités sont exactement celles de la facette du même champ.
+Les éléments vides sont ignorés et une cellule sans aucune valeur (tableau vide, `null`)
+ne produit AUCUNE ligne — pas de groupe « non renseigné », comme la facette n'a pas de
+modalité vide.
+
+Le défaut reste l'ancien comportement (des chiffres publiés s'appuient dessus). Chaque
+champ listé doit figurer dans `group-by` (sinon `data-dsfr-config-error` et champ ignoré),
+et l'éclatement force le regroupement **côté client** : aucune API ne sait éclater un champ
+multivalué. Sur un gros jeu, surveiller `max-records` (chiffre partiel silencieux).
+
+```html
+<dsfr-data-query id="par-besoin" source="orgs"
+  group-by="besoins" explode="besoins" aggregate="id:count"
+  order-by="id__count:desc">
+</dsfr-data-query>
+```
+
 ### Fonctions d'agrégation
 Format : `"champ:fonction"` ou `"champ:fonction:alias"`
 Nommage automatique sans alias : `champ__fonction` (ex: `population__sum`)
@@ -88,6 +122,42 @@ Nommage automatique sans alias : `champ__fonction` (ex: `population__sum`)
 | avg | Moyenne | `"prix:avg"` |
 | min | Minimum | `"temperature:min"` |
 | max | Maximum | `"score:max"` |
+| distinct | Nombre de valeurs distinctes (alias `count-distinct`) — null et chaîne vide exclus, `75` et `"75"` comptent pour une seule valeur | `"commune:distinct"` → colonne `commune__distinct` |
+| running_sum | **Cumul** : une ligne par ligne de sortie, chacune portant la somme des précédentes (#738) | `"montant:running_sum"` → colonne `montant__running_sum` |
+
+Délégation de `distinct` : ODS `count(distinct champ)`, Grist SQL `COUNT(DISTINCT champ)` ;
+**Tabular ne le délègue pas** (calcul client sur les lignes reçues, warn console si l'API en
+détient davantage — chiffre partiel derrière un `max-records` ou un `limit`).
+
+### Cumul (running_sum, #738)
+`running_sum` n'est pas une réduction de groupe mais une transformation **ordonnée** :
+elle s'applique APRÈS `order-by`, sur les lignes de sortie, et garde une ligne par ligne
+(elle ne replie donc jamais le jeu en une valeur unique comme les autres agrégats sans
+`group-by`). Elle peut cumuler une colonne produite par le regroupement :
+
+```html
+<!-- Ventes mensuelles, puis cumul depuis janvier -->
+<dsfr-data-query id="cumul" source="ventes"
+  group-by="mois"
+  aggregate="montant:sum, montant__sum:running_sum"
+  order-by="mois:asc">
+</dsfr-data-query>
+<!-- colonnes : mois, montant__sum, montant__sum__running_sum -->
+```
+
+- **Sans `order-by`, le résultat n'a pas de sens** : le cumul suit l'ordre des lignes reçues,
+  qui n'est pas un contrat. Un avertissement console le signale (pas une erreur : une source
+  déjà triée en amont est légitime).
+- **Jamais délégué au serveur** : aucune API du pipeline ne le traduit. Un `group-by` qui
+  porte un cumul redescend donc entièrement côté client, sur les seules lignes rapatriées —
+  surveiller `max-records` et `limit`.
+- Le cumul n'existe pas sur `dsfr-data-kpi` (qui rend une valeur, pas une série) ni dans
+  `compute` de `dsfr-data-normalize` (par ligne, sans inter-lignes — ADR-105).
+
+Toute autre fonction (`somme`, `moyenne`, `median`…) est une **erreur de configuration**
+visible (console + `data-dsfr-config-error`, composants aval en erreur) — jamais un 0 silencieux.
+`count-if` est refusé : filtrer avec `where` puis `champ:count` (sur le KPI :
+`value="count:champ:valeur"`).
 
 ### Exemples
 ```html
@@ -166,13 +236,15 @@ Nommage automatique sans alias : `champ__fonction` (ex: `population__sum`)
 
 | Attribut | Type | Défaut | Description |
 |---|---|---|---|
-| `aggregate` | `string` | `""` (vide) | Agrégations pour mode generic/tabular Format: "field:function, field2:function" Ex: "population:sum, count:count" |
+| `aggregate` | `string` | `""` (vide) | Agrégations pour mode generic/tabular Format: "field:function, field2:function" Ex: "population:sum, count:count" `running_sum` (#738) n'est pas une réduction de groupe mais un CUMUL : il produit une ligne par ligne de sortie, chacune portant la somme des précédentes, calculée APRÈS `order-by`. Sans `order-by`, l'ordre des lignes reçues fait foi et le résultat n'a en général pas de sens : un avertissement console le signale. Le cumul reste toujours côté client. Ex. `group-by="mois" aggregate="montant:sum, montant__sum:running_sum"` avec `order-by="mois:asc"`. |
+| `explode` | `string` | `""` (vide) | Champs multivalués à éclater avant le regroupement (séparés par virgule). Sans cet attribut, une cellule tableau est ramenée en chaîne pour la clé de groupe : `["a", "b"]` devient la modalité `"a,b"`, une COMBINAISON comptée comme une valeur — là où `dsfr-data-facets` éclate le même champ (#421). Les deux composants branchés sur le même champ donnaient donc des chiffres différents, sans rien signaler (#736). Avec `explode="tags"`, chaque élément de la cellule produit sa propre ligne : les modalités du regroupement sont exactement celles de la facette du même champ, et une ligne portant N valeurs compte dans N groupes (les agrégats la comptent donc N fois). Règles, alignées sur les facettes : les éléments vides sont ignorés, et une cellule sans aucune valeur (tableau vide, `null`, chaîne vide) ne produit AUCUNE ligne — pas de groupe « non renseigné », comme la facette n'a pas de modalité vide. Une cellule scalaire est inchangée. Chaque champ listé doit figurer dans `group-by` (sinon erreur de configuration et champ ignoré : éclater un champ hors regroupement dupliquerait les lignes et gonflerait les sommes). L'éclatement force le regroupement CÔTÉ CLIENT : aucune API du pipeline ne sait éclater un champ multivalué, déléguer produirait à nouveau des combinaisons. Sur une source volumineuse, penser au plafond de lignes rapatriées. Par défaut vide : le comportement historique est conservé. |
 | `filter` | `string` | `""` (vide) | Alias pour where (compatibilite) |
-| `group-by` | `string` | `""` (vide) | Champs de regroupement (separes par virgule) |
-| `limit` | `number` | `0` | Limite de resultats |
-| `order-by` | `string` | `""` (vide) | Tri des resultats Format: "field:direction" ou "field__function:direction" Ex: "total_pop:desc" ou "population__sum:desc" |
+| `group-by` | `string` | `""` (vide) | Champs de regroupement (séparés par virgule) |
+| `limit` | `number` | `0` | Limite de résultats |
+| `order-by` | `string` | `""` (vide) | Tri des résultats Format: "field:direction" ou "field__function:direction" Ex: "total_pop:desc" ou "population__sum:desc" |
+| `require-where` | `boolean` | `false` | N'émettre aucune ligne tant qu'aucun filtre n'est posé (#690). Pendant de `require-where` sur `dsfr-data-source`, pour les pages d'exploration : la requête reste en attente, émet `dsfr-data-idle`, et les afficheurs en aval rendent « choisissez un filtre » au lieu du jeu entier. Ce qui compte comme filtre : le `where` (ou `filter`) de CETTE requête — sur un query, c'est la surface de filtrage que la page pilote — et toute clause `where` non vide reçue par commande (facettes, recherche, `dsfr-data-context`). Tout retirer fait repasser la requête en attente. |
 | `source` | `string` | `""` (vide) | ID de la source de données (dsfr-data-source ou dsfr-data-normalize) |
-| `where` | `string` | `""` (vide) | Clause WHERE / Filtres — syntaxe colon UNIQUEMENT : "champ:operateur:valeur, champ2:operateur:valeur2" (operateurs : eq, neq, gt, gte, lt, lte, contains, notcontains, in, notin, isnull, isnotnull — multi-valeurs separees par \|). La syntaxe ODSQL n'est PAS supportee ici (elle l'est sur le `where` de dsfr-data-source) : une clause non parsable est signalee via reportConfigError (#277). En delegation serveur, la clause est traduite au dialecte de l'adapter (#275). |
+| `where` | `string` | `""` (vide) | Clause WHERE / Filtres — syntaxe colon UNIQUEMENT : "champ:opérateur:valeur, champ2:opérateur:valeur2" (opérateurs : eq, neq, gt, gte, lt, lte, contains, notcontains, in, notin, isnull, isnotnull — multi-valeurs séparées par \|). La syntaxe ODSQL n'est PAS supportee ici (elle l'est sur le `where` de dsfr-data-source) : une clause non parsable est signalee via reportConfigError (#277). En délégation serveur, la clause est traduite au dialecte de l'adapter (#275). |
 
 
 **Méthodes publiques**
@@ -180,11 +252,11 @@ Nommage automatique sans alias : `champ__fonction` (ex: `population__sum`)
 | Méthode | Retour | Description |
 |---|---|---|
 | `getAdapter()` | `import('../adapters/api-adapter.js').ApiAdapter \| null` | Retourne l'adapter courant (delegue a la source amont) |
-| `getAdapterParams()` | `import('../adapters/api-adapter.js').AdapterParams \| null` | Retourne les parametres adapter resolus de la source amont (delegation transparente, headers api-key-ref inclus — #274). |
+| `getAdapterParams()` | `import('../adapters/api-adapter.js').AdapterParams \| null` | Retourne les paramètres adapter resolus de la source amont (délégation transparente, headers api-key-ref inclus — #274). |
 | `getData()` | `unknown[]` | Retourne les données actuelles (isLoading() et getError() sont fournis par TransformerMixin, #280) |
 | `getDelegation()` | `{ groupBy: boolean; aggregate: boolean; orderBy: boolean; where: boolean; }` | Quelles opérations ont été effectivement déléguées au serveur, et lesquelles tournent côté client (#603). C'est l'information de diagnostic la plus coûteuse à deviner de l'extérieur : un `group-by` non délégué s'exécute sur les seules lignes rapatriées, ce qui produit des totaux justes en apparence et faux en réalité. Elle était déjà calculée par `_negotiateServerSide()` mais restait privée. Copie défensive : l'appelant ne doit pas pouvoir muter l'état interne. |
 | `getEffectiveWhere(excludeKey?: string)` | `string` | Retourne le where effectif complet (statique + dynamique). Delegue a la source amont si disponible. |
-| `reload()` | `void` | Force le rechargement des données. Semantique de pur transformateur (#279) : delegue le refetch a la source amont — meme contrat que dsfr-data-source.reload(). L'emission qui suit redescend naturellement le pipeline jusqu'ici (une chaine query → query → source propage le reload jusqu'a la source). Repli : si l'amont n'expose pas reload() (normalize/unpivot/join avant EPIC C #262), retraite le cache courant (ancien comportement). |
+| `reload()` | `void` | Force le rechargement des données. Semantique de pur transformateur (#279) : delegue le refetch a la source amont — meme contrat que dsfr-data-source.reload(). L'emission qui suit redescend naturellement le pipeline jusqu'ici (une chaîne query → query → source propage le reload jusqu'a la source). Repli : si l'amont n'expose pas reload() (normalize/unpivot/join avant EPIC C #262), retraite le cache courant (ancien comportement). |
 
 
 **Événements** (émis sur `document` : ecouter via `document.addEventListener`, filtrer sur `detail.sourceId`)
@@ -198,7 +270,8 @@ Nommage automatique sans alias : `champ__fonction` (ex: `population__sum`)
 | `dsfr-data-error` | `{ sourceId, error }` | émis | Erreur amont ou de transformation, sous l’`id` de ce composant. |
 | `dsfr-data-loading` | `{ sourceId }` | émis | Chargement amont relayé vers l’aval. |
 | `dsfr-data-source-command` | `{ sourceId, page?, where?, whereKey?, orderBy?, groupBy?, aggregate? }` | émis | Commande de pagination / filtre / tri envoyée à la source AMONT — soit originée par ce composant, soit relayée depuis l’aval. |
-| `dsfr-data-source-command` | — | émis | `{ sourceId, groupBy?, aggregate?, orderBy?, where?, whereKey?, origin }` sur `document` — delegation server-side negociee avec la source amont, et liberation des overlays quand elle retombe cote client. `origin` porte l'id de ce composant (#603). |
+| `dsfr-data-idle` | — | émis | `{ sourceId, reason }` sur `document` — la requête attend un filtre (`require-where` posé, aucun filtre reçu) : elle n'émet aucune ligne, et les afficheurs en aval rendent « choisissez un filtre » (#690). Relayé tel quel quand c'est l'amont qui attend. |
+| `dsfr-data-source-command` | — | émis | `{ sourceId, groupBy?, aggregate?, orderBy?, where?, whereKey?, origin }` sur `document` — délégation server-side negociee avec la source amont, et liberation des overlays quand elle retombe cote client. `origin` porte l'id de ce composant (#603). |
 
 
 **Slots** — aucun (le composant rend son propre contenu).

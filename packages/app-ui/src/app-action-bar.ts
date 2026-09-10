@@ -108,6 +108,12 @@ app-action-bar{display:block}
   .app-action-bar__actions .app-menu__list{position:fixed;top:auto;left:.5rem;right:.5rem;bottom:calc(var(--app-action-bar-fixed-h,3.5rem) + .25rem);max-height:60vh;overflow:auto}
   .app-action-bar__reason{position:fixed;left:0;right:0;bottom:var(--app-action-bar-fixed-h,3.5rem);z-index:800;padding:.25rem 1rem;background:var(--background-default-grey)}
   body:has(app-action-bar){padding-bottom:var(--app-action-bar-fixed-h,3.5rem)}
+  /* Le padding du body reserve la place ; il ne dit rien a l'ancrage du
+     defilement (WCAG 2.2 SC 2.4.11, #627). Un element qui recoit le focus au
+     clavier pouvait etre amene JUSTE SOUS la barre fixe, donc invisible, sans
+     que rien ne le remonte. Meme :has que le padding : la reserve n'existe que
+     quand la barre est la. */
+  html:has(app-action-bar){scroll-padding-bottom:var(--app-action-bar-fixed-h,3.5rem)}
 }
 `;
   document.head.appendChild(style);

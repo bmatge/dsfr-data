@@ -26,3 +26,34 @@ export const TERRITORY_PRESETS: Record<string, { center: string; zoom: number; l
 export const TERRITORY_GROUPS: Record<string, string[]> = {
   drom: ['guadeloupe', 'martinique', 'guyane', 'la-reunion', 'mayotte'],
 };
+
+/**
+ * Zone de fit par défaut de la métropole (`"latSW,lonSW,latNE,lonNE"`) : quand
+ * la carte porte des encarts ultramarins et aucun `max-bounds`, le fit est
+ * clippé dessus pour que les DROM ne dézooment pas la vue (#687). Corse
+ * comprise, Espagne et Italie du Nord effleurées.
+ */
+export const METROPOLE_FIT_ZONE = '41,-5.5,51.5,10';
+
+/** Territoires dont un encart appelle un fit métropolitain : tous sauf la Corse. */
+const OVERSEAS_TERRITORIES = new Set(Object.keys(TERRITORY_PRESETS).filter((t) => t !== 'corse'));
+
+/**
+ * Développe la valeur d'`insets` (groupes + territoires nommés, virgules)
+ * en liste de territoires. Les noms inconnus sont conservés tels quels.
+ */
+export function expandInsets(insets: string): string[] {
+  return insets
+    .split(',')
+    .map((t) => t.trim().toLowerCase())
+    .filter(Boolean)
+    .flatMap((t) => TERRITORY_GROUPS[t] ?? [t]);
+}
+
+/** Un des territoires (noms d'`insets` ou attributs `territory`) est-il ultramarin ? */
+export function hasOverseasTerritory(names: Iterable<string>): boolean {
+  for (const name of names) {
+    if (OVERSEAS_TERRITORIES.has(name.trim().toLowerCase())) return true;
+  }
+  return false;
+}

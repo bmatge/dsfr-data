@@ -38,6 +38,13 @@ body.builder-ia-app > app-header {
   display: block;
 }
 
+/* `display: block` bat l'attribut `hidden` : sans cette regle, l'iframe vide
+   occupait quand meme ses 420 px a l'etat vide et ecrasait le message
+   d'accueil a sa hauteur minimale (#629). */
+.preview-frame[hidden] {
+  display: none;
+}
+
 .builder-header {
   background: var(--background-default-grey);
   border-bottom: 1px solid var(--border-default-grey);

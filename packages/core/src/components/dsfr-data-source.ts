@@ -4,7 +4,11 @@ import { getByPath } from '../utils/json-path.js';
 import { flattenGristEnvelope } from '../utils/grist-envelope.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
-import { getProxiedUrl, buildCorsProxyRequest } from '@dsfr-data/shared/lib';
+import {
+  getProxiedUrl,
+  buildCorsProxyRequest,
+  normalizeProviderAuthHeaders,
+} from '@dsfr-data/shared/lib';
 import type { ApiAdapter, AdapterParams, ServerSideOverlay } from '../adapters/api-adapter.js';
 import { getAdapter } from '../adapters/adapter-registry.js';
 import { getCacheProvider, cacheKeyFor } from '../utils/cache-provider.js';
@@ -13,11 +17,30 @@ import {
   dispatchDataLoaded,
   dispatchDataError,
   dispatchDataLoading,
+  dispatchDataIdle,
   clearDataCache,
   setDataMeta,
   clearDataMeta,
   subscribeToSourceCommands,
 } from '../utils/data-bridge.js';
+
+/**
+ * Cles de requete que la bibliotheque construit elle-meme a partir des
+ * attributs des composants (#726) : `select`, `where`, `group_by`, `order_by`
+ * (poses par `_applyOdsqlClauses`), la pagination `limit`/`offset` posee par
+ * les constructeurs d'URL, et `facet` pose par le chargement des facettes.
+ * Une page ne doit pas pouvoir les ecraser depuis l'attribut `params` : le
+ * passe-plat les refuse et la source signale une erreur de configuration.
+ */
+const RESERVED_PARAM_KEYS = new Set([
+  'select',
+  'where',
+  'group_by',
+  'order_by',
+  'limit',
+  'offset',
+  'facet',
+]);
 
 /**
  * <dsfr-data-source> - Connecteur de données
@@ -41,14 +64,18 @@ import {
  *   select="count(*) as total, region" group-by="region">
  * </dsfr-data-source>
  *
- * @fires dsfr-data-loaded - `{ sourceId, data }` sur `document` — donnees chargees et publiees sous l'`id` de cette source. C'est l'evenement que tout l'aval ecoute.
+ * @fires dsfr-data-loaded - `{ sourceId, data }` sur `document` — données chargees et publiees sous l'`id` de cette source. C'est l'evenement que tout l'aval ecoute.
  * @fires dsfr-data-loading - `{ sourceId }` sur `document` — un chargement demarre.
  * @fires dsfr-data-error - `{ sourceId, error, attemptedUrl? }` sur `document` — le fetch ou le
  *   parsing a echoue. `attemptedUrl` (#603) porte l'URL REELLEMENT appelee, proxy applique :
  *   elle diverge souvent du `base-url` ecrit dans le HTML, et le message de l'`Error` reste
- *   volontairement court. La cle est absente quand l'URL n'a pas pu etre construite, ou pour
- *   une erreur qui ne vient pas d'un fetch (donnees inline invalides, configuration).
- * @fires cache-fallback - `{ sourceId }` sur l'element — les donnees servies viennent du cache externe apres un echec reseau (#307).
+ *   volontairement court. La cle est absente quand l'URL n'a pas pu être construite, ou pour
+ *   une erreur qui ne vient pas d'un fetch (données inline invalides, configuration).
+ * @fires dsfr-data-idle - `{ sourceId, reason }` sur `document` — la source attend un filtre
+ *   (`require-where` posé, aucun filtre reçu). Aucune requête n'est partie : l'état est distinct
+ *   d'un chargement, d'une erreur et d'un résultat vide. Les afficheurs le rendent en message
+ *   « choisissez un filtre » (#690).
+ * @fires cache-fallback - `{ sourceId }` sur l'élément — les données servies viennent du cache externe après un echec reseau (#307).
  */
 @customElement('dsfr-data-source')
 export class DsfrDataSource extends LitElement {
@@ -58,15 +85,31 @@ export class DsfrDataSource extends LitElement {
   @property({ type: String })
   url = '';
 
-  /** Methode HTTP : `GET` (defaut) ou `POST`. */
+  /** Méthode HTTP : `GET` (défaut) ou `POST`. */
   @property({ type: String })
   method: 'GET' | 'POST' = 'GET';
 
-  /** En-tetes HTTP en JSON. Ex: `'{"Authorization": "Bearer xxx"}'` */
+  /**
+   * En-têtes HTTP en JSON. Ex: `'{"Authorization": "Bearer xxx"}'`.
+   * OpenDataSoft : la clé va dans `Authorization: Apikey CLE` (seul en-tête
+   * autorisé en CORS) — un `apikey` nu est réécrit automatiquement (#655).
+   */
   @property({ type: String })
   headers = '';
 
-  /** Parametres de requete en JSON : query string en GET, corps en POST. */
+  /**
+   * Paramètres de requête en JSON. Mode URL : query string en GET, corps de la
+   * requête en POST. **Mode adaptateur** (#726) : les paires sont ajoutées à
+   * l'URL construite par l'adaptateur, ce qui sert les paramètres propres au
+   * portail que la bibliothèque ne modélise pas — le cas d'usage est
+   * `params='{"timezone":"Europe/Paris"}'` sur un jeu Opendatasoft à
+   * dates, qui n'obligeait jusqu'ici à rester en mode URL. Les clés que la
+   * bibliothèque construit elle-même (`select`, `where`, `group_by`,
+   * `order_by`, `limit`, `offset`, `facet`) sont réservées : elles sont
+   * refusées avec une erreur de configuration plutôt que d'écraser une clause.
+   * Transmis par l'adaptateur Opendatasoft seulement, en chargement paginé
+   * comme en `fetch-mode="export"`.
+   */
   @property({ type: String })
   params = '';
 
@@ -74,7 +117,7 @@ export class DsfrDataSource extends LitElement {
   @property({ type: Number })
   refresh = 0;
 
-  /** Chemin JSONPath vers le tableau de donnees dans la reponse. Ex: `"results"`, `"data.items"`. */
+  /** Chemin JSONPath vers le tableau de données dans la réponse. Ex: `"results"`, `"data.items"`. */
   @property({ type: String })
   transform = '';
 
@@ -104,7 +147,7 @@ export class DsfrDataSource extends LitElement {
   @property({ type: String, attribute: 'proxy-url' })
   proxyUrl = '';
 
-  /** Reference vers une clé API declaree dans window.DSFR_DATA_KEYS */
+  /** Référence vers une clé API déclarée dans window.DSFR_DATA_KEYS */
   @property({ type: String, attribute: 'api-key-ref' })
   apiKeyRef = '';
 
@@ -140,7 +183,11 @@ export class DsfrDataSource extends LitElement {
   @property({ type: String })
   select = '';
 
-  /** Group-by (pour les APIs qui le supportent server-side) */
+  /**
+   * Group-by (pour les APIs qui le supportent server-side). ODS : un élément
+   * peut être une expression aliasée (`year(date) as annee`), transmise telle
+   * quelle — l'alias `as` est obligatoire cote ODS (#641).
+   */
   @property({ type: String, attribute: 'group-by' })
   groupBy = '';
 
@@ -156,18 +203,62 @@ export class DsfrDataSource extends LitElement {
   @property({ type: Boolean, attribute: 'server-side' })
   serverSide = false;
 
-  /** Limite du nombre de resultats */
+  /** Limite du nombre de résultats */
   @property({ type: Number })
   limit = 0;
 
   /**
    * Plafond de records du fetchAll en mode adapter (#233). 0 = plafond par
-   * defaut de l'adapter (ODS : 1000). A relever explicitement pour les
-   * dashboards « un fetch, N agregations client » — attention au nombre de
-   * requetes en boucle et au poids memoire.
+   * défaut de l'adapter (ODS : 1000). A relever explicitement pour les
+   * dashboards « un fetch, N agrégations client » — attention au nombre de
+   * requêtes en boucle et au poids mémoire.
    */
   @property({ type: Number, attribute: 'max-records' })
   maxRecords = 0;
+
+  /**
+   * Stratégie de chargement en mode adaptateur (#689) : `records` (défaut,
+   * comportement historique — pagination par pages de 100) ou `export`, qui
+   * charge tout le jeu en **une seule requête** sur l'endpoint d'export du
+   * portail, avec les mêmes clauses (`select`, `where`, `group-by`,
+   * `order-by`). Implémenté par OpenDataSoft seulement ; les autres
+   * adaptateurs ignorent l'attribut.
+   *
+   * À activer pour une page « un fetch, N agrégations client », un jeu de
+   * plus de 1 000 lignes, ou un `group-by` à beaucoup de groupes : le portail
+   * les rend tous d'un coup au lieu d'une page. À ne pas activer avec
+   * `server-side` (pagination page par page), qui reste sur l'endpoint
+   * paginé et signale la contradiction dans la console.
+   *
+   * En mode `export` le total serveur est inconnu : la troncature est
+   * détectée en demandant une ligne de plus que le plafond `max-records`.
+   * Si le portail n'expose pas d'endpoint d'export, la source retombe une
+   * fois sur le chargement paginé, avec un avertissement en console.
+   */
+  @property({ type: String, attribute: 'fetch-mode' })
+  fetchMode: 'records' | 'export' = 'records';
+
+  /**
+   * Ne rien charger tant qu'aucun filtre n'a été reçu (#690).
+   *
+   * Pensé pour les pages d'exploration : sans cet attribut, une source
+   * interroge l'API dès le montage et rapatrie le jeu entier — une requête
+   * coûteuse dont personne ne regarde le résultat. Avec lui, la source reste
+   * en attente, émet `dsfr-data-idle` et ne part chercher les données qu'au
+   * premier filtre.
+   *
+   * Ce qui compte comme filtre : les clauses reçues par commande — facettes,
+   * recherche, `dsfr-data-context`, délégation d'un `dsfr-data-query`. Le
+   * `where` STATIQUE de la source ne compte PAS : il fait partie de la
+   * définition du jeu, pas du geste de l'utilisateur ; le contraire rendrait
+   * l'attribut sans effet sur toute source qui restreint déjà son périmètre.
+   *
+   * Quand le dernier filtre est retiré, la source repasse en attente : jamais
+   * de requête « tout » implicite. Sans effet en mode données inline (`data`),
+   * qui ne fait aucune requête.
+   */
+  @property({ type: Boolean, attribute: 'require-where' })
+  requireWhere = false;
 
   // --- Internal state ---
 
@@ -190,14 +281,16 @@ export class DsfrDataSource extends LitElement {
   private _fetchGeneration = 0;
   /** Warn-once : commandes adapter recues en mode URL (#288) */
   private _urlModeCommandWarned = false;
+  /** Warn-once : require-where pose sur une source qui ne peut rien recevoir (#690) */
+  private _requireWhereModeWarned = false;
 
   /** Dynamic WHERE overlays from dsfr-data-facets, dsfr-data-search, etc. */
   private _whereOverlays = new Map<string, string>();
   /** Dynamic orderBy overlay from dsfr-data-list sort */
   private _orderByOverlay = '';
-  /** Dynamic groupBy overlay from dsfr-data-query delegation */
+  /** Dynamic groupBy overlay from dsfr-data-query délégation */
   private _groupByOverlay = '';
-  /** Dynamic aggregate overlay from dsfr-data-query delegation */
+  /** Dynamic aggregate overlay from dsfr-data-query délégation */
   private _aggregateOverlay = '';
 
   /** Cached adapter instance */
@@ -254,6 +347,7 @@ export class DsfrDataSource extends LitElement {
       changedProperties.has('groupBy') ||
       changedProperties.has('aggregate') ||
       changedProperties.has('orderBy') ||
+      changedProperties.has('fetchMode') ||
       changedProperties.has('limit');
     // Attributs communs aux deux modes, historiquement non cables au
     // refetch (#288) — headers a le meme role qu'api-key-ref qui refetchait
@@ -261,7 +355,8 @@ export class DsfrDataSource extends LitElement {
       changedProperties.has('pageSize') ||
       changedProperties.has('serverSide') ||
       changedProperties.has('headers') ||
-      changedProperties.has('proxyUrl');
+      changedProperties.has('proxyUrl') ||
+      changedProperties.has('requireWhere');
 
     if (urlModeChanged || adapterModeChanged || sharedChanged) {
       if (
@@ -305,12 +400,20 @@ export class DsfrDataSource extends LitElement {
     return this._adapter;
   }
 
-  /** Returns the effective WHERE clause (static + all dynamic overlays merged) */
-  public getEffectiveWhere(excludeKey?: string): string {
+  /**
+   * Returns the effective WHERE clause (static + all dynamic overlays merged).
+   * `excludeKey` : un whereKey, ou une liste de whereKeys a ignorer (#678 —
+   * une facette en mode `context` emet un whereKey PAR champ et doit les
+   * exclure tous du where de base de sa cascade).
+   */
+  public getEffectiveWhere(excludeKey?: string | string[]): string {
+    const excluded = new Set(
+      Array.isArray(excludeKey) ? excludeKey : excludeKey !== undefined ? [excludeKey] : []
+    );
     const parts: string[] = [];
     if (this.where) parts.push(this.where);
     for (const [key, value] of this._whereOverlays) {
-      if (key !== excludeKey && value) parts.push(value);
+      if (!excluded.has(key) && value) parts.push(value);
     }
     const adapter = this.getAdapter();
     const separator = adapter?.capabilities.whereFormat === 'odsql' ? ' AND ' : ', ';
@@ -491,7 +594,51 @@ export class DsfrDataSource extends LitElement {
     }, 0);
   }
 
+  /**
+   * Un filtre utilisateur est-il posé (#690) ? Seuls les overlays reçus par
+   * commande comptent — le `where` statique fait partie de la définition de
+   * la source, pas du geste de l'utilisateur.
+   */
+  private _hasReceivedWhere(): boolean {
+    for (const value of this._whereOverlays.values()) {
+      if (value) return true;
+    }
+    return false;
+  }
+
+  /** Entrée (ou retour) en attente d'un filtre : rien n'est chargé (#690). */
+  private _enterIdle() {
+    // Piège de configuration : en mode URL, les commandes where sont
+    // refusées (#288) — aucun filtre ne pourra jamais lever l'attente, la
+    // source resterait muette pour toujours. Le dire une fois.
+    if (!this._isAdapterMode() && !this._requireWhereModeWarned) {
+      this._requireWhereModeWarned = true;
+      console.warn(
+        `dsfr-data-source[${this.id}]: require-where est sans issue en mode URL — ` +
+          `les commandes where y sont refusées (#288). Utilisez un api-type ` +
+          `(opendatasoft, tabular, grist, insee) pour que les filtres atteignent la source.`
+      );
+    }
+
+    if (this._abortController) {
+      this._abortController.abort();
+      this._abortController = null;
+    }
+    this._data = null;
+    this._error = null;
+    this._loading = false;
+    if (this.id) dispatchDataIdle(this.id);
+  }
+
   private async _fetchData() {
+    // Garde AVANT toute construction de requête (#690) : ni fetch, ni
+    // validation d'adapter, ni `dsfr-data-loading` — l'aval doit voir un
+    // état d'attente, pas un chargement qui n'arrive jamais.
+    if (this.requireWhere && !this._hasReceivedWhere()) {
+      this._enterIdle();
+      return;
+    }
+
     if (this._isAdapterMode()) {
       return this._fetchViaAdapter();
     }
@@ -664,6 +811,26 @@ export class DsfrDataSource extends LitElement {
 
     clearConfigError(this);
 
+    // Configuration contradictoire, non bloquante (#689) : l'endpoint
+    // d'export rend le jeu entier, la pagination serveur demande une page.
+    // Le chargement continue sur le chemin pagine (getAdapterParams neutralise
+    // deja fetchMode) ; l'attribut de diagnostic nomme la cause.
+    if (this.fetchMode === 'export' && this.serverSide) {
+      reportConfigError(
+        this,
+        `dsfr-data-source[${this.id}]`,
+        'fetch-mode="export" est ignoré avec server-side : la pagination serveur reste sur l\'endpoint paginé'
+      );
+    }
+
+    // Passe-plat `params` fautif, non bloquant (#726) : la clé réservée ou le
+    // JSON invalide est écarté, le reste part quand même. Sans ce message, un
+    // where posé dans `params` disparaissait sans un mot.
+    const extraParamsError = this._parseExtraParams().error;
+    if (extraParamsError) {
+      reportConfigError(this, `dsfr-data-source[${this.id}]`, extraParamsError);
+    }
+
     if (this._abortController) {
       this._abortController.abort();
     }
@@ -707,12 +874,24 @@ export class DsfrDataSource extends LitElement {
         // Publish meta with needsClientProcessing flag. serverSide:false —
         // l'aval ne doit PAS activer sa pagination serveur sur un fetchAll
         // (pageSize 0 produisait des totaux de pages Infinity, #270)
+        //
+        // `truncated` (#658) : le jeu livre est un sous-ensemble — total
+        // connu et superieur aux lignes recues (plafond max-records ou
+        // limit), ou plafond atteint sur une page pleine quand le total est
+        // inconnu (group_by ODS, #641 — signal pose par l'adapter). Le warn
+        // console existait deja ; ce champ rend la troncature lisible par le
+        // volet Diagnostic.
+        const received = Array.isArray(result.data) ? result.data.length : 0;
+        const truncated =
+          result.truncated === true ||
+          (typeof result.totalCount === 'number' && result.totalCount > received);
         setDataMeta(this.id, {
           page: 1,
           pageSize: 0,
           total: result.totalCount,
           serverSide: false,
           needsClientProcessing: result.needsClientProcessing,
+          ...(truncated ? { truncated: true } : {}),
         });
       }
 
@@ -753,7 +932,7 @@ export class DsfrDataSource extends LitElement {
   /**
    * URL construite par l'adapter pour ce fetch, a seule fin de diagnostic
    * (#598). En mode fetchAll l'adapter pagine ensuite lui-meme : l'URL rendue
-   * est celle de la premiere requete, sans les surcharges de page.
+   * est celle de la première requête, sans les surcharges de page.
    *
    * Purement informative — ne doit jamais faire echouer le log d'erreur.
    */
@@ -763,14 +942,20 @@ export class DsfrDataSource extends LitElement {
     overlay?: ServerSideOverlay
   ): string | undefined {
     try {
-      return overlay ? adapter.buildServerSideUrl(params, overlay) : adapter.buildUrl(params);
+      if (overlay) return adapter.buildServerSideUrl(params, overlay);
+      // Mode export (#689) : l'URL reellement appelee n'est pas celle de
+      // l'endpoint pagine — un repli sur /records a deja son propre warn
+      if (params.fetchMode === 'export' && adapter.buildExportUrl) {
+        return adapter.buildExportUrl(params);
+      }
+      return adapter.buildUrl(params);
     } catch {
       return undefined;
     }
   }
 
   /**
-   * Parametres adapter resolus, headers effectifs inclus (headers +
+   * Paramètres adapter resolus, headers effectifs inclus (headers +
    * api-key-ref). Consomme par les composants aval via SourceElement (#274).
    */
   public getAdapterParams(): AdapterParams {
@@ -801,11 +986,59 @@ export class DsfrDataSource extends LitElement {
       orderBy: this._orderByOverlay || this.orderBy,
       limit: this.limit,
       maxRecords: this.maxRecords,
+      // `server-side` ignore fetch-mode (#689) : la pagination page par page
+      // n'a pas de sens sur un endpoint d'export, qui rend tout d'un coup
+      fetchMode: this.fetchMode === 'export' && !this.serverSide ? 'export' : 'records',
       transform: this.transform,
       pageSize: this.pageSize,
       headers: parsedHeaders,
       proxyUrl: this.proxyUrl || undefined,
+      extraParams: this._parseExtraParams().extra,
     };
+  }
+
+  /**
+   * Lit l'attribut `params` pour le mode adaptateur (#726) : rend les paires
+   * transmissibles telles quelles a l'adaptateur, et le message a signaler
+   * quand la configuration est fautive (JSON invalide, cle reservee). Pur :
+   * `getAdapterParams()` n'en prend que la valeur, `_fetchViaAdapter()` en
+   * signale l'erreur — un `reportConfigError` pose ici serait efface par le
+   * `clearConfigError` du chemin de chargement.
+   */
+  private _parseExtraParams(): { extra?: Record<string, string>; error?: string } {
+    if (!this.params) return {};
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(this.params);
+    } catch {
+      return { error: 'attribut "params" invalide : un objet JSON est attendu' };
+    }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return { error: 'attribut "params" invalide : un objet JSON est attendu' };
+    }
+
+    const extra: Record<string, string> = {};
+    const reserved: string[] = [];
+    for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+      if (RESERVED_PARAM_KEYS.has(key)) {
+        reserved.push(key);
+        continue;
+      }
+      if (value === null || value === undefined) continue;
+      extra[key] = String(value);
+    }
+
+    const error =
+      reserved.length > 0
+        ? `params : ${reserved.length > 1 ? 'les clés' : 'la clé'} ${reserved
+            .map((k) => `"${k}"`)
+            .join(', ')} ${reserved.length > 1 ? 'sont réservées' : 'est réservée'} — ` +
+          'la bibliothèque construit cette clause depuis les attributs du composant ' +
+          '(select, where, group-by, order-by, limit) ; valeur ignorée'
+        : undefined;
+
+    return { extra: Object.keys(extra).length > 0 ? extra : undefined, error };
   }
 
   // --- API key registry resolution ---
@@ -875,6 +1108,12 @@ export class DsfrDataSource extends LitElement {
       headers = { ...headers, ...keyHeaders };
     }
 
+    // Mode URL sur un hote ODS : `apikey` nu → `Authorization: Apikey K`
+    // (#655, provider detecte depuis l'URL ; no-op pour les autres)
+    if (this.url && Object.keys(headers).length > 0) {
+      headers = normalizeProviderAuthHeaders(this.url, headers).headers;
+    }
+
     if (this.method === 'POST' && this.params) {
       headers = { 'Content-Type': 'application/json', ...headers };
       options.body = this.params;
@@ -890,9 +1129,9 @@ export class DsfrDataSource extends LitElement {
   // --- Server cache (DB mode) ---
 
   /**
-   * Fingerprint de la requete courante (#307) : la cle de cache inclut
+   * Fingerprint de la requête courante (#307) : la cle de cache inclut
    * URL/params/where/page... — l'ancienne cle (id seul) pouvait resservir
-   * la page 3 filtree d'hier pour une requete page 1 sans filtre.
+   * la page 3 filtree d'hier pour une requête page 1 sans filtre.
    */
   private _cacheFingerprint(): unknown {
     return {

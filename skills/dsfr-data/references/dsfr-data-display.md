@@ -14,16 +14,63 @@ une instance du template avec les valeurs injectees.
 Le template est défini dans un element `<template>` enfant du composant.
 Les placeholders sont remplaces pour chaque element de données :
 
+Grammaire d'un placeholder : `{{chemin[:format[:arg]][|défaut]}}` — l'argument du format vient
+après un second `:` ; il ne peut pas contenir `|` (qui ouvre le défaut).
+
 | Syntaxe | Description |
 |---------|-------------|
 | `{{champ}}` | Valeur echappee (HTML-safe) |
 | `{{{champ}}}` | Valeur brute (non echappee — utiliser avec precaution) |
 | `{{champ\|défaut}}` | Valeur avec fallback si null/undefined |
 | `{{champ:number}}` | Valeur avec separateur de milliers (ex: 32073247 → 32 073 247) |
+| `{{champ:number:2}}` | Nombre fr-FR avec 2 décimales fixes |
 | `{{champ:number\|0}}` | Format number + fallback si null |
+| `{{champ:date}}` | Date JJ/MM/AAAA depuis une ISO (`2026-09-09T10:00:00Z` → `09/09/2026`), « — » si invalide |
+| `{{champ:datetime}}` | Date et heure JJ/MM/AAAA HH:MM |
+| `{{tags}}` | Un tableau (champ multivalué ODS/Grist) est joint par `, ` |
+| `{{tags:join: / }}` | Tableau joint par le séparateur donné, espaces compris |
+| `{{lien:url}}` | URL filtrée : seuls `http:`, `https:`, `mailto:`, `tel:` et les URL relatives passent, sinon chaîne vide. **À utiliser dans tout `href`** |
 | `{{champ.sous.clé}}` | Acces aux proprietes imbriquees (dot notation) |
 | `{{$index}}` | Index de l'element dans le tableau (0-based) |
 | `{{$uid}}` | Identifiant unique de l'element (base sur uid-field ou index) |
+
+### Blocs conditionnels
+`{{#if champ}}…{{/if}}` affiche son contenu si la valeur existe (ni null, undefined, chaîne vide,
+tableau vide ni false) ; `{{#unless champ}}…{{/unless}}` est le complément. Les blocs ne s'imbriquent
+pas. Le bloc doit englober du texte, des éléments complets ou la valeur d'un attribut : placé entre
+deux attributs d'une balise, il est découpé par l'analyse HTML du `<template>` et ignoré.
+
+```html
+<!-- Lien optionnel : rien si le champ est vide, lien filtré sinon -->
+{{#if site_web}}<a class="fr-link" href="{{site_web:url}}">Site web</a>{{/if}}
+{{#unless site_web}}<span class="fr-text--mention-grey">Pas de site</span>{{/unless}}
+```
+
+### Bloc de répétition (#737)
+`{{#each champ}}…{{/each}}` répète son contenu pour chaque élément d'un champ tableau —
+la seule façon de rendre un champ multivalué en liste structurée (sinon il est aplati par
+`{{tags}}` ou `{{tags:join: / }}`). Dans le bloc :
+
+- `{{.}}` = l'élément courant, toujours échappé, et les formats de la grammaire s'y
+  appliquent (`{{.:number}}`, `{{.:date}}`, `{{.:url}}`) ;
+- `{{$index}}` = le rang de l'élément (0-based), qui masque l'index de ligne ;
+- les autres placeholders désignent toujours les champs de l'enregistrement.
+
+Un tableau vide, un `null` ou un champ absent ne rendent RIEN (pas de `<li>` vide) ; les
+éléments vides sont ignorés ; une valeur scalaire vaut un élément unique. Comme `{{#if}}`,
+le bloc ne s'imbrique pas (un `{{#each}}` dans un `{{#if}}` n'est pas développé).
+
+Il n'existe PAS de pipe qui rendrait du balisage (`:tags` et compagnie) : le moteur échappe
+toujours, un pipe produisant du HTML ouvrirait une surface d'injection.
+
+```html
+<ul class="fr-tags-group">
+  {{#each besoins}}<li><p class="fr-tag">{{.}}</p></li>{{/each}}
+</ul>
+```
+
+Recette de transition (versions antérieures à 0.22, sans bloc) : rendre le lien toujours et le
+masquer en CSS quand l'attribut est vide — `a[href=""] { display: none; }`.
 
 ### Attributs
 | Attribut | Type | Défaut | Requis | Description |
@@ -32,10 +79,22 @@ Les placeholders sont remplaces pour chaque element de données :
 | cols | Number | `1` | non | Nombre de colonnes dans la grille (1-6) |
 | pagination | Number | `0` | non | Elements par page (0 = tout afficher) |
 | empty | String | `"Aucun resultat"` | non | Message quand le tableau est vide |
+| idle-message | String | `"Choisissez un filtre pour afficher les données"` | non | Message rendu quand l'amont attend un filtre (`require-where`, #690) — distinct de `empty`, qui répond à une requête revenue vide. |
 | gap | String | `"fr-grid-row--gutters"` | non | Classe CSS de gap pour la grille |
 | uid-field | String | `""` | non | Champ de données pour l'ID unique par item. Chaque item recoit un id="item-{valeur}" pour ancrage URL |
 | url-sync | Boolean | `false` | non | Synchronise le numero de page dans l'URL (?page=N) via replaceState |
 | url-page-param | String | `"page"` | non | Nom du parametre URL pour la page |
+| refine-on-click | String | `""` | non | Champ dont la valeur de l'element clique devient un filtre `eq` (#734) : premier clic = filtre, second clic sur le meme element = retrait, autre element = remplacement. Avec `context` (recommande) : filtre du dsfr-data-context (tag, URL, dialecte de chaque cible). Sans `context` : commande directe a `source` (whereKey `display-select-ID`) |
+| context | String | `""` | non | Id du dsfr-data-context auquel s'enregistrer en `refine-on-click` (#734, ADR-104). Peut etre declare apres le composant |
+| label | String | `""` | non | Libelle du tag du contexte en `refine-on-click` (defaut : le nom du champ) |
+
+### Le clic sur un element filtre les autres vues (refine-on-click, #734)
+Meme mecanique et meme mixin que `dsfr-data-list` et `dsfr-data-map-layer`. Chaque element
+recoit un vrai `<button>` « Filtrer sur … » : atteignable au clavier, annonce comme un bouton,
+etat porte par `aria-pressed` et par son libelle (« Retirer le filtre … » une fois selectionne),
+jamais par la seule couleur ; l'element selectionne porte `aria-current="true"`. Le clic
+n'importe ou sur l'element fait la meme bascule, sans voler le clic d'un lien du template.
+Evenement `dsfr-data-select` `{ record, elementId, selected }` (bubbles, composed).
 
 ### Pagination serveur
 Quand la source est un `dsfr-data-source` avec `paginate`, dsfr-data-display détecté automatiquement
@@ -121,13 +180,17 @@ Quand la page est 1, le parametre est supprime de l'URL. Compatible avec les aut
 | Attribut | Type | Défaut | Description |
 |---|---|---|---|
 | `cols` | `number` | `1` | Nombre de colonnes dans la grille (1-6, défaut 1 = pleine largeur) |
+| `context` | `string` | `""` (vide) | Identifiant du dsfr-data-context auquel s'enregistrer en `refine-on-click` (#734, ADR-104). Le contexte peut être déclaré après le composant dans la page. Vide = commande directe à `source` (chemin dégradé). |
 | `empty` | `string` | `'Aucun resultat'` | Message quand aucune donnee |
 | `gap` | `string` | `'fr-grid-row--gutters'` | Classe CSS de gap pour la grille (défaut: fr-grid-row--gutters) |
-| `pagination` | `number` | `0` | Nombre d'elements par page (0 = tout afficher) |
-| `source` | `string` | `""` (vide) | Id de la source (ou du transformateur) dont ce composant consomme les donnees. |
+| `idle-message` | `string` | `IDLE_MESSAGE_DEFAULT` | Message rendu quand l'amont attend un filtre (`require-where`, #690). Distinct de « aucune donnée » : aucune requête n'a été faite. Vide, le libellé par défaut est utilisé. |
+| `label` | `string` | `""` (vide) | Libellé du tag de contexte en `refine-on-click` (#734). Vide = le nom du champ filtré. |
+| `pagination` | `number` | `0` | Nombre d'éléments par page (0 = tout afficher) |
+| `refine-on-click` | `string` | `""` (vide) | Champ dont la valeur de l'élément cliqué devient un filtre `eq` (#734). Premier clic = filtre, second clic sur le même élément = retrait, clic sur un autre élément = remplacement. Chaque élément reçoit un bouton « Filtrer sur … », atteignable au clavier et dont l'état est annoncé (`aria-pressed`) : la mise en avant de l'élément sélectionné n'est jamais la seule marque. Avec `context="id"` (recommandé), le composant s'enregistre comme filtre du dsfr-data-context : diffusion à toutes ses sources cibles au dialecte de chacune, tag dans dsfr-data-context-tags, URL portée par le contexte. Sans `context`, la clause part directement à `source` (whereKey `display-select-ID`) — sans tag ni URL, et la liste se filtre elle-même (seul l'élément cliqué reste, jusqu'au second clic). |
+| `source` | `string` | `""` (vide) | Id de la source (ou du transformateur) dont ce composant consomme les données. |
 | `uid-field` | `string` | `""` (vide) | Champ de données a utiliser comme identifiant unique par item. Si vide, utilise l'index |
-| `url-page-param` | `string` | `'page'` | Nom du parametre URL pour la page (défaut: "page") |
-| `url-sync` | `boolean` | `false` | Synchronise le numero de page dans l'URL (replaceState) |
+| `url-page-param` | `string` | `'page'` | Nom du paramètre URL pour la page (défaut: "page") |
+| `url-sync` | `boolean` | `false` | Synchronise le numéro de page dans l'URL (replaceState) |
 
 
 
@@ -138,6 +201,8 @@ Quand la page est 1, le parametre est supprime de l'URL. Compatible avec les aut
 | `dsfr-data-loaded` | `{ sourceId, data }` | écoute | Nouvelles données publiées par la source désignée par `source`. |
 | `dsfr-data-error` | `{ sourceId, error }` | écoute | Erreur amont. |
 | `dsfr-data-loading` | `{ sourceId }` | écoute | Chargement amont démarré. |
+| `dsfr-data-select` | — | émis | `{ record, elementId, selected }` sur le composant (bubbles, composed) — au clic sur un élément en `refine-on-click` (#734). `selected` vaut `true` à la sélection, `false` quand le clic la retire (second clic sur le même élément, ou croix du tag de contexte). |
+| `dsfr-data-source-command` | — | émis | `{ sourceId, where, whereKey, origin }` sur `document` — en `refine-on-click` SANS `context` (chemin dégradé) : clause `eq` poussée directement à `source` sous le whereKey `display-select-ID`. Avec `context`, c'est le contexte qui diffuse. |
 
 
 **Slots** — aucun (le composant rend son propre contenu).

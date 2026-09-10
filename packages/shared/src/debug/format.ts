@@ -19,6 +19,7 @@ import type { StageNode } from './graph.js';
 import { diffFields } from './summarize.js';
 import type { DelegationState, StageState, Trace } from './recorder.js';
 import { topoOrder } from './graph.js';
+import { fieldIssuesByNode, type FieldIssue } from './field-check.js';
 import type { Field } from '../ia/data-tools.js';
 
 export interface FormatOptions {
@@ -48,10 +49,45 @@ function humanizeDelay(ms: number | null): string {
   return `il y a ${Math.round(s / 60)} min`;
 }
 
+/**
+ * Valeur d'attribut bornée : depuis #727 la collecte retient aussi tous les
+ * attributs qui nomment un champ, et un `columns="a:A, b:B, …"` de trois
+ * lignes noierait l'en-tête de l'étape.
+ */
+function borner(value: string, max = 60): string {
+  return value.length > max ? `${value.slice(0, max - 1)}…` : value;
+}
+
 function formatAttrs(node: StageNode): string {
   const pairs = Object.entries(node.attrs);
   if (pairs.length === 0) return '';
-  return pairs.map(([k, v]) => (v === '' ? k : `${k}="${v}"`)).join('  ');
+  return pairs.map(([k, v]) => (v === '' ? k : `${k}="${borner(v)}"`)).join('  ');
+}
+
+/**
+ * Un champ nommé par un attribut et introuvable dans ce que l'étape reçoit
+ * (#727) — la panne la plus fréquente et la plus muette : le graphique se
+ * rend, vide, sans un mot.
+ */
+function formatFieldIssues(issues: FieldIssue[] | undefined): string[] {
+  if (!issues || issues.length === 0) return [];
+  return issues.map(
+    (issue) => `     ${issue.reason === 'absent' ? '✗ CHAMP' : '⚠ champ'} — ${issue.message}`
+  );
+}
+
+/**
+ * Attributs que le bundle CHARGÉ ne connaît pas (#727) : une page juste,
+ * écrite contre une documentation juste, qui ne fait rien parce que la
+ * bibliothèque servie est plus ancienne que l'attribut.
+ */
+function formatUnknownAttrs(node: StageNode): string[] {
+  const attrs = node.unknownAttrs;
+  if (!attrs || attrs.length === 0) return [];
+  return [
+    `     ⚠ ${plural(attrs.length, 'attribut')} inconnu${attrs.length > 1 ? 's' : ''} de la version chargée : ${attrs.join(', ')}`,
+    "       Ignoré en silence — vérifiez l'orthographe, ou mettez la bibliothèque à jour.",
+  ];
 }
 
 function formatFieldList(fields: Field[], max = 12): string {
@@ -68,7 +104,75 @@ function formatSample(state: StageState, opts: FormatOptions): string[] {
   return state.sample.slice(0, limit).map((row) => `     ${JSON.stringify(row)}`);
 }
 
-function formatMeta(state: StageState): string[] {
+/** Milliers séparés par une espace — « 1 065 », lisible et collable tel quel. */
+export function formatInt(n: number): string {
+  return String(Math.trunc(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+}
+
+/**
+ * Ce qui a tronqué les lignes (#658), lu sur les attributs du nœud : un
+ * `limit` explicite est une troncature voulue, un plafond `max-records`
+ * (défaut 1000 sur ODS) est presque toujours subi. Nommer la cause dit à
+ * l'utilisateur quel attribut relever.
+ */
+function truncationCause(node: StageNode): string {
+  if (node.tag === 'dsfr-data-query') return 'attribut limit';
+  if (node.attrs.limit) return 'attribut limit';
+  return node.attrs['max-records']
+    ? `plafond max-records="${node.attrs['max-records']}"`
+    : 'plafond max-records (défaut 1000, relevable)';
+}
+
+/**
+ * Taux d'appariement d'une jointure (#660) — le seul signal contre une
+ * jointure sur des clés homonymes qui ne se rencontrent jamais. Sous 50 %
+ * de lignes gauche appariées, c'est une alerte : en `left`, le compte de
+ * lignes en sortie ne bouge pas et rien d'autre ne le dirait.
+ */
+export const JOIN_MATCH_ALERT_RATIO = 0.5;
+
+function formatJoinStats(meta: NonNullable<StageState['meta']>): string[] {
+  const join = meta.join;
+  if (!join) return [];
+  const ratio = join.leftTotal > 0 ? join.leftMatched / join.leftTotal : 1;
+  const pct = Math.round(ratio * 100);
+  const alert = join.leftTotal > 0 && ratio < JOIN_MATCH_ALERT_RATIO;
+  const lines = [
+    `     ${alert ? '⚠' : 'appariement :'} ${formatInt(join.leftMatched)} / ${formatInt(join.leftTotal)} lignes gauche appariées (${pct} %)` +
+      `, ${formatInt(join.rightMatched)} / ${formatInt(join.rightTotal)} lignes droite`,
+  ];
+  if (alert) {
+    lines.push(
+      '       Clés comparées en chaîne, sans trim ni complétion (201 = "201", "0201" ≠ "201") : vérifiez le référentiel des deux côtés.'
+    );
+  }
+  return lines;
+}
+
+/**
+ * Ce qu'un pivot long → wide a produit (#255) : le schéma aval dépend des
+ * données, c'est ici qu'on lit combien de colonnes sont sorties et combien de
+ * cellules sont restées vides (null, jamais un 0 silencieux).
+ */
+function formatPivotStats(meta: NonNullable<StageState['meta']>): string[] {
+  const pivot = meta.pivot;
+  if (!pivot) return [];
+  const shown = pivot.columnNames.slice(0, 8).join(', ');
+  const more = pivot.columnNames.length > 8 ? `, … (+${pivot.columnNames.length - 8})` : '';
+  const lines = [
+    `     pivot : ${formatInt(pivot.columns)} colonne${pivot.columns > 1 ? 's' : ''} générée${pivot.columns > 1 ? 's' : ''}` +
+      (pivot.columns > 0 ? ` (${shown}${more})` : '') +
+      `, ${formatInt(pivot.emptyCells)} cellule${pivot.emptyCells > 1 ? 's' : ''} vide${pivot.emptyCells > 1 ? 's' : ''}`,
+  ];
+  if (pivot.skippedRows > 0) {
+    lines.push(
+      `       ${formatInt(pivot.skippedRows)} ligne${pivot.skippedRows > 1 ? 's' : ''} ignorée${pivot.skippedRows > 1 ? 's' : ''} (champ de colonne vide).`
+    );
+  }
+  return lines;
+}
+
+function formatMeta(node: StageNode, state: StageState): string[] {
   const meta = state.meta;
   if (!meta) return [];
   const bits = [`page ${meta.page}`];
@@ -76,12 +180,23 @@ function formatMeta(state: StageState): string[] {
   bits.push(`total ${meta.total ?? 'inconnu'}`);
   bits.push(`serveur=${meta.serverSide ? 'oui' : 'non'}`);
   const lines = [`     meta : ${bits.join(', ')}`];
+  if (meta.truncated) {
+    // Le total peut être inconnu (group_by ODS, #641) : la troncature se
+    // déduit alors d'une page pleine au plafond, sans dénominateur.
+    const delivered = formatInt(state.rows ?? 0);
+    const outOf = meta.total !== undefined ? ` / ${formatInt(meta.total)}` : ' (total inconnu)';
+    lines.push(
+      `     ⚠ tronqué à ${delivered}${outOf} lignes (${truncationCause(node)}) — l'aval ne voit qu'un sous-ensemble du jeu.`
+    );
+  }
   if (meta.needsClientProcessing) {
     lines.push(
       "     ⚠ la source n'a pas pu traiter group-by/aggregate côté serveur.",
       `       Repli client : tout l'aval travaille sur ${state.rows ?? '?'} lignes rapatriées, pas sur le jeu complet.`
     );
   }
+  lines.push(...formatJoinStats(meta));
+  lines.push(...formatPivotStats(meta));
   return lines;
 }
 
@@ -130,6 +245,9 @@ function formatInputs(node: StageNode, states: Record<string, StageState>): stri
     if (upstream?.status === 'error') {
       return `     reçoit — ← ${up} (en échec : plus rien ne descend)`;
     }
+    if (upstream?.status === 'waiting') {
+      return `     reçoit — ← ${up} (en attente d'un filtre)`;
+    }
     if (!upstream || upstream.rows === undefined) {
       return `     reçoit — ← ${up} (aucune donnée observée en amont)`;
     }
@@ -173,8 +291,15 @@ function formatFieldDelta(
  * sur le bus. Les déclarer « sans données » alors que leur amont vient de
  * livrer serait un faux négatif — c'est l'amont qui fait foi.
  */
-function statusLine(node: StageNode, state: StageState, upstreamHasData: boolean): string {
+function statusLine(
+  node: StageNode,
+  state: StageState,
+  upstreamHasData: boolean,
+  upstreamWaiting: boolean
+): string {
   switch (state.status) {
+    case 'waiting':
+      return "     ⏳ en attente d'un filtre (require-where) — aucune requête lancée";
     case 'loaded':
       return `     → ${plural(state.rows ?? 0, 'ligne')}, ${plural(state.fields?.length ?? 0, 'champ')}`;
     case 'error':
@@ -183,12 +308,65 @@ function statusLine(node: StageNode, state: StageState, upstreamHasData: boolean
       return '     … chargement en cours';
     default:
       if (node.role === 'display') {
+        // Un afficheur n'émet rien : son propre état reste `idle`. C'est
+        // l'amont qui dit s'il attend un filtre — le déclarer « rien reçu »
+        // signalerait une panne là où la page fait exactement ce qu'on lui
+        // a demandé (#690).
+        if (upstreamWaiting) return "     ⏳ en attente d'un filtre (require-where)";
         return upstreamHasData
           ? '     ✓ alimenté (un afficheur consomme sans réémettre)'
           : '     ⚠ aucune donnée reçue — rien à afficher';
       }
       return "     (inerte — n'a rien émis)";
   }
+}
+
+/**
+ * Lignes reçues mais écartées du rendu par un afficheur cartographique (#648).
+ *
+ * C'est la panne que « ✓ alimenté » masque le mieux : l'amont livre bien
+ * N lignes, le graphique en dessine N − k, et le total ne colle plus au KPI
+ * voisin. La cause dépend du composant : code de département/région/pays
+ * pour les cartes DSFR Chart, coordonnées ou géométrie pour une couche
+ * Leaflet.
+ */
+function formatSkippedRows(node: StageNode): string[] {
+  const n = node.skippedRows;
+  if (!n) return [];
+  const cause =
+    node.tag === 'dsfr-data-map-layer'
+      ? 'coordonnées ou géométrie absentes ou invalides'
+      : 'code géographique absent ou invalide';
+  return [`     ⚠ ${plural(n, 'ligne')} ignorée${n > 1 ? 's' : ''} (${cause})`];
+}
+
+/** Valeur d'exemple compacte : JSON tronqué, pour tenir sur la ligne. */
+function formatSampleValue(value: unknown, max = 40): string {
+  let text: string;
+  if (value === undefined) text = 'undefined';
+  else {
+    try {
+      text = JSON.stringify(value) ?? String(value);
+    } catch {
+      text = String(value);
+    }
+  }
+  return text.length > max ? text.slice(0, max - 1) + '…' : text;
+}
+
+/**
+ * Colonnes dérivées par `compute` sur un normalize (#671). Un recodage est
+ * la « boîte noire » type du pipeline : nommer les colonnes produites et
+ * montrer une valeur dit tout de suite si l'expression a fait ce qu'on
+ * croit. Les valeurs sont masquées avec `redactValues`.
+ */
+function formatComputedColumns(node: StageNode, opts: FormatOptions): string[] {
+  const columns = node.computedColumns;
+  if (!columns || columns.length === 0) return [];
+  const items = columns.map((c) =>
+    opts.redactValues ? c.name : `${c.name} = ${formatSampleValue(c.sample)}`
+  );
+  return [`     calculées (compute) : ${items.join(', ')}`];
 }
 
 /**
@@ -223,6 +401,8 @@ export function formatTrace(trace: Trace, options: FormatOptions = {}): string {
   }
   out.push('');
 
+  const champsIntrouvables = fieldIssuesByNode(trace.graph, trace.states);
+
   for (const node of ordered) {
     const state = trace.states[node.id] ?? { status: 'idle' as const, emissions: 0 };
     const attrs = formatAttrs(node);
@@ -231,6 +411,7 @@ export function formatTrace(trace: Trace, options: FormatOptions = {}): string {
     if (node.configError) {
       out.push(`     ✗ CONFIGURATION — ${node.configError}`);
     }
+    out.push(...formatUnknownAttrs(node));
 
     out.push(...formatInputs(node, trace.states));
     // Un amont en échec ne compte pas comme alimentant : sinon un afficheur
@@ -239,7 +420,11 @@ export function formatTrace(trace: Trace, options: FormatOptions = {}): string {
       const upstream = trace.states[up];
       return !!upstream && upstream.status !== 'error' && (upstream.rows ?? 0) > 0;
     });
-    out.push(statusLine(node, state, upstreamHasData));
+    const upstreamWaiting = node.upstream.some((up) => trace.states[up]?.status === 'waiting');
+    out.push(statusLine(node, state, upstreamHasData, upstreamWaiting));
+    out.push(...formatSkippedRows(node));
+    out.push(...formatFieldIssues(champsIntrouvables[node.id]));
+    out.push(...formatComputedColumns(node, opts));
 
     if (state.status === 'loaded') {
       out.push(`     champs : ${formatFieldList(state.fields ?? [])}`);
@@ -254,7 +439,7 @@ export function formatTrace(trace: Trace, options: FormatOptions = {}): string {
           '     ⚠ la charge reçue est un objet non déroulable — un attribut `transform` est peut-être requis.'
         );
       }
-      out.push(...formatMeta(state));
+      out.push(...formatMeta(node, state));
     }
 
     if (state.status === 'error' && state.attemptedUrl) {
@@ -319,16 +504,27 @@ export function summarizeTrace(trace: Trace): {
     .map((n) => trace.states[n.id])
     .filter((s): s is StageState => !!s && s.status !== 'error' && s.rows !== undefined);
 
+  const champsIntrouvables = fieldIssuesByNode(trace.graph, trace.states);
+
   let alerts = trace.graph.dangling.length;
   for (const node of ordered) {
     const state = trace.states[node.id];
     if (node.configError) alerts += 1;
+    if (node.skippedRows) alerts += 1;
+    // Un champ nommé pour rien et un attribut que le bundle ignore sont deux
+    // pannes muettes : elles doivent peser sur le compte du rail replié,
+    // sinon « aucune alerte » s'affiche au-dessus d'un graphique vide (#727).
+    alerts += champsIntrouvables[node.id]?.length ?? 0;
+    alerts += node.unknownAttrs?.length ?? 0;
     if (!state) continue;
     if (state.status === 'error') alerts += 1;
     if (state.status === 'loaded' && state.rows === 0) alerts += 1;
+    // Un afficheur sous une étape en attente d'un filtre n'est pas une
+    // alerte : la page fait ce qu'on lui a demandé (#690).
     if (
       node.role === 'display' &&
       state.status === 'idle' &&
+      !node.upstream.some((up) => trace.states[up]?.status === 'waiting') &&
       !node.upstream.some((up) => {
         const upstream = trace.states[up];
         return !!upstream && upstream.status !== 'error' && (upstream.rows ?? 0) > 0;
@@ -337,6 +533,11 @@ export function summarizeTrace(trace: Trace): {
       alerts += 1;
     }
     if (state.meta?.needsClientProcessing) alerts += 1;
+    if (state.meta?.truncated) alerts += 1;
+    const join = state.meta?.join;
+    if (join && join.leftTotal > 0 && join.leftMatched / join.leftTotal < JOIN_MATCH_ALERT_RATIO) {
+      alerts += 1;
+    }
   }
 
   return {

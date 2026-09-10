@@ -30,6 +30,34 @@ export function renderSourceLoading(
   `;
 }
 
+/** Libellé par défaut de l'état d'attente d'un filtre (#690) */
+export const IDLE_MESSAGE_DEFAULT = 'Choisissez un filtre pour afficher les données';
+
+/**
+ * Bloc « en attente d'un filtre » (#690) — état `idle` d'un afficheur dont
+ * l'amont porte `require-where` et n'a encore reçu aucun filtre.
+ *
+ * Trois différences volontaires avec les autres états :
+ * - il n'est NI un chargement (rien n'est parti) NI un « aucune donnée »
+ *   (aucune requête n'a été faite) : le confondre avec l'un des deux
+ *   apprendrait à l'utilisateur que la page est cassée ;
+ * - pas de région live : c'est l'état INITIAL de la page, l'annoncer au
+ *   lecteur d'écran au chargement serait du bruit — le message est lu dans
+ *   le flux comme n'importe quel texte ;
+ * - pas d'`aria-busy` : rien n'est en cours.
+ */
+export function renderSourceIdle(
+  componentClass: string,
+  message: string = IDLE_MESSAGE_DEFAULT
+): TemplateResult {
+  return html`
+    <div class="${componentClass}__idle dsfr-data-status--idle">
+      <span class="fr-icon-filter-line" aria-hidden="true"></span>
+      ${message || IDLE_MESSAGE_DEFAULT}
+    </div>
+  `;
+}
+
 /** Bloc d'erreur commun — message TOUJOURS affiché quand disponible (#284) */
 export function renderSourceError(componentClass: string, error: Error | null): TemplateResult {
   const message = error?.message
@@ -43,6 +71,24 @@ export function renderSourceError(componentClass: string, error: Error | null): 
     >
       <span class="fr-icon-error-line" aria-hidden="true"></span>
       ${message}
+    </div>
+  `;
+}
+
+/**
+ * Bloc d'erreur de CONFIGURATION (#649) : attribut invalide (fonction
+ * d'agrégat inconnue…) — visible dans la page, pas seulement en console,
+ * pour qu'une faute de frappe ne se traduise jamais par un rendu vide.
+ */
+export function renderConfigError(componentClass: string, message: string): TemplateResult {
+  return html`
+    <div
+      class="${componentClass}__error dsfr-data-status--error dsfr-data-status--config-error"
+      role="alert"
+      aria-live="assertive"
+    >
+      <span class="fr-icon-error-line" aria-hidden="true"></span>
+      Erreur de configuration : ${message}
     </div>
   `;
 }

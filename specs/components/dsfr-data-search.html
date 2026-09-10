@@ -91,26 +91,31 @@
         </ul>
 
         <h2>Attributs</h2>
-        <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>id</code></td><td>String</td><td>-</td><td><strong>Requis.</strong> Identifiant de la sortie (données filtrees).</td></tr>
-            <tr><td><code>source</code></td><td>String</td><td><code>""</code></td><td><strong>Requis.</strong> ID de la source a ecouter.</td></tr>
-            <tr><td><code>fields</code></td><td>String</td><td><code>""</code></td><td>Champs a rechercher (virgule-separes). Vide = tous les champs.</td></tr>
-            <tr><td><code>placeholder</code></td><td>String</td><td><code>"Rechercher..."</code></td><td>Placeholder du champ de saisie.</td></tr>
-            <tr><td><code>label</code></td><td>String</td><td><code>"Rechercher"</code></td><td>Label du champ (accessible).</td></tr>
-            <tr><td><code>debounce</code></td><td>Number</td><td><code>300</code></td><td>Delai en ms avant declenchement du filtre.</td></tr>
-            <tr><td><code>min-length</code></td><td>Number</td><td><code>0</code></td><td>Nombre minimum de caractères avant declenchement.</td></tr>
-            <tr><td><code>highlight</code></td><td>Boolean</td><td><code>false</code></td><td>Ajoute <code>_highlight</code> avec <code>&lt;mark&gt;</code> pour dsfr-data-display.</td></tr>
-            <tr><td><code>operator</code></td><td>String</td><td><code>"contains"</code></td><td>Mode : <code>contains</code>, <code>starts</code>, <code>words</code>.</td></tr>
-            <tr><td><code>sr-label</code></td><td>Boolean</td><td><code>false</code></td><td>Label en sr-only (masque visuellement, accessible).</td></tr>
-            <tr><td><code>count</code></td><td>Boolean</td><td><code>false</code></td><td>Affiche un compteur de resultats.</td></tr>
-            <tr><td><code>url-search-param</code></td><td>String</td><td><code>""</code></td><td>Nom du paramètre URL a lire comme terme de recherche initial (vide = desactive).</td></tr>
-            <tr><td><code>url-sync</code></td><td>Boolean</td><td><code>false</code></td><td>Synchronise l'URL quand l'utilisateur tape (replaceState).</td></tr>
-            <tr><td><code>server-search</code></td><td>Boolean</td><td><code>false</code></td><td>Deleguer la recherche au serveur via l'adapter de la source amont. Envoie une commande WHERE a <code>dsfr-data-source</code> au lieu de filtrer localement.</td></tr>
-            <tr><td><code>search-template</code></td><td>String</td><td><code>""</code></td><td>Template de la clause WHERE server-side. <code>{q}</code> est remplace par le terme saisi. Ex : <code>"Nom:contains:{q}"</code>. Si vide et <code>server-search</code> actif, lu depuis l'adapter.</td></tr>
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>id</code></td><td>String</td><td>-</td><td><strong>Requis.</strong> Identifiant de la sortie (données filtrees).</td></tr>
+              <!-- ATTRS:dsfr-data-search fields="source,fields,placeholder,label,debounce,min-length,highlight,operator,sr-label,count,url-search-param,url-sync,server-search,search-template,context" -->
+                <tr><td><code>source</code></td><td>String</td><td><code>""</code></td><td>ID de la source de données a ecouter</td></tr>
+                <tr><td><code>fields</code></td><td>String</td><td><code>""</code></td><td>Champs sur lesquels rechercher (virgule-séparés). Vide = tous les champs</td></tr>
+                <tr><td><code>placeholder</code></td><td>String</td><td><code>Rechercher\u2026</code></td><td>Placeholder du champ de saisie</td></tr>
+                <tr><td><code>label</code></td><td>String</td><td><code>Rechercher</code></td><td>Label du champ (accessible)</td></tr>
+                <tr><td><code>debounce</code></td><td>Number</td><td><code>300</code></td><td>Délai en ms avant déclenchement du filtre après la dernière frappe</td></tr>
+                <tr><td><code>min-length</code></td><td>Number</td><td><code>0</code></td><td>Nombre minimum de caractères avant déclenchement</td></tr>
+                <tr><td><code>highlight</code></td><td>Boolean</td><td><code>false</code></td><td>Ajoute un champ _highlight a chaque record avec les termes trouves marques en &lt;mark&gt;</td></tr>
+                <tr><td><code>operator</code></td><td>SearchOperator</td><td><code>contains</code></td><td>Mode de recherche : contains, starts, words</td></tr>
+                <tr><td><code>sr-label</code></td><td>Boolean</td><td><code>false</code></td><td>Si true, le label est en sr-only (visuellement masque, accessible)</td></tr>
+                <tr><td><code>count</code></td><td>Boolean</td><td><code>false</code></td><td>Affiche un compteur de résultats sous le champ (compte serveur <code>meta.total</code> en <code>server-search</code>). Ce compteur reste visible en toutes circonstances ; seule sa nature de région live dépend de la chaîne aval (#654).</td></tr>
+                <tr><td><code>url-search-param</code></td><td>String</td><td><code>""</code></td><td>Nom du paramètre d'URL à lire comme terme de recherche initial. Vide = désactivé</td></tr>
+                <tr><td><code>url-sync</code></td><td>Boolean</td><td><code>false</code></td><td>Synchronise l'URL quand l'utilisateur tape (replaceState)</td></tr>
+                <tr><td><code>server-search</code></td><td>Boolean</td><td><code>false</code></td><td>Active le mode recherche serveur. Au lieu de filtrer localement, envoie une commande { where } au source upstream (dsfr-data-query server-side) qui re-fetche les données avec le filtre search.</td></tr>
+                <tr><td><code>search-template</code></td><td>String</td><td><code>""</code></td><td>Template pour la recherche serveur. {q} est remplace par le terme de recherche. Si vide et server-search active, lu depuis l'adapter de la source amont. Ex ODS: 'search("{q}")', custom: '{q} IN nom'</td></tr>
+                <tr><td><code>context</code></td><td>String</td><td><code>""</code></td><td>Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la recherche devient un filtre <code>contains</code> du contexte sur le champ UNIQUE de <code>fields</code> (la clause colon ne sait pas dire « ou » entre plusieurs champs). Le contexte diffuse à ses cibles et porte l'URL (<code>url-sync</code> et <code>url-search-param</code> sont ignorés — le paramètre est nommé d'après le champ, ou via <code>url-param-map</code> du contexte). Le contexte peut être déclaré après la recherche dans la page. Vide = comportement autonome.</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
 
         <div class="fr-callout fr-mt-3w">
           <p class="fr-callout__text">
@@ -301,18 +306,20 @@
           <code>id</code> (<code>dsfr-data-loaded</code> / <code>-loading</code> / <code>-error</code>),
           le composant émet un événement custom à chaque recherche effective :
         </p>
-        <table class="attr-table">
-          <thead><tr><th>Événement</th><th><code>detail</code></th><th>Description</th></tr></thead>
-          <tbody>
-            <tr>
-              <td><code>dsfr-data-search-change</code></td>
-              <td><code>{ sourceId, term, count }</code></td>
-              <td>Émis sur <code>document</code> (bubbles, composed) après application d'un terme :
-                <code>sourceId</code> = id du composant, <code>term</code> = terme recherché,
-                <code>count</code> = nombre de résultats.</td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Événement</th><th><code>detail</code></th><th>Description</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><code>dsfr-data-search-change</code></td>
+                <td><code>{ sourceId, term, count }</code></td>
+                <td>Émis sur <code>document</code> (bubbles, composed) après application d'un terme :
+                  <code>sourceId</code> = id du composant, <code>term</code> = terme recherché,
+                  <code>count</code> = nombre de résultats.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
         <pre><code>document.addEventListener('dsfr-data-search-change', (e) =&gt; {
   const { sourceId, term, count } = e.detail;
   console.log(`${count} résultats pour « ${term} » (${sourceId})`);

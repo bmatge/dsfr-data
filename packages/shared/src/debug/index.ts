@@ -14,6 +14,7 @@ export type {
   BusLoadedDetail,
   BusErrorDetail,
   BusLoadingDetail,
+  BusIdleDetail,
   BusCommandDetail,
 } from './events.js';
 
@@ -24,8 +25,17 @@ export {
   readCacheSnapshot,
 } from './early-buffer.js';
 export type { BufferedBusEvent } from './early-buffer.js';
-export { STAGE_ROLES, snapshotGraph, downstreamOf, topoOrder } from './graph.js';
-export type { StageRole, StageNode, DataflowGraph } from './graph.js';
+export { STAGE_ROLES, SHAPE_ATTRS, snapshotGraph, downstreamOf, topoOrder } from './graph.js';
+export type { StageRole, StageNode, DataflowGraph, ComputedColumn } from './graph.js';
+
+export {
+  FIELD_ATTRS,
+  fieldsInAttr,
+  referencedFields,
+  checkNodeFields,
+  fieldIssuesByNode,
+} from './field-check.js';
+export type { FieldAttrKind, FieldIssue, FieldIssueReason, FieldRef } from './field-check.js';
 
 export { extractRows, summarizeStage, diffFields, fieldMatrix } from './summarize.js';
 export type { StageSummary, FieldDiff } from './summarize.js';
@@ -51,5 +61,11 @@ export { attachRecorderToFrame } from './frame.js';
 export type { FrameAttachment, FrameAttachOptions } from './frame.js';
 export { lintMarkup, formatLintFindings, lireBalises } from './lint-markup.js';
 export type { ComponentContract, TagContract, LintFinding, LintSeverity } from './lint-markup.js';
-export { formatTrace, summarizeTrace, plural } from './format.js';
+export {
+  formatTrace,
+  summarizeTrace,
+  plural,
+  formatInt,
+  JOIN_MATCH_ALERT_RATIO,
+} from './format.js';
 export type { FormatOptions } from './format.js';

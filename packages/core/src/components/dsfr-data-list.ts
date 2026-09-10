@@ -1,11 +1,19 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
+import { SelectionFilterMixin } from '../utils/selection-filter.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
-import { renderSourceLoading, renderSourceError } from '../utils/status-templates.js';
-import { escapeHtml, buildCsv } from '@dsfr-data/shared/lib';
+import {
+  renderSourceLoading,
+  renderSourceError,
+  renderSourceIdle,
+  IDLE_MESSAGE_DEFAULT,
+} from '../utils/status-templates.js';
+import { escapeHtml, buildCsv, formatNumberFr } from '@dsfr-data/shared/lib';
 import { getDataMeta } from '../utils/data-bridge.js';
 import { PaginationController } from '../utils/pagination-controller.js';
+import { parseCellClassRules, cellClassTokens } from '../utils/cell-class.js';
+import type { CellClassRule } from '../utils/cell-class.js';
 
 interface ColumnDef {
   key: string;
@@ -17,16 +25,28 @@ interface SortState {
   direction: 'asc' | 'desc';
 }
 
+/** Entrée de la liste de pages : numéro ou ellipse (motif DSFR, #669) */
+export type PageItem = number | 'ellipsis';
+
 /**
  * <dsfr-data-list> - Liste filtrable et cherchable
  *
  * Affiche un tableau de données avec recherche, filtres et pagination.
  *
+ * Les cellules numériques sont rendues en fr-FR (`2.27` → « 2,27 », au plus
+ * 2 décimales ou `decimals`, #666) ; les chaînes (codes INSEE, SIREN…) restent
+ * intactes et les exports CSV/HTML restent bruts. Avant #666, le contournement
+ * était `normalize round="champ:2"`, qui arrondit mais ne localise pas.
+ *
+ * Le `caption` du tableau (RGAA 5.4, #669) vient de l'attribut `caption`, à
+ * défaut de `aria-label`, sinon « Liste des données ». La pagination suit le
+ * motif DSFR : première/dernière page, ellipses, « Page N sur M ».
+ *
  * Les alias francais (`colonnes`, `recherche`, `filtres`, `tri`, `server-tri`)
- * restent acceptes pour ne pas casser le code deja publie, mais sont
+ * restent acceptes pour ne pas casser le code déjà publie, mais sont
  * `@deprecated` depuis #300 : cet exemple montre les attributs COURANTS, pour
- * qui lit le composant. (Le custom-elements manifest ne capte pas les
- * `@example` de classe : la reference servie a l'assistant IA vient de
+ * qui lit le composant. (Le custom-éléments manifest ne capte pas les
+ * `@example` de classe : la référence servie a l'assistant IA vient de
  * `apps/builder-ia/src/skills.ts`, corrige separement — #615.)
  *
  * @example
@@ -41,17 +61,33 @@ interface SortState {
  */
 let listInstanceSeq = 0;
 
+/**
+ * @fires dsfr-data-select - `{ record, elementId, selected }` sur le tableau (bubbles, composed) — au clic sur une ligne en `refine-on-click` (#734). `selected` vaut `true` à la sélection, `false` quand le clic la retire (second clic sur la même ligne, ou croix du tag de contexte).
+ * @fires dsfr-data-source-command - `{ sourceId, where, whereKey, origin }` sur `document` — en `refine-on-click` SANS `context` (chemin dégradé) : clause `eq` poussée directement à `source` sous le whereKey `list-select-ID`. Avec `context`, c'est le contexte qui diffuse.
+ */
 @customElement('dsfr-data-list')
-export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
+export class DsfrDataList extends SelectionFilterMixin(SourceSubscriberMixin(LitElement)) {
   /** Prefixe d'ids DOM unique par instance (#304 — ids dupliques entre listes) */
   private readonly _uid = `dsfr-list-${++listInstanceSeq}`;
   /** Id de la source (ou du transformateur) dont ce tableau consomme les données. */
   @property({ type: String })
   source = '';
 
-  /** Définition des colonnes: "clé:Label, cle2:Label2" */
+  /**
+   * Définition des colonnes : `"clé:Label, cle2:Label2"`. Omis : toutes les clés
+   * présentes dans les données deviennent colonnes, dans leur ordre d'apparition,
+   * libellé = clé — le tableau suit un schéma dynamique (aval d'un `dsfr-data-pivot`, #255).
+   */
   @property({ type: String })
   columns = '';
+
+  /**
+   * Complète `columns` avec les clés des données qui n'y figurent pas (ordre
+   * d'apparition, libellé = clé) : les premières colonnes sont libellées et
+   * figées, les suivantes suivent les données (#640).
+   */
+  @property({ type: Boolean, attribute: 'columns-auto' })
+  columnsAuto = false;
 
   /** @deprecated alias français de `columns` (#300) */
   @property({ type: String })
@@ -85,11 +121,25 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
   @property({ type: Number })
   pagination = 0;
 
+  /**
+   * Titre du tableau, rendu dans `caption` (masqué visuellement, lu par les
+   * lecteurs d'écran — RGAA 5.4, #669). À défaut, dérivé de `aria-label`.
+   */
+  @property({ type: String })
+  caption = '';
+
+  /**
+   * Nombre de décimales des cellules numériques (#666). Absent : au plus
+   * 2 décimales, format fr-FR. Les exports CSV/HTML ne sont pas concernés.
+   */
+  @property({ type: Number })
+  decimals: number | null = null;
+
   /** Formats d'export disponibles: "csv", "html" (separables par virgule) */
   @property({ type: String })
   export = '';
 
-  /** Synchronise le numero de page dans l'URL (replaceState) */
+  /** Synchronise le numéro de page dans l'URL (replaceState) */
   @property({ type: Boolean, attribute: 'url-sync' })
   urlSync = false;
 
@@ -108,6 +158,64 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
   /** @deprecated alias français de `server-sort` (#300) */
   @property({ type: Boolean, attribute: 'server-tri' })
   serverTri = false;
+
+  /**
+   * Message rendu quand l'amont attend un filtre (`require-where`, #690).
+   * Distinct de « aucune donnée » : aucune requête n'a été faite. Vide,
+   * le libellé par défaut est utilisé.
+   */
+  @property({ type: String, attribute: 'idle-message' })
+  idleMessage = IDLE_MESSAGE_DEFAULT;
+
+  /**
+   * Classe CSS d'une cellule pilotée par une colonne calculée (#740) :
+   * `"colonne:colonne_classe"`, plusieurs paires séparées par des virgules ;
+   * `"colonne"` seul classe la cellule par sa propre valeur. La valeur de la
+   * colonne de classe DEVIENT la classe de la cellule (plusieurs classes
+   * séparées par des espaces) : produisez-la avec le `compute` de
+   * dsfr-data-normalize, par exemple
+   * `compute="alerte = when taux >= 50 then 'seuil-ok' else 'seuil-bas'"`,
+   * puis stylez `.seuil-bas` dans la page. Seuls les identifiants CSS sont
+   * retenus, le reste est ignoré. Quand la colonne de classe n'est pas
+   * affichée, sa valeur est ajoutée à la cellule en texte pour les lecteurs
+   * d'écran : l'information n'est jamais portée par la seule couleur.
+   */
+  @property({ type: String, attribute: 'cell-class' })
+  cellClass = '';
+
+  // --- Sélection au clic (#734, ADR-104 — mixin partagé avec la carte) ---
+
+  /**
+   * Champ dont la valeur de la ligne cliquée devient un filtre `eq` (#734).
+   * Premier clic = filtre, second clic sur la même ligne = retrait, clic sur
+   * une autre ligne = remplacement. Une colonne de sélection est ajoutée en
+   * tête du tableau : un bouton par ligne, atteignable au clavier, dont
+   * l'état est annoncé (`aria-pressed`) — la couleur de la ligne
+   * sélectionnée n'est jamais la seule marque. Avec `context="id"`
+   * (recommandé), le tableau s'enregistre comme filtre du dsfr-data-context :
+   * diffusion à toutes ses sources cibles au dialecte de chacune, tag dans
+   * dsfr-data-context-tags, URL portée par le contexte. Sans `context`, la
+   * clause part directement à `source` (whereKey `list-select-ID`) — sans tag
+   * ni URL, et le tableau se filtre lui-même (seule la ligne cliquée reste,
+   * jusqu'au second clic).
+   */
+  @property({ type: String, attribute: 'refine-on-click' })
+  refineOnClick = '';
+
+  /**
+   * Identifiant du dsfr-data-context auquel s'enregistrer en
+   * `refine-on-click` (#734, ADR-104). Le contexte peut être déclaré après le
+   * tableau dans la page. Vide = commande directe à `source` (chemin dégradé).
+   */
+  @property({ type: String })
+  context = '';
+
+  /**
+   * Libellé du tag de contexte en `refine-on-click` (#734). Vide = le libellé
+   * de la colonne filtrée, à défaut le nom du champ.
+   */
+  @property({ type: String })
+  label = '';
 
   @state()
   private _data: Record<string, unknown>[] = [];
@@ -128,7 +236,7 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
   /** True quand la source fournit des metadonnees de pagination serveur */
   @state()
 
-  /** Total serveur ; undefined = inconnu (ex. Grist Records hors derniere page) */
+  /** Total serveur ; undefined = inconnu (ex. Grist Records hors dernière page) */
 
   // Accesseurs de compatibilite (etat porte par le controleur #304)
   private get _currentPage(): number {
@@ -217,15 +325,98 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
     this._pager.onData(this.source ? getDataMeta(this.source) : undefined);
   }
 
+  // --- Sélection au clic (#734, mixin partagé avec la carte) ---
+
+  /** whereKey du chemin dégradé : `list-select-ID` */
+  protected selectionWhereKeyPrefix(): string {
+    return 'list-select';
+  }
+
+  /** Repli d'identifiant : le préfixe d'ids DOM de l'instance (#304) */
+  protected selectionUid(): string {
+    return this._uid;
+  }
+
+  /** Libellé du tag : `label`, à défaut le libellé de la colonne, à défaut le champ */
+  selectionLabel(): string {
+    if (this.label) return this.label;
+    const field = this.selectionField;
+    const column = this.parseColumns().find((col) => col.key === field);
+    return column?.label || field;
+  }
+
+  /** La sélection a changé : redessiner l'état des lignes et l'annoncer */
+  protected onSelectionChange(): void {
+    this.requestUpdate();
+    const value = this._selectedValue();
+    this._announce(value ? `Filtre appliqué : ${value}` : 'Filtre retiré');
+  }
+
+  /**
+   * Clic n'importe où sur la ligne : même bascule que le bouton de sélection,
+   * sans le doubler (le clic du bouton remonte jusqu'ici) ni voler le clic
+   * d'un lien ou d'un contrôle rendu dans une cellule.
+   */
+  private _handleRowClick(event: Event, item: Record<string, unknown>) {
+    const target = event.target as Element | null;
+    if (target?.closest('a, button, input, select, textarea, label')) return;
+    this._onFeatureClick(item);
+  }
+
   // --- Parsing ---
 
   parseColumns(): ColumnDef[] {
     const columnsExpr = this.columns || this.colonnes;
-    if (!columnsExpr) return [];
-    return columnsExpr.split(',').map((col) => {
-      const [key, label] = col.trim().split(':');
-      return { key: key.trim(), label: label?.trim() || key.trim() };
-    });
+    const declared: ColumnDef[] = !columnsExpr
+      ? []
+      : columnsExpr.split(',').map((col) => {
+          const [key, label] = col.trim().split(':');
+          return { key: key.trim(), label: label?.trim() || key.trim() };
+        });
+    // Sans `columns`, ou avec `columns-auto` : les clés des données complètent
+    // la liste (ordre d'apparition, libellé = clé) — schéma dynamique (#255).
+    if (columnsExpr && !this.columnsAuto) return declared;
+    const known = new Set(declared.map((c) => c.key));
+    for (const key of this._dataKeys()) {
+      if (!known.has(key)) {
+        known.add(key);
+        declared.push({ key, label: key });
+      }
+    }
+    return declared;
+  }
+
+  /**
+   * Union ordonnée des clés des lignes reçues (les lignes peuvent être
+   * hétérogènes). Un pivot amont publie l'ordre voulu dans la meta (#255) :
+   * JavaScript énumère les clés entières (`2022`, `2023`) avant les autres,
+   * `Object.keys` seul mettrait les années devant la commune.
+   */
+  private _dataKeys(): string[] {
+    const present: string[] = [];
+    const presentSet = new Set<string>();
+    for (const row of this._data) {
+      if (!row || typeof row !== 'object') continue;
+      for (const key of Object.keys(row)) {
+        if (!presentSet.has(key)) {
+          presentSet.add(key);
+          present.push(key);
+        }
+      }
+    }
+    // L'indice du pivot ne fait qu'ORDONNER des clés réellement présentes : un
+    // normalize intermédiaire (rename) peut l'avoir rendu partiellement caduc.
+    const pivot = this.source ? getDataMeta(this.source)?.pivot : undefined;
+    if (!pivot) return present;
+    const ordered: string[] = [];
+    const seen = new Set<string>();
+    for (const key of [...pivot.rowFields, ...pivot.columnNames, ...present]) {
+      if (presentSet.has(key) && !seen.has(key)) {
+        seen.add(key);
+        ordered.push(key);
+      }
+    }
+    return ordered;
   }
 
   private _getFilterableColumns(): string[] {
@@ -360,9 +551,47 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
     }
   }
 
+  /** False en pagination serveur tant que la source n'a pas publié de total (#270) */
+  private _isTotalKnown(): boolean {
+    return !(this._serverPagination && this._serverTotal === undefined);
+  }
+
+  /** « Page 3 sur 115 », ou « Page 3 » quand le total est inconnu */
+  private _pagePosition(page: number, totalPages: number): string {
+    return this._isTotalKnown() ? `Page ${page} sur ${totalPages}` : `Page ${page}`;
+  }
+
   private _handlePageChange(page: number) {
     this._pager.changePage(page);
-    this._announce(`Page ${page} sur ${this._getTotalPages()}`);
+    this._announce(this._pagePosition(page, this._getTotalPages()));
+  }
+
+  /**
+   * Pages à afficher (#669) : première et dernière, fenêtre autour de la
+   * courante, ellipse pour chaque trou — « 1 2 3 … 115 », « 1 … 49 50 51 … 115 ».
+   * Un trou d'une seule page est comblé par son numéro plutôt qu'une ellipse.
+   * Total inconnu (`totalKnown` false) : pas de dernière page ni d'ellipse finale.
+   */
+  getPageItems(totalPages: number, current: number, totalKnown = true): PageItem[] {
+    const wanted = new Set<number>([1]);
+    if (totalKnown) wanted.add(totalPages);
+    for (let p = current - 1; p <= current + 1; p++) wanted.add(p);
+    if (current <= 3) [2, 3].forEach((p) => wanted.add(p));
+    if (totalKnown && current >= totalPages - 2) {
+      [totalPages - 2, totalPages - 1].forEach((p) => wanted.add(p));
+    }
+    const pages = [...wanted].filter((p) => p >= 1 && p <= totalPages).sort((a, b) => a - b);
+
+    const items: PageItem[] = [];
+    let prev = 0;
+    for (const p of pages) {
+      const gap = p - prev;
+      if (gap === 2) items.push(p - 1);
+      else if (gap > 2) items.push('ellipsis');
+      items.push(p);
+      prev = p;
+    }
+    return items;
   }
 
   // --- Export ---
@@ -439,10 +668,28 @@ ${bodyRows}
 
   // --- Cell formatting ---
 
+  /**
+   * Texte d'une cellule : « — » pour l'absence, Oui/Non pour les booléens,
+   * nombres en fr-FR (#666), tout le reste tel quel (jamais de parsing des
+   * chaînes : un code INSEE « 75056 » reste « 75056 »).
+   */
   formatCellValue(value: unknown): string {
+    // Champ multivalué (ODS, Grist) : jonction lisible, comme les templates (#663)
+    if (Array.isArray(value)) return value.join(', ');
     if (value === null || value === undefined) return '—';
     if (typeof value === 'boolean') return value ? 'Oui' : 'Non';
+    if (typeof value === 'number') {
+      return formatNumberFr(
+        value,
+        this.decimals === null ? undefined : { decimals: this.decimals }
+      );
+    }
     return String(value);
+  }
+
+  /** Titre du tableau : `caption`, sinon `aria-label`, sinon libellé générique (#669) */
+  private _getCaption(): string {
+    return this.caption || this.getAttribute('aria-label') || 'Liste des données';
   }
 
   // --- Render sub-templates ---
@@ -567,14 +814,23 @@ ${bodyRows}
   }
 
   private _renderTable(columns: ColumnDef[], paginatedData: Record<string, unknown>[]) {
+    const refine = this.selectionField !== '';
+    const colSpan = columns.length + (refine ? 1 : 0);
     return html`
       <div class="fr-table fr-table--bordered">
         <table>
           <caption class="fr-sr-only">
-            Liste des données
+            ${this._getCaption()}
           </caption>
           <thead>
             <tr>
+              ${
+                refine
+                  ? html`<th scope="col" class="dsfr-data-list__select-head">
+                      <span class="fr-sr-only">Filtrer</span>
+                    </th>`
+                  : nothing
+              }
               ${columns.map((col) => {
                 const isSorted = this._sort?.key === col.key;
                 const sortDir = isSorted ? this._sort!.direction : null;
@@ -608,20 +864,12 @@ ${bodyRows}
               paginatedData.length === 0
                 ? html`
                     <tr>
-                      <td colspan="${columns.length}" class="dsfr-data-list__empty" role="status">
+                      <td colspan="${colSpan}" class="dsfr-data-list__empty" role="status">
                         Aucune donnée à afficher
                       </td>
                     </tr>
                   `
-                : paginatedData.map(
-                    (item) => html`
-                      <tr>
-                        ${columns.map(
-                          (col) => html` <td>${this.formatCellValue(item[col.key])}</td> `
-                        )}
-                      </tr>
-                    `
-                  )
+                : paginatedData.map((item) => this._renderRow(columns, item, refine))
             }
           </tbody>
         </table>
@@ -629,35 +877,119 @@ ${bodyRows}
     `;
   }
 
+  /**
+   * Une ligne du tableau. En `refine-on-click`, elle porte le geste de clic
+   * (confort à la souris) et, en tête, une cellule de sélection avec un vrai
+   * bouton : c'est lui le chemin clavier et le porteur de l'état annoncé
+   * (`aria-pressed`). La ligne sélectionnée porte aussi `aria-current` et une
+   * marque visuelle qui ne se réduit pas à une couleur (barre latérale +
+   * icône dans le bouton).
+   */
+  private _renderRow(columns: ColumnDef[], item: Record<string, unknown>, refine: boolean) {
+    const selected = refine && this.isSelected(item);
+    return html`
+      <tr
+        class="${selected ? 'dsfr-data-list__row--selected' : ''}"
+        aria-current="${selected ? 'true' : nothing}"
+        @click="${refine ? (e: Event) => this._handleRowClick(e, item) : nothing}"
+      >
+        ${refine ? this._renderSelectCell(item, selected) : nothing}
+        ${columns.map((col) => this._renderCell(col, item))}
+      </tr>
+    `;
+  }
+
+  /** Cellule de sélection : un bouton par ligne, atteignable au clavier (#734) */
+  private _renderSelectCell(item: Record<string, unknown>, selected: boolean) {
+    const value = this.selectionValueOf(item);
+    const action = selected ? `Retirer le filtre ${value}` : `Filtrer sur ${value}`;
+    return html`
+      <td class="dsfr-data-list__select-cell">
+        <button
+          type="button"
+          class="dsfr-data-list__select-btn"
+          aria-pressed="${selected ? 'true' : 'false'}"
+          title="${action}"
+          @click="${() => this._onFeatureClick(item)}"
+        >
+          <span
+            class="${selected ? 'fr-icon-check-line' : 'fr-icon-filter-line'} fr-icon--sm"
+            aria-hidden="true"
+          ></span>
+          <span class="fr-sr-only">${action}</span>
+        </button>
+      </td>
+    `;
+  }
+
+  /**
+   * Une cellule, avec la classe éventuellement pilotée par une colonne
+   * calculée (`cell-class`, #740). Quand la colonne de classe n'est pas
+   * affichée, sa valeur est restituée en texte masqué visuellement : sans
+   * cela l'information ne tiendrait plus qu'à la couleur (RGAA 1.4.1).
+   */
+  private _renderCell(col: ColumnDef, item: Record<string, unknown>) {
+    const rule = this._cellClassRules().get(col.key);
+    if (!rule) return html` <td>${this.formatCellValue(item[col.key])}</td> `;
+    const raw = item[rule.classColumn];
+    const tokens = cellClassTokens(raw);
+    const mention =
+      rule.classColumn !== col.key && !this._displayedColumnKeys.has(rule.classColumn)
+        ? this.formatCellValue(raw)
+        : '';
+    return html`
+      <td class="${tokens.join(' ')}">
+        ${this.formatCellValue(item[col.key])}${
+          mention ? html`<span class="fr-sr-only"> (${mention})</span>` : nothing
+        }
+      </td>
+    `;
+  }
+
+  /** Règles `cell-class` indexées par colonne (relues quand l'attribut change) */
+  private _cellClassRules(): Map<string, CellClassRule> {
+    if (this._cellClassExpr !== this.cellClass) {
+      this._cellClassExpr = this.cellClass;
+      this._cellClassCache = new Map(
+        parseCellClassRules(this.cellClass).map((rule) => [rule.column, rule])
+      );
+    }
+    return this._cellClassCache;
+  }
+
+  private _cellClassExpr: string | null = null;
+  private _cellClassCache = new Map<string, CellClassRule>();
+
+  /** Colonnes réellement rendues, pour savoir si la colonne de classe est visible */
+  private _displayedColumnKeys = new Set<string>();
+
   private _renderPagination(totalPages: number) {
     // En mode serveur la pagination s'affiche meme sans attribut
     // `pagination` redonde avec le page-size de la source (#304)
     if (!this._serverPagination && (this.pagination <= 0 || totalPages <= 1)) return '';
     if (this._serverPagination && totalPages <= 1) return '';
 
-    const pages: number[] = [];
-    for (
-      let i = Math.max(1, this._currentPage - 2);
-      i <= Math.min(totalPages, this._currentPage + 2);
-      i++
-    ) {
-      pages.push(i);
-    }
+    const totalKnown = this._isTotalKnown();
+    const current = this._currentPage;
+    const items = this.getPageItems(totalPages, current, totalKnown);
+    const position = this._pagePosition(current, totalPages);
 
     return html`
       <nav
         class="fr-pagination"
+        role="navigation"
         aria-label="${
           this.getAttribute('aria-label')
             ? 'Pagination - ' + this.getAttribute('aria-label')
             : 'Pagination'
         }"
       >
+        <p class="fr-text--sm fr-mb-1w dsfr-data-list__page-position">${position}</p>
         <ul class="fr-pagination__list">
           <li>
             <button
               class="fr-pagination__link fr-pagination__link--first"
-              ?disabled="${this._currentPage === 1}"
+              ?disabled="${current === 1}"
               @click="${() => this._handlePageChange(1)}"
               aria-label="Première page"
               type="button"
@@ -667,54 +999,68 @@ ${bodyRows}
           </li>
           <li>
             <button
-              class="fr-pagination__link fr-pagination__link--prev"
-              ?disabled="${this._currentPage === 1}"
-              @click="${() => this._handlePageChange(this._currentPage - 1)}"
+              class="fr-pagination__link fr-pagination__link--prev fr-pagination__link--lg-label"
+              ?disabled="${current === 1}"
+              @click="${() => this._handlePageChange(current - 1)}"
               aria-label="Page précédente"
               type="button"
             >
               Page précédente
             </button>
           </li>
-          ${pages.map(
-            (page) => html`
-              <li>
-                <button
-                  class="fr-pagination__link ${
-                    page === this._currentPage ? 'fr-pagination__link--active' : ''
-                  }"
-                  @click="${() => this._handlePageChange(page)}"
-                  aria-current="${page === this._currentPage ? 'page' : nothing}"
-                  aria-label="Page ${page} sur ${totalPages}"
-                  type="button"
-                >
-                  ${page}
-                </button>
-              </li>
-            `
+          ${items.map((item) =>
+            item === 'ellipsis'
+              ? html`
+                  <li>
+                    <span class="fr-pagination__link dsfr-data-list__ellipsis" aria-hidden="true"
+                      >…</span
+                    >
+                  </li>
+                `
+              : html`
+                  <li>
+                    <button
+                      class="fr-pagination__link ${
+                        item === current ? 'fr-pagination__link--active' : ''
+                      }"
+                      @click="${() => this._handlePageChange(item)}"
+                      aria-current="${item === current ? 'page' : nothing}"
+                      aria-label="${this._pagePosition(item, totalPages)}"
+                      type="button"
+                    >
+                      ${item}
+                    </button>
+                  </li>
+                `
           )}
           <li>
             <button
-              class="fr-pagination__link fr-pagination__link--next"
-              ?disabled="${this._currentPage === totalPages}"
-              @click="${() => this._handlePageChange(this._currentPage + 1)}"
+              class="fr-pagination__link fr-pagination__link--next fr-pagination__link--lg-label"
+              ?disabled="${current === totalPages}"
+              @click="${() => this._handlePageChange(current + 1)}"
               aria-label="Page suivante"
               type="button"
             >
               Page suivante
             </button>
           </li>
-          <li>
-            <button
-              class="fr-pagination__link fr-pagination__link--last"
-              ?disabled="${this._currentPage === totalPages}"
-              @click="${() => this._handlePageChange(totalPages)}"
-              aria-label="Dernière page"
-              type="button"
-            >
-              Dernière page
-            </button>
-          </li>
+          ${
+            totalKnown
+              ? html`
+                  <li>
+                    <button
+                      class="fr-pagination__link fr-pagination__link--last"
+                      ?disabled="${current === totalPages}"
+                      @click="${() => this._handlePageChange(totalPages)}"
+                      aria-label="Dernière page"
+                      type="button"
+                    >
+                      Dernière page
+                    </button>
+                  </li>
+                `
+              : nothing
+          }
         </ul>
       </nav>
     `;
@@ -724,6 +1070,7 @@ ${bodyRows}
 
   render() {
     const columns = this.parseColumns();
+    this._displayedColumnKeys = new Set(columns.map((col) => col.key));
     const filterableColumns = this._getFilterableColumns();
     const paginatedData = this._getPaginatedData();
     const totalPages = this._getTotalPages();
@@ -748,18 +1095,21 @@ ${bodyRows}
             ? renderSourceLoading('dsfr-data-list', 'Chargement des données...')
             : this._sourceError && !(this._serverPagination && this._data.length > 0)
               ? renderSourceError('dsfr-data-list', this._sourceError)
-              : html`
-                  <p class="fr-text--sm" aria-live="polite" aria-atomic="true" role="status">
-                    ${totalFiltered} résultat${totalFiltered > 1 ? 's' : ''}
-                    ${
-                      !this._serverPagination &&
-                      (this._searchQuery || Object.values(this._activeFilters).some((v) => v))
-                        ? ' (filtré)'
-                        : ''
-                    }
-                  </p>
-                  ${this._renderTable(columns, paginatedData)} ${this._renderPagination(totalPages)}
-                `
+              : this._sourceIdle
+                ? renderSourceIdle('dsfr-data-list', this.idleMessage)
+                : html`
+                    <p class="fr-text--sm" aria-live="polite" aria-atomic="true" role="status">
+                      ${totalFiltered} résultat${totalFiltered > 1 ? 's' : ''}
+                      ${
+                        !this._serverPagination &&
+                        (this._searchQuery || Object.values(this._activeFilters).some((v) => v))
+                          ? ' (filtré)'
+                          : ''
+                      }
+                    </p>
+                    ${this._renderTable(columns, paginatedData)}
+                    ${this._renderPagination(totalPages)}
+                  `
         }
       </div>
 
@@ -834,6 +1184,38 @@ ${bodyRows}
           text-align: center;
           color: var(--text-mention-grey);
           padding: 2rem !important;
+        }
+        .dsfr-data-list__page-position {
+          color: var(--text-mention-grey, #666);
+        }
+        .dsfr-data-list__ellipsis {
+          cursor: default;
+        }
+        .dsfr-data-list__select-head,
+        .dsfr-data-list__select-cell {
+          width: 3rem;
+          text-align: center;
+        }
+        .dsfr-data-list__select-btn {
+          background: none;
+          border: 1px solid var(--border-default-grey, #ddd);
+          border-radius: 0.25rem;
+          cursor: pointer;
+          padding: 0.25rem 0.5rem;
+          color: var(--text-action-high-blue-france, #000091);
+          font-family: inherit;
+        }
+        .dsfr-data-list__select-btn[aria-pressed='true'] {
+          background-color: var(--background-action-high-blue-france, #000091);
+          color: var(--text-inverted-blue-france, #fff);
+          border-color: var(--background-action-high-blue-france, #000091);
+        }
+        .dsfr-data-list__row--selected > td {
+          background-color: var(--background-alt-blue-france, #f5f5fe);
+          font-weight: 700;
+        }
+        .dsfr-data-list__row--selected > td:first-child {
+          box-shadow: inset 0.25rem 0 0 0 var(--border-active-blue-france, #000091);
         }
       </style>
     `;

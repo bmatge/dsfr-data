@@ -16,12 +16,12 @@ updates:
       # le matche, donc ce groupe doit capter les paquets vitest avant que le
       # groupe generique ne le fasse.
       #
-      # `major` est inclus ici alors que les autres groupes s'arretent a `minor` :
+      # `major` est inclus ici alors que le groupe generique s'arrete a `minor` :
       # les fournisseurs de couverture epinglent vitest a l'EXACT
       # (`@vitest/coverage-v8@5.0.0` -> peerDependencies `{ vitest: "5.0.0" }`),
       # ils ne peuvent donc pas bouger separement. Sans ce groupe, une majeure
       # arrive en PR distinctes, chacune insatisfiable et rouge (cas vecu :
-      # #622 et #623, fermees). Groupees, elles forment une seule PR coherente.
+      # #622 et #623, fermees).
       vitest:
         patterns:
           - 'vitest'
@@ -31,6 +31,14 @@ updates:
           - minor
           - patch
 
+      # `major` a ete RETIRE ici (#750). Il y avait ete ajoute par #639 pour que
+      # vitest monte d'un bloc — role desormais tenu par le groupe ci-dessus, et
+      # declare avant celui-ci. L'avoir laisse produisait l'effet inverse de
+      # celui recherche : `vitest` 5.0.0 entrait dans le groupe generique tandis
+      # que `@vitest/coverage-v8` en restait exclu, donnant un lot AMPUTE dont
+      # l'arbre npm etait insoluble (#723, fermee). Il y faisait aussi entrer
+      # toutes les autres majeures de developpement, TypeScript 6 compris, dans
+      # un meme lot indivisible.
       dev-dependencies:
         dependency-type: development
         update-types:
@@ -40,6 +48,25 @@ updates:
         dependency-type: production
         update-types:
           - patch
+
+    # Gel temporaire de la majeure vitest (#639, #750).
+    #
+    # A ce jour `npm view vitest dist-tags` donne `latest: 5.0.0` et
+    # `V4: 4.1.11` : AUCUNE 5.0.x n'est publiee, la 5.0.0 est seule sur sa
+    # ligne. Le groupe `vitest` ci-dessus la proposerait donc chaque lundi, et
+    # il faudrait fermer la PR a la main a chaque fois — les commandes
+    # `@dependabot ignore` ne s'appliquant PAS sur une PR de groupe (confirme
+    # par le bot lui-meme sur #723), seule cette entree declarative l'arrete.
+    #
+    # A RETIRER des qu'une 5.0.x parait : le groupe `vitest` fera alors arriver
+    # une PR coherente, mergeable d'un bloc, et la migration pourra se faire.
+    ignore:
+      - dependency-name: 'vitest'
+        update-types:
+          - version-update:semver-major
+      - dependency-name: '@vitest/*'
+        update-types:
+          - version-update:semver-major
 
   - package-ecosystem: github-actions
     directory: /

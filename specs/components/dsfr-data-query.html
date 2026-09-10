@@ -64,19 +64,23 @@
           et applique des transformations client-side (filter, group-by, aggregate, sort, limit).</p>
 
         <h2 id="attributs" class="fr-mt-4w">Attributs</h2>
-        <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Format / Valeurs</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>id</code></td><td>String</td><td><code>id="mon-query"</code></td><td>Identifiant unique (requis). Les composants de visualisation l'utilisent pour s'abonner aux données transformees.</td></tr>
-            <tr><td><code>source</code></td><td>String</td><td><code>source="id-source"</code></td><td>ID de la <code>&lt;dsfr-data-source&gt;</code> ou <code>&lt;dsfr-data-normalize&gt;</code> a ecouter (requis)</td></tr>
-            <tr><td><code>where</code></td><td>String</td><td><code>"champ:op:val, ..."</code></td><td>Filtres. Plusieurs filtres separes par <code>,</code> (logique ET)</td></tr>
-            <tr><td><code>filter</code></td><td>String</td><td>(même format que <code>where</code>)</td><td>Alias pour <code>where</code></td></tr>
-            <tr><td><code>group-by</code></td><td>String</td><td><code>"champ1, champ2"</code></td><td>Champs de regroupement separes par virgule</td></tr>
-            <tr><td><code>aggregate</code></td><td>String</td><td><code>"champ:fn"</code> ou <code>"champ:fn:alias"</code></td><td>Agrégations. Fonctions : <code>count</code> <code>sum</code> <code>avg</code> <code>min</code> <code>max</code>. Modes <code>generic</code> / <code>tabular</code></td></tr>
-            <tr><td><code>order-by</code></td><td>String</td><td><code>"champ:asc"</code> ou <code>"champ:desc"</code></td><td>Tri des resultats. Champs agrégés : <code>"champ__fn:desc"</code> ou <code>"alias:desc"</code></td></tr>
-            <tr><td><code>limit</code></td><td>Number</td><td>Entier positif. <code>0</code> = illimite</td><td>Nombre maximum de resultats</td></tr>
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Format / Valeurs</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>id</code></td><td>String</td><td><code>id="mon-query"</code></td><td>Identifiant unique (requis). Les composants de visualisation l'utilisent pour s'abonner aux données transformees.</td></tr>
+              <!-- ATTRS:dsfr-data-query fields="source,where,filter,group-by,aggregate,order-by,limit" -->
+                <tr><td><code>source</code></td><td>String</td><td><code>source="id-source"</code></td><td>ID de la source de données (dsfr-data-source ou dsfr-data-normalize)</td></tr>
+                <tr><td><code>where</code></td><td>String</td><td><code>"champ:op:val, ..."</code></td><td>Clause WHERE / Filtres — syntaxe colon UNIQUEMENT : "champ:opérateur:valeur, champ2:opérateur:valeur2" (opérateurs : eq, neq, gt, gte, lt, lte, contains, notcontains, in, notin, isnull, isnotnull — multi-valeurs séparées par |). La syntaxe ODSQL n'est PAS supportee ici (elle l'est sur le <code>where</code> de dsfr-data-source) : une clause non parsable est signalee via reportConfigError (#277). En délégation serveur, la clause est traduite au dialecte de l'adapter (#275).</td></tr>
+                <tr><td><code>filter</code></td><td>String</td><td>(même format que <code>where</code>)</td><td>Alias pour where (compatibilite)</td></tr>
+                <tr><td><code>group-by</code></td><td>String</td><td><code>"champ1, champ2"</code></td><td>Champs de regroupement (séparés par virgule)</td></tr>
+                <tr><td><code>aggregate</code></td><td>String</td><td><code>"champ:fn"</code> ou <code>"champ:fn:alias"</code></td><td>Agrégations pour mode generic/tabular Format: "field:function, field2:function" Ex: "population:sum, count:count"</td></tr>
+                <tr><td><code>order-by</code></td><td>String</td><td><code>"champ:asc"</code> ou <code>"champ:desc"</code></td><td>Tri des résultats Format: "field:direction" ou "field__function:direction" Ex: "total_pop:desc" ou "population__sum:desc"</td></tr>
+                <tr><td><code>limit</code></td><td>Number</td><td>Entier positif. <code>0</code> = illimite</td><td>Limite de résultats</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
         <p class="fr-text--sm fr-text--light">Attributs retires (#277, #279) : <code>transform</code>, <code>page-size</code> et <code>refresh</code> se configurent sur <code>&lt;dsfr-data-source&gt;</code> ; <code>server-side</code> est sans objet (le relais de commandes vers la source est toujours actif).</p>
 
         <h3 class="fr-mt-3w">Syntaxe detaillee des attributs clés</h3>
@@ -84,10 +88,10 @@
         <section class="demo-section">
           <h4><code>where</code> / <code>filter</code> (modes generic et tabular)</h4>
           <p>Format : <code>champ:operateur:valeur</code>. Plusieurs filtres separes par <code>,</code> (logique ET).</p>
-          <div class="code-block"><pre>where="population:gt:5000"
-where="population:gt:5000, region:in:IDF|OCC|BRE"
-where="email:isnull"                 &lt;!-- pas de valeur pour isnull/isnotnull --&gt;
-where="region:in:IDF|OCC|BRE"        &lt;!-- separateur | pour in/notin --&gt;</pre></div>
+          <div class="code-block"><pre><span class="tok-attr">where</span><span class="tok-punct">=</span><span class="tok-string">"population:gt:5000"</span>
+<span class="tok-attr">where</span><span class="tok-punct">=</span><span class="tok-string">"population:gt:5000, region:in:IDF|OCC|BRE"</span>
+<span class="tok-attr">where</span><span class="tok-punct">=</span><span class="tok-string">"email:isnull"</span>                 <span class="tok-comment">&lt;!-- pas de valeur pour isnull/isnotnull --&gt;</span>
+<span class="tok-attr">where</span><span class="tok-punct">=</span><span class="tok-string">"region:in:IDF|OCC|BRE"</span>        <span class="tok-comment">&lt;!-- separateur | pour in/notin --&gt;</span></pre></div>
           <p class="fr-text--sm fr-mt-1w">Les valeurs <code>"true"</code>/<code>"false"</code> sont parsees en booleen, les chaines numériques en nombre.</p>
         </section>
 
@@ -95,9 +99,9 @@ where="region:in:IDF|OCC|BRE"        &lt;!-- separateur | pour in/notin --&gt;</
           <h4><code>aggregate</code></h4>
           <p>Format de base : <code>champ:fonction</code> — le champ de sortie est nomme <code>champ__fonction</code>.<br>
             Avec alias : <code>champ:fonction:alias</code> — le champ de sortie porte le nom de l'alias.</p>
-          <div class="code-block"><pre>aggregate="population:sum"            &lt;!-- sortie : population__sum --&gt;
-aggregate="population:sum:total"      &lt;!-- sortie : total --&gt;
-aggregate="pop:sum:total, pop:count:nb"  &lt;!-- deux agrégations --&gt;</pre></div>
+          <div class="code-block"><pre><span class="tok-attr">aggregate</span><span class="tok-punct">=</span><span class="tok-string">"population:sum"</span>            <span class="tok-comment">&lt;!-- sortie : population__sum --&gt;</span>
+<span class="tok-attr">aggregate</span><span class="tok-punct">=</span><span class="tok-string">"population:sum:total"</span>      <span class="tok-comment">&lt;!-- sortie : total --&gt;</span>
+<span class="tok-attr">aggregate</span><span class="tok-punct">=</span><span class="tok-string">"pop:sum:total, pop:count:nb"</span>  <span class="tok-comment">&lt;!-- deux agrégations --&gt;</span></pre></div>
           <p class="fr-text--sm fr-mt-1w">Fonctions : <code>count</code> (nombre de lignes), <code>sum</code>, <code>avg</code>, <code>min</code>, <code>max</code>.</p>
         </section>
 
@@ -105,30 +109,32 @@ aggregate="pop:sum:total, pop:count:nb"  &lt;!-- deux agrégations --&gt;</pre><
           <h4><code>order-by</code></h4>
           <p>Format : <code>champ:direction</code> ou <code>champ</code> (défaut : <code>asc</code>).<br>
             Pour trier des resultats agrégés, utiliser le nom du champ de sortie.</p>
-          <div class="code-block"><pre>order-by="nom:asc"
-order-by="population__sum:desc"       &lt;!-- champ agrège sans alias --&gt;
-order-by="total:desc"                 &lt;!-- champ agrège avec alias --&gt;</pre></div>
+          <div class="code-block"><pre><span class="tok-attr">order-by</span><span class="tok-punct">=</span><span class="tok-string">"nom:asc"</span>
+<span class="tok-attr">order-by</span><span class="tok-punct">=</span><span class="tok-string">"population__sum:desc"</span>       <span class="tok-comment">&lt;!-- champ agrège sans alias --&gt;</span>
+<span class="tok-attr">order-by</span><span class="tok-punct">=</span><span class="tok-string">"total:desc"</span>                 <span class="tok-comment">&lt;!-- champ agrège avec alias --&gt;</span></pre></div>
         </section>
 
         <h2 id="operateurs" class="fr-mt-4w">Operateurs de filtre</h2>
         <p>Utilisables dans les attributs <code>where</code> / <code>filter</code> (format <code>"champ:operateur:valeur"</code>) :</p>
-        <table class="attr-table">
-          <thead><tr><th>Operateur</th><th>Description</th><th>Exemple</th></tr></thead>
-          <tbody>
-            <tr><td><code>eq</code></td><td>Egal a</td><td><code>status:eq:active</code></td></tr>
-            <tr><td><code>neq</code></td><td>Different de</td><td><code>status:neq:archived</code></td></tr>
-            <tr><td><code>gt</code></td><td>Strictement superieur</td><td><code>population:gt:5000</code></td></tr>
-            <tr><td><code>gte</code></td><td>Superieur ou egal</td><td><code>population:gte:5000</code></td></tr>
-            <tr><td><code>lt</code></td><td>Strictement inferieur</td><td><code>population:lt:1000</code></td></tr>
-            <tr><td><code>lte</code></td><td>Inferieur ou egal</td><td><code>population:lte:1000</code></td></tr>
-            <tr><td><code>contains</code></td><td>Contient (insensible a la casse)</td><td><code>nom:contains:paris</code></td></tr>
-            <tr><td><code>notcontains</code></td><td>Ne contient pas</td><td><code>nom:notcontains:test</code></td></tr>
-            <tr><td><code>in</code></td><td>Dans une liste (separateur <code>|</code>)</td><td><code>region:in:IDF|OCC|BRE</code></td></tr>
-            <tr><td><code>notin</code></td><td>Pas dans une liste</td><td><code>region:notin:IDF|OCC</code></td></tr>
-            <tr><td><code>isnull</code></td><td>Est null/undefined</td><td><code>email:isnull</code></td></tr>
-            <tr><td><code>isnotnull</code></td><td>N'est pas null</td><td><code>email:isnotnull</code></td></tr>
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Operateur</th><th>Description</th><th>Exemple</th></tr></thead>
+            <tbody>
+              <tr><td><code>eq</code></td><td>Egal a</td><td><code>status:eq:active</code></td></tr>
+              <tr><td><code>neq</code></td><td>Different de</td><td><code>status:neq:archived</code></td></tr>
+              <tr><td><code>gt</code></td><td>Strictement superieur</td><td><code>population:gt:5000</code></td></tr>
+              <tr><td><code>gte</code></td><td>Superieur ou egal</td><td><code>population:gte:5000</code></td></tr>
+              <tr><td><code>lt</code></td><td>Strictement inferieur</td><td><code>population:lt:1000</code></td></tr>
+              <tr><td><code>lte</code></td><td>Inferieur ou egal</td><td><code>population:lte:1000</code></td></tr>
+              <tr><td><code>contains</code></td><td>Contient (insensible a la casse)</td><td><code>nom:contains:paris</code></td></tr>
+              <tr><td><code>notcontains</code></td><td>Ne contient pas</td><td><code>nom:notcontains:test</code></td></tr>
+              <tr><td><code>in</code></td><td>Dans une liste (separateur <code>|</code>)</td><td><code>region:in:IDF|OCC|BRE</code></td></tr>
+              <tr><td><code>notin</code></td><td>Pas dans une liste</td><td><code>region:notin:IDF|OCC</code></td></tr>
+              <tr><td><code>isnull</code></td><td>Est null/undefined</td><td><code>email:isnull</code></td></tr>
+              <tr><td><code>isnotnull</code></td><td>N'est pas null</td><td><code>email:isnotnull</code></td></tr>
+            </tbody>
+          </table>
+        </div>
 
         <h2 id="exemples" class="fr-mt-4w">Exemples</h2>
 
@@ -139,26 +145,26 @@ order-by="total:desc"                 &lt;!-- champ agrège avec alias --&gt;</p
             Ici on filtre les 10 premieres lignes triees par nom.
             <a href="../../guide/guide-exemples-query.html#query-datalist" class="fr-link fr-link--sm">Voir l'exemple live</a>
           </p>
-          <div class="code-block"><pre>&lt;dsfr-data-source
-  id="raw-data"
-  url="https://mon-api.gouv.fr/records"
-  transform="results"
-&gt;&lt;/dsfr-data-source&gt;
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-source</span>
+  <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"raw-data"</span>
+  <span class="tok-attr">url</span><span class="tok-punct">=</span><span class="tok-string">"https://mon-api.gouv.fr/records"</span>
+  <span class="tok-attr">transform</span><span class="tok-punct">=</span><span class="tok-string">"results"</span>
+<span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-source</span><span class="tok-punct">&gt;</span>
 
-&lt;dsfr-data-query
-  id="filtered-data"
-  source="raw-data"
-  where="population:gt:5000"
-  order-by="nom:asc"
-  limit="10"
-&gt;&lt;/dsfr-data-query&gt;
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-query</span>
+  <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"filtered-data"</span>
+  <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"raw-data"</span>
+  <span class="tok-attr">where</span><span class="tok-punct">=</span><span class="tok-string">"population:gt:5000"</span>
+  <span class="tok-attr">order-by</span><span class="tok-punct">=</span><span class="tok-string">"nom:asc"</span>
+  <span class="tok-attr">limit</span><span class="tok-punct">=</span><span class="tok-string">"10"</span>
+<span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-query</span><span class="tok-punct">&gt;</span>
 
-&lt;dsfr-data-chart
-  source="filtered-data"
-  type="bar"
-  label-field="nom"
-  value-field="population"
-&gt;&lt;/dsfr-data-chart&gt;</pre></div>
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-chart</span>
+  <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"filtered-data"</span>
+  <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"bar"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"nom"</span>
+  <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"population"</span>
+<span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-chart</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <section class="demo-section">
@@ -168,27 +174,27 @@ order-by="total:desc"                 &lt;!-- champ agrège avec alias --&gt;</p
             et le nombre d'enregistrements par groupe.
             <a href="../../guide/guide-exemples-query.html#query-bar" class="fr-link fr-link--sm">Voir l'exemple live</a>
           </p>
-          <div class="code-block"><pre>&lt;dsfr-data-source
-  id="communes"
-  url="https://mon-api.gouv.fr/communes"
-  transform="results"
-&gt;&lt;/dsfr-data-source&gt;
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-source</span>
+  <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"communes"</span>
+  <span class="tok-attr">url</span><span class="tok-punct">=</span><span class="tok-string">"https://mon-api.gouv.fr/communes"</span>
+  <span class="tok-attr">transform</span><span class="tok-punct">=</span><span class="tok-string">"results"</span>
+<span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-source</span><span class="tok-punct">&gt;</span>
 
-&lt;dsfr-data-query
-  id="stats-region"
-  source="communes"
-  group-by="region"
-  aggregate="population:sum, population:count"
-  order-by="population__sum:desc"
-  limit="10"
-&gt;&lt;/dsfr-data-query&gt;
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-query</span>
+  <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"stats-region"</span>
+  <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"communes"</span>
+  <span class="tok-attr">group-by</span><span class="tok-punct">=</span><span class="tok-string">"region"</span>
+  <span class="tok-attr">aggregate</span><span class="tok-punct">=</span><span class="tok-string">"population:sum, population:count"</span>
+  <span class="tok-attr">order-by</span><span class="tok-punct">=</span><span class="tok-string">"population__sum:desc"</span>
+  <span class="tok-attr">limit</span><span class="tok-punct">=</span><span class="tok-string">"10"</span>
+<span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-query</span><span class="tok-punct">&gt;</span>
 
-&lt;dsfr-data-chart
-  source="stats-region"
-  type="bar"
-  label-field="region"
-  value-field="population__sum"
-&gt;&lt;/dsfr-data-chart&gt;</pre></div>
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-chart</span>
+  <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"stats-region"</span>
+  <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"bar"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"region"</span>
+  <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"population__sum"</span>
+<span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-chart</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <section class="demo-section">
@@ -198,29 +204,29 @@ order-by="total:desc"                 &lt;!-- champ agrège avec alias --&gt;</p
             puis <code>&lt;dsfr-data-query&gt;</code> pour le tri et la limite cote client.
             <a href="../../guide/guide-exemples-query.html#server-side-ods" class="fr-link fr-link--sm">Voir l'exemple live</a>
           </p>
-          <div class="code-block"><pre>&lt;dsfr-data-source
-  id="ods-src"
-  api-type="opendatasoft"
-  dataset-id="demographyref-communes-2021"
-  base-url="https://data.opendatasoft.com"
-  select="sum(pop_municipale) as total_pop, nom_reg"
-  where="pop_municipale &gt; 5000"
-  group-by="nom_reg"
-&gt;&lt;/dsfr-data-source&gt;
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-source</span>
+  <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"ods-src"</span>
+  <span class="tok-attr">api-type</span><span class="tok-punct">=</span><span class="tok-string">"opendatasoft"</span>
+  <span class="tok-attr">dataset-id</span><span class="tok-punct">=</span><span class="tok-string">"demographyref-communes-2021"</span>
+  <span class="tok-attr">base-url</span><span class="tok-punct">=</span><span class="tok-string">"https://data.opendatasoft.com"</span>
+  <span class="tok-attr">select</span><span class="tok-punct">=</span><span class="tok-string">"sum(pop_municipale) as total_pop, nom_reg"</span>
+  <span class="tok-attr">where</span><span class="tok-punct">=</span><span class="tok-string">"pop_municipale &gt; 5000"</span>
+  <span class="tok-attr">group-by</span><span class="tok-punct">=</span><span class="tok-string">"nom_reg"</span>
+<span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-source</span><span class="tok-punct">&gt;</span>
 
-&lt;dsfr-data-query
-  id="ods-stats"
-  source="ods-src"
-  order-by="total_pop:desc"
-  limit="15"
-&gt;&lt;/dsfr-data-query&gt;
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-query</span>
+  <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"ods-stats"</span>
+  <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"ods-src"</span>
+  <span class="tok-attr">order-by</span><span class="tok-punct">=</span><span class="tok-string">"total_pop:desc"</span>
+  <span class="tok-attr">limit</span><span class="tok-punct">=</span><span class="tok-string">"15"</span>
+<span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-query</span><span class="tok-punct">&gt;</span>
 
-&lt;dsfr-data-chart
-  source="ods-stats"
-  type="bar"
-  label-field="nom_reg"
-  value-field="total_pop"
-&gt;&lt;/dsfr-data-chart&gt;</pre></div>
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-chart</span>
+  <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"ods-stats"</span>
+  <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"bar"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"nom_reg"</span>
+  <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"total_pop"</span>
+<span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-chart</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <section class="demo-section">
@@ -230,29 +236,29 @@ order-by="total:desc"                 &lt;!-- champ agrège avec alias --&gt;</p
             puis <code>&lt;dsfr-data-query&gt;</code> pour le groupement et l'agrégation.
             <a href="../../guide/guide-exemples-query.html#query-pie" class="fr-link fr-link--sm">Voir l'exemple live</a>
           </p>
-          <div class="code-block"><pre>&lt;dsfr-data-source
-  id="ods-src"
-  api-type="opendatasoft"
-  dataset-id="rappelconso-v2-gtin-trie"
-  base-url="https://data.economie.gouv.fr"
-  server-side page-size="100"
-&gt;&lt;/dsfr-data-source&gt;
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-source</span>
+  <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"ods-src"</span>
+  <span class="tok-attr">api-type</span><span class="tok-punct">=</span><span class="tok-string">"opendatasoft"</span>
+  <span class="tok-attr">dataset-id</span><span class="tok-punct">=</span><span class="tok-string">"rappelconso-v2-gtin-trie"</span>
+  <span class="tok-attr">base-url</span><span class="tok-punct">=</span><span class="tok-string">"https://data.economie.gouv.fr"</span>
+  server-side <span class="tok-attr">page-size</span><span class="tok-punct">=</span><span class="tok-string">"100"</span>
+<span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-source</span><span class="tok-punct">&gt;</span>
 
-&lt;dsfr-data-query
-  id="ods-stats"
-  source="ods-src"
-  group-by="categorie_produit"
-  aggregate="libelle:count:nombre"
-  order-by="nombre:desc"
-  limit="8"
-&gt;&lt;/dsfr-data-query&gt;
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-query</span>
+  <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"ods-stats"</span>
+  <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"ods-src"</span>
+  <span class="tok-attr">group-by</span><span class="tok-punct">=</span><span class="tok-string">"categorie_produit"</span>
+  <span class="tok-attr">aggregate</span><span class="tok-punct">=</span><span class="tok-string">"libelle:count:nombre"</span>
+  <span class="tok-attr">order-by</span><span class="tok-punct">=</span><span class="tok-string">"nombre:desc"</span>
+  <span class="tok-attr">limit</span><span class="tok-punct">=</span><span class="tok-string">"8"</span>
+<span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-query</span><span class="tok-punct">&gt;</span>
 
-&lt;dsfr-data-chart
-  source="ods-stats"
-  type="pie"
-  label-field="categorie_produit"
-  value-field="nombre"
-&gt;&lt;/dsfr-data-chart&gt;</pre></div>
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-chart</span>
+  <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"ods-stats"</span>
+  <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"pie"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"categorie_produit"</span>
+  <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"nombre"</span>
+<span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-chart</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <section class="demo-section">
@@ -262,13 +268,13 @@ order-by="total:desc"                 &lt;!-- champ agrège avec alias --&gt;</p
             Tous les filtres doivent etre satisfaits (logique ET).
             <a href="../../guide/guide-exemples-query.html#query-kpi" class="fr-link fr-link--sm">Voir l'exemple live</a>
           </p>
-          <div class="code-block"><pre>&lt;dsfr-data-query
-  id="filtered"
-  source="raw-data"
-  where="population:gte:10000, region:in:IDF|OCC|BRE, status:eq:active"
-  order-by="population:desc"
-  limit="20"
-&gt;&lt;/dsfr-data-query&gt;</pre></div>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-query</span>
+  <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"filtered"</span>
+  <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"raw-data"</span>
+  <span class="tok-attr">where</span><span class="tok-punct">=</span><span class="tok-string">"population:gte:10000, region:in:IDF|OCC|BRE, status:eq:active"</span>
+  <span class="tok-attr">order-by</span><span class="tok-punct">=</span><span class="tok-string">"population:desc"</span>
+  <span class="tok-attr">limit</span><span class="tok-punct">=</span><span class="tok-string">"20"</span>
+<span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-query</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <section class="demo-section">
@@ -278,28 +284,28 @@ order-by="total:desc"                 &lt;!-- champ agrège avec alias --&gt;</p
             (API key, Bearer token) pour acceder a des datasets prives.
             <a href="../../guide/guide-exemples-query.html#headers" class="fr-link fr-link--sm">Voir l'exemple live</a>
           </p>
-          <div class="code-block"><pre>&lt;dsfr-data-source
-  id="private-src"
-  api-type="opendatasoft"
-  dataset-id="mon-dataset-prive"
-  base-url="https://mon-instance.opendatasoft.com"
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-source</span>
+  <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"private-src"</span>
+  <span class="tok-attr">api-type</span><span class="tok-punct">=</span><span class="tok-string">"opendatasoft"</span>
+  <span class="tok-attr">dataset-id</span><span class="tok-punct">=</span><span class="tok-string">"mon-dataset-prive"</span>
+  <span class="tok-attr">base-url</span><span class="tok-punct">=</span><span class="tok-string">"https://mon-instance.opendatasoft.com"</span>
   headers='{"apikey":"ma-clé-api"}'
-&gt;&lt;/dsfr-data-source&gt;
+<span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-source</span><span class="tok-punct">&gt;</span>
 
-&lt;dsfr-data-query
-  id="private-data"
-  source="private-src"
-  group-by="region"
-  aggregate="population:sum:total"
-  order-by="total:desc"
-&gt;&lt;/dsfr-data-query&gt;
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-query</span>
+  <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"private-data"</span>
+  <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"private-src"</span>
+  <span class="tok-attr">group-by</span><span class="tok-punct">=</span><span class="tok-string">"region"</span>
+  <span class="tok-attr">aggregate</span><span class="tok-punct">=</span><span class="tok-string">"population:sum:total"</span>
+  <span class="tok-attr">order-by</span><span class="tok-punct">=</span><span class="tok-string">"total:desc"</span>
+<span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-query</span><span class="tok-punct">&gt;</span>
 
-&lt;dsfr-data-chart
-  source="private-data"
-  type="bar"
-  label-field="region"
-  value-field="total"
-&gt;&lt;/dsfr-data-chart&gt;</pre></div>
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-chart</span>
+  <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"private-data"</span>
+  <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"bar"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"region"</span>
+  <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"total"</span>
+<span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-chart</span><span class="tok-punct">&gt;</span></pre></div>
           <div class="fr-callout fr-mt-2w">
             <p class="fr-callout__text">
               <strong>Securite :</strong> les headers sont visibles dans le code source HTML.
@@ -315,19 +321,19 @@ order-by="total:desc"                 &lt;!-- champ agrège avec alias --&gt;</p
             L'attribut <code>refresh</code> sur <code>&lt;dsfr-data-source&gt;</code> permet de re-exécuter
             la requête a intervalles reguliers.
           </p>
-          <div class="code-block"><pre>&lt;dsfr-data-source
-  id="live-src"
-  api-type="opendatasoft"
-  dataset-id="mon-dataset"
-  base-url="https://data.opendatasoft.com"
-  select="count(*) as total"
-  refresh="30"
-&gt;&lt;/dsfr-data-source&gt;
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-source</span>
+  <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"live-src"</span>
+  <span class="tok-attr">api-type</span><span class="tok-punct">=</span><span class="tok-string">"opendatasoft"</span>
+  <span class="tok-attr">dataset-id</span><span class="tok-punct">=</span><span class="tok-string">"mon-dataset"</span>
+  <span class="tok-attr">base-url</span><span class="tok-punct">=</span><span class="tok-string">"https://data.opendatasoft.com"</span>
+  <span class="tok-attr">select</span><span class="tok-punct">=</span><span class="tok-string">"count(*) as total"</span>
+  <span class="tok-attr">refresh</span><span class="tok-punct">=</span><span class="tok-string">"30"</span>
+<span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-source</span><span class="tok-punct">&gt;</span>
 
-&lt;dsfr-data-query
-  id="live-stats"
-  source="live-src"
-&gt;&lt;/dsfr-data-query&gt;</pre></div>
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-query</span>
+  <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"live-stats"</span>
+  <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"live-src"</span>
+<span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-query</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <h2 id="evenements" class="fr-mt-4w">Événements</h2>
@@ -339,15 +345,17 @@ order-by="total:desc"                 &lt;!-- champ agrège avec alias --&gt;</p
         </ul>
 
         <h2 id="methodes" class="fr-mt-4w">Méthodes publiques</h2>
-        <table class="attr-table">
-          <thead><tr><th>Méthode</th><th>Retour</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>reload()</code></td><td>void</td><td>Force le rechargement / re-traitement des données</td></tr>
-            <tr><td><code>getData()</code></td><td>Array</td><td>Retourne les données transformees actuelles</td></tr>
-            <tr><td><code>isLoading()</code></td><td>Boolean</td><td>Indique si un traitement est en cours</td></tr>
-            <tr><td><code>getError()</code></td><td>Error | null</td><td>Retourne l'erreur eventuelle</td></tr>
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Méthode</th><th>Retour</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>reload()</code></td><td>void</td><td>Force le rechargement / re-traitement des données</td></tr>
+              <tr><td><code>getData()</code></td><td>Array</td><td>Retourne les données transformees actuelles</td></tr>
+              <tr><td><code>isLoading()</code></td><td>Boolean</td><td>Indique si un traitement est en cours</td></tr>
+              <tr><td><code>getError()</code></td><td>Error | null</td><td>Retourne l'erreur eventuelle</td></tr>
+            </tbody>
+          </table>
+        </div>
 
         <h2 id="conseils" class="fr-mt-4w">Conseils d'utilisation</h2>
         <div class="fr-callout">

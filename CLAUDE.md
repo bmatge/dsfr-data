@@ -151,6 +151,19 @@ git push && git push --tags
 **Apres merge d'une PR** : resync du miroir (`git push origin refs/remotes/origin/main:refs/heads/main`) **et**
 suppression de la branche sur le miroir (voir Remotes Git). **Apres une release** : tags + Release recreee sur le miroir.
 
+**Apres une release : REDEPLOYER `chartsbuilder`.** Aucun workflow ne deploie le VPS ; sans cette etape,
+l'instance publique continue de servir les fiches (`/dist/skills.json`), le guide et les specs de la version
+precedente, et un lecteur ne peut pas le savoir. C'est ce qui a induit trois agents en erreur le 2026-09-10 (#733).
+
+```bash
+ssh vps "spawn up chartsbuilder git@github.com:bmatge/dsfr-data.git --dns api --mail real --keep"
+curl -s https://chartsbuilder.miweb.run/dist/skills-meta.json   # doit annoncer la nouvelle libVersion
+```
+
+Le tampon de fraicheur (`dist/skills-meta.json` : `generatedAt`, `libVersion`, `commit`) est genere par
+`npm run build:skills`, servi a cote de `dist/skills.json`, et rendu par `list_skills` et `/health` du
+serveur MCP — il sert justement a constater qu'un redeploiement a bien eu lieu.
+
 **Fin de session Claude Code** : `git diff --stat` → `npx changeset` si `core/src` ou `shared` touches → commit (Conventional) → proposer une release a l'utilisateur (ne pas releaser sans accord).
 
 ## Ce que Claude DOIT faire

@@ -12,16 +12,21 @@ import { earlyBufferScript } from '../debug/early-buffer.js';
 export const CDN_VERSIONS = {
   dsfr: '1.14.4',
   dsfrChart: '2.1.1',
-  chartJs: '4.4.1',
 } as const;
 
+/**
+ * Pas de `chartJs` ici (#656) : `@gouvfr/dsfr-chart` embarque sa propre copie
+ * de Chart.js dans `DSFRChart.js` et n'expose aucun global `Chart`. Charger
+ * `chart.js` a cote ne sert a rien (~200 Ko par page) — la lib le sait deja
+ * (`packages/core/src/utils/chart-reference-lines.ts`, `resolveChartInstance`
+ * lit l'instance dans les internes Vue du composant, pas dans `window.Chart`).
+ */
 export const CDN_URLS = {
   dsfrCss: `https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@${CDN_VERSIONS.dsfr}/dist/dsfr.min.css`,
   dsfrUtilityCss: `https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@${CDN_VERSIONS.dsfr}/dist/utility/utility.min.css`,
   dsfrModuleJs: `https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@${CDN_VERSIONS.dsfr}/dist/dsfr.module.min.js`,
   dsfrChartCss: `https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@${CDN_VERSIONS.dsfrChart}/dist/DSFRChart/DSFRChart.css`,
   dsfrChartJs: `https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@${CDN_VERSIONS.dsfrChart}/dist/DSFRChart/DSFRChart.js`,
-  chartJs: `https://cdn.jsdelivr.net/npm/chart.js@${CDN_VERSIONS.chartJs}/dist/chart.umd.min.js`,
 } as const;
 
 /**
@@ -68,7 +73,6 @@ export function getPreviewHTML(code: string, options: PreviewHTMLOptions = {}): 
   <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
   <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css">
-  <script src="${CDN_URLS.chartJs}"></script>
   <link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
   <script type="module" src="${CDN_URLS.dsfrChartJs}"></script>
   <script type="module" src="${origin}/dist/dsfr-data.esm.js"></script>

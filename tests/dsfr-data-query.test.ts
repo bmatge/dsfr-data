@@ -23,6 +23,7 @@ import {
   getDataCache,
   getDataMeta,
   setDataMeta,
+  subscribeToSource,
   subscribeToSourceCommands,
 } from '@/utils/data-bridge.js';
 
@@ -249,6 +250,34 @@ describe('DsfrDataQuery', () => {
       expect(paca['population__sum']).toBe(800);
     });
 
+    // #647 : un groupe vide ressort en null (pas ""), regroupement stable
+    it('keeps null (not "") as the group value for empty keys', () => {
+      (query as any)._rawData = [
+        { region: 'IDF', population: 1000 },
+        { region: null, population: 10 },
+        { population: 20 },
+        { region: '', population: 30 },
+      ];
+
+      const result = (query as any)._applyGroupByAndAggregate((query as any)._rawData);
+      expect(result).toHaveLength(2);
+      const empty = result.find((r: any) => r.region === null);
+      expect(empty).toBeDefined();
+      expect(empty.region).toBeNull();
+      expect(empty['population__sum']).toBe(60);
+      expect(result.find((r: any) => r.region === '')).toBeUndefined();
+    });
+
+    it('a downstream isnull filter catches the empty group', () => {
+      (query as any)._rawData = [
+        { region: 'IDF', population: 1000 },
+        { region: null, population: 10 },
+      ];
+      const grouped = (query as any)._applyGroupByAndAggregate((query as any)._rawData);
+      const kept = (query as any)._applyFilters(grouped, 'region:isnotnull');
+      expect(kept.map((r: any) => r.region)).toEqual(['IDF']);
+    });
+
     it('handles multiple group by fields', () => {
       query.groupBy = 'region, year';
       (query as any)._rawData = [
@@ -419,26 +448,45 @@ describe('DsfrDataQuery', () => {
   });
 
   describe('Meta propagation', () => {
-    it('forwards pagination meta from upstream source', () => {
+    it('forwards server-side pagination meta from upstream source (total serveur conservé)', () => {
       query.id = 'test-query';
       query.source = 'test-source';
 
-      // Set pagination meta on the upstream source
-      setDataMeta('test-source', { page: 2, pageSize: 20, total: 100 });
+      // Pagination serveur : les lignes recues ne sont qu'une page, l'aval
+      // (list, display) a besoin du total serveur pour paginer (#659).
+      setDataMeta('test-source', { page: 2, pageSize: 20, total: 100, serverSide: true });
 
-      // Feed data to the query
       (query as any)._rawData = [{ name: 'A' }, { name: 'B' }];
       (query as any)._processClientSide();
 
-      // Query should forward meta under its own ID
       const meta = getDataMeta('test-query');
       expect(meta).toBeDefined();
       expect(meta!.page).toBe(2);
       expect(meta!.pageSize).toBe(20);
       expect(meta!.total).toBe(100);
+      expect(meta!.serverSide).toBe(true);
     });
 
-    it('does not set meta when upstream has none', () => {
+    it('hors pagination serveur, total = lignes avant limit, le reste de la meta est conservé (#659)', () => {
+      query.id = 'test-query';
+      query.source = 'test-source';
+      setDataMeta('test-source', {
+        page: 1,
+        pageSize: 0,
+        total: 3080,
+        serverSide: false,
+        needsClientProcessing: false,
+      });
+
+      (query as any)._rawData = [{ name: 'A' }, { name: 'B' }];
+      (query as any)._processClientSide();
+
+      const meta = getDataMeta('test-query');
+      expect(meta).toMatchObject({ page: 1, pageSize: 0, serverSide: false, total: 2 });
+      expect(meta!.truncated).toBeUndefined();
+    });
+
+    it('publie quand même ses comptes quand l’amont n’a pas de meta (#659)', () => {
       query.id = 'test-query';
       query.source = 'test-source';
       clearDataMeta('test-source');
@@ -447,7 +495,12 @@ describe('DsfrDataQuery', () => {
       (query as any)._rawData = [{ name: 'A' }];
       (query as any)._processClientSide();
 
-      expect(getDataMeta('test-query')).toBeUndefined();
+      expect(getDataMeta('test-query')).toEqual({
+        page: 1,
+        pageSize: 0,
+        serverSide: false,
+        total: 1,
+      });
     });
   });
 
@@ -732,6 +785,105 @@ describe('DsfrDataQuery', () => {
     });
   });
 
+  // #649 : fonction d'agrégat inconnue → erreur de configuration + erreur aval, jamais un 0
+  describe('unknown aggregate function (#649)', () => {
+    it('reports a config error naming component, attribute, function and accepted list', () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      query.id = 'q-bad-fn';
+      query.source = 'test-source';
+      query.groupBy = 'region';
+      query.aggregate = 'x:somme';
+
+      (query as any)._initialize();
+
+      const marker = query.getAttribute('data-dsfr-config-error') || '';
+      expect(marker).toContain('aggregate="x:somme"');
+      expect(marker).toContain('"somme"');
+      expect(marker).toContain('count, sum, avg, min, max');
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('dsfr-data-query[q-bad-fn]'));
+      errorSpy.mockRestore();
+    });
+
+    it('emits an error downstream instead of a 0 result', () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      query.id = 'q-bad-fn-2';
+      query.source = 'test-source';
+      query.groupBy = 'region';
+      query.aggregate = 'x:somme';
+      (query as any)._initialize();
+
+      const downstreamErrors: Error[] = [];
+      const unsub = subscribeToSource('q-bad-fn-2', {
+        onError: (e) => downstreamErrors.push(e),
+      });
+      dispatchDataLoaded('test-source', [
+        { region: 'A', x: 10 },
+        { region: 'A', x: 20 },
+      ]);
+
+      expect(query.getError()).not.toBeNull();
+      expect(query.getError()!.message).toContain('"somme"');
+      expect(downstreamErrors).toHaveLength(1);
+      expect(getDataCache('q-bad-fn-2')).toBeUndefined();
+      unsub();
+      errorSpy.mockRestore();
+    });
+
+    it('clears the error once the expression is fixed', () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      query.id = 'q-bad-fn-3';
+      query.source = 'test-source';
+      query.groupBy = 'region';
+      query.aggregate = 'x:somme';
+      (query as any)._initialize();
+      expect(query.hasAttribute('data-dsfr-config-error')).toBe(true);
+
+      query.aggregate = 'x:sum';
+      (query as any)._initialize();
+      expect(query.hasAttribute('data-dsfr-config-error')).toBe(false);
+      dispatchDataLoaded('test-source', [
+        { region: 'A', x: 10 },
+        { region: 'A', x: 20 },
+      ]);
+      expect(query.getError()).toBeNull();
+      expect((query.getData() as any[])[0]['x__sum']).toBe(30);
+      errorSpy.mockRestore();
+    });
+
+    it('does not delegate an invalid aggregate server-side', () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const mockSource = document.createElement('div');
+      mockSource.id = 'neg-bad-fn';
+      (mockSource as any).getAdapter = () => ({
+        type: 'tabular',
+        capabilities: { serverGroupBy: true, serverOrderBy: true, whereFormat: 'colon' },
+      });
+      document.body.appendChild(mockSource);
+      const commands: Array<Record<string, unknown>> = [];
+      const unsub = subscribeToSourceCommands('neg-bad-fn', (cmd) => commands.push(cmd));
+
+      query.id = 'q-bad-fn-4';
+      query.source = 'neg-bad-fn';
+      query.groupBy = 'region';
+      query.aggregate = 'x:somme';
+      (query as any)._initialize();
+
+      expect((query as any)._serverDelegated.groupBy).toBe(false);
+      expect((query as any)._serverDelegated.aggregate).toBe(false);
+      expect(commands.some((c) => c.aggregate === 'x:somme')).toBe(false);
+
+      unsub();
+      mockSource.remove();
+      errorSpy.mockRestore();
+    });
+
+    it('_computeAggregate throws (never returns 0) on an unknown function', () => {
+      expect(() =>
+        (query as any)._computeAggregate([{ x: 1 }], { field: 'x', function: 'somme' })
+      ).toThrow(/somme/);
+    });
+  });
+
   describe('_handleSourceData error handling', () => {
     it('catches errors in processing and dispatches error event', () => {
       query.id = 'test-query';
@@ -872,9 +1024,9 @@ describe('DsfrDataQuery', () => {
       expect((query as any)._computeAggregate([], agg)).toBe(0);
     });
 
-    it('returns 0 for unknown function', () => {
+    it('throws on an unknown function instead of returning 0 (#649)', () => {
       const agg = { field: 'val', function: 'median' };
-      expect((query as any)._computeAggregate([{ val: 10 }], agg)).toBe(0);
+      expect(() => (query as any)._computeAggregate([{ val: 10 }], agg)).toThrow(/median/);
     });
 
     it('returns empty for empty aggregate expression', () => {

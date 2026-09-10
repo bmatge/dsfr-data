@@ -423,9 +423,22 @@ Quatre decoupages de carte sont disponibles (API cartes unifiee [DSFR Chart](htt
 | `type` | Decoupage | Cles attendues (`code-field`) |
 |--------|-----------|-------------------------------|
 | `map` | Departements | Code INSEE (`01`-`95`, `2A`, `2B`, `971`-`976`) |
-| `map-reg` | Regions | Code region INSEE (`11`, `84`...) |
-| `map-aca` | Academies | Nom en majuscules (`PARIS`, `LYON`...) |
-| `map-monde` | Monde | Code pays ISO 3166-1 (alpha-2 `FR`, alpha-3 `FRA` ou numerique `250` — convertis automatiquement) |
+| `map-reg` | Regions | Code region INSEE (`11`, `84`...), cle DSFR Chart (`IDF`, `20R`, `971`) ou nom (`Ile-de-France`) |
+| `map-aca` | Academies | Nom de l'academie, accentue ou non, avec ou sans le prefixe « Academie de » (`Academie de Besancon`, `BESANCON`, `Orleans-Tours`) |
+| `map-monde` | Monde | Code pays ISO 3166-1 (alpha-2 `FR`, alpha-3 `FRA` ou numerique `250` — convertis automatiquement) ou **nom du pays en francais** (`Allemagne`, `allemagne`, `l'Allemagne`, `Pays-Bas`, `Cote d'Ivoire`) |
+
+Les cles sont traduites vers le referentiel de DSFR Chart quand c'est possible. Une cle qui n'y
+correspond a aucun territoire (nom d'academie inconnu, code de region inexistant, nom de pays hors
+referentiel, territoire absent du
+decoupage `aca` : Polynesie, Wallis-et-Futuna, Saint-Pierre-et-Miquelon, AEFE) n'est pas dessinee : la
+ligne est **comptee** et le nombre de lignes ignorees apparait dans la console et dans le volet
+Diagnostic (#729).
+
+**Couleur d'une modalite** : `color-map="Realise:#000091,Objectif:#E1000F"` fixe la couleur d'une serie
+(une couleur par courbe ou par barre) ou, si aucune serie ne correspond, d'un libelle de l'axe (une
+couleur par part de camembert). Les modalites non citees gardent la couleur de la palette. Meme
+grammaire que `dsfr-data-map-layer`, echappement `%2C` / `%3A` compris. Sans effet sur les cartes
+`map*`, dont l'echelle vient de `selected-palette`.
 
 #### KPI — Indicateurs Industrie du futur
 
@@ -540,7 +553,7 @@ Les sources Grist renvoient des enregistrements imbriques `{id, fields: {col1, c
 
 Les donnees passent par `dsfr-data-query` qui les filtre, regroupe et/ou agrege avant de les transmettre au composant de visualisation.
 
-> **Datasets prives** : en mode `opendatasoft` ou `tabular`, l'attribut `headers` permet de passer des headers HTTP (API key, token) pour acceder a des datasets prives. Syntaxe : `headers='{"apikey":"ma-cle"}'`
+> **Datasets prives** : en mode `opendatasoft` ou `tabular`, l'attribut `headers` permet de passer des headers HTTP (API key, token) pour acceder a des datasets prives. OpenDataSoft n'accepte la clé que dans l'en-tête `Authorization` (seul en-tête autorisé par sa politique CORS) : `headers='{"Authorization":"Apikey ma-cle"}'`, ou, pour ne pas ecrire la clé dans le HTML, `api-key-ref="k"` avec `<script>window.DSFR_DATA_KEYS = { k: 'Apikey ma-cle' };</script>`. Un en-tête `apikey` nu est reecrit automatiquement en `Authorization: Apikey …` (#655).
 
 #### Barres — Beneficiaires agreges par region
 
@@ -654,28 +667,115 @@ Les donnees passent par `dsfr-data-query` qui les filtre, regroupe et/ou agrege 
 </dsfr-data-list>
 ```
 
+### Tableau croise : dsfr-data-source → dsfr-data-pivot → dsfr-data-list
+
+Beaucoup de jeux sont servis en format **long** (une observation par ligne : `commune | annee | montant`).
+`dsfr-data-pivot` les replie en tableau **wide** (croise) : une ligne par valeur de `row`, une colonne par
+valeur distincte de `column`, et dans chaque cellule l'agregat (`aggregate`, `sum` par defaut) de `value`.
+Une cellule sans observation reste vide (`null`), jamais 0. C'est le symetrique de `dsfr-data-unpivot`.
+
+#### Tableau croise dont les colonnes suivent les donnees
+
+```html
+<dsfr-data-source id="long" data='[
+  {"commune":"Lyon","annee":2022,"montant":10},
+  {"commune":"Lyon","annee":2023,"montant":12},
+  {"commune":"Nice","annee":2022,"montant":7},
+  {"commune":"Nice","annee":2023,"montant":9}
+]'></dsfr-data-source>
+
+<dsfr-data-pivot id="wide" source="long"
+  row="commune" column="annee" value="montant" aggregate="sum">
+</dsfr-data-pivot>
+
+<!-- sans `columns`, la grille prend toutes les colonnes des donnees : commune | 2022 | 2023 -->
+<dsfr-data-list source="wide" sort="commune:asc" export="csv"></dsfr-data-list>
+```
+
+Une nouvelle annee dans la source devient une nouvelle colonne sans toucher au HTML. Pour figer et
+libeller les premieres colonnes tout en laissant les suivantes suivre les donnees, poser
+`columns="commune:Commune" columns-auto` sur la liste. En aval d'une facette (`dsfr-data-facets`) ou
+d'une requete filtree, les colonnes visibles sont exactement les valeurs retenues par le filtre.
+
+Options utiles : `column-order="asc|desc"` (ordre des colonnes), `labels="2022:Annee 2022 | 2023:Annee 2023"`
+(libelles), `max-columns` (plafond, 50 par defaut : au-dela le composant signale une erreur de
+configuration plutot que de produire un tableau a 10 000 colonnes).
+
+#### Ecart entre deux series : pivot puis compute
+
+```html
+<dsfr-data-pivot id="wide" source="long"
+  row="commune" column="annee" value="montant"
+  column-format="annee_{value}">
+</dsfr-data-pivot>
+
+<dsfr-data-normalize id="ecart" source="wide"
+  compute="ecart = annee_2023 - annee_2022">
+</dsfr-data-normalize>
+
+<dsfr-data-chart source="ecart" type="bar"
+  label-field="commune" value-field="ecart:Ecart 2023 - 2022">
+</dsfr-data-chart>
+```
+
+`column-format="annee_{value}"` donne des noms de colonnes utilisables dans `compute` (`2023` seul
+serait lu comme un nombre). Le volet Diagnostic affiche, sur l'etape pivot, le nombre de colonnes
+generees et de cellules vides.
+
+#### Colorer une cellule selon un seuil : colonne calculee → classe (`cell-class`)
+
+Il n'y a pas de `threshold-*` par colonne sur le tableau (c'est une specificite de `dsfr-data-kpi`). La voie est **colonne calculee → classe** : `compute` sait deja produire une tranche, `cell-class` en fait la classe CSS de la cellule. Une seule mecanique au lieu de deux — et le critere RGAA 1.4.1 (« l'information n'est pas portee par la seule couleur ») satisfait par construction, puisque la valeur textuelle existe deja dans une colonne.
+
+```html
+<dsfr-data-normalize id="avec-seuil" source="brut"
+  compute="alerte = when taux_reponse >= 50 then 'seuil-ok' else 'seuil-bas'">
+</dsfr-data-normalize>
+
+<dsfr-data-list source="avec-seuil"
+  columns="service:Service, taux_reponse:Taux de reponse, alerte:Seuil"
+  cell-class="taux_reponse:alerte">
+</dsfr-data-list>
+
+<style>
+  .seuil-bas { background: var(--background-contrast-error); font-weight: 700; }
+  .seuil-ok  { background: var(--background-contrast-success); }
+</style>
+```
+
+- **Grammaire** : `cell-class="colonne:colonne_classe"`, plusieurs paires separees par des virgules. `cell-class="statut"` seul classe la cellule de `statut` par sa propre valeur.
+- **La valeur DEVIENT la classe** : `'seuil-bas'` donne `class="seuil-bas"`, `'fr-badge fr-badge--error'` en donne deux. Seuls les identifiants CSS sont retenus (une valeur comme `12 %` n'en produit aucune) : la donnee ne peut pas sortir de l'attribut `class`.
+- **Si la colonne de classe n'est pas affichee**, sa valeur est ajoutee dans la cellule en texte masque visuellement (`(seuil-bas)`) : un lecteur d'ecran l'entend meme si la colonne n'est pas dans `columns`. Le plus lisible reste de l'afficher, comme dans l'exemple.
+- **Ne comptez pas sur la couleur seule** dans votre CSS : ajoutez une graisse, une bordure ou une icone. La classe est un point d'accroche, pas une garantie de contraste.
+
 ### Cartes interactives Leaflet — la famille dsfr-data-map
 
-Au-dela des cartes choroplethes de `dsfr-data-chart` (type `map`/`map-reg`/`map-aca`/`map-monde`), la famille `dsfr-data-map` (bundle `map`) rend des **cartes interactives Leaflet** multi-couches : marqueurs, formes GeoJSON, cercles proportionnels, heatmap. Cinq composants se combinent :
+Au-dela des cartes choroplethes de `dsfr-data-chart` (type `map`/`map-reg`/`map-aca`/`map-monde`), la famille `dsfr-data-map` (bundle `map`) rend des **cartes interactives Leaflet** multi-couches : marqueurs, formes GeoJSON, cercles proportionnels, heatmap. Six composants se combinent :
 
 - `<dsfr-data-map>` : le conteneur (fond de carte, zoom, encarts, accessibilite integree) ;
 - `<dsfr-data-map-layer>` : une couche de donnees (une source par couche → multi-source naturel) ;
 - `<dsfr-data-map-popup>` : l'affichage au clic (popup, modale ou panneau lateral, template `{{champ}}`) ;
 - `<dsfr-data-map-inset>` : un encart territorial (DROM, Corse, zoom local) ;
+- `<dsfr-data-map-legend>` : la legende d'une couche (classes chiffrees d'une choroplethe, paires de `color-map`) ;
 - `<dsfr-data-map-timeline>` : les controles de lecture temporelle des couches datees (`time-field`).
 
 ```html
 <dsfr-data-source id="communes" api-type="opendatasoft"
   base-url="https://data.economie.gouv.fr" dataset-id="mon-dataset-geo"></dsfr-data-source>
 
-<dsfr-data-map center="46.6,2.9" zoom="6" tiles="ign-plan" name="Carte des communes"
-  insets="drom,corse" fit-bounds max-bounds="41,-5.5,51.5,10">
+<!-- Contours des regions livres dans le paquet npm (hors bundle) : dsfr-data/geo/regions.json -->
+<dsfr-data-source id="contours" url="https://cdn.jsdelivr.net/npm/dsfr-data@0/geo/regions.json"
+  transform="features"></dsfr-data-source>
+
+<dsfr-data-map center="46.6,2.9" zoom="6" tiles="ign-plan" tiles-style="muted" name="Carte des communes"
+  insets="drom,corse" fit-bounds>
   <!-- Couche decorative (contours) : aucune interaction, exclue du fit-bounds -->
-  <dsfr-data-map-layer source="contours" type="geoshape" geo-field="geo_shape"
-    no-interactive color="#666"></dsfr-data-map-layer>
-  <!-- Couche de donnees -->
+  <dsfr-data-map-layer source="contours" type="geoshape" geo-field="geometry"
+    no-interactive color="#666" fill-opacity="0"></dsfr-data-map-layer>
+  <!-- Couche de donnees : choroplethe a 5 classes -->
   <dsfr-data-map-layer id="couche-communes" source="communes" type="geoshape"
-    geo-field="geo_shape" fill-field="population" tooltip-field="nom"></dsfr-data-map-layer>
+    geo-field="geo_shape" fill-field="population" classes="5" tooltip-field="nom"></dsfr-data-map-layer>
+  <!-- Legende des 5 classes, sous la carte -->
+  <dsfr-data-map-legend for="couche-communes" label="Population"></dsfr-data-map-legend>
   <!-- Panneau lateral au clic, avec formatage numerique -->
   <dsfr-data-map-popup mode="panel-right" for="couche-communes" title-field="nom">
     <template>
@@ -688,14 +788,73 @@ Au-dela des cartes choroplethes de `dsfr-data-chart` (type `map`/`map-reg`/`map-
 
 Points cles :
 
-- **Fonds de carte** : presets `ign-plan` (defaut), `ign-ortho`, `ign-cadastre`, `osm-fr`, `osm-standard`, `carto-positron`, `carto-dark`, `opentopomap`, ou une URL de tuiles custom `{z}/{x}/{y}`. L'attribut `sovereign-only` restreint aux presets souverains IGN.
+- **Fonds de carte** : presets `ign-plan` (defaut), `ign-ortho`, `ign-cadastre`, `osm-fr`, `osm-standard`, `opentopomap`, ou une URL de tuiles custom `{z}/{x}/{y}` (`carto-positron` et `carto-dark` sont deprecies : redirection vers `ign-plan`). L'attribut `sovereign-only` restreint aux presets souverains IGN.
+- **Fond attenue** : `tiles-style="muted"` (gris + 55 % d'opacite) ou `tiles-style="grey"` (niveaux de gris) efface le plan sous une carte thematique, sans CSS de page — un fond « neutre » = `ign-plan` attenue. Les encarts heritent du reglage.
+- **Choix du fond par le lecteur** : `tiles-switcher="ign-plan,ign-ortho"` rend un menu deroulant etiquete « Fond de carte » en haut a droite de la carte. C'est un `select` natif place avant le conteneur : atteint au clavier juste apres le lien d'evitement, sa valeur est annoncee par les lecteurs d'ecran, et le changement est repete dans la zone d'annonces. Seuls les presets connus (alias compris) sont retenus ; une URL custom ou un nom inconnu est ecarte avec un avertissement, et il en faut au moins deux differents pour que le controle apparaisse (avec `sovereign-only`, s'en tenir aux presets IGN). Le fond courant est ajoute en tete s'il manque a la liste, les encarts suivent le choix, et chaque bascule emet `dsfr-data-map-tiles-change` `{ tiles }`. Sans effet avec `locked` ou `no-controls`.
+- **Choroplethe** : sur une couche `geoshape`, `fill-field` colore les polygones par classes (`selected-palette`, defaut `sequentialAscending`). `classes="5"` fixe le nombre de classes, `method="quantile|equal|manual"` la discretisation, `breaks="10,50,100"` des bornes manuelles ; defaut : quantiles, autant de classes que de couleurs (9).
+- **Couleurs categorielles** : `color-field` + `color-map="modalite:#couleur,…"`. Meme grammaire sur `dsfr-data-chart` (#732). Une virgule ou un deux-points dans une modalite s'ecrit `%2C` ou `%3A` (`Commerce%2C transport:#000091`), sinon la paire est coupee au decoupage.
+- **Legende** : `<dsfr-data-map-legend for="id-couche" label="…">` rend sous la carte une liste DSFR « pastille + texte » : classes avec bornes chiffrees (fr-FR) pour une choroplethe, paires de `color-map` (+ repli `color`) pour une couche categorielle. Elle se rafraichit a chaque rendu de la couche (`getLegendEntries()` / evenement `dsfr-data-map-layer-render`). Hors perimetre : `dsfr-data-chart type="map"` (echelle continue de DSFR Chart).
+- **Fonds administratifs sans API** : le paquet livre `dsfr-data/geo/regions.json` (18 regions) et `dsfr-data/geo/departements.json` (101 departements), GeoJSON simplifies (~120 et ~300 Ko, proprietes `code`/`nom`), hors bundle — via `import.meta.resolve('dsfr-data/geo/regions.json')`, un CDN npm ou une copie a cote de `dist/`. Recette : `<dsfr-data-source url="…/geo/regions.json" transform="features">` + couche `geoshape geo-field="geometry" no-interactive`. Source : Contours administratifs Etalab, Licence Ouverte 2.0 (`packages/core/geo/README.md`).
 - **`geo-field`** accepte du GeoJSON (Point, Polygon, Feature…), des objets `{lat, lon}`, des tableaux `[lat, lon]` **ou des chaines JSON serialisees** (colonnes texte Grist/CSV) ; a defaut, `lat-field`/`lon-field` pour des colonnes separees.
 - **Couches decoratives** : `no-interactive` desactive clic/tooltip/popup et **exclut la couche du fit-bounds** (contours administratifs, habillage).
-- **Cadrage** : `fit-bounds` ajuste la vue aux donnees ; `max-bounds="latSW,lonSW,latNE,lonNE"` limite le deplacement ET clippe le fit (les DROM lointains ne dezooment plus la vue metropolitaine — d'ou l'interet des encarts `insets="drom"`).
+- **Cadrage** : `fit-bounds` ajuste la vue aux donnees ; `max-bounds="latSW,lonSW,latNE,lonNE"` limite le deplacement ET clippe le fit. Des que la carte porte un encart ultramarin (`insets="drom"`…) sans `max-bounds`, le fit est clippe par defaut sur la metropole (`41,-5.5,51.5,10`) : les DROM ne dezooment plus la vue, le deplacement reste libre. `fit-zone="latSW,lonSW,latNE,lonNE"` surcharge cette zone (`fit-zone="none"` la desactive).
 - **Popup** : placeholders `{{champ}}` (echappe), `{{champ:number}}` (format fr-FR), `{{champ|defaut}}`, `{{champ.sous.cle}}` ; modes `popup`, `modal`, `panel-right`, `panel-left`.
 - **Timeline** : sur une couche, `time-field` (+ `time-bucket`, `time-mode="snapshot|cumulative"`) decoupe les donnees en etapes ; `<dsfr-data-map-timeline>` ajoute lecture/pause et navigation clavier.
+- **Clic** : chaque couche interactive emet `dsfr-data-map-select` `{ record, layerId, selected }` (bubbles, composed) au clic sur un marqueur, un cercle ou une forme, en plus de la popup — de quoi brancher n'importe quel JS de page. `selected` vaut `true` a la selection, `false` au retrait (second clic sur le meme objet).
+
+#### Recette annuaire : la carte filtre la liste (`refine-on-click`)
+
+Avec `refine-on-click="champ"` et `context="id"`, la couche devient un **filtre du `dsfr-data-context`** (ADR-104) : cliquer un marqueur pose un filtre `eq` sur la valeur de l'objet clique, diffuse a toutes les sources du contexte (au dialecte de chacune), avec un tag dans `dsfr-data-context-tags` (libelle = `label` de la couche, sinon le champ) et l'URL portee par le contexte (`url-sync`). Second clic sur le meme objet = retrait ; clic sur un autre objet = remplacement ; la croix du tag retire le filtre par le meme chemin.
+
+```html
+<!-- Deux sources sur le meme jeu : la carte garde tous ses points, seule la liste se filtre -->
+<dsfr-data-source id="etablissements" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr" dataset-id="mon-annuaire"></dsfr-data-source>
+<dsfr-data-source id="etablissements-carte" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr" dataset-id="mon-annuaire"></dsfr-data-source>
+
+<dsfr-data-context id="ctx" sources="etablissements" url-sync></dsfr-data-context>
+<dsfr-data-context-tags for="ctx"></dsfr-data-context-tags>
+
+<dsfr-data-map center="46.6,2.9" zoom="6" fit-bounds name="Etablissements">
+  <dsfr-data-map-layer source="etablissements-carte" type="marker" geo-field="geo_point_2d"
+    tooltip-field="commune" refine-on-click="commune" context="ctx" label="Commune"></dsfr-data-map-layer>
+</dsfr-data-map>
+<dsfr-data-list source="etablissements" fields="nom,adresse,commune"></dsfr-data-list>
+```
+
+Points d'attention :
+
+- **Le mode `context` est recommande.** Sans `context`, `refine-on-click` pousse la clause directement a la `source` de la couche (whereKey `map-select-<id>`) : pas de tag, pas d'URL, pas de traduction de dialecte — chemin degrade, reserve aux pages sans contexte.
+- **Une carte qui se filtre elle-meme.** Si la source de la couche figure aussi dans `sources` du contexte, le clic ne laisse que l'objet clique sur la carte (jusqu'au second clic) : c'est voulu pour un annuaire « une commune a la fois », pas pour une carte de navigation. Ce sont les `sources` du contexte qui reglent les cibles — la couche n'a pas d'`apply-to` ; pour garder tous les points, donner a la carte sa propre source, comme ci-dessus.
+- **Couches decoratives** (`no-interactive`) : aucun evenement ni filtre.
 
 Exemples executables : [guide des cartes](https://chartsbuilder.miweb.run/guide/) (section Cartographie) et [specifications dsfr-data-map](https://chartsbuilder.miweb.run/specs/).
+
+#### Le meme geste sans carte : `refine-on-click` sur la liste et les cartes-tuiles
+
+Depuis la 0.27, `refine-on-click` (et son `context`) existe aussi sur **`dsfr-data-list`** et **`dsfr-data-display`** (#734) : le motif maitre-detail ne demande plus de partir d'une carte. Le contrat est identique a celui de la couche — premier clic = filtre `eq`, second clic sur le meme element = retrait, clic sur un autre = remplacement, tag dans `dsfr-data-context-tags`, URL portee par le contexte, chemin degrade vers `source` sans `context`.
+
+```html
+<dsfr-data-context id="ctx" sources="depenses" url-sync></dsfr-data-context>
+<dsfr-data-context-tags for="ctx"></dsfr-data-context-tags>
+
+<!-- Cliquer une ligne filtre le graphique, pas le tableau (sources distinctes) -->
+<dsfr-data-list source="communes" columns="commune:Commune, population:Population"
+  refine-on-click="commune" context="ctx"></dsfr-data-list>
+<dsfr-data-chart source="depenses" type="bar" label-field="annee" value-field="montant"></dsfr-data-chart>
+```
+
+Accessibilite (le vrai cout du geste, et ce qui en fait la valeur) :
+
+- **Un vrai bouton par ligne**, dans une colonne de selection ajoutee en tete du tableau (ou en pied de chaque carte pour `dsfr-data-display`) : il est dans l'ordre de tabulation, annonce comme un bouton, active par Entree et Espace. Aucun `tabindex` bricole, aucun `role` pose sur la ligne.
+- **L'etat n'est pas porte par la couleur** : `aria-pressed` sur le bouton, `aria-current="true"` sur la ligne, et surtout un libelle qui change — « Filtrer sur Paris » devient « Retirer le filtre Paris ». Le fond bleu et la barre laterale ne font que redire ce que le texte dit deja (RGAA 1.4.1).
+- **Le clic sur la ligne entiere** reste possible pour le confort a la souris ; il ne double pas le clic du bouton et ne vole pas celui d'un lien rendu dans une cellule ou dans le template.
+- Chaque bascule emet `dsfr-data-select` `{ record, elementId, selected }` (bubbles, composed) et est annoncee dans la region live du composant.
+
+Comme pour la carte : si la source du tableau figure aussi dans les `sources` du contexte, le tableau se filtre lui-meme (seule la ligne cliquee reste, jusqu'au second clic). Pour garder la liste complete, donnez au tableau sa propre source.
+
+Hors perimetre : le clic sur une barre ou un secteur de `dsfr-data-chart` (#749) — `@gouvfr/dsfr-chart` n'emet aucun evenement de clic au niveau graphique.
 
 ### KPIs : groupes, formats et litteraux
 
@@ -718,6 +877,222 @@ Exemples executables : [guide des cartes](https://chartsbuilder.miweb.run/guide/
 - **Format `compact`** : notation compacte fr-FR (`14,8 M`, `6,7 k`) — pratique pour les grands volumes. Autres formats : `nombre`, `pourcentage`, `euro`, `decimal`.
 - **Litteral `value="=…"`** : affiche la valeur telle quelle, sans source de donnees (`value="=667"`, `value="=87 %"`).
 - Chaque KPI enfant peut porter `col="1..12"` pour moduler sa largeur dans la grille.
+
+### Charger un jeu Opendatasoft en une requete : `fetch-mode="export"`
+
+Par defaut, une source Opendatasoft lit le jeu **page par page**, 100 lignes a la fois : 3 000 lignes
+coutent 30 requetes, et le portail impose un quota partage. `fetch-mode="export"` charge tout en
+**une seule requete**, avec exactement les memes clauses (`select`, `where`, `group-by`, `order-by`) :
+
+```html
+<dsfr-data-source id="marches" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr" dataset-id="decp_augmente"
+  fetch-mode="export" max-records="20000"
+  select="count(*) as nb, source" group-by="source"></dsfr-data-source>
+
+<dsfr-data-chart source="marches" type="bar"
+  label-field="source" value-field="nb"></dsfr-data-chart>
+```
+
+**Quand l'activer**
+
+- Une page « un chargement, plusieurs graphiques » : le jeu est lu une fois, les agregations se font
+  ensuite dans le navigateur.
+- Un jeu de plus de 1 000 lignes : le plafond par defaut du chargement pagine tronque a 1 000, ici
+  c'est `max-records` qui fixe la limite.
+- Un `group-by` a beaucoup de groupes : l'export les rend tous, la pagination s'arretait a la
+  premiere page.
+
+**Quand ne pas l'activer**
+
+- Avec `server-side` (pagination page par page d'un tableau) : les deux se contredisent, l'attribut
+  est alors ignore et la console le signale.
+- Sur un portail qui n'expose pas d'endpoint d'export : la source retombe automatiquement sur le
+  chargement pagine, avec un avertissement dans la console — rien ne casse, mais l'attribut ne sert
+  a rien.
+
+**A savoir** — en mode export le portail ne renvoie pas le total du jeu : un KPI `meta:total` affiche
+le nombre de lignes recues. Si le jeu depasse `max-records`, les donnees sont tronquees, un
+avertissement le dit en console et le volet Diagnostic le signale.
+
+### Passer un parametre propre au portail : `params`
+
+Certains portails attendent un parametre que la bibliotheque ne modelise pas — le plus courant est
+`timezone`, sans lequel un jeu a dates est lu dans le fuseau du serveur et sort decale de deux heures
+en heure d'ete. L'attribut `params` porte ces paires en **mode adaptateur** aussi : elles sont
+ajoutees a l'URL construite par l'adaptateur, en chargement pagine, en `fetch-mode="export"` et en
+`server-side`. C'est ce qui permet a une page a `timezone` d'utiliser `fetch-mode="export"` : avant,
+un tel parametre obligeait a ecrire l'URL complete a la main et donc a renoncer au mode adaptateur.
+
+```html
+<dsfr-data-source id="carburants" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr" dataset-id="prix-des-carburants-en-france-flux-instantane-v2"
+  fetch-mode="export" max-records="20000"
+  params='{"timezone":"Europe/Paris"}'></dsfr-data-source>
+```
+
+**Ce que `params` ne peut pas faire** — les cles que la bibliotheque construit elle-meme a partir des
+attributs du composant (`select`, `where`, `group_by`, `order_by`, `limit`, `offset`, `facet`) sont
+reservees : elles sont refusees, la clause construite est conservee et la source pose une erreur de
+configuration nommant la cle (attribut `data-dsfr-config-error`, message en console). Pour filtrer,
+trier ou agreger, ce sont les attributs `where`, `order-by`, `group-by` et `select` qu'il faut poser.
+Seul l'adaptateur Opendatasoft transmet ces parametres aujourd'hui ; en mode URL brute, `params`
+garde son comportement historique (query string en GET, corps de la requete en POST).
+
+### Pages d'exploration : ne rien charger tant qu'aucun filtre n'est pose
+
+Sur une page ou l'utilisateur choisit d'abord une commune, une annee ou un theme, charger
+le jeu complet au montage est une requete couteuse dont personne ne regarde le resultat
+(19 388 lignes rapatriees pour un ecran vide). L'attribut `require-where` sur
+`<dsfr-data-source>` tient le chargement en attente jusqu'au premier filtre :
+
+```html
+<dsfr-data-context id="ctx" sources="src">
+  <dsfr-data-context-filter field="commune" operator="eq"></dsfr-data-context-filter>
+</dsfr-data-context>
+
+<!-- Aucune requete tant qu'aucune commune n'est choisie -->
+<dsfr-data-source id="src" api-type="opendatasoft" require-where
+  base-url="https://data.example.gouv.fr" dataset-id="equipements"></dsfr-data-source>
+
+<dsfr-data-list source="src" columns="commune,equipement"
+  idle-message="Choisissez une commune pour afficher ses equipements"></dsfr-data-list>
+```
+
+- **Ce qui compte comme filtre** : les clauses recues par commande — facettes, recherche,
+  `dsfr-data-context`, delegation d'un `dsfr-data-query`. Le `where` **statique** de la source
+  ne compte pas : il fait partie de la definition du jeu, pas du geste de l'utilisateur.
+- **Retirer le dernier filtre** ramene la page en attente : il n'y a jamais de requete
+  « tout » implicite.
+- **Affichage** : chart, list, kpi, display, podium et a11y rendent un message DSFR
+  (`idle-message`, defaut « Choisissez un filtre pour afficher les donnees »), distinct de
+  « aucune donnee » (une requete est partie et n'a rien ramene) et du chargement.
+- **Pendant client** : `require-where` existe aussi sur `<dsfr-data-query>` — la requete
+  n'emet aucune ligne tant qu'aucun filtre n'est pose, et l'etat descend jusqu'aux afficheurs.
+- **Diagnostic** : l'etape apparait « en attente d'un filtre » dans le volet Diagnostic ;
+  sur le bus, l'evenement est `dsfr-data-idle`.
+- `require-where` suppose un `api-type` : en mode URL brute, les commandes de filtre sont
+  refusees (rien ne pourrait lever l'attente) et un avertissement est emis en console.
+
+---
+
+### Facettes : un tri different par champ
+
+`sort` accepte desormais la meme grammaire par champ que `labels`, `display` et `cols`
+(barre verticale, `champ:critere[:sens]`). Une facette d'annees se range A → Z pendant
+qu'une facette de categories reste rangee par frequence, sans dupliquer le composant :
+
+```html
+<dsfr-data-facets id="filtres" source="src" fields="annee, categorie"
+  sort="annee:alpha:asc | categorie:count:desc"></dsfr-data-facets>
+```
+
+- Un champ que `sort` ne nomme pas garde le tri par defaut (`count:desc`).
+- L'entree `*` change ce defaut : `sort="*:alpha | annee:count:desc"` range toutes les
+  facettes A → Z sauf `annee`.
+- Les formes globales historiques restent valides telles quelles (`count`, `alpha`,
+  `count:asc`, `alpha:desc`), y compris les formes depreciees `-count` / `-alpha`, qui
+  continuent d'avertir en console.
+- Un champ qui s'appelle litteralement `count` ou `alpha` se nomme sans ambiguite en
+  trois segments : `sort="count:alpha:desc"` trie le champ `count` de Z a A.
+
+---
+
+### Facettes : compter une mesure plutot que des lignes
+
+Sur une table de mesures, « 1 240 » ne dit rien au lecteur : ce sont des lignes de releve,
+pas des personnes. `weight-field` remplace le nombre de lignes par la **somme** d'un champ :
+
+```html
+<dsfr-data-facets id="filtres" source="src" fields="region"
+  weight-field="effectif"></dsfr-data-facets>
+```
+
+- Le tri `count` porte alors sur cette somme, et le nombre est formate a la francaise
+  (`4 500,5`). Les lecteurs d'ecran entendent « total 4 500,5 », pas « 4 500 resultats ».
+- Une valeur non numerique pese zero ; un champ absent de toutes les lignes est signale
+  une fois en console.
+- Sur une cellule multi-valeurs (ChoiceList Grist), chaque valeur recoit le poids entier
+  de la ligne — comme elle recevait une unite dans le comptage par lignes.
+- **Client uniquement, et c'est assume.** En mode `server-facets`, l'API facettes ne
+  renvoie qu'un nombre de lignes : la somme n'existe pas. Plutot qu'afficher un nombre de
+  lignes sous un libelle de somme, le composant **masque les compteurs**, pose
+  `data-dsfr-config-error` et rend un avertissement DSFR au-dessus des facettes. Pour
+  ponderer des facettes serveur, il faut ramener les donnees cote client.
+
+---
+
+### Ecrire la valeur d'un filtre dans un titre
+
+`dsfr-data-context-tags` liste les filtres actifs, mais ne s'insere pas dans une phrase :
+« Résultats pour {{departement}} » n'etait pas exprimable. `<dsfr-data-context-value>` rend
+la valeur courante d'un ou plusieurs filtres du contexte, comme du texte :
+
+```html
+<dsfr-data-context id="ctx" sources="src" url-sync>
+  <dsfr-data-context-filter field="departement" operator="eq" ui="ui-dep">
+  </dsfr-data-context-filter>
+</dsfr-data-context>
+
+<h2>
+  <dsfr-data-context-value for="ctx" template="Résultats pour {{departement}}"
+    fallback="Résultats pour toute la France" live></dsfr-data-context-value>
+</h2>
+```
+
+- `field="departement"` est le raccourci de `template="{{departement}}"`.
+- **Repli declare** : `fallback` s'affiche tant qu'un champ cite n'a aucune valeur. Un seul
+  champ manquant suffit a basculer — « Résultats pour  » serait pire qu'une phrase de repli.
+  Sans `fallback`, le composant ne rend rien.
+- **Accessibilite** : `live` fait du composant une region live polie (`aria-live="polite"`,
+  `role="status"`), pour qu'un titre qui suit le filtre annonce le changement de contenu.
+  A poser sur **un seul** element de la page : trois libelles qui parlent en meme temps sont
+  un bruit, pas une aide.
+- Tout filtre du contexte est lisible ainsi (contrat commun) : `dsfr-data-context-filter`,
+  champs d'une `dsfr-data-facets context="…"`, terme d'une `dsfr-data-search context="…"`.
+- Le rendu est du texte : la valeur d'un filtre ne traverse jamais l'analyseur HTML.
+
+---
+
+### Annee scolaire, exercice comptable, saison : `year-start-month`
+
+Tous les operateurs de date raisonnent en annee civile ; `year-of` coupait l'annee scolaire
+en son milieu, en silence. `year-start-month` dit ou commence l'annee :
+
+```html
+<label for="ui-annee">Année scolaire</label>
+<input id="ui-annee" type="number" min="2015" max="2030" step="1" value="2024">
+
+<dsfr-data-context id="ctx" sources="src">
+  <dsfr-data-context-filter field="date_rentree" label="Année scolaire" operator="year-of"
+    year-start-month="9" ui="ui-annee"></dsfr-data-context-filter>
+</dsfr-data-context>
+```
+
+- `year-start-month="9"` filtre `[2024-09-01, 2025-09-01)` pour la valeur « 2024 ». `4` donne
+  l'exercice comptable britannique, `7` l'exercice australien, `10` une saison sportive.
+  `1` (defaut) laisse l'annee civile strictement inchangee.
+- L'attribut vaut aussi pour `current-year` : en juin 2026 avec `year-start-month="9"`,
+  l'annee en cours est 2025-2026.
+- **Une annee nue** (« 2024 ») nomme l'annee qui **commence** en 2024 ; **une date**
+  (« 2025-03-10 ») designe l'annee qui la **contient**. Les deux regles coincident quand
+  l'annee commence en janvier, ce qui permet de nourrir l'operateur d'un `<input type="date">`.
+- Le tag affiche « 2024-2025 », pas « 2024 » : ce qui est filtre est ce qui est ecrit.
+- **Le desucrage reste `gte` + `lt`** : la plage se delegue au serveur comme n'importe quelle
+  autre. Aucun adaptateur, aucun dialecte n'est concerne.
+
+**La voie client, disponible depuis la 0.24** : une colonne d'annee scolaire se derive avec
+`compute` sur `dsfr-data-normalize`, ce qui donne en prime un `group-by` et un libelle
+« 2024-2025 » gratuits :
+
+```html
+<dsfr-data-normalize id="clean" source="src"
+  compute="annee_scolaire = when month(d) >= 9 then concat(year(d),'-',year(d)+1) else concat(year(d)-1,'-',year(d))">
+</dsfr-data-normalize>
+```
+
+`compute` est un transformateur **client** : il ne se delegue pas. Sur un jeu hebdomadaire
+depuis 2019, il faut tout rapatrier — c'est exactement ce que `year-start-month` evite.
 
 ---
 

@@ -54,15 +54,18 @@ Guide pour choisir le type de visualisation adapte aux données.
 
 ### Carte regions (map-reg)
 - **Quand** : données geographiques par region francaise
-- **Champs** : code-field (code region), value-field
+- **Champs** : code-field (code INSEE 11/84/94, cle DSFR Chart IDF/20R/971 ou nom de region), value-field
 
 ### Carte academies (map-aca)
 - **Quand** : données education par academie
-- **Champs** : code-field (nom d'academie en majuscules : PARIS, LYON, STRASBOURG...), value-field
+- **Champs** : code-field (nom d'academie, accentue ou non, avec ou sans « Academie de » : « Academie de Besancon », BESANCON, Orleans-Tours), value-field
+- **Hors decoupage DSFR Chart** : Polynesie, Wallis-et-Futuna, Saint-Pierre-et-Miquelon, AEFE — lignes comptees comme ignorees
 
 ### Carte mondiale (map-monde)
 - **Quand** : données internationales par pays
 - **Champs** : code-field (code pays ISO 3166-1 : alpha-2 "FR", alpha-3 "FRA" ou numerique "250" — convertis automatiquement en alpha-2), value-field
+- **Nom de pays en francais accepte** : "Allemagne", "allemagne", "l'Allemagne", "Pays-Bas", "Etats-Unis", "Cote d'Ivoire" valent leur code (insensible a la casse, aux accents, aux traits d'union et a l'article). Formes longues courantes reconnues ("Republique federale d'Allemagne", "Republique tcheque"/"Tchequie", "Birmanie"/"Myanmar")
+- **Liste blanche** : un nom hors referentiel (ex. "Angleterre", qui n'est pas le Royaume-Uni) est ignore ET compte (console + volet Diagnostic), jamais devine
 - **Palette recommandee** : sequentialAscending
 
 ### Séries multiples (bar, line, bar-line, radar)

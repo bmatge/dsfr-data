@@ -127,6 +127,12 @@ filter_tag_content() {
   while IFS= read -r line; do
     [ -z "$line" ] && continue
     content=${line#*:*:}
+    # Le contenu d'un <code> EST du code : identifiants, clauses, noms de
+    # colonnes (`categorie:eq:Actif`, `Sous_theme`) n'ont pas a etre accentues.
+    # Sans ce retrait, les pages /specs — dont les tableaux d'attributs sont
+    # generes depuis le JSDoc, exemples de code compris — declenchent des faux
+    # positifs. Cohérent avec l'intention annoncée en tete de fichier.
+    content=$(printf '%s' "$content" | sed 's|<code>[^<]*</code>||g')
     tagtext=$(printf '%s' "$content" | grep -oE '>[^<>]+<' || true)
     if [ -n "$tagtext" ] && printf '%s' "$tagtext" | grep -qwE "($pattern)"; then
       printf '%s\n' "$line"

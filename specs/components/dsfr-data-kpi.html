@@ -34,35 +34,47 @@
         </p>
 
         <h2>Attributs</h2>
-        <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>source</code></td><td>String</td><td>ID du <code>&lt;dsfr-data-source&gt;</code> (requis)</td></tr>
-            <tr><td><code>value</code></td><td>String</td><td>Expression de calcul : <code>"champ"</code>, <code>"champ:avg"</code>, <code>"count:champ:valeur"</code> — ou littéral préfixé <code>=</code> : <code>value="=667"</code>, <code>value="=87 %"</code> (affiché tel quel, sans source)</td></tr>
-            <tr><td><code>heading</code></td><td>String</td><td>Titre affiche AU-DESSUS de la valeur (surtitre, majuscules grises)</td></tr>
-            <tr><td><code>label</code></td><td>String</td><td>Libelle affiche sous la valeur (et sous les <code>lines</code>)</td></tr>
-            <tr><td><code>description</code></td><td>String</td><td>Description détaillée pour l'accessibilité</td></tr>
-            <tr><td><code>trend</code></td><td>String</td><td>Raccourci herite : expression <code>champ:fn</code> (ex. <code>evolution:avg</code>) rendue avec une fleche en %. Preferez <code>lines</code></td></tr>
-            <tr><td><code>lines</code></td><td>String (JSON)</td><td>Lignes secondaires entre la valeur et le label. Items : <code>value</code> (expression) ou <code>text</code> (statique), + <code>format</code> (défaut <code>pourcentage</code>), <code>sign</code>, <code>prefix</code>, <code>suffix</code>, <code>color</code>, <code>na</code> (repli si la valeur ne résout pas). Tokens couleur : <code>success</code>/<code>vert</code>, <code>error</code>/<code>rouge</code>, <code>warning</code>/<code>orange</code>, <code>info</code>/<code>bleu</code>, <code>grey</code>/<code>gris</code>, <code>auto</code> (vert si &ge; 0, rouge si &lt; 0), ou toute couleur CSS brute</td></tr>
-            <tr><td><code>format</code></td><td>String</td><td>Format d'affichage : <code>nombre</code> (défaut), <code>euro</code>, <code>pourcentage</code>, <code>decimal</code>, <code>compact</code></td></tr>
-            <tr><td><code>icon</code></td><td>String</td><td>Classe d'icone Remix Icon (ex: <code>ri-global-line</code>)</td></tr>
-            <tr><td><code>color-token</code></td><td>String</td><td>Couleur forcee (token semantique DSFR) : <code>vert</code>, <code>orange</code>, <code>rouge</code>, <code>bleu</code>. Alias deprecie : <code>color</code></td></tr>
-            <tr><td><code>threshold-green</code></td><td>Number</td><td>Seuil au-dessus duquel la couleur est verte</td></tr>
-            <tr><td><code>threshold-orange</code></td><td>Number</td><td>Seuil au-dessus duquel la couleur est orange</td></tr>
-            <tr><td><code>col</code></td><td>Number</td><td>Largeur en colonnes (1-12), actif uniquement dans un <code>&lt;dsfr-data-kpi-group&gt;</code></td></tr>
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-kpi fields="source,value,heading,label,description,trend,lines,format,unit,decimals,icon,color-token,threshold-green,threshold-orange,col,where" -->
+                <tr><td><code>source</code></td><td>String</td><td>Id de la source (ou du transformateur) dont ce KPI consomme les données. Facultatif si <code>value</code> est un littéral (<code>value="=667"</code>).</td></tr>
+                <tr><td><code>value</code></td><td>String</td><td>Expression de valeur — convention cible anglaise (#300). Grammaire commune "champ:fn" (#303), ex. value="population:sum". <code>champ:distinct</code> (alias <code>count-distinct</code>, #672) : nombre de valeurs distinctes, null et chaîne vide exclus, calculé sur les lignes reçues. <code>meta:total</code> (#659) : total publié par l'amont (total serveur en server-side, lignes avant <code>limit</code> derrière un query) — <code>count</code> ne compte que les lignes reçues. Ratio (#673) : <code>value="count:statut:ouvert / count"</code>, chaque côté dans la grammaire ci-dessus (<code>meta:total</code> compris). Résultat = fraction (0,35) ; <code>format="pourcentage"</code> la rend en pourcentage (35 %) — les seuils s'expriment alors en pourcentage aussi. Division par zéro : « — ». <code>count:champ:valeur</code> accepte un champ tableau (un élément égal suffit). <code>champ:evolution</code> (#675) : (dernière − première) / première sur les lignes DANS LEUR ORDRE COURANT — poser un <code>order-by</code> chronologique en amont. Fraction, rendue en pourcentage par <code>format="pourcentage"</code>, <code>trend</code> et <code>lines</code> ; « — » si moins de deux valeurs ou première = 0.</td></tr>
+                <tr><td><code>heading</code></td><td>String</td><td>Titre affiché AU-DESSUS de la valeur (surtitre, style majuscules grises). Nommé <code>heading</code> et non <code>title</code> : ce dernier entrerait en collision avec la propriété DOM native HTMLElement.title (infobulle).</td></tr>
+                <tr><td><code>label</code></td><td>String</td><td>Libellé affiché sous le chiffre (et sous les <code>lines</code>)</td></tr>
+                <tr><td><code>description</code></td><td>String</td><td>Description détaillée pour l'accessibilité</td></tr>
+                <tr><td><code>trend</code></td><td>String</td><td>RACCOURCI HERITE — pour une ligne d'evolution riche (signe, suffixe, couleur, repli n.d.), preferez <code>lines</code>. Conserve pour compatibilite. Expression d'agrégation pour la tendance, évaluée sur les données de la source (grammaire commune "champ:fn", ex. "evolution:avg") — PAS un litteral : l'ancienne doc ("+3.2") laissait croire qu'on passait une valeur, la chaîne etait interpretee comme nom de champ (#303). Rendue avec une fleche (↑/↓) en pourcentage fr-FR ("↑ 5,2 %"). <code>trend="recettes:evolution"</code> (#675) : taux d'évolution entre la première et la dernière ligne, rendu en pourcentage.</td></tr>
+                <tr><td><code>lines</code></td><td>String</td><td>Lignes secondaires declaratives (JSON), rendues ENTRE la valeur et le <code>label</code>. Chaque item est soit data-driven (<code>value</code> = expression "champ:fn"), soit texte statique (<code>text</code>), avec couleur declarative. Ex. <code>[{"value":"evol:avg","sign":true,"suffix":"vs mai 2025","color":"auto"}]</code>. Schema complet : packages/core/src/utils/kpi-lines.ts (KpiLineSpec).</td></tr>
+                <tr><td><code>format</code></td><td>FormatType</td><td>Format d'affichage : nombre (défaut), pourcentage, euro, decimal, compact (14 785 684 → « 14,8 M »), date (chaîne ISO → « 09/09/2026 », #667). Les décimales passent par <code>decimals</code>, jamais par le format (<code>euro:3</code> est refusé et affiché comme erreur de configuration, #665).</td></tr>
+                <tr><td><code>unit</code></td><td>String</td><td>Unité accolée après la valeur (espace insécable), ex. <code>format="compact" unit="€"</code> → « 44,9 Md € ». Surtout utile avec nombre, decimal et compact — euro et pourcentage portent déjà leur symbole (#665).</td></tr>
+                <tr><td><code>decimals</code></td><td>Number</td><td>Nombre de décimales affichées (entier 0 à 20), ex. <code>format="euro" decimals="3"</code> → « 1,749 € ». Fixe pour nombre, pourcentage, euro et decimal ; plafond pour compact ; sans effet sur date. Absent : défaut historique du format (#665).</td></tr>
+                <tr><td><code>icon</code></td><td>String</td><td>Classe d'icône (ex: ri-global-line)</td></tr>
+                <tr><td><code>color-token</code></td><td>KpiColor | ''</td><td>Couleur forcée (token sémantique DSFR) : vert, orange, rouge, bleu</td></tr>
+                <tr><td><code>threshold-green</code></td><td>Number</td><td>Seuil au-dessus duquel la valeur est verte</td></tr>
+                <tr><td><code>threshold-orange</code></td><td>Number</td><td>Seuil au-dessus duquel la valeur est orange</td></tr>
+                <tr><td><code>col</code></td><td>Number</td><td>Largeur en colonnes DSFR (1-12). Significatif uniquement dans un &lt;dsfr-data-kpi-group&gt;.</td></tr>
+                <tr><td><code>where</code></td><td>String</td><td>Filtre des lignes AVANT le calcul (#674), dialecte colon de dsfr-data-query : <code>where="categorie:eq:Actif, montant:gte:1000"</code> — mêmes 12 opérateurs (eq, neq, gt, gte, lt, lte, contains, notcontains, in, notin, isnull, isnotnull), même égalité lâche, chemins imbriqués acceptés. Appliqué à <code>value</code>, <code>trend</code> et <code>lines</code>. CÔTÉ CLIENT SEULEMENT : le KPI ne délègue rien au serveur, le filtre porte sur les lignes reçues (derrière un <code>limit</code> ou une page, poser le <code>where</code> sur la source ou une query amont). <code>meta:total</code> n'en tient pas compte. Une clause non reconnue est une erreur de configuration.</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
+        <!-- ATTRS-PROSE:dsfr-data-kpi fields="valeur,icone,couleur,color,seuil-vert,seuil-orange,tendance" -->
         <p class="fr-text--sm fr-text--light">Les anciens noms francais (<code>valeur</code>, <code>icone</code>, <code>couleur</code>, <code>seuil-vert</code>, <code>seuil-orange</code>, <code>tendance</code>) restent lus en alias deprecies (#300).</p>
 
         <h2 class="fr-mt-4w">dsfr-data-kpi-group - Attributs</h2>
-        <table class="attr-table">
-          <thead><tr><th>Attribut</th><th>Type</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>cols</code></td><td>Number</td><td>Nombre de colonnes par défaut (1-12, défaut: 3)</td></tr>
-            <tr><td><code>gap</code></td><td>String</td><td>Espacement : <code>sm</code> (0.5rem), <code>md</code> (1rem, défaut), <code>lg</code> (1.5rem)</td></tr>
-            <tr><td><code>aria-label</code></td><td>String</td><td>Label accessible du groupe</td></tr>
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>aria-label</code></td><td>String</td><td>Label accessible du groupe</td></tr>
+              <!-- ATTRS:dsfr-data-kpi-group fields="cols,gap" -->
+                <tr><td><code>cols</code></td><td>Number</td><td>Nombre de colonnes par défaut (1-12). Chaque enfant occupe Math.floor(12/cols) colonnes.</td></tr>
+                <tr><td><code>gap</code></td><td><code>sm</code> · <code>md</code> · <code>lg</code></td><td>Espacement entre KPIs : sm (0.5rem), md (1rem), lg (1.5rem)</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
 
         <h2 class="fr-mt-4w">Expressions de calcul</h2>
         <ul>
@@ -77,16 +89,18 @@
         <p class="fr-text--sm fr-text--light">Grammaire commune du pipeline <code>champ:fn</code> (#303) — l'ancienne forme inversee <code>fn:champ</code> reste lue mais est depreciee.</p>
 
         <h2 class="fr-mt-4w">Formats d'affichage</h2>
-        <table class="attr-table">
-          <thead><tr><th>Format</th><th>Exemple (valeur : 32073247.5)</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>nombre</code></td><td>32 073 248</td><td>Entier avec separateurs de milliers (arrondi)</td></tr>
-            <tr><td><code>euro</code></td><td>32 073 248 &euro;</td><td>Montant en euros avec separateurs de milliers</td></tr>
-            <tr><td><code>pourcentage</code></td><td>75,5 %</td><td>Pourcentage (divise par 100, 1 decimale max)</td></tr>
-            <tr><td><code>decimal</code></td><td>32 073 247,50</td><td>Nombre decimal (1 a 2 decimales)</td></tr>
-            <tr><td><code>compact</code></td><td>32,1 M</td><td>Notation compacte fr-FR (v0.16.0) : <code>14 800 000</code> &rarr; « 14,8 M », <code>6 700</code> &rarr; « 6,7 k » (Intl compact, 1 décimale max)</td></tr>
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Format</th><th>Exemple (valeur : 32073247.5)</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>nombre</code></td><td>32 073 248</td><td>Entier avec separateurs de milliers (arrondi)</td></tr>
+              <tr><td><code>euro</code></td><td>32 073 248 &euro;</td><td>Montant en euros avec separateurs de milliers</td></tr>
+              <tr><td><code>pourcentage</code></td><td>75,5 %</td><td>Pourcentage (divise par 100, 1 decimale max)</td></tr>
+              <tr><td><code>decimal</code></td><td>32 073 247,50</td><td>Nombre decimal (1 a 2 decimales)</td></tr>
+              <tr><td><code>compact</code></td><td>32,1 M</td><td>Notation compacte fr-FR (v0.16.0) : <code>14 800 000</code> &rarr; « 14,8 M », <code>6 700</code> &rarr; « 6,7 k » (Intl compact, 1 décimale max)</td></tr>
+            </tbody>
+          </table>
+        </div>
         <p class="fr-text--sm fr-text--light">Tous les formats utilisent la locale francaise (separateur de milliers = espace, decimales = virgule).</p>
 
         <h2 class="fr-mt-4w">Exemples</h2>
@@ -96,13 +110,13 @@
           <div class="kpi-grid">
             <dsfr-data-kpi source="meta" value="total" label="Sites suivis" icon="ri-global-line" format="nombre"></dsfr-data-kpi>
           </div>
-          <div class="code-block"><pre>&lt;dsfr-data-kpi
-  source="meta"
-  value="total"
-  label="Sites suivis"
-  icon="ri-global-line"
-  format="nombre"&gt;
-&lt;/dsfr-data-kpi&gt;</pre></div>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-kpi</span>
+  <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"meta"</span>
+  <span class="tok-attr">value</span><span class="tok-punct">=</span><span class="tok-string">"total"</span>
+  <span class="tok-attr">label</span><span class="tok-punct">=</span><span class="tok-string">"Sites suivis"</span>
+  <span class="tok-attr">icon</span><span class="tok-punct">=</span><span class="tok-string">"ri-global-line"</span>
+  <span class="tok-attr">format</span><span class="tok-punct">=</span><span class="tok-string">"nombre"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-kpi</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <section class="demo-section">
@@ -111,14 +125,14 @@
             <dsfr-data-kpi source="sites" value="score_rgaa:avg" label="Score RGAA moyen" format="pourcentage" threshold-green="80" threshold-orange="50"></dsfr-data-kpi>
             <dsfr-data-kpi source="sites" value="score_dsfr:avg" label="Score DSFR moyen" format="pourcentage" threshold-green="80" threshold-orange="50"></dsfr-data-kpi>
           </div>
-          <div class="code-block"><pre>&lt;dsfr-data-kpi
-  source="sites"
-  value="score_rgaa:avg"
-  label="Score RGAA moyen"
-  format="pourcentage"
-  threshold-green="80"
-  threshold-orange="50"&gt;
-&lt;/dsfr-data-kpi&gt;</pre></div>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-kpi</span>
+  <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"sites"</span>
+  <span class="tok-attr">value</span><span class="tok-punct">=</span><span class="tok-string">"score_rgaa:avg"</span>
+  <span class="tok-attr">label</span><span class="tok-punct">=</span><span class="tok-string">"Score RGAA moyen"</span>
+  <span class="tok-attr">format</span><span class="tok-punct">=</span><span class="tok-string">"pourcentage"</span>
+  <span class="tok-attr">threshold-green</span><span class="tok-punct">=</span><span class="tok-string">"80"</span>
+  <span class="tok-attr">threshold-orange</span><span class="tok-punct">=</span><span class="tok-string">"50"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-kpi</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <section class="demo-section">
@@ -128,13 +142,13 @@
             <dsfr-data-kpi source="sites" value="count:statut:inactif" label="Sites inactifs" icon="ri-close-circle-line" color-token="orange"></dsfr-data-kpi>
             <dsfr-data-kpi source="sites" value="count:certificat_valide:false" label="Certificats expires" icon="ri-shield-cross-line" color-token="rouge"></dsfr-data-kpi>
           </div>
-          <div class="code-block"><pre>&lt;dsfr-data-kpi
-  source="sites"
-  value="count:statut:actif"
-  label="Sites actifs"
-  icon="ri-checkbox-circle-line"
-  color-token="vert"&gt;
-&lt;/dsfr-data-kpi&gt;</pre></div>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-kpi</span>
+  <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"sites"</span>
+  <span class="tok-attr">value</span><span class="tok-punct">=</span><span class="tok-string">"count:statut:actif"</span>
+  <span class="tok-attr">label</span><span class="tok-punct">=</span><span class="tok-string">"Sites actifs"</span>
+  <span class="tok-attr">icon</span><span class="tok-punct">=</span><span class="tok-string">"ri-checkbox-circle-line"</span>
+  <span class="tok-attr">color-token</span><span class="tok-punct">=</span><span class="tok-string">"vert"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-kpi</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <section class="demo-section">
@@ -143,8 +157,8 @@
             <dsfr-data-kpi source="sites" value="score_rgaa:max" label="Meilleur score RGAA" format="pourcentage" color-token="vert"></dsfr-data-kpi>
             <dsfr-data-kpi source="sites" value="score_rgaa:min" label="Plus bas score RGAA" format="pourcentage" color-token="rouge"></dsfr-data-kpi>
           </div>
-          <div class="code-block"><pre>&lt;dsfr-data-kpi source="sites" value="score_rgaa:max" label="Meilleur score" format="pourcentage" color-token="vert"&gt;&lt;/dsfr-data-kpi&gt;
-&lt;dsfr-data-kpi source="sites" value="score_rgaa:min" label="Plus bas score" format="pourcentage" color-token="rouge"&gt;&lt;/dsfr-data-kpi&gt;</pre></div>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-kpi</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"sites"</span> <span class="tok-attr">value</span><span class="tok-punct">=</span><span class="tok-string">"score_rgaa:max"</span> <span class="tok-attr">label</span><span class="tok-punct">=</span><span class="tok-string">"Meilleur score"</span> <span class="tok-attr">format</span><span class="tok-punct">=</span><span class="tok-string">"pourcentage"</span> <span class="tok-attr">color-token</span><span class="tok-punct">=</span><span class="tok-string">"vert"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-kpi</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-kpi</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"sites"</span> <span class="tok-attr">value</span><span class="tok-punct">=</span><span class="tok-string">"score_rgaa:min"</span> <span class="tok-attr">label</span><span class="tok-punct">=</span><span class="tok-string">"Plus bas score"</span> <span class="tok-attr">format</span><span class="tok-punct">=</span><span class="tok-string">"pourcentage"</span> <span class="tok-attr">color-token</span><span class="tok-punct">=</span><span class="tok-string">"rouge"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-kpi</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <section class="demo-section">
@@ -160,15 +174,15 @@
             <dsfr-data-kpi source="baro" heading="Part de marché VE (VP)" value="pdm_ve" format="pourcentage" lines='[{"value":"pdm_ve_evol","sign":true,"suffix":"vs mai 2025","color":"auto"}]' label="Donnée mai 2026"></dsfr-data-kpi>
             <dsfr-data-kpi source="baro" heading="Ventes PAC air/eau" value="pac" format="nombre" lines='[{"value":"pac_evol","sign":true,"suffix":"vs mars 2025","color":"auto"}]' label="Donnée mars 2026"></dsfr-data-kpi>
           </div>
-          <div class="code-block"><pre>&lt;dsfr-data-source id="baro" data='[{"immat_ve":37849,"immat_ve_evol":92.5}]'&gt;&lt;/dsfr-data-source&gt;
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-source</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"baro"</span> data='[{"immat_ve":37849,"immat_ve_evol":92.5}]'<span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-source</span><span class="tok-punct">&gt;</span>
 
-&lt;dsfr-data-kpi source="baro"
-  heading="Immat. VE — véhicules particuliers"
-  value="immat_ve"
-  format="nombre"
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-kpi</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"baro"</span>
+  <span class="tok-attr">heading</span><span class="tok-punct">=</span><span class="tok-string">"Immat. VE — véhicules particuliers"</span>
+  <span class="tok-attr">value</span><span class="tok-punct">=</span><span class="tok-string">"immat_ve"</span>
+  <span class="tok-attr">format</span><span class="tok-punct">=</span><span class="tok-string">"nombre"</span>
   lines='[{"value":"immat_ve_evol","sign":true,"suffix":"vs mai 2025","color":"auto"}]'
-  label="Donnée mai 2026"&gt;
-&lt;/dsfr-data-kpi&gt;</pre></div>
+  <span class="tok-attr">label</span><span class="tok-punct">=</span><span class="tok-string">"Donnée mai 2026"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-kpi</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <section class="demo-section">
@@ -191,12 +205,12 @@
             <dsfr-data-kpi source="sites" value="score_dsfr:avg" label="DSFR moyen" format="pourcentage" threshold-green="80" threshold-orange="50"></dsfr-data-kpi>
             <dsfr-data-kpi source="sites" value="count:certificat_valide:false" label="Certificats expires" icon="ri-shield-cross-line" color-token="rouge"></dsfr-data-kpi>
           </dsfr-data-kpi-group>
-          <div class="code-block"><pre>&lt;dsfr-data-kpi-group cols="4"&gt;
-  &lt;dsfr-data-kpi source="meta" value="total" label="Sites suivis"&gt;&lt;/dsfr-data-kpi&gt;
-  &lt;dsfr-data-kpi source="sites" value="score_rgaa:avg" label="RGAA moyen"&gt;&lt;/dsfr-data-kpi&gt;
-  &lt;dsfr-data-kpi source="sites" value="score_dsfr:avg" label="DSFR moyen"&gt;&lt;/dsfr-data-kpi&gt;
-  &lt;dsfr-data-kpi source="sites" value="count:certificat_valide:false" label="Expires"&gt;&lt;/dsfr-data-kpi&gt;
-&lt;/dsfr-data-kpi-group&gt;</pre></div>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-kpi-group</span> <span class="tok-attr">cols</span><span class="tok-punct">=</span><span class="tok-string">"4"</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-kpi</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"meta"</span> <span class="tok-attr">value</span><span class="tok-punct">=</span><span class="tok-string">"total"</span> <span class="tok-attr">label</span><span class="tok-punct">=</span><span class="tok-string">"Sites suivis"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-kpi</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-kpi</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"sites"</span> <span class="tok-attr">value</span><span class="tok-punct">=</span><span class="tok-string">"score_rgaa:avg"</span> <span class="tok-attr">label</span><span class="tok-punct">=</span><span class="tok-string">"RGAA moyen"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-kpi</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-kpi</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"sites"</span> <span class="tok-attr">value</span><span class="tok-punct">=</span><span class="tok-string">"score_dsfr:avg"</span> <span class="tok-attr">label</span><span class="tok-punct">=</span><span class="tok-string">"DSFR moyen"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-kpi</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-kpi</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"sites"</span> <span class="tok-attr">value</span><span class="tok-punct">=</span><span class="tok-string">"count:certificat_valide:false"</span> <span class="tok-attr">label</span><span class="tok-punct">=</span><span class="tok-string">"Expires"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-kpi</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-kpi-group</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <section class="demo-section">
@@ -206,11 +220,11 @@
             <dsfr-data-kpi source="sites" value="score_rgaa:avg" label="RGAA moyen" format="pourcentage" threshold-green="80" threshold-orange="50" col="3"></dsfr-data-kpi>
             <dsfr-data-kpi source="sites" value="score_rgaa:max" label="Meilleur RGAA" format="pourcentage" color-token="vert" col="3"></dsfr-data-kpi>
           </dsfr-data-kpi-group>
-          <div class="code-block"><pre>&lt;dsfr-data-kpi-group&gt;
-  &lt;dsfr-data-kpi source="meta" value="total" label="Sites suivis" col="6"&gt;&lt;/dsfr-data-kpi&gt;
-  &lt;dsfr-data-kpi source="sites" value="score_rgaa:avg" label="RGAA moyen" col="3"&gt;&lt;/dsfr-data-kpi&gt;
-  &lt;dsfr-data-kpi source="sites" value="score_rgaa:max" label="Meilleur RGAA" col="3"&gt;&lt;/dsfr-data-kpi&gt;
-&lt;/dsfr-data-kpi-group&gt;</pre></div>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-kpi-group</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-kpi</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"meta"</span> <span class="tok-attr">value</span><span class="tok-punct">=</span><span class="tok-string">"total"</span> <span class="tok-attr">label</span><span class="tok-punct">=</span><span class="tok-string">"Sites suivis"</span> <span class="tok-attr">col</span><span class="tok-punct">=</span><span class="tok-string">"6"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-kpi</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-kpi</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"sites"</span> <span class="tok-attr">value</span><span class="tok-punct">=</span><span class="tok-string">"score_rgaa:avg"</span> <span class="tok-attr">label</span><span class="tok-punct">=</span><span class="tok-string">"RGAA moyen"</span> <span class="tok-attr">col</span><span class="tok-punct">=</span><span class="tok-string">"3"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-kpi</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-kpi</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"sites"</span> <span class="tok-attr">value</span><span class="tok-punct">=</span><span class="tok-string">"score_rgaa:max"</span> <span class="tok-attr">label</span><span class="tok-punct">=</span><span class="tok-string">"Meilleur RGAA"</span> <span class="tok-attr">col</span><span class="tok-punct">=</span><span class="tok-string">"3"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-kpi</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-kpi-group</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <section class="demo-section">
@@ -219,10 +233,10 @@
             <dsfr-data-kpi source="sites" value="score_rgaa:min" label="Plus bas RGAA" format="pourcentage" color-token="rouge"></dsfr-data-kpi>
             <dsfr-data-kpi source="sites" value="score_rgaa:max" label="Meilleur RGAA" format="pourcentage" color-token="vert"></dsfr-data-kpi>
           </dsfr-data-kpi-group>
-          <div class="code-block"><pre>&lt;dsfr-data-kpi-group cols="2" gap="lg"&gt;
-  &lt;dsfr-data-kpi source="sites" value="score_rgaa:min" label="Plus bas RGAA" color-token="rouge"&gt;&lt;/dsfr-data-kpi&gt;
-  &lt;dsfr-data-kpi source="sites" value="score_rgaa:max" label="Meilleur RGAA" color-token="vert"&gt;&lt;/dsfr-data-kpi&gt;
-&lt;/dsfr-data-kpi-group&gt;</pre></div>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-kpi-group</span> <span class="tok-attr">cols</span><span class="tok-punct">=</span><span class="tok-string">"2"</span> <span class="tok-attr">gap</span><span class="tok-punct">=</span><span class="tok-string">"lg"</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-kpi</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"sites"</span> <span class="tok-attr">value</span><span class="tok-punct">=</span><span class="tok-string">"score_rgaa:min"</span> <span class="tok-attr">label</span><span class="tok-punct">=</span><span class="tok-string">"Plus bas RGAA"</span> <span class="tok-attr">color-token</span><span class="tok-punct">=</span><span class="tok-string">"rouge"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-kpi</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-kpi</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"sites"</span> <span class="tok-attr">value</span><span class="tok-punct">=</span><span class="tok-string">"score_rgaa:max"</span> <span class="tok-attr">label</span><span class="tok-punct">=</span><span class="tok-string">"Meilleur RGAA"</span> <span class="tok-attr">color-token</span><span class="tok-punct">=</span><span class="tok-string">"vert"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-kpi</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-kpi-group</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
     </div>
   </app-layout-demo>

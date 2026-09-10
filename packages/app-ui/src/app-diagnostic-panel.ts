@@ -1,11 +1,15 @@
 import { LitElement, html, nothing, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import {
+  fieldIssuesByNode,
   fieldMatrix,
   formatTrace,
   plural,
+  formatInt,
+  JOIN_MATCH_ALERT_RATIO,
   summarizeTrace,
   topoOrder,
+  type FieldIssue,
   type StageNode,
   type StageState,
   type Trace,
@@ -106,6 +110,11 @@ app-diagnostic-panel[hidden]{display:none}
    app-action-bar, qui pose deja un padding-bottom sur body — sinon le
    gagnant dependrait de l'ordre d'injection des feuilles. */
 body:has(app-diagnostic-panel){padding-bottom:var(--app-diagnostic-h,2.25rem)}
+/* Le padding reserve la place, l'ancrage du defilement est un reglage a part
+   (WCAG 2.2 SC 2.4.11, #627) : sans lui, un element amene au focus se range
+   sous le rail. Le rail est fixe a TOUTES les largeurs, la regle l'est donc
+   aussi — c'est le cumul avec la barre d'actions qui, lui, est mobile. */
+html:has(app-diagnostic-panel){scroll-padding-bottom:var(--app-diagnostic-h,2.25rem)}
 @media (max-width:47.99em){
   app-diagnostic-panel{bottom:var(--app-action-bar-fixed-h,0px)}
   /* La raison de desactivation de l'action primaire est FIXE dans la meme
@@ -122,6 +131,7 @@ body:has(app-diagnostic-panel){padding-bottom:var(--app-diagnostic-h,2.25rem)}
   .app-diag__body{max-height:60vh}
   .app-diag__rail-summary{display:none}
   body:has(app-diagnostic-panel):has(app-action-bar){padding-bottom:calc(var(--app-action-bar-fixed-h,3.5rem) + var(--app-diagnostic-h,2.25rem))}
+  html:has(app-diagnostic-panel):has(app-action-bar){scroll-padding-bottom:calc(var(--app-action-bar-fixed-h,3.5rem) + var(--app-diagnostic-h,2.25rem))}
 }
 `;
   document.head.appendChild(style);
@@ -366,8 +376,13 @@ export class AppDiagnosticPanel extends LitElement {
         Aucun composant dsfr-data dans cette page — rien à diagnostiquer.
       </p>`;
     }
+    // Champs nommés par un attribut et absents de ce que l'étape reçoit
+    // (#727) : calculé une fois pour tout le pipeline, comme dans formatTrace.
+    const champs = fieldIssuesByNode(trace.graph, trace.states);
     return html`
-      <div class="app-diag__chain">${nodes.map((node) => this._renderStage(node, trace))}</div>
+      <div class="app-diag__chain">
+        ${nodes.map((node) => this._renderStage(node, trace, champs[node.id] ?? []))}
+      </div>
       ${
         trace.graph.dangling.length > 0
           ? html`<p class="app-diag__stage-note app-diag__stage-note--error">
@@ -382,7 +397,7 @@ export class AppDiagnosticPanel extends LitElement {
     `;
   }
 
-  private _renderStage(node: StageNode, trace: Trace): TemplateResult {
+  private _renderStage(node: StageNode, trace: Trace, champs: FieldIssue[]): TemplateResult {
     const state: StageState = trace.states[node.id] ?? { status: 'idle', emissions: 0 };
     const upstreamRows = node.upstream
       .map((up) => trace.states[up]?.rows)
@@ -394,11 +409,26 @@ export class AppDiagnosticPanel extends LitElement {
     const wantsAggregation = !!(node.attrs['group-by'] || node.attrs.aggregate);
     const clientSide =
       !!delegation && wantsAggregation && !delegation.groupBy && !delegation.aggregate;
+    // Appariement d'une jointure (#660) : sous 50 % de lignes gauche
+    // appariees, meme seuil que formatTrace / summarizeTrace.
+    const join = state.meta?.join;
+    const joinRatio = join && join.leftTotal > 0 ? join.leftMatched / join.leftTotal : null;
+    const joinAlert = joinRatio !== null && joinRatio < JOIN_MATCH_ALERT_RATIO;
+    // Un afficheur sous une etape en attente d'un filtre n'est pas une
+    // alerte : la page fait exactement ce qu'on lui a demande (#690).
+    const upstreamWaiting = node.upstream.some((up) => trace.states[up]?.status === 'waiting');
     const warn =
       state.meta?.needsClientProcessing ||
+      !!state.meta?.truncated ||
+      joinAlert ||
       (state.status === 'loaded' && state.rows === 0) ||
       !!node.configError ||
-      (node.role === 'display' && state.status === 'idle' && upstreamRows.every((n) => n === 0));
+      champs.length > 0 ||
+      (node.unknownAttrs?.length ?? 0) > 0 ||
+      (node.role === 'display' &&
+        state.status === 'idle' &&
+        !upstreamWaiting &&
+        upstreamRows.every((n) => n === 0));
 
     return html`
       <div class="app-diag__stage" data-status=${state.status} data-warn=${warn ? 'true' : 'false'}>
@@ -422,9 +452,17 @@ export class AppDiagnosticPanel extends LitElement {
                 ? html`<span class="app-diag__stage-note--error">✗ échec</span>`
                 : state.status === 'loading'
                   ? html`… chargement`
-                  : node.role === 'display'
-                    ? html`${upstreamRows.some((n) => n > 0) ? '✓ alimenté' : '⚠ rien reçu'}`
-                    : html`inerte`
+                  : state.status === 'waiting'
+                    ? html`en attente d’un filtre`
+                    : node.role === 'display'
+                      ? html`${
+                          upstreamWaiting
+                            ? 'en attente d’un filtre'
+                            : upstreamRows.some((n) => n > 0)
+                              ? '✓ alimenté'
+                              : '⚠ rien reçu'
+                        }`
+                      : html`inerte`
           }
         </div>
         ${
@@ -433,6 +471,34 @@ export class AppDiagnosticPanel extends LitElement {
                 ✗ ${node.configError}
               </div>`
             : nothing
+        }
+        ${
+          // Un attribut que le bundle chargé ne connaît pas est ignoré en
+          // silence : la page est juste, la bibliothèque est en retard (#727).
+          node.unknownAttrs?.length
+            ? html`<div class="app-diag__stage-note app-diag__stage-note--warn">
+                ⚠ ${plural(node.unknownAttrs.length, 'attribut')}
+                inconnu${node.unknownAttrs.length > 1 ? 's' : ''} de la version chargée :
+                ${node.unknownAttrs.join(', ')} — ignoré${node.unknownAttrs.length > 1 ? 's' : ''}
+                en silence.
+              </div>`
+            : nothing
+        }
+        ${
+          // Un champ nommé par un attribut et absent du schéma reçu : la
+          // panne muette n°1 du banc d'essai (#727).
+          champs.map(
+            (issue) =>
+              html`<div
+                class="app-diag__stage-note ${
+                issue.reason === 'absent'
+                  ? 'app-diag__stage-note--error'
+                  : 'app-diag__stage-note--warn'
+              }"
+              >
+                ${issue.reason === 'absent' ? '✗' : '⚠'} ${issue.message}
+              </div>`
+          )
         }
         ${
           state.status === 'error'
@@ -447,6 +513,31 @@ export class AppDiagnosticPanel extends LitElement {
           state.status === 'loaded' && state.rows === 0
             ? html`<div class="app-diag__stage-note app-diag__stage-note--warn">
                 ⚠ zéro ligne : l’aval ne rendra rien.
+              </div>`
+            : nothing
+        }
+        ${
+          state.meta?.truncated
+            ? html`<div class="app-diag__stage-note app-diag__stage-note--warn">
+                ⚠ tronqué à
+                ${formatInt(state.rows ?? 0)}${
+                  state.meta.total !== undefined
+                    ? ` / ${formatInt(state.meta.total)}`
+                    : ' (total inconnu)'
+                }
+                lignes
+                (${node.tag === 'dsfr-data-query' || node.attrs.limit ? 'limit' : 'max-records'}).
+              </div>`
+            : nothing
+        }
+        ${
+          join && joinRatio !== null
+            ? html`<div
+                class="app-diag__stage-note ${joinAlert ? 'app-diag__stage-note--warn' : ''}"
+              >
+                ${joinAlert ? '⚠ ' : ''}${formatInt(join.leftMatched)} /
+                ${formatInt(join.leftTotal)} lignes gauche appariées (${Math.round(joinRatio * 100)}
+                %), ${formatInt(join.rightMatched)} / ${formatInt(join.rightTotal)} lignes droite.
               </div>`
             : nothing
         }
@@ -544,6 +635,9 @@ export class AppDiagnosticPanel extends LitElement {
               break;
             case 'loading':
               body = html`<strong>${e.node}</strong> chargement…`;
+              break;
+            case 'waiting':
+              body = html`<strong>${e.node}</strong> en attente d’un filtre (${e.reason})`;
               break;
             default:
               body = html`${e.from ? html`<strong>${e.from}</strong> → ` : nothing}

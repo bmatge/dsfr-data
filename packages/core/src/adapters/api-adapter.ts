@@ -53,6 +53,13 @@ export interface AdapterParams {
    * (requetes en boucle, poids memoire).
    */
   maxRecords?: number;
+  /**
+   * Stratégie de chargement du `fetchAll` (#689, ADR-106) : `records`
+   * (défaut — pagination par pages) ou `export` (une seule requête sur
+   * l'endpoint d'export du provider). Les adaptateurs qui ne connaissent
+   * pas ce mode l'ignorent ; seul OpenDataSoft l'implémente aujourd'hui.
+   */
+  fetchMode?: 'records' | 'export';
   transform: string;
   pageSize: number;
   /** Headers HTTP custom (ex: authentification, API key) */
@@ -63,6 +70,15 @@ export interface AdapterParams {
    * Vide/absent = résolution proxy globale habituelle.
    */
   proxyUrl?: string;
+  /**
+   * Passe-plat des paramètres de requête non-clause (#726) : ce que l'attribut
+   * `params` porte en mode adaptateur, une fois les clés réservées écartées
+   * par la source. Sert les paramètres propres au portail que la bibliothèque
+   * ne modélise pas — `timezone`, `lang`, `pretty`… — sans lesquels une page
+   * ne peut pas quitter le mode URL. Les adaptateurs qui ne le connaissent
+   * pas l'ignorent ; seul OpenDataSoft le transmet aujourd'hui.
+   */
+  extraParams?: Record<string, string>;
 }
 
 /**
@@ -100,6 +116,13 @@ export interface FetchResult {
   needsClientProcessing: boolean;
   /** JSON brut de la reponse (pour appliquer transform sur la bonne racine) */
   rawJson?: unknown;
+  /**
+   * True quand l'adapter SAIT que `data` est incomplet alors que le total
+   * est inconnu (#658) : page pleine au plafond `max-records` sur une
+   * requete group-by ODS (#641). Quand le total est connu, la source
+   * deduit elle-meme la troncature de `totalCount > data.length`.
+   */
+  truncated?: boolean;
 }
 
 /**
@@ -108,6 +131,27 @@ export interface FetchResult {
 export interface FacetResult {
   field: string;
   values: Array<{ value: string; count: number }>;
+}
+
+/**
+ * Facette declaree par le jeu de donnees, renvoyee par la decouverte en
+ * mode server-facets quand `fields` est absent (#680).
+ */
+export interface FacetDescriptor {
+  field: string;
+  /** Libelle declare par le provider (utilise a defaut de `labels`) */
+  label?: string;
+  /**
+   * Champ de type date : le provider sert ses valeurs par annee et refuse
+   * l'egalite `champ = "2022"` — le where doit etre un intervalle (#676).
+   */
+  isDate?: boolean;
+}
+
+/** Options de construction du where de facettes (#676) */
+export interface FacetWhereOptions {
+  /** Champs de type date : une valeur annuelle devient un intervalle [1er janvier, 1er janvier suivant) */
+  dateFields?: ReadonlySet<string>;
 }
 
 /**
@@ -157,6 +201,13 @@ export interface ApiAdapter {
   buildServerSideUrl(params: AdapterParams, overlay: ServerSideOverlay): string;
 
   /**
+   * Construit l'URL de l'endpoint d'export du provider (#689), celui
+   * qu'emprunte `fetchAll` quand `fetchMode` vaut `export`. Absent = ce
+   * provider n'a pas d'endpoint d'export et ignore `fetchMode`.
+   */
+  buildExportUrl?(params: AdapterParams, limitOverride?: number): string;
+
+  /**
    * Fetch les valeurs de facettes depuis l'API pour les champs donnes.
    * Retourne null si la capacite serverFacets est false.
    */
@@ -166,6 +217,17 @@ export interface ApiAdapter {
     where: string,
     signal?: AbortSignal
   ): Promise<FacetResult[]>;
+
+  /**
+   * Decouvre les facettes declarees par le jeu de donnees (#680) : noms,
+   * libelles et type date. Utilise par dsfr-data-facets en mode
+   * server-facets sans `fields`, et pour typer les champs date meme quand
+   * `fields` est fourni. Absent = pas de decouverte (fields obligatoire).
+   */
+  discoverFacets?(
+    params: Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl'>,
+    signal?: AbortSignal
+  ): Promise<FacetDescriptor[]>;
 
   /**
    * Indique si les champs donnes peuvent etre delegues cote serveur pour
@@ -183,6 +245,15 @@ export interface ApiAdapter {
   supportsServerFields?(fields: string[]): boolean;
 
   /**
+   * Indique si une fonction d'agrégat de la grammaire commune (`count`,
+   * `sum`, `avg`, `min`, `max`, `distinct`) est traduisible par ce provider.
+   * Tabular n'a pas de `distinct` (#672) : l'adapter retourne false et
+   * dsfr-data-query agrège client-side sur les lignes brutes, comme pour un
+   * champ non délégable. Non implémenté = toutes les fonctions sont déléguées.
+   */
+  supportsServerAggregate?(fn: string): boolean;
+
+  /**
    * Retourne le search template par défaut pour cette API.
    * Ex: ODS retourne 'search("{q}")'.
    */
@@ -197,8 +268,13 @@ export interface ApiAdapter {
   /**
    * Construit un WHERE clause a partir de selections de facettes.
    * Utilise par dsfr-data-facets pour générer les filtres dans la syntaxe du provider.
+   * `options.dateFields` : champs date dont une valeur annuelle devient un intervalle (#676).
    */
-  buildFacetWhere?(selections: Record<string, Set<string>>, excludeField?: string): string;
+  buildFacetWhere?(
+    selections: Record<string, Set<string>>,
+    excludeField?: string,
+    options?: FacetWhereOptions
+  ): string;
 
   /**
    * Retourne la config provider declarative associee a cet adapter.

@@ -20,7 +20,7 @@ charger que l'utile.
 Installation par outil (Claude Code, Codex, Cursor, Gemini CLI, Copilot…) : voir
 [`skills/dsfr-data/README.md`](../skills/dsfr-data/README.md).
 
-Format standard « Agent Skills » : un `SKILL.md` (index : principe du pipeline, table des 29
+Format standard « Agent Skills » : un `SKILL.md` (index : principe du pipeline, table des 30
 références avec leurs déclencheurs, règles transverses) et `references/<composant>.md` (contenu
 complet de chaque skill, chargé à la demande). Claude Code lit le `SKILL.md` quand la demande
 correspond à sa description, puis ouvre la référence du composant concerné.
@@ -92,9 +92,24 @@ Le `--skills-file` local exige un `npm run build` à la racine (il produit `pack
 
 ## 3. `skills.json`
 
-Tableau JSON des 29 skills : `id`, `name`, `description`, `trigger[]`, `content` (markdown complet),
+Tableau JSON des 30 skills : `id`, `name`, `description`, `trigger[]`, `content` (markdown complet),
 `sections` (`guide` / `reference` / `exemples` / `pieges`) et `availableSections`. Servi par toute
 instance déployée sur `/dist/skills.json`.
+
+### Tampon de fraîcheur — `skills-meta.json` (#733)
+
+À côté, sur `/dist/skills-meta.json` : `{ generatedAt, libVersion, commit, skills }`. Il **date
+l'instance servie**, pas le dépôt — rien ne déploie le VPS automatiquement, la mise en production
+est un `ssh vps "spawn up"` manuel, et une instance peut donc être en retard de plusieurs versions.
+Sans lui, impossible de distinguer « le code ne documente pas X » de « l'instance est ancienne » :
+trois agents s'y sont trompés le même jour, dont un jusqu'à la rédaction d'un faux manque.
+
+Le serveur MCP le rend dans l'en-tête de `list_skills` et dans `/health`
+(`libVersion`, `generatedAt`, `commit`, à `null` face à une instance antérieure à #733).
+
+C'est un fichier **séparé** parce que `skills.json` est un tableau au premier niveau et que des
+consommateurs déjà déployés le lisent tel quel (le serveur MCP, distribué séparément de l'instance
+dont il télécharge les fiches ; le client skills du studio, qui teste `Array.isArray`).
 
 ## Mettre à jour
 

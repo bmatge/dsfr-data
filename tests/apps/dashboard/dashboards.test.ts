@@ -29,7 +29,6 @@ vi.mock('@dsfr-data/shared', async (importOriginal) => ({
       'https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.1.1/dist/DSFRChart/DSFRChart.css',
     dsfrChartJs:
       'https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.1.1/dist/DSFRChart/DSFRChart.js',
-    chartJs: 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js',
   },
 }));
 

@@ -23,6 +23,10 @@ dsfr-data-source  ──[fetch via adapter]──[paginate]──[cache]──�
      │                                               dsfr-data-normalize (optionnel)
      │                                                         │
      │                                                         ▼
+     │                                               dsfr-data-pivot (optionnel, long → wide :
+     │                                               tableau croise, ecart entre deux colonnes)
+     │                                                         │
+     │                                                         ▼
      │                                               dsfr-data-query [transform seulement]
      │                                               filter, group-by, aggregate, sort
      │                                                         │
@@ -41,12 +45,17 @@ dsfr-data-source  ──[fetch via adapter]──[paginate]──[cache]──�
   Tier d'orchestration OPT-IN (#224, ADR-031) — dashboard a filtre commun :
 
   UI natives (select, input...) ──► dsfr-data-context ──┬──► commandes where (whereKey stable/filtre)
-       │                                │                ├──► dsfr-data-source (A)
-       └── dsfr-data-context-filter ────┘                ├──► dsfr-data-source (B)
-           (eq, in, lt, gte, between,                    └──► dsfr-data-source (C)
-            month-of, year-of, lt-day-after,
-            last-n-days, current-year)
-  dsfr-data-context-tags (recap supprimable des filtres actifs)
+       │                                ▲                ├──► dsfr-data-source (A)
+       └── dsfr-data-context-filter ────┤                ├──► dsfr-data-source (B)
+           (eq, in, contains, lt, gte,  │                └──► dsfr-data-source (C)
+            between, month-of, year-of, │
+            lt-day-after, last-n-days,  │  un seul bus (#678, ADR-104) : tout ContextFilterLike
+            current-year, current-month ;│
+            default=)                   │  s'enregistre par context="id", meme declare avant
+  dsfr-data-facets  context="id" ───────┤  le contexte dans le DOM
+  dsfr-data-search  context="id" ───────┘  (facets : un filtre par champ ; search : contains)
+  dsfr-data-context-tags  (recap supprimable des filtres actifs, tout type confondu)
+  dsfr-data-context-value (la valeur d'un filtre dans une phrase — #742, bundle core)
 
   Pipeline multi-sources (jointure) :
 
@@ -74,18 +83,21 @@ dsfr-data-source  ──[fetch via adapter]──[paginate]──[cache]──�
 - **dsfr-data-query** est un pur transformateur (filter, group-by, aggregate, sort). Jamais de requete HTTP.
 - **dsfr-data-join** est un pur transformateur multi-sources : il joint deux sources sur une cle pivot (inner, left, right, full). Aucun fetch HTTP.
 - **dsfr-data-unpivot** est un pur transformateur. Il bascule un tableau "wide" (temps dans les noms de colonnes, ex. `c2023_01`) en "long/tidy" (une observation par ligne) via `id-cols` + `value-cols`/`value-cols-pattern` + `var-name`/`var-format`/`value-name`. Inverse exact d'un pivot, aucun fetch HTTP. La valeur reste brute (typage delegue a `numeric-auto`).
-- **dsfr-data-normalize** sait fabriquer des colonnes calculees via `compute` (ligne a ligne, en dernier) : arithmetique `+ - * /`, concatenation texte (`+` avec litteraux quotes), parentheses. Ex. `compute="pct = valeur * 100; groupe = Indicateurs + ' / ' + Sous_theme"`. Evaluateur sur (pas d'`eval`). Hors perimetre : conditions, fonctions, calculs sur valeurs agregees.
+- **dsfr-data-pivot** (#255, ADR-105) est le symetrique : pur transformateur long → wide (`packages/shared/src/utils/pivot.ts`, `performPivot`). Une ligne par valeur de `row` (plusieurs champs acceptes), une colonne par valeur distincte de `column`, cellule = agregat de `value` (`aggregate` : `sum` par defaut, `count avg min max first last` — grammaire commune). Cellule sans observation = `null`, jamais 0 (#301) ; toutes les lignes portent toutes les colonnes (schema uniforme). Noms de colonnes : valeur brute, `column-format="annee_{value}"` (identifiant sur pour `compute`) ou `labels="2022:Libelle | …"`. Ordre : apparition ou `column-order="asc|desc"`. Garde-fou `max-columns` (50) : au-dela, `reportConfigError` et erreur aval, pas un tableau. Le schema de sortie depend des donnees : `transformsSchema()` = true (pas de delegation serveur a travers lui, #394) et la meta porte `pivot: PivotStats` (`rowFields`, `columnNames`, `columns`, `emptyCells`, `skippedRows`) — affichee dans la trace (#604) et lue par `dsfr-data-list` pour ordonner ses colonnes derivees (JavaScript enumere les cles entieres `2022`, `2023` en tete d'`Object.keys`). Consommateurs : `dsfr-data-list` sans `columns` (toutes les cles des donnees) ou avec `columns-auto` (declarees en tete, dynamiques ensuite — #640 pt 2) ; `dsfr-data-normalize compute` pour l'ecart entre deux series.
+- **dsfr-data-normalize** sait fabriquer des colonnes calculees via `compute` (ligne a ligne, en dernier) : arithmetique `+ - * /`, concatenation texte (`+` avec litteraux quotes), parentheses, et depuis la 0.24 (ADR-105, #671) fonctions en liste blanche (`year month day round abs floor ceil lower upper trim len concat replace coalesce is_null is_empty join contains`), conditions `when … then … else` (`else` obligatoire), comparaisons `= != < <= > >=`, `and or not`, litteraux `null true false`. Ex. `compute="solde = actif - passif; tranche = when montant >= 1000000 then 'Grand' else 'Petit'; annee = year(date_notification)"`. Evaluateur sur (`packages/shared/src/utils/compute.ts` : tokenizer, parseur descendant, AST — pas d'`eval`), longueur et profondeur bornees. **L'egalite de `when` est celle de `where`** : `looseEquals` exporte par `shared/query/filter-translator.ts`, partage par `applyLocalFilter` et `compute` (test croise `tests/compute-grammar.test.ts`). Fonction hors liste, arite fausse ou `when` sans `else` → `reportConfigError` sur le normalize + etat d'erreur aval (doctrine #649). Les colonnes produites sont exposees par `getComputedColumns()` et listees dans la trace du volet Diagnostic (§3.6). Hors perimetre : valeurs agregees (query / kpi), ligne precedente, cumul.
 - **dsfr-data-chart** gere le multi-series de deux facons : format LARGE (`value-fields` / `value-field-2`, une colonne par serie) ou format LONG/tidy (`series-field`, une colonne-cle dont les valeurs distinctes deviennent les series). `series-field` est le consommateur naturel de `dsfr-data-unpivot`. Les deux alimentent `y`/`name` multi-series de `@gouvfr/dsfr-chart`.
 - Les commandes (page, where, orderBy) remontent vers dsfr-data-source via `dsfr-data-source-command`.
 - dsfr-data-facets et dsfr-data-search delegent la construction des WHERE clauses aux adapters.
-- **Deux mixins de cycle de vie** (#280/#281) : les 6 transformateurs (query, join, unpivot, normalize, facets, search) etendent `TransformerMixin` (`packages/core/src/utils/transformer-mixin.ts`) — abonnement amont, etats `isLoading()`/`getError()`, re-emission aval avec meta posee AVANT le dispatch, relais de commandes, validation de config via hooks (`transformerSources`, `beforeTransformerSubscribe`, `onTransformerData`, `transformMeta`, `transformerReinitProps`/`transformerReprocessProps`). Les composants d'affichage utilisent `SourceSubscriberMixin`. **Jamais de `subscribeToSource` manuel dans un composant** (test-garde statique). Init UNIQUE au montage : connectedCallback initialise, le premier `willUpdate` est consomme sans re-init.
+- **Deux mixins de cycle de vie** (#280/#281) : les 7 transformateurs (query, join, unpivot, pivot, normalize, facets, search) etendent `TransformerMixin` (`packages/core/src/utils/transformer-mixin.ts`) — abonnement amont, etats `isLoading()`/`getError()`, re-emission aval avec meta posee AVANT le dispatch, relais de commandes, validation de config via hooks (`transformerSources`, `beforeTransformerSubscribe`, `onTransformerData`, `transformMeta`, `transformerReinitProps`/`transformerReprocessProps`). Les composants d'affichage utilisent `SourceSubscriberMixin`. **Jamais de `subscribeToSource` manuel dans un composant** (test-garde statique). Init UNIQUE au montage : connectedCallback initialise, le premier `willUpdate` est consomme sans re-init.
 - Le where de dsfr-data-query est **colon-only** (l'ODSQL reste reserve au where de dsfr-data-source) ; en delegation serveur il est traduit au dialecte de l'adapter (#275). `transform`/`server-side`/`page-size`/`refresh` n'existent plus sur query (#277/#279) — le relais de commandes est toujours actif, le reste se configure sur la source.
 - Les erreurs de configuration passent par `reportConfigError` (console.error + attribut `data-dsfr-config-error`) sur TOUS les composants, source comprise (#283). Les composants d'affichage rendent erreur/loading via les templates partages `utils/status-templates.ts` (#284).
 - **dsfr-data-context** (opt-in, #224/ADR-031) orchestre des filtres transverses multi-sources : il ecoute des UI natives via ses enfants `dsfr-data-context-filter` et diffuse des commandes `where` a N sources nommees (un `whereKey` stable par filtre -> AND par le merge multi-emetteurs ; jamais « le dernier gagne »). Clause construite en colon puis traduite au `whereFormat` de chaque adapter. `url-sync` (defaut OFF) serialise les filtres dans l'URL (l'intention, pas les dates resolues). Sans contexte, chaque source reste autonome.
+- **Un seul bus de diffusion (#678, ADR-104, amende ADR-031)** : le contrat que le contexte attend d'un filtre est l'interface lib-safe `ContextFilterLike` (`packages/shared/src/query/context-filter.ts` : `field`, `applyTo`, `buildColonWhere()`, `displayLabel()`, `displayValue()`, `clear()`, `urlValue()`, `isConnected`). `dsfr-data-facets context="id"` s'enregistre **une fois par champ** (objet `FacetFieldFilter` : `eq` une valeur, `in` plusieurs), `dsfr-data-search context="id"` comme filtre `contains` sur le champ unique de `fields`, `dsfr-data-context-filter context="id"` peut vivre hors du contexte (repli `closest`). En mode `context`, facets et search **n'emettent plus** de `dsfr-data-source-command` (`_dispatchFacetCommand` est un no-op) et leur `url-sync`/`url-params` propre est ignore : le contexte porte l'URL, un parametre par champ (migration : reporter `url-param-map` sur le contexte). Facets continue de calculer valeurs, compteurs et cascade sur sa `source` — en `server-facets`, le where de base de la cascade exclut ses propres whereKeys (`getEffectiveWhere(string[])`, sinon chaque facette ne proposerait plus que sa selection quand sa source est aussi une cible). **Enregistrement tardif** : le contexte emet `dsfr-data-context-connected { id }` sur `document` a sa connexion ; un composant `context="id"` dont le contexte n'est pas encore la pose une erreur de config et s'enregistre a ce signal. **whereKey** = `uid + champ` (suffixe `-2` pour un second filtre sur le meme champ, AND conserve) : stable a l'insertion tardive, l'ancien index d'ordre DOM decalait les cles. `context-tags` liste `activeFilters()` quel que soit le type. Demonstration : `tests/context-facets-search.test.ts` (page « Comptabilite generale » sans `<option>` en dur).
+- **dsfr-data-context-value** (#742) rend la valeur courante d'un filtre dans une phrase (« Resultats pour {{departement}} ») la ou `context-tags` ne sait que lister. Il lit le registre `utils/context-registry.ts` par une vue structurelle, **sans importer `dsfr-data-context`** (meme precaution que #681 : la carte est dans un autre bundle, un import redefinirait le tag). Region live **opt-in** (`live`), a poser sur un seul element. Un `{{champ}}` non resolu bascule sur `fallback` en entier. Enregistre dans `index.ts` et `index-core.ts`, absent du bundle map.
 - **dsfr-data-map** est le conteneur carte Leaflet. Il ne consomme pas de donnees ; ce sont les **dsfr-data-map-layer** enfants qui utilisent `SourceSubscriberMixin`.
 - **dsfr-data-map-layer** projete les donnees sur la carte (marker, geoshape, circle, heatmap). Chaque layer a sa propre source → multi-source naturel.
 - Le viewport-driven fetch (`bbox`) envoie des commandes `dsfr-data-source-command` avec `whereKey: "map-bbox"` pour le merge avec les autres filtres.
-- **dsfr-data-map-popup** (popup/modale/panneau lateral au clic, template `{{champ}}` toujours echappe), **dsfr-data-map-inset** (encarts territoriaux DROM/Corse — clone les couches directes de la carte hote, ADR-094) et **dsfr-data-map-timeline** (controles de lecture des couches `time-field`) completent la famille carto — tous enfants de `dsfr-data-map`, bundle `map`.
+- **dsfr-data-map-popup** (popup/modale/panneau lateral au clic, template `{{champ}}` toujours echappe), **dsfr-data-map-inset** (encarts territoriaux DROM/Corse — clone les couches directes de la carte hote, ADR-094), **dsfr-data-map-legend** (legende d'une couche : classes chiffrees de `fill-field` ou paires de `color-map`, lues via `getLegendEntries()` et rafraichies sur `dsfr-data-map-layer-render`, #685) et **dsfr-data-map-timeline** (controles de lecture des couches `time-field`) completent la famille carto — tous enfants de `dsfr-data-map`, bundle `map`. Les fonds administratifs `packages/core/geo/*.json` (#688) sont publies dans le paquet npm **hors bundle** (`exports` `./geo/*`, regeneres par `scripts/fetch-geo.mjs`).
 - **dsfr-data-world-map** a ete **retire** (epic #402, deprecie v0.13 → retrait v0.18) au profit de `<dsfr-data-chart type="map-monde">` (API cartes unifiee DSFR Chart 2.1.x : `level="dep|reg|aca|monde"`, comme `map-reg`/`map-aca`).
 
 ### Pattern HTML
@@ -125,6 +137,28 @@ Pour les cas sans transformation (datalist, display), `dsfr-data-query` peut etr
 | serverGeo | oui | non | non | non | non |
 | whereFormat | odsql | colon | colon | colon | colon |
 | plafond fetchAll (#286) | 1 000 (10×100), relevable via `max-records` (#233) | 25 000 (500×50) | illimite (1 requete) | 100 000 (100×1000) | n/a |
+| chargement en une requete | `fetch-mode="export"` (#689) | non | natif | non | n/a |
+
+**`fetch-mode="export"` (#689, ADR-106)** — opt-in sur la source, defaut `records` (comportement
+inchange). En `export`, `fetchAll` appelle **une fois** `{base}/api/explore/v2.1/catalog/datasets/{id}/exports/json`
+avec les memes clauses ODSQL que `/records` (meme `_applyOdsqlClauses` : select derive de l'agregat,
+where, group_by echappe #641/#289, order_by traduit). Trois consequences a connaitre :
+
+- **Reponse = tableau nu**, pas `{ total_count, results }` : `totalCount` reste `undefined` (contrat
+  #270), donc `meta:total` retombe sur le nombre de lignes. La troncature est detectee en demandant
+  `limit = plafond + 1` — une ligne de trop pose `truncated: true` (#658) et emet le warn #233.
+  Le plafond suit les memes regles qu'en mode records : `max-records` sinon 1 000, rabote par un
+  `limit` explicite plus petit.
+- **`server-side` ignore `fetch-mode`** : la pagination page par page reste sur `/records`
+  (`fetchPage`), `fetchFacets` reste sur `/facets`. `getAdapterParams()` neutralise `fetchMode` dans
+  ce cas et la source pose un `data-dsfr-config-error` non bloquant.
+- **Repli** : une erreur **HTTP** de l'export (404 d'un portail sans endpoint d'export, 400 de clause)
+  emet un warn, repasse une fois par `/records` et **memorise** le repli par `base + dataset` dans
+  l'adaptateur (singleton du registre) — pas de re-tentative a chaque `refresh`. Une erreur reseau
+  (abandon, hors ligne) n'est PAS un repli et remonte telle quelle.
+- **Proxy** : rien de special. `rewriteKnownHost` reecrit par **hote**, jamais par chemin — le chemin
+  `/exports/json` traverse exactement comme `/records` (les hotes ODS ne sont d'ailleurs pas dans la
+  table de reecriture : CORS `*`, appel direct).
 
 **Formats WHERE** :
 - **ODSQL** (OpenDataSoft) : SQL-like — `population > 5000 AND status = 'active'`, clauses jointes par ` AND `.
@@ -135,7 +169,7 @@ Pour les cas sans transformation (datalist, display), `dsfr-data-query` peut etr
 dsfr-data-source fonctionne en deux modes :
 
 - **Mode URL (fetch direct)** : `url`, `method`, `headers`, `params`, `refresh`, `transform`, `paginate`, `page-size`, `cache-ttl`, `data` (inline JSON).
-- **Mode adapter** (api-type != generic ou base-url fourni) : `api-type`, `base-url`, `dataset-id`, `resource`, `where`, `select`, `group-by`, `aggregate`, `order-by`, `server-side`, `page-size`, `limit`, `max-records` (#233 — plafond du fetchAll, 0 = defaut adapter ; a relever en connaissance de cause : requetes en boucle, memoire).
+- **Mode adapter** (api-type != generic ou base-url fourni) : `api-type`, `base-url`, `dataset-id`, `resource`, `where`, `select`, `group-by`, `aggregate`, `order-by`, `server-side`, `page-size`, `limit`, `max-records` (#233 — plafond du fetchAll, 0 = defaut adapter ; a relever en connaissance de cause : requetes en boucle, memoire), `fetch-mode` (#689 — `records` par defaut, `export` pour un chargement ODS en une requete ; voir la table des capacites ci-dessus).
 
 **`cache-ttl` et le hook de cache (#307)** : la lib publiee n'appelle aucune API applicative. `cache-ttl` n'a d'effet que si la page hote enregistre un provider via `window.DSFR_DATA_CACHE_PROVIDER = { get(key), put(key, data, ttl) }` AVANT le chargement des composants (sans provider : no-op, embed anonyme). La cle inclut un hash du fingerprint de la requete (URL/params/where/page) — deux requetes differentes ne partagent jamais une entree. Les apps du repo enregistrent le provider `/api/cache` (mode DB) via `registerServerCacheProvider()` de `@dsfr-data/shared`, appele par `@dsfr-data/app-ui`.
 
@@ -258,10 +292,12 @@ Toutes les dependances internes sont resolues via les workspaces npm declares da
       src/
         index.ts                Entree tout-en-un ; index-core.ts / index-map.ts
                                 pour les bundles partiels
-        components/             Les 23 Web Components dsfr-data-* (source, query, join,
+        components/             Les 24 Web Components dsfr-data-* (source, query, join,
                                 unpivot, normalize, context/-filter/-tags, facets, search,
                                 chart, kpi, kpi-group, list, display, podium, a11y, beacon,
-                                map, map-layer, map-popup, map-inset, map-timeline)
+                                map, map-layer, map-popup, map-inset, map-legend, map-timeline)
+        geo/                    Fonds administratifs GeoJSON simplifies (regions, departements),
+                                publies dans le paquet hors bundle (#688, scripts/fetch-geo.mjs)
         adapters/               Adapters api-type (generic, opendatasoft, tabular, grist,
                                 insee) + adapter-registry
         utils/                  data-bridge, mixins (transformer, source-subscriber),
@@ -500,6 +536,17 @@ Trois champs **optionnels**, purement diagnostiques, ajoutes sans toucher au mes
 - `attemptedUrl` sur `dsfr-data-error` — l'URL reellement appelee, proxy applique. Le diagnostic de #598 (`fetch-diagnostics.ts`) est volontairement **console-only** pour ne pas deverser un paragraphe dans l'UI ; ce champ le rend exploitable par une interface.
 - `origin` sur `dsfr-data-source-command` — le bus etant plat, une trace ne pourrait sinon pas dire *qui* demande une delegation. Renseigne par `TransformerMixin` (relais aval → amont), `dsfr-data-query`, `-search`, `-facets`, `-context`, `-map-layer` et `PaginationController`.
 - `dsfr-data-query.getDelegation()` — quelles operations tournent cote serveur. Un `group-by` non delegue s'execute sur les seules lignes rapatriees : des totaux justes en apparence, faux en realite.
+- `dsfr-data-normalize.getComputedColumns()` (#671) — les colonnes derivees par `compute` avec la valeur de la premiere ligne. Meme doctrine que `getSkippedCount()` des afficheurs (#648) : `graph.ts` lit une methode publique du composant rehausse (`StageNode.computedColumns`), `formatTrace` rend « calculees (compute) : solde = 1100, … » (noms seuls sous `redactValues`). Le bus transporte les lignes, pas la provenance des colonnes : sans ce hook, un recodage resterait une boite noire.
+
+#### Une meta honnete sur les plafonds silencieux (epic #693)
+
+Les chiffres faux plausibles du banc d'essai venaient tous d'un plafond muet : `max-records`, `limit` de query, page serveur, jointure partielle. Trois champs de `PaginationMeta` (`data-bridge.ts`, dupliques dans `BusPaginationMeta`) les rendent lisibles par le volet, sans attribut d'affichage ad hoc :
+
+- **`truncated`** (#658) — pose par la source en fetchAll quand `total > data.length`, ou quand l'adapter ODS signale une page pleine au plafond sur un `group_by` (total inconnu, #641 : `FetchResult.truncated`). Pose aussi par query quand `limit` a tranche. `formatTrace` nomme la cause en lisant les attributs du noeud (`limit` ou `max-records`, ajoutes a `SHAPE_ATTRS`).
+- **`total` pre-limite** (#659) — `dsfr-data-query.transformMeta` republie `total` = lignes avant `limit`, **sauf en pagination serveur** ou le total serveur est conserve : list/display paginent dessus, le remplacer par la taille de page casserait leur pagination. Sans meta amont (source inline), la query publie quand meme ses comptes via le hook `transformerOwnMeta()` du mixin (defaut null, comportement historique des autres transformateurs). Consommateurs : le warn `count` de `dsfr-data-kpi` et `value="meta:total"`.
+- **`join`** (#660) — `performJoinWithStats` (shared) compte `leftMatched/leftTotal/rightMatched/rightTotal` independamment du type ; `dsfr-data-join` le pose dans sa meta et l'expose par `getJoinStats()`. Alerte sous `JOIN_MATCH_ALERT_RATIO` (50 %) — meme seuil dans `formatTrace`, `summarizeTrace` et le volet. Les cles sont comparees en chaine, sans trim (`201` = `"201"`, `"0201"` ≠ `"201"`).
+
+Un transformateur qui republie la meta amont doit **retirer `truncated`** (query, join le font) : ce champ decrit l'etape qui l'a pose, pas celle d'apres.
 
 ### 3.7 Diagnostic hors des apps : bundle autonome et MCP (#608)
 
@@ -651,7 +698,7 @@ Le script `scripts/build-lib.ts` produit trois bundles via Vite en mode `lib` :
 | Bundle | Contenu | gzip (ESM) | gzip (UMD) |
 |--------|---------|---|---|
 | `dsfr-data.core.{esm,umd}.js` | Tous les composants sauf `dsfr-data-map*` (inclut `dsfr-data-join`) | ~70 Ko | ~63 Ko |
-| `dsfr-data.map.{esm,umd}.js` | `dsfr-data-map` + `map-layer` + `map-popup` + `map-inset` + `map-timeline` (Leaflet charge dynamiquement : chunks separes en ESM, inline en UMD) | ~35 Ko | ~85 Ko |
+| `dsfr-data.map.{esm,umd}.js` | `dsfr-data-map` + `map-layer` + `map-popup` + `map-inset` + `map-legend` + `map-timeline` (Leaflet charge dynamiquement : chunks separes en ESM, inline en UMD) | ~35 Ko | ~85 Ko |
 | `dsfr-data.{esm,umd}.js` | Tout-en-un | ~107 Ko | ~150 Ko |
 
 La source du JS dans le code genere est configurable via `VITE_LIB_URL` :
@@ -884,6 +931,7 @@ Le repo s'appelle `dsfr-data` mais le projet Docker historique s'appelle `dataso
 > Liens `chemin:ligne` sans code copié — vérifier la source si un numéro a glissé.
 
 - **Piège `import.meta.env` (substitution statique Vite)** — `packages/shared/src/api/proxy-config.ts:74` (et `:84`, `:94`, `:107`, `:149`). Vite substitue `import.meta.env.VITE_*` par **string-matching** à la compilation. Toute indirection (`const m = import.meta as any; m.env.VITE_PROXY_URL`) **casse le match silencieusement** → le bundle embarque l'ancienne valeur en dur (l'URL d'une ancienne instance a fui pendant des mois ; corrigé par PR #172, epic #168). **Toujours** accès direct `import.meta.env.VITE_*`. Cf. ADR-026.
+- **Le mode du build de la lib ne se déduit pas de `NODE_ENV`** (#716) — `scripts/build-lib.ts` est lancé par `vite-node`, qui pose `NODE_ENV=development`. Vite en déduisait `import.meta.env.DEV === true` et **pliait à la compilation** la garde de `isViteDevMode()` (`packages/shared/src/api/proxy-config.ts:149`) : le **paquet npm publié** ne testait plus que l'hôte, et tout intégrateur développant sur `http://localhost:3000` recevait des chemins `/…-proxy/` relatifs inexistants chez lui — exactement ce que la frontière #319 excluait. Le signal est désormais **explicite** dans `build-lib.ts` (`mode` + `define` de `import.meta.env.DEV`), et `DSFR_DATA_DEV_BUILD=1` rouvre le chemin de développement. Conséquence à connaître : `docker compose up -d --build` en local **sans** `VITE_PROXY_URL` appelle désormais les API en direct au lieu de passer par les routes `/…-proxy/` de nginx (`docker/nginx.conf`) — poser `VITE_PROXY_URL=http://localhost:8080`, ou `window.DSFR_DATA_PROXY = { baseUrl: '' }` au runtime. Garde-fou : `tests/lib-dev-mode-guard.test.ts` grep les bundles produits (rejoué **après** le build dans la CI, sinon `dist/` n'existe pas encore et il est ignoré). Détail : `docs/DEPLOYMENT.md` §« Servir un bundle construit sur localhost ».
 
 - **Cascade proxy 3 dimensions** — `proxy-config.ts:74-94`. `BEACON_BASE_URL = VITE_BEACON_URL || (PROXY_BASE_URL_EMBED = VITE_PROXY_URL_EMBED || (PROXY_BASE_URL = VITE_PROXY_URL))`. Aucune régression sans changement `.env` explicite (#180). Si tu modifies une variable, vérifie l'effet en cascade sur les deux dimensions en aval.
 

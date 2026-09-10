@@ -22,10 +22,12 @@ src/
 | `dsfr-data-query` | Filtrage, regroupement, agregation, tri (transformateur pur) |
 | `dsfr-data-join` | Jointure de deux sources sur cle(s) pivot |
 | `dsfr-data-unpivot` | Bascule wide → long/tidy (melt) |
+| `dsfr-data-pivot` | Repli long → wide (tableau croise, symetrique d'unpivot) |
 | `dsfr-data-normalize` | Nettoyage (conversion, renommage, trim, flatten, `compute`) |
 | `dsfr-data-context` | Orchestrateur de filtres transverses multi-sources |
 | `dsfr-data-context-filter` | Un filtre du contexte (lie a un controle d'UI natif) |
 | `dsfr-data-context-tags` | Tags DSFR supprimables des filtres actifs |
+| `dsfr-data-context-value` | Valeur courante d'un filtre, dans un titre ou une phrase |
 | `dsfr-data-facets` | Filtres a facettes interactifs |
 | `dsfr-data-search` | Recherche plein texte |
 | `dsfr-data-chart` | Graphique DSFR Chart (bar, line, pie, radar, gauge, scatter, bar-line, map, map-reg, map-aca, map-monde) |
@@ -40,6 +42,7 @@ src/
 | `dsfr-data-map-layer` | Couche de donnees (marker, geoshape, circle, heatmap) |
 | `dsfr-data-map-popup` | Compagnon d'affichage au clic (popup, modale, panneau) |
 | `dsfr-data-map-inset` | Encart territorial (DROM, Corse, zoom local) |
+| `dsfr-data-map-legend` | Legende d'une couche (classes de `fill-field`, paires de `color-map`) |
 | `dsfr-data-map-timeline` | Controles de lecture temporelle |
 
 ## Adaptateurs (`adapters/`)

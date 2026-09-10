@@ -2,6 +2,7 @@ import { LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { escapeColonValue } from '../utils/where.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
+import { CONTEXT_CONNECTED_EVENT, findContextById } from './dsfr-data-context.js';
 import type { DsfrDataContext } from './dsfr-data-context.js';
 
 /** YYYY-MM-DD en UTC (#230) */
@@ -9,9 +10,89 @@ function isoDate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** Plage [1er du mois, 1er du mois suivant) depuis "YYYY-MM" */
+/**
+ * YYYY-MM-DD dans le fuseau LOCAL (#682) : la date calendaire que voit
+ * l'utilisateur — a 00:30 a Paris le 1er juin, l'UTC est encore le 31 mai.
+ */
+function localIsoDate(d: Date): string {
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${month}-${day}`;
+}
+
+/** Mots-clés dynamiques de `default` (#682), résolus au montage dans le fuseau local */
+const DEFAULT_KEYWORDS = ['today', 'first-of-month', 'first-of-year'] as const;
+
+/**
+ * Résout un mot-clé de `default` en date ISO locale (#682) ; toute autre
+ * valeur est un littéral rendu tel quel.
+ */
+function resolveDefaultKeyword(value: string): string {
+  if (!(DEFAULT_KEYWORDS as readonly string[]).includes(value)) return value;
+  const today = localIsoDate(new Date());
+  if (value === 'first-of-month') return `${today.slice(0, 7)}-01`;
+  if (value === 'first-of-year') return `${today.slice(0, 4)}-01-01`;
+  return today;
+}
+
+/**
+ * Tronque une date complete a la precision de l'opérateur (#646) :
+ * `year-of` accepte "YYYY", "YYYY-MM" et "YYYY-MM-DD" (-> "YYYY") ;
+ * `month-of` accepte "YYYY-MM" et "YYYY-MM-DD" (-> "YYYY-MM"). Un
+ * <input type="date"> peut ainsi nourrir les deux opérateurs (il n'existe
+ * pas de type="year"). Toute autre valeur est rendue telle quelle.
+ */
+function truncateToOperator(value: string, operator: 'year-of' | 'month-of'): string {
+  const parts = dateParts(value);
+  if (!parts) return value;
+  return operator === 'year-of' ? parts[0] : parts.slice(0, 2).join('-');
+}
+
+/** Decompose "YYYY", "YYYY-MM" ou "YYYY-MM-DD" en segments — null pour toute autre forme */
+function dateParts(value: string): string[] | null {
+  const parts = value.split('-');
+  if (parts.length > 3 || !/^\d{4}$/.test(parts[0])) return null;
+  if (parts.slice(1).some((p) => !/^\d{2}$/.test(p))) return null;
+  return parts;
+}
+
+/**
+ * Adapte une valeur d'URL a la precision du controle qui la recoit (#646) :
+ * un <input type="date"> refuse "2026" (valeur assainie a vide), un
+ * type="month" refuse "2026-09-09". On complete ou tronque pour que le
+ * controle accepte la valeur — buildColonWhere() retronque ensuite a la
+ * precision de l'opérateur.
+ */
+function fitDateToInput(
+  value: string,
+  inputType: string,
+  operator: 'year-of' | 'month-of'
+): string {
+  const parts = dateParts(value);
+  if (!parts) return value;
+  const [year, month = '01', day = '01'] = parts;
+  if (inputType === 'date') return `${year}-${month}-${day}`;
+  if (inputType === 'month') return `${year}-${month}`;
+  return truncateToOperator(value, operator);
+}
+
+/**
+ * Adapte une valeur de `default` au controle qui la recoit (#682) : un
+ * mot-cle resout en date complete, qu'un input type="month" refuserait et
+ * qu'un `year-of` sur un input texte n'attend pas. Reutilise la troncature
+ * de #646 ; une valeur qui n'est pas une date est rendue telle quelle.
+ */
+function fitDefaultToInput(value: string, inputType: string, operator: ContextOperator): string {
+  if (operator === 'year-of' || operator === 'month-of') {
+    return fitDateToInput(value, inputType, operator);
+  }
+  if (inputType === 'month') return truncateToOperator(value, 'month-of');
+  return value;
+}
+
+/** Plage [1er du mois, 1er du mois suivant) depuis "YYYY-MM" (ou une date complete, #646) */
 function monthRange(value: string): [string, string] | null {
-  const m = /^(\d{4})-(\d{2})$/.exec(value);
+  const m = /^(\d{4})-(\d{2})$/.exec(truncateToOperator(value, 'month-of'));
   if (!m) return null;
   const year = Number(m[1]);
   const month = Number(m[2]);
@@ -20,11 +101,45 @@ function monthRange(value: string): [string, string] | null {
   return [`${m[1]}-${m[2]}-01`, `${next}-01`];
 }
 
-/** Plage [1er janvier, 1er janvier suivant) depuis "YYYY" */
-function yearRange(value: string): [string, string] | null {
-  if (!/^\d{4}$/.test(value)) return null;
-  const year = Number(value);
-  return [`${value}-01-01`, `${year + 1}-01-01`];
+/**
+ * Annee de DEBUT d'une annee qui ne commence pas forcement en janvier
+ * (#735) — annee scolaire, exercice comptable, saison sportive.
+ *
+ * Une annee NUE ("2024") nomme l'annee qui COMMENCE en 2024 ; une valeur
+ * plus precise ("2025-03", "2025-03-10") designe l'annee qui la CONTIENT.
+ * Les deux regles coincident exactement quand `startMonth` vaut 1, ce qui
+ * garde l'annee civile inchangee.
+ */
+function fiscalYearStart(value: string, startMonth: number): number | null {
+  const parts = dateParts(value);
+  if (!parts) return null;
+  const year = Number(parts[0]);
+  if (parts.length === 1) return year;
+  const month = Number(parts[1]);
+  if (month < 1 || month > 12) return null;
+  return month < startMonth ? year - 1 : year;
+}
+
+/** "YYYY-MM-01" a partir d'une annee et d'un mois de debut (#735) */
+function firstOfMonth(year: number, month: number): string {
+  return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-01`;
+}
+
+/**
+ * Plage [debut, debut + 1 an) d'une annee. `startMonth` = 1 redonne la
+ * plage civile historique [1er janvier, 1er janvier suivant) (#646, #735).
+ */
+function yearRange(value: string, startMonth = 1): [string, string] | null {
+  const start = fiscalYearStart(value, startMonth);
+  if (start === null) return null;
+  return [firstOfMonth(start, startMonth), firstOfMonth(start + 1, startMonth)];
+}
+
+/** Libelle d'une annee non civile : « 2024-2025 » (#735) */
+function fiscalYearLabel(value: string, startMonth: number): string | null {
+  const start = fiscalYearStart(value, startMonth);
+  if (start === null) return null;
+  return `${start}-${start + 1}`;
 }
 
 /** Lendemain ISO de "YYYY-MM-DD" (borne haute exclusive = inclusif jusqu'au jour choisi) */
@@ -43,22 +158,31 @@ const OPERATORS = [
   'lt',
   'gte',
   'between',
+  // Sous-chaine (#678) : deja traduit par filter-translator (like "%v%" en
+  // ODSQL, includes en local), il n'etait simplement pas expose ici
+  'contains',
   // Operateurs de date (#230) — clauses en plages [debut, fin)
   'month-of',
   'year-of',
   'lt-day-after',
   'last-n-days',
   'current-year',
+  'current-month',
 ] as const;
 type ContextOperator = (typeof OPERATORS)[number];
+
+/** Opérateurs sur lesquels `year-start-month` a un effet (#735) */
+const YEAR_OPERATORS = ['year-of', 'current-year'] as const;
+type YearOperator = (typeof YEAR_OPERATORS)[number];
 
 /**
  * <dsfr-data-context-filter> — un filtre du contexte (#229).
  *
- * Enfant de <dsfr-data-context>. Écoute les change/input de l'élément d'UI
+ * Enfant de <dsfr-data-context> — ou, avec `context="id"` (#678), placé
+ * n'importe où dans la page. Écoute les change/input de l'élément d'UI
  * référencé par `ui` (select, input, select multiple — ou DEUX ids pour
  * `between` : min puis max), construit une clause **colon** (le dialecte
- * pivot de la lib, #277) et la confie au contexte parent qui la diffuse aux
+ * pivot de la lib, #277) et la confie au contexte qui la diffuse aux
  * sources ciblées, traduite au dialecte de chaque adapter.
  *
  * La valeur vide retire le filtre (where vide sur le même whereKey).
@@ -73,10 +197,41 @@ export class DsfrDataContextFilter extends LitElement {
   @property({ type: String })
   ui = '';
 
-  /** Opérateur : eq, in, lt, gte, between — et dates (#230, clauses en plages
-   *  [debut, fin)) : month-of, year-of, lt-day-after, last-n-days, current-year */
+  /**
+   * Opérateur : eq, in, lt, gte, between, contains (sous-chaîne, #678) — et
+   * dates (#230, clauses en plages [debut, fin)) : month-of, year-of,
+   * lt-day-after, last-n-days, current-year, current-month (#682 — case à
+   * cocher, mois en cours, borne dynamique).
+   *
+   * `year-of` et `month-of` acceptent une date plus precise que l'opérateur
+   * et la tronquent (#646) : "2026-09-09" -> annee 2026 / mois 2026-09, ce
+   * qui permet de les nourrir d'un <input type="date"> (il n'existe pas de
+   * type="year"). Une valeur qui reste inexploitable (ni date, ni mois, ni
+   * annee) retire le filtre et le signale par un avertissement console,
+   * emis une seule fois par filtre.
+   */
   @property({ type: String })
   operator: ContextOperator = 'eq';
+
+  /**
+   * Mois de debut de l'annee pour `year-of` et `current-year` (#735) —
+   * 1 (defaut) = annee civile, 9 = annee scolaire, 4 = exercice comptable
+   * britannique, 7 = exercice australien, 10 = saison. La clause reste une
+   * plage `gte` + `lt` : elle se delegue au serveur comme n'importe quelle
+   * autre, aucun adaptateur n'est concerne.
+   *
+   * `year-of` avec `year-start-month="9"` et la valeur « 2024 » filtre
+   * `[2024-09-01, 2025-09-01)` et s'affiche « 2024-2025 » dans les tags.
+   * Une valeur plus precise (« 2025-03-10 ») designe l'annee qui la
+   * CONTIENT — soit 2024-2025 ici — ce qui permet de nourrir l'opérateur
+   * d'un contrôle de type date.
+   *
+   * Cote client seul, une colonne d'annee scolaire se derive aussi avec
+   * `compute` sur dsfr-data-normalize ; l'attribut existe pour les jeux
+   * qu'on ne veut pas rapatrier.
+   */
+  @property({ type: Number, attribute: 'year-start-month' })
+  yearStartMonth = 1;
 
   /** Cibles : "*" (défaut, toutes les sources du contexte) ou ids ciblés */
   @property({ type: String, attribute: 'apply-to' })
@@ -86,11 +241,60 @@ export class DsfrDataContextFilter extends LitElement {
   @property({ type: String })
   label = '';
 
+  /**
+   * Valeur initiale du filtre (#682), appliquée au montage APRÈS l'URL —
+   * un paramètre d'URL présent gagne toujours (ADR-031). Mots-clés
+   * dynamiques résolus dans le fuseau local : `today` (date du jour),
+   * `first-of-month` (1er du mois en cours), `first-of-year` (1er janvier
+   * de l'année en cours) ; toute autre valeur est un littéral. La date est
+   * adaptée au contrôle (input type="month" → AAAA-MM, `year-of` → AAAA)
+   * puis écrite dans l'UI et émise par le chemin normal, jamais injectée
+   * dans un where. Pour `between` et `in`, plusieurs valeurs séparées par
+   * une virgule (ex. `first-of-year,today`).
+   */
+  @property({ type: String, attribute: 'default' })
+  defaultValue = '';
+
+  /**
+   * Id du dsfr-data-context cible (#678). Vide = le contexte parent le plus
+   * proche (`closest`), comportement historique. Le contexte peut être
+   * déclaré après ce filtre dans le DOM : l'enregistrement se fait alors à
+   * sa connexion.
+   */
+  @property({ type: String })
+  context = '';
+
   private _context: DsfrDataContext | null = null;
+
+  /** Un contexte visé par id vient d'être connecté : (re)bind si c'est le nôtre (#678) */
+  private _onContextConnected = (e: Event) => {
+    const id = (e as CustomEvent<{ id: string | null }>).detail?.id;
+    if (this.context && id === this.context) {
+      this._unbindUi();
+      this._bind();
+    }
+  };
 
   private _uiEls: HTMLElement[] = [];
 
   private _onUiChange = () => this._emit();
+
+  /** Valeur de date inexploitable déjà signalee (#646) — un warn par filtre, pas par frappe */
+  private _unusableDateWarned = false;
+
+  /** `year-start-month` sans effet déjà signale (#735) — un warn par filtre */
+  private _yearStartMonthIgnoredWarned = false;
+
+  /**
+   * Mois de debut effectif (#735) : 1 (annee civile) hors des opérateurs
+   * d'annee ou quand la valeur est hors bornes — la clause reste alors
+   * exactement celle d'avant.
+   */
+  private _startMonth(): number {
+    if (!YEAR_OPERATORS.includes(this.operator as YearOperator)) return 1;
+    const m = this.yearStartMonth;
+    return Number.isInteger(m) && m >= 1 && m <= 12 ? m : 1;
+  }
 
   createRenderRoot() {
     return this;
@@ -98,7 +302,7 @@ export class DsfrDataContextFilter extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
-    this._context = this.closest('dsfr-data-context');
+    document.addEventListener(CONTEXT_CONNECTED_EVENT, this._onContextConnected);
     // Bind différé d'un tick : à l'innerHTML, les éléments d'UI déclarés
     // après le contexte dans le même fragment ne sont pas encore là
     queueMicrotask(() => this._bind());
@@ -106,6 +310,7 @@ export class DsfrDataContextFilter extends LitElement {
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    document.removeEventListener(CONTEXT_CONNECTED_EVENT, this._onContextConnected);
     this._unbindUi();
     this._context?._unregisterFilter(this);
     this._context = null;
@@ -113,7 +318,13 @@ export class DsfrDataContextFilter extends LitElement {
 
   willUpdate(changed: Map<string, unknown>) {
     super.willUpdate(changed);
-    if (changed.has('ui') || changed.has('field') || changed.has('operator')) {
+    if (
+      changed.has('ui') ||
+      changed.has('field') ||
+      changed.has('operator') ||
+      changed.has('yearStartMonth') ||
+      changed.has('context')
+    ) {
       if (this.hasUpdated) {
         this._unbindUi();
         this._bind();
@@ -121,15 +332,28 @@ export class DsfrDataContextFilter extends LitElement {
     }
   }
 
+  /** Contexte cible : par id (`context`, #678) sinon le parent le plus proche */
+  private _resolveContext(): DsfrDataContext | null {
+    if (this.context) return findContextById(this.context);
+    return this.closest('dsfr-data-context');
+  }
+
   /** Validation + abonnement aux éléments d'UI */
   private _bind(): void {
     if (!this.isConnected) return;
 
+    const context = this._resolveContext();
+    if (context !== this._context) {
+      this._context?._unregisterFilter(this);
+      this._context = context;
+    }
     if (!this._context) {
       reportConfigError(
         this,
         'dsfr-data-context-filter',
-        'doit être un enfant de <dsfr-data-context>'
+        this.context
+          ? `dsfr-data-context introuvable : "${this.context}"`
+          : 'doit être un enfant de <dsfr-data-context> (ou le viser par context="id")'
       );
       return;
     }
@@ -144,6 +368,30 @@ export class DsfrDataContextFilter extends LitElement {
         `operator "${this.operator}" inconnu (attendus : ${OPERATORS.join(', ')})`
       );
       return;
+    }
+    if (
+      !Number.isInteger(this.yearStartMonth) ||
+      this.yearStartMonth < 1 ||
+      this.yearStartMonth > 12
+    ) {
+      reportConfigError(
+        this,
+        'dsfr-data-context-filter',
+        `year-start-month "${this.yearStartMonth}" invalide : un mois entier de 1 a 12 est attendu`
+      );
+      return;
+    }
+    if (this.yearStartMonth !== 1 && !YEAR_OPERATORS.includes(this.operator as YearOperator)) {
+      // Non bloquant : le filtre reste utilisable en annee civile, mais
+      // l'attribut sans effet ne doit pas passer en silence (#735)
+      if (!this._yearStartMonthIgnoredWarned) {
+        this._yearStartMonthIgnoredWarned = true;
+        console.warn(
+          `dsfr-data-context-filter (${this.field}) : year-start-month n'a d'effet que sur ` +
+            `les opérateurs ${YEAR_OPERATORS.join(' et ')} — il est ignore pour ` +
+            `operator="${this.operator}".`
+        );
+      }
     }
 
     const ids = this.ui.split(/\s+/).filter(Boolean);
@@ -184,6 +432,9 @@ export class DsfrDataContextFilter extends LitElement {
     const urlValues = this._context._urlValuesFor(this.field);
     if (urlValues) {
       this._prefillUi(urlValues);
+    } else if (this.defaultValue) {
+      // Valeur initiale (#682) : APRES l'URL, qui gagne — meme chemin
+      this._prefillUi(this._resolvedDefault());
     }
 
     // Une UI déjà remplie au montage applique son filtre immédiatement
@@ -192,7 +443,22 @@ export class DsfrDataContextFilter extends LitElement {
     }
   }
 
-  /** Écrit des valeurs (issues de l'URL) dans les contrôles d'UI liés */
+  /**
+   * Valeurs de `default` résolues (#682) : mots-clés → date locale du jour,
+   * adaptée au contrôle qui la reçoit. `between` et `in` acceptent
+   * plusieurs valeurs séparées par une virgule.
+   */
+  private _resolvedDefault(): string[] {
+    const multi = this.operator === 'between' || this.operator === 'in';
+    const raw = multi ? this.defaultValue.split(',') : [this.defaultValue];
+    return raw.map((v, i) => {
+      const el = this._uiEls[this.operator === 'between' ? i : 0];
+      const inputType = el instanceof HTMLInputElement ? el.type : '';
+      return fitDefaultToInput(resolveDefaultKeyword(v.trim()), inputType, this.operator);
+    });
+  }
+
+  /** Écrit des valeurs (issues de l'URL ou de `default`) dans les contrôles d'UI liés */
   private _prefillUi(values: string[]): void {
     if (this.operator === 'between') {
       const [min, max] = values;
@@ -213,7 +479,12 @@ export class DsfrDataContextFilter extends LitElement {
       }
       return;
     }
-    (el as HTMLInputElement | HTMLSelectElement).value = values.join(',');
+    let value = values.join(',');
+    if (this.operator === 'year-of' || this.operator === 'month-of') {
+      // Une date complete dans l'URL doit tenir dans le controle (#646)
+      value = fitDateToInput(value, el instanceof HTMLInputElement ? el.type : '', this.operator);
+    }
+    (el as HTMLInputElement | HTMLSelectElement).value = value;
   }
 
   /** Libellé d'affichage (tags #232) */
@@ -229,8 +500,22 @@ export class DsfrDataContextFilter extends LitElement {
       return [min, max].filter(Boolean).join(' – ');
     }
     const raw = values[0] ?? '';
-    if (this.operator === 'current-year') return 'année en cours';
+    // Annee non civile (#735) : « 2024-2025 » dit ce qui est filtre la ou
+    // « 2024 » ou « année en cours » laisserait croire a l'annee civile
+    const startMonth = this._startMonth();
+    if (this.operator === 'current-year') {
+      if (startMonth === 1) return 'année en cours';
+      return fiscalYearLabel(isoDate(new Date()), startMonth) ?? 'année en cours';
+    }
+    if (this.operator === 'current-month') return 'mois en cours';
     if (this.operator === 'last-n-days') return `${raw} derniers jours`;
+    if (this.operator === 'year-of' && startMonth !== 1) {
+      return fiscalYearLabel(raw, startMonth) ?? raw;
+    }
+    if (this.operator === 'year-of' || this.operator === 'month-of') {
+      // Le tag montre la precision reellement filtree (#646)
+      return truncateToOperator(raw, this.operator);
+    }
     return raw.split(/[|,]/).filter(Boolean).join(', ');
   }
 
@@ -323,16 +608,23 @@ export class DsfrDataContextFilter extends LitElement {
     if (raw === '') return '';
 
     // Operateurs de date (#230) : plages [debut, fin) en ISO. Les bornes
-    // DYNAMIQUES (last-n-days, current-year) se recalculent ICI, a chaque
+    // DYNAMIQUES (last-n-days, current-year, current-month) se recalculent ICI, a chaque
     // diffusion — jamais de date figee ; l'URL serialise l'intention (#231)
     if (this.operator === 'month-of') {
       const range = monthRange(raw);
-      if (!range) return '';
+      if (!range) return this._unusableDate(raw, 'un mois "AAAA-MM" ou une date "AAAA-MM-JJ"');
       return `${this.field}:gte:${range[0]}, ${this.field}:lt:${range[1]}`;
     }
     if (this.operator === 'year-of') {
-      const range = yearRange(raw);
-      if (!range) return '';
+      // year-start-month (#735) : le desucrage reste gte + lt, donc la
+      // clause se delegue au serveur comme une plage ordinaire
+      const range = yearRange(raw, this._startMonth());
+      if (!range) {
+        return this._unusableDate(
+          raw,
+          'une annee "AAAA", un mois "AAAA-MM" ou une date "AAAA-MM-JJ"'
+        );
+      }
       return `${this.field}:gte:${range[0]}, ${this.field}:lt:${range[1]}`;
     }
     if (this.operator === 'lt-day-after') {
@@ -348,8 +640,15 @@ export class DsfrDataContextFilter extends LitElement {
       return `${this.field}:gte:${isoDate(start)}`;
     }
     if (this.operator === 'current-year') {
-      const year = new Date().getUTCFullYear();
-      return `${this.field}:gte:${year}-01-01, ${this.field}:lt:${year + 1}-01-01`;
+      const range = yearRange(isoDate(new Date()), this._startMonth());
+      if (!range) return '';
+      return `${this.field}:gte:${range[0]}, ${this.field}:lt:${range[1]}`;
+    }
+    if (this.operator === 'current-month') {
+      // Symetrique de current-year (#682) : meme horloge UTC, meme plage [1er, 1er suivant)
+      const range = monthRange(isoDate(new Date()));
+      if (!range) return '';
+      return `${this.field}:gte:${range[0]}, ${this.field}:lt:${range[1]}`;
     }
 
     if (this.operator === 'in') {
@@ -363,6 +662,22 @@ export class DsfrDataContextFilter extends LitElement {
     }
 
     return `${this.field}:${this.operator}:${escapeColonValue(raw)}`;
+  }
+
+  /**
+   * Valeur de date inexploitable (#646) : le filtre est retire (clause vide)
+   * mais on le DIT — une fois par filtre. Pas reportConfigError : c'est une
+   * valeur de runtime, un input texte en emet une a chaque frappe.
+   */
+  private _unusableDate(raw: string, expected: string): '' {
+    if (!this._unusableDateWarned) {
+      this._unusableDateWarned = true;
+      console.warn(
+        `dsfr-data-context-filter (${this.field}, operator="${this.operator}") : ` +
+          `valeur "${raw}" inexploitable, attendu ${expected} — filtre retire.`
+      );
+    }
+    return '';
   }
 
   render() {

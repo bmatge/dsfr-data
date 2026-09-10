@@ -119,6 +119,27 @@ describe('DsfrDataSource', () => {
       expect(warnSpy).toHaveBeenCalled();
       warnSpy.mockRestore();
     });
+
+    it('#655 : mode URL sur un hôte ODS — `apikey` normalisé en `Authorization: Apikey`', () => {
+      source.method = 'GET';
+      source.url =
+        'https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/prix-carburants/records?limit=10';
+      source.headers = '{"apikey":"K"}';
+      source.params = '';
+
+      const options = (source as any)._buildFetchOptions();
+      expect(options.headers).toEqual({ Authorization: 'Apikey K' });
+    });
+
+    it('#655 : mode URL hors ODS — `apikey` transmis tel quel', () => {
+      source.method = 'GET';
+      source.url = 'https://api.example.com/data';
+      source.headers = '{"apikey":"K"}';
+      source.params = '';
+
+      const options = (source as any)._buildFetchOptions();
+      expect(options.headers).toEqual({ apikey: 'K' });
+    });
   });
 
   describe('data fetching', () => {
@@ -491,6 +512,26 @@ describe('DsfrDataSource', () => {
       expect(mockFetch).toHaveBeenCalledTimes(1);
       expect(source.getData()).toBeTruthy();
       expect(source.isLoading()).toBe(false);
+    });
+
+    it('AC #655 : headers=\'{"apikey":"K"}\' sur api-type="opendatasoft" émet Authorization: Apikey K', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ results: [{ id: 1 }], total_count: 1 }),
+      });
+
+      source.apiType = 'opendatasoft';
+      source.id = 'test-source';
+      source.baseUrl = 'https://data.economie.gouv.fr';
+      source.datasetId = 'test-dataset';
+      source.headers = '{"apikey":"K"}';
+
+      await (source as any)._fetchViaAdapter();
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      const headers = (mockFetch.mock.calls[0][1] as RequestInit).headers as Record<string, string>;
+      expect(headers.Authorization).toBe('Apikey K');
+      expect(Object.keys(headers).map((k) => k.toLowerCase())).not.toContain('apikey');
     });
 
     it('handles adapter fetch errors', async () => {

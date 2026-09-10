@@ -19,6 +19,21 @@ export function escapeHtml(str: string | number | boolean | null | undefined): s
 }
 
 /**
+ * Echappe une valeur destinee a du CONTENU TEXTUEL (noeud texte), pas a un
+ * attribut : seuls `&`, `<` et `>` sont ambigus a cet endroit.
+ *
+ * Distinct de `escapeHtml` a dessein. Passer de la prose francaise dans
+ * l'echappement d'attribut donne `l&#039;element` la ou `l'element` est
+ * correct et lisible : le guillemet et l'apostrophe ne ferment rien dans un
+ * noeud texte. Utilise par les generateurs de documentation
+ * (`scripts/build-specs-tables.ts`), qui produisent des cellules de tableau.
+ */
+export function escapeText(str: string | number | boolean | null | undefined): string {
+  if (str === null || str === undefined || str === '') return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/**
  * Echappe une chaine destinee a un attribut HTML a guillemets SIMPLES —
  * `data='…'`, `x='…'`, le patron des donnees embarquees.
  *

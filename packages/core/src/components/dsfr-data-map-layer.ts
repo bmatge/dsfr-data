@@ -3,16 +3,30 @@
  *
  * Composant invisible utilisant SourceSubscriberMixin pour recevoir des données
  * et les projeter sur la carte parente (markers, geoshape, circle, heatmap).
+ *
+ * Choroplèthe (`type="geoshape"` + `fill-field`) : les valeurs sont discrétisées
+ * en classes (`classes`, `method`, `breaks`) colorées par `selected-palette` ;
+ * `getLegendEntries()` expose les classes (ou les paires de `color-map`) pour le
+ * compagnon dsfr-data-map-legend, qui se rafraîchit sur l'événement
+ * `dsfr-data-map-layer-render` (#685).
  */
 import { LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
+import { SelectionFilterMixin } from '../utils/selection-filter.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { dispatchSourceCommand } from '../utils/data-bridge.js';
 import { getByPath } from '../utils/json-path.js';
 import { parseGeoValue } from '../utils/geo-value.js';
-import { CHOROPLETH_SCALES, quantileBreaks, getColorForValue } from '@dsfr-data/shared/lib';
-import { escapeHtml } from '@dsfr-data/shared/lib';
+import { parseColorMap } from '../utils/color-map.js';
+import {
+  CHOROPLETH_SCALES,
+  classifyValues,
+  getColorForValue,
+  choroplethLegendEntries,
+  escapeHtml,
+} from '@dsfr-data/shared/lib';
+import type { LegendEntry } from '@dsfr-data/shared/lib';
 import type { DsfrDataMap } from './dsfr-data-map.js';
 import type { SourceElement } from '../utils/source-element.js';
 // @ts-expect-error — Vite ?inline import returns CSS as string
@@ -54,8 +68,6 @@ type ClusterFactory = (opts: Record<string, unknown>) => FeatureGroup;
  * `window.L` (namespace exposé par loadLeaflet) ou seulement sur l'export
  * `default` du module Leaflet bundlé — on consulte les deux. Plus aucun
  * fallback CDN runtime (#292) : incompatible CSP strict et sovereign-only.
- *
- * @fires dsfr-data-map-layer-time-ready - `{ steps }` sur `document` — les pas de temps de la couche sont calcules ; <dsfr-data-map-timeline> s'en sert pour construire son curseur.
  */
 async function resolveLeafletPluginSymbol<T>(name: string): Promise<T | undefined> {
   const winL = (window as WindowWithLeaflet).L as Record<string, unknown> | undefined;
@@ -72,8 +84,14 @@ async function resolveLeafletPluginSymbol<T>(name: string): Promise<T | undefine
 
 let layerBoundsSeq = 0;
 
+/**
+ * @fires dsfr-data-map-select - `{ record, layerId, selected }` sur la couche (bubbles, composed) — au clic sur un marqueur, un cercle ou une forme (#681), en plus de la popup ; jamais en `no-interactive`. `selected` vaut `true` à la sélection, `false` quand le clic retire la sélection courante (second clic sur le même objet, ou `clear()` du filtre de contexte).
+ * @fires dsfr-data-source-command - `{ sourceId, where, whereKey, origin }` sur `document` — en `refine-on-click` SANS `context` (chemin dégradé) : clause `eq` poussée directement à `source` sous le whereKey `map-select-ID`. Avec `context`, c'est le contexte qui diffuse.
+ * @fires dsfr-data-map-layer-time-ready - `{ steps }` sur `document` — les pas de temps de la couche sont calcules ; dsfr-data-map-timeline s'en sert pour construire son curseur.
+ * @fires dsfr-data-map-layer-render - `{ rendered, skipped, total, legend }` sur la couche (bubbles) après chaque rendu : éléments dessinés, lignes ignorées, total avant plafond, entrées de légende (`getLegendEntries()`). dsfr-data-map-legend s'en sert pour se rafraîchir (#685).
+ */
 @customElement('dsfr-data-map-layer')
-export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
+export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin(LitElement)) {
   /** Cle stable des bounds aupres de la carte parente (#294) */
   private readonly _boundsKey = `dsfr-map-layer-${++layerBoundsSeq}`;
 
@@ -81,7 +99,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
    * Jeton de generation des rendus (#295) : deux _renderLayer qui se
    * chevauchent pendant le await import(...) (cluster/heatmap)
    * franchissaient chacun clearLayers() puis ajoutaient CHACUN tous les
-   * items — doublons visibles. Le rendu obsolete s'abandonne apres chaque
+   * items — doublons visibles. Le rendu obsolete s'abandonne après chaque
    * await.
    */
   private _renderGeneration = 0;
@@ -96,15 +114,15 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   @property({ type: String })
   type: 'marker' | 'geoshape' | 'circle' | 'heatmap' = 'marker';
 
-  /** Chemin vers le champ latitude (mode coordonnees separees). */
+  /** Chemin vers le champ latitude (mode coordonnées séparées). */
   @property({ type: String, attribute: 'lat-field' })
   latField = '';
 
-  /** Chemin vers le champ longitude (mode coordonnees separees). */
+  /** Chemin vers le champ longitude (mode coordonnées séparées). */
   @property({ type: String, attribute: 'lon-field' })
   lonField = '';
 
-  /** Champ geometrie : objet GeoJSON, {lat, lon}, [lat, lon] ou chaine JSON serialisee (#426) */
+  /** Champ geometrie : objet GeoJSON, {lat, lon}, [lat, lon] ou chaîne JSON serialisee (#426) */
   @property({ type: String, attribute: 'geo-field' })
   geoField = '';
 
@@ -118,6 +136,40 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   @property({ type: Boolean, attribute: 'no-interactive' })
   noInteractive = false;
 
+  /**
+   * Libellé de la couche — sert de libellé au tag du contexte en
+   * `refine-on-click` (#681). Vide = le nom du champ.
+   */
+  @property({ type: String })
+  label = '';
+
+  // --- Sélection au clic (#681, ADR-104) ---
+
+  /**
+   * Champ dont la valeur de l'objet cliqué devient un filtre `eq` (#681).
+   * Premier clic = filtre, second clic sur le même objet = retrait, clic sur
+   * un autre objet = remplacement. Avec `context="id"` (recommandé), la
+   * couche s'enregistre comme filtre du dsfr-data-context : diffusion à
+   * toutes ses sources cibles au dialecte de chacune, tag dans
+   * dsfr-data-context-tags, URL portée par le contexte. Sans `context`,
+   * la clause part directement à `source` (whereKey `map-select-ID`) —
+   * sans tag ni URL. Attention : si `source` est aussi une cible du
+   * contexte, la carte se filtre elle-même (seul l'objet cliqué reste,
+   * jusqu'au second clic) ; pour garder tous les points, ne pas lister
+   * cette source dans `sources` du contexte (ou donner à la carte sa
+   * propre source).
+   */
+  @property({ type: String, attribute: 'refine-on-click' })
+  refineOnClick = '';
+
+  /**
+   * Id du dsfr-data-context auquel s'enregistrer en `refine-on-click`
+   * (#681, ADR-104). Le contexte peut être déclaré après la couche dans
+   * la page. Vide = commande directe à `source` (chemin dégradé).
+   */
+  @property({ type: String })
+  context = '';
+
   // --- Display ---
 
   /** Template du contenu de la popup, avec substitution de champs. Ex: `"{nom} — {val} kW"`. */
@@ -128,7 +180,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'popup-fields' })
   popupFields = '';
 
-  /** Champ affiche au survol de l'element. */
+  /** Champ affiché au survol de l'élément. */
   @property({ type: String, attribute: 'tooltip-field' })
   tooltipField = '';
 
@@ -140,7 +192,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'color-field' })
   colorField = '';
 
-  /** Paires `valeur:#couleur` separees par des virgules. Ex: `"1:#00A95F,2:#FF9940,3:#E1000F"`. */
+  /** Paires `valeur:#couleur` séparées par des virgules. Ex: `"1:#00A95F,2:#FF9940,3:#E1000F"`. Une virgule ou un deux-points dans une valeur s'écrit `%2C` ou `%3A`. */
   @property({ type: String, attribute: 'color-map' })
   colorMap = '';
 
@@ -152,9 +204,21 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   @property({ type: Number, attribute: 'fill-opacity' })
   fillOpacity = 0.6;
 
-  /** Palette DSFR utilisée pour le dégradé choroplèthe (`fill-field`). */
+  /** Palette DSFR utilisée pour le dégradé choroplèthe (`fill-field`) : `sequentialAscending` (défaut), `sequentialDescending`, `divergentAscending`, `divergentDescending`, `neutral`, `categorical`. */
   @property({ type: String, attribute: 'selected-palette' })
   selectedPalette = '';
+
+  /** Nombre de classes de la choroplèthe (`fill-field`). `0` (défaut) = autant de classes que de couleurs dans l'échelle (9). Plafonné à la taille de l'échelle (#685). */
+  @property({ type: Number })
+  classes = 0;
+
+  /** Méthode de discrétisation de la choroplèthe : `quantile` (défaut, effectifs égaux par classe), `equal` (intervalles de même largeur), `manual` (bornes de `breaks`). */
+  @property({ type: String })
+  method: 'quantile' | 'equal' | 'manual' = 'quantile';
+
+  /** Bornes supérieures manuelles des classes, séparées par des virgules : `"10,50,100"` donne 4 classes (jusqu'à 10, 10 à 50, 50 à 100, plus de 100). Implique `method="manual"`. */
+  @property({ type: String })
+  breaks = '';
 
   /** Rayon fixe des cercles (`type="circle"`). */
   @property({ type: Number })
@@ -206,15 +270,21 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   @property({ type: Number, attribute: 'min-zoom' })
   minZoom = 0;
 
-  /** Niveau de zoom au-dela duquel la couche est masquee. */
+  /** Niveau de zoom au-delà duquel la couche est masquee. */
   @property({ type: Number, attribute: 'max-zoom' })
   maxZoom = 18;
 
-  /** Chargement par viewport : re-interroge la source a chaque deplacement de la carte. */
+  /**
+   * Chargement par viewport : re-interroge la source a chaque déplacement de
+   * la carte, et une première fois des que la carte est prête (#652). Le tout
+   * premier fetch de la source reste NON filtre (elle charge des sa connexion,
+   * avant que la carte — différée a la visibilité — ait un viewport) : sur un
+   * gros jeu, poser un `limit` ou un `where` initial sur la source.
+   */
   @property({ type: Boolean })
   bbox = false;
 
-  /** Delai d'anti-rebond avant le re-fetch bbox, en millisecondes. */
+  /** Délai d'anti-rebond avant le re-fetch bbox, en millisecondes. */
   @property({ type: Number, attribute: 'bbox-debounce' })
   bboxDebounce = 300;
 
@@ -238,7 +308,14 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
 
   // --- Performance ---
 
-  /** Plafond du nombre d'elements rendus sur la carte. */
+  /**
+   * Plafond du nombre d'éléments rendus sur la carte (défaut 5000). Il protège
+   * les marqueurs DOM (`divIcon`), le fit et les popups ; au-delà, un bandeau
+   * indique combien d'éléments sont affichés sur le total. Avec `cluster`,
+   * `max-items="20000"` est sans risque : les marqueurs regroupés ne pèsent
+   * pas sur le DOM. En mode `bbox`, zoomer recharge la zone visible ; hors
+   * `bbox`, seul un `max-items` plus haut (ou un filtre amont) affiche le reste.
+   */
   @property({ type: Number, attribute: 'max-items' })
   maxItems = 5000;
 
@@ -261,15 +338,28 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   private _heatLayerFactory: HeatLayerFactory | null = null;
   private _radiusScale: ((val: number) => number) | null = null;
 
-  /** Elements effectivement dessines au dernier rendu (#482) */
+  /** Éléments effectivement dessines au dernier rendu (#482) */
   private _renderedCount = 0;
 
-  /** Records ecartes du rendu geoshape faute de geometrie valide (#482) */
+  /**
+   * Records écartés du dernier rendu faute de position exploitable : geometrie
+   * invalide (geoshape, #482), coordonnées absentes ou non numeriques (marker,
+   * circle, heatmap — #648). Un seul compteur pour tous les types.
+   */
   private _skippedGeoCount = 0;
+
+  /** Dernier compte journalise — evite de repeter le warn a chaque re-rendu (pan en bbox client) */
+  private _skippedWarned = -1;
 
   /** Compagnon popup resolu une fois par rendu (#297) */
   private _popupCompanion: import('./dsfr-data-map-popup.js').DsfrDataMapPopup | null = null;
   private _colorMapParsed: Map<string, string> | null = null;
+
+  /** Entrees de legende du dernier rendu (#685) — voir getLegendEntries() */
+  private _legendEntries: LegendEntry[] = [];
+
+  /** Au moins un record est retombe sur `color` faute de correspondance dans color-map */
+  private _colorFallbackUsed = false;
 
   // Timeline state
   private _timeFrames: Map<string, Record<string, unknown>[]> = new Map();
@@ -281,38 +371,101 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     return this;
   }
 
-  // --- Color mapping ---
+  // --- Sélection au clic (#681, ADR-104 — tronc commun dans SelectionFilterMixin, #734) ---
 
-  /** Parse color-map="val1:#color1,val2:#color2" into a Map */
-  private _parseColorMap(): Map<string, string> {
-    const map = new Map<string, string>();
-    if (!this.colorMap) return map;
-    for (const pair of this.colorMap.split(',')) {
-      const sep = pair.lastIndexOf(':');
-      if (sep > 0) {
-        const value = pair.substring(0, sep).trim();
-        const color = pair.substring(sep + 1).trim();
-        if (value && color) map.set(value, color);
-      }
-    }
-    return map;
+  /** Nom historique de l'événement de sélection de la carte (#681) */
+  protected selectionEventName(): string {
+    return 'dsfr-data-map-select';
   }
+
+  /** Détail historique : `layerId`, pas `elementId` (#681) */
+  protected selectionEventDetail(
+    record: Record<string, unknown>,
+    selected: boolean
+  ): Record<string, unknown> {
+    return { record, layerId: this.id, selected };
+  }
+
+  /** whereKey du chemin dégradé : `map-select-ID` (#681) */
+  protected selectionWhereKeyPrefix(): string {
+    return 'map-select';
+  }
+
+  /** Repli d'identifiant : la clé de bounds de la couche (#294) */
+  protected selectionUid(): string {
+    return this._boundsKey;
+  }
+
+  /** Branche le clic de sélection sur un objet Leaflet (marqueur, forme, cercle) */
+  private _bindSelect(layer: LeafletLayer, record: Record<string, unknown>): void {
+    if (this.noInteractive) return;
+    layer.on('click', () => this._onFeatureClick(record));
+  }
+
+  // --- Color mapping ---
+  // Grammaire partagee avec dsfr-data-chart (#732) : `utils/color-map.ts`,
+  // echappement percent des separateurs compris (#676).
 
   /** Resolve color for a record: color-field + color-map, or fallback to this.color */
   private _resolveColor(record: Record<string, unknown>): string {
     if (!this.colorField || !this._colorMapParsed?.size) return this.color;
     const val = String(getByPath(record, this.colorField) ?? '');
-    return this._colorMapParsed.get(val) ?? this.color;
+    const mapped = this._colorMapParsed.get(val);
+    if (mapped === undefined) this._colorFallbackUsed = true;
+    return mapped ?? this.color;
   }
 
   /**
-   * Nombre d'elements effectivement dessines au dernier rendu (marqueurs,
+   * Entrées de légende du dernier rendu (#685) : les classes de `fill-field`
+   * avec leurs bornes (choroplèthe), sinon les paires de `color-map` plus le
+   * repli `color` s'il a servi, sinon la seule couleur de la couche (libellé
+   * vide, à fournir par la légende). Consommé par dsfr-data-map-legend, qui
+   * se rafraîchit sur `dsfr-data-map-layer-render`.
+   */
+  getLegendEntries(): LegendEntry[] {
+    return this._legendEntries.map((e) => ({ ...e }));
+  }
+
+  /** Recalcule les entrees de legende a partir de l'etat du dernier rendu. */
+  private _buildLegendEntries(breaks: number[], palette: readonly string[], values: number[]) {
+    if (this.fillField && this.type === 'geoshape' && breaks.length > 0) {
+      let min = Infinity;
+      let max = -Infinity;
+      for (const v of values) {
+        if (v < min) min = v;
+        if (v > max) max = v;
+      }
+      const extent = values.length > 0 ? { min, max } : undefined;
+      this._legendEntries = choroplethLegendEntries(breaks, palette, extent);
+      return;
+    }
+    if (this._colorMapParsed?.size) {
+      const entries: LegendEntry[] = [];
+      for (const [value, color] of this._colorMapParsed) entries.push({ color, label: value });
+      if (this._colorFallbackUsed) entries.push({ color: this.color, label: 'Autres valeurs' });
+      this._legendEntries = entries;
+      return;
+    }
+    this._legendEntries = [{ color: this.color, label: '' }];
+  }
+
+  /**
+   * Nombre d'éléments effectivement dessines au dernier rendu (marqueurs,
    * formes, cercles ou points de chaleur). Contrairement au comptage DOM,
    * ce compte n'inclut pas les bulles de cluster et couvre la heatmap
    * (un seul canvas pour N points) — expose pour les diagnostics (#482).
    */
   getRenderedCount(): number {
     return this._renderedCount;
+  }
+
+  /**
+   * Nombre de lignes ignorees au dernier rendu faute de position exploitable
+   * (coordonnées ou geometrie absentes ou invalides). Journalise une fois par
+   * rendu et remonte dans la trace du volet Diagnostic (#648, #604).
+   */
+  getSkippedCount(): number {
+    return this._skippedGeoCount;
   }
 
   /**
@@ -336,6 +489,9 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     'fillField',
     'fillOpacity',
     'selectedPalette',
+    'classes',
+    'method',
+    'breaks',
     'radius',
     'radiusField',
     'radiusUnit',
@@ -492,6 +648,12 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     if (this._data.length > 0) {
       this._renderLayer();
     }
+
+    // Mode bbox (#652) : emettre la commande du viewport initial. Leaflet
+    // emet `moveend` pendant L.map(), AVANT que la carte pose son listener
+    // — sans cet appel, rien ne partait tant que l'utilisateur ne bougeait
+    // pas la carte, et le premier rendu ignorait l'emprise.
+    this._scheduleBboxCommand();
   }
 
   /** Called by dsfr-data-map on moveend/zoomend */
@@ -502,10 +664,14 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     this._updateVisibility();
 
     // Viewport-driven fetch (bbox)
-    if (this.bbox && this._visible) {
-      if (this._bboxTimer) clearTimeout(this._bboxTimer);
-      this._bboxTimer = setTimeout(() => this._sendBboxCommand(), this.bboxDebounce);
-    }
+    this._scheduleBboxCommand();
+  }
+
+  /** Programme _sendBboxCommand avec anti-rebond (bbox actif et couche visible). */
+  private _scheduleBboxCommand(): void {
+    if (!this.bbox || !this._visible) return;
+    if (this._bboxTimer) clearTimeout(this._bboxTimer);
+    this._bboxTimer = setTimeout(() => this._sendBboxCommand(), this.bboxDebounce);
   }
 
   connectedCallback() {
@@ -518,9 +684,11 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
       );
     }
     sendWidgetBeacon('dsfr-data-map-layer', this.type);
+    // La sélection au clic (#681) est branchée par SelectionFilterMixin (#734)
   }
 
   disconnectedCallback() {
+    // Libère la sélection au clic (#681, mixin) : clause directe ou filtre du contexte
     super.disconnectedCallback();
     // Libere les bounds enregistres aupres de la carte (#294)
     this._mapParent?.unregisterLayerBounds?.(this._boundsKey);
@@ -665,17 +833,24 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     }
 
     // Parse color-map (categorical color mapping)
-    this._colorMapParsed = this.colorField && this.colorMap ? this._parseColorMap() : null;
+    this._colorMapParsed = this.colorField && this.colorMap ? parseColorMap(this.colorMap) : null;
+    this._colorFallbackUsed = false;
 
-    // Choropleth setup (for geoshape with fill-field)
+    // Choropleth setup (for geoshape with fill-field) — classes parametrables
+    // (#685) : classes/method/breaks, défaut inchange (quantiles, autant de
+    // classes que de couleurs dans l'echelle)
     let breaks: number[] = [];
     let palette: readonly string[] = [];
-    if (this.fillField && this.selectedPalette && this.type === 'geoshape') {
-      const values = items
-        .map((r) => Number(getByPath(r, this.fillField)))
-        .filter((v) => !isNaN(v));
-      palette = CHOROPLETH_SCALES[this.selectedPalette] || CHOROPLETH_SCALES['sequentialAscending'];
-      breaks = quantileBreaks(values, palette.length);
+    let fillValues: number[] = [];
+    if (this.fillField && this.type === 'geoshape') {
+      fillValues = items.map((r) => Number(getByPath(r, this.fillField))).filter((v) => !isNaN(v));
+      const scale =
+        CHOROPLETH_SCALES[this.selectedPalette] || CHOROPLETH_SCALES['sequentialAscending'];
+      ({ breaks, palette } = classifyValues(fillValues, scale, {
+        method: this.method,
+        classes: this.classes,
+        breaks: this.breaks,
+      }));
     }
 
     // Auto-scaling for circle radius-field
@@ -762,13 +937,22 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
       this._renderedCount = this._renderHeatmap(items, Leaf);
     }
 
-    // Geometries inexploitables : signaler au lieu d'echouer en silence (#482
-    // bug 3) — le try/catch de _addGeoshape ignore la ligne, on resume ici
-    if (this.type === 'geoshape' && this._skippedGeoCount > 0) {
-      console.warn(
-        `dsfr-data-map-layer[${this.id || this.source}]: la colonne "${this.geoField || '(geo-field non renseigné)'}" ` +
-          `ne contient pas de géométrie valide pour ${this._skippedGeoCount} enregistrement(s) sur ${items.length} — lignes ignorées`
-      );
+    // Lignes sans position exploitable : signaler au lieu d'echouer en
+    // silence (#482 bug 3, generalise a tous les types #648). Un seul warn
+    // par rendu, et pas de repetition tant que le compte ne change pas
+    // (chaque pan en bbox client re-rend la couche).
+    if (this._skippedGeoCount !== this._skippedWarned) {
+      this._skippedWarned = this._skippedGeoCount;
+      if (this._skippedGeoCount > 0) {
+        const who = `dsfr-data-map-layer[${this.id || this.source}]`;
+        console.warn(
+          this.type === 'geoshape'
+            ? `${who}: la colonne "${this.geoField || '(geo-field non renseigné)'}" ` +
+                `ne contient pas de géométrie valide pour ${this._skippedGeoCount} enregistrement(s) sur ${items.length} — lignes ignorées`
+            : `${who}: ${this._skippedGeoCount} ligne(s) sur ${items.length} sans coordonnées exploitables ` +
+                `(${this._describeCoordFields()}) — lignes ignorées`
+        );
+      }
     }
 
     // Add to map if visible
@@ -822,13 +1006,39 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
         this._mapParent.updateDescription([`Couches : ${summaries.join(', ')}.`]);
       }
     }
+
+    // Legende (#685) : entrees figees a ce rendu, puis notification des
+    // compagnons (dsfr-data-map-legend) et des diagnostics
+    this._buildLegendEntries(breaks, palette, fillValues);
+    this.dispatchEvent(
+      new CustomEvent('dsfr-data-map-layer-render', {
+        bubbles: true,
+        detail: {
+          rendered: this._renderedCount,
+          skipped: this._skippedGeoCount,
+          total: this._totalCount,
+          legend: this.getLegendEntries(),
+        },
+      })
+    );
+  }
+
+  /** Champs de position tels que configures, pour les messages de diagnostic. */
+  private _describeCoordFields(): string {
+    if (this.latField && this.lonField)
+      return `lat-field="${this.latField}", lon-field="${this.lonField}"`;
+    if (this.geoField) return `geo-field="${this.geoField}"`;
+    return 'auto-détection geo_point_2d / geopoint / geo_point';
   }
 
   // --- Marker ---
 
   private _addMarker(record: Record<string, unknown>, Leaf: LeafletModule, group: LayerGroup) {
     const coords = this._extractCoords(record);
-    if (!coords) return;
+    if (!coords) {
+      this._skippedGeoCount++;
+      return;
+    }
 
     const markerColor = this._resolveColor(record);
     const icon = Leaf.divIcon({
@@ -848,6 +1058,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     });
     this._bindPopup(marker, record);
     this._bindTooltip(marker, record);
+    this._bindSelect(marker, record);
     group.addLayer(marker);
     this._renderedCount++;
   }
@@ -908,6 +1119,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     if (!this.noInteractive) {
       this._bindPopup(layer, record);
       this._bindTooltip(layer, record);
+      this._bindSelect(layer, record);
     }
     group.addLayer(layer);
     this._renderedCount++;
@@ -917,7 +1129,10 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
 
   private _addCircle(record: Record<string, unknown>, Leaf: LeafletModule, group: LayerGroup) {
     const coords = this._extractCoords(record);
-    if (!coords) return;
+    if (!coords) {
+      this._skippedGeoCount++;
+      return;
+    }
 
     let r = this.radius;
     if (this.radiusField) {
@@ -949,6 +1164,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     if (!this.noInteractive) {
       this._bindPopup(circle, record);
       this._bindTooltip(circle, record);
+      this._bindSelect(circle, record);
     }
     group.addLayer(circle);
     this._renderedCount++;
@@ -970,7 +1186,10 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
     let maxIntensity = 1;
     for (const record of items) {
       const coords = this._extractCoords(record);
-      if (!coords) continue;
+      if (!coords) {
+        this._skippedGeoCount++;
+        continue;
+      }
       let intensity = 1;
       if (this.heatField) {
         const val = Number(getByPath(record, this.heatField));
@@ -1067,7 +1286,7 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
 
   /**
    * Bbox d'une geometrie GeoJSON (Feature, Polygon, MultiPolygon, lignes...)
-   * par parcours des coordonnees [lon, lat] (#297). null si inextractible.
+   * par parcours des coordonnées [lon, lat] (#297). null si inextractible.
    */
   private _geometryBbox(
     geo: unknown
@@ -1104,8 +1323,13 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   private _extractCoords(record: Record<string, unknown>): { lat: number; lon: number } | null {
     // Mode 1: lat-field + lon-field
     if (this.latField && this.lonField) {
-      const lat = Number(getByPath(record, this.latField));
-      const lon = Number(getByPath(record, this.lonField));
+      const rawLat = getByPath(record, this.latField);
+      const rawLon = getByPath(record, this.lonField);
+      // null / undefined / '' : Number() les vaut 0 — la ligne se dessinait
+      // en (0, 0) dans le golfe de Guinee au lieu d'etre ignoree et comptee (#648)
+      if (rawLat == null || rawLat === '' || rawLon == null || rawLon === '') return null;
+      const lat = Number(rawLat);
+      const lon = Number(rawLon);
       if (!isNaN(lat) && !isNaN(lon)) return { lat, lon };
       return null;
     }
@@ -1374,10 +1598,14 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
   private _updateBanner(truncated: boolean, displayedCount: number) {
     this._removeBanner();
     if (!truncated) return;
+    // Carte verrouillee (encart territorial, vignette) : pas de bandeau —
+    // 160 px de haut, il recouvrait les libelles et se repetait dans chaque
+    // encart (#644). La carte principale porte deja l'information.
+    if (this._mapParent?.locked) return;
 
     this._banner = document.createElement('div');
     this._banner.className = 'dsfr-data-map__max-items-banner';
-    this._banner.textContent = `${displayedCount.toLocaleString('fr-FR')} elements affiches sur ${this._totalCount.toLocaleString('fr-FR')} disponibles. Zoomez pour voir plus de detail.`;
+    this._banner.textContent = this._bannerText(displayedCount);
     // Plusieurs layers tronques : empiler les banners au lieu de les
     // superposer (#297)
     const existing =
@@ -1386,6 +1614,20 @@ export class DsfrDataMapLayer extends SourceSubscriberMixin(LitElement) {
       this._banner.style.bottom = `${10 + existing * 36}px`;
     }
     this._mapParent?.appendChild(this._banner);
+  }
+
+  /**
+   * Libellé du bandeau max-items (#644). « Zoomez » n'a de sens qu'en mode
+   * `bbox` (la zone visible est rechargee au zoom) ; hors bbox rien n'est
+   * recharge, le seul remede est de relever `max-items` — le dire.
+   */
+  private _bannerText(displayedCount: number): string {
+    const shown = displayedCount.toLocaleString('fr-FR');
+    const total = this._totalCount.toLocaleString('fr-FR');
+    if (this.bbox) {
+      return `${shown} éléments affichés sur ${total} disponibles. Zoomez pour voir plus de détail.`;
+    }
+    return `${shown} affichés sur ${total} — relevez max-items pour voir le reste.`;
   }
 
   private _removeBanner() {

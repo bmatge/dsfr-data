@@ -36,40 +36,46 @@
 
         <!-- Attributs -->
         <h2>Attributs</h2>
-        <table class="attr-table">
-          <thead>
-            <tr><th>Attribut</th><th>Type</th><th>Description</th></tr>
-          </thead>
-          <tbody>
-            <tr><td><code>source</code></td><td>String</td><td>ID de la source de données a ecouter (requis)</td></tr>
-            <tr><td><code>cols</code></td><td>Number</td><td>Nombre de colonnes dans la grille (1-6, défaut: 1)</td></tr>
-            <tr><td><code>pagination</code></td><td>Number</td><td>Nombre d'elements par page (0 = tout afficher)</td></tr>
-            <tr><td><code>empty</code></td><td>String</td><td>Message quand aucune donnee (défaut: "Aucun resultat")</td></tr>
-            <tr><td><code>gap</code></td><td>String</td><td>Classe CSS de gap pour la grille (défaut: "fr-grid-row--gutters")</td></tr>
-            <tr><td><code>uid-field</code></td><td>String</td><td>Champ de données a utiliser comme identifiant unique par element (vide = index)</td></tr>
-            <tr><td><code>url-sync</code></td><td>Boolean</td><td>Synchronise le numero de page dans l'URL via replaceState</td></tr>
-            <tr><td><code>url-page-param</code></td><td>String</td><td>Nom du paramètre URL pour la page (défaut: "page")</td></tr>
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead>
+              <tr><th>Attribut</th><th>Type</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-display fields="source,cols,pagination,empty,gap,uid-field,url-sync,url-page-param" -->
+                <tr><td><code>source</code></td><td>String</td><td>Id de la source (ou du transformateur) dont ce composant consomme les données.</td></tr>
+                <tr><td><code>cols</code></td><td>Number</td><td>Nombre de colonnes dans la grille (1-6, défaut 1 = pleine largeur)</td></tr>
+                <tr><td><code>pagination</code></td><td>Number</td><td>Nombre d'éléments par page (0 = tout afficher)</td></tr>
+                <tr><td><code>empty</code></td><td>String</td><td>Message quand aucune donnee</td></tr>
+                <tr><td><code>gap</code></td><td>String</td><td>Classe CSS de gap pour la grille (défaut: fr-grid-row--gutters)</td></tr>
+                <tr><td><code>uid-field</code></td><td>String</td><td>Champ de données a utiliser comme identifiant unique par item. Si vide, utilise l'index</td></tr>
+                <tr><td><code>url-sync</code></td><td>Boolean</td><td>Synchronise le numéro de page dans l'URL (replaceState)</td></tr>
+                <tr><td><code>url-page-param</code></td><td>String</td><td>Nom du paramètre URL pour la page (défaut: "page")</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
         <p class="fr-text--sm fr-text--light"><strong>Événements :</strong> le composant n'émet pas d'événement custom ; il participe au data-bridge en consommateur (abonnement à la source via <code>dsfr-data-loaded</code>).</p>
 
         <!-- Syntaxe du template -->
         <h2 class="fr-mt-4w">Syntaxe du template</h2>
-        <table class="attr-table">
-          <thead>
-            <tr><th>Syntaxe</th><th>Description</th></tr>
-          </thead>
-          <tbody>
-            <tr><td><code>{{champ}}</code></td><td>Valeur echappee (HTML-safe)</td></tr>
-            <tr><td><code>{{{champ}}}</code></td><td>Valeur brute (non echappee)</td></tr>
-            <tr><td><code>{{champ|défaut}}</code></td><td>Valeur avec fallback si null/undefined</td></tr>
-            <tr><td><code>{{champ:number}}</code></td><td>Valeur avec separateurs de milliers (ex: 32073247 &rarr; 32 073 247)</td></tr>
-            <tr><td><code>{{champ:number|0}}</code></td><td>Format number + fallback si null/undefined</td></tr>
-            <tr><td><code>{{champ.sous.clé}}</code></td><td>Acces aux proprietes imbriquees</td></tr>
-            <tr><td><code>{{$index}}</code></td><td>Index de l'element (0-based)</td></tr>
-            <tr><td><code>{{$uid}}</code></td><td>Identifiant unique de l'element</td></tr>
-          </tbody>
-        </table>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead>
+              <tr><th>Syntaxe</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>{{champ}}</code></td><td>Valeur echappee (HTML-safe)</td></tr>
+              <tr><td><code>{{{champ}}}</code></td><td>Valeur brute (non echappee)</td></tr>
+              <tr><td><code>{{champ|défaut}}</code></td><td>Valeur avec fallback si null/undefined</td></tr>
+              <tr><td><code>{{champ:number}}</code></td><td>Valeur avec separateurs de milliers (ex: 32073247 &rarr; 32 073 247)</td></tr>
+              <tr><td><code>{{champ:number|0}}</code></td><td>Format number + fallback si null/undefined</td></tr>
+              <tr><td><code>{{champ.sous.clé}}</code></td><td>Acces aux proprietes imbriquees</td></tr>
+              <tr><td><code>{{$index}}</code></td><td>Index de l'element (0-based)</td></tr>
+              <tr><td><code>{{$uid}}</code></td><td>Identifiant unique de l'element</td></tr>
+            </tbody>
+          </table>
+        </div>
 
         <!-- Variante 1: Cartes simples -->
         <h2 class="fr-mt-4w">Variantes</h2>

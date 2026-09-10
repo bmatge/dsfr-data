@@ -3,11 +3,20 @@
  *
  * Orchestre ses couches enfantes (dsfr-data-map-layer), gere le viewport
  * et expose des controles utilisateur. Ne consomme pas de données directement.
+ *
+ * Fond de carte : `tiles` choisit le preset, `tiles-style` l'atténue (`muted`,
+ * `grey`) pour une carte thématique — un fond neutre, c'est `ign-plan` atténué
+ * (#686). `tiles-switcher` ouvre le choix au LECTEUR, qui bascule d'un plan à
+ * une vue aérienne sans quitter la page (#744). Cadrage : `fit-bounds` suit les
+ * données, clippé par `fit-zone` (défaut métropole dès qu'un encart ultramarin
+ * est présent, #687) ou à défaut par `max-bounds`.
+ *
+ * @fires dsfr-data-map-tiles-change - `{ tiles }` sur la carte (bubbles, composed) — le lecteur a changé de fond avec le sélecteur `tiles-switcher`. Jamais émis quand `tiles` est changé par la page.
  */
 import { LitElement, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
-import { TERRITORY_GROUPS } from '../utils/territories.js';
+import { METROPOLE_FIT_ZONE, expandInsets, hasOverseasTerritory } from '../utils/territories.js';
 // @ts-expect-error — Vite ?inline import returns CSS as string
 import leafletCss from 'leaflet/dist/leaflet.css?inline';
 
@@ -23,33 +32,39 @@ type LatLngBoundsExpression = import('leaflet').LatLngBoundsExpression;
  */
 const TILE_PRESETS: Record<
   string,
-  { url: string; attribution: string; options?: Record<string, unknown> }
+  { url: string; label: string; attribution: string; options?: Record<string, unknown> }
 > = {
   'ign-plan': {
     url: 'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',
+    label: 'Plan IGN',
     attribution: '&copy; <a href="https://www.ign.fr/">IGN</a>',
   },
   'ign-ortho': {
     url: 'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&FORMAT=image/jpeg&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',
+    label: 'Vue aérienne IGN',
     attribution: '&copy; <a href="https://www.ign.fr/">IGN</a>',
   },
   'ign-cadastre': {
     url: 'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=CADASTRALPARCELS.PARCELLAIRE_EXPRESS&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',
+    label: 'Cadastre IGN',
     attribution: '&copy; <a href="https://www.ign.fr/">IGN</a>',
   },
   'osm-fr': {
     url: 'https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png',
+    label: 'OpenStreetMap France',
     attribution:
       '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> — serveurs <a href="https://www.openstreetmap.fr/">OSM France</a>',
   },
   'osm-standard': {
     url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    label: 'OpenStreetMap',
     attribution:
       '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     options: { maxZoom: 19 },
   },
   opentopomap: {
     url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+    label: 'Carte topographique',
     attribution:
       'Données : &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, SRTM — Rendu : &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)',
     options: { maxZoom: 17 },
@@ -97,12 +112,12 @@ const DEPRECATED_PRESETS: Record<string, { replacement: string; reason: string }
 /**
  * Politique de referrer posee explicitement sur les tuiles (#576).
  *
- * Leaflet ne pose aucun attribut `referrerPolicy` par defaut (option a `false`), c'est donc
+ * Leaflet ne pose aucun attribut `referrerPolicy` par défaut (option a `false`), c'est donc
  * la politique du *document hote* qui s'applique. Une page servie en `Referrer-Policy:
  * no-referrer` supprime alors l'en-tete `Referer` — ce que la Tile Usage Policy de l'OSMF
  * interdit nommement (« Do not set a restrictive Referrer-Policy that prevents the Referer
  * header being sent »), et ce que les fournisseurs a quota utilisent pour identifier le
- * domaine appelant. L'attribut porte par l'element prime sur la politique du document :
+ * domaine appelant. L'attribut porte par l'élément prime sur la politique du document :
  * le fixer ici rend l'embed conforme quelle que soit la page qui l'accueille.
  */
 const TILE_REFERRER_POLICY = 'strict-origin-when-cross-origin';
@@ -149,7 +164,7 @@ export function resolveTilePreset(
 
 /**
  * Construit l'URL et les options de la `TileLayer` a partir des attributs du composant.
- * Fonction pure, extraite de `_updateTiles()` pour etre testable sans Leaflet (#576).
+ * Fonction pure, extraite de `_updateTiles()` pour être testable sans Leaflet (#576).
  *
  * Les warnings sont retournes plutot que loggues, a charge de l'appelant.
  *
@@ -192,10 +207,78 @@ export function buildTileLayerConfig(
   };
 }
 
+/** Un fond proposé au lecteur par le sélecteur de fond (#744). */
+export interface TileChoice {
+  /** Clé de preset canonique, valeur de l'option et de `tiles`. */
+  key: string;
+  /** Libellé affiché dans le sélecteur (« Plan IGN »). */
+  label: string;
+}
+
 /**
- * Clippe des bounds de donnees par un attribut max-bounds "latSW,lonSW,latNE,lonNE"
+ * Fonds proposés au lecteur par le sélecteur (#744) : liste `tiles-switcher`
+ * résolue en presets canoniques, dans l'ordre déclaré, sans doublon.
+ *
+ * Le fond courant est ajouté en tête s'il manque à la liste, pour que le
+ * sélecteur affiche toujours ce qui est réellement dessiné. Une entrée qui
+ * n'est pas un preset connu (URL, faute de frappe) est écartée avec un
+ * avertissement : le sélecteur ne sait pas nommer un fond inconnu, et
+ * `tiles-attribution` ne vaudrait que pour un seul d'entre eux. Un seul fond
+ * retenu ne donne aucun sélecteur — il n'y aurait rien à choisir.
+ *
+ * Fonction pure, testable sans Leaflet. Exposée pour les tests.
+ */
+export function resolveTilesChoices(
+  switcher: string,
+  current = 'ign-plan',
+  sovereignOnly = false
+): { choices: TileChoice[]; warnings: string[] } {
+  const warnings: string[] = [];
+  const requested = switcher
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (requested.length === 0) return { choices: [], warnings };
+
+  const keys: string[] = [];
+  const currentKey = resolveTilePreset(current, sovereignOnly).key;
+  if (currentKey) keys.push(currentKey);
+
+  for (const entry of requested) {
+    const { key } = resolveTilePreset(entry, sovereignOnly);
+    if (!key) {
+      warnings.push(
+        `tiles-switcher : "${entry}" n'est pas un preset de fond connu, entree ignoree. ` +
+          `Presets : ${Object.keys(TILE_PRESETS).join(', ')}.`
+      );
+      continue;
+    }
+    if (!keys.includes(key)) keys.push(key);
+  }
+
+  if (keys.length < 2) {
+    if (requested.length > 0 && warnings.length === 0) {
+      warnings.push(
+        `tiles-switcher : un seul fond retenu ("${keys[0] ?? current}"), aucun selecteur affiche. ` +
+          `Declarer au moins deux presets differents.`
+      );
+    }
+    return { choices: [], warnings };
+  }
+
+  return { choices: keys.map((key) => ({ key, label: TILE_PRESETS[key].label })), warnings };
+}
+
+/**
+ * Clippe des bounds de données par un attribut max-bounds "latSW,lonSW,latNE,lonNE"
  * avant un fitBounds. Retourne null si l'intersection est vide (la vue ne doit
  * pas bouger) ; les bounds inchangees si max-bounds est absent ou invalide.
+ *
+ * Une emprise degeneree (un seul marqueur, plusieurs au meme endroit, segment
+ * nord-sud ou est-ouest) est VALIDE (#642) : `sud === nord` ou `ouest === est`
+ * dans la zone donne des bounds d'aire nulle que `fitBounds` cale au zoom
+ * maximal sur le point. L'ancienne condition `>=` renvoyait null et laissait
+ * la vue sur la France entiere pour une recherche par commune.
  *
  * Expose pour les tests.
  */
@@ -211,7 +294,7 @@ export function clipBoundsForFit(
   const west = Math.max(combined.getWest(), parts[1]);
   const north = Math.min(combined.getNorth(), parts[2]);
   const east = Math.min(combined.getEast(), parts[3]);
-  if (south >= north || west >= east) return null;
+  if (south > north || west > east) return null;
   return leaflet.latLngBounds([south, west], [north, east]);
 }
 
@@ -272,9 +355,17 @@ export class DsfrDataMap extends LitElement {
   @property({ type: String })
   tiles = 'ign-plan';
 
-  /** Mention d'attribution affichee sur la carte quand `tiles` est une URL custom (obligatoire pour respecter l'ODbL et les CGU du fournisseur). Ignore sur un preset connu, qui porte deja son attribution. Accepte du HTML (liens). */
+  /** Mention d'attribution affichée sur la carte quand `tiles` est une URL custom (obligatoire pour respecter l'ODbL et les CGU du fournisseur). Ignoré sur un preset connu, qui porte déjà son attribution. Accepte du HTML (liens). */
   @property({ type: String, attribute: 'tiles-attribution' })
   tilesAttribution = '';
+
+  /** Atténuation du fond de carte pour les cartes thématiques : `muted` (gris + 55 % d'opacité), `grey` (niveaux de gris). Vide (défaut) : fond tel quel. Filtre CSS sur le volet des tuiles de cette carte seulement ; les encarts héritent du réglage. Un fond « neutre » = `ign-plan` + `tiles-style="muted"` (#686). */
+  @property({ type: String, attribute: 'tiles-style' })
+  tilesStyle: '' | 'muted' | 'grey' = '';
+
+  /** Fonds proposés au LECTEUR, séparés par des virgules (ex. `"ign-plan,ign-ortho"`). Vide (défaut) : aucun sélecteur, seul `tiles` décide. Rend un menu déroulant étiqueté « Fond de carte » en haut à droite de la carte, utilisable au clavier ; changer de fond met à jour la carte et ses encarts. Les entrées hors presets connus sont écartées avec un avertissement, et il en faut au moins deux pour que le sélecteur apparaisse. Sans effet avec `locked` ou `no-controls` (#744). */
+  @property({ type: String, attribute: 'tiles-switcher' })
+  tilesSwitcher = '';
 
   /** Restreint `tiles` aux presets IGN souverains : tout autre preset ou URL custom est refuse (console.warn) et remplace par `ign-plan`. */
   @property({ type: Boolean, attribute: 'sovereign-only' })
@@ -288,18 +379,26 @@ export class DsfrDataMap extends LitElement {
   @property({ type: Boolean })
   locked = false;
 
-  /** Raccourci encarts territoriaux : groupe ("drom") et/ou territoires nommes
-   *  separes par des virgules ("drom,corse", "guadeloupe,saint-pierre-et-miquelon") */
+  /** Raccourci encarts territoriaux : groupe ("drom") et/ou territoires nommés
+   *  séparés par des virgules ("drom,corse", "guadeloupe,saint-pierre-et-miquelon") */
   @property({ type: String })
   insets = '';
 
-  /** Ajuste le viewport aux donnees a chaque mise a jour. Combine a `max-bounds`, l'emprise est clippee a la zone : les DROM ne dezooment pas la vue, un filtre regional zoome dessus. */
+  /** Ajuste le viewport aux données à chaque mise à jour. Combiné à `max-bounds`, l'emprise est clippée à la zone : les DROM ne dézooment pas la vue, un filtre régional zoome dessus. */
   @property({ type: Boolean, attribute: 'fit-bounds' })
   fitBounds = false;
 
-  /** Limites du deplacement, au format `"latSW,lonSW,latNE,lonNE"`. */
+  /** Limites du déplacement, au format `"latSW,lonSW,latNE,lonNE"`. Clippe aussi le fit de `fit-bounds` quand `fit-zone` est vide. */
   @property({ type: String, attribute: 'max-bounds' })
   maxBounds = '';
+
+  /** Zone sur laquelle `fit-bounds` est clippé, au format `"latSW,lonSW,latNE,lonNE"` — le pan reste libre. Défaut : `max-bounds` s'il est renseigné ; sinon la métropole (`41,-5.5,51.5,10`) dès que la carte porte un encart ultramarin (`insets="drom"`…), pour que les DROM ne dézooment pas la vue ; sinon aucune zone. `fit-zone="none"` désactive le clip (#687). */
+  @property({ type: String, attribute: 'fit-zone' })
+  fitZone = '';
+
+  /** Zoom maximal atteint par `fit-bounds` (ex. `12`) : évite le zoom 18 sur un point isolé quand les données se réduisent à un marqueur. `0` (défaut) = pas de plafond, `max-zoom` s'applique. */
+  @property({ type: Number, attribute: 'fit-max-zoom' })
+  fitMaxZoom = 0;
 
   /** Titre de la carte, utilise comme nom accessible (aria-label). */
   @property({ type: String })
@@ -316,6 +415,11 @@ export class DsfrDataMap extends LitElement {
   private _srDescription: HTMLParagraphElement | null = null;
   private _liveRegion: HTMLDivElement | null = null;
   private _afterMapAnchor: HTMLDivElement | null = null;
+  /** Sélecteur de fond (#744) : bloc conteneur et menu déroulant. */
+  private _tilesSwitcherRoot: HTMLDivElement | null = null;
+  private _tilesSelect: HTMLSelectElement | null = null;
+  /** Valeur de `tiles-switcher` déjà signalée en console (un avertissement par liste). */
+  private _tilesSwitcherWarned: string | null = null;
   private _visibilityObserver: IntersectionObserver | null = null;
   /** Init en cours (pendant les await) — garde anti double-init (#298) */
   private _initInFlight = false;
@@ -340,7 +444,7 @@ export class DsfrDataMap extends LitElement {
 
   /**
    * Raccourci `insets` : genere les enfants dsfr-data-map-inset a partir de
-   * groupes ("drom") et/ou de territoires nommes ("guadeloupe,corse").
+   * groupes ("drom") et/ou de territoires nommés ("guadeloupe,corse").
    * Les encarts poses explicitement en HTML priment (pas de doublon).
    */
   private _insetsExpanded = false;
@@ -348,12 +452,7 @@ export class DsfrDataMap extends LitElement {
   private _expandInsets() {
     if (this._insetsExpanded || !this.insets) return;
     this._insetsExpanded = true;
-    const names = this.insets
-      .split(',')
-      .map((t) => t.trim().toLowerCase())
-      .filter(Boolean)
-      .flatMap((t) => TERRITORY_GROUPS[t] ?? [t]);
-    for (const name of names) {
+    for (const name of expandInsets(this.insets)) {
       if (this.querySelector(`:scope > dsfr-data-map-inset[territory="${name}"]`)) continue;
       const inset = document.createElement('dsfr-data-map-inset');
       inset.setAttribute('territory', name);
@@ -362,7 +461,7 @@ export class DsfrDataMap extends LitElement {
   }
 
   /**
-   * Defer map initialization until the element is near the viewport.
+   * Defer map initialization until the élément is near the viewport.
    * This avoids loading hundreds of tiles for off-screen maps.
    */
   private _deferInitUntilVisible() {
@@ -405,26 +504,67 @@ export class DsfrDataMap extends LitElement {
     this._liveRegion = null;
     this._afterMapAnchor?.remove();
     this._afterMapAnchor = null;
+    this._tilesSwitcherRoot?.remove();
+    this._tilesSwitcherRoot = null;
+    this._tilesSelect = null;
   }
 
   updated(changedProperties: Map<string, unknown>) {
     super.updated(changedProperties);
 
+    // tiles-style est applique par un selecteur d'attribut de la feuille
+    // injectee (#686) : une valeur posee en propriete doit se voir dans le
+    // DOM. Pas de `reflect` Lit, qui poserait un attribut vide sur chaque
+    // carte (encarts compris) des le premier rendu.
+    if (
+      changedProperties.has('tilesStyle') &&
+      this.getAttribute('tiles-style') !== this.tilesStyle
+    ) {
+      if (this.tilesStyle) this.setAttribute('tiles-style', this.tilesStyle);
+      else this.removeAttribute('tiles-style');
+    }
+
     if (this._leafletMap) {
       if (changedProperties.has('tiles') || changedProperties.has('sovereignOnly')) {
         this._updateTiles();
+        this._propagateTilesToInsets();
       }
       if (changedProperties.has('height') && this._container) {
         this._applyHeight();
         this._leafletMap.invalidateSize();
       }
     }
+
+    // Selecteur de fond (#744) : la liste des choix, le fond courant et les
+    // modes sans controles peuvent changer apres l'init.
+    if (
+      this._container &&
+      (changedProperties.has('tilesSwitcher') ||
+        changedProperties.has('tiles') ||
+        changedProperties.has('sovereignOnly') ||
+        changedProperties.has('noControls') ||
+        changedProperties.has('locked'))
+    ) {
+      this._renderTilesSwitcher();
+    }
   }
 
   /**
-   * Apply the height value to the host element.
+   * Aligne les encarts sur le fond de la carte hote (#744) : ils copient
+   * `tiles` a leur construction (dsfr-data-map-inset), un changement posterieur
+   * — le lecteur qui bascule de fond — les laisserait sur l'ancien plan.
+   */
+  private _propagateTilesToInsets() {
+    for (const inset of this.querySelectorAll(':scope > dsfr-data-map-inset')) {
+      const inner = inset.querySelector('dsfr-data-map');
+      if (inner) inner.setAttribute('tiles', this.tiles);
+    }
+  }
+
+  /**
+   * Apply the height value to the host élément.
    * If height is a percentage (e.g. "60%"), it is interpreted as a ratio
-   * of the element's own width (aspect-ratio mode). A ResizeObserver keeps
+   * of the élément's own width (aspect-ratio mode). A ResizeObserver keeps
    * the height in sync when the width changes (responsive).
    * Other CSS units (px, vh, rem, etc.) are applied directly.
    */
@@ -479,7 +619,7 @@ export class DsfrDataMap extends LitElement {
 
   // --- Public API ---
 
-  /** Retourne l'instance Leaflet L.Map (ou null si pas encore prete) */
+  /** Retourne l'instance Leaflet L.Map (ou null si pas encore prête) */
   getLeafletMap(): LeafletMap | null {
     return this._leafletMap;
   }
@@ -493,7 +633,7 @@ export class DsfrDataMap extends LitElement {
    * Notifie la carte qu'un layer a ses bounds prets (pour fit-bounds).
    * Stockes PAR layer avec remplacement a chaque rendu (#294) : l'ancien
    * push cumulait les bounds HISTORIQUES — la carte ne pouvait jamais
-   * retrecir sa vue quand les donnees diminuaient, et le tableau grossissait
+   * retrecir sa vue quand les données diminuaient, et le tableau grossissait
    * a chaque refresh / frame de timeline / pan en bbox client.
    */
   registerLayerBounds(layerKey: string, bounds: import('leaflet').LatLngBounds): void {
@@ -656,6 +796,9 @@ export class DsfrDataMap extends LitElement {
     // Tiles
     this._updateTiles();
 
+    // Selecteur de fond pour le lecteur (#744)
+    this._renderTilesSwitcher();
+
     // Viewport events → notify layers
     this._leafletMap.on('moveend', () => this._notifyLayers());
     this._leafletMap.on('zoomend', () => this._notifyLayers());
@@ -681,6 +824,84 @@ export class DsfrDataMap extends LitElement {
     // doit pouvoir re-initialiser
     this._initInFlight = false;
   }
+
+  /**
+   * (Re)construit le sélecteur de fond (#744).
+   *
+   * Un menu déroulant natif étiqueté, posé en light DOM AVANT le conteneur
+   * Leaflet : il est donc atteint au clavier avant la carte (juste après le
+   * lien d'évitement), le lecteur d'écran annonce son libellé et sa valeur
+   * sans code de rôle maison, et le changement de fond passe par le même
+   * chemin que l'attribut `tiles`. Rien sur une carte verrouillée ou sans
+   * contrôles (encarts) : il n'y a rien à piloter.
+   */
+  private _renderTilesSwitcher() {
+    const { choices, warnings } = resolveTilesChoices(
+      this.tilesSwitcher,
+      this.tiles,
+      this.sovereignOnly
+    );
+    // Un warn par valeur de tiles-switcher : le selecteur est reconstruit a
+    // chaque bascule de fond, une liste mal ecrite ne doit pas remplir la
+    // console a chaque clic.
+    if (warnings.length > 0 && this._tilesSwitcherWarned !== this.tilesSwitcher) {
+      this._tilesSwitcherWarned = this.tilesSwitcher;
+      for (const warning of warnings) console.warn(`[dsfr-data-map] ${warning}`);
+    }
+
+    if (choices.length === 0 || this.noControls || this.locked) {
+      this._tilesSwitcherRoot?.remove();
+      this._tilesSwitcherRoot = null;
+      this._tilesSelect = null;
+      return;
+    }
+
+    if (!this._tilesSwitcherRoot) {
+      const root = document.createElement('div');
+      root.className = 'dsfr-data-map__tiles-switcher fr-select-group';
+      const label = document.createElement('label');
+      label.className = 'fr-label';
+      label.htmlFor = `${this.id}-tiles-switcher`;
+      label.textContent = 'Fond de carte';
+      const select = document.createElement('select');
+      select.className = 'fr-select';
+      select.id = `${this.id}-tiles-switcher`;
+      select.addEventListener('change', this._onTilesChoice);
+      root.append(label, select);
+      // Avant le conteneur : l'ordre de tabulation place le controle avant
+      // la carte, dont on ne veut pas ressortir pour l'atteindre.
+      this.insertBefore(root, this._container);
+      this._tilesSwitcherRoot = root;
+      this._tilesSelect = select;
+    }
+
+    const select = this._tilesSelect;
+    if (!select) return;
+    const current = resolveTilePreset(this.tiles, this.sovereignOnly).key ?? choices[0].key;
+    select.replaceChildren();
+    for (const choice of choices) {
+      const option = document.createElement('option');
+      option.value = choice.key;
+      option.textContent = choice.label;
+      select.appendChild(option);
+    }
+    select.value = current;
+  }
+
+  /** Le lecteur a choisi un fond : applique, annonce, notifie la page (#744). */
+  private _onTilesChoice = (e: Event) => {
+    const key = (e.target as HTMLSelectElement).value;
+    if (!key || key === this.tiles) return;
+    this.tiles = key;
+    this.announceToScreenReader(`Fond de carte : ${TILE_PRESETS[key]?.label ?? key}.`);
+    this.dispatchEvent(
+      new CustomEvent('dsfr-data-map-tiles-change', {
+        detail: { tiles: key },
+        bubbles: true,
+        composed: true,
+      })
+    );
+  };
 
   private _updateTiles() {
     if (!this._leafletMap || !L) return;
@@ -716,27 +937,50 @@ export class DsfrDataMap extends LitElement {
     }
   }
 
+  /**
+   * Zone de clip du fit (#687) : `fit-zone` explicite (`none` = aucune),
+   * sinon `max-bounds`, sinon la metropole des qu'un encart ultramarin est
+   * present (raccourci `insets` ou enfant dsfr-data-map-inset explicite) —
+   * le clip ne touche que le fit, jamais le pan. Expose pour les tests.
+   */
+  resolveFitZone(): string {
+    if (this.fitZone) return this.fitZone.trim().toLowerCase() === 'none' ? '' : this.fitZone;
+    if (this.maxBounds) return this.maxBounds;
+    const names = expandInsets(this.insets);
+    for (const inset of this.querySelectorAll(':scope > dsfr-data-map-inset[territory]')) {
+      names.push(inset.getAttribute('territory') ?? '');
+    }
+    return hasOverseasTerritory(names) ? METROPOLE_FIT_ZONE : '';
+  }
+
   private _applyFitBounds() {
     if (!this._leafletMap || !L || this._layerBounds.size === 0) return;
     const combined = this._combineBounds([...this._layerBounds.values()], L);
     if (!combined) return;
-    // fit-bounds + max-bounds : le fit est clippe a la zone d'interet de la
-    // carte. Un jeu incluant des territoires lointains (DROM) ne dezoome plus
-    // la vue au monde entier ; si les donnees filtrees sont entierement hors
-    // zone, la vue ne bouge pas (les encarts s'en chargent).
-    const clipped = clipBoundsForFit(combined, this.maxBounds, L);
+    // fit-bounds + zone (fit-zone, max-bounds ou metropole par défaut avec
+    // des encarts ultramarins, #687) : le fit est clippe a la zone d'interet
+    // de la carte. Un jeu incluant des territoires lointains (DROM) ne dezoome
+    // plus la vue au monde entier ; si les donnees filtrees sont entierement
+    // hors zone, la vue ne bouge pas (les encarts s'en chargent).
+    const clipped = clipBoundsForFit(combined, this.resolveFitZone(), L);
     if (!clipped) return;
     // Sans animation : le zoom anime de Leaflet est regulierement annule
     // (re-rendu des couches sur moveend, compagnons hors-carte) — constate
     // empiriquement : le fit anime laissait la vue inchangee apres un
     // filtrage multiselect, le fit direct fonctionne toujours.
-    this._leafletMap.fitBounds(clipped, { padding: [20, 20], animate: false });
+    this._leafletMap.fitBounds(clipped, {
+      padding: [20, 20],
+      animate: false,
+      // Emprise reduite a un point (#642) : sans plafond, Leaflet cale au
+      // max-zoom de la carte (18) — fit-max-zoom borne le zoom du fit
+      ...(this.fitMaxZoom > 0 ? { maxZoom: this.fitMaxZoom } : {}),
+    });
   }
 
   /**
    * Combine les bounds de tous les layers en une COPIE (#294) :
    * `extend` de Leaflet mute en place — l'ancien code corrompait la
-   * premiere entree stockee.
+   * première entree stockee.
    */
   private _combineBounds(
     all: import('leaflet').LatLngBounds[],
@@ -760,9 +1004,63 @@ export class DsfrDataMap extends LitElement {
         position: relative;
         overflow: hidden;
       }
+      /* Encarts territoriaux (#643) : largeur par defaut et gouttiere. Selecteur
+         :where() = specificite nulle, pour qu'une regle de page
+         "dsfr-data-map-inset { width: ... }" gagne quel que soit l'ordre des
+         feuilles. Flottant plutot qu'inline-block : les blancs du balisage
+         entre deux encarts ne creent pas d'espace, cinq encarts a 20 %
+         tiennent sur une ligne. La gouttiere est un padding dans la boite
+         (border-box) pour la meme raison. L'hote dsfr-data-map reste en
+         flux normal (pas de flex : skip-link, live region et bandeaux
+         absolus en dependent) ; son overflow:hidden contient les flottants. */
+      :where(dsfr-data-map-inset) {
+        display: block;
+        float: left;
+        box-sizing: border-box;
+        width: 10rem;
+        padding: 0.5rem 0.5rem 0 0;
+      }
       .dsfr-data-map__container {
         z-index: 0;
         overflow: hidden;
+      }
+      /* Fond attenue pour les cartes thematiques (#686) : filtre sur le volet
+         des tuiles de CETTE carte (combinateur enfant : les encarts, cartes
+         imbriquees, ne l'heritent que par leur propre attribut, recopie par
+         dsfr-data-map-inset). Les couches de donnees restent intactes. */
+      dsfr-data-map[tiles-style="muted"] > .dsfr-data-map__container .leaflet-tile-pane {
+        filter: grayscale(1) opacity(0.55);
+      }
+      dsfr-data-map[tiles-style="grey"] > .dsfr-data-map__container .leaflet-tile-pane {
+        filter: grayscale(1);
+      }
+      /* Selecteur de fond de carte (#744) : encart flottant en haut a droite,
+         au-dessus du volet Leaflet mais sous les popups. Le coin haut-gauche
+         est pris par les boutons de zoom, le bas-droit par l'attribution.
+         Largeur bornee pour ne pas deborder d'une carte etroite ; le contenu
+         reste un label + un select natifs (classes DSFR si la page charge le
+         DSFR, presentation par defaut du navigateur sinon). */
+      .dsfr-data-map__tiles-switcher {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        z-index: 1000;
+        margin: 0;
+        max-width: calc(100% - 1rem);
+        padding: 0.25rem 0.5rem 0.5rem;
+        border-radius: 4px;
+        background: var(--background-default-grey, #fff);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      }
+      .dsfr-data-map__tiles-switcher label {
+        display: block;
+        margin: 0 0 0.125rem;
+        font-size: 0.75rem;
+        line-height: 1.25;
+      }
+      .dsfr-data-map__tiles-switcher select {
+        max-width: 100%;
+        font-size: 0.875rem;
       }
       /* Fix DSFR vs Leaflet conflicts — DSFR styles all [href] with underlines, background-image and ::before/::after */
       .dsfr-data-map__container a,

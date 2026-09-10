@@ -85,15 +85,16 @@ Se connecte au pipeline dsfr-data-source / dsfr-data-query via l'attribut `sourc
 | Attribut | Type | Défaut | Description |
 |---|---|---|---|
 | `bar-max` | `number \| undefined` | — | Valeur max forcee pour le calcul des barres (ex: 100 pour des %) |
+| `idle-message` | `string` | `IDLE_MESSAGE_DEFAULT` | Message rendu quand l'amont attend un filtre (`require-where`, #690). Distinct de « aucune donnée » : aucune requête n'a été faite. Vide, le libellé par défaut est utilisé. |
 | `label-field` | `string` | `""` (vide) | Chemin vers le champ label |
-| `max-items` | `number` | `5` | Nombre maximum d'items affiches |
+| `max-items` | `number` | `5` | Nombre maximum d'items affichés |
 | `no-sort` | `boolean` | `false` | Desactive le tri automatique (desc par valeur) |
 | `selected-palette` | `string` | `'sequentialDescending'` | Palette de couleurs pour la bordure gauche |
-| `source` | `string` | `""` (vide) | Id de la source (ou du transformateur) dont ce composant consomme les donnees. |
-| `subtitle` | `string` | `""` (vide) | Texte fixe affiche sous chaque label |
+| `source` | `string` | `""` (vide) | Id de la source (ou du transformateur) dont ce composant consomme les données. |
+| `subtitle` | `string` | `""` (vide) | Texte fixe affiché sous chaque label |
 | `subtitle-field` | `string` | `""` (vide) | Chemin vers un champ pour le sous-titre (prioritaire sur subtitle) |
 | `value-field` | `string` | `""` (vide) | Chemin vers le champ valeur (numérique) |
-| `value-unit` | `string` | `""` (vide) | Unite affichee apres la valeur |
+| `value-unit` | `string` | `""` (vide) | Unité affichée après la valeur |
 
 
 

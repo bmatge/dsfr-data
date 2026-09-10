@@ -50,11 +50,14 @@ import { DsfrDataJoin } from '@/components/dsfr-data-join.js';
 import { DsfrDataContext } from '@/components/dsfr-data-context.js';
 import { DsfrDataContextFilter } from '@/components/dsfr-data-context-filter.js';
 import { DsfrDataContextTags } from '@/components/dsfr-data-context-tags.js';
+import { DsfrDataContextValue } from '@/components/dsfr-data-context-value.js';
 import { DsfrDataUnpivot } from '@/components/dsfr-data-unpivot.js';
+import { DsfrDataPivot } from '@/components/dsfr-data-pivot.js';
 import { DsfrDataMap } from '@/components/dsfr-data-map.js';
 import { DsfrDataMapLayer } from '@/components/dsfr-data-map-layer.js';
 import { DsfrDataMapPopup } from '@/components/dsfr-data-map-popup.js';
 import { DsfrDataMapInset } from '@/components/dsfr-data-map-inset.js';
+import { DsfrDataMapLegend } from '@/components/dsfr-data-map-legend.js';
 import { DsfrDataMapTimeline } from '@/components/dsfr-data-map-timeline.js';
 import { DsfrDataPodium } from '@/components/dsfr-data-podium.js';
 import { DsfrDataBeacon } from '@/components/dsfr-data-beacon.js';
@@ -62,7 +65,7 @@ import { DsfrDataBeacon } from '@/components/dsfr-data-beacon.js';
 /** `id` est un attribut HTML standard : Lit ne le declare pas, le manifeste non plus. */
 const IGNORED_ATTRS = new Set(['id']);
 
-/** Les 23 composants `dsfr-data-*` et leur classe Lit. */
+/** Les 25 composants `dsfr-data-*` et leur classe Lit. */
 const COMPONENTS: Array<[string, typeof DsfrDataSource]> = (
   [
     ['dsfr-data-a11y', DsfrDataA11y],
@@ -71,6 +74,7 @@ const COMPONENTS: Array<[string, typeof DsfrDataSource]> = (
     ['dsfr-data-context', DsfrDataContext],
     ['dsfr-data-context-filter', DsfrDataContextFilter],
     ['dsfr-data-context-tags', DsfrDataContextTags],
+    ['dsfr-data-context-value', DsfrDataContextValue],
     ['dsfr-data-display', DsfrDataDisplay],
     ['dsfr-data-facets', DsfrDataFacets],
     ['dsfr-data-join', DsfrDataJoin],
@@ -79,10 +83,12 @@ const COMPONENTS: Array<[string, typeof DsfrDataSource]> = (
     ['dsfr-data-list', DsfrDataList],
     ['dsfr-data-map', DsfrDataMap],
     ['dsfr-data-map-inset', DsfrDataMapInset],
+    ['dsfr-data-map-legend', DsfrDataMapLegend],
     ['dsfr-data-map-layer', DsfrDataMapLayer],
     ['dsfr-data-map-popup', DsfrDataMapPopup],
     ['dsfr-data-map-timeline', DsfrDataMapTimeline],
     ['dsfr-data-normalize', DsfrDataNormalize],
+    ['dsfr-data-pivot', DsfrDataPivot],
     ['dsfr-data-podium', DsfrDataPodium],
     ['dsfr-data-query', DsfrDataQuery],
     ['dsfr-data-search', DsfrDataSearch],
@@ -143,12 +149,15 @@ const SKILL_TAGS: Record<string, string[]> = {
     'dsfr-data-map-popup',
     'dsfr-data-map-inset',
     'dsfr-data-map-timeline',
+    'dsfr-data-map-legend',
   ],
   dsfrDataContext: ['dsfr-data-context'],
   dsfrDataContextFilter: ['dsfr-data-context-filter'],
   dsfrDataContextTags: ['dsfr-data-context-tags'],
+  dsfrDataContextValue: ['dsfr-data-context-value'],
   dsfrDataJoin: ['dsfr-data-join'],
   dsfrDataUnpivot: ['dsfr-data-unpivot'],
+  dsfrDataPivot: ['dsfr-data-pivot'],
   dsfrDataPodium: ['dsfr-data-podium'],
   dsfrDataBeacon: ['dsfr-data-beacon'],
 };
@@ -183,7 +192,7 @@ describe('reference generee des skills (#512)', () => {
     ) as CemManifest;
     const expected = buildReferences(manifest);
 
-    it('couvre exactement les 23 composants dsfr-data-*', () => {
+    it('couvre exactement les 25 composants dsfr-data-*', () => {
       expect(Object.keys(COMPONENT_REFERENCES).sort()).toEqual(COMPONENTS.map(([t]) => t).sort());
     });
 

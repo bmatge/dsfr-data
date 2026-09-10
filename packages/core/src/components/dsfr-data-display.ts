@@ -1,11 +1,21 @@
 import { LitElement, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
+import { SelectionFilterMixin } from '../utils/selection-filter.js';
 import { getByPath } from '../utils/json-path.js';
-import { resolveTemplateExpression, formatTemplateValue } from '../utils/template-expression.js';
 import { escapeHtml } from '@dsfr-data/shared/lib';
+import {
+  renderTemplate,
+  resolveTemplateExpression,
+  formatTemplateValue,
+} from '../utils/template-expression.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
-import { renderSourceLoading, renderSourceError } from '../utils/status-templates.js';
+import {
+  renderSourceLoading,
+  renderSourceError,
+  renderSourceIdle,
+  IDLE_MESSAGE_DEFAULT,
+} from '../utils/status-templates.js';
 import { getDataMeta } from '../utils/data-bridge.js';
 import { PaginationController } from '../utils/pagination-controller.js';
 
@@ -13,17 +23,26 @@ import { PaginationController } from '../utils/pagination-controller.js';
  * <dsfr-data-display> - Affichage dynamique de données via template HTML
  *
  * Recupere les données d'une source et les injecte dans un template HTML
- * défini par l'utilisateur, en generant autant d'elements qu'il y a de
- * resultats. Ideal pour créer des listes de cartes, tuiles, ou tout
+ * défini par l'utilisateur, en generant autant d'éléments qu'il y a de
+ * résultats. Ideal pour créer des listes de cartes, tuiles, ou tout
  * autre motif repetitif DSFR.
  *
- * Le template utilise des placeholders :
- * - {{champ}}           : valeur echappee (HTML-safe)
- * - {{{champ}}}         : valeur brute (non echappee)
+ * Le template utilise des placeholders, grammaire `{{chemin[:format[:arg]][|défaut]}}` :
+ * - {{champ}}           : valeur échappée (HTML-safe)
+ * - {{{champ}}}         : valeur brute (non échappée)
  * - {{champ|défaut}}    : valeur avec fallback si null/undefined
- * - {{champ:number}}    : valeur formatee avec separateur de milliers (ex: 32 073 247)
- * - {{champ.sous.clé}}  : acces aux proprietes imbriquees
- * - {{$index}}          : index de l'element (0-based)
+ * - {{champ:number}}    : séparateur de milliers fr-FR (ex: 32 073 247) ; `:number:2` fixe les décimales
+ * - {{champ:date}}      : date JJ/MM/AAAA (« — » si invalide) ; `:datetime` ajoute HH:MM
+ * - {{tags}}            : un tableau est joint par « , » ; `{{tags:join: / }}` choisit le séparateur
+ * - {{lien:url}}        : ne laisse passer que http:, https:, mailto:, tel: et les URL relatives,
+ *                         sinon chaîne vide — à utiliser dans tout href
+ * - {{champ.sous.clé}}  : accès aux propriétés imbriquées
+ * - {{$index}}          : index de l'élément (0-based) ; {{$uid}} : identifiant DOM de l'élément
+ * - {{#if champ}}…{{/if}} et {{#unless champ}}…{{/unless}} : blocs conditionnels non imbriqués,
+ *                         vrais si la valeur n'est ni null, undefined, « », [] ni false. Le bloc doit
+ *                         englober du texte, des éléments complets ou une valeur d'attribut : placé
+ *                         entre deux attributs, il est découpé par l'analyse HTML du template
+ * L'argument d'un format ne peut pas contenir « | » (il ouvre le défaut).
  *
  * @example
  * <dsfr-data-source id="data" url="/api/results" transform="records"></dsfr-data-source>
@@ -37,6 +56,7 @@ import { PaginationController } from '../utils/pagination-controller.js';
  *         </div>
  *         <div class="fr-card__footer">
  *           <p class="fr-badge fr-badge--sm">{{catégorie}}</p>
+ *           {{#if site_web}}<a class="fr-link" href="{{site_web:url}}">Site web</a>{{/if}}
  *         </div>
  *       </div>
  *     </div>
@@ -45,11 +65,15 @@ import { PaginationController } from '../utils/pagination-controller.js';
  */
 let displayInstanceSeq = 0;
 
+/**
+ * @fires dsfr-data-select - `{ record, elementId, selected }` sur le composant (bubbles, composed) — au clic sur un élément en `refine-on-click` (#734). `selected` vaut `true` à la sélection, `false` quand le clic la retire (second clic sur le même élément, ou croix du tag de contexte).
+ * @fires dsfr-data-source-command - `{ sourceId, where, whereKey, origin }` sur `document` — en `refine-on-click` SANS `context` (chemin dégradé) : clause `eq` poussée directement à `source` sous le whereKey `display-select-ID`. Avec `context`, c'est le contexte qui diffuse.
+ */
 @customElement('dsfr-data-display')
-export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
+export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(LitElement)) {
   /** Prefixe d'ids DOM unique par instance (#304 — item-N duplique entre displays) */
   private readonly _uid = `dsfr-display-${++displayInstanceSeq}`;
-  /** Id de la source (ou du transformateur) dont ce composant consomme les donnees. */
+  /** Id de la source (ou du transformateur) dont ce composant consomme les données. */
   @property({ type: String })
   source = '';
 
@@ -57,7 +81,7 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
   @property({ type: Number })
   cols = 1;
 
-  /** Nombre d'elements par page (0 = tout afficher) */
+  /** Nombre d'éléments par page (0 = tout afficher) */
   @property({ type: Number })
   pagination = 0;
 
@@ -73,13 +97,54 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'uid-field' })
   uidField = '';
 
-  /** Synchronise le numero de page dans l'URL (replaceState) */
+  /** Synchronise le numéro de page dans l'URL (replaceState) */
   @property({ type: Boolean, attribute: 'url-sync' })
   urlSync = false;
 
-  /** Nom du parametre URL pour la page (défaut: "page") */
+  /** Nom du paramètre URL pour la page (défaut: "page") */
   @property({ type: String, attribute: 'url-page-param' })
   urlPageParam = 'page';
+
+  /**
+   * Message rendu quand l'amont attend un filtre (`require-where`, #690).
+   * Distinct de « aucune donnée » : aucune requête n'a été faite. Vide,
+   * le libellé par défaut est utilisé.
+   */
+  @property({ type: String, attribute: 'idle-message' })
+  idleMessage = IDLE_MESSAGE_DEFAULT;
+
+  // --- Sélection au clic (#734, ADR-104 — mixin partagé avec la carte) ---
+
+  /**
+   * Champ dont la valeur de l'élément cliqué devient un filtre `eq` (#734).
+   * Premier clic = filtre, second clic sur le même élément = retrait, clic sur
+   * un autre élément = remplacement. Chaque élément reçoit un bouton
+   * « Filtrer sur … », atteignable au clavier et dont l'état est annoncé
+   * (`aria-pressed`) : la mise en avant de l'élément sélectionné n'est jamais
+   * la seule marque. Avec `context="id"` (recommandé), le composant
+   * s'enregistre comme filtre du dsfr-data-context : diffusion à toutes ses
+   * sources cibles au dialecte de chacune, tag dans dsfr-data-context-tags,
+   * URL portée par le contexte. Sans `context`, la clause part directement à
+   * `source` (whereKey `display-select-ID`) — sans tag ni URL, et la liste se
+   * filtre elle-même (seul l'élément cliqué reste, jusqu'au second clic).
+   */
+  @property({ type: String, attribute: 'refine-on-click' })
+  refineOnClick = '';
+
+  /**
+   * Identifiant du dsfr-data-context auquel s'enregistrer en
+   * `refine-on-click` (#734, ADR-104). Le contexte peut être déclaré après le
+   * composant dans la page. Vide = commande directe à `source` (chemin dégradé).
+   */
+  @property({ type: String })
+  context = '';
+
+  /**
+   * Libellé du tag de contexte en `refine-on-click` (#734). Vide = le nom du
+   * champ filtré.
+   */
+  @property({ type: String })
+  label = '';
 
   @state()
   private _data: Record<string, unknown>[] = [];
@@ -111,7 +176,7 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
   /** True quand la source fournit des metadonnees de pagination serveur */
   @state()
 
-  /** Total serveur ; undefined = inconnu (ex. Grist Records hors derniere page) */
+  /** Total serveur ; undefined = inconnu (ex. Grist Records hors dernière page) */
   private _templateContent = '';
 
   private _hashScrollDone = false;
@@ -156,6 +221,25 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
     this._pager.onData(this.source ? getDataMeta(this.source) : undefined);
   }
 
+  // --- Sélection au clic (#734, mixin partagé avec la carte) ---
+
+  /** whereKey du chemin dégradé : `display-select-ID` */
+  protected selectionWhereKeyPrefix(): string {
+    return 'display-select';
+  }
+
+  /** Repli d'identifiant : le préfixe d'ids DOM de l'instance (#304) */
+  protected selectionUid(): string {
+    return this._uid;
+  }
+
+  /** La sélection a changé : redessiner l'état des éléments et l'annoncer */
+  protected onSelectionChange(): void {
+    this.requestUpdate();
+    const value = this._selectedValue();
+    this._announce(value ? `Filtre appliqué : ${value}` : 'Filtre retiré');
+  }
+
   updated(changedProperties: Map<string, unknown>) {
     super.updated(changedProperties);
     if (!this._hashScrollDone && this._data.length > 0 && window.location.hash) {
@@ -179,27 +263,31 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
   private _renderItem(item: Record<string, unknown>, index: number): string {
     if (!this._templateContent) return '';
 
-    // Une seule passe pour {{{champ}}} (brut) et {{champ}} (echappe) :
-    // la valeur substituee n'est jamais re-scannee, donc une donnee qui
-    // contient elle-meme "{{x}}" est rendue litteralement (pas d'injection
-    // de template en cascade).
-    return this._templateContent.replace(
-      /\{\{\{([^}]+)\}\}\}|\{\{([^}]+)\}\}/g,
-      (_match, rawExpr: string | undefined, escExpr: string | undefined) => {
-        if (rawExpr !== undefined) {
-          return this._resolveExpression(item, rawExpr.trim(), index);
-        }
-        return escapeHtml(this._resolveExpression(item, (escExpr as string).trim(), index));
-      }
-    );
+    // Moteur partagé avec dsfr-data-map-popup (#694) : pré-passe des blocs
+    // {{#if}}/{{#unless}} sur le texte du template, puis UNE seule passe pour
+    // {{{champ}}} (brut) et {{champ}} (échappé). La valeur substituée n'est
+    // jamais re-scannée : une donnée qui contient elle-même "{{x}}" est
+    // rendue littéralement (pas d'injection de template en cascade).
+    return renderTemplate(this._templateContent, item, {
+      raw: true,
+      vars: this._templateVars(item, index),
+    });
   }
 
-  /** Resout une expression : champ, champ:format, champ|défaut, champ:format|défaut, $index, $uid */
-  private _resolveExpression(item: Record<string, unknown>, expr: string, index: number): string {
-    return resolveTemplateExpression(item, expr, {
+  /** Variables spéciales du template : `$index` et `$uid` */
+  private _templateVars(
+    item: Record<string, unknown>,
+    index: number
+  ): Record<string, () => string> {
+    return {
       $index: () => String(index),
       $uid: () => this._getItemUid(item, index),
-    });
+    };
+  }
+
+  /** Résout une expression : champ, champ:format[:arg], champ|défaut, $index, $uid (conservé pour compatibilité, comme _formatValue) */
+  _resolveExpression(item: Record<string, unknown>, expr: string, index: number): string {
+    return resolveTemplateExpression(item, expr, this._templateVars(item, index));
   }
 
   /** Applique un format a une valeur. Formats supportes : number */
@@ -264,19 +352,76 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
     // l'offset se calcule avec la taille de page SERVEUR (pas l'attribut
     // pagination local)
     const startIndex = this._pager.pageOffset();
+    const refine = this.selectionField !== '';
+    // Le rendu passe par une chaîne : le clic est délégué au conteneur et
+    // l'élément retrouvé par son index de page (#734)
+    this._renderedItems = items;
 
     const itemsHtml = items
       .map((item, i) => {
         const globalIndex = startIndex + i;
         const rendered = this._renderItem(item, globalIndex);
         const uid = this._getItemUid(item, globalIndex);
-        return `<div class="${colClass}" id="${uid}">${rendered}</div>`;
+        if (!refine) return `<div class="${colClass}" id="${uid}">${rendered}</div>`;
+        const selected = this.isSelected(item);
+        const classes = `${colClass} dsfr-data-display__item${
+          selected ? ' dsfr-data-display__item--selected' : ''
+        }`;
+        return (
+          `<div class="${classes}" id="${uid}" data-dsfr-select="${i}"` +
+          `${selected ? ' aria-current="true"' : ''}>${rendered}` +
+          this._renderSelectButton(item, i, selected) +
+          `</div>`
+        );
       })
       .join('');
 
     const gridHtml = `<div class="fr-grid-row ${this.gap}">${itemsHtml}</div>`;
-    return html`<div .innerHTML="${gridHtml}"></div>`;
+    return html`<div
+      @click="${refine ? this._handleGridClick : nothing}"
+      .innerHTML="${gridHtml}"
+    ></div>`;
   }
+
+  /**
+   * Bouton de sélection d'un élément (#734) : c'est lui le chemin clavier et
+   * le porteur de l'état annoncé (`aria-pressed`). Son libellé change avec
+   * l'état — la mise en avant de la carte n'est jamais la seule marque.
+   */
+  private _renderSelectButton(
+    item: Record<string, unknown>,
+    index: number,
+    selected: boolean
+  ): string {
+    const value = this.selectionValueOf(item);
+    const action = selected ? `Retirer le filtre ${value}` : `Filtrer sur ${value}`;
+    const icon = selected ? 'fr-icon-check-line' : 'fr-icon-filter-line';
+    return (
+      `<button type="button" class="fr-btn fr-btn--sm fr-btn--tertiary ${icon} fr-btn--icon-left ` +
+      `dsfr-data-display__select-btn" aria-pressed="${selected ? 'true' : 'false'}" ` +
+      `data-dsfr-select="${index}">${escapeHtml(action)}</button>`
+    );
+  }
+
+  /**
+   * Clic délégué sur la grille : le bouton de sélection ou n'importe où sur
+   * l'élément (confort à la souris), sans voler le clic d'un lien ou d'un
+   * contrôle rendu par le template.
+   */
+  private _handleGridClick = (event: Event) => {
+    const target = event.target as Element | null;
+    if (!target) return;
+    const button = target.closest('button[data-dsfr-select]');
+    const holder = button ?? target.closest('[data-dsfr-select]');
+    if (!holder) return;
+    if (!button && target.closest('a, button, input, select, textarea, label')) return;
+    const index = Number(holder.getAttribute('data-dsfr-select'));
+    const item = this._renderedItems[index];
+    if (item) this._onFeatureClick(item);
+  };
+
+  /** Éléments du dernier rendu — l'index délégué y renvoie */
+  private _renderedItems: Record<string, unknown>[] = [];
 
   private _renderPagination(totalPages: number) {
     // En mode serveur la pagination s'affiche meme sans attribut
@@ -395,23 +540,25 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
             ? renderSourceLoading('dsfr-data-display')
             : this._sourceError && !(this._serverPagination && this._data.length > 0)
               ? renderSourceError('dsfr-data-display', this._sourceError)
-              : totalItems === 0
-                ? html`
-                    <div class="dsfr-data-display__empty" aria-live="polite" role="status">
-                      ${this.empty}
-                    </div>
-                  `
-                : html`
-                    <p
-                      class="fr-text--sm fr-mb-1w"
-                      aria-live="polite"
-                      aria-atomic="true"
-                      role="status"
-                    >
-                      ${totalItems} resultat${totalItems > 1 ? 's' : ''}
-                    </p>
-                    ${this._renderGrid(paginatedData)} ${this._renderPagination(totalPages)}
-                  `
+              : this._sourceIdle
+                ? renderSourceIdle('dsfr-data-display', this.idleMessage)
+                : totalItems === 0
+                  ? html`
+                      <div class="dsfr-data-display__empty" aria-live="polite" role="status">
+                        ${this.empty}
+                      </div>
+                    `
+                  : html`
+                      <p
+                        class="fr-text--sm fr-mb-1w"
+                        aria-live="polite"
+                        aria-atomic="true"
+                        role="status"
+                      >
+                        ${totalItems} resultat${totalItems > 1 ? 's' : ''}
+                      </p>
+                      ${this._renderGrid(paginatedData)} ${this._renderPagination(totalPages)}
+                    `
         }
       </div>
 
@@ -434,6 +581,12 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
           color: var(--text-mention-grey, #666);
           padding: 2rem;
           font-size: 0.875rem;
+        }
+        .dsfr-data-display__select-btn {
+          margin-top: 0.5rem;
+        }
+        .dsfr-data-display__item--selected {
+          box-shadow: inset 0 0 0 2px var(--border-active-blue-france, #000091);
         }
       </style>
     `;
