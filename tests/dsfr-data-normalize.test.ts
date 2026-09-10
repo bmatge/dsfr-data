@@ -498,7 +498,9 @@ describe('DsfrDataNormalize', () => {
       expect(result[0].other).toBe('C');
     });
 
-    it('does not affect non-string values', () => {
+    // #730 : la comparaison porte sur la forme chaîne — une colonne numérique
+    // était ignorée en silence, l'attribut mentait.
+    it('applies to a numeric column (comparison on the string form)', () => {
       normalize.id = 'test-normalize';
       normalize.source = 'test-source';
       normalize.replaceFields = 'count:3:Three';
@@ -507,7 +509,21 @@ describe('DsfrDataNormalize', () => {
       dispatchDataLoaded('test-source', [{ count: 3 }]);
 
       const result = getDataCache('test-normalize') as Record<string, unknown>[];
-      expect(result[0].count).toBe(3);
+      expect(result[0].count).toBe('Three');
+    });
+
+    it('leaves a value of another type untouched, and of the same type', () => {
+      normalize.id = 'test-normalize';
+      normalize.source = 'test-source';
+      normalize.replaceFields = 'count:3:Three';
+
+      normalize.connectedCallback();
+      dispatchDataLoaded('test-source', [{ count: 30 }, { count: null }, { count: [3] }]);
+
+      const result = getDataCache('test-normalize') as Record<string, unknown>[];
+      expect(result[0].count).toBe(30);
+      expect(result[1].count).toBeNull();
+      expect(result[2].count).toEqual([3]);
     });
 
     it('works with trim (trimmed key used for field lookup)', () => {
