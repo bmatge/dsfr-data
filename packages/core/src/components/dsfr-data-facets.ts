@@ -27,7 +27,7 @@ const FACET_DISPLAY_MODES: ReadonlySet<string> = new Set<FacetDisplayMode>([
 interface FacetValue {
   value: string;
   count: number;
-  /** Valeur selectionnee absente des donnees courantes (#310) : rendue
+  /** Valeur selectionnee absente des données courantes (#310) : rendue
    * desactivable pour ne pas laisser un filtre invisible actif */
   missing?: boolean;
 }
@@ -47,7 +47,7 @@ interface FacetGroup {
  */
 class FacetFieldFilter implements ContextFilterLike {
   readonly applyTo = '*';
-  /** `in` pour la detection de doublon : c'est l'operateur multi-valeurs de la facette */
+  /** `in` pour la detection de doublon : c'est l'opérateur multi-valeurs de la facette */
   readonly operator = 'in';
 
   constructor(
@@ -116,7 +116,7 @@ class FacetFieldFilter implements ContextFilterLike {
  * En mode `context="id"` (#678, ADR-104), la facette devient un filtre de
  * <dsfr-data-context> : un filtre par champ, diffusion par le contexte a
  * toutes ses sources cibles (au dialecte de chacune), URL portee par le
- * contexte (un parametre par champ), tags gratuits. Elle n'emet plus de
+ * contexte (un paramètre par champ), tags gratuits. Elle n'emet plus de
  * commande directe ; valeurs, compteurs et cascade restent calcules sur sa
  * `source` (client ou `server-facets`, inchanges).
  *
@@ -146,26 +146,26 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   @property({ type: Number, attribute: 'max-values' })
   maxValues = 6;
 
-  /** Champs en mode multi-selection OU (virgule-separes) */
+  /** Champs en mode multi-sélection OU (virgule-séparés) */
   @property({ type: String })
   disjunctive = '';
 
   /**
-   * Tri des valeurs de chaque facette, grammaire `critere:sens` alignee sur
+   * Tri des valeurs de chaque facette, grammaire `critere:sens` alignée sur
    * `order-by` de dsfr-data-query (#645) :
-   * - `count:desc` (defaut) : du plus frequent au plus rare
-   * - `count:asc` : du plus rare au plus frequent
-   * - `alpha:asc` : A -> Z (collation francaise)
+   * - `count:desc` (défaut) : du plus fréquent au plus rare
+   * - `count:asc` : du plus rare au plus fréquent
+   * - `alpha:asc` : A -> Z (collation française)
    * - `alpha:desc` : Z -> A
    * Raccourcis : `count` = `count:desc`, `alpha` = `alpha:asc`.
-   * Formes `-count` / `-alpha` DEPRECIEES : conservees a l'identique
+   * Formes `-count` / `-alpha` DÉPRÉCIÉES : conservées à l'identique
    * (`-count` = rare d'abord, `-alpha` = Z -> A) mais un avertissement console
    * invite a passer a la forme explicite ; retrait dans une version majeure.
    */
   @property({ type: String })
   sort = 'count';
 
-  /** Champs avec barre de recherche (virgule-separes) */
+  /** Champs avec barre de recherche (virgule-séparés) */
   @property({ type: String })
   searchable = '';
 
@@ -186,7 +186,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   @property({ type: String })
   display = '';
 
-  /** Active la lecture des parametres d'URL comme pre-selections de facettes */
+  /** Active la lecture des paramètres d'URL comme pré-sélections de facettes */
   @property({ type: Boolean, attribute: 'url-params' })
   urlParams = false;
 
@@ -194,7 +194,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   @property({ type: String, attribute: 'url-param-map' })
   urlParamMap = '';
 
-  /** Synchronise l'URL quand l'utilisateur change les facettes (replaceState — pas d'entree d'historique par clic) */
+  /** Synchronise l'URL quand l'utilisateur change les facettes (replaceState — pas d'entrée d'historique par clic) */
   @property({ type: Boolean, attribute: 'url-sync' })
   urlSync = false;
 
@@ -237,9 +237,9 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
    * Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104). La facette
    * devient alors un filtre du contexte, un par champ : c'est le contexte
    * qui diffuse a ses sources cibles et qui porte l'URL (`url-sync` et
-   * `url-params` de la facette sont ignores — reporter `url-param-map` sur
-   * le contexte). Le contexte peut etre declare apres la facette dans la
-   * page. Vide = comportement autonome historique (commande directe a `source`).
+   * `url-params` de la facette sont ignorés — reporter `url-param-map` sur
+   * le contexte). Le contexte peut être déclaré après la facette dans la
+   * page. Vide = comportement autonome historique (commande directe à `source`).
    */
   @property({ type: String })
   context = '';
@@ -285,22 +285,22 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   private _context: DsfrDataContext | null = null;
 
   /**
-   * Un filtre de contexte par champ, avec son whereKey et la derniere clause
+   * Un filtre de contexte par champ, avec son whereKey et la dernière clause
    * confiee au contexte (mode `context`, #678) — un champ inchange n'est pas
-   * re-diffuse : une source cible re-emet apres chaque commande
+   * re-diffuse : une source cible re-emet après chaque commande
    */
   private _contextFilters = new Map<
     string,
     { filter: FacetFieldFilter; whereKey: string; pushed: string }
   >();
 
-  /** Un contexte vise par id vient d'etre connecte : (re)bind si c'est le notre (#678) */
+  /** Un contexte vise par id vient d'être connecte : (re)bind si c'est le notre (#678) */
   private _onContextConnected = (e: Event) => {
     const id = (e as CustomEvent<{ id: string | null }>).detail?.id;
     if (this.context && id === this.context) this._bindContext();
   };
 
-  /** Mode `context` demande (que le contexte soit deja resolu ou non) */
+  /** Mode `context` demande (que le contexte soit déjà resolu ou non) */
   private get _contextMode(): boolean {
     return this.context.trim() !== '';
   }
@@ -323,7 +323,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   // --- Public API (delegation to upstream source) ---
 
   /**
-   * Retourne l'adapter de la source amont (delegation transparente).
+   * Retourne l'adapter de la source amont (délégation transparente).
    * Permet aux composants en aval d'acceder a l'adapter
    * sans connaitre la structure du pipeline.
    */
@@ -338,7 +338,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   }
 
   /**
-   * Retourne le where effectif de la source amont (delegation transparente).
+   * Retourne le where effectif de la source amont (délégation transparente).
    */
   public getEffectiveWhere(excludeKey?: string | string[]): string {
     if (this.source) {
@@ -415,7 +415,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     return ['source', 'serverFacets', 'staticValues'];
   }
 
-  /** Parametres de facettes → reconstruction des groupes (#281) */
+  /** Paramètres de facettes → reconstruction des groupes (#281) */
   protected transformerReprocessProps(): string[] {
     return [
       'fields',
@@ -542,10 +542,10 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   // --- Facet index building ---
 
   /**
-   * Reinjecte les selections orphelines dans les groupes (#310) : apres un
-   * refetch, une valeur selectionnee disparue des donnees restait dans
+   * Reinjecte les selections orphelines dans les groupes (#310) : après un
+   * refetch, une valeur selectionnee disparue des données restait dans
    * _activeSelections — la checkbox n'etait plus rendue mais le filtre
-   * restait actif (resultats vides inexplicables). Elle est rendue cochee,
+   * restait actif (résultats vides inexplicables). Elle est rendue cochee,
    * marquee indisponible, donc desactivable.
    */
   private _appendOrphanSelections(groups: FacetGroup[]): FacetGroup[] {
@@ -573,7 +573,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
 
   // --- Templates partages entre les 3 modes de rendu (#313) ---
 
-  /** Libelle « valeur + compteur » — etait copie 3x (checkbox, multiselect, radio) */
+  /** Libellé « valeur + compteur » — etait copie 3x (checkbox, multiselect, radio) */
   private _renderValueLabel(fv: FacetValue) {
     const missingHint = fv.missing
       ? html`<span class="fr-hint-text">(indisponible)</span>`
@@ -612,7 +612,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     `;
   }
 
-  /** Element checkbox/radio complet — etait copie 3x. `inline` : element en ligne (radio-inline, #684) */
+  /** Élément checkbox/radio complet — etait copie 3x. `inline` : élément en ligne (radio-inline, #684) */
   private _renderToggleItem(
     group: FacetGroup,
     fv: FacetValue,
@@ -713,7 +713,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   }
 
   /**
-   * Walk upstream through the source chain to find the actual dsfr-data-source element
+   * Walk upstream through the source chain to find the actual dsfr-data-source élément
    * (the one with baseUrl/datasetId/headers). Intermediate components like dsfr-data-query
    * have a `source` property pointing to their upstream.
    */
@@ -747,8 +747,8 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
 
   /**
    * Valeurs de facette d'une cellule (#421) : une cellule tableau (champ
-   * multi-valeurs, ex. ChoiceList Grist) fournit chaque element ; une cellule
-   * scalaire fournit sa valeur. Les elements vides sont ignores. L'ancien
+   * multi-valeurs, ex. ChoiceList Grist) fournit chaque élément ; une cellule
+   * scalaire fournit sa valeur. Les éléments vides sont ignorés. L'ancien
    * `String(val)` stringifiait le tableau (« a,b ») : la valeur ne matchait
    * jamais une selection et polluait les groupes de facettes.
    */
@@ -847,14 +847,14 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     });
   }
 
-  /** Formes de `sort` deja signalees comme depreciees (un warn par forme et par instance, #645) */
+  /** Formes de `sort` déjà signalees comme depreciees (un warn par forme et par instance, #645) */
   private _deprecatedSortWarned = new Set<string>();
 
   /**
-   * Resout l'attribut `sort` en (critere, sens) — grammaire `critere:sens`
+   * Resout l'attribut `sort` en (critère, sens) — grammaire `critere:sens`
    * de `order-by` (#645). Les formes `-count` / `-alpha` restent acceptees
    * avec leur sens historique mais sont signalees : le tiret y voulait dire
-   * « inverse du defaut » (croissant pour count, decroissant pour alpha),
+   * « inverse du défaut » (croissant pour count, decroissant pour alpha),
    * une convention ambigue qu'aucune forme explicite ne partage.
    */
   private _resolveSort(): { by: 'count' | 'alpha'; dir: 'asc' | 'desc' } {
@@ -866,7 +866,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
         this._deprecatedSortWarned.add(raw);
         console.warn(
           `dsfr-data-facets: sort="${raw}" est deprecie — le tiret signifie « inverse du defaut » ` +
-            `(${by === 'count' ? 'du plus rare au plus frequent' : 'Z vers A'}), une convention ambigue. ` +
+            `(${by === 'count' ? 'du plus rare au plus fréquent' : 'Z vers A'}), une convention ambigue. ` +
             `Utiliser sort="${by}:${dir}" (grammaire de order-by : count:desc, count:asc, alpha:asc, alpha:desc).`
         );
       }
@@ -922,13 +922,13 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   /** Decouverte en vol, partagee entre deux cycles de fetch concurrents */
   private _discoveryPromise: Promise<FacetDescriptor[]> | null = null;
 
-  /** « Aucune facette declaree » deja signale pour ce jeu (un warn, pas un par cycle) */
+  /** « Aucune facette déclarée » déjà signale pour ce jeu (un warn, pas un par cycle) */
   private _discoveryEmptyWarned = false;
 
   /**
-   * Un appel de decouverte par jeu de donnees : noms et libelles des facettes
-   * declarees (utilises quand `fields` est absent) et champs de type date —
-   * utiles meme avec `fields` explicite, car le where d'une annee doit etre
+   * Un appel de decouverte par jeu de données : noms et libellés des facettes
+   * declarees (utilisés quand `fields` est absent) et champs de type date —
+   * utiles meme avec `fields` explicite, car le where d'une annee doit être
    * un intervalle (#676). Une decouverte en echec est memorisee vide (pas de
    * nouvelle tentative a chaque cycle) jusqu'a un changement de jeu.
    */
@@ -978,7 +978,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     );
   }
 
-  /** Libelle declare par le provider pour un champ decouvert (a defaut de `labels`) */
+  /** Libellé déclaré par le provider pour un champ decouvert (a défaut de `labels`) */
   private _discoveredLabel(field: string): string | undefined {
     return this._discoveredFacets?.find((d) => d.field === field)?.label;
   }
@@ -992,9 +992,9 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   }
 
   /**
-   * Parametres serveur (baseUrl, datasetId, headers, proxy) de la source
+   * Paramètres serveur (baseUrl, datasetId, headers, proxy) de la source
    * amont. Resolus par la source elle-meme (headers effectifs avec
-   * api-key-ref) via la delegation SourceElement — re-parser les attributs
+   * api-key-ref) via la délégation SourceElement — re-parser les attributs
    * DOM ratait la resolution d'api-key-ref → 401 sur sources authentifiees
    * (#274). Null sans datasetId.
    */
@@ -1042,7 +1042,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
 
   /**
    * Erreur amont en mode serveur AVANT toute decouverte (#676) : une
-   * selection annuelle issue de l'URL a pu etre emise en egalite sur un
+   * selection annuelle issue de l'URL a pu être emise en egalite sur un
    * champ date (400) — la source n'emet alors aucune donnee, donc le cycle
    * de facettes (et sa decouverte) n'aurait jamais lieu. On lance la
    * decouverte ici et, si un champ date est concerne, on re-emet la
@@ -1200,7 +1200,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
 
   /**
    * Resout le contexte vise par `context="id"` et y enregistre un filtre par
-   * champ connu. Le contexte peut arriver plus tard (declare apres dans la
+   * champ connu. Le contexte peut arriver plus tard (déclaré après dans la
    * page) : l'erreur de config est posee en attendant et levee a sa connexion.
    */
   private _bindContext(): void {
@@ -1258,8 +1258,8 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
 
   /**
    * Un filtre par champ connu (`fields`, groupes construits, selections) :
-   * les champs auto-detectes en mode client n'existent qu'apres les donnees.
-   * Idempotent — un champ deja enregistre garde son filtre et son whereKey.
+   * les champs auto-detectes en mode client n'existent qu'après les données.
+   * Idempotent — un champ déjà enregistre garde son filtre et son whereKey.
    */
   private _syncContextFilters(): void {
     if (!this._context) return;
@@ -1708,7 +1708,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     return map;
   }
 
-  /** Read URL search params and apply as facet pre-selections */
+  /** Read URL search params and apply as facet pré-sélections */
   _applyUrlParams() {
     const params = new URLSearchParams(window.location.search);
     const paramMap = this._parseUrlParamMap();
@@ -2145,7 +2145,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
 
   /**
    * Boutons radio DSFR visibles en ligne (#684) : fieldset dont la legende est
-   * le libelle de la facette, une option « Tous » (cochee quand rien n'est
+   * le libellé de la facette, une option « Tous » (cochee quand rien n'est
    * selectionne) qui retire la selection, puis une radio par valeur. Toutes
    * les valeurs sont rendues (pas de « Voir plus » : un choix unique visible
    * d'un coup d'oeil, comme `select`).

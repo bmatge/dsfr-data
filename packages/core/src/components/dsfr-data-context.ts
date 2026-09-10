@@ -17,7 +17,7 @@ export { CONTEXT_CONNECTED_EVENT } from '../utils/context-registry.js';
 
 /**
  * Resout un contexte par id — null si absent ou pas encore defini/upgrade
- * (un element non upgrade n'a pas encore `_registerFilter`). Les filtres
+ * (un élément non upgrade n'a pas encore `_registerFilter`). Les filtres
  * declares AVANT le contexte dans le DOM retentent a l'evenement
  * `dsfr-data-context-connected` (#678). La resolution vit dans
  * `utils/context-registry.ts` (#681) : la carte, dans un autre bundle,
@@ -60,8 +60,8 @@ export function findContextById(id: string): DsfrDataContext | null {
  * </dsfr-data-facets>
  * ```
  *
- * @fires dsfr-data-context-change - sur l'element — l'etat des filtres du contexte a change (utile pour <dsfr-data-context-tags> et la synchro d'URL).
- * @fires dsfr-data-context-connected - `{ id }` sur `document` — le contexte vient d'etre connecte (#678) : les filtres declares avant lui dans le DOM (`context="id"`) s'enregistrent a ce moment.
+ * @fires dsfr-data-context-change - sur l'élément — l'etat des filtres du contexte a change (utile pour <dsfr-data-context-tags> et la synchro d'URL).
+ * @fires dsfr-data-context-connected - `{ id }` sur `document` — le contexte vient d'être connecte (#678) : les filtres declares avant lui dans le DOM (`context="id"`) s'enregistrent a ce moment.
  * @fires dsfr-data-source-command - `{ sourceId, where, whereKey, origin? }` sur `document` — clause `where` diffusee vers chaque source de `sources`, avec un whereKey stable par filtre (merge en AND cote source, ADR-031). `origin` (#603) nomme le composant emetteur : le bus etant plat, une trace ne pourrait sinon pas dire qui demande quoi.
  */
 @customElement('dsfr-data-context')

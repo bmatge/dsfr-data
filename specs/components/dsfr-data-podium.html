@@ -32,16 +32,18 @@
         <table class="attr-table">
           <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><code>source</code></td><td>String</td><td><code>""</code></td><td>ID du <code>&lt;dsfr-data-source&gt;</code> ou <code>&lt;dsfr-data-query&gt;</code> (requis)</td></tr>
-            <tr><td><code>label-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers le champ label (supporte dot notation)</td></tr>
-            <tr><td><code>value-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers le champ valeur numérique</td></tr>
-            <tr><td><code>subtitle</code></td><td>String</td><td><code>""</code></td><td>Texte fixe affiche sous chaque label</td></tr>
-            <tr><td><code>subtitle-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers un champ pour le sous-titre (prioritaire sur subtitle)</td></tr>
-            <tr><td><code>value-unit</code></td><td>String</td><td><code>""</code></td><td>Unite affichee apres la valeur</td></tr>
-            <tr><td><code>selected-palette</code></td><td>String</td><td><code>"sequentialDescending"</code></td><td>Palette de couleurs : sequentialDescending, sequentialAscending, categorical, neutral</td></tr>
-            <tr><td><code>max-items</code></td><td>Number</td><td><code>5</code></td><td>Nombre maximum d'items affiches</td></tr>
-            <tr><td><code>no-sort</code></td><td>Boolean</td><td><code>false</code></td><td>Desactive le tri automatique (desc par valeur)</td></tr>
-            <tr><td><code>bar-max</code></td><td>Number</td><td>-</td><td>Valeur max forcee pour les barres (ex: 100 pour des %)</td></tr>
+            <!-- ATTRS:dsfr-data-podium fields="source,label-field,value-field,subtitle,subtitle-field,value-unit,selected-palette,max-items,no-sort,bar-max" -->
+              <tr><td><code>source</code></td><td>String</td><td><code>""</code></td><td>Id de la source (ou du transformateur) dont ce composant consomme les données.</td></tr>
+              <tr><td><code>label-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers le champ label</td></tr>
+              <tr><td><code>value-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers le champ valeur (numérique)</td></tr>
+              <tr><td><code>subtitle</code></td><td>String</td><td><code>""</code></td><td>Texte fixe affiché sous chaque label</td></tr>
+              <tr><td><code>subtitle-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers un champ pour le sous-titre (prioritaire sur subtitle)</td></tr>
+              <tr><td><code>value-unit</code></td><td>String</td><td><code>""</code></td><td>Unité affichée après la valeur</td></tr>
+              <tr><td><code>selected-palette</code></td><td>String</td><td><code>sequentialDescending</code></td><td>Palette de couleurs pour la bordure gauche</td></tr>
+              <tr><td><code>max-items</code></td><td>Number</td><td><code>5</code></td><td>Nombre maximum d'items affichés</td></tr>
+              <tr><td><code>no-sort</code></td><td>Boolean</td><td><code>false</code></td><td>Desactive le tri automatique (desc par valeur)</td></tr>
+              <tr><td><code>bar-max</code></td><td>Number</td><td>—</td><td>Valeur max forcee pour le calcul des barres (ex: 100 pour des %)</td></tr>
+            <!-- /ATTRS -->
           </tbody>
         </table>
 
@@ -70,16 +72,16 @@
             max-items="5"
             bar-max="100">
           </dsfr-data-podium>
-          <div class="code-block"><pre>&lt;dsfr-data-podium
-  source="sites"
-  label-field="nom"
-  value-field="score_rgaa"
-  subtitle="Site gouvernemental"
-  value-unit="/ 100"
-  selected-palette="sequentialDescending"
-  max-items="5"
-  bar-max="100"&gt;
-&lt;/dsfr-data-podium&gt;</pre></div>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-podium</span>
+  <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"sites"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"nom"</span>
+  <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"score_rgaa"</span>
+  <span class="tok-attr">subtitle</span><span class="tok-punct">=</span><span class="tok-string">"Site gouvernemental"</span>
+  <span class="tok-attr">value-unit</span><span class="tok-punct">=</span><span class="tok-string">"/ 100"</span>
+  <span class="tok-attr">selected-palette</span><span class="tok-punct">=</span><span class="tok-string">"sequentialDescending"</span>
+  <span class="tok-attr">max-items</span><span class="tok-punct">=</span><span class="tok-string">"5"</span>
+  <span class="tok-attr">bar-max</span><span class="tok-punct">=</span><span class="tok-string">"100"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-podium</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <section class="demo-section">
@@ -94,16 +96,16 @@
             max-items="3"
             bar-max="100">
           </dsfr-data-podium>
-          <div class="code-block"><pre>&lt;dsfr-data-podium
-  source="sites"
-  label-field="nom"
-  value-field="score_dsfr"
-  subtitle="Conformite DSFR"
-  value-unit="%"
-  selected-palette="categorical"
-  max-items="3"
-  bar-max="100"&gt;
-&lt;/dsfr-data-podium&gt;</pre></div>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-podium</span>
+  <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"sites"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"nom"</span>
+  <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"score_dsfr"</span>
+  <span class="tok-attr">subtitle</span><span class="tok-punct">=</span><span class="tok-string">"Conformite DSFR"</span>
+  <span class="tok-attr">value-unit</span><span class="tok-punct">=</span><span class="tok-string">"%"</span>
+  <span class="tok-attr">selected-palette</span><span class="tok-punct">=</span><span class="tok-string">"categorical"</span>
+  <span class="tok-attr">max-items</span><span class="tok-punct">=</span><span class="tok-string">"3"</span>
+  <span class="tok-attr">bar-max</span><span class="tok-punct">=</span><span class="tok-string">"100"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-podium</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <section class="demo-section">
@@ -117,15 +119,15 @@
             bar-max="100"
             max-items="5">
           </dsfr-data-podium>
-          <div class="code-block"><pre>&lt;dsfr-data-podium
-  source="sites"
-  label-field="nom"
-  value-field="score_rgaa"
-  subtitle-field="ministere"
-  value-unit="/ 100"
-  bar-max="100"
-  max-items="5"&gt;
-&lt;/dsfr-data-podium&gt;</pre></div>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-podium</span>
+  <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"sites"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"nom"</span>
+  <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"score_rgaa"</span>
+  <span class="tok-attr">subtitle-field</span><span class="tok-punct">=</span><span class="tok-string">"ministere"</span>
+  <span class="tok-attr">value-unit</span><span class="tok-punct">=</span><span class="tok-string">"/ 100"</span>
+  <span class="tok-attr">bar-max</span><span class="tok-punct">=</span><span class="tok-string">"100"</span>
+  <span class="tok-attr">max-items</span><span class="tok-punct">=</span><span class="tok-string">"5"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-podium</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <section class="demo-section">
@@ -140,16 +142,16 @@
             bar-max="100"
             no-sort>
           </dsfr-data-podium>
-          <div class="code-block"><pre>&lt;dsfr-data-podium
-  source="sites"
-  label-field="nom"
-  value-field="score_rgaa"
-  value-unit="/ 100"
-  selected-palette="neutral"
-  max-items="5"
-  bar-max="100"
-  no-sort&gt;
-&lt;/dsfr-data-podium&gt;</pre></div>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-podium</span>
+  <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"sites"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"nom"</span>
+  <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"score_rgaa"</span>
+  <span class="tok-attr">value-unit</span><span class="tok-punct">=</span><span class="tok-string">"/ 100"</span>
+  <span class="tok-attr">selected-palette</span><span class="tok-punct">=</span><span class="tok-string">"neutral"</span>
+  <span class="tok-attr">max-items</span><span class="tok-punct">=</span><span class="tok-string">"5"</span>
+  <span class="tok-attr">bar-max</span><span class="tok-punct">=</span><span class="tok-string">"100"</span>
+  no-sort<span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-podium</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <section class="demo-section">
@@ -168,21 +170,21 @@
             bar-max="100"
             max-items="5">
           </dsfr-data-podium>
-          <div class="code-block"><pre>&lt;dsfr-data-query id="par-ministere" source="sites"
-  group-by="ministere"
-  aggregate="score_rgaa:avg:score_moyen"
-  order-by="score_moyen:desc"&gt;
-&lt;/dsfr-data-query&gt;
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-query</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"par-ministere"</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"sites"</span>
+  <span class="tok-attr">group-by</span><span class="tok-punct">=</span><span class="tok-string">"ministere"</span>
+  <span class="tok-attr">aggregate</span><span class="tok-punct">=</span><span class="tok-string">"score_rgaa:avg:score_moyen"</span>
+  <span class="tok-attr">order-by</span><span class="tok-punct">=</span><span class="tok-string">"score_moyen:desc"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-query</span><span class="tok-punct">&gt;</span>
 
-&lt;dsfr-data-podium
-  source="par-ministere"
-  label-field="ministere"
-  value-field="score_moyen"
-  subtitle="Score RGAA moyen"
-  value-unit="/ 100"
-  bar-max="100"
-  max-items="5"&gt;
-&lt;/dsfr-data-podium&gt;</pre></div>
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-podium</span>
+  <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"par-ministere"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"ministere"</span>
+  <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"score_moyen"</span>
+  <span class="tok-attr">subtitle</span><span class="tok-punct">=</span><span class="tok-string">"Score RGAA moyen"</span>
+  <span class="tok-attr">value-unit</span><span class="tok-punct">=</span><span class="tok-string">"/ 100"</span>
+  <span class="tok-attr">bar-max</span><span class="tok-punct">=</span><span class="tok-string">"100"</span>
+  <span class="tok-attr">max-items</span><span class="tok-punct">=</span><span class="tok-string">"5"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-podium</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
     </div>
   </app-layout-demo>

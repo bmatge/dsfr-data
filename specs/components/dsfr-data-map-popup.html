@@ -35,10 +35,12 @@
         <table class="attr-table">
           <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><code>mode</code></td><td>String</td><td><code>"popup"</code></td><td><code>popup</code> (infobulle Leaflet), <code>modal</code> (modale avec overlay), <code>panel-right</code> / <code>panel-left</code> (volet latéral ancré au conteneur de la carte)</td></tr>
-            <tr><td><code>title-field</code></td><td>String</td><td><code>""</code></td><td>Champ utilisé comme titre du panneau ou de la modale</td></tr>
-            <tr><td><code>width</code></td><td>String</td><td><code>"350px"</code></td><td>Largeur du panneau latéral (toute valeur CSS)</td></tr>
-            <tr><td><code>for</code></td><td>String</td><td><code>""</code></td><td>Ciblage de la couche : <code>id</code> <strong>ou</strong> valeur de l'attribut <code>source</code> d'un layer. Vide = matche toutes les couches de la carte.</td></tr>
+            <!-- ATTRS:dsfr-data-map-popup fields="mode,title-field,width,for" -->
+              <tr><td><code>mode</code></td><td>PopupMode</td><td><code>popup</code></td><td>Mode d'affichage : <code>popup</code> (bulle sur la carte), <code>modal</code>, <code>panel-right</code>, <code>panel-left</code>.</td></tr>
+              <tr><td><code>title-field</code></td><td>String</td><td><code>""</code></td><td>Champ utilise comme titre du panneau ou de la modale.</td></tr>
+              <tr><td><code>width</code></td><td>String</td><td><code>350px</code></td><td>Largeur du panneau lateral (modes <code>panel-*</code>).</td></tr>
+              <tr><td><code>for</code></td><td>String</td><td><code>""</code></td><td>Id du layer cible. Vide = tous les layers de la carte.</td></tr>
+            <!-- /ATTRS -->
           </tbody>
         </table>
 
@@ -103,51 +105,51 @@
 
         <section class="demo-section">
           <h3>1. Volet latéral avec template</h3>
-          <div class="code-block"><pre>&lt;dsfr-data-map center="46.5,2.6" zoom="6" tiles="ign-plan"&gt;
-  &lt;dsfr-data-map-layer source="territoires" type="geoshape"
-    geo-field="geojson" tooltip-field="nom"&gt;
-  &lt;/dsfr-data-map-layer&gt;
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map</span> <span class="tok-attr">center</span><span class="tok-punct">=</span><span class="tok-string">"46.5,2.6"</span> <span class="tok-attr">zoom</span><span class="tok-punct">=</span><span class="tok-string">"6"</span> <span class="tok-attr">tiles</span><span class="tok-punct">=</span><span class="tok-string">"ign-plan"</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map-layer</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"territoires"</span> <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"geoshape"</span>
+    <span class="tok-attr">geo-field</span><span class="tok-punct">=</span><span class="tok-string">"geojson"</span> <span class="tok-attr">tooltip-field</span><span class="tok-punct">=</span><span class="tok-string">"nom"</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map-layer</span><span class="tok-punct">&gt;</span>
 
-  &lt;dsfr-data-map-popup mode="panel-right" title-field="nom" width="400px"&gt;
-    &lt;template&gt;
-      &lt;p class="fr-badge fr-badge--info"&gt;{{statut|En cours}}&lt;/p&gt;
-      &lt;p&gt;&lt;strong&gt;{{habitants:number}}&lt;/strong&gt; habitants&lt;/p&gt;
-      &lt;p&gt;Contact : {{contact.email|non renseigné}}&lt;/p&gt;
-    &lt;/template&gt;
-  &lt;/dsfr-data-map-popup&gt;
-&lt;/dsfr-data-map&gt;</pre></div>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map-popup</span> <span class="tok-attr">mode</span><span class="tok-punct">=</span><span class="tok-string">"panel-right"</span> <span class="tok-attr">title-field</span><span class="tok-punct">=</span><span class="tok-string">"nom"</span> <span class="tok-attr">width</span><span class="tok-punct">=</span><span class="tok-string">"400px"</span><span class="tok-punct">&gt;</span>
+    <span class="tok-punct">&lt;</span><span class="tok-tag">template</span><span class="tok-punct">&gt;</span>
+      <span class="tok-punct">&lt;</span><span class="tok-tag">p</span> <span class="tok-attr">class</span><span class="tok-punct">=</span><span class="tok-string">"fr-badge fr-badge--info"</span><span class="tok-punct">&gt;</span>{{statut|En cours}}<span class="tok-punct">&lt;/</span><span class="tok-tag">p</span><span class="tok-punct">&gt;</span>
+      <span class="tok-punct">&lt;</span><span class="tok-tag">p</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;</span><span class="tok-tag">strong</span><span class="tok-punct">&gt;</span>{{habitants:number}}<span class="tok-punct">&lt;/</span><span class="tok-tag">strong</span><span class="tok-punct">&gt;</span> habitants<span class="tok-punct">&lt;/</span><span class="tok-tag">p</span><span class="tok-punct">&gt;</span>
+      <span class="tok-punct">&lt;</span><span class="tok-tag">p</span><span class="tok-punct">&gt;</span>Contact : {{contact.email|non renseigné}}<span class="tok-punct">&lt;/</span><span class="tok-tag">p</span><span class="tok-punct">&gt;</span>
+    <span class="tok-punct">&lt;/</span><span class="tok-tag">template</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map-popup</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <section class="demo-section fr-mt-4w">
           <h3>2. Modale sans template (tableau auto)</h3>
-          <div class="code-block"><pre>&lt;dsfr-data-map center="46.6,2.3" zoom="6"&gt;
-  &lt;dsfr-data-map-layer source="bornes" type="marker"
-    geo-field="geo_point_2d" tooltip-field="nom_station" cluster&gt;
-  &lt;/dsfr-data-map-layer&gt;
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map</span> <span class="tok-attr">center</span><span class="tok-punct">=</span><span class="tok-string">"46.6,2.3"</span> <span class="tok-attr">zoom</span><span class="tok-punct">=</span><span class="tok-string">"6"</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map-layer</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"bornes"</span> <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"marker"</span>
+    <span class="tok-attr">geo-field</span><span class="tok-punct">=</span><span class="tok-string">"geo_point_2d"</span> <span class="tok-attr">tooltip-field</span><span class="tok-punct">=</span><span class="tok-string">"nom_station"</span> cluster<span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map-layer</span><span class="tok-punct">&gt;</span>
 
-  &lt;!-- Sans template : tableau clé/valeur généré automatiquement --&gt;
-  &lt;dsfr-data-map-popup mode="modal" title-field="nom_station"&gt;&lt;/dsfr-data-map-popup&gt;
-&lt;/dsfr-data-map&gt;</pre></div>
+  <span class="tok-comment">&lt;!-- Sans template : tableau clé/valeur généré automatiquement --&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map-popup</span> <span class="tok-attr">mode</span><span class="tok-punct">=</span><span class="tok-string">"modal"</span> <span class="tok-attr">title-field</span><span class="tok-punct">=</span><span class="tok-string">"nom_station"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map-popup</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <section class="demo-section fr-mt-4w">
           <h3>3. Un popup par couche avec <code>for</code></h3>
-          <div class="code-block"><pre>&lt;dsfr-data-map center="46.6,2.3" zoom="6"&gt;
-  &lt;dsfr-data-map-layer id="couche-regions" source="regions" type="geoshape"
-    geo-field="geo_shape"&gt;&lt;/dsfr-data-map-layer&gt;
-  &lt;dsfr-data-map-layer source="prefectures" type="marker"
-    geo-field="geo_point_2d"&gt;&lt;/dsfr-data-map-layer&gt;
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map</span> <span class="tok-attr">center</span><span class="tok-punct">=</span><span class="tok-string">"46.6,2.3"</span> <span class="tok-attr">zoom</span><span class="tok-punct">=</span><span class="tok-string">"6"</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map-layer</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"couche-regions"</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"regions"</span> <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"geoshape"</span>
+    <span class="tok-attr">geo-field</span><span class="tok-punct">=</span><span class="tok-string">"geo_shape"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map-layer</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map-layer</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"prefectures"</span> <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"marker"</span>
+    <span class="tok-attr">geo-field</span><span class="tok-punct">=</span><span class="tok-string">"geo_point_2d"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map-layer</span><span class="tok-punct">&gt;</span>
 
-  &lt;!-- Cible le layer par id --&gt;
-  &lt;dsfr-data-map-popup for="couche-regions" mode="panel-right" title-field="reg_name"&gt;
-    &lt;template&gt;&lt;p&gt;{{population:number}} habitants&lt;/p&gt;&lt;/template&gt;
-  &lt;/dsfr-data-map-popup&gt;
+  <span class="tok-comment">&lt;!-- Cible le layer par id --&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map-popup</span> <span class="tok-attr">for</span><span class="tok-punct">=</span><span class="tok-string">"couche-regions"</span> <span class="tok-attr">mode</span><span class="tok-punct">=</span><span class="tok-string">"panel-right"</span> <span class="tok-attr">title-field</span><span class="tok-punct">=</span><span class="tok-string">"reg_name"</span><span class="tok-punct">&gt;</span>
+    <span class="tok-punct">&lt;</span><span class="tok-tag">template</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;</span><span class="tok-tag">p</span><span class="tok-punct">&gt;</span>{{population:number}} habitants<span class="tok-punct">&lt;/</span><span class="tok-tag">p</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">template</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map-popup</span><span class="tok-punct">&gt;</span>
 
-  &lt;!-- Cible le layer par source --&gt;
-  &lt;dsfr-data-map-popup for="prefectures" mode="popup"&gt;
-    &lt;template&gt;&lt;strong&gt;{{nom}}&lt;/strong&gt; — préfecture&lt;/template&gt;
-  &lt;/dsfr-data-map-popup&gt;
-&lt;/dsfr-data-map&gt;</pre></div>
+  <span class="tok-comment">&lt;!-- Cible le layer par source --&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map-popup</span> <span class="tok-attr">for</span><span class="tok-punct">=</span><span class="tok-string">"prefectures"</span> <span class="tok-attr">mode</span><span class="tok-punct">=</span><span class="tok-string">"popup"</span><span class="tok-punct">&gt;</span>
+    <span class="tok-punct">&lt;</span><span class="tok-tag">template</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;</span><span class="tok-tag">strong</span><span class="tok-punct">&gt;</span>{{nom}}<span class="tok-punct">&lt;/</span><span class="tok-tag">strong</span><span class="tok-punct">&gt;</span> — préfecture<span class="tok-punct">&lt;/</span><span class="tok-tag">template</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map-popup</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <h2 class="fr-mt-4w">Voir aussi</h2>

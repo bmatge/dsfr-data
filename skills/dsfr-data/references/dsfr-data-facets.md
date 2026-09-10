@@ -148,8 +148,8 @@ champs de type string avec 2 a 50 valeurs uniques (exclut les champs ID-like).
 | Attribut | Type | Défaut | Description |
 |---|---|---|---|
 | `cols` | `string` | `""` (vide) | Colonnage DSFR des facettes : "6" (global) ou "field:4 \| field2:6" (par facette) |
-| `context` | `string` | `""` (vide) | Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104). La facette devient alors un filtre du contexte, un par champ : c'est le contexte qui diffuse a ses sources cibles et qui porte l'URL (`url-sync` et `url-params` de la facette sont ignores — reporter `url-param-map` sur le contexte). Le contexte peut etre declare apres la facette dans la page. Vide = comportement autonome historique (commande directe a `source`). |
-| `disjunctive` | `string` | `""` (vide) | Champs en mode multi-selection OU (virgule-separes) |
+| `context` | `string` | `""` (vide) | Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104). La facette devient alors un filtre du contexte, un par champ : c'est le contexte qui diffuse a ses sources cibles et qui porte l'URL (`url-sync` et `url-params` de la facette sont ignorés — reporter `url-param-map` sur le contexte). Le contexte peut être déclaré après la facette dans la page. Vide = comportement autonome historique (commande directe à `source`). |
+| `disjunctive` | `string` | `""` (vide) | Champs en mode multi-sélection OU (virgule-séparés) |
 | `display` | `string` | `""` (vide) | Mode d'affichage par facette : "champ:mode \| champ2:mode". Défaut = checkbox. - `checkbox` : cases à cocher visibles dans un fieldset DSFR (sélection multiple) - `select` : liste déroulante native fr-select (sélection unique) - `multiselect` : menu déroulant repliable avec cases à cocher et recherche (sélection multiple) - `radio` : menu déroulant repliable contenant des boutons radio et une recherche (sélection unique) — sera renommé `radio-dropdown` dans une version majeure - `radio-inline` : boutons radio DSFR visibles en ligne, précédés d'une option « Tous » qui retire la sélection (sélection unique, #684) |
 | `fields` | `string` | `""` (vide) | Champs à exposer comme facettes (virgule-séparés). Vide = auto-détection sur les données chargées ; en `server-facets`, vide = découverte des facettes déclarées par le jeu de données (OpenDataSoft : métadonnées du jeu ; Grist : colonnes Choice/ChoiceList, #680) |
 | `hide-counts` | `boolean` | `false` | Masquer les compteurs a cote de chaque valeur de facette |
@@ -157,23 +157,23 @@ champs de type string avec 2 a 50 valeurs uniques (exclut les champs ID-like).
 | `labels` | `string` | `""` (vide) | Labels custom : "field:Label \| field2:Label 2" |
 | `max-values` | `number` | `6` | Nb de valeurs visibles par facette avant "Voir plus" |
 | `no-reset` | `boolean` | `false` | Masque le bouton local « Réinitialiser les filtres » (#679, #640 pt 9). À poser quand un dsfr-data-context-tags clear-all fait office de « tout effacer » pour la page (mode `context`), ou pour qu'une colonne de facettes ne change pas de hauteur à la première sélection. |
-| `searchable` | `string` | `""` (vide) | Champs avec barre de recherche (virgule-separes) |
+| `searchable` | `string` | `""` (vide) | Champs avec barre de recherche (virgule-séparés) |
 | `server-facets` | `boolean` | `false` | Active le mode facettes serveur ODS. Fetch les valeurs de facettes depuis l'API ODS /facets au lieu de les calculer localement. Requiert source pointant vers un dsfr-data-source avec api-type="opendatasoft" et server-side. Sans `fields`, un appel de découverte au premier cycle liste les facettes déclarées par le jeu (mémorisé, invalidé si la source ou `dataset-id` change, #680). Les facettes de type date (valeurs par année) sont filtrées par intervalle et non par égalité (#676). |
-| `sort` | `string` | `'count'` | Tri des valeurs de chaque facette, grammaire `critere:sens` alignee sur `order-by` de dsfr-data-query (#645) : - `count:desc` (defaut) : du plus frequent au plus rare - `count:asc` : du plus rare au plus frequent - `alpha:asc` : A -> Z (collation francaise) - `alpha:desc` : Z -> A Raccourcis : `count` = `count:desc`, `alpha` = `alpha:asc`. Formes `-count` / `-alpha` DEPRECIEES : conservees a l'identique (`-count` = rare d'abord, `-alpha` = Z -> A) mais un avertissement console invite a passer a la forme explicite ; retrait dans une version majeure. |
+| `sort` | `string` | `'count'` | Tri des valeurs de chaque facette, grammaire `critere:sens` alignée sur `order-by` de dsfr-data-query (#645) : - `count:desc` (défaut) : du plus fréquent au plus rare - `count:asc` : du plus rare au plus fréquent - `alpha:asc` : A -> Z (collation française) - `alpha:desc` : Z -> A Raccourcis : `count` = `count:desc`, `alpha` = `alpha:asc`. Formes `-count` / `-alpha` DÉPRÉCIÉES : conservées à l'identique (`-count` = rare d'abord, `-alpha` = Z -> A) mais un avertissement console invite a passer a la forme explicite ; retrait dans une version majeure. |
 | `source` | `string` | `""` (vide) | ID de la source de données a ecouter |
 | `static-values` | `string` | `""` (vide) | Valeurs de facettes pre-calculees (JSON). Format: {"field": ["val1", "val2"], "field2": ["a", "b"]} Quand cet attribut est défini, les facettes utilisent ces valeurs sans les calculer depuis les données. Les selections envoient des commandes WHERE en colon syntax (compatible Tabular / generique) au dsfr-data-query en amont. Attribut fields requis (pas d'auto-detection). |
 | `url-param-map` | `string` | `""` (vide) | Mapping URL param -> champ facette : "param:field \| param2:field2". Si vide, correspondance directe |
-| `url-params` | `boolean` | `false` | Active la lecture des parametres d'URL comme pre-selections de facettes |
-| `url-sync` | `boolean` | `false` | Synchronise l'URL quand l'utilisateur change les facettes (replaceState — pas d'entree d'historique par clic) |
+| `url-params` | `boolean` | `false` | Active la lecture des paramètres d'URL comme pré-sélections de facettes |
+| `url-sync` | `boolean` | `false` | Synchronise l'URL quand l'utilisateur change les facettes (replaceState — pas d'entrée d'historique par clic) |
 
 
 **Méthodes publiques**
 
 | Méthode | Retour | Description |
 |---|---|---|
-| `emitTransformerError(error: Error)` | `void` | Erreur amont en mode serveur AVANT toute decouverte (#676) : une selection annuelle issue de l'URL a pu etre emise en egalite sur un champ date (400) — la source n'emet alors aucune donnee, donc le cycle de facettes (et sa decouverte) n'aurait jamais lieu. On lance la decouverte ici et, si un champ date est concerne, on re-emet la commande en intervalle. Une seule tentative par jeu (decouverte memorisee). |
-| `getAdapter()` | `ApiAdapter \| null` | Retourne l'adapter de la source amont (delegation transparente). Permet aux composants en aval d'acceder a l'adapter sans connaitre la structure du pipeline. |
-| `getEffectiveWhere(excludeKey?: string | string[])` | `string` | Retourne le where effectif de la source amont (delegation transparente). |
+| `emitTransformerError(error: Error)` | `void` | Erreur amont en mode serveur AVANT toute decouverte (#676) : une selection annuelle issue de l'URL a pu être emise en egalite sur un champ date (400) — la source n'emet alors aucune donnee, donc le cycle de facettes (et sa decouverte) n'aurait jamais lieu. On lance la decouverte ici et, si un champ date est concerne, on re-emet la commande en intervalle. Une seule tentative par jeu (decouverte memorisee). |
+| `getAdapter()` | `ApiAdapter \| null` | Retourne l'adapter de la source amont (délégation transparente). Permet aux composants en aval d'acceder a l'adapter sans connaitre la structure du pipeline. |
+| `getEffectiveWhere(excludeKey?: string | string[])` | `string` | Retourne le where effectif de la source amont (délégation transparente). |
 
 
 **Événements** (émis sur `document` : ecouter via `document.addEventListener`, filtrer sur `detail.sourceId`)

@@ -35,10 +35,10 @@ export type PageItem = number | 'ellipsis';
  * motif DSFR : première/dernière page, ellipses, « Page N sur M ».
  *
  * Les alias francais (`colonnes`, `recherche`, `filtres`, `tri`, `server-tri`)
- * restent acceptes pour ne pas casser le code deja publie, mais sont
+ * restent acceptes pour ne pas casser le code déjà publie, mais sont
  * `@deprecated` depuis #300 : cet exemple montre les attributs COURANTS, pour
- * qui lit le composant. (Le custom-elements manifest ne capte pas les
- * `@example` de classe : la reference servie a l'assistant IA vient de
+ * qui lit le composant. (Le custom-éléments manifest ne capte pas les
+ * `@example` de classe : la référence servie a l'assistant IA vient de
  * `apps/builder-ia/src/skills.ts`, corrige separement — #615.)
  *
  * @example
@@ -127,7 +127,7 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
   @property({ type: String })
   export = '';
 
-  /** Synchronise le numero de page dans l'URL (replaceState) */
+  /** Synchronise le numéro de page dans l'URL (replaceState) */
   @property({ type: Boolean, attribute: 'url-sync' })
   urlSync = false;
 
@@ -166,7 +166,7 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
   /** True quand la source fournit des metadonnees de pagination serveur */
   @state()
 
-  /** Total serveur ; undefined = inconnu (ex. Grist Records hors derniere page) */
+  /** Total serveur ; undefined = inconnu (ex. Grist Records hors dernière page) */
 
   // Accesseurs de compatibilite (etat porte par le controleur #304)
   private get _currentPage(): number {

@@ -147,11 +147,11 @@ Quand la page est 1, le parametre est supprime de l'URL. Compatible avec les aut
 | `cols` | `number` | `1` | Nombre de colonnes dans la grille (1-6, défaut 1 = pleine largeur) |
 | `empty` | `string` | `'Aucun resultat'` | Message quand aucune donnee |
 | `gap` | `string` | `'fr-grid-row--gutters'` | Classe CSS de gap pour la grille (défaut: fr-grid-row--gutters) |
-| `pagination` | `number` | `0` | Nombre d'elements par page (0 = tout afficher) |
-| `source` | `string` | `""` (vide) | Id de la source (ou du transformateur) dont ce composant consomme les donnees. |
+| `pagination` | `number` | `0` | Nombre d'éléments par page (0 = tout afficher) |
+| `source` | `string` | `""` (vide) | Id de la source (ou du transformateur) dont ce composant consomme les données. |
 | `uid-field` | `string` | `""` (vide) | Champ de données a utiliser comme identifiant unique par item. Si vide, utilise l'index |
-| `url-page-param` | `string` | `'page'` | Nom du parametre URL pour la page (défaut: "page") |
-| `url-sync` | `boolean` | `false` | Synchronise le numero de page dans l'URL (replaceState) |
+| `url-page-param` | `string` | `'page'` | Nom du paramètre URL pour la page (défaut: "page") |
+| `url-sync` | `boolean` | `false` | Synchronise le numéro de page dans l'URL (replaceState) |
 
 
 

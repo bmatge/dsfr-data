@@ -46,13 +46,15 @@
         <table class="attr-table">
           <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><code>source</code></td><td>String</td><td><code>""</code></td><td>ID de la source de données (requis)</td></tr>
-            <tr><td><code>type</code></td><td>String</td><td><code>"marker"</code></td><td>Type de couche : <code>marker</code>, <code>geoshape</code>, <code>circle</code>, <code>heatmap</code></td></tr>
-            <tr><td><code>lat-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers la latitude (mode coordonnées séparées, avec <code>lon-field</code>)</td></tr>
-            <tr><td><code>lon-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers la longitude</td></tr>
-            <tr><td><code>geo-field</code></td><td>String</td><td><code>""</code></td><td>Champ géométrie. Formats acceptés : objet GeoJSON (<code>Point</code>, <code>Polygon</code>, <code>MultiPolygon</code>, <code>Feature</code>...), objet <code>{lat, lon}</code>, tableau <code>[lat, lon]</code>, <strong>ou chaîne JSON sérialisée</strong> de l'un de ces formats (#426 — colonnes Text Grist, CSV ; parse mémoïsé, cache 1&nbsp;000 entrées)</td></tr>
-            <tr><td><code>shape-class</code></td><td>String</td><td><code>""</code></td><td>Classe CSS appliquée aux tracés SVG (geoshape/circle) — permet des styles page ou motifs SVG <code>&lt;pattern&gt;</code> (hachures...)</td></tr>
-            <tr><td><code>no-interactive</code></td><td>Boolean</td><td><code>false</code></td><td>Couche <strong>décorative</strong> : aucun clic, aucun tooltip, aucun popup — et <strong>exclue du <code>fit-bounds</code></strong>. Pour les contours administratifs et l'habillage.</td></tr>
+            <!-- ATTRS:dsfr-data-map-layer fields="source,type,lat-field,lon-field,geo-field,shape-class,no-interactive" -->
+              <tr><td><code>source</code></td><td>String</td><td><code>""</code></td><td>Id de la source (ou du transformateur) dont cette couche consomme les données.</td></tr>
+              <tr><td><code>type</code></td><td><code>marker</code> · <code>geoshape</code> · <code>circle</code> · <code>heatmap</code></td><td><code>marker</code></td><td>Rendu de la couche : <code>marker</code> (epingles), <code>geoshape</code> (polygones/lignes GeoJSON), <code>circle</code> (cercles proportionnels), <code>heatmap</code> (carte de chaleur).</td></tr>
+              <tr><td><code>lat-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers le champ latitude (mode coordonnées séparées).</td></tr>
+              <tr><td><code>lon-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers le champ longitude (mode coordonnées séparées).</td></tr>
+              <tr><td><code>geo-field</code></td><td>String</td><td><code>""</code></td><td>Champ geometrie : objet GeoJSON, {lat, lon}, [lat, lon] ou chaîne JSON serialisee (#426)</td></tr>
+              <tr><td><code>shape-class</code></td><td>String</td><td><code>""</code></td><td>Classe CSS appliquee aux traces SVG de la couche (geoshape/circle) — permet un style page (motif hachure, pointilles...) via CSS/SVG &lt;pattern&gt;</td></tr>
+              <tr><td><code>no-interactive</code></td><td>Boolean</td><td><code>false</code></td><td>Couche decorative : aucune interaction (pas de clic, tooltip ni popup) — contours administratifs, habillage</td></tr>
+            <!-- /ATTRS -->
           </tbody>
         </table>
         <p class="fr-text--sm fr-text--light">
@@ -65,23 +67,37 @@
         <table class="attr-table">
           <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><code>popup-template</code></td><td>String</td><td><code>""</code></td><td><em>Legacy</em> — template avec interpolation simple accolade (échappée) : <code>"{nom} — {puissance} kW"</code>. Le compagnon <code>dsfr-data-map-popup</code> prime s'il est présent.</td></tr>
-            <tr><td><code>popup-fields</code></td><td>String</td><td><code>""</code></td><td><em>Legacy</em> — champs séparés par virgule pour un tableau auto au clic</td></tr>
-            <tr><td><code>tooltip-field</code></td><td>String</td><td><code>""</code></td><td>Champ affiché au survol (et texte alternatif des markers)</td></tr>
-            <tr><td><code>color</code></td><td>String</td><td><code>"#000091"</code></td><td>Couleur contours/markers (DSFR blue-france). Sert de repli si <code>color-map</code> ne matche pas.</td></tr>
-            <tr><td><code>color-field</code></td><td>String</td><td><code>""</code></td><td>Champ catégoriel dont la valeur détermine la couleur (avec <code>color-map</code>)</td></tr>
-            <tr><td><code>color-map</code></td><td>String</td><td><code>""</code></td><td>Paires <code>valeur:#couleur</code> séparées par virgule. Ex : <code>"1:#00A95F,2:#FF9940,3:#E1000F"</code></td></tr>
-            <tr><td><code>fill-field</code></td><td>String</td><td><code>""</code></td><td>Champ numérique pour une <strong>choroplèthe</strong> (geoshape) : classification par quantiles + palette</td></tr>
-            <tr><td><code>fill-opacity</code></td><td>Number</td><td><code>0.6</code></td><td>Opacité du remplissage (0-1)</td></tr>
-            <tr><td><code>selected-palette</code></td><td>String</td><td><code>""</code></td><td>Palette choroplèthe : <code>sequentialAscending</code> (défaut avec <code>fill-field</code>), <code>sequentialDescending</code>, <code>divergentAscending</code>, <code>divergentDescending</code>, <code>neutral</code>, <code>categorical</code></td></tr>
-            <tr><td><code>method</code></td><td>String</td><td><code>"quantile"</code></td><td>Méthode de discrétisation de la choroplèthe : <code>quantile</code> (défaut, effectifs égaux par classe), <code>equal</code> (intervalles de même largeur), <code>manual</code> (bornes de <code>breaks</code>)</td></tr>
-            <tr><td><code>classes</code></td><td>Number</td><td><code>0</code></td><td>Nombre de classes de la choroplèthe (<code>fill-field</code>). <code>0</code> (défaut) = autant de classes que de couleurs dans l'échelle (9). Plafonné à la taille de l'échelle (#685)</td></tr>
-            <tr><td><code>breaks</code></td><td>String</td><td><code>""</code></td><td>Bornes supérieures manuelles des classes, séparées par des virgules : <code>"10,50,100"</code> donne 4 classes (jusqu'à 10, 10 à 50, 50 à 100, plus de 100). Implique <code>method="manual"</code></td></tr>
-            <tr><td><code>radius</code></td><td>Number</td><td><code>8</code></td><td>Rayon fixe en pixels (circle)</td></tr>
-            <tr><td><code>radius-field</code></td><td>String</td><td><code>""</code></td><td>Champ pour un rayon variable (cercles proportionnels) : échelle linéaire entre <code>radius-min</code> et <code>radius-max</code> en px, ou valeur brute en mètres si <code>radius-unit="m"</code></td></tr>
-            <tr><td><code>radius-unit</code></td><td>String</td><td><code>"px"</code></td><td><code>px</code> (pixels écran, <code>L.circleMarker</code>) ou <code>m</code> (mètres réels sur le terrain, <code>L.circle</code>)</td></tr>
-            <tr><td><code>radius-min</code></td><td>Number</td><td><code>4</code></td><td>Rayon minimum de l'échelle px</td></tr>
-            <tr><td><code>radius-max</code></td><td>Number</td><td><code>30</code></td><td>Rayon maximum de l'échelle px</td></tr>
+            <!-- ATTRS:dsfr-data-map-layer fields="popup-template,popup-fields,tooltip-field,color,color-field,color-map,fill-field,fill-opacity,selected-palette,method,classes,breaks,radius,radius-field,radius-unit,radius-min,radius-max" -->
+              <tr><td><code>popup-template</code></td><td>String</td><td><code>""</code></td><td>Template du contenu de la popup, avec substitution de champs. Ex: <code>"{nom} — {val} kW"</code>.</td></tr>
+              <tr><td><code>popup-fields</code></td><td>String</td><td><code>""</code></td><td>Champs a presenter en tableau automatique dans la popup. Ex: <code>"nom,adresse"</code>.</td></tr>
+              <tr><td><code>tooltip-field</code></td><td>String</td><td><code>""</code></td><td>Champ affiché au survol de l'élément.</td></tr>
+              <tr><td><code>color</code></td><td>String</td><td><code>#000091</code></td><td>Couleur de la couche (défaut : blue-france DSFR). Sert aussi de repli quand <code>color-map</code> ne matche pas.</td></tr>
+              <tr><td><code>color-field</code></td><td>String</td><td><code>""</code></td><td>Champ dont la valeur détermine la couleur (mapping catégoriel via <code>color-map</code>).</td></tr>
+              <tr><td><code>color-map</code></td><td>String</td><td><code>""</code></td><td>Paires <code>valeur:#couleur</code> séparées par des virgules. Ex: <code>"1:#00A95F,2:#FF9940,3:#E1000F"</code>.</td></tr>
+              <tr><td><code>fill-field</code></td><td>String</td><td><code>""</code></td><td>Champ numérique utilisé pour le remplissage en choroplèthe.</td></tr>
+              <tr><td><code>fill-opacity</code></td><td>Number</td><td><code>0.6</code></td><td>Opacite du remplissage (0-1).</td></tr>
+              <tr><td><code>selected-palette</code></td><td>String</td><td><code>""</code></td><td>Palette DSFR utilisée pour le dégradé choroplèthe (<code>fill-field</code>) : <code>sequentialAscending</code> (défaut), <code>sequentialDescending</code>, <code>divergentAscending</code>, <code>divergentDescending</code>, <code>neutral</code>, <code>categorical</code>.</td></tr>
+              <tr><td><code>method</code></td><td><code>quantile</code> · <code>equal</code> · <code>manual</code></td><td><code>quantile</code></td><td>Méthode de discrétisation de la choroplèthe : <code>quantile</code> (défaut, effectifs égaux par classe), <code>equal</code> (intervalles de même largeur), <code>manual</code> (bornes de <code>breaks</code>).</td></tr>
+              <tr><td><code>classes</code></td><td>Number</td><td><code>0</code></td><td>Nombre de classes de la choroplèthe (<code>fill-field</code>). <code>0</code> (défaut) = autant de classes que de couleurs dans l'échelle (9). Plafonné à la taille de l'échelle (#685).</td></tr>
+              <tr><td><code>breaks</code></td><td>String</td><td><code>""</code></td><td>Bornes supérieures manuelles des classes, séparées par des virgules : <code>"10,50,100"</code> donne 4 classes (jusqu'à 10, 10 à 50, 50 à 100, plus de 100). Implique <code>method="manual"</code>.</td></tr>
+              <tr><td><code>radius</code></td><td>Number</td><td><code>8</code></td><td>Rayon fixe des cercles (<code>type="circle"</code>).</td></tr>
+              <tr><td><code>radius-field</code></td><td>String</td><td><code>""</code></td><td>Champ numérique pilotant un rayon variable (auto-scaling entre <code>radius-min</code> et <code>radius-max</code>).</td></tr>
+              <tr><td><code>radius-unit</code></td><td><code>px</code> · <code>m</code></td><td><code>px</code></td><td>Unité du rayon : <code>px</code> (constant à l'écran) ou <code>m</code> (mètres, suit le zoom).</td></tr>
+              <tr><td><code>radius-min</code></td><td>Number</td><td><code>4</code></td><td>Rayon minimum de l'auto-scaling, en pixels.</td></tr>
+              <tr><td><code>radius-max</code></td><td>Number</td><td><code>30</code></td><td>Rayon maximum de l'auto-scaling, en pixels.</td></tr>
+            <!-- /ATTRS -->
+          </tbody>
+        </table>
+
+        <h3>Filtrage au clic</h3>
+        <table class="attr-table">
+          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+          <tbody>
+            <!-- ATTRS:dsfr-data-map-layer fields="refine-on-click,context,label" -->
+              <tr><td><code>refine-on-click</code></td><td>String</td><td><code>""</code></td><td>Champ dont la valeur de l'objet cliqué devient un filtre <code>eq</code> (#681). Premier clic = filtre, second clic sur le même objet = retrait, clic sur un autre objet = remplacement. Avec <code>context="id"</code> (recommandé), la couche s'enregistre comme filtre du dsfr-data-context : diffusion à toutes ses sources cibles au dialecte de chacune, tag dans dsfr-data-context-tags, URL portée par le contexte. Sans <code>context</code>, la clause part directement à <code>source</code> (whereKey <code>map-select-ID</code>) — sans tag ni URL. Attention : si <code>source</code> est aussi une cible du contexte, la carte se filtre elle-même (seul l'objet cliqué reste, jusqu'au second clic) ; pour garder tous les points, ne pas lister cette source dans <code>sources</code> du contexte (ou donner à la carte sa propre source).</td></tr>
+              <tr><td><code>context</code></td><td>String</td><td><code>""</code></td><td>Id du dsfr-data-context auquel s'enregistrer en <code>refine-on-click</code> (#681, ADR-104). Le contexte peut être déclaré après la couche dans la page. Vide = commande directe à <code>source</code> (chemin dégradé).</td></tr>
+              <tr><td><code>label</code></td><td>String</td><td><code>""</code></td><td>Libellé de la couche — sert de libellé au tag du contexte en <code>refine-on-click</code> (#681). Vide = le nom du champ.</td></tr>
+            <!-- /ATTRS -->
           </tbody>
         </table>
 
@@ -89,9 +105,11 @@
         <table class="attr-table">
           <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><code>heat-radius</code></td><td>Number</td><td><code>25</code></td><td>Rayon de la heatmap en pixels</td></tr>
-            <tr><td><code>heat-blur</code></td><td>Number</td><td><code>15</code></td><td>Flou de la heatmap en pixels</td></tr>
-            <tr><td><code>heat-field</code></td><td>String</td><td><code>""</code></td><td>Champ numérique pour pondérer l'intensité (défaut : 1 par point). Repli en cercles translucides si le plugin leaflet.heat est indisponible.</td></tr>
+            <!-- ATTRS:dsfr-data-map-layer fields="heat-radius,heat-blur,heat-field" -->
+              <tr><td><code>heat-radius</code></td><td>Number</td><td><code>25</code></td><td>Rayon d'influence de chaque point de la heatmap, en pixels.</td></tr>
+              <tr><td><code>heat-blur</code></td><td>Number</td><td><code>15</code></td><td>Flou applique a la heatmap, en pixels.</td></tr>
+              <tr><td><code>heat-field</code></td><td>String</td><td><code>""</code></td><td>Champ de ponderation des points de la heatmap.</td></tr>
+            <!-- /ATTRS -->
           </tbody>
         </table>
 
@@ -99,8 +117,10 @@
         <table class="attr-table">
           <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><code>cluster</code></td><td>Boolean</td><td><code>false</code></td><td>Active le clustering (leaflet.markercluster, chargé dynamiquement ; styles DSFR small/medium/large)</td></tr>
-            <tr><td><code>cluster-radius</code></td><td>Number</td><td><code>80</code></td><td>Rayon de clustering en pixels</td></tr>
+            <!-- ATTRS:dsfr-data-map-layer fields="cluster,cluster-radius" -->
+              <tr><td><code>cluster</code></td><td>Boolean</td><td><code>false</code></td><td>Regroupe les marqueurs proches en clusters.</td></tr>
+              <tr><td><code>cluster-radius</code></td><td>Number</td><td><code>80</code></td><td>Rayon de regroupement des clusters, en pixels.</td></tr>
+            <!-- /ATTRS -->
           </tbody>
         </table>
 
@@ -108,11 +128,13 @@
         <table class="attr-table">
           <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><code>min-zoom</code></td><td>Number</td><td><code>0</code></td><td>Zoom minimum de visibilité de la couche</td></tr>
-            <tr><td><code>max-zoom</code></td><td>Number</td><td><code>18</code></td><td>Zoom maximum de visibilité de la couche</td></tr>
-            <tr><td><code>bbox</code></td><td>Boolean</td><td><code>false</code></td><td>Fetch piloté par le viewport : si l'adapter amont supporte la géo serveur (<code>serverGeo</code>, cas d'OpenDataSoft), chaque déplacement envoie une clause <code>in_bbox(champ, ...)</code> à la source ; sinon filtrage <strong>client</strong> des points et géométries (#297). La commande utilise <code>whereKey: "map-bbox"</code> (merge propre avec facettes et recherche), libérée au disconnect.</td></tr>
-            <tr><td><code>bbox-debounce</code></td><td>Number</td><td><code>300</code></td><td>Délai en ms après un pan/zoom avant re-fetch</td></tr>
-            <tr><td><code>bbox-field</code></td><td>String</td><td><code>""</code></td><td>Champ géo de la clause bbox (défaut : <code>geo-field</code> ou auto-détection)</td></tr>
+            <!-- ATTRS:dsfr-data-map-layer fields="min-zoom,max-zoom,bbox,bbox-debounce,bbox-field" -->
+              <tr><td><code>min-zoom</code></td><td>Number</td><td><code>0</code></td><td>Niveau de zoom en deca duquel la couche est masquee.</td></tr>
+              <tr><td><code>max-zoom</code></td><td>Number</td><td><code>18</code></td><td>Niveau de zoom au-delà duquel la couche est masquee.</td></tr>
+              <tr><td><code>bbox</code></td><td>Boolean</td><td><code>false</code></td><td>Chargement par viewport : re-interroge la source a chaque déplacement de la carte, et une première fois des que la carte est prête (#652). Le tout premier fetch de la source reste NON filtre (elle charge des sa connexion, avant que la carte — différée a la visibilité — ait un viewport) : sur un gros jeu, poser un <code>limit</code> ou un <code>where</code> initial sur la source.</td></tr>
+              <tr><td><code>bbox-debounce</code></td><td>Number</td><td><code>300</code></td><td>Délai d'anti-rebond avant le re-fetch bbox, en millisecondes.</td></tr>
+              <tr><td><code>bbox-field</code></td><td>String</td><td><code>""</code></td><td>Champ géographique utilisé pour la requête bbox (auto-détecté si vide).</td></tr>
+            <!-- /ATTRS -->
           </tbody>
         </table>
 
@@ -120,9 +142,11 @@
         <table class="attr-table">
           <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><code>time-field</code></td><td>String</td><td><code>""</code></td><td>Champ date/heure : active le découpage en pas de temps (frames), piloté par <a href="dsfr-data-map-timeline.html"><code>dsfr-data-map-timeline</code></a></td></tr>
-            <tr><td><code>time-bucket</code></td><td>String</td><td><code>"none"</code></td><td>Granularité de regroupement des dates : <code>none</code> (valeurs brutes), <code>hour</code>, <code>day</code>, <code>month</code>, <code>year</code></td></tr>
-            <tr><td><code>time-mode</code></td><td>String</td><td><code>"snapshot"</code></td><td><code>snapshot</code> (le pas courant seul) ou <code>cumulative</code> (tout jusqu'au pas courant)</td></tr>
+            <!-- ATTRS:dsfr-data-map-layer fields="time-field,time-bucket,time-mode" -->
+              <tr><td><code>time-field</code></td><td>String</td><td><code>""</code></td><td>Champ date/heure activant l'animation temporelle (pilotee par <code>&lt;dsfr-data-map-timeline&gt;</code>).</td></tr>
+              <tr><td><code>time-bucket</code></td><td><code>none</code> · <code>hour</code> · <code>day</code> · <code>month</code> · <code>year</code></td><td><code>none</code></td><td>Granularite des pas de temps : <code>none</code>, <code>hour</code>, <code>day</code>, <code>month</code>, <code>year</code>.</td></tr>
+              <tr><td><code>time-mode</code></td><td><code>snapshot</code> · <code>cumulative</code></td><td><code>snapshot</code></td><td>Rendu temporel : <code>snapshot</code> (seulement le pas courant) ou <code>cumulative</code> (tout jusqu'au pas courant).</td></tr>
+            <!-- /ATTRS -->
           </tbody>
         </table>
 
@@ -130,7 +154,9 @@
         <table class="attr-table">
           <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><code>max-items</code></td><td>Number</td><td><code>5000</code></td><td>Garde-fou : nombre maximum d'éléments rendus (0 = illimité). Au-delà, la couche tronque et affiche une <strong>bannière</strong> « N affichés sur M » (bannières empilées si plusieurs couches tronquent).</td></tr>
+            <!-- ATTRS:dsfr-data-map-layer fields="max-items" -->
+              <tr><td><code>max-items</code></td><td>Number</td><td><code>5000</code></td><td>Plafond du nombre d'éléments rendus sur la carte (défaut 5000). Il protège les marqueurs DOM (<code>divIcon</code>), le fit et les popups ; au-delà, un bandeau indique combien d'éléments sont affichés sur le total. Avec <code>cluster</code>, <code>max-items="20000"</code> est sans risque : les marqueurs regroupés ne pèsent pas sur le DOM. En mode <code>bbox</code>, zoomer recharge la zone visible ; hors <code>bbox</code>, seul un <code>max-items</code> plus haut (ou un filtre amont) affiche le reste.</td></tr>
+            <!-- /ATTRS -->
           </tbody>
         </table>
         <p class="fr-text--sm fr-text--light">
@@ -178,19 +204,19 @@
 
         <section class="demo-section">
           <h3>1. Markers clusterisés (bornes IRVE)</h3>
-          <div class="code-block"><pre>&lt;dsfr-data-source id="bornes" api-type="opendatasoft"
-  base-url="https://odre.opendatasoft.com" dataset-id="bornes-irve"
-  select="geo_point_2d,nom_station,puissance_nominale,adresse"
-  limit="5000"&gt;
-&lt;/dsfr-data-source&gt;
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-source</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"bornes"</span> <span class="tok-attr">api-type</span><span class="tok-punct">=</span><span class="tok-string">"opendatasoft"</span>
+  <span class="tok-attr">base-url</span><span class="tok-punct">=</span><span class="tok-string">"https://odre.opendatasoft.com"</span> <span class="tok-attr">dataset-id</span><span class="tok-punct">=</span><span class="tok-string">"bornes-irve"</span>
+  <span class="tok-attr">select</span><span class="tok-punct">=</span><span class="tok-string">"geo_point_2d,nom_station,puissance_nominale,adresse"</span>
+  <span class="tok-attr">limit</span><span class="tok-punct">=</span><span class="tok-string">"5000"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-source</span><span class="tok-punct">&gt;</span>
 
-&lt;dsfr-data-map center="46.6,2.3" zoom="6" tiles="ign-plan" fit-bounds&gt;
-  &lt;dsfr-data-map-layer source="bornes" type="marker"
-    geo-field="geo_point_2d"
-    tooltip-field="nom_station"
-    cluster cluster-radius="60"&gt;
-  &lt;/dsfr-data-map-layer&gt;
-&lt;/dsfr-data-map&gt;</pre></div>
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map</span> <span class="tok-attr">center</span><span class="tok-punct">=</span><span class="tok-string">"46.6,2.3"</span> <span class="tok-attr">zoom</span><span class="tok-punct">=</span><span class="tok-string">"6"</span> <span class="tok-attr">tiles</span><span class="tok-punct">=</span><span class="tok-string">"ign-plan"</span> fit-bounds<span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map-layer</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"bornes"</span> <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"marker"</span>
+    <span class="tok-attr">geo-field</span><span class="tok-punct">=</span><span class="tok-string">"geo_point_2d"</span>
+    <span class="tok-attr">tooltip-field</span><span class="tok-punct">=</span><span class="tok-string">"nom_station"</span>
+    cluster <span class="tok-attr">cluster-radius</span><span class="tok-punct">=</span><span class="tok-string">"60"</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map-layer</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <section class="demo-section fr-mt-4w">
@@ -200,80 +226,80 @@
             (<code>bbox</code>) au zoom local. Le contour de référence est une couche
             <code>no-interactive</code> : ni clic, ni tooltip, ni influence sur le fit.
           </p>
-          <div class="code-block"><pre>&lt;dsfr-data-source id="regions" api-type="opendatasoft"
-  base-url="https://public.opendatasoft.com" dataset-id="georef-france-region"
-  select="geo_shape,reg_name,population" limit="20"&gt;
-&lt;/dsfr-data-source&gt;
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-source</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"regions"</span> <span class="tok-attr">api-type</span><span class="tok-punct">=</span><span class="tok-string">"opendatasoft"</span>
+  <span class="tok-attr">base-url</span><span class="tok-punct">=</span><span class="tok-string">"https://public.opendatasoft.com"</span> <span class="tok-attr">dataset-id</span><span class="tok-punct">=</span><span class="tok-string">"georef-france-region"</span>
+  <span class="tok-attr">select</span><span class="tok-punct">=</span><span class="tok-string">"geo_shape,reg_name,population"</span> <span class="tok-attr">limit</span><span class="tok-punct">=</span><span class="tok-string">"20"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-source</span><span class="tok-punct">&gt;</span>
 
-&lt;dsfr-data-source id="communes" api-type="opendatasoft"
-  base-url="https://public.opendatasoft.com" dataset-id="georef-france-commune"
-  select="geo_shape,com_name,population" limit="500" server-side page-size="500"&gt;
-&lt;/dsfr-data-source&gt;
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-source</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"communes"</span> <span class="tok-attr">api-type</span><span class="tok-punct">=</span><span class="tok-string">"opendatasoft"</span>
+  <span class="tok-attr">base-url</span><span class="tok-punct">=</span><span class="tok-string">"https://public.opendatasoft.com"</span> <span class="tok-attr">dataset-id</span><span class="tok-punct">=</span><span class="tok-string">"georef-france-commune"</span>
+  <span class="tok-attr">select</span><span class="tok-punct">=</span><span class="tok-string">"geo_shape,com_name,population"</span> <span class="tok-attr">limit</span><span class="tok-punct">=</span><span class="tok-string">"500"</span> server-side <span class="tok-attr">page-size</span><span class="tok-punct">=</span><span class="tok-string">"500"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-source</span><span class="tok-punct">&gt;</span>
 
-&lt;dsfr-data-map center="46.6,2.3" zoom="6" tiles="ign-plan" height="600px"&gt;
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map</span> <span class="tok-attr">center</span><span class="tok-punct">=</span><span class="tok-string">"46.6,2.3"</span> <span class="tok-attr">zoom</span><span class="tok-punct">=</span><span class="tok-string">"6"</span> <span class="tok-attr">tiles</span><span class="tok-punct">=</span><span class="tok-string">"ign-plan"</span> <span class="tok-attr">height</span><span class="tok-punct">=</span><span class="tok-string">"600px"</span><span class="tok-punct">&gt;</span>
 
-  &lt;!-- Contours de référence, purement décoratifs --&gt;
-  &lt;dsfr-data-map-layer source="regions" type="geoshape"
-    geo-field="geo_shape" no-interactive
-    color="#7b7b7b" fill-opacity="0"&gt;
-  &lt;/dsfr-data-map-layer&gt;
+  <span class="tok-comment">&lt;!-- Contours de référence, purement décoratifs --&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map-layer</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"regions"</span> <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"geoshape"</span>
+    <span class="tok-attr">geo-field</span><span class="tok-punct">=</span><span class="tok-string">"geo_shape"</span> no-interactive
+    <span class="tok-attr">color</span><span class="tok-punct">=</span><span class="tok-string">"#7b7b7b"</span> <span class="tok-attr">fill-opacity</span><span class="tok-punct">=</span><span class="tok-string">"0"</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map-layer</span><span class="tok-punct">&gt;</span>
 
-  &lt;!-- Zoom 1-9 : régions --&gt;
-  &lt;dsfr-data-map-layer source="regions" type="geoshape"
-    geo-field="geo_shape" fill-field="population"
-    selected-palette="sequentialAscending"
-    tooltip-field="reg_name"
-    min-zoom="1" max-zoom="9"&gt;
-  &lt;/dsfr-data-map-layer&gt;
+  <span class="tok-comment">&lt;!-- Zoom 1-9 : régions --&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map-layer</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"regions"</span> <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"geoshape"</span>
+    <span class="tok-attr">geo-field</span><span class="tok-punct">=</span><span class="tok-string">"geo_shape"</span> <span class="tok-attr">fill-field</span><span class="tok-punct">=</span><span class="tok-string">"population"</span>
+    <span class="tok-attr">selected-palette</span><span class="tok-punct">=</span><span class="tok-string">"sequentialAscending"</span>
+    <span class="tok-attr">tooltip-field</span><span class="tok-punct">=</span><span class="tok-string">"reg_name"</span>
+    <span class="tok-attr">min-zoom</span><span class="tok-punct">=</span><span class="tok-string">"1"</span> <span class="tok-attr">max-zoom</span><span class="tok-punct">=</span><span class="tok-string">"9"</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map-layer</span><span class="tok-punct">&gt;</span>
 
-  &lt;!-- Zoom 10+ : communes dans le viewport (in_bbox côté ODS) --&gt;
-  &lt;dsfr-data-map-layer source="communes" type="geoshape"
-    geo-field="geo_shape" fill-field="population"
-    selected-palette="sequentialAscending"
-    tooltip-field="com_name"
-    min-zoom="10" bbox bbox-debounce="500"&gt;
-  &lt;/dsfr-data-map-layer&gt;
+  <span class="tok-comment">&lt;!-- Zoom 10+ : communes dans le viewport (in_bbox côté ODS) --&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map-layer</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"communes"</span> <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"geoshape"</span>
+    <span class="tok-attr">geo-field</span><span class="tok-punct">=</span><span class="tok-string">"geo_shape"</span> <span class="tok-attr">fill-field</span><span class="tok-punct">=</span><span class="tok-string">"population"</span>
+    <span class="tok-attr">selected-palette</span><span class="tok-punct">=</span><span class="tok-string">"sequentialAscending"</span>
+    <span class="tok-attr">tooltip-field</span><span class="tok-punct">=</span><span class="tok-string">"com_name"</span>
+    <span class="tok-attr">min-zoom</span><span class="tok-punct">=</span><span class="tok-string">"10"</span> bbox <span class="tok-attr">bbox-debounce</span><span class="tok-punct">=</span><span class="tok-string">"500"</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map-layer</span><span class="tok-punct">&gt;</span>
 
-&lt;/dsfr-data-map&gt;</pre></div>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <section class="demo-section fr-mt-4w">
           <h3>3. Cercles proportionnels (px) et zones réelles (m)</h3>
-          <div class="code-block"><pre>&lt;!-- Rayon écran : échelle linéaire radius-min..radius-max en pixels --&gt;
-&lt;dsfr-data-map-layer source="villes" type="circle"
-  lat-field="latitude" lon-field="longitude"
-  radius-field="population" radius-unit="px" radius-min="6" radius-max="35"
-  color="#000091" fill-opacity="0.4"
-  tooltip-field="nom"&gt;
-&lt;/dsfr-data-map-layer&gt;
+          <div class="code-block"><pre><span class="tok-comment">&lt;!-- Rayon écran : échelle linéaire radius-min..radius-max en pixels --&gt;</span>
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map-layer</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"villes"</span> <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"circle"</span>
+  <span class="tok-attr">lat-field</span><span class="tok-punct">=</span><span class="tok-string">"latitude"</span> <span class="tok-attr">lon-field</span><span class="tok-punct">=</span><span class="tok-string">"longitude"</span>
+  <span class="tok-attr">radius-field</span><span class="tok-punct">=</span><span class="tok-string">"population"</span> <span class="tok-attr">radius-unit</span><span class="tok-punct">=</span><span class="tok-string">"px"</span> <span class="tok-attr">radius-min</span><span class="tok-punct">=</span><span class="tok-string">"6"</span> <span class="tok-attr">radius-max</span><span class="tok-punct">=</span><span class="tok-string">"35"</span>
+  <span class="tok-attr">color</span><span class="tok-punct">=</span><span class="tok-string">"#000091"</span> <span class="tok-attr">fill-opacity</span><span class="tok-punct">=</span><span class="tok-string">"0.4"</span>
+  <span class="tok-attr">tooltip-field</span><span class="tok-punct">=</span><span class="tok-string">"nom"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map-layer</span><span class="tok-punct">&gt;</span>
 
-&lt;!-- Rayon terrain : la valeur du champ est un rayon en mètres (L.circle) --&gt;
-&lt;dsfr-data-map-layer source="antennes" type="circle"
-  lat-field="lat" lon-field="lon"
-  radius-field="portee_m" radius-unit="m"
-  color="#C9191E" fill-opacity="0.15"&gt;
-&lt;/dsfr-data-map-layer&gt;</pre></div>
+<span class="tok-comment">&lt;!-- Rayon terrain : la valeur du champ est un rayon en mètres (L.circle) --&gt;</span>
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map-layer</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"antennes"</span> <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"circle"</span>
+  <span class="tok-attr">lat-field</span><span class="tok-punct">=</span><span class="tok-string">"lat"</span> <span class="tok-attr">lon-field</span><span class="tok-punct">=</span><span class="tok-string">"lon"</span>
+  <span class="tok-attr">radius-field</span><span class="tok-punct">=</span><span class="tok-string">"portee_m"</span> <span class="tok-attr">radius-unit</span><span class="tok-punct">=</span><span class="tok-string">"m"</span>
+  <span class="tok-attr">color</span><span class="tok-punct">=</span><span class="tok-string">"#C9191E"</span> <span class="tok-attr">fill-opacity</span><span class="tok-punct">=</span><span class="tok-string">"0.15"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map-layer</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <section class="demo-section fr-mt-4w">
           <h3>4. Animation temporelle</h3>
-          <div class="code-block"><pre>&lt;dsfr-data-source id="bornes-trim" data='[
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-source</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"bornes-trim"</span> data='[
   {"region":"Paris","lat":48.85,"lon":2.35,"bornes":120,"date":"2025-T1"},
   {"region":"Lyon","lat":45.76,"lon":4.83,"bornes":85,"date":"2025-T1"},
   {"region":"Paris","lat":48.85,"lon":2.35,"bornes":250,"date":"2025-T2"},
   {"region":"Lyon","lat":45.76,"lon":4.83,"bornes":160,"date":"2025-T2"}
-]'&gt;&lt;/dsfr-data-source&gt;
+]'<span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-source</span><span class="tok-punct">&gt;</span>
 
-&lt;dsfr-data-map center="46.6,2.3" zoom="6" height="550px"&gt;
-  &lt;dsfr-data-map-layer source="bornes-trim" type="circle"
-    lat-field="lat" lon-field="lon"
-    radius-field="bornes" radius-min="6" radius-max="35"
-    color="#000091" fill-opacity="0.5"
-    tooltip-field="region"
-    time-field="date" time-mode="snapshot"&gt;
-  &lt;/dsfr-data-map-layer&gt;
-  &lt;dsfr-data-map-timeline speed="1" interval="1500"&gt;&lt;/dsfr-data-map-timeline&gt;
-&lt;/dsfr-data-map&gt;</pre></div>
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map</span> <span class="tok-attr">center</span><span class="tok-punct">=</span><span class="tok-string">"46.6,2.3"</span> <span class="tok-attr">zoom</span><span class="tok-punct">=</span><span class="tok-string">"6"</span> <span class="tok-attr">height</span><span class="tok-punct">=</span><span class="tok-string">"550px"</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map-layer</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"bornes-trim"</span> <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"circle"</span>
+    <span class="tok-attr">lat-field</span><span class="tok-punct">=</span><span class="tok-string">"lat"</span> <span class="tok-attr">lon-field</span><span class="tok-punct">=</span><span class="tok-string">"lon"</span>
+    <span class="tok-attr">radius-field</span><span class="tok-punct">=</span><span class="tok-string">"bornes"</span> <span class="tok-attr">radius-min</span><span class="tok-punct">=</span><span class="tok-string">"6"</span> <span class="tok-attr">radius-max</span><span class="tok-punct">=</span><span class="tok-string">"35"</span>
+    <span class="tok-attr">color</span><span class="tok-punct">=</span><span class="tok-string">"#000091"</span> <span class="tok-attr">fill-opacity</span><span class="tok-punct">=</span><span class="tok-string">"0.5"</span>
+    <span class="tok-attr">tooltip-field</span><span class="tok-punct">=</span><span class="tok-string">"region"</span>
+    <span class="tok-attr">time-field</span><span class="tok-punct">=</span><span class="tok-string">"date"</span> <span class="tok-attr">time-mode</span><span class="tok-punct">=</span><span class="tok-string">"snapshot"</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map-layer</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map-timeline</span> <span class="tok-attr">speed</span><span class="tok-punct">=</span><span class="tok-string">"1"</span> <span class="tok-attr">interval</span><span class="tok-punct">=</span><span class="tok-string">"1500"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map-timeline</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <h2 class="fr-mt-4w">Voir aussi</h2>

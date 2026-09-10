@@ -16,8 +16,8 @@ import { PaginationController } from '../utils/pagination-controller.js';
  * <dsfr-data-display> - Affichage dynamique de données via template HTML
  *
  * Recupere les données d'une source et les injecte dans un template HTML
- * défini par l'utilisateur, en generant autant d'elements qu'il y a de
- * resultats. Ideal pour créer des listes de cartes, tuiles, ou tout
+ * défini par l'utilisateur, en generant autant d'éléments qu'il y a de
+ * résultats. Ideal pour créer des listes de cartes, tuiles, ou tout
  * autre motif repetitif DSFR.
  *
  * Le template utilise des placeholders, grammaire `{{chemin[:format[:arg]][|défaut]}}` :
@@ -62,7 +62,7 @@ let displayInstanceSeq = 0;
 export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
   /** Prefixe d'ids DOM unique par instance (#304 — item-N duplique entre displays) */
   private readonly _uid = `dsfr-display-${++displayInstanceSeq}`;
-  /** Id de la source (ou du transformateur) dont ce composant consomme les donnees. */
+  /** Id de la source (ou du transformateur) dont ce composant consomme les données. */
   @property({ type: String })
   source = '';
 
@@ -70,7 +70,7 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
   @property({ type: Number })
   cols = 1;
 
-  /** Nombre d'elements par page (0 = tout afficher) */
+  /** Nombre d'éléments par page (0 = tout afficher) */
   @property({ type: Number })
   pagination = 0;
 
@@ -86,11 +86,11 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'uid-field' })
   uidField = '';
 
-  /** Synchronise le numero de page dans l'URL (replaceState) */
+  /** Synchronise le numéro de page dans l'URL (replaceState) */
   @property({ type: Boolean, attribute: 'url-sync' })
   urlSync = false;
 
-  /** Nom du parametre URL pour la page (défaut: "page") */
+  /** Nom du paramètre URL pour la page (défaut: "page") */
   @property({ type: String, attribute: 'url-page-param' })
   urlPageParam = 'page';
 
@@ -124,7 +124,7 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
   /** True quand la source fournit des metadonnees de pagination serveur */
   @state()
 
-  /** Total serveur ; undefined = inconnu (ex. Grist Records hors derniere page) */
+  /** Total serveur ; undefined = inconnu (ex. Grist Records hors dernière page) */
   private _templateContent = '';
 
   private _hashScrollDone = false;

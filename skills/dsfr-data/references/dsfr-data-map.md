@@ -399,20 +399,20 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | Attribut | Type | Défaut | Description |
 |---|---|---|---|
 | `center` | `string` | `'46.603,2.888'` | Centre initial de la carte, au format `"lat,lon"`. |
-| `fit-bounds` | `boolean` | `false` | Ajuste le viewport aux donnees a chaque mise a jour. Combine a `max-bounds`, l'emprise est clippee a la zone : les DROM ne dezooment pas la vue, un filtre regional zoome dessus. |
-| `fit-max-zoom` | `number` | `0` | Zoom maximal atteint par `fit-bounds` (ex. `12`) : evite le zoom 18 sur un point isole quand les donnees se reduisent a un marqueur. `0` (defaut) = pas de plafond, `max-zoom` s'applique. |
+| `fit-bounds` | `boolean` | `false` | Ajuste le viewport aux données à chaque mise à jour. Combiné à `max-bounds`, l'emprise est clippée à la zone : les DROM ne dézooment pas la vue, un filtre régional zoome dessus. |
+| `fit-max-zoom` | `number` | `0` | Zoom maximal atteint par `fit-bounds` (ex. `12`) : évite le zoom 18 sur un point isolé quand les données se réduisent à un marqueur. `0` (défaut) = pas de plafond, `max-zoom` s'applique. |
 | `fit-zone` | `string` | `""` (vide) | Zone sur laquelle `fit-bounds` est clippé, au format `"latSW,lonSW,latNE,lonNE"` — le pan reste libre. Défaut : `max-bounds` s'il est renseigné ; sinon la métropole (`41,-5.5,51.5,10`) dès que la carte porte un encart ultramarin (`insets="drom"`…), pour que les DROM ne dézooment pas la vue ; sinon aucune zone. `fit-zone="none"` désactive le clip (#687). |
 | `height` | `string` | `'500px'` | Hauteur CSS (px, vh, rem). Un `%` est un ratio de la LARGEUR (ex: `"60%"` = 60 % de la largeur). |
-| `insets` | `string` | `""` (vide) | Raccourci encarts territoriaux : groupe ("drom") et/ou territoires nommes separes par des virgules ("drom,corse", "guadeloupe,saint-pierre-et-miquelon") |
+| `insets` | `string` | `""` (vide) | Raccourci encarts territoriaux : groupe ("drom") et/ou territoires nommés séparés par des virgules ("drom,corse", "guadeloupe,saint-pierre-et-miquelon") |
 | `locked` | `boolean` | `false` | Carte verrouillee : aucune interaction (pan/zoom/clavier) — encarts, vignettes |
-| `max-bounds` | `string` | `""` (vide) | Limites du deplacement, au format `"latSW,lonSW,latNE,lonNE"`. Clippe aussi le fit de `fit-bounds` quand `fit-zone` est vide. |
+| `max-bounds` | `string` | `""` (vide) | Limites du déplacement, au format `"latSW,lonSW,latNE,lonNE"`. Clippe aussi le fit de `fit-bounds` quand `fit-zone` est vide. |
 | `max-zoom` | `number` | `18` | Zoom maximum autorise. |
 | `min-zoom` | `number` | `2` | Zoom minimum autorise. |
 | `name` | `string` | `""` (vide) | Titre de la carte, utilise comme nom accessible (aria-label). |
 | `no-controls` | `boolean` | `false` | Masque les controles de zoom. |
 | `sovereign-only` | `boolean` | `false` | Restreint `tiles` aux presets IGN souverains : tout autre preset ou URL custom est refuse (console.warn) et remplace par `ign-plan`. |
 | `tiles` | `string` | `'ign-plan'` | Fond de carte : `ign-plan`, `ign-ortho`, `ign-cadastre`, `osm-fr` (alias `osm`), `osm-standard`, `opentopomap`, ou une URL template. Presets deprecies (redirigent vers `ign-plan` avec un warning) : `ign-topo`, `carto-positron`, `carto-dark`. |
-| `tiles-attribution` | `string` | `""` (vide) | Mention d'attribution affichee sur la carte quand `tiles` est une URL custom (obligatoire pour respecter l'ODbL et les CGU du fournisseur). Ignore sur un preset connu, qui porte deja son attribution. Accepte du HTML (liens). |
+| `tiles-attribution` | `string` | `""` (vide) | Mention d'attribution affichée sur la carte quand `tiles` est une URL custom (obligatoire pour respecter l'ODbL et les CGU du fournisseur). Ignoré sur un preset connu, qui porte déjà son attribution. Accepte du HTML (liens). |
 | `tiles-style` | `'' \| 'muted' \| 'grey'` | `""` (vide) | Atténuation du fond de carte pour les cartes thématiques : `muted` (gris + 55 % d'opacité), `grey` (niveaux de gris). Vide (défaut) : fond tel quel. Filtre CSS sur le volet des tuiles de cette carte seulement ; les encarts héritent du réglage. Un fond « neutre » = `ign-plan` + `tiles-style="muted"` (#686). |
 | `zoom` | `number` | `6` | Niveau de zoom initial (1-18). |
 
@@ -423,8 +423,8 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 |---|---|---|
 | `announceToScreenReader(message: string)` | `void` | Annonce un message aux screen readers via la live region |
 | `getLeafletLib()` | `typeof import('leaflet') \| null` | Retourne le module Leaflet charge (pour les layers) |
-| `getLeafletMap()` | `LeafletMap \| null` | Retourne l'instance Leaflet L.Map (ou null si pas encore prete) |
-| `registerLayerBounds(layerKey: string, bounds: import('leaflet').LatLngBounds)` | `void` | Notifie la carte qu'un layer a ses bounds prets (pour fit-bounds). Stockes PAR layer avec remplacement a chaque rendu (#294) : l'ancien push cumulait les bounds HISTORIQUES — la carte ne pouvait jamais retrecir sa vue quand les donnees diminuaient, et le tableau grossissait a chaque refresh / frame de timeline / pan en bbox client. |
+| `getLeafletMap()` | `LeafletMap \| null` | Retourne l'instance Leaflet L.Map (ou null si pas encore prête) |
+| `registerLayerBounds(layerKey: string, bounds: import('leaflet').LatLngBounds)` | `void` | Notifie la carte qu'un layer a ses bounds prets (pour fit-bounds). Stockes PAR layer avec remplacement a chaque rendu (#294) : l'ancien push cumulait les bounds HISTORIQUES — la carte ne pouvait jamais retrecir sa vue quand les données diminuaient, et le tableau grossissait a chaque refresh / frame de timeline / pan en bbox client. |
 | `resolveFitZone()` | `string` | Zone de clip du fit (#687) : `fit-zone` explicite (`none` = aucune), sinon `max-bounds`, sinon la metropole des qu'un encart ultramarin est present (raccourci `insets` ou enfant dsfr-data-map-inset explicite) — le clip ne touche que le fit, jamais le pan. Expose pour les tests. |
 | `unregisterLayerBounds(layerKey: string)` | `void` | Libere les bounds d'un layer retire (#294) |
 | `updateDescription(layerSummaries: string[])` | `void` | Met a jour la description de la carte (appele par les layers quand les données changent) |
@@ -446,8 +446,8 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 
 | Attribut | Type | Défaut | Description |
 |---|---|---|---|
-| `bbox` | `boolean` | `false` | Chargement par viewport : re-interroge la source a chaque deplacement de la carte, et une premiere fois des que la carte est prete (#652). Le tout premier fetch de la source reste NON filtre (elle charge des sa connexion, avant que la carte — differee a la visibilite — ait un viewport) : sur un gros jeu, poser un `limit` ou un `where` initial sur la source. |
-| `bbox-debounce` | `number` | `300` | Delai d'anti-rebond avant le re-fetch bbox, en millisecondes. |
+| `bbox` | `boolean` | `false` | Chargement par viewport : re-interroge la source a chaque déplacement de la carte, et une première fois des que la carte est prête (#652). Le tout premier fetch de la source reste NON filtre (elle charge des sa connexion, avant que la carte — différée a la visibilité — ait un viewport) : sur un gros jeu, poser un `limit` ou un `where` initial sur la source. |
+| `bbox-debounce` | `number` | `300` | Délai d'anti-rebond avant le re-fetch bbox, en millisecondes. |
 | `bbox-field` | `string` | `""` (vide) | Champ géographique utilisé pour la requête bbox (auto-détecté si vide). |
 | `breaks` | `string` | `""` (vide) | Bornes supérieures manuelles des classes, séparées par des virgules : `"10,50,100"` donne 4 classes (jusqu'à 10, 10 à 50, 50 à 100, plus de 100). Implique `method="manual"`. |
 | `classes` | `number` | `0` | Nombre de classes de la choroplèthe (`fill-field`). `0` (défaut) = autant de classes que de couleurs dans l'échelle (9). Plafonné à la taille de l'échelle (#685). |
@@ -455,19 +455,19 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `cluster-radius` | `number` | `80` | Rayon de regroupement des clusters, en pixels. |
 | `color` | `string` | `'#000091'` | Couleur de la couche (défaut : blue-france DSFR). Sert aussi de repli quand `color-map` ne matche pas. |
 | `color-field` | `string` | `""` (vide) | Champ dont la valeur détermine la couleur (mapping catégoriel via `color-map`). |
-| `color-map` | `string` | `""` (vide) | Paires `valeur:#couleur` separees par des virgules. Ex: `"1:#00A95F,2:#FF9940,3:#E1000F"`. |
+| `color-map` | `string` | `""` (vide) | Paires `valeur:#couleur` séparées par des virgules. Ex: `"1:#00A95F,2:#FF9940,3:#E1000F"`. |
 | `context` | `string` | `""` (vide) | Id du dsfr-data-context auquel s'enregistrer en `refine-on-click` (#681, ADR-104). Le contexte peut être déclaré après la couche dans la page. Vide = commande directe à `source` (chemin dégradé). |
 | `fill-field` | `string` | `""` (vide) | Champ numérique utilisé pour le remplissage en choroplèthe. |
 | `fill-opacity` | `number` | `0.6` | Opacite du remplissage (0-1). |
-| `geo-field` | `string` | `""` (vide) | Champ geometrie : objet GeoJSON, {lat, lon}, [lat, lon] ou chaine JSON serialisee (#426) |
+| `geo-field` | `string` | `""` (vide) | Champ geometrie : objet GeoJSON, {lat, lon}, [lat, lon] ou chaîne JSON serialisee (#426) |
 | `heat-blur` | `number` | `15` | Flou applique a la heatmap, en pixels. |
 | `heat-field` | `string` | `""` (vide) | Champ de ponderation des points de la heatmap. |
 | `heat-radius` | `number` | `25` | Rayon d'influence de chaque point de la heatmap, en pixels. |
 | `label` | `string` | `""` (vide) | Libellé de la couche — sert de libellé au tag du contexte en `refine-on-click` (#681). Vide = le nom du champ. |
-| `lat-field` | `string` | `""` (vide) | Chemin vers le champ latitude (mode coordonnees separees). |
-| `lon-field` | `string` | `""` (vide) | Chemin vers le champ longitude (mode coordonnees separees). |
-| `max-items` | `number` | `5000` | Plafond du nombre d'elements rendus sur la carte (défaut 5000). Il protege les marqueurs DOM (`divIcon`), le fit et les popups ; au-dela, un bandeau indique combien d'elements sont affiches sur le total. Avec `cluster`, `max-items="20000"` est sans risque : les marqueurs regroupes ne pesent pas sur le DOM. En mode `bbox`, zoomer recharge la zone visible ; hors `bbox`, seul un `max-items` plus haut (ou un filtre amont) affiche le reste. |
-| `max-zoom` | `number` | `18` | Niveau de zoom au-dela duquel la couche est masquee. |
+| `lat-field` | `string` | `""` (vide) | Chemin vers le champ latitude (mode coordonnées séparées). |
+| `lon-field` | `string` | `""` (vide) | Chemin vers le champ longitude (mode coordonnées séparées). |
+| `max-items` | `number` | `5000` | Plafond du nombre d'éléments rendus sur la carte (défaut 5000). Il protège les marqueurs DOM (`divIcon`), le fit et les popups ; au-delà, un bandeau indique combien d'éléments sont affichés sur le total. Avec `cluster`, `max-items="20000"` est sans risque : les marqueurs regroupés ne pèsent pas sur le DOM. En mode `bbox`, zoomer recharge la zone visible ; hors `bbox`, seul un `max-items` plus haut (ou un filtre amont) affiche le reste. |
+| `max-zoom` | `number` | `18` | Niveau de zoom au-delà duquel la couche est masquee. |
 | `method` | `'quantile' \| 'equal' \| 'manual'` | `'quantile'` | Méthode de discrétisation de la choroplèthe : `quantile` (défaut, effectifs égaux par classe), `equal` (intervalles de même largeur), `manual` (bornes de `breaks`). |
 | `min-zoom` | `number` | `0` | Niveau de zoom en deca duquel la couche est masquee. |
 | `no-interactive` | `boolean` | `false` | Couche decorative : aucune interaction (pas de clic, tooltip ni popup) — contours administratifs, habillage |
@@ -485,7 +485,7 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `time-bucket` | `'none' \| 'hour' \| 'day' \| 'month' \| 'year'` | `'none'` | Granularite des pas de temps : `none`, `hour`, `day`, `month`, `year`. |
 | `time-field` | `string` | `""` (vide) | Champ date/heure activant l'animation temporelle (pilotee par `<dsfr-data-map-timeline>`). |
 | `time-mode` | `'snapshot' \| 'cumulative'` | `'snapshot'` | Rendu temporel : `snapshot` (seulement le pas courant) ou `cumulative` (tout jusqu'au pas courant). |
-| `tooltip-field` | `string` | `""` (vide) | Champ affiche au survol de l'element. |
+| `tooltip-field` | `string` | `""` (vide) | Champ affiché au survol de l'élément. |
 | `type` | `'marker' \| 'geoshape' \| 'circle' \| 'heatmap'` | `'marker'` | Rendu de la couche : `marker` (epingles), `geoshape` (polygones/lignes GeoJSON), `circle` (cercles proportionnels), `heatmap` (carte de chaleur). |
 
 
@@ -494,9 +494,9 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | Méthode | Retour | Description |
 |---|---|---|
 | `getLegendEntries()` | `LegendEntry[]` | Entrées de légende du dernier rendu (#685) : les classes de `fill-field` avec leurs bornes (choroplèthe), sinon les paires de `color-map` plus le repli `color` s'il a servi, sinon la seule couleur de la couche (libellé vide, à fournir par la légende). Consommé par dsfr-data-map-legend, qui se rafraîchit sur `dsfr-data-map-layer-render`. |
-| `getRenderedCount()` | `number` | Nombre d'elements effectivement dessines au dernier rendu (marqueurs, formes, cercles ou points de chaleur). Contrairement au comptage DOM, ce compte n'inclut pas les bulles de cluster et couvre la heatmap (un seul canvas pour N points) — expose pour les diagnostics (#482). |
+| `getRenderedCount()` | `number` | Nombre d'éléments effectivement dessines au dernier rendu (marqueurs, formes, cercles ou points de chaleur). Contrairement au comptage DOM, ce compte n'inclut pas les bulles de cluster et couvre la heatmap (un seul canvas pour N points) — expose pour les diagnostics (#482). |
 | `getSelectedRecord()` | `Record<string, unknown> \| null` | Objet actuellement sélectionné (null hors sélection) |
-| `getSkippedCount()` | `number` | Nombre de lignes ignorees au dernier rendu faute de position exploitable (coordonnees ou geometrie absentes ou invalides). Journalise une fois par rendu et remonte dans la trace du volet Diagnostic (#648, #604). |
+| `getSkippedCount()` | `number` | Nombre de lignes ignorees au dernier rendu faute de position exploitable (coordonnées ou geometrie absentes ou invalides). Journalise une fois par rendu et remonte dans la trace du volet Diagnostic (#648, #604). |
 | `getTimeSteps()` | `string[]` | Returns sorted time step labels |
 | `resetTimeline()` | `void` | Called by dsfr-data-map-timeline to reset (show all data) |
 | `setTimelineFrame(index: number)` | `void` | Called by dsfr-data-map-timeline to set current frame |
@@ -563,8 +563,8 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 |---|---|---|---|
 | `center` | `string` | `""` (vide) | Centre "lat,lon" de l'encart (requis sans territory ; prioritaire sur le preset) |
 | `height` | `string` | `'160px'` | Hauteur de la mini-carte (px, rem, vh). Un `%` est un ratio de la LARGEUR de l'encart, comme sur `dsfr-data-map`. |
-| `label` | `string` | `""` (vide) | Libelle affiche au-dessus de l'encart (et nom accessible de la mini-carte) |
-| `territory` | `string` | `""` (vide) | Territoire predefini (guadeloupe, martinique, guyane, la-reunion, mayotte, saint-pierre-et-miquelon, saint-martin, saint-barthelemy, nouvelle-caledonie, polynesie-francaise, wallis-et-futuna, corse) — fournit center/zoom/label |
+| `label` | `string` | `""` (vide) | Libellé affiché au-dessus de l'encart (et nom accessible de la mini-carte) |
+| `territory` | `string` | `""` (vide) | Territoire predefini (guadeloupe, martinique, guyane, la-reunion, mayotte, saint-pierre-et-miquelon, saint-martin, saint-barthelemy, nouvelle-caledonie, polynesie-française, wallis-et-futuna, corse) — fournit center/zoom/label |
 | `width` | `string` | `""` (vide) | Largeur de l'encart (px, rem, %). Un `%` est relatif a la largeur de la carte hote : `width="20%"` repartit cinq encarts sur une ligne. Sans attribut, la feuille injectee par la carte pose `10rem` — une regle de page `dsfr-data-map-inset { width: … }` prime toujours dessus (#643). |
 | `zoom` | `number` | `0` | Zoom fixe de l'encart (prioritaire sur le preset) |
 

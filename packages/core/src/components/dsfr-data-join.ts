@@ -84,7 +84,7 @@ export class DsfrDataJoin extends TransformerMixin(LitElement) {
   private _rightData: Row[] | null = null;
 
   /**
-   * Taux d'appariement de la derniere jointure (#660), publie dans la meta
+   * Taux d'appariement de la dernière jointure (#660), publie dans la meta
    * pour le volet Diagnostic. En `left`, 1 065 lignes entrent et 1 065
    * sortent : sans ce compte, une jointure a 22 % paraissait saine.
    */
@@ -112,7 +112,7 @@ export class DsfrDataJoin extends TransformerMixin(LitElement) {
   // --- Delegation amont (SourceElement, #274) ---
 
   /**
-   * Retourne l'adapter de la source GAUCHE (delegation transparente).
+   * Retourne l'adapter de la source GAUCHE (délégation transparente).
    * Coherent avec le relais des commandes (#272) : la gauche porte les lignes.
    * Permet aux composants en aval (dsfr-data-facets, dsfr-data-search)
    * d'atteindre l'adapter a travers ce transformateur.
@@ -127,7 +127,7 @@ export class DsfrDataJoin extends TransformerMixin(LitElement) {
     return null;
   }
 
-  /** Retourne le where effectif de la source amont (delegation transparente). */
+  /** Retourne le where effectif de la source amont (délégation transparente). */
   public getEffectiveWhere(excludeKey?: string): string {
     if (this.left) {
       const sourceEl = document.getElementById(this.left);
@@ -139,8 +139,8 @@ export class DsfrDataJoin extends TransformerMixin(LitElement) {
   }
 
   /**
-   * Retourne les parametres adapter resolus de la source amont
-   * (delegation transparente, headers api-key-ref inclus — #274).
+   * Retourne les paramètres adapter resolus de la source amont
+   * (délégation transparente, headers api-key-ref inclus — #274).
    */
   public getAdapterParams(): import('../adapters/api-adapter.js').AdapterParams | null {
     if (this.left) {
@@ -170,7 +170,7 @@ export class DsfrDataJoin extends TransformerMixin(LitElement) {
   /**
    * Relaye les commandes aval (page, where, orderBy) vers la source GAUCHE,
    * porteuse des lignes principales du join — la droite est traitee comme
-   * table de reference et n'est pas filtree/paginee (#272). Sans relais,
+   * table de référence et n'est pas filtree/paginee (#272). Sans relais,
    * un dsfr-data-list pagine derriere un join perdait ses commandes.
    */
   protected transformerCommandTarget(): string | null {
@@ -221,7 +221,7 @@ export class DsfrDataJoin extends TransformerMixin(LitElement) {
     return { page: 1, pageSize: 0, serverSide: false, join: this._lastStats };
   }
 
-  /** Taux d'appariement de la derniere jointure, ou null avant la premiere (#660). */
+  /** Taux d'appariement de la dernière jointure, ou null avant la première (#660). */
   public getJoinStats(): JoinStats | null {
     return this._lastStats ? { ...this._lastStats } : null;
   }
@@ -231,7 +231,7 @@ export class DsfrDataJoin extends TransformerMixin(LitElement) {
     return ['left', 'right', 'on'];
   }
 
-  /** Parametres de jointure → recalcul avec les donnees deja recues (#281) */
+  /** Paramètres de jointure → recalcul avec les données déjà recues (#281) */
   protected transformerReprocessProps(): string[] {
     return ['type', 'prefixLeft', 'prefixRight'];
   }

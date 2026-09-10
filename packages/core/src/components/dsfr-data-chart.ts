@@ -77,7 +77,7 @@ const MAP_LEVEL: Record<string, string> = {
   'map-monde': 'monde',
 };
 
-/** Maps chart type -> DSFR custom element tag name */
+/** Maps chart type -> DSFR custom élément tag name */
 const CHART_TAG_MAP: Record<string, string> = {
   line: 'line-chart',
   bar: 'bar-chart',
@@ -208,11 +208,11 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'highlight-index' })
   highlightIndex = '';
 
-  /** Limite min de l'axe X (types cartesiens : line, scatter, bar-line). */
+  /** Limite min de l'axe X (types cartésiens : line, scatter, bar-line). */
   @property({ type: String, attribute: 'x-min' })
   xMin = '';
 
-  /** Limite max de l'axe X (types cartesiens : line, scatter, bar-line). */
+  /** Limite max de l'axe X (types cartésiens : line, scatter, bar-line). */
   @property({ type: String, attribute: 'x-max' })
   xMax = '';
 
@@ -310,11 +310,11 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   databoxActions = '';
 
   /**
-   * Lignes de reference (overlay) au format JSON. Graphiques cartesiens
+   * Lignes de référence (overlay) au format JSON. Graphiques cartésiens
    * uniquement (line, bar, bar-line, scatter). Chaque item :
    * `{ axis: "x"|"y", value: string|number, label?, color?, dash?, position? }`.
    * `axis:"x"` → ligne verticale à une catégorie/date ; `axis:"y"` → ligne
-   * horizontale a un seuil. Ex : `reference-lines='[{"axis":"x","value":"2026-02",
+   * horizontale à un seuil. Ex : `reference-lines='[{"axis":"x","value":"2026-02",
    * "label":"Lancement","color":"#c9191e","dash":true}]'`.
    */
   @property({ type: String, attribute: 'reference-lines' })
@@ -350,7 +350,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   /** Timers differes en vol — annules au disconnect (#305) */
   private _pendingTimers = new Set<number>();
 
-  /** Overlays (reference-lines #341 + targets #377) : poll rAF en cours (annule au disconnect) */
+  /** Overlays (référence-lines #341 + targets #377) : poll rAF en cours (annule au disconnect) */
   private _overlayRaf: number | null = null;
   /** Overlays : observer de resize du canvas */
   private _overlayResize: ResizeObserver | null = null;
@@ -581,15 +581,15 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   /**
    * Lignes ecartees des cartes `map*` faute de code geographique exploitable
    * (#648) : compte du dernier `_processMapData`, journalise une fois par jeu
-   * de donnees et remonte dans la trace du volet Diagnostic (#604).
+   * de données et remonte dans la trace du volet Diagnostic (#604).
    */
   private _skippedGeoCount = 0;
 
-  /** Jeu de donnees pour lequel le warn a deja ete emis (un warn par cycle) */
+  /** Jeu de données pour lequel le warn a déjà ete emis (un warn par cycle) */
   private _skippedWarnedData: unknown[] | null = null;
 
   /**
-   * Nombre de lignes ignorees par la derniere carte rendue (`type="map*"`) :
+   * Nombre de lignes ignorees par la dernière carte rendue (`type="map*"`) :
    * code geographique absent, vide ou invalide pour le decoupage. 0 hors carte.
    */
   getSkippedCount(): number {
@@ -1032,7 +1032,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     this._scheduleOverlayDraw({ lines, targets }, 120);
   }
 
-  /** Poll rAF jusqu'a ce que l'instance Chart.js soit prete (chartArea > 0). */
+  /** Poll rAF jusqu'a ce que l'instance Chart.js soit prête (chartArea > 0). */
   private _scheduleOverlayDraw(
     overlays: { lines: ReferenceLine[]; targets: ChartTarget[] },
     framesLeft: number
@@ -1073,7 +1073,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     return { container, canvas, chartEl };
   }
 
-  /** Dessine les overlays. Retourne false si l'instance Chart.js n'est pas prete. */
+  /** Dessine les overlays. Retourne false si l'instance Chart.js n'est pas prête. */
   private _paintChartOverlays(overlays: {
     lines: ReferenceLine[];
     targets: ChartTarget[];
@@ -1166,7 +1166,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     }
   }
 
-  /** (Re)programme l'application des bornes radiales apres chaque rendu. */
+  /** (Re)programme l'application des bornes radiales après chaque rendu. */
   private _refreshRadialScaleBounds() {
     this._cancelRadialBoundsRaf();
     if (!isRadialChartType(this.type)) return;
@@ -1175,7 +1175,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     this._scheduleRadialBoundsApply(bounds, 120);
   }
 
-  /** Poll rAF jusqu'a ce que l'instance Chart.js radar soit prete. */
+  /** Poll rAF jusqu'a ce que l'instance Chart.js radar soit prête. */
   private _scheduleRadialBoundsApply(bounds: RadialScaleBounds, framesLeft: number) {
     if (typeof requestAnimationFrame === 'undefined') return;
     this._radialBoundsRaf = requestAnimationFrame(() => {
@@ -1188,7 +1188,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     });
   }
 
-  /** Applique les bornes sur l'instance. Retourne false si pas prete. */
+  /** Applique les bornes sur l'instance. Retourne false si pas prête. */
   private _applyRadialScaleBounds(bounds: RadialScaleBounds): boolean {
     const hosts = this._resolveOverlayHosts();
     if (!hosts) return false;
@@ -1199,7 +1199,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
 
   // --- Cibles : interactivite (tooltip groupe par echeance, legende, #377) ----
 
-  /** Branche le tooltip sur les losanges (seuls elements pointer-events:auto). */
+  /** Branche le tooltip sur les losanges (seuls éléments pointer-events:auto). */
   private _bindTargetMarkerEvents(svg: SVGSVGElement, layout: TargetsLayout) {
     const polygons = svg.querySelectorAll<SVGPolygonElement>('.dsfr-data-chart__target-marker');
     // buildTargetsOverlaySvg appose un polygon par marker, dans l'ordre du layout
@@ -1307,7 +1307,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   }
 
   /**
-   * Met a jour les attributs d'un element chart EXISTANT (#305) : pose les
+   * Met a jour les attributs d'un élément chart EXISTANT (#305) : pose les
    * nouveaux, retire ceux que nous gerions et qui ont disparu, re-applique
    * les differes. Vue (DSFR Chart) observe ses props — pas besoin de
    * remonter le composant.
@@ -1333,9 +1333,9 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   }
 
   /**
-   * Re-applique les attributs differes apres le montage Vue — timer TRACKE
+   * Re-applique les attributs differes après le montage Vue — timer TRACKE
    * (#305) : les setTimeout(500) s'empilaient a chaque onSourceData sans
-   * jamais etre annules au disconnect, et pouvaient cibler des elements
+   * jamais être annules au disconnect, et pouvaient cibler des éléments
    * remplaces entre-temps (gardes isConnected).
    */
   private _scheduleDeferredAttrs(el: HTMLElement, deferred: Record<string, string>) {

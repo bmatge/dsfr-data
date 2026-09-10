@@ -63,7 +63,7 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
   @property({ type: String })
   source = '';
 
-  /** Champs a convertir en nombre (virgule-separes). Ex: "population, surface" */
+  /** Champs a convertir en nombre (virgule-séparés). Ex: "population, surface" */
   @property({ type: String })
   numeric = '';
 
@@ -112,13 +112,13 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
   flatten = '';
 
   /**
-   * Decoupe des champs multivalues (chaine avec separateur) en vrais tableaux,
-   * comme une ChoiceList Grist. Format : "champ:sep, champ2:sep2" ; separateur
-   * par defaut : la virgule ("champ" seul). Ex : "Axes:|, Cibles:;".
-   * Chaque element est trime, les elements vides sont ecartes, une chaine vide
-   * donne un tableau vide. Les valeurs non-string (tableau deja forme, null,
-   * nombre) sont laissees telles quelles. Les composants aval traitent ces
-   * tableaux comme des champs multi-valeurs (facettes : une valeur par element).
+   * Découpe des champs multivalués (chaîne avec séparateur) en vrais tableaux,
+   * comme une ChoiceList Grist. Format : "champ:sep, champ2:sep2" ; séparateur
+   * par défaut : la virgule ("champ" seul). Ex : "Axes:|, Cibles:;".
+   * Chaque élément est trimé, les éléments vides sont écartés, une chaîne vide
+   * donne un tableau vide. Les valeurs non-string (tableau déjà forme, null,
+   * nombre) sont laissées telles quelles. Les composants aval traitent ces
+   * tableaux comme des champs multi-valeurs (facettes : une valeur par élément).
    */
   @property({ type: String })
   split = '';
@@ -145,7 +145,7 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
   @property({ type: Boolean, attribute: 'fold-drop' })
   foldDrop = false;
 
-  /** Arrondit les champs numériques a l'entier (ou a N decimales). Format: "champ1, champ2" ou "champ1:2, champ2:0" */
+  /** Arrondit les champs numériques à l'entier (ou à N décimales). Format: "champ1, champ2" ou "champ1:2, champ2:0" */
   @property({ type: String })
   round = '';
 
@@ -155,7 +155,7 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
 
   /**
    * Colonnes calculées, ligne à ligne, en dernier (sur les valeurs déjà typées par
-   * numeric / round / rename). Format : "cible = expression; cible2 = expression2"
+   * numeric / round / rename). Format : `cible = expression; cible2 = expression2`
    * (une assignation suivante peut relire une colonne calculée avant elle).
    *
    * Grammaire (ADR-105, #671) :
@@ -179,10 +179,10 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
    *   Les comparaisons d'ordre se font en nombre quand les deux côtés sont numériques,
    *   en texte sinon (dates ISO comprises) ; null, undefined et '' ne matchent jamais.
    *
-   * Exemples : "solde = actif - passif",
-   * "tranche = when montant = 0 then 'Nul' when is_null(montant) then 'Inconnu' else 'Renseigné'",
-   * "type = coalesce(type_entreprise, 'Non renseigné')", "annee = year(date_notification)",
-   * "pct = round(part * 100, 1)", "serie = Indicateurs + ' / ' + Sous_theme" ; une tranche
+   * Exemples : `solde = actif - passif`,
+   * `tranche = when montant = 0 then 'Nul' when is_null(montant) then 'Inconnu' else 'Renseigné'`,
+   * `type = coalesce(type_entreprise, 'Non renseigné')`, `annee = year(date_notification)`,
+   * `pct = round(part * 100, 1)`, `serie = Indicateurs + ' / ' + Sous_theme` ; une tranche
    * par seuils s'écrit avec les opérateurs d'ordre (voir le guide).
    *
    * Fonction hors liste, arité fausse, `when` sans `else`, expression trop longue ou trop
@@ -212,7 +212,7 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
   // --- Public API (delegation to upstream source) ---
 
   /**
-   * Retourne l'adapter de la source amont (delegation transparente).
+   * Retourne l'adapter de la source amont (délégation transparente).
    * Permet aux composants en aval (dsfr-data-facets, dsfr-data-search)
    * d'acceder a l'adapter sans connaitre la structure du pipeline.
    */
@@ -227,7 +227,7 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
   }
 
   /**
-   * Retourne le where effectif de la source amont (delegation transparente).
+   * Retourne le where effectif de la source amont (délégation transparente).
    */
   public getEffectiveWhere(excludeKey?: string): string {
     if (this.source) {
@@ -240,8 +240,8 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
   }
 
   /**
-   * Retourne les parametres adapter resolus de la source amont
-   * (delegation transparente, headers api-key-ref inclus — #274).
+   * Retourne les paramètres adapter resolus de la source amont
+   * (délégation transparente, headers api-key-ref inclus — #274).
    */
   public getAdapterParams(): import('../adapters/api-adapter.js').AdapterParams | null {
     if (this.source) {
@@ -292,7 +292,7 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
     return 'dsfr-data-normalize';
   }
 
-  /** Regles de normalisation → retraitement des donnees en cache (#281) */
+  /** Regles de normalisation → retraitement des données en cache (#281) */
   protected transformerReprocessProps(): string[] {
     return [
       'flatten',
@@ -546,7 +546,7 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
     delete obj[parts[0]];
   }
 
-  /** Decoupe une cellule multivaluee : elements trimes, vides ecartes */
+  /** Découpe une cellule multivaluee : éléments trimes, vides écartés */
   private _splitValue(value: string, separator: string): string[] {
     if (value === '') return [];
     return value
@@ -663,9 +663,9 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
   }
 
   /**
-   * Parse l'attribut split en Map<champ, separateur>. Format : "champ:sep, champ2:sep2".
-   * Entrees separees par virgule ; le premier `:` separe le champ du separateur.
-   * Separateur absent ou vide = virgule (ainsi "Tags" et "Tags:," sont equivalents).
+   * Parse l'attribut split en Map<champ, séparateur>. Format : "champ:sep, champ2:sep2".
+   * Entrees séparées par virgule ; le premier `:` separe le champ du séparateur.
+   * Séparateur absent ou vide = virgule (ainsi "Tags" et "Tags:," sont equivalents).
    */
   _parseSplitFields(): Map<string, string> {
     const map = new Map<string, string>();

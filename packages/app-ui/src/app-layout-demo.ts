@@ -141,6 +141,11 @@ export class AppLayoutDemo extends LitElement {
             href: 'components/dsfr-data-unpivot.html',
           },
           {
+            id: 'components/dsfr-data-pivot',
+            label: 'dsfr-data-pivot',
+            href: 'components/dsfr-data-pivot.html',
+          },
+          {
             id: 'components/dsfr-data-facets',
             label: 'dsfr-data-facets',
             href: 'components/dsfr-data-facets.html',
@@ -430,6 +435,33 @@ export class AppLayoutDemo extends LitElement {
           font-size: 0.85rem;
           overflow-x: auto;
           white-space: pre-wrap;
+        }
+
+        /*
+         * Coloration syntaxique des blocs de code.
+         * Les <span class="tok-*"> sont poses au BUILD par
+         * scripts/build-specs-tables.ts (pas de coloriseur au runtime).
+         * Palette calee sur le fond sombre #1e1e1e du .code-block.
+         */
+        .code-block .tok-tag {
+          color: #6cb6ff;
+        }
+
+        .code-block .tok-attr {
+          color: #b3d99a;
+        }
+
+        .code-block .tok-string {
+          color: #e8b882;
+        }
+
+        .code-block .tok-punct {
+          color: #9aa0a6;
+        }
+
+        .code-block .tok-comment {
+          color: #7f8c8d;
+          font-style: italic;
         }
 
         .attr-table {

@@ -80,10 +80,10 @@ Tout autre `{nom}` matche un segment générique. Le motif est ancré (début à
 
 | Méthode | Retour | Description |
 |---|---|---|
-| `getAdapter()` | `import('../adapters/api-adapter.js').ApiAdapter \| null` | Retourne l'adapter de la source amont (delegation transparente). Permet aux composants en aval (dsfr-data-facets, dsfr-data-search) d'atteindre l'adapter a travers ce transformateur. |
-| `getAdapterParams()` | `import('../adapters/api-adapter.js').AdapterParams \| null` | Retourne les parametres adapter resolus de la source amont (delegation transparente, headers api-key-ref inclus — #274). |
+| `getAdapter()` | `import('../adapters/api-adapter.js').ApiAdapter \| null` | Retourne l'adapter de la source amont (délégation transparente). Permet aux composants en aval (dsfr-data-facets, dsfr-data-search) d'atteindre l'adapter a travers ce transformateur. |
+| `getAdapterParams()` | `import('../adapters/api-adapter.js').AdapterParams \| null` | Retourne les paramètres adapter resolus de la source amont (délégation transparente, headers api-key-ref inclus — #274). |
 | `getData()` | `Row[]` | — |
-| `getEffectiveWhere(excludeKey?: string)` | `string` | Retourne le where effectif de la source amont (delegation transparente). |
+| `getEffectiveWhere(excludeKey?: string)` | `string` | Retourne le where effectif de la source amont (délégation transparente). |
 | `transformsSchema()` | `boolean` | L'unpivot crée toujours des colonnes (var-name/value-name) et supprime les colonnes dépliées : le schéma aval ne correspond jamais au schéma de la source qui fetch (#394). Une query en aval ne doit donc jamais déléguer ses opérations (order-by…) au serveur à travers ce composant. |
 
 

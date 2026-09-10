@@ -1,5 +1,5 @@
 /**
- * dsfr-data-map-popup — Composant compagnon d'affichage au clic sur un element de carte
+ * dsfr-data-map-popup — Composant compagnon d'affichage au clic sur un élément de carte
  *
  * Definit un template HTML pour l'infobulle/panneau/modale et le mode d'affichage.
  * Se place comme enfant de dsfr-data-map.
@@ -96,7 +96,7 @@ export class DsfrDataMapPopup extends LitElement {
   /** Timer de suppression animee du panneau — annule a la reouverture (#296) */
   private _panelRemoveTimer: number | null = null;
 
-  /** Element focus avant l'ouverture de la modale (restitution RGAA, #296) */
+  /** Élément focus avant l'ouverture de la modale (restitution RGAA, #296) */
   private _previousFocus: HTMLElement | null = null;
 
   disconnectedCallback() {
