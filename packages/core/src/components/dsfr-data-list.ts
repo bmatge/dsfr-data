@@ -12,6 +12,8 @@ import {
 import { escapeHtml, buildCsv, formatNumberFr } from '@dsfr-data/shared/lib';
 import { getDataMeta } from '../utils/data-bridge.js';
 import { PaginationController } from '../utils/pagination-controller.js';
+import { parseCellClassRules, cellClassTokens } from '../utils/cell-class.js';
+import type { CellClassRule } from '../utils/cell-class.js';
 
 interface ColumnDef {
   key: string;
@@ -164,6 +166,22 @@ export class DsfrDataList extends SelectionFilterMixin(SourceSubscriberMixin(Lit
    */
   @property({ type: String, attribute: 'idle-message' })
   idleMessage = IDLE_MESSAGE_DEFAULT;
+
+  /**
+   * Classe CSS d'une cellule pilotée par une colonne calculée (#740) :
+   * `"colonne:colonne_classe"`, plusieurs paires séparées par des virgules ;
+   * `"colonne"` seul classe la cellule par sa propre valeur. La valeur de la
+   * colonne de classe DEVIENT la classe de la cellule (plusieurs classes
+   * séparées par des espaces) : produisez-la avec le `compute` de
+   * dsfr-data-normalize, par exemple
+   * `compute="alerte = when taux >= 50 then 'seuil-ok' else 'seuil-bas'"`,
+   * puis stylez `.seuil-bas` dans la page. Seuls les identifiants CSS sont
+   * retenus, le reste est ignoré. Quand la colonne de classe n'est pas
+   * affichée, sa valeur est ajoutée à la cellule en texte pour les lecteurs
+   * d'écran : l'information n'est jamais portée par la seule couleur.
+   */
+  @property({ type: String, attribute: 'cell-class' })
+  cellClass = '';
 
   // --- Sélection au clic (#734, ADR-104 — mixin partagé avec la carte) ---
 
@@ -876,7 +894,7 @@ ${bodyRows}
         @click="${refine ? (e: Event) => this._handleRowClick(e, item) : nothing}"
       >
         ${refine ? this._renderSelectCell(item, selected) : nothing}
-        ${columns.map((col) => html` <td>${this.formatCellValue(item[col.key])}</td> `)}
+        ${columns.map((col) => this._renderCell(col, item))}
       </tr>
     `;
   }
@@ -903,6 +921,47 @@ ${bodyRows}
       </td>
     `;
   }
+
+  /**
+   * Une cellule, avec la classe éventuellement pilotée par une colonne
+   * calculée (`cell-class`, #740). Quand la colonne de classe n'est pas
+   * affichée, sa valeur est restituée en texte masqué visuellement : sans
+   * cela l'information ne tiendrait plus qu'à la couleur (RGAA 1.4.1).
+   */
+  private _renderCell(col: ColumnDef, item: Record<string, unknown>) {
+    const rule = this._cellClassRules().get(col.key);
+    if (!rule) return html` <td>${this.formatCellValue(item[col.key])}</td> `;
+    const raw = item[rule.classColumn];
+    const tokens = cellClassTokens(raw);
+    const mention =
+      rule.classColumn !== col.key && !this._displayedColumnKeys.has(rule.classColumn)
+        ? this.formatCellValue(raw)
+        : '';
+    return html`
+      <td class="${tokens.join(' ')}">
+        ${this.formatCellValue(item[col.key])}${
+          mention ? html`<span class="fr-sr-only"> (${mention})</span>` : nothing
+        }
+      </td>
+    `;
+  }
+
+  /** Règles `cell-class` indexées par colonne (relues quand l'attribut change) */
+  private _cellClassRules(): Map<string, CellClassRule> {
+    if (this._cellClassExpr !== this.cellClass) {
+      this._cellClassExpr = this.cellClass;
+      this._cellClassCache = new Map(
+        parseCellClassRules(this.cellClass).map((rule) => [rule.column, rule])
+      );
+    }
+    return this._cellClassCache;
+  }
+
+  private _cellClassExpr: string | null = null;
+  private _cellClassCache = new Map<string, CellClassRule>();
+
+  /** Colonnes réellement rendues, pour savoir si la colonne de classe est visible */
+  private _displayedColumnKeys = new Set<string>();
 
   private _renderPagination(totalPages: number) {
     // En mode serveur la pagination s'affiche meme sans attribut
@@ -1011,6 +1070,7 @@ ${bodyRows}
 
   render() {
     const columns = this.parseColumns();
+    this._displayedColumnKeys = new Set(columns.map((col) => col.key));
     const filterableColumns = this._getFilterableColumns();
     const paginatedData = this._getPaginatedData();
     const totalPages = this._getTotalPages();

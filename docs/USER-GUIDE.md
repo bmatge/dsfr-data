@@ -721,6 +721,31 @@ configuration plutot que de produire un tableau a 10 000 colonnes).
 serait lu comme un nombre). Le volet Diagnostic affiche, sur l'etape pivot, le nombre de colonnes
 generees et de cellules vides.
 
+#### Colorer une cellule selon un seuil : colonne calculee → classe (`cell-class`)
+
+Il n'y a pas de `threshold-*` par colonne sur le tableau (c'est une specificite de `dsfr-data-kpi`). La voie est **colonne calculee → classe** : `compute` sait deja produire une tranche, `cell-class` en fait la classe CSS de la cellule. Une seule mecanique au lieu de deux — et le critere RGAA 1.4.1 (« l'information n'est pas portee par la seule couleur ») satisfait par construction, puisque la valeur textuelle existe deja dans une colonne.
+
+```html
+<dsfr-data-normalize id="avec-seuil" source="brut"
+  compute="alerte = when taux_reponse >= 50 then 'seuil-ok' else 'seuil-bas'">
+</dsfr-data-normalize>
+
+<dsfr-data-list source="avec-seuil"
+  columns="service:Service, taux_reponse:Taux de reponse, alerte:Seuil"
+  cell-class="taux_reponse:alerte">
+</dsfr-data-list>
+
+<style>
+  .seuil-bas { background: var(--background-contrast-error); font-weight: 700; }
+  .seuil-ok  { background: var(--background-contrast-success); }
+</style>
+```
+
+- **Grammaire** : `cell-class="colonne:colonne_classe"`, plusieurs paires separees par des virgules. `cell-class="statut"` seul classe la cellule de `statut` par sa propre valeur.
+- **La valeur DEVIENT la classe** : `'seuil-bas'` donne `class="seuil-bas"`, `'fr-badge fr-badge--error'` en donne deux. Seuls les identifiants CSS sont retenus (une valeur comme `12 %` n'en produit aucune) : la donnee ne peut pas sortir de l'attribut `class`.
+- **Si la colonne de classe n'est pas affichee**, sa valeur est ajoutee dans la cellule en texte masque visuellement (`(seuil-bas)`) : un lecteur d'ecran l'entend meme si la colonne n'est pas dans `columns`. Le plus lisible reste de l'afficher, comme dans l'exemple.
+- **Ne comptez pas sur la couleur seule** dans votre CSS : ajoutez une graisse, une bordure ou une icone. La classe est un point d'accroche, pas une garantie de contraste.
+
 ### Cartes interactives Leaflet — la famille dsfr-data-map
 
 Au-dela des cartes choroplethes de `dsfr-data-chart` (type `map`/`map-reg`/`map-aca`/`map-monde`), la famille `dsfr-data-map` (bundle `map`) rend des **cartes interactives Leaflet** multi-couches : marqueurs, formes GeoJSON, cercles proportionnels, heatmap. Six composants se combinent :

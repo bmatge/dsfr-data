@@ -1592,6 +1592,32 @@ les colonnes déclarées (libellées, en tête) puis celles des données.
 | refine-on-click | String | \`""\` | non | Champ dont la valeur de la ligne cliquee devient un filtre \`eq\` (#734) : premier clic = filtre, second clic sur la meme ligne = retrait, autre ligne = remplacement. Avec \`context\` (recommande) : filtre du dsfr-data-context (tag, URL, dialecte de chaque cible). Sans \`context\` : commande directe a \`source\` (whereKey \`list-select-ID\`) |
 | context | String | \`""\` | non | Id du dsfr-data-context auquel s'enregistrer en \`refine-on-click\` (#734, ADR-104). Peut etre declare apres le tableau |
 | label | String | \`""\` | non | Libelle du tag du contexte en \`refine-on-click\` (defaut : le libelle de la colonne filtree, sinon le nom du champ) |
+| cell-class | String | \`""\` | non | Classe CSS d'une cellule pilotee par une colonne calculee (#740) : \`"colonne:colonne_classe"\`, plusieurs paires separees par des virgules ; \`"colonne"\` seul classe la cellule par sa propre valeur |
+
+### Colorer une cellule selon un seuil (cell-class, #740)
+Il n'y a pas de \`threshold-*\` par colonne sur le tableau : la voie est **colonne calculee →
+classe**. Le \`compute\` de \`dsfr-data-normalize\` sait deja produire une tranche (#671) ;
+\`cell-class\` en fait la classe de la cellule. Une seule mecanique, et le critere RGAA 1.4.1
+satisfait par construction : la valeur textuelle existe deja dans une colonne. Quand cette
+colonne n'est PAS affichee, le tableau la restitue dans la cellule en texte masque
+visuellement — l'information n'est jamais portee par la seule couleur.
+
+La valeur de la colonne de classe devient la classe (plusieurs classes separees par des
+espaces) ; seuls les identifiants CSS sont retenus, le reste est ignore.
+
+\`\`\`html
+<dsfr-data-normalize id="avec-seuil" source="brut"
+  compute="alerte = when taux_reponse >= 50 then 'seuil-ok' else 'seuil-bas'"></dsfr-data-normalize>
+
+<dsfr-data-list source="avec-seuil"
+  columns="service:Service, taux_reponse:Taux de reponse, alerte:Seuil"
+  cell-class="taux_reponse:alerte"></dsfr-data-list>
+
+<style>
+  .seuil-bas { background: var(--background-contrast-error); font-weight: 700; }
+  .seuil-ok  { background: var(--background-contrast-success); }
+</style>
+\`\`\`
 
 ### Le clic sur une ligne filtre les autres vues (refine-on-click, #734)
 Meme mecanique que \`dsfr-data-map-layer refine-on-click\` (#681), meme mixin : le tableau
