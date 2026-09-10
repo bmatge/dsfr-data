@@ -509,6 +509,8 @@ ${bodyRows}
    * chaînes : un code INSEE « 75056 » reste « 75056 »).
    */
   formatCellValue(value: unknown): string {
+    // Champ multivalué (ODS, Grist) : jonction lisible, comme les templates (#663)
+    if (Array.isArray(value)) return value.join(', ');
     if (value === null || value === undefined) return '—';
     if (typeof value === 'boolean') return value ? 'Oui' : 'Non';
     if (typeof value === 'number') {

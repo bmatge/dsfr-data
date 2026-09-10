@@ -325,6 +325,78 @@ describe('DsfrDataDisplay', () => {
     });
   });
 
+  describe('#694 — moteur de templates (pipes et blocs)', () => {
+    /** Vue interne du composant pour les tests (membres privés) */
+    interface DisplayInternals {
+      _templateContent: string;
+      _renderItem(item: Record<string, unknown>, index: number): string;
+    }
+    const internals = (): DisplayInternals => display as unknown as DisplayInternals;
+
+    it('{{#if}} + {{site:url}} : rien si vide, lien sinon (#664)', () => {
+      internals()._templateContent =
+        '<p>{{nom}}</p>{{#if site}}<a class="fr-link" href="{{site:url}}">Site</a>{{/if}}';
+      expect(internals()._renderItem({ nom: 'A', site: '' }, 0)).toBe('<p>A</p>');
+      expect(internals()._renderItem({ nom: 'A' }, 0)).toBe('<p>A</p>');
+      expect(internals()._renderItem({ nom: 'A', site: 'https://a.fr' }, 0)).toBe(
+        '<p>A</p><a class="fr-link" href="https://a.fr">Site</a>'
+      );
+    });
+
+    it('{{x:url}} vide javascript: dans un href (#664, sécurité)', () => {
+      internals()._templateContent = '<a href="{{site:url}}">Site</a>';
+      expect(internals()._renderItem({ site: 'javascript:alert(1)' }, 0)).toBe(
+        '<a href="">Site</a>'
+      );
+      expect(internals()._renderItem({ site: 'mailto:a@b.fr' }, 0)).toBe(
+        '<a href="mailto:a@b.fr">Site</a>'
+      );
+    });
+
+    it('{{#unless}} affiche un repli quand le champ est absent', () => {
+      internals()._templateContent = '{{#unless site}}<em>Pas de site</em>{{/unless}}';
+      expect(internals()._renderItem({}, 0)).toBe('<em>Pas de site</em>');
+      expect(internals()._renderItem({ site: 'x' }, 0)).toBe('');
+    });
+
+    it('{{d:date}} et {{tags:join}} dans un template display (#662, #663)', () => {
+      internals()._templateContent = '<p>{{d:date}} · {{tags}} · {{tags:join: / }}</p>';
+      expect(internals()._renderItem({ d: '2026-09-09T10:00:00Z', tags: ['a', 'b'] }, 0)).toBe(
+        '<p>09/09/2026 · a, b · a / b</p>'
+      );
+    });
+
+    it('$index et $uid restent résolus dans le corps d’un bloc', () => {
+      display.uidField = 'id';
+      internals()._templateContent = '{{#if id}}<a href="#{{$uid}}">#{{$index}}</a>{{/if}}';
+      expect(internals()._renderItem({ id: 42 }, 3)).toMatch(/href="#[^"]*-item-42">#3<\/a>/);
+      expect(internals()._renderItem({}, 3)).toBe('');
+    });
+
+    it("invariant : une valeur contenant {{#if}} n'est pas interprétée", () => {
+      internals()._templateContent = '<p>{{v}}</p>';
+      expect(internals()._renderItem({ v: '{{#if x}}S{{/if}}', x: 1 }, 0)).toBe(
+        '<p>{{#if x}}S{{/if}}</p>'
+      );
+    });
+
+    it("limite : dans un vrai <template>, un bloc placé entre deux attributs est coupé par l'analyse HTML", () => {
+      const tpl = document.createElement('template');
+      tpl.innerHTML = '<a {{#if site}}href="{{site:url}}"{{/if}}>Site</a>';
+      display.appendChild(tpl);
+      display.connectedCallback();
+      const html = internals()._renderItem({ site: '' }, 0);
+      expect(html).not.toContain('{{');
+      expect(html).toContain('href=""');
+      expect(html).toContain('>Site</a>');
+      // Recette : englober l'élément entier
+      tpl.innerHTML = '{{#if site}}<a href="{{site:url}}">Site</a>{{/if}}';
+      internals()._templateContent = tpl.innerHTML;
+      expect(internals()._renderItem({ site: '' }, 0)).toBe('');
+      expect(internals()._renderItem({ site: '/x' }, 0)).toBe('<a href="/x">Site</a>');
+    });
+  });
+
   describe('$uid template variable', () => {
     it('resolves $uid in template', () => {
       display.uidField = 'id';

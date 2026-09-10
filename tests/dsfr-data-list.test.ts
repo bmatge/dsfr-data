@@ -400,6 +400,13 @@ describe('DsfrDataList component', () => {
       expect(datalist.formatCellValue(2.27)).toBe('2,27');
       expect(datalist.formatCellValue('75056')).toBe('75056');
     });
+
+    it('joint un tableau par « , » (#663 — champs multivalués ODS/Grist)', () => {
+      expect(datalist.formatCellValue(['a', 'b', 'c'])).toBe('a, b, c');
+      expect(datalist.formatCellValue([1, 2])).toBe('1, 2');
+      expect(datalist.formatCellValue([])).toBe('');
+      expect(datalist.formatCellValue(['seul'])).toBe('seul');
+    });
   });
 
   describe('onSourceData', () => {

@@ -1431,16 +1431,40 @@ une instance du template avec les valeurs injectees.
 Le template est défini dans un element \`<template>\` enfant du composant.
 Les placeholders sont remplaces pour chaque element de données :
 
+Grammaire d'un placeholder : \`{{chemin[:format[:arg]][|défaut]}}\` — l'argument du format vient
+après un second \`:\` ; il ne peut pas contenir \`|\` (qui ouvre le défaut).
+
 | Syntaxe | Description |
 |---------|-------------|
 | \`{{champ}}\` | Valeur echappee (HTML-safe) |
 | \`{{{champ}}}\` | Valeur brute (non echappee — utiliser avec precaution) |
 | \`{{champ\\|défaut}}\` | Valeur avec fallback si null/undefined |
 | \`{{champ:number}}\` | Valeur avec separateur de milliers (ex: 32073247 → 32 073 247) |
+| \`{{champ:number:2}}\` | Nombre fr-FR avec 2 décimales fixes |
 | \`{{champ:number\\|0}}\` | Format number + fallback si null |
+| \`{{champ:date}}\` | Date JJ/MM/AAAA depuis une ISO (\`2026-09-09T10:00:00Z\` → \`09/09/2026\`), « — » si invalide |
+| \`{{champ:datetime}}\` | Date et heure JJ/MM/AAAA HH:MM |
+| \`{{tags}}\` | Un tableau (champ multivalué ODS/Grist) est joint par \`, \` |
+| \`{{tags:join: / }}\` | Tableau joint par le séparateur donné, espaces compris |
+| \`{{lien:url}}\` | URL filtrée : seuls \`http:\`, \`https:\`, \`mailto:\`, \`tel:\` et les URL relatives passent, sinon chaîne vide. **À utiliser dans tout \`href\`** |
 | \`{{champ.sous.clé}}\` | Acces aux proprietes imbriquees (dot notation) |
 | \`{{$index}}\` | Index de l'element dans le tableau (0-based) |
 | \`{{$uid}}\` | Identifiant unique de l'element (base sur uid-field ou index) |
+
+### Blocs conditionnels
+\`{{#if champ}}…{{/if}}\` affiche son contenu si la valeur existe (ni null, undefined, chaîne vide,
+tableau vide ni false) ; \`{{#unless champ}}…{{/unless}}\` est le complément. Les blocs ne s'imbriquent
+pas. Le bloc doit englober du texte, des éléments complets ou la valeur d'un attribut : placé entre
+deux attributs d'une balise, il est découpé par l'analyse HTML du \`<template>\` et ignoré.
+
+\`\`\`html
+<!-- Lien optionnel : rien si le champ est vide, lien filtré sinon -->
+{{#if site_web}}<a class="fr-link" href="{{site_web:url}}">Site web</a>{{/if}}
+{{#unless site_web}}<span class="fr-text--mention-grey">Pas de site</span>{{/unless}}
+\`\`\`
+
+Recette de transition (versions antérieures à 0.22, sans bloc) : rendre le lien toujours et le
+masquer en CSS quand l'attribut est vide — \`a[href=""] { display: none; }\`.
 
 ### Attributs
 | Attribut | Type | Défaut | Requis | Description |
@@ -2598,8 +2622,10 @@ Composant compagnon optionnel qui definit un template et un mode d'affichage pou
 | width | String | \`"350px"\` | Largeur du panneau lateral |
 | for | String | \`""\` | ID du layer cible (vide = tous) |
 
-Template avec \`<template>\` et interpolation \`{{champ}}\` (memes expressions que dsfr-data-display,
-toujours echappees) : \`{{champ.sous.clé}}\`, \`{{champ:number}}\` (format fr-FR), \`{{champ|défaut}}\`.
+Template avec \`<template>\` et interpolation \`{{champ}}\` (même moteur que dsfr-data-display,
+toujours échappé, \`{{{champ}}}\` traité comme \`{{champ}}\`) : \`{{champ.sous.clé}}\`,
+\`{{champ:number}}\`, \`{{champ:date}}\`, \`{{tags:join: / }}\`, \`{{lien:url}}\` (à utiliser
+dans tout \`href\`), \`{{champ|défaut}}\`, blocs \`{{#if champ}}…{{/if}}\` / \`{{#unless}}\`.
 Sans template, tableau auto.
 
 \`\`\`html
@@ -2608,6 +2634,8 @@ Sans template, tableau auto.
     <h4>{{nom}}</h4>
     <p>{{adresse}}, {{code_postal}} {{commune}}</p>
     <p class="fr-text--bold">{{prix:number}} EUR</p>
+    <p>Mis à jour le {{date_maj:date}}</p>
+    {{#if site_web}}<a class="fr-link" href="{{site_web:url}}">Site web</a>{{/if}}
   </template>
 </dsfr-data-map-popup>
 \`\`\`
