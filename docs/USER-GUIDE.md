@@ -976,6 +976,124 @@ le jeu complet au montage est une requete couteuse dont personne ne regarde le r
 
 ---
 
+### Facettes : un tri different par champ
+
+`sort` accepte desormais la meme grammaire par champ que `labels`, `display` et `cols`
+(barre verticale, `champ:critere[:sens]`). Une facette d'annees se range A → Z pendant
+qu'une facette de categories reste rangee par frequence, sans dupliquer le composant :
+
+```html
+<dsfr-data-facets id="filtres" source="src" fields="annee, categorie"
+  sort="annee:alpha:asc | categorie:count:desc"></dsfr-data-facets>
+```
+
+- Un champ que `sort` ne nomme pas garde le tri par defaut (`count:desc`).
+- L'entree `*` change ce defaut : `sort="*:alpha | annee:count:desc"` range toutes les
+  facettes A → Z sauf `annee`.
+- Les formes globales historiques restent valides telles quelles (`count`, `alpha`,
+  `count:asc`, `alpha:desc`), y compris les formes depreciees `-count` / `-alpha`, qui
+  continuent d'avertir en console.
+- Un champ qui s'appelle litteralement `count` ou `alpha` se nomme sans ambiguite en
+  trois segments : `sort="count:alpha:desc"` trie le champ `count` de Z a A.
+
+---
+
+### Facettes : compter une mesure plutot que des lignes
+
+Sur une table de mesures, « 1 240 » ne dit rien au lecteur : ce sont des lignes de releve,
+pas des personnes. `weight-field` remplace le nombre de lignes par la **somme** d'un champ :
+
+```html
+<dsfr-data-facets id="filtres" source="src" fields="region"
+  weight-field="effectif"></dsfr-data-facets>
+```
+
+- Le tri `count` porte alors sur cette somme, et le nombre est formate a la francaise
+  (`4 500,5`). Les lecteurs d'ecran entendent « total 4 500,5 », pas « 4 500 resultats ».
+- Une valeur non numerique pese zero ; un champ absent de toutes les lignes est signale
+  une fois en console.
+- Sur une cellule multi-valeurs (ChoiceList Grist), chaque valeur recoit le poids entier
+  de la ligne — comme elle recevait une unite dans le comptage par lignes.
+- **Client uniquement, et c'est assume.** En mode `server-facets`, l'API facettes ne
+  renvoie qu'un nombre de lignes : la somme n'existe pas. Plutot qu'afficher un nombre de
+  lignes sous un libelle de somme, le composant **masque les compteurs**, pose
+  `data-dsfr-config-error` et rend un avertissement DSFR au-dessus des facettes. Pour
+  ponderer des facettes serveur, il faut ramener les donnees cote client.
+
+---
+
+### Ecrire la valeur d'un filtre dans un titre
+
+`dsfr-data-context-tags` liste les filtres actifs, mais ne s'insere pas dans une phrase :
+« Résultats pour {{departement}} » n'etait pas exprimable. `<dsfr-data-context-value>` rend
+la valeur courante d'un ou plusieurs filtres du contexte, comme du texte :
+
+```html
+<dsfr-data-context id="ctx" sources="src" url-sync>
+  <dsfr-data-context-filter field="departement" operator="eq" ui="ui-dep">
+  </dsfr-data-context-filter>
+</dsfr-data-context>
+
+<h2>
+  <dsfr-data-context-value for="ctx" template="Résultats pour {{departement}}"
+    fallback="Résultats pour toute la France" live></dsfr-data-context-value>
+</h2>
+```
+
+- `field="departement"` est le raccourci de `template="{{departement}}"`.
+- **Repli declare** : `fallback` s'affiche tant qu'un champ cite n'a aucune valeur. Un seul
+  champ manquant suffit a basculer — « Résultats pour  » serait pire qu'une phrase de repli.
+  Sans `fallback`, le composant ne rend rien.
+- **Accessibilite** : `live` fait du composant une region live polie (`aria-live="polite"`,
+  `role="status"`), pour qu'un titre qui suit le filtre annonce le changement de contenu.
+  A poser sur **un seul** element de la page : trois libelles qui parlent en meme temps sont
+  un bruit, pas une aide.
+- Tout filtre du contexte est lisible ainsi (contrat commun) : `dsfr-data-context-filter`,
+  champs d'une `dsfr-data-facets context="…"`, terme d'une `dsfr-data-search context="…"`.
+- Le rendu est du texte : la valeur d'un filtre ne traverse jamais l'analyseur HTML.
+
+---
+
+### Annee scolaire, exercice comptable, saison : `year-start-month`
+
+Tous les operateurs de date raisonnent en annee civile ; `year-of` coupait l'annee scolaire
+en son milieu, en silence. `year-start-month` dit ou commence l'annee :
+
+```html
+<label for="ui-annee">Année scolaire</label>
+<input id="ui-annee" type="number" min="2015" max="2030" step="1" value="2024">
+
+<dsfr-data-context id="ctx" sources="src">
+  <dsfr-data-context-filter field="date_rentree" label="Année scolaire" operator="year-of"
+    year-start-month="9" ui="ui-annee"></dsfr-data-context-filter>
+</dsfr-data-context>
+```
+
+- `year-start-month="9"` filtre `[2024-09-01, 2025-09-01)` pour la valeur « 2024 ». `4` donne
+  l'exercice comptable britannique, `7` l'exercice australien, `10` une saison sportive.
+  `1` (defaut) laisse l'annee civile strictement inchangee.
+- L'attribut vaut aussi pour `current-year` : en juin 2026 avec `year-start-month="9"`,
+  l'annee en cours est 2025-2026.
+- **Une annee nue** (« 2024 ») nomme l'annee qui **commence** en 2024 ; **une date**
+  (« 2025-03-10 ») designe l'annee qui la **contient**. Les deux regles coincident quand
+  l'annee commence en janvier, ce qui permet de nourrir l'operateur d'un `<input type="date">`.
+- Le tag affiche « 2024-2025 », pas « 2024 » : ce qui est filtre est ce qui est ecrit.
+- **Le desucrage reste `gte` + `lt`** : la plage se delegue au serveur comme n'importe quelle
+  autre. Aucun adaptateur, aucun dialecte n'est concerne.
+
+**La voie client, disponible depuis la 0.24** : une colonne d'annee scolaire se derive avec
+`compute` sur `dsfr-data-normalize`, ce qui donne en prime un `group-by` et un libelle
+« 2024-2025 » gratuits :
+
+```html
+<dsfr-data-normalize id="clean" source="src"
+  compute="annee_scolaire = when month(d) >= 9 then concat(year(d),'-',year(d)+1) else concat(year(d)-1,'-',year(d))">
+</dsfr-data-normalize>
+```
+
+`compute` est un transformateur **client** : il ne se delegue pas. Sur un jeu hebdomadaire
+depuis 2019, il faut tout rapatrier — c'est exactement ce que `year-start-month` evite.
+
 ---
 
 ## Ressources

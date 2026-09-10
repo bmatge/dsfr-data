@@ -101,12 +101,45 @@ function monthRange(value: string): [string, string] | null {
   return [`${m[1]}-${m[2]}-01`, `${next}-01`];
 }
 
-/** Plage [1er janvier, 1er janvier suivant) depuis "YYYY" (ou une date complete, #646) */
-function yearRange(value: string): [string, string] | null {
-  const y = truncateToOperator(value, 'year-of');
-  if (!/^\d{4}$/.test(y)) return null;
-  const year = Number(y);
-  return [`${y}-01-01`, `${year + 1}-01-01`];
+/**
+ * Annee de DEBUT d'une annee qui ne commence pas forcement en janvier
+ * (#735) — annee scolaire, exercice comptable, saison sportive.
+ *
+ * Une annee NUE ("2024") nomme l'annee qui COMMENCE en 2024 ; une valeur
+ * plus precise ("2025-03", "2025-03-10") designe l'annee qui la CONTIENT.
+ * Les deux regles coincident exactement quand `startMonth` vaut 1, ce qui
+ * garde l'annee civile inchangee.
+ */
+function fiscalYearStart(value: string, startMonth: number): number | null {
+  const parts = dateParts(value);
+  if (!parts) return null;
+  const year = Number(parts[0]);
+  if (parts.length === 1) return year;
+  const month = Number(parts[1]);
+  if (month < 1 || month > 12) return null;
+  return month < startMonth ? year - 1 : year;
+}
+
+/** "YYYY-MM-01" a partir d'une annee et d'un mois de debut (#735) */
+function firstOfMonth(year: number, month: number): string {
+  return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-01`;
+}
+
+/**
+ * Plage [debut, debut + 1 an) d'une annee. `startMonth` = 1 redonne la
+ * plage civile historique [1er janvier, 1er janvier suivant) (#646, #735).
+ */
+function yearRange(value: string, startMonth = 1): [string, string] | null {
+  const start = fiscalYearStart(value, startMonth);
+  if (start === null) return null;
+  return [firstOfMonth(start, startMonth), firstOfMonth(start + 1, startMonth)];
+}
+
+/** Libelle d'une annee non civile : « 2024-2025 » (#735) */
+function fiscalYearLabel(value: string, startMonth: number): string | null {
+  const start = fiscalYearStart(value, startMonth);
+  if (start === null) return null;
+  return `${start}-${start + 1}`;
 }
 
 /** Lendemain ISO de "YYYY-MM-DD" (borne haute exclusive = inclusif jusqu'au jour choisi) */
@@ -137,6 +170,10 @@ const OPERATORS = [
   'current-month',
 ] as const;
 type ContextOperator = (typeof OPERATORS)[number];
+
+/** Opérateurs sur lesquels `year-start-month` a un effet (#735) */
+const YEAR_OPERATORS = ['year-of', 'current-year'] as const;
+type YearOperator = (typeof YEAR_OPERATORS)[number];
 
 /**
  * <dsfr-data-context-filter> — un filtre du contexte (#229).
@@ -175,6 +212,26 @@ export class DsfrDataContextFilter extends LitElement {
    */
   @property({ type: String })
   operator: ContextOperator = 'eq';
+
+  /**
+   * Mois de debut de l'annee pour `year-of` et `current-year` (#735) —
+   * 1 (defaut) = annee civile, 9 = annee scolaire, 4 = exercice comptable
+   * britannique, 7 = exercice australien, 10 = saison. La clause reste une
+   * plage `gte` + `lt` : elle se delegue au serveur comme n'importe quelle
+   * autre, aucun adaptateur n'est concerne.
+   *
+   * `year-of` avec `year-start-month="9"` et la valeur « 2024 » filtre
+   * `[2024-09-01, 2025-09-01)` et s'affiche « 2024-2025 » dans les tags.
+   * Une valeur plus precise (« 2025-03-10 ») designe l'annee qui la
+   * CONTIENT — soit 2024-2025 ici — ce qui permet de nourrir l'opérateur
+   * d'un contrôle de type date.
+   *
+   * Cote client seul, une colonne d'annee scolaire se derive aussi avec
+   * `compute` sur dsfr-data-normalize ; l'attribut existe pour les jeux
+   * qu'on ne veut pas rapatrier.
+   */
+  @property({ type: Number, attribute: 'year-start-month' })
+  yearStartMonth = 1;
 
   /** Cibles : "*" (défaut, toutes les sources du contexte) ou ids ciblés */
   @property({ type: String, attribute: 'apply-to' })
@@ -225,6 +282,20 @@ export class DsfrDataContextFilter extends LitElement {
   /** Valeur de date inexploitable déjà signalee (#646) — un warn par filtre, pas par frappe */
   private _unusableDateWarned = false;
 
+  /** `year-start-month` sans effet déjà signale (#735) — un warn par filtre */
+  private _yearStartMonthIgnoredWarned = false;
+
+  /**
+   * Mois de debut effectif (#735) : 1 (annee civile) hors des opérateurs
+   * d'annee ou quand la valeur est hors bornes — la clause reste alors
+   * exactement celle d'avant.
+   */
+  private _startMonth(): number {
+    if (!YEAR_OPERATORS.includes(this.operator as YearOperator)) return 1;
+    const m = this.yearStartMonth;
+    return Number.isInteger(m) && m >= 1 && m <= 12 ? m : 1;
+  }
+
   createRenderRoot() {
     return this;
   }
@@ -251,6 +322,7 @@ export class DsfrDataContextFilter extends LitElement {
       changed.has('ui') ||
       changed.has('field') ||
       changed.has('operator') ||
+      changed.has('yearStartMonth') ||
       changed.has('context')
     ) {
       if (this.hasUpdated) {
@@ -296,6 +368,30 @@ export class DsfrDataContextFilter extends LitElement {
         `operator "${this.operator}" inconnu (attendus : ${OPERATORS.join(', ')})`
       );
       return;
+    }
+    if (
+      !Number.isInteger(this.yearStartMonth) ||
+      this.yearStartMonth < 1 ||
+      this.yearStartMonth > 12
+    ) {
+      reportConfigError(
+        this,
+        'dsfr-data-context-filter',
+        `year-start-month "${this.yearStartMonth}" invalide : un mois entier de 1 a 12 est attendu`
+      );
+      return;
+    }
+    if (this.yearStartMonth !== 1 && !YEAR_OPERATORS.includes(this.operator as YearOperator)) {
+      // Non bloquant : le filtre reste utilisable en annee civile, mais
+      // l'attribut sans effet ne doit pas passer en silence (#735)
+      if (!this._yearStartMonthIgnoredWarned) {
+        this._yearStartMonthIgnoredWarned = true;
+        console.warn(
+          `dsfr-data-context-filter (${this.field}) : year-start-month n'a d'effet que sur ` +
+            `les opérateurs ${YEAR_OPERATORS.join(' et ')} — il est ignore pour ` +
+            `operator="${this.operator}".`
+        );
+      }
     }
 
     const ids = this.ui.split(/\s+/).filter(Boolean);
@@ -404,9 +500,18 @@ export class DsfrDataContextFilter extends LitElement {
       return [min, max].filter(Boolean).join(' – ');
     }
     const raw = values[0] ?? '';
-    if (this.operator === 'current-year') return 'année en cours';
+    // Annee non civile (#735) : « 2024-2025 » dit ce qui est filtre la ou
+    // « 2024 » ou « année en cours » laisserait croire a l'annee civile
+    const startMonth = this._startMonth();
+    if (this.operator === 'current-year') {
+      if (startMonth === 1) return 'année en cours';
+      return fiscalYearLabel(isoDate(new Date()), startMonth) ?? 'année en cours';
+    }
     if (this.operator === 'current-month') return 'mois en cours';
     if (this.operator === 'last-n-days') return `${raw} derniers jours`;
+    if (this.operator === 'year-of' && startMonth !== 1) {
+      return fiscalYearLabel(raw, startMonth) ?? raw;
+    }
     if (this.operator === 'year-of' || this.operator === 'month-of') {
       // Le tag montre la precision reellement filtree (#646)
       return truncateToOperator(raw, this.operator);
@@ -511,7 +616,9 @@ export class DsfrDataContextFilter extends LitElement {
       return `${this.field}:gte:${range[0]}, ${this.field}:lt:${range[1]}`;
     }
     if (this.operator === 'year-of') {
-      const range = yearRange(raw);
+      // year-start-month (#735) : le desucrage reste gte + lt, donc la
+      // clause se delegue au serveur comme une plage ordinaire
+      const range = yearRange(raw, this._startMonth());
       if (!range) {
         return this._unusableDate(
           raw,
@@ -533,8 +640,9 @@ export class DsfrDataContextFilter extends LitElement {
       return `${this.field}:gte:${isoDate(start)}`;
     }
     if (this.operator === 'current-year') {
-      const year = new Date().getUTCFullYear();
-      return `${this.field}:gte:${year}-01-01, ${this.field}:lt:${year + 1}-01-01`;
+      const range = yearRange(isoDate(new Date()), this._startMonth());
+      if (!range) return '';
+      return `${this.field}:gte:${range[0]}, ${this.field}:lt:${range[1]}`;
     }
     if (this.operator === 'current-month') {
       // Symetrique de current-year (#682) : meme horloge UTC, meme plage [1er, 1er suivant)

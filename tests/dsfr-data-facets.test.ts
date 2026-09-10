@@ -346,6 +346,122 @@ describe('DsfrDataFacets', () => {
         expect(warnSpy).toHaveBeenCalledTimes(2);
       });
     });
+
+    // Tri par champ (#741)
+    describe('tri par champ (#741)', () => {
+      let warnSpy: ReturnType<typeof vi.spyOn>;
+
+      beforeEach(() => {
+        warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      });
+
+      afterEach(() => {
+        warnSpy.mockRestore();
+      });
+
+      it('applique un critere different a chaque champ', () => {
+        facets.sort = 'annee:alpha:asc | categorie:count:desc';
+        expect(facets._sortValues(testValues, 'annee').map((v) => v.value)).toEqual([
+          'Abricot',
+          'Banane',
+          'Cerise',
+        ]);
+        expect(facets._sortValues(testValues, 'categorie').map((v) => v.value)).toEqual([
+          'Abricot',
+          'Banane',
+          'Cerise',
+        ]);
+        // Un critere qui distingue reellement les deux ordres
+        facets.sort = 'annee:alpha:desc | categorie:count:asc';
+        expect(facets._sortValues(testValues, 'annee').map((v) => v.value)).toEqual([
+          'Cerise',
+          'Banane',
+          'Abricot',
+        ]);
+        expect(facets._sortValues(testValues, 'categorie').map((v) => v.value)).toEqual([
+          'Cerise',
+          'Banane',
+          'Abricot',
+        ]);
+      });
+
+      it('accepte la forme a deux segments champ:critere (sens par defaut du critere)', () => {
+        facets.sort = 'annee:alpha';
+        expect(facets._parseSort().byField.get('annee')).toEqual({ by: 'alpha', dir: 'asc' });
+        expect(facets._parseSort().fallback).toEqual({ by: 'count', dir: 'desc' });
+      });
+
+      it('un champ non nomme garde le tri par defaut', () => {
+        facets.sort = 'annee:alpha:desc';
+        expect(facets._sortValues(testValues, 'categorie').map((v) => v.value)).toEqual([
+          'Abricot',
+          'Banane',
+          'Cerise',
+        ]);
+      });
+
+      it("l'entree * change le tri par defaut", () => {
+        facets.sort = '*:alpha:desc | annee:count:desc';
+        expect(facets._sortValues(testValues, 'categorie').map((v) => v.value)).toEqual([
+          'Cerise',
+          'Banane',
+          'Abricot',
+        ]);
+        expect(facets._sortValues(testValues, 'annee').map((v) => v.value)).toEqual([
+          'Abricot',
+          'Banane',
+          'Cerise',
+        ]);
+      });
+
+      it('un champ litteralement nomme count reste lisible en trois segments', () => {
+        facets.sort = 'count:alpha:desc';
+        const parsed = facets._parseSort();
+        expect(parsed.byField.get('count')).toEqual({ by: 'alpha', dir: 'desc' });
+        expect(parsed.fallback).toEqual({ by: 'count', dir: 'desc' });
+      });
+
+      it('les formes historiques globales restent globales', () => {
+        for (const [raw, expected] of [
+          ['count', { by: 'count', dir: 'desc' }],
+          ['alpha', { by: 'alpha', dir: 'asc' }],
+          ['count:asc', { by: 'count', dir: 'asc' }],
+          ['alpha:desc', { by: 'alpha', dir: 'desc' }],
+          ['bidule', { by: 'count', dir: 'desc' }],
+        ] as const) {
+          facets.sort = raw;
+          const parsed = facets._parseSort();
+          expect(parsed.byField.size, `sort="${raw}"`).toBe(0);
+          expect(parsed.fallback, `sort="${raw}"`).toEqual(expected);
+        }
+        expect(warnSpy).not.toHaveBeenCalled();
+      });
+
+      it('la forme depreciee -count reste globale et avertit', () => {
+        facets.sort = '-count';
+        const parsed = facets._parseSort();
+        expect(parsed.byField.size).toBe(0);
+        expect(parsed.fallback).toEqual({ by: 'count', dir: 'asc' });
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+      });
+
+      it('la forme depreciee reste acceptee en critere par champ', () => {
+        facets.sort = 'annee:-alpha';
+        expect(facets._sortValues(testValues, 'annee').map((v) => v.value)).toEqual([
+          'Cerise',
+          'Banane',
+          'Abricot',
+        ]);
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+      });
+
+      it('les espaces autour des entrees et des segments sont tolerés', () => {
+        facets.sort = '  annee : alpha : desc  |  categorie : count : asc  ';
+        const parsed = facets._parseSort();
+        expect(parsed.byField.get('annee')).toEqual({ by: 'alpha', dir: 'desc' });
+        expect(parsed.byField.get('categorie')).toEqual({ by: 'count', dir: 'asc' });
+      });
+    });
   });
 
   // --- Filtering ---

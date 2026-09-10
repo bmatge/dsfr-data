@@ -905,11 +905,12 @@ Sortie : même tableau, filtre selon les selections de l'utilisateur.
 | labels | String | \`""\` | non | Labels custom : \`"field:Label \\| field2:Label 2"\` (pipe-separe) |
 | max-values | Number | \`6\` | non | Nb de valeurs visibles par facette avant "Voir plus" |
 | disjunctive | String | \`""\` | non | Champs en mode multi-selection OU (virgule-separes) |
-| sort | String | \`"count"\` | non | Tri des valeurs, grammaire \`critere:sens\` (comme order-by) : \`count:desc\` (défaut, plus frequent d'abord), \`count:asc\`, \`alpha:asc\` (A-Z), \`alpha:desc\` (Z-A). Raccourcis : \`count\` = count:desc, \`alpha\` = alpha:asc. \`-count\` / \`-alpha\` deprecies (warn console) — ne plus les generer |
+| sort | String | \`"count"\` | non | Tri des valeurs, grammaire \`critere:sens\` (comme order-by) : \`count:desc\` (défaut, plus frequent d'abord), \`count:asc\`, \`alpha:asc\` (A-Z), \`alpha:desc\` (Z-A). Raccourcis : \`count\` = count:desc, \`alpha\` = alpha:asc. **Par champ** (#741) : \`"annee:alpha:asc \\| categorie:count:desc"\` (pipe-separe, comme labels/display/cols) — une facette d'annees rangee A-Z pendant qu'une facette de categories reste rangee par frequence, sans dupliquer le composant. Un champ non nomme garde le défaut ; l'entree \`"*:alpha"\` change ce défaut. \`-count\` / \`-alpha\` deprecies (warn console) — ne plus les generer |
 | searchable | String | \`""\` | non | Champs avec barre de recherche (virgule-separes) |
 | hide-empty | Boolean | \`false\` | non | Masquer les facettes avec une seule valeur |
 | display | String | \`""\` | non | Mode d'affichage par facette : \`"field:select \\| field2:multiselect"\`. Modes : checkbox (défaut), select, multiselect, radio (dropdown a radios), radio-inline (radios visibles en ligne + « Tous ») |
 | hide-counts | Boolean | \`false\` | non | Masquer les compteurs (N) a cote de chaque valeur de facette |
+| weight-field | String | \`""\` | non | **Client uniquement** (#739). Champ numerique dont la SOMME remplace le nombre de lignes dans les compteurs : sur une table de mesures, \`weight-field="effectif"\` annonce la somme des effectifs au lieu de « 1 240 » releves. Le tri \`count\` porte alors sur cette somme, et le nombre est formate a la francaise. Une valeur non numerique pese zero. En mode \`server-facets\`, la somme n'existe pas dans la reponse /facets : les compteurs sont MASQUES, une erreur de configuration est posee et un avertissement DSFR est rendu — ne pas generer \`weight-field\` avec \`server-facets\` |
 | url-params | Boolean | \`false\` | non | Active la lecture des parametres d'URL comme pre-selections de facettes |
 | url-param-map | String | \`""\` | non | Mapping URL param -> champ : \`"r:region \\| t:type"\`. Si vide, correspondance directe |
 | url-sync | Boolean | \`false\` | non | Synchronise l'URL quand l'utilisateur change les facettes (replaceState) |
@@ -3416,6 +3417,7 @@ La valeur vide RETIRE le filtre. Les valeurs sont percent-encodees (#271).
 | label | String | \`""\` | non | Libelle naturel pour l'affichage (tags #232) — defaut : field |
 | default | String | \`""\` | non | Valeur initiale (#682), appliquee APRES l'URL (l'URL gagne) : \`today\`, \`first-of-month\`, \`first-of-year\` (resolus dans le fuseau local, adaptes au controle) ou un litteral ; pour between/in, valeurs separees par une virgule |
 | context | String | \`""\` | non | Id du dsfr-data-context cible (#678) — permet de placer le filtre hors du contexte, meme declare avant lui. Vide = contexte parent le plus proche |
+| year-start-month | Number | \`1\` | non | Mois de debut de l'annee pour \`year-of\` et \`current-year\` (#735) : 1 = annee civile, 9 = annee scolaire, 4 = exercice comptable britannique, 10 = saison. La clause reste une plage \`gte\` + \`lt\` : elle se delegue au serveur, aucun adaptateur n'est concerne. Le tag affiche « 2024-2025 ». Sans effet sur les autres opérateurs (console.warn) |
 
 ### Operateurs
 
@@ -3434,6 +3436,26 @@ La valeur vide RETIRE le filtre. Les valeurs sont percent-encodees (#271).
   ("2026-09-09" -> annee 2026 / mois 2026-09) : un input type=date peut nourrir les deux (il n'existe
   pas de type=year). Une valeur qui reste inexploitable retire le filtre et l'annonce par un
   console.warn (une fois par filtre).
+- Annee non civile (#735) : \`year-start-month="9"\` sur \`year-of\` ou \`current-year\` donne une
+  plage septembre -> aout (annee scolaire) ; \`4\` l'exercice comptable, \`10\` une saison. Le
+  desucrage reste \`gte\` + \`lt\`, donc la plage se DELEGUE au serveur comme n'importe quelle
+  autre — c'est la difference avec la voie client. Une annee nue ("2024") nomme l'annee qui
+  COMMENCE en 2024 ; une date ("2025-03-10") designe l'annee qui la CONTIENT. Tag « 2024-2025 ».
+
+\`\`\`html
+<dsfr-data-context-filter field="date_rentree" label="Année scolaire" operator="year-of"
+  year-start-month="9" ui="ui-annee"></dsfr-data-context-filter>
+\`\`\`
+
+  Cote CLIENT seul, une colonne d'annee scolaire se derive aussi sans nouvel attribut, avec
+  \`compute\` sur dsfr-data-normalize (#671) — pratique pour un \`group-by\`, mais le
+  transformateur est client : sur un gros jeu il faut tout rapatrier.
+
+\`\`\`html
+<dsfr-data-normalize source="src"
+  compute="annee_scolaire = when month(d) >= 9 then concat(year(d),'-',year(d)+1) else concat(year(d)-1,'-',year(d))">
+</dsfr-data-normalize>
+\`\`\`
 ` + reference('dsfr-data-context-filter'),
   },
 
@@ -3470,6 +3492,60 @@ Une facette multi-valeurs (in) donne UN tag par valeur, chacune retirable seule 
 <dsfr-data-context-tags for="ctx" clear-all></dsfr-data-context-tags>
 \`\`\`
 ` + reference('dsfr-data-context-tags'),
+  },
+
+  dsfrDataContextValue: {
+    id: 'dsfrDataContextValue',
+    name: 'dsfr-data-context-value',
+    description: "Valeur courante d'un filtre du contexte, dans un titre ou une phrase",
+    trigger: [
+      'context-value',
+      'valeur du filtre',
+      'titre dynamique',
+      'resultats pour',
+      'interpoler filtre',
+      'libelle du filtre',
+    ],
+    content:
+      `## <dsfr-data-context-value> - La valeur d'un filtre dans une phrase
+
+context-tags LISTE les filtres actifs ; il ne s'insere pas dans un titre.
+Ce composant rend la valeur courante d'un ou plusieurs filtres du contexte
+comme du TEXTE, interpolee dans un gabarit : « Résultats pour {{departement}} ».
+Il lit le meme contrat que les tags (#678) : context-filter, champs d'une
+facets context="…", terme d'une search context="…", refine-on-click d'une couche.
+
+### Attributs
+
+| Attribut | Type | Défaut | Requis | Description |
+|----------|------|--------|--------|-------------|
+| for | String | \`""\` | oui | Id du dsfr-data-context observe. Le contexte peut etre declare APRES dans la page |
+| field | String | \`""\` | non | Champ dont la valeur est rendue — raccourci de \`template="{{champ}}"\`. Ignore si \`template\` est pose |
+| template | String | \`""\` | non | Gabarit texte : chaque \`{{champ}}\` est remplace par la valeur courante du filtre de ce champ. Plusieurs champs acceptes |
+| fallback | String | \`""\` | non | Texte de repli rendu tant qu'un champ cite n'a AUCUNE valeur (« Résultats pour toute la France »). Vide = le composant ne rend rien |
+| live | Boolean | \`false\` | non | Region live polie (\`aria-live="polite"\`, \`role="status"\`) : le titre annonce le changement de contenu aux lecteurs d'écran. A poser sur UN seul element de la page — plusieurs libelles qui parlent en meme temps sont un bruit |
+
+### Pattern
+
+\`\`\`html
+<dsfr-data-context id="ctx" sources="src" url-sync>
+  <dsfr-data-context-filter field="departement" operator="eq" ui="ui-dep">
+  </dsfr-data-context-filter>
+</dsfr-data-context>
+
+<h2>
+  <dsfr-data-context-value for="ctx" template="Résultats pour {{departement}}"
+    fallback="Résultats pour toute la France" live></dsfr-data-context-value>
+</h2>
+\`\`\`
+
+Regles :
+- Un seul champ cite sans valeur suffit a basculer sur \`fallback\` — « Résultats pour  »
+  serait pire qu'une phrase de repli.
+- Le rendu est du texte : la valeur d'un filtre ne traverse jamais l'analyseur HTML.
+- Pour LISTER les filtres et les retirer un a un, c'est context-tags ; ce composant
+  ne sert qu'a l'ecrire dans une phrase.
+` + reference('dsfr-data-context-value'),
   },
 
   dsfrDataJoin: {

@@ -867,3 +867,262 @@ describe('#682 — current-month : borne dynamique mois en cours', () => {
     unsub();
   });
 });
+
+/**
+ * #735 — year-start-month : annee scolaire, exercice comptable, saison.
+ *
+ * Tous les opérateurs de date raisonnaient en annee CIVILE ; `year-of`
+ * coupait l'annee scolaire en son milieu, en silence. Le desucrage reste
+ * `gte` + `lt` : aucun adaptateur, aucun dialecte n'est touche, la plage se
+ * delegue au serveur comme n'importe quelle autre.
+ */
+describe('#735 — AC : year-of year-start-month="9" → plage septembre → aout', () => {
+  it('l’annee nue "2024" filtre [2024-09-01, 2025-09-01)', async () => {
+    fakeSource('d-src');
+    const { box, unsub } = captureLast('d-src');
+    const input = document.createElement('input');
+    input.id = 'ui-ysm';
+    document.body.appendChild(input);
+
+    await mount(`
+      <dsfr-data-context id="dctx735a" sources="d-src">
+        <dsfr-data-context-filter field="d" operator="year-of" year-start-month="9" ui="ui-ysm">
+        </dsfr-data-context-filter>
+      </dsfr-data-context>
+    `);
+
+    input.value = '2024';
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(box.where).toBe('d:gte:2024-09-01, d:lt:2025-09-01');
+    unsub();
+  });
+
+  it('une date designe l’annee qui la CONTIENT (input type=date)', async () => {
+    fakeSource('d-src');
+    const { box, unsub } = captureLast('d-src');
+    const input = document.createElement('input');
+    input.type = 'date';
+    input.id = 'ui-ysm-date';
+    document.body.appendChild(input);
+
+    await mount(`
+      <dsfr-data-context id="dctx735b" sources="d-src">
+        <dsfr-data-context-filter field="d" operator="year-of" year-start-month="9"
+          ui="ui-ysm-date"></dsfr-data-context-filter>
+      </dsfr-data-context>
+    `);
+
+    // Mars 2025 est dans l'annee scolaire 2024-2025
+    input.value = '2025-03-10';
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(box.where).toBe('d:gte:2024-09-01, d:lt:2025-09-01');
+
+    // Octobre 2025 bascule dans la suivante
+    input.value = '2025-10-01';
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(box.where).toBe('d:gte:2025-09-01, d:lt:2026-09-01');
+    unsub();
+  });
+
+  it('sans l’attribut, year-of reste strictement l’annee civile', async () => {
+    fakeSource('d-src');
+    const { box, unsub } = captureLast('d-src');
+    const input = document.createElement('input');
+    input.id = 'ui-civil';
+    document.body.appendChild(input);
+
+    await mount(`
+      <dsfr-data-context id="dctx735c" sources="d-src">
+        <dsfr-data-context-filter field="d" operator="year-of" ui="ui-civil">
+        </dsfr-data-context-filter>
+      </dsfr-data-context>
+    `);
+
+    input.value = '2024-11-15';
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(box.where).toBe('d:gte:2024-01-01, d:lt:2025-01-01');
+    unsub();
+  });
+
+  it('sert aussi l’exercice comptable (avril)', async () => {
+    fakeSource('d-src');
+    const { box, unsub } = captureLast('d-src');
+    const input = document.createElement('input');
+    input.id = 'ui-fiscal';
+    document.body.appendChild(input);
+
+    await mount(`
+      <dsfr-data-context id="dctx735d" sources="d-src">
+        <dsfr-data-context-filter field="d" operator="year-of" year-start-month="4" ui="ui-fiscal">
+        </dsfr-data-context-filter>
+      </dsfr-data-context>
+    `);
+
+    input.value = '2024';
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(box.where).toBe('d:gte:2024-04-01, d:lt:2025-04-01');
+    unsub();
+  });
+});
+
+describe('#735 — AC : le libelle affiche est « 2024-2025 »', () => {
+  it('le tag du filtre porte l’annee scolaire, pas l’annee civile', async () => {
+    fakeSource('d-src');
+    const input = document.createElement('input');
+    input.id = 'ui-lbl';
+    document.body.appendChild(input);
+
+    const ctx = await mount(`
+      <dsfr-data-context id="dctx735e" sources="d-src">
+        <dsfr-data-context-filter field="d" label="Année scolaire" operator="year-of"
+          year-start-month="9" ui="ui-lbl"></dsfr-data-context-filter>
+      </dsfr-data-context>
+    `);
+
+    input.value = '2024';
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(ctx.activeFilters()[0].displayValue()).toBe('2024-2025');
+  });
+
+  it('sans l’attribut, le libelle reste l’annee civile tronquee', async () => {
+    fakeSource('d-src');
+    const input = document.createElement('input');
+    input.id = 'ui-lbl-civil';
+    document.body.appendChild(input);
+
+    const ctx = await mount(`
+      <dsfr-data-context id="dctx735f" sources="d-src">
+        <dsfr-data-context-filter field="d" operator="year-of" ui="ui-lbl-civil">
+        </dsfr-data-context-filter>
+      </dsfr-data-context>
+    `);
+
+    input.value = '2024-11-15';
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(ctx.activeFilters()[0].displayValue()).toBe('2024');
+  });
+});
+
+describe('#735 — current-year suit le meme mois de debut', () => {
+  it('en juin 2026, l’annee scolaire en cours est 2025-2026', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-10T12:00:00Z'));
+
+    fakeSource('d-src');
+    const { box, unsub } = captureLast('d-src');
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.id = 'ui-cy-ysm';
+    document.body.appendChild(checkbox);
+
+    const ctx = await mount(`
+      <dsfr-data-context id="dctx735g" sources="d-src">
+        <dsfr-data-context-filter field="d" operator="current-year" year-start-month="9"
+          ui="ui-cy-ysm"></dsfr-data-context-filter>
+      </dsfr-data-context>
+    `);
+
+    checkbox.checked = true;
+    checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(box.where).toBe('d:gte:2025-09-01, d:lt:2026-09-01');
+    expect(ctx.activeFilters()[0].displayValue()).toBe('2025-2026');
+    unsub();
+  });
+
+  it('en octobre 2026, elle est 2026-2027', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-02T12:00:00Z'));
+
+    fakeSource('d-src');
+    const { box, unsub } = captureLast('d-src');
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.id = 'ui-cy-ysm2';
+    document.body.appendChild(checkbox);
+
+    await mount(`
+      <dsfr-data-context id="dctx735h" sources="d-src">
+        <dsfr-data-context-filter field="d" operator="current-year" year-start-month="9"
+          ui="ui-cy-ysm2"></dsfr-data-context-filter>
+      </dsfr-data-context>
+    `);
+
+    checkbox.checked = true;
+    checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(box.where).toBe('d:gte:2026-09-01, d:lt:2027-09-01');
+    unsub();
+  });
+
+  it('sans l’attribut, current-year reste l’annee civile et son libelle', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-10T12:00:00Z'));
+
+    fakeSource('d-src');
+    const { box, unsub } = captureLast('d-src');
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.id = 'ui-cy-civil';
+    document.body.appendChild(checkbox);
+
+    const ctx = await mount(`
+      <dsfr-data-context id="dctx735i" sources="d-src">
+        <dsfr-data-context-filter field="d" operator="current-year" ui="ui-cy-civil">
+        </dsfr-data-context-filter>
+      </dsfr-data-context>
+    `);
+
+    checkbox.checked = true;
+    checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(box.where).toBe('d:gte:2026-01-01, d:lt:2027-01-01');
+    expect(ctx.activeFilters()[0].displayValue()).toBe('année en cours');
+    unsub();
+  });
+});
+
+describe('#735 — configuration fautive', () => {
+  it('un mois hors bornes est refuse et dit', async () => {
+    const error = vi.fn();
+    vi.spyOn(console, 'error').mockImplementation(error);
+    fakeSource('d-src');
+    const input = document.createElement('input');
+    input.id = 'ui-ysm-bad';
+    document.body.appendChild(input);
+
+    await mount(`
+      <dsfr-data-context id="dctx735j" sources="d-src">
+        <dsfr-data-context-filter id="f-bad" field="d" operator="year-of" year-start-month="13"
+          ui="ui-ysm-bad"></dsfr-data-context-filter>
+      </dsfr-data-context>
+    `);
+
+    const filter = document.getElementById('f-bad');
+    expect(filter?.getAttribute('data-dsfr-config-error')).toContain('year-start-month');
+    vi.restoreAllMocks();
+  });
+
+  it('l’attribut pose sur un opérateur qui l’ignore est signale, sans casser le filtre', async () => {
+    const warn = vi.fn();
+    vi.spyOn(console, 'warn').mockImplementation(warn);
+    fakeSource('d-src');
+    const { box, unsub } = captureLast('d-src');
+    const input = document.createElement('input');
+    input.type = 'month';
+    input.id = 'ui-ysm-month';
+    document.body.appendChild(input);
+
+    await mount(`
+      <dsfr-data-context id="dctx735k" sources="d-src">
+        <dsfr-data-context-filter field="d" operator="month-of" year-start-month="9"
+          ui="ui-ysm-month"></dsfr-data-context-filter>
+      </dsfr-data-context>
+    `);
+
+    input.value = '2026-03';
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(box.where).toBe('d:gte:2026-03-01, d:lt:2026-04-01');
+    const messages = warn.mock.calls.map((a) => a.map(String).join(' '));
+    expect(messages.some((m) => m.includes('year-start-month'))).toBe(true);
+    unsub();
+    vi.restoreAllMocks();
+  });
+});
