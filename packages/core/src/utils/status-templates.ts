@@ -30,6 +30,34 @@ export function renderSourceLoading(
   `;
 }
 
+/** Libellé par défaut de l'état d'attente d'un filtre (#690) */
+export const IDLE_MESSAGE_DEFAULT = 'Choisissez un filtre pour afficher les données';
+
+/**
+ * Bloc « en attente d'un filtre » (#690) — état `idle` d'un afficheur dont
+ * l'amont porte `require-where` et n'a encore reçu aucun filtre.
+ *
+ * Trois différences volontaires avec les autres états :
+ * - il n'est NI un chargement (rien n'est parti) NI un « aucune donnée »
+ *   (aucune requête n'a été faite) : le confondre avec l'un des deux
+ *   apprendrait à l'utilisateur que la page est cassée ;
+ * - pas de région live : c'est l'état INITIAL de la page, l'annoncer au
+ *   lecteur d'écran au chargement serait du bruit — le message est lu dans
+ *   le flux comme n'importe quel texte ;
+ * - pas d'`aria-busy` : rien n'est en cours.
+ */
+export function renderSourceIdle(
+  componentClass: string,
+  message: string = IDLE_MESSAGE_DEFAULT
+): TemplateResult {
+  return html`
+    <div class="${componentClass}__idle dsfr-data-status--idle">
+      <span class="fr-icon-filter-line" aria-hidden="true"></span>
+      ${message || IDLE_MESSAGE_DEFAULT}
+    </div>
+  `;
+}
+
 /** Bloc d'erreur commun — message TOUJOURS affiché quand disponible (#284) */
 export function renderSourceError(componentClass: string, error: Error | null): TemplateResult {
   const message = error?.message

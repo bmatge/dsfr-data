@@ -56,6 +56,7 @@ masquer en CSS quand l'attribut est vide — `a[href=""] { display: none; }`.
 | cols | Number | `1` | non | Nombre de colonnes dans la grille (1-6) |
 | pagination | Number | `0` | non | Elements par page (0 = tout afficher) |
 | empty | String | `"Aucun resultat"` | non | Message quand le tableau est vide |
+| idle-message | String | `"Choisissez un filtre pour afficher les données"` | non | Message rendu quand l'amont attend un filtre (`require-where`, #690) — distinct de `empty`, qui répond à une requête revenue vide. |
 | gap | String | `"fr-grid-row--gutters"` | non | Classe CSS de gap pour la grille |
 | uid-field | String | `""` | non | Champ de données pour l'ID unique par item. Chaque item recoit un id="item-{valeur}" pour ancrage URL |
 | url-sync | Boolean | `false` | non | Synchronise le numero de page dans l'URL (?page=N) via replaceState |
@@ -147,6 +148,7 @@ Quand la page est 1, le parametre est supprime de l'URL. Compatible avec les aut
 | `cols` | `number` | `1` | Nombre de colonnes dans la grille (1-6, défaut 1 = pleine largeur) |
 | `empty` | `string` | `'Aucun resultat'` | Message quand aucune donnee |
 | `gap` | `string` | `'fr-grid-row--gutters'` | Classe CSS de gap pour la grille (défaut: fr-grid-row--gutters) |
+| `idle-message` | `string` | `IDLE_MESSAGE_DEFAULT` | Message rendu quand l'amont attend un filtre (`require-where`, #690). Distinct de « aucune donnée » : aucune requête n'a été faite. Vide, le libellé par défaut est utilisé. |
 | `pagination` | `number` | `0` | Nombre d'éléments par page (0 = tout afficher) |
 | `source` | `string` | `""` (vide) | Id de la source (ou du transformateur) dont ce composant consomme les données. |
 | `uid-field` | `string` | `""` (vide) | Champ de données a utiliser comme identifiant unique par item. Si vide, utilise l'index |

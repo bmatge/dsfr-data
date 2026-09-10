@@ -39,6 +39,8 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 | server-side | Boolean | `false` | non | Active la pagination serveur page par page (datalist, tableaux). |
 | limit | Number | `0` | non | Limite du nombre de resultats (0 = pas de limite). |
 | max-records | Number | `0` | non | Plafond du fetchAll en mode adapter (#233). 0 = plafond par defaut de l'adapter (ODS : 1000). A relever explicitement pour les dashboards « un fetch, N agregations client » — attention au volume (requetes en boucle, memoire). |
+| fetch-mode | String | `"records"` | non | Strategie de chargement en mode adapter (#689). `"export"` charge tout le jeu en UNE requete via l'endpoint d'export du portail (ODS `/exports/json`), memes clauses select/where/group-by/order-by. A activer pour « un fetch, N agregations client », un jeu de plus de 1 000 lignes ou un group-by a beaucoup de groupes. Ignore avec `server-side` (avertissement console). Implemente par OpenDataSoft seulement ; repli automatique sur le chargement pagine si le portail n'expose pas d'export. |
+| require-where | Boolean | `false` | non | Ne rien charger tant qu'aucun filtre n'a été reçu (#690) : la source reste en attente et émet `dsfr-data-idle`, les afficheurs rendent « Choisissez un filtre pour afficher les données ». Le `where` STATIQUE ne compte pas — seules les clauses reçues par commande (facettes, recherche, dsfr-data-context, délégation d'un dsfr-data-query). Retirer le dernier filtre repasse en attente : jamais de requête « tout ». Réservé au mode adapter (les commandes where sont refusées en mode URL). |
 | data | String | `""` | non | Données JSON inline (pas de fetch). Ex: `data='[{"x":1},{"x":2}]'` |
 | use-proxy | Boolean | `false` | non | Force le passage par le proxy CORS generique. N'a d'effet QUE si une base de proxy est configuree (`proxy-url`, `window.DSFR_DATA_PROXY`, ou build) : en embed nu sur un site tiers sans aucune de ces sources, c'est un no-op (URL renvoyee inchangee). |
 | proxy-url | String | `""` | non | Domaine du proxy CORS pour CETTE source, prioritaire sur `window.DSFR_DATA_PROXY` et la config build. Sert la reecriture d'hote connu (Grist gouv/SaaS, Tabular, INSEE) ET le `use-proxy` generique. Ex: `proxy-url="https://mon-proxy.fr"`. Vide = resolution proxy globale habituelle. |
@@ -122,6 +124,33 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 </dsfr-data-source>
 \`\`\`
 
+### Pages d'exploration : ne rien charger tant que l'utilisateur n'a rien choisi
+
+Une page où l'on choisit une commune, une année ou un thème avant de voir quoi que ce soit
+ne doit PAS rapatrier le jeu entier au chargement : c'est une requête coûteuse dont
+personne ne regarde le résultat. `require-where` sur la source (ou sur la requête) tient
+le pipeline en attente jusqu'au premier filtre, et les afficheurs rendent un message
+DSFR au lieu d'un graphique vide.
+
+\`\`\`html
+<dsfr-data-context id="ctx" sources="src">
+  <dsfr-data-context-filter field="commune" operator="eq"></dsfr-data-context-filter>
+</dsfr-data-context>
+
+<!-- Aucune requête tant qu'aucune commune n'est choisie -->
+<dsfr-data-source id="src" api-type="opendatasoft" require-where
+  base-url="https://data.example.gouv.fr" dataset-id="equipements">
+</dsfr-data-source>
+
+<dsfr-data-list source="src" columns="commune,equipement"
+  idle-message="Choisissez une commune pour afficher ses équipements">
+</dsfr-data-list>
+\`\`\`
+
+Retirer le dernier filtre ramène la page en attente : il n'y a jamais de requête
+« tout » implicite. L'état est visible dans le volet Diagnostic (« en attente d'un
+filtre ») et sur le bus via l'événement `dsfr-data-idle`.
+
 ### Référence `<dsfr-data-source>` (générée depuis le code)
 
 **Rôle pipeline** : autonome — n’utilise pas les mixins d’abonnement du pipeline (voir les événements ci-dessous).
@@ -137,6 +166,7 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 | `cache-ttl` | `number` | `3600` | TTL du cache externe en secondes (0 = desactive). Actif uniquement si la page hote enregistre `window.DSFR_DATA_CACHE_PROVIDER` (#307) — no-op en embed anonyme. |
 | `data` | `string` | `""` (vide) | Données JSON inline (pas de fetch) |
 | `dataset-id` | `string` | `""` (vide) | ID du dataset (pour ODS) |
+| `fetch-mode` | `'records' \| 'export'` | `'records'` | Stratégie de chargement en mode adaptateur (#689) : `records` (défaut, comportement historique — pagination par pages de 100) ou `export`, qui charge tout le jeu en **une seule requête** sur l'endpoint d'export du portail, avec les mêmes clauses (`select`, `where`, `group-by`, `order-by`). Implémenté par OpenDataSoft seulement ; les autres adaptateurs ignorent l'attribut. À activer pour une page « un fetch, N agrégations client », un jeu de plus de 1 000 lignes, ou un `group-by` à beaucoup de groupes : le portail les rend tous d'un coup au lieu d'une page. À ne pas activer avec `server-side` (pagination page par page), qui reste sur l'endpoint paginé et signale la contradiction dans la console. En mode `export` le total serveur est inconnu : la troncature est détectée en demandant une ligne de plus que le plafond `max-records`. Si le portail n'expose pas d'endpoint d'export, la source retombe une fois sur le chargement paginé, avec un avertissement en console. |
 | `group-by` | `string` | `""` (vide) | Group-by (pour les APIs qui le supportent server-side). ODS : un élément peut être une expression aliasée (`year(date) as annee`), transmise telle quelle — l'alias `as` est obligatoire cote ODS (#641). |
 | `headers` | `string` | `""` (vide) | En-têtes HTTP en JSON. Ex: `'{"Authorization": "Bearer xxx"}'`. OpenDataSoft : la clé va dans `Authorization: Apikey CLE` (seul en-tête autorisé en CORS) — un `apikey` nu est réécrit automatiquement (#655). |
 | `limit` | `number` | `0` | Limite du nombre de résultats |
@@ -148,6 +178,7 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 | `params` | `string` | `""` (vide) | Paramètres de requête en JSON : query string en GET, corps en POST. |
 | `proxy-url` | `string` | `""` (vide) | Domaine du proxy CORS pour CETTE source (#340), prioritaire sur `window.DSFR_DATA_PROXY` et la config build-time. Sert a la fois la reecriture d'hote connu (Grist gouv/SaaS, Tabular, INSEE) et le `use-proxy` generique. Vide = resolution proxy globale habituelle. Ex: `proxy-url="https://mon-proxy.fr"`. |
 | `refresh` | `number` | `0` | Rafraichissement automatique en secondes (0 = desactive). |
+| `require-where` | `boolean` | `false` | Ne rien charger tant qu'aucun filtre n'a été reçu (#690). Pensé pour les pages d'exploration : sans cet attribut, une source interroge l'API dès le montage et rapatrie le jeu entier — une requête coûteuse dont personne ne regarde le résultat. Avec lui, la source reste en attente, émet `dsfr-data-idle` et ne part chercher les données qu'au premier filtre. Ce qui compte comme filtre : les clauses reçues par commande — facettes, recherche, `dsfr-data-context`, délégation d'un `dsfr-data-query`. Le `where` STATIQUE de la source ne compte PAS : il fait partie de la définition du jeu, pas du geste de l'utilisateur ; le contraire rendrait l'attribut sans effet sur toute source qui restreint déjà son périmètre. Quand le dernier filtre est retiré, la source repasse en attente : jamais de requête « tout » implicite. Sans effet en mode données inline (`data`), qui ne fait aucune requête. |
 | `resource` | `string` | `""` (vide) | ID de la ressource (pour Tabular) |
 | `select` | `string` | `""` (vide) | Clause SELECT (pour ODS) |
 | `server-side` | `boolean` | `false` | Mode pagination serveur (datalist, tableaux) |
@@ -178,6 +209,7 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 | `dsfr-data-loaded` | — | émis | `{ sourceId, data }` sur `document` — données chargees et publiees sous l'`id` de cette source. C'est l'evenement que tout l'aval ecoute. |
 | `dsfr-data-loading` | — | émis | `{ sourceId }` sur `document` — un chargement demarre. |
 | `dsfr-data-error` | — | émis | `{ sourceId, error, attemptedUrl? }` sur `document` — le fetch ou le parsing a echoue. `attemptedUrl` (#603) porte l'URL REELLEMENT appelee, proxy applique : elle diverge souvent du `base-url` ecrit dans le HTML, et le message de l'`Error` reste volontairement court. La cle est absente quand l'URL n'a pas pu être construite, ou pour une erreur qui ne vient pas d'un fetch (données inline invalides, configuration). |
+| `dsfr-data-idle` | — | émis | `{ sourceId, reason }` sur `document` — la source attend un filtre (`require-where` posé, aucun filtre reçu). Aucune requête n'est partie : l'état est distinct d'un chargement, d'une erreur et d'un résultat vide. Les afficheurs le rendent en message « choisissez un filtre » (#690). |
 
 
 **Slots** — aucun (le composant rend son propre contenu).

@@ -17,6 +17,7 @@ import {
   dispatchDataLoaded,
   dispatchDataError,
   dispatchDataLoading,
+  dispatchDataIdle,
   clearDataCache,
   setDataMeta,
   clearDataMeta,
@@ -52,6 +53,10 @@ import {
  *   elle diverge souvent du `base-url` ecrit dans le HTML, et le message de l'`Error` reste
  *   volontairement court. La cle est absente quand l'URL n'a pas pu être construite, ou pour
  *   une erreur qui ne vient pas d'un fetch (données inline invalides, configuration).
+ * @fires dsfr-data-idle - `{ sourceId, reason }` sur `document` — la source attend un filtre
+ *   (`require-where` posé, aucun filtre reçu). Aucune requête n'est partie : l'état est distinct
+ *   d'un chargement, d'une erreur et d'un résultat vide. Les afficheurs le rendent en message
+ *   « choisissez un filtre » (#690).
  * @fires cache-fallback - `{ sourceId }` sur l'élément — les données servies viennent du cache externe après un echec reseau (#307).
  */
 @customElement('dsfr-data-source')
@@ -181,6 +186,50 @@ export class DsfrDataSource extends LitElement {
   @property({ type: Number, attribute: 'max-records' })
   maxRecords = 0;
 
+  /**
+   * Stratégie de chargement en mode adaptateur (#689) : `records` (défaut,
+   * comportement historique — pagination par pages de 100) ou `export`, qui
+   * charge tout le jeu en **une seule requête** sur l'endpoint d'export du
+   * portail, avec les mêmes clauses (`select`, `where`, `group-by`,
+   * `order-by`). Implémenté par OpenDataSoft seulement ; les autres
+   * adaptateurs ignorent l'attribut.
+   *
+   * À activer pour une page « un fetch, N agrégations client », un jeu de
+   * plus de 1 000 lignes, ou un `group-by` à beaucoup de groupes : le portail
+   * les rend tous d'un coup au lieu d'une page. À ne pas activer avec
+   * `server-side` (pagination page par page), qui reste sur l'endpoint
+   * paginé et signale la contradiction dans la console.
+   *
+   * En mode `export` le total serveur est inconnu : la troncature est
+   * détectée en demandant une ligne de plus que le plafond `max-records`.
+   * Si le portail n'expose pas d'endpoint d'export, la source retombe une
+   * fois sur le chargement paginé, avec un avertissement en console.
+   */
+  @property({ type: String, attribute: 'fetch-mode' })
+  fetchMode: 'records' | 'export' = 'records';
+
+  /**
+   * Ne rien charger tant qu'aucun filtre n'a été reçu (#690).
+   *
+   * Pensé pour les pages d'exploration : sans cet attribut, une source
+   * interroge l'API dès le montage et rapatrie le jeu entier — une requête
+   * coûteuse dont personne ne regarde le résultat. Avec lui, la source reste
+   * en attente, émet `dsfr-data-idle` et ne part chercher les données qu'au
+   * premier filtre.
+   *
+   * Ce qui compte comme filtre : les clauses reçues par commande — facettes,
+   * recherche, `dsfr-data-context`, délégation d'un `dsfr-data-query`. Le
+   * `where` STATIQUE de la source ne compte PAS : il fait partie de la
+   * définition du jeu, pas du geste de l'utilisateur ; le contraire rendrait
+   * l'attribut sans effet sur toute source qui restreint déjà son périmètre.
+   *
+   * Quand le dernier filtre est retiré, la source repasse en attente : jamais
+   * de requête « tout » implicite. Sans effet en mode données inline (`data`),
+   * qui ne fait aucune requête.
+   */
+  @property({ type: Boolean, attribute: 'require-where' })
+  requireWhere = false;
+
   // --- Internal state ---
 
   @state()
@@ -202,6 +251,8 @@ export class DsfrDataSource extends LitElement {
   private _fetchGeneration = 0;
   /** Warn-once : commandes adapter recues en mode URL (#288) */
   private _urlModeCommandWarned = false;
+  /** Warn-once : require-where pose sur une source qui ne peut rien recevoir (#690) */
+  private _requireWhereModeWarned = false;
 
   /** Dynamic WHERE overlays from dsfr-data-facets, dsfr-data-search, etc. */
   private _whereOverlays = new Map<string, string>();
@@ -266,6 +317,7 @@ export class DsfrDataSource extends LitElement {
       changedProperties.has('groupBy') ||
       changedProperties.has('aggregate') ||
       changedProperties.has('orderBy') ||
+      changedProperties.has('fetchMode') ||
       changedProperties.has('limit');
     // Attributs communs aux deux modes, historiquement non cables au
     // refetch (#288) — headers a le meme role qu'api-key-ref qui refetchait
@@ -273,7 +325,8 @@ export class DsfrDataSource extends LitElement {
       changedProperties.has('pageSize') ||
       changedProperties.has('serverSide') ||
       changedProperties.has('headers') ||
-      changedProperties.has('proxyUrl');
+      changedProperties.has('proxyUrl') ||
+      changedProperties.has('requireWhere');
 
     if (urlModeChanged || adapterModeChanged || sharedChanged) {
       if (
@@ -511,7 +564,51 @@ export class DsfrDataSource extends LitElement {
     }, 0);
   }
 
+  /**
+   * Un filtre utilisateur est-il posé (#690) ? Seuls les overlays reçus par
+   * commande comptent — le `where` statique fait partie de la définition de
+   * la source, pas du geste de l'utilisateur.
+   */
+  private _hasReceivedWhere(): boolean {
+    for (const value of this._whereOverlays.values()) {
+      if (value) return true;
+    }
+    return false;
+  }
+
+  /** Entrée (ou retour) en attente d'un filtre : rien n'est chargé (#690). */
+  private _enterIdle() {
+    // Piège de configuration : en mode URL, les commandes where sont
+    // refusées (#288) — aucun filtre ne pourra jamais lever l'attente, la
+    // source resterait muette pour toujours. Le dire une fois.
+    if (!this._isAdapterMode() && !this._requireWhereModeWarned) {
+      this._requireWhereModeWarned = true;
+      console.warn(
+        `dsfr-data-source[${this.id}]: require-where est sans issue en mode URL — ` +
+          `les commandes where y sont refusées (#288). Utilisez un api-type ` +
+          `(opendatasoft, tabular, grist, insee) pour que les filtres atteignent la source.`
+      );
+    }
+
+    if (this._abortController) {
+      this._abortController.abort();
+      this._abortController = null;
+    }
+    this._data = null;
+    this._error = null;
+    this._loading = false;
+    if (this.id) dispatchDataIdle(this.id);
+  }
+
   private async _fetchData() {
+    // Garde AVANT toute construction de requête (#690) : ni fetch, ni
+    // validation d'adapter, ni `dsfr-data-loading` — l'aval doit voir un
+    // état d'attente, pas un chargement qui n'arrive jamais.
+    if (this.requireWhere && !this._hasReceivedWhere()) {
+      this._enterIdle();
+      return;
+    }
+
     if (this._isAdapterMode()) {
       return this._fetchViaAdapter();
     }
@@ -684,6 +781,18 @@ export class DsfrDataSource extends LitElement {
 
     clearConfigError(this);
 
+    // Configuration contradictoire, non bloquante (#689) : l'endpoint
+    // d'export rend le jeu entier, la pagination serveur demande une page.
+    // Le chargement continue sur le chemin pagine (getAdapterParams neutralise
+    // deja fetchMode) ; l'attribut de diagnostic nomme la cause.
+    if (this.fetchMode === 'export' && this.serverSide) {
+      reportConfigError(
+        this,
+        `dsfr-data-source[${this.id}]`,
+        'fetch-mode="export" est ignoré avec server-side : la pagination serveur reste sur l\'endpoint paginé'
+      );
+    }
+
     if (this._abortController) {
       this._abortController.abort();
     }
@@ -795,7 +904,13 @@ export class DsfrDataSource extends LitElement {
     overlay?: ServerSideOverlay
   ): string | undefined {
     try {
-      return overlay ? adapter.buildServerSideUrl(params, overlay) : adapter.buildUrl(params);
+      if (overlay) return adapter.buildServerSideUrl(params, overlay);
+      // Mode export (#689) : l'URL reellement appelee n'est pas celle de
+      // l'endpoint pagine — un repli sur /records a deja son propre warn
+      if (params.fetchMode === 'export' && adapter.buildExportUrl) {
+        return adapter.buildExportUrl(params);
+      }
+      return adapter.buildUrl(params);
     } catch {
       return undefined;
     }
@@ -833,6 +948,9 @@ export class DsfrDataSource extends LitElement {
       orderBy: this._orderByOverlay || this.orderBy,
       limit: this.limit,
       maxRecords: this.maxRecords,
+      // `server-side` ignore fetch-mode (#689) : la pagination page par page
+      // n'a pas de sens sur un endpoint d'export, qui rend tout d'un coup
+      fetchMode: this.fetchMode === 'export' && !this.serverSide ? 'export' : 'records',
       transform: this.transform,
       pageSize: this.pageSize,
       headers: parsedHeaders,

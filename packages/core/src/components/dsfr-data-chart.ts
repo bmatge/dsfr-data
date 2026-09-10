@@ -3,7 +3,12 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { getByPath } from '../utils/json-path.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
-import { renderSourceLoading, renderSourceError } from '../utils/status-templates.js';
+import {
+  renderSourceLoading,
+  renderSourceError,
+  renderSourceIdle,
+  IDLE_MESSAGE_DEFAULT,
+} from '../utils/status-templates.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import {
   parseReferenceLines,
@@ -131,6 +136,14 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
    */
   @property({ type: String, attribute: 'empty-label' })
   emptyLabel = 'Non renseigné';
+
+  /**
+   * Message rendu quand l'amont attend un filtre (`require-where`, #690).
+   * Distinct de « aucune donnée » : aucune requête n'a été faite. Vide,
+   * le libellé par défaut est utilisé.
+   */
+  @property({ type: String, attribute: 'idle-message' })
+  idleMessage = IDLE_MESSAGE_DEFAULT;
 
   /**
    * Chemin vers le champ code (prioritaire sur label-field) : departement/region
@@ -1613,6 +1626,23 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
             padding: 1rem;
             color: var(--text-default-error, #ce0500);
             background: var(--background-alt-red-marianne, #ffe5e5);
+            border-radius: 4px;
+          }
+        </style>
+      `;
+    }
+
+    if (this._sourceIdle) {
+      return html`
+        ${renderSourceIdle('dsfr-data-chart', this.idleMessage)}
+        <style>
+          .dsfr-data-chart__idle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem;
+            color: var(--text-mention-grey, #666);
+            background: var(--background-alt-grey, #f5f5f5);
             border-radius: 4px;
           }
         </style>

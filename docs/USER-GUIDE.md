@@ -813,6 +813,80 @@ Exemples executables : [guide des cartes](https://chartsbuilder.miweb.run/guide/
 - **Litteral `value="=…"`** : affiche la valeur telle quelle, sans source de donnees (`value="=667"`, `value="=87 %"`).
 - Chaque KPI enfant peut porter `col="1..12"` pour moduler sa largeur dans la grille.
 
+### Charger un jeu Opendatasoft en une requete : `fetch-mode="export"`
+
+Par defaut, une source Opendatasoft lit le jeu **page par page**, 100 lignes a la fois : 3 000 lignes
+coutent 30 requetes, et le portail impose un quota partage. `fetch-mode="export"` charge tout en
+**une seule requete**, avec exactement les memes clauses (`select`, `where`, `group-by`, `order-by`) :
+
+```html
+<dsfr-data-source id="marches" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr" dataset-id="decp_augmente"
+  fetch-mode="export" max-records="20000"
+  select="count(*) as nb, source" group-by="source"></dsfr-data-source>
+
+<dsfr-data-chart source="marches" type="bar"
+  label-field="source" value-field="nb"></dsfr-data-chart>
+```
+
+**Quand l'activer**
+
+- Une page « un chargement, plusieurs graphiques » : le jeu est lu une fois, les agregations se font
+  ensuite dans le navigateur.
+- Un jeu de plus de 1 000 lignes : le plafond par defaut du chargement pagine tronque a 1 000, ici
+  c'est `max-records` qui fixe la limite.
+- Un `group-by` a beaucoup de groupes : l'export les rend tous, la pagination s'arretait a la
+  premiere page.
+
+**Quand ne pas l'activer**
+
+- Avec `server-side` (pagination page par page d'un tableau) : les deux se contredisent, l'attribut
+  est alors ignore et la console le signale.
+- Sur un portail qui n'expose pas d'endpoint d'export : la source retombe automatiquement sur le
+  chargement pagine, avec un avertissement dans la console — rien ne casse, mais l'attribut ne sert
+  a rien.
+
+**A savoir** — en mode export le portail ne renvoie pas le total du jeu : un KPI `meta:total` affiche
+le nombre de lignes recues. Si le jeu depasse `max-records`, les donnees sont tronquees, un
+avertissement le dit en console et le volet Diagnostic le signale.
+
+### Pages d'exploration : ne rien charger tant qu'aucun filtre n'est pose
+
+Sur une page ou l'utilisateur choisit d'abord une commune, une annee ou un theme, charger
+le jeu complet au montage est une requete couteuse dont personne ne regarde le resultat
+(19 388 lignes rapatriees pour un ecran vide). L'attribut `require-where` sur
+`<dsfr-data-source>` tient le chargement en attente jusqu'au premier filtre :
+
+```html
+<dsfr-data-context id="ctx" sources="src">
+  <dsfr-data-context-filter field="commune" operator="eq"></dsfr-data-context-filter>
+</dsfr-data-context>
+
+<!-- Aucune requete tant qu'aucune commune n'est choisie -->
+<dsfr-data-source id="src" api-type="opendatasoft" require-where
+  base-url="https://data.example.gouv.fr" dataset-id="equipements"></dsfr-data-source>
+
+<dsfr-data-list source="src" columns="commune,equipement"
+  idle-message="Choisissez une commune pour afficher ses equipements"></dsfr-data-list>
+```
+
+- **Ce qui compte comme filtre** : les clauses recues par commande — facettes, recherche,
+  `dsfr-data-context`, delegation d'un `dsfr-data-query`. Le `where` **statique** de la source
+  ne compte pas : il fait partie de la definition du jeu, pas du geste de l'utilisateur.
+- **Retirer le dernier filtre** ramene la page en attente : il n'y a jamais de requete
+  « tout » implicite.
+- **Affichage** : chart, list, kpi, display, podium et a11y rendent un message DSFR
+  (`idle-message`, defaut « Choisissez un filtre pour afficher les donnees »), distinct de
+  « aucune donnee » (une requete est partie et n'a rien ramene) et du chargement.
+- **Pendant client** : `require-where` existe aussi sur `<dsfr-data-query>` — la requete
+  n'emet aucune ligne tant qu'aucun filtre n'est pose, et l'etat descend jusqu'aux afficheurs.
+- **Diagnostic** : l'etape apparait « en attente d'un filtre » dans le volet Diagnostic ;
+  sur le bus, l'evenement est `dsfr-data-idle`.
+- `require-where` suppose un `api-type` : en mode URL brute, les commandes de filtre sont
+  refusees (rien ne pourrait lever l'attente) et un avertissement est emis en console.
+
+---
+
 ---
 
 ## Ressources

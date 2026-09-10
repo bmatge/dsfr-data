@@ -21,6 +21,8 @@ import {
   renderSourceLoading,
   renderSourceError,
   renderConfigError,
+  renderSourceIdle,
+  IDLE_MESSAGE_DEFAULT,
 } from '../utils/status-templates.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import { parseKpiLines, resolveKpiLines, type ResolvedKpiLine } from '../utils/kpi-lines.js';
@@ -208,6 +210,14 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
   /** Largeur en colonnes DSFR (1-12). Significatif uniquement dans un <dsfr-data-kpi-group>. */
   @property({ type: Number, reflect: true })
   col?: number;
+
+  /**
+   * Message rendu quand l'amont attend un filtre (`require-where`, #690).
+   * Distinct de « aucune donnée » : aucune requête n'a été faite. Vide,
+   * le libellé par défaut est utilisé.
+   */
+  @property({ type: String, attribute: 'idle-message' })
+  idleMessage = IDLE_MESSAGE_DEFAULT;
 
   // Utilise le Light DOM pour bénéficier des styles DSFR
   createRenderRoot() {
@@ -516,64 +526,66 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
               ? renderSourceLoading('dsfr-data-kpi')
               : this._sourceError
                 ? renderSourceError('dsfr-data-kpi', this._sourceError)
-                : html`
-                    <div class="dsfr-data-kpi__content">
-                      ${
-                        this.heading
-                          ? html`<span class="dsfr-data-kpi__heading">${this.heading}</span>`
-                          : ''
-                      }
-                      ${
-                        this.icon || this.icone
-                          ? html`
-                              <span
-                                class="dsfr-data-kpi__icon ${this.icon || this.icone}"
-                                aria-hidden="true"
-                              ></span>
-                            `
-                          : ''
-                      }
-                      <div class="dsfr-data-kpi__value-wrapper">
-                        <span class="dsfr-data-kpi__value">${formattedValue}</span>
+                : this._sourceIdle
+                  ? renderSourceIdle('dsfr-data-kpi', this.idleMessage)
+                  : html`
+                      <div class="dsfr-data-kpi__content">
                         ${
-                          tendance
+                          this.heading
+                            ? html`<span class="dsfr-data-kpi__heading">${this.heading}</span>`
+                            : ''
+                        }
+                        ${
+                          this.icon || this.icone
                             ? html`
                                 <span
-                                  class="dsfr-data-kpi__tendance dsfr-data-kpi__tendance--${tendance.direction}"
-                                  role="img"
-                                  aria-label="${
-                                    tendance.value > 0
-                                      ? `en hausse de ${formatPercentage(Math.abs(tendance.value))}`
-                                      : tendance.value < 0
-                                        ? `en baisse de ${formatPercentage(Math.abs(tendance.value))}`
-                                        : 'stable'
-                                  }"
-                                >
-                                  ${
-                                    tendance.direction === 'up'
-                                      ? '↑'
-                                      : tendance.direction === 'down'
-                                        ? '↓'
-                                        : '→'
-                                  }
-                                  ${formatPercentage(Math.abs(tendance.value))}
-                                </span>
+                                  class="dsfr-data-kpi__icon ${this.icon || this.icone}"
+                                  aria-hidden="true"
+                                ></span>
                               `
                             : ''
                         }
+                        <div class="dsfr-data-kpi__value-wrapper">
+                          <span class="dsfr-data-kpi__value">${formattedValue}</span>
+                          ${
+                            tendance
+                              ? html`
+                                  <span
+                                    class="dsfr-data-kpi__tendance dsfr-data-kpi__tendance--${tendance.direction}"
+                                    role="img"
+                                    aria-label="${
+                                      tendance.value > 0
+                                        ? `en hausse de ${formatPercentage(Math.abs(tendance.value))}`
+                                        : tendance.value < 0
+                                          ? `en baisse de ${formatPercentage(Math.abs(tendance.value))}`
+                                          : 'stable'
+                                    }"
+                                  >
+                                    ${
+                                      tendance.direction === 'up'
+                                        ? '↑'
+                                        : tendance.direction === 'down'
+                                          ? '↓'
+                                          : '→'
+                                    }
+                                    ${formatPercentage(Math.abs(tendance.value))}
+                                  </span>
+                                `
+                              : ''
+                          }
+                        </div>
+                        ${resolvedLines.map(
+                          (line) => html`
+                            <span
+                              class="dsfr-data-kpi__line"
+                              style=${line.color ? `color: ${line.color};` : ''}
+                              >${line.text}</span
+                            >
+                          `
+                        )}
+                        <span class="dsfr-data-kpi__label">${this.label}</span>
                       </div>
-                      ${resolvedLines.map(
-                        (line) => html`
-                          <span
-                            class="dsfr-data-kpi__line"
-                            style=${line.color ? `color: ${line.color};` : ''}
-                            >${line.text}</span
-                          >
-                        `
-                      )}
-                      <span class="dsfr-data-kpi__label">${this.label}</span>
-                    </div>
-                  `
+                    `
         }
       </div>
       <style>

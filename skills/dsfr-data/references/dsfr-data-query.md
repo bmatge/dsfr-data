@@ -41,6 +41,7 @@ Apres agrégation, les champs sont nommes automatiquement : `champ__fonction`
 | aggregate | String | `""` | non | Agrégations : `"champ:fonction"` ou `"champ:fonction:alias"` |
 | order-by | String | `""` | non | Tri : `"champ:asc"` ou `"champ:desc"`. **Omettre cet attribut preserve l'ordre source** (ordre de premiere apparition apres group-by) — utile pour les mois en lettres, jours de la semaine, ou toute série déjà ordonnee en amont. |
 | limit | Number | `0` | non | Limite de resultats (0 = illimite) |
+| require-where | Boolean | `false` | non | N'émettre aucune ligne tant qu'aucun filtre n'est posé (#690) : l'état `idle` descend jusqu'aux afficheurs. Compte comme filtre le `where`/`filter` de cette requête, ou toute clause reçue par commande. |
 
 > dsfr-data-query est un pur transformateur de données. Utilisez dsfr-data-source pour le fetch HTTP.
 > Le where de query est colon-only : la syntaxe ODSQL ne s'utilise que sur le where de dsfr-data-source.
@@ -188,6 +189,7 @@ visible (console + `data-dsfr-config-error`, composants aval en erreur) — jama
 | `group-by` | `string` | `""` (vide) | Champs de regroupement (séparés par virgule) |
 | `limit` | `number` | `0` | Limite de résultats |
 | `order-by` | `string` | `""` (vide) | Tri des résultats Format: "field:direction" ou "field__function:direction" Ex: "total_pop:desc" ou "population__sum:desc" |
+| `require-where` | `boolean` | `false` | N'émettre aucune ligne tant qu'aucun filtre n'est posé (#690). Pendant de `require-where` sur `dsfr-data-source`, pour les pages d'exploration : la requête reste en attente, émet `dsfr-data-idle`, et les afficheurs en aval rendent « choisissez un filtre » au lieu du jeu entier. Ce qui compte comme filtre : le `where` (ou `filter`) de CETTE requête — sur un query, c'est la surface de filtrage que la page pilote — et toute clause `where` non vide reçue par commande (facettes, recherche, `dsfr-data-context`). Tout retirer fait repasser la requête en attente. |
 | `source` | `string` | `""` (vide) | ID de la source de données (dsfr-data-source ou dsfr-data-normalize) |
 | `where` | `string` | `""` (vide) | Clause WHERE / Filtres — syntaxe colon UNIQUEMENT : "champ:opérateur:valeur, champ2:opérateur:valeur2" (opérateurs : eq, neq, gt, gte, lt, lte, contains, notcontains, in, notin, isnull, isnotnull — multi-valeurs séparées par \|). La syntaxe ODSQL n'est PAS supportee ici (elle l'est sur le `where` de dsfr-data-source) : une clause non parsable est signalee via reportConfigError (#277). En délégation serveur, la clause est traduite au dialecte de l'adapter (#275). |
 
@@ -215,6 +217,7 @@ visible (console + `data-dsfr-config-error`, composants aval en erreur) — jama
 | `dsfr-data-error` | `{ sourceId, error }` | émis | Erreur amont ou de transformation, sous l’`id` de ce composant. |
 | `dsfr-data-loading` | `{ sourceId }` | émis | Chargement amont relayé vers l’aval. |
 | `dsfr-data-source-command` | `{ sourceId, page?, where?, whereKey?, orderBy?, groupBy?, aggregate? }` | émis | Commande de pagination / filtre / tri envoyée à la source AMONT — soit originée par ce composant, soit relayée depuis l’aval. |
+| `dsfr-data-idle` | — | émis | `{ sourceId, reason }` sur `document` — la requête attend un filtre (`require-where` posé, aucun filtre reçu) : elle n'émet aucune ligne, et les afficheurs en aval rendent « choisissez un filtre » (#690). Relayé tel quel quand c'est l'amont qui attend. |
 | `dsfr-data-source-command` | — | émis | `{ sourceId, groupBy?, aggregate?, orderBy?, where?, whereKey?, origin }` sur `document` — délégation server-side negociee avec la source amont, et liberation des overlays quand elle retombe cote client. `origin` porte l'id de ce composant (#603). |
 
 

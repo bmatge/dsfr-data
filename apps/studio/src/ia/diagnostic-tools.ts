@@ -187,6 +187,11 @@ function describeStage(trace: Trace, nodeId: string, redact: boolean): string {
     case 'loading':
       lines.push('Chargement en cours au moment du relevé.');
       break;
+    case 'waiting':
+      lines.push(
+        "En attente d'un filtre (require-where) : aucune requête n'a été lancée, c'est voulu."
+      );
+      break;
     default:
       lines.push(
         node.role === 'display'

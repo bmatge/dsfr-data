@@ -53,6 +53,13 @@ export interface AdapterParams {
    * (requetes en boucle, poids memoire).
    */
   maxRecords?: number;
+  /**
+   * Stratégie de chargement du `fetchAll` (#689, ADR-106) : `records`
+   * (défaut — pagination par pages) ou `export` (une seule requête sur
+   * l'endpoint d'export du provider). Les adaptateurs qui ne connaissent
+   * pas ce mode l'ignorent ; seul OpenDataSoft l'implémente aujourd'hui.
+   */
+  fetchMode?: 'records' | 'export';
   transform: string;
   pageSize: number;
   /** Headers HTTP custom (ex: authentification, API key) */
@@ -183,6 +190,13 @@ export interface ApiAdapter {
    * Construit une URL server-side pour une seule page.
    */
   buildServerSideUrl(params: AdapterParams, overlay: ServerSideOverlay): string;
+
+  /**
+   * Construit l'URL de l'endpoint d'export du provider (#689), celui
+   * qu'emprunte `fetchAll` quand `fetchMode` vaut `export`. Absent = ce
+   * provider n'a pas d'endpoint d'export et ignore `fetchMode`.
+   */
+  buildExportUrl?(params: AdapterParams, limitOverride?: number): string;
 
   /**
    * Fetch les valeurs de facettes depuis l'API pour les champs donnes.

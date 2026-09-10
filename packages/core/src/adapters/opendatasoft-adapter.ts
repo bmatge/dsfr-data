@@ -3,6 +3,11 @@
  *
  * Gere : construction d'URL ODSQL, pagination offset, parsing results/total_count,
  * facettes serveur (/facets endpoint), search template.
+ *
+ * Deux chemins de chargement complet (#689, ADR-106) : `/records` pagine
+ * (defaut) et `/exports/json` en une requete (`fetchMode: 'export'`), qui
+ * partagent la construction des clauses ODSQL. Le second retombe une fois sur
+ * le premier en cas d'erreur HTTP, et memorise ce repli.
  */
 
 import type {
@@ -126,6 +131,15 @@ function escapeOdsqlGroupBy(groupBy: string): string {
 export class OpenDataSoftAdapter implements ApiAdapter {
   readonly type = 'opendatasoft';
 
+  /**
+   * Jeux dont `/exports/json` a repondu en erreur HTTP (#689) : le repli sur
+   * `/records` est memorise par couple base + dataset, pour ne pas retenter
+   * l'export a chaque rafraichissement d'une source qui tourne en boucle.
+   * Cle volontairement grossiere : un portail sans endpoint d'export n'en a
+   * pour aucune de ses requetes.
+   */
+  private readonly _exportUnavailable = new Set<string>();
+
   readonly capabilities: AdapterCapabilities = {
     serverFetch: true,
     serverFacets: true,
@@ -153,8 +167,17 @@ export class OpenDataSoftAdapter implements ApiAdapter {
    * Sur une requete avec `group_by`, ODS renvoie `total_count` = taille de
    * page, pas le nombre de groupes (#641) : la valeur est ignoree, on boucle
    * jusqu'a une page incomplete et `totalCount` reste inconnu.
+   *
+   * `fetch-mode="export"` (#689, ADR-106) court-circuite cette pagination :
+   * une seule requete sur `/exports/json`, memes clauses ODSQL. Un echec HTTP
+   * de l'export retombe une fois sur la pagination `/records` ci-dessous.
    */
   async fetchAll(params: AdapterParams, signal: AbortSignal): Promise<FetchResult> {
+    if (params.fetchMode === 'export' && !this._exportUnavailable.has(this._datasetKey(params))) {
+      const exported = await this._fetchViaExport(params, signal);
+      if (exported) return exported;
+    }
+
     const fetchAllRecords = params.limit <= 0;
     const isGrouped = Boolean(params.groupBy);
     // max-records (#233) : plafond configurable — le 1000 historique n'est
@@ -272,27 +295,8 @@ export class OpenDataSoftAdapter implements ApiAdapter {
    * limitOverride et pageOrOffsetOverride controlent la pagination per-page.
    */
   buildUrl(params: AdapterParams, limitOverride?: number, pageOrOffsetOverride?: number): string {
-    const base = params.baseUrl || 'https://data.opendatasoft.com';
-    const url = new URL(`${base}/api/explore/v2.1/catalog/datasets/${params.datasetId}/records`);
-
-    if (params.select) {
-      url.searchParams.set('select', params.select);
-    } else if (params.aggregate && params.groupBy) {
-      url.searchParams.set('select', this._buildSelectFromAggregate(params));
-    }
-
-    const whereClause = params.where || params.filter;
-    if (whereClause) {
-      url.searchParams.set('where', whereClause);
-    }
-
-    if (params.groupBy) {
-      url.searchParams.set('group_by', escapeOdsqlGroupBy(params.groupBy));
-    }
-
-    if (params.orderBy) {
-      url.searchParams.set('order_by', toOdsOrderBy(params.orderBy));
-    }
+    const url = new URL(`${this._datasetUrl(params)}/records`);
+    this._applyOdsqlClauses(url, params);
 
     if (limitOverride !== undefined) {
       url.searchParams.set('limit', String(limitOverride));
@@ -304,6 +308,20 @@ export class OpenDataSoftAdapter implements ApiAdapter {
       url.searchParams.set('offset', String(pageOrOffsetOverride));
     }
 
+    return url.toString();
+  }
+
+  /**
+   * Construit l'URL de l'endpoint d'export JSON (#689) : memes clauses ODSQL
+   * que `/records` (meme echappement, meme traduction du tri), un seul
+   * `limit` qui porte sur la requete entiere et non sur une page.
+   */
+  buildExportUrl(params: AdapterParams, limitOverride?: number): string {
+    const url = new URL(`${this._datasetUrl(params)}/exports/json`);
+    this._applyOdsqlClauses(url, params);
+    if (limitOverride !== undefined) {
+      url.searchParams.set('limit', String(limitOverride));
+    }
     return url.toString();
   }
 
@@ -484,6 +502,108 @@ export class OpenDataSoftAdapter implements ApiAdapter {
   /** Delegue au parseur partage (convention d'alias unique field__fn, #269) */
   parseAggregates(aggExpr: string): QueryAggregate[] {
     return parseAggregates(aggExpr);
+  }
+
+  /** Racine du jeu de donnees : `{base}/api/explore/v2.1/catalog/datasets/{id}` */
+  private _datasetUrl(params: Pick<AdapterParams, 'baseUrl' | 'datasetId'>): string {
+    const base = params.baseUrl || 'https://data.opendatasoft.com';
+    return `${base}/api/explore/v2.1/catalog/datasets/${params.datasetId}`;
+  }
+
+  /** Cle de memorisation du repli export (#689) : un jeu sur un portail */
+  private _datasetKey(params: Pick<AdapterParams, 'baseUrl' | 'datasetId'>): string {
+    return this._datasetUrl(params);
+  }
+
+  /**
+   * Pose les clauses ODSQL communes a `/records` et `/exports/json` (#689) :
+   * `select` (explicite ou derive de l'agregat), `where`, `group_by` echappe
+   * (#641/#289) et `order_by` traduit. La pagination reste a l'appelant, elle
+   * n'a pas le meme sens sur les deux endpoints.
+   */
+  private _applyOdsqlClauses(url: URL, params: AdapterParams): void {
+    if (params.select) {
+      url.searchParams.set('select', params.select);
+    } else if (params.aggregate && params.groupBy) {
+      url.searchParams.set('select', this._buildSelectFromAggregate(params));
+    }
+
+    const whereClause = params.where || params.filter;
+    if (whereClause) {
+      url.searchParams.set('where', whereClause);
+    }
+
+    if (params.groupBy) {
+      url.searchParams.set('group_by', escapeOdsqlGroupBy(params.groupBy));
+    }
+
+    if (params.orderBy) {
+      url.searchParams.set('order_by', toOdsOrderBy(params.orderBy));
+    }
+  }
+
+  /**
+   * Plafond de lignes effectif d'un `fetchAll`, memes regles qu'en mode
+   * `records` : `max-records` s'il est pose (sinon le garde-fou historique de
+   * 1 000), rabote par un `limit` explicite plus petit.
+   */
+  private _effectiveCap(params: AdapterParams): number {
+    const maxRecords =
+      params.maxRecords && params.maxRecords > 0
+        ? params.maxRecords
+        : ODS_MAX_PAGES * ODS_PAGE_SIZE;
+    return params.limit > 0 ? Math.min(params.limit, maxRecords) : maxRecords;
+  }
+
+  /**
+   * Charge le jeu en une requete via `/exports/json` (#689, ADR-106).
+   *
+   * La reponse est un **tableau nu** : pas de `total_count`, donc la garde
+   * `max-records` (#233) et le signal `truncated` (#658) reposent sur le
+   * `limit = plafond + 1` — une ligne de trop signe une troncature.
+   *
+   * Retourne `null` quand l'export a repondu en erreur HTTP (portail sans
+   * endpoint d'export, clause refusee) : l'appelant repasse par `/records`,
+   * et le repli est memorise pour ce jeu. Une erreur reseau (abandon, hors
+   * ligne) n'est pas un repli et remonte telle quelle.
+   */
+  private async _fetchViaExport(
+    params: AdapterParams,
+    signal: AbortSignal
+  ): Promise<FetchResult | null> {
+    const cap = this._effectiveCap(params);
+    const apiUrl = this.buildExportUrl(params, cap + 1);
+    const url = getProxiedUrl(apiUrl, params.proxyUrl);
+
+    const response = await fetch(url, buildFetchOptions(params, apiUrl, signal));
+    if (!response.ok) {
+      this._exportUnavailable.add(this._datasetKey(params));
+      console.warn(
+        `[dsfr-data] opendatasoft: export JSON indisponible pour "${params.datasetId}" ` +
+          `(HTTP ${response.status} ${response.statusText}) — repli sur /records pour cette source, ` +
+          `l'export ne sera plus retente (fetch-mode="export", #689)`
+      );
+      return null;
+    }
+
+    const json = await response.json();
+    const rows: unknown[] = Array.isArray(json) ? json : json?.results || [];
+
+    const truncated = rows.length > cap;
+    if (truncated) {
+      console.warn(
+        `[dsfr-data] opendatasoft: export JSON tronque a ${cap} lignes pour "${params.datasetId}" ` +
+          `(total inconnu — plafond relevable via l'attribut max-records, #233)`
+      );
+    }
+
+    return {
+      data: truncated ? rows.slice(0, cap) : rows,
+      // L'export ne renvoie pas de total : inconnu, jamais une sentinelle (#270)
+      totalCount: undefined,
+      needsClientProcessing: false,
+      ...(truncated ? { truncated: true } : {}),
+    };
   }
 
   /**

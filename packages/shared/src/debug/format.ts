@@ -209,6 +209,9 @@ function formatInputs(node: StageNode, states: Record<string, StageState>): stri
     if (upstream?.status === 'error') {
       return `     reçoit — ← ${up} (en échec : plus rien ne descend)`;
     }
+    if (upstream?.status === 'waiting') {
+      return `     reçoit — ← ${up} (en attente d'un filtre)`;
+    }
     if (!upstream || upstream.rows === undefined) {
       return `     reçoit — ← ${up} (aucune donnée observée en amont)`;
     }
@@ -252,8 +255,15 @@ function formatFieldDelta(
  * sur le bus. Les déclarer « sans données » alors que leur amont vient de
  * livrer serait un faux négatif — c'est l'amont qui fait foi.
  */
-function statusLine(node: StageNode, state: StageState, upstreamHasData: boolean): string {
+function statusLine(
+  node: StageNode,
+  state: StageState,
+  upstreamHasData: boolean,
+  upstreamWaiting: boolean
+): string {
   switch (state.status) {
+    case 'waiting':
+      return "     ⏳ en attente d'un filtre (require-where) — aucune requête lancée";
     case 'loaded':
       return `     → ${plural(state.rows ?? 0, 'ligne')}, ${plural(state.fields?.length ?? 0, 'champ')}`;
     case 'error':
@@ -262,6 +272,11 @@ function statusLine(node: StageNode, state: StageState, upstreamHasData: boolean
       return '     … chargement en cours';
     default:
       if (node.role === 'display') {
+        // Un afficheur n'émet rien : son propre état reste `idle`. C'est
+        // l'amont qui dit s'il attend un filtre — le déclarer « rien reçu »
+        // signalerait une panne là où la page fait exactement ce qu'on lui
+        // a demandé (#690).
+        if (upstreamWaiting) return "     ⏳ en attente d'un filtre (require-where)";
         return upstreamHasData
           ? '     ✓ alimenté (un afficheur consomme sans réémettre)'
           : '     ⚠ aucune donnée reçue — rien à afficher';
@@ -366,7 +381,8 @@ export function formatTrace(trace: Trace, options: FormatOptions = {}): string {
       const upstream = trace.states[up];
       return !!upstream && upstream.status !== 'error' && (upstream.rows ?? 0) > 0;
     });
-    out.push(statusLine(node, state, upstreamHasData));
+    const upstreamWaiting = node.upstream.some((up) => trace.states[up]?.status === 'waiting');
+    out.push(statusLine(node, state, upstreamHasData, upstreamWaiting));
     out.push(...formatSkippedRows(node));
     out.push(...formatComputedColumns(node, opts));
 
@@ -456,9 +472,12 @@ export function summarizeTrace(trace: Trace): {
     if (!state) continue;
     if (state.status === 'error') alerts += 1;
     if (state.status === 'loaded' && state.rows === 0) alerts += 1;
+    // Un afficheur sous une étape en attente d'un filtre n'est pas une
+    // alerte : la page fait ce qu'on lui a demandé (#690).
     if (
       node.role === 'display' &&
       state.status === 'idle' &&
+      !node.upstream.some((up) => trace.states[up]?.status === 'waiting') &&
       !node.upstream.some((up) => {
         const upstream = trace.states[up];
         return !!upstream && upstream.status !== 'error' && (upstream.rows ?? 0) > 0;

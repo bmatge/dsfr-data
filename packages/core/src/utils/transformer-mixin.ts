@@ -39,11 +39,14 @@ import {
   dispatchDataLoaded,
   dispatchDataError,
   dispatchDataLoading,
+  dispatchDataIdle,
+  isDataIdle,
   dispatchSourceCommand,
   subscribeToSourceCommands,
   clearDataCache,
   clearDataMeta,
   type PaginationMeta,
+  type SourceCommandEvent,
 } from './data-bridge.js';
 import { reportConfigError, clearConfigError } from './config-error.js';
 
@@ -59,6 +62,7 @@ export interface TransformerInterface {
   emitTransformedData(data: unknown): void;
   emitTransformerError(error: Error): void;
   emitTransformerLoading(): void;
+  emitTransformerIdle(): void;
 }
 
 export function TransformerMixin<T extends Constructor<LitElement>>(superClass: T) {
@@ -142,6 +146,15 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
     }
 
     /**
+     * Commande aval reçue, AVANT son relais vers l'amont (#690). Permet à
+     * l'hôte d'observer les filtres qui transitent par lui (require-where)
+     * sans court-circuiter le relais.
+     */
+    protected onTransformerCommand(_cmd: Omit<SourceCommandEvent, 'sourceId'>): void {
+      // défaut : no-op
+    }
+
+    /**
      * Autorise la lecture du cache à l'abonnement. Query refuse entre une
      * commande envoyée et l'émission suivante — cache périmé (#276).
      */
@@ -214,7 +227,12 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
       this.transformerSources().forEach((sourceId, index) => {
         // Lecture du cache avant abonnement (évite la race si la source a
         // déjà émis), sauf veto de l'hôte
-        if (this.shouldReadInitialCache(sourceId)) {
+        // Un amont déjà en attente d'un filtre (#690) : son événement est
+        // passé et son cache est vide — sans cette relecture, ce nœud et tout
+        // son aval resteraient muets au lieu d'afficher « choisissez un filtre ».
+        if (isDataIdle(sourceId)) {
+          this.emitTransformerIdle();
+        } else if (this.shouldReadInitialCache(sourceId)) {
           const cached = getDataCache(sourceId);
           if (cached !== undefined) {
             this.onTransformerData(cached, sourceId, index);
@@ -233,12 +251,17 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
             },
             onLoading: () => this.emitTransformerLoading(),
             onError: (err: Error) => this.emitTransformerError(err),
+            // Une étape en attente d'un filtre ne livre rien : le relayer
+            // aval est la seule façon qu'a un afficheur derrière une chaîne
+            // de transformateurs de rendre l'état « idle » (#690).
+            onIdle: () => this.emitTransformerIdle(),
           })
         );
       });
 
       if (this.id && this.transformerCommandTarget()) {
         this._transformerUnsubCommands = subscribeToSourceCommands(this.id, (cmd) => {
+          this.onTransformerCommand(cmd);
           const target = this.transformerCommandTarget();
           // `origin` est écrasé par l'id du relayeur : c'est bien ce nœud-ci
           // qui adresse la commande à son amont (#603, purement diagnostique).
@@ -270,6 +293,19 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
       this._transformerError = error;
       this._transformerLoading = false;
       if (this.id) dispatchDataError(this.id, error);
+      this.requestUpdate();
+    }
+
+    /**
+     * Attente d'un filtre : état + propagation aval (#690).
+     *
+     * `dispatchDataIdle` purge le cache et la meta de CE nœud : l'aval monté
+     * plus tard ne doit pas retrouver les lignes du filtre précédent.
+     */
+    public emitTransformerIdle(): void {
+      this._transformerLoading = false;
+      this._transformerError = null;
+      if (this.id) dispatchDataIdle(this.id);
       this.requestUpdate();
     }
 
