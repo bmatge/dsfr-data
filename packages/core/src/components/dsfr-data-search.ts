@@ -1,11 +1,15 @@
 import { LitElement, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { escapeHtml } from '@dsfr-data/shared/lib';
+import type { ContextFilterLike } from '@dsfr-data/shared/lib';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { escapeColonValue } from '../utils/where.js';
 import { dispatchSourceCommand, getDataMeta } from '../utils/data-bridge.js';
 import { TransformerMixin } from '../utils/transformer-mixin.js';
+import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import type { SourceElement } from '../utils/source-element.js';
+import { CONTEXT_CONNECTED_EVENT, findContextById } from './dsfr-data-context.js';
+import type { DsfrDataContext } from './dsfr-data-context.js';
 
 type SearchOperator = 'contains' | 'starts' | 'words';
 
@@ -19,6 +23,49 @@ const DOWNSTREAM_LIVE_COUNT_TAGS: ReadonlySet<string> = new Set([
   'dsfr-data-list',
   'dsfr-data-display',
 ]);
+
+/**
+ * La recherche vue par le contexte (#678, ADR-104) : UN filtre `contains`
+ * sur le champ unique de `fields`. Le contexte diffuse a ses cibles (au
+ * dialecte de chacune : `like "%q%"` en ODSQL), porte l'URL et le tag.
+ */
+class SearchContextFilter implements ContextFilterLike {
+  readonly applyTo = '*';
+  readonly operator = 'contains';
+
+  constructor(private readonly host: DsfrDataSearch) {}
+
+  get field(): string {
+    return this.host._contextField();
+  }
+
+  get isConnected(): boolean {
+    return this.host.isConnected;
+  }
+
+  buildColonWhere(): string {
+    const term = this.host._effectiveTerm();
+    if (!term || !this.field) return '';
+    return `${this.field}:contains:${escapeColonValue(term)}`;
+  }
+
+  displayLabel(): string {
+    return this.host.label || 'Recherche';
+  }
+
+  displayValue(): string {
+    return this.host._effectiveTerm();
+  }
+
+  /** Meme chemin que la touche Echap : vide le champ et re-emet */
+  clear(): void {
+    this.host.clear();
+  }
+
+  urlValue(): string {
+    return this.host._effectiveTerm();
+  }
+}
 
 /**
  * <dsfr-data-search> - Recherche textuelle
@@ -39,8 +86,13 @@ const DOWNSTREAM_LIVE_COUNT_TAGS: ReadonlySet<string> = new Set([
  *   operator="words" count>
  * </dsfr-data-search>
  *
+ * En mode `context="id"` (#678, ADR-104), la recherche devient un filtre
+ * `contains` de <dsfr-data-context> sur le champ unique de `fields` : le
+ * contexte diffuse a toutes ses sources cibles, porte l'URL (parametre nomme
+ * d'apres le champ) et le tag. Elle n'emet plus de commande directe.
+ *
  * @fires dsfr-data-search-change - `{ query, count }` sur l'element — la saisie de recherche a change (pour synchroniser une UI de page).
- * @fires dsfr-data-source-command - `{ sourceId, where, whereKey, origin }` sur `document` — recherche relayee en filtre serveur vers la source amont. `origin` porte l'id de ce composant (#603).
+ * @fires dsfr-data-source-command - `{ sourceId, where, whereKey, origin }` sur `document` — recherche relayee en filtre serveur vers la source amont (hors mode `context`, ou c'est le contexte qui diffuse). `origin` porte l'id de ce composant (#603).
  */
 @customElement('dsfr-data-search')
 export class DsfrDataSearch extends TransformerMixin(LitElement) {
@@ -113,6 +165,18 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
   @property({ type: String, attribute: 'search-template' })
   searchTemplate = '';
 
+  /**
+   * Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la
+   * recherche devient un filtre `contains` du contexte sur le champ UNIQUE
+   * de `fields` (la clause colon ne sait pas dire « ou » entre plusieurs
+   * champs). Le contexte diffuse a ses cibles et porte l'URL (`url-sync`
+   * et `url-search-param` sont ignores — le parametre est nomme d'apres le
+   * champ, ou via `url-param-map` du contexte). Le contexte peut etre
+   * declare apres la recherche dans la page. Vide = comportement autonome.
+   */
+  @property({ type: String })
+  context = '';
+
   @state()
   private _allData: Record<string, unknown>[] = [];
 
@@ -131,6 +195,42 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
 
   private _debounceTimer: ReturnType<typeof setTimeout> | null = null;
   private _urlParamApplied = false;
+
+  /** Contexte resolu (mode `context`, #678) */
+  private _context: DsfrDataContext | null = null;
+
+  /** Le filtre unique enregistre aupres du contexte (#678) */
+  private _contextFilter: SearchContextFilter | null = null;
+
+  /** Derniere clause confiee au contexte — une donnee qui arrive ne re-diffuse pas un terme inchange */
+  private _lastPushedWhere: string | null = null;
+
+  /** Un contexte vise par id vient d'etre connecte : (re)bind si c'est le notre (#678) */
+  private _onContextConnected = (e: Event) => {
+    const id = (e as CustomEvent<{ id: string | null }>).detail?.id;
+    if (this.context && id === this.context) this._bindContext();
+  };
+
+  /** Mode `context` demande (que le contexte soit deja resolu ou non) */
+  private get _contextMode(): boolean {
+    return this.context.trim() !== '';
+  }
+
+  /** Synchro d'URL par la recherche elle-meme — desactivee en mode `context` */
+  private get _ownUrlSync(): boolean {
+    return this.urlSync && !!this.urlSearchParam && !this._contextMode;
+  }
+
+  /** Champ filtre en mode context : le champ unique de `fields` (vide sinon) */
+  _contextField(): string {
+    const fields = this._getFields();
+    return fields.length === 1 ? fields[0] : '';
+  }
+
+  /** Terme courant s'il atteint `min-length`, sinon vide (filtre inactif) */
+  _effectiveTerm(): string {
+    return this._term && this._term.length >= this.minLength ? this._term : '';
+  }
 
   // --- Public API (delegation to upstream source) ---
 
@@ -152,7 +252,7 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
   /**
    * Retourne le where effectif de la source amont (delegation transparente).
    */
-  public getEffectiveWhere(excludeKey?: string): string {
+  public getEffectiveWhere(excludeKey?: string | string[]): string {
     if (this.source) {
       const sourceEl = document.getElementById(this.source);
       if (sourceEl && 'getEffectiveWhere' in sourceEl) {
@@ -183,6 +283,12 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
   connectedCallback() {
     super.connectedCallback();
     sendWidgetBeacon('dsfr-data-search');
+    if (this._contextMode) {
+      document.addEventListener(CONTEXT_CONNECTED_EVENT, this._onContextConnected);
+      // Bind differe d'un tick : dans un meme fragment innerHTML, le contexte
+      // declare apres la recherche n'est pas encore upgrade
+      queueMicrotask(() => this._bindContext());
+    }
   }
 
   disconnectedCallback() {
@@ -191,11 +297,93 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
       clearTimeout(this._debounceTimer);
       this._debounceTimer = null;
     }
+    document.removeEventListener(CONTEXT_CONNECTED_EVENT, this._onContextConnected);
+    this._unbindContext();
+  }
+
+  willUpdate(changed: Map<PropertyKey, unknown>) {
+    super.willUpdate(changed);
+    // Changement de contexte a chaud (#678) : on libere l'ancien, on rejoint le nouveau
+    if (changed.has('context') && this.hasUpdated) {
+      this._unbindContext();
+      document.removeEventListener(CONTEXT_CONNECTED_EVENT, this._onContextConnected);
+      if (this._contextMode) {
+        document.addEventListener(CONTEXT_CONNECTED_EVENT, this._onContextConnected);
+        this._bindContext();
+      } else {
+        clearConfigError(this);
+      }
+    }
   }
 
   /** Parametres de recherche → re-filtrage local (#281) */
   protected transformerReprocessProps(): string[] {
     return ['fields', 'operator', 'minLength', 'highlight'];
+  }
+
+  // --- Mode context (#678, ADR-104) ---
+
+  /**
+   * Resout le contexte vise par `context="id"` et y enregistre le filtre.
+   * Le contexte peut arriver plus tard (declare apres dans la page) :
+   * l'erreur de config est posee en attendant et levee a sa connexion.
+   */
+  private _bindContext(): void {
+    if (!this.isConnected || !this._contextMode) return;
+    const context = findContextById(this.context);
+    if (context && context === this._context) return;
+    this._unbindContext();
+    if (!context) {
+      reportConfigError(
+        this,
+        'dsfr-data-search',
+        `dsfr-data-context introuvable : "${this.context}"`
+      );
+      return;
+    }
+    if (!this._contextField()) {
+      reportConfigError(
+        this,
+        'dsfr-data-search',
+        'en mode context, "fields" doit nommer un seul champ (filtre contains du contexte)'
+      );
+      return;
+    }
+    clearConfigError(this);
+    this._context = context;
+    this._contextFilter = new SearchContextFilter(this);
+    context._registerFilter(this._contextFilter);
+
+    // Terme initial depuis l'URL du contexte (#231, ADR-031) : il remplit le
+    // champ et repasse par le MEME chemin qu'une frappe
+    const urlValues = context._urlValuesFor(this._contextFilter.field);
+    if (urlValues && urlValues.length > 0) {
+      this._term = urlValues.join(',');
+    }
+    this._applyFilter();
+  }
+
+  /** Libere le filtre aupres du contexte (disconnect, changement de contexte) */
+  private _unbindContext(): void {
+    if (this._context && this._contextFilter) {
+      this._context._unregisterFilter(this._contextFilter);
+    }
+    this._context = null;
+    this._contextFilter = null;
+    this._lastPushedWhere = null;
+  }
+
+  /**
+   * Confie le terme courant au contexte, qui diffuse (#678). Deduplique :
+   * _applyFilter est aussi appele a chaque arrivee de donnees, et une source
+   * cible re-emet apres chaque commande — sans ce garde, boucle.
+   */
+  private _pushContextFilter(): void {
+    if (!this._context || !this._contextFilter) return;
+    const where = this._contextFilter.buildColonWhere();
+    if (where === (this._lastPushedWhere ?? '')) return;
+    this._lastPushedWhere = where;
+    this._context._applyFilter(this._contextFilter, where);
   }
 
   protected onTransformerReprocess(): void {
@@ -275,7 +463,7 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
     // In server-search mode with URL param, read the param and send the
     // command proactively BEFORE data arrives. This lets dsfr-data-source
     // include the search filter in the initial request.
-    if (this.serverSearch && this.urlSearchParam && !this._urlParamApplied) {
+    if (this.serverSearch && this.urlSearchParam && !this._contextMode && !this._urlParamApplied) {
       this._applyUrlSearchParam();
       this._urlParamApplied = true;
       if (this._term) {
@@ -313,8 +501,9 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
       // Re-emit under our own ID — meta posee AVANT le dispatch par le mixin
       this.emitTransformedData(rows);
 
-      // On first load with URL param, trigger server search
-      if (this.urlSearchParam && !this._urlParamApplied) {
+      // On first load with URL param, trigger server search (hors mode
+      // context, #678 : le terme d'URL vient alors du contexte, qui diffuse)
+      if (this.urlSearchParam && !this._contextMode && !this._urlParamApplied) {
         this._applyUrlSearchParam();
         this._urlParamApplied = true;
         if (this._term) {
@@ -332,9 +521,9 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
     this._applyFilter();
   }
 
-  /** Read URL search param and set as initial search term */
+  /** Read URL search param and set as initial search term (hors mode context, #678) */
   _applyUrlSearchParam() {
-    if (!this.urlSearchParam) return;
+    if (!this.urlSearchParam || this._contextMode) return;
     const params = new URLSearchParams(window.location.search);
     const value = params.get(this.urlSearchParam);
     if (value) {
@@ -343,8 +532,17 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
   }
 
   _applyFilter() {
-    // Server-search mode: delegate to upstream source via command
-    if (this.serverSearch && this.source) {
+    // Mode context (#678) : le contexte diffuse — la recherche ne commande
+    // plus sa source. En server-search elle laisse passer les donnees ; en
+    // local elle continue de filtrer son aval (inchange)
+    if (this._contextMode) {
+      this._pushContextFilter();
+      if (this.serverSearch) {
+        this._emitSearchChange(this._resultCount);
+        return;
+      }
+    } else if (this.serverSearch && this.source) {
+      // Server-search mode: delegate to upstream source via command
       this._applyServerSearch();
       return;
     }
@@ -395,11 +593,15 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
     dispatchSourceCommand(this.source, { where, whereKey: this.id, origin: this.id });
 
     // Sync URL if enabled
-    if (this.urlSync && this.urlSearchParam) {
+    if (this._ownUrlSync) {
       this._syncUrl();
     }
 
-    // Emit dsfr-data-search-change event
+    this._emitSearchChange(this._resultCount);
+  }
+
+  /** Emit dsfr-data-search-change event */
+  private _emitSearchChange(count: number): void {
     document.dispatchEvent(
       new CustomEvent('dsfr-data-search-change', {
         bubbles: true,
@@ -407,7 +609,7 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
         detail: {
           sourceId: this.id,
           term: this._term,
-          count: this._resultCount,
+          count,
         },
       })
     );
@@ -513,21 +715,11 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
 
     this.emitTransformedData(this._filteredData);
 
-    if (this.urlSync && this.urlSearchParam) {
+    if (this._ownUrlSync) {
       this._syncUrl();
     }
 
-    document.dispatchEvent(
-      new CustomEvent('dsfr-data-search-change', {
-        bubbles: true,
-        composed: true,
-        detail: {
-          sourceId: this.id,
-          term: this._term,
-          count: this._filteredData.length,
-        },
-      })
-    );
+    this._emitSearchChange(this._filteredData.length);
   }
 
   /** Sync current search term back to URL (replaceState) */

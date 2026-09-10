@@ -730,6 +730,22 @@ Sortie : même tableau, filtre selon les selections de l'utilisateur.
 | server-facets | Boolean | \`false\` | non | Active le mode facettes serveur ODS. Fetch les valeurs depuis l'API ODS /facets. Requiert une source dsfr-data-source api-type="opendatasoft" server-side (directement ou via un dsfr-data-query, qui relaie automatiquement). En mode server-facets, fields est obligatoire |
 | static-values | String | \`""\` | non | Valeurs de facettes pre-calculees en JSON : \`'{"region":["IDF","PACA"],"type":["Commune"]}')\`. Les selections envoient des commandes WHERE en colon syntax au dsfr-data-query. Compteurs masques automatiquement. Utile pour Tabular/Grist/generique qui n'ont pas d'API facettes serveur |
 | cols | String | \`""\` | non | Colonnage DSFR : \`"6"\` (global, 2/ligne), \`"4"\` (3/ligne), ou par facette \`"region:4 \\| type:6"\` (défaut fr-col-6 pour non-specifies) |
+| context | String | \`""\` | non | Id d'un dsfr-data-context (#678, ADR-104) : la facette devient un filtre du contexte, un par champ. Le contexte diffuse a toutes ses sources cibles (au dialecte de chacune), porte l'URL (url-sync / url-params de la facette ignores) et alimente context-tags. Valeurs, compteurs et cascade restent calcules sur \`source\`. Vide = mode autonome (commande directe a \`source\`) |
+
+### Mode context (#678) — un select peuple depuis la donnee, avec cascade
+\`\`\`html
+<dsfr-data-context id="ctx" sources="src-charges src-produits" url-sync></dsfr-data-context>
+<dsfr-data-facets id="geo" context="ctx" source="src-facettes" server-facets
+  fields="region,departement" display="region:select | departement:select"></dsfr-data-facets>
+<dsfr-data-context-tags for="ctx"></dsfr-data-context-tags>
+\`\`\`
+Zero <option> ecrite a la main : les valeurs viennent de l'API facettes, choisir une region
+restreint les departements (cascade server-facets), et les deux sources cibles se refiltrent
+ensemble. Un filtre par champ (eq une valeur, in plusieurs), whereKey stable \`uid + champ\`.
+Le contexte peut etre declare apres la facette dans la page. Ne PAS generer d'\`<option>\` en dur
+ni d'\`options-source\` sur context-filter (refuse) : c'est ce pattern qu'il faut.
+Migration d'une facette qui portait url-sync : reporter \`url-param-map\` sur le contexte
+(un parametre par champ, format du contexte).
 
 ### Modes d'affichage
 - **checkbox** (défaut) : fieldset DSFR avec checkboxes, compteurs, "Voir plus/moins", recherche optionnelle
@@ -857,6 +873,7 @@ Les compteurs de facettes se recalculent dynamiquement.
 | url-sync | Boolean | false | non | Synchronise l'URL quand l'utilisateur tape (replaceState) |
 | server-search | Boolean | false | non | Delegue la recherche au serveur (le dsfr-data-query amont relaie automatiquement vers la source server-side) |
 | search-template | String | \`'search("{q}")'\` | non | Template ODSQL pour la recherche serveur ({q} = terme) |
+| context | String | "" | non | Id d'un dsfr-data-context (#678) : la recherche devient un filtre \`contains\` du contexte sur le champ UNIQUE de \`fields\` (obligatoire). Le contexte diffuse a ses cibles, porte l'URL (parametre nomme d'apres le champ ; url-sync / url-search-param ignores) et le tag. Vide = mode autonome |
 
 ### Recherche serveur
 Avec \`server-search\`, au lieu de filtrer localement, dsfr-data-search envoie une commande
@@ -2942,6 +2959,16 @@ Sans contexte, chaque source reste autonome (defaut inchange).
 Les enfants <dsfr-data-context-filter> declarent chacun UN filtre. La clause est
 construite en colon (dialecte pivot) puis traduite au whereFormat de chaque adapter
 (ODSQL pour OpenDataSoft). Le disconnect du contexte libere tous ses filtres.
+
+### Un seul bus de diffusion (#678, ADR-104)
+
+Tout composant qui filtre peut etre un filtre du contexte via \`context="id"\` :
+<dsfr-data-context-filter context="ctx"> (place n'importe ou, plus seulement enfant),
+<dsfr-data-facets context="ctx"> (un filtre par champ, select peuple + cascade sans option
+en dur) et <dsfr-data-search context="ctx"> (filtre contains sur un champ). Le contexte
+diffuse, porte l'URL (un parametre par champ, url-sync unique) et alimente context-tags.
+Le contexte peut etre declare APRES ces composants dans la page : ils s'enregistrent a sa
+connexion. whereKey stable indexe sur \`uid + champ\` (insertion tardive sans decalage).
 ` + reference('dsfr-data-context'),
   },
 
@@ -2963,13 +2990,15 @@ La valeur vide RETIRE le filtre. Les valeurs sont percent-encodees (#271).
 |----------|------|--------|--------|-------------|
 | field | String | \`""\` | oui | Colonne filtree |
 | ui | String | \`""\` | oui | Id de l'element d'UI ecoute — DEUX ids (min max) pour between |
-| operator | String | \`"eq"\` | non | eq, in, lt, gte, between (between -> gte + lt), et dates (#230) : month-of, year-of, lt-day-after, last-n-days, current-year (bornes dynamiques recalculees a chaque diffusion) |
+| operator | String | \`"eq"\` | non | eq, in, lt, gte, between (between -> gte + lt), contains (sous-chaine, #678), et dates (#230) : month-of, year-of, lt-day-after, last-n-days, current-year (bornes dynamiques recalculees a chaque diffusion) |
 | apply-to | String | \`"*"\` | non | \`*\` = toutes les sources du contexte, ou liste d'ids cibles separes par des espaces |
 | label | String | \`""\` | non | Libelle naturel pour l'affichage (tags #232) — defaut : field |
+| context | String | \`""\` | non | Id du dsfr-data-context cible (#678) — permet de placer le filtre hors du contexte, meme declare avant lui. Vide = contexte parent le plus proche |
 
 ### Operateurs
 
 - \`eq\` : egalite — \`in\` : multi-valeurs (select multiple, valeurs jointes par | ou ,)
+- \`contains\` : sous-chaine (input texte ; \`like "%v%"\` en ODSQL) — #678
 - \`lt\` / \`gte\` : comparaisons — \`between\` : deux UI (min puis max) -> gte + lt
 - Dates (#230) : \`month-of\` (input type=month -> plage du mois), \`year-of\` (plage annuelle),
   \`lt-day-after\` (inclusif jusqu'au jour choisi), \`last-n-days\` (N derniers jours, borne
@@ -2993,7 +3022,8 @@ La valeur vide RETIRE le filtre. Les valeurs sont percent-encodees (#271).
 Affiche des tags DSFR supprimables : un tag par filtre actif du contexte observe
 (libelle naturel + valeur). La croix reinitialise le filtre en VIDANT son UI —
 meme chemin qu'un utilisateur qui efface le champ : sources, URL et tags se
-mettent a jour ensemble.
+mettent a jour ensemble. Tout type de filtre confondu (#678) : context-filter,
+champs d'une facets context="…", terme d'une search context="…".
 
 ### Attributs
 

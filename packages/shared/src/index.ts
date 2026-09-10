@@ -67,6 +67,7 @@ export type { DSFRChartType } from './charts/chart-types.js';
 
 // Query / Filters
 export { filterToOdsql, applyLocalFilter } from './query/filter-translator.js';
+export type { ContextFilterLike } from './query/context-filter.js';
 
 // API / Proxy
 export {
