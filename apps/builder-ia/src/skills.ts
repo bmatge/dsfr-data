@@ -2691,6 +2691,10 @@ rendu : switch chart/tableau integre, CSV natif). Conserver uniquement :
       'bornes',
       'fond atténué',
       'tiles-style',
+      'tiles-switcher',
+      'changer de fond',
+      'selecteur de fond',
+      'vue aérienne',
       'fit-zone',
       'contours',
       'fonds administratifs',
@@ -2732,6 +2736,7 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | tiles | String | \`"ign-plan"\` | Fond de carte : \`ign-plan\`, \`ign-ortho\`, \`ign-cadastre\`, \`osm-fr\` (alias : \`osm\`), \`osm-standard\`, \`opentopomap\`, ou URL template. Deprecies (redirigent vers \`ign-plan\` avec warning) : \`ign-topo\`, \`carto-positron\`, \`carto-dark\` |
 | tiles-attribution | String | \`""\` | Mention d'attribution quand \`tiles\` est une URL custom. Obligatoire (ODbL + CGU du fournisseur) ; ignore sur un preset connu |
 | tiles-style | String | \`""\` | Fond attenue pour une carte thematique : \`muted\` (gris + 55 % d'opacite) ou \`grey\` (niveaux de gris). Fond « neutre » = \`ign-plan\` + \`tiles-style="muted"\`. Les encarts heritent du reglage |
+| tiles-switcher | String | \`""\` | Fonds proposes au LECTEUR, separes par des virgules (\`"ign-plan,ign-ortho"\`). Rend un menu deroulant « Fond de carte » en haut a droite, utilisable au clavier ; les encarts suivent. Au moins deux presets connus, sinon rien ne s'affiche. Sans effet avec \`locked\` ou \`no-controls\` |
 | sovereign-only | Boolean | \`false\` | Restreint \`tiles\` aux presets IGN souverains. Tout autre preset (\`osm-fr\`, \`osm-standard\`, \`opentopomap\`...) ou URL custom est refuse avec \`console.warn\` et remplace par \`ign-plan\`. |
 | no-controls | Boolean | \`false\` | Masque les controles de zoom |
 | locked | Boolean | \`false\` | Carte verrouillee : aucune interaction (pan/zoom/clavier) — encarts, vignettes |
@@ -2809,6 +2814,26 @@ Presets deprecies (resolvent vers \`ign-plan\` avec un \`console.warn\`) :
 - \`carto-positron\`, \`carto-dark\` : CARTO exige desormais une clé API et filigrane les tuiles anonymes ("API KEY REQUIRED") en HTTP 200
 
 **Il n'y a pas de fond sombre souverain.** Ne pas proposer \`carto-dark\` : il ne fonctionne plus.
+
+### Laisser le lecteur choisir son fond (tiles-switcher)
+
+\`tiles\` fixe le fond pour toute la page ; \`tiles-switcher\` ouvre le choix au lecteur.
+
+\`\`\`html
+<dsfr-data-map center="46.6,2.3" zoom="6" tiles="ign-plan" tiles-switcher="ign-plan,ign-ortho">
+  <dsfr-data-map-layer source="sites" type="marker" geo-field="geo"></dsfr-data-map-layer>
+</dsfr-data-map>
+\`\`\`
+
+- Menu deroulant natif etiquete « Fond de carte », en haut a droite de la carte : atteint au clavier
+  avant la carte (juste apres le lien d'evitement), valeur annoncee par les lecteurs d'ecran.
+- Les entrees sont des **presets** (\`ign-plan\`, \`ign-ortho\`, \`ign-cadastre\`, \`osm-fr\`, \`osm-standard\`,
+  \`opentopomap\`, alias compris) ; une URL custom ou un nom inconnu est ecarte avec un \`console.warn\`.
+- Il faut au moins deux fonds differents apres resolution, sinon aucun selecteur n'est rendu.
+  Avec \`sovereign-only\`, ne declarer que des presets IGN — les autres retombent tous sur \`ign-plan\`.
+- Le fond courant est ajoute en tete s'il manque a la liste. Les encarts (\`insets\`) suivent le choix.
+- Evenement \`dsfr-data-map-tiles-change\` \`{ tiles }\` (bubbles, composed) a chaque bascule du lecteur.
+- Sans effet avec \`locked\` ou \`no-controls\`.
 
 ### Fond de carte custom (URL + clé API)
 
