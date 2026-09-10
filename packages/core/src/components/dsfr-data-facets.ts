@@ -24,6 +24,18 @@ const FACET_DISPLAY_MODES: ReadonlySet<string> = new Set<FacetDisplayMode>([
   'radio-inline',
 ]);
 
+/** Tri resolu d'une facette : critère et sens (#645, par champ depuis #741) */
+interface FacetSort {
+  by: 'count' | 'alpha';
+  dir: 'asc' | 'desc';
+}
+
+/** Critères de tri reconnus — sert aussi a distinguer forme globale et forme par champ (#741) */
+const FACET_SORT_CRITERIA: ReadonlySet<string> = new Set(['count', 'alpha']);
+
+/** Tri applique a un champ que `sort` ne nomme pas */
+const DEFAULT_FACET_SORT: FacetSort = { by: 'count', dir: 'desc' };
+
 interface FacetValue {
   value: string;
   count: number;
@@ -161,6 +173,14 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
    * Formes `-count` / `-alpha` DÉPRÉCIÉES : conservées à l'identique
    * (`-count` = rare d'abord, `-alpha` = Z -> A) mais un avertissement console
    * invite a passer a la forme explicite ; retrait dans une version majeure.
+   *
+   * Tri PAR CHAMP (#741), même grammaire à barre verticale que `labels`,
+   * `display` et `cols` : `champ:critere[:sens]`, par exemple
+   * `sort="annee:alpha:asc | categorie:count:desc"`. Une facette d'années se
+   * range alphabétiquement pendant qu'une facette de catégories reste rangée
+   * par fréquence, sans dupliquer le composant. Un champ non nommé garde le
+   * tri par défaut ; l'entrée `*:critere[:sens]` change ce défaut
+   * (`sort="*:alpha | annee:count:desc"`).
    */
   @property({ type: String })
   sort = 'count';
@@ -827,7 +847,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
       values.push({ value, count });
     }
 
-    return this._sortValues(values);
+    return this._sortValues(values, field);
   }
 
   /** Filter data by all active selections EXCEPT the given field */
@@ -851,14 +871,14 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   private _deprecatedSortWarned = new Set<string>();
 
   /**
-   * Resout l'attribut `sort` en (critère, sens) — grammaire `critere:sens`
-   * de `order-by` (#645). Les formes `-count` / `-alpha` restent acceptees
-   * avec leur sens historique mais sont signalees : le tiret y voulait dire
-   * « inverse du défaut » (croissant pour count, decroissant pour alpha),
-   * une convention ambigue qu'aucune forme explicite ne partage.
+   * Resout un critère de tri isole (`count`, `alpha`, `count:asc`…) en
+   * (critère, sens) — grammaire `critere:sens` de `order-by` (#645). Les
+   * formes `-count` / `-alpha` restent acceptees avec leur sens historique
+   * mais sont signalees : le tiret y voulait dire « inverse du défaut »
+   * (croissant pour count, decroissant pour alpha), une convention ambigue
+   * qu'aucune forme explicite ne partage.
    */
-  private _resolveSort(): { by: 'count' | 'alpha'; dir: 'asc' | 'desc' } {
-    const raw = (this.sort || '').trim();
+  private _resolveSortCriterion(raw: string): FacetSort {
     if (raw === '-count' || raw === '-alpha') {
       const by = raw === '-count' ? 'count' : 'alpha';
       const dir = by === 'count' ? 'asc' : 'desc';
@@ -873,14 +893,61 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
       return { by, dir };
     }
     const [byPart, dirPart] = raw.split(':');
-    const by = byPart === 'alpha' ? 'alpha' : 'count';
+    const by = byPart.trim() === 'alpha' ? 'alpha' : 'count';
     const defaultDir = by === 'count' ? 'desc' : 'asc';
-    const dir = dirPart === 'asc' || dirPart === 'desc' ? dirPart : defaultDir;
+    const trimmedDir = (dirPart ?? '').trim();
+    const dir = trimmedDir === 'asc' || trimmedDir === 'desc' ? trimmedDir : defaultDir;
     return { by, dir };
   }
 
-  _sortValues(values: FacetValue[]): FacetValue[] {
-    const { by, dir } = this._resolveSort();
+  /**
+   * Decoupe l'attribut `sort` en un tri par défaut et un tri par champ
+   * (#741). Une entrée est « par champ » des qu'elle porte trois segments
+   * (`annee:alpha:asc`) ou qu'elle en porte deux dont le premier n'est pas
+   * un critère (`annee:alpha`) : la forme globale historique (`count`,
+   * `alpha:desc`, `-count`) ne peut jamais prendre ces formes. Le champ `*`
+   * pose le tri par défaut des champs non nommes.
+   */
+  _parseSort(): { fallback: FacetSort; byField: Map<string, FacetSort> } {
+    const byField = new Map<string, FacetSort>();
+    const raw = (this.sort || '').trim();
+    if (!raw) return { fallback: DEFAULT_FACET_SORT, byField };
+
+    let fallback: FacetSort = DEFAULT_FACET_SORT;
+    for (const entry of raw.split('|')) {
+      const trimmed = entry.trim();
+      if (!trimmed) continue;
+      const segments = trimmed.split(':').map((s) => s.trim());
+      const perField =
+        segments.length >= 3 || (segments.length === 2 && !FACET_SORT_CRITERIA.has(segments[0]));
+      if (!perField) {
+        fallback = this._resolveSortCriterion(trimmed);
+        continue;
+      }
+      const field = segments[0];
+      if (!field) continue;
+      const criterion = this._resolveSortCriterion(segments.slice(1).join(':'));
+      if (field === '*') fallback = criterion;
+      else byField.set(field, criterion);
+    }
+    return { fallback, byField };
+  }
+
+  /**
+   * Tri effectif d'un champ : son entrée nommee, sinon le tri par défaut de
+   * l'attribut (#741). Sans champ, seul le tri par défaut s'applique.
+   */
+  private _resolveSort(field?: string): FacetSort {
+    const { fallback, byField } = this._parseSort();
+    if (field !== undefined) {
+      const own = byField.get(field);
+      if (own) return own;
+    }
+    return fallback;
+  }
+
+  _sortValues(values: FacetValue[], field?: string): FacetValue[] {
+    const { by, dir } = this._resolveSort(field);
     const sign = dir === 'asc' ? 1 : -1;
     const sorted = [...values];
     if (by === 'alpha') {
@@ -1157,7 +1224,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
             field: result.field,
             label:
               labelMap.get(result.field) ?? this._discoveredLabel(result.field) ?? result.field,
-            values: this._sortValues(result.values),
+            values: this._sortValues(result.values, result.field),
           });
         }
       } catch (e) {

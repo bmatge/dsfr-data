@@ -924,6 +924,26 @@ le jeu complet au montage est une requete couteuse dont personne ne regarde le r
 
 ---
 
+### Facettes : un tri different par champ
+
+`sort` accepte desormais la meme grammaire par champ que `labels`, `display` et `cols`
+(barre verticale, `champ:critere[:sens]`). Une facette d'annees se range A → Z pendant
+qu'une facette de categories reste rangee par frequence, sans dupliquer le composant :
+
+```html
+<dsfr-data-facets id="filtres" source="src" fields="annee, categorie"
+  sort="annee:alpha:asc | categorie:count:desc"></dsfr-data-facets>
+```
+
+- Un champ que `sort` ne nomme pas garde le tri par defaut (`count:desc`).
+- L'entree `*` change ce defaut : `sort="*:alpha | annee:count:desc"` range toutes les
+  facettes A → Z sauf `annee`.
+- Les formes globales historiques restent valides telles quelles (`count`, `alpha`,
+  `count:asc`, `alpha:desc`), y compris les formes depreciees `-count` / `-alpha`, qui
+  continuent d'avertir en console.
+- Un champ qui s'appelle litteralement `count` ou `alpha` se nomme sans ambiguite en
+  trois segments : `sort="count:alpha:desc"` trie le champ `count` de Z a A.
+
 ---
 
 ## Ressources
