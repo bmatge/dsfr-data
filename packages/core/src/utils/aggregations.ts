@@ -55,7 +55,13 @@ export const META_TOTAL_EXPR = 'meta:total';
  * (`count:statut:ouvert / count`). Sans espaces, `/` reste un caractère de
  * nom de champ (`km/h:avg`).
  */
-const RATIO_SEPARATOR = /\s+\/\s+/;
+/**
+ * Séparateur de ratio (#673) : ` / ` entouré d'espaces, pour que `km/h:avg`
+ * reste un nom de champ. Les suites d'espaces sont d'abord repliées en un
+ * seul (regex linéaire) puis la coupe est littérale — pas de `\s+\/\s+`,
+ * polynomial sur une longue suite d'espaces (CodeQL js/polynomial-redos).
+ */
+const RATIO_SEPARATOR = ' / ';
 
 /** Fonctions d'agrégat acceptées par dsfr-data-kpi (grammaire "champ:fn"). */
 export const KPI_AGGREGATION_TYPES: readonly AggregationType[] = [
@@ -119,7 +125,7 @@ export function parseExpression(expression: string): ParsedExpression {
   // Ratio (#673) : deux côtés séparés par ` / `, chacun parsé avec la
   // grammaire mono-expression. Un côté invalide invalide le tout, avec le
   // message du côté fautif ; plus d'un séparateur est refusé.
-  const sides = trimmed.split(RATIO_SEPARATOR);
+  const sides = trimmed.replace(/\s+/g, ' ').split(RATIO_SEPARATOR);
   if (sides.length > 1) {
     if (sides.length > 2 || sides.some((side) => side === '')) {
       return {
