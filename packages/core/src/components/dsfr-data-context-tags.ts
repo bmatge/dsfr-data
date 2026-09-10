@@ -149,35 +149,35 @@ export class DsfrDataContextTags extends LitElement {
           : html`
               <ul class="fr-tags-group" role="list">
                 ${entries.map(
-                (entry) => html`
-                  <li>
-                    <button
-                      type="button"
-                      class="fr-tag fr-tag--sm fr-tag--dismiss"
-                      aria-label="Retirer le filtre ${entry.filter.displayLabel()} : ${entry.value}"
-                      @click="${() => this._remove(entry)}"
-                    >
-                      ${entry.filter.displayLabel()}&nbsp;: ${entry.value}
-                    </button>
-                  </li>
-                `
-              )}
+                  (entry) => html`
+                    <li>
+                      <button
+                        type="button"
+                        class="fr-tag fr-tag--sm fr-tag--dismiss"
+                        aria-label="Retirer le filtre ${entry.filter.displayLabel()} : ${entry.value}"
+                        @click="${() => this._remove(entry)}"
+                      >
+                        ${entry.filter.displayLabel()}&nbsp;: ${entry.value}
+                      </button>
+                    </li>
+                  `
+                )}
                 ${
-                this.clearAll
-                  ? html`
-                      <li>
-                        <button
-                          type="button"
-                          class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-left fr-icon-close-circle-line"
-                          data-action="clear-all"
-                          @click="${this._clearAll}"
-                        >
-                          Tout effacer
-                        </button>
-                      </li>
-                    `
-                  : nothing
-              }
+                  this.clearAll
+                    ? html`
+                        <li>
+                          <button
+                            type="button"
+                            class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-left fr-icon-close-circle-line"
+                            data-action="clear-all"
+                            @click="${this._clearAll}"
+                          >
+                            Tout effacer
+                          </button>
+                        </li>
+                      `
+                    : nothing
+                }
               </ul>
             `
       }
