@@ -494,11 +494,12 @@ describe('DsfrDataKpi', () => {
     });
   });
 
-  describe('decimals / unit (#665)', () => {
+  describe('decimals / unit / format="date" (#665, #667)', () => {
     /** Vue interne du composant (membres privés inspectés par les tests). */
     interface KpiInternals {
       _sourceData: unknown;
       _getAriaLabel(): string;
+      _getColor(): string;
     }
     const internals = () => kpi as unknown as KpiInternals;
     let seq = 0;
@@ -553,7 +554,38 @@ describe('DsfrDataKpi', () => {
       kpi.remove();
     });
 
-    it('une chaîne reste affichée telle quelle (littéral value="=87 %")', async () => {
+    it('AC #667 : value="maj:max" format="date" → « 09/09/2026 »', async () => {
+      kpi.value = 'maj:max';
+      kpi.format = 'date';
+      await mount([{ maj: '2026-09-01' }, { maj: '2026-09-09' }, { maj: '2026-08-30' }]);
+      expect(valueText()).toBe('09/09/2026');
+      expect(kpi.hasAttribute('data-dsfr-config-error')).toBe(false);
+      kpi.remove();
+    });
+
+    it('format="date" avec first (source triée) et avec un littéral', async () => {
+      kpi.value = 'gazole_maj:first';
+      kpi.format = 'date';
+      await mount([{ gazole_maj: '2026-09-09T06:00:00Z' }]);
+      expect(valueText()).toMatch(/^\d{2}\/09\/2026$/);
+
+      kpi.value = '=2026-01-15';
+      await kpi.updateComplete;
+      expect(valueText()).toBe('15/01/2026');
+      kpi.remove();
+    });
+
+    it('format="date" : « — » sur une valeur illisible, couleur bleu (pas de seuil)', async () => {
+      kpi.value = 'maj';
+      kpi.format = 'date';
+      kpi.thresholdGreen = 10;
+      await mount([{ maj: 'hier' }]);
+      expect(valueText()).toBe('—');
+      expect(internals()._getColor()).toBe('bleu');
+      kpi.remove();
+    });
+
+    it('sans format="date", une chaîne reste affichée telle quelle (littéral value="=87 %")', async () => {
       kpi.value = '=87 %';
       kpi.unit = '€';
       document.body.appendChild(kpi);
@@ -571,7 +603,7 @@ describe('DsfrDataKpi', () => {
       const marker = kpi.getAttribute('data-dsfr-config-error') || '';
       expect(marker).toContain('format="euro:3"');
       expect(marker).toContain('decimals="3"');
-      expect(marker).toContain('nombre, pourcentage, euro, decimal, compact');
+      expect(marker).toContain('nombre, pourcentage, euro, decimal, compact, date');
       expect(kpi.querySelector('.dsfr-data-status--config-error')).not.toBeNull();
       expect(kpi.querySelector('.dsfr-data-kpi__value')).toBeNull();
 

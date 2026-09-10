@@ -10,13 +10,13 @@
  * Options (#665) : `decimals` fixe le nombre de decimales affichees (defauts
  * INCHANGES quand absent — les previews consomment la meme famille), `unit`
  * accole un suffixe apres une espace insecable (U+00A0, celle qu'Intl fr-FR
- * place avant « € », « % » et « Md »). Pas de grammaire `euro:3` : les
- * decimales passent par l'option.
+ * place avant « € », « % » et « Md »). `format="date"` (#667) delegue a
+ * formatDate. Pas de grammaire `euro:3` : les decimales passent par l'option.
  */
 
 import { toNumber } from './number-parser.js';
 
-export type FormatType = 'nombre' | 'pourcentage' | 'euro' | 'decimal' | 'compact';
+export type FormatType = 'nombre' | 'pourcentage' | 'euro' | 'decimal' | 'compact' | 'date';
 
 /** Formats acceptes par `formatValue` et par l'attribut `format` de dsfr-data-kpi. */
 export const FORMAT_TYPES: readonly FormatType[] = [
@@ -25,6 +25,7 @@ export const FORMAT_TYPES: readonly FormatType[] = [
   'euro',
   'decimal',
   'compact',
+  'date',
 ];
 
 /** Garde de type : `format` est-il un FormatType connu ? (`euro:3` est refuse, #665) */
@@ -37,12 +38,12 @@ export interface FormatValueOptions {
   /**
    * Nombre de decimales affichees (fixe : min = max), entier 0..20.
    * Sur `compact`, plafond seulement (« 42 » reste « 42 », pas « 42,0 »).
-   * Absent : defauts historiques de chaque format.
+   * Ignore sur `date`. Absent : defauts historiques de chaque format.
    */
   decimals?: number;
   /**
    * Suffixe accole apres une espace insecable (« 44,9 Md € »). Ignore sur
-   * une valeur non formatable (« — » reste seul).
+   * `date` et sur une valeur non formatable (« — » reste seul).
    */
   unit?: string;
 }
@@ -60,6 +61,7 @@ function sanitizeDecimals(decimals: number | undefined): number | undefined {
 /**
  * Formate un nombre selon le type specifie — '—' pour le non-numerique
  * (toNumber strict #301 : '1 234,5' est parse, 'abc' rend '—', jamais 0).
+ * `format="date"` accepte une chaine ISO (ou un timestamp) et rend JJ/MM/AAAA.
  */
 export function formatValue(
   value: number | string | null | undefined,
@@ -68,6 +70,10 @@ export function formatValue(
 ): string {
   if (value === null || value === undefined || value === '') {
     return '—';
+  }
+
+  if (format === 'date') {
+    return formatDate(typeof value === 'number' ? new Date(value) : value);
   }
 
   const parsed = typeof value === 'string' ? toNumber(value, true) : value;
@@ -166,9 +172,18 @@ export function formatDecimal(value: number, decimals?: number): string {
   }).format(value);
 }
 
-/** Date au format francais JJ/MM/AAAA — '—' si invalide */
+/** Date calendaire ISO sans heure (AAAA-MM-JJ). */
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Date au format francais JJ/MM/AAAA — '—' si invalide.
+ * Une date calendaire seule (AAAA-MM-JJ) est rendue en UTC : `new Date` la
+ * lit a minuit UTC, un fuseau a l'ouest de Greenwich la ferait glisser
+ * d'un jour.
+ */
 export function formatDate(value: string | Date): string {
-  const date = typeof value === 'string' ? new Date(value) : value;
+  const text = typeof value === 'string' ? value.trim() : null;
+  const date = text !== null ? new Date(text) : (value as Date);
 
   if (isNaN(date.getTime())) {
     return '—';
@@ -178,6 +193,7 @@ export function formatDate(value: string | Date): string {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
+    ...(text !== null && DATE_ONLY_RE.test(text) ? { timeZone: 'UTC' } : {}),
   }).format(date);
 }
 

@@ -235,6 +235,29 @@ describe('formatValue — options decimals / unit (#665)', () => {
   });
 });
 
+describe('formatValue — format="date" (#667)', () => {
+  it('AC : chaîne ISO → « 09/09/2026 »', () => {
+    expect(formatValue('2026-09-09', 'date')).toBe('09/09/2026');
+  });
+
+  it('datetime ISO et timestamp numérique', () => {
+    expect(formatValue('2026-09-09T10:30:00Z', 'date')).toMatch(/^\d{2}\/09\/2026$/);
+    expect(formatValue(Date.UTC(2026, 8, 9, 12), 'date')).toMatch(/^\d{2}\/09\/2026$/);
+  });
+
+  it('« — » si vide ou illisible ; decimals/unit sans effet', () => {
+    expect(formatValue('', 'date')).toBe('—');
+    expect(formatValue('pas une date', 'date')).toBe('—');
+    expect(formatValue('2026-09-09', 'date', { decimals: 2, unit: '€' })).toBe('09/09/2026');
+  });
+
+  it("formatDate : une date calendaire seule ne glisse pas d'un jour selon le fuseau", () => {
+    // AAAA-MM-JJ est lu à minuit UTC par `new Date` ; rendu en UTC pour garder le jour.
+    expect(formatDate('2025-01-15')).toBe('15/01/2025');
+    expect(formatDate(' 2025-12-31 ')).toBe('31/12/2025');
+  });
+});
+
 describe('formatNumberFr — nombre fr-FR typeof number (#665, réutilisé par list/a11y)', () => {
   const norm = (s: string) => s.replace(/\s/g, ' ');
 
@@ -257,12 +280,13 @@ describe('formatNumberFr — nombre fr-FR typeof number (#665, réutilisé par l
 });
 
 describe('FORMAT_TYPES / isFormatType (#665)', () => {
-  it('liste les cinq formats', () => {
-    expect(FORMAT_TYPES).toEqual(['nombre', 'pourcentage', 'euro', 'decimal', 'compact']);
+  it('liste les six formats, date inclus', () => {
+    expect(FORMAT_TYPES).toEqual(['nombre', 'pourcentage', 'euro', 'decimal', 'compact', 'date']);
   });
 
   it('refuse la grammaire colon « euro:3 » et les inconnus', () => {
     expect(isFormatType('euro')).toBe(true);
+    expect(isFormatType('date')).toBe(true);
     expect(isFormatType('euro:3')).toBe(false);
     expect(isFormatType('number')).toBe(false);
     expect(isFormatType(undefined)).toBe(false);

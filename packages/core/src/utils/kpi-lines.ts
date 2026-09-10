@@ -17,7 +17,7 @@ export interface KpiLineSpec {
   value?: string;
   /** Texte statique. Ignore si `value` est fourni. */
   text?: string;
-  /** Format de la valeur calculee. Defaut "pourcentage". */
+  /** Format de la valeur calculee. Defaut "pourcentage" ; "date" lit une chaine ISO (#667). */
   format?: FormatType;
   /** Nombre de decimales affichees (entier 0..20), memes regles que l'attribut `decimals` du KPI (#665). */
   decimals?: number;
@@ -94,6 +94,24 @@ export function resolveKpiLine(spec: KpiLineSpec, data: unknown): ResolvedKpiLin
   // Ligne data-driven : la valeur prime sur le texte statique.
   if (spec.value) {
     const raw = computeAggregation(data, spec.value);
+
+    // Ligne date (#667) : la valeur est une chaine ISO (first/last/min/max),
+    // pas un nombre — formatee JJ/MM/AAAA, repli `na` si illisible.
+    if (spec.format === 'date') {
+      const formatted = formatValue(raw, 'date');
+      if (formatted === '—') {
+        if (spec.na == null) return null;
+        return {
+          text: joinParts(spec.prefix, spec.na, spec.suffix),
+          color: resolveColor(spec.color === 'auto' ? undefined : spec.color, null),
+        };
+      }
+      return {
+        text: joinParts(spec.prefix, formatted, spec.suffix),
+        color: resolveColor(spec.color === 'auto' ? undefined : spec.color, null),
+      };
+    }
+
     const num = typeof raw === 'number' && Number.isFinite(raw) ? raw : null;
     if (num === null) {
       // Donnee absente, Infinity (division par zero), non-nombre : repli `na`

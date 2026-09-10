@@ -962,11 +962,11 @@ Attend un tableau d'objets. L'attribut \`valeur\` determine comment extraire/agr
 | label | String | \`""\` | non | Libelle sous la valeur (et sous les \`lines\`) |
 | description | String | \`""\` | non | Description pour accessibilité (sr-only) |
 | icon | String | \`""\` | non | Classe Remix Icon : \`ri-global-line\`, \`ri-money-euro-circle-line\`, etc. Alias deprecie : \`icone\` |
-| format | String | \`"nombre"\` | non | Format : nombre, pourcentage, euro, decimal, compact (14,8 M). Les decimales passent par \`decimals\`, jamais par le format (\`euro:3\` est refuse : erreur de configuration) |
-| decimals | Number | - | non | Nombre de decimales affichees (0-20), ex. \`format="euro" decimals="3"\` -> « 1,749 € ». Fixe pour nombre/pourcentage/euro/decimal, plafond pour compact |
+| format | String | \`"nombre"\` | non | Format : nombre, pourcentage, euro, decimal, compact (14,8 M), date (chaine ISO -> 09/09/2026). Les decimales passent par \`decimals\`, jamais par le format (\`euro:3\` est refuse : erreur de configuration) |
+| decimals | Number | - | non | Nombre de decimales affichees (0-20), ex. \`format="euro" decimals="3"\` -> « 1,749 € ». Fixe pour nombre/pourcentage/euro/decimal, plafond pour compact, sans effet sur date |
 | unit | String | \`""\` | non | Unite accolee apres la valeur (espace insecable), ex. \`format="compact" unit="€"\` -> « 44,9 Md € ». Inutile avec euro et pourcentage (symbole deja present) |
 | trend | String | \`""\` | non | RACCOURCI HERITE (preferez \`lines\`). Expression d'agregation \`"champ:fn"\` (\`"evolution:avg"\`) — PAS un litteral. Rendue avec une fleche en pourcentage fr-FR (\`↑ 5,2 %\`). Alias deprecie : \`tendance\` |
-| lines | String | \`""\` | non | Lignes secondaires declaratives (JSON), rendues ENTRE la valeur et le \`label\`. Chaque item : \`value\` (expression \`champ:fn\`) OU \`text\` (statique), + \`format\`, \`decimals\`, \`unit\`, \`sign\`, \`prefix\`, \`suffix\`, \`color\` (\`"auto"\`=vert si >=0/rouge si <0, token DSFR, ou couleur CSS), \`na\` (repli si non fini). Ex. \`[{"value":"evol:avg","sign":true,"suffix":"vs mai 2025","color":"auto"}]\` |
+| lines | String | \`""\` | non | Lignes secondaires declaratives (JSON), rendues ENTRE la valeur et le \`label\`. Chaque item : \`value\` (expression \`champ:fn\`) OU \`text\` (statique), + \`format\` (dont \`"date"\`), \`decimals\`, \`unit\`, \`sign\`, \`prefix\`, \`suffix\`, \`color\` (\`"auto"\`=vert si >=0/rouge si <0, token DSFR, ou couleur CSS), \`na\` (repli si non fini). Ex. \`[{"value":"evol:avg","sign":true,"suffix":"vs mai 2025","color":"auto"}]\` |
 | color-token | String | \`""\` | non | Forcer la couleur (token semantique DSFR) : vert, orange, rouge, bleu. Alias deprecies : \`color\`, \`couleur\` |
 | threshold-green | Number | - | non | Seuil au-dessus duquel couleur = vert. Alias deprecie : \`seuil-vert\` |
 | threshold-orange | Number | - | non | Seuil au-dessus duquel couleur = orange (en-dessous = rouge). Alias deprecie : \`seuil-orange\` |
@@ -975,6 +975,10 @@ Attend un tableau d'objets. L'attribut \`valeur\` determine comment extraire/agr
 Fonctions acceptées dans \`value\`, \`trend\` et \`lines\` : avg, sum, count, min, max, first, last.
 Toute autre fonction (ex. \`"x:somme"\`) affiche une erreur de configuration à la place du KPI
 (console + \`data-dsfr-config-error\`) — jamais une valeur vide.
+
+Dates : \`min\`/\`max\` acceptent une colonne de dates ISO (\`AAAA-MM-JJ\` ou datetime) et renvoient
+la date la plus ancienne/récente ; \`first\`/\`last\` renvoient la chaîne brute. Avec \`format="date"\`,
+la valeur est rendue JJ/MM/AAAA : \`value="maj:max" format="date"\` -> « 09/09/2026 ».
 
 ### Grouper des KPIs : \`<dsfr-data-kpi-group>\`
 Utiliser \`<dsfr-data-kpi-group>\` pour disposer plusieurs KPIs en grille responsive :
@@ -3203,7 +3207,7 @@ compte pas (peut etre place apres les composants).
     id: 'attributeGrammars',
     name: 'Grammaires d’attributs et voies natives',
     description:
-      'Par attribut, la grammaire exacte et la voie native a essayer AVANT d’ecrire un script : split, round, format compact, decimales et unite d’un KPI, compteur de resultats, facettes radio/select/cascade, annee en cours, cles de jointure, valeurs nulles, fond de carte neutre ou administratif, nom de serie, treemap',
+      'Par attribut, la grammaire exacte et la voie native a essayer AVANT d’ecrire un script : split, round, format compact, decimales et unite d’un KPI, format date, compteur de resultats, facettes radio/select/cascade, annee en cours, cles de jointure, valeurs nulles, fond de carte neutre ou administratif, nom de serie, treemap',
     trigger: [
       'grammaire',
       'voie native',
@@ -3217,6 +3221,8 @@ compte pas (peut etre place apres les composants).
       'compact',
       'abrege',
       'unite',
+      'date de mise a jour',
+      'derniere mise a jour',
       'nombre de resultats',
       'compteur de resultats',
       'total serveur',
@@ -3289,8 +3295,8 @@ etre n’importe quel caractere, y compris \`|\`, \`;\` ou \`/\` :
 ### Abreger un grand nombre : format compact (14,8 M)
 
 \`dsfr-data-kpi format="compact"\` existe : 14 785 684 -> « 14,8 M », 6 676 -> « 6,7 k »
-(notation compacte fr-FR, 1 decimale max). Les cinq formats : \`nombre\` (defaut),
-\`pourcentage\`, \`euro\`, \`decimal\`, \`compact\`.
+(notation compacte fr-FR, 1 decimale max). Les six formats : \`nombre\` (defaut),
+\`pourcentage\`, \`euro\`, \`decimal\`, \`compact\`, \`date\`.
 
 \`\`\`html
 <dsfr-data-kpi source="stats" value="population:sum" format="compact" label="Habitants"></dsfr-data-kpi>
@@ -3306,6 +3312,15 @@ etre n’importe quel caractere, y compris \`|\`, \`;\` ou \`/\` :
 
 \`\`\`html
 <dsfr-data-kpi source="carburants" value="gazole_prix:avg" format="euro" decimals="3" label="Gazole"></dsfr-data-kpi>
+\`\`\`
+
+### Afficher une date (format date, min/max sur dates ISO)
+
+\`format="date"\` rend une chaine ISO en JJ/MM/AAAA ; \`min\`/\`max\` acceptent une colonne de
+dates ISO (la plus ancienne / la plus recente), \`first\`/\`last\` la chaine brute :
+
+\`\`\`html
+<dsfr-data-kpi source="carburants" value="maj:max" format="date" label="Derniere mise a jour"></dsfr-data-kpi>
 \`\`\`
 
 ### Compteur de resultats et total serveur (count, server-search)

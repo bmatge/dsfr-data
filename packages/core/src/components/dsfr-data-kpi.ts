@@ -87,7 +87,7 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
 
   /**
    * Format d'affichage : nombre (défaut), pourcentage, euro, decimal, compact
-   * (14 785 684 → « 14,8 M »).
+   * (14 785 684 → « 14,8 M »), date (chaîne ISO → « 09/09/2026 », #667).
    * Les décimales passent par `decimals`, jamais par le format (`euro:3` est
    * refusé et affiché comme erreur de configuration, #665).
    */
@@ -97,7 +97,7 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
   /**
    * Nombre de décimales affichées (entier 0 à 20), ex. `format="euro" decimals="3"`
    * → « 1,749 € ». Fixe pour nombre, pourcentage, euro et decimal ; plafond pour
-   * compact. Absent : défaut historique du format (#665).
+   * compact ; sans effet sur date. Absent : défaut historique du format (#665).
    */
   @property({ type: Number })
   decimals?: number;
@@ -229,10 +229,10 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
   /**
    * Texte affiché pour la valeur calculée : `format` + `decimals` + `unit`
    * (#665). Une chaîne (littéral `value="=87 %"`, champ texte) est rendue
-   * telle quelle.
+   * telle quelle — sauf `format="date"`, qui la lit comme date ISO (#667).
    */
   private _formatDisplay(value: number | string | null): string {
-    if (typeof value === 'string') return value;
+    if (typeof value === 'string' && this.format !== 'date') return value;
     return formatValue(value, this.format, { decimals: this.decimals, unit: this.unit });
   }
 
